@@ -5,9 +5,22 @@ from pathlib import Path
 
 import pytest
 
-from fetchers.prices import parse_chart
+import db
+import seed
+from fetchers.prices import PricesFetcher, parse_chart
 
 FIXTURE = Path(__file__).parent / "fixtures" / "yahoo_chart_lly.json"
+
+
+def test_yahoo_symbol_uses_us_adr_for_foreign_names(tmp_path):
+    # A US filer quotes by its ticker; foreign names quote by their US ADR (ROG->RHHBY
+    # Roche), never the home ticker, which would resolve to an unrelated US company.
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    assert PricesFetcher("LLY", db_file)._yahoo_symbol() == "LLY"
+    assert PricesFetcher("ROG", db_file)._yahoo_symbol() == "RHHBY"
+    assert PricesFetcher("BAYN", db_file)._yahoo_symbol() == "BAYRY"
 
 
 def _payload():

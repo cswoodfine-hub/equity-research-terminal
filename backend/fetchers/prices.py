@@ -94,9 +94,26 @@ class PricesFetcher(BaseFetcher):
     def entity_key(self) -> str:
         return self.ticker
 
+    def _yahoo_symbol(self) -> str:
+        """The tradable US symbol to quote: the US ADR ticker if set, else the ticker.
+
+        Foreign names must be quoted by their US ADR (ROG -> RHHBY Roche, BAYN -> BAYRY
+        Bayer), not their home-exchange ticker, which either 404s or, worse, resolves to
+        an unrelated US company (bare ROG is Rogers Corporation)."""
+        conn = db.get_connection(self.db_path)
+        try:
+            row = conn.execute(
+                "SELECT us_adr_ticker FROM companies WHERE ticker = ?", (self.ticker,)
+            ).fetchone()
+        finally:
+            conn.close()
+        adr = (row["us_adr_ticker"] or "").strip() if row else ""
+        return adr or self.ticker
+
     def fetch(self) -> dict:
+        symbol = self._yahoo_symbol()
         query = urllib.parse.urlencode({"range": CHART_RANGE, "interval": CHART_INTERVAL})
-        url = f"{CHART_URL.format(ticker=urllib.parse.quote(self.ticker))}?{query}"
+        url = f"{CHART_URL.format(ticker=urllib.parse.quote(symbol))}?{query}"
         request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
         with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
             return json.loads(resp.read().decode("utf-8"))
