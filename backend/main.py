@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import json
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 
+import comps as comps_module
 import db
 import refresh as refresh_module
 
@@ -108,7 +110,44 @@ def company_prices(ticker: str) -> dict:
     }
 
 
+@app.get("/companies/{ticker}/financials")
+def company_financials(ticker: str) -> dict:
+    ticker = ticker.upper()
+    conn = db.get_connection()
+    try:
+        company = conn.execute(
+            "SELECT id FROM companies WHERE ticker = ?", (ticker,)
+        ).fetchone()
+        if company is None:
+            raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+        rows = [
+            dict(r)
+            for r in conn.execute(
+                """
+                SELECT metric, period_end, period_type, value, unit, fiscal_year
+                  FROM financials
+                 WHERE company_id = ?
+                 ORDER BY metric, period_end
+                """,
+                (company["id"],),
+            )
+        ]
+    finally:
+        conn.close()
+    return {"ticker": ticker, "rows": rows}
+
+
+@app.get("/comps")
+def comps() -> list[dict]:
+    return comps_module.build_comps()
+
+
 @app.post("/refresh")
-def refresh(ticker: str = Query(default=refresh_module.DEFAULT_TICKER)) -> dict:
-    """Run a refresh for one company and return the run row with per-source detail."""
+def refresh(
+    ticker: str = Query(default=refresh_module.DEFAULT_TICKER),
+    scope: Optional[str] = Query(default=None),
+) -> dict:
+    """Refresh one company, or the whole universe with ?scope=all."""
+    if scope == "all":
+        return refresh_module.run_refresh_all()
     return refresh_module.run_refresh(ticker=ticker)
