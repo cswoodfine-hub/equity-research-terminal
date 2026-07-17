@@ -14,13 +14,17 @@ from dataclasses import asdict
 import db
 from fetchers.financials_edgar import FinancialsEdgarFetcher
 from fetchers.prices import PricesFetcher
+from fetchers.trials_ctgov import TrialsFetcher
 
 DEFAULT_TICKER = "LLY"
 
 
 def _company_fetchers(company, db_path):
-    """Prices for everyone; EDGAR financials for SEC filers with a CIK."""
-    fetchers = [PricesFetcher(company["ticker"], db_path)]
+    """Prices and trials for everyone; EDGAR financials for SEC filers with a CIK."""
+    fetchers = [
+        PricesFetcher(company["ticker"], db_path),
+        TrialsFetcher(company["ticker"], db_path),
+    ]
     if company["is_sec_filer"] and company["cik"]:
         fetchers.append(FinancialsEdgarFetcher(company["ticker"], db_path))
     return fetchers
