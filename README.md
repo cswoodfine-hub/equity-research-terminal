@@ -6,10 +6,12 @@ changed since the last snapshot, and renders charts plus a short written note pe
 company. See [CLAUDE.md](CLAUDE.md) for architecture and [docs/PRD.md](docs/PRD.md)
 for the product spec.
 
-Status: phase 2 (vertical slice). One company (LLY) works end to end: a prices
-fetcher pulls six months of daily closes from Yahoo, refresh snapshots then upserts
-and reports per-source status, and a Streamlit UI shows the chart with a refresh
-button. Other sources, the diff engine, and the React frontend come in later phases.
+Status: phase 3 (financials and comps). Prices (Yahoo) and reported financials
+(SEC EDGAR XBRL company-facts) refresh for the universe, snapshot, and feed a comps
+table (revenue growth, margins, market cap, P/E, EV/sales). A Streamlit UI has
+Prices, Financials, and Comps tabs. Valuation ratios resolve for US filers only
+(shares outstanding and USD reporting); other cells are labelled gaps, not
+estimates. Clinical/regulatory sources, the diff engine, and React come later.
 
 ## Setup
 
@@ -39,11 +41,18 @@ python seed.py
 uvicorn main:app --reload
 
 # in another shell
-curl localhost:8000/health                       # {"status":"ok"}
-curl -X POST 'localhost:8000/refresh?ticker=LLY' # fetch LLY prices, returns the run
-curl localhost:8000/companies                    # the 18-company universe
-curl localhost:8000/companies/LLY/prices         # close series + latest quote
+curl localhost:8000/health                        # {"status":"ok"}
+curl -X POST 'localhost:8000/refresh?ticker=LLY'  # one company: prices + financials
+curl -X POST 'localhost:8000/refresh?scope=all'   # whole universe (needed for comps)
+curl localhost:8000/companies                     # the 18-company universe
+curl localhost:8000/companies/LLY/prices          # close series + latest quote
+curl localhost:8000/companies/LLY/financials      # stored EDGAR financials
+curl localhost:8000/comps                          # the comps table
 ```
+
+`?scope=all` and financials need `SEC_USER_AGENT` set (EDGAR blocks anonymous
+requests). Foreign names are quoted by their US ADR symbol (ROG uses RHHBY, BAYN
+uses BAYRY), so the bare home ticker never resolves to an unrelated US company.
 
 The database is written to `backend/er_tool.db` by default. Override with the
 `ER_TOOL_DB` environment variable.
@@ -62,8 +71,11 @@ pip install -r frontend/requirements.txt
 streamlit run frontend/streamlit_app.py
 ```
 
-Pick a company, click Refresh prices, and the six-month close chart renders. The API
-base URL is configurable in the sidebar (default `http://localhost:8000`).
+The UI has three tabs: Prices (the six-month close chart with a per-company refresh),
+Financials (reported revenue, net income, and R&D per company), and Comps (the
+sortable universe table, with a Refresh all button). The API base URL is configurable
+in the sidebar (default `http://localhost:8000`). Blank comps cells are no free data,
+not zero.
 
 ## Test
 
