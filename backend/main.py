@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException, Query
 
 import comps as comps_module
 import db
+import pipeline as pipeline_module
 import refresh as refresh_module
 
 try:  # optional local .env, mirrors seed.py
@@ -141,6 +142,19 @@ def company_financials(ticker: str) -> dict:
 @app.get("/comps")
 def comps() -> list[dict]:
     return comps_module.build_comps()
+
+
+@app.get("/pipeline")
+def pipeline() -> list[dict]:
+    return pipeline_module.build_pipeline()
+
+
+@app.get("/companies/{ticker}/trials")
+def company_trials(ticker: str, phase: Optional[str] = Query(default=None)) -> dict:
+    rows = pipeline_module.trials_for(None, ticker, phase)
+    if rows is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return {"ticker": ticker.upper(), "phase": phase, "trials": rows}
 
 
 @app.post("/refresh")
