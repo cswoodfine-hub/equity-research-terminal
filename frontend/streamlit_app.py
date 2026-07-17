@@ -38,7 +38,7 @@ def api_post(base: str, path: str, timeout: int = 300):
 
 st.set_page_config(page_title="Equity research terminal", layout="wide")
 st.title("Pharma equity research terminal")
-st.caption("Phase 3: prices, EDGAR financials, and the comps table.")
+st.caption("Phase 4: prices, EDGAR financials, comps, and the clinical pipeline.")
 
 st.sidebar.header("Settings")
 api_base = st.sidebar.text_input("API base URL", DEFAULT_API)
@@ -211,9 +211,18 @@ with pipeline_tab:
     if grid[PIPELINE_PHASES].to_numpy().sum() == 0:
         st.info("No trials yet. Click Refresh all to pull active trials from ClinicalTrials.")
     else:
-        styled = grid.style.background_gradient(
-            cmap="Blues", subset=PIPELINE_PHASES, axis=None
-        ).format("{:d}")
+        phase_max = max(1, int(grid[PIPELINE_PHASES].to_numpy().max()))
+
+        def _shade(value):
+            # Manual blue gradient so no matplotlib dependency is needed.
+            count = int(value) if value else 0
+            if count <= 0:
+                return ""
+            alpha = 0.12 + 0.6 * (count / phase_max)
+            text = "white" if alpha > 0.55 else "inherit"
+            return f"background-color: rgba(33, 102, 172, {alpha:.3f}); color: {text}"
+
+        styled = grid.style.applymap(_shade, subset=PIPELINE_PHASES).format("{:d}")
         st.dataframe(styled, use_container_width=True)
         st.caption(
             "Active, lead-sponsored interventional drug trials by phase. Counts are "
