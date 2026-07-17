@@ -56,3 +56,40 @@ def test_empty_payload_is_safe():
     assert r["currency"] is None
     assert r["annual"]["Revenues"] == {}
     assert r["shares"] is None
+
+
+def _annual(start, end, val, form="20-F"):
+    return {"start": start, "end": end, "val": val, "form": form, "filed": "2026-02-01"}
+
+
+def _instant(end, val, form="10-K"):
+    return {"end": end, "val": val, "form": form, "filed": "2026-02-01"}
+
+
+def test_revenue_falls_back_to_sale_of_goods():
+    # Novartis / Sanofi report net sales under RevenueFromSaleOfGoods, not Revenue.
+    payload = {"facts": {"ifrs-full": {"RevenueFromSaleOfGoods": {
+        "units": {"EUR": [_annual("2025-01-01", "2025-12-31", 43626000000)]}}}}}
+    r = parse_companyfacts(payload)
+    assert r["currency"] == "EUR"
+    assert r["annual"]["Revenues"][2025]["val"] == 43626000000
+
+
+def test_total_debt_falls_back_to_long_term_debt():
+    # ABBV lacks the combined and split debt tags but has LongTermDebt at the FY end.
+    payload = {"facts": {"us-gaap": {
+        "Revenues": {"units": {"USD": [_annual("2025-01-01", "2025-12-31", 61200000000, "10-K")]}},
+        "LongTermDebt": {"units": {"USD": [_instant("2025-12-31", 64503000000)]}},
+    }}}
+    r = parse_companyfacts(payload)
+    assert r["total_debt"] == 64503000000
+
+
+def test_cash_falls_back_to_restricted_inclusive_tag():
+    payload = {"facts": {"us-gaap": {
+        "Revenues": {"units": {"USD": [_annual("2025-01-01", "2025-12-31", 29400000000, "10-K")]}},
+        "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents": {
+            "units": {"USD": [_instant("2025-12-31", 7564000000)]}},
+    }}}
+    r = parse_companyfacts(payload)
+    assert r["cash"] == 7564000000

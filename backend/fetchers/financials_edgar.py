@@ -39,6 +39,7 @@ METRIC_CANDIDATES = {
         ("us-gaap", "SalesRevenueNet"),
         ("ifrs-full", "Revenue"),
         ("ifrs-full", "RevenueFromContractsWithCustomers"),
+        ("ifrs-full", "RevenueFromSaleOfGoods"),  # Novartis, Sanofi report net sales here
     ],
     "NetIncomeLoss": [
         ("us-gaap", "NetIncomeLoss"),
@@ -52,6 +53,7 @@ METRIC_CANDIDATES = {
 }
 CASH_CANDIDATES = [
     ("us-gaap", "CashAndCashEquivalentsAtCarryingValue"),
+    ("us-gaap", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"),
     ("ifrs-full", "CashAndCashEquivalents"),
 ]
 DEBT_COMBINED_CANDIDATES = [("us-gaap", "DebtLongtermAndShorttermCombinedAmount")]
@@ -128,15 +130,17 @@ def select_instant(facts: dict, candidates, fy_end: str):
 
 
 def select_total_debt(facts: dict, fy_end: str):
-    """Prefer the single combined debt tag; else long-term (non-current + current)."""
+    """Prefer the single combined debt tag; else long-term (non-current + current);
+    else the single total long-term debt tag. All read at the fiscal-year end so a
+    stale year never mixes in; return None (EV left null) when nothing aligns."""
     val, unit = select_instant(facts, DEBT_COMBINED_CANDIDATES, fy_end)
     if val is not None:
         return val, unit
     noncurrent, unit = select_instant(facts, [("us-gaap", "LongTermDebtNoncurrent")], fy_end)
-    if noncurrent is None:
-        return None, None  # avoid mixing stale years; leave EV null instead
-    current, _ = select_instant(facts, [("us-gaap", "LongTermDebtCurrent")], fy_end)
-    return noncurrent + (current or 0), unit
+    if noncurrent is not None:
+        current, _ = select_instant(facts, [("us-gaap", "LongTermDebtCurrent")], fy_end)
+        return noncurrent + (current or 0), unit
+    return select_instant(facts, [("us-gaap", "LongTermDebt")], fy_end)
 
 
 def latest_shares(facts: dict) -> dict | None:
