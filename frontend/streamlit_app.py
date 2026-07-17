@@ -58,7 +58,11 @@ names = {c["ticker"]: c["name"] for c in companies}
 default_index = tickers.index(DEFAULT_TICKER) if DEFAULT_TICKER in tickers else 0
 ticker = st.sidebar.selectbox("Company", tickers, index=default_index)
 
-prices_tab, financials_tab, comps_tab = st.tabs(["Prices", "Financials", "Comps"])
+PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
+
+prices_tab, financials_tab, comps_tab, pipeline_tab = st.tabs(
+    ["Prices", "Financials", "Comps", "Pipeline"]
+)
 
 
 # --- Prices -------------------------------------------------------------
@@ -187,3 +191,57 @@ with comps_tab:
         "resolve for US filers only; blank cells are no free data, not zero. Click Refresh "
         "all to populate. Roche and Bayer are not SEC filers."
     )
+
+
+# --- Pipeline -----------------------------------------------------------
+with pipeline_tab:
+    st.subheader("Clinical pipeline")
+    if st.button("Refresh all", type="primary", key="refresh_all_pipeline"):
+        with st.spinner("Refreshing the universe (this also pulls ClinicalTrials)"):
+            try:
+                st.session_state["all_run"] = api_post(api_base, "/refresh?scope=all")
+            except (urllib.error.URLError, OSError) as exc:
+                st.error(f"Refresh all failed: {exc}")
+
+    rows = api_get(api_base, "/pipeline")
+    grid = pd.DataFrame(
+        [{"Ticker": r["ticker"], **r["phases"], "Total": r["total"]} for r in rows]
+    ).set_index("Ticker")
+
+    if grid[PIPELINE_PHASES].to_numpy().sum() == 0:
+        st.info("No trials yet. Click Refresh all to pull active trials from ClinicalTrials.")
+    else:
+        styled = grid.style.background_gradient(
+            cmap="Blues", subset=PIPELINE_PHASES, axis=None
+        ).format("{:d}")
+        st.dataframe(styled, use_container_width=True)
+        st.caption(
+            "Active, lead-sponsored interventional drug trials by phase. Counts are "
+            "trials, not deduplicated assets, so combination trials count once per phase."
+        )
+
+        st.markdown("**Trials behind a cell**")
+        cols = st.columns(2)
+        drill_ticker = cols[0].selectbox("Company", tickers, index=default_index, key="pipe_ticker")
+        phase_choice = cols[1].selectbox("Phase", ["All"] + PIPELINE_PHASES, key="pipe_phase")
+        query = "" if phase_choice == "All" else f"?phase={urllib.parse.quote(phase_choice)}"
+        detail = api_get(api_base, f"/companies/{drill_ticker}/trials{query}")["trials"]
+        if not detail:
+            st.write("No trials for this selection.")
+        else:
+            table = pd.DataFrame(
+                [
+                    {
+                        "NCT": t["nct_id"],
+                        "Phase": t["phase"],
+                        "Status": t["overall_status"],
+                        "Primary completion": t["primary_completion_date"],
+                        "Conditions": ", ".join(t["conditions"][:3]),
+                        "Title": t["title"],
+                    }
+                    for t in detail
+                ]
+            )
+            st.caption(f"{len(detail)} trials for {drill_ticker}"
+                       + ("" if phase_choice == "All" else f" in {phase_choice}"))
+            st.dataframe(table, use_container_width=True, hide_index=True)
