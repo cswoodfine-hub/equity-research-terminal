@@ -61,6 +61,7 @@ def _price_currency(conn, ticker):
         """
         SELECT payload FROM snapshots
          WHERE source = 'prices' AND entity_key = ?
+           AND json_extract(payload, '$.currency') IS NOT NULL
          ORDER BY captured_at DESC LIMIT 1
         """,
         (ticker,),

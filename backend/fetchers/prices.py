@@ -176,6 +176,18 @@ class PricesFetcher(BaseFetcher):
             ).fetchone()
             if row is None:  # nothing known yet, nothing to carry forward
                 return
+            # No fetch happened, so carry the last known currency forward rather than
+            # writing null (which would blank the price label and the comps currency).
+            prior = conn.execute(
+                """
+                SELECT payload FROM snapshots
+                 WHERE source = 'prices' AND entity_key = ?
+                   AND json_extract(payload, '$.currency') IS NOT NULL
+                 ORDER BY captured_at DESC LIMIT 1
+                """,
+                (self.ticker,),
+            ).fetchone()
+            currency = json.loads(prior["payload"])["currency"] if prior else None
             self._write_snapshot(
                 conn,
                 {
@@ -183,7 +195,7 @@ class PricesFetcher(BaseFetcher):
                     "as_of": row["as_of"],
                     "close": row["close"],
                     "market_cap": row["market_cap"],
-                    "currency": self._meta.get("currency"),
+                    "currency": currency,
                     "source": YAHOO_SOURCE,
                     "fetch_kind": "cache",
                 },
