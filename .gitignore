@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Secrets
+.env
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Local database
+*.db
+
+# Source archive / scratch
+files.zip
+_extracted/
+
+# OS
+.DS_Store
