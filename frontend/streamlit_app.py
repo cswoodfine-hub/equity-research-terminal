@@ -31,11 +31,6 @@ FY_LABELS = {"Revenues": "Revenue", "NetIncomeLoss": "Net income",
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
 CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
 
-# Sources the app pulls, in the order they appear in the freshness strip. Only prices
-# report a last-fetch time through the API; the rest resolve from the last refresh run
-# in this session, and read "not reported" until one happens.
-SOURCES = ["prices", "financials", "trials", "filings", "approvals", "exclusivity"]
-
 
 # --- Transport ----------------------------------------------------------
 @st.cache_data(ttl=30, show_spinner=False)
@@ -177,36 +172,19 @@ feed = api_get(api_base, f"/changes?ticker={urllib.parse.quote(ticker)}")
 prices = api_get(api_base, f"/companies/{ticker}/prices")
 exclusivities = api_get(api_base, f"/companies/{ticker}/exclusivities")["assets"]
 
-# --- Identity and freshness --------------------------------------------
+# --- Identity ------------------------------------------------------------
 filer = "US filer" if company.get("is_sec_filer") else "not an SEC filer"
 meta = " · ".join(x for x in [company.get("exchange"), filer,
                               prices.get("currency") or None] if x)
-ident_html = (f'<div class="ident"><span class="nm">{names.get(ticker, ticker)}</span>'
-              f'<span class="meta">{meta}</span></div>')
+with ident_col:
+    st.markdown(
+        f'<div class="ident"><span class="nm">{names.get(ticker, ticker)}</span>'
+        f'<span class="meta">{meta}</span></div>', unsafe_allow_html=True)
 
+# The per-source freshness strip is gone. A partial run still announces itself below,
+# since a run that half failed is an event rather than standing reference.
 last_run = st.session_state.get("last_run") or {}
 run_sources = {s["source"]: s for s in last_run.get("detail", {}).get("sources", [])}
-chips = []
-for name in SOURCES:
-    if name == "prices":
-        label, cls = T.age(prices.get("last_fetch_at"))
-    elif name in run_sources:
-        src = run_sources[name]
-        if src["errors"]:
-            label, cls = "failed", "warn"
-        elif src["skipped_ttl"]:
-            label, cls = "current", "fresh"   # inside its TTL, so the refresh skipped it
-        else:
-            label, cls = f"{src['rows_fetched']} rows", "fresh"
-    else:
-        label, cls = "—", "unk"
-    chips.append(f'<span class="{cls}"><i>{name}</i> <b>{label}</b></span>')
-
-# Identity and source state are one line. As its own band above the tabs it read as a
-# stray strip belonging to nothing.
-with ident_col:
-    st.markdown(f'{ident_html}<div class="fresh">{"".join(chips)}</div>',
-                unsafe_allow_html=True)
 
 if last_run and last_run.get("status") == "partial":
     failed = [s["source"] for s in run_sources.values() if s["errors"]]
@@ -220,7 +198,8 @@ main, rail_col = st.columns([1, 0.27], gap="medium")
 with rail_col:
     st.markdown('<div class="sec"><span class="sec-label">Horizon</span></div>',
                 unsafe_allow_html=True)
-    st.markdown(rail_module.render(feed, exclusivities), unsafe_allow_html=True)
+    st.markdown(f'<div class="rail">{rail_module.render(feed, exclusivities)}</div>',
+                unsafe_allow_html=True)
     st.markdown('<div class="byline">Forward-dated items only. Ticks take the '
                 'modality colour: orange for small molecules, purple for biologics.'
                 '</div>', unsafe_allow_html=True)

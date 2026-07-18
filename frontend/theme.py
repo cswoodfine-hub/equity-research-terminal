@@ -147,11 +147,24 @@ h1 {{ font-size: 1.15rem; }}
 h2 {{ font-size: 1.0rem; }}
 h3 {{ font-size: 0.9rem; }}
 
-/* Section rule: a hairline and a caps label, never a card. */
+/* Section rule: a hairline and a caps label, never a card.
+   The box stays tight and the rhythm lives on Streamlit's element wrapper. Streamlit
+   sizes that wrapper itself, so padding on .sec made it overflow its own container and
+   the space below the rule collapsed: the Refresh button sat 1px under it. Keeping
+   .sec the same height as its wrapper puts the margins back in the layout flow. */
 .sec {{
   display: flex; align-items: baseline; justify-content: space-between;
   border-bottom: 1px solid var(--rule-strong);
-  padding: 0.75rem 0 0.2rem; margin: 0.5rem 0 0.35rem;
+  padding: 0 0 0.2rem; margin: 0;
+}}
+/* Streamlit collapses the rule's own container to 8px while .sec draws 21px, so
+   neither padding on .sec nor margin on that container reaches the layout. The
+   element after the rule is a normal item in the flex flow, so the gap goes there. */
+[data-testid="stElementContainer"]:has(.sec) {{ margin-top: 0.85rem; }}
+/* The collapsed container swallows roughly 8px of this, so the visible gap is about
+   half what is set here. One systematic correction, not a per-element nudge. */
+[data-testid="stElementContainer"]:has(.sec) + [data-testid="stElementContainer"] {{
+  margin-top: 1.4rem;
 }}
 .sec-label {{
   font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em;
@@ -165,13 +178,9 @@ h3 {{ font-size: 0.9rem; }}
 .ident .nm {{ font-size: 0.95rem; }}
 .ident .meta {{ font-size: 11px; color: var(--stale); }}
 
-/* Source state, on the identity line. Staleness is structural, not a footnote, but it
-   is reference: it sits quiet until something is stale or failed. */
-.fresh {{ display: flex; gap: 0.85rem; flex-wrap: wrap; padding: 0.15rem 0 0; }}
-.fresh i {{ font-style: normal; font-size: 10.5px; color: var(--stale); }}
-.fresh b {{ font-weight: 600; font-size: 10.5px; color: {P.muted}; }}
-.fresh .warn b {{ color: var(--oxblood); }}
-.fresh .unk b {{ color: var(--stale); font-weight: 400; }}
+/* The horizon rail clears the section rule above it. Its first segment label sits at
+   the very top of the SVG, so without this it touches the HORIZON hairline. */
+.rail {{ margin-top: 0.5rem; }}
 
 /* Stat strip: one dense line, not four cards. The bottom margin is structural, not a
    nudge: a chart directly below draws its topmost axis label at its own top edge, and
@@ -313,27 +322,3 @@ def pct(value, decimals: int = 1, dash: str = "—") -> str:
     if _missing(value):
         return dash
     return f"{num(value, decimals)}%"
-
-
-def age(iso: str | None) -> tuple[str, str]:
-    """(label, state) for a timestamp. State is fresh, warn, or unk.
-
-    The API reports a last-fetch time for prices only, so every other source resolves
-    to unk until a refresh runs in this session. Showing unk is the honest answer; an
-    invented age would be worse than none.
-    """
-    if not iso:
-        return "not reported", "unk"
-    import datetime as _dt
-    try:
-        stamp = _dt.datetime.fromisoformat(str(iso).replace("Z", "").strip())
-    except ValueError:
-        return "not reported", "unk"
-    delta = _dt.datetime.now() - stamp
-    mins = delta.total_seconds() / 60
-    if mins < 60:
-        return f"{int(mins)}m", "fresh"
-    if mins < 60 * 24:
-        return f"{int(mins // 60)}h", "fresh"
-    days = int(mins // (60 * 24))
-    return f"{days}d", "warn" if days >= 7 else "fresh"
