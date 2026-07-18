@@ -6,18 +6,20 @@ changed since the last snapshot, and renders charts plus a short written note pe
 company. See [CLAUDE.md](CLAUDE.md) for architecture and [docs/PRD.md](docs/PRD.md)
 for the product spec.
 
-Status: phase 6 (what changed). Prices (Yahoo), financials (SEC EDGAR), trials
+Status: phase 7 (generated notes). Prices (Yahoo), financials (SEC EDGAR), trials
 (ClinicalTrials.gov), patent/exclusivity (Orange + Purple Book), approvals (openFDA),
 and filings (EDGAR submissions) refresh for the universe. Every refresh writes
 snapshots, and a diff engine turns consecutive snapshots into a `changes` feed: trial
 status/date/phase changes, new 8-K/6-K, and new approvals, ranked with catalysts
 within 60 days and near-term LOE into a "what changed" view. Catalysts are a curated
-table with a 90-day calendar; news comes from EDGAR 8-K/6-K. A Streamlit UI has What
-changed, Prices, Financials, Comps, Pipeline, LOE, Approvals, Catalysts, and News tabs.
-Honest gaps are labelled: valuation ratios are US-filer-only, pipeline cells are trial
-counts, the LOE cliff is product counts with partial biologics, catalysts are curated
-(empty until added), news is EDGAR-only, and the change feed needs two refreshes to
-populate. Generated notes (Anthropic) and React come later.
+table with a 90-day calendar; news comes from EDGAR 8-K/6-K. On top of that feed sits
+the note layer: a per-company morning note, written by the Anthropic API when a key is
+set and by a rules-only fallback when it is not. A Streamlit UI has What changed (note
+plus feed), Prices, Financials, Comps, Pipeline, LOE, Approvals, Catalysts, and News
+tabs. Honest gaps are labelled: valuation ratios are US-filer-only, pipeline cells are
+trial counts, the LOE cliff is product counts with partial biologics, catalysts are
+curated (empty until added), news is EDGAR-only, and the change feed needs two
+refreshes to populate. React comes later.
 
 ## Setup
 
@@ -63,10 +65,31 @@ curl localhost:8000/changes                        # ranked what-changed feed
 curl localhost:8000/companies/LLY/filings          # recent EDGAR filings
 curl localhost:8000/companies/LLY/news             # EDGAR 8-K/6-K news
 curl localhost:8000/catalysts                      # curated catalyst calendar
+curl localhost:8000/companies/LLY/note             # stored morning note
+curl 'localhost:8000/companies/LLY/note?refresh=true'   # generate a new one
 ```
+
+## Generated notes
+
+The what-changed feed has two layers. The rules layer always runs. The note layer
+summarises one company's slice of it into a short paragraph.
+
+Set `ANTHROPIC_API_KEY` and the note is written by `claude-opus-4-8`, prompted to use
+only the supplied feed items and never to invent a number. Leave it unset and the note
+is a deterministic list of the flagged items, and `model` in the response reads
+`rules` so the UI can say which layer produced it. If the API errors, the note falls
+back to the rules layer and reports the error rather than failing the request.
+
+Every note is stored in `insights` with the `changes.id` values it was built from, so
+a note can be traced back to its evidence.
 
 The what-changed feed needs at least two refreshes to show anything: the first
 establishes snapshot baselines and the next detects diffs against them.
+
+Known defect: the baseline check in `diff.py` is global per entity type rather than
+per company, so a single-company refresh followed by `?scope=all` reports every other
+company's existing approvals and filings as new. Decades-old approvals then appear in
+the feed and in any note built over it. Fix before trusting the feed.
 
 Orange/Purple Book and openFDA need no key (openFDA works unauthenticated; set the
 optional `OPENFDA_API_KEY` only to raise the rate limit).
@@ -99,9 +122,11 @@ base URL is configurable in the sidebar (default `http://localhost:8000`). Blank
 cells are no free data, not zero; pipeline and LOE counts are trials/products, not
 deduplicated or revenue-weighted; the what-changed feed fills in after a second refresh.
 
-A full `?scope=all` refresh pulls every source for all 18 companies (Yahoo, EDGAR,
-and paginated ClinicalTrials queries) and can take several minutes; per-source TTLs
-mean repeat refreshes skip anything still fresh.
+A full `?scope=all` refresh pulls every source for all 18 companies (Yahoo, EDGAR, and
+paginated ClinicalTrials queries). Companies run in parallel, four at a time. Measured
+cold on 2026-07-18: 68s sequential, 33s parallel. Set `ER_TOOL_REFRESH_WORKERS` to
+change the worker count; raising it much above 4 risks EDGAR's 10 requests/second
+limit. Per-source TTLs mean repeat refreshes skip anything still fresh.
 
 ## Test
 

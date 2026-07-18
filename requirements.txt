@@ -2,3 +2,7 @@ fastapi>=0.110
 uvicorn[standard]>=0.29
 python-dotenv>=1.0
 pytest>=8.0
+
+# Optional: the generated-notes step only. The app degrades to the rules-only note
+# when this is absent or ANTHROPIC_API_KEY is unset.
+anthropic>=0.40
