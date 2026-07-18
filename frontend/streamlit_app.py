@@ -32,6 +32,9 @@ PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "P
 # Price chart windows, widest last. None means every session held. Windows wider than
 # the stored history are hidden rather than drawn short.
 PRICE_WINDOWS = [("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", None)]
+# Sessions in the Key insights sparkline. Trading sessions rather than calendar days,
+# so a bank holiday or a weekend does not silently shorten the line.
+SPARK_SESSIONS = 5
 CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
 
 
@@ -265,16 +268,24 @@ with main:
             return dates[0] if dates else None
 
         points = prices.get("points") or []
-        change = None
-        if len(points) > 1 and points[0]["close"]:
-            change = (points[-1]["close"] - points[0]["close"]) / points[0]["close"] * 100
+
+        def _move(series):
+            if len(series) < 2 or not series[0]["close"]:
+                return None
+            return (series[-1]["close"] - series[0]["close"]) / series[0]["close"] * 100
+
+        change = _move(points)                       # whole stored history
+        recent = _move(points[-SPARK_SESSIONS:])     # what the sparkline below shows
         high = sum(1 for it in feed if it["significance"] == "high")
 
         cells = [
             ("last close", T.num(prices["latest"]["close"], 2) if points else "—",
              "" if points else "none", prices.get("currency") or ""),
-            ("5y change", T.pct(change), "up" if (change or 0) >= 0 else "down",
-             "since " + points[0]["as_of"][:7] if points else ""),
+            # The headline move matches the sparkline beneath it; the long run is the
+            # context under it rather than a second number competing with it.
+            (f"{SPARK_SESSIONS} day", T.pct(recent),
+             "up" if (recent or 0) >= 0 else "down",
+             f"5y {T.pct(change)}" if change is not None else ""),
             ("active trials", str(mine.get("total", 0)) if mine else "—",
              "" if mine else "none", f"{late} in late phase" if mine else ""),
             ("next catalyst", _next("catalyst") or "none", "" if _next("catalyst") else "none",
@@ -290,20 +301,30 @@ with main:
                 f'<span class="sub">{sub}</span></span>' for k, v, cls, sub in cells)
             + "</div>", unsafe_allow_html=True)
 
-        if points:
-            spark = pd.DataFrame(points)
+        # The last five sessions, not the full history. This is a morning briefing, so
+        # the question is what the stock did this week; the Prices tab is where the five
+        # year view lives. Points are marked because a line through five values reads as
+        # a trend it has not earned.
+        spark_points = points[-SPARK_SESSIONS:]
+        if spark_points:
+            spark = pd.DataFrame(spark_points)
             spark["as_of"] = pd.to_datetime(spark["as_of"])
-            chart(alt.Chart(spark).mark_area(
-                line={"color": T.P.data, "strokeWidth": 1.2},
-                color=alt.Gradient(gradient="linear",
-                                   stops=[alt.GradientStop(color=T.P.ground, offset=0),
-                                          alt.GradientStop(color=T.P.data, offset=1)],
-                                   x1=1, x2=1, y1=1, y2=0)).encode(
+            base = alt.Chart(spark).encode(
                 x=alt.X("as_of:T", title=None, axis=None),
                 y=alt.Y("close:Q", title=None, axis=None,
-                        scale=alt.Scale(zero=False)),
-                tooltip=[alt.Tooltip("as_of:T", title="Date", format="%Y-%m-%d"),
-                         alt.Tooltip("close:Q", title="Close", format=",.2f")]), 64)
+                        scale=alt.Scale(zero=False, nice=False, padding=8)),
+                tooltip=[alt.Tooltip("as_of:T", title="Date", format="%a %d %b"),
+                         alt.Tooltip("close:Q", title="Close", format=",.2f")])
+            chart(base.mark_line(strokeWidth=1.4)
+                  + base.mark_point(filled=True, size=34), 64)
+            first, last = spark_points[0], spark_points[-1]
+            move = ((last["close"] - first["close"]) / first["close"] * 100
+                    if first["close"] else None)
+            st.markdown(
+                f'<div class="byline">Last {len(spark_points)} sessions, '
+                f'{first["as_of"]} to {last["as_of"]}: {T.pct(move)}. '
+                'The Prices tab carries the full five years.</div>',
+                unsafe_allow_html=True)
 
         head, action = st.columns([5, 1])
         with head:
