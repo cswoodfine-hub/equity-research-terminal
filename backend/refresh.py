@@ -4,11 +4,17 @@ Creates a refresh_runs row, runs the fetchers for one company or the whole unive
 aggregates their per-source results into the run's detail JSON, and marks the run
 complete or partial. Prices run for every company; EDGAR financials run for SEC
 filers that have a resolved CIK. Each source honours its own TTL.
+
+A universe refresh runs companies in parallel (fetchers stay sequential within a
+company), which is what keeps a full ``scope=all`` to minutes rather than tens of them.
 """
 
 from __future__ import annotations
 
 import json
+import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 
 import db
@@ -22,6 +28,11 @@ from fetchers.prices import PricesFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 
 DEFAULT_TICKER = "LLY"
+
+# One worker per company in a universe refresh. Fetchers stay sequential within a
+# company, so this also caps concurrent requests per host: 4 workers keeps EDGAR well
+# under its 10 requests/second limit.
+MAX_WORKERS = int(os.getenv("ER_TOOL_REFRESH_WORKERS", "4"))
 
 
 def _company_fetchers(company, db_path):
@@ -121,8 +132,13 @@ def run_refresh_all(db_path=None) -> dict:
         conn.close()
 
     by_source: dict[str, dict] = {}
+    lock = threading.Lock()
 
     def record(result, label):
+        with lock:
+            _record_locked(result, label)
+
+    def _record_locked(result, label):
         agg = by_source.setdefault(
             result.source,
             {"source": result.source, "rows_fetched": 0, "errors": [],
@@ -139,10 +155,14 @@ def run_refresh_all(db_path=None) -> dict:
         fetcher.refresh_run_id = run_id
         record(fetcher.run(), fetcher.entity_key)
 
-    for company in companies:
+    # Companies run in parallel; each company's own fetchers stay sequential.
+    def run_company(company):
         for fetcher in _company_fetchers(company, db_path):
             fetcher.refresh_run_id = run_id
             record(fetcher.run(), company["ticker"])
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+        list(pool.map(run_company, companies))
 
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"

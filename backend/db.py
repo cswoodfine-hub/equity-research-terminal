@@ -40,11 +40,18 @@ def _make_idempotent(sql: str) -> str:
 
 
 def get_connection(db_path: str | Path | None = None) -> sqlite3.Connection:
-    """Open a connection with foreign keys on and row access by column name."""
+    """Open a connection with foreign keys on and row access by column name.
+
+    WAL and a busy timeout let the parallel refresh (one thread per company, each with
+    its own connection) write concurrently instead of failing on "database is locked".
+    Both are no-ops for the single-threaded paths.
+    """
     path = Path(db_path) if db_path is not None else DB_PATH
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 30000")
     return conn
 
 

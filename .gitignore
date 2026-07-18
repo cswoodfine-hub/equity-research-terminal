@@ -12,8 +12,10 @@ venv/
 # Claude Code local settings
 .claude/settings.local.json
 
-# Local database
+# Local database (WAL mode adds the -shm/-wal sidecars)
 *.db
+*.db-shm
+*.db-wal
 
 # Source archive / scratch
 files.zip
