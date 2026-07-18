@@ -89,14 +89,24 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
         if not ticker:
             continue
         appl_no = _field(parts, pidx, "Appl_No")
-        if not appl_no or appl_no in products:
+        if not appl_no:
+            continue
+        # Type is RX, OTC, or DISCN. A discontinued product is off the market, so its
+        # patents running to 2027 are not a loss of exclusivity, they are a dead
+        # listing. An application can mix live and discontinued strengths, so it counts
+        # as marketed when any one of its rows is, and a live row wins the naming.
+        marketed = _field(parts, pidx, "Type").strip().upper() != "DISCN"
+        existing = products.get(appl_no)
+        if existing is not None and (existing["marketed"] or not marketed):
             continue
         products[appl_no] = {
             "ticker": ticker,
+            "marketed": marketed,
             "appl_type": _field(parts, pidx, "Appl_Type"),
             "brand": _field(parts, pidx, "Trade_Name").strip().title() or None,
             "generic": _field(parts, pidx, "Ingredient").strip().title() or None,
         }
+    products = {no: p for no, p in products.items() if p["marketed"]}
 
     patents = collections.defaultdict(list)
     aidx, arows = _rows(patents_text)

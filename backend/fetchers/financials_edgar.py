@@ -45,9 +45,15 @@ METRIC_CANDIDATES = {
         ("us-gaap", "NetIncomeLoss"),
         ("ifrs-full", "ProfitLoss"),
     ],
+    # ExcludingAcquiredInProcessCost is tried first on purpose. A filer that reports
+    # both tags is using the plain one for the acquired in-process component alone,
+    # not for total R&D: JNJ tags 0.11bn there against 14.66bn of actual 2025 spend.
+    # The "reaches the latest year" rule cannot separate them, because JNJ's wrong tag
+    # reaches 2025 too. Filers that report only the plain tag are unaffected, since
+    # this candidate is absent for them and the list falls through.
     "ResearchAndDevelopmentExpense": [
-        ("us-gaap", "ResearchAndDevelopmentExpense"),
         ("us-gaap", "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"),
+        ("us-gaap", "ResearchAndDevelopmentExpense"),
         ("ifrs-full", "ResearchAndDevelopmentExpense"),
     ],
 }

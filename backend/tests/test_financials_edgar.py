@@ -30,6 +30,21 @@ def test_parse_lly_us_gaap():
     assert r["total_debt"] == 42503000000
 
 
+def test_jnj_rd_prefers_the_excluding_concept_when_both_reach_the_latest_year():
+    """Regression: JNJ tags acquired in-process R&D under the plain concept.
+
+    Both concepts reach FY2025, so the reaches-the-latest-year rule cannot separate
+    them and the plain tag used to win with 0.11bn against 14.66bn of real spend.
+    """
+    r = parse_companyfacts(_facts("companyfacts_jnj.json"))
+    rd = r["annual"]["ResearchAndDevelopmentExpense"]
+
+    assert rd[2025]["val"] == 14_665_000_000
+    assert rd[2025]["val"] != 110_000_000        # the in-process component alone
+    # Every year lands in the same order of magnitude, which the old pick did not.
+    assert all(v["val"] > 5e9 for v in rd.values())
+
+
 def test_lly_rd_uses_latest_concept_not_stale_tag():
     r = parse_companyfacts(_facts("companyfacts_lly.json"))
     rd = r["annual"]["ResearchAndDevelopmentExpense"]

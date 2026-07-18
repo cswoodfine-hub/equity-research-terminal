@@ -90,7 +90,8 @@ def _near_term_loe(conn, months, limit, ticker=None):
     """
     horizon = _date_offset(conn, months * 30)
     sql = """
-        SELECT c.ticker, a.brand_name, a.modality, MAX(e.expiry_date) AS loe
+        SELECT c.ticker, a.brand_name, a.modality, a.internal_code,
+               MAX(e.expiry_date) AS loe
           FROM assets a JOIN exclusivities e ON e.asset_id = a.id
           JOIN companies c ON a.owner_company_id = c.id
     """
@@ -106,10 +107,15 @@ def _near_term_loe(conn, months, limit, ticker=None):
     params += [horizon, limit]
     items = []
     for r in conn.execute(sql, params):
+        # A brand can hold several applications, one per formulation, each with its own
+        # expiry. Naming the application keeps two Corlanor rows distinguishable instead
+        # of reading as the same product listed twice.
+        code = f" ({r['internal_code']})" if r["internal_code"] else ""
         items.append({
             "kind": "loe", "significance": "medium", "date": r["loe"], "ticker": r["ticker"],
             "change_type": "loe", "modality": r["modality"],
-            "headline": f"{r['ticker']} LOE: {r['brand_name']} loses exclusivity {r['loe']}",
+            "headline": (f"{r['ticker']} LOE: {r['brand_name']}{code} "
+                         f"loses exclusivity {r['loe']}"),
         })
     return items
 
