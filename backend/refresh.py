@@ -12,6 +12,9 @@ import json
 from dataclasses import asdict
 
 import db
+from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
+from fetchers.exclusivity_orangebook import OrangeBookFetcher
+from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
 from fetchers.prices import PricesFetcher
 from fetchers.trials_ctgov import TrialsFetcher
@@ -20,14 +23,21 @@ DEFAULT_TICKER = "LLY"
 
 
 def _company_fetchers(company, db_path):
-    """Prices and trials for everyone; EDGAR financials for SEC filers with a CIK."""
+    """Per-company sources: prices, trials, openFDA approvals for everyone; EDGAR
+    financials for SEC filers with a CIK."""
     fetchers = [
         PricesFetcher(company["ticker"], db_path),
         TrialsFetcher(company["ticker"], db_path),
+        ApprovalsOpenFdaFetcher(company["ticker"], db_path),
     ]
     if company["is_sec_filer"] and company["cik"]:
         fetchers.append(FinancialsEdgarFetcher(company["ticker"], db_path))
     return fetchers
+
+
+def _universe_fetchers(db_path):
+    """Sources that download one file for the whole universe (LOE, weekly)."""
+    return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path)]
 
 
 def _start_run(db_path) -> int:
@@ -107,20 +117,28 @@ def run_refresh_all(db_path=None) -> dict:
         conn.close()
 
     by_source: dict[str, dict] = {}
+
+    def record(result, label):
+        agg = by_source.setdefault(
+            result.source,
+            {"source": result.source, "rows_fetched": 0, "errors": [],
+             "skipped_ttl": 0, "ran": 0, "elapsed_ms": 0},
+        )
+        agg["rows_fetched"] += result.rows_fetched
+        agg["ran"] += 1
+        agg["skipped_ttl"] += 1 if result.skipped_ttl else 0
+        agg["elapsed_ms"] += result.elapsed_ms
+        agg["errors"].extend(f"{label}: {e}" for e in result.errors)
+
+    # Universe downloads (Orange/Purple Book) run once for the whole universe.
+    for fetcher in _universe_fetchers(db_path):
+        fetcher.refresh_run_id = run_id
+        record(fetcher.run(), fetcher.entity_key)
+
     for company in companies:
         for fetcher in _company_fetchers(company, db_path):
             fetcher.refresh_run_id = run_id
-            result = fetcher.run()
-            agg = by_source.setdefault(
-                result.source,
-                {"source": result.source, "rows_fetched": 0, "errors": [],
-                 "skipped_ttl": 0, "ran": 0, "elapsed_ms": 0},
-            )
-            agg["rows_fetched"] += result.rows_fetched
-            agg["ran"] += 1
-            agg["skipped_ttl"] += 1 if result.skipped_ttl else 0
-            agg["elapsed_ms"] += result.elapsed_ms
-            agg["errors"].extend(f"{company['ticker']}: {e}" for e in result.errors)
+            record(fetcher.run(), company["ticker"])
 
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
     detail = {"scope": "all", "companies": len(companies), "sources": list(by_source.values())}
