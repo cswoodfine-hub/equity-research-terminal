@@ -29,6 +29,9 @@ FY_METRICS = ["Revenues", "NetIncomeLoss", "ResearchAndDevelopmentExpense"]
 FY_LABELS = {"Revenues": "Revenue", "NetIncomeLoss": "Net income",
              "ResearchAndDevelopmentExpense": "R&D"}
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
+# Price chart windows, widest last. None means every session held. Windows wider than
+# the stored history are hidden rather than drawn short.
+PRICE_WINDOWS = [("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", None)]
 CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
 
 
@@ -312,33 +315,70 @@ with main:
         points = prices["points"]
         if not points:
             state("No price history yet",
-                  "Press Refresh prices to pull the last six months from Yahoo. Prices "
-                  "expire after 15 minutes, so a second press inside that window is a "
-                  "no-op and says so.")
+                  "Press Refresh prices to pull five years of daily closes from Yahoo. "
+                  "Prices expire after 15 minutes, so a second press inside that window "
+                  "is a no-op and says so.")
         else:
-            latest = prices["latest"]
-            first = points[0]["close"]
-            change = (latest["close"] - first) / first * 100 if first else None
+            frame = pd.DataFrame(points)
+            frame["as_of"] = pd.to_datetime(frame["as_of"])
+            held = (frame["as_of"].max() - frame["as_of"].min()).days
+
+            # Only offer windows the stored history can actually fill. A 5Y button on
+            # six months of data draws the same chart and quietly lies about the span.
+            choices = [(label, days) for label, days in PRICE_WINDOWS
+                       if days is None or days <= held + 45]
+            labels = [label for label, _ in choices]
+            span = st.radio("Window", labels, index=len(labels) - 1, horizontal=True,
+                            key="price_window", label_visibility="collapsed")
+            days = dict(choices)[span]
+            if days is not None:
+                cutoff = frame["as_of"].max() - pd.Timedelta(days=days)
+                frame = frame[frame["as_of"] >= cutoff]
+
+            opened, latest_close = frame["close"].iloc[0], frame["close"].iloc[-1]
+            change = (latest_close - opened) / opened * 100 if opened else None
+            low, high = frame["close"].min(), frame["close"].max()
             st.markdown(
                 '<div class="stats">'
                 f'<span class="stat"><span class="k">last close</span>'
-                f'<span class="v">{T.num(latest["close"], 2)}</span></span>'
+                f'<span class="v">{T.num(latest_close, 2)}</span></span>'
                 f'<span class="stat"><span class="k">as of</span>'
-                f'<span class="v">{latest["as_of"]}</span></span>'
-                f'<span class="stat"><span class="k">period change</span>'
+                f'<span class="v">{prices["latest"]["as_of"]}</span></span>'
+                f'<span class="stat"><span class="k">{span} change</span>'
                 f'<span class="v {"risk" if (change or 0) < 0 else ""}">'
                 f'{T.pct(change)}</span></span>'
+                f'<span class="stat"><span class="k">{span} range</span>'
+                f'<span class="v">{T.num(low, 2)} to {T.num(high, 2)}</span></span>'
                 f'<span class="stat"><span class="k">sessions</span>'
-                f'<span class="v">{len(points)}</span></span></div>',
+                f'<span class="v">{len(frame)}</span></span></div>',
                 unsafe_allow_html=True)
-            frame = pd.DataFrame(points)
-            frame["as_of"] = pd.to_datetime(frame["as_of"])
-            chart(alt.Chart(frame).mark_line().encode(
-                x=alt.X("as_of:T", title=None),
-                y=alt.Y("close:Q", title=f"Close, {prices.get('currency') or ''}",
-                        scale=alt.Scale(zero=False)),
-                tooltip=[alt.Tooltip("as_of:T", title="Date"),
-                         alt.Tooltip("close:Q", title="Close", format=",.2f")]), 260)
+
+            currency = prices.get("currency") or ""
+            hover = alt.selection_point(fields=["as_of"], nearest=True, on="pointerover",
+                                        empty=False, clear="pointerout")
+            base = alt.Chart(frame).encode(alt.X("as_of:T", title=None))
+            line = base.mark_line().encode(
+                alt.Y("close:Q", title=f"Close, {currency}",
+                      scale=alt.Scale(zero=False, nice=True)))
+            # A wide transparent mark is what actually catches the pointer; the visible
+            # rule, dot, and tooltip all key off the same selection.
+            catcher = base.mark_rule(opacity=0).encode(
+                tooltip=[alt.Tooltip("as_of:T", title="Date", format="%Y-%m-%d"),
+                         alt.Tooltip("close:Q", title=f"Close, {currency}",
+                                     format=",.2f")]).add_params(hover)
+            crosshair = base.mark_rule(color=T.P.stale, strokeDash=[2, 2]).encode(
+                opacity=alt.condition(hover, alt.value(0.9), alt.value(0)))
+            dot = base.mark_point(filled=True, size=52, color=T.P.oxblood).encode(
+                alt.Y("close:Q"),
+                opacity=alt.condition(hover, alt.value(1), alt.value(0)))
+            # Scales bound to drag and wheel, so the window buttons are the coarse
+            # control and zoom is the fine one.
+            chart((line + crosshair + dot + catcher).interactive(), 300)
+            st.markdown(
+                '<div class="byline">Hover for the close on any session. Drag to zoom '
+                'and double click to reset. Five years of daily closes are stored, so '
+                'the window buttons re-scale rather than refetch.</div>',
+                unsafe_allow_html=True)
 
     # --- Financials ------------------------------------------------------
     with financials_tab:

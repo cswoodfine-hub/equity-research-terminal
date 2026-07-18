@@ -20,7 +20,12 @@ YAHOO_SOURCE = "yahoo_chart"
 TTL_SECONDS = 15 * 60
 
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
-CHART_RANGE = "6mo"
+# Five years of daily closes, about 1,250 sessions per company. The chart offers
+# timeframes up to 5Y and cannot show history that was never fetched. Cost is one
+# request either way, since Yahoo returns the whole range in a single response, and
+# the upsert is keyed on (company_id, as_of) so a wider pull backfills rather than
+# duplicates.
+CHART_RANGE = "5y"
 CHART_INTERVAL = "1d"
 # Yahoo serves this endpoint anonymously with a browser-like User-Agent.
 _USER_AGENT = "Mozilla/5.0 (compatible; NovatalisResearch/0.1)"
