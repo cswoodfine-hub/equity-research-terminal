@@ -100,6 +100,14 @@ uses BAYRY), so the bare home ticker never resolves to an unrelated US company.
 The database is written to `backend/er_tool.db` by default. Override with the
 `ER_TOOL_DB` environment variable.
 
+A database refreshed before the per-company baseline fix still holds the change rows
+that defect produced, and any note that cites them. `python -m cleanup` reports them
+and `python -m cleanup --apply` deletes them after copying the database file aside. It
+retires a first-seen approval or filing dated more than 180 days before its own
+detection, so genuinely recent items recorded in the same run survive: on the
+development database 9 of the 625 rows were real. Snapshots are left untouched, which
+is what stops the deleted rows coming back on the next refresh.
+
 A refresh inside a source's TTL (prices: 15 minutes) is a no-op for that source and
 says so in the response. Market cap has no free source this phase and is left null
 rather than estimated.
