@@ -171,10 +171,8 @@ exclusivities = api_get(api_base, f"/companies/{ticker}/exclusivities")["assets"
 filer = "US filer" if company.get("is_sec_filer") else "not an SEC filer"
 meta = " · ".join(x for x in [company.get("exchange"), filer,
                               prices.get("currency") or None] if x)
-with ident_col:
-    st.markdown(
-        f'<div class="ident"><span class="nm">{names.get(ticker, ticker)}</span>'
-        f'<span class="meta">{meta}</span></div>', unsafe_allow_html=True)
+ident_html = (f'<div class="ident"><span class="nm">{names.get(ticker, ticker)}</span>'
+              f'<span class="meta">{meta}</span></div>')
 
 last_run = st.session_state.get("last_run") or {}
 run_sources = {s["source"]: s for s in last_run.get("detail", {}).get("sources", [])}
@@ -187,13 +185,18 @@ for name in SOURCES:
         if src["errors"]:
             label, cls = "failed", "warn"
         elif src["skipped_ttl"]:
-            label, cls = "within TTL", "fresh"
+            label, cls = "current", "fresh"   # inside its TTL, so the refresh skipped it
         else:
             label, cls = f"{src['rows_fetched']} rows", "fresh"
     else:
-        label, cls = "not reported", "unk"
+        label, cls = "—", "unk"
     chips.append(f'<span class="{cls}"><i>{name}</i> <b>{label}</b></span>')
-st.markdown(f'<div class="fresh">{"".join(chips)}</div>', unsafe_allow_html=True)
+
+# Identity and source state are one line. As its own band above the tabs it read as a
+# stray strip belonging to nothing.
+with ident_col:
+    st.markdown(f'{ident_html}<div class="fresh">{"".join(chips)}</div>',
+                unsafe_allow_html=True)
 
 if last_run and last_run.get("status") == "partial":
     failed = [s["source"] for s in run_sources.values() if s["errors"]]

@@ -123,10 +123,11 @@ h3 {{ font-size: 0.9rem; }}
 .ident .nm {{ font-size: 0.95rem; }}
 .ident .meta {{ font-size: 11px; color: var(--stale); }}
 
-/* Freshness strip. Staleness is structural, not a footnote. */
-.fresh {{ display: flex; gap: 1.1rem; flex-wrap: wrap; padding: 0.3rem 0 0; }}
-.fresh i {{ font-style: normal; font-size: 11px; color: var(--stale); }}
-.fresh b {{ font-weight: 600; font-size: 11px; color: var(--ink); }}
+/* Source state, on the identity line. Staleness is structural, not a footnote, but it
+   is reference: it sits quiet until something is stale or failed. */
+.fresh {{ display: flex; gap: 0.85rem; flex-wrap: wrap; padding: 0.15rem 0 0; }}
+.fresh i {{ font-style: normal; font-size: 10.5px; color: var(--stale); }}
+.fresh b {{ font-weight: 600; font-size: 10.5px; color: #6B675F; }}
 .fresh .warn b {{ color: var(--oxblood); }}
 .fresh .unk b {{ color: var(--stale); font-weight: 400; }}
 
