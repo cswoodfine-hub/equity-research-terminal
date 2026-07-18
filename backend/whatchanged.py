@@ -37,6 +37,24 @@ def _trial_headline(ticker, entity_key, change_type, old, new):
     return f"{tag}trial {entity_key}: {change_type}"
 
 
+def _event_dates(conn) -> dict:
+    """When each approval and filing actually happened, keyed by its natural key.
+
+    The changes table records when we first saw something, which is not when it
+    happened. Saphnelo was approved 2026-04-24 and first seen on 2026-07-18, and the
+    feed was showing the later date as though it were the approval. For an analyst the
+    event date is the fact; our detection time is bookkeeping.
+    """
+    dates = {}
+    for r in conn.execute("SELECT application_number, approval_date FROM approvals"):
+        if r["approval_date"]:
+            dates[("approval", r["application_number"])] = r["approval_date"]
+    for r in conn.execute("SELECT accession, filed_date FROM filings"):
+        if r["filed_date"]:
+            dates[("filing", r["accession"])] = r["filed_date"]
+    return dates
+
+
 def _recent_changes(conn, days):
     nct_ticker = {
         r["nct_id"]: r["ticker"]
@@ -44,6 +62,7 @@ def _recent_changes(conn, days):
             "SELECT t.nct_id, c.ticker FROM trials t LEFT JOIN companies c ON t.sponsor_company_id = c.id"
         )
     }
+    event_dates = _event_dates(conn)
     items = []
     for r in conn.execute(
         """
@@ -61,8 +80,12 @@ def _recent_changes(conn, days):
         else:  # filing / approval headlines already carry the ticker prefix
             ticker = (r["new_value"] or "").split(" ", 1)[0] or None
             headline = r["new_value"]
+        # A trial change has no date of its own beyond when the registry was updated,
+        # so it keeps the detection time. An approval and a filing both do.
+        happened = event_dates.get((r["entity_type"], r["entity_key"]))
         items.append({
-            "kind": "change", "significance": r["significance"], "date": r["detected_at"],
+            "kind": "change", "significance": r["significance"],
+            "date": happened or r["detected_at"], "detected_at": r["detected_at"],
             "ticker": ticker, "change_type": r["change_type"], "headline": headline,
             "change_id": r["id"],  # ties a generated note back to its evidence
         })
