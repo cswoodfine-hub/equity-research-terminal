@@ -71,6 +71,44 @@ def test_rules_note_is_pure_and_lists_the_items():
     assert "NCT001" in note and "PDUFA" in note
 
 
+def test_rules_note_groups_by_kind_and_leads_with_the_top_item():
+    items = [
+        {"kind": "change", "significance": "high", "date": "2026-07-18",
+         "headline": "LLY trial NCT001: status Recruiting -> Terminated"},
+        {"kind": "catalyst", "significance": "medium", "date": "2026-08-17",
+         "headline": "LLY PDUFA: decision (2026-08-17)"},
+        {"kind": "loe", "significance": "medium", "date": "2027-01-04",
+         "headline": "LLY LOE: Verzenio loses exclusivity 2027-01-04"},
+    ]
+    note = insights.build_rules_note("LLY", items)
+
+    assert "Most significant: LLY trial NCT001" in note
+    for heading in ("Changes since the last refresh (1)",
+                    "Catalysts inside 60 days (1)",
+                    "Loss of exclusivity ahead (1)"):
+        assert heading in note
+    # Reading order: what changed, then what is coming, then what expires.
+    assert (note.index("Changes since") < note.index("Catalysts inside")
+            < note.index("Loss of exclusivity"))
+    # A date already in the headline is not repeated.
+    assert "decision (2026-08-17)\n" in note or note.endswith("decision (2026-08-17)")
+    assert "status Recruiting -> Terminated (2026-07-18)" in note
+
+
+def test_rules_note_keeps_items_of_an_unknown_kind():
+    """A new feed kind must not vanish from the note."""
+    items = [{"kind": "something_new", "significance": "high", "date": "2026-07-18",
+              "headline": "LLY surprise item"}]
+    note = insights.build_rules_note("LLY", items)
+    assert "Other flagged items (1)" in note and "LLY surprise item" in note
+
+
+def test_rules_note_counts_one_item_in_the_singular():
+    note = insights.build_rules_note("LLY", [{"kind": "loe", "significance": "medium",
+                                              "date": "2027-09-27", "headline": "LLY LOE"}])
+    assert "1 flagged item (" in note
+
+
 def test_rules_note_when_nothing_flagged():
     assert "no flagged changes" in insights.build_rules_note("LLY", [])
 

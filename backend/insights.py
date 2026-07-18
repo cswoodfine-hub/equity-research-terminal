@@ -24,16 +24,29 @@ MAX_TOKENS = 1024
 
 _SIG_ORDER = ("high", "medium", "low")
 
+# Feed kinds in reading order: what happened, then what is coming, then what expires.
+_KIND_SECTIONS = (
+    ("change", "Changes since the last refresh"),
+    ("catalyst", "Catalysts inside 60 days"),
+    ("loe", "Loss of exclusivity ahead"),
+)
+
 SYSTEM_PROMPT = """You write a short morning note for an equity research analyst \
 covering large-cap pharma.
 
 You are given the ranked change feed for one company: detected changes since the last \
-refresh, catalysts inside 60 days, and near-term loss of exclusivity. Write one \
-paragraph, at most six sentences.
+refresh, catalysts inside 60 days, and near-term loss of exclusivity.
+
+Write two short paragraphs, at most ten sentences in total. Open with the single most \
+significant item and what it means for the company. Then cover, in this order and only \
+where the feed has them: what changed since the last refresh, what is coming inside 60 \
+days, and which products lose exclusivity. Close with the one thing worth watching \
+next. Give dates for anything forward-looking.
 
 Absolute rule: use only the items supplied. Never invent a number, a date, a drug \
 name, or a trial. If something is not in the items, it is not in the note. Where data \
-is missing, say "no free data" rather than estimating.
+is missing, say "no free data" rather than estimating. Do not infer a cause for a \
+change; the feed says what changed, not why.
 
 Style: lead with the number or the change. Direct and unhedged. Specific over \
 abstract. Sentence-case headings. No em dashes. Never use the words additionally, \
@@ -45,10 +58,21 @@ def _scrub(text: str) -> str:
     return text.replace(" — ", ", ").replace("—", ", ").strip()
 
 
-def build_rules_note(ticker: str, items: list[dict]) -> str:
-    """The always-on fallback: a plain list of the flagged items, ranked.
+def _dated(item: dict) -> str:
+    """Headline with its date appended, unless the headline already carries one."""
+    date = (item.get("date") or "")[:10]
+    return f"{item['headline']} ({date})" if date and date not in item["headline"] \
+        else item["headline"]
 
-    Pure. No key, no network, no database.
+
+def build_rules_note(ticker: str, items: list[dict]) -> str:
+    """The always-on fallback: the flagged items grouped by kind, ranked within each.
+
+    Grouped rather than one flat list so the note reads as a briefing: what changed,
+    then what is coming, then what expires. Items of an unrecognised kind land in a
+    catch-all section, so nothing in the feed is silently dropped.
+
+    Pure. No key, no network, no database, no clock.
     """
     ticker = ticker.upper()
     if not items:
@@ -58,8 +82,22 @@ def build_rules_note(ticker: str, items: list[dict]) -> str:
     counts = {sig: sum(1 for it in items if it.get("significance") == sig)
               for sig in _SIG_ORDER}
     lead = ", ".join(f"{counts[sig]} {sig}" for sig in _SIG_ORDER if counts[sig])
-    lines = [f"{ticker}: {len(items)} flagged items ({lead})."]
-    lines += [f"- [{it.get('significance', 'low')}] {it['headline']}" for it in items]
+    noun = "item" if len(items) == 1 else "items"
+    lines = [f"{ticker}: {len(items)} flagged {noun} ({lead}).",
+             f"Most significant: {_dated(items[0])}."]
+
+    known = {kind for kind, _ in _KIND_SECTIONS}
+    sections = list(_KIND_SECTIONS)
+    if any(it.get("kind") not in known for it in items):
+        sections.append((None, "Other flagged items"))
+
+    for kind, heading in sections:
+        group = [it for it in items
+                 if (it.get("kind") == kind if kind else it.get("kind") not in known)]
+        if not group:
+            continue
+        lines += ["", f"{heading} ({len(group)})"]
+        lines += [f"- [{it.get('significance', 'low')}] {_dated(it)}" for it in group]
     return "\n".join(lines)
 
 

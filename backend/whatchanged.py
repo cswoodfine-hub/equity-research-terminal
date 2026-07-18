@@ -57,18 +57,20 @@ def _recent_changes(conn, days):
     return items
 
 
-def _upcoming_catalysts(conn, within_days):
+def _upcoming_catalysts(conn, within_days, ticker=None):
     soon_threshold = _date_offset(conn, 14)
-    items = []
-    for r in conn.execute(
-        """
+    sql = """
         SELECT c.ticker, cat.catalyst_type, cat.expected_date, cat.title
           FROM catalysts cat JOIN companies c ON cat.company_id = c.id
          WHERE cat.status = 'pending' AND cat.expected_date >= date('now')
            AND cat.expected_date <= date('now', ?)
-        """,
-        (f"+{int(within_days)} days",),
-    ):
+    """
+    params = [f"+{int(within_days)} days"]
+    if ticker:
+        sql += " AND c.ticker = ?"
+        params.append(ticker.upper())
+    items = []
+    for r in conn.execute(sql, params):
         soon = r["expected_date"] <= soon_threshold
         items.append({
             "kind": "catalyst", "significance": "high" if soon else "medium",
@@ -79,20 +81,31 @@ def _upcoming_catalysts(conn, within_days):
     return items
 
 
-def _near_term_loe(conn, months, limit):
+def _near_term_loe(conn, months, limit, ticker=None):
+    """Nearest upcoming LOE, capped at ``limit``.
+
+    The cap is applied inside the query, so narrowing to a company gives that company's
+    nearest expiries. Filtering a globally-capped list instead would silently drop a
+    company whose LOE falls outside the universe-wide top ``limit``.
+    """
     horizon = _date_offset(conn, months * 30)
-    items = []
-    for r in conn.execute(
-        """
+    sql = """
         SELECT c.ticker, a.brand_name, a.modality, MAX(e.expiry_date) AS loe
           FROM assets a JOIN exclusivities e ON e.asset_id = a.id
           JOIN companies c ON a.owner_company_id = c.id
+    """
+    params = []
+    if ticker:
+        sql += " WHERE c.ticker = ?"
+        params.append(ticker.upper())
+    sql += """
          GROUP BY a.id
         HAVING loe >= date('now') AND loe <= ?
          ORDER BY loe LIMIT ?
-        """,
-        (horizon, limit),
-    ):
+    """
+    params += [horizon, limit]
+    items = []
+    for r in conn.execute(sql, params):
         items.append({
             "kind": "loe", "significance": "medium", "date": r["loe"], "ticker": r["ticker"],
             "change_type": "loe", "modality": r["modality"],
@@ -112,16 +125,29 @@ def build_feed(db_path=None, days=30, catalyst_days=60, loe_months=24, loe_limit
     try:
         items = (
             _recent_changes(conn, days)
-            + _upcoming_catalysts(conn, catalyst_days)
-            + _near_term_loe(conn, loe_months, loe_limit)
+            + _upcoming_catalysts(conn, catalyst_days, ticker)
+            + _near_term_loe(conn, loe_months, loe_limit, ticker)
         )
     finally:
         conn.close()
     if ticker:
+        # Catalysts and LOE are already narrowed in SQL. Changes carry no ticker column
+        # (it is derived from the headline), so they are filtered here; that query has
+        # no LIMIT, so nothing is lost by filtering after the fact.
         want = ticker.upper()
         items = [it for it in items if (it.get("ticker") or "").upper() == want]
-    # Rank by significance (high first), then by date (recent changes / furthest-out
-    # flags first). Two stable sorts keep the date order within each significance band.
-    items.sort(key=lambda x: x["date"], reverse=True)
-    items.sort(key=lambda x: _SIG_RANK.get(x["significance"], 3))
+    items.sort(key=_rank)
     return items
+
+
+def _rank(item):
+    """Significance first, then date read in the direction that matters for the kind.
+
+    Changes already happened, so the most recent is the most interesting. Catalysts and
+    LOE have not happened yet, so the soonest is. Sorting every kind the same way put
+    the furthest-out expiry at the top, which is the least urgent item in the feed.
+    """
+    date = (item.get("date") or "")[:10]
+    ordinal = int(date.replace("-", "")) if date[:4].isdigit() else 0
+    backwards = item.get("kind") == "change"
+    return (_SIG_RANK.get(item.get("significance"), 3), -ordinal if backwards else ordinal)

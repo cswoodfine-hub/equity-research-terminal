@@ -217,8 +217,10 @@ def _company_rows(ticker, query):
 
 
 @app.get("/changes")
-def changes(days: int = Query(default=30)) -> list[dict]:
-    return whatchanged_module.build_feed(days=days)
+def changes(days: int = Query(default=30),
+            ticker: Optional[str] = Query(default=None)) -> list[dict]:
+    """The ranked feed. Pass ``ticker`` to narrow it to one company."""
+    return whatchanged_module.build_feed(days=days, ticker=ticker)
 
 
 @app.get("/companies/{ticker}/note")
