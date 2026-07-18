@@ -83,13 +83,12 @@ back to the rules layer and reports the error rather than failing the request.
 Every note is stored in `insights` with the `changes.id` values it was built from, so
 a note can be traced back to its evidence.
 
-The what-changed feed needs at least two refreshes to show anything: the first
-establishes snapshot baselines and the next detects diffs against them.
-
-Known defect: the baseline check in `diff.py` is global per entity type rather than
-per company, so a single-company refresh followed by `?scope=all` reports every other
-company's existing approvals and filings as new. Decades-old approvals then appear in
-the feed and in any note built over it. Fix before trusting the feed.
+The what-changed feed needs at least two refreshes per company to show anything: the
+first establishes that company's snapshot baselines and the next detects diffs against
+them. Baselines are per company, so refreshing one ticker does not affect the others.
+A first-seen filing or approval is also only reported when its own date falls within
+the last 180 days, which keeps back catalogue out of the feed when coverage of a
+company starts late.
 
 Orange/Purple Book and openFDA need no key (openFDA works unauthenticated; set the
 optional `OPENFDA_API_KEY` only to raise the rate limit).
