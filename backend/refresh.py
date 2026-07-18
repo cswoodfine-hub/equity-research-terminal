@@ -12,9 +12,11 @@ import json
 from dataclasses import asdict
 
 import db
+import diff
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
 from fetchers.exclusivity_purplebook import PurpleBookFetcher
+from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
 from fetchers.prices import PricesFetcher
 from fetchers.trials_ctgov import TrialsFetcher
@@ -24,7 +26,7 @@ DEFAULT_TICKER = "LLY"
 
 def _company_fetchers(company, db_path):
     """Per-company sources: prices, trials, openFDA approvals for everyone; EDGAR
-    financials for SEC filers with a CIK."""
+    financials and filings for SEC filers with a CIK."""
     fetchers = [
         PricesFetcher(company["ticker"], db_path),
         TrialsFetcher(company["ticker"], db_path),
@@ -32,6 +34,7 @@ def _company_fetchers(company, db_path):
     ]
     if company["is_sec_filer"] and company["cik"]:
         fetchers.append(FinancialsEdgarFetcher(company["ticker"], db_path))
+        fetchers.append(FilingsEdgarFetcher(company["ticker"], db_path))
     return fetchers
 
 
@@ -98,8 +101,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
         fetcher.refresh_run_id = run_id
     results = [fetcher.run() for fetcher in fetchers]
 
+    changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(r.errors for r in results) else "complete"
-    detail = {"ticker": ticker, "sources": [asdict(r) for r in results]}
+    detail = {"ticker": ticker, "sources": [asdict(r) for r in results], "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 
@@ -140,8 +144,10 @@ def run_refresh_all(db_path=None) -> dict:
             fetcher.refresh_run_id = run_id
             record(fetcher.run(), company["ticker"])
 
+    changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
-    detail = {"scope": "all", "companies": len(companies), "sources": list(by_source.values())}
+    detail = {"scope": "all", "companies": len(companies),
+              "sources": list(by_source.values()), "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 
