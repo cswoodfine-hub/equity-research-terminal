@@ -131,8 +131,10 @@ h3 {{ font-size: 0.9rem; }}
 .fresh .warn b {{ color: var(--oxblood); }}
 .fresh .unk b {{ color: var(--stale); font-weight: 400; }}
 
-/* Stat strip: one dense line, not four cards. */
-.stats {{ display: flex; gap: 2.1rem; padding: 0.5rem 0 0.1rem;
+/* Stat strip: one dense line, not four cards. The bottom margin is structural, not a
+   nudge: a chart directly below draws its topmost axis label at its own top edge, and
+   with the strip flush against it the label lands on the figures. */
+.stats {{ display: flex; gap: 2.1rem; padding: 0.5rem 0 0.1rem; margin-bottom: 0.8rem;
          border-bottom: 1px solid var(--rule); flex-wrap: wrap; }}
 .stat .k {{ font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
            color: var(--stale); display: block; }}
@@ -220,8 +222,12 @@ def _chart_theme() -> alt.theme.ThemeConfig:
             "font": "Public Sans",
             # No continuousWidth: charts size to their container instead.
             "view": {"stroke": None, "continuousHeight": 260},
-            "axisX": {**axis, "grid": False},
-            "axisY": {**axis, "grid": True, "ticks": False, "domain": False},
+            # One axis treatment for every chart. Labels stay horizontal and Vega drops
+            # whichever would collide rather than rotating or overprinting them.
+            "axisX": {**axis, "grid": False, "labelAngle": 0, "labelOverlap": "greedy",
+                      "labelSeparation": 6, "labelLimit": 96},
+            "axisY": {**axis, "grid": True, "ticks": False, "domain": False,
+                      "labelOverlap": "greedy", "labelSeparation": 4, "labelLimit": 96},
             "line": {"color": INK, "strokeWidth": 1.4},
             "bar": {"color": INK},
             "point": {"color": INK, "size": 14},

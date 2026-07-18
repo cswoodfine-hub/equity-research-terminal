@@ -91,7 +91,17 @@ def run_refresh(base: str, path: str, key: str, spinner: str):
 
 
 def chart(spec, height: int = 250):
-    """Every chart goes through here, so the five views stay siblings."""
+    """Every chart goes through here, so the five views stay siblings.
+
+    Axis, padding, and tooltip treatment all come from the registered theme.
+
+    Known limitation: Streamlit sizes the chart from its container at render time, and
+    for a chart built inside a hidden tab that container measures a few pixels. The
+    width is then fixed, so every chart outside the opening tab draws about 160px wide
+    and its axis labels crowd. Setting width in the spec does not help because
+    Streamlit overrides it, and neither use_container_width nor autosize.resize
+    re-measures on reveal. The fix is to stop building charts inside hidden tabs.
+    """
     st.altair_chart(spec.properties(height=height, width="container"))
 
 
@@ -382,7 +392,7 @@ with main:
                                        and r["fiscal_year"] == y), None)}
                        for y in years]
             chart(alt.Chart(pd.DataFrame(revenue)).mark_bar(size=26).encode(
-                x=alt.X("year:N", title=None, axis=alt.Axis(labelAngle=0)),
+                x=alt.X("year:N", title=None),
                 y=alt.Y("value:Q", title=f"Revenue, {currency} bn"),
                 tooltip=[alt.Tooltip("year:N", title="FY"),
                          alt.Tooltip("value:Q", title="Revenue", format=",.2f")]), 210)
@@ -459,8 +469,7 @@ with main:
             long = grid.melt(id_vars="Ticker", value_vars=PIPELINE_PHASES,
                              var_name="Phase", value_name="Trials")
             chart(alt.Chart(long).mark_rect(stroke=T.PAPER, strokeWidth=1).encode(
-                x=alt.X("Phase:N", title=None, sort=PIPELINE_PHASES,
-                        axis=alt.Axis(labelAngle=0)),
+                x=alt.X("Phase:N", title=None, sort=PIPELINE_PHASES),
                 y=alt.Y("Ticker:N", title=None, sort=list(grid["Ticker"])),
                 # Sqrt, not linear: one company runs three figures of trials and a
                 # linear ramp collapses everyone else into the same pale tint.
@@ -503,8 +512,7 @@ with main:
             totals = pd.DataFrame({"Year": year_cols,
                                    "Products": [int(grid[c].sum()) for c in year_cols]})
             chart(alt.Chart(totals).mark_bar(size=22).encode(
-                x=alt.X("Year:N", title=None, sort=year_cols,
-                        axis=alt.Axis(labelAngle=0)),
+                x=alt.X("Year:N", title=None, sort=year_cols),
                 y=alt.Y("Products:Q", title="Products losing exclusivity"),
                 tooltip=["Year:N", "Products:Q"]), 220)
 
