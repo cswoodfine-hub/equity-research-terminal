@@ -9,15 +9,15 @@
 
 [theme]
 base = "dark"
-primaryColor = "#E8792B"
-backgroundColor = "#14150F"
-secondaryBackgroundColor = "#1C1D16"
-textColor = "#E8E4DA"
+primaryColor = "#4CC2C4"
+backgroundColor = "#0E1116"
+secondaryBackgroundColor = "#141A21"
+textColor = "#E6E9EF"
 font = "sans serif"
 
 # [theme]
 # base = "light"
-# primaryColor = "#C2570F"
+# primaryColor = "#116765"
 # backgroundColor = "#F2EFE9"
 # secondaryBackgroundColor = "#EDE9E1"
 # textColor = "#1C1B19"

@@ -1,8 +1,10 @@
 """Design system: palette, type, chart theme, and number formatting.
 
 One rule governs the palette in both modes. Ground and ink build every piece of chrome;
-hue is spent only on encoded meaning. If something carries colour it is because the
-colour is data: modality, direction, severity, or staleness.
+hue is spent only on encoded meaning: modality, direction, severity, staleness, and the
+data itself. The data hue is not an exception to that rule. It means "this is a measured
+series", which is why every line, bar, point, and heatmap step carries it and no piece of
+chrome ever does. Without it the dark theme was cream on olive throughout and read flat.
 
 The two book colours are inherited from the source datasets rather than invented. FDA
 exclusivity data ships as the Orange Book (small molecules) and the Purple Book
@@ -29,6 +31,7 @@ class Palette:
     name: str
     ground: str          # the absence of signal
     ink: str             # text, rules, axes, all non-negative figures
+    data: str            # a plotted series: lines, bars, points, the phase ramp
     orange_book: str     # small-molecule modality
     purple_book: str     # biologic modality
     oxblood: str         # negative direction and high severity, single pole
@@ -36,8 +39,9 @@ class Palette:
     rule: str            # hairline, derived from ink, never a new hue
     rule_strong: str
     raised: str          # sidebar and hover, one step off the ground
-    # Phase is ordinal, so it takes an ink tint ramp rather than a hue ramp. Hue stays
-    # reserved for modality, the categorical distinction that carries meaning.
+    # Phase is ordinal, so it takes a single-hue ramp rather than separate hues. The
+    # ramp climbs to the data colour, which keeps a heatmap the same material as a line
+    # chart. Modality stays the only categorical use of hue.
     phase_tints: tuple
 
     @property
@@ -56,19 +60,23 @@ class Palette:
         return self.stale if self.name == "dark" else "#5A564E"
 
 
+# stale and the modality colours carry real caption and table text, so both palettes are
+# tuned to clear 4.5:1 against their ground. The earlier values sat at 2.57:1 in light
+# and 4.10:1 in dark, which is recessive to the point of being unreadable.
 LIGHT = Palette(
-    name="light", ground="#F2EFE9", ink="#1C1B19",
-    orange_book="#C2570F", purple_book="#5B4B8A", oxblood="#8C2F39", stale="#9A968C",
+    name="light", ground="#F2EFE9", ink="#1C1B19", data="#116765",
+    orange_book="#B04E0C", purple_book="#5B4B8A", oxblood="#8C2F39", stale="#6E6A61",
     rule="#DCD7CC", rule_strong="#B9B3A6", raised="#EDE9E1",
-    phase_tints=("#DCD7CC", "#BAB3A6", "#8A8378", "#4A463F", "#1C1B19"),
+    phase_tints=("#DCE8E7", "#A9CFCD", "#6FAFAC", "#37827F", "#116765"),
 )
 
 DARK = Palette(
-    name="dark", ground="#14150F", ink="#E8E4DA",
-    orange_book="#E8792B", purple_book="#9B87D4", oxblood="#E05263", stale="#7A776E",
-    rule="#26271F", rule_strong="#3D3E35", raised="#1C1D16",
-    # Inverted: the ramp runs from just off the ground up to full ink.
-    phase_tints=("#26271F", "#3E4036", "#63665A", "#9EA192", "#E8E4DA"),
+    name="dark", ground="#0E1116", ink="#E6E9EF", data="#4CC2C4",
+    orange_book="#F08A3C", purple_book="#A78BFA", oxblood="#F2545B", stale="#78838F",
+    rule="#1E242C", rule_strong="#333C48", raised="#141A21",
+    # Ordinal ramp from just off the ground up to the data colour, so a heatmap reads
+    # as the same material as a line chart rather than as grey chrome.
+    phase_tints=("#16202A", "#1D3A44", "#256069", "#34909A", "#4CC2C4"),
 )
 
 # Mode is read once at import. Streamlit's own chrome, and in particular the canvas
@@ -279,9 +287,9 @@ def _chart_theme() -> alt.theme.ThemeConfig:
                       "labelSeparation": 6, "labelLimit": 96},
             "axisY": {**axis, "grid": True, "ticks": False, "domain": False,
                       "labelOverlap": "greedy", "labelSeparation": 4, "labelLimit": 96},
-            "line": {"color": P.ink, "strokeWidth": 1.4},
-            "bar": {"color": P.ink},
-            "point": {"color": P.ink, "size": 14},
+            "line": {"color": P.data, "strokeWidth": 1.6},
+            "bar": {"color": P.data},
+            "point": {"color": P.data, "size": 14},
             "rule": {"color": P.rule_strong},
             "legend": {
                 "labelFont": "Public Sans", "labelFontSize": 10, "labelColor": P.ink,
@@ -295,7 +303,7 @@ def _chart_theme() -> alt.theme.ThemeConfig:
                 "color": P.ink, "anchor": "start", "offset": 8,
                 "subtitleFont": "Public Sans", "subtitleColor": P.stale, "subtitleFontSize": 10,
             },
-            "range": {"category": [P.ink, P.orange_book, P.purple_book, P.oxblood, P.stale]},
+            "range": {"category": [P.data, P.orange_book, P.purple_book, P.oxblood, P.ink]},
         }
     })
 
