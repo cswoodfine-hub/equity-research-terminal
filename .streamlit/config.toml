@@ -1,0 +1,15 @@
+# Base theme. The stylesheet in frontend/theme.py carries the rest; these are the
+# values Streamlit paints before any CSS lands, so the first frame is already right.
+[theme]
+base = "light"
+primaryColor = "#1C1B19"
+backgroundColor = "#F2EFE9"
+secondaryBackgroundColor = "#EDE9E1"
+textColor = "#1C1B19"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

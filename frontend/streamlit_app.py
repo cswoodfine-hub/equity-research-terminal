@@ -1,12 +1,12 @@
-"""Streamlit terminal: key insights, prices, financials, and the comps table.
+"""Streamlit terminal: key insights, prices, financials, comps, pipeline, and LOE.
 
 A thin client over the FastAPI JSON endpoints. One company is selected in the sidebar
-and drives every per-company tab, so the Key insights feed and the note it summarises
-always describe the same company.
+and drives every per-company view, so the feed, the note, and the horizon rail always
+describe the same company.
 
-Valuation ratios resolve only for US filers (shares outstanding and USD reporting);
-other cells show as blank, which the captions explain as "no free data" rather than an
-estimate.
+Presentation rules live in ``theme`` and the horizon rail in ``rail``. Valuation ratios
+resolve only for US filers (shares outstanding and USD reporting); those cells show a
+dash, which means no free data rather than zero.
 """
 
 from __future__ import annotations
@@ -16,19 +16,29 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import altair as alt
 import pandas as pd
 import streamlit as st
+
+import rail as rail_module
+import theme as T
 
 DEFAULT_API = "http://localhost:8000"
 DEFAULT_TICKER = "LLY"
 FY_METRICS = ["Revenues", "NetIncomeLoss", "ResearchAndDevelopmentExpense"]
-FY_LABELS = {
-    "Revenues": "Revenue",
-    "NetIncomeLoss": "Net income",
-    "ResearchAndDevelopmentExpense": "R&D",
-}
+FY_LABELS = {"Revenues": "Revenue", "NetIncomeLoss": "Net income",
+             "ResearchAndDevelopmentExpense": "R&D"}
+PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
+CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
+
+# Sources the app pulls, in the order they appear in the freshness strip. Only prices
+# report a last-fetch time through the API; the rest resolve from the last refresh run
+# in this session, and read "not reported" until one happens.
+SOURCES = ["prices", "financials", "trials", "filings", "approvals", "exclusivity"]
 
 
+# --- Transport ----------------------------------------------------------
+@st.cache_data(ttl=30, show_spinner=False)
 def api_get(base: str, path: str):
     with urllib.request.urlopen(base.rstrip("/") + path, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8"))
@@ -55,351 +65,184 @@ def api_delete(base: str, path: str):
         return json.loads(resp.read().decode("utf-8"))
 
 
-st.set_page_config(page_title="Equity research terminal", layout="wide")
-st.title("Pharma equity research terminal")
-st.caption("Key insights per company, plus prices, financials, comps, pipeline, LOE, "
-           "approvals, catalysts, and news.")
+# --- Presentation helpers -----------------------------------------------
+def section(label: str, count=None):
+    tail = f'<span class="sec-count">{count}</span>' if count is not None else ""
+    st.markdown(f'<div class="sec"><span class="sec-label">{label}</span>{tail}</div>',
+                unsafe_allow_html=True)
 
-st.sidebar.header("Settings")
+
+def state(title: str, detail: str, error: bool = False):
+    """An empty state says what to do next. An error says what happened and how to fix."""
+    st.markdown(
+        f'<div class="state{" err" if error else ""}"><div class="t">{title}</div>'
+        f'<div class="d">{detail}</div></div>', unsafe_allow_html=True)
+
+
+def run_refresh(base: str, path: str, key: str, spinner: str):
+    """Trigger a refresh and keep the per-source result for the freshness strip."""
+    with st.spinner(spinner):
+        try:
+            st.session_state[key] = api_post(base, path)
+            st.session_state["last_run"] = st.session_state[key]
+            api_get.clear()
+        except (urllib.error.URLError, OSError) as exc:
+            st.session_state["refresh_error"] = str(exc)
+
+
+def chart(spec, height: int = 250):
+    """Every chart goes through here, so the five views stay siblings."""
+    st.altair_chart(spec.properties(height=height, width="container"))
+
+
+def note_html(body: str) -> str:
+    """Render the note, giving its section labels the heading treatment.
+
+    The rules layer emits plain lines like "Catalysts inside 60 days (2)" followed by
+    dashed items. Left as prose they read as a run-on, so labels become headings and
+    dashed lines become a list.
+    """
+    out, bullets = [], []
+
+    def flush():
+        if bullets:
+            out.append("<ul>" + "".join(f"<li>{b}</li>" for b in bullets) + "</ul>")
+            bullets.clear()
+
+    for line in body.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("- "):
+            bullets.append(line[2:])
+        elif line.endswith(")") and "(" in line.rsplit(" ", 1)[-1]:
+            flush()
+            out.append(f"<h4>{line}</h4>")
+        else:
+            flush()
+            out.append(f"<p>{line}</p>")
+    flush()
+    return f'<div class="note">{"".join(out)}</div>'
+
+
+st.set_page_config(page_title="Equity research terminal", layout="wide",
+                   initial_sidebar_state="collapsed")
+st.markdown(T.css(), unsafe_allow_html=True)
+
+st.sidebar.markdown("#### Settings")
 api_base = st.sidebar.text_input("API base URL", DEFAULT_API)
 
+# --- Connection: the first designed error state -------------------------
 try:
     companies = api_get(api_base, "/companies")
 except (urllib.error.URLError, OSError) as exc:
-    st.error(f"Cannot reach the API at {api_base}. Is uvicorn running? ({exc})")
+    st.markdown('<div class="ident"><span class="tk">Pharma research</span></div>',
+                unsafe_allow_html=True)
+    state("The API is not answering on " + api_base,
+          f"{exc}. Start it with <code>uvicorn main:app --app-dir backend --reload "
+          "--port 8000</code> from the project root, then reload this page. Change the "
+          "base URL in the sidebar if the API runs elsewhere.", error=True)
     st.stop()
 
 if not companies:
-    st.warning("No companies loaded. Run seed.py against the backend database.")
+    state("No companies loaded",
+          "The database has no universe yet. Run <code>python seed.py</code> from the "
+          "backend directory to load the 18 companies and resolve their CIKs.")
     st.stop()
 
 tickers = [c["ticker"] for c in companies]
 names = {c["ticker"]: c["name"] for c in companies}
 default_index = tickers.index(DEFAULT_TICKER) if DEFAULT_TICKER in tickers else 0
-ticker = st.sidebar.selectbox("Company", tickers, index=default_index)
-st.sidebar.caption(f"{names.get(ticker, ticker)}. This selection drives every "
-                   "per-company tab, including Key insights.")
 
-PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
+pick_col, ident_col = st.columns([0.085, 0.915], gap="small")
+with pick_col:
+    st.markdown('<div class="pick">', unsafe_allow_html=True)
+    ticker = st.selectbox("Company", tickers, index=default_index,
+                          label_visibility="collapsed")
+    st.markdown("</div>", unsafe_allow_html=True)
+company = next((c for c in companies if c["ticker"] == ticker), {})
 
-(insights_tab, prices_tab, financials_tab, comps_tab, pipeline_tab, loe_tab,
- approvals_tab, catalysts_tab, news_tab) = st.tabs(
-    ["Key insights", "Prices", "Financials", "Comps", "Pipeline", "LOE", "Approvals",
-     "Catalysts", "News"]
-)
-CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
-_SEV_COLOR = {"high": "#c0392b", "medium": "#c07d17", "low": "#7f8c8d"}
-_SEV_DOT = {"high": "🔴", "medium": "🟠", "low": "⚪"}
+# --- Per-company data ---------------------------------------------------
+feed = api_get(api_base, f"/changes?ticker={urllib.parse.quote(ticker)}")
+prices = api_get(api_base, f"/companies/{ticker}/prices")
+exclusivities = api_get(api_base, f"/companies/{ticker}/exclusivities")["assets"]
 
-# One section per feed kind, in reading order: what changed, what is coming, what expires.
-_FEED_SECTIONS = (
-    ("change", "Changes since the last refresh", "Detected",
-     "Snapshot diffs: trial status and date moves, new 8-K/6-K filings, new approvals."),
-    ("catalyst", "Catalysts inside 60 days", "Expected",
-     "Curated dates from the Catalysts tab. No free PDUFA calendar exists."),
-    ("loe", "Loss of exclusivity ahead", "Expiry",
-     "Latest patent or exclusivity expiry per marketed product, next 24 months."),
-)
+# --- Identity and freshness --------------------------------------------
+filer = "US filer" if company.get("is_sec_filer") else "not an SEC filer"
+meta = " · ".join(x for x in [company.get("exchange"), filer,
+                              prices.get("currency") or None] if x)
+with ident_col:
+    st.markdown(
+        f'<div class="ident"><span class="nm">{names.get(ticker, ticker)}</span>'
+        f'<span class="meta">{meta}</span></div>', unsafe_allow_html=True)
 
-
-# --- Prices -------------------------------------------------------------
-with prices_tab:
-    st.subheader(f"{names.get(ticker, ticker)} ({ticker})")
-    if st.button("Refresh prices", type="primary", key="refresh_prices"):
-        with st.spinner(f"Refreshing {ticker} from Yahoo"):
-            try:
-                st.session_state["price_run"] = api_post(
-                    api_base, f"/refresh?ticker={urllib.parse.quote(ticker)}"
-                )
-            except (urllib.error.URLError, OSError) as exc:
-                st.error(f"Refresh failed: {exc}")
-
-    run = st.session_state.get("price_run")
-    if run and run["detail"].get("ticker") == ticker:
-        price_src = next((s for s in run["detail"]["sources"] if s["source"] == "prices"), None)
-        if price_src:
-            note = f"Run {run['id']} {run['status']}: {price_src['rows_fetched']} rows"
-            (st.info if price_src["skipped_ttl"] else st.success)(
-                note + (" (skipped, within TTL)" if price_src["skipped_ttl"] else "")
-            )
-
-    data = api_get(api_base, f"/companies/{ticker}/prices")
-    points = data["points"]
-    if not points:
-        st.info("No price data yet. Click Refresh prices to pull the last six months.")
-    else:
-        currency = data.get("currency") or ""
-        latest = data["latest"]
-        cols = st.columns(3)
-        cols[0].metric(f"Latest close ({currency})", f"{latest['close']:,.2f}")
-        cols[1].metric("As of", latest["as_of"])
-        cols[2].metric("Market cap", "see Comps tab")
-        frame = pd.DataFrame(points)
-        frame["as_of"] = pd.to_datetime(frame["as_of"])
-        st.line_chart(frame.set_index("as_of")["close"], height=360)
-        st.caption(f"{len(points)} trading days. Last live fetch: {data['last_fetch_at']}.")
-
-
-# --- Financials ---------------------------------------------------------
-with financials_tab:
-    st.subheader(f"{names.get(ticker, ticker)} reported financials")
-    fin = api_get(api_base, f"/companies/{ticker}/financials")
-    fy_rows = [r for r in fin["rows"] if r["period_type"] == "FY" and r["metric"] in FY_METRICS]
-    if not fy_rows:
-        st.info(
-            "No financials yet. Use Refresh all on the Comps tab. Roche and Bayer are "
-            "not SEC filers, so EDGAR has nothing for them."
-        )
-    else:
-        currency = fy_rows[0]["unit"]
-        years = sorted({r["fiscal_year"] for r in fy_rows})
-        table = {}
-        for metric in FY_METRICS:
-            by_year = {r["fiscal_year"]: r["value"] for r in fy_rows if r["metric"] == metric}
-            table[FY_LABELS[metric]] = [by_year.get(y) for y in years]
-        frame = pd.DataFrame(table, index=[str(y) for y in years]).transpose()
-        st.caption(f"Values in {currency} billions.")
-        st.dataframe((frame / 1e9).round(2), use_container_width=True)
-        revenue_by_year = {
-            str(r["fiscal_year"]): r["value"] / 1e9
-            for r in fy_rows
-            if r["metric"] == "Revenues"
-        }
-        if revenue_by_year:
-            st.bar_chart(pd.Series(revenue_by_year, name=f"Revenue ({currency} bn)"))
-
-
-# --- Comps --------------------------------------------------------------
-with comps_tab:
-    st.subheader("Comparables")
-    if st.button("Refresh all", type="primary", key="refresh_all"):
-        with st.spinner("Refreshing the universe (prices for all, EDGAR for filers)"):
-            try:
-                st.session_state["all_run"] = api_post(api_base, "/refresh?scope=all")
-            except (urllib.error.URLError, OSError) as exc:
-                st.error(f"Refresh all failed: {exc}")
-
-    all_run = st.session_state.get("all_run")
-    if all_run:
-        parts = [
-            f"{s['source']} {s['rows_fetched']} rows ({s['skipped_ttl']} skipped)"
-            for s in all_run["detail"]["sources"]
-        ]
-        (st.success if all_run["status"] == "complete" else st.warning)(
-            f"Run {all_run['id']} {all_run['status']}: " + ", ".join(parts)
-        )
-
-    comps = api_get(api_base, "/comps")
-    display = pd.DataFrame(
-        [
-            {
-                "Ticker": c["ticker"],
-                "Name": c["name"],
-                "FY": c["fiscal_year"],
-                "Cur": c["currency"],
-                "Revenue (bn)": c["revenue"] / 1e9 if c["revenue"] else None,
-                "Growth %": c["revenue_growth"] * 100 if c["revenue_growth"] is not None else None,
-                "Net margin %": c["net_margin"] * 100 if c["net_margin"] is not None else None,
-                "R&D %": c["rd_pct"] * 100 if c["rd_pct"] is not None else None,
-                "Mkt cap ($bn)": c["market_cap"] / 1e9 if c["market_cap"] else None,
-                "P/E": c["pe"],
-                "EV/Sales": c["ev_sales"],
-            }
-            for c in comps
-        ]
-    )
-    st.dataframe(
-        display,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Revenue (bn)": st.column_config.NumberColumn(format="%.1f"),
-            "Growth %": st.column_config.NumberColumn(format="%.1f%%"),
-            "Net margin %": st.column_config.NumberColumn(format="%.1f%%"),
-            "R&D %": st.column_config.NumberColumn(format="%.1f%%"),
-            "Mkt cap ($bn)": st.column_config.NumberColumn(format="%.0f"),
-            "P/E": st.column_config.NumberColumn(format="%.1f"),
-            "EV/Sales": st.column_config.NumberColumn(format="%.1f"),
-        },
-    )
-    st.caption(
-        "Revenue, growth, net margin, and R&D are in each filer's reporting currency. "
-        "Market cap, P/E, and EV/Sales need shares outstanding and USD reporting, so they "
-        "resolve for US filers only; blank cells are no free data, not zero. Click Refresh "
-        "all to populate. Roche and Bayer are not SEC filers."
-    )
-
-
-# --- Pipeline -----------------------------------------------------------
-with pipeline_tab:
-    st.subheader("Clinical pipeline")
-    if st.button("Refresh all", type="primary", key="refresh_all_pipeline"):
-        with st.spinner("Refreshing the universe (this also pulls ClinicalTrials)"):
-            try:
-                st.session_state["all_run"] = api_post(api_base, "/refresh?scope=all")
-            except (urllib.error.URLError, OSError) as exc:
-                st.error(f"Refresh all failed: {exc}")
-
-    rows = api_get(api_base, "/pipeline")
-    grid = pd.DataFrame(
-        [{"Ticker": r["ticker"], **r["phases"], "Total": r["total"]} for r in rows]
-    ).set_index("Ticker")
-
-    if grid[PIPELINE_PHASES].to_numpy().sum() == 0:
-        st.info("No trials yet. Click Refresh all to pull active trials from ClinicalTrials.")
-    else:
-        phase_max = max(1, int(grid[PIPELINE_PHASES].to_numpy().max()))
-
-        def _shade(value):
-            # Manual blue gradient so no matplotlib dependency is needed.
-            count = int(value) if value else 0
-            if count <= 0:
-                return ""
-            alpha = 0.12 + 0.6 * (count / phase_max)
-            text = "white" if alpha > 0.55 else "inherit"
-            return f"background-color: rgba(33, 102, 172, {alpha:.3f}); color: {text}"
-
-        styled = grid.style.applymap(_shade, subset=PIPELINE_PHASES).format("{:d}")
-        st.dataframe(styled, use_container_width=True)
-        st.caption(
-            "Active, lead-sponsored interventional drug trials by phase. Counts are "
-            "trials, not deduplicated assets, so combination trials count once per phase."
-        )
-
-        st.markdown("**Trials behind a cell**")
-        cols = st.columns(2)
-        drill_ticker = cols[0].selectbox("Company", tickers, index=default_index, key="pipe_ticker")
-        phase_choice = cols[1].selectbox("Phase", ["All"] + PIPELINE_PHASES, key="pipe_phase")
-        query = "" if phase_choice == "All" else f"?phase={urllib.parse.quote(phase_choice)}"
-        detail = api_get(api_base, f"/companies/{drill_ticker}/trials{query}")["trials"]
-        if not detail:
-            st.write("No trials for this selection.")
+last_run = st.session_state.get("last_run") or {}
+run_sources = {s["source"]: s for s in last_run.get("detail", {}).get("sources", [])}
+chips = []
+for name in SOURCES:
+    if name == "prices":
+        label, cls = T.age(prices.get("last_fetch_at"))
+    elif name in run_sources:
+        src = run_sources[name]
+        if src["errors"]:
+            label, cls = "failed", "warn"
+        elif src["skipped_ttl"]:
+            label, cls = "within TTL", "fresh"
         else:
-            table = pd.DataFrame(
-                [
-                    {
-                        "NCT": t["nct_id"],
-                        "Phase": t["phase"],
-                        "Status": t["overall_status"],
-                        "Primary completion": t["primary_completion_date"],
-                        "Conditions": ", ".join(t["conditions"][:3]),
-                        "Title": t["title"],
-                    }
-                    for t in detail
-                ]
-            )
-            st.caption(f"{len(detail)} trials for {drill_ticker}"
-                       + ("" if phase_choice == "All" else f" in {phase_choice}"))
-            st.dataframe(table, use_container_width=True, hide_index=True)
-
-
-# --- LOE ----------------------------------------------------------------
-with loe_tab:
-    st.subheader("Loss of exclusivity")
-    if st.button("Refresh all", type="primary", key="refresh_all_loe"):
-        with st.spinner("Refreshing the universe (this also downloads FDA data)"):
-            try:
-                st.session_state["all_run"] = api_post(api_base, "/refresh?scope=all")
-            except (urllib.error.URLError, OSError) as exc:
-                st.error(f"Refresh all failed: {exc}")
-
-    data = api_get(api_base, "/loe")
-    year_cols = [str(y) for y in data["years"]] + [data["later_label"]]
-    grid = pd.DataFrame(
-        [
-            {"Ticker": r["ticker"],
-             **{str(y): r["years"].get(str(y), 0) for y in data["years"]},
-             data["later_label"]: r["later"]}
-            for r in data["rows"]
-        ]
-    ).set_index("Ticker")
-
-    if grid[year_cols].to_numpy().sum() == 0:
-        st.info("No exclusivity data yet. Click Refresh all to download the Orange and Purple Book.")
+            label, cls = f"{src['rows_fetched']} rows", "fresh"
     else:
-        phase_max = max(1, int(grid[year_cols].to_numpy().max()))
+        label, cls = "not reported", "unk"
+    chips.append(f'<span class="{cls}"><i>{name}</i> <b>{label}</b></span>')
+st.markdown(f'<div class="fresh">{"".join(chips)}</div>', unsafe_allow_html=True)
 
-        def _shade_loe(value):
-            count = int(value) if value else 0
-            if count <= 0:
-                return ""
-            alpha = 0.12 + 0.6 * (count / phase_max)
-            return f"background-color: rgba(197, 90, 17, {alpha:.3f}); color: {'white' if alpha > 0.55 else 'inherit'}"
+if last_run and last_run.get("status") == "partial":
+    failed = [s["source"] for s in run_sources.values() if s["errors"]]
+    state(f"Run {last_run['id']} finished partial",
+          f"{', '.join(failed) or 'one or more sources'} did not return. The rest of the "
+          "data on this page is from that run and is good. Retry from the tab that owns "
+          "the failing source.", error=True)
 
-        st.dataframe(grid.style.applymap(_shade_loe, subset=year_cols).format("{:d}"),
-                     use_container_width=True)
-        st.caption(
-            "Count of marketed products losing exclusivity per year (latest patent or "
-            "exclusivity expiry). No free product revenue, so this is not revenue-weighted; "
-            "biologics coverage (Purple Book) is partial. Blank/0 is no upcoming LOE on file."
-        )
+main, rail_col = st.columns([1, 0.27], gap="medium")
 
-        st.markdown(f"**Upcoming LOE for {names.get(ticker, ticker)} ({ticker})**")
-        assets = api_get(api_base, f"/companies/{ticker}/exclusivities")["assets"]
-        if not assets:
-            st.write("No products with upcoming loss of exclusivity on file.")
-        else:
-            st.dataframe(
-                pd.DataFrame(
-                    [
-                        {"LOE date": a["loe"], "Modality": a["modality"],
-                         "Brand": a["brand_name"], "Generic": a["generic_name"],
-                         "Application": a["internal_code"]}
-                        for a in assets
-                    ]
-                ),
-                use_container_width=True, hide_index=True,
-            )
+with rail_col:
+    st.markdown('<div class="sec"><span class="sec-label">Horizon</span></div>',
+                unsafe_allow_html=True)
+    st.markdown(rail_module.render(feed, exclusivities), unsafe_allow_html=True)
+    st.markdown('<div class="byline">Forward-dated items only. Ticks take the '
+                'modality colour: orange for small molecules, purple for biologics.'
+                '</div>', unsafe_allow_html=True)
 
+with main:
+    (insights_tab, prices_tab, financials_tab, comps_tab, pipeline_tab, loe_tab,
+     approvals_tab, catalysts_tab, news_tab) = st.tabs(
+        ["Key insights", "Prices", "Financials", "Comps", "Pipeline", "LOE",
+         "Approvals", "Catalysts", "News"])
 
-# --- Approvals ----------------------------------------------------------
-with approvals_tab:
-    st.subheader(f"FDA approvals: {names.get(ticker, ticker)} ({ticker})")
-    approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
-    if not approvals:
-        st.info("No approvals on file. Click Refresh all on the LOE tab to pull openFDA data.")
-    else:
-        st.dataframe(
-            pd.DataFrame(
-                [
-                    {"Approved": a["approval_date"], "Application": a["application_number"],
-                     "Brand": a["brand_name"], "Modality": a["modality"]}
-                    for a in approvals
-                ]
-            ),
-            use_container_width=True, hide_index=True,
-        )
-        st.caption(
-            "Original FDA approvals (NDAs and BLAs) from openFDA. Coverage depends on "
-            "openFDA's manufacturer tagging and is not exhaustive."
-        )
+    # --- Key insights: the feed is the most important view ---------------
+    with insights_tab:
+        high = sum(1 for it in feed if it["significance"] == "high")
 
+        def _next(kind):
+            dates = sorted((it["date"] or "")[:10] for it in feed
+                           if it["kind"] == kind and it["date"])
+            return dates[0] if dates else None
 
-# --- Key insights -------------------------------------------------------
-with insights_tab:
-    st.subheader(f"Key insights: {names.get(ticker, ticker)} ({ticker})")
-    st.caption("Everything below is for the company selected in the sidebar.")
+        cells = [("flagged", str(len(feed)), "" if feed else "none"),
+                 ("high severity", str(high), "risk" if high else "none"),
+                 ("next catalyst", _next("catalyst") or "—",
+                  "" if _next("catalyst") else "none"),
+                 ("next loe", _next("loe") or "—", "" if _next("loe") else "none")]
+        st.markdown(
+            '<div class="stats">' + "".join(
+                f'<span class="stat"><span class="k">{k}</span>'
+                f'<span class="v {cls}">{v}</span></span>' for k, v, cls in cells)
+            + "</div>", unsafe_allow_html=True)
 
-    feed = api_get(api_base, f"/changes?ticker={urllib.parse.quote(ticker)}")
-    by_kind = {kind: [it for it in feed if it["kind"] == kind]
-               for kind, _, _, _ in _FEED_SECTIONS}
-
-    def _next_date(kind):
-        dates = sorted((it["date"] or "")[:10] for it in by_kind.get(kind, []) if it["date"])
-        return dates[0] if dates else None
-
-    high = sum(1 for it in feed if it["significance"] == "high")
-    cols = st.columns(4)
-    cols[0].metric("Flagged items", len(feed))
-    cols[1].metric("High severity", high)
-    cols[2].metric("Next catalyst", _next_date("catalyst") or "None")
-    cols[3].metric("Next LOE", _next_date("loe") or "None")
-
-    # --- Morning note ---
-    with st.container(border=True):
-        head, action = st.columns([4, 1])
-        head.markdown("#### Morning note")
-        regenerate = action.button("Generate", key="gen_note", use_container_width=True)
+        head, action = st.columns([5, 1])
+        with head:
+            section("Morning note")
+        with action:
+            regenerate = st.button("Generate", key="gen_note", width="stretch")
 
         if regenerate:
             with st.spinner(f"Writing the {ticker} note"):
@@ -410,118 +253,355 @@ with insights_tab:
 
         note = st.session_state.get("note") or {}
         if not note.get("body"):
-            st.info(f"No note for {ticker} yet. Press generate.")
+            state(f"No note for {ticker} yet",
+                  "Press Generate. Without an Anthropic key the note is the rules "
+                  "layer, which lists the flagged items grouped by kind.")
         else:
-            st.markdown(note["body"])
-            layer = ("rules layer, no Anthropic key set"
-                     if note.get("model") == "rules" else f"written by {note.get('model')}")
-            # The stored note is a snapshot of the feed at the time it was written, so it
-            # can disagree with the counts above. Say so rather than let them contradict.
-            st.caption(f"{layer}. Written {note.get('generated_at')} from the feed as it "
-                       "stood then. Press Generate to rebuild it from the feed above.")
+            st.markdown(note_html(note["body"]), unsafe_allow_html=True)
+            layer = ("rules layer, no Anthropic key set" if note.get("model") == "rules"
+                     else f"written by {note.get('model')}")
+            st.markdown(
+                f'<div class="byline">{layer} · written {note.get("generated_at")} '
+                'from the feed as it stood then. Press Generate to rebuild it.</div>',
+                unsafe_allow_html=True)
         if note.get("error"):
-            st.warning(f"Note fell back to the rules layer: {note['error']}")
+            state("The note fell back to the rules layer", note["error"], error=True)
 
-    # --- The feed, one section per kind ---
-    if not feed:
-        st.info(
-            f"Nothing flagged for {ticker}. The feed compares snapshots between "
-            "refreshes, so it fills in once a refresh detects a trial status/date "
-            "change, a new 8-K/6-K, or a new approval; it also surfaces catalysts "
-            "within 60 days and near-term LOE."
-        )
-    for kind, heading, date_label, blurb in _FEED_SECTIONS:
-        items = by_kind.get(kind, [])
-        if not items:
-            continue
-        with st.container(border=True):
-            st.markdown(f"#### {heading}  `{len(items)}`")
+        if not feed:
+            section("Nothing flagged")
+            state(f"No changes detected for {ticker}",
+                  "The feed compares snapshots between refreshes, so it needs two runs "
+                  "before the first diff appears. Run one from the Prices tab, then run "
+                  "it again after the next data update.")
+
+        for kind, label, date_col, blurb in (
+            ("change", "Changes since the last refresh", "Detected",
+             "Snapshot diffs: trial status and date moves, new 8-K and 6-K filings, "
+             "new approvals."),
+            ("catalyst", "Catalysts inside 60 days", "Expected",
+             "Curated dates from the Catalysts tab. No free PDUFA calendar exists."),
+            ("loe", "Loss of exclusivity ahead", "Expiry",
+             "Latest patent or exclusivity expiry per marketed product, next 24 months."),
+        ):
+            items = [it for it in feed if it["kind"] == kind]
+            if not items:
+                continue
+            section(label, len(items))
             rows = []
             for it in items:
-                row = {"": _SEV_DOT.get(it["significance"], "⚪"),
-                       "Severity": it["significance"],
-                       date_label: (it["date"] or "")[:10]}
-                # The type column repeats the heading for LOE, so only changes and
-                # catalysts carry it.
+                # Severity is carried by the colour of the word alone. An extra dot
+                # would encode the same thing twice, in a glyph outside the palette.
+                row = {"Sev": it["significance"], date_col: (it["date"] or "")[:10]}
                 if kind != "loe":
                     row["Type"] = it.get("change_type") or kind
-                row["Headline"] = it["headline"]
+                if kind == "loe":
+                    row["Modality"] = it.get("modality") or "—"
+                row["Item"] = it["headline"]
                 rows.append(row)
             frame = pd.DataFrame(rows)
-            styled = frame.style.apply(
-                lambda col: [f"color: {_SEV_COLOR.get(v, 'inherit')}; font-weight: 600"
-                             for v in col], subset=["Severity"])
+            styled = frame.style.map(
+                lambda v: f"color:{T.SEVERITY_COLOUR.get(v, T.INK)};font-weight:600",
+                subset=["Sev"])
+            if "Modality" in frame:
+                styled = styled.map(
+                    lambda v: f"color:{T.MODALITY_COLOUR.get(v, T.STALE)};font-weight:600",
+                    subset=["Modality"])
+            st.dataframe(styled, width="stretch", hide_index=True)
+            st.markdown(f'<div class="byline">{blurb}</div>', unsafe_allow_html=True)
+
+    # --- Prices ----------------------------------------------------------
+    with prices_tab:
+        section("Close", prices.get("currency") or "")
+        if st.button("Refresh prices", key="refresh_prices"):
+            run_refresh(api_base, f"/refresh?ticker={urllib.parse.quote(ticker)}",
+                        "price_run", f"Refreshing {ticker} from Yahoo")
+            st.rerun()
+
+        points = prices["points"]
+        if not points:
+            state("No price history yet",
+                  "Press Refresh prices to pull the last six months from Yahoo. Prices "
+                  "expire after 15 minutes, so a second press inside that window is a "
+                  "no-op and says so.")
+        else:
+            latest = prices["latest"]
+            first = points[0]["close"]
+            change = (latest["close"] - first) / first * 100 if first else None
+            st.markdown(
+                '<div class="stats">'
+                f'<span class="stat"><span class="k">last close</span>'
+                f'<span class="v">{T.num(latest["close"], 2)}</span></span>'
+                f'<span class="stat"><span class="k">as of</span>'
+                f'<span class="v">{latest["as_of"]}</span></span>'
+                f'<span class="stat"><span class="k">period change</span>'
+                f'<span class="v {"risk" if (change or 0) < 0 else ""}">'
+                f'{T.pct(change)}</span></span>'
+                f'<span class="stat"><span class="k">sessions</span>'
+                f'<span class="v">{len(points)}</span></span></div>',
+                unsafe_allow_html=True)
+            frame = pd.DataFrame(points)
+            frame["as_of"] = pd.to_datetime(frame["as_of"])
+            chart(alt.Chart(frame).mark_line().encode(
+                x=alt.X("as_of:T", title=None),
+                y=alt.Y("close:Q", title=f"Close, {prices.get('currency') or ''}",
+                        scale=alt.Scale(zero=False)),
+                tooltip=[alt.Tooltip("as_of:T", title="Date"),
+                         alt.Tooltip("close:Q", title="Close", format=",.2f")]), 260)
+
+    # --- Financials ------------------------------------------------------
+    with financials_tab:
+        fin = api_get(api_base, f"/companies/{ticker}/financials")
+        fy_rows = [r for r in fin["rows"]
+                   if r["period_type"] == "FY" and r["metric"] in FY_METRICS]
+        currency = fy_rows[0]["unit"] if fy_rows else ""
+        section("Reported financials", f"{currency} bn" if currency else "")
+        if not fy_rows:
+            state(f"No financials on file for {ticker}",
+                  "Press Refresh all on the Comps tab to pull EDGAR company facts. "
+                  "Roche and Bayer do not file with the SEC, so EDGAR has nothing for "
+                  "them and this stays empty by design.")
+        else:
+            years = sorted({r["fiscal_year"] for r in fy_rows})
+            table = {}
+            for metric in FY_METRICS:
+                by_year = {r["fiscal_year"]: r["value"]
+                           for r in fy_rows if r["metric"] == metric}
+                table[FY_LABELS[metric]] = [by_year.get(y) for y in years]
+            frame = pd.DataFrame(table, index=[str(y) for y in years]).transpose() / 1e9
             st.dataframe(
-                styled, use_container_width=True, hide_index=True,
-                column_config={"": st.column_config.TextColumn(width="small"),
-                               "Headline": st.column_config.TextColumn(width="large")},
-            )
-            st.caption(blurb)
+                frame.style.format(lambda v: T.num(v, 2)).map(
+                    lambda v: f"color:{T.OXBLOOD}" if isinstance(v, (int, float))
+                    and v < 0 else ""),
+                width="stretch")
+            revenue = [{"year": str(y),
+                        "value": next((r["value"] / 1e9 for r in fy_rows
+                                       if r["metric"] == "Revenues"
+                                       and r["fiscal_year"] == y), None)}
+                       for y in years]
+            chart(alt.Chart(pd.DataFrame(revenue)).mark_bar(size=26).encode(
+                x=alt.X("year:N", title=None),
+                y=alt.Y("value:Q", title=f"Revenue, {currency} bn"),
+                tooltip=[alt.Tooltip("year:N", title="FY"),
+                         alt.Tooltip("value:Q", title="Revenue", format=",.2f")]), 210)
 
+    # --- Comps -----------------------------------------------------------
+    with comps_tab:
+        section("Comparables", "18 companies")
+        if st.button("Refresh all", key="refresh_all"):
+            run_refresh(api_base, "/refresh?scope=all", "all_run",
+                        "Refreshing the universe")
+            st.rerun()
 
-# --- Catalysts ----------------------------------------------------------
-with catalysts_tab:
-    st.subheader("Catalyst calendar")
-    with st.form("add_catalyst", clear_on_submit=True):
-        cols = st.columns([1, 1, 1, 3])
-        cat_ticker = cols[0].selectbox("Company", tickers,
-                                       index=default_index, key="cat_ticker")
-        cat_type = cols[1].selectbox("Type", CATALYST_TYPES, key="cat_type")
-        cat_date = cols[2].date_input("Expected date", key="cat_date")
-        cat_title = cols[3].text_input("Title", key="cat_title")
-        if st.form_submit_button("Add catalyst", type="primary"):
-            if cat_title.strip():
-                try:
-                    api_post_json(api_base, "/catalysts", {
-                        "ticker": cat_ticker, "catalyst_type": cat_type,
-                        "expected_date": str(cat_date), "title": cat_title.strip()})
-                    st.success(f"Added {cat_ticker} {cat_type} on {cat_date}")
-                except (urllib.error.URLError, OSError) as exc:
-                    st.error(f"Add failed: {exc}")
+        comps = api_get(api_base, "/comps")
+        # Units live in the header, never repeated in the cells. Precision is fixed per
+        # column so decimals align down the column and figures hold their width.
+        # Field names stay clean so Altair can reference them; the units are added to
+        # the headers at display time only.
+        cols = {"Revenue": 1, "Growth": 1, "Net margin": 1, "R&D": 1,
+                "Mkt cap": 0, "P/E": 1, "EV/Sales": 1}
+        units = {"Revenue": "Revenue, bn", "Growth": "Growth, %",
+                 "Net margin": "Net margin, %", "R&D": "R&D, %",
+                 "Mkt cap": "Mkt cap, $bn"}
+        display = pd.DataFrame([{
+            "Ticker": c["ticker"], "Name": c["name"], "FY": c["fiscal_year"],
+            "Cur": c["currency"],
+            "Revenue": c["revenue"] / 1e9 if c["revenue"] else None,
+            "Growth": c["revenue_growth"] * 100 if c["revenue_growth"] is not None else None,
+            "Net margin": c["net_margin"] * 100 if c["net_margin"] is not None else None,
+            "R&D": c["rd_pct"] * 100 if c["rd_pct"] is not None else None,
+            "Mkt cap": c["market_cap"] / 1e9 if c["market_cap"] else None,
+            "P/E": c["pe"], "EV/Sales": c["ev_sales"]} for c in comps])
+        # Streamlit reads the frame's own column names, so the units go on the frame
+        # rather than through the Styler. The scatter keeps the clean-named original.
+        table = display.rename(columns=units)
+        formats = {units.get(name, name): (lambda dp: lambda v: T.num(v, dp))(dp)
+                   for name, dp in cols.items()}
+        formats["FY"] = lambda v: "—" if pd.isna(v) else f"{int(v)}"
+        styled = (table.style
+                  .format(formats, na_rep="—")
+                  .map(lambda v: f"color:{T.OXBLOOD}"
+                       if isinstance(v, (int, float)) and not pd.isna(v) and v < 0
+                       else "", subset=[units.get(c, c) for c in cols]))
+        st.dataframe(styled, width="stretch", hide_index=True)
+        st.markdown(
+            '<div class="byline">Units are in the header, not the cells. Revenue, '
+            'growth, margin, and R&D are in each filer\'s reporting currency. Market '
+            'cap, P/E, and EV/Sales need shares outstanding and USD reporting, so they '
+            'resolve for US filers only. A dash is no free data, not zero.</div>',
+            unsafe_allow_html=True)
+
+        scatter = display.dropna(subset=["Growth", "Net margin"])
+        if not scatter.empty:
+            section("Growth against margin", f"{ticker} in oxblood")
+            scatter = scatter.assign(sel=scatter["Ticker"].eq(ticker))
+            chart(alt.Chart(scatter).mark_point(filled=True, size=70).encode(
+                x=alt.X("Growth:Q", title="Revenue growth, %"),
+                y=alt.Y("Net margin:Q", title="Net margin, %"),
+                color=alt.Color("sel:N", scale=alt.Scale(
+                    domain=[False, True], range=[T.STALE, T.OXBLOOD]), legend=None),
+                tooltip=["Ticker:N", alt.Tooltip("Growth:Q", format=".1f"),
+                         alt.Tooltip("Net margin:Q", format=".1f")]), 230)
+
+    # --- Pipeline --------------------------------------------------------
+    with pipeline_tab:
+        section("Active trials by phase", "lead sponsored")
+        rows = api_get(api_base, "/pipeline")
+        grid = pd.DataFrame([{"Ticker": r["ticker"], **r["phases"], "Total": r["total"]}
+                             for r in rows])
+        if grid[PIPELINE_PHASES].to_numpy().sum() == 0:
+            state("No trials on file",
+                  "Press Refresh all on the Comps tab to pull active lead-sponsored "
+                  "interventional trials from ClinicalTrials.gov.")
+        else:
+            long = grid.melt(id_vars="Ticker", value_vars=PIPELINE_PHASES,
+                             var_name="Phase", value_name="Trials")
+            chart(alt.Chart(long).mark_rect(stroke=T.PAPER, strokeWidth=1).encode(
+                x=alt.X("Phase:N", title=None, sort=PIPELINE_PHASES,
+                        axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Ticker:N", title=None, sort=list(grid["Ticker"])),
+                # Sqrt, not linear: one company runs three figures of trials and a
+                # linear ramp collapses everyone else into the same pale tint.
+                color=alt.Color("Trials:Q", legend=alt.Legend(title="Trials"),
+                                scale=alt.Scale(range=T.PHASE_TINTS, type="sqrt")),
+                tooltip=["Ticker:N", "Phase:N", "Trials:Q"]), 420)
+            st.markdown('<div class="byline">Phase is ordinal, so it takes an ink tint '
+                        'rather than a hue. Counts are trials, not deduplicated assets, '
+                        'so a combination trial counts once per phase.</div>',
+                        unsafe_allow_html=True)
+
+            section("Trials behind a cell")
+            phase_choice = st.selectbox("Phase", ["All"] + PIPELINE_PHASES,
+                                        key="pipe_phase", label_visibility="collapsed")
+            query = "" if phase_choice == "All" else f"?phase={urllib.parse.quote(phase_choice)}"
+            detail = api_get(api_base, f"/companies/{ticker}/trials{query}")["trials"]
+            if not detail:
+                state(f"No {phase_choice.lower()} trials for {ticker}",
+                      "Pick another phase, or another company in the sidebar.")
             else:
-                st.warning("Give the catalyst a title.")
+                st.dataframe(pd.DataFrame([{
+                    "NCT": t["nct_id"], "Phase": t["phase"], "Status": t["overall_status"],
+                    "Primary completion": t["primary_completion_date"],
+                    "Conditions": ", ".join(t["conditions"][:3]), "Title": t["title"]}
+                    for t in detail]), width="stretch", hide_index=True)
 
-    calendar = api_get(api_base, "/catalysts?within_days=90")
-    if not calendar:
-        st.info("No upcoming catalysts. Add one above; the table is curated (no free "
-                "PDUFA calendar exists).")
-    else:
-        st.dataframe(
-            pd.DataFrame(
-                [
-                    {"id": c["id"], "Company": c["ticker"], "Type": c["catalyst_type"],
-                     "Date": c["expected_date"], "Confidence": c["date_confidence"],
-                     "Title": c["title"], "Status": c["status"]}
-                    for c in calendar
-                ]
-            ),
-            use_container_width=True, hide_index=True,
-        )
-        del_cols = st.columns([1, 4])
-        del_id = del_cols[0].number_input("Delete id", min_value=0, step=1, value=0)
-        if del_cols[0].button("Delete") and del_id:
-            try:
-                api_delete(api_base, f"/catalysts/{int(del_id)}")
-                st.success(f"Deleted catalyst {int(del_id)}")
-            except (urllib.error.URLError, OSError) as exc:
-                st.error(f"Delete failed: {exc}")
-    st.caption("Curated table (is_curated=1). Auto-extraction of PDUFA dates from 8-K "
-               "is a labelled future add.")
+    # --- LOE -------------------------------------------------------------
+    with loe_tab:
+        section("Exclusivity cliff", "products per year")
+        data = api_get(api_base, "/loe")
+        year_cols = [str(y) for y in data["years"]] + [data["later_label"]]
+        grid = pd.DataFrame([{"Ticker": r["ticker"],
+                              **{str(y): r["years"].get(str(y), 0) for y in data["years"]},
+                              data["later_label"]: r["later"]} for r in data["rows"]])
+        if grid[year_cols].to_numpy().sum() == 0:
+            state("No exclusivity data yet",
+                  "Press Refresh all on the Comps tab to download the FDA Orange Book "
+                  "and Purple Book. They refresh weekly.")
+        else:
+            totals = pd.DataFrame({"Year": year_cols,
+                                   "Products": [int(grid[c].sum()) for c in year_cols]})
+            chart(alt.Chart(totals).mark_bar(size=22).encode(
+                x=alt.X("Year:N", title=None, sort=year_cols,
+                        axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Products:Q", title="Products losing exclusivity"),
+                tooltip=["Year:N", "Products:Q"]), 220)
 
+            section(f"Upcoming for {ticker}", len(exclusivities))
+            if not exclusivities:
+                state(f"No upcoming loss of exclusivity for {ticker}",
+                      "Either nothing expires inside the window or the books carry no "
+                      "entry for this company. Biologics coverage is partial.")
+            else:
+                frame = pd.DataFrame([{
+                    "Expiry": a["loe"], "Modality": a["modality"] or "—",
+                    "Brand": a["brand_name"], "Generic": a["generic_name"],
+                    "Application": a["internal_code"]} for a in exclusivities])
+                st.dataframe(
+                    frame.style.map(
+                        lambda v: f"color:{T.MODALITY_COLOUR.get(v, T.STALE)};"
+                                  "font-weight:600", subset=["Modality"]),
+                    width="stretch", hide_index=True)
+                st.markdown('<div class="byline">Orange for small molecules, purple for '
+                            'biologics, the colours of the two source books. Not revenue '
+                            'weighted: no free product revenue exists.</div>',
+                            unsafe_allow_html=True)
 
-# --- News ---------------------------------------------------------------
-with news_tab:
-    st.subheader(f"News: {names.get(ticker, ticker)} ({ticker})")
-    news = api_get(api_base, f"/companies/{ticker}/news")["news"]
-    if not news:
-        st.info("No news yet. Click Refresh all (LOE tab) to pull EDGAR 8-K/6-K filings.")
-    else:
-        st.dataframe(
-            pd.DataFrame(
-                [{"Published": n["published_at"], "Title": n["title"], "Link": n["url"]}
-                 for n in news]
-            ),
-            use_container_width=True, hide_index=True,
-            column_config={"Link": st.column_config.LinkColumn("Link")},
-        )
-        st.caption("From EDGAR 8-K/6-K material events. IR RSS is a labelled future add.")
+    # --- Approvals -------------------------------------------------------
+    with approvals_tab:
+        approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
+        section(f"FDA approvals for {ticker}", len(approvals))
+        if not approvals:
+            state(f"No approvals on file for {ticker}",
+                  "Press Refresh all on the Comps tab to pull openFDA. Coverage depends "
+                  "on openFDA manufacturer tagging and is not exhaustive.")
+        else:
+            frame = pd.DataFrame([{
+                "Approved": a["approval_date"], "Modality": a["modality"] or "—",
+                "Brand": a["brand_name"], "Application": a["application_number"]}
+                for a in approvals])
+            st.dataframe(
+                frame.style.map(
+                    lambda v: f"color:{T.MODALITY_COLOUR.get(v, T.STALE)};font-weight:600",
+                    subset=["Modality"]),
+                width="stretch", hide_index=True)
+
+    # --- Catalysts -------------------------------------------------------
+    with catalysts_tab:
+        section("Catalyst calendar", "curated")
+        with st.form("add_catalyst", clear_on_submit=True):
+            cols = st.columns([1, 1, 1, 3])
+            cat_ticker = cols[0].selectbox("Company", tickers, index=default_index,
+                                           key="cat_ticker")
+            cat_type = cols[1].selectbox("Type", CATALYST_TYPES, key="cat_type")
+            cat_date = cols[2].date_input("Expected date", key="cat_date")
+            cat_title = cols[3].text_input("Title", key="cat_title")
+            if st.form_submit_button("Add catalyst"):
+                if cat_title.strip():
+                    try:
+                        api_post_json(api_base, "/catalysts", {
+                            "ticker": cat_ticker, "catalyst_type": cat_type,
+                            "expected_date": str(cat_date), "title": cat_title.strip()})
+                        api_get.clear()
+                        st.rerun()
+                    except (urllib.error.URLError, OSError) as exc:
+                        state("The catalyst was not saved", str(exc), error=True)
+                else:
+                    state("A catalyst needs a title",
+                          "Give it the event name, for example Winrevair sBLA decision.")
+
+        calendar = api_get(api_base, "/catalysts?within_days=90")
+        if not calendar:
+            state("No catalysts in the next 90 days",
+                  "This table is curated by hand because no free PDUFA calendar exists. "
+                  "Add the first one above and it appears on the horizon rail.")
+        else:
+            st.dataframe(pd.DataFrame([{
+                "id": c["id"], "Company": c["ticker"], "Type": c["catalyst_type"],
+                "Date": c["expected_date"], "Confidence": c["date_confidence"],
+                "Title": c["title"], "Status": c["status"]} for c in calendar]),
+                width="stretch", hide_index=True)
+            del_cols = st.columns([1, 5])
+            del_id = del_cols[0].number_input("Delete id", min_value=0, step=1, value=0)
+            if del_cols[0].button("Delete") and del_id:
+                try:
+                    api_delete(api_base, f"/catalysts/{int(del_id)}")
+                    api_get.clear()
+                    st.rerun()
+                except (urllib.error.URLError, OSError) as exc:
+                    state("The catalyst was not deleted", str(exc), error=True)
+
+    # --- News ------------------------------------------------------------
+    with news_tab:
+        news = api_get(api_base, f"/companies/{ticker}/news")["news"]
+        section(f"Material events for {ticker}", len(news))
+        if not news:
+            state(f"No filings on file for {ticker}",
+                  "Press Refresh all on the Comps tab to pull 8-K and 6-K material "
+                  "events from EDGAR. European filers submit 6-K, not 8-K.")
+        else:
+            st.dataframe(
+                pd.DataFrame([{"Published": n["published_at"], "Title": n["title"],
+                               "Link": n["url"]} for n in news]),
+                width="stretch", hide_index=True,
+                column_config={"Link": st.column_config.LinkColumn("Link")})
+            st.markdown('<div class="byline">From EDGAR 8-K and 6-K material events. '
+                        'IR RSS is a labelled future add.</div>', unsafe_allow_html=True)
