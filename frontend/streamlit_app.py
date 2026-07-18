@@ -36,6 +36,21 @@ def api_post(base: str, path: str, timeout: int = 300):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def api_post_json(base: str, path: str, body: dict):
+    data = json.dumps(body).encode("utf-8")
+    request = urllib.request.Request(
+        base.rstrip("/") + path, data=data, method="POST",
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(request, timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def api_delete(base: str, path: str):
+    request = urllib.request.Request(base.rstrip("/") + path, method="DELETE")
+    with urllib.request.urlopen(request, timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
 st.set_page_config(page_title="Equity research terminal", layout="wide")
 st.title("Pharma equity research terminal")
 st.caption("Phase 5: prices, financials, comps, pipeline, LOE, and FDA approvals.")
@@ -60,9 +75,13 @@ ticker = st.sidebar.selectbox("Company", tickers, index=default_index)
 
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
 
-prices_tab, financials_tab, comps_tab, pipeline_tab, loe_tab, approvals_tab = st.tabs(
-    ["Prices", "Financials", "Comps", "Pipeline", "LOE", "Approvals"]
+(whatchanged_tab, prices_tab, financials_tab, comps_tab, pipeline_tab, loe_tab,
+ approvals_tab, catalysts_tab, news_tab) = st.tabs(
+    ["What changed", "Prices", "Financials", "Comps", "Pipeline", "LOE", "Approvals",
+     "Catalysts", "News"]
 )
+CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
+_SEV_COLOR = {"high": "#c0392b", "medium": "#c07d17", "low": "#7f8c8d"}
 
 
 # --- Prices -------------------------------------------------------------
@@ -336,3 +355,101 @@ with approvals_tab:
             "Original FDA approvals (NDAs and BLAs) from openFDA. Coverage depends on "
             "openFDA's manufacturer tagging and is not exhaustive."
         )
+
+
+# --- What changed -------------------------------------------------------
+with whatchanged_tab:
+    st.subheader("What changed")
+    feed = api_get(api_base, "/changes")
+    if not feed:
+        st.info(
+            "No changes yet. The feed compares snapshots between refreshes, so it fills "
+            "in once a refresh detects a trial status/date change, a new 8-K/6-K, or a "
+            "new approval; it also surfaces catalysts within 60 days and near-term LOE."
+        )
+    else:
+        frame = pd.DataFrame(
+            [
+                {"Severity": it["significance"], "Kind": it["kind"],
+                 "Date": (it["date"] or "")[:10], "Company": it.get("ticker"),
+                 "Headline": it["headline"]}
+                for it in feed
+            ]
+        )
+        styled = frame.style.apply(
+            lambda col: [f"color: {_SEV_COLOR.get(v, 'inherit')}; font-weight: 600"
+                         for v in col], subset=["Severity"])
+        st.dataframe(styled, use_container_width=True, hide_index=True)
+        st.caption(
+            "Rules layer: detected snapshot changes plus catalysts within 60 days and "
+            "near-term LOE, ranked by significance. The Anthropic morning note over this "
+            "feed is phase 7."
+        )
+
+
+# --- Catalysts ----------------------------------------------------------
+with catalysts_tab:
+    st.subheader("Catalyst calendar")
+    with st.form("add_catalyst", clear_on_submit=True):
+        cols = st.columns([1, 1, 1, 3])
+        cat_ticker = cols[0].selectbox("Company", tickers,
+                                       index=default_index, key="cat_ticker")
+        cat_type = cols[1].selectbox("Type", CATALYST_TYPES, key="cat_type")
+        cat_date = cols[2].date_input("Expected date", key="cat_date")
+        cat_title = cols[3].text_input("Title", key="cat_title")
+        if st.form_submit_button("Add catalyst", type="primary"):
+            if cat_title.strip():
+                try:
+                    api_post_json(api_base, "/catalysts", {
+                        "ticker": cat_ticker, "catalyst_type": cat_type,
+                        "expected_date": str(cat_date), "title": cat_title.strip()})
+                    st.success(f"Added {cat_ticker} {cat_type} on {cat_date}")
+                except (urllib.error.URLError, OSError) as exc:
+                    st.error(f"Add failed: {exc}")
+            else:
+                st.warning("Give the catalyst a title.")
+
+    calendar = api_get(api_base, "/catalysts?within_days=90")
+    if not calendar:
+        st.info("No upcoming catalysts. Add one above; the table is curated (no free "
+                "PDUFA calendar exists).")
+    else:
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {"id": c["id"], "Company": c["ticker"], "Type": c["catalyst_type"],
+                     "Date": c["expected_date"], "Confidence": c["date_confidence"],
+                     "Title": c["title"], "Status": c["status"]}
+                    for c in calendar
+                ]
+            ),
+            use_container_width=True, hide_index=True,
+        )
+        del_cols = st.columns([1, 4])
+        del_id = del_cols[0].number_input("Delete id", min_value=0, step=1, value=0)
+        if del_cols[0].button("Delete") and del_id:
+            try:
+                api_delete(api_base, f"/catalysts/{int(del_id)}")
+                st.success(f"Deleted catalyst {int(del_id)}")
+            except (urllib.error.URLError, OSError) as exc:
+                st.error(f"Delete failed: {exc}")
+    st.caption("Curated table (is_curated=1). Auto-extraction from 8-K via the Anthropic "
+               "API is phase 7.")
+
+
+# --- News ---------------------------------------------------------------
+with news_tab:
+    st.subheader(f"News: {names.get(ticker, ticker)} ({ticker})")
+    news = api_get(api_base, f"/companies/{ticker}/news")["news"]
+    if not news:
+        st.info("No news yet. Click Refresh all (LOE tab) to pull EDGAR 8-K/6-K filings.")
+    else:
+        st.dataframe(
+            pd.DataFrame(
+                [{"Published": n["published_at"], "Title": n["title"], "Link": n["url"]}
+                 for n in news]
+            ),
+            use_container_width=True, hide_index=True,
+            column_config={"Link": st.column_config.LinkColumn("Link")},
+        )
+        st.caption("From EDGAR 8-K/6-K material events. IR RSS is a labelled future add.")
