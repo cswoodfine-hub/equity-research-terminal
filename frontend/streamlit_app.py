@@ -38,7 +38,7 @@ def api_post(base: str, path: str, timeout: int = 300):
 
 st.set_page_config(page_title="Equity research terminal", layout="wide")
 st.title("Pharma equity research terminal")
-st.caption("Phase 4: prices, EDGAR financials, comps, and the clinical pipeline.")
+st.caption("Phase 5: prices, financials, comps, pipeline, LOE, and FDA approvals.")
 
 st.sidebar.header("Settings")
 api_base = st.sidebar.text_input("API base URL", DEFAULT_API)

@@ -6,13 +6,16 @@ changed since the last snapshot, and renders charts plus a short written note pe
 company. See [CLAUDE.md](CLAUDE.md) for architecture and [docs/PRD.md](docs/PRD.md)
 for the product spec.
 
-Status: phase 4 (clinical pipeline). Prices (Yahoo), reported financials (SEC EDGAR
-XBRL company-facts), and active trials (ClinicalTrials.gov v2) refresh for the
-universe, snapshot, and feed the comps table and a pipeline heatmap. A Streamlit UI
-has Prices, Financials, Comps, and Pipeline tabs. Valuation ratios resolve for US
-filers only (shares outstanding and USD reporting); pipeline cells are active
-lead-sponsored trial counts, not deduplicated assets. Gaps are labelled, not
-estimated. Regulatory/LOE sources, the diff engine, and React come later.
+Status: phase 5 (LOE and approvals). Prices (Yahoo), financials (SEC EDGAR), active
+trials (ClinicalTrials.gov), patent/exclusivity (FDA Orange + Purple Book), and FDA
+approvals (openFDA) refresh for the universe, snapshot, and feed the comps table, a
+pipeline heatmap, an LOE cliff, and an approvals feed. The `assets` table now holds
+real marketed products keyed by FDA application number. A Streamlit UI has Prices,
+Financials, Comps, Pipeline, LOE, and Approvals tabs. Honest gaps are labelled, not
+estimated: valuation ratios are US-filer-only, pipeline cells are trial counts (not
+deduplicated assets), the LOE cliff is product counts (no free product revenue) with
+partial biologics coverage, and openFDA approvals are not exhaustive. The diff engine,
+generated notes, and React come later.
 
 ## Setup
 
@@ -51,7 +54,13 @@ curl localhost:8000/companies/LLY/financials      # stored EDGAR financials
 curl localhost:8000/comps                          # the comps table
 curl localhost:8000/pipeline                       # company x phase trial counts
 curl 'localhost:8000/companies/LLY/trials?phase=Phase%203'  # trials behind a cell
+curl localhost:8000/loe                            # company x expiry-year LOE cliff
+curl localhost:8000/companies/LLY/exclusivities    # upcoming LOE products
+curl localhost:8000/companies/LLY/approvals        # FDA approvals (NDAs + BLAs)
 ```
+
+Orange/Purple Book and openFDA need no key (openFDA works unauthenticated; set the
+optional `OPENFDA_API_KEY` only to raise the rate limit).
 
 `?scope=all` and financials need `SEC_USER_AGENT` set (EDGAR blocks anonymous
 requests). Foreign names are quoted by their US ADR symbol (ROG uses RHHBY, BAYN
@@ -74,12 +83,13 @@ pip install -r frontend/requirements.txt
 streamlit run frontend/streamlit_app.py
 ```
 
-The UI has four tabs: Prices (the six-month close chart with a per-company refresh),
+The UI has six tabs: Prices (the six-month close chart with a per-company refresh),
 Financials (reported revenue, net income, and R&D per company), Comps (the sortable
-universe table), and Pipeline (a company x phase heatmap of active trials with
-drill-down to the underlying trials). The API base URL is configurable in the sidebar
+universe table), Pipeline (a company x phase heatmap of active trials), LOE (a company
+x expiry-year cliff of products losing exclusivity, with drill-down), and Approvals (a
+per-company FDA approvals feed). The API base URL is configurable in the sidebar
 (default `http://localhost:8000`). Blank comps cells are no free data, not zero;
-pipeline counts are active lead-sponsored trials, not deduplicated assets.
+pipeline and LOE counts are trials/products, not deduplicated or revenue-weighted.
 
 A full `?scope=all` refresh pulls every source for all 18 companies (Yahoo, EDGAR,
 and paginated ClinicalTrials queries) and can take several minutes; per-source TTLs
