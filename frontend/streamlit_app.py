@@ -382,7 +382,7 @@ with main:
                                        and r["fiscal_year"] == y), None)}
                        for y in years]
             chart(alt.Chart(pd.DataFrame(revenue)).mark_bar(size=26).encode(
-                x=alt.X("year:N", title=None),
+                x=alt.X("year:N", title=None, axis=alt.Axis(labelAngle=0)),
                 y=alt.Y("value:Q", title=f"Revenue, {currency} bn"),
                 tooltip=[alt.Tooltip("year:N", title="FY"),
                          alt.Tooltip("value:Q", title="Revenue", format=",.2f")]), 210)

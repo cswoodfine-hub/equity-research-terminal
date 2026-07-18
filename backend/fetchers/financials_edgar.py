@@ -58,7 +58,10 @@ CASH_CANDIDATES = [
 ]
 DEBT_COMBINED_CANDIDATES = [("us-gaap", "DebtLongtermAndShorttermCombinedAmount")]
 
-MAX_FISCAL_YEARS = 3  # how many recent FYs of each annual metric to store
+# How many recent FYs of each annual metric to store. Six covers 2020 onward, which is
+# the span the financials view charts. Company facts already carry the full history, so
+# raising this costs storage rather than extra EDGAR calls.
+MAX_FISCAL_YEARS = 6
 
 
 # --- pure parsing --------------------------------------------------------
