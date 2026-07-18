@@ -1,8 +1,13 @@
 """The snapshot diff engine, no network."""
 
+from datetime import date, timedelta
+
 import db
 import diff
 import seed
+
+_RECENT = (date.today() - timedelta(days=7)).isoformat()
+_OLD = "2008-03-14"
 
 
 def _seed_trial(db_file):
@@ -38,6 +43,71 @@ def _changes(db_file):
             " FROM changes ORDER BY id")]
     finally:
         conn.close()
+
+
+def _seed_approval(db_file, ticker, application_number, approval_date):
+    """Give one company a marketed asset with an FDA approval on the given date."""
+    conn = db.get_connection(db_file)
+    try:
+        cid = conn.execute("SELECT id FROM companies WHERE ticker=?", (ticker,)).fetchone()[0]
+        cur = conn.execute(
+            "INSERT INTO assets (owner_company_id, generic_name, brand_name, is_marketed)"
+            " VALUES (?, ?, ?, 1)",
+            (cid, f"generic-{application_number}", f"Brand-{application_number}"),
+        )
+        conn.execute(
+            "INSERT INTO approvals (asset_id, region, agency, approval_date, application_number)"
+            " VALUES (?, 'US', 'FDA', ?, ?)",
+            (cur.lastrowid, approval_date, application_number),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_baseline_is_per_company_not_global(tmp_path):
+    """A refresh that baselines one company must not turn another's back catalogue into news.
+
+    Regression: the baseline flag was a global count over the entity type, so the first
+    single-company refresh flipped it for everyone and the next full run emitted every
+    other company's decades-old approvals as new_approval.
+    """
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    _seed_approval(db_file, "LLY", "NDA100001", _RECENT)
+    _seed_approval(db_file, "AMGN", "BLA125268", _OLD)
+
+    # Baseline LLY only, as a single-company refresh would: AMGN's approval is not yet
+    # visible to the diff engine, so nothing about it is snapshotted.
+    conn = db.get_connection(db_file)
+    conn.execute("DELETE FROM approvals WHERE application_number='BLA125268'")
+    conn.commit()
+    conn.close()
+    assert diff.detect_changes(db_file)["new_approvals"] == 0
+
+    # Now the full-universe run sees AMGN for the first time.
+    _seed_approval(db_file, "AMGN", "BLA125268", _OLD)
+    assert diff.detect_changes(db_file)["new_approvals"] == 0
+    assert _changes(db_file) == []
+
+    # AMGN is baselined, so a genuinely recent approval for it does come through.
+    _seed_approval(db_file, "AMGN", "BLA761000", _RECENT)
+    assert diff.detect_changes(db_file)["new_approvals"] == 1
+    assert [c["entity_key"] for c in _changes(db_file)] == ["BLA761000"]
+
+
+def test_old_approval_is_not_new_for_a_baselined_company(tmp_path):
+    """Recency gate: a back-dated approval surfacing late is coverage, not an event."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    _seed_approval(db_file, "LLY", "NDA100001", _RECENT)
+    diff.detect_changes(db_file)  # baseline LLY
+
+    _seed_approval(db_file, "LLY", "NDA020702", _OLD)
+    assert diff.detect_changes(db_file)["new_approvals"] == 0
+    assert _changes(db_file) == []
 
 
 def test_baseline_then_detect_then_idempotent(tmp_path):

@@ -3,15 +3,21 @@
 Turns consecutive snapshots into rows in the changes table. Runs after the fetchers on
 every refresh: it compares each trial's current state to its last per-trial snapshot
 (status, primary completion date, phase) and treats a first-seen filing or approval as a
-new-item signal. The first run establishes baselines and emits nothing; later runs emit
+new-item signal. Baselines are per company, not global, so a single-company refresh never
+baselines the rest of the universe. A company's first run emits nothing; later runs emit
 each change once, since the compared snapshot is advanced when a change is recorded.
 """
 
 from __future__ import annotations
 
 import json
+from datetime import date, timedelta
 
 import db
+
+# A first-seen filing or approval only counts as news if it is also recent. Wide enough to
+# survive a refresh gap of several months, narrow enough to exclude back catalogue.
+_RECENCY_DAYS = 180
 
 _HIGH_STATUS = {"Terminated", "Suspended", "Withdrawn"}
 _PHASE_RANK = {
@@ -114,16 +120,45 @@ def _diff_trials(conn, run_id) -> int:
     return changed
 
 
-def _detect_new(conn, run_id, source, entity_type, rows, change_type, sig_for) -> int:
-    """First-seen entities (filings, approvals) are the signal, once past the baseline."""
-    baseline = conn.execute(
-        "SELECT COUNT(*) FROM snapshots WHERE entity_type = ?", (entity_type,)
-    ).fetchone()[0] == 0
+def _baselined_tickers(conn, entity_type) -> set:
+    """Tickers this entity type has already been snapshotted for.
+
+    Scoped per company because refreshes are: a single-company refresh must not baseline
+    the rest of the universe and turn their back catalogue into news on the next run.
+    """
+    rows = conn.execute(
+        "SELECT DISTINCT json_extract(payload, '$.ticker') AS ticker"
+        "  FROM snapshots WHERE entity_type = ?",
+        (entity_type,),
+    ).fetchall()
+    return {r["ticker"] for r in rows}
+
+
+def _is_recent(value, today=None) -> bool:
+    """True for an ISO date within the recency window. Missing or unparseable is False."""
+    if not value:
+        return False
+    try:
+        parsed = date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return False
+    return parsed >= (today or date.today()) - timedelta(days=_RECENCY_DAYS)
+
+
+def _detect_new(conn, run_id, source, entity_type, rows, change_type, date_field) -> int:
+    """First-seen entities (filings, approvals) are the signal, once past the baseline.
+
+    Two gates, both required. A company's first sighting is its baseline and emits
+    nothing, so adding a company mid-life does not replay its history. Past that, only
+    an item dated inside the recency window is news; an approval from 2008 first seen
+    today is a gap in our coverage, not an event.
+    """
+    baselined = _baselined_tickers(conn, entity_type)
     emitted = 0
     for key, payload, label, significance in rows:
         if _last_snapshot(conn, source, entity_type, key) is not None:
             continue
-        if not baseline:
+        if payload.get("ticker") in baselined and _is_recent(payload.get(date_field)):
             _write_change(conn, entity_type, key, entity_type, None, label,
                           change_type, significance, run_id)
             emitted += 1
@@ -146,7 +181,7 @@ def _diff_filings(conn, run_id) -> int:
          "medium" if r["form_type"] in ("8-K", "6-K") else "low")
         for r in rows
     ]
-    return _detect_new(conn, run_id, "filings", "filing", items, "new_filing", None)
+    return _detect_new(conn, run_id, "filings", "filing", items, "new_filing", "filed_date")
 
 
 def _diff_approvals(conn, run_id) -> int:
@@ -164,7 +199,8 @@ def _diff_approvals(conn, run_id) -> int:
          "high")
         for r in rows
     ]
-    return _detect_new(conn, run_id, "approvals", "approval", items, "new_approval", None)
+    return _detect_new(conn, run_id, "approvals", "approval", items, "new_approval",
+                       "approval_date")
 
 
 def detect_changes(db_path=None, run_id=None) -> dict:
