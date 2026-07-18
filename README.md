@@ -6,16 +6,18 @@ changed since the last snapshot, and renders charts plus a short written note pe
 company. See [CLAUDE.md](CLAUDE.md) for architecture and [docs/PRD.md](docs/PRD.md)
 for the product spec.
 
-Status: phase 5 (LOE and approvals). Prices (Yahoo), financials (SEC EDGAR), active
-trials (ClinicalTrials.gov), patent/exclusivity (FDA Orange + Purple Book), and FDA
-approvals (openFDA) refresh for the universe, snapshot, and feed the comps table, a
-pipeline heatmap, an LOE cliff, and an approvals feed. The `assets` table now holds
-real marketed products keyed by FDA application number. A Streamlit UI has Prices,
-Financials, Comps, Pipeline, LOE, and Approvals tabs. Honest gaps are labelled, not
-estimated: valuation ratios are US-filer-only, pipeline cells are trial counts (not
-deduplicated assets), the LOE cliff is product counts (no free product revenue) with
-partial biologics coverage, and openFDA approvals are not exhaustive. The diff engine,
-generated notes, and React come later.
+Status: phase 6 (what changed). Prices (Yahoo), financials (SEC EDGAR), trials
+(ClinicalTrials.gov), patent/exclusivity (Orange + Purple Book), approvals (openFDA),
+and filings (EDGAR submissions) refresh for the universe. Every refresh writes
+snapshots, and a diff engine turns consecutive snapshots into a `changes` feed: trial
+status/date/phase changes, new 8-K/6-K, and new approvals, ranked with catalysts
+within 60 days and near-term LOE into a "what changed" view. Catalysts are a curated
+table with a 90-day calendar; news comes from EDGAR 8-K/6-K. A Streamlit UI has What
+changed, Prices, Financials, Comps, Pipeline, LOE, Approvals, Catalysts, and News tabs.
+Honest gaps are labelled: valuation ratios are US-filer-only, pipeline cells are trial
+counts, the LOE cliff is product counts with partial biologics, catalysts are curated
+(empty until added), news is EDGAR-only, and the change feed needs two refreshes to
+populate. Generated notes (Anthropic) and React come later.
 
 ## Setup
 
@@ -57,7 +59,14 @@ curl 'localhost:8000/companies/LLY/trials?phase=Phase%203'  # trials behind a ce
 curl localhost:8000/loe                            # company x expiry-year LOE cliff
 curl localhost:8000/companies/LLY/exclusivities    # upcoming LOE products
 curl localhost:8000/companies/LLY/approvals        # FDA approvals (NDAs + BLAs)
+curl localhost:8000/changes                        # ranked what-changed feed
+curl localhost:8000/companies/LLY/filings          # recent EDGAR filings
+curl localhost:8000/companies/LLY/news             # EDGAR 8-K/6-K news
+curl localhost:8000/catalysts                      # curated catalyst calendar
 ```
+
+The what-changed feed needs at least two refreshes to show anything: the first
+establishes snapshot baselines and the next detects diffs against them.
 
 Orange/Purple Book and openFDA need no key (openFDA works unauthenticated; set the
 optional `OPENFDA_API_KEY` only to raise the rate limit).
@@ -83,13 +92,12 @@ pip install -r frontend/requirements.txt
 streamlit run frontend/streamlit_app.py
 ```
 
-The UI has six tabs: Prices (the six-month close chart with a per-company refresh),
-Financials (reported revenue, net income, and R&D per company), Comps (the sortable
-universe table), Pipeline (a company x phase heatmap of active trials), LOE (a company
-x expiry-year cliff of products losing exclusivity, with drill-down), and Approvals (a
-per-company FDA approvals feed). The API base URL is configurable in the sidebar
-(default `http://localhost:8000`). Blank comps cells are no free data, not zero;
-pipeline and LOE counts are trials/products, not deduplicated or revenue-weighted.
+The UI opens on a **What changed** tab (the ranked feed), then Prices, Financials,
+Comps, Pipeline, LOE, Approvals, a **Catalysts** tab (a 90-day calendar with an add
+form; the table is curated), and a **News** tab (per-company EDGAR 8-K/6-K). The API
+base URL is configurable in the sidebar (default `http://localhost:8000`). Blank comps
+cells are no free data, not zero; pipeline and LOE counts are trials/products, not
+deduplicated or revenue-weighted; the what-changed feed fills in after a second refresh.
 
 A full `?scope=all` refresh pulls every source for all 18 companies (Yahoo, EDGAR,
 and paginated ClinicalTrials queries) and can take several minutes; per-source TTLs

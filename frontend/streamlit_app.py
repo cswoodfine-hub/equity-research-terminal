@@ -53,7 +53,8 @@ def api_delete(base: str, path: str):
 
 st.set_page_config(page_title="Equity research terminal", layout="wide")
 st.title("Pharma equity research terminal")
-st.caption("Phase 5: prices, financials, comps, pipeline, LOE, and FDA approvals.")
+st.caption("Phase 6: what changed, prices, financials, comps, pipeline, LOE, "
+           "approvals, catalysts, and news.")
 
 st.sidebar.header("Settings")
 api_base = st.sidebar.text_input("API base URL", DEFAULT_API)
