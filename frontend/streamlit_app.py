@@ -103,6 +103,43 @@ def chart(spec, height: int = 250):
     st.altair_chart(spec.properties(height=height, width="container"))
 
 
+FEED_SECTIONS = (
+    ("filing", "Material events",
+     "8-K items that move a case: acquisitions, agreements, impairments. Exhibits and "
+     "shareholder votes are filtered out."),
+    ("change", "Changes since the last refresh",
+     "Snapshot diffs: trial status and date moves, new filings, new approvals. Dated "
+     "by when the event happened, not when it was detected."),
+    ("catalyst", "Catalysts inside 60 days",
+     "Phase 3 readouts derived from registry completion dates, plus anything curated."),
+    ("loe", "Loss of exclusivity ahead",
+     "Latest protection per marketed product, next 24 months. Orphan exclusivity is "
+     "not a cliff."),
+)
+
+
+def feed_row(item) -> str:
+    """One feed line as type, not as a table row.
+
+    Two or three items in a grid widget is all chrome and no content, so the feed is a
+    date, a headline, and a severity, aligned on a grid.
+    """
+    date = (item.get("date") or "")[:10]
+    sev = item.get("significance") or "low"
+    modality = (item.get("modality") or "").lower()
+    css = "small" if modality.startswith("small") else "bio" if modality.startswith("bio") else ""
+    headline = html_escape(item.get("headline") or "")
+    if css:
+        headline = f'<span class="m {css}">{headline}</span>'
+    return (f'<div class="fitem"><span class="d">{date}</span>'
+            f'<span class="t">{headline}</span>'
+            f'<span class="s {sev}">{sev}</span></div>')
+
+
+def html_escape(text: str) -> str:
+    return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
 def note_html(body: str) -> str:
     """Render the note, giving its section labels the heading treatment.
 
@@ -215,23 +252,58 @@ with main:
 
     # --- Key insights: the feed is the most important view ---------------
     with insights_tab:
-        high = sum(1 for it in feed if it["significance"] == "high")
+        # A briefing opens with where the company stands, then layers on what moved.
+        # Built only from diffs it read as empty for most companies: LLY showed zero.
+        pipeline_rows = api_get(api_base, "/pipeline")
+        mine = next((r for r in pipeline_rows if r["ticker"] == ticker), {})
+        phases = mine.get("phases") or {}
+        late = sum(phases.get(p, 0) for p in ("Phase 3", "Phase 2/3"))
 
         def _next(kind):
             dates = sorted((it["date"] or "")[:10] for it in feed
                            if it["kind"] == kind and it["date"])
             return dates[0] if dates else None
 
-        cells = [("flagged", str(len(feed)), "" if feed else "none"),
-                 ("high severity", str(high), "risk" if high else "none"),
-                 ("next catalyst", _next("catalyst") or "—",
-                  "" if _next("catalyst") else "none"),
-                 ("next loe", _next("loe") or "—", "" if _next("loe") else "none")]
+        points = prices.get("points") or []
+        change = None
+        if len(points) > 1 and points[0]["close"]:
+            change = (points[-1]["close"] - points[0]["close"]) / points[0]["close"] * 100
+        high = sum(1 for it in feed if it["significance"] == "high")
+
+        cells = [
+            ("last close", T.num(prices["latest"]["close"], 2) if points else "—",
+             "" if points else "none", prices.get("currency") or ""),
+            ("5y change", T.pct(change), "up" if (change or 0) >= 0 else "down",
+             "since " + points[0]["as_of"][:7] if points else ""),
+            ("active trials", str(mine.get("total", 0)) if mine else "—",
+             "" if mine else "none", f"{late} in late phase" if mine else ""),
+            ("next catalyst", _next("catalyst") or "none", "" if _next("catalyst") else "none",
+             "readouts and PDUFA"),
+            ("next loe", _next("loe") or "none", "" if _next("loe") else "none",
+             "inside 24 months"),
+            ("flagged", str(len(feed)), "down" if high else "", f"{high} high" if high else "nothing high"),
+        ]
         st.markdown(
-            '<div class="stats">' + "".join(
-                f'<span class="stat"><span class="k">{k}</span>'
-                f'<span class="v {cls}">{v}</span></span>' for k, v, cls in cells)
+            '<div class="pos">' + "".join(
+                f'<span><span class="k">{k}</span>'
+                f'<span class="v {cls}">{v}</span>'
+                f'<span class="sub">{sub}</span></span>' for k, v, cls, sub in cells)
             + "</div>", unsafe_allow_html=True)
+
+        if points:
+            spark = pd.DataFrame(points)
+            spark["as_of"] = pd.to_datetime(spark["as_of"])
+            chart(alt.Chart(spark).mark_area(
+                line={"color": T.P.data, "strokeWidth": 1.2},
+                color=alt.Gradient(gradient="linear",
+                                   stops=[alt.GradientStop(color=T.P.ground, offset=0),
+                                          alt.GradientStop(color=T.P.data, offset=1)],
+                                   x1=1, x2=1, y1=1, y2=0)).encode(
+                x=alt.X("as_of:T", title=None, axis=None),
+                y=alt.Y("close:Q", title=None, axis=None,
+                        scale=alt.Scale(zero=False)),
+                tooltip=[alt.Tooltip("as_of:T", title="Date", format="%Y-%m-%d"),
+                         alt.Tooltip("close:Q", title="Close", format=",.2f")]), 64)
 
         head, action = st.columns([5, 1])
         with head:
@@ -265,43 +337,17 @@ with main:
         if not feed:
             section("Nothing flagged")
             state(f"No changes detected for {ticker}",
-                  "The feed compares snapshots between refreshes, so it needs two runs "
-                  "before the first diff appears. Run one from the Prices tab, then run "
-                  "it again after the next data update.")
+                  "The position above is current either way. The feed compares "
+                  "snapshots between refreshes, so it needs two runs before the first "
+                  "diff appears. Run one from the Prices tab.")
 
-        for kind, label, date_col, blurb in (
-            ("change", "Changes since the last refresh", "Detected",
-             "Snapshot diffs: trial status and date moves, new 8-K and 6-K filings, "
-             "new approvals."),
-            ("catalyst", "Catalysts inside 60 days", "Expected",
-             "Curated dates from the Catalysts tab. No free PDUFA calendar exists."),
-            ("loe", "Loss of exclusivity ahead", "Expiry",
-             "Latest patent or exclusivity expiry per marketed product, next 24 months."),
-        ):
+        for kind, label, blurb in FEED_SECTIONS:
             items = [it for it in feed if it["kind"] == kind]
             if not items:
                 continue
             section(label, len(items))
-            rows = []
-            for it in items:
-                # Severity is carried by the colour of the word alone. An extra dot
-                # would encode the same thing twice, in a glyph outside the palette.
-                row = {"Sev": it["significance"], date_col: (it["date"] or "")[:10]}
-                if kind != "loe":
-                    row["Type"] = it.get("change_type") or kind
-                if kind == "loe":
-                    row["Modality"] = it.get("modality") or "—"
-                row["Item"] = it["headline"]
-                rows.append(row)
-            frame = pd.DataFrame(rows)
-            styled = frame.style.map(
-                lambda v: f"color:{T.P.severity.get(v, T.P.ink)};font-weight:600",
-                subset=["Sev"])
-            if "Modality" in frame:
-                styled = styled.map(
-                    lambda v: f"color:{T.P.modality.get(v, T.P.stale)};font-weight:600",
-                    subset=["Modality"])
-            st.dataframe(styled, width="stretch", hide_index=True)
+            st.markdown('<div class="feed">' + "".join(feed_row(it) for it in items)
+                        + "</div>", unsafe_allow_html=True)
             st.markdown(f'<div class="byline">{blurb}</div>', unsafe_allow_html=True)
 
     # --- Prices ----------------------------------------------------------

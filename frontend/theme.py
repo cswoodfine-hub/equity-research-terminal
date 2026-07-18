@@ -110,7 +110,7 @@ def css() -> str:
 :root {{
   --ground: {P.ground}; --ink: {P.ink}; --rule: {P.rule}; --rule-strong: {P.rule_strong};
   --stale: {P.stale}; --oxblood: {P.oxblood};
-  --orange-book: {P.orange_book}; --purple-book: {P.purple_book};
+  --orange-book: {P.orange_book}; --purple-book: {P.purple_book}; --data: {P.data};
 }}
 
 html, body, [class*="css"], .stApp {{
@@ -189,6 +189,36 @@ h3 {{ font-size: 0.9rem; }}
 /* The horizon rail clears the section rule above it. Its first segment label sits at
    the very top of the SVG, so without this it touches the HORIZON hairline. */
 .rail {{ margin-top: 0.5rem; }}
+
+/* Feed items are a typographic list, not a table. Two or three rows in a grid widget
+   is all chrome and no content: headers, borders, and a canvas to render one fact. */
+.feed {{ margin: 0.1rem 0 0.3rem; }}
+.fitem {{
+  display: grid; grid-template-columns: 84px 1fr auto; gap: 0.85rem;
+  align-items: baseline; padding: 0.34rem 0;
+  border-bottom: 1px solid var(--rule);
+}}
+.fitem:last-child {{ border-bottom: none; }}
+.fitem .d {{ font-family: {MONO}; font-size: 11px; color: var(--stale);
+            font-variant-numeric: tabular-nums; }}
+.fitem .t {{ font-size: 12.5px; line-height: 1.35; }}
+.fitem .s {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
+            color: var(--stale); white-space: nowrap; }}
+.fitem .s.high {{ color: var(--oxblood); font-weight: 700; }}
+.fitem .m {{ font-weight: 600; }}
+.fitem .m.small {{ color: var(--orange-book); }}
+.fitem .m.bio {{ color: var(--purple-book); }}
+
+/* Position strip: what is true about this company right now, before any diff. */
+.pos {{ display: flex; gap: 2rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
+.pos .k {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
+          color: var(--stale); display: block; }}
+.pos .v {{ font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums;
+          letter-spacing: -0.01em; }}
+.pos .v.none {{ color: var(--stale); font-weight: 400; font-size: 1rem; }}
+.pos .v.up {{ color: var(--data); }}
+.pos .v.down {{ color: var(--oxblood); }}
+.pos .sub {{ font-size: 10.5px; color: var(--stale); display: block; margin-top: 1px; }}
 
 /* Stat strip: one dense line, not four cards. The bottom margin is structural, not a
    nudge: a chart directly below draws its topmost axis label at its own top edge, and
