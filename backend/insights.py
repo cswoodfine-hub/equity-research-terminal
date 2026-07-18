@@ -26,6 +26,7 @@ _SIG_ORDER = ("high", "medium", "low")
 
 # Feed kinds in reading order: what happened, then what is coming, then what expires.
 _KIND_SECTIONS = (
+    ("filing", "Material events"),
     ("change", "Changes since the last refresh"),
     ("catalyst", "Catalysts inside 60 days"),
     ("loe", "Loss of exclusivity ahead"),
@@ -34,14 +35,20 @@ _KIND_SECTIONS = (
 SYSTEM_PROMPT = """You write a short morning note for an equity research analyst \
 covering large-cap pharma.
 
-You are given the ranked change feed for one company: detected changes since the last \
-refresh, catalysts inside 60 days, and near-term loss of exclusivity.
+You are given the ranked change feed for one company: material 8-K events such as \
+completed acquisitions, signed or terminated agreements and impairments, detected \
+changes since the last refresh, catalysts inside 60 days, and near-term loss of \
+exclusivity.
 
 Write two short paragraphs, at most ten sentences in total. Open with the single most \
 significant item and what it means for the company. Then cover, in this order and only \
-where the feed has them: what changed since the last refresh, what is coming inside 60 \
-days, and which products lose exclusivity. Close with the one thing worth watching \
-next. Give dates for anything forward-looking.
+where the feed has them: material corporate events, what changed since the last \
+refresh, what is coming inside 60 days, and which products lose exclusivity. Close with \
+the one thing worth watching next. Give dates for anything forward-looking.
+
+An 8-K item tells you the category of the event, not its terms. Say that an acquisition \
+completed or an agreement was signed; never name a counterparty, a price, or a product \
+that is not in the items given.
 
 Absolute rule: use only the items supplied. Never invent a number, a date, a drug \
 name, or a trial. If something is not in the items, it is not in the note. Where data \

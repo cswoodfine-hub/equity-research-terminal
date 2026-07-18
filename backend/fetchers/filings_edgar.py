@@ -12,6 +12,7 @@ import os
 import urllib.request
 
 import db
+import edgar_items
 from fetchers.base import BaseFetcher, RefreshResult
 
 SOURCE = "filings"
@@ -40,6 +41,7 @@ def parse_submissions(payload: dict, cik: str) -> list[dict]:
     accessions = recent.get("accessionNumber") or []
     documents = recent.get("primaryDocument") or []
     descriptions = recent.get("primaryDocDescription") or []
+    items = recent.get("items") or []
 
     rows = []
     for i, form in enumerate(forms):
@@ -48,12 +50,20 @@ def parse_submissions(payload: dict, cik: str) -> list[dict]:
         accession = accessions[i]
         document = documents[i] if i < len(documents) else ""
         description = descriptions[i] if i < len(descriptions) else ""
+        item_codes = items[i] if i < len(items) else ""
+        # The item codes say what an 8-K is about. primaryDocDescription is almost
+        # always just the form name, so the whole feed read "8-K: 8-K" without this.
+        title = edgar_items.describe(item_codes, form)
+        if title == form and description and description != form:
+            title = description
         rows.append(
             {
                 "form_type": form,
                 "filed_date": dates[i] if i < len(dates) else None,
                 "accession": accession,
-                "title": description or form,
+                "title": title,
+                "items": item_codes,
+                "is_material": edgar_items.is_material(item_codes),
                 "url": _doc_url(cik, accession, document),
             }
         )

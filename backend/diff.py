@@ -14,6 +14,7 @@ import json
 from datetime import date, timedelta
 
 import db
+import edgar_items
 
 # A first-seen filing or approval only counts as news if it is also recent. Wide enough to
 # survive a refresh gap of several months, narrow enough to exclude back catalogue.
@@ -179,11 +180,15 @@ def _diff_filings(conn, run_id) -> int:
          ORDER BY f.filed_date DESC
         """
     ).fetchall()
+    # An 8-K reporting a completed acquisition or a signed material agreement is not
+    # the same event as one reporting a shareholder vote, and the item codes say which
+    # is which. Material ones rank high so they lead the feed and the note.
     items = [
         (r["accession"],
          {"form_type": r["form_type"], "filed_date": r["filed_date"], "ticker": r["ticker"]},
          f"{r['ticker']} {r['form_type']}: {r['title']}",
-         "medium" if r["form_type"] in ("8-K", "6-K") else "low")
+         "high" if edgar_items.is_material_title(r["title"])
+         else "medium" if r["form_type"] in ("8-K", "6-K") else "low")
         for r in rows
     ]
     return _detect_new(conn, run_id, "filings", "filing", items, "new_filing", "filed_date")

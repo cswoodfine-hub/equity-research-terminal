@@ -8,6 +8,7 @@ optional note layer that summarises this per company lives in ``insights.py``.
 from __future__ import annotations
 
 import db
+import edgar_items
 
 _SIG_RANK = {"high": 0, "medium": 1, "low": 2}
 
@@ -138,17 +139,47 @@ def _near_term_loe(conn, months, limit, ticker=None):
     return items
 
 
+def _material_filings(conn, days, ticker=None):
+    """Recent 8-K items that move an investment case: M&A, agreements, impairments.
+
+    These are in the feed on their own merit rather than only as diffs. A completed
+    acquisition filed six weeks ago is still the most important thing about a company,
+    whether or not this particular refresh was the one that first saw it.
+    """
+    sql = """
+        SELECT c.ticker, f.form_type, f.filed_date, f.title, f.url
+          FROM filings f JOIN companies c ON f.company_id = c.id
+         WHERE f.filed_date >= date('now', ?)
+    """
+    params = [f"-{int(days)} days"]
+    if ticker:
+        sql += " AND c.ticker = ?"
+        params.append(ticker.upper())
+    items = []
+    for r in conn.execute(sql, params):
+        if not edgar_items.is_material_title(r["title"]):
+            continue
+        items.append({
+            "kind": "filing", "significance": "high", "date": r["filed_date"],
+            "ticker": r["ticker"], "change_type": "material event",
+            "url": r["url"],
+            "headline": f"{r['ticker']} {r['form_type']}: {r['title']}",
+        })
+    return items
+
+
 def _date_offset(conn, days):
     return conn.execute("SELECT date('now', ?)", (f"+{int(days)} days",)).fetchone()[0]
 
 
 def build_feed(db_path=None, days=30, catalyst_days=60, loe_months=24, loe_limit=15,
-               ticker=None):
+               filing_days=120, ticker=None):
     """The ranked feed. Pass ``ticker`` to narrow it to one company (used by notes)."""
     conn = db.get_connection(db_path)
     try:
         items = (
             _recent_changes(conn, days)
+            + _material_filings(conn, filing_days, ticker)
             + _upcoming_catalysts(conn, catalyst_days, ticker)
             + _near_term_loe(conn, loe_months, loe_limit, ticker)
         )
@@ -173,5 +204,5 @@ def _rank(item):
     """
     date = (item.get("date") or "")[:10]
     ordinal = int(date.replace("-", "")) if date[:4].isdigit() else 0
-    backwards = item.get("kind") == "change"
+    backwards = item.get("kind") in ("change", "filing")
     return (_SIG_RANK.get(item.get("significance"), 3), -ordinal if backwards else ordinal)
