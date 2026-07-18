@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 
 import db
+import therapeutic_areas
 from fetchers.trials_ctgov import PHASES
 
 _PLACEHOLDERS = ",".join("?" * len(PHASES))
@@ -73,6 +74,9 @@ def trials_for(db_path, ticker: str, phase: str | None = None) -> list[dict] | N
         for row in conn.execute(query, params):
             item = dict(row)
             item["conditions"] = json.loads(item["conditions"]) if item["conditions"] else []
+            # The registry spells one disease several ways, so the browsable axis is
+            # the therapeutic area rather than the raw condition string.
+            item["area"] = therapeutic_areas.classify(item["conditions"])
             rows.append(item)
         return rows
     finally:

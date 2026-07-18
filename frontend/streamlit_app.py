@@ -500,20 +500,62 @@ with main:
                         'so a combination trial counts once per phase.</div>',
                         unsafe_allow_html=True)
 
-            section("Trials behind a cell")
-            phase_choice = st.selectbox("Phase", ["All"] + PIPELINE_PHASES,
-                                        key="pipe_phase", label_visibility="collapsed")
-            query = "" if phase_choice == "All" else f"?phase={urllib.parse.quote(phase_choice)}"
-            detail = api_get(api_base, f"/companies/{ticker}/trials{query}")["trials"]
+            # --- Therapeutic areas: click a band to reveal its trials ---
+            detail = api_get(api_base, f"/companies/{ticker}/trials")["trials"]
+            section(f"{ticker} by therapeutic area", f"{len(detail)} trials")
             if not detail:
-                state(f"No {phase_choice.lower()} trials for {ticker}",
-                      "Pick another phase, or another company in the sidebar.")
+                state(f"No trials on file for {ticker}",
+                      "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
+                      "or pick another company in the sidebar.")
             else:
+                areas = pd.DataFrame([{"Area": t["area"], "Phase": t["phase"],
+                                       "n": 1} for t in detail])
+                totals = (areas.groupby("Area", as_index=False)["n"].sum()
+                          .sort_values("n", ascending=False))
+                order = list(totals["Area"])
+                counts = dict(zip(totals["Area"], totals["n"]))
+
+                # Chips carry the selection rather than the bars. Vega's point selection
+                # does not reach Streamlit's on_select here, and a chip is a larger and
+                # more obvious target than a thin phase segment anyway.
+                chosen = st.pills("Therapeutic area", order, selection_mode="multi",
+                                  format_func=lambda a: f"{a}  {counts[a]}",
+                                  key="area_pills", label_visibility="collapsed") or []
+
+                # Stacked by phase so the shape of an area reads at a glance: one that is
+                # all Phase 1 is a different proposition from one carrying Phase 3, even
+                # at the same trial count. Selecting dims everything else.
+                areas["picked"] = areas["Area"].isin(chosen) if chosen else True
+                bars = (alt.Chart(areas).mark_bar(height=18)
+                        .encode(
+                            y=alt.Y("Area:N", title=None, sort=order),
+                            x=alt.X("sum(n):Q", title="Trials"),
+                            color=alt.Color("Phase:N", sort=PIPELINE_PHASES,
+                                            scale=alt.Scale(domain=PIPELINE_PHASES,
+                                                            range=list(T.P.phase_tints)),
+                                            legend=alt.Legend(title=None)),
+                            opacity=alt.condition("datum.picked", alt.value(1),
+                                                  alt.value(0.25)),
+                            tooltip=[alt.Tooltip("Area:N"), alt.Tooltip("Phase:N"),
+                                     alt.Tooltip("sum(n):Q", title="Trials")])
+                        .properties(height=max(150, 26 * len(order))))
+                chart(bars, max(150, 26 * len(order)))
+
+                shown = [t for t in detail if t["area"] in chosen] if chosen else detail
+                section(", ".join(chosen) if chosen else "every area",
+                        f"{len(shown)} trials")
+                if not chosen:
+                    st.markdown('<div class="byline">Pick one or more areas above to '
+                                'narrow the list. Areas are matched from the registry '
+                                'condition text by keyword, so the rule that placed a '
+                                'trial is readable rather than guessed.</div>',
+                                unsafe_allow_html=True)
                 st.dataframe(pd.DataFrame([{
-                    "NCT": t["nct_id"], "Phase": t["phase"], "Status": t["overall_status"],
+                    "NCT": t["nct_id"], "Phase": t["phase"], "Area": t["area"],
+                    "Status": t["overall_status"],
                     "Primary completion": t["primary_completion_date"],
                     "Conditions": ", ".join(t["conditions"][:3]), "Title": t["title"]}
-                    for t in detail]), width="stretch", hide_index=True)
+                    for t in shown]), width="stretch", hide_index=True)
 
     # --- LOE -------------------------------------------------------------
     with loe_tab:
