@@ -1,0 +1,7 @@
+Appl_Type~Appl_No~Product_No~Patent_No~Patent_Expire_Date_Text~Drug_Substance_Flag~Drug_Product_Flag~Patent_Use_Code~Delist_Flag~Submission_Date
+N~215866~022~12343382~Jul 22, 2039~~~U-4229~~Feb 5, 2026
+N~215866~021~12343382~Jul 22, 2039~~~U-4229~~Feb 5, 2026
+N~215866~020~12343382~Jul 22, 2039~~~U-4229~~Feb 5, 2026
+N~217806~016~12343382~Jul 22, 2039~~~U-4409~~Feb 5, 2026
+N~217806~015~12343382~Jul 22, 2039~~~U-4409~~Feb 5, 2026
+N~217806~014~12343382~Jul 22, 2039~~~U-4409~~Feb 5, 2026

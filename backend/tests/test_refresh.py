@@ -6,6 +6,7 @@ from pathlib import Path
 import db
 import refresh
 import seed
+from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 from fetchers.prices import PricesFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 
@@ -35,6 +36,7 @@ def test_refresh_populates_then_skips_within_ttl(tmp_path, monkeypatch):
     # refresh also runs the trials fetcher, so stub it with an empty result.
     monkeypatch.setattr(PricesFetcher, "fetch", lambda self: payload)
     monkeypatch.setattr(TrialsFetcher, "fetch", lambda self: {"studies": []})
+    monkeypatch.setattr(ApprovalsOpenFdaFetcher, "fetch", lambda self: {"results": []})
 
     db_file = tmp_path / "test.db"
     db.init(db_file)

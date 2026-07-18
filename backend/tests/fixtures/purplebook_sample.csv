@@ -1,0 +1,8 @@
+Purple Book Monthly Historical Data Changes Report - sample
+
+legend N/R/U
+N/R/U,Applicant,BLA Number,Proprietary Name,Proper Name,License Type,Strength,Dosage Form,Route of Administration,Product Presentation,Marketing Status,Licensure,Approval Date,Inter. Approval Date,Ref. Product Proper Name,Ref. Product Proprietary Name,Supplement Number,Submission Type,Inter. Supplement Number,License Number,Product Number,Center,Date of First Licensure,Exclusivity Expiration Date,First Interchangeable Exclusivity Exp. Date,Ref. Product Exclusivity Exp. Date,Orphan Exclusivity Exp. Date,Patent List Provided
+U,MSD International Business GmbH,125514,Keytruda,pembrolizumab,351(a),50MG,For Injection,Intravenous,Single-Dose Vial,Disc,Licensed,4-Sep-14,,N/A,N/A,,Original,,2405,001,CDER,,,,,25-Jan-31,
+U,"Regeneron Pharmaceuticals, Inc.",125874,OTARMENI,lunsotogene parvec-cwha,351(a),3x10^13VG/ML,Suspension,Intracochlear,Single-Dose Vial,Rx,Licensed,23-Apr-26,, ,,0,Original,,1760,001,CBER,,,,,23-Apr-33,
+,Amgen Inc.,103951,Aranesp,darbepoetin alpha,351(a),25MCG/1ML,Injection,"Intravenous, Subcutaneous",Single-Dose Vial,Rx,Licensed,17-Sep-01,,N/A,N/A,,Original,,1080,001,CDER,,,,,,
+U,Grifols Therapeutics LLC,125046,"Gammaked, Gamunex-C",Immune Globulin Injection (Human) 10% Caprylate/Chromatography Purified,351(a),2.5G/25ML,Injection,Intravenous,Single-Use Bottle,Rx,Licensed,27-Aug-03,, ,,0,Original,,1871,001,CBER,,,,,12-Sep-15,

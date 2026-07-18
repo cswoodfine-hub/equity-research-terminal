@@ -1,0 +1,5 @@
+Appl_Type~Appl_No~Product_No~Exclusivity_Code~Exclusivity_Date
+N~215866~001~NCE~May 13, 2027
+N~215866~001~NPP~Dec 19, 2028
+N~217806~001~I-958~Dec 20, 2027
+N~217806~001~M-82~Oct 18, 2027

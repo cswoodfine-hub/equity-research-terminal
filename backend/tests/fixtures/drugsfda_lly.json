@@ -1,0 +1,38 @@
+{
+ "results": [
+  {
+   "application_number": "NDA021368",
+   "sponsor_name": "LILLY",
+   "products": [
+    {
+     "brand_name": "CIALIS",
+     "marketing_status": "Prescription"
+    }
+   ],
+   "submissions": [
+    {
+     "submission_type": "ORIG",
+     "submission_status": "AP",
+     "submission_status_date": "20031121"
+    }
+   ]
+  },
+  {
+   "application_number": "BLA205692",
+   "sponsor_name": "ELI LILLY AND CO",
+   "products": [
+    {
+     "brand_name": "BASAGLAR",
+     "marketing_status": "Prescription"
+    }
+   ],
+   "submissions": [
+    {
+     "submission_type": "ORIG",
+     "submission_status": "AP",
+     "submission_status_date": "20151216"
+    }
+   ]
+  }
+ ]
+}
