@@ -25,7 +25,7 @@ from fetchers.exclusivity_orangebook import OrangeBookFetcher
 from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
-from fetchers.prices import PricesFetcher
+from fetchers.prices import IntradayPricesFetcher, PricesFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 
 DEFAULT_TICKER = "LLY"
@@ -41,6 +41,7 @@ def _company_fetchers(company, db_path):
     financials and filings for SEC filers with a CIK."""
     fetchers = [
         PricesFetcher(company["ticker"], db_path),
+        IntradayPricesFetcher(company["ticker"], db_path),
         TrialsFetcher(company["ticker"], db_path),
         ApprovalsOpenFdaFetcher(company["ticker"], db_path),
     ]

@@ -274,8 +274,12 @@ with main:
                 return None
             return (series[-1]["close"] - series[0]["close"]) / series[0]["close"] * 100
 
-        change = _move(points)                       # whole stored history
-        recent = _move(points[-SPARK_SESSIONS:])     # what the sparkline below shows
+        intraday = api_get(api_base, f"/companies/{ticker}/intraday")
+        bars = intraday.get("points") or []
+        change = _move(points)   # whole stored history
+        # From the intraday bars, so the headline number and the sparkline beneath it
+        # describe the same window rather than two nearly-equal ones.
+        recent = _move(bars) if bars else _move(points[-SPARK_SESSIONS:])
         high = sum(1 for it in feed if it["significance"] == "high")
 
         cells = [
@@ -283,7 +287,7 @@ with main:
              "" if points else "none", prices.get("currency") or ""),
             # The headline move matches the sparkline beneath it; the long run is the
             # context under it rather than a second number competing with it.
-            (f"{SPARK_SESSIONS} day", T.pct(recent),
+            (f'{len(intraday.get("sessions") or []) or SPARK_SESSIONS} day', T.pct(recent),
              "up" if (recent or 0) >= 0 else "down",
              f"5y {T.pct(change)}" if change is not None else ""),
             ("active trials", str(mine.get("total", 0)) if mine else "—",
@@ -301,29 +305,36 @@ with main:
                 f'<span class="sub">{sub}</span></span>' for k, v, cls, sub in cells)
             + "</div>", unsafe_allow_html=True)
 
-        # The last five sessions, not the full history. This is a morning briefing, so
-        # the question is what the stock did this week; the Prices tab is where the five
-        # year view lives. Points are marked because a line through five values reads as
-        # a trend it has not earned.
-        spark_points = points[-SPARK_SESSIONS:]
-        if spark_points:
-            spark = pd.DataFrame(spark_points)
+        # Fifteen minute bars over the last five sessions. A briefing wants the shape of
+        # the week, which daily closes cannot show: five points is a zigzag, not a
+        # market. The Prices tab keeps the five year daily view.
+        if bars:
+            spark = pd.DataFrame(bars)
             spark["as_of"] = pd.to_datetime(spark["as_of"])
+            # A continuous time axis would draw a flat line across every overnight gap,
+            # inventing prices that never traded. Ordering by bar keeps the sessions
+            # butted together, and the tooltip carries the real timestamp.
+            spark = spark.reset_index().rename(columns={"index": "bar"})
+            spark["session"] = spark["as_of"].dt.strftime("%Y-%m-%d")
             base = alt.Chart(spark).encode(
-                x=alt.X("as_of:T", title=None, axis=None),
+                x=alt.X("bar:Q", title=None, axis=None),
                 y=alt.Y("close:Q", title=None, axis=None,
-                        scale=alt.Scale(zero=False, nice=False, padding=8)),
-                tooltip=[alt.Tooltip("as_of:T", title="Date", format="%a %d %b"),
+                        scale=alt.Scale(zero=False, nice=False, padding=6)),
+                tooltip=[alt.Tooltip("as_of:T", title="", format="%a %d %b %H:%M"),
                          alt.Tooltip("close:Q", title="Close", format=",.2f")])
-            chart(base.mark_line(strokeWidth=1.4)
-                  + base.mark_point(filled=True, size=34), 64)
-            first, last = spark_points[0], spark_points[-1]
-            move = ((last["close"] - first["close"]) / first["close"] * 100
-                    if first["close"] else None)
+            chart(base.mark_line(strokeWidth=1.3, interpolate="monotone")
+                  # A rule per session start shows where each trading day begins.
+                  + alt.Chart(spark[spark["session"] != spark["session"].shift()])
+                  .mark_rule(color=T.P.rule_strong, strokeDash=[2, 3])
+                  .encode(x=alt.X("bar:Q", axis=None)), 72)
+            move = ((bars[-1]["close"] - bars[0]["close"]) / bars[0]["close"] * 100
+                    if bars[0]["close"] else None)
             st.markdown(
-                f'<div class="byline">Last {len(spark_points)} sessions, '
-                f'{first["as_of"]} to {last["as_of"]}: {T.pct(move)}. '
-                'The Prices tab carries the full five years.</div>',
+                f'<div class="byline">{len(bars)} fifteen minute bars over '
+                f'{len(intraday.get("sessions") or [])} sessions, '
+                f'{bars[0]["as_of"]} to {bars[-1]["as_of"]}: {T.pct(move)}. Dashed '
+                'rules mark each session open; overnight gaps are closed up rather '
+                'than drawn as a flat line through hours that never traded.</div>',
                 unsafe_allow_html=True)
 
         head, action = st.columns([5, 1])

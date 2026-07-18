@@ -76,7 +76,8 @@ def company_prices(ticker: str) -> dict:
         points = [
             dict(r)
             for r in conn.execute(
-                "SELECT as_of, close FROM prices WHERE company_id = ? ORDER BY as_of",
+                "SELECT as_of, close FROM prices WHERE company_id = ? AND interval = '1d'"
+                " ORDER BY as_of",
                 (company["id"],),
             )
         ]
@@ -115,6 +116,35 @@ def company_prices(ticker: str) -> dict:
         "points": points,
         "last_fetch_at": last_fetch_at,
     }
+
+
+@app.get("/companies/{ticker}/intraday")
+def company_intraday(ticker: str) -> dict:
+    """Fifteen minute bars over the last five sessions.
+
+    Separate from /prices because they are different series, not a subset: the daily
+    endpoint must never return an intraday bar as its latest close.
+    """
+    ticker = ticker.upper()
+    conn = db.get_connection()
+    try:
+        company = conn.execute(
+            "SELECT id FROM companies WHERE ticker = ?", (ticker,)
+        ).fetchone()
+        if company is None:
+            raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+        points = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT as_of, close FROM prices WHERE company_id = ? AND interval = '15m'"
+                " ORDER BY as_of",
+                (company["id"],),
+            )
+        ]
+    finally:
+        conn.close()
+    sessions = sorted({p["as_of"][:10] for p in points})
+    return {"ticker": ticker, "interval": "15m", "sessions": sessions, "points": points}
 
 
 @app.get("/companies/{ticker}/financials")

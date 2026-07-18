@@ -96,6 +96,11 @@ CREATE TABLE prices (
     volume     INTEGER,
     market_cap REAL,
     source     TEXT,                -- yfinance, fmp
+    -- Bar size: 1d for the five-year daily series, 15m for the intraday window.
+    -- Every query says which it wants, so intraday bars can never interleave into
+    -- the daily chart. A 15m as_of carries a time, so the key below still separates
+    -- them without needing to be widened.
+    interval   TEXT NOT NULL DEFAULT '1d',
     UNIQUE(company_id, as_of)
 );
 CREATE INDEX idx_prices_company ON prices(company_id, as_of);

@@ -16,6 +16,7 @@ import db
 from fetchers.base import BaseFetcher, RefreshResult
 
 SOURCE = "prices"
+INTRADAY_SOURCE = "prices_intraday"
 YAHOO_SOURCE = "yahoo_chart"
 TTL_SECONDS = 15 * 60
 
@@ -32,12 +33,16 @@ _USER_AGENT = "Mozilla/5.0 (compatible; NovatalisResearch/0.1)"
 _TIMEOUT_S = 30
 
 
-def parse_chart(payload: dict, ticker: str) -> tuple[list[dict], dict]:
+def parse_chart(payload: dict, ticker: str, interval: str = "1d") -> tuple[list[dict], dict]:
     """Turn a Yahoo chart payload into price rows plus quote meta. Pure.
 
-    Rows are one per trading day with a non-null close; days with a null close
-    (holidays, gaps) are dropped rather than filled. Raises ValueError if Yahoo
+    Rows are one per bar with a non-null close; bars with a null close (holidays,
+    gaps, pre-open) are dropped rather than filled. Raises ValueError if Yahoo
     reports an error or returns no result.
+
+    Intraday bars keep their time. Stamping them with a bare date would collapse a
+    day of 15 minute bars onto one key, and the unique constraint would silently keep
+    only the last of them.
     """
     chart = (payload or {}).get("chart") or {}
     if chart.get("error"):
@@ -65,12 +70,14 @@ def parse_chart(payload: dict, ticker: str) -> tuple[list[dict], dict]:
         close = at(closes, i)
         if close is None:  # never fabricate a missing close
             continue
-        as_of = dt.datetime.utcfromtimestamp(ts + offset).strftime("%Y-%m-%d")
+        stamp = dt.datetime.utcfromtimestamp(ts + offset)
+        as_of = stamp.strftime("%Y-%m-%d" if interval == "1d" else "%Y-%m-%d %H:%M")
         vol = at(volumes, i)
         rows.append(
             {
                 "ticker": ticker,
                 "as_of": as_of,
+                "interval": interval,
                 "close": float(close),
                 "open": float(at(opens, i)) if at(opens, i) is not None else None,
                 "high": float(at(highs, i)) if at(highs, i) is not None else None,
@@ -89,6 +96,8 @@ def parse_chart(payload: dict, ticker: str) -> tuple[list[dict], dict]:
 class PricesFetcher(BaseFetcher):
     source = SOURCE
     ttl_seconds = TTL_SECONDS
+    chart_range = CHART_RANGE
+    chart_interval = CHART_INTERVAL
 
     def __init__(self, ticker: str, db_path=None):
         super().__init__(db_path)
@@ -117,14 +126,15 @@ class PricesFetcher(BaseFetcher):
 
     def fetch(self) -> dict:
         symbol = self._yahoo_symbol()
-        query = urllib.parse.urlencode({"range": CHART_RANGE, "interval": CHART_INTERVAL})
+        query = urllib.parse.urlencode({"range": self.chart_range,
+                                        "interval": self.chart_interval})
         url = f"{CHART_URL.format(ticker=urllib.parse.quote(symbol))}?{query}"
         request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
         with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
             return json.loads(resp.read().decode("utf-8"))
 
     def normalise(self, raw) -> list[dict]:
-        rows, self._meta = parse_chart(raw, self.ticker)
+        rows, self._meta = parse_chart(raw, self.ticker, self.chart_interval)
         return rows
 
     # --- snapshots --------------------------------------------------------
@@ -175,9 +185,10 @@ class PricesFetcher(BaseFetcher):
             row = conn.execute(
                 """
                 SELECT as_of, close, market_cap FROM prices
-                 WHERE company_id = ? ORDER BY as_of DESC LIMIT 1
+                 WHERE company_id = ? AND interval = ?
+                 ORDER BY as_of DESC LIMIT 1
                 """,
-                (company_id,),
+                (company_id, self.chart_interval),
             ).fetchone()
             if row is None:  # nothing known yet, nothing to carry forward
                 return
@@ -222,11 +233,13 @@ class PricesFetcher(BaseFetcher):
                 conn.execute(
                     """
                     INSERT INTO prices
-                        (company_id, as_of, close, open, high, low, volume, source)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        (company_id, as_of, close, open, high, low, volume, source,
+                         interval)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(company_id, as_of) DO UPDATE SET
                         close=excluded.close, open=excluded.open, high=excluded.high,
-                        low=excluded.low, volume=excluded.volume, source=excluded.source
+                        low=excluded.low, volume=excluded.volume, source=excluded.source,
+                        interval=excluded.interval
                     """,
                     (
                         company_id,
@@ -237,9 +250,27 @@ class PricesFetcher(BaseFetcher):
                         row["low"],
                         row["volume"],
                         YAHOO_SOURCE,
+                        row.get("interval", self.chart_interval),
                     ),
                 )
             conn.commit()
         finally:
             conn.close()
         return RefreshResult(self.source, len(rows), [], False, 0)
+
+
+class IntradayPricesFetcher(PricesFetcher):
+    """Fifteen minute bars over the last five sessions, for the briefing sparkline.
+
+    Yahoo caps intraday history, so this is a rolling window rather than a record: old
+    bars fall out of range and stop being refreshed.
+
+    It carries its own source name, which is not cosmetic. The TTL is tracked per
+    (source, entity_key), so sharing "prices" with the daily fetcher would give the two
+    a single slot: whichever ran first would mark it fresh and the other would be
+    skipped as within TTL, every time.
+    """
+
+    source = INTRADAY_SOURCE
+    chart_range = "5d"
+    chart_interval = "15m"

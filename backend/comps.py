@@ -51,7 +51,8 @@ def _instant_value(conn, company_id, metric):
 
 def _latest_price(conn, company_id):
     return conn.execute(
-        "SELECT as_of, close FROM prices WHERE company_id = ? ORDER BY as_of DESC LIMIT 1",
+        "SELECT as_of, close FROM prices WHERE company_id = ? AND interval = '1d'"
+        " ORDER BY as_of DESC LIMIT 1",
         (company_id,),
     ).fetchone()
 

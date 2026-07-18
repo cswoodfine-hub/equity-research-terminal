@@ -78,3 +78,38 @@ def test_parse_chart_raises_on_yahoo_error():
 def test_parse_chart_raises_on_empty_result():
     with pytest.raises(ValueError):
         parse_chart({"chart": {"result": None, "error": None}}, "ZZZZ")
+
+
+def test_intraday_bars_keep_their_time_and_stay_out_of_the_daily_series(tmp_path):
+    """The two series share a table and must never contaminate each other.
+
+    A 15m bar stamped with a bare date would collapse a session of bars onto one key,
+    and the unique constraint would keep only the last. Stamped with a time they are
+    distinct rows, and every daily query filters on interval so they cannot interleave
+    into the five year chart.
+    """
+    payload = {"chart": {"result": [{
+        "meta": {"currency": "USD", "gmtoffset": 0},
+        "timestamp": [1_752_000_000, 1_752_000_900, 1_752_001_800],
+        "indicators": {"quote": [{"close": [10.0, 11.0, 12.0], "open": [None] * 3,
+                                  "high": [None] * 3, "low": [None] * 3,
+                                  "volume": [None] * 3}]},
+    }]}}
+    rows, _ = parse_chart(payload, "LLY", "15m")
+    assert len(rows) == 3, "three bars must survive as three rows"
+    assert len({r["as_of"] for r in rows}) == 3
+    assert all(len(r["as_of"]) == 16 for r in rows)   # YYYY-MM-DD HH:MM
+    assert all(r["interval"] == "15m" for r in rows)
+
+    daily, _ = parse_chart(payload, "LLY", "1d")
+    assert all(len(r["as_of"]) == 10 for r in daily)  # YYYY-MM-DD
+    assert all(r["interval"] == "1d" for r in daily)
+
+
+def test_the_two_price_fetchers_do_not_share_a_ttl_slot():
+    """TTL is tracked per (source, entity_key). A shared source would mean whichever
+    fetcher ran first marked the slot fresh and the other was skipped, every time."""
+    from fetchers.prices import IntradayPricesFetcher, PricesFetcher
+    assert PricesFetcher.source != IntradayPricesFetcher.source
+    assert IntradayPricesFetcher.chart_interval == "15m"
+    assert IntradayPricesFetcher.chart_range == "5d"
