@@ -16,6 +16,7 @@ from pydantic import BaseModel
 import catalysts as catalysts_module
 import comps as comps_module
 import db
+import insights as insights_module
 import loe as loe_module
 import pipeline as pipeline_module
 import refresh as refresh_module
@@ -218,6 +219,32 @@ def _company_rows(ticker, query):
 @app.get("/changes")
 def changes(days: int = Query(default=30)) -> list[dict]:
     return whatchanged_module.build_feed(days=days)
+
+
+@app.get("/companies/{ticker}/note")
+def company_note(ticker: str, days: int = Query(default=30),
+                 refresh: bool = Query(default=False)) -> dict:
+    """The morning note for one company.
+
+    Returns the stored note by default; ``refresh=true`` generates a new one. Without
+    an ANTHROPIC_API_KEY the note is the rules layer, and ``model`` says so.
+    """
+    ticker = ticker.upper()
+    conn = db.get_connection()
+    try:
+        if conn.execute("SELECT id FROM companies WHERE ticker = ?", (ticker,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    finally:
+        conn.close()
+
+    if refresh:
+        return insights_module.generate_note(ticker=ticker, days=days)
+    note = insights_module.latest_note(ticker=ticker)
+    if note is None:
+        return {"ticker": ticker, "body": None, "model": None, "generated_at": None,
+                "error": None}
+    note["error"] = None
+    return note
 
 
 @app.get("/companies/{ticker}/filings")
