@@ -11,12 +11,15 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel
 
+import catalysts as catalysts_module
 import comps as comps_module
 import db
 import loe as loe_module
 import pipeline as pipeline_module
 import refresh as refresh_module
+import whatchanged as whatchanged_module
 
 try:  # optional local .env, mirrors seed.py
     from dotenv import load_dotenv
@@ -196,6 +199,82 @@ def company_approvals(ticker: str) -> dict:
     finally:
         conn.close()
     return {"ticker": ticker, "approvals": rows}
+
+
+def _company_rows(ticker, query):
+    ticker = ticker.upper()
+    conn = db.get_connection()
+    try:
+        company = conn.execute(
+            "SELECT id FROM companies WHERE ticker = ?", (ticker,)
+        ).fetchone()
+        if company is None:
+            raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+        return ticker, [dict(r) for r in conn.execute(query, (company["id"],))]
+    finally:
+        conn.close()
+
+
+@app.get("/changes")
+def changes(days: int = Query(default=30)) -> list[dict]:
+    return whatchanged_module.build_feed(days=days)
+
+
+@app.get("/companies/{ticker}/filings")
+def company_filings(ticker: str) -> dict:
+    ticker, rows = _company_rows(
+        ticker,
+        """
+        SELECT form_type, filed_date, accession, title, url FROM filings
+         WHERE company_id = ? ORDER BY filed_date DESC LIMIT 60
+        """,
+    )
+    return {"ticker": ticker, "filings": rows}
+
+
+@app.get("/companies/{ticker}/news")
+def company_news(ticker: str) -> dict:
+    ticker, rows = _company_rows(
+        ticker,
+        """
+        SELECT source, title, url, published_at FROM news
+         WHERE company_id = ? ORDER BY published_at DESC LIMIT 60
+        """,
+    )
+    return {"ticker": ticker, "news": rows}
+
+
+@app.get("/catalysts")
+def catalysts(within_days: int = Query(default=90),
+              ticker: Optional[str] = Query(default=None)) -> list[dict]:
+    return catalysts_module.list_catalysts(within_days=within_days, ticker=ticker)
+
+
+class CatalystIn(BaseModel):
+    ticker: str
+    catalyst_type: str
+    expected_date: str
+    title: str
+    description: Optional[str] = None
+
+
+@app.post("/catalysts")
+def create_catalyst(body: CatalystIn) -> dict:
+    try:
+        catalyst_id = catalysts_module.add_catalyst(
+            None, body.ticker, body.catalyst_type, body.expected_date, body.title,
+            body.description,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"id": catalyst_id}
+
+
+@app.delete("/catalysts/{catalyst_id}")
+def remove_catalyst(catalyst_id: int) -> dict:
+    if not catalysts_module.delete_catalyst(None, catalyst_id):
+        raise HTTPException(status_code=404, detail=f"catalyst {catalyst_id} not found")
+    return {"deleted": catalyst_id}
 
 
 @app.post("/refresh")
