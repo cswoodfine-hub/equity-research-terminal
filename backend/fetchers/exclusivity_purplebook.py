@@ -45,7 +45,10 @@ def _url_recency(url: str):
 APPLICANT_MAP = {
     "LLY": ["LILLY"],
     "NVO": ["NOVO NORDISK"],
-    "MRK": ["MERCK SHARP", "MSD"],
+    # Merck licenses biologics through several subsidiaries. Needles stay specific so
+    # Merck KGaA, a different company and not in this universe, never matches.
+    "MRK": ["MERCK SHARP", "MSD", "MERCK & CO", "MERCK AND CO", "ORGANON",
+            "SCHERING CORPORATION"],
     "PFE": ["PFIZER", "WYETH", "HOSPIRA"],
     "ABBV": ["ABBVIE", "ALLERGAN"],
     "JNJ": ["JANSSEN"],

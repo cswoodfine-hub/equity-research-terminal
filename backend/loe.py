@@ -76,7 +76,15 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
         assets = conn.execute(
             """
             SELECT a.brand_name, a.generic_name, a.modality, a.internal_code,
-                   MAX(e.expiry_date) AS loe
+                   MAX(e.expiry_date) AS loe,
+                   -- What kind of protection sets that date. For biologics it is
+                   -- usually orphan exclusivity, which covers one orphan indication
+                   -- and does not gate biosimilar entry, so the basis has to travel
+                   -- with the date rather than be inferred from it.
+                   (SELECT x.protection_type FROM exclusivities x
+                     WHERE x.asset_id = a.id
+                     ORDER BY x.expiry_date DESC, x.protection_type
+                     LIMIT 1) AS loe_basis
               FROM assets a
               JOIN exclusivities e ON e.asset_id = a.id
              WHERE a.owner_company_id = ?

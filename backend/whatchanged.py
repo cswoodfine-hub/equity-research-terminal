@@ -11,6 +11,17 @@ import db
 
 _SIG_RANK = {"high": 0, "medium": 1, "low": 2}
 
+# What sets an LOE date, said briefly. Only reference product exclusivity and patents
+# gate a competitor; orphan exclusivity covers a single orphan indication and expires
+# without the product losing anything, so it must never read as a bare LOE date.
+SHORT_BASIS = {
+    "patent": "patent",
+    "regulatory exclusivity": "regulatory exclusivity",
+    "orphan exclusivity": "orphan exclusivity",
+    "reference product exclusivity": "reference product exclusivity",
+    "interchangeable exclusivity": "interchangeable exclusivity",
+}
+
 
 def _trial_headline(ticker, entity_key, change_type, old, new):
     tag = f"{ticker} " if ticker else ""
@@ -91,7 +102,11 @@ def _near_term_loe(conn, months, limit, ticker=None):
     horizon = _date_offset(conn, months * 30)
     sql = """
         SELECT c.ticker, a.brand_name, a.modality, a.internal_code,
-               MAX(e.expiry_date) AS loe
+               MAX(e.expiry_date) AS loe,
+               (SELECT x.protection_type FROM exclusivities x
+                 WHERE x.asset_id = a.id
+                 ORDER BY x.expiry_date DESC, x.protection_type
+                 LIMIT 1) AS loe_basis
           FROM assets a JOIN exclusivities e ON e.asset_id = a.id
           JOIN companies c ON a.owner_company_id = c.id
     """
@@ -111,11 +126,14 @@ def _near_term_loe(conn, months, limit, ticker=None):
         # expiry. Naming the application keeps two Corlanor rows distinguishable instead
         # of reading as the same product listed twice.
         code = f" ({r['internal_code']})" if r["internal_code"] else ""
+        basis = SHORT_BASIS.get(r["loe_basis"], r["loe_basis"] or "unknown")
         items.append({
             "kind": "loe", "significance": "medium", "date": r["loe"], "ticker": r["ticker"],
-            "change_type": "loe", "modality": r["modality"],
+            "change_type": "loe", "modality": r["modality"], "loe_basis": r["loe_basis"],
+            # The basis is in the headline because orphan exclusivity reads as a loss of
+            # exclusivity date without it, and it is not one.
             "headline": (f"{r['ticker']} LOE: {r['brand_name']}{code} "
-                         f"loses exclusivity {r['loe']}"),
+                         f"{basis} expires {r['loe']}"),
         })
     return items
 

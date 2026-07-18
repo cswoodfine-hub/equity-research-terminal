@@ -542,18 +542,27 @@ with main:
                       "entry for this company. Biologics coverage is partial.")
             else:
                 frame = pd.DataFrame([{
-                    "Expiry": a["loe"], "Modality": a["modality"] or "—",
+                    "Expiry": a["loe"], "Basis": a.get("loe_basis") or "—",
+                    "Modality": a["modality"] or "—",
                     "Brand": a["brand_name"], "Generic": a["generic_name"],
                     "Application": a["internal_code"]} for a in exclusivities])
                 st.dataframe(
                     frame.style.map(
                         lambda v: f"color:{T.P.modality.get(v, T.P.stale)};"
-                                  "font-weight:600", subset=["Modality"]),
+                                  "font-weight:600", subset=["Modality"])
+                    # Orphan exclusivity is not a loss of exclusivity, so it is muted
+                    # rather than reading with the same weight as a patent expiry.
+                    .map(lambda v: f"color:{T.P.stale}"
+                         if v == "orphan exclusivity" else "", subset=["Basis"]),
                     width="stretch", hide_index=True)
-                st.markdown('<div class="byline">Orange for small molecules, purple for '
-                            'biologics, the colours of the two source books. Not revenue '
-                            'weighted: no free product revenue exists.</div>',
-                            unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="byline">Basis is what sets the date. Patent and '
+                    'reference product exclusivity gate a competitor. Orphan '
+                    'exclusivity covers one orphan indication and expires without the '
+                    'product losing anything, so it is shown muted and should not be '
+                    'read as a cliff. Orange for small molecules, purple for biologics, '
+                    'the colours of the two source books. Not revenue weighted: no free '
+                    'product revenue exists.</div>', unsafe_allow_html=True)
 
     # --- Approvals -------------------------------------------------------
     with approvals_tab:
