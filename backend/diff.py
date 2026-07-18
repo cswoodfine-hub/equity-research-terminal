@@ -17,7 +17,8 @@ import db
 
 # A first-seen filing or approval only counts as news if it is also recent. Wide enough to
 # survive a refresh gap of several months, narrow enough to exclude back catalogue.
-_RECENCY_DAYS = 180
+# Public because cleanup.py retires old poisoned rows by the same rule; one definition.
+RECENCY_DAYS = 180
 
 _HIGH_STATUS = {"Terminated", "Suspended", "Withdrawn"}
 _PHASE_RANK = {
@@ -134,15 +135,19 @@ def _baselined_tickers(conn, entity_type) -> set:
     return {r["ticker"] for r in rows}
 
 
-def _is_recent(value, today=None) -> bool:
-    """True for an ISO date within the recency window. Missing or unparseable is False."""
+def is_recent(value, today=None) -> bool:
+    """True for an ISO date within the recency window. Missing or unparseable is False.
+
+    ``today`` is injectable so cleanup can ask the question as of when a change was
+    detected, rather than as of now.
+    """
     if not value:
         return False
     try:
         parsed = date.fromisoformat(str(value)[:10])
     except ValueError:
         return False
-    return parsed >= (today or date.today()) - timedelta(days=_RECENCY_DAYS)
+    return parsed >= (today or date.today()) - timedelta(days=RECENCY_DAYS)
 
 
 def _detect_new(conn, run_id, source, entity_type, rows, change_type, date_field) -> int:
@@ -158,7 +163,7 @@ def _detect_new(conn, run_id, source, entity_type, rows, change_type, date_field
     for key, payload, label, significance in rows:
         if _last_snapshot(conn, source, entity_type, key) is not None:
             continue
-        if payload.get("ticker") in baselined and _is_recent(payload.get(date_field)):
+        if payload.get("ticker") in baselined and is_recent(payload.get(date_field)):
             _write_change(conn, entity_type, key, entity_type, None, label,
                           change_type, significance, run_id)
             emitted += 1
