@@ -306,6 +306,16 @@ def remove_catalyst(catalyst_id: int) -> dict:
     return {"deleted": catalyst_id}
 
 
+@app.post("/catalysts/{catalyst_id}/accept")
+def accept_catalyst(catalyst_id: int) -> dict:
+    """Promote a derived catalyst to curated, so a later refresh cannot withdraw it."""
+    if not catalysts_module.accept_catalyst(None, catalyst_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"catalyst {catalyst_id} not found, or is already curated")
+    return {"accepted": catalyst_id}
+
+
 @app.post("/refresh")
 def refresh(
     ticker: str = Query(default=refresh_module.DEFAULT_TICKER),

@@ -27,6 +27,9 @@ SEG = {"near": 210, "mid": 170, "cliff": 132}
 EMPTY_H = 20
 GAP = 30
 HEAD_DROP = 22          # clear space under a segment label, so nothing collides with it
+# The axis line is today and carries its own label, so day zero starts below it rather
+# than on it. Without this a catalyst dated today prints straight through that label.
+LEAD_IN = 13
 NEAR_DAYS = 90
 MID_MONTHS = 24
 
@@ -43,8 +46,19 @@ def _colour(item) -> str:
 
 
 def _parse(value):
+    """ISO date, or a YYYY-MM month placed at its first day.
+
+    ClinicalTrials.gov reports some primary completion dates to the month only, and
+    those are 15% of the derived readouts. Rejecting them dropped every one of those
+    ticks off the rail without a word. The day is a position here, not a stored claim.
+    """
+    text = str(value or "")[:10]
     try:
-        return dt.date.fromisoformat(str(value)[:10])
+        return dt.date.fromisoformat(text)
+    except (ValueError, TypeError):
+        pass
+    try:
+        return dt.date.fromisoformat(text[:7] + "-01")
     except (ValueError, TypeError):
         return None
 
@@ -130,7 +144,7 @@ def render(items, exclusivities=None, today=None, label_limit=7) -> str:
         out.append(f'<text x="{PAD_L}" y="{top - 6}" font-size="9" font-weight="600"'
                    f' fill="{P.stale}">today {today.isoformat()}</text>')
         for index, (when, item) in enumerate(near):
-            ty = top + ((when - today).days / NEAR_DAYS) * near_h
+            ty = top + LEAD_IN + ((when - today).days / NEAR_DAYS) * (near_h - LEAD_IN)
             out.append(f'<rect x="{PAD_L - 3}" y="{ty - 2.5}" width="7" height="5"'
                        f' fill="{_colour(item)}"/>')
             if index < label_limit:

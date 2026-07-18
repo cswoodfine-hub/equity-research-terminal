@@ -558,26 +558,60 @@ with main:
                     state("A catalyst needs a title",
                           "Give it the event name, for example Winrevair sBLA decision.")
 
-        calendar = api_get(api_base, "/catalysts?within_days=90")
+        window = st.radio("Window", [90, 180, 365], index=0, horizontal=True,
+                          format_func=lambda d: f"{d} days", key="cat_window",
+                          label_visibility="collapsed")
+        calendar = api_get(api_base, f"/catalysts?within_days={window}")
+        mine = [c for c in calendar if c["is_curated"]]
+        derived = [c for c in calendar if not c["is_curated"]]
+
         if not calendar:
-            state("No catalysts in the next 90 days",
-                  "This table is curated by hand because no free PDUFA calendar exists. "
-                  "Add the first one above and it appears on the horizon rail.")
+            state(f"No catalysts in the next {window} days",
+                  "Readouts are derived from Phase 3 primary completion dates on every "
+                  "refresh, so this fills once trials are fetched. PDUFA dates have no "
+                  "free source and are added by hand above.")
         else:
-            st.dataframe(pd.DataFrame([{
-                "id": c["id"], "Company": c["ticker"], "Type": c["catalyst_type"],
-                "Date": c["expected_date"], "Confidence": c["date_confidence"],
-                "Title": c["title"], "Status": c["status"]} for c in calendar]),
-                width="stretch", hide_index=True)
-            del_cols = st.columns([1, 5])
-            del_id = del_cols[0].number_input("Delete id", min_value=0, step=1, value=0)
-            if del_cols[0].button("Delete") and del_id:
+            section("Calendar", f"{len(mine)} yours · {len(derived)} derived")
+            frame = pd.DataFrame([{
+                "id": c["id"],
+                "Source": "yours" if c["is_curated"] else "derived",
+                "Date": c["expected_date"], "Company": c["ticker"],
+                "Type": c["catalyst_type"], "Confidence": c["date_confidence"],
+                "Title": c["title"], "Evidence": c["source_url"] or "—"}
+                for c in calendar])
+            st.dataframe(
+                frame.style.map(
+                    lambda v: f"color:{T.P.ink if v == 'yours' else T.P.stale};"
+                              "font-weight:600", subset=["Source"]),
+                width="stretch", hide_index=True,
+                column_config={"Evidence": st.column_config.LinkColumn(
+                    "Evidence", display_text=r"NCT\w+")})
+            st.markdown(
+                '<div class="byline">Derived rows come from Phase 3 primary completion '
+                'dates on ClinicalTrials.gov, which are estimates and move. A refresh '
+                'updates a derived date in place and withdraws the row if the trial '
+                'stops. Accept one to make it yours, after which no refresh will touch '
+                'it.</div>', unsafe_allow_html=True)
+
+            act = st.columns([1, 1, 1, 4])
+            target = act[0].number_input("Row id", min_value=0, step=1, value=0,
+                                         key="cat_target")
+            if act[1].button("Accept", key="cat_accept") and target:
                 try:
-                    api_delete(api_base, f"/catalysts/{int(del_id)}")
+                    api_post(api_base, f"/catalysts/{int(target)}/accept", timeout=30)
                     api_get.clear()
                     st.rerun()
                 except (urllib.error.URLError, OSError) as exc:
-                    state("The catalyst was not deleted", str(exc), error=True)
+                    state("That row was not accepted",
+                          f"{exc}. Only a derived row can be accepted; a row that is "
+                          "already yours has nothing to promote.", error=True)
+            if act[2].button("Delete", key="cat_delete") and target:
+                try:
+                    api_delete(api_base, f"/catalysts/{int(target)}")
+                    api_get.clear()
+                    st.rerun()
+                except (urllib.error.URLError, OSError) as exc:
+                    state("That row was not deleted", str(exc), error=True)
 
     # --- News ------------------------------------------------------------
     with news_tab:

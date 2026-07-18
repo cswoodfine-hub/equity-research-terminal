@@ -17,6 +17,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 
+import catalysts
 import db
 import diff
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
@@ -112,9 +113,13 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
         fetcher.refresh_run_id = run_id
     results = [fetcher.run() for fetcher in fetchers]
 
+    # Derived readouts run after the trial fetch and before the diff, so a completion
+    # date that moved this run is already a catalyst by the time changes are computed.
+    readouts = catalysts.derive_readouts(db_path)
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(r.errors for r in results) else "complete"
-    detail = {"ticker": ticker, "sources": [asdict(r) for r in results], "changes": changes}
+    detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
+              "readouts": readouts, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 
@@ -164,10 +169,12 @@ def run_refresh_all(db_path=None) -> dict:
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         list(pool.map(run_company, companies))
 
+    readouts = catalysts.derive_readouts(db_path)
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
     detail = {"scope": "all", "companies": len(companies),
-              "sources": list(by_source.values()), "changes": changes}
+              "sources": list(by_source.values()), "readouts": readouts,
+              "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 
