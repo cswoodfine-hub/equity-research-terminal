@@ -81,6 +81,7 @@ def test_apply_deletes_only_the_poisoned_rows(tmp_path):
     """The recent approval and the trial change survive; only the back-dated row goes."""
     db_file = tmp_path / "test.db"
     old_id, recent_id = _seed(db_file)
+    before = _change_ids(db_file)
 
     report = cleanup.clean(db_file, apply=True)
 
@@ -96,7 +97,14 @@ def test_apply_deletes_only_the_poisoned_rows(tmp_path):
         assert bodies == ["Cites only clean evidence."]
     finally:
         conn.close()
-    assert Path(report["backup"]).exists()
+    # The backup is a working database still holding what was deleted, so the run is
+    # reversible. WAL mode means a copy of the .db file alone would not guarantee this.
+    backup = db.get_connection(Path(report["backup"]))
+    try:
+        assert [r[0] for r in backup.execute("SELECT id FROM changes ORDER BY id")] == before
+        assert backup.execute("SELECT COUNT(*) FROM insights").fetchone()[0] == 2
+    finally:
+        backup.close()
 
 
 def test_undeterminable_rows_are_kept(tmp_path):

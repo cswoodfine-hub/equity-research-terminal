@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
+import sqlite3
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -108,10 +108,19 @@ def _affected_insights(conn, poisoned_ids: set) -> list[dict]:
     return out
 
 
-def _backup(path: Path) -> Path:
+def _backup(conn, path: Path) -> Path:
+    """Copy the database aside using SQLite's own backup API.
+
+    Not a file copy: the database runs in WAL mode, so committed data can be sitting in
+    the -wal file and a copy of the .db alone would silently lose it.
+    """
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     dest = path.with_suffix(path.suffix + f".backup-{stamp}")
-    shutil.copy2(path, dest)
+    target = sqlite3.connect(dest)
+    try:
+        conn.backup(target)
+    finally:
+        target.close()
     return dest
 
 
@@ -135,7 +144,7 @@ def clean(db_path=None, apply: bool = False) -> dict:
         if not apply or not poisoned_ids:
             return report
 
-        report["backup"] = str(_backup(path))
+        report["backup"] = str(_backup(conn, path))
         marks = ",".join("?" * len(poisoned_ids))
         ids = tuple(poisoned_ids)
         conn.execute(f"DELETE FROM changes WHERE id IN ({marks})", ids)
