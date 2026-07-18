@@ -2,7 +2,7 @@
 
 Merges recently detected changes (diff engine), upcoming catalysts (<=60 days), and
 near-term loss of exclusivity into one list ranked by significance then date. The
-optional Anthropic note layer that summarises this per company is phase 7.
+optional note layer that summarises this per company lives in ``insights.py``.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def _recent_changes(conn, days):
     items = []
     for r in conn.execute(
         """
-        SELECT entity_type, entity_key, field, old_value, new_value, change_type,
+        SELECT id, entity_type, entity_key, field, old_value, new_value, change_type,
                significance, detected_at
           FROM changes
          WHERE detected_at >= datetime('now', ?)
@@ -52,6 +52,7 @@ def _recent_changes(conn, days):
         items.append({
             "kind": "change", "significance": r["significance"], "date": r["detected_at"],
             "ticker": ticker, "change_type": r["change_type"], "headline": headline,
+            "change_id": r["id"],  # ties a generated note back to its evidence
         })
     return items
 
@@ -104,7 +105,9 @@ def _date_offset(conn, days):
     return conn.execute("SELECT date('now', ?)", (f"+{int(days)} days",)).fetchone()[0]
 
 
-def build_feed(db_path=None, days=30, catalyst_days=60, loe_months=24, loe_limit=15):
+def build_feed(db_path=None, days=30, catalyst_days=60, loe_months=24, loe_limit=15,
+               ticker=None):
+    """The ranked feed. Pass ``ticker`` to narrow it to one company (used by notes)."""
     conn = db.get_connection(db_path)
     try:
         items = (
@@ -114,6 +117,9 @@ def build_feed(db_path=None, days=30, catalyst_days=60, loe_months=24, loe_limit
         )
     finally:
         conn.close()
+    if ticker:
+        want = ticker.upper()
+        items = [it for it in items if (it.get("ticker") or "").upper() == want]
     # Rank by significance (high first), then by date (recent changes / furthest-out
     # flags first). Two stable sorts keep the date order within each significance band.
     items.sort(key=lambda x: x["date"], reverse=True)
