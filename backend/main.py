@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException, Query
 
 import comps as comps_module
 import db
+import loe as loe_module
 import pipeline as pipeline_module
 import refresh as refresh_module
 
@@ -155,6 +156,46 @@ def company_trials(ticker: str, phase: Optional[str] = Query(default=None)) -> d
     if rows is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     return {"ticker": ticker.upper(), "phase": phase, "trials": rows}
+
+
+@app.get("/loe")
+def loe() -> dict:
+    return loe_module.build_loe()
+
+
+@app.get("/companies/{ticker}/exclusivities")
+def company_exclusivities(ticker: str) -> dict:
+    rows = loe_module.loe_detail(None, ticker)
+    if rows is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return {"ticker": ticker.upper(), "assets": rows}
+
+
+@app.get("/companies/{ticker}/approvals")
+def company_approvals(ticker: str) -> dict:
+    ticker = ticker.upper()
+    conn = db.get_connection()
+    try:
+        company = conn.execute(
+            "SELECT id FROM companies WHERE ticker = ?", (ticker,)
+        ).fetchone()
+        if company is None:
+            raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+        rows = [
+            dict(r)
+            for r in conn.execute(
+                """
+                SELECT ap.approval_date, ap.application_number, a.brand_name, a.modality
+                  FROM approvals ap JOIN assets a ON ap.asset_id = a.id
+                 WHERE a.owner_company_id = ?
+                 ORDER BY ap.approval_date DESC
+                """,
+                (company["id"],),
+            )
+        ]
+    finally:
+        conn.close()
+    return {"ticker": ticker, "approvals": rows}
 
 
 @app.post("/refresh")
