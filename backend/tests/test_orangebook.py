@@ -59,3 +59,41 @@ def test_parse_orange_book_matches_and_filters():
     assert loe == "2039-07-22"
     kinds = {e["protection_type"] for e in mounjaro["exclusivities"]}
     assert kinds == {"patent", "regulatory exclusivity"}
+
+
+def test_a_patent_listed_per_strength_is_stored_once():
+    """The book repeats a patent for every product strength.
+
+    Mounjaro held 522 rows for 10 distinct patents and the table was 63% exact
+    duplicates. Protection belongs to the application, not to the strength.
+    """
+    rows = _parsed()
+    mounjaro = next(r for r in rows if r["internal_code"] == "NDA215866")
+    keys = [(e["protection_type"], e["identifier"], e["expiry_date"])
+            for e in mounjaro["exclusivities"]]
+    assert len(keys) == len(set(keys))
+
+
+def test_short_applicant_names_resolve_through_the_full_name():
+    """Regression: the book abbreviates Novo Nordisk to NOVO, which matched nothing.
+
+    33 Novo products and 114 Merck products were dropped, Ozempic and Wegovy among
+    them. The full name column is unambiguous.
+    """
+    products = (
+        "Ingredient~DF;Route~Trade_Name~Applicant~Strength~Appl_Type~Appl_No~Product_No"
+        "~TE_Code~Approval_Date~RLD~RS~Type~Applicant_Full_Name\n"
+        "SEMAGLUTIDE~SOLUTION;SUBCUTANEOUS~OZEMPIC~NOVO~2MG/1.5ML~N~209637~001~~"
+        "Dec 5, 2017~Yes~Yes~RX~NOVO NORDISK INC\n"
+        # Merck KGaA is a different company and must not land under MRK.
+        "CLADRIBINE~TABLET;ORAL~MAVENCLAD~MERCK~10MG~N~022561~001~~Mar 29, 2019~Yes~Yes~RX~MERCK KGAA\n"
+    )
+    patents = ("Appl_Type~Appl_No~Product_No~Patent_No~Patent_Expire_Date_Text~"
+               "Drug_Substance_Flag~Drug_Product_Flag~Patent_Use_Code~Delist_Flag~Submission_Date\n"
+               "N~209637~001~8129343~Jan 5, 2033~~~~~Feb 1, 2018\n"
+               "N~022561~001~7888328~Jun 1, 2031~~~~~Apr 1, 2019\n")
+    rows = parse_orange_book(products, patents, _read("orange_book_exclusivity.txt"),
+                             APPLICANT_MAP)
+    by_ticker = {r["ticker"]: r for r in rows}
+    assert "NVO" in by_ticker and by_ticker["NVO"]["brand"] == "Ozempic"
+    assert "MRK" not in by_ticker, "Merck KGaA is not Merck & Co"

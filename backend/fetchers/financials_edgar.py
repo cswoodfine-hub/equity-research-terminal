@@ -94,10 +94,33 @@ def _annual_by_year(concept: dict) -> dict[int, dict]:
     return by_year
 
 
-def pick_annual_series(facts: dict, candidates):
-    """Pick the highest-priority concept whose annual series reaches the latest year.
+# A second concept may backfill years the winner lacks, but only if the two agree where
+# they overlap. Filers switch tags mid-history and the old one keeps reporting the same
+# number for a year or two, which is the signal that they mean the same thing.
+_AGREEMENT_TOLERANCE = 0.01
 
-    Returns (unit, {year: {'val','end'}}); ({}, None) when no candidate has data.
+
+def _agrees(series, winner) -> bool:
+    """True when two annual series report the same value in every shared year.
+
+    LLY moved R&D from the plain concept to the excluding-acquired one in 2021 and both
+    read 6.93bn for that year, so the older series safely extends the newer one back to
+    2020. JNJ reports both concurrently and they differ by two orders of magnitude,
+    because the plain one holds acquired in-process R&D alone; that fails here and the
+    winner is used by itself.
+    """
+    shared = set(series) & set(winner)
+    if not shared:
+        return False           # nothing to check it against, so do not trust it
+    return all(abs(series[y]["val"] - winner[y]["val"])
+               <= abs(winner[y]["val"]) * _AGREEMENT_TOLERANCE for y in shared)
+
+
+def pick_annual_series(facts: dict, candidates):
+    """Build the annual series from the highest-priority concept that reaches the
+    latest year, extended backwards by any candidate that agrees with it.
+
+    Returns (unit, {year: {'val','end'}}); (None, {}) when no candidate has data.
     """
     per_candidate = []
     for taxonomy, name in candidates:
@@ -111,8 +134,16 @@ def pick_annual_series(facts: dict, candidates):
         return None, {}
     max_year = max(y for by in per_candidate for y in by)
     chosen = next((by for by in per_candidate if max_year in by), per_candidate[0])
+
+    merged = dict(chosen)
+    for by_year in per_candidate:
+        if by_year is chosen or not _agrees(by_year, chosen):
+            continue
+        for year, entry in by_year.items():
+            merged.setdefault(year, entry)   # the winner always wins a shared year
+
     unit = chosen[max(chosen)]["unit"]
-    series = {y: {"val": chosen[y]["val"], "end": chosen[y]["end"]} for y in chosen}
+    series = {y: {"val": merged[y]["val"], "end": merged[y]["end"]} for y in merged}
     return unit, series
 
 

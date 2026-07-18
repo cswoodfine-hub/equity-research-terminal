@@ -34,7 +34,10 @@ _TIMEOUT_S = 120
 APPLICANT_MAP = {
     "LLY": ["LILLY"],
     "NVO": ["NOVO NORDISK"],
-    "MRK": ["MERCK SHARP", "MSD"],
+    # Merck needles are deliberately specific. The book also lists MERCK KGAA, the
+    # German company, which is not in this universe and must never match here.
+    "MRK": ["MERCK SHARP", "MSD", "MERCK AND CO", "MERCK CO INC",
+            "MERCK RESEARCH LAB"],
     "PFE": ["PFIZER", "WYETH"],
     "ABBV": ["ABBVIE", "ALLERGAN"],
     "JNJ": ["JANSSEN", "ORTHO MCNEIL"],
@@ -85,7 +88,12 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
     pidx, prows = _rows(products_text)
     products: dict[str, dict] = {}
     for parts in prows:
-        ticker = _match_ticker(_field(parts, pidx, "Applicant"), applicant_map)
+        # Applicant is an abbreviation: Novo Nordisk is "NOVO" and Merck & Co is
+        # "MERCK", neither of which matched, dropping 33 and 114 products including
+        # Ozempic and Wegovy. The full name is unambiguous and is also what separates
+        # Merck & Co from Merck KGaA.
+        ticker = _match_ticker(_field(parts, pidx, "Applicant_Full_Name"), applicant_map) \
+            or _match_ticker(_field(parts, pidx, "Applicant"), applicant_map)
         if not ticker:
             continue
         appl_no = _field(parts, pidx, "Appl_No")
@@ -130,14 +138,21 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
 
     out = []
     for appl_no, product in products.items():
-        rows = [
-            {"protection_type": "patent", "identifier": pat, "expiry_date": d.isoformat()}
-            for pat, d in patents.get(appl_no, [])
-        ] + [
-            {"protection_type": "regulatory exclusivity", "identifier": code,
-             "expiry_date": d.isoformat()}
-            for code, d in exclusivity.get(appl_no, [])
-        ]
+        # The book lists a patent once per product strength, so a six-strength product
+        # carried the same patent six times. Mounjaro held 522 rows for 10 patents and
+        # the table was 63% exact duplicates. The protection belongs to the
+        # application, so it is deduplicated here.
+        seen = set()
+        rows = []
+        for kind, items in (("patent", patents.get(appl_no, [])),
+                            ("regulatory exclusivity", exclusivity.get(appl_no, []))):
+            for identifier, expiry in items:
+                key = (kind, identifier, expiry)
+                if key in seen:
+                    continue
+                seen.add(key)
+                rows.append({"protection_type": kind, "identifier": identifier,
+                             "expiry_date": expiry.isoformat()})
         if not rows:  # only keep products with listed protection
             continue
         out.append(

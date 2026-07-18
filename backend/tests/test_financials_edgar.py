@@ -108,3 +108,32 @@ def test_cash_falls_back_to_restricted_inclusive_tag():
     }}}
     r = parse_companyfacts(payload)
     assert r["cash"] == 7564000000
+
+
+def test_lly_rd_extends_back_through_the_agreeing_older_concept():
+    """Regression: LLY R&D 2020 read as no data.
+
+    Lilly moved R&D from the plain concept to the excluding-acquired one in 2021.
+    Picking one concept and discarding the other lost every year before 2021, even
+    though EDGAR holds them. The two agree exactly in 2021 and 2022, which is what
+    makes the older series safe to extend the newer one with.
+    """
+    r = parse_companyfacts(_facts("companyfacts_lly.json"))
+    rd = r["annual"]["ResearchAndDevelopmentExpense"]
+
+    assert 2020 in rd, "2020 R&D is in EDGAR and must not be dropped"
+    # The fixture is an older snapshot than the live API, which now restates 2020 to
+    # 5.9821bn. Both are about 6bn; the point is that the year is present at all.
+    assert rd[2020]["val"] == 5_976_300_000
+    assert rd[2025]["val"] == 13_337_000_000      # the newer concept still wins the tail
+
+
+def test_jnj_conflicting_rd_concepts_are_not_merged():
+    """The agreement check is what stops JNJ's in-process tag polluting the series."""
+    r = parse_companyfacts(_facts("companyfacts_jnj.json"))
+    rd = r["annual"]["ResearchAndDevelopmentExpense"]
+
+    # Both concepts report 2022-2025 and differ by orders of magnitude, so the plain
+    # one must contribute nothing at all.
+    assert all(v["val"] > 5e9 for v in rd.values())
+    assert rd[2025]["val"] == 14_665_000_000
