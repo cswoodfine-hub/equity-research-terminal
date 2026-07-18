@@ -7,6 +7,8 @@ import db
 import refresh
 import seed
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
+from fetchers.exclusivity_orangebook import OrangeBookFetcher
+from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.prices import PricesFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 
@@ -66,5 +68,40 @@ def test_refresh_populates_then_skips_within_ttl(tmp_path, monkeypatch):
     try:
         assert conn.execute("SELECT COUNT(*) FROM prices").fetchone()[0] == 124
         assert _snapshot_kind_counts(conn, "LLY") == {"live": 1, "cache": 1}
+    finally:
+        conn.close()
+
+
+def test_refresh_all_runs_companies_in_parallel_without_losing_results(tmp_path,
+                                                                      monkeypatch):
+    """The thread pool must aggregate exactly once per company, not lose or double."""
+    payload = json.loads(FIXTURE.read_text())
+    monkeypatch.setattr(PricesFetcher, "fetch", lambda self: payload)
+    monkeypatch.setattr(TrialsFetcher, "fetch", lambda self: {"studies": []})
+    monkeypatch.setattr(ApprovalsOpenFdaFetcher, "fetch", lambda self: {"results": []})
+    monkeypatch.setattr(OrangeBookFetcher, "fetch",
+                        lambda self: {"products": "", "patents": "", "exclusivity": ""})
+    monkeypatch.setattr(PurpleBookFetcher, "fetch", lambda self: {"csvs": []})
+
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+
+    conn = db.get_connection(db_file)
+    try:
+        n_companies = conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+    finally:
+        conn.close()
+
+    run = refresh.run_refresh_all(db_file)
+    prices = _prices_source(run)
+    # Every company ran exactly once and every row landed.
+    assert prices["ran"] == n_companies
+    assert prices["rows_fetched"] == 124 * n_companies
+    assert prices["errors"] == []
+
+    conn = db.get_connection(db_file)
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM prices").fetchone()[0] == 124 * n_companies
     finally:
         conn.close()
