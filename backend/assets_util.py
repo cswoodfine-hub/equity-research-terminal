@@ -12,8 +12,14 @@ import re
 
 
 def normalize_appl(appl_type: str, appl_no: str) -> str:
-    """Build a normalized application id, e.g. ('N','215866') -> 'NDA215866'."""
+    """Build a normalized application id, e.g. ('N','215866') -> 'NDA215866'.
+
+    Leading zeros are stripped so the same product from the Orange Book ('020610')
+    and openFDA ('NDA020610') collapse to one asset.
+    """
     digits = re.sub(r"\D", "", str(appl_no or ""))
+    if digits:
+        digits = str(int(digits))
     prefix = {"N": "NDA", "A": "ANDA", "B": "BLA"}.get((appl_type or "").upper()[:1], "")
     if not prefix and str(appl_type or "").upper() in ("NDA", "ANDA", "BLA"):
         prefix = str(appl_type).upper()
