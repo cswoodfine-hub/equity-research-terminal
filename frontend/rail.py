@@ -15,7 +15,7 @@ from __future__ import annotations
 import datetime as dt
 import html
 
-from theme import INK, ORANGE_BOOK, OXBLOOD, PAPER, PURPLE_BOOK, RULE, RULE_STRONG, STALE
+from theme import P
 
 W = 208
 PAD_L = 12
@@ -33,13 +33,13 @@ MID_MONTHS = 24
 
 def _colour(item) -> str:
     if item.get("significance") == "high":
-        return OXBLOOD
+        return P.oxblood
     modality = (item.get("modality") or "").lower()
     if modality.startswith("small"):
-        return ORANGE_BOOK
+        return P.orange_book
     if modality.startswith("bio"):
-        return PURPLE_BOOK
-    return INK
+        return P.purple_book
+    return P.ink
 
 
 def _parse(value):
@@ -110,13 +110,13 @@ def render(items, exclusivities=None, today=None, label_limit=7) -> str:
     def seg_head(text, sub, baseline):
         out.append(
             f'<text x="{PAD_L}" y="{baseline}" font-size="9.5" font-weight="700"'
-            f' letter-spacing="0.9" fill="{INK}">{html.escape(text)}</text>'
+            f' letter-spacing="0.9" fill="{P.ink}">{html.escape(text)}</text>'
             f'<text x="{W - PAD_R}" y="{baseline}" font-size="9" text-anchor="end"'
-            f' fill="{STALE}">{html.escape(sub)}</text>')
+            f' fill="{P.stale}">{html.escape(sub)}</text>')
 
     def empty(top, text):
         out.append(f'<text x="{PAD_L}" y="{top + 9}" font-size="9.5"'
-                   f' fill="{STALE}">{text}</text>')
+                   f' fill="{P.stale}">{text}</text>')
 
     # --- Segment one: the actionable window, day resolution ---
     y = 12
@@ -124,18 +124,18 @@ def render(items, exclusivities=None, today=None, label_limit=7) -> str:
     top = y + HEAD_DROP
     if near:
         out.append(f'<line x1="{PAD_L}" y1="{top}" x2="{PAD_L}" y2="{top + near_h}"'
-                   f' stroke="{RULE_STRONG}" stroke-width="1"/>')
+                   f' stroke="{P.rule_strong}" stroke-width="1"/>')
         out.append(f'<line x1="{PAD_L - 5}" y1="{top}" x2="{W - PAD_R}" y2="{top}"'
-                   f' stroke="{INK}" stroke-width="1.5"/>')
+                   f' stroke="{P.ink}" stroke-width="1.5"/>')
         out.append(f'<text x="{PAD_L}" y="{top - 6}" font-size="9" font-weight="600"'
-                   f' fill="{STALE}">today {today.isoformat()}</text>')
+                   f' fill="{P.stale}">today {today.isoformat()}</text>')
         for index, (when, item) in enumerate(near):
             ty = top + ((when - today).days / NEAR_DAYS) * near_h
             out.append(f'<rect x="{PAD_L - 3}" y="{ty - 2.5}" width="7" height="5"'
                        f' fill="{_colour(item)}"/>')
             if index < label_limit:
                 out.append(
-                    f'<text x="{PAD_L + 9}" y="{ty + 3}" font-size="9.5" fill="{INK}">'
+                    f'<text x="{PAD_L + 9}" y="{ty + 3}" font-size="9.5" fill="{P.ink}">'
                     f'<tspan font-weight="600">{when.strftime("%m-%d")}</tspan> '
                     f'{_esc(_label(item))}</text>')
     else:
@@ -147,7 +147,7 @@ def render(items, exclusivities=None, today=None, label_limit=7) -> str:
     top = y + HEAD_DROP
     if mid:
         out.append(f'<line x1="{PAD_L}" y1="{top}" x2="{PAD_L}" y2="{top + mid_h}"'
-                   f' stroke="{RULE_STRONG}" stroke-width="1"/>')
+                   f' stroke="{P.rule_strong}" stroke-width="1"/>')
         span = max((mid_end - near_end).days, 1)
         for index, (when, item) in enumerate(mid):
             ty = top + min((when - near_end).days / span, 1.0) * mid_h
@@ -155,7 +155,7 @@ def render(items, exclusivities=None, today=None, label_limit=7) -> str:
                        f' fill="{_colour(item)}"/>')
             if index < label_limit:
                 out.append(
-                    f'<text x="{PAD_L + 9}" y="{ty + 3}" font-size="9.5" fill="{INK}">'
+                    f'<text x="{PAD_L + 9}" y="{ty + 3}" font-size="9.5" fill="{P.ink}">'
                     f'<tspan font-weight="600">{when.strftime("%Y-%m")}</tspan> '
                     f'{_esc(_label(item), 18)}</text>')
     else:
@@ -172,11 +172,11 @@ def render(items, exclusivities=None, today=None, label_limit=7) -> str:
             by = top + index * 16
             width = max(2, (cliff[year] / peak) * bar_w)
             out.append(f'<text x="{PAD_L}" y="{by + 7}" font-size="9.5"'
-                       f' fill="{STALE}">{year}</text>')
+                       f' fill="{P.stale}">{year}</text>')
             out.append(f'<rect x="{PAD_L + 26}" y="{by}" width="{width:.1f}" height="9"'
-                       f' fill="{INK}" opacity="0.82"/>')
+                       f' fill="{P.ink}" opacity="0.82"/>')
             out.append(f'<text x="{PAD_L + 30 + width:.1f}" y="{by + 7.5}" font-size="9"'
-                       f' fill="{STALE}">{cliff[year]}</text>')
+                       f' fill="{P.stale}">{cliff[year]}</text>')
     else:
         empty(top, "no expiries past 24 months")
 

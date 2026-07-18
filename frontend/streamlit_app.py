@@ -313,11 +313,11 @@ with main:
                 rows.append(row)
             frame = pd.DataFrame(rows)
             styled = frame.style.map(
-                lambda v: f"color:{T.SEVERITY_COLOUR.get(v, T.INK)};font-weight:600",
+                lambda v: f"color:{T.P.severity.get(v, T.P.ink)};font-weight:600",
                 subset=["Sev"])
             if "Modality" in frame:
                 styled = styled.map(
-                    lambda v: f"color:{T.MODALITY_COLOUR.get(v, T.STALE)};font-weight:600",
+                    lambda v: f"color:{T.P.modality.get(v, T.P.stale)};font-weight:600",
                     subset=["Modality"])
             st.dataframe(styled, width="stretch", hide_index=True)
             st.markdown(f'<div class="byline">{blurb}</div>', unsafe_allow_html=True)
@@ -383,7 +383,7 @@ with main:
             frame = pd.DataFrame(table, index=[str(y) for y in years]).transpose() / 1e9
             st.dataframe(
                 frame.style.format(lambda v: T.num(v, 2)).map(
-                    lambda v: f"color:{T.OXBLOOD}" if isinstance(v, (int, float))
+                    lambda v: f"color:{T.P.oxblood}" if isinstance(v, (int, float))
                     and v < 0 else ""),
                 width="stretch")
             revenue = [{"year": str(y),
@@ -432,7 +432,7 @@ with main:
         formats["FY"] = lambda v: "—" if pd.isna(v) else f"{int(v)}"
         styled = (table.style
                   .format(formats, na_rep="—")
-                  .map(lambda v: f"color:{T.OXBLOOD}"
+                  .map(lambda v: f"color:{T.P.oxblood}"
                        if isinstance(v, (int, float)) and not pd.isna(v) and v < 0
                        else "", subset=[units.get(c, c) for c in cols]))
         st.dataframe(styled, width="stretch", hide_index=True)
@@ -451,7 +451,7 @@ with main:
                 x=alt.X("Growth:Q", title="Revenue growth, %"),
                 y=alt.Y("Net margin:Q", title="Net margin, %"),
                 color=alt.Color("sel:N", scale=alt.Scale(
-                    domain=[False, True], range=[T.STALE, T.OXBLOOD]), legend=None),
+                    domain=[False, True], range=[T.P.stale, T.P.oxblood]), legend=None),
                 tooltip=["Ticker:N", alt.Tooltip("Growth:Q", format=".1f"),
                          alt.Tooltip("Net margin:Q", format=".1f")]), 230)
 
@@ -468,13 +468,13 @@ with main:
         else:
             long = grid.melt(id_vars="Ticker", value_vars=PIPELINE_PHASES,
                              var_name="Phase", value_name="Trials")
-            chart(alt.Chart(long).mark_rect(stroke=T.PAPER, strokeWidth=1).encode(
+            chart(alt.Chart(long).mark_rect(stroke=T.P.ground, strokeWidth=1).encode(
                 x=alt.X("Phase:N", title=None, sort=PIPELINE_PHASES),
                 y=alt.Y("Ticker:N", title=None, sort=list(grid["Ticker"])),
                 # Sqrt, not linear: one company runs three figures of trials and a
                 # linear ramp collapses everyone else into the same pale tint.
                 color=alt.Color("Trials:Q", legend=alt.Legend(title="Trials"),
-                                scale=alt.Scale(range=T.PHASE_TINTS, type="sqrt")),
+                                scale=alt.Scale(range=list(T.P.phase_tints), type="sqrt")),
                 tooltip=["Ticker:N", "Phase:N", "Trials:Q"]), 420)
             st.markdown('<div class="byline">Phase is ordinal, so it takes an ink tint '
                         'rather than a hue. Counts are trials, not deduplicated assets, '
@@ -528,7 +528,7 @@ with main:
                     "Application": a["internal_code"]} for a in exclusivities])
                 st.dataframe(
                     frame.style.map(
-                        lambda v: f"color:{T.MODALITY_COLOUR.get(v, T.STALE)};"
+                        lambda v: f"color:{T.P.modality.get(v, T.P.stale)};"
                                   "font-weight:600", subset=["Modality"]),
                     width="stretch", hide_index=True)
                 st.markdown('<div class="byline">Orange for small molecules, purple for '
@@ -551,7 +551,7 @@ with main:
                 for a in approvals])
             st.dataframe(
                 frame.style.map(
-                    lambda v: f"color:{T.MODALITY_COLOUR.get(v, T.STALE)};font-weight:600",
+                    lambda v: f"color:{T.P.modality.get(v, T.P.stale)};font-weight:600",
                     subset=["Modality"]),
                 width="stretch", hide_index=True)
 

@@ -1,12 +1,27 @@
-# Base theme. The stylesheet in frontend/theme.py carries the rest; these are the
-# values Streamlit paints before any CSS lands, so the first frame is already right.
+# Streamlit's own chrome, and in particular the canvas dataframe, takes its colours
+# from here rather than from the stylesheet the app injects. So these values must match
+# the palette selected in frontend/theme.py, and switching mode means changing both:
+#
+#   dark  (default) : the block below, and ER_THEME unset or ER_THEME=dark
+#   light           : the commented block, and ER_THEME=light
+#
+# Both palettes live in frontend/theme.py; only the ground and ink differ here.
+
 [theme]
-base = "light"
-primaryColor = "#1C1B19"
-backgroundColor = "#F2EFE9"
-secondaryBackgroundColor = "#EDE9E1"
-textColor = "#1C1B19"
+base = "dark"
+primaryColor = "#E8792B"
+backgroundColor = "#14150F"
+secondaryBackgroundColor = "#1C1D16"
+textColor = "#E8E4DA"
 font = "sans serif"
+
+# [theme]
+# base = "light"
+# primaryColor = "#C2570F"
+# backgroundColor = "#F2EFE9"
+# secondaryBackgroundColor = "#EDE9E1"
+# textColor = "#1C1B19"
+# font = "sans serif"
 
 [server]
 headless = true

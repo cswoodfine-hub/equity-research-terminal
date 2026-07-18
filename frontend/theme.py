@@ -1,39 +1,81 @@
 """Design system: palette, type, chart theme, and number formatting.
 
-One rule governs the palette. Paper and ink build every piece of chrome; hue is spent
-only on encoded meaning. If something carries colour it is because the colour is data:
-modality, direction, severity, or staleness.
+One rule governs the palette in both modes. Ground and ink build every piece of chrome;
+hue is spent only on encoded meaning. If something carries colour it is because the
+colour is data: modality, direction, severity, or staleness.
 
 The two book colours are inherited from the source datasets rather than invented. FDA
 exclusivity data ships as the Orange Book (small molecules) and the Purple Book
-(biologics), so modality reads in the colours the agency already uses.
+(biologics), so modality reads in the colours the agency already uses. Dark mode lifts
+both to hold their chroma against a deep ground; it does not reassign them.
+
+Light stays the reasoned default: this tool sits beside Excel and 10-K PDFs all day, and
+a dark island forces pupil re-adaptation on every glance. Dark is offered because the
+book colours carry much harder against ink, not because dark is better here.
 """
 
 from __future__ import annotations
 
+import os
+from dataclasses import dataclass
+
 import altair as alt
 
-# --- Palette ------------------------------------------------------------
-PAPER = "#F2EFE9"        # ground, and the absence of signal
-INK = "#1C1B19"          # text, rules, axes, all non-negative figures
-ORANGE_BOOK = "#C2570F"  # small-molecule modality
-PURPLE_BOOK = "#5B4B8A"  # biologic modality
-OXBLOOD = "#8C2F39"      # negative direction and high severity, single pole
-STALE = "#9A968C"        # a value past its source TTL
 
-# Chrome derived from ink, never a new hue.
-RULE = "#DCD7CC"
-RULE_STRONG = "#B9B3A6"
-PAPER_RAISED = "#EDE9E1"
+@dataclass(frozen=True)
+class Palette:
+    """One set of colour roles. Both modes fill the same roles, never new ones."""
 
-# Phase is ordinal, so it takes an ink tint ramp rather than a hue ramp. Hue stays
-# reserved for modality, which is the categorical distinction that carries meaning.
-PHASE_TINTS = ["#DCD7CC", "#BAB3A6", "#8A8378", "#4A463F", "#1C1B19"]
+    name: str
+    ground: str          # the absence of signal
+    ink: str             # text, rules, axes, all non-negative figures
+    orange_book: str     # small-molecule modality
+    purple_book: str     # biologic modality
+    oxblood: str         # negative direction and high severity, single pole
+    stale: str           # a value past its source TTL
+    rule: str            # hairline, derived from ink, never a new hue
+    rule_strong: str
+    raised: str          # sidebar and hover, one step off the ground
+    # Phase is ordinal, so it takes an ink tint ramp rather than a hue ramp. Hue stays
+    # reserved for modality, the categorical distinction that carries meaning.
+    phase_tints: tuple
 
-MODALITY_COLOUR = {"small molecule": ORANGE_BOOK, "biologic": PURPLE_BOOK}
-SEVERITY_COLOUR = {"high": OXBLOOD, "medium": INK, "low": STALE}
-# No severity glyph. The colour of the word is the encoding; a dot beside it would say
-# the same thing twice and in a glyph that belongs to no part of this palette.
+    @property
+    def modality(self) -> dict:
+        return {"small molecule": self.orange_book, "biologic": self.purple_book}
+
+    @property
+    def severity(self) -> dict:
+        # No severity glyph. The colour of the word is the encoding; a dot beside it
+        # would say the same thing twice, in a glyph belonging to no part of this palette.
+        return {"high": self.oxblood, "medium": self.ink, "low": self.stale}
+
+    @property
+    def muted(self) -> str:
+        """Body text one step down from ink. Captions and secondary labels."""
+        return self.stale if self.name == "dark" else "#5A564E"
+
+
+LIGHT = Palette(
+    name="light", ground="#F2EFE9", ink="#1C1B19",
+    orange_book="#C2570F", purple_book="#5B4B8A", oxblood="#8C2F39", stale="#9A968C",
+    rule="#DCD7CC", rule_strong="#B9B3A6", raised="#EDE9E1",
+    phase_tints=("#DCD7CC", "#BAB3A6", "#8A8378", "#4A463F", "#1C1B19"),
+)
+
+DARK = Palette(
+    name="dark", ground="#14150F", ink="#E8E4DA",
+    orange_book="#E8792B", purple_book="#9B87D4", oxblood="#E05263", stale="#7A776E",
+    rule="#26271F", rule_strong="#3D3E35", raised="#1C1D16",
+    # Inverted: the ramp runs from just off the ground up to full ink.
+    phase_tints=("#26271F", "#3E4036", "#63665A", "#9EA192", "#E8E4DA"),
+)
+
+# Mode is read once at import. Streamlit's own chrome, and in particular the canvas
+# dataframe, takes its colours from .streamlit/config.toml rather than from injected
+# CSS, so the two have to agree and the switch is a restart rather than a toggle.
+MODE = os.getenv("ER_THEME", "dark").strip().lower()
+P = DARK if MODE == "dark" else LIGHT
 
 # --- Type ---------------------------------------------------------------
 # Display is scoped to the note prose, the one part of the app that is writing.
@@ -58,13 +100,13 @@ def css() -> str:
 @import url('{_FONT_URL}');
 
 :root {{
-  --paper: {PAPER}; --ink: {INK}; --rule: {RULE}; --rule-strong: {RULE_STRONG};
-  --stale: {STALE}; --oxblood: {OXBLOOD};
-  --orange-book: {ORANGE_BOOK}; --purple-book: {PURPLE_BOOK};
+  --ground: {P.ground}; --ink: {P.ink}; --rule: {P.rule}; --rule-strong: {P.rule_strong};
+  --stale: {P.stale}; --oxblood: {P.oxblood};
+  --orange-book: {P.orange_book}; --purple-book: {P.purple_book};
 }}
 
 html, body, [class*="css"], .stApp {{
-  background: var(--paper);
+  background: var(--ground);
   color: var(--ink);
   font-family: {BODY};
   font-size: 13px;
@@ -91,7 +133,7 @@ header[data-testid="stHeader"] {{ background: transparent !important; }}
 
 /* The company picker sits in the identity strip, not behind a collapsed sidebar. */
 .pick [data-baseweb="select"] > div {{
-  border-radius: 0; border-color: {RULE_STRONG}; background: {PAPER};
+  border-radius: 0; border-color: {P.rule_strong}; background: {P.ground};
   min-height: 30px; font-weight: 700; font-size: 13px;
 }}
 .pick [data-testid="stSelectbox"] {{ margin-top: -2px; }}
@@ -127,7 +169,7 @@ h3 {{ font-size: 0.9rem; }}
    is reference: it sits quiet until something is stale or failed. */
 .fresh {{ display: flex; gap: 0.85rem; flex-wrap: wrap; padding: 0.15rem 0 0; }}
 .fresh i {{ font-style: normal; font-size: 10.5px; color: var(--stale); }}
-.fresh b {{ font-weight: 600; font-size: 10.5px; color: #6B675F; }}
+.fresh b {{ font-weight: 600; font-size: 10.5px; color: {P.muted}; }}
 .fresh .warn b {{ color: var(--oxblood); }}
 .fresh .unk b {{ color: var(--stale); font-weight: 400; }}
 
@@ -160,7 +202,7 @@ h3 {{ font-size: 0.9rem; }}
          margin: 0.3rem 0; max-width: 68ch; }}
 .state.err {{ border-left-color: var(--oxblood); }}
 .state .t {{ font-weight: 600; font-size: 12.5px; }}
-.state .d {{ font-size: 12px; color: #5A564E; margin-top: 0.1rem; }}
+.state .d {{ font-size: 12px; color: {P.muted}; margin-top: 0.1rem; }}
 .state.err .t {{ color: var(--oxblood); }}
 
 /* Tables: hairlines, no card, no radius, numerics right-aligned. */
@@ -171,18 +213,18 @@ h3 {{ font-size: 0.9rem; }}
 .stTabs [data-baseweb="tab-list"] {{ gap: 1.1rem; border-bottom: 1px solid var(--rule-strong); }}
 .stTabs [data-baseweb="tab"] {{
   height: auto; padding: 0.3rem 0; background: transparent;
-  font-size: 12px; font-weight: 500; letter-spacing: 0.01em; color: #6B675F;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.01em; color: {P.muted};
 }}
 .stTabs [aria-selected="true"] {{ color: var(--ink); font-weight: 700; }}
 .stTabs [data-baseweb="tab-highlight"] {{ background: var(--ink); height: 2px; }}
 
 /* Controls: square, quiet, and legible. */
 .stButton button {{
-  border-radius: 0; border: 1px solid var(--rule-strong); background: var(--paper);
+  border-radius: 0; border: 1px solid var(--rule-strong); background: var(--ground);
   color: var(--ink); font-size: 12px; font-weight: 600; padding: 0.2rem 0.7rem;
 }}
-.stButton button:hover {{ background: {PAPER_RAISED}; border-color: var(--ink); }}
-section[data-testid="stSidebar"] {{ background: {PAPER_RAISED}; border-right: 1px solid var(--rule-strong); }}
+.stButton button:hover {{ background: {P.raised}; border-color: var(--ink); }}
+section[data-testid="stSidebar"] {{ background: {P.raised}; border-right: 1px solid var(--rule-strong); }}
 section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
 
 /* Quality floor: focus must be visible, and motion is opt-out. */
@@ -208,17 +250,17 @@ section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
 @alt.theme.register("er_terminal", enable=True)
 def _chart_theme() -> alt.theme.ThemeConfig:
     axis = {
-        "labelFont": "Public Sans", "labelFontSize": 10, "labelColor": "#6B675F",
-        "titleFont": "Public Sans", "titleFontSize": 10, "titleColor": STALE,
+        "labelFont": "Public Sans", "labelFontSize": 10, "labelColor": P.muted,
+        "titleFont": "Public Sans", "titleFontSize": 10, "titleColor": P.stale,
         "titleFontWeight": 600, "titlePadding": 8,
-        "domainColor": RULE_STRONG, "domainWidth": 1,
-        "tickColor": RULE_STRONG, "tickSize": 3,
-        "gridColor": RULE, "gridWidth": 1, "gridDash": [],
+        "domainColor": P.rule_strong, "domainWidth": 1,
+        "tickColor": P.rule_strong, "tickSize": 3,
+        "gridColor": P.rule, "gridWidth": 1, "gridDash": [],
         "labelPadding": 4,
     }
     return alt.theme.ThemeConfig({
         "config": {
-            "background": PAPER,
+            "background": P.ground,
             "font": "Public Sans",
             # No continuousWidth: charts size to their container instead.
             "view": {"stroke": None, "continuousHeight": 260},
@@ -228,23 +270,23 @@ def _chart_theme() -> alt.theme.ThemeConfig:
                       "labelSeparation": 6, "labelLimit": 96},
             "axisY": {**axis, "grid": True, "ticks": False, "domain": False,
                       "labelOverlap": "greedy", "labelSeparation": 4, "labelLimit": 96},
-            "line": {"color": INK, "strokeWidth": 1.4},
-            "bar": {"color": INK},
-            "point": {"color": INK, "size": 14},
-            "rule": {"color": RULE_STRONG},
+            "line": {"color": P.ink, "strokeWidth": 1.4},
+            "bar": {"color": P.ink},
+            "point": {"color": P.ink, "size": 14},
+            "rule": {"color": P.rule_strong},
             "legend": {
-                "labelFont": "Public Sans", "labelFontSize": 10, "labelColor": INK,
-                "titleFont": "Public Sans", "titleFontSize": 10, "titleColor": STALE,
+                "labelFont": "Public Sans", "labelFontSize": 10, "labelColor": P.ink,
+                "titleFont": "Public Sans", "titleFontSize": 10, "titleColor": P.stale,
                 "titleFontWeight": 600, "symbolType": "square", "symbolSize": 70,
                 "orient": "top", "direction": "horizontal", "offset": 6,
                 "padding": 0, "titlePadding": 6,
             },
             "title": {
                 "font": "Public Sans", "fontSize": 11, "fontWeight": 700,
-                "color": INK, "anchor": "start", "offset": 8,
-                "subtitleFont": "Public Sans", "subtitleColor": STALE, "subtitleFontSize": 10,
+                "color": P.ink, "anchor": "start", "offset": 8,
+                "subtitleFont": "Public Sans", "subtitleColor": P.stale, "subtitleFontSize": 10,
             },
-            "range": {"category": [INK, ORANGE_BOOK, PURPLE_BOOK, OXBLOOD, STALE]},
+            "range": {"category": [P.ink, P.orange_book, P.purple_book, P.oxblood, P.stale]},
         }
     })
 
