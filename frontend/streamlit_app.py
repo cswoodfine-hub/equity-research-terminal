@@ -526,9 +526,15 @@ with main:
                 # all Phase 1 is a different proposition from one carrying Phase 3, even
                 # at the same trial count. Selecting dims everything else.
                 areas["picked"] = areas["Area"].isin(chosen) if chosen else True
-                bars = (alt.Chart(areas).mark_bar(height=18)
+                # No fixed bar height. A pixel height set against a band derived from the
+                # chart height overlaps as soon as the band is the smaller of the two,
+                # which it was: 18px bars in 16.7px bands ran 1 to 2px into each other.
+                # Letting the bar fill its band makes that impossible at any height, and
+                # the scale padding is what puts a visible gap between them.
+                bars = (alt.Chart(areas).mark_bar()
                         .encode(
-                            y=alt.Y("Area:N", title=None, sort=order),
+                            y=alt.Y("Area:N", title=None, sort=order,
+                                    scale=alt.Scale(paddingInner=0.3, paddingOuter=0.2)),
                             x=alt.X("sum(n):Q", title="Trials"),
                             color=alt.Color("Phase:N", sort=PIPELINE_PHASES,
                                             scale=alt.Scale(domain=PIPELINE_PHASES,
@@ -538,8 +544,10 @@ with main:
                                                   alt.value(0.25)),
                             tooltip=[alt.Tooltip("Area:N"), alt.Tooltip("Phase:N"),
                                      alt.Tooltip("sum(n):Q", title="Trials")])
-                        .properties(height=max(150, 26 * len(order))))
-                chart(bars, max(150, 26 * len(order)))
+                        )
+                # 34px per area leaves a readable bar once scale padding is taken out,
+                # and the axis and legend get their own room rather than eating a band.
+                chart(bars, max(170, 34 * len(order)))
 
                 shown = [t for t in detail if t["area"] in chosen] if chosen else detail
                 section(", ".join(chosen) if chosen else "every area",
