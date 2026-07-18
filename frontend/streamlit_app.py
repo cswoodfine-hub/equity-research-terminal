@@ -60,8 +60,8 @@ ticker = st.sidebar.selectbox("Company", tickers, index=default_index)
 
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
 
-prices_tab, financials_tab, comps_tab, pipeline_tab = st.tabs(
-    ["Prices", "Financials", "Comps", "Pipeline"]
+prices_tab, financials_tab, comps_tab, pipeline_tab, loe_tab, approvals_tab = st.tabs(
+    ["Prices", "Financials", "Comps", "Pipeline", "LOE", "Approvals"]
 )
 
 
@@ -254,3 +254,85 @@ with pipeline_tab:
             st.caption(f"{len(detail)} trials for {drill_ticker}"
                        + ("" if phase_choice == "All" else f" in {phase_choice}"))
             st.dataframe(table, use_container_width=True, hide_index=True)
+
+
+# --- LOE ----------------------------------------------------------------
+with loe_tab:
+    st.subheader("Loss of exclusivity")
+    if st.button("Refresh all", type="primary", key="refresh_all_loe"):
+        with st.spinner("Refreshing the universe (this also downloads FDA data)"):
+            try:
+                st.session_state["all_run"] = api_post(api_base, "/refresh?scope=all")
+            except (urllib.error.URLError, OSError) as exc:
+                st.error(f"Refresh all failed: {exc}")
+
+    data = api_get(api_base, "/loe")
+    year_cols = [str(y) for y in data["years"]] + [data["later_label"]]
+    grid = pd.DataFrame(
+        [
+            {"Ticker": r["ticker"],
+             **{str(y): r["years"].get(str(y), 0) for y in data["years"]},
+             data["later_label"]: r["later"]}
+            for r in data["rows"]
+        ]
+    ).set_index("Ticker")
+
+    if grid[year_cols].to_numpy().sum() == 0:
+        st.info("No exclusivity data yet. Click Refresh all to download the Orange and Purple Book.")
+    else:
+        phase_max = max(1, int(grid[year_cols].to_numpy().max()))
+
+        def _shade_loe(value):
+            count = int(value) if value else 0
+            if count <= 0:
+                return ""
+            alpha = 0.12 + 0.6 * (count / phase_max)
+            return f"background-color: rgba(197, 90, 17, {alpha:.3f}); color: {'white' if alpha > 0.55 else 'inherit'}"
+
+        st.dataframe(grid.style.applymap(_shade_loe, subset=year_cols).format("{:d}"),
+                     use_container_width=True)
+        st.caption(
+            "Count of marketed products losing exclusivity per year (latest patent or "
+            "exclusivity expiry). No free product revenue, so this is not revenue-weighted; "
+            "biologics coverage (Purple Book) is partial. Blank/0 is no upcoming LOE on file."
+        )
+
+        st.markdown(f"**Upcoming LOE for {names.get(ticker, ticker)} ({ticker})**")
+        assets = api_get(api_base, f"/companies/{ticker}/exclusivities")["assets"]
+        if not assets:
+            st.write("No products with upcoming loss of exclusivity on file.")
+        else:
+            st.dataframe(
+                pd.DataFrame(
+                    [
+                        {"LOE date": a["loe"], "Modality": a["modality"],
+                         "Brand": a["brand_name"], "Generic": a["generic_name"],
+                         "Application": a["internal_code"]}
+                        for a in assets
+                    ]
+                ),
+                use_container_width=True, hide_index=True,
+            )
+
+
+# --- Approvals ----------------------------------------------------------
+with approvals_tab:
+    st.subheader(f"FDA approvals: {names.get(ticker, ticker)} ({ticker})")
+    approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
+    if not approvals:
+        st.info("No approvals on file. Click Refresh all on the LOE tab to pull openFDA data.")
+    else:
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {"Approved": a["approval_date"], "Application": a["application_number"],
+                     "Brand": a["brand_name"], "Modality": a["modality"]}
+                    for a in approvals
+                ]
+            ),
+            use_container_width=True, hide_index=True,
+        )
+        st.caption(
+            "Original FDA approvals (NDAs and BLAs) from openFDA. Coverage depends on "
+            "openFDA's manufacturer tagging and is not exhaustive."
+        )
