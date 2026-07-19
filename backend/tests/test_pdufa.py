@@ -175,3 +175,25 @@ def test_an_extracted_row_is_marked_machine_written(tmp_path):
     assert len(rows) == 1
     assert rows[0]["is_curated"] == 0
     assert rows[0]["source_url"] == "https://example.com/a.htm"
+
+
+# --- an error that will repeat stops the loop ----------------------------
+def test_a_billing_or_auth_failure_is_fatal():
+    """It fails identically on the next filing, and each retry costs an EDGAR fetch."""
+    class BadRequestError(Exception):
+        pass
+
+    assert pdufa.is_fatal(BadRequestError(
+        "Error code: 400 - Your credit balance is too low to access the Anthropic API"))
+    assert pdufa.is_fatal(Exception("invalid x-api-key"))
+
+    class AuthenticationError(Exception):
+        pass
+
+    assert pdufa.is_fatal(AuthenticationError("nope"))
+
+
+def test_a_one_off_failure_is_not_fatal():
+    """A timeout or a bad document is this filing's problem, not the run's."""
+    assert not pdufa.is_fatal(TimeoutError("read timed out"))
+    assert not pdufa.is_fatal(ValueError("could not parse"))

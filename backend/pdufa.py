@@ -181,6 +181,23 @@ def validate(reply: dict | None, document: str, today=None,
             "quote": quote}
 
 
+def is_fatal(exc: Exception) -> bool:
+    """True when an error will hit every call, not just this one.
+
+    A key that is unset, revoked, out of credit, or rate limited fails identically on
+    the next filing, so retrying the other twenty-nine spends an EDGAR fetch each to
+    collect the same message. A timeout or a malformed document is per-filing and the
+    loop should carry on past it.
+    """
+    name = type(exc).__name__
+    if name in ("AuthenticationError", "PermissionDeniedError", "RateLimitError"):
+        return True
+    text = str(exc).lower()
+    return any(phrase in text for phrase in
+               ("credit balance", "quota", "billing", "invalid x-api-key",
+                "authentication_error"))
+
+
 def _ask(client, document: str, filing: dict) -> dict | None:
     message = client.messages.create(
         model=MODEL,
@@ -239,6 +256,11 @@ def extract(db_path=None, limit: int = 25, today=None) -> dict:
             row = validate(_ask(client, document, filing), document, today=today)
         except Exception as exc:
             errors.append(f"{filing['ticker']} {filing['accession']}: {exc}")
+            if is_fatal(exc):
+                return {"status": "api unavailable", "read": read, "found": found,
+                        "errors": errors,
+                        "detail": f"Stopped after the first call: {exc}. Every "
+                                  "remaining filing would fail the same way."}
             continue
         if row is None:
             continue
