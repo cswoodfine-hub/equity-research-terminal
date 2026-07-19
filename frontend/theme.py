@@ -18,6 +18,7 @@ book colours carry much harder against ink, not because dark is better here.
 
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass
 
@@ -454,28 +455,36 @@ def contrast(first: str, second: str) -> float:
 GRAPHIC_CONTRAST = 3.0
 
 
-def _floor(palette: "Palette", target: float = GRAPHIC_CONTRAST) -> str:
-    """The darkest tint of the data colour that still clears the contrast target.
+def _oklch(value: str):
+    lightness, green_red, blue_yellow = _oklab(value)
+    return (lightness, math.hypot(green_red, blue_yellow),
+            math.atan2(blue_yellow, green_red))
 
-    This used to be a neutral, which bought separation by letting the steps differ in
-    colourfulness as well as lightness. That mattered while six phases had to fit on
-    the ramp. At three it buys nothing measurable, 1.666 against 1.668 between the
-    closest pair, and it cost every chart its colour: the first step came out grey.
-    On-hue is the same ramp with the chroma left in.
+
+def _from_oklch(lightness: float, chroma: float, hue: float) -> str:
+    """Back to sRGB, giving up chroma rather than accuracy when out of gamut.
+
+    A saturated colour at low lightness can sit outside sRGB, and letting the channels
+    clamp shifts the hue. Backing the chroma off until it fits keeps the ramp on one
+    hue, which is the only thing holding it together as an ordinal scale.
     """
-    low, high = 0.0, 1.0
-    for _ in range(32):                    # bisection, converges well inside 8 bits
-        middle = (low + high) / 2
-        if contrast(_mix(palette.ground, palette.data, middle),
-                    palette.ground) < target:
-            low = middle
-        else:
-            high = middle
-    return _mix(palette.ground, palette.data, high)
+    for attempt in range(24):
+        candidate = chroma * (1 - attempt / 24)
+        hexv = _from_oklab(lightness, candidate * math.cos(hue),
+                           candidate * math.sin(hue))
+        if all(0.0005 < channel < 0.9995 for channel in _to_rgb(hexv)) or attempt == 23:
+            return hexv
+    return _from_oklab(lightness, 0, 0)
 
 
 def ordinal_ramp(steps: int, palette: "Palette" = None) -> list:
     """``steps`` evenly spaced tints, every one of them visible against the ground.
+
+    Lightness varies; chroma and hue are held at the data colour's. Mixing toward the
+    ground instead, which is what this did, pulls the chroma to zero as it darkens, so
+    the dark end came out muddy: the first step of the dark ramp read #31696C, a grey
+    green, where holding chroma gives #006C6E. Separation is no worse for it, 1.689
+    against 1.666 between the closest pair, so the muddiness bought nothing.
 
     Derived from the number of steps asked for, so a scale can take its range straight
     from the length of its domain and the two cannot drift apart. They did: the phase
@@ -485,8 +494,24 @@ def ordinal_ramp(steps: int, palette: "Palette" = None) -> list:
     palette = palette or P
     if steps < 2:
         return [palette.data]
-    base = _floor(palette)
-    return [_mix(base, palette.data, index / (steps - 1)) for index in range(steps)]
+    top, chroma, hue = _oklch(palette.data)
+    ground = _oklch(palette.ground)[0]
+
+    # The floor is placed by contrast, as before: WCAG 1.4.11 asks 3:1 of a graphical
+    # object that carries meaning, and a chart segment is exactly that.
+    low, high = 0.0, 1.0
+    for _ in range(32):
+        middle = (low + high) / 2
+        lightness = ground + (top - ground) * middle
+        if contrast(_from_oklch(lightness, chroma, hue), palette.ground) \
+                < GRAPHIC_CONTRAST:
+            low = middle
+        else:
+            high = middle
+    floor = ground + (top - ground) * high
+
+    return [_from_oklch(floor + (top - floor) * index / (steps - 1), chroma, hue)
+            for index in range(steps)]
 
 
 MINUS = "−"  # true minus, digit-width under tabular figures
