@@ -404,10 +404,10 @@ with rail_col:
                 '</div>', unsafe_allow_html=True)
 
 with main:
-    (insights_tab, prices_tab, financials_tab, comps_tab, pipeline_tab, loe_tab,
-     approvals_tab, catalysts_tab, news_tab) = st.tabs(
-        ["Key insights", "Prices", "Financials", "Comps", "Pipeline", "LOE",
-         "Approvals", "Catalysts", "News"])
+    (insights_tab, prices_tab, financials_tab, pipeline_tab, loe_tab,
+     approvals_tab, catalysts_tab, comps_tab, news_tab) = st.tabs(
+        ["Key insights", "Prices", "Financials", "Pipeline", "LOE",
+         "Approvals", "Catalysts", "Comps", "News"])
 
     # --- Key insights: the feed is the most important view ---------------
     with insights_tab:
@@ -836,12 +836,11 @@ with main:
                 counts = dict(zip(totals["Area"], totals["n"]))
                 phase_counts = areas.groupby("Phase")["n"].sum().to_dict()
 
-                # Chips carry the selection rather than the bars. Vega's point selection
-                # does not reach Streamlit's on_select here, and a chip is a larger and
-                # more obvious target than a thin phase segment anyway.
-                chosen = st.pills("Therapeutic area", order, selection_mode="multi",
-                                  format_func=lambda a: f"{a}  {counts[a]}",
-                                  key="area_pills", label_visibility="collapsed") or []
+                # The selection is read before the chart is drawn, so the bars can dim,
+                # but the chips are rendered after it: the chart is what tells you which
+                # area to pick, so it comes first and the controls sit under it with the
+                # phase pills, as one band of filters rather than two split around it.
+                chosen = st.session_state.get("area_pills") or []
 
                 # Stacked by phase so the shape of an area reads at a glance: one that is
                 # all Phase 1 is a different proposition from one carrying Phase 3, even
@@ -882,6 +881,10 @@ with main:
                 # 34px per area leaves a readable bar once scale padding is taken out,
                 # and the axis and legend get their own room rather than eating a band.
                 chart(bars, max(170, 34 * len(order)))
+
+                st.pills("Therapeutic area", order, selection_mode="multi",
+                         format_func=lambda a: f"{a}  {counts[a]}",
+                         key="area_pills", label_visibility="collapsed")
 
                 # The table stays shut until an area and a phase are picked. Two
                 # hundred rows of every trial is not a starting point anyone reads; the
@@ -1102,8 +1105,9 @@ with main:
         if not calendar:
             state(f"No catalysts in the next {window} days",
                   "Readouts are derived from Phase 3 primary completion dates on every "
-                  "refresh, so this fills once trials are fetched. PDUFA dates have no "
-                  "free source and do not appear here at all.")
+                  "refresh, so this fills once trials are fetched. PDUFA dates are read "
+                  "out of the 8-K that announces the acceptance, which needs "
+                  "ANTHROPIC_API_KEY set; without it that half stays empty.")
         else:
             section("Calendar", f"{len(calendar)} readouts")
             frame = pd.DataFrame([{
@@ -1118,12 +1122,14 @@ with main:
                 column_config={"Evidence": st.column_config.LinkColumn(
                     "Evidence", display_text=r"NCT\w+")})
             st.markdown(
-                '<div class="byline">Every row is derived from a Phase 3 primary '
-                'completion date on ClinicalTrials.gov. Those are estimates and they '
-                'move, so a refresh updates the date in place and withdraws the row if '
-                'the trial stops. Nothing here is typed in, and nothing needs '
-                'maintaining. PDUFA dates have no free source and are absent rather '
-                'than guessed.</div>', unsafe_allow_html=True)
+                '<div class="byline">Two automatic sources, nothing typed in. Readouts '
+                'come from Phase 3 primary completion dates on ClinicalTrials.gov, '
+                'which are estimates and move, so a refresh updates the date in place '
+                'and withdraws the row if the trial stops. PDUFA dates are read out of '
+                'the 8-K that announces the acceptance: the date, the product name and '
+                'a verbatim quote all have to appear in the filing or the row is '
+                'dropped, and Evidence links to the document it came from. That half '
+                'needs ANTHROPIC_API_KEY set.</div>', unsafe_allow_html=True)
 
     # --- News ------------------------------------------------------------
     with news_tab:

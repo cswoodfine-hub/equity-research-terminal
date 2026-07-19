@@ -20,6 +20,7 @@ from dataclasses import asdict
 import catalysts
 import db
 import diff
+import pdufa
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
 from fetchers.exclusivity_purplebook import PurpleBookFetcher
@@ -120,10 +121,11 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
     readouts = catalysts.derive_readouts(db_path)
+    goals = pdufa.extract(db_path)
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(r.errors for r in results) else "complete"
     detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
-              "readouts": readouts, "changes": changes}
+              "readouts": readouts, "pdufa": goals, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 
@@ -174,11 +176,14 @@ def run_refresh_all(db_path=None) -> dict:
         list(pool.map(run_company, companies))
 
     readouts = catalysts.derive_readouts(db_path)
+    # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
+    # the acceptance. Without an Anthropic key this reports that it did nothing.
+    goals = pdufa.extract(db_path)
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
     detail = {"scope": "all", "companies": len(companies),
               "sources": list(by_source.values()), "readouts": readouts,
-              "changes": changes}
+              "pdufa": goals, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 

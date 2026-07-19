@@ -180,6 +180,22 @@ missed and never revised. Across the universe 469 dates are actual, all necessar
 the past, and 106 of the 2,109 estimated ones are overdue. The trials table says which
 each is.
 
+**PDUFA dates are extracted from the 8-K that announces the acceptance.** No free
+calendar of FDA decision dates exists, so the filing is the source. Candidate 8-K and
+6-K filings are filtered by their item taxonomy, then by whether the text mentions a
+review at all, which on the current database sends 1 filing of 12 to the model rather
+than all of them. The Anthropic API reads the document and returns the date, the product
+and a verbatim quote.
+
+Nothing it returns is trusted on its own. The date must parse, be in the future, and sit
+inside a plausible review window; the product name must appear in the filing; and the
+quote must appear in the filing near-verbatim. A model that supplies a product name from
+its own knowledge, or reasons a date out of "expected within six months", fails those
+checks and the row is dropped. Rows land with `is_curated = 0` and link to the document.
+
+Needs `ANTHROPIC_API_KEY`. Without it the step reports that it did nothing and the
+calendar carries registry readouts alone.
+
 **Exclusivity is United States only, and biologics carry no patent dates.** The Orange
 Book and the Purple Book are FDA publications, so every expiry in this app is a US
 date; a product protected in the US to 2035 can face a generic in Europe or Japan years

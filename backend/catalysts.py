@@ -29,7 +29,10 @@ READOUT_STATUSES = ("Recruiting", "Active not recruiting", "Enrolling by invitat
 
 
 def add_catalyst(db_path, ticker, catalyst_type, expected_date, title,
-                 description=None, date_confidence="estimated", source_url=None):
+                 description=None, date_confidence="estimated", source_url=None,
+                 is_curated=1):
+    """Write a catalyst. ``is_curated=0`` marks a row a machine produced, which is what
+    lets a later refresh revise or withdraw it and tells the UI to show its evidence."""
     conn = db.get_connection(db_path)
     try:
         company = conn.execute(
@@ -42,10 +45,10 @@ def add_catalyst(db_path, ticker, catalyst_type, expected_date, title,
             INSERT INTO catalysts
                 (company_id, catalyst_type, expected_date, date_confidence, title,
                  description, is_curated, source_url, status)
-            VALUES (?, ?, ?, ?, ?, ?, 1, ?, 'pending')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             """,
             (company["id"], catalyst_type, expected_date, date_confidence, title,
-             description, source_url),
+             description, int(is_curated), source_url),
         )
         conn.commit()
         return cur.lastrowid
