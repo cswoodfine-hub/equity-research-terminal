@@ -771,13 +771,20 @@ with main:
                              var_name="Phase", value_name="Trials")
             long["Phase"] = long["Phase"].replace(PHASE_MERGE)
             long = long.groupby(["Ticker", "Phase"], as_index=False)["Trials"].sum()
+            # Colour is the phase, matching the key on the chart below, so Phase 3 is
+            # the same teal in both. It used to carry the trial count instead, which
+            # left the two charts on this tab labelling the same phases in unrelated
+            # colours. Count moves to opacity within the column, still on a square root
+            # scale: one company runs three figures of trials and a linear ramp
+            # collapses everyone else into the same flat tint.
             chart(alt.Chart(long).mark_rect(stroke=T.P.ground, strokeWidth=1).encode(
                 x=alt.X("Phase:N", title=None, sort=DISPLAY_PHASES),
                 y=alt.Y("Ticker:N", title=None, sort=list(grid["Ticker"])),
-                # Sqrt, not linear: one company runs three figures of trials and a
-                # linear ramp collapses everyone else into the same pale tint.
-                color=alt.Color("Trials:Q", legend=alt.Legend(title="Trials"),
-                                scale=alt.Scale(range=list(T.P.phase_tints), type="sqrt")),
+                color=alt.Color("Phase:N", sort=DISPLAY_PHASES, legend=None,
+                                scale=alt.Scale(domain=DISPLAY_PHASES,
+                                                range=T.ordinal_ramp(len(DISPLAY_PHASES)))),
+                opacity=alt.Opacity("Trials:Q", legend=alt.Legend(title="Trials"),
+                                    scale=alt.Scale(type="sqrt", range=[0.1, 1])),
                 tooltip=["Ticker:N", "Phase:N", "Trials:Q"]), 420)
             st.markdown('<div class="byline">Phase is ordinal, so it takes an ink tint '
                         'rather than a hue. Counts are trials, not deduplicated assets, '
@@ -873,7 +880,7 @@ with main:
 
     # --- LOE -------------------------------------------------------------
     with loe_tab:
-        section("Exclusivity cliff", "products per year")
+        section("Exclusivity cliff", "US products per year")
         data = api_get(api_base, "/loe")
         year_cols = [str(y) for y in data["years"]] + [data["later_label"]]
         grid = pd.DataFrame([{"Ticker": r["ticker"],
@@ -912,13 +919,22 @@ with main:
                          if v == "orphan exclusivity" else "", subset=["Basis"]),
                     width="stretch", hide_index=True)
                 st.markdown(
-                    '<div class="byline">Basis is what sets the date. Patent and '
-                    'reference product exclusivity gate a competitor. Orphan '
-                    'exclusivity covers one orphan indication and expires without the '
-                    'product losing anything, so it is shown muted and should not be '
-                    'read as a cliff. Orange for small molecules, purple for biologics, '
-                    'the colours of the two source books. Not revenue weighted: no free '
-                    'product revenue exists.</div>', unsafe_allow_html=True)
+                    '<div class="byline"><b>United States only.</b> The Orange Book and '
+                    'the Purple Book are FDA publications, so every date here is a US '
+                    'date. A product protected in the US to 2035 can face a generic in '
+                    'Europe or Japan years earlier, and no free source publishes those '
+                    'dates, so this app does not know them.<br>'
+                    '<b>Biologics carry no patent dates.</b> The Purple Book publishes '
+                    'regulatory exclusivity and nothing else, so all 109 biologics in '
+                    'the universe show an exclusivity date rather than the patent that '
+                    'actually gates a biosimilar. Keytruda reads 2031 here on an orphan '
+                    'exclusivity while its US patent cliff is earlier. Small molecule '
+                    'dates come from Orange Book patents and are sound.<br>'
+                    'Basis is what sets the date. Orphan exclusivity covers one orphan '
+                    'indication and lapses without the product losing anything, so it is '
+                    'muted here and excluded from the cliff above. Orange for small '
+                    'molecules, purple for biologics, the colours of the two source '
+                    'books.</div>', unsafe_allow_html=True)
 
     # --- Approvals -------------------------------------------------------
     with approvals_tab:

@@ -171,6 +171,17 @@ and GSK and Regeneron spread their products across segments in a way that would 
 summing. Novo reports in DKK and Sanofi in EUR; the unit travels with each figure and
 nothing is converted.
 
+**Exclusivity is United States only, and biologics carry no patent dates.** The Orange
+Book and the Purple Book are FDA publications, so every expiry in this app is a US
+date; a product protected in the US to 2035 can face a generic in Europe or Japan years
+earlier and nothing here knows it. Worse for biologics: the Purple Book publishes
+regulatory exclusivity and no patents at all, so all 109 biologics in the universe show
+an exclusivity date rather than the patent that actually gates a biosimilar. Keytruda's
+only entry is an orphan exclusivity, so it now shows no cliff date rather than a wrong
+one. Small molecule dates come from Orange Book patents and are sound. Orphan
+exclusivity is excluded from the cliff entirely, which takes it from 348 products to
+292.
+
 **Revenue mix** on the Approvals tab draws the largest drivers as their own slices and
 brackets the rest into one. A pie is only readable while the slices are few and
 different in size, so anything past the sixth product, or under 2% of the total, joins

@@ -15,15 +15,30 @@ import db
 HORIZON = 10  # number of upcoming years shown as columns
 
 
+# Orphan exclusivity covers one orphan indication and lapses without the product losing
+# anything, so counting it as a cliff overstates the wall. It is 97 of the biologics in
+# the universe, which is enough to change the shape of the chart rather than nudge it.
+NOT_A_CLIFF = ("orphan exclusivity",)
+
+
 def _asset_loe(conn):
-    """Yield (company_id, asset_id, latest_expiry) for every asset with exclusivity."""
+    """Yield (company_id, asset_id, latest_expiry) for every asset with exclusivity.
+
+    Every date here is US FDA. The Orange Book and the Purple Book are the only free
+    sources of this, and both publish the United States only, so a product whose US
+    protection runs to 2035 may face a generic in Europe years earlier. Nothing in this
+    app knows about that, and the UI has to say so rather than imply a worldwide date.
+    """
+    placeholders = ", ".join("?" for _ in NOT_A_CLIFF)
     return conn.execute(
-        """
+        f"""
         SELECT a.owner_company_id AS cid, a.id AS asset_id, MAX(e.expiry_date) AS loe
           FROM assets a
           JOIN exclusivities e ON e.asset_id = a.id
+         WHERE COALESCE(e.protection_type, '') NOT IN ({placeholders})
          GROUP BY a.id
-        """
+        """,
+        NOT_A_CLIFF,
     )
 
 
