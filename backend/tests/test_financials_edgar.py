@@ -62,7 +62,9 @@ def test_parse_nvo_ifrs_dkk_no_shares():
     assert r["annual"]["Revenues"][2025]["val"] == 309064000000
     assert r["annual"]["NetIncomeLoss"][2025]["val"] == 102434000000  # ifrs ProfitLoss
     assert r["shares"] is None  # foreign 20-F filers lack dei shares outstanding
-    assert r["cash"] is None
+    assert r["cash"] == 26464000000                # ifrs-full CashAndCashEquivalents
+    # The debt ladder is us-gaap only, so an IFRS filer has no total debt and its EV is
+    # left null rather than being built from an incomplete balance sheet.
     assert r["total_debt"] is None
 
 

@@ -20,8 +20,12 @@ LLY_CLOSE = 1000.0
 LLY_SHARES = 941741406
 LLY_NET_INCOME = 20640000000
 LLY_REVENUE = 65179000000
-LLY_CASH = 7268000000
-LLY_DEBT = 42503000000
+# Enterprise value takes the most recent balance sheet the filer has published, which
+# is the Q1 2026 10-Q, not the FY2025 10-K the revenue comes from. Trailing revenue
+# against current net debt is the intended pairing: net debt moves every quarter and an
+# EV built from a year-old one is stale by construction.
+LLY_CASH = 5282300000     # 2026-03-31, vs 7.268bn at the 2025 fiscal year end
+LLY_DEBT = 43370400000    # 2026-03-31, vs 42.503bn at the 2025 fiscal year end
 
 
 def _facts(name):

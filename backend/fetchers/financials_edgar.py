@@ -1,14 +1,19 @@
 """Reported financials from SEC EDGAR XBRL company-facts.
 
-Pulls annual revenue, net income, and R&D (last few fiscal years) plus shares
-outstanding, cash, and total debt for the balance-sheet inputs to EV. Handles both
-us-gaap (US filers) and ifrs-full (foreign 20-F filers), and the fact that companies
-drift between XBRL concepts over time: each metric has a priority list of candidate
-concepts, and we pick the one whose annual series reaches the latest year so YoY is
-computed from a single consistent concept.
+Pulls the three statements (see ``statements.LINES``) at every period the filer tags:
+full years, discrete quarters, cumulative year-to-date spans, and balance sheet
+instants. Handles both us-gaap (US filers) and ifrs-full (foreign 20-F filers), and the
+fact that companies drift between XBRL concepts over time: each line has a priority
+list of candidate concepts, and we pick the one whose series reaches the latest period
+so a trend is computed from a single consistent concept.
 
-Values are stored in the filer's reporting currency (the XBRL unit). Nothing is
-converted or estimated; a missing input is stored null.
+Only reported facts are written here. Subtotals a filer does not tag (gross profit for
+Lilly, free cash flow for everyone) are computed in the API layer and flagged there, so
+nothing in this table is anything other than a number the company published.
+
+Values are stored in the unit the filer tagged, which is the reporting currency for
+money lines and USD/shares for EPS. Nothing is converted or estimated; a missing input
+is stored null.
 """
 
 from __future__ import annotations
@@ -19,6 +24,7 @@ import os
 import urllib.request
 
 import db
+import statements
 from fetchers.base import BaseFetcher, RefreshResult
 
 SOURCE = "financials"
@@ -29,45 +35,21 @@ COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _TIMEOUT_S = 30
 _ANNUAL_FORMS = ("10-K", "20-F")
 
-# Priority-ordered candidate concepts per canonical metric. First candidate whose
-# annual series reaches the latest available year wins (handles tag drift).
+# The line map is the single source of truth for which concepts belong to which line;
+# these three are named here because the snapshot payload and comps read them by key.
 METRIC_CANDIDATES = {
-    "Revenues": [
-        ("us-gaap", "Revenues"),
-        ("us-gaap", "RevenueFromContractWithCustomerExcludingAssessedTax"),
-        ("us-gaap", "RevenueFromContractWithCustomerIncludingAssessedTax"),
-        ("us-gaap", "SalesRevenueNet"),
-        ("ifrs-full", "Revenue"),
-        ("ifrs-full", "RevenueFromContractsWithCustomers"),
-        ("ifrs-full", "RevenueFromSaleOfGoods"),  # Novartis, Sanofi report net sales here
-    ],
-    "NetIncomeLoss": [
-        ("us-gaap", "NetIncomeLoss"),
-        ("ifrs-full", "ProfitLoss"),
-    ],
-    # ExcludingAcquiredInProcessCost is tried first on purpose. A filer that reports
-    # both tags is using the plain one for the acquired in-process component alone,
-    # not for total R&D: JNJ tags 0.11bn there against 14.66bn of actual 2025 spend.
-    # The "reaches the latest year" rule cannot separate them, because JNJ's wrong tag
-    # reaches 2025 too. Filers that report only the plain tag are unaffected, since
-    # this candidate is absent for them and the list falls through.
-    "ResearchAndDevelopmentExpense": [
-        ("us-gaap", "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"),
-        ("us-gaap", "ResearchAndDevelopmentExpense"),
-        ("ifrs-full", "ResearchAndDevelopmentExpense"),
-    ],
+    key: list(statements.LINES_BY_KEY[key].candidates)
+    for key in ("Revenues", "NetIncomeLoss", "ResearchAndDevelopmentExpense")
 }
-CASH_CANDIDATES = [
-    ("us-gaap", "CashAndCashEquivalentsAtCarryingValue"),
-    ("us-gaap", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"),
-    ("ifrs-full", "CashAndCashEquivalents"),
-]
+CASH_CANDIDATES = list(statements.LINES_BY_KEY["CashAndEquivalents"].candidates)
 DEBT_COMBINED_CANDIDATES = [("us-gaap", "DebtLongtermAndShorttermCombinedAmount")]
 
-# How many recent FYs of each annual metric to store. Six covers 2020 onward, which is
-# the span the financials view charts. Company facts already carry the full history, so
-# raising this costs storage rather than extra EDGAR calls.
+# How many recent periods of each line to store. Company facts already carry the full
+# history in one response, so raising these costs storage rather than extra EDGAR calls.
+# Instants get the largest budget because a balance sheet date lands every quarter.
 MAX_FISCAL_YEARS = 6
+MAX_PERIODS = {statements.FY: MAX_FISCAL_YEARS, statements.Q: 12,
+               statements.YTD: 12, statements.INSTANT: 20}
 
 
 # --- pure parsing --------------------------------------------------------
@@ -75,23 +57,26 @@ def _concept(facts: dict, taxonomy: str, name: str) -> dict | None:
     return (facts.get(taxonomy) or {}).get(name)
 
 
-def _annual_by_year(concept: dict) -> dict[int, dict]:
-    """Full-year (10-K/20-F) duration values, deduped by fiscal year, latest filed."""
-    by_year: dict[int, dict] = {}
+def _entries_by_period(concept: dict, kind: str) -> dict[tuple[str, str], dict]:
+    """Values of one period kind, deduped by period, keeping the latest filed.
+
+    Deduping on filed date is what makes restatements resolve to the current number:
+    a fiscal year appears in its own 10-K and again as the comparative in the next two,
+    and the latest filing is the one that stands.
+    """
+    by_period: dict[tuple[str, str], dict] = {}
     for unit, entries in (concept.get("units") or {}).items():
         for e in entries:
-            start, end = e.get("start"), e.get("end")
-            if not start or not end or e.get("form") not in _ANNUAL_FORMS:
+            key = statements.classify_period(e)
+            if key is None or key[1] != kind:
                 continue
-            days = (dt.date.fromisoformat(end) - dt.date.fromisoformat(start)).days
-            if not (340 <= days <= 380):
-                continue
-            year = int(end[:4])
-            current = by_year.get(year)
+            current = by_period.get(key)
             if current is None or e.get("filed", "") > current["filed"]:
-                by_year[year] = {"val": e["val"], "unit": unit, "end": end,
-                                 "filed": e.get("filed", "")}
-    return by_year
+                by_period[key] = {"val": e["val"], "unit": unit, "end": key[0],
+                                  "period_type": key[1],
+                                  "months": statements.duration_label(e),
+                                  "filed": e.get("filed", "")}
+    return by_period
 
 
 # A second concept may backfill years the winner lacks, but only if the two agree where
@@ -116,71 +101,124 @@ def _agrees(series, winner) -> bool:
                <= abs(winner[y]["val"]) * _AGREEMENT_TOLERANCE for y in shared)
 
 
-def pick_annual_series(facts: dict, candidates):
-    """Build the annual series from the highest-priority concept that reaches the
-    latest year, extended backwards by any candidate that agrees with it.
+def pick_kind_series(facts: dict, candidates, kind: str):
+    """Build one period kind's series from the highest-priority concept that reaches
+    the latest period, extended backwards by any candidate that agrees with it.
 
-    Returns (unit, {year: {'val','end'}}); (None, {}) when no candidate has data.
+    Returns (unit, {period_key: entry}); (None, {}) when no candidate has data.
+
+    Selection runs per kind rather than across all of them at once. A filer can tag its
+    quarters under a newer concept than its years, and judging "reaches the latest
+    period" over the pooled set would let the quarterly concept win and take the annual
+    series down with it, since the two share no period to be checked for agreement.
     """
     per_candidate = []
     for taxonomy, name in candidates:
         concept = _concept(facts, taxonomy, name)
         if not concept:
             continue
-        by_year = _annual_by_year(concept)
-        if by_year:
-            per_candidate.append(by_year)
+        by_period = _entries_by_period(concept, kind)
+        if by_period:
+            per_candidate.append((name, by_period))
     if not per_candidate:
         return None, {}
-    max_year = max(y for by in per_candidate for y in by)
-    chosen = next((by for by in per_candidate if max_year in by), per_candidate[0])
+    latest = max(k for _, by in per_candidate for k in by)
+    name, chosen = next(((n, by) for n, by in per_candidate if latest in by),
+                        per_candidate[0])
+
+    merged = {k: dict(v, concept=name) for k, v in chosen.items()}
+    for other_name, by_period in per_candidate:
+        if by_period is chosen or not _agrees(by_period, chosen):
+            continue
+        for key, entry in by_period.items():
+            merged.setdefault(key, dict(entry, concept=other_name))  # winner keeps ties
+
+    return chosen[max(chosen)]["unit"], merged
+
+
+def pick_annual_series(facts: dict, candidates):
+    """The fiscal-year series, keyed by year. Returns (unit, {year: {'val','end'}})."""
+    unit, series = pick_kind_series(facts, candidates, statements.FY)
+    by_year = {int(end[:4]): {"val": e["val"], "end": e["end"]}
+               for (end, _), e in series.items()}
+    return unit, by_year
+
+
+def instant_series(facts: dict, candidates):
+    """(unit, {period_key: entry}) for a balance sheet line, at every date tagged."""
+    return pick_kind_series(facts, candidates, statements.INSTANT)
+
+
+def select_instant(facts: dict, candidates, at: str):
+    """The value of a balance sheet line on one date, or (None, None)."""
+    unit, series = instant_series(facts, candidates)
+    entry = series.get((at, statements.INSTANT))
+    return (entry["val"], entry["unit"]) if entry else (None, None)
+
+
+# The current portion of debt, in priority order. Filers move between these by period:
+# JNJ tags DebtCurrent at its year ends and ShortTermBorrowings at its quarters. They go
+# through the same agreement check as any other line, so a filer that tags two of them
+# at once only has them merged when they match where they overlap.
+DEBT_CURRENT_CANDIDATES = [("us-gaap", "DebtCurrent"),
+                           ("us-gaap", "LongTermDebtCurrent"),
+                           ("us-gaap", "ShortTermBorrowings")]
+
+
+def total_debt_series(facts: dict) -> dict[str, dict]:
+    """Total debt at every date it resolves, as {end: {'val','unit','concept'}}.
+
+    Three bases, in order: long-term non-current plus the current portion, the single
+    combined tag, then the single long-term tag. The basis reaching the latest date
+    wins the whole series and the others only fill dates it lacks, and then only where
+    they agree with it. Resolving each date independently instead reads as a debt
+    move that is really a tag change: Lilly tags the combined amount at year ends only,
+    which put a 1.6bn step into every fourth quarter of an otherwise clean series.
+
+    The two bases do reconcile for Lilly, exactly, once DebtCurrent is in the ladder:
+    40.868 non-current plus 1.635 current is the 42.503 the combined tag reports.
+    """
+    _, noncurrent = instant_series(facts, [("us-gaap", "LongTermDebtNoncurrent")])
+    _, current = instant_series(facts, DEBT_CURRENT_CANDIDATES)
+    combined_unit, combined = instant_series(facts, DEBT_COMBINED_CANDIDATES)
+    single_unit, single = instant_series(facts, [("us-gaap", "LongTermDebt")])
+
+    split = {}
+    for key, entry in noncurrent.items():
+        near = current.get(key)
+        # A filer that tags a current portion somewhere but not on this date has a gap
+        # in its tagging, not zero short-term debt. Adding zero would understate the
+        # total and read as a paydown, so the date is left out instead.
+        if near is None and current:
+            continue
+        split[key] = {"val": entry["val"] + (near["val"] if near else 0),
+                      "unit": entry["unit"],
+                      "concept": "LongTermDebtNoncurrent + current portion"}
+
+    bases = [(b, u) for b, u in ((split, None),
+                                 (combined, combined_unit),
+                                 (single, single_unit)) if b]
+    if not bases:
+        return {}
+    latest = max(k for b, _ in bases for k in b)
+    chosen, chosen_unit = next(((b, u) for b, u in bases if latest in b), bases[0])
 
     merged = dict(chosen)
-    for by_year in per_candidate:
-        if by_year is chosen or not _agrees(by_year, chosen):
+    for base, _ in bases:
+        if base is chosen or not _agrees(base, chosen):
             continue
-        for year, entry in by_year.items():
-            merged.setdefault(year, entry)   # the winner always wins a shared year
+        for key, entry in base.items():
+            merged.setdefault(key, entry)
 
-    unit = chosen[max(chosen)]["unit"]
-    series = {y: {"val": merged[y]["val"], "end": merged[y]["end"]} for y in merged}
-    return unit, series
-
-
-def _instant_at(concept: dict, fy_end: str) -> dict | None:
-    best = None
-    for unit, entries in (concept.get("units") or {}).items():
-        for e in entries:
-            if e.get("start") or e.get("form") not in _ANNUAL_FORMS or e.get("end") != fy_end:
-                continue
-            if best is None or e.get("filed", "") > best["filed"]:
-                best = {"val": e["val"], "unit": unit, "filed": e.get("filed", "")}
-    return best
-
-
-def select_instant(facts: dict, candidates, fy_end: str):
-    for taxonomy, name in candidates:
-        concept = _concept(facts, taxonomy, name)
-        if not concept:
-            continue
-        got = _instant_at(concept, fy_end)
-        if got:
-            return got["val"], got["unit"]
-    return None, None
+    return {end: {"val": e["val"], "unit": e.get("unit") or chosen_unit,
+                  "concept": e.get("concept", "LongTermDebt")}
+            for (end, _), e in merged.items()}
 
 
 def select_total_debt(facts: dict, fy_end: str):
-    """Prefer the single combined debt tag; else long-term (non-current + current);
-    else the single total long-term debt tag. All read at the fiscal-year end so a
-    stale year never mixes in; return None (EV left null) when nothing aligns."""
-    val, unit = select_instant(facts, DEBT_COMBINED_CANDIDATES, fy_end)
-    if val is not None:
-        return val, unit
-    noncurrent, unit = select_instant(facts, [("us-gaap", "LongTermDebtNoncurrent")], fy_end)
-    if noncurrent is not None:
-        current, _ = select_instant(facts, [("us-gaap", "LongTermDebtCurrent")], fy_end)
-        return noncurrent + (current or 0), unit
-    return select_instant(facts, [("us-gaap", "LongTermDebt")], fy_end)
+    """Total debt at one date, as (value, unit); (None, None) when nothing resolves."""
+    entry = total_debt_series(facts).get(fy_end)
+    return (entry["val"], entry["unit"]) if entry else (None, None)
 
 
 def latest_shares(facts: dict) -> dict | None:
@@ -199,35 +237,100 @@ def latest_shares(facts: dict) -> dict | None:
     return {"as_of": best[2], "val": int(best[1])} if best else None
 
 
-def parse_companyfacts(payload: dict) -> dict:
-    """Turn a company-facts payload into annual metrics plus balance-sheet inputs. Pure."""
+def _trim(periods: dict) -> dict:
+    """Keep the most recent N periods of each kind, N per MAX_PERIODS."""
+    kept: dict = {}
+    for kind, limit in MAX_PERIODS.items():
+        of_kind = sorted((k for k in periods if k[1] == kind), reverse=True)[:limit]
+        kept.update({k: periods[k] for k in of_kind})
+    return kept
+
+
+def parse_statements(payload: dict) -> dict:
+    """Every reported line at every period the filer tags. Pure.
+
+    Lines the filer does not tag are absent from the result, not zero. Lines that exist
+    only as arithmetic on other lines (free cash flow, net debt) are not computed here:
+    this function returns reported facts and nothing else.
+    """
     facts = payload.get("facts") or {}
-    annual: dict[str, dict] = {}
-    unit_by_metric: dict[str, str] = {}
-    for metric, candidates in METRIC_CANDIDATES.items():
-        unit, series = pick_annual_series(facts, candidates)
-        annual[metric] = series
-        if unit:
-            unit_by_metric[metric] = unit
+    lines: dict[str, dict] = {}
+    for line in statements.LINES:
+        if not line.candidates:
+            continue                       # derived, or resolved by its own ladder
+        kinds = ((statements.INSTANT,) if line.kind == "instant"
+                 else statements.DURATION_TYPES)
+        unit, periods = None, {}
+        for kind in kinds:
+            kind_unit, series = pick_kind_series(facts, line.candidates, kind)
+            periods.update(series)
+            # The annual series names the unit when there is one, so a line whose
+            # quarters are tagged in a different unit cannot rename the column.
+            if kind_unit and (unit is None or kind == statements.FY):
+                unit = kind_unit
+        if periods:
+            lines[line.key] = {"unit": unit, "periods": _trim(periods)}
 
-    currency = unit_by_metric.get("Revenues") or unit_by_metric.get("NetIncomeLoss")
-    reference = annual.get("Revenues") or annual.get("NetIncomeLoss") or {}
-    fy_end = reference[max(reference)]["end"] if reference else None
+    debt = total_debt_series(facts)
+    if debt:
+        lines["TotalDebt"] = {
+            "unit": next((d["unit"] for d in debt.values() if d["unit"]), None),
+            "periods": _trim({
+                (end, statements.INSTANT): {
+                    "val": d["val"], "unit": d["unit"], "end": end,
+                    "period_type": statements.INSTANT, "months": None,
+                    "concept": d["concept"]}
+                for end, d in debt.items()}),
+        }
 
-    cash = total_debt = None
-    if fy_end:
-        cash, _ = select_instant(facts, CASH_CANDIDATES, fy_end)
-        total_debt, _ = select_total_debt(facts, fy_end)
-
+    revenue = lines.get("Revenues", {})
+    income = lines.get("NetIncomeLoss", {})
+    currency = revenue.get("unit") or income.get("unit")
+    fy_ends = sorted(end for key in ("Revenues", "NetIncomeLoss")
+                     for (end, kind) in lines.get(key, {}).get("periods", {})
+                     if kind == statements.FY)
     return {
         "entity_name": payload.get("entityName"),
         "currency": currency,
+        "fy_end": fy_ends[-1] if fy_ends else None,
+        "lines": lines,            # {key: {'unit', 'periods': {(end, type): entry}}}
+        "shares": latest_shares(facts),
+    }
+
+
+def _annual_from(parsed: dict, key: str) -> dict[int, dict]:
+    periods = parsed["lines"].get(key, {}).get("periods", {})
+    return {int(end[:4]): {"val": e["val"], "end": e["end"]}
+            for (end, kind), e in periods.items() if kind == statements.FY}
+
+
+def headline(parsed: dict) -> dict:
+    """The three headline metrics plus the balance-sheet inputs to EV.
+
+    A projection of parse_statements, kept because comps and the financials snapshot
+    read this shape.
+    """
+    annual = {metric: _annual_from(parsed, metric) for metric in METRIC_CANDIDATES}
+    fy_end = parsed["fy_end"]
+
+    def at_fy_end(key):
+        entry = parsed["lines"].get(key, {}).get("periods", {}).get(
+            (fy_end, statements.INSTANT))
+        return entry["val"] if entry else None
+
+    return {
+        "entity_name": parsed["entity_name"],
+        "currency": parsed["currency"],
         "fy_end": fy_end,
         "annual": annual,          # {metric: {year: {'val','end'}}}
-        "shares": latest_shares(facts),
-        "cash": cash,
-        "total_debt": total_debt,
+        "shares": parsed["shares"],
+        "cash": at_fy_end("CashAndEquivalents") if fy_end else None,
+        "total_debt": at_fy_end("TotalDebt") if fy_end else None,
     }
+
+
+def parse_companyfacts(payload: dict) -> dict:
+    return headline(parse_statements(payload))
 
 
 def _latest(series: dict):
@@ -246,6 +349,7 @@ class FinancialsEdgarFetcher(BaseFetcher):
         super().__init__(db_path)
         self.ticker = ticker.upper()
         self._parsed: dict = {}
+        self._statements: dict = {}
 
     @property
     def entity_key(self) -> str:
@@ -275,23 +379,29 @@ class FinancialsEdgarFetcher(BaseFetcher):
             return json.loads(resp.read().decode("utf-8"))
 
     def normalise(self, raw) -> list[dict]:
-        self._parsed = parse_companyfacts(raw)
-        currency = self._parsed["currency"]
+        self._statements = parse_statements(raw)
+        self._parsed = headline(self._statements)
         rows: list[dict] = []
-        for metric, series in self._parsed["annual"].items():
-            for year in sorted(series)[-MAX_FISCAL_YEARS:]:
+        for key, line in self._statements["lines"].items():
+            for (end, period_type), entry in line["periods"].items():
                 rows.append(
                     {
-                        "metric": metric,
-                        "value": series[year]["val"],
-                        "unit": currency,
-                        "period_end": series[year]["end"],
-                        "period_type": "FY",
-                        "fiscal_year": year,
-                        "fiscal_period": "FY",
+                        "metric": key,
+                        "value": entry["val"],
+                        # The tagged unit, not the reporting currency: EPS is USD/shares
+                        # and share counts are shares, and calling either of those USD
+                        # would put a currency symbol on a number that has none.
+                        "unit": entry.get("unit") or line["unit"],
+                        "period_end": end,
+                        "period_type": period_type,
+                        "fiscal_year": int(end[:4]),
+                        # The months covered is a fact about the filing. Which fiscal
+                        # quarter that makes it depends on the filer's year end, so the
+                        # API works that out where the whole series is in hand.
+                        "fiscal_period": entry.get("months"),
                     }
                 )
-        shares = self._parsed["shares"]
+        shares = self._statements["shares"]
         if shares:
             rows.append(
                 {
@@ -304,21 +414,6 @@ class FinancialsEdgarFetcher(BaseFetcher):
                     "fiscal_period": None,
                 }
             )
-        fy_end = self._parsed["fy_end"]
-        for metric, value in (("CashAndEquivalents", self._parsed["cash"]),
-                              ("TotalDebt", self._parsed["total_debt"])):
-            if value is not None and fy_end:
-                rows.append(
-                    {
-                        "metric": metric,
-                        "value": value,
-                        "unit": currency,
-                        "period_end": fy_end,
-                        "period_type": "instant",
-                        "fiscal_year": int(fy_end[:4]),
-                        "fiscal_period": None,
-                    }
-                )
         return rows
 
     # --- snapshots -------------------------------------------------------
