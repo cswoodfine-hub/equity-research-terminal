@@ -150,8 +150,13 @@ def _upcoming_catalysts(conn, within_days, ticker=None):
     items = []
     for r in conn.execute(sql, params):
         soon = r["expected_date"] <= soon_threshold
+        # A Phase 2 readout is a real but earlier signal, so it holds at medium even when
+        # near and never outranks a late-stage readout or a regulatory date. A PDUFA and
+        # other non-trial catalysts have no phase and keep the soon-is-high rule.
+        early = (r["phase"] or "").startswith(("Phase 1", "Phase 2"))
+        significance = "medium" if early else ("high" if soon else "medium")
         items.append({
-            "kind": "catalyst", "significance": "high" if soon else "medium",
+            "kind": "catalyst", "significance": significance,
             "date": r["expected_date"], "ticker": r["ticker"],
             "change_type": r["catalyst_type"],
             # The stored title is whole; a feed line is one row of a list, so it is

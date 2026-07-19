@@ -31,12 +31,13 @@ def test_add_list_delete(tmp_path):
     assert catalysts.list_catalysts(db_file, within_days=90) == []  # far one is beyond 90d
 
 
-def _trial(conn, nct, ticker, phase, status, due, title="A study", asset_id=None):
+def _trial(conn, nct, ticker, phase, status, due, title="A study", asset_id=None,
+           enrollment=None):
     cid = conn.execute("SELECT id FROM companies WHERE ticker=?", (ticker,)).fetchone()[0]
     conn.execute(
         "INSERT INTO trials (nct_id, sponsor_company_id, asset_id, title, phase,"
-        " overall_status, primary_completion_date) VALUES (?,?,?,?,?,?,?)",
-        (nct, cid, asset_id, title, phase, status, due))
+        " overall_status, primary_completion_date, enrollment) VALUES (?,?,?,?,?,?,?,?)",
+        (nct, cid, asset_id, title, phase, status, due, enrollment))
 
 
 def _seed_trials(db_file):
@@ -49,7 +50,7 @@ def _seed_trials(db_file):
     try:
         _trial(conn, "NCT_P3", "LLY", "Phase 3", "Recruiting", soon, "Tirzepatide study")
         _trial(conn, "NCT_P3B", "MRK", "Phase 3", "Active not recruiting", soon)
-        _trial(conn, "NCT_P2", "LLY", "Phase 2", "Recruiting", soon)       # wrong phase
+        _trial(conn, "NCT_P2", "LLY", "Phase 2", "Recruiting", soon)       # small phase 2
         _trial(conn, "NCT_STOP", "LLY", "Phase 3", "Terminated", soon)     # stopped
         _trial(conn, "NCT_FAR", "LLY", "Phase 3", "Recruiting", late)      # outside window
         _trial(conn, "NCT_PAST", "LLY", "Phase 3", "Recruiting", past)     # already due
@@ -73,6 +74,32 @@ def test_derive_readouts_selects_only_live_near_term_phase_three(tmp_path):
     assert row["expected_date"] == soon
     assert row["is_curated"] == 0                      # derived, not the analyst's
     assert row["source_url"].endswith("NCT_P3")        # traceable to its trial
+
+
+def test_derive_readouts_admits_a_large_phase_two_but_not_a_small_one(tmp_path):
+    """Phase 2 is a catalyst only when the study is big enough to read as efficacy, not
+    dose-finding. The threshold is enrolment, since the trial table has no size flag."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    soon = (dt.date.today() + dt.timedelta(days=120)).isoformat()
+    big = catalysts.NOTABLE_MIN_ENROLLMENT
+    conn = db.get_connection(db_file)
+    try:
+        _trial(conn, "NCT_BIG", "LLY", "Phase 2", "Recruiting", soon, enrollment=big)
+        _trial(conn, "NCT_SMALL", "LLY", "Phase 2", "Recruiting", soon, enrollment=big - 1)
+        _trial(conn, "NCT_23", "LLY", "Phase 2/3", "Recruiting", soon, enrollment=big)
+        _trial(conn, "NCT_NULL", "LLY", "Phase 2", "Recruiting", soon)  # no size given
+        conn.commit()
+    finally:
+        conn.close()
+
+    catalysts.derive_readouts(db_file)
+    urls = {r["source_url"] for r in catalysts.list_catalysts(db_file, within_days=365)}
+    assert any(u.endswith("NCT_BIG") for u in urls)
+    assert any(u.endswith("NCT_23") for u in urls)          # combined phase counts too
+    assert not any(u.endswith("NCT_SMALL") for u in urls)   # below the enrolment floor
+    assert not any(u.endswith("NCT_NULL") for u in urls)    # unknown size is not notable
 
 
 def test_derive_readouts_is_idempotent_and_tracks_a_slip(tmp_path):

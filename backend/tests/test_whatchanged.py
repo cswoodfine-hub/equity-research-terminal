@@ -184,6 +184,34 @@ def test_a_derived_readout_carries_the_trial_detail(tmp_path):
     assert "Retatrutide vs Semaglutide" in detail   # the full title, not the clip
 
 
+def test_a_near_phase_two_readout_holds_at_medium(tmp_path):
+    """A near-term Phase 2 readout must not take the high slot a late-stage one earns, or
+    the feed leads with the earlier signal."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    near = (dt.date.today() + dt.timedelta(days=7)).isoformat()
+
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    conn.execute(
+        "INSERT INTO trials (nct_id, sponsor_company_id, title, phase, overall_status, "
+        "enrollment, primary_completion_date) VALUES "
+        "('NCT_P2NEAR', ?, 'A big phase 2', 'Phase 2', 'Recruiting', 400, ?),"
+        "('NCT_P3NEAR', ?, 'A phase 3', 'Phase 3', 'Recruiting', 800, ?)",
+        (cid, near, cid, near),
+    )
+    conn.commit()
+    conn.close()
+    catalysts.derive_readouts(db_file)
+
+    feed = whatchanged.build_feed(db_file, ticker="LLY")
+    by_nct = {it["headline"]: it["significance"] for it in feed if it["kind"] == "catalyst"}
+    p2 = next(sig for hl, sig in by_nct.items() if "phase 2" in hl.lower())
+    p3 = next(sig for hl, sig in by_nct.items() if "phase 3" in hl.lower())
+    assert p2 == "medium" and p3 == "high"   # late-stage leads even when both are near
+
+
 def test_a_pdufa_catalyst_has_no_trial_detail(tmp_path):
     """A PDUFA row is not a trial; its title already carries product and indication."""
     db_file = tmp_path / "test.db"

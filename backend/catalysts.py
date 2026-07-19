@@ -18,9 +18,16 @@ CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference"
 
 CTGOV_URL = "https://clinicaltrials.gov/study/{nct_id}"
 
-# Phase 3 only by default. Phase 2 roughly triples the volume for a much weaker signal,
-# and a catalyst tab nobody can scan is worse than one that is thin.
-READOUT_PHASES = ("Phase 3",)
+# A late-stage readout is a market event whatever the trial's size, so every Phase 3
+# primary completion qualifies.
+LATE_READOUT_PHASES = ("Phase 3",)
+
+# Phase 2 (and the combined 2/3) roughly triples the volume for a weaker signal, so it is
+# admitted only when the study is large enough to be a real efficacy readout rather than
+# exploratory dose-finding. 150 is the median enrolment of the eligible Phase 2 trials in
+# the universe, which keeps the better-powered half and drops the small-study tail.
+NOTABLE_READOUT_PHASES = ("Phase 2", "Phase 2/3")
+NOTABLE_MIN_ENROLLMENT = 150
 
 # A trial that has stopped enrolling is still going to read out; one that was terminated
 # or withdrawn is not.
@@ -136,8 +143,14 @@ def _date_confidence(expected_date) -> str:
     return "estimated" if len(str(expected_date or "")) >= 10 else "month"
 
 
-def derive_readouts(db_path=None, within_days=365, phases=READOUT_PHASES) -> dict:
+def derive_readouts(db_path=None, within_days=365, late_phases=LATE_READOUT_PHASES,
+                    notable_phases=NOTABLE_READOUT_PHASES,
+                    min_enrollment=NOTABLE_MIN_ENROLLMENT) -> dict:
     """Turn near-term trial primary completion dates into derived readout catalysts.
+
+    Late-stage phases qualify on the date alone. Earlier phases qualify only when their
+    enrolment clears ``min_enrollment``, so a large Phase 2 efficacy study is a catalyst
+    but a small dose-finding one is not.
 
     Every future primary completion date on ClinicalTrials.gov is an estimate, so these
     land as date_confidence='estimated'. They slip, and that is the point: the diff
@@ -150,7 +163,8 @@ def derive_readouts(db_path=None, within_days=365, phases=READOUT_PHASES) -> dic
     """
     conn = db.get_connection(db_path)
     try:
-        marks = ",".join("?" * len(phases))
+        late_marks = ",".join("?" * len(late_phases))
+        notable_marks = ",".join("?" * len(notable_phases))
         status_marks = ",".join("?" * len(READOUT_STATUSES))
         rows = conn.execute(
             f"""
@@ -159,11 +173,16 @@ def derive_readouts(db_path=None, within_days=365, phases=READOUT_PHASES) -> dic
               FROM trials t
               LEFT JOIN assets a ON t.asset_id = a.id
              WHERE t.sponsor_company_id IS NOT NULL
-               AND t.phase IN ({marks})
                AND t.overall_status IN ({status_marks})
                AND t.primary_completion_date BETWEEN date('now') AND date('now', ?)
+               AND (
+                     t.phase IN ({late_marks})
+                     OR (t.phase IN ({notable_marks})
+                         AND COALESCE(t.enrollment, 0) >= ?)
+                   )
             """,
-            (*phases, *READOUT_STATUSES, f"+{int(within_days)} days"),
+            (*READOUT_STATUSES, f"+{int(within_days)} days",
+             *late_phases, *notable_phases, min_enrollment),
         ).fetchall()
 
         added = updated = 0
