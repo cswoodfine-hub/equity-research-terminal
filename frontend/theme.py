@@ -487,18 +487,6 @@ def ordinal_ramp(steps: int, palette: "Palette" = None) -> list:
     return [_mix(base, palette.data, index / (steps - 1)) for index in range(steps)]
 
 
-def label_on(background: str, palette: "Palette" = None) -> str:
-    """Ink or ground, whichever is legible on this background.
-
-    A label written into a chart segment sits on the ramp, not on the page, so one
-    fixed colour fails at one end of it: ground-coloured digits on the darkest step of
-    the dark ramp land at 3:1, which is under the 4.5:1 that text needs.
-    """
-    palette = palette or P
-    return max((palette.ink, palette.ground),
-               key=lambda option: contrast(option, background))
-
-
 MINUS = "−"  # true minus, digit-width under tabular figures
 
 

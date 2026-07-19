@@ -27,6 +27,16 @@ import trend as trend_module
 DEFAULT_API = "http://localhost:8000"
 DEFAULT_TICKER = "LLY"
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
+# Charts collapse the two seamless phases into the phase each one reaches, which is the
+# convention elsewhere in the app: the Key insights strip already counts Phase 2/3 as
+# late phase. Six ordinal steps of one hue is more than colour can carry, and these two
+# are the pair worth losing, being 12.3% of the universe between them.
+#
+# Merged, never dropped. Deleting them would hide 316 trials, and 19% of Merck's
+# pipeline. The API still returns all six, so nothing downstream loses the distinction
+# and this is a display choice that can be reversed here alone.
+PHASE_MERGE = {"Phase 1/2": "Phase 2", "Phase 2/3": "Phase 3"}
+DISPLAY_PHASES = [p for p in PIPELINE_PHASES if p not in PHASE_MERGE]
 # Price chart windows, widest last. None means every session held. Windows wider than
 # the stored history are hidden rather than drawn short.
 PRICE_WINDOWS = [("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", None)]
@@ -744,8 +754,10 @@ with main:
         else:
             long = grid.melt(id_vars="Ticker", value_vars=PIPELINE_PHASES,
                              var_name="Phase", value_name="Trials")
+            long["Phase"] = long["Phase"].replace(PHASE_MERGE)
+            long = long.groupby(["Ticker", "Phase"], as_index=False)["Trials"].sum()
             chart(alt.Chart(long).mark_rect(stroke=T.P.ground, strokeWidth=1).encode(
-                x=alt.X("Phase:N", title=None, sort=PIPELINE_PHASES),
+                x=alt.X("Phase:N", title=None, sort=DISPLAY_PHASES),
                 y=alt.Y("Ticker:N", title=None, sort=list(grid["Ticker"])),
                 # Sqrt, not linear: one company runs three figures of trials and a
                 # linear ramp collapses everyone else into the same pale tint.
@@ -754,7 +766,9 @@ with main:
                 tooltip=["Ticker:N", "Phase:N", "Trials:Q"]), 420)
             st.markdown('<div class="byline">Phase is ordinal, so it takes an ink tint '
                         'rather than a hue. Counts are trials, not deduplicated assets, '
-                        'so a combination trial counts once per phase.</div>',
+                        'so a combination trial counts once per phase. Seamless trials '
+                        'count at the phase they reach: Phase 1/2 with Phase 2, '
+                        'Phase 2/3 with Phase 3.</div>',
                         unsafe_allow_html=True)
 
             # --- Therapeutic areas: click a band to reveal its trials ---
@@ -765,7 +779,8 @@ with main:
                       "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
                       "or pick another company in the sidebar.")
             else:
-                areas = pd.DataFrame([{"Area": t["area"], "Phase": t["phase"],
+                areas = pd.DataFrame([{"Area": t["area"],
+                                       "Phase": PHASE_MERGE.get(t["phase"], t["phase"]),
                                        "n": 1} for t in detail])
                 totals = (areas.groupby("Area", as_index=False)["n"].sum()
                           .sort_values("n", ascending=False))
@@ -788,71 +803,29 @@ with main:
                 # which it was: 18px bars in 16.7px bands ran 1 to 2px into each other.
                 # Letting the bar fill its band makes that impossible at any height, and
                 # the scale padding is what puts a visible gap between them.
-                # Counts per segment, with the midpoint of each worked out here rather
-                # than in Vega: the label has to sit inside its own segment, and the
-                # arithmetic is plainer in pandas than as a stack of transforms.
-                seg = (areas.groupby(["Area", "Phase"], as_index=False)["n"].sum())
-                seg["Phase"] = pd.Categorical(seg["Phase"], PIPELINE_PHASES, ordered=True)
-                seg = seg.sort_values(["Area", "Phase"])
-                seg["mid"] = (seg.groupby("Area")["n"].cumsum() - seg["n"] / 2)
-                seg["picked"] = seg["Area"].isin(chosen) if chosen else True
-                # A label needs room for two digits. Below about 2% of the widest bar it
-                # would spill over its own segment, so those are left to the tooltip.
-                seg["wide"] = seg["n"] >= max(totals["n"].max() * 0.022, 1)
-                # Each label takes the legible colour for the segment it sits on, which
-                # flips partway up the ramp. One fixed colour is unreadable at one end.
-                ramp = dict(zip(PIPELINE_PHASES, T.ordinal_ramp(len(PIPELINE_PHASES))))
-                seg["ink"] = [T.label_on(ramp[p]) for p in seg["Phase"]]
-                seg["halo"] = [T.P.ground if c == T.P.ink else T.P.ink
-                               for c in seg["ink"]]
-
                 # The range is taken from the length of the domain rather than from a
                 # fixed tuple, so the two cannot drift apart. They had: six phases were
                 # declared against five tints, and Phase 4 fell off the end of the scale
-                # with no colour of its own.
-                bars = (alt.Chart(seg).mark_bar()
+                # with no colour of its own. Four steps also separate better than six
+                # could: the closest neighbouring pair goes from 1.22:1 to 1.40:1.
+                bars = (alt.Chart(areas).mark_bar()
                         .encode(
                             y=alt.Y("Area:N", title=None, sort=order,
                                     scale=alt.Scale(paddingInner=0.3, paddingOuter=0.2)),
-                            x=alt.X("n:Q", title="Trials"),
+                            x=alt.X("sum(n):Q", title="Trials"),
                             color=alt.Color(
-                                "Phase:N", sort=PIPELINE_PHASES,
-                                scale=alt.Scale(domain=PIPELINE_PHASES,
-                                                range=T.ordinal_ramp(len(PIPELINE_PHASES))),
+                                "Phase:N", sort=DISPLAY_PHASES,
+                                scale=alt.Scale(domain=DISPLAY_PHASES,
+                                                range=T.ordinal_ramp(len(DISPLAY_PHASES))),
                                 legend=alt.Legend(title=None)),
                             order=alt.Order("Phase:N", sort="ascending"),
                             opacity=alt.condition("datum.picked", alt.value(1),
                                                   alt.value(0.25)),
                             tooltip=[alt.Tooltip("Area:N"), alt.Tooltip("Phase:N"),
-                                     alt.Tooltip("n:Q", title="Trials")]))
-                # Six ordinal steps of one hue is the limit of what colour can carry, and
-                # the darkest two are close enough to argue over. The count sits in the
-                # segment as well, so the figure is read rather than the swatch matched
-                # back to a legend.
-                # Drawn twice: a fattened glyph in the opposite colour, then the glyph
-                # itself on top. The middle of any ramp is the place where neither ink
-                # nor ground clears 4.5:1 against the fill, and this puts the contrast
-                # between the digit and its own halo instead of the segment behind it.
-                def label_layer(**mark):
-                    return (alt.Chart(seg[seg["wide"]])
-                            .mark_text(fontSize=9, fontWeight=600, **mark)
-                            .encode(
-                                y=alt.Y("Area:N", title=None, sort=order,
-                                        scale=alt.Scale(paddingInner=0.3,
-                                                        paddingOuter=0.2)),
-                                x=alt.X("mid:Q", title="Trials"),
-                                text=alt.Text("n:Q"),
-                                opacity=alt.condition("datum.picked", alt.value(1),
-                                                      alt.value(0.25))))
-
-                halo = label_layer(strokeWidth=2.5).encode(
-                    stroke=alt.Stroke("halo:N", scale=None, legend=None),
-                    color=alt.Color("halo:N", scale=None, legend=None))
-                labels = halo + label_layer().encode(
-                    color=alt.Color("ink:N", scale=None, legend=None))
+                                     alt.Tooltip("sum(n):Q", title="Trials")]))
                 # 34px per area leaves a readable bar once scale padding is taken out,
                 # and the axis and legend get their own room rather than eating a band.
-                chart(bars + labels, max(170, 34 * len(order)))
+                chart(bars, max(170, 34 * len(order)))
 
                 shown = [t for t in detail if t["area"] in chosen] if chosen else detail
                 section(", ".join(chosen) if chosen else "every area",

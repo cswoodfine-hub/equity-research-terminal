@@ -25,7 +25,6 @@ PHASES = 6      # Phase 1, 1/2, 2, 2/3, 3, 4
 # to 1.2 left the whole file passing, which is no test at all. 3:1 is WCAG 1.4.11 and
 # comes from outside this codebase, so it is what the test is entitled to assume.
 WCAG_GRAPHIC = 3.0
-WCAG_TEXT = 4.5
 
 
 @pytest.mark.parametrize("palette", PALETTES, ids=lambda p: p.name)
@@ -58,20 +57,6 @@ def test_ramp_ends_on_the_data_colour(palette):
     """Phase is ordinal, so it climbs to the data colour rather than taking its own
     hue. Modality stays the only categorical use of hue in the app."""
     assert theme.ordinal_ramp(PHASES, palette)[-1].upper() == palette.data.upper()
-
-
-@pytest.mark.parametrize("palette", PALETTES, ids=lambda p: p.name)
-def test_a_label_is_legible_on_every_step(palette):
-    """A count written into a segment sits on the ramp, not on the page.
-
-    Each label takes whichever of ink and ground reads better on its own segment, and
-    is haloed in the other, so the contrast that matters is between the two of them.
-    """
-    for colour in theme.ordinal_ramp(PHASES, palette):
-        ink = theme.label_on(colour, palette)
-        assert ink in (palette.ink, palette.ground)
-        halo = palette.ground if ink == palette.ink else palette.ink
-        assert theme.contrast(ink, halo) >= WCAG_TEXT
 
 
 def test_contrast_is_symmetric_and_matches_known_pairs():
