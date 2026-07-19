@@ -102,23 +102,25 @@ def render(products, currency: str | None = None, fiscal_year=None,
     unattributed = residual(products, company_revenue)
     total = sum(p["value"] for p in drivers + tail) + (unattributed or 0)
     slices = [{"label": p["brand_name"], "value": p["value"], "n": 1} for p in drivers]
-    if tail:
-        slices.append({"label": f"other, {len(tail)} product"
-                                f"{'s' if len(tail) > 1 else ''}",
-                       "value": sum(p["value"] for p in tail), "n": len(tail),
-                       "tail": True})
-    if unattributed:
-        slices.append({"label": "not broken out by product",
-                       "value": unattributed, "n": 0, "residual": True})
+
+    # The bracketed tail and the unattributed remainder are one slice. They are
+    # different facts, small products against revenue with no product on it, but on a
+    # circle they are the same fact: everything not named. Two greys side by side, one
+    # of them hollow, cut a hole in the chart and asked the reader to hold a distinction
+    # the caption can make in a sentence.
+    rest = sum(p["value"] for p in tail) + (unattributed or 0)
+    if rest > 0:
+        named = f"{len(tail)} smaller product{'s' if len(tail) != 1 else ''}"
+        label = (f"everything else, incl. {named}" if tail
+                 else "not broken out by product")
+        slices.append({"label": label, "value": rest, "n": len(tail), "rest": True})
 
     # The ramp runs brightest to dimmest, so the biggest driver reads first. The tail
     # is grey rather than a ramp step: it is not a smaller product, it is several.
     ramp = list(reversed(ordinal_ramp(max(len(drivers), 2))))
     colours = [ramp[min(i, len(ramp) - 1)] for i in range(len(drivers))]
-    if tail:
-        colours.append(P.stale)
-    if unattributed:
-        colours.append(None)      # drawn as an outline: it is not a product
+    if rest > 0:
+        colours.append(P.stale)   # filled, so the circle has no hole in it
 
     out = [f'<svg viewBox="0 0 {W} {H}" width="100%"'
            f' style="max-width:{W}px;font-family:Public Sans,sans-serif" role="img"'
@@ -128,12 +130,8 @@ def render(products, currency: str | None = None, fiscal_year=None,
     for entry, colour in zip(slices, colours):
         sweep = entry["value"] / total * 2 * math.pi
         path = _wedge(angle, angle + sweep, RADIUS, INNER)
-        # The unattributed wedge is hollow. It is not a smaller product, it is revenue
-        # with no product against it, and a filled slice would read as one more brand.
-        fill = (f'fill="{colour}" stroke="{P.ground}" stroke-width="1.5"' if colour
-                else f'fill="none" stroke="{P.stale}" stroke-width="1" '
-                     f'stroke-dasharray="3 2"')
-        out.append(f'<path d="{path}" {fill}/>')
+        out.append(f'<path d="{path}" fill="{colour}" stroke="{P.ground}"'
+                   f' stroke-width="1.5"/>')
         angle += sweep
 
     # The hole carries the total, which is what stops a reader summing the labels.
@@ -148,10 +146,9 @@ def render(products, currency: str | None = None, fiscal_year=None,
     for index, (entry, colour) in enumerate(zip(slices, colours)):
         y = LEGEND_TOP + index * ROW_H
         share = entry["value"] / total * 100
-        swatch = (f'fill="{colour}"' if colour
-                  else f'fill="none" stroke="{P.stale}" stroke-dasharray="2 1.5"')
-        out.append(f'<rect x="{LEGEND_X}" y="{y - 8}" width="9" height="9" {swatch}/>')
-        muted = entry.get("tail") or entry.get("residual")
+        out.append(f'<rect x="{LEGEND_X}" y="{y - 8}" width="9" height="9"'
+                   f' fill="{colour}"/>')
+        muted = entry.get("rest")
         out.append(f'<text x="{LEGEND_X + 16}" y="{y}" font-size="12"'
                    f' fill="{P.stale if muted else P.ink}">'
                    f'{html.escape(entry["label"])}</text>')
@@ -181,11 +178,16 @@ def caption(products, currency=None, fiscal_year=None,
     text = (f"{year}revenue of {total / 1e9:,.1f}bn {currency or ''}, with "
             f"{len(drivers) + len(tail)} products named in the filing. "
             f"{lead['brand_name']} alone is {lead['value'] / total * 100:.0f}% of it.")
-    if tail:
-        text += (f" The {len(tail)} smallest are bracketed into one slice, since a "
-                 "circle cut much finer stops being comparable.")
-    if unattributed:
-        text += (f" The hollow wedge is {unattributed / 1e9:,.1f}bn the filing does not "
-                 "attribute to a product: collaboration revenue, lines reported only as "
-                 "a total, and products this app holds no asset for.")
+    rest = sum(p["value"] for p in tail) + (unattributed or 0)
+    if rest > 0:
+        text += f" The grey slice is {rest / 1e9:,.1f}bn"
+        parts = []
+        if tail:
+            parts.append(f"the {len(tail)} smallest products, kept together because a "
+                         "circle cut much finer stops being comparable")
+        if unattributed:
+            parts.append(f"{unattributed / 1e9:,.1f}bn the filing does not attribute to "
+                         "any single product, such as segment lines and collaboration "
+                         "revenue")
+        text += ": " + ", and ".join(parts) + "."
     return text

@@ -162,3 +162,36 @@ def test_a_coregistrant_row_is_skipped():
              "coreg": "SUBSIDIARY", "value": "1000",
              "segments": "ProductOrService=Zepbound;"}]
     assert extract_products(rows, "X", "20251231") == {}
+
+
+# --- groupings must not be counted as products ---------------------------
+def test_a_product_is_kept_and_a_grouping_is_not():
+    """Filers put products and the categories containing them on the same axis, so
+    Novo tags Ozempic and TotalDiabetesCare, which contains it."""
+    from fetchers.product_revenue_sec import is_aggregate
+
+    for product in ("Keytruda", "Ozempic", "Lynparza", "Rotateq", "Eliquis",
+                    "Gardasil Gardasil 9", "Verzenio", "Nucala"):
+        assert not is_aggregate(product), product
+    for grouping in ("TotalDiabetesCare", "CardiometabolicHealth", "Oncology",
+                     "GrowthBrands", "LegacyBrands", "OtherPharmaceutical",
+                     "ExcludingComirnatyAndPaxlovid", "Top20Products",
+                     "RestOfPortfolio", "SalesRevenueGross", "NetProductSales",
+                     "Livestock", "AllOtherProducts", "SpecialtyMedicine"):
+        assert is_aggregate(grouping), grouping
+
+
+def test_a_revenue_type_prefix_is_stripped_from_the_name():
+    """Merck reports partnered products as AllianceRevenueLynparza."""
+    from fetchers.product_revenue_sec import display_name
+
+    assert display_name("AlliancerevenueLynparza") == "Lynparza"
+    assert display_name("AllianceRevenueReblozyl") == "Reblozyl"
+
+
+def test_concatenated_brands_are_spaced_not_split():
+    """The filing reports one number against several brands, so the row stays one row."""
+    from fetchers.product_revenue_sec import display_name
+
+    assert display_name("GardasilGardasil9") == "Gardasil Gardasil 9"
+    assert display_name("Pneumovax23") == "Pneumovax 23"

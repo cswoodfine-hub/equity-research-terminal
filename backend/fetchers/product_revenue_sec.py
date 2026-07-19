@@ -29,6 +29,7 @@ from __future__ import annotations
 import csv
 import io
 import os
+import re
 import time
 import urllib.request
 import zipfile
@@ -53,14 +54,83 @@ ANNUAL_FORMS = ("10-K", "20-F")
 PRODUCT_AXES = ("ProductOrService", "ProductsAndServices")
 GEOGRAPHY_AXES = ("Geographical", "GeographicalAreas", "MarketsOfCustomers")
 
-# Members that are roll-ups or categories rather than products. They are excluded by
-# name as well as by failing to match an asset, so a company that happens to have an
-# asset called "Product" cannot pick up a total.
+# Members that are roll-ups, segments or categories rather than products. Their revenue
+# is real and stays in the company total; it simply cannot be attributed to one product,
+# so it belongs in the unattributed remainder rather than against a name.
 NOT_A_PRODUCT = {
     "product", "producttotal", "otherproducttotal", "other", "othertotal",
     "collaborationandotherrevenue", "collaborationrevenue", "totalrevenue",
     "revenue", "allotherproducts", "otherproducts", "otherrevenue",
+    # Segment lines. Merck's animal health business is 6.4bn across these two, which is
+    # revenue by segment, not by product.
+    "livestock", "companionanimals", "animalhealth", "otherpharmaceutical",
+    "pharmaceutical", "otherproductsandservices", "othersales",
 }
+
+# Prefixes filers put in front of a brand on the product axis. Merck reports partnered
+# products as AllianceRevenueLynparza, which is Lynparza with a revenue type glued on.
+MEMBER_PREFIXES = ("alliancerevenue", "collaborationrevenue", "productrevenue",
+                   "netproductsales", "netsales", "revenuefrom")
+
+# Members that name a grouping rather than a product. Filers put products and the
+# categories containing them on the same axis, so Novo tags Ozempic and also
+# TotalDiabetesCare, which contains it. Storing both double counts, and the sum of
+# Novo's members came to 279% of the company.
+AGGREGATE_PATTERN = re.compile(
+    r"^(total|all|other|combined|excluding|including|sales|revenue|net|gross)"
+    r"|(total|portfolio|brands|products|franchise|therapeutics|business|segment"
+    r"|revenues?|sales|medicines?|care|health|diseases?)$",
+    re.I)
+
+# Therapeutic areas and portfolio groupings, which read like products but contain them.
+AGGREGATE_WORDS = {
+    "oncology", "immunology", "neuroscience", "cardiovascular", "cardiometabolic",
+    "cardiometabolichealth", "vaccines", "vaccine", "raredisease", "raredis eases",
+    "diabetes", "obesity", "respiratory", "virology", "hiv", "inflammation",
+    "growthbrands", "legacybrands", "keyproducts", "top20products", "restofportfolio",
+    "specialtymedicine", "generalmedicines", "establishedbrands", "matureproducts",
+    "innovativemedicine", "medtech", "pharmaceuticals", "biopharma",
+}
+
+
+def is_aggregate(member: str) -> bool:
+    """True when a member names a grouping rather than a single product.
+
+    The test is deliberately eager. A product wrongly dropped costs coverage, which the
+    chart shows honestly as unattributed revenue. A grouping wrongly kept is counted
+    twice and quietly inflates the company, which nothing on the page would reveal.
+    """
+    normalised = _norm(member)
+    if normalised in NOT_A_PRODUCT or normalised in AGGREGATE_WORDS:
+        return True
+    words = re.split(r"(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+", member)
+    if any(_norm(word) in AGGREGATE_WORDS for word in words if word):
+        return True
+    return bool(AGGREGATE_PATTERN.search(member))
+
+
+def _split_camel(member: str) -> str:
+    """``GardasilGardasil9`` into ``Gardasil Gardasil 9``.
+
+    Filers concatenate the brands a single reported line covers, so the member is not a
+    typo, it is a line item naming several products. Nothing here tries to split the
+    money between them; the filing reports one number and so does this.
+    """
+    spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", member)
+    spaced = re.sub(r"(?<=[A-Za-z])(?=\d)", " ", spaced)
+    return re.sub(r"\s+", " ", spaced).strip()
+
+
+def display_name(member: str) -> str:
+    """The product name to show, with any revenue-type prefix taken off the front."""
+    lowered = _norm(member)
+    for prefix in MEMBER_PREFIXES:
+        if lowered.startswith(prefix) and len(lowered) > len(prefix) + 2:
+            # Cut the prefix off the original, preserving its capitalisation.
+            return _split_camel(member[len(prefix):]) if member[:len(prefix)].lower() \
+                == prefix else _split_camel(re.sub(
+                    f"(?i)^{prefix}", "", member.replace(" ", "")))
+    return _split_camel(member)
 
 # Geography member sets that partition the world, so their parts may be summed. Anything
 # else is left alone: a filer reporting Europe and International may be double counting,
@@ -146,7 +216,7 @@ def extract_products(rows, adsh: str, ddate: str) -> dict[str, dict]:
             continue
         axes = parse_segments(row.get("segments"))
         product = next((axes[a] for a in PRODUCT_AXES if a in axes), None)
-        if not product or _norm(product) in NOT_A_PRODUCT:
+        if not product or is_aggregate(product):
             continue
         geography = next((axes[a] for a in GEOGRAPHY_AXES if a in axes), None)
         extras = tuple(sorted((axis, member) for axis, member in axes.items()
@@ -305,6 +375,78 @@ class ProductRevenueFetcher(BaseFetcher):
             conn.close()
 
     # --- current-state table ---------------------------------------------
+    def _drop_double_counted(self, conn, rows: list[dict]) -> list[dict]:
+        """Drop any company whose products sum past its own revenue.
+
+        Products cannot exceed the company. When they do, the filer has tagged a
+        grouping this module failed to recognise and the set contains something twice.
+        There is no way to tell which member from the data alone, so the whole company
+        is dropped and its revenue reads as unattributed, which is true and visible,
+        rather than storing a total that is wrong in a way nothing on the page reveals.
+
+        The threshold sits slightly above 1 because a filer can report a product gross
+        while the company line is net of rebates, and that gap is real, not a fault.
+        """
+        totals = {}
+        for row in conn.execute(
+            """
+            SELECT c.ticker, f.fiscal_year, f.value FROM financials f
+              JOIN companies c ON c.id = f.company_id
+             WHERE f.metric = 'Revenues' AND f.period_type = 'FY'
+            """
+        ):
+            totals[(row["ticker"], row["fiscal_year"])] = row["value"]
+
+        summed: dict[tuple, float] = {}
+        for row in rows:
+            key = (row["ticker"], row["fiscal_year"])
+            summed[key] = summed.get(key, 0.0) + row["value"]
+
+        rejected = set()
+        for key, total in summed.items():
+            company = totals.get(key)
+            if company and total > company * 1.05:
+                rejected.add(key)
+                self._errors.append(
+                    f"{key[0]} FY{key[1]}: products sum to "
+                    f"{total / 1e9:.1f}bn against {company / 1e9:.1f}bn reported, so a "
+                    "grouping is being counted twice; nothing stored for it")
+        return [r for r in rows if (r["ticker"], r["fiscal_year"]) not in rejected]
+
+    def _resolve_asset(self, conn, assets, companies, ticker, member) -> int | None:
+        """The asset a reported product belongs to, creating one where none exists.
+
+        Most of a company's revenue gap was never a matching problem, it was an absence.
+        Merck's vaccines (Gardasil, ProQuad, Varivax, Pneumovax, RotaTeq) and its
+        partnered products (Lynparza, Lenvima, Reblozyl) had no asset at all: the asset
+        table is built from the Orange Book and openFDA, and vaccines sit in the Purple
+        Book with partial coverage while a partnered product is held by the partner. So
+        22.78bn of Merck's revenue, 35% of the company, could not attach to anything and
+        was reported as unattributable when the filing names it plainly.
+
+        A product a company reports revenue for is a product that company sells. That is
+        worth a row, and the row records where it came from.
+        """
+        name = display_name(member)
+        for key in (_norm(member), _norm(name)):
+            if (ticker, key) in assets:
+                return assets[(ticker, key)]
+        company_id = companies.get(ticker)
+        if company_id is None:
+            return None
+        cur = conn.execute(
+            """
+            INSERT INTO assets (owner_company_id, brand_name, is_marketed, notes)
+            VALUES (?, ?, 1, ?)
+            """,
+            (company_id, name,
+             "created from product revenue reported in the filing; no Orange Book or "
+             "openFDA entry, which is normal for a vaccine or a partnered product"),
+        )
+        assets[(ticker, _norm(name))] = cur.lastrowid
+        assets[(ticker, _norm(member))] = cur.lastrowid
+        return cur.lastrowid
+
     def upsert(self, rows: list[dict]) -> RefreshResult:
         conn = db.get_connection(self.db_path)
         written = 0
@@ -318,11 +460,15 @@ class ProductRevenueFetcher(BaseFetcher):
                 """
             ):
                 assets[(row["ticker"], _norm(row["brand_name"]))] = row["id"]
+            companies = {r["ticker"]: r["id"] for r in conn.execute(
+                "SELECT id, ticker FROM companies")}
 
+            rows = self._drop_double_counted(conn, rows)
             for row in rows:
-                asset_id = assets.get((row["ticker"], _norm(row["member"])))
+                asset_id = self._resolve_asset(conn, assets, companies,
+                                               row["ticker"], row["member"])
                 if asset_id is None:
-                    continue          # a category or a product we hold no asset for
+                    continue
                 conn.execute(
                     """
                     INSERT INTO asset_revenue

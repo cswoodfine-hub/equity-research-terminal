@@ -75,7 +75,7 @@ def test_the_slices_account_for_the_whole_total():
 def test_the_donut_states_the_total_and_names_the_tail():
     products = _products(*[(f"P{i}", (20 - i) * 1e9) for i in range(10)])
     svg = revenue_mix.render(products, "USD", 2025)
-    assert "other, 4 products" in svg
+    assert "4 smaller products" in svg
     assert "USD bn" in svg
     # Six drivers plus the bracket, each with a legend swatch and a wedge.
     assert svg.count("<path") == 7
@@ -115,11 +115,21 @@ def test_the_donut_totals_to_company_revenue():
     assert ">65.0<" in svg                      # the hole carries the company total
 
 
-def test_the_unattributed_wedge_is_hollow():
-    """It is not one more brand, so it is not filled like one."""
-    products = _products(("Big", 30e9))
+def test_every_wedge_is_filled():
+    """No hollow slice: a hole in the ring reads as a rendering fault, not a category."""
+    products = _products(("Big", 30e9), ("Mid", 8e9), ("Tiny", 0.2e9))
     svg = revenue_mix.render(products, "USD", 2025, company_revenue=65e9)
-    assert 'stroke-dasharray' in svg
+    assert "stroke-dasharray" not in svg
+    assert 'fill="none"' not in svg
+
+
+def test_the_tail_and_the_unattributed_share_one_slice():
+    """Different facts, but on a circle they are the same fact: everything not named."""
+    products = _products(("Big", 30e9), ("Mid", 8e9), ("Tiny", 0.2e9))
+    svg = revenue_mix.render(products, "USD", 2025, company_revenue=65e9)
+    assert "everything else" in svg
+    # Two drivers plus one combined rest, not two separate grey slices.
+    assert svg.count("<path") == 3
 
 
 def test_the_caption_sizes_the_unattributed_part():
@@ -129,13 +139,21 @@ def test_the_caption_sizes_the_unattributed_part():
     assert "does not attribute" in caption
 
 
+def test_the_caption_breaks_the_grey_slice_into_its_parts():
+    """The slice merges two things, so the sentence has to separate them again."""
+    products = _products(("Big", 30e9), ("Mid", 8e9), ("Tiny", 0.2e9))
+    caption = revenue_mix.caption(products, "USD", 2025, company_revenue=65e9)
+    assert "smallest products" in caption
+    assert "does not attribute" in caption
+
+
 def test_the_caption_counts_the_bracketed_products():
     products = _products(*[(f"P{i}", (20 - i) * 1e9) for i in range(10)])
-    assert "4 smallest are bracketed" in revenue_mix.caption(products, "USD")
+    assert "4 smallest products" in revenue_mix.caption(products, "USD")
 
 
 def test_a_singular_tail_reads_singular():
     products = _products(("A", 50e9), ("B", 20e9), ("C", 10e9), ("D", 5e9),
                          ("E", 4e9), ("F", 3e9), ("G", 2e9))
     svg = revenue_mix.render(products, "USD")
-    assert "other, 1 product<" in svg
+    assert "1 smaller product<" in svg
