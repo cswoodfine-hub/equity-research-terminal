@@ -13,6 +13,7 @@ a note can always be traced back to its evidence.
 from __future__ import annotations
 
 import json
+import re
 
 import db
 import llm
@@ -61,14 +62,45 @@ name, or a trial. If something is not in the items, it is not in the note. Where
 is missing, say "no free data" rather than estimating. Do not infer a cause for a \
 change; the feed says what changed, not why.
 
+Grammar and capitalisation must be correct. Write in standard prose: capitalise the \
+first word of every sentence, every proper noun, drug and brand names, trial \
+identifiers, and month names. Do not write in all lower case. Copy drug names, \
+identifiers and acronyms exactly as the feed spells them, including their capitals.
+
 Style: lead with the number or the change. Direct and unhedged. Specific over \
-abstract. Sentence-case headings. No em dashes. Never use the words additionally, \
-highlight, underscore, pivotal, showcase, or testament."""
+abstract. Open each sentence with the fact, not a throat-clearing adverb. Sentence-case \
+headings, so a heading reads "What changed", not "what changed". No em dashes. Never use \
+the words additionally, highlight, underscore, pivotal, showcase, or testament."""
+
+
+# Adverbs the model reaches for when told to write prose. As a sentence opener each one
+# adds nothing and buries the fact the house style says to lead with, so it is stripped
+# rather than reworded.
+_FILLER = (
+    "generally", "normally", "naturally", "basically", "essentially", "actually",
+    "obviously", "clearly", "notably", "ultimately", "overall", "currently",
+    "typically", "importantly", "interestingly", "fundamentally", "additionally",
+    "specifically",
+)
+# A filler word that opens a sentence: at the start, after a sentence end, or after a
+# newline, followed by its comma. The leading boundary is kept, the word and comma go.
+_FILLER_RE = re.compile(
+    r"(^|(?<=[.!?])\s+|\n\s*)(?:" + "|".join(_FILLER) + r"),\s+",
+    re.IGNORECASE,
+)
+# The first letter of a sentence or a line. A sentence ends on .!? preceded by a letter
+# or digit, which skips "U.S." and other mid-sentence abbreviations.
+_SENTENCE_START_RE = re.compile(r"(^|(?<=[a-z0-9])[.!?]\s+|\n\s*)([a-z])")
 
 
 def _scrub(text: str) -> str:
-    """Mechanical house-style pass: no em dashes."""
-    return text.replace(" — ", ", ").replace("—", ", ").strip()
+    """Mechanical house-style pass: strip em dashes and the filler adverbs the model
+    opens sentences with, then capitalise every sentence and line start so the note
+    reads as prose even on a run that comes back lower case."""
+    text = text.replace(" — ", ", ").replace("—", ", ")
+    text = _FILLER_RE.sub(lambda m: m.group(1), text)
+    text = _SENTENCE_START_RE.sub(lambda m: m.group(1) + m.group(2).upper(), text)
+    return text.strip()
 
 
 def _dated(item: dict) -> str:

@@ -43,6 +43,35 @@ def test_scrub_removes_em_dashes():
     assert "—" not in insights._scrub("Revenue fell — sharply — in Q4.")
 
 
+def test_scrub_strips_a_filler_opener_and_recapitalises():
+    """The model pads prose with filler adverbs. As a sentence opener each buries the
+    fact, so it is dropped and the next word is capitalised back."""
+    out = insights._scrub("Generally, the readout is due in August.")
+    assert out == "The readout is due in August."
+
+
+def test_scrub_strips_filler_mid_paragraph():
+    out = insights._scrub("LLY has a catalyst. Notably, there are no other changes.")
+    assert out == "LLY has a catalyst. There are no other changes."
+
+
+def test_scrub_capitalises_sentence_and_line_starts():
+    out = insights._scrub("morning update\nthe readout is due. it matters.")
+    assert out == "Morning update\nThe readout is due. It matters."
+
+
+def test_scrub_leaves_a_real_filler_word_mid_sentence():
+    """Only a sentence-opening filler word goes; the same word inside a clause stays."""
+    out = insights._scrub("The trial is generally well tolerated.")
+    assert out == "The trial is generally well tolerated."
+
+
+def test_scrub_does_not_break_an_abbreviation():
+    """A dotted abbreviation is not a sentence boundary, so the next word is untouched."""
+    out = insights._scrub("Keytruda loses U.S. exclusivity in 2028.")
+    assert out == "Keytruda loses U.S. exclusivity in 2028."
+
+
 def test_rules_note_is_pure_and_lists_the_items():
     items = [
         {"significance": "high", "headline": "LLY trial NCT001: status Recruiting -> Terminated"},
