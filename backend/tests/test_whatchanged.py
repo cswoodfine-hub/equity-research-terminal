@@ -150,3 +150,49 @@ def test_an_approval_is_dated_when_it_happened_not_when_we_saw_it(tmp_path):
     # Detection time is kept as bookkeeping, and is not the date shown. It comes from
     # SQLite's datetime('now'), which is UTC, so it is only compared for difference.
     assert item["detected_at"] and item["detected_at"][:10] != approved
+
+
+def test_a_derived_readout_carries_the_trial_detail(tmp_path):
+    """The note needs more than a headline: the drug, phase, enrolment, indication and
+    NCT id all come from the trial the catalyst was derived from."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    due = (dt.date.today() + dt.timedelta(days=40)).isoformat()
+
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    conn.execute(
+        "INSERT INTO trials (nct_id, sponsor_company_id, title, phase, overall_status, "
+        "enrollment, conditions, primary_completion_date) VALUES "
+        "('NCT06260722', ?, 'Phase 3, Effect of Retatrutide vs Semaglutide', 'Phase 3', "
+        "'Active not recruiting', 1250, '[\"Type 2 Diabetes\"]', ?)",
+        (cid, due),
+    )
+    conn.commit()
+    conn.close()
+    catalysts.derive_readouts(db_file)
+
+    feed = whatchanged.build_feed(db_file, ticker="LLY")
+    catalyst = next(it for it in feed if it["kind"] == "catalyst")
+    detail = catalyst["detail"]
+
+    assert "NCT06260722" in detail
+    assert "phase 3" in detail
+    assert "1250 enrolled" in detail
+    assert "Type 2 Diabetes" in detail
+    assert "Retatrutide vs Semaglutide" in detail   # the full title, not the clip
+
+
+def test_a_pdufa_catalyst_has_no_trial_detail(tmp_path):
+    """A PDUFA row is not a trial; its title already carries product and indication."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    catalysts.add_catalyst(db_file, "LLY", "PDUFA",
+                           (dt.date.today() + dt.timedelta(days=20)).isoformat(),
+                           "Zepbound sBLA decision")
+
+    feed = whatchanged.build_feed(db_file, ticker="LLY")
+    catalyst = next(it for it in feed if it["kind"] == "catalyst")
+    assert catalyst["detail"] is None

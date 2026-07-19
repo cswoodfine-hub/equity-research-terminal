@@ -7,6 +7,8 @@ optional note layer that summarises this per company lives in ``insights.py``.
 
 from __future__ import annotations
 
+import json
+
 import db
 import edgar_items
 
@@ -92,11 +94,52 @@ def _recent_changes(conn, days):
     return items
 
 
+def _catalyst_detail(row) -> str | None:
+    """The trial behind a derived readout, as a fact line for the note.
+
+    The feed headline is one clipped row of a list; the note can carry the whole thing.
+    A derived readout stores the trial's NCT id in ``description``, which joins to the
+    trial and its mapped asset, so the note can name the phase, the enrolment, the
+    indication, and the identifier rather than paraphrasing a truncated title.
+    """
+    if not row["nct_id"] or not (row["nct_id"] or "").startswith("NCT"):
+        return None                         # a PDUFA row, whose title already suffices
+    parts = []
+    drug = row["brand_name"] or row["generic_name"]
+    if drug:
+        parts.append(f"drug {drug}")
+    if row["phase"]:
+        parts.append(row["phase"].lower())
+    if row["overall_status"]:
+        parts.append(row["overall_status"].lower())
+    if row["enrollment"]:
+        parts.append(f"{row['enrollment']} enrolled")
+    try:
+        conditions = ", ".join(json.loads(row["conditions"] or "[]")[:3])
+    except (ValueError, TypeError):
+        conditions = ""
+    if conditions:
+        parts.append(f"in {conditions}")
+    # The date's own certainty. An estimated readout moves; an actual one has happened.
+    precision = {"month": "month only, no day given", "estimated": "estimated date",
+                 "confirmed": "confirmed date"}.get(row["date_confidence"], "")
+    if precision:
+        parts.append(precision)
+    detail = "; ".join(parts)
+    return (f"[{row['nct_id']}: {detail}. Full title: {row['title']}]"
+            if detail else f"[{row['nct_id']}. Full title: {row['title']}]")
+
+
 def _upcoming_catalysts(conn, within_days, ticker=None):
     soon_threshold = _date_offset(conn, 14)
     sql = """
-        SELECT c.ticker, cat.catalyst_type, cat.expected_date, cat.title
+        SELECT c.ticker, cat.catalyst_type, cat.expected_date, cat.title,
+               cat.date_confidence, cat.description AS nct_id,
+               t.phase, t.overall_status, t.enrollment, t.conditions,
+               a.brand_name, a.generic_name
           FROM catalysts cat JOIN companies c ON cat.company_id = c.id
+          LEFT JOIN trials t ON t.nct_id = cat.description
+          LEFT JOIN assets a ON a.id = cat.asset_id
          WHERE cat.status = 'pending' AND cat.expected_date >= date('now')
            AND cat.expected_date <= date('now', ?)
     """
@@ -115,6 +158,8 @@ def _upcoming_catalysts(conn, within_days, ticker=None):
             # cut here rather than in the table it came from.
             "headline": (f"{r['ticker']} {r['catalyst_type']}: "
                          f"{_clip(r['title'])} ({r['expected_date']})"),
+            # The full trial fact, for the note; the feed view ignores it.
+            "detail": _catalyst_detail(r),
         })
     return items
 

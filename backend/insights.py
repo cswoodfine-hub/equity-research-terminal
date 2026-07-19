@@ -39,11 +39,18 @@ completed acquisitions, signed or terminated agreements and impairments, detecte
 changes since the last refresh, catalysts inside 60 days, and near-term loss of \
 exclusivity.
 
-Write two short paragraphs, at most ten sentences in total. Open with the single most \
-significant item and what it means for the company. Then cover, in this order and only \
-where the feed has them: material corporate events, what changed since the last \
+Write two short paragraphs, at most twelve sentences in total. Open with the single \
+most significant item and what it means for the company. Then cover, in this order and \
+only where the feed has them: material corporate events, what changed since the last \
 refresh, what is coming inside 60 days, and which products lose exclusivity. Close with \
 the one thing worth watching next. Give dates for anything forward-looking.
+
+A catalyst may carry a bracketed detail line with the trial behind it: the drug, the \
+phase, the status, the enrolment, the indication, the trial identifier, and how firm \
+the date is. Use it. Name the drug and the indication, give the phase and the NCT \
+identifier, and state the comparator when the full title names one. Say when a date is \
+estimated or month-only rather than presenting it as fixed. Take all of this from the \
+detail line and the full title; do not add a fact that is not there.
 
 An 8-K item tells you the category of the event, not its terms. Say that an acquisition \
 completed or an agreement was signed; never name a counterparty, a price, or a product \
@@ -108,12 +115,18 @@ def build_rules_note(ticker: str, items: list[dict]) -> str:
 
 
 def _format_items(items: list[dict]) -> str:
-    """The feed as compact text for the model. Facts only, no framing."""
-    return "\n".join(
-        f"- kind={it['kind']} significance={it.get('significance')} "
-        f"date={(it.get('date') or '')[:10]} {it['headline']}"
-        for it in items
-    )
+    """The feed as compact text for the model. Facts only, no framing.
+
+    A catalyst carries a ``detail`` line with the trial behind it, appended so the note
+    can name the phase, indication, and identifier rather than paraphrase a headline.
+    """
+    lines = []
+    for it in items:
+        lines.append(f"- kind={it['kind']} significance={it.get('significance')} "
+                     f"date={(it.get('date') or '')[:10]} {it['headline']}")
+        if it.get("detail"):
+            lines.append(f"    {it['detail']}")
+    return "\n".join(lines)
 
 
 def _user_content(ticker: str, items: list[dict]) -> str:
