@@ -31,6 +31,7 @@ PAD_R = 96          # room for the direct labels at the end of each series
 TOP = 16
 BOTTOM = 26         # room for the period labels
 BAR_FILL = 0.44     # share of a slot the bar occupies
+MAX_BAR_W = 46      # a short series has wide slots; cap so four bars stay bars, not blocks
 LABEL_GAP = 11      # least vertical space between the two direct labels
 
 
@@ -71,7 +72,7 @@ def render(points, basis: str = "quarterly") -> str:
         return floor - (value - low) / span * (floor - ceiling)
 
     slot = (W - PAD_L - PAD_R) / len(points)
-    bar_w = slot * BAR_FILL
+    bar_w = min(slot * BAR_FILL, MAX_BAR_W)
 
     def x(index):
         return PAD_L + slot * (index + 0.5)

@@ -54,6 +54,8 @@ PRICE_WINDOWS = [("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", None)]
 # so a bank holiday or a weekend does not silently shorten the line.
 SPARK_SESSIONS = 5
 CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
+# Quarters in the growth-against-margin panel: the most recent year, one bar per quarter.
+TREND_QUARTERS = 4
 # Months of catalyst calendar. Two years covers the readout horizon without a control
 # to set it: the dates inside it are estimates anyway, so a tighter window would be
 # false precision about which of them matter.
@@ -649,16 +651,24 @@ with main:
                 'Growth compares the same period a year earlier, never the period '
                 'before it.</div>', unsafe_allow_html=True)
 
+            # The quarterly panel shows the most recent year, one bar per quarter. Growth
+            # is year-over-year on the whole series, so the last four keep their real
+            # comparison; the older quarters are dropped from the view, not the maths.
+            # Annual is left whole, since a four-year panel is too short to read a trend.
+            trend_points = built.get("trend") or []
+            if built["basis"] == "quarterly":
+                trend_points = trend_points[-TREND_QUARTERS:]
+
             # Built as SVG rather than through Altair. A chart made inside a hidden tab
             # is measured at a few pixels and draws about 160px wide for good (see the
             # chart helper), and this panel has to hold its width on this tab.
-            panel = trend_module.render(built.get("trend") or [], built["basis"])
+            panel = trend_module.render(trend_points, built["basis"])
             if panel:
                 section("Growth against margin")
                 st.markdown(f'<div class="trend">{panel}</div>', unsafe_allow_html=True)
                 st.markdown(
                     '<div class="byline">'
-                    f'{trend_module.caption(built.get("trend") or [], built["basis"])}'
+                    f'{trend_module.caption(trend_points, built["basis"])}'
                     '</div>', unsafe_allow_html=True)
         elif not built["is_sec_filer"]:
             state(f"{ticker} does not file with the SEC",
