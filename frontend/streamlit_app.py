@@ -762,18 +762,6 @@ with main:
             'resolve for US filers only. A dash is no free data, not zero.</div>',
             unsafe_allow_html=True)
 
-        scatter = display.dropna(subset=["Growth", "Net margin"])
-        if not scatter.empty:
-            section("Growth against margin", f"{ticker} in oxblood")
-            scatter = scatter.assign(sel=scatter["Ticker"].eq(ticker))
-            chart(alt.Chart(scatter).mark_point(filled=True, size=70).encode(
-                x=alt.X("Growth:Q", title="Revenue growth, %"),
-                y=alt.Y("Net margin:Q", title="Net margin, %"),
-                color=alt.Color("sel:N", scale=alt.Scale(
-                    domain=[False, True], range=[T.P.stale, T.P.oxblood]), legend=None),
-                tooltip=["Ticker:N", alt.Tooltip("Growth:Q", format=".1f"),
-                         alt.Tooltip("Net margin:Q", format=".1f")]), 230)
-
         # A matrix of every company against every phase, so it belongs with the
         # other cross-sectional views rather than in a tab that is otherwise one
         # company at a time.
@@ -812,6 +800,18 @@ with main:
                         'products already approved rather than anything in '
                         'development.</div>',
                         unsafe_allow_html=True)
+
+        scatter = display.dropna(subset=["Growth", "Net margin"])
+        if not scatter.empty:
+            section("Growth against margin", f"{ticker} in oxblood")
+            scatter = scatter.assign(sel=scatter["Ticker"].eq(ticker))
+            chart(alt.Chart(scatter).mark_point(filled=True, size=70).encode(
+                x=alt.X("Growth:Q", title="Revenue growth, %"),
+                y=alt.Y("Net margin:Q", title="Net margin, %"),
+                color=alt.Color("sel:N", scale=alt.Scale(
+                    domain=[False, True], range=[T.P.stale, T.P.oxblood]), legend=None),
+                tooltip=["Ticker:N", alt.Tooltip("Growth:Q", format=".1f"),
+                         alt.Tooltip("Net margin:Q", format=".1f")]), 230)
 
     # --- Pipeline --------------------------------------------------------
     with pipeline_tab:
