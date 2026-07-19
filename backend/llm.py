@@ -28,6 +28,9 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/"
               "models/{model}:generateContent")
 _TIMEOUT_S = 60
+# Groq sits behind Cloudflare, which blocks urllib's default agent with a 1010. Any
+# named agent gets through; without this the key looks rejected when it is fine.
+_USER_AGENT = "Novatalis Research/0.1"
 
 # Provider, its key variable, and its model. Order is the auto-selection precedence.
 _PROVIDERS = (
@@ -83,7 +86,8 @@ def _post(label: str, url: str, headers: dict, body: dict) -> dict:
     body reads once, so this is the only place it can be seen."""
     request = urllib.request.Request(
         url, data=json.dumps(body).encode("utf-8"),
-        headers={**headers, "Content-Type": "application/json"}, method="POST")
+        headers={**headers, "Content-Type": "application/json",
+                 "User-Agent": _USER_AGENT}, method="POST")
     try:
         with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
             return json.loads(resp.read().decode("utf-8"))
