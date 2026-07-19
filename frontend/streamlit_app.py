@@ -834,6 +834,7 @@ with main:
                           .sort_values("n", ascending=False))
                 order = list(totals["Area"])
                 counts = dict(zip(totals["Area"], totals["n"]))
+                phase_counts = areas.groupby("Phase")["n"].sum().to_dict()
 
                 # Chips carry the selection rather than the bars. Vega's point selection
                 # does not reach Streamlit's on_select here, and a chip is a larger and
@@ -882,30 +883,50 @@ with main:
                 # and the axis and legend get their own room rather than eating a band.
                 chart(bars, max(170, 34 * len(order)))
 
-                shown = [t for t in detail if t["area"] in chosen] if chosen else detail
-                section(", ".join(chosen) if chosen else "every area",
-                        f"{len(shown)} trials")
-                if not chosen:
+                # The table stays shut until an area and a phase are picked. Two
+                # hundred rows of every trial is not a starting point anyone reads; the
+                # chart above is, and the table is what you open once it has told you
+                # where to look.
+                phase_pick = st.pills(
+                    "Phase", DISPLAY_PHASES, selection_mode="multi",
+                    format_func=lambda p: f"{p}  {phase_counts.get(p, 0)}",
+                    key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
+
+                shown = [t for t in detail
+                         if t["area"] in chosen and t["phase"] in phase_pick]
+                if not chosen or not phase_pick:
+                    missing = ("an area" if not chosen else "a phase")
                     marketed_note = (
-                        f" {marketed} Phase 4 trials are excluded: they run after "
-                        "approval, so they are lifecycle work rather than pipeline."
-                        if marketed else "")
-                    st.markdown('<div class="byline">Pick one or more areas above to '
-                                'narrow the list. Areas are matched from the registry '
-                                'condition text by keyword, so the rule that placed a '
-                                f'trial is readable rather than guessed.{marketed_note}'
-                                '</div>', unsafe_allow_html=True)
-                st.dataframe(pd.DataFrame([{
-                    "NCT": t["nct_id"], "Phase": t["phase"], "Area": t["area"],
-                    "Status": t["overall_status"],
-                    "Primary completion": t["primary_completion_date"],
-                    # A date that has passed means opposite things depending on this.
-                    # Actual: the endpoint was reached and the trial runs on for
-                    # survival follow-up, sometimes for a decade. Estimated and past:
-                    # the forecast was missed and nobody has updated the record.
-                    "Date": _completion_note(t),
-                    "Conditions": ", ".join(t["conditions"][:3]), "Title": t["title"]}
-                    for t in shown]), width="stretch", hide_index=True)
+                        f" {marketed} Phase 4 trials are excluded throughout: they run "
+                        "after approval, so they are lifecycle work rather than "
+                        "pipeline." if marketed else "")
+                    state(f"Pick {missing} to list the trials",
+                          "The bars answer how much and where; the table answers which. "
+                          "It opens once an area and a phase are both selected, rather "
+                          f"than opening on {len(detail)} rows of everything."
+                          + marketed_note)
+                else:
+                    section(", ".join(chosen), f"{len(shown)} trials, "
+                            + ", ".join(phase_pick))
+                    st.dataframe(pd.DataFrame([{
+                        "NCT": t["nct_id"], "Phase": t["phase"], "Area": t["area"],
+                        "Status": t["overall_status"],
+                        "Primary completion": t["primary_completion_date"],
+                        # A date that has passed means opposite things depending on
+                        # this. Actual: the endpoint was reached and the trial runs on
+                        # for survival follow-up, sometimes for a decade. Estimated and
+                        # past: the forecast was missed and nobody updated the record.
+                        "Date": _completion_note(t),
+                        "Conditions": ", ".join(t["conditions"][:3]),
+                        "Title": t["title"]}
+                        for t in shown]), width="stretch", hide_index=True)
+                    st.markdown(
+                        '<div class="byline">Areas are matched from the registry '
+                        'condition text by keyword, so the rule that placed a trial is '
+                        'readable rather than guessed. Reached means the primary '
+                        'endpoint was met and the study continues for follow-up; '
+                        'overdue means an estimated date has passed without being '
+                        'revised.</div>', unsafe_allow_html=True)
 
     # --- LOE -------------------------------------------------------------
     with loe_tab:
@@ -1024,155 +1045,85 @@ with main:
             # Revenue arrives from the SEC bulk data sets. This is the correction path,
             # and the place a 20-F filer that tags no product axis can be filled in by
             # hand, so it sits behind a disclosure rather than in front of the table.
-            curated = api_get(api_base, f"/companies/{ticker}/revenue")["rows"]
-            hand = [r for r in curated if r.get("source") != "sec_fsds"]
+            revenue_payload = api_get(api_base, f"/companies/{ticker}/revenue")
+            curated = revenue_payload["rows"]
 
             # --- Where the revenue comes from ---
             latest_year = max((r["fiscal_year"] for r in curated), default=None)
             mix_rows = [r for r in curated if r["fiscal_year"] == latest_year]
             mix_currency = next((r["unit"] for r in mix_rows if r.get("unit")), None)
-            mix = revenue_mix.render(mix_rows, mix_currency, latest_year)
+            # The company total is what lets the chart show what it cannot attribute.
+            # Without it the donut would total the tagged products and imply Lilly
+            # earned 50bn rather than 65bn.
+            reported = (revenue_payload.get("company_revenue") or {}).get(
+                str(latest_year)) or {}
+            mix = revenue_mix.render(mix_rows, mix_currency, latest_year,
+                                     reported.get("value"))
             if mix:
                 section("Revenue mix", f"FY{latest_year}")
                 st.markdown(f'<div class="trend">{mix}</div>', unsafe_allow_html=True)
                 st.markdown(
                     '<div class="byline">'
-                    f'{revenue_mix.caption(mix_rows, mix_currency, latest_year)}</div>',
-                    unsafe_allow_html=True)
+                    f'{revenue_mix.caption(mix_rows, mix_currency, latest_year, reported.get("value"))}'
+                    '</div>', unsafe_allow_html=True)
 
-            section("Product revenue",
-                    f"{len(curated)} on file · {len(hand)} hand entered")
-            choices = {f'{a["brand_name"]} · {a["application_number"]}':
-                       a["application_number"]
-                       for a in approvals if a.get("application_number")}
-            with st.expander("Override a figure, or add one the filing does not tag"), \
-                    st.form(f"revenue_{ticker}", clear_on_submit=True):
-                cols = st.columns([2.2, 0.8, 1.1, 0.9, 1.4])
-                pick = cols[0].selectbox("Product", sorted(choices),
-                                         key=f"rev_asset_{ticker}")
-                year = cols[1].number_input("FY", min_value=1990, max_value=2027,
-                                            value=2025, step=1)
-                amount = cols[2].number_input("Revenue, bn", min_value=0.0,
-                                              step=0.1, format="%.3f")
-                unit = cols[3].text_input("Currency", value=(company.get("reporting_currency") or "USD"))
-                note = cols[4].text_input("Source", placeholder="FY2025 10-K")
-                if st.form_submit_button("Save") and pick:
-                    try:
-                        api_post_json(api_base, f"/companies/{ticker}/revenue",
-                                      {"application_number": choices[pick],
-                                       "fiscal_year": int(year),
-                                       # Typed in billions, stored as reported, so the
-                                       # table holds the same magnitude as the filing.
-                                       "value": float(amount) * 1e9,
-                                       "unit": unit.strip().upper() or "USD",
-                                       "source": note})
-                        api_get.clear()
-                        st.rerun()
-                    except urllib.error.HTTPError as exc:
-                        state("Could not save that figure",
-                              exc.read().decode("utf-8", "replace")[:200], error=True)
-
+            section("Product revenue", f"{len(curated)} from the filings")
             if not curated:
                 state(f"No product revenue on file for {ticker}",
                       "The SEC data sets carry revenue per product only where the "
-                      "filer tags a product axis. This one does not, so the figures "
-                      "have to be read off the 10-K and entered above.")
+                      "filer tags a product axis. AbbVie tags none at all, and GSK and "
+                      "Regeneron spread theirs across segments in a way that cannot be "
+                      "resolved without adding them together.")
             else:
                 for row in curated:
-                    left, right = st.columns([6, 1])
-                    origin = ("from the filing" if row.get("source") == "sec_fsds"
-                              else "hand entered")
-                    left.markdown(
+                    st.markdown(
                         f'<div class="fitem"><span class="d">FY{row["fiscal_year"]}'
                         f'</span><span class="t">{html_escape(row["brand_name"])} '
                         f'<span class="mono">{html_escape(row["internal_code"] or "")}'
-                        f'</span> <span class="lu">{origin}</span></span>'
-                        f'<span class="s">'
+                        f'</span></span><span class="s">'
                         f'{T.num(row["value"] / 1e9, 2)} {row["unit"] or ""}</span>'
                         f'</div>', unsafe_allow_html=True)
-                    if right.button("Remove", key=f"rmrev_{row['id']}"):
-                        api_delete(api_base, f"/revenue/{row['id']}")
-                        api_get.clear()
-                        st.rerun()
+                st.markdown(
+                    '<div class="byline">Worldwide, as the filing tags it, from the SEC '
+                    'Financial Statement Data Sets. Nothing here is typed in: a figure '
+                    'is what the company reported or it is absent.</div>',
+                    unsafe_allow_html=True)
 
     # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
-        section("Catalyst calendar", "curated")
-        with st.form("add_catalyst", clear_on_submit=True):
-            cols = st.columns([1, 1, 1, 3])
-            cat_ticker = cols[0].selectbox("Company", tickers, index=default_index,
-                                           key="cat_ticker")
-            cat_type = cols[1].selectbox("Type", CATALYST_TYPES, key="cat_type")
-            cat_date = cols[2].date_input("Expected date", key="cat_date")
-            cat_title = cols[3].text_input("Title", key="cat_title")
-            if st.form_submit_button("Add catalyst"):
-                if cat_title.strip():
-                    try:
-                        api_post_json(api_base, "/catalysts", {
-                            "ticker": cat_ticker, "catalyst_type": cat_type,
-                            "expected_date": str(cat_date), "title": cat_title.strip()})
-                        api_get.clear()
-                        st.rerun()
-                    except (urllib.error.URLError, OSError) as exc:
-                        state("The catalyst was not saved", str(exc), error=True)
-                else:
-                    state("A catalyst needs a title",
-                          "Give it the event name, for example Winrevair sBLA decision.")
-
+        # Derived only. Readouts come from Phase 3 primary completion dates on every
+        # refresh, so the calendar is rebuilt rather than maintained. The add form is
+        # gone: a date typed in once goes stale silently and nothing tells you.
+        section("Catalyst calendar", "derived on refresh")
         window = st.radio("Window", [90, 180, 365], index=0, horizontal=True,
                           format_func=lambda d: f"{d} days", key="cat_window",
                           label_visibility="collapsed")
         calendar = api_get(api_base, f"/catalysts?within_days={window}")
-        mine = [c for c in calendar if c["is_curated"]]
-        derived = [c for c in calendar if not c["is_curated"]]
-
         if not calendar:
             state(f"No catalysts in the next {window} days",
                   "Readouts are derived from Phase 3 primary completion dates on every "
                   "refresh, so this fills once trials are fetched. PDUFA dates have no "
-                  "free source and are added by hand above.")
+                  "free source and do not appear here at all.")
         else:
-            section("Calendar", f"{len(mine)} yours · {len(derived)} derived")
+            section("Calendar", f"{len(calendar)} readouts")
             frame = pd.DataFrame([{
                 "id": c["id"],
-                "Source": "yours" if c["is_curated"] else "derived",
                 "Date": c["expected_date"], "Company": c["ticker"],
                 "Type": c["catalyst_type"], "Confidence": c["date_confidence"],
                 "Title": c["title"], "Evidence": c["source_url"] or "—"}
                 for c in calendar])
             st.dataframe(
-                frame.style.map(
-                    lambda v: f"color:{T.P.ink if v == 'yours' else T.P.stale};"
-                              "font-weight:600", subset=["Source"]),
+                frame,
                 width="stretch", hide_index=True,
                 column_config={"Evidence": st.column_config.LinkColumn(
                     "Evidence", display_text=r"NCT\w+")})
             st.markdown(
-                '<div class="byline">Derived rows come from Phase 3 primary completion '
-                'dates on ClinicalTrials.gov, which are estimates and move. A refresh '
-                'updates a derived date in place and withdraws the row if the trial '
-                'stops. Accept one to make it yours, after which no refresh will touch '
-                'it.</div>', unsafe_allow_html=True)
-
-            act = st.columns([1, 1, 1, 4])
-            target = act[0].number_input("Row id", min_value=0, step=1, value=0,
-                                         key="cat_target")
-            if act[1].button("Accept", key="cat_accept") and target:
-                try:
-                    api_post(api_base, f"/catalysts/{int(target)}/accept", timeout=30)
-                    api_get.clear()
-                    st.rerun()
-                except (urllib.error.URLError, OSError) as exc:
-                    state("That row was not accepted",
-                          f"{exc}. Only a derived row can be accepted; a row that is "
-                          "already yours has nothing to promote.", error=True)
-            if act[2].button("Delete", key="cat_delete") and target:
-                try:
-                    api_delete(api_base, f"/catalysts/{int(target)}")
-                    api_get.clear()
-                    st.rerun()
-                except (urllib.error.URLError, OSError) as exc:
-                    state("That row was not deleted", str(exc), error=True)
+                '<div class="byline">Every row is derived from a Phase 3 primary '
+                'completion date on ClinicalTrials.gov. Those are estimates and they '
+                'move, so a refresh updates the date in place and withdraws the row if '
+                'the trial stops. Nothing here is typed in, and nothing needs '
+                'maintaining. PDUFA dates have no free source and are absent rather '
+                'than guessed.</div>', unsafe_allow_html=True)
 
     # --- News ------------------------------------------------------------
     with news_tab:

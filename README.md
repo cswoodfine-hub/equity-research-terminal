@@ -162,9 +162,9 @@ reporting both a total and its parts would otherwise be double counted. Category
 on the same axis (therapeutic areas, `OtherProductTotal`, gross-before-rebates totals)
 are filtered by name and then by having to match an asset's brand name.
 
-Figures can still be entered by hand, on the Approvals tab, which is how a filer that
-tags no product axis gets covered. A hand entered figure always outranks the filing, so
-a correction survives the next refresh.
+Nothing is entered by hand. A figure is what the company reported or it is absent, so a
+filer that tags no product axis (AbbVie) shows none rather than a number someone typed
+once and never revisited.
 
 Coverage is 13 of the 16 SEC filers, 124 products. AbbVie tags no product axis at all,
 and GSK and Regeneron spread their products across segments in a way that would need
@@ -194,8 +194,9 @@ exclusivity is excluded from the cliff entirely, which takes it from 348 product
 **Revenue mix** on the Approvals tab draws the largest drivers as their own slices and
 brackets the rest into one. A pie is only readable while the slices are few and
 different in size, so anything past the sixth product, or under 2% of the total, joins
-the bracket. The total in the middle is the tagged products only, not company revenue:
-whatever the filing does not break out is absent.
+the bracket. The donut totals to company revenue, not to the tagged products: the gap
+between them is drawn as a hollow wedge, which for Lilly is the 15.1bn of collaboration
+revenue, lines reported only as a total, and products the app holds no asset for.
 
 A full `?scope=all` refresh pulls every source for all 18 companies (Yahoo, EDGAR, and
 paginated ClinicalTrials queries). Companies run in parallel, four at a time. Measured

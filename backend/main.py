@@ -275,9 +275,29 @@ def company_approvals(ticker: str) -> dict:
 
 @app.get("/companies/{ticker}/revenue")
 def company_asset_revenue(ticker: str) -> dict:
-    """Curated product revenue. Hand entered; no free source carries it."""
-    return {"ticker": ticker.upper(),
-            "rows": asset_revenue_module.list_revenue(None, ticker)}
+    """Product revenue, with the company total the products sit inside.
+
+    The total is what lets the mix show what it cannot attribute. Lilly's tagged
+    products come to 50.07bn against 65.18bn reported, and a chart that drew only the
+    50.07 would imply the rest does not exist.
+    """
+    ticker = ticker.upper()
+    rows = asset_revenue_module.list_revenue(None, ticker)
+    totals = {}
+    conn = db.get_connection()
+    try:
+        for row in conn.execute(
+            """
+            SELECT f.fiscal_year, f.value, f.unit FROM financials f
+              JOIN companies c ON c.id = f.company_id
+             WHERE c.ticker = ? AND f.metric = 'Revenues' AND f.period_type = 'FY'
+            """,
+            (ticker,),
+        ):
+            totals[row["fiscal_year"]] = {"value": row["value"], "unit": row["unit"]}
+    finally:
+        conn.close()
+    return {"ticker": ticker, "rows": rows, "company_revenue": totals}
 
 
 class AssetRevenueIn(BaseModel):

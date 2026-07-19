@@ -86,11 +86,47 @@ def test_a_single_product_still_draws_a_ring():
     assert svg.startswith("<svg") and "<path" in svg
 
 
-def test_the_caption_says_what_is_missing():
+def test_the_caption_names_the_lead_and_the_year():
     caption = revenue_mix.caption(_products(("Big", 30e9), ("Small", 10e9)), "USD", 2025)
     assert "FY2025" in caption
     assert "75%" in caption                    # Big's share, stated plainly
-    assert "not total company revenue" in caption
+
+
+# --- revenue the filing does not attribute to a product ------------------
+def test_the_gap_to_company_revenue_becomes_a_slice():
+    """Lilly tags 50.07bn of products against 65.18bn reported. A donut totalling the
+    tagged part alone would say the company earned 50bn."""
+    products = _products(("Big", 30e9), ("Small", 10e9))
+    assert revenue_mix.residual(products, 65e9) == pytest.approx(25e9)
+
+
+def test_no_gap_means_no_slice():
+    products = _products(("A", 30e9), ("B", 10e9))
+    assert revenue_mix.residual(products, 40e9) is None
+    # And a total below the tagged products is refused rather than drawn negative.
+    assert revenue_mix.residual(products, 20e9) is None
+    assert revenue_mix.residual(products, None) is None
+
+
+def test_the_donut_totals_to_company_revenue():
+    products = _products(("Big", 30e9), ("Small", 10e9))
+    svg = revenue_mix.render(products, "USD", 2025, company_revenue=65e9)
+    assert "not broken out by product" in svg
+    assert ">65.0<" in svg                      # the hole carries the company total
+
+
+def test_the_unattributed_wedge_is_hollow():
+    """It is not one more brand, so it is not filled like one."""
+    products = _products(("Big", 30e9))
+    svg = revenue_mix.render(products, "USD", 2025, company_revenue=65e9)
+    assert 'stroke-dasharray' in svg
+
+
+def test_the_caption_sizes_the_unattributed_part():
+    caption = revenue_mix.caption(_products(("Big", 30e9)), "USD", 2025,
+                                  company_revenue=65e9)
+    assert "35.0bn" in caption
+    assert "does not attribute" in caption
 
 
 def test_the_caption_counts_the_bracketed_products():
