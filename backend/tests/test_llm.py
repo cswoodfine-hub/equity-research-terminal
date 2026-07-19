@@ -11,7 +11,8 @@ import llm
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
-    for var in ("GEMINI_API_KEY", "ANTHROPIC_API_KEY", "LLM_PROVIDER"):
+    for var in ("GROQ_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY",
+                "LLM_PROVIDER"):
         monkeypatch.delenv(var, raising=False)
 
 
@@ -21,6 +22,12 @@ def test_no_key_is_no_provider(monkeypatch):
     assert llm.model_name() is None
     with pytest.raises(RuntimeError, match="no model provider"):
         llm.complete("s", "u")
+
+
+def test_groq_key_selects_groq(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "x")
+    assert llm.provider() == "groq"
+    assert llm.model_name() == llm.GROQ_MODEL
 
 
 def test_gemini_key_selects_gemini(monkeypatch):
@@ -35,10 +42,15 @@ def test_anthropic_key_selects_anthropic(monkeypatch):
     assert llm.model_name() == llm.ANTHROPIC_MODEL
 
 
-def test_gemini_wins_when_both_are_present(monkeypatch):
-    """The free path the user moved to should not be shadowed by a dead paid key."""
-    monkeypatch.setenv("GEMINI_API_KEY", "x")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "y")
+def test_a_free_key_is_not_shadowed_by_a_dead_paid_one(monkeypatch):
+    """Auto order is Groq, then Gemini, then Anthropic, so a working free key wins over
+    a paid one the account cannot use."""
+    monkeypatch.setenv("GROQ_API_KEY", "x")
+    monkeypatch.setenv("GEMINI_API_KEY", "y")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "z")
+    assert llm.provider() == "groq"
+
+    monkeypatch.delenv("GROQ_API_KEY")
     assert llm.provider() == "gemini"
 
 
@@ -62,6 +74,13 @@ def test_a_blank_key_is_not_a_key(monkeypatch):
 
 
 # --- parsing a Gemini response -------------------------------------------
+def test_groq_text_reads_the_message():
+    payload = {"choices": [{"message": {"content": "one two"}}]}
+    assert llm.groq_text(payload) == "one two"
+    with pytest.raises(ValueError):
+        llm.groq_text({"choices": []})
+
+
 def test_gemini_text_joins_the_parts():
     payload = {"candidates": [{"content": {"parts": [{"text": "one "}, {"text": "two"}]}}]}
     assert llm.gemini_text(payload) == "one two"
@@ -77,7 +96,7 @@ def test_a_blocked_response_is_an_error_not_an_empty_note():
 
 
 def test_complete_routes_to_the_selected_provider(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "x")
-    monkeypatch.setattr(llm, "_gemini",
+    monkeypatch.setenv("GROQ_API_KEY", "x")
+    monkeypatch.setattr(llm, "_groq",
                         lambda system, user, mx: f"{system}|{user}|{mx}")
     assert llm.complete("sys", "usr", 42) == "sys|usr|42"

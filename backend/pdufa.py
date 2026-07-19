@@ -193,8 +193,8 @@ def is_fatal(exc: Exception) -> bool:
     return any(phrase in text for phrase in
                ("credit balance", "quota", "billing", "invalid x-api-key",
                 "authentication_error", "api_key_invalid", "api key not valid",
-                "resource_exhausted", "permission_denied", "gemini http 401",
-                "gemini http 403", "gemini http 429"))
+                "invalid api key", "resource_exhausted", "permission_denied",
+                "http 401", "http 403", "http 429"))
 
 
 def _ask(document: str, filing: dict) -> dict | None:
@@ -214,9 +214,9 @@ def extract(db_path=None, limit: int = 25, today=None) -> dict:
     today = today or dt.date.today()
     if llm.provider() is None:
         return {"status": "no key", "read": 0, "found": 0, "errors": [],
-                "detail": "No model provider is configured (set GEMINI_API_KEY or "
-                          "ANTHROPIC_API_KEY), so no PDUFA dates were extracted. The "
-                          "calendar carries registry readouts only."}
+                "detail": "No model provider is configured (set GROQ_API_KEY, "
+                          "GEMINI_API_KEY or ANTHROPIC_API_KEY), so no PDUFA dates were "
+                          "extracted. The calendar carries registry readouts only."}
 
     conn = db.get_connection(db_path)
     try:

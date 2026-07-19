@@ -2,18 +2,15 @@
 
 The app was wired to the Anthropic SDK. This is the seam in front of it: the morning
 note and the PDUFA extraction call ``complete`` and neither knows nor cares which
-provider answered. Gemini is called over its REST endpoint with urllib, the way every
-other source in this app is called, so it needs no SDK installed. Anthropic keeps its
-SDK, which is already wired and tested.
+provider answered. Groq and Gemini are called over their REST endpoints with urllib, the
+way every other source in this app is called, so they need no SDK installed. Anthropic
+keeps its SDK, which is already wired and tested.
 
-Selection is explicit or automatic. ``LLM_PROVIDER`` pins one. Otherwise Gemini wins
-when ``GEMINI_API_KEY`` is set, then Anthropic when ``ANTHROPIC_API_KEY`` is set, then
-nothing, which leaves the note on its rules layer and PDUFA switched off. A provider
-whose key is absent is never chosen, so a stale ``LLM_PROVIDER`` degrades rather than
-crashes.
+Selection is explicit or automatic. ``LLM_PROVIDER`` pins one. Otherwise the first key
+present wins, in order Groq, Gemini, Anthropic. A provider whose key is absent is never
+chosen, so a stale ``LLM_PROVIDER`` degrades rather than crashes.
 
-The key travels in a header, never the URL, so it cannot be logged by a proxy or land in
-a stored request line.
+The key rides in a header, never the URL, so a proxy or a log cannot capture it.
 """
 
 from __future__ import annotations
@@ -23,11 +20,21 @@ import os
 import urllib.error
 import urllib.request
 
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 ANTHROPIC_MODEL = "claude-opus-4-8"
+
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/"
               "models/{model}:generateContent")
 _TIMEOUT_S = 60
+
+# Provider, its key variable, and its model. Order is the auto-selection precedence.
+_PROVIDERS = (
+    ("groq", "GROQ_API_KEY", GROQ_MODEL),
+    ("gemini", "GEMINI_API_KEY", GEMINI_MODEL),
+    ("anthropic", "ANTHROPIC_API_KEY", ANTHROPIC_MODEL),
+)
 
 
 def _has(var: str) -> bool:
@@ -37,21 +44,20 @@ def _has(var: str) -> bool:
 def provider() -> str | None:
     """The provider to use, or None when no key is configured."""
     pinned = (os.getenv("LLM_PROVIDER") or "").strip().lower()
-    if pinned == "gemini" and _has("GEMINI_API_KEY"):
-        return "gemini"
-    if pinned == "anthropic" and _has("ANTHROPIC_API_KEY"):
-        return "anthropic"
-    # An unset or unusable pin falls through to auto rather than failing.
-    if _has("GEMINI_API_KEY"):
-        return "gemini"
-    if _has("ANTHROPIC_API_KEY"):
-        return "anthropic"
+    for name, keyvar, _ in _PROVIDERS:
+        if name == pinned and _has(keyvar):
+            return name
+    # An unset or unusable pin falls through to the first key present.
+    for name, keyvar, _ in _PROVIDERS:
+        if _has(keyvar):
+            return name
     return None
 
 
 def model_name() -> str | None:
     """The model string to record on a note, or None when no provider is configured."""
-    return {"gemini": GEMINI_MODEL, "anthropic": ANTHROPIC_MODEL}.get(provider())
+    active = provider()
+    return next((model for name, _, model in _PROVIDERS if name == active), None)
 
 
 def complete(system: str, user: str, max_tokens: int = 1024) -> str:
@@ -59,12 +65,57 @@ def complete(system: str, user: str, max_tokens: int = 1024) -> str:
     what the callers already expect: the note degrades to its rules layer and the PDUFA
     run stops on a failure that will repeat."""
     active = provider()
+    if active == "groq":
+        return _groq(system, user, max_tokens)
     if active == "gemini":
         return _gemini(system, user, max_tokens)
     if active == "anthropic":
         return _anthropic(system, user, max_tokens)
     raise RuntimeError("no model provider configured "
-                       "(set GEMINI_API_KEY or ANTHROPIC_API_KEY)")
+                       "(set GROQ_API_KEY, GEMINI_API_KEY or ANTHROPIC_API_KEY)")
+
+
+# --- shared REST plumbing ------------------------------------------------
+def _post(label: str, url: str, headers: dict, body: dict) -> dict:
+    """POST JSON and parse the reply, turning an HTTP error into a message that names
+    the cause. Both providers put the reason in ``error.message``; a bad key is a 400 on
+    Gemini and a 401 on Groq, so the code alone does not say why but the body does. The
+    body reads once, so this is the only place it can be seen."""
+    request = urllib.request.Request(
+        url, data=json.dumps(body).encode("utf-8"),
+        headers={**headers, "Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = ((json.loads(exc.read().decode("utf-8")).get("error") or {})
+                      .get("message", ""))
+        except Exception:
+            pass
+        raise RuntimeError(f"{label} HTTP {exc.code}: {detail or exc.reason}") from exc
+
+
+# --- Groq, over its OpenAI-compatible endpoint ---------------------------
+def groq_text(payload: dict) -> str:
+    """The text out of a chat-completions response, or a raised error. Pure."""
+    choices = payload.get("choices") or []
+    if not choices:
+        raise ValueError(f"groq returned nothing: {str(payload)[:120]}")
+    return ((choices[0].get("message") or {}).get("content") or "").strip()
+
+
+def _groq(system: str, user: str, max_tokens: int) -> str:
+    key = os.getenv("GROQ_API_KEY", "").strip()
+    body = {
+        "model": GROQ_MODEL,
+        "messages": [{"role": "system", "content": system},
+                     {"role": "user", "content": user}],
+        "max_tokens": max_tokens,
+        "temperature": 0.2,
+    }
+    return groq_text(_post("groq", GROQ_URL, {"Authorization": f"Bearer {key}"}, body))
 
 
 # --- Gemini, over REST ---------------------------------------------------
@@ -88,30 +139,12 @@ def _gemini(system: str, user: str, max_tokens: int) -> str:
         "systemInstruction": {"parts": [{"text": system}]},
         "contents": [{"role": "user", "parts": [{"text": user}]}],
         # Low temperature: the note states facts and the extraction reads them, neither
-        # wants invention. The models honest guards are in the callers, not here.
+        # wants invention. The honest guards are in the callers, not here.
         "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.2},
     }
-    request = urllib.request.Request(
-        GEMINI_URL.format(model=GEMINI_MODEL),
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json", "x-goog-api-key": key},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
-            return gemini_text(json.loads(resp.read().decode("utf-8")))
-    except urllib.error.HTTPError as exc:
-        # Surface Google's own message. A bad key is a 400, not a 401, so the status
-        # code alone does not say why; the body names it ("API key not valid",
-        # "RESOURCE_EXHAUSTED"), which is what lets the caller tell a repeating failure
-        # from a one-off. The body reads once, so this is the only place it can be seen.
-        detail = ""
-        try:
-            detail = ((json.loads(exc.read().decode("utf-8")).get("error") or {})
-                      .get("message", ""))
-        except Exception:
-            pass
-        raise RuntimeError(f"gemini HTTP {exc.code}: {detail or exc.reason}") from exc
+    payload = _post("gemini", GEMINI_URL.format(model=GEMINI_MODEL),
+                    {"x-goog-api-key": key}, body)
+    return gemini_text(payload)
 
 
 # --- Anthropic, over the SDK ---------------------------------------------

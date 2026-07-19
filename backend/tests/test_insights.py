@@ -96,6 +96,7 @@ def test_rules_note_when_nothing_flagged():
 
 
 def test_generate_note_falls_back_to_rules_without_a_key(tmp_path, monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("LLM_PROVIDER", raising=False)

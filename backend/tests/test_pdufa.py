@@ -128,6 +128,7 @@ def test_matching_ignores_whitespace_and_case():
 
 # --- without a key --------------------------------------------------------
 def test_no_provider_is_reported_not_crashed(tmp_path, monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("LLM_PROVIDER", raising=False)
@@ -137,7 +138,7 @@ def test_no_provider_is_reported_not_crashed(tmp_path, monkeypatch):
 
     assert result["status"] == "no key"
     assert result["found"] == 0
-    assert "GEMINI_API_KEY" in result["detail"]
+    assert "GROQ_API_KEY" in result["detail"]
 
 
 def test_candidates_are_recent_filings_of_the_right_kind(tmp_path):
@@ -207,5 +208,6 @@ def test_a_bad_gemini_key_is_fatal():
     assert pdufa.is_fatal(RuntimeError(
         "gemini HTTP 400: API key not valid. Please pass a valid API key."))
     assert pdufa.is_fatal(RuntimeError("gemini HTTP 429: RESOURCE_EXHAUSTED"))
+    assert pdufa.is_fatal(RuntimeError("groq HTTP 401: Invalid API Key"))
     # A one-off content error is not fatal.
-    assert not pdufa.is_fatal(RuntimeError("gemini HTTP 500: internal"))
+    assert not pdufa.is_fatal(RuntimeError("groq HTTP 500: internal"))

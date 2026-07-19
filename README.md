@@ -78,17 +78,18 @@ The what-changed feed has two layers. The rules layer always runs. The note laye
 summarises one company's slice of it into a short paragraph.
 
 The note and the PDUFA extraction run on whichever model provider has a key, behind one
-seam in `llm.py`. **Google Gemini has a free tier** (`GEMINI_API_KEY`, from
-aistudio.google.com, no card) and is called over its REST endpoint, so it needs no SDK.
-**Anthropic** (`ANTHROPIC_API_KEY`, paid) is the fallback and keeps its SDK. When both
-are set Gemini wins, since it is the free path; `LLM_PROVIDER=gemini|anthropic` pins one.
-The chosen model is prompted to use only the supplied feed items and never to invent a
-number, and `model` in the response records which model wrote the note.
+seam in `llm.py`. **Groq** (`GROQ_API_KEY`, from console.groq.com) and **Google Gemini**
+(`GEMINI_API_KEY`, from aistudio.google.com) both have free tiers and are called over
+REST, so they need no SDK; Gemini's free tier is regional and may be unavailable.
+**Anthropic** (`ANTHROPIC_API_KEY`, paid) keeps its SDK. With several keys set the first
+present wins, in order Groq, Gemini, Anthropic; `LLM_PROVIDER` pins one. The chosen model
+is prompted to use only the supplied feed items and never to invent a number, and `model`
+in the response records which model wrote the note.
 
 With no key set the note is a deterministic list of the flagged items and `model` reads
 `rules`, so the UI can say which layer produced it. If the model errors, the note falls
 back to the rules layer and reports the error rather than failing the request. A key
-that is out of credit or a bad Gemini key is caught and reported, not retried per
+that is out of credit, rejected, or rate limited is caught and reported, not retried per
 filing.
 
 Every note is stored in `insights` with the `changes.id` values it was built from, so
