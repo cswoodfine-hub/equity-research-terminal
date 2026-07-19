@@ -993,13 +993,19 @@ with main:
                 '10-K, in billions of the reporting currency, because no free source '
                 'publishes revenue per product.</div>', unsafe_allow_html=True)
 
-            # --- Entering a revenue figure ---
-            section("Product revenue", "hand entered")
+            # --- Overriding a revenue figure ---
+            # Revenue arrives from the SEC bulk data sets. This is the correction path,
+            # and the place a 20-F filer that tags no product axis can be filled in by
+            # hand, so it sits behind a disclosure rather than in front of the table.
             curated = api_get(api_base, f"/companies/{ticker}/revenue")["rows"]
+            hand = [r for r in curated if r.get("source") != "sec_fsds"]
+            section("Product revenue",
+                    f"{len(curated)} on file · {len(hand)} hand entered")
             choices = {f'{a["brand_name"]} · {a["application_number"]}':
                        a["application_number"]
                        for a in approvals if a.get("application_number")}
-            with st.form(f"revenue_{ticker}", clear_on_submit=True):
+            with st.expander("Override a figure, or add one the filing does not tag"), \
+                    st.form(f"revenue_{ticker}", clear_on_submit=True):
                 cols = st.columns([2.2, 0.8, 1.1, 0.9, 1.4])
                 pick = cols[0].selectbox("Product", sorted(choices),
                                          key=f"rev_asset_{ticker}")
@@ -1027,17 +1033,20 @@ with main:
 
             if not curated:
                 state(f"No product revenue on file for {ticker}",
-                      "Add a figure above and the exclusivity cliff prices itself. "
-                      "Until then the LOE tab counts products rather than money, and "
-                      "says so.")
+                      "The SEC data sets carry revenue per product only where the "
+                      "filer tags a product axis. This one does not, so the figures "
+                      "have to be read off the 10-K and entered above.")
             else:
                 for row in curated:
                     left, right = st.columns([6, 1])
+                    origin = ("from the filing" if row.get("source") == "sec_fsds"
+                              else "hand entered")
                     left.markdown(
                         f'<div class="fitem"><span class="d">FY{row["fiscal_year"]}'
                         f'</span><span class="t">{html_escape(row["brand_name"])} '
                         f'<span class="mono">{html_escape(row["internal_code"] or "")}'
-                        f'</span></span><span class="s">'
+                        f'</span> <span class="lu">{origin}</span></span>'
+                        f'<span class="s">'
                         f'{T.num(row["value"] / 1e9, 2)} {row["unit"] or ""}</span>'
                         f'</div>', unsafe_allow_html=True)
                     if right.button("Remove", key=f"rmrev_{row['id']}"):

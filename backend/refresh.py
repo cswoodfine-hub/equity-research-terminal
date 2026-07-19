@@ -26,6 +26,7 @@ from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
 from fetchers.prices import IntradayPricesFetcher, PricesFetcher
+from fetchers.product_revenue_sec import ProductRevenueFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 
 DEFAULT_TICKER = "LLY"
@@ -52,8 +53,10 @@ def _company_fetchers(company, db_path):
 
 
 def _universe_fetchers(db_path):
-    """Sources that download one file for the whole universe (LOE, weekly)."""
-    return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path)]
+    """Sources that download one file for the whole universe (LOE weekly, product
+    revenue from the SEC bulk data sets, which only move quarterly)."""
+    return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path),
+            ProductRevenueFetcher(db_path)]
 
 
 def _start_run(db_path) -> int:

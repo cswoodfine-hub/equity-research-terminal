@@ -148,12 +148,23 @@ Book carries for it, the basis of that date, and its revenue. Protection is per 
 so several approvals of one product share it, and a dash means the books hold no entry
 rather than that the product is unprotected.
 
-**Product revenue is hand entered**, for the same reason catalysts are: no free source
-publishes it. Companies do report it, in the product table of the 10-K, and they tag it
-against a product axis in XBRL, but the companyfacts API collapses those dimensions and
-returns the consolidated `Revenues` line alone. Splitting that total across products by
-any rule would be an estimate wearing the clothes of a fact, so the figure is typed in
-or it is absent.
+**Product revenue comes from the SEC Financial Statement Data Sets.** The companyfacts
+API collapses every XBRL dimension and returns the consolidated `Revenues` line alone,
+which is why product revenue looks unavailable from the API. The quarterly bulk data
+sets keep the dimensions in a `segments` column, so `ProductOrService=Zepbound` is right
+there and free. Roughly 80MB a quarter, cached under `backend/cache/` and refreshed
+quarterly, which is as often as the source moves.
+
+A worldwide figure is only taken when the filing states one, or when the geography
+members form a partition the fetcher recognises (US plus non-US, and similar). An
+unrecognised split yields nothing rather than a plausible number, because a filer
+reporting both a total and its parts would otherwise be double counted. Category members
+on the same axis (therapeutic areas, `OtherProductTotal`, gross-before-rebates totals)
+are filtered by name and then by having to match an asset's brand name.
+
+Figures can still be entered by hand, on the Approvals tab, which is how a filer that
+tags no product axis gets covered. A hand entered figure always outranks the filing, so
+a correction survives the next refresh.
 
 That makes the **LOE** tab's capital-at-risk panel honest about itself. It carries two
 registers: bars for the revenue falling off protection each year, and beneath them one
