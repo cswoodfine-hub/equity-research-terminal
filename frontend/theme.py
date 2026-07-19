@@ -311,10 +311,19 @@ h3 {{ font-size: 0.9rem; }}
    is part of the shape. */
 .cal {{
   display: grid; grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
+  /* Every row the height of the tallest cell in the grid, so a busy month and a quiet
+     one are the same box. A calendar whose cells resize by content is a list wearing
+     a grid, and the eye reads the size as meaning. */
+  grid-auto-rows: 1fr;
   gap: 1px; background: var(--rule); border: 1px solid var(--rule);
   margin: 0.3rem 0 0.2rem;
 }}
-.cal-month {{ background: var(--ground); padding: 0.45rem 0.6rem 0.55rem; min-height: 74px; }}
+.cal-month {{
+  background: var(--ground); padding: 0.45rem 0.6rem 0.55rem; min-height: 96px;
+  /* A month busier than the tallest row scrolls inside its own cell rather than
+     stretching every other cell to match it. */
+  overflow-y: auto;
+}}
 .cal-month.empty {{ background: {P.raised}; }}
 .cal-month.now {{ box-shadow: inset 2px 0 0 var(--data); }}
 .cal-head {{

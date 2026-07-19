@@ -54,6 +54,10 @@ PRICE_WINDOWS = [("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", None)]
 # so a bank holiday or a weekend does not silently shorten the line.
 SPARK_SESSIONS = 5
 CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
+# Months of catalyst calendar. Two years covers the readout horizon without a control
+# to set it: the dates inside it are estimates anyway, so a tighter window would be
+# false precision about which of them matter.
+CALENDAR_MONTHS = 24
 
 
 # --- Transport ----------------------------------------------------------
@@ -1103,9 +1107,9 @@ with main:
         # than maintained. The add form is gone: a date typed in once goes stale
         # silently and nothing tells you.
         section(f"Catalyst calendar for {ticker}", "derived on refresh")
-        window = st.radio("Window", [6, 12, 24], index=1, horizontal=True,
-                          format_func=lambda m: f"{m} months", key="cat_months",   # renamed: the old key held a day count
-                          label_visibility="collapsed")
+        # One window, so no control. Two years is the span a readout calendar is read
+        # over, and a shorter one hid the far half of what is already known.
+        window = CALENDAR_MONTHS
         calendar = api_get(
             api_base,
             f"/catalysts?within_days={window * 31}"
