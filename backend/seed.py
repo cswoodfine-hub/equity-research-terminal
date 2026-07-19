@@ -16,14 +16,9 @@ import time
 import urllib.request
 from pathlib import Path
 
+import env  # noqa: F401  loads the .env from the repo root
+
 import db
-
-try:  # optional: load SEC_USER_AGENT etc. from a local .env if present
-    from dotenv import load_dotenv
-
-    load_dotenv()
-except ModuleNotFoundError:  # dotenv is not required to import this module
-    pass
 
 logger = logging.getLogger(__name__)
 

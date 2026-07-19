@@ -17,6 +17,8 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 
+import env  # noqa: F401  loads the .env before any module reads it
+
 import catalysts
 import db
 import diff

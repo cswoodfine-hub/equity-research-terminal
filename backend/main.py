@@ -13,6 +13,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
+import env  # noqa: F401  loads the .env from the repo root, before any module reads it
 import asset_revenue as asset_revenue_module
 import catalysts as catalysts_module
 import comps as comps_module
@@ -23,13 +24,6 @@ import loe as loe_module
 import pipeline as pipeline_module
 import refresh as refresh_module
 import whatchanged as whatchanged_module
-
-try:  # optional local .env, mirrors seed.py
-    from dotenv import load_dotenv
-
-    load_dotenv()
-except ModuleNotFoundError:
-    pass
 
 
 @asynccontextmanager
