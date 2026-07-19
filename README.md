@@ -55,6 +55,7 @@ curl -X POST 'localhost:8000/refresh?scope=all'   # whole universe (needed for c
 curl localhost:8000/companies                     # the 18-company universe
 curl localhost:8000/companies/LLY/prices          # close series + latest quote
 curl localhost:8000/companies/LLY/financials      # stored EDGAR financials
+curl 'localhost:8000/companies/LLY/statements?basis=quarterly'  # three statements
 curl localhost:8000/comps                          # the comps table
 curl localhost:8000/pipeline                       # company x phase trial counts
 curl 'localhost:8000/companies/LLY/trials?phase=Phase%203'  # trials behind a cell
@@ -128,6 +129,17 @@ form; the table is curated), and a **News** tab (per-company EDGAR 8-K/6-K). The
 base URL is configurable in the sidebar (default `http://localhost:8000`). Blank comps
 cells are no free data, not zero; pipeline and LOE counts are trials/products, not
 deduplicated or revenue-weighted; the what-changed feed fills in after a second refresh.
+
+**Financials** carries the three statements at every period a filer tags, quarterly or
+annual, with a snapshot of the latest reported period against the same period a year
+earlier. Coverage is uneven by filer and the tab says so rather than papering over it:
+of the 18 companies, 16 file with the SEC and 2 (Roche, Bayer) do not, and among the 16
+the 20-F filers vary from full interim tagging to annual only. A line the filer does not
+tag is a dash, never a zero. Dotted figures are computed from two reported lines, which
+covers subtotals a filer skips (Lilly never tags gross profit) and fourth quarters,
+which nobody tags and which are the reported year less the reported nine months.
+Per-share lines are excluded from that subtraction, since EPS does not add up across
+quarters. Cash flow columns are cumulative from the year start, as a 10-Q reports them.
 
 A full `?scope=all` refresh pulls every source for all 18 companies (Yahoo, EDGAR, and
 paginated ClinicalTrials queries). Companies run in parallel, four at a time. Measured

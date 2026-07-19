@@ -256,6 +256,51 @@ h3 {{ font-size: 0.9rem; }}
 [data-testid="stDataFrame"] {{ border: 1px solid var(--rule); border-radius: 0; }}
 [data-testid="stDataFrame"] * {{ font-family: {BODY} !important; }}
 
+/* Statement grid. Built as a real table rather than a dataframe widget: the canvas
+   dataframe cannot hold a dotted rule under one cell, weight a subtotal row, or keep
+   the label column from being scrolled away from its figures. */
+.fin-wrap {{ overflow-x: auto; margin: 0.2rem 0 0.1rem; }}
+/* Streamlit's markdown stylesheet sizes tables to their content, which leaves a
+   statement huddled in the left third of the column. Fixed layout also keeps every
+   period column the same width, so figures line up down the grid and across it. */
+.fin {{
+  width: 100% !important; table-layout: fixed; min-width: 30rem;
+  /* Wide enough for six periods, capped so the columns do not sprawl across a large
+     monitor. A statement is read by scanning across a row; spread too far, the eye
+     loses the line it is on. */
+  max-width: 52rem;
+  border-collapse: collapse; font-variant-numeric: tabular-nums;
+}}
+.fin th.l, .fin td.l {{ width: 27%; text-align: left; padding-left: 0; }}
+/* Streamlit's markdown stylesheet puts a box border on every cell, which draws a grid
+   this table does not want. Only the horizontal hairlines are ours. */
+.fin th, .fin td {{ border-left: 0; border-right: 0; border-top: 0; }}
+.fin th {{
+  font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--stale); font-weight: 600; text-align: right; white-space: nowrap;
+  padding: 0 0 0.3rem 1.1rem; border-bottom: 1px solid var(--rule-strong);
+}}
+.fin td {{
+  font-size: 12.5px; text-align: right; white-space: nowrap;
+  padding: 0.26rem 0 0.26rem 1.1rem; border-bottom: 1px solid var(--rule);
+}}
+/* The most recent period is the one being read; the rest are context for it. */
+.fin td.now, .fin th.now {{ color: var(--ink); font-weight: 600; }}
+.fin tr:last-child td {{ border-bottom: none; }}
+.fin tr.subtotal td, .fin tr.total td {{ font-weight: 600; }}
+.fin tr.total td {{ border-top: 1px solid var(--rule-strong); }}
+.fin tr.memo td.l {{ color: {P.muted}; }}
+.fin td.neg {{ color: var(--oxblood); }}
+.fin td.gap {{ color: var(--stale); }}
+/* Computed from two reported lines rather than tagged by the filer. Marked on the
+   figure itself, so it travels with the number instead of needing a legend column. */
+.fin .der {{
+  text-decoration: underline dotted; text-decoration-color: var(--stale);
+  text-underline-offset: 3px;
+}}
+.fin .lu {{ color: var(--stale); font-size: 11px; }}
+.fin-note {{ font-size: 11px; color: var(--stale); margin: 0.45rem 0 0; max-width: 70ch; }}
+
 /* Tabs as a plain text strip. */
 .stTabs [data-baseweb="tab-list"] {{ gap: 1.1rem; border-bottom: 1px solid var(--rule-strong); }}
 .stTabs [data-baseweb="tab"] {{

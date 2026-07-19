@@ -53,7 +53,7 @@ def list_companies() -> list[dict]:
         rows = conn.execute(
             """
             SELECT ticker, name, primary_exchange, country, reporting_currency,
-                   cik, is_sec_filer
+                   cik, is_sec_filer, is_foreign_private_issuer
               FROM companies
              ORDER BY ticker
             """

@@ -25,9 +25,6 @@ import theme as T
 
 DEFAULT_API = "http://localhost:8000"
 DEFAULT_TICKER = "LLY"
-FY_METRICS = ["Revenues", "NetIncomeLoss", "ResearchAndDevelopmentExpense"]
-FY_LABELS = {"Revenues": "Revenue", "NetIncomeLoss": "Net income",
-             "ResearchAndDevelopmentExpense": "R&D"}
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
 # Price chart windows, widest last. None means every session held. Windows wider than
 # the stored history are hidden rather than drawn short.
@@ -143,6 +140,116 @@ def html_escape(text: str) -> str:
     return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
+# --- Statements ----------------------------------------------------------
+STATEMENT_ORDER = (("income", "Income statement"), ("balance", "Balance sheet"),
+                   ("cashflow", "Cash flow"))
+
+
+def line_scale(unit: str | None, currency: str | None):
+    """(divisor, decimals, header unit) for one line.
+
+    Per-share figures and share counts are not currency and must not be scaled to
+    billions with a currency label; a diluted share count shown as 0.90 says nothing.
+    """
+    unit = unit or ""
+    if "/" in unit:                      # USD/shares, DKK/shares
+        return 1, 2, "per share"
+    if unit == "shares":
+        return 1e6, 0, "m"
+    return 1e9, 2, f"{currency or unit} bn".strip()
+
+
+def statement_table(block: dict, currency: str | None,
+                    common_size: bool = False) -> str:
+    """One statement as a table: lines down, periods across, most recent first.
+
+    The common-size base comes from the API, read at each column's own period. Taking
+    it from a line in this grid would work for the balance sheet and silently fail for
+    cash flow, whose base is revenue, which is not one of its lines and whose columns
+    are cumulative where the income statement's are discrete.
+    """
+    periods, lines = block["periods"], block["lines"]
+    base = block["base"]["values"] if common_size else []
+
+    head = "".join(f'<th class="{"now" if i == 0 else ""}">{html_escape(p["label"])}</th>'
+                   for i, p in enumerate(periods))
+    body = []
+    for line in lines:
+        divisor, decimals, _ = line_scale(line.get("unit"), currency)
+        cells = []
+        for index, cell in enumerate(line["cells"]):
+            value = cell["value"]
+            if common_size:
+                # A per-share line has no meaning as a share of sales, so it is left
+                # out of the column rather than divided into a number that reads.
+                divisor_ok = "/" not in (line.get("unit") or "")
+                denominator = base[index] if index < len(base) else None
+                value = (value / denominator * 100
+                         if divisor_ok and value is not None and denominator else None)
+                text = T.num(value, 1)
+            else:
+                text = T.num(value / divisor if value is not None else None, decimals)
+            classes = ["now" if index == 0 else "",
+                       "neg" if value is not None and value < 0 else "",
+                       "gap" if value is None else ""]
+            figure = (f'<span class="der">{text}</span>'
+                      if cell["derived"] and value is not None else text)
+            cells.append(f'<td class="{" ".join(c for c in classes if c)}">{figure}</td>')
+        # The column header carries the currency, so only the lines that are not in it
+        # name their unit. Without this a diluted share count reads as a money figure.
+        _, _, unit_label = line_scale(line.get("unit"), currency)
+        label = html_escape(line["label"])
+        if not common_size and unit_label not in (f"{currency} bn", "bn"):
+            label += f'<span class="lu">, {html_escape(unit_label)}</span>'
+        if line.get("note"):
+            label = f'<span title="{html_escape(line["note"])}">{label}</span>'
+        body.append(f'<tr class="{line["role"]}"><td class="l">{label}</td>'
+                    + "".join(cells) + "</tr>")
+
+    # The unit belongs in the header of the grid it describes, and it changes with the
+    # mode: putting it on the section rule instead left "USD bn" standing over a table
+    # of percentages.
+    unit = (f'% of {block["base"]["label"].lower()}' if common_size
+            else f'{currency or ""} bn'.strip())
+    return (f'<div class="fin-wrap"><table class="fin">'
+            f'<thead><tr><th class="l">{html_escape(unit)}</th>'
+            f'{head}</tr></thead><tbody>{"".join(body)}</tbody></table></div>')
+
+
+def snapshot_strip(snapshot: dict) -> str:
+    """The latest reported period, as the position strip used on Key insights."""
+    currency = snapshot.get("currency") or ""
+
+    def money(value):
+        return T.num(value / 1e9, 2) if value is not None else None
+
+    items = [
+        ("Revenue", money(snapshot["revenue"]), f"{currency} bn",
+         snapshot["revenue_growth"]),
+        ("Net income", money(snapshot["net_income"]), f"{currency} bn",
+         snapshot["net_income_growth"]),
+        ("EPS, diluted", T.num(snapshot["eps_diluted"], 2), "per share", None),
+        ("Net margin", T.pct(snapshot["net_margin"] * 100
+                             if snapshot["net_margin"] is not None else None, 1),
+         "of sales", None),
+        ("R&D", T.pct(snapshot["rd_intensity"] * 100
+                      if snapshot["rd_intensity"] is not None else None, 1),
+         "of sales", None),
+    ]
+    out = []
+    for label, value, sub, growth in items:
+        missing = value is None or value == T.num(None)
+        tone = ""
+        if growth is not None:
+            tone = " up" if growth > 0 else " down" if growth < 0 else ""
+            sub = f"{T.pct(growth * 100, 1)} year on year"
+        out.append(f'<div><span class="k">{label}</span>'
+                   f'<span class="v{" none" if missing else tone}">'
+                   f'{value if not missing else "no free data"}</span>'
+                   f'<span class="sub">{sub}</span></div>')
+    return f'<div class="pos">{"".join(out)}</div>'
+
+
 def note_html(body: str) -> str:
     """Render the note, giving its section labels the heading treatment.
 
@@ -216,9 +323,19 @@ prices = api_get(api_base, f"/companies/{ticker}/prices")
 exclusivities = api_get(api_base, f"/companies/{ticker}/exclusivities")["assets"]
 
 # --- Identity ------------------------------------------------------------
-filer = "US filer" if company.get("is_sec_filer") else "not an SEC filer"
+# The form is named rather than the nationality. GSK files with the SEC as a foreign
+# private issuer, so "US filer" was wrong, and the currency here is the one the shares
+# are quoted in, which for an ADR is not the one the accounts are reported in: GSK
+# quoted in USD reports in GBP, and the two sat side by side reading as a contradiction.
+if not company.get("is_sec_filer"):
+    filer = "not an SEC filer"
+elif company.get("is_foreign_private_issuer"):
+    filer = "20-F filer"
+else:
+    filer = "10-K filer"
+quote = prices.get("currency")
 meta = " · ".join(x for x in [company.get("exchange"), filer,
-                              prices.get("currency") or None] if x)
+                              f"quoted in {quote}" if quote else None] if x)
 with ident_col:
     st.markdown(
         f'<div class="ident"><span class="nm">{names.get(ticker, ticker)}</span>'
@@ -460,39 +577,88 @@ with main:
 
     # --- Financials ------------------------------------------------------
     with financials_tab:
-        fin = api_get(api_base, f"/companies/{ticker}/financials")
-        fy_rows = [r for r in fin["rows"]
-                   if r["period_type"] == "FY" and r["metric"] in FY_METRICS]
-        currency = fy_rows[0]["unit"] if fy_rows else ""
-        section("Reported financials", f"{currency} bn" if currency else "")
-        if not fy_rows:
-            state(f"No financials on file for {ticker}",
-                  "Press Refresh all on the Comps tab to pull EDGAR company facts. "
-                  "Roche and Bayer do not file with the SEC, so EDGAR has nothing for "
-                  "them and this stays empty by design.")
+        # The widget key is the source of truth, read before the widget renders. Keeping
+        # a second copy of the choice would fetch on the previous basis for one rerun,
+        # so the grid would lag a click behind the control.
+        basis_key = f"fin_basis_{ticker}"
+        wanted = st.session_state.get(basis_key, "Quarterly")
+
+        def fetch(basis):
+            return api_get(api_base,
+                           f"/companies/{ticker}/statements?basis={basis}")
+
+        built = fetch("annual" if wanted == "Annual" else "quarterly")
+        if built["basis"] == "quarterly" and not built["has_interim"]:
+            built = fetch("annual")     # a 20-F filer has no quarters to show
+        snapshot = built.get("snapshot")
+
+        section("Latest reported", snapshot["label"] if snapshot else None)
+        if snapshot:
+            st.markdown(snapshot_strip(snapshot), unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="byline">Period ending {snapshot["period_end"]}. '
+                'Growth compares the same period a year earlier, never the period '
+                'before it.</div>', unsafe_allow_html=True)
+        elif not built["is_sec_filer"]:
+            state(f"{ticker} does not file with the SEC",
+                  "Roche and Bayer are not SEC registrants, so EDGAR holds no company "
+                  "facts for them. Their financials come from investor relations, "
+                  "which this build does not read.")
         else:
-            years = sorted({r["fiscal_year"] for r in fy_rows})
-            table = {}
-            for metric in FY_METRICS:
-                by_year = {r["fiscal_year"]: r["value"]
-                           for r in fy_rows if r["metric"] == metric}
-                table[FY_LABELS[metric]] = [by_year.get(y) for y in years]
-            frame = pd.DataFrame(table, index=[str(y) for y in years]).transpose() / 1e9
-            st.dataframe(
-                frame.style.format(lambda v: T.num(v, 2)).map(
-                    lambda v: f"color:{T.P.oxblood}" if isinstance(v, (int, float))
-                    and v < 0 else ""),
-                width="stretch")
-            revenue = [{"year": str(y),
-                        "value": next((r["value"] / 1e9 for r in fy_rows
-                                       if r["metric"] == "Revenues"
-                                       and r["fiscal_year"] == y), None)}
-                       for y in years]
-            chart(alt.Chart(pd.DataFrame(revenue)).mark_bar(size=26).encode(
-                x=alt.X("year:N", title=None),
-                y=alt.Y("value:Q", title=f"Revenue, {currency} bn"),
-                tooltip=[alt.Tooltip("year:N", title="FY"),
-                         alt.Tooltip("value:Q", title="Revenue", format=",.2f")]), 210)
+            state(f"No financials on file for {ticker}",
+                  "Press Refresh all on the Comps tab to pull EDGAR company facts.")
+
+        if snapshot:
+            section("Statements")
+            controls = st.columns([1.1, 1.3, 1.4])
+            with controls[0]:
+                # An annual-only filer gets no toggle at all. Offering a control that
+                # can only produce an empty grid is worse than not offering it.
+                if built["has_interim"]:
+                    st.radio("Basis", ["Quarterly", "Annual"], horizontal=True,
+                             label_visibility="collapsed", key=basis_key)
+            with controls[1]:
+                which = st.radio(
+                    "Statement", [label for _, label in STATEMENT_ORDER],
+                    horizontal=True, label_visibility="collapsed",
+                    key=f"stmt_{ticker}")
+            with controls[2]:
+                common_size = st.checkbox("Common size", key=f"cs_{ticker}")
+
+            key = next(k for k, label in STATEMENT_ORDER if label == which)
+            block = built["statements"][key]
+            if not block["periods"]:
+                state(f"No {which.lower()} for this basis",
+                      "The filer tags nothing here for the periods selected.")
+            else:
+                st.markdown(
+                    statement_table(block, built["currency"], common_size),
+                    unsafe_allow_html=True)
+                footnotes = []
+                if not built["has_interim"]:
+                    footnotes.append(
+                        f"{ticker} files a 20-F and tags no interim periods, so this "
+                        "is annual only.")
+                if any(cell["derived"] for line in block["lines"]
+                       for cell in line["cells"]):
+                    # Fourth quarters only exist on the quarterly income statement, so
+                    # the sentence explaining them is only shown where they appear.
+                    derived_note = ("Dotted figures are computed from two reported "
+                                    "lines rather than tagged by the filer")
+                    if key == "income" and built["basis"] == "quarterly":
+                        derived_note += (": a subtotal it leaves out, or a fourth "
+                                         "quarter, which is the reported year less the "
+                                         "reported nine months.")
+                    else:
+                        derived_note += ", which is a subtotal the filer leaves out."
+                    footnotes.append(derived_note)
+                if key == "cashflow" and built["basis"] == "quarterly":
+                    footnotes.append(
+                        "Cash flow columns are cumulative from the year start, which "
+                        "is how a 10-Q reports them.")
+                if footnotes:
+                    st.markdown(f'<div class="fin-note">{" ".join(footnotes)}</div>',
+                                unsafe_allow_html=True)
 
     # --- Comps -----------------------------------------------------------
     with comps_tab:

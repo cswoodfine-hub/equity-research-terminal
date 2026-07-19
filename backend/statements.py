@@ -121,7 +121,7 @@ _INCOME = (
         ("us-gaap", "NetIncomeLoss"),
         ("ifrs-full", "ProfitLoss"),
     )),
-    Line("EarningsPerShareDiluted", "EPS, diluted", "income", "duration", role="memo",
+    Line("EarningsPerShareDiluted", "Diluted EPS", "income", "duration", role="memo",
          additive=False, candidates=(
              ("us-gaap", "EarningsPerShareDiluted"),
              ("ifrs-full", "DilutedEarningsLossPerShare"),
@@ -269,6 +269,13 @@ LINES_BY_KEY: dict[str, Line] = {line.key: line for line in LINES}
 STATEMENTS = ("income", "balance", "cashflow")
 STATEMENT_LABELS = {"income": "Income statement", "balance": "Balance sheet",
                     "cashflow": "Cash flow"}
+
+# What a common-size column divides by. Sales for the two flow statements, the balance
+# sheet total for the balance sheet. Cash flow's base is not one of its own lines, and
+# its columns are cumulative while the income statement's are discrete, so the base has
+# to be read at each column's own period rather than borrowed from another statement's
+# grid position.
+COMMON_SIZE_BASE = {"income": "Revenues", "balance": "Assets", "cashflow": "Revenues"}
 
 
 def lines_for(statement: str) -> tuple[Line, ...]:

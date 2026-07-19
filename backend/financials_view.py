@@ -201,7 +201,13 @@ def build_statements(db_path=None, ticker: str = "", basis: str = QUARTERLY,
                     "note": line.note, "unit": units.get(line.key, currency),
                     "cells": cells,
                 })
+        base_key = statements.COMMON_SIZE_BASE[statement]
         out[statement] = {
+            "base": {
+                "key": base_key,
+                "label": statements.LINES_BY_KEY[base_key].label,
+                "values": [values.get(base_key, {}).get(period) for period in periods],
+            },
             "periods": [{
                 "period_end": end, "period_type": kind,
                 "months": months_by_key.get((end, kind)),
