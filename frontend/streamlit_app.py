@@ -22,6 +22,7 @@ import streamlit as st
 
 import rail as rail_module
 import theme as T
+import trend as trend_module
 
 DEFAULT_API = "http://localhost:8000"
 DEFAULT_TICKER = "LLY"
@@ -229,9 +230,9 @@ def snapshot_strip(snapshot: dict) -> str:
         ("Net income", money(snapshot["net_income"]), f"{currency} bn",
          snapshot["net_income_growth"]),
         ("EPS, diluted", T.num(snapshot["eps_diluted"], 2), "per share", None),
-        ("Net margin", T.pct(snapshot["net_margin"] * 100
-                             if snapshot["net_margin"] is not None else None, 1),
-         "of sales", None),
+        # Net margin is not a tile. It is the second series in the panel below, where it
+        # has the history that makes a level mean something, and a lone 37.4% here would
+        # be the same figure said twice.
         ("R&D", T.pct(snapshot["rd_intensity"] * 100
                       if snapshot["rd_intensity"] is not None else None, 1),
          "of sales", None),
@@ -599,6 +600,18 @@ with main:
                 f'<div class="byline">Period ending {snapshot["period_end"]}. '
                 'Growth compares the same period a year earlier, never the period '
                 'before it.</div>', unsafe_allow_html=True)
+
+            # Built as SVG rather than through Altair. A chart made inside a hidden tab
+            # is measured at a few pixels and draws about 160px wide for good (see the
+            # chart helper), and this panel has to hold its width on this tab.
+            panel = trend_module.render(built.get("trend") or [], built["basis"])
+            if panel:
+                section("Growth against margin")
+                st.markdown(f'<div class="trend">{panel}</div>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="byline">'
+                    f'{trend_module.caption(built.get("trend") or [], built["basis"])}'
+                    '</div>', unsafe_allow_html=True)
         elif not built["is_sec_filer"]:
             state(f"{ticker} does not file with the SEC",
                   "Roche and Bayer are not SEC registrants, so EDGAR holds no company "

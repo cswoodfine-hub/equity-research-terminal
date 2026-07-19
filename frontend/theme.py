@@ -298,6 +298,10 @@ h3 {{ font-size: 0.9rem; }}
   text-decoration: underline dotted; text-decoration-color: var(--stale);
   text-underline-offset: 3px;
 }}
+/* The growth and margin panel. Hand-built SVG, for the same reason the horizon rail is:
+   a chart made inside a hidden tab is measured at a few pixels and keeps that width. */
+.trend {{ margin: 0.35rem 0 0.1rem; }}
+.trend svg {{ display: block; }}
 .fin .lu {{ color: var(--stale); font-size: 11px; }}
 .fin-note {{ font-size: 11px; color: var(--stale); margin: 0.45rem 0 0; max-width: 70ch; }}
 

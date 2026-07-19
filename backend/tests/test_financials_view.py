@@ -166,3 +166,66 @@ def test_period_labels_cover_each_period_type():
     assert label("2026-03-31", statements.INSTANT, None, 12) == "Mar 26"
     # A June year end: September is the first quarter of the next fiscal year.
     assert label("2025-09-30", statements.Q, "3M", 6) == "Q1 26"
+
+
+# --- growth against margin -----------------------------------------------
+def test_trend_pairs_growth_with_margin_per_quarter(loaded):
+    trend = financials_view.build_statements(loaded, "LLY", basis="quarterly")["trend"]
+
+    assert [p["label"] for p in trend][-3:] == ["Q3 25", "Q4 25", "Q1 26"]
+    latest = trend[-1]
+    assert latest["revenue_growth"] == pytest.approx(19_799_000_000 / 12_729_000_000 - 1)
+    assert latest["net_margin"] == pytest.approx(7_396_000_000 / 19_799_000_000)
+
+
+def test_trend_has_no_hole_where_a_fourth_quarter_belongs(loaded):
+    """The series is what makes the panel readable, so a missing Q4 would break it.
+
+    Nobody tags Q4, so without the fill the line would jump Q3 to the next Q1 and the
+    bars would show a gap every fourth column.
+    """
+    trend = financials_view.build_statements(loaded, "LLY", basis="quarterly")["trend"]
+    labels = [p["label"] for p in trend]
+
+    assert "Q4 25" in labels and "Q4 24" in labels
+    assert all(p["revenue_growth"] is not None for p in trend)
+    assert all(p["net_margin"] is not None for p in trend)
+
+
+def test_trend_growth_compares_the_same_quarter_not_the_one_before(loaded):
+    """Seasonality is not a trend. Q1 against Q4 would read as a collapse every year."""
+    trend = {p["label"]: p for p in
+             financials_view.build_statements(loaded, "LLY", basis="quarterly")["trend"]}
+    # Q1 25 revenue is below Q4 24, and above Q1 24. Only the year-on-year pair is positive.
+    assert trend["Q1 25"]["revenue_growth"] > 0
+
+
+def test_trend_follows_the_basis(loaded):
+    annual = financials_view.build_statements(loaded, "LLY", basis="annual")["trend"]
+    assert [p["label"] for p in annual][-2:] == ["FY24", "FY25"]
+
+
+def test_trend_leaves_growth_open_at_the_start_of_the_window(loaded):
+    """The oldest period has no prior year inside the window, so its growth is null
+    rather than being computed against whatever happens to be nearest."""
+    annual = financials_view.build_statements(loaded, "NVO", basis="annual")["trend"]
+    assert annual[0]["revenue_growth"] is None
+    assert annual[0]["net_margin"] is not None
+    assert annual[-1]["revenue_growth"] is not None
+
+
+def test_trend_matches_a_52_week_filers_shifting_quarter_end(loaded):
+    trend = financials_view.build_statements(loaded, "JNJ", basis="quarterly")["trend"]
+    assert all(p["revenue_growth"] is not None for p in trend[1:])
+
+
+def test_prior_period_rejects_a_date_more_than_a_fortnight_out():
+    series = {("2025-01-31", statements.Q): 1.0, ("2026-03-31", statements.Q): 2.0}
+    assert financials_view._prior_period(series, ("2026-03-31", statements.Q)) is None
+
+
+def test_prior_period_takes_the_nearest_candidate():
+    series = {("2025-03-29", statements.Q): 1.0, ("2025-04-04", statements.Q): 2.0,
+              ("2026-03-31", statements.Q): 3.0}
+    assert financials_view._prior_period(
+        series, ("2026-03-31", statements.Q)) == ("2025-03-29", statements.Q)

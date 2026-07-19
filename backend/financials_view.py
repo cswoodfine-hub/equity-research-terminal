@@ -128,6 +128,75 @@ def _derive(key: str, values: dict, period) -> float | None:
     return a - b
 
 
+def _fill_fourth_quarters(by_metric: dict, q4_map: dict):
+    """A copy of the series with fourth quarters filled, plus which cells were filled."""
+    values = {key: dict(series) for key, series in by_metric.items()}
+    filled: set[tuple[str, tuple]] = set()
+    for period, (full_year, nine_months) in q4_map.items():
+        for key, series in by_metric.items():
+            line = statements.LINES_BY_KEY.get(key)
+            if line is None or not line.additive:
+                continue          # EPS and average share counts do not subtract
+            year, ytd = series.get(full_year), series.get(nine_months)
+            if year is not None and ytd is not None and period not in series:
+                values[key][period] = year - ytd
+                filled.add((key, period))
+    return values, filled
+
+
+def _prior_period(series: dict, key: tuple, tolerance_days: int = 14):
+    """The same period one year earlier, or None.
+
+    A 52/53 week filer moves its period end by a day or two each year, so an exact date
+    match drops the comparison for JNJ every time. The nearest same-kind period inside a
+    fortnight is the same period; anything further away is a different one.
+    """
+    end, kind = key
+    try:
+        target = dt.date.fromisoformat(end).replace(year=int(end[:4]) - 1)
+    except ValueError:            # 29 February has no counterpart in a common year
+        return None
+    exact = (target.isoformat(), kind)
+    if exact in series:
+        return exact
+    near = sorted(
+        (k for k in series
+         if k[1] == kind
+         and abs((dt.date.fromisoformat(k[0]) - target).days) <= tolerance_days),
+        key=lambda k: abs((dt.date.fromisoformat(k[0]) - target).days))
+    return near[0] if near else None
+
+
+def build_trend(values: dict, months_by_key: dict, fy_end_month: int,
+                basis: str = QUARTERLY, limit: int = 9) -> list[dict]:
+    """Revenue growth and net margin per period, oldest first.
+
+    The two are returned together and on the same scale because the question they answer
+    is one question: whether the growth is reaching the bottom line. Both are shares, so
+    they share a percentage axis and can be read against each other directly rather than
+    through two y-scales that could be slid to tell any story.
+    """
+    revenue = values.get("Revenues", {})
+    income = values.get("NetIncomeLoss", {})
+    kind = statements.Q if basis == QUARTERLY else statements.FY
+
+    points = []
+    for key in sorted(k for k in revenue if k[1] == kind)[-limit:]:
+        sales = revenue.get(key)
+        if not sales:
+            continue              # a zero or missing base has no margin and no growth
+        prior = _prior_period(revenue, key)
+        earlier = revenue.get(prior) if prior else None
+        net = income.get(key)
+        points.append({
+            "label": _period_label(key[0], kind, months_by_key.get(key), fy_end_month),
+            "period_end": key[0],
+            "revenue_growth": (sales / earlier - 1) if earlier else None,
+            "net_margin": (net / sales) if net is not None else None,
+        })
+    return points
+
+
 def build_statements(db_path=None, ticker: str = "", basis: str = QUARTERLY,
                      limit: int = DEFAULT_PERIODS):
     """The three statements for one company, or None when the ticker is unknown."""
@@ -158,31 +227,24 @@ def build_statements(db_path=None, ticker: str = "", basis: str = QUARTERLY,
     fy_end_month = _fiscal_year_end_month(by_metric)
     currency = units.get("Revenues") or units.get("NetIncomeLoss")
 
+    # Fourth quarters are filled once, before anything reads the series, so a derived
+    # gross profit can be built on a derived Q4 revenue rather than reading blank in a
+    # column where both of its inputs resolve, and so the trend has no hole every fourth
+    # point. They are only ever selected as columns on the quarterly income statement.
+    income_keys = {key for line in statements.lines_for("income")
+                   for key in by_metric.get(line.key, {})}
+    q4_map = fourth_quarters(income_keys, months_by_key)
+    values, filled = _fill_fourth_quarters(by_metric, q4_map)
+
     out = {}
     for statement in statements.STATEMENTS:
         keys_present = {key for line in statements.lines_for(statement)
                         for key in by_metric.get(line.key, {})}
         # Discrete quarters only. The cash flow view is cumulative, so a fourth quarter
         # there would mean differencing, and the balance sheet has no durations at all.
-        q4 = ({} if statement != "income" or basis == ANNUAL
-              else fourth_quarters(keys_present, months_by_key))
+        q4 = {} if statement != "income" or basis == ANNUAL else q4_map
         periods = _periods_for(statement, basis, keys_present | set(q4),
                                fy_end_month, limit)
-
-        # Fourth quarters are filled in before the subtotals are computed, so a derived
-        # gross profit can be built on a derived Q4 revenue rather than reading blank in
-        # a column where both of its inputs resolve.
-        values = {key: dict(series) for key, series in by_metric.items()}
-        filled: set[tuple[str, tuple]] = set()
-        for period, (full_year, nine_months) in q4.items():
-            for key, series in by_metric.items():
-                line = statements.LINES_BY_KEY.get(key)
-                if line is None or not line.additive:
-                    continue      # EPS and average share counts do not subtract
-                year, ytd = series.get(full_year), series.get(nine_months)
-                if year is not None and ytd is not None and period not in series:
-                    values[key][period] = year - ytd
-                    filled.add((key, period))
 
         lines = []
         for line in statements.lines_for(statement):
@@ -224,6 +286,7 @@ def build_statements(db_path=None, ticker: str = "", basis: str = QUARTERLY,
                            for periods in by_metric.values() for _, kind in periods),
         "statements": out,
         "snapshot": _snapshot(by_metric, months_by_key, fy_end_month, currency),
+        "trend": build_trend(values, months_by_key, fy_end_month, basis),
     }
 
 
@@ -243,16 +306,7 @@ def _snapshot(by_metric, months_by_key, fy_end_month, currency) -> dict | None:
     if period is None:
         return None
     end, kind = period
-    prior_end = f"{int(end[:4]) - 1}{end[4:]}"
-    prior = (prior_end, kind)
-    # A 52/53 week filer moves its period end by a day or two each year, so the prior
-    # period is matched on the nearest date within a fortnight rather than exactly.
-    if prior not in revenue:
-        same_kind = [k for k in revenue if k[1] == kind]
-        near = [k for k in same_kind
-                if abs((dt.date.fromisoformat(k[0])
-                        - dt.date.fromisoformat(prior_end)).days) <= 14]
-        prior = near[0] if near else None
+    prior = _prior_period(revenue, period)
 
     def value(key, at):
         return by_metric.get(key, {}).get(at) if at else None
