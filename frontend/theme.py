@@ -39,9 +39,12 @@ class Palette:
     rule: str            # hairline, derived from ink, never a new hue
     rule_strong: str
     raised: str          # sidebar and hover, one step off the ground
-    # Phase is ordinal, so it takes a single-hue ramp rather than separate hues. The
-    # ramp climbs to the data colour, which keeps a heatmap the same material as a line
-    # chart. Modality stays the only categorical use of hue.
+    # Continuous stops for the density heatmap, where a low count should recede into
+    # the ground and only a high one should carry weight. These are interpolated by
+    # Vega, so the count of stops is free. They are the wrong thing for a discrete
+    # scale: the first two sit at 1.15:1 and 1.57:1 against the ground, which is
+    # invisible, and a fixed tuple silently ran out when a sixth phase was added. Use
+    # ordinal_ramp for anything where every step has to be seen.
     phase_tints: tuple
 
     @property
@@ -389,6 +392,113 @@ def _chart_theme() -> alt.theme.ThemeConfig:
 
 # --- Numbers ------------------------------------------------------------
 # Consistent precision per column, units in the header, one negative treatment.
+# --- Ordinal ramps -------------------------------------------------------
+# Steps are spaced in Oklab rather than in sRGB, because even sRGB steps are not even
+# to the eye: the dark end of a ramp bunches up and the light end spreads out, which is
+# how the old phase tints ended with two steps nobody could tell apart.
+def _srgb_to_linear(c):
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def _linear_to_srgb(c):
+    c = max(0.0, min(1.0, c))
+    return 12.92 * c if c <= 0.0031308 else 1.055 * (c ** (1 / 2.4)) - 0.055
+
+
+def _to_rgb(value: str):
+    value = value.lstrip("#")
+    return tuple(int(value[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def _oklab(value: str):
+    r, g, b = (_srgb_to_linear(c) for c in _to_rgb(value))
+    long = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ** (1 / 3)
+    med = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1 / 3)
+    short = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1 / 3)
+    return (0.2104542553 * long + 0.7936177850 * med - 0.0040720468 * short,
+            1.9779984951 * long - 2.4285922050 * med + 0.4505937099 * short,
+            0.0259040371 * long + 0.7827717662 * med - 0.8086757660 * short)
+
+
+def _from_oklab(lightness, green_red, blue_yellow):
+    long = (lightness + 0.3963377774 * green_red + 0.2158037573 * blue_yellow) ** 3
+    med = (lightness - 0.1055613458 * green_red - 0.0638541728 * blue_yellow) ** 3
+    short = (lightness - 0.0894841775 * green_red - 1.2914855480 * blue_yellow) ** 3
+    channels = (4.0767416621 * long - 3.3077115913 * med + 0.2309699292 * short,
+                -1.2684380046 * long + 2.6097574011 * med - 0.3413193965 * short,
+                -0.0041960863 * long - 0.7034186147 * med + 1.7076147010 * short)
+    return "#" + "".join(f"{round(_linear_to_srgb(c) * 255):02X}" for c in channels)
+
+
+def _mix(start: str, end: str, position: float) -> str:
+    first, second = _oklab(start), _oklab(end)
+    return _from_oklab(*(first[i] + (second[i] - first[i]) * position
+                         for i in range(3)))
+
+
+def _relative_luminance(value: str) -> float:
+    r, g, b = (_srgb_to_linear(c) for c in _to_rgb(value))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(first: str, second: str) -> float:
+    """WCAG contrast ratio between two colours."""
+    high, low = sorted((_relative_luminance(first), _relative_luminance(second)),
+                       reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+# WCAG 1.4.11 asks 3:1 of any graphical object carrying meaning. A chart segment is
+# exactly that, so the foot of an ordinal ramp is placed at the ratio rather than
+# picked by eye, in both modes and at whatever length the caller needs.
+GRAPHIC_CONTRAST = 3.0
+
+
+def _floor(palette: "Palette", target: float = GRAPHIC_CONTRAST) -> str:
+    """The nearest neutral to the ground that still clears the contrast target.
+
+    Neutral rather than a tint of the data colour, because it doubles the room the ramp
+    has to work in: the steps then separate by colourfulness as well as by lightness,
+    and six of them have to fit between this floor and the data colour.
+    """
+    toward = "#FFFFFF" if _relative_luminance(palette.ground) < 0.5 else "#000000"
+    low, high = 0.0, 1.0
+    for _ in range(32):                    # bisection, converges well inside 8 bits
+        middle = (low + high) / 2
+        if contrast(_mix(palette.ground, toward, middle), palette.ground) < target:
+            low = middle
+        else:
+            high = middle
+    return _mix(palette.ground, toward, high)
+
+
+def ordinal_ramp(steps: int, palette: "Palette" = None) -> list:
+    """``steps`` evenly spaced tints, every one of them visible against the ground.
+
+    Derived from the number of steps asked for, so a scale can take its range straight
+    from the length of its domain and the two cannot drift apart. They did: the phase
+    scale declared six phases against five fixed tints, which left Phase 4 with no
+    colour of its own.
+    """
+    palette = palette or P
+    if steps < 2:
+        return [palette.data]
+    base = _floor(palette)
+    return [_mix(base, palette.data, index / (steps - 1)) for index in range(steps)]
+
+
+def label_on(background: str, palette: "Palette" = None) -> str:
+    """Ink or ground, whichever is legible on this background.
+
+    A label written into a chart segment sits on the ramp, not on the page, so one
+    fixed colour fails at one end of it: ground-coloured digits on the darkest step of
+    the dark ramp land at 3:1, which is under the 4.5:1 that text needs.
+    """
+    palette = palette or P
+    return max((palette.ink, palette.ground),
+               key=lambda option: contrast(option, background))
+
+
 MINUS = "−"  # true minus, digit-width under tabular figures
 
 

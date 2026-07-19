@@ -788,23 +788,71 @@ with main:
                 # which it was: 18px bars in 16.7px bands ran 1 to 2px into each other.
                 # Letting the bar fill its band makes that impossible at any height, and
                 # the scale padding is what puts a visible gap between them.
-                bars = (alt.Chart(areas).mark_bar()
+                # Counts per segment, with the midpoint of each worked out here rather
+                # than in Vega: the label has to sit inside its own segment, and the
+                # arithmetic is plainer in pandas than as a stack of transforms.
+                seg = (areas.groupby(["Area", "Phase"], as_index=False)["n"].sum())
+                seg["Phase"] = pd.Categorical(seg["Phase"], PIPELINE_PHASES, ordered=True)
+                seg = seg.sort_values(["Area", "Phase"])
+                seg["mid"] = (seg.groupby("Area")["n"].cumsum() - seg["n"] / 2)
+                seg["picked"] = seg["Area"].isin(chosen) if chosen else True
+                # A label needs room for two digits. Below about 2% of the widest bar it
+                # would spill over its own segment, so those are left to the tooltip.
+                seg["wide"] = seg["n"] >= max(totals["n"].max() * 0.022, 1)
+                # Each label takes the legible colour for the segment it sits on, which
+                # flips partway up the ramp. One fixed colour is unreadable at one end.
+                ramp = dict(zip(PIPELINE_PHASES, T.ordinal_ramp(len(PIPELINE_PHASES))))
+                seg["ink"] = [T.label_on(ramp[p]) for p in seg["Phase"]]
+                seg["halo"] = [T.P.ground if c == T.P.ink else T.P.ink
+                               for c in seg["ink"]]
+
+                # The range is taken from the length of the domain rather than from a
+                # fixed tuple, so the two cannot drift apart. They had: six phases were
+                # declared against five tints, and Phase 4 fell off the end of the scale
+                # with no colour of its own.
+                bars = (alt.Chart(seg).mark_bar()
                         .encode(
                             y=alt.Y("Area:N", title=None, sort=order,
                                     scale=alt.Scale(paddingInner=0.3, paddingOuter=0.2)),
-                            x=alt.X("sum(n):Q", title="Trials"),
-                            color=alt.Color("Phase:N", sort=PIPELINE_PHASES,
-                                            scale=alt.Scale(domain=PIPELINE_PHASES,
-                                                            range=list(T.P.phase_tints)),
-                                            legend=alt.Legend(title=None)),
+                            x=alt.X("n:Q", title="Trials"),
+                            color=alt.Color(
+                                "Phase:N", sort=PIPELINE_PHASES,
+                                scale=alt.Scale(domain=PIPELINE_PHASES,
+                                                range=T.ordinal_ramp(len(PIPELINE_PHASES))),
+                                legend=alt.Legend(title=None)),
+                            order=alt.Order("Phase:N", sort="ascending"),
                             opacity=alt.condition("datum.picked", alt.value(1),
                                                   alt.value(0.25)),
                             tooltip=[alt.Tooltip("Area:N"), alt.Tooltip("Phase:N"),
-                                     alt.Tooltip("sum(n):Q", title="Trials")])
-                        )
+                                     alt.Tooltip("n:Q", title="Trials")]))
+                # Six ordinal steps of one hue is the limit of what colour can carry, and
+                # the darkest two are close enough to argue over. The count sits in the
+                # segment as well, so the figure is read rather than the swatch matched
+                # back to a legend.
+                # Drawn twice: a fattened glyph in the opposite colour, then the glyph
+                # itself on top. The middle of any ramp is the place where neither ink
+                # nor ground clears 4.5:1 against the fill, and this puts the contrast
+                # between the digit and its own halo instead of the segment behind it.
+                def label_layer(**mark):
+                    return (alt.Chart(seg[seg["wide"]])
+                            .mark_text(fontSize=9, fontWeight=600, **mark)
+                            .encode(
+                                y=alt.Y("Area:N", title=None, sort=order,
+                                        scale=alt.Scale(paddingInner=0.3,
+                                                        paddingOuter=0.2)),
+                                x=alt.X("mid:Q", title="Trials"),
+                                text=alt.Text("n:Q"),
+                                opacity=alt.condition("datum.picked", alt.value(1),
+                                                      alt.value(0.25))))
+
+                halo = label_layer(strokeWidth=2.5).encode(
+                    stroke=alt.Stroke("halo:N", scale=None, legend=None),
+                    color=alt.Color("halo:N", scale=None, legend=None))
+                labels = halo + label_layer().encode(
+                    color=alt.Color("ink:N", scale=None, legend=None))
                 # 34px per area leaves a readable bar once scale padding is taken out,
                 # and the axis and legend get their own room rather than eating a band.
-                chart(bars, max(170, 34 * len(order)))
+                chart(bars + labels, max(170, 34 * len(order)))
 
                 shown = [t for t in detail if t["area"] in chosen] if chosen else detail
                 section(", ".join(chosen) if chosen else "every area",
