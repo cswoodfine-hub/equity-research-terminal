@@ -126,7 +126,7 @@ streamlit run frontend/streamlit_app.py
 ```
 
 The UI opens on a **What changed** tab (the ranked feed), then Prices, Financials,
-Comps, Pipeline, LOE, Approvals, a **Catalysts** tab (a 90-day calendar with an add
+Pipeline, LOE, Approvals, Comps, a **Catalysts** tab (a 90-day calendar with an add
 form; the table is curated), and a **News** tab (per-company EDGAR 8-K/6-K). The API
 base URL is configurable in the sidebar (default `http://localhost:8000`). Blank comps
 cells are no free data, not zero; pipeline and LOE counts are trials/products, not

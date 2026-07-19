@@ -774,8 +774,9 @@ with main:
                 tooltip=["Ticker:N", alt.Tooltip("Growth:Q", format=".1f"),
                          alt.Tooltip("Net margin:Q", format=".1f")]), 230)
 
-    # --- Pipeline --------------------------------------------------------
-    with pipeline_tab:
+        # A matrix of every company against every phase, so it belongs with the
+        # other cross-sectional views rather than in a tab that is otherwise one
+        # company at a time.
         section("Trials in development by phase", "lead sponsored")
         rows = api_get(api_base, "/pipeline")
         # No total column: it counts every phase, and carrying an all-phases figure
@@ -812,124 +813,126 @@ with main:
                         'development.</div>',
                         unsafe_allow_html=True)
 
-            # --- Therapeutic areas: click a band to reveal its trials ---
-            # Post-approval trials are dropped once, here, so the bars, the chips, and
-            # the table underneath all describe the same set. Filtering only the chart
-            # would leave a chip claiming a count its bar does not show.
-            every = api_get(api_base, f"/companies/{ticker}/trials")["trials"]
-            detail = [t for t in every if t["phase"] not in POST_APPROVAL]
-            marketed = len(every) - len(detail)
-            section(f"{ticker} by therapeutic area", f"{len(detail)} in development")
-            if not detail:
-                state(f"No trials in development for {ticker}",
-                      "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
-                      "or pick another company in the sidebar."
-                      + (f" {marketed} Phase 4 trials are on file but sit outside the "
-                         "pipeline." if marketed else ""))
+    # --- Pipeline --------------------------------------------------------
+    with pipeline_tab:
+        # --- Therapeutic areas: click a band to reveal its trials ---
+        # Post-approval trials are dropped once, here, so the bars, the chips, and
+        # the table underneath all describe the same set. Filtering only the chart
+        # would leave a chip claiming a count its bar does not show.
+        every = api_get(api_base, f"/companies/{ticker}/trials")["trials"]
+        detail = [t for t in every if t["phase"] not in POST_APPROVAL]
+        marketed = len(every) - len(detail)
+        section(f"{ticker} by therapeutic area", f"{len(detail)} in development")
+        if not detail:
+            state(f"No trials in development for {ticker}",
+                  "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
+                  "or pick another company in the sidebar."
+                  + (f" {marketed} Phase 4 trials are on file but sit outside the "
+                     "pipeline." if marketed else ""))
+        else:
+            areas = pd.DataFrame([{"Area": t["area"],
+                                   "Phase": PHASE_MERGE.get(t["phase"], t["phase"]),
+                                   "n": 1} for t in detail])
+            totals = (areas.groupby("Area", as_index=False)["n"].sum()
+                      .sort_values("n", ascending=False))
+            order = list(totals["Area"])
+            counts = dict(zip(totals["Area"], totals["n"]))
+            phase_counts = areas.groupby("Phase")["n"].sum().to_dict()
+
+            # The selection is read before the chart is drawn, so the bars can dim,
+            # but the chips are rendered after it: the chart is what tells you which
+            # area to pick, so it comes first and the controls sit under it with the
+            # phase pills, as one band of filters rather than two split around it.
+            chosen = st.session_state.get("area_pills") or []
+
+            # Stacked by phase so the shape of an area reads at a glance: one that is
+            # all Phase 1 is a different proposition from one carrying Phase 3, even
+            # at the same trial count. Selecting dims everything else.
+            #
+            # Counted here rather than with sum(n) in Vega, which is what made every
+            # bar render at quarter opacity. The dimming test reads datum.picked, and
+            # an aggregate drops every field it does not group by, so picked came
+            # back undefined and the condition fell to its false branch for all of
+            # them. The bars carried the right colours the whole time at a quarter of
+            # their strength, which is why they never matched the key.
+            seg = areas.groupby(["Area", "Phase"], as_index=False)["n"].sum()
+            seg["picked"] = seg["Area"].isin(chosen) if chosen else True
+            # No fixed bar height. A pixel height set against a band derived from the
+            # chart height overlaps as soon as the band is the smaller of the two,
+            # which it was: 18px bars in 16.7px bands ran 1 to 2px into each other.
+            # Letting the bar fill its band makes that impossible at any height, and
+            # the scale padding is what puts a visible gap between them.
+            # The range is taken from the length of the domain rather than from a
+            # fixed tuple, so the two cannot drift apart. They had: six phases were
+            # declared against five tints, and Phase 4 fell off the end of the scale
+            # with no colour of its own.
+            bars = (alt.Chart(seg).mark_bar()
+                    .encode(
+                        y=alt.Y("Area:N", title=None, sort=order,
+                                scale=alt.Scale(paddingInner=0.3, paddingOuter=0.2)),
+                        x=alt.X("n:Q", title="Trials"),
+                        color=alt.Color(
+                            "Phase:N", sort=DISPLAY_PHASES,
+                            scale=alt.Scale(domain=DISPLAY_PHASES,
+                                            range=T.ordinal_ramp(len(DISPLAY_PHASES))),
+                            legend=alt.Legend(title=None)),
+                        order=alt.Order("Phase:N", sort="ascending"),
+                        opacity=alt.condition("datum.picked", alt.value(1),
+                                              alt.value(0.25)),
+                        tooltip=[alt.Tooltip("Area:N"), alt.Tooltip("Phase:N"),
+                                 alt.Tooltip("n:Q", title="Trials")]))
+            # 34px per area leaves a readable bar once scale padding is taken out,
+            # and the axis and legend get their own room rather than eating a band.
+            chart(bars, max(170, 34 * len(order)))
+
+            st.pills("Therapeutic area", order, selection_mode="multi",
+                     format_func=lambda a: f"{a}  {counts[a]}",
+                     key="area_pills", label_visibility="collapsed")
+
+            # The table stays shut until an area and a phase are picked. Two
+            # hundred rows of every trial is not a starting point anyone reads; the
+            # chart above is, and the table is what you open once it has told you
+            # where to look.
+            phase_pick = st.pills(
+                "Phase", DISPLAY_PHASES, selection_mode="multi",
+                format_func=lambda p: f"{p}  {phase_counts.get(p, 0)}",
+                key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
+
+            shown = [t for t in detail
+                     if t["area"] in chosen and t["phase"] in phase_pick]
+            if not chosen or not phase_pick:
+                missing = ("an area" if not chosen else "a phase")
+                marketed_note = (
+                    f" {marketed} Phase 4 trials are excluded throughout: they run "
+                    "after approval, so they are lifecycle work rather than "
+                    "pipeline." if marketed else "")
+                state(f"Pick {missing} to list the trials",
+                      "The bars answer how much and where; the table answers which. "
+                      "It opens once an area and a phase are both selected, rather "
+                      f"than opening on {len(detail)} rows of everything."
+                      + marketed_note)
             else:
-                areas = pd.DataFrame([{"Area": t["area"],
-                                       "Phase": PHASE_MERGE.get(t["phase"], t["phase"]),
-                                       "n": 1} for t in detail])
-                totals = (areas.groupby("Area", as_index=False)["n"].sum()
-                          .sort_values("n", ascending=False))
-                order = list(totals["Area"])
-                counts = dict(zip(totals["Area"], totals["n"]))
-                phase_counts = areas.groupby("Phase")["n"].sum().to_dict()
-
-                # The selection is read before the chart is drawn, so the bars can dim,
-                # but the chips are rendered after it: the chart is what tells you which
-                # area to pick, so it comes first and the controls sit under it with the
-                # phase pills, as one band of filters rather than two split around it.
-                chosen = st.session_state.get("area_pills") or []
-
-                # Stacked by phase so the shape of an area reads at a glance: one that is
-                # all Phase 1 is a different proposition from one carrying Phase 3, even
-                # at the same trial count. Selecting dims everything else.
-                #
-                # Counted here rather than with sum(n) in Vega, which is what made every
-                # bar render at quarter opacity. The dimming test reads datum.picked, and
-                # an aggregate drops every field it does not group by, so picked came
-                # back undefined and the condition fell to its false branch for all of
-                # them. The bars carried the right colours the whole time at a quarter of
-                # their strength, which is why they never matched the key.
-                seg = areas.groupby(["Area", "Phase"], as_index=False)["n"].sum()
-                seg["picked"] = seg["Area"].isin(chosen) if chosen else True
-                # No fixed bar height. A pixel height set against a band derived from the
-                # chart height overlaps as soon as the band is the smaller of the two,
-                # which it was: 18px bars in 16.7px bands ran 1 to 2px into each other.
-                # Letting the bar fill its band makes that impossible at any height, and
-                # the scale padding is what puts a visible gap between them.
-                # The range is taken from the length of the domain rather than from a
-                # fixed tuple, so the two cannot drift apart. They had: six phases were
-                # declared against five tints, and Phase 4 fell off the end of the scale
-                # with no colour of its own.
-                bars = (alt.Chart(seg).mark_bar()
-                        .encode(
-                            y=alt.Y("Area:N", title=None, sort=order,
-                                    scale=alt.Scale(paddingInner=0.3, paddingOuter=0.2)),
-                            x=alt.X("n:Q", title="Trials"),
-                            color=alt.Color(
-                                "Phase:N", sort=DISPLAY_PHASES,
-                                scale=alt.Scale(domain=DISPLAY_PHASES,
-                                                range=T.ordinal_ramp(len(DISPLAY_PHASES))),
-                                legend=alt.Legend(title=None)),
-                            order=alt.Order("Phase:N", sort="ascending"),
-                            opacity=alt.condition("datum.picked", alt.value(1),
-                                                  alt.value(0.25)),
-                            tooltip=[alt.Tooltip("Area:N"), alt.Tooltip("Phase:N"),
-                                     alt.Tooltip("n:Q", title="Trials")]))
-                # 34px per area leaves a readable bar once scale padding is taken out,
-                # and the axis and legend get their own room rather than eating a band.
-                chart(bars, max(170, 34 * len(order)))
-
-                st.pills("Therapeutic area", order, selection_mode="multi",
-                         format_func=lambda a: f"{a}  {counts[a]}",
-                         key="area_pills", label_visibility="collapsed")
-
-                # The table stays shut until an area and a phase are picked. Two
-                # hundred rows of every trial is not a starting point anyone reads; the
-                # chart above is, and the table is what you open once it has told you
-                # where to look.
-                phase_pick = st.pills(
-                    "Phase", DISPLAY_PHASES, selection_mode="multi",
-                    format_func=lambda p: f"{p}  {phase_counts.get(p, 0)}",
-                    key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
-
-                shown = [t for t in detail
-                         if t["area"] in chosen and t["phase"] in phase_pick]
-                if not chosen or not phase_pick:
-                    missing = ("an area" if not chosen else "a phase")
-                    marketed_note = (
-                        f" {marketed} Phase 4 trials are excluded throughout: they run "
-                        "after approval, so they are lifecycle work rather than "
-                        "pipeline." if marketed else "")
-                    state(f"Pick {missing} to list the trials",
-                          "The bars answer how much and where; the table answers which. "
-                          "It opens once an area and a phase are both selected, rather "
-                          f"than opening on {len(detail)} rows of everything."
-                          + marketed_note)
-                else:
-                    section(", ".join(chosen), f"{len(shown)} trials, "
-                            + ", ".join(phase_pick))
-                    st.dataframe(pd.DataFrame([{
-                        "NCT": t["nct_id"], "Phase": t["phase"], "Area": t["area"],
-                        "Status": t["overall_status"],
-                        "Primary completion": t["primary_completion_date"],
-                        # A date that has passed means opposite things depending on
-                        # this. Actual: the endpoint was reached and the trial runs on
-                        # for survival follow-up, sometimes for a decade. Estimated and
-                        # past: the forecast was missed and nobody updated the record.
-                        "Date": _completion_note(t),
-                        "Conditions": ", ".join(t["conditions"][:3]),
-                        "Title": t["title"]}
-                        for t in shown]), width="stretch", hide_index=True)
-                    st.markdown(
-                        '<div class="byline">Areas are matched from the registry '
-                        'condition text by keyword, so the rule that placed a trial is '
-                        'readable rather than guessed. Reached means the primary '
-                        'endpoint was met and the study continues for follow-up; '
-                        'overdue means an estimated date has passed without being '
-                        'revised.</div>', unsafe_allow_html=True)
+                section(", ".join(chosen), f"{len(shown)} trials, "
+                        + ", ".join(phase_pick))
+                st.dataframe(pd.DataFrame([{
+                    "NCT": t["nct_id"], "Phase": t["phase"], "Area": t["area"],
+                    "Status": t["overall_status"],
+                    "Primary completion": t["primary_completion_date"],
+                    # A date that has passed means opposite things depending on
+                    # this. Actual: the endpoint was reached and the trial runs on
+                    # for survival follow-up, sometimes for a decade. Estimated and
+                    # past: the forecast was missed and nobody updated the record.
+                    "Date": _completion_note(t),
+                    "Conditions": ", ".join(t["conditions"][:3]),
+                    "Title": t["title"]}
+                    for t in shown]), width="stretch", hide_index=True)
+                st.markdown(
+                    '<div class="byline">Areas are matched from the registry '
+                    'condition text by keyword, so the rule that placed a trial is '
+                    'readable rather than guessed. Reached means the primary '
+                    'endpoint was met and the study continues for follow-up; '
+                    'overdue means an estimated date has passed without being '
+                    'revised.</div>', unsafe_allow_html=True)
 
     # --- LOE -------------------------------------------------------------
     with loe_tab:
