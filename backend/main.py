@@ -16,6 +16,7 @@ from pydantic import BaseModel
 import catalysts as catalysts_module
 import comps as comps_module
 import db
+import financials_view as financials_view_module
 import insights as insights_module
 import loe as loe_module
 import pipeline as pipeline_module
@@ -172,6 +173,24 @@ def company_financials(ticker: str) -> dict:
     finally:
         conn.close()
     return {"ticker": ticker, "rows": rows}
+
+
+@app.get("/companies/{ticker}/statements")
+def company_statements(
+    ticker: str,
+    basis: str = Query(default=financials_view_module.QUARTERLY),
+    periods: int = Query(default=financials_view_module.DEFAULT_PERIODS),
+) -> dict:
+    """The income statement, balance sheet, and cash flow for one company.
+
+    ``basis=annual`` gives fiscal years, ``quarterly`` gives the interim periods. All
+    three statements come back together so switching between them costs no round trip.
+    """
+    built = financials_view_module.build_statements(
+        None, ticker, basis=basis, limit=max(1, min(periods, 12)))
+    if built is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return built
 
 
 @app.get("/comps")
