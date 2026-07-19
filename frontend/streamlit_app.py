@@ -20,6 +20,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+import cliff as cliff_module
 import rail as rail_module
 import theme as T
 import trend as trend_module
@@ -890,6 +891,25 @@ with main:
                 y=alt.Y("Products:Q", title="Products losing exclusivity"),
                 tooltip=["Year:N", "Products:Q"]), 220)
 
+            # --- Capital at risk, for the selected company ---
+            exposure = api_get(api_base, f"/companies/{ticker}/exposure")
+            section(f"Capital at risk for {ticker}",
+                    f'{exposure["products_covered"]} of '
+                    f'{exposure["products_at_risk"]} priced')
+            panel = cliff_module.render(exposure)
+            if panel:
+                st.markdown(f'<div class="trend">{panel}</div>',
+                            unsafe_allow_html=True)
+                st.markdown(f'<div class="byline">{cliff_module.caption(exposure)} '
+                            'Filled marks are products with a revenue figure, hollow '
+                            'ones are products without. Orphan exclusivity is left out '
+                            'entirely: it lapses without the product losing anything.'
+                            '</div>', unsafe_allow_html=True)
+            else:
+                state(f"Nothing loses protection for {ticker} inside the window",
+                      "Either the books carry no expiry ahead for this company, or "
+                      "every entry is orphan exclusivity, which is not a cliff.")
+
             section(f"Upcoming for {ticker}", len(exclusivities))
             if not exclusivities:
                 state(f"No upcoming loss of exclusivity for {ticker}",
@@ -928,15 +948,102 @@ with main:
                   "Press Refresh all on the Comps tab to pull openFDA. Coverage depends "
                   "on openFDA manufacturer tagging and is not exhaustive.")
         else:
+            protected = [a for a in approvals if a.get("loe")]
+            priced = [a for a in approvals if a.get("revenue") is not None]
+            st.markdown(
+                f'<div class="pos">'
+                f'<div><span class="k">approvals</span>'
+                f'<span class="v">{len(approvals)}</span>'
+                f'<span class="sub">on file from openFDA</span></div>'
+                f'<div><span class="k">with an expiry</span>'
+                f'<span class="v{"" if protected else " none"}">'
+                f'{len(protected) or "none"}</span>'
+                f'<span class="sub">from the Orange and Purple Books</span></div>'
+                f'<div><span class="k">with revenue</span>'
+                f'<span class="v{"" if priced else " none"}">'
+                f'{len(priced) or "none"}</span>'
+                f'<span class="sub">hand entered, no free source</span></div>'
+                f'</div>', unsafe_allow_html=True)
+
             frame = pd.DataFrame([{
                 "Approved": a["approval_date"], "Modality": a["modality"] or "—",
-                "Brand": a["brand_name"], "Application": a["application_number"]}
+                "Brand": a["brand_name"], "Generic": a.get("generic_name") or "—",
+                "Application": a["application_number"],
+                # Protection is per asset, so every approval of one product shows the
+                # same expiry. An approval with none is blank rather than zero: the
+                # books simply carry no entry, which is not the same as unprotected.
+                "Protected to": a.get("loe") or "—",
+                "Basis": a.get("loe_basis") or "—",
+                "Revenue": (T.num(a["revenue"] / 1e9, 2)
+                            if a.get("revenue") is not None else "—"),
+                "FY": a.get("revenue_year") or "—"}
                 for a in approvals])
             st.dataframe(
                 frame.style.map(
                     lambda v: f"color:{T.P.modality.get(v, T.P.stale)};font-weight:600",
-                    subset=["Modality"]),
+                    subset=["Modality"])
+                .map(lambda v: f"color:{T.P.stale}"
+                     if v == "orphan exclusivity" else "", subset=["Basis"]),
                 width="stretch", hide_index=True)
+            st.markdown(
+                '<div class="byline">Protection is the latest expiry the Orange or '
+                'Purple Book carries for the product, so several approvals of one '
+                'product share it. A dash is no entry in the books rather than no '
+                'protection. Revenue is hand entered from the product table of the '
+                '10-K, in billions of the reporting currency, because no free source '
+                'publishes revenue per product.</div>', unsafe_allow_html=True)
+
+            # --- Entering a revenue figure ---
+            section("Product revenue", "hand entered")
+            curated = api_get(api_base, f"/companies/{ticker}/revenue")["rows"]
+            choices = {f'{a["brand_name"]} · {a["application_number"]}':
+                       a["application_number"]
+                       for a in approvals if a.get("application_number")}
+            with st.form(f"revenue_{ticker}", clear_on_submit=True):
+                cols = st.columns([2.2, 0.8, 1.1, 0.9, 1.4])
+                pick = cols[0].selectbox("Product", sorted(choices),
+                                         key=f"rev_asset_{ticker}")
+                year = cols[1].number_input("FY", min_value=1990, max_value=2027,
+                                            value=2025, step=1)
+                amount = cols[2].number_input("Revenue, bn", min_value=0.0,
+                                              step=0.1, format="%.3f")
+                unit = cols[3].text_input("Currency", value=(company.get("reporting_currency") or "USD"))
+                note = cols[4].text_input("Source", placeholder="FY2025 10-K")
+                if st.form_submit_button("Save") and pick:
+                    try:
+                        api_post_json(api_base, f"/companies/{ticker}/revenue",
+                                      {"application_number": choices[pick],
+                                       "fiscal_year": int(year),
+                                       # Typed in billions, stored as reported, so the
+                                       # table holds the same magnitude as the filing.
+                                       "value": float(amount) * 1e9,
+                                       "unit": unit.strip().upper() or "USD",
+                                       "source": note})
+                        api_get.clear()
+                        st.rerun()
+                    except urllib.error.HTTPError as exc:
+                        state("Could not save that figure",
+                              exc.read().decode("utf-8", "replace")[:200], error=True)
+
+            if not curated:
+                state(f"No product revenue on file for {ticker}",
+                      "Add a figure above and the exclusivity cliff prices itself. "
+                      "Until then the LOE tab counts products rather than money, and "
+                      "says so.")
+            else:
+                for row in curated:
+                    left, right = st.columns([6, 1])
+                    left.markdown(
+                        f'<div class="fitem"><span class="d">FY{row["fiscal_year"]}'
+                        f'</span><span class="t">{html_escape(row["brand_name"])} '
+                        f'<span class="mono">{html_escape(row["internal_code"] or "")}'
+                        f'</span></span><span class="s">'
+                        f'{T.num(row["value"] / 1e9, 2)} {row["unit"] or ""}</span>'
+                        f'</div>', unsafe_allow_html=True)
+                    if right.button("Remove", key=f"rmrev_{row['id']}"):
+                        api_delete(api_base, f"/revenue/{row['id']}")
+                        api_get.clear()
+                        st.rerun()
 
     # --- Catalysts -------------------------------------------------------
     with catalysts_tab:

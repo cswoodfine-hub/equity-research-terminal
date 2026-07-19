@@ -61,7 +61,9 @@ curl localhost:8000/pipeline                       # company x phase trial count
 curl 'localhost:8000/companies/LLY/trials?phase=Phase%203'  # trials behind a cell
 curl localhost:8000/loe                            # company x expiry-year LOE cliff
 curl localhost:8000/companies/LLY/exclusivities    # upcoming LOE products
-curl localhost:8000/companies/LLY/approvals        # FDA approvals (NDAs + BLAs)
+curl localhost:8000/companies/LLY/approvals        # approvals, with expiry and revenue
+curl localhost:8000/companies/LLY/exposure         # cliff by year, and its coverage
+curl localhost:8000/companies/LLY/revenue          # curated product revenue
 curl localhost:8000/changes                        # ranked what-changed feed
 curl localhost:8000/companies/LLY/filings          # recent EDGAR filings
 curl localhost:8000/companies/LLY/news             # EDGAR 8-K/6-K news
@@ -140,6 +142,27 @@ covers subtotals a filer skips (Lilly never tags gross profit) and fourth quarte
 which nobody tags and which are the reported year less the reported nine months.
 Per-share lines are excluded from that subtraction, since EPS does not add up across
 quarters. Cash flow columns are cumulative from the year start, as a 10-Q reports them.
+
+**Approvals** lists each approved product with the latest expiry the Orange or Purple
+Book carries for it, the basis of that date, and its revenue. Protection is per asset,
+so several approvals of one product share it, and a dash means the books hold no entry
+rather than that the product is unprotected.
+
+**Product revenue is hand entered**, for the same reason catalysts are: no free source
+publishes it. Companies do report it, in the product table of the 10-K, and they tag it
+against a product axis in XBRL, but the companyfacts API collapses those dimensions and
+returns the consolidated `Revenues` line alone. Splitting that total across products by
+any rule would be an estimate wearing the clothes of a fact, so the figure is typed in
+or it is absent.
+
+That makes the **LOE** tab's capital-at-risk panel honest about itself. It carries two
+registers: bars for the revenue falling off protection each year, and beneath them one
+mark per product, filled where a figure exists and hollow where it does not. At zero
+coverage the bars are empty and the marks carry the whole story, which is a count and
+says so; as figures are entered the bars grow into it. An unpriced product is unknown,
+never zero, so a thin table reads as thin rather than as a small cliff. Orphan
+exclusivity is excluded entirely: it lapses without the product losing anything.
+Currencies are never converted, so a portfolio priced in two of them shows no total.
 
 A full `?scope=all` refresh pulls every source for all 18 companies (Yahoo, EDGAR, and
 paginated ClinicalTrials queries). Companies run in parallel, four at a time. Measured

@@ -208,6 +208,29 @@ CREATE TABLE catalysts (
 );
 CREATE INDEX idx_catalysts_date ON catalysts(expected_date, status);
 
+-- Product revenue, hand entered, for the same reason catalysts are: no free source
+-- carries it. Companies do publish it, in the product table of the 10-K, and they tag
+-- it against a product axis in XBRL, but the companyfacts API collapses those
+-- dimensions and returns the consolidated Revenues line alone. Splitting that total
+-- across products by any rule would be an estimate wearing the clothes of a fact, so
+-- the number is typed in from the filing or it is absent.
+--
+-- Absent is a first-class state here. Revenue at risk is reported against the share of
+-- products it covers, never as though the uncovered ones were worth nothing.
+CREATE TABLE asset_revenue (
+    id          INTEGER PRIMARY KEY,
+    asset_id    INTEGER NOT NULL REFERENCES assets(id),
+    fiscal_year INTEGER NOT NULL,
+    value       REAL,               -- as reported, not scaled
+    unit        TEXT,               -- reporting currency, e.g. USD
+    source      TEXT,               -- where it was read from, e.g. "FY2025 10-K"
+    note        TEXT,
+    is_curated  INTEGER DEFAULT 1,  -- 1 hand entered; nothing writes 0 yet
+    updated_at  TEXT DEFAULT (datetime('now')),
+    UNIQUE(asset_id, fiscal_year)
+);
+CREATE INDEX idx_asset_revenue ON asset_revenue(asset_id, fiscal_year);
+
 CREATE TABLE filings (
     id         INTEGER PRIMARY KEY,
     company_id INTEGER NOT NULL REFERENCES companies(id),

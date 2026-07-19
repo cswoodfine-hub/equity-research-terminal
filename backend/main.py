@@ -13,6 +13,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
+import asset_revenue as asset_revenue_module
 import catalysts as catalysts_module
 import comps as comps_module
 import db
@@ -226,6 +227,12 @@ def company_exclusivities(ticker: str) -> dict:
 
 @app.get("/companies/{ticker}/approvals")
 def company_approvals(ticker: str) -> dict:
+    """Approved products, with the protection and revenue known for each.
+
+    The exclusivity join is on the asset, not on the application number: one asset can
+    carry several approvals and they all share its protection. Latest expiry wins,
+    which is the same definition the LOE cliff uses.
+    """
     ticker = ticker.upper()
     conn = db.get_connection()
     try:
@@ -238,7 +245,22 @@ def company_approvals(ticker: str) -> dict:
             dict(r)
             for r in conn.execute(
                 """
-                SELECT ap.approval_date, ap.application_number, a.brand_name, a.modality
+                SELECT ap.approval_date, ap.application_number, a.brand_name,
+                       a.generic_name, a.modality,
+                       (SELECT MAX(e.expiry_date) FROM exclusivities e
+                         WHERE e.asset_id = a.id) AS loe,
+                       (SELECT e2.protection_type FROM exclusivities e2
+                         WHERE e2.asset_id = a.id
+                         ORDER BY e2.expiry_date DESC LIMIT 1) AS loe_basis,
+                       (SELECT r.value FROM asset_revenue r
+                         WHERE r.asset_id = a.id
+                         ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue,
+                       (SELECT r.unit FROM asset_revenue r
+                         WHERE r.asset_id = a.id
+                         ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue_unit,
+                       (SELECT r.fiscal_year FROM asset_revenue r
+                         WHERE r.asset_id = a.id
+                         ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue_year
                   FROM approvals ap JOIN assets a ON ap.asset_id = a.id
                  WHERE a.owner_company_id = ?
                  ORDER BY ap.approval_date DESC
@@ -249,6 +271,49 @@ def company_approvals(ticker: str) -> dict:
     finally:
         conn.close()
     return {"ticker": ticker, "approvals": rows}
+
+
+@app.get("/companies/{ticker}/revenue")
+def company_asset_revenue(ticker: str) -> dict:
+    """Curated product revenue. Hand entered; no free source carries it."""
+    return {"ticker": ticker.upper(),
+            "rows": asset_revenue_module.list_revenue(None, ticker)}
+
+
+class AssetRevenueIn(BaseModel):
+    application_number: str
+    fiscal_year: int
+    value: float
+    unit: str = "USD"
+    source: Optional[str] = ""
+    note: Optional[str] = ""
+
+
+@app.post("/companies/{ticker}/revenue")
+def set_asset_revenue(ticker: str, body: AssetRevenueIn) -> dict:
+    try:
+        revenue_id = asset_revenue_module.set_revenue(
+            None, ticker, body.application_number, body.fiscal_year, body.value,
+            body.unit, body.source or "", body.note or "")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"id": revenue_id}
+
+
+@app.delete("/revenue/{revenue_id}")
+def remove_asset_revenue(revenue_id: int) -> dict:
+    if not asset_revenue_module.delete_revenue(None, revenue_id):
+        raise HTTPException(status_code=404, detail=f"revenue {revenue_id} not found")
+    return {"deleted": revenue_id}
+
+
+@app.get("/companies/{ticker}/exposure")
+def company_exposure(ticker: str) -> dict:
+    """What falls off protection each year, and how much of it carries a revenue figure."""
+    built = asset_revenue_module.build_exposure(None, ticker)
+    if built is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return built
 
 
 def _company_rows(ticker, query):
