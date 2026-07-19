@@ -111,7 +111,10 @@ def _upcoming_catalysts(conn, within_days, ticker=None):
             "kind": "catalyst", "significance": "high" if soon else "medium",
             "date": r["expected_date"], "ticker": r["ticker"],
             "change_type": r["catalyst_type"],
-            "headline": f"{r['ticker']} {r['catalyst_type']}: {r['title']} ({r['expected_date']})",
+            # The stored title is whole; a feed line is one row of a list, so it is
+            # cut here rather than in the table it came from.
+            "headline": (f"{r['ticker']} {r['catalyst_type']}: "
+                         f"{_clip(r['title'])} ({r['expected_date']})"),
         })
     return items
 
@@ -193,6 +196,12 @@ def _material_filings(conn, days, ticker=None):
 
 def _date_offset(conn, days):
     return conn.execute("SELECT date('now', ?)", (f"+{int(days)} days",)).fetchone()[0]
+
+
+def _clip(text, limit: int = 90) -> str:
+    """A title cut to a feed line. Presentation, so it lives with the feed."""
+    text = (text or "").strip()
+    return text if len(text) <= limit else text[: limit - 1] + "\u2026"
 
 
 def build_feed(db_path=None, days=30, catalyst_days=60, loe_months=24, loe_limit=15,

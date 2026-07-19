@@ -121,8 +121,13 @@ def _readout_title(phase, brand, title) -> str:
 
     No "readout" here. catalyst_type already carries it, and the feed renders
     "{ticker} {type}: {title}", which read as "data readout: Phase 3 readout".
+
+    Stored whole. A registry title runs past 180 characters and the part that
+    distinguishes one study from another is at the end: two Retatrutide readouts are
+    identical until the comparator. Truncating here put that loss in the database,
+    where no view could undo it. Each view now cuts it to the width it has.
     """
-    subject = brand or (title or "").strip()[:70]
+    subject = brand or (title or "").strip()
     return f"{phase}, {subject}" if subject else phase
 
 
@@ -165,7 +170,8 @@ def derive_readouts(db_path=None, within_days=365, phases=READOUT_PHASES) -> dic
         for row in rows:
             url = CTGOV_URL.format(nct_id=row["nct_id"])
             existing = conn.execute(
-                "SELECT id, expected_date, is_curated FROM catalysts WHERE source_url = ?",
+                "SELECT id, expected_date, title, is_curated FROM catalysts"
+                " WHERE source_url = ?",
                 (url,),
             ).fetchone()
             title = _readout_title(row["phase"], row["brand_name"], row["title"])
@@ -182,7 +188,9 @@ def derive_readouts(db_path=None, within_days=365, phases=READOUT_PHASES) -> dic
                      _date_confidence(row["due"]), title, row["nct_id"], url),
                 )
                 added += 1
-            elif not existing["is_curated"] and existing["expected_date"] != row["due"]:
+            elif not existing["is_curated"] and (
+                    existing["expected_date"] != row["due"]
+                    or existing["title"] != title):
                 conn.execute(
                     "UPDATE catalysts SET expected_date = ?, date_confidence = ?,"
                     " title = ?, updated_at = datetime('now') WHERE id = ?",

@@ -149,3 +149,76 @@ def test_month_only_dates_are_marked_and_do_not_say_readout_twice(tmp_path):
     # catalyst_type already says readout; the title must not repeat it.
     assert "readout" not in row["title"].lower()
     assert row["title"].startswith("Phase 3, ")
+
+
+# --- a title is stored whole and cut per view ----------------------------
+LONG_TRIAL = ("Effect of Retatrutide Compared With Semaglutide in Adult Participants "
+              "With Type 2 Diabetes and Inadequate Glycemic Control With Metformin "
+              "With or Without SGLT2 Inhibitor (TRANSCEND-T2D-2)")
+
+
+def test_a_readout_title_keeps_the_whole_study_name():
+    """Two Retatrutide readouts are identical until the comparator, so a truncation
+    at storage put a loss in the database that no view could undo."""
+    title = catalysts._readout_title("Phase 3", None, LONG_TRIAL)
+
+    assert title.endswith("(TRANSCEND-T2D-2)")
+    assert len(title) > 180
+
+
+def test_a_mapped_asset_still_leads_with_its_brand():
+    assert catalysts._readout_title("Phase 3", "Zepbound", LONG_TRIAL) == \
+        "Phase 3, Zepbound"
+
+
+def test_the_feed_cuts_the_title_it_displays():
+    """The feed line is presentation, so the cut belongs there and not in the table."""
+    import whatchanged
+
+    assert whatchanged._clip("short") == "short"
+    clipped = whatchanged._clip(LONG_TRIAL, limit=40)
+    assert len(clipped) == 40 and clipped.endswith("…")
+
+
+def test_a_retitled_trial_updates_its_derived_catalyst(tmp_path):
+    """Regression: the row was only rewritten when the date moved, so a title that
+    changed, or one shortened by an older build, stayed stale for good."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    due = (dt.date.today() + dt.timedelta(days=60)).isoformat()
+
+    conn = db.get_connection(db_file)
+    _trial(conn, "NCT_RETITLE", "LLY", "Phase 3", "Recruiting", due, "First name")
+    conn.commit()
+    conn.close()
+    catalysts.derive_readouts(db_file)
+
+    # Same trial, same date, longer title: the registry revised it.
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE trials SET title = ? WHERE nct_id = 'NCT_RETITLE'",
+                 (LONG_TRIAL,))
+    conn.commit()
+    conn.close()
+    result = catalysts.derive_readouts(db_file)
+
+    stored = catalysts.list_catalysts(db_file, within_days=365, ticker="LLY")
+    assert result["updated"] == 1
+    assert stored[0]["title"].endswith("(TRANSCEND-T2D-2)")
+
+
+def test_an_unchanged_trial_is_not_rewritten(tmp_path):
+    """Idempotent: a second run with nothing moved touches nothing."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    due = (dt.date.today() + dt.timedelta(days=60)).isoformat()
+
+    conn = db.get_connection(db_file)
+    _trial(conn, "NCT_SAME", "LLY", "Phase 3", "Recruiting", due, LONG_TRIAL)
+    conn.commit()
+    conn.close()
+    catalysts.derive_readouts(db_file)
+    again = catalysts.derive_readouts(db_file)
+
+    assert again["added"] == 0 and again["updated"] == 0
