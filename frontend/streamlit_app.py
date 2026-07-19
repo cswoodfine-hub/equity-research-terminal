@@ -36,7 +36,14 @@ PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "P
 # pipeline. The API still returns all six, so nothing downstream loses the distinction
 # and this is a display choice that can be reversed here alone.
 PHASE_MERGE = {"Phase 1/2": "Phase 2", "Phase 2/3": "Phase 3"}
-DISPLAY_PHASES = [p for p in PIPELINE_PHASES if p not in PHASE_MERGE]
+# Phase 4 runs after approval, so it is not pipeline and the charts leave it out. What
+# is in it says so: continuation studies supplying drug to patients already on it,
+# local registration studies for products approved elsewhere, and post-marketing safety
+# work on things already sold. None of it is a future approval, and counting it stated
+# a pipeline 4.3% larger than there is.
+POST_APPROVAL = ("Phase 4",)
+DISPLAY_PHASES = [p for p in PIPELINE_PHASES
+                  if p not in PHASE_MERGE and p not in POST_APPROVAL]
 # Price chart windows, widest last. None means every session held. Windows wider than
 # the stored history are hidden rather than drawn short.
 PRICE_WINDOWS = [("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", None)]
@@ -743,16 +750,17 @@ with main:
 
     # --- Pipeline --------------------------------------------------------
     with pipeline_tab:
-        section("Active trials by phase", "lead sponsored")
+        section("Trials in development by phase", "lead sponsored")
         rows = api_get(api_base, "/pipeline")
         grid = pd.DataFrame([{"Ticker": r["ticker"], **r["phases"], "Total": r["total"]}
                              for r in rows])
-        if grid[PIPELINE_PHASES].to_numpy().sum() == 0:
+        if grid[DISPLAY_PHASES].to_numpy().sum() == 0:
             state("No trials on file",
                   "Press Refresh all on the Comps tab to pull active lead-sponsored "
                   "interventional trials from ClinicalTrials.gov.")
         else:
-            long = grid.melt(id_vars="Ticker", value_vars=PIPELINE_PHASES,
+            charted = [p for p in PIPELINE_PHASES if p not in POST_APPROVAL]
+            long = grid.melt(id_vars="Ticker", value_vars=charted,
                              var_name="Phase", value_name="Trials")
             long["Phase"] = long["Phase"].replace(PHASE_MERGE)
             long = long.groupby(["Ticker", "Phase"], as_index=False)["Trials"].sum()
@@ -768,16 +776,25 @@ with main:
                         'rather than a hue. Counts are trials, not deduplicated assets, '
                         'so a combination trial counts once per phase. Seamless trials '
                         'count at the phase they reach: Phase 1/2 with Phase 2, '
-                        'Phase 2/3 with Phase 3.</div>',
+                        'Phase 2/3 with Phase 3. Phase 4 is left out, being work on '
+                        'products already approved rather than anything in '
+                        'development.</div>',
                         unsafe_allow_html=True)
 
             # --- Therapeutic areas: click a band to reveal its trials ---
-            detail = api_get(api_base, f"/companies/{ticker}/trials")["trials"]
-            section(f"{ticker} by therapeutic area", f"{len(detail)} trials")
+            # Post-approval trials are dropped once, here, so the bars, the chips, and
+            # the table underneath all describe the same set. Filtering only the chart
+            # would leave a chip claiming a count its bar does not show.
+            every = api_get(api_base, f"/companies/{ticker}/trials")["trials"]
+            detail = [t for t in every if t["phase"] not in POST_APPROVAL]
+            marketed = len(every) - len(detail)
+            section(f"{ticker} by therapeutic area", f"{len(detail)} in development")
             if not detail:
-                state(f"No trials on file for {ticker}",
+                state(f"No trials in development for {ticker}",
                       "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
-                      "or pick another company in the sidebar.")
+                      "or pick another company in the sidebar."
+                      + (f" {marketed} Phase 4 trials are on file but sit outside the "
+                         "pipeline." if marketed else ""))
             else:
                 areas = pd.DataFrame([{"Area": t["area"],
                                        "Phase": PHASE_MERGE.get(t["phase"], t["phase"]),
@@ -831,11 +848,15 @@ with main:
                 section(", ".join(chosen) if chosen else "every area",
                         f"{len(shown)} trials")
                 if not chosen:
+                    marketed_note = (
+                        f" {marketed} Phase 4 trials are excluded: they run after "
+                        "approval, so they are lifecycle work rather than pipeline."
+                        if marketed else "")
                     st.markdown('<div class="byline">Pick one or more areas above to '
                                 'narrow the list. Areas are matched from the registry '
                                 'condition text by keyword, so the rule that placed a '
-                                'trial is readable rather than guessed.</div>',
-                                unsafe_allow_html=True)
+                                f'trial is readable rather than guessed.{marketed_note}'
+                                '</div>', unsafe_allow_html=True)
                 st.dataframe(pd.DataFrame([{
                     "NCT": t["nct_id"], "Phase": t["phase"], "Area": t["area"],
                     "Status": t["overall_status"],
