@@ -845,7 +845,15 @@ with main:
                 # Stacked by phase so the shape of an area reads at a glance: one that is
                 # all Phase 1 is a different proposition from one carrying Phase 3, even
                 # at the same trial count. Selecting dims everything else.
-                areas["picked"] = areas["Area"].isin(chosen) if chosen else True
+                #
+                # Counted here rather than with sum(n) in Vega, which is what made every
+                # bar render at quarter opacity. The dimming test reads datum.picked, and
+                # an aggregate drops every field it does not group by, so picked came
+                # back undefined and the condition fell to its false branch for all of
+                # them. The bars carried the right colours the whole time at a quarter of
+                # their strength, which is why they never matched the key.
+                seg = areas.groupby(["Area", "Phase"], as_index=False)["n"].sum()
+                seg["picked"] = seg["Area"].isin(chosen) if chosen else True
                 # No fixed bar height. A pixel height set against a band derived from the
                 # chart height overlaps as soon as the band is the smaller of the two,
                 # which it was: 18px bars in 16.7px bands ran 1 to 2px into each other.
@@ -854,13 +862,12 @@ with main:
                 # The range is taken from the length of the domain rather than from a
                 # fixed tuple, so the two cannot drift apart. They had: six phases were
                 # declared against five tints, and Phase 4 fell off the end of the scale
-                # with no colour of its own. Four steps also separate better than six
-                # could: the closest neighbouring pair goes from 1.22:1 to 1.40:1.
-                bars = (alt.Chart(areas).mark_bar()
+                # with no colour of its own.
+                bars = (alt.Chart(seg).mark_bar()
                         .encode(
                             y=alt.Y("Area:N", title=None, sort=order,
                                     scale=alt.Scale(paddingInner=0.3, paddingOuter=0.2)),
-                            x=alt.X("sum(n):Q", title="Trials"),
+                            x=alt.X("n:Q", title="Trials"),
                             color=alt.Color(
                                 "Phase:N", sort=DISPLAY_PHASES,
                                 scale=alt.Scale(domain=DISPLAY_PHASES,
@@ -870,7 +877,7 @@ with main:
                             opacity=alt.condition("datum.picked", alt.value(1),
                                                   alt.value(0.25)),
                             tooltip=[alt.Tooltip("Area:N"), alt.Tooltip("Phase:N"),
-                                     alt.Tooltip("sum(n):Q", title="Trials")]))
+                                     alt.Tooltip("n:Q", title="Trials")]))
                 # 34px per area leaves a readable bar once scale padding is taken out,
                 # and the axis and legend get their own room rather than eating a band.
                 chart(bars, max(170, 34 * len(order)))
@@ -995,7 +1002,8 @@ with main:
                 "Basis": a.get("loe_basis") or "—",
                 "Revenue": (T.num(a["revenue"] / 1e9, 2)
                             if a.get("revenue") is not None else "—"),
-                "FY": a.get("revenue_year") or "—"}
+                # str, not int: a mixed int and dash column fails Arrow conversion.
+                "FY": str(a.get("revenue_year") or "—")}
                 for a in approvals])
             st.dataframe(
                 frame.style.map(
