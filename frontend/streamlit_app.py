@@ -21,6 +21,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+import calendar_view
 import rail as rail_module
 import revenue_mix
 import theme as T
@@ -1097,42 +1098,42 @@ with main:
 
     # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
-        # Derived only. Readouts come from Phase 3 primary completion dates on every
-        # refresh, so the calendar is rebuilt rather than maintained. The add form is
-        # gone: a date typed in once goes stale silently and nothing tells you.
-        section("Catalyst calendar", "derived on refresh")
-        window = st.radio("Window", [90, 180, 365], index=0, horizontal=True,
-                          format_func=lambda d: f"{d} days", key="cat_window",
+        # Derived only, and for the selected company alone. Readouts come from Phase 3
+        # primary completion dates on every refresh, so the calendar is rebuilt rather
+        # than maintained. The add form is gone: a date typed in once goes stale
+        # silently and nothing tells you.
+        section(f"Catalyst calendar for {ticker}", "derived on refresh")
+        window = st.radio("Window", [6, 12, 24], index=1, horizontal=True,
+                          format_func=lambda m: f"{m} months", key="cat_months",   # renamed: the old key held a day count
                           label_visibility="collapsed")
-        calendar = api_get(api_base, f"/catalysts?within_days={window}")
+        calendar = api_get(
+            api_base,
+            f"/catalysts?within_days={window * 31}"
+            f"&ticker={urllib.parse.quote(ticker)}")
         if not calendar:
-            state(f"No catalysts in the next {window} days",
+            state(f"Nothing dated for {ticker} in the next {window} months",
                   "Readouts are derived from Phase 3 primary completion dates on every "
                   "refresh, so this fills once trials are fetched. PDUFA dates are read "
                   "out of the 8-K that announces the acceptance, which needs "
                   "ANTHROPIC_API_KEY set; without it that half stays empty.")
         else:
-            section("Calendar", f"{len(calendar)} readouts")
-            frame = pd.DataFrame([{
-                "id": c["id"],
-                "Date": c["expected_date"], "Company": c["ticker"],
-                "Type": c["catalyst_type"], "Confidence": c["date_confidence"],
-                "Title": c["title"], "Evidence": c["source_url"] or "—"}
-                for c in calendar])
-            st.dataframe(
-                frame,
-                width="stretch", hide_index=True,
-                column_config={"Evidence": st.column_config.LinkColumn(
-                    "Evidence", display_text=r"NCT\w+")})
-            st.markdown(
-                '<div class="byline">Two automatic sources, nothing typed in. Readouts '
-                'come from Phase 3 primary completion dates on ClinicalTrials.gov, '
-                'which are estimates and move, so a refresh updates the date in place '
-                'and withdraws the row if the trial stops. PDUFA dates are read out of '
-                'the 8-K that announces the acceptance: the date, the product name and '
-                'a verbatim quote all have to appear in the filing or the row is '
-                'dropped, and Evidence links to the document it came from. That half '
-                'needs ANTHROPIC_API_KEY set.</div>', unsafe_allow_html=True)
+            st.markdown(calendar_view.render(calendar, months=window),
+                        unsafe_allow_html=True)
+            st.markdown(f'<div class="byline">{calendar_view.caption(calendar, window)}'
+                        ' A readout date is an estimate and moves, so a refresh updates '
+                        'it in place and withdraws the row if the trial stops. A PDUFA '
+                        'date is only written when the date, the product name and a '
+                        'verbatim quote all appear in the filing.</div>',
+                        unsafe_allow_html=True)
+
+            with st.expander("The rows behind the calendar"):
+                st.dataframe(pd.DataFrame([{
+                    "Date": c["expected_date"], "Type": c["catalyst_type"],
+                    "Precision": c["date_confidence"], "Title": c["title"],
+                    "Evidence": c["source_url"] or "—"} for c in calendar]),
+                    width="stretch", hide_index=True,
+                    column_config={"Evidence": st.column_config.LinkColumn(
+                        "Evidence", display_text=r"NCT\w+")})
 
     # --- News ------------------------------------------------------------
     with news_tab:

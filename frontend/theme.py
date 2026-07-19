@@ -306,6 +306,39 @@ h3 {{ font-size: 0.9rem; }}
    a chart made inside a hidden tab is measured at a few pixels and keeps that width. */
 .trend {{ margin: 0.35rem 0 0.1rem; }}
 .trend svg {{ display: block; }}
+/* Catalyst calendar. Months, not days: a third of the dates carry no day, so a day
+   grid would have to invent one. Empty months stay in the grid, because a quiet run
+   is part of the shape. */
+.cal {{
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
+  gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+  margin: 0.3rem 0 0.2rem;
+}}
+.cal-month {{ background: var(--ground); padding: 0.45rem 0.6rem 0.55rem; min-height: 74px; }}
+.cal-month.empty {{ background: {P.raised}; }}
+.cal-month.now {{ box-shadow: inset 2px 0 0 var(--data); }}
+.cal-head {{
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--stale); padding-bottom: 0.3rem;
+}}
+.cal-month.now .cal-head {{ color: var(--data); }}
+.cal-n {{ font-weight: 600; letter-spacing: 0; }}
+.cal-item {{
+  display: grid; grid-template-columns: 20px 1fr; gap: 0.4rem;
+  align-items: baseline; padding: 0.22rem 0; border-top: 1px solid var(--rule);
+}}
+.cal-day {{
+  font-family: {MONO}; font-size: 11px; font-weight: 600; text-align: right;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}}
+.cal-day.none {{ color: var(--stale); font-weight: 400; }}
+.cal-title {{ font-size: 11.5px; line-height: 1.3; color: var(--ink); }}
+.cal-kind {{
+  grid-column: 2; font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--stale);
+}}
+
 .fin .lu {{ color: var(--stale); font-size: 11px; }}
 .fin-note {{ font-size: 11px; color: var(--stale); margin: 0.45rem 0 0; max-width: 70ch; }}
 
