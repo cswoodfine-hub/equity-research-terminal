@@ -20,8 +20,8 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-import cliff as cliff_module
 import rail as rail_module
+import revenue_mix
 import theme as T
 import trend as trend_module
 
@@ -891,25 +891,6 @@ with main:
                 y=alt.Y("Products:Q", title="Products losing exclusivity"),
                 tooltip=["Year:N", "Products:Q"]), 220)
 
-            # --- Capital at risk, for the selected company ---
-            exposure = api_get(api_base, f"/companies/{ticker}/exposure")
-            section(f"Capital at risk for {ticker}",
-                    f'{exposure["products_covered"]} of '
-                    f'{exposure["products_at_risk"]} priced')
-            panel = cliff_module.render(exposure)
-            if panel:
-                st.markdown(f'<div class="trend">{panel}</div>',
-                            unsafe_allow_html=True)
-                st.markdown(f'<div class="byline">{cliff_module.caption(exposure)} '
-                            'Filled marks are products with a revenue figure, hollow '
-                            'ones are products without. Orphan exclusivity is left out '
-                            'entirely: it lapses without the product losing anything.'
-                            '</div>', unsafe_allow_html=True)
-            else:
-                state(f"Nothing loses protection for {ticker} inside the window",
-                      "Either the books carry no expiry ahead for this company, or "
-                      "every entry is orphan exclusivity, which is not a cliff.")
-
             section(f"Upcoming for {ticker}", len(exclusivities))
             if not exclusivities:
                 state(f"No upcoming loss of exclusivity for {ticker}",
@@ -962,7 +943,7 @@ with main:
                 f'<div><span class="k">with revenue</span>'
                 f'<span class="v{"" if priced else " none"}">'
                 f'{len(priced) or "none"}</span>'
-                f'<span class="sub">hand entered, no free source</span></div>'
+                f'<span class="sub">from the SEC data sets</span></div>'
                 f'</div>', unsafe_allow_html=True)
 
             frame = pd.DataFrame([{
@@ -989,9 +970,9 @@ with main:
                 '<div class="byline">Protection is the latest expiry the Orange or '
                 'Purple Book carries for the product, so several approvals of one '
                 'product share it. A dash is no entry in the books rather than no '
-                'protection. Revenue is hand entered from the product table of the '
-                '10-K, in billions of the reporting currency, because no free source '
-                'publishes revenue per product.</div>', unsafe_allow_html=True)
+                'protection. Revenue is the worldwide figure the filing tags per product, from the '
+                'SEC data sets, in billions of the reporting currency. Products the filing '
+                'does not break out are blank.</div>', unsafe_allow_html=True)
 
             # --- Overriding a revenue figure ---
             # Revenue arrives from the SEC bulk data sets. This is the correction path,
@@ -999,6 +980,20 @@ with main:
             # hand, so it sits behind a disclosure rather than in front of the table.
             curated = api_get(api_base, f"/companies/{ticker}/revenue")["rows"]
             hand = [r for r in curated if r.get("source") != "sec_fsds"]
+
+            # --- Where the revenue comes from ---
+            latest_year = max((r["fiscal_year"] for r in curated), default=None)
+            mix_rows = [r for r in curated if r["fiscal_year"] == latest_year]
+            mix_currency = next((r["unit"] for r in mix_rows if r.get("unit")), None)
+            mix = revenue_mix.render(mix_rows, mix_currency, latest_year)
+            if mix:
+                section("Revenue mix", f"FY{latest_year}")
+                st.markdown(f'<div class="trend">{mix}</div>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="byline">'
+                    f'{revenue_mix.caption(mix_rows, mix_currency, latest_year)}</div>',
+                    unsafe_allow_html=True)
+
             section("Product revenue",
                     f"{len(curated)} on file · {len(hand)} hand entered")
             choices = {f'{a["brand_name"]} · {a["application_number"]}':

@@ -61,9 +61,63 @@ def test_worldwide_product_revenue_matches_the_filing():
     """Mounjaro is 13.651bn US plus 9.315bn non-US, as filed."""
     products = extract_products(_rows(), LLY_ADSH, "20251231")
 
-    assert products["Mounjaro"] == pytest.approx(22.966e9)
-    assert products["Zepbound"] == pytest.approx(13.542e9)
-    assert products["Verzenio"] == pytest.approx(5.723e9)
+    assert products["Mounjaro"]["value"] == pytest.approx(22.966e9)
+    assert products["Zepbound"]["value"] == pytest.approx(13.542e9)
+    assert products["Verzenio"]["value"] == pytest.approx(5.723e9)
+
+
+def test_the_unit_travels_with_the_value():
+    """Novo reports in DKK and Sanofi in EUR. A DKK figure stored as USD is wrong by
+    a factor of six, so the unit is read from the row and never assumed."""
+    products = extract_products(_rows(), LLY_ADSH, "20251231")
+    assert products["Mounjaro"]["unit"] == "USD"
+
+    rows = [{"adsh": "X", "tag": "Revenue", "ddate": "20251231", "qtrs": "4",
+             "coreg": "", "value": "127090000000", "uom": "DKK",
+             "segments": "ProductsAndServices=Ozempic;"}]
+    assert extract_products(rows, "X", "20251231")["Ozempic"]["unit"] == "DKK"
+
+
+def test_the_ifrs_product_axis_is_read_too():
+    """20-F filers tag ProductsAndServices, not ProductOrService. Missing it returned
+    nothing at all for five of the sixteen companies."""
+    rows = [{"adsh": "X", "tag": "RevenueFromSaleOfGoods", "ddate": "20251231",
+             "qtrs": "4", "coreg": "", "value": "8400000000", "uom": "USD",
+             "segments": "ProductsAndServices=Farxiga;"}]
+    assert extract_products(rows, "X", "20251231")["Farxiga"]["value"] == 8.4e9
+
+
+def test_a_product_inside_one_segment_is_read_at_that_level():
+    """Merck tags every product inside a business segment and never on its own.
+    Rejecting the row outright returned nothing for Merck, JNJ and Novo."""
+    rows = [{"adsh": "X", "tag": "Revenues", "ddate": "20251231", "qtrs": "4",
+             "coreg": "", "value": "31640000000", "uom": "USD",
+             "segments": "BusinessSegments=Pharmaceutical;"
+                         "ConsolidationItems=Operating;ProductOrService=Keytruda;"}]
+    assert extract_products(rows, "X", "20251231")["Keytruda"]["value"] == 31.64e9
+
+
+def test_a_product_spread_across_segments_is_skipped():
+    """Two segments at the shallowest level would have to be added, and a hierarchy
+    like JNJ's nests, so summing would double count."""
+    rows = [{"adsh": "X", "tag": "Revenues", "ddate": "20251231", "qtrs": "4",
+             "coreg": "", "value": "100", "uom": "USD",
+             "segments": "BusinessSegments=A;ProductOrService=Split;"},
+            {"adsh": "X", "tag": "Revenues", "ddate": "20251231", "qtrs": "4",
+             "coreg": "", "value": "200", "uom": "USD",
+             "segments": "BusinessSegments=B;ProductOrService=Split;"}]
+    assert extract_products(rows, "X", "20251231") == {}
+
+
+def test_the_shallowest_level_wins_over_a_deeper_one():
+    """A product total and its geographic split both present: the total wins."""
+    rows = [{"adsh": "X", "tag": "Revenues", "ddate": "20251231", "qtrs": "4",
+             "coreg": "", "value": "500", "uom": "USD",
+             "segments": "ProductOrService=Solo;"},
+            {"adsh": "X", "tag": "Revenues", "ddate": "20251231", "qtrs": "4",
+             "coreg": "", "value": "9999", "uom": "USD",
+             "segments": "BusinessSegments=A;ProductOrService=Solo;"}]
+    assert extract_products(rows, "X", "20251231")["Solo"]["value"] == 500
 
 
 def test_category_members_are_not_treated_as_products():
@@ -74,15 +128,21 @@ def test_category_members_are_not_treated_as_products():
         assert rollup not in products
     # The area aggregates survive extraction but never match an asset by brand name,
     # which is the second filter. What matters here is that no roll-up total does.
-    assert products["Mounjaro"] < products.get("CardiometabolicHealth", float("inf"))
+    assert (products["Mounjaro"]["value"]
+            < products.get("CardiometabolicHealth", {}).get("value", float("inf")))
 
 
 def test_rows_carrying_a_third_axis_are_skipped():
     """A product-by-arrangement row is a slice of the product, not its total."""
     rows = [{"adsh": "X", "tag": "Revenues", "ddate": "20251231", "qtrs": "4",
-             "coreg": "", "value": "370000000",
-             "segments": "ProductOrService=Jardiance;TypeOfArrangement=OneTimePayment;"}]
-    assert extract_products(rows, "X", "20251231") == {}
+             "coreg": "", "value": "370000000", "uom": "USD",
+             "segments": "ProductOrService=Jardiance;TypeOfArrangement=OneTimePayment;"},
+            {"adsh": "X", "tag": "Revenues", "ddate": "20251231", "qtrs": "4",
+             "coreg": "", "value": "3432000000", "uom": "USD",
+             "segments": "ProductOrService=Jardiance;"}]
+    # Both levels are present, so the un-dimensioned total wins and the arrangement
+    # slice never stands in for the product.
+    assert extract_products(rows, "X", "20251231")["Jardiance"]["value"] == 3.432e9
 
 
 def test_only_the_requested_filing_and_period_are_read():

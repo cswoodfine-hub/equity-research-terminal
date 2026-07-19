@@ -166,14 +166,16 @@ Figures can still be entered by hand, on the Approvals tab, which is how a filer
 tags no product axis gets covered. A hand entered figure always outranks the filing, so
 a correction survives the next refresh.
 
-That makes the **LOE** tab's capital-at-risk panel honest about itself. It carries two
-registers: bars for the revenue falling off protection each year, and beneath them one
-mark per product, filled where a figure exists and hollow where it does not. At zero
-coverage the bars are empty and the marks carry the whole story, which is a count and
-says so; as figures are entered the bars grow into it. An unpriced product is unknown,
-never zero, so a thin table reads as thin rather than as a small cliff. Orphan
-exclusivity is excluded entirely: it lapses without the product losing anything.
-Currencies are never converted, so a portfolio priced in two of them shows no total.
+Coverage is 13 of the 16 SEC filers, 124 products. AbbVie tags no product axis at all,
+and GSK and Regeneron spread their products across segments in a way that would need
+summing. Novo reports in DKK and Sanofi in EUR; the unit travels with each figure and
+nothing is converted.
+
+**Revenue mix** on the Approvals tab draws the largest drivers as their own slices and
+brackets the rest into one. A pie is only readable while the slices are few and
+different in size, so anything past the sixth product, or under 2% of the total, joins
+the bracket. The total in the middle is the tagged products only, not company revenue:
+whatever the filing does not break out is absent.
 
 A full `?scope=all` refresh pulls every source for all 18 companies (Yahoo, EDGAR, and
 paginated ClinicalTrials queries). Companies run in parallel, four at a time. Measured

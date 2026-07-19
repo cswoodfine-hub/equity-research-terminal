@@ -47,8 +47,11 @@ QUARTERS_BACK = 5     # enough to catch every filer's latest annual report, 20-F
 _TIMEOUT_S = 180
 
 ANNUAL_FORMS = ("10-K", "20-F")
-PRODUCT_AXIS = "ProductOrService"
-GEOGRAPHY_AXIS = "Geographical"
+# us-gaap names the axis one way and IFRS another, which is the whole reason the 20-F
+# filers came back empty at first. Novo, Sanofi and AstraZeneca tag products just as
+# fully as Lilly does, under ProductsAndServices.
+PRODUCT_AXES = ("ProductOrService", "ProductsAndServices")
+GEOGRAPHY_AXES = ("Geographical", "GeographicalAreas", "MarketsOfCustomers")
 
 # Members that are roll-ups or categories rather than products. They are excluded by
 # name as well as by failing to match an asset, so a company that happens to have an
@@ -117,12 +120,21 @@ def worldwide(by_geography: dict[str | None, float]) -> float | None:
     return None
 
 
-def extract_products(rows, adsh: str, ddate: str) -> dict[str, float]:
-    """{product member: worldwide revenue} for one filing and one period end.
+def extract_products(rows, adsh: str, ddate: str) -> dict[str, dict]:
+    """{product member: {'value', 'unit'}} for one filing and one period end.
 
-    ``rows`` are dicts with the num.txt columns. Only full-year durations are read, and
-    a value carrying any axis other than product and geography is skipped: a
-    product-by-arrangement or product-by-segment row is a slice, not a total.
+    ``rows`` are dicts with the num.txt columns. Only full-year durations are read.
+
+    Products are rarely tagged on their own. Merck reports every product inside a
+    business segment, JNJ inside a segment and a subsegment, Novo inside a segment.
+    Rejecting any row with an extra axis returned nothing at all for those filers, and
+    adding the segments up would double count a hierarchy: JNJ's subsegments nest
+    inside its segments.
+
+    So each product is read at its most aggregated level, and only when that level is
+    unambiguous, meaning one distinct combination of non-geography members. A product
+    sitting in exactly one segment is fully described by that row. A product spread
+    across several is skipped, because resolving it would mean summing.
     """
     collected: dict[str, dict] = {}
     for row in rows:
@@ -133,22 +145,36 @@ def extract_products(rows, adsh: str, ddate: str) -> dict[str, float]:
         if row.get("qtrs") != "4" or row.get("ddate") != ddate:
             continue
         axes = parse_segments(row.get("segments"))
-        product = axes.get(PRODUCT_AXIS)
+        product = next((axes[a] for a in PRODUCT_AXES if a in axes), None)
         if not product or _norm(product) in NOT_A_PRODUCT:
             continue
-        if set(axes) - {PRODUCT_AXIS, GEOGRAPHY_AXIS}:
-            continue
+        geography = next((axes[a] for a in GEOGRAPHY_AXES if a in axes), None)
+        extras = tuple(sorted((axis, member) for axis, member in axes.items()
+                              if axis not in PRODUCT_AXES
+                              and axis not in GEOGRAPHY_AXES))
         try:
             value = float(row["value"])
         except (TypeError, ValueError, KeyError):
             continue
-        collected.setdefault(product, {})[axes.get(GEOGRAPHY_AXIS)] = value
+        # The unit travels with the value. Novo reports in DKK and Sanofi in EUR, and
+        # a DKK figure stored as USD would be wrong by a factor of six.
+        by_level = collected.setdefault(product, {})
+        by_level.setdefault(extras, {})[geography] = (value, row.get("uom") or "")
 
     out = {}
-    for product, by_geography in collected.items():
-        total = worldwide(by_geography)
-        if total is not None and total > 0:
-            out[product] = total
+    for product, by_level in collected.items():
+        shallowest = min(len(extras) for extras in by_level)
+        level = [g for extras, g in by_level.items() if len(extras) == shallowest]
+        if len(level) != 1:
+            continue                 # several segments at the top: would need summing
+        by_geography = level[0]
+        total = worldwide({geo: value for geo, (value, _) in by_geography.items()})
+        if total is None or total <= 0:
+            continue
+        units = {unit for _, unit in by_geography.values() if unit}
+        if len(units) != 1:
+            continue                 # a product priced in two units cannot be totalled
+        out[product] = {"value": total, "unit": units.pop()}
     return out
 
 
@@ -236,9 +262,10 @@ class ProductRevenueFetcher(BaseFetcher):
                 for adsh, ticker in wanted.items():
                     meta = found[ticker]
                     products = extract_products(rows_by_adsh[adsh], adsh, meta["ddate"])
-                    for member, value in products.items():
+                    for member, found_row in products.items():
                         payload.append({"ticker": ticker, "member": member,
-                                        "value": value,
+                                        "value": found_row["value"],
+                                        "unit": found_row["unit"],
                                         "fiscal_year": int(meta["ddate"][:4]),
                                         "form": meta["form"], "adsh": adsh})
         return payload
@@ -300,14 +327,16 @@ class ProductRevenueFetcher(BaseFetcher):
                     """
                     INSERT INTO asset_revenue
                         (asset_id, fiscal_year, value, unit, source, note, is_curated)
-                    VALUES (?, ?, ?, 'USD', ?, ?, 0)
+                    VALUES (?, ?, ?, ?, ?, ?, 0)
                     ON CONFLICT(asset_id, fiscal_year) DO UPDATE SET
-                        value=excluded.value, source=excluded.source,
-                        note=excluded.note, updated_at=datetime('now')
+                        value=excluded.value, unit=excluded.unit,
+                        source=excluded.source, note=excluded.note,
+                        updated_at=datetime('now')
                      -- A hand entered figure is a correction and outranks the filing.
                      WHERE asset_revenue.is_curated = 0
                     """,
-                    (asset_id, row["fiscal_year"], row["value"], SEC_SOURCE,
+                    (asset_id, row["fiscal_year"], row["value"],
+                     row.get("unit") or "USD", SEC_SOURCE,
                      f'{row["form"]} {row["adsh"]}'),
                 )
                 written += 1
