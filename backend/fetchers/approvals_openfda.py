@@ -1,8 +1,15 @@
 """FDA approvals from openFDA drugsfda.
 
-Queries drugsfda by openFDA manufacturer name (sponsor_name phrase search 404s) and
-records each application's original approval. Covers NDAs and BLAs, so approvals link
-to the same marketed assets the Orange and Purple Book create, by application number.
+Queries drugsfda by both the sponsor name and the openFDA manufacturer name, and unions
+the two. Neither field alone is enough. The manufacturer name is the legal entity that
+holds the application, which for an acquired product is the company that was bought:
+Bristol Myers Squibb holds Opdivo as E.R. Squibb & Sons, Revlimid as Celgene, Camzyos as
+Myokardia, so a manufacturer query for Bristol found nothing. The sponsor name catches
+those but misses the drugs an acquirer never re-registered, so both run and the results
+are merged on application number.
+
+Covers NDAs and BLAs, so approvals link to the same marketed assets the Orange and
+Purple Book create, by application number.
 """
 
 from __future__ import annotations
@@ -48,6 +55,17 @@ MANUFACTURER_MAP = {
     "REGN": ["Regeneron Pharmaceuticals"],
     "BIIB": ["Biogen"],
     "BAYN": ["Bayer"],
+}
+
+# ticker -> sponsor_name terms. A term search, not a phrase: a quoted phrase 404s here,
+# and the terms match only the exact sponsor anyway (a Merck query returns none of
+# Merck KGaA). The sponsor is the parent, so this is where an acquired product surfaces.
+SPONSOR_MAP = {
+    "LLY": "ELI LILLY", "NVO": "NOVO NORDISK", "MRK": "MERCK SHARP DOHME",
+    "PFE": "PFIZER", "ABBV": "ABBVIE", "JNJ": "JANSSEN", "AZN": "ASTRAZENECA",
+    "GSK": "GLAXOSMITHKLINE", "NVS": "NOVARTIS", "ROG": "GENENTECH", "SNY": "SANOFI",
+    "BMY": "BRISTOL MYERS SQUIBB", "AMGN": "AMGEN", "GILD": "GILEAD",
+    "VRTX": "VERTEX", "REGN": "REGENERON", "BIIB": "BIOGEN", "BAYN": "BAYER",
 }
 
 
@@ -116,11 +134,7 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
         ).fetchone()
         return row[0] if row else None
 
-    def fetch(self) -> dict:
-        names = MANUFACTURER_MAP.get(self.ticker)
-        if not names:
-            raise ValueError(f"no openFDA manufacturer mapping for {self.ticker}")
-        query = "openfda.manufacturer_name:(" + " ".join(f'"{n}"' for n in names) + ")"
+    def _run(self, query: str) -> list[dict]:
         params = {"search": query, "limit": _LIMIT}
         api_key = (os.getenv("OPENFDA_API_KEY") or "").strip()
         if api_key:
@@ -129,11 +143,36 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
         request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
         try:
             with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                return json.loads(resp.read().decode("utf-8")).get("results", [])
         except urllib.error.HTTPError as exc:
             if exc.code == 404:  # openFDA returns 404 for no matches
-                return {"results": []}
+                return []
             raise
+
+    def fetch(self) -> dict:
+        names = MANUFACTURER_MAP.get(self.ticker)
+        sponsor = SPONSOR_MAP.get(self.ticker)
+        if not names and not sponsor:
+            raise ValueError(f"no openFDA mapping for {self.ticker}")
+
+        results: list[dict] = []
+        if names:
+            phrase = " ".join(f'"{n}"' for n in names)
+            results += self._run(f"openfda.manufacturer_name:({phrase})")
+        if sponsor:
+            results += self._run(f"sponsor_name:({sponsor})")
+
+        # An application can come back from both queries. The application number is its
+        # identity, so a later parse keying on it dedupes, but merging here keeps the
+        # count honest and the payload small.
+        seen, merged = set(), []
+        for item in results:
+            number = item.get("application_number")
+            if number and number in seen:
+                continue
+            seen.add(number)
+            merged.append(item)
+        return {"results": merged}
 
     def normalise(self, raw) -> list[dict]:
         return parse_drugsfda(raw, self.ticker)

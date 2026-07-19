@@ -8,7 +8,7 @@ for the product spec.
 
 Status: phase 7 (generated notes). Prices (Yahoo), financials (SEC EDGAR), trials
 (ClinicalTrials.gov), patent/exclusivity (Orange + Purple Book), approvals (openFDA),
-and filings (EDGAR submissions) refresh for the universe. Every refresh writes
+and filings (EDGAR submissions) refresh for the universe. Approvals query openFDA by both the sponsor and the manufacturer name and union the two, so an acquired product filed under the entity that was bought (Opdivo under E.R. Squibb, Revlimid under Celgene) still resolves to its parent. Every refresh writes
 snapshots, and a diff engine turns consecutive snapshots into a `changes` feed: trial
 status/date/phase changes, new 8-K/6-K, and new approvals, ranked with catalysts
 within 60 days and near-term LOE into a "what changed" view. Catalysts are a curated

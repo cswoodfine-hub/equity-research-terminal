@@ -1003,9 +1003,10 @@ with main:
         section(f"FDA approvals for {ticker}", len(approvals))
         if not approvals:
             state(f"No approvals on file for {ticker}",
-                  "Press Refresh all on the Comps tab to pull openFDA. Coverage depends "
-                  "on openFDA manufacturer tagging and is not exhaustive.")
-        else:
+                  "openFDA files an approval under the legal entity that holds the "
+                  "application, which for an acquired product is the company that was "
+                  "bought. Press Refresh all on the Comps tab to pull it again.")
+        if approvals:
             protected = [a for a in approvals if a.get("loe")]
             priced = [a for a in approvals if a.get("revenue") is not None]
             st.markdown(
@@ -1056,49 +1057,49 @@ with main:
             # Revenue arrives from the SEC bulk data sets. This is the correction path,
             # and the place a 20-F filer that tags no product axis can be filled in by
             # hand, so it sits behind a disclosure rather than in front of the table.
-            revenue_payload = api_get(api_base, f"/companies/{ticker}/revenue")
-            curated = revenue_payload["rows"]
+        revenue_payload = api_get(api_base, f"/companies/{ticker}/revenue")
+        curated = revenue_payload["rows"]
 
-            # --- Where the revenue comes from ---
-            latest_year = max((r["fiscal_year"] for r in curated), default=None)
-            mix_rows = [r for r in curated if r["fiscal_year"] == latest_year]
-            mix_currency = next((r["unit"] for r in mix_rows if r.get("unit")), None)
-            # The company total is what lets the chart show what it cannot attribute.
-            # Without it the donut would total the tagged products and imply Lilly
-            # earned 50bn rather than 65bn.
-            reported = (revenue_payload.get("company_revenue") or {}).get(
-                str(latest_year)) or {}
-            mix = revenue_mix.render(mix_rows, mix_currency, latest_year,
-                                     reported.get("value"))
-            if mix:
-                section("Revenue mix", f"FY{latest_year}")
-                st.markdown(f'<div class="trend">{mix}</div>', unsafe_allow_html=True)
-                st.markdown(
-                    '<div class="byline">'
-                    f'{revenue_mix.caption(mix_rows, mix_currency, latest_year, reported.get("value"))}'
-                    '</div>', unsafe_allow_html=True)
+        # --- Where the revenue comes from ---
+        latest_year = max((r["fiscal_year"] for r in curated), default=None)
+        mix_rows = [r for r in curated if r["fiscal_year"] == latest_year]
+        mix_currency = next((r["unit"] for r in mix_rows if r.get("unit")), None)
+        # The company total is what lets the chart show what it cannot attribute.
+        # Without it the donut would total the tagged products and imply Lilly
+        # earned 50bn rather than 65bn.
+        reported = (revenue_payload.get("company_revenue") or {}).get(
+            str(latest_year)) or {}
+        mix = revenue_mix.render(mix_rows, mix_currency, latest_year,
+                                 reported.get("value"))
+        if mix:
+            section("Revenue mix", f"FY{latest_year}")
+            st.markdown(f'<div class="trend">{mix}</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="byline">'
+                f'{revenue_mix.caption(mix_rows, mix_currency, latest_year, reported.get("value"))}'
+                '</div>', unsafe_allow_html=True)
 
-            section("Product revenue", f"{len(curated)} from the filings")
-            if not curated:
-                state(f"No product revenue on file for {ticker}",
-                      "The SEC data sets carry revenue per product only where the "
-                      "filer tags a product axis. AbbVie tags none at all, and GSK and "
-                      "Regeneron spread theirs across segments in a way that cannot be "
-                      "resolved without adding them together.")
-            else:
-                for row in curated:
-                    st.markdown(
-                        f'<div class="fitem"><span class="d">FY{row["fiscal_year"]}'
-                        f'</span><span class="t">{html_escape(row["brand_name"])} '
-                        f'<span class="mono">{html_escape(row["internal_code"] or "")}'
-                        f'</span></span><span class="s">'
-                        f'{T.num(row["value"] / 1e9, 2)} {row["unit"] or ""}</span>'
-                        f'</div>', unsafe_allow_html=True)
+        section("Product revenue", f"{len(curated)} from the filings")
+        if not curated:
+            state(f"No product revenue on file for {ticker}",
+                  "The SEC data sets carry revenue per product only where the "
+                  "filer tags a product axis. AbbVie tags none at all, and GSK and "
+                  "Regeneron spread theirs across segments in a way that cannot be "
+                  "resolved without adding them together.")
+        else:
+            for row in curated:
                 st.markdown(
-                    '<div class="byline">Worldwide, as the filing tags it, from the SEC '
-                    'Financial Statement Data Sets. Nothing here is typed in: a figure '
-                    'is what the company reported or it is absent.</div>',
-                    unsafe_allow_html=True)
+                    f'<div class="fitem"><span class="d">FY{row["fiscal_year"]}'
+                    f'</span><span class="t">{html_escape(row["brand_name"])} '
+                    f'<span class="mono">{html_escape(row["internal_code"] or "")}'
+                    f'</span></span><span class="s">'
+                    f'{T.num(row["value"] / 1e9, 2)} {row["unit"] or ""}</span>'
+                    f'</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="byline">Worldwide, as the filing tags it, from the SEC '
+                'Financial Statement Data Sets. Nothing here is typed in: a figure '
+                'is what the company reported or it is absent.</div>',
+                unsafe_allow_html=True)
 
     # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
