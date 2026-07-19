@@ -1,13 +1,13 @@
-"""The note layer: rules fallback, mocked Anthropic path, and API failure. No network."""
+"""The note layer: rules fallback, mocked model path, and API failure. No network."""
 
 import datetime as dt
 import json
-import types
 
 import catalysts
 import db
 import diff
 import insights
+import llm
 import seed
 
 
@@ -37,24 +37,6 @@ def _seed_feed(db_file):
     catalysts.add_catalyst(db_file, "LLY", "PDUFA",
                            (dt.date.today() + dt.timedelta(days=30)).isoformat(),
                            "PDUFA decision")
-
-
-class _FakeMessages:
-    def __init__(self, outcome):
-        self._outcome = outcome
-        self.calls = []
-
-    def create(self, **kwargs):
-        self.calls.append(kwargs)
-        if isinstance(self._outcome, Exception):
-            raise self._outcome
-        block = types.SimpleNamespace(type="text", text=self._outcome)
-        return types.SimpleNamespace(content=[block])
-
-
-class _FakeClient:
-    def __init__(self, outcome):
-        self.messages = _FakeMessages(outcome)
 
 
 def test_scrub_removes_em_dashes():
@@ -115,6 +97,8 @@ def test_rules_note_when_nothing_flagged():
 
 def test_generate_note_falls_back_to_rules_without_a_key(tmp_path, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
     db_file = tmp_path / "test.db"
     _seed_feed(db_file)
 
@@ -128,37 +112,45 @@ def test_generate_note_falls_back_to_rules_without_a_key(tmp_path, monkeypatch):
     assert stored["body"] == out["body"] and stored["model"] == "rules"
 
 
-def test_generate_note_uses_the_model_when_a_client_is_supplied(tmp_path):
+def test_generate_note_uses_the_model_when_one_is_configured(tmp_path, monkeypatch):
     db_file = tmp_path / "test.db"
     _seed_feed(db_file)
-    client = _FakeClient("LLY has one high-severity change — a terminated phase 3.")
+    seen = {}
 
-    out = insights.generate_note(db_file, "LLY", client=client)
-    assert out["model"] == insights.MODEL
+    def fake_complete(system, user, max_tokens):
+        seen["system"], seen["user"] = system, user
+        return "LLY has one high-severity change — a terminated phase 3."
+
+    monkeypatch.setattr(insights.llm, "provider", lambda: "gemini")
+    monkeypatch.setattr(insights.llm, "model_name", lambda: "gemini-2.0-flash")
+    monkeypatch.setattr(insights.llm, "complete", fake_complete)
+
+    out = insights.generate_note(db_file, "LLY")
+    assert out["model"] == "gemini-2.0-flash"
     assert out["error"] is None
-    assert "—" not in out["body"]  # house style applied
-
-    call = client.messages.calls[0]
-    assert call["model"] == insights.MODEL
-    assert call["thinking"] == {"type": "adaptive"}
-    # Sampling params 400 on this model, and the feed must reach the prompt.
-    assert not {"temperature", "top_p", "top_k"} & set(call)
-    assert "NCT001" in call["messages"][0]["content"]
+    assert "—" not in out["body"]                 # house style applied
+    assert seen["system"] == insights.SYSTEM_PROMPT
+    assert "NCT001" in seen["user"]               # the feed reaches the prompt
 
     conn = db.get_connection(db_file)
     try:
         row = conn.execute("SELECT model, source_change_ids FROM insights").fetchone()
     finally:
         conn.close()
-    assert row["model"] == insights.MODEL and json.loads(row["source_change_ids"])
+    assert row["model"] == "gemini-2.0-flash" and json.loads(row["source_change_ids"])
 
 
-def test_generate_note_degrades_when_the_api_errors(tmp_path):
+def test_generate_note_degrades_when_the_api_errors(tmp_path, monkeypatch):
     db_file = tmp_path / "test.db"
     _seed_feed(db_file)
-    client = _FakeClient(RuntimeError("overloaded"))
 
-    out = insights.generate_note(db_file, "LLY", client=client)
+    def boom(*args, **kwargs):
+        raise RuntimeError("overloaded")
+
+    monkeypatch.setattr(insights.llm, "provider", lambda: "gemini")
+    monkeypatch.setattr(insights.llm, "complete", boom)
+
+    out = insights.generate_note(db_file, "LLY")
     assert out["model"] == "rules"
     assert "RuntimeError: overloaded" in out["error"]
-    assert "Terminated" in out["body"]  # the analyst still gets the facts
+    assert "Terminated" in out["body"]            # the analyst still gets the facts

@@ -3,7 +3,7 @@
 No free calendar of FDA decision dates exists, so the only route is the filings that
 announce them: a company whose application is accepted files an 8-K saying so, and the
 goal date is usually in the text. This module finds those filings, reads the document,
-and asks the Anthropic API for the date.
+and asks the configured model (see llm) for the date.
 
 The whole design assumes the model will sometimes be wrong, so nothing it returns is
 trusted on its own:
@@ -19,8 +19,8 @@ trusted on its own:
 Rows land with ``is_curated = 0`` and the filing URL as evidence, so every one can be
 traced back to the document it came from and checked.
 
-Without ANTHROPIC_API_KEY the module does nothing and says so. The app runs without it;
-the calendar simply carries registry readouts alone, which is what it did before.
+With no model provider configured the module does nothing and says so. The app runs
+without one; the calendar carries registry readouts alone, which is what it did before.
 """
 
 from __future__ import annotations
@@ -33,8 +33,8 @@ import urllib.request
 
 import catalysts
 import db
+import llm
 
-MODEL = "claude-opus-4-8"
 MAX_TOKENS = 1200
 SOURCE = "8-K extraction"
 
@@ -72,17 +72,6 @@ Rules, in order of importance:
    submission date, an acceptance date, or a data readout is not. If the filing gives
    only the date the application was submitted or accepted, return {"found": false}.
 5. If several are given, take the one for the application the filing is announcing."""
-
-
-def _client():
-    """An Anthropic client, or None when the key or the SDK is absent."""
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        return None
-    try:
-        import anthropic
-    except ImportError:
-        return None
-    return anthropic.Anthropic()
 
 
 def strip_html(raw: str) -> str:
@@ -189,29 +178,30 @@ def is_fatal(exc: Exception) -> bool:
     collect the same message. A timeout or a malformed document is per-filing and the
     loop should carry on past it.
     """
+    import urllib.error
+
+    # Gemini comes back as an HTTP status: 401/403 is the key, 429 is the quota or rate
+    # limit. On the free tier a 429 keeps firing across a fast loop, so stopping beats
+    # spending an EDGAR fetch per filing to collect the same refusal.
+    if isinstance(exc, urllib.error.HTTPError) and exc.code in (401, 403, 429):
+        return True
+    # Anthropic comes back as a typed SDK error.
     name = type(exc).__name__
     if name in ("AuthenticationError", "PermissionDeniedError", "RateLimitError"):
         return True
     text = str(exc).lower()
     return any(phrase in text for phrase in
                ("credit balance", "quota", "billing", "invalid x-api-key",
-                "authentication_error"))
+                "authentication_error", "api_key_invalid", "api key not valid",
+                "resource_exhausted", "permission_denied", "gemini http 401",
+                "gemini http 403", "gemini http 429"))
 
 
-def _ask(client, document: str, filing: dict) -> dict | None:
-    message = client.messages.create(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
-        system=SYSTEM_PROMPT,
-        messages=[{
-            "role": "user",
-            "content": (f"Company: {filing['ticker']}\n"
-                        f"Filed: {filing['filed_date']} ({filing['form_type']})\n\n"
-                        f"Filing text:\n{document}\n\nExtract the FDA decision date."),
-        }],
-    )
-    parts = [b.text for b in message.content if getattr(b, "type", "") == "text"]
-    return parse_reply("\n".join(parts).strip())
+def _ask(document: str, filing: dict) -> dict | None:
+    user = (f"Company: {filing['ticker']}\n"
+            f"Filed: {filing['filed_date']} ({filing['form_type']})\n\n"
+            f"Filing text:\n{document}\n\nExtract the FDA decision date.")
+    return parse_reply(llm.complete(SYSTEM_PROMPT, user, MAX_TOKENS))
 
 
 def extract(db_path=None, limit: int = 25, today=None) -> dict:
@@ -222,11 +212,11 @@ def extract(db_path=None, limit: int = 25, today=None) -> dict:
     filings only.
     """
     today = today or dt.date.today()
-    client = _client()
-    if client is None:
+    if llm.provider() is None:
         return {"status": "no key", "read": 0, "found": 0, "errors": [],
-                "detail": "ANTHROPIC_API_KEY is not set, so no PDUFA dates were "
-                          "extracted. The calendar carries registry readouts only."}
+                "detail": "No model provider is configured (set GEMINI_API_KEY or "
+                          "ANTHROPIC_API_KEY), so no PDUFA dates were extracted. The "
+                          "calendar carries registry readouts only."}
 
     conn = db.get_connection(db_path)
     try:
@@ -253,7 +243,7 @@ def extract(db_path=None, limit: int = 25, today=None) -> dict:
             continue
         read += 1
         try:
-            row = validate(_ask(client, document, filing), document, today=today)
+            row = validate(_ask(document, filing), document, today=today)
         except Exception as exc:
             errors.append(f"{filing['ticker']} {filing['accession']}: {exc}")
             if is_fatal(exc):

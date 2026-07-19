@@ -77,11 +77,19 @@ curl 'localhost:8000/companies/LLY/note?refresh=true'   # generate a new one
 The what-changed feed has two layers. The rules layer always runs. The note layer
 summarises one company's slice of it into a short paragraph.
 
-Set `ANTHROPIC_API_KEY` and the note is written by `claude-opus-4-8`, prompted to use
-only the supplied feed items and never to invent a number. Leave it unset and the note
-is a deterministic list of the flagged items, and `model` in the response reads
-`rules` so the UI can say which layer produced it. If the API errors, the note falls
-back to the rules layer and reports the error rather than failing the request.
+The note and the PDUFA extraction run on whichever model provider has a key, behind one
+seam in `llm.py`. **Google Gemini has a free tier** (`GEMINI_API_KEY`, from
+aistudio.google.com, no card) and is called over its REST endpoint, so it needs no SDK.
+**Anthropic** (`ANTHROPIC_API_KEY`, paid) is the fallback and keeps its SDK. When both
+are set Gemini wins, since it is the free path; `LLM_PROVIDER=gemini|anthropic` pins one.
+The chosen model is prompted to use only the supplied feed items and never to invent a
+number, and `model` in the response records which model wrote the note.
+
+With no key set the note is a deterministic list of the flagged items and `model` reads
+`rules`, so the UI can say which layer produced it. If the model errors, the note falls
+back to the rules layer and reports the error rather than failing the request. A key
+that is out of credit or a bad Gemini key is caught and reported, not retried per
+filing.
 
 Every note is stored in `insights` with the `changes.id` values it was built from, so
 a note can be traced back to its evidence.

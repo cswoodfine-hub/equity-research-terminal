@@ -13,12 +13,11 @@ a note can always be traced back to its evidence.
 from __future__ import annotations
 
 import json
-import os
 
 import db
+import llm
 import whatchanged
 
-MODEL = "claude-opus-4-8"
 RULES_MODEL = "rules"
 MAX_TOKENS = 1024
 
@@ -117,34 +116,9 @@ def _format_items(items: list[dict]) -> str:
     )
 
 
-def _call_anthropic(client, ticker: str, items: list[dict]) -> str:
-    message = client.messages.create(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
-        thinking={"type": "adaptive"},
-        system=SYSTEM_PROMPT,
-        messages=[{
-            "role": "user",
-            "content": (f"Company: {ticker}\n\nRanked change feed:\n"
-                        f"{_format_items(items)}\n\nWrite the note."),
-        }],
-    )
-    parts = [block.text for block in message.content if getattr(block, "type", "") == "text"]
-    return "\n".join(parts).strip()
-
-
-def _build_client():
-    """Return an Anthropic client, or None when the key or the SDK is absent.
-
-    Imported lazily so the app runs with ``anthropic`` uninstalled.
-    """
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        return None
-    try:
-        import anthropic
-    except ImportError:
-        return None
-    return anthropic.Anthropic()
+def _user_content(ticker: str, items: list[dict]) -> str:
+    return (f"Company: {ticker}\n\nRanked change feed:\n"
+            f"{_format_items(items)}\n\nWrite the note.")
 
 
 def _store(db_path, ticker: str, body: str, model: str, change_ids: list,
@@ -176,13 +150,13 @@ def _store(db_path, ticker: str, body: str, model: str, change_ids: list,
     return out
 
 
-def generate_note(db_path=None, ticker: str = "LLY", days: int = 30, client=None,
+def generate_note(db_path=None, ticker: str = "LLY", days: int = 30,
                   refresh_run_id=None) -> dict:
     """Generate and store one note for ``ticker``.
 
-    Uses the Anthropic API when a key is set and the SDK is installed, otherwise the
-    rules note. Any API failure degrades to the rules note and is reported in
-    ``error``; it never raises.
+    Uses whichever model provider has a key (see ``llm``), otherwise the rules note. Any
+    model failure degrades to the rules note and is reported in ``error``; it never
+    raises.
     """
     ticker = ticker.upper()
     items = whatchanged.build_feed(db_path, days=days, ticker=ticker)
@@ -192,14 +166,12 @@ def generate_note(db_path=None, ticker: str = "LLY", days: int = 30, client=None
     model = RULES_MODEL
     error = None
 
-    if client is None:
-        client = _build_client()
-
-    if client is not None and items:
+    if llm.provider() is not None and items:
         try:
-            generated = _call_anthropic(client, ticker, items)
+            generated = llm.complete(SYSTEM_PROMPT, _user_content(ticker, items),
+                                     MAX_TOKENS)
             if generated:
-                body, model = _scrub(generated), MODEL
+                body, model = _scrub(generated), llm.model_name()
             else:
                 error = "empty response from the model"
         except Exception as exc:  # a dead API degrades the note, it never fails it

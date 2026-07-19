@@ -127,15 +127,17 @@ def test_matching_ignores_whitespace_and_case():
 
 
 # --- without a key --------------------------------------------------------
-def test_no_key_is_reported_not_crashed(tmp_path, monkeypatch):
+def test_no_provider_is_reported_not_crashed(tmp_path, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
     db_file = tmp_path / "test.db"
     db.init(db_file)
     result = pdufa.extract(db_file, today=TODAY)
 
     assert result["status"] == "no key"
     assert result["found"] == 0
-    assert "ANTHROPIC_API_KEY" in result["detail"]
+    assert "GEMINI_API_KEY" in result["detail"]
 
 
 def test_candidates_are_recent_filings_of_the_right_kind(tmp_path):
@@ -197,3 +199,13 @@ def test_a_one_off_failure_is_not_fatal():
     """A timeout or a bad document is this filing's problem, not the run's."""
     assert not pdufa.is_fatal(TimeoutError("read timed out"))
     assert not pdufa.is_fatal(ValueError("could not parse"))
+
+
+def test_a_bad_gemini_key_is_fatal():
+    """Gemini returns 400 for a bad key, not 401, and the surfaced body names it. The
+    loop must stop, or it spends an EDGAR fetch per filing to collect the same refusal."""
+    assert pdufa.is_fatal(RuntimeError(
+        "gemini HTTP 400: API key not valid. Please pass a valid API key."))
+    assert pdufa.is_fatal(RuntimeError("gemini HTTP 429: RESOURCE_EXHAUSTED"))
+    # A one-off content error is not fatal.
+    assert not pdufa.is_fatal(RuntimeError("gemini HTTP 500: internal"))
