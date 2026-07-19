@@ -320,9 +320,10 @@ h3 {{ font-size: 0.9rem; }}
 }}
 .cal-month {{
   background: var(--ground); padding: 0.45rem 0.6rem 0.55rem; min-height: 96px;
-  /* A month busier than the tallest row scrolls inside its own cell rather than
-     stretching every other cell to match it. */
-  overflow-y: auto;
+  /* Not overflow:auto. Every row is already the height of the tallest cell, so the
+     busiest month is the one that sets it and nothing can exceed it. Clipping here
+     would only ever cut off the hover panel. */
+  position: relative;
 }}
 .cal-month.empty {{ background: {P.raised}; }}
 .cal-month.now {{ box-shadow: inset 2px 0 0 var(--data); }}
@@ -336,7 +337,29 @@ h3 {{ font-size: 0.9rem; }}
 .cal-item {{
   display: grid; grid-template-columns: 20px 1fr; gap: 0.4rem;
   align-items: baseline; padding: 0.22rem 0; border-top: 1px solid var(--rule);
+  position: relative; cursor: default;
 }}
+.cal-item:hover {{ background: {P.raised}; }}
+
+/* The full title on hover. The cell truncates at about sixty characters and a registry
+   title runs past a hundred and twenty, with the distinguishing part at the end: two
+   Retatrutide studies read the same until the comparator, which is what a truncation
+   takes off. */
+.cal-pop {{
+  display: none; position: absolute; left: 0; top: calc(100% + 4px); z-index: 40;
+  width: max(100%, 280px); padding: 0.5rem 0.6rem;
+  background: {P.raised}; border: 1px solid var(--rule-strong);
+  font-size: 11.5px; line-height: 1.4; color: var(--ink);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}}
+.cal-item:hover .cal-pop {{ display: block; }}
+.cal-pop b {{ font-family: {MONO}; font-size: 11px; font-weight: 600; }}
+.cal-pop-k {{
+  display: block; font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--stale); margin: 0.1rem 0 0.3rem;
+}}
+/* The last row in a cell opens upward, so the panel is not pushed off the grid. */
+.cal-item:nth-last-child(1) .cal-pop {{ top: auto; bottom: calc(100% + 4px); }}
 .cal-day {{
   font-family: {MONO}; font-size: 11px; font-weight: 600; text-align: right;
   color: var(--ink); font-variant-numeric: tabular-nums;

@@ -105,18 +105,25 @@ def render(catalysts, months: int = DEFAULT_MONTHS, today=None) -> str:
             day = _day(item.get("expected_date"))
             kind = html.escape(item.get("catalyst_type") or "")
             confidence = item.get("date_confidence") or ""
+            # The cell truncates, so the full title lives in a panel that appears on
+            # hover. A registry title runs past 120 characters and the distinguishing
+            # part is often at the end, which is exactly what a truncation removes:
+            # two Retatrutide studies read identically until the comparator.
+            full = html.escape((item.get("title") or "").strip())
+            when = html.escape(item.get("expected_date") or "")
+            precision = ("month only, the registry gives no day"
+                         if confidence == "month" else confidence)
+            marked = ' none" title="month only' if confidence == "month" else '"'
             rows.append(
                 f'<div class="cal-item">'
-                f'<span class="cal-day">{day or "—"}</span>'
+                f'<span class="cal-day{marked}">{day or "—"}</span>'
                 f'<span class="cal-title">{html.escape(_shorten(item.get("title")))}'
                 f'</span>'
                 f'<span class="cal-kind">{kind}</span>'
+                f'<span class="cal-pop"><b>{when}</b>'
+                f'<span class="cal-pop-k">{kind} · {html.escape(precision)}</span>'
+                f'{full}</span>'
                 f'</div>')
-            if confidence == "month":
-                # Said once per item, quietly: this one is placed in the month because
-                # that is all the source gave, not because it falls on the first.
-                rows[-1] = rows[-1].replace('class="cal-day">—',
-                                            'class="cal-day none" title="month only">—')
 
         cells.append(
             f'<div class="{" ".join(classes)}">'

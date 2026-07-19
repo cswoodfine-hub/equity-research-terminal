@@ -73,14 +73,18 @@ def test_dated_entries_sort_before_month_only_ones_in_a_month():
     assert html.index("Dated one") < html.index("Month only one")
 
 
-def test_the_phase_prefix_is_dropped_from_a_title():
+def test_the_phase_prefix_is_dropped_from_the_cell_but_not_the_panel():
     """The registry prefixes nearly every readout with its phase, which the badge
-    already carries, so it is spent twice in a narrow cell."""
+    already carries, so it is spent twice in a narrow cell. The hover panel quotes the
+    title as filed, prefix and all, because that is what it is for."""
     html = calendar_view.render(
         [_catalyst("2026-08-01", title="Phase 3, A Study of Retatrutide")],
         months=2, today=TODAY)
-    assert "A Study of Retatrutide" in html
-    assert "Phase 3, A Study" not in html
+    cell = html.split('<span class="cal-title">')[1].split("</span>")[0]
+    assert cell == "A Study of Retatrutide"
+
+    panel = html.split('<span class="cal-pop">')[1]
+    assert "Phase 3, A Study of Retatrutide" in panel
 
 
 def test_a_long_title_is_truncated_not_wrapped_forever():
@@ -107,3 +111,36 @@ def test_titles_are_escaped():
         [_catalyst("2026-08-01", title="<script>alert(1)</script>")],
         months=2, today=TODAY)
     assert "<script>" not in html
+
+
+# --- the full title on hover ---------------------------------------------
+LONG = ("Phase 3, A Study of Retatrutide (LY3437943) Compared With Tirzepatide in "
+        "Adult Participants With Obesity and Type 2 Diabetes Mellitus")
+
+
+def test_the_cell_truncates_but_the_panel_carries_the_whole_title():
+    """The distinguishing part of a registry title is often at the end, which is
+    exactly what a truncation removes."""
+    html = calendar_view.render([_catalyst("2026-08-04", title=LONG)],
+                                months=2, today=TODAY)
+    assert "…" in html                                  # the cell is cut
+    assert "Type 2 Diabetes Mellitus" in html           # the panel is not
+
+
+def test_the_panel_carries_the_date_and_the_precision():
+    html = calendar_view.render([_catalyst("2026-08")], months=2, today=TODAY)
+    assert "2026-08" in html
+    assert "month only, the registry gives no day" in html
+
+
+def test_a_dated_entry_says_its_precision_too():
+    html = calendar_view.render([_catalyst("2026-08-04")], months=2, today=TODAY)
+    assert "estimated" in html
+
+
+def test_the_panel_escapes_a_hostile_title():
+    html = calendar_view.render(
+        [_catalyst("2026-08-04", title="<img src=x onerror=alert(1)>")],
+        months=2, today=TODAY)
+    assert "<img" not in html
+    assert "&lt;img" in html
