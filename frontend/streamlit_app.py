@@ -495,15 +495,6 @@ with main:
                   + alt.Chart(spark[spark["session"] != spark["session"].shift()])
                   .mark_rule(color=T.P.rule_strong, strokeDash=[2, 3])
                   .encode(x=alt.X("bar:Q", axis=None)), 72)
-            move = ((bars[-1]["close"] - bars[0]["close"]) / bars[0]["close"] * 100
-                    if bars[0]["close"] else None)
-            st.markdown(
-                f'<div class="byline">{len(bars)} fifteen minute bars over '
-                f'{len(intraday.get("sessions") or [])} sessions, '
-                f'{bars[0]["as_of"]} to {bars[-1]["as_of"]}: {T.pct(move)}. Dashed '
-                'rules mark each session open; overnight gaps are closed up rather '
-                'than drawn as a flat line through hours that never traded.</div>',
-                unsafe_allow_html=True)
 
         head, action = st.columns([5, 1])
         with head:
@@ -620,11 +611,6 @@ with main:
             # Scales bound to drag and wheel, so the window buttons are the coarse
             # control and zoom is the fine one.
             chart((line + crosshair + dot + catcher).interactive(), 300)
-            st.markdown(
-                '<div class="byline">Hover for the close on any session. Drag to zoom '
-                'and double click to reset. Five years of daily closes are stored, so '
-                'the window buttons re-scale rather than refetch.</div>',
-                unsafe_allow_html=True)
 
     # --- Financials ------------------------------------------------------
     with financials_tab:
@@ -666,10 +652,6 @@ with main:
             if panel:
                 section("Growth against margin")
                 st.markdown(f'<div class="trend">{panel}</div>', unsafe_allow_html=True)
-                st.markdown(
-                    '<div class="byline">'
-                    f'{trend_module.caption(trend_points, built["basis"])}'
-                    '</div>', unsafe_allow_html=True)
         elif not built["is_sec_filer"]:
             state(f"{ticker} does not file with the SEC",
                   "Roche and Bayer are not SEC registrants, so EDGAR holds no company "
@@ -710,19 +692,6 @@ with main:
                     footnotes.append(
                         f"{ticker} files a 20-F and tags no interim periods, so this "
                         "is annual only.")
-                if any(cell["derived"] for line in block["lines"]
-                       for cell in line["cells"]):
-                    # Fourth quarters only exist on the quarterly income statement, so
-                    # the sentence explaining them is only shown where they appear.
-                    derived_note = ("Dotted figures are computed from two reported "
-                                    "lines rather than tagged by the filer")
-                    if key == "income" and built["basis"] == "quarterly":
-                        derived_note += (": a subtotal it leaves out, or a fourth "
-                                         "quarter, which is the reported year less the "
-                                         "reported nine months.")
-                    else:
-                        derived_note += ", which is a subtotal the filer leaves out."
-                    footnotes.append(derived_note)
                 if key == "cashflow" and built["basis"] == "quarterly":
                     footnotes.append(
                         "Cash flow columns are cumulative from the year start, which "
@@ -770,12 +739,6 @@ with main:
                        if isinstance(v, (int, float)) and not pd.isna(v) and v < 0
                        else "", subset=[units.get(c, c) for c in cols]))
         st.dataframe(styled, width="stretch", hide_index=True)
-        st.markdown(
-            '<div class="byline">Units are in the header, not the cells. Revenue, '
-            'growth, margin, and R&D are in each filer\'s reporting currency. Market '
-            'cap, P/E, and EV/Sales need shares outstanding and USD reporting, so they '
-            'resolve for US filers only. A dash is no free data, not zero.</div>',
-            unsafe_allow_html=True)
 
         # A matrix of every company against every phase, so it belongs with the
         # other cross-sectional views rather than in a tab that is otherwise one
@@ -1055,13 +1018,6 @@ with main:
                 .map(lambda v: f"color:{T.P.stale}"
                      if v == "orphan exclusivity" else "", subset=["Basis"]),
                 width="stretch", hide_index=True)
-            st.markdown(
-                '<div class="byline">Protection is the latest expiry the Orange or '
-                'Purple Book carries for the product, so several approvals of one '
-                'product share it. A dash is no entry in the books rather than no '
-                'protection. Revenue is the worldwide figure the filing tags per product, from the '
-                'SEC data sets, in billions of the reporting currency. Products the filing '
-                'does not break out are blank.</div>', unsafe_allow_html=True)
 
             # --- Overriding a revenue figure ---
             # Revenue arrives from the SEC bulk data sets. This is the correction path,
