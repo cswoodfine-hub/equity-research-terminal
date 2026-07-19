@@ -61,6 +61,7 @@ def trials_for(db_path, ticker: str, phase: str | None = None) -> list[dict] | N
             return None
         query = f"""
             SELECT nct_id, title, phase, overall_status, primary_completion_date,
+                   primary_completion_type,
                    last_update_posted, enrollment, conditions
               FROM trials
              WHERE sponsor_company_id = ? AND phase IN ({_PLACEHOLDERS})

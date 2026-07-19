@@ -11,6 +11,7 @@ dash, which means no free data rather than zero.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import urllib.error
 import urllib.parse
@@ -157,6 +158,25 @@ def feed_row(item) -> str:
 
 def html_escape(text: str) -> str:
     return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def _completion_note(trial) -> str:
+    """What a primary completion date means, which depends on its registry type.
+
+    An actual date in the past is the normal state of a long oncology trial: the primary
+    endpoint was reached and the study continues for overall survival, which routinely
+    runs years and keeps the status at active, not recruiting. An estimated date in the
+    past is the opposite, a forecast that was missed and never revised.
+    """
+    kind = (trial.get("primary_completion_type") or "").lower()
+    date = trial.get("primary_completion_date") or ""
+    if not date:
+        return "—"
+    if kind == "actual":
+        return "reached"
+    if kind == "estimated":
+        return "overdue" if date < dt.date.today().isoformat() else "forecast"
+    return "—"
 
 
 # --- Statements ----------------------------------------------------------
@@ -771,20 +791,17 @@ with main:
                              var_name="Phase", value_name="Trials")
             long["Phase"] = long["Phase"].replace(PHASE_MERGE)
             long = long.groupby(["Ticker", "Phase"], as_index=False)["Trials"].sum()
-            # Colour is the phase, matching the key on the chart below, so Phase 3 is
-            # the same teal in both. It used to carry the trial count instead, which
-            # left the two charts on this tab labelling the same phases in unrelated
-            # colours. Count moves to opacity within the column, still on a square root
-            # scale: one company runs three figures of trials and a linear ramp
-            # collapses everyone else into the same flat tint.
+            # One hue, shaded by count. A matrix cell answers "how many", so colour
+            # carries the number and the phase is read off the axis it already sits on.
+            # Colouring by phase instead made every cell in a column identical and threw
+            # the count away, which is the one thing this chart is for.
             chart(alt.Chart(long).mark_rect(stroke=T.P.ground, strokeWidth=1).encode(
                 x=alt.X("Phase:N", title=None, sort=DISPLAY_PHASES),
                 y=alt.Y("Ticker:N", title=None, sort=list(grid["Ticker"])),
-                color=alt.Color("Phase:N", sort=DISPLAY_PHASES, legend=None,
-                                scale=alt.Scale(domain=DISPLAY_PHASES,
-                                                range=T.ordinal_ramp(len(DISPLAY_PHASES)))),
-                opacity=alt.Opacity("Trials:Q", legend=alt.Legend(title="Trials"),
-                                    scale=alt.Scale(type="sqrt", range=[0.1, 1])),
+                # Sqrt, not linear: one company runs three figures of trials and a
+                # linear ramp collapses everyone else into the same pale tint.
+                color=alt.Color("Trials:Q", legend=alt.Legend(title="Trials"),
+                                scale=alt.Scale(range=list(T.P.phase_tints), type="sqrt")),
                 tooltip=["Ticker:N", "Phase:N", "Trials:Q"]), 420)
             st.markdown('<div class="byline">Phase is ordinal, so it takes an ink tint '
                         'rather than a hue. Counts are trials, not deduplicated assets, '
@@ -875,6 +892,11 @@ with main:
                     "NCT": t["nct_id"], "Phase": t["phase"], "Area": t["area"],
                     "Status": t["overall_status"],
                     "Primary completion": t["primary_completion_date"],
+                    # A date that has passed means opposite things depending on this.
+                    # Actual: the endpoint was reached and the trial runs on for
+                    # survival follow-up, sometimes for a decade. Estimated and past:
+                    # the forecast was missed and nobody has updated the record.
+                    "Date": _completion_note(t),
                     "Conditions": ", ".join(t["conditions"][:3]), "Title": t["title"]}
                     for t in shown]), width="stretch", hide_index=True)
 

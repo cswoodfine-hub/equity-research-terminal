@@ -455,21 +455,23 @@ GRAPHIC_CONTRAST = 3.0
 
 
 def _floor(palette: "Palette", target: float = GRAPHIC_CONTRAST) -> str:
-    """The nearest neutral to the ground that still clears the contrast target.
+    """The darkest tint of the data colour that still clears the contrast target.
 
-    Neutral rather than a tint of the data colour, because it doubles the room the ramp
-    has to work in: the steps then separate by colourfulness as well as by lightness,
-    and six of them have to fit between this floor and the data colour.
+    This used to be a neutral, which bought separation by letting the steps differ in
+    colourfulness as well as lightness. That mattered while six phases had to fit on
+    the ramp. At three it buys nothing measurable, 1.666 against 1.668 between the
+    closest pair, and it cost every chart its colour: the first step came out grey.
+    On-hue is the same ramp with the chroma left in.
     """
-    toward = "#FFFFFF" if _relative_luminance(palette.ground) < 0.5 else "#000000"
     low, high = 0.0, 1.0
     for _ in range(32):                    # bisection, converges well inside 8 bits
         middle = (low + high) / 2
-        if contrast(_mix(palette.ground, toward, middle), palette.ground) < target:
+        if contrast(_mix(palette.ground, palette.data, middle),
+                    palette.ground) < target:
             low = middle
         else:
             high = middle
-    return _mix(palette.ground, toward, high)
+    return _mix(palette.ground, palette.data, high)
 
 
 def ordinal_ramp(steps: int, palette: "Palette" = None) -> list:

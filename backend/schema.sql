@@ -146,6 +146,11 @@ CREATE TABLE trials (
     phase                   TEXT,
     overall_status          TEXT,   -- Recruiting, Active not recruiting, Completed, Terminated
     primary_completion_date TEXT,   -- slips here are a real signal
+    -- ACTUAL or ESTIMATED. Without it a past date is unreadable: an actual one means
+    -- the primary endpoint was reached and the trial runs on for survival follow-up,
+    -- which is normal and can last a decade. An estimated one in the past means the
+    -- forecast was missed, which is a signal.
+    primary_completion_type TEXT,
     completion_date         TEXT,
     enrollment              INTEGER,
     conditions              TEXT,   -- JSON array of condition strings

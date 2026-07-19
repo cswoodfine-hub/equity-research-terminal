@@ -171,6 +171,15 @@ and GSK and Regeneron spread their products across segments in a way that would 
 summing. Novo reports in DKK and Sanofi in EUR; the unit travels with each figure and
 nothing is converted.
 
+**A primary completion date in the past is usually normal.** ClinicalTrials.gov marks
+each date actual or estimated and the app now stores which. An actual date that has
+passed means the primary endpoint was reached; the trial stays active, not recruiting
+while it follows participants for overall survival, which routinely runs years and in
+one Merck study to 2033. An estimated date that has passed is the opposite: a forecast
+missed and never revised. Across the universe 469 dates are actual, all necessarily in
+the past, and 106 of the 2,109 estimated ones are overdue. The trials table says which
+each is.
+
 **Exclusivity is United States only, and biologics carry no patent dates.** The Orange
 Book and the Purple Book are FDA publications, so every expiry in this app is a US
 date; a product protected in the US to 2035 can face a generic in Europe or Japan years

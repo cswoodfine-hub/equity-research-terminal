@@ -95,6 +95,13 @@ def _date(struct) -> str | None:
     return struct.get("date") if isinstance(struct, dict) else None
 
 
+def _date_type(struct) -> str | None:
+    """ACTUAL or ESTIMATED, lowercased. The registry distinguishes the two and the
+    difference is the whole meaning of a date that has already passed."""
+    kind = struct.get("type") if isinstance(struct, dict) else None
+    return kind.lower() if isinstance(kind, str) else None
+
+
 def parse_studies(payload: dict) -> list[dict]:
     """Turn a CTGov studies payload into trial rows. Pure.
 
@@ -124,6 +131,8 @@ def parse_studies(payload: dict) -> list[dict]:
                 "phase": phase,
                 "overall_status": _humanize_status(status.get("overallStatus")),
                 "primary_completion_date": _date(status.get("primaryCompletionDateStruct")),
+                "primary_completion_type": _date_type(
+                    status.get("primaryCompletionDateStruct")),
                 "completion_date": _date(status.get("completionDateStruct")),
                 "last_update_posted": _date(status.get("lastUpdatePostDateStruct")),
                 "conditions": ps.get("conditionsModule", {}).get("conditions") or [],
@@ -257,13 +266,15 @@ class TrialsFetcher(BaseFetcher):
                     """
                     INSERT INTO trials
                         (nct_id, sponsor_company_id, title, phase, overall_status,
-                         primary_completion_date, completion_date, enrollment, conditions,
+                         primary_completion_date, primary_completion_type,
+                         completion_date, enrollment, conditions,
                          last_update_posted, source, fetched_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                     ON CONFLICT(nct_id) DO UPDATE SET
                         sponsor_company_id=excluded.sponsor_company_id, title=excluded.title,
                         phase=excluded.phase, overall_status=excluded.overall_status,
                         primary_completion_date=excluded.primary_completion_date,
+                        primary_completion_type=excluded.primary_completion_type,
                         completion_date=excluded.completion_date, enrollment=excluded.enrollment,
                         conditions=excluded.conditions,
                         last_update_posted=excluded.last_update_posted, fetched_at=datetime('now')
@@ -271,6 +282,7 @@ class TrialsFetcher(BaseFetcher):
                     (
                         row["nct_id"], company_id, row["title"], row["phase"],
                         row["overall_status"], row["primary_completion_date"],
+                        row.get("primary_completion_type"),
                         row["completion_date"], row["enrollment"],
                         json.dumps(row["conditions"]), row["last_update_posted"], CTGOV_SOURCE,
                     ),
