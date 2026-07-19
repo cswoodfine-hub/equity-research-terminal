@@ -395,6 +395,11 @@ with main:
         pipeline_rows = api_get(api_base, "/pipeline")
         mine = next((r for r in pipeline_rows if r["ticker"] == ticker), {})
         phases = mine.get("phases") or {}
+        # Counted the same way the Pipeline tab counts, so the two tabs cannot disagree.
+        # Phase 4 is work on approved products, so it is not development; Phase 2/3 is,
+        # and lands in late phase, which is the rule this strip already applied.
+        in_development = sum(count for phase, count in phases.items()
+                             if phase not in POST_APPROVAL)
         late = sum(phases.get(p, 0) for p in ("Phase 3", "Phase 2/3"))
 
         def _next(kind):
@@ -425,7 +430,7 @@ with main:
             (f'{len(intraday.get("sessions") or []) or SPARK_SESSIONS} day', T.pct(recent),
              "up" if (recent or 0) >= 0 else "down",
              f"5y {T.pct(change)}" if change is not None else ""),
-            ("active trials", str(mine.get("total", 0)) if mine else "—",
+            ("in development", str(in_development) if mine else "—",
              "" if mine else "none", f"{late} in late phase" if mine else ""),
             ("next catalyst", _next("catalyst") or "none", "" if _next("catalyst") else "none",
              "readouts and PDUFA"),
@@ -752,8 +757,9 @@ with main:
     with pipeline_tab:
         section("Trials in development by phase", "lead sponsored")
         rows = api_get(api_base, "/pipeline")
-        grid = pd.DataFrame([{"Ticker": r["ticker"], **r["phases"], "Total": r["total"]}
-                             for r in rows])
+        # No total column: it counts every phase, and carrying an all-phases figure
+        # beside development-only columns is the disagreement this view just lost.
+        grid = pd.DataFrame([{"Ticker": r["ticker"], **r["phases"]} for r in rows])
         if grid[DISPLAY_PHASES].to_numpy().sum() == 0:
             state("No trials on file",
                   "Press Refresh all on the Comps tab to pull active lead-sponsored "
