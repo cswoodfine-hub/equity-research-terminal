@@ -181,15 +181,19 @@ def render(items, exclusivities=None, today=None, label_limit=7) -> str:
     top = y + HEAD_DROP - 8
     if cliff:
         peak = max(cliff.values())
-        bar_w = W - PAD_L - PAD_R - 34
+        # A four digit year needs its own column; at 26px the bar started under the last
+        # digit. Reserve the year width and the count width, and the bar takes the rest.
+        year_w, count_w = 34, 12
+        bar_x = PAD_L + year_w
+        bar_w = W - PAD_L - PAD_R - year_w - count_w
         for index, year in enumerate(sorted(cliff)[:6]):
             by = top + index * 16
             width = max(2, (cliff[year] / peak) * bar_w)
             out.append(f'<text x="{PAD_L}" y="{by + 7}" font-size="9.5"'
                        f' fill="{P.stale}">{year}</text>')
-            out.append(f'<rect x="{PAD_L + 26}" y="{by}" width="{width:.1f}" height="9"'
+            out.append(f'<rect x="{bar_x}" y="{by}" width="{width:.1f}" height="9"'
                        f' fill="{P.ink}" opacity="0.82"/>')
-            out.append(f'<text x="{PAD_L + 30 + width:.1f}" y="{by + 7.5}" font-size="9"'
+            out.append(f'<text x="{bar_x + width + 4:.1f}" y="{by + 7.5}" font-size="9"'
                        f' fill="{P.stale}">{cliff[year]}</text>')
     else:
         empty(top, "no expiries past 24 months")
