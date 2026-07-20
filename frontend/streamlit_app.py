@@ -12,6 +12,7 @@ dash, which means no free data rather than zero.
 from __future__ import annotations
 
 import datetime as dt
+import html
 import json
 import urllib.error
 import urllib.parse
@@ -56,6 +57,8 @@ SPARK_SESSIONS = 5
 CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
 # Quarters in the growth-against-margin panel: the most recent year, one bar per quarter.
 TREND_QUARTERS = 4
+# The registry page for a trial, keyed by its NCT id.
+CTGOV_STUDY = "https://clinicaltrials.gov/study/"
 # Months of catalyst calendar. Two years covers the readout horizon without a control
 # to set it: the dates inside it are estimates anyway, so a tighter window would be
 # false precision about which of them matter.
@@ -892,7 +895,7 @@ with main:
             else:
                 section(", ".join(chosen), f"{len(shown)} trials, "
                         + ", ".join(phase_pick))
-                st.dataframe(pd.DataFrame([{
+                table = pd.DataFrame([{
                     "NCT": t["nct_id"], "Phase": t["phase"], "Area": t["area"],
                     "Status": t["overall_status"],
                     "Primary completion": t["primary_completion_date"],
@@ -902,13 +905,37 @@ with main:
                     # past: the forecast was missed and nobody updated the record.
                     "Date": _completion_note(t),
                     "Conditions": ", ".join(t["conditions"][:3]),
-                    "Title": t["title"]}
-                    for t in shown]), width="stretch", hide_index=True)
+                    # The registry title is the description, and it runs long, so the
+                    # grid crops it. A click on the row prints it in full below.
+                    "Description": t["title"],
+                    "Trial": CTGOV_STUDY + (t["nct_id"] or "")}
+                    for t in shown])
+                # A key tied to the selection resets it when the filter changes, so a
+                # stale row index never points into a different trial list.
+                grid_key = f"pipe_{ticker}_{'-'.join(chosen)}_{'-'.join(phase_pick)}"
+                event = st.dataframe(
+                    table, width="stretch", hide_index=True,
+                    on_select="rerun", selection_mode="single-row", key=grid_key,
+                    column_config={
+                        "Description": st.column_config.TextColumn(
+                            "Description", width="large"),
+                        "Trial": st.column_config.LinkColumn(
+                            "Trial", display_text="Open ↗"),
+                    })
+                picked = event.selection.rows
+                if picked and picked[0] < len(shown):
+                    chosen_trial = shown[picked[0]]
+                    st.markdown(
+                        f'<div class="trial-detail">'
+                        f'<span class="nct">{html.escape(chosen_trial["nct_id"] or "")}'
+                        f'</span>{html.escape(chosen_trial["title"] or "")}</div>',
+                        unsafe_allow_html=True)
                 st.markdown(
-                    '<div class="byline">Areas are matched from the registry '
-                    'condition text by keyword, so the rule that placed a trial is '
-                    'readable rather than guessed. Reached means the primary '
-                    'endpoint was met and the study continues for follow-up; '
+                    '<div class="byline">Click a row to read the full description; the '
+                    'Trial column opens the study on ClinicalTrials.gov. Areas are '
+                    'matched from the registry condition text by keyword, so the rule '
+                    'that placed a trial is readable rather than guessed. Reached means '
+                    'the primary endpoint was met and the study continues for follow-up; '
                     'overdue means an estimated date has passed without being '
                     'revised.</div>', unsafe_allow_html=True)
 

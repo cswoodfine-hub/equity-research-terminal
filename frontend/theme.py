@@ -244,6 +244,12 @@ h3 {{ font-size: 0.9rem; }}
 .note li {{ margin: 0.05rem 0; }}
 .byline {{ font-size: 11px; color: var(--stale); margin-top: 0.35rem; }}
 
+/* The full trial description, shown when a pipeline row is clicked. */
+.trial-detail {{ font-size: 13px; line-height: 1.45; border-left: 2px solid var(--rule-strong);
+                 padding: 0.35rem 0 0.35rem 0.7rem; margin-top: 0.5rem; }}
+.trial-detail .nct {{ font-family: {MONO}; font-size: 11.5px; color: var(--stale);
+                      margin-right: 0.5rem; }}
+
 /* Identifiers are codes, so they take the mono face. Quantities do not. */
 .mono {{ font-family: {MONO}; font-size: 11.5px; letter-spacing: -0.01em; }}
 .neg {{ color: var(--oxblood); }}
