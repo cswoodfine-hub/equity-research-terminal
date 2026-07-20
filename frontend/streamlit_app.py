@@ -942,24 +942,26 @@ with main:
     # --- LOE -------------------------------------------------------------
     with loe_tab:
         data = api_get(api_base, "/loe")
-        # This bar chart is the whole tracked universe, not the selected company; the
-        # rest of the tab and the horizon rail are company-scoped, so the count for the
-        # selected ticker sits inside these totals rather than equalling them.
-        section("Exclusivity cliff", f"All {len(data['rows'])} companies, US, per year")
+        # One company, to match the rest of the tab and the horizon rail. build_loe
+        # already returns a per-company row bucketed by year, so the selected ticker's
+        # row is the chart; summing every row would be the whole universe instead.
+        mine = next((r for r in data["rows"] if r["ticker"] == ticker), None)
+        section(f"Exclusivity cliff for {ticker}", "US products per year")
         year_cols = [str(y) for y in data["years"]] + [data["later_label"]]
-        grid = pd.DataFrame([{"Ticker": r["ticker"],
-                              **{str(y): r["years"].get(str(y), 0) for y in data["years"]},
-                              data["later_label"]: r["later"]} for r in data["rows"]])
-        if grid[year_cols].to_numpy().sum() == 0:
-            state("No exclusivity data yet",
-                  "Press Refresh all on the Comps tab to download the FDA Orange Book "
-                  "and Purple Book. They refresh weekly.")
+        counts = {}
+        if mine:
+            counts = {str(y): mine["years"].get(str(y), 0) for y in data["years"]}
+            counts[data["later_label"]] = mine["later"]
+        if sum(counts.values()) == 0:
+            state(f"No US loss of exclusivity on file for {ticker}",
+                  "The Orange Book and Purple Book cover US products only and refresh "
+                  "weekly. Press Refresh all on the Comps tab if this looks empty.")
         else:
             totals = pd.DataFrame({"Year": year_cols,
-                                   "Products": [int(grid[c].sum()) for c in year_cols]})
+                                   "Products": [counts[c] for c in year_cols]})
             chart(alt.Chart(totals).mark_bar(size=22).encode(
                 x=alt.X("Year:N", title=None, sort=year_cols),
-                y=alt.Y("Products:Q", title="Products losing exclusivity, all companies"),
+                y=alt.Y("Products:Q", title="Products losing exclusivity"),
                 tooltip=["Year:N", "Products:Q"]), 220)
 
             section(f"Upcoming for {ticker}", len(exclusivities))
