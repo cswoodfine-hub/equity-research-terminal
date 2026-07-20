@@ -941,8 +941,11 @@ with main:
 
     # --- LOE -------------------------------------------------------------
     with loe_tab:
-        section("Exclusivity cliff", "US products per year")
         data = api_get(api_base, "/loe")
+        # This bar chart is the whole tracked universe, not the selected company; the
+        # rest of the tab and the horizon rail are company-scoped, so the count for the
+        # selected ticker sits inside these totals rather than equalling them.
+        section("Exclusivity cliff", f"All {len(data['rows'])} companies, US, per year")
         year_cols = [str(y) for y in data["years"]] + [data["later_label"]]
         grid = pd.DataFrame([{"Ticker": r["ticker"],
                               **{str(y): r["years"].get(str(y), 0) for y in data["years"]},
@@ -956,7 +959,7 @@ with main:
                                    "Products": [int(grid[c].sum()) for c in year_cols]})
             chart(alt.Chart(totals).mark_bar(size=22).encode(
                 x=alt.X("Year:N", title=None, sort=year_cols),
-                y=alt.Y("Products:Q", title="Products losing exclusivity"),
+                y=alt.Y("Products:Q", title="Products losing exclusivity, all companies"),
                 tooltip=["Year:N", "Products:Q"]), 220)
 
             section(f"Upcoming for {ticker}", len(exclusivities))
