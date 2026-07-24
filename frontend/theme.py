@@ -362,6 +362,9 @@ h3 {{ font-size: 0.9rem; }}
 .trend svg {{ display: block; }}
 .chart-mount {{ margin: 0.3rem 0 0.1rem; }}
 .chart-mount svg {{ display: block; max-width: 100%; }}
+/* Pure-CSS hover on SVG charts: a transparent band per x slot reveals its readout. */
+.hoverband .tip {{ display: none; }}
+.hoverband:hover .tip {{ display: block; }}
 
 /* Catalyst calendar. */
 .cal {{
