@@ -138,3 +138,35 @@ def build_comps(db_path=None) -> list[dict]:
         return [_company_comps(conn, c) for c in companies]
     finally:
         conn.close()
+
+
+def price_grid(db_path=None, days: int = 90, max_points: int = 60) -> list[dict]:
+    """Recent daily closes for every company in one payload, for the universe's
+    small-multiples grid. Downsampled evenly to ``max_points`` so eighteen panels
+    arrive in one round trip; the change is over the window actually returned."""
+    conn = db.get_connection(db_path)
+    try:
+        companies = conn.execute(
+            "SELECT id, ticker, name FROM companies ORDER BY ticker").fetchall()
+        out = []
+        for company in companies:
+            rows = conn.execute(
+                """
+                SELECT close FROM prices
+                 WHERE company_id = ? AND interval = '1d'
+                   AND as_of >= date('now', ?)
+                 ORDER BY as_of
+                """,
+                (company["id"], f"-{int(days)} days"),
+            ).fetchall()
+            closes = [r["close"] for r in rows]
+            if len(closes) > max_points:
+                step = len(closes) / max_points
+                closes = [closes[int(i * step)] for i in range(max_points)]
+            change = (closes[-1] / closes[0] - 1.0
+                      if len(closes) > 1 and closes[0] else None)
+            out.append({"ticker": company["ticker"], "name": company["name"],
+                        "closes": closes, "change": change})
+        return out
+    finally:
+        conn.close()

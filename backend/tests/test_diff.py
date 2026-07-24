@@ -116,7 +116,7 @@ def test_baseline_then_detect_then_idempotent(tmp_path):
 
     # First run: baseline only, nothing emitted.
     assert diff.detect_changes(db_file) == {"trial_changes": 0, "new_filings": 0,
-                                            "new_approvals": 0}
+                                            "new_approvals": 0, "restatements": 0}
     assert _changes(db_file) == []
 
     # Change the trial and add a new filing.
@@ -135,7 +135,9 @@ def test_baseline_then_detect_then_idempotent(tmp_path):
     kinds = {c["change_type"]: c for c in changes}
     assert kinds["status_change"]["new_value"] == "Terminated"
     assert kinds["status_change"]["significance"] == "high"
-    assert kinds["date_slip"]["significance"] == "medium"
+    # The trial is Phase 3 by this update and the slip runs past the materiality
+    # threshold, which is exactly the slip an analyst must not miss.
+    assert kinds["date_slip"]["significance"] == "high"
     assert kinds["phase_advance"]["new_value"] == "Phase 3"
     assert "ACC-2" in {c["entity_key"] for c in changes}  # new filing
     assert "ACC-1" not in {c["entity_key"] for c in changes}  # pre-existing baselined

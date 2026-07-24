@@ -11,6 +11,7 @@ import json
 
 import db
 import edgar_items
+import materiality
 
 _SIG_RANK = {"high": 0, "medium": 1, "low": 2}
 
@@ -90,6 +91,9 @@ def _recent_changes(conn, days):
             "date": happened or r["detected_at"], "detected_at": r["detected_at"],
             "ticker": ticker, "change_type": r["change_type"], "headline": headline,
             "change_id": r["id"],  # ties a generated note back to its evidence
+            # The rule that flagged it, printable beside the item.
+            "reason": materiality.change_reason(r["change_type"], r["old_value"],
+                                                r["new_value"]),
         })
     return items
 
@@ -131,7 +135,7 @@ def _catalyst_detail(row) -> str | None:
 
 
 def _upcoming_catalysts(conn, within_days, ticker=None):
-    soon_threshold = _date_offset(conn, 14)
+    soon_threshold = _date_offset(conn, materiality.CATALYST_SOON_DAYS)
     sql = """
         SELECT c.ticker, cat.catalyst_type, cat.expected_date, cat.title,
                cat.date_confidence, cat.description AS nct_id,
@@ -165,6 +169,8 @@ def _upcoming_catalysts(conn, within_days, ticker=None):
                          f"{_clip(r['title'])} ({r['expected_date']})"),
             # The full trial fact, for the note; the feed view ignores it.
             "detail": _catalyst_detail(r),
+            "reason": (f"inside {materiality.CATALYST_SOON_DAYS} days" if soon
+                       else None),
         })
     return items
 
@@ -211,6 +217,7 @@ def _near_term_loe(conn, months, limit, ticker=None):
             # exclusivity date without it, and it is not one.
             "headline": (f"{r['ticker']} LOE: {r['brand_name']}{code} "
                          f"{basis} expires {r['loe']}"),
+            "reason": f"LOE inside {materiality.LOE_WINDOW_MONTHS} months",
         })
     return items
 
@@ -240,6 +247,7 @@ def _material_filings(conn, days, ticker=None):
             "ticker": r["ticker"], "change_type": "material event",
             "url": r["url"],
             "headline": f"{r['ticker']} {r['form_type']}: {r['title']}",
+            "reason": f"material {r['form_type']} item",
         })
     return items
 
@@ -254,7 +262,8 @@ def _clip(text, limit: int = 90) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "\u2026"
 
 
-def build_feed(db_path=None, days=30, catalyst_days=60, loe_months=24, loe_limit=15,
+def build_feed(db_path=None, days=30, catalyst_days=60,
+               loe_months=materiality.LOE_WINDOW_MONTHS, loe_limit=15,
                filing_days=120, ticker=None):
     """The ranked feed. Pass ``ticker`` to narrow it to one company (used by notes)."""
     conn = db.get_connection(db_path)

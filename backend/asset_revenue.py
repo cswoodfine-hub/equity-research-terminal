@@ -226,3 +226,98 @@ def build_exposure(db_path=None, ticker: str = "", horizon: int = HORIZON) -> di
         "products_uncovered": total_uncovered,
         "coverage": covered_count / products if products else None,
     }
+
+
+def build_revenue_at_risk(db_path=None, ticker: str = "",
+                          horizon: int = HORIZON) -> dict | None:
+    """The exposure cliff as shares of tagged product revenue, with a cumulative
+    curve out to ``horizon`` years.
+
+    The denominator is the sum of every tagged product's latest-year figure for
+    the company, so a share reads "of the revenue we can attribute, this much has
+    US protection expiring by then". Products with a known expiry but no revenue
+    figure travel in a separate unpriced band as counts, drawn but never imputed.
+    Orphan exclusivity is already excluded by the exposure builder.
+    """
+    exposure = build_exposure(db_path, ticker, horizon)
+    if exposure is None:
+        return None
+    conn = db.get_connection(db_path)
+    try:
+        company_id = _company_id(conn, ticker)
+        revenue = _latest_revenue(conn, company_id)
+        reported = conn.execute(
+            """
+            SELECT fiscal_year, value, unit FROM financials
+             WHERE company_id = ? AND metric = 'Revenues' AND period_type = 'FY'
+             ORDER BY fiscal_year DESC LIMIT 1
+            """,
+            (company_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    priced_units = {r["unit"] for r in revenue.values() if r["unit"]}
+    priced_total = (sum(r["value"] for r in revenue.values())
+                    if len(priced_units) <= 1 and revenue else None)
+
+    share_by_year, unpriced_by_year, cumulative = {}, {}, {}
+    running = 0.0
+    for bucket in exposure["buckets"]:
+        year = bucket["year"]
+        expiring = bucket["revenue"] if bucket["covered"] else 0.0
+        running += expiring
+        share_by_year[str(year)] = (expiring / priced_total
+                                    if priced_total else None)
+        cumulative[str(year)] = (running / priced_total
+                                 if priced_total else None)
+        unpriced_by_year[str(year)] = len(bucket["uncovered"])
+
+    five_out = str(exposure["years"][4]) if len(exposure["years"]) > 4 else None
+    return {
+        **exposure,
+        "priced_total": priced_total,
+        "priced_products": len(revenue),
+        "company_reported": dict(reported) if reported else None,
+        "share_by_year": share_by_year,
+        "cumulative_share": cumulative,
+        "unpriced_by_year": unpriced_by_year,
+        "share_5y": cumulative.get(five_out) if five_out else None,
+    }
+
+
+def build_universe_at_risk(db_path=None, horizon: int = HORIZON) -> dict:
+    """Revenue at risk across the universe, in shares only.
+
+    Companies report in different currencies and this app holds no FX rate, so
+    absolute figures cannot be stacked across the universe without fabricating a
+    conversion. Shares of each company's own tagged revenue are unitless and
+    comparable, so that is what the universe view carries, with the unpriced
+    count beside it as the honesty band.
+    """
+    conn = db.get_connection(db_path)
+    try:
+        tickers = [r["ticker"] for r in conn.execute(
+            "SELECT ticker FROM companies ORDER BY ticker")]
+    finally:
+        conn.close()
+    rows = []
+    for ticker in tickers:
+        built = build_revenue_at_risk(db_path, ticker, horizon)
+        if built is None:
+            continue
+        cutoff = built["years"][4] if len(built["years"]) > 4 else None
+        unpriced_5y = sum(count for year, count in built["unpriced_by_year"].items()
+                          if year != "later" and cutoff and int(year) <= cutoff)
+        rows.append({
+            "ticker": built["ticker"],
+            "currency": built["currency"],
+            "priced_total": built["priced_total"],
+            "priced_products": built["priced_products"],
+            "share_5y": built["share_5y"],
+            "unpriced_5y": unpriced_5y,
+            "coverage": built["coverage"],
+        })
+    return {"rows": rows, "horizon": horizon,
+            "note": ("shares of each company's tagged product revenue; "
+                     "currencies are never mixed")}

@@ -15,6 +15,7 @@ from datetime import date, timedelta
 
 import db
 import edgar_items
+import materiality
 
 # A first-seen filing or approval only counts as news if it is also recent. Wide enough to
 # survive a refresh gap of several months, narrow enough to exclude back catalogue.
@@ -101,8 +102,13 @@ def _diff_trials(conn, run_id) -> int:
         old_date, new_date = prior.get("primary_completion_date"), current["primary_completion_date"]
         if old_date != new_date and old_date and new_date:
             if new_date > old_date:
+                # Materiality: a Phase 3 slip beyond the threshold is high; every
+                # other slip is a real but earlier signal and stays medium.
                 _write_change(conn, "trial", key, "primary_completion_date", old_date,
-                              new_date, "date_slip", "medium", run_id)
+                              new_date, "date_slip",
+                              materiality.slip_significance(current["phase"],
+                                                            old_date, new_date),
+                              run_id)
             else:
                 _write_change(conn, "trial", key, "primary_completion_date", old_date,
                               new_date, "date_change", "low", run_id)
@@ -213,6 +219,44 @@ def _diff_approvals(conn, run_id) -> int:
                        "approval_date")
 
 
+def _diff_product_revenue(conn, run_id) -> int:
+    """Restatements: a tagged product figure that moves on re-report.
+
+    Each asset-year is its own entity, so a figure appearing for a new year is a
+    baseline, not an event. Only an existing figure that moves beyond the
+    materiality threshold is flagged; smaller drift is re-snapshotted silently.
+    """
+    rows = conn.execute(
+        """
+        SELECT r.asset_id, r.fiscal_year, r.value, r.unit, a.brand_name, c.ticker
+          FROM asset_revenue r JOIN assets a ON a.id = r.asset_id
+          LEFT JOIN companies c ON c.id = a.owner_company_id
+        """
+    ).fetchall()
+    emitted = 0
+    for row in rows:
+        key = f"{row['asset_id']}:{row['fiscal_year']}"
+        payload = {"value": row["value"], "unit": row["unit"],
+                   "ticker": row["ticker"], "brand": row["brand_name"]}
+        prior = _last_snapshot(conn, "asset_revenue", "product_revenue", key)
+        if prior is None:
+            _write_snapshot(conn, "asset_revenue", "product_revenue", key, payload,
+                            run_id)
+            continue
+        old_value = prior.get("value")
+        if old_value == row["value"]:
+            continue
+        if materiality.restatement_is_material(old_value, row["value"]):
+            label = (f"{row['ticker']} restated {row['brand_name']} "
+                     f"FY{row['fiscal_year']}: {old_value} -> {row['value']}")
+            _write_change(conn, "product_revenue", key, "value", str(old_value),
+                          label, "revenue_restatement", "high", run_id)
+            emitted += 1
+        _write_snapshot(conn, "asset_revenue", "product_revenue", key, payload,
+                        run_id)
+    return emitted
+
+
 def detect_changes(db_path=None, run_id=None) -> dict:
     conn = db.get_connection(db_path)
     try:
@@ -220,6 +264,7 @@ def detect_changes(db_path=None, run_id=None) -> dict:
             "trial_changes": _diff_trials(conn, run_id),
             "new_filings": _diff_filings(conn, run_id),
             "new_approvals": _diff_approvals(conn, run_id),
+            "restatements": _diff_product_revenue(conn, run_id),
         }
         conn.commit()
     finally:

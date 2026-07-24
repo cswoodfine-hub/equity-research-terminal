@@ -14,6 +14,7 @@ from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent
 SCHEMA_PATH = BACKEND_DIR / "schema.sql"
+MIGRATIONS_DIR = BACKEND_DIR / "migrations"
 DB_PATH = Path(os.getenv("ER_TOOL_DB", str(BACKEND_DIR / "er_tool.db")))
 
 
@@ -56,7 +57,11 @@ def get_connection(db_path: str | Path | None = None) -> sqlite3.Connection:
 
 
 def init(db_path: str | Path | None = None) -> Path:
-    """Create the database and all tables from ``schema.sql``. Safe to re-run.
+    """Create the database from ``schema.sql`` and apply migrations. Safe to re-run.
+
+    Migrations are additive-only files under ``migrations/``, applied in name
+    order through the same idempotency rewrite, so an existing database gains new
+    tables without any destructive step and a fresh one ends identical.
 
     Returns the path to the database file.
     """
@@ -65,6 +70,8 @@ def init(db_path: str | Path | None = None) -> Path:
     conn = get_connection(path)
     try:
         conn.executescript(schema_sql)
+        for migration in sorted(MIGRATIONS_DIR.glob("*.sql")):
+            conn.executescript(_make_idempotent(migration.read_text()))
         conn.commit()
     finally:
         conn.close()

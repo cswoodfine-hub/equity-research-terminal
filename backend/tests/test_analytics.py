@@ -1,0 +1,364 @@
+"""The derived analytics: revenue at risk, slippage, catalyst grid, screen,
+as-of, annotations, and the materiality thresholds behind them.
+
+All seeded; no network. Every module is tested on three paths: populated, empty,
+and the null-input case, because a missing input must surface as null or a count,
+never as a computed placeholder.
+"""
+
+import datetime as dt
+
+import pytest
+
+import annotations
+import asof
+import asset_revenue
+import catalyst_grid
+import catalysts as catalysts_module
+import db
+import diff
+import materiality
+import screen
+import seed
+import slippage
+
+
+TODAY = dt.date.today()
+THIS_YEAR = TODAY.year
+
+
+def _base(db_file):
+    db.init(db_file)
+    seed.load_companies(db_file)
+
+
+def _asset(conn, ticker, brand, code=None):
+    cid = conn.execute("SELECT id FROM companies WHERE ticker=?",
+                       (ticker,)).fetchone()[0]
+    cur = conn.execute(
+        "INSERT INTO assets (owner_company_id, brand_name, internal_code, modality,"
+        " is_marketed) VALUES (?, ?, ?, 'small molecule', 1)",
+        (cid, brand, code or brand.upper()))
+    return cur.lastrowid
+
+
+def _protect(conn, asset_id, expiry, protection="patent"):
+    conn.execute(
+        "INSERT INTO exclusivities (asset_id, protection_type, identifier,"
+        " expiry_date, source) VALUES (?, ?, 'X', ?, 'orange_book')",
+        (asset_id, protection, expiry))
+
+
+def _price(conn, asset_id, value, year=None, unit="USD"):
+    conn.execute(
+        "INSERT INTO asset_revenue (asset_id, fiscal_year, value, unit)"
+        " VALUES (?, ?, ?, ?)", (asset_id, year or THIS_YEAR - 1, value, unit))
+
+
+# --- materiality ------------------------------------------------------------
+def test_a_phase_three_slip_over_the_threshold_is_high():
+    assert materiality.slip_significance(
+        "Phase 3", "2027-01-01", "2027-03-01") == "high"
+
+
+def test_a_small_phase_three_slip_stays_medium():
+    assert materiality.slip_significance(
+        "Phase 3", "2027-01-01", "2027-01-20") == "medium"
+
+
+def test_an_early_phase_slip_stays_medium_at_any_size():
+    assert materiality.slip_significance(
+        "Phase 2", "2027-01-01", "2028-06-01") == "medium"
+
+
+def test_restatement_threshold_is_five_percent():
+    assert materiality.restatement_is_material(10.0, 10.6)
+    assert not materiality.restatement_is_material(10.0, 10.4)
+    assert not materiality.restatement_is_material(None, 10.0)
+
+
+def test_a_material_restatement_lands_in_the_changes_feed(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    conn = db.get_connection(db_file)
+    asset = _asset(conn, "LLY", "Verzenio")
+    _price(conn, asset, 5_000_000_000.0)
+    conn.commit()
+    conn.close()
+    diff.detect_changes(db_file)                    # baseline
+
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE asset_revenue SET value = 5600000000.0")
+    conn.commit()
+    conn.close()
+    summary = diff.detect_changes(db_file)
+    assert summary["restatements"] == 1
+
+    conn = db.get_connection(db_file)
+    row = conn.execute("SELECT * FROM changes WHERE change_type ="
+                       " 'revenue_restatement'").fetchone()
+    conn.close()
+    assert row["significance"] == "high"
+    assert "Verzenio" in row["new_value"]
+
+
+def test_a_small_revenue_drift_is_resnapshotted_silently(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    conn = db.get_connection(db_file)
+    asset = _asset(conn, "LLY", "Verzenio")
+    _price(conn, asset, 5_000_000_000.0)
+    conn.commit()
+    conn.close()
+    diff.detect_changes(db_file)
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE asset_revenue SET value = 5100000000.0")  # 2%
+    conn.commit()
+    conn.close()
+    assert diff.detect_changes(db_file)["restatements"] == 0
+
+
+# --- revenue at risk --------------------------------------------------------
+def _seed_at_risk(db_file):
+    _base(db_file)
+    conn = db.get_connection(db_file)
+    priced = _asset(conn, "LLY", "Priced")
+    _protect(conn, priced, f"{THIS_YEAR + 2}-06-01")
+    _price(conn, priced, 6_000_000_000.0)
+    unpriced = _asset(conn, "LLY", "Unpriced")
+    _protect(conn, unpriced, f"{THIS_YEAR + 2}-09-01")
+    orphan = _asset(conn, "LLY", "Orphan")
+    _protect(conn, orphan, f"{THIS_YEAR + 1}-01-01", "orphan exclusivity")
+    safe = _asset(conn, "LLY", "Safe")
+    _protect(conn, safe, f"{THIS_YEAR + 20}-01-01")
+    _price(conn, safe, 4_000_000_000.0)
+    conn.commit()
+    conn.close()
+
+
+def test_revenue_at_risk_shares_and_the_unpriced_band(tmp_path):
+    db_file = tmp_path / "test.db"
+    _seed_at_risk(db_file)
+    built = asset_revenue.build_revenue_at_risk(db_file, "LLY")
+
+    assert built["priced_total"] == pytest.approx(10_000_000_000.0)
+    year = str(THIS_YEAR + 2)
+    assert built["share_by_year"][year] == pytest.approx(0.6)   # 6bn of 10bn
+    assert built["unpriced_by_year"][year] == 1                 # drawn, not imputed
+    assert built["cumulative_share"][year] == pytest.approx(0.6)
+    assert built["share_5y"] == pytest.approx(0.6)              # Safe is 20y out
+    # The orphan expiry is not a cliff and appears nowhere.
+    assert all("Orphan" not in str(b["covered"]) + str(b["uncovered"])
+               for b in built["buckets"])
+
+
+def test_revenue_at_risk_with_no_revenue_rows_is_null_not_zero(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    conn = db.get_connection(db_file)
+    bare = _asset(conn, "GSK", "Bare")
+    _protect(conn, bare, f"{THIS_YEAR + 1}-01-01")
+    conn.commit()
+    conn.close()
+    built = asset_revenue.build_revenue_at_risk(db_file, "GSK")
+    assert built["priced_total"] is None
+    assert built["share_5y"] is None                            # not 0, unknown
+    assert built["unpriced_by_year"][str(THIS_YEAR + 1)] == 1
+
+
+def test_revenue_at_risk_unknown_ticker_is_none(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    assert asset_revenue.build_revenue_at_risk(db_file, "ZZZ") is None
+
+
+def test_universe_at_risk_carries_shares_never_mixed_currency_sums(tmp_path):
+    db_file = tmp_path / "test.db"
+    _seed_at_risk(db_file)
+    built = asset_revenue.build_universe_at_risk(db_file)
+    lly = next(r for r in built["rows"] if r["ticker"] == "LLY")
+    assert lly["share_5y"] == pytest.approx(0.6)
+    assert "currencies are never mixed" in built["note"]
+
+
+# --- slippage ----------------------------------------------------------------
+def _move_trial(db_file, nct, dates):
+    """Baseline a trial then walk its completion date through ``dates``."""
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    conn.execute(
+        "INSERT INTO trials (nct_id, sponsor_company_id, title, phase,"
+        " overall_status, primary_completion_date) VALUES (?, ?, 'T', 'Phase 3',"
+        " 'Recruiting', ?)", (nct, cid, dates[0]))
+    conn.commit()
+    conn.close()
+    diff.detect_changes(db_file)
+    for date in dates[1:]:
+        conn = db.get_connection(db_file)
+        conn.execute("UPDATE trials SET primary_completion_date=? WHERE nct_id=?",
+                     (date, nct))
+        conn.commit()
+        conn.close()
+        diff.detect_changes(db_file)
+
+
+def test_slippage_accumulates_across_observations(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    _move_trial(db_file, "NCT_SLIP", ["2027-01-01", "2027-02-01", "2027-03-15"])
+    _move_trial(db_file, "NCT_PULL", ["2027-06-01", "2027-05-01"])
+
+    built = slippage.build(db_file)
+    rows = {r["nct_id"]: r for r in built["rows"]}
+    assert rows["NCT_SLIP"]["days_moved"] == 73        # first old to latest new
+    assert rows["NCT_SLIP"]["observations"] == 2
+    assert rows["NCT_PULL"]["days_moved"] == -31
+
+    summary = built["summary"][0]
+    assert summary["ticker"] == "LLY"
+    assert summary["slipped"] == 1 and summary["pulled_in"] == 1
+
+
+def test_slippage_ticker_filter_and_empty_state(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    assert slippage.build(db_file) == {"rows": [], "summary": [], "ticker": None}
+    _move_trial(db_file, "NCT_X", ["2027-01-01", "2027-02-01"])
+    assert slippage.build(db_file, ticker="MRK")["rows"] == []
+    assert len(slippage.build(db_file, ticker="lly")["rows"]) == 1
+
+
+# --- catalyst grid -------------------------------------------------------
+def test_catalyst_grid_counts_weights_and_flags(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    soon = (TODAY + dt.timedelta(days=7)).isoformat()
+    later = (TODAY + dt.timedelta(days=200)).isoformat()
+    catalysts_module.add_catalyst(db_file, "LLY", "data readout", soon, "R1")
+    catalysts_module.add_catalyst(db_file, "LLY", "data readout", later, "R2")
+    # an uncurated PDUFA extraction, distinctly marked
+    catalysts_module.add_catalyst(db_file, "MRK", "PDUFA", later, "P1",
+                                  is_curated=0)
+
+    built = catalyst_grid.build(db_file, today=TODAY)
+    lly_soon = built["cells"]["LLY"][soon[:7]]
+    assert lly_soon["count"] == 1 and lly_soon["weight"] == 1.0
+    mrk = built["cells"]["MRK"][later[:7]]
+    assert mrk["uncurated_pdufa"] is True
+    assert mrk["weight"] == pytest.approx(0.85)
+    assert built["cells"]["PFE"] == {}                 # absence, not zeros
+
+
+# --- screen ---------------------------------------------------------------
+def test_screen_nulls_every_column_missing_an_input(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    rows = {r["ticker"]: r for r in screen.build_screen(db_file)}
+    empty = rows["ROG"]
+    assert empty["revenue"] is None
+    assert empty["revenue_per_late_trial"] is None     # 0 trials: undefined
+    assert empty["loe_share_5y"] is None
+    assert empty["ttm_price_change"] is None
+    assert empty["catalysts_12m"] == 0                 # a real count, zero is true
+
+
+def test_screen_computes_revenue_per_late_trial_when_both_exist(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    conn.execute(
+        "INSERT INTO financials (company_id, period_end, period_type, metric,"
+        " value, unit, fiscal_year) VALUES (?, '2025-12-31', 'FY', 'Revenues',"
+        " 60e9, 'USD', 2025)", (cid,))
+    for i, phase in enumerate(("Phase 3", "Phase 2/3", "Phase 1")):
+        conn.execute(
+            "INSERT INTO trials (nct_id, sponsor_company_id, phase,"
+            " overall_status) VALUES (?, ?, ?, 'Recruiting')",
+            (f"NCT_{i}", cid, phase))
+    conn.commit()
+    conn.close()
+    row = {r["ticker"]: r for r in screen.build_screen(db_file)}["LLY"]
+    assert row["late_trials"] == 2                     # Phase 3 + Phase 2/3
+    assert row["revenue_per_late_trial"] == pytest.approx(30e9)
+
+
+# --- as-of ------------------------------------------------------------------
+def test_asof_reconstructs_the_earlier_status(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    conn.execute(
+        "INSERT INTO trials (nct_id, sponsor_company_id, title, phase,"
+        " overall_status, primary_completion_date) VALUES ('NCT_A', ?, 'T',"
+        " 'Phase 3', 'Recruiting', '2027-06-30')", (cid,))
+    conn.commit()
+    conn.close()
+    diff.detect_changes(db_file)                       # snapshot: Recruiting
+
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE trials SET overall_status='Terminated'"
+                 " WHERE nct_id='NCT_A'")
+    # push the second snapshot into tomorrow so the cutoff can sit between them
+    conn.commit()
+    conn.close()
+    diff.detect_changes(db_file)
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE snapshots SET captured_at = datetime('now', '+2 days')"
+                 " WHERE id = (SELECT MAX(id) FROM snapshots"
+                 "             WHERE entity_type='trial')")
+    conn.commit()
+    conn.close()
+
+    past = asof.state_at(db_file, TODAY.isoformat())
+    trial = next(t for t in past["trials"] if t["nct_id"] == "NCT_A")
+    assert trial["overall_status"] == "Recruiting"     # the state as of today
+
+    future = asof.state_at(db_file, (TODAY + dt.timedelta(days=3)).isoformat())
+    trial = next(t for t in future["trials"] if t["nct_id"] == "NCT_A")
+    assert trial["overall_status"] == "Terminated"
+
+
+def test_asof_rejects_a_bad_date_and_names_prehistory(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    assert asof.state_at(db_file, "not-a-date") is None
+    state = asof.state_at(db_file, "2001-01-01")
+    assert state["trials"] == []
+    # With no snapshots at all there is no history to be before.
+    assert state["history_begins"] is None
+
+
+# --- annotations ------------------------------------------------------------
+def test_annotation_roundtrip(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    note_id = annotations.add(db_file, "lly", "company", None,
+                              "watching the obesity readout cadence")
+    rows = annotations.list_annotations(db_file, ticker="LLY")
+    assert len(rows) == 1 and rows[0]["id"] == note_id
+    assert rows[0]["entity_type"] == "company"
+    assert annotations.delete(db_file, note_id) is True
+    assert annotations.list_annotations(db_file) == []
+
+
+def test_annotation_validation(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    with pytest.raises(ValueError, match="unknown ticker"):
+        annotations.add(db_file, "ZZZ", "company", None, "x")
+    with pytest.raises(ValueError, match="entity_type"):
+        annotations.add(db_file, "LLY", "poem", None, "x")
+    with pytest.raises(ValueError, match="body"):
+        annotations.add(db_file, "LLY", "company", None, "   ")
+
+
+def test_annotation_scopes_to_one_entity(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    annotations.add(db_file, "LLY", "change", "17", "slip looks structural")
+    annotations.add(db_file, "LLY", "catalyst", "9", "date is soft")
+    scoped = annotations.list_annotations(db_file, entity_type="change",
+                                          entity_id="17")
+    assert len(scoped) == 1 and scoped[0]["body"] == "slip looks structural"

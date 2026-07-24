@@ -1,5 +1,22 @@
 # Build log, overnight autonomous build
 
+## Phase 2: chart primitives — 2026-07-25 01:15
+- All ten primitives in components/charts.py as pure data-to-SVG functions with
+  explicit dimensions; 37 unit tests (validity, mark counts, null paths).
+- The null rule surfaced a real defect during testing: a value islanded between
+  two nulls was silently dropped because a one-point run cannot draw a polyline.
+  Fixed across sparkline, line chart and small multiples: islanded points draw
+  as dots. The test was corrected to demand this rather than relaxed.
+- Visual smoke test via a headless-Chrome gallery caught three geometry issues
+  (colliding series end labels, spine date/label crowding, flag dot on the date)
+  and one robustness flaw: the hover CSS lived only in the page stylesheet, so
+  an exported chart would paint every tooltip at once. Hover rules now ship
+  inside the SVG itself.
+- Decisions: drag-to-zoom is not carried by the SVG line chart (no scripts in
+  st.html); the price view keeps its window buttons and gains CSS hover
+  readouts per slot. Recorded as the pivot playbook's fallback.
+- Suite 292 green.
+
 ## Phase 1: design system — 2026-07-25 00:45
 - tokens.css and components/tokens.py written and mirrored, with a test that fails
   if they drift. Six palette values, phase ramp, spacing base 8, radius 0/2, three

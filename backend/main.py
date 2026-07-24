@@ -14,7 +14,10 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
 import env  # noqa: F401  loads the .env from the repo root, before any module reads it
+import annotations as annotations_module
+import asof as asof_module
 import asset_revenue as asset_revenue_module
+import catalyst_grid as catalyst_grid_module
 import catalysts as catalysts_module
 import comps as comps_module
 import db
@@ -23,6 +26,8 @@ import insights as insights_module
 import loe as loe_module
 import pipeline as pipeline_module
 import refresh as refresh_module
+import screen as screen_module
+import slippage as slippage_module
 import whatchanged as whatchanged_module
 
 
@@ -344,6 +349,88 @@ def company_exposure(ticker: str) -> dict:
     if built is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     return built
+
+
+@app.get("/companies/{ticker}/revenue-at-risk")
+def company_revenue_at_risk(ticker: str) -> dict:
+    """The exposure cliff as shares of tagged product revenue, with the unpriced
+    band carried as counts rather than imputed values."""
+    built = asset_revenue_module.build_revenue_at_risk(None, ticker)
+    if built is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return built
+
+
+@app.get("/revenue-at-risk")
+def universe_revenue_at_risk() -> dict:
+    """Universe view, in shares only: no FX source exists here, so absolute
+    figures in mixed currencies are never stacked."""
+    return asset_revenue_module.build_universe_at_risk()
+
+
+@app.get("/slippage")
+def slippage(ticker: Optional[str] = Query(default=None)) -> dict:
+    """Per-trial completion-date moves accumulated from our own snapshot history."""
+    return slippage_module.build(ticker=ticker)
+
+
+@app.get("/catalyst-grid")
+def catalyst_grid(months: int = Query(default=18)) -> dict:
+    """Every company against the coming months; uncurated PDUFA cells flagged."""
+    return catalyst_grid_module.build(months=max(1, min(months, 36)))
+
+
+@app.get("/screen")
+def screen() -> list[dict]:
+    """The comps universe with derived analyst columns; missing inputs are null."""
+    return screen_module.build_screen()
+
+
+@app.get("/price-grid")
+def price_grid(days: int = Query(default=90)) -> list[dict]:
+    """Recent closes for all companies in one payload, for the universe grid."""
+    return comps_module.price_grid(days=max(5, min(days, 1900)))
+
+
+@app.get("/as-of")
+def as_of(date: str = Query(...)) -> dict:
+    """Read-only reconstruction of tracked state at a past date, from snapshots."""
+    built = asof_module.state_at(None, date)
+    if built is None:
+        raise HTTPException(status_code=400, detail=f"not an ISO date: {date}")
+    return built
+
+
+class AnnotationIn(BaseModel):
+    ticker: str
+    entity_type: str
+    entity_id: Optional[str] = None
+    body: str
+
+
+@app.get("/annotations")
+def list_annotations(ticker: Optional[str] = Query(default=None),
+                     entity_type: Optional[str] = Query(default=None),
+                     entity_id: Optional[str] = Query(default=None)) -> list[dict]:
+    return annotations_module.list_annotations(None, ticker, entity_type, entity_id)
+
+
+@app.post("/annotations")
+def create_annotation(body: AnnotationIn) -> dict:
+    try:
+        annotation_id = annotations_module.add(
+            None, body.ticker, body.entity_type, body.entity_id, body.body)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"id": annotation_id}
+
+
+@app.delete("/annotations/{annotation_id}")
+def remove_annotation(annotation_id: int) -> dict:
+    if not annotations_module.delete(None, annotation_id):
+        raise HTTPException(status_code=404,
+                            detail=f"annotation {annotation_id} not found")
+    return {"deleted": annotation_id}
 
 
 def _company_rows(ticker, query):
