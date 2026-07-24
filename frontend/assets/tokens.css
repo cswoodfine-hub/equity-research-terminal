@@ -1,0 +1,36 @@
+/* Design tokens. Mirrored in components/tokens.py; a test keeps the two in step.
+   No colour or spacing value may be hardcoded outside these two files. */
+:root {
+  --ground: #0C1417;        /* deep petrol, page background */
+  --panel: #131E22;         /* raised surface */
+  --rule: #1F2E33;          /* hairlines, gridlines, table borders */
+  --rule-strong: #2E4249;   /* structural hairlines, one step up */
+  --text: #E8EDEA;          /* warm paper white */
+  --muted: #7E9098;         /* labels, axis text, secondary */
+  --up: #4C9A7A;            /* positive delta, measured series */
+  --down: #C4553B;          /* negative delta */
+  --flag: #D9B26B;          /* material change, needs review, uncurated */
+
+  /* Phase ramp, ordinal, brightness rising toward market. */
+  --phase-preclinical: #2E4A52;
+  --phase-1: #3E6B72;
+  --phase-2: #5A9089;
+  --phase-3: #93AE77;
+  --phase-filed: #D9B26B;
+  --phase-approved: #E8EDEA;
+
+  /* Modality, the two FDA book colours retuned into the palette. */
+  --orange-book: #C98A4B;
+  --purple-book: #8B7FC7;
+
+  /* Spacing base and radii. */
+  --space: 8px;
+  --radius: 0px;
+  --radius-small: 2px;
+
+  /* Type roles. Structure: Archivo. Figures: IBM Plex Mono. Prose: Newsreader. */
+  --font-ui: 'Archivo', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font-ui-narrow: 'Archivo Narrow', 'Archivo', 'Arial Narrow', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-prose: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+}

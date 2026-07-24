@@ -41,6 +41,22 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/runs/latest")
+def latest_run() -> dict:
+    """The most recent refresh run, for the top bar's freshness readout."""
+    conn = db.get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id, started_at, finished_at, status FROM refresh_runs"
+            " ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        conn.close()
+    if row is None:
+        return {"id": None, "started_at": None, "finished_at": None, "status": None}
+    return dict(row)
+
+
 @app.get("/companies")
 def list_companies() -> list[dict]:
     conn = db.get_connection()

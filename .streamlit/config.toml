@@ -1,27 +1,14 @@
-# Streamlit's own chrome, and in particular the canvas dataframe, takes its colours
-# from here rather than from the stylesheet the app injects. So these values must match
-# the palette selected in frontend/theme.py, and switching mode means changing both:
-#
-#   dark  (default) : the block below, and ER_THEME unset or ER_THEME=dark
-#   light           : the commented block, and ER_THEME=light
-#
-# Both palettes live in frontend/theme.py; only the ground and ink differ here.
+# Streamlit's own chrome, in particular the canvas dataframe, takes its colours from
+# here rather than from the injected stylesheet, so these values mirror the token set
+# in frontend/assets/tokens.css and frontend/components/tokens.py.
 
 [theme]
 base = "dark"
-primaryColor = "#4CC2C4"
-backgroundColor = "#0E1116"
-secondaryBackgroundColor = "#141A21"
-textColor = "#E6E9EF"
+primaryColor = "#4C9A7A"
+backgroundColor = "#0C1417"
+secondaryBackgroundColor = "#131E22"
+textColor = "#E8EDEA"
 font = "sans serif"
-
-# [theme]
-# base = "light"
-# primaryColor = "#116765"
-# backgroundColor = "#F2EFE9"
-# secondaryBackgroundColor = "#EDE9E1"
-# textColor = "#1C1B19"
-# font = "sans serif"
 
 [server]
 headless = true

@@ -1,52 +1,51 @@
 """Design system: palette, type, chart theme, and number formatting.
 
-One rule governs the palette in both modes. Ground and ink build every piece of chrome;
-hue is spent only on encoded meaning: modality, direction, severity, staleness, and the
-data itself. The data hue is not an exception to that rule. It means "this is a measured
-series", which is why every line, bar, point, and heatmap step carries it and no piece of
-chrome ever does. Without it the dark theme was cream on olive throughout and read flat.
+The palette is the token set in ``components/tokens.py`` (mirrored in
+``assets/tokens.css``): six values plus the phase ramp, nothing else. Ground and
+panel build every piece of chrome; hue is spent only on encoded meaning: direction,
+modality, materiality, and the phase ramp. Colour is never the only signal; every
+coloured mark also carries a label, glyph, or position.
 
-The two book colours are inherited from the source datasets rather than invented. FDA
-exclusivity data ships as the Orange Book (small molecules) and the Purple Book
-(biologics), so modality reads in the colours the agency already uses. Dark mode lifts
-both to hold their chroma against a deep ground; it does not reassign them.
-
-Light stays the reasoned default: this tool sits beside Excel and 10-K PDFs all day, and
-a dark island forces pupil re-adaptation on every glance. Dark is offered because the
-book colours carry much harder against ink, not because dark is better here.
+Type has three roles, bundled locally in ``assets/fonts`` and inlined as
+``@font-face`` so nothing loads from a CDN. Structure and UI take Archivo (Archivo
+Narrow for dense table headers); figures, tickers and dates take IBM Plex Mono with
+tabular numerals; the written note alone takes Newsreader, so analyst prose reads as
+research rather than as chrome.
 """
 
 from __future__ import annotations
 
+import base64
 import math
-import os
 from dataclasses import dataclass
+from pathlib import Path
 
 import altair as alt
+
+from components import tokens as TK
+
+_ASSETS = Path(__file__).resolve().parent / "assets"
 
 
 @dataclass(frozen=True)
 class Palette:
-    """One set of colour roles. Both modes fill the same roles, never new ones."""
+    """One set of colour roles. Legacy field names kept so every module shifts
+    palette in one move: ink is the text token, data is the up token, oxblood the
+    down token, stale the muted token, raised the panel token."""
 
     name: str
     ground: str          # the absence of signal
-    ink: str             # text, rules, axes, all non-negative figures
-    data: str            # a plotted series: lines, bars, points, the phase ramp
+    ink: str             # text, rules, axes
+    data: str            # a plotted series and the positive direction
     orange_book: str     # small-molecule modality
     purple_book: str     # biologic modality
     oxblood: str         # negative direction and high severity, single pole
-    stale: str           # a value past its source TTL
-    rule: str            # hairline, derived from ink, never a new hue
-    rule_strong: str
-    raised: str          # sidebar and hover, one step off the ground
-    # Continuous stops for the density heatmap, where a low count should recede into
-    # the ground and only a high one should carry weight. These are interpolated by
-    # Vega, so the count of stops is free. They are the wrong thing for a discrete
-    # scale: the first two sit at 1.15:1 and 1.57:1 against the ground, which is
-    # invisible, and a fixed tuple silently ran out when a sixth phase was added. Use
-    # ordinal_ramp for anything where every step has to be seen.
-    phase_tints: tuple
+    stale: str           # secondary text, past-TTL values
+    rule: str            # hairline
+    rule_strong: str     # structural hairline
+    raised: str          # raised surface
+    flag: str            # material change, needs review, uncurated
+    phase_tints: tuple   # continuous heatmap stops, ground toward data
 
     @property
     def modality(self) -> dict:
@@ -54,8 +53,6 @@ class Palette:
 
     @property
     def severity(self) -> dict:
-        # No severity glyph. The colour of the word is the encoding; a dot beside it
-        # would say the same thing twice, in a glyph belonging to no part of this palette.
         return {"high": self.oxblood, "medium": self.ink, "low": self.stale}
 
     @property
@@ -64,138 +61,181 @@ class Palette:
         return self.stale if self.name == "dark" else "#5A564E"
 
 
-# stale and the modality colours carry real caption and table text, so both palettes are
-# tuned to clear 4.5:1 against their ground. The earlier values sat at 2.57:1 in light
-# and 4.10:1 in dark, which is recessive to the point of being unreadable.
+# Retained for the ramp tests and as the record of the pre-terminal palette. The
+# running app always uses DARK, which is the token set.
 LIGHT = Palette(
     name="light", ground="#F2EFE9", ink="#1C1B19", data="#116765",
     orange_book="#B04E0C", purple_book="#5B4B8A", oxblood="#8C2F39", stale="#6E6A61",
-    rule="#DCD7CC", rule_strong="#B9B3A6", raised="#EDE9E1",
+    rule="#DCD7CC", rule_strong="#B9B3A6", raised="#EDE9E1", flag="#9A7B2F",
     phase_tints=("#DCE8E7", "#A9CFCD", "#6FAFAC", "#37827F", "#116765"),
 )
 
 DARK = Palette(
-    name="dark", ground="#0E1116", ink="#E6E9EF", data="#4CC2C4",
-    orange_book="#F08A3C", purple_book="#A78BFA", oxblood="#F2545B", stale="#78838F",
-    rule="#1E242C", rule_strong="#333C48", raised="#141A21",
-    # Ordinal ramp from just off the ground up to the data colour, so a heatmap reads
-    # as the same material as a line chart rather than as grey chrome.
-    phase_tints=("#16202A", "#1D3A44", "#256069", "#34909A", "#4CC2C4"),
+    name="dark", ground=TK.GROUND, ink=TK.TEXT, data=TK.UP,
+    orange_book=TK.ORANGE_BOOK, purple_book=TK.PURPLE_BOOK, oxblood=TK.DOWN,
+    stale=TK.MUTED, rule=TK.RULE, rule_strong=TK.RULE_STRONG, raised=TK.PANEL,
+    flag=TK.FLAG,
+    # Continuous stops for density heatmaps, ground toward the data colour.
+    phase_tints=("#122122", "#1C3A36", "#2A5A4E", "#3B7A64", TK.UP),
 )
 
-# Mode is read once at import. Streamlit's own chrome, and in particular the canvas
-# dataframe, takes its colours from .streamlit/config.toml rather than from injected
-# CSS, so the two have to agree and the switch is a restart rather than a toggle.
-MODE = os.getenv("ER_THEME", "dark").strip().lower()
-P = DARK if MODE == "dark" else LIGHT
+P = DARK
 
-# --- Type ---------------------------------------------------------------
-# Display is scoped to the note prose, the one part of the app that is writing.
-# Body is Public Sans, the face of US federal digital services, and this app runs
-# almost entirely on US federal data. Mono is scoped to identifiers, not to numbers:
-# quantities align better in proportional tabular figures than in any monospace.
-DISPLAY = "'Newsreader', 'Iowan Old Style', Georgia, serif"
-BODY = "'Public Sans', -apple-system, 'Segoe UI', system-ui, sans-serif"
-MONO = "'Spline Sans Mono', ui-monospace, 'SF Mono', Menlo, monospace"
+# --- Type roles -----------------------------------------------------------
+DISPLAY = TK.FONT_PROSE      # the note prose only
+BODY = TK.FONT_UI            # structure and UI
+NARROW = TK.FONT_UI_NARROW   # dense table headers
+MONO = TK.FONT_MONO          # figures, tickers, dates, identifiers
 
-_FONT_URL = ("https://fonts.googleapis.com/css2"
-             "?family=Newsreader:opsz,wght@6..72,400;6..72,500"
-             "&family=Public+Sans:wght@400;500;600;700"
-             "&family=Spline+Sans+Mono:wght@400;500"
-             "&display=swap")
+# family name -> filename stem prefix in assets/fonts
+_FONT_FILES = (
+    ("Archivo", 400, "archivo-latin-400-normal.woff2"),
+    ("Archivo", 500, "archivo-latin-500-normal.woff2"),
+    ("Archivo", 600, "archivo-latin-600-normal.woff2"),
+    ("Archivo", 700, "archivo-latin-700-normal.woff2"),
+    ("Archivo Narrow", 600, "archivo-narrow-latin-600-normal.woff2"),
+    ("IBM Plex Mono", 400, "ibm-plex-mono-latin-400-normal.woff2"),
+    ("IBM Plex Mono", 500, "ibm-plex-mono-latin-500-normal.woff2"),
+    ("IBM Plex Mono", 600, "ibm-plex-mono-latin-600-normal.woff2"),
+    ("Newsreader", 400, "newsreader-latin-400-normal.woff2"),
+    ("Newsreader", 500, "newsreader-latin-500-normal.woff2"),
+)
+
+
+def _font_faces() -> str:
+    """Bundled fonts as inline @font-face rules. Base64 keeps them one file with the
+    stylesheet, which sidesteps static-file serving entirely; a missing file falls
+    back to the system stack rather than erroring."""
+    faces = []
+    for family, weight, filename in _FONT_FILES:
+        path = _ASSETS / "fonts" / filename
+        if not path.exists():
+            continue
+        data = base64.b64encode(path.read_bytes()).decode("ascii")
+        faces.append(
+            f"@font-face {{ font-family: '{family}'; font-weight: {weight}; "
+            f"font-style: normal; font-display: swap; "
+            f"src: url(data:font/woff2;base64,{data}) format('woff2'); }}")
+    return "\n".join(faces)
+
+
+_FONT_FACE_CSS = _font_faces()
+_TOKENS_CSS = (_ASSETS / "tokens.css").read_text()
 
 
 def css() -> str:
-    """Scoped stylesheet. Density, rules, focus, and motion all live here."""
+    """Scoped stylesheet: tokens, fonts, shell, and every component class."""
+    tokens_root = _TOKENS_CSS.replace("/* Design tokens. Mirrored in "
+                                      "components/tokens.py; a test keeps the two in "
+                                      "step.\n   No colour or spacing value may be "
+                                      "hardcoded outside these two files. */\n", "")
     return f"""
 <style>
-@import url('{_FONT_URL}');
+{_FONT_FACE_CSS}
+{tokens_root}
 
+/* Legacy variable names, aliased onto the tokens so existing rules keep reading. */
 :root {{
-  --ground: {P.ground}; --ink: {P.ink}; --rule: {P.rule}; --rule-strong: {P.rule_strong};
-  --stale: {P.stale}; --oxblood: {P.oxblood};
-  --orange-book: {P.orange_book}; --purple-book: {P.purple_book}; --data: {P.data};
+  --ink: var(--text); --stale: var(--muted);
+  --oxblood: var(--down); --data: var(--up);
 }}
 
 html, body, [class*="css"], .stApp {{
   background: var(--ground);
-  color: var(--ink);
-  font-family: {BODY};
+  color: var(--text);
+  font-family: var(--font-ui);
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
 }}
 
-/* Every figure in the app holds its column when values change on refresh. */
+/* Every figure holds its column when values change on refresh. */
 .stApp, table, td, th, .stMetric, [data-testid="stMetricValue"], .num, .mono {{
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
 }}
 
-/* Streamlit's header is 48px at z-index 999990 and paints an opaque band. It cannot
-   be collapsed reliably, and it carries the sidebar toggle, so it stays. Making it
-   transparent and starting content below it is what keeps the identity strip visible. */
 header[data-testid="stHeader"] {{ background: transparent !important; }}
 [data-testid="stToolbar"] {{ right: 0.6rem; }}
 
-/* Density. The template answer is generous padding; this is an analyst tool.
-   Streamlit's generated class wins the cascade on padding, so this one is forced. */
+/* Density: an instrument, not a landing page. 8px base scale. */
 [data-testid="stMainBlockContainer"], .block-container {{
-  padding: 3.1rem 1.4rem 3rem !important; max-width: 100% !important;
+  padding: 3rem 16px 3rem !important; max-width: 100% !important;
 }}
+[data-testid="stVerticalBlock"] {{ gap: 8px; }}
+[data-testid="stHorizontalBlock"] {{ gap: 16px; }}
 
-/* The company picker sits in the identity strip, not behind a collapsed sidebar. */
-.pick [data-baseweb="select"] > div {{
-  border-radius: 0; border-color: {P.rule_strong}; background: {P.ground};
-  min-height: 30px; font-weight: 700; font-size: 13px;
-}}
-.pick [data-testid="stSelectbox"] {{ margin-top: -2px; }}
-[data-testid="stVerticalBlock"] {{ gap: 0.45rem; }}
-[data-testid="stHorizontalBlock"] {{ gap: 0.9rem; }}
 h1, h2, h3, h4, h5 {{
-  font-family: {BODY}; font-weight: 600; letter-spacing: -0.01em;
-  color: var(--ink); margin: 0 0 0.15rem;
+  font-family: var(--font-ui); font-weight: 600; letter-spacing: -0.01em;
+  color: var(--text); margin: 0 0 0.15rem;
 }}
 h1 {{ font-size: 1.15rem; }}
 h2 {{ font-size: 1.0rem; }}
 h3 {{ font-size: 0.9rem; }}
 
-/* Section rule: a hairline and a caps label, never a card.
-   The box stays tight and the rhythm lives on Streamlit's element wrapper. Streamlit
-   sizes that wrapper itself, so padding on .sec made it overflow its own container and
-   the space below the rule collapsed: the Refresh button sat 1px under it. Keeping
-   .sec the same height as its wrapper puts the margins back in the layout flow. */
+/* --- Top bar ----------------------------------------------------------- */
+/* Sticky so the ticker, refresh state and search survive any scroll. Sits under
+   Streamlit's transparent 48px header. */
+[data-testid="stHorizontalBlock"]:has(.topbar-anchor) {{
+  position: sticky; top: 2.8rem; z-index: 120;
+  background: var(--ground);
+  border-bottom: 1px solid var(--rule-strong);
+  padding: 4px 0 8px;
+  align-items: center !important;
+}}
+.topbar-name {{ display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }}
+.topbar-name .nm {{ font-size: 0.95rem; font-weight: 600; }}
+.topbar-name .meta {{ font-size: 11px; color: var(--muted); }}
+.topbar-run {{ font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
+              text-align: right; line-height: 1.5; padding-top: 3px; }}
+.topbar-run .ok {{ color: var(--up); }}
+.topbar-run .bad {{ color: var(--down); }}
+
+/* Inputs are square everywhere: radius 0 is the terminal's whole border language.
+   Styled globally because a markdown-injected wrapper div is closed by the
+   sanitiser before the widget mounts, so scoped wrappers never contain them. */
+[data-baseweb="select"] > div {{
+  border-radius: var(--radius) !important; border-color: var(--rule-strong);
+  background: var(--panel);
+  min-height: 30px; font-weight: 700; font-size: 13px;
+  font-family: var(--font-mono);
+}}
+[data-baseweb="popover"] [data-baseweb="menu"] {{ border-radius: var(--radius); }}
+[data-testid="stTextInput"] input, [data-testid="stNumberInput"] input,
+[data-testid="stDateInput"] input {{
+  border-radius: var(--radius) !important; border-color: var(--rule);
+  background: var(--panel); color: var(--text);
+  font-family: var(--font-mono); font-size: 12px; min-height: 30px;
+}}
+[data-testid="stTextInput"] > div, [data-testid="stDateInput"] > div {{
+  border-radius: var(--radius) !important; background: var(--panel);
+}}
+[data-testid="stTextInput"] input:focus {{ border-color: var(--muted); }}
+
+/* Section rule: a hairline and a caps label, never a card. */
 .sec {{
   display: flex; align-items: baseline; justify-content: space-between;
   border-bottom: 1px solid var(--rule-strong);
   padding: 0 0 0.2rem; margin: 0;
 }}
-/* Streamlit collapses the rule's own container to 8px while .sec draws 21px, so
-   neither padding on .sec nor margin on that container reaches the layout. The
-   element after the rule is a normal item in the flex flow, so the gap goes there. */
 [data-testid="stElementContainer"]:has(.sec) {{ margin-top: 0.85rem; }}
-/* The collapsed container swallows roughly 8px of this, so the visible gap is about
-   half what is set here. One systematic correction, not a per-element nudge. */
 [data-testid="stElementContainer"]:has(.sec) + [data-testid="stElementContainer"] {{
   margin-top: 1.4rem;
 }}
 .sec-label {{
   font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--ink);
+  text-transform: uppercase; color: var(--text);
 }}
-.sec-count {{ font-size: 11px; color: var(--stale); }}
+.sec-count {{ font-size: 11px; color: var(--muted); font-family: var(--font-mono); }}
 
-/* Identity strip */
+/* Identity strip (legacy, used by error paths before the top bar mounts). */
 .ident {{ display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; }}
 .ident .tk {{ font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }}
 .ident .nm {{ font-size: 0.95rem; }}
-.ident .meta {{ font-size: 11px; color: var(--stale); }}
+.ident .meta {{ font-size: 11px; color: var(--muted); }}
 
-/* The horizon rail clears the section rule above it. Its first segment label sits at
-   the very top of the SVG, so without this it touches the HORIZON hairline. */
 .rail {{ margin-top: 0.5rem; }}
 
-/* Feed items are a typographic list, not a table. Two or three rows in a grid widget
-   is all chrome and no content: headers, borders, and a canvas to render one fact. */
+/* Feed items: a typographic list, not a table. */
 .feed {{ margin: 0.1rem 0 0.3rem; }}
 .fitem {{
   display: grid; grid-template-columns: 84px 1fr auto; gap: 0.85rem;
@@ -203,226 +243,226 @@ h3 {{ font-size: 0.9rem; }}
   border-bottom: 1px solid var(--rule);
 }}
 .fitem:last-child {{ border-bottom: none; }}
-.fitem .d {{ font-family: {MONO}; font-size: 11px; color: var(--stale);
-            font-variant-numeric: tabular-nums; }}
+.fitem .d {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted); }}
 .fitem .t {{ font-size: 12.5px; line-height: 1.35; }}
 .fitem .s {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
-            color: var(--stale); white-space: nowrap; }}
-.fitem .s.high {{ color: var(--oxblood); font-weight: 700; }}
+            color: var(--muted); white-space: nowrap; }}
+.fitem .s.high {{ color: var(--down); font-weight: 700; }}
 .fitem .m {{ font-weight: 600; }}
 .fitem .m.small {{ color: var(--orange-book); }}
 .fitem .m.bio {{ color: var(--purple-book); }}
+/* The materiality reason, when a feed line carries one. */
+.fitem .why {{ font-size: 10px; color: var(--flag); letter-spacing: 0.04em;
+              text-transform: uppercase; white-space: nowrap; }}
 
-/* Position strip: what is true about this company right now, before any diff. */
+/* Position strip. */
 .pos {{ display: flex; gap: 2rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
 .pos .k {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
-          color: var(--stale); display: block; }}
-.pos .v {{ font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums;
-          letter-spacing: -0.01em; }}
-.pos .v.none {{ color: var(--stale); font-weight: 400; font-size: 1rem; }}
-.pos .v.up {{ color: var(--data); }}
-.pos .v.down {{ color: var(--oxblood); }}
-.pos .sub {{ font-size: 10.5px; color: var(--stale); display: block; margin-top: 1px; }}
+          color: var(--muted); display: block; }}
+.pos .v {{ font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em;
+          font-family: var(--font-mono); }}
+.pos .v.none {{ color: var(--muted); font-weight: 400; font-size: 1rem;
+               font-family: var(--font-ui); }}
+.pos .v.up {{ color: var(--up); }}
+.pos .v.down {{ color: var(--down); }}
+.pos .sub {{ font-size: 10.5px; color: var(--muted); display: block; margin-top: 1px; }}
 
-/* Stat strip: one dense line, not four cards. The bottom margin is structural, not a
-   nudge: a chart directly below draws its topmost axis label at its own top edge, and
-   with the strip flush against it the label lands on the figures. */
+/* Stat strip. */
 .stats {{ display: flex; gap: 2.1rem; padding: 0.5rem 0 0.1rem; margin-bottom: 0.8rem;
          border-bottom: 1px solid var(--rule); flex-wrap: wrap; }}
 .stat .k {{ font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
-           color: var(--stale); display: block; }}
-.stat .v {{ font-size: 1.05rem; font-weight: 600; font-variant-numeric: tabular-nums; }}
-.stat .v.none {{ color: var(--stale); font-weight: 400; }}
-.stat .v.risk {{ color: var(--oxblood); }}
+           color: var(--muted); display: block; }}
+.stat .v {{ font-size: 1.05rem; font-weight: 600; font-family: var(--font-mono); }}
+.stat .v.none {{ color: var(--muted); font-weight: 400; }}
+.stat .v.risk {{ color: var(--down); }}
 
 /* The note is the one piece of prose, so it gets the reading face. */
-.note {{ font-family: {DISPLAY}; font-size: 15px; line-height: 1.5;
-        max-width: 62ch; margin: 0.35rem 0 0.2rem; }}
-.note h4 {{ font-family: {BODY}; font-size: 10.5px; letter-spacing: 0.09em;
-           text-transform: uppercase; color: var(--stale); margin: 0.7rem 0 0.1rem; }}
+.note {{ font-family: var(--font-prose); font-size: 15.5px; line-height: 1.55;
+        max-width: 64ch; margin: 0.35rem 0 0.2rem; }}
+.note h4 {{ font-family: var(--font-ui); font-size: 10.5px; letter-spacing: 0.09em;
+           text-transform: uppercase; color: var(--muted); margin: 0.7rem 0 0.1rem; }}
 .note ul {{ margin: 0.1rem 0; padding-left: 1.1rem; }}
 .note li {{ margin: 0.05rem 0; }}
-.byline {{ font-size: 11px; color: var(--stale); margin-top: 0.35rem; }}
+.byline {{ font-size: 11px; color: var(--muted); margin-top: 0.35rem; }}
 
 /* The full trial description, shown when a pipeline row is clicked. */
-.trial-detail {{ font-size: 13px; line-height: 1.45; border-left: 2px solid var(--rule-strong);
+.trial-detail {{ font-size: 13px; line-height: 1.45;
+                 border-left: 2px solid var(--rule-strong);
                  padding: 0.35rem 0 0.35rem 0.7rem; margin-top: 0.5rem; }}
-.trial-detail .nct {{ font-family: {MONO}; font-size: 11.5px; color: var(--stale);
-                      margin-right: 0.5rem; }}
+.trial-detail .nct {{ font-family: var(--font-mono); font-size: 11.5px;
+                      color: var(--muted); margin-right: 0.5rem; }}
 
-/* Identifiers are codes, so they take the mono face. Quantities do not. */
-.mono {{ font-family: {MONO}; font-size: 11.5px; letter-spacing: -0.01em; }}
-.neg {{ color: var(--oxblood); }}
+/* Identifiers are codes, so they take the mono face. */
+.mono {{ font-family: var(--font-mono); font-size: 11.5px; letter-spacing: -0.01em; }}
+.neg {{ color: var(--down); }}
 
-/* Designed empty and error states. An empty state says what to do next. */
+/* Annotations: the analyst's own line, attached to the item it belongs to. */
+.anno {{ border-left: 2px solid var(--flag); background: var(--panel);
+        padding: 0.35rem 0.6rem; margin: 0.25rem 0; font-size: 12px;
+        line-height: 1.4; max-width: 70ch; }}
+.anno .who {{ font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+             display: block; margin-bottom: 1px; }}
+
+/* Time machine banner: unmissable, the whole terminal is historical while it shows. */
+.asof-banner {{
+  background: var(--flag); color: var(--ground);
+  font-weight: 700; font-size: 12.5px; letter-spacing: 0.04em;
+  padding: 6px 12px; margin: 4px 0 8px;
+}}
+
+/* Designed empty and error states. */
 .state {{ border-left: 2px solid var(--rule-strong); padding: 0.4rem 0 0.4rem 0.7rem;
          margin: 0.3rem 0; max-width: 68ch; }}
-.state.err {{ border-left-color: var(--oxblood); }}
+.state.err {{ border-left-color: var(--down); }}
 .state .t {{ font-weight: 600; font-size: 12.5px; }}
-.state .d {{ font-size: 12px; color: {P.muted}; margin-top: 0.1rem; }}
-.state.err .t {{ color: var(--oxblood); }}
+.state .d {{ font-size: 12px; color: var(--muted); margin-top: 0.1rem; }}
+.state.err .t {{ color: var(--down); }}
 
-/* Tables: hairlines, no card, no radius, numerics right-aligned. */
-[data-testid="stDataFrame"] {{ border: 1px solid var(--rule); border-radius: 0; }}
-[data-testid="stDataFrame"] * {{ font-family: {BODY} !important; }}
+/* Tables: hairlines, no card, no radius. Tabular data takes the mono face and
+   right alignment; headers take the narrow face. */
+[data-testid="stDataFrame"] {{ border: 1px solid var(--rule); border-radius: var(--radius); }}
+[data-testid="stDataFrame"] * {{ font-family: var(--font-mono) !important; font-size: 11.5px; }}
 
-/* Statement grid. Built as a real table rather than a dataframe widget: the canvas
-   dataframe cannot hold a dotted rule under one cell, weight a subtotal row, or keep
-   the label column from being scrolled away from its figures. */
+/* Statement grid. */
 .fin-wrap {{ overflow-x: auto; margin: 0.2rem 0 0.1rem; }}
-/* Streamlit's markdown stylesheet sizes tables to their content, which leaves a
-   statement huddled in the left third of the column. Fixed layout also keeps every
-   period column the same width, so figures line up down the grid and across it. */
 .fin {{
-  width: 100% !important; table-layout: fixed; min-width: 30rem;
-  /* Wide enough for six periods, capped so the columns do not sprawl across a large
-     monitor. A statement is read by scanning across a row; spread too far, the eye
-     loses the line it is on. */
-  max-width: 52rem;
+  width: 100% !important; table-layout: fixed; min-width: 30rem; max-width: 52rem;
   border-collapse: collapse; font-variant-numeric: tabular-nums;
 }}
 .fin th.l, .fin td.l {{ width: 27%; text-align: left; padding-left: 0; }}
-/* Streamlit's markdown stylesheet puts a box border on every cell, which draws a grid
-   this table does not want. Only the horizontal hairlines are ours. */
 .fin th, .fin td {{ border-left: 0; border-right: 0; border-top: 0; }}
 .fin th {{
+  font-family: var(--font-ui-narrow);
   font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
-  color: var(--stale); font-weight: 600; text-align: right; white-space: nowrap;
+  color: var(--muted); font-weight: 600; text-align: right; white-space: nowrap;
   padding: 0 0 0.3rem 1.1rem; border-bottom: 1px solid var(--rule-strong);
 }}
 .fin td {{
-  font-size: 12.5px; text-align: right; white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 12px; text-align: right; white-space: nowrap;
   padding: 0.26rem 0 0.26rem 1.1rem; border-bottom: 1px solid var(--rule);
 }}
-/* The most recent period is the one being read; the rest are context for it. */
-.fin td.now, .fin th.now {{ color: var(--ink); font-weight: 600; }}
+.fin td.l {{ font-family: var(--font-ui); font-size: 12.5px; }}
+.fin td.now, .fin th.now {{ color: var(--text); font-weight: 600; }}
 .fin tr:last-child td {{ border-bottom: none; }}
 .fin tr.subtotal td, .fin tr.total td {{ font-weight: 600; }}
 .fin tr.total td {{ border-top: 1px solid var(--rule-strong); }}
-.fin tr.memo td.l {{ color: {P.muted}; }}
-.fin td.neg {{ color: var(--oxblood); }}
-.fin td.gap {{ color: var(--stale); }}
-/* Computed from two reported lines rather than tagged by the filer. Marked on the
-   figure itself, so it travels with the number instead of needing a legend column. */
+.fin tr.memo td.l {{ color: var(--muted); }}
+.fin td.neg {{ color: var(--down); }}
+.fin td.gap {{ color: var(--muted); }}
 .fin .der {{
-  text-decoration: underline dotted; text-decoration-color: var(--stale);
+  text-decoration: underline dotted; text-decoration-color: var(--muted);
   text-underline-offset: 3px;
 }}
-/* The growth and margin panel. Hand-built SVG, for the same reason the horizon rail is:
-   a chart made inside a hidden tab is measured at a few pixels and keeps that width. */
+.fin .lu {{ color: var(--muted); font-size: 11px; }}
+.fin-note {{ font-size: 11px; color: var(--muted); margin: 0.45rem 0 0; max-width: 70ch; }}
+
+/* Chart mount: the SVG always draws at its own declared size. */
 .trend {{ margin: 0.35rem 0 0.1rem; }}
 .trend svg {{ display: block; }}
-/* Catalyst calendar. Months, not days: a third of the dates carry no day, so a day
-   grid would have to invent one. Empty months stay in the grid, because a quiet run
-   is part of the shape. */
+.chart-mount {{ margin: 0.3rem 0 0.1rem; }}
+.chart-mount svg {{ display: block; max-width: 100%; }}
+
+/* Catalyst calendar. */
 .cal {{
   display: grid; grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
-  /* Every row the height of the tallest cell in the grid, so a busy month and a quiet
-     one are the same box. A calendar whose cells resize by content is a list wearing
-     a grid, and the eye reads the size as meaning. */
   grid-auto-rows: 1fr;
   gap: 1px; background: var(--rule); border: 1px solid var(--rule);
   margin: 0.3rem 0 0.2rem;
 }}
 .cal-month {{
   background: var(--ground); padding: 0.45rem 0.6rem 0.55rem; min-height: 96px;
-  /* Not overflow:auto. Every row is already the height of the tallest cell, so the
-     busiest month is the one that sets it and nothing can exceed it. Clipping here
-     would only ever cut off the hover panel. */
   position: relative;
 }}
-.cal-month.empty {{ background: {P.raised}; }}
-.cal-month.now {{ box-shadow: inset 2px 0 0 var(--data); }}
+.cal-month.empty {{ background: var(--panel); }}
+.cal-month.now {{ box-shadow: inset 2px 0 0 var(--up); }}
 .cal-head {{
   display: flex; justify-content: space-between; align-items: baseline;
   font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
-  color: var(--stale); padding-bottom: 0.3rem;
+  color: var(--muted); padding-bottom: 0.3rem;
 }}
-.cal-month.now .cal-head {{ color: var(--data); }}
+.cal-month.now .cal-head {{ color: var(--up); }}
 .cal-n {{ font-weight: 600; letter-spacing: 0; }}
 .cal-item {{
   display: grid; grid-template-columns: 20px 1fr; gap: 0.4rem;
   align-items: baseline; padding: 0.22rem 0; border-top: 1px solid var(--rule);
   position: relative; cursor: default;
 }}
-.cal-item:hover {{ background: {P.raised}; }}
-
-/* The full title on hover. The cell truncates at about sixty characters and a registry
-   title runs past a hundred and twenty, with the distinguishing part at the end: two
-   Retatrutide studies read the same until the comparator, which is what a truncation
-   takes off. */
+.cal-item:hover {{ background: var(--panel); }}
+.cal-item.uncurated .cal-day {{ color: var(--flag); }}
 .cal-pop {{
   display: none; position: absolute; left: 0; top: calc(100% + 4px); z-index: 40;
   width: max(100%, 280px); padding: 0.5rem 0.6rem;
-  background: {P.raised}; border: 1px solid var(--rule-strong);
-  font-size: 11.5px; line-height: 1.4; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--rule-strong);
+  font-size: 11.5px; line-height: 1.4; color: var(--text);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }}
 .cal-item:hover .cal-pop {{ display: block; }}
-.cal-pop b {{ font-family: {MONO}; font-size: 11px; font-weight: 600; }}
+.cal-pop b {{ font-family: var(--font-mono); font-size: 11px; font-weight: 600; }}
 .cal-pop-k {{
   display: block; font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--stale); margin: 0.1rem 0 0.3rem;
+  color: var(--muted); margin: 0.1rem 0 0.3rem;
 }}
-/* The last row in a cell opens upward, so the panel is not pushed off the grid. */
 .cal-item:nth-last-child(1) .cal-pop {{ top: auto; bottom: calc(100% + 4px); }}
 .cal-day {{
-  font-family: {MONO}; font-size: 11px; font-weight: 600; text-align: right;
-  color: var(--ink); font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-align: right;
+  color: var(--text);
 }}
-.cal-day.none {{ color: var(--stale); font-weight: 400; }}
-.cal-title {{ font-size: 11.5px; line-height: 1.3; color: var(--ink); }}
+.cal-day.none {{ color: var(--muted); font-weight: 400; }}
+.cal-title {{ font-size: 11.5px; line-height: 1.3; color: var(--text); }}
 .cal-kind {{
   grid-column: 2; font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--stale);
+  color: var(--muted);
 }}
-
-.fin .lu {{ color: var(--stale); font-size: 11px; }}
-.fin-note {{ font-size: 11px; color: var(--stale); margin: 0.45rem 0 0; max-width: 70ch; }}
 
 /* Tabs as a plain text strip. */
 .stTabs [data-baseweb="tab-list"] {{ gap: 1.1rem; border-bottom: 1px solid var(--rule-strong); }}
 .stTabs [data-baseweb="tab"] {{
   height: auto; padding: 0.3rem 0; background: transparent;
-  font-size: 12px; font-weight: 500; letter-spacing: 0.01em; color: {P.muted};
+  font-size: 12px; font-weight: 500; letter-spacing: 0.01em; color: var(--muted);
 }}
-.stTabs [aria-selected="true"] {{ color: var(--ink); font-weight: 700; }}
-.stTabs [data-baseweb="tab-highlight"] {{ background: var(--ink); height: 2px; }}
+.stTabs [aria-selected="true"] {{ color: var(--text); font-weight: 700; }}
+.stTabs [data-baseweb="tab-highlight"] {{ background: var(--up); height: 2px; }}
 
-/* Controls: square, quiet, and legible. */
+/* Controls: square, quiet, legible; hover, focus and disabled states. */
 .stButton button {{
-  border-radius: 0; border: 1px solid var(--rule-strong); background: var(--ground);
-  color: var(--ink); font-size: 12px; font-weight: 600; padding: 0.2rem 0.7rem;
+  border-radius: var(--radius); border: 1px solid var(--rule-strong);
+  background: var(--panel);
+  color: var(--text); font-size: 12px; font-weight: 600; padding: 0.2rem 0.7rem;
 }}
-.stButton button:hover {{ background: {P.raised}; border-color: var(--ink); }}
-section[data-testid="stSidebar"] {{ background: {P.raised}; border-right: 1px solid var(--rule-strong); }}
+.stButton button:hover {{ background: var(--rule); border-color: var(--muted); }}
+.stButton button:disabled {{ color: var(--muted); border-color: var(--rule); }}
+section[data-testid="stSidebar"] {{ background: var(--panel);
+  border-right: 1px solid var(--rule-strong); }}
 section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
 
+/* Radios and pills follow the same quiet square language. */
+.stRadio [role="radiogroup"] label, .stPills [data-baseweb] {{ border-radius: var(--radius); }}
+
 /* Quality floor: focus must be visible, and motion is opt-out. */
-*:focus-visible {{ outline: 2px solid var(--ink); outline-offset: 1px; }}
+*:focus-visible {{ outline: 2px solid var(--text); outline-offset: 1px; }}
 @media (prefers-reduced-motion: reduce) {{
   *, *::before, *::after {{
     animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important; scroll-behavior: auto !important;
   }}
 }}
-/* Holds down to a laptop screen. */
 @media (max-width: 1400px) {{
   .stats {{ gap: 1.4rem; }}
-  .block-container {{ padding-left: 1rem; padding-right: 1rem; }}
+  .block-container {{ padding-left: 8px; padding-right: 8px; }}
 }}
 </style>
 """
 
 
-# --- Charts -------------------------------------------------------------
-# One theme, registered once, applied to every chart in the app. The five views
-# should read as siblings rather than as five library demos.
+# --- Charts (transitional) ------------------------------------------------
+# The Altair theme stays registered while tabs migrate onto the SVG component
+# layer; it reads the token palette so the remaining charts match during the move.
 @alt.theme.register("er_terminal", enable=True)
 def _chart_theme() -> alt.theme.ThemeConfig:
     axis = {
-        "labelFont": "Public Sans", "labelFontSize": 10, "labelColor": P.muted,
-        "titleFont": "Public Sans", "titleFontSize": 10, "titleColor": P.stale,
+        "labelFont": "Archivo", "labelFontSize": 10, "labelColor": P.muted,
+        "titleFont": "Archivo", "titleFontSize": 10, "titleColor": P.stale,
         "titleFontWeight": 600, "titlePadding": 8,
         "domainColor": P.rule_strong, "domainWidth": 1,
         "tickColor": P.rule_strong, "tickSize": 3,
@@ -432,11 +472,8 @@ def _chart_theme() -> alt.theme.ThemeConfig:
     return alt.theme.ThemeConfig({
         "config": {
             "background": P.ground,
-            "font": "Public Sans",
-            # No continuousWidth: charts size to their container instead.
+            "font": "Archivo",
             "view": {"stroke": None, "continuousHeight": 260},
-            # One axis treatment for every chart. Labels stay horizontal and Vega drops
-            # whichever would collide rather than rotating or overprinting them.
             "axisX": {**axis, "grid": False, "labelAngle": 0, "labelOverlap": "greedy",
                       "labelSeparation": 6, "labelLimit": 96},
             "axisY": {**axis, "grid": True, "ticks": False, "domain": False,
@@ -446,28 +483,26 @@ def _chart_theme() -> alt.theme.ThemeConfig:
             "point": {"color": P.data, "size": 14},
             "rule": {"color": P.rule_strong},
             "legend": {
-                "labelFont": "Public Sans", "labelFontSize": 10, "labelColor": P.ink,
-                "titleFont": "Public Sans", "titleFontSize": 10, "titleColor": P.stale,
+                "labelFont": "Archivo", "labelFontSize": 10, "labelColor": P.ink,
+                "titleFont": "Archivo", "titleFontSize": 10, "titleColor": P.stale,
                 "titleFontWeight": 600, "symbolType": "square", "symbolSize": 70,
                 "orient": "top", "direction": "horizontal", "offset": 6,
                 "padding": 0, "titlePadding": 6,
             },
             "title": {
-                "font": "Public Sans", "fontSize": 11, "fontWeight": 700,
+                "font": "Archivo", "fontSize": 11, "fontWeight": 700,
                 "color": P.ink, "anchor": "start", "offset": 8,
-                "subtitleFont": "Public Sans", "subtitleColor": P.stale, "subtitleFontSize": 10,
+                "subtitleFont": "Archivo", "subtitleColor": P.stale,
+                "subtitleFontSize": 10,
             },
             "range": {"category": [P.data, P.orange_book, P.purple_book, P.oxblood, P.ink]},
         }
     })
 
 
-# --- Numbers ------------------------------------------------------------
-# Consistent precision per column, units in the header, one negative treatment.
 # --- Ordinal ramps -------------------------------------------------------
 # Steps are spaced in Oklab rather than in sRGB, because even sRGB steps are not even
-# to the eye: the dark end of a ramp bunches up and the light end spreads out, which is
-# how the old phase tints ended with two steps nobody could tell apart.
+# to the eye: the dark end of a ramp bunches up and the light end spreads out.
 def _srgb_to_linear(c):
     return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
 
@@ -520,9 +555,7 @@ def contrast(first: str, second: str) -> float:
     return (high + 0.05) / (low + 0.05)
 
 
-# WCAG 1.4.11 asks 3:1 of any graphical object carrying meaning. A chart segment is
-# exactly that, so the foot of an ordinal ramp is placed at the ratio rather than
-# picked by eye, in both modes and at whatever length the caller needs.
+# WCAG 1.4.11 asks 3:1 of any graphical object carrying meaning.
 GRAPHIC_CONTRAST = 3.0
 
 
@@ -533,12 +566,7 @@ def _oklch(value: str):
 
 
 def _from_oklch(lightness: float, chroma: float, hue: float) -> str:
-    """Back to sRGB, giving up chroma rather than accuracy when out of gamut.
-
-    A saturated colour at low lightness can sit outside sRGB, and letting the channels
-    clamp shifts the hue. Backing the chroma off until it fits keeps the ramp on one
-    hue, which is the only thing holding it together as an ordinal scale.
-    """
+    """Back to sRGB, giving up chroma rather than accuracy when out of gamut."""
     for attempt in range(24):
         candidate = chroma * (1 - attempt / 24)
         hexv = _from_oklab(lightness, candidate * math.cos(hue),
@@ -549,18 +577,10 @@ def _from_oklch(lightness: float, chroma: float, hue: float) -> str:
 
 
 def ordinal_ramp(steps: int, palette: "Palette" = None) -> list:
-    """``steps`` evenly spaced tints, every one of them visible against the ground.
+    """``steps`` evenly spaced tints, every one visible against the ground.
 
-    Lightness varies; chroma and hue are held at the data colour's. Mixing toward the
-    ground instead, which is what this did, pulls the chroma to zero as it darkens, so
-    the dark end came out muddy: the first step of the dark ramp read #31696C, a grey
-    green, where holding chroma gives #006C6E. Separation is no worse for it, 1.689
-    against 1.666 between the closest pair, so the muddiness bought nothing.
-
-    Derived from the number of steps asked for, so a scale can take its range straight
-    from the length of its domain and the two cannot drift apart. They did: the phase
-    scale declared six phases against five fixed tints, which left Phase 4 with no
-    colour of its own.
+    Lightness varies; chroma and hue are held at the data colour's. The floor is
+    placed by contrast: WCAG 1.4.11 asks 3:1 of a graphical object carrying meaning.
     """
     palette = palette or P
     if steps < 2:
@@ -568,8 +588,6 @@ def ordinal_ramp(steps: int, palette: "Palette" = None) -> list:
     top, chroma, hue = _oklch(palette.data)
     ground = _oklch(palette.ground)[0]
 
-    # The floor is placed by contrast, as before: WCAG 1.4.11 asks 3:1 of a graphical
-    # object that carries meaning, and a chart segment is exactly that.
     low, high = 0.0, 1.0
     for _ in range(32):
         middle = (low + high) / 2

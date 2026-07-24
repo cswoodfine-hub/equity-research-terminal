@@ -14,6 +14,7 @@ from __future__ import annotations
 import datetime as dt
 import html
 import json
+import os
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -28,7 +29,8 @@ import revenue_mix
 import theme as T
 import trend as trend_module
 
-DEFAULT_API = "http://localhost:8000"
+# Overridable so run.sh can point a frontend at whichever API port it started.
+DEFAULT_API = os.getenv("ER_API_BASE", "http://localhost:8000")
 DEFAULT_TICKER = "LLY"
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
 # Charts collapse the two seamless phases into the phase each one reaches, which is the
@@ -356,12 +358,28 @@ if not companies:
 
 tickers = [c["ticker"] for c in companies]
 names = {c["ticker"]: c["name"] for c in companies}
-default_index = tickers.index(DEFAULT_TICKER) if DEFAULT_TICKER in tickers else 0
 
-pick_col, ident_col = st.columns([0.085, 0.915], gap="small")
-with pick_col:
-    st.markdown('<div class="pick">', unsafe_allow_html=True)
-    ticker = st.selectbox("Company", tickers, index=default_index,
+# --- Top bar --------------------------------------------------------------
+# Fixed strip: ticker selector, identity, global search, last refresh, refresh.
+# The search is read from the previous run's state before the selectbox mounts, so
+# typing a ticker or part of a company name and pressing Enter jumps to it.
+if "company_pick" not in st.session_state:
+    st.session_state["company_pick"] = (DEFAULT_TICKER if DEFAULT_TICKER in tickers
+                                        else tickers[0])
+query = (st.session_state.get("global_search") or "").strip()
+if query:
+    wanted = query.upper()
+    match = (next((t for t in tickers if t == wanted or t.startswith(wanted)), None)
+             or next((t for t in tickers if wanted in names[t].upper()), None))
+    if match:
+        st.session_state["company_pick"] = match
+        st.session_state["global_search"] = ""
+
+bar = st.columns([0.085, 0.40, 0.20, 0.20, 0.115], gap="small")
+with bar[0]:
+    st.markdown('<span class="topbar-anchor"></span><div class="pick">',
+                unsafe_allow_html=True)
+    ticker = st.selectbox("Company", tickers, key="company_pick",
                           label_visibility="collapsed")
     st.markdown("</div>", unsafe_allow_html=True)
 company = next((c for c in companies if c["ticker"] == ticker), {})
@@ -385,10 +403,31 @@ else:
 quote = prices.get("currency")
 meta = " · ".join(x for x in [company.get("exchange"), filer,
                               f"quoted in {quote}" if quote else None] if x)
-with ident_col:
+with bar[1]:
     st.markdown(
-        f'<div class="ident"><span class="nm">{names.get(ticker, ticker)}</span>'
+        f'<div class="topbar-name"><span class="nm">{names.get(ticker, ticker)}</span>'
         f'<span class="meta">{meta}</span></div>', unsafe_allow_html=True)
+with bar[2]:
+    st.markdown('<div class="topsearch">', unsafe_allow_html=True)
+    st.text_input("Search", key="global_search", label_visibility="collapsed",
+                  placeholder="jump to ticker or name")
+    st.markdown("</div>", unsafe_allow_html=True)
+with bar[3]:
+    latest_run = api_get(api_base, "/runs/latest")
+    if latest_run.get("finished_at"):
+        cls = "ok" if latest_run.get("status") == "complete" else "bad"
+        st.markdown(
+            f'<div class="topbar-run">last refresh {latest_run["finished_at"]} UTC'
+            f' · <span class="{cls}">{latest_run.get("status")}</span></div>',
+            unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="topbar-run">no refresh run yet</div>',
+                    unsafe_allow_html=True)
+with bar[4]:
+    if st.button("Refresh all", key="topbar_refresh", width="stretch"):
+        run_refresh(api_base, "/refresh?scope=all", "all_run",
+                    "Refreshing the universe")
+        st.rerun()
 
 # The per-source freshness strip is gone. A partial run still announces itself below,
 # since a run that half failed is an event rather than standing reference.
