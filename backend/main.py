@@ -554,6 +554,31 @@ def regulatory_news(days: int = Query(default=120)) -> dict:
     return {"news": rows}
 
 
+@app.get("/adcomm-calendar")
+def adcomm_calendar(days: int = Query(default=270)) -> dict:
+    """Upcoming FDA advisory committee meetings, matched company first.
+
+    The whole scheduled calendar across sponsors, from the Federal Register. A meeting
+    that binds to a tracked company carries its ticker and is also a catalyst; the rest
+    are agency context, kept rather than dropped."""
+    conn = db.get_connection()
+    try:
+        rows = [dict(r) for r in conn.execute(
+            """
+            SELECT m.meeting_date, m.committee, m.application_label, m.sponsor,
+                   m.product, m.url, c.ticker
+              FROM adcomm_meetings m LEFT JOIN companies c ON c.id = m.company_id
+             WHERE m.meeting_date >= date('now')
+               AND m.meeting_date <= date('now', ?)
+             ORDER BY (c.ticker IS NULL), m.meeting_date
+            """,
+            (f"+{int(days)} days",),
+        )]
+    finally:
+        conn.close()
+    return {"meetings": rows}
+
+
 @app.get("/catalysts")
 def catalysts(within_days: int = Query(default=90),
               ticker: Optional[str] = Query(default=None)) -> list[dict]:

@@ -23,6 +23,7 @@ import catalysts
 import db
 import diff
 import pdufa
+from fetchers.adcomm_fedreg import AdCommFetcher
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
 from fetchers.exclusivity_purplebook import PurpleBookFetcher
@@ -65,7 +66,7 @@ def _universe_fetchers(db_path):
     reference set that lets the universe view convert to one display currency)."""
     return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path),
             ProductRevenueFetcher(db_path), FxEcbFetcher(db_path),
-            NewsFdaFetcher(db_path)]
+            NewsFdaFetcher(db_path), AdCommFetcher(db_path)]
 
 
 def _start_run(db_path) -> int:

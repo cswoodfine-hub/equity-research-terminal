@@ -692,6 +692,31 @@ with main:
                 'its news feed, so the EU indication-extension signal comes from the '
                 'EPAR data instead.</div>', unsafe_allow_html=True)
 
+        section("FDA advisory committee calendar", "panel votes ahead")
+        adcomm = api_get(api_base, "/adcomm-calendar").get("meetings") or []
+        if not adcomm:
+            state("No advisory committee meetings on file",
+                  "The FDA files each meeting in the Federal Register; the calendar is "
+                  "read on refresh and matched to a company by application number or "
+                  "sponsor. Press Refresh all.")
+        else:
+            st.markdown('<div class="feed">' + "".join(
+                f'<div class="fitem"><span class="d">{(m.get("meeting_date") or "")[:10]}'
+                f'</span><span class="t">'
+                f'{("<b>" + m["ticker"] + "</b> ") if m.get("ticker") else ""}'
+                f'{html_escape(m.get("product") or m.get("committee") or "")}</span>'
+                f'<span class="why">{html_escape((m.get("committee") or "").replace(" Advisory Committee", ""))}</span>'
+                f'<span class="s">{html_escape(m.get("application_label") or "")}</span>'
+                f'</div>' for m in adcomm[:12]) + "</div>",
+                unsafe_allow_html=True)
+            st.markdown(
+                '<div class="byline">FDA advisory committee meetings from the Federal '
+                'Register, the panel vote that leads a decision by weeks. A bold ticker '
+                'is a matched company, and that meeting is also in the catalyst '
+                'calendar; the rest are agency context, kept rather than dropped. No '
+                'free PDUFA calendar exists, so this is the one firm regulatory date '
+                'the universe gets without hand entry.</div>', unsafe_allow_html=True)
+
         section("Catalyst grid, 18 months", "count per company month")
         grid_data = api_get(api_base, "/catalyst-grid")
         cells = {}
