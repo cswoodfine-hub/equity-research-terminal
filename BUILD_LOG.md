@@ -1,5 +1,30 @@
 # Build log, overnight autonomous build
 
+## Follow-up: the five V2 recommendations — 2026-07-25 07:20
+All five items from the final message, implemented, tested, committed one concern
+each on top of the overnight build.
+
+1. **FX.** Migration 002 fx_rates + fetchers/fx_ecb.py pull the free ECB daily
+   reference set (no key) as USD-quoted rates; revenue-at-risk gains USD absolutes
+   and the tab a converted bar labelled with the rate date. NVO 224.5bn DKK reads
+   as 34.2bn USD; GSK/REGN, whose currency does not resolve, stay null, never
+   fabricated. 10 tests.
+2. **Spine click.** Each spine tick is now an SVG anchor to ?ticker=X&sel=key (no
+   script); the app pins the selected item's full detail above the tabs and draws
+   the hairline to it. Keys are a stable content hash, so the selection round-trips
+   through the URL and is shareable. Verified in the browser.
+3. **/as-of field grain.** Reconstructs the financial report in force at the date
+   and the approvals known by then, joined to current brands, not just counts.
+   Verified: 16 financial snapshots and 908 approvals reconstructed at 2026-07-20.
+4. **Scheduled refresh.** backend/scheduled_refresh.py runs the universe refresh
+   directly, logs to logs/refresh.log, holds an overlap lock that reclaims a stale
+   one; cron and launchd documented. 5 tests on the wrapper's own behaviour.
+5. **Batch tearsheets.** tearsheet.build_all + make tearsheets-all wrote all 18
+   with zero failures.
+
+Suite 337. Ran the ECB fetcher once against the live database, which stored 30
+real rates dated 2026-07-24; append-only, no other mutation.
+
 ## Phase 7: testing pass — 2026-07-25 05:40
 - Full suite 319 green. No native Streamlit/Altair chart call anywhere
   (grep-confirmed; the one LineChartColumn is a table column, not a chart).
