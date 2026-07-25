@@ -1,5 +1,23 @@
 # Build log, overnight autonomous build
 
+## Phase 4: tab rebuild — 2026-07-25 03:20
+- Zero Altair remains. All nine tabs render through components/charts.py; the
+  horizon rail is now the timeline spine and rail.py is deleted; the donut
+  renders through the leader-line primitive over revenue_mix's bracketing.
+- Pivot taken (playbook row 2): st.html turns out to sanitise SVG away
+  entirely, verified by the charts being absent from the DOM with no error.
+  The mount now uses markdown injection, the app's proven path.
+- Real defects caught by browser verification, fixed at the root with tests:
+  month-only registry dates ("2026-08") never reached the spine because ISO
+  parsing rejects them; they now place at their month and the label refuses to
+  invent a day. A mid-script write to the select's key desynced its displayed
+  label from its state; the search jump moved into an on_change callback.
+- A stray automation click on Refresh all ran a full universe refresh through
+  the new code against the live database (run 24, complete in 47s): unplanned
+  but a genuine end-to-end exercise of the new refresh path, idempotent
+  derive_readouts confirmed (added 0 on rerun), restatement diff ran clean.
+- Suite 315 green.
+
 ## Phase 3: backend analytics — 2026-07-25 02:05
 - materiality.py is now the single home of flagging thresholds; diff and
   whatchanged import it, every feed item carries a reason, P3 slips over 30d

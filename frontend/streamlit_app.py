@@ -149,11 +149,12 @@ FEED_SECTIONS = (
 )
 
 
-def feed_row(item) -> str:
+def feed_row(item, show_reason: bool = False) -> str:
     """One feed line as type, not as a table row.
 
     Two or three items in a grid widget is all chrome and no content, so the feed is a
-    date, a headline, and a severity, aligned on a grid.
+    date, a headline, and a severity, aligned on a grid. ``show_reason`` prints the
+    materiality rule that flagged the item, which is what the universe brief leads with.
     """
     date = (item.get("date") or "")[:10]
     sev = item.get("significance") or "low"
@@ -162,8 +163,12 @@ def feed_row(item) -> str:
     headline = html_escape(item.get("headline") or "")
     if css:
         headline = f'<span class="m {css}">{headline}</span>'
+    reason = (html_escape(item["reason"])
+              if show_reason and item.get("reason") else "")
+    # The reason cell is always present so every row has four children and the
+    # severity column stays flush right whether or not a rule is named.
     return (f'<div class="fitem"><span class="d">{date}</span>'
-            f'<span class="t">{headline}</span>'
+            f'<span class="t">{headline}</span><span class="why">{reason}</span>'
             f'<span class="s {sev}">{sev}</span></div>')
 
 
@@ -364,8 +369,12 @@ names = {c["ticker"]: c["name"] for c in companies}
 # Streamlit allows another widget's state to be written: a mid-script write left
 # the select's displayed label behind its actual state.
 if "company_pick" not in st.session_state:
-    st.session_state["company_pick"] = (DEFAULT_TICKER if DEFAULT_TICKER in tickers
-                                        else tickers[0])
+    # ?ticker= reopens the terminal on a specific company; the pick is written
+    # back to the URL below, so the address bar is always shareable.
+    wanted = (st.query_params.get("ticker") or "").upper()
+    st.session_state["company_pick"] = (
+        wanted if wanted in tickers
+        else DEFAULT_TICKER if DEFAULT_TICKER in tickers else tickers[0])
 
 
 def _jump_to_search():
@@ -387,6 +396,7 @@ with bar[0]:
                           label_visibility="collapsed")
     st.markdown("</div>", unsafe_allow_html=True)
 company = next((c for c in companies if c["ticker"] == ticker), {})
+st.query_params["ticker"] = ticker
 
 # --- Per-company data ---------------------------------------------------
 feed = api_get(api_base, f"/changes?ticker={urllib.parse.quote(ticker)}")
@@ -499,11 +509,157 @@ with rail_col:
                 'date needing review; orange and purple are the two FDA books.'
                 '</div>', unsafe_allow_html=True)
 
+# --- Time machine ---------------------------------------------------------
+# A date in the sidebar puts the terminal into a clearly marked historical mode:
+# the banner renders on every tab, and the Universe tab carries the reconstructed
+# state. Read-only throughout; clearing the box returns to live.
+st.sidebar.markdown("#### Time machine")
+asof_text = st.sidebar.text_input(
+    "State as of (YYYY-MM-DD)", key="asof_date",
+    help="Reconstructs tracked state from the snapshot history. Blank = live.")
+asof_state = None
+if (asof_text or "").strip():
+    asof_state = api_get(api_base, f"/as-of?date={urllib.parse.quote(asof_text.strip())}") \
+        if len(asof_text.strip()) >= 8 else None
+    if asof_state is None:
+        st.sidebar.markdown('<div class="byline">Not an ISO date yet.</div>',
+                            unsafe_allow_html=True)
+
+if asof_state:
+    st.markdown(
+        f'<div class="asof-banner">HISTORICAL MODE — tracked state as of '
+        f'{asof_state["as_of"]} · read only · snapshot history begins '
+        f'{(asof_state.get("history_begins") or "—")[:10]} · clear the sidebar date '
+        'to return to live</div>', unsafe_allow_html=True)
+
 with main:
-    (insights_tab, prices_tab, financials_tab, pipeline_tab, loe_tab,
-     approvals_tab, catalysts_tab, comps_tab, news_tab) = st.tabs(
-        ["Key insights", "Prices", "Financials", "Pipeline", "LOE",
-         "Approvals", "Catalysts", "Comps", "News"])
+    (universe_tab, insights_tab, prices_tab, financials_tab, pipeline_tab, loe_tab,
+     risk_tab, slippage_tab, approvals_tab, catalysts_tab, comps_tab,
+     news_tab) = st.tabs(
+        ["Universe", "Key insights", "Prices", "Financials", "Pipeline", "LOE",
+         "Revenue at risk", "Slippage", "Approvals", "Catalysts", "Comps", "News"])
+
+    # --- Universe: what moved across coverage since you last looked -------
+    with universe_tab:
+        if asof_state:
+            section(f"Universe as of {asof_state['as_of']}", "reconstructed")
+            by_ticker = asof_state.get("by_ticker") or {}
+            if not by_ticker:
+                state("Nothing tracked at that date",
+                      "The snapshot history begins "
+                      f"{(asof_state.get('history_begins') or 'later')[:10]}; pick a "
+                      "date on or after it to see reconstructed state.")
+            else:
+                st.dataframe(pd.DataFrame([
+                    {"Ticker": tk,
+                     "Trials tracked": entry.get("trials", 0),
+                     "Filings known": entry.get("filings_known", 0),
+                     "Approvals known": entry.get("approvals_known", 0),
+                     "Statuses": ", ".join(f"{status} {count}" for status, count
+                                           in sorted((entry.get("statuses") or {}).items()))}
+                    for tk, entry in sorted(by_ticker.items())]),
+                    width="stretch", hide_index=True)
+                st.markdown(
+                    '<div class="byline">Reconstructed from the append-only snapshot '
+                    'table: trial state at item grain, filings and approvals as '
+                    'what-was-known-by-then counts. Everything else in the app stays '
+                    'live.</div>', unsafe_allow_html=True)
+
+        universe_feed = api_get(api_base, "/changes")
+        flagged = [it for it in universe_feed if it.get("significance") == "high"]
+        section("What moved across coverage",
+                f"{len(universe_feed)} items, {len(flagged)} high")
+        if not universe_feed:
+            state("Nothing flagged across the universe",
+                  "The feed compares snapshots between refreshes. Press Refresh all "
+                  "in the top bar to pull the sources and compute a diff.")
+        else:
+            ordered = flagged + [it for it in universe_feed
+                                 if it.get("significance") != "high"]
+            st.markdown('<div class="feed">' + "".join(
+                feed_row(it, show_reason=True) for it in ordered[:30])
+                + "</div>", unsafe_allow_html=True)
+
+        section("Coverage, 90 days", "shared scale")
+        panels = api_get(api_base, "/price-grid?days=90")
+        if any(p["closes"] for p in panels):
+            R.show(CH.small_multiples(
+                [{"label": p["ticker"],
+                  "values": p["closes"] or [],
+                  "sub": T.pct(p["change"] * 100) if p["change"] is not None else ""}
+                 for p in panels], 1040, 420, cols=6))
+        else:
+            state("No price history yet",
+                  "Press Refresh all in the top bar to pull daily closes.")
+
+        section("Next 30 days", "all companies")
+        soon_cats = [c for c in api_get(api_base, "/catalysts?within_days=30")
+                     if c.get("expected_date")]
+        if not soon_cats:
+            state("Nothing dated inside 30 days",
+                  "Readouts derive from registry completion dates on refresh; PDUFA "
+                  "dates are read from 8-Ks when a model key is set.")
+        else:
+            st.markdown('<div class="feed">' + "".join(
+                feed_row({
+                    "date": c["expected_date"],
+                    "headline": f"{c['ticker']} {c['catalyst_type']}: {c['title'][:90]}",
+                    "significance": "high" if not c.get("is_curated")
+                                    and c.get("catalyst_type") == "PDUFA" else "medium",
+                    "reason": None if c.get("is_curated") else "uncurated, review",
+                }, show_reason=True) for c in soon_cats[:20]) + "</div>",
+                unsafe_allow_html=True)
+
+        section("Catalyst grid, 18 months", "count per company month")
+        grid_data = api_get(api_base, "/catalyst-grid")
+        cells = {}
+        for tk, months in (grid_data.get("cells") or {}).items():
+            for month, cell in months.items():
+                cells[(tk, month[2:])] = {
+                    "count": cell["count"], "weight": cell["weight"],
+                    "flagged": cell.get("uncurated_pdufa")}
+        if cells:
+            R.show(CH.heatmap_grid(
+                grid_data["tickers"], [m[2:] for m in grid_data["months"]], cells,
+                1040, 480, flag_note="uncurated PDUFA, review"))
+            # An SVG cell cannot round-trip a click without scripts, so the drill
+            # is two quiet selects that answer the same question.
+            drill = st.columns([0.2, 0.25, 0.55])
+            with drill[0]:
+                drill_ticker = st.selectbox("Company", grid_data["tickers"],
+                                            key="grid_drill_ticker")
+            with drill[1]:
+                drill_month = st.selectbox("Month", grid_data["months"],
+                                           key="grid_drill_month")
+            month_cats = [c for c in api_get(api_base,
+                          f"/catalysts?within_days=600&ticker={drill_ticker}")
+                          if (c.get("expected_date") or "")[:7] == drill_month]
+            with drill[2]:
+                if not month_cats:
+                    st.markdown('<div class="byline">Nothing in that cell.</div>',
+                                unsafe_allow_html=True)
+            for c in month_cats:
+                line = st.columns([0.8, 0.2])
+                with line[0]:
+                    tag = "" if c.get("is_curated") else " · uncurated"
+                    st.markdown(
+                        f'<div class="fitem"><span class="d">{c["expected_date"]}'
+                        f'</span><span class="t">{html_escape(c["catalyst_type"])}: '
+                        f'{html_escape((c.get("title") or "")[:90])}{tag}</span>'
+                        f'<span class="why"></span><span class="s">'
+                        f'{"curated" if c.get("is_curated") else "derived"}</span></div>',
+                        unsafe_allow_html=True)
+                with line[1]:
+                    if not c.get("is_curated"):
+                        if st.button("Accept", key=f"accept_{c['id']}",
+                                     width="stretch"):
+                            api_post(api_base, f"/catalysts/{c['id']}/accept")
+                            api_get.clear()
+                            st.rerun()
+        else:
+            state("No pending catalysts on file",
+                  "The grid fills from derived readouts and extracted PDUFA dates "
+                  "after a refresh.")
 
     # --- Key insights: the feed is the most important view ---------------
     with insights_tab:
@@ -603,6 +759,35 @@ with main:
         if note.get("error"):
             state("The note fell back to the rules layer", note["error"], error=True)
 
+        # --- Annotations: the analyst's own lines on this company ---------
+        all_notes = api_get(api_base, f"/annotations?ticker={ticker}")
+        company_notes = [a for a in all_notes if a["entity_type"] == "company"]
+        change_notes: dict[str, list] = {}
+        for a in all_notes:
+            if a["entity_type"] == "change" and a.get("entity_id"):
+                change_notes.setdefault(str(a["entity_id"]), []).append(a)
+        if company_notes:
+            section("Annotations", len(company_notes))
+            for a in company_notes:
+                st.markdown(
+                    f'<div class="anno"><span class="who">{a["created_at"][:10]}'
+                    f'</span>{html_escape(a["body"])}</div>',
+                    unsafe_allow_html=True)
+        anno_cols = st.columns([0.85, 0.15])
+        with anno_cols[0]:
+            st.text_input("Annotation", key=f"anno_body_{ticker}",
+                          label_visibility="collapsed",
+                          placeholder=f"your line on {ticker}")
+        with anno_cols[1]:
+            if st.button("Save note", key=f"anno_save_{ticker}", width="stretch"):
+                body = (st.session_state.get(f"anno_body_{ticker}") or "").strip()
+                if body:
+                    api_post_json(api_base, "/annotations",
+                                  {"ticker": ticker, "entity_type": "company",
+                                   "entity_id": None, "body": body})
+                    api_get.clear()
+                    st.rerun()
+
         if not feed:
             section("Nothing flagged")
             state(f"No changes detected for {ticker}",
@@ -615,8 +800,18 @@ with main:
             if not items:
                 continue
             section(label, len(items))
-            st.markdown('<div class="feed">' + "".join(feed_row(it) for it in items)
-                        + "</div>", unsafe_allow_html=True)
+            pieces = []
+            for it in items:
+                pieces.append(feed_row(it, show_reason=True))
+                # An annotation renders inline, directly under the item it
+                # belongs to, in the analyst's own voice.
+                for a in change_notes.get(str(it.get("change_id")), []):
+                    pieces.append(
+                        f'<div class="anno"><span class="who">'
+                        f'{a["created_at"][:10]}</span>'
+                        f'{html_escape(a["body"])}</div>')
+            st.markdown('<div class="feed">' + "".join(pieces) + "</div>",
+                        unsafe_allow_html=True)
             st.markdown(f'<div class="byline">{blurb}</div>', unsafe_allow_html=True)
 
     # --- Prices ----------------------------------------------------------
@@ -776,15 +971,10 @@ with main:
             st.rerun()
 
         comps = api_get(api_base, "/comps")
-        # Units live in the header, never repeated in the cells. Precision is fixed per
-        # column so decimals align down the column and figures hold their width.
-        # Field names stay clean so Altair can reference them; the units are added to
-        # the headers at display time only.
-        cols = {"Revenue": 1, "Growth": 1, "Net margin": 1, "R&D": 1,
-                "Mkt cap": 0, "P/E": 1, "EV/Sales": 1}
-        units = {"Revenue": "Revenue, bn", "Growth": "Growth, %",
-                 "Net margin": "Net margin, %", "R&D": "R&D, %",
-                 "Mkt cap": "Mkt cap, $bn"}
+        screen_rows = {r["ticker"]: r for r in api_get(api_base, "/screen")}
+        spark_rows = {p["ticker"]: p["closes"] for p in
+                      api_get(api_base, "/price-grid?days=90")}
+        # The scatter and heatmap below keep reading this clean-named frame.
         display = pd.DataFrame([{
             "Ticker": c["ticker"], "Name": c["name"], "FY": c["fiscal_year"],
             "Cur": c["currency"],
@@ -794,18 +984,50 @@ with main:
             "R&D": c["rd_pct"] * 100 if c["rd_pct"] is not None else None,
             "Mkt cap": c["market_cap"] / 1e9 if c["market_cap"] else None,
             "P/E": c["pe"], "EV/Sales": c["ev_sales"]} for c in comps])
-        # Streamlit reads the frame's own column names, so the units go on the frame
-        # rather than through the Styler. The scatter keeps the clean-named original.
-        table = display.rename(columns=units)
-        formats = {units.get(name, name): (lambda dp: lambda v: T.num(v, dp))(dp)
-                   for name, dp in cols.items()}
-        formats["FY"] = lambda v: "—" if pd.isna(v) else f"{int(v)}"
-        styled = (table.style
-                  .format(formats, na_rep="—")
+
+        # The screen: comparables plus the derived analyst columns, one row per
+        # company, an inline 90-day sparkline per row. Any column missing an
+        # input is a dash, never a computed placeholder.
+        def _sc(tk, field, scale=1.0):
+            value = (screen_rows.get(tk) or {}).get(field)
+            return value * scale if value is not None else None
+
+        screen_table = pd.DataFrame([{
+            "Ticker": row["Ticker"],
+            "90d": spark_rows.get(row["Ticker"]) or None,
+            "Cur": row["Cur"],
+            "Revenue, bn": row["Revenue"],
+            "Growth, %": row["Growth"],
+            "Margin, %": row["Net margin"],
+            "R&D, %": row["R&D"],
+            "Late trials": _sc(row["Ticker"], "late_trials"),
+            "Rev/late trial, bn": _sc(row["Ticker"], "revenue_per_late_trial", 1e-9),
+            "LOE 5y, %": _sc(row["Ticker"], "loe_share_5y", 100),
+            "Unpriced 5y": _sc(row["Ticker"], "loe_unpriced_5y"),
+            "Cat 12m": _sc(row["Ticker"], "catalysts_12m"),
+            "TTM px, %": _sc(row["Ticker"], "ttm_price_change", 100),
+            "Mkt cap, $bn": row["Mkt cap"],
+            "P/E": row["P/E"]} for _, row in display.iterrows()])
+        numeric_cols = [c for c in screen_table.columns
+                        if c not in ("Ticker", "Cur", "90d")]
+        int_cols = ("Late trials", "Unpriced 5y", "Cat 12m")
+        formats = {c: (lambda v, ic=(c in int_cols):
+                       T.num(v, 0 if ic else 1)) for c in numeric_cols}
+        styled = (screen_table.style
+                  .format(formats, na_rep="—", subset=numeric_cols)
                   .map(lambda v: f"color:{T.P.oxblood}"
                        if isinstance(v, (int, float)) and not pd.isna(v) and v < 0
-                       else "", subset=[units.get(c, c) for c in cols]))
-        st.dataframe(styled, width="stretch", hide_index=True)
+                       else "", subset=numeric_cols))
+        st.dataframe(styled, width="stretch", hide_index=True,
+                     column_config={"90d": st.column_config.LineChartColumn(
+                         "90d", width="small")})
+        st.markdown(
+            '<div class="byline">Derived columns: late trials are lead-sponsored '
+            'Phase 3 and Phase 2/3; revenue per late trial divides the reported year '
+            'by that count; LOE 5y is the share of tagged product revenue whose US '
+            'protection expires inside five years, with the unpriced product count '
+            'beside it. A dash is a missing input, never zero.</div>',
+            unsafe_allow_html=True)
 
         # A matrix of every company against every phase, so it belongs with the
         # other cross-sectional views rather than in a tab that is otherwise one
@@ -1037,6 +1259,145 @@ with main:
                     'muted here and excluded from the cliff above. Orange for small '
                     'molecules, purple for biologics, the colours of the two source '
                     'books.</div>', unsafe_allow_html=True)
+
+    # --- Revenue at risk -------------------------------------------------
+    with risk_tab:
+        at_risk = api_get(api_base, f"/companies/{ticker}/revenue-at-risk")
+        section(f"Revenue at risk for {ticker}", "US protection, tagged revenue")
+        priced_total = at_risk.get("priced_total")
+        reported_fy = at_risk.get("company_reported") or {}
+        tagged_share = (priced_total / reported_fy["value"]
+                        if priced_total and reported_fy.get("value") else None)
+        st.markdown(
+            '<div class="pos">'
+            f'<div><span class="k">tagged product revenue</span>'
+            f'<span class="v{"" if priced_total is not None else " none"}">'
+            f'{T.num(priced_total / 1e9, 1) if priced_total is not None else "no free data"}'
+            f'</span><span class="sub">{at_risk.get("currency") or ""} bn, '
+            f'{at_risk.get("priced_products")} products</span></div>'
+            f'<div><span class="k">of reported revenue</span>'
+            f'<span class="v{"" if tagged_share is not None else " none"}">'
+            f'{T.pct(tagged_share * 100) if tagged_share is not None else "—"}'
+            f'</span><span class="sub">the filing attributes by product</span></div>'
+            f'<div><span class="k">at risk inside 5y</span>'
+            f'<span class="v{"" if at_risk.get("share_5y") is not None else " none"}">'
+            f'{T.pct(at_risk["share_5y"] * 100) if at_risk.get("share_5y") is not None else "no free data"}'
+            f'</span><span class="sub">of tagged revenue, US only</span></div>'
+            f'<div><span class="k">unpriced products at risk</span>'
+            f'<span class="v">{at_risk.get("products_uncovered") or 0}</span>'
+            f'<span class="sub">known expiry, no tagged figure</span></div>'
+            "</div>", unsafe_allow_html=True)
+
+        if priced_total:
+            # The cliff as a waterfall: tagged revenue down through each year's
+            # expiries to what stays protected past the horizon. The unpriced
+            # band hatches; its size is unknown by construction.
+            steps = [{"label": "tagged", "value": priced_total / 1e9,
+                      "kind": "start"}]
+            for bucket in at_risk["buckets"]:
+                if bucket["covered"]:
+                    steps.append({"label": str(bucket["year"]),
+                                  "value": -bucket["revenue"] / 1e9,
+                                  "kind": "step"})
+            if at_risk.get("products_uncovered"):
+                steps.append({"label": f"unpriced ×{at_risk['products_uncovered']}",
+                              "value": None, "kind": "step"})
+            steps.append({"label": "protected", "kind": "end"})
+            section("Cliff waterfall", f"{at_risk.get('currency') or ''} bn")
+            R.show(CH.waterfall(steps, 832, 280,
+                                value_fmt=lambda v: T.num(v, 1)))
+
+            years_with_products = [b for b in at_risk["buckets"]
+                                   if b["covered"] or b["uncovered"]]
+            if years_with_products:
+                section("What expires when")
+                year_pick = st.selectbox(
+                    "Year", [str(b["year"]) for b in years_with_products],
+                    key=f"risk_year_{ticker}", label_visibility="collapsed")
+                bucket = next(b for b in years_with_products
+                              if str(b["year"]) == year_pick)
+                rows = [{"Brand": p["brand_name"], "Generic": p["generic_name"],
+                         "Modality": p["modality"], "LOE": p["loe"],
+                         "Basis": p["basis"],
+                         "Revenue, bn": (T.num(p["revenue"] / 1e9, 2)
+                                         if p.get("revenue") is not None else "—")}
+                        for p in bucket["covered"] + bucket["uncovered"]]
+                st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+        else:
+            state(f"No tagged product revenue for {ticker}",
+                  "The SEC data sets carry revenue per product only where the filer "
+                  "tags a product axis. The exposure is drawn as counts on the LOE "
+                  "tab instead; nothing here is imputed.")
+
+        section("Universe, share of tagged revenue at risk inside 5 years",
+                "shares only, currencies never mixed")
+        uni = api_get(api_base, "/revenue-at-risk")
+        R.show(CH.bar_chart(
+            [{"label": r["ticker"],
+              "value": (r["share_5y"] * 100 if r["share_5y"] is not None else None)}
+             for r in uni["rows"]],
+            832, 420, horizontal=True, value_fmt=lambda v: T.pct(v, 1)))
+        st.markdown(
+            '<div class="byline"><b>United States only.</b> Shares are of each '
+            "company's own tagged product revenue, so they compare across reporting "
+            'currencies without a conversion this app refuses to invent. A hatched '
+            'band is a company whose filing tags no product revenue.</div>',
+            unsafe_allow_html=True)
+
+    # --- Slippage --------------------------------------------------------
+    with slippage_tab:
+        section("Completion date slippage", "from our own snapshot history")
+        slip = api_get(api_base, "/slippage")
+        summary = {s["ticker"]: s for s in slip.get("summary") or []}
+        mine_slip = summary.get(ticker)
+        st.markdown(
+            '<div class="pos">'
+            f'<div><span class="k">trials moved, universe</span>'
+            f'<span class="v">{len(slip.get("rows") or [])}</span>'
+            f'<span class="sub">since tracking began</span></div>'
+            f'<div><span class="k">{ticker} moved</span>'
+            f'<span class="v">{mine_slip["trials_moved"] if mine_slip else 0}</span>'
+            f'<span class="sub">'
+            f'{("median " + T.num(mine_slip["median_days"], 0) + "d") if mine_slip else "no moves observed"}'
+            f'</span></div>'
+            "</div>", unsafe_allow_html=True)
+
+        if not slip.get("rows"):
+            state("No completion date moves observed yet",
+                  "Slippage accumulates from snapshot diffs across refreshes; it "
+                  "cannot be backfilled from any source. It fills as the registry "
+                  "moves under the trials this terminal tracks.")
+        else:
+            p3_only = st.checkbox("Phase 3 only", key="slip_p3")
+            rows = [r for r in slip["rows"]
+                    if r.get("days_moved") is not None
+                    and (not p3_only or (r.get("phase") or "").startswith("Phase 3"))]
+            shown = rows[:25]
+            if shown:
+                R.show(CH.dumbbell(
+                    [{"label": f"{r['ticker'] or '—'} {r['nct_id']}",
+                      "start": 0.0, "end": float(r["days_moved"])}
+                     for r in shown],
+                    900, max(120, 26 * len(shown) + 40),
+                    tick_fmt=lambda v: f"{v:.0f}d"))
+                st.markdown(
+                    '<div class="byline">Net days moved from the first observed '
+                    'primary completion date to the current one. Red slips later, '
+                    'green pulls in.</div>', unsafe_allow_html=True)
+                st.dataframe(
+                    pd.DataFrame([{
+                        "Ticker": r["ticker"], "NCT": r["nct_id"],
+                        "Phase": r["phase"], "Status": r["overall_status"],
+                        "First seen": r["first_date"], "Now": r["current_date"],
+                        "Days": r["days_moved"], "Moves": r["observations"],
+                        "Trial": CTGOV_STUDY + (r["nct_id"] or "")}
+                        for r in shown]),
+                    width="stretch", hide_index=True,
+                    column_config={"Trial": st.column_config.LinkColumn(
+                        "Trial", display_text="Open ↗")})
+            else:
+                state("Nothing matches the filter",
+                      "Clear Phase 3 only to see every moved trial.")
 
     # --- Approvals -------------------------------------------------------
     with approvals_tab:

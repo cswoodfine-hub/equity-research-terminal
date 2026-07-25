@@ -236,7 +236,7 @@ h3 {{ font-size: 0.9rem; }}
 /* Feed items: a typographic list, not a table. */
 .feed {{ margin: 0.1rem 0 0.3rem; }}
 .fitem {{
-  display: grid; grid-template-columns: 84px 1fr auto; gap: 0.85rem;
+  display: grid; grid-template-columns: 84px 1fr auto auto; gap: 0.85rem;
   align-items: baseline; padding: 0.34rem 0;
   border-bottom: 1px solid var(--rule);
 }}
