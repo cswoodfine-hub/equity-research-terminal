@@ -301,6 +301,26 @@ h3 {{ font-size: 0.9rem; }}
 .anno .who {{ font-family: var(--font-mono); font-size: 10px; color: var(--muted);
              display: block; margin-bottom: 1px; }}
 
+/* Pinned spine selection: sits above the tabs, the cross-link from a spine click. */
+.pinned {{ border-left: 3px solid var(--up); background: var(--panel);
+          padding: 6px 12px; margin: 4px 0 8px; }}
+.pin-head {{ display: flex; justify-content: space-between; align-items: baseline; }}
+.pin-tag {{ font-size: 9px; letter-spacing: 0.09em; text-transform: uppercase;
+           color: var(--muted); }}
+.pin-clear {{ font-size: 10px; color: var(--muted); text-decoration: none;
+             border-bottom: 1px solid var(--rule-strong); }}
+.pin-clear:hover {{ color: var(--text); }}
+.pin-body {{ font-size: 13px; margin-top: 2px; }}
+.pin-body .d {{ font-family: var(--font-mono); color: var(--muted);
+               margin-right: 6px; }}
+.pin-body .why {{ font-size: 10px; color: var(--flag); text-transform: uppercase;
+                 letter-spacing: 0.04em; margin-left: 6px; }}
+.pin-detail {{ font-size: 11.5px; color: var(--muted); margin-top: 3px;
+              line-height: 1.4; }}
+/* A spine anchor is a link but must not look like body text underlined. */
+.rail a {{ text-decoration: none; cursor: pointer; }}
+.rail a:hover line {{ stroke-width: 2.4; }}
+
 /* Time machine banner: unmissable, the whole terminal is historical while it shows. */
 .asof-banner {{
   background: var(--flag); color: var(--ground);

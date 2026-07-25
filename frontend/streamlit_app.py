@@ -12,6 +12,7 @@ dash, which means no free data rather than zero.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import html
 import json
 import os
@@ -464,6 +465,14 @@ def _spine_label(headline: str) -> str:
     return text
 
 
+def _spine_key(item) -> str:
+    """A stable, URL-safe id for a forward-dated item, so a click on the spine can
+    round-trip through the URL and be matched back to the same item on rerun. The
+    feed is deterministic per company, so a content hash is stable across reruns."""
+    seed = f"{item.get('kind')}|{(item.get('date') or '')}|{item.get('headline') or ''}"
+    return hashlib.md5(seed.encode("utf-8")).hexdigest()[:10]
+
+
 def _spine_items(feed_items: list) -> list:
     items = []
     for it in feed_items:
@@ -479,8 +488,11 @@ def _spine_items(feed_items: list) -> list:
             flagged = False
         else:
             continue                   # changes already happened; the spine is ahead
-        items.append({"key": str(it.get("change_id") or it.get("headline")),
-                      "date": it.get("date"), "label": _spine_label(it.get("headline")),
+        items.append({"key": _spine_key(it), "date": it.get("date"),
+                      "label": _spine_label(it.get("headline")),
+                      "headline": it.get("headline"), "kind": kind,
+                      "significance": it.get("significance"),
+                      "reason": it.get("reason"), "detail": it.get("detail"),
                       "colour": colour, "flagged": flagged})
     return items
 
@@ -499,15 +511,36 @@ def _spine_cliff(assets: list) -> dict:
     return cliff
 
 
+spine_items = _spine_items(feed)
+selected_key = (st.query_params.get("sel") or "") or None
+pinned = next((it for it in spine_items if it["key"] == selected_key), None)
+
+# The pinned item sits above the tabs, so selecting a point on the spine cross-links
+# to a panel visible on every tab. Clicking a tick navigates to ?…&sel=key (a pure
+# SVG anchor, no script); this reads it back and draws the hairline to it.
+if pinned:
+    detail = html_escape(pinned.get("detail") or "") if pinned.get("detail") else ""
+    reason = (f'<span class="why">{html_escape(pinned["reason"])}</span>'
+              if pinned.get("reason") else "")
+    st.markdown(
+        f'<div class="pinned"><div class="pin-head"><span class="pin-tag">pinned '
+        f'from spine</span> <a class="pin-clear" href="?ticker='
+        f'{urllib.parse.quote(ticker)}">clear</a></div>'
+        f'<div class="pin-body"><span class="d">{(pinned.get("date") or "")[:10]}'
+        f'</span> {html_escape(pinned.get("headline") or "")} {reason}</div>'
+        + (f'<div class="pin-detail">{detail}</div>' if detail else "")
+        + "</div>", unsafe_allow_html=True)
+
 main, rail_col = st.columns([1, 0.27], gap="medium")
 
 with rail_col:
-    R.show(CH.timeline_spine(_spine_items(feed), dt.date.today(), 200, 720,
-                             cliff_years=_spine_cliff(exclusivities)),
-           css_class="rail")
-    st.markdown('<div class="byline">Forward-dated only. Amber is a regulatory '
-                'date needing review; orange and purple are the two FDA books.'
-                '</div>', unsafe_allow_html=True)
+    R.show(CH.timeline_spine(
+        spine_items, dt.date.today(), 200, 720,
+        cliff_years=_spine_cliff(exclusivities), selected_key=selected_key,
+        link_base=f"?ticker={urllib.parse.quote(ticker)}&sel="), css_class="rail")
+    st.markdown('<div class="byline">Forward-dated only. Click a point to pin it '
+                'above the tabs. Amber is a regulatory date needing review; orange '
+                'and purple are the two FDA books.</div>', unsafe_allow_html=True)
 
 # --- Time machine ---------------------------------------------------------
 # A date in the sidebar puts the terminal into a clearly marked historical mode:

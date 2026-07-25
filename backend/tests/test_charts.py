@@ -267,6 +267,16 @@ def test_spine_flags_uncurated_items_in_amber():
     assert f'fill="{tokens.FLAG}"><title>uncurated' in svg
 
 
+def test_spine_items_become_anchors_when_a_link_base_is_given():
+    """A click on the spine navigates to ?…&sel=key, which is how selection
+    round-trips with no script."""
+    plain = _spine()
+    linked = _spine(link_base="?ticker=LLY&sel=")
+    assert "<a href=" not in plain
+    assert '<a href="?ticker=LLY&amp;sel=near">' in linked   # the near item's key
+    assert linked.count("<a href=") == linked.count("</a>")  # every anchor closed
+
+
 def test_spine_places_a_month_only_date_without_inventing_a_day():
     """Registry dates often carry no day. The tick lands at the month and the
     label stays month-precision rather than growing a fabricated day."""

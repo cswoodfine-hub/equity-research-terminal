@@ -606,7 +606,7 @@ def small_multiples(panels: Sequence[dict], width: int = 1080, height: int = 420
 # --- 9. timeline spine ----------------------------------------------------
 def timeline_spine(items: Sequence[dict], today, width: int = 200,
                    height: int = 720, cliff_years: dict = None,
-                   selected_key: str = None) -> str:
+                   selected_key: str = None, link_base: str = None) -> str:
     """The signature element: one continuous vertical time axis at three
     compressed scales, stacked without a break.
 
@@ -615,8 +615,13 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
     item dates. Items: {key, date (ISO), label, kind, colour, flagged}. The
     selected item, when given, carries a hairline from the panel edge to its
     tick and renders emphasised.
+
+    When ``link_base`` is set each item becomes an SVG anchor to
+    ``link_base + key``, so a click pins that item and draws its hairline with no
+    script: the navigation carries the selection back through the URL.
     """
     import datetime as _dt
+    from urllib.parse import quote as _quote
 
     spine_x = 46
     seg_top = 26
@@ -688,6 +693,15 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
         colour = item.get("colour") or TK.UP
         selected = selected_key is not None and item.get("key") == selected_key
         tick_w = 7 if selected else 5
+        # Each item is an anchor when a link base is given, so a click navigates to
+        # ?…&sel=key and the app pins it. A wide transparent hit target over the row
+        # makes the whole label clickable, not just the hairline tick.
+        linked = link_base and item.get("key")
+        if linked:
+            out.append(f'<a href="{_esc(link_base + _quote(str(item["key"])))}">')
+            out.append(f'<rect x="0" y="{label_y - 6:.1f}" width="{width}"'
+                       f' height="13" fill="transparent"><title>'
+                       f'{_esc(item.get("label") or "")}</title></rect>')
         out.append(f'<line x1="{spine_x - tick_w}" y1="{ty:.1f}"'
                    f' x2="{spine_x + tick_w}" y2="{ty:.1f}" stroke="{colour}"'
                    f' stroke-width="{2.4 if selected else 1.6}"/>')
@@ -716,6 +730,8 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
                          weight=weight))
         out.append(_text(spine_x + 60, label_y + 3, str(item.get("label") or "")[:20],
                          8.5, TK.TEXT if selected else TK.MUTED, family=UI))
+        if linked:
+            out.append("</a>")
 
     # the cliff: per-year counts beyond 24 months
     out.append(_text(8, cliff_y0 + 10, "CLIFF 24M+", 8.5, TK.MUTED, family=UI,
