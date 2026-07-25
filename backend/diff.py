@@ -200,6 +200,72 @@ def _diff_filings(conn, run_id) -> int:
     return _detect_new(conn, run_id, "filings", "filing", items, "new_filing", "filed_date")
 
 
+def _label_change(prior, current) -> tuple | None:
+    """The strongest label event between two versions, or None.
+
+    A widened population outranks a new indication, which outranks a bare revision.
+    An age floor dropping or a ceiling rising is an expansion; the headline leads
+    with the numbers, e.g. "age floor 12 -> 2". Fields that are null on either side
+    fall through to the plainer signal rather than reading a change into a gap.
+    """
+    old_floor, new_floor = prior.get("age_floor_years"), current.get("age_floor_years")
+    old_ceiling = prior.get("age_ceiling_years")
+    new_ceiling = current.get("age_ceiling_years")
+    drug = current.get("drug_name") or current.get("ticker") or "product"
+    if (old_floor is not None and new_floor is not None and new_floor < old_floor) or \
+       (old_ceiling is not None and new_ceiling is not None and new_ceiling > old_ceiling):
+        if new_floor is not None and old_floor is not None and new_floor < old_floor:
+            detail = f"age floor {old_floor:g} -> {new_floor:g}"
+        else:
+            detail = f"age ceiling {old_ceiling:g} -> {new_ceiling:g}"
+        return ("population_expansion", "high",
+                f"{current.get('ticker')} label: {drug} population widens, {detail}")
+    old_count, new_count = prior.get("indication_count"), current.get("indication_count")
+    if old_count is not None and new_count is not None and new_count > old_count:
+        return ("new_indication", "high",
+                f"{current.get('ticker')} label: {drug} indications "
+                f"{old_count} -> {new_count}")
+    return ("label_change", "medium",
+            f"{current.get('ticker')} label: {drug} revised to version "
+            f"{current.get('spl_version')}")
+
+
+def _diff_labels(conn, run_id) -> int:
+    """Version increments on tracked labels become change rows.
+
+    Reads current label state from the labels table and compares it to the last
+    per-setid snapshot, the same way trials are diffed: a first sighting baselines
+    and emits nothing, and the compared snapshot advances only when a change is
+    recorded, so re-running detects nothing new.
+    """
+    changed = 0
+    rows = conn.execute(
+        """
+        SELECT l.setid, l.drug_name, l.spl_version, l.indication_count,
+               l.age_floor_years, l.age_ceiling_years, l.population_text, c.ticker
+          FROM labels l
+          LEFT JOIN assets a ON a.id = l.asset_id
+          LEFT JOIN companies c ON c.id = a.owner_company_id
+        """
+    ).fetchall()
+    for row in rows:
+        key = row["setid"]
+        current = {k: row[k] for k in row.keys()}
+        prior = _last_snapshot(conn, "labels", "label", key)
+        if prior is None:                     # baseline a newly tracked label
+            _write_snapshot(conn, "labels", "label", key, current, run_id)
+            continue
+        if prior.get("spl_version") == current.get("spl_version"):
+            continue                          # nothing revised
+        change_type, significance, headline = _label_change(prior, current)
+        _write_change(conn, "label", key, "spl_version",
+                      str(prior.get("spl_version")), headline, change_type,
+                      significance, run_id)
+        _write_snapshot(conn, "labels", "label", key, current, run_id)
+        changed += 1
+    return changed
+
+
 def _diff_approvals(conn, run_id) -> int:
     rows = conn.execute(
         """
@@ -265,6 +331,7 @@ def detect_changes(db_path=None, run_id=None) -> dict:
             "new_filings": _diff_filings(conn, run_id),
             "new_approvals": _diff_approvals(conn, run_id),
             "restatements": _diff_product_revenue(conn, run_id),
+            "label_changes": _diff_labels(conn, run_id),
         }
         conn.commit()
     finally:

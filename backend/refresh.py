@@ -29,6 +29,7 @@ from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
 from fetchers.fx_ecb import FxEcbFetcher
+from fetchers.labels_dailymed import LabelsDailyMedFetcher
 from fetchers.prices import IntradayPricesFetcher, PricesFetcher
 from fetchers.product_revenue_sec import ProductRevenueFetcher
 from fetchers.trials_ctgov import TrialsFetcher
@@ -49,6 +50,7 @@ def _company_fetchers(company, db_path):
         IntradayPricesFetcher(company["ticker"], db_path),
         TrialsFetcher(company["ticker"], db_path),
         ApprovalsOpenFdaFetcher(company["ticker"], db_path),
+        LabelsDailyMedFetcher(company["ticker"], db_path),
     ]
     if company["is_sec_filer"] and company["cik"]:
         fetchers.append(FinancialsEdgarFetcher(company["ticker"], db_path))

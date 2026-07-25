@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document xmlns="urn:hl7-org:v3">
+  <component><structuredBody>
+    <component><section>
+      <code code="34067-9" codeSystem="2.16.840.1.113883.6.1"
+            displayName="INDICATIONS &amp; USAGE"/>
+      <title>1 INDICATIONS AND USAGE</title>
+      <text>
+        <paragraph>DRUGX is indicated to treat moderate to severe plaque psoriasis
+        in adults and pediatric patients 2 years of age and older.</paragraph>
+        <paragraph>DRUGX is also indicated for active psoriatic arthritis in
+        adults.</paragraph>
+      </text>
+    </section></component>
+    <component><section>
+      <code code="34068-7" codeSystem="2.16.840.1.113883.6.1"
+            displayName="DOSAGE &amp; ADMINISTRATION"/>
+      <title>2 DOSAGE AND ADMINISTRATION</title>
+      <text><paragraph>Not the indications section.</paragraph></text>
+    </section></component>
+  </structuredBody></component>
+</document>

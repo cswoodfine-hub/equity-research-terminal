@@ -63,6 +63,12 @@ def change_reason(change_type: str, old_value=None, new_value=None) -> Optional[
         return f"slipped {days}d" if days is not None else "completion slipped"
     if change_type == "status_change":
         return "status change"
+    if change_type == "population_expansion":
+        return "population widened"
+    if change_type == "new_indication":
+        return "new indication"
+    if change_type == "label_change":
+        return "label revised"
     if change_type == "new_approval":
         return "FDA approval"
     if change_type == "new_filing":

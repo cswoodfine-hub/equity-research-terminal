@@ -23,6 +23,7 @@ import comps as comps_module
 import db
 import financials_view as financials_view_module
 import insights as insights_module
+import labels as labels_module
 import loe as loe_module
 import pipeline as pipeline_module
 import refresh as refresh_module
@@ -373,6 +374,23 @@ def universe_revenue_at_risk() -> dict:
 def slippage(ticker: Optional[str] = Query(default=None)) -> dict:
     """Per-trial completion-date moves accumulated from our own snapshot history."""
     return slippage_module.build(ticker=ticker)
+
+
+@app.get("/label-changes")
+def label_changes(ticker: Optional[str] = Query(default=None),
+                  days: int = Query(default=365)) -> dict:
+    """Detected label revisions across the universe, or one company: new
+    indications and widened populations from DailyMed, ranked to the top of the feed."""
+    return {"changes": labels_module.list_label_changes(None, ticker, days),
+            "current": labels_module.current_labels(None, ticker)}
+
+
+@app.get("/companies/{ticker}/label-changes")
+def company_label_changes(ticker: str, days: int = Query(default=365)) -> dict:
+    ticker = ticker.upper()
+    return {"ticker": ticker,
+            "changes": labels_module.list_label_changes(None, ticker, days),
+            "current": labels_module.current_labels(None, ticker)}
 
 
 @app.get("/catalyst-grid")
