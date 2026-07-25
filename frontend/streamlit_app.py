@@ -1347,8 +1347,14 @@ with main:
                       "Either nothing expires inside the window or the books carry no "
                       "entry for this company. Biologics coverage is partial.")
             else:
+                def _challenge(a):
+                    if not a.get("challenged"):
+                        return "—"
+                    when = a.get("challenge_date")
+                    return f"Para IV, {when}" if when else "Para IV"
                 frame = pd.DataFrame([{
                     "Expiry": a["loe"], "Basis": a.get("loe_basis") or "—",
+                    "Challenged": _challenge(a),
                     "Modality": a["modality"] or "—",
                     "Brand": a["brand_name"], "Generic": a["generic_name"],
                     "Application": a["internal_code"]} for a in exclusivities])
@@ -1359,7 +1365,11 @@ with main:
                     # Orphan exclusivity is not a loss of exclusivity, so it is muted
                     # rather than reading with the same weight as a patent expiry.
                     .map(lambda v: f"color:{T.P.stale}"
-                         if v == "orphan exclusivity" else "", subset=["Basis"]),
+                         if v == "orphan exclusivity" else "", subset=["Basis"])
+                    # A filed Paragraph IV challenge is the one thing here that can pull
+                    # the expiry in, so it reads in oxblood rather than muted.
+                    .map(lambda v: f"color:{T.P.oxblood};font-weight:600"
+                         if v != "—" else f"color:{T.P.stale}", subset=["Challenged"]),
                     width="stretch", hide_index=True)
                 st.markdown(
                     '<div class="byline"><b>United States only.</b> The Orange Book and '
@@ -1377,7 +1387,12 @@ with main:
                     'indication and lapses without the product losing anything, so it is '
                     'muted here and excluded from the cliff above. Orange for small '
                     'molecules, purple for biologics, the colours of the two source '
-                    'books.</div>', unsafe_allow_html=True)
+                    'books.<br>'
+                    '<b>Challenged</b> is a Paragraph IV certification on the FDA list, a '
+                    'generic filer telling the agency the patent is invalid or not '
+                    'infringed. It is filed years before expiry and is the reason the '
+                    'expiry date may not hold, so a challenged small molecule is a real '
+                    'LOE risk ahead of the date next to it.</div>', unsafe_allow_html=True)
 
     # --- Revenue at risk -------------------------------------------------
     with risk_tab:

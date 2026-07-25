@@ -3,6 +3,10 @@ uvicorn[standard]>=0.29
 python-dotenv>=1.0
 pytest>=8.0
 
+# The FDA publishes the Paragraph IV patent certifications list only as a PDF; this
+# reads its text. Pure Python, no system dependency.
+pypdf>=4.0
+
 # Optional: the generated-notes step only. The app degrades to the rules-only note
 # when this is absent or ANTHROPIC_API_KEY is unset.
 anthropic>=0.40

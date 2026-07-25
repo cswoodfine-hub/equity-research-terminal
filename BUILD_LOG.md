@@ -1,6 +1,6 @@
 # Build log, overnight autonomous build
 
-## Roadmap tier 1 and 2 — 2026-07-25 11:30
+## Roadmap tier 1 to 3 — 2026-07-25 11:30
 Working down the additions roadmap in order.
 
 **Item 1, GitHub Actions daily refresh (done).** history.py exports the
@@ -48,8 +48,40 @@ EMA's general news RSS was retired; only per-medicine feeds remain, so the EU
 indication-extension signal is deferred to item 7, the EPAR downloadable data,
 and noted rather than scraped.
 
-Suite 365. Four migrations now (annotations, fx, labels, supplements), all
-additive.
+**Item 5, AdComm calendar plus Paragraph IV challenges (done).** Two sources, one
+theme: the regulatory dates and risks the LOE and catalyst views were missing.
+
+fedreg.py reads FDA advisory committee meetings off the Federal Register API,
+whose notice title carries the committee, application number, sponsor and product
+in a stable template and whose dates field carries the meeting date. The fetcher
+stores the whole scheduled calendar (migration 005) and writes the universe
+matches as AdCom catalysts with is_curated=0, matched on the application number
+against internal_code or on the sponsor and product names. A /adcomm-calendar
+endpoint and a calendar section on the Universe tab. Verified live: 52 scheduled
+meetings, 0 in the universe right now, which is honest; the two near meetings are
+both small-biotech gene therapies. User-fee and board meetings are filtered so
+only real panels show.
+
+paragraph_iv.py reads the FDA Paragraph IV certifications list, the generic
+filings that challenge a small molecule's patents years before expiry. The list
+is a PDF; pypdf extracts the text, whose rows reduce to a reference-drug NDA
+number and the first certification date. Matched to an asset by that number
+(migration 006), it gives the LOE view a challenged state between protected and
+expired, in oxblood on the cliff table. Verified live: 1227 certifications, 361
+matched to the universe, 160 of them still protected and so shown as challenged;
+biologics correctly show none, since Paragraph IV is a small molecule mechanism.
+
+Two parsing bugs found and fixed against the live payloads. The application-number
+match first failed because \bNDA\b needs a word boundary the concatenated
+internal_code "NDA21780" does not have; a lookbehind fixed it and still rejects
+the NDA inside ANDA. The Paragraph IV list link first resolved to a guidance PDF
+because the heading is named three times on the page; anchoring on the heading's
+closing tag and taking the first media link after it fixed it. Both now have a
+fixture that would have caught the bug.
+
+Suite 377. Six migrations now (annotations, fx, labels, supplements, adcomm
+meetings, patent challenges), all additive. pypdf added, pure Python, the one new
+dependency and only the Paragraph IV list needs it.
 
 ## Follow-up: the five V2 recommendations — 2026-07-25 07:20
 All five items from the final message, implemented, tested, committed one concern

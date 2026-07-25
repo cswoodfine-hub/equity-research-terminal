@@ -99,9 +99,16 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
                    (SELECT x.protection_type FROM exclusivities x
                      WHERE x.asset_id = a.id
                      ORDER BY x.expiry_date DESC, x.protection_type
-                     LIMIT 1) AS loe_basis
+                     LIMIT 1) AS loe_basis,
+                   -- A Paragraph IV certification on record is a filed challenge to the
+                   -- patent that sets this date, so the expiry may not hold. The join
+                   -- is on the asset; the date is the first certification, or null for
+                   -- a pre-1984 reference.
+                   pc.first_submission AS challenge_date,
+                   (pc.asset_id IS NOT NULL) AS challenged
               FROM assets a
               JOIN exclusivities e ON e.asset_id = a.id
+              LEFT JOIN patent_challenges pc ON pc.asset_id = a.id
              WHERE a.owner_company_id = ?
              GROUP BY a.id
             """,
