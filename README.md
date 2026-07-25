@@ -1,63 +1,92 @@
 # Pharma equity research terminal
 
-An equity research terminal for large-cap pharma. One refresh pulls live and
-near-live data from free sources, stores a timestamped snapshot, computes what
-changed since the last snapshot, and renders charts plus a short written note per
-company. See [CLAUDE.md](CLAUDE.md) for architecture and [docs/PRD.md](docs/PRD.md)
-for the product spec.
+A purpose-built research terminal for 18 large-cap pharma names. One refresh pulls
+live and near-live data from free sources, stores a timestamped snapshot, computes
+what changed since the last snapshot, and renders a dense instrument of charts,
+derived analytics, and a short written note per company. The differentiator is
+change detection and synthesis over free data, not raw breadth. See
+[CLAUDE.md](CLAUDE.md) and [docs/PRD.md](docs/PRD.md) for the product spec, and
+[TERMINAL_OVERVIEW.md](TERMINAL_OVERVIEW.md) for a tour.
 
-Status: phase 7 (generated notes). Prices (Yahoo), financials (SEC EDGAR), trials
-(ClinicalTrials.gov), patent/exclusivity (Orange + Purple Book), approvals (openFDA),
-and filings (EDGAR submissions) refresh for the universe. Approvals query openFDA by both the sponsor and the manufacturer name and union the two, so an acquired product filed under the entity that was bought (Opdivo under E.R. Squibb, Revlimid under Celgene) still resolves to its parent. Every refresh writes
-snapshots, and a diff engine turns consecutive snapshots into a `changes` feed: trial
-status/date/phase changes, new 8-K/6-K, and new approvals, ranked with catalysts
-within 60 days and near-term LOE into a "what changed" view. Catalysts are a curated
-table with a 90-day calendar; news comes from EDGAR 8-K/6-K. On top of that feed sits
-the note layer: a per-company morning note, written by the Anthropic API when a key is
-set and by a rules-only fallback when it is not. A Streamlit UI has What changed (note
-plus feed), Prices, Financials, Comps, Pipeline, LOE, Approvals, Catalysts, and News
-tabs. Honest gaps are labelled: valuation ratios are US-filer-only, pipeline cells are
-trial counts, the LOE cliff is product counts with partial biologics, catalysts are
-curated (empty until added), news is EDGAR-only, and the change feed needs two
-refreshes to populate. React comes later.
+Every chart renders through a hand-built SVG component layer
+(`frontend/components/charts.py`) inlined into the page, which sidesteps
+Streamlit's hidden-tab measurement defect at the root; there are no native
+Streamlit or Altair charts anywhere. Colour, type and spacing come from one token
+set (`frontend/assets/tokens.css`, mirrored in `frontend/components/tokens.py`),
+and the three type roles ship locally in `frontend/assets/fonts`. The signature
+element is the **time spine**: a continuous vertical axis on the right of every
+tab, three compressed scales stacked without a break (0–90 days at day resolution,
+3–24 months at month, then the cliff by year), ticks at the real catalyst and
+expiry dates.
 
-## Setup
+## Quick start
+
+```bash
+./run.sh          # or: make dev
+```
+
+`run.sh` creates the venv, installs dependencies, builds and seeds the database if
+needed, and starts the API on 8000 and the UI on 8501. Set `SEC_USER_AGENT` in
+`.env` first (a real identifier, e.g. `Your Name your@email`); EDGAR blocks
+requests without it. The app runs fully with no LLM key, degrading the note to its
+rules layer. `ER_THEME=light` switches to the print-oriented light palette.
+
+```bash
+make test         # the full test suite (~320 tests)
+make refresh      # pull every source for the universe
+make tearsheets   # write LLY/BMY/MRK tearsheets to exports/
+```
+
+## The views
+
+Twelve tabs, one company selected in the top bar (shareable via `?ticker=`):
+
+- **Universe** — the landing tab: the ranked cross-company change feed with each
+  item's materiality reason, the 18-company small-multiples price grid on a shared
+  scale, the next 30 days of catalysts, and the 18-month catalyst heatmap with an
+  accept control for uncurated PDUFA cells.
+- **Key insights** — position strip, intraday spark, the AI morning note (rules
+  fallback), inline annotations, and a one-click tearsheet.
+- **Prices, Financials, Pipeline, LOE, Approvals, Catalysts, News** — the
+  per-company detail, rebuilt on the component layer.
+- **Revenue at risk** — the LOE cliff as a waterfall from tagged product revenue,
+  the unpriced band hatched, plus the universe share bar.
+- **Slippage** — a dumbbell of completion-date moves derived from our own snapshot
+  history, the one series here that cannot be bought after the fact.
+- **Comps** — the screen: comparables plus derived columns (revenue per late
+  trial, 5-year LOE share, catalyst count, TTM price change) with an inline
+  sparkline per row.
+
+A sidebar date puts the whole terminal into a clearly marked read-only historical
+mode reconstructed from the snapshot history.
+
+## Manual run
 
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
-pip install -r ../requirements.txt
-
-cp ../.env.example ../.env    # then set SEC_USER_AGENT (required by seed.py)
+pip install -r requirements.txt
+python -c "import db; db.init()"     # schema + migrations, idempotent
+python seed.py                        # load the universe, resolve CIKs
+uvicorn main:app --reload             # API on 8000
+# in another shell:
+cd frontend && streamlit run streamlit_app.py   # UI on 8501
 ```
 
-`SEC_USER_AGENT` must be a real identifier, e.g. `Your Name your@email`. EDGAR
-blocks requests without it.
-
-## Run
+### Key endpoints
 
 ```bash
-cd backend
-
-# create the SQLite database from schema.sql (idempotent)
-python -c "import db; db.init()"
-
-# load the 18-company universe and resolve SEC CIKs
-python seed.py
-
-# serve the API
-uvicorn main:app --reload
-
-# in another shell
-curl localhost:8000/health                        # {"status":"ok"}
-curl -X POST 'localhost:8000/refresh?ticker=LLY'  # one company: prices + financials
-curl -X POST 'localhost:8000/refresh?scope=all'   # whole universe (needed for comps)
-curl localhost:8000/companies                     # the 18-company universe
-curl localhost:8000/companies/LLY/prices          # close series + latest quote
-curl localhost:8000/companies/LLY/financials      # stored EDGAR financials
-curl 'localhost:8000/companies/LLY/statements?basis=quarterly'  # three statements
-curl localhost:8000/comps                          # the comps table
-curl localhost:8000/pipeline                       # company x phase trial counts
+curl localhost:8000/health
+curl -X POST 'localhost:8000/refresh?scope=all'   # whole universe
+curl localhost:8000/changes                        # ranked cross-company feed
+curl localhost:8000/companies/LLY/revenue-at-risk  # cliff as revenue shares
+curl localhost:8000/slippage                       # completion-date moves
+curl localhost:8000/catalyst-grid                  # company x month counts
+curl localhost:8000/screen                          # comps + derived columns
+curl 'localhost:8000/as-of?date=2026-07-01'         # historical reconstruction
+curl -X POST localhost:8000/companies/LLY/tearsheet # one-page export to exports/
+curl localhost:8000/comps                           # the comps table
+curl localhost:8000/pipeline                        # company x phase trial counts
 curl 'localhost:8000/companies/LLY/trials?phase=Phase%203'  # trials behind a cell
 curl localhost:8000/loe                            # company x expiry-year LOE cliff
 curl localhost:8000/companies/LLY/exclusivities    # upcoming LOE products

@@ -1,5 +1,46 @@
 # Build log, overnight autonomous build
 
+## Phase 7: testing pass — 2026-07-25 05:40
+- Full suite 319 green. No native Streamlit/Altair chart call anywhere
+  (grep-confirmed; the one LineChartColumn is a table column, not a chart).
+- All 18 tickers: 280 endpoint calls across every per-company and universe route
+  returned 200; a builder sweep (revenue-at-risk + full tearsheet) ran clean for
+  every ticker including ROG and BAYN; the loaded app showed zero stException
+  nodes, which given Streamlit runs every tab body per pass proves all twelve
+  tabs execute clean.
+- No keys: provider() is None and the note falls back to the rules layer with no
+  error. Empty database: schema-only API serves []/empty; the seeded-but-empty
+  UI renders designed empty states on every tab, zero exceptions.
+- Layout verified at 1280 and 1920; nulls render as "no free data" or a dash;
+  focus is a visible outline via :focus-visible on every control.
+- Not browser-exercised: the time-machine sidebar interaction (the automation
+  layer toggled the Streamlit sidebar unreliably), though asof.state_at is unit
+  tested for reconstruction, bad-date rejection and prehistory, and /as-of
+  returned 200. The only console errors are WebSocket-reconnect noise from the
+  many dev-server restarts, not app errors; fonts and CSS are inlined so there
+  are no external asset requests to 404.
+
+## Phase 8: scripts and docs — 2026-07-25 06:00
+- run.sh (venv, deps, db init + seed, both processes, Ctrl-C stops both) and a
+  Makefile with dev/test/refresh/tearsheets/clean. README rewritten around the
+  twelve views, the component layer, and the new endpoints.
+- Screenshots: live Streamlit does not capture reliably headless (snaps the
+  loading skeleton) and its tabs are not URL-addressable, so docs/screenshots
+  holds the deterministic artefact renders instead (tearsheet, analyst views,
+  the primitive gallery, the spine), which draw the same components; noted in
+  docs/screenshots/README.md. Every tab was verified in a real browser through
+  the build.
+
+## Phase 6: tearsheet and brief polish — 2026-07-25 05:05
+- One-page A4 tearsheet per company to exports/, self-contained (inline styles,
+  inline SVG from the shared primitives), POST endpoint plus a Key insights
+  button. LLY/BMY/MRK generated; LLY verified to print to exactly one A4 page.
+- Backend imports the frontend component layer over a sys.path insert; safe
+  because components/ has no Streamlit dependency, and it keeps one source of
+  chart truth for both the screen and the print sheet.
+- exports/*.html gitignored (generated artefacts), directory kept with .gitkeep.
+- Suite 319 green.
+
 ## Phase 5: new analyst views — 2026-07-25 04:30
 - Universe brief as landing tab, revenue at risk (waterfall + universe bars),
   slippage dumbbell, catalyst grid with accept control, screen (comps + derived
