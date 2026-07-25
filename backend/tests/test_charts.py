@@ -267,6 +267,34 @@ def test_spine_flags_uncurated_items_in_amber():
     assert f'fill="{tokens.FLAG}"><title>uncurated' in svg
 
 
+def test_spine_places_a_month_only_date_without_inventing_a_day():
+    """Registry dates often carry no day. The tick lands at the month and the
+    label stays month-precision rather than growing a fabricated day."""
+    svg = charts.timeline_spine(
+        [{"key": "m", "date": "2026-08", "label": "readout",
+          "colour": tokens.UP}],
+        dt.date(2026, 7, 25))
+    assert "2026-08" in svg                            # the honest label
+    assert "08-01" not in svg                          # no invented day
+
+
+# --- scatter and sparkline marks ------------------------------------------
+def test_scatter_labels_every_point_and_weights_the_selected_one():
+    svg = charts.scatter([
+        {"label": "LLY", "x": 44.7, "y": 31.7, "selected": True},
+        {"label": "PFE", "x": -0.2, "y": 14.6},
+        {"label": "gap", "x": None, "y": 3.0}])          # no honest place
+    assert "LLY" in svg and "PFE" in svg and "gap" not in svg
+    assert svg.count(f'fill="{tokens.DOWN}"') == 1       # only the selected dot
+    assert charts.scatter([]) == ""
+
+
+def test_sparkline_session_marks_are_dashes_not_data():
+    svg = charts.sparkline([1.0, 2.0, 3.0, 4.0], marks=[0, 2], label_last=False)
+    assert svg.count('class="mark"') == 2
+    assert svg.count("<polyline") == 1                   # marks add no series
+
+
 # --- donut ----------------------------------------------------------------
 def test_donut_every_slice_gets_an_outside_label_on_a_leader():
     svg = charts.donut([

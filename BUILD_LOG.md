@@ -1,5 +1,30 @@
 # Build log, overnight autonomous build
 
+## Phase 3: backend analytics — 2026-07-25 02:05
+- materiality.py is now the single home of flagging thresholds; diff and
+  whatchanged import it, every feed item carries a reason, P3 slips over 30d
+  rank high, and revenue restatements over 5% are a new detected change type
+  built on asset_revenue snapshots.
+- Revenue at risk extends the existing build_exposure rather than duplicating
+  it: shares of tagged product revenue, cumulative curve, unpriced band as
+  counts. The universe endpoint reports shares only; stacking absolute values
+  across DKK, EUR, GBP and USD without an FX source would fabricate a number,
+  so the brief's universe stacked-bar-by-year becomes per-company share bars.
+  Recorded as a deliberate deviation for honesty.
+- Slippage, catalyst grid, screen (revenue per late trial, named for trials
+  because asset mapping is empty), as-of reconstruction, annotations with an
+  additive migration, /price-grid, /runs/latest. 20 new tests; suite 312.
+- Hand checks: BMY 2031 share 0.258 = Eliquis 14.443bn / 56.015bn tagged,
+  matches to the third decimal; LLY 5y share 0.0 verified as a true zero under
+  the latest-protection convention; as-of 2026-07-01 correctly returns nothing,
+  history begins 2026-07-18.
+- Observed: refresh run 23 (scope=all) fired tonight from the user's own
+  long-running instance on port 8000, not from this build; it pulled fresh
+  registry state and the diff wrote 46 real trial changes, which gives the
+  slippage view live rows. Append-only history, no conflict.
+- Probe annotation created during endpoint verification was deleted; the live
+  annotations table is empty.
+
 ## Phase 2: chart primitives — 2026-07-25 01:15
 - All ten primitives in components/charts.py as pure data-to-SVG functions with
   explicit dimensions; 37 unit tests (validity, mark counts, null paths).

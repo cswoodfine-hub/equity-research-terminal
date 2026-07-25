@@ -19,15 +19,16 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-import altair as alt
 import pandas as pd
 import streamlit as st
 
 import calendar_view
-import rail as rail_module
 import revenue_mix
 import theme as T
 import trend as trend_module
+from components import charts as CH
+from components import render as R
+from components import tokens as TK
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
 DEFAULT_API = os.getenv("ER_API_BASE", "http://localhost:8000")
@@ -120,19 +121,17 @@ def run_refresh(base: str, path: str, key: str, spinner: str):
             st.session_state["refresh_error"] = str(exc)
 
 
-def chart(spec, height: int = 250):
-    """Every chart goes through here, so the five views stay siblings.
-
-    Axis, padding, and tooltip treatment all come from the registered theme.
-
-    Known limitation: Streamlit sizes the chart from its container at render time, and
-    for a chart built inside a hidden tab that container measures a few pixels. The
-    width is then fixed, so every chart outside the opening tab draws about 160px wide
-    and its axis labels crowd. Setting width in the spec does not help because
-    Streamlit overrides it, and neither use_container_width nor autosize.resize
-    re-measures on reveal. The fix is to stop building charts inside hidden tabs.
-    """
-    st.altair_chart(spec.properties(height=height, width="container"))
+def _downsample(values: list, labels: list, cap: int = 240):
+    """Evenly thin a long series for display. The stored data is untouched; a
+    5-year daily line at full grain would put five thousand hover slots in the
+    SVG for no legible gain."""
+    if len(values) <= cap:
+        return values, labels
+    step = len(values) / cap
+    idx = [int(i * step) for i in range(cap)]
+    if idx[-1] != len(values) - 1:
+        idx[-1] = len(values) - 1        # the latest close must survive thinning
+    return [values[i] for i in idx], [labels[i] for i in idx]
 
 
 FEED_SECTIONS = (
@@ -361,19 +360,24 @@ names = {c["ticker"]: c["name"] for c in companies}
 
 # --- Top bar --------------------------------------------------------------
 # Fixed strip: ticker selector, identity, global search, last refresh, refresh.
-# The search is read from the previous run's state before the selectbox mounts, so
-# typing a ticker or part of a company name and pressing Enter jumps to it.
+# The jump runs as the search input's on_change callback, which is the one place
+# Streamlit allows another widget's state to be written: a mid-script write left
+# the select's displayed label behind its actual state.
 if "company_pick" not in st.session_state:
     st.session_state["company_pick"] = (DEFAULT_TICKER if DEFAULT_TICKER in tickers
                                         else tickers[0])
-query = (st.session_state.get("global_search") or "").strip()
-if query:
-    wanted = query.upper()
+
+
+def _jump_to_search():
+    wanted = (st.session_state.get("global_search") or "").strip().upper()
+    if not wanted:
+        return
     match = (next((t for t in tickers if t == wanted or t.startswith(wanted)), None)
              or next((t for t in tickers if wanted in names[t].upper()), None))
     if match:
         st.session_state["company_pick"] = match
         st.session_state["global_search"] = ""
+
 
 bar = st.columns([0.085, 0.40, 0.20, 0.20, 0.115], gap="small")
 with bar[0]:
@@ -410,7 +414,7 @@ with bar[1]:
 with bar[2]:
     st.markdown('<div class="topsearch">', unsafe_allow_html=True)
     st.text_input("Search", key="global_search", label_visibility="collapsed",
-                  placeholder="jump to ticker or name")
+                  placeholder="jump to ticker or name", on_change=_jump_to_search)
     st.markdown("</div>", unsafe_allow_html=True)
 with bar[3]:
     latest_run = api_get(api_base, "/runs/latest")
@@ -441,15 +445,58 @@ if last_run and last_run.get("status") == "partial":
           "data on this page is from that run and is good. Retry from the tab that owns "
           "the failing source.", error=True)
 
+def _spine_label(headline: str) -> str:
+    """A spine row is a glance, not a sentence: the ticker prefix and the date
+    tail go, the substance stays."""
+    text = (headline or "").split(": ", 1)[-1]
+    for tail in (" loses exclusivity", "):"):
+        text = text.split(tail)[0]
+    return text
+
+
+def _spine_items(feed_items: list) -> list:
+    items = []
+    for it in feed_items:
+        kind = it.get("kind")
+        if kind == "catalyst":
+            regulatory = it.get("change_type") in ("PDUFA", "EMA decision", "AdCom")
+            colour = TK.FLAG if regulatory else TK.UP
+            flagged = regulatory       # machine-read dates carry the review mark
+        elif kind == "loe":
+            modality = (it.get("modality") or "").lower()
+            colour = (TK.ORANGE_BOOK if modality.startswith("small")
+                      else TK.PURPLE_BOOK if modality.startswith("bio") else TK.MUTED)
+            flagged = False
+        else:
+            continue                   # changes already happened; the spine is ahead
+        items.append({"key": str(it.get("change_id") or it.get("headline")),
+                      "date": it.get("date"), "label": _spine_label(it.get("headline")),
+                      "colour": colour, "flagged": flagged})
+    return items
+
+
+def _spine_cliff(assets: list) -> dict:
+    """Per-year counts beyond 24 months, orphan excluded: the same convention as
+    the LOE tab, so the two views cannot disagree."""
+    cliff: dict[int, int] = {}
+    two_years_out = dt.date.today().year + 2
+    for asset in assets:
+        if (asset.get("loe_basis") or "") == "orphan exclusivity":
+            continue
+        year = int((asset.get("loe") or "0000")[:4] or 0)
+        if year > two_years_out:
+            cliff[year] = cliff.get(year, 0) + 1
+    return cliff
+
+
 main, rail_col = st.columns([1, 0.27], gap="medium")
 
 with rail_col:
-    st.markdown('<div class="sec"><span class="sec-label">Horizon</span></div>',
-                unsafe_allow_html=True)
-    st.markdown(f'<div class="rail">{rail_module.render(feed, exclusivities)}</div>',
-                unsafe_allow_html=True)
-    st.markdown('<div class="byline">Forward-dated items only. Ticks take the '
-                'modality colour: orange for small molecules, purple for biologics.'
+    R.show(CH.timeline_spine(_spine_items(feed), dt.date.today(), 200, 720,
+                             cliff_years=_spine_cliff(exclusivities)),
+           css_class="rail")
+    st.markdown('<div class="byline">Forward-dated only. Amber is a regulatory '
+                'date needing review; orange and purple are the two FDA books.'
                 '</div>', unsafe_allow_html=True)
 
 with main:
@@ -517,26 +564,15 @@ with main:
 
         # Fifteen minute bars over the last five sessions. A briefing wants the shape of
         # the week, which daily closes cannot show: five points is a zigzag, not a
-        # market. The Prices tab keeps the five year daily view.
+        # market. Bars are butted together in order, never on a time axis that would
+        # draw a flat line through overnight hours that never traded; the session
+        # marks say where each trading day begins.
         if bars:
-            spark = pd.DataFrame(bars)
-            spark["as_of"] = pd.to_datetime(spark["as_of"])
-            # A continuous time axis would draw a flat line across every overnight gap,
-            # inventing prices that never traded. Ordering by bar keeps the sessions
-            # butted together, and the tooltip carries the real timestamp.
-            spark = spark.reset_index().rename(columns={"index": "bar"})
-            spark["session"] = spark["as_of"].dt.strftime("%Y-%m-%d")
-            base = alt.Chart(spark).encode(
-                x=alt.X("bar:Q", title=None, axis=None),
-                y=alt.Y("close:Q", title=None, axis=None,
-                        scale=alt.Scale(zero=False, nice=False, padding=6)),
-                tooltip=[alt.Tooltip("as_of:T", title="", format="%a %d %b %H:%M"),
-                         alt.Tooltip("close:Q", title="Close", format=",.2f")])
-            chart(base.mark_line(strokeWidth=1.3, interpolate="monotone")
-                  # A rule per session start shows where each trading day begins.
-                  + alt.Chart(spark[spark["session"] != spark["session"].shift()])
-                  .mark_rule(color=T.P.rule_strong, strokeDash=[2, 3])
-                  .encode(x=alt.X("bar:Q", axis=None)), 72)
+            closes = [b["close"] for b in bars]
+            session_starts = [i for i, b in enumerate(bars)
+                              if i and b["as_of"][:10] != bars[i - 1]["as_of"][:10]]
+            R.show(CH.sparkline(closes, 832, 72, label_last=True,
+                                marks=session_starts))
 
         head, action = st.columns([5, 1])
         with head:
@@ -633,26 +669,15 @@ with main:
                 unsafe_allow_html=True)
 
             currency = prices.get("currency") or ""
-            hover = alt.selection_point(fields=["as_of"], nearest=True, on="pointerover",
-                                        empty=False, clear="pointerout")
-            base = alt.Chart(frame).encode(alt.X("as_of:T", title=None))
-            line = base.mark_line().encode(
-                alt.Y("close:Q", title=f"Close, {currency}",
-                      scale=alt.Scale(zero=False, nice=True)))
-            # A wide transparent mark is what actually catches the pointer; the visible
-            # rule, dot, and tooltip all key off the same selection.
-            catcher = base.mark_rule(opacity=0).encode(
-                tooltip=[alt.Tooltip("as_of:T", title="Date", format="%Y-%m-%d"),
-                         alt.Tooltip("close:Q", title=f"Close, {currency}",
-                                     format=",.2f")]).add_params(hover)
-            crosshair = base.mark_rule(color=T.P.stale, strokeDash=[2, 2]).encode(
-                opacity=alt.condition(hover, alt.value(0.9), alt.value(0)))
-            dot = base.mark_point(filled=True, size=52, color=T.P.oxblood).encode(
-                alt.Y("close:Q"),
-                opacity=alt.condition(hover, alt.value(1), alt.value(0)))
-            # Scales bound to drag and wheel, so the window buttons are the coarse
-            # control and zoom is the fine one.
-            chart((line + crosshair + dot + catcher).interactive(), 300)
+            # The window buttons are the coarse control; hover carries the exact
+            # close per slot, pure CSS with no server round trip. Display is
+            # thinned to keep the SVG light; the newest close always survives.
+            closes, labels = _downsample(
+                list(frame["close"]),
+                [d.strftime("%Y-%m-%d") for d in frame["as_of"]])
+            R.show(CH.line_chart(
+                [{"name": ticker, "values": closes, "colour": TK.UP}],
+                labels, 900, 300, y_fmt=lambda v: T.num(v, 2)))
 
     # --- Financials ------------------------------------------------------
     with financials_tab:
@@ -800,38 +825,25 @@ with main:
                              var_name="Phase", value_name="Trials")
             long["Phase"] = long["Phase"].replace(PHASE_MERGE)
             long = long.groupby(["Ticker", "Phase"], as_index=False)["Trials"].sum()
-            # One hue, shaded by count. A matrix cell answers "how many", so colour
-            # carries the number and the phase is read off the axis it already sits on.
-            # Colouring by phase instead made every cell in a column identical and threw
-            # the count away, which is the one thing this chart is for.
-            chart(alt.Chart(long).mark_rect(stroke=T.P.ground, strokeWidth=1).encode(
-                x=alt.X("Phase:N", title=None, sort=DISPLAY_PHASES),
-                y=alt.Y("Ticker:N", title=None, sort=list(grid["Ticker"])),
-                # Sqrt, not linear: one company runs three figures of trials and a
-                # linear ramp collapses everyone else into the same pale tint.
-                color=alt.Color("Trials:Q", legend=alt.Legend(title="Trials"),
-                                scale=alt.Scale(range=list(T.P.phase_tints), type="sqrt")),
-                tooltip=["Ticker:N", "Phase:N", "Trials:Q"]), 420)
-            st.markdown('<div class="byline">Phase is ordinal, so it takes an ink tint '
-                        'rather than a hue. Counts are trials, not deduplicated assets, '
-                        'so a combination trial counts once per phase. Seamless trials '
-                        'count at the phase they reach: Phase 1/2 with Phase 2, '
-                        'Phase 2/3 with Phase 3. Phase 4 is left out, being work on '
-                        'products already approved rather than anything in '
-                        'development.</div>',
-                        unsafe_allow_html=True)
+            # The count is printed in the cell, so colour is a second reading of the
+            # same number, never the only one. Sqrt weight: one company runs three
+            # figures of trials and a linear ramp collapses everyone else.
+            peak = max(int(long["Trials"].max()), 1)
+            cells = {(row.Ticker, row.Phase): {
+                        "count": int(row.Trials),
+                        "weight": (row.Trials / peak) ** 0.5}
+                     for row in long.itertuples() if row.Trials}
+            R.show(CH.heatmap_grid(list(grid["Ticker"]), DISPLAY_PHASES, cells,
+                                   860, 460))
 
-        scatter = display.dropna(subset=["Growth", "Net margin"])
-        if not scatter.empty:
-            section("Growth against margin", f"{ticker} in oxblood")
-            scatter = scatter.assign(sel=scatter["Ticker"].eq(ticker))
-            chart(alt.Chart(scatter).mark_point(filled=True, size=70).encode(
-                x=alt.X("Growth:Q", title="Revenue growth, %"),
-                y=alt.Y("Net margin:Q", title="Net margin, %"),
-                color=alt.Color("sel:N", scale=alt.Scale(
-                    domain=[False, True], range=[T.P.stale, T.P.oxblood]), legend=None),
-                tooltip=["Ticker:N", alt.Tooltip("Growth:Q", format=".1f"),
-                         alt.Tooltip("Net margin:Q", format=".1f")]), 230)
+        scatter_rows = display.dropna(subset=["Growth", "Net margin"])
+        if not scatter_rows.empty:
+            section("Growth against margin", f"{ticker} marked")
+            R.show(CH.scatter(
+                [{"label": row["Ticker"], "x": row["Growth"],
+                  "y": row["Net margin"], "selected": row["Ticker"] == ticker}
+                 for _, row in scatter_rows.iterrows()],
+                832, 300, x_label="Revenue growth, %", y_label="Net margin, %"))
 
     # --- Pipeline --------------------------------------------------------
     with pipeline_tab:
@@ -867,43 +879,30 @@ with main:
 
             # Stacked by phase so the shape of an area reads at a glance: one that is
             # all Phase 1 is a different proposition from one carrying Phase 3, even
-            # at the same trial count. Selecting dims everything else.
-            #
-            # Counted here rather than with sum(n) in Vega, which is what made every
-            # bar render at quarter opacity. The dimming test reads datum.picked, and
-            # an aggregate drops every field it does not group by, so picked came
-            # back undefined and the condition fell to its false branch for all of
-            # them. The bars carried the right colours the whole time at a quarter of
-            # their strength, which is why they never matched the key.
+            # at the same trial count. The phase ramp brightens toward market, so an
+            # area's proximity to approval reads directly. Selecting dims the rest
+            # to the hairline colour rather than fading opacity, which kept the
+            # segments legible against the ground.
             seg = areas.groupby(["Area", "Phase"], as_index=False)["n"].sum()
-            seg["picked"] = seg["Area"].isin(chosen) if chosen else True
-            # No fixed bar height. A pixel height set against a band derived from the
-            # chart height overlaps as soon as the band is the smaller of the two,
-            # which it was: 18px bars in 16.7px bands ran 1 to 2px into each other.
-            # Letting the bar fill its band makes that impossible at any height, and
-            # the scale padding is what puts a visible gap between them.
-            # The range is taken from the length of the domain rather than from a
-            # fixed tuple, so the two cannot drift apart. They had: six phases were
-            # declared against five tints, and Phase 4 fell off the end of the scale
-            # with no colour of its own.
-            bars = (alt.Chart(seg).mark_bar()
-                    .encode(
-                        y=alt.Y("Area:N", title=None, sort=order,
-                                scale=alt.Scale(paddingInner=0.3, paddingOuter=0.2)),
-                        x=alt.X("n:Q", title="Trials"),
-                        color=alt.Color(
-                            "Phase:N", sort=DISPLAY_PHASES,
-                            scale=alt.Scale(domain=DISPLAY_PHASES,
-                                            range=T.ordinal_ramp(len(DISPLAY_PHASES))),
-                            legend=alt.Legend(title=None)),
-                        order=alt.Order("Phase:N", sort="ascending"),
-                        opacity=alt.condition("datum.picked", alt.value(1),
-                                              alt.value(0.25)),
-                        tooltip=[alt.Tooltip("Area:N"), alt.Tooltip("Phase:N"),
-                                 alt.Tooltip("n:Q", title="Trials")]))
-            # 34px per area leaves a readable bar once scale padding is taken out,
-            # and the axis and legend get their own room rather than eating a band.
-            chart(bars, max(170, 34 * len(order)))
+            seg_counts = {(row.Area, row.Phase): int(row.n)
+                          for row in seg.itertuples()}
+            stack_rows = []
+            for area in order:
+                dimmed = bool(chosen) and area not in chosen
+                segments = []
+                for ph in DISPLAY_PHASES:
+                    count = seg_counts.get((area, ph), 0)
+                    if not count:
+                        continue
+                    segments.append({
+                        "name": f"{ph}, {count} trials",
+                        "value": count,
+                        "colour": TK.RULE if dimmed else TK.PHASE_RAMP[ph]})
+                stack_rows.append({"label": area, "segments": segments})
+            R.show(CH.stacked_bar(
+                stack_rows, 832, max(170, 34 * len(order) + 22),
+                value_fmt=lambda v: f"{v:.0f}",
+                legend=[(p, TK.PHASE_RAMP[p]) for p in DISPLAY_PHASES]))
 
             st.pills("Therapeutic area", order, selection_mode="multi",
                      format_func=lambda a: f"{a}  {counts[a]}",
@@ -996,12 +995,10 @@ with main:
                   "The Orange Book and Purple Book cover US products only and refresh "
                   "weekly. Press Refresh all on the Comps tab if this looks empty.")
         else:
-            totals = pd.DataFrame({"Year": year_cols,
-                                   "Products": [counts[c] for c in year_cols]})
-            chart(alt.Chart(totals).mark_bar(size=22).encode(
-                x=alt.X("Year:N", title=None, sort=year_cols),
-                y=alt.Y("Products:Q", title="Products losing exclusivity"),
-                tooltip=["Year:N", "Products:Q"]), 220)
+            R.show(CH.bar_chart(
+                [{"label": c, "value": counts[c], "show_value": counts[c] > 0}
+                 for c in year_cols],
+                832, 220, value_fmt=lambda v: f"{v:.0f}"))
 
             section(f"Upcoming for {ticker}", len(exclusivities))
             if not exclusivities:
@@ -1106,11 +1103,29 @@ with main:
         # earned 50bn rather than 65bn.
         reported = (revenue_payload.get("company_revenue") or {}).get(
             str(latest_year)) or {}
-        mix = revenue_mix.render(mix_rows, mix_currency, latest_year,
-                                 reported.get("value"))
-        if mix:
+        drivers, tail = revenue_mix.split(mix_rows)
+        if drivers:
             section("Revenue mix", f"FY{latest_year}")
-            st.markdown(f'<div class="trend">{mix}</div>', unsafe_allow_html=True)
+            # Brightest slice first, in the phase-free data ramp; the bracketed
+            # tail and the unattributed remainder take the muted surfaces that
+            # mean "not itemised" everywhere else.
+            ramp = list(reversed(T.ordinal_ramp(max(len(drivers), 2))))
+            slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
+                       "value": p["value"], "colour": ramp[i % len(ramp)]}
+                      for i, p in enumerate(drivers)]
+            if tail:
+                slices.append({"label": f"{len(tail)} smaller products",
+                               "value": sum(p["value"] for p in tail),
+                               "colour": TK.RULE_STRONG, "muted": True})
+            rest = revenue_mix.residual(mix_rows, reported.get("value"))
+            if rest:
+                slices.append({"label": "not attributed by product",
+                               "value": rest, "colour": TK.PANEL, "muted": True})
+            shown_total = sum(s["value"] for s in slices)
+            R.show(CH.donut(slices, 832, 320,
+                            centre_label=T.num(shown_total / 1e9, 1),
+                            centre_sub=f"{mix_currency or ''} bn FY{latest_year}",
+                            value_fmt=lambda v: T.num(v / 1e9, 2)))
             st.markdown(
                 '<div class="byline">'
                 f'{revenue_mix.caption(mix_rows, mix_currency, latest_year, reported.get("value"))}'

@@ -20,8 +20,6 @@ import math
 from dataclasses import dataclass
 from pathlib import Path
 
-import altair as alt
-
 from components import tokens as TK
 
 _ASSETS = Path(__file__).resolve().parent / "assets"
@@ -456,51 +454,6 @@ section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
 }}
 </style>
 """
-
-
-# --- Charts (transitional) ------------------------------------------------
-# The Altair theme stays registered while tabs migrate onto the SVG component
-# layer; it reads the token palette so the remaining charts match during the move.
-@alt.theme.register("er_terminal", enable=True)
-def _chart_theme() -> alt.theme.ThemeConfig:
-    axis = {
-        "labelFont": "Archivo", "labelFontSize": 10, "labelColor": P.muted,
-        "titleFont": "Archivo", "titleFontSize": 10, "titleColor": P.stale,
-        "titleFontWeight": 600, "titlePadding": 8,
-        "domainColor": P.rule_strong, "domainWidth": 1,
-        "tickColor": P.rule_strong, "tickSize": 3,
-        "gridColor": P.rule, "gridWidth": 1, "gridDash": [],
-        "labelPadding": 4,
-    }
-    return alt.theme.ThemeConfig({
-        "config": {
-            "background": P.ground,
-            "font": "Archivo",
-            "view": {"stroke": None, "continuousHeight": 260},
-            "axisX": {**axis, "grid": False, "labelAngle": 0, "labelOverlap": "greedy",
-                      "labelSeparation": 6, "labelLimit": 96},
-            "axisY": {**axis, "grid": True, "ticks": False, "domain": False,
-                      "labelOverlap": "greedy", "labelSeparation": 4, "labelLimit": 96},
-            "line": {"color": P.data, "strokeWidth": 1.6},
-            "bar": {"color": P.data},
-            "point": {"color": P.data, "size": 14},
-            "rule": {"color": P.rule_strong},
-            "legend": {
-                "labelFont": "Archivo", "labelFontSize": 10, "labelColor": P.ink,
-                "titleFont": "Archivo", "titleFontSize": 10, "titleColor": P.stale,
-                "titleFontWeight": 600, "symbolType": "square", "symbolSize": 70,
-                "orient": "top", "direction": "horizontal", "offset": 6,
-                "padding": 0, "titlePadding": 6,
-            },
-            "title": {
-                "font": "Archivo", "fontSize": 11, "fontWeight": 700,
-                "color": P.ink, "anchor": "start", "offset": 8,
-                "subtitleFont": "Archivo", "subtitleColor": P.stale,
-                "subtitleFontSize": 10,
-            },
-            "range": {"category": [P.data, P.orange_book, P.purple_book, P.oxblood, P.ink]},
-        }
-    })
 
 
 # --- Ordinal ramps -------------------------------------------------------

@@ -121,8 +121,14 @@ def _scale(domain: tuple[float, float],
 # --- 1. sparkline ---------------------------------------------------------
 def sparkline(values: Sequence[Optional[float]], width: int = 140,
               height: int = 30, label_last: bool = True,
-              colour: Optional[str] = None) -> str:
-    """Inline line, no axes; the last value labelled. A null breaks the line."""
+              colour: Optional[str] = None,
+              marks: Sequence[int] = ()) -> str:
+    """Inline line, no axes; the last value labelled. A null breaks the line.
+
+    ``marks`` are x indices drawn as faint vertical dashes, used for session
+    opens on an intraday spark so overnight gaps stay visible without a time
+    axis inventing hours that never traded.
+    """
     if not values or all(v is None for v in values):
         return ""
     pad_r = 44 if label_last else 4
@@ -136,6 +142,10 @@ def sparkline(values: Sequence[Optional[float]], width: int = 140,
                                     and last < first) else TK.UP)
 
     out = [_svg_open(width, height, "sparkline")]
+    for mark in marks:
+        out.append(f'<line x1="{x(mark):.1f}" y1="2" x2="{x(mark):.1f}"'
+                   f' y2="{height - 2}" stroke="{TK.RULE_STRONG}"'
+                   f' stroke-width="1" stroke-dasharray="2,3" class="mark"/>')
     _polyline_runs(out, values, x, y, stroke, 1.4)
     if last is not None:
         lx = x(len(values) - 1)
@@ -621,10 +631,15 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
     cliff_y0 = mid_y0 + seg_h + 10
 
     def _parse(value):
-        try:
-            return _dt.date.fromisoformat(str(value)[:10])
-        except (ValueError, TypeError):
-            return None
+        """ISO date, or a month-only date placed at its first day for geometry.
+        The label keeps month precision; only the position needs a day."""
+        s = str(value or "").strip()[:10]
+        for candidate in (s, s[:7] + "-01"):
+            try:
+                return _dt.date.fromisoformat(candidate)
+            except ValueError:
+                continue
+        return None
 
     def y_for(when: _dt.date) -> Optional[float]:
         if when <= near_end:
@@ -687,7 +702,14 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
             out.append(f'<circle cx="{spine_x - 12}" cy="{ty:.1f}" r="2.4"'
                        f' fill="{TK.FLAG}"><title>uncurated, review</title>'
                        "</circle>")
-        date_s = when.strftime("%m-%d") if when <= near_end else when.strftime("%Y-%m")
+        # A month-only source date never grows a day it does not have.
+        month_only = len(str(item.get("date") or "").strip()) == 7
+        if month_only:
+            date_s = when.strftime("%Y-%m")
+        elif when <= near_end:
+            date_s = when.strftime("%m-%d")
+        else:
+            date_s = when.strftime("%Y-%m")
         weight = "700" if selected else "600"
         out.append(_text(spine_x + 16, label_y + 3, date_s, 8.5,
                          TK.TEXT if selected else TK.MUTED, family=MONO,
@@ -712,6 +734,53 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
                              TK.MUTED, family=MONO))
     else:
         out.append(_text(8, cliff_y0 + 26, "nothing on file", 8.5, TK.MUTED))
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- 11. scatter ----------------------------------------------------------
+def scatter(points: Sequence[dict], width: int = 760, height: int = 280,
+            x_label: str = "", y_label: str = "",
+            fmt: Callable[[float], str] = None) -> str:
+    """Labelled scatter. Each point: {label, x, y, selected?}.
+
+    Every point carries its own label, so nothing depends on hover; the selected
+    point takes the down colour and a heavier dot, the rest stay muted. A point
+    missing either coordinate is left out; it has no honest place on the plane.
+    """
+    fmt = fmt or (lambda v: _fmt(v, 1))
+    usable = [p for p in points if p.get("x") is not None and p.get("y") is not None]
+    if not usable:
+        return ""
+    pad_l, pad_r, top, bottom = 56, 24, 14, 40
+    dom_x = _domain([p["x"] for p in usable], pad=0.1)
+    dom_y = _domain([p["y"] for p in usable], pad=0.12)
+    x = _scale(dom_x, (pad_l, width - pad_r))
+    y = _scale(dom_y, (height - bottom, top))
+
+    out = [_svg_open(width, height, "scatter")]
+    for frac in (0.0, 0.5, 1.0):
+        gy = top + (height - bottom - top) * frac
+        out.append(f'<line x1="{pad_l}" y1="{gy:.1f}" x2="{width - pad_r}"'
+                   f' y2="{gy:.1f}" stroke="{TK.RULE}"/>')
+        vy = dom_y[1] + (dom_y[0] - dom_y[1]) * frac
+        out.append(_text(pad_l - 6, gy + 3, fmt(vy), 9, TK.MUTED, "end", MONO))
+    for frac in (0.0, 0.5, 1.0):
+        vx = dom_x[0] + (dom_x[1] - dom_x[0]) * frac
+        out.append(_text(x(vx), height - 24, fmt(vx), 9, TK.MUTED, "middle", MONO))
+    if x_label:
+        out.append(_text((pad_l + width - pad_r) / 2, height - 8, x_label, 9.5,
+                         TK.MUTED, "middle", UI))
+    if y_label:
+        out.append(_text(12, top + 2, y_label, 9.5, TK.MUTED, "start", UI))
+    for p in usable:
+        selected = bool(p.get("selected"))
+        colour = TK.DOWN if selected else TK.MUTED
+        out.append(f'<circle cx="{x(p["x"]):.1f}" cy="{y(p["y"]):.1f}"'
+                   f' r="{4.2 if selected else 3}" fill="{colour}"/>')
+        out.append(_text(x(p["x"]) + 6, y(p["y"]) + 3, p["label"], 8.5,
+                         TK.TEXT if selected else TK.MUTED, family=MONO,
+                         weight="700" if selected else ""))
     out.append("</svg>")
     return "".join(out)
 
