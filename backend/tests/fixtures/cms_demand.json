@@ -1,0 +1,29 @@
+[
+  {
+    "Brnd_Name": "Zepbound",
+    "Gnrc_Name": "Tirzepatide",
+    "Mftr_Name": "Overall",
+    "Tot_Spndng_2023": "1000.50",
+    "Tot_Dsg_Unts_2023": "500",
+    "Tot_Clms_2023": "50",
+    "Tot_Benes_2023": "20",
+    "Tot_Spndng_2024": "2000.75",
+    "Tot_Dsg_Unts_2024": "900",
+    "Tot_Clms_2024": "80",
+    "Tot_Benes_2024": ""
+  },
+  {
+    "Brnd_Name": "Some Other Drug",
+    "Gnrc_Name": "not in the universe",
+    "Mftr_Name": "Overall",
+    "Tot_Spndng_2024": "9999",
+    "Tot_Clms_2024": "12",
+    "Tot_Benes_2024": "11"
+  },
+  {
+    "Brnd_Name": "",
+    "Gnrc_Name": "Pen Needle, Diabetic",
+    "Mftr_Name": "Overall",
+    "Tot_Spndng_2024": "500"
+  }
+]

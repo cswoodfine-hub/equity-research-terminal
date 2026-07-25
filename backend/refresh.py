@@ -25,6 +25,7 @@ import diff
 import pdufa
 from fetchers.adcomm_fedreg import AdCommFetcher
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
+from fetchers.demand_cms import DemandCmsFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
 from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
@@ -68,7 +69,7 @@ def _universe_fetchers(db_path):
     return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path),
             ProductRevenueFetcher(db_path), FxEcbFetcher(db_path),
             NewsFdaFetcher(db_path), AdCommFetcher(db_path),
-            ParagraphIvFetcher(db_path)]
+            ParagraphIvFetcher(db_path), DemandCmsFetcher(db_path)]
 
 
 def _start_run(db_path) -> int:

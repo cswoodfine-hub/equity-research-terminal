@@ -1609,6 +1609,51 @@ with main:
                      if v == "orphan exclusivity" else "", subset=["Basis"]),
                 width="stretch", hide_index=True)
 
+        # --- Medicare demand ---
+        # Revenue is what a drug earned; this is how many people took it. CMS Part D and
+        # Part B spending, matched to a marketed product by brand, is the real-world US
+        # demand the revenue line cannot show.
+        med = api_get(api_base, f"/companies/{ticker}/demand").get("drugs") or []
+        section("Medicare demand", "US Part D and Part B")
+        if not med:
+            state(f"No Medicare demand on file for {ticker}",
+                  "CMS publishes Part D and Part B spending by drug once a year, matched "
+                  "to a marketed product by brand on refresh. It covers US Medicare only, "
+                  "so a drug used mostly outside it or by under-65s reads low or absent. "
+                  "Press Refresh all if this looks empty.")
+        else:
+            def _yoy(d):
+                cur, prior = d.get("spending"), d.get("prior_spending")
+                if not cur or not prior:
+                    return "—"
+                return f"{(cur / prior - 1) * 100:+.0f}%"
+            med_year = max((d["latest_year"] for d in med), default="")
+            frame = pd.DataFrame([{
+                "Drug": d["brand"], "Where": d["part_label"],
+                "Beneficiaries": (f"{d['beneficiaries']:,}"
+                                  if d.get("beneficiaries") is not None else "—"),
+                "Claims": (f"{d['claims']:,}" if d.get("claims") is not None else "—"),
+                "Spending $m": (T.num(d["spending"] / 1e6, 1)
+                                if d.get("spending") is not None else "—"),
+                "vs prior": _yoy(d), "Year": str(d["latest_year"])}
+                for d in med[:25]])
+            st.dataframe(
+                # Direction reads in colour: growth up, decline in oxblood, flat muted.
+                frame.style.map(
+                    lambda v: (f"color:{T.P.data};font-weight:600" if v.startswith("+")
+                               else f"color:{T.P.oxblood};font-weight:600"
+                               if v.startswith("-") else f"color:{T.P.stale}"),
+                    subset=["vs prior"]),
+                width="stretch", hide_index=True)
+            st.markdown(
+                f'<div class="byline"><b>US Medicare only.</b> CMS Part D (retail '
+                f'pharmacy) and Part B (given in a clinic) spending by drug, {med_year} '
+                f'the latest year published, matched to a marketed product by brand. '
+                f'Beneficiaries is distinct people, not prescriptions; a count CMS '
+                f'suppressed for privacy reads as a dash, never zero. This is real-world '
+                f'demand, a different lens from the reported revenue above, and it misses '
+                f'commercial and ex-US volume entirely.</div>', unsafe_allow_html=True)
+
             # --- Overriding a revenue figure ---
             # Revenue arrives from the SEC bulk data sets. This is the correction path,
             # and the place a 20-F filer that tags no product axis can be filled in by

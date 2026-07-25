@@ -21,6 +21,7 @@ import catalyst_grid as catalyst_grid_module
 import catalysts as catalysts_module
 import comps as comps_module
 import db
+import demand as demand_module
 import financials_view as financials_view_module
 import insights as insights_module
 import labels as labels_module
@@ -240,6 +241,18 @@ def company_exclusivities(ticker: str) -> dict:
     if rows is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     return {"ticker": ticker.upper(), "assets": rows}
+
+
+@app.get("/companies/{ticker}/demand")
+def company_demand(ticker: str) -> dict:
+    """Medicare Part D and Part B demand per marketed drug, matched by brand.
+
+    Real-world US volume the revenue line cannot show: spending, claims and distinct
+    beneficiaries, latest year with the year before for direction. Sorted by spending."""
+    rows = demand_module.company_demand(None, ticker)
+    if rows is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return {"ticker": ticker.upper(), "drugs": rows}
 
 
 @app.get("/companies/{ticker}/approvals")

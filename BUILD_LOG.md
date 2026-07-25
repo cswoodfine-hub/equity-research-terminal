@@ -83,6 +83,23 @@ Suite 377. Six migrations now (annotations, fx, labels, supplements, adcomm
 meetings, patent challenges), all additive. pypdf added, pure Python, the one new
 dependency and only the Paragraph IV list needs it.
 
+**Item 6, CMS Medicare demand (done).** Company revenue is what a drug earned;
+this is how many people took it. cms.py reads the CMS Spending by Drug data API,
+Part D for retail pharmacy and Part B for clinic-administered drugs, each with
+per-drug, per-year spending, claims and distinct beneficiaries. The fetcher
+matches a drug to an asset by brand name (migration 007) and stores the five
+published years as a demand time series; demand.py rolls it up per drug with the
+year before for direction. A /companies/{ticker}/demand endpoint and a Medicare
+demand section on the Approvals tab, sorted by spending, the year-on-year move in
+green or oxblood. Verified live: 4424 CMS rows, 3037 records across 568 universe
+assets. Keytruda reads 5.99bn under Part B on 75,361 beneficiaries, Januvia
+3.81bn under Part D on 828,288, and a drug that sits in both parts, like Eylea,
+shows both. A beneficiary count CMS suppressed for privacy reads as a dash, never
+zero, and the view says US Medicare only, so commercial and ex-US volume is
+absent by construction.
+
+Suite 382. Seven migrations now, all additive.
+
 ## Follow-up: the five V2 recommendations — 2026-07-25 07:20
 All five items from the final message, implemented, tested, committed one concern
 each on top of the overnight build.
