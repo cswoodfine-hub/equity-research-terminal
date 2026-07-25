@@ -27,3 +27,6 @@ backend/cache/
 
 # Generated tearsheets
 exports/*.html
+
+# Scheduled-refresh logs and lock
+logs/

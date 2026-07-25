@@ -1,7 +1,7 @@
 # Equity research terminal.
 PY := backend/.venv/bin/python
 
-.PHONY: dev test refresh tearsheets clean
+.PHONY: dev test refresh refresh-daily tearsheets tearsheets-all clean
 
 dev:            ## start the API (8000) and the UI (8501)
 	./run.sh
@@ -9,13 +9,19 @@ dev:            ## start the API (8000) and the UI (8501)
 test:           ## run the full test suite
 	cd backend && .venv/bin/python -m pytest tests/ -q
 
-refresh:        ## pull every source for the whole universe
+refresh:        ## pull every source for the whole universe (needs the API up)
 	curl -s -X POST 'localhost:8000/refresh?scope=all' | $(PY) -m json.tool
 
-tearsheets:     ## write one-page tearsheets for LLY, BMY, MRK to exports/
+refresh-daily:  ## run the scheduled refresh directly (no API needed); logs to logs/
+	$(PY) backend/scheduled_refresh.py
+
+tearsheets:     ## write tearsheets for LLY, BMY, MRK to exports/ (needs the API up)
 	@for t in LLY BMY MRK; do \
 	  curl -s -X POST localhost:8000/companies/$$t/tearsheet | $(PY) -m json.tool; \
 	done
+
+tearsheets-all: ## write a tearsheet for every company to exports/ (no API needed)
+	$(PY) backend/tearsheet.py
 
 clean:          ## remove generated tearsheets
 	rm -f exports/*.html

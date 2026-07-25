@@ -76,3 +76,14 @@ def test_tearsheet_unknown_ticker_raises(tmp_path):
     seed.load_companies(db_file)
     with pytest.raises(ValueError, match="unknown ticker"):
         tearsheet.build("ZZZ", out_dir=tmp_path / "exports", db_path=db_file)
+
+
+def test_build_all_writes_one_sheet_per_company(tmp_path):
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    out = tmp_path / "exports"
+    result = tearsheet.build_all(out_dir=out, db_path=db_file)
+    assert result["failed"] == []
+    assert result["count"] == 18                    # the whole universe
+    assert len(list(out.glob("*_tearsheet.html"))) == 18

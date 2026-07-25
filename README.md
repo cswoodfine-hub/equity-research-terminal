@@ -32,10 +32,46 @@ requests without it. The app runs fully with no LLM key, degrading the note to i
 rules layer. `ER_THEME=light` switches to the print-oriented light palette.
 
 ```bash
-make test         # the full test suite (~320 tests)
-make refresh      # pull every source for the universe
-make tearsheets   # write LLY/BMY/MRK tearsheets to exports/
+make test           # the full test suite (~340 tests)
+make refresh        # pull every source for the universe (needs the API up)
+make refresh-daily  # run the refresh directly, no API needed; logs to logs/
+make tearsheets     # LLY/BMY/MRK tearsheets to exports/
+make tearsheets-all # a tearsheet for every company to exports/
 ```
+
+### Scheduling the daily refresh
+
+The change feed and the slippage series only accumulate as refreshes run, so a
+daily job is what turns them from thin into proprietary. `backend/scheduled_refresh.py`
+runs the whole-universe refresh directly (no server needed), appends a summary to
+`logs/refresh.log`, and holds a lock so an overlapping schedule cannot double-fire.
+
+cron, 2am daily:
+
+```cron
+0 2 * * * cd /path/to/equity-research && backend/.venv/bin/python backend/scheduled_refresh.py
+```
+
+launchd (macOS), `~/Library/LaunchAgents/com.er-terminal.refresh.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.er-terminal.refresh</string>
+  <key>ProgramArguments</key><array>
+    <string>/path/to/equity-research/backend/.venv/bin/python</string>
+    <string>/path/to/equity-research/backend/scheduled_refresh.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>/path/to/equity-research</string>
+  <key>StartCalendarInterval</key><dict>
+    <key>Hour</key><integer>2</integer><key>Minute</key><integer>0</integer>
+  </dict>
+</dict></plist>
+```
+
+Load it with `launchctl load ~/Library/LaunchAgents/com.er-terminal.refresh.plist`.
 
 ## The views
 

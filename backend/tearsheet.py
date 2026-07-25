@@ -243,3 +243,28 @@ def build(ticker: str, out_dir: Path | None = None, db_path=None) -> Path:
     path = out_dir / f"{ticker}_tearsheet.html"
     path.write_text(doc, encoding="utf-8")
     return path
+
+
+def build_all(out_dir: Path | None = None, db_path=None) -> dict:
+    """Write a tearsheet for every company. Returns paths written and any that
+    failed, so a batch run reports honestly rather than aborting on one bad name."""
+    conn = db.get_connection(db_path)
+    try:
+        tickers = [r["ticker"] for r in conn.execute(
+            "SELECT ticker FROM companies ORDER BY ticker")]
+    finally:
+        conn.close()
+    written, failed = [], []
+    for ticker in tickers:
+        try:
+            written.append(str(build(ticker, out_dir, db_path)))
+        except Exception as exc:                    # one bad sheet never stops the run
+            failed.append({"ticker": ticker, "error": f"{type(exc).__name__}: {exc}"})
+    return {"written": written, "failed": failed, "count": len(written)}
+
+
+if __name__ == "__main__":
+    import json as _json
+    result = build_all()
+    print(_json.dumps({"count": result["count"],
+                       "failed": result["failed"]}, indent=2))
