@@ -550,20 +550,38 @@ with main:
                       f"{(asof_state.get('history_begins') or 'later')[:10]}; pick a "
                       "date on or after it to see reconstructed state.")
             else:
+                fin = asof_state.get("financials") or {}
                 st.dataframe(pd.DataFrame([
                     {"Ticker": tk,
                      "Trials tracked": entry.get("trials", 0),
-                     "Filings known": entry.get("filings_known", 0),
                      "Approvals known": entry.get("approvals_known", 0),
+                     "Revenue then, bn": (fin[tk]["revenue"] / 1e9
+                                          if fin.get(tk) and fin[tk].get("revenue")
+                                          is not None else None),
+                     "FY": (str(fin[tk]["fiscal_year"])
+                            if fin.get(tk) and fin[tk].get("fiscal_year") else "—"),
                      "Statuses": ", ".join(f"{status} {count}" for status, count
                                            in sorted((entry.get("statuses") or {}).items()))}
                     for tk, entry in sorted(by_ticker.items())]),
-                    width="stretch", hide_index=True)
+                    width="stretch", hide_index=True,
+                    column_config={"Revenue then, bn": st.column_config.NumberColumn(
+                        format="%.1f")})
                 st.markdown(
                     '<div class="byline">Reconstructed from the append-only snapshot '
-                    'table: trial state at item grain, filings and approvals as '
-                    'what-was-known-by-then counts. Everything else in the app stays '
-                    'live.</div>', unsafe_allow_html=True)
+                    'table at field grain: trial status, phase and completion date as '
+                    'they stood; the financial report in force at the date; and the '
+                    'approvals whose first sighting was on or before it. Everything '
+                    'else in the app stays live.</div>', unsafe_allow_html=True)
+                approvals_then = asof_state.get("approvals") or []
+                if approvals_then:
+                    section("Approvals known by then", len(approvals_then))
+                    st.dataframe(pd.DataFrame([
+                        {"Ticker": a["ticker"], "Application": a["application_number"],
+                         "Brand": a.get("brand_name") or "—",
+                         "Approved": a.get("approval_date") or "—",
+                         "First seen": (a.get("first_seen") or "")[:10]}
+                        for a in approvals_then]),
+                        width="stretch", hide_index=True)
 
         universe_feed = api_get(api_base, "/changes")
         flagged = [it for it in universe_feed if it.get("significance") == "high"]

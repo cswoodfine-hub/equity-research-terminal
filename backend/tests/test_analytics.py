@@ -7,6 +7,7 @@ never as a computed placeholder.
 """
 
 import datetime as dt
+import json
 
 import pytest
 
@@ -329,8 +330,67 @@ def test_asof_rejects_a_bad_date_and_names_prehistory(tmp_path):
     assert asof.state_at(db_file, "not-a-date") is None
     state = asof.state_at(db_file, "2001-01-01")
     assert state["trials"] == []
+    assert state["financials"] == {} and state["approvals"] == []
     # With no snapshots at all there is no history to be before.
     assert state["history_begins"] is None
+
+
+def test_asof_reconstructs_financials_at_field_grain(tmp_path):
+    """The financial snapshot in force at the date, not a count."""
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    conn = db.get_connection(db_file)
+    conn.execute(
+        "INSERT INTO snapshots (source, entity_type, entity_key, payload, captured_at)"
+        " VALUES ('financials','company','LLY',?,datetime('now','-10 days'))",
+        (json.dumps({"ticker": "LLY", "fiscal_year": 2024, "currency": "USD",
+                     "revenue": 45_000_000_000.0, "net_income": 10_000_000_000.0,
+                     "rd_expense": 9_000_000_000.0}),))
+    conn.execute(
+        "INSERT INTO snapshots (source, entity_type, entity_key, payload, captured_at)"
+        " VALUES ('financials','company','LLY',?,datetime('now','+2 days'))",
+        (json.dumps({"ticker": "LLY", "fiscal_year": 2025, "currency": "USD",
+                     "revenue": 65_000_000_000.0, "net_income": 20_000_000_000.0,
+                     "rd_expense": 13_000_000_000.0}),))
+    conn.commit()
+    conn.close()
+
+    today = asof.state_at(db_file, TODAY.isoformat())
+    assert today["financials"]["LLY"]["revenue"] == pytest.approx(45_000_000_000.0)
+    assert today["financials"]["LLY"]["fiscal_year"] == 2024   # the earlier report
+    assert today["by_ticker"]["LLY"]["revenue"] == pytest.approx(45_000_000_000.0)
+
+    future = asof.state_at(db_file, (TODAY + dt.timedelta(days=5)).isoformat())
+    assert future["financials"]["LLY"]["fiscal_year"] == 2025
+
+
+def test_asof_reconstructs_approvals_known_by_the_date(tmp_path):
+    db_file = tmp_path / "test.db"
+    _base(db_file)
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, internal_code)"
+                 " VALUES (1, ?, 'Zepbound', 'NDA217806')", (cid,))
+    conn.execute("INSERT INTO approvals (asset_id, application_number, approval_date)"
+                 " VALUES (1, 'NDA217806', '2023-11-08')")
+    conn.execute(
+        "INSERT INTO snapshots (source, entity_type, entity_key, payload, captured_at)"
+        " VALUES ('approvals','approval','NDA217806',?,datetime('now','-3 days'))",
+        (json.dumps({"ticker": "LLY", "approval_date": "2023-11-08"}),))
+    # one that is not known until after the cutoff
+    conn.execute(
+        "INSERT INTO snapshots (source, entity_type, entity_key, payload, captured_at)"
+        " VALUES ('approvals','approval','NDA999',?,datetime('now','+5 days'))",
+        (json.dumps({"ticker": "LLY", "approval_date": "2026-09-01"}),))
+    conn.commit()
+    conn.close()
+
+    state = asof.state_at(db_file, TODAY.isoformat())
+    apps = {a["application_number"] for a in state["approvals"]}
+    assert "NDA217806" in apps and "NDA999" not in apps    # not yet known
+    zep = next(a for a in state["approvals"] if a["application_number"] == "NDA217806")
+    assert zep["brand_name"] == "Zepbound"                 # joined to current metadata
+    assert state["by_ticker"]["LLY"]["approvals_known"] == 1
 
 
 # --- annotations ------------------------------------------------------------
