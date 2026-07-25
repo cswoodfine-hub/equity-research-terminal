@@ -1,5 +1,33 @@
 # Build log, overnight autonomous build
 
+## Roadmap tier 1 and 2 — 2026-07-25 11:30
+Working down the additions roadmap in order.
+
+**Item 1, GitHub Actions daily refresh (done).** history.py exports the
+app-produced tables to data/history/*.ndjson (id-ordered, git delta-friendly)
+and rebuilds from them with FK off; refresh.yml runs the git-scraping cycle
+daily. Round-trip verified against 5988 live snapshots; a rebuilt db lets the
+diff continue without replaying. Needs a GitHub remote and SEC_USER_AGENT secret
+to activate, both documented.
+
+**Item 2, DailyMed label changes (done).** dailymed.py polls SPL version history,
+parses the LOINC 34067-9 indications section, and extracts the population over
+the LLM seam into age floor, age ceiling, indication count and a phrase.
+Migration 003; the diff turns a version bump into label_change / new_indication /
+population_expansion with the numbers in the headline. A Labels tab. Verified
+live for LLY: 33 labels, 8 populations resolved (the rest hit the free model rate
+limit on a first-run burst and self-heal, since only changed labels re-extract).
+
+**Item 3, efficacy supplements plus the CBER path (done).** parse_supplements
+reads the approved EFFICACY submissions already in the drugsfda payload; migration
+004 stores them; the diff detects a newly seen recent one as efficacy_supplement.
+Verified live: 347 real supplements (LLY 103, MRK 245). The CBER gap is stated
+plainly in the view rather than scraped: drugsfda is CDER only, and cell and gene
+therapies are already covered by the DailyMed labels and the Purple Book.
+
+Suite 356. Four migrations now (annotations, fx, labels, supplements), all
+additive.
+
 ## Follow-up: the five V2 recommendations — 2026-07-25 07:20
 All five items from the final message, implemented, tested, committed one concern
 each on top of the overnight build.
