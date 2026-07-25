@@ -178,7 +178,10 @@ def test_universe_at_risk_carries_shares_never_mixed_currency_sums(tmp_path):
     built = asset_revenue.build_universe_at_risk(db_file)
     lly = next(r for r in built["rows"] if r["ticker"] == "LLY")
     assert lly["share_5y"] == pytest.approx(0.6)
-    assert "currencies are never mixed" in built["note"]
+    # Shares stay each company's own; with no FX rates stored the USD figure is null.
+    assert "own tagged product revenue" in built["note"]
+    assert built["fx_as_of"] is None
+    assert lly["priced_total_usd"] is None
 
 
 # --- slippage ----------------------------------------------------------------

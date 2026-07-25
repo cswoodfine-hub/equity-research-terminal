@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime as dt
 
 import db
+import fx
 
 HORIZON = 10          # years of cliff, matching loe.HORIZON
 
@@ -301,6 +302,10 @@ def build_universe_at_risk(db_path=None, horizon: int = HORIZON) -> dict:
             "SELECT ticker FROM companies ORDER BY ticker")]
     finally:
         conn.close()
+    # Real rates, so absolutes can be compared across reporting currencies. A company
+    # whose currency has no rate keeps a null USD figure and stays in the shares view;
+    # nothing is converted at a rate that is not on file.
+    rates = fx.latest_usd_rates(db_path)
     rows = []
     for ticker in tickers:
         built = build_revenue_at_risk(db_path, ticker, horizon)
@@ -309,6 +314,10 @@ def build_universe_at_risk(db_path=None, horizon: int = HORIZON) -> dict:
         cutoff = built["years"][4] if len(built["years"]) > 4 else None
         unpriced_5y = sum(count for year, count in built["unpriced_by_year"].items()
                           if year != "later" and cutoff and int(year) <= cutoff)
+        # At-risk absolute inside 5y = tagged revenue expiring by the cutoff.
+        at_risk_native = ((built["share_5y"] or 0) * built["priced_total"]
+                          if built["share_5y"] is not None
+                          and built["priced_total"] is not None else None)
         rows.append({
             "ticker": built["ticker"],
             "currency": built["currency"],
@@ -317,7 +326,12 @@ def build_universe_at_risk(db_path=None, horizon: int = HORIZON) -> dict:
             "share_5y": built["share_5y"],
             "unpriced_5y": unpriced_5y,
             "coverage": built["coverage"],
+            "priced_total_usd": fx.to_usd(built["priced_total"], built["currency"],
+                                          rates),
+            "at_risk_5y_usd": fx.to_usd(at_risk_native, built["currency"], rates),
         })
     return {"rows": rows, "horizon": horizon,
-            "note": ("shares of each company's tagged product revenue; "
-                     "currencies are never mixed")}
+            "fx_as_of": rates.get("as_of"),
+            "note": ("shares are of each company's own tagged product revenue; USD "
+                     "figures are converted at the ECB reference rate on fx_as_of, and "
+                     "a company whose currency has no rate carries a null USD figure")}

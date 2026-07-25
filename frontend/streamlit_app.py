@@ -1341,20 +1341,47 @@ with main:
                   "tags a product axis. The exposure is drawn as counts on the LOE "
                   "tab instead; nothing here is imputed.")
 
-        section("Universe, share of tagged revenue at risk inside 5 years",
-                "shares only, currencies never mixed")
         uni = api_get(api_base, "/revenue-at-risk")
-        R.show(CH.bar_chart(
-            [{"label": r["ticker"],
-              "value": (r["share_5y"] * 100 if r["share_5y"] is not None else None)}
-             for r in uni["rows"]],
-            832, 420, horizontal=True, value_fmt=lambda v: T.pct(v, 1)))
-        st.markdown(
-            '<div class="byline"><b>United States only.</b> Shares are of each '
-            "company's own tagged product revenue, so they compare across reporting "
-            'currencies without a conversion this app refuses to invent. A hatched '
-            'band is a company whose filing tags no product revenue.</div>',
-            unsafe_allow_html=True)
+        uni_rows = uni["rows"]
+        fx_as_of = uni.get("fx_as_of")
+        risk_view = st.radio(
+            "Universe view", ["Share of tagged revenue", "Absolute, USD converted"],
+            horizontal=True, key="risk_universe_view", label_visibility="collapsed")
+
+        if risk_view.startswith("Share"):
+            section("Universe, share of tagged revenue at risk inside 5 years",
+                    "shares, comparable across currencies")
+            R.show(CH.bar_chart(
+                [{"label": r["ticker"],
+                  "value": (r["share_5y"] * 100 if r["share_5y"] is not None else None)}
+                 for r in uni_rows],
+                832, 420, horizontal=True, value_fmt=lambda v: T.pct(v, 1)))
+            st.markdown(
+                '<div class="byline"><b>United States only.</b> Shares are of each '
+                "company's own tagged product revenue, so they compare across "
+                'reporting currencies directly. A hatched band is a company whose '
+                'filing tags no product revenue.</div>', unsafe_allow_html=True)
+        else:
+            section("Universe, tagged revenue at risk inside 5 years",
+                    f"USD bn, ECB rate {fx_as_of or 'not on file'}")
+            # Sorted so the biggest exposure reads first. A company whose currency has
+            # no rate lands as a hatched null band, never converted at an invented rate.
+            usd_rows = sorted(
+                [{"label": r["ticker"],
+                  "value": (r["at_risk_5y_usd"] / 1e9
+                            if r.get("at_risk_5y_usd") is not None else None)}
+                 for r in uni_rows],
+                key=lambda d: (d["value"] is None, -(d["value"] or 0)))
+            R.show(CH.bar_chart(usd_rows, 832, 420, horizontal=True,
+                                value_fmt=lambda v: T.num(v, 2)))
+            st.markdown(
+                '<div class="byline"><b>United States only.</b> Tagged product revenue '
+                'expiring inside five years, converted to USD at the ECB reference rate '
+                f'on {fx_as_of or "no date on file"}. Novo reports in DKK and Roche in '
+                'CHF; the rate makes them comparable. A hatched band is a company with '
+                'no exposure priced, or whose reporting currency has no rate on file, '
+                'so it is left unconverted rather than shown as zero.</div>',
+                unsafe_allow_html=True)
 
     # --- Slippage --------------------------------------------------------
     with slippage_tab:
