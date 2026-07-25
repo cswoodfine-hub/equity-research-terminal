@@ -73,6 +73,44 @@ launchd (macOS), `~/Library/LaunchAgents/com.er-terminal.refresh.plist`:
 
 Load it with `launchctl load ~/Library/LaunchAgents/com.er-terminal.refresh.plist`.
 
+### Automated refresh on GitHub Actions, with off-machine backup
+
+`.github/workflows/refresh.yml` runs the refresh daily on a free runner and commits
+the result back to the repo as newline-delimited JSON, so the schedule and the
+backup are one job. The binary database is never committed: it diffs badly and
+bloats a repo. Instead the app-produced history (snapshots, changes, catalysts,
+notes, the run ledger, annotations, FX rates) is exported to `data/history/*.ndjson`,
+which git delta-stores cleanly and keeps a readable log of every detected change.
+
+Setup:
+
+1. Push the repo to GitHub. Public gives unlimited Actions minutes; private on the
+   free plan has 2,000 a month against roughly 300 used here, so either works.
+2. Add a repository secret `SEC_USER_AGENT` (Settings, Secrets and variables,
+   Actions), a real identifier like `Your Name your@email`. EDGAR blocks requests
+   without it. Optionally add `GROQ_API_KEY` and `OPENFDA_API_KEY`.
+3. Seed the committed history once, so the first scheduled run has prior snapshots
+   to diff against:
+
+   ```bash
+   make history-export
+   git add data/history && git commit -m "chore(history): seed" && git push
+   ```
+
+The workflow then rebuilds the database from that NDJSON, seeds the universe, runs
+the refresh (prices from yfinance often fail from runner IPs and fail soft; the
+fundamentals are what need the schedule), exports the updated history, and commits
+it. Scheduled runs can start up to 30 minutes late under load, so nothing here is
+tied to the exact hour, and the daily commit keeps the workflow from being disabled
+for 60 days of inactivity.
+
+Restore on any machine:
+
+```bash
+git pull
+make history-rebuild     # rebuild the database from the committed NDJSON
+```
+
 ## The views
 
 Twelve tabs, one company selected in the top bar (shareable via `?ticker=`):

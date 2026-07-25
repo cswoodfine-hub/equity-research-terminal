@@ -1,7 +1,8 @@
 # Equity research terminal.
 PY := backend/.venv/bin/python
 
-.PHONY: dev test refresh refresh-daily tearsheets tearsheets-all clean
+.PHONY: dev test refresh refresh-daily tearsheets tearsheets-all \
+        history-export history-rebuild clean
 
 dev:            ## start the API (8000) and the UI (8501)
 	./run.sh
@@ -22,6 +23,12 @@ tearsheets:     ## write tearsheets for LLY, BMY, MRK to exports/ (needs the API
 
 tearsheets-all: ## write a tearsheet for every company to exports/ (no API needed)
 	$(PY) backend/tearsheet.py
+
+history-export: ## dump the snapshot history to data/history/*.ndjson for commit
+	$(PY) backend/history.py export
+
+history-rebuild: ## rebuild the database from committed data/history/*.ndjson
+	$(PY) backend/history.py rebuild
 
 clean:          ## remove generated tearsheets
 	rm -f exports/*.html
