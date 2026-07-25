@@ -69,6 +69,8 @@ def change_reason(change_type: str, old_value=None, new_value=None) -> Optional[
         return "new indication"
     if change_type == "label_change":
         return "label revised"
+    if change_type == "efficacy_supplement":
+        return "efficacy supplement"
     if change_type == "new_approval":
         return "FDA approval"
     if change_type == "new_filing":

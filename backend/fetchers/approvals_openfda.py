@@ -87,6 +87,10 @@ def _modality(application_number: str) -> str:
     return "biologic" if application_number.upper().startswith("BLA") else "small molecule"
 
 
+def _iso(raw) -> str | None:
+    return f"{raw[0:4]}-{raw[4:6]}-{raw[6:8]}" if raw and len(raw) == 8 else None
+
+
 def parse_drugsfda(payload: dict, ticker: str) -> list[dict]:
     """Turn a drugsfda payload into approval rows. Pure."""
     rows = []
@@ -113,6 +117,41 @@ def parse_drugsfda(payload: dict, ticker: str) -> list[dict]:
                 "marketing_status": products[0].get("marketing_status"),
             }
         )
+    return rows
+
+
+def parse_supplements(payload: dict, ticker: str) -> list[dict]:
+    """Approved efficacy supplements from the same payload. Pure.
+
+    An entry in submissions[] with class EFFICACY and status AP is a label expansion
+    that already happened; the application number and the approval date come straight
+    off it, so no second call is needed.
+    """
+    rows = []
+    for result in payload.get("results", []):
+        appl = (result.get("application_number") or "").upper()
+        if not re.match(r"[A-Za-z]+\d+", appl):
+            continue
+        brand = (result.get("products") or [{}])[0].get("brand_name")
+        for sub in result.get("submissions") or []:
+            if sub.get("submission_class_code") != "EFFICACY" \
+                    or sub.get("submission_status") != "AP":
+                continue
+            approval_date = _iso(sub.get("submission_status_date"))
+            if approval_date is None:
+                continue
+            rows.append({
+                "ticker": ticker,
+                "application_number": appl,
+                "internal_code": normalize_appl(
+                    *re.match(r"([A-Za-z]+)(\d+)", appl).groups()),
+                "submission_number": str(sub.get("submission_number") or ""),
+                "submission_class_code": "EFFICACY",
+                "approval_date": approval_date,
+                "brand": brand.title() if brand else None,
+                "description": sub.get("submission_class_code_description")
+                or "Efficacy supplement",
+            })
     return rows
 
 
@@ -174,8 +213,11 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
             merged.append(item)
         return {"results": merged}
 
-    def normalise(self, raw) -> list[dict]:
-        return parse_drugsfda(raw, self.ticker)
+    def normalise(self, raw) -> dict:
+        # Both signals come from the one payload: the approvals, and the approved
+        # efficacy supplements sitting inside the same submissions arrays.
+        return {"approvals": parse_drugsfda(raw, self.ticker),
+                "supplements": parse_supplements(raw, self.ticker)}
 
     # --- snapshots -------------------------------------------------------
     def _write_snapshot(self, conn, payload):
@@ -187,13 +229,16 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
             (self.source, self.ticker, json.dumps(payload), self.refresh_run_id),
         )
 
-    def snapshot(self, rows: list[dict]) -> None:
-        latest = max((r["approval_date"] for r in rows), default=None)
+    def snapshot(self, rows: dict) -> None:
+        approvals = rows["approvals"] if isinstance(rows, dict) else rows
+        latest = max((r["approval_date"] for r in approvals), default=None)
         conn = db.get_connection(self.db_path)
         try:
             self._write_snapshot(
                 conn,
-                {"ticker": self.ticker, "approvals": len(rows),
+                {"ticker": self.ticker, "approvals": len(approvals),
+                 "supplements": len(rows.get("supplements", []))
+                 if isinstance(rows, dict) else 0,
                  "latest_approval": latest, "source": OPENFDA_SOURCE, "fetch_kind": "live"},
             )
             conn.commit()
@@ -222,13 +267,15 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
             conn.close()
 
     # --- current-state table ---------------------------------------------
-    def upsert(self, rows: list[dict]) -> RefreshResult:
+    def upsert(self, rows: dict) -> RefreshResult:
+        approvals = rows["approvals"] if isinstance(rows, dict) else rows
+        supplements = rows.get("supplements", []) if isinstance(rows, dict) else []
         conn = db.get_connection(self.db_path)
         try:
             company_id = self._company_id(conn)
             if company_id is None:
                 return RefreshResult(self.source, 0, [f"unknown ticker {self.ticker}"], False, 0)
-            for row in rows:
+            for row in approvals:
                 asset_id = upsert_asset(
                     conn, company_id, row["internal_code"], row["brand"],
                     row["generic"], row["modality"],
@@ -245,7 +292,27 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
                     """,
                     (asset_id, row["approval_date"], row["application_number"], OPENFDA_SOURCE),
                 )
+            # Efficacy supplements attach to the asset that holds the application, so
+            # they resolve against the same internal_code the approval created.
+            for sup in supplements:
+                asset = conn.execute(
+                    "SELECT id FROM assets WHERE owner_company_id = ?"
+                    " AND internal_code = ?",
+                    (company_id, sup["internal_code"])).fetchone()
+                conn.execute(
+                    """
+                    INSERT INTO supplements (asset_id, application_number,
+                        submission_number, submission_class_code, approval_date,
+                        description)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(application_number, submission_number) DO UPDATE SET
+                        approval_date=excluded.approval_date,
+                        asset_id=excluded.asset_id, fetched_at=datetime('now')
+                    """,
+                    (asset["id"] if asset else None, sup["application_number"],
+                     sup["submission_number"], sup["submission_class_code"],
+                     sup["approval_date"], sup["description"]))
             conn.commit()
         finally:
             conn.close()
-        return RefreshResult(self.source, len(rows), [], False, 0)
+        return RefreshResult(self.source, len(approvals) + len(supplements), [], False, 0)

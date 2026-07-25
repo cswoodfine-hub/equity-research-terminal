@@ -1649,6 +1649,7 @@ with main:
         label_data = api_get(api_base, f"/companies/{ticker}/label-changes")
         detected = label_data.get("changes") or []
         current = label_data.get("current") or []
+        supplements = label_data.get("supplements") or []
         section(f"Label changes for {ticker}", len(detected))
         if not detected:
             state(f"No label changes detected for {ticker} yet",
@@ -1707,6 +1708,30 @@ with main:
                 'set; a dash is a label the extraction did not resolve, never a zero. '
                 'A version increment between refreshes becomes a change above.</div>',
                 unsafe_allow_html=True)
+
+        section(f"Approved efficacy supplements for {ticker}", len(supplements))
+        if not supplements:
+            state(f"No efficacy supplements on file for {ticker}",
+                  "An approved efficacy supplement is a label expansion, read from the "
+                  "drugsfda submissions. It fills on refresh. drugsfda is US CDER only, "
+                  "so a cell or gene therapy carries none here and is tracked through "
+                  "the DailyMed labels above and the Purple Book instead.")
+        else:
+            st.dataframe(pd.DataFrame([{
+                "Approved": s.get("approval_date") or "—",
+                "Product": s.get("brand_name") or "—",
+                "Application": s["application_number"],
+                "Supplement": s["submission_number"],
+                "Class": s.get("description") or "Efficacy"}
+                for s in supplements]),
+                width="stretch", hide_index=True)
+            st.markdown(
+                '<div class="byline">An approved efficacy supplement is a label '
+                'expansion by definition, from openFDA drugsfda, and it often arrives '
+                'before the DailyMed version bump. <b>US CDER only:</b> cell and gene '
+                'therapies are CBER-regulated and absent from drugsfda, so those '
+                'modalities are covered by the labels above and the Purple Book, not '
+                'here.</div>', unsafe_allow_html=True)
 
     # --- News ------------------------------------------------------------
     with news_tab:

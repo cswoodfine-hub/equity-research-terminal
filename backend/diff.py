@@ -323,6 +323,32 @@ def _diff_product_revenue(conn, run_id) -> int:
     return emitted
 
 
+def _diff_supplements(conn, run_id) -> int:
+    """A newly seen approved efficacy supplement is a label expansion. Same gate as
+    approvals: a company's first sighting baselines, and only a supplement approved
+    inside the recency window is news, so the back catalogue of old supplements is
+    not replayed as events."""
+    rows = conn.execute(
+        """
+        SELECT s.application_number, s.submission_number, s.approval_date,
+               a.brand_name, c.ticker
+          FROM supplements s
+          LEFT JOIN assets a ON a.id = s.asset_id
+          LEFT JOIN companies c ON c.id = a.owner_company_id
+        """
+    ).fetchall()
+    items = [
+        (f"{r['application_number']}:{r['submission_number']}",
+         {"approval_date": r["approval_date"], "ticker": r["ticker"]},
+         f"{r['ticker']} efficacy supplement: {r['brand_name'] or r['application_number']}"
+         f" approved {r['approval_date']}",
+         "high")
+        for r in rows
+    ]
+    return _detect_new(conn, run_id, "supplements", "supplement", items,
+                       "efficacy_supplement", "approval_date")
+
+
 def detect_changes(db_path=None, run_id=None) -> dict:
     conn = db.get_connection(db_path)
     try:
@@ -332,6 +358,7 @@ def detect_changes(db_path=None, run_id=None) -> dict:
             "new_approvals": _diff_approvals(conn, run_id),
             "restatements": _diff_product_revenue(conn, run_id),
             "label_changes": _diff_labels(conn, run_id),
+            "efficacy_supplements": _diff_supplements(conn, run_id),
         }
         conn.commit()
     finally:

@@ -390,7 +390,15 @@ def company_label_changes(ticker: str, days: int = Query(default=365)) -> dict:
     ticker = ticker.upper()
     return {"ticker": ticker,
             "changes": labels_module.list_label_changes(None, ticker, days),
-            "current": labels_module.current_labels(None, ticker)}
+            "current": labels_module.current_labels(None, ticker),
+            "supplements": labels_module.list_supplements(None, ticker)}
+
+
+@app.get("/companies/{ticker}/supplements")
+def company_supplements(ticker: str) -> dict:
+    """Approved efficacy supplements for one company, US CDER only."""
+    return {"ticker": ticker.upper(),
+            "supplements": labels_module.list_supplements(None, ticker.upper())}
 
 
 @app.get("/catalyst-grid")
