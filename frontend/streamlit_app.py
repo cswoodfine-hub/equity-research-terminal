@@ -567,10 +567,11 @@ if asof_state:
 
 with main:
     (universe_tab, insights_tab, prices_tab, financials_tab, pipeline_tab, loe_tab,
-     risk_tab, slippage_tab, approvals_tab, catalysts_tab, comps_tab,
+     risk_tab, slippage_tab, approvals_tab, labels_tab, catalysts_tab, comps_tab,
      news_tab) = st.tabs(
         ["Universe", "Key insights", "Prices", "Financials", "Pipeline", "LOE",
-         "Revenue at risk", "Slippage", "Approvals", "Catalysts", "Comps", "News"])
+         "Revenue at risk", "Slippage", "Approvals", "Labels", "Catalysts", "Comps",
+         "News"])
 
     # --- Universe: what moved across coverage since you last looked -------
     with universe_tab:
@@ -1642,6 +1643,70 @@ with main:
                     width="stretch", hide_index=True,
                     column_config={"Evidence": st.column_config.LinkColumn(
                         "Evidence", display_text=r"NCT\w+")})
+
+    # --- Labels ----------------------------------------------------------
+    with labels_tab:
+        label_data = api_get(api_base, f"/companies/{ticker}/label-changes")
+        detected = label_data.get("changes") or []
+        current = label_data.get("current") or []
+        section(f"Label changes for {ticker}", len(detected))
+        if not detected:
+            state(f"No label changes detected for {ticker} yet",
+                  "A change appears when a product's DailyMed label version increments "
+                  "between two refreshes. The tracked labels below are the baseline the "
+                  "next revision is measured against; this fills as labels revise.")
+        else:
+            # A widened population or a new indication is what an analyst reads first,
+            # so the detected changes lead, with the rule that flagged each.
+            st.markdown('<div class="feed">' + "".join(
+                feed_row({
+                    "date": (c.get("detected_at") or "")[:10],
+                    "headline": c.get("headline"),
+                    "significance": c.get("significance"),
+                    "reason": {"population_expansion": "population widened",
+                               "new_indication": "new indication",
+                               "label_change": "label revised"}.get(c["change_type"]),
+                }, show_reason=True) for c in detected) + "</div>",
+                unsafe_allow_html=True)
+
+        section("Tracked labels", f"{len(current)} products")
+        if not current:
+            state(f"No labels on file for {ticker}",
+                  "Labels are matched to marketed products by name on DailyMed and "
+                  "read on refresh. Press Refresh all, or a product may simply carry "
+                  "no DailyMed label.")
+        else:
+            priced = [c for c in current if c.get("indication_count") is not None]
+            st.markdown(
+                '<div class="pos">'
+                f'<div><span class="k">products tracked</span>'
+                f'<span class="v">{len(current)}</span>'
+                f'<span class="sub">matched on DailyMed</span></div>'
+                f'<div><span class="k">population resolved</span>'
+                f'<span class="v{"" if priced else " none"}">'
+                f'{len(priced) or "none"}</span>'
+                f'<span class="sub">indications extracted from the label</span></div>'
+                "</div>", unsafe_allow_html=True)
+            st.dataframe(pd.DataFrame([{
+                "Product": c["drug_name"], "SPL version": c["spl_version"],
+                "Effective": c.get("effective_time") or "—",
+                "Indications": (c["indication_count"]
+                                if c.get("indication_count") is not None else None),
+                "Age floor": (c["age_floor_years"]
+                              if c.get("age_floor_years") is not None else None),
+                "Population": c.get("population_text") or "—"}
+                for c in current]),
+                width="stretch", hide_index=True,
+                column_config={
+                    "Indications": st.column_config.NumberColumn(format="%d"),
+                    "Age floor": st.column_config.NumberColumn(format="%g")})
+            st.markdown(
+                '<div class="byline">Labels come from DailyMed, the NIH structured '
+                'product label service, free and versioned. The population is '
+                'extracted from the indications section by the model when a key is '
+                'set; a dash is a label the extraction did not resolve, never a zero. '
+                'A version increment between refreshes becomes a change above.</div>',
+                unsafe_allow_html=True)
 
     # --- News ------------------------------------------------------------
     with news_tab:
