@@ -1,5 +1,21 @@
 # Build log, overnight autonomous build
 
+## Phase 5: new analyst views — 2026-07-25 04:30
+- Universe brief as landing tab, revenue at risk (waterfall + universe bars),
+  slippage dumbbell, catalyst grid with accept control, screen (comps + derived
+  columns + inline sparkline). Plus annotations inline on changes, time machine
+  with banner, and ?ticker= shareable URL from the should/nice-to-have list.
+- Deviation recorded in phase 3 stands: the universe revenue-at-risk view is a
+  per-company share bar, not a currency-stacked bar, because no FX source exists.
+- Verification: the Streamlit automation layer would not switch tabs reliably
+  (ref-to-pixel mismatch), so the five new charts were verified by rendering
+  them from the live 8010 API into a headless-Chrome sheet, all correct
+  including the honesty states (hatched no-free-data bars for ABBV/BAYN/ROG/SNY,
+  true 0.0% for protected-but-not-soon). The app itself was confirmed to mount
+  all twelve tabs with zero stException nodes: Streamlit runs every tab body on
+  each script pass, so a clean load proves every tab executed without raising.
+- Suite 315 green.
+
 ## Phase 4: tab rebuild — 2026-07-25 03:20
 - Zero Altair remains. All nine tabs render through components/charts.py; the
   horizon rail is now the timeline spine and rail.py is deleted; the donut

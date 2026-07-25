@@ -730,11 +730,23 @@ with main:
             R.show(CH.sparkline(closes, 832, 72, label_last=True,
                                 marks=session_starts))
 
-        head, action = st.columns([5, 1])
+        head, action, sheet = st.columns([4, 1, 1])
         with head:
             section("Morning note")
         with action:
             regenerate = st.button("Generate", key="gen_note", width="stretch")
+        with sheet:
+            if st.button("Tearsheet", key="gen_sheet", width="stretch"):
+                with st.spinner(f"Writing the {ticker} tearsheet"):
+                    st.session_state["tearsheet"] = api_post(
+                        api_base, f"/companies/{ticker}/tearsheet")
+        made = st.session_state.get("tearsheet")
+        if made and made.get("ticker") == ticker:
+            st.markdown(
+                f'<div class="byline">Tearsheet written to '
+                f'<span class="mono">exports/{html_escape(made["filename"])}</span>. '
+                'Open it and print to A4, or save as PDF.</div>',
+                unsafe_allow_html=True)
 
         if regenerate:
             with st.spinner(f"Writing the {ticker} note"):

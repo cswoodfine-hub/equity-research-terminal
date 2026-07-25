@@ -28,6 +28,7 @@ import pipeline as pipeline_module
 import refresh as refresh_module
 import screen as screen_module
 import slippage as slippage_module
+import tearsheet as tearsheet_module
 import whatchanged as whatchanged_module
 
 
@@ -545,6 +546,16 @@ def accept_catalyst(catalyst_id: int) -> dict:
             status_code=404,
             detail=f"catalyst {catalyst_id} not found, or is already curated")
     return {"accepted": catalyst_id}
+
+
+@app.post("/companies/{ticker}/tearsheet")
+def make_tearsheet(ticker: str) -> dict:
+    """Write a one-page print-styled tearsheet to exports/ and return its path."""
+    try:
+        path = tearsheet_module.build(ticker)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {"ticker": ticker.upper(), "path": str(path), "filename": path.name}
 
 
 @app.post("/refresh")

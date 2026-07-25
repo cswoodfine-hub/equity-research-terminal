@@ -24,3 +24,6 @@ _extracted/
 # OS
 .DS_Store
 backend/cache/
+
+# Generated tearsheets
+exports/*.html
