@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>FDA Press Releases</title>
+    <item>
+      <title>FDA Approves New Eli Lilly Treatment for Type 2 Diabetes</title>
+      <link>https://www.fda.gov/news-events/press-announcements/lilly-t2d</link>
+      <pubDate>Fri, 17 Jul 2026 12:00:00 EST</pubDate>
+      <description>The agency approved a product from Eli Lilly and Company.</description>
+    </item>
+    <item>
+      <title>FDA Approves First Gene Therapy for Young Children with Sickle Cell</title>
+      <link>https://www.fda.gov/news-events/press-announcements/casgevy-peds</link>
+      <pubDate>Wed, 01 Jul 2026 09:00:00 EST</pubDate>
+      <description>Casgevy from Vertex Pharmaceuticals gains a pediatric indication.</description>
+    </item>
+    <item>
+      <title>FDA Modernizes Drug Manufacturing Registration Rule</title>
+      <link>https://www.fda.gov/news-events/press-announcements/registration</link>
+      <pubDate>Fri, 10 Jul 2026 08:00:00 EST</pubDate>
+      <description>A general policy update naming no company.</description>
+    </item>
+  </channel>
+</rss>

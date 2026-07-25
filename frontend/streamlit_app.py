@@ -662,6 +662,36 @@ with main:
                 }, show_reason=True) for c in soon_cats[:20]) + "</div>",
                 unsafe_allow_html=True)
 
+        section("FDA announcements", "press, drugs, safety")
+        reg_news = api_get(api_base, "/regulatory-news").get("news") or []
+        if not reg_news:
+            state("No FDA announcements on file",
+                  "The FDA press, drug and MedWatch feeds are read on refresh and "
+                  "matched to a company by name or brand. Press Refresh all.")
+        else:
+            # A company-matched item is the signal; a general FDA notice is context.
+            # Show the matched ones first, then fill with the most recent unmatched, so
+            # a bound approval never falls below the fold behind agency housekeeping.
+            matched = [n for n in reg_news if n.get("ticker")]
+            unmatched = [n for n in reg_news if not n.get("ticker")]
+            shown = matched + unmatched[: max(0, 18 - len(matched))]
+            st.markdown('<div class="feed">' + "".join(
+                f'<div class="fitem"><span class="d">{(n.get("published_at") or "")[:10]}'
+                f'</span><span class="t">'
+                f'{("<b>" + n["ticker"] + "</b> ") if n.get("ticker") else ""}'
+                f'{html_escape(n["title"])}</span>'
+                f'<span class="why"></span>'
+                f'<span class="s">{html_escape((n.get("source") or "").replace("fda_", ""))}'
+                f'</span></div>' for n in shown) + "</div>",
+                unsafe_allow_html=True)
+            st.markdown(
+                '<div class="byline">FDA press, drug and MedWatch safety feeds, the '
+                'announcement layer around approvals and label changes. A bold ticker '
+                'is a matched company; it reaches CBER products too, so a gene-therapy '
+                'approval shows here even when drugsfda does not carry it. EMA retired '
+                'its news feed, so the EU indication-extension signal comes from the '
+                'EPAR data instead.</div>', unsafe_allow_html=True)
+
         section("Catalyst grid, 18 months", "count per company month")
         grid_data = api_get(api_base, "/catalyst-grid")
         cells = {}
@@ -1736,16 +1766,23 @@ with main:
     # --- News ------------------------------------------------------------
     with news_tab:
         news = api_get(api_base, f"/companies/{ticker}/news")["news"]
-        section(f"Material events for {ticker}", len(news))
+        section(f"News and announcements for {ticker}", len(news))
         if not news:
-            state(f"No filings on file for {ticker}",
-                  "Press Refresh all on the Comps tab to pull 8-K and 6-K material "
-                  "events from EDGAR. European filers submit 6-K, not 8-K.")
+            state(f"No news on file for {ticker}",
+                  "Press Refresh all to pull EDGAR 8-K and 6-K material events and the "
+                  "FDA press, drug and safety feeds matched to this company. European "
+                  "filers submit 6-K, not 8-K.")
         else:
+            _src = {"fda_press": "FDA press", "fda_drugs": "FDA drug",
+                    "fda_safety": "FDA safety"}
             st.dataframe(
-                pd.DataFrame([{"Published": n["published_at"], "Title": n["title"],
-                               "Link": n["url"]} for n in news]),
+                pd.DataFrame([{
+                    "Published": n["published_at"],
+                    "Source": _src.get(n.get("source"), "EDGAR"),
+                    "Title": n["title"], "Link": n["url"]} for n in news]),
                 width="stretch", hide_index=True,
                 column_config={"Link": st.column_config.LinkColumn("Link")})
-            st.markdown('<div class="byline">From EDGAR 8-K and 6-K material events. '
-                        'IR RSS is a labelled future add.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="byline">EDGAR 8-K and 6-K material events, plus '
+                        'the FDA press, drug and MedWatch feeds matched to this company '
+                        'by name or brand. The full FDA feed is on the Universe '
+                        'tab.</div>', unsafe_allow_html=True)

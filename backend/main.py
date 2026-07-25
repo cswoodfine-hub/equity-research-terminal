@@ -531,6 +531,29 @@ def company_news(ticker: str) -> dict:
     return {"ticker": ticker, "news": rows}
 
 
+@app.get("/regulatory-news")
+def regulatory_news(days: int = Query(default=120)) -> dict:
+    """Recent FDA announcement items across the universe, matched company first.
+
+    From the FDA press, drug and safety feeds. An item that named no tracked company
+    is kept too, so the announcement layer is complete rather than pre-filtered."""
+    conn = db.get_connection()
+    try:
+        rows = [dict(r) for r in conn.execute(
+            """
+            SELECT n.source, n.title, n.url, n.published_at, c.ticker
+              FROM news n LEFT JOIN companies c ON c.id = n.company_id
+             WHERE n.source LIKE 'fda_%'
+               AND (n.published_at IS NULL OR n.published_at >= date('now', ?))
+             ORDER BY n.published_at DESC, n.id DESC LIMIT 80
+            """,
+            (f"-{int(days)} days",),
+        )]
+    finally:
+        conn.close()
+    return {"news": rows}
+
+
 @app.get("/catalysts")
 def catalysts(within_days: int = Query(default=90),
               ticker: Optional[str] = Query(default=None)) -> list[dict]:

@@ -25,7 +25,30 @@ Verified live: 347 real supplements (LLY 103, MRK 245). The CBER gap is stated
 plainly in the view rather than scraped: drugsfda is CDER only, and cell and gene
 therapies are already covered by the DailyMed labels and the Purple Book.
 
-Suite 356. Four migrations now (annotations, fx, labels, supplements), all
+**Item 4, FDA announcement feeds (done).** rssfeed.py parses the FDA press,
+drug and MedWatch RSS feeds; fetchers/news_fda.py is one universe fetcher that
+matches each item to a company and writes it to the news table, so an approval
+or a supplement shows here as the announcement that corroborates it. It reaches
+the CBER products drugsfda cannot: the sickle-cell gene-therapy press release
+binds to VRTX through Casgevy. A /regulatory-news endpoint and an FDA
+announcements section on the Universe tab, matched items first so a bound
+approval never falls below agency housekeeping; the News tab gains a source
+column. Verified live: 58 FDA items, 6 correct company matches (VRTX Casgevy,
+ROG Xofluza, SNY Tzield, GILD Hepcludex, JNJ Abiomed), 774 EDGAR rows untouched.
+
+Company matching is the hard part and the first live run bound wrong: the
+product-revenue parser had written 10-K segment lines into brand_name (GENERAL,
+Liver Disease Products Vemlidy, Children'S Allegra Allergy), so any title with a
+common word stuck to a company. Fixed by trusting only a single coined word as a
+brand token: a brand_name with a space is a revenue label or a two-drug combo
+and there is no safe way to know which word is the brand, so it is dropped rather
+than guessed, and a lone segment or ingredient word is dropped too. Re-ran clean.
+
+EMA's general news RSS was retired; only per-medicine feeds remain, so the EU
+indication-extension signal is deferred to item 7, the EPAR downloadable data,
+and noted rather than scraped.
+
+Suite 365. Four migrations now (annotations, fx, labels, supplements), all
 additive.
 
 ## Follow-up: the five V2 recommendations — 2026-07-25 07:20

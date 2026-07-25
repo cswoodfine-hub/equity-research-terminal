@@ -30,6 +30,7 @@ from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
 from fetchers.fx_ecb import FxEcbFetcher
 from fetchers.labels_dailymed import LabelsDailyMedFetcher
+from fetchers.news_fda import NewsFdaFetcher
 from fetchers.prices import IntradayPricesFetcher, PricesFetcher
 from fetchers.product_revenue_sec import ProductRevenueFetcher
 from fetchers.trials_ctgov import TrialsFetcher
@@ -63,7 +64,8 @@ def _universe_fetchers(db_path):
     revenue from the SEC bulk data sets which move quarterly, and the ECB daily FX
     reference set that lets the universe view convert to one display currency)."""
     return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path),
-            ProductRevenueFetcher(db_path), FxEcbFetcher(db_path)]
+            ProductRevenueFetcher(db_path), FxEcbFetcher(db_path),
+            NewsFdaFetcher(db_path)]
 
 
 def _start_run(db_path) -> int:
