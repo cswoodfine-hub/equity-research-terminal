@@ -151,6 +151,30 @@ table, so a company reporting in USD values without a stored rate.
 Suite 393. Still eight migrations; this layer is computation over what the earlier
 items already collect.
 
+**Item 8b, biologic LOE for the valuation (done).** The first cut left the
+biologics unvalued, which for most companies is the larger half. A biologic's
+cliff is patent-driven and no free source publishes it, so biologic_loe.py derives
+one (migration 009): the later of the 12-year BPCIA reference-product exclusivity,
+counted from the approval on file, and the biosimilar year the company states in
+its own 10-K risk factors, read over the model seam with the same guard the PDUFA
+extractor uses, a year only counts when a sentence in the filing names it. The
+later of the two is right because a biologic is protected until both lapse, and it
+turns the disclosure into a check on itself, since a disclosed year below the floor
+is a misread. The valuation takes the later of this and any published Orange or
+Purple date, and labels each product's basis.
+
+The floor runs without a model, so MRK's protected value rose from 30.2bn to
+39.3bn on the floor alone as Winrevair and others came in; the disclosure refines
+it upward when a model answers. The Groq free tier's daily token budget was spent
+by the day's other extractions, so the live disclosure pass returned nothing this
+run and the biologics sit on the floor; the extractor was verified against Merck's
+real 10-K text, which yields Keytruda 2028 and rejects a fabricated finding, and
+it will populate on the next refresh. Keytruda's own floor, 2026, has already
+passed, so it stays unvalued until that disclosure lands, and is named in the
+unvalued list until then.
+
+Suite 399. Nine migrations now, all additive.
+
 ## Follow-up: the five V2 recommendations — 2026-07-25 07:20
 All five items from the final message, implemented, tested, committed one concern
 each on top of the overnight build.

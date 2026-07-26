@@ -63,8 +63,10 @@ def company_valuation(db_path, ticker: str, rate: float = DISCOUNT_RATE) -> dict
                    a.internal_code,
                    (SELECT MAX(e.expiry_date) FROM exclusivities e
                      WHERE e.asset_id = a.id
-                       AND COALESCE(e.protection_type, '') != ?) AS loe
+                       AND COALESCE(e.protection_type, '') != ?) AS book_loe,
+                   bl.loe_date AS bio_loe, bl.basis AS bio_basis
               FROM assets a
+              LEFT JOIN biologic_loe bl ON bl.asset_id = a.id
              WHERE a.owner_company_id = ?
             """,
             (NOT_A_CLIFF, company_id),
@@ -87,7 +89,19 @@ def company_valuation(db_path, ticker: str, rate: float = DISCOUNT_RATE) -> dict
         # one, and stay null when it is absent rather than being counted at par.
         revenue_usd = (known["value"] if known["unit"] == "USD"
                        else fx.to_usd(known["value"], known["unit"], rates))
-        loe_year = int(row["loe"][:4]) if row["loe"] else None
+        # The protection date is the later of the published Orange or Purple Book cliff
+        # and the derived biologic LOE, since a biologic is protected until both have
+        # lapsed. The basis records which one governs, so the source is always visible.
+        book, bio = row["book_loe"], row["bio_loe"]
+        if book and bio:
+            loe, loe_basis = (book, "Orange/Purple Book") if book >= bio else (bio, row["bio_basis"])
+        elif book:
+            loe, loe_basis = book, "Orange/Purple Book"
+        elif bio:
+            loe, loe_basis = bio, row["bio_basis"]
+        else:
+            loe, loe_basis = None, None
+        loe_year = int(loe[:4]) if loe else None
         years = (loe_year - today.year) if loe_year is not None else None
         rnpv = None
         if revenue_usd is not None and years is not None and years > 0:
@@ -109,7 +123,8 @@ def company_valuation(db_path, ticker: str, rate: float = DISCOUNT_RATE) -> dict
             "modality": row["modality"], "application": row["internal_code"],
             "revenue": known["value"], "currency": known["unit"],
             "revenue_usd": revenue_usd, "fiscal_year": known["fiscal_year"],
-            "loe": row["loe"], "loe_year": loe_year, "years_protected": years,
+            "loe": loe, "loe_year": loe_year, "loe_basis": loe_basis,
+            "years_protected": years,
             "pos": POS_BY_PHASE["Marketed"], "rnpv_usd": rnpv, "reason": reason,
             "medicare_spend": demand.get(row["asset_id"]),
         })

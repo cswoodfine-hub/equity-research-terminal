@@ -61,6 +61,37 @@ def test_company_valuation_values_the_cliffed_product_only(tmp_path):
     assert v["unvalued_revenue_usd"] == 1000000000
 
 
+def test_derived_biologic_loe_values_an_orphan_only_biologic(tmp_path):
+    db_file = tmp_path / "t.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    lly = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    this_year = dt.date.today().year
+    asset_id = conn.execute(
+        "INSERT INTO assets (owner_company_id, brand_name, modality, is_marketed)"
+        " VALUES (?, 'Ebglyss', 'biologic', 1)", (lly,)).lastrowid
+    conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, value, unit)"
+                 " VALUES (?, ?, 1000000000, 'USD')", (asset_id, this_year - 1))
+    # Only an orphan date on the books, so the published cliff is excluded; a derived
+    # biologic LOE ten years out is what gives it a value.
+    conn.execute("INSERT INTO exclusivities (asset_id, protection_type, expiry_date)"
+                 " VALUES (?, 'orphan exclusivity', ?)", (asset_id, f"{this_year + 4}-01-01"))
+    conn.execute("INSERT INTO biologic_loe (asset_id, loe_year, loe_date, basis,"
+                 " floor_year, disclosed_year) VALUES (?, ?, ?, '10-K and statutory floor',"
+                 " ?, ?)", (asset_id, this_year + 10, f"{this_year + 10}-06-30",
+                           this_year + 8, this_year + 10))
+    conn.commit()
+    conn.close()
+
+    v = valuation.company_valuation(db_file, "LLY")
+    assert [r["brand"] for r in v["valued"]] == ["Ebglyss"]
+    row = v["valued"][0]
+    assert row["years_protected"] == 10
+    assert row["loe_basis"] == "10-K and statutory floor"   # the derived date, not orphan
+    assert round(row["rnpv_usd"] / 1e9, 4) == 6.1446
+
+
 def test_unknown_ticker_is_none(tmp_path):
     db_file = tmp_path / "t.db"
     db.init(db_file)

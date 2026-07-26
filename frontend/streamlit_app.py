@@ -1533,17 +1533,27 @@ with main:
                 f'<span class="sub">USD bn, no free patent cliff</span></div>'
                 '</div>', unsafe_allow_html=True)
             if vrows:
+                _basis = {"Orange/Purple Book": "Orange/Purple Book",
+                          "10-K and statutory floor": "10-K + 12yr",
+                          "10-K disclosure": "10-K disclosure",
+                          "statutory floor": "12yr statutory"}
                 frame = pd.DataFrame([{
                     "Drug": a["brand"], "Modality": a["modality"] or "—",
                     "Revenue $bn": T.num((a["revenue_usd"] or 0) / 1e9, 2),
                     "Protected to": a["loe_year"], "Years": a["years_protected"],
+                    "Basis": _basis.get(a.get("loe_basis"), "—"),
                     "rNPV $bn": T.num((a["rnpv_usd"] or 0) / 1e9, 1),
                     "Medicare $m": (T.num(a["medicare_spend"] / 1e6, 0)
                                     if a.get("medicare_spend") else "—")}
                     for a in vrows])
                 st.dataframe(frame.style.map(
                     lambda v: f"color:{T.P.modality.get(v, T.P.stale)};font-weight:600",
-                    subset=["Modality"]), width="stretch", hide_index=True)
+                    subset=["Modality"])
+                    # A derived biologic date is an estimate, so its basis reads muted
+                    # against the published Orange/Purple Book one.
+                    .map(lambda v: f"color:{T.P.stale}"
+                         if v != "Orange/Purple Book" else "", subset=["Basis"]),
+                    width="stretch", hide_index=True)
             unval = [a for a in (val.get("unvalued") or []) if a.get("revenue_usd")]
             if unval:
                 st.markdown(
@@ -1562,7 +1572,14 @@ with main:
                 'phase-to-probability benchmarks are the framework for a pipeline asset, '
                 'but no free source gives a pipeline drug its peak sales, so the pipeline '
                 'is not valued. Medicare spending is a real-world demand cross-check, not '
-                'an input.</div>', unsafe_allow_html=True)
+                'an input.<br>'
+                '<b>Basis</b> is where the LOE date comes from. A small molecule uses the '
+                'Orange Book patent. A biologic has no free patent cliff, so it uses the '
+                'later of its 12-year statutory exclusivity, counted from approval, and '
+                'the biosimilar year the company states in its own 10-K, read out over '
+                'the model seam and shown only when a sentence in the filing backs it. '
+                'The derived dates read muted, since they are an estimate rather than a '
+                'published date.</div>', unsafe_allow_html=True)
 
     # --- Slippage --------------------------------------------------------
     with slippage_tab:
