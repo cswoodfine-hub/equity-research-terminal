@@ -23,9 +23,11 @@ location, so the first kickstart failed with PermissionError on pyvenv.cfg: a la
 job has no user session and cannot read there, nor prompt for access. The job now runs
 through deploy/run_refresh.sh so a single stable binary, /bin/bash, is the one that
 needs Full Disk Access; the python it launches inherits it. The agent is installed and
-loaded, but the 06:00 run stays blocked until Full Disk Access is granted to /bin/bash
-in System Settings, which only the user can do. README documents the grant, install,
-test, time change and removal. End-to-end verification is pending that grant.
+loaded, and once Full Disk Access was granted to /bin/bash in System Settings the run
+went through: a kickstart wrote refresh run 27 (partial, the only error a benign 404
+for the not-yet-published 2026 Q3 SEC dataset) and advanced the database, with no note
+regenerated and the extractors finding nothing new to read. README documents the grant,
+install, test, time change and removal.
 
 ## Morning note on Gemini, with a company snapshot — 2026-07-26 15:30
 The morning note was reading like a machine walking a list: it opened "The most
