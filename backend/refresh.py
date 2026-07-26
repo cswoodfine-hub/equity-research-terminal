@@ -26,6 +26,7 @@ import pdufa
 from fetchers.adcomm_fedreg import AdCommFetcher
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 from fetchers.demand_cms import DemandCmsFetcher
+from fetchers.filing_text_edgar import FilingTextEdgarFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
 from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
@@ -59,6 +60,9 @@ def _company_fetchers(company, db_path):
     if company["is_sec_filer"] and company["cik"]:
         fetchers.append(FinancialsEdgarFetcher(company["ticker"], db_path))
         fetchers.append(FilingsEdgarFetcher(company["ticker"], db_path))
+        # Runs after the filings fetcher, which populates the 10-K/10-Q rows whose
+        # documents this one reads for the risk factors and MD&A text.
+        fetchers.append(FilingTextEdgarFetcher(company["ticker"], db_path))
     return fetchers
 
 

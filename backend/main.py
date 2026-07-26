@@ -22,6 +22,7 @@ import catalysts as catalysts_module
 import comps as comps_module
 import db
 import demand as demand_module
+import filing_diff as filing_diff_module
 import financials_view as financials_view_module
 import insights as insights_module
 import labels as labels_module
@@ -241,6 +242,17 @@ def company_exclusivities(ticker: str) -> dict:
     if rows is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     return {"ticker": ticker.upper(), "assets": rows}
+
+
+@app.get("/companies/{ticker}/filing-text")
+def company_filing_text(ticker: str) -> dict:
+    """Risk factors and MD&A of the latest filings, diffed against the prior of the same
+    form, with the passages that were added. Empty until a filing has a prior to compare
+    against, which for a foreign 20-F filer is never, since their layout differs."""
+    rows = filing_diff_module.company_filing_diff(None, ticker)
+    if rows is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return {"ticker": ticker.upper(), "sections": rows}
 
 
 @app.get("/companies/{ticker}/demand")

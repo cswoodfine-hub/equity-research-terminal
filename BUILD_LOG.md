@@ -100,6 +100,35 @@ absent by construction.
 
 Suite 382. Seven migrations now, all additive.
 
+**Item 7, filing text diff (done).** The numbers in a 10-K change on their own
+schedule; the words change once a year and say what management is worried about.
+filingtext.py pulls two sections out of a filing, Risk Factors and MD&A, and
+diffs one filing against the last of the same form at the paragraph level. A
+per-company fetcher reads the primary document of the recent 10-K and 10-Q
+filings already in the filings table, extracts the sections and stores them
+(migration 008); the diff engine turns a rewritten risk factors section into a
+change row that flows into the What Changed feed, and a /companies/{ticker}/
+filing-text endpoint plus a section on the News tab show the passages that were
+actually added.
+
+Only risk factors is flagged. It is prose that turns over slowly, so what is
+added or removed is a real signal; MD&A is rewritten wholesale every period, a
+ratio of about 0.15 against the prior, so it is stored but never an event.
+Verified live: ABBV 31 added and 22 removed year on year, MRK 72 and 58, and the
+added ABBV passages are the new IRA pricing and most-favored-nation risks naming
+Imbruvica, Vraylar and Botox as Medicare price-negotiation drugs, which is
+exactly the paragraph an analyst wants surfaced.
+
+Section extraction is the hard part and two live bugs shaped it. MD&A first came
+back empty because the end pattern matched the many in-text cross-references to
+"Item 8" inside the section; anchoring the end on the next section's own title,
+"Quantitative and Qualitative Disclosures", fixed it. A section is named twice on
+the page, in the contents and for real, so every candidate start is tried and the
+longest run of text wins. Foreign 20-F filers lay their sections out under
+different item numbers and are left for a later pass, stated in the view.
+
+Suite 390. Eight migrations now, all additive.
+
 ## Follow-up: the five V2 recommendations — 2026-07-25 07:20
 All five items from the final message, implemented, tested, committed one concern
 each on top of the overnight build.

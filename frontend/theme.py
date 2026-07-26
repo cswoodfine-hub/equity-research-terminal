@@ -282,6 +282,9 @@ h3 {{ font-size: 0.9rem; }}
 .note ul {{ margin: 0.1rem 0; padding-left: 1.1rem; }}
 .note li {{ margin: 0.05rem 0; }}
 .byline {{ font-size: 11px; color: var(--muted); margin-top: 0.35rem; }}
+/* A passage added to a filing section, quoted full width for review. */
+.rf-add {{ font-size: 12px; line-height: 1.42; border-left: 2px solid var(--flag);
+          padding: 2px 0 2px 10px; margin: 5px 0; }}
 
 /* The full trial description, shown when a pipeline row is clicked. */
 .trial-detail {{ font-size: 13px; line-height: 1.45;

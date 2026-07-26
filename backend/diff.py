@@ -15,6 +15,7 @@ from datetime import date, timedelta
 
 import db
 import edgar_items
+import filingtext
 import materiality
 
 # A first-seen filing or approval only counts as news if it is also recent. Wide enough to
@@ -349,6 +350,51 @@ def _diff_supplements(conn, run_id) -> int:
                        "efficacy_supplement", "approval_date")
 
 
+def _diff_filing_text(conn, run_id) -> int:
+    """A rewritten risk factors section becomes a change row.
+
+    Risk factors is prose that turns over slowly, so what is added or removed against the
+    last filing of the same form is a real signal; MD&A is rewritten wholesale every
+    period and carries no comparable signal, so it is stored but not flagged. The two
+    most recent filings of a form are compared, keyed on the newer accession so the event
+    emits once and a re-run detects nothing new.
+    """
+    emitted = 0
+    companies = [r["company_id"] for r in conn.execute(
+        "SELECT DISTINCT company_id FROM filing_sections")]
+    for company_id in companies:
+        ticker_row = conn.execute(
+            "SELECT ticker FROM companies WHERE id = ?", (company_id,)).fetchone()
+        ticker = ticker_row["ticker"] if ticker_row else None
+        for form in ("10-K", "10-Q"):
+            rows = conn.execute(
+                "SELECT accession, filed_date, text FROM filing_sections"
+                " WHERE company_id = ? AND form_type = ? AND section = 'risk_factors'"
+                " ORDER BY filed_date DESC, accession DESC LIMIT 2",
+                (company_id, form)).fetchall()
+            if len(rows) < 2:
+                continue                       # no prior of this form to compare against
+            newest, prior = rows[0], rows[1]
+            already = conn.execute(
+                "SELECT 1 FROM changes WHERE entity_type = 'filing'"
+                "   AND entity_key = ? AND field = 'risk_factors' LIMIT 1",
+                (newest["accession"],)).fetchone()
+            if already:
+                continue
+            result = filingtext.diff_sections(prior["text"], newest["text"])
+            if not result["changed"]:
+                continue
+            magnitude = result["added"] + result["removed"]
+            significance = "high" if magnitude >= 8 else "medium"
+            headline = (f"{ticker} risk factors changed: {result['added']} added, "
+                        f"{result['removed']} removed vs {form} {prior['filed_date'][:4]}")
+            _write_change(conn, "filing", newest["accession"], "risk_factors",
+                          prior["accession"], headline, "risk_factors_change",
+                          significance, run_id)
+            emitted += 1
+    return emitted
+
+
 def detect_changes(db_path=None, run_id=None) -> dict:
     conn = db.get_connection(db_path)
     try:
@@ -359,6 +405,7 @@ def detect_changes(db_path=None, run_id=None) -> dict:
             "restatements": _diff_product_revenue(conn, run_id),
             "label_changes": _diff_labels(conn, run_id),
             "efficacy_supplements": _diff_supplements(conn, run_id),
+            "filing_text_changes": _diff_filing_text(conn, run_id),
         }
         conn.commit()
     finally:

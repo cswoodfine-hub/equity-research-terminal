@@ -75,6 +75,8 @@ def change_reason(change_type: str, old_value=None, new_value=None) -> Optional[
         return "FDA approval"
     if change_type == "new_filing":
         return "new filing"
+    if change_type == "risk_factors_change":
+        return "risk factors changed"
     if change_type == "revenue_restatement":
         return f"restated over {REVENUE_RESTATEMENT_PCT:.0%}"
     return None

@@ -1871,3 +1871,43 @@ with main:
                         'the FDA press, drug and MedWatch feeds matched to this company '
                         'by name or brand. The full FDA feed is on the Universe '
                         'tab.</div>', unsafe_allow_html=True)
+
+        # --- Filing text changes ---
+        # The numbers in a 10-K change on their own schedule; the words change once a
+        # year. A rewritten risk factors section is a real signal with no structured
+        # field, so it is diffed against the last filing of the same form.
+        section("Filing text changes", "risk factors, latest filings")
+        ftext = api_get(api_base, f"/companies/{ticker}/filing-text").get("sections") or []
+        risk = [s for s in ftext
+                if s["section"] == "risk_factors" and s.get("added") is not None]
+        if not risk:
+            state(f"No filing text comparison for {ticker}",
+                  "Two filings of the same form are needed to diff the words. US filers "
+                  "get a 10-K and 10-Q comparison on refresh; a foreign 20-F filer lays "
+                  "its sections out under different item numbers and is a labelled future "
+                  "add. Press Refresh all if this looks empty.")
+        else:
+            for s in risk:
+                changed = (f" · {round((1 - s['ratio']) * 100)}% changed"
+                           if s.get("ratio") is not None else "")
+                st.markdown(
+                    f'<div class="byline"><b>{s["form"]} risk factors</b> · '
+                    f'{s["added"]} added, {s["removed"]} removed vs {s["prior_date"]}'
+                    f'{changed}</div>', unsafe_allow_html=True)
+                if s.get("added_passages"):
+                    st.markdown("".join(
+                        f'<div class="rf-add">{html_escape(p[:400])}'
+                        f'{"…" if len(p) > 400 else ""}</div>'
+                        for p in s["added_passages"][:5]), unsafe_allow_html=True)
+            mdna = next((s for s in ftext if s["section"] == "mdna"
+                         and s.get("ratio") is not None), None)
+            note = ("" if not mdna else
+                    f" MD&A is rewritten each period, {round((1 - mdna['ratio']) * 100)}% "
+                    f"changed in the latest {mdna['form']}, so it is kept but not flagged "
+                    f"as an event.")
+            st.markdown(
+                '<div class="byline">Risk factors are prose that turns over slowly, so '
+                'what is added or removed against the last filing of the same form is the '
+                'signal, and the added passages read in full above. The diff is '
+                'structural, sentence by sentence, with no model in the loop.' + note
+                + '</div>', unsafe_allow_html=True)

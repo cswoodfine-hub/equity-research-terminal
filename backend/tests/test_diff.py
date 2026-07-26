@@ -118,7 +118,8 @@ def test_baseline_then_detect_then_idempotent(tmp_path):
     assert diff.detect_changes(db_file) == {"trial_changes": 0, "new_filings": 0,
                                             "new_approvals": 0, "restatements": 0,
                                             "label_changes": 0,
-                                            "efficacy_supplements": 0}
+                                            "efficacy_supplements": 0,
+                                            "filing_text_changes": 0}
     assert _changes(db_file) == []
 
     # Change the trial and add a new filing.
