@@ -27,8 +27,10 @@ import db
 
 # Windows around the event, in trading days relative to the last bar on or before the
 # event date. Negative is the run-up into the event, positive is the reaction after it,
-# so the study shows both whether a move was anticipated and how it landed.
+# so the study shows both whether a move was anticipated and how it landed. About 21
+# trading days to a month, so 63 is the three-month run-up.
 WINDOWS = (
+    {"key": "runup_3m", "label": "run-up 3mo", "a": -63, "b": 0},
     {"key": "runup_1m", "label": "run-up 1mo", "a": -21, "b": 0},
     {"key": "runup_1w", "label": "run-up 1wk", "a": -5, "b": 0},
     {"key": "after_1d", "label": "after 1d", "a": 0, "b": 1},
