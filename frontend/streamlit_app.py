@@ -1742,23 +1742,45 @@ with main:
                 f'</span></div>'
                 '</div>', unsafe_allow_html=True)
 
-            # Revenue rolling off at loss of exclusivity, by year: the data-backed
-            # revenue-at-risk that replaces the rNPV scaffold.
-            by_year: dict = {}
+            # Loss of exclusivity by year. Two cuts of the same expiries. The count
+            # cliff shows every product with a published expiry, so nothing is hidden by
+            # the free-data revenue gap. The revenue chart below weights only the few
+            # products with tagged revenue, which is sparse and must not read as the
+            # whole cliff.
+            count_by_year: dict = {}
+            rev_by_year: dict = {}
             for p in prods:
                 y, r = _loe_year(p), p.get("revenue")
-                if y and r and today.year <= y <= today.year + 10:
-                    by_year[y] = by_year.get(y, 0) + r
-            if by_year:
-                section("Revenue rolling off at LOE", f"next 10 years, {rev_unit} bn")
-                bars = [{"label": f"'{y % 100:02d}", "value": by_year[y] / 1e9}
-                        for y in sorted(by_year)]
-                R.show(CH.bar_chart(bars, 900, 200, value_fmt=lambda v: T.num(v, 1)))
+                if y and today.year <= y <= today.year + 10:
+                    count_by_year[y] = count_by_year.get(y, 0) + 1
+                    if r:
+                        rev_by_year[y] = rev_by_year.get(y, 0) + r
+            if count_by_year:
+                years = list(range(today.year, today.year + 11))
+                section("Loss of exclusivity by year", "products, next 10 years")
+                bars = [{"label": f"'{y % 100:02d}",
+                         "value": count_by_year.get(y, 0),
+                         "colour": TK.DOWN, "show_value": count_by_year.get(y, 0) > 0}
+                        for y in years]
+                R.show(CH.bar_chart(bars, 900, 190, value_fmt=lambda v: str(int(v))))
                 st.markdown(
-                    '<div class="byline">Tagged product revenue that loses exclusivity '
-                    'each year, expiries from the Orange and Purple Books, revenue the '
-                    'latest reported held flat. A product with no tagged revenue or no '
-                    'published expiry is not counted, never estimated.</div>',
+                    '<div class="byline">Every marketed product losing US exclusivity '
+                    'that year, expiries from the Orange and Purple Books, counted whether '
+                    'or not its revenue is tagged. A small molecule is placed at its latest '
+                    'patent, a biologic at the later of its listed expiry and the 12-year '
+                    'floor. A product with no published expiry cannot be placed and is left '
+                    'out, never estimated.</div>',
+                    unsafe_allow_html=True)
+            if rev_by_year:
+                section("Revenue at risk by year", f"tagged products only, {rev_unit} bn")
+                bars = [{"label": f"'{y % 100:02d}", "value": rev_by_year[y] / 1e9}
+                        for y in sorted(rev_by_year)]
+                R.show(CH.bar_chart(bars, 900, 190, value_fmt=lambda v: T.num(v, 1)))
+                st.markdown(
+                    '<div class="byline">The subset of the cliff above whose product '
+                    'revenue is tagged in the SEC data sets, latest reported held flat. '
+                    'Free data tags revenue for only a few products, so this understates '
+                    'the money at risk and is a floor, not the total.</div>',
                     unsafe_allow_html=True)
 
             # Revenue mix, above the product cards: what the company earns, by product.
