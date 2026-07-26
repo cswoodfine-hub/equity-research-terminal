@@ -504,27 +504,38 @@ def _spine_key(item) -> str:
     return hashlib.md5(seed.encode("utf-8")).hexdigest()[:10]
 
 
-def _spine_items(feed_items: list) -> list:
+def _catalyst_spine_item(cat) -> dict:
+    """A catalyst row for the spine, built from the fuller catalyst list rather than the
+    60-day feed, so the horizon shows every upcoming readout out to two years, not only
+    the ones inside the note window."""
+    regulatory = cat.get("catalyst_type") in ("PDUFA", "EMA decision", "AdCom")
+    headline = (f'{cat.get("ticker", "")} {cat.get("catalyst_type", "")}: '
+                f'{cat.get("title", "")} ({cat.get("expected_date", "")})')
+    item = {"kind": "catalyst", "date": cat.get("expected_date"), "headline": headline}
+    return {"key": _spine_key(item), "date": cat.get("expected_date"),
+            "label": _spine_label(headline), "headline": headline, "kind": "catalyst",
+            "significance": "medium", "reason": None, "detail": cat.get("description"),
+            "colour": TK.FLAG if regulatory else TK.UP, "flagged": regulatory}
+
+
+def _spine_items(feed_items: list, catalysts: list | None = None) -> list:
+    """Forward-dated items for the horizon rail: exclusivity from the feed, and catalysts
+    from the fuller two-year list so the rail is not capped at the note's 60-day window."""
     items = []
     for it in feed_items:
-        kind = it.get("kind")
-        if kind == "catalyst":
-            regulatory = it.get("change_type") in ("PDUFA", "EMA decision", "AdCom")
-            colour = TK.FLAG if regulatory else TK.UP
-            flagged = regulatory       # machine-read dates carry the review mark
-        elif kind == "loe":
-            modality = (it.get("modality") or "").lower()
-            colour = (TK.ORANGE_BOOK if modality.startswith("small")
-                      else TK.PURPLE_BOOK if modality.startswith("bio") else TK.MUTED)
-            flagged = False
-        else:
-            continue                   # changes already happened; the spine is ahead
+        if it.get("kind") != "loe":
+            continue                   # catalysts come from the fuller list below; the
+                                       # rest already happened and the spine is ahead
+        modality = (it.get("modality") or "").lower()
+        colour = (TK.ORANGE_BOOK if modality.startswith("small")
+                  else TK.PURPLE_BOOK if modality.startswith("bio") else TK.MUTED)
         items.append({"key": _spine_key(it), "date": it.get("date"),
                       "label": _spine_label(it.get("headline")),
-                      "headline": it.get("headline"), "kind": kind,
+                      "headline": it.get("headline"), "kind": "loe",
                       "significance": it.get("significance"),
                       "reason": it.get("reason"), "detail": it.get("detail"),
-                      "colour": colour, "flagged": flagged})
+                      "colour": colour, "flagged": False})
+    items += [_catalyst_spine_item(cat) for cat in (catalysts or [])]
     return items
 
 
@@ -542,7 +553,11 @@ def _spine_cliff(assets: list) -> dict:
     return cliff
 
 
-spine_items = _spine_items(feed)
+# The horizon rail draws catalysts out to two years, so it reads the fuller catalyst
+# list rather than the 60-day feed the note sections use.
+spine_cats = api_get(api_base, f"/catalysts?within_days=760&"
+                     f"ticker={urllib.parse.quote(ticker)}")
+spine_items = _spine_items(feed, spine_cats if isinstance(spine_cats, list) else [])
 selected_key = (st.query_params.get("sel") or "") or None
 pinned = next((it for it in spine_items if it["key"] == selected_key), None)
 
