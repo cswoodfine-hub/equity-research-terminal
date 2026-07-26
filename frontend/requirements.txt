@@ -1,3 +1,4 @@
 streamlit>=1.36
 pandas>=2.0
-plotly>=5.24
+# The price chart embeds TradingView lightweight-charts, bundled locally in
+# frontend/assets (no CDN, no pip package), so there is no charting dependency here.

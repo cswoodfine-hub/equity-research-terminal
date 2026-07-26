@@ -23,6 +23,7 @@ import urllib.request
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 import calendar_view
 import price_chart
@@ -57,9 +58,16 @@ DISPLAY_PHASES = [p for p in PIPELINE_PHASES
 # Price chart windows, widest last. None means every session held. Windows wider than
 # the stored history are hidden rather than drawn short.
 PRICE_WINDOWS = [("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", None)]
-# Candle interval: daily bars go thin over a long window, so weekly and monthly aggregate
-# the OHLC into fewer, wider candles. The value is the pandas resample rule (None = daily).
-PRICE_INTERVALS = {"Daily": None, "Weekly": "W", "Monthly": "ME"}
+# Bar interval, coarsest ask first as a trader reads them. Each maps to (base series held
+# on the backend, pandas resample rule or None, is-intraday). 15m/30m resample from the
+# 5m base, 4H from the 60m base, 1W/1M from daily; the rest are a base as-is.
+PRICE_INTERVALS = ["5 min", "15 min", "30 min", "1H", "4H", "1D", "1W", "1M"]
+_INTERVAL_BASE = {
+    "5 min": ("5m", None, True), "15 min": ("5m", "15min", True),
+    "30 min": ("5m", "30min", True), "1H": ("60m", None, True),
+    "4H": ("60m", "4h", True), "1D": ("1d", None, False),
+    "1W": ("1d", "W", False), "1M": ("1d", "ME", False),
+}
 # Sessions in the Key insights sparkline. Trading sessions rather than calendar days,
 # so a bank holiday or a weekend does not silently shorten the line.
 SPARK_SESSIONS = 5
@@ -1089,127 +1097,124 @@ with main:
                         "price_run", f"Refreshing {ticker} from Yahoo")
             st.rerun()
 
-        points = prices["points"]
-        if not points:
-            state("No price history yet",
-                  "Press Refresh prices to pull five years of daily closes from Yahoo. "
-                  "Prices expire after 15 minutes, so a second press inside that window "
-                  "is a no-op and says so.")
-        else:
-            frame = pd.DataFrame(points)
-            frame["as_of"] = pd.to_datetime(frame["as_of"])
-            held = (frame["as_of"].max() - frame["as_of"].min()).days
+        # The bar interval and the line/candle view. The window radio comes after the base
+        # series loads, since which windows can be filled depends on how far it reaches.
+        ctrl_int, ctrl_view = st.columns([3.6, 1.4])
+        with ctrl_int:
+            interval = st.segmented_control(
+                "Interval", PRICE_INTERVALS, default="1D", key="price_interval_v2",
+                label_visibility="collapsed") or "1D"
+        with ctrl_view:
+            view = st.segmented_control(
+                "View", [price_chart.LINE, price_chart.CANDLE],
+                default=price_chart.CANDLE, key="price_view",
+                label_visibility="collapsed") or price_chart.CANDLE
 
-            # Only offer windows the stored history can actually fill. A 5Y button on
-            # six months of data draws the same chart and quietly lies about the span. The
-            # window sets the chart's opening x-range; pan and zoom refine it from there.
+        # 1D/1W/1M read the 5y daily already fetched; sub-daily reads the intraday base.
+        base, rule, intraday = _INTERVAL_BASE[interval]
+        base_resp = (prices if base == "1d" else
+                     api_get(api_base, f"/companies/{ticker}/prices?interval={base}"))
+        base_points = base_resp.get("points") or []
+        if not base_points:
+            state(f"No {interval} history yet",
+                  "Press Refresh prices to pull the history from Yahoo. Prices expire "
+                  "after 15 minutes, so a second press inside that window is a no-op."
+                  if base == "1d" else
+                  f"No {interval} bars on file yet. Intraday is a rolling window the free "
+                  "feed caps at about two months for minutes and two years for hours; "
+                  "press Refresh prices to fill it.")
+        else:
+            frame = pd.DataFrame(base_points)
+            frame["as_of"] = pd.to_datetime(frame["as_of"])
+            # Resample the base into the asked bar: open first, high max, low min, close
+            # last, volume sum. 5m, 1H and 1D pass through as their own base.
+            if rule:
+                agg = (frame.set_index("as_of").resample(rule)
+                       .agg({"open": "first", "high": "max", "low": "min",
+                             "close": "last", "volume": "sum"})
+                       .dropna(subset=["close"]).reset_index())
+                bar_frame = agg
+                out = agg.copy()
+                out["as_of"] = agg["as_of"].dt.strftime(
+                    "%Y-%m-%d %H:%M" if intraday else "%Y-%m-%d")
+                chart_rows = out.to_dict("records")
+            else:
+                bar_frame = frame
+                chart_rows = base_points
+            held = (bar_frame["as_of"].max() - bar_frame["as_of"].min()).days
+
+            # Only offer windows the loaded base can fill. The window sets the chart's
+            # opening view; pan and zoom (two-finger scroll) refine it from there.
             choices = [(label, days) for label, days in PRICE_WINDOWS
                        if days is None or days <= held + 45]
             labels = [label for label, _ in choices]
-            win_col, view_col, int_col = st.columns([2.5, 1.5, 1.7])
-            with win_col:
-                span = st.radio("Window", labels, index=len(labels) - 1, horizontal=True,
-                                key="price_window", label_visibility="collapsed")
-            with view_col:
-                view = st.segmented_control(
-                    "View", [price_chart.LINE, price_chart.CANDLE],
-                    default=price_chart.LINE, key="price_view",
-                    label_visibility="collapsed") or price_chart.LINE
-            with int_col:
-                interval = st.segmented_control(
-                    "Interval", list(PRICE_INTERVALS), default="Daily",
-                    key="price_interval", label_visibility="collapsed") or "Daily"
+            span = st.radio("Window", labels, index=len(labels) - 1, horizontal=True,
+                            key="price_window", label_visibility="collapsed")
             days = dict(choices)[span]
 
-            windowed = (frame if days is None else
-                        frame[frame["as_of"]
-                              >= frame["as_of"].max() - pd.Timedelta(days=days)])
+            windowed = (bar_frame if days is None else
+                        bar_frame[bar_frame["as_of"]
+                                  >= bar_frame["as_of"].max() - pd.Timedelta(days=days)])
             opened, latest_close = windowed["close"].iloc[0], windowed["close"].iloc[-1]
             change = (latest_close - opened) / opened * 100 if opened else None
-            # True intraday extremes from OHLC, falling back to close where a bar has none.
-            low = windowed["low"].min()
-            high = windowed["high"].max()
+            low, high = windowed["low"].min(), windowed["high"].max()
             low = windowed["close"].min() if pd.isna(low) else low
             high = windowed["close"].max() if pd.isna(high) else high
             st.markdown(
                 '<div class="stats">'
-                f'<span class="stat"><span class="k">last close</span>'
+                f'<span class="stat"><span class="k">last</span>'
                 f'<span class="v">{T.num(latest_close, 2)}</span></span>'
                 f'<span class="stat"><span class="k">as of</span>'
-                f'<span class="v">{prices["latest"]["as_of"]}</span></span>'
+                f'<span class="v">{str(chart_rows[-1]["as_of"])}</span></span>'
                 f'<span class="stat"><span class="k">{span} change</span>'
                 f'<span class="v {"risk" if (change or 0) < 0 else ""}">'
                 f'{T.pct(change)}</span></span>'
                 f'<span class="stat"><span class="k">{span} range</span>'
                 f'<span class="v">{T.num(low, 2)} to {T.num(high, 2)}</span></span>'
-                f'<span class="stat"><span class="k">sessions</span>'
+                f'<span class="stat"><span class="k">bars</span>'
                 f'<span class="v">{len(windowed)}</span></span></div>',
                 unsafe_allow_html=True)
 
-            # Saved tags for this ticker, drawn on the chart and listed for removal below.
+            # Saved tags for this ticker, drawn as markers and listed for removal below.
             tags = api_get(
                 api_base,
                 f"/annotations?ticker={urllib.parse.quote(ticker)}&entity_type=price")
 
-            # Weekly and monthly aggregate the daily OHLC into fewer, wider candles: open is
-            # the first of the bucket, high the max, low the min, close the last, volume the
-            # sum. Daily passes through. Built off the whole history so a pan reaches the
-            # real limits.
-            rule = PRICE_INTERVALS[interval]
-            if rule:
-                agg = (frame.set_index("as_of")
-                       .resample(rule)
-                       .agg({"open": "first", "high": "max", "low": "min",
-                             "close": "last", "volume": "sum"})
-                       .dropna(subset=["close"]).reset_index())
-                agg["as_of"] = agg["as_of"].dt.strftime("%Y-%m-%d")
-                chart_rows = agg.to_dict("records")
-            else:
-                chart_rows = points
+            # TradingView lightweight-charts, embedded with the library bundled locally.
+            # Native two-finger zoom that stretches the sticks and auto-fits the y-axis.
+            components.html(
+                price_chart.chart_html(
+                    chart_rows, tags, mode=view, ticker=ticker,
+                    currency=base_resp.get("currency") or "", intraday=intraday,
+                    window_days=days, height=560),
+                height=572)
+            if intraday:
+                st.markdown('<div class="byline">Intraday is a rolling window from the free '
+                            'feed: minutes reach back about two months, hours about two '
+                            'years. Older bars are unavailable, not missing.</div>',
+                            unsafe_allow_html=True)
 
-            # The window only sets the opening view. uirevision is keyed to the controls, so
-            # a tag click preserves the current pan and zoom while changing window, ticker,
-            # view or interval still resets the frame.
-            fig = price_chart.figure(chart_rows, tags, mode=view, ticker=ticker,
-                                     currency=prices.get("currency") or "",
-                                     uirevision=f"{ticker}|{span}|{view}|{interval}")
-            if days is not None:
-                fig.update_xaxes(range=[
-                    (frame["as_of"].max()
-                     - pd.Timedelta(days=days)).strftime("%Y-%m-%d"),
-                    frame["as_of"].max().strftime("%Y-%m-%d")])
-            event = st.plotly_chart(
-                fig, use_container_width=True, key=f"px_{ticker}",
-                on_select="rerun", selection_mode="points",
-                config={"displaylogo": False, "scrollZoom": True,
-                        "modeBarButtonsToRemove": ["lasso2d", "select2d", "autoScale2d"]})
-
-            # Click a bar to seed the tag date; the field is editable, so a tag can also be
-            # placed by hand. The date is snapped to the nearest trading bar on or before
-            # it, so the marker always lands on a real bar.
-            selected = ((event.get("selection") or {}).get("points")
-                        if isinstance(event, dict) else
-                        getattr(getattr(event, "selection", None), "points", None)) or []
-            picked = str(selected[-1]["x"])[:10] if selected else None
-            avail = sorted(frame["as_of"].dt.strftime("%Y-%m-%d"))
-            default_day = (pd.to_datetime(picked) if picked else frame["as_of"].max())
-
+            # Clicks do not round-trip through the embedded chart, so a tag is placed by
+            # date; it renders as a marker snapped to the nearest bar. The date snaps to the
+            # nearest bar on or before it.
+            avail = sorted(set(bar_frame["as_of"].dt.strftime("%Y-%m-%d")))
             with st.form(f"price_tag_{ticker}", clear_on_submit=True):
                 tag_cols = st.columns([1.3, 3.4, 0.9])
                 with tag_cols[0]:
                     day = st.date_input(
-                        "Bar", value=default_day, min_value=frame["as_of"].min(),
-                        max_value=frame["as_of"].max(), format="YYYY-MM-DD",
+                        "Bar", value=bar_frame["as_of"].max(),
+                        min_value=bar_frame["as_of"].min(),
+                        max_value=bar_frame["as_of"].max(), format="YYYY-MM-DD",
                         key=f"tag_day_{ticker}", label_visibility="collapsed")
                 with tag_cols[1]:
                     body = st.text_input(
-                        "Tag", placeholder="Leave a note on this bar (e.g. Q4 print, PDUFA)",
+                        "Tag", placeholder="Leave a note on a bar (e.g. Q4 print, PDUFA)",
                         key=f"tag_body_{ticker}", label_visibility="collapsed")
                 with tag_cols[2]:
                     add = st.form_submit_button("Add tag", width="stretch")
             if add and body.strip():
                 key = day.strftime("%Y-%m-%d")
-                if key not in set(avail):    # snap to the nearest bar on or before the day
+                if key not in set(avail):
                     earlier = [d for d in avail if d <= key]
                     key = earlier[-1] if earlier else avail[0]
                 api_post_json(api_base, "/annotations", {
@@ -1219,7 +1224,8 @@ with main:
 
             if tags:
                 st.markdown('<div class="byline">Tags on this chart. A tag is saved and '
-                            'stays across refreshes.</div>', unsafe_allow_html=True)
+                            'stays across refreshes and intervals.</div>',
+                            unsafe_allow_html=True)
                 for tag in tags:
                     row = st.columns([1.3, 4.3, 0.9])
                     row[0].markdown(

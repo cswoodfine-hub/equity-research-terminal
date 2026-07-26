@@ -38,7 +38,8 @@ from fetchers.fx_ecb import FxEcbFetcher
 from fetchers.labels_dailymed import LabelsDailyMedFetcher
 from fetchers.news_fda import NewsFdaFetcher
 from fetchers.paragraph_iv_fda import ParagraphIvFetcher
-from fetchers.prices import IntradayPricesFetcher, PricesFetcher
+from fetchers.prices import (FiveMinuteBarsFetcher, HourlyBarsFetcher,
+                             IntradayPricesFetcher, PricesFetcher)
 from fetchers.product_revenue_sec import ProductRevenueFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 
@@ -56,6 +57,8 @@ def _company_fetchers(company, db_path):
     fetchers = [
         PricesFetcher(company["ticker"], db_path),
         IntradayPricesFetcher(company["ticker"], db_path),
+        FiveMinuteBarsFetcher(company["ticker"], db_path),
+        HourlyBarsFetcher(company["ticker"], db_path),
         TrialsFetcher(company["ticker"], db_path),
         ApprovalsOpenFdaFetcher(company["ticker"], db_path),
         LabelsDailyMedFetcher(company["ticker"], db_path),

@@ -1,5 +1,6 @@
 """parse_chart is the prices parser; it runs against a saved Yahoo fixture, no network."""
 
+import datetime as dt
 import json
 from pathlib import Path
 
@@ -7,7 +8,8 @@ import pytest
 
 import db
 import seed
-from fetchers.prices import PricesFetcher, parse_chart
+from fetchers.prices import (FiveMinuteBarsFetcher, HourlyBarsFetcher, PricesFetcher,
+                             parse_chart)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "yahoo_chart_lly.json"
 
@@ -118,3 +120,45 @@ def test_the_two_price_fetchers_do_not_share_a_ttl_slot():
     assert PricesFetcher.source != IntradayPricesFetcher.source
     assert IntradayPricesFetcher.chart_interval == "15m"
     assert IntradayPricesFetcher.chart_range == "5d"
+
+
+def _epoch(y, mo, d, h, mi):
+    return int(dt.datetime(y, mo, d, h, mi, tzinfo=dt.timezone.utc).timestamp())
+
+
+def _intraday_payload(times):
+    n = len(times)
+    return {"chart": {"result": [{
+        "meta": {"currency": "USD", "gmtoffset": 0},
+        "timestamp": times,
+        "indicators": {"quote": [{
+            "close": [10.0 + i for i in range(n)], "open": [9.9 + i for i in range(n)],
+            "high": [10.6 + i for i in range(n)], "low": [9.8 + i for i in range(n)],
+            "volume": [100 + i for i in range(n)]}]}}]}}
+
+
+def test_intraday_bars_of_different_sizes_coexist(tmp_path, monkeypatch):
+    # 5m and 60m both carry a 09:30 bar. The prices table's UNIQUE(company_id, as_of) would
+    # collide them; intraday_bars keys on the interval too, so the two sizes coexist.
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    five = _intraday_payload([_epoch(2026, 7, 15, 9, 30), _epoch(2026, 7, 15, 9, 35)])
+    hour = _intraday_payload([_epoch(2026, 7, 15, 9, 30), _epoch(2026, 7, 15, 10, 30)])
+    monkeypatch.setattr(FiveMinuteBarsFetcher, "fetch", lambda self: five)
+    monkeypatch.setattr(HourlyBarsFetcher, "fetch", lambda self: hour)
+    FiveMinuteBarsFetcher("LLY", db_file).run()
+    HourlyBarsFetcher("LLY", db_file).run()
+
+    conn = db.get_connection(db_file)
+    try:
+        n5 = conn.execute(
+            "SELECT COUNT(*) FROM intraday_bars WHERE interval='5m'").fetchone()[0]
+        n60 = conn.execute(
+            "SELECT COUNT(*) FROM intraday_bars WHERE interval='60m'").fetchone()[0]
+        both_0930 = conn.execute(
+            "SELECT COUNT(*) FROM intraday_bars WHERE as_of LIKE '%09:30'").fetchone()[0]
+    finally:
+        conn.close()
+    assert n5 == 2 and n60 == 2       # neither size overwrote the other
+    assert both_0930 == 2             # the shared 09:30 timestamp survives for both sizes

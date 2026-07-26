@@ -1,29 +1,38 @@
-"""Interactive price chart: a Plotly figure for the Prices tab.
+"""Interactive price chart: a TradingView lightweight-charts component.
 
-The rest of the terminal draws hand-built SVG, which is display-only by design. The price
-chart is the one place that needs live interaction: grab-to-pan, zoom in and out, a
-candlestick view, and a click on a bar to leave a tag. So it alone uses Plotly, through
-Streamlit's first-party ``st.plotly_chart``; everything else stays SVG.
+The rest of the terminal draws hand-built SVG, which is display-only by design. The
+price chart is the one place that needs real trading interaction: smooth two-finger
+zoom that stretches the sticks with the y-axis auto-fitting the visible range, a
+candlestick view, and intraday intervals. Plotly-in-Streamlit cannot do the y-auto-fit
+(Streamlit never reports a zoom back to the code), so this uses TradingView's
+lightweight-charts, embedded through ``st.components.v1.html`` with the library bundled
+locally, no CDN, the same rule the fonts follow.
 
-Pure: it turns price rows and any saved tags into a ``go.Figure`` and knows nothing about
-Streamlit, the API, or the database. Colour comes only from the palette tokens.
+Pure: it turns price bars and saved tags into series data, markers and the component
+HTML, and knows nothing about Streamlit, the API, or the database. Colour comes only
+from the palette tokens.
 """
 
 from __future__ import annotations
 
 import datetime as dt
-
-import plotly.graph_objects as go
+import json
+from pathlib import Path
 
 from components import tokens as TK
 
 LINE, CANDLE = "Line", "Candlestick"
 
-# A tag label runs on the chart; the full note is on hover, so the label stays short.
-_LABEL_MAX = 22
-# A tag is stored against a day, but the bars may be weekly or monthly, so a tag snaps to
-# the nearest bar within this many days and is dropped if the nearest bar is further off.
+# A tag is stored against a day, but the bars may be weekly, monthly or intraday, so a
+# tag snaps to the nearest bar within this many days and is dropped if the nearest is
+# further off (a note left on a bar the chart no longer holds).
 _TAG_SNAP_DAYS = 40
+
+# The library, bundled once into assets like the fonts, inlined into the component so
+# nothing loads from a network. A missing file degrades to an empty script rather than
+# erroring, and the chart simply does not draw.
+_LWC_PATH = Path(__file__).resolve().parent / "assets" / "lightweight-charts.standalone.production.js"
+_LWC_JS = _LWC_PATH.read_text() if _LWC_PATH.exists() else ""
 
 
 def _parse_day(value):
@@ -33,118 +42,128 @@ def _parse_day(value):
         return None
 
 
-def _axis_font():
-    return dict(family=TK.FONT_MONO, size=11, color=TK.MUTED)
+def _bar_time(as_of, intraday: bool):
+    """lightweight-charts time: a UTC epoch (seconds) for intraday, a 'YYYY-MM-DD' string
+    otherwise. The intraday stamp is the exchange-local clock read as UTC, so the library
+    prints the market's own time rather than shifting it."""
+    s = str(as_of or "")
+    if not s:
+        return None
+    if not intraday:
+        return s[:10]
+    try:
+        moment = dt.datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    return int(moment.replace(tzinfo=dt.timezone.utc).timestamp())
 
 
-def figure(rows, tags=None, *, mode: str = LINE, ticker: str = "",
-           currency: str = "", uirevision: str = "price") -> go.Figure:
-    """A themed Plotly figure of the daily price history.
+def series_data(bars, mode: str = LINE, intraday: bool = False) -> list[dict]:
+    """Bars to a lightweight-charts series. Candlestick needs full OHLC on a bar, so a bar
+    missing one is dropped rather than faked; line needs only the close."""
+    out = []
+    for bar in bars:
+        time = _bar_time(bar.get("as_of"), intraday)
+        if time is None or bar.get("close") is None:
+            continue
+        if mode == CANDLE:
+            if any(bar.get(k) is None for k in ("open", "high", "low")):
+                continue
+            out.append({"time": time, "open": float(bar["open"]),
+                        "high": float(bar["high"]), "low": float(bar["low"]),
+                        "close": float(bar["close"])})
+        else:
+            out.append({"time": time, "value": float(bar["close"])})
+    return out
 
-    ``rows`` are oldest first, each with ``as_of`` and OHLC. ``close`` is always present;
-    ``open``/``high``/``low`` may be null on an older bar and Plotly gaps the candle rather
-    than inventing it. ``tags`` are saved annotations, each with ``entity_id`` (the bar's
-    ``as_of``) and ``body``, drawn as a marker on the matching bar so a note shows in
-    either view. ``mode`` is Line or Candlestick.
-    """
-    tags = tags or []
-    xs = [r["as_of"] for r in rows]
-    closes = [r.get("close") for r in rows]
 
-    fig = go.Figure()
-    if mode == CANDLE:
-        fig.add_trace(go.Candlestick(
-            x=xs,
-            open=[r.get("open") for r in rows],
-            high=[r.get("high") for r in rows],
-            low=[r.get("low") for r in rows],
-            close=closes,
-            name=ticker or "price",
-            increasing=dict(line=dict(color=TK.UP), fillcolor=TK.UP),
-            decreasing=dict(line=dict(color=TK.DOWN), fillcolor=TK.DOWN),
-            line=dict(width=1),
-            whiskerwidth=0.3,
-            showlegend=False,
-        ))
-        # A faint close marker per bar, so a click still lands on a bar to tag it: a
-        # candlestick trace is awkward to click-select, a scatter point is not. WebGL, so
-        # a thousand of them stay smooth to pan and zoom.
-        fig.add_trace(go.Scattergl(
-            x=xs, y=closes, mode="markers", name="close",
-            marker=dict(size=5, color="rgba(126,144,152,0.28)", line=dict(width=0)),
-            hovertemplate="%{x|%Y-%m-%d}  %{y:.2f}<extra></extra>",
-            showlegend=False,
-        ))
-    else:
-        # WebGL line with small markers on it: the markers are the click targets, and the
-        # GL canvas keeps a thousand points smooth to drag and zoom where SVG stutters.
-        fig.add_trace(go.Scattergl(
-            x=xs, y=closes, mode="lines+markers", name=ticker or "price",
-            line=dict(color=TK.UP, width=1.6),
-            marker=dict(size=3, color=TK.UP),
-            hovertemplate="%{x|%Y-%m-%d}  %{y:.2f}<extra></extra>",
-            showlegend=False,
-        ))
-
-    # Tags sit on the bar nearest their day, at that bar's close, so a note stays put when
-    # the bars are weekly or monthly rather than daily. A tag whose day is off the chart is
-    # dropped. A short label rides above the point; the full body is on hover.
-    bars = [(_parse_day(r["as_of"]), str(r["as_of"])[:10], r.get("close")) for r in rows]
-    bars = [b for b in bars if b[0] is not None and b[2] is not None]
-    tx, ty, labels, bodies = [], [], [], []
-    for tag in tags:
+def markers_for(bars, tags, intraday: bool = False) -> list[dict]:
+    """Saved tags to markers, each snapped to the bar nearest its day so a note stays put
+    across bar sizes; a tag whose nearest bar is off the chart is dropped. Sorted by time,
+    which lightweight-charts requires."""
+    dated = [(_parse_day(b.get("as_of")), b) for b in bars]
+    dated = [(d, b) for d, b in dated if d is not None and b.get("close") is not None]
+    marks = []
+    for tag in tags or []:
         day = _parse_day(tag.get("entity_id"))
-        if day is None or not bars:
+        if day is None or not dated:
             continue
-        near = min(bars, key=lambda b: abs((b[0] - day).days))
-        if abs((near[0] - day).days) > _TAG_SNAP_DAYS:
+        near_day, near_bar = min(dated, key=lambda p: abs((p[0] - day).days))
+        if abs((near_day - day).days) > _TAG_SNAP_DAYS:
             continue
-        body = str(tag.get("body") or "")
-        tx.append(near[1])
-        ty.append(near[2])
-        labels.append(body if len(body) <= _LABEL_MAX else body[:_LABEL_MAX - 1] + "…")
-        bodies.append(body)
-    if tx:
-        fig.add_trace(go.Scatter(
-            x=tx, y=ty, mode="markers+text", name="tags",
-            marker=dict(symbol="triangle-down", size=12, color=TK.FLAG,
-                        line=dict(width=0)),
-            text=labels, textposition="top center",
-            textfont=dict(family=TK.FONT_MONO, size=10, color=TK.FLAG),
-            customdata=bodies,
-            hovertemplate="%{customdata}<extra></extra>",
-            showlegend=False,
-        ))
+        marks.append((near_day, {
+            "time": _bar_time(near_bar.get("as_of"), intraday),
+            "position": "aboveBar", "color": TK.FLAG, "shape": "arrowDown",
+            "text": str(tag.get("body") or "")}))
+    return [m for _, m in sorted(marks, key=lambda p: p[0])]
 
-    unit = f" · {currency}" if currency else ""
-    fig.update_layout(
-        height=540,
-        # Held constant across reruns so Plotly keeps the user's pan and zoom instead of
-        # snapping back to the window; the caller varies it by ticker, window and view, so
-        # changing a control still resets the frame on purpose.
-        uirevision=uirevision,
-        paper_bgcolor=TK.GROUND, plot_bgcolor=TK.GROUND,
-        font=dict(family=TK.FONT_UI, color=TK.TEXT, size=12),
-        margin=dict(l=8, r=58, t=10, b=8),
-        dragmode="pan",
-        clickmode="event+select",
-        hovermode="x unified",
-        hoverlabel=dict(bgcolor=TK.PANEL, bordercolor=TK.RULE_STRONG,
-                        font=dict(family=TK.FONT_MONO, color=TK.TEXT, size=11)),
-        showlegend=False,
-        # No range slider: zoom is the trackpad (two-finger scroll) and the modebar, and
-        # the slider only ate height. Pan is a drag.
-        xaxis=dict(
-            gridcolor=TK.RULE, zerolinecolor=TK.RULE, showline=False,
-            tickfont=_axis_font(), ticklabelposition="outside",
-            rangeslider=dict(visible=False),
-        ),
-        # Price on the right and auto-ranged to the data, not to zero, so the series fills
-        # the height rather than being squashed against the top.
-        yaxis=dict(
-            title=dict(text=f"price{unit}", font=_axis_font()),
-            gridcolor=TK.RULE, zeroline=False, side="right",
-            tickfont=_axis_font(), tickformat=".2f", autorange=True,
-        ),
-    )
-    return fig
+
+def _visible_range(data, window_days, intraday):
+    """The opening view: the last ``window_days`` of the loaded series. The whole series
+    is still loaded, so a pan reaches the real limits; this only sets where it opens."""
+    if not window_days or not data:
+        return None
+    last = data[-1]["time"]
+    if intraday:
+        cutoff = last - window_days * 86400
+    else:
+        cutoff = (_parse_day(data[-1]["time"])
+                  - dt.timedelta(days=window_days)).isoformat()
+    start = next((d["time"] for d in data if d["time"] >= cutoff), data[0]["time"])
+    return [start, last]
+
+
+def chart_html(bars, tags=None, *, mode: str = LINE, ticker: str = "", currency: str = "",
+               intraday: bool = False, window_days=None, height: int = 560) -> str:
+    """The component HTML: the bundled library plus a script that builds the themed chart.
+
+    ``bars`` are oldest first with as_of and OHLC; ``tags`` are saved annotations. The
+    whole series is loaded for panning; ``window_days`` sets only the opening view.
+    """
+    data = series_data(bars, mode, intraday)
+    marks = markers_for(bars, tags, intraday)
+    visible = _visible_range(data, window_days, intraday)
+
+    g, txt, font = TK.GROUND, TK.MUTED, TK.FONT_UI
+    rule, rs, up, down, muted = TK.RULE, TK.RULE_STRONG, TK.UP, TK.DOWN, TK.MUTED
+    if mode == CANDLE:
+        series_js = (f"chart.addCandlestickSeries({{ upColor: {up!r}, downColor: {down!r}, "
+                     f"borderUpColor: {up!r}, borderDownColor: {down!r}, "
+                     f"wickUpColor: {up!r}, wickDownColor: {down!r} }})")
+    else:
+        series_js = f"chart.addLineSeries({{ color: {up!r}, lineWidth: 2 }})"
+    return f"""
+<div id="lwc" style="width:100%;height:{height}px"></div>
+<script>{_LWC_JS}</script>
+<script>
+/* chart-mode: {mode} */
+(function() {{
+  if (typeof LightweightCharts === 'undefined') return;
+  const el = document.getElementById('lwc');
+  const chart = LightweightCharts.createChart(el, {{
+    layout: {{ background: {{ type: 'solid', color: {g!r} }},
+              textColor: {txt!r}, fontFamily: {font!r}, fontSize: 11 }},
+    grid: {{ vertLines: {{ color: {rule!r} }}, horzLines: {{ color: {rule!r} }} }},
+    rightPriceScale: {{ borderColor: {rs!r} }},
+    timeScale: {{ borderColor: {rs!r}, rightOffset: 4,
+                 timeVisible: {str(intraday).lower()}, secondsVisible: false }},
+    crosshair: {{ mode: 0,
+                 vertLine: {{ color: {muted!r}, labelBackgroundColor: {rs!r} }},
+                 horzLine: {{ color: {muted!r}, labelBackgroundColor: {rs!r} }} }},
+    handleScroll: true, handleScale: true,
+  }});
+  const data = {json.dumps(data)};
+  const series = {series_js};
+  series.setData(data);
+  const markers = {json.dumps(marks)};
+  if (markers.length) series.setMarkers(markers);
+  const visible = {json.dumps(visible)};
+  if (visible) {{ try {{ chart.timeScale().setVisibleRange({{ from: visible[0], to: visible[1] }}); }}
+                 catch (e) {{ chart.timeScale().fitContent(); }} }}
+  else {{ chart.timeScale().fitContent(); }}
+  const fit = () => chart.applyOptions({{ width: el.clientWidth }});
+  new ResizeObserver(fit).observe(el);
+  fit();
+}})();
+</script>
+"""

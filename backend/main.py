@@ -88,7 +88,10 @@ def list_companies() -> list[dict]:
 
 
 @app.get("/companies/{ticker}/prices")
-def company_prices(ticker: str) -> dict:
+def company_prices(ticker: str, interval: str = Query(default="1d")) -> dict:
+    """Daily OHLC by default, or an intraday bar size for the trading chart. 5m and 60m
+    read the intraday_bars cache (a rolling window); anything else is the 5y daily series.
+    The 15m/30m and 4H views are resampled on the frontend from the 5m and 60m bases."""
     ticker = ticker.upper()
     conn = db.get_connection()
     try:
@@ -98,14 +101,25 @@ def company_prices(ticker: str) -> dict:
         if company is None:
             raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
 
-        points = [
-            dict(r)
-            for r in conn.execute(
-                "SELECT as_of, open, high, low, close, volume FROM prices"
-                " WHERE company_id = ? AND interval = '1d' ORDER BY as_of",
-                (company["id"],),
-            )
-        ]
+        if interval in ("5m", "60m"):
+            points = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT as_of, open, high, low, close, volume FROM intraday_bars"
+                    " WHERE company_id = ? AND interval = ? ORDER BY as_of",
+                    (company["id"], interval),
+                )
+            ]
+        else:
+            interval = "1d"
+            points = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT as_of, open, high, low, close, volume FROM prices"
+                    " WHERE company_id = ? AND interval = '1d' ORDER BY as_of",
+                    (company["id"],),
+                )
+            ]
         snap = conn.execute(
             """
             SELECT payload FROM snapshots
@@ -136,6 +150,7 @@ def company_prices(ticker: str) -> dict:
         }
     return {
         "ticker": ticker,
+        "interval": interval,
         "currency": meta.get("currency"),
         "latest": latest,
         "points": points,

@@ -274,3 +274,88 @@ class IntradayPricesFetcher(PricesFetcher):
     source = INTRADAY_SOURCE
     chart_range = "5d"
     chart_interval = "15m"
+
+
+class IntradayBarsFetcher(PricesFetcher):
+    """OHLC bars at one intraday size, written to the intraday_bars table so several
+    sizes coexist (the prices table's UNIQUE(company_id, as_of) cannot hold them
+    together). A rolling window: Yahoo caps intraday history, so old bars fall away.
+
+    Snapshots here are minimal and only serve the per-source TTL. The bars are a cache
+    the trading chart reads, not a change-tracked series, so they are never diffed.
+    Subclasses set source, chart_range and chart_interval; bar_interval is the value
+    stored, which equals chart_interval.
+    """
+
+    bar_interval = ""
+
+    def _write_state(self, bars: int, kind: str) -> None:
+        conn = db.get_connection(self.db_path)
+        try:
+            self._write_snapshot(conn, {
+                "ticker": self.ticker, "interval": self.bar_interval,
+                "bars": bars, "source": YAHOO_SOURCE, "fetch_kind": kind,
+            })
+            conn.commit()
+        finally:
+            conn.close()
+
+    def snapshot(self, rows: list[dict]) -> None:
+        self._write_state(len(rows), "live")
+
+    def _snapshot_cache(self) -> None:
+        conn = db.get_connection(self.db_path)
+        try:
+            cid = self._company_id(conn)
+            bars = 0 if cid is None else conn.execute(
+                "SELECT COUNT(*) FROM intraday_bars WHERE company_id = ? AND interval = ?",
+                (cid, self.bar_interval),
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self._write_state(bars, "cache")
+
+    def upsert(self, rows: list[dict]) -> RefreshResult:
+        conn = db.get_connection(self.db_path)
+        try:
+            cid = self._company_id(conn)
+            if cid is None:
+                return RefreshResult(
+                    self.source, 0, [f"unknown ticker {self.ticker}"], False, 0)
+            for row in rows:
+                conn.execute(
+                    """
+                    INSERT INTO intraday_bars
+                        (company_id, as_of, interval, open, high, low, close, volume,
+                         source, fetched_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    ON CONFLICT(company_id, as_of, interval) DO UPDATE SET
+                        open=excluded.open, high=excluded.high, low=excluded.low,
+                        close=excluded.close, volume=excluded.volume,
+                        source=excluded.source, fetched_at=datetime('now')
+                    """,
+                    (cid, row["as_of"], self.bar_interval, row["open"], row["high"],
+                     row["low"], row["close"], row["volume"], YAHOO_SOURCE),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+        return RefreshResult(self.source, len(rows), [], False, 0)
+
+
+class FiveMinuteBarsFetcher(IntradayBarsFetcher):
+    """Five minute bars, about two months back (Yahoo's cap). Powers 5m/15m/30m."""
+
+    source = "prices_5m"
+    chart_range = "60d"
+    chart_interval = "5m"
+    bar_interval = "5m"
+
+
+class HourlyBarsFetcher(IntradayBarsFetcher):
+    """Hourly bars, about two years back. Powers 1H, and 4H by resampling."""
+
+    source = "prices_60m"
+    chart_range = "730d"
+    chart_interval = "60m"
+    bar_interval = "60m"
