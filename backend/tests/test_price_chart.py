@@ -23,10 +23,17 @@ def _types(fig):
     return [t.type for t in fig.data]
 
 
-def test_line_mode_is_a_scatter_and_never_a_candlestick():
+def test_line_mode_is_a_line_and_never_a_candlestick():
     fig = price_chart.figure(ROWS, mode=price_chart.LINE, ticker="LLY")
-    assert "scatter" in _types(fig)
     assert "candlestick" not in _types(fig)
+    line = [t for t in fig.data if t.name == "LLY"]
+    assert len(line) == 1 and "lines" in line[0].mode   # a line, drawn on WebGL
+    assert line[0].type == "scattergl"
+
+
+def test_uirevision_is_carried_so_pan_and_zoom_survive_a_rerun():
+    fig = price_chart.figure(ROWS, mode=price_chart.LINE, uirevision="LLY|5Y|Line")
+    assert fig.layout.uirevision == "LLY|5Y|Line"
 
 
 def test_candlestick_mode_draws_candles_in_the_direction_colours():

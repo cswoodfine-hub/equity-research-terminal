@@ -26,7 +26,7 @@ def _axis_font():
 
 
 def figure(rows, tags=None, *, mode: str = LINE, ticker: str = "",
-           currency: str = "") -> go.Figure:
+           currency: str = "", uirevision: str = "price") -> go.Figure:
     """A themed Plotly figure of the daily price history.
 
     ``rows`` are oldest first, each with ``as_of`` and OHLC. ``close`` is always present;
@@ -55,20 +55,21 @@ def figure(rows, tags=None, *, mode: str = LINE, ticker: str = "",
             showlegend=False,
         ))
         # A faint close marker per bar, so a click still lands on a bar to tag it: a
-        # candlestick trace is awkward to click-select, a scatter point is not.
-        fig.add_trace(go.Scatter(
+        # candlestick trace is awkward to click-select, a scatter point is not. WebGL, so
+        # a thousand of them stay smooth to pan and zoom.
+        fig.add_trace(go.Scattergl(
             x=xs, y=closes, mode="markers", name="close",
             marker=dict(size=5, color="rgba(126,144,152,0.28)", line=dict(width=0)),
             hovertemplate="%{x|%Y-%m-%d}  %{y:.2f}<extra></extra>",
             showlegend=False,
         ))
     else:
-        # Lines carry the shape; small markers ride on them so a single click selects the
-        # bar under it. Zoomed out they merge into the line, zoomed in they are the targets.
-        fig.add_trace(go.Scatter(
+        # WebGL line with small markers on it: the markers are the click targets, and the
+        # GL canvas keeps a thousand points smooth to drag and zoom where SVG stutters.
+        fig.add_trace(go.Scattergl(
             x=xs, y=closes, mode="lines+markers", name=ticker or "price",
             line=dict(color=TK.UP, width=1.6),
-            marker=dict(size=3.5, color=TK.UP),
+            marker=dict(size=3, color=TK.UP),
             hovertemplate="%{x|%Y-%m-%d}  %{y:.2f}<extra></extra>",
             showlegend=False,
         ))
@@ -102,6 +103,10 @@ def figure(rows, tags=None, *, mode: str = LINE, ticker: str = "",
     unit = f" · {currency}" if currency else ""
     fig.update_layout(
         height=540,
+        # Held constant across reruns so Plotly keeps the user's pan and zoom instead of
+        # snapping back to the window; the caller varies it by ticker, window and view, so
+        # changing a control still resets the frame on purpose.
+        uirevision=uirevision,
         paper_bgcolor=TK.GROUND, plot_bgcolor=TK.GROUND,
         font=dict(family=TK.FONT_UI, color=TK.TEXT, size=12),
         margin=dict(l=8, r=58, t=10, b=8),
@@ -116,8 +121,6 @@ def figure(rows, tags=None, *, mode: str = LINE, ticker: str = "",
             tickfont=_axis_font(), ticklabelposition="outside",
             rangeslider=dict(visible=True, bgcolor=TK.PANEL,
                              bordercolor=TK.RULE, thickness=0.07),
-            # A weekend leaves no bar, so hide it and the daily line reads as continuous.
-            rangebreaks=[dict(bounds=["sat", "mon"])],
         ),
         # Price on the right and auto-ranged to the data, not to zero, so the series fills
         # the height rather than being squashed against the top.

@@ -1145,9 +1145,12 @@ with main:
                 f"/annotations?ticker={urllib.parse.quote(ticker)}&entity_type=price")
 
             # The figure holds the whole history so a pan can reach the real limits; the
-            # window only sets the opening view.
+            # window only sets the opening view. uirevision is keyed to the controls, so a
+            # tag click preserves the current pan and zoom while changing window, ticker or
+            # view still resets the frame.
             fig = price_chart.figure(points, tags, mode=view, ticker=ticker,
-                                     currency=prices.get("currency") or "")
+                                     currency=prices.get("currency") or "",
+                                     uirevision=f"{ticker}|{span}|{view}")
             if days is not None:
                 fig.update_xaxes(range=[
                     (frame["as_of"].max()
@@ -1487,29 +1490,35 @@ with main:
                 stack_rows, 832, max(170, 34 * len(order) + 22),
                 value_fmt=lambda v: f"{v:.0f}", legend=legend))
 
-            # A pill carries its count only once selected, so the strip reads as clean
-            # labels until you start narrowing and the number is there when it is the one
-            # you are reading.
+            # Pills stay plain labels: rewriting a pill's own label as it is selected made
+            # its highlight take two clicks. The count for what is selected shows in a line
+            # beneath instead, so a number still appears only once something is highlighted.
             st.pills("Therapeutic area", order, selection_mode="multi",
-                     format_func=lambda a: f"{a}  {counts[a]}" if a in chosen else a,
                      key="area_pills", label_visibility="collapsed")
+            if chosen:
+                st.markdown(
+                    '<div class="byline">'
+                    + "  ·  ".join(f"{html_escape(str(a))} {counts.get(a, 0)}"
+                                   for a in chosen)
+                    + "</div>", unsafe_allow_html=True)
 
             # The table is what you open once the chart has told you where to look. Phase 4
-            # and Follow-up join the pills only when the company has any. The phase
-            # selection is read back from session state so the same selected-only rule can
-            # show its count, the way the areas are.
+            # and Follow-up join the pills only when the company has any. Labels stay plain
+            # for the same reason as the areas; the count for what is picked shows beneath.
             bucket_counts = Counter(_bucket(t) for t in every)
             phase_options = list(DISPLAY_PHASES)
             if post:
                 phase_options.append("Phase 4")
             if followup:
                 phase_options.append("Follow-up")
-            phase_key = f"phase_pills_{ticker}"
-            phase_sel = st.session_state.get(phase_key) or []
             phase_pick = st.pills(
                 "Phase", phase_options, selection_mode="multi",
-                format_func=lambda p: f"{p}  {bucket_counts.get(p, 0)}" if p in phase_sel else p,
-                key=phase_key, label_visibility="collapsed") or []
+                key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
+            if phase_pick:
+                st.markdown(
+                    '<div class="byline">'
+                    + "  ·  ".join(f"{p} {bucket_counts.get(p, 0)}" for p in phase_pick)
+                    + "</div>", unsafe_allow_html=True)
 
             # The table opens on either filter: an area alone lists every phase in it, a
             # phase alone lists that phase across all diseases, and together they
