@@ -66,7 +66,7 @@ earnings release can announce several at once, so return all of them.
 Return JSON only, no prose:
 {"deals": [{"deal_type": "acquisition" or "licensing" or "collaboration" or \
 "divestiture", "counterparty": str, "value": str or null, "area": str or null, \
-"quote": str}]}
+"announced_date": str or null, "quote": str}]}
 Return {"deals": []} when the text announces none.
 
 Rules, in order of importance:
@@ -84,7 +84,10 @@ exactly and nothing more, for example "$7 billion" or "$72.50 per share"; null w
 text states none for it. Never compute or estimate it.
 5. area is a short phrase for what that deal is for: the target's focus, therapeutic \
 area, asset or modality, taken from the text.
-6. quote is one sentence copied verbatim from the text that announces that deal."""
+6. announced_date is the date the company announced this deal, taken from the text and \
+written as YYYY-MM-DD; null when the text states no date for it. Do not infer or estimate \
+a date.
+7. quote is one sentence copied verbatim from the text that announces that deal."""
 
 
 def _get(url: str) -> str:
@@ -165,13 +168,29 @@ def _normalise(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
 
 
+def _grounded_date(value, document: str) -> str | None:
+    """A YYYY-MM-DD date the model returned, kept only when it appears in the filing in a
+    common written form, so an announcement date is read from the text, never invented.
+    Returns the ISO date or None."""
+    try:
+        date = dt.date.fromisoformat(str(value)[:10])
+    except (ValueError, TypeError):
+        return None
+    month = date.strftime("%B")
+    forms = (f"{month} {date.day}, {date.year}", f"{month} {date.day}",
+             f"{date.day} {month} {date.year}", f"{date.day} {month}",
+             date.isoformat(), f"{date.month}/{date.day}/{date.year}")
+    low = document.lower()
+    return date.isoformat() if any(form.lower() in low for form in forms) else None
+
+
 def _party_key(counterparty: str) -> str:
     """The first significant word of a party, the stable handle for de-duplication."""
     tokens = re.findall(r"[a-z0-9]{3,}", (counterparty or "").lower())
     return tokens[0] if tokens else (counterparty or "").lower()
 
 
-def _validate_one(deal: dict, haystack: str) -> dict | None:
+def _validate_one(deal: dict, haystack: str, document: str) -> dict | None:
     deal_type = (deal.get("deal_type") or "").strip().lower()
     if deal_type not in _DEAL_TYPES:
         return None
@@ -187,19 +206,20 @@ def _validate_one(deal: dict, haystack: str) -> dict | None:
         value = None
     area = (deal.get("area") or "").strip() or None
     return {"deal_type": deal_type, "counterparty": counterparty, "value": value,
-            "area": area, "quote": quote}
+            "area": area, "announced_date": _grounded_date(deal.get("announced_date"),
+                                                           document), "quote": quote}
 
 
 def validate(reply: dict | None, document: str) -> list[dict]:
     """The deals in the reply that are grounded in the document, de-duplicated on the
-    party. A deal a filing does not support drops out; a name or price the model produced
-    from its own knowledge cannot become an event."""
+    party. A deal a filing does not support drops out; a name, price or date the model
+    produced from its own knowledge cannot become an event."""
     if not reply or not isinstance(reply.get("deals"), list):
         return []
     haystack = _normalise(document)
     out, seen = [], set()
     for deal in reply["deals"]:
-        valid = _validate_one(deal or {}, haystack)
+        valid = _validate_one(deal or {}, haystack, document)
         if not valid:
             continue
         key = _party_key(valid["counterparty"])
@@ -229,6 +249,12 @@ def _store(conn, filing: dict, results: list[dict]) -> None:
              filing["url"]))
         return
     for r in results:
+        # The announcement date read from the release when it is on or before the filing
+        # date, otherwise the filing date. The market saw the deal on the earlier of the
+        # two, and a date later than the filing is not the announcement.
+        announced = r.get("announced_date")
+        event_date = (announced if announced and announced <= filing["filed_date"]
+                      else filing["filed_date"])
         conn.execute(
             """
             INSERT INTO deals
@@ -237,7 +263,7 @@ def _store(conn, filing: dict, results: list[dict]) -> None:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (filing["accession"], filing["company_id"], r["deal_type"], r["counterparty"],
-             r["value"], r["area"], filing["filed_date"], r["quote"], filing["url"]))
+             r["value"], r["area"], event_date, r["quote"], filing["url"]))
 
 
 def extract(db_path=None, limit: int = MAX_PER_RUN, today=None) -> dict:

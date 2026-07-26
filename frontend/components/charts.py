@@ -667,14 +667,20 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
             colour = item.get("colour") or TK.UP
             selected = selected_key is not None and item.get("key") == selected_key
             tick_w = 7 if selected else 5
-            # A click anchors the whole row to ?…&sel=key, so selection round-trips
-            # through the URL with no script; the transparent rect is the hit target.
-            linked = link_base and item.get("key")
-            if linked:
-                body.append(f'<a href="{_esc(link_base + _quote(str(item["key"])))}">')
-                body.append(f'<rect x="0" y="{y - 6:.1f}" width="{width}" height="13"'
-                            f' fill="transparent"><title>'
-                            f'{_esc(item.get("label") or "")}</title></rect>')
+            # A hover previews the item through the rect's title; a click opens the study
+            # page when the item carries a URL, and otherwise pins it (exclusivity) when a
+            # link base is given. The full-width transparent rect is the hover and click
+            # target across the whole row.
+            url = item.get("url")
+            href = (url if url
+                    else (link_base + _quote(str(item["key"]))
+                          if link_base and item.get("key") else None))
+            tooltip = item.get("full") or item.get("label") or ""
+            if href:
+                target = ' target="_blank" rel="noopener"' if url else ""
+                body.append(f'<a href="{_esc(href)}"{target}>')
+            body.append(f'<rect x="0" y="{y - 6:.1f}" width="{width}" height="13"'
+                        f' fill="transparent"><title>{_esc(tooltip)}</title></rect>')
             body.append(f'<line x1="{spine_x - tick_w}" y1="{y:.1f}"'
                         f' x2="{spine_x + tick_w}" y2="{y:.1f}" stroke="{colour}"'
                         f' stroke-width="{2.4 if selected else 1.6}"/>')
@@ -700,7 +706,7 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
                               weight=weight))
             body.append(_text(spine_x + 58, y + 3, str(item.get("label") or "")[:20],
                               8.5, TK.TEXT if selected else TK.MUTED, family=UI))
-            if linked:
+            if href:
                 body.append("</a>")
             y += row_h
         y += month_gap

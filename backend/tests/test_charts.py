@@ -277,6 +277,18 @@ def test_spine_items_become_anchors_when_a_link_base_is_given():
     assert linked.count("<a href=") == linked.count("</a>")  # every anchor closed
 
 
+def test_spine_item_with_a_url_opens_the_study_and_previews_the_full_title():
+    """A catalyst carries the study URL and its full title: a hover previews the trial
+    and a click opens its page in a new tab, which wins over the pin link base."""
+    item = {"key": "c", "date": "2026-08-10", "label": "readout",
+            "full": "Phase 3, A big long trial name (2026-08) · NCT01",
+            "url": "https://clinicaltrials.gov/study/NCT01", "colour": tokens.UP}
+    svg = charts.timeline_spine([item], dt.date(2026, 7, 25), link_base="?sel=")
+    assert 'href="https://clinicaltrials.gov/study/NCT01" target="_blank"' in svg
+    assert "Phase 3, A big long trial name (2026-08)" in svg   # the hover title
+    assert "sel=c" not in svg                                  # the URL wins over the pin
+
+
 def test_spine_places_a_month_only_date_without_inventing_a_day():
     """Registry dates often carry no day. The tick lands at the month and the
     label stays month-precision rather than growing a fabricated day."""

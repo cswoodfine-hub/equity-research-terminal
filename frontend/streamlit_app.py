@@ -507,14 +507,19 @@ def _spine_key(item) -> str:
 def _catalyst_spine_item(cat) -> dict:
     """A catalyst row for the spine, built from the fuller catalyst list rather than the
     60-day feed, so the horizon shows every upcoming readout out to two years, not only
-    the ones inside the note window."""
+    the ones inside the note window. Carries the study URL and the full title, so on the
+    rail a hover previews the trial and a click opens its page."""
     regulatory = cat.get("catalyst_type") in ("PDUFA", "EMA decision", "AdCom")
     headline = (f'{cat.get("ticker", "")} {cat.get("catalyst_type", "")}: '
                 f'{cat.get("title", "")} ({cat.get("expected_date", "")})')
+    nct = cat.get("description") or ""
+    full = f'{cat.get("title", "")} ({cat.get("expected_date", "")})'
+    full = f"{full} · {nct}" if nct.startswith("NCT") else full
     item = {"kind": "catalyst", "date": cat.get("expected_date"), "headline": headline}
     return {"key": _spine_key(item), "date": cat.get("expected_date"),
             "label": _spine_label(headline), "headline": headline, "kind": "catalyst",
             "significance": "medium", "reason": None, "detail": cat.get("description"),
+            "full": full, "url": cat.get("source_url"),
             "colour": TK.FLAG if regulatory else TK.UP, "flagged": regulatory}
 
 

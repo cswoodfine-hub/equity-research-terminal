@@ -170,3 +170,36 @@ def test_recent_dedupes_to_earliest_merges_value_and_shortens(tmp_path):
     assert arcellx["area"] == "oncology"
     sino = next(r for r in rows if r["deal_type"] == "collaboration")
     assert sino["counterparty"] == "Sino Biopharmaceutical"   # trimmed of the legal chain
+
+
+_DATED = ("Big Pharma today announced that on April 20, 2026 it entered a definitive "
+          "agreement to acquire Kelonia Therapeutics, Inc. to advance in vivo therapies.")
+
+
+def test_announced_date_kept_only_when_it_appears_in_the_text():
+    base = {"deal_type": "acquisition", "counterparty": "Kelonia Therapeutics, Inc.",
+            "value": None, "area": "in vivo therapies",
+            "quote": "entered a definitive agreement to acquire Kelonia Therapeutics, Inc."}
+    grounded = deals.validate({"deals": [{**base, "announced_date": "2026-04-20"}]}, _DATED)
+    assert grounded[0]["announced_date"] == "2026-04-20"        # "April 20, 2026" is in the text
+    invented = deals.validate({"deals": [{**base, "announced_date": "2025-01-01"}]}, _DATED)
+    assert invented[0]["announced_date"] is None                # not in the text, dropped
+
+
+def test_store_dates_a_deal_to_the_announcement_when_grounded(tmp_path):
+    db_file = tmp_path / "t.db"
+    _seed_filing(db_file, "LLY", "8-K", "Results of operations", "2026-04-30", "acc-x")
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    filing = {"accession": "acc-x", "company_id": cid, "filed_date": "2026-04-30",
+              "url": "http://x/f.htm"}
+    deals._store(conn, filing, [
+        {"deal_type": "acquisition", "counterparty": "Kelonia Therapeutics",
+         "value": None, "area": "in vivo", "announced_date": "2026-04-20", "quote": "q"},
+        {"deal_type": "acquisition", "counterparty": "Orna Therapeutics",
+         "value": None, "area": "cell", "announced_date": None, "quote": "q"}])
+    conn.commit()
+    dates = dict(conn.execute("SELECT counterparty, event_date FROM deals").fetchall())
+    conn.close()
+    assert dates["Kelonia Therapeutics"] == "2026-04-20"   # the announcement date
+    assert dates["Orna Therapeutics"] == "2026-04-30"      # no date stated, so the filing

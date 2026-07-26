@@ -1,5 +1,23 @@
 # Build log, overnight autonomous build
 
+## Deal dates from the release; the horizon opens the study — 2026-07-26 22:00
+Two follow-ups on the horizon and the deals.
+
+A deal now carries its announcement date, not the filing date, when the release states
+one. The extractor reads the date and keeps it only when it appears in the filing in a
+common written form, so a date is read from the text and never invented; when the text
+states none the filing date stands. On the re-backfill Vertex and Crinetics moved to
+their 2026-07-06 announcement, Biogen and Apellis to the 2026-03-31 agreement, Pfizer and
+Metsera to 2025-11-04. Lilly's four April acquisitions stay on the filing date, because
+the earnings release that lists them states no date the guard could match, which is the
+honest result rather than a guessed one.
+
+The horizon rail's clicks changed. A trial tick no longer pins; it opens the study on
+ClinicalTrials.gov in a new tab, and a hover previews the full trial title, which the
+rail truncates to twenty characters. Exclusivity ticks, which have no study page, keep
+the pin. The catalyst spine item carries the study URL and the full title for this.
+Suite 426 green.
+
 ## Key insights, restructured; the readout budget fixed — 2026-07-26 20:45
 The Key insights tab led with "changes since the last refresh", a list of snapshot-diff
 lines (trial status and date wording) that read as jargon. It is dropped. The view is now
