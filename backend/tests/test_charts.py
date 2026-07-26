@@ -300,6 +300,29 @@ def test_spine_places_a_month_only_date_without_inventing_a_day():
     assert "08-01" not in svg                          # no invented day
 
 
+# --- approvals timeline ---------------------------------------------------
+def test_approvals_timeline_dots_each_with_a_hover_and_empty_is_blank():
+    svg = charts.approvals_timeline([
+        {"ticker": "SNY", "label": "Sarclisa Escena", "date": "2026-07-09",
+         "full": "Sarclisa Escena (BLA761445) — 2026-07-09"},
+        {"ticker": "GSK", "label": "Utebzi", "date": "2026-06-17",
+         "full": "Utebzi (NDA215960) — 2026-06-17"}],
+        today=dt.date(2026, 7, 26))
+    assert "SNY" in svg and "GSK" in svg
+    assert "Sarclisa Escena (BLA761445)" in svg        # the hover carries the full name
+    assert svg.count("<circle") == 2                   # one dot per approval
+    assert "Jul 26" in svg or "Jun 26" in svg          # a month gridline label
+    assert charts.approvals_timeline([]) == ""
+
+
+def test_small_multiples_draw_a_zero_line_when_the_shared_scale_crosses_it():
+    svg = charts.small_multiples([
+        {"label": "UP", "values": [0.0, 5.0, 12.0]},
+        {"label": "DN", "values": [0.0, -3.0, -6.0]}], width=400, height=120)
+    # the shared domain spans -6..12, so each panel gets a zero reference line
+    assert svg.count(f'stroke="{tokens.RULE}"') >= 2
+
+
 # --- scatter and sparkline marks ------------------------------------------
 def test_scatter_labels_every_point_and_weights_the_selected_one():
     svg = charts.scatter([

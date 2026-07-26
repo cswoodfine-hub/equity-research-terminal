@@ -177,6 +177,17 @@ def html_escape(text: str) -> str:
     return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
+def _pct_from_start(closes) -> list:
+    """A price series as percent change from its first value, so many companies plot on
+    one comparable scale: every line starts at zero and its height is the move, not the
+    share price. LLY near 1200 and PFE near 25 become comparable."""
+    real = [c for c in closes if c is not None]
+    base = real[0] if real else None
+    if not base:
+        return list(closes)
+    return [((c / base - 1) * 100) if c is not None else None for c in closes]
+
+
 _DEAL_BADGE = {"acquisition": "Acquisition", "licensing": "Licence",
                "collaboration": "Collaboration", "divestiture": "Divestiture"}
 
@@ -669,26 +680,37 @@ with main:
                         width="stretch", hide_index=True)
 
         universe_feed = api_get(api_base, "/changes")
-        flagged = [it for it in universe_feed if it.get("significance") == "high"]
-        section("What moved across coverage",
-                f"{len(universe_feed)} items, {len(flagged)} high")
-        if not universe_feed:
-            state("Nothing flagged across the universe",
-                  "The feed compares snapshots between refreshes. Press Refresh all "
-                  "in the top bar to pull the sources and compute a diff.")
+        # The universe view leads with FDA approvals, the cleanest cross-coverage signal,
+        # drawn on a date axis rather than a jargon-heavy list; the full change feed with
+        # filings, trial moves and risk-factor edits lives on each company's Key insights.
+        approvals = []
+        for it in universe_feed:
+            if it.get("change_type") != "new_approval":
+                continue
+            drug = (it.get("headline") or "").split("FDA approval:", 1)[-1].strip()
+            approvals.append({"ticker": it.get("ticker") or "",
+                              "label": drug.split(" (")[0].strip(),
+                              "date": it.get("date"),
+                              "full": f"{drug} — {(it.get('date') or '')[:10]}"})
+        section("FDA approvals across coverage", f"{len(approvals)} on the tape")
+        if not approvals:
+            state("No approvals flagged across the universe",
+                  "New approvals are read from openFDA on refresh. Press Refresh all in "
+                  "the top bar to pull the sources.")
         else:
-            ordered = flagged + [it for it in universe_feed
-                                 if it.get("significance") != "high"]
-            st.markdown('<div class="feed">' + "".join(
-                feed_row(it, show_reason=True) for it in ordered[:30])
-                + "</div>", unsafe_allow_html=True)
+            R.show(CH.approvals_timeline(approvals, 1040, 152, dt.date.today()))
+            st.markdown(
+                '<div class="byline">Each dot is an FDA approval among covered companies '
+                'at its date; hover for the drug and application number. The detailed '
+                'change feed, filings, trial moves and risk-factor edits, sits on each '
+                "company's Key insights tab.</div>", unsafe_allow_html=True)
 
-        section("Coverage, 90 days", "shared scale")
+        section("Coverage, 90 days", "indexed to the start, one scale")
         panels = api_get(api_base, "/price-grid?days=90")
         if any(p["closes"] for p in panels):
             R.show(CH.small_multiples(
                 [{"label": p["ticker"],
-                  "values": p["closes"] or [],
+                  "values": _pct_from_start(p["closes"] or []),
                   "sub": T.pct(p["change"] * 100) if p["change"] is not None else ""}
                  for p in panels], 1040, 420, cols=6))
         else:

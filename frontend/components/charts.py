@@ -595,6 +595,12 @@ def small_multiples(panels: Sequence[dict], width: int = 1080, height: int = 420
         local_dom = dom or _domain(values)
         y = _scale(local_dom, (gy + ph - 8, gy + 24))
         x = _scale((0, max(len(values) - 1, 1)), (gx + 8, gx + pw - 8))
+        # A zero reference when the shared scale crosses it, so a series indexed to its
+        # start reads against a common baseline: above the line is up on the window.
+        if local_dom[0] < 0 < local_dom[1]:
+            zy = y(0)
+            out.append(f'<line x1="{gx + 8:.1f}" y1="{zy:.1f}" x2="{gx + pw - 8:.1f}"'
+                       f' y2="{zy:.1f}" stroke="{TK.RULE}"/>')
         first = real[0]
         last = real[-1]
         stroke = TK.DOWN if last < first else TK.UP
@@ -758,7 +764,81 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
     return "".join(out)
 
 
-# --- 11. scatter ----------------------------------------------------------
+# --- 11. approvals timeline ----------------------------------------------
+def approvals_timeline(approvals: Sequence[dict], width: int = 1040,
+                       height: int = 150, today=None) -> str:
+    """Recent FDA approvals across coverage on one date axis, in place of a jargon feed.
+
+    Each approval is a dot at its date on a baseline, labelled with the ticker and drug
+    above or below in turn so the two rows do not collide, with the full name and date on
+    hover. Month gridlines and a dashed today line give the reader the timeframe. It reads
+    as a glance of what cleared and when. Each approval: {ticker, label, date, full}.
+    """
+    import datetime as _dt
+    today = today or _dt.date.today()
+
+    def _d(value):
+        try:
+            return _dt.date.fromisoformat(str(value)[:10])
+        except (ValueError, TypeError):
+            return None
+
+    items = sorted(((d, a) for a in approvals if (d := _d(a.get("date")))),
+                   key=lambda pair: pair[0])
+    if not items:
+        return ""
+    start = min(items[0][0], today - _dt.timedelta(days=14))
+    end = max(items[-1][0], today)
+    span = max((end - start).days, 1)
+    pad_l, pad_r, mid = 16, 16, height / 2
+    plot_w = width - pad_l - pad_r
+
+    def xpos(when):
+        return pad_l + (when - start).days / span * plot_w
+
+    out = [_svg_open(width, height, "approvals timeline")]
+    month = _dt.date(start.year, start.month, 1)
+    while month <= end:
+        if month >= start:
+            mx = xpos(month)
+            out.append(f'<line x1="{mx:.1f}" y1="{mid - 46:.1f}" x2="{mx:.1f}"'
+                       f' y2="{mid + 46:.1f}" stroke="{TK.RULE}"/>')
+            out.append(_text(mx + 3, mid + 44, month.strftime("%b %y"), 8, TK.MUTED,
+                             family=UI))
+        month = _dt.date(month.year + month.month // 12, month.month % 12 + 1, 1)
+    tx = xpos(today)
+    out.append(f'<line x1="{tx:.1f}" y1="{mid - 46:.1f}" x2="{tx:.1f}" y2="{mid + 46:.1f}"'
+               f' stroke="{TK.TEXT}" stroke-width="1" stroke-dasharray="2,2"/>')
+    out.append(f'<line x1="{pad_l}" y1="{mid:.1f}" x2="{width - pad_r}" y2="{mid:.1f}"'
+               f' stroke="{TK.RULE_STRONG}" stroke-width="1.2"/>')
+
+    above_x, below_x = [], []
+    for i, (when, appr) in enumerate(items):
+        px = xpos(when)
+        above = i % 2 == 0
+        lane = above_x if above else below_x
+        lx = px
+        while any(abs(lx - placed) < 58 for placed in lane):   # keep same-side labels apart
+            lx += 58
+        lane.append(lx)
+        ticker = appr.get("ticker") or ""
+        drug = str(appr.get("label") or "")[:15]
+        full = appr.get("full") or f"{ticker} {appr.get('label', '')} ({when.isoformat()})"
+        stem_y = mid - 7 if above else mid + 7
+        tick_y = mid - 26 if above else mid + 18
+        drug_y = mid - 16 if above else mid + 28
+        out.append(f'<circle cx="{px:.1f}" cy="{mid:.1f}" r="3.2" fill="{TK.UP}">'
+                   f'<title>{_esc(full)}</title></circle>')
+        out.append(f'<line x1="{px:.1f}" y1="{stem_y:.1f}" x2="{lx:.1f}"'
+                   f' y2="{(tick_y + 3) if above else (tick_y - 8):.1f}"'
+                   f' stroke="{TK.RULE}"/>')
+        out.append(_text(lx, tick_y, ticker, 9, TK.TEXT, "middle", MONO, "700"))
+        out.append(_text(lx, drug_y, drug, 8, TK.MUTED, "middle", UI))
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- 12. scatter ----------------------------------------------------------
 def scatter(points: Sequence[dict], width: int = 760, height: int = 280,
             x_label: str = "", y_label: str = "",
             fmt: Callable[[float], str] = None) -> str:
