@@ -1175,68 +1175,45 @@ with main:
                 f'<span class="v">{len(windowed)}</span></span></div>',
                 unsafe_allow_html=True)
 
-            # Saved tags for this ticker, drawn as markers and listed for removal below.
-            tags = api_get(
-                api_base,
-                f"/annotations?ticker={urllib.parse.quote(ticker)}&entity_type=price")
+            # Major events on the chart, from the data rather than typed in: FDA approvals
+            # (up arrow, below the bar) and any loss-of-exclusivity date inside the window
+            # (down arrow, above it). Both come from the approvals endpoint. Future LOE
+            # dates sit years past the price history, so they fall outside the window and
+            # are left to the LOE tab and the horizon rail.
+            approvals = api_get(
+                api_base, f"/companies/{ticker}/approvals").get("approvals") or []
+            events = []
+            for appr in approvals:
+                name = appr.get("brand_name") or appr.get("generic_name")
+                if appr.get("approval_date") and name:
+                    events.append({"date": appr["approval_date"], "label": name,
+                                   "kind": "approval"})
+                if appr.get("loe") and name:
+                    events.append({"date": appr["loe"], "label": f"{name} LOE",
+                                   "kind": "loe"})
 
             # TradingView lightweight-charts, embedded with the library bundled locally.
             # Native two-finger zoom that stretches the sticks and auto-fits the y-axis.
             components.html(
                 price_chart.chart_html(
-                    chart_rows, tags, mode=view, ticker=ticker,
+                    chart_rows, events, mode=view, ticker=ticker,
                     currency=base_resp.get("currency") or "", intraday=intraday,
                     window_days=days, height=560),
                 height=572)
+
+            shown = len(price_chart.event_markers(chart_rows, events, intraday))
+            st.markdown(
+                '<div class="byline">'
+                '<span style="color:var(--up)">▲</span> FDA approval'
+                '&nbsp;&nbsp;<span style="color:var(--down)">▼</span> loss of '
+                f'exclusivity &nbsp;·&nbsp; {shown} on this view. Read from the '
+                'approvals and exclusivity data; a date outside the loaded window is not '
+                'marked here.</div>', unsafe_allow_html=True)
             if intraday:
                 st.markdown('<div class="byline">Intraday is a rolling window from the free '
                             'feed: minutes reach back about two months, hours about two '
                             'years. Older bars are unavailable, not missing.</div>',
                             unsafe_allow_html=True)
-
-            # Clicks do not round-trip through the embedded chart, so a tag is placed by
-            # date; it renders as a marker snapped to the nearest bar. The date snaps to the
-            # nearest bar on or before it.
-            avail = sorted(set(bar_frame["as_of"].dt.strftime("%Y-%m-%d")))
-            with st.form(f"price_tag_{ticker}", clear_on_submit=True):
-                tag_cols = st.columns([1.3, 3.4, 0.9])
-                with tag_cols[0]:
-                    day = st.date_input(
-                        "Bar", value=bar_frame["as_of"].max(),
-                        min_value=bar_frame["as_of"].min(),
-                        max_value=bar_frame["as_of"].max(), format="YYYY-MM-DD",
-                        key=f"tag_day_{ticker}", label_visibility="collapsed")
-                with tag_cols[1]:
-                    body = st.text_input(
-                        "Tag", placeholder="Leave a note on a bar (e.g. Q4 print, PDUFA)",
-                        key=f"tag_body_{ticker}", label_visibility="collapsed")
-                with tag_cols[2]:
-                    add = st.form_submit_button("Add tag", width="stretch")
-            if add and body.strip():
-                key = day.strftime("%Y-%m-%d")
-                if key not in set(avail):
-                    earlier = [d for d in avail if d <= key]
-                    key = earlier[-1] if earlier else avail[0]
-                api_post_json(api_base, "/annotations", {
-                    "ticker": ticker, "entity_type": "price",
-                    "entity_id": key, "body": body.strip()})
-                st.rerun()
-
-            if tags:
-                st.markdown('<div class="byline">Tags on this chart. A tag is saved and '
-                            'stays across refreshes and intervals.</div>',
-                            unsafe_allow_html=True)
-                for tag in tags:
-                    row = st.columns([1.3, 4.3, 0.9])
-                    row[0].markdown(
-                        f'<span class="mono">{html_escape(str(tag.get("entity_id") or "")[:10])}'
-                        '</span>', unsafe_allow_html=True)
-                    row[1].markdown(html_escape(tag.get("body") or ""),
-                                    unsafe_allow_html=True)
-                    if row[2].button("Delete", key=f"del_tag_{tag['id']}",
-                                     width="stretch"):
-                        api_delete(api_base, f"/annotations/{tag['id']}")
-                        st.rerun()
 
     # --- Financials ------------------------------------------------------
     with financials_tab:

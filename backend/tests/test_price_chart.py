@@ -51,16 +51,24 @@ def test_intraday_time_is_a_utc_epoch_not_a_date_string():
     assert data[1]["time"] - data[0]["time"] == 300   # five minutes apart
 
 
-def test_a_tag_becomes_a_marker_snapped_to_the_nearest_bar():
-    tags = [{"id": 1, "entity_id": "2026-07-14", "body": "Q2 print"}]
-    marks = price_chart.markers_for(DAILY, tags)
+def test_an_approval_event_is_a_marker_snapped_to_the_nearest_bar():
+    events = [{"date": "2026-07-14", "label": "Zepbound", "kind": "approval"}]
+    marks = price_chart.event_markers(DAILY, events)
     assert len(marks) == 1
-    assert marks[0]["time"] == "2026-07-14" and marks[0]["text"] == "Q2 print"
-    assert marks[0]["color"] == TK.FLAG
+    assert marks[0]["time"] == "2026-07-14" and marks[0]["text"] == "Zepbound"
+    assert marks[0]["color"] == TK.UP and marks[0]["position"] == "belowBar"
 
 
-def test_a_tag_off_the_chart_is_dropped():
-    marks = price_chart.markers_for(DAILY, [{"id": 9, "entity_id": "2020-01-01", "body": "x"}])
+def test_an_loe_event_takes_the_down_style_above_the_bar():
+    events = [{"date": "2026-07-15", "label": "Keytruda LOE", "kind": "loe"}]
+    marks = price_chart.event_markers(DAILY, events)
+    assert marks[0]["color"] == TK.DOWN and marks[0]["position"] == "aboveBar"
+
+
+def test_an_event_off_the_chart_is_dropped():
+    # A future loss of exclusivity, years past the price history, has no bar to sit on.
+    marks = price_chart.event_markers(
+        DAILY, [{"date": "2039-01-01", "label": "future LOE", "kind": "loe"}])
     assert marks == []
 
 
