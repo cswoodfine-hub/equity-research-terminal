@@ -129,6 +129,28 @@ different item numbers and are left for a later pass, stated in the view.
 
 Suite 390. Eight migrations now, all additive.
 
+**Item 8, valuation scaffold (done).** A marketed drug is worth, roughly, the cash
+it throws off while still protected. valuation.py takes each product's latest
+reported revenue, holds it flat, and discounts it over the years left to its LOE
+at a stated 10%; post-LOE generic revenue is zero. No new table and no fetcher,
+since every input, revenue, LOE and FX, is already on file. A
+/companies/{ticker}/valuation endpoint and a Protected value section on the
+Revenue at risk tab, with the rNPV per product and a company total.
+
+Nothing is invented, so the gaps are named rather than filled. MRK reads a
+protected value of 30.2bn across 12 products, and 43.6bn of revenue it cannot
+value, Keytruda alone 31.6bn, because those are biologics whose only free
+protection date is orphan exclusivity, which does not gate a biosimilar, so the
+Purple Book gives no cliff to discount to. That unvalued number is shown as
+prominently as the valued one; hiding it would be the dishonest reading. The
+phase-to-probability benchmarks are documented as the framework for a pipeline
+asset, but no free source gives a pipeline drug its peak sales, so the pipeline
+carries no dollar value. USD is treated as identity rather than read from the FX
+table, so a company reporting in USD values without a stored rate.
+
+Suite 393. Still eight migrations; this layer is computation over what the earlier
+items already collect.
+
 ## Follow-up: the five V2 recommendations — 2026-07-25 07:20
 All five items from the final message, implemented, tested, committed one concern
 each on top of the overnight build.

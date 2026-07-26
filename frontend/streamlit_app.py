@@ -1505,6 +1505,65 @@ with main:
                 'so it is left unconverted rather than shown as zero.</div>',
                 unsafe_allow_html=True)
 
+        # --- Protected value ---
+        # A marketed drug is worth, roughly, the cash it throws off while it is still
+        # protected. This discounts each product's revenue run-rate over the years left
+        # to its LOE, and names the revenue it cannot value rather than dropping it.
+        val = api_get(api_base, f"/companies/{ticker}/valuation")
+        vrows = val.get("valued") or []
+        section("Protected value", "rNPV of the protected revenue stream")
+        if not vrows and not (val.get("unvalued") or []):
+            state(f"No protected value computed for {ticker}",
+                  "Valuation needs tagged product revenue and an Orange or Purple Book "
+                  "protection date. This company has no tagged product revenue on file, "
+                  "so there is nothing to discount. Press Refresh all if this looks off.")
+        else:
+            unval_rev = val.get("unvalued_revenue_usd") or 0
+            st.markdown(
+                '<div class="pos">'
+                f'<div><span class="k">protected value</span>'
+                f'<span class="v">{T.num(val["protected_value_usd"] / 1e9, 1)}</span>'
+                f'<span class="sub">USD bn, {len(vrows)} products</span></div>'
+                f'<div><span class="k">discount rate</span>'
+                f'<span class="v">{val["discount_rate"] * 100:.0f}%</span>'
+                f'<span class="sub">run-rate held flat</span></div>'
+                f'<div><span class="k">revenue not valued</span>'
+                f'<span class="v{"" if unval_rev else " none"}">'
+                f'{T.num(unval_rev / 1e9, 1) if unval_rev else "none"}</span>'
+                f'<span class="sub">USD bn, no free patent cliff</span></div>'
+                '</div>', unsafe_allow_html=True)
+            if vrows:
+                frame = pd.DataFrame([{
+                    "Drug": a["brand"], "Modality": a["modality"] or "—",
+                    "Revenue $bn": T.num((a["revenue_usd"] or 0) / 1e9, 2),
+                    "Protected to": a["loe_year"], "Years": a["years_protected"],
+                    "rNPV $bn": T.num((a["rnpv_usd"] or 0) / 1e9, 1),
+                    "Medicare $m": (T.num(a["medicare_spend"] / 1e6, 0)
+                                    if a.get("medicare_spend") else "—")}
+                    for a in vrows])
+                st.dataframe(frame.style.map(
+                    lambda v: f"color:{T.P.modality.get(v, T.P.stale)};font-weight:600",
+                    subset=["Modality"]), width="stretch", hide_index=True)
+            unval = [a for a in (val.get("unvalued") or []) if a.get("revenue_usd")]
+            if unval:
+                st.markdown(
+                    '<div class="byline"><b>Earning but not valued</b>, no protected '
+                    'stream to discount: ' + ", ".join(
+                        f'{a["brand"]} ({T.num(a["revenue_usd"] / 1e9, 1)}bn)'
+                        for a in unval[:8]) + '. Almost all are biologics whose only free '
+                    'protection date is orphan exclusivity, which does not gate a '
+                    'biosimilar, so the Purple Book gives no cliff to discount to.</div>',
+                    unsafe_allow_html=True)
+            st.markdown(
+                "<div class=\"byline\">A scaffold, not a model. Each product's latest "
+                'reported revenue is held flat and discounted over the years left to its '
+                'LOE at the rate above; post-LOE generic revenue is counted as zero. A '
+                'marketed product carries a probability of one, so this is an NPV; the '
+                'phase-to-probability benchmarks are the framework for a pipeline asset, '
+                'but no free source gives a pipeline drug its peak sales, so the pipeline '
+                'is not valued. Medicare spending is a real-world demand cross-check, not '
+                'an input.</div>', unsafe_allow_html=True)
+
     # --- Slippage --------------------------------------------------------
     with slippage_tab:
         section("Completion date slippage", "from our own snapshot history")

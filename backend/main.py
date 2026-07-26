@@ -23,6 +23,7 @@ import comps as comps_module
 import db
 import demand as demand_module
 import filing_diff as filing_diff_module
+import valuation as valuation_module
 import financials_view as financials_view_module
 import insights as insights_module
 import labels as labels_module
@@ -253,6 +254,19 @@ def company_filing_text(ticker: str) -> dict:
     if rows is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     return {"ticker": ticker.upper(), "sections": rows}
+
+
+@app.get("/companies/{ticker}/valuation")
+def company_valuation(ticker: str, rate: float = Query(default=valuation_module.DISCOUNT_RATE)) -> dict:
+    """A protected-revenue NPV per marketed product and a company total.
+
+    Each product's latest reported revenue is held flat and discounted over the years
+    left to its LOE. A scaffold, not a model: post-LOE generic revenue is zero, the rate
+    is one number, and a product missing revenue or an LOE date is listed unvalued."""
+    built = valuation_module.company_valuation(None, ticker, rate)
+    if built is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return built
 
 
 @app.get("/companies/{ticker}/demand")
