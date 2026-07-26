@@ -300,6 +300,27 @@ h3 {{ font-size: 0.9rem; }}
 .pf-v.none {{ color: var(--muted); }}
 .pf-v.near {{ color: var(--down); font-weight: 600; }}
 
+/* Catalyst boxes: one per company, the coverage grid's shape carried onto the
+   next-30-days readouts, so the calendar reads company by company not one long list. */
+.cat-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+            gap: 8px; margin: 0.4rem 0 0.3rem; }}
+.cat-box {{ background: var(--panel); border: 1px solid var(--rule);
+           border-left: 3px solid var(--flag); padding: 0.45rem 0.6rem; }}
+.cat-box-head {{ display: flex; align-items: baseline; justify-content: space-between;
+                gap: 0.5rem; margin-bottom: 3px; }}
+.cat-tk {{ font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }}
+.cat-n {{ font-size: 8.5px; letter-spacing: 0.06em; text-transform: uppercase;
+         color: var(--muted); white-space: nowrap; }}
+.cat-item {{ display: flex; gap: 7px; align-items: baseline; font-size: 10.5px;
+            padding: 3px 0; border-top: 1px solid var(--rule); line-height: 1.25; }}
+.cat-d {{ font-family: var(--font-mono); color: var(--muted); white-space: nowrap;
+         min-width: 40px; }}
+.cat-t {{ color: var(--text); }}
+.cat-ph {{ color: var(--muted); }}
+.cat-t .rv {{ color: var(--flag); font-size: 8px; letter-spacing: 0.04em;
+             text-transform: uppercase; margin-left: 4px; white-space: nowrap; }}
+.cat-more {{ font-size: 9.5px; color: var(--muted); padding-top: 3px; }}
+
 /* Trial readouts: a mark and sign, the phase, the drug, and the quote. */
 .readouts {{ margin: 0.1rem 0 0.3rem; }}
 .readout {{

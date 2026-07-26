@@ -540,6 +540,32 @@ def _spine_key(item) -> str:
     return hashlib.md5(seed.encode("utf-8")).hexdigest()[:10]
 
 
+def _cat_short_date(value) -> str:
+    """A compact date for a catalyst box. A full date reads "Jul 27"; a month-only date,
+    the coarser confidence the derivation stores, reads "Aug"; anything else is left as
+    written rather than guessed at."""
+    text = str(value or "")
+    try:
+        if len(text) >= 10:
+            return dt.date.fromisoformat(text[:10]).strftime("%b %-d")
+        if len(text) == 7:
+            return dt.date.fromisoformat(text + "-01").strftime("%b")
+    except ValueError:
+        pass
+    return text
+
+
+def _cat_phase_study(title: str) -> tuple[str, str]:
+    """Split a derived readout title, stored as "Phase 3, <study>", into the phase tag and
+    the study text, so the box can grey the phase and lead with what distinguishes the
+    trial. A title without that shape returns no phase and the whole string."""
+    text = (title or "").strip()
+    if text.startswith("Phase ") and ", " in text:
+        phase, study = text.split(", ", 1)
+        return phase, study
+    return "", text
+
+
 def _catalyst_spine_item(cat) -> dict:
     """A catalyst row for the spine, built from the fuller catalyst list rather than the
     60-day feed, so the horizon shows every upcoming readout out to two years, not only
@@ -744,23 +770,54 @@ with main:
             state("No price history yet",
                   "Press Refresh all in the top bar to pull daily closes.")
 
-        section("Next 30 days", "all companies")
         soon_cats = [c for c in api_get(api_base, "/catalysts?within_days=30")
                      if c.get("expected_date")]
-        if not soon_cats:
+        # Group by company, keeping the soonest-first order the API returns; a company's
+        # first appearance is its nearest catalyst, so the boxes read most-imminent first.
+        cat_by_company: dict = {}
+        for c in soon_cats:
+            cat_by_company.setdefault(c["ticker"], []).append(c)
+        section("Next 30 days",
+                f"{len(cat_by_company)} companies with a readout" if cat_by_company
+                else "all companies")
+        if not cat_by_company:
             state("Nothing dated inside 30 days",
                   "Readouts derive from registry completion dates on refresh; PDUFA "
                   "dates are read from 8-Ks when a model key is set.")
         else:
-            st.markdown('<div class="feed">' + "".join(
-                feed_row({
-                    "date": c["expected_date"],
-                    "headline": f"{c['ticker']} {c['catalyst_type']}: {c['title'][:90]}",
-                    "significance": "high" if not c.get("is_curated")
-                                    and c.get("catalyst_type") == "PDUFA" else "medium",
-                    "reason": None if c.get("is_curated") else "uncurated, review",
-                }, show_reason=True) for c in soon_cats[:20]) + "</div>",
-                unsafe_allow_html=True)
+            _CAT_PER_BOX = 5
+            boxes = []
+            for ticker, cats in cat_by_company.items():
+                items = []
+                for c in cats[:_CAT_PER_BOX]:
+                    phase, study = _cat_phase_study(c.get("title") or "")
+                    study = study if len(study) <= 60 else study[:59].rstrip() + "…"
+                    ph = (f'<span class="cat-ph">{html_escape(phase)} </span>'
+                          if phase else "")
+                    review = ("" if c.get("is_curated")
+                              else '<span class="rv">review</span>')
+                    items.append(
+                        f'<div class="cat-item">'
+                        f'<span class="cat-d">{html_escape(_cat_short_date(c["expected_date"]))}</span>'
+                        f'<span class="cat-t">{ph}{html_escape(study)}{review}</span>'
+                        f'</div>')
+                extra = len(cats) - _CAT_PER_BOX
+                more = (f'<div class="cat-more">+{extra} more</div>'
+                        if extra > 0 else "")
+                boxes.append(
+                    f'<div class="cat-box"><div class="cat-box-head">'
+                    f'<span class="cat-tk">{html_escape(ticker)}</span>'
+                    f'<span class="cat-n">{len(cats)} in 30d</span></div>'
+                    f'{"".join(items)}{more}</div>')
+            st.markdown('<div class="cat-grid">' + "".join(boxes) + "</div>",
+                        unsafe_allow_html=True)
+            st.markdown(
+                '<div class="byline">One box per company with a trial readout inside 30 '
+                'days, soonest company first, dated by the registry primary completion '
+                'date. Every one is derived, not curated, so each is a candidate to review '
+                'rather than a confirmed event, and registry dates slip. No free PDUFA '
+                'calendar exists, so regulatory decision dates are not here unless hand '
+                'entered.</div>', unsafe_allow_html=True)
 
         section("FDA announcements", "press, drugs, safety")
         reg_news = api_get(api_base, "/regulatory-news").get("news") or []
