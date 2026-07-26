@@ -130,3 +130,44 @@ def test_signed_trial_readouts_appear_recent_first(tmp_path):
     out = notecontext.company_context(db_file, "NVO", today=today)
     assert "Phase 3 negative readout for CagriSema (2026-02-23)." in out
     assert "nothing" not in out
+
+
+def _news(conn, cid, title, date):
+    conn.execute("INSERT INTO news (company_id, source, title, url, published_at)"
+                 " VALUES (?, 'test', ?, ?, ?)", (cid, title, f"u{date}{title[:6]}", date))
+
+
+def test_deal_headlines_are_named_and_stages_collapse(tmp_path):
+    """The IR headline names the counterparty, and the three stages of one acquisition
+    (agreed, tendered, completed) collapse to the latest, while a separate deal stays."""
+    db_file = _seed(tmp_path / "t.db")
+    conn = db.get_connection(db_file)
+    cid = _company(conn, "GSK")
+    today = dt.date(2026, 7, 26)
+    _news(conn, cid, "6-K: GSK ENTERS AGREEMENT TO ACQUIRE NUVALENT, INC.", "2026-06-09")
+    _news(conn, cid, "6-K: GSK ANNOUNCES TENDER OFFER TO ACQUIRE NUVALENT", "2026-06-24")
+    _news(conn, cid, "6-K: GSK COMPLETES ACQUISITION OF NUVALENT, INC", "2026-07-15")
+    _news(conn, cid, "6-K: COLLABORATION WITH CTTQ FOR BEPIROVIRSEN", "2026-05-11")
+    _news(conn, cid, "6-K: DIRECTOR/PDMR SHAREHOLDING", "2026-07-20")   # not a deal
+    conn.commit()
+    conn.close()
+
+    lines = notecontext._deal_lines(db.get_connection(db_file), _company(
+        db.get_connection(db_file), "GSK"), today)
+    joined = " ".join(lines)
+    assert "COMPLETES ACQUISITION OF NUVALENT" in joined            # latest stage kept
+    assert "TENDER OFFER" not in joined and "ENTERS AGREEMENT" not in joined  # collapsed
+    assert "COLLABORATION WITH CTTQ" in joined                      # a separate deal
+    assert "SHAREHOLDING" not in joined                             # not a deal
+    assert "6-K:" not in joined                                     # form prefix stripped
+
+
+def test_deals_are_absent_when_only_routine_news(tmp_path):
+    db_file = _seed(tmp_path / "t.db")
+    conn = db.get_connection(db_file)
+    cid = _company(conn, "MRK")
+    _news(conn, cid, "8-K: Results of Operations", "2026-07-01")
+    _news(conn, cid, "8-K: Director or officer change", "2026-07-02")
+    conn.commit()
+    conn.close()
+    assert "Recent deals" not in notecontext.company_context(db_file, "MRK")

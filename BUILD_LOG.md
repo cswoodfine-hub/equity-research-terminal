@@ -1,5 +1,29 @@
 # Build log, overnight autonomous build
 
+## Note: name the deals, drop the risk-factor churn — 2026-07-26 17:20
+Two pieces of feedback on the morning note. The line "143 additions and 332 removals
+in the Form 10-Q" was data-dumpy: a count of changed risk-factor paragraphs is filing
+churn, not a signal, and means nothing to a reader. And the note said nothing about
+M&A, the thing that most reshapes a portfolio.
+
+Both are now handled from data already in the database. notecontext gained a deals
+block read from the IR news feed, whose headlines name the counterparty and often the
+area in the company's own words, so there is no model call and no invented party: GSK
+completes the acquisition of Nuvalent and a collaboration with CTTQ for bepirovirsen;
+AstraZeneca licenses a novel EGFR inhibitor and agrees an obesity and T2D deal with
+CSPC. A deal is announced, tendered and completed under three headlines that share the
+target's name, so they are de-duplicated to the latest state by keying on the
+distinctive words once the company's own name and the deal vocabulary are removed. A US
+8-K item that names no party still matches nothing, which is correct.
+
+The note prompt now names a deal, its type and what it adds using only what the headline
+and the snapshot support, and it is told to drop bare risk-factor counts and mention a
+filing's risk factors only when the feed says what specifically changed. The model note
+also runs off the snapshot alone now, so a company with a quiet change feed still gets a
+real note. Live: the GSK note leads its business-development on Nuvalent and CTTQ, the
+AZN note ties the EGFR and CSPC deals to oncology and metabolic targets, and the LLY
+note no longer carries a risk-factor count. Suite green; adds two deal tests.
+
 ## Daily auto-refresh at 06:00, note left on demand — 2026-07-26 16:10
 The whole session's work was landed on main by fast-forward (main was 94 commits
 behind at 51ce799; no merge commit, no conflicts, the live database untouched since

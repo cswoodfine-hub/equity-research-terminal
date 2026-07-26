@@ -14,6 +14,7 @@ context is empty and the note falls back to the feed alone.
 from __future__ import annotations
 
 import datetime as dt
+import re
 
 import db
 
@@ -24,6 +25,29 @@ _METRIC_LABEL = {
 }
 _ANNUAL_METRICS = ("Revenues", "NetIncomeLoss", "ResearchAndDevelopmentExpense")
 _YEAR_MIN, _YEAR_MAX = 350, 380     # a quarter's year-ago comparable, in days
+
+# A news headline that announces a deal. The IR feed names the counterparty and often
+# the therapeutic area in the headline itself, so the note can name an acquisition or a
+# licence without any model call and without inventing a party. A generic 8-K item that
+# names no one is handled by the note prompt, which forbids inventing a counterparty.
+# Stems, so "acqui" matches acquire and acquisition alike; no trailing boundary, which
+# would stop a stem from matching the longer word it begins.
+_DEAL_RE = re.compile(
+    r"\b(acqui|merger|tender offer|licen[sc]|collaborat|deal with|partnership|"
+    r"divest|joint venture|to buy|takeover)", re.I)
+# The filing-form prefix the news pipeline puts on an EDGAR-sourced headline.
+_FILING_PREFIX = re.compile(r"^\s*\d*-?[A-Z0-9]{1,3}\s*:\s*", re.I)
+# Deal and filing vocabulary, dropped when keying a headline for de-duplication so the
+# counterparty is what identifies a deal. One transaction is announced, tendered and
+# completed under three headlines that all share the target's name.
+_DEAL_VOCAB = frozenset((
+    "acquire", "acquires", "acquired", "acquiring", "acquisition", "announce",
+    "announces", "agrees", "agreement", "enters", "completes", "completed", "complete",
+    "tender", "offer", "deal", "licenses", "license", "licence", "licensing",
+    "collaboration", "collaborate", "collaborates", "merger", "merges", "partnership",
+    "divest", "divestiture", "novel", "with", "from", "into", "will", "share",
+    "shares", "stake", "company", "therapeutics", "pharmaceuticals",
+))
 
 
 def _company_id(conn, ticker: str):
@@ -168,6 +192,45 @@ def _readout_lines(conn, cid: int, today: dt.date,
             f"({r['event_date']})." for r in rows]
 
 
+def _deal_lines(conn, cid: int, today: dt.date,
+                within_days: int = 240, limit: int = 4) -> list[str]:
+    """Recent M&A, licensing and collaboration headlines from the IR news feed.
+
+    The headline is the company's own words, so the counterparty and often the area
+    read straight out of it. Several headlines can be stages of one deal (agreed, then
+    completed); they are passed through and the note prompt collapses them to the latest
+    state. A foreign filer's 6-K headline is descriptive; a US 8-K item names no party
+    and so does not match here, which is correct, since inventing one is forbidden.
+    """
+    cutoff = (today - dt.timedelta(days=within_days)).isoformat()
+    own = conn.execute("SELECT ticker, name FROM companies WHERE id = ?",
+                       (cid,)).fetchone()
+    own_tokens = set(re.findall(r"[a-z]{3,}",
+                                f"{own['ticker']} {own['name']}".lower())) if own else set()
+    rows = conn.execute(
+        """
+        SELECT title, published_at FROM news
+         WHERE company_id = ? AND title IS NOT NULL AND published_at >= ?
+         ORDER BY published_at DESC
+        """, (cid, cutoff)).fetchall()
+    lines, seen = [], []
+    for r in rows:
+        if not _DEAL_RE.search(r["title"]):
+            continue
+        clean = _FILING_PREFIX.sub("", r["title"]).strip()
+        # The distinctive words of the headline: the counterparty and any named asset,
+        # once the company's own name and the deal vocabulary are removed.
+        key = {w for w in re.findall(r"[a-z]{4,}", clean.lower())
+               if w not in _DEAL_VOCAB and w not in own_tokens}
+        if key and any(key & prior for prior in seen):
+            continue                                   # a later stage of a kept deal
+        seen.append(key)
+        lines.append(f"{clean} ({(r['published_at'] or '')[:10]}).")
+        if len(lines) >= limit:
+            break
+    return lines
+
+
 def company_context(db_path=None, ticker: str = "", today=None) -> str:
     """A factual snapshot of the company for the note, or "" when nothing is known."""
     today = today or dt.date.today()
@@ -189,6 +252,9 @@ def company_context(db_path=None, ticker: str = "", today=None) -> str:
         reads = _readout_lines(conn, cid, today)
         if reads:
             blocks.append("Trial readouts: " + " ".join(reads))
+        deals = _deal_lines(conn, cid, today)
+        if deals:
+            blocks.append("Recent deals: " + " ".join(deals))
     finally:
         conn.close()
     return "\n".join(blocks)
