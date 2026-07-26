@@ -621,22 +621,17 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
     script: the navigation carries the selection back through the URL.
     """
     import datetime as _dt
+    from itertools import groupby as _groupby
     from urllib.parse import quote as _quote
 
     spine_x = 46
     seg_top = 26
-    near_days, mid_months = 90, 24
-    near_end = today + _dt.timedelta(days=near_days)
+    near_end = today + _dt.timedelta(days=90)
     mid_end = _dt.date(today.year + 2, today.month, 1)
     cliff_years = cliff_years or {}
 
-    cliff_h = 16 * min(len(cliff_years), 8) + 34 if cliff_years else 40
-    seg_h = (height - seg_top - cliff_h - 24) / 2
-    near_y0, mid_y0 = seg_top + 14, seg_top + 14 + seg_h
-    cliff_y0 = mid_y0 + seg_h + 10
-
     def _parse(value):
-        """ISO date, or a month-only date placed at its first day for geometry.
+        """ISO date, or a month-only date placed at its first day for grouping.
         The label keeps month precision; only the position needs a day."""
         s = str(value or "").strip()[:10]
         for candidate in (s, s[:7] + "-01"):
@@ -646,92 +641,93 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
                 continue
         return None
 
-    def y_for(when: _dt.date) -> Optional[float]:
-        if when <= near_end:
-            frac = max((when - today).days, 0) / near_days
-            return near_y0 + frac * (seg_h - 18)
-        if when <= mid_end:
-            months = ((when.year - today.year) * 12 + when.month - today.month)
-            frac = max(months - 3, 0) / (mid_months - 3) if mid_months > 3 else 0
-            return mid_y0 + min(frac, 1.0) * (seg_h - 18)
-        return None
+    # Forward-dated items inside 24 months, grouped by calendar month. Each month is its
+    # own block: a green dash marks it on the spine, its items stack below at a fixed row
+    # height, and a gap separates it from the next, so months in the busy mid-range never
+    # crowd into one another.
+    dated = []
+    for item in items:
+        when = _parse(item.get("date"))
+        if when is None or when < today or when > mid_end:
+            continue
+        dated.append((when, item))
+    dated.sort(key=lambda p: (p[0], str(p[1].get("label") or "")))
 
-    out = [_svg_open(width, height, "time spine")]
+    top_y = seg_top + 14
+    body, y = [], top_y + 6
+    row_h, month_gap = 12.5, 9.0
+    for (year, month), group in _groupby(dated, key=lambda p: (p[0].year, p[0].month)):
+        body.append(f'<line x1="{spine_x - 6}" y1="{y:.1f}" x2="{spine_x + 6}"'
+                    f' y2="{y:.1f}" stroke="{TK.UP}" stroke-width="2"/>')
+        body.append(_text(spine_x + 13, y + 3,
+                          _dt.date(year, month, 1).strftime("%b %Y"), 8.5, TK.UP,
+                          family=UI, weight="700"))
+        y += 15
+        for when, item in group:
+            colour = item.get("colour") or TK.UP
+            selected = selected_key is not None and item.get("key") == selected_key
+            tick_w = 7 if selected else 5
+            # A click anchors the whole row to ?…&sel=key, so selection round-trips
+            # through the URL with no script; the transparent rect is the hit target.
+            linked = link_base and item.get("key")
+            if linked:
+                body.append(f'<a href="{_esc(link_base + _quote(str(item["key"])))}">')
+                body.append(f'<rect x="0" y="{y - 6:.1f}" width="{width}" height="13"'
+                            f' fill="transparent"><title>'
+                            f'{_esc(item.get("label") or "")}</title></rect>')
+            body.append(f'<line x1="{spine_x - tick_w}" y1="{y:.1f}"'
+                        f' x2="{spine_x + tick_w}" y2="{y:.1f}" stroke="{colour}"'
+                        f' stroke-width="{2.4 if selected else 1.6}"/>')
+            if selected:
+                body.append(f'<line x1="0" y1="{y:.1f}" x2="{spine_x - tick_w:.1f}"'
+                            f' y2="{y:.1f}" stroke="{colour}" stroke-width="1"'
+                            f' stroke-dasharray="3,2"/>')
+            if item.get("flagged"):
+                body.append(f'<circle cx="{spine_x - 13}" cy="{y:.1f}" r="2.4"'
+                            f' fill="{TK.FLAG}"><title>uncurated, review</title>'
+                            "</circle>")
+            # A month-only source date never grows a day it does not have.
+            raw = str(item.get("date") or "").strip()
+            if len(raw) == 7:
+                date_s = when.strftime("%Y-%m")
+            elif when <= near_end:
+                date_s = when.strftime("%m-%d")
+            else:
+                date_s = when.strftime("%Y-%m")
+            weight = "700" if selected else "600"
+            body.append(_text(spine_x + 16, y + 3, date_s, 8.5,
+                              TK.TEXT if selected else TK.MUTED, family=MONO,
+                              weight=weight))
+            body.append(_text(spine_x + 58, y + 3, str(item.get("label") or "")[:20],
+                              8.5, TK.TEXT if selected else TK.MUTED, family=UI))
+            if linked:
+                body.append("</a>")
+            y += row_h
+        y += month_gap
+
+    if not dated:
+        body.append(_text(spine_x + 13, top_y + 20, "nothing inside 24 months", 8.5,
+                          TK.MUTED, family=UI))
+        y = top_y + 34
+
+    cliff_y0 = y + 6
+    # the SVG grows to fit the flowed months and the cliff, since a busy pipeline runs
+    # longer than a fixed height.
+    svg_height = max(height, int(cliff_y0 + (24 if cliff_years else 34)
+                                 + 16 * min(len(cliff_years), 8)))
+
+    out = [_svg_open(width, svg_height, "time spine")]
     out.append(_text(8, 14, "HORIZON", 10, TK.TEXT, family=UI, weight="700",
                      extra=' letter-spacing="0.09em"'))
-    # the spine itself: one line, three scales
-    out.append(f'<line x1="{spine_x}" y1="{near_y0 - 8}" x2="{spine_x}"'
-               f' y2="{cliff_y0 - 6}" stroke="{TK.RULE_STRONG}"'
+    # the spine: one line from today down to the cliff
+    out.append(f'<line x1="{spine_x}" y1="{top_y - 8}" x2="{spine_x}"'
+               f' y2="{cliff_y0 - 6:.1f}" stroke="{TK.RULE_STRONG}"'
                f' stroke-width="1.5"/>')
-    # today marker
-    out.append(f'<line x1="{spine_x - 5}" y1="{near_y0 - 8}" x2="{spine_x + 5}"'
-               f' y2="{near_y0 - 8}" stroke="{TK.TEXT}" stroke-width="1.5"/>')
-    out.append(_text(spine_x + 9, near_y0 - 5, f"today {today.isoformat()}", 8.5,
+    out.append(f'<line x1="{spine_x - 5}" y1="{top_y - 8}" x2="{spine_x + 5}"'
+               f' y2="{top_y - 8}" stroke="{TK.TEXT}" stroke-width="1.5"/>')
+    out.append(_text(spine_x + 9, top_y - 5, f"today {today.isoformat()}", 8.5,
                      TK.MUTED, family=MONO))
-    # scale breaks: double hairline chevrons where resolution compresses
-    for by, lbl in ((mid_y0 - 4, "90d, month scale"),
-                    (cliff_y0 - 6, "24m, year scale")):
-        for off in (0, 3):
-            out.append(f'<line x1="{spine_x - 5}" y1="{by + off:.1f}"'
-                       f' x2="{spine_x + 5}" y2="{by + off - 3:.1f}"'
-                       f' stroke="{TK.MUTED}" stroke-width="1"/>')
-        out.append(_text(spine_x + 9, by + 2, lbl, 8, TK.MUTED, family=UI))
-
-    placed: list[float] = []
-    for item in sorted(items, key=lambda i: str(i.get("date") or "")):
-        when = _parse(item.get("date"))
-        if when is None or when < today:
-            continue
-        ty = y_for(when)
-        if ty is None:
-            continue
-        # nudge labels apart without moving the tick off its true date
-        label_y = ty
-        while any(abs(label_y - p) < 11 for p in placed):
-            label_y += 11
-        placed.append(label_y)
-        colour = item.get("colour") or TK.UP
-        selected = selected_key is not None and item.get("key") == selected_key
-        tick_w = 7 if selected else 5
-        # Each item is an anchor when a link base is given, so a click navigates to
-        # ?…&sel=key and the app pins it. A wide transparent hit target over the row
-        # makes the whole label clickable, not just the hairline tick.
-        linked = link_base and item.get("key")
-        if linked:
-            out.append(f'<a href="{_esc(link_base + _quote(str(item["key"])))}">')
-            out.append(f'<rect x="0" y="{label_y - 6:.1f}" width="{width}"'
-                       f' height="13" fill="transparent"><title>'
-                       f'{_esc(item.get("label") or "")}</title></rect>')
-        out.append(f'<line x1="{spine_x - tick_w}" y1="{ty:.1f}"'
-                   f' x2="{spine_x + tick_w}" y2="{ty:.1f}" stroke="{colour}"'
-                   f' stroke-width="{2.4 if selected else 1.6}"/>')
-        if selected:
-            # the hairline that joins the selected item in the main panel to its
-            # place in time: from the panel edge to the tick
-            out.append(f'<line x1="0" y1="{ty:.1f}" x2="{spine_x - tick_w:.1f}"'
-                       f' y2="{ty:.1f}" stroke="{colour}" stroke-width="1"'
-                       f' stroke-dasharray="3,2"/>')
-        if item.get("flagged"):
-            # left of the spine, so it can never sit on the date text
-            out.append(f'<circle cx="{spine_x - 12}" cy="{ty:.1f}" r="2.4"'
-                       f' fill="{TK.FLAG}"><title>uncurated, review</title>'
-                       "</circle>")
-        # A month-only source date never grows a day it does not have.
-        month_only = len(str(item.get("date") or "").strip()) == 7
-        if month_only:
-            date_s = when.strftime("%Y-%m")
-        elif when <= near_end:
-            date_s = when.strftime("%m-%d")
-        else:
-            date_s = when.strftime("%Y-%m")
-        weight = "700" if selected else "600"
-        out.append(_text(spine_x + 16, label_y + 3, date_s, 8.5,
-                         TK.TEXT if selected else TK.MUTED, family=MONO,
-                         weight=weight))
-        out.append(_text(spine_x + 60, label_y + 3, str(item.get("label") or "")[:20],
-                         8.5, TK.TEXT if selected else TK.MUTED, family=UI))
-        if linked:
-            out.append("</a>")
+    out += body
 
     # the cliff: per-year counts beyond 24 months
     out.append(_text(8, cliff_y0 + 10, "CLIFF 24M+", 8.5, TK.MUTED, family=UI,

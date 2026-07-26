@@ -249,11 +249,11 @@ def test_spine_places_ticks_only_inside_the_two_dated_windows():
     assert ">2031<" in svg and ">3<" in svg            # it lands in the cliff bars
 
 
-def test_spine_marks_the_scale_breaks_and_today():
+def test_spine_groups_by_month_with_a_green_dash_and_marks_today():
     svg = _spine()
-    assert "90d, month scale" in svg
-    assert "24m, year scale" in svg
     assert "today 2026-07-25" in svg
+    assert "Aug 2026" in svg and "Mar 2027" in svg          # a labelled month group each
+    assert f'stroke="{tokens.UP}" stroke-width="2"' in svg  # the green month dash
 
 
 def test_spine_selected_item_draws_the_connecting_hairline():
