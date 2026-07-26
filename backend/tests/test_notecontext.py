@@ -132,42 +132,39 @@ def test_signed_trial_readouts_appear_recent_first(tmp_path):
     assert "nothing" not in out
 
 
-def _news(conn, cid, title, date):
-    conn.execute("INSERT INTO news (company_id, source, title, url, published_at)"
-                 " VALUES (?, 'test', ?, ?, ?)", (cid, title, f"u{date}{title[:6]}", date))
+def _deal(conn, cid, acc, dtype, counterparty, date, value=None, area=None):
+    conn.execute("INSERT INTO deals (accession, company_id, deal_type, counterparty,"
+                 " value, area, event_date) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                 (acc, cid, dtype, counterparty, value, area, date))
 
 
-def test_deal_headlines_are_named_and_stages_collapse(tmp_path):
-    """The IR headline names the counterparty, and the three stages of one acquisition
-    (agreed, tendered, completed) collapse to the latest, while a separate deal stays."""
+def test_deals_are_named_with_value_and_area_and_stages_collapse(tmp_path):
+    """The extractor stores a US deal with its value and area; the two filings of one
+    acquisition (agreed, then completed) collapse to the latest, a separate deal stays,
+    and a filing read as no deal never shows."""
     db_file = _seed(tmp_path / "t.db")
     conn = db.get_connection(db_file)
-    cid = _company(conn, "GSK")
+    cid = _company(conn, "BIIB")
     today = dt.date(2026, 7, 26)
-    _news(conn, cid, "6-K: GSK ENTERS AGREEMENT TO ACQUIRE NUVALENT, INC.", "2026-06-09")
-    _news(conn, cid, "6-K: GSK ANNOUNCES TENDER OFFER TO ACQUIRE NUVALENT", "2026-06-24")
-    _news(conn, cid, "6-K: GSK COMPLETES ACQUISITION OF NUVALENT, INC", "2026-07-15")
-    _news(conn, cid, "6-K: COLLABORATION WITH CTTQ FOR BEPIROVIRSEN", "2026-05-11")
-    _news(conn, cid, "6-K: DIRECTOR/PDMR SHAREHOLDING", "2026-07-20")   # not a deal
+    _deal(conn, cid, "a1", "acquisition", "Apellis Pharmaceuticals, Inc.", "2026-05-14",
+          value="$41 per share", area="complement-driven diseases")
+    _deal(conn, cid, "a0", "acquisition", "Apellis Pharmaceuticals", "2026-04-02")  # stage
+    _deal(conn, cid, "b1", "licensing", "HI-Bio", "2026-02-10", area="IgA nephropathy")
+    _deal(conn, cid, "c1", "none", None, "2026-03-01")                 # read, no deal
     conn.commit()
     conn.close()
 
-    lines = notecontext._deal_lines(db.get_connection(db_file), _company(
-        db.get_connection(db_file), "GSK"), today)
-    joined = " ".join(lines)
-    assert "COMPLETES ACQUISITION OF NUVALENT" in joined            # latest stage kept
-    assert "TENDER OFFER" not in joined and "ENTERS AGREEMENT" not in joined  # collapsed
-    assert "COLLABORATION WITH CTTQ" in joined                      # a separate deal
-    assert "SHAREHOLDING" not in joined                             # not a deal
-    assert "6-K:" not in joined                                     # form prefix stripped
+    out = notecontext.company_context(db_file, "BIIB", today=today)
+    assert ("Acquired Apellis Pharmaceuticals, Inc. for $41 per share "
+            "(complement-driven diseases), 2026-05-14." in out)
+    assert out.count("Apellis") == 1                                  # the stage collapsed
+    assert "Licensing deal with HI-Bio (IgA nephropathy), 2026-02-10." in out
 
 
-def test_deals_are_absent_when_only_routine_news(tmp_path):
+def test_deals_absent_when_nothing_stored(tmp_path):
     db_file = _seed(tmp_path / "t.db")
     conn = db.get_connection(db_file)
-    cid = _company(conn, "MRK")
-    _news(conn, cid, "8-K: Results of Operations", "2026-07-01")
-    _news(conn, cid, "8-K: Director or officer change", "2026-07-02")
+    _deal(conn, _company(conn, "MRK"), "z1", "none", None, "2026-07-01")  # read, no deal
     conn.commit()
     conn.close()
     assert "Recent deals" not in notecontext.company_context(db_file, "MRK")

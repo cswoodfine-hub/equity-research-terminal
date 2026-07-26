@@ -1,5 +1,31 @@
 # Build log, overnight autonomous build
 
+## Deals extractor: name US M&A from the 8-K exhibit — 2026-07-26 18:30
+The news-headline deal path named a foreign filer's 6-K but a US 8-K names only the item
+category, "Material agreement signed", never the party. The counterparty, the price and
+what the deal is for live in the EX-99 press release the 8-K attaches. deals.py reads it,
+the same way the trial-readout and PDUFA extractors read theirs, over the model seam and
+into a deals table (migration 011). It runs on new filings in the refresh, so it spends
+credits only when a deal is genuinely new.
+
+The guard is the same as the readout reader: the counterparty and the quoted sentence
+must both appear in the filing, so a name from the model's own knowledge cannot become an
+event, and a value is kept only when it appears verbatim, so a price is never rounded or
+invented. gemini-flash truncated the JSON at a small token budget, the note's problem
+again, so the budget is 2048 with the reasoning capped. notecontext now reads the deals
+table, de-duplicates the stages of one deal on the counterparty, and trims a value or a
+party that carried its whole legal clause down to the headline.
+
+Backfill of the live database, 12 filings read, 7 deals found: Gilead's $7.8 billion
+acquisition of Arcellx, Vertex and Crinetics at $85 a share, Biogen and Apellis at $41,
+GSK and Nuvalent at $124, plus the GSK and AstraZeneca collaborations. The GILD note now
+reads "Gilead acquired Arcellx for 7.8 billion USD, bringing in innovative immunotherapies
+for patients with cancer". Suite 419 green; adds a deals test file.
+
+Honest gap: the user's example, Lilly's Kelonia acquisition, is in no LLY filing on EDGAR
+in the data window (latest LLY 8-K is 2026-05-20, no acquisition item), so it is not a
+fetch we dropped; it will appear when Lilly files the 8-K and a refresh reads it.
+
 ## Note: name the deals, drop the risk-factor churn — 2026-07-26 17:20
 Two pieces of feedback on the morning note. The line "143 additions and 332 removals
 in the Form 10-Q" was data-dumpy: a count of changed risk-factor paragraphs is filing

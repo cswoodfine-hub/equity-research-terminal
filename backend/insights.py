@@ -73,12 +73,11 @@ when a date is estimated or month-only rather than fixed. Write this in prose. N
 paste the bracketed line or the words "Full title" into the note, and do not narrate \
 more than two upcoming trials even when the feed lists more.
 
-Recent deals come from the company's own news headlines, which name the counterparty \
-and often the asset or area, so name them. Say whether it was an acquisition, a licence \
-or a collaboration, name the counterparty and the asset or therapeutic area the headline \
-gives, and say what it adds, a new modality or a franchise it extends, using only what \
-the headline and the snapshot support. Several headlines can be stages of one deal; \
-report its latest state once. Do not read a rationale into a deal beyond its words.
+Recent deals are given with the counterparty, the value where the filing states one, and \
+the area, so name them. Say whether it was an acquisition, a licence or a collaboration, \
+name the counterparty and, where given, the value and the asset or therapeutic area, and \
+say what it adds, a new modality or a franchise it extends, using only what the snapshot \
+supports. Do not read a rationale into a deal beyond its words.
 
 Do not report bare counts of risk factors added or removed between filings. A number of \
 changed paragraphs is filing churn, not a signal, and means nothing to a reader. Mention \

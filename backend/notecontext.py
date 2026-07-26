@@ -26,28 +26,41 @@ _METRIC_LABEL = {
 _ANNUAL_METRICS = ("Revenues", "NetIncomeLoss", "ResearchAndDevelopmentExpense")
 _YEAR_MIN, _YEAR_MAX = 350, 380     # a quarter's year-ago comparable, in days
 
-# A news headline that announces a deal. The IR feed names the counterparty and often
-# the therapeutic area in the headline itself, so the note can name an acquisition or a
-# licence without any model call and without inventing a party. A generic 8-K item that
-# names no one is handled by the note prompt, which forbids inventing a counterparty.
-# Stems, so "acqui" matches acquire and acquisition alike; no trailing boundary, which
-# would stop a stem from matching the longer word it begins.
-_DEAL_RE = re.compile(
-    r"\b(acqui|merger|tender offer|licen[sc]|collaborat|deal with|partnership|"
-    r"divest|joint venture|to buy|takeover)", re.I)
-# The filing-form prefix the news pipeline puts on an EDGAR-sourced headline.
-_FILING_PREFIX = re.compile(r"^\s*\d*-?[A-Z0-9]{1,3}\s*:\s*", re.I)
-# Deal and filing vocabulary, dropped when keying a headline for de-duplication so the
-# counterparty is what identifies a deal. One transaction is announced, tendered and
-# completed under three headlines that all share the target's name.
-_DEAL_VOCAB = frozenset((
-    "acquire", "acquires", "acquired", "acquiring", "acquisition", "announce",
-    "announces", "agrees", "agreement", "enters", "completes", "completed", "complete",
-    "tender", "offer", "deal", "licenses", "license", "licence", "licensing",
-    "collaboration", "collaborate", "collaborates", "merger", "merges", "partnership",
-    "divest", "divestiture", "novel", "with", "from", "into", "will", "share",
-    "shares", "stake", "company", "therapeutics", "pharmaceuticals",
-))
+# How each deal type reads at the head of a line. Deals are read from filings into the
+# deals table by the deals extractor, which names the counterparty, the value where the
+# text states one, and the area; the note reads them here.
+_DEAL_VERB = {
+    "acquisition": "Acquired",
+    "licensing": "Licensing deal with",
+    "collaboration": "Collaboration with",
+    "divestiture": "Divested to",
+}
+# The headline figure inside a stored value, which sometimes carries the whole
+# consideration clause (a per-share price plus a contingent value right). The note wants
+# the number, not the paragraph.
+_VALUE_HEAD = re.compile(
+    r"\$[\d.,]+\s*(?:billion|million|bn|mn|per\s*share|/\s*share)", re.I)
+
+
+def _short_value(value: str | None) -> str | None:
+    if not value:
+        return None
+    match = _VALUE_HEAD.search(value)
+    if match:
+        return match.group(0)
+    return value if len(value) <= 40 else None
+
+
+def _short_party(counterparty: str) -> str:
+    """The name, trimmed of a trailing corporate structure. A press release can name the
+    party as its full legal chain ("X, (Y Group), through its subsidiary Z"); the note
+    wants the name it is known by. Only a long value is trimmed, so "Apellis
+    Pharmaceuticals, Inc." is left alone."""
+    counterparty = counterparty.strip()
+    if len(counterparty) <= 50:
+        return counterparty
+    head = re.split(r"[,(]", counterparty, 1)[0].strip()
+    return head or counterparty[:50]
 
 
 def _company_id(conn, ticker: str):
@@ -193,39 +206,39 @@ def _readout_lines(conn, cid: int, today: dt.date,
 
 
 def _deal_lines(conn, cid: int, today: dt.date,
-                within_days: int = 240, limit: int = 4) -> list[str]:
-    """Recent M&A, licensing and collaboration headlines from the IR news feed.
+                within_days: int = 400, limit: int = 4) -> list[str]:
+    """Recent M&A, licensing and collaboration deals read from the deals table.
 
-    The headline is the company's own words, so the counterparty and often the area
-    read straight out of it. Several headlines can be stages of one deal (agreed, then
-    completed); they are passed through and the note prompt collapses them to the latest
-    state. A foreign filer's 6-K headline is descriptive; a US 8-K item names no party
-    and so does not match here, which is correct, since inventing one is forbidden.
+    The deals extractor pulls the counterparty, the value where the filing states one,
+    and the area out of the press release, so a US filer whose 8-K names no party is
+    covered as well as a foreign filer's 6-K. One transaction can be filed several times
+    (agreed, tendered, completed); the rows are de-duplicated on the counterparty's first
+    word, keeping the latest, so it reads once.
     """
     cutoff = (today - dt.timedelta(days=within_days)).isoformat()
-    own = conn.execute("SELECT ticker, name FROM companies WHERE id = ?",
-                       (cid,)).fetchone()
-    own_tokens = set(re.findall(r"[a-z]{3,}",
-                                f"{own['ticker']} {own['name']}".lower())) if own else set()
     rows = conn.execute(
         """
-        SELECT title, published_at FROM news
-         WHERE company_id = ? AND title IS NOT NULL AND published_at >= ?
-         ORDER BY published_at DESC
+        SELECT deal_type, counterparty, value, area, event_date FROM deals
+         WHERE company_id = ? AND deal_type IN
+               ('acquisition', 'licensing', 'collaboration', 'divestiture')
+               AND counterparty IS NOT NULL AND event_date >= ?
+         ORDER BY event_date DESC
         """, (cid, cutoff)).fetchall()
-    lines, seen = [], []
+    lines, seen = [], set()
     for r in rows:
-        if not _DEAL_RE.search(r["title"]):
-            continue
-        clean = _FILING_PREFIX.sub("", r["title"]).strip()
-        # The distinctive words of the headline: the counterparty and any named asset,
-        # once the company's own name and the deal vocabulary are removed.
-        key = {w for w in re.findall(r"[a-z]{4,}", clean.lower())
-               if w not in _DEAL_VOCAB and w not in own_tokens}
-        if key and any(key & prior for prior in seen):
-            continue                                   # a later stage of a kept deal
-        seen.append(key)
-        lines.append(f"{clean} ({(r['published_at'] or '')[:10]}).")
+        counterparty = (r["counterparty"] or "").strip()
+        first = re.findall(r"[a-z0-9]{3,}", counterparty.lower())
+        key = first[0] if first else counterparty.lower()
+        if not counterparty or key in seen:
+            continue                                   # another filing of the same deal
+        seen.add(key)
+        parts = [f"{_DEAL_VERB.get(r['deal_type'], 'Deal with')} {_short_party(counterparty)}"]
+        value = _short_value(r["value"])
+        if value:
+            parts.append(f"for {value}")
+        if r["area"]:
+            parts.append(f"({r['area']})")
+        lines.append(" ".join(parts) + f", {(r['event_date'] or '')[:10]}.")
         if len(lines) >= limit:
             break
     return lines

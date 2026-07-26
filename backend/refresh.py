@@ -22,6 +22,7 @@ import env  # noqa: F401  loads the .env before any module reads it
 import biologic_loe
 import catalysts
 import db
+import deals
 import diff
 import pdufa
 import trial_readouts
@@ -144,11 +145,12 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # 12-year floor and any cliff year the 10-K discloses.
     bio_loe = biologic_loe.derive(db_path)
     trial_reads = trial_readouts.extract(db_path)
+    deal_reads = deals.extract(db_path)
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(r.errors for r in results) else "complete"
     detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
               "readouts": readouts, "pdufa": goals, "biologic_loe": bio_loe,
-              "trial_readouts": trial_reads, "changes": changes}
+              "trial_readouts": trial_reads, "deals": deal_reads, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 
@@ -204,12 +206,13 @@ def run_refresh_all(db_path=None) -> dict:
     goals = pdufa.extract(db_path)
     bio_loe = biologic_loe.derive(db_path)
     trial_reads = trial_readouts.extract(db_path)
+    deal_reads = deals.extract(db_path)
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
     detail = {"scope": "all", "companies": len(companies),
               "sources": list(by_source.values()), "readouts": readouts,
               "pdufa": goals, "biologic_loe": bio_loe, "trial_readouts": trial_reads,
-              "changes": changes}
+              "deals": deal_reads, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 
