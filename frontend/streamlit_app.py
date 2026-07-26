@@ -30,6 +30,7 @@ import revenue_mix
 import theme as T
 import trend as trend_module
 from components import charts as CH
+from components import covnav
 from components import drawchart
 from components import render as R
 from components import tokens as TK
@@ -433,6 +434,16 @@ if "company_pick" not in st.session_state:
         wanted if wanted in tickers
         else DEFAULT_TICKER if DEFAULT_TICKER in tickers else tickers[0])
 
+# A click on a coverage panel (the covnav component) returns the ticker and switches to
+# Key insights client-side; apply the ticker here, before the selectbox reads its key, so
+# there is no widget-after-set conflict. The nonce makes each click a fresh change, so a
+# repeat click still applies and the sidebar can still change the company between clicks.
+_cov = st.session_state.get("cov_nav")
+if (isinstance(_cov, dict) and _cov.get("ticker") in tickers
+        and _cov.get("nonce") != st.session_state.get("_cov_nonce")):
+    st.session_state["company_pick"] = _cov["ticker"]
+    st.session_state["_cov_nonce"] = _cov.get("nonce")
+
 
 def _jump_to_search():
     wanted = (st.session_state.get("global_search") or "").strip().upper()
@@ -720,14 +731,15 @@ with main:
         section("Coverage, 90 days", "indexed to the start, one scale")
         panels = api_get(api_base, "/price-grid?days=90")
         if any(p["closes"] for p in panels):
-            R.show(CH.small_multiples(
-                [{"label": p["ticker"],
-                  "values": _pct_from_start(p["closes"] or []),
-                  "sub": T.pct(p["change"] * 100) if p["change"] is not None else ""}
-                 for p in panels], 1040, 420, cols=6, link_base="?ticker="))
-            st.markdown('<div class="byline">Click a panel to select that company, then '
-                        'open Key insights or any tab for it.</div>',
-                        unsafe_allow_html=True)
+            covnav.coverage_nav(
+                CH.small_multiples(
+                    [{"label": p["ticker"],
+                      "values": _pct_from_start(p["closes"] or []),
+                      "sub": T.pct(p["change"] * 100) if p["change"] is not None else ""}
+                     for p in panels], 1040, 420, cols=6, link_base="?ticker="),
+                muted=TK.MUTED, key="cov_nav")
+            st.markdown('<div class="byline">Click a panel to jump straight to that '
+                        'company\'s Key insights.</div>', unsafe_allow_html=True)
         else:
             state("No price history yet",
                   "Press Refresh all in the top bar to pull daily closes.")
