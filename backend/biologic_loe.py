@@ -22,14 +22,19 @@ from __future__ import annotations
 import datetime as dt
 import json
 import re
+import time
 
 import db
 import llm
 
+# A free-tier model rate-limits a burst of calls, so the per-company reads are spaced.
+_SLEEP_S = 5
 STATUTORY_YEARS = 12                 # BPCIA reference-product exclusivity
 MAX_HORIZON_YEARS = 25               # a cliff more than 25 years out is a misread
 _MAX_CHARS = 60_000
-MAX_TOKENS = 900
+# Generous, because a Gemini 2.5 "thinking" model spends output tokens on reasoning
+# before the JSON, and a tight budget returns a truncated findings list.
+MAX_TOKENS = 3000
 
 SYSTEM_PROMPT = """You read a pharmaceutical company's risk factors and report, for each \
 brand named in the brand list, the year its United States patents or regulatory \
@@ -111,9 +116,15 @@ def extract_disclosed(text: str, brands: list[str], complete=None) -> dict:
     user = ("Brand list: " + ", ".join(brands) + "\n\nRisk factors text:\n"
             + text[:_MAX_CHARS] + "\n\nReport a cliff year for each brand the text gives "
             "one for.")
-    try:
-        reply = complete(SYSTEM_PROMPT, user, MAX_TOKENS)
-    except Exception:
+    reply = None
+    for attempt in range(2):
+        try:
+            reply = complete(SYSTEM_PROMPT, user, MAX_TOKENS)
+            break
+        except Exception:                 # a rate limit clears on the next window
+            if attempt == 0:
+                time.sleep(20)
+    if reply is None:
         return {}                         # a model outage leaves the floor in place
     out = {}
     for finding in parse_reply(reply):
@@ -181,10 +192,24 @@ def derive(db_path=None, complete=None, today=None) -> dict:
             if rf and has_model:
                 disclosed = extract_disclosed(rf["text"], brands, complete)
                 source_url = rf["source_url"]
+                if complete is None:          # a real provider call; space under its limit
+                    time.sleep(_SLEEP_S)
             for asset in info["assets"]:
                 floor = statutory_floor_year(asset["first_approval"])
                 found = disclosed.get(asset["brand"])
-                disclosed_year = found["year"] if found else None
+                # A disclosure is sticky: once read from a 10-K it is kept, so a later
+                # run the model rate-limited does not wipe it back to the floor. A fresh
+                # disclosure overrides the stored one.
+                prior = conn.execute(
+                    "SELECT disclosed_year, evidence, source_url FROM biologic_loe"
+                    " WHERE asset_id = ?", (asset["asset_id"],)).fetchone()
+                if found:
+                    disclosed_year, evidence, src = found["year"], found["quote"], source_url
+                elif prior and prior["disclosed_year"] is not None:
+                    disclosed_year = prior["disclosed_year"]
+                    evidence, src = prior["evidence"], prior["source_url"]
+                else:
+                    disclosed_year, evidence, src = None, None, None
                 years = [y for y in (floor, disclosed_year) if y is not None]
                 if not years:
                     continue              # neither an approval nor a disclosure: no basis
@@ -209,8 +234,7 @@ def derive(db_path=None, complete=None, today=None) -> dict:
                         fetched_at = datetime('now')
                     """,
                     (asset["asset_id"], loe_year, f"{loe_year}-06-30", basis, floor,
-                     disclosed_year, found["quote"] if found else None,
-                     source_url if disclosed_year else None))
+                     disclosed_year, evidence, src))
                 derived += 1
                 disclosed_used += 1 if disclosed_year else 0
         conn.commit()
