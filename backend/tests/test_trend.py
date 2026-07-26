@@ -1,10 +1,9 @@
-"""The growth-against-margin panel: the recent-quarter view and its geometry.
+"""The growth-against-margin trajectory: one point per period in the growth/margin plane,
+joined in time, latest emphasised. Pure SVG, so the tests read the markup it returns.
 
-Lives here so ``cd backend && pytest -q`` stays the one test command. Figures are
-synthetic. The render is pure SVG, so the tests read the markup it returns.
+Lives here so ``cd backend && pytest -q`` stays the one test command. Figures synthetic.
 """
 
-import re
 import sys
 from pathlib import Path
 
@@ -19,72 +18,42 @@ def _points(*rows):
             for label, growth, margin in rows]
 
 
-def _bar_widths(svg: str) -> list[float]:
-    return [float(w) for w in re.findall(r'<rect [^>]*width="([\d.]+)"', svg)]
-
-
-def _bar_heights(svg: str) -> list[float]:
-    return [float(h) for h in re.findall(r'<rect [^>]*height="([\d.]+)"', svg)]
-
-
 YEAR = _points(("Q2 25", 0.38, 0.36), ("Q3 25", 0.54, 0.32),
                ("Q4 25", 0.43, 0.34), ("Q1 26", 0.56, 0.37))
 
 
-def test_a_four_quarter_panel_draws_a_bar_for_each_quarter():
+def test_a_point_per_period_joined_by_one_path():
     svg = trend.render(YEAR, "quarterly")
-    assert len(_bar_widths(svg)) == 4
-    # Every quarter is named on the axis, not every other, since the window is short.
-    for label in ("Q2 25", "Q3 25", "Q4 25", "Q1 26"):
-        assert label in svg
+    assert svg.count("<circle") == 4        # one dot per quarter
+    assert svg.count("<polyline") == 1      # a single path through them in time
+    assert "Q2 25" in svg and "Q1 26" in svg   # the first and the latest are labelled
 
 
-def test_a_short_series_does_not_balloon_its_bars():
-    """Four quarters means wide slots; without the cap the bars would draw as blocks."""
-    wide_slot = trend.render(YEAR, "quarterly")
-    assert max(_bar_widths(wide_slot)) == trend.MAX_BAR_W
-    # A long series sits below the cap, so it is left alone.
-    nine = _points(*[(f"P{i}", 0.2, 0.2) for i in range(9)])
-    assert max(_bar_widths(trend.render(nine, "quarterly"))) < trend.MAX_BAR_W
-
-
-def test_a_falling_quarter_draws_below_the_zero_rule():
-    """A negative growth quarter must render, in the loss colour, not vanish."""
+def test_the_latest_period_is_emphasised_and_carries_its_figures():
     from theme import P
+    svg = trend.render(YEAR, "quarterly")
+    assert f'fill="{P.data}"' in svg          # the latest dot and its growth figure
+    assert "56.0%" in svg and "37.0%" in svg  # the latest growth and margin, spelt out
+
+
+def test_each_axis_names_its_extremes():
+    svg = trend.render(YEAR, "quarterly")
+    assert "38%" in svg and "56%" in svg      # growth floor and top, on the x axis
+    assert "32%" in svg and "37%" in svg      # margin floor and top, on the y axis
+
+
+def test_a_zero_growth_line_appears_when_growth_crosses_zero():
     svg = trend.render(_points(("Q3 25", 0.10, 0.2), ("Q4 25", -0.06, 0.21),
                                ("Q1 26", 0.05, 0.19)), "quarterly")
-    assert P.oxblood in svg          # the down bar is drawn in the loss colour
-    assert len(_bar_widths(svg)) == 3
+    assert "0% growth" in svg
+    assert "stroke-dasharray" in svg
+    assert svg.count("<circle") == 3
 
 
-# Low growth (single digits) beside a fat margin: the reason for the dual scale.
-LOW_GROWTH = _points(("Q2 25", 0.006, 0.107), ("Q3 25", 0.028, 0.180),
-                     ("Q4 25", 0.013, 0.087), ("Q1 26", 0.026, 0.233))
-
-
-def test_growth_bars_fill_the_panel_on_their_own_scale():
-    """The tallest growth bar reaches most of the panel even when margin dwarfs it. On
-    one shared axis a 2.8% bar next to a 23% margin was a sliver a few pixels tall."""
-    svg = trend.render(LOW_GROWTH, "quarterly")
-    plot_h = trend.H - trend.BOTTOM - trend.TOP
-    assert max(_bar_heights(svg)) > plot_h * 0.5
-
-
-def test_each_scale_is_labelled_at_its_extreme_in_its_own_colour():
-    from theme import P
-    svg = trend.render(LOW_GROWTH, "quarterly")
-    assert f'fill="{P.data}"' in svg and f'fill="{P.ink}"' in svg
-    assert "3%" in svg      # growth axis top, 2.6% rounded, in the growth colour
-    assert "23%" in svg     # margin axis top, a different scale
-
-
-def test_a_negative_extreme_is_labelled_on_each_axis():
-    """With growth and margin both dipping below zero, each axis names its own floor, so
-    a small negative bar is not read as the same depth as a large negative margin."""
-    svg = trend.render(_points(("FY21", 0.09, 0.15), ("FY22", -0.05, -0.21),
-                               ("FY23", 0.07, 0.18)), "annual").replace("−", "-")
-    assert "-5%" in svg      # growth floor
-    assert "-21%" in svg     # margin floor, a deeper number on its own axis
+def test_a_period_missing_a_figure_has_no_place_in_the_plane():
+    svg = trend.render(_points(("Q1 26", 0.5, None), ("Q2 26", 0.4, 0.30),
+                               ("Q3 26", 0.45, 0.31)), "quarterly")
+    assert svg.count("<circle") == 2          # the period with no margin is dropped
 
 
 def test_too_few_points_render_nothing():
@@ -95,3 +64,4 @@ def test_the_caption_states_the_window_and_both_endpoints():
     caption = trend.caption(YEAR, "quarterly")
     assert "Over 4 quarters to Q1 26" in caption
     assert "38.0%" in caption and "56.0%" in caption   # growth start and end
+    assert "up and to the right" in caption            # the reading of the plane
