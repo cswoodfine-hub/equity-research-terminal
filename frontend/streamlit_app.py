@@ -1659,7 +1659,17 @@ with main:
     # --- Portfolio -------------------------------------------------------
     with portfolio_tab:
         approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
-        section(f"{ticker} portfolio", f"{len(approvals)} approvals")
+        # Revenue-mix data fetched once here: the donut renders above the product cards
+        # (inside the else), and the product-revenue list below reuses these rows.
+        revenue_payload = api_get(api_base, f"/companies/{ticker}/revenue")
+        curated = revenue_payload["rows"]
+        mix_year = max((r["fiscal_year"] for r in curated), default=None)
+        mix_rows = [r for r in curated if r["fiscal_year"] == mix_year]
+        mix_ccy = next((r["unit"] for r in mix_rows if r.get("unit")), None)
+        mix_reported = (revenue_payload.get("company_revenue") or {}).get(
+            str(mix_year)) or {}
+        mix_drivers, mix_tail = revenue_mix.split(mix_rows)
+        section(f"{ticker} portfolio")
         if not approvals:
             state(f"No approvals on file for {ticker}",
                   "openFDA files an approval under the legal entity that holds the "
@@ -1691,6 +1701,19 @@ with main:
                 elif a.get("approval_date") and (
                         not p["approved"] or a["approval_date"] < p["approved"]):
                     p["approved"] = a["approval_date"]
+            # openFDA drugsfda is CDER only, so a CBER cell or gene therapy (Casgevy) has
+            # no approval row there. Fold in Purple Book biologics from the exclusivities
+            # data, keyed by brand and only when not already present, so they still appear.
+            for ex in (api_get(api_base, f"/companies/{ticker}/exclusivities")
+                       .get("assets") or []):
+                brand = ex.get("brand_name")
+                if not brand or brand in products:
+                    continue
+                products[brand] = dict(
+                    brand=brand, generic=ex.get("generic_name"),
+                    modality=ex.get("modality"), approved=None,
+                    loe=ex.get("loe"), loe_basis=ex.get("loe_basis"),
+                    revenue=None, revenue_unit=None)
             prods = list(products.values())
             rev_unit = next((p["revenue_unit"] for p in prods if p.get("revenue_unit")), "")
 
@@ -1702,7 +1725,7 @@ with main:
                 '<div class="pos">'
                 f'<div><span class="k">products</span>'
                 f'<span class="v">{len(prods)}</span>'
-                f'<span class="sub">approved, from openFDA</span></div>'
+                f'<span class="sub">approved or protected</span></div>'
                 f'<div><span class="k">tagged revenue</span>'
                 f'<span class="v{"" if total_rev else " none"}">'
                 f'{T.num(total_rev / 1e9, 1) if total_rev else "none"}</span>'
@@ -1733,6 +1756,31 @@ with main:
                     'latest reported held flat. A product with no tagged revenue or no '
                     'published expiry is not counted, never estimated.</div>',
                     unsafe_allow_html=True)
+
+            # Revenue mix, above the product cards: what the company earns, by product.
+            if mix_drivers:
+                section("Revenue mix", f"FY{mix_year}")
+                ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
+                slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
+                           "value": p["value"], "colour": ramp[i % len(ramp)]}
+                          for i, p in enumerate(mix_drivers)]
+                if mix_tail:
+                    slices.append({"label": f"{len(mix_tail)} smaller products",
+                                   "value": sum(p["value"] for p in mix_tail),
+                                   "colour": TK.RULE_STRONG, "muted": True})
+                rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
+                if rest:
+                    slices.append({"label": "not attributed by product",
+                                   "value": rest, "colour": TK.PANEL, "muted": True})
+                R.show(CH.donut(
+                    slices, 832, 320,
+                    centre_label=T.num(sum(s["value"] for s in slices) / 1e9, 1),
+                    centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                    value_fmt=lambda v: T.num(v / 1e9, 2)))
+                st.markdown(
+                    '<div class="byline">'
+                    f'{revenue_mix.caption(mix_rows, mix_ccy, mix_year, mix_reported.get("value"))}'
+                    '</div>', unsafe_allow_html=True)
 
             section("Products", f"{len(prods)}")
             cards = []
@@ -1767,11 +1815,13 @@ with main:
             st.markdown('<div class="pf">' + "".join(cards) + "</div>",
                         unsafe_allow_html=True)
             st.markdown(
-                '<div class="byline">One card per approved product, biggest revenue '
-                'first. Approval from openFDA, exclusivity from the Orange Book (small '
-                'molecule) or Purple Book (biologic), revenue from the SEC data sets '
-                'where the filer tags it. An exclusivity date within three years reads '
-                'red.</div>', unsafe_allow_html=True)
+                '<div class="byline">One card per product, biggest revenue first. Approval '
+                'from openFDA drugsfda (CDER), exclusivity from the Orange Book (small '
+                'molecule) or Purple Book (biologic), revenue from the SEC data sets where '
+                'the filer tags it. A cell or gene therapy is CBER-regulated and absent '
+                'from drugsfda, so it shows from the Purple Book with a dash for the '
+                'approval date. An exclusivity date within three years reads red.</div>',
+                unsafe_allow_html=True)
 
         # --- Medicare demand ---
         # Revenue is what a drug earned; this is how many people took it. CMS Part D and
@@ -1817,50 +1867,6 @@ with main:
                 f'suppressed for privacy reads as a dash, never zero. This is real-world '
                 f'demand, a different lens from the reported revenue above, and it misses '
                 f'commercial and ex-US volume entirely.</div>', unsafe_allow_html=True)
-
-            # --- Overriding a revenue figure ---
-            # Revenue arrives from the SEC bulk data sets. This is the correction path,
-            # and the place a 20-F filer that tags no product axis can be filled in by
-            # hand, so it sits behind a disclosure rather than in front of the table.
-        revenue_payload = api_get(api_base, f"/companies/{ticker}/revenue")
-        curated = revenue_payload["rows"]
-
-        # --- Where the revenue comes from ---
-        latest_year = max((r["fiscal_year"] for r in curated), default=None)
-        mix_rows = [r for r in curated if r["fiscal_year"] == latest_year]
-        mix_currency = next((r["unit"] for r in mix_rows if r.get("unit")), None)
-        # The company total is what lets the chart show what it cannot attribute.
-        # Without it the donut would total the tagged products and imply Lilly
-        # earned 50bn rather than 65bn.
-        reported = (revenue_payload.get("company_revenue") or {}).get(
-            str(latest_year)) or {}
-        drivers, tail = revenue_mix.split(mix_rows)
-        if drivers:
-            section("Revenue mix", f"FY{latest_year}")
-            # Brightest slice first, in the phase-free data ramp; the bracketed
-            # tail and the unattributed remainder take the muted surfaces that
-            # mean "not itemised" everywhere else.
-            ramp = list(reversed(T.ordinal_ramp(max(len(drivers), 2))))
-            slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
-                       "value": p["value"], "colour": ramp[i % len(ramp)]}
-                      for i, p in enumerate(drivers)]
-            if tail:
-                slices.append({"label": f"{len(tail)} smaller products",
-                               "value": sum(p["value"] for p in tail),
-                               "colour": TK.RULE_STRONG, "muted": True})
-            rest = revenue_mix.residual(mix_rows, reported.get("value"))
-            if rest:
-                slices.append({"label": "not attributed by product",
-                               "value": rest, "colour": TK.PANEL, "muted": True})
-            shown_total = sum(s["value"] for s in slices)
-            R.show(CH.donut(slices, 832, 320,
-                            centre_label=T.num(shown_total / 1e9, 1),
-                            centre_sub=f"{mix_currency or ''} bn FY{latest_year}",
-                            value_fmt=lambda v: T.num(v / 1e9, 2)))
-            st.markdown(
-                '<div class="byline">'
-                f'{revenue_mix.caption(mix_rows, mix_currency, latest_year, reported.get("value"))}'
-                '</div>', unsafe_allow_html=True)
 
         section("Product revenue", f"{len(curated)} from the filings")
         if not curated:
