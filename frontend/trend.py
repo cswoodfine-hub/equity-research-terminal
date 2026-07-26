@@ -16,12 +16,12 @@ import html
 
 from theme import MINUS, P
 
-W = 832              # matches the statement table's cap, so both share their edges
-H = 244
-PAD_L = 46           # room for the percentage axis figures
-PAD_R = 18
-TOP = 42             # room for the legend row
-BOTTOM = 26          # room for the period labels
+W = 1100             # fills most of the column; the SVG scales to fit narrower ones
+H = 340
+PAD_L = 52           # room for the percentage axis figures
+PAD_R = 20
+TOP = 46             # room for the legend row
+BOTTOM = 30          # room for the period labels
 
 GROWTH_COLOUR = P.data          # revenue growth, the plotted-series colour
 MARGIN_COLOUR = P.orange_book   # net margin, a distinct second hue
