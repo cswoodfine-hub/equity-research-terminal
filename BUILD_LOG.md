@@ -1,5 +1,15 @@
 # Build log, overnight autonomous build
 
+## Smaller trial ticks; centre the charts in their column — 2026-07-26 22:40
+The horizon trial tick was as wide as its month dash, so member and group competed. It
+is now narrower (tick width 3 against the month dash), so a trial reads as a small mark
+under the wider green month marker.
+
+Charts are fixed-width SVGs that sat jammed against the left of a wider column. The
+chart-mount now centres its SVG and lets an over-wide one shrink to fit without
+distorting, so a chart sits balanced in its space rather than left-aligned. The horizon
+rail keeps its own class and is left as is; tables already stretch to the column.
+
 ## Deal dates from the release; the horizon opens the study — 2026-07-26 22:00
 Two follow-ups on the horizon and the deals.
 

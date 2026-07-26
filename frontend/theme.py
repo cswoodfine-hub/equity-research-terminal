@@ -291,6 +291,12 @@ h3 {{ font-size: 0.9rem; }}
 .readout .rd {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted);
                white-space: nowrap; align-self: center; }}
 
+/* Chart mounts: a chart is a fixed-width SVG, so centre it in its column rather than
+   leave it jammed against the left, and let an over-wide one shrink to fit without
+   distorting. The horizon rail keeps its own class and is not touched. */
+.chart-mount {{ text-align: center; }}
+.chart-mount svg {{ max-width: 100%; height: auto; }}
+
 /* Position strip. */
 .pos {{ display: flex; gap: 2rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
 .pos .k {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;

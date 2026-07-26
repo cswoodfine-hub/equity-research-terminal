@@ -666,7 +666,9 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
         for when, item in group:
             colour = item.get("colour") or TK.UP
             selected = selected_key is not None and item.get("key") == selected_key
-            tick_w = 7 if selected else 5
+            # A trial tick is a small mark; the green month dash above it is the wider
+            # marker, so the two read as group and member rather than competing.
+            tick_w = 4 if selected else 3
             # A hover previews the item through the rect's title; a click opens the study
             # page when the item carries a URL, and otherwise pins it (exclusivity) when a
             # link base is given. The full-width transparent rect is the hover and click
