@@ -101,7 +101,8 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
             return None
         assets = conn.execute(
             """
-            SELECT a.brand_name, a.generic_name, a.modality, a.internal_code,
+            SELECT a.id AS asset_id, a.brand_name, a.generic_name, a.modality,
+                   a.internal_code,
                    MAX(e.expiry_date) AS loe_max,
                    -- The earliest listed expiry too, so a small molecule can show the
                    -- range from its first patent (closer to the real cliff) to its last.

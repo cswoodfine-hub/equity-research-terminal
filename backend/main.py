@@ -341,8 +341,8 @@ def company_approvals(ticker: str) -> dict:
             dict(r)
             for r in conn.execute(
                 """
-                SELECT ap.approval_date, ap.application_number, a.brand_name,
-                       a.generic_name, a.modality,
+                SELECT a.id AS asset_id, ap.approval_date, ap.application_number,
+                       a.brand_name, a.generic_name, a.modality,
                        (SELECT MAX(e.expiry_date) FROM exclusivities e
                          WHERE e.asset_id = a.id) AS loe_max,
                        (SELECT MIN(e.expiry_date) FROM exclusivities e

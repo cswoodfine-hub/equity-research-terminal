@@ -333,6 +333,30 @@ h3 {{ font-size: 0.9rem; }}
              text-transform: uppercase; margin-left: 4px; white-space: nowrap; }}
 .cat-more {{ font-size: 9.5px; color: var(--muted); padding-top: 3px; }}
 
+/* Product fact profile: the panel that opens when a product card is clicked. Sourced
+   rows on the left, the analyst's curated view on the right, one bordered surface. */
+.prof {{ background: var(--panel); border: 1px solid var(--rule-strong);
+        border-left: 3px solid var(--up); padding: 0.6rem 0.85rem;
+        margin: 0.2rem 0 0.5rem; }}
+.prof-sub {{ font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--muted); margin: 0.5rem 0 0.25rem; }}
+.prof-sub:first-child {{ margin-top: 0; }}
+.prof-row {{ display: flex; justify-content: space-between; align-items: baseline;
+            gap: 0.75rem; font-size: 11.5px; padding: 2px 0;
+            border-bottom: 1px solid var(--rule); }}
+.prof-row:last-child {{ border-bottom: 0; }}
+.prof-k {{ color: var(--muted); }}
+.prof-v {{ font-family: var(--font-mono); text-align: right; }}
+.prof-v.none {{ color: var(--muted); }}
+.prof-line {{ font-size: 11px; padding: 3px 0; border-bottom: 1px solid var(--rule);
+             line-height: 1.3; }}
+.prof-line:last-child {{ border-bottom: 0; }}
+.prof-line .d {{ font-family: var(--font-mono); color: var(--muted);
+                margin-right: 8px; }}
+.prof-note {{ font-size: 11px; line-height: 1.35; padding: 2px 0 6px;
+             white-space: pre-wrap; }}
+.prof-note.empty {{ color: var(--muted); font-style: italic; }}
+
 /* Trial readouts: a mark and sign, the phase, the drug, and the quote. */
 .readouts {{ margin: 0.1rem 0 0.3rem; }}
 .readout {{
