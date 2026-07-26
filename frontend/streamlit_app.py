@@ -1417,39 +1417,46 @@ with main:
                 stack_rows, 832, max(170, 34 * len(order) + 22),
                 value_fmt=lambda v: f"{v:.0f}", legend=legend))
 
+            # A pill carries its count only once selected, so the strip reads as clean
+            # labels until you start narrowing and the number is there when it is the one
+            # you are reading.
             st.pills("Therapeutic area", order, selection_mode="multi",
-                     format_func=lambda a: f"{a}  {counts[a]}",
+                     format_func=lambda a: f"{a}  {counts[a]}" if a in chosen else a,
                      key="area_pills", label_visibility="collapsed")
 
-            # The table stays shut until an area and a phase are picked. The chart above
-            # is the starting point; the table is what you open once it has told you
-            # where to look. Phase 4 and Follow-up join the pills, tagged, only when the
-            # company has any; every count is on the bucket a trial is drawn in, so a
-            # pill count and the rows it opens agree.
+            # The table is what you open once the chart has told you where to look. Phase 4
+            # and Follow-up join the pills only when the company has any. The phase
+            # selection is read back from session state so the same selected-only rule can
+            # show its count, the way the areas are.
             bucket_counts = Counter(_bucket(t) for t in every)
             phase_options = list(DISPLAY_PHASES)
             if post:
                 phase_options.append("Phase 4")
             if followup:
                 phase_options.append("Follow-up")
+            phase_key = f"phase_pills_{ticker}"
+            phase_sel = st.session_state.get(phase_key) or []
             phase_pick = st.pills(
                 "Phase", phase_options, selection_mode="multi",
-                format_func=lambda p: (f"{p}  {bucket_counts.get(p, 0)}  {LIFECYCLE[p]}"
-                                       if p in LIFECYCLE
-                                       else f"{p}  {bucket_counts.get(p, 0)}"),
-                key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
+                format_func=lambda p: f"{p}  {bucket_counts.get(p, 0)}" if p in phase_sel else p,
+                key=phase_key, label_visibility="collapsed") or []
 
-            shown = [t for t in every
-                     if t["area"] in chosen and _bucket(t) in phase_pick]
-            if not chosen or not phase_pick:
-                missing = ("an area" if not chosen else "a phase")
-                state(f"Pick {missing} to list the trials",
+            # The table opens on either filter: an area alone lists every phase in it, a
+            # phase alone lists that phase across all diseases, and together they
+            # intersect. It stays shut only while nothing is picked, so it never opens on
+            # the whole list at once.
+            if not chosen and not phase_pick:
+                state("Pick an area or a phase to list the trials",
                       "The bars answer how much and where; the table answers which. "
-                      "It opens once an area and a phase are both selected, rather "
-                      f"than opening on {len(every)} rows of everything.")
+                      "Pick a disease, a phase, or both, rather than opening on "
+                      f"{len(every)} rows of everything.")
             else:
-                section(", ".join(chosen), f"{len(shown)} trials, "
-                        + ", ".join(phase_pick))
+                shown = [t for t in every
+                         if (not chosen or t["area"] in chosen)
+                         and (not phase_pick or _bucket(t) in phase_pick)]
+                title = ", ".join(chosen) if chosen else "All diseases"
+                sub = ", ".join(phase_pick) if phase_pick else "all phases"
+                section(title, f"{len(shown)} trials, {sub}")
                 # A follow-up study keeps its registry phase but is labelled as one, so a
                 # Phase 3 long-term follow-up no longer reads as a Phase 3 development trial.
                 table = pd.DataFrame([{
