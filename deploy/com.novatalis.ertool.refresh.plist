@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Daily universe refresh at 06:00 local. Runs backend/scheduled_refresh.py, which
+  refreshes prices, financials, filings, trials, approvals, the exclusivity books,
+  the Gemini extractors on any new filings (trial readouts, PDUFA dates, biologic
+  LOE), and the change feed. It does NOT regenerate the morning notes, so it spends
+  Gemini credits only when there is genuinely new filing text to read; the note stays
+  the on-demand button in the UI.
+
+  Writes the same database the app reads (ER_TOOL_DB). WorkingDirectory is the repo
+  root so env.py finds the .env there. A missed 06:00 (Mac asleep or off) runs on the
+  next wake, which is the launchd default for StartCalendarInterval.
+
+  IMPORTANT, one-time Full Disk Access grant. The repo is under ~/Documents, which
+  macOS protects, so a launchd job cannot read it until /bin/bash is given Full Disk
+  Access: System Settings > Privacy & Security > Full Disk Access > + > Cmd+Shift+G >
+  /bin/bash > Open, then turn it on. Without this the job fails with a PermissionError
+  on pyvenv.cfg. The job runs through run_refresh.sh so this single binary is enough.
+
+  Install:
+    cp deploy/com.novatalis.ertool.refresh.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.novatalis.ertool.refresh.plist
+  Run once now to test:
+    launchctl kickstart -k gui/$(id -u)/com.novatalis.ertool.refresh
+  Status / logs:
+    launchctl print gui/$(id -u)/com.novatalis.ertool.refresh | head
+    tail -n 5 logs/refresh.log
+  Change the time: edit StartCalendarInterval below, then bootout and bootstrap again.
+  Remove:
+    launchctl bootout gui/$(id -u)/com.novatalis.ertool.refresh
+    rm ~/Library/LaunchAgents/com.novatalis.ertool.refresh.plist
+
+  Paths are absolute for this machine. Edit them if the repo or venv moves.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.novatalis.ertool.refresh</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/charleswoodfine/Documents/WORK/Projects/ER Tool/deploy/run_refresh.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/charleswoodfine/Documents/WORK/Projects/ER Tool</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>ER_TOOL_DB</key>
+        <string>/Users/charleswoodfine/Documents/WORK/Projects/ER Tool/backend/er_tool.db</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/charleswoodfine/Documents/WORK/Projects/ER Tool/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/charleswoodfine/Documents/WORK/Projects/ER Tool/logs/launchd.err.log</string>
+</dict>
+</plist>

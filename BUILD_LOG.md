@@ -1,5 +1,32 @@
 # Build log, overnight autonomous build
 
+## Daily auto-refresh at 06:00, note left on demand — 2026-07-26 16:10
+The whole session's work was landed on main by fast-forward (main was 94 commits
+behind at 51ce799; no merge commit, no conflicts, the live database untouched since
+it is gitignored). The permanent checkout is now the home the schedule runs from.
+
+A macOS LaunchAgent, deploy/com.novatalis.ertool.refresh.plist, runs the refresh at
+06:00 local against the database the app reads (ER_TOOL_DB), so the morning's prices,
+financials, filings, trials, approvals, exclusivity books and the change feed are
+ready before the desk opens. A 06:00 missed while the Mac is asleep runs on the next
+wake. The .env was copied to the checkout root so env.py finds the keys.
+
+The note is deliberately not part of the schedule. run_refresh_all never regenerated
+notes, and it stays that way on the user's instruction: a note is a wholesale Gemini
+call per company, wasteful to run daily when nothing changed, so it stays the
+on-demand button. The three extractors the refresh does run, trial readouts, PDUFA
+dates and biologic LOE, only read filings they have not seen, so they spend credits
+only when there is genuinely new filing text, often nothing on a quiet day.
+
+One macOS obstacle, handled honestly. The repo lives under ~/Documents, a TCC-protected
+location, so the first kickstart failed with PermissionError on pyvenv.cfg: a launchd
+job has no user session and cannot read there, nor prompt for access. The job now runs
+through deploy/run_refresh.sh so a single stable binary, /bin/bash, is the one that
+needs Full Disk Access; the python it launches inherits it. The agent is installed and
+loaded, but the 06:00 run stays blocked until Full Disk Access is granted to /bin/bash
+in System Settings, which only the user can do. README documents the grant, install,
+test, time change and removal. End-to-end verification is pending that grant.
+
 ## Morning note on Gemini, with a company snapshot — 2026-07-26 15:30
 The morning note was reading like a machine walking a list: it opened "The most
 significant item is", never carried a single company number, and ran on whatever

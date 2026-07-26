@@ -45,33 +45,48 @@ The change feed and the slippage series only accumulate as refreshes run, so a
 daily job is what turns them from thin into proprietary. `backend/scheduled_refresh.py`
 runs the whole-universe refresh directly (no server needed), appends a summary to
 `logs/refresh.log`, and holds a lock so an overlapping schedule cannot double-fire.
+It refreshes prices, financials, filings, trials, approvals, the exclusivity books,
+and the change feed, and runs the Gemini extractors (trial readouts, PDUFA dates,
+biologic LOE) only on filings it has not read before, so it spends credits only when
+there is genuinely new filing text. It does not regenerate the morning notes: the
+note stays the on-demand "generate" button in the app, so a daily refresh does not
+burn a note-sized Gemini call per company.
 
-cron, 2am daily:
+macOS (launchd) is set up in `deploy/com.novatalis.ertool.refresh.plist`, which runs
+`deploy/run_refresh.sh` at 06:00 local against the database the app reads. A 06:00
+missed while the Mac is asleep or off runs on the next wake.
+
+Grant Full Disk Access first. This repo lives under `~/Documents`, a macOS-protected
+folder, and a launchd job has no user session, so it cannot read the repo, the `.env`
+or the database until it is authorised, and it cannot pop a prompt to ask. The job
+runs through a `/bin/bash` wrapper so a single binary needs the grant: open System
+Settings, Privacy & Security, Full Disk Access, click `+`, press `Cmd+Shift+G`, enter
+`/bin/bash`, add it, and turn it on. Without this the run fails with a
+`PermissionError` on `pyvenv.cfg` in `logs/launchd.err.log`.
+
+Install, test, inspect, remove:
+
+```bash
+cp deploy/com.novatalis.ertool.refresh.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.novatalis.ertool.refresh.plist
+launchctl kickstart -k gui/$(id -u)/com.novatalis.ertool.refresh   # run once now
+tail -n 5 logs/refresh.log                                         # see the result
+launchctl bootout gui/$(id -u)/com.novatalis.ertool.refresh        # remove
+```
+
+If `logs/refresh.log` stays empty after a kickstart, check `logs/launchd.err.log`; a
+`PermissionError` there means Full Disk Access is not yet granted to `/bin/bash`.
+
+To change the time, edit `StartCalendarInterval` in the plist, copy it to
+`~/Library/LaunchAgents/` again, then `bootout` and `bootstrap` to reload it. The
+paths in the plist are absolute for this machine; edit them if the repo or venv
+moves.
+
+Linux or a server, cron at 06:00 daily:
 
 ```cron
-0 2 * * * cd /path/to/equity-research && backend/.venv/bin/python backend/scheduled_refresh.py
+0 6 * * * cd /path/to/equity-research && backend/.venv/bin/python backend/scheduled_refresh.py
 ```
-
-launchd (macOS), `~/Library/LaunchAgents/com.er-terminal.refresh.plist`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>Label</key><string>com.er-terminal.refresh</string>
-  <key>ProgramArguments</key><array>
-    <string>/path/to/equity-research/backend/.venv/bin/python</string>
-    <string>/path/to/equity-research/backend/scheduled_refresh.py</string>
-  </array>
-  <key>WorkingDirectory</key><string>/path/to/equity-research</string>
-  <key>StartCalendarInterval</key><dict>
-    <key>Hour</key><integer>2</integer><key>Minute</key><integer>0</integer>
-  </dict>
-</dict></plist>
-```
-
-Load it with `launchctl load ~/Library/LaunchAgents/com.er-terminal.refresh.plist`.
 
 ### Automated refresh on GitHub Actions, with off-machine backup
 
