@@ -175,6 +175,23 @@ unvalued list until then.
 
 Suite 399. Nine migrations now, all additive.
 
+**Item 8c, patent-section extraction for biologic LOE (done).** The first cut read
+only Item 1A risk factors, where only Merck and Pfizer state a clean per-drug cliff
+year. A drug's cliff is more often in Item 1's patent discussion and its patent
+table, by generic name and as individual patents, so filingtext.patent_passages
+harvests every line in the whole 10-K that pairs patent, exclusivity or biosimilar
+language with a future year, the fetcher stores that as a patents section, and the
+extractor now reads risk factors and patents together, matches a finding by brand
+or generic name, and keeps the latest year for a product since protection runs to
+the last patent. Verified live: the pass added JNJ Tremfya 2031, read out of the
+patent discussion, which values it to 5.2bn of revenue over five years; the
+universe protected value reads 1.33tn. Three products now carry a disclosed cliff
+(Keytruda 2028, Tremfya 2031, Elrexfio 2036) and 39 biologics sit on the statutory
+floor, which is the honest split: most 10-Ks simply do not commit to a per-product
+year, and none is invented for them.
+
+Suite 401. Still nine migrations; this reads more of a filing already fetched.
+
 ## Follow-up: the five V2 recommendations — 2026-07-25 07:20
 All five items from the final message, implemented, tested, committed one concern
 each on top of the overnight build.

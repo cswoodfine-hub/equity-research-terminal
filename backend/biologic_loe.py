@@ -37,20 +37,23 @@ _MAX_CHARS = 60_000
 MAX_TOKENS = 3000
 
 SYSTEM_PROMPT = """You read a pharmaceutical company's risk factors and report, for each \
-brand named in the brand list, the year its United States patents or regulatory \
-exclusivity expire, or the year biosimilar or generic competition is expected to begin.
+name in the name list, the year its United States patents or regulatory exclusivity \
+expire, or the year biosimilar or generic competition is expected to begin. The list \
+gives each product's brand and generic name; the text may use either.
 
 Return JSON only, no prose:
 {"findings": [{"brand": str, "year": int, "quote": str}]}
 
 Rules, in order of importance:
-1. Only report a year the text states for that brand. If the text gives no year for a \
-brand, leave it out. A year you know from outside the text is wrong here.
-2. "quote" must be copied verbatim from the text, one sentence, naming the brand and \
+1. Only report a year the text states for that product. If the text gives no year for a \
+product, leave it out. A year you know from outside the text is wrong here.
+2. "quote" must be copied verbatim from the text, one sentence, naming the product and \
 the year.
 3. Report the year US exclusivity is lost or biosimilar or generic competition begins, \
 not a launch year, an approval year, or a date outside the United States.
-4. "brand" must be spelled exactly as it appears in the brand list."""
+4. If several years are given for one product, report the latest, since protection runs \
+until the last of them.
+5. "brand" must be one of the names in the list, spelled exactly as it appears there."""
 
 
 def statutory_floor_year(approval_date: str | None) -> int | None:
@@ -81,16 +84,16 @@ def _normalise(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
 
 
-def validate_finding(finding: dict, document: str, brands: list[str],
+def validate_finding(finding: dict, document: str, name_map: dict,
                      today=None) -> dict | None:
     """A finding reduced to {brand, year, quote}, or None when it fails a check.
 
-    The brand must be one we asked about, the year must parse and sit in a plausible
-    forward window, and the quote must be a run of the document that names the year, so a
-    number the model supplied from its own knowledge cannot get through."""
+    The name must resolve to a product we asked about, by brand or generic; the year must
+    parse and sit in a plausible forward window; and the quote must be a run of the
+    document that names the year, so a number the model supplied from its own knowledge
+    cannot get through. brand is the canonical brand, not the name the model echoed."""
     today = today or dt.date.today()
-    brand_raw = (finding.get("brand") or "").strip()
-    brand = next((b for b in brands if _normalise(b) == _normalise(brand_raw)), None)
+    brand = name_map.get(_normalise(finding.get("brand") or ""))
     if not brand:
         return None
     try:
@@ -107,15 +110,18 @@ def validate_finding(finding: dict, document: str, brands: list[str],
     return {"brand": brand, "year": year, "quote": quote}
 
 
-def extract_disclosed(text: str, brands: list[str], complete=None) -> dict:
-    """{brand: {year, quote}} for the brands a 10-K discloses a cliff year for. Empty
-    when no model is configured or nothing validates."""
+def extract_disclosed(text: str, names: dict, complete=None) -> dict:
+    """{brand: {year, quote}} for the products a 10-K discloses a cliff year for, keyed on
+    the canonical brand and keeping the latest year when several are stated. ``names`` maps
+    each display name, a brand or a generic, to its brand. Empty without a model or a
+    match."""
     complete = complete or (llm.complete if llm.provider() is not None else None)
-    if complete is None or not text or not brands:
+    if complete is None or not text or not names:
         return {}
-    user = ("Brand list: " + ", ".join(brands) + "\n\nRisk factors text:\n"
-            + text[:_MAX_CHARS] + "\n\nReport a cliff year for each brand the text gives "
-            "one for.")
+    norm_map = {_normalise(display): brand for display, brand in names.items()}
+    user = ("Name list: " + ", ".join(sorted(names)) + "\n\nFiling text:\n"
+            + text[:_MAX_CHARS]
+            + "\n\nReport a cliff year for each product the text gives one for.")
     reply = None
     for attempt in range(2):
         try:
@@ -128,8 +134,9 @@ def extract_disclosed(text: str, brands: list[str], complete=None) -> dict:
         return {}                         # a model outage leaves the floor in place
     out = {}
     for finding in parse_reply(reply):
-        valid = validate_finding(finding, text, brands)
-        if valid:
+        valid = validate_finding(finding, text, norm_map)
+        # Keep the latest year for a product, since protection runs until the last one.
+        if valid and valid["year"] > out.get(valid["brand"], {}).get("year", 0):
             out[valid["brand"]] = {"year": valid["year"], "quote": valid["quote"]}
     return out
 
@@ -140,6 +147,7 @@ def _targets(conn):
     rows = conn.execute(
         """
         SELECT c.id AS company_id, c.ticker, a.id AS asset_id, a.brand_name,
+               a.generic_name,
                (SELECT MIN(ap.approval_date) FROM approvals ap
                  WHERE ap.asset_id = a.id) AS first_approval
           FROM assets a
@@ -158,26 +166,49 @@ def _targets(conn):
                                       {"ticker": row["ticker"], "assets": []})
         entry["assets"].append({"asset_id": row["asset_id"],
                                 "brand": row["brand_name"],
+                                "generic": row["generic_name"],
                                 "first_approval": row["first_approval"]})
     return by_company
 
 
-def _latest_risk_factors(conn, company_id: int):
-    return conn.execute(
-        "SELECT text, source_url FROM ("
-        "  SELECT fs.text AS text, f.url AS source_url, fs.filed_date FROM filing_sections fs"
-        "  LEFT JOIN filings f ON f.accession = fs.accession"
-        "  WHERE fs.company_id = ? AND fs.form_type = '10-K' AND fs.section = 'risk_factors'"
-        "  ORDER BY fs.filed_date DESC LIMIT 1)",
-        (company_id,)).fetchone()
+def _names_map(assets) -> dict:
+    """{display name: brand} over each product's brand and generic, so the model can name
+    a product either way and the finding still resolves to the brand."""
+    names = {}
+    for asset in assets:
+        names[asset["brand"]] = asset["brand"]
+        if asset.get("generic"):
+            names[asset["generic"]] = asset["brand"]
+    return names
+
+
+def _latest_10k_text(conn, company_id: int):
+    """The risk factors and harvested patent passages of the company's latest 10-K, joined,
+    with the filing url. This is where a stated biologic cliff year lives."""
+    row = conn.execute(
+        "SELECT MAX(filed_date) AS d FROM filing_sections"
+        " WHERE company_id = ? AND form_type = '10-K'", (company_id,)).fetchone()
+    if not row or not row["d"]:
+        return None
+    parts = conn.execute(
+        "SELECT fs.section, fs.text, f.url FROM filing_sections fs"
+        " LEFT JOIN filings f ON f.accession = fs.accession"
+        " WHERE fs.company_id = ? AND fs.form_type = '10-K' AND fs.filed_date = ?"
+        "   AND fs.section IN ('risk_factors', 'patents')",
+        (company_id, row["d"])).fetchall()
+    if not parts:
+        return None
+    text = "\n\n".join(p["text"] for p in parts if p["text"])
+    url = next((p["url"] for p in parts if p["url"]), None)
+    return {"text": text, "source_url": url}
 
 
 def derive(db_path=None, complete=None, today=None) -> dict:
     """Derive and store a biologic LOE per target asset. Idempotent on the asset.
 
     The floor is set for every target from its approval; the disclosed year is added when
-    a model reads one out of the company's latest 10-K risk factors. The effective date
-    is the later of the two.
+    a model reads one out of the company's latest 10-K, from its risk factors and the
+    patent passages harvested from it. The effective date is the later of the two.
     """
     today = today or dt.date.today()
     has_model = complete is not None or llm.provider() is not None
@@ -186,11 +217,11 @@ def derive(db_path=None, complete=None, today=None) -> dict:
     try:
         targets = _targets(conn)
         for company_id, info in targets.items():
-            brands = [a["brand"] for a in info["assets"]]
             disclosed, source_url = {}, None
-            rf = _latest_risk_factors(conn, company_id)
+            rf = _latest_10k_text(conn, company_id)
             if rf and has_model:
-                disclosed = extract_disclosed(rf["text"], brands, complete)
+                disclosed = extract_disclosed(rf["text"], _names_map(info["assets"]),
+                                              complete)
                 source_url = rf["source_url"]
                 if complete is None:          # a real provider call; space under its limit
                     time.sleep(_SLEEP_S)

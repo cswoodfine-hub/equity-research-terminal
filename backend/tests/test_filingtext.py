@@ -40,3 +40,19 @@ def test_diff_sections_no_change_reads_flat():
     text = "The company depends on a small number of products for most of its revenue."
     diff = filingtext.diff_sections(text, text)
     assert diff["changed"] is False and diff["added"] == 0 and diff["ratio"] == 1.0
+
+
+def test_patent_passages_harvests_only_dated_patent_lines():
+    text = (
+        "This is an ordinary sentence about the business that mentions no dates at all.\n"
+        "Patents covering pembrolizumab in the United States expire in 2032, we believe.\n"
+        "Our regulatory exclusivity for the product runs through 2029 in the US market.\n"
+        "The company was founded many years ago and employs thousands of people today.\n"
+        "A biosimilar competitor launched in 2019, well before the period covered here.\n")
+    passages = filingtext.patent_passages(text)
+    lines = passages.split("\n")
+    assert any("pembrolizumab" in ln and "2032" in ln for ln in lines)
+    assert any("regulatory exclusivity" in ln and "2029" in ln for ln in lines)
+    # A line with no future year and one that is just prose are both left out.
+    assert not any("founded many years ago" in ln for ln in lines)
+    assert not any("launched in 2019" in ln for ln in lines)   # 2019 is not a future year

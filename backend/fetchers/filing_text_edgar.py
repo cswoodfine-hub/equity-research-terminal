@@ -57,8 +57,12 @@ class FilingTextEdgarFetcher(BaseFetcher):
                 " ORDER BY filed_date DESC LIMIT ?",
                 (company["id"], form, PER_FORM)).fetchall()
             for f in filings:
+                # A 10-K is done only once its patents section is recorded, so filings
+                # stored before that section existed are re-read to add it; a 10-Q has no
+                # patents section and is done once anything is stored.
+                marker = "AND section = 'patents'" if form == "10-K" else ""
                 have = conn.execute(
-                    "SELECT COUNT(*) FROM filing_sections WHERE accession = ?",
+                    f"SELECT COUNT(*) FROM filing_sections WHERE accession = ? {marker}",
                     (f["accession"],)).fetchone()[0]
                 if not have:
                     pending.append({**dict(f), "company_id": company["id"]})
@@ -82,11 +86,18 @@ class FilingTextEdgarFetcher(BaseFetcher):
                     html = resp.read().decode("utf-8", "replace")
             except Exception:
                 continue                       # one unreadable filing never fails the run
-            sections = filingtext.extract_sections(filingtext.html_to_text(html))
+            full = filingtext.html_to_text(html)
+            sections = filingtext.extract_sections(full)
             for name in filingtext.SECTIONS:
                 text = sections.get(name) or ""
                 if text:
                     rows.append({**filing, "section": name, "text": text})
+            # Patent-cliff years sit in Item 1 and its patent table, not risk factors, so
+            # they are harvested from the whole 10-K rather than a section span.
+            if filing["form_type"] == "10-K":
+                patents = filingtext.patent_passages(full)
+                if patents:
+                    rows.append({**filing, "section": "patents", "text": patents})
             time.sleep(_SLEEP_S)
         return rows
 

@@ -40,6 +40,29 @@ MDNA_END = re.compile(r"quantitative\s+and\s+qualitative\s+disclosures", re.I)
 
 SECTIONS = ("risk_factors", "mdna")
 
+# A drug's patent cliff is rarely a clean section: companies scatter it through Item 1's
+# patent discussion, a patent table, and MD&A, by brand or by generic name. Rather than
+# find a section, harvest every line that pairs patent, exclusivity or biosimilar
+# language with a future year, which is where a stated cliff lives wherever it sits.
+_PATENT_LINE = re.compile(r"patent|exclusivit|biosimilar", re.I)
+_FUTURE_YEAR = re.compile(r"\b20(2[5-9]|[34]\d)\b")
+
+
+def patent_passages(text: str, max_chars: int = 40000) -> str:
+    """The lines of a filing that state a patent or exclusivity year, harvested from the
+    whole document and joined. Bounded, so a long patent table cannot crowd out the rest.
+    Empty when the filing states none."""
+    out, size = [], 0
+    for line in (text or "").split("\n"):
+        norm = re.sub(r"\s+", " ", line).strip()
+        if len(norm) < 40 or not _PATENT_LINE.search(norm) or not _FUTURE_YEAR.search(norm):
+            continue
+        out.append(norm)
+        size += len(norm) + 1
+        if size >= max_chars:
+            break
+    return "\n".join(out)
+
 
 def html_to_text(source: str) -> str:
     """Readable text from an EDGAR HTML document. Block tags become line breaks so the

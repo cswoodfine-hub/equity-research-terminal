@@ -34,14 +34,34 @@ def test_extract_disclosed_keeps_only_verified_findings():
             {"brand": "Winrevair", "year": 2040,
              "quote": "The Company expects that sales of Keytruda will be impacted."},
         ]})
-    got = biologic_loe.extract_disclosed(_DOC, ["Keytruda", "Winrevair"], complete)
+    names = {"Keytruda": "Keytruda", "Winrevair": "Winrevair"}
+    got = biologic_loe.extract_disclosed(_DOC, names, complete)
     assert set(got) == {"Keytruda"}
     assert got["Keytruda"]["year"] == 2028
 
 
+def test_extract_disclosed_matches_generic_names_and_keeps_the_latest_year():
+    # A patent table names the product by its generic and gives several years; the finding
+    # resolves to the brand and the latest year wins, since protection runs until then.
+    doc = ("Patents covering pembrolizumab expire in 2028 in the United States. "
+           "Additional patents covering pembrolizumab expire in 2032.")
+    names = {"Keytruda": "Keytruda", "pembrolizumab": "Keytruda"}
+
+    def complete(system, user, max_tokens=900):
+        return json.dumps({"findings": [
+            {"brand": "pembrolizumab", "year": 2028,
+             "quote": "Patents covering pembrolizumab expire in 2028 in the United States."},
+            {"brand": "pembrolizumab", "year": 2032,
+             "quote": "Additional patents covering pembrolizumab expire in 2032."}]})
+    got = biologic_loe.extract_disclosed(doc, names, complete)
+    assert got == {"Keytruda": {"year": 2032,
+                                "quote": "Additional patents covering pembrolizumab "
+                                         "expire in 2032."}}
+
+
 def test_extract_disclosed_without_a_model_is_empty(monkeypatch):
     monkeypatch.setattr(biologic_loe.llm, "provider", lambda: None)
-    assert biologic_loe.extract_disclosed(_DOC, ["Keytruda"]) == {}
+    assert biologic_loe.extract_disclosed(_DOC, {"Keytruda": "Keytruda"}) == {}
 
 
 # --- the derivation ---------------------------------------------------------
