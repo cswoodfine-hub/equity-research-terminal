@@ -101,8 +101,8 @@ def company_prices(ticker: str) -> dict:
         points = [
             dict(r)
             for r in conn.execute(
-                "SELECT as_of, close FROM prices WHERE company_id = ? AND interval = '1d'"
-                " ORDER BY as_of",
+                "SELECT as_of, open, high, low, close, volume FROM prices"
+                " WHERE company_id = ? AND interval = '1d' ORDER BY as_of",
                 (company["id"],),
             )
         ]

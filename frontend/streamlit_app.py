@@ -25,6 +25,7 @@ import pandas as pd
 import streamlit as st
 
 import calendar_view
+import price_chart
 import revenue_mix
 import theme as T
 import trend as trend_module
@@ -1079,7 +1080,7 @@ with main:
 
     # --- Prices ----------------------------------------------------------
     with prices_tab:
-        section("Close", prices.get("currency") or "")
+        section("Price", prices.get("currency") or "")
         if st.button("Refresh prices", key="refresh_prices"):
             run_refresh(api_base, f"/refresh?ticker={urllib.parse.quote(ticker)}",
                         "price_run", f"Refreshing {ticker} from Yahoo")
@@ -1097,20 +1098,32 @@ with main:
             held = (frame["as_of"].max() - frame["as_of"].min()).days
 
             # Only offer windows the stored history can actually fill. A 5Y button on
-            # six months of data draws the same chart and quietly lies about the span.
+            # six months of data draws the same chart and quietly lies about the span. The
+            # window sets the chart's opening x-range; pan and zoom refine it from there.
             choices = [(label, days) for label, days in PRICE_WINDOWS
                        if days is None or days <= held + 45]
             labels = [label for label, _ in choices]
-            span = st.radio("Window", labels, index=len(labels) - 1, horizontal=True,
-                            key="price_window", label_visibility="collapsed")
+            win_col, view_col = st.columns([3, 1.4])
+            with win_col:
+                span = st.radio("Window", labels, index=len(labels) - 1, horizontal=True,
+                                key="price_window", label_visibility="collapsed")
+            with view_col:
+                view = st.segmented_control(
+                    "View", [price_chart.LINE, price_chart.CANDLE],
+                    default=price_chart.LINE, key="price_view",
+                    label_visibility="collapsed") or price_chart.LINE
             days = dict(choices)[span]
-            if days is not None:
-                cutoff = frame["as_of"].max() - pd.Timedelta(days=days)
-                frame = frame[frame["as_of"] >= cutoff]
 
-            opened, latest_close = frame["close"].iloc[0], frame["close"].iloc[-1]
+            windowed = (frame if days is None else
+                        frame[frame["as_of"]
+                              >= frame["as_of"].max() - pd.Timedelta(days=days)])
+            opened, latest_close = windowed["close"].iloc[0], windowed["close"].iloc[-1]
             change = (latest_close - opened) / opened * 100 if opened else None
-            low, high = frame["close"].min(), frame["close"].max()
+            # True intraday extremes from OHLC, falling back to close where a bar has none.
+            low = windowed["low"].min()
+            high = windowed["high"].max()
+            low = windowed["close"].min() if pd.isna(low) else low
+            high = windowed["close"].max() if pd.isna(high) else high
             st.markdown(
                 '<div class="stats">'
                 f'<span class="stat"><span class="k">last close</span>'
@@ -1123,19 +1136,76 @@ with main:
                 f'<span class="stat"><span class="k">{span} range</span>'
                 f'<span class="v">{T.num(low, 2)} to {T.num(high, 2)}</span></span>'
                 f'<span class="stat"><span class="k">sessions</span>'
-                f'<span class="v">{len(frame)}</span></span></div>',
+                f'<span class="v">{len(windowed)}</span></span></div>',
                 unsafe_allow_html=True)
 
-            currency = prices.get("currency") or ""
-            # The window buttons are the coarse control; hover carries the exact
-            # close per slot, pure CSS with no server round trip. Display is
-            # thinned to keep the SVG light; the newest close always survives.
-            closes, labels = _downsample(
-                list(frame["close"]),
-                [d.strftime("%Y-%m-%d") for d in frame["as_of"]])
-            R.show(CH.line_chart(
-                [{"name": ticker, "values": closes, "colour": TK.UP}],
-                labels, 900, 300, y_fmt=lambda v: T.num(v, 2)))
+            # Saved tags for this ticker, drawn on the chart and listed for removal below.
+            tags = api_get(
+                api_base,
+                f"/annotations?ticker={urllib.parse.quote(ticker)}&entity_type=price")
+
+            # The figure holds the whole history so a pan can reach the real limits; the
+            # window only sets the opening view.
+            fig = price_chart.figure(points, tags, mode=view, ticker=ticker,
+                                     currency=prices.get("currency") or "")
+            if days is not None:
+                fig.update_xaxes(range=[
+                    (frame["as_of"].max()
+                     - pd.Timedelta(days=days)).strftime("%Y-%m-%d"),
+                    frame["as_of"].max().strftime("%Y-%m-%d")])
+            event = st.plotly_chart(
+                fig, use_container_width=True, key=f"px_{ticker}",
+                on_select="rerun", selection_mode="points",
+                config={"displaylogo": False, "scrollZoom": True,
+                        "modeBarButtonsToRemove": ["lasso2d", "select2d", "autoScale2d"]})
+
+            # Click a bar to seed the tag date; the field is editable, so a tag can also be
+            # placed by hand. The date is snapped to the nearest trading bar on or before
+            # it, so the marker always lands on a real bar.
+            selected = ((event.get("selection") or {}).get("points")
+                        if isinstance(event, dict) else
+                        getattr(getattr(event, "selection", None), "points", None)) or []
+            picked = str(selected[-1]["x"])[:10] if selected else None
+            avail = sorted(frame["as_of"].dt.strftime("%Y-%m-%d"))
+            default_day = (pd.to_datetime(picked) if picked else frame["as_of"].max())
+
+            with st.form(f"price_tag_{ticker}", clear_on_submit=True):
+                tag_cols = st.columns([1.3, 3.4, 0.9])
+                with tag_cols[0]:
+                    day = st.date_input(
+                        "Bar", value=default_day, min_value=frame["as_of"].min(),
+                        max_value=frame["as_of"].max(), format="YYYY-MM-DD",
+                        key=f"tag_day_{ticker}", label_visibility="collapsed")
+                with tag_cols[1]:
+                    body = st.text_input(
+                        "Tag", placeholder="Leave a note on this bar (e.g. Q4 print, PDUFA)",
+                        key=f"tag_body_{ticker}", label_visibility="collapsed")
+                with tag_cols[2]:
+                    add = st.form_submit_button("Add tag", width="stretch")
+            if add and body.strip():
+                key = day.strftime("%Y-%m-%d")
+                if key not in set(avail):    # snap to the nearest bar on or before the day
+                    earlier = [d for d in avail if d <= key]
+                    key = earlier[-1] if earlier else avail[0]
+                api_post_json(api_base, "/annotations", {
+                    "ticker": ticker, "entity_type": "price",
+                    "entity_id": key, "body": body.strip()})
+                st.rerun()
+
+            if tags:
+                st.markdown('<div class="byline">Tags on this chart. A tag is saved and '
+                            'stays across refreshes.</div>', unsafe_allow_html=True)
+                for tag in tags:
+                    row = st.columns([1.3, 4.3, 0.9])
+                    row[0].markdown(
+                        f'<span class="mono">{html_escape(str(tag.get("entity_id") or "")[:10])}'
+                        '</span>', unsafe_allow_html=True)
+                    row[1].markdown(html_escape(tag.get("body") or ""),
+                                    unsafe_allow_html=True)
+                    if row[2].button("Delete", key=f"del_tag_{tag['id']}",
+                                     width="stretch"):
+                        api_delete(api_base, f"/annotations/{tag['id']}")
+                        st.rerun()
 
     # --- Financials ------------------------------------------------------
     with financials_tab:

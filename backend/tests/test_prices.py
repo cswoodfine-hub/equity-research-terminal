@@ -41,6 +41,11 @@ def test_parse_chart_fixture_exact_values():
     assert all(r["close"] is not None for r in rows)
     assert [r["as_of"] for r in rows] == sorted(r["as_of"] for r in rows)
 
+    # Full OHLC rides on every row, which is what the /prices endpoint now returns and the
+    # candlestick view needs. A real bar carries open, high and low, not close alone.
+    assert {"open", "high", "low", "close", "volume"} <= rows[0].keys()
+    assert rows[0]["high"] >= rows[0]["low"]
+
 
 def test_parse_chart_drops_null_close_days():
     payload = {
