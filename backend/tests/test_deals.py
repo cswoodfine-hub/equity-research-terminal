@@ -1,5 +1,5 @@
-"""The deal reader: the guard that a party and a value must be in the filing, candidate
-selection, and one classified filing through a fake model. No network."""
+"""The deal reader: the guard that a party and a value must be in the filing, multi-deal
+extraction, candidate selection, and one filing through a fake model. No network."""
 
 import datetime as dt
 
@@ -12,44 +12,61 @@ _DOC = (
     "acquisition of Apellis Pharmaceuticals, Inc. (Nasdaq: APLS) for $41 per share in "
     "cash. Apellis is a leader in complement-driven diseases."
 )
+_MULTI = (
+    "Lilly to acquire Kelonia Therapeutics to advance in vivo CAR-T cell therapies. "
+    "Lilly to acquire Ajax Therapeutics for patients with myelofibrosis."
+)
 
 
-def test_validate_accepts_a_deal_grounded_in_the_text():
-    reply = {"found": True, "deal_type": "acquisition",
-             "counterparty": "Apellis Pharmaceuticals, Inc.", "value": "$41 per share",
-             "area": "complement-driven diseases",
-             "quote": "Biogen Inc. (Nasdaq: BIIB) today announced the successful "
-                      "completion of the acquisition of Apellis Pharmaceuticals, Inc."}
+def test_validate_returns_a_deal_grounded_in_the_text():
+    reply = {"deals": [{"deal_type": "acquisition",
+                        "counterparty": "Apellis Pharmaceuticals, Inc.",
+                        "value": "$41 per share", "area": "complement-driven diseases",
+                        "quote": "Biogen Inc. (Nasdaq: BIIB) today announced the "
+                                 "successful completion of the acquisition of Apellis "
+                                 "Pharmaceuticals, Inc."}]}
     out = deals.validate(reply, _DOC)
-    assert out["deal_type"] == "acquisition"
-    assert out["counterparty"] == "Apellis Pharmaceuticals, Inc."
-    assert out["value"] == "$41 per share" and out["area"] == "complement-driven diseases"
+    assert len(out) == 1 and out[0]["counterparty"] == "Apellis Pharmaceuticals, Inc."
+    assert out[0]["value"] == "$41 per share"
 
 
-def test_validate_rejects_a_party_not_in_the_text():
-    """A counterparty the model produced from its own knowledge cannot become an event."""
-    reply = {"found": True, "deal_type": "acquisition", "counterparty": "Kelonia",
-             "value": None, "area": None,
-             "quote": "Biogen Inc. today announced the successful completion of the "
-                      "acquisition of Apellis Pharmaceuticals, Inc."}
-    assert deals.validate(reply, _DOC) is None
+def test_validate_lists_every_deal_a_filing_announces():
+    reply = {"deals": [
+        {"deal_type": "acquisition", "counterparty": "Kelonia Therapeutics",
+         "value": None, "area": "in vivo CAR-T cell therapies",
+         "quote": "Lilly to acquire Kelonia Therapeutics to advance in vivo CAR-T "
+                  "cell therapies"},
+        {"deal_type": "acquisition", "counterparty": "Ajax Therapeutics", "value": None,
+         "area": "myelofibrosis",
+         "quote": "Lilly to acquire Ajax Therapeutics for patients with myelofibrosis"}]}
+    out = deals.validate(reply, _MULTI)
+    assert {d["counterparty"] for d in out} == {"Kelonia Therapeutics", "Ajax Therapeutics"}
+
+
+def test_validate_drops_a_party_not_in_the_text():
+    """A counterparty from the model's own knowledge cannot become an event."""
+    reply = {"deals": [{"deal_type": "acquisition", "counterparty": "Nowhere Bio",
+                        "value": None, "area": None,
+                        "quote": "acquisition of Apellis Pharmaceuticals, Inc."}]}
+    assert deals.validate(reply, _DOC) == []
 
 
 def test_validate_drops_a_value_not_in_the_text():
-    """The deal stands, but an unverifiable price is dropped rather than reported."""
-    reply = {"found": True, "deal_type": "acquisition",
-             "counterparty": "Apellis Pharmaceuticals", "value": "$6.5 billion",
-             "area": None,
-             "quote": "completion of the acquisition of Apellis Pharmaceuticals, Inc."}
+    reply = {"deals": [{"deal_type": "acquisition",
+                        "counterparty": "Apellis Pharmaceuticals", "value": "$6.5 billion",
+                        "area": None,
+                        "quote": "completion of the acquisition of Apellis "
+                                 "Pharmaceuticals, Inc."}]}
     out = deals.validate(reply, _DOC)
-    assert out is not None and out["value"] is None
+    assert len(out) == 1 and out[0]["value"] is None
 
 
 def test_validate_rejects_an_out_of_scope_type_and_a_non_deal():
-    base = {"found": True, "counterparty": "Apellis Pharmaceuticals",
-            "quote": "acquisition of Apellis Pharmaceuticals, Inc."}
-    assert deals.validate({**base, "deal_type": "financing"}, _DOC) is None
-    assert deals.validate({"found": False}, _DOC) is None
+    good_quote = "acquisition of Apellis Pharmaceuticals, Inc. (Nasdaq: APLS)"
+    assert deals.validate({"deals": [{"deal_type": "financing",
+                                      "counterparty": "Apellis Pharmaceuticals",
+                                      "quote": good_quote}]}, _DOC) == []
+    assert deals.validate({"deals": []}, _DOC) == []
 
 
 def _seed_filing(db_file, ticker, form, title, date, accession):
@@ -67,35 +84,57 @@ def _seed_filing(db_file, ticker, form, title, date, accession):
 def test_candidates_pick_deal_titles_and_skip_the_already_read(tmp_path):
     db_file = tmp_path / "t.db"
     old = (dt.date.today() - dt.timedelta(days=20)).isoformat()
-    _seed_filing(db_file, "BIIB", "8-K", "Material agreement signed, Acquisition or "
-                 "disposition completed", old, "acc-deal")
+    _seed_filing(db_file, "LLY", "8-K", "Results of operations", old, "acc-earn")
     conn = db.get_connection(db_file)
-    cid = conn.execute("SELECT id FROM companies WHERE ticker='BIIB'").fetchone()[0]
-    # a routine 8-K that is not a deal, and a deal already recorded
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    # a routine 8-K that is not a deal title, and a deal filing already recorded
     conn.execute("INSERT INTO filings (company_id, accession, form_type, filed_date,"
-                 " title, url) VALUES (?, 'acc-earnings', '8-K', ?, 'Results of"
-                 " operations', 'http://x/e.htm')", (cid, old))
+                 " title, url) VALUES (?, 'acc-vote', '8-K', ?, 'Shareholder vote',"
+                 " 'http://x/v.htm')", (cid, old))
     conn.execute("INSERT INTO deals (accession, company_id, deal_type) VALUES"
                  " ('acc-seen', ?, 'none')", (cid,))
     conn.execute("INSERT INTO filings (company_id, accession, form_type, filed_date,"
-                 " title, url) VALUES (?, 'acc-seen', '8-K', ?, 'Material agreement"
-                 " signed', 'http://x/s.htm')", (cid, old))
+                 " title, url) VALUES (?, 'acc-seen', '8-K', ?, 'Other events',"
+                 " 'http://x/s.htm')", (cid, old))
     conn.commit()
     conn.close()
 
     got = {c["accession"] for c in deals.candidates(db_file)}
-    assert got == {"acc-deal"}          # the deal title, not earnings, not the read one
+    assert got == {"acc-earn"}          # earnings title kept, vote dropped, seen skipped
+
+
+def test_store_writes_a_row_per_deal_and_a_none_marker(tmp_path):
+    db_file = tmp_path / "t.db"
+    _seed_filing(db_file, "LLY", "8-K", "Results of operations", "2026-04-30", "acc-multi")
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    filing = {"accession": "acc-multi", "company_id": cid, "filed_date": "2026-04-30",
+              "url": "http://x/f.htm"}
+    deals._store(conn, filing, [
+        {"deal_type": "acquisition", "counterparty": "Kelonia Therapeutics",
+         "value": None, "area": "in vivo CAR-T", "quote": "q1"},
+        {"deal_type": "acquisition", "counterparty": "Ajax Therapeutics",
+         "value": None, "area": "myelofibrosis", "quote": "q2"}])
+    empty = {"accession": "acc-none", "company_id": cid, "filed_date": "2026-04-30",
+             "url": "http://x/g.htm"}
+    deals._store(conn, empty, [])
+    conn.commit()
+    parties = [r[0] for r in conn.execute(
+        "SELECT counterparty FROM deals WHERE accession='acc-multi' ORDER BY counterparty")]
+    assert parties == ["Ajax Therapeutics", "Kelonia Therapeutics"]
+    assert conn.execute("SELECT deal_type FROM deals WHERE accession='acc-none'"
+                        ).fetchone()[0] == "none"
+    conn.close()
 
 
 def test_classify_runs_the_model_and_validates(tmp_path):
     filing = {"form_type": "8-K", "filed_date": "2026-05-14"}
 
     def fake_complete(system, user, max_tokens, prefer=None, thinking_budget=None):
-        return ('{"found": true, "deal_type": "acquisition", "counterparty": '
+        return ('{"deals": [{"deal_type": "acquisition", "counterparty": '
                 '"Apellis Pharmaceuticals, Inc.", "value": "$41 per share", '
                 '"area": "complement-driven diseases", "quote": "acquisition of '
-                'Apellis Pharmaceuticals, Inc. (Nasdaq: APLS) for $41 per share"}')
+                'Apellis Pharmaceuticals, Inc. (Nasdaq: APLS) for $41 per share"}]}')
 
     out = deals._classify(_DOC, filing, fake_complete)
-    assert out["counterparty"] == "Apellis Pharmaceuticals, Inc."
-    assert out["value"] == "$41 per share"
+    assert len(out) == 1 and out[0]["value"] == "$41 per share"

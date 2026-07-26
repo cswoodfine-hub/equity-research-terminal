@@ -1,5 +1,27 @@
 # Build log, overnight autonomous build
 
+## Deals: read the earnings release and the multi-deal filing — 2026-07-26 19:30
+The user asked why Lilly's $7bn Kelonia acquisition was not showing. EDGAR full-text
+search settled it: Lilly filed no standalone acquisition 8-K. It listed four
+acquisitions, Orna, Centessa, Kelonia and Ajax, in a line of its Q1 earnings release,
+inside an earnings 8-K (item 2.02), in an exhibit named descriptively rather than ex99.
+The deal reader missed it three ways: it skipped earnings 8-Ks, it found an exhibit only
+by the ex99 name, and it read one deal per filing.
+
+All three are fixed. The candidate filter now includes earnings and other-events 8-Ks;
+the press release is resolved as the largest content document in the filing folder, so a
+descriptively named earnings release is found; and the extractor lists every deal a
+filing announces, stored one row per deal against a no-longer-unique accession
+(migration 011 relaxed, the table rebuilt in place since it is derived). The guard is
+unchanged: each party and quote must be in the text, and a value is kept only verbatim.
+A deal can now be filed twice, agreed then completed, or recapped in a later earnings
+release, so the note de-duplicates on the counterparty, keeps the earliest date, when the
+market first saw it, and fills the value from whichever filing states it.
+
+Live: the LLY note now carries the Kelonia acquisition into in vivo CAR-T cell therapies,
+alongside Orna, Centessa and Ajax, and the clean single-deal cases, Gilead/Arcellx,
+Vertex/Crinetics, Biogen/Apellis, still read as before. Suite green.
+
 ## Deals extractor: name US M&A from the 8-K exhibit — 2026-07-26 18:30
 The news-headline deal path named a foreign filer's 6-K but a US 8-K names only the item
 category, "Material agreement signed", never the party. The counterparty, the price and

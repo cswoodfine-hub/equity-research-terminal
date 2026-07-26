@@ -138,17 +138,18 @@ def _deal(conn, cid, acc, dtype, counterparty, date, value=None, area=None):
                  (acc, cid, dtype, counterparty, value, area, date))
 
 
-def test_deals_are_named_with_value_and_area_and_stages_collapse(tmp_path):
-    """The extractor stores a US deal with its value and area; the two filings of one
-    acquisition (agreed, then completed) collapse to the latest, a separate deal stays,
-    and a filing read as no deal never shows."""
+def test_deals_merge_to_the_earliest_date_with_the_stated_value(tmp_path):
+    """One acquisition is filed twice: the earlier agreement names no price, the later
+    completion names it. The deal reads once, dated to the earlier filing (when the
+    market first saw it) but carrying the value from the later one. A separate deal stays;
+    a filing read as no deal never shows."""
     db_file = _seed(tmp_path / "t.db")
     conn = db.get_connection(db_file)
     cid = _company(conn, "BIIB")
     today = dt.date(2026, 7, 26)
+    _deal(conn, cid, "a0", "acquisition", "Apellis Pharmaceuticals, Inc.", "2026-04-02")
     _deal(conn, cid, "a1", "acquisition", "Apellis Pharmaceuticals, Inc.", "2026-05-14",
           value="$41 per share", area="complement-driven diseases")
-    _deal(conn, cid, "a0", "acquisition", "Apellis Pharmaceuticals", "2026-04-02")  # stage
     _deal(conn, cid, "b1", "licensing", "HI-Bio", "2026-02-10", area="IgA nephropathy")
     _deal(conn, cid, "c1", "none", None, "2026-03-01")                 # read, no deal
     conn.commit()
@@ -156,8 +157,8 @@ def test_deals_are_named_with_value_and_area_and_stages_collapse(tmp_path):
 
     out = notecontext.company_context(db_file, "BIIB", today=today)
     assert ("Acquired Apellis Pharmaceuticals, Inc. for $41 per share "
-            "(complement-driven diseases), 2026-05-14." in out)
-    assert out.count("Apellis") == 1                                  # the stage collapsed
+            "(complement-driven diseases), 2026-04-02." in out)     # earliest date, later value
+    assert out.count("Apellis") == 1                                  # filed twice, read once
     assert "Licensing deal with HI-Bio (IgA nephropathy), 2026-02-10." in out
 
 

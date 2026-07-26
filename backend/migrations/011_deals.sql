@@ -6,14 +6,16 @@
 -- filing, and a value is kept only when it appears verbatim, so no number is invented.
 -- Additive only.
 --
--- One row per processed filing, keyed on the accession so a filing is read once.
--- deal_type is acquisition, licensing, collaboration or divestiture for a real deal, or
--- 'none' for a filing that was read and announced no deal, which marks it done so it is
--- not fetched again. The note reads the signed rows for a company.
+-- One or more rows per processed filing: a single 8-K announces one deal, but an
+-- earnings release can list several, so the accession is not unique. A filing is read
+-- once, guarded by the extractor skipping any accession already present. deal_type is
+-- acquisition, licensing, collaboration or divestiture for a real deal, or 'none' for a
+-- filing that was read and announced no deal, which marks it done so it is not fetched
+-- again. The note reads the signed rows for a company.
 
 CREATE TABLE deals (
     id           INTEGER PRIMARY KEY,
-    accession    TEXT UNIQUE,
+    accession    TEXT,
     company_id   INTEGER REFERENCES companies(id),
     deal_type    TEXT,            -- acquisition, licensing, collaboration, divestiture, none
     counterparty TEXT,            -- the other party, as the filing names it
@@ -27,3 +29,4 @@ CREATE TABLE deals (
 );
 CREATE INDEX idx_deals_company ON deals(company_id, event_date);
 CREATE INDEX idx_deals_signed ON deals(deal_type);
+CREATE INDEX idx_deals_accession ON deals(accession);

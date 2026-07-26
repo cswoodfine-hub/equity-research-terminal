@@ -51,6 +51,13 @@ def _short_value(value: str | None) -> str | None:
     return value if len(value) <= 40 else None
 
 
+def _party_key(counterparty: str) -> str:
+    """The first significant word of a party, the stable handle for de-duplicating the
+    several filings of one deal."""
+    tokens = re.findall(r"[a-z0-9]{3,}", (counterparty or "").lower())
+    return tokens[0] if tokens else (counterparty or "").lower()
+
+
 def _short_party(counterparty: str) -> str:
     """The name, trimmed of a trailing corporate structure. A press release can name the
     party as its full legal chain ("X, (Y Group), through its subsidiary Z"); the note
@@ -211,9 +218,10 @@ def _deal_lines(conn, cid: int, today: dt.date,
 
     The deals extractor pulls the counterparty, the value where the filing states one,
     and the area out of the press release, so a US filer whose 8-K names no party is
-    covered as well as a foreign filer's 6-K. One transaction can be filed several times
-    (agreed, tendered, completed); the rows are de-duplicated on the counterparty's first
-    word, keeping the latest, so it reads once.
+    covered as well as a foreign filer's 6-K. A deal can be filed more than once, when it
+    is agreed then completed, or recapped in a later earnings release; the rows are
+    de-duplicated on the counterparty keeping the earliest date, so the announcement date
+    wins over a recap and the deal reads once.
     """
     cutoff = (today - dt.timedelta(days=within_days)).isoformat()
     rows = conn.execute(
@@ -221,26 +229,32 @@ def _deal_lines(conn, cid: int, today: dt.date,
         SELECT deal_type, counterparty, value, area, event_date FROM deals
          WHERE company_id = ? AND deal_type IN
                ('acquisition', 'licensing', 'collaboration', 'divestiture')
-               AND counterparty IS NOT NULL AND event_date >= ?
-         ORDER BY event_date DESC
-        """, (cid, cutoff)).fetchall()
-    lines, seen = [], set()
+               AND counterparty IS NOT NULL AND event_date IS NOT NULL
+         ORDER BY event_date ASC
+        """, (cid,)).fetchall()
+    merged: dict = {}
     for r in rows:
-        counterparty = (r["counterparty"] or "").strip()
-        first = re.findall(r"[a-z0-9]{3,}", counterparty.lower())
-        key = first[0] if first else counterparty.lower()
-        if not counterparty or key in seen:
-            continue                                   # another filing of the same deal
-        seen.add(key)
-        parts = [f"{_DEAL_VERB.get(r['deal_type'], 'Deal with')} {_short_party(counterparty)}"]
-        value = _short_value(r["value"])
+        key = _party_key(r["counterparty"])
+        deal = merged.get(key)
+        if deal is None:                               # first row is the earliest date
+            merged[key] = {"deal_type": r["deal_type"], "counterparty": r["counterparty"],
+                           "value": r["value"], "area": r["area"],
+                           "event_date": r["event_date"]}
+            continue
+        deal["value"] = deal["value"] or r["value"]    # fill a figure from any later filing
+        deal["area"] = deal["area"] or r["area"]
+    kept = [d for d in merged.values() if (d["event_date"] or "") >= cutoff]
+    kept.sort(key=lambda d: d["event_date"] or "", reverse=True)
+    lines = []
+    for d in kept[:limit]:
+        parts = [f"{_DEAL_VERB.get(d['deal_type'], 'Deal with')} "
+                 f"{_short_party(d['counterparty'])}"]
+        value = _short_value(d["value"])
         if value:
             parts.append(f"for {value}")
-        if r["area"]:
-            parts.append(f"({r['area']})")
-        lines.append(" ".join(parts) + f", {(r['event_date'] or '')[:10]}.")
-        if len(lines) >= limit:
-            break
+        if d["area"]:
+            parts.append(f"({d['area']})")
+        lines.append(" ".join(parts) + f", {(d['event_date'] or '')[:10]}.")
     return lines
 
 
