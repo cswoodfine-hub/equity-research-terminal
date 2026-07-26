@@ -32,6 +32,7 @@ import insights as insights_module
 import labels as labels_module
 import loe as loe_module
 import pipeline as pipeline_module
+import product_profile as product_profile_module
 import refresh as refresh_module
 import screen as screen_module
 import slippage as slippage_module
@@ -375,6 +376,38 @@ def company_approvals(ticker: str) -> dict:
         r["loe"], r["loe_basis"] = loe_module.merged_loe(
             r.pop("loe_max"), r["loe_basis"], r.pop("bio_floor_year"))
     return {"ticker": ticker, "approvals": rows}
+
+
+@app.get("/companies/{ticker}/product/{asset_id}")
+def company_product_profile(ticker: str, asset_id: int) -> dict:
+    """One product's fact profile: approval, revenue, LOE, CMS demand, labels and patent
+    challenges from the sourced tables, plus the curated market-size, peak-sales and
+    competitor fields the analyst keeps by hand."""
+    profile = product_profile_module.product_profile(None, ticker, asset_id)
+    if profile is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"no product {asset_id} for {ticker.upper()}")
+    return profile
+
+
+class ProductNotesIn(BaseModel):
+    market_size: Optional[str] = None
+    peak_sales: Optional[str] = None
+    competitors: Optional[str] = None
+    thesis: Optional[str] = None
+
+
+@app.post("/companies/{ticker}/product/{asset_id}/notes")
+def save_product_notes(ticker: str, asset_id: int, body: ProductNotesIn) -> dict:
+    """Store the curated fields for one product. The ticker scopes the asset so a note
+    cannot be written against another company's product by id alone."""
+    if product_profile_module.product_profile(None, ticker, asset_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"no product {asset_id} for {ticker.upper()}")
+    product_profile_module.save_notes(None, asset_id, body.model_dump())
+    return {"asset_id": asset_id, "saved": True}
 
 
 @app.get("/companies/{ticker}/revenue")
