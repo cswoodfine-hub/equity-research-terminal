@@ -1,0 +1,224 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+  #wrap { position: relative; width: 100%; }
+  #chart { width: 100%; }
+  #draw { position: absolute; left: 0; top: 0; }
+  #hint { position: absolute; left: 10px; top: 8px; z-index: 5; pointer-events: none;
+          font: 11px system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="chart"></div>
+  <canvas id="draw"></canvas>
+  <div id="hint"></div>
+</div>
+<script src="./lightweight-charts.standalone.production.js"></script>
+<script>
+/* ---- Streamlit component protocol (no build step) ---- */
+function post(type, extra) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type },
+                                          extra || {}), "*");
+}
+const Streamlit = {
+  ready() { post("streamlit:componentReady", { apiVersion: 1 }); },
+  height(h) { post("streamlit:setFrameHeight", { height: h }); },
+  value(v) { post("streamlit:setComponentValue", { value: v, dataType: "json" }); },
+};
+
+let chart = null, series = null, canvas, ctx, chartEl, hintEl;
+const state = { data: [], markers: [], mode: "Candlestick", intraday: false,
+                lines: [], draw: false, theme: {}, viewKey: null, height: 560 };
+let lastViewKey = null;
+let pending = null;             // first click of a new line
+let dragIdx = -1, dragEnd = null;   // an endpoint being dragged
+let mouse = null;
+
+function cloneLine(l) { return { t1: l.t1, p1: l.p1, t2: l.t2, p2: l.p2 }; }
+
+window.addEventListener("message", function (e) {
+  const d = e.data;
+  if (!d || d.type !== "streamlit:render") return;
+  const a = d.args || {};
+  state.data = a.data || [];
+  state.markers = a.markers || [];
+  state.mode = a.mode || "Candlestick";
+  state.intraday = !!a.intraday;
+  state.lines = (a.lines || []).map(cloneLine);
+  state.draw = !!a.draw_mode;
+  state.theme = a.theme || {};
+  state.viewKey = a.view_key || "";
+  state.height = a.height || 560;
+  render();
+});
+
+function build() {
+  const th = state.theme;
+  chartEl.innerHTML = "";
+  chart = LightweightCharts.createChart(chartEl, {
+    height: state.height,
+    layout: { background: { type: "solid", color: th.ground }, textColor: th.muted,
+              fontSize: 11 },
+    grid: { vertLines: { color: th.rule }, horzLines: { color: th.rule } },
+    rightPriceScale: { borderColor: th.rule_strong },
+    timeScale: { borderColor: th.rule_strong, rightOffset: 4,
+                 timeVisible: state.intraday, secondsVisible: false },
+    crosshair: { mode: 0, vertLine: { color: th.muted }, horzLine: { color: th.muted } },
+    handleScroll: true, handleScale: true,
+  });
+  series = state.mode === "Candlestick"
+    ? chart.addCandlestickSeries({ upColor: th.up, downColor: th.down,
+        borderUpColor: th.up, borderDownColor: th.down,
+        wickUpColor: th.up, wickDownColor: th.down })
+    : chart.addLineSeries({ color: th.up, lineWidth: 2 });
+  series.setData(state.data);
+  if (state.markers.length) series.setMarkers(state.markers);
+  chart.timeScale().fitContent();
+  chart.timeScale().subscribeVisibleLogicalRangeChange(drawLines);
+}
+
+function render() {
+  if (!chart || state.viewKey !== lastViewKey) {
+    lastViewKey = state.viewKey;
+    build();
+  } else {
+    series.setData(state.data);      // same view: update in place, keep the pan/zoom
+    series.setMarkers(state.markers);
+  }
+  chart.applyOptions({ width: chartEl.clientWidth });
+  canvas.style.pointerEvents = state.draw ? "auto" : "none";   // else the chart pans
+  canvas.style.cursor = state.draw ? "crosshair" : "default";
+  hintEl.style.color = state.theme.muted || "#7E9098";
+  hintEl.textContent = state.draw
+    ? "Draw: click two points for a line · drag an end to move · double-click a line to delete"
+    : "";
+  sizeCanvas();
+  Streamlit.height(state.height + 2);
+}
+
+function sizeCanvas() {
+  const w = chartEl.clientWidth, h = state.height;
+  canvas.style.width = w + "px";
+  canvas.style.height = h + "px";
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawLines();
+}
+
+/* ---- coordinates ---- */
+function toX(t) { return chart.timeScale().timeToCoordinate(t); }
+function toY(p) { return series.priceToCoordinate(p); }
+function fromX(x) { return chart.timeScale().coordinateToTime(x); }
+function fromY(y) { return series.coordinateToPrice(y); }
+
+function drawLines() {
+  if (!ctx) return;
+  const w = chartEl.clientWidth, h = state.height, th = state.theme;
+  ctx.clearRect(0, 0, w, h);
+  for (const L of state.lines) {
+    const x1 = toX(L.t1), y1 = toY(L.p1), x2 = toX(L.t2), y2 = toY(L.p2);
+    if (x1 == null || y1 == null || x2 == null || y2 == null) continue;
+    ctx.strokeStyle = th.flag; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    if (state.draw) {
+      for (const pt of [[x1, y1], [x2, y2]]) {
+        ctx.fillStyle = th.flag;
+        ctx.beginPath(); ctx.arc(pt[0], pt[1], 4, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+  if (pending && mouse) {
+    const x1 = toX(pending.t), y1 = toY(pending.p);
+    if (x1 != null && y1 != null) {
+      ctx.strokeStyle = th.flag; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(mouse.x, mouse.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+function endpointHit(x, y) {
+  for (let i = 0; i < state.lines.length; i++) {
+    const L = state.lines[i];
+    const ax = toX(L.t1), ay = toY(L.p1), bx = toX(L.t2), by = toY(L.p2);
+    if (ax != null && ay != null && Math.hypot(x - ax, y - ay) < 8) return { idx: i, end: "a" };
+    if (bx != null && by != null && Math.hypot(x - bx, y - by) < 8) return { idx: i, end: "b" };
+  }
+  return null;
+}
+function lineHit(x, y) {
+  for (let i = 0; i < state.lines.length; i++) {
+    const L = state.lines[i];
+    const ax = toX(L.t1), ay = toY(L.p1), bx = toX(L.t2), by = toY(L.p2);
+    if (ax == null || bx == null || ay == null || by == null) continue;
+    if (segDist(x, y, ax, ay, bx, by) < 6) return i;
+  }
+  return -1;
+}
+function segDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+  let t = ((px - ax) * dx + (py - ay) * dy) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+function commit() { Streamlit.value(state.lines.map(cloneLine)); }
+
+function localXY(ev) {
+  const r = canvas.getBoundingClientRect();
+  return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+}
+function onDown(ev) {
+  if (!state.draw) return;
+  const m = localXY(ev);
+  const hit = endpointHit(m.x, m.y);
+  if (hit) { dragIdx = hit.idx; dragEnd = hit.end; ev.preventDefault(); return; }
+  const t = fromX(m.x), p = fromY(m.y);
+  if (t == null || p == null) return;
+  if (!pending) { pending = { t: t, p: p }; }
+  else {
+    state.lines.push({ t1: pending.t, p1: pending.p, t2: t, p2: p });
+    pending = null; drawLines(); commit();
+  }
+}
+function onMove(ev) {
+  mouse = localXY(ev);
+  if (dragIdx >= 0) {
+    const t = fromX(mouse.x), p = fromY(mouse.y);
+    if (t != null && p != null) {
+      const L = state.lines[dragIdx];
+      if (dragEnd === "a") { L.t1 = t; L.p1 = p; } else { L.t2 = t; L.p2 = p; }
+    }
+  }
+  if (state.draw) drawLines();
+}
+function onUp() { if (dragIdx >= 0) { dragIdx = -1; dragEnd = null; commit(); } }
+function onDbl(ev) {
+  if (!state.draw) return;
+  const m = localXY(ev);
+  const i = lineHit(m.x, m.y);
+  if (i >= 0) { state.lines.splice(i, 1); pending = null; drawLines(); commit(); }
+}
+
+window.addEventListener("load", function () {
+  chartEl = document.getElementById("chart");
+  canvas = document.getElementById("draw");
+  ctx = canvas.getContext("2d");
+  hintEl = document.getElementById("hint");
+  canvas.addEventListener("mousedown", onDown);
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+  canvas.addEventListener("dblclick", onDbl);
+  window.addEventListener("resize", function () {
+    if (chart) { chart.applyOptions({ width: chartEl.clientWidth }); sizeCanvas(); }
+  });
+  Streamlit.ready();
+});
+</script>
+</body>
+</html>

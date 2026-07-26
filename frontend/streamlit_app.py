@@ -23,7 +23,6 @@ import urllib.request
 
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 import calendar_view
 import price_chart
@@ -31,6 +30,7 @@ import revenue_mix
 import theme as T
 import trend as trend_module
 from components import charts as CH
+from components import drawchart
 from components import render as R
 from components import tokens as TK
 
@@ -1192,16 +1192,50 @@ with main:
                     events.append({"date": appr["loe"], "label": f"{name} LOE",
                                    "kind": "loe"})
 
-            # TradingView lightweight-charts, embedded with the library bundled locally.
-            # Native two-finger zoom that stretches the sticks and auto-fits the y-axis.
-            components.html(
-                price_chart.chart_html(
-                    chart_rows, events, mode=view, ticker=ticker,
-                    currency=base_resp.get("currency") or "", intraday=intraday,
-                    window_days=days, height=560),
-                height=572)
+            # A bidirectional lightweight-charts component: native two-finger zoom that
+            # stretches the sticks and auto-fits the y-axis, plus trendlines you can draw,
+            # drag and delete. The line set round-trips back and is persisted as one
+            # annotation row per ticker, so drawings survive a refresh.
+            data = price_chart.series_data(chart_rows, view, intraday)
+            markers = price_chart.event_markers(chart_rows, events, intraday)
+            theme = {"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.RULE,
+                     "rule_strong": TK.RULE_STRONG, "up": TK.UP, "down": TK.DOWN,
+                     "flag": TK.FLAG}
 
-            shown = len(price_chart.event_markers(chart_rows, events, intraday))
+            saved = api_get(api_base, f"/annotations?ticker={urllib.parse.quote(ticker)}"
+                                      "&entity_type=price_line")
+            stored_id = saved[0]["id"] if saved else None
+            try:
+                stored_lines = json.loads(saved[0]["body"]) if saved else []
+            except (ValueError, TypeError):
+                stored_lines = []
+
+            draw_row = st.columns([1.5, 1.2, 4])
+            with draw_row[0]:
+                draw_mode = st.toggle("Draw trendlines", key=f"drawtoggle_{ticker}")
+            with draw_row[1]:
+                if stored_lines and st.button("Clear lines", key=f"clearlines_{ticker}"):
+                    if stored_id is not None:
+                        api_delete(api_base, f"/annotations/{stored_id}")
+                    st.rerun()
+
+            result = drawchart.draw_chart(
+                data=data, markers=markers, mode=view, intraday=intraday,
+                lines=stored_lines, draw_mode=bool(draw_mode), theme=theme,
+                view_key=f"{ticker}|{interval}|{view}", height=560,
+                key=f"drawchart_{ticker}")
+            # The component returns the current line set; persist it only when it changes,
+            # replacing the single stored row (a converging round-trip, no loop).
+            if result is not None and result != stored_lines:
+                if stored_id is not None:
+                    api_delete(api_base, f"/annotations/{stored_id}")
+                if result:
+                    api_post_json(api_base, "/annotations", {
+                        "ticker": ticker, "entity_type": "price_line",
+                        "entity_id": None, "body": json.dumps(result)})
+                st.rerun()
+
+            shown = len(markers)
             st.markdown(
                 '<div class="byline">'
                 '<span style="color:var(--up)">▲</span> FDA approval'
