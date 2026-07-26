@@ -192,6 +192,27 @@ year, and none is invented for them.
 
 Suite 401. Still nine migrations; this reads more of a filing already fetched.
 
+**Item 10, the signal backtest (done, final item).** The reason to keep the
+snapshot history is that over time it becomes a labelled set of events whose worth
+can be measured against what the stock did. backtest.py replays it: for each change
+with a real event date, it takes the forward return over one day, one week and one
+month, subtracts the equal-weight return of the rest of the universe over the same
+window so a sector move does not read as signal, and aggregates the abnormal return
+and hit rate by change type. A /backtest endpoint and a section on the Universe
+tab.
+
+The honest design choices are the whole point. An approval and a filing carry a
+real event date, which can sit years before we first saw it, and the five-year
+daily price series covers it; a trial status or completion-date change has only our
+detection time and no forward window yet, so it is left out and said to be rather
+than measured against a date that is not the event. Verified live: 37 of 90 changes
+measured, dated 2026-02 to 2026-07. An FDA approval beat the sector 80% of the time
+the next day and 70% the next week; a risk-factors change, which happens at every
+annual filing, sat at 37 to 53%, correctly reading as noise. The view says in plain
+words that tens of events are a direction and a hit rate, not a p-value.
+
+Suite 403. Nine migrations. The additions roadmap, items 1 through 10, is complete.
+
 ## Follow-up: the five V2 recommendations — 2026-07-25 07:20
 All five items from the final message, implemented, tested, committed one concern
 each on top of the overnight build.

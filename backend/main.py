@@ -16,6 +16,7 @@ from pydantic import BaseModel
 import env  # noqa: F401  loads the .env from the repo root, before any module reads it
 import annotations as annotations_module
 import asof as asof_module
+import backtest as backtest_module
 import asset_revenue as asset_revenue_module
 import catalyst_grid as catalyst_grid_module
 import catalysts as catalysts_module
@@ -591,6 +592,13 @@ def regulatory_news(days: int = Query(default=120)) -> dict:
     finally:
         conn.close()
     return {"news": rows}
+
+
+@app.get("/backtest")
+def backtest() -> dict:
+    """Whether the change signals led price moves: abnormal forward return and hit rate
+    by change type, over the stored history. Small by construction on a young install."""
+    return backtest_module.build()
 
 
 @app.get("/adcomm-calendar")
