@@ -16,6 +16,7 @@ import hashlib
 import html
 import json
 import os
+from collections import Counter
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -1330,28 +1331,33 @@ with main:
     # --- Pipeline --------------------------------------------------------
     with pipeline_tab:
         # --- Therapeutic areas: click a band to reveal its trials ---
-        # Post-approval trials are dropped once, here, so the bars, the chips, and
-        # the table underneath all describe the same set. Filtering only the chart
-        # would leave a chip claiming a count its bar does not show.
+        # Development trials drive the bars and the "in development" count. Phase 4
+        # runs after approval, so it is lifecycle work, not pipeline: it stays out of
+        # that count and is flagged instead, as a distinct cap on each area's bar and
+        # a tagged pill, so the on-market trials for an approved product can be read
+        # without inflating the pipeline.
         every = api_get(api_base, f"/companies/{ticker}/trials")["trials"]
-        detail = [t for t in every if t["phase"] not in POST_APPROVAL]
-        marketed = len(every) - len(detail)
-        section(f"{ticker} by therapeutic area", f"{len(detail)} in development")
-        if not detail:
-            state(f"No trials in development for {ticker}",
+        dev = [t for t in every if t["phase"] not in POST_APPROVAL]
+        post = [t for t in every if t["phase"] in POST_APPROVAL]
+        head = f"{len(dev)} in development"
+        if post:
+            head += f" · {len(post)} post-approval"
+        section(f"{ticker} by therapeutic area", head)
+        if not dev and not post:
+            state(f"No trials on file for {ticker}",
                   "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
-                  "or pick another company in the sidebar."
-                  + (f" {marketed} Phase 4 trials are on file but sit outside the "
-                     "pipeline." if marketed else ""))
+                  "or pick another company in the sidebar.")
         else:
-            areas = pd.DataFrame([{"Area": t["area"],
-                                   "Phase": PHASE_MERGE.get(t["phase"], t["phase"]),
-                                   "n": 1} for t in detail])
-            totals = (areas.groupby("Area", as_index=False)["n"].sum()
-                      .sort_values("n", ascending=False))
-            order = list(totals["Area"])
-            counts = dict(zip(totals["Area"], totals["n"]))
-            phase_counts = areas.groupby("Phase")["n"].sum().to_dict()
+            dev_area = Counter(t["area"] for t in dev)
+            post_area = Counter(t["area"] for t in post)
+            # Bars keep development order and shape; an area with only post-approval
+            # work falls to the end, so an approved product with no active development
+            # is still on the chart and selectable.
+            order = [a for a, _ in dev_area.most_common()]
+            order += [a for a in post_area if a not in dev_area]
+            counts = {a: dev_area.get(a, 0) + post_area.get(a, 0) for a in order}
+            dev_seg = Counter((t["area"], PHASE_MERGE.get(t["phase"], t["phase"]))
+                              for t in dev)
 
             # The selection is read before the chart is drawn, so the bars can dim,
             # but the chips are rendered after it: the chart is what tells you which
@@ -1362,29 +1368,35 @@ with main:
             # Stacked by phase so the shape of an area reads at a glance: one that is
             # all Phase 1 is a different proposition from one carrying Phase 3, even
             # at the same trial count. The phase ramp brightens toward market, so an
-            # area's proximity to approval reads directly. Selecting dims the rest
-            # to the hairline colour rather than fading opacity, which kept the
-            # segments legible against the ground.
-            seg = areas.groupby(["Area", "Phase"], as_index=False)["n"].sum()
-            seg_counts = {(row.Area, row.Phase): int(row.n)
-                          for row in seg.itertuples()}
+            # area's proximity to approval reads directly. A Phase 4 cap sits past the
+            # ramp in the muted colour, flagged as post-approval rather than coloured
+            # as if it were the next rung. Selecting dims the rest to the hairline
+            # colour rather than fading opacity, which kept the segments legible.
             stack_rows = []
             for area in order:
                 dimmed = bool(chosen) and area not in chosen
                 segments = []
                 for ph in DISPLAY_PHASES:
-                    count = seg_counts.get((area, ph), 0)
+                    count = dev_seg.get((area, ph), 0)
                     if not count:
                         continue
                     segments.append({
                         "name": f"{ph}, {count} trials",
                         "value": count,
                         "colour": TK.RULE if dimmed else TK.PHASE_RAMP[ph]})
+                post_count = post_area.get(area, 0)
+                if post_count:
+                    segments.append({
+                        "name": f"Phase 4, {post_count} trials, post-approval",
+                        "value": post_count,
+                        "colour": TK.RULE if dimmed else TK.MUTED})
                 stack_rows.append({"label": area, "segments": segments})
+            legend = [(p, TK.PHASE_RAMP[p]) for p in DISPLAY_PHASES]
+            if post:
+                legend.append(("Phase 4, post-approval", TK.MUTED))
             R.show(CH.stacked_bar(
                 stack_rows, 832, max(170, 34 * len(order) + 22),
-                value_fmt=lambda v: f"{v:.0f}",
-                legend=[(p, TK.PHASE_RAMP[p]) for p in DISPLAY_PHASES]))
+                value_fmt=lambda v: f"{v:.0f}", legend=legend))
 
             st.pills("Therapeutic area", order, selection_mode="multi",
                      format_func=lambda a: f"{a}  {counts[a]}",
@@ -1393,25 +1405,28 @@ with main:
             # The table stays shut until an area and a phase are picked. Two
             # hundred rows of every trial is not a starting point anyone reads; the
             # chart above is, and the table is what you open once it has told you
-            # where to look.
+            # where to look. Phase 4 joins the pills, tagged, only when the company
+            # has any; counts merge the seamless phases the way the bars do, so a
+            # pill count and the rows it opens agree.
+            merged_counts = Counter(PHASE_MERGE.get(t["phase"], t["phase"])
+                                    for t in every)
+            phase_options = list(DISPLAY_PHASES) + (["Phase 4"] if post else [])
             phase_pick = st.pills(
-                "Phase", DISPLAY_PHASES, selection_mode="multi",
-                format_func=lambda p: f"{p}  {phase_counts.get(p, 0)}",
+                "Phase", phase_options, selection_mode="multi",
+                format_func=lambda p: (f"Phase 4  {merged_counts.get(p, 0)}  "
+                                       "post-approval" if p == "Phase 4"
+                                       else f"{p}  {merged_counts.get(p, 0)}"),
                 key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
 
-            shown = [t for t in detail
-                     if t["area"] in chosen and t["phase"] in phase_pick]
+            shown = [t for t in every
+                     if t["area"] in chosen
+                     and PHASE_MERGE.get(t["phase"], t["phase"]) in phase_pick]
             if not chosen or not phase_pick:
                 missing = ("an area" if not chosen else "a phase")
-                marketed_note = (
-                    f" {marketed} Phase 4 trials are excluded throughout: they run "
-                    "after approval, so they are lifecycle work rather than "
-                    "pipeline." if marketed else "")
                 state(f"Pick {missing} to list the trials",
                       "The bars answer how much and where; the table answers which. "
                       "It opens once an area and a phase are both selected, rather "
-                      f"than opening on {len(detail)} rows of everything."
-                      + marketed_note)
+                      f"than opening on {len(every)} rows of everything.")
             else:
                 section(", ".join(chosen), f"{len(shown)} trials, "
                         + ", ".join(phase_pick))
@@ -1456,8 +1471,10 @@ with main:
                     'matched from the registry condition text by keyword, so the rule '
                     'that placed a trial is readable rather than guessed. Reached means '
                     'the primary endpoint was met and the study continues for follow-up; '
-                    'overdue means an estimated date has passed without being '
-                    'revised.</div>', unsafe_allow_html=True)
+                    'overdue means an estimated date has passed without being revised. '
+                    'Phase 4 is post-approval lifecycle work, tagged apart from the '
+                    'development pipeline and left out of the in-development count.</div>',
+                    unsafe_allow_html=True)
 
     # --- LOE -------------------------------------------------------------
     with loe_tab:
