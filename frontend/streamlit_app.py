@@ -177,6 +177,37 @@ def html_escape(text: str) -> str:
     return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
+_DEAL_BADGE = {"acquisition": "Acquisition", "licensing": "Licence",
+               "collaboration": "Collaboration", "divestiture": "Divestiture"}
+
+
+def deal_card(deal) -> str:
+    """One deal: a type badge, a body of counterparty, value and area, and the date."""
+    badge = _DEAL_BADGE.get(deal.get("deal_type"), "Deal")
+    body = [f'<span class="dp">{html_escape(deal.get("counterparty") or "")}</span>']
+    if deal.get("value"):
+        body.append(f'<span class="dv">{html_escape(deal["value"])}</span>')
+    if deal.get("area"):
+        body.append(f'<span class="da">{html_escape(deal["area"])}</span>')
+    return (f'<div class="deal dt-{html_escape(deal.get("deal_type") or "")}">'
+            f'<span class="db">{badge}</span>'
+            f'<span class="dbody">{" &middot; ".join(body)}</span>'
+            f'<span class="dd">{(deal.get("event_date") or "")[:10]}</span></div>')
+
+
+def readout_card(readout) -> str:
+    """One signed readout: a mark and the sign, the phase, the drug, the quoted sentence."""
+    positive = readout.get("outcome") == "positive"
+    mark = "&#10003;" if positive else "&#10007;"          # check or cross
+    cls = "rd-pos" if positive else "rd-neg"
+    return (f'<div class="readout {cls}"><span class="rm">{mark}</span>'
+            f'<span class="rh">Ph {readout.get("phase")} {readout.get("outcome")}</span>'
+            f'<span class="rbody"><span class="rp">'
+            f'{html_escape(readout.get("drug") or "")}</span> '
+            f'<span class="rq">{html_escape(readout.get("quote") or "")}</span></span>'
+            f'<span class="rd">{(readout.get("event_date") or "")[:10]}</span></div>')
+
+
 def _completion_note(trial) -> str:
     """What a primary completion date means, which depends on its registry type.
 
@@ -963,31 +994,69 @@ with main:
                     api_get.clear()
                     st.rerun()
 
-        if not feed:
-            section("Nothing flagged")
-            state(f"No changes detected for {ticker}",
-                  "The position above is current either way. The feed compares "
-                  "snapshots between refreshes, so it needs two runs before the first "
-                  "diff appears. Run one from the Prices tab.")
+        # --- What matters now, in structured sections --------------------
+        # Broken out by the thing that moves a case, not by the snapshot-diff mechanics.
+        # Catalysts, exclusivity and material filings come from the feed; deals and
+        # readouts are read from their own endpoints. The raw "changes since the last
+        # refresh" list, trial status and date wording, is dropped from this view: it read
+        # as jargon and the events that matter surface in the sections below instead.
+        deals_data = api_get(api_base, f"/companies/{ticker}/deals").get("deals") or []
+        readouts_data = api_get(api_base, f"/companies/{ticker}/readouts").get("readouts") or []
+        catalyst_items = [it for it in feed if it["kind"] == "catalyst"]
+        loe_items = [it for it in feed if it["kind"] == "loe"]
+        filing_items = [it for it in feed if it["kind"] == "filing"]
 
-        for kind, label, blurb in FEED_SECTIONS:
-            items = [it for it in feed if it["kind"] == kind]
-            if not items:
-                continue
-            section(label, len(items))
-            pieces = []
-            for it in items:
-                pieces.append(feed_row(it, show_reason=True))
-                # An annotation renders inline, directly under the item it
-                # belongs to, in the analyst's own voice.
-                for a in change_notes.get(str(it.get("change_id")), []):
-                    pieces.append(
-                        f'<div class="anno"><span class="who">'
-                        f'{a["created_at"][:10]}</span>'
-                        f'{html_escape(a["body"])}</div>')
-            st.markdown('<div class="feed">' + "".join(pieces) + "</div>",
+        if not (deals_data or readouts_data or catalyst_items or loe_items or filing_items):
+            section("Nothing flagged")
+            state(f"Nothing coming up for {ticker}",
+                  "The position above is current either way. Catalysts, deals, readouts "
+                  "and exclusivity fill in as refreshes run; a refresh from the Prices "
+                  "tab pulls the latest.")
+
+        if catalyst_items:
+            section("Catalysts inside 60 days", len(catalyst_items))
+            st.markdown('<div class="feed">' + "".join(
+                feed_row(it, show_reason=True) for it in catalyst_items) + "</div>",
+                unsafe_allow_html=True)
+            st.markdown('<div class="byline">Phase 3 readouts derived from registry '
+                        'completion dates, plus curated PDUFA and regulatory dates. An '
+                        'estimated date moves; a refresh updates it.</div>',
                         unsafe_allow_html=True)
-            st.markdown(f'<div class="byline">{blurb}</div>', unsafe_allow_html=True)
+
+        if deals_data:
+            section("Deals", len(deals_data))
+            st.markdown('<div class="deals">' + "".join(
+                deal_card(d) for d in deals_data) + "</div>", unsafe_allow_html=True)
+            st.markdown('<div class="byline">M&amp;A, licensing and collaborations read '
+                        'from the filings that announced them. Value where the filing '
+                        'stated it; dated to when the market first saw it.</div>',
+                        unsafe_allow_html=True)
+
+        if readouts_data:
+            section("Trial readouts", len(readouts_data))
+            st.markdown('<div class="readouts">' + "".join(
+                readout_card(r) for r in readouts_data) + "</div>",
+                unsafe_allow_html=True)
+            st.markdown('<div class="byline">Phase 2 and 3 topline results classified '
+                        'from the press releases, each with the sentence that carried it. '
+                        'A check met the endpoint, a cross missed.</div>',
+                        unsafe_allow_html=True)
+
+        if loe_items:
+            section("Loss of exclusivity ahead", len(loe_items))
+            st.markdown('<div class="feed">' + "".join(
+                feed_row(it) for it in loe_items) + "</div>", unsafe_allow_html=True)
+            st.markdown('<div class="byline">Latest protection per marketed product, next '
+                        '24 months. Orphan exclusivity is not a cliff.</div>',
+                        unsafe_allow_html=True)
+
+        if filing_items:
+            section("Recent material filings", len(filing_items))
+            st.markdown('<div class="feed">' + "".join(
+                feed_row(it) for it in filing_items) + "</div>", unsafe_allow_html=True)
+            st.markdown('<div class="byline">Material 8-K items beyond the deals above: '
+                        'impairments, terminations and other agreements.</div>',
+                        unsafe_allow_html=True)
 
     # --- Prices ----------------------------------------------------------
     with prices_tab:

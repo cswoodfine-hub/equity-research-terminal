@@ -273,3 +273,88 @@ def extract(db_path=None, limit: int = MAX_PER_RUN, today=None) -> dict:
         found += len(results)
         time.sleep(0.3)                # polite to EDGAR and under the model's rate limit
     return {"status": "ok", "read": read, "deals": found, "errors": errors}
+
+
+# --- reading deals for the note and the Key insights tab -----------------
+_DEAL_VERB = {"acquisition": "Acquired", "licensing": "Licensing deal with",
+              "collaboration": "Collaboration with", "divestiture": "Divested to"}
+# The headline figure inside a stored value, which sometimes carries the whole
+# consideration clause; the reader wants the number, not the paragraph.
+_VALUE_HEAD = re.compile(
+    r"\$[\d.,]+\s*(?:billion|million|bn|mn|per\s*share|/\s*share)", re.I)
+
+
+def short_value(value: str | None) -> str | None:
+    if not value:
+        return None
+    match = _VALUE_HEAD.search(value)
+    if match:
+        return match.group(0)
+    return value if len(value) <= 40 else None
+
+
+def short_party(counterparty: str | None) -> str:
+    """The name trimmed of a trailing corporate structure, so "X, (Y Group), through its
+    subsidiary Z" reads as the name it is known by. Only a long value is trimmed."""
+    counterparty = (counterparty or "").strip()
+    if len(counterparty) <= 50:
+        return counterparty
+    head = re.split(r"[,(]", counterparty, 1)[0].strip()
+    return head or counterparty[:50]
+
+
+def recent_rows(conn, cid: int, today=None, within_days: int = 400,
+                limit: int = 6) -> list[dict]:
+    """The company's recent deals, one per counterparty. A deal filed more than once
+    (agreed, completed, recapped in earnings) is de-duplicated on the party, keeping the
+    earliest date, when the market first saw it, and the value from whichever filing
+    states it."""
+    today = today or dt.date.today()
+    cutoff = (today - dt.timedelta(days=within_days)).isoformat()
+    rows = conn.execute(
+        """
+        SELECT deal_type, counterparty, value, area, event_date FROM deals
+         WHERE company_id = ? AND deal_type IN
+               ('acquisition', 'licensing', 'collaboration', 'divestiture')
+               AND counterparty IS NOT NULL AND event_date IS NOT NULL
+         ORDER BY event_date ASC
+        """, (cid,)).fetchall()
+    merged: dict = {}
+    for r in rows:
+        key = _party_key(r["counterparty"])
+        deal = merged.get(key)
+        if deal is None:
+            merged[key] = {"deal_type": r["deal_type"],
+                           "counterparty": short_party(r["counterparty"]),
+                           "value": r["value"], "area": r["area"],
+                           "event_date": r["event_date"]}
+        else:
+            deal["value"] = deal["value"] or r["value"]
+            deal["area"] = deal["area"] or r["area"]
+    kept = [d for d in merged.values() if (d["event_date"] or "") >= cutoff]
+    for deal in kept:
+        deal["value"] = short_value(deal["value"])
+    kept.sort(key=lambda d: d["event_date"] or "", reverse=True)
+    return kept[:limit]
+
+
+def deal_line(deal: dict) -> str:
+    """One deal as a sentence for the note."""
+    parts = [f"{_DEAL_VERB.get(deal['deal_type'], 'Deal with')} {deal['counterparty']}"]
+    if deal.get("value"):
+        parts.append(f"for {deal['value']}")
+    if deal.get("area"):
+        parts.append(f"({deal['area']})")
+    return " ".join(parts) + f", {(deal['event_date'] or '')[:10]}."
+
+
+def recent(db_path=None, ticker: str = "", today=None, within_days: int = 400,
+           limit: int = 6) -> list[dict]:
+    """Recent deals for a ticker, structured for the Key insights tab."""
+    conn = db.get_connection(db_path)
+    try:
+        row = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                           (ticker.upper(),)).fetchone()
+        return recent_rows(conn, row["id"], today, within_days, limit) if row else []
+    finally:
+        conn.close()

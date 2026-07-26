@@ -31,7 +31,11 @@ import llm
 import pdufa                     # reuse strip_html and the fatal-error test
 
 LOOKBACK_DAYS = 950              # about 2.6 years, so measured events keep a forward window
-MAX_TOKENS = 700
+# gemini-flash-latest thinks before it answers; at a small budget the reasoning eats it
+# all and the JSON truncates, which silently loses a real readout to a "none". The budget
+# is set well above the capped reasoning so the whole record comes back.
+MAX_TOKENS = 2048
+THINKING_BUDGET = 256
 _TIMEOUT_S = 30
 MAX_PER_RUN = 400               # cap the filings read in one pass
 
@@ -164,7 +168,8 @@ def _classify(document: str, filing: dict, complete) -> dict | None:
     user = (f"Company: {filing['ticker']}\nFiled: {filing['filed_date']}\n\n"
             f"Filing text:\n{document[:pdufa._MAX_CHARS]}\n\n"
             "Does this announce a Phase 2 or Phase 3 trial result?")
-    return validate(parse_reply(complete(SYSTEM_PROMPT, user, MAX_TOKENS)), document)
+    reply = complete(SYSTEM_PROMPT, user, MAX_TOKENS, thinking_budget=THINKING_BUDGET)
+    return validate(parse_reply(reply), document)
 
 
 def _store(conn, filing: dict, result: dict | None) -> None:
@@ -219,3 +224,27 @@ def extract(db_path=None, limit: int = MAX_PER_RUN, today=None) -> dict:
         time.sleep(0.3)                # polite to EDGAR and under the model's rate limit
     return {"status": "ok", "read": read, "positive": pos, "negative": neg,
             "errors": errors}
+
+
+def recent(db_path=None, ticker: str = "", today=None, within_days: int = 400,
+           limit: int = 6) -> list[dict]:
+    """Signed Phase 2/3 readouts for a ticker, most recent first, for the Key insights
+    tab: the drug, the phase, the sign, the date and the sentence that carried it."""
+    today = today or dt.date.today()
+    cutoff = (today - dt.timedelta(days=within_days)).isoformat()
+    conn = db.get_connection(db_path)
+    try:
+        row = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                           (ticker.upper(),)).fetchone()
+        if not row:
+            return []
+        rows = conn.execute(
+            """
+            SELECT drug, phase, outcome, event_date, quote FROM trial_readouts
+             WHERE company_id = ? AND outcome IN ('positive', 'negative')
+                   AND event_date >= ?
+             ORDER BY event_date DESC LIMIT ?
+            """, (row["id"], cutoff, limit)).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()

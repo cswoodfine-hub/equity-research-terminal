@@ -138,3 +138,35 @@ def test_classify_runs_the_model_and_validates(tmp_path):
 
     out = deals._classify(_DOC, filing, fake_complete)
     assert len(out) == 1 and out[0]["value"] == "$41 per share"
+
+
+def test_recent_dedupes_to_earliest_merges_value_and_shortens(tmp_path):
+    """The tab reader: one row per counterparty, earliest date, value merged from any
+    filing and trimmed to the headline, and a party trimmed of its legal chain."""
+    db_file = tmp_path / "t.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='GILD'").fetchone()[0]
+    conn.execute("INSERT INTO deals (accession, company_id, deal_type, counterparty,"
+                 " value, area, event_date) VALUES ('g0', ?, 'acquisition',"
+                 " 'Arcellx, Inc.', '$7.8 billion in cash plus a contingent value right"
+                 " of up to $2 more per share', 'oncology', '2026-02-23')", (cid,))
+    conn.execute("INSERT INTO deals (accession, company_id, deal_type, counterparty,"
+                 " value, area, event_date) VALUES ('g1', ?, 'acquisition', 'Arcellx',"
+                 " NULL, NULL, '2026-05-07')", (cid,))
+    conn.execute("INSERT INTO deals (accession, company_id, deal_type, counterparty,"
+                 " value, area, event_date) VALUES ('c1', ?, 'collaboration',"
+                 " 'Sino Biopharmaceutical, (SBP Group), through its subsidiary Chia Tai"
+                 " Tianqing Pharmaceutical Group Co., Ltd.', NULL, 'hepatitis B',"
+                 " '2026-05-11')", (cid,))
+    conn.commit()
+    conn.close()
+
+    rows = deals.recent(db_file, "GILD", today=dt.date(2026, 7, 26))
+    arcellx = next(r for r in rows if r["counterparty"].startswith("Arcellx"))
+    assert arcellx["event_date"] == "2026-02-23"        # earliest, not the later filing
+    assert arcellx["value"] == "$7.8 billion"           # trimmed from the long clause
+    assert arcellx["area"] == "oncology"
+    sino = next(r for r in rows if r["deal_type"] == "collaboration")
+    assert sino["counterparty"] == "Sino Biopharmaceutical"   # trimmed of the legal chain

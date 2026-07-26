@@ -91,3 +91,26 @@ def test_store_writes_a_signed_readout_and_is_idempotent(tmp_path):
     assert conn.execute("SELECT COUNT(*) FROM trial_readouts"
                         " WHERE accession = '6k-1'").fetchone()[0] == 1
     conn.close()
+
+
+def test_recent_returns_signed_readouts_recent_first(tmp_path):
+    """The tab reader: signed Phase 2/3 readouts, newest first, none excluded."""
+    db_file = tmp_path / "t.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='GSK'").fetchone()[0]
+    for acc, drug, phase, outcome, date in [
+        ("r1", "Ris-Rez", 3, "positive", "2026-07-10"),
+        ("r2", "camlipixant", 3, "negative", "2026-07-17"),
+        ("r3", "nothing", 3, "none", "2026-07-15"),        # read, no readout: excluded
+    ]:
+        conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase,"
+                     " outcome, event_date) VALUES (?, ?, ?, ?, ?, ?)",
+                     (acc, cid, drug, phase, outcome, date))
+    conn.commit()
+    conn.close()
+
+    out = trial_readouts.recent(db_file, "GSK", today=dt.date(2026, 7, 26))
+    assert [r["drug"] for r in out] == ["camlipixant", "Ris-Rez"]   # newest first
+    assert out[0]["outcome"] == "negative"

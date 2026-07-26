@@ -253,6 +253,44 @@ h3 {{ font-size: 0.9rem; }}
 .fitem .why {{ font-size: 10px; color: var(--flag); letter-spacing: 0.04em;
               text-transform: uppercase; white-space: nowrap; }}
 
+/* Deals: a type badge, a body of party, value and area, and the date. */
+.deals {{ margin: 0.1rem 0 0.3rem; }}
+.deal {{
+  display: grid; grid-template-columns: 104px 1fr auto; gap: 0.8rem;
+  align-items: baseline; padding: 0.4rem 0; border-bottom: 1px solid var(--rule);
+}}
+.deal:last-child {{ border-bottom: none; }}
+.deal .db {{ font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+            font-weight: 700; color: var(--muted); white-space: nowrap;
+            align-self: center; }}
+.deal.dt-acquisition .db {{ color: var(--down); }}
+.deal.dt-licensing .db {{ color: var(--purple-book); }}
+.deal.dt-collaboration .db {{ color: var(--up); }}
+.deal.dt-divestiture .db {{ color: var(--orange-book); }}
+.deal .dbody {{ font-size: 12.5px; line-height: 1.4; }}
+.deal .dp {{ font-weight: 600; }}
+.deal .dv {{ font-family: var(--font-mono); font-weight: 600; }}
+.deal .da {{ color: var(--muted); }}
+.deal .dd {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+            white-space: nowrap; align-self: center; }}
+
+/* Trial readouts: a mark and sign, the phase, the drug, and the quote. */
+.readouts {{ margin: 0.1rem 0 0.3rem; }}
+.readout {{
+  display: grid; grid-template-columns: 16px 92px 1fr auto; gap: 0.6rem;
+  align-items: baseline; padding: 0.42rem 0; border-bottom: 1px solid var(--rule);
+}}
+.readout:last-child {{ border-bottom: none; }}
+.readout .rm {{ font-weight: 700; align-self: center; }}
+.readout .rh {{ font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+               font-weight: 700; white-space: nowrap; align-self: center; }}
+.readout.rd-pos .rm, .readout.rd-pos .rh {{ color: var(--up); }}
+.readout.rd-neg .rm, .readout.rd-neg .rh {{ color: var(--down); }}
+.readout .rp {{ font-weight: 600; font-size: 12.5px; }}
+.readout .rq {{ font-size: 11.5px; color: var(--muted); line-height: 1.35; }}
+.readout .rd {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+               white-space: nowrap; align-self: center; }}
+
 /* Position strip. */
 .pos {{ display: flex; gap: 2rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
 .pos .k {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;

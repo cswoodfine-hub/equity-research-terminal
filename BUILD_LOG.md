@@ -1,5 +1,27 @@
 # Build log, overnight autonomous build
 
+## Key insights, restructured; the readout budget fixed — 2026-07-26 20:45
+The Key insights tab led with "changes since the last refresh", a list of snapshot-diff
+lines (trial status and date wording) that read as jargon. It is dropped. The view is now
+broken into the things that move a case: catalysts inside 60 days, deals, trial readouts,
+and loss of exclusivity, each its own section. Deals and readouts are read from two new
+endpoints (/companies/{ticker}/deals and /readouts) over structured readers; the deals
+reader de-duplicates a deal filed several times to one row, and the readout reader returns
+the signed Phase 2/3 rows. A deal renders as a type badge, the counterparty, the value
+where known and the area; a readout as a check or cross, the phase and sign, the drug and
+the sentence that carried it, coloured by outcome.
+
+The trial-readout extractor carried the same 700-token budget that truncated the deal
+JSON, so gemini-flash's reasoning was eating it and a real readout was silently stored as
+"none". Raised to 2048 with the reasoning capped and re-run: the signed count went from 7
+to 23 (20 positive, 3 negative), surfacing GSK camlipixant, NVO CagriSema and semaglutide
+misses, AZN baxdrostat and tozorakimab, the NVS Pluvicto and Scemblix wins and more.
+
+A note on the dates: a deal's date is the filing date, not the announcement date. Lilly's
+four April acquisitions all read 2026-04-30 because that is when the earnings 8-K that
+disclosed them was filed. Extracting the true announcement date is a later step; it
+carries a date-fabrication risk the filing date does not. Suite 423 green.
+
 ## Deals: read the earnings release and the multi-deal filing — 2026-07-26 19:30
 The user asked why Lilly's $7bn Kelonia acquisition was not showing. EDGAR full-text
 search settled it: Lilly filed no standalone acquisition 8-K. It listed four

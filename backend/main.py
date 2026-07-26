@@ -22,8 +22,10 @@ import catalyst_grid as catalyst_grid_module
 import catalysts as catalysts_module
 import comps as comps_module
 import db
+import deals as deals_module
 import demand as demand_module
 import filing_diff as filing_diff_module
+import trial_readouts as trial_readouts_module
 import valuation as valuation_module
 import financials_view as financials_view_module
 import insights as insights_module
@@ -268,6 +270,20 @@ def company_valuation(ticker: str, rate: float = Query(default=valuation_module.
     if built is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     return built
+
+
+@app.get("/companies/{ticker}/deals")
+def company_deals(ticker: str) -> dict:
+    """Recent M&A, licensing and collaboration deals read from the filings that announced
+    them, one per counterparty with the value where the filing stated it and the area."""
+    return {"ticker": ticker.upper(), "deals": deals_module.recent(None, ticker)}
+
+
+@app.get("/companies/{ticker}/readouts")
+def company_readouts(ticker: str) -> dict:
+    """Signed Phase 2 and Phase 3 trial readouts classified from the filings that
+    announced them: the drug, the phase, the sign, and the sentence that carried it."""
+    return {"ticker": ticker.upper(), "readouts": trial_readouts_module.recent(None, ticker)}
 
 
 @app.get("/companies/{ticker}/demand")
