@@ -57,6 +57,9 @@ DISPLAY_PHASES = [p for p in PIPELINE_PHASES
 # Price chart windows, widest last. None means every session held. Windows wider than
 # the stored history are hidden rather than drawn short.
 PRICE_WINDOWS = [("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", None)]
+# Candle interval: daily bars go thin over a long window, so weekly and monthly aggregate
+# the OHLC into fewer, wider candles. The value is the pandas resample rule (None = daily).
+PRICE_INTERVALS = {"Daily": None, "Weekly": "W", "Monthly": "ME"}
 # Sessions in the Key insights sparkline. Trading sessions rather than calendar days,
 # so a bank holiday or a weekend does not silently shorten the line.
 SPARK_SESSIONS = 5
@@ -1103,7 +1106,7 @@ with main:
             choices = [(label, days) for label, days in PRICE_WINDOWS
                        if days is None or days <= held + 45]
             labels = [label for label, _ in choices]
-            win_col, view_col = st.columns([3, 1.4])
+            win_col, view_col, int_col = st.columns([2.5, 1.5, 1.7])
             with win_col:
                 span = st.radio("Window", labels, index=len(labels) - 1, horizontal=True,
                                 key="price_window", label_visibility="collapsed")
@@ -1112,6 +1115,10 @@ with main:
                     "View", [price_chart.LINE, price_chart.CANDLE],
                     default=price_chart.LINE, key="price_view",
                     label_visibility="collapsed") or price_chart.LINE
+            with int_col:
+                interval = st.segmented_control(
+                    "Interval", list(PRICE_INTERVALS), default="Daily",
+                    key="price_interval", label_visibility="collapsed") or "Daily"
             days = dict(choices)[span]
 
             windowed = (frame if days is None else
@@ -1144,13 +1151,28 @@ with main:
                 api_base,
                 f"/annotations?ticker={urllib.parse.quote(ticker)}&entity_type=price")
 
-            # The figure holds the whole history so a pan can reach the real limits; the
-            # window only sets the opening view. uirevision is keyed to the controls, so a
-            # tag click preserves the current pan and zoom while changing window, ticker or
-            # view still resets the frame.
-            fig = price_chart.figure(points, tags, mode=view, ticker=ticker,
+            # Weekly and monthly aggregate the daily OHLC into fewer, wider candles: open is
+            # the first of the bucket, high the max, low the min, close the last, volume the
+            # sum. Daily passes through. Built off the whole history so a pan reaches the
+            # real limits.
+            rule = PRICE_INTERVALS[interval]
+            if rule:
+                agg = (frame.set_index("as_of")
+                       .resample(rule)
+                       .agg({"open": "first", "high": "max", "low": "min",
+                             "close": "last", "volume": "sum"})
+                       .dropna(subset=["close"]).reset_index())
+                agg["as_of"] = agg["as_of"].dt.strftime("%Y-%m-%d")
+                chart_rows = agg.to_dict("records")
+            else:
+                chart_rows = points
+
+            # The window only sets the opening view. uirevision is keyed to the controls, so
+            # a tag click preserves the current pan and zoom while changing window, ticker,
+            # view or interval still resets the frame.
+            fig = price_chart.figure(chart_rows, tags, mode=view, ticker=ticker,
                                      currency=prices.get("currency") or "",
-                                     uirevision=f"{ticker}|{span}|{view}")
+                                     uirevision=f"{ticker}|{span}|{view}|{interval}")
             if days is not None:
                 fig.update_xaxes(range=[
                     (frame["as_of"].max()

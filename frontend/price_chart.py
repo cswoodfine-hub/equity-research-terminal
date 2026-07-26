@@ -11,6 +11,8 @@ Streamlit, the API, or the database. Colour comes only from the palette tokens.
 
 from __future__ import annotations
 
+import datetime as dt
+
 import plotly.graph_objects as go
 
 from components import tokens as TK
@@ -19,6 +21,16 @@ LINE, CANDLE = "Line", "Candlestick"
 
 # A tag label runs on the chart; the full note is on hover, so the label stays short.
 _LABEL_MAX = 22
+# A tag is stored against a day, but the bars may be weekly or monthly, so a tag snaps to
+# the nearest bar within this many days and is dropped if the nearest bar is further off.
+_TAG_SNAP_DAYS = 40
+
+
+def _parse_day(value):
+    try:
+        return dt.date.fromisoformat(str(value)[:10])
+    except (ValueError, TypeError):
+        return None
 
 
 def _axis_font():
@@ -74,18 +86,22 @@ def figure(rows, tags=None, *, mode: str = LINE, ticker: str = "",
             showlegend=False,
         ))
 
-    # Tags sit on the bar their date matches, at that bar's close, so a saved note is
-    # visible in both views. A short label rides above the point; the full body is on hover.
-    close_at = {str(r["as_of"])[:10]: r.get("close") for r in rows}
+    # Tags sit on the bar nearest their day, at that bar's close, so a note stays put when
+    # the bars are weekly or monthly rather than daily. A tag whose day is off the chart is
+    # dropped. A short label rides above the point; the full body is on hover.
+    bars = [(_parse_day(r["as_of"]), str(r["as_of"])[:10], r.get("close")) for r in rows]
+    bars = [b for b in bars if b[0] is not None and b[2] is not None]
     tx, ty, labels, bodies = [], [], [], []
     for tag in tags:
-        key = str(tag.get("entity_id") or "")[:10]
-        price = close_at.get(key)
-        if price is None:
+        day = _parse_day(tag.get("entity_id"))
+        if day is None or not bars:
+            continue
+        near = min(bars, key=lambda b: abs((b[0] - day).days))
+        if abs((near[0] - day).days) > _TAG_SNAP_DAYS:
             continue
         body = str(tag.get("body") or "")
-        tx.append(key)
-        ty.append(price)
+        tx.append(near[1])
+        ty.append(near[2])
         labels.append(body if len(body) <= _LABEL_MAX else body[:_LABEL_MAX - 1] + "…")
         bodies.append(body)
     if tx:
@@ -116,11 +132,12 @@ def figure(rows, tags=None, *, mode: str = LINE, ticker: str = "",
         hoverlabel=dict(bgcolor=TK.PANEL, bordercolor=TK.RULE_STRONG,
                         font=dict(family=TK.FONT_MONO, color=TK.TEXT, size=11)),
         showlegend=False,
+        # No range slider: zoom is the trackpad (two-finger scroll) and the modebar, and
+        # the slider only ate height. Pan is a drag.
         xaxis=dict(
             gridcolor=TK.RULE, zerolinecolor=TK.RULE, showline=False,
             tickfont=_axis_font(), ticklabelposition="outside",
-            rangeslider=dict(visible=True, bgcolor=TK.PANEL,
-                             bordercolor=TK.RULE, thickness=0.07),
+            rangeslider=dict(visible=False),
         ),
         # Price on the right and auto-ranged to the data, not to zero, so the series fills
         # the height rather than being squashed against the top.

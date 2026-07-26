@@ -60,10 +60,24 @@ def test_a_tag_on_a_bar_that_is_not_in_the_window_is_not_drawn():
     assert not [t for t in fig.data if t.name == "tags"]
 
 
+def test_a_tag_snaps_to_the_nearest_bar_when_bars_are_not_daily():
+    # A weekly series: a tag stored against a mid-week day lands on the closest weekly bar.
+    weekly = [
+        {"as_of": "2026-07-05", "open": 100.0, "high": 105.0, "low": 99.0, "close": 104.0},
+        {"as_of": "2026-07-12", "open": 104.0, "high": 109.0, "low": 103.0, "close": 108.0},
+    ]
+    tags = [{"id": 1, "entity_id": "2026-07-09", "body": "mid-week note"}]  # 4d vs 3d
+    fig = price_chart.figure(weekly, tags, mode=price_chart.CANDLE)
+    marks = [t for t in fig.data if t.name == "tags"]
+    assert len(marks) == 1
+    assert marks[0].x == ("2026-07-12",)   # the nearer of the two weekly bars
+    assert marks[0].y == (108.0,)
+
+
 def test_the_figure_wears_the_dark_theme_and_a_fixed_height():
     fig = price_chart.figure(ROWS, mode=price_chart.LINE)
     assert fig.layout.paper_bgcolor == TK.GROUND
     assert fig.layout.plot_bgcolor == TK.GROUND
     assert fig.layout.height == 540
     assert fig.layout.dragmode == "pan"
-    assert fig.layout.xaxis.rangeslider.visible is True
+    assert fig.layout.xaxis.rangeslider.visible is False   # zoom is the trackpad, not a slider
