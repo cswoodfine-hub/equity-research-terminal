@@ -1298,6 +1298,44 @@ with main:
                         "Refreshing the universe")
             st.rerun()
 
+        # Multi-company comparison: pick a metric and the companies, one coloured line
+        # each over the fiscal years. Both ratios are currency-internal, so filers who
+        # report in different currencies still compare.
+        ct = api_get(api_base, "/comps/trend")
+        ct_labels = ct.get("labels") or []
+        ct_by = {c["ticker"]: c for c in ct.get("companies") or []}
+        if ct_labels and ct_by:
+            section("Compare over time", "revenue growth or net margin")
+            metric_label = st.radio(
+                "Metric", ["Revenue growth", "Net margin"], horizontal=True,
+                key="comps_metric", label_visibility="collapsed")
+            metric_key = ("revenue_growth" if metric_label == "Revenue growth"
+                          else "net_margin")
+            default_sel = [t for t in (ticker, "LLY", "NVO", "MRK", "PFE")
+                           if t in ct_by][:5]
+            picked = st.multiselect(
+                "Companies", sorted(ct_by), default=default_sel,
+                key="comps_pick", label_visibility="collapsed")
+            palette = [TK.UP, TK.ORANGE_BOOK, TK.PURPLE_BOOK, TK.DOWN, TK.FLAG, TK.MUTED]
+            series = [{"name": tk,
+                       "values": [v * 100 if v is not None else None
+                                  for v in ct_by[tk][metric_key]],
+                       "colour": palette[i % len(palette)]}
+                      for i, tk in enumerate(picked)]
+            if series:
+                R.show(CH.line_chart(series, ct_labels, 1040, 360,
+                                     y_fmt=lambda v: f"{v:.0f}%"),
+                       css_class="chart-mount stretch")
+                st.markdown(
+                    '<div class="byline">Year-over-year revenue growth or net margin per '
+                    'fiscal year, one line per company; a line breaks where a year is '
+                    'missing rather than bridging it. Both are currency-internal, so a '
+                    'euro filer and a dollar filer compare directly.</div>',
+                    unsafe_allow_html=True)
+            else:
+                state("Pick companies to compare",
+                      "Choose one or more from the control above.")
+
         comps = api_get(api_base, "/comps")
         screen_rows = {r["ticker"]: r for r in api_get(api_base, "/screen")}
         spark_rows = {p["ticker"]: p["closes"] for p in

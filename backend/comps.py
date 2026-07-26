@@ -140,6 +140,48 @@ def build_comps(db_path=None) -> list[dict]:
         conn.close()
 
 
+def comps_trend(db_path=None, shown_years: int = 6) -> dict:
+    """Per-company annual revenue growth and net margin over the last few fiscal years,
+    aligned on one shared set of year labels so a multi-company chart can plot one line
+    per company. Growth is year-over-year and both ratios are currency-internal, so they
+    compare across filers who report in different currencies. Missing years stay null."""
+    conn = db.get_connection(db_path)
+    try:
+        companies = conn.execute(
+            "SELECT id, ticker FROM companies ORDER BY ticker").fetchall()
+        rows = conn.execute(
+            """
+            SELECT company_id, fiscal_year, metric, value FROM financials
+             WHERE period_type = 'FY' AND metric IN ('Revenues', 'NetIncomeLoss')
+            """).fetchall()
+    finally:
+        conn.close()
+
+    by: dict = {}
+    years: set = set()
+    for r in rows:
+        by.setdefault((r["company_id"], r["metric"]), {})[r["fiscal_year"]] = r["value"]
+        years.add(r["fiscal_year"])
+    # The oldest shown year still gets growth from the year before it, which is kept in
+    # store even though it is not shown, so the growth series is not short a year.
+    display = sorted(years)[-shown_years:]
+    labels = [f"FY{y % 100:02d}" for y in display]
+
+    out = []
+    for c in companies:
+        revenue = by.get((c["id"], "Revenues"), {})
+        income = by.get((c["id"], "NetIncomeLoss"), {})
+        if not revenue:
+            continue
+        growth = [_pct_change(revenue.get(y), revenue.get(y - 1)) for y in display]
+        margin = [_ratio(income.get(y), revenue.get(y)) for y in display]
+        if not any(v is not None for v in growth + margin):
+            continue
+        out.append({"ticker": c["ticker"], "revenue_growth": growth,
+                    "net_margin": margin})
+    return {"basis": "annual", "labels": labels, "companies": out}
+
+
 def price_grid(db_path=None, days: int = 90, max_points: int = 60) -> list[dict]:
     """Recent daily closes for every company in one payload, for the universe's
     small-multiples grid. Downsampled evenly to ``max_points`` so eighteen panels

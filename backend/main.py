@@ -237,6 +237,13 @@ def comps() -> list[dict]:
     return comps_module.build_comps()
 
 
+@app.get("/comps/trend")
+def comps_trend() -> dict:
+    """Per-company revenue growth and net margin over the last few fiscal years, on one
+    shared set of year labels, for the multi-company comparison chart."""
+    return comps_module.comps_trend()
+
+
 @app.get("/pipeline")
 def pipeline() -> list[dict]:
     return pipeline_module.build_pipeline()

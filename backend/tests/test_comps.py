@@ -86,6 +86,28 @@ def test_comps_us_filer_full_foreign_gapped(tmp_path, monkeypatch):
     assert nvo["ev_sales"] is None
 
 
+def test_comps_trend_aligns_companies_on_shared_year_labels(tmp_path, monkeypatch):
+    facts = {"LLY": _facts("companyfacts_lly.json"), "NVO": _facts("companyfacts_nvo.json")}
+    monkeypatch.setattr(FinancialsEdgarFetcher, "fetch", lambda self: facts[self.ticker])
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    FinancialsEdgarFetcher("LLY", db_file).run()
+    FinancialsEdgarFetcher("NVO", db_file).run()
+
+    trend = comps.comps_trend(db_file)
+    labels = trend["labels"]
+    assert labels and all(lbl.startswith("FY") for lbl in labels)
+    by = {c["ticker"]: c for c in trend["companies"]}
+    assert "LLY" in by and "NVO" in by          # both filers with financials appear
+    assert "ABBV" not in by                      # a company with no financials is left out
+    lly = by["LLY"]
+    assert len(lly["revenue_growth"]) == len(labels)   # every series aligns to the labels
+    assert len(lly["net_margin"]) == len(labels)
+    assert lly["revenue_growth"][-1] is not None       # the latest year is populated
+    assert lly["net_margin"][-1] is not None
+
+
 def test_comps_no_data_all_null(tmp_path):
     db_file = tmp_path / "test.db"
     db.init(db_file)
