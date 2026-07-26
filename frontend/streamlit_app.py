@@ -647,6 +647,9 @@ if pinned:
 main, rail_col = st.columns([1, 0.34], gap="medium")
 
 with rail_col:
+    # Marker so the theme can find and drop this column on the Universe tab, where the
+    # single-company rail is out of place against a cross-coverage view.
+    st.markdown('<span class="rail-anchor"></span>', unsafe_allow_html=True)
     R.show(CH.timeline_spine(
         spine_items, dt.date.today(), 300, 920,
         cliff_years=_spine_cliff(exclusivities), selected_key=selected_key,
@@ -747,7 +750,7 @@ with main:
                   "New approvals are read from openFDA on refresh. Press Refresh all in "
                   "the top bar to pull the sources.")
         else:
-            R.show(CH.approvals_timeline(approvals, 1040, 152, dt.date.today()))
+            R.show(CH.approvals_timeline(approvals, 1360, 152, dt.date.today()))
             st.markdown(
                 '<div class="byline">Each dot is an FDA approval among covered companies '
                 'at its date; hover for the drug and application number. The detailed '
@@ -762,7 +765,7 @@ with main:
                     [{"label": p["ticker"],
                       "values": _pct_from_start(p["closes"] or []),
                       "sub": T.pct(p["change"] * 100) if p["change"] is not None else ""}
-                     for p in panels], 1040, 420, cols=6, link_base="?ticker="),
+                     for p in panels], 1360, 430, cols=6, link_base="?ticker="),
                 muted=TK.MUTED, key="cov_nav")
             st.markdown('<div class="byline">Click a panel to jump straight to that '
                         'company\'s Key insights.</div>', unsafe_allow_html=True)
@@ -885,7 +888,7 @@ with main:
         if cells:
             R.show(CH.heatmap_grid(
                 grid_data["tickers"], [m[2:] for m in grid_data["months"]], cells,
-                1040, 480, flag_note="uncurated PDUFA, review"))
+                1360, 480, flag_note="uncurated PDUFA, review"))
             # An SVG cell cannot round-trip a click without scripts, so the drill
             # is two quiet selects that answer the same question.
             drill = st.columns([0.2, 0.25, 0.55])

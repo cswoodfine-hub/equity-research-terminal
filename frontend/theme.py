@@ -237,6 +237,18 @@ h3 {{ font-size: 0.9rem; }}
 /* The horizon SVG fills the rail column and scales to it, so it reads larger. */
 .rail svg {{ width: 100%; height: auto; }}
 
+/* The horizon rail is a single-company view, so it is dropped on the Universe tab, the
+   cross-coverage view, and its width handed to the content. Streamlit gives no server
+   signal for the active tab, so this keys on the first tab (Universe) carrying
+   aria-selected in the DOM: when it does, the page-level split hides its rail column
+   (found by the marker inside it) and lets the content column take the full width. Every
+   other tab leaves the rail in place. */
+[data-testid="stHorizontalBlock"]:has(.stTabs [data-baseweb="tab"]:first-of-type[aria-selected="true"])
+  > [data-testid="stColumn"]:has(.rail-anchor) {{ display: none !important; }}
+[data-testid="stHorizontalBlock"]:has(.stTabs [data-baseweb="tab"]:first-of-type[aria-selected="true"])
+  > [data-testid="stColumn"]:first-child {{
+    width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; }}
+
 /* Feed items: a typographic list, not a table. */
 .feed {{ margin: 0.1rem 0 0.3rem; }}
 .fitem {{
