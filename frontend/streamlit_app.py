@@ -906,10 +906,12 @@ with main:
         mine = next((r for r in pipeline_rows if r["ticker"] == ticker), {})
         phases = mine.get("phases") or {}
         # Counted the same way the Pipeline tab counts, so the two tabs cannot disagree.
-        # Phase 4 is work on approved products, so it is not development; Phase 2/3 is,
-        # and lands in late phase, which is the rule this strip already applied.
-        in_development = sum(count for phase, count in phases.items()
-                             if phase not in POST_APPROVAL)
+        # Phase 4 is work on approved products, so it is not development; long-term
+        # follow-up and extension studies carry a development phase but are lifecycle
+        # work, counted from the title by /pipeline and subtracted here too.
+        in_development = (sum(count for phase, count in phases.items()
+                              if phase not in POST_APPROVAL)
+                          - (mine.get("follow_up") or 0))
         late = sum(phases.get(p, 0) for p in ("Phase 3", "Phase 2/3"))
 
         def _next(kind):
@@ -1331,33 +1333,47 @@ with main:
     # --- Pipeline --------------------------------------------------------
     with pipeline_tab:
         # --- Therapeutic areas: click a band to reveal its trials ---
-        # Development trials drive the bars and the "in development" count. Phase 4
-        # runs after approval, so it is lifecycle work, not pipeline: it stays out of
-        # that count and is flagged instead, as a distinct cap on each area's bar and
-        # a tagged pill, so the on-market trials for an approved product can be read
-        # without inflating the pipeline.
+        # Development trials drive the bars and the "in development" count. Two kinds of
+        # work carry a development phase but are not new development, so they are pulled
+        # out and flagged rather than counted in it: Phase 4, which runs after approval,
+        # and long-term follow-up, extension and rollover studies, which follow a product
+        # through the rest of its life. Each is a distinct muted cap on the bar and a
+        # tagged pill, so they can be read without inflating the pipeline.
         every = api_get(api_base, f"/companies/{ticker}/trials")["trials"]
-        dev = [t for t in every if t["phase"] not in POST_APPROVAL]
-        post = [t for t in every if t["phase"] in POST_APPROVAL]
+        LIFECYCLE = {"Phase 4": "post-approval", "Follow-up": "follow-up"}
+
+        def _bucket(t):
+            """The pill and segment a trial belongs to: its development phase, or the
+            lifecycle bucket that takes it out of development."""
+            if t["phase"] in POST_APPROVAL:
+                return "Phase 4"
+            if t.get("follow_up"):
+                return "Follow-up"
+            return PHASE_MERGE.get(t["phase"], t["phase"])
+
+        dev = [t for t in every if _bucket(t) in DISPLAY_PHASES]
+        post = [t for t in every if _bucket(t) == "Phase 4"]
+        followup = [t for t in every if _bucket(t) == "Follow-up"]
         head = f"{len(dev)} in development"
         if post:
             head += f" · {len(post)} post-approval"
+        if followup:
+            head += f" · {len(followup)} follow-up"
         section(f"{ticker} by therapeutic area", head)
-        if not dev and not post:
+        if not every:
             state(f"No trials on file for {ticker}",
                   "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
                   "or pick another company in the sidebar.")
         else:
+            all_area = Counter(t["area"] for t in every)
             dev_area = Counter(t["area"] for t in dev)
-            post_area = Counter(t["area"] for t in post)
-            # Bars keep development order and shape; an area with only post-approval
-            # work falls to the end, so an approved product with no active development
-            # is still on the chart and selectable.
+            # Bars keep development order and shape; an area with only lifecycle work
+            # falls to the end, so an approved product with no active development is
+            # still on the chart and selectable.
             order = [a for a, _ in dev_area.most_common()]
-            order += [a for a in post_area if a not in dev_area]
-            counts = {a: dev_area.get(a, 0) + post_area.get(a, 0) for a in order}
-            dev_seg = Counter((t["area"], PHASE_MERGE.get(t["phase"], t["phase"]))
-                              for t in dev)
+            order += [a for a in all_area if a not in dev_area]
+            counts = dict(all_area)
+            bucket_area = Counter((t["area"], _bucket(t)) for t in every)
 
             # The selection is read before the chart is drawn, so the bars can dim,
             # but the chips are rendered after it: the chart is what tells you which
@@ -1368,32 +1384,35 @@ with main:
             # Stacked by phase so the shape of an area reads at a glance: one that is
             # all Phase 1 is a different proposition from one carrying Phase 3, even
             # at the same trial count. The phase ramp brightens toward market, so an
-            # area's proximity to approval reads directly. A Phase 4 cap sits past the
-            # ramp in the muted colour, flagged as post-approval rather than coloured
-            # as if it were the next rung. Selecting dims the rest to the hairline
-            # colour rather than fading opacity, which kept the segments legible.
+            # area's proximity to approval reads directly. Past the ramp, Phase 4 and
+            # follow-up sit in the muted colour, flagged as lifecycle rather than
+            # coloured as the next rung. Selecting dims the rest to the hairline colour
+            # rather than fading opacity, which kept the segments legible.
             stack_rows = []
             for area in order:
                 dimmed = bool(chosen) and area not in chosen
                 segments = []
                 for ph in DISPLAY_PHASES:
-                    count = dev_seg.get((area, ph), 0)
+                    count = bucket_area.get((area, ph), 0)
                     if not count:
                         continue
                     segments.append({
                         "name": f"{ph}, {count} trials",
                         "value": count,
                         "colour": TK.RULE if dimmed else TK.PHASE_RAMP[ph]})
-                post_count = post_area.get(area, 0)
-                if post_count:
+                for life, tag in LIFECYCLE.items():
+                    count = bucket_area.get((area, life), 0)
+                    if not count:
+                        continue
                     segments.append({
-                        "name": f"Phase 4, {post_count} trials, post-approval",
-                        "value": post_count,
+                        "name": f"{life}, {count} trials, {tag}",
+                        "value": count,
                         "colour": TK.RULE if dimmed else TK.MUTED})
                 stack_rows.append({"label": area, "segments": segments})
             legend = [(p, TK.PHASE_RAMP[p]) for p in DISPLAY_PHASES]
-            if post:
-                legend.append(("Phase 4, post-approval", TK.MUTED))
+            tags = [t for t, has in (("Phase 4", post), ("follow-up", followup)) if has]
+            if tags:
+                legend.append((" and ".join(tags) + ", post-development", TK.MUTED))
             R.show(CH.stacked_bar(
                 stack_rows, 832, max(170, 34 * len(order) + 22),
                 value_fmt=lambda v: f"{v:.0f}", legend=legend))
@@ -1402,25 +1421,26 @@ with main:
                      format_func=lambda a: f"{a}  {counts[a]}",
                      key="area_pills", label_visibility="collapsed")
 
-            # The table stays shut until an area and a phase are picked. Two
-            # hundred rows of every trial is not a starting point anyone reads; the
-            # chart above is, and the table is what you open once it has told you
-            # where to look. Phase 4 joins the pills, tagged, only when the company
-            # has any; counts merge the seamless phases the way the bars do, so a
+            # The table stays shut until an area and a phase are picked. The chart above
+            # is the starting point; the table is what you open once it has told you
+            # where to look. Phase 4 and Follow-up join the pills, tagged, only when the
+            # company has any; every count is on the bucket a trial is drawn in, so a
             # pill count and the rows it opens agree.
-            merged_counts = Counter(PHASE_MERGE.get(t["phase"], t["phase"])
-                                    for t in every)
-            phase_options = list(DISPLAY_PHASES) + (["Phase 4"] if post else [])
+            bucket_counts = Counter(_bucket(t) for t in every)
+            phase_options = list(DISPLAY_PHASES)
+            if post:
+                phase_options.append("Phase 4")
+            if followup:
+                phase_options.append("Follow-up")
             phase_pick = st.pills(
                 "Phase", phase_options, selection_mode="multi",
-                format_func=lambda p: (f"Phase 4  {merged_counts.get(p, 0)}  "
-                                       "post-approval" if p == "Phase 4"
-                                       else f"{p}  {merged_counts.get(p, 0)}"),
+                format_func=lambda p: (f"{p}  {bucket_counts.get(p, 0)}  {LIFECYCLE[p]}"
+                                       if p in LIFECYCLE
+                                       else f"{p}  {bucket_counts.get(p, 0)}"),
                 key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
 
             shown = [t for t in every
-                     if t["area"] in chosen
-                     and PHASE_MERGE.get(t["phase"], t["phase"]) in phase_pick]
+                     if t["area"] in chosen and _bucket(t) in phase_pick]
             if not chosen or not phase_pick:
                 missing = ("an area" if not chosen else "a phase")
                 state(f"Pick {missing} to list the trials",
@@ -1472,8 +1492,10 @@ with main:
                     'that placed a trial is readable rather than guessed. Reached means '
                     'the primary endpoint was met and the study continues for follow-up; '
                     'overdue means an estimated date has passed without being revised. '
-                    'Phase 4 is post-approval lifecycle work, tagged apart from the '
-                    'development pipeline and left out of the in-development count.</div>',
+                    'Phase 4 and long-term follow-up, extension and rollover studies are '
+                    'lifecycle work, tagged apart from the development pipeline and left '
+                    'out of the in-development count. Follow-up studies are recognised '
+                    'from the registry title, so a few may be missed or over-caught.</div>',
                     unsafe_allow_html=True)
 
     # --- LOE -------------------------------------------------------------
