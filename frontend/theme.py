@@ -274,6 +274,28 @@ h3 {{ font-size: 0.9rem; }}
 .deal .dd {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted);
             white-space: nowrap; align-self: center; }}
 
+/* Portfolio: one card per approved product, a modality stripe down the left, the
+   figures in mono. A near-term loss of exclusivity reads in the down colour. */
+.pf {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 8px; margin: 0.4rem 0 0.3rem; }}
+.pf-card {{ background: var(--panel); border: 1px solid var(--rule);
+           border-left: 3px solid var(--rule-strong); padding: 0.5rem 0.65rem; }}
+.pf-card.small {{ border-left-color: var(--orange-book); }}
+.pf-card.bio {{ border-left-color: var(--purple-book); }}
+.pf-head {{ display: flex; align-items: baseline; justify-content: space-between;
+           gap: 0.5rem; }}
+.pf-brand {{ font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }}
+.pf-mod {{ font-size: 8.5px; letter-spacing: 0.06em; text-transform: uppercase;
+          color: var(--muted); white-space: nowrap; }}
+.pf-generic {{ font-size: 10.5px; color: var(--muted); margin: 1px 0 5px;
+              line-height: 1.25; }}
+.pf-row {{ display: flex; justify-content: space-between; align-items: baseline;
+          font-size: 11px; padding: 1px 0; }}
+.pf-k {{ color: var(--muted); }}
+.pf-v {{ font-family: var(--font-mono); }}
+.pf-v.none {{ color: var(--muted); }}
+.pf-v.near {{ color: var(--down); font-weight: 600; }}
+
 /* Trial readouts: a mark and sign, the phase, the drug, and the quote. */
 .readouts {{ margin: 0.1rem 0 0.3rem; }}
 .readout {{

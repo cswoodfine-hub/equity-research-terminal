@@ -642,12 +642,10 @@ if asof_state:
         'to return to live</div>', unsafe_allow_html=True)
 
 with main:
-    (universe_tab, insights_tab, prices_tab, financials_tab, pipeline_tab, loe_tab,
-     risk_tab, slippage_tab, approvals_tab, catalysts_tab, comps_tab,
-     news_tab) = st.tabs(
-        ["Universe", "Key insights", "Prices", "Financials", "Pipeline", "LOE",
-         "Revenue at risk", "Slippage", "Approvals", "Catalysts", "Comps",
-         "News"])
+    (universe_tab, insights_tab, prices_tab, financials_tab, pipeline_tab,
+     portfolio_tab, catalysts_tab, comps_tab, news_tab) = st.tabs(
+        ["Universe", "Key insights", "Prices", "Financials", "Pipeline",
+         "Portfolio", "Catalysts", "Comps", "News"])
 
     # --- Universe: what moved across coverage since you last looked -------
     with universe_tab:
@@ -1619,372 +1617,146 @@ with main:
                     'from the registry title, so a few may be missed or over-caught.</div>',
                     unsafe_allow_html=True)
 
-    # --- LOE -------------------------------------------------------------
-    with loe_tab:
-        data = api_get(api_base, "/loe")
-        # One company, to match the rest of the tab and the horizon rail. build_loe
-        # already returns a per-company row bucketed by year, so the selected ticker's
-        # row is the chart; summing every row would be the whole universe instead.
-        mine = next((r for r in data["rows"] if r["ticker"] == ticker), None)
-        section(f"Exclusivity cliff for {ticker}", "US products per year")
-        year_cols = [str(y) for y in data["years"]] + [data["later_label"]]
-        counts = {}
-        if mine:
-            counts = {str(y): mine["years"].get(str(y), 0) for y in data["years"]}
-            counts[data["later_label"]] = mine["later"]
-        if sum(counts.values()) == 0:
-            state(f"No US loss of exclusivity on file for {ticker}",
-                  "The Orange Book and Purple Book cover US products only and refresh "
-                  "weekly. Press Refresh all on the Comps tab if this looks empty.")
-        else:
-            R.show(CH.bar_chart(
-                [{"label": c, "value": counts[c], "show_value": counts[c] > 0}
-                 for c in year_cols],
-                832, 220, value_fmt=lambda v: f"{v:.0f}"))
-
-            section(f"Upcoming for {ticker}", len(exclusivities))
-            if not exclusivities:
-                state(f"No upcoming loss of exclusivity for {ticker}",
-                      "Either nothing expires inside the window or the books carry no "
-                      "entry for this company. Biologics coverage is partial.")
-            else:
-                def _challenge(a):
-                    if not a.get("challenged"):
-                        return "—"
-                    when = a.get("challenge_date")
-                    return f"Para IV, {when}" if when else "Para IV"
-                frame = pd.DataFrame([{
-                    "Expiry": a["loe"], "Basis": a.get("loe_basis") or "—",
-                    "Challenged": _challenge(a),
-                    "Modality": a["modality"] or "—",
-                    "Brand": a["brand_name"], "Generic": a["generic_name"],
-                    "Application": a["internal_code"]} for a in exclusivities])
-                st.dataframe(
-                    frame.style.map(
-                        lambda v: f"color:{T.P.modality.get(v, T.P.stale)};"
-                                  "font-weight:600", subset=["Modality"])
-                    # Orphan exclusivity is not a loss of exclusivity, so it is muted
-                    # rather than reading with the same weight as a patent expiry.
-                    .map(lambda v: f"color:{T.P.stale}"
-                         if v == "orphan exclusivity" else "", subset=["Basis"])
-                    # A filed Paragraph IV challenge is the one thing here that can pull
-                    # the expiry in, so it reads in oxblood rather than muted.
-                    .map(lambda v: f"color:{T.P.oxblood};font-weight:600"
-                         if v != "—" else f"color:{T.P.stale}", subset=["Challenged"]),
-                    width="stretch", hide_index=True)
-                st.markdown(
-                    '<div class="byline"><b>United States only.</b> The Orange Book and '
-                    'the Purple Book are FDA publications, so every date here is a US '
-                    'date. A product protected in the US to 2035 can face a generic in '
-                    'Europe or Japan years earlier, and no free source publishes those '
-                    'dates, so this app does not know them.<br>'
-                    '<b>Biologics carry no patent dates.</b> The Purple Book publishes '
-                    'regulatory exclusivity and nothing else, so all 109 biologics in '
-                    'the universe show an exclusivity date rather than the patent that '
-                    'actually gates a biosimilar. Keytruda reads 2031 here on an orphan '
-                    'exclusivity while its US patent cliff is earlier. Small molecule '
-                    'dates come from Orange Book patents and are sound.<br>'
-                    'Basis is what sets the date. Orphan exclusivity covers one orphan '
-                    'indication and lapses without the product losing anything, so it is '
-                    'muted here and excluded from the cliff above. Orange for small '
-                    'molecules, purple for biologics, the colours of the two source '
-                    'books.<br>'
-                    '<b>Challenged</b> is a Paragraph IV certification on the FDA list, a '
-                    'generic filer telling the agency the patent is invalid or not '
-                    'infringed. It is filed years before expiry and is the reason the '
-                    'expiry date may not hold, so a challenged small molecule is a real '
-                    'LOE risk ahead of the date next to it.</div>', unsafe_allow_html=True)
-
-    # --- Revenue at risk -------------------------------------------------
-    with risk_tab:
-        at_risk = api_get(api_base, f"/companies/{ticker}/revenue-at-risk")
-        section(f"Revenue at risk for {ticker}", "US protection, tagged revenue")
-        priced_total = at_risk.get("priced_total")
-        reported_fy = at_risk.get("company_reported") or {}
-        tagged_share = (priced_total / reported_fy["value"]
-                        if priced_total and reported_fy.get("value") else None)
-        st.markdown(
-            '<div class="pos">'
-            f'<div><span class="k">tagged product revenue</span>'
-            f'<span class="v{"" if priced_total is not None else " none"}">'
-            f'{T.num(priced_total / 1e9, 1) if priced_total is not None else "no free data"}'
-            f'</span><span class="sub">{at_risk.get("currency") or ""} bn, '
-            f'{at_risk.get("priced_products")} products</span></div>'
-            f'<div><span class="k">of reported revenue</span>'
-            f'<span class="v{"" if tagged_share is not None else " none"}">'
-            f'{T.pct(tagged_share * 100) if tagged_share is not None else "—"}'
-            f'</span><span class="sub">the filing attributes by product</span></div>'
-            f'<div><span class="k">at risk inside 5y</span>'
-            f'<span class="v{"" if at_risk.get("share_5y") is not None else " none"}">'
-            f'{T.pct(at_risk["share_5y"] * 100) if at_risk.get("share_5y") is not None else "no free data"}'
-            f'</span><span class="sub">of tagged revenue, US only</span></div>'
-            f'<div><span class="k">unpriced products at risk</span>'
-            f'<span class="v">{at_risk.get("products_uncovered") or 0}</span>'
-            f'<span class="sub">known expiry, no tagged figure</span></div>'
-            "</div>", unsafe_allow_html=True)
-
-        if priced_total:
-            # The cliff as a waterfall: tagged revenue down through each year's
-            # expiries to what stays protected past the horizon. The unpriced
-            # band hatches; its size is unknown by construction.
-            steps = [{"label": "tagged", "value": priced_total / 1e9,
-                      "kind": "start"}]
-            for bucket in at_risk["buckets"]:
-                if bucket["covered"]:
-                    steps.append({"label": str(bucket["year"]),
-                                  "value": -bucket["revenue"] / 1e9,
-                                  "kind": "step"})
-            if at_risk.get("products_uncovered"):
-                steps.append({"label": f"unpriced ×{at_risk['products_uncovered']}",
-                              "value": None, "kind": "step"})
-            steps.append({"label": "protected", "kind": "end"})
-            section("Cliff waterfall", f"{at_risk.get('currency') or ''} bn")
-            R.show(CH.waterfall(steps, 832, 280,
-                                value_fmt=lambda v: T.num(v, 1)))
-
-            years_with_products = [b for b in at_risk["buckets"]
-                                   if b["covered"] or b["uncovered"]]
-            if years_with_products:
-                section("What expires when")
-                year_pick = st.selectbox(
-                    "Year", [str(b["year"]) for b in years_with_products],
-                    key=f"risk_year_{ticker}", label_visibility="collapsed")
-                bucket = next(b for b in years_with_products
-                              if str(b["year"]) == year_pick)
-                rows = [{"Brand": p["brand_name"], "Generic": p["generic_name"],
-                         "Modality": p["modality"], "LOE": p["loe"],
-                         "Basis": p["basis"],
-                         "Revenue, bn": (T.num(p["revenue"] / 1e9, 2)
-                                         if p.get("revenue") is not None else "—")}
-                        for p in bucket["covered"] + bucket["uncovered"]]
-                st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
-        else:
-            state(f"No tagged product revenue for {ticker}",
-                  "The SEC data sets carry revenue per product only where the filer "
-                  "tags a product axis. The exposure is drawn as counts on the LOE "
-                  "tab instead; nothing here is imputed.")
-
-        uni = api_get(api_base, "/revenue-at-risk")
-        uni_rows = uni["rows"]
-        fx_as_of = uni.get("fx_as_of")
-        risk_view = st.radio(
-            "Universe view", ["Share of tagged revenue", "Absolute, USD converted"],
-            horizontal=True, key="risk_universe_view", label_visibility="collapsed")
-
-        if risk_view.startswith("Share"):
-            section("Universe, share of tagged revenue at risk inside 5 years",
-                    "shares, comparable across currencies")
-            R.show(CH.bar_chart(
-                [{"label": r["ticker"],
-                  "value": (r["share_5y"] * 100 if r["share_5y"] is not None else None)}
-                 for r in uni_rows],
-                832, 420, horizontal=True, value_fmt=lambda v: T.pct(v, 1)))
-            st.markdown(
-                '<div class="byline"><b>United States only.</b> Shares are of each '
-                "company's own tagged product revenue, so they compare across "
-                'reporting currencies directly. A hatched band is a company whose '
-                'filing tags no product revenue.</div>', unsafe_allow_html=True)
-        else:
-            section("Universe, tagged revenue at risk inside 5 years",
-                    f"USD bn, ECB rate {fx_as_of or 'not on file'}")
-            # Sorted so the biggest exposure reads first. A company whose currency has
-            # no rate lands as a hatched null band, never converted at an invented rate.
-            usd_rows = sorted(
-                [{"label": r["ticker"],
-                  "value": (r["at_risk_5y_usd"] / 1e9
-                            if r.get("at_risk_5y_usd") is not None else None)}
-                 for r in uni_rows],
-                key=lambda d: (d["value"] is None, -(d["value"] or 0)))
-            R.show(CH.bar_chart(usd_rows, 832, 420, horizontal=True,
-                                value_fmt=lambda v: T.num(v, 2)))
-            st.markdown(
-                '<div class="byline"><b>United States only.</b> Tagged product revenue '
-                'expiring inside five years, converted to USD at the ECB reference rate '
-                f'on {fx_as_of or "no date on file"}. Novo reports in DKK and Roche in '
-                'CHF; the rate makes them comparable. A hatched band is a company with '
-                'no exposure priced, or whose reporting currency has no rate on file, '
-                'so it is left unconverted rather than shown as zero.</div>',
-                unsafe_allow_html=True)
-
-        # --- Protected value ---
-        # A marketed drug is worth, roughly, the cash it throws off while it is still
-        # protected. This discounts each product's revenue run-rate over the years left
-        # to its LOE, and names the revenue it cannot value rather than dropping it.
-        val = api_get(api_base, f"/companies/{ticker}/valuation")
-        vrows = val.get("valued") or []
-        section("Protected value", "rNPV of the protected revenue stream")
-        if not vrows and not (val.get("unvalued") or []):
-            state(f"No protected value computed for {ticker}",
-                  "Valuation needs tagged product revenue and an Orange or Purple Book "
-                  "protection date. This company has no tagged product revenue on file, "
-                  "so there is nothing to discount. Press Refresh all if this looks off.")
-        else:
-            unval_rev = val.get("unvalued_revenue_usd") or 0
-            st.markdown(
-                '<div class="pos">'
-                f'<div><span class="k">protected value</span>'
-                f'<span class="v">{T.num(val["protected_value_usd"] / 1e9, 1)}</span>'
-                f'<span class="sub">USD bn, {len(vrows)} products</span></div>'
-                f'<div><span class="k">discount rate</span>'
-                f'<span class="v">{val["discount_rate"] * 100:.0f}%</span>'
-                f'<span class="sub">run-rate held flat</span></div>'
-                f'<div><span class="k">revenue not valued</span>'
-                f'<span class="v{"" if unval_rev else " none"}">'
-                f'{T.num(unval_rev / 1e9, 1) if unval_rev else "none"}</span>'
-                f'<span class="sub">USD bn, no free patent cliff</span></div>'
-                '</div>', unsafe_allow_html=True)
-            if vrows:
-                _basis = {"Orange/Purple Book": "Orange/Purple Book",
-                          "10-K and statutory floor": "10-K + 12yr",
-                          "10-K disclosure": "10-K disclosure",
-                          "statutory floor": "12yr statutory"}
-                frame = pd.DataFrame([{
-                    "Drug": a["brand"], "Modality": a["modality"] or "—",
-                    "Revenue $bn": T.num((a["revenue_usd"] or 0) / 1e9, 2),
-                    "Protected to": a["loe_year"], "Years": a["years_protected"],
-                    "Basis": _basis.get(a.get("loe_basis"), "—"),
-                    "rNPV $bn": T.num((a["rnpv_usd"] or 0) / 1e9, 1),
-                    "Medicare $m": (T.num(a["medicare_spend"] / 1e6, 0)
-                                    if a.get("medicare_spend") else "—")}
-                    for a in vrows])
-                st.dataframe(frame.style.map(
-                    lambda v: f"color:{T.P.modality.get(v, T.P.stale)};font-weight:600",
-                    subset=["Modality"])
-                    # A derived biologic date is an estimate, so its basis reads muted
-                    # against the published Orange/Purple Book one.
-                    .map(lambda v: f"color:{T.P.stale}"
-                         if v != "Orange/Purple Book" else "", subset=["Basis"]),
-                    width="stretch", hide_index=True)
-            unval = [a for a in (val.get("unvalued") or []) if a.get("revenue_usd")]
-            if unval:
-                st.markdown(
-                    '<div class="byline"><b>Earning but not valued</b>, no protected '
-                    'stream to discount: ' + ", ".join(
-                        f'{a["brand"]} ({T.num(a["revenue_usd"] / 1e9, 1)}bn)'
-                        for a in unval[:8]) + '. Almost all are biologics whose only free '
-                    'protection date is orphan exclusivity, which does not gate a '
-                    'biosimilar, so the Purple Book gives no cliff to discount to.</div>',
-                    unsafe_allow_html=True)
-            st.markdown(
-                "<div class=\"byline\">A scaffold, not a model. Each product's latest "
-                'reported revenue is held flat and discounted over the years left to its '
-                'LOE at the rate above; post-LOE generic revenue is counted as zero. A '
-                'marketed product carries a probability of one, so this is an NPV; the '
-                'phase-to-probability benchmarks are the framework for a pipeline asset, '
-                'but no free source gives a pipeline drug its peak sales, so the pipeline '
-                'is not valued. Medicare spending is a real-world demand cross-check, not '
-                'an input.<br>'
-                '<b>Basis</b> is where the LOE date comes from. A small molecule uses the '
-                'Orange Book patent. A biologic has no free patent cliff, so it uses the '
-                'later of its 12-year statutory exclusivity, counted from approval, and '
-                'the biosimilar year the company states in its own 10-K, read out over '
-                'the model seam and shown only when a sentence in the filing backs it. '
-                'The derived dates read muted, since they are an estimate rather than a '
-                'published date.</div>', unsafe_allow_html=True)
-
-    # --- Slippage --------------------------------------------------------
-    with slippage_tab:
-        section("Completion date slippage", "from our own snapshot history")
+        # --- Completion-date slips for this company, folded from the old Slippage tab ---
+        # Only this company's trials whose primary completion date has moved since we began
+        # tracking. Scarce by nature: it accrues from snapshot diffs and cannot be
+        # backfilled from any source.
         slip = api_get(api_base, "/slippage")
-        summary = {s["ticker"]: s for s in slip.get("summary") or []}
-        mine_slip = summary.get(ticker)
-        st.markdown(
-            '<div class="pos">'
-            f'<div><span class="k">trials moved, universe</span>'
-            f'<span class="v">{len(slip.get("rows") or [])}</span>'
-            f'<span class="sub">since tracking began</span></div>'
-            f'<div><span class="k">{ticker} moved</span>'
-            f'<span class="v">{mine_slip["trials_moved"] if mine_slip else 0}</span>'
-            f'<span class="sub">'
-            f'{("median " + T.num(mine_slip["median_days"], 0) + "d") if mine_slip else "no moves observed"}'
-            f'</span></div>'
-            "</div>", unsafe_allow_html=True)
-
-        if not slip.get("rows"):
-            state("No completion date moves observed yet",
-                  "Slippage accumulates from snapshot diffs across refreshes; it "
-                  "cannot be backfilled from any source. It fills as the registry "
-                  "moves under the trials this terminal tracks.")
+        mine_slips = [r for r in (slip.get("rows") or [])
+                      if r.get("ticker") == ticker and r.get("days_moved") is not None]
+        section("Completion date slips", f"{len(mine_slips)} for {ticker}")
+        if not mine_slips:
+            state(f"No completion date moves observed for {ticker} yet",
+                  "This accrues from snapshot diffs across refreshes and cannot be "
+                  "backfilled; it fills as the registry moves dates under the trials "
+                  "tracked here.")
         else:
-            p3_only = st.checkbox("Phase 3 only", key="slip_p3")
-            rows = [r for r in slip["rows"]
-                    if r.get("days_moved") is not None
-                    and (not p3_only or (r.get("phase") or "").startswith("Phase 3"))]
-            shown = rows[:25]
-            if shown:
-                R.show(CH.dumbbell(
-                    [{"label": f"{r['ticker'] or '—'} {r['nct_id']}",
-                      "start": 0.0, "end": float(r["days_moved"])}
-                     for r in shown],
-                    900, max(120, 26 * len(shown) + 40),
-                    tick_fmt=lambda v: f"{v:.0f}d"))
-                st.markdown(
-                    '<div class="byline">Net days moved from the first observed '
-                    'primary completion date to the current one. Red slips later, '
-                    'green pulls in.</div>', unsafe_allow_html=True)
-                st.dataframe(
-                    pd.DataFrame([{
-                        "Ticker": r["ticker"], "NCT": r["nct_id"],
-                        "Phase": r["phase"], "Status": r["overall_status"],
-                        "First seen": r["first_date"], "Now": r["current_date"],
-                        "Days": r["days_moved"], "Moves": r["observations"],
-                        "Trial": CTGOV_STUDY + (r["nct_id"] or "")}
-                        for r in shown]),
-                    width="stretch", hide_index=True,
-                    column_config={"Trial": st.column_config.LinkColumn(
-                        "Trial", display_text="Open ↗")})
-            else:
-                state("Nothing matches the filter",
-                      "Clear Phase 3 only to see every moved trial.")
+            top = mine_slips[:20]
+            R.show(CH.dumbbell(
+                [{"label": r["nct_id"], "start": 0.0, "end": float(r["days_moved"])}
+                 for r in top],
+                832, max(120, 26 * len(top) + 40), tick_fmt=lambda v: f"{v:.0f}d"))
+            st.markdown(
+                '<div class="byline">Net days the primary completion date moved from the '
+                'first time we saw it to now. Red slips later, green pulls in. Only trials '
+                'whose date actually changed appear.</div>', unsafe_allow_html=True)
 
-    # --- Approvals -------------------------------------------------------
-    with approvals_tab:
+    # --- Portfolio -------------------------------------------------------
+    with portfolio_tab:
         approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
-        section(f"FDA approvals for {ticker}", len(approvals))
+        section(f"{ticker} portfolio", f"{len(approvals)} approvals")
         if not approvals:
             state(f"No approvals on file for {ticker}",
                   "openFDA files an approval under the legal entity that holds the "
                   "application, which for an acquired product is the company that was "
                   "bought. Press Refresh all on the Comps tab to pull it again.")
-        if approvals:
-            protected = [a for a in approvals if a.get("loe")]
-            priced = [a for a in approvals if a.get("revenue") is not None]
-            st.markdown(
-                f'<div class="pos">'
-                f'<div><span class="k">approvals</span>'
-                f'<span class="v">{len(approvals)}</span>'
-                f'<span class="sub">on file from openFDA</span></div>'
-                f'<div><span class="k">with an expiry</span>'
-                f'<span class="v{"" if protected else " none"}">'
-                f'{len(protected) or "none"}</span>'
-                f'<span class="sub">from the Orange and Purple Books</span></div>'
-                f'<div><span class="k">with revenue</span>'
-                f'<span class="v{"" if priced else " none"}">'
-                f'{len(priced) or "none"}</span>'
-                f'<span class="sub">from the SEC data sets</span></div>'
-                f'</div>', unsafe_allow_html=True)
+        else:
+            today = dt.date.today()
 
-            frame = pd.DataFrame([{
-                "Approved": a["approval_date"], "Modality": a["modality"] or "—",
-                "Brand": a["brand_name"], "Generic": a.get("generic_name") or "—",
-                "Application": a["application_number"],
-                # Protection is per asset, so every approval of one product shows the
-                # same expiry. An approval with none is blank rather than zero: the
-                # books simply carry no entry, which is not the same as unprotected.
-                "Protected to": a.get("loe") or "—",
-                "Basis": a.get("loe_basis") or "—",
-                "Revenue": (T.num(a["revenue"] / 1e9, 2)
-                            if a.get("revenue") is not None else "—"),
-                # str, not int: a mixed int and dash column fails Arrow conversion.
-                "FY": str(a.get("revenue_year") or "—")}
-                for a in approvals])
-            st.dataframe(
-                frame.style.map(
-                    lambda v: f"color:{T.P.modality.get(v, T.P.stale)};font-weight:600",
-                    subset=["Modality"])
-                .map(lambda v: f"color:{T.P.stale}"
-                     if v == "orphan exclusivity" else "", subset=["Basis"]),
-                width="stretch", hide_index=True)
+            def _loe_year(p):
+                try:
+                    return int(str(p["loe"])[:4]) if p.get("loe") else None
+                except (ValueError, TypeError):
+                    return None
+
+            # One card per product: approvals repeat per indication, but revenue and
+            # exclusivity are per asset and shared, so collapse to the product and keep
+            # the earliest approval date.
+            products: dict = {}
+            for a in approvals:
+                key = a.get("brand_name") or a.get("application_number")
+                p = products.get(key)
+                if p is None:
+                    products[key] = dict(
+                        brand=a.get("brand_name") or a.get("generic_name") or "unnamed",
+                        generic=a.get("generic_name"), modality=a.get("modality"),
+                        approved=a.get("approval_date"), loe=a.get("loe"),
+                        loe_basis=a.get("loe_basis"), revenue=a.get("revenue"),
+                        revenue_unit=a.get("revenue_unit"))
+                elif a.get("approval_date") and (
+                        not p["approved"] or a["approval_date"] < p["approved"]):
+                    p["approved"] = a["approval_date"]
+            prods = list(products.values())
+            rev_unit = next((p["revenue_unit"] for p in prods if p.get("revenue_unit")), "")
+
+            total_rev = sum(p["revenue"] for p in prods if p.get("revenue"))
+            horizon = today.year + 5
+            at_risk = sum(p["revenue"] for p in prods if p.get("revenue")
+                          and (_loe_year(p) or 9999) <= horizon)
+            st.markdown(
+                '<div class="pos">'
+                f'<div><span class="k">products</span>'
+                f'<span class="v">{len(prods)}</span>'
+                f'<span class="sub">approved, from openFDA</span></div>'
+                f'<div><span class="k">tagged revenue</span>'
+                f'<span class="v{"" if total_rev else " none"}">'
+                f'{T.num(total_rev / 1e9, 1) if total_rev else "none"}</span>'
+                f'<span class="sub">{rev_unit} bn, latest FY</span></div>'
+                f'<div><span class="k">rolling off by {horizon}</span>'
+                f'<span class="v {"down" if at_risk else "none"}">'
+                f'{T.num(at_risk / 1e9, 1) if at_risk else "none"}</span>'
+                f'<span class="sub">'
+                f'{str(round(at_risk / total_rev * 100)) + "% of tagged" if total_rev and at_risk else "loses exclusivity"}'
+                f'</span></div>'
+                '</div>', unsafe_allow_html=True)
+
+            # Revenue rolling off at loss of exclusivity, by year: the data-backed
+            # revenue-at-risk that replaces the rNPV scaffold.
+            by_year: dict = {}
+            for p in prods:
+                y, r = _loe_year(p), p.get("revenue")
+                if y and r and today.year <= y <= today.year + 10:
+                    by_year[y] = by_year.get(y, 0) + r
+            if by_year:
+                section("Revenue rolling off at LOE", f"next 10 years, {rev_unit} bn")
+                bars = [{"label": f"'{y % 100:02d}", "value": by_year[y] / 1e9}
+                        for y in sorted(by_year)]
+                R.show(CH.bar_chart(bars, 900, 200, value_fmt=lambda v: T.num(v, 1)))
+                st.markdown(
+                    '<div class="byline">Tagged product revenue that loses exclusivity '
+                    'each year, expiries from the Orange and Purple Books, revenue the '
+                    'latest reported held flat. A product with no tagged revenue or no '
+                    'published expiry is not counted, never estimated.</div>',
+                    unsafe_allow_html=True)
+
+            section("Products", f"{len(prods)}")
+            cards = []
+            for p in sorted(prods, key=lambda p: (-(p.get("revenue") or 0),
+                                                  _loe_year(p) or 9999)):
+                mod = (p.get("modality") or "").lower()
+                cls = "bio" if "bio" in mod else "small" if mod else ""
+                y = _loe_year(p)
+                near = y is not None and y <= today.year + 3
+                rev_txt = (f'{T.num(p["revenue"] / 1e9, 2)} {p.get("revenue_unit") or ""} bn'
+                           if p.get("revenue") is not None else "no free data")
+                to_loe = f' · {y - today.year}y' if y else ""
+                basis = (f'<div class="pf-row"><span class="pf-k"></span>'
+                         f'<span class="pf-v none" style="font-size:9px">'
+                         f'{html_escape(p.get("loe_basis") or "")}</span></div>'
+                         if p.get("loe_basis") else "")
+                cards.append(
+                    f'<div class="pf-card {cls}">'
+                    f'<div class="pf-head">'
+                    f'<span class="pf-brand">{html_escape(p["brand"])}</span>'
+                    f'<span class="pf-mod">{html_escape(p.get("modality") or "")}</span></div>'
+                    f'<div class="pf-generic">{html_escape(p.get("generic") or "")}</div>'
+                    f'<div class="pf-row"><span class="pf-k">approved</span>'
+                    f'<span class="pf-v">{(p.get("approved") or "—")[:10]}</span></div>'
+                    f'<div class="pf-row"><span class="pf-k">revenue</span>'
+                    f'<span class="pf-v{"" if p.get("revenue") is not None else " none"}">'
+                    f'{rev_txt}</span></div>'
+                    f'<div class="pf-row"><span class="pf-k">exclusivity to</span>'
+                    f'<span class="pf-v {"near" if near else ""}">'
+                    f'{p["loe"][:4] if p.get("loe") else "—"}{to_loe}</span></div>'
+                    f'{basis}</div>')
+            st.markdown('<div class="pf">' + "".join(cards) + "</div>",
+                        unsafe_allow_html=True)
+            st.markdown(
+                '<div class="byline">One card per approved product, biggest revenue '
+                'first. Approval from openFDA, exclusivity from the Orange Book (small '
+                'molecule) or Purple Book (biologic), revenue from the SEC data sets '
+                'where the filer tags it. An exclusivity date within three years reads '
+                'red.</div>', unsafe_allow_html=True)
 
         # --- Medicare demand ---
         # Revenue is what a drug earned; this is how many people took it. CMS Part D and
