@@ -1007,35 +1007,6 @@ with main:
         if note.get("error"):
             state("The note fell back to the rules layer", note["error"], error=True)
 
-        # --- Annotations: the analyst's own lines on this company ---------
-        all_notes = api_get(api_base, f"/annotations?ticker={ticker}")
-        company_notes = [a for a in all_notes if a["entity_type"] == "company"]
-        change_notes: dict[str, list] = {}
-        for a in all_notes:
-            if a["entity_type"] == "change" and a.get("entity_id"):
-                change_notes.setdefault(str(a["entity_id"]), []).append(a)
-        if company_notes:
-            section("Annotations", len(company_notes))
-            for a in company_notes:
-                st.markdown(
-                    f'<div class="anno"><span class="who">{a["created_at"][:10]}'
-                    f'</span>{html_escape(a["body"])}</div>',
-                    unsafe_allow_html=True)
-        anno_cols = st.columns([0.85, 0.15])
-        with anno_cols[0]:
-            st.text_input("Annotation", key=f"anno_body_{ticker}",
-                          label_visibility="collapsed",
-                          placeholder=f"your line on {ticker}")
-        with anno_cols[1]:
-            if st.button("Save note", key=f"anno_save_{ticker}", width="stretch"):
-                body = (st.session_state.get(f"anno_body_{ticker}") or "").strip()
-                if body:
-                    api_post_json(api_base, "/annotations",
-                                  {"ticker": ticker, "entity_type": "company",
-                                   "entity_id": None, "body": body})
-                    api_get.clear()
-                    st.rerun()
-
         # --- What matters now, in structured sections --------------------
         # Broken out by the thing that moves a case, not by the snapshot-diff mechanics.
         # Catalysts, exclusivity and material filings come from the feed; deals and
