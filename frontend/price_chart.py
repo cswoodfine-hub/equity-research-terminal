@@ -153,7 +153,7 @@ def chart_html(bars, events=None, *, mode: str = LINE, ticker: str = "", currenc
   const el = document.getElementById('lwc');
   const chart = LightweightCharts.createChart(el, {{
     layout: {{ background: {{ type: 'solid', color: {g!r} }},
-              textColor: {txt!r}, fontFamily: {font!r}, fontSize: 11 }},
+              textColor: {txt!r}, fontFamily: {font!r}, fontSize: 10 }},
     grid: {{ vertLines: {{ color: {rule!r} }}, horzLines: {{ color: {rule!r} }} }},
     rightPriceScale: {{ borderColor: {rs!r} }},
     timeScale: {{ borderColor: {rs!r}, rightOffset: 4,

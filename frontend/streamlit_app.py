@@ -57,7 +57,8 @@ DISPLAY_PHASES = [p for p in PIPELINE_PHASES
                   if p not in PHASE_MERGE and p not in POST_APPROVAL]
 # Price chart windows, widest last. None means every session held. Windows wider than
 # the stored history are hidden rather than drawn short.
-PRICE_WINDOWS = [("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", None)]
+PRICE_WINDOWS = [("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", 1826),
+                 ("Max", None)]
 # Bar interval, coarsest ask first as a trader reads them. Each maps to (base series held
 # on the backend, pandas resample rule or None, is-intraday). 15m/30m resample from the
 # 5m base, 4H from the 60m base, 1W/1M from daily; the rest are a base as-is.
@@ -1148,7 +1149,10 @@ with main:
             choices = [(label, days) for label, days in PRICE_WINDOWS
                        if days is None or days <= held + 45]
             labels = [label for label, _ in choices]
-            span = st.radio("Window", labels, index=len(labels) - 1, horizontal=True,
+            # Open on 5Y rather than Max, so the daily chart does not start fully zoomed
+            # out over ten years; Max and pan reach the older bars.
+            default_win = labels.index("5Y") if "5Y" in labels else len(labels) - 1
+            span = st.radio("Window", labels, index=default_win, horizontal=True,
                             key="price_window", label_visibility="collapsed")
             days = dict(choices)[span]
 
