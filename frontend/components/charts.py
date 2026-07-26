@@ -561,14 +561,19 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
 
 # --- 8. small multiples ---------------------------------------------------
 def small_multiples(panels: Sequence[dict], width: int = 1080, height: int = 420,
-                    cols: int = 6, shared_scale: bool = True) -> str:
+                    cols: int = 6, shared_scale: bool = True,
+                    link_base: str = None) -> str:
     """A grid of mini line panels, one per company, on one shared y-scale.
 
     Shared scale is the point: a flat line means flat, not autoscaled noise. Each
     panel: {label, values, sub}. Panels with no data say so instead of drawing.
+
+    When ``link_base`` is set each panel becomes an SVG anchor to ``link_base + label``,
+    so a click navigates there (used to jump to the clicked company), with no script.
     """
     if not panels:
         return ""
+    from urllib.parse import quote as _quote
     rows = math.ceil(len(panels) / cols)
     pw, ph = width / cols, height / rows
     all_values = [v for p in panels for v in (p.get("values") or [])
@@ -578,33 +583,37 @@ def small_multiples(panels: Sequence[dict], width: int = 1080, height: int = 420
     out = [_svg_open(width, height, "small multiples")]
     for idx, p in enumerate(panels):
         gx, gy = (idx % cols) * pw, (idx // cols) * ph
-        out.append(f'<rect x="{gx + 1:.1f}" y="{gy + 1:.1f}" width="{pw - 2:.1f}"'
-                   f' height="{ph - 2:.1f}" fill="{TK.PANEL}"/>')
-        out.append(_text(gx + 8, gy + 16, p["label"], 10.5, TK.TEXT, family=MONO,
-                         weight="700"))
+        cell = [f'<rect x="{gx + 1:.1f}" y="{gy + 1:.1f}" width="{pw - 2:.1f}"'
+                f' height="{ph - 2:.1f}" fill="{TK.PANEL}"/>',
+                _text(gx + 8, gy + 16, p["label"], 10.5, TK.TEXT, family=MONO,
+                      weight="700")]
         if p.get("sub") is not None:
             sub_colour = (TK.DOWN if str(p["sub"]).startswith(MINUS)
                           else TK.UP if str(p["sub"]).strip() else TK.MUTED)
-            out.append(_text(gx + pw - 8, gy + 16, p["sub"], 9.5, sub_colour, "end",
-                             MONO, "600"))
+            cell.append(_text(gx + pw - 8, gy + 16, p["sub"], 9.5, sub_colour, "end",
+                              MONO, "600"))
         values = p.get("values") or []
         real = [v for v in values if v is not None]
         if len(real) < 2:
-            out.append(_text(gx + 8, gy + ph / 2 + 6, "no free data", 9, TK.MUTED))
-            continue
-        local_dom = dom or _domain(values)
-        y = _scale(local_dom, (gy + ph - 8, gy + 24))
-        x = _scale((0, max(len(values) - 1, 1)), (gx + 8, gx + pw - 8))
-        # A zero reference when the shared scale crosses it, so a series indexed to its
-        # start reads against a common baseline: above the line is up on the window.
-        if local_dom[0] < 0 < local_dom[1]:
-            zy = y(0)
-            out.append(f'<line x1="{gx + 8:.1f}" y1="{zy:.1f}" x2="{gx + pw - 8:.1f}"'
-                       f' y2="{zy:.1f}" stroke="{TK.RULE}"/>')
-        first = real[0]
-        last = real[-1]
-        stroke = TK.DOWN if last < first else TK.UP
-        _polyline_runs(out, values, x, y, stroke, 1.2)
+            cell.append(_text(gx + 8, gy + ph / 2 + 6, "no free data", 9, TK.MUTED))
+        else:
+            local_dom = dom or _domain(values)
+            y = _scale(local_dom, (gy + ph - 8, gy + 24))
+            x = _scale((0, max(len(values) - 1, 1)), (gx + 8, gx + pw - 8))
+            # A zero reference when the shared scale crosses it, so a series indexed to
+            # its start reads against a common baseline: above the line is up.
+            if local_dom[0] < 0 < local_dom[1]:
+                zy = y(0)
+                cell.append(f'<line x1="{gx + 8:.1f}" y1="{zy:.1f}"'
+                            f' x2="{gx + pw - 8:.1f}" y2="{zy:.1f}" stroke="{TK.RULE}"/>')
+            stroke = TK.DOWN if real[-1] < real[0] else TK.UP
+            _polyline_runs(cell, values, x, y, stroke, 1.2)
+        if link_base and p.get("label") is not None:
+            out.append(f'<a href="{_esc(link_base + _quote(str(p["label"])))}">')
+            out.extend(cell)
+            out.append("</a>")
+        else:
+            out.extend(cell)
     out.append("</svg>")
     return "".join(out)
 

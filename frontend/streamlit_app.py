@@ -642,9 +642,11 @@ if asof_state:
         'to return to live</div>', unsafe_allow_html=True)
 
 with main:
-    (universe_tab, insights_tab, prices_tab, financials_tab, pipeline_tab,
+    # Key insights leads, so a coverage-panel click (which navigates to ?ticker=… and
+    # reloads onto the first tab) lands on that company's Key insights.
+    (insights_tab, universe_tab, prices_tab, financials_tab, pipeline_tab,
      portfolio_tab, catalysts_tab, comps_tab, news_tab) = st.tabs(
-        ["Universe", "Key insights", "Prices", "Financials", "Pipeline",
+        ["Key insights", "Universe", "Prices", "Financials", "Pipeline",
          "Portfolio", "Catalysts", "Comps", "News"])
 
     # --- Universe: what moved across coverage since you last looked -------
@@ -724,7 +726,9 @@ with main:
                 [{"label": p["ticker"],
                   "values": _pct_from_start(p["closes"] or []),
                   "sub": T.pct(p["change"] * 100) if p["change"] is not None else ""}
-                 for p in panels], 1040, 420, cols=6))
+                 for p in panels], 1040, 420, cols=6, link_base="?ticker="))
+            st.markdown('<div class="byline">Click a panel to open that company on the '
+                        'Key insights tab.</div>', unsafe_allow_html=True)
         else:
             state("No price history yet",
                   "Press Refresh all in the top bar to pull daily closes.")

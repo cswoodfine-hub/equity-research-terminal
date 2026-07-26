@@ -218,6 +218,17 @@ def test_small_multiples_renders_every_panel_and_names_missing_data():
     assert "no free data" in svg                       # ROG says so, draws nothing
 
 
+def test_small_multiples_link_base_makes_each_panel_a_link():
+    panels = [{"label": "LLY", "values": [1.0, 2.0], "sub": ""},
+              {"label": "ROG", "values": [], "sub": None}]   # a no-data panel too
+    svg = charts.small_multiples(panels, cols=6, link_base="?ticker=")
+    assert '<a href="?ticker=LLY">' in svg
+    assert '<a href="?ticker=ROG">' in svg                  # even the empty panel links
+    assert svg.count("<a ") == 2 and svg.count("</a>") == 2
+    # without link_base there are no anchors
+    assert "<a " not in charts.small_multiples(panels, cols=6)
+
+
 def test_small_multiples_share_one_scale():
     """A flat series must stay flat against the volatile one, which only holds if
     both map through the same domain."""

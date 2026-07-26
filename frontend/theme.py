@@ -390,6 +390,9 @@ h3 {{ font-size: 0.9rem; }}
 /* A spine anchor is a link but must not look like body text underlined. */
 .rail a {{ text-decoration: none; cursor: pointer; }}
 .rail a:hover line {{ stroke-width: 2.4; }}
+/* Coverage small-multiple panels are links to the clicked company; outline on hover. */
+.chart-mount a {{ cursor: pointer; }}
+.chart-mount a:hover rect {{ stroke: var(--muted); stroke-width: 1; }}
 
 /* Time machine banner: unmissable, the whole terminal is historical while it shows. */
 .asof-banner {{
