@@ -38,14 +38,25 @@ _PROVIDERS = (
     ("gemini", "GEMINI_API_KEY", GEMINI_MODEL),
     ("anthropic", "ANTHROPIC_API_KEY", ANTHROPIC_MODEL),
 )
+_KEYVAR = {name: keyvar for name, keyvar, _ in _PROVIDERS}
+_MODEL = {name: model for name, _, model in _PROVIDERS}
 
 
 def _has(var: str) -> bool:
     return bool((os.getenv(var) or "").strip())
 
 
-def provider() -> str | None:
-    """The provider to use, or None when no key is configured."""
+def provider(prefer: str | None = None) -> str | None:
+    """The provider to use, or None when no key is configured.
+
+    ``prefer`` pins one provider for a single call, used so the morning note runs on
+    Gemini while the bulk PDUFA and readout classifiers run on whatever the global
+    ``LLM_PROVIDER`` selects. A preferred provider whose key is absent is ignored, so
+    the pin degrades to the normal selection rather than failing.
+    """
+    want = (prefer or "").strip().lower()
+    if want and _has(_KEYVAR.get(want, "")):
+        return want
     pinned = (os.getenv("LLM_PROVIDER") or "").strip().lower()
     for name, keyvar, _ in _PROVIDERS:
         if name == pinned and _has(keyvar):
@@ -57,21 +68,23 @@ def provider() -> str | None:
     return None
 
 
-def model_name() -> str | None:
+def model_name(prefer: str | None = None) -> str | None:
     """The model string to record on a note, or None when no provider is configured."""
-    active = provider()
-    return next((model for name, _, model in _PROVIDERS if name == active), None)
+    return _MODEL.get(provider(prefer))
 
 
-def complete(system: str, user: str, max_tokens: int = 1024) -> str:
+def complete(system: str, user: str, max_tokens: int = 1024,
+             prefer: str | None = None, thinking_budget: int | None = None) -> str:
     """One completion. Raises when no provider is configured or the call fails, which is
     what the callers already expect: the note degrades to its rules layer and the PDUFA
-    run stops on a failure that will repeat."""
-    active = provider()
+    run stops on a failure that will repeat. ``prefer`` pins one provider for this call;
+    ``thinking_budget`` caps a Gemini thinking model's reasoning so the answer is not
+    truncated, and is ignored by the other providers."""
+    active = provider(prefer)
     if active == "groq":
         return _groq(system, user, max_tokens)
     if active == "gemini":
-        return _gemini(system, user, max_tokens)
+        return _gemini(system, user, max_tokens, thinking_budget)
     if active == "anthropic":
         return _anthropic(system, user, max_tokens)
     raise RuntimeError("no model provider configured "
@@ -137,14 +150,22 @@ def gemini_text(payload: dict) -> str:
     return "".join(part.get("text", "") for part in parts).strip()
 
 
-def _gemini(system: str, user: str, max_tokens: int) -> str:
+def _gemini(system: str, user: str, max_tokens: int,
+            thinking_budget: int | None = None) -> str:
     key = os.getenv("GEMINI_API_KEY", "").strip()
+    # Low temperature: the note states facts and the extraction reads them, neither wants
+    # invention. The honest guards are in the callers, not here.
+    generation = {"maxOutputTokens": max_tokens, "temperature": 0.2}
+    if thinking_budget is not None:
+        # gemini-flash-latest is a thinking model. Left unbounded its reasoning can spend
+        # the whole output budget and the visible answer truncates mid-sentence. A budget
+        # caps the reasoning so the text completes. It is a soft target the model can
+        # overshoot, so the caller still sets maxOutputTokens well above it.
+        generation["thinkingConfig"] = {"thinkingBudget": thinking_budget}
     body = {
         "systemInstruction": {"parts": [{"text": system}]},
         "contents": [{"role": "user", "parts": [{"text": user}]}],
-        # Low temperature: the note states facts and the extraction reads them, neither
-        # wants invention. The honest guards are in the callers, not here.
-        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.2},
+        "generationConfig": generation,
     }
     payload = _post("gemini", GEMINI_URL.format(model=GEMINI_MODEL),
                     {"x-goog-api-key": key}, body)

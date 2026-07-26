@@ -147,12 +147,13 @@ def test_generate_note_uses_the_model_when_one_is_configured(tmp_path, monkeypat
     _seed_feed(db_file)
     seen = {}
 
-    def fake_complete(system, user, max_tokens):
-        seen["system"], seen["user"] = system, user
+    def fake_complete(system, user, max_tokens, prefer=None, thinking_budget=None):
+        seen["system"], seen["user"], seen["prefer"] = system, user, prefer
         return "LLY has one high-severity change — a terminated phase 3."
 
-    monkeypatch.setattr(insights.llm, "provider", lambda: "gemini")
-    monkeypatch.setattr(insights.llm, "model_name", lambda: "gemini-2.0-flash")
+    monkeypatch.setattr(insights.llm, "provider", lambda prefer=None: "gemini")
+    monkeypatch.setattr(insights.llm, "model_name",
+                        lambda prefer=None: "gemini-2.0-flash")
     monkeypatch.setattr(insights.llm, "complete", fake_complete)
 
     out = insights.generate_note(db_file, "LLY")
@@ -161,6 +162,7 @@ def test_generate_note_uses_the_model_when_one_is_configured(tmp_path, monkeypat
     assert "—" not in out["body"]                 # house style applied
     assert seen["system"] == insights.SYSTEM_PROMPT
     assert "NCT001" in seen["user"]               # the feed reaches the prompt
+    assert seen["prefer"] == insights.NOTE_PROVIDER  # the note is pinned to its provider
 
     conn = db.get_connection(db_file)
     try:
@@ -170,6 +172,36 @@ def test_generate_note_uses_the_model_when_one_is_configured(tmp_path, monkeypat
     assert row["model"] == "gemini-2.0-flash" and json.loads(row["source_change_ids"])
 
 
+def test_generate_note_gives_the_model_the_company_snapshot(tmp_path, monkeypatch):
+    """The note leads with a number, so the reported financials must reach the prompt."""
+    db_file = tmp_path / "test.db"
+    _seed_feed(db_file)
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    for year, value in ((2024, 45.0e9), (2025, 65.2e9)):
+        conn.execute(
+            "INSERT INTO financials (company_id, period_end, period_type, metric, value,"
+            " unit, fiscal_year, fiscal_period, source) VALUES (?, ?, 'FY', 'Revenues',"
+            " ?, 'USD', ?, '12M', 'test')",
+            (cid, f"{year}-12-31", value, year))
+    conn.commit()
+    conn.close()
+
+    seen = {}
+
+    def fake_complete(system, user, max_tokens, prefer=None, thinking_budget=None):
+        seen["user"] = user
+        return "LLY revenue reached 65.2B USD in FY2025."
+
+    monkeypatch.setattr(insights.llm, "provider", lambda prefer=None: "gemini")
+    monkeypatch.setattr(insights.llm, "model_name", lambda prefer=None: "gemini")
+    monkeypatch.setattr(insights.llm, "complete", fake_complete)
+
+    insights.generate_note(db_file, "LLY")
+    assert "Company snapshot:" in seen["user"]
+    assert "Revenue FY2025 65.2B USD, +45% vs FY2024." in seen["user"]
+
+
 def test_generate_note_degrades_when_the_api_errors(tmp_path, monkeypatch):
     db_file = tmp_path / "test.db"
     _seed_feed(db_file)
@@ -177,7 +209,7 @@ def test_generate_note_degrades_when_the_api_errors(tmp_path, monkeypatch):
     def boom(*args, **kwargs):
         raise RuntimeError("overloaded")
 
-    monkeypatch.setattr(insights.llm, "provider", lambda: "gemini")
+    monkeypatch.setattr(insights.llm, "provider", lambda prefer=None: "gemini")
     monkeypatch.setattr(insights.llm, "complete", boom)
 
     out = insights.generate_note(db_file, "LLY")

@@ -1,5 +1,39 @@
 # Build log, overnight autonomous build
 
+## Morning note on Gemini, with a company snapshot — 2026-07-26 15:30
+The morning note was reading like a machine walking a list: it opened "The most
+significant item is", never carried a single company number, and ran on whatever
+the global LLM_PROVIDER happened to be (Groq). Two changes.
+
+**Pinned to Gemini, decoupled from the bulk classifiers.** llm.provider,
+model_name and complete take an optional prefer, so the note pins Gemini while the
+PDUFA and readout classifiers keep sharing the global LLM_PROVIDER. The pin
+degrades to the normal selection when Gemini has no key, so it never fails the
+note. NOTE_LLM_PROVIDER overrides the default. gemini-flash-latest is a thinking
+model whose reasoning ate the whole output budget and truncated the note
+mid-sentence; complete gained an optional thinking_budget that caps the reasoning
+(512, soft) with maxOutputTokens raised to 4096, and the note now completes.
+Groq and Anthropic ignore both new arguments, so no existing caller changed.
+
+**A company snapshot to lead with.** notecontext.py reads a factual snapshot from
+the tables a refresh already fills: reported revenue with its year-on-year change,
+net income, R&D, the latest quarter, the share move over one and three months, and
+recent signed Phase 2/3 trial readouts. Every line is a stored fact; a missing one
+is left out, never estimated, and a foreign filer keeps its own currency (NVO in
+DKK). The prompt was rewritten from a list-reader into an analyst voice: lead with
+the number that moves the case, connect a loss of exclusivity to the revenue it
+exposes and a readout to its programme, write trials in prose rather than pasting
+the feed's bracketed detail line, and hold to two paragraphs. The absolute
+no-fabrication guard and the house style stay verbatim.
+
+Verified live on the paid Gemini key: LLY leads on FY2025 revenue +45% to 65.2B
+USD and net income +95%; NVO note carries its CagriSema Phase 3 miss; PFE reads
+the quarter stabilising after a full-year contraction; MRK writes "revenue exposed
+is no free data" where the LOE revenue is unknown. Notes complete with no
+truncation and no bracket dumps. Suite 411 green (new test_llm.py, test_notecontext.py,
+and a snapshot-reaches-the-prompt test in test_insights.py). The 8010 API was
+restarted on the new code.
+
 ## Roadmap tier 1 to 3 — 2026-07-25 11:30
 Working down the additions roadmap in order.
 
