@@ -73,6 +73,30 @@ EXCLUSIVITY_COLUMNS = [
     ("Orphan Exclusivity Exp. Date", "orphan exclusivity"),
 ]
 
+# The BPCIA gives a biologic 12 years of reference-product exclusivity from its first
+# licensure: no biosimilar can enter before then, so it is a hard cliff floor. The Purple
+# Book often leaves the exclusivity columns blank (they are only filled while a window is
+# open), which left a biologic like Casgevy showing only its 7-year orphan exclusivity as
+# its LOE, years short of the real wall. When no reference-product exclusivity is
+# published, compute the floor from the licensure date and label it as derived, so the
+# date is honest about being the statute, not a value read from the file.
+STATUTORY_FLOOR_YEARS = 12
+FLOOR_PROTECTION = "reference product exclusivity (12y)"
+FLOOR_IDENTIFIER = "12-year statutory floor"
+REF_PRODUCT_PROTECTION = "reference product exclusivity"
+# Prefer the first-licensure date, the true start of the 12-year clock; fall back to the
+# approval date on the row when the dedicated column is blank, as it usually is.
+LICENSURE_COLUMNS = ("Date of First Licensure", "Approval Date")
+
+
+def _statutory_floor(licensure: dt.date) -> str:
+    """The 12-year floor expiry as an ISO date, clamped off a Feb 29 start."""
+    try:
+        return licensure.replace(
+            year=licensure.year + STATUTORY_FLOOR_YEARS).isoformat()
+    except ValueError:  # a 29 Feb start whose target year is not a leap year
+        return dt.date(licensure.year + STATUTORY_FLOOR_YEARS, 12, 31).isoformat()
+
 
 def _match_ticker(applicant, applicant_map):
     upper = (applicant or "").upper()
@@ -89,13 +113,28 @@ def _pb_date(text):
         return None
 
 
+def _licensure_date(text, today):
+    """A licensure or approval date, always in the past. A two-digit year strptime pivots
+    into this century (54 -> 2054) can land in the future for a product licensed in the
+    1950s or 60s; a licensure date after today is one of those, so roll it back a century
+    rather than compute a 12-year floor a lifetime out."""
+    parsed = _pb_date(text)
+    if parsed and parsed > today:
+        try:
+            return parsed.replace(year=parsed.year - 100)
+        except ValueError:  # 29 Feb in a non-leap target; the date is already off
+            return None
+    return parsed
+
+
 def _clean(value):
     value = (value or "").strip()
     return value if value and value.upper() != "N/A" else None
 
 
-def parse_purple_book(csv_text, applicant_map) -> list[dict]:
+def parse_purple_book(csv_text, applicant_map, today=None) -> list[dict]:
     """Turn the Purple Book CSV into biologic product rows with exclusivity. Pure."""
+    today = today or dt.date.today()
     rows = list(csv.reader(io.StringIO(csv_text)))
     header_idx = next((i for i, r in enumerate(rows) if "BLA Number" in r), None)
     if header_idx is None:
@@ -122,7 +161,11 @@ def parse_purple_book(csv_text, applicant_map) -> list[dict]:
                     {"protection_type": ptype, "identifier": ptype,
                      "expiry_date": expiry.isoformat()}
                 )
-        if not exclusivities:
+        licensure = next((d for d in (_licensure_date(field(row, c), today)
+                                      for c in LICENSURE_COLUMNS) if d), None)
+        # A row can carry a licensure date without any open exclusivity window; keep it,
+        # since the statutory floor is computed from the licensure date alone.
+        if not exclusivities and not licensure:
             continue
         key = "BLA" + re.sub(r"\D", "", bla)
         product = products.get(key)
@@ -134,13 +177,33 @@ def parse_purple_book(csv_text, applicant_map) -> list[dict]:
                 "generic": _clean(field(row, "Proper Name")),
                 "modality": "biologic",
                 "exclusivities": exclusivities,
+                "licensure": licensure,
             }
         else:
             seen = {(e["protection_type"], e["expiry_date"]) for e in product["exclusivities"]}
             for e in exclusivities:
                 if (e["protection_type"], e["expiry_date"]) not in seen:
                     product["exclusivities"].append(e)
-    return list(products.values())
+            # The earliest licensure across a BLA's rows anchors the 12-year clock.
+            if licensure and (product["licensure"] is None
+                              or licensure < product["licensure"]):
+                product["licensure"] = licensure
+
+    # Add the statutory 12-year floor wherever the file publishes no reference-product
+    # exclusivity of its own, so a biologic left with only an orphan date reads to the
+    # real wall. A published reference-product date always wins over the computed one.
+    out = []
+    for product in products.values():
+        has_ref = any(e["protection_type"] == REF_PRODUCT_PROTECTION
+                      for e in product["exclusivities"])
+        licensure = product.pop("licensure", None)
+        if not has_ref and licensure:
+            product["exclusivities"].append(
+                {"protection_type": FLOOR_PROTECTION, "identifier": FLOOR_IDENTIFIER,
+                 "expiry_date": _statutory_floor(licensure)})
+        if product["exclusivities"]:
+            out.append(product)
+    return out
 
 
 class PurpleBookFetcher(BaseFetcher):
