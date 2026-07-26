@@ -72,3 +72,20 @@ def test_build_reports_runup_and_reaction_and_skips_the_trial(tmp_path):
     assert round(windows["after_1w"]["mean_abnormal"], 4) == 0.0909
     assert windows["after_1w"]["hit_rate"] == 1.0
     assert "runup_1m" not in windows          # off the start of the series, so unmeasured
+
+
+def test_trial_readouts_enter_the_study_by_phase_and_sign(tmp_path):
+    db_file = tmp_path / "t.db"
+    cid = _seed(db_file)
+    conn = db.get_connection(db_file)
+    # A Phase 3 positive readout on the same event date rides the same +10% run-up.
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase,"
+                 " outcome, event_date) VALUES ('r1', ?, 'Zepbound', 3, 'positive', ?)",
+                 (cid["LLY"], _EVENT))
+    conn.commit()
+    conn.close()
+    result = backtest.build(db_file)
+    types = {r["change_type"] for r in result["rows"]}
+    assert "phase3_positive" in types
+    row = next(r for r in result["rows"] if r["change_type"] == "phase3_positive")
+    assert round(row["windows"]["after_1w"]["mean_abnormal"], 4) == 0.0909

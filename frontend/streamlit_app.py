@@ -781,7 +781,11 @@ with main:
         else:
             _sig = {"new_approval": "FDA approval",
                     "risk_factors_change": "Risk factors changed",
-                    "new_filing": "New filing"}
+                    "new_filing": "New filing",
+                    "phase3_positive": "Phase 3 positive",
+                    "phase3_negative": "Phase 3 negative",
+                    "phase2_positive": "Phase 2 positive",
+                    "phase2_negative": "Phase 2 negative"}
             # Columns follow the windows the backtest reports: the run-up into the event,
             # then the reaction after it.
             cols = {w["key"]: w["label"] for w in (bt.get("windows") or [])}

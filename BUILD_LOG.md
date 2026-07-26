@@ -213,6 +213,34 @@ words that tens of events are a direction and a hit rate, not a p-value.
 
 Suite 403. Nine migrations. The additions roadmap, items 1 through 10, is complete.
 
+**Follow-up: the run-up and the trial-readout signal.** Two additions to the
+backtest on request. The first generalises the return to a window with an offset
+before and after the event, adding the run-up: a three-month, one-month and
+one-week window into the event alongside the day, week and month after. It sharpens
+the approval read, into an approval the stock lags the sector by 3.4% over the
+quarter and reacts only after, so an approval is not priced in.
+
+The second is the biggest catalyst in the field, a pivotal readout, which carries a
+sign the numeric diff cannot. trial_readouts.py classifies the 8-K and 6-K press
+releases that announce Phase 2 and Phase 3 results, over the model seam with the
+PDUFA extractor's guard: the drug and a result sentence must appear in the filing,
+and a trial that is starting, submitted or approved is recorded as no readout so it
+is not fetched again but is never signed. A US 8-K keeps the release in an EX-99
+exhibit, resolved off the accession index; a foreign 6-K carries it directly.
+Migration 010 stores one row per filing read; the backtest reads the signed ones
+and splits the study into Phase 2 and Phase 3, positive and negative. Without a
+model it does nothing and says so.
+
+Verified live: 335 filings read, six positive and one negative Phase 2/3 readout
+found, each with the verbatim result sentence, among them Novo's CagriSema Phase 3
+miss, "the trial did not achieve its primary endpoint". The split reads the way it
+should. Positive Phase 3 readouts, five of them, react +0.7%, +2.3% and +2.8% over
+the day, week and month after, on a flat run-up. The negative one had the stock
+already 44.7% below the sector over the month into it and falling further after. A
+positive Phase 2 was priced in, a 9.9% run-up and nothing after. Small samples on a
+young, capped filing history, and the view keeps saying so, but the sign lands
+where a readout's sign should. Suite 408, ten migrations.
+
 ## Follow-up: the five V2 recommendations — 2026-07-25 07:20
 All five items from the final message, implemented, tested, committed one concern
 each on top of the overnight build.

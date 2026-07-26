@@ -74,7 +74,8 @@ def universe_span(series: dict, date: str, a: int, b: int, exclude: int | None =
 
 
 def _events(conn) -> list[dict]:
-    """Changes resolved to a company and a real event date, dropping those without one."""
+    """Changes resolved to a company and a real event date, dropping those without one,
+    plus the classified Phase 2/3 trial readouts, each a signed event on its filing date."""
     out = []
     for change in conn.execute(
         "SELECT entity_key, change_type, significance FROM changes"):
@@ -93,6 +94,14 @@ def _events(conn) -> list[dict]:
         if row and row["cid"] and row["d"]:
             out.append({"company_id": row["cid"], "date": row["d"],
                         "change_type": ct, "significance": change["significance"]})
+    # A readout's type carries its phase and sign, so the study splits into Phase 2 and
+    # Phase 3, positive and negative, on its own.
+    for r in conn.execute(
+        "SELECT company_id, event_date, phase, outcome FROM trial_readouts"
+        " WHERE outcome IN ('positive', 'negative')"):
+        out.append({"company_id": r["company_id"], "date": r["event_date"],
+                    "change_type": f"phase{r['phase']}_{r['outcome']}",
+                    "significance": "high"})
     return out
 
 
