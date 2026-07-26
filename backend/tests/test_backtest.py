@@ -1,11 +1,15 @@
-"""Backtest: forward and abnormal returns over a deterministic price series, and the
-aggregation of a resolved change event. No network."""
+"""Backtest: span returns before and after an event over a deterministic price series,
+and the aggregation of a resolved change. No network."""
 
 import backtest
 import db
 import seed
 
-_DATES = [f"2026-03-{d:02d}" for d in range(2, 12)]   # 10 trading days, 03-02..03-11
+_DATES = [f"2026-03-{d:02d}" for d in range(2, 27)]   # 25 bars, 03-02..03-26
+
+# Flat, then a run-up of 100 -> 110 into the event at index 12, then 110 -> 120 after it.
+_LLY = [100] * 8 + [102, 104, 106, 108, 110, 112, 114, 116, 118, 120] + [120] * 7
+_EVENT = _DATES[12]                                    # 2026-03-14
 
 
 def _seed(db_file):
@@ -20,16 +24,14 @@ def _seed(db_file):
             conn.execute("INSERT INTO prices (company_id, as_of, close, interval, source)"
                          " VALUES (?, ?, ?, '1d', 'test')", (company_id, day, close))
 
-    # Event dated 03-03 (index 1). LLY rises to +10% five bars later; the rest are flat,
-    # so LLY's abnormal five-day return is a clean +10%.
-    prices(cid["LLY"], [100, 100, 102, 104, 106, 108, 110, 110, 110, 110])
-    prices(cid["MRK"], [50] * 10)
-    prices(cid["PFE"], [50] * 10)
+    prices(cid["LLY"], _LLY)
+    prices(cid["MRK"], [50] * 25)                      # flat, so the benchmark is zero
+    prices(cid["PFE"], [50] * 25)
 
     asset = conn.execute("INSERT INTO assets (owner_company_id, brand_name, internal_code)"
                          " VALUES (?, 'Zepbound', 'NDA1')", (cid["LLY"],)).lastrowid
     conn.execute("INSERT INTO approvals (asset_id, application_number, approval_date)"
-                 " VALUES (?, 'NDA1', '2026-03-03')", (asset,))
+                 " VALUES (?, 'NDA1', ?)", (asset, _EVENT))
     conn.execute("INSERT INTO changes (entity_type, entity_key, field, change_type,"
                  " significance) VALUES ('approval', 'NDA1', 'x', 'new_approval', 'high')")
     # A trial change has no event date and must be excluded, not measured.
@@ -40,7 +42,7 @@ def _seed(db_file):
     return cid
 
 
-def test_forward_and_universe_returns(tmp_path):
+def test_span_return_reads_before_and_after_the_event(tmp_path):
     db_file = tmp_path / "t.db"
     cid = _seed(db_file)
     conn = db.get_connection(db_file)
@@ -48,21 +50,25 @@ def test_forward_and_universe_returns(tmp_path):
         series = backtest._series(conn)
     finally:
         conn.close()
-    assert round(backtest.forward_return(series, cid["LLY"], "2026-03-03", 5), 4) == 0.10
-    assert round(backtest.forward_return(series, cid["LLY"], "2026-03-03", 1), 4) == 0.02
-    # The rest of the universe is flat, so the benchmark is zero.
-    assert backtest.universe_return(series, "2026-03-03", 5, exclude=cid["LLY"]) == 0.0
-    # A window that runs off the end of the series is None, never guessed.
-    assert backtest.forward_return(series, cid["LLY"], "2026-03-11", 5) is None
+    # run-up over the five bars into the event: 100 -> 110.
+    assert round(backtest.span_return(series, cid["LLY"], _EVENT, -5, 0), 4) == 0.10
+    # reaction over the five bars after: 110 -> 120.
+    assert round(backtest.span_return(series, cid["LLY"], _EVENT, 0, 5), 4) == 0.0909
+    # the rest of the universe is flat, so the benchmark is zero.
+    assert backtest.universe_span(series, _EVENT, -5, 0, exclude=cid["LLY"]) == 0.0
+    # a window running off the series is None, never guessed.
+    assert backtest.span_return(series, cid["LLY"], _EVENT, -21, 0) is None
 
 
-def test_build_measures_the_approval_and_skips_the_trial(tmp_path):
+def test_build_reports_runup_and_reaction_and_skips_the_trial(tmp_path):
     db_file = tmp_path / "t.db"
     _seed(db_file)
     result = backtest.build(db_file)
 
     assert result["total_changes"] == 2 and result["measured_events"] == 1
     assert [r["change_type"] for r in result["rows"]] == ["new_approval"]
-    five = result["rows"][0]["horizons"][5]
-    assert five["n"] == 1 and round(five["mean_abnormal"], 4) == 0.10
-    assert five["hit_rate"] == 1.0
+    windows = result["rows"][0]["windows"]
+    assert round(windows["runup_1w"]["mean_abnormal"], 4) == 0.10
+    assert round(windows["after_1w"]["mean_abnormal"], 4) == 0.0909
+    assert windows["after_1w"]["hit_rate"] == 1.0
+    assert "runup_1m" not in windows          # off the start of the series, so unmeasured

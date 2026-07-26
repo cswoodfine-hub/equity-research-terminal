@@ -782,16 +782,18 @@ with main:
             _sig = {"new_approval": "FDA approval",
                     "risk_factors_change": "Risk factors changed",
                     "new_filing": "New filing"}
+            # Columns follow the windows the backtest reports: the run-up into the event,
+            # then the reaction after it.
+            cols = {w["key"]: w["label"] for w in (bt.get("windows") or [])}
 
-            def _cell(r, h):
-                x = r["horizons"].get(str(h)) or r["horizons"].get(h)
+            def _cell(r, key):
+                x = (r.get("windows") or {}).get(key)
                 return (f'{x["mean_abnormal"] * 100:+.1f}% · {x["hit_rate"] * 100:.0f}%'
                         if x else "—")
             frame = pd.DataFrame([{
-                "Signal": _sig.get(r["change_type"], r["change_type"]),
-                "Events": r["n"], "+1 day": _cell(r, 1),
-                "+1 week": _cell(r, 5), "+1 month": _cell(r, 21)}
-                for r in bt_rows])
+                "Signal": _sig.get(r["change_type"], r["change_type"]), "Events": r["n"],
+                **{cols[k]: _cell(r, k) for k in cols}} for r in bt_rows])
+            move_cols = list(cols.values())
             st.dataframe(
                 frame.style.map(
                     lambda v: (f"color:{T.P.data};font-weight:600"
@@ -800,13 +802,15 @@ with main:
                                else f"color:{T.P.oxblood};font-weight:600"
                                if isinstance(v, str) and v.startswith("-")
                                else f"color:{T.P.stale}" if v == "—" else ""),
-                    subset=["+1 day", "+1 week", "+1 month"]),
+                    subset=move_cols),
                 width="stretch", hide_index=True)
             st.markdown(
                 f'<div class="byline"><b>Abnormal return</b> is the stock\'s move minus '
                 f'the equal-weight move of the rest of the universe over the same window, '
                 f'so a sector-wide move does not read as signal; hit rate is the share of '
-                f'events where the stock beat the universe. Measured over '
+                f'events where the stock beat the universe. The run-up columns are the '
+                f'move into the event, the after columns the reaction, so an approval that '
+                f'was priced in reads as a run-up with little left after. Measured over '
                 f'{bt.get("measured_events")} events with a real event date, '
                 f'{(bt.get("event_date_min") or "")[:7]} to '
                 f'{(bt.get("event_date_max") or "")[:7]}, of {bt.get("total_changes")} '
