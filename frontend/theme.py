@@ -142,7 +142,9 @@ html, body, [class*="css"], .stApp {{
   background: var(--ground);
   color: var(--text);
   font-family: var(--font-ui);
-  font-size: 13px;
+  /* Base size, and the rem root: headings and the large figures are in rem, so they
+     scale with this; a modest bump lifts the whole UI's legibility at once. */
+  font-size: 14px;
   -webkit-font-smoothing: antialiased;
 }}
 
