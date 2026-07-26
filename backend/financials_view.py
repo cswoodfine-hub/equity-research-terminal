@@ -286,7 +286,10 @@ def build_statements(db_path=None, ticker: str = "", basis: str = QUARTERLY,
                            for periods in by_metric.values() for _, kind in periods),
         "statements": out,
         "snapshot": _snapshot(by_metric, months_by_key, fy_end_month, currency),
-        "trend": build_trend(values, months_by_key, fy_end_month, basis),
+        # Annual shows DEFAULT_PERIODS years; the extra stored year is not shown, it is the
+        # base the oldest shown year's growth divides by, so both lines start together.
+        "trend": build_trend(values, months_by_key, fy_end_month, basis,
+                             limit=DEFAULT_PERIODS if basis == ANNUAL else 9),
     }
 
 

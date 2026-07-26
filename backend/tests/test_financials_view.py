@@ -205,11 +205,13 @@ def test_trend_follows_the_basis(loaded):
     assert [p["label"] for p in annual][-2:] == ["FY24", "FY25"]
 
 
-def test_trend_leaves_growth_open_at_the_start_of_the_window(loaded):
-    """The oldest period has no prior year inside the window, so its growth is null
-    rather than being computed against whatever happens to be nearest."""
+def test_the_extra_stored_year_gives_the_oldest_shown_year_its_growth(loaded):
+    """A fiscal year beyond the shown window is kept as the base the oldest shown year's
+    year-over-year growth divides by, so the growth and margin lines start together rather
+    than the growth line missing its first year. Growth still comes only from a genuinely
+    adjacent prior (see _prior_period), never whatever happens to be nearest."""
     annual = financials_view.build_statements(loaded, "NVO", basis="annual")["trend"]
-    assert annual[0]["revenue_growth"] is None
+    assert annual[0]["revenue_growth"] is not None   # starts with growth, not a gap
     assert annual[0]["net_margin"] is not None
     assert annual[-1]["revenue_growth"] is not None
 

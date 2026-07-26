@@ -47,7 +47,10 @@ DEBT_COMBINED_CANDIDATES = [("us-gaap", "DebtLongtermAndShorttermCombinedAmount"
 # How many recent periods of each line to store. Company facts already carry the full
 # history in one response, so raising these costs storage rather than extra EDGAR calls.
 # Instants get the largest budget because a balance sheet date lands every quarter.
-MAX_FISCAL_YEARS = 6
+# One more fiscal year is kept than the six shown: the seventh is the base the oldest
+# shown year's year-over-year growth divides by, so the growth and margin lines on the
+# trend start together instead of the growth line missing its first year.
+MAX_FISCAL_YEARS = 7
 MAX_PERIODS = {statements.FY: MAX_FISCAL_YEARS, statements.Q: 12,
                statements.YTD: 12, statements.INSTANT: 20}
 

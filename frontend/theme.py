@@ -392,7 +392,7 @@ h3 {{ font-size: 0.9rem; }}
 /* Statement grid. */
 .fin-wrap {{ overflow-x: auto; margin: 0.2rem 0 0.1rem; }}
 .fin {{
-  width: 100% !important; table-layout: fixed; min-width: 30rem; max-width: 52rem;
+  width: 100% !important; table-layout: fixed; min-width: 30rem; max-width: none;
   border-collapse: collapse; font-variant-numeric: tabular-nums;
 }}
 .fin th.l, .fin td.l {{ width: 27%; text-align: left; padding-left: 0; }}
