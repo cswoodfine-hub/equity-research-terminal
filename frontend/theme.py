@@ -234,6 +234,8 @@ h3 {{ font-size: 0.9rem; }}
 .ident .meta {{ font-size: 11px; color: var(--muted); }}
 
 .rail {{ margin-top: 0.5rem; }}
+/* The horizon SVG fills the rail column and scales to it, so it reads larger. */
+.rail svg {{ width: 100%; height: auto; }}
 
 /* Feed items: a typographic list, not a table. */
 .feed {{ margin: 0.1rem 0 0.3rem; }}

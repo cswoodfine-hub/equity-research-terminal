@@ -607,11 +607,11 @@ if pinned:
         + (f'<div class="pin-detail">{detail}</div>' if detail else "")
         + "</div>", unsafe_allow_html=True)
 
-main, rail_col = st.columns([1, 0.27], gap="medium")
+main, rail_col = st.columns([1, 0.34], gap="medium")
 
 with rail_col:
     R.show(CH.timeline_spine(
-        spine_items, dt.date.today(), 200, 720,
+        spine_items, dt.date.today(), 300, 920,
         cliff_years=_spine_cliff(exclusivities), selected_key=selected_key,
         link_base=f"?ticker={urllib.parse.quote(ticker)}&sel="), css_class="rail")
     st.markdown('<div class="byline">Forward-dated only. Click a point to pin it '

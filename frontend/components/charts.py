@@ -670,14 +670,14 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
 
     top_y = seg_top + 14
     body, y = [], top_y + 6
-    row_h, month_gap = 12.5, 9.0
+    row_h, month_gap = 16.0, 11.0
     for (year, month), group in _groupby(dated, key=lambda p: (p[0].year, p[0].month)):
         body.append(f'<line x1="{spine_x - 6}" y1="{y:.1f}" x2="{spine_x + 6}"'
                     f' y2="{y:.1f}" stroke="{TK.UP}" stroke-width="2"/>')
-        body.append(_text(spine_x + 13, y + 3,
-                          _dt.date(year, month, 1).strftime("%b %Y"), 8.5, TK.UP,
+        body.append(_text(spine_x + 14, y + 3,
+                          _dt.date(year, month, 1).strftime("%b %Y"), 10.5, TK.UP,
                           family=UI, weight="700"))
-        y += 15
+        y += 19
         for when, item in group:
             colour = item.get("colour") or TK.UP
             selected = selected_key is not None and item.get("key") == selected_key
@@ -696,7 +696,7 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
             if href:
                 target = ' target="_blank" rel="noopener"' if url else ""
                 body.append(f'<a href="{_esc(href)}"{target}>')
-            body.append(f'<rect x="0" y="{y - 6:.1f}" width="{width}" height="13"'
+            body.append(f'<rect x="0" y="{y - 8:.1f}" width="{width}" height="16"'
                         f' fill="transparent"><title>{_esc(tooltip)}</title></rect>')
             body.append(f'<line x1="{spine_x - tick_w}" y1="{y:.1f}"'
                         f' x2="{spine_x + tick_w}" y2="{y:.1f}" stroke="{colour}"'
@@ -718,29 +718,29 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
             else:
                 date_s = when.strftime("%Y-%m")
             weight = "700" if selected else "600"
-            body.append(_text(spine_x + 16, y + 3, date_s, 8.5,
+            body.append(_text(spine_x + 16, y + 4, date_s, 10,
                               TK.TEXT if selected else TK.MUTED, family=MONO,
                               weight=weight))
-            body.append(_text(spine_x + 58, y + 3, str(item.get("label") or "")[:20],
-                              8.5, TK.TEXT if selected else TK.MUTED, family=UI))
+            body.append(_text(spine_x + 66, y + 4, str(item.get("label") or "")[:26],
+                              10.5, TK.TEXT if selected else TK.MUTED, family=UI))
             if href:
                 body.append("</a>")
             y += row_h
         y += month_gap
 
     if not dated:
-        body.append(_text(spine_x + 13, top_y + 20, "nothing inside 24 months", 8.5,
+        body.append(_text(spine_x + 14, top_y + 22, "nothing inside 24 months", 10.5,
                           TK.MUTED, family=UI))
-        y = top_y + 34
+        y = top_y + 38
 
     cliff_y0 = y + 6
     # the SVG grows to fit the flowed months and the cliff, since a busy pipeline runs
     # longer than a fixed height.
-    svg_height = max(height, int(cliff_y0 + (24 if cliff_years else 34)
-                                 + 16 * min(len(cliff_years), 8)))
+    svg_height = max(height, int(cliff_y0 + (28 if cliff_years else 40)
+                                 + 20 * min(len(cliff_years), 8)))
 
     out = [_svg_open(width, svg_height, "time spine")]
-    out.append(_text(8, 14, "HORIZON", 10, TK.TEXT, family=UI, weight="700",
+    out.append(_text(8, 16, "HORIZON", 12, TK.TEXT, family=UI, weight="700",
                      extra=' letter-spacing="0.09em"'))
     # the spine: one line from today down to the cliff
     out.append(f'<line x1="{spine_x}" y1="{top_y - 8}" x2="{spine_x}"'
@@ -748,27 +748,27 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
                f' stroke-width="1.5"/>')
     out.append(f'<line x1="{spine_x - 5}" y1="{top_y - 8}" x2="{spine_x + 5}"'
                f' y2="{top_y - 8}" stroke="{TK.TEXT}" stroke-width="1.5"/>')
-    out.append(_text(spine_x + 9, top_y - 5, f"today {today.isoformat()}", 8.5,
+    out.append(_text(spine_x + 9, top_y - 5, f"today {today.isoformat()}", 10,
                      TK.MUTED, family=MONO))
     out += body
 
     # the cliff: per-year counts beyond 24 months
-    out.append(_text(8, cliff_y0 + 10, "CLIFF 24M+", 8.5, TK.MUTED, family=UI,
+    out.append(_text(8, cliff_y0 + 12, "CLIFF 24M+", 10.5, TK.MUTED, family=UI,
                      weight="700", extra=' letter-spacing="0.08em"'))
     if cliff_years:
         peak = max(cliff_years.values())
         bar_x = spine_x + 16
-        bar_max = width - bar_x - 26
+        bar_max = width - bar_x - 30
         for i, year in enumerate(sorted(cliff_years)[:8]):
-            by = cliff_y0 + 20 + i * 16
+            by = cliff_y0 + 24 + i * 20
             w = max(2, cliff_years[year] / peak * bar_max)
-            out.append(_text(spine_x + 12, by + 7, year, 8.5, TK.MUTED, "end", MONO))
-            out.append(f'<rect x="{bar_x}" y="{by}" width="{w:.1f}" height="8"'
+            out.append(_text(spine_x + 12, by + 8, year, 10, TK.MUTED, "end", MONO))
+            out.append(f'<rect x="{bar_x}" y="{by}" width="{w:.1f}" height="10"'
                        f' fill="{TK.RULE_STRONG}"/>')
-            out.append(_text(bar_x + w + 5, by + 7, cliff_years[year], 8.5,
+            out.append(_text(bar_x + w + 5, by + 8, cliff_years[year], 10,
                              TK.MUTED, family=MONO))
     else:
-        out.append(_text(8, cliff_y0 + 26, "nothing on file", 8.5, TK.MUTED))
+        out.append(_text(8, cliff_y0 + 30, "nothing on file", 10.5, TK.MUTED))
     out.append("</svg>")
     return "".join(out)
 
