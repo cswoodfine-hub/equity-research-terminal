@@ -21,6 +21,17 @@ HORIZON = 10  # number of upcoming years shown as columns
 NOT_A_CLIFF = ("orphan exclusivity",)
 
 
+def merged_loe(loe_max, loe_basis, bio_floor_year):
+    """The effective loss of exclusivity: the later of the latest patent or exclusivity on
+    file and the biologic 12-year statutory floor. A biologic whose only Purple Book entry
+    is a 7-year orphan exclusivity still keeps its market to the 12-year floor, so using
+    the orphan date alone understates it. Returns (loe_date, basis)."""
+    floor = f"{bio_floor_year}-12-31" if bio_floor_year else None
+    if floor and (loe_max is None or floor > loe_max):
+        return floor, "statutory floor (12y)"
+    return loe_max, loe_basis
+
+
 def _asset_loe(conn):
     """Yield (company_id, asset_id, latest_expiry) for every asset with exclusivity.
 
@@ -91,15 +102,20 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
         assets = conn.execute(
             """
             SELECT a.brand_name, a.generic_name, a.modality, a.internal_code,
-                   MAX(e.expiry_date) AS loe,
-                   -- What kind of protection sets that date. For biologics it is
-                   -- usually orphan exclusivity, which covers one orphan indication
-                   -- and does not gate biosimilar entry, so the basis has to travel
-                   -- with the date rather than be inferred from it.
+                   MAX(e.expiry_date) AS loe_max,
+                   -- The earliest listed expiry too, so a small molecule can show the
+                   -- range from its first patent (closer to the real cliff) to its last.
+                   MIN(e.expiry_date) AS loe_earliest,
+                   -- What kind of protection sets the latest date. For biologics it is
+                   -- usually orphan exclusivity, which covers one orphan indication and
+                   -- does not gate biosimilar entry, so the basis travels with the date.
                    (SELECT x.protection_type FROM exclusivities x
                      WHERE x.asset_id = a.id
                      ORDER BY x.expiry_date DESC, x.protection_type
                      LIMIT 1) AS loe_basis,
+                   -- The biologic 12-year statutory floor, when computed; merged below.
+                   (SELECT b.loe_year FROM biologic_loe b WHERE b.asset_id = a.id)
+                     AS bio_floor_year,
                    -- A Paragraph IV certification on record is a filed challenge to the
                    -- patent that sets this date, so the expiry may not hold. The join
                    -- is on the asset; the date is the first certification, or null for
@@ -119,11 +135,16 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
 
     out = []
     for asset in assets:
-        loe = asset["loe"]
-        if int(loe[:4]) < this_year:
+        loe, basis = merged_loe(asset["loe_max"], asset["loe_basis"],
+                                asset["bio_floor_year"])
+        if loe is None or int(loe[:4]) < this_year:
             continue
         item = dict(asset)
+        item["loe"] = loe
+        item["loe_basis"] = basis
         item["loe_year"] = int(loe[:4])
+        item["loe_earliest_year"] = (int(asset["loe_earliest"][:4])
+                                     if asset["loe_earliest"] else None)
         out.append(item)
     out.sort(key=lambda a: a["loe"])
     return out

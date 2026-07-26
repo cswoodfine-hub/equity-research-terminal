@@ -1696,7 +1696,10 @@ with main:
                         brand=a.get("brand_name") or a.get("generic_name") or "unnamed",
                         generic=a.get("generic_name"), modality=a.get("modality"),
                         approved=a.get("approval_date"), loe=a.get("loe"),
-                        loe_basis=a.get("loe_basis"), revenue=a.get("revenue"),
+                        loe_basis=a.get("loe_basis"),
+                        loe_earliest_year=(int(a["loe_earliest"][:4])
+                                           if a.get("loe_earliest") else None),
+                        revenue=a.get("revenue"),
                         revenue_unit=a.get("revenue_unit"))
                 elif a.get("approval_date") and (
                         not p["approved"] or a["approval_date"] < p["approved"]):
@@ -1713,6 +1716,7 @@ with main:
                     brand=brand, generic=ex.get("generic_name"),
                     modality=ex.get("modality"), approved=None,
                     loe=ex.get("loe"), loe_basis=ex.get("loe_basis"),
+                    loe_earliest_year=ex.get("loe_earliest_year"),
                     revenue=None, revenue_unit=None)
             prods = list(products.values())
             rev_unit = next((p["revenue_unit"] for p in prods if p.get("revenue_unit")), "")
@@ -1793,6 +1797,14 @@ with main:
                 rev_txt = (f'{T.num(p["revenue"] / 1e9, 2)} {p.get("revenue_unit") or ""} bn'
                            if p.get("revenue") is not None else "no free data")
                 to_loe = f' · {y - today.year}y' if y else ""
+                # A small molecule usually has several Orange Book patents; the latest
+                # overstates the real cliff since generics can challenge the earlier ones.
+                # Show the earliest-to-latest range so the wall reads as a window, not a
+                # single hard date. Biologics keep the single merged floor.
+                ey = p.get("loe_earliest_year")
+                is_range = cls == "small" and ey and y and ey != y
+                loe_label = "exclusivity" if is_range else "exclusivity to"
+                loe_txt = f'{ey}–{y}' if is_range else (f'{y}{to_loe}' if y else "—")
                 basis = (f'<div class="pf-row"><span class="pf-k"></span>'
                          f'<span class="pf-v none" style="font-size:9px">'
                          f'{html_escape(p.get("loe_basis") or "")}</span></div>'
@@ -1808,9 +1820,9 @@ with main:
                     f'<div class="pf-row"><span class="pf-k">revenue</span>'
                     f'<span class="pf-v{"" if p.get("revenue") is not None else " none"}">'
                     f'{rev_txt}</span></div>'
-                    f'<div class="pf-row"><span class="pf-k">exclusivity to</span>'
+                    f'<div class="pf-row"><span class="pf-k">{loe_label}</span>'
                     f'<span class="pf-v {"near" if near else ""}">'
-                    f'{p["loe"][:4] if p.get("loe") else "—"}{to_loe}</span></div>'
+                    f'{loe_txt}</span></div>'
                     f'{basis}</div>')
             st.markdown('<div class="pf">' + "".join(cards) + "</div>",
                         unsafe_allow_html=True)
@@ -1818,9 +1830,13 @@ with main:
                 '<div class="byline">One card per product, biggest revenue first. Approval '
                 'from openFDA drugsfda (CDER), exclusivity from the Orange Book (small '
                 'molecule) or Purple Book (biologic), revenue from the SEC data sets where '
-                'the filer tags it. A cell or gene therapy is CBER-regulated and absent '
-                'from drugsfda, so it shows from the Purple Book with a dash for the '
-                'approval date. An exclusivity date within three years reads red.</div>',
+                'the filer tags it. A small molecule shows a range from its earliest to its '
+                'latest listed patent, since a generic can challenge the earlier ones, so '
+                'the cliff is a window not one date. A biologic shows the later of its '
+                'listed expiry and the 12-year statutory floor. A cell or gene therapy is '
+                'CBER-regulated and absent from drugsfda, so it shows from the Purple Book '
+                'with a dash for the approval date. An exclusivity date within three years '
+                'reads red.</div>',
                 unsafe_allow_html=True)
 
         # --- Medicare demand ---

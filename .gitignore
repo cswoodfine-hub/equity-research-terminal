@@ -16,6 +16,7 @@ venv/
 *.db
 *.db-shm
 *.db-wal
+*.db.backup-*
 
 # Source archive / scratch
 files.zip

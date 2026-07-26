@@ -343,10 +343,14 @@ def company_approvals(ticker: str) -> dict:
                 SELECT ap.approval_date, ap.application_number, a.brand_name,
                        a.generic_name, a.modality,
                        (SELECT MAX(e.expiry_date) FROM exclusivities e
-                         WHERE e.asset_id = a.id) AS loe,
+                         WHERE e.asset_id = a.id) AS loe_max,
+                       (SELECT MIN(e.expiry_date) FROM exclusivities e
+                         WHERE e.asset_id = a.id) AS loe_earliest,
                        (SELECT e2.protection_type FROM exclusivities e2
                          WHERE e2.asset_id = a.id
                          ORDER BY e2.expiry_date DESC LIMIT 1) AS loe_basis,
+                       (SELECT b.loe_year FROM biologic_loe b
+                         WHERE b.asset_id = a.id) AS bio_floor_year,
                        (SELECT r.value FROM asset_revenue r
                          WHERE r.asset_id = a.id
                          ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue,
@@ -365,6 +369,11 @@ def company_approvals(ticker: str) -> dict:
         ]
     finally:
         conn.close()
+    # Merge the biologic 12-year floor into the latest expiry, the same rule loe_detail
+    # uses, so the two views agree; keep the earliest expiry for the patent range.
+    for r in rows:
+        r["loe"], r["loe_basis"] = loe_module.merged_loe(
+            r.pop("loe_max"), r["loe_basis"], r.pop("bio_floor_year"))
     return {"ticker": ticker, "approvals": rows}
 
 

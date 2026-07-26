@@ -77,3 +77,57 @@ def test_loe_carries_the_protection_type_that_set_it(tmp_path):
                 if i["kind"] == "loe" and "Testbio" in i["headline"])
     assert item["loe_basis"] == "orphan exclusivity"
     assert "orphan exclusivity expires" in item["headline"]
+
+
+def test_merged_loe_floors_biologics_and_leaves_others():
+    # The 12-year floor wins when it lands after the latest listed date.
+    assert loe.merged_loe("2031-06-14", "orphan exclusivity", 2035) == (
+        "2035-12-31", "statutory floor (12y)")
+    # A biologic with no listed date at all still gets the floor.
+    assert loe.merged_loe(None, None, 2033) == ("2033-12-31", "statutory floor (12y)")
+    # A later listed patent beats the floor and keeps its own basis.
+    assert loe.merged_loe("2040-01-01", "patent", 2035) == ("2040-01-01", "patent")
+    # No floor (a small molecule) is left untouched.
+    assert loe.merged_loe("2043-05-01", "patent", None) == ("2043-05-01", "patent")
+
+
+def test_loe_detail_shows_range_and_merges_floor(tmp_path):
+    """A small molecule reports the earliest and latest expiry; a biologic whose only
+    Purple Book date is a short orphan exclusivity is lifted to the 12-year floor."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='AMGN'").fetchone()[0]
+
+    # Small molecule with two patents: the range runs earliest to latest.
+    conn.execute("INSERT INTO assets (owner_company_id, brand_name, modality, is_marketed)"
+                 " VALUES (?, 'Testsmall', 'small molecule', 1)", (cid,))
+    sid = conn.execute("SELECT id FROM assets WHERE brand_name='Testsmall'").fetchone()[0]
+    for expiry in ("2038-03-01", "2043-09-15"):
+        conn.execute("INSERT INTO exclusivities (asset_id, protection_type, identifier,"
+                     " expiry_date, source) VALUES (?, 'patent', 'X', ?, 'orange_book')",
+                     (sid, expiry))
+
+    # Biologic whose only listed date is a 2031 orphan exclusivity, but with a 2035
+    # statutory floor computed: the floor should set the displayed LOE.
+    conn.execute("INSERT INTO assets (owner_company_id, brand_name, modality, is_marketed)"
+                 " VALUES (?, 'Testfloor', 'biologic', 1)", (cid,))
+    bid = conn.execute("SELECT id FROM assets WHERE brand_name='Testfloor'").fetchone()[0]
+    conn.execute("INSERT INTO exclusivities (asset_id, protection_type, identifier,"
+                 " expiry_date, source) VALUES (?, 'orphan exclusivity', 'X',"
+                 " '2031-06-14', 'purple_book')", (bid,))
+    conn.execute("INSERT INTO biologic_loe (asset_id, loe_year, floor_year, basis)"
+                 " VALUES (?, 2035, 2035, 'statutory floor')", (bid,))
+    conn.commit()
+    conn.close()
+
+    detail = {a["brand_name"]: a for a in loe.loe_detail(db_file, "AMGN")}
+
+    small = detail["Testsmall"]
+    assert small["loe_year"] == 2043
+    assert small["loe_earliest_year"] == 2038
+
+    floored = detail["Testfloor"]
+    assert floored["loe_year"] == 2035
+    assert floored["loe_basis"] == "statutory floor (12y)"
