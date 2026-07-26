@@ -952,7 +952,7 @@ with main:
         ]
         # The position strip and the two note actions share the top row: the strip fills
         # the width, and Generate and Tearsheet stack small on the right at the same level.
-        strip_col, btn_col = st.columns([5, 0.9])
+        strip_col, btn_col = st.columns([6, 0.75])
         with strip_col:
             st.markdown(
                 '<div class="pos">' + "".join(
@@ -1450,8 +1450,13 @@ with main:
             else:
                 section(", ".join(chosen), f"{len(shown)} trials, "
                         + ", ".join(phase_pick))
+                # A follow-up study keeps its registry phase but is labelled as one, so a
+                # Phase 3 long-term follow-up no longer reads as a Phase 3 development trial.
                 table = pd.DataFrame([{
-                    "NCT": t["nct_id"], "Phase": t["phase"], "Area": t["area"],
+                    "NCT": t["nct_id"],
+                    "Phase": (f"{t['phase']} follow-up" if _bucket(t) == "Follow-up"
+                              else t["phase"]),
+                    "Area": t["area"],
                     "Status": t["overall_status"],
                     "Primary completion": t["primary_completion_date"],
                     # A date that has passed means opposite things depending on

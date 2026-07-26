@@ -499,6 +499,12 @@ h3 {{ font-size: 0.9rem; }}
 }}
 .stButton button:hover {{ background: var(--rule); border-color: var(--muted); }}
 .stButton button:disabled {{ color: var(--muted); border-color: var(--rule); }}
+/* The two note actions sit beside the position strip as secondary controls, so they
+   are smaller and quieter than a primary button. */
+.st-key-gen_note button, .st-key-gen_sheet button {{
+  min-height: 22px; padding: 0.02rem 0.4rem; font-size: 10.5px; line-height: 1.2;
+}}
+.st-key-gen_note {{ margin-bottom: 3px; }}
 section[data-testid="stSidebar"] {{ background: var(--panel);
   border-right: 1px solid var(--rule-strong); }}
 section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
