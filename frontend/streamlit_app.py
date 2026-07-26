@@ -947,35 +947,36 @@ with main:
              "inside 24 months"),
             ("flagged", str(len(feed)), "down" if high else "", f"{high} high" if high else "nothing high"),
         ]
-        st.markdown(
-            '<div class="pos">' + "".join(
-                f'<span><span class="k">{k}</span>'
-                f'<span class="v {cls}">{v}</span>'
-                f'<span class="sub">{sub}</span></span>' for k, v, cls, sub in cells)
-            + "</div>", unsafe_allow_html=True)
+        # The position strip and the two note actions share the top row: the strip fills
+        # the width, and Generate and Tearsheet stack small on the right at the same level.
+        strip_col, btn_col = st.columns([5, 0.9])
+        with strip_col:
+            st.markdown(
+                '<div class="pos">' + "".join(
+                    f'<span><span class="k">{k}</span>'
+                    f'<span class="v {cls}">{v}</span>'
+                    f'<span class="sub">{sub}</span></span>' for k, v, cls, sub in cells)
+                + "</div>", unsafe_allow_html=True)
+        with btn_col:
+            regenerate = st.button("Generate", key="gen_note", width="stretch")
+            write_sheet = st.button("Tearsheet", key="gen_sheet", width="stretch")
 
-        # Fifteen minute bars over the last five sessions. A briefing wants the shape of
-        # the week, which daily closes cannot show: five points is a zigzag, not a
-        # market. Bars are butted together in order, never on a time axis that would
-        # draw a flat line through overnight hours that never traded; the session
-        # marks say where each trading day begins.
+        # Fifteen minute bars over the last five sessions, spanning the column above the
+        # note. A briefing wants the shape of the week, which daily closes cannot show:
+        # five points is a zigzag, not a market. Bars are butted together in order, never
+        # on a time axis that would draw a flat line through overnight hours that never
+        # traded; the session marks say where each trading day begins.
         if bars:
             closes = [b["close"] for b in bars]
             session_starts = [i for i, b in enumerate(bars)
                               if i and b["as_of"][:10] != bars[i - 1]["as_of"][:10]]
-            R.show(CH.sparkline(closes, 832, 72, label_last=True,
-                                marks=session_starts))
+            R.show(CH.sparkline(closes, 832, 72, label_last=True, marks=session_starts),
+                   css_class="chart-mount stretch")
 
-        head, action, sheet = st.columns([4, 1, 1])
-        with head:
-            section("Morning note")
-        with action:
-            regenerate = st.button("Generate", key="gen_note", width="stretch")
-        with sheet:
-            if st.button("Tearsheet", key="gen_sheet", width="stretch"):
-                with st.spinner(f"Writing the {ticker} tearsheet"):
-                    st.session_state["tearsheet"] = api_post(
-                        api_base, f"/companies/{ticker}/tearsheet")
+        if write_sheet:
+            with st.spinner(f"Writing the {ticker} tearsheet"):
+                st.session_state["tearsheet"] = api_post(
+                    api_base, f"/companies/{ticker}/tearsheet")
         made = st.session_state.get("tearsheet")
         if made and made.get("ticker") == ticker:
             st.markdown(
@@ -983,6 +984,8 @@ with main:
                 f'<span class="mono">exports/{html_escape(made["filename"])}</span>. '
                 'Open it and print to A4, or save as PDF.</div>',
                 unsafe_allow_html=True)
+
+        section("Morning note")
 
         if regenerate:
             with st.spinner(f"Writing the {ticker} note"):

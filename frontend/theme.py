@@ -291,11 +291,12 @@ h3 {{ font-size: 0.9rem; }}
 .readout .rd {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted);
                white-space: nowrap; align-self: center; }}
 
-/* Chart mounts: a chart is a fixed-width SVG, so centre it in its column rather than
-   leave it jammed against the left, and let an over-wide one shrink to fit without
-   distorting. The horizon rail keeps its own class and is not touched. */
-.chart-mount {{ text-align: center; }}
-.chart-mount svg {{ max-width: 100%; height: auto; }}
+/* Chart mounts: a chart is a fixed-width SVG. By default it centres in its column and an
+   over-wide one shrinks to fit; the "stretch" variant fills the column edge to edge, used
+   where a chart is meant to span its space. The horizon rail keeps its own class. */
+.chart-mount {{ margin: 0.3rem 0 0.1rem; }}
+.chart-mount svg {{ display: block; max-width: 100%; height: auto; margin: 0 auto; }}
+.chart-mount.stretch svg {{ width: 100%; }}
 
 /* Position strip. */
 .pos {{ display: flex; gap: 2rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
@@ -320,7 +321,7 @@ h3 {{ font-size: 0.9rem; }}
 
 /* The note is the one piece of prose, so it gets the reading face. */
 .note {{ font-family: var(--font-prose); font-size: 15.5px; line-height: 1.55;
-        max-width: 64ch; margin: 0.35rem 0 0.2rem; }}
+        max-width: none; margin: 0.35rem 0 0.2rem; }}
 .note h4 {{ font-family: var(--font-ui); font-size: 10.5px; letter-spacing: 0.09em;
            text-transform: uppercase; color: var(--muted); margin: 0.7rem 0 0.1rem; }}
 .note ul {{ margin: 0.1rem 0; padding-left: 1.1rem; }}
@@ -425,8 +426,6 @@ h3 {{ font-size: 0.9rem; }}
 /* Chart mount: the SVG always draws at its own declared size. */
 .trend {{ margin: 0.35rem 0 0.1rem; }}
 .trend svg {{ display: block; }}
-.chart-mount {{ margin: 0.3rem 0 0.1rem; }}
-.chart-mount svg {{ display: block; max-width: 100%; }}
 /* Pure-CSS hover on SVG charts: a transparent band per x slot reveals its readout. */
 .hoverband .tip {{ display: none; }}
 .hoverband:hover .tip {{ display: block; }}
