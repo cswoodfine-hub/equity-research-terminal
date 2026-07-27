@@ -264,6 +264,20 @@ _CASHFLOW = (
              ("us-gaap", "AmortizationOfIntangibleAssets"),
              ("ifrs-full", "AmortisationIntangibleAssetsOtherThanGoodwill"),
          )),
+    # Cash paid for assets rather than whole businesses: a licence, a molecule, an
+    # in-process programme. Lilly buys this way more than it buys companies, so its
+    # business-combination line reads 0.3bn against 3.0bn of in-process R&D bought. Kept
+    # as separate lines and summed, since a filer may report one, the other, or both.
+    Line("AcquiredIprd", "In-process R&D acquired", "cashflow", "duration", role="memo",
+         candidates=(
+             ("us-gaap", "PaymentsToAcquireInProcessResearchAndDevelopment"),
+         )),
+    Line("AcquiredIntangibles", "Intangible assets acquired", "cashflow", "duration",
+         role="memo", candidates=(
+             ("us-gaap", "PaymentsToAcquireIntangibleAssets"),
+             ("ifrs-full",
+              "PurchaseOfIntangibleAssetsClassifiedAsInvestingActivities"),
+         )),
     # Cash actually paid for businesses, which is the hard number behind the deal feed.
     Line("AcquisitionsNet", "Acquisitions, net of cash acquired", "cashflow", "duration",
          role="memo", note="Cash paid for businesses, net of cash acquired.",

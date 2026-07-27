@@ -415,6 +415,18 @@ h3 {{ font-size: 0.9rem; }}
 .reg-item a {{ color: inherit; text-decoration: none; }}
 .reg-item a:hover {{ text-decoration: underline; }}
 
+/* A quiet row of secondary figures. The headline strip above it carries the numbers
+   a reader comes for; these support them and should not compete, so they sit inline at
+   label size rather than as a second wall of cards. */
+.metricbar {{ display: flex; flex-wrap: wrap; gap: 0 1.6rem; align-items: baseline;
+             border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+             padding: 7px 2px; margin: 0.35rem 0 0.2rem; }}
+.metricbar > div {{ display: flex; align-items: baseline; gap: 0.4rem; }}
+.metricbar .k {{ font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase;
+                color: var(--muted); white-space: nowrap; }}
+.metricbar .v {{ font-family: var(--font-mono); font-size: 13px; color: var(--text); }}
+.metricbar .v.none {{ font-size: 11px; color: var(--muted); }}
+
 /* A partial run's own error text, one line per failing source. */
 .runerr {{ display: grid; grid-template-columns: 132px 1fr; gap: 0.6rem;
           align-items: baseline; font-size: 11px; padding: 2px 0; line-height: 1.35; }}

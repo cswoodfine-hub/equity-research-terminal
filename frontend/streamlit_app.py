@@ -1459,7 +1459,10 @@ with main:
             def _cf_x(value, dp=2):
                 return f"{value:.{dp}f}x" if value is not None else None
 
-            cf_cells = [
+            # Two tiers. The cash a year produced is the headline and keeps the card
+            # treatment; leverage and deal spend support it and sit in one quiet line,
+            # so the tab reads as a page with a point rather than a wall of figures.
+            cf_lead = [
                 ("free cash flow", _cf_bn(cash.get("fcf")),
                  f"{cf_cur} bn, operating cash less capex"),
                 ("FCF margin", (T.pct(cash["fcf_margin"] * 100)
@@ -1467,12 +1470,8 @@ with main:
                  "of revenue"),
                 ("cash conversion", _cf_x(cash.get("cash_conversion")),
                  "free cash flow over net income"),
-                ("net debt", _cf_bn(cash.get("net_debt")),
-                 f"{cf_cur} bn, debt less cash"),
-                ("net debt / EBITDA", _cf_x(cash.get("net_debt_ebitda")),
-                 "operating income plus D&A"),
                 ("acquisitions", _cf_bn((cash.get("inputs") or {}).get("acquisitions"), 2),
-                 f"{cf_cur} bn cash paid for businesses"),
+                 f"{cf_cur} bn, businesses and assets bought"),
             ]
             st.markdown(
                 '<div class="pos">' + "".join(
@@ -1480,7 +1479,24 @@ with main:
                     f'<span class="v{"" if value else " none"}">'
                     f'{html_escape(value) if value else "no free data"}</span>'
                     f'<span class="sub">{html_escape(sub)}</span></div>'
-                    for label, value, sub in cf_cells) + '</div>',
+                    for label, value, sub in cf_lead) + '</div>',
+                unsafe_allow_html=True)
+
+            cf_second = [
+                ("net debt", _cf_bn(cash.get("net_debt"))),
+                ("net debt / EBITDA", _cf_x(cash.get("net_debt_ebitda"))),
+                ("EBITDA", _cf_bn(cash.get("ebitda"))),
+                ("businesses", _cf_bn((cash.get("inputs") or {}).get(
+                    "acquisitions_businesses"), 2)),
+                ("assets", _cf_bn((cash.get("inputs") or {}).get(
+                    "acquisitions_assets"), 2)),
+            ]
+            st.markdown(
+                '<div class="metricbar">' + "".join(
+                    f'<div><span class="k">{html_escape(label)}</span>'
+                    f'<span class="v{"" if value else " none"}">'
+                    f'{html_escape(value) if value else "—"}</span></div>'
+                    for label, value in cf_second) + '</div>',
                 unsafe_allow_html=True)
             cf_inputs = cash.get("inputs") or {}
             cf_missing = [name.replace("_", " ") for name, value in cf_inputs.items()

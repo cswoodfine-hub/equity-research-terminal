@@ -68,6 +68,8 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
         depreciation = _fy(conn, cid, "Depreciation")
         amortisation = _fy(conn, cid, "AmortisationOfIntangibles")
         acquisitions = _fy(conn, cid, "AcquisitionsNet")
+        iprd = _fy(conn, cid, "AcquiredIprd")
+        intangibles = _fy(conn, cid, "AcquiredIntangibles")
         cost_of_revenue = _fy(conn, cid, "CostOfRevenue")
         rd = _fy(conn, cid, "ResearchAndDevelopmentExpense")
         sga = _fy(conn, cid, "SellingGeneralAndAdministrative")
@@ -127,6 +129,19 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
     ebitda = (operating_value + abs(dna_value)
               if operating_value is not None and dna_value is not None else None)
 
+    # What the company spent buying growth, however the deal was structured: whole
+    # businesses, in-process programmes and intangible assets, summed. Reporting only
+    # business combinations understated Lilly tenfold, since it buys assets not companies.
+    def _abs(value):
+        return abs(value) if value is not None else None
+
+    parts = [_abs(val(acquisitions)), _abs(val(iprd)), _abs(val(intangibles))]
+    acquisitions_total = sum(p for p in parts if p is not None) if any(
+        p is not None for p in parts) else None
+    asset_parts = [_abs(val(iprd)), _abs(val(intangibles))]
+    assets_bought = sum(p for p in asset_parts if p is not None) if any(
+        p is not None for p in asset_parts) else None
+
     def usd(value):
         if value is None or not currency:
             return None
@@ -158,8 +173,9 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
             "operating_income_basis": operating_basis,
             "depreciation_amortisation": dna_value,
             "depreciation_amortisation_basis": dna_basis,
-            "acquisitions": abs(val(acquisitions))
-                            if val(acquisitions) is not None else None,
+            "acquisitions": acquisitions_total,
+            "acquisitions_businesses": _abs(val(acquisitions)),
+            "acquisitions_assets": assets_bought,
             "total_debt": val(debt), "cash": cash_value,
             "cash_lines": cash_lines_used,
             "debt_as_of": debt["period_end"] if debt else None,
