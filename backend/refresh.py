@@ -142,8 +142,12 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     results = [fetcher.run() for fetcher in fetchers]
 
     # Bind the trials just fetched to the assets they study, before anything reads the
-    # pipeline by product. Idempotent, and it never overwrites a curated mapping.
+    # pipeline by product. A compound a company trials but does not sell becomes an
+    # unmarketed asset first, so the pipeline reads as programmes rather than loose
+    # studies. Both are idempotent, and neither overwrites a curated mapping.
+    pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
     mapped = trial_mapping.map_trials(db_path)
+    mapped["pipeline_assets"] = pipeline_assets["created"]
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
     readouts = catalysts.derive_readouts(db_path)
@@ -209,8 +213,12 @@ def run_refresh_all(db_path=None) -> dict:
         list(pool.map(run_company, companies))
 
     # Bind the trials just fetched to the assets they study, before anything reads the
-    # pipeline by product. Idempotent, and it never overwrites a curated mapping.
+    # pipeline by product. A compound a company trials but does not sell becomes an
+    # unmarketed asset first, so the pipeline reads as programmes rather than loose
+    # studies. Both are idempotent, and neither overwrites a curated mapping.
+    pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
     mapped = trial_mapping.map_trials(db_path)
+    mapped["pipeline_assets"] = pipeline_assets["created"]
     readouts = catalysts.derive_readouts(db_path)
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
     # the acceptance. Without an Anthropic key this reports that it did nothing.

@@ -136,6 +136,101 @@ def test_curated_override_wins_and_is_never_overwritten(tmp_path):
     assert out["curated"] == 1
 
 
+def _pipeline_assets(db_file):
+    conn = db.get_connection(db_file)
+    rows = [dict(r) for r in conn.execute(
+        "SELECT a.generic_name, a.is_marketed, c.ticker FROM assets a"
+        "  JOIN companies c ON c.id = a.owner_company_id WHERE a.is_marketed = 0")]
+    conn.close()
+    return {r["generic_name"]: r["ticker"] for r in rows}
+
+
+def test_pipeline_assets_exclude_design_comparators_and_backbones(tmp_path):
+    """The three ways a trial names something that is not the sponsor's own programme."""
+    db_file, conn, tirz, ins, pfe = _seeded(tmp_path)
+    # A genuine Lilly pipeline compound: only Lilly studies it, nobody sells it.
+    _trial(conn, "NCT10", "LLY", ["Retatrutide", "Placebo"])
+    # Pfizer's marketed drug appearing in a Lilly study as a comparator.
+    _trial(conn, "NCT11", "LLY", ["Nirmatrelvir"])
+    # A backbone both companies run trials with.
+    _trial(conn, "NCT12", "LLY", ["Paclitaxel"])
+    _trial(conn, "NCT13", "PFE", ["Paclitaxel"])
+    conn.commit()
+    conn.close()
+
+    out = tm.derive_pipeline_assets(db_file)
+    created = _pipeline_assets(db_file)
+
+    assert created == {"Retatrutide": "LLY"}     # only the real programme
+    assert out["created"] == 1
+    assert "Placebo" not in created              # study design
+    assert "Nirmatrelvir" not in created         # another company's marketed drug
+    assert "Paclitaxel" not in created           # studied by two sponsors
+
+
+def test_aliases_cover_biologic_suffix_and_salt():
+    # The FDA's four-letter biologic suffix, which is how an approved biologic's generic
+    # name is spelled, must reduce to the base molecule the registry uses.
+    assert "donanemab" in tm.aliases("donanemab-azbt")
+    assert "sotatercept" in tm.aliases("Sotatercept-csrk")
+    assert "orforglipron" in tm.aliases("Orforglipron Calcium")
+    # A hyphenated word that is not a four-letter suffix is left alone.
+    assert "co trimoxazole" in tm.aliases("Co-trimoxazole")
+
+
+def test_an_approved_biologic_is_not_recreated_as_pipeline(tmp_path):
+    """Kisunla's generic is "donanemab-azbt" but its trials say "Donanemab". Without
+    reducing the suffix the approved product is duplicated as a pipeline programme."""
+    db_file, conn, tirz, ins, pfe = _seeded(tmp_path)
+    _asset(conn, "LLY", brand="Kisunla", generic="donanemab-azbt")
+    _trial(conn, "NCT16", "LLY", ["Donanemab"])
+    conn.commit()
+    conn.close()
+
+    out = tm.derive_pipeline_assets(db_file)
+    assert out["created"] == 0
+    assert _pipeline_assets(db_file) == {}
+
+    # It binds to the approved product instead.
+    tm.map_trials(db_file)
+    conn = db.get_connection(db_file)
+    brand = conn.execute("SELECT a.brand_name FROM trials t JOIN assets a"
+                         "  ON a.id = t.asset_id WHERE t.nct_id='NCT16'").fetchone()[0]
+    conn.close()
+    assert brand == "Kisunla"
+
+
+def test_pipeline_assets_then_bind_their_trials(tmp_path):
+    db_file, conn, tirz, ins, pfe = _seeded(tmp_path)
+    _trial(conn, "NCT14", "LLY", ["Retatrutide"])
+    conn.commit()
+    conn.close()
+
+    tm.derive_pipeline_assets(db_file)
+    tm.map_trials(db_file)
+
+    conn = db.get_connection(db_file)
+    row = conn.execute(
+        "SELECT a.generic_name, a.is_marketed FROM trials t"
+        "  JOIN assets a ON a.id = t.asset_id WHERE t.nct_id = 'NCT14'").fetchone()
+    conn.close()
+    assert row["generic_name"] == "Retatrutide"
+    assert row["is_marketed"] == 0
+
+
+def test_deriving_pipeline_assets_twice_makes_one(tmp_path):
+    db_file, conn, tirz, ins, pfe = _seeded(tmp_path)
+    _trial(conn, "NCT15", "LLY", ["Retatrutide"])
+    conn.commit()
+    conn.close()
+
+    tm.derive_pipeline_assets(db_file)
+    tm.map_trials(db_file)
+    second = tm.derive_pipeline_assets(db_file)
+    assert second["created"] == 0
+    assert list(_pipeline_assets(db_file)) == ["Retatrutide"]
+
+
 def test_map_trials_is_idempotent(tmp_path):
     db_file, conn, tirz, ins, pfe = _seeded(tmp_path)
     _trial(conn, "NCT6", "LLY", ["Mounjaro"])
