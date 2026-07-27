@@ -162,3 +162,23 @@ def test_a_forced_run_ignores_the_ttl(tmp_path):
     assert probe._within_ttl() is True         # an ordinary run would skip
     probe.force = True
     assert probe._within_ttl() is False        # a scheduled run fetches
+
+
+def test_the_scheduled_job_runs_with_no_arguments(monkeypatch):
+    """The default refresh callable is invoked with no arguments when the database is
+    the default one, which is every scheduled run. A callable that required a path
+    raised TypeError inside the catch-all and the job exited 2 in eighteen seconds."""
+    import refresh as refresh_module
+    import scheduled_refresh
+
+    seen = {}
+
+    def fake_run_refresh_all(db_path=None, force=False):
+        seen["db_path"], seen["force"] = db_path, force
+        return {"id": 1, "status": "complete", "detail": {"changes": {}}}
+
+    monkeypatch.setattr(refresh_module, "run_refresh_all", fake_run_refresh_all)
+    monkeypatch.setattr(scheduled_refresh, "LOCK_FILE",
+                        scheduled_refresh.LOCK_FILE.parent / "test.lock")
+    assert scheduled_refresh.run() == 0
+    assert seen == {"db_path": None, "force": True}

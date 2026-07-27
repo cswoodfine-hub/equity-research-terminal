@@ -67,7 +67,10 @@ def run(refresh_fn=None, db_path=None) -> int:
     # A scheduled run fetches. Left to the TTLs it would skip everything a rebuilt
     # database claims to have already, which is how a runner published a database with
     # prices and nothing else.
-    refresh_fn = refresh_fn or (lambda path: refresh.run_refresh_all(path, force=True))
+    # The path is optional here: this is called with no arguments when the database is
+    # the default one, which is every scheduled run.
+    refresh_fn = refresh_fn or (
+        lambda path=None: refresh.run_refresh_all(path, force=True))
     if not _acquire_lock():
         _log("skipped: another refresh is already running")
         return 0
