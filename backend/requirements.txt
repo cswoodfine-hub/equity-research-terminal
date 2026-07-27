@@ -1,0 +1,29 @@
+# Runtime and test dependencies, pinned.
+#
+# Every source this app reads is a plain HTTP endpoint, so the fetchers use urllib from
+# the standard library rather than a client package: there is no requests or httpx here
+# because nothing imports them. Groq and Anthropic are reached over the same urllib
+# POST, so the note generation needs no SDK either; the anthropic package is present
+# only for the path that uses it directly.
+
+# API
+fastapi==0.128.8
+uvicorn==0.39.0
+pydantic==2.13.4
+
+# Frontend
+streamlit==1.50.0
+pandas==2.3.3
+
+# Filing text: a 10-K primary document is sometimes a PDF rather than HTML.
+pypdf==6.14.2
+
+# Generated notes. Optional at runtime: with no key set the app degrades to rules-only,
+# which is why nothing here is imported at module scope in the refresh path.
+anthropic==0.117.0
+
+# Secrets from .env, loaded before any module reads one.
+python-dotenv==1.2.1
+
+# Tests
+pytest==8.4.2
