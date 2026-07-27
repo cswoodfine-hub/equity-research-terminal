@@ -590,13 +590,23 @@ names = {c["ticker"]: c["name"] for c in companies}
 # The jump runs as the search input's on_change callback, which is the one place
 # Streamlit allows another widget's state to be written: a mid-script write left
 # the select's displayed label behind its actual state.
+# ?ticker= reopens the terminal on a specific company, and the pick is written back to
+# the URL after the selector below, so the address bar is always shareable.
+#
+# The URL is read on every run, not only the first. Reading it once meant a session that
+# outlived its page, which is what a reconnect or a resumed session produces, ignored the
+# address bar entirely: the company stayed pinned to whatever the session already held,
+# the tabs kept rendering that company under a header showing another, and editing the
+# URL did nothing at all. The pick is written back to the URL on every run, so the two
+# only disagree when something outside this script changed the address, which makes the
+# URL the newer instruction and the one to follow.
+_url_ticker = (st.query_params.get("ticker") or "").upper()
 if "company_pick" not in st.session_state:
-    # ?ticker= reopens the terminal on a specific company; the pick is written
-    # back to the URL below, so the address bar is always shareable.
-    wanted = (st.query_params.get("ticker") or "").upper()
     st.session_state["company_pick"] = (
-        wanted if wanted in tickers
+        _url_ticker if _url_ticker in tickers
         else DEFAULT_TICKER if DEFAULT_TICKER in tickers else tickers[0])
+elif _url_ticker in tickers and _url_ticker != st.session_state["company_pick"]:
+    st.session_state["company_pick"] = _url_ticker
 
 # A click on a coverage panel (the covnav component) returns the ticker and switches to
 # Key insights client-side; apply the ticker here, before the selectbox reads its key, so
@@ -954,7 +964,11 @@ with main:
         else:
             _CAT_PER_BOX = 5
             boxes = []
-            for ticker, cats in cat_by_company.items():
+            # Named box_ticker, not ticker: this runs at module scope, so a loop variable
+            # called ticker would outlive the loop and leave every section rendered after
+            # it, the note, the price events, the portfolio, reading the last company in
+            # this grid rather than the one selected.
+            for box_ticker, cats in cat_by_company.items():
                 items = []
                 for c in cats[:_CAT_PER_BOX]:
                     phase, study = _cat_phase_study(c.get("title") or "")
@@ -985,7 +999,7 @@ with main:
                         if extra > 0 else "")
                 boxes.append(
                     f'<div class="cat-box"><div class="cat-box-head">'
-                    f'<span class="cat-tk">{html_escape(ticker)}</span>'
+                    f'<span class="cat-tk">{html_escape(box_ticker)}</span>'
                     f'<span class="cat-n">{len(cats)} in 30d</span></div>'
                     f'{"".join(items)}{more}</div>')
             st.markdown('<div class="cat-grid">' + "".join(boxes) + "</div>",
