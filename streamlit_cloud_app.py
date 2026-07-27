@@ -37,15 +37,30 @@ for path in (BACKEND, FRONTEND):
 
 import streamlit as st  # noqa: E402  after sys.path, so backend imports resolve
 
-API_PORT = int(os.getenv("ER_API_PORT", "8000"))
+def setting(name: str, default: str = "") -> str:
+    """A value from Streamlit's secrets, or the environment, or the default.
+
+    Secrets first, because that is where a deployed app is configured, and reading
+    only the environment would leave the app silently falling back to the committed
+    history with no sign of why.
+    """
+    try:
+        if name in st.secrets:
+            return str(st.secrets[name]).strip()
+    except Exception:              # no secrets file at all, which is the local case
+        pass
+    return (os.getenv(name) or default).strip()
+
+
+API_PORT = int(setting("ER_API_PORT", "8000"))
 API_BASE = f"http://127.0.0.1:{API_PORT}"
 # Where the daily refresh publishes its database. Set ER_DB_REPO to "owner/repo" and
 # the app resolves the tag each time it starts, which it has to: uploading an asset
 # gives it a new id, so a URL captured once points at yesterday's file by tomorrow.
 # ER_DB_URL is the escape hatch for a plain public URL.
-DB_REPO = os.getenv("ER_DB_REPO", "")
-DB_TAG = os.getenv("ER_DB_TAG", "data-latest")
-DB_URL = os.getenv("ER_DB_URL", "")
+DB_REPO = setting("ER_DB_REPO")
+DB_TAG = setting("ER_DB_TAG", "data-latest")
+DB_URL = setting("ER_DB_URL")
 STARTUP_TIMEOUT_S = 45
 
 
@@ -73,7 +88,7 @@ def _resolve_release_asset(repo: str, tag: str, token: str) -> str:
 def _download_database(url: str, target: pathlib.Path) -> str:
     """Fetch a gzipped database published by the refresh, or say why it could not."""
     request = urllib.request.Request(url, headers={"User-Agent": "NovatalisTerminal/0.1"})
-    token = os.getenv("ER_DB_TOKEN", "").strip()
+    token = setting("ER_DB_TOKEN")
     if token:                      # a private repo's release asset needs one
         request.add_header("Authorization", f"Bearer {token}")
         request.add_header("Accept", "application/octet-stream")
@@ -99,7 +114,7 @@ def prepare_database() -> str:
 
     if DB_REPO or DB_URL:
         try:
-            token = os.getenv("ER_DB_TOKEN", "").strip()
+            token = setting("ER_DB_TOKEN")
             url = (_resolve_release_asset(DB_REPO, DB_TAG, token) if DB_REPO
                    else DB_URL)
             db.init(str(target))
