@@ -20,6 +20,7 @@ from dataclasses import asdict
 import env  # noqa: F401  loads the .env before any module reads it
 
 import asset_merge
+import brand_split
 import biologic_loe
 import catalysts
 import db
@@ -156,6 +157,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # A compound the registry names by ingredient can be the product openFDA lists by
     # brand. Folding the two together keeps an approved drug out of the pipeline.
     mapped["merged"] = asset_merge.merge(db_path)["merged"]
+    # One molecule sold as two products: the registry names the ingredient, so the
+    # label decides which brand a study belongs to.
+    mapped["brand_split"] = brand_split.split(db_path)["moved"]
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
     readouts = catalysts.derive_readouts(db_path)
@@ -239,6 +243,9 @@ def run_refresh_all(db_path=None) -> dict:
     # A compound the registry names by ingredient can be the product openFDA lists by
     # brand. Folding the two together keeps an approved drug out of the pipeline.
     mapped["merged"] = asset_merge.merge(db_path)["merged"]
+    # One molecule sold as two products: the registry names the ingredient, so the
+    # label decides which brand a study belongs to.
+    mapped["brand_split"] = brand_split.split(db_path)["moved"]
     readouts = catalysts.derive_readouts(db_path)
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
     # the acceptance. Without an Anthropic key this reports that it did nothing.
