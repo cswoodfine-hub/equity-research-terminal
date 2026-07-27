@@ -1809,12 +1809,6 @@ with main:
             area_pick = st.pills(
                 "Therapeutic area", order, selection_mode="multi",
                 key=f"area_pills_{ticker}", label_visibility="collapsed") or []
-            if chosen:
-                st.markdown(
-                    '<div class="byline">'
-                    + "  ·  ".join(f"{html_escape(str(a))} {counts.get(a, 0)}"
-                                   for a in chosen)
-                    + "</div>", unsafe_allow_html=True)
 
             # Phase narrows the compound list the same way area does, so both pill rows
             # act on one thing. Phase 4 and Follow-up join the pills only when the company
@@ -1829,11 +1823,6 @@ with main:
             phase_pick = st.pills(
                 "Phase", phase_options, selection_mode="multi",
                 key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
-            if phase_pick:
-                st.markdown(
-                    '<div class="byline">'
-                    + "  ·  ".join(f"{p} {bucket_counts.get(p, 0)}" for p in phase_pick)
-                    + "</div>", unsafe_allow_html=True)
 
 
         # --- Programmes: the compounds behind the studies -------------------
@@ -1844,38 +1833,29 @@ with main:
                              f"/companies/{ticker}/programmes").get("programmes") or []
         phase_order = ["Phase 3", "Phase 2/3", "Phase 2", "Phase 1/2", "Phase 1",
                        "Phase 4", "unphased"]
-        all_counts = " · ".join(
-            f'{n} {ph}' for ph, n in
-            ((ph, sum(1 for p in programmes if (p.get("phase") or "unphased") == ph))
-             for ph in phase_order) if n)
-        section("Programmes in development",
-                f"{len(programmes)} compounds" + (f" · {all_counts}" if all_counts else ""))
 
-        # The area pills above drive this list too, so the spotlight on the chart and the
-        # compounds underneath are one selection rather than two controls saying
-        # different things. A compound counts under every area it is studied in, not just
-        # the one most of its trials sit in, so spotlighting an area shows everything
-        # being developed for it.
+        # The pills above drive this list, so the spotlight on the chart and the compounds
+        # underneath are one selection rather than two controls saying different things.
+        # Area matches every area a compound is studied in, not just the one most of its
+        # trials sit in; phase matches the furthest it has reached, which is the heading
+        # it sits under. What the filter left shows in the section count, so clicking a
+        # pill adds no line of its own.
         total_programmes = len(programmes)
         if area_pick:
             programmes = [p for p in programmes
                           if set(p.get("areas") or []) & set(area_pick)]
-        # Phase narrows on the furthest phase a compound has reached, which is the phase
-        # it is grouped under below, so the pill and the heading agree.
         if phase_pick:
             programmes = [p for p in programmes if p.get("phase") in phase_pick]
-        if area_pick or phase_pick:
-            where = " ".join(
-                part for part in (
-                    f'with a study in {html_escape(", ".join(area_pick))}'
-                    if area_pick else "",
-                    f'that have reached {html_escape(", ".join(phase_pick))}'
-                    if phase_pick else "")
-                if part)
-            st.markdown(
-                f'<div class="byline">Showing {len(programmes)} of {total_programmes} '
-                f'compounds {where}, the selection spotlit above. A compound studied '
-                'across areas appears under each of them.</div>', unsafe_allow_html=True)
+
+        shown_counts = " · ".join(
+            f'{n} {ph}' for ph, n in
+            ((ph, sum(1 for p in programmes if (p.get("phase") or "unphased") == ph))
+             for ph in phase_order) if n)
+        count = (f"{len(programmes)} of {total_programmes} compounds"
+                 if len(programmes) != total_programmes
+                 else f"{total_programmes} compounds")
+        section("Programmes in development",
+                count + (f" · {shown_counts}" if shown_counts else ""))
 
         # Grouped by the furthest phase each compound has reached, most advanced first,
         # and every phase is shown: early work is most of a pipeline by count, and a
