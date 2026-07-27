@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import traceback
 import os
 import sys
 from pathlib import Path
@@ -37,10 +38,19 @@ LOCK_FILE = LOG_DIR / "refresh.lock"
 
 
 def _log(message: str) -> None:
+    """Append to the log file and say the same thing on stdout.
+
+    The file is for a cron job on a machine someone can log into. A CI runner has no
+    such machine: its log file is thrown away with the container, so a failure written
+    only there leaves the step reporting an exit code and nothing else, which is how
+    two runs failed with no visible reason.
+    """
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    line = f"{stamp} UTC  {message}"
     with LOG_FILE.open("a", encoding="utf-8") as handle:
-        handle.write(f"{stamp} UTC  {message}\n")
+        handle.write(line + "\n")
+    print(line, flush=True)
 
 
 def _acquire_lock() -> bool:
@@ -83,6 +93,7 @@ def run(refresh_fn=None, db_path=None) -> int:
         return 0 if status in ("complete", "partial") else 1
     except Exception as exc:                       # a hard failure to run at all
         _log(f"failed: {type(exc).__name__}: {exc}")
+        traceback.print_exc()
         return 2
     finally:
         LOCK_FILE.unlink(missing_ok=True)
