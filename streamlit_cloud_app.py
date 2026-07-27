@@ -124,19 +124,23 @@ def prepare_database() -> str:
     import seed
 
     target = pathlib.Path(db.DB_PATH)
-    if target.exists() and target.stat().st_size > 1_000_000:
-        return "using the database already on disk"
 
     # A database committed to the repository. Streamlit clones the repo into the
     # container, so this needs no token, no release and no network: the file is
-    # already on disk beside the code. It is a deliberate 18 MB of binary in git, so
-    # it is replaced when the deployed app should show newer data, not every day.
+    # already on disk beside the code.
+    #
+    # It is preferred over whatever the container happens to be holding, because a
+    # redeploy can reuse a filesystem: keeping the older copy meant shipping new data
+    # and seeing yesterday's, with nothing on screen to say why.
     shipped = ROOT / "data" / "er_tool.db.gz"
-    if shipped.exists():
+    if shipped.exists() and (not target.exists()
+                             or shipped.stat().st_mtime > target.stat().st_mtime):
         db.init(str(target))
         target.write_bytes(gzip.decompress(shipped.read_bytes()))
-        stamp = _shipped_stamp(target)
-        return f"the database shipped with the app{stamp}"
+        return f"the database shipped with the app{_shipped_stamp(target)}"
+
+    if target.exists() and target.stat().st_size > 1_000_000:
+        return f"the database already in this container{_shipped_stamp(target)}"
 
     if DB_REPO or DB_URL:
         try:
