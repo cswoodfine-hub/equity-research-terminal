@@ -51,6 +51,8 @@ class BaseFetcher(ABC):
     source: str = ""
     ttl_seconds: int = 0
 
+    force = False          # set by a run that must fetch whatever the TTL says
+
     def __init__(self, db_path=None):
         self.db_path = db_path
         self.refresh_run_id: int | None = None
@@ -95,6 +97,13 @@ class BaseFetcher(ABC):
         return row[0] if row and row[0] else None
 
     def _within_ttl(self) -> bool:
+        # A run told to fetch, fetches. The TTL exists so an analyst clicking refresh
+        # twice does not re-download the Orange Book; it is not a reason for the daily
+        # job to skip a source, and on a rebuilt database it is actively wrong: the
+        # snapshots restored from history say a fetch happened that this machine never
+        # made, and the data that fetch produced is not in the export.
+        if getattr(self, "force", False):
+            return False
         if self.ttl_seconds <= 0:
             return False
         last = self._last_live_fetch_at()

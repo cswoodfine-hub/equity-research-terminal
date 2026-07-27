@@ -188,8 +188,13 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     return _finish_run(db_path, run_id, status, detail)
 
 
-def run_refresh_all(db_path=None) -> dict:
-    """Refresh the whole universe: prices for all, financials for SEC filers."""
+def run_refresh_all(db_path=None, force: bool = False) -> dict:
+    """Refresh the whole universe: prices for all, financials for SEC filers.
+
+    ``force`` ignores every TTL. The daily job sets it, because a scheduled run that
+    skips is a run that did nothing, and on a database rebuilt from exported history
+    every source looks freshly fetched while its data is absent.
+    """
     db.init(db_path)
     run_id = _start_run(db_path)
 
@@ -224,12 +229,14 @@ def run_refresh_all(db_path=None) -> dict:
     # Universe downloads (Orange/Purple Book) run once for the whole universe.
     for fetcher in _universe_fetchers(db_path):
         fetcher.refresh_run_id = run_id
+        fetcher.force = force
         record(fetcher.run(), fetcher.entity_key)
 
     # Companies run in parallel; each company's own fetchers stay sequential.
     def run_company(company):
         for fetcher in _company_fetchers(company, db_path):
             fetcher.refresh_run_id = run_id
+            fetcher.force = force
             record(fetcher.run(), company["ticker"])
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:

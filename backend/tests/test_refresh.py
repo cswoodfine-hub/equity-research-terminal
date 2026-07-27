@@ -122,3 +122,43 @@ def test_refresh_all_runs_companies_in_parallel_without_losing_results(tmp_path,
         ).fetchone()[0] == 124 * n_companies
     finally:
         conn.close()
+
+
+def test_a_forced_run_ignores_the_ttl(tmp_path):
+    """A rebuilt database carries snapshots saying every source was fetched today,
+    while the data those fetches produced is not in the export. A scheduled run that
+    honoured that would publish a database with almost nothing in it, which is what
+    happened: five runs finished 'complete' in forty seconds each."""
+    from fetchers.base import BaseFetcher
+
+    class Probe(BaseFetcher):
+        source = "probe"
+        ttl_seconds = 86_400
+
+        @property
+        def entity_key(self):
+            return "universe"
+
+        def fetch(self):
+            return []
+
+        def normalise(self, raw):
+            return []
+
+        def snapshot(self, rows):
+            pass
+
+        def upsert(self, rows):
+            pass
+
+        def _snapshot_cache(self):
+            pass
+
+        def _last_live_fetch_at(self):        # as if history had just been restored
+            import datetime as dt
+            return dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+    probe = Probe(str(tmp_path / "t.db"))
+    assert probe._within_ttl() is True         # an ordinary run would skip
+    probe.force = True
+    assert probe._within_ttl() is False        # a scheduled run fetches

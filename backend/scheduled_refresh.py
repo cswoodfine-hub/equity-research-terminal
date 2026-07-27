@@ -64,7 +64,10 @@ def _acquire_lock() -> bool:
 
 def run(refresh_fn=None, db_path=None) -> int:
     """Run one scheduled refresh. ``refresh_fn`` is injectable for tests."""
-    refresh_fn = refresh_fn or refresh.run_refresh_all
+    # A scheduled run fetches. Left to the TTLs it would skip everything a rebuilt
+    # database claims to have already, which is how a runner published a database with
+    # prices and nothing else.
+    refresh_fn = refresh_fn or (lambda path: refresh.run_refresh_all(path, force=True))
     if not _acquire_lock():
         _log("skipped: another refresh is already running")
         return 0
