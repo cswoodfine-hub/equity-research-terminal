@@ -17,6 +17,8 @@ import datetime as dt
 import re
 
 import db
+import deals as deals_module
+import therapeutic_areas
 
 _METRIC_LABEL = {
     "Revenues": "Revenue",
@@ -212,6 +214,53 @@ def _readout_lines(conn, cid: int, today: dt.date,
             f"({r['event_date']})." for r in rows]
 
 
+def _pipeline_areas(conn, cid: int) -> dict:
+    """How many unapproved compounds the company runs in each therapeutic area.
+
+    Areas are classified from trial conditions rather than stored, so this reads the
+    same way the pipeline tab does and cannot drift from it. Counted in compounds, not
+    studies, so one molecule in ten trials is one programme.
+    """
+    counts: dict = {}
+    seen: set = set()
+    for row in conn.execute(
+            """
+            SELECT a.id AS asset_id, t.conditions FROM assets a
+              JOIN trials t ON t.asset_id = a.id
+             WHERE a.owner_company_id = ? AND a.is_marketed = 0
+            """, (cid,)):
+        area = therapeutic_areas.classify(row["conditions"])
+        key = (area, row["asset_id"])
+        if key in seen:
+            continue
+        seen.add(key)
+        counts[area] = counts.get(area, 0) + 1
+    return counts
+
+
+def _deal_area_lines(conn, cid: int, deals_read: list) -> list:
+    """Each deal set against the pipeline it joins: a company buying into an area it
+    already runs is doing something different from one entering a new one, and that is
+    the fact a reader wants from a deal.
+
+    Only deals whose words name a disease appear. A deal described by its modality says
+    nothing about area, and is left out rather than filed under a guess.
+    """
+    if not deals_read:
+        return []
+    areas = _pipeline_areas(conn, cid)
+    lines = []
+    for deal in deals_read:
+        area = deals_module.deal_area(deal)
+        if not area:
+            continue
+        count = areas.get(area, 0)
+        where = (f"where it already runs {count} compound{'s' if count != 1 else ''}"
+                 if count else "where it runs none, so the deal is an entry")
+        lines.append(f"{_short_party(deal['counterparty'])} is {area}, {where}.")
+    return lines
+
+
 def _deal_lines(conn, cid: int, today: dt.date,
                 within_days: int = 400, limit: int = 4) -> list[str]:
     """Recent M&A, licensing and collaboration deals read from the deals table.
@@ -227,7 +276,8 @@ def _deal_lines(conn, cid: int, today: dt.date,
     cutoff = (today - dt.timedelta(days=within_days)).isoformat()
     rows = conn.execute(
         """
-        SELECT deal_type, counterparty, announced_value, area, event_date FROM deals
+        SELECT deal_type, counterparty, announced_value, area, quote, event_date
+          FROM deals
          WHERE company_id = ? AND deal_type IN
                ('acquisition', 'licensing', 'collaboration', 'divestiture')
                AND counterparty IS NOT NULL AND event_date IS NOT NULL
@@ -240,7 +290,8 @@ def _deal_lines(conn, cid: int, today: dt.date,
         if deal is None:                               # first row is the earliest date
             merged[key] = {"deal_type": r["deal_type"], "counterparty": r["counterparty"],
                            "announced_value": r["announced_value"],
-                           "area": r["area"], "event_date": r["event_date"]}
+                           "area": r["area"], "quote": r["quote"],
+                           "event_date": r["event_date"]}
             continue
         # fill a figure from any later filing
         deal["announced_value"] = deal["announced_value"] or r["announced_value"]
@@ -257,7 +308,7 @@ def _deal_lines(conn, cid: int, today: dt.date,
         if d["area"]:
             parts.append(f"({d['area']})")
         lines.append(" ".join(parts) + f", {(d['event_date'] or '')[:10]}.")
-    return lines
+    return lines, kept[:limit]
 
 
 def company_context(db_path=None, ticker: str = "", today=None) -> str:
@@ -281,9 +332,15 @@ def company_context(db_path=None, ticker: str = "", today=None) -> str:
         reads = _readout_lines(conn, cid, today)
         if reads:
             blocks.append("Trial readouts: " + " ".join(reads))
-        deals = _deal_lines(conn, cid, today)
+        deals, deal_rows = _deal_lines(conn, cid, today)
         if deals:
             blocks.append("Recent deals: " + " ".join(deals))
+        # What each deal does to the pipeline, which is the question a deal raises:
+        # buying into an area the company already runs is a different move from
+        # entering a new one.
+        areas = _deal_area_lines(conn, cid, deal_rows)
+        if areas:
+            blocks.append("Deal areas against the pipeline: " + " ".join(areas))
     finally:
         conn.close()
     return "\n".join(blocks)

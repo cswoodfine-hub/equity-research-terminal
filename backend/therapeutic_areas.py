@@ -43,6 +43,7 @@ AREAS: tuple = (
         "alzheimer", "parkinson", "multiple sclerosis", "epilep", "seizure",
         "migraine", "depress", "schizophren", "bipolar", "anxiety", "dementia",
         "huntington", "amyotrophic", "neuropath", "narcolep", "insomnia",
+        "sleep-wake", "sleep disorder", "hypersomnia", "circadian",
         "myotonic", "muscular dystrophy", "spinal muscular", "pain",
     )),
     ("Cardiovascular", (

@@ -169,3 +169,34 @@ def test_deals_absent_when_nothing_stored(tmp_path):
     conn.commit()
     conn.close()
     assert "Recent deals" not in notecontext.company_context(db_file, "MRK")
+
+
+def test_deal_areas_read_against_the_pipeline(tmp_path):
+    import notecontext
+    path = str(tmp_path / "areas.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name) VALUES ('LLY', 'Eli Lilly')")
+    cid = conn.execute("SELECT id FROM companies").fetchone()["id"]
+    # One unapproved compound in neuroscience, none in haematology.
+    conn.execute("INSERT INTO assets (owner_company_id, generic_name, is_marketed)"
+                 " VALUES (?, 'LY000001', 0)", (cid,))
+    aid = conn.execute("SELECT id FROM assets").fetchone()["id"]
+    conn.execute("INSERT INTO trials (nct_id, asset_id, title, phase, conditions)"
+                 " VALUES ('NCT01', ?, 'A study', 'Phase 2',"
+                 " '[\"Alzheimer Disease\"]')", (aid,))
+    conn.commit()
+
+    lines = notecontext._deal_area_lines(conn, cid, [
+        {"counterparty": "AtaiBeckley", "area": "treatment-resistant depression",
+         "quote": "Lilly to acquire AtaiBeckley"},
+        {"counterparty": "Ajax Therapeutics", "area": "myelofibrosis", "quote": ""},
+        # A modality is not a disease, so this one is left out rather than guessed.
+        {"counterparty": "Kelonia", "area": "in vivo CAR-T cell therapies",
+         "quote": "Eli Lilly Enters Agreement to Acquire Kelonia"},
+    ])
+    conn.close()
+    assert lines == [
+        "AtaiBeckley is Neuroscience, where it already runs 1 compound.",
+        "Ajax Therapeutics is Haematology, where it runs none, so the deal is an entry.",
+    ]

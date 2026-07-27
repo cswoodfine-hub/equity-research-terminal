@@ -28,6 +28,7 @@ import time
 import urllib.request
 
 import db
+import therapeutic_areas
 import llm
 import pdufa                     # reuse strip_html, parse_reply and the fatal-error test
 
@@ -336,6 +337,24 @@ def short_value(value: str | None) -> str | None:
 _MAGNITUDE = {"billion": 1e9, "bn": 1e9, "b": 1e9,
               "million": 1e6, "mn": 1e6, "m": 1e6}
 _AMOUNT = re.compile(r"\$\s?([\d,]+(?:\.\d+)?)\s*(billion|bn|b|million|mn|m)\b", re.I)
+
+
+def deal_area(deal: dict) -> str | None:
+    """The therapeutic area a deal lands in, or None when its words name no disease.
+
+    Read through the same classifier the trials use, so a deal and the pipeline it joins
+    are described in one vocabulary rather than two. Both the stated area and the
+    announcing sentence are given to it, since a headline often names the disease where
+    the area names only the modality.
+
+    A modality is not a disease: "in vivo CAR-T cell therapies" says how, not what, and
+    comes back None rather than being guessed into oncology.
+    """
+    text = " ".join(str(deal.get(f) or "") for f in ("area", "quote")).strip()
+    if not text:
+        return None
+    area = therapeutic_areas.classify([text])
+    return None if area == therapeutic_areas.OTHER else area
 
 
 def announced_usd(text: str | None) -> float | None:

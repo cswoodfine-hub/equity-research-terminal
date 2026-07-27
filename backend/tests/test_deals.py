@@ -214,3 +214,15 @@ def test_announced_usd_reads_the_number_and_refuses_a_share_price():
     assert deals.announced_usd("$41 per share") is None
     assert deals.announced_usd("undisclosed") is None
     assert deals.announced_usd(None) is None
+
+
+def test_deal_area_uses_the_pipeline_taxonomy():
+    assert deals.deal_area({"area": "treatments for sleep-wake disorders"}) == "Neuroscience"
+    assert deals.deal_area(
+        {"area": "outcomes for patients with myelofibrosis"}) == "Haematology"
+    # The headline names the disease where the area names only the modality.
+    assert deals.deal_area({"area": "cell therapies",
+                            "quote": "Lilly buys into lung cancer"}) == "Oncology"
+    # A modality is not a disease and is never guessed into an area.
+    assert deals.deal_area({"area": "in vivo CAR-T cell therapies", "quote": ""}) is None
+    assert deals.deal_area({}) is None

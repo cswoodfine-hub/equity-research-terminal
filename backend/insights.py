@@ -79,6 +79,12 @@ name the counterparty and, where given, the value and the asset or therapeutic a
 say what it adds, a new modality or a franchise it extends, using only what the snapshot \
 supports. Do not read a rationale into a deal beyond its words.
 
+Where the snapshot gives deal areas against the pipeline, use them: a deal in an area the \
+company already runs extends what it has, and a deal in an area it runs none in is an \
+entry into that area, which is worth saying with the compound count behind it. Only the \
+areas the snapshot names may be used; a deal with no area given has none, so say nothing \
+about where it fits.
+
 Do not report bare counts of risk factors added or removed between filings. A number of \
 changed paragraphs is filing churn, not a signal, and means nothing to a reader. Mention \
 a filing's risk factors only when the feed says what specifically changed.
