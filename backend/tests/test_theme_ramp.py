@@ -71,3 +71,26 @@ def test_the_old_fixed_tints_would_fail_the_floor():
                 for tint in theme.DARK.phase_tints)
     assert worst < WCAG_GRAPHIC                # 1.15:1, the invisible Phase 1
     assert len(theme.DARK.phase_tints) < PHASES  # five tints against six phases
+
+
+def test_categorical_gives_every_area_a_visible_colour():
+    """Categories carry meaning, so each has to clear the graphic contrast floor."""
+    colours = theme.categorical(12)
+    assert len(colours) == 12
+    for colour in colours:
+        assert theme.contrast(colour, theme.P.ground) >= theme.GRAPHIC_CONTRAST
+
+
+def test_categorical_colours_are_distinct():
+    """A palette that repeats a colour puts two areas in one slice of the eye."""
+    colours = theme.categorical(12)
+    assert len(set(colours)) == 12
+
+
+def test_categorical_is_stable_for_a_given_count():
+    # Areas keep their colour across companies only if the palette is deterministic.
+    assert theme.categorical(12) == theme.categorical(12)
+
+
+def test_categorical_handles_a_single_category():
+    assert theme.categorical(1) == [theme.P.data]

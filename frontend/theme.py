@@ -879,6 +879,32 @@ def ordinal_ramp(steps: int, palette: "Palette" = None) -> list:
             for index in range(steps)]
 
 
+def categorical(count: int, palette: "Palette" = None) -> list:
+    """``count`` colours of equal weight, for categories that have no order.
+
+    An ordinal ramp says one value is more than another, which is right for phases and
+    wrong for therapeutic areas: oncology is not more than neuroscience. So lightness
+    and chroma are held at the data colour's and only the hue turns, which gives every
+    category the same presence and lets the eye read the slice sizes instead of the
+    shading. Chroma is pulled in a little from the data colour, since a full-chroma
+    rotation puts a red next to the loss colour and a green next to the gain one.
+    """
+    palette = palette or P
+    lightness, chroma, hue = _oklch(palette.data)
+    chroma *= 0.82
+    if count < 2:
+        return [palette.data]
+    step = 2 * math.pi / count
+    out = []
+    for index in range(count):
+        # Alternate the lightness a touch either side of the data colour, so two
+        # neighbouring hues stay apart for a viewer who cannot separate them by hue.
+        shift = 0.055 * (1 if index % 2 else -1)
+        out.append(_from_oklch(min(max(lightness + shift, 0.25), 0.92), chroma,
+                               hue + step * index))
+    return out
+
+
 MINUS = "−"  # true minus, digit-width under tabular figures
 
 

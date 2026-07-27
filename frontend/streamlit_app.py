@@ -345,6 +345,25 @@ def _pct_from_start(closes) -> list:
     return [((c / base - 1) * 100) if c is not None else None for c in closes]
 
 
+# The therapeutic areas in the order the backend declares them, so each keeps one
+# colour whatever company is open and whichever areas that company happens to have. An
+# area not listed here still gets a colour, taken from the end of the palette.
+AREA_ORDER = ("Oncology", "Immunology and inflammation", "Metabolic", "Neuroscience",
+              "Cardiovascular", "Infectious disease", "Respiratory", "Haematology",
+              "Urology", "Renal and hepatic", "Ophthalmology", "Healthy volunteers")
+
+
+def area_colours(areas) -> dict:
+    """{area: colour} for the areas given, keyed on the fixed order above."""
+    palette = T.categorical(len(AREA_ORDER))
+    known = {name: palette[i] for i, name in enumerate(AREA_ORDER)}
+    spare = [c for c in reversed(palette)]
+    out = {}
+    for area in areas:
+        out[area] = known.get(area) or spare[len(out) % len(spare)]
+    return out
+
+
 _DEAL_BADGE = {"acquisition": "Acquisition", "licensing": "Licence",
                "collaboration": "Collaboration", "divestiture": "Divestiture"}
 
@@ -2172,7 +2191,6 @@ with main:
                     by_area[area] = by_area.get(area, 0) + (row.get("value") or 0)
                 area_order = sorted(by_area, key=lambda a: (a == "area not stated",
                                                             -by_area[a]))
-                area_ramp = list(reversed(T.ordinal_ramp(max(len(area_order), 2))))
                 # A donut half the width cannot carry "Immunology and inflammation" as
                 # a leader label, so the long areas go by their head word here. The
                 # product grid below keeps the full names.
@@ -2180,12 +2198,18 @@ with main:
                          "Renal and hepatic": "Renal and hepatic",
                          "Infectious disease": "Infectious",
                          "Healthy volunteers": "Healthy volunteers"}
+                # Categories, not magnitudes: a lightness ramp would say oncology is
+                # more than neuroscience. Hue carries the area, each area keeps its own
+                # colour across companies, and the two donuts stop looking like one
+                # chart drawn twice.
+                area_colour = area_colours(
+                    [a for a in area_order if a != "area not stated"])
                 area_slices = [
                     {"label": short.get(area, area), "value": by_area[area],
                      "colour": (TK.RULE_STRONG if area == "area not stated"
-                                else area_ramp[i % len(area_ramp)]),
+                                else area_colour[area]),
                      "muted": area == "area not stated"}
-                    for i, area in enumerate(area_order)]
+                    for area in area_order]
                 if rest:
                     area_slices.append({"label": "not attributed by product",
                                         "value": rest, "colour": TK.PANEL,
