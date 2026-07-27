@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 
 import db
+import fx
 
 
 def _pct_change(latest, prior):
@@ -70,7 +71,38 @@ def _price_currency(conn, ticker):
     return json.loads(snap["payload"]).get("currency") if snap else None
 
 
-def _company_comps(conn, company) -> dict:
+def _adr_ratio(conn, ticker):
+    """Ordinary shares per ADS for a company listed here through a depositary, or None."""
+    row = conn.execute(
+        "SELECT ordinary_per_adr FROM adr_ratios WHERE ticker = ?", (ticker,)).fetchone()
+    return row["ordinary_per_adr"] if row and row["ordinary_per_adr"] else None
+
+
+def _market_cap(price, price_currency, shares, currency, adr_ratio):
+    """Market cap in the reporting currency, or None when it cannot be had honestly.
+
+    Two routes. A company quoted in the currency it reports in multiplies directly. A
+    foreign issuer quoted here through a depositary is quoted in dollars per ADS while
+    its share count is ordinary shares, so the ADS price is first divided by the shares
+    each ADS represents; that lands in dollars without needing a rate, because the
+    depositary quote already is dollars.
+
+    Without a ratio the depositary route returns nothing. The direct route used to be
+    reached by any company whose reporting currency happened to be dollars, which let
+    AstraZeneca multiply an ADS price by an ordinary share count and report half the
+    company with nothing to show it was wrong.
+    """
+    if price is None or shares is None:
+        return None
+    if adr_ratio:
+        return price * shares / adr_ratio if price_currency == "USD" else None
+    if currency is not None and price_currency == currency:
+        return price * shares
+    return None
+
+
+def _company_comps(conn, company, rates=None) -> dict:
+    rates = rates or {}
     cid, ticker = company["id"], company["ticker"]
 
     revenues = _fy_values(conn, cid, "Revenues", limit=2)
@@ -96,20 +128,31 @@ def _company_comps(conn, company) -> dict:
     price_as_of = price_row["as_of"] if price_row else None
     price_currency = _price_currency(conn, ticker)
 
-    # Valuation needs shares, a price, and price currency matching the financials.
-    valuation_ok = (
-        shares is not None
-        and price is not None
-        and currency is not None
-        and price_currency == currency
-    )
-    market_cap = price * shares if valuation_ok else None
-    pe = _ratio(market_cap, net_income) if (market_cap and net_income and net_income > 0) else None
+    # A depositary listing is priced per ADS, so it needs the ratio rather than a
+    # currency match; everyone else multiplies directly. Either way an input that is
+    # missing yields no market cap, so a wrong one cannot be shown.
+    adr_ratio = _adr_ratio(conn, ticker)
+    market_cap = _market_cap(price, price_currency, shares, currency, adr_ratio)
+
+    # A depositary quote is in dollars, so the market cap above is too while the filed
+    # earnings are not. Every ratio built on it therefore converts its denominator to
+    # dollars first; a currency with no rate leaves the ratio empty rather than dividing
+    # dollars by kroner, which is how a price/earnings of six would have appeared.
+    def _usd(value):
+        if value is None or currency is None:
+            return None
+        return value if currency == "USD" else fx.to_usd(value, currency, rates)
+
+    net_income_usd = _usd(net_income)
+    revenue_usd = _usd(revenue)
+    pe = (_ratio(market_cap, net_income_usd)
+          if (market_cap and net_income_usd and net_income_usd > 0) else None)
 
     enterprise_value = None
-    if market_cap is not None and total_debt is not None and cash is not None:
-        enterprise_value = market_cap + total_debt - cash
-    ev_sales = _ratio(enterprise_value, revenue)
+    debt_usd, cash_usd = _usd(total_debt), _usd(cash)
+    if market_cap is not None and debt_usd is not None and cash_usd is not None:
+        enterprise_value = market_cap + debt_usd - cash_usd
+    ev_sales = _ratio(enterprise_value, revenue_usd)
 
     return {
         "ticker": ticker,
@@ -135,7 +178,8 @@ def build_comps(db_path=None) -> list[dict]:
         companies = conn.execute(
             "SELECT id, ticker, name, reporting_currency, is_sec_filer FROM companies ORDER BY ticker"
         ).fetchall()
-        return [_company_comps(conn, c) for c in companies]
+        rates = fx.latest_usd_rates(db_path)
+        return [_company_comps(conn, c, rates) for c in companies]
     finally:
         conn.close()
 

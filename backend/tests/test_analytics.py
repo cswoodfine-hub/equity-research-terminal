@@ -459,3 +459,38 @@ def test_screen_converts_revenue_to_one_currency(tmp_path):
     # No rate on file converts to nothing rather than being counted at par.
     assert rows["ROG"]["revenue"] is None
     assert rows["ROG"]["reported_revenue"] == 60_000_000_000
+
+
+def test_market_cap_uses_the_adr_ratio_not_a_currency_match():
+    """An ADS price times an ordinary share count is wrong by the ratio between them."""
+    import comps
+    # AstraZeneca: 1 ADS is half an ordinary share, and it reports in dollars, so the
+    # old currency check passed and the figure came out at half the company.
+    assert comps._market_cap(100.0, "USD", 1_000_000, "USD", 0.5) == 200_000_000
+    # Novartis: ratio one, so the answer matches the naive product; it was only ever
+    # right by that coincidence.
+    assert comps._market_cap(100.0, "USD", 1_000_000, "USD", 1.0) == 100_000_000
+    # GSK: files in sterling, quoted in dollars per ADS. No rate is needed, because the
+    # depositary quote is already dollars.
+    assert comps._market_cap(50.0, "USD", 4_000_000, "GBP", 2.0) == 100_000_000
+    # A depositary listing with no ratio on file yields nothing rather than a guess.
+    assert comps._market_cap(100.0, "USD", 1_000_000, "GBP", None) is None
+    # A plain US filer still multiplies directly.
+    assert comps._market_cap(100.0, "USD", 1_000_000, "USD", None) == 100_000_000
+    # Any missing input yields nothing.
+    assert comps._market_cap(None, "USD", 1_000_000, "USD", 1.0) is None
+    assert comps._market_cap(100.0, "USD", None, "USD", 1.0) is None
+
+
+def test_adr_ratios_are_seeded_for_every_foreign_issuer(tmp_path):
+    """A foreign issuer without a ratio would silently lose its market cap."""
+    import db, seed
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    missing = [r["ticker"] for r in conn.execute(
+        """SELECT ticker FROM companies WHERE is_foreign_private_issuer = 1
+             AND ticker NOT IN (SELECT ticker FROM adr_ratios)""")]
+    conn.close()
+    assert missing == [], f"foreign issuers with no ADR ratio: {missing}"
