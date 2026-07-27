@@ -105,19 +105,36 @@ def parse_drugsfda(payload: dict, ticker: str) -> list[dict]:
             continue
         products = result.get("products") or [{}]
         brand = products[0].get("brand_name")
+        generic = _generic(result, products[0])
         rows.append(
             {
                 "ticker": ticker,
                 "internal_code": internal_code,
                 "application_number": appl,
                 "brand": brand.title() if brand else None,
-                "generic": None,
+                "generic": generic,
                 "modality": _modality(appl),
                 "approval_date": approval_date,
                 "marketing_status": products[0].get("marketing_status"),
             }
         )
     return rows
+
+
+def _generic(result: dict, product: dict) -> str | None:
+    """The active ingredient behind a brand, from the product entry or the openFDA
+    block, or None when the payload states neither.
+
+    Without it a marketed product is only its brand, and the registry names drugs by
+    ingredient: Jaypirca and pirtobrutinib were two rows for one drug, which put an
+    approved product in the pipeline as an unapproved compound. Title case, since the
+    payload shouts and the rest of the app does not.
+    """
+    ingredients = product.get("active_ingredients") or []
+    if ingredients and ingredients[0].get("name"):
+        return str(ingredients[0]["name"]).title()
+    openfda = (result.get("openfda") or {}).get("generic_name") or []
+    return str(openfda[0]).title() if openfda else None
 
 
 def parse_supplements(payload: dict, ticker: str) -> list[dict]:
