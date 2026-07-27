@@ -249,6 +249,14 @@ def _store(conn, filing: dict, results: list[dict]) -> None:
              filing["url"]))
         return
     for r in results:
+        # A headline recorded this deal first, from the news source, which reads the
+        # parties off a press release. The filing is the company's own account of the
+        # same deal, so it replaces the headline rather than sitting beside it.
+        if r["counterparty"]:
+            conn.execute(
+                "DELETE FROM deals WHERE accession IS NULL AND company_id = ?"
+                "  AND LOWER(COALESCE(counterparty, '')) = LOWER(?)",
+                (filing["company_id"], r["counterparty"]))
         # The announcement date read from the release when it is on or before the filing
         # date, otherwise the filing date. The market saw the deal on the earlier of the
         # two, and a date later than the filing is not the announcement.

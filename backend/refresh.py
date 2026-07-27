@@ -29,6 +29,7 @@ import trial_mapping
 import trial_readouts
 from fetchers.adcomm_fedreg import AdCommFetcher
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
+from fetchers.deals_news import DealsNewsFetcher
 from fetchers.demand_cms import DemandCmsFetcher
 from fetchers.filing_text_edgar import FilingTextEdgarFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
@@ -160,6 +161,11 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     bio_loe = biologic_loe.derive(db_path)
     trial_reads = trial_readouts.extract(db_path)
     deal_reads = deals.extract(db_path)
+    # Headlines run after the filings, so a deal the company has already described in
+    # its own words is never restated from a news summary.
+    news_deals = DealsNewsFetcher(db_path, ticker)
+    news_deals.refresh_run_id = run_id
+    results.append(news_deals.run())
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(r.errors for r in results) else "complete"
     detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
@@ -233,6 +239,10 @@ def run_refresh_all(db_path=None) -> dict:
     bio_loe = biologic_loe.derive(db_path)
     trial_reads = trial_readouts.extract(db_path)
     deal_reads = deals.extract(db_path)
+    # Headlines last, for the licensing deals the filings name only in aggregate.
+    news_deals = DealsNewsFetcher(db_path)
+    news_deals.refresh_run_id = run_id
+    record(news_deals.run(), news_deals.entity_key)
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
     detail = {"scope": "all", "companies": len(companies),
