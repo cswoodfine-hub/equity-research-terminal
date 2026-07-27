@@ -1,0 +1,199 @@
+{
+ "studies": [
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT05767021",
+     "briefTitle": "A Study of Mirikizumab (LY3074828) in Participants With Moderately to Severely Active Ulcerative Colitis"
+    },
+    "statusModule": {
+     "completionDateStruct": {
+      "date": "2026-04-27",
+      "type": "ACTUAL"
+     }
+    },
+    "conditionsModule": {
+     "conditions": [
+      "Ulcerative Colitis",
+      "Ulcerative Colitis Chronic"
+     ]
+    },
+    "designModule": {
+     "phases": [
+      "PHASE3"
+     ],
+     "enrollmentInfo": {
+      "count": 172,
+      "type": "ACTUAL"
+     }
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "Mirikizumab",
+       "description": "Administered IV",
+       "armGroupLabels": [
+        "300 mg Mirikizumab"
+       ],
+       "otherNames": [
+        "LY3074828"
+       ]
+      },
+      {
+       "type": "DRUG",
+       "name": "Mirikizumab",
+       "description": "Administered Subcutaneously (SC)",
+       "armGroupLabels": [
+        "300 mg Mirikizumab"
+       ],
+       "otherNames": [
+        "LY3074828"
+       ]
+      }
+     ]
+    },
+    "outcomesModule": {
+     "primaryOutcomes": [
+      {
+       "measure": "Change From Baseline in Bowel Urgency Severity Urgency Numeric Rating Scale (UNRS)",
+       "description": "The UNRS is a single participant reported item that measures the severity for the urgency (sudden or immediate need) to have a bowel movement in the past 24 hours using an 11-point NRS ranging from 0 (no urgency) to 10 (worst possible urgency). Higher scores indicate more severe urgency.\n\nBaseline Observation Carried Forward (BOCF) endpoint was defined as the baseline value for participants discontinued during acute phase and defined as the last non-missing observation in the treatment phase for all other randomized participants.",
+       "timeFrame": "Baseline, Week 12"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT04145349",
+     "briefTitle": "CAMPFIRE: A Study of Ramucirumab (LY3009806) in Children and Young Adults With Desmoplastic Small Round Cell Tumor"
+    },
+    "statusModule": {
+     "completionDateStruct": {
+      "date": "2026-01-23",
+      "type": "ACTUAL"
+     }
+    },
+    "conditionsModule": {
+     "conditions": [
+      "Desmoplastic Small Round Cell Tumor"
+     ]
+    },
+    "designModule": {
+     "phases": [
+      "PHASE1",
+      "PHASE2"
+     ],
+     "enrollmentInfo": {
+      "count": 30,
+      "type": "ACTUAL"
+     }
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "Ramucirumab",
+       "description": "Administered IV",
+       "armGroupLabels": [
+        "Ramucirumab + Cyclophosphamide + Vinorelbine"
+       ],
+       "otherNames": [
+        "LY3009806"
+       ]
+      },
+      {
+       "type": "DRUG",
+       "name": "Cyclophosphamide",
+       "description": "Administered orally",
+       "armGroupLabels": [
+        "Cyclophosphamide + Vinorelbine",
+        "Ramucirumab + Cyclophosphamide + Vinorelbine"
+       ]
+      },
+      {
+       "type": "DRUG",
+       "name": "Vinorelbine",
+       "description": "Administered IV",
+       "armGroupLabels": [
+        "Cyclophosphamide + Vinorelbine",
+        "Ramucirumab + Cyclophosphamide + Vinorelbine"
+       ]
+      }
+     ]
+    },
+    "outcomesModule": {
+     "primaryOutcomes": [
+      {
+       "measure": "Progression Free Survival (PFS)",
+       "description": "PFS was defined as the time from randomization to the date of investigator-determined objective progression as defined by Response Evaluation Criteria in Solid Tumors (RECIST) version 1.1, or death from any cause in the absence of disease progression. Progressive disease (PD) was defined as at least a 20% increase in the sum of the diameters of target lesions, with reference being the smallest sum on study and an absolute increase of at least 5 mm, or unequivocal progression of non-target lesions, or 1 or more new lesions.Participants known to be alive and without disease progression were censored at the date of their last adequate tumor assessment per RECIST 1.1 criteria, or date of randomization (whichever is later). The posterior median and 98% credible interval were estimated using Bayesian analysis. Data are presented as the posterior median with 98% credible interval.",
+       "timeFrame": "Randomization to Objective Progression or Death Due to Any Cause (Up To 23 Months)"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT04849416",
+     "briefTitle": "A Study of LOXO-305 in Chinese Participants With Blood Cancer (Including Lymphoma and Chronic Leukemia)"
+    },
+    "statusModule": {
+     "completionDateStruct": {
+      "date": "2025-12-29",
+      "type": "ACTUAL"
+     }
+    },
+    "conditionsModule": {
+     "conditions": [
+      "Leukemia, Lymphoid",
+      "Lymphoma, Non-Hodgkin",
+      "Lymphoma, Mantle-Cell",
+      "Lymphoma, Large B-Cell, Diffuse",
+      "Lymphoma, B-Cell",
+      "Lymphoma, B-Cell, Marginal Zone",
+      "Leukemia, Lymphocytic, Chronic, B-Cell"
+     ]
+    },
+    "designModule": {
+     "phases": [
+      "PHASE2"
+     ],
+     "enrollmentInfo": {
+      "count": 87,
+      "type": "ACTUAL"
+     }
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "LOXO-305",
+       "description": "Administered orally.",
+       "armGroupLabels": [
+        "LOXO-305"
+       ],
+       "otherNames": [
+        "LY3527727",
+        "Pirtobrutinib"
+       ]
+      }
+     ]
+    },
+    "outcomesModule": {
+     "primaryOutcomes": [
+      {
+       "measure": "Primary Analysis Set (PAS): Overall Response Rate (ORR) Assessed by Independent Review Committee",
+       "description": "ORR was assessed by an Independent Review Committee (IRC). It was estimated based on the percentage of participants with best overall response (BOR) of complete response (CR) or partial response (PR). Two-sided 95% CI was calculated using the exact binomial distribution. PAS consisted of participants with Central histologically confirmed non-blastoid MCL, with no CNS metastases and treated with prior chemoimmunotherapy and BTK inhibitor-containing regimen, measurable disease at baseline as assessed using Lugano criteria, and have received at least 1 dose of study drug.",
+       "timeFrame": "Date of First Dose to Date of Disease Progression or Subsequent Anti-cancer Therapy (up to 100 Weeks)"
+      }
+     ]
+    }
+   }
+  }
+ ],
+ "nextPageToken": "ZVdj7o2Elu8o3lp2DsOzvarumpOQJJxuYvej1fIcmD6SuP08FCfCFPjS9tRK2SI"
+}

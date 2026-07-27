@@ -313,6 +313,13 @@ h3 {{ font-size: 0.9rem; }}
 .deal .dp {{ font-weight: 600; }}
 .deal .dv {{ font-family: var(--font-mono); font-weight: 600; }}
 .deal .da {{ color: var(--muted); }}
+/* The label's own sentence on what the drug is, set as prose above the figures. */
+.prof-summary {{ font-size: 12.5px; line-height: 1.5; color: var(--text);
+                max-width: 78ch; margin: 0.1rem 0 0.55rem; }}
+/* The endpoint a completed study measured, quieter than its title. */
+.prof-line .ep {{ display: block; font-size: 10.5px; color: var(--muted);
+                 margin-left: 92px; }}
+
 .deal .dnv {{ color: var(--muted); font-style: italic; }}
 .deal .dd {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted);
             white-space: nowrap; align-self: center; }}

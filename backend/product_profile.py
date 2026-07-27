@@ -14,6 +14,8 @@ than a zero or a guess.
 
 from __future__ import annotations
 
+import re
+
 import db
 import fx
 import loe as loe_module
@@ -56,6 +58,31 @@ def save_notes(db_path, asset_id: int, fields: dict) -> bool:
         return True
     finally:
         conn.close()
+
+
+_LABEL_HEADER = re.compile(r"^\s*\d*\s*INDICATIONS AND USAGE\s*", re.I)
+_LABEL_SENTENCE = re.compile(r"(?<=[a-z])\.\s+")
+
+
+def summarise(indications: str | None) -> str | None:
+    """What the product is and what it treats, in the label's own words.
+
+    The first sentence of the indications section carries both: "VERZENIO is a kinase
+    inhibitor indicated in combination with endocrine therapy for the adjuvant treatment
+    of adult patients with HR-positive, HER2-negative breast cancer". Nothing is
+    written here and nothing is summarised away, so a product with no label on file has
+    no summary rather than a generic one.
+    """
+    if not indications:
+        return None
+    body = _LABEL_HEADER.sub("", indications).strip()
+    first = _LABEL_SENTENCE.split(body)[0].strip(" .;:")
+    if len(first) < 12:
+        return None
+    # A label that lists its indications runs the first sentence into a bulleted list;
+    # the lead-in is the useful part and the list belongs to the indications field.
+    first = re.split(r"\s*(?:•|\u2022)\s*", first)[0].strip(" .;:,")
+    return (first + ".") if first else None
 
 
 def _loe(conn, asset_id: int) -> dict:
@@ -163,6 +190,19 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
              ORDER BY (primary_completion_date IS NULL),
                       primary_completion_date LIMIT 8
             """, (asset_id,))]
+        # What the drug has already shown. The pipeline table holds active studies
+        # only, so a marketed product's own evidence lives in its own table; newest
+        # readout first, since that is the one an analyst is being asked about.
+        completed = [dict(r) for r in conn.execute(
+            """
+            SELECT nct_id, title, phase, completion_date, enrollment, primary_outcome,
+                   conditions
+              FROM completed_trials WHERE asset_id = ?
+             ORDER BY (completion_date IS NULL), completion_date DESC LIMIT 10
+            """, (asset_id,))]
+        completed_count = conn.execute(
+            "SELECT COUNT(*) FROM completed_trials WHERE asset_id = ?",
+            (asset_id,)).fetchone()[0]
         trial_count = conn.execute(
             "SELECT COUNT(*) FROM trials WHERE asset_id = ?", (asset_id,)).fetchone()[0]
         by_phase = {r["phase"]: r["n"] for r in conn.execute(
@@ -188,6 +228,11 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
             "catalysts": catalysts,
             "trials": trials,
             "trial_count": trial_count,
+            "completed_trials": completed,
+            "completed_count": completed_count,
+            # One sentence on what the drug is and what it treats, taken from the
+            # label's own first indication rather than written here.
+            "summary": summarise(label["indications_text"] if label else None),
             "trials_by_phase": by_phase,
             "is_marketed": bool(asset["is_marketed"]),
             "notes": get_notes(conn, asset_id),

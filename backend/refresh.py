@@ -45,6 +45,7 @@ from fetchers.paragraph_iv_fda import ParagraphIvFetcher
 from fetchers.prices import (FiveMinuteBarsFetcher, HourlyBarsFetcher,
                              IntradayPricesFetcher, PricesFetcher)
 from fetchers.product_revenue_sec import ProductRevenueFetcher
+from fetchers.trials_completed import TrialsCompletedFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 
 DEFAULT_TICKER = "LLY"
@@ -64,6 +65,7 @@ def _company_fetchers(company, db_path):
         FiveMinuteBarsFetcher(company["ticker"], db_path),
         HourlyBarsFetcher(company["ticker"], db_path),
         TrialsFetcher(company["ticker"], db_path),
+        TrialsCompletedFetcher(company["ticker"], db_path),
         ApprovalsOpenFdaFetcher(company["ticker"], db_path),
         LabelsDailyMedFetcher(company["ticker"], db_path),
     ]

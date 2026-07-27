@@ -111,8 +111,14 @@ def _groups(conn) -> list:
     return [(r["generic"], [int(i) for i in r["ids"].split(",")]) for r in rows]
 
 
+# Both tables hold studies bound to an asset, and both need the same routing: a
+# completed tirzepatide study belongs to the brand its condition matches exactly as a
+# running one does.
+_TABLES = ("trials", "completed_trials")
+
+
 def split(db_path=None) -> dict:
-    """Re-route every trial sitting on a shared-molecule brand to the right one."""
+    """Re-route every study sitting on a shared-molecule brand to the right one."""
     conn = db.get_connection(db_path)
     moved = undecided = groups = to_base = 0
     try:
@@ -139,25 +145,27 @@ def split(db_path=None) -> dict:
             if len(labels) < 2 and base is None:
                 continue
             groups += 1
-            trials = conn.execute(
-                f"SELECT nct_id, asset_id, conditions FROM trials"
-                f"  WHERE asset_id IN ({placeholders})", asset_ids).fetchall()
-            for trial in trials:
-                if trial["nct_id"] in curated:
-                    continue      # the analyst's answer outranks this one
-                target = (decide(labels, _conditions(trial["conditions"]))
-                          if len(labels) >= 2 else None)
-                if target is None and base is not None:
-                    # The labels cannot separate a formulation from its parent product,
-                    # so the trial belongs to the product.
-                    target = base
-                    to_base += 1
-                if target is None:
-                    undecided += 1
-                elif target != trial["asset_id"]:
-                    conn.execute("UPDATE trials SET asset_id = ? WHERE nct_id = ?",
-                                 (target, trial["nct_id"]))
-                    moved += 1
+            for table in _TABLES:
+                studies = conn.execute(
+                    f"SELECT nct_id, asset_id, conditions FROM {table}"
+                    f"  WHERE asset_id IN ({placeholders})", asset_ids).fetchall()
+                for trial in studies:
+                    if trial["nct_id"] in curated:
+                        continue      # the analyst's answer outranks this one
+                    target = (decide(labels, _conditions(trial["conditions"]))
+                              if len(labels) >= 2 else None)
+                    if target is None and base is not None:
+                        # The labels cannot separate a formulation from its parent
+                        # product, so the study belongs to the product.
+                        target = base
+                        to_base += 1
+                    if target is None:
+                        undecided += 1
+                    elif target != trial["asset_id"]:
+                        conn.execute(
+                            f"UPDATE {table} SET asset_id = ? WHERE nct_id = ?",
+                            (target, trial["nct_id"]))
+                        moved += 1
         conn.commit()
     finally:
         conn.close()

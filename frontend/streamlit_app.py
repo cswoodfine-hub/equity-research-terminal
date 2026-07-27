@@ -257,6 +257,11 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         f'{(prof.get("first_approval") or "—")[:10]}</span>'
         f'<span class="sub">{html_escape((prof.get("generic") or "").lower())}</span></div>'
         '</div>')
+    if prof.get("summary"):
+        # The label's own first sentence, which says what the drug is and what it
+        # treats. Not written here, so a product with no label carries no summary.
+        st.markdown(f'<div class="prof-summary">{html_escape(prof["summary"])}</div>',
+                    unsafe_allow_html=True)
     st.markdown(stats, unsafe_allow_html=True)
 
     html = ['<div class="prof">']
@@ -318,6 +323,26 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
                 f'<span class="d">{html_escape(due)}</span>'
                 f'<span class="ph">{html_escape(tr.get("phase") or "")}</span> {link}'
                 f'</div>')
+    if prof.get("completed_trials"):
+        html.append(
+            f'<div class="prof-sub">completed with results &middot; '
+            f'{prof.get("completed_count")}</div>')
+        for tr in prof["completed_trials"]:
+            title = (tr.get("title") or "").strip()
+            title = title if len(title) <= 74 else title[:73].rstrip() + "…"
+            done = (tr.get("completion_date") or "")[:10] or "no date"
+            outcome = (tr.get("primary_outcome") or "").strip()
+            outcome = outcome if len(outcome) <= 64 else outcome[:63].rstrip() + "…"
+            link = (f'<a href="https://clinicaltrials.gov/study/'
+                    f'{html_escape(tr["nct_id"])}?tab=results" target="_blank"'
+                    f' rel="noopener">{html_escape(title)}</a>')
+            html.append(
+                f'<div class="prof-line" title="{html_escape(tr.get("title") or "")} '
+                f'({html_escape(tr.get("nct_id") or "")})">'
+                f'<span class="d">{html_escape(done)}</span>'
+                f'<span class="ph">{html_escape(tr.get("phase") or "")}</span> {link}'
+                + (f'<span class="ep">{html_escape(outcome)}</span>' if outcome else "")
+                + '</div>')
     if prof.get("catalysts"):
         html.append('<div class="prof-sub">upcoming catalysts</div>')
         for c in prof["catalysts"]:
