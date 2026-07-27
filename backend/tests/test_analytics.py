@@ -425,3 +425,37 @@ def test_annotation_scopes_to_one_entity(tmp_path):
     scoped = annotations.list_annotations(db_file, entity_type="change",
                                           entity_id="17")
     assert len(scoped) == 1 and scoped[0]["body"] == "slip looks structural"
+
+
+def test_screen_converts_revenue_to_one_currency(tmp_path):
+    """A comps column that ranks companies cannot hold kroner beside dollars."""
+    import db, seed, screen
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    for ticker, value, unit in (("NVO", 300_000_000_000, "DKK"),
+                                ("LLY", 60_000_000_000, "USD"),
+                                ("ROG", 60_000_000_000, "CHF")):
+        cid = conn.execute("SELECT id FROM companies WHERE ticker=?", (ticker,)).fetchone()[0]
+        conn.execute("INSERT INTO financials (company_id, period_end, period_type,"
+                     " metric, value, unit, fiscal_year, source)"
+                     " VALUES (?, '2025-12-31', 'FY', 'Revenues', ?, ?, 2025, 'test')",
+                     (cid, value, unit))
+    # A rate for DKK but deliberately none for CHF.
+    for base, rate in (("DKK", 0.15), ("USD", 1.0)):
+        conn.execute("INSERT INTO fx_rates (base, quote, rate, as_of, source)"
+                     " VALUES (?, 'USD', ?, '2026-07-24', 'ecb')", (base, rate))
+    conn.commit()
+    conn.close()
+
+    rows = {r["ticker"]: r for r in screen.build_screen(db_file)}
+    assert rows["NVO"]["revenue"] == 300_000_000_000 * 0.15   # converted
+    assert rows["NVO"]["reported_revenue"] == 300_000_000_000  # as filed, kept
+    assert rows["NVO"]["currency"] == "DKK"
+    assert rows["NVO"]["fx_as_of"] == "2026-07-24"
+    assert rows["LLY"]["revenue"] == 60_000_000_000            # already dollars
+    assert rows["LLY"]["fx_as_of"] is None
+    # No rate on file converts to nothing rather than being counted at par.
+    assert rows["ROG"]["revenue"] is None
+    assert rows["ROG"]["reported_revenue"] == 60_000_000_000

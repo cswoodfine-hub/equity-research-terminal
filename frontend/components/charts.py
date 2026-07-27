@@ -404,7 +404,7 @@ def heatmap_grid(row_labels: Sequence[str], col_labels: Sequence[str],
     ch = (height - pad_t - 6) / max(len(row_labels), 1)
     out = [_svg_open(width, height, "catalyst grid")]
     for j, col in enumerate(col_labels):
-        out.append(_text(pad_l + cw * j + cw / 2, pad_t - 10, col, 9, TK.MUTED,
+        out.append(_text(pad_l + cw * j + cw / 2, pad_t - 10, col, 9, TK.TEXT,
                          "middle", MONO))
     for i, row in enumerate(row_labels):
         cy = pad_t + ch * i
@@ -425,9 +425,11 @@ def heatmap_grid(row_labels: Sequence[str], col_labels: Sequence[str],
                        f' width="{cw - 2:.1f}" height="{ch - 2:.1f}" fill="{fill}"'
                        f'><title>{_esc(row)} {_esc(col)}: {cell["count"]}</title>'
                        "</rect>")
-            ink = TK.GROUND if weight > 0.55 else TK.TEXT
+            # One ink for every figure in the grid. The count used to flip to the
+            # ground colour on the darkest fills, which read as two kinds of number
+            # rather than one scale; the density is already carried by the fill.
             out.append(_text(cx + cw / 2, cy + ch / 2 + 3.5, cell["count"], 9.5,
-                             ink, "middle", MONO, "600"))
+                             TK.TEXT, "middle", MONO, "600"))
             if cell.get("flagged"):
                 out.append(f'<path d="M{cx + cw - 9:.1f},{cy + 1:.1f}'
                            f' h8 v8 z" fill="{TK.FLAG}">'

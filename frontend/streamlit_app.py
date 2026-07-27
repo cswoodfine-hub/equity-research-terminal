@@ -1557,12 +1557,14 @@ with main:
             "Ticker": row["Ticker"],
             "90d": spark_rows.get(row["Ticker"]) or None,
             "Cur": row["Cur"],
-            "Revenue, bn": row["Revenue"],
+            # The converted figure, not the filed one: a column that ranks companies
+            # cannot hold kroner beside dollars. Cur still names what was filed.
+            "Revenue, $bn": _sc(row["Ticker"], "revenue", 1e-9),
             "Growth, %": row["Growth"],
             "Margin, %": row["Net margin"],
             "R&D, %": row["R&D"],
             "Late trials": _sc(row["Ticker"], "late_trials"),
-            "Rev/late trial, bn": _sc(row["Ticker"], "revenue_per_late_trial", 1e-9),
+            "Rev/late trial, $bn": _sc(row["Ticker"], "revenue_per_late_trial", 1e-9),
             "LOE 5y, %": _sc(row["Ticker"], "loe_share_5y", 100),
             "Unpriced 5y": _sc(row["Ticker"], "loe_unpriced_5y"),
             "Cat 12m": _sc(row["Ticker"], "catalysts_12m"),
@@ -1583,10 +1585,13 @@ with main:
                      column_config={"90d": st.column_config.LineChartColumn(
                          "90d", width="small")})
         st.markdown(
-            '<div class="byline">Derived columns: late trials are lead-sponsored '
-            'Phase 3 and Phase 2/3; revenue per late trial divides the reported year '
-            'by that count; LOE 5y is the share of tagged product revenue whose US '
-            'protection expires inside five years, with the unpriced product count '
+            '<div class="byline">Revenue is converted to dollars at the ECB daily '
+            'reference rate so the column ranks, and Cur names the currency the company '
+            'actually files in; a currency with no rate on file shows a dash rather than '
+            'being counted at par. Derived columns: late trials are lead-sponsored '
+            'Phase 3 and Phase 2/3; revenue per late trial divides that converted '
+            'revenue by the count; LOE 5y is the share of tagged product revenue whose '
+            'US protection expires inside five years, with the unpriced product count '
             'beside it. A dash is a missing input, never zero.</div>',
             unsafe_allow_html=True)
 

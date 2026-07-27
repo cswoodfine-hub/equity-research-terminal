@@ -14,6 +14,7 @@ import datetime as dt
 import asset_revenue
 import comps
 import db
+import fx
 import pipeline
 
 _LATE_PHASES = ("Phase 3", "Phase 2/3")
@@ -77,15 +78,28 @@ def build_screen(db_path=None) -> list[dict]:
     finally:
         conn.close()
 
+    # A comps table compares companies, so its absolutes have to be in one currency.
+    # Novo files 309bn DKK and Sanofi 43.6bn EUR; ranked in a column beside dollars they
+    # were nonsense. Ratios are currency-internal and are left as filed. A currency with
+    # no stored rate converts to None rather than being counted at par, and the reporting
+    # currency travels with the row so a converted figure is never taken for a filed one.
+    rates = fx.latest_usd_rates(db_path)
+
     out = []
     for ticker, row in base.items():
         at_risk = asset_revenue.build_revenue_at_risk(db_path, ticker)
         late = late_counts.get(ticker, 0)
-        revenue = row.get("revenue")
+        reported = row.get("revenue")
+        currency = row["currency"]
+        revenue = (reported if currency == "USD"
+                   else fx.to_usd(reported, currency, rates))
         out.append({
             "ticker": ticker,
             "name": row["name"],
-            "currency": row["currency"],
+            "currency": currency,
+            "reported_revenue": reported,
+            "fx_as_of": (rates.get("as_of")
+                         if currency and currency != "USD" else None),
             "revenue": revenue,
             "revenue_growth": row["revenue_growth"],
             "net_margin": row["net_margin"],
