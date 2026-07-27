@@ -688,11 +688,35 @@ last_run = st.session_state.get("last_run") or {}
 run_sources = {s["source"]: s for s in last_run.get("detail", {}).get("sources", [])}
 
 if last_run and last_run.get("status") == "partial":
-    failed = [s["source"] for s in run_sources.values() if s["errors"]]
-    state(f"Run {last_run['id']} finished partial",
-          f"{', '.join(failed) or 'one or more sources'} did not return. The rest of the "
-          "data on this page is from that run and is good. Retry from the tab that owns "
-          "the failing source.", error=True)
+    # What actually failed, in the source's own words. A summary had to guess at both
+    # the cause and the consequence, and guessed wrong: it named a source that had
+    # written every one of its rows, and told the analyst to retry something that was
+    # not a fault. The error text is the only thing that says what to do next, so it is
+    # what gets shown. Rows fetched sits beside it, since a source can report a problem
+    # and still return most of its data.
+    failed = [s for s in run_sources.values() if s.get("errors")]
+    lines = []
+    for s in failed:
+        for err in s["errors"][:4]:
+            lines.append(f'<div class="runerr"><span class="s">'
+                         f'{html_escape(s["source"])}</span>'
+                         f'<span class="e">{html_escape(str(err))}</span></div>')
+        extra = len(s["errors"]) - 4
+        if extra > 0:
+            lines.append(f'<div class="runerr"><span class="s"></span>'
+                         f'<span class="e">and {extra} more from '
+                         f'{html_escape(s["source"])}</span></div>')
+    detail = "".join(lines) or (
+        '<div class="runerr"><span class="e">No source reported an error, so the run '
+        'was marked partial by something outside the fetchers.</span></div>')
+    kept = ", ".join(f'{s["source"]} kept {s.get("rows_fetched", 0)}'
+                     for s in failed if s.get("rows_fetched"))
+    st.markdown(
+        f'<div class="state err"><div class="t">Run {last_run["id"]} finished partial'
+        f'</div><div class="d">{detail}'
+        + (f'<div class="runkept">{html_escape(kept)} rows despite the above.</div>'
+           if kept else "")
+        + '</div></div>', unsafe_allow_html=True)
 
 def _spine_label(headline: str) -> str:
     """A spine row is a glance, not a sentence: the ticker prefix and the date
@@ -1710,18 +1734,49 @@ with main:
         # its studies through the intervention names the registry publishes.
         programmes = api_get(api_base,
                              f"/companies/{ticker}/programmes").get("programmes") or []
+        # Filter by disease area, the same axis the trial table below is browsed on. A
+        # compound counts under every area it is studied in, not just its main one, so
+        # picking an area shows everything being developed for it rather than only the
+        # programmes whose centre of gravity happens to sit there.
+        area_counts: dict = {}
+        for p in programmes:
+            for a in (p.get("areas") or []):
+                area_counts[a] = area_counts.get(a, 0) + 1
+        phase_order = ["Phase 3", "Phase 2/3", "Phase 2", "Phase 1/2", "Phase 1",
+                       "Phase 4", "unphased"]
+        all_counts = " · ".join(
+            f'{n} {ph}' for ph, n in
+            ((ph, sum(1 for p in programmes if (p.get("phase") or "unphased") == ph))
+             for ph in phase_order) if n)
+        section("Programmes in development",
+                f"{len(programmes)} compounds" + (f" · {all_counts}" if all_counts else ""))
+
+        area_options = ["All areas"] + [
+            f"{a} ({n})" for a, n in sorted(area_counts.items(),
+                                            key=lambda kv: (-kv[1], kv[0]))]
+        if len(area_options) > 1:
+            picked_area = st.selectbox(
+                "Disease area", area_options, key=f"prog_area_{ticker}",
+                label_visibility="collapsed")
+        else:
+            picked_area = "All areas"
+        total_programmes = len(programmes)
+        if picked_area != "All areas":
+            wanted_area = picked_area.rsplit(" (", 1)[0]
+            programmes = [p for p in programmes
+                          if wanted_area in (p.get("areas") or [])]
+            st.markdown(
+                f'<div class="byline">Showing {len(programmes)} of {total_programmes} '
+                f'compounds with a study in {html_escape(wanted_area)}. A compound '
+                'studied across areas appears under each of them.</div>',
+                unsafe_allow_html=True)
+
         # Grouped by the furthest phase each compound has reached, most advanced first,
         # and every phase is shown: early work is most of a pipeline by count, and a
         # Phase 1 programme is the part an analyst is being paid to find early.
         by_phase: dict = {}
         for p in programmes:
             by_phase.setdefault(p.get("phase") or "unphased", []).append(p)
-        phase_order = ["Phase 3", "Phase 2/3", "Phase 2", "Phase 1/2", "Phase 1",
-                       "Phase 4", "unphased"]
-        counts = " · ".join(f'{len(by_phase[ph])} {ph}'
-                            for ph in phase_order if by_phase.get(ph))
-        section("Programmes in development",
-                f"{len(programmes)} compounds" + (f" · {counts}" if counts else ""))
         if not programmes:
             state(f"No unapproved compounds mapped for {ticker}",
                   "Programmes are derived from the drug each trial names. Press Refresh "
@@ -1748,11 +1803,20 @@ with main:
                             f'<span class="ph">{html_escape(s.get("phase") or "")}</span>'
                             f'<a href="https://clinicaltrials.gov/study/{html_escape(s.get("nct_id") or "")}"'
                             f' target="_blank" rel="noopener">{html_escape(title)}</a>'
-                            f'<span class="st">{html_escape(s.get("status") or "")}</span>'
+                            f'<span class="st">{html_escape(s.get("area") or "")}'
+                            f' · {html_escape(s.get("status") or "")}</span>'
                             f'</div>')
+                    # The lead area, with a count when the compound spans more, so a
+                    # programme being developed across indications reads as one.
+                    areas = p.get("areas") or []
+                    area_txt = (f'{areas[0]}' if areas else "")
+                    if len(areas) > 1:
+                        area_txt += f' +{len(areas) - 1}'
                     html.append(
                         f'<details class="prog"><summary>'
                         f'<span class="prog-n">{html_escape(p.get("name") or "")}</span>'
+                        f'<span class="prog-a" title="{html_escape(", ".join(areas))}">'
+                        f'{html_escape(area_txt)}</span>'
                         f'<span class="prog-t">{p.get("trials", 0)} trials</span>'
                         f'<span class="prog-d">{html_escape(due or "no date")}</span>'
                         f'</summary>{"".join(studies)}</details>')

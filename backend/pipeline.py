@@ -114,7 +114,7 @@ def programmes(db_path, ticker: str) -> list[dict] | None:
             """
             SELECT a.id AS asset_id, a.generic_name AS name, a.modality,
                    t.nct_id, t.title, t.phase, t.overall_status,
-                   t.primary_completion_date AS due, t.enrollment
+                   t.primary_completion_date AS due, t.enrollment, t.conditions
               FROM assets a JOIN trials t ON t.asset_id = a.id
              WHERE a.owner_company_id = ? AND a.is_marketed = 0
              ORDER BY (t.primary_completion_date IS NULL), t.primary_completion_date
@@ -126,16 +126,21 @@ def programmes(db_path, ticker: str) -> list[dict] | None:
             entry = by_asset.setdefault(row["asset_id"], {
                 "asset_id": row["asset_id"], "name": row["name"],
                 "modality": row["modality"], "trials": 0, "next_readout": None,
-                "phases": set(), "studies": []})
+                "phases": set(), "areas": {}, "studies": []})
             entry["trials"] += 1
             entry["phases"].add(row["phase"])
             if row["due"] and row["due"] >= today and (
                     entry["next_readout"] is None or row["due"] < entry["next_readout"]):
                 entry["next_readout"] = row["due"]
+            # The registry spells one disease many ways, so a study is placed by
+            # therapeutic area, the same axis the rest of the pipeline is browsed on.
+            conditions = json.loads(row["conditions"]) if row["conditions"] else []
+            area = therapeutic_areas.classify(conditions)
+            entry["areas"][area] = entry["areas"].get(area, 0) + 1
             entry["studies"].append(
                 {"nct_id": row["nct_id"], "title": row["title"], "phase": row["phase"],
                  "status": row["overall_status"], "due": row["due"],
-                 "enrollment": row["enrollment"]})
+                 "enrollment": row["enrollment"], "area": area})
 
         out = []
         for entry in by_asset.values():
@@ -145,6 +150,12 @@ def programmes(db_path, ticker: str) -> list[dict] | None:
                                  key=PHASES.index, default=None)
             entry["phases"] = sorted(phases, key=lambda p: PHASES.index(p)
                                      if p in PHASES else -1)
+            # A compound can be studied across areas, so it carries all of them and is
+            # led by the one most of its studies sit in. Filtering on any of them keeps
+            # a compound visible in every area it is actually being developed for.
+            counted = entry.pop("areas")
+            entry["areas"] = sorted(counted, key=lambda a: (-counted[a], a))
+            entry["area"] = entry["areas"][0] if entry["areas"] else None
             out.append(entry)
         out.sort(key=lambda i: (PHASES.index(i["phase"]) if i["phase"] in PHASES else -1,
                                 i["trials"]), reverse=True)

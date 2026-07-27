@@ -415,6 +415,13 @@ h3 {{ font-size: 0.9rem; }}
 .reg-item a {{ color: inherit; text-decoration: none; }}
 .reg-item a:hover {{ text-decoration: underline; }}
 
+/* A partial run's own error text, one line per failing source. */
+.runerr {{ display: grid; grid-template-columns: 132px 1fr; gap: 0.6rem;
+          align-items: baseline; font-size: 11px; padding: 2px 0; line-height: 1.35; }}
+.runerr .s {{ font-family: var(--font-mono); color: var(--down); }}
+.runerr .e {{ color: var(--text); }}
+.runkept {{ font-size: 10.5px; color: var(--muted); margin-top: 4px; }}
+
 /* Programmes in development, grouped by phase. Each compound is a disclosure that
    opens onto its own studies, so the link from programme to trial is one click and
    needs no rerun. */
@@ -425,9 +432,11 @@ h3 {{ font-size: 0.9rem; }}
           border-bottom: 1px solid var(--rule-strong); padding-bottom: 2px; }}
 .prog-h span {{ font-family: var(--font-mono); }}
 .prog {{ border-bottom: 1px solid var(--rule); }}
-.prog > summary {{ display: grid; grid-template-columns: 1fr 74px 84px; gap: 0.7rem;
-                  align-items: baseline; font-size: 11.5px; padding: 3px 2px;
-                  cursor: pointer; list-style: none; }}
+.prog > summary {{ display: grid; grid-template-columns: 1fr 170px 74px 84px;
+                  gap: 0.7rem; align-items: baseline; font-size: 11.5px;
+                  padding: 3px 2px; cursor: pointer; list-style: none; }}
+.prog-a {{ font-size: 9.5px; color: var(--muted); white-space: nowrap;
+          overflow: hidden; text-overflow: ellipsis; }}
 .prog > summary::-webkit-details-marker {{ display: none; }}
 .prog > summary:hover {{ background: var(--rule); }}
 .prog[open] > summary {{ color: var(--up); }}
