@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <style>
-  html, body { margin: 0; padding: 0; background: transparent; }
+  /* An iframe inherits none of the host page's CSS, so colour, family and size are set
+     here or the text falls back to black on the dark panel and to the system serif. */
+  html, body {
+    margin: 0; padding: 0; background: transparent;
+    color: var(--text); font-family: var(--font-ui); font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
   #g { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
        gap: 8px; }
   .pf-card {
@@ -19,7 +25,8 @@
   .pf-card.sel { border-color: var(--up); background: var(--panel-hi); }
   .pf-head { display: flex; align-items: baseline; justify-content: space-between;
              gap: 0.5rem; }
-  .pf-brand { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+  .pf-brand { font-size: 13px; font-weight: 600; letter-spacing: -0.01em;
+              color: var(--text); }
   .pf-mod { font-size: 8.5px; letter-spacing: 0.06em; text-transform: uppercase;
             color: var(--muted); white-space: nowrap; }
   .pf-generic { font-size: 10.5px; color: var(--muted); margin: 1px 0 5px;
@@ -27,7 +34,7 @@
   .pf-row { display: flex; justify-content: space-between; align-items: baseline;
             font-size: 11px; padding: 1px 0; }
   .pf-k { color: var(--muted); }
-  .pf-v { font-family: var(--font-mono); }
+  .pf-v { font-family: var(--font-mono); color: var(--text); }
   .pf-v.none { color: var(--muted); }
   .pf-v.near { color: var(--down); font-weight: 600; }
 </style>
@@ -46,6 +53,36 @@ const Streamlit = {
 };
 
 let wired = false;
+let fontsCopied = false;
+
+function copyFontFaces() {
+  // The host bundles its fonts as @font-face rules with base64 data: sources. A font
+  // loaded in the parent document is not available in this one, and the iframe is
+  // same-origin, so the rules are copied across rather than shipping the binaries
+  // twice or sending them through the component args on every rerun. On any failure
+  // the CSS font stack falls back to the system sans, which still reads correctly.
+  if (fontsCopied) return;
+  fontsCopied = true;
+  try {
+    let faces = "";
+    const sheets = window.parent.document.styleSheets;
+    for (let i = 0; i < sheets.length; i++) {
+      let rules;
+      try { rules = sheets[i].cssRules; } catch (e) { continue; }  // opaque sheet
+      if (!rules) continue;
+      for (let j = 0; j < rules.length; j++) {
+        if (rules[j].type === 5 /* CSSRule.FONT_FACE_RULE */) {
+          faces += rules[j].cssText + "\n";
+        }
+      }
+    }
+    if (faces) {
+      const style = document.createElement("style");
+      style.textContent = faces;
+      document.head.appendChild(style);
+    }
+  } catch (e) { /* cross-origin or no access: the fallback stack stands */ }
+}
 
 window.addEventListener("message", function (e) {
   const d = e.data;
@@ -56,6 +93,7 @@ window.addEventListener("message", function (e) {
   // The host page's CSS variables do not cross into the iframe, so the tokens are
   // passed in and set here. One source of truth stays in tokens.py.
   Object.keys(tk).forEach(function (k) { root.style.setProperty("--" + k, tk[k]); });
+  copyFontFaces();
 
   const g = document.getElementById("g");
   const cards = a.cards || [];

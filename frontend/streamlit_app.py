@@ -2071,7 +2071,8 @@ with main:
                         "rule": TK.RULE, "rule-strong": TK.RULE_STRONG,
                         "muted": TK.MUTED, "text": TK.TEXT, "up": TK.UP,
                         "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
-                        "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO},
+                        "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
+                        "font-ui": TK.FONT_UI},
                 selected=sel_aid, key="prod_cards")
             # A click is only acted on once: the nonce changes per click, so a rerun
             # triggered by anything else does not reopen a profile the analyst closed.
