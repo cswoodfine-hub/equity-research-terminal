@@ -27,7 +27,7 @@ def test_validate_returns_a_deal_grounded_in_the_text():
                                  "Pharmaceuticals, Inc."}]}
     out = deals.validate(reply, _DOC)
     assert len(out) == 1 and out[0]["counterparty"] == "Apellis Pharmaceuticals, Inc."
-    assert out[0]["value"] == "$41 per share"
+    assert out[0]["announced_value"] == "$41 per share"
 
 
 def test_validate_lists_every_deal_a_filing_announces():
@@ -58,7 +58,7 @@ def test_validate_drops_a_value_not_in_the_text():
                         "quote": "completion of the acquisition of Apellis "
                                  "Pharmaceuticals, Inc."}]}
     out = deals.validate(reply, _DOC)
-    assert len(out) == 1 and out[0]["value"] is None
+    assert len(out) == 1 and out[0]["announced_value"] is None
 
 
 def test_validate_rejects_an_out_of_scope_type_and_a_non_deal():
@@ -112,9 +112,9 @@ def test_store_writes_a_row_per_deal_and_a_none_marker(tmp_path):
               "url": "http://x/f.htm"}
     deals._store(conn, filing, [
         {"deal_type": "acquisition", "counterparty": "Kelonia Therapeutics",
-         "value": None, "area": "in vivo CAR-T", "quote": "q1"},
+         "announced_value": None, "area": "in vivo CAR-T", "quote": "q1"},
         {"deal_type": "acquisition", "counterparty": "Ajax Therapeutics",
-         "value": None, "area": "myelofibrosis", "quote": "q2"}])
+         "announced_value": None, "area": "myelofibrosis", "quote": "q2"}])
     empty = {"accession": "acc-none", "company_id": cid, "filed_date": "2026-04-30",
              "url": "http://x/g.htm"}
     deals._store(conn, empty, [])
@@ -137,7 +137,7 @@ def test_classify_runs_the_model_and_validates(tmp_path):
                 'Apellis Pharmaceuticals, Inc. (Nasdaq: APLS) for $41 per share"}]}')
 
     out = deals._classify(_DOC, filing, fake_complete)
-    assert len(out) == 1 and out[0]["value"] == "$41 per share"
+    assert len(out) == 1 and out[0]["announced_value"] == "$41 per share"
 
 
 def test_recent_dedupes_to_earliest_merges_value_and_shortens(tmp_path):
@@ -149,14 +149,14 @@ def test_recent_dedupes_to_earliest_merges_value_and_shortens(tmp_path):
     conn = db.get_connection(db_file)
     cid = conn.execute("SELECT id FROM companies WHERE ticker='GILD'").fetchone()[0]
     conn.execute("INSERT INTO deals (accession, company_id, deal_type, counterparty,"
-                 " value, area, event_date) VALUES ('g0', ?, 'acquisition',"
+                 " announced_value, area, event_date) VALUES ('g0', ?, 'acquisition',"
                  " 'Arcellx, Inc.', '$7.8 billion in cash plus a contingent value right"
                  " of up to $2 more per share', 'oncology', '2026-02-23')", (cid,))
     conn.execute("INSERT INTO deals (accession, company_id, deal_type, counterparty,"
-                 " value, area, event_date) VALUES ('g1', ?, 'acquisition', 'Arcellx',"
+                 " announced_value, area, event_date) VALUES ('g1', ?, 'acquisition', 'Arcellx',"
                  " NULL, NULL, '2026-05-07')", (cid,))
     conn.execute("INSERT INTO deals (accession, company_id, deal_type, counterparty,"
-                 " value, area, event_date) VALUES ('c1', ?, 'collaboration',"
+                 " announced_value, area, event_date) VALUES ('c1', ?, 'collaboration',"
                  " 'Sino Biopharmaceutical, (SBP Group), through its subsidiary Chia Tai"
                  " Tianqing Pharmaceutical Group Co., Ltd.', NULL, 'hepatitis B',"
                  " '2026-05-11')", (cid,))
@@ -166,7 +166,7 @@ def test_recent_dedupes_to_earliest_merges_value_and_shortens(tmp_path):
     rows = deals.recent(db_file, "GILD", today=dt.date(2026, 7, 26))
     arcellx = next(r for r in rows if r["counterparty"].startswith("Arcellx"))
     assert arcellx["event_date"] == "2026-02-23"        # earliest, not the later filing
-    assert arcellx["value"] == "$7.8 billion"           # trimmed from the long clause
+    assert arcellx["announced_value"] == "$7.8 billion"           # trimmed from the long clause
     assert arcellx["area"] == "oncology"
     sino = next(r for r in rows if r["deal_type"] == "collaboration")
     assert sino["counterparty"] == "Sino Biopharmaceutical"   # trimmed of the legal chain
@@ -178,7 +178,7 @@ _DATED = ("Big Pharma today announced that on April 20, 2026 it entered a defini
 
 def test_announced_date_kept_only_when_it_appears_in_the_text():
     base = {"deal_type": "acquisition", "counterparty": "Kelonia Therapeutics, Inc.",
-            "value": None, "area": "in vivo therapies",
+            "announced_value": None, "area": "in vivo therapies",
             "quote": "entered a definitive agreement to acquire Kelonia Therapeutics, Inc."}
     grounded = deals.validate({"deals": [{**base, "announced_date": "2026-04-20"}]}, _DATED)
     assert grounded[0]["announced_date"] == "2026-04-20"        # "April 20, 2026" is in the text
@@ -195,11 +195,22 @@ def test_store_dates_a_deal_to_the_announcement_when_grounded(tmp_path):
               "url": "http://x/f.htm"}
     deals._store(conn, filing, [
         {"deal_type": "acquisition", "counterparty": "Kelonia Therapeutics",
-         "value": None, "area": "in vivo", "announced_date": "2026-04-20", "quote": "q"},
+         "announced_value": None, "area": "in vivo", "announced_date": "2026-04-20", "quote": "q"},
         {"deal_type": "acquisition", "counterparty": "Orna Therapeutics",
-         "value": None, "area": "cell", "announced_date": None, "quote": "q"}])
+         "announced_value": None, "area": "cell", "announced_date": None, "quote": "q"}])
     conn.commit()
     dates = dict(conn.execute("SELECT counterparty, event_date FROM deals").fetchall())
     conn.close()
     assert dates["Kelonia Therapeutics"] == "2026-04-20"   # the announcement date
     assert dates["Orna Therapeutics"] == "2026-04-30"      # no date stated, so the filing
+
+
+def test_announced_usd_reads_the_number_and_refuses_a_share_price():
+    assert deals.announced_usd("up to $3.8 billion") == 3.8e9
+    assert deals.announced_usd("$202 million") == 202e6
+    assert deals.announced_usd("$2.25B") == 2.25e9
+    # A price per share is not a deal size, so it stays absent rather than being read
+    # as one: "$41 per share" is not a $41 deal.
+    assert deals.announced_usd("$41 per share") is None
+    assert deals.announced_usd("undisclosed") is None
+    assert deals.announced_usd(None) is None

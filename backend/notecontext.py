@@ -216,7 +216,8 @@ def _deal_lines(conn, cid: int, today: dt.date,
                 within_days: int = 400, limit: int = 4) -> list[str]:
     """Recent M&A, licensing and collaboration deals read from the deals table.
 
-    The deals extractor pulls the counterparty, the value where the filing states one,
+    The deals extractor pulls the counterparty, the announced value where the source
+    states one, and that value is the consideration announced rather than cash paid,
     and the area out of the press release, so a US filer whose 8-K names no party is
     covered as well as a foreign filer's 6-K. A deal can be filed more than once, when it
     is agreed then completed, or recapped in a later earnings release; the rows are
@@ -226,7 +227,7 @@ def _deal_lines(conn, cid: int, today: dt.date,
     cutoff = (today - dt.timedelta(days=within_days)).isoformat()
     rows = conn.execute(
         """
-        SELECT deal_type, counterparty, value, area, event_date FROM deals
+        SELECT deal_type, counterparty, announced_value, area, event_date FROM deals
          WHERE company_id = ? AND deal_type IN
                ('acquisition', 'licensing', 'collaboration', 'divestiture')
                AND counterparty IS NOT NULL AND event_date IS NOT NULL
@@ -238,10 +239,11 @@ def _deal_lines(conn, cid: int, today: dt.date,
         deal = merged.get(key)
         if deal is None:                               # first row is the earliest date
             merged[key] = {"deal_type": r["deal_type"], "counterparty": r["counterparty"],
-                           "value": r["value"], "area": r["area"],
-                           "event_date": r["event_date"]}
+                           "announced_value": r["announced_value"],
+                           "area": r["area"], "event_date": r["event_date"]}
             continue
-        deal["value"] = deal["value"] or r["value"]    # fill a figure from any later filing
+        # fill a figure from any later filing
+        deal["announced_value"] = deal["announced_value"] or r["announced_value"]
         deal["area"] = deal["area"] or r["area"]
     kept = [d for d in merged.values() if (d["event_date"] or "") >= cutoff]
     kept.sort(key=lambda d: d["event_date"] or "", reverse=True)
@@ -249,7 +251,7 @@ def _deal_lines(conn, cid: int, today: dt.date,
     for d in kept[:limit]:
         parts = [f"{_DEAL_VERB.get(d['deal_type'], 'Deal with')} "
                  f"{_short_party(d['counterparty'])}"]
-        value = _short_value(d["value"])
+        value = _short_value(d["announced_value"])
         if value:
             parts.append(f"for {value}")
         if d["area"]:

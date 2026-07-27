@@ -143,7 +143,7 @@ def _clean_name(raw: str) -> str | None:
 
 
 def parse_deal(headline: str, company_names) -> dict | None:
-    """{deal_type, counterparty, value} from a headline, or None when it states no deal.
+    """{deal_type, counterparty, announced_value} from a headline, or None when it states no deal.
 
     The counterparty is the party that is not the company being searched for, which is
     why the company's own names are passed in: "Eli Lilly acquires Ajax Therapeutics"
@@ -167,7 +167,7 @@ def parse_deal(headline: str, company_names) -> dict | None:
         if any(n.lower() in counterparty.lower() for n in company_names):
             return None
         return {"deal_type": deal_type, "counterparty": counterparty,
-                "value": parse_value(text), "quote": text}
+                "announced_value": parse_value(text), "quote": text}
     return None
 
 
@@ -271,8 +271,8 @@ class DealsNewsFetcher(BaseFetcher):
                     seen["quote"] = row["quote"]
                 if len(row["counterparty"]) > len(seen["counterparty"]):
                     seen["counterparty"] = row["counterparty"]
-                if seen["value"] is None:
-                    seen["value"] = row["value"]
+                if seen["announced_value"] is None:
+                    seen["announced_value"] = row["announced_value"]
         return list(merged.values())
 
     def snapshot(self, rows: list[dict]) -> None:
@@ -304,29 +304,45 @@ class DealsNewsFetcher(BaseFetcher):
 
     def upsert(self, rows: list[dict]) -> RefreshResult:
         conn = db.get_connection(self.db_path)
-        written = 0
+        written = filled = 0
         try:
             for row in rows:
                 # A deal already read out of a filing is the better record: it carries
                 # the company's own words. News never overwrites it, and never repeats it.
                 existing = conn.execute(
                     """
-                    SELECT id, accession FROM deals
+                    SELECT id, announced_value FROM deals
                      WHERE company_id = ?
                        AND LOWER(COALESCE(counterparty, '')) = LOWER(?)
                     """, (row["company_id"], row["counterparty"])).fetchone()
                 if existing:
+                    # The filing's row stands, but a filing names the price far less
+                    # reliably than it names the party: four of Lilly's April
+                    # acquisitions were filed with no figure while every headline
+                    # carried one. So a headline fills a blank size and records that it
+                    # did, and never overwrites a figure the filing states.
+                    if row["announced_value"] and existing["announced_value"] is None:
+                        conn.execute(
+                            "UPDATE deals SET announced_value = ?,"
+                            "       announced_value_source = 'news' WHERE id = ?",
+                            (row["announced_value"], existing["id"]))
+                        filled += 1
                     continue
                 conn.execute(
                     """
                     INSERT INTO deals (accession, company_id, deal_type, counterparty,
-                                       value, event_date, quote, source_url, is_curated)
-                    VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0)
+                                       announced_value, announced_value_source,
+                                       event_date, quote, source_url, is_curated)
+                    VALUES (NULL, ?, ?, ?, ?,
+                            CASE WHEN ? IS NULL THEN NULL ELSE 'news' END, ?, ?, ?, 0)
                     """,
                     (row["company_id"], row["deal_type"], row["counterparty"],
-                     row["value"], row["event_date"], row["quote"], row["source_url"]))
+                     row["announced_value"], row["announced_value"],
+                     row["event_date"], row["quote"], row["source_url"]))
                 written += 1
             conn.commit()
         finally:
             conn.close()
-        return RefreshResult(self.source, written, [], False, 0)
+        notes = ([f"{filled} filed deals gained a size from a headline"] if filled
+                 else [])
+        return RefreshResult(self.source, written, [], False, 0, notes=notes)

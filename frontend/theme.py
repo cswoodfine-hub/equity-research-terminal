@@ -308,6 +308,7 @@ h3 {{ font-size: 0.9rem; }}
 .deal .dp {{ font-weight: 600; }}
 .deal .dv {{ font-family: var(--font-mono); font-weight: 600; }}
 .deal .da {{ color: var(--muted); }}
+.deal .dnv {{ color: var(--muted); font-style: italic; }}
 .deal .dd {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted);
             white-space: nowrap; align-self: center; }}
 

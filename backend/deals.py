@@ -205,7 +205,11 @@ def _validate_one(deal: dict, haystack: str, document: str) -> dict | None:
     if value and _normalise(value) not in haystack:   # never keep an unverifiable price
         value = None
     area = (deal.get("area") or "").strip() or None
-    return {"deal_type": deal_type, "counterparty": counterparty, "value": value,
+    # The model is asked for "value" and the table stores "announced_value": one name
+    # for the model's reply, another for a number that is announced consideration and
+    # never cash. The rename happens here, at the seam.
+    return {"deal_type": deal_type, "counterparty": counterparty,
+            "announced_value": value,
             "area": area, "announced_date": _grounded_date(deal.get("announced_date"),
                                                            document), "quote": quote}
 
@@ -266,12 +270,14 @@ def _store(conn, filing: dict, results: list[dict]) -> None:
         conn.execute(
             """
             INSERT INTO deals
-                (accession, company_id, deal_type, counterparty, value, area, event_date,
-                 quote, source_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (accession, company_id, deal_type, counterparty, announced_value,
+                 announced_value_source, area, event_date, quote, source_url)
+            VALUES (?, ?, ?, ?, ?,
+                    CASE WHEN ? IS NULL THEN NULL ELSE 'filing' END, ?, ?, ?, ?)
             """,
             (filing["accession"], filing["company_id"], r["deal_type"], r["counterparty"],
-             r["value"], r["area"], event_date, r["quote"], filing["url"]))
+             r["announced_value"], r["announced_value"], r["area"], event_date,
+             r["quote"], filing["url"]))
 
 
 def extract(db_path=None, limit: int = MAX_PER_RUN, today=None) -> dict:
@@ -327,6 +333,30 @@ def short_value(value: str | None) -> str | None:
     return value if len(value) <= 40 else None
 
 
+_MAGNITUDE = {"billion": 1e9, "bn": 1e9, "b": 1e9,
+              "million": 1e6, "mn": 1e6, "m": 1e6}
+_AMOUNT = re.compile(r"\$\s?([\d,]+(?:\.\d+)?)\s*(billion|bn|b|million|mn|m)\b", re.I)
+
+
+def announced_usd(text: str | None) -> float | None:
+    """The announced consideration as a number, or None when the text states none.
+
+    Derived from the words, never a substitute for them: "up to $3.8 billion" becomes
+    3.8e9 for sorting and totalling, and the "up to" survives in the text beside it. A
+    per-share price is not a deal size, so it is left as None rather than read as one.
+    """
+    if not text or re.search(r"per\s*share|/\s*share", text, re.I):
+        return None
+    match = _AMOUNT.search(text)
+    if not match:
+        return None
+    try:
+        amount = float(match.group(1).replace(",", ""))
+    except ValueError:
+        return None
+    return amount * _MAGNITUDE[match.group(2).lower()]
+
+
 def short_party(counterparty: str | None) -> str:
     """The name trimmed of a trailing corporate structure, so "X, (Y Group), through its
     subsidiary Z" reads as the name it is known by. Only a long value is trimmed."""
@@ -341,13 +371,15 @@ def recent_rows(conn, cid: int, today=None, within_days: int = 400,
                 limit: int = 6) -> list[dict]:
     """The company's recent deals, one per counterparty. A deal filed more than once
     (agreed, completed, recapped in earnings) is de-duplicated on the party, keeping the
-    earliest date, when the market first saw it, and the value from whichever filing
-    states it."""
+    earliest date, when the market first saw it, and the announced value from whichever
+    filing states it. That value is the consideration an announcement stated, milestones
+    and all, and is never the cash the cash flow statement reports."""
     today = today or dt.date.today()
     cutoff = (today - dt.timedelta(days=within_days)).isoformat()
     rows = conn.execute(
         """
-        SELECT deal_type, counterparty, value, area, event_date FROM deals
+        SELECT deal_type, counterparty, announced_value, announced_value_source,
+               area, event_date FROM deals
          WHERE company_id = ? AND deal_type IN
                ('acquisition', 'licensing', 'collaboration', 'divestiture')
                AND counterparty IS NOT NULL AND event_date IS NOT NULL
@@ -360,14 +392,18 @@ def recent_rows(conn, cid: int, today=None, within_days: int = 400,
         if deal is None:
             merged[key] = {"deal_type": r["deal_type"],
                            "counterparty": short_party(r["counterparty"]),
-                           "value": r["value"], "area": r["area"],
-                           "event_date": r["event_date"]}
+                           "announced_value": r["announced_value"],
+                           "announced_value_source": r["announced_value_source"],
+                           "area": r["area"], "event_date": r["event_date"]}
         else:
-            deal["value"] = deal["value"] or r["value"]
+            if not deal["announced_value"] and r["announced_value"]:
+                deal["announced_value"] = r["announced_value"]
+                deal["announced_value_source"] = r["announced_value_source"]
             deal["area"] = deal["area"] or r["area"]
     kept = [d for d in merged.values() if (d["event_date"] or "") >= cutoff]
     for deal in kept:
-        deal["value"] = short_value(deal["value"])
+        deal["announced_value"] = short_value(deal["announced_value"])
+        deal["announced_usd"] = announced_usd(deal["announced_value"])
     kept.sort(key=lambda d: d["event_date"] or "", reverse=True)
     return kept[:limit]
 
@@ -375,8 +411,8 @@ def recent_rows(conn, cid: int, today=None, within_days: int = 400,
 def deal_line(deal: dict) -> str:
     """One deal as a sentence for the note."""
     parts = [f"{_DEAL_VERB.get(deal['deal_type'], 'Deal with')} {deal['counterparty']}"]
-    if deal.get("value"):
-        parts.append(f"for {deal['value']}")
+    if deal.get("announced_value"):
+        parts.append(f"for {deal['announced_value']}")
     if deal.get("area"):
         parts.append(f"({deal['area']})")
     return " ".join(parts) + f", {(deal['event_date'] or '')[:10]}."

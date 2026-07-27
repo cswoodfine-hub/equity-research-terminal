@@ -7,6 +7,7 @@ import db
 import refresh
 import seed
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
+from fetchers.deals_news import DealsNewsFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
 from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.prices import IntradayPricesFetcher, PricesFetcher
@@ -40,6 +41,8 @@ def test_refresh_populates_then_skips_within_ttl(tmp_path, monkeypatch):
     monkeypatch.setattr(IntradayPricesFetcher, "fetch", lambda self: payload)
     monkeypatch.setattr(TrialsFetcher, "fetch", lambda self: {"studies": []})
     monkeypatch.setattr(ApprovalsOpenFdaFetcher, "fetch", lambda self: {"results": []})
+    monkeypatch.setattr(DealsNewsFetcher, "fetch",
+                        lambda self: {"feeds": {}, "companies": [], "errors": []})
 
     db_file = tmp_path / "test.db"
     db.init(db_file)
@@ -89,6 +92,8 @@ def test_refresh_all_runs_companies_in_parallel_without_losing_results(tmp_path,
     monkeypatch.setattr(IntradayPricesFetcher, "fetch", lambda self: payload)
     monkeypatch.setattr(TrialsFetcher, "fetch", lambda self: {"studies": []})
     monkeypatch.setattr(ApprovalsOpenFdaFetcher, "fetch", lambda self: {"results": []})
+    monkeypatch.setattr(DealsNewsFetcher, "fetch",
+                        lambda self: {"feeds": {}, "companies": [], "errors": []})
     monkeypatch.setattr(OrangeBookFetcher, "fetch",
                         lambda self: {"products": "", "patents": "", "exclusivity": ""})
     monkeypatch.setattr(PurpleBookFetcher, "fetch", lambda self: {"csvs": []})

@@ -134,7 +134,7 @@ def test_signed_trial_readouts_appear_recent_first(tmp_path):
 
 def _deal(conn, cid, acc, dtype, counterparty, date, value=None, area=None):
     conn.execute("INSERT INTO deals (accession, company_id, deal_type, counterparty,"
-                 " value, area, event_date) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                 " announced_value, area, event_date) VALUES (?, ?, ?, ?, ?, ?, ?)",
                  (acc, cid, dtype, counterparty, value, area, date))
 
 

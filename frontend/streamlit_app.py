@@ -344,12 +344,37 @@ _DEAL_BADGE = {"acquisition": "Acquisition", "licensing": "Licence",
                "collaboration": "Collaboration", "divestiture": "Divestiture"}
 
 
+def deal_size(deals) -> str | None:
+    """The announced total across the deals that state one, and how many did.
+
+    Announced consideration, not cash: it includes milestones that may never be earned,
+    so it is never the acquisition line in the financials tab and is labelled to say so.
+    Deals that state no figure are counted rather than treated as zero.
+    """
+    priced = [d["announced_usd"] for d in deals if d.get("announced_usd")]
+    if not priced:
+        return None
+    total = sum(priced)
+    figure = (f"${total / 1e9:.1f}bn" if total >= 1e9 else f"${total / 1e6:.0f}m")
+    return (f"{figure} announced" if len(priced) == len(deals)
+            else f"{figure} announced across {len(priced)} of {len(deals)}")
+
+
 def deal_card(deal) -> str:
-    """One deal: a type badge, a body of counterparty, value and area, and the date."""
+    """One deal: a type badge, a body of counterparty, size and area, and the date."""
     badge = _DEAL_BADGE.get(deal.get("deal_type"), "Deal")
     body = [f'<span class="dp">{html_escape(deal.get("counterparty") or "")}</span>']
-    if deal.get("value"):
-        body.append(f'<span class="dv">{html_escape(deal["value"])}</span>')
+    if deal.get("announced_value"):
+        # Announced consideration, and the tooltip names the source that stated it,
+        # since a figure a filing gives and one a headline gives are not equally firm.
+        origin = {"filing": "as the filing states it",
+                  "news": "as the announcing headline states it"}.get(
+                      deal.get("announced_value_source"), "as announced")
+        body.append(f'<span class="dv" title="Announced value, {origin}. '
+                    'Consideration including milestones, not cash paid.">'
+                    f'{html_escape(deal["announced_value"])}</span>')
+    else:
+        body.append('<span class="dnv">size not stated</span>')
     if deal.get("area"):
         body.append(f'<span class="da">{html_escape(deal["area"])}</span>')
     return (f'<div class="deal dt-{html_escape(deal.get("deal_type") or "")}">'
@@ -1209,12 +1234,16 @@ with main:
                         unsafe_allow_html=True)
 
         if deals_data:
-            section("Deals", len(deals_data))
+            size = deal_size(deals_data)
+            section("Deals", f"{len(deals_data)} &middot; {size}" if size
+                    else len(deals_data))
             st.markdown('<div class="deals">' + "".join(
                 deal_card(d) for d in deals_data) + "</div>", unsafe_allow_html=True)
             st.markdown('<div class="byline">M&amp;A, licensing and collaborations read '
-                        'from the filings that announced them. Value where the filing '
-                        'stated it; dated to when the market first saw it.</div>',
+                        'from the filings that announced them and from the headlines '
+                        'that carried the rest. Size is the consideration as announced, '
+                        'milestones included, which is not the cash in the financials '
+                        'tab. Dated to when the market first saw it.</div>',
                         unsafe_allow_html=True)
 
         if readouts_data:
@@ -1476,7 +1505,7 @@ with main:
                 ("cash conversion", _cf_x(cash.get("cash_conversion")),
                  "free cash flow over net income"),
                 ("acquisitions", _cf_bn((cash.get("inputs") or {}).get("acquisitions"), 2),
-                 f"{cf_cur} bn, businesses and assets bought"),
+                 f"{cf_cur} bn cash paid, businesses and assets"),
             ]
             st.markdown(
                 '<div class="pos">' + "".join(

@@ -15,7 +15,7 @@ def test_reads_an_acquisition():
     deal = parse_deal("Eli Lilly acquires Ajax Therapeutics - Reuters", NAMES)
     assert deal["deal_type"] == "acquisition"
     assert deal["counterparty"] == "Ajax Therapeutics"
-    assert deal["value"] is None
+    assert deal["announced_value"] is None
 
 
 def test_reads_the_value_and_stops_at_the_company_name():
@@ -23,7 +23,7 @@ def test_reads_the_value_and_stops_at_the_company_name():
         "Eli Lilly signs a deal with Innovent Biologics worth $8.85 billion - Fierce",
         NAMES)
     assert deal["counterparty"] == "Innovent Biologics"
-    assert deal["value"] == "$8.85 billion"
+    assert deal["announced_value"] == "$8.85 billion"
 
 
 def test_reads_a_licensing_deal():
@@ -115,7 +115,8 @@ def test_never_restates_a_deal_the_filings_already_named(tmp_path):
     path, cid = _seed(tmp_path)
     conn = db.get_connection(path)
     conn.execute(
-        "INSERT INTO deals (accession, company_id, deal_type, counterparty, value)"
+        "INSERT INTO deals (accession, company_id, deal_type, counterparty,"
+        "                    announced_value)"
         " VALUES ('0000-24-1', ?, 'acquisition', 'Ajax Therapeutics', '$1.0 billion')",
         (cid,))
     conn.commit()
@@ -129,8 +130,63 @@ def test_never_restates_a_deal_the_filings_already_named(tmp_path):
     assert fetcher.upsert(rows).rows_fetched == 0
 
     conn = db.get_connection(path)
-    stored = conn.execute("SELECT accession, value FROM deals").fetchall()
+    stored = conn.execute(
+        "SELECT accession, announced_value FROM deals").fetchall()
     conn.close()
     assert len(stored) == 1
     assert stored[0]["accession"] == "0000-24-1"      # the filing's row, untouched
-    assert stored[0]["value"] == "$1.0 billion"
+    assert stored[0]["announced_value"] == "$1.0 billion"
+
+
+def test_fills_a_size_the_filing_left_blank(tmp_path):
+    path, cid = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute(
+        "INSERT INTO deals (accession, company_id, deal_type, counterparty)"
+        " VALUES ('0000-24-1', ?, 'acquisition', 'Orna Therapeutics')", (cid,))
+    conn.commit()
+    conn.close()
+
+    fetcher = DealsNewsFetcher(path)
+    rows = fetcher.normalise({
+        "companies": [{"id": cid, "ticker": "LLY", "name": "Eli Lilly"}],
+        "feeds": {"LLY": _feed(
+            "Eli Lilly acquires Orna Therapeutics for $8.5 billion - Fierce")},
+        "errors": []})
+    result = fetcher.upsert(rows)
+    assert result.rows_fetched == 0                  # no new row, the filing has it
+    assert result.notes == ["1 filed deals gained a size from a headline"]
+
+    conn = db.get_connection(path)
+    stored = conn.execute("SELECT * FROM deals").fetchall()
+    conn.close()
+    assert len(stored) == 1
+    assert stored[0]["accession"] == "0000-24-1"     # still the filing's row
+    assert stored[0]["announced_value"] == "$8.5 billion"
+    assert stored[0]["announced_value_source"] == "news"
+
+
+def test_never_overwrites_a_size_the_filing_states(tmp_path):
+    path, cid = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute(
+        "INSERT INTO deals (accession, company_id, deal_type, counterparty,"
+        "                   announced_value, announced_value_source)"
+        " VALUES ('0000-24-1', ?, 'acquisition', 'Orna Therapeutics', '$2.4 billion',"
+        "         'filing')", (cid,))
+    conn.commit()
+    conn.close()
+
+    fetcher = DealsNewsFetcher(path)
+    rows = fetcher.normalise({
+        "companies": [{"id": cid, "ticker": "LLY", "name": "Eli Lilly"}],
+        "feeds": {"LLY": _feed(
+            "Eli Lilly acquires Orna Therapeutics for $8.5 billion - Fierce")},
+        "errors": []})
+    assert fetcher.upsert(rows).notes == []
+
+    conn = db.get_connection(path)
+    row = conn.execute("SELECT announced_value, announced_value_source FROM deals").fetchone()
+    conn.close()
+    assert row["announced_value"] == "$2.4 billion"
+    assert row["announced_value_source"] == "filing"
