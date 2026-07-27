@@ -593,20 +593,17 @@ names = {c["ticker"]: c["name"] for c in companies}
 # ?ticker= reopens the terminal on a specific company, and the pick is written back to
 # the URL after the selector below, so the address bar is always shareable.
 #
-# The URL is read on every run, not only the first. Reading it once meant a session that
-# outlived its page, which is what a reconnect or a resumed session produces, ignored the
-# address bar entirely: the company stayed pinned to whatever the session already held,
-# the tabs kept rendering that company under a header showing another, and editing the
-# URL did nothing at all. The pick is written back to the URL on every run, so the two
-# only disagree when something outside this script changed the address, which makes the
-# URL the newer instruction and the one to follow.
+# The URL is read on the session's first run only. It cannot be re-read every run to
+# follow the address bar: the pick is written to the URL at the end of a run, so when a
+# search or a coverage click changes the company mid-run the URL still holds the previous
+# one, and treating it as authoritative would immediately undo the change the analyst
+# just made. Reopening on a different company is a fresh page, which is a fresh session,
+# and that is handled here.
 _url_ticker = (st.query_params.get("ticker") or "").upper()
 if "company_pick" not in st.session_state:
     st.session_state["company_pick"] = (
         _url_ticker if _url_ticker in tickers
         else DEFAULT_TICKER if DEFAULT_TICKER in tickers else tickers[0])
-elif _url_ticker in tickers and _url_ticker != st.session_state["company_pick"]:
-    st.session_state["company_pick"] = _url_ticker
 
 # A click on a coverage panel (the covnav component) returns the ticker and switches to
 # Key insights client-side; apply the ticker here, before the selectbox reads its key, so
