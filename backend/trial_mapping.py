@@ -257,15 +257,22 @@ def prune_orphan_pipeline_assets(db_path=None) -> dict:
     """
     conn = db.get_connection(db_path)
     try:
+        # Every table that points at an asset, read from the schema rather than listed
+        # here. A hand-written list goes stale the moment a table is added: completed
+        # trials arrived after this was written, and deleting a row they referenced
+        # failed on the foreign key instead of quietly leaving an orphan.
+        referring = [name for (name,) in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'")
+            if any(fk[2] == "assets" for fk in
+                   conn.execute(f"PRAGMA foreign_key_list({name})"))]
+        guards = "".join(
+            f"\n               AND NOT EXISTS (SELECT 1 FROM {table} x"
+            f" WHERE x.asset_id = assets.id)"
+            for table in sorted(referring)
+            if any(c[1] == "asset_id" for c in
+                   conn.execute(f"PRAGMA table_info({table})")))
         cur = conn.execute(
-            """
-            DELETE FROM assets
-             WHERE is_marketed = 0
-               AND NOT EXISTS (SELECT 1 FROM trials t WHERE t.asset_id = assets.id)
-               AND NOT EXISTS (SELECT 1 FROM approvals a WHERE a.asset_id = assets.id)
-               AND NOT EXISTS (SELECT 1 FROM exclusivities e WHERE e.asset_id = assets.id)
-               AND NOT EXISTS (SELECT 1 FROM asset_revenue r WHERE r.asset_id = assets.id)
-            """)
+            f"DELETE FROM assets WHERE is_marketed = 0{guards}")
         conn.commit()
         return {"pruned": cur.rowcount}
     finally:

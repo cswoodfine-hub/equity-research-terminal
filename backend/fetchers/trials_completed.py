@@ -20,6 +20,7 @@ import time
 import urllib.parse
 import urllib.request
 
+import acquired_sponsors
 import ctgov
 import db
 import trial_mapping
@@ -45,6 +46,7 @@ FIELDS = "|".join((
     "protocolSection.conditionsModule.conditions",
     "protocolSection.armsInterventionsModule.interventions",
     "protocolSection.outcomesModule.primaryOutcomes",
+    "protocolSection.sponsorCollaboratorsModule.leadSponsor.name",
 ))
 
 
@@ -77,6 +79,8 @@ def parse_studies(payload: dict) -> list[dict]:
             # worth opening, and the link goes to the rest.
             "primary_outcome": outcomes[0].get("measure") if outcomes else None,
             "interventions": interventions,
+            "lead_sponsor": ((section.get("sponsorCollaboratorsModule") or {})
+                             .get("leadSponsor") or {}).get("name"),
         })
     return rows
 
@@ -113,6 +117,17 @@ class TrialsCompletedFetcher(BaseFetcher):
         if company is None:
             return {"studies": [], "company_id": None}
 
+        acquired = acquired_sponsors.for_company(self.db_path, self.ticker)
+        studies = []
+        own = ctgov.SPONSOR_LEAD.get(self.ticker, company["name"])
+        for index, sponsor in enumerate([own] + acquired):
+            studies.extend(self._studies_for(sponsor,
+                                             acquired if index else None))
+        return {"studies": studies, "company_id": company["id"]}
+
+    def _studies_for(self, sponsor: str, verify_against) -> list:
+        """One sponsor's completed studies, verified against the registry's own lead
+        sponsor name when the sponsor is a company this one acquired."""
         studies, token = [], None
         for _page in range(MAX_PAGES):
             params = {
@@ -121,7 +136,7 @@ class TrialsCompletedFetcher(BaseFetcher):
                 # completed studies where AstraZeneca finds thousands. query.lead
                 # rather than query.spons, so a study this company only collaborated
                 # on is not filed as its own record.
-                "query.lead": ctgov.SPONSOR_LEAD.get(self.ticker, company["name"]),
+                "query.lead": sponsor,
                 "filter.overallStatus": "COMPLETED",
                 "aggFilters": "results:with",
                 "fields": FIELDS,
@@ -135,13 +150,16 @@ class TrialsCompletedFetcher(BaseFetcher):
                 headers={"User-Agent": _USER_AGENT})
             with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-            studies.extend(payload.get("studies") or [])
+            found = payload.get("studies") or []
+            if verify_against is not None:
+                found = [s for s in found
+                         if acquired_sponsors.sponsored_by(s, verify_against)]
+            studies.extend(found)
             token = payload.get("nextPageToken")
             if not token:
                 break
             time.sleep(_POLITE_SLEEP_S)
-        return {"studies": studies, "company_id": company["id"],
-                "truncated": bool(token)}
+        return studies
 
     def normalise(self, raw) -> list[dict]:
         company_id = raw.get("company_id")
@@ -202,20 +220,22 @@ class TrialsCompletedFetcher(BaseFetcher):
                     """
                     INSERT INTO completed_trials
                         (nct_id, sponsor_company_id, asset_id, title, phase, conditions,
-                         completion_date, enrollment, primary_outcome, fetched_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                         completion_date, enrollment, primary_outcome, lead_sponsor,
+                         fetched_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                     ON CONFLICT(nct_id) DO UPDATE SET
                         asset_id = excluded.asset_id, title = excluded.title,
                         phase = excluded.phase, conditions = excluded.conditions,
                         completion_date = excluded.completion_date,
                         enrollment = excluded.enrollment,
                         primary_outcome = excluded.primary_outcome,
+                        lead_sponsor = excluded.lead_sponsor,
                         fetched_at = datetime('now')
                     """,
                     (row["nct_id"], row["sponsor_company_id"], row["asset_id"],
                      row["title"], row["phase"], row["conditions"],
                      row["completion_date"], row["enrollment"],
-                     row["primary_outcome"]))
+                     row["primary_outcome"], row.get("lead_sponsor")))
             conn.commit()
         finally:
             conn.close()

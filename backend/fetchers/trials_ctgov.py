@@ -14,6 +14,7 @@ import time
 import urllib.parse
 import urllib.request
 
+import acquired_sponsors
 import ctgov
 import db
 import trial_mapping
@@ -42,6 +43,7 @@ FIELDS = [
     "protocolSection.designModule.enrollmentInfo",
     "protocolSection.conditionsModule.conditions",
     "protocolSection.armsInterventionsModule.interventions",
+    "protocolSection.sponsorCollaboratorsModule.leadSponsor.name",
 ]
 PAGE_SIZE = 1000
 _USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
@@ -109,6 +111,10 @@ def parse_studies(payload: dict) -> list[dict]:
                 "conditions": ps.get("conditionsModule", {}).get("conditions") or [],
                 "enrollment": (design.get("enrollmentInfo") or {}).get("count"),
                 "interventions": drugs,
+                # Who the registry says leads it, which is how a study acquired with a
+                # company explains why it sits under its new owner.
+                "lead_sponsor": ((ps.get("sponsorCollaboratorsModule") or {})
+                                 .get("leadSponsor") or {}).get("name"),
             }
         )
     return rows
@@ -143,6 +149,19 @@ class TrialsFetcher(BaseFetcher):
         term = SPONSOR_LEAD.get(self.ticker)
         if not term:
             raise ValueError(f"no CTGov sponsor mapping for {self.ticker}")
+        # The company's own name, then the companies it has bought: the registry lists
+        # a study under whoever registered it, and Centessa still sponsors its own
+        # studies months after Lilly acquired it.
+        acquired = acquired_sponsors.for_company(self.db_path, self.ticker)
+        studies: list[dict] = []
+        for term_index, sponsor in enumerate([term] + acquired):
+            studies.extend(self._studies_for(sponsor, acquired if term_index else None))
+        return {"studies": studies}
+
+    def _studies_for(self, term: str, verify_against) -> list:
+        """One sponsor's active studies. ``verify_against`` is the acquired-name list
+        when this is an acquired sponsor, and the studies are then kept only where the
+        registry's own lead sponsor agrees, since the query matches loosely."""
         studies: list[dict] = []
         page_token = None
         while True:
@@ -158,12 +177,16 @@ class TrialsFetcher(BaseFetcher):
             request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
             with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-            studies.extend(data.get("studies", []))
+            found = data.get("studies", [])
+            if verify_against is not None:
+                found = [st for st in found
+                         if acquired_sponsors.sponsored_by(st, verify_against)]
+            studies.extend(found)
             page_token = data.get("nextPageToken")
             if not page_token:
                 break
             time.sleep(_PAGE_SLEEP_S)
-        return {"studies": studies}
+        return studies
 
     def normalise(self, raw) -> list[dict]:
         return parse_studies(raw)
@@ -239,8 +262,8 @@ class TrialsFetcher(BaseFetcher):
                         (nct_id, sponsor_company_id, title, phase, overall_status,
                          primary_completion_date, primary_completion_type,
                          completion_date, enrollment, conditions,
-                         last_update_posted, source, fetched_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                         last_update_posted, lead_sponsor, source, fetched_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                     ON CONFLICT(nct_id) DO UPDATE SET
                         sponsor_company_id=excluded.sponsor_company_id, title=excluded.title,
                         phase=excluded.phase, overall_status=excluded.overall_status,
@@ -248,14 +271,16 @@ class TrialsFetcher(BaseFetcher):
                         primary_completion_type=excluded.primary_completion_type,
                         completion_date=excluded.completion_date, enrollment=excluded.enrollment,
                         conditions=excluded.conditions,
-                        last_update_posted=excluded.last_update_posted, fetched_at=datetime('now')
+                        last_update_posted=excluded.last_update_posted,
+                        lead_sponsor=excluded.lead_sponsor, fetched_at=datetime('now')
                     """,
                     (
                         row["nct_id"], company_id, row["title"], row["phase"],
                         row["overall_status"], row["primary_completion_date"],
                         row.get("primary_completion_type"),
                         row["completion_date"], row["enrollment"],
-                        json.dumps(row["conditions"]), row["last_update_posted"], CTGOV_SOURCE,
+                        json.dumps(row["conditions"]), row["last_update_posted"],
+                        row.get("lead_sponsor"), CTGOV_SOURCE,
                     ),
                 )
                 # The study drugs, replaced wholesale per trial so a dropped arm does not
