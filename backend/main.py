@@ -423,8 +423,10 @@ def company_approvals(ticker: str) -> dict:
         # The window is the molecule patents where the book flags them, since that is
         # what a generic has to wait out.
         r["loe_earliest"] = r.pop("substance_earliest") or r["loe_earliest"]
-        r["use_patent_year"] = (int(r["use_max"][:4]) if r.pop("use_max", None)
-                                else None)
+        # Popped first and read after: reading it inside the conditional after the pop
+        # is a KeyError the moment a product actually has a use patent.
+        use_max = r.pop("use_max", None)
+        r["use_patent_year"] = int(use_max[:4]) if use_max else None
         r.pop("substance_max", None)
         # Same rule as the mix: a card's revenue is shown in dollars whatever the filer
         # reports in, with the filed figure kept beside it.

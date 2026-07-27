@@ -546,22 +546,25 @@ def statement_table(block: dict, currency: str | None,
 def metric_tiles(items) -> str:
     """A row of headline figures, in one language every block can use.
 
-    Each item is (label, value, unit, note, tone). The unit rides with the number: a
-    figure whose scale is stated three lines away has to be worked out, so 19.8bn reads
-    where 19.80 does not. The note says what the number is, and a change sits under it
-    in its own colour rather than colouring the number, since it is the change that is
-    up or down and not the level.
+    Each item is (label, value, unit, change, tone, note). The unit rides with the
+    number, since a scale stated three lines away has to be worked out. The change sits
+    on the same baseline as the number, because it is part of the figure rather than a
+    line of its own: stacked underneath, four figures read as twelve unrelated lines.
+    A note appears only where the number cannot be read without it.
     """
     out = []
-    for label, value, unit, note, tone in items:
+    for label, value, unit, change, tone, note in items:
         missing = value is None or value == T.num(None)
         figure = ("no free data" if missing
                   else f'{value}<span class="u">{unit}</span>' if unit
                   else str(value))
-        out.append(f'<div><span class="k">{html_escape(label)}</span>'
-                   f'<span class="v{" none" if missing else ""}">{figure}</span>'
-                   + (f'<span class="d{tone}">{html_escape(note)}</span>' if note else "")
-                   + '</div>')
+        out.append(
+            f'<div><span class="k">{html_escape(label)}</span>'
+            f'<span class="row"><span class="v{" none" if missing else ""}">{figure}</span>'
+            + (f'<span class="d{tone}">{html_escape(change)}</span>' if change else "")
+            + '</span>'
+            + (f'<span class="n">{html_escape(note)}</span>' if note else "")
+            + '</div>')
     return f'<div class="tiles">{"".join(out)}</div>'
 
 
@@ -590,16 +593,15 @@ def snapshot_strip(snapshot: dict) -> str:
     revenue_note, revenue_tone = growth(snapshot["revenue_growth"])
     income_note, income_tone = growth(snapshot["net_income_growth"])
     return metric_tiles([
-        ("Revenue", money(snapshot["revenue"]), "bn", revenue_note, revenue_tone),
-        ("Net income", money(snapshot["net_income"]), "bn", income_note, income_tone),
-        # No note: the label already says per share.
-        ("EPS, diluted", T.num(snapshot["eps_diluted"], 2), "", "", ""),
+        ("Revenue", money(snapshot["revenue"]), "bn", revenue_note, revenue_tone, ""),
+        ("Net income", money(snapshot["net_income"]), "bn", income_note, income_tone, ""),
+        ("EPS, diluted", T.num(snapshot["eps_diluted"], 2), "", "", "", ""),
         # Net margin is not a tile. It is the second series in the panel below, where it
         # has the history that makes a level mean something, and a lone 37.4% here would
         # be the same figure said twice.
-        ("R&D, share of sales", T.pct(snapshot["rd_intensity"] * 100
-                                      if snapshot["rd_intensity"] is not None else None,
-                                      1), "", "", ""),
+        ("R&D", T.pct(snapshot["rd_intensity"] * 100
+                      if snapshot["rd_intensity"] is not None else None, 1),
+         "", "", "", "share of sales"),
     ])
 
 
@@ -1553,9 +1555,6 @@ with main:
         section("Latest reported", snapshot_meta(snapshot) if snapshot else None)
         if snapshot:
             st.markdown(snapshot_strip(snapshot), unsafe_allow_html=True)
-            st.markdown(
-                '<div class="byline">Growth compares the same period a year earlier, '
-                'never the period before it.</div>', unsafe_allow_html=True)
 
             # --- Cash generation and leverage ---------------------------------
             # What the company kept, not what it earned. Both are computed from lines
@@ -1565,11 +1564,9 @@ with main:
             # No second heading: the quarter above and the year here are one reading of
             # the company, and two headers stacked made it read as two walls of figures.
             # A rule and the period label carry the change of basis instead.
-            st.markdown(
-                '<div class="subhead">Cash and leverage'
-                f'<span>{("FY" + str(cash["fiscal_year"])) if cash.get("fiscal_year") else "latest year"}'
-                f' &middot; {cf_cur} bn unless stated</span></div>',
-                unsafe_allow_html=True)
+            section("Cash and leverage",
+                    f'{("FY" + str(cash["fiscal_year"])) if cash.get("fiscal_year") else "latest year"}'
+                    f' &middot; {cf_cur} bn unless stated')
 
             def _cf_bn(value, dp=1):
                 return T.num(value / 1e9, dp) if value is not None else None
@@ -1581,15 +1578,16 @@ with main:
             # produced leads as tiles; leverage and deal spend support it and sit in one
             # quiet line, so the tab reads as a page with a point rather than a wall.
             st.markdown(metric_tiles([
-                ("Free cash flow", _cf_bn(cash.get("fcf")), "bn", "", ""),
+                ("Free cash flow", _cf_bn(cash.get("fcf")), "bn", "", "", ""),
                 ("FCF margin", (T.pct(cash["fcf_margin"] * 100, 1)
                                 if cash.get("fcf_margin") is not None else None),
-                 "", "", ""),
-                ("Cash conversion", _cf_x(cash.get("cash_conversion")), "", "", ""),
-                # The one note that survives here. Cash paid is not the announced value
-                # on the deals, and the two figures are a click apart.
+                 "", "", "", "of revenue"),
+                ("Cash conversion", _cf_x(cash.get("cash_conversion")), "", "", "",
+                 "FCF over net income"),
+                # Cash paid is not the announced value on the deals, and the two figures
+                # are one click apart, so this one says which it is.
                 ("Acquisitions", _cf_bn((cash.get("inputs") or {}).get(
-                    "acquisitions")), "bn", "cash paid", ""),
+                    "acquisitions")), "bn", "", "", "cash paid"),
             ]), unsafe_allow_html=True)
 
             # The same scale as the tiles above, said on each figure, since this line

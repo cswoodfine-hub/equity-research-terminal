@@ -152,3 +152,13 @@ def test_the_biologic_floor_still_applies_over_a_substance_patent():
                                 substance_max="2030-01-01")
     assert date == "2035-12-31"
     assert basis == "statutory floor (12y)"
+
+
+def test_the_approvals_view_carries_the_use_patent_tail():
+    """The endpoint reads use_max after popping it; with a real use patent on file
+    that ordering raised KeyError and took the whole Portfolio tab down."""
+    import main
+    rows = main.company_approvals("LLY")["approvals"]
+    assert rows, "Lilly should have approvals on file"
+    assert all("use_patent_year" in r for r in rows)
+    assert all("use_max" not in r for r in rows)

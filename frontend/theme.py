@@ -222,10 +222,11 @@ h3 {{ font-size: 0.9rem; }}
   margin-top: 1.4rem;
 }}
 .sec-label {{
-  font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em;
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
   text-transform: uppercase; color: var(--text);
 }}
-.sec-count {{ font-size: 11px; color: var(--muted); font-family: var(--font-mono); }}
+.sec-count {{ font-size: 11px; color: var(--muted); font-family: var(--font-mono);
+             white-space: nowrap; }}
 
 /* Identity strip (legacy, used by error paths before the top bar mounts). */
 .ident {{ display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; }}
@@ -521,24 +522,28 @@ h3 {{ font-size: 0.9rem; }}
    since a scale stated three lines away has to be worked out, and a change sits under
    the number in its own colour rather than colouring it, because it is the change that
    is up or down and not the level. */
-.tiles {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+.tiles {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
          border-top: 1px solid var(--rule-strong);
-         border-bottom: 1px solid var(--rule); margin: 0.2rem 0 0.5rem; }}
-.tiles > div {{ padding: 0.6rem 0.5rem 0.65rem 0.95rem;
+         border-bottom: 1px solid var(--rule); margin: 0.25rem 0 0.5rem; }}
+.tiles > div {{ padding: 0.7rem 0.6rem 0.75rem 1rem;
                border-left: 1px solid var(--rule); }}
 .tiles > div:first-child {{ border-left: 0; padding-left: 2px; }}
 .tiles .k {{ display: block; font-size: 9.5px; letter-spacing: 0.07em;
-            text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
+            text-transform: uppercase; color: var(--muted); margin-bottom: 7px;
             white-space: nowrap; }}
-.tiles .v {{ display: block; font-family: var(--font-mono); font-size: 1.5rem;
-            font-weight: 600; line-height: 1; letter-spacing: -0.02em;
-            color: var(--text); }}
-.tiles .v .u {{ font-size: 0.75rem; font-weight: 500; color: var(--muted);
+/* Number and change share a baseline, so the change reads as part of the figure. */
+.tiles .row {{ display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }}
+.tiles .v {{ font-family: var(--font-mono); font-size: 1.6rem; font-weight: 600;
+            line-height: 1; letter-spacing: -0.02em; color: var(--text); }}
+.tiles .v .u {{ font-size: 0.72rem; font-weight: 500; color: var(--muted);
                letter-spacing: 0; margin-left: 2px; }}
 .tiles .v.none {{ font-size: 0.95rem; font-weight: 400; color: var(--muted); }}
-.tiles .d {{ display: block; margin-top: 6px; font-size: 10.5px; color: var(--muted); }}
+.tiles .d {{ font-family: var(--font-mono); font-size: 11.5px; color: var(--muted);
+            white-space: nowrap; }}
 .tiles .d.up {{ color: var(--up); }}
 .tiles .d.down {{ color: var(--down); }}
+/* A qualifier the number cannot be read without, and nothing else. */
+.tiles .n {{ display: block; margin-top: 6px; font-size: 10.5px; color: var(--muted); }}
 
 .pos {{ display: flex; gap: 2rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
 .pos .k {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
