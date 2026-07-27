@@ -20,6 +20,7 @@ import backtest as backtest_module
 import asset_revenue as asset_revenue_module
 import catalyst_grid as catalyst_grid_module
 import catalysts as catalysts_module
+import cashflow as cashflow_module
 import comps as comps_module
 import db
 import deals as deals_module
@@ -215,6 +216,16 @@ def company_financials(ticker: str) -> dict:
     finally:
         conn.close()
     return {"ticker": ticker, "rows": rows}
+
+
+@app.get("/companies/{ticker}/cashflow")
+def company_cashflow(ticker: str) -> dict:
+    """Cash generation and leverage: free cash flow and its margin, cash conversion,
+    net debt and net debt to EBITDA, each null when one of its inputs is missing."""
+    built = cashflow_module.build_cashflow(None, ticker)
+    if built is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return built
 
 
 @app.get("/companies/{ticker}/statements")

@@ -1445,6 +1445,55 @@ with main:
                 'Growth compares the same period a year earlier, never the period '
                 'before it.</div>', unsafe_allow_html=True)
 
+            # --- Cash generation and leverage ---------------------------------
+            # What the company kept, not what it earned. Both are computed from lines
+            # already filed; a figure missing an input is a dash naming the line it wanted.
+            cash = api_get(api_base, f"/companies/{ticker}/cashflow")
+            cf_cur = cash.get("currency") or ""
+            section("Cash and leverage",
+                    f"FY{cash['fiscal_year']}" if cash.get("fiscal_year") else "latest year")
+
+            def _cf_bn(value, dp=1):
+                return T.num(value / 1e9, dp) if value is not None else None
+
+            def _cf_x(value, dp=2):
+                return f"{value:.{dp}f}x" if value is not None else None
+
+            cf_cells = [
+                ("free cash flow", _cf_bn(cash.get("fcf")),
+                 f"{cf_cur} bn, operating cash less capex"),
+                ("FCF margin", (T.pct(cash["fcf_margin"] * 100)
+                                if cash.get("fcf_margin") is not None else None),
+                 "of revenue"),
+                ("cash conversion", _cf_x(cash.get("cash_conversion")),
+                 "free cash flow over net income"),
+                ("net debt", _cf_bn(cash.get("net_debt")),
+                 f"{cf_cur} bn, debt less cash"),
+                ("net debt / EBITDA", _cf_x(cash.get("net_debt_ebitda")),
+                 "operating income plus D&A"),
+            ]
+            st.markdown(
+                '<div class="pos">' + "".join(
+                    f'<div><span class="k">{html_escape(label)}</span>'
+                    f'<span class="v{"" if value else " none"}">'
+                    f'{html_escape(value) if value else "no free data"}</span>'
+                    f'<span class="sub">{html_escape(sub)}</span></div>'
+                    for label, value, sub in cf_cells) + '</div>',
+                unsafe_allow_html=True)
+            cf_missing = [name.replace("_", " ") for name, value
+                          in (cash.get("inputs") or {}).items()
+                          if value is None and name not in ("cash_lines", "debt_as_of")]
+            st.markdown(
+                '<div class="byline">Free cash flow is operating cash flow less capital '
+                'expenditure, so it is what the year left after keeping the plant running. '
+                'Cash conversion above one means profit arrived as cash; below it, earnings '
+                'ran ahead of the money. Net debt is total debt less cash and short-term '
+                'investments at the latest balance sheet date, measured against EBITDA for '
+                'the full year.'
+                + (f' Nothing is computed from a line the filer did not tag: this company is '
+                   f'missing {html_escape(", ".join(cf_missing))}.' if cf_missing else '')
+                + '</div>', unsafe_allow_html=True)
+
             # The quarterly panel shows the most recent year, one bar per quarter. Growth
             # is year-over-year on the whole series, so the last four keep their real
             # comparison; the older quarters are dropped from the view, not the maths.

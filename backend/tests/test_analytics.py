@@ -494,3 +494,63 @@ def test_adr_ratios_are_seeded_for_every_foreign_issuer(tmp_path):
              AND ticker NOT IN (SELECT ticker FROM adr_ratios)""")]
     conn.close()
     assert missing == [], f"foreign issuers with no ADR ratio: {missing}"
+
+
+def _seed_cashflow_company(tmp_path, **lines):
+    import db, seed
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    flows = ("Revenues", "NetIncomeLoss", "CashFlowOperating", "CapitalExpenditure",
+             "OperatingIncomeLoss", "DepreciationAndAmortisation")
+    for metric, value in lines.items():
+        if value is None:
+            continue
+        period = "FY" if metric in flows else "instant"
+        conn.execute("INSERT INTO financials (company_id, period_end, period_type,"
+                     " metric, value, unit, fiscal_year, source)"
+                     " VALUES (?, '2025-12-31', ?, ?, ?, 'USD', 2025, 'test')",
+                     (cid, period, metric, value))
+    conn.commit()
+    conn.close()
+    return db_file
+
+
+def test_cashflow_derives_fcf_conversion_and_leverage(tmp_path):
+    import cashflow
+    db_file = _seed_cashflow_company(
+        tmp_path, Revenues=100.0, NetIncomeLoss=20.0, CashFlowOperating=30.0,
+        CapitalExpenditure=10.0, OperatingIncomeLoss=25.0,
+        DepreciationAndAmortisation=5.0, TotalDebt=60.0, CashAndEquivalents=15.0)
+    r = cashflow.build_cashflow(db_file, "LLY")
+    assert r["fcf"] == 20.0                    # 30 operating less 10 capex
+    assert r["fcf_margin"] == 0.20             # against 100 of revenue
+    assert r["cash_conversion"] == 1.0         # 20 of cash on 20 of profit
+    assert r["net_debt"] == 45.0               # 60 debt less 15 cash
+    assert r["ebitda"] == 30.0                 # 25 operating plus 5 D&A
+    assert r["net_debt_ebitda"] == 1.5
+
+
+def test_cashflow_takes_capex_sign_from_magnitude(tmp_path):
+    """Filers tag capital expenditure as an outflow either way round."""
+    import cashflow
+    db_file = _seed_cashflow_company(
+        tmp_path, Revenues=100.0, CashFlowOperating=30.0, CapitalExpenditure=-10.0)
+    assert cashflow.build_cashflow(db_file, "LLY")["fcf"] == 20.0
+
+
+def test_cashflow_leaves_a_ratio_empty_rather_than_guessing(tmp_path):
+    import cashflow
+    # No debt line and a loss: leverage and conversion have no honest value.
+    db_file = _seed_cashflow_company(
+        tmp_path, Revenues=100.0, NetIncomeLoss=-5.0, CashFlowOperating=30.0,
+        CapitalExpenditure=10.0, CashAndEquivalents=15.0)
+    r = cashflow.build_cashflow(db_file, "LLY")
+    assert r["fcf"] == 20.0                    # still computable
+    assert r["net_debt"] is None               # no debt line filed
+    assert r["net_debt_ebitda"] is None
+    assert r["cash_conversion"] is None        # undefined on a loss
+    assert r["inputs"]["total_debt"] is None   # the blank names its missing line
+    assert cashflow.build_cashflow(db_file, "ZZZZ") is None
