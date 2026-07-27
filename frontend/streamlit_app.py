@@ -294,6 +294,26 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
                 (c.get("application_number") or "application",
                  (c.get("first_submission") or "")[:10] or "filed")
                 for c in prof["challenges"]]))
+        # The drug's own studies. For a marketed product these are the label-expansion
+        # trials that drive the next indication; for a pipeline compound they are the
+        # whole programme.
+        if prof.get("trials"):
+            phases = prof.get("trials_by_phase") or {}
+            phase_txt = ", ".join(f'{n} {ph}' for ph, n in sorted(phases.items()))
+            html.append(f'<div class="prof-sub">trials · {prof["trial_count"]} '
+                        f'{"· " + html_escape(phase_txt) if phase_txt else ""}</div>')
+            for tr in prof["trials"]:
+                title = (tr.get("title") or "").strip()
+                title = title if len(title) <= 78 else title[:77].rstrip() + "…"
+                due = (tr.get("primary_completion_date") or "")[:10] or "no date"
+                link = (f'<a href="https://clinicaltrials.gov/study/{html_escape(tr["nct_id"])}"'
+                        f' target="_blank" rel="noopener">{html_escape(title)}</a>')
+                html.append(
+                    f'<div class="prof-line" title="{html_escape(tr.get("title") or "")} '
+                    f'({html_escape(tr.get("nct_id") or "")})">'
+                    f'<span class="d">{html_escape(due)}</span>'
+                    f'<span class="ph">{html_escape(tr.get("phase") or "")}</span> {link}'
+                    f'</div>')
         if prof.get("catalysts"):
             html.append('<div class="prof-sub">upcoming catalysts</div>')
             for c in prof["catalysts"]:
@@ -589,23 +609,7 @@ if (isinstance(_cov, dict) and _cov.get("ticker") in tickers
     st.session_state["_cov_nonce"] = _cov.get("nonce")
 
 
-def _consume_coverage_click():
-    """Mark any pending coverage-panel click as already applied.
-
-    The click is held in the component's own state, which outlives the rerun that
-    applied it. If its nonce is ever lost while the click itself survives, the guard
-    above stops matching and the clicked company is re-applied on every rerun, which
-    reads as the terminal being stuck on that ticker with the selector doing nothing.
-    Choosing a company by hand is an explicit instruction and must always win, so it
-    consumes the pending click rather than racing it.
-    """
-    pending = st.session_state.get("cov_nav")
-    if isinstance(pending, dict):
-        st.session_state["_cov_nonce"] = pending.get("nonce")
-
-
 def _jump_to_search():
-    _consume_coverage_click()
     wanted = (st.session_state.get("global_search") or "").strip().upper()
     if not wanted:
         return
@@ -621,8 +625,7 @@ with bar[0]:
     st.markdown('<span class="topbar-anchor"></span><div class="pick">',
                 unsafe_allow_html=True)
     ticker = st.selectbox("Company", tickers, key="company_pick",
-                          label_visibility="collapsed",
-                          on_change=_consume_coverage_click)
+                          label_visibility="collapsed")
     st.markdown("</div>", unsafe_allow_html=True)
 company = next((c for c in companies if c["ticker"] == ticker), {})
 st.query_params["ticker"] = ticker
@@ -1690,6 +1693,39 @@ with main:
 
     # --- Pipeline --------------------------------------------------------
     with pipeline_tab:
+        # --- Programmes: the compounds behind the studies -------------------
+        # A trial list answers what is running; this answers what is being developed.
+        # Each row is a compound the company is trialling but does not yet sell, bound to
+        # its studies through the intervention names the registry publishes.
+        programmes = api_get(api_base,
+                             f"/companies/{ticker}/programmes").get("programmes") or []
+        section("Programmes in development", f"{len(programmes)} compounds")
+        if not programmes:
+            state(f"No unapproved compounds mapped for {ticker}",
+                  "Programmes are derived from the drug each trial names. Press Refresh "
+                  "all to pull the registry and bind them.")
+        else:
+            rows = []
+            for p in programmes[:24]:
+                due = (p.get("next_readout") or "")[:10]
+                rows.append(
+                    f'<div class="prog">'
+                    f'<span class="prog-ph {"lead" if p.get("phase") == "Phase 3" else ""}">'
+                    f'{html_escape(p.get("phase") or "—")}</span>'
+                    f'<span class="prog-n">{html_escape(p.get("name") or "")}</span>'
+                    f'<span class="prog-t">{p.get("trials", 0)} trials</span>'
+                    f'<span class="prog-d">{html_escape(due or "no date")}</span></div>')
+            st.markdown('<div class="progs">' + "".join(rows) + "</div>",
+                        unsafe_allow_html=True)
+            st.markdown(
+                '<div class="byline">One row per compound in trials that the company does '
+                'not yet sell, furthest phase first, with the studies behind it and the '
+                'next primary completion date due. Derived from the drug each registry '
+                'entry names, so a compound appears only where a trial names it. A '
+                'comparator, a shared chemotherapy backbone and another company\'s '
+                'marketed drug are excluded, so this is the sponsor\'s own work rather '
+                'than everything its studies mention.</div>', unsafe_allow_html=True)
+
         # --- Therapeutic areas: click a band to reveal its trials ---
         # Development trials drive the bars and the "in development" count. Two kinds of
         # work carry a development phase but are not new development, so they are pulled
@@ -2114,7 +2150,9 @@ with main:
                         "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
                         "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
                         "font-ui": TK.FONT_UI},
-                selected=sel_aid, key="prod_cards")
+                # Keyed per company: a fixed key would carry one company's last click
+                # into the next company's grid as stale state.
+                selected=sel_aid, key=f"prod_cards_{ticker}")
             # A click is only acted on once: the nonce changes per click, so a rerun
             # triggered by anything else does not reopen a profile the analyst closed.
             if isinstance(clicked, dict) and clicked.get("nonce") != \
