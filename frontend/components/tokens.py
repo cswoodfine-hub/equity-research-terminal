@@ -21,6 +21,12 @@ FLAG = "#D9B26B"          # material change, needs review, uncurated
 # axis domains). Derived, not a seventh palette value.
 RULE_STRONG = "#2E4249"
 
+# One step darker than RULE, halfway to the background, for a full grid behind dense
+# data. A price chart draws far more gridlines than a table draws borders, so at RULE
+# weight the mesh competes with the series it is there to measure. Derived like
+# RULE_STRONG, not a new palette value.
+RULE_FAINT = "#162125"
+
 # Phase ramp, ordinal, brightness rising toward market so proximity to approval
 # reads instantly. Colour is never the only signal: every use carries a label too.
 PHASE_RAMP = {

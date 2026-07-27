@@ -136,7 +136,7 @@ def chart_html(bars, events=None, *, mode: str = LINE, ticker: str = "", currenc
     visible = _visible_range(data, window_days, intraday)
 
     g, txt, font = TK.GROUND, TK.MUTED, TK.FONT_UI
-    rule, rs, up, down, muted = TK.RULE, TK.RULE_STRONG, TK.UP, TK.DOWN, TK.MUTED
+    grid, rs, up, down, muted = TK.RULE_FAINT, TK.RULE_STRONG, TK.UP, TK.DOWN, TK.MUTED
     if mode == CANDLE:
         series_js = (f"chart.addCandlestickSeries({{ upColor: {up!r}, downColor: {down!r}, "
                      f"borderUpColor: {up!r}, borderDownColor: {down!r}, "
@@ -154,7 +154,7 @@ def chart_html(bars, events=None, *, mode: str = LINE, ticker: str = "", currenc
   const chart = LightweightCharts.createChart(el, {{
     layout: {{ background: {{ type: 'solid', color: {g!r} }},
               textColor: {txt!r}, fontFamily: {font!r}, fontSize: 10 }},
-    grid: {{ vertLines: {{ color: {rule!r} }}, horzLines: {{ color: {rule!r} }} }},
+    grid: {{ vertLines: {{ color: {grid!r} }}, horzLines: {{ color: {grid!r} }} }},
     rightPriceScale: {{ borderColor: {rs!r} }},
     timeScale: {{ borderColor: {rs!r}, rightOffset: 4,
                  timeVisible: {str(intraday).lower()}, secondsVisible: false }},

@@ -1374,7 +1374,10 @@ with main:
             # drag and delete. The line set round-trips back and is persisted as one
             # annotation row per ticker, so drawings survive a refresh.
             data = price_chart.series_data(chart_rows, view, intraday)
-            theme = {"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.RULE,
+            # "rule" draws the chart's gridlines only, so it takes the faint token: a
+            # price chart draws far more lines than a table draws borders, and at the
+            # hairline weight the mesh competes with the series it is there to measure.
+            theme = {"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.RULE_FAINT,
                      "rule_strong": TK.RULE_STRONG, "up": TK.UP, "down": TK.DOWN,
                      "flag": TK.FLAG}
 
@@ -1386,16 +1389,22 @@ with main:
             except (ValueError, TypeError):
                 stored_lines = []
 
-            draw_row = st.columns([1.4, 1.6, 1.2, 2.8])
+            draw_row = st.columns([1.2, 1.1, 1.6, 1.2, 2.4])
             with draw_row[0]:
                 show_events = st.toggle("Events", value=True, key=f"events_{ticker}")
             with draw_row[1]:
-                draw_mode = st.toggle("Draw trendlines", key=f"drawtoggle_{ticker}")
+                show_grid = st.toggle("Grid", value=True, key=f"grid_{ticker}")
             with draw_row[2]:
+                draw_mode = st.toggle("Draw trendlines", key=f"drawtoggle_{ticker}")
+            with draw_row[3]:
                 if stored_lines and st.button("Clear lines", key=f"clearlines_{ticker}"):
                     if stored_id is not None:
                         api_delete(api_base, f"/annotations/{stored_id}")
                     st.rerun()
+
+            # Gridlines off is the background colour rather than a transparent value,
+            # which the chart library would fall back to its own default for.
+            theme = dict(theme, rule=TK.RULE_FAINT if show_grid else TK.GROUND)
 
             # Approval and LOE markers only when the toggle is on, so the price can be read
             # clean.

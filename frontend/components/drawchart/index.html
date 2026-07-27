@@ -89,7 +89,14 @@ function render() {
     series.setData(state.data);      // same view: update in place, keep the pan/zoom
     series.setMarkers(state.markers);
   }
-  chart.applyOptions({ width: chartEl.clientWidth });
+  // Grid colour is re-applied on every render, not only on build: toggling the grid
+  // changes the theme without changing the view key, and a rebuild would throw away
+  // the pan and zoom the analyst has set.
+  chart.applyOptions({
+    width: chartEl.clientWidth,
+    grid: { vertLines: { color: state.theme.rule },
+            horzLines: { color: state.theme.rule } },
+  });
   canvas.style.pointerEvents = state.draw ? "auto" : "none";   // else the chart pans
   canvas.style.cursor = state.draw ? "crosshair" : "default";
   hintEl.style.color = state.theme.muted || "#7E9098";
