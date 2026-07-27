@@ -31,6 +31,7 @@ import io
 import os
 import re
 import time
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -259,6 +260,7 @@ class ProductRevenueFetcher(BaseFetcher):
         super().__init__(db_path)
         self.quarters = quarters
         self._errors: list[str] = []
+        self._notes: list[str] = []
 
     @property
     def entity_key(self) -> str:
@@ -278,7 +280,16 @@ class ProductRevenueFetcher(BaseFetcher):
         try:
             with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
                 path.write_bytes(resp.read())
-        except Exception as exc:      # a quarter that is not published yet is normal
+        except urllib.error.HTTPError as exc:
+            # The data sets are published a quarter in arrears, so the newest quarters
+            # this asks for do not exist yet and answer 404. That is the calendar, not a
+            # failure, and it happens on every run; anything else is a real problem.
+            if exc.code == 404:
+                self._notes.append(f"{quarter}: not published yet")
+            else:
+                self._errors.append(f"{quarter}: {exc}")
+            return None
+        except Exception as exc:
             self._errors.append(f"{quarter}: {exc}")
             return None
         time.sleep(0.5)               # stay well inside EDGAR's rate limit
@@ -407,7 +418,11 @@ class ProductRevenueFetcher(BaseFetcher):
             company = totals.get(key)
             if company and total > company * 1.05:
                 rejected.add(key)
-                self._errors.append(
+                # Declining a figure that does not reconcile is this fetcher working, not
+                # failing: the filer tagged a grouping that double counts, and storing it
+                # would be worse than storing nothing. Reported as a note so the gap is
+                # explained without marking the whole run partial.
+                self._notes.append(
                     f"{key[0]} FY{key[1]}: products sum to "
                     f"{total / 1e9:.1f}bn against {company / 1e9:.1f}bn reported, so a "
                     "grouping is being counted twice; nothing stored for it")
@@ -489,4 +504,5 @@ class ProductRevenueFetcher(BaseFetcher):
             conn.commit()
         finally:
             conn.close()
-        return RefreshResult(self.source, written, list(self._errors), False, 0)
+        return RefreshResult(self.source, written, list(self._errors), False, 0,
+                             notes=list(self._notes))

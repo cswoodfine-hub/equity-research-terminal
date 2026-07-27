@@ -26,6 +26,11 @@ class RefreshResult:
     errors: list[str] = field(default_factory=list)
     skipped_ttl: bool = False
     elapsed_ms: int = 0
+    # Things worth reporting that are not failures: a quarter the SEC has not published
+    # yet, a figure declined because it did not reconcile. Kept out of ``errors`` because
+    # a run is marked partial by errors alone, and a run that says partial every time
+    # teaches the analyst to ignore the word.
+    notes: list[str] = field(default_factory=list)
 
 
 @runtime_checkable

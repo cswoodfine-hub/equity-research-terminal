@@ -189,7 +189,7 @@ def run_refresh_all(db_path=None) -> dict:
     def _record_locked(result, label):
         agg = by_source.setdefault(
             result.source,
-            {"source": result.source, "rows_fetched": 0, "errors": [],
+            {"source": result.source, "rows_fetched": 0, "errors": [], "notes": [],
              "skipped_ttl": 0, "ran": 0, "elapsed_ms": 0},
         )
         agg["rows_fetched"] += result.rows_fetched
@@ -197,6 +197,7 @@ def run_refresh_all(db_path=None) -> dict:
         agg["skipped_ttl"] += 1 if result.skipped_ttl else 0
         agg["elapsed_ms"] += result.elapsed_ms
         agg["errors"].extend(f"{label}: {e}" for e in result.errors)
+        agg["notes"].extend(f"{label}: {n}" for n in result.notes)
 
     # Universe downloads (Orange/Purple Book) run once for the whole universe.
     for fetcher in _universe_fetchers(db_path):
