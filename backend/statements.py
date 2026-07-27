@@ -222,6 +222,12 @@ _CASHFLOW = (
              ("us-gaap", "PaymentsToAcquireOtherPropertyPlantAndEquipment"),
              ("us-gaap", "PaymentsToAcquireProductiveAssets"),
              ("ifrs-full", "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"),
+             # Sanofi reports one payments line covering fixed and intangible assets
+             # together and no PP&E-only figure, so this is its capital expenditure as
+             # filed; it sits last, so a filer with the narrower line keeps that one.
+             ("ifrs-full",
+              "PurchaseOfPropertyPlantAndEquipmentIntangibleAssetsOtherThanGoodwill"
+              "InvestmentPropertyAndOtherNoncurrentAssets"),
          )),
     Line("FreeCashFlow", "Free cash flow", "cashflow", "duration", role="subtotal",
          derived=("CashFlowOperating", "-", "CapitalExpenditure")),
