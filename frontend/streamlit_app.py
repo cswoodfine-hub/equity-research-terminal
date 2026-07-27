@@ -1728,6 +1728,228 @@ with main:
 
     # --- Pipeline --------------------------------------------------------
     with pipeline_tab:
+        # --- Therapeutic areas: click a band to reveal its trials ---
+        # Development trials drive the bars and the "in development" count. Two kinds of
+        # work carry a development phase but are not new development, so they are pulled
+        # out and flagged rather than counted in it: Phase 4, which runs after approval,
+        # and long-term follow-up, extension and rollover studies, which follow a product
+        # through the rest of its life. Each is a distinct muted cap on the bar and a
+        # tagged pill, so they can be read without inflating the pipeline.
+        every = api_get(api_base, f"/companies/{ticker}/trials")["trials"]
+        LIFECYCLE = {"Phase 4": "post-approval", "Follow-up": "follow-up"}
+
+        def _bucket(t):
+            """The pill and segment a trial belongs to: its development phase, or the
+            lifecycle bucket that takes it out of development."""
+            if t["phase"] in POST_APPROVAL:
+                return "Phase 4"
+            if t.get("follow_up"):
+                return "Follow-up"
+            return PHASE_MERGE.get(t["phase"], t["phase"])
+
+        dev = [t for t in every if _bucket(t) in DISPLAY_PHASES]
+        post = [t for t in every if _bucket(t) == "Phase 4"]
+        followup = [t for t in every if _bucket(t) == "Follow-up"]
+
+        # Counted in compounds, not studies. Ten trials of one molecule is one bet, so
+        # counting studies flattered whichever area happened to be run in many small
+        # pieces. A trial whose intervention names nothing on file cannot be attributed
+        # to a compound; those are reported as unattributed rather than dropped quietly.
+        def _assets(trials):
+            return {t["asset_id"] for t in trials if t.get("asset_id")}
+
+        unattributed = sum(1 for t in dev if not t.get("asset_id"))
+        head = f"{len(_assets(dev))} compounds in development"
+        if post:
+            head += f" · {len(_assets(post))} post-approval"
+        if followup:
+            head += f" · {len(_assets(followup))} in follow-up"
+        if unattributed:
+            head += (f" · {unattributed} trial"
+                     f"{'s' if unattributed != 1 else ''} unattributed")
+        section(f"{ticker} by therapeutic area", head)
+        if not every:
+            state(f"No trials on file for {ticker}",
+                  "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
+                  "or pick another company in the sidebar.")
+        else:
+            # A compound is placed once per area, at the furthest phase it has reached
+            # there, which is how a pipeline is read: a molecule in Phase 3 and still
+            # running its Phase 1 work is a Phase 3 asset, counted once. Counting every
+            # study instead made an area look larger for being run in more pieces.
+            PHASE_RANK = {ph: i for i, ph in enumerate(
+                list(DISPLAY_PHASES) + list(LIFECYCLE))}
+
+            furthest: dict = {}
+            for t in every:
+                if not t.get("asset_id"):
+                    continue           # no compound to attribute it to
+                key = (t["area"], t["asset_id"])
+                bucket = _bucket(t)
+                if key not in furthest or PHASE_RANK.get(bucket, -1) > PHASE_RANK.get(
+                        furthest[key], -1):
+                    furthest[key] = bucket
+
+            bucket_area = Counter((area, bucket)
+                                  for (area, _asset), bucket in furthest.items())
+            all_area = Counter(area for (area, _asset) in furthest)
+            dev_area = Counter(area for (area, _asset), bucket in furthest.items()
+                               if bucket in DISPLAY_PHASES)
+            # Bars keep development order and shape; an area with only lifecycle work
+            # falls to the end, so an approved product with no active development is
+            # still on the chart and selectable.
+            order = [a for a, _ in dev_area.most_common()]
+            order += [a for a in all_area if a not in dev_area]
+            counts = dict(all_area)
+
+            # The selection is read before the chart is drawn, so the bars can dim,
+            # but the chips are rendered after it: the chart is what tells you which
+            # area to pick, so it comes first and the controls sit under it with the
+            # phase pills, as one band of filters rather than two split around it.
+            chosen = st.session_state.get("area_pills") or []
+
+            # Stacked by phase so the shape of an area reads at a glance: one that is
+            # all Phase 1 is a different proposition from one carrying Phase 3, even
+            # at the same trial count. The phase ramp brightens toward market, so an
+            # area's proximity to approval reads directly. Past the ramp, Phase 4 and
+            # follow-up sit in the muted colour, flagged as lifecycle rather than
+            # coloured as the next rung. Selecting dims the rest to the hairline colour
+            # rather than fading opacity, which kept the segments legible.
+            stack_rows = []
+            for area in order:
+                dimmed = bool(chosen) and area not in chosen
+                segments = []
+                for ph in DISPLAY_PHASES:
+                    count = bucket_area.get((area, ph), 0)
+                    if not count:
+                        continue
+                    segments.append({
+                        "name": f"{ph}, {count} compound{'s' if count != 1 else ''}",
+                        "value": count,
+                        "colour": TK.RULE if dimmed else TK.PHASE_RAMP[ph]})
+                for life, tag in LIFECYCLE.items():
+                    count = bucket_area.get((area, life), 0)
+                    if not count:
+                        continue
+                    segments.append({
+                        "name": f"{life}, {count} compound{'s' if count != 1 else ''}, {tag}",
+                        "value": count,
+                        "colour": TK.RULE if dimmed else TK.MUTED})
+                stack_rows.append({"label": area, "segments": segments})
+            legend = [(p, TK.PHASE_RAMP[p]) for p in DISPLAY_PHASES]
+            tags = [t for t, has in (("Phase 4", post), ("follow-up", followup)) if has]
+            if tags:
+                legend.append((" and ".join(tags) + ", post-development", TK.MUTED))
+            R.show(CH.stacked_bar(
+                stack_rows, 832, max(170, 34 * len(order) + 22),
+                value_fmt=lambda v: f"{v:.0f}", legend=legend))
+            st.markdown(
+                '<div class="byline">Compounds, not studies: a molecule is counted once '
+                'per area, at the furthest phase it has reached there, so a programme '
+                'running ten trials is one bet and not ten. A compound studied in two '
+                'areas is counted in both. A trial whose intervention names nothing on '
+                'file cannot be attributed to a compound and sits outside these bars; '
+                'the count above says how many.</div>', unsafe_allow_html=True)
+
+            # Pills stay plain labels: rewriting a pill's own label as it is selected made
+            # its highlight take two clicks. The count for what is selected shows in a line
+            # beneath instead, so a number still appears only once something is highlighted.
+            st.pills("Therapeutic area", order, selection_mode="multi",
+                     key="area_pills", label_visibility="collapsed")
+            if chosen:
+                st.markdown(
+                    '<div class="byline">'
+                    + "  ·  ".join(f"{html_escape(str(a))} {counts.get(a, 0)}"
+                                   for a in chosen)
+                    + "</div>", unsafe_allow_html=True)
+
+            # The table is what you open once the chart has told you where to look. Phase 4
+            # and Follow-up join the pills only when the company has any. Labels stay plain
+            # for the same reason as the areas; the count for what is picked shows beneath.
+            bucket_counts = Counter(_bucket(t) for t in every)
+            phase_options = list(DISPLAY_PHASES)
+            if post:
+                phase_options.append("Phase 4")
+            if followup:
+                phase_options.append("Follow-up")
+            phase_pick = st.pills(
+                "Phase", phase_options, selection_mode="multi",
+                key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
+            if phase_pick:
+                st.markdown(
+                    '<div class="byline">'
+                    + "  ·  ".join(f"{p} {bucket_counts.get(p, 0)}" for p in phase_pick)
+                    + "</div>", unsafe_allow_html=True)
+
+            # The table opens on either filter: an area alone lists every phase in it, a
+            # phase alone lists that phase across all diseases, and together they
+            # intersect. It stays shut only while nothing is picked, so it never opens on
+            # the whole list at once.
+            if not chosen and not phase_pick:
+                state("Pick an area or a phase to list the trials",
+                      "The bars answer how much and where; the table answers which. "
+                      "Pick a disease, a phase, or both, rather than opening on "
+                      f"{len(every)} rows of everything.")
+            else:
+                shown = [t for t in every
+                         if (not chosen or t["area"] in chosen)
+                         and (not phase_pick or _bucket(t) in phase_pick)]
+                title = ", ".join(chosen) if chosen else "All diseases"
+                sub = ", ".join(phase_pick) if phase_pick else "all phases"
+                section(title, f"{len(shown)} trials, {sub}")
+                # A follow-up study keeps its registry phase but is labelled as one, so a
+                # Phase 3 long-term follow-up no longer reads as a Phase 3 development trial.
+                table = pd.DataFrame([{
+                    "NCT": t["nct_id"],
+                    "Phase": (f"{t['phase']} follow-up" if _bucket(t) == "Follow-up"
+                              else t["phase"]),
+                    "Area": t["area"],
+                    "Status": t["overall_status"],
+                    "Primary completion": t["primary_completion_date"],
+                    # A date that has passed means opposite things depending on
+                    # this. Actual: the endpoint was reached and the trial runs on
+                    # for survival follow-up, sometimes for a decade. Estimated and
+                    # past: the forecast was missed and nobody updated the record.
+                    "Date": _completion_note(t),
+                    "Conditions": ", ".join(t["conditions"][:3]),
+                    # The registry title is the description, and it runs long, so the
+                    # grid crops it. A click on the row prints it in full below.
+                    "Description": t["title"],
+                    "Trial": CTGOV_STUDY + (t["nct_id"] or "")}
+                    for t in shown])
+                # A key tied to the selection resets it when the filter changes, so a
+                # stale row index never points into a different trial list.
+                grid_key = f"pipe_{ticker}_{'-'.join(chosen)}_{'-'.join(phase_pick)}"
+                event = st.dataframe(
+                    table, width="stretch", hide_index=True,
+                    on_select="rerun", selection_mode="single-row", key=grid_key,
+                    column_config={
+                        "Description": st.column_config.TextColumn(
+                            "Description", width="large"),
+                        "Trial": st.column_config.LinkColumn(
+                            "Trial", display_text="Open ↗"),
+                    })
+                picked = event.selection.rows
+                if picked and picked[0] < len(shown):
+                    chosen_trial = shown[picked[0]]
+                    st.markdown(
+                        f'<div class="trial-detail">'
+                        f'<span class="nct">{html.escape(chosen_trial["nct_id"] or "")}'
+                        f'</span>{html.escape(chosen_trial["title"] or "")}</div>',
+                        unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="byline">Click a row to read the full description; the '
+                    'Trial column opens the study on ClinicalTrials.gov. Areas are '
+                    'matched from the registry condition text by keyword, so the rule '
+                    'that placed a trial is readable rather than guessed. Reached means '
+                    'the primary endpoint was met and the study continues for follow-up; '
+                    'overdue means an estimated date has passed without being revised. '
+                    'Phase 4 and long-term follow-up, extension and rollover studies are '
+                    'lifecycle work, tagged apart from the development pipeline and left '
+                    'out of the in-development count. Follow-up studies are recognised '
+                    'from the registry title, so a few may be missed or over-caught.</div>',
+                    unsafe_allow_html=True)
+
         # --- Programmes: the compounds behind the studies -------------------
         # A trial list answers what is running; this answers what is being developed.
         # Each row is a compound the company is trialling but does not yet sell, bound to
@@ -1832,190 +2054,6 @@ with main:
                 'backbone and another company\'s marketed drug are excluded, so this is '
                 'the sponsor\'s own work rather than everything its studies '
                 'mention.</div>', unsafe_allow_html=True)
-
-        # --- Therapeutic areas: click a band to reveal its trials ---
-        # Development trials drive the bars and the "in development" count. Two kinds of
-        # work carry a development phase but are not new development, so they are pulled
-        # out and flagged rather than counted in it: Phase 4, which runs after approval,
-        # and long-term follow-up, extension and rollover studies, which follow a product
-        # through the rest of its life. Each is a distinct muted cap on the bar and a
-        # tagged pill, so they can be read without inflating the pipeline.
-        every = api_get(api_base, f"/companies/{ticker}/trials")["trials"]
-        LIFECYCLE = {"Phase 4": "post-approval", "Follow-up": "follow-up"}
-
-        def _bucket(t):
-            """The pill and segment a trial belongs to: its development phase, or the
-            lifecycle bucket that takes it out of development."""
-            if t["phase"] in POST_APPROVAL:
-                return "Phase 4"
-            if t.get("follow_up"):
-                return "Follow-up"
-            return PHASE_MERGE.get(t["phase"], t["phase"])
-
-        dev = [t for t in every if _bucket(t) in DISPLAY_PHASES]
-        post = [t for t in every if _bucket(t) == "Phase 4"]
-        followup = [t for t in every if _bucket(t) == "Follow-up"]
-        head = f"{len(dev)} in development"
-        if post:
-            head += f" · {len(post)} post-approval"
-        if followup:
-            head += f" · {len(followup)} follow-up"
-        section(f"{ticker} by therapeutic area", head)
-        if not every:
-            state(f"No trials on file for {ticker}",
-                  "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
-                  "or pick another company in the sidebar.")
-        else:
-            all_area = Counter(t["area"] for t in every)
-            dev_area = Counter(t["area"] for t in dev)
-            # Bars keep development order and shape; an area with only lifecycle work
-            # falls to the end, so an approved product with no active development is
-            # still on the chart and selectable.
-            order = [a for a, _ in dev_area.most_common()]
-            order += [a for a in all_area if a not in dev_area]
-            counts = dict(all_area)
-            bucket_area = Counter((t["area"], _bucket(t)) for t in every)
-
-            # The selection is read before the chart is drawn, so the bars can dim,
-            # but the chips are rendered after it: the chart is what tells you which
-            # area to pick, so it comes first and the controls sit under it with the
-            # phase pills, as one band of filters rather than two split around it.
-            chosen = st.session_state.get("area_pills") or []
-
-            # Stacked by phase so the shape of an area reads at a glance: one that is
-            # all Phase 1 is a different proposition from one carrying Phase 3, even
-            # at the same trial count. The phase ramp brightens toward market, so an
-            # area's proximity to approval reads directly. Past the ramp, Phase 4 and
-            # follow-up sit in the muted colour, flagged as lifecycle rather than
-            # coloured as the next rung. Selecting dims the rest to the hairline colour
-            # rather than fading opacity, which kept the segments legible.
-            stack_rows = []
-            for area in order:
-                dimmed = bool(chosen) and area not in chosen
-                segments = []
-                for ph in DISPLAY_PHASES:
-                    count = bucket_area.get((area, ph), 0)
-                    if not count:
-                        continue
-                    segments.append({
-                        "name": f"{ph}, {count} trials",
-                        "value": count,
-                        "colour": TK.RULE if dimmed else TK.PHASE_RAMP[ph]})
-                for life, tag in LIFECYCLE.items():
-                    count = bucket_area.get((area, life), 0)
-                    if not count:
-                        continue
-                    segments.append({
-                        "name": f"{life}, {count} trials, {tag}",
-                        "value": count,
-                        "colour": TK.RULE if dimmed else TK.MUTED})
-                stack_rows.append({"label": area, "segments": segments})
-            legend = [(p, TK.PHASE_RAMP[p]) for p in DISPLAY_PHASES]
-            tags = [t for t, has in (("Phase 4", post), ("follow-up", followup)) if has]
-            if tags:
-                legend.append((" and ".join(tags) + ", post-development", TK.MUTED))
-            R.show(CH.stacked_bar(
-                stack_rows, 832, max(170, 34 * len(order) + 22),
-                value_fmt=lambda v: f"{v:.0f}", legend=legend))
-
-            # Pills stay plain labels: rewriting a pill's own label as it is selected made
-            # its highlight take two clicks. The count for what is selected shows in a line
-            # beneath instead, so a number still appears only once something is highlighted.
-            st.pills("Therapeutic area", order, selection_mode="multi",
-                     key="area_pills", label_visibility="collapsed")
-            if chosen:
-                st.markdown(
-                    '<div class="byline">'
-                    + "  ·  ".join(f"{html_escape(str(a))} {counts.get(a, 0)}"
-                                   for a in chosen)
-                    + "</div>", unsafe_allow_html=True)
-
-            # The table is what you open once the chart has told you where to look. Phase 4
-            # and Follow-up join the pills only when the company has any. Labels stay plain
-            # for the same reason as the areas; the count for what is picked shows beneath.
-            bucket_counts = Counter(_bucket(t) for t in every)
-            phase_options = list(DISPLAY_PHASES)
-            if post:
-                phase_options.append("Phase 4")
-            if followup:
-                phase_options.append("Follow-up")
-            phase_pick = st.pills(
-                "Phase", phase_options, selection_mode="multi",
-                key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
-            if phase_pick:
-                st.markdown(
-                    '<div class="byline">'
-                    + "  ·  ".join(f"{p} {bucket_counts.get(p, 0)}" for p in phase_pick)
-                    + "</div>", unsafe_allow_html=True)
-
-            # The table opens on either filter: an area alone lists every phase in it, a
-            # phase alone lists that phase across all diseases, and together they
-            # intersect. It stays shut only while nothing is picked, so it never opens on
-            # the whole list at once.
-            if not chosen and not phase_pick:
-                state("Pick an area or a phase to list the trials",
-                      "The bars answer how much and where; the table answers which. "
-                      "Pick a disease, a phase, or both, rather than opening on "
-                      f"{len(every)} rows of everything.")
-            else:
-                shown = [t for t in every
-                         if (not chosen or t["area"] in chosen)
-                         and (not phase_pick or _bucket(t) in phase_pick)]
-                title = ", ".join(chosen) if chosen else "All diseases"
-                sub = ", ".join(phase_pick) if phase_pick else "all phases"
-                section(title, f"{len(shown)} trials, {sub}")
-                # A follow-up study keeps its registry phase but is labelled as one, so a
-                # Phase 3 long-term follow-up no longer reads as a Phase 3 development trial.
-                table = pd.DataFrame([{
-                    "NCT": t["nct_id"],
-                    "Phase": (f"{t['phase']} follow-up" if _bucket(t) == "Follow-up"
-                              else t["phase"]),
-                    "Area": t["area"],
-                    "Status": t["overall_status"],
-                    "Primary completion": t["primary_completion_date"],
-                    # A date that has passed means opposite things depending on
-                    # this. Actual: the endpoint was reached and the trial runs on
-                    # for survival follow-up, sometimes for a decade. Estimated and
-                    # past: the forecast was missed and nobody updated the record.
-                    "Date": _completion_note(t),
-                    "Conditions": ", ".join(t["conditions"][:3]),
-                    # The registry title is the description, and it runs long, so the
-                    # grid crops it. A click on the row prints it in full below.
-                    "Description": t["title"],
-                    "Trial": CTGOV_STUDY + (t["nct_id"] or "")}
-                    for t in shown])
-                # A key tied to the selection resets it when the filter changes, so a
-                # stale row index never points into a different trial list.
-                grid_key = f"pipe_{ticker}_{'-'.join(chosen)}_{'-'.join(phase_pick)}"
-                event = st.dataframe(
-                    table, width="stretch", hide_index=True,
-                    on_select="rerun", selection_mode="single-row", key=grid_key,
-                    column_config={
-                        "Description": st.column_config.TextColumn(
-                            "Description", width="large"),
-                        "Trial": st.column_config.LinkColumn(
-                            "Trial", display_text="Open ↗"),
-                    })
-                picked = event.selection.rows
-                if picked and picked[0] < len(shown):
-                    chosen_trial = shown[picked[0]]
-                    st.markdown(
-                        f'<div class="trial-detail">'
-                        f'<span class="nct">{html.escape(chosen_trial["nct_id"] or "")}'
-                        f'</span>{html.escape(chosen_trial["title"] or "")}</div>',
-                        unsafe_allow_html=True)
-                st.markdown(
-                    '<div class="byline">Click a row to read the full description; the '
-                    'Trial column opens the study on ClinicalTrials.gov. Areas are '
-                    'matched from the registry condition text by keyword, so the rule '
-                    'that placed a trial is readable rather than guessed. Reached means '
-                    'the primary endpoint was met and the study continues for follow-up; '
-                    'overdue means an estimated date has passed without being revised. '
-                    'Phase 4 and long-term follow-up, extension and rollover studies are '
-                    'lifecycle work, tagged apart from the development pipeline and left '
-                    'out of the in-development count. Follow-up studies are recognised '
-                    'from the registry title, so a few may be missed or over-caught.</div>',
-                    unsafe_allow_html=True)
 
         # --- Completion-date slips for this company, folded from the old Slippage tab ---
         # Only this company's trials whose primary completion date has moved since we began

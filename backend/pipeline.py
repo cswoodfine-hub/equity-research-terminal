@@ -173,18 +173,24 @@ def trials_for(db_path, ticker: str, phase: str | None = None) -> list[dict] | N
         ).fetchone()
         if company is None:
             return None
+        # asset_id and its name ride along so a view can count compounds rather than
+        # studies: a pipeline is a set of programmes, and ten trials of one molecule is
+        # one bet, not ten. Null where the intervention named nothing we hold.
         query = f"""
-            SELECT nct_id, title, phase, overall_status, primary_completion_date,
-                   primary_completion_type,
-                   last_update_posted, enrollment, conditions
-              FROM trials
-             WHERE sponsor_company_id = ? AND phase IN ({_PLACEHOLDERS})
+            SELECT t.nct_id, t.title, t.phase, t.overall_status,
+                   t.primary_completion_date, t.primary_completion_type,
+                   t.last_update_posted, t.enrollment, t.conditions,
+                   t.asset_id,
+                   COALESCE(a.brand_name, a.generic_name, a.internal_code) AS asset_name,
+                   a.is_marketed AS asset_is_marketed
+              FROM trials t LEFT JOIN assets a ON a.id = t.asset_id
+             WHERE t.sponsor_company_id = ? AND t.phase IN ({_PLACEHOLDERS})
         """
         params = [company["id"], *PHASES]
         if phase:
-            query += " AND phase = ?"
+            query += " AND t.phase = ?"
             params.append(phase)
-        query += " ORDER BY phase, primary_completion_date"
+        query += " ORDER BY t.phase, t.primary_completion_date"
         rows = []
         for row in conn.execute(query, params):
             item = dict(row)
