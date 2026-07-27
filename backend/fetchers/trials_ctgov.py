@@ -15,6 +15,7 @@ import urllib.parse
 import urllib.request
 
 import db
+import trial_mapping
 from fetchers.base import BaseFetcher, RefreshResult
 
 SOURCE = "trials"
@@ -118,7 +119,9 @@ def parse_studies(payload: dict) -> list[dict]:
         if phase is None:
             continue
         interventions = ps.get("armsInterventionsModule", {}).get("interventions") or []
-        drugs = [i.get("name") for i in interventions
+        # Name and type both kept: the name is what binds a trial to an asset, and the
+        # type distinguishes a study drug from a biological comparator downstream.
+        drugs = [{"name": i["name"], "kind": i.get("type")} for i in interventions
                  if i.get("type") in ("DRUG", "BIOLOGICAL") and i.get("name")]
         if not drugs:
             continue
@@ -287,6 +290,18 @@ class TrialsFetcher(BaseFetcher):
                         json.dumps(row["conditions"]), row["last_update_posted"], CTGOV_SOURCE,
                     ),
                 )
+                # The study drugs, replaced wholesale per trial so a dropped arm does not
+                # linger. These are what bind a trial to an asset; without them stored,
+                # nothing can be mapped.
+                conn.execute("DELETE FROM trial_interventions WHERE nct_id = ?",
+                             (row["nct_id"],))
+                for drug in row["interventions"]:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO trial_interventions"
+                        "  (nct_id, name, norm, kind) VALUES (?, ?, ?, ?)",
+                        (row["nct_id"], drug["name"],
+                         trial_mapping.normalise(drug["name"]), drug.get("kind")),
+                    )
             conn.commit()
         finally:
             conn.close()

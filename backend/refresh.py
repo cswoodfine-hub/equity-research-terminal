@@ -25,6 +25,7 @@ import db
 import deals
 import diff
 import pdufa
+import trial_mapping
 import trial_readouts
 from fetchers.adcomm_fedreg import AdCommFetcher
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
@@ -140,6 +141,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
         fetcher.refresh_run_id = run_id
     results = [fetcher.run() for fetcher in fetchers]
 
+    # Bind the trials just fetched to the assets they study, before anything reads the
+    # pipeline by product. Idempotent, and it never overwrites a curated mapping.
+    mapped = trial_mapping.map_trials(db_path)
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
     readouts = catalysts.derive_readouts(db_path)
@@ -153,6 +157,7 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     status = "partial" if any(r.errors for r in results) else "complete"
     detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
               "readouts": readouts, "pdufa": goals, "biologic_loe": bio_loe,
+              "trial_mapping": mapped,
               "trial_readouts": trial_reads, "deals": deal_reads, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
@@ -203,6 +208,9 @@ def run_refresh_all(db_path=None) -> dict:
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         list(pool.map(run_company, companies))
 
+    # Bind the trials just fetched to the assets they study, before anything reads the
+    # pipeline by product. Idempotent, and it never overwrites a curated mapping.
+    mapped = trial_mapping.map_trials(db_path)
     readouts = catalysts.derive_readouts(db_path)
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
     # the acceptance. Without an Anthropic key this reports that it did nothing.
@@ -214,6 +222,7 @@ def run_refresh_all(db_path=None) -> dict:
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
     detail = {"scope": "all", "companies": len(companies),
               "sources": list(by_source.values()), "readouts": readouts,
+              "trial_mapping": mapped,
               "pdufa": goals, "biologic_loe": bio_loe, "trial_readouts": trial_reads,
               "deals": deal_reads, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
