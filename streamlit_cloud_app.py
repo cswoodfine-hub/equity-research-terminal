@@ -52,6 +52,16 @@ def setting(name: str, default: str = "") -> str:
     return (os.getenv(name) or default).strip()
 
 
+def _note_provider() -> str:
+    """Which model the note would use, named from the same check the generator makes."""
+    try:
+        sys.path.insert(0, str(BACKEND))
+        import llm
+        return llm.provider() or ""
+    except Exception:
+        return ""
+
+
 def export_secrets() -> list:
     """Copy every secret into the environment, and say which ones arrived.
 
@@ -67,8 +77,11 @@ def export_secrets() -> list:
             if isinstance(value, (str, int, float)) and str(value).strip():
                 os.environ.setdefault(key, str(value).strip())
                 exported.append(key)
-    except Exception:              # no secrets configured, which is the local case
-        pass
+    except Exception as exc:
+        # Not silent. An unreadable secrets store and an empty one produce the same
+        # app, and the difference is the whole answer when a key that is definitely
+        # set appears not to be.
+        return [f"unreadable: {type(exc).__name__}"]
     return exported
 
 
@@ -216,5 +229,8 @@ sys.argv = [str(FRONTEND / "streamlit_app.py")]
 runpy.run_path(str(FRONTEND / "streamlit_app.py"), run_name="__main__")
 
 st.sidebar.caption(f"Data: {provenance}")
-if SECRETS:
-    st.sidebar.caption("Secrets in use: " + ", ".join(sorted(SECRETS)))
+# Always said, never implied. A missing key is a fact about the deployment and the
+# only place it can be seen is here.
+st.sidebar.caption("Secrets: " + (", ".join(sorted(SECRETS)) if SECRETS
+                                  else "none configured for this app"))
+st.sidebar.caption("Note generator: " + (_note_provider() or "rules only, no model key"))
