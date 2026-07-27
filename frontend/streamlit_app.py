@@ -183,11 +183,16 @@ def feed_row(item, show_reason: bool = False) -> str:
         headline = f'<span class="m {css}">{headline}</span>'
     reason = (html_escape(item["reason"])
               if show_reason and item.get("reason") else "")
+    # A row that has a source is the anchor itself rather than a div wrapping one, so
+    # the whole line is the target and the grid it lays out in is untouched.
+    url = item.get("url")
+    open_tag = (f'<a class="fitem link" href="{html_escape(url)}" target="_blank" '
+                'rel="noopener noreferrer">' if url else '<div class="fitem">')
     # The reason cell is always present so every row has four children and the
     # severity column stays flush right whether or not a rule is named.
-    return (f'<div class="fitem"><span class="d">{date}</span>'
+    return (f'{open_tag}<span class="d">{date}</span>'
             f'<span class="t">{headline}</span><span class="why">{reason}</span>'
-            f'<span class="s {sev}">{sev}</span></div>')
+            f'<span class="s {sev}">{sev}</span>{"</a>" if url else "</div>"}')
 
 
 def html_escape(text: str) -> str:
@@ -384,11 +389,17 @@ def deal_card(deal) -> str:
         body.append('<span class="dnv">size not stated</span>')
     if deal.get("area"):
         body.append(f'<span class="da">{html_escape(deal["area"])}</span>')
-    return (f'<div class="deal dt-{html_escape(deal.get("deal_type") or "")}">'
+    url = deal.get("source_url")
+    classes = f'deal dt-{html_escape(deal.get("deal_type") or "")}{" link" if url else ""}'
+    open_tag = (f'<a class="{classes}" href="{html_escape(url)}" target="_blank" '
+                'rel="noopener noreferrer">' if url
+                else f'<div class="{classes}">')
+    return (f'{open_tag}'
             f'<span class="db">{badge}</span>'
             f'<span class="dbody">{" &middot; ".join(body)}</span>'
             f'<span class="dd" title="{_DEAL_DATE_NOTE.get(deal.get("event_date_source"), "The date on file.")}">'
-            f'{(deal.get("event_date") or "")[:10]}</span></div>')
+            f'{(deal.get("event_date") or "")[:10]}</span>'
+            + ("</a>" if url else "</div>"))
 
 
 def readout_card(readout) -> str:
@@ -1261,10 +1272,6 @@ with main:
             st.markdown('<div class="feed">' + "".join(
                 feed_row(it, show_reason=True) for it in catalyst_items) + "</div>",
                 unsafe_allow_html=True)
-            st.markdown('<div class="byline">Phase 3 readouts derived from registry '
-                        'completion dates, plus curated PDUFA and regulatory dates. An '
-                        'estimated date moves; a refresh updates it.</div>',
-                        unsafe_allow_html=True)
 
         if deals_data:
             size = deal_size(deals_data)
@@ -1272,12 +1279,6 @@ with main:
                     else len(deals_data))
             st.markdown('<div class="deals">' + "".join(
                 deal_card(d) for d in deals_data) + "</div>", unsafe_allow_html=True)
-            st.markdown('<div class="byline">M&amp;A, licensing and collaborations read '
-                        'from the filings that announced them and from the headlines '
-                        'that carried the rest. Size is the consideration as announced, '
-                        'milestones included, which is not the cash in the financials '
-                        'tab. Dated to when the market first saw it.</div>',
-                        unsafe_allow_html=True)
 
         if readouts_data:
             section("Trial readouts", len(readouts_data))
@@ -1293,9 +1294,6 @@ with main:
             section("Loss of exclusivity ahead", len(loe_items))
             st.markdown('<div class="feed">' + "".join(
                 feed_row(it) for it in loe_items) + "</div>", unsafe_allow_html=True)
-            st.markdown('<div class="byline">Latest protection per marketed product, next '
-                        '24 months. Orphan exclusivity is not a cliff.</div>',
-                        unsafe_allow_html=True)
 
         if filing_items:
             section("Recent material filings", len(filing_items))
@@ -1567,19 +1565,17 @@ with main:
                           if value is None and name not in
                           ("cash_lines", "debt_as_of", "operating_income_basis")]
             cf_derived = str(cf_inputs.get("operating_income_basis") or "")
-            st.markdown(
-                '<div class="byline">Free cash flow is operating cash flow less capital '
-                'expenditure, so it is what the year left after keeping the plant running. '
-                'Cash conversion above one means profit arrived as cash; below it, earnings '
-                'ran ahead of the money. Net debt is total debt less cash and short-term '
-                'investments at the latest balance sheet date, measured against EBITDA for '
-                'the full year.'
-                + (' Operating income is not tagged by this filer, so EBITDA takes the '
-                   'subtraction its income statement already shows: revenue less cost of '
-                   'sales, R&D and SG&A.' if cf_derived.startswith("derived") else '')
-                + (f' Nothing is computed from a line the filer did not tag: this company '
-                   f'is missing {html_escape(", ".join(cf_missing))}.' if cf_missing else '')
-                + '</div>', unsafe_allow_html=True)
+            cash_notes = "".join((
+                ('Operating income is not tagged by this filer, so EBITDA takes the '
+                 'subtraction its income statement already shows: revenue less cost of '
+                 'sales, R&D and SG&A. ' if cf_derived.startswith("derived") else ''),
+                (f'Nothing is computed from a line the filer did not tag: this company '
+                 f'is missing {html_escape(", ".join(cf_missing))}.'
+                 if cf_missing else ''),
+            ))
+            if cash_notes:
+                st.markdown(f'<div class="byline">{cash_notes}</div>',
+                            unsafe_allow_html=True)
 
             # The quarterly panel shows the most recent year, one bar per quarter. Growth
             # is year-over-year on the whole series, so the last four keep their real
@@ -2162,10 +2158,6 @@ with main:
                     centre_label=T.num(sum(s["value"] for s in slices) / 1e9, 1),
                     centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
                     value_fmt=lambda v: T.num(v / 1e9, 2)))
-                st.markdown(
-                    '<div class="byline">'
-                    f'{revenue_mix.caption(mix_rows, mix_ccy, mix_year, mix_reported.get("value"))}'
-                    '</div>', unsafe_allow_html=True)
 
             # Loss of exclusivity by year. Two cuts of the same expiries. The count
             # cliff shows every product with a published expiry, so nothing is hidden by
@@ -2289,18 +2281,6 @@ with main:
                 st.session_state["prod_click_nonce"] = clicked.get("nonce")
                 st.session_state["profile_asset"] = clicked.get("asset_id")
                 st.rerun()
-            st.markdown(
-                '<div class="byline">One card per product, biggest revenue first. Click a '
-                'card for its full fact sheet. Approval from openFDA drugsfda '
-                '(CDER), exclusivity from the Orange Book (small molecule) or Purple Book '
-                '(biologic), revenue from the SEC data sets where the filer tags it. A '
-                'small molecule shows a range from its earliest to its latest listed '
-                'patent, since a generic can challenge the earlier ones, so the cliff is a '
-                'window not one date. A biologic shows the later of its listed expiry and '
-                'the 12-year statutory floor. A cell or gene therapy is CBER-regulated and '
-                'absent from drugsfda, so it shows from the Purple Book with a dash for the '
-                'approval date. An exclusivity date within three years reads red.</div>',
-                unsafe_allow_html=True)
 
         # --- Medicare demand ---
         # Revenue is what a drug earned; this is how many people took it. CMS Part D and
@@ -2466,9 +2446,3 @@ with main:
                     f" MD&A is rewritten each period, {round((1 - mdna['ratio']) * 100)}% "
                     f"changed in the latest {mdna['form']}, so it is kept but not flagged "
                     f"as an event.")
-            st.markdown(
-                '<div class="byline">Risk factors are prose that turns over slowly, so '
-                'what is added or removed against the last filing of the same form is the '
-                'signal, and the added passages read in full above. The diff is '
-                'structural, sentence by sentence, with no model in the loop.' + note
-                + '</div>', unsafe_allow_html=True)

@@ -278,6 +278,11 @@ h3 {{ font-size: 0.9rem; }}
   border-bottom: 1px solid var(--rule);
 }}
 .fitem:last-child {{ border-bottom: none; }}
+/* A row or card that has a source reads as itself, not as a link: the underline and
+   the blue belong to prose. The cursor and a lift on hover say it is clickable. */
+.fitem.link, .deal.link {{ text-decoration: none; color: inherit; cursor: pointer; }}
+.fitem.link:hover, .deal.link:hover {{ background: var(--panel); }}
+.fitem.link:hover .t, .deal.link:hover .dp {{ color: var(--up); }}
 .fitem .d {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted); }}
 .fitem .t {{ font-size: 12.5px; line-height: 1.35; }}
 .fitem .s {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;

@@ -8,6 +8,7 @@ optional note layer that summarises this per company lives in ``insights.py``.
 from __future__ import annotations
 
 import json
+import re
 
 import db
 import edgar_items
@@ -134,11 +135,22 @@ def _catalyst_detail(row) -> str | None:
             if detail else f"[{row['nct_id']}. Full title: {row['title']}]")
 
 
+_NCT = re.compile(r"^NCT\d{8}$")
+
+
+def _catalyst_url(nct_id, source_url) -> str | None:
+    """The page behind a catalyst. A trial readout is derived from a registry record, so
+    the registry page is the primary source; anything else links to what announced it."""
+    if nct_id and _NCT.match(str(nct_id).strip()):
+        return f"https://clinicaltrials.gov/study/{str(nct_id).strip()}"
+    return source_url or None
+
+
 def _upcoming_catalysts(conn, within_days, ticker=None):
     soon_threshold = _date_offset(conn, materiality.CATALYST_SOON_DAYS)
     sql = """
         SELECT c.ticker, cat.catalyst_type, cat.expected_date, cat.title,
-               cat.date_confidence, cat.description AS nct_id,
+               cat.date_confidence, cat.description AS nct_id, cat.source_url,
                t.phase, t.overall_status, t.enrollment, t.conditions,
                a.brand_name, a.generic_name
           FROM catalysts cat JOIN companies c ON cat.company_id = c.id
@@ -171,6 +183,10 @@ def _upcoming_catalysts(conn, within_days, ticker=None):
             "detail": _catalyst_detail(r),
             "reason": (f"inside {materiality.CATALYST_SOON_DAYS} days" if soon
                        else None),
+            # Where the catalyst can be read in full: the registry page for a trial
+            # readout, and whatever announced the rest. A curated row with no source
+            # links nowhere rather than to a search.
+            "url": _catalyst_url(r["nct_id"], r["source_url"]),
         })
     return items
 
