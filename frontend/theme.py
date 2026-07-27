@@ -380,6 +380,10 @@ h3 {{ font-size: 0.9rem; }}
 .prof-line:last-child {{ border-bottom: 0; }}
 .prof-line .d {{ font-family: var(--font-mono); color: var(--muted);
                 margin-right: 8px; }}
+.prof-line .ph {{ font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase;
+                 color: var(--muted); margin-right: 4px; }}
+.prof-line a {{ color: inherit; text-decoration: none; }}
+.prof-line a:hover {{ text-decoration: underline; text-underline-offset: 2px; }}
 .prof-note {{ font-size: 11px; line-height: 1.35; padding: 2px 0 6px;
              white-space: pre-wrap; }}
 .prof-note.empty {{ color: var(--muted); font-style: italic; }}
@@ -410,6 +414,39 @@ h3 {{ font-size: 0.9rem; }}
            white-space: nowrap; text-align: right; }}
 .reg-item a {{ color: inherit; text-decoration: none; }}
 .reg-item a:hover {{ text-decoration: underline; }}
+
+/* Programmes in development, grouped by phase. Each compound is a disclosure that
+   opens onto its own studies, so the link from programme to trial is one click and
+   needs no rerun. */
+.progs {{ margin: 0.2rem 0 0.3rem; }}
+.prog-h {{ display: flex; justify-content: space-between; align-items: baseline;
+          font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+          color: var(--muted); margin: 0.6rem 0 0.15rem;
+          border-bottom: 1px solid var(--rule-strong); padding-bottom: 2px; }}
+.prog-h span {{ font-family: var(--font-mono); }}
+.prog {{ border-bottom: 1px solid var(--rule); }}
+.prog > summary {{ display: grid; grid-template-columns: 1fr 74px 84px; gap: 0.7rem;
+                  align-items: baseline; font-size: 11.5px; padding: 3px 2px;
+                  cursor: pointer; list-style: none; }}
+.prog > summary::-webkit-details-marker {{ display: none; }}
+.prog > summary:hover {{ background: var(--rule); }}
+.prog[open] > summary {{ color: var(--up); }}
+.prog-n {{ color: var(--text); }}
+.prog[open] .prog-n {{ color: var(--up); }}
+.prog-t, .prog-d {{ font-family: var(--font-mono); color: var(--muted);
+                   text-align: right; }}
+/* The studies behind one compound. */
+.prog-s {{ display: grid; grid-template-columns: 74px 62px 1fr auto; gap: 0.6rem;
+          align-items: baseline; font-size: 10.5px; line-height: 1.3;
+          padding: 2px 2px 2px 12px; border-left: 2px solid var(--rule-strong);
+          margin-left: 2px; }}
+.prog-s .d {{ font-family: var(--font-mono); color: var(--muted); }}
+.prog-s .ph {{ font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase;
+              color: var(--muted); }}
+.prog-s .st {{ font-size: 9px; color: var(--muted); text-align: right;
+              white-space: nowrap; }}
+.prog-s a {{ color: var(--text); text-decoration: none; }}
+.prog-s a:hover {{ text-decoration: underline; text-underline-offset: 2px; }}
 
 /* Trial readouts: a mark and sign, the phase, the drug, and the quote. */
 .readouts {{ margin: 0.1rem 0 0.3rem; }}

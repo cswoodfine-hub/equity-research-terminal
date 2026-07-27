@@ -1710,32 +1710,64 @@ with main:
         # its studies through the intervention names the registry publishes.
         programmes = api_get(api_base,
                              f"/companies/{ticker}/programmes").get("programmes") or []
-        section("Programmes in development", f"{len(programmes)} compounds")
+        # Grouped by the furthest phase each compound has reached, most advanced first,
+        # and every phase is shown: early work is most of a pipeline by count, and a
+        # Phase 1 programme is the part an analyst is being paid to find early.
+        by_phase: dict = {}
+        for p in programmes:
+            by_phase.setdefault(p.get("phase") or "unphased", []).append(p)
+        phase_order = ["Phase 3", "Phase 2/3", "Phase 2", "Phase 1/2", "Phase 1",
+                       "Phase 4", "unphased"]
+        counts = " · ".join(f'{len(by_phase[ph])} {ph}'
+                            for ph in phase_order if by_phase.get(ph))
+        section("Programmes in development",
+                f"{len(programmes)} compounds" + (f" · {counts}" if counts else ""))
         if not programmes:
             state(f"No unapproved compounds mapped for {ticker}",
                   "Programmes are derived from the drug each trial names. Press Refresh "
                   "all to pull the registry and bind them.")
         else:
-            rows = []
-            for p in programmes[:24]:
-                due = (p.get("next_readout") or "")[:10]
-                rows.append(
-                    f'<div class="prog">'
-                    f'<span class="prog-ph {"lead" if p.get("phase") == "Phase 3" else ""}">'
-                    f'{html_escape(p.get("phase") or "—")}</span>'
-                    f'<span class="prog-n">{html_escape(p.get("name") or "")}</span>'
-                    f'<span class="prog-t">{p.get("trials", 0)} trials</span>'
-                    f'<span class="prog-d">{html_escape(due or "no date")}</span></div>')
-            st.markdown('<div class="progs">' + "".join(rows) + "</div>",
-                        unsafe_allow_html=True)
+            html = ['<div class="progs">']
+            for ph in phase_order:
+                group = by_phase.get(ph)
+                if not group:
+                    continue
+                html.append(f'<div class="prog-h">{html_escape(ph)}'
+                            f'<span>{len(group)}</span></div>')
+                for p in group:
+                    due = (p.get("next_readout") or "")[:10]
+                    # A native disclosure, so a programme opens onto its own studies
+                    # without a widget and without a rerun.
+                    studies = []
+                    for s in p.get("studies") or []:
+                        title = (s.get("title") or "").strip()
+                        title = title if len(title) <= 84 else title[:83].rstrip() + "…"
+                        studies.append(
+                            f'<div class="prog-s" title="{html_escape(s.get("title") or "")}">'
+                            f'<span class="d">{html_escape((s.get("due") or "")[:10] or "no date")}</span>'
+                            f'<span class="ph">{html_escape(s.get("phase") or "")}</span>'
+                            f'<a href="https://clinicaltrials.gov/study/{html_escape(s.get("nct_id") or "")}"'
+                            f' target="_blank" rel="noopener">{html_escape(title)}</a>'
+                            f'<span class="st">{html_escape(s.get("status") or "")}</span>'
+                            f'</div>')
+                    html.append(
+                        f'<details class="prog"><summary>'
+                        f'<span class="prog-n">{html_escape(p.get("name") or "")}</span>'
+                        f'<span class="prog-t">{p.get("trials", 0)} trials</span>'
+                        f'<span class="prog-d">{html_escape(due or "no date")}</span>'
+                        f'</summary>{"".join(studies)}</details>')
+            html.append("</div>")
+            st.markdown("".join(html), unsafe_allow_html=True)
             st.markdown(
                 '<div class="byline">One row per compound in trials that the company does '
-                'not yet sell, furthest phase first, with the studies behind it and the '
-                'next primary completion date due. Derived from the drug each registry '
-                'entry names, so a compound appears only where a trial names it. A '
-                'comparator, a shared chemotherapy backbone and another company\'s '
-                'marketed drug are excluded, so this is the sponsor\'s own work rather '
-                'than everything its studies mention.</div>', unsafe_allow_html=True)
+                'not yet sell, grouped by the furthest phase it has reached, with the '
+                'number of studies behind it and the next primary completion date due. '
+                'Open a compound for its own studies, each linking to the registry. '
+                'Derived from the drug each registry entry names, so a compound appears '
+                'only where a trial names it. A comparator, a shared chemotherapy '
+                'backbone and another company\'s marketed drug are excluded, so this is '
+                'the sponsor\'s own work rather than everything its studies '
+                'mention.</div>', unsafe_allow_html=True)
 
         # --- Therapeutic areas: click a band to reveal its trials ---
         # Development trials drive the bars and the "in development" count. Two kinds of

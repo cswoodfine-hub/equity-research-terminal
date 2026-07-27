@@ -7,6 +7,7 @@ deduplicated assets; asset_indications population waits for a curated asset univ
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import re
 
@@ -87,6 +88,66 @@ def build_pipeline(db_path=None) -> list[dict]:
                     "total": sum(phases.values()),
                 }
             )
+        return out
+    finally:
+        conn.close()
+
+
+def programmes(db_path, ticker: str) -> list[dict] | None:
+    """One row per compound the company is trialling but does not yet sell.
+
+    The pipeline read as a list of studies until trials were bound to assets; this reads
+    it as the programmes an analyst actually tracks, each with how many studies sit
+    behind it, the furthest phase any of them has reached, and when the next one is due
+    to read out. Sorted by phase reached, so the closest to market leads.
+    """
+    conn = db.get_connection(db_path)
+    try:
+        company = conn.execute(
+            "SELECT id FROM companies WHERE ticker = ?", (ticker.upper(),)).fetchone()
+        if company is None:
+            return None
+        # Every study of every unapproved compound, in one pass. Grouping in Python
+        # rather than a query per compound keeps this one round trip whatever the size
+        # of the pipeline, which for a large sponsor is eighty programmes or more.
+        rows = conn.execute(
+            """
+            SELECT a.id AS asset_id, a.generic_name AS name, a.modality,
+                   t.nct_id, t.title, t.phase, t.overall_status,
+                   t.primary_completion_date AS due, t.enrollment
+              FROM assets a JOIN trials t ON t.asset_id = a.id
+             WHERE a.owner_company_id = ? AND a.is_marketed = 0
+             ORDER BY (t.primary_completion_date IS NULL), t.primary_completion_date
+            """, (company["id"],)).fetchall()
+
+        today = dt.date.today().isoformat()
+        by_asset: dict = {}
+        for row in rows:
+            entry = by_asset.setdefault(row["asset_id"], {
+                "asset_id": row["asset_id"], "name": row["name"],
+                "modality": row["modality"], "trials": 0, "next_readout": None,
+                "phases": set(), "studies": []})
+            entry["trials"] += 1
+            entry["phases"].add(row["phase"])
+            if row["due"] and row["due"] >= today and (
+                    entry["next_readout"] is None or row["due"] < entry["next_readout"]):
+                entry["next_readout"] = row["due"]
+            entry["studies"].append(
+                {"nct_id": row["nct_id"], "title": row["title"], "phase": row["phase"],
+                 "status": row["overall_status"], "due": row["due"],
+                 "enrollment": row["enrollment"]})
+
+        out = []
+        for entry in by_asset.values():
+            phases = [p for p in entry.pop("phases") if p]
+            # The furthest phase reached, on the app-wide phase order.
+            entry["phase"] = max((p for p in phases if p in PHASES),
+                                 key=PHASES.index, default=None)
+            entry["phases"] = sorted(phases, key=lambda p: PHASES.index(p)
+                                     if p in PHASES else -1)
+            out.append(entry)
+        out.sort(key=lambda i: (PHASES.index(i["phase"]) if i["phase"] in PHASES else -1,
+                                i["trials"]), reverse=True)
         return out
     finally:
         conn.close()
