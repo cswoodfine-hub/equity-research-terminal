@@ -353,6 +353,12 @@ h3 {{ font-size: 0.9rem; }}
 .cat-t .rv {{ color: var(--flag); font-size: 8px; letter-spacing: 0.04em;
              text-transform: uppercase; margin-left: 4px; white-space: nowrap; }}
 .cat-more {{ font-size: 9.5px; color: var(--muted); padding-top: 3px; }}
+/* The row carries the full registry title as its tooltip and links to the study. The
+   link inherits its colour so the box stays a quiet list rather than a page of blue. */
+.cat-item {{ cursor: default; }}
+.cat-item a {{ color: inherit; text-decoration: none; cursor: pointer; }}
+.cat-item a:hover {{ text-decoration: underline; text-underline-offset: 2px; }}
+.cat-item:hover {{ background: var(--rule); }}
 
 /* Product fact profile: the panel that opens when a product card is clicked. Sourced
    rows on the left, the analyst's curated view on the right, one bordered surface. */

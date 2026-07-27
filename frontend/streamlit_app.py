@@ -938,15 +938,27 @@ with main:
                 items = []
                 for c in cats[:_CAT_PER_BOX]:
                     phase, study = _cat_phase_study(c.get("title") or "")
-                    study = study if len(study) <= 60 else study[:59].rstrip() + "…"
+                    # The registry title is stored whole and cut per view; the full one
+                    # rides along as the tooltip, since the part that tells two studies
+                    # apart is usually at the end. The NCT id goes in too, so a hover
+                    # identifies the trial without opening it.
+                    nct = c.get("description") or ""
+                    full = c.get("title") or ""
+                    if nct.startswith("NCT"):
+                        full = f"{full} ({nct})"
+                    shown = study if len(study) <= 60 else study[:59].rstrip() + "…"
                     ph = (f'<span class="cat-ph">{html_escape(phase)} </span>'
                           if phase else "")
                     review = ("" if c.get("is_curated")
                               else '<span class="rv">review</span>')
+                    body = f'{ph}{html_escape(shown)}{review}'
+                    if c.get("source_url"):
+                        body = (f'<a href="{html_escape(c["source_url"])}" '
+                                f'target="_blank" rel="noopener">{body}</a>')
                     items.append(
-                        f'<div class="cat-item">'
+                        f'<div class="cat-item" title="{html_escape(full)}">'
                         f'<span class="cat-d">{html_escape(_cat_short_date(c["expected_date"]))}</span>'
-                        f'<span class="cat-t">{ph}{html_escape(study)}{review}</span>'
+                        f'<span class="cat-t">{body}</span>'
                         f'</div>')
                 extra = len(cats) - _CAT_PER_BOX
                 more = (f'<div class="cat-more">+{extra} more</div>'
@@ -961,10 +973,11 @@ with main:
             st.markdown(
                 '<div class="byline">One box per company with a trial readout inside 30 '
                 'days, soonest company first, dated by the registry primary completion '
-                'date. Every one is derived, not curated, so each is a candidate to review '
-                'rather than a confirmed event, and registry dates slip. No free PDUFA '
-                'calendar exists, so regulatory decision dates are not here unless hand '
-                'entered.</div>', unsafe_allow_html=True)
+                'date. Hover a row for the full study title and its NCT id, click it to '
+                'open the registry entry. Every one is derived, not curated, so each is a '
+                'candidate to review rather than a confirmed event, and registry dates '
+                'slip. No free PDUFA calendar exists, so regulatory decision dates are not '
+                'here unless hand entered.</div>', unsafe_allow_html=True)
 
         # Advisory committee votes and the announcement feeds are one question, what the
         # agency is doing, so they read as one timeline: scheduled votes ahead, then what
@@ -1947,6 +1960,33 @@ with main:
                 f'</span></div>'
                 '</div>', unsafe_allow_html=True)
 
+            # Revenue mix leads: what the company earns today, by product, before the
+            # cliff charts say what is at risk. The mix is the base the rest is read
+            # against, so it comes first.
+            if mix_drivers:
+                section("Revenue mix", f"FY{mix_year}")
+                ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
+                slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
+                           "value": p["value"], "colour": ramp[i % len(ramp)]}
+                          for i, p in enumerate(mix_drivers)]
+                if mix_tail:
+                    slices.append({"label": f"{len(mix_tail)} smaller products",
+                                   "value": sum(p["value"] for p in mix_tail),
+                                   "colour": TK.RULE_STRONG, "muted": True})
+                rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
+                if rest:
+                    slices.append({"label": "not attributed by product",
+                                   "value": rest, "colour": TK.PANEL, "muted": True})
+                R.show(CH.donut(
+                    slices, 832, 320,
+                    centre_label=T.num(sum(s["value"] for s in slices) / 1e9, 1),
+                    centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                    value_fmt=lambda v: T.num(v / 1e9, 2)))
+                st.markdown(
+                    '<div class="byline">'
+                    f'{revenue_mix.caption(mix_rows, mix_ccy, mix_year, mix_reported.get("value"))}'
+                    '</div>', unsafe_allow_html=True)
+
             # Loss of exclusivity by year. Two cuts of the same expiries. The count
             # cliff shows every product with a published expiry, so nothing is hidden by
             # the free-data revenue gap. The revenue chart below weights only the few
@@ -1987,31 +2027,6 @@ with main:
                     'Free data tags revenue for only a few products, so this understates '
                     'the money at risk and is a floor, not the total.</div>',
                     unsafe_allow_html=True)
-
-            # Revenue mix, above the product cards: what the company earns, by product.
-            if mix_drivers:
-                section("Revenue mix", f"FY{mix_year}")
-                ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
-                slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
-                           "value": p["value"], "colour": ramp[i % len(ramp)]}
-                          for i, p in enumerate(mix_drivers)]
-                if mix_tail:
-                    slices.append({"label": f"{len(mix_tail)} smaller products",
-                                   "value": sum(p["value"] for p in mix_tail),
-                                   "colour": TK.RULE_STRONG, "muted": True})
-                rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
-                if rest:
-                    slices.append({"label": "not attributed by product",
-                                   "value": rest, "colour": TK.PANEL, "muted": True})
-                R.show(CH.donut(
-                    slices, 832, 320,
-                    centre_label=T.num(sum(s["value"] for s in slices) / 1e9, 1),
-                    centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                    value_fmt=lambda v: T.num(v / 1e9, 2)))
-                st.markdown(
-                    '<div class="byline">'
-                    f'{revenue_mix.caption(mix_rows, mix_ccy, mix_year, mix_reported.get("value"))}'
-                    '</div>', unsafe_allow_html=True)
 
             section("Products", f"{len(prods)}")
 
