@@ -62,6 +62,26 @@ jobs:
       - name: Export the refreshed history
         run: python backend/history.py export
 
+      - name: Publish the database for the deployed app
+        # The history export is the durable record and stays in git. The database
+        # itself is 77 MB, 18 MB gzipped, and committing that daily would add six
+        # gigabytes a year of undiffable binary. A release asset is replaced in place
+        # instead, so the repository stays the size of its text and the deployed app
+        # always finds one file at one tag.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -f backend/er_tool.db ]; then
+            echo "No database to publish; the refresh produced none."
+            exit 0
+          fi
+          gzip -c backend/er_tool.db > er_tool.db.gz
+          ls -lh er_tool.db.gz
+          gh release view data-latest >/dev/null 2>&1 || gh release create data-latest \
+            --title "Latest refreshed database" \
+            --notes "Replaced by the daily refresh. The deployed app resolves this tag."
+          gh release upload data-latest er_tool.db.gz --clobber
+
       - name: Commit the day's history
         run: |
           git config user.name  "er-terminal-bot"

@@ -19,11 +19,10 @@ as an empty universe.
 from __future__ import annotations
 
 import gzip
-import io
+import json
 import os
 import pathlib
 import runpy
-import shutil
 import sys
 import threading
 import time
@@ -40,10 +39,35 @@ import streamlit as st  # noqa: E402  after sys.path, so backend imports resolve
 
 API_PORT = int(os.getenv("ER_API_PORT", "8000"))
 API_BASE = f"http://127.0.0.1:{API_PORT}"
-# A gzipped SQLite file the daily workflow can publish. Set as a Streamlit secret to
-# give the deployed app the same data the scheduled refresh produced.
+# Where the daily refresh publishes its database. Set ER_DB_REPO to "owner/repo" and
+# the app resolves the tag each time it starts, which it has to: uploading an asset
+# gives it a new id, so a URL captured once points at yesterday's file by tomorrow.
+# ER_DB_URL is the escape hatch for a plain public URL.
+DB_REPO = os.getenv("ER_DB_REPO", "")
+DB_TAG = os.getenv("ER_DB_TAG", "data-latest")
 DB_URL = os.getenv("ER_DB_URL", "")
 STARTUP_TIMEOUT_S = 45
+
+
+def _resolve_release_asset(repo: str, tag: str, token: str) -> str:
+    """The API URL of the published database, looked up by tag.
+
+    An asset keeps its name and loses its id every time it is replaced, so the id is
+    resolved on each start rather than configured once. The API URL is used, not the
+    browser one, because a private repository only serves the former to a token.
+    """
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/releases/tags/{tag}",
+        headers={"User-Agent": "NovatalisTerminal/0.1",
+                 "Accept": "application/vnd.github+json"})
+    if token:
+        request.add_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(request, timeout=30) as response:
+        release = json.load(response)
+    for asset in release.get("assets", []):
+        if asset.get("name", "").endswith(".gz"):
+            return asset["url"]
+    raise RuntimeError(f"release {tag} in {repo} publishes no .gz asset")
 
 
 def _download_database(url: str, target: pathlib.Path) -> str:
@@ -55,7 +79,9 @@ def _download_database(url: str, target: pathlib.Path) -> str:
         request.add_header("Accept", "application/octet-stream")
     with urllib.request.urlopen(request, timeout=120) as response:
         payload = response.read()
-    body = gzip.decompress(payload) if url.endswith(".gz") else payload
+    # The release asset is gzipped whatever its URL ends in, so the magic number
+    # decides rather than the path.
+    body = gzip.decompress(payload) if payload[:2] == b"\x1f\x8b" else payload
     target.write_bytes(body)
     return f"downloaded {len(body) / 1e6:.0f} MB from the published refresh"
 
@@ -71,11 +97,14 @@ def prepare_database() -> str:
     if target.exists() and target.stat().st_size > 1_000_000:
         return "using the database already on disk"
 
-    if DB_URL:
+    if DB_REPO or DB_URL:
         try:
+            token = os.getenv("ER_DB_TOKEN", "").strip()
+            url = (_resolve_release_asset(DB_REPO, DB_TAG, token) if DB_REPO
+                   else DB_URL)
             db.init(str(target))
-            return _download_database(DB_URL, target)
-        except Exception as exc:            # a bad URL must not take the app down
+            return _download_database(url, target)
+        except Exception as exc:      # a bad tag or token must not take the app down
             st.warning(f"Could not fetch the published database: {exc}")
 
     # Whatever is on file. The history holds the change feed and the notes; the
