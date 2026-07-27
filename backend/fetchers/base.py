@@ -107,6 +107,7 @@ class BaseFetcher(ABC):
     def run(self) -> RefreshResult:
         start = time.perf_counter()
         errors: list[str] = []
+        notes: list[str] = []
         rows_fetched = 0
         skipped = False
         try:
@@ -119,6 +120,9 @@ class BaseFetcher(ABC):
                 result = self.upsert(rows)
                 rows_fetched = result.rows_fetched
                 errors.extend(result.errors)
+                # A fetcher's notes were being dropped here, so the one place designed
+                # to report what a run declined or could not find said nothing.
+                notes.extend(result.notes)
         except Exception as exc:  # a source outage is reported, not fatal
             errors.append(f"{self.source}: {exc}")
             try:
@@ -126,4 +130,5 @@ class BaseFetcher(ABC):
             except Exception:
                 pass
         elapsed_ms = int((time.perf_counter() - start) * 1000)
-        return RefreshResult(self.source, rows_fetched, errors, skipped, elapsed_ms)
+        return RefreshResult(self.source, rows_fetched, errors, skipped, elapsed_ms,
+                             notes=notes)
