@@ -65,6 +65,9 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
         capex = _fy(conn, cid, "CapitalExpenditure")
         operating = _fy(conn, cid, "OperatingIncomeLoss")
         dna = _fy(conn, cid, "DepreciationAndAmortisation")
+        cost_of_revenue = _fy(conn, cid, "CostOfRevenue")
+        rd = _fy(conn, cid, "ResearchAndDevelopmentExpense")
+        sga = _fy(conn, cid, "SellingGeneralAndAdministrative")
         debt = _instant(conn, cid, "TotalDebt")
         cash_rows = {name: _instant(conn, cid, name) for name in _CASH_LINES}
         rates = fx.latest_usd_rates(db_path)
@@ -92,8 +95,23 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
     net_debt = (val(debt) - cash_value
                 if val(debt) is not None and cash_value is not None else None)
 
-    ebitda = (val(operating) + abs(val(dna))
-              if val(operating) is not None and val(dna) is not None else None)
+    # Operating income is not tagged by every filer: Lilly reports its way down to income
+    # before tax without it, which left the leverage multiple blank while every line it
+    # is made of was on file. Where it is missing, it is the subtraction the income
+    # statement already shows, and marked as arithmetic rather than a filed figure. It
+    # is not attempted unless all three deductions are present, so a partial statement
+    # cannot produce an operating income that quietly omits a cost.
+    operating_value, operating_basis = val(operating), "reported"
+    if operating_value is None:
+        parts = [val(revenue), val(cost_of_revenue), val(rd), val(sga)]
+        if all(p is not None for p in parts):
+            operating_value = parts[0] - abs(parts[1]) - abs(parts[2]) - abs(parts[3])
+            operating_basis = "derived from revenue less cost of sales, R&D and SG&A"
+        else:
+            operating_basis = None
+
+    ebitda = (operating_value + abs(val(dna))
+              if operating_value is not None and val(dna) is not None else None)
 
     def usd(value):
         if value is None or not currency:
@@ -122,7 +140,8 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
         "inputs": {
             "revenue": val(revenue), "net_income": val(net_income),
             "cash_flow_operating": cfo_value, "capital_expenditure": capex_value,
-            "operating_income": val(operating),
+            "operating_income": operating_value,
+            "operating_income_basis": operating_basis,
             "depreciation_amortisation": val(dna),
             "total_debt": val(debt), "cash": cash_value,
             "cash_lines": cash_lines_used,

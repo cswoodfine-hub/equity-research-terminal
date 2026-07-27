@@ -1480,9 +1480,11 @@ with main:
                     f'<span class="sub">{html_escape(sub)}</span></div>'
                     for label, value, sub in cf_cells) + '</div>',
                 unsafe_allow_html=True)
-            cf_missing = [name.replace("_", " ") for name, value
-                          in (cash.get("inputs") or {}).items()
-                          if value is None and name not in ("cash_lines", "debt_as_of")]
+            cf_inputs = cash.get("inputs") or {}
+            cf_missing = [name.replace("_", " ") for name, value in cf_inputs.items()
+                          if value is None and name not in
+                          ("cash_lines", "debt_as_of", "operating_income_basis")]
+            cf_derived = str(cf_inputs.get("operating_income_basis") or "")
             st.markdown(
                 '<div class="byline">Free cash flow is operating cash flow less capital '
                 'expenditure, so it is what the year left after keeping the plant running. '
@@ -1490,8 +1492,11 @@ with main:
                 'ran ahead of the money. Net debt is total debt less cash and short-term '
                 'investments at the latest balance sheet date, measured against EBITDA for '
                 'the full year.'
-                + (f' Nothing is computed from a line the filer did not tag: this company is '
-                   f'missing {html_escape(", ".join(cf_missing))}.' if cf_missing else '')
+                + (' Operating income is not tagged by this filer, so EBITDA takes the '
+                   'subtraction its income statement already shows: revenue less cost of '
+                   'sales, R&D and SG&A.' if cf_derived.startswith("derived") else '')
+                + (f' Nothing is computed from a line the filer did not tag: this company '
+                   f'is missing {html_escape(", ".join(cf_missing))}.' if cf_missing else '')
                 + '</div>', unsafe_allow_html=True)
 
             # The quarterly panel shows the most recent year, one bar per quarter. Growth

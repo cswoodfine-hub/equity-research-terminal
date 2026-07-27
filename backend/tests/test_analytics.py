@@ -504,7 +504,8 @@ def _seed_cashflow_company(tmp_path, **lines):
     conn = db.get_connection(db_file)
     cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
     flows = ("Revenues", "NetIncomeLoss", "CashFlowOperating", "CapitalExpenditure",
-             "OperatingIncomeLoss", "DepreciationAndAmortisation")
+             "OperatingIncomeLoss", "DepreciationAndAmortisation", "CostOfRevenue",
+             "ResearchAndDevelopmentExpense", "SellingGeneralAndAdministrative")
     for metric, value in lines.items():
         if value is None:
             continue
@@ -554,3 +555,42 @@ def test_cashflow_leaves_a_ratio_empty_rather_than_guessing(tmp_path):
     assert r["cash_conversion"] is None        # undefined on a loss
     assert r["inputs"]["total_debt"] is None   # the blank names its missing line
     assert cashflow.build_cashflow(db_file, "ZZZZ") is None
+
+
+def test_operating_income_is_derived_when_the_filer_does_not_tag_it(tmp_path):
+    """Lilly reports down to income before tax without an operating income line, which
+    left its leverage blank while every line it is made of was on file."""
+    import cashflow
+    db_file = _seed_cashflow_company(
+        tmp_path, Revenues=100.0, CostOfRevenue=20.0,
+        ResearchAndDevelopmentExpense=15.0, SellingGeneralAndAdministrative=10.0,
+        DepreciationAndAmortisation=5.0, TotalDebt=60.0, CashAndEquivalents=10.0)
+    r = cashflow.build_cashflow(db_file, "LLY")
+    assert r["inputs"]["operating_income"] == 55.0        # 100 - 20 - 15 - 10
+    assert r["inputs"]["operating_income_basis"].startswith("derived")
+    assert r["ebitda"] == 60.0                            # 55 plus 5 of D&A
+    assert r["net_debt_ebitda"] == 50.0 / 60.0
+
+
+def test_a_reported_operating_income_is_never_overridden(tmp_path):
+    import cashflow
+    db_file = _seed_cashflow_company(
+        tmp_path, Revenues=100.0, CostOfRevenue=20.0,
+        ResearchAndDevelopmentExpense=15.0, SellingGeneralAndAdministrative=10.0,
+        OperatingIncomeLoss=48.0, DepreciationAndAmortisation=5.0)
+    r = cashflow.build_cashflow(db_file, "LLY")
+    assert r["inputs"]["operating_income"] == 48.0        # the filed figure, not 55
+    assert r["inputs"]["operating_income_basis"] == "reported"
+
+
+def test_operating_income_is_not_derived_from_a_partial_statement(tmp_path):
+    """Deriving without SG&A would report an operating income missing a whole cost."""
+    import cashflow
+    db_file = _seed_cashflow_company(
+        tmp_path, Revenues=100.0, CostOfRevenue=20.0,
+        ResearchAndDevelopmentExpense=15.0, DepreciationAndAmortisation=5.0,
+        TotalDebt=60.0, CashAndEquivalents=10.0)
+    r = cashflow.build_cashflow(db_file, "LLY")
+    assert r["inputs"]["operating_income"] is None
+    assert r["ebitda"] is None
+    assert r["net_debt_ebitda"] is None
