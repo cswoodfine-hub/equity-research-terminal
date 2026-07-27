@@ -1040,56 +1040,6 @@ with main:
                 'free PDUFA calendar exists. EMA retired its news feed, so the EU signal '
                 'comes from the EPAR data instead.</div>', unsafe_allow_html=True)
 
-        section("Catalyst grid, 18 months", "count per company month")
-        grid_data = api_get(api_base, "/catalyst-grid")
-        cells = {}
-        for tk, months in (grid_data.get("cells") or {}).items():
-            for month, cell in months.items():
-                cells[(tk, month[2:])] = {
-                    "count": cell["count"], "weight": cell["weight"],
-                    "flagged": cell.get("uncurated_pdufa")}
-        if cells:
-            R.show(CH.heatmap_grid(
-                grid_data["tickers"], [m[2:] for m in grid_data["months"]], cells,
-                1360, 480, flag_note="uncurated PDUFA, review"))
-            # An SVG cell cannot round-trip a click without scripts, so the drill
-            # is two quiet selects that answer the same question.
-            drill = st.columns([0.2, 0.25, 0.55])
-            with drill[0]:
-                drill_ticker = st.selectbox("Company", grid_data["tickers"],
-                                            key="grid_drill_ticker")
-            with drill[1]:
-                drill_month = st.selectbox("Month", grid_data["months"],
-                                           key="grid_drill_month")
-            month_cats = [c for c in api_get(api_base,
-                          f"/catalysts?within_days=600&ticker={drill_ticker}")
-                          if (c.get("expected_date") or "")[:7] == drill_month]
-            with drill[2]:
-                if not month_cats:
-                    st.markdown('<div class="byline">Nothing in that cell.</div>',
-                                unsafe_allow_html=True)
-            for c in month_cats:
-                line = st.columns([0.8, 0.2])
-                with line[0]:
-                    tag = "" if c.get("is_curated") else " · uncurated"
-                    st.markdown(
-                        f'<div class="fitem"><span class="d">{c["expected_date"]}'
-                        f'</span><span class="t">{html_escape(c["catalyst_type"])}: '
-                        f'{html_escape((c.get("title") or "")[:90])}{tag}</span>'
-                        f'<span class="why"></span><span class="s">'
-                        f'{"curated" if c.get("is_curated") else "derived"}</span></div>',
-                        unsafe_allow_html=True)
-                with line[1]:
-                    if not c.get("is_curated"):
-                        if st.button("Accept", key=f"accept_{c['id']}",
-                                     width="stretch"):
-                            api_post(api_base, f"/catalysts/{c['id']}/accept")
-                            api_get.clear()
-                            st.rerun()
-        else:
-            state("No pending catalysts on file",
-                  "The grid fills from derived readouts and extracted PDUFA dates "
-                  "after a refresh.")
 
     # --- Key insights: the feed is the most important view ---------------
     with insights_tab:
@@ -1643,31 +1593,43 @@ with main:
         # A matrix of every company against every phase, so it belongs with the
         # other cross-sectional views rather than in a tab that is otherwise one
         # company at a time.
-        section("Trials in development by phase", "lead sponsored")
         rows = api_get(api_base, "/pipeline")
+        unattributed = sum(r.get("unattributed", 0) for r in rows)
+        section("Compounds in development by phase",
+                "lead sponsored" + (f" · {unattributed} trials unattributed"
+                                    if unattributed else ""))
         # No total column: it counts every phase, and carrying an all-phases figure
         # beside development-only columns is the disagreement this view just lost.
-        grid = pd.DataFrame([{"Ticker": r["ticker"], **r["phases"]} for r in rows])
+        grid = pd.DataFrame([{"Ticker": r["ticker"], **r["compounds"]} for r in rows])
         if grid[DISPLAY_PHASES].to_numpy().sum() == 0:
-            state("No trials on file",
-                  "Press Refresh all on the Comps tab to pull active lead-sponsored "
-                  "interventional trials from ClinicalTrials.gov.")
+            state("No compounds mapped",
+                  "Press Refresh all on the Comps tab to pull trials from "
+                  "ClinicalTrials.gov and bind each to the compound it studies.")
         else:
             charted = [p for p in PIPELINE_PHASES if p not in POST_APPROVAL]
             long = grid.melt(id_vars="Ticker", value_vars=charted,
-                             var_name="Phase", value_name="Trials")
+                             var_name="Phase", value_name="Compounds")
             long["Phase"] = long["Phase"].replace(PHASE_MERGE)
-            long = long.groupby(["Ticker", "Phase"], as_index=False)["Trials"].sum()
+            long = long.groupby(["Ticker", "Phase"], as_index=False)["Compounds"].sum()
             # The count is printed in the cell, so colour is a second reading of the
-            # same number, never the only one. Sqrt weight: one company runs three
-            # figures of trials and a linear ramp collapses everyone else.
-            peak = max(int(long["Trials"].max()), 1)
+            # same number, never the only one. Sqrt weight keeps the largest pipeline
+            # from flattening everyone else into one tone.
+            peak = max(int(long["Compounds"].max()), 1)
             cells = {(row.Ticker, row.Phase): {
-                        "count": int(row.Trials),
-                        "weight": (row.Trials / peak) ** 0.5}
-                     for row in long.itertuples() if row.Trials}
+                        "count": int(row.Compounds),
+                        "weight": (row.Compounds / peak) ** 0.5}
+                     for row in long.itertuples() if row.Compounds}
             R.show(CH.heatmap_grid(list(grid["Ticker"]), DISPLAY_PHASES, cells,
                                    860, 460))
+            st.markdown(
+                '<div class="byline">Each compound is counted once, at the furthest '
+                'phase it has reached, so a row is the number of candidates a company '
+                'has rather than the number of protocols it has registered. Counting '
+                'studies measured how finely a programme was split: on trials '
+                'AstraZeneca ran more than twice Pfizer\'s Phase 3, where on compounds '
+                'the two are level. A trial whose intervention names nothing on file has '
+                'no compound to attribute and is counted nowhere; the figure above says '
+                'how many.</div>', unsafe_allow_html=True)
 
         scatter_rows = display.dropna(subset=["Growth", "Net margin"])
         if not scatter_rows.empty:
@@ -1919,29 +1881,6 @@ with main:
                 'the sponsor\'s own work rather than everything its studies '
                 'mention.</div>', unsafe_allow_html=True)
 
-        # --- Completion-date slips for this company, folded from the old Slippage tab ---
-        # Only this company's trials whose primary completion date has moved since we began
-        # tracking. Scarce by nature: it accrues from snapshot diffs and cannot be
-        # backfilled from any source.
-        slip = api_get(api_base, "/slippage")
-        mine_slips = [r for r in (slip.get("rows") or [])
-                      if r.get("ticker") == ticker and r.get("days_moved") is not None]
-        section("Completion date slips", f"{len(mine_slips)} for {ticker}")
-        if not mine_slips:
-            state(f"No completion date moves observed for {ticker} yet",
-                  "This accrues from snapshot diffs across refreshes and cannot be "
-                  "backfilled; it fills as the registry moves dates under the trials "
-                  "tracked here.")
-        else:
-            top = mine_slips[:20]
-            R.show(CH.dumbbell(
-                [{"label": r["nct_id"], "start": 0.0, "end": float(r["days_moved"])}
-                 for r in top],
-                832, max(120, 26 * len(top) + 40), tick_fmt=lambda v: f"{v:.0f}d"))
-            st.markdown(
-                '<div class="byline">Net days the primary completion date moved from the '
-                'first time we saw it to now. Red slips later, green pulls in. Only trials '
-                'whose date actually changed appear.</div>', unsafe_allow_html=True)
 
     # --- Portfolio -------------------------------------------------------
     with portfolio_tab:

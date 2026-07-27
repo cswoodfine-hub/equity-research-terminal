@@ -326,3 +326,39 @@ def test_prune_removes_only_empty_derived_assets(tmp_path):
     assert conn.execute("SELECT COUNT(*) FROM assets WHERE brand_name='Mounjaro'"
                         ).fetchone()[0] == 1     # marketed rows never touched
     conn.close()
+
+
+def test_build_pipeline_reports_compounds_and_trials_apart(tmp_path):
+    """The grid counts candidates, the screen counts protocols; both must be available
+    and they must not be the same number when a compound runs several studies."""
+    import pipeline
+    db_file, conn, tirz, ins, pfe = _seeded(tmp_path)
+    # One compound, three studies, the furthest being Phase 3.
+    for nct, phase in (("NCT40", "Phase 1"), ("NCT41", "Phase 3"), ("NCT42", "Phase 3")):
+        _trial(conn, nct, "LLY", ["Retatrutide"])
+        conn.execute("UPDATE trials SET phase=? WHERE nct_id=?", (phase, nct))
+    conn.commit()
+    conn.close()
+    tm.derive_pipeline_assets(db_file)
+    tm.map_trials(db_file)
+
+    row = next(r for r in pipeline.build_pipeline(db_file) if r["ticker"] == "LLY")
+    assert row["total"] == 3                      # three protocols
+    assert row["compound_total"] == 1             # one candidate
+    # Counted at the furthest phase it reached, not at every phase it ran.
+    assert row["compounds"]["Phase 3"] == 1
+    assert row["compounds"]["Phase 1"] == 0
+    assert row["phases"]["Phase 1"] == 1          # the trial view still sees it
+    assert row["unattributed"] == 0
+
+
+def test_an_unmapped_trial_is_reported_not_counted(tmp_path):
+    import pipeline
+    db_file, conn, tirz, ins, pfe = _seeded(tmp_path)
+    _trial(conn, "NCT43", "LLY", ["Placebo"])     # binds to nothing
+    conn.commit()
+    conn.close()
+    tm.map_trials(db_file)
+    row = next(r for r in pipeline.build_pipeline(db_file) if r["ticker"] == "LLY")
+    assert row["compound_total"] == 0
+    assert row["unattributed"] == 1               # visible, not silently dropped

@@ -44,22 +44,52 @@ def is_follow_up(title: str | None) -> bool:
 
 
 def build_pipeline(db_path=None) -> list[dict]:
+    """Compounds in development per company and phase, for the cross-company grid.
+
+    Counted in compounds, not studies, and each compound once at the furthest phase it
+    has reached, so a row sums to the number of candidates a company has rather than the
+    number of protocols it has registered. Trial counts measured how finely a programme
+    was split: AstraZeneca ran 160 Phase 3 trials against Lilly's 92 while the gap in
+    candidates is far smaller, and a company running one large registrational trial per
+    asset read as half the size of one running six.
+
+    A trial whose intervention names nothing on file has no compound to attribute, so it
+    is counted nowhere here; ``unattributed`` per company says how many, which keeps a
+    thin mapping visible instead of reading as a small pipeline.
+    """
     conn = db.get_connection(db_path)
     try:
         companies = conn.execute(
             "SELECT id, ticker, name FROM companies ORDER BY ticker"
         ).fetchall()
+        # Both units, because they answer different questions and one view each reads
+        # them: the grid compares pipelines and wants compounds, while the screen's
+        # revenue-per-late-trial divides by protocols and wants trials. Returning only
+        # one would have silently changed the meaning of the other's column.
         counts: dict[tuple, int] = {}
+        furthest: dict[tuple, str] = {}
+        unattributed: dict[int, int] = {}
         for row in conn.execute(
             f"""
-            SELECT sponsor_company_id AS cid, phase, COUNT(*) AS n
+            SELECT sponsor_company_id AS cid, asset_id, phase
               FROM trials
-             WHERE phase IN ({_PLACEHOLDERS})
-             GROUP BY sponsor_company_id, phase
+             WHERE phase IN ({_PLACEHOLDERS}) AND sponsor_company_id IS NOT NULL
             """,
             PHASES,
         ):
-            counts[(row["cid"], row["phase"])] = row["n"]
+            counts[(row["cid"], row["phase"])] = counts.get(
+                (row["cid"], row["phase"]), 0) + 1
+            if row["asset_id"] is None:
+                unattributed[row["cid"]] = unattributed.get(row["cid"], 0) + 1
+                continue
+            key = (row["cid"], row["asset_id"])
+            if key not in furthest or PHASES.index(row["phase"]) > PHASES.index(
+                    furthest[key]):
+                furthest[key] = row["phase"]
+
+        compound_counts: dict[tuple, int] = {}
+        for (cid, _asset), phase in furthest.items():
+            compound_counts[(cid, phase)] = compound_counts.get((cid, phase), 0) + 1
 
         # Follow-up studies carry a development phase, so they are counted from the title
         # here and reported per company; the strip subtracts them from in-development so
@@ -79,13 +109,17 @@ def build_pipeline(db_path=None) -> list[dict]:
         out = []
         for company in companies:
             phases = {p: counts.get((company["id"], p), 0) for p in PHASES}
+            compounds = {p: compound_counts.get((company["id"], p), 0) for p in PHASES}
             out.append(
                 {
                     "ticker": company["ticker"],
                     "name": company["name"],
                     "phases": phases,
+                    "compounds": compounds,
                     "follow_up": follow.get(company["id"], 0),
+                    "unattributed": unattributed.get(company["id"], 0),
                     "total": sum(phases.values()),
+                    "compound_total": sum(compounds.values()),
                 }
             )
         return out
