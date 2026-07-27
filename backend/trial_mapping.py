@@ -73,6 +73,13 @@ FORM_WORDS = {
     "dose", "doses", "low", "high", "medium", "adult", "adults", "paediatric",
     "pediatric", "strength", "arm", "group", "cohort", "regimen", "therapy",
     "treatment", "combination", "monotherapy", "single", "multiple", "ascending",
+    # The words a protocol adds to say how a compound is being given rather than what
+    # it is: "Asciminib single agent" and "Asciminib Adult formulation" are Scemblix,
+    # and each was standing in the pipeline as a programme of its own.
+    "agent", "agents", "formulation", "formulations", "substance", "alone",
+    "escalation", "expansion", "titration", "maintenance", "induction", "comparator",
+    "reference", "control", "standard", "care", "matching", "matched",
+    "drug", "drugs",
 }
 UNIT_WORDS = {"mg", "mcg", "ug", "g", "ml", "l", "iu", "u", "kg", "mg/kg", "percent"}
 
@@ -109,6 +116,11 @@ def canonical(raw: str) -> str:
                   flags=re.IGNORECASE)
     words = [w for w in normalise(text).split()
              if w not in FORM_WORDS and w not in UNIT_WORDS]
+    # A trailing single letter labels a variant, not a molecule: "Evolocumab Drug
+    # Substance A". Only ever trailing, and only when a name survives without it, so
+    # a compound actually called by one letter is untouched.
+    while len(words) > 1 and len(words[-1]) == 1:
+        words.pop()
     return strip_salt(" ".join(words))
 
 
@@ -317,6 +329,32 @@ def map_trials(db_path=None) -> dict:
                 matched += 1
         conn.commit()
 
+        # Completed studies are bound by the same rule and from the same stored names,
+        # so an improvement to the cleaner reaches a product's record as well as its
+        # pipeline without anything being fetched again.
+        completed = conn.execute(
+            """
+            SELECT ct.nct_id, ct.sponsor_company_id AS cid,
+                   GROUP_CONCAT(i.norm, '||') AS norms
+              FROM completed_trials ct
+              JOIN trial_interventions i ON i.nct_id = ct.nct_id
+             WHERE ct.sponsor_company_id IS NOT NULL AND ct.asset_id IS NULL
+             GROUP BY ct.nct_id
+            """).fetchall()
+        completed_matched = 0
+        for row in completed:
+            cid = row["cid"]
+            if cid not in names_by_company:
+                names_by_company[cid] = _asset_names(conn, cid)
+            asset_id = next(
+                (a for a in (match_intervention(n, names_by_company[cid])
+                             for n in (row["norms"] or "").split("||")) if a), None)
+            if asset_id is not None:
+                conn.execute("UPDATE completed_trials SET asset_id = ? WHERE nct_id = ?",
+                             (asset_id, row["nct_id"]))
+                completed_matched += 1
+        conn.commit()
+
         total = conn.execute("SELECT COUNT(*) FROM trials").fetchone()[0]
         mapped = conn.execute(
             "SELECT COUNT(*) FROM trials WHERE asset_id IS NOT NULL").fetchone()[0]
@@ -326,6 +364,7 @@ def map_trials(db_path=None) -> dict:
         ).fetchone()[0]
     finally:
         conn.close()
-    return {"matched": matched, "mapped": mapped, "total": total,
+    return {"matched": matched, "completed_matched": completed_matched,
+            "mapped": mapped, "total": total,
             "unmapped": total - mapped, "curated": len(overrides),
             "no_interventions": no_interventions}

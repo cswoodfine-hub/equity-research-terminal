@@ -178,7 +178,7 @@ class TrialsCompletedFetcher(BaseFetcher):
             row["asset_id"] = next(
                 (a for a in (trial_mapping.match_intervention(
                     trial_mapping.normalise(name), names)
-                    for name in row.pop("interventions", [])) if a), None)
+                    for name in row["interventions"]) if a), None)
         return rows
 
     def snapshot(self, rows: list[dict]) -> None:
@@ -236,6 +236,18 @@ class TrialsCompletedFetcher(BaseFetcher):
                      row["title"], row["phase"], row["conditions"],
                      row["completion_date"], row["enrollment"],
                      row["primary_outcome"], row.get("lead_sponsor")))
+                # The drugs are stored, not just matched and thrown away. A name that
+                # matches nothing today matches once the cleaner improves, and without
+                # the names on file the only way to try again is to fetch it all again.
+                conn.execute("DELETE FROM trial_interventions WHERE nct_id = ?",
+                             (row["nct_id"],))
+                # A study can list one drug twice, once per arm, and the table holds
+                # one row per name.
+                for name in dict.fromkeys(row.get("interventions") or []):
+                    conn.execute(
+                        "INSERT OR IGNORE INTO trial_interventions"
+                        "  (nct_id, name, norm, kind) VALUES (?, ?, ?, 'DRUG')",
+                        (row["nct_id"], name, trial_mapping.normalise(name)))
             conn.commit()
         finally:
             conn.close()

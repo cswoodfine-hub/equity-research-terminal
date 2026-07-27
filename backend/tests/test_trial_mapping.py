@@ -362,3 +362,23 @@ def test_an_unmapped_trial_is_reported_not_counted(tmp_path):
     row = next(r for r in pipeline.build_pipeline(db_file) if r["ticker"] == "LLY")
     assert row["compound_total"] == 0
     assert row["unattributed"] == 1               # visible, not silently dropped
+
+
+def test_protocol_noise_folds_onto_the_molecule():
+    """A study names how a compound is given; the pipeline counts what it is."""
+    for spelling in ("Asciminib single agent", "Asciminib Adult formulation",
+                     "Asciminib Hydrochloride", "Evolocumab Drug Substance A"):
+        assert tm.canonical(spelling) in ("asciminib", "evolocumab")
+
+
+def test_a_combination_stays_its_own_programme():
+    # Baxdrostat with dapagliflozin is a programme, not a way of giving dapagliflozin,
+    # and folding it into the single agent would delete a real pipeline asset.
+    assert tm.canonical("Baxdrostat/dapagliflozin") == "baxdrostat dapagliflozin"
+    assert tm.canonical("Osimertinib + Savolitinib") == "osimertinib savolitinib"
+
+
+def test_a_numbered_code_survives_the_cleaning():
+    # Stripping digits collapsed a company's whole numbered series into one programme.
+    assert tm.canonical("BAY 3547922") == "bay 3547922"
+    assert tm.canonical("LOXO-435") == "loxo 435"
