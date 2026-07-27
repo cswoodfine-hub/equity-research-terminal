@@ -120,10 +120,17 @@ class TrialsCompletedFetcher(BaseFetcher):
         acquired = acquired_sponsors.for_company(self.db_path, self.ticker)
         studies = []
         own = ctgov.SPONSOR_LEAD.get(self.ticker, company["name"])
+        errors = []
         for index, sponsor in enumerate([own] + acquired):
-            studies.extend(self._studies_for(sponsor,
-                                             acquired if index else None))
-        return {"studies": studies, "company_id": company["id"]}
+            try:
+                studies.extend(self._studies_for(sponsor,
+                                                 acquired if index else None))
+            except Exception as exc:
+                if not index:
+                    raise          # the company's own sponsor failing is a real failure
+                errors.append(f"{sponsor}: {exc}")
+        return {"studies": studies, "company_id": company["id"],
+                "sponsor_errors": errors}
 
     def _studies_for(self, sponsor: str, verify_against) -> list:
         """One sponsor's completed studies, verified against the registry's own lead

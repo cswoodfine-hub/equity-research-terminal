@@ -45,7 +45,7 @@ jobs:
         # minutes later, reporting a source error that reads like a network problem.
         # Better to say the one true thing immediately.
         run: |
-          if [ -z "$SEC_USER_AGENT" ]; then
+          if [ -z "$(echo "$SEC_USER_AGENT" | tr -d '[:space:]')" ]; then
             echo "::error::SEC_USER_AGENT is empty. Add it under Settings > Secrets and"
             echo "::error::variables > Actions, named exactly SEC_USER_AGENT, with a value"
             echo "::error::such as: Novatalis Research you@example.com"

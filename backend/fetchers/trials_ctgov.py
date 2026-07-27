@@ -154,9 +154,18 @@ class TrialsFetcher(BaseFetcher):
         # studies months after Lilly acquired it.
         acquired = acquired_sponsors.for_company(self.db_path, self.ticker)
         studies: list[dict] = []
+        errors = []
         for term_index, sponsor in enumerate([term] + acquired):
-            studies.extend(self._studies_for(sponsor, acquired if term_index else None))
-        return {"studies": studies}
+            try:
+                studies.extend(
+                    self._studies_for(sponsor, acquired if term_index else None))
+            except Exception as exc:
+                if not term_index:
+                    raise          # the company's own sponsor failing is a real failure
+                # An acquired name is read off a headline and can be unusable as a
+                # query. Losing it costs that one company's studies, not the run.
+                errors.append(f"{sponsor}: {exc}")
+        return {"studies": studies, "sponsor_errors": errors}
 
     def _studies_for(self, term: str, verify_against) -> list:
         """One sponsor's active studies. ``verify_against`` is the acquired-name list

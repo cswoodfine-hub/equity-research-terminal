@@ -28,14 +28,31 @@ import db
 WITHIN_DAYS = 1825          # five years
 
 
+# Words that mark a headline rather than a company. A counterparty is read off a
+# headline, and a headline runs on: "Ouro Medicines to further expand" and "Tubulis
+# adding potentially best-in-class antibody-drug" both arrived as company names, and
+# the first of them is malformed enough that the registry answers 400 to it.
+_HEADLINE_WORDS = {
+    "to", "and", "with", "for", "in", "on", "as", "by", "after", "ahead", "adding",
+    "expand", "further", "strengthen", "advance", "boost", "maximize", "maximise",
+    "potentially", "best", "class", "deal", "buy", "buyout", "stake", "shares",
+}
+MAX_WORDS = 4          # a company name is short; a headline is not
+
+
 def _plausible(name: str) -> bool:
     """Whether a counterparty name is specific enough to search a registry with."""
     name = (name or "").strip()
     if len(name) < 8:
         return False
+    words = name.split()
+    if len(words) > MAX_WORDS:
+        return False
+    if any(w.lower().strip(",.") in _HEADLINE_WORDS for w in words):
+        return False
     # Two words is specific enough. One word has to be long: AtaiBeckley names one
     # company and Engage names a verb.
-    return len(name.split()) >= 2 or len(name) >= 10
+    return len(words) >= 2 or len(name) >= 10
 
 
 def for_company(db_path=None, ticker: str = "", today=None) -> list:

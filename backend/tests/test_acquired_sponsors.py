@@ -50,3 +50,14 @@ def test_a_study_is_kept_only_when_the_registry_agrees():
         "leadSponsor": {"name": "University of Oxford"}}}}
     assert acquired_sponsors.sponsored_by(other, ["Centessa Pharmaceuticals"]) is None
     assert acquired_sponsors.sponsored_by({}, ["Centessa"]) is None
+
+
+def test_a_headline_fragment_is_not_a_sponsor():
+    """These arrived as counterparty names off real headlines. The registry answers
+    400 to the first, which failed a whole company's fetch."""
+    assert not acquired_sponsors._plausible("OURO MEDICINES TO FURTHER EXPAND")
+    assert not acquired_sponsors._plausible("Tubulis Adding Potentially Best-in-Class")
+    assert not acquired_sponsors._plausible("Arcellx Ahead")
+    # Real names still pass, commas and all.
+    assert acquired_sponsors._plausible("Arcellx, Inc.")
+    assert acquired_sponsors._plausible("Centessa Pharmaceuticals")
