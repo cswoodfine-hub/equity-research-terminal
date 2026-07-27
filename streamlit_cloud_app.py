@@ -52,6 +52,27 @@ def setting(name: str, default: str = "") -> str:
     return (os.getenv(name) or default).strip()
 
 
+def export_secrets() -> list:
+    """Copy every secret into the environment, and say which ones arrived.
+
+    The app and the API read their configuration with os.getenv, which is right for a
+    process started from a shell and blind to Streamlit's own secrets store. The note
+    generator asks for GEMINI_API_KEY that way, so without this it reports no key and
+    falls back to the rules layer while the key sits in the app's settings.
+    """
+    exported = []
+    try:
+        for key in st.secrets:
+            value = st.secrets[key]
+            if isinstance(value, (str, int, float)) and str(value).strip():
+                os.environ.setdefault(key, str(value).strip())
+                exported.append(key)
+    except Exception:              # no secrets configured, which is the local case
+        pass
+    return exported
+
+
+SECRETS = export_secrets()
 API_PORT = int(setting("ER_API_PORT", "8000"))
 API_BASE = f"http://127.0.0.1:{API_PORT}"
 # Where the daily refresh publishes its database. Set ER_DB_REPO to "owner/repo" and
@@ -195,3 +216,5 @@ sys.argv = [str(FRONTEND / "streamlit_app.py")]
 runpy.run_path(str(FRONTEND / "streamlit_app.py"), run_name="__main__")
 
 st.sidebar.caption(f"Data: {provenance}")
+if SECRETS:
+    st.sidebar.caption("Secrets in use: " + ", ".join(sorted(SECRETS)))
