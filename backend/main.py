@@ -30,6 +30,7 @@ import valuation as valuation_module
 import financials_view as financials_view_module
 import insights as insights_module
 import labels as labels_module
+import fx as fx_module
 import loe as loe_module
 import pipeline as pipeline_module
 import product_profile as product_profile_module
@@ -259,6 +260,16 @@ def company_trials(ticker: str, phase: Optional[str] = Query(default=None)) -> d
     return {"ticker": ticker.upper(), "phase": phase, "trials": rows}
 
 
+@app.get("/companies/{ticker}/programmes")
+def company_programmes(ticker: str) -> dict:
+    """Compounds the company is trialling but does not yet sell, each with the studies
+    behind it, the furthest phase reached and the next readout due."""
+    rows = pipeline_module.programmes(None, ticker)
+    if rows is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return {"ticker": ticker.upper(), "programmes": rows}
+
+
 @app.get("/loe")
 def loe() -> dict:
     return loe_module.build_loe()
@@ -373,9 +384,16 @@ def company_approvals(ticker: str) -> dict:
         conn.close()
     # Merge the biologic 12-year floor into the latest expiry, the same rule loe_detail
     # uses, so the two views agree; keep the earliest expiry for the patent range.
+    rates = fx_module.latest_usd_rates(None)
     for r in rows:
         r["loe"], r["loe_basis"] = loe_module.merged_loe(
             r.pop("loe_max"), r["loe_basis"], r.pop("bio_floor_year"))
+        # Same rule as the mix: a card's revenue is shown in dollars whatever the filer
+        # reports in, with the filed figure kept beside it.
+        r["reported_revenue"], r["reported_unit"] = r.get("revenue"), r.get("revenue_unit")
+        if r.get("revenue_unit") and r["revenue_unit"] != "USD":
+            r["revenue"] = fx_module.to_usd(r.get("revenue"), r["revenue_unit"], rates)
+            r["revenue_unit"] = "USD" if r["revenue"] is not None else r["reported_unit"]
     return {"ticker": ticker, "approvals": rows}
 
 
@@ -435,7 +453,24 @@ def company_asset_revenue(ticker: str) -> dict:
             totals[row["fiscal_year"]] = {"value": row["value"], "unit": row["unit"]}
     finally:
         conn.close()
-    return {"ticker": ticker, "rows": rows, "company_revenue": totals}
+    # Product revenue is filed in the company's own currency, so Novo's Ozempic reads
+    # 127bn against a Lilly product's 22bn and the mix is drawn on two scales at once.
+    # Converted here, at the read, so every view of a product's revenue is in dollars
+    # and the filed figure stays beside it. No rate means no converted value, never a
+    # figure counted at par.
+    rates = fx_module.latest_usd_rates(None)
+    for row in rows:
+        row["reported_value"], row["reported_unit"] = row.get("value"), row.get("unit")
+        if row.get("unit") and row["unit"] != "USD":
+            row["value"] = fx_module.to_usd(row.get("value"), row["unit"], rates)
+            row["unit"] = "USD" if row["value"] is not None else row["reported_unit"]
+    for year, total in totals.items():
+        total["reported_value"], total["reported_unit"] = total["value"], total["unit"]
+        if total.get("unit") and total["unit"] != "USD":
+            total["value"] = fx_module.to_usd(total["value"], total["unit"], rates)
+            total["unit"] = "USD" if total["value"] is not None else total["reported_unit"]
+    return {"ticker": ticker, "rows": rows, "company_revenue": totals,
+            "fx_as_of": rates.get("as_of")}
 
 
 class AssetRevenueIn(BaseModel):

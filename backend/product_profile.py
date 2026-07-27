@@ -15,6 +15,7 @@ than a zero or a guess.
 from __future__ import annotations
 
 import db
+import fx
 import loe as loe_module
 
 NOTE_FIELDS = ("market_size", "peak_sales", "competitors", "thesis")
@@ -111,7 +112,7 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
         asset = conn.execute(
             """
             SELECT a.id, a.brand_name, a.generic_name, a.modality, a.internal_code,
-                   c.ticker, c.name AS company
+                   a.is_marketed, c.ticker, c.name AS company
               FROM assets a JOIN companies c ON c.id = a.owner_company_id
              WHERE a.id = ? AND c.ticker = ?
             """, (asset_id, ticker)).fetchone()
@@ -121,9 +122,21 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
         approvals = [dict(r) for r in conn.execute(
             "SELECT approval_date, application_number, indication_text, agency, region"
             "  FROM approvals WHERE asset_id = ? ORDER BY approval_date", (asset_id,))]
-        revenue = [dict(r) for r in conn.execute(
-            "SELECT fiscal_year, value, unit FROM asset_revenue"
-            "  WHERE asset_id = ? ORDER BY fiscal_year", (asset_id,))]
+        # Shown in dollars whatever the filer reports in, so a profile compares against
+        # any other; the filed figure stays beside it and an unconvertible one is left
+        # as filed rather than counted at par.
+        rates = fx.latest_usd_rates(db_path)
+        revenue = []
+        for r in conn.execute(
+                "SELECT fiscal_year, value, unit FROM asset_revenue"
+                "  WHERE asset_id = ? ORDER BY fiscal_year", (asset_id,)):
+            row = dict(r)
+            row["reported_value"], row["reported_unit"] = row["value"], row["unit"]
+            if row["unit"] and row["unit"] != "USD":
+                converted = fx.to_usd(row["value"], row["unit"], rates)
+                if converted is not None:
+                    row["value"], row["unit"] = converted, "USD"
+            revenue.append(row)
         label = conn.execute(
             "SELECT effective_time, indication_count, indications_text, population_text"
             "  FROM labels WHERE asset_id = ? ORDER BY effective_time DESC LIMIT 1",
@@ -139,6 +152,22 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
             "SELECT expected_date, catalyst_type, title FROM catalysts"
             "  WHERE asset_id = ? AND expected_date >= date('now')"
             "  ORDER BY expected_date LIMIT 6", (asset_id,))]
+        # The drug's own studies, now that trials are bound to assets. Ordered by the
+        # date each reads out, soonest first, so the nearest evidence leads; a trial with
+        # no completion date on file sorts last rather than being dropped.
+        trials = [dict(r) for r in conn.execute(
+            """
+            SELECT nct_id, title, phase, overall_status, primary_completion_date,
+                   enrollment
+              FROM trials WHERE asset_id = ?
+             ORDER BY (primary_completion_date IS NULL),
+                      primary_completion_date LIMIT 8
+            """, (asset_id,))]
+        trial_count = conn.execute(
+            "SELECT COUNT(*) FROM trials WHERE asset_id = ?", (asset_id,)).fetchone()[0]
+        by_phase = {r["phase"]: r["n"] for r in conn.execute(
+            "SELECT phase, COUNT(*) AS n FROM trials WHERE asset_id = ?"
+            "  AND phase IS NOT NULL GROUP BY phase", (asset_id,))}
 
         return {
             "asset_id": asset["id"],
@@ -157,6 +186,10 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
             "supplement_count": len(supplements),
             "challenges": challenges,
             "catalysts": catalysts,
+            "trials": trials,
+            "trial_count": trial_count,
+            "trials_by_phase": by_phase,
+            "is_marketed": bool(asset["is_marketed"]),
             "notes": get_notes(conn, asset_id),
         }
     finally:
