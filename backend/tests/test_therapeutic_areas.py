@@ -53,3 +53,27 @@ def test_classification_is_stable():
     """Same input, same area, every time: no model and no randomness."""
     conditions = ["Metastatic Breast Cancer", "Healthy"]
     assert len({ta.classify(conditions) for _ in range(50)}) == 1
+
+
+def test_classify_label_reads_the_first_indication():
+    # A malignancy warning further down the section does not make a rheumatoid
+    # arthritis drug an oncology product.
+    label = ("1 INDICATIONS AND USAGE OLUMIANT is indicated for the treatment of adults "
+             "with moderately to severely active rheumatoid arthritis. Malignancies "
+             "have been reported in patients treated with OLUMIANT.")
+    assert ta.classify_label(label) == "Immunology and inflammation"
+
+
+def test_classify_label_takes_the_area_named_first():
+    # Cymbalta is a depression drug that also treats diabetic neuropathic pain. Taking
+    # the areas in declared order made it metabolic on the word "diabetic".
+    label = ("INDICATIONS AND USAGE CYMBALTA is indicated for the treatment of major "
+             "depressive disorder, diabetic peripheral neuropathic pain and fibromyalgia")
+    assert ta.classify_label(label) == "Neuroscience"
+
+
+def test_classify_label_states_nothing_for_a_label_it_cannot_read():
+    assert ta.classify_label("") == ta.OTHER
+    assert ta.classify_label(
+        "INDICATIONS AND USAGE indicated as a diagnostic contrast agent"
+    ) == ta.OTHER

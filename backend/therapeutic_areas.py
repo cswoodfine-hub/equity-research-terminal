@@ -17,6 +17,7 @@ listed before the broader ones.
 from __future__ import annotations
 
 import json
+import re
 
 # Healthy volunteer studies are Phase 1 pharmacology, not a disease, and they are a
 # real slice of the pipeline. They get their own bucket rather than polluting "Other".
@@ -37,7 +38,8 @@ AREAS: tuple = (
     ("Metabolic", (
         "obesity", "overweight", "diabet", "weight", "nash", "steatohepatitis",
         "dyslipidem", "hyperlipid", "cholesterol", "metabolic syndrome", "thyroid",
-        "gout", "hyperkal", "insulin resistance", "triglycerid",
+        "gout", "hyperkal", "insulin resistance", "triglycerid", "osteoporosis",
+        "growth hormone", "growth failure",
     )),
     ("Neuroscience", (
         "alzheimer", "parkinson", "multiple sclerosis", "epilep", "seizure",
@@ -98,6 +100,49 @@ def classify(conditions) -> str:
     if any(n in blob for n in AREAS[0][1]):
         return AREAS[0][0]
     return OTHER
+
+
+# A label's indications section names the primary use first and everything else after,
+# including risks and secondary uses. Reading the whole section put Olumiant, a
+# rheumatoid arthritis drug, in oncology on the strength of a malignancy warning.
+_HEADER = re.compile(r"^\s*\d*\s*INDICATIONS AND USAGE\s*", re.I)
+_SENTENCE = re.compile(r"(?<=[a-z])\.\s+")
+
+
+def classify_label(indications: str) -> str:
+    """The therapeutic area a marketed product sits in, read from its label.
+
+    The first indication decides, because that is the product's primary use. Only when
+    it names nothing this taxonomy knows does the rest of the section get a say, and a
+    label that names nothing at all comes back Other rather than a guess.
+    """
+    if not indications:
+        return OTHER
+    body = _HEADER.sub("", indications)
+    first = _SENTENCE.split(body)[0][:400]
+    return _earliest(first) or _earliest(body[:1200]) or OTHER
+
+
+def _earliest(text: str):
+    """The area whose vocabulary appears first in the text, or None.
+
+    A label lists the main indication first and the rest after, so position carries the
+    answer where precedence does not: Cymbalta is indicated for major depressive
+    disorder and, further down, for diabetic peripheral neuropathic pain. Taking the
+    areas in their own order made it metabolic on the strength of the word diabetic.
+    Ties keep the declared order, so a sentence naming two areas at once still resolves
+    to the more specific one.
+    """
+    blob = (text or "").lower()
+    if not blob.strip():
+        return None
+    best_area, best_at = None, len(blob) + 1
+    for area, needles in AREAS[1:]:
+        for needle in needles:
+            at = blob.find(needle)
+            if at != -1 and at < best_at:
+                best_area, best_at = area, at
+    return best_area
 
 
 def area_names() -> list:

@@ -33,6 +33,7 @@ import insights as insights_module
 import labels as labels_module
 import fx as fx_module
 import loe as loe_module
+import therapeutic_areas
 import pipeline as pipeline_module
 import product_profile as product_profile_module
 import refresh as refresh_module
@@ -383,7 +384,12 @@ def company_approvals(ticker: str) -> dict:
                          ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue_unit,
                        (SELECT r.fiscal_year FROM asset_revenue r
                          WHERE r.asset_id = a.id
-                         ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue_year
+                         ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue_year,
+                       (SELECT l.indications_text FROM labels l
+                         WHERE l.asset_id = a.id AND l.indications_text IS NOT NULL
+                         ORDER BY l.effective_time DESC LIMIT 1) AS indications,
+                       (SELECT GROUP_CONCAT(t.conditions, ' ') FROM trials t
+                         WHERE t.asset_id = a.id) AS trial_conditions
                   FROM approvals ap JOIN assets a ON ap.asset_id = a.id
                  WHERE a.owner_company_id = ?
                  ORDER BY ap.approval_date DESC
@@ -397,6 +403,15 @@ def company_approvals(ticker: str) -> dict:
     # uses, so the two views agree; keep the earliest expiry for the patent range.
     rates = fx_module.latest_usd_rates(None)
     for r in rows:
+        # The disease a product treats, read from the label that says so. A product
+        # whose label is not on file falls back to what its own trials study, and one
+        # with neither is left unclassified rather than filed under a guess.
+        indications = r.pop("indications", None)
+        conditions = r.pop("trial_conditions", None)
+        area = therapeutic_areas.classify_label(indications) if indications else None
+        if area in (None, therapeutic_areas.OTHER) and conditions:
+            area = therapeutic_areas.classify([conditions])
+        r["area"] = None if area in (None, therapeutic_areas.OTHER) else area
         r["loe"], r["loe_basis"] = loe_module.merged_loe(
             r.pop("loe_max"), r["loe_basis"], r.pop("bio_floor_year"))
         # Same rule as the mix: a card's revenue is shown in dollars whatever the filer

@@ -2092,7 +2092,8 @@ with main:
                         loe_earliest_year=(int(a["loe_earliest"][:4])
                                            if a.get("loe_earliest") else None),
                         revenue=a.get("revenue"),
-                        revenue_unit=a.get("revenue_unit"))
+                        revenue_unit=a.get("revenue_unit"),
+                        area=a.get("area"))
                 elif a.get("approval_date") and (
                         not p["approved"] or a["approval_date"] < p["approved"]):
                     p["approved"] = a["approval_date"]
@@ -2110,7 +2111,10 @@ with main:
                     modality=ex.get("modality"), approved=None,
                     loe=ex.get("loe"), loe_basis=ex.get("loe_basis"),
                     loe_earliest_year=ex.get("loe_earliest_year"),
-                    revenue=None, revenue_unit=None)
+                    revenue=None, revenue_unit=None,
+                    # A Purple Book biologic has no drugsfda row, so no label to read an
+                    # area off; it groups under the unstated heading until one arrives.
+                    area=ex.get("area"))
             prods = list(products.values())
             rev_unit = next((p["revenue_unit"] for p in prods if p.get("revenue_unit")), "")
 
@@ -2261,25 +2265,47 @@ with main:
             sel = next((p for p in prods_sorted if p.get("asset_id") == sel_aid), None)
             if sel is not None:
                 _render_product_profile(api_base, ticker, sel, today)
-            clicked = prodcards.product_cards(
-                [{"asset_id": p.get("asset_id"), "html": _product_card_html(p)}
-                 for p in prods_sorted if p.get("asset_id") is not None],
-                tokens={"panel": TK.PANEL, "panel-hi": TK.RULE,
-                        "rule": TK.RULE, "rule-strong": TK.RULE_STRONG,
-                        "muted": TK.MUTED, "text": TK.TEXT, "up": TK.UP,
-                        "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
-                        "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
-                        "font-ui": TK.FONT_UI},
-                # Keyed per company: a fixed key would carry one company's last click
-                # into the next company's grid as stale state.
-                selected=sel_aid, key=f"prod_cards_{ticker}")
-            # A click is only acted on once: the nonce changes per click, so a rerun
-            # triggered by anything else does not reopen a profile the analyst closed.
-            if isinstance(clicked, dict) and clicked.get("nonce") != \
-                    st.session_state.get("prod_click_nonce"):
-                st.session_state["prod_click_nonce"] = clicked.get("nonce")
-                st.session_state["profile_asset"] = clicked.get("asset_id")
-                st.rerun()
+            # Grouped by the disease the label says the product treats, biggest area
+            # first and biggest product inside it. A portfolio is held by franchise, so
+            # a flat list by revenue hid the shape of it: four metabolic drugs reading
+            # as one bet is the fact, not their order. A product whose label is not on
+            # file sits under its own heading rather than being filed under a guess.
+            groups: dict = {}
+            for p in prods_sorted:
+                if p.get("asset_id") is None:
+                    continue
+                groups.setdefault(p.get("area") or "Area not stated", []).append(p)
+
+            def _area_revenue(area):
+                return sum(p.get("revenue") or 0 for p in groups[area])
+
+            order = sorted(groups, key=lambda a: (a == "Area not stated",
+                                                  -_area_revenue(a)))
+            card_tokens = {"panel": TK.PANEL, "panel-hi": TK.RULE,
+                           "rule": TK.RULE, "rule-strong": TK.RULE_STRONG,
+                           "muted": TK.MUTED, "text": TK.TEXT, "up": TK.UP,
+                           "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
+                           "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
+                           "font-ui": TK.FONT_UI}
+            for area in order:
+                revenue = _area_revenue(area)
+                section(area, f"{len(groups[area])} &middot; {T.num(revenue / 1e9, 1)}bn"
+                        if revenue else len(groups[area]))
+                clicked = prodcards.product_cards(
+                    [{"asset_id": p.get("asset_id"), "html": _product_card_html(p)}
+                     for p in groups[area]],
+                    tokens=card_tokens,
+                    # Keyed per company and area: a fixed key would carry one grid's
+                    # last click into the next.
+                    selected=sel_aid,
+                    key=f"prod_cards_{ticker}_{re.sub(r'[^a-z0-9]+', '_', area.lower())}")
+                # A click is only acted on once: the nonce changes per click, so a rerun
+                # triggered by anything else does not reopen a closed profile.
+                if isinstance(clicked, dict) and clicked.get("nonce") != \
+                        st.session_state.get("prod_click_nonce"):
+                    st.session_state["prod_click_nonce"] = clicked.get("nonce")
+                    st.session_state["profile_asset"] = clicked.get("asset_id")
+                    st.rerun()
 
         # --- Medicare demand ---
         # Revenue is what a drug earned; this is how many people took it. CMS Part D and
