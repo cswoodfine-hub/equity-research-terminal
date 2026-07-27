@@ -2156,11 +2156,61 @@ with main:
                 if rest:
                     slices.append({"label": "not attributed by product",
                                    "value": rest, "colour": TK.PANEL, "muted": True})
-                R.show(CH.donut(
-                    slices, 980, 380,
-                    centre_label=T.num(sum(s["value"] for s in slices) / 1e9, 1),
-                    centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                    value_fmt=lambda v: T.num(v / 1e9, 2)))
+                # The same revenue twice: by product, and by the disease the label says
+                # each product treats. One says which drugs carry the company, the other
+                # says which franchise does, and a portfolio held in one area reads very
+                # differently from the same revenue spread across four.
+                # The revenue rows carry their own area, so a product that earns under
+                # this company but is approved to another still lands in a franchise.
+                area_by_asset = {p.get("asset_id"): p.get("area") for p in prods
+                                 if p.get("asset_id")}
+                by_area: dict = {}
+                for row in mix_rows:
+                    area = (row.get("area")
+                            or area_by_asset.get(row.get("asset_id"))
+                            or "area not stated")
+                    by_area[area] = by_area.get(area, 0) + (row.get("value") or 0)
+                area_order = sorted(by_area, key=lambda a: (a == "area not stated",
+                                                            -by_area[a]))
+                area_ramp = list(reversed(T.ordinal_ramp(max(len(area_order), 2))))
+                # A donut half the width cannot carry "Immunology and inflammation" as
+                # a leader label, so the long areas go by their head word here. The
+                # product grid below keeps the full names.
+                short = {"Immunology and inflammation": "Immunology",
+                         "Renal and hepatic": "Renal and hepatic",
+                         "Infectious disease": "Infectious",
+                         "Healthy volunteers": "Healthy volunteers"}
+                area_slices = [
+                    {"label": short.get(area, area), "value": by_area[area],
+                     "colour": (TK.RULE_STRONG if area == "area not stated"
+                                else area_ramp[i % len(area_ramp)]),
+                     "muted": area == "area not stated"}
+                    for i, area in enumerate(area_order)]
+                if rest:
+                    area_slices.append({"label": "not attributed by product",
+                                        "value": rest, "colour": TK.PANEL,
+                                        "muted": True})
+
+                # The same total in both centres, because it is the same revenue cut
+                # two ways; the heading over each says which cut it is.
+                total_mix = sum(sl["value"] for sl in slices) / 1e9
+                named = len([a for a in area_order if a != "area not stated"])
+                left, right = st.columns(2, gap="small")
+                with left:
+                    st.markdown('<div class="subhead">By product</div>',
+                                unsafe_allow_html=True)
+                    R.show(CH.donut(
+                        slices, 470, 360, centre_label=T.num(total_mix, 1),
+                        centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                        value_fmt=lambda v: T.num(v / 1e9, 2)))
+                with right:
+                    st.markdown(
+                        f'<div class="subhead">By disease area<span>{named} areas'
+                        '</span></div>', unsafe_allow_html=True)
+                    R.show(CH.donut(
+                        area_slices, 470, 360, centre_label=T.num(total_mix, 1),
+                        centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                        value_fmt=lambda v: T.num(v / 1e9, 2)))
 
             # Loss of exclusivity by year. Two cuts of the same expiries. The count
             # cliff shows every product with a published expiry, so nothing is hidden by

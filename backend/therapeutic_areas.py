@@ -27,7 +27,7 @@ AREAS: tuple = (
         "cancer", "carcinoma", "tumor", "tumour", "neoplasm", "myeloma", "leukemia",
         "leukaemia", "lymphoma", "melanoma", "sarcoma", "glioma", "glioblastoma",
         "metasta", "oncolog", "malignan", "myelodysplastic", "mesothelioma",
-        "adenocarcinoma", "blastoma",
+        "adenocarcinoma", "blastoma", "neurofibroma",
     )),
     ("Immunology and inflammation", (
         "lupus", "arthritis", "psoria", "crohn", "colitis", "dermatitis",
@@ -38,12 +38,13 @@ AREAS: tuple = (
     ("Metabolic", (
         "obesity", "overweight", "diabet", "weight", "nash", "steatohepatitis",
         "dyslipidem", "hyperlipid", "cholesterol", "metabolic syndrome", "thyroid",
-        "gout", "hyperkal", "insulin resistance", "triglycerid", "osteoporosis",
+        "gout", "hyperkal", "insulin", "triglycerid", "osteoporosis",
         "growth hormone", "growth failure",
     )),
     ("Neuroscience", (
         "alzheimer", "parkinson", "multiple sclerosis", "epilep", "seizure",
         "migraine", "depress", "schizophren", "bipolar", "anxiety", "dementia",
+        "attention-deficit", "attention deficit", "adhd",
         "huntington", "amyotrophic", "neuropath", "narcolep", "insomnia",
         "sleep-wake", "sleep disorder", "hypersomnia", "circadian",
         "myotonic", "muscular dystrophy", "spinal muscular", "pain",
@@ -65,6 +66,10 @@ AREAS: tuple = (
     ("Haematology", (
         "anemia", "anaemia", "haemophilia", "hemophilia", "sickle cell", "thalassem",
         "neutropenia", "polycythemia", "myelofibrosis", "von willebrand",
+    )),
+    ("Urology", (
+        "erectile dysfunction", "benign prostatic hyperplasia", "overactive bladder",
+        "urinary incontinence", "nocturia", "urinary tract",
     )),
     ("Renal and hepatic", (
         "kidney", "renal", "nephro", "hepatic", "liver", "cirrhosis", "cholangitis",
