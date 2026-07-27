@@ -59,9 +59,14 @@ def get_connection(db_path: str | Path | None = None) -> sqlite3.Connection:
 def init(db_path: str | Path | None = None) -> Path:
     """Create the database from ``schema.sql`` and apply migrations. Safe to re-run.
 
-    Migrations are additive-only files under ``migrations/``, applied in name
-    order through the same idempotency rewrite, so an existing database gains new
-    tables without any destructive step and a fresh one ends identical.
+    Migrations are files under ``migrations/``, applied in name order, and each is
+    recorded once applied so it runs exactly once against any database.
+
+    The ledger is what makes a column addition possible. Until it existed every
+    migration re-ran on every start, which worked only because each was written to be
+    repeatable, and that ruled out ``ALTER TABLE``: SQLite has no ``IF NOT EXISTS`` for
+    it, so the second run would fail on the duplicate column. Existing migrations are
+    unaffected, since a repeatable migration is safe to record after one more run.
 
     Returns the path to the database file.
     """
@@ -70,8 +75,18 @@ def init(db_path: str | Path | None = None) -> Path:
     conn = get_connection(path)
     try:
         conn.executescript(schema_sql)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS schema_migrations ("
+            "  filename   TEXT PRIMARY KEY,"
+            "  applied_at TEXT DEFAULT (datetime('now')))")
+        applied = {r[0] for r in conn.execute(
+            "SELECT filename FROM schema_migrations")}
         for migration in sorted(MIGRATIONS_DIR.glob("*.sql")):
+            if migration.name in applied:
+                continue
             conn.executescript(_make_idempotent(migration.read_text()))
+            conn.execute("INSERT INTO schema_migrations (filename) VALUES (?)",
+                         (migration.name,))
         conn.commit()
     finally:
         conn.close()
