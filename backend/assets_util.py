@@ -55,3 +55,25 @@ def upsert_asset(conn, company_id, internal_code, brand, generic, modality) -> i
         (company_id, generic, brand, internal_code, modality),
     )
     return cur.lastrowid
+
+
+def referring_tables(conn) -> list:
+    """Every table with an ``asset_id`` that points at ``assets``, from the schema.
+
+    Written down by hand this list goes stale: completed trials arrived after two
+    callers had already listed the tables they knew about, and both then failed on a
+    foreign key the moment a derived asset had a completed study. Reading the schema
+    keeps a new table respected the day it exists.
+    """
+    out = []
+    for (name,) in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"):
+        if name == "assets":
+            continue
+        columns = {c[1] for c in conn.execute(f"PRAGMA table_info({name})")}
+        if "asset_id" not in columns:
+            continue
+        if any(fk[2] == "assets" for fk in
+               conn.execute(f"PRAGMA foreign_key_list({name})")):
+            out.append(name)
+    return sorted(out)

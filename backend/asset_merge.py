@@ -18,6 +18,7 @@ Idempotent: a second run finds nothing to merge.
 
 from __future__ import annotations
 
+import assets_util
 import db
 import trial_mapping
 
@@ -76,7 +77,9 @@ def merge(db_path=None) -> dict:
                 # marketed row already holds the same key, the move is skipped and the
                 # duplicate dropped: it is the same fact recorded twice, and the copy
                 # kept is the one on the row that survives.
-                for table in ("trial_asset_map", "product_notes", "asset_revenue"):
+                for table in assets_util.referring_tables(conn):
+                    if table == "trials":
+                        continue          # already moved, and counted, above
                     conn.execute(f"UPDATE OR IGNORE {table} SET asset_id = ?"
                                  "  WHERE asset_id = ?", (marketed_id, derived_id))
                     conn.execute(f"DELETE FROM {table} WHERE asset_id = ?",

@@ -33,7 +33,9 @@ def _plausible(name: str) -> bool:
     name = (name or "").strip()
     if len(name) < 8:
         return False
-    return len(name.split()) >= 2 or len(name) >= 12
+    # Two words is specific enough. One word has to be long: AtaiBeckley names one
+    # company and Engage names a verb.
+    return len(name.split()) >= 2 or len(name) >= 10
 
 
 def for_company(db_path=None, ticker: str = "", today=None) -> list:

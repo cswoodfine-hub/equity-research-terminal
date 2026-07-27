@@ -22,6 +22,7 @@ import urllib.parse
 import urllib.request
 
 import db
+import acquired_sponsors
 from assets_util import normalize_appl, upsert_asset
 from fetchers.base import BaseFetcher, RefreshResult
 
@@ -217,6 +218,14 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
             results += self._run(f"openfda.manufacturer_name:({phrase})")
         if sponsor:
             results += self._run(f"sponsor_name:({sponsor})")
+        # The products this company owns because it bought the company that registered
+        # them. openFDA files an approval under the manufacturer named on it, and that
+        # name is not updated when the manufacturer is acquired: Tavneos is filed under
+        # ChemoCentryx years after Amgen bought it, so Amgen's own searches miss a drug
+        # it sells. Each acquired name is asked for separately, so one that matches
+        # nothing costs a 404 and no results rather than breaking the query.
+        for acquired in acquired_sponsors.for_company(self.db_path, self.ticker):
+            results += self._run(f'openfda.manufacturer_name:("{acquired}")')
 
         # An application can come back from both queries. The application number is its
         # identity, so a later parse keying on it dedupes, but merging here keeps the
