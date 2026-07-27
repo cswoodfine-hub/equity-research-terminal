@@ -1,6 +1,6 @@
 """Risk factors and MD&A text from EDGAR annual and quarterly filings.
 
-A per-company fetcher that reads the primary document of the recent 10-K and 10-Q
+A per-company fetcher that reads the primary document of the recent 10-K, 10-Q and 20-F
 filings already listed in the filings table, extracts the two tracked sections, and
 stores them (migration 008). The diff engine then compares each section to the last
 filing of the same form. Only filings whose sections are not stored yet are downloaded,
@@ -9,7 +9,9 @@ runs read only what is new.
 
 The documents are large, so the fetch is polite: one section pull per filing, a short
 sleep between, and never more than a handful of filings a company. Foreign filers file a
-20-F, whose sections sit under different item numbers, and are left for a later pass.
+20-F, whose sections sit under different item numbers, so it is read by its own rules:
+its risk factors are Item 3.D, and its financial review is kept whole because the review
+Item 5 points at is printed further down the same document.
 """
 
 from __future__ import annotations
@@ -27,7 +29,9 @@ SOURCE = "filing_text"
 TTL_SECONDS = 24 * 60 * 60
 _TIMEOUT_S = 40
 _SLEEP_S = 0.3                      # EDGAR asks for under 10 requests a second
-FORMS = ("10-K", "10-Q")
+# The 20-F is the foreign filer's annual report. Roche and Bayer are not SEC
+# registrants at all, so they have no filing here to read whatever the form.
+FORMS = ("10-K", "10-Q", "20-F")
 PER_FORM = 2                        # the latest two of each form seed one comparison
 
 
@@ -60,7 +64,11 @@ class FilingTextEdgarFetcher(BaseFetcher):
                 # A 10-K is done only once its patents section is recorded, so filings
                 # stored before that section existed are re-read to add it; a 10-Q has no
                 # patents section and is done once anything is stored.
-                marker = "AND section = 'patents'" if form == "10-K" else ""
+                # A 10-K is done once its patents section is recorded and a 20-F once
+                # its financial review is, so filings stored before either section
+                # existed are re-read to add it.
+                marker = ("AND section = 'patents'" if form == "10-K" else
+                          "AND section = 'financial_review'" if form == "20-F" else "")
                 have = conn.execute(
                     f"SELECT COUNT(*) FROM filing_sections WHERE accession = ? {marker}",
                     (f["accession"],)).fetchone()[0]
@@ -87,14 +95,16 @@ class FilingTextEdgarFetcher(BaseFetcher):
             except Exception:
                 continue                       # one unreadable filing never fails the run
             full = filingtext.html_to_text(html)
-            sections = filingtext.extract_sections(full)
-            for name in filingtext.SECTIONS:
+            is_20f = filing["form_type"] == "20-F"
+            sections = (filingtext.extract_20f_sections(full) if is_20f
+                        else filingtext.extract_sections(full))
+            for name in (filingtext.SECTIONS_20F if is_20f else filingtext.SECTIONS):
                 text = sections.get(name) or ""
                 if text:
                     rows.append({**filing, "section": name, "text": text})
             # Patent-cliff years sit in Item 1 and its patent table, not risk factors, so
             # they are harvested from the whole 10-K rather than a section span.
-            if filing["form_type"] == "10-K":
+            if filing["form_type"] in ("10-K", "20-F"):
                 patents = filingtext.patent_passages(full)
                 if patents:
                     rows.append({**filing, "section": "patents", "text": patents})

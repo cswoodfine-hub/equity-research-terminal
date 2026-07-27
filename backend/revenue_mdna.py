@@ -37,6 +37,17 @@ _ANCHORS = (
     # A scale statement is itself a table: filers print one immediately above the
     # columns, and no prose carries it.
     r"\((?:dollars? |dollar )?(?:amounts )?in (?:millions|thousands)\)",
+    # A 20-F prints its scale in the column header rather than a sentence: "2025 $m %
+    # %". AstraZeneca's revenue table carries no other heading a reader could match.
+    r"\$m\s+%",
+    r"(?:sales|revenue)\s+actual\s+cer",
+    r"geographical review",
+    # A European filer heads its columns with the currency and the constant-exchange
+    # comparison rather than a sentence: "2025 USD m", "Change (at CER)".
+    r"\b(?:usd|eur|dkk|chf|gbp)\s?(?:m|mn|millions?)\b",
+    r"change\s*\(at\s*cer\)",
+    r"\bnet\s+sales\b",
+    r"(?:million|millions)\s+of\s+(?:euro|dkk|kroner)",
 )
 _ANCHOR = re.compile("|".join(_ANCHORS), re.I)
 
@@ -44,7 +55,19 @@ _ANCHOR = re.compile("|".join(_ANCHORS), re.I)
 _SCALE = re.compile(r"\(?(?:dollars |amounts )?in (millions|thousands|billions)\)?", re.I)
 _SCALES = {"thousands": 1e3, "millions": 1e6, "billions": 1e9}
 
-_NUMBER = re.compile(r"\(?\$?\s*(\d[\d,]*(?:\.\d+)?)\)?")
+# A number, and whether a percent sign follows it. Novartis separates thousands with a
+# space, so "7 748" is one number and not two; the groups after the first are required
+# to be exactly three digits, which is what keeps "2025 2024" two years apart.
+_NUMBER = re.compile(r"\(?([-+]?)\s*\$?\s*(\d[\d,]*(?:\.\d+)?)\)?\s*(%?)")
+# The same, for a table that separates thousands with a space. Read only when the table
+# uses no commas, because "93 105" is one number in Novartis's table and two in
+# Gilead's, and nothing inside the row itself can tell them apart.
+# Exactly one group is merged, never a run of them: "1 198 754" is Leqvio's 1,198
+# followed by last year's 754, not 1.2 trillion. One merge reaches 999 999, which is
+# more than a product earns in millions of any currency.
+_NUMBER_SPACED = re.compile(
+    r"\(?([-+]?)\s*\$?\s*(\d{1,3}[ ]\d{3}|\d[\d,]*(?:\.\d+)?)\)?\s*(%?)")
+_COMMA_THOUSANDS = re.compile(r"\d,\d{3}")
 
 # How far past the anchor a table runs. Long enough for thirty products, short enough
 # that the next section's numbers are not swept in.
@@ -70,18 +93,58 @@ def scale(text: str, default: float = 1e6) -> float:
     return _SCALES.get(match.group(1).lower(), default) if match else default
 
 
-def _numbers(run: str) -> list:
+def _numbers(run: str, spaced: bool = None) -> list:
+    """(value, as written, followed by a percent sign) for each number in the run.
+
+    ``spaced`` says whether this table writes thousands with a space. Left unset, it is
+    read from the run itself: a run carrying a comma-separated thousand is not one.
+    """
+    if spaced is None:
+        spaced = not _COMMA_THOUSANDS.search(run or "")
+    pattern = _NUMBER_SPACED if spaced else _NUMBER
     out = []
-    for match in _NUMBER.finditer(run):
-        raw = match.group(1)
+    for match in pattern.finditer(run):
+        sign, raw, pct = match.group(1), match.group(2), match.group(3)
         try:
-            out.append((float(raw.replace(",", "")), raw))
+            value = float(raw.replace(",", "").replace(" ", ""))
         except ValueError:
             continue
+        out.append((-value if sign == "-" else value, raw, pct == "%"))
     return out
 
 
-def read_row(run: str) -> float | None:
+def _growth_agrees(current, prior, stated) -> bool:
+    """Whether current against prior really is the change the row states."""
+    if not prior or stated is None:
+        return False
+    return abs((current / prior - 1) * 100 - stated) <= max(1.5, abs(stated) * 0.05)
+
+
+def _read_spaced(values) -> float | None:
+    """One row of a table that separates thousands with a space.
+
+    A footnote marker is a bare digit printed before the number, so "Fabhalta 3 505 129
+    291" is footnote 3, then 505, then last year's 129, then +291%. Nothing in the shape
+    separates that from "7 748", which is seven thousand seven hundred and forty-eight,
+    so the row is asked to prove itself: the change column states the growth, and only
+    the reading that produces it is taken. A row that proves neither is refused.
+    """
+    numbers = [v for v, _raw, _pct in values]
+    if len(numbers) < 3:
+        return None
+    stated = numbers[2] if len(numbers) > 2 else None
+    if _growth_agrees(numbers[0], numbers[1], stated):
+        return numbers[0]
+    # The same row with a leading footnote digit taken off the front.
+    raw_first = values[0][1]
+    if " " in raw_first and len(numbers) >= 3:
+        split = float(raw_first.split(" ")[1])
+        if _growth_agrees(split, numbers[1], numbers[2]):
+            return split
+    return None
+
+
+def read_row(run: str, spaced: bool = None) -> float | None:
     """The revenue on one product's row, or None when the row cannot be read.
 
     Filers print different columns. Lilly gives US, non-US, total, prior year and
@@ -90,22 +153,45 @@ def read_row(run: str) -> float | None:
     A row that fits neither shape is refused: a number that might be revenue and might
     be a patent year is worth less than nothing.
     """
-    values = _numbers(run)
+    values = _numbers(run, spaced)
     if not values:
         return None
-    numbers = [v for v, _ in values]
+    # A spaced table cannot be read by shape alone, so it is read by its own arithmetic.
+    if spaced and any(" " in raw for _v, raw, _p in values):
+        return _read_spaced(values)
+    numbers = [v for v, _raw, _pct in values]
 
     # A total is whatever the columns before it add up to, however many there are.
     # Lilly splits US and outside-US; Gilead splits US, Europe and other, so a rule
     # written for two components read Gilead's US column as its revenue.
+    # The arithmetic is the evidence here, so the total does not have to be written
+    # like money: Gilead's row reads "470 151 290 911 892 284 623 1,799", where 911 is
+    # this year's total and 1,799 is last year's. Requiring a thousands separator
+    # rejected the right number and took the one behind it.
     for start in range(len(numbers) - 1):
         running = 0.0
         for end in range(start, min(start + 4, len(numbers) - 1)):
             running += numbers[end]
             total = numbers[end + 1]
-            if (end > start and _looks_like_money(values[end + 1])
-                    and abs(running - total) <= max(2.0, total * 0.005)):
+            # Tight: a filer's rounding is a unit or two, and a loose tolerance lets
+            # consecutive patent years satisfy the arithmetic (2036 + 7 is 2035 to
+            # within half a percent).
+            if (end > start and not values[end + 1][2]
+                    and abs(running - total) <= max(2.0, total * 0.001)):
                 return total
+
+    # A total printed before its parts: Novo gives world sales, then the regions that
+    # add up to it. Same arithmetic, read the other way round.
+    for total_at in range(len(numbers) - 2):
+        if not _looks_like_money(values[total_at]):
+            continue
+        running = 0.0
+        for end in range(total_at + 1, min(total_at + 6, len(numbers))):
+            running += numbers[end]
+            if (end > total_at + 1
+                    and abs(running - numbers[total_at])
+                    <= max(2.0, numbers[total_at] * 0.001)):
+                return numbers[total_at]
 
     # Revenue then its growth: "Prolia $ 4,414 1 %". The growth is a bare small
     # integer, which is what separates it from another money column.
@@ -127,8 +213,11 @@ def read_row(run: str) -> float | None:
 
 
 def _looks_like_percent(value) -> bool:
-    number, raw = value
-    return "," not in raw and "." not in raw and number <= 300
+    """A percent sign settles it; without one, a small bare integer is the growth
+    column every filer prints beside a revenue."""
+    number, raw, has_sign = value
+    return has_sign or ("," not in raw and "." not in raw and " " not in raw
+                        and number <= 300)
 
 
 def _looks_like_money(value) -> bool:
@@ -140,8 +229,10 @@ def _looks_like_money(value) -> bool:
     revenue. Refusing it costs the products stated under a thousand million without a
     separator, which are the rows that cannot be told from a footnote anyway.
     """
-    number, raw = value
-    return ("," in raw or "." in raw) and number > 0
+    number, raw, has_sign = value
+    if has_sign:
+        return False                  # a percentage is not money, however it is written
+    return ("," in raw or "." in raw or " " in raw) and number > 0
 
 
 def parse(text: str, brands: list, company_revenue: float | None = None) -> dict:
@@ -164,6 +255,7 @@ def parse(text: str, brands: list, company_revenue: float | None = None) -> dict
 def _parse_window(window: str, brands: list, company_revenue: float | None) -> dict:
     """The products one candidate table names."""
     multiplier = scale(window)
+    spaced = not _COMMA_THOUSANDS.search(window)
     out = {}
     for brand in sorted(brands, key=len, reverse=True):
         if not brand or len(brand) < 4:
@@ -171,13 +263,16 @@ def _parse_window(window: str, brands: list, company_revenue: float | None) -> d
         pattern = re.compile(
             # The trailing separator is optional on the last column, or a row that
             # ends the window loses the very number the row is for.
+            # Trademark symbols and footnote markers sit between the name and its
+            # number: Novo writes "Wegovy ® 79,106", Sanofi "Sarclisa (*) 588".
             re.escape(brand)
-            + r"\s*(?:\((?:\d|[a-z])\)\s*)?((?:\(?\$?\s*[\d,.]+\)?(?:\s+|$)){1,6})",
+            + r"[\s®™*†‡]*(?:\((?:\*|\d|[a-z])\)[\s]*)?"
+            + r"((?:\(?[-+]?\$?\s*[\d,.]+\s?%?\)?(?:\s+|$)){1,8})",
             re.I)
         match = pattern.search(window)
         if not match:
             continue
-        value = read_row(match.group(1))
+        value = read_row(match.group(1), spaced)
         if value is None:
             continue
         value *= multiplier
@@ -204,17 +299,30 @@ def extract(db_path=None) -> dict:
     try:
         companies = conn.execute("SELECT id, ticker FROM companies").fetchall()
         for company in companies:
+            # A 10-K's MD&A or a 20-F's financial review, whichever this filer files.
             section = conn.execute(
                 "SELECT text, filed_date FROM filing_sections WHERE company_id = ?"
-                "  AND section = 'mdna' AND form_type = '10-K'"
+                "  AND section IN ('mdna', 'financial_review')"
+                "  AND form_type IN ('10-K', '20-F')"
                 "  ORDER BY filed_date DESC LIMIT 1", (company["id"],)).fetchone()
             if not section:
-                continue          # a 20-F filer stores no MD&A, so there is nothing here
+                continue          # nothing filed here to read
+            # Only products the database can identify by something other than a name.
+            # Sanofi's table has a subtotal row headed "Launches", and an asset row
+            # exists under that name with no approval, no code and no ingredient behind
+            # it, so a name-only row would collect a subtotal as if it were a drug.
             brands = {r["brand_name"]: r["id"] for r in conn.execute(
-                "SELECT id, brand_name FROM assets WHERE owner_company_id = ?"
-                "  AND brand_name IS NOT NULL", (company["id"],))}
+                """
+                SELECT a.id, a.brand_name FROM assets a
+                 WHERE a.owner_company_id = ? AND a.brand_name IS NOT NULL
+                   AND (a.internal_code IS NOT NULL OR a.generic_name IS NOT NULL
+                        OR EXISTS (SELECT 1 FROM approvals ap WHERE ap.asset_id = a.id))
+                """, (company["id"],))}
+            # The filer's own currency and year, since a 20-F is not filed in dollars:
+            # Novo reports in kroner and Sanofi in euro, and storing either as USD
+            # would overstate one product by sevenfold.
             total = conn.execute(
-                "SELECT value, fiscal_year FROM financials WHERE company_id = ?"
+                "SELECT value, fiscal_year, unit FROM financials WHERE company_id = ?"
                 "  AND metric = 'Revenues' AND period_type = 'FY'"
                 "  ORDER BY fiscal_year DESC LIMIT 1", (company["id"],)).fetchone()
             found = parse(section["text"], list(brands),
@@ -234,9 +342,9 @@ def extract(db_path=None) -> dict:
                 conn.execute(
                     "INSERT INTO asset_revenue (asset_id, fiscal_year, value, unit,"
                     "                           source, note)"
-                    " VALUES (?, ?, ?, 'USD', ?, ?)",
-                    (asset_id, year, value, MDNA_SOURCE,
-                     f"revenue by product table, 10-K filed {section['filed_date']}"))
+                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    (asset_id, year, value, total["unit"] or "USD", MDNA_SOURCE,
+                     f"revenue by product table, filed {section['filed_date']}"))
                 written += 1
         conn.commit()
     finally:

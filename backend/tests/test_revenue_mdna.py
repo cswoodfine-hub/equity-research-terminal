@@ -63,3 +63,42 @@ def test_scale_is_read_from_the_table():
     assert revenue_mdna.scale("(in thousands)") == 1e3
     assert revenue_mdna.scale("(dollars in millions)") == 1e6
     assert revenue_mdna.scale("no statement") == 1e6      # what every filer here uses
+
+
+# The foreign filers, whose 20-F tables are laid out three more ways again.
+def test_reads_thousands_separated_by_spaces():
+    # Novartis writes 7,748 as "7 748". The row itself cannot say whether "93 105" is
+    # one number or two, so the table decides: one that uses commas is not spaced.
+    novartis = ("2025 USD m 2024 USD m Change % "
+                "Entresto 7 748 7 822 - 1 Leqvio 1 198 754 59")
+    out = revenue_mdna.parse(novartis, ["Entresto", "Leqvio"])
+    assert out["Entresto"] == 7_748e6
+    assert out["Leqvio"] == 1_198e6
+
+
+def test_a_comma_table_never_merges_across_spaces():
+    # "93 105" is two numbers here, and reading it as 93,105 would inflate a row
+    # thirtyfold.
+    assert revenue_mdna.read_row("2,559 93 105 2,758") == 2_758e0 * 1e0 or True
+    assert revenue_mdna.read_row("2,559 93 105 2,758") == 2758
+
+
+def test_reads_a_signed_percentage_column():
+    # Sanofi writes growth as "+20.2%", which has a decimal point and so is not a bare
+    # integer; the percent sign is what settles it.
+    sanofi = ("Net sales Change (at CER) "
+              "Dupixent 15,714 +20.2% +25.2% 11,538 +26.7% "
+              "Kevzara 507 +19.6% +23.6% 321 +36.6%")
+    assert revenue_mdna.parse(sanofi, ["Dupixent", "Kevzara"])["Dupixent"] == 15_714e6
+
+
+def test_reads_a_total_printed_before_its_parts():
+    # Novo gives world sales first, then the regions that add up to it.
+    novo = ("Total sales in 2025 (in DKK million) US Operations International "
+            "Wegovy ® 79,106 51,015 28,091")
+    assert revenue_mdna.parse(novo, ["Wegovy"])["Wegovy"] == 79_106e6
+
+
+def test_a_trademark_symbol_does_not_hide_the_row():
+    assert revenue_mdna.parse("(in DKK million) Victoza ® 3,020 471 2,549",
+                              ["Victoza"])["Victoza"] == 3_020e6

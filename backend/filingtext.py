@@ -40,6 +40,19 @@ MDNA_END = re.compile(r"quantitative\s+and\s+qualitative\s+disclosures", re.I)
 
 SECTIONS = ("risk_factors", "mdna")
 
+# A 20-F is the foreign filer's annual report and is not laid out like a 10-K. Its risk
+# factors are Item 3.D and its financial review is Item 5, but the item numbers alone are
+# not enough: AstraZeneca's Item 5 is four pages of cross-references and the review it
+# points at sits later in the same document, incorporated from the annual report. So the
+# financial review is kept whole rather than cut to an item span, and the reader that
+# wants the revenue table finds it by its own anchors.
+RISK_START_20F = re.compile(
+    r"item\s*3\.?\s*d\b[.:\s\-]{0,12}risk\s+factors|\brisk\s+factors\b", re.I)
+RISK_END_20F = re.compile(
+    r"item\s*4\b[.:\s\-]{0,12}information\s+on\s+the\s+company", re.I)
+SECTIONS_20F = ("risk_factors", "financial_review")
+FINANCIAL_REVIEW_MAX = 700_000
+
 # A drug's patent cliff is rarely a clean section: companies scatter it through Item 1's
 # patent discussion, a patent table, and MD&A, by brand or by generic name. Rather than
 # find a section, harvest every line that pairs patent, exclusivity or biosimilar
@@ -64,15 +77,35 @@ def patent_passages(text: str, max_chars: int = 40000) -> str:
     return "\n".join(out)
 
 
+# Zero-width spaces and joiners, which a filer's HTML puts between the digits of a
+# table. AstraZeneca's 20-F carries sixteen thousand of them, and they are invisible in
+# the text and fatal to any pattern that expects a number followed by whitespace.
+_INVISIBLE = re.compile(r"[\u200b-\u200f\u2028\u2029\ufeff\u00ad]")
+
+
 def html_to_text(source: str) -> str:
     """Readable text from an EDGAR HTML document. Block tags become line breaks so the
     paragraph structure survives; inline XBRL and scripts are dropped."""
-    text = _DROP.sub(" ", source or "")
+    text = _INVISIBLE.sub("", source or "")
+    text = _DROP.sub(" ", text)
     text = _BLOCK.sub("\n", text)
     text = _TAG.sub(" ", text)
     text = _html.unescape(text)
     lines = [re.sub(r"[ \t ]+", " ", ln).strip() for ln in text.split("\n")]
     return "\n".join(ln for ln in lines if ln)
+
+
+def extract_20f_sections(text: str) -> dict:
+    """A 20-F's risk factors, and its financial review kept whole.
+
+    Whole because the item span does not hold it: the review a foreign filer's Item 5
+    points to is printed further down the same document, and cutting at Item 6 throws
+    the revenue table away with it.
+    """
+    return {
+        "risk_factors": _longest_span(text, RISK_START_20F, RISK_END_20F),
+        "financial_review": (text or "")[:FINANCIAL_REVIEW_MAX],
+    }
 
 
 def extract_sections(text: str) -> dict:

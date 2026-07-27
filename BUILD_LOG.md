@@ -624,3 +624,21 @@ real rates dated 2026-07-24; append-only, no other mutation.
   universe-wide); the revenue-by-product table sits unparsed in the stored MD&A text.
   Vyndaqel has no DailyMed label matched, so it has no area. No git remote is
   configured, so nothing is pushed anywhere.
+
+## 20-F for the foreign filers — 2026-07-27
+- The filing text fetch now reads 20-F as well as 10-K and 10-Q. A 20-F's risk factors
+  are Item 3.D; its financial review is kept whole rather than cut to an item span,
+  because the review AstraZeneca's Item 5 points at is printed further down the same
+  document. AZN, NVS, NVO and SNY now carry 180k to 700k chars each. GSK files no 20-F
+  in the window the filings fetch covers, and Roche and Bayer are not SEC registrants.
+- html_to_text strips zero-width characters: AstraZeneca's 20-F carries 16,553 of them,
+  invisible in the text and fatal to any pattern expecting a number and a space.
+- The revenue reader learned four more table shapes off the back of it: thousands
+  separated by spaces (Novartis), signed percentages (Sanofi), a total printed before
+  its parts (Novo), and trademark symbols between a name and its number.
+- A spaced table is read by its own arithmetic. "Fabhalta 3 505 129 291" is footnote 3
+  then 505, and "Entresto 7 748" is seven thousand seven hundred and forty-eight;
+  nothing in the shape separates them, so the change column decides and a row that
+  proves neither reading is refused.
+- Universe: 67 product-years parsed, 57 cross-checked against the SEC data sets, none
+  disagree. Ten of them are values the data sets do not tag.
