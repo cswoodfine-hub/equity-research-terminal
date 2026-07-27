@@ -253,107 +253,79 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         '</div>')
     st.markdown(stats, unsafe_allow_html=True)
 
-    left, right = st.columns([1.3, 1])
-    with left:
-        html = ['<div class="prof">']
-        # Revenue history, when the SEC tags more than the latest year.
-        if len(prof.get("revenue") or []) > 1:
-            html.append('<div class="prof-sub">revenue, tagged years</div>')
-            html.append(_prof_rows(
-                [(f'FY{r["fiscal_year"]}', f'{T.num(r["value"] / 1e9, 2)} {r.get("unit") or ""} bn')
-                 for r in prof["revenue"]]))
-        # Approvals, one line each with the approved indication.
-        if prof.get("approvals"):
-            html.append('<div class="prof-sub">approvals</div>')
-            for ap in prof["approvals"]:
-                ind = (ap.get("indication_text") or "").strip()
-                ind = ind if len(ind) <= 90 else ind[:89] + "…"
-                html.append(
-                    f'<div class="prof-line"><span class="d">{(ap.get("approval_date") or "")[:10]}</span>'
-                    f'{html_escape(ap.get("application_number") or "")}'
-                    f'{" · " + html_escape(ind) if ind else ""}</div>')
-        # Label, supplements, challenges: the regulatory footprint.
-        lab = prof.get("label")
-        if lab:
-            html.append('<div class="prof-sub">label</div>')
-            html.append(_prof_rows([
-                ("approved indications", str(lab.get("indication_count"))
-                 if lab.get("indication_count") is not None else None),
-                ("label updated", (lab.get("effective_time") or "")[:10] or None),
-                ("population", (lab.get("population_text") or "")[:60] or None)]))
-        if prof.get("supplement_count"):
-            html.append('<div class="prof-sub">efficacy supplements</div>')
-            for s in prof.get("supplements") or []:
-                d = (s.get("description") or "").strip()
-                d = d if len(d) <= 80 else d[:79] + "…"
-                html.append(f'<div class="prof-line"><span class="d">'
-                            f'{(s.get("approval_date") or "")[:10]}</span>{html_escape(d)}</div>')
-        if prof.get("challenges"):
-            html.append('<div class="prof-sub">Paragraph IV challenges</div>')
-            html.append(_prof_rows([
-                (c.get("application_number") or "application",
-                 (c.get("first_submission") or "")[:10] or "filed")
-                for c in prof["challenges"]]))
-        # The drug's own studies. For a marketed product these are the label-expansion
-        # trials that drive the next indication; for a pipeline compound they are the
-        # whole programme.
-        if prof.get("trials"):
-            phases = prof.get("trials_by_phase") or {}
-            phase_txt = ", ".join(f'{n} {ph}' for ph, n in sorted(phases.items()))
-            html.append(f'<div class="prof-sub">trials · {prof["trial_count"]} '
-                        f'{"· " + html_escape(phase_txt) if phase_txt else ""}</div>')
-            for tr in prof["trials"]:
-                title = (tr.get("title") or "").strip()
-                title = title if len(title) <= 78 else title[:77].rstrip() + "…"
-                due = (tr.get("primary_completion_date") or "")[:10] or "no date"
-                link = (f'<a href="https://clinicaltrials.gov/study/{html_escape(tr["nct_id"])}"'
-                        f' target="_blank" rel="noopener">{html_escape(title)}</a>')
-                html.append(
-                    f'<div class="prof-line" title="{html_escape(tr.get("title") or "")} '
-                    f'({html_escape(tr.get("nct_id") or "")})">'
-                    f'<span class="d">{html_escape(due)}</span>'
-                    f'<span class="ph">{html_escape(tr.get("phase") or "")}</span> {link}'
-                    f'</div>')
-        if prof.get("catalysts"):
-            html.append('<div class="prof-sub">upcoming catalysts</div>')
-            for c in prof["catalysts"]:
-                t = (c.get("title") or "").strip()
-                t = t if len(t) <= 80 else t[:79] + "…"
-                html.append(f'<div class="prof-line"><span class="d">'
-                            f'{(c.get("expected_date") or "")[:10]}</span>{html_escape(t)}</div>')
-        html.append('</div>')
-        st.markdown("".join(html), unsafe_allow_html=True)
-        st.markdown(
-            '<div class="byline">Every field here is sourced: approval and supplements '
-            'from openFDA, revenue from the SEC data sets, exclusivity from the Orange and '
-            'Purple Books, demand from CMS, the label from DailyMed. A field with no free '
-            'data is left out rather than filled.</div>', unsafe_allow_html=True)
-    with right:
-        notes = prof.get("notes") or {}
-        st.markdown('<div class="prof-sub">your view, curated</div>', unsafe_allow_html=True)
-        with st.form(f"pf_notes_{aid}"):
-            ms = st.text_area("Market size", value=notes.get("market_size") or "",
-                              key=f"pf_ms_{aid}", height=70,
-                              placeholder="e.g. ~$25bn US by 2030, high-single-digit growth")
-            ps = st.text_area("Peak sales", value=notes.get("peak_sales") or "",
-                              key=f"pf_ps_{aid}", height=70,
-                              placeholder="e.g. ~$8bn peak, 2029, risk-adjusted")
-            cp = st.text_area("Competitors", value=notes.get("competitors") or "",
-                              key=f"pf_cp_{aid}", height=70,
-                              placeholder="competing drugs or programmes")
-            th = st.text_area("Thesis", value=notes.get("thesis") or "",
-                              key=f"pf_th_{aid}", height=90,
-                              placeholder="one paragraph, why it matters")
-            if st.form_submit_button("Save", use_container_width=True):
-                api_post_json(api_base, f"/companies/{ticker}/product/{aid}/notes",
-                              {"market_size": ms, "peak_sales": ps,
-                               "competitors": cp, "thesis": th})
-                st.rerun()
-        saved = f'Saved {notes["updated_at"][:10]}. ' if notes.get("updated_at") else ""
-        st.markdown(
-            f'<div class="byline">{saved}Market size, peak sales and the competitor set '
-            'are in no free source, so these are your own inputs, stored and shown as '
-            'yours, never fetched or estimated.</div>', unsafe_allow_html=True)
+    html = ['<div class="prof">']
+    # Revenue history, when the SEC tags more than the latest year.
+    if len(prof.get("revenue") or []) > 1:
+        html.append('<div class="prof-sub">revenue, tagged years</div>')
+        html.append(_prof_rows(
+            [(f'FY{r["fiscal_year"]}', f'{T.num(r["value"] / 1e9, 2)} {r.get("unit") or ""} bn')
+             for r in prof["revenue"]]))
+    # Approvals, one line each with the approved indication.
+    if prof.get("approvals"):
+        html.append('<div class="prof-sub">approvals</div>')
+        for ap in prof["approvals"]:
+            ind = (ap.get("indication_text") or "").strip()
+            ind = ind if len(ind) <= 90 else ind[:89] + "…"
+            html.append(
+                f'<div class="prof-line"><span class="d">{(ap.get("approval_date") or "")[:10]}</span>'
+                f'{html_escape(ap.get("application_number") or "")}'
+                f'{" · " + html_escape(ind) if ind else ""}</div>')
+    # Label, supplements, challenges: the regulatory footprint.
+    lab = prof.get("label")
+    if lab:
+        html.append('<div class="prof-sub">label</div>')
+        html.append(_prof_rows([
+            ("approved indications", str(lab.get("indication_count"))
+             if lab.get("indication_count") is not None else None),
+            ("label updated", (lab.get("effective_time") or "")[:10] or None),
+            ("population", (lab.get("population_text") or "")[:60] or None)]))
+    if prof.get("supplement_count"):
+        html.append('<div class="prof-sub">efficacy supplements</div>')
+        for s in prof.get("supplements") or []:
+            d = (s.get("description") or "").strip()
+            d = d if len(d) <= 80 else d[:79] + "…"
+            html.append(f'<div class="prof-line"><span class="d">'
+                        f'{(s.get("approval_date") or "")[:10]}</span>{html_escape(d)}</div>')
+    if prof.get("challenges"):
+        html.append('<div class="prof-sub">Paragraph IV challenges</div>')
+        html.append(_prof_rows([
+            (c.get("application_number") or "application",
+             (c.get("first_submission") or "")[:10] or "filed")
+            for c in prof["challenges"]]))
+    # The drug's own studies. For a marketed product these are the label-expansion
+    # trials that drive the next indication; for a pipeline compound they are the
+    # whole programme.
+    if prof.get("trials"):
+        phases = prof.get("trials_by_phase") or {}
+        phase_txt = ", ".join(f'{n} {ph}' for ph, n in sorted(phases.items()))
+        html.append(f'<div class="prof-sub">trials · {prof["trial_count"]} '
+                    f'{"· " + html_escape(phase_txt) if phase_txt else ""}</div>')
+        for tr in prof["trials"]:
+            title = (tr.get("title") or "").strip()
+            title = title if len(title) <= 78 else title[:77].rstrip() + "…"
+            due = (tr.get("primary_completion_date") or "")[:10] or "no date"
+            link = (f'<a href="https://clinicaltrials.gov/study/{html_escape(tr["nct_id"])}"'
+                    f' target="_blank" rel="noopener">{html_escape(title)}</a>')
+            html.append(
+                f'<div class="prof-line" title="{html_escape(tr.get("title") or "")} '
+                f'({html_escape(tr.get("nct_id") or "")})">'
+                f'<span class="d">{html_escape(due)}</span>'
+                f'<span class="ph">{html_escape(tr.get("phase") or "")}</span> {link}'
+                f'</div>')
+    if prof.get("catalysts"):
+        html.append('<div class="prof-sub">upcoming catalysts</div>')
+        for c in prof["catalysts"]:
+            t = (c.get("title") or "").strip()
+            t = t if len(t) <= 80 else t[:79] + "…"
+            html.append(f'<div class="prof-line"><span class="d">'
+                        f'{(c.get("expected_date") or "")[:10]}</span>{html_escape(t)}</div>')
+    html.append('</div>')
+    st.markdown("".join(html), unsafe_allow_html=True)
+    st.markdown(
+        '<div class="byline">Every field here is sourced: approval and supplements '
+        'from openFDA, revenue from the SEC data sets, exclusivity from the Orange and '
+        'Purple Books, demand from CMS, the label from DailyMed. A field with no free '
+        'data is left out rather than filled.</div>', unsafe_allow_html=True)
 
 
 def _pct_from_start(closes) -> list:
@@ -1768,6 +1740,9 @@ with main:
             head += (f" · {unattributed} trial"
                      f"{'s' if unattributed != 1 else ''} unattributed")
         section(f"{ticker} by therapeutic area", head)
+        # Defined before the branch: the programme list below reads it, and a company
+        # with no trials draws no pills to set it.
+        area_pick: list = []
         if not every:
             state(f"No trials on file for {ticker}",
                   "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
@@ -1806,7 +1781,7 @@ with main:
             # but the chips are rendered after it: the chart is what tells you which
             # area to pick, so it comes first and the controls sit under it with the
             # phase pills, as one band of filters rather than two split around it.
-            chosen = st.session_state.get("area_pills") or []
+            chosen = st.session_state.get(f"area_pills_{ticker}") or []
 
             # Stacked by phase so the shape of an area reads at a glance: one that is
             # all Phase 1 is a different proposition from one carrying Phase 3, even
@@ -1843,19 +1818,16 @@ with main:
             R.show(CH.stacked_bar(
                 stack_rows, 832, max(170, 34 * len(order) + 22),
                 value_fmt=lambda v: f"{v:.0f}", legend=legend))
-            st.markdown(
-                '<div class="byline">Compounds, not studies: a molecule is counted once '
-                'per area, at the furthest phase it has reached there, so a programme '
-                'running ten trials is one bet and not ten. A compound studied in two '
-                'areas is counted in both. A trial whose intervention names nothing on '
-                'file cannot be attributed to a compound and sits outside these bars; '
-                'the count above says how many.</div>', unsafe_allow_html=True)
 
             # Pills stay plain labels: rewriting a pill's own label as it is selected made
             # its highlight take two clicks. The count for what is selected shows in a line
             # beneath instead, so a number still appears only once something is highlighted.
-            st.pills("Therapeutic area", order, selection_mode="multi",
-                     key="area_pills", label_visibility="collapsed")
+            # The return value is captured, not just the session key, so the programmes
+            # list below filters on the same pick in the same run rather than a rerun
+            # behind. Keyed per company, since one company's areas are not another's.
+            area_pick = st.pills(
+                "Therapeutic area", order, selection_mode="multi",
+                key=f"area_pills_{ticker}", label_visibility="collapsed") or []
             if chosen:
                 st.markdown(
                     '<div class="byline">'
@@ -1886,10 +1858,7 @@ with main:
             # intersect. It stays shut only while nothing is picked, so it never opens on
             # the whole list at once.
             if not chosen and not phase_pick:
-                state("Pick an area or a phase to list the trials",
-                      "The bars answer how much and where; the table answers which. "
-                      "Pick a disease, a phase, or both, rather than opening on "
-                      f"{len(every)} rows of everything.")
+                pass                      # nothing picked: the table stays shut, quietly
             else:
                 shown = [t for t in every
                          if (not chosen or t["area"] in chosen)
@@ -1956,14 +1925,6 @@ with main:
         # its studies through the intervention names the registry publishes.
         programmes = api_get(api_base,
                              f"/companies/{ticker}/programmes").get("programmes") or []
-        # Filter by disease area, the same axis the trial table below is browsed on. A
-        # compound counts under every area it is studied in, not just its main one, so
-        # picking an area shows everything being developed for it rather than only the
-        # programmes whose centre of gravity happens to sit there.
-        area_counts: dict = {}
-        for p in programmes:
-            for a in (p.get("areas") or []):
-                area_counts[a] = area_counts.get(a, 0) + 1
         phase_order = ["Phase 3", "Phase 2/3", "Phase 2", "Phase 1/2", "Phase 1",
                        "Phase 4", "unphased"]
         all_counts = " · ".join(
@@ -1973,25 +1934,20 @@ with main:
         section("Programmes in development",
                 f"{len(programmes)} compounds" + (f" · {all_counts}" if all_counts else ""))
 
-        area_options = ["All areas"] + [
-            f"{a} ({n})" for a, n in sorted(area_counts.items(),
-                                            key=lambda kv: (-kv[1], kv[0]))]
-        if len(area_options) > 1:
-            picked_area = st.selectbox(
-                "Disease area", area_options, key=f"prog_area_{ticker}",
-                label_visibility="collapsed")
-        else:
-            picked_area = "All areas"
+        # The area pills above drive this list too, so the spotlight on the chart and the
+        # compounds underneath are one selection rather than two controls saying
+        # different things. A compound counts under every area it is studied in, not just
+        # the one most of its trials sit in, so spotlighting an area shows everything
+        # being developed for it.
         total_programmes = len(programmes)
-        if picked_area != "All areas":
-            wanted_area = picked_area.rsplit(" (", 1)[0]
+        if area_pick:
             programmes = [p for p in programmes
-                          if wanted_area in (p.get("areas") or [])]
+                          if set(p.get("areas") or []) & set(area_pick)]
             st.markdown(
                 f'<div class="byline">Showing {len(programmes)} of {total_programmes} '
-                f'compounds with a study in {html_escape(wanted_area)}. A compound '
-                'studied across areas appears under each of them.</div>',
-                unsafe_allow_html=True)
+                f'compounds with a study in {html_escape(", ".join(area_pick))}, '
+                'the area spotlit above. A compound studied across areas appears under '
+                'each of them.</div>', unsafe_allow_html=True)
 
         # Grouped by the furthest phase each compound has reached, most advanced first,
         # and every phase is shown: early work is most of a pipeline by count, and a
