@@ -434,6 +434,7 @@ h3 {{ font-size: 0.9rem; }}
                 color: var(--muted); white-space: nowrap; }}
 .metricbar .v {{ font-family: var(--font-mono); font-size: 13px; color: var(--text); }}
 .metricbar .v.none {{ font-size: 11px; color: var(--muted); }}
+.metricbar .v .u {{ font-size: 9.5px; color: var(--muted); margin-left: 1px; }}
 
 /* A partial run's own error text, one line per failing source. */
 .runerr {{ display: grid; grid-template-columns: 132px 1fr; gap: 0.6rem;
@@ -502,6 +503,31 @@ h3 {{ font-size: 0.9rem; }}
 .chart-mount.stretch svg {{ width: 100%; }}
 
 /* Position strip. */
+/* Headline figures as one grid, so every block that shows numbers reads the same way.
+   A hairline between tiles rather than a card each: the page already has a border
+   language and eight bordered cards competed with it. The unit rides with the number,
+   since a scale stated three lines away has to be worked out, and a change sits under
+   the number in its own colour rather than colouring it, because it is the change that
+   is up or down and not the level. */
+.tiles {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+         border-top: 1px solid var(--rule-strong);
+         border-bottom: 1px solid var(--rule); margin: 0.2rem 0 0.5rem; }}
+.tiles > div {{ padding: 0.6rem 0.5rem 0.65rem 0.95rem;
+               border-left: 1px solid var(--rule); }}
+.tiles > div:first-child {{ border-left: 0; padding-left: 2px; }}
+.tiles .k {{ display: block; font-size: 9.5px; letter-spacing: 0.07em;
+            text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
+            white-space: nowrap; }}
+.tiles .v {{ display: block; font-family: var(--font-mono); font-size: 1.5rem;
+            font-weight: 600; line-height: 1; letter-spacing: -0.02em;
+            color: var(--text); }}
+.tiles .v .u {{ font-size: 0.75rem; font-weight: 500; color: var(--muted);
+               letter-spacing: 0; margin-left: 2px; }}
+.tiles .v.none {{ font-size: 0.95rem; font-weight: 400; color: var(--muted); }}
+.tiles .d {{ display: block; margin-top: 6px; font-size: 10.5px; color: var(--muted); }}
+.tiles .d.up {{ color: var(--up); }}
+.tiles .d.down {{ color: var(--down); }}
+
 .pos {{ display: flex; gap: 2rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
 .pos .k {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
           color: var(--muted); display: block; }}
@@ -723,6 +749,11 @@ section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
   font-size: 10.5px !important; line-height: 1.3 !important;
 }}
 .st-key-comps_metric, .st-key-comps_pick {{ margin-bottom: 2px; }}
+
+/* The area and phase pills sit under the therapeutic area chart, which draws to the
+   edge of its container. Without a gap the first row of chips met the last bar. */
+[class*="st-key-area_pills_"] {{ margin-top: 1.15rem; }}
+[class*="st-key-phase_pills_"] {{ margin-top: 0.2rem; }}
 
 /* Quality floor: focus must be visible, and motion is opt-out. */
 *:focus-visible {{ outline: 2px solid var(--text); outline-offset: 1px; }}
