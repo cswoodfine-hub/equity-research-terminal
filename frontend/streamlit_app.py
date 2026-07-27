@@ -1471,6 +1471,8 @@ with main:
                  f"{cf_cur} bn, debt less cash"),
                 ("net debt / EBITDA", _cf_x(cash.get("net_debt_ebitda")),
                  "operating income plus D&A"),
+                ("acquisitions", _cf_bn((cash.get("inputs") or {}).get("acquisitions"), 2),
+                 f"{cf_cur} bn cash paid for businesses"),
             ]
             st.markdown(
                 '<div class="pos">' + "".join(

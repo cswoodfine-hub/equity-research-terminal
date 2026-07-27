@@ -245,6 +245,28 @@ _CASHFLOW = (
              ("us-gaap", "DepreciationAmortizationAndAccretionNet"),
              ("ifrs-full", "DepreciationAndAmortisationExpense"),
          )),
+    # Filers that tag no combined figure tag these two instead. Kept apart, and summed
+    # only where the combined line is absent: AbbVie's depreciation is 0.8bn against
+    # 7.4bn of amortisation, so taking depreciation for the pair understates it tenfold.
+    Line("Depreciation", "Depreciation", "cashflow", "duration", role="memo",
+         candidates=(
+             ("us-gaap", "Depreciation"),
+             ("ifrs-full", "DepreciationPropertyPlantAndEquipment"),
+         )),
+    Line("AmortisationOfIntangibles", "Amortisation of intangibles", "cashflow",
+         "duration", role="memo", candidates=(
+             ("us-gaap", "AmortizationOfIntangibleAssets"),
+             ("ifrs-full", "AmortisationIntangibleAssetsOtherThanGoodwill"),
+         )),
+    # Cash actually paid for businesses, which is the hard number behind the deal feed.
+    Line("AcquisitionsNet", "Acquisitions, net of cash acquired", "cashflow", "duration",
+         role="memo", note="Cash paid for businesses, net of cash acquired.",
+         candidates=(
+             ("us-gaap", "PaymentsToAcquireBusinessesNetOfCashAcquired"),
+             ("us-gaap", "PaymentsToAcquireBusinessesGross"),
+             ("ifrs-full",
+              "CashFlowsUsedInObtainingControlOfSubsidiariesOrOtherBusinessesClassifiedAsInvestingActivities"),
+         )),
     Line("ShareBasedCompensation", "Share-based compensation", "cashflow", "duration",
          role="memo", candidates=(
              ("us-gaap", "ShareBasedCompensation"),

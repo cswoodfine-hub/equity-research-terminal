@@ -42,7 +42,10 @@ METRIC_CANDIDATES = {
     for key in ("Revenues", "NetIncomeLoss", "ResearchAndDevelopmentExpense")
 }
 CASH_CANDIDATES = list(statements.LINES_BY_KEY["CashAndEquivalents"].candidates)
-DEBT_COMBINED_CANDIDATES = [("us-gaap", "DebtLongtermAndShorttermCombinedAmount")]
+DEBT_COMBINED_CANDIDATES = [("us-gaap", "DebtLongtermAndShorttermCombinedAmount"),
+                            # IFRS filers tag one total instead of a split, which
+                            # is why Novo, GSK and Sanofi carried no debt at all.
+                            ("ifrs-full", "Borrowings")]
 
 # How many recent periods of each line to store. Company facts already carry the full
 # history in one response, so raising these costs storage rather than extra EDGAR calls.

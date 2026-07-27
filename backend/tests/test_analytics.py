@@ -505,7 +505,8 @@ def _seed_cashflow_company(tmp_path, **lines):
     cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
     flows = ("Revenues", "NetIncomeLoss", "CashFlowOperating", "CapitalExpenditure",
              "OperatingIncomeLoss", "DepreciationAndAmortisation", "CostOfRevenue",
-             "ResearchAndDevelopmentExpense", "SellingGeneralAndAdministrative")
+             "ResearchAndDevelopmentExpense", "SellingGeneralAndAdministrative",
+             "Depreciation", "AmortisationOfIntangibles", "AcquisitionsNet")
     for metric, value in lines.items():
         if value is None:
             continue
@@ -594,3 +595,39 @@ def test_operating_income_is_not_derived_from_a_partial_statement(tmp_path):
     assert r["inputs"]["operating_income"] is None
     assert r["ebitda"] is None
     assert r["net_debt_ebitda"] is None
+
+
+def test_depreciation_alone_is_never_taken_for_the_pair(tmp_path):
+    """AbbVie's depreciation is 0.8bn against 7.4bn of amortisation, so taking the one
+    for the pair would understate EBITDA by an order of magnitude."""
+    import cashflow
+    db_file = _seed_cashflow_company(
+        tmp_path, Revenues=100.0, OperatingIncomeLoss=40.0,
+        Depreciation=1.0, TotalDebt=60.0, CashAndEquivalents=10.0)
+    r = cashflow.build_cashflow(db_file, "LLY")
+    assert r["ebitda"] is None                     # depreciation alone is not D&A
+    assert r["net_debt_ebitda"] is None
+
+
+def test_the_depreciation_and_amortisation_pair_is_summed(tmp_path):
+    """With both halves on file they make the figure the combined tag would have."""
+    import cashflow
+    db_file = _seed_cashflow_company(
+        tmp_path, Revenues=100.0, OperatingIncomeLoss=40.0,
+        Depreciation=1.0, AmortisationOfIntangibles=9.0,
+        TotalDebt=60.0, CashAndEquivalents=10.0)
+    r = cashflow.build_cashflow(db_file, "LLY")
+    assert r["ebitda"] == 50.0                     # 40 operating plus 1 plus 9
+    assert r["inputs"]["depreciation_amortisation_basis"] == (
+        "depreciation and amortisation summed")
+
+
+def test_a_combined_depreciation_line_wins_over_the_pair(tmp_path):
+    import cashflow
+    db_file = _seed_cashflow_company(
+        tmp_path, Revenues=100.0, OperatingIncomeLoss=40.0,
+        DepreciationAndAmortisation=8.0, Depreciation=1.0,
+        AmortisationOfIntangibles=9.0)
+    r = cashflow.build_cashflow(db_file, "LLY")
+    assert r["ebitda"] == 48.0                     # the filed 8, not the summed 10
+    assert r["inputs"]["depreciation_amortisation_basis"] == "reported"

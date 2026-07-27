@@ -65,6 +65,9 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
         capex = _fy(conn, cid, "CapitalExpenditure")
         operating = _fy(conn, cid, "OperatingIncomeLoss")
         dna = _fy(conn, cid, "DepreciationAndAmortisation")
+        depreciation = _fy(conn, cid, "Depreciation")
+        amortisation = _fy(conn, cid, "AmortisationOfIntangibles")
+        acquisitions = _fy(conn, cid, "AcquisitionsNet")
         cost_of_revenue = _fy(conn, cid, "CostOfRevenue")
         rd = _fy(conn, cid, "ResearchAndDevelopmentExpense")
         sga = _fy(conn, cid, "SellingGeneralAndAdministrative")
@@ -110,8 +113,19 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
         else:
             operating_basis = None
 
-    ebitda = (operating_value + abs(val(dna))
-              if operating_value is not None and val(dna) is not None else None)
+    # Depreciation and amortisation, combined where the filer tags one figure and summed
+    # from the pair where it does not. Never depreciation alone: AbbVie's is 0.8bn
+    # against 7.4bn of amortisation, so the pair is not optional.
+    dna_value, dna_basis = val(dna), "reported"
+    if dna_value is None:
+        if val(depreciation) is not None and val(amortisation) is not None:
+            dna_value = abs(val(depreciation)) + abs(val(amortisation))
+            dna_basis = "depreciation and amortisation summed"
+        else:
+            dna_basis = None
+
+    ebitda = (operating_value + abs(dna_value)
+              if operating_value is not None and dna_value is not None else None)
 
     def usd(value):
         if value is None or not currency:
@@ -142,7 +156,10 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
             "cash_flow_operating": cfo_value, "capital_expenditure": capex_value,
             "operating_income": operating_value,
             "operating_income_basis": operating_basis,
-            "depreciation_amortisation": val(dna),
+            "depreciation_amortisation": dna_value,
+            "depreciation_amortisation_basis": dna_basis,
+            "acquisitions": abs(val(acquisitions))
+                            if val(acquisitions) is not None else None,
             "total_debt": val(debt), "cash": cash_value,
             "cash_lines": cash_lines_used,
             "debt_as_of": debt["period_end"] if debt else None,
