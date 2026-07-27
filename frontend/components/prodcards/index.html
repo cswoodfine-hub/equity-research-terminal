@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  #g { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+       gap: 8px; }
+  .pf-card {
+    background: var(--panel); border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule-strong); padding: 0.5rem 0.65rem;
+    cursor: pointer; transition: background 90ms linear, border-color 90ms linear;
+  }
+  .pf-card.small { border-left-color: var(--orange-book); }
+  .pf-card.bio { border-left-color: var(--purple-book); }
+  /* Hover says the whole card is the hit area, which is the point of the component. */
+  .pf-card:hover { background: var(--panel-hi); border-color: var(--rule-strong); }
+  .pf-card:focus-visible { outline: 1px solid var(--muted); outline-offset: -1px; }
+  .pf-card.sel { border-color: var(--up); background: var(--panel-hi); }
+  .pf-head { display: flex; align-items: baseline; justify-content: space-between;
+             gap: 0.5rem; }
+  .pf-brand { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+  .pf-mod { font-size: 8.5px; letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--muted); white-space: nowrap; }
+  .pf-generic { font-size: 10.5px; color: var(--muted); margin: 1px 0 5px;
+                line-height: 1.25; }
+  .pf-row { display: flex; justify-content: space-between; align-items: baseline;
+            font-size: 11px; padding: 1px 0; }
+  .pf-k { color: var(--muted); }
+  .pf-v { font-family: var(--font-mono); }
+  .pf-v.none { color: var(--muted); }
+  .pf-v.near { color: var(--down); font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="g"></div>
+<script>
+function post(type, extra) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type },
+                                          extra || {}), "*");
+}
+const Streamlit = {
+  ready() { post("streamlit:componentReady", { apiVersion: 1 }); },
+  height(h) { post("streamlit:setFrameHeight", { height: h }); },
+  value(v) { post("streamlit:setComponentValue", { value: v, dataType: "json" }); },
+};
+
+let wired = false;
+
+window.addEventListener("message", function (e) {
+  const d = e.data;
+  if (!d || d.type !== "streamlit:render") return;
+  const a = d.args || {};
+  const tk = a.tokens || {};
+  const root = document.documentElement;
+  // The host page's CSS variables do not cross into the iframe, so the tokens are
+  // passed in and set here. One source of truth stays in tokens.py.
+  Object.keys(tk).forEach(function (k) { root.style.setProperty("--" + k, tk[k]); });
+
+  const g = document.getElementById("g");
+  const cards = a.cards || [];
+  // Each card's html is the .pf-card element itself, built server-side from escaped
+  // values. Insert them in order, then tag each with its id by position.
+  g.innerHTML = cards.map(function (c) { return c.html; }).join("");
+  Array.prototype.forEach.call(g.children, function (card, i) {
+    const c = cards[i];
+    if (!c) return;
+    card.setAttribute("data-id", c.asset_id);
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("role", "button");
+    if (a.selected != null && c.asset_id === a.selected) card.classList.add("sel");
+  });
+
+  requestAnimationFrame(function () {
+    Streamlit.height(Math.ceil(g.getBoundingClientRect().height) + 8);
+  });
+
+  if (!wired) {
+    wired = true;
+    function fire(target) {
+      const card = target.closest(".pf-card");
+      if (!card) return;
+      const id = parseInt(card.getAttribute("data-id"), 10);
+      if (!isNaN(id)) Streamlit.value({ asset_id: id, nonce: Date.now() });
+    }
+    g.addEventListener("click", function (ev) { fire(ev.target); });
+    g.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); fire(ev.target); }
+    });
+  }
+});
+Streamlit.ready();
+</script>
+</body>
+</html>

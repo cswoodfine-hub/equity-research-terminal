@@ -31,6 +31,7 @@ import theme as T
 import trend as trend_module
 from components import charts as CH
 from components import covnav
+from components import prodcards
 from components import drawchart
 from components import render as R
 from components import tokens as TK
@@ -2052,30 +2053,36 @@ with main:
 
             prods_sorted = sorted(prods, key=lambda p: (-(p.get("revenue") or 0),
                                                         _loe_year(p) or 9999))
-            # A click sets the selected asset in session state; a native rerun keeps the
-            # Portfolio tab active (a link reload would bounce back to the first tab), so
-            # the profile opens in place. Guarded to this company's products, so switching
-            # ticker drops a stale selection rather than 404-ing.
+            # The card itself is the hit area: the grid renders inside a component that
+            # returns the clicked asset id, so there is no separate button and hovering a
+            # card shows it is live. The selection lives in session state and a native
+            # rerun keeps the Portfolio tab active, so the profile opens in place.
             sel_aid = st.session_state.get("profile_asset")
+            # The profile sits above the grid, so a click does not push it below a long
+            # card list. Guarded to this company's products, so switching ticker drops a
+            # stale selection rather than asking the API for another company's asset.
             sel = next((p for p in prods_sorted if p.get("asset_id") == sel_aid), None)
             if sel is not None:
                 _render_product_profile(api_base, ticker, sel, today)
-
-            COLS = 4
-            for start in range(0, len(prods_sorted), COLS):
-                cols = st.columns(COLS)
-                for col, p in zip(cols, prods_sorted[start:start + COLS]):
-                    with col:
-                        st.markdown(_product_card_html(p), unsafe_allow_html=True)
-                        aid = p.get("asset_id")
-                        if aid is not None and st.button(
-                                "view profile", key=f"pf_open_{aid}",
-                                use_container_width=True):
-                            st.session_state["profile_asset"] = aid
-                            st.rerun()
+            clicked = prodcards.product_cards(
+                [{"asset_id": p.get("asset_id"), "html": _product_card_html(p)}
+                 for p in prods_sorted if p.get("asset_id") is not None],
+                tokens={"panel": TK.PANEL, "panel-hi": TK.RULE,
+                        "rule": TK.RULE, "rule-strong": TK.RULE_STRONG,
+                        "muted": TK.MUTED, "text": TK.TEXT, "up": TK.UP,
+                        "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
+                        "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO},
+                selected=sel_aid, key="prod_cards")
+            # A click is only acted on once: the nonce changes per click, so a rerun
+            # triggered by anything else does not reopen a profile the analyst closed.
+            if isinstance(clicked, dict) and clicked.get("nonce") != \
+                    st.session_state.get("prod_click_nonce"):
+                st.session_state["prod_click_nonce"] = clicked.get("nonce")
+                st.session_state["profile_asset"] = clicked.get("asset_id")
+                st.rerun()
             st.markdown(
-                '<div class="byline">One card per product, biggest revenue first. Click '
-                'view profile for the full fact sheet. Approval from openFDA drugsfda '
+                '<div class="byline">One card per product, biggest revenue first. Click a '
+                'card for its full fact sheet. Approval from openFDA drugsfda '
                 '(CDER), exclusivity from the Orange Book (small molecule) or Purple Book '
                 '(biologic), revenue from the SEC data sets where the filer tags it. A '
                 'small molecule shows a range from its earliest to its latest listed '
