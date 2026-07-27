@@ -27,15 +27,22 @@ equity-research/
     refresh.py              # orchestrates fetchers, writes refresh_runs
     diff.py                 # snapshot -> changes engine
     insights.py             # rules layer + Anthropic note generation
+    loe.py                  # effective LOE: molecule patent over longest listed
+    product_areas.py        # a product's disease area, from its label
+    asset_merge.py          # fold a derived compound into the product it is
+    brand_split.py          # route a study to the brand whose label covers it
+    trial_mapping.py        # interventions -> assets, pipeline asset derivation
     fetchers/
       base.py               # Fetcher protocol, RefreshResult
       prices.py
       financials_edgar.py
       filings_edgar.py
-      trials_ctgov.py
+      trials_ctgov.py       # active studies: the pipeline
+      trials_completed.py   # completed studies with results: the record
       approvals_openfda.py
       exclusivity_orangebook.py
       catalysts.py          # curated CRUD + auto extraction
+      deals_news.py         # business development from headlines
       news_rss.py
     tests/
       fixtures/             # saved sample payloads
@@ -56,7 +63,10 @@ equity-research/
 
 1. The unit of analysis is the asset-indication pair, not the company. A drug in three indications is three rows in `asset_indications`, each with its own phase and catalyst. Every pipeline view builds off this table.
 2. Snapshots are the product. On every refresh, write the tracked fields of each entity to `snapshots` as JSON. The diff between the last two snapshots of an entity produces rows in `changes`. Over months this becomes a proprietary time series you cannot buy. Never overwrite history.
-3. Freshness is per source. Prices refresh on demand and expire in 15 minutes. Trials, filings, and approvals refresh daily. Orange Book and Purple Book refresh weekly. Store last-fetched per source and skip fetches inside the TTL. Write snapshots on every refresh regardless, so the change history has no gaps.
+3. Migrations run once. ``db.init()`` records every applied file in
+   ``schema_migrations``, so a migration may change shape or data exactly once. That is
+   what makes ``ALTER TABLE`` usable, since SQLite has no ``IF NOT EXISTS`` for it.
+4. Freshness is per source. Prices refresh on demand and expire in 15 minutes. Trials, filings, and approvals refresh daily. Orange Book and Purple Book refresh weekly. Store last-fetched per source and skip fetches inside the TTL. Write snapshots on every refresh regardless, so the change history has no gaps.
 
 ## Data source rules
 
@@ -89,6 +99,23 @@ Confirm every endpoint against its live docs before relying on it. The specifics
 ### LOE and patents
 
 - FDA Orange Book (small molecules) and Purple Book (biologics) publish downloadable data files with exclusivity and expiry dates. Download and refresh weekly. These power the LOE cliff chart.
+
+### Deals
+
+- Filings name a counterparty only when the deal is material enough to require it, which
+  catches acquisitions and misses licensing. Google News RSS
+  (`https://news.google.com/rss/search`) is free and keyless and carries the rest.
+  Extraction is rules-only: a deal is taken only when a headline states one plainly, and
+  the headline is stored verbatim as the quote.
+- A deal value is announced consideration, milestones included. It is never the cash in
+  the cash flow statement, which is why the column is `announced_value`.
+
+### Orange Book patents
+
+- Each listed patent is flagged drug substance, drug product, or neither, with a use code
+  when it claims a method of use. The molecule patent gates a generic; a method-of-use
+  patent covers one indication and can be carved out of a generic label. Store the flags
+  and let the substance patent set the LOE.
 
 ### Catalysts
 

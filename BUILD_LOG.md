@@ -599,3 +599,28 @@ real rates dated 2026-07-24; append-only, no other mutation.
   and the unpriced band carries ABBV, GSK, REGN, ROG, BAYN.
 - Pivots taken: none yet.
 - Known issues: none yet.
+
+## Session: deals, product record, area classification — 2026-07-27
+- Added the news deal source: Google News RSS, rules-only extraction, 156 deals across
+  the universe against 58 from filings alone. Filings win on any deal both hold; a
+  headline may fill a size or an area the filing left blank and move a date earlier to
+  the announcement, each recorded in its own `*_source` column.
+- Split announced deal value from filed cash. `deals.value` became `announced_value`,
+  and the financials tab labels its own line cash paid.
+- Migration ledger in `db.init()`, which is what made `ALTER TABLE` usable at all.
+- Trial attribution: `asset_merge.py` folds a derived compound into the marketed product
+  it turns out to be (Jaypirca/Pirtobrutinib); `brand_split.py` routes a study to the
+  brand whose label covers its condition (Mounjaro/Zepbound) and, where labels cannot
+  separate them, to the base brand (Rinvoq over Rinvoq LQ).
+- `trials_completed.py`: completed studies with results, in their own table so nothing
+  that counts the pipeline picks them up. 1397 for Lilly, 670 bound to a product.
+- `product_areas.py`: a product's disease area from its label, with fallbacks to a
+  sibling row's label, its own trials, and the ingredient name. Portfolio groups by it
+  and the revenue mix draws a second donut by it.
+- LOE now takes the molecule patent over the longest listed one: Mounjaro read
+  2027-2041, where 2027 is a regulatory exclusivity and 2041 a method-of-use patent.
+  It reads 2036-2039 with the use tail reported beside it.
+- Known gaps: product revenue is still only what the SEC data sets tag (247 products
+  universe-wide); the revenue-by-product table sits unparsed in the stored MD&A text.
+  Vyndaqel has no DailyMed label matched, so it has no area. No git remote is
+  configured, so nothing is pushed anywhere.
