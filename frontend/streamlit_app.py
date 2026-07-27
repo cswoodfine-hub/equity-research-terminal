@@ -78,7 +78,6 @@ CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference"
 # Quarters in the growth-against-margin panel: the most recent year, one bar per quarter.
 TREND_QUARTERS = 4
 # The registry page for a trial, keyed by its NCT id.
-CTGOV_STUDY = "https://clinicaltrials.gov/study/"
 # Months of catalyst calendar. Two years covers the readout horizon without a control
 # to set it: the dates inside it are estimates anyway, so a tighter window would be
 # false precision about which of them matter.
@@ -368,25 +367,6 @@ def readout_card(readout) -> str:
             f'{html_escape(readout.get("drug") or "")}</span> '
             f'<span class="rq">{html_escape(readout.get("quote") or "")}</span></span>'
             f'<span class="rd">{(readout.get("event_date") or "")[:10]}</span></div>')
-
-
-def _completion_note(trial) -> str:
-    """What a primary completion date means, which depends on its registry type.
-
-    An actual date in the past is the normal state of a long oncology trial: the primary
-    endpoint was reached and the study continues for overall survival, which routinely
-    runs years and keeps the status at active, not recruiting. An estimated date in the
-    past is the opposite, a forecast that was missed and never revised.
-    """
-    kind = (trial.get("primary_completion_type") or "").lower()
-    date = trial.get("primary_completion_date") or ""
-    if not date:
-        return "—"
-    if kind == "actual":
-        return "reached"
-    if kind == "estimated":
-        return "overdue" if date < dt.date.today().isoformat() else "forecast"
-    return "—"
 
 
 # --- Statements ----------------------------------------------------------
@@ -1740,9 +1720,10 @@ with main:
             head += (f" · {unattributed} trial"
                      f"{'s' if unattributed != 1 else ''} unattributed")
         section(f"{ticker} by therapeutic area", head)
-        # Defined before the branch: the programme list below reads it, and a company
-        # with no trials draws no pills to set it.
+        # Defined before the branch: the programme list below reads these, and a company
+        # with no trials draws no pills to set them.
         area_pick: list = []
+        phase_pick: list = []
         if not every:
             state(f"No trials on file for {ticker}",
                   "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
@@ -1835,9 +1816,10 @@ with main:
                                    for a in chosen)
                     + "</div>", unsafe_allow_html=True)
 
-            # The table is what you open once the chart has told you where to look. Phase 4
-            # and Follow-up join the pills only when the company has any. Labels stay plain
-            # for the same reason as the areas; the count for what is picked shows beneath.
+            # Phase narrows the compound list the same way area does, so both pill rows
+            # act on one thing. Phase 4 and Follow-up join the pills only when the company
+            # has any. Labels stay plain for the same reason as the areas; the count for
+            # what is picked shows beneath.
             bucket_counts = Counter(_bucket(t) for t in every)
             phase_options = list(DISPLAY_PHASES)
             if post:
@@ -1853,71 +1835,6 @@ with main:
                     + "  ·  ".join(f"{p} {bucket_counts.get(p, 0)}" for p in phase_pick)
                     + "</div>", unsafe_allow_html=True)
 
-            # The table opens on either filter: an area alone lists every phase in it, a
-            # phase alone lists that phase across all diseases, and together they
-            # intersect. It stays shut only while nothing is picked, so it never opens on
-            # the whole list at once.
-            if not chosen and not phase_pick:
-                pass                      # nothing picked: the table stays shut, quietly
-            else:
-                shown = [t for t in every
-                         if (not chosen or t["area"] in chosen)
-                         and (not phase_pick or _bucket(t) in phase_pick)]
-                title = ", ".join(chosen) if chosen else "All diseases"
-                sub = ", ".join(phase_pick) if phase_pick else "all phases"
-                section(title, f"{len(shown)} trials, {sub}")
-                # A follow-up study keeps its registry phase but is labelled as one, so a
-                # Phase 3 long-term follow-up no longer reads as a Phase 3 development trial.
-                table = pd.DataFrame([{
-                    "NCT": t["nct_id"],
-                    "Phase": (f"{t['phase']} follow-up" if _bucket(t) == "Follow-up"
-                              else t["phase"]),
-                    "Area": t["area"],
-                    "Status": t["overall_status"],
-                    "Primary completion": t["primary_completion_date"],
-                    # A date that has passed means opposite things depending on
-                    # this. Actual: the endpoint was reached and the trial runs on
-                    # for survival follow-up, sometimes for a decade. Estimated and
-                    # past: the forecast was missed and nobody updated the record.
-                    "Date": _completion_note(t),
-                    "Conditions": ", ".join(t["conditions"][:3]),
-                    # The registry title is the description, and it runs long, so the
-                    # grid crops it. A click on the row prints it in full below.
-                    "Description": t["title"],
-                    "Trial": CTGOV_STUDY + (t["nct_id"] or "")}
-                    for t in shown])
-                # A key tied to the selection resets it when the filter changes, so a
-                # stale row index never points into a different trial list.
-                grid_key = f"pipe_{ticker}_{'-'.join(chosen)}_{'-'.join(phase_pick)}"
-                event = st.dataframe(
-                    table, width="stretch", hide_index=True,
-                    on_select="rerun", selection_mode="single-row", key=grid_key,
-                    column_config={
-                        "Description": st.column_config.TextColumn(
-                            "Description", width="large"),
-                        "Trial": st.column_config.LinkColumn(
-                            "Trial", display_text="Open ↗"),
-                    })
-                picked = event.selection.rows
-                if picked and picked[0] < len(shown):
-                    chosen_trial = shown[picked[0]]
-                    st.markdown(
-                        f'<div class="trial-detail">'
-                        f'<span class="nct">{html.escape(chosen_trial["nct_id"] or "")}'
-                        f'</span>{html.escape(chosen_trial["title"] or "")}</div>',
-                        unsafe_allow_html=True)
-                st.markdown(
-                    '<div class="byline">Click a row to read the full description; the '
-                    'Trial column opens the study on ClinicalTrials.gov. Areas are '
-                    'matched from the registry condition text by keyword, so the rule '
-                    'that placed a trial is readable rather than guessed. Reached means '
-                    'the primary endpoint was met and the study continues for follow-up; '
-                    'overdue means an estimated date has passed without being revised. '
-                    'Phase 4 and long-term follow-up, extension and rollover studies are '
-                    'lifecycle work, tagged apart from the development pipeline and left '
-                    'out of the in-development count. Follow-up studies are recognised '
-                    'from the registry title, so a few may be missed or over-caught.</div>',
-                    unsafe_allow_html=True)
 
         # --- Programmes: the compounds behind the studies -------------------
         # A trial list answers what is running; this answers what is being developed.
@@ -1943,11 +1860,22 @@ with main:
         if area_pick:
             programmes = [p for p in programmes
                           if set(p.get("areas") or []) & set(area_pick)]
+        # Phase narrows on the furthest phase a compound has reached, which is the phase
+        # it is grouped under below, so the pill and the heading agree.
+        if phase_pick:
+            programmes = [p for p in programmes if p.get("phase") in phase_pick]
+        if area_pick or phase_pick:
+            where = " ".join(
+                part for part in (
+                    f'with a study in {html_escape(", ".join(area_pick))}'
+                    if area_pick else "",
+                    f'that have reached {html_escape(", ".join(phase_pick))}'
+                    if phase_pick else "")
+                if part)
             st.markdown(
                 f'<div class="byline">Showing {len(programmes)} of {total_programmes} '
-                f'compounds with a study in {html_escape(", ".join(area_pick))}, '
-                'the area spotlit above. A compound studied across areas appears under '
-                'each of them.</div>', unsafe_allow_html=True)
+                f'compounds {where}, the selection spotlit above. A compound studied '
+                'across areas appears under each of them.</div>', unsafe_allow_html=True)
 
         # Grouped by the furthest phase each compound has reached, most advanced first,
         # and every phase is shown: early work is most of a pipeline by count, and a

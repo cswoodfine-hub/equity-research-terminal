@@ -515,12 +515,6 @@ h3 {{ font-size: 0.9rem; }}
           padding: 2px 0 2px 10px; margin: 5px 0; }}
 
 /* The full trial description, shown when a pipeline row is clicked. */
-.trial-detail {{ font-size: 13px; line-height: 1.45;
-                 border-left: 2px solid var(--rule-strong);
-                 padding: 0.35rem 0 0.35rem 0.7rem; margin-top: 0.5rem; }}
-.trial-detail .nct {{ font-family: var(--font-mono); font-size: 11.5px;
-                      color: var(--muted); margin-right: 0.5rem; }}
-
 /* Identifiers are codes, so they take the mono face. */
 .mono {{ font-family: var(--font-mono); font-size: 11.5px; letter-spacing: -0.01em; }}
 .neg {{ color: var(--down); }}
