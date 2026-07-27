@@ -40,6 +40,19 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
+      - name: Check the EDGAR identifier is set
+        # Without it every SEC fetch fails and the run limps to a partial finish ten
+        # minutes later, reporting a source error that reads like a network problem.
+        # Better to say the one true thing immediately.
+        run: |
+          if [ -z "$SEC_USER_AGENT" ]; then
+            echo "::error::SEC_USER_AGENT is empty. Add it under Settings > Secrets and"
+            echo "::error::variables > Actions, named exactly SEC_USER_AGENT, with a value"
+            echo "::error::such as: Novatalis Research you@example.com"
+            exit 1
+          fi
+          echo "EDGAR identifier is set (${#SEC_USER_AGENT} characters)."
+
       - name: Install dependencies
         run: pip install -r backend/requirements.txt
 
