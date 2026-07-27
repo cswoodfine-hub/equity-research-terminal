@@ -64,6 +64,21 @@ DB_URL = setting("ER_DB_URL")
 STARTUP_TIMEOUT_S = 45
 
 
+def _shipped_stamp(target: pathlib.Path) -> str:
+    """When the shipped database was last refreshed, read from its own run ledger, so
+    the sidebar says how old the data is rather than only where it came from."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect(str(target))
+        row = conn.execute(
+            "SELECT finished_at FROM refresh_runs WHERE status IN ('complete','partial')"
+            "  ORDER BY id DESC LIMIT 1").fetchone()
+        conn.close()
+        return f", refreshed {row[0]} UTC" if row and row[0] else ""
+    except Exception:
+        return ""
+
+
 def _resolve_release_asset(repo: str, tag: str, token: str) -> str:
     """The API URL of the published database, looked up by tag.
 
@@ -111,6 +126,17 @@ def prepare_database() -> str:
     target = pathlib.Path(db.DB_PATH)
     if target.exists() and target.stat().st_size > 1_000_000:
         return "using the database already on disk"
+
+    # A database committed to the repository. Streamlit clones the repo into the
+    # container, so this needs no token, no release and no network: the file is
+    # already on disk beside the code. It is a deliberate 18 MB of binary in git, so
+    # it is replaced when the deployed app should show newer data, not every day.
+    shipped = ROOT / "data" / "er_tool.db.gz"
+    if shipped.exists():
+        db.init(str(target))
+        target.write_bytes(gzip.decompress(shipped.read_bytes()))
+        stamp = _shipped_stamp(target)
+        return f"the database shipped with the app{stamp}"
 
     if DB_REPO or DB_URL:
         try:

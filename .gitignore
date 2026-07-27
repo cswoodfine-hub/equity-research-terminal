@@ -12,7 +12,9 @@ venv/
 # Claude Code local settings
 .claude/settings.local.json
 
-# Local database (WAL mode adds the -shm/-wal sidecars)
+# Local database (WAL mode adds the -shm/-wal sidecars). The compressed copy under
+# data/ is deliberately tracked: it is what the deployed app reads, and shipping it
+# in the repo is what lets the app work with no token and no network.
 *.db
 *.db-shm
 *.db-wal
