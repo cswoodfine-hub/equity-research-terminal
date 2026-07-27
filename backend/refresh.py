@@ -27,6 +27,7 @@ import db
 import deals
 import diff
 import pdufa
+import revenue_mdna
 import trial_mapping
 import trial_readouts
 from fetchers.adcomm_fedreg import AdCommFetcher
@@ -169,6 +170,8 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # After the filing text is on file, derive a biologic LOE for the valuation from the
     # 12-year floor and any cliff year the 10-K discloses.
     bio_loe = biologic_loe.derive(db_path)
+    # Product revenue the SEC data sets do not tag, read from the filing's own table.
+    mdna_revenue = revenue_mdna.extract(db_path)["written"]
     trial_reads = trial_readouts.extract(db_path)
     deal_reads = deals.extract(db_path)
     # Headlines run after the filings, so a deal the company has already described in
@@ -181,7 +184,7 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
               "readouts": readouts, "pdufa": goals, "biologic_loe": bio_loe,
               "trial_mapping": mapped,
-              "trial_readouts": trial_reads, "deals": deal_reads, "changes": changes}
+              "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue, "deals": deal_reads, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 
@@ -253,6 +256,8 @@ def run_refresh_all(db_path=None) -> dict:
     # the acceptance. Without an Anthropic key this reports that it did nothing.
     goals = pdufa.extract(db_path)
     bio_loe = biologic_loe.derive(db_path)
+    # Product revenue the SEC data sets do not tag, read from the filing's own table.
+    mdna_revenue = revenue_mdna.extract(db_path)["written"]
     trial_reads = trial_readouts.extract(db_path)
     deal_reads = deals.extract(db_path)
     # Headlines last, for the licensing deals the filings name only in aggregate.
@@ -264,7 +269,7 @@ def run_refresh_all(db_path=None) -> dict:
     detail = {"scope": "all", "companies": len(companies),
               "sources": list(by_source.values()), "readouts": readouts,
               "trial_mapping": mapped,
-              "pdufa": goals, "biologic_loe": bio_loe, "trial_readouts": trial_reads,
+              "pdufa": goals, "biologic_loe": bio_loe, "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
               "deals": deal_reads, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
