@@ -48,11 +48,32 @@ SALT_SUFFIXES = {
 
 
 # Interventions that name no compound: the control arm, the background regimen, the
-# delivery vehicle. These are study design, not a drug programme.
+# delivery vehicle. These are study design, not a drug programme. Placebo is matched
+# anywhere in the name, not only at the front: "Oral Lenacapavir Placebo" is the control
+# arm of a study, not a second compound alongside the drug it is matched against.
 NOT_A_COMPOUND = re.compile(
-    r"^(placebo|saline|vehicle|sham|comparator|control|standard of care|soc"
-    r"|rescue medication|rescue medications|best supportive care|matching placebo"
+    r"\bplacebo\b|\bsham\b|\bvehicle\b"
+    r"|^(saline|comparator|control|standard of care|soc"
+    r"|rescue medication|rescue medications|best supportive care"
     r"|normal saline|dextrose|water|diluent|no intervention|observation)\b")
+
+# Route, formulation and strength words. The registry names the same molecule a dozen
+# ways, once per arm: "Oral Lenacapavir", "Lenacapavir Injection", "Subcutaneous (SC)
+# Lenacapavir (LEN)". Left alone, each spelling became its own programme, so one Gilead
+# compound read as ten. Stripping these collapses the arms back to the molecule.
+FORM_WORDS = {
+    "oral", "orally", "injection", "injectable", "injections", "tablet", "tablets",
+    "capsule", "capsules", "infusion", "iv", "intravenous", "intravenously",
+    "subcutaneous", "subcutaneously", "sc", "im", "intramuscular", "solution",
+    "suspension", "cream", "gel", "patch", "inhaled", "inhalation", "topical",
+    "ophthalmic", "spray", "powder", "sachet", "syrup", "drops", "prefilled",
+    "syringe", "autoinjector", "pen", "fdc", "sublingual", "buccal", "nasal",
+    "extended", "release", "immediate", "delayed", "modified", "coated",
+    "dose", "doses", "low", "high", "medium", "adult", "adults", "paediatric",
+    "pediatric", "strength", "arm", "group", "cohort", "regimen", "therapy",
+    "treatment", "combination", "monotherapy", "single", "multiple", "ascending",
+}
+UNIT_WORDS = {"mg", "mcg", "ug", "g", "ml", "l", "iu", "u", "kg", "mg/kg", "percent"}
 
 
 def normalise(text: str) -> str:
@@ -66,6 +87,28 @@ def strip_salt(norm: str) -> str:
     if len(parts) > 1 and parts[-1] in SALT_SUFFIXES:
         return " ".join(parts[:-1])
     return norm
+
+
+def canonical(raw: str) -> str:
+    """A drug name reduced to the molecule it names, or empty when it names none.
+
+    Parentheticals go first, since they hold the study's own abbreviation, "(LEN)" or
+    "(SG)", which differs per protocol. Then the biologic suffix, the salt, and every
+    route, formulation and strength word, which describe how a compound is given rather
+    than which compound it is. What survives is the thing being developed, so every arm
+    of every study collapses onto one programme instead of one each.
+    """
+    text = re.sub(r"\([^)]*\)", " ", raw or "")          # study abbreviations
+    text = re.sub(r"-[a-z]{4}\b", " ", text, flags=re.IGNORECASE)   # biologic suffix
+    # A dose is a number with a unit on it, and only that pair is dropped. A bare number
+    # is usually half a compound's name, so removing every digit turned LOXO-435 into
+    # "loxo" and BAY 3547922 into "bay", collapsing a company's whole numbered series
+    # into one programme.
+    text = re.sub(r"\b\d+(?:\.\d+)?\s*(?:mg|mcg|ug|g|ml|l|iu|kg|%)\b", " ", text,
+                  flags=re.IGNORECASE)
+    words = [w for w in normalise(text).split()
+             if w not in FORM_WORDS and w not in UNIT_WORDS]
+    return strip_salt(" ".join(words))
 
 
 def aliases(raw: str) -> set[str]:
@@ -88,6 +131,7 @@ def aliases(raw: str) -> set[str]:
         if norm:
             out.add(norm)
             out.add(strip_salt(norm))
+    out.add(canonical(text))
     return {a for a in out if a}
 
 
@@ -162,35 +206,70 @@ def derive_pipeline_assets(db_path=None) -> dict:
 
         rows = conn.execute(
             """
-            SELECT i.norm, MIN(i.name) AS name,
-                   COUNT(DISTINCT t.sponsor_company_id) AS sponsors,
-                   MIN(t.sponsor_company_id) AS company_id,
-                   COUNT(DISTINCT t.nct_id) AS trials
+            SELECT i.name, t.sponsor_company_id AS company_id, t.nct_id
               FROM trial_interventions i
               JOIN trials t ON t.nct_id = i.nct_id
              WHERE t.asset_id IS NULL AND t.sponsor_company_id IS NOT NULL
-                   AND i.norm IS NOT NULL AND i.norm != ''
-             GROUP BY i.norm
+                   AND i.name IS NOT NULL AND i.name != ''
             """).fetchall()
 
-        created = 0
+        # Group by the molecule rather than the spelling, so every arm of every study
+        # lands on one programme. The display name is the shortest spelling seen, which
+        # is the one without the route and the protocol's abbreviation attached.
+        groups: dict = {}
         for row in rows:
-            norm = row["norm"]
-            if NOT_A_COMPOUND.match(norm):
+            key = canonical(row["name"])
+            if not key or NOT_A_COMPOUND.search(normalise(row["name"])):
                 continue                       # study design, not a compound
-            if aliases(row["name"]) & marketed:
+            entry = groups.setdefault(key, {"names": set(), "sponsors": set(),
+                                            "trials": set()})
+            entry["names"].add(row["name"])
+            entry["sponsors"].add(row["company_id"])
+            entry["trials"].add(row["nct_id"])
+
+        created = 0
+        for key, entry in groups.items():
+            if key in marketed or any(aliases(n) & marketed for n in entry["names"]):
                 continue                       # someone's marketed drug, so a comparator
-            if row["sponsors"] > 1:
+            if len(entry["sponsors"]) > 1:
                 continue                       # a shared backbone, not one programme
+            display = min(entry["names"], key=lambda n: (len(n), n))
             conn.execute(
                 "INSERT INTO assets (owner_company_id, generic_name, is_marketed)"
-                "  VALUES (?, ?, 0)", (row["company_id"], row["name"]))
+                "  VALUES (?, ?, 0)", (next(iter(entry["sponsors"])), display))
             created += 1
-            marketed |= aliases(row["name"])    # so a later spelling does not duplicate it
+            marketed.add(key)                  # so a later spelling does not duplicate it
         conn.commit()
     finally:
         conn.close()
     return {"created": created}
+
+
+def prune_orphan_pipeline_assets(db_path=None) -> dict:
+    """Delete derived pipeline assets that ended up with no trial bound to them.
+
+    A name can produce an asset and then lose its own trials to a longer, more specific
+    match, which left most of the derived rows attached to nothing. They are invisible in
+    the pipeline view, which joins through trials, but they are still wrong: they inflate
+    any count taken from the assets table. Only unmarketed rows carrying no approval, no
+    exclusivity, no revenue and no trial are removed, so nothing an analyst or a source
+    put there can be caught by this.
+    """
+    conn = db.get_connection(db_path)
+    try:
+        cur = conn.execute(
+            """
+            DELETE FROM assets
+             WHERE is_marketed = 0
+               AND NOT EXISTS (SELECT 1 FROM trials t WHERE t.asset_id = assets.id)
+               AND NOT EXISTS (SELECT 1 FROM approvals a WHERE a.asset_id = assets.id)
+               AND NOT EXISTS (SELECT 1 FROM exclusivities e WHERE e.asset_id = assets.id)
+               AND NOT EXISTS (SELECT 1 FROM asset_revenue r WHERE r.asset_id = assets.id)
+            """)
+        conn.commit()
+        return {"pruned": cur.rowcount}
+    finally:
+        conn.close()
 
 
 def map_trials(db_path=None) -> dict:

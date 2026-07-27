@@ -240,3 +240,89 @@ def test_map_trials_is_idempotent(tmp_path):
     first = tm.map_trials(db_file)
     second = tm.map_trials(db_file)
     assert first["mapped"] == second["mapped"] == 1
+
+
+def test_programmes_lists_unmarketed_compounds_by_phase(tmp_path):
+    """The pipeline view: one row per compound in trials that is not yet sold."""
+    import pipeline
+    db_file, conn, tirz, ins, pfe = _seeded(tmp_path)
+    _trial(conn, "NCT20", "LLY", ["Retatrutide"])
+    _trial(conn, "NCT21", "LLY", ["Retatrutide"])
+    _trial(conn, "NCT22", "LLY", ["Mounjaro"])       # marketed, so not a programme
+    conn.execute("UPDATE trials SET phase='Phase 3', primary_completion_date='2027-01-01'"
+                 " WHERE nct_id='NCT20'")
+    conn.execute("UPDATE trials SET phase='Phase 1' WHERE nct_id='NCT21'")
+    conn.commit()
+    conn.close()
+
+    tm.derive_pipeline_assets(db_file)
+    tm.map_trials(db_file)
+    progs = pipeline.programmes(db_file, "LLY")
+
+    assert [p["name"] for p in progs] == ["Retatrutide"]   # the marketed one is excluded
+    prog = progs[0]
+    assert prog["trials"] == 2
+    assert prog["phase"] == "Phase 3"        # the furthest phase reached, not the latest
+    assert prog["next_readout"] == "2027-01-01"
+    assert pipeline.programmes(db_file, "ZZZZ") is None
+
+
+def test_canonical_collapses_route_form_and_study_abbreviations():
+    """The registry names one molecule once per arm; all of them must reduce to it."""
+    for spelling in ("Oral Lenacapavir", "Lenacapavir Injection",
+                     "Subcutaneous (SC) Lenacapavir (LEN)", "Lenacapavir Tablet",
+                     "Lenacapavir 25 mg", "Oral Lenacapavir (LEN)"):
+        assert tm.canonical(spelling) == "lenacapavir", spelling
+    # The FDA biologic suffix and the protocol's abbreviation both go.
+    assert tm.canonical("Sacituzumab Govitecan-hziy (SG)") == "sacituzumab govitecan"
+    # A name that is only route and strength names no compound at all.
+    assert tm.canonical("Oral tablet 10 mg") == ""
+
+
+def test_one_programme_per_molecule_not_per_spelling(tmp_path):
+    db_file, conn, tirz, ins, pfe = _seeded(tmp_path)
+    _trial(conn, "NCT30", "LLY", ["Oral Retatrutide"])
+    _trial(conn, "NCT31", "LLY", ["Retatrutide Injection"])
+    _trial(conn, "NCT32", "LLY", ["Subcutaneous (SC) Retatrutide (RETA)"])
+    conn.commit()
+    conn.close()
+
+    out = tm.derive_pipeline_assets(db_file)
+    assert out["created"] == 1                       # one molecule, not three arms
+    assert list(_pipeline_assets(db_file)) == ["Oral Retatrutide"]   # shortest spelling
+
+
+def test_a_placebo_arm_of_a_drug_is_not_a_compound(tmp_path):
+    db_file, conn, tirz, ins, pfe = _seeded(tmp_path)
+    _trial(conn, "NCT33", "LLY", ["Oral Retatrutide Placebo"])
+    conn.commit()
+    conn.close()
+    assert tm.derive_pipeline_assets(db_file)["created"] == 0
+    assert _pipeline_assets(db_file) == {}
+
+
+def test_prune_removes_only_empty_derived_assets(tmp_path):
+    db_file, conn, tirz, ins, pfe = _seeded(tmp_path)
+    _trial(conn, "NCT34", "LLY", ["Retatrutide"])
+    conn.commit()
+    conn.close()
+    tm.derive_pipeline_assets(db_file)
+    tm.map_trials(db_file)
+
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    # An orphan derived row, and a marketed one that must survive untouched.
+    conn.execute("INSERT INTO assets (owner_company_id, generic_name, is_marketed)"
+                 " VALUES (?, 'Orphanib', 0)", (cid,))
+    conn.commit()
+    conn.close()
+
+    out = tm.prune_orphan_pipeline_assets(db_file)
+    assert out["pruned"] == 1
+    kept = _pipeline_assets(db_file)
+    assert "Orphanib" not in kept
+    assert "Retatrutide" in kept                 # bound to a trial, so kept
+    conn = db.get_connection(db_file)
+    assert conn.execute("SELECT COUNT(*) FROM assets WHERE brand_name='Mounjaro'"
+                        ).fetchone()[0] == 1     # marketed rows never touched
+    conn.close()
