@@ -237,6 +237,27 @@ h3 {{ font-size: 0.9rem; }}
 /* The horizon SVG fills the rail column and scales to it, so it reads larger. */
 .rail svg {{ width: 100%; height: auto; }}
 
+/* The rail follows the page. It is reference material read against whatever tab is
+   open, so it sticks under the top bar rather than scrolling away with the content.
+   A column is a flex item that stretches to the row's height by default, and a sticky
+   element that is already as tall as its scroll range cannot travel, so it is pinned to
+   flex-start first and sticks at its own height. The spine renders well past 1500px,
+   taller than any viewport, so it is capped to what is visible and scrolls inside
+   itself; without the cap sticky would hold the top and put the far years out of reach.
+   Scroll chaining stays at the default, so a wheel that runs past the rail's end
+   carries on down the page rather than trapping the cursor. Styling the column itself
+   avoids assuming what Streamlit nests inside it. */
+[data-testid="stColumn"]:has(.rail-anchor) {{
+  align-self: flex-start;
+  position: sticky; top: 5.9rem;
+  max-height: calc(100vh - 6.6rem); overflow-y: auto;
+}}
+/* A pseudo-element cannot sit on its own line: the whitespace would read as a
+   descendant combinator and style the children's scrollbars instead of this one. */
+[data-testid="stColumn"]:has(.rail-anchor)::-webkit-scrollbar {{ width: 6px; }}
+[data-testid="stColumn"]:has(.rail-anchor)::-webkit-scrollbar-thumb {{ background: var(--rule-strong); }}
+[data-testid="stColumn"]:has(.rail-anchor)::-webkit-scrollbar-track {{ background: transparent; }}
+
 /* The horizon rail is a single-company view, so it is dropped on the Universe tab, the
    cross-coverage view, and its width handed to the content. Streamlit gives no server
    signal for the active tab, so this keys on the first tab (Universe) carrying
