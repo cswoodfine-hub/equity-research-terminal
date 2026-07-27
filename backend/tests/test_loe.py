@@ -131,3 +131,24 @@ def test_loe_detail_shows_range_and_merges_floor(tmp_path):
     floored = detail["Testfloor"]
     assert floored["loe_year"] == 2035
     assert floored["loe_basis"] == "statutory floor (12y)"
+
+
+def test_a_substance_patent_sets_the_date_over_a_later_use_patent():
+    # Mounjaro's use patent runs to 2041 and its molecule patents to 2039. A generic
+    # can carve a method-of-use claim out of its label, so 2041 is not the cliff.
+    date, basis = loe.effective("2041-12-30", "patent", None,
+                                substance_max="2039-06-14")
+    assert date == "2039-06-14"
+    assert basis == "drug substance patent"
+
+
+def test_without_a_substance_flag_the_latest_listed_date_still_stands():
+    date, basis = loe.effective("2033-03-01", "patent", None, substance_max=None)
+    assert (date, basis) == ("2033-03-01", "patent")
+
+
+def test_the_biologic_floor_still_applies_over_a_substance_patent():
+    date, basis = loe.effective("2030-01-01", "patent", 2035,
+                                substance_max="2030-01-01")
+    assert date == "2035-12-31"
+    assert basis == "statutory floor (12y)"

@@ -83,6 +83,22 @@ def _field(parts, index, name):
     return parts[i] if i is not None and i < len(parts) else ""
 
 
+def patent_kind(flags) -> str | None:
+    """What a listed patent covers, or None when the book flags nothing.
+
+    Substance outranks product, which outranks use: a patent claiming the molecule
+    blocks a generic whatever else it also claims, while one claiming only a method of
+    use can be carved out of a generic's label and does not hold the market.
+    """
+    if not flags:
+        return None
+    if flags.get("substance"):
+        return "substance"
+    if flags.get("product"):
+        return "product"
+    return "use" if flags.get("use") else None
+
+
 def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_map) -> list[dict]:
     """Turn the three Orange Book files into protected marketed-product rows. Pure."""
     pidx, prows = _rows(products_text)
@@ -116,6 +132,11 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
         }
     products = {no: p for no, p in products.items() if p["marketed"]}
 
+    # A patent is listed once per strength and once per use code, so its flags arrive
+    # spread over many rows: 11357820 is flagged a drug substance on one row and not on
+    # another. Any row saying substance makes it a substance patent, since the book is
+    # asserting the claim somewhere.
+    patent_kinds: dict = {}
     patents = collections.defaultdict(list)
     aidx, arows = _rows(patents_text)
     for parts in arows:
@@ -123,8 +144,16 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
         if appl_no not in products:
             continue
         expiry = _parse_date(_field(parts, aidx, "Patent_Expire_Date_Text"))
-        if expiry:
-            patents[appl_no].append((_field(parts, aidx, "Patent_No"), expiry))
+        if not expiry:
+            continue
+        number = _field(parts, aidx, "Patent_No")
+        patents[appl_no].append((number, expiry))
+        key = (appl_no, number)
+        flags = patent_kinds.setdefault(key, {"substance": False, "product": False,
+                                              "use": False})
+        flags["substance"] |= _field(parts, aidx, "Drug_Substance_Flag").strip() == "Y"
+        flags["product"] |= _field(parts, aidx, "Drug_Product_Flag").strip() == "Y"
+        flags["use"] |= bool(_field(parts, aidx, "Patent_Use_Code").strip())
 
     exclusivity = collections.defaultdict(list)
     eidx, erows = _rows(exclusivity_text)
@@ -152,7 +181,10 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
                     continue
                 seen.add(key)
                 rows.append({"protection_type": kind, "identifier": identifier,
-                             "expiry_date": expiry.isoformat()})
+                             "expiry_date": expiry.isoformat(),
+                             "patent_kind": patent_kind(
+                                 patent_kinds.get((appl_no, identifier)))
+                             if kind == "patent" else None})
         if not rows:  # only keep products with listed protection
             continue
         out.append(
@@ -256,11 +288,12 @@ class OrangeBookFetcher(BaseFetcher):
                     conn.execute(
                         """
                         INSERT INTO exclusivities
-                            (asset_id, region, protection_type, identifier, expiry_date, source)
-                        VALUES (?, 'US', ?, ?, ?, ?)
+                            (asset_id, region, protection_type, identifier, expiry_date,
+                             patent_kind, source)
+                        VALUES (?, 'US', ?, ?, ?, ?, ?)
                         """,
                         (asset_id, excl["protection_type"], excl["identifier"],
-                         excl["expiry_date"], OB_SOURCE),
+                         excl["expiry_date"], excl.get("patent_kind"), OB_SOURCE),
                     )
                     written += 1
             conn.commit()

@@ -377,6 +377,15 @@ def company_approvals(ticker: str) -> dict:
                          WHERE e.asset_id = a.id) AS loe_max,
                        (SELECT MIN(e.expiry_date) FROM exclusivities e
                          WHERE e.asset_id = a.id) AS loe_earliest,
+                       (SELECT MAX(e.expiry_date) FROM exclusivities e
+                         WHERE e.asset_id = a.id AND e.patent_kind = 'substance')
+                         AS substance_max,
+                       (SELECT MIN(e.expiry_date) FROM exclusivities e
+                         WHERE e.asset_id = a.id AND e.patent_kind = 'substance')
+                         AS substance_earliest,
+                       (SELECT MAX(e.expiry_date) FROM exclusivities e
+                         WHERE e.asset_id = a.id AND e.patent_kind = 'use')
+                         AS use_max,
                        (SELECT e2.protection_type FROM exclusivities e2
                          WHERE e2.asset_id = a.id
                          ORDER BY e2.expiry_date DESC LIMIT 1) AS loe_basis,
@@ -408,8 +417,15 @@ def company_approvals(ticker: str) -> dict:
     areas = product_areas.areas_for(None, [r["asset_id"] for r in rows])
     for r in rows:
         r["area"] = areas.get(r["asset_id"])
-        r["loe"], r["loe_basis"] = loe_module.merged_loe(
-            r.pop("loe_max"), r["loe_basis"], r.pop("bio_floor_year"))
+        r["loe"], r["loe_basis"] = loe_module.effective(
+            r.pop("loe_max"), r["loe_basis"], r.pop("bio_floor_year"),
+            r.get("substance_max"))
+        # The window is the molecule patents where the book flags them, since that is
+        # what a generic has to wait out.
+        r["loe_earliest"] = r.pop("substance_earliest") or r["loe_earliest"]
+        r["use_patent_year"] = (int(r["use_max"][:4]) if r.pop("use_max", None)
+                                else None)
+        r.pop("substance_max", None)
         # Same rule as the mix: a card's revenue is shown in dollars whatever the filer
         # reports in, with the filed figure kept beside it.
         r["reported_revenue"], r["reported_unit"] = r.get("revenue"), r.get("revenue_unit")

@@ -91,6 +91,11 @@ def _loe(conn, asset_id: int) -> dict:
     row = conn.execute(
         """
         SELECT MAX(e.expiry_date) AS loe_max, MIN(e.expiry_date) AS loe_earliest,
+               MAX(CASE WHEN e.patent_kind = 'substance' THEN e.expiry_date END)
+                 AS substance_max,
+               MIN(CASE WHEN e.patent_kind = 'substance' THEN e.expiry_date END)
+                 AS substance_earliest,
+               MAX(CASE WHEN e.patent_kind = 'use' THEN e.expiry_date END) AS use_max,
                (SELECT x.protection_type FROM exclusivities x
                  WHERE x.asset_id = ? ORDER BY x.expiry_date DESC, x.protection_type
                  LIMIT 1) AS basis,
@@ -98,13 +103,16 @@ def _loe(conn, asset_id: int) -> dict:
                  AS bio_floor_year
           FROM exclusivities e WHERE e.asset_id = ?
         """, (asset_id, asset_id, asset_id)).fetchone()
-    date, basis = loe_module.merged_loe(row["loe_max"], row["basis"],
-                                        row["bio_floor_year"])
+    date, basis = loe_module.effective(row["loe_max"], row["basis"],
+                                       row["bio_floor_year"], row["substance_max"])
+    earliest = row["substance_earliest"] or row["loe_earliest"]
     return {
         "loe": date, "basis": basis,
         "loe_year": int(date[:4]) if date else None,
-        "loe_earliest_year": (int(row["loe_earliest"][:4])
-                              if row["loe_earliest"] else None),
+        "loe_earliest_year": int(earliest[:4]) if earliest else None,
+        # Reported beside the date rather than folded into it: a use patent running
+        # later does not hold the market, but an analyst still wants to see it.
+        "use_patent_year": int(row["use_max"][:4]) if row["use_max"] else None,
     }
 
 

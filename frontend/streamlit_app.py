@@ -239,6 +239,12 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
             and loe["loe_earliest_year"] != loe["loe_year"] \
             and "molecule" in (prof.get("modality") or "").lower():
         loe_txt = f'{loe["loe_earliest_year"]}–{loe["loe_year"]}'
+    # The use patents sit beside the date rather than inside it: they run later and do
+    # not hold the market, since a generic can carve the indication out of its label.
+    loe_note = html_escape(loe.get("basis") or "no expiry on file")
+    if loe.get("use_patent_year") and loe.get("loe_year") \
+            and loe["use_patent_year"] > loe["loe_year"]:
+        loe_note += f' &middot; use patents to {loe["use_patent_year"]}'
     stats = (
         '<div class="pos">'
         f'<div><span class="k">latest revenue</span>'
@@ -247,7 +253,7 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         f'</span><span class="sub">{"FY" + str(rev["fiscal_year"]) if rev else "SEC tags few products"}</span></div>'
         f'<div><span class="k">exclusivity</span>'
         f'<span class="v{"" if loe.get("loe_year") else " none"}">{loe_txt}</span>'
-        f'<span class="sub">{html_escape(loe.get("basis") or "no expiry on file")}</span></div>'
+        f'<span class="sub">{loe_note}</span></div>'
         f'<div><span class="k">Medicare spend</span>'
         f'<span class="v{"" if dem else " none"}">'
         f'{"$" + T.num(dem["spend"] / 1e9, 2) + " bn" if dem else "no free data"}</span>'

@@ -32,6 +32,20 @@ def merged_loe(loe_max, loe_basis, bio_floor_year):
     return loe_max, loe_basis
 
 
+def effective(loe_max, loe_basis, bio_floor_year, substance_max=None):
+    """The date a product loses its market, and what sets it.
+
+    A molecule patent gates a generic outright; a method-of-use patent covers one
+    indication and can be carved out of a generic's label. So where the Orange Book
+    flags a drug substance patent, that patent sets the date even when a use patent runs
+    later, and the biologic floor still applies on top.
+    """
+    latest, basis = loe_max, loe_basis
+    if substance_max:
+        latest, basis = substance_max, "drug substance patent"
+    return merged_loe(latest, basis, bio_floor_year)
+
+
 def _asset_loe(conn):
     """Yield (company_id, asset_id, latest_expiry) for every asset with exclusivity.
 
@@ -43,7 +57,10 @@ def _asset_loe(conn):
     placeholders = ", ".join("?" for _ in NOT_A_CLIFF)
     return conn.execute(
         f"""
-        SELECT a.owner_company_id AS cid, a.id AS asset_id, MAX(e.expiry_date) AS loe
+        SELECT a.owner_company_id AS cid, a.id AS asset_id,
+               COALESCE(
+                 MAX(CASE WHEN e.patent_kind = 'substance' THEN e.expiry_date END),
+                 MAX(e.expiry_date)) AS loe
           FROM assets a
           JOIN exclusivities e ON e.asset_id = a.id
          WHERE COALESCE(e.protection_type, '') NOT IN ({placeholders})
@@ -107,6 +124,17 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
                    -- The earliest listed expiry too, so a small molecule can show the
                    -- range from its first patent (closer to the real cliff) to its last.
                    MIN(e.expiry_date) AS loe_earliest,
+                   -- The molecule patents, which is the window that actually gates a
+                   -- generic. A method-of-use patent covers one indication and can be
+                   -- carved out of a generic label, so Mounjaro's use patent running to
+                   -- 2041 is not when Mounjaro loses its market; its substance patents
+                   -- expiring 2036 and 2039 are.
+                   MAX(CASE WHEN e.patent_kind = 'substance' THEN e.expiry_date END)
+                     AS substance_max,
+                   MIN(CASE WHEN e.patent_kind = 'substance' THEN e.expiry_date END)
+                     AS substance_earliest,
+                   MAX(CASE WHEN e.patent_kind = 'use' THEN e.expiry_date END)
+                     AS use_max,
                    -- What kind of protection sets the latest date. For biologics it is
                    -- usually orphan exclusivity, which covers one orphan indication and
                    -- does not gate biosimilar entry, so the basis travels with the date.
@@ -136,16 +164,27 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
 
     out = []
     for asset in assets:
-        loe, basis = merged_loe(asset["loe_max"], asset["loe_basis"],
-                                asset["bio_floor_year"])
+        # The molecule patent is what holds the market. Where the book flags one, it
+        # sets the date and the use patents behind it are reported separately: a generic
+        # can carve a method-of-use claim out of its label, so a use patent running two
+        # years past the substance patent does not buy two more years of exclusivity.
+        loe, basis = effective(asset["loe_max"], asset["loe_basis"],
+                               asset["bio_floor_year"], asset["substance_max"])
         if loe is None or int(loe[:4]) < this_year:
             continue
         item = dict(asset)
         item["loe"] = loe
         item["loe_basis"] = basis
         item["loe_year"] = int(loe[:4])
-        item["loe_earliest_year"] = (int(asset["loe_earliest"][:4])
-                                     if asset["loe_earliest"] else None)
+        # The window a small molecule loses protection over: first molecule patent to
+        # last. Without substance flags it stays the whole listed range, which is all
+        # that is known for that product.
+        earliest = asset["substance_earliest"] or asset["loe_earliest"]
+        item["loe_earliest_year"] = int(earliest[:4]) if earliest else None
+        item["use_patent_year"] = (int(asset["use_max"][:4])
+                                   if asset["use_max"] else None)
+        item["substance_year"] = (int(asset["substance_max"][:4])
+                                  if asset["substance_max"] else None)
         out.append(item)
     out.sort(key=lambda a: a["loe"])
     return out
