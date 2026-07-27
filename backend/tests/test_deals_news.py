@@ -6,7 +6,8 @@ more than the deal cases, since a false deal is worse than a missed one.
 """
 
 import db
-from fetchers.deals_news import DealsNewsFetcher, parse_deal, parse_feed, parse_value
+from fetchers.deals_news import (DealsNewsFetcher, parse_area, parse_deal,
+                                 parse_feed, parse_value)
 
 NAMES = {"Eli Lilly and Company", "LLY", "Lilly"}
 
@@ -190,3 +191,68 @@ def test_never_overwrites_a_size_the_filing_states(tmp_path):
     conn.close()
     assert row["announced_value"] == "$2.4 billion"
     assert row["announced_value_source"] == "filing"
+
+
+def test_reads_what_the_deal_is_for_from_the_headline():
+    assert parse_area("Lilly snaps up Engage to advance non-viral genetic medicines") \
+        == "non-viral genetic medicines"
+    # Title case is undone per hyphen segment, so CAR-T keeps its capitals.
+    assert parse_area("Lilly to acquire Kelonia to advance in vivo CAR-T cell therapies") \
+        == "in vivo CAR-T cell therapies"
+    assert parse_area(
+        "Eli Lilly Acquires AtaiBeckley to Expand Mental Health Pipeline in $3.8 Billion"
+        " Deal") == "mental health pipeline"
+    # A headline that states no purpose gets no area rather than a guess.
+    assert parse_area("Eli Lilly acquires Ajax Therapeutics - Reuters") is None
+
+
+def test_moves_a_filed_deal_to_its_announcement_date(tmp_path):
+    path, cid = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute(
+        "INSERT INTO deals (accession, company_id, deal_type, counterparty, event_date,"
+        "                   event_date_source)"
+        " VALUES ('0000-26-1', ?, 'acquisition', 'Orna Therapeutics', '2026-04-30',"
+        "         'filing')", (cid,))
+    conn.commit()
+    conn.close()
+
+    fetcher = DealsNewsFetcher(path)
+    rows = fetcher.normalise({
+        "companies": [{"id": cid, "ticker": "LLY", "name": "Eli Lilly"}],
+        "feeds": {"LLY": _feed(
+            "Lilly to acquire Orna Therapeutics to advance cell therapies")},
+        "errors": []})
+    result = fetcher.upsert(rows)
+    assert "1 filed deals moved to their announcement date" in result.notes
+
+    conn = db.get_connection(path)
+    row = conn.execute("SELECT * FROM deals").fetchone()
+    conn.close()
+    assert row["event_date"] == "2025-07-16"          # the day it was announced
+    assert row["event_date_source"] == "news"
+    assert row["area"] == "cell therapies"            # the filing stated none
+
+
+def test_never_moves_a_date_later(tmp_path):
+    path, cid = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute(
+        "INSERT INTO deals (accession, company_id, deal_type, counterparty, event_date,"
+        "                   event_date_source)"
+        " VALUES ('0000-26-1', ?, 'acquisition', 'Orna Therapeutics', '2025-02-09',"
+        "         'filing')", (cid,))
+    conn.commit()
+    conn.close()
+
+    fetcher = DealsNewsFetcher(path)
+    rows = fetcher.normalise({
+        "companies": [{"id": cid, "ticker": "LLY", "name": "Eli Lilly"}],
+        "feeds": {"LLY": _feed("Lilly completes acquisition of Orna Therapeutics")},
+        "errors": []})
+    assert fetcher.upsert(rows).notes == []
+
+    conn = db.get_connection(path)
+    date = conn.execute("SELECT event_date FROM deals").fetchone()["event_date"]
+    conn.close()
+    assert date == "2025-02-09"      # a recap is not an announcement

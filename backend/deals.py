@@ -379,7 +379,7 @@ def recent_rows(conn, cid: int, today=None, within_days: int = 400,
     rows = conn.execute(
         """
         SELECT deal_type, counterparty, announced_value, announced_value_source,
-               area, event_date FROM deals
+               area, event_date, event_date_source FROM deals
          WHERE company_id = ? AND deal_type IN
                ('acquisition', 'licensing', 'collaboration', 'divestiture')
                AND counterparty IS NOT NULL AND event_date IS NOT NULL
@@ -394,7 +394,8 @@ def recent_rows(conn, cid: int, today=None, within_days: int = 400,
                            "counterparty": short_party(r["counterparty"]),
                            "announced_value": r["announced_value"],
                            "announced_value_source": r["announced_value_source"],
-                           "area": r["area"], "event_date": r["event_date"]}
+                           "area": r["area"], "event_date": r["event_date"],
+                           "event_date_source": r["event_date_source"]}
         else:
             if not deal["announced_value"] and r["announced_value"]:
                 deal["announced_value"] = r["announced_value"]

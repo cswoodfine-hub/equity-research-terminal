@@ -343,6 +343,13 @@ def _pct_from_start(closes) -> list:
 _DEAL_BADGE = {"acquisition": "Acquisition", "licensing": "Licence",
                "collaboration": "Collaboration", "divestiture": "Divestiture"}
 
+# A filing dates every deal in it to the day it was filed, which can be months after the
+# market saw the deal. The card says which of the two a date is.
+_DEAL_DATE_NOTE = {
+    "news": "The day it was announced, from the headline that announced it.",
+    "filing": "The day it was filed. No earlier announcement date is on file.",
+}
+
 
 def deal_size(deals) -> str | None:
     """The announced total across the deals that state one, and how many did.
@@ -380,7 +387,8 @@ def deal_card(deal) -> str:
     return (f'<div class="deal dt-{html_escape(deal.get("deal_type") or "")}">'
             f'<span class="db">{badge}</span>'
             f'<span class="dbody">{" &middot; ".join(body)}</span>'
-            f'<span class="dd">{(deal.get("event_date") or "")[:10]}</span></div>')
+            f'<span class="dd" title="{_DEAL_DATE_NOTE.get(deal.get("event_date_source"), "The date on file.")}">'
+            f'{(deal.get("event_date") or "")[:10]}</span></div>')
 
 
 def readout_card(readout) -> str:

@@ -44,6 +44,7 @@ _DEAL_VERBS = (
     (r"to acquire", "acquisition"),
     (r"acquires?", "acquisition"),
     (r"buys?", "acquisition"),
+    (r"snaps? up", "acquisition"),
     (r"licen[sc]es?(?: rights)?(?: to| from)?", "licensing"),
     (r"licensing (?:deal|agreement|pact) with", "licensing"),
     (r"partners? with", "collaboration"),
@@ -56,7 +57,7 @@ _DEAL_VERBS = (
 # announcement: "Why other Big Pharmas could follow Lilly into psychedelics".
 _COMMENTARY = re.compile(
     r"\?|\bcould\b|\bmight\b|\bwhy\b|\brumou?r|\breportedly\b|\bexplores?\b"
-    r"|\bweighs?\b|\bmulls?\b|\bin talks\b|\bnears?\b|\banalysis\b|\bopinion\b"
+    r"|\bweighs?\b|\bmulls?\b|\btalks\b|\bnears?\b|\bbid for\b|\banalysis\b|\bopinion\b"
     r"|\bstock market today\b|\bhere'?s a look\b|\bspree\b", re.I)
 
 # "up to $3.8 billion", "$2.25B", "$950 million".
@@ -102,6 +103,38 @@ _NOT_A_NAME = {
     "challenge", "expand", "advance", "strengthen", "boost", "build", "further",
     "agreement", "collaboration", "licensing", "partnership", "acquisition", "buy",
 }
+
+
+# "Lilly to acquire Kelonia Therapeutics to advance in vivo CAR-T cell therapies": the
+# clause after the purpose verb is what the deal is for, in the announcement's words.
+_AREA = re.compile(
+    r"\bto\s+(?:advance|expand|accelerate|strengthen|develop|build|boost)\s+(.+)$"
+    r"|\bfor the treatment of\s+(.+)$", re.I)
+# The clause often runs on into the price or the publisher. Both are cut.
+_AREA_TAIL = re.compile(
+    r"\s*(?:\bin\b|\bfor\b|\bwith\b)?\s*(?:up to\s*)?\$.*$|\s*[|\u2013-]\s+\w+\s*$", re.I)
+
+
+def parse_area(headline: str) -> str | None:
+    """What the deal is for, taken verbatim from the headline, or None when it says.
+
+    Title case is undone word by word rather than wholesale, so "Sleep-Wake Treatments"
+    reads as prose while "CAR-T" and "AI" keep their capitals. Nothing is summarised or
+    inferred: a headline that states no purpose gets no area.
+    """
+    match = _AREA.search(_clean_title(headline) or "")
+    if not match:
+        return None
+    area = (match.group(1) or match.group(2) or "").strip()
+    area = _AREA_TAIL.sub("", area).strip(" .,:;-")
+    if not 4 <= len(area) <= 80:
+        return None
+    def unshout(word: str) -> str:
+        # Per hyphen segment, so "Sleep-Wake" reads as prose and "CAR-T" keeps its case.
+        return "-".join(p.lower() if p[:1].isupper() and p[1:].islower() else p
+                        for p in word.split("-"))
+
+    return " ".join(unshout(w) for w in area.split())
 
 
 def _clean_title(title: str) -> str:
@@ -167,7 +200,8 @@ def parse_deal(headline: str, company_names) -> dict | None:
         if any(n.lower() in counterparty.lower() for n in company_names):
             return None
         return {"deal_type": deal_type, "counterparty": counterparty,
-                "announced_value": parse_value(text), "quote": text}
+                "announced_value": parse_value(text), "area": parse_area(text),
+                "quote": text}
     return None
 
 
@@ -273,6 +307,8 @@ class DealsNewsFetcher(BaseFetcher):
                     seen["counterparty"] = row["counterparty"]
                 if seen["announced_value"] is None:
                     seen["announced_value"] = row["announced_value"]
+                if seen["area"] is None:
+                    seen["area"] = row["area"]
         return list(merged.values())
 
     def snapshot(self, rows: list[dict]) -> None:
@@ -304,14 +340,14 @@ class DealsNewsFetcher(BaseFetcher):
 
     def upsert(self, rows: list[dict]) -> RefreshResult:
         conn = db.get_connection(self.db_path)
-        written = filled = 0
+        written = filled = redated = 0
         try:
             for row in rows:
                 # A deal already read out of a filing is the better record: it carries
                 # the company's own words. News never overwrites it, and never repeats it.
                 existing = conn.execute(
                     """
-                    SELECT id, announced_value FROM deals
+                    SELECT id, announced_value, area, event_date FROM deals
                      WHERE company_id = ?
                        AND LOWER(COALESCE(counterparty, '')) = LOWER(?)
                     """, (row["company_id"], row["counterparty"])).fetchone()
@@ -327,22 +363,41 @@ class DealsNewsFetcher(BaseFetcher):
                             "       announced_value_source = 'news' WHERE id = ?",
                             (row["announced_value"], existing["id"]))
                         filled += 1
+                    if row["area"] and not existing["area"]:
+                        conn.execute("UPDATE deals SET area = ? WHERE id = ?",
+                                     (row["area"], existing["id"]))
+                    # A 10-Q dates every deal in it to the day it was filed. The
+                    # headline carries the day the deal was announced, which is what
+                    # this field means and is always the earlier of the two. Later is
+                    # never taken: a recap is not an announcement.
+                    if (row["event_date"] and existing["event_date"]
+                            and row["event_date"] < existing["event_date"]):
+                        conn.execute(
+                            "UPDATE deals SET event_date = ?,"
+                            "       event_date_source = 'news' WHERE id = ?",
+                            (row["event_date"], existing["id"]))
+                        redated += 1
                     continue
                 conn.execute(
                     """
                     INSERT INTO deals (accession, company_id, deal_type, counterparty,
-                                       announced_value, announced_value_source,
-                                       event_date, quote, source_url, is_curated)
+                                       announced_value, announced_value_source, area,
+                                       event_date, event_date_source, quote, source_url,
+                                       is_curated)
                     VALUES (NULL, ?, ?, ?, ?,
-                            CASE WHEN ? IS NULL THEN NULL ELSE 'news' END, ?, ?, ?, 0)
+                            CASE WHEN ? IS NULL THEN NULL ELSE 'news' END,
+                            ?, ?, 'news', ?, ?, 0)
                     """,
                     (row["company_id"], row["deal_type"], row["counterparty"],
-                     row["announced_value"], row["announced_value"],
+                     row["announced_value"], row["announced_value"], row["area"],
                      row["event_date"], row["quote"], row["source_url"]))
                 written += 1
             conn.commit()
         finally:
             conn.close()
-        notes = ([f"{filled} filed deals gained a size from a headline"] if filled
-                 else [])
+        notes = []
+        if filled:
+            notes.append(f"{filled} filed deals gained a size from a headline")
+        if redated:
+            notes.append(f"{redated} filed deals moved to their announcement date")
         return RefreshResult(self.source, written, [], False, 0, notes=notes)
