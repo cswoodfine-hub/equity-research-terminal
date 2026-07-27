@@ -2083,7 +2083,7 @@ with main:
                     slices.append({"label": "not attributed by product",
                                    "value": rest, "colour": TK.PANEL, "muted": True})
                 R.show(CH.donut(
-                    slices, 832, 320,
+                    slices, 980, 380,
                     centre_label=T.num(sum(s["value"] for s in slices) / 1e9, 1),
                     centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
                     value_fmt=lambda v: T.num(v / 1e9, 2)))
