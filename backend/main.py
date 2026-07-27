@@ -34,6 +34,7 @@ import loe as loe_module
 import pipeline as pipeline_module
 import product_profile as product_profile_module
 import refresh as refresh_module
+import regulatory as regulatory_module
 import screen as screen_module
 import slippage as slippage_module
 import tearsheet as tearsheet_module
@@ -672,6 +673,14 @@ def regulatory_news(days: int = Query(default=120)) -> dict:
     finally:
         conn.close()
     return {"news": rows}
+
+
+@app.get("/regulatory")
+def regulatory_stream(days: int = Query(default=120)) -> dict:
+    """Advisory committee meetings and FDA announcement feeds as one timeline: scheduled
+    panel votes ahead, announcements behind, each tagged by kind and by company where the
+    item names a covered one."""
+    return regulatory_module.build(None, days=days)
 
 
 @app.get("/backtest")

@@ -965,60 +965,59 @@ with main:
                 'calendar exists, so regulatory decision dates are not here unless hand '
                 'entered.</div>', unsafe_allow_html=True)
 
-        section("FDA announcements", "press, drugs, safety")
-        reg_news = api_get(api_base, "/regulatory-news").get("news") or []
-        if not reg_news:
-            state("No FDA announcements on file",
-                  "The FDA press, drug and MedWatch feeds are read on refresh and "
-                  "matched to a company by name or brand. Press Refresh all.")
+        # Advisory committee votes and the announcement feeds are one question, what the
+        # agency is doing, so they read as one timeline: scheduled votes ahead, then what
+        # was announced. The kind is a coloured rail rather than a source column.
+        reg = api_get(api_base, "/regulatory")
+        reg_counts = reg.get("counts") or {}
+        section("FDA regulatory",
+                f'{reg_counts.get("ahead", 0)} ahead · '
+                f'{reg_counts.get("matched", 0)} touch coverage')
+        if not (reg.get("ahead") or reg.get("behind")):
+            state("No FDA regulatory items on file",
+                  "Advisory committee meetings come from the Federal Register and the "
+                  "press, drug and MedWatch feeds from FDA. Press Refresh all.")
         else:
-            # A company-matched item is the signal; a general FDA notice is context.
-            # Show the matched ones first, then fill with the most recent unmatched, so
-            # a bound approval never falls below the fold behind agency housekeeping.
-            matched = [n for n in reg_news if n.get("ticker")]
-            unmatched = [n for n in reg_news if not n.get("ticker")]
-            shown = matched + unmatched[: max(0, 18 - len(matched))]
-            st.markdown('<div class="feed">' + "".join(
-                f'<div class="fitem"><span class="d">{(n.get("published_at") or "")[:10]}'
-                f'</span><span class="t">'
-                f'{("<b>" + n["ticker"] + "</b> ") if n.get("ticker") else ""}'
-                f'{html_escape(n["title"])}</span>'
-                f'<span class="why"></span>'
-                f'<span class="s">{html_escape((n.get("source") or "").replace("fda_", ""))}'
-                f'</span></div>' for n in shown) + "</div>",
-                unsafe_allow_html=True)
-            st.markdown(
-                '<div class="byline">FDA press, drug and MedWatch safety feeds, the '
-                'announcement layer around approvals and label changes. A bold ticker '
-                'is a matched company; it reaches CBER products too, so a gene-therapy '
-                'approval shows here even when drugsfda does not carry it. EMA retired '
-                'its news feed, so the EU indication-extension signal comes from the '
-                'EPAR data instead.</div>', unsafe_allow_html=True)
+            _KIND_LABEL = {"panel": "panel vote", "safety": "safety",
+                           "drugs": "drugs", "press": "press"}
 
-        section("FDA advisory committee calendar", "panel votes ahead")
-        adcomm = api_get(api_base, "/adcomm-calendar").get("meetings") or []
-        if not adcomm:
-            state("No advisory committee meetings on file",
-                  "The FDA files each meeting in the Federal Register; the calendar is "
-                  "read on refresh and matched to a company by application number or "
-                  "sponsor. Press Refresh all.")
-        else:
-            st.markdown('<div class="feed">' + "".join(
-                f'<div class="fitem"><span class="d">{(m.get("meeting_date") or "")[:10]}'
-                f'</span><span class="t">'
-                f'{("<b>" + m["ticker"] + "</b> ") if m.get("ticker") else ""}'
-                f'{html_escape(m.get("product") or m.get("committee") or "")}</span>'
-                f'<span class="why">{html_escape((m.get("committee") or "").replace(" Advisory Committee", ""))}</span>'
-                f'<span class="s">{html_escape(m.get("application_label") or "")}</span>'
-                f'</div>' for m in adcomm[:12]) + "</div>",
-                unsafe_allow_html=True)
+            def _reg_item(it) -> str:
+                title = it.get("title") or ""
+                title = title if len(title) <= 96 else title[:95].rstrip() + "…"
+                tick = (f'<b>{html_escape(it["ticker"])}</b> '
+                        if it.get("ticker") else "")
+                sub = (f' <span class="sub">{html_escape(it["detail"])}</span>'
+                       if it.get("detail") else "")
+                body = f'{tick}{html_escape(title)}{sub}'
+                if it.get("url"):
+                    body = (f'<a href="{html_escape(it["url"])}" target="_blank" '
+                            f'rel="noopener">{body}</a>')
+                return (f'<div class="reg-item {html_escape(it.get("kind") or "press")}">'
+                        f'<span class="reg-d">{html_escape(it.get("date") or "")}</span>'
+                        f'<span class="reg-kind">'
+                        f'{html_escape(_KIND_LABEL.get(it.get("kind"), it.get("kind") or ""))}</span>'
+                        f'<span class="reg-t">{body}</span>'
+                        f'<span class="reg-tag">{html_escape(it.get("tag") or "")}</span>'
+                        f'</div>')
+
+            html = ['<div class="reg">']
+            if reg.get("ahead"):
+                html.append('<div class="reg-when">ahead, scheduled</div>')
+                html += [_reg_item(i) for i in reg["ahead"]]
+            if reg.get("behind"):
+                html.append('<div class="reg-when">announced</div>')
+                html += [_reg_item(i) for i in reg["behind"][:20]]
+            html.append("</div>")
+            st.markdown("".join(html), unsafe_allow_html=True)
             st.markdown(
-                '<div class="byline">FDA advisory committee meetings from the Federal '
-                'Register, the panel vote that leads a decision by weeks. A bold ticker '
-                'is a matched company, and that meeting is also in the catalyst '
-                'calendar; the rest are agency context, kept rather than dropped. No '
-                'free PDUFA calendar exists, so this is the one firm regulatory date '
-                'the universe gets without hand entry.</div>', unsafe_allow_html=True)
+                '<div class="byline">Advisory committee votes and the FDA press, drug and '
+                'MedWatch feeds on one timeline. The rail colour is the kind: amber a '
+                'scheduled panel vote, red a safety communication, green a drugs item. A '
+                'bold ticker is a matched company and leads its day; an unmatched item is '
+                'agency context, kept rather than dropped. A panel vote leads its decision '
+                'by weeks and is the one firm regulatory date free data gives, since no '
+                'free PDUFA calendar exists. EMA retired its news feed, so the EU signal '
+                'comes from the EPAR data instead.</div>', unsafe_allow_html=True)
 
         section("Catalyst grid, 18 months", "count per company month")
         grid_data = api_get(api_base, "/catalyst-grid")

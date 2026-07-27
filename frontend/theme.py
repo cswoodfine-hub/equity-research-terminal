@@ -357,6 +357,33 @@ h3 {{ font-size: 0.9rem; }}
              white-space: pre-wrap; }}
 .prof-note.empty {{ color: var(--muted); font-style: italic; }}
 
+/* FDA regulatory stream: advisory votes and announcement feeds on one timeline. A
+   coloured rail per kind replaces the source column, so the type is read at a glance
+   rather than looked up, and an upcoming panel vote is visually distinct from news. */
+.reg {{ margin: 0.2rem 0 0.3rem; }}
+.reg-when {{ font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--muted); margin: 0.55rem 0 0.2rem; }}
+.reg-item {{ display: grid; grid-template-columns: 74px 88px 1fr auto; gap: 0.7rem;
+            align-items: baseline; font-size: 11.5px; padding: 4px 0 4px 8px;
+            border-bottom: 1px solid var(--rule); border-left: 2px solid var(--rule-strong);
+            line-height: 1.3; }}
+.reg-item:last-child {{ border-bottom: 0; }}
+.reg-item.panel {{ border-left-color: var(--flag); }}
+.reg-item.safety {{ border-left-color: var(--down); }}
+.reg-item.drugs {{ border-left-color: var(--up); }}
+.reg-item.press {{ border-left-color: var(--rule-strong); }}
+.reg-d {{ font-family: var(--font-mono); color: var(--muted); white-space: nowrap; }}
+.reg-kind {{ font-size: 8.5px; letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--muted); white-space: nowrap; }}
+.reg-item.panel .reg-kind {{ color: var(--flag); }}
+.reg-item.safety .reg-kind {{ color: var(--down); }}
+.reg-t {{ color: var(--text); }}
+.reg-t .sub {{ color: var(--muted); }}
+.reg-tag {{ font-family: var(--font-mono); font-size: 9.5px; color: var(--muted);
+           white-space: nowrap; text-align: right; }}
+.reg-item a {{ color: inherit; text-decoration: none; }}
+.reg-item a:hover {{ text-decoration: underline; }}
+
 /* Trial readouts: a mark and sign, the phase, the drug, and the quote. */
 .readouts {{ margin: 0.1rem 0 0.3rem; }}
 .readout {{
