@@ -340,14 +340,15 @@ class DealsNewsFetcher(BaseFetcher):
 
     def upsert(self, rows: list[dict]) -> RefreshResult:
         conn = db.get_connection(self.db_path)
-        written = filled = redated = 0
+        written = filled = redated = linked = 0
         try:
             for row in rows:
                 # A deal already read out of a filing is the better record: it carries
                 # the company's own words. News never overwrites it, and never repeats it.
                 existing = conn.execute(
                     """
-                    SELECT id, announced_value, area, event_date FROM deals
+                    SELECT id, announced_value, area, event_date, article_url
+                      FROM deals
                      WHERE company_id = ?
                        AND LOWER(COALESCE(counterparty, '')) = LOWER(?)
                     """, (row["company_id"], row["counterparty"])).fetchone()
@@ -363,6 +364,12 @@ class DealsNewsFetcher(BaseFetcher):
                             "       announced_value_source = 'news' WHERE id = ?",
                             (row["announced_value"], existing["id"]))
                         filled += 1
+                    # The filing row gains the announcement it was reported from, so
+                    # the card can open the article rather than the 10-Q it sat in.
+                    if not existing["article_url"]:
+                        conn.execute("UPDATE deals SET article_url = ? WHERE id = ?",
+                                     (row["source_url"], existing["id"]))
+                        linked += 1
                     if row["area"] and not existing["area"]:
                         conn.execute("UPDATE deals SET area = ? WHERE id = ?",
                                      (row["area"], existing["id"]))
@@ -383,14 +390,15 @@ class DealsNewsFetcher(BaseFetcher):
                     INSERT INTO deals (accession, company_id, deal_type, counterparty,
                                        announced_value, announced_value_source, area,
                                        event_date, event_date_source, quote, source_url,
-                                       is_curated)
+                                       article_url, is_curated)
                     VALUES (NULL, ?, ?, ?, ?,
                             CASE WHEN ? IS NULL THEN NULL ELSE 'news' END,
-                            ?, ?, 'news', ?, ?, 0)
+                            ?, ?, 'news', ?, ?, ?, 0)
                     """,
                     (row["company_id"], row["deal_type"], row["counterparty"],
                      row["announced_value"], row["announced_value"], row["area"],
-                     row["event_date"], row["quote"], row["source_url"]))
+                     row["event_date"], row["quote"], row["source_url"],
+                     row["source_url"]))
                 written += 1
             conn.commit()
         finally:
@@ -400,4 +408,6 @@ class DealsNewsFetcher(BaseFetcher):
             notes.append(f"{filled} filed deals gained a size from a headline")
         if redated:
             notes.append(f"{redated} filed deals moved to their announcement date")
+        if linked:
+            notes.append(f"{linked} filed deals linked to their announcing article")
         return RefreshResult(self.source, written, [], False, 0, notes=notes)

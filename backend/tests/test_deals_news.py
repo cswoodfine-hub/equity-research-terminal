@@ -156,7 +156,7 @@ def test_fills_a_size_the_filing_left_blank(tmp_path):
         "errors": []})
     result = fetcher.upsert(rows)
     assert result.rows_fetched == 0                  # no new row, the filing has it
-    assert result.notes == ["1 filed deals gained a size from a headline"]
+    assert "1 filed deals gained a size from a headline" in result.notes
 
     conn = db.get_connection(path)
     stored = conn.execute("SELECT * FROM deals").fetchall()
@@ -184,7 +184,8 @@ def test_never_overwrites_a_size_the_filing_states(tmp_path):
         "feeds": {"LLY": _feed(
             "Eli Lilly acquires Orna Therapeutics for $8.5 billion - Fierce")},
         "errors": []})
-    assert fetcher.upsert(rows).notes == []
+    notes = fetcher.upsert(rows).notes
+    assert not any("size" in n for n in notes)
 
     conn = db.get_connection(path)
     row = conn.execute("SELECT announced_value, announced_value_source FROM deals").fetchone()
@@ -250,9 +251,35 @@ def test_never_moves_a_date_later(tmp_path):
         "companies": [{"id": cid, "ticker": "LLY", "name": "Eli Lilly"}],
         "feeds": {"LLY": _feed("Lilly completes acquisition of Orna Therapeutics")},
         "errors": []})
-    assert fetcher.upsert(rows).notes == []
+    notes = fetcher.upsert(rows).notes
+    assert not any("announcement date" in n for n in notes)
 
     conn = db.get_connection(path)
     date = conn.execute("SELECT event_date FROM deals").fetchone()["event_date"]
     conn.close()
     assert date == "2025-02-09"      # a recap is not an announcement
+
+
+def test_links_a_filed_deal_to_the_article_that_announced_it(tmp_path):
+    path, cid = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute(
+        "INSERT INTO deals (accession, company_id, deal_type, counterparty, source_url)"
+        " VALUES ('0000-26-1', ?, 'acquisition', 'Orna Therapeutics',"
+        "         'https://www.sec.gov/Archives/edgar/data/59478/lly-20260430.htm')",
+        (cid,))
+    conn.commit()
+    conn.close()
+
+    fetcher = DealsNewsFetcher(path)
+    rows = fetcher.normalise({
+        "companies": [{"id": cid, "ticker": "LLY", "name": "Eli Lilly"}],
+        "feeds": {"LLY": _feed("Lilly to acquire Orna Therapeutics")},
+        "errors": []})
+    assert "1 filed deals linked to their announcing article" in fetcher.upsert(rows).notes
+
+    conn = db.get_connection(path)
+    row = conn.execute("SELECT source_url, article_url FROM deals").fetchone()
+    conn.close()
+    assert row["article_url"] == "https://n/0"          # the announcement, for the card
+    assert "sec.gov" in row["source_url"]               # the filing it was read from

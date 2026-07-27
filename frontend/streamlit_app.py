@@ -389,7 +389,9 @@ def deal_card(deal) -> str:
         body.append('<span class="dnv">size not stated</span>')
     if deal.get("area"):
         body.append(f'<span class="da">{html_escape(deal["area"])}</span>')
-    url = deal.get("source_url")
+    # The announcing article first: a press report of a deal reads in a way a 10-Q
+    # does not. The filing is the fallback, for a deal no headline has been matched to.
+    url = deal.get("article_url") or deal.get("source_url")
     classes = f'deal dt-{html_escape(deal.get("deal_type") or "")}{" link" if url else ""}'
     open_tag = (f'<a class="{classes}" href="{html_escape(url)}" target="_blank" '
                 'rel="noopener noreferrer">' if url
@@ -532,7 +534,7 @@ def snapshot_strip(snapshot: dict) -> str:
         # The sign is explicit. A bare "55.5%" beside a level reads as a share of
         # something until you get to the words.
         sign = "+" if value > 0 else ""
-        return (f"{sign}{T.pct(value * 100, 1)} year on year",
+        return (f"{sign}{T.pct(value * 100, 1)} yoy",
                 " up" if value > 0 else " down" if value < 0 else "")
 
     revenue_note, revenue_tone = growth(snapshot["revenue_growth"])
@@ -540,13 +542,14 @@ def snapshot_strip(snapshot: dict) -> str:
     return metric_tiles([
         ("Revenue", money(snapshot["revenue"]), "bn", revenue_note, revenue_tone),
         ("Net income", money(snapshot["net_income"]), "bn", income_note, income_tone),
-        ("EPS, diluted", T.num(snapshot["eps_diluted"], 2), "", "per share", ""),
+        # No note: the label already says per share.
+        ("EPS, diluted", T.num(snapshot["eps_diluted"], 2), "", "", ""),
         # Net margin is not a tile. It is the second series in the panel below, where it
         # has the history that makes a level mean something, and a lone 37.4% here would
         # be the same figure said twice.
-        ("R&D", T.pct(snapshot["rd_intensity"] * 100
-                      if snapshot["rd_intensity"] is not None else None, 1),
-         "", "of sales", ""),
+        ("R&D, share of sales", T.pct(snapshot["rd_intensity"] * 100
+                                      if snapshot["rd_intensity"] is not None else None,
+                                      1), "", "", ""),
     ])
 
 
@@ -1528,15 +1531,15 @@ with main:
             # produced leads as tiles; leverage and deal spend support it and sit in one
             # quiet line, so the tab reads as a page with a point rather than a wall.
             st.markdown(metric_tiles([
-                ("Free cash flow", _cf_bn(cash.get("fcf")), "bn",
-                 "operating cash less capex", ""),
+                ("Free cash flow", _cf_bn(cash.get("fcf")), "bn", "", ""),
                 ("FCF margin", (T.pct(cash["fcf_margin"] * 100, 1)
                                 if cash.get("fcf_margin") is not None else None),
-                 "", "of revenue", ""),
-                ("Cash conversion", _cf_x(cash.get("cash_conversion")), "",
-                 "free cash flow over net income", ""),
+                 "", "", ""),
+                ("Cash conversion", _cf_x(cash.get("cash_conversion")), "", "", ""),
+                # The one note that survives here. Cash paid is not the announced value
+                # on the deals, and the two figures are a click apart.
                 ("Acquisitions", _cf_bn((cash.get("inputs") or {}).get(
-                    "acquisitions")), "bn", "cash paid, businesses and assets", ""),
+                    "acquisitions")), "bn", "cash paid", ""),
             ]), unsafe_allow_html=True)
 
             # The same scale as the tiles above, said on each figure, since this line
@@ -1826,27 +1829,23 @@ with main:
                 return "Follow-up"
             return PHASE_MERGE.get(t["phase"], t["phase"])
 
+        # A marketed product running a new-indication trial is not a compound in
+        # development: Zepbound and Verzenio are products, and counting them here made
+        # the chart say 91 where the programme list below said 78. Their trials belong
+        # to the product, and the Portfolio tab is where they read.
+        # A marketed product running a new-indication trial is not a compound in
+        # development: Zepbound and Verzenio are products, and counting their studies
+        # here made the chart say 91 compounds where the programme list below said 78.
+        # Their trials belong to the product, and the product fact sheet is where they
+        # read. One set of compounds now drives the bars, the pills and the list.
+        every = [t for t in every if not t.get("asset_is_marketed")]
         dev = [t for t in every if _bucket(t) in DISPLAY_PHASES]
         post = [t for t in every if _bucket(t) == "Phase 4"]
         followup = [t for t in every if _bucket(t) == "Follow-up"]
 
-        # Counted in compounds, not studies. Ten trials of one molecule is one bet, so
-        # counting studies flattered whichever area happened to be run in many small
-        # pieces. A trial whose intervention names nothing on file cannot be attributed
-        # to a compound; those are reported as unattributed rather than dropped quietly.
-        def _assets(trials):
-            return {t["asset_id"] for t in trials if t.get("asset_id")}
-
-        unattributed = sum(1 for t in dev if not t.get("asset_id"))
-        head = f"{len(_assets(dev))} compounds in development"
-        if post:
-            head += f" · {len(_assets(post))} post-approval"
-        if followup:
-            head += f" · {len(_assets(followup))} in follow-up"
-        if unattributed:
-            head += (f" · {unattributed} trial"
-                     f"{'s' if unattributed != 1 else ''} unattributed")
-        section(f"{ticker} by therapeutic area", head)
+        # The count lives under the programme list, which is where it can be checked
+        # against the compounds it counts. Saying it twice invited the two to disagree.
+        section(f"{ticker} by therapeutic area")
         # Defined before the branch: the programme list below reads these, and a company
         # with no trials draws no pills to set them.
         area_pick: list = []
