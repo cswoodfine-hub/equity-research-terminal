@@ -415,6 +415,13 @@ h3 {{ font-size: 0.9rem; }}
 .reg-item a {{ color: inherit; text-decoration: none; }}
 .reg-item a:hover {{ text-decoration: underline; }}
 
+/* A second heading inside one section: same weight as a section label but without
+   the rule above it, so a block can change basis without reading as a new page. */
+.subhead {{ display: flex; justify-content: space-between; align-items: baseline;
+           font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+           color: var(--muted); margin: 0.7rem 0 0.1rem; }}
+.subhead span {{ font-family: var(--font-mono); }}
+
 /* A quiet row of secondary figures. The headline strip above it carries the numbers
    a reader comes for; these support them and should not compete, so they sit inline at
    label size rather than as a second wall of cards. */

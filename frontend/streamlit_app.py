@@ -1450,8 +1450,13 @@ with main:
             # already filed; a figure missing an input is a dash naming the line it wanted.
             cash = api_get(api_base, f"/companies/{ticker}/cashflow")
             cf_cur = cash.get("currency") or ""
-            section("Cash and leverage",
-                    f"FY{cash['fiscal_year']}" if cash.get("fiscal_year") else "latest year")
+            # No second heading: the quarter above and the year here are one reading of
+            # the company, and two headers stacked made it read as two walls of figures.
+            # A rule and the period label carry the change of basis instead.
+            st.markdown(
+                '<div class="subhead">Cash and leverage'
+                f'<span>{("FY" + str(cash["fiscal_year"])) if cash.get("fiscal_year") else "latest year"}'
+                '</span></div>', unsafe_allow_html=True)
 
             def _cf_bn(value, dp=1):
                 return T.num(value / 1e9, dp) if value is not None else None
