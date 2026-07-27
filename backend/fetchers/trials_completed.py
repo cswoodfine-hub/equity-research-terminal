@@ -20,6 +20,7 @@ import time
 import urllib.parse
 import urllib.request
 
+import ctgov
 import db
 import trial_mapping
 from fetchers.base import BaseFetcher, RefreshResult
@@ -28,7 +29,7 @@ SOURCE = "trials_completed"
 CTGOV_SOURCE = "clinicaltrials_v2"
 TTL_SECONDS = 24 * 60 * 60
 
-STUDIES_URL = "https://clinicaltrials.gov/api/v2/studies"
+STUDIES_URL = ctgov.STUDIES_URL
 PAGE_SIZE = 500
 MAX_PAGES = 4               # 2000 studies per sponsor, newest first
 _TIMEOUT_S = 60
@@ -82,8 +83,7 @@ def parse_studies(payload: dict) -> list[dict]:
 
 def _phase(phases) -> str | None:
     """The registry's phase array as one label, the way the pipeline writes it."""
-    from fetchers.trials_ctgov import normalize_phase
-    return normalize_phase(phases)
+    return ctgov.normalize_phase(phases)
 
 
 class TrialsCompletedFetcher(BaseFetcher):
@@ -116,7 +116,12 @@ class TrialsCompletedFetcher(BaseFetcher):
         studies, token = [], None
         for _page in range(MAX_PAGES):
             params = {
-                "query.spons": company["name"],
+                # The lead sponsor, by the registry's own name for the company. Its
+                # legal name returns almost nothing: AstraZeneca PLC found zero
+                # completed studies where AstraZeneca finds thousands. query.lead
+                # rather than query.spons, so a study this company only collaborated
+                # on is not filed as its own record.
+                "query.lead": ctgov.SPONSOR_LEAD.get(self.ticker, company["name"]),
                 "filter.overallStatus": "COMPLETED",
                 "aggFilters": "results:with",
                 "fields": FIELDS,

@@ -14,6 +14,7 @@ import time
 import urllib.parse
 import urllib.request
 
+import ctgov
 import db
 import trial_mapping
 from fetchers.base import BaseFetcher, RefreshResult
@@ -47,45 +48,12 @@ _USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
 _TIMEOUT_S = 60
 _PAGE_SLEEP_S = 0.2
 
-# CTGov lead-sponsor search term per ticker (verified against the live API).
-SPONSOR_LEAD = {
-    "LLY": "Eli Lilly and Company",
-    "NVO": "Novo Nordisk A/S",
-    "MRK": "Merck Sharp & Dohme LLC",
-    "PFE": "Pfizer",
-    "ABBV": "AbbVie",
-    "JNJ": "Janssen Research & Development, LLC",
-    "AZN": "AstraZeneca",
-    "GSK": "GlaxoSmithKline",
-    "NVS": "Novartis Pharmaceuticals",
-    "ROG": "Hoffmann-La Roche",
-    "SNY": "Sanofi",
-    "BMY": "Bristol-Myers Squibb",
-    "AMGN": "Amgen",
-    "GILD": "Gilead Sciences",
-    "VRTX": "Vertex Pharmaceuticals Incorporated",
-    "REGN": "Regeneron Pharmaceuticals",
-    "BIIB": "Biogen",
-    "BAYN": "Bayer",
-}
-
-PHASE_MAP = {
-    ("EARLY_PHASE1",): "Phase 1",
-    ("PHASE1",): "Phase 1",
-    ("PHASE1", "PHASE2"): "Phase 1/2",
-    ("PHASE2",): "Phase 2",
-    ("PHASE2", "PHASE3"): "Phase 2/3",
-    ("PHASE3",): "Phase 3",
-    ("PHASE4",): "Phase 4",
-}
-PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
-
-
-def normalize_phase(phases) -> str | None:
-    """Map a CTGov phases array to a heatmap column, or None for NA/observational."""
-    if not phases:
-        return None
-    return PHASE_MAP.get(tuple(phases))
+# The sponsor terms and phase mapping are shared with the completed-studies fetch and
+# live in ctgov.py, since fetchers do not import each other.
+SPONSOR_LEAD = ctgov.SPONSOR_LEAD
+PHASE_MAP = ctgov.PHASE_MAP
+PHASES = ctgov.PHASES
+normalize_phase = ctgov.normalize_phase
 
 
 def _humanize_status(status) -> str | None:
