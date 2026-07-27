@@ -838,6 +838,15 @@ def approvals_timeline(approvals: Sequence[dict], width: int = 1040,
         stem_y = mid - 7 if above else mid + 7
         tick_y = mid - 26 if above else mid + 18
         drug_y = mid - 16 if above else mid + 28
+        # An approval carrying a key becomes one anchor over its dot, stem and both
+        # labels, so the whole mark is the target rather than a three-pixel circle.
+        key = appr.get("key")
+        if key:
+            out.append(f'<a data-nav="{_esc(key)}" style="cursor:pointer">')
+            out.append(f'<rect x="{min(px, lx) - 30:.1f}"'
+                       f' y="{(tick_y - 10) if above else (mid - 2):.1f}"'
+                       f' width="{abs(lx - px) + 60:.1f}" height="40"'
+                       f' fill="transparent"/>')
         out.append(f'<circle cx="{px:.1f}" cy="{mid:.1f}" r="3.2" fill="{TK.UP}">'
                    f'<title>{_esc(full)}</title></circle>')
         out.append(f'<line x1="{px:.1f}" y1="{stem_y:.1f}" x2="{lx:.1f}"'
@@ -845,6 +854,8 @@ def approvals_timeline(approvals: Sequence[dict], width: int = 1040,
                    f' stroke="{TK.RULE}"/>')
         out.append(_text(lx, tick_y, ticker, 9, TK.TEXT, "middle", MONO, "700"))
         out.append(_text(lx, drug_y, drug, 8, TK.MUTED, "middle", UI))
+        if key:
+            out.append("</a>")
     out.append("</svg>")
     return "".join(out)
 

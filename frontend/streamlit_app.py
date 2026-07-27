@@ -15,6 +15,7 @@ import datetime as dt
 import hashlib
 import html
 import json
+import re
 import os
 from collections import Counter
 import urllib.error
@@ -30,6 +31,7 @@ import revenue_mix
 import theme as T
 import trend as trend_module
 from components import charts as CH
+from components import approvnav
 from components import covnav
 from components import prodcards
 from components import drawchart
@@ -567,6 +569,18 @@ if (isinstance(_cov, dict) and _cov.get("ticker") in tickers
     st.session_state["company_pick"] = _cov["ticker"]
     st.session_state["_cov_nonce"] = _cov.get("nonce")
 
+# A click on the approvals timeline names a company and an application number. The
+# company is applied here, before the selector reads its key; the application number is
+# held for the Portfolio tab, which is the only place that knows which product it is.
+_appr = st.session_state.get("appr_nav")
+if (isinstance(_appr, dict) and _appr.get("key")
+        and _appr.get("nonce") != st.session_state.get("_appr_nonce")):
+    _appr_ticker, _, _appr_appno = str(_appr["key"]).partition("|")
+    if _appr_ticker in tickers:
+        st.session_state["company_pick"] = _appr_ticker
+        st.session_state["pending_product"] = _appr_appno
+    st.session_state["_appr_nonce"] = _appr.get("nonce")
+
 
 def _jump_to_search():
     wanted = (st.session_state.get("global_search") or "").strip().upper()
@@ -887,9 +901,16 @@ with main:
             if it.get("change_type") != "new_approval":
                 continue
             drug = (it.get("headline") or "").split("FDA approval:", 1)[-1].strip()
-            approvals.append({"ticker": it.get("ticker") or "",
+            # The headline carries the application number in brackets, which is what
+            # identifies the product on the Portfolio tab; it rides along as the click
+            # key so a mark can open its own fact sheet.
+            appno = re.search(r"\(([A-Za-z]{2,4}\s?\d+)\)", drug)
+            tk = it.get("ticker") or ""
+            approvals.append({"ticker": tk,
                               "label": drug.split(" (")[0].strip(),
                               "date": it.get("date"),
+                              "key": (f"{tk}|{appno.group(1).replace(' ', '')}"
+                                      if appno and tk else ""),
                               "full": f"{drug} — {(it.get('date') or '')[:10]}"})
         section("FDA approvals across coverage", f"{len(approvals)} on the tape")
         if not approvals:
@@ -897,7 +918,9 @@ with main:
                   "New approvals are read from openFDA on refresh. Press Refresh all in "
                   "the top bar to pull the sources.")
         else:
-            R.show(CH.approvals_timeline(approvals, 1360, 152, dt.date.today()))
+            approvnav.approvals_nav(
+                CH.approvals_timeline(approvals, 1360, 152, dt.date.today()),
+                muted=TK.MUTED, key="appr_nav")
             st.markdown(
                 '<div class="byline">Each dot is an FDA approval among covered companies '
                 'at its date; hover for the drug and application number. The detailed '
@@ -1501,16 +1524,21 @@ with main:
         ct_by = {c["ticker"]: c for c in ct.get("companies") or []}
         if ct_labels and ct_by:
             section("Compare over time", "revenue growth or net margin")
-            metric_label = st.radio(
-                "Metric", ["Revenue growth", "Net margin"], horizontal=True,
-                key="comps_metric", label_visibility="collapsed")
+            # Pills, not a radio and a dropdown: every company is one click away and the
+            # selection is readable without opening anything. A dropdown hid which
+            # companies were on the chart behind a closed control.
+            metric_label = st.pills(
+                "Metric", ["Revenue growth", "Net margin"],
+                default="Revenue growth", key="comps_metric",
+                label_visibility="collapsed") or "Revenue growth"
             metric_key = ("revenue_growth" if metric_label == "Revenue growth"
                           else "net_margin")
             default_sel = [t for t in (ticker, "LLY", "NVO", "MRK", "PFE")
                            if t in ct_by][:5]
-            picked = st.multiselect(
-                "Companies", sorted(ct_by), default=default_sel,
-                key="comps_pick", label_visibility="collapsed")
+            picked = st.pills(
+                "Companies", sorted(ct_by), selection_mode="multi",
+                default=default_sel, key="comps_pick",
+                label_visibility="collapsed") or []
             palette = [TK.UP, TK.ORANGE_BOOK, TK.PURPLE_BOOK, TK.DOWN, TK.FLAG, TK.MUTED]
             series = [{"name": tk,
                        "values": [v * 100 if v is not None else None
@@ -1925,6 +1953,7 @@ with main:
                 if p is None:
                     products[key] = dict(
                         asset_id=a.get("asset_id"),
+                        application_number=a.get("application_number"),
                         brand=a.get("brand_name") or a.get("generic_name") or "unnamed",
                         generic=a.get("generic_name"), modality=a.get("modality"),
                         approved=a.get("approval_date"), loe=a.get("loe"),
@@ -2087,6 +2116,17 @@ with main:
             # returns the clicked asset id, so there is no separate button and hovering a
             # card shows it is live. The selection lives in session state and a native
             # rerun keeps the Portfolio tab active, so the profile opens in place.
+            # An approval clicked on the Universe timeline arrives as an application
+            # number, which is the only product identifier that survives the change feed.
+            # Resolve it here, where the products are known, and consume it so a later
+            # rerun does not keep reopening the same sheet.
+            pending = st.session_state.pop("pending_product", None)
+            if pending:
+                match = next((p for p in prods
+                              if str(p.get("application_number") or "").replace(" ", "")
+                              == pending), None)
+                if match and match.get("asset_id"):
+                    st.session_state["profile_asset"] = match["asset_id"]
             sel_aid = st.session_state.get("profile_asset")
             # The profile sits above the grid, so a click does not push it below a long
             # card list. Guarded to this company's products, so switching ticker drops a

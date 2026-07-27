@@ -692,6 +692,18 @@ section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
 /* Radios and pills follow the same quiet square language. */
 .stRadio [role="radiogroup"] label, .stPills [data-baseweb] {{ border-radius: var(--radius); }}
 
+/* The comps selectors are a filter, not the subject, so they read smaller and quieter
+   than the pills that carry a pipeline's phases. Keyed to those two controls so the
+   heavier pills elsewhere are untouched. */
+.st-key-comps_metric button, .st-key-comps_pick button {{
+  font-size: 10.5px !important; padding: 1px 8px !important;
+  min-height: 22px !important; border-color: var(--rule) !important;
+}}
+.st-key-comps_metric button p, .st-key-comps_pick button p {{
+  font-size: 10.5px !important; line-height: 1.3 !important;
+}}
+.st-key-comps_metric, .st-key-comps_pick {{ margin-bottom: 2px; }}
+
 /* Quality floor: focus must be visible, and motion is opt-out. */
 *:focus-visible {{ outline: 2px solid var(--text); outline-offset: 1px; }}
 @media (prefers-reduced-motion: reduce) {{

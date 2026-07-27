@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  #c { width: 100%; }
+  #c svg { width: 100%; height: auto; display: block; }
+  #c a { cursor: pointer; }
+  #c a:hover circle { r: 5; }
+  #c a:hover text { fill: #E8EDEA; }
+</style>
+</head>
+<body>
+<div id="c"></div>
+<script>
+function post(type, extra) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type },
+                                          extra || {}), "*");
+}
+const Streamlit = {
+  ready() { post("streamlit:componentReady", { apiVersion: 1 }); },
+  height(h) { post("streamlit:setFrameHeight", { height: h }); },
+  value(v) { post("streamlit:setComponentValue", { value: v, dataType: "json" }); },
+};
+
+let wired = false;
+
+function goToPortfolio() {
+  // Same-origin parent, so its tab buttons are reachable; click the Portfolio tab.
+  try {
+    const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
+    for (const t of tabs) {
+      if ((t.textContent || "").trim() === "Portfolio") { t.click(); return true; }
+    }
+  } catch (e) { /* cross-origin or DOM change: the rerun still selects the product */ }
+  return false;
+}
+
+window.addEventListener("message", function (e) {
+  const d = e.data;
+  if (!d || d.type !== "streamlit:render") return;
+  const a = d.args || {};
+  const c = document.getElementById("c");
+  c.innerHTML = a.svg || "";
+  requestAnimationFrame(function () {
+    const el = c.querySelector("svg");
+    Streamlit.height(el ? Math.ceil(el.getBoundingClientRect().height) + 6 : 160);
+  });
+  if (!wired) {
+    wired = true;
+    c.addEventListener("click", function (ev) {
+      const anchor = ev.target.closest("a[data-nav]");
+      if (!anchor) return;
+      ev.preventDefault();
+      const key = anchor.getAttribute("data-nav");
+      if (!key) return;
+      goToPortfolio();
+      Streamlit.value({ key: key, nonce: Date.now() });
+    });
+  }
+});
+Streamlit.ready();
+</script>
+</body>
+</html>
