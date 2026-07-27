@@ -293,6 +293,11 @@ def company_exclusivities(ticker: str) -> dict:
     rows = loe_module.loe_detail(None, ticker)
     if rows is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    # The area travels here too: a CBER cell or gene therapy has no drugsfda approval,
+    # so this list is the only place the portfolio view meets it.
+    areas = product_areas.areas_for(None, [r.get("asset_id") for r in rows])
+    for row in rows:
+        row["area"] = areas.get(row.get("asset_id"))
     return {"ticker": ticker.upper(), "assets": rows}
 
 
