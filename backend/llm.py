@@ -21,7 +21,11 @@ import urllib.error
 import urllib.request
 
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+# The floating alias, not a pinned version. Google retires numbered Gemini models and
+# answers 404 with a note telling you to update your code, which is a deployment that
+# stops working on a date nobody wrote down. The alias tracks the current flash model;
+# set GEMINI_MODEL to pin a specific one.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
 ANTHROPIC_MODEL = "claude-opus-4-8"
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -167,8 +171,18 @@ def _gemini(system: str, user: str, max_tokens: int,
         "contents": [{"role": "user", "parts": [{"text": user}]}],
         "generationConfig": generation,
     }
-    payload = _post("gemini", GEMINI_URL.format(model=GEMINI_MODEL),
-                    {"x-goog-api-key": key}, body)
+    try:
+        payload = _post("gemini", GEMINI_URL.format(model=GEMINI_MODEL),
+                        {"x-goog-api-key": key}, body)
+    except RuntimeError as exc:
+        # A retired model answers 404 with prose about migrating. Say the one thing
+        # that fixes it instead of passing that through.
+        if "404" in str(exc) and "no longer available" in str(exc):
+            raise RuntimeError(
+                f"the Gemini model {GEMINI_MODEL!r} has been retired. Set GEMINI_MODEL "
+                f"to a current one, or leave it unset to use the floating alias."
+            ) from exc
+        raise
     return gemini_text(payload)
 
 
