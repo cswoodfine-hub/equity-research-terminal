@@ -589,7 +589,23 @@ if (isinstance(_cov, dict) and _cov.get("ticker") in tickers
     st.session_state["_cov_nonce"] = _cov.get("nonce")
 
 
+def _consume_coverage_click():
+    """Mark any pending coverage-panel click as already applied.
+
+    The click is held in the component's own state, which outlives the rerun that
+    applied it. If its nonce is ever lost while the click itself survives, the guard
+    above stops matching and the clicked company is re-applied on every rerun, which
+    reads as the terminal being stuck on that ticker with the selector doing nothing.
+    Choosing a company by hand is an explicit instruction and must always win, so it
+    consumes the pending click rather than racing it.
+    """
+    pending = st.session_state.get("cov_nav")
+    if isinstance(pending, dict):
+        st.session_state["_cov_nonce"] = pending.get("nonce")
+
+
 def _jump_to_search():
+    _consume_coverage_click()
     wanted = (st.session_state.get("global_search") or "").strip().upper()
     if not wanted:
         return
@@ -605,7 +621,8 @@ with bar[0]:
     st.markdown('<span class="topbar-anchor"></span><div class="pick">',
                 unsafe_allow_html=True)
     ticker = st.selectbox("Company", tickers, key="company_pick",
-                          label_visibility="collapsed")
+                          label_visibility="collapsed",
+                          on_change=_consume_coverage_click)
     st.markdown("</div>", unsafe_allow_html=True)
 company = next((c for c in companies if c["ticker"] == ticker), {})
 st.query_params["ticker"] = ticker
