@@ -147,7 +147,8 @@ class TrialsFetcher(BaseFetcher):
         return row[0] if row else None
 
     def fetch(self) -> dict:
-        term = SPONSOR_LEAD.get(self.ticker)
+        term = company_names.source_name(self.ticker, "ctgov_sponsor",
+                                         SPONSOR_LEAD.get(self.ticker), self.db_path)
         if not term:
             raise ValueError(f"no CTGov sponsor mapping for {self.ticker}")
         # The company's own name, then the companies it has bought: the registry lists
