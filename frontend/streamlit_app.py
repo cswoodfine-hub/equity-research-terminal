@@ -968,9 +968,9 @@ if asof_state:
 
 with main:
     (universe_tab, insights_tab, prices_tab, financials_tab, pipeline_tab,
-     portfolio_tab, catalysts_tab, comps_tab, news_tab) = st.tabs(
+     portfolio_tab, catalysts_tab, themes_tab, comps_tab, news_tab) = st.tabs(
         ["Universe", "Key insights", "Prices", "Financials", "Pipeline",
-         "Portfolio", "Catalysts", "Comps", "News"])
+         "Portfolio", "Catalysts", "Themes", "Comps", "News"])
 
     # --- Universe: what moved across coverage since you last looked -------
     with universe_tab:
@@ -2574,3 +2574,77 @@ with main:
                     f" MD&A is rewritten each period, {round((1 - mdna['ratio']) * 100)}% "
                     f"changed in the latest {mdna['form']}, so it is kept but not flagged "
                     f"as an event.")
+
+    # --- Themes: the universe read by modality rather than by ticker ------
+    with themes_tab:
+        payload = api_get(api_base, "/themes")
+        rows, cover = payload["themes"], payload["coverage"]
+        section("Modality themes across coverage", len(rows))
+        if not rows:
+            state("No themes derived yet",
+                  "Press Refresh all. Themes are read from what each drug is called, "
+                  "the stems in its INN, and the class statement its label opens with.")
+        else:
+            # The coverage line sits above the table, not below it. The counts are
+            # floors, and a reader who takes them for totals concludes that companies
+            # absent from a theme do not work in it, which is the one wrong reading
+            # this view can produce.
+            st.caption(
+                f"{cover['tagged']} of {cover['assets']} programmes state what they "
+                "are. Counts below are a floor: an asset named only by a code number "
+                "carries no description in any free source and is not classified"
+                + (", so " + ", ".join(f"{c['ticker']} ({c['assets']})"
+                                       for c in cover["companies_untagged"][:6])
+                   + " are absent from every theme." if cover["companies_untagged"]
+                   else "."))
+            st.dataframe(pd.DataFrame([{
+                "Theme": r["theme"],
+                "Companies": r["companies"],
+                "Programmes": r["assets"],
+                "Marketed": r["marketed"],
+                # The four most advanced stages. The full mix runs to seven entries
+                # and its column then crowds out the companies, which are the point.
+                "Stage mix": ", ".join(
+                    [f"{k.lower()} {v}" for k, v in list(r["stage_mix"].items())[:4]]
+                    + ([f"+{len(r['stage_mix']) - 4} more"]
+                       if len(r["stage_mix"]) > 4 else [])),
+                "Changes, 90d": r["changes"],
+                "Most exposed": ", ".join(f"{c['ticker']} {c['assets']}"
+                                          for c in r["top_companies"][:4]),
+            } for r in rows]), width="stretch", hide_index=True)
+
+            chosen = st.selectbox("Theme", [r["theme"] for r in rows],
+                                  key="theme_pick")
+            slug = urllib.parse.quote(chosen, safe="")
+            detail = api_get(api_base, f"/themes/{slug}")
+            marketed = [a for a in detail["assets"] if a["is_marketed"]]
+            clinical = [a for a in detail["assets"] if not a["is_marketed"]]
+
+            section(f"{chosen} programmes", len(detail["assets"]))
+            st.dataframe(pd.DataFrame([{
+                "Ticker": a["ticker"],
+                "Programme": a["name"],
+                "Stage": "Marketed" if a["is_marketed"] else (a["phase"] or "—"),
+                "Trials": a["trials"],
+                # The phrase the tag was read from. A modality tag is a judgement made
+                # from text, so the evidence travels with it rather than living in a
+                # log: "why is this a radioligand" is answerable in the row.
+                "Read from": a["evidence"],
+                "Source": a["source"],
+            } for a in marketed + clinical]), width="stretch", hide_index=True)
+
+            section(f"Brief on {chosen}")
+            existing = api_get(api_base, f"/themes/{slug}/brief")
+            if st.button("Write the brief", key=f"brief_{chosen}"):
+                with st.spinner(f"Reading {chosen} across coverage"):
+                    existing = api_post(api_base, f"/themes/{slug}/brief")
+            if existing.get("body"):
+                st.markdown(note_html(existing["body"]), unsafe_allow_html=True)
+                st.caption(f"{existing.get('model') or 'rules'}"
+                           + (f" · {existing['generated_at'][:16]} UTC"
+                              if existing.get("generated_at") else ""))
+            else:
+                state("No brief written yet",
+                      "Press the button to read this modality across every company in "
+                      "coverage. Without a model key this is the rules layer, which "
+                      "states the shape rather than a view, and says so.")

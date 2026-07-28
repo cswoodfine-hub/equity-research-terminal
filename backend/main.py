@@ -30,6 +30,8 @@ import trial_readouts as trial_readouts_module
 import valuation as valuation_module
 import financials_view as financials_view_module
 import insights as insights_module
+import themes_view as themes_view_module
+import brief as brief_module
 import labels as labels_module
 import fx as fx_module
 import loe as loe_module
@@ -674,6 +676,37 @@ def _company_rows(ticker, query):
         return ticker, [dict(r) for r in conn.execute(query, (company["id"],))]
     finally:
         conn.close()
+
+
+@app.get("/themes")
+def themes_overview(days: int = Query(default=90)) -> dict:
+    """The universe along the modality axis, with how far that axis reaches.
+
+    Coverage travels with the counts on purpose. The counts are floors: an asset named
+    only by a code number states nothing about itself in any free source, so a company
+    can run programmes in a theme without appearing in its count.
+    """
+    return {"themes": themes_view_module.build(days=days),
+            "coverage": themes_view_module.coverage()}
+
+
+@app.get("/themes/{theme}")
+def theme_detail(theme: str, days: int = Query(default=90)) -> dict:
+    """Every programme carrying one theme, with the phrase each tag was read from."""
+    return themes_view_module.detail(theme, days=days)
+
+
+@app.get("/themes/{theme}/brief")
+def theme_brief(theme: str) -> dict:
+    """The stored thematic brief, or an empty body when none has been written."""
+    return brief_module.latest(theme=theme) or {"theme": theme, "body": "", "model": None}
+
+
+@app.post("/themes/{theme}/brief")
+def write_theme_brief(theme: str, days: int = Query(default=90)) -> dict:
+    """Write a brief for one theme. Without a model key this is the rules layer, and
+    ``model`` says which it was."""
+    return brief_module.generate(theme=theme, days=days)
 
 
 @app.get("/changes")
