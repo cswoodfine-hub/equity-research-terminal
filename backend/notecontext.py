@@ -311,6 +311,26 @@ def _deal_lines(conn, cid: int, today: dt.date,
     return lines, kept[:limit]
 
 
+# A year, because a chief executive who left in March is still the reason the strategy
+# changed in July. Senior roles only: a general counsel arriving is real and is not
+# what the note should lead on.
+_LEADERSHIP_DAYS = 365
+_LEADERSHIP_SENIOR = ("Chief executive", "Chief financial", "Chair", "Chief scientific",
+                      "Chief medical")
+
+
+def _leadership_lines(conn, cid, today) -> list:
+    """Senior arrivals and departures, newest first, with the date each was filed."""
+    cutoff = (today - dt.timedelta(days=_LEADERSHIP_DAYS)).isoformat()
+    rows = conn.execute(
+        "SELECT role, kind, filed_date FROM leadership_changes"
+        " WHERE company_id = ? AND filed_date >= ? AND role IN "
+        f"  ({','.join('?' * len(_LEADERSHIP_SENIOR))})"
+        " ORDER BY filed_date DESC LIMIT 6",
+        (cid, cutoff, *_LEADERSHIP_SENIOR)).fetchall()
+    return [f"{r['role'].lower()} {r['kind']} filed {r['filed_date']}." for r in rows]
+
+
 def company_context(db_path=None, ticker: str = "", today=None) -> str:
     """A factual snapshot of the company for the note, or "" when nothing is known."""
     today = today or dt.date.today()
@@ -341,6 +361,9 @@ def company_context(db_path=None, ticker: str = "", today=None) -> str:
         areas = _deal_area_lines(conn, cid, deal_rows)
         if areas:
             blocks.append("Deal areas against the pipeline: " + " ".join(areas))
+        leaders = _leadership_lines(conn, cid, today)
+        if leaders:
+            blocks.append("Leadership: " + " ".join(leaders))
     finally:
         conn.close()
     return "\n".join(blocks)

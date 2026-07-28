@@ -56,6 +56,14 @@ def _event_dates(conn) -> dict:
     for r in conn.execute("SELECT accession, filed_date FROM filings"):
         if r["filed_date"]:
             dates[("filing", r["accession"])] = r["filed_date"]
+    # A leadership change happened when the 8-K was filed, not when we first read it.
+    # The first run reads a year of filings at once, so without this the whole history
+    # arrives dated today and buries what actually happened today.
+    for r in conn.execute(
+        "SELECT c.ticker, l.accession, l.filed_date FROM leadership_changes l"
+        "  JOIN companies c ON c.id = l.company_id"
+        " WHERE l.filed_date IS NOT NULL"):
+        dates[("company", f"{r['ticker']}|{r['accession']}")] = r["filed_date"]
     return dates
 
 
@@ -77,16 +85,27 @@ def _recent_changes(conn, days):
         """,
         (f"-{int(days)} days",),
     ):
+        date_key = (r["entity_type"], r["entity_key"])
         if r["entity_type"] == "trial":
             ticker = nct_ticker.get(r["entity_key"])
             headline = _trial_headline(ticker, r["entity_key"], r["change_type"],
                                        r["old_value"], r["new_value"])
+        elif r["entity_type"] == "company":
+            # A company change keeps the ticker in its key rather than in the headline,
+            # so the prefix is added here: reading the ticker off the first word, the
+            # way a filing headline allows, would make "Chief" the company. The key is
+            # "TICKER|accession", because the accession is what dates the event.
+            # Sarepta filed the same chief executive departure twice, five months
+            # apart, and a key without it collapsed them onto one date.
+            ticker = r["entity_key"].split("|")[0]
+            headline = f"{ticker} {(r['new_value'] or '').lower()}"
+            date_key = ("company", r["entity_key"])
         else:  # filing / approval headlines already carry the ticker prefix
             ticker = (r["new_value"] or "").split(" ", 1)[0] or None
             headline = r["new_value"]
         # A trial change has no date of its own beyond when the registry was updated,
         # so it keeps the detection time. An approval and a filing both do.
-        happened = event_dates.get((r["entity_type"], r["entity_key"]))
+        happened = event_dates.get(date_key)
         items.append({
             "kind": "change", "significance": r["significance"],
             "date": happened or r["detected_at"], "detected_at": r["detected_at"],

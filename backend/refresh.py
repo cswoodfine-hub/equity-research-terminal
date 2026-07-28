@@ -26,6 +26,7 @@ import catalysts
 import db
 import deals
 import diff
+import leadership
 import pdufa
 import revenue_mdna
 import themes
@@ -178,6 +179,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     mdna_revenue = revenue_mdna.extract(db_path)["written"]
     trial_reads = trial_readouts.extract(db_path)
     deal_reads = deals.extract(db_path)
+    # Who runs the company. Item 5.02 filings are already on file; this reads the
+    # ones that report a senior change rather than a board rotation.
+    leaders = leadership.detect(db_path, run_id)
     # Headlines run after the filings, so a deal the company has already described in
     # its own words is never restated from a news summary.
     news_deals = DealsNewsFetcher(db_path, ticker)
@@ -188,7 +192,7 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
               "readouts": readouts, "pdufa": goals, "biologic_loe": bio_loe,
               "trial_mapping": mapped,
-              "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue, "deals": deal_reads, "changes": changes}
+              "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue, "deals": deal_reads, "leadership": leaders, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 
@@ -274,6 +278,9 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     mdna_revenue = revenue_mdna.extract(db_path)["written"]
     trial_reads = trial_readouts.extract(db_path)
     deal_reads = deals.extract(db_path)
+    # Who runs the company. Item 5.02 filings are already on file; this reads the
+    # ones that report a senior change rather than a board rotation.
+    leaders = leadership.detect(db_path, run_id)
     # Headlines last, for the licensing deals the filings name only in aggregate.
     news_deals = DealsNewsFetcher(db_path)
     news_deals.refresh_run_id = run_id
@@ -284,7 +291,7 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
               "sources": list(by_source.values()), "readouts": readouts,
               "trial_mapping": mapped,
               "pdufa": goals, "biologic_loe": bio_loe, "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
-              "deals": deal_reads, "changes": changes}
+              "deals": deal_reads, "leadership": leaders, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 
