@@ -45,6 +45,10 @@ FIELDS = [
     "protocolSection.conditionsModule.conditions",
     "protocolSection.armsInterventionsModule.interventions",
     "protocolSection.sponsorCollaboratorsModule.leadSponsor.name",
+    # What it measures and how it is built. Watched for change, not shown: an endpoint
+    # rewritten mid-trial is the signal, and it cannot be seen without the last value.
+    "protocolSection.outcomesModule.primaryOutcomes",
+    "protocolSection.designModule.designInfo",
 ]
 PAGE_SIZE = 1000
 _USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
@@ -57,6 +61,29 @@ SPONSOR_LEAD = ctgov.SPONSOR_LEAD
 PHASE_MAP = ctgov.PHASE_MAP
 PHASES = ctgov.PHASES
 normalize_phase = ctgov.normalize_phase
+
+
+def _primary_outcome(section: dict) -> str | None:
+    """The first primary endpoint as the protocol words it, or None when it states none.
+
+    Only the measure, not its time frame: a sponsor rewording "at week 52" to "at week
+    48" is a change worth catching, but it arrives through the completion date too,
+    while a changed measure is a change of what the trial is asking.
+    """
+    outcomes = (section.get("outcomesModule") or {}).get("primaryOutcomes") or []
+    measure = (outcomes[0].get("measure") if outcomes else None) or None
+    return measure.strip() if measure else None
+
+
+def _design(design: dict) -> str | None:
+    """Allocation, masking and purpose in one string, or None when the registry gives
+    none. Dropping a blind or moving from randomised to single-arm is a design change,
+    and it reads as one here."""
+    info = (design or {}).get("designInfo") or {}
+    parts = [info.get("allocation"), (info.get("maskingInfo") or {}).get("masking"),
+             info.get("primaryPurpose")]
+    parts = [p.replace("_", " ").title() for p in parts if p]
+    return ", ".join(parts) or None
 
 
 def _humanize_status(status) -> str | None:
@@ -116,6 +143,8 @@ def parse_studies(payload: dict) -> list[dict]:
                 # company explains why it sits under its new owner.
                 "lead_sponsor": ((ps.get("sponsorCollaboratorsModule") or {})
                                  .get("leadSponsor") or {}).get("name"),
+                "primary_outcome": _primary_outcome(ps),
+                "design": _design(design),
             }
         )
     return rows
@@ -273,8 +302,9 @@ class TrialsFetcher(BaseFetcher):
                         (nct_id, sponsor_company_id, title, phase, overall_status,
                          primary_completion_date, primary_completion_type,
                          completion_date, enrollment, conditions,
-                         last_update_posted, lead_sponsor, source, fetched_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                         last_update_posted, lead_sponsor, primary_outcome, design,
+                         source, fetched_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                     ON CONFLICT(nct_id) DO UPDATE SET
                         sponsor_company_id=excluded.sponsor_company_id, title=excluded.title,
                         phase=excluded.phase, overall_status=excluded.overall_status,
@@ -283,7 +313,9 @@ class TrialsFetcher(BaseFetcher):
                         completion_date=excluded.completion_date, enrollment=excluded.enrollment,
                         conditions=excluded.conditions,
                         last_update_posted=excluded.last_update_posted,
-                        lead_sponsor=excluded.lead_sponsor, fetched_at=datetime('now')
+                        lead_sponsor=excluded.lead_sponsor,
+                        primary_outcome=excluded.primary_outcome,
+                        design=excluded.design, fetched_at=datetime('now')
                     """,
                     (
                         row["nct_id"], company_id, row["title"], row["phase"],
@@ -291,7 +323,8 @@ class TrialsFetcher(BaseFetcher):
                         row.get("primary_completion_type"),
                         row["completion_date"], row["enrollment"],
                         json.dumps(row["conditions"]), row["last_update_posted"],
-                        row.get("lead_sponsor"), CTGOV_SOURCE,
+                        row.get("lead_sponsor"), row.get("primary_outcome"),
+                        row.get("design"), CTGOV_SOURCE,
                     ),
                 )
                 # The study drugs, replaced wholesale per trial so a dropped arm does not

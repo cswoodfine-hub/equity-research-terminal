@@ -76,7 +76,7 @@ def _diff_trials(conn, run_id) -> int:
     rows = conn.execute(
         """
         SELECT t.nct_id, t.overall_status, t.primary_completion_date, t.phase, t.title,
-               c.ticker
+               t.primary_outcome, t.design, t.enrollment, c.ticker
           FROM trials t LEFT JOIN companies c ON t.sponsor_company_id = c.id
         """
     ).fetchall()
@@ -86,6 +86,9 @@ def _diff_trials(conn, run_id) -> int:
             "overall_status": row["overall_status"],
             "primary_completion_date": row["primary_completion_date"],
             "phase": row["phase"],
+            "primary_outcome": row["primary_outcome"],
+            "design": row["design"],
+            "enrollment": row["enrollment"],
         }
         prior = _last_snapshot(conn, "trials", "trial", key)
         payload = {**current, "ticker": row["ticker"], "title": row["title"]}
@@ -121,6 +124,35 @@ def _diff_trials(conn, run_id) -> int:
             sig = "high" if new_rank > old_rank else "medium"
             _write_change(conn, "trial", key, "phase", prior.get("phase"),
                           current["phase"], change_type, sig, run_id)
+            emitted = True
+
+        # A rewritten primary endpoint is the sponsor changing the question the trial
+        # asks, after it has seen something. It is the single most informative thing
+        # this engine can catch, and it is invisible without the previous wording.
+        if (prior.get("primary_outcome") and current["primary_outcome"]
+                and prior["primary_outcome"] != current["primary_outcome"]):
+            _write_change(conn, "trial", key, "primary_outcome",
+                          prior["primary_outcome"], current["primary_outcome"],
+                          "endpoint_change",
+                          "high" if (current["phase"] or "").startswith(
+                              ("Phase 3", "Phase 2/3")) else "medium", run_id)
+            emitted = True
+
+        # Dropping a blind, or moving off randomisation, changes what the result can
+        # support whatever the result is.
+        if (prior.get("design") and current["design"]
+                and prior["design"] != current["design"]):
+            _write_change(conn, "trial", key, "design", prior["design"],
+                          current["design"], "design_change", "medium", run_id)
+            emitted = True
+
+        # Enrolment moving by a fifth is a trial being resized. Smaller moves are the
+        # ordinary drift of a recruiting study and say nothing.
+        old_n, new_n = prior.get("enrollment"), current["enrollment"]
+        if old_n and new_n and abs(new_n - old_n) >= max(20, old_n * 0.2):
+            _write_change(conn, "trial", key, "enrollment", str(old_n), str(new_n),
+                          "enrollment_change",
+                          "medium" if new_n < old_n else "low", run_id)
             emitted = True
 
         if emitted:
