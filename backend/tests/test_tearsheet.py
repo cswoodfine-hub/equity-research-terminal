@@ -6,6 +6,17 @@ from pathlib import Path
 
 import pytest
 
+
+def conn_count(db_file) -> int:
+    """However many companies the universe holds. Pinning the number meant the test
+    failed on the day a company was added, which is not a defect."""
+    import db
+    conn = db.get_connection(str(db_file))
+    try:
+        return conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+    finally:
+        conn.close()
+
 import db
 import diff
 import seed
@@ -85,5 +96,8 @@ def test_build_all_writes_one_sheet_per_company(tmp_path):
     out = tmp_path / "exports"
     result = tearsheet.build_all(out_dir=out, db_path=db_file)
     assert result["failed"] == []
-    assert result["count"] == 18                    # the whole universe
-    assert len(list(out.glob("*_tearsheet.html"))) == 18
+    # The whole universe, whatever size it is: pinning the number meant the test
+    # failed on the day a company was added, which is not a defect.
+    expected = conn_count(db_file)
+    assert result["count"] == expected
+    assert len(list(out.glob("*_tearsheet.html"))) == expected

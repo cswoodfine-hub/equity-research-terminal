@@ -21,6 +21,7 @@ import urllib.parse
 import urllib.request
 
 import acquired_sponsors
+import company_names
 import ctgov
 import db
 import trial_mapping
@@ -119,7 +120,9 @@ class TrialsCompletedFetcher(BaseFetcher):
 
         acquired = acquired_sponsors.for_company(self.db_path, self.ticker)
         studies = []
-        own = ctgov.SPONSOR_LEAD.get(self.ticker, company["name"])
+        own = company_names.source_name(
+            self.ticker, "ctgov_sponsor",
+            ctgov.SPONSOR_LEAD.get(self.ticker, company["name"]), self.db_path)
         errors = []
         for index, sponsor in enumerate([own] + acquired):
             try:

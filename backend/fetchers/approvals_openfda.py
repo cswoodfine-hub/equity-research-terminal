@@ -23,6 +23,7 @@ import urllib.request
 
 import db
 import acquired_sponsors
+import company_names
 from assets_util import normalize_appl, upsert_asset
 from fetchers.base import BaseFetcher, RefreshResult
 
@@ -207,10 +208,17 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
             raise
 
     def fetch(self) -> dict:
-        names = MANUFACTURER_MAP.get(self.ticker)
-        sponsor = SPONSOR_MAP.get(self.ticker)
+        names = company_names.source_name(self.ticker, "openfda_manufacturer",
+                                          MANUFACTURER_MAP.get(self.ticker), self.db_path)
+        sponsor = company_names.source_name(self.ticker, "openfda_sponsor",
+                                            SPONSOR_MAP.get(self.ticker), self.db_path)
+        if isinstance(names, str):
+            names = [names]
         if not names and not sponsor:
-            raise ValueError(f"no openFDA mapping for {self.ticker}")
+            # A clinical-stage company has no approved product and so no manufacturer
+            # string at openFDA. That is the ordinary state of half this universe now,
+            # not a misconfiguration, so it returns nothing rather than raising.
+            return {"results": [], "note": "no approved products at openFDA"}
 
         results: list[dict] = []
         if names:
