@@ -15,6 +15,7 @@ import urllib.parse
 import urllib.request
 
 import acquired_sponsors
+import company_names
 import ctgov
 import db
 import trial_mapping

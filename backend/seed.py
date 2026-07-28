@@ -40,6 +40,13 @@ _TEXT_COLUMNS = (
     "reporting_currency",
     "us_adr_ticker",
     "ir_rss_url",
+    # What each source calls this company. Kept here rather than in five dictionaries
+    # spread across four fetchers, so adding a company is adding a row.
+    "ctgov_sponsor",
+    "openfda_manufacturer",
+    "openfda_sponsor",
+    "orange_book_applicant",
+    "purple_book_applicant",
 )
 _INT_COLUMNS = ("is_foreign_private_issuer", "is_sec_filer")
 
@@ -60,10 +67,14 @@ def load_companies(db_path: str | Path | None = None) -> int:
                 """
                 INSERT INTO companies
                     (ticker, name, primary_exchange, country, reporting_currency,
-                     us_adr_ticker, is_foreign_private_issuer, is_sec_filer, ir_rss_url)
+                     us_adr_ticker, is_foreign_private_issuer, is_sec_filer, ir_rss_url,
+                     ctgov_sponsor, openfda_manufacturer, openfda_sponsor,
+                     orange_book_applicant, purple_book_applicant)
                 VALUES
                     (:ticker, :name, :primary_exchange, :country, :reporting_currency,
-                     :us_adr_ticker, :is_foreign_private_issuer, :is_sec_filer, :ir_rss_url)
+                     :us_adr_ticker, :is_foreign_private_issuer, :is_sec_filer,
+                     :ir_rss_url, :ctgov_sponsor, :openfda_manufacturer,
+                     :openfda_sponsor, :orange_book_applicant, :purple_book_applicant)
                 ON CONFLICT(ticker) DO UPDATE SET
                     name=excluded.name,
                     primary_exchange=excluded.primary_exchange,
@@ -73,6 +84,18 @@ def load_companies(db_path: str | Path | None = None) -> int:
                     is_foreign_private_issuer=excluded.is_foreign_private_issuer,
                     is_sec_filer=excluded.is_sec_filer,
                     ir_rss_url=excluded.ir_rss_url,
+                    -- COALESCE so a blank cell never erases a name that works. A
+                    -- clinical-stage company has no Orange Book applicant and its
+                    -- column is empty, which is not the same as wrong.
+                    ctgov_sponsor=COALESCE(excluded.ctgov_sponsor, companies.ctgov_sponsor),
+                    openfda_manufacturer=COALESCE(excluded.openfda_manufacturer,
+                                                  companies.openfda_manufacturer),
+                    openfda_sponsor=COALESCE(excluded.openfda_sponsor,
+                                             companies.openfda_sponsor),
+                    orange_book_applicant=COALESCE(excluded.orange_book_applicant,
+                                                   companies.orange_book_applicant),
+                    purple_book_applicant=COALESCE(excluded.purple_book_applicant,
+                                                   companies.purple_book_applicant),
                     updated_at=datetime('now')
                 """,
                 values,
