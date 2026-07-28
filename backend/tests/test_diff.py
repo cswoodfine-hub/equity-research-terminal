@@ -148,3 +148,91 @@ def test_baseline_then_detect_then_idempotent(tmp_path):
     # Re-running detects nothing new.
     diff.detect_changes(db_file)
     assert len(_changes(db_file)) == len(changes)
+
+
+def _watched_trial(db_file, **fields):
+    """One trial of a seeded company, with the fields the diff engine watches."""
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    try:
+        cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+        cols = {"nct_id": "NCT900", "sponsor_company_id": cid, "title": "A study",
+                "phase": "Phase 3", "overall_status": "Recruiting",
+                "primary_completion_date": "2027-05",
+                "primary_outcome": "Overall survival",
+                "design": "Randomized, Double, Treatment", "enrollment": 600}
+        cols.update(fields)
+        conn.execute(
+            f"INSERT INTO trials ({', '.join(cols)}) "
+            f"VALUES ({', '.join('?' * len(cols))})", list(cols.values()))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _revise(db_file, **fields):
+    """The registry updating the trial record, which is what a refresh sees."""
+    conn = db.get_connection(db_file)
+    try:
+        for key, value in fields.items():
+            conn.execute(f"UPDATE trials SET {key} = ? WHERE nct_id = 'NCT900'", (value,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _of_type(db_file, change_type):
+    return [c for c in _changes(db_file) if c["change_type"] == change_type]
+
+
+def test_a_rewritten_endpoint_is_caught(tmp_path):
+    """The claim an analyst makes about the field, that endpoints are being changed
+    mid-trial, cannot be made from today's data. It needs the previous wording."""
+    db_file = tmp_path / "endpoint.db"
+    _watched_trial(db_file)
+    diff.detect_changes(db_file)                      # baseline is not news
+    assert _of_type(db_file, "endpoint_change") == []
+
+    _revise(db_file, primary_outcome="Progression-free survival")
+    diff.detect_changes(db_file)
+    caught = _of_type(db_file, "endpoint_change")
+    assert len(caught) == 1
+    assert caught[0]["old_value"] == "Overall survival"
+    assert caught[0]["new_value"] == "Progression-free survival"
+    assert caught[0]["significance"] == "high"        # on a Phase 3
+
+
+def test_a_rewritten_endpoint_on_an_early_trial_reads_lower(tmp_path):
+    db_file = tmp_path / "endpoint2.db"
+    _watched_trial(db_file, phase="Phase 1")
+    diff.detect_changes(db_file)
+    _revise(db_file, primary_outcome="Safety and tolerability")
+    diff.detect_changes(db_file)
+    assert _of_type(db_file, "endpoint_change")[0]["significance"] == "medium"
+
+
+def test_dropping_the_blind_is_a_design_change(tmp_path):
+    db_file = tmp_path / "design.db"
+    _watched_trial(db_file)
+    diff.detect_changes(db_file)
+    _revise(db_file, design="Randomized, None, Treatment")
+    diff.detect_changes(db_file)
+    caught = _of_type(db_file, "design_change")
+    assert len(caught) == 1 and "None" in caught[0]["new_value"]
+
+
+def test_enrolment_drift_is_not_an_event(tmp_path):
+    """A recruiting trial's target moves a little all the time. Only a resizing counts."""
+    db_file = tmp_path / "enrol.db"
+    _watched_trial(db_file)
+    diff.detect_changes(db_file)
+
+    _revise(db_file, enrollment=610)                  # under two percent, noise
+    diff.detect_changes(db_file)
+    assert _of_type(db_file, "enrollment_change") == []
+
+    _revise(db_file, enrollment=300)                  # halved, a decision
+    diff.detect_changes(db_file)
+    caught = _of_type(db_file, "enrollment_change")
+    assert len(caught) == 1 and caught[0]["significance"] == "medium"
