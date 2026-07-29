@@ -1,5 +1,7 @@
 """Reading product revenue out of the MD&A table, and refusing the tables that are not."""
 
+import pytest
+
 import revenue_mdna
 
 LILLY = ("The following table summarizes our revenue by product in 2025: "
@@ -102,3 +104,102 @@ def test_reads_a_total_printed_before_its_parts():
 def test_a_trademark_symbol_does_not_hide_the_row():
     assert revenue_mdna.parse("(in DKK million) Victoza ® 3,020 471 2,549",
                               ["Victoza"])["Victoza"] == 3_020e6
+
+
+# --- a product broken out by geography ------------------------------------------------
+
+def test_a_geography_label_between_the_name_and_its_figure():
+    """AbbVie reports every product by region, so the name is followed by "United
+    States" rather than by a number and the whole table read as empty."""
+    window = ("(dollars in millions) 2025 2024 2023 Skyrizi United States $ 15,202 "
+              "$ 10,086 $ 6,753 50.7 % 49.3 % International 2,360 1,632 1,010 44.6 % "
+              "61.6 % Total $ 17,562 $ 11,718 $ 7,763 49.9 % 50.9 %")
+    found = revenue_mdna.parse(window, ["Skyrizi"], 61.2e9)
+    assert found["Skyrizi"] == pytest.approx(17_562e6)
+
+
+def test_the_geographic_total_is_taken_not_the_domestic_figure():
+    """The first number after the name is the United States column. Reading it
+    understates the product by a third."""
+    window = ("(in millions) Rinvoq United States $ 5,940 $ 4,259 39.5 % "
+              "International 2,364 1,712 38.0 % Total $ 8,304 $ 5,971 39.1 %")
+    found = revenue_mdna.parse(window, ["Rinvoq"], 61.2e9)
+    assert found["Rinvoq"] == pytest.approx(8_304e6)
+    assert found["Rinvoq"] != pytest.approx(5_940e6)
+
+
+def test_a_negative_percentage_outside_its_bracket_still_closes_the_row():
+    """Humira's row ends "(49.5) %", with the sign outside the bracket. A cell token
+    that closed at the bracket left the percent behind, so the figure read as a fourth
+    money column and the row was refused for having nothing to close it."""
+    window = ("(in millions) Humira United States $ 3,062 $ 7,142 (57.1) % "
+              "International 1,478 1,851 (20.2) % Total $ 4,540 $ 8,993 (49.5) %")
+    found = revenue_mdna.parse(window, ["Humira"], 61.2e9)
+    assert found["Humira"] == pytest.approx(4_540e6)
+
+
+def test_a_product_cannot_borrow_the_next_products_total():
+    """A product with no total of its own must report nothing rather than collect the
+    figure belonging to whatever follows it."""
+    window = ("(in millions) Alpha United States $ 100 International 50 "
+              "Beta United States $ 900 International 100 Total $ 1,000")
+    found = revenue_mdna.parse(window, ["Alpha", "Beta"], 5e9)
+    assert "Alpha" not in found
+
+
+def test_year_columns_with_no_growth_column():
+    """The commonest mid-cap layout. Every shape the reader knew relied on a percentage
+    to close the run, so a table of nothing but year columns read as nothing."""
+    assert revenue_mdna.read_row("$ 2,513.7 $ 2,313.5 $ 1,836.0 ") == pytest.approx(2513.7)
+
+
+def test_a_bare_year_is_still_not_money():
+    """BioMarin prints patent expiries keyed by product name, and the year-column rule
+    must not turn "VOXZOGO 2030 2029" into two billion dollars."""
+    assert revenue_mdna.read_row("2030 2029 ") is None
+
+
+# --- reading a table whose products are not known in advance --------------------------
+
+NBIX_TABLE = ("Revenues Year Ended December 31, (in millions) 2025 2024 2023 "
+              "INGREZZA $ 2,513.7 $ 2,313.5 $ 1,836.0 CRENESSITY 301.2 1.7 - "
+              "Other 19.0 15.4 24.6 Total net product sales 2,833.9 2,330.6 1,860.6")
+
+
+def test_products_are_discovered_when_none_are_known():
+    """The brand-matched path cannot help a company whose marketed products are not on
+    file, which is most of the mid-caps: Neurocrine holds only pipeline rows derived
+    from trials, so there was never a name to search its table for."""
+    found = revenue_mdna.discover(NBIX_TABLE, 2.9e9)
+    assert found == {"INGREZZA": pytest.approx(2_513.7e6),
+                     "CRENESSITY": pytest.approx(301.2e6)}
+
+
+def test_a_discovered_table_must_add_up_to_its_own_total():
+    """This is what makes reading unknown labels safe. A table that does not balance was
+    either misread or was never a revenue table."""
+    broken = NBIX_TABLE.replace("2,833.9", "9,999.9")
+    assert revenue_mdna.discover(broken, 2.9e9) == {}
+
+
+def test_an_unnamed_row_counts_toward_the_total_without_becoming_a_product():
+    """Neurocrine's table carries a 19m "Other". Leaving it out of the sum left the
+    total short and threw away a table that had been read correctly."""
+    found = revenue_mdna.discover(NBIX_TABLE, 2.9e9)
+    assert "Other" not in found
+    assert len(found) == 2
+
+
+def test_an_expense_schedule_is_not_a_revenue_table():
+    """An expense schedule balances exactly as well and is laid out identically, so
+    arithmetic alone cannot tell them apart. This found Neurocrine's payroll and
+    Alnylam's research and development instead of their products."""
+    expenses = ("(in millions) 2025 2024 Payroll and benefits 306.4 280.1 "
+                "Clinical trial costs 244.2 210.0 "
+                "Total research and development expenses 550.6 490.1")
+    assert revenue_mdna.discover(expenses, 2.9e9) == {}
+
+
+def test_a_total_that_does_not_name_revenue_is_not_accepted():
+    balanced = ("(in millions) 2025 Alpha 600.0 Beta 400.0 Total operating costs 1,000.0")
+    assert revenue_mdna.discover(balanced, 5e9) == {}
