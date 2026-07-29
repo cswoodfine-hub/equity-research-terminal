@@ -968,9 +968,10 @@ if asof_state:
 
 with main:
     (universe_tab, insights_tab, prices_tab, financials_tab, pipeline_tab,
-     portfolio_tab, catalysts_tab, themes_tab, comps_tab, news_tab) = st.tabs(
+     portfolio_tab, catalysts_tab, themes_tab, runway_tab, comps_tab,
+     news_tab) = st.tabs(
         ["Universe", "Key insights", "Prices", "Financials", "Pipeline",
-         "Portfolio", "Catalysts", "Themes", "Comps", "News"])
+         "Portfolio", "Catalysts", "Themes", "Runway", "Comps", "News"])
 
     # --- Universe: what moved across coverage since you last looked -------
     with universe_tab:
@@ -2670,3 +2671,62 @@ with main:
                       "Press the button to read this modality across every company in "
                       "coverage. Without a model key this is the rules layer, which "
                       "states the shape rather than a view, and says so.")
+
+
+    # --- Runway: the clinical-stage cohort, where revenue analysis says nothing ---
+    with runway_tab:
+        rows = api_get(api_base, "/runway")
+        section("Cash runway, clinical-stage companies", len(rows))
+        st.caption(
+            "Companies with no product revenue, which is where the revenue, exclusivity "
+            "and demand tabs are empty by construction. Runway is cash and marketable "
+            "securities over the trailing twelve-month operating burn, in months at the "
+            "current rate. It is not a forecast: a company that raises, cuts or partners "
+            "moves this the day it does.")
+        if not rows:
+            state("No clinical-stage companies resolved",
+                  "Press Refresh all to pull cash and cash-flow lines from EDGAR. A "
+                  "company is read as clinical-stage when it reports neither inventory "
+                  "nor a cost of revenue.")
+        else:
+            st.dataframe(pd.DataFrame([{
+                "Ticker": r["ticker"],
+                "Company": r["name"],
+                "Cash and investments, m": (r["cash"] / 1e6) if r["cash"] else None,
+                "Burn, m/yr": (abs(r["burn_annual"]) / 1e6) if r["burn_annual"] else None,
+                "Runway, months": r["runway_months"],
+                "Catalysts in runway": r["catalyst_count"],
+                # Two ways the figure can mislead, said on the row rather than in a
+                # footnote: a burn paid for by a licence receipt, and a cash figure
+                # missing the securities the company actually holds its runway in.
+                "Read with care": ", ".join(filter(None, [
+                    "burn offset by a receipt" if r["burn_flattered"] else "",
+                    "cash line only" if not r["includes_investments"] else ""])),
+                "As of": r["cash_as_of"],
+            } for r in rows]), width="stretch", hide_index=True,
+                column_config={
+                    "Cash and investments, m": st.column_config.NumberColumn(format="%.0f"),
+                    "Burn, m/yr": st.column_config.NumberColumn(format="%.0f"),
+                    "Runway, months": st.column_config.NumberColumn(format="%.0f")})
+
+            tight = [r for r in rows
+                     if r["runway_months"] and r["runway_months"] < 12
+                     and not r["burn_flattered"]]
+            if tight:
+                section("Inside twelve months", len(tight))
+                st.caption(
+                    "At the current burn these reach the end of their cash within a "
+                    "year, so the next financing is the event, not the next readout.")
+                for r in tight:
+                    dates = ", ".join(
+                        f"{c['expected_date']} {c['title'][:52]}"
+                        for c in r["catalysts_in_runway"][:3])
+                    st.markdown(
+                        f'<div class="state"><div class="t">{r["ticker"]} · '
+                        f'{r["runway_months"]:.0f} months</div><div class="d">'
+                        f'{r["cash"] / 1e6:,.0f}m against a {abs(r["burn_annual"]) / 1e6:,.0f}m '
+                        f'annual burn. '
+                        + (f"Catalysts before the cash runs out: {html_escape(dates)}."
+                           if dates else
+                           "No dated catalyst on file inside that window.")
+                        + '</div></div>', unsafe_allow_html=True)
