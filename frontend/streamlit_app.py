@@ -2590,13 +2590,17 @@ with main:
             # absent from a theme do not work in it, which is the one wrong reading
             # this view can produce.
             st.caption(
-                f"{cover['tagged']} of {cover['assets']} programmes state what they "
-                "are. Counts below are a floor: an asset named only by a code number "
-                "carries no description in any free source and is not classified"
-                + (", so " + ", ".join(f"{c['ticker']} ({c['assets']})"
-                                       for c in cover["companies_untagged"][:6])
-                   + " are absent from every theme." if cover["companies_untagged"]
-                   else "."))
+                f"Two axes, never added. {cover['tagged']} of {cover['assets']} "
+                "programmes state what they are, read from the drug's own name or "
+                f"label. {cover['companies_on_platform']} of {cover['companies']} "
+                "companies describe a platform in their own annual filing, which "
+                "reaches the ones whose drugs are code numbers: Beam and Editas run "
+                "gene editing and hold no programme any free source classifies. "
+                "Programme counts are a floor; the platform column is the better "
+                "guide to who is in a modality"
+                + (f". {len(cover['companies_unreached'])} companies are reached by "
+                   "neither: " + ", ".join(cover["companies_unreached"])
+                   if cover["companies_unreached"] else "."))
             st.dataframe(pd.DataFrame([{
                 "Theme": r["theme"],
                 "Companies": r["companies"],
@@ -2611,6 +2615,10 @@ with main:
                 "Changes, 90d": r["changes"],
                 "Most exposed": ", ".join(f"{c['ticker']} {c['assets']}"
                                           for c in r["top_companies"][:4]),
+                # The second axis. Companies whose own filing describes the platform,
+                # which is the only way the editors appear at all.
+                "On platform": len(r["platform_companies"]),
+                "Platform only": ", ".join(r["platform_only"][:6]),
             } for r in rows]), width="stretch", hide_index=True)
 
             chosen = st.selectbox("Theme", [r["theme"] for r in rows],
@@ -2632,6 +2640,20 @@ with main:
                 "Read from": a["evidence"],
                 "Source": a["source"],
             } for a in marketed + clinical]), width="stretch", hide_index=True)
+
+            if detail.get("platform"):
+                section(f"Companies whose filing describes this platform",
+                        len(detail["platform"]))
+                st.caption(
+                    "Read from each company's own annual filing, in the first person, "
+                    "so a competitor paragraph cannot claim a platform. A company with "
+                    "0 classified programmes appears here and nowhere else in the tab.")
+                st.dataframe(pd.DataFrame([{
+                    "Ticker": r["ticker"],
+                    "Company": r["company"],
+                    "Classified programmes": r["assets"],
+                    "Read from": r["evidence"],
+                } for r in detail["platform"]]), width="stretch", hide_index=True)
 
             section(f"Brief on {chosen}")
             existing = api_get(api_base, f"/themes/{slug}/brief")

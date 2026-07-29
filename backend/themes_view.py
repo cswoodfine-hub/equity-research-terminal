@@ -76,8 +76,28 @@ def coverage(db_path=None) -> dict:
             """)]
     finally:
         conn.close()
+    conn2 = db.get_connection(db_path)
+    try:
+        companies = conn2.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+        on_platform = conn2.execute(
+            "SELECT COUNT(DISTINCT company_id) FROM company_themes").fetchone()[0]
+        # A company with no asset theme and no platform theme is genuinely unreached by
+        # either axis, which is a smaller and more honest gap than the asset count alone.
+        unreached = [r[0] for r in conn2.execute(
+            """
+            SELECT c.ticker FROM companies c
+             WHERE NOT EXISTS (SELECT 1 FROM company_themes t WHERE t.company_id = c.id)
+               AND NOT EXISTS (SELECT 1 FROM asset_themes t2 JOIN assets a
+                                 ON a.id = t2.asset_id
+                                WHERE a.owner_company_id = c.id)
+             ORDER BY c.ticker
+            """)]
+    finally:
+        conn2.close()
     return {"assets": total, "tagged": tagged,
-            "untagged": total - tagged, "companies_untagged": blind}
+            "untagged": total - tagged, "companies_untagged": blind,
+            "companies": companies, "companies_on_platform": on_platform,
+            "companies_unreached": unreached}
 
 
 def build(db_path=None, days: int = 90, today=None) -> list:
@@ -102,10 +122,16 @@ def build(db_path=None, days: int = 90, today=None) -> list:
                   JOIN companies c ON c.id = a.owner_company_id
                  WHERE t.theme = ?
                 """, (theme,)).fetchall()
-            if not assets:
+            platform = [r["ticker"] for r in conn.execute(
+                "SELECT c.ticker FROM company_themes t"
+                "  JOIN companies c ON c.id = t.company_id"
+                " WHERE t.theme = ? ORDER BY c.ticker", (theme,))]
+            # Either axis keeps the row. A theme every company describes and no asset
+            # states, which is what gene editing very nearly is, must not vanish.
+            if not assets and not platform:
                 continue
             ids = [a["id"] for a in assets]
-            marks = ",".join("?" * len(ids))
+            marks = ",".join("?" * len(ids)) or "NULL"
 
             # The most advanced phase each programme has reached. A drug in Phase 1 and
             # Phase 3 at once is a Phase 3 programme; counting every trial would let a
@@ -136,6 +162,15 @@ def build(db_path=None, days: int = 90, today=None) -> list:
                 by_company[asset["ticker"]] = by_company.get(asset["ticker"], 0) + 1
             leaders = sorted(by_company.items(), key=lambda kv: (-kv[1], kv[0]))
 
+            # The other axis, kept beside the first and never added to it. A company
+            # theme is read from the company's own filing and says what platform it
+            # runs; an asset theme says what one drug is. They answer different
+            # questions, and a company that describes a platform whose programmes are
+            # all code numbers appears here and in no asset count. That is the whole
+            # reason this exists: Beam, Intellia and Editas are gene editing companies
+            # with no classifiable asset between them.
+            silent = [t for t in platform if t not in by_company]
+
             rows.append({
                 "theme": theme,
                 "parent": themes.PARENTS.get(theme),
@@ -146,6 +181,10 @@ def build(db_path=None, days: int = 90, today=None) -> list:
                                          key=lambda kv: -_stage_rank(kv[0]))),
                 "changes": movement,
                 "top_companies": [{"ticker": t, "assets": n} for t, n in leaders[:6]],
+                "platform_companies": platform,
+                # The companies this theme would have missed entirely: they say they run
+                # the platform and hold no drug any free source describes.
+                "platform_only": silent,
             })
     finally:
         conn.close()
@@ -197,6 +236,22 @@ def detail(theme: str, db_path=None, days: int = 90, today=None) -> dict:
              ORDER BY ch.detected_at DESC
              LIMIT 40
             """, (theme, cutoff))]
+        # The company axis, with the sentence each tag was read from, so "why is Beam a
+        # gene editing company" is answerable on the page rather than by opening a 10-K.
+        # `assets` counts what the asset axis managed for that company, which is how a
+        # reader sees the gap this axis exists to fill.
+        platform = [dict(r) for r in conn.execute(
+            """
+            SELECT c.ticker, c.name AS company, t.evidence, t.accession,
+                   (SELECT COUNT(*) FROM asset_themes at2
+                      JOIN assets a2 ON a2.id = at2.asset_id
+                     WHERE a2.owner_company_id = c.id AND at2.theme = t.theme)
+                   AS assets
+              FROM company_themes t
+              JOIN companies c ON c.id = t.company_id
+             WHERE t.theme = ?
+             ORDER BY assets DESC, c.ticker
+            """, (theme,))]
     finally:
         conn.close()
-    return {"theme": theme, "assets": rows, "changes": moves}
+    return {"theme": theme, "assets": rows, "changes": moves, "platform": platform}

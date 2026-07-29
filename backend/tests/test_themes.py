@@ -169,3 +169,104 @@ def test_derive_is_idempotent(conn):
     rows = check.execute("SELECT COUNT(*) FROM asset_themes").fetchone()[0]
     check.close()
     assert rows == second["tagged"]
+
+
+# --- what a company says it does, read from its own filing ---------------------------
+
+def test_a_competitor_paragraph_is_not_this_company_s_platform():
+    """The leak this axis is built to refuse.
+
+    A risk factors section has to describe the competition, so Beam's filing names
+    CAR-T, CRISPR, gene therapy and cell therapy. Counting terms tags every company with
+    every modality in its sector, which is the comparator-arm problem in a longer
+    document. Only first-person sentences count.
+    """
+    text = ("Our competitors are developing base editing therapies. Other companies "
+            "have advanced CAR-T products into registrational trials.")
+    assert themes.self_descriptions(text) == []
+
+
+def test_a_first_person_platform_sentence_is_read():
+    windows = themes.self_descriptions(
+        "We have assembled a platform that includes a suite of gene editing and "
+        "delivery technologies.")
+    assert windows
+    assert "Gene editing" in themes.classify(windows[0])
+
+
+def test_a_denied_platform_is_not_a_platform():
+    """Atara. Its filing says the T-cell platform "does not require TCR or HLA gene
+    editing", and reading that tagged Atara as a gene editing company on the strength of
+    a sentence denying it."""
+    assert themes.self_descriptions(
+        "Our 1XX CAR co-stimulatory domain and EBV T-cell platform does not require "
+        "TCR or HLA gene editing.") == []
+
+
+def test_a_patent_or_licence_sentence_is_not_a_platform():
+    """First person, and still about someone else's technology."""
+    assert themes.self_descriptions(
+        "With respect to the KYV-201 product candidate, we own a patent family "
+        "directed to allogeneic CD19 CAR T cells.") == []
+
+
+def test_a_window_stops_at_the_sentence_end():
+    """A window that runs past the full stop reaches into the next sentence, which is
+    where the competitive landscape lives."""
+    windows = themes.self_descriptions(
+        "Our platform is small molecule. Competitors are developing CRISPR therapies.")
+    assert all("CRISPR" not in w for w in windows)
+
+
+def test_derive_companies_is_idempotent(tmp_path):
+    import db
+
+    path = str(tmp_path / "t.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name) VALUES ('EDT', 'Editor Bio')")
+    cid = conn.execute("SELECT id FROM companies").fetchone()[0]
+    conn.execute(
+        "INSERT INTO filing_sections (company_id, accession, form_type, filed_date,"
+        "  section, char_count, text) VALUES (?, '0001', '10-K', '2026-02-01',"
+        "  'risk_factors', 60, ?)",
+        (cid, "We are a pioneering gene editing company developing therapies."))
+    conn.commit()
+    conn.close()
+
+    first = themes.derive_companies(path)
+    second = themes.derive_companies(path)
+    assert first == second
+
+    check = db.get_connection(path)
+    tagged = {r[0] for r in check.execute("SELECT theme FROM company_themes")}
+    rows = check.execute("SELECT COUNT(*) FROM company_themes").fetchone()[0]
+    check.close()
+    assert "Gene editing" in tagged
+    assert rows == second["tagged"]
+
+
+def test_company_evidence_is_the_sentence_not_the_keyword(tmp_path):
+    """A reader has to be able to see whose platform the sentence described."""
+    import db
+
+    path = str(tmp_path / "t.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name) VALUES ('EDT', 'Editor Bio')")
+    cid = conn.execute("SELECT id FROM companies").fetchone()[0]
+    conn.execute(
+        "INSERT INTO filing_sections (company_id, accession, form_type, filed_date,"
+        "  section, char_count, text) VALUES (?, '0001', '10-K', '2026-02-01',"
+        "  'risk_factors', 60, ?)",
+        (cid, "Our proprietary base editing platform is the core of our pipeline."))
+    conn.commit()
+    conn.close()
+
+    themes.derive_companies(path)
+    check = db.get_connection(path)
+    evidence = check.execute(
+        "SELECT evidence FROM company_themes WHERE theme = 'Gene editing'").fetchone()[0]
+    check.close()
+    assert "base editing" in evidence.lower()
+    assert len(evidence.split()) > 3, "evidence should be the phrase, not the keyword"
