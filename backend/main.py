@@ -32,6 +32,7 @@ import financials_view as financials_view_module
 import insights as insights_module
 import themes_view as themes_view_module
 import brief as brief_module
+import runway as runway_module
 import labels as labels_module
 import fx as fx_module
 import loe as loe_module
@@ -676,6 +677,24 @@ def _company_rows(ticker, query):
         return ticker, [dict(r) for r in conn.execute(query, (company["id"],))]
     finally:
         conn.close()
+
+
+@app.get("/runway")
+def runway_all(stage: Optional[str] = Query(default="clinical")) -> list[dict]:
+    """Cash runway for the clinical-stage cohort, shortest first.
+
+    Months at the current burn, which is what the filings support. It is not a forecast:
+    companies raise, cut and partner, and the number moves the day they do.
+    """
+    return runway_module.build(stage_filter=stage or None)
+
+
+@app.get("/companies/{ticker}/runway")
+def runway_one(ticker: str) -> dict:
+    row = runway_module.for_company(ticker=ticker.upper())
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    return row
 
 
 @app.get("/themes")

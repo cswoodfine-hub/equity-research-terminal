@@ -141,10 +141,29 @@ _BALANCE = (
          "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"),
         ("ifrs-full", "CashAndCashEquivalents"),
     )),
+    # A clinical-stage biotech keeps its runway in marketable securities, not in the
+    # cash line, and tags them half a dozen ways. Reading only the two tags this began
+    # with put Intellia's liquidity at 135m against a real 376m, and its runway at four
+    # months against twelve, which is the difference between a going-concern alarm and a
+    # normal financing calendar.
     Line("ShortTermInvestments", "Short-term investments", "balance", "instant",
          candidates=(
              ("us-gaap", "ShortTermInvestments"),
              ("us-gaap", "AvailableForSaleSecuritiesDebtSecuritiesCurrent"),
+             ("us-gaap", "MarketableSecuritiesCurrent"),
+             ("us-gaap", "AvailableForSaleSecuritiesCurrent"),
+             ("us-gaap", "DebtSecuritiesAvailableForSaleCurrent"),
+             ("us-gaap", "OtherShortTermInvestments"),
+             ("ifrs-full", "CurrentFinancialAssetsAtFairValueThroughProfitOrLoss"),
+         )),
+    # Held separately because it is not working capital. A company can reach it, and its
+    # own runway guidance counts it, but a reader should be able to see the split.
+    Line("LongTermInvestments", "Long-term investments", "balance", "instant",
+         candidates=(
+             ("us-gaap", "MarketableSecuritiesNoncurrent"),
+             ("us-gaap", "AvailableForSaleSecuritiesDebtSecuritiesNoncurrent"),
+             ("us-gaap", "AvailableForSaleSecuritiesNoncurrent"),
+             ("us-gaap", "LongTermInvestments"),
          )),
     Line("AccountsReceivable", "Receivables", "balance", "instant", candidates=(
         ("us-gaap", "AccountsReceivableNetCurrent"),
