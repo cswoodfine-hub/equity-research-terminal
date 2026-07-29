@@ -39,6 +39,11 @@ FIELDS = [
     "protocolSection.statusModule.primaryCompletionDateStruct",
     "protocolSection.statusModule.completionDateStruct",
     "protocolSection.statusModule.lastUpdatePostDateStruct",
+    # When dosing began and when the record first appeared. A development timeline and a
+    # count of programmes entering the clinic both need a start; a completion date alone
+    # cannot give either.
+    "protocolSection.statusModule.startDateStruct",
+    "protocolSection.statusModule.studyFirstPostDateStruct",
     "protocolSection.designModule.phases",
     "protocolSection.designModule.studyType",
     "protocolSection.designModule.enrollmentInfo",
@@ -149,6 +154,8 @@ def parse_studies(payload: dict) -> list[dict]:
                     status.get("primaryCompletionDateStruct")),
                 "completion_date": _date(status.get("completionDateStruct")),
                 "last_update_posted": _date(status.get("lastUpdatePostDateStruct")),
+                "start_date": _date(status.get("startDateStruct")),
+                "first_posted": _date(status.get("studyFirstPostDateStruct")),
                 "conditions": ps.get("conditionsModule", {}).get("conditions") or [],
                 "enrollment": (design.get("enrollmentInfo") or {}).get("count"),
                 "interventions": drugs,
@@ -315,9 +322,11 @@ class TrialsFetcher(BaseFetcher):
                         (nct_id, sponsor_company_id, title, phase, overall_status,
                          primary_completion_date, primary_completion_type,
                          completion_date, enrollment, conditions,
-                         last_update_posted, lead_sponsor, primary_outcome, design,
+                         last_update_posted, start_date, first_posted,
+                         lead_sponsor, primary_outcome, design,
                          source, fetched_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                            datetime('now'))
                     ON CONFLICT(nct_id) DO UPDATE SET
                         sponsor_company_id=excluded.sponsor_company_id, title=excluded.title,
                         phase=excluded.phase, overall_status=excluded.overall_status,
@@ -326,6 +335,8 @@ class TrialsFetcher(BaseFetcher):
                         completion_date=excluded.completion_date, enrollment=excluded.enrollment,
                         conditions=excluded.conditions,
                         last_update_posted=excluded.last_update_posted,
+                        start_date=excluded.start_date,
+                        first_posted=excluded.first_posted,
                         lead_sponsor=excluded.lead_sponsor,
                         primary_outcome=excluded.primary_outcome,
                         design=excluded.design, fetched_at=datetime('now')
@@ -336,6 +347,7 @@ class TrialsFetcher(BaseFetcher):
                         row.get("primary_completion_type"),
                         row["completion_date"], row["enrollment"],
                         json.dumps(row["conditions"]), row["last_update_posted"],
+                        row.get("start_date"), row.get("first_posted"),
                         row.get("lead_sponsor"), row.get("primary_outcome"),
                         row.get("design"), CTGOV_SOURCE,
                     ),
