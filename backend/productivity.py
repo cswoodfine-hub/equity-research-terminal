@@ -12,11 +12,17 @@ lands on the income statement rather than in a count, and it separates the unive
 sharply. Lilly earns 73% of its identified product revenue from drugs approved since
 2021, Novo 35%, Merck 6% and Bristol Myers 3%.
 
-It is reported for eight of the large names and refused for the rest, with the reason
-given. The limit is the revenue table rather than the idea: it stores what a filing
-disaggregates, and a filing disaggregates more than products, so for Pfizer only 28% of
-those rows map to a drug with a known approval date. A share computed on the remainder
-would say more about the extractor than about the company.
+It is reported for thirteen of the large names and refused for the rest, with the reason
+given. Dating a drug is harder than it sounds and is done in approval_dates: an alliance
+product is approved to the partner rather than the company booking the revenue, a
+biologic is not in drugsfda at all, and a filing often names a franchise or two brands
+at once. Royalties, grants and collaboration income leave the base entirely, because
+they are revenue and are not product revenue.
+
+What remains is the revenue table's own coverage. Ten large companies disaggregate no
+product revenue in the SEC data sets, AbbVie among them, and no rule here can date a
+drug whose revenue was never extracted. Those read as "no product revenue on file"
+rather than as an aged portfolio.
 
 What this deliberately does not do, because the data will not carry it:
 
@@ -41,6 +47,7 @@ from __future__ import annotations
 
 import datetime as dt
 
+import approval_dates
 import db
 import fx
 import runway
@@ -97,7 +104,8 @@ def _latest_fy(conn, company_id: int, metric: str, rates) -> float | None:
     return _usd(row["value"], row["unit"], rates) if row else None
 
 
-def portfolio_freshness(conn, company_id: int, rates, today=None) -> dict:
+def portfolio_freshness(conn, company_id: int, rates, today=None,
+                        name_index: dict | None = None) -> dict:
     """Share of product revenue earned by drugs approved in the last five years.
 
     Computed on the most recent year that has any, over the revenue belonging to drugs
@@ -113,29 +121,42 @@ def portfolio_freshness(conn, company_id: int, rates, today=None) -> dict:
     if year is None:
         return {"fresh_share": None, "revenue": None, "dated_revenue": None,
                 "coverage": 0.0, "year": None, "drugs": 0, "identified": 0,
+                "non_product_revenue": None,
                 "reason": "no product revenue on file"}
 
-    total = dated = fresh = 0.0
+    if name_index is None:
+        name_index = approval_dates.build_name_index(conn)
+
+    total = dated = fresh = non_product = 0.0
     drugs = identified = 0
     for row in conn.execute(
         """
-        SELECT ar.value, ar.unit, ap.first_approval
+        SELECT ar.asset_id, ar.value, ar.unit,
+               COALESCE(a.brand_name, a.generic_name) AS name
           FROM asset_revenue ar
           JOIN assets a ON a.id = ar.asset_id
-          LEFT JOIN (SELECT asset_id, MIN(approval_date) AS first_approval
-                       FROM approvals GROUP BY asset_id) ap ON ap.asset_id = ar.asset_id
          WHERE a.owner_company_id = ? AND ar.fiscal_year = ? AND ar.value IS NOT NULL
         """, (company_id, year)):
         value = _usd(row["value"], row["unit"], rates)
         if value is None:
             continue
+        # Royalties, collaboration income and milestone payments are revenue and are
+        # not product revenue, so they leave the base entirely rather than sitting in
+        # it as undatable drugs. A franchise label like "Shingles" stays: that is a
+        # real product whose name the filing did not give, and removing it would
+        # flatter the coverage figure instead of reporting the gap.
+        if not approval_dates.is_product_line(row["name"]):
+            non_product += value
+            continue
         drugs += 1
         total += value
-        if row["first_approval"] is None:
+        approved, _route = approval_dates.first_approval(
+            conn, row["asset_id"], row["name"], name_index)
+        if approved is None:
             continue
         identified += 1
         dated += value
-        if row["first_approval"] >= cutoff:
+        if approved >= cutoff:
             fresh += value
 
     # The share is taken over revenue that belongs to an identified, dated drug, not
@@ -151,11 +172,12 @@ def portfolio_freshness(conn, company_id: int, rates, today=None) -> dict:
             "revenue": total or None, "dated_revenue": dated or None,
             "coverage": coverage, "year": year,
             "drugs": drugs, "identified": identified,
+            "non_product_revenue": non_product or None,
             "reason": None if coverage >= MIN_REVENUE_COVERAGE else
                       f"only {coverage:.0%} of product revenue maps to a dated approval"}
 
 
-def _company(conn, company, rates, today) -> dict:
+def _company(conn, company, rates, today, name_index=None) -> dict:
     since = today.year - WINDOW_YEARS
     cutoff = today.replace(year=today.year - WINDOW_YEARS).isoformat()
 
@@ -176,7 +198,7 @@ def _company(conn, company, rates, today) -> dict:
     active = sum(phases.values())
     late = sum(n for p, n in phases.items() if p in LATE_PHASES)
 
-    fresh = portfolio_freshness(conn, company["id"], rates, today)
+    fresh = portfolio_freshness(conn, company["id"], rates, today, name_index)
 
     return {
         "ticker": company["ticker"], "name": company["name"],
@@ -199,6 +221,10 @@ def _company(conn, company, rates, today) -> dict:
         "fresh_coverage": fresh["coverage"],
         "fresh_reason": fresh["reason"],
         "dated_revenue": fresh["dated_revenue"],
+        # Royalties, grants and collaboration income, kept visible rather than silently
+        # dropped: a reader should be able to see how much of the top line was set
+        # aside before the share was taken.
+        "non_product_revenue": fresh["non_product_revenue"],
         "trials_active": active,
         "late_share": (late / active) if active else None,
     }
@@ -215,12 +241,14 @@ def build(db_path=None, today=None, stage_filter: str | None = runway.COMMERCIAL
     conn = db.get_connection(db_path)
     try:
         rates = fx.latest_usd_rates(db_path)
+        # Built once for the whole pass rather than per company.
+        name_index = approval_dates.build_name_index(conn)
         rows = []
         for company in conn.execute(
                 "SELECT id, ticker, name FROM companies ORDER BY ticker"):
             if stage_filter and runway.stage(conn, company["id"]) != stage_filter:
                 continue
-            rows.append(_company(conn, company, rates, today))
+            rows.append(_company(conn, company, rates, today, name_index))
     finally:
         conn.close()
     return sorted(rows, key=lambda r: (r["fresh_share"] is None,
