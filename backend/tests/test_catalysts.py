@@ -249,3 +249,73 @@ def test_an_unchanged_trial_is_not_rewritten(tmp_path):
     again = catalysts.derive_readouts(db_file)
 
     assert again["added"] == 0 and again["updated"] == 0
+
+
+# --- the lead-phase rule, for companies with nothing at Phase 3 -----------------------
+
+def _clinical_trials(db_file):
+    """A sponsor whose most advanced work is Phase 1/2, which is the whole cohort this
+    rule exists for."""
+    db.init(db_file)
+    seed.load_companies(db_file)
+    soon = (dt.date.today() + dt.timedelta(days=200)).isoformat()
+    conn = db.get_connection(db_file)
+    try:
+        _trial(conn, "NCT_LEAD", "BEAM", "Phase 1/2", "Recruiting", soon,
+               "A study of BEAM-101", enrollment=30)
+        _trial(conn, "NCT_EARLY", "BEAM", "Phase 1", "Recruiting", soon,
+               "A dose study", enrollment=12)
+        conn.commit()
+    finally:
+        conn.close()
+    return soon
+
+
+def test_a_lead_phase_readout_counts_when_the_company_has_no_late_stage(tmp_path):
+    """Phase 3, or a 150-patient Phase 2, describes Lilly's pipeline and not Beam's.
+    The clinical-stage cohort's largest bucket of dated trials is Phase 1/2, which the
+    absolute rule excludes entirely, so those companies had almost no catalysts."""
+    db_file = tmp_path / "test.db"
+    _clinical_trials(db_file)
+    catalysts.derive_readouts(db_file)
+    rows = catalysts.list_catalysts(db_file, within_days=365)
+    assert {r["source_url"].rsplit("/", 1)[-1] for r in rows} == {"NCT_LEAD"}
+
+
+def test_the_lead_phase_rule_ignores_enrolment(tmp_path):
+    """A thirty-patient CAR-T readout is the company's defining event. Applying the
+    150-patient floor to it would delete the entire cohort again."""
+    db_file = tmp_path / "test.db"
+    _clinical_trials(db_file)
+    catalysts.derive_readouts(db_file)
+    assert len(catalysts.list_catalysts(db_file, within_days=365)) == 1
+
+
+def test_only_the_lead_phase_qualifies_not_everything_below_it(tmp_path):
+    """Otherwise every early study a company runs becomes a catalyst and the calendar
+    stops meaning anything."""
+    db_file = tmp_path / "test.db"
+    _clinical_trials(db_file)
+    catalysts.derive_readouts(db_file)
+    urls = {r["source_url"].rsplit("/", 1)[-1]
+            for r in catalysts.list_catalysts(db_file, within_days=365)}
+    assert "NCT_EARLY" not in urls
+
+
+def test_a_company_with_late_stage_work_is_untouched_by_the_lead_phase_rule(tmp_path):
+    """The absolute rule already serves it, and lifting the floor would hand large
+    pharma a catalyst for every small Phase 2 it runs."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    soon = (dt.date.today() + dt.timedelta(days=200)).isoformat()
+    far = (dt.date.today() + dt.timedelta(days=1200)).isoformat()
+    conn = db.get_connection(db_file)
+    # The Phase 3 sits outside the window, so only the small Phase 2 could qualify.
+    # Stage is read from the whole pipeline, so this company still counts as late-stage.
+    _trial(conn, "NCT_FARP3", "LLY", "Phase 3", "Recruiting", far, enrollment=900)
+    _trial(conn, "NCT_SMALL", "LLY", "Phase 2", "Recruiting", soon, enrollment=40)
+    conn.commit()
+    conn.close()
+    catalysts.derive_readouts(db_file)
+    assert catalysts.list_catalysts(db_file, within_days=365) == []
