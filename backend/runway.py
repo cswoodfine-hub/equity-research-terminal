@@ -183,13 +183,29 @@ def _row(conn, company, today) -> dict:
         months = money["cash"] / (abs(burn["burn"]) / 12)
 
     catalysts = []
+    cash_out = None
     if months:
-        horizon = (today + dt.timedelta(days=int(months * 30.4))).isoformat()
+        cash_out = (today + dt.timedelta(days=int(months * 30.4))).isoformat()
         catalysts = [dict(r) for r in conn.execute(
             "SELECT title, expected_date, catalyst_type FROM catalysts"
             "  WHERE company_id = ? AND expected_date IS NOT NULL"
             "    AND expected_date >= ? AND expected_date <= ?"
-            "  ORDER BY expected_date", (company["id"], today.isoformat(), horizon))]
+            "  ORDER BY expected_date", (company["id"], today.isoformat(), cash_out))]
+
+    # The next dated readout whether or not it falls inside the runway. An empty
+    # catalyst list is two completely different situations, and printing a bare zero
+    # for both hides the more important one: a company with no readout scheduled at all,
+    # and a company whose readout is real but lands after its money runs out. The second
+    # is the one worth acting on, because it has to finance on no new data.
+    following = conn.execute(
+        "SELECT title, expected_date, catalyst_type FROM catalysts"
+        "  WHERE company_id = ? AND expected_date IS NOT NULL AND expected_date >= ?"
+        "  ORDER BY expected_date LIMIT 1",
+        (company["id"], today.isoformat())).fetchone()
+    next_catalyst = dict(following) if following else None
+    funded_to_readout = None
+    if cash_out and next_catalyst:
+        funded_to_readout = next_catalyst["expected_date"][:10] <= cash_out
 
     rd = conn.execute(
         "SELECT value FROM financials WHERE company_id = ?"
@@ -219,6 +235,11 @@ def _row(conn, company, today) -> dict:
                            and abs(burn["burn"]) < BURN_VS_RD * rd_value),
         "catalysts_in_runway": catalysts,
         "catalyst_count": len(catalysts),
+        "cash_out": cash_out,
+        "next_catalyst": next_catalyst,
+        # True when the next readout lands before the cash does, False when it lands
+        # after, None when nothing is scheduled or there is no runway figure.
+        "funded_to_readout": funded_to_readout,
     }
 
 

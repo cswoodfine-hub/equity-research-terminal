@@ -2696,6 +2696,11 @@ with main:
                 "Burn, m/yr": (abs(r["burn_annual"]) / 1e6) if r["burn_annual"] else None,
                 "Runway, months": r["runway_months"],
                 "Catalysts in runway": r["catalyst_count"],
+                "Next readout": (r["next_catalyst"]["expected_date"]
+                                 if r["next_catalyst"] else None),
+                "Funded to it": ("yes" if r["funded_to_readout"] else
+                                 "no" if r["funded_to_readout"] is False else
+                                 "none scheduled"),
                 # Two ways the figure can mislead, said on the row rather than in a
                 # footnote: a burn paid for by a licence receipt, and a cash figure
                 # missing the securities the company actually holds its runway in.
@@ -2709,24 +2714,42 @@ with main:
                     "Burn, m/yr": st.column_config.NumberColumn(format="%.0f"),
                     "Runway, months": st.column_config.NumberColumn(format="%.0f")})
 
-            tight = [r for r in rows
-                     if r["runway_months"] and r["runway_months"] < 12
-                     and not r["burn_flattered"]]
-            if tight:
-                section("Inside twelve months", len(tight))
+            # The sharpest thing this page knows. A company whose next readout lands
+            # after its cash does has to finance on no new data, which is the weakest
+            # position a clinical-stage company can raise from. It is a different
+            # situation from having no readout scheduled, and the two were previously
+            # both printed as a zero.
+            unfunded = [r for r in rows if r["funded_to_readout"] is False
+                        and not r["burn_flattered"]]
+            if unfunded:
+                section("Next readout lands after the cash", len(unfunded))
                 st.caption(
-                    "At the current burn these reach the end of their cash within a "
-                    "year, so the next financing is the event, not the next readout.")
-                for r in tight:
-                    dates = ", ".join(
-                        f"{c['expected_date']} {c['title'][:52]}"
-                        for c in r["catalysts_in_runway"][:3])
+                    "At the current burn these run out of money before their next dated "
+                    "readout, so they have to finance on no new data. Registry dates are "
+                    "estimates and they slip, which moves this the wrong way.")
+                for r in unfunded:
+                    nxt = r["next_catalyst"]
                     st.markdown(
-                        f'<div class="state"><div class="t">{r["ticker"]} · '
-                        f'{r["runway_months"]:.0f} months</div><div class="d">'
-                        f'{r["cash"] / 1e6:,.0f}m against a {abs(r["burn_annual"]) / 1e6:,.0f}m '
-                        f'annual burn. '
-                        + (f"Catalysts before the cash runs out: {html_escape(dates)}."
-                           if dates else
-                           "No dated catalyst on file inside that window.")
-                        + '</div></div>', unsafe_allow_html=True)
+                        f'<div class="state err"><div class="t">{r["ticker"]} · '
+                        f'{r["runway_months"]:.0f} months, cash out {r["cash_out"][:7]}'
+                        f'</div><div class="d">'
+                        f'{r["cash"] / 1e6:,.0f}m against a '
+                        f'{abs(r["burn_annual"]) / 1e6:,.0f}m annual burn. Next readout '
+                        f'{html_escape(nxt["expected_date"][:7])}: '
+                        f'{html_escape(nxt["title"][:90])}.</div></div>',
+                        unsafe_allow_html=True)
+
+            silent = [r for r in rows if r["funded_to_readout"] is None
+                      and r["runway_months"] and r["runway_months"] < 24]
+            if silent:
+                section("No dated readout on file", len(silent))
+                st.caption(
+                    "Under two years of cash and nothing scheduled that the registry "
+                    "dates. That is usually a gap in what has been registered rather "
+                    "than a company with no plans, so it reads as unknown, not as no "
+                    "catalyst.")
+                st.markdown(
+                    '<div class="state"><div class="d">'
+                    + html_escape(", ".join(
+                        f"{r['ticker']} ({r['runway_months']:.0f}mo)" for r in silent))
+                    + '</div></div>', unsafe_allow_html=True)

@@ -101,6 +101,19 @@ def _date_type(struct) -> str | None:
     return kind.lower() if isinstance(kind, str) else None
 
 
+# The registry's intervention types that mean "a therapy is being given". DRUG and
+# BIOLOGICAL alone silently deleted whole companies: ClinicalTrials.gov types a gene
+# therapy or a gene-edited construct as GENETIC, so Editas, Sangamo and Taysha each had
+# three to five active studies in the registry and zero trials on file here, and every
+# gene editing programme in the universe was invisible. The bias fell hardest on exactly
+# the modality this terminal is meant to be good at.
+#
+# COMBINATION_PRODUCT is included for the same reason, a drug delivered with its device.
+# Types that are not a therapy, DIAGNOSTIC_TEST, BEHAVIORAL, DIETARY_SUPPLEMENT, OTHER,
+# stay out: a study whose only intervention is a questionnaire is not a readout.
+THERAPEUTIC_TYPES = ("DRUG", "BIOLOGICAL", "GENETIC", "COMBINATION_PRODUCT")
+
+
 def parse_studies(payload: dict) -> list[dict]:
     """Turn a CTGov studies payload into trial rows. Pure.
 
@@ -120,7 +133,7 @@ def parse_studies(payload: dict) -> list[dict]:
         # Name and type both kept: the name is what binds a trial to an asset, and the
         # type distinguishes a study drug from a biological comparator downstream.
         drugs = [{"name": i["name"], "kind": i.get("type")} for i in interventions
-                 if i.get("type") in ("DRUG", "BIOLOGICAL") and i.get("name")]
+                 if i.get("type") in THERAPEUTIC_TYPES and i.get("name")]
         if not drugs:
             continue
         ident = ps.get("identificationModule", {})

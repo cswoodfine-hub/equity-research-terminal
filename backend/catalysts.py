@@ -29,6 +29,27 @@ LATE_READOUT_PHASES = ("Phase 3",)
 NOTABLE_READOUT_PHASES = ("Phase 2", "Phase 2/3")
 NOTABLE_MIN_ENROLLMENT = 150
 
+# How far ahead a readout is worth recording. Two years rather than one, because the
+# question this feeds is whether a company's money lasts until its next readout, and the
+# clinical-stage cohort runs a median runway of about twenty months. A one-year window
+# left thirteen of those thirty companies with no catalyst at all, since their primary
+# completion dates sit in 2028 and 2029. Past two years the return falls away: a third
+# year reaches one more company for another four hundred trials.
+#
+# Nothing downstream is flooded by the wider window. The catalyst calendar, the sixty-day
+# feed and the runway view all filter by date, so a distant row is stored and simply not
+# shown until it is near.
+READOUT_HORIZON_DAYS = 730
+
+# The pipeline in order, so "the most advanced thing this company is running" is a
+# computable idea rather than a list of phases.
+PHASE_RANK = {"Phase 1": 1, "Phase 1/2": 2, "Phase 2": 3, "Phase 2/3": 4,
+              "Phase 3": 5, "Phase 4": 6}
+
+# Below this, a company has nothing late-stage and the rules above would give it no
+# catalysts at all. Phase 3 is the line because the absolute rule already covers it.
+LEAD_PHASE_CEILING = PHASE_RANK["Phase 3"]
+
 # A trial that has stopped enrolling is still going to read out; one that was terminated
 # or withdrawn is not.
 READOUT_STATUSES = ("Recruiting", "Active not recruiting", "Enrolling by invitation",
@@ -143,7 +164,67 @@ def _date_confidence(expected_date) -> str:
     return "estimated" if len(str(expected_date or "")) >= 10 else "month"
 
 
-def derive_readouts(db_path=None, within_days=365, late_phases=LATE_READOUT_PHASES,
+def _lead_phase_readouts(conn, within_days: int, already: set) -> list:
+    """Readouts for companies that have nothing at Phase 3, on their own lead phase.
+
+    The thresholds above are calibrated on large pharma and say nothing about a
+    clinical-stage biotech. Phase 3 or a 150-patient Phase 2 describes Lilly's pipeline;
+    it does not describe Beam's, whose most advanced work is Phase 1/2 in thirty
+    patients. Across the clinical-stage cohort the largest bucket of dated trials is
+    Phase 1/2, which the absolute rule excludes entirely, and their Phase 2 studies
+    average 85 patients against 222 at the commercial names. So those companies had
+    almost no catalysts at all, which is exactly backwards: a single readout matters far
+    more to a company with three programmes than to one with a hundred.
+
+    The rule here is relative and self-calibrating rather than another constant. A trial
+    qualifies when it sits at the most advanced phase its sponsor is running, and only
+    for sponsors whose most advanced phase is below Phase 3. A company with Phase 3 work
+    is already served by the absolute rule and is left alone, so nothing about the
+    commercial names changes.
+    """
+    status_marks = ",".join("?" * len(READOUT_STATUSES))
+    rows = conn.execute(
+        f"""
+        SELECT t.nct_id, t.phase, t.title, t.primary_completion_date AS due,
+               t.sponsor_company_id AS company_id, t.asset_id, a.brand_name
+          FROM trials t
+          LEFT JOIN assets a ON t.asset_id = a.id
+         WHERE t.sponsor_company_id IS NOT NULL
+           AND t.overall_status IN ({status_marks})
+           AND t.primary_completion_date BETWEEN date('now') AND date('now', ?)
+        """,
+        (*READOUT_STATUSES, f"+{int(within_days)} days"),
+    ).fetchall()
+
+    # The sponsor's most advanced active phase, across its whole live pipeline rather
+    # than only the trials inside this window. Stage is a property of the company, not
+    # of what happens to read out in the next two years: a sponsor whose Phase 3 study
+    # completes in year three still runs Phase 3 work, and reading only the window made
+    # it look clinical-stage and handed it catalysts for small Phase 2 studies.
+    best: dict = {}
+    for row in conn.execute(
+        f"""
+        SELECT sponsor_company_id AS company_id, phase FROM trials
+         WHERE sponsor_company_id IS NOT NULL AND overall_status IN ({status_marks})
+        """, READOUT_STATUSES):
+        rank = PHASE_RANK.get(row["phase"] or "", 0)
+        if rank > best.get(row["company_id"], 0):
+            best[row["company_id"]] = rank
+
+    lead = []
+    for row in rows:
+        if row["nct_id"] in already:
+            continue
+        top = best.get(row["company_id"], 0)
+        if top == 0 or top >= LEAD_PHASE_CEILING:
+            continue                     # has late-stage work, or no phase on file
+        if PHASE_RANK.get(row["phase"] or "", 0) == top:
+            lead.append(row)
+    return lead
+
+
+def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
+                    late_phases=LATE_READOUT_PHASES,
                     notable_phases=NOTABLE_READOUT_PHASES,
                     min_enrollment=NOTABLE_MIN_ENROLLMENT) -> dict:
     """Turn near-term trial primary completion dates into derived readout catalysts.
@@ -184,6 +265,9 @@ def derive_readouts(db_path=None, within_days=365, late_phases=LATE_READOUT_PHAS
             (*READOUT_STATUSES, f"+{int(within_days)} days",
              *late_phases, *notable_phases, min_enrollment),
         ).fetchall()
+
+        rows = list(rows) + _lead_phase_readouts(conn, within_days,
+                                                 {r["nct_id"] for r in rows})
 
         added = updated = 0
         for row in rows:
