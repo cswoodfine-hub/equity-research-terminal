@@ -33,6 +33,7 @@ import insights as insights_module
 import themes_view as themes_view_module
 import brief as brief_module
 import runway as runway_module
+import productivity as productivity_module
 import labels as labels_module
 import fx as fx_module
 import loe as loe_module
@@ -677,6 +678,19 @@ def _company_rows(ticker, query):
         return ticker, [dict(r) for r in conn.execute(query, (company["id"],))]
     finally:
         conn.close()
+
+
+@app.get("/productivity")
+def productivity_panel() -> list[dict]:
+    """R&D productivity for the commercial-stage names.
+
+    Portfolio freshness leads: the share of product revenue from drugs approved in the
+    last five years. Spend per approval is reported beside it as the reference point
+    rather than the answer, since the research in the window did not buy the approvals
+    in it. Where the revenue behind a company cannot be attributed to dated drugs the
+    share is refused and the reason is given.
+    """
+    return productivity_module.build()
 
 
 @app.get("/runway")
