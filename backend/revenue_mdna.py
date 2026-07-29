@@ -205,6 +205,27 @@ def read_row(run: str, spaced: bool = None) -> float | None:
             and _looks_like_money(values[1]) and _looks_like_percent(values[2])):
         return numbers[0]
 
+    # Any run of money columns closed by a percentage column, the first being the
+    # current year. The two cases above are this with one and two money columns;
+    # AbbVie prints three, 2025 beside 2024 beside 2023, then four percentage columns
+    # for actual and constant currency, and neither of the fixed shapes reached it.
+    money_run = 0
+    for value in values:
+        if _looks_like_money(value):
+            money_run += 1
+        else:
+            break
+    if money_run >= 1 and len(values) > money_run and _looks_like_percent(values[money_run]):
+        return numbers[0]
+
+    # Year columns and nothing else: "INGREZZA $ 2,513.7 $ 2,313.5 $ 1,836.0". A table
+    # with no growth column has no percentage to close the run, which every shape above
+    # was relying on, and this is the commonest layout among the mid-caps. A bare year
+    # cannot be mistaken for one of these: 2030 carries no separator and no decimal, so
+    # it is not money, which is what keeps a patent-expiry table out.
+    if 1 <= len(values) <= 4 and all(_looks_like_money(v) for v in values):
+        return numbers[0]
+
     # A single number is a revenue only when it carries a thousands separator, which
     # rules out the bare years and percentages that keep other tables company.
     if len(numbers) == 1 and _looks_like_money(values[0]):
@@ -243,13 +264,80 @@ def parse(text: str, brands: list, company_revenue: float | None = None) -> dict
     cannot earn more than the company did, and a table that says otherwise was not a
     revenue table.
     """
-    best: dict = {}
+    # A long revenue table crosses several candidate windows: AbbVie's runs to twenty
+    # products and the window is four thousand characters, so keeping only the richest
+    # window returned four of them and dropped Humira. The windows are merged instead,
+    # richest first, so the window that most looks like the revenue table settles any
+    # product two of them disagree on and the rest can only add what it missed.
+    merged: dict = {}
+    per_window = []
     for start, end in table_regions(text or ""):
         found = _parse_window(re.sub(r"\s+", " ", text[start:end]), brands,
                               company_revenue)
-        if len(found) > len(best):
-            best = found
-    return best
+        if found:
+            per_window.append(found)
+    for found in sorted(per_window, key=len, reverse=True):
+        for brand, value in found.items():
+            merged.setdefault(brand, value)
+
+    # The parts cannot exceed the whole. A merged set that does has picked up a table
+    # that was not revenue, or counted a grouping and its members, so it is refused
+    # rather than half-trusted.
+    if company_revenue and sum(merged.values()) > company_revenue:
+        return max(per_window, key=len) if per_window else {}
+    return merged
+
+
+# A filer that reports each product by geography puts a label between the name and its
+# first number, so "Skyrizi United States $ 15,202" defeats a pattern expecting the
+# figure to follow the name. AbbVie lays out every product that way, three rows deep:
+# the United States, then International, then a Total carrying the worldwide figure. The
+# first number after the name is the domestic one and reading it understates the product
+# by a third, so the Total row is what this looks for.
+_GEOGRAPHY = re.compile(
+    r"\s*(?:united states|u\.?s\.?|domestic|international|rest of (?:the )?world|"
+    r"outside (?:the )?u\.?s\.?|ex-u\.?s\.?|worldwide)\b", re.I)
+
+# How far past a product name its Total row can sit. Three geography rows with three
+# year columns and four percentage columns each run to roughly this.
+_GEOGRAPHY_SPAN = 420
+
+# One number as a filer writes it, including a negative percentage whose sign sits
+# outside its bracket: AbbVie writes "(49.5) %", and a token that closed at the bracket
+# left the percent behind, so the figure read as a fourth money column and the row was
+# refused for having no percentage to close it.
+_CELL = r"\(?[-+]?\$?\s*[\d,.]+\s*\)?\s*%?(?:\s+|$)"
+
+_TOTAL_ROW = re.compile(r"\btotal\b[\s®™*†‡:]*" + f"((?:{_CELL}){{1,8}})", re.I)
+
+
+def geographic_row(window: str, at: int, brands: list, spaced: bool = None):
+    """The worldwide figure for a product broken out by geography, or None.
+
+    ``at`` is where the product name ends. The Total has to appear before the next
+    product does, or a product with no total of its own would collect the next one's.
+    """
+    span = window[at:at + _GEOGRAPHY_SPAN]
+    if not _GEOGRAPHY.match(span):
+        return None
+    # Where the next product starts, so one row cannot borrow another's total.
+    limit = len(span)
+    lower = span.lower()
+    for other in brands:
+        if not other or len(other) < 4:
+            continue
+        found = lower.find(other.lower(), 1)
+        if found > 0:
+            limit = min(limit, found)
+    # The row is matched against the whole span and then checked to have begun before
+    # the next product, rather than searched inside a truncated span. Cutting the text
+    # first sliced the last column mid-number: Humira's total ended "(49.5) " with the
+    # percent sign beyond the cut, which then read as a fourth money column and the row
+    # was refused for having no percentage to close it.
+    match = _TOTAL_ROW.search(span)
+    if not match or match.start() >= limit:
+        return None
+    return read_row(match.group(1), spaced)
 
 
 def _parse_window(window: str, brands: list, company_revenue: float | None) -> dict:
@@ -267,12 +355,16 @@ def _parse_window(window: str, brands: list, company_revenue: float | None) -> d
             # number: Novo writes "Wegovy ® 79,106", Sanofi "Sarclisa (*) 588".
             re.escape(brand)
             + r"[\s®™*†‡]*(?:\((?:\*|\d|[a-z])\)[\s]*)?"
-            + r"((?:\(?[-+]?\$?\s*[\d,.]+\s?%?\)?(?:\s+|$)){1,8})",
+            + f"((?:{_CELL}){{1,8}})",
             re.I)
         match = pattern.search(window)
-        if not match:
-            continue
-        value = read_row(match.group(1), spaced)
+        if match:
+            value = read_row(match.group(1), spaced)
+        else:
+            # The name may be followed by a geography label rather than a figure.
+            plain = re.compile(re.escape(brand) + r"[\s®™*†‡]*", re.I).search(window)
+            value = (geographic_row(window, plain.end(), brands, spaced)
+                     if plain else None)
         if value is None:
             continue
         value *= multiplier
@@ -282,7 +374,171 @@ def _parse_window(window: str, brands: list, company_revenue: float | None) -> d
     return out
 
 
+# --- reading a table whose products are not known in advance --------------------------
+
+# Labels a revenue table carries that are not products: the subtotals, the geography
+# rows and the catch-alls. A discovered name has to be refused against this list, because
+# unlike the brand-matched path there is no external check that a row is a drug.
+_NOT_A_PRODUCT = (
+    "total", "net revenue", "net product", "net sales", "revenues", "revenue",
+    "product sales", "other", "collaboration", "royalt", "license", "grant",
+    "milestone", "united states", "international", "domestic", "worldwide",
+    "rest of world", "outside", "ex-us", "subtotal", "combined", "aggregate",
+    "therapies", "franchise", "segment", "cost of", "expense", "income", "margin",
+    "year ended", "months ended", "in millions", "in thousands", "change", "amounts",
+    # Expense schedules are laid out exactly like revenue tables and balance the same
+    # way, so their rows are named out explicitly as well as caught by the total.
+    "payroll", "benefits", "compensation", "research and", "development",
+    "administrative", "clinical trial", "salary", "profit share", "discovery",
+    "early stage", "late stage", "as compared", "due to", "impairment", "amortization",
+    "amortisation", "depreciation", "interest", "tax", "restructuring",
+    # A row named after who paid rather than what was sold. Caribou disclosed one headed
+    # "related party" and it became an asset.
+    "related party", "party", "partner", "affiliate", "joint venture",
+)
+
+# A product label is short and starts with a letter. Four words is the ceiling: "Nebulized
+# Tyvaso" and "Botox Therapeutic" are products, a sentence is not.
+_ROW = re.compile(r"([A-Za-z][A-Za-z0-9®™\u2019'\-\./ ]{2,40}?)\s"
+                  + f"((?:{_CELL}){{1,8}})")
+_MAX_LABEL_WORDS = 4
+
+# How closely the discovered products must sum to the total the table states. Exact
+# agreement is what proves the table was read correctly rather than assumed, and it is
+# the whole reason this can be trusted without a known product list. Half a percent
+# allows for a filer rounding its own subtotal.
+_SUM_TOLERANCE = 0.005
+
+# The total row has to say it is a total of revenue. An expense schedule balances exactly
+# as well as a revenue table and is laid out identically, so arithmetic alone cannot tell
+# them apart: this found Neurocrine's payroll and Alnylam's research and development
+# instead of their products. A filer names the line "Total net product sales" or "Total
+# revenues", and never "Total revenues" for a cost.
+_REVENUE_TOTAL = re.compile(r"\b(?:revenue|sales)\b", re.I)
+_COST_TOTAL = re.compile(r"\b(?:expense|cost|costs|operating|spend)\b", re.I)
+
+
+def _plausible_label(label: str) -> bool:
+    text = label.strip(" .:;$").strip()
+    if len(text) < 4 or len(text.split()) > _MAX_LABEL_WORDS:
+        return False
+    low = text.lower()
+    if any(term in low for term in _NOT_A_PRODUCT):
+        return False
+    # A label that is mostly digits is a year or a footnote marker, not a drug.
+    return sum(c.isalpha() for c in text) >= 4
+
+
+def discover(text: str, company_revenue: float | None = None) -> dict:
+    """{product: revenue} read from a revenue table without knowing the products.
+
+    The brand-matched path cannot help a company whose marketed products are not on
+    file, which is most of the mid-caps: Alnylam, Neurocrine and BioMarin hold only
+    pipeline rows derived from trials, so there is no name to search a table for. This
+    reads the table structurally instead and takes the labels it finds.
+
+    What makes that safe is arithmetic rather than a vocabulary. A revenue table prints
+    its own total, so the rows are accepted only when they sum to it: Neurocrine's
+    Ingrezza, Crenessity and Other come to 2,833.9 against a stated total net product
+    sales of 2,833.9. A table that does not balance was either misread or was never a
+    revenue table, and BioMarin prints a patent-expiry table keyed by the same product
+    names whose columns are years. Refusing anything that does not add up rejects it
+    without needing to know what it was.
+    """
+    best: dict = {}
+    for start, end in table_regions(text or ""):
+        window = re.sub(r"\s+", " ", text[start:end])
+        multiplier = scale(window)
+        spaced = not _COMMA_THOUSANDS.search(window)
+
+        # Rows are walked in order and the sum is tested at each total, against
+        # everything seen since the start of the window. A table ends at its total, and
+        # the prose after it parses as rows too: "compared to 2024." reads as money
+        # because the sentence's full stop looks like a decimal point. Sweeping the
+        # whole window into one sum therefore never balanced. Stopping at each total
+        # also handles a filer who prints a franchise subtotal before the grand one.
+        products: dict = {}
+        residual = 0.0
+        for match in _ROW.finditer(window):
+            label, run = match.group(1), match.group(2)
+            value = read_row(run, spaced)
+            if value is None:
+                continue
+            value *= multiplier
+            if "total" in label.strip().lower():
+                balances = products and abs(
+                    sum(products.values()) + residual - value) <= max(
+                        1.0, value * _SUM_TOLERANCE)
+                names_revenue = (_REVENUE_TOTAL.search(label)
+                                 and not _COST_TOTAL.search(label))
+                if balances and names_revenue and len(products) > len(best):
+                    best = dict(products)
+                continue
+            if company_revenue and value > company_revenue:
+                continue
+            if _plausible_label(label):
+                products.setdefault(label.strip(" .:;$"), value)
+            else:
+                # A row that reads as money and is not a product still belongs to the
+                # total. Neurocrine's table is Ingrezza, Crenessity and a 19m "Other",
+                # and leaving that out left the sum short of the stated total, which
+                # failed the check and threw away a table read correctly.
+                residual += value
+    return best
+
+
 MDNA_SOURCE = "mdna_10k"
+DISCOVERED_SOURCE = "mdna_10k_discovered"
+
+# Words shared by half the company names in the universe, which would otherwise make
+# every label look like a counterparty.
+_CORPORATE_WORDS = {
+    "inc", "corp", "corporation", "company", "plc", "ltd", "limited", "holdings",
+    "group", "therapeutics", "pharmaceuticals", "pharma", "biosciences", "bio",
+    "sciences", "medicines", "laboratories", "labs", "health", "healthcare", "the",
+    "and", "nv", "sa", "ag", "as", "aktiengesellschaft", "biopharma",
+}
+
+
+def _asset_for(conn, company_id: int, label: str):
+    """The asset a discovered revenue label belongs to, creating one if need be.
+
+    Matching first, on a normalised name against this company's brands, generics and
+    codes, so a product already on file gains its revenue rather than a second row.
+    Where nothing matches the label is taken as a product name and an asset is created:
+    the company printed it in its own revenue table, which is better evidence of a
+    marketed product than anything else here has.
+    """
+    import approval_dates
+
+    key = approval_dates.normalise(label)
+    if len(key) < 4:
+        return None
+    for row in conn.execute(
+        "SELECT id, brand_name, generic_name, internal_code FROM assets"
+        "  WHERE owner_company_id = ?", (company_id,)):
+        for name in (row["brand_name"], row["generic_name"], row["internal_code"]):
+            other = approval_dates.normalise(name)
+            if other and len(other) >= 4 and (other == key
+                                              or (len(other) >= 7 and other in key)
+                                              or (len(key) >= 7 and key in other)):
+                return row["id"]
+    # Creating an asset is the risky half of this, so it takes the strongest evidence
+    # the label can offer: a single word. A drug brand is one word, and a multi-word
+    # label is as likely to be a counterparty or a franchise. Arcturus discloses a row
+    # headed "CSL Seqirus", its vaccine partner, which became a 66m product; guarding
+    # against known company names could not catch it, because CSL is not in this
+    # universe. A multi-word label can still match a product already on file above,
+    # where the match itself is the evidence, and only creation is refused here.
+    words = [w for w in re.split(r"[^A-Za-z0-9]+", label.strip()) if w]
+    if len(words) != 1 or len(words[0]) < 4 or not words[0][0].isalpha():
+        return None
+
+    conn.execute(
+        "INSERT INTO assets (owner_company_id, brand_name, is_marketed, notes)"
+        " VALUES (?, ?, 1, 'named in the revenue by product table of a 10-K')",
+        (company_id, label.strip()))
+    return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
 def extract(db_path=None) -> dict:
@@ -330,6 +586,22 @@ def extract(db_path=None) -> dict:
             year = total["fiscal_year"] if total else None
             if not year:
                 continue          # a figure with no year is not a figure
+
+            # Nothing matched by name, so read the table structurally instead. This is
+            # the only route for a company whose marketed products are not on file:
+            # Neurocrine and Alnylam hold pipeline rows derived from trials and no brand
+            # at all, so there was never a name to search their table for.
+            discovered = 0
+            if not found:
+                for label, value in discover(
+                        section["text"], total["value"] if total else None).items():
+                    asset_id = _asset_for(conn, company["id"], label)
+                    if asset_id is None:
+                        continue
+                    brands[label] = asset_id
+                    found[label] = value
+                    discovered += 1
+
             for brand, value in found.items():
                 asset_id = brands.get(brand)
                 if asset_id is None:
