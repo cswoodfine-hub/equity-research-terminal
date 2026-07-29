@@ -680,6 +680,17 @@ def _company_rows(ticker, query):
         conn.close()
 
 
+@app.get("/productivity/scorecard")
+def productivity_scorecard() -> dict:
+    """Each company on a research axis and a commercial one, plus who cannot be placed.
+
+    Both axes are weighted z-scores against the companies on the chart, so zero is the
+    average of those peers rather than any absolute standard.
+    """
+    return {"placed": productivity_module.scorecard(),
+            "gaps": productivity_module.scorecard_gaps()}
+
+
 @app.get("/productivity")
 def productivity_panel() -> list[dict]:
     """R&D productivity for the commercial-stage names.

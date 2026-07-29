@@ -181,3 +181,91 @@ def test_ranking_puts_the_unmeasurable_last(path):
     conn.commit()
     conn.close()
     assert [r["ticker"] for r in productivity.build(path, today=TODAY)] == ["GOOD", "BLANK"]
+
+
+# --- the two composite scores ---------------------------------------------------------
+
+def _scored(**kw):
+    """A row shaped like build() output, with every scorecard input present."""
+    base = {"ticker": "AAA", "name": "A", "fresh_share": 0.2, "approvals_window": 5,
+            "late_share": 0.4, "revenue_growth": 0.05, "net_margin": 0.2}
+    return {**base, **kw}
+
+
+def _comps(*tickers, growth=0.05, margin=0.2):
+    return [{"ticker": t, "revenue_growth": growth, "net_margin": margin}
+            for t in tickers]
+
+
+def test_scores_are_relative_to_the_companies_on_the_chart(tmp_path):
+    """Standardising over every company the build returned let a micro-cap posting
+    2,900% growth set the scale, which pushed Lilly's 45% to the group mean and
+    collapsed the plotted names into a smudge at the origin."""
+    p = str(tmp_path / "t.db")
+    db.init(p)
+    rows = [
+        _scored(ticker="HIGH", revenue_growth=0.45),
+        _scored(ticker="MID", revenue_growth=0.05),
+        _scored(ticker="LOW", revenue_growth=-0.05),
+        # Present in the build and unplaceable, with an extreme value that must not
+        # be allowed to set the scale for the three above.
+        _scored(ticker="WILD", revenue_growth=29.0, fresh_share=None),
+    ]
+    comps = [{"ticker": r["ticker"], "revenue_growth": r["revenue_growth"],
+              "net_margin": r["net_margin"]} for r in rows]
+    placed = productivity.scorecard(p, today=TODAY, rows=rows, comps_rows=comps)
+    by = {r["ticker"]: r for r in placed}
+    assert set(by) == {"HIGH", "MID", "LOW"}
+    assert by["HIGH"]["commercial_score"] > 0.5, "the outlier among peers must stand out"
+    assert by["LOW"]["commercial_score"] < 0
+
+
+def test_a_company_missing_an_input_is_not_placed(tmp_path):
+    """A composite over whatever happened to be present would rank a company on two
+    measures against another on five."""
+    p = str(tmp_path / "t.db")
+    db.init(p)
+    rows = [_scored(ticker="FULL"), _scored(ticker="PART", late_share=None),
+            _scored(ticker="OTHER")]
+    placed = productivity.scorecard(p, today=TODAY, rows=rows,
+                                    comps_rows=_comps("FULL", "PART", "OTHER"))
+    assert {r["ticker"] for r in placed} == {"FULL", "OTHER"}
+
+
+def test_quadrants_follow_the_two_scores(tmp_path):
+    p = str(tmp_path / "t.db")
+    db.init(p)
+    rows = [
+        _scored(ticker="BOTH", fresh_share=0.9, approvals_window=20, late_share=0.9),
+        _scored(ticker="NEITHER", fresh_share=0.0, approvals_window=0, late_share=0.0),
+    ]
+    comps = [{"ticker": "BOTH", "revenue_growth": 0.5, "net_margin": 0.4},
+             {"ticker": "NEITHER", "revenue_growth": -0.1, "net_margin": 0.05}]
+    by = {r["ticker"]: r for r in
+          productivity.scorecard(p, today=TODAY, rows=rows, comps_rows=comps)}
+    assert by["BOTH"]["quadrant"] == "Both"
+    assert by["NEITHER"]["quadrant"] == "Neither"
+
+
+def test_a_z_score_is_clipped_so_one_company_cannot_flatten_the_rest(tmp_path):
+    p = str(tmp_path / "t.db")
+    db.init(p)
+    rows = [_scored(ticker=f"C{i}", revenue_growth=0.05) for i in range(8)]
+    rows.append(_scored(ticker="OUT", revenue_growth=50.0))
+    comps = [{"ticker": r["ticker"], "revenue_growth": r["revenue_growth"],
+              "net_margin": 0.2} for r in rows]
+    by = {r["ticker"]: r for r in
+          productivity.scorecard(p, today=TODAY, rows=rows, comps_rows=comps)}
+    # 0.6 weight on a z clipped at 3.
+    assert by["OUT"]["commercial_score"] <= 0.6 * productivity.Z_CLIP + 1e-9
+
+
+def test_identical_companies_all_score_zero(tmp_path):
+    """No spread means no ranking, and dividing by a zero standard deviation would
+    otherwise raise rather than say so."""
+    p = str(tmp_path / "t.db")
+    db.init(p)
+    rows = [_scored(ticker="A"), _scored(ticker="B")]
+    placed = productivity.scorecard(p, today=TODAY, rows=rows,
+                                    comps_rows=_comps("A", "B"))
+    assert all(r["rd_score"] == 0 and r["commercial_score"] == 0 for r in placed)
