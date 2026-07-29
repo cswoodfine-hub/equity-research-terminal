@@ -28,6 +28,7 @@ import streamlit as st
 import calendar_view
 import price_chart
 import revenue_mix
+import scorecard_chart
 import theme as T
 import trend as trend_module
 from components import charts as CH
@@ -1695,6 +1696,28 @@ with main:
     # --- Comps -----------------------------------------------------------
     with comps_tab:
         # --- R&D productivity, before the valuation comps ---------------------
+        board = api_get(api_base, "/productivity/scorecard")
+        placed = board["placed"]
+        if placed:
+            section("R&D against commercial performance", f"{len(placed)} placed")
+            st.caption(
+                "Each axis is a weighted score against the companies on the chart, so "
+                "the lines cross at their average rather than at any absolute standard. "
+                "Research is portfolio freshness at half weight, approvals in five "
+                "years at three tenths, and the share of the pipeline in Phase 3 at two "
+                "tenths. Commercial is revenue growth at six tenths and net margin at "
+                "four. A company ahead on both is picked out in colour.")
+            st.markdown(scorecard_chart.build(placed), unsafe_allow_html=True)
+
+            both = [r["ticker"] for r in placed if r["quadrant"] == "Both"]
+            if both:
+                st.caption(
+                    "Ahead of these peers on both axes: " + ", ".join(both) + ". "
+                    + (f"{len(board['gaps'])} companies are not placed, because a "
+                       "composite built over whatever inputs happened to exist would "
+                       "rank one company on two measures against another on five."
+                       if board["gaps"] else ""))
+
         prod = api_get(api_base, "/productivity")
         measured = [r for r in prod if r["fresh_share"] is not None]
         section("R&D productivity", f"{len(measured)} of {len(prod)} measurable")

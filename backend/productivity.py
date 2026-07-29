@@ -253,3 +253,131 @@ def build(db_path=None, today=None, stage_filter: str | None = runway.COMMERCIAL
         conn.close()
     return sorted(rows, key=lambda r: (r["fresh_share"] is None,
                                        -(r["fresh_share"] or 0)))
+
+
+# --- the two composite scores ---------------------------------------------------------
+
+# What goes into each axis, and with what weight. Stated as data rather than buried in
+# the arithmetic, because a composite is only as honest as its recipe: a reader has to
+# be able to see what was combined and disagree with it.
+#
+# Freshness sits on the research axis rather than the commercial one. It is measured in
+# revenue, but what it measures is whether research output reached the market and is
+# earning, which is the productivity question. Growth and margin are what the commercial
+# organisation did with whatever it was given.
+RD_INPUTS = (
+    ("fresh_share", 0.5, "share of product revenue from drugs approved in five years"),
+    ("approvals_window", 0.3, "approvals in five years"),
+    ("late_share", 0.2, "share of the active pipeline in Phase 3"),
+)
+COMMERCIAL_INPUTS = (
+    ("revenue_growth", 0.6, "revenue growth on the prior year"),
+    ("net_margin", 0.4, "net margin"),
+)
+
+# A z-score past this is clipped. One company three standard deviations out otherwise
+# compresses everyone else into a smudge, and the point of the chart is the spread among
+# the rest, not the exact distance to the outlier.
+Z_CLIP = 3.0
+
+
+def _z_scores(values: dict) -> dict:
+    """{key: z} for the values present, or all zeros when they do not vary."""
+    present = [v for v in values.values() if v is not None]
+    if len(present) < 2:
+        return {k: 0.0 for k in values}
+    mean = sum(present) / len(present)
+    variance = sum((v - mean) ** 2 for v in present) / len(present)
+    sd = variance ** 0.5
+    # Against a relative tolerance, not against exact zero. Nine values of 0.2 sum to
+    # 1.8000000000000003, so the mean is a hair off every one of them and the deviation
+    # is around 1e-17 rather than 0. Dividing that by an equally tiny standard deviation
+    # produced z-scores near one, which ranked a group of identical companies.
+    if sd <= max(abs(mean), 1.0) * 1e-9:
+        return {k: 0.0 if v is not None else None for k, v in values.items()}
+    return {k: max(-Z_CLIP, min(Z_CLIP, (v - mean) / sd)) if v is not None else None
+            for k, v in values.items()}
+
+
+def scorecard(db_path=None, today=None, rows=None, comps_rows=None) -> list:
+    """Each company placed on a research axis and a commercial one.
+
+    Both are z-scores against the measured group, weighted and summed, so zero is the
+    group average on that axis rather than any absolute standard. That is what makes the
+    quadrants readable and also what limits them: this says who is ahead of these peers
+    this year, not whether any of them is good.
+
+    Only companies with every input are placed. A composite built over whatever happened
+    to be present would rank a company on two measures against another ranked on five,
+    and the missing ones are listed separately rather than plotted at a default.
+    """
+    import comps as comps_module
+
+    rows = rows if rows is not None else build(db_path, today=today)
+    comps_rows = (comps_rows if comps_rows is not None
+                  else comps_module.build_comps(db_path))
+    commercial_by_ticker = {c["ticker"]: c for c in comps_rows}
+
+    merged = []
+    for row in rows:
+        extra = commercial_by_ticker.get(row["ticker"]) or {}
+        merged.append({**row,
+                       "revenue_growth": extra.get("revenue_growth"),
+                       "net_margin": extra.get("net_margin")})
+
+    fields = [f for f, _w, _l in RD_INPUTS + COMMERCIAL_INPUTS]
+
+    # Scored against the companies that will actually be plotted, not against every
+    # company the build returned. Standardising over the wider set let a micro-cap
+    # posting 2,900% revenue growth set the scale, which pushed Lilly's 45% to the
+    # group mean and collapsed the plotted names into a smudge around the origin. Zero
+    # on this chart means the average of the peers on it.
+    eligible = [r for r in merged
+                if all(r.get(f) is not None for f in fields)]
+    z = {field: _z_scores({r["ticker"]: r.get(field) for r in eligible})
+         for field in fields}
+
+    placed, missing = [], []
+    for row in merged:
+        gaps = [label for field, _w, label in RD_INPUTS + COMMERCIAL_INPUTS
+                if row.get(field) is None]
+        if gaps:
+            missing.append({"ticker": row["ticker"], "name": row["name"],
+                            "missing": gaps})
+            continue
+        rd = sum(weight * z[field][row["ticker"]] for field, weight, _l in RD_INPUTS)
+        commercial = sum(weight * z[field][row["ticker"]]
+                         for field, weight, _l in COMMERCIAL_INPUTS)
+        placed.append({
+            "ticker": row["ticker"], "name": row["name"],
+            "rd_score": rd, "commercial_score": commercial,
+            # The quadrant, named the way the chart reads it.
+            "quadrant": ("Both" if rd >= 0 and commercial >= 0 else
+                         "R&D" if rd >= 0 else
+                         "Commercial" if commercial >= 0 else "Neither"),
+            "fresh_share": row["fresh_share"],
+            "approvals_window": row["approvals_window"],
+            "late_share": row["late_share"],
+            "revenue_growth": row["revenue_growth"],
+            "net_margin": row["net_margin"],
+        })
+    return sorted(placed, key=lambda r: -(r["rd_score"] + r["commercial_score"]))
+
+
+def scorecard_gaps(db_path=None, today=None) -> list:
+    """The companies a composite cannot place, and what each is missing."""
+    import comps as comps_module
+
+    rows = build(db_path, today=today)
+    commercial = {c["ticker"]: c for c in comps_module.build_comps(db_path)}
+    gaps = []
+    for row in rows:
+        extra = commercial.get(row["ticker"]) or {}
+        merged = {**row, "revenue_growth": extra.get("revenue_growth"),
+                  "net_margin": extra.get("net_margin")}
+        missing = [label for field, _w, label in RD_INPUTS + COMMERCIAL_INPUTS
+                   if merged.get(field) is None]
+        if missing:
+            gaps.append({"ticker": row["ticker"], "name": row["name"],
+                         "missing": missing})
+    return gaps
