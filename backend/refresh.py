@@ -168,6 +168,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # What each drug is, on the modality axis, once the asset rows are final. Reads
     # only text that refers to the asset itself, so it runs after the merge and split.
     mapped["themes"] = themes.derive(db_path)["tagged"]
+    # The company axis, read from the filing sections stored above. It runs after the
+    # filing text fetch, since it reads what that stored.
+    mapped["company_themes"] = themes.derive_companies(db_path)["tagged"]
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
     readouts = catalysts.derive_readouts(db_path)
@@ -269,6 +272,9 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # What each drug is, on the modality axis, once the asset rows are final. Reads
     # only text that refers to the asset itself, so it runs after the merge and split.
     mapped["themes"] = themes.derive(db_path)["tagged"]
+    # The company axis, read from the filing sections stored above. It runs after the
+    # filing text fetch, since it reads what that stored.
+    mapped["company_themes"] = themes.derive_companies(db_path)["tagged"]
     readouts = catalysts.derive_readouts(db_path)
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
     # the acceptance. Without an Anthropic key this reports that it did nothing.

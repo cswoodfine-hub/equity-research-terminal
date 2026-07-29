@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 
 import db
 import insights
@@ -50,14 +51,23 @@ one. Say which of those this is, and name the companies that make it so. Then ta
 recent changes and say what they do to that picture, naming the company and the drug. \
 Close with what would change the read.
 
-Treat the programme counts as a floor, not a total. Assets identified only by a code \
-number carry no description in any free source, so they are not classified, and a \
-company can run programmes in a theme without appearing in its count. Where the \
-coverage note names companies whose programmes are unclassified, say plainly that the \
-theme is under-counted and name them. Never state or imply that a company is absent \
-from a modality because it does not appear here.
+You are given two counts of who is in a theme, and they are not the same count. The \
+programme count comes from classifying individual drugs, and it is a floor: an asset \
+named only by a code number carries no description in any free source and is not \
+classified. The platform list comes from each company's own annual filing describing \
+what it does, and it is the better guide to who is in the modality. Beam, Editas and \
+CRISPR Therapeutics appear in the gene editing platform list and hold no classifiable \
+programme between them.
 
-House style: sentence-case headings, no em dashes, no bullet points, direct and \
+So lead the question of scale off the platform list, not the programme count, and never \
+add the two. Say plainly where the programme count understates the theme and name the \
+companies it misses. Never state or imply that a company is absent from a modality \
+because it does not appear in a count.
+
+Do not print a title or a heading. The page already names the theme, and a repeated \
+title reads as the brief starting twice.
+
+House style: sentence case, no em dashes, no bullet points, direct and \
 unhedged, specific over abstract, lead with the number or the change. Do not use the \
 words additionally, highlight, underscore, pivotal, showcase or testament. Do not \
 invent a figure, a drug name or a company that is not given to you."""
@@ -112,16 +122,27 @@ def context(db_path=None, theme: str = "", days: int = 90, today=None) -> str:
     else:
         blocks.append(f"No trial changes detected in this theme in {days} days.")
 
+    # The second axis, stated separately and never added to the first. A company theme
+    # is read from the company's own filing; an asset theme from one drug's name or
+    # label. Beam says it runs a base editing platform and holds no drug any free source
+    # describes, so it appears in one count and not the other.
+    if row["platform_companies"]:
+        blocks.append(
+            f"Companies whose own annual filing describes this platform: "
+            + ", ".join(row["platform_companies"]) + ".")
+    if row["platform_only"]:
+        blocks.append(
+            "Of those, these hold no programme any free source classifies, so they "
+            "appear in no programme count above: " + ", ".join(row["platform_only"])
+            + ".")
+
     # Stated every time, because the model must not read a company's absence from these
     # counts as a company that does not work in the modality.
-    blind = ", ".join(f"{c['ticker']} ({c['assets']})"
-                      for c in cover["companies_untagged"][:8])
     blocks.append(
-        f"Coverage: {cover['tagged']} of {cover['assets']} assets in the universe carry "
-        f"any theme. Counts here are a floor. Companies whose programmes are all "
-        f"unclassified, with programme counts: {blind}."
-        if blind else
-        f"Coverage: {cover['tagged']} of {cover['assets']} assets carry any theme.")
+        f"Coverage: {cover['tagged']} of {cover['assets']} assets state what they are, "
+        f"and {cover['companies_on_platform']} of {cover['companies']} companies "
+        "describe a platform in their filing. Programme counts are a floor; the "
+        "platform list is the better guide to who is in this modality.")
     return "\n".join(blocks)
 
 
@@ -142,16 +163,23 @@ def build_rules_brief(theme: str, db_path=None, days: int = 90, today=None) -> s
     mix = ", ".join(f"{k.lower()} {v}" for k, v in row["stage_mix"].items())
     shape = f"The stage mix is {mix}."
     top = row["top_companies"]
+    # Whether this is a company story is judged on both axes. Gene editing holds one
+    # classifiable programme, at Vertex, and fifteen companies whose filings describe
+    # the platform: reading the programme count alone called that a company story,
+    # which is the opposite of true. So concentration is stated as what it actually
+    # measures, the classified programmes, and the platform reach qualifies it rather
+    # than being folded in.
+    reach = len({c["ticker"] for c in top} | set(row["platform_companies"]))
     if not top:
         concentration = ""
     elif row["companies"] == 1 or top[0]["assets"] * 2 > row["assets"]:
-        # One company holding the theme, or most of it, makes this a company story
-        # rather than a sector one, which is the first thing worth knowing about it.
-        # A single-company theme qualifies whatever its size: calling that spread
-        # exposure, as an earlier size floor did, described the opposite of the truth.
         concentration = (
-            f"{top[0]['ticker']} holds {top[0]['assets']} of the {row['assets']}, "
-            "so this reads as a company story rather than a sector one.")
+            f"{top[0]['ticker']} holds {top[0]['assets']} of the "
+            f"{_plural(row['assets'], 'classified programme')}"
+            + (f", though {reach} companies describe the platform in total, so the "
+               "concentration is in what can be classified rather than in the modality."
+               if reach > 2 else
+               ", so this reads as a company story rather than a sector one."))
     else:
         holders = ", ".join(f"{c['ticker']} with {c['assets']}" for c in top[:3])
         concentration = f"Exposure is spread, led by {holders}."
@@ -160,10 +188,29 @@ def build_rules_brief(theme: str, db_path=None, days: int = 90, today=None) -> s
              f"{days} days."
              if row["changes"] else
              f"No trial changes were detected in the last {days} days.")
+    platform = ""
+    if row["platform_only"]:
+        platform = (
+            f"{_plural(len(row['platform_only']), 'further company', 'further companies')} "
+            f"describe this platform in their own filing while holding no programme any "
+            f"free source classifies: {', '.join(row['platform_only'][:8])}.")
+    elif row["platform_companies"]:
+        platform = ("Their own filings describe this platform at "
+                    + ", ".join(row["platform_companies"][:8]) + ".")
     cover = themes_view.coverage(db_path)
-    gap = (f"This is a floor: {cover['untagged']} of {cover['assets']} assets in the "
-           "universe state nothing about their modality and are not counted.")
-    return " ".join(p for p in (lead, shape, concentration, moved, gap) if p)
+    gap = (f"Programme counts are a floor: {cover['untagged']} of {cover['assets']} "
+           "assets state nothing about their modality.")
+    return " ".join(p for p in (lead, shape, concentration, moved, platform, gap) if p)
+
+
+def _clean(text: str) -> str:
+    """The note's house-style pass, plus the markdown heading a model adds anyway.
+
+    The prompt asks for no title and the model supplies one about half the time, which
+    renders as the brief announcing itself twice under a heading the page already shows.
+    """
+    text = re.sub(r"(?m)^\s*#{1,6}\s*.*$", "", text or "")
+    return insights._scrub(text).strip()
 
 
 def _store(db_path, theme: str, body: str, model: str, days: int) -> dict:
@@ -197,7 +244,7 @@ def generate(db_path=None, theme: str = "", days: int = 90, today=None) -> dict:
                 SYSTEM_PROMPT, f"Theme: {theme}\n\n{facts}", MAX_TOKENS,
                 prefer=BRIEF_PROVIDER, thinking_budget=THINKING_BUDGET)
             if generated:
-                body, model = insights._scrub(generated), llm.model_name(BRIEF_PROVIDER)
+                body, model = _clean(generated), llm.model_name(BRIEF_PROVIDER)
             else:
                 error = "empty response from the model"
         except Exception as exc:

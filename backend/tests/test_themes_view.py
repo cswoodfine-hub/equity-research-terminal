@@ -116,7 +116,7 @@ def test_context_always_states_the_coverage_floor(universe):
     does not work in the modality, so the gap is in every prompt."""
     facts = brief.context(universe, "CAR-T")
     assert "floor" in facts
-    assert "BBB" in facts
+    assert "describe a platform in their filing" in facts
 
 
 def test_generate_degrades_to_the_rules_brief(universe, monkeypatch):

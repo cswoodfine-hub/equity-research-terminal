@@ -35,7 +35,7 @@ THEMES: tuple = (
         r"engineered t[- ]cell receptor",
     )),
     ("Cell therapy", (
-        r"cell therapy", r"\ballogeneic\b", r"\bautologous\b", r"stem cell",
+        r"cell therap(?:y|ies)", r"\ballogeneic\b", r"\bautologous\b", r"stem cell",
         r"\bnk cell", r"regulatory t[- ]cell", r"\btreg\b",
         # -cel closes every cell-therapy INN: autotemcel, autoleucel, eucel, demcel.
         # -leucel sits here rather than under TIL because both a CAR-T and a TIL carry
@@ -50,7 +50,7 @@ THEMES: tuple = (
         r"\w+glogene\b",
     )),
     ("Gene therapy", (
-        r"\baav\b", r"adeno-?associated", r"\blentiviral\b", r"gene therapy",
+        r"\baav\b", r"adeno-?associated", r"\blentiviral\b", r"gene therap(?:y|ies)",
         r"gene transfer", r"\bvector\b.{0,20}gene",
         # -gene as the INN's first word plus a -vec or -cel partner: onasemnogene
         # abeparvovec, etranacogene dezaparvovec, betibeglogene autotemcel.
@@ -96,7 +96,7 @@ THEMES: tuple = (
         r"\blag-?3\b", r"\btigit\b",
     )),
     ("Vaccine", (
-        r"\bvaccine\b", r"immuni[sz]ation", r"\bvaccination\b",
+        r"\bvaccines?\b", r"immuni[sz]ation", r"\bvaccination\b",
     )),
 )
 
@@ -255,6 +255,101 @@ def derive(db_path=None) -> dict:
                     "   evidence = excluded.evidence, source = excluded.source,"
                     "   derived_at = datetime('now')",
                     (asset["id"], theme, evidence, source))
+                written += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return {"tagged": written}
+
+
+# --- what a company says it does, read from its own filing ---------------------------
+
+# First person, then a modality within a short reach. This is the whole guard, and it
+# is doing more work than it looks like.
+#
+# A risk factors section names every modality in the sector, because it is required to
+# describe the competition: Beam's filing mentions CAR-T, CRISPR, gene therapy and cell
+# therapy, and Rocket's mentions cell therapy it does not run. Counting terms would tag
+# every company with everything, which is the comparator-arm leak again in a longer
+# document.
+#
+# What separates a platform from a landscape is who the sentence is about. "Our
+# proprietary base editing platform" is Beam; "competitors developing base editing
+# therapies" is not. So the match must start at a first-person marker and reach the
+# modality without leaving the sentence.
+_SELF = re.compile(
+    r"\b(?:we are|we have|we use|we develop|our)\b[^.;]{0,110}", re.I)
+
+# Some phrases are first person and still describe someone else's work: a licence taken
+# from another party, or a patent covering a rival's method. These sit in the same
+# sentence shape and are refused.
+_NOT_OURS = (
+    "we own a patent", "we own two patent", "patent family", "license from",
+    "licensed from", "our competitors", "our peers", "third part", "we compete",
+    "competing", "other companies", "we may face",
+)
+
+# A company describing what its platform avoids uses the same words as one describing
+# what it does. Atara's filing says its T-cell platform "does not require TCR or HLA
+# gene editing", and reading that tagged Atara as a gene editing company on the strength
+# of a sentence denying it. A negated window is dropped whole rather than parsed: a
+# company that genuinely runs the platform states it positively somewhere else.
+_NEGATED = (
+    "does not require", "do not require", "does not use", "do not use", "without the",
+    "without any", "rather than", "instead of", "avoids", "avoiding", "eliminates the",
+    "no need for", "unlike", "does not involve", "do not involve", "free from",
+    "as opposed to", "is not a", "are not a",
+)
+
+# How many self-describing windows to read per company. The annual report repeats its
+# own platform sentence many times; the first few hundred carry it.
+_SELF_WINDOWS = 400
+
+
+def self_descriptions(text: str) -> list:
+    """The first-person windows in a filing that could describe this company's platform."""
+    found = []
+    for match in _SELF.finditer(text or ""):
+        window = re.sub(r"\s+", " ", match.group(0)).strip()
+        low = window.lower()
+        if any(phrase in low for phrase in _NOT_OURS + _NEGATED):
+            continue
+        found.append(window)
+        if len(found) >= _SELF_WINDOWS:
+            break
+    return found
+
+
+def derive_companies(db_path=None) -> dict:
+    """Tag each company with the platforms its own filing says it runs.
+
+    Reads the stored 10-K and 20-F sections rather than fetching, so this is cheap and
+    repeatable. Rebuilt on each run, like the asset tags.
+    """
+    import db
+
+    conn = db.get_connection(db_path)
+    written = 0
+    try:
+        conn.execute("DELETE FROM company_themes")
+        companies = conn.execute("SELECT id, ticker FROM companies").fetchall()
+        for company in companies:
+            rows = conn.execute(
+                "SELECT accession, text FROM filing_sections"
+                "  WHERE company_id = ? ORDER BY filed_date DESC LIMIT 6",
+                (company["id"],)).fetchall()
+            found: dict = {}
+            for row in rows:
+                for window in self_descriptions(row["text"]):
+                    for theme, evidence in classify(window).items():
+                        # The window, not the bare keyword, so a reader can see whose
+                        # platform the sentence was describing.
+                        found.setdefault(theme, (window[:240], row["accession"]))
+            for theme, (evidence, accession) in found.items():
+                conn.execute(
+                    "INSERT INTO company_themes (company_id, theme, evidence, accession)"
+                    " VALUES (?, ?, ?, ?)",
+                    (company["id"], theme, evidence, accession))
                 written += 1
         conn.commit()
     finally:
