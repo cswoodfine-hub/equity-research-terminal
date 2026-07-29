@@ -86,9 +86,11 @@ def test_a_non_product_revenue_line_is_excluded_not_counted_as_old(path):
     conn.commit()
     conn.close()
     row = productivity.build(path, today=TODAY)[0]
-    # 90% of the line is a dated drug, and all of it is recent.
+    # The grant leaves the base entirely rather than sitting in it as an undatable
+    # drug, so coverage is full and the share is not dragged down by it.
     assert row["fresh_share"] == pytest.approx(1.0)
-    assert row["fresh_coverage"] == pytest.approx(0.9)
+    assert row["fresh_coverage"] == pytest.approx(1.0)
+    assert row["non_product_revenue"] == pytest.approx(100e6)
 
 
 def test_freshness_is_refused_when_too_little_revenue_maps_to_a_drug(path):
@@ -98,10 +100,13 @@ def test_freshness_is_refused_when_too_little_revenue_maps_to_a_drug(path):
     cid = _co(conn, "CCC")
     _commercial(conn, cid)
     drug = _asset(conn, cid, "OneDrug")
-    other = _asset(conn, cid, "Collaboration Arrangement", marketed=0)
+    # A franchise label is real product revenue whose drug the filing did not name. It
+    # stays in the base and cannot be dated, which is exactly what should push coverage
+    # below the line and withhold the figure.
+    franchise = _asset(conn, cid, "Shingles", marketed=1)
     _approval(conn, drug, "2024-01-01")
     _revenue(conn, drug, 200e6)
-    _revenue(conn, other, 800e6)
+    _revenue(conn, franchise, 800e6)
     conn.commit()
     conn.close()
     row = productivity.build(path, today=TODAY)[0]
