@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -69,6 +70,58 @@ SPONSOR_MAP = {
     "BMY": "BRISTOL MYERS SQUIBB", "AMGN": "AMGEN", "GILD": "GILEAD",
     "VRTX": "VERTEX", "REGN": "REGENERON", "BIIB": "BIOGEN", "BAYN": "BAYER",
 }
+
+
+# How many molecules to ask about per company. Every one is a request, and a company
+# with two hundred assets would otherwise make two hundred of them for the handful that
+# are approved. Ordered by name so the cap is at least deterministic.
+_MAX_GENERIC_QUERIES = 60
+_POLITE_SLEEP_S = 0.12
+
+# Words too common in a drug company's name to identify one. Without these, every
+# "Pharmaceuticals" matches every other.
+_COMMON_NAME_WORDS = {
+    "inc", "corp", "corporation", "company", "co", "plc", "ltd", "limited", "holdings",
+    "group", "the", "and", "pharmaceuticals", "pharmaceutical", "pharms", "pharma",
+    "therapeutics", "biosciences", "bioscience", "sciences", "science", "biopharma",
+    "biopharmaceuticals", "medicines", "laboratories", "labs", "health", "healthcare",
+    "usa", "us", "america", "american", "international", "global", "nv", "sa", "ag",
+    "as", "gmbh", "llc", "lp",
+}
+
+
+# How a trial names the same molecule twice: "Oral Treprostinil" and "Parenteral
+# Treprostinil" are one drug given two ways, and openFDA indexes neither. The route and
+# the form are stripped so the molecule is what gets asked for.
+_FORM_WORDS = re.compile(
+    r"^(?:oral|parenteral|inhaled|nebuli[sz]ed|intravenous|iv|subcutaneous|sc|topical|"
+    r"injectable|injection|solution|tablet|capsule|extended[- ]release|autoinjector|"
+    r"prefilled|recombinant|human|sterile)\s+", re.I)
+
+
+def _molecule(generic: str) -> str:
+    """A generic name reduced to the molecule, with the route and form removed."""
+    text = (generic or "").strip()
+    for _ in range(3):                      # "Oral Extended-Release Treprostinil"
+        stripped = _FORM_WORDS.sub("", text)
+        if stripped == text:
+            break
+        text = stripped
+    return text.strip()
+
+
+def _distinctive_words(name: str) -> set:
+    """The words in a name that could identify the company.
+
+    openFDA abbreviates a sponsor to "ALNYLAM PHARMS INC" or "UNITED THERAP", so an
+    exact comparison is useless and the shared distinctive word is what survives. A
+    prefix is enough on both sides, since "THERAP" is how it writes "Therapeutics".
+    """
+    words = set()
+    for word in re.split(r"[^A-Za-z]+", (name or "").lower()):
+        if len(word) >= 4 and word not in _COMMON_NAME_WORDS:
+            words.add(word)
+    return words
 
 
 def _approval_date(submissions) -> str | None:
@@ -207,6 +260,44 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
                 return []
             raise
 
+    def _by_generic_name(self) -> list[dict]:
+        """Approvals found by asking openFDA for each molecule this company develops.
+
+        Every result is checked against the company's own name before it is kept: a
+        generic can be sold by a dozen manufacturers, and treprostinil returns nine
+        applications of which only some are United Therapeutics'. The check is a shared
+        distinctive word, which is what survives openFDA's abbreviations.
+        """
+        conn = db.get_connection(self.db_path)
+        try:
+            company = conn.execute(
+                "SELECT id, name FROM companies WHERE ticker = ?",
+                (self.ticker,)).fetchone()
+            if company is None:
+                return []
+            generics = [r[0] for r in conn.execute(
+                "SELECT DISTINCT generic_name FROM assets"
+                "  WHERE owner_company_id = ? AND generic_name IS NOT NULL"
+                "  ORDER BY generic_name LIMIT ?",
+                (company["id"], _MAX_GENERIC_QUERIES))]
+        finally:
+            conn.close()
+        if not generics:
+            return []
+
+        wanted = _distinctive_words(company["name"])
+        found = []
+        for generic in generics:
+            generic = _molecule(generic)
+            # A code number is not a generic name and matches nothing here.
+            if not generic or len(generic) < 6 or re.search(r"\d", generic):
+                continue
+            for result in self._run(f'openfda.generic_name:"{generic}"'):
+                if _distinctive_words(result.get("sponsor_name") or "") & wanted:
+                    found.append(result)
+            time.sleep(_POLITE_SLEEP_S)
+        return found
+
     def fetch(self) -> dict:
         names = company_names.source_name(self.ticker, "openfda_manufacturer",
                                           MANUFACTURER_MAP.get(self.ticker), self.db_path)
@@ -214,11 +305,6 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
                                             SPONSOR_MAP.get(self.ticker), self.db_path)
         if isinstance(names, str):
             names = [names]
-        if not names and not sponsor:
-            # A clinical-stage company has no approved product and so no manufacturer
-            # string at openFDA. That is the ordinary state of half this universe now,
-            # not a misconfiguration, so it returns nothing rather than raising.
-            return {"results": [], "note": "no approved products at openFDA"}
 
         results: list[dict] = []
         if names:
@@ -234,6 +320,36 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
         # nothing costs a 404 and no results rather than breaking the query.
         for acquired in acquired_sponsors.for_company(self.db_path, self.ticker):
             results += self._run(f'openfda.manufacturer_name:("{acquired}")')
+
+        # Nothing found by company name, so ask by molecule instead. The maps above are
+        # hand-keyed and a company absent from them was being treated as clinical-stage,
+        # which was wrong about Neurocrine, Alnylam, Ionis, Sarepta, Moderna and United
+        # Therapeutics: all six sell drugs and all six had no approval on file. Guessing
+        # harder at the sponsor string does not fix it, because openFDA writes them as
+        # "ALNYLAM PHARMS INC", "UNITED THERAP" and "INCYTE CORP", which no rule derives
+        # from a company name.
+        #
+        # A generic name does not have that problem. It identifies one molecule, it is
+        # what the registry gave us for every asset these companies own, and the answer
+        # carries the sponsor so the match can be checked rather than assumed.
+        # Run whenever the maps do not know this company, rather than when nothing at
+        # all was found. Neurocrine has an acquisition, so its acquired-sponsor query
+        # returned a single application and that was enough to skip the discovery route
+        # entirely, leaving three of its four approvals unfound.
+        if not names and not sponsor:
+            found = self._by_generic_name()
+            results += found
+            # The answers carry the sponsor string openFDA actually uses, which is the
+            # thing no rule could derive: "ALNYLAM PHARMS INC", "UNITED THERAP",
+            # "INCYTE CORP". Asking for it directly then returns the rest of the
+            # portfolio, since a molecule search only ever finds the molecules we
+            # already knew about. Alnylam goes from one approval to four this way and
+            # Incyte from two to six, and the map stays empty: the fetcher discovers
+            # the name instead of being told it.
+            for sponsor_name in sorted({r.get("sponsor_name") for r in found
+                                        if r.get("sponsor_name")}):
+                results += self._run(f'sponsor_name:"{sponsor_name}"')
+                time.sleep(_POLITE_SLEEP_S)
 
         # An application can come back from both queries. The application number is its
         # identity, so a later parse keying on it dedupes, but merging here keeps the
