@@ -34,6 +34,7 @@ import themes_view as themes_view_module
 import brief as brief_module
 import runway as runway_module
 import productivity as productivity_module
+import desks as desks_module
 import labels as labels_module
 import fx as fx_module
 import loe as loe_module
@@ -689,6 +690,18 @@ def _company_rows(ticker, query):
         return ticker, [dict(r) for r in conn.execute(query, (company["id"],))]
     finally:
         conn.close()
+
+
+@app.get("/desks")
+def desks() -> dict:
+    """The four ways into the terminal, each with the live headline from its own desk."""
+    return desks_module.build()
+
+
+@app.get("/desks/{desk}/tickers")
+def desk_tickers(desk: str) -> list[str]:
+    """The companies a desk covers. The frontier and the feed span the universe."""
+    return desks_module.tickers_for(desk=desk)
 
 
 @app.get("/productivity/scorecard")
