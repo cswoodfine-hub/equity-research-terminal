@@ -22,7 +22,7 @@ def test_the_earliest_package_dates_the_brand():
         {"brand_name": "Shingrix", "marketing_start_date": "20171020",
          "labeler_name": "GlaxoSmithKline Biologicals SA", "application_number": "BLA125614"},
     ]}
-    found = N.parse_ndc(payload, {"glaxosmithkline"})
+    found = N.parse_ndc(payload, [{"glaxosmithkline"}])
     assert found["Shingrix"][0] == "2017-10-20"
 
 
@@ -35,7 +35,7 @@ def test_a_repackager_is_not_the_company():
         {"brand_name": "Theirs", "marketing_start_date": "20200101",
          "labeler_name": "Golden State Medical Supply"},
     ]}
-    assert set(N.parse_ndc(payload, {"alnylam"})) == {"Ours"}
+    assert set(N.parse_ndc(payload, [{"alnylam"}])) == {"Ours"}
 
 
 def test_a_shared_surname_is_not_a_shared_company():
@@ -46,12 +46,76 @@ def test_a_shared_surname_is_not_a_shared_company():
         {"brand_name": "Alcare Foaming Antiseptic", "marketing_start_date": "20210601",
          "labeler_name": "SC Johnson Professional USA Inc"},
     ]}
-    assert N.parse_ndc(payload, {"janssen"}) == {}
+    assert N.parse_ndc(payload, [{"janssen"}]) == {}
 
 
 def test_a_record_with_no_date_is_dropped():
     payload = {"results": [{"brand_name": "Nameless", "labeler_name": "Alnylam Inc"}]}
-    assert N.parse_ndc(payload, {"alnylam"}) == {}
+    assert N.parse_ndc(payload, [{"alnylam"}]) == {}
+
+
+# --- the labeler has to carry the whole name -------------------------------------------
+
+def test_one_shared_word_is_not_the_same_company():
+    """United Natural Foods is a grocer. Sharing "United" with United Therapeutics
+    attached 88 of its products to UTHR, which is what requiring the rest of the name
+    fixes: the two agree on one word and disagree on every other."""
+    payload = {"results": [
+        {"brand_name": "Unituxin", "marketing_start_date": "20150310",
+         "labeler_name": "United Therapeutics Corporation",
+         "application_number": "BLA125516"},
+        {"brand_name": "Equaline Ibuprofen", "marketing_start_date": "20180101",
+         "labeler_name": "United Natural Foods, Inc. dba UNFI"},
+    ]}
+    required = [N.company_words("United Therapeutics Corporation")]
+    assert set(N.parse_ndc(payload, required)) == {"Unituxin"}
+
+
+def test_a_division_may_add_words_the_company_name_does_not_have():
+    """The test runs one way only. GSK's vaccines are labelled "GlaxoSmithKline
+    Biologicals SA" and Sanofi's are "Sanofi Pasteur", and a rule that refused a labeler
+    for naming its own division would lose every vaccine in the universe."""
+    payload = {"results": [
+        {"brand_name": "Shingrix", "marketing_start_date": "20171020",
+         "labeler_name": "GlaxoSmithKline Biologicals SA"},
+        {"brand_name": "Fluzone", "marketing_start_date": "20120601",
+         "labeler_name": "Sanofi Pasteur Inc."},
+    ]}
+    required = [N.company_words("GlaxoSmithKline"), N.company_words("SANOFI")]
+    assert set(N.parse_ndc(payload, required)) == {"Shingrix", "Fluzone"}
+
+
+def test_a_legal_form_is_not_required_of_a_labeler():
+    """argenx is registered "argenx SE" and labels its products "argenx US"."""
+    payload = {"results": [
+        {"brand_name": "VYVGART", "marketing_start_date": "20220106",
+         "labeler_name": "argenx US", "application_number": "BLA761195"},
+    ]}
+    assert set(N.parse_ndc(payload, [N.company_words("argenx SE")])) == {"VYVGART"}
+
+
+def test_a_configured_name_is_what_a_shortened_labeler_needs():
+    """The rule costs something, and this is where. Autolus registers as "Autolus
+    Therapeutics plc" and labels as "Autolus Inc.", so requiring the whole registered
+    name loses Aucatzyl. A name configured for this source is the authority on what
+    belongs to the company, and configuring "Autolus" is what recovers it. AUTL carries
+    that name in the seed for exactly this reason."""
+    payload = {"results": [
+        {"brand_name": "AUCATZYL", "marketing_start_date": "20241108",
+         "labeler_name": "Autolus Inc.", "application_number": "BLA125813"},
+    ]}
+    registered = [N.company_words("Autolus Therapeutics plc")]
+    assert N.parse_ndc(payload, registered) == {}
+    assert set(N.parse_ndc(payload, [N.company_words("Autolus")])) == {"AUCATZYL"}
+
+
+def test_openfda_is_asked_for_the_head_of_the_name():
+    """A query returns 100 records, so what it asks for decides what can be found.
+    Asking for the longest word searched Krystal Biotech as "biotech"."""
+    assert N._search_word("Krystal Biotech, Inc.") == "krystal"
+    assert N._search_word("Taysha Gene Therapies, Inc.") == "taysha"
+    # And a name with nothing that identifies anyone is not searched for at all.
+    assert N._search_word("Vor Biopharma Inc.") is None
 
 
 # --- how the date is used --------------------------------------------------------------

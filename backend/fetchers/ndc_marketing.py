@@ -23,12 +23,21 @@ The company is found by labeler name rather than a map, the same way the approva
 fetcher discovers a sponsor, and every record is checked against the company's own name
 before it is kept: GlaxoSmithKline Biologicals is GSK, and a contract packager that
 happens to distribute for them is not.
+
+That check is stricter here than the approvals fetcher's shared distinctive word, and it
+has to be. openFDA abbreviates a sponsor to "UNITED THERAP", so an approval can only be
+matched on a word; a labeler is written out in full, so a labeler can be required to
+carry all of them. Requiring one attached United Natural Foods' 88 groceries to United
+Therapeutics, every Chinese cosmetics house with "Biotechnology" in its name to Sana,
+and the whole Janssen catalogue to Krystal Biotech. Requiring all of them leaves those
+three with 2, 0 and 1 rows, and takes nothing off any of the majors.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -36,7 +45,7 @@ import urllib.request
 import company_names
 import db
 from fetchers.approvals_openfda import (
-    MANUFACTURER_MAP, SPONSOR_MAP, _distinctive_words)
+    MANUFACTURER_MAP, SPONSOR_MAP, _COMMON_NAME_WORDS)
 from fetchers.base import BaseFetcher, RefreshResult
 
 SOURCE = "ndc_marketing"
@@ -52,18 +61,60 @@ _USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
 # asked for, and the name check keeps anyone else's out.
 _DIVISIONS = ("", " Biologicals", " Vaccines", " US", " USA", " LLC", " Inc")
 
+# The words that say which company this is rather than what kind of company it is. The
+# approvals fetcher drops "Therapeutics" as too common to identify anyone, and on its own
+# it is. Held together with the rest of the name it does the work: United Therapeutics
+# and United Natural Foods share "United" and nothing else, and neither does Century
+# Therapeutics share anything but "Century" with Century Pharmaceuticals.
+_LEGAL_FORMS = {
+    "inc", "corp", "corporation", "company", "co", "plc", "ltd", "limited", "holdings",
+    "group", "holding", "the", "and", "llc", "lp", "nv", "sa", "se", "ag", "as",
+    "gmbh", "spa", "srl", "usa",
+}
+
+
+def company_words(name: str) -> set:
+    """The words a labeler for this company would carry, its legal form aside.
+
+    Four characters and up, which is what keeps "Eli Lilly and Company" from requiring
+    "eli" of a labeler that writes itself "Lilly USA, LLC".
+    """
+    return {word for word in re.split(r"[^A-Za-z]+", (name or "").lower())
+            if len(word) >= 4 and word not in _LEGAL_FORMS}
+
+
+def _search_word(name: str) -> str | None:
+    """The word to ask openFDA for, which is the head of the name rather than its
+    longest word.
+
+    A query returns 100 records and no more, so what it asks for decides what can be
+    found at all. Asking for the longest word searched Krystal Biotech as "biotech" and
+    Taysha Gene Therapies as "therapies", and both came back full of other people's
+    products with the company's own row surviving on luck. The head of a name is the
+    part that names the company.
+    """
+    for word in re.split(r"[^A-Za-z]+", (name or "").lower()):
+        if len(word) >= 4 and word not in _COMMON_NAME_WORDS:
+            return word
+    return None
+
 
 def _iso(raw) -> str | None:
     return f"{raw[0:4]}-{raw[4:6]}-{raw[6:8]}" if raw and len(raw) == 8 else None
 
 
-def parse_ndc(payload: dict, wanted: set) -> dict:
+def parse_ndc(payload: dict, required: list) -> dict:
     """{brand: (earliest marketing date, application number, labeler)} for this company.
 
     The earliest date across every package of a brand, because a brand reformulated each
     season carries one record per season and the newest says nothing about when the drug
-    arrived. Records whose labeler does not share a distinctive word with the company are
-    dropped: the directory is full of repackagers.
+    arrived.
+
+    ``required`` is one word set per name the company is known by, and a labeler is kept
+    when it carries every word of one of them. One set per name rather than one set
+    overall, because a company answers to several names and no labeler answers to two:
+    Johnson & Johnson labels its drugs Janssen, and demanding both words of both names at
+    once would keep nothing.
     """
     best: dict = {}
     for row in payload.get("results", []):
@@ -72,8 +123,10 @@ def parse_ndc(payload: dict, wanted: set) -> dict:
         labeler = row.get("labeler_name") or ""
         if not brand or not started:
             continue
-        if wanted and not (_distinctive_words(labeler) & wanted):
-            continue
+        if required:
+            words = company_words(labeler)
+            if not any(wanted <= words for wanted in required):
+                continue
         current = best.get(brand)
         if current is None or started < current[0]:
             best[brand] = (started, row.get("application_number"), labeler)
@@ -143,26 +196,30 @@ class NdcMarketingFetcher(BaseFetcher):
         # "johnson" with Johnson & Johnson and sells hand sanitiser, and unioning the two
         # sets let a dozen of its products in as J&J drugs. Where a name is configured
         # for this source it is the authority on what belongs to the company.
-        wanted = set()
-        for name in candidates:
-            wanted |= _distinctive_words(name)
-        if not wanted:
-            wanted = _distinctive_words(company["name"])
-            if wanted:
-                candidates = [sorted(wanted, key=len, reverse=True)[0]]
         if not candidates:
-            return {"results": [], "company_id": company["id"]}
+            # Nothing configured, so the company's own registered name is the name, and
+            # openFDA is asked for the head of it. A name with no word that identifies
+            # anyone is not asked for at all: "Vor Biopharma" would search "biopharma"
+            # and verify against it, which every biopharma in the directory would pass.
+            word = _search_word(company["name"])
+            if not word:
+                return {"results": [], "company_id": company["id"]}
+            candidates = [company["name"]]
+            stems = [word]
+        else:
+            stems = list(candidates)
 
+        required = [words for words in (company_words(n) for n in candidates) if words]
         results: list[dict] = []
-        for stem in dict.fromkeys(candidates):
+        for stem in dict.fromkeys(stems):
             for division in _DIVISIONS:
                 results += self._run(f'labeler_name:"{stem}{division}"')
-        return {"results": results, "company_id": company["id"], "wanted": wanted}
+        return {"results": results, "company_id": company["id"], "required": required}
 
     def normalise(self, raw) -> list[dict]:
         if raw.get("company_id") is None:
             return []
-        found = parse_ndc({"results": raw["results"]}, raw.get("wanted") or set())
+        found = parse_ndc({"results": raw["results"]}, raw.get("required") or [])
         return [{"company_id": raw["company_id"], "brand_name": brand,
                  "first_marketed": started, "application_number": application,
                  "labeler_name": labeler}
