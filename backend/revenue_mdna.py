@@ -223,7 +223,12 @@ def read_row(run: str, spaced: bool = None) -> float | None:
     # was relying on, and this is the commonest layout among the mid-caps. A bare year
     # cannot be mistaken for one of these: 2030 carries no separator and no decimal, so
     # it is not money, which is what keeps a patent-expiry table out.
-    if 1 <= len(values) <= 4 and all(_looks_like_money(v) for v in values):
+    #
+    # The run goes to eight because BioMarin states the change in dollars rather than in
+    # percent: "VOXZOGO $ 926.9 $ 735.1 $ 469.9 $ 191.8 $ 265.2" is three years and two
+    # movements, five money columns and not a percentage among them, and a cap of four
+    # refused the whole table.
+    if 1 <= len(values) <= 8 and all(_looks_like_money(v) for v in values):
         return numbers[0]
 
     # A single number is a revenue only when it carries a thousands separator, which
@@ -399,7 +404,10 @@ _NOT_A_PRODUCT = (
 
 # A product label is short and starts with a letter. Four words is the ceiling: "Nebulized
 # Tyvaso" and "Botox Therapeutic" are products, a sentence is not.
-_ROW = re.compile(r"([A-Za-z][A-Za-z0-9®™\u2019'\-\./ ]{2,40}?)\s"
+# The comma belongs in a label. Without it Sarepta's closing line "Products, net" broke
+# at the punctuation and was captured as "net" alone, which no total marker recognises,
+# so the rows had nothing to be checked against and a correctly read table was discarded.
+_ROW = re.compile(r"([A-Za-z][A-Za-z0-9®™\u2019',\-\./ ]{2,40}?)\s"
                   + f"((?:{_CELL}){{1,8}})")
 _MAX_LABEL_WORDS = 4
 
@@ -414,7 +422,35 @@ _SUM_TOLERANCE = 0.005
 # them apart: this found Neurocrine's payroll and Alnylam's research and development
 # instead of their products. A filer names the line "Total net product sales" or "Total
 # revenues", and never "Total revenues" for a cost.
-_REVENUE_TOTAL = re.compile(r"\b(?:revenue|sales)\b", re.I)
+# "Products, net" is a revenue total though it says neither revenue nor sales, which is
+# how Sarepta closes its table. The cost test below is what keeps "Total product costs"
+# out, so naming a product is enough here.
+_REVENUE_TOTAL = re.compile(r"\b(?:revenue|revenues|sales|products?)\b", re.I)
+
+# How a filer marks the line that everything above adds up to. Not always the word
+# "total": Sarepta closes its table with "Products, net", and a detector looking only
+# for "total" never found the line the rows were supposed to sum to, so the table was
+# discarded although it had been read correctly.
+_TOTAL_MARKER = re.compile(
+    r"\btotal\b|\bproducts?,?\s+net\b|\bnet\s+product\b|\brevenues?,?\s+net\b", re.I)
+
+# A filer that splits each product by region labels the rows "EYLEA - U.S" and
+# "Libtayo - ROW". Those are one product each, reported twice, and the region has to come
+# off before the two halves can be added or the drug identified.
+_REGION_SUFFIX = re.compile(
+    r"\s*[-\u2013:]\s*(?:u\.?s\.?a?|row|rest of world|international|ex-?u\.?s\.?|"
+    r"outside the u\.?s\.?|domestic|worldwide|global|europe|japan)\.?\s*$", re.I)
+
+
+def strip_region(label: str) -> str:
+    """A product label with any trailing region marker removed."""
+    text = (label or "").strip()
+    for _ in range(2):
+        stripped = _REGION_SUFFIX.sub("", text).strip()
+        if stripped == text:
+            break
+        text = stripped
+    return text
 _COST_TOTAL = re.compile(r"\b(?:expense|cost|costs|operating|spend)\b", re.I)
 
 
@@ -465,7 +501,7 @@ def discover(text: str, company_revenue: float | None = None) -> dict:
             if value is None:
                 continue
             value *= multiplier
-            if "total" in label.strip().lower():
+            if _TOTAL_MARKER.search(label):
                 balances = products and abs(
                     sum(products.values()) + residual - value) <= max(
                         1.0, value * _SUM_TOLERANCE)
@@ -477,7 +513,11 @@ def discover(text: str, company_revenue: float | None = None) -> dict:
             if company_revenue and value > company_revenue:
                 continue
             if _plausible_label(label):
-                products.setdefault(label.strip(" .:;$"), value)
+                # The regions of one product are added together, so a filer reporting
+                # Eylea in the United States and Eylea in the rest of the world yields
+                # one worldwide figure rather than two half products.
+                name = strip_region(label.strip(" .:;$"))
+                products[name] = products.get(name, 0.0) + value
             else:
                 # A row that reads as money and is not a product still belongs to the
                 # total. Neurocrine's table is Ingrezza, Crenessity and a 19m "Other",
@@ -533,6 +573,16 @@ def _asset_for(conn, company_id: int, label: str):
     words = [w for w in re.split(r"[^A-Za-z0-9]+", label.strip()) if w]
     if len(words) != 1 or len(words[0]) < 4 or not words[0][0].isalpha():
         return None
+
+    # And not a counterparty. Regeneron splits its revenue by collaborator, so its table
+    # has rows headed "Sanofi" and "Bayer" carrying 5.9bn and 1.4bn. Both are single
+    # words and both would have become drugs.
+    tokens = {t for t in re.split(r"[^A-Za-z]+", label.lower()) if len(t) >= 3}
+    for row in conn.execute("SELECT name FROM companies WHERE id != ?", (company_id,)):
+        other = {t for t in re.split(r"[^A-Za-z]+", (row["name"] or "").lower())
+                 if len(t) >= 3 and t not in _CORPORATE_WORDS}
+        if other & tokens:
+            return None
 
     conn.execute(
         "INSERT INTO assets (owner_company_id, brand_name, is_marketed, notes)"

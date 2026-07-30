@@ -43,6 +43,7 @@ from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
 from fetchers.fx_ecb import FxEcbFetcher
 from fetchers.labels_dailymed import LabelsDailyMedFetcher
+from fetchers.ndc_marketing import NdcMarketingFetcher
 from fetchers.news_fda import NewsFdaFetcher
 from fetchers.paragraph_iv_fda import ParagraphIvFetcher
 from fetchers.prices import (FiveMinuteBarsFetcher, HourlyBarsFetcher,
@@ -70,6 +71,9 @@ def _company_fetchers(company, db_path):
         TrialsFetcher(company["ticker"], db_path),
         TrialsCompletedFetcher(company["ticker"], db_path),
         ApprovalsOpenFdaFetcher(company["ticker"], db_path),
+        # The marketed register, which is where a vaccine or a gene therapy is dated
+        # from: drugsfda carries no CBER biologics at all.
+        NdcMarketingFetcher(company["ticker"], db_path),
         LabelsDailyMedFetcher(company["ticker"], db_path),
     ]
     if company["is_sec_filer"] and company["cik"]:
