@@ -49,11 +49,12 @@ PER_FORM = {"10-K": 2, "10-Q": 2, "20-F": 2, "8-K": 6, "6-K": 6}
 _DEFAULT_PER_FORM = 2
 CURRENT_REPORTS = ("8-K", "6-K")
 
-# A press release furnished with a current report. Filenames vary by filing agent
-# (dyn-ex99_1.htm, d123456dex991.htm, a8-kex991.htm), and all of them contain "ex99" once
-# the separators are removed.
-_EXHIBIT_NAME = re.compile(r"ex99", re.I)
-_EXHIBITS_PER_FILING = 2            # 99.1 and 99.2; the rest are consents and opinions
+# A press release furnished with a current report. Filenames vary by filing agent, and
+# the word is spelled out as often as it is abbreviated: dyn-ex99_1.htm, d123456dex991.htm
+# and exhibit992sail.htm are all exhibit 99. Matching "ex99" alone missed the third, which
+# is how Johnson & Johnson's agent names them.
+_EXHIBIT_NAME = re.compile(r"ex(?:hibit)?9{2}", re.I)
+_EXHIBITS_PER_FILING = 3            # 99.1 to 99.3; the rest are consents and opinions
 
 
 class FilingTextEdgarFetcher(BaseFetcher):
@@ -144,21 +145,21 @@ class FilingTextEdgarFetcher(BaseFetcher):
                         rows.append({**filing, "section": name, "text": text})
                 # The body is a pointer; the exhibit is the news. Missing exhibits are not
                 # an error: most 8-Ks furnish none, and the body still stands on its own.
-                # Several exhibits become one section, because filing_sections is unique
-                # on (accession, section) and a second row would be silently dropped.
+                # Each exhibit is its own section, because one 8-K can furnish two press
+                # releases about two different deals: J&J announced Firefly at 1bn and
+                # Sail at 2.58bn in one filing, and joined into one document the terms of
+                # each read as the terms of the other.
                 time.sleep(_SLEEP_S)
-                exhibits = []
-                for url in self._exhibit_urls(filing["url"], user_agent):
+                for index, url in enumerate(self._exhibit_urls(filing["url"], user_agent)):
                     try:
-                        exhibits.append(
-                            filingtext.html_to_text(self._read(url, user_agent)))
+                        text = filingtext.html_to_text(self._read(url, user_agent))
                     except Exception:
-                        pass
+                        text = ""
+                    if text:
+                        rows.append({**filing,
+                                     "section": filingtext.exhibit_section(index),
+                                     "text": text[:filingtext.CURRENT_REPORT_MAX]})
                     time.sleep(_SLEEP_S)
-                joined = "\n\n".join(t for t in exhibits if t)
-                if joined:
-                    rows.append({**filing, "section": filingtext.EXHIBIT_SECTION,
-                                 "text": joined[:filingtext.CURRENT_REPORT_MAX]})
                 continue
 
             is_20f = form == "20-F"

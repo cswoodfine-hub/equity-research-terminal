@@ -66,6 +66,16 @@ EXHIBIT_SECTION = "exhibit"
 CURRENT_REPORT_MAX = 200_000
 _ITEM_HEADING = re.compile(r"^\s*item\s+\d\.\d\d\b", re.I | re.M)
 
+
+def exhibit_section(index: int) -> str:
+    """The section name for the nth exhibit of a filing.
+
+    Numbered from the second, so the common case reads "exhibit" and a filing furnishing
+    two press releases keeps them apart. filing_sections is unique on (accession,
+    section), so one name for all of them would silently drop every exhibit but the first.
+    """
+    return EXHIBIT_SECTION if index == 0 else f"{EXHIBIT_SECTION}_{index + 1}"
+
 # A drug's patent cliff is rarely a clean section: companies scatter it through Item 1's
 # patent discussion, a patent table, and MD&A, by brand or by generic name. Rather than
 # find a section, harvest every line that pairs patent, exclusivity or biosimilar

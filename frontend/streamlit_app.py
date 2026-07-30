@@ -1202,6 +1202,36 @@ with main:
         _covered = set(tickers)
         _engine_name = _ENGINE_LABELS.get(engine, "coverage").lower()
 
+        # The front page of the engine: the few things ranked by how much they matter
+        # rather than by when they happened. The feed below answers "what moved" and
+        # answers it four hundred times; this answers "what would you be embarrassed not
+        # to know", which is a different question and has to be asked first.
+        leads = api_get(api_base, f"/headlines?engine={urllib.parse.quote(engine or '')}")
+        section("Headlines", f"{len(leads)} on {_engine_name}" if leads else _engine_name)
+        if not leads:
+            state(f"Nothing material on {_engine_name} in the last fortnight",
+                  "A headline is a deal with stated terms, an approval, a scheduled panel "
+                  "vote, a senior change or a trial stopping. Quiet is an answer.")
+        else:
+            st.markdown("".join(
+                f'<div class="lead lead-{html_escape(h["kind"])}">'
+                f'<div class="lead-top">'
+                f'<span class="lead-f">{html_escape(h["figure"])}</span>'
+                f'<span class="lead-h">{html_escape(h["headline"])}</span>'
+                f'<span class="lead-d">{html_escape(h["date"])}</span></div>'
+                + (f'<div class="lead-s">{html_escape(h["detail"])}</div>'
+                   if h.get("detail") else "")
+                + (f'<div class="lead-q">{html_escape(h["evidence"])}</div>'
+                   if h.get("evidence") and h.get("kind") == "deal" else "")
+                + '</div>' for h in leads), unsafe_allow_html=True)
+            st.markdown(
+                '<div class="byline">Ranked by kind, most material first: a deal with '
+                'stated terms, then an approval, a scheduled panel vote, a senior change, '
+                'a trial stopping. One per company. A deal shows what it pays split the '
+                'way the filing splits it, with the sentence it was read from, because '
+                'the equity inside an upfront is not additional to it.</div>',
+                unsafe_allow_html=True)
+
         _all_changes = api_get(api_base, "/changes")
         universe_feed = [it for it in _all_changes
                          if (it.get("ticker") or "") in _covered]
@@ -1339,7 +1369,8 @@ with main:
         reg_counts = reg.get("counts") or {}
         section("FDA regulatory",
                 f'{reg_counts.get("ahead", 0)} ahead · '
-                f'{reg_counts.get("matched", 0)} touch coverage')
+                f'{reg_counts.get("matched", 0)} touch coverage · '
+                f'{reg_counts.get("housekeeping", 0)} set aside')
         if not (reg.get("ahead") or reg.get("behind")):
             state("No FDA regulatory items on file",
                   "Advisory committee meetings come from the Federal Register and the "
@@ -1378,7 +1409,11 @@ with main:
             st.markdown("".join(html), unsafe_allow_html=True)
             st.markdown(
                 '<div class="byline">Advisory committee votes and the FDA press, drug and '
-                'MedWatch feeds on one timeline. The rail colour is the kind: amber a '
+                'MedWatch feeds on one timeline, filtered to events. Most of what the '
+                'agency publishes is its own upkeep, guidances and user-fee programmes '
+                'and resource pages reposted, and a device recall at a company this '
+                'universe does not cover is somebody else\'s subject; both are counted '
+                'above rather than listed. The rail colour is the kind: amber a '
                 'scheduled panel vote, red a safety communication, green a drugs item. A '
                 'bold ticker is a matched company and leads its day; an unmatched item is '
                 'agency context, kept rather than dropped. A panel vote leads its decision '

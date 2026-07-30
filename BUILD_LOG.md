@@ -736,3 +736,31 @@ real rates dated 2026-07-24; append-only, no other mutation.
   the row drops itself once the next quarter's balance sheet includes it.
 - tests/test_refresh.py stubbed the NDC fetcher. It was the one fetcher still reaching the
   network in that test, and openFDA's rate limit made the run come back partial.
+
+## Terms, headlines, and a filter on the agency — 2026-07-30
+- The J&J/Sail deal was captured on the 29th from a Google News headline: a counterparty,
+  a type, and no size. The same day's 8-K furnished the press release as Exhibit 99.2, and
+  it states all of it. Deals now carry upfront, equity, milestones, option and total as
+  five figures rather than one, read out of that text with no model: $785m upfront, of
+  which $465m is equity, $140m on milestones, $2.58bn if the option is exercised.
+- The equity sits inside the upfront and nothing is summed, because that is what the
+  filing says. A single value column has to pick one number and is wrong whichever it
+  picks: 2.58bn overstates what is being spent, 785m understates what the deal is worth.
+- Roles bind from the phrase to the figure, within a clause. The other way round, a word
+  already spoken for claims a second figure: "we will pay $50 million upfront and up to
+  $450 million in milestones" put both under upfront, because "upfront" sat eleven
+  characters from the wrong figure and twelve from the right one.
+- The exhibit matcher missed J&J's naming. Filing agents spell it out as often as they
+  abbreviate, and "exhibit991firefly.htm" contains no "ex99". Each exhibit is also its own
+  section now: one 8-K furnished two press releases, Firefly at 1bn and Sail at 2.58bn,
+  and joined into one document each read as the other's price.
+- The Universe tab leads with headlines: the few things ranked by kind, most material
+  first, one per company, each carrying what makes it matter. A deal with no terms is not
+  a headline at all.
+- FDA regulatory is filtered to events. Of 83 items over four months, 69 were the agency's
+  own website upkeep, guidances and user-fee programmes and resource pages reposted, and
+  most of the rest were device recalls at companies this universe does not cover. Fourteen
+  survive. The count of what was set aside is on the section header, so a short list reads
+  as filtered rather than as broken.
+- A resource page matched to a company is still not an event: "New Approach Methodologies
+  (NAMs)" was bound to Revolution Medicines.

@@ -186,6 +186,10 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # after the filing text fetch and before the runway is read anywhere, since it moves
     # the cash figure every downstream view divides by.
     mapped["financings"] = financings.build(db_path)["written"]
+    # What a deal pays, out of the press release furnished with the 8-K. A deal
+    # caught from a news headline arrives with a counterparty and no size, and the
+    # text that states the terms is already stored by the filing-text fetch.
+    mapped["deal_terms"] = deals.enrich(db_path)["filled"]
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
     readouts = catalysts.derive_readouts(db_path)
@@ -299,6 +303,10 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # after the filing text fetch and before the runway is read anywhere, since it moves
     # the cash figure every downstream view divides by.
     mapped["financings"] = financings.build(db_path)["written"]
+    # What a deal pays, out of the press release furnished with the 8-K. A deal
+    # caught from a news headline arrives with a counterparty and no size, and the
+    # text that states the terms is already stored by the filing-text fetch.
+    mapped["deal_terms"] = deals.enrich(db_path)["filled"]
     readouts = catalysts.derive_readouts(db_path)
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
     # the acceptance. Without an Anthropic key this reports that it did nothing.

@@ -28,6 +28,7 @@ import time
 import urllib.request
 
 import db
+import deal_terms
 import therapeutic_areas
 import llm
 import pdufa                     # reuse strip_html, parse_reply and the fatal-error test
@@ -452,3 +453,81 @@ def recent(db_path=None, ticker: str = "", today=None, within_days: int = 400,
         return recent_rows(conn, row["id"], today, within_days, limit) if row else []
     finally:
         conn.close()
+
+
+# --- the terms behind the headline -----------------------------------------------------
+
+# How far either side of a deal's date to look for the filing that carries its terms. A
+# news wire runs the headline the morning of the 8-K; a deal recapped in an earnings
+# release can be a few days out.
+TERMS_WINDOW_DAYS = 5
+
+# The counterparty has to appear in the document, or the terms belong to another deal. J&J
+# furnished two press releases with one 8-K on the same day, Firefly at 1bn and Sail at
+# 2.58bn, and a match on the filing alone would have given each the other's numbers.
+_PARTY_HEAD = re.compile(r"^[A-Za-z0-9&'\-\. ]+?(?=\s*(?:,|\(|Inc|LLC|Ltd|plc|AG|SE|N\.V|$))")
+
+
+def party_head(counterparty: str) -> str:
+    """The distinctive part of a party's name, for finding it in a document."""
+    match = _PARTY_HEAD.match((counterparty or "").strip())
+    head = (match.group(0) if match else counterparty or "").strip(" ,.")
+    return head
+
+
+def terms_documents(conn, company_id: int, event_date: str) -> list:
+    """The stored filing text around a deal's date that could carry its terms.
+
+    Reads what the filing-text fetcher already stored rather than going back to the
+    network, so this costs nothing and runs whatever the refresh order.
+    """
+    if not event_date:
+        return []
+    day = (event_date or "")[:10]
+    start = (dt.date.fromisoformat(day) - dt.timedelta(days=TERMS_WINDOW_DAYS)).isoformat()
+    end = (dt.date.fromisoformat(day) + dt.timedelta(days=TERMS_WINDOW_DAYS)).isoformat()
+    return [dict(r) for r in conn.execute(
+        "SELECT accession, form_type, filed_date, section, text FROM filing_sections"
+        "  WHERE company_id = ? AND (section LIKE 'exhibit%' OR section = 'body')"
+        "    AND filed_date BETWEEN ? AND ? AND text IS NOT NULL"
+        "  ORDER BY (section LIKE 'exhibit%') DESC, filed_date",
+        (company_id, start, end))]
+
+
+def enrich(db_path=None) -> dict:
+    """Fill in the payment structure of every deal that has none.
+
+    A deal caught from a news headline arrives with a counterparty and nothing else. The
+    press release furnished with the same day's 8-K states what it pays, and that text is
+    already stored, so the two are matched on the party's name appearing in the document.
+    """
+    conn = db.get_connection(db_path)
+    filled = 0
+    try:
+        pending = conn.execute(
+            "SELECT id, company_id, counterparty, event_date FROM deals"
+            "  WHERE headline_usd IS NULL AND counterparty IS NOT NULL").fetchall()
+        for deal in pending:
+            head = party_head(deal["counterparty"])
+            if len(head) < 3:
+                continue
+            for document in terms_documents(conn, deal["company_id"], deal["event_date"]):
+                if head.lower() not in (document["text"] or "").lower():
+                    continue
+                terms = deal_terms.parse(document["text"])
+                size = deal_terms.headline(terms)
+                if size is None:
+                    continue
+                conn.execute(
+                    "UPDATE deals SET upfront_usd = ?, equity_usd = ?, milestones_usd = ?,"
+                    "  option_usd = ?, total_usd = ?, headline_usd = ?,"
+                    "  terms_evidence = ?, terms_source = ? WHERE id = ?",
+                    (terms["upfront"], terms["equity"], terms["milestones"],
+                     terms["option"], terms["total"], size, terms["evidence"],
+                     document["accession"], deal["id"]))
+                filled += 1
+                break
+        conn.commit()
+    finally:
+        conn.close()
+    return {"filled": filled}

@@ -35,6 +35,7 @@ import brief as brief_module
 import runway as runway_module
 import productivity as productivity_module
 import engines as engines_module
+import headlines as headlines_module
 import labels as labels_module
 import fx as fx_module
 import loe as loe_module
@@ -705,6 +706,15 @@ def engines_board() -> dict:
 def engine_tickers(engine: str) -> list[str]:
     """The companies one engine covers. An unknown engine returns the whole universe."""
     return engines_module.tickers_for(engine=engine)
+
+
+@app.get("/headlines")
+def headline_items(engine: Optional[str] = None, days: int = headlines_module.LOOKBACK_DAYS,
+                   limit: int = headlines_module.LIMIT) -> list[dict]:
+    """The few things worth knowing on an engine, ranked by materiality not recency."""
+    tickers = (engines_module.tickers_for(engine=engine)
+               if engine in engines_module.ENGINES else None)
+    return headlines_module.build(tickers=tickers, days=days, limit=limit)
 
 
 @app.get("/engines/home")
