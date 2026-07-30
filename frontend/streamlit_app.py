@@ -968,11 +968,34 @@ if asof_state:
         'to return to live</div>', unsafe_allow_html=True)
 
 with main:
-    (universe_tab, insights_tab, prices_tab, financials_tab, pipeline_tab,
-     portfolio_tab, catalysts_tab, themes_tab, runway_tab, comps_tab,
-     news_tab) = st.tabs(
-        ["Universe", "Key insights", "Prices", "Financials", "Pipeline",
-         "Portfolio", "Catalysts", "Themes", "Runway", "Comps", "News"])
+    # Which tabs a company has depends on whether it sells anything. Portfolio is
+    # revenue mix and loss of exclusivity, and 30 of these 70 companies have neither, so
+    # for them it was three empty charts. Runway is cash against burn, which says nothing
+    # about a company earning 60bn a year. An unknown stage keeps both, since a company
+    # that files nothing with the SEC is not evidence of a company with no product.
+    _stage = (company or {}).get("stage") or "unknown"
+    _wanted = [("universe", "Universe"), ("insights", "Key insights"),
+               ("prices", "Prices"), ("financials", "Financials"),
+               ("pipeline", "Pipeline")]
+    if _stage != "clinical":
+        _wanted.append(("portfolio", "Portfolio"))
+    _wanted += [("catalysts", "Catalysts"), ("themes", "Themes")]
+    if _stage != "commercial":
+        _wanted.append(("runway", "Runway"))
+    _wanted += [("comps", "Comps"), ("news", "News")]
+    _panels = dict(zip([name for name, _label in _wanted],
+                       st.tabs([label for _name, label in _wanted])))
+    universe_tab = _panels["universe"]
+    insights_tab = _panels["insights"]
+    prices_tab = _panels["prices"]
+    financials_tab = _panels["financials"]
+    pipeline_tab = _panels["pipeline"]
+    catalysts_tab = _panels["catalysts"]
+    themes_tab = _panels["themes"]
+    comps_tab = _panels["comps"]
+    news_tab = _panels["news"]
+    portfolio_tab = _panels.get("portfolio")
+    runway_tab = _panels.get("runway")
 
     # --- Universe: what moved across coverage since you last looked -------
     with universe_tab:
@@ -2192,389 +2215,390 @@ with main:
 
 
     # --- Portfolio -------------------------------------------------------
-    with portfolio_tab:
-        approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
-        # Revenue-mix data fetched once here: the donut renders above the product cards
-        # (inside the else), and the product-revenue list below reuses these rows.
-        revenue_payload = api_get(api_base, f"/companies/{ticker}/revenue")
-        curated = revenue_payload["rows"]
-        mix_year = max((r["fiscal_year"] for r in curated), default=None)
-        mix_rows = [r for r in curated if r["fiscal_year"] == mix_year]
-        mix_ccy = next((r["unit"] for r in mix_rows if r.get("unit")), None)
-        mix_reported = (revenue_payload.get("company_revenue") or {}).get(
-            str(mix_year)) or {}
-        mix_drivers, mix_tail = revenue_mix.split(mix_rows)
-        section(f"{ticker} portfolio")
-        if not approvals:
-            state(f"No approvals on file for {ticker}",
-                  "openFDA files an approval under the legal entity that holds the "
-                  "application, which for an acquired product is the company that was "
-                  "bought. Press Refresh all on the Comps tab to pull it again.")
-        else:
-            today = dt.date.today()
+    if portfolio_tab is not None:
+        with portfolio_tab:
+            approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
+            # Revenue-mix data fetched once here: the donut renders above the product cards
+            # (inside the else), and the product-revenue list below reuses these rows.
+            revenue_payload = api_get(api_base, f"/companies/{ticker}/revenue")
+            curated = revenue_payload["rows"]
+            mix_year = max((r["fiscal_year"] for r in curated), default=None)
+            mix_rows = [r for r in curated if r["fiscal_year"] == mix_year]
+            mix_ccy = next((r["unit"] for r in mix_rows if r.get("unit")), None)
+            mix_reported = (revenue_payload.get("company_revenue") or {}).get(
+                str(mix_year)) or {}
+            mix_drivers, mix_tail = revenue_mix.split(mix_rows)
+            section(f"{ticker} portfolio")
+            if not approvals:
+                state(f"No approvals on file for {ticker}",
+                      "openFDA files an approval under the legal entity that holds the "
+                      "application, which for an acquired product is the company that was "
+                      "bought. Press Refresh all on the Comps tab to pull it again.")
+            else:
+                today = dt.date.today()
 
-            def _loe_year(p):
-                try:
-                    return int(str(p["loe"])[:4]) if p.get("loe") else None
-                except (ValueError, TypeError):
-                    return None
+                def _loe_year(p):
+                    try:
+                        return int(str(p["loe"])[:4]) if p.get("loe") else None
+                    except (ValueError, TypeError):
+                        return None
 
-            # One card per product: approvals repeat per indication, but revenue and
-            # exclusivity are per asset and shared, so collapse to the product and keep
-            # the earliest approval date.
-            products: dict = {}
-            for a in approvals:
-                key = a.get("brand_name") or a.get("application_number")
-                p = products.get(key)
-                if p is None:
-                    products[key] = dict(
-                        asset_id=a.get("asset_id"),
-                        application_number=a.get("application_number"),
-                        brand=a.get("brand_name") or a.get("generic_name") or "unnamed",
-                        generic=a.get("generic_name"), modality=a.get("modality"),
-                        approved=a.get("approval_date"), loe=a.get("loe"),
-                        loe_basis=a.get("loe_basis"),
-                        loe_earliest_year=(int(a["loe_earliest"][:4])
-                                           if a.get("loe_earliest") else None),
-                        revenue=a.get("revenue"),
-                        revenue_unit=a.get("revenue_unit"),
-                        area=a.get("area"))
-                elif a.get("approval_date") and (
-                        not p["approved"] or a["approval_date"] < p["approved"]):
-                    p["approved"] = a["approval_date"]
-            # openFDA drugsfda is CDER only, so a CBER cell or gene therapy (Casgevy) has
-            # no approval row there. Fold in Purple Book biologics from the exclusivities
-            # data, keyed by brand and only when not already present, so they still appear.
-            for ex in (api_get(api_base, f"/companies/{ticker}/exclusivities")
-                       .get("assets") or []):
-                brand = ex.get("brand_name")
-                if not brand or brand in products:
-                    continue
-                products[brand] = dict(
-                    asset_id=ex.get("asset_id"),
-                    brand=brand, generic=ex.get("generic_name"),
-                    modality=ex.get("modality"), approved=None,
-                    loe=ex.get("loe"), loe_basis=ex.get("loe_basis"),
-                    loe_earliest_year=ex.get("loe_earliest_year"),
-                    revenue=None, revenue_unit=None,
-                    # A Purple Book biologic has no drugsfda row, so no label to read an
-                    # area off; it groups under the unstated heading until one arrives.
-                    area=ex.get("area"))
-            prods = list(products.values())
-            rev_unit = next((p["revenue_unit"] for p in prods if p.get("revenue_unit")), "")
+                # One card per product: approvals repeat per indication, but revenue and
+                # exclusivity are per asset and shared, so collapse to the product and keep
+                # the earliest approval date.
+                products: dict = {}
+                for a in approvals:
+                    key = a.get("brand_name") or a.get("application_number")
+                    p = products.get(key)
+                    if p is None:
+                        products[key] = dict(
+                            asset_id=a.get("asset_id"),
+                            application_number=a.get("application_number"),
+                            brand=a.get("brand_name") or a.get("generic_name") or "unnamed",
+                            generic=a.get("generic_name"), modality=a.get("modality"),
+                            approved=a.get("approval_date"), loe=a.get("loe"),
+                            loe_basis=a.get("loe_basis"),
+                            loe_earliest_year=(int(a["loe_earliest"][:4])
+                                               if a.get("loe_earliest") else None),
+                            revenue=a.get("revenue"),
+                            revenue_unit=a.get("revenue_unit"),
+                            area=a.get("area"))
+                    elif a.get("approval_date") and (
+                            not p["approved"] or a["approval_date"] < p["approved"]):
+                        p["approved"] = a["approval_date"]
+                # openFDA drugsfda is CDER only, so a CBER cell or gene therapy (Casgevy) has
+                # no approval row there. Fold in Purple Book biologics from the exclusivities
+                # data, keyed by brand and only when not already present, so they still appear.
+                for ex in (api_get(api_base, f"/companies/{ticker}/exclusivities")
+                           .get("assets") or []):
+                    brand = ex.get("brand_name")
+                    if not brand or brand in products:
+                        continue
+                    products[brand] = dict(
+                        asset_id=ex.get("asset_id"),
+                        brand=brand, generic=ex.get("generic_name"),
+                        modality=ex.get("modality"), approved=None,
+                        loe=ex.get("loe"), loe_basis=ex.get("loe_basis"),
+                        loe_earliest_year=ex.get("loe_earliest_year"),
+                        revenue=None, revenue_unit=None,
+                        # A Purple Book biologic has no drugsfda row, so no label to read an
+                        # area off; it groups under the unstated heading until one arrives.
+                        area=ex.get("area"))
+                prods = list(products.values())
+                rev_unit = next((p["revenue_unit"] for p in prods if p.get("revenue_unit")), "")
 
-            total_rev = sum(p["revenue"] for p in prods if p.get("revenue"))
-            horizon = today.year + 5
-            at_risk = sum(p["revenue"] for p in prods if p.get("revenue")
-                          and (_loe_year(p) or 9999) <= horizon)
-            st.markdown(
-                '<div class="pos">'
-                f'<div><span class="k">products</span>'
-                f'<span class="v">{len(prods)}</span>'
-                f'<span class="sub">approved or protected</span></div>'
-                f'<div><span class="k">tagged revenue</span>'
-                f'<span class="v{"" if total_rev else " none"}">'
-                f'{T.num(total_rev / 1e9, 1) if total_rev else "none"}</span>'
-                f'<span class="sub">{rev_unit} bn, latest FY</span></div>'
-                f'<div><span class="k">rolling off by {horizon}</span>'
-                f'<span class="v {"down" if at_risk else "none"}">'
-                f'{T.num(at_risk / 1e9, 1) if at_risk else "none"}</span>'
-                f'<span class="sub">'
-                f'{str(round(at_risk / total_rev * 100)) + "% of tagged" if total_rev and at_risk else "loses exclusivity"}'
-                f'</span></div>'
-                '</div>', unsafe_allow_html=True)
+                total_rev = sum(p["revenue"] for p in prods if p.get("revenue"))
+                horizon = today.year + 5
+                at_risk = sum(p["revenue"] for p in prods if p.get("revenue")
+                              and (_loe_year(p) or 9999) <= horizon)
+                st.markdown(
+                    '<div class="pos">'
+                    f'<div><span class="k">products</span>'
+                    f'<span class="v">{len(prods)}</span>'
+                    f'<span class="sub">approved or protected</span></div>'
+                    f'<div><span class="k">tagged revenue</span>'
+                    f'<span class="v{"" if total_rev else " none"}">'
+                    f'{T.num(total_rev / 1e9, 1) if total_rev else "none"}</span>'
+                    f'<span class="sub">{rev_unit} bn, latest FY</span></div>'
+                    f'<div><span class="k">rolling off by {horizon}</span>'
+                    f'<span class="v {"down" if at_risk else "none"}">'
+                    f'{T.num(at_risk / 1e9, 1) if at_risk else "none"}</span>'
+                    f'<span class="sub">'
+                    f'{str(round(at_risk / total_rev * 100)) + "% of tagged" if total_rev and at_risk else "loses exclusivity"}'
+                    f'</span></div>'
+                    '</div>', unsafe_allow_html=True)
 
-            # Revenue mix leads: what the company earns today, by product, before the
-            # cliff charts say what is at risk. The mix is the base the rest is read
-            # against, so it comes first.
-            if mix_drivers:
-                section("Revenue mix", f"FY{mix_year}")
-                ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
-                slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
-                           "value": p["value"], "colour": ramp[i % len(ramp)]}
-                          for i, p in enumerate(mix_drivers)]
-                if mix_tail:
-                    slices.append({"label": f"{len(mix_tail)} smaller products",
-                                   "value": sum(p["value"] for p in mix_tail),
-                                   "colour": TK.RULE_STRONG, "muted": True})
-                rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
-                if rest:
-                    slices.append({"label": "not attributed by product",
-                                   "value": rest, "colour": TK.PANEL, "muted": True})
-                # The same revenue twice: by product, and by the disease the label says
-                # each product treats. One says which drugs carry the company, the other
-                # says which franchise does, and a portfolio held in one area reads very
-                # differently from the same revenue spread across four.
-                # The revenue rows carry their own area, so a product that earns under
-                # this company but is approved to another still lands in a franchise.
-                area_by_asset = {p.get("asset_id"): p.get("area") for p in prods
-                                 if p.get("asset_id")}
-                by_area: dict = {}
-                for row in mix_rows:
-                    area = (row.get("area")
-                            or area_by_asset.get(row.get("asset_id"))
-                            or "area not stated")
-                    by_area[area] = by_area.get(area, 0) + (row.get("value") or 0)
-                area_order = sorted(by_area, key=lambda a: (a == "area not stated",
-                                                            -by_area[a]))
-                # A donut half the width cannot carry "Immunology and inflammation" as
-                # a leader label, so the long areas go by their head word here. The
-                # product grid below keeps the full names.
-                short = {"Immunology and inflammation": "Immunology",
-                         "Renal and hepatic": "Renal and hepatic",
-                         "Infectious disease": "Infectious",
-                         "Healthy volunteers": "Healthy volunteers"}
-                # Categories, not magnitudes: a lightness ramp would say oncology is
-                # more than neuroscience. Hue carries the area, each area keeps its own
-                # colour across companies, and the two donuts stop looking like one
-                # chart drawn twice.
-                area_colour = area_colours(
-                    [a for a in area_order if a != "area not stated"])
-                area_slices = [
-                    {"label": short.get(area, area), "value": by_area[area],
-                     "colour": (TK.RULE_STRONG if area == "area not stated"
-                                else area_colour[area]),
-                     "muted": area == "area not stated"}
-                    for area in area_order]
-                if rest:
-                    area_slices.append({"label": "not attributed by product",
-                                        "value": rest, "colour": TK.PANEL,
-                                        "muted": True})
+                # Revenue mix leads: what the company earns today, by product, before the
+                # cliff charts say what is at risk. The mix is the base the rest is read
+                # against, so it comes first.
+                if mix_drivers:
+                    section("Revenue mix", f"FY{mix_year}")
+                    ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
+                    slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
+                               "value": p["value"], "colour": ramp[i % len(ramp)]}
+                              for i, p in enumerate(mix_drivers)]
+                    if mix_tail:
+                        slices.append({"label": f"{len(mix_tail)} smaller products",
+                                       "value": sum(p["value"] for p in mix_tail),
+                                       "colour": TK.RULE_STRONG, "muted": True})
+                    rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
+                    if rest:
+                        slices.append({"label": "not attributed by product",
+                                       "value": rest, "colour": TK.PANEL, "muted": True})
+                    # The same revenue twice: by product, and by the disease the label says
+                    # each product treats. One says which drugs carry the company, the other
+                    # says which franchise does, and a portfolio held in one area reads very
+                    # differently from the same revenue spread across four.
+                    # The revenue rows carry their own area, so a product that earns under
+                    # this company but is approved to another still lands in a franchise.
+                    area_by_asset = {p.get("asset_id"): p.get("area") for p in prods
+                                     if p.get("asset_id")}
+                    by_area: dict = {}
+                    for row in mix_rows:
+                        area = (row.get("area")
+                                or area_by_asset.get(row.get("asset_id"))
+                                or "area not stated")
+                        by_area[area] = by_area.get(area, 0) + (row.get("value") or 0)
+                    area_order = sorted(by_area, key=lambda a: (a == "area not stated",
+                                                                -by_area[a]))
+                    # A donut half the width cannot carry "Immunology and inflammation" as
+                    # a leader label, so the long areas go by their head word here. The
+                    # product grid below keeps the full names.
+                    short = {"Immunology and inflammation": "Immunology",
+                             "Renal and hepatic": "Renal and hepatic",
+                             "Infectious disease": "Infectious",
+                             "Healthy volunteers": "Healthy volunteers"}
+                    # Categories, not magnitudes: a lightness ramp would say oncology is
+                    # more than neuroscience. Hue carries the area, each area keeps its own
+                    # colour across companies, and the two donuts stop looking like one
+                    # chart drawn twice.
+                    area_colour = area_colours(
+                        [a for a in area_order if a != "area not stated"])
+                    area_slices = [
+                        {"label": short.get(area, area), "value": by_area[area],
+                         "colour": (TK.RULE_STRONG if area == "area not stated"
+                                    else area_colour[area]),
+                         "muted": area == "area not stated"}
+                        for area in area_order]
+                    if rest:
+                        area_slices.append({"label": "not attributed by product",
+                                            "value": rest, "colour": TK.PANEL,
+                                            "muted": True})
 
-                # The same total in both centres, because it is the same revenue cut
-                # two ways; the heading over each says which cut it is.
-                total_mix = sum(sl["value"] for sl in slices) / 1e9
-                named = len([a for a in area_order if a != "area not stated"])
-                left, right = st.columns(2, gap="small")
-                with left:
-                    st.markdown('<div class="subhead">By product</div>',
-                                unsafe_allow_html=True)
-                    R.show(CH.donut(
-                        slices, 470, 360, centre_label=T.num(total_mix, 1),
-                        centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                        value_fmt=lambda v: T.num(v / 1e9, 2)))
-                with right:
+                    # The same total in both centres, because it is the same revenue cut
+                    # two ways; the heading over each says which cut it is.
+                    total_mix = sum(sl["value"] for sl in slices) / 1e9
+                    named = len([a for a in area_order if a != "area not stated"])
+                    left, right = st.columns(2, gap="small")
+                    with left:
+                        st.markdown('<div class="subhead">By product</div>',
+                                    unsafe_allow_html=True)
+                        R.show(CH.donut(
+                            slices, 470, 360, centre_label=T.num(total_mix, 1),
+                            centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                            value_fmt=lambda v: T.num(v / 1e9, 2)))
+                    with right:
+                        st.markdown(
+                            f'<div class="subhead">By disease area<span>{named} areas'
+                            '</span></div>', unsafe_allow_html=True)
+                        R.show(CH.donut(
+                            area_slices, 470, 360, centre_label=T.num(total_mix, 1),
+                            centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                            value_fmt=lambda v: T.num(v / 1e9, 2)))
+
+                # Loss of exclusivity by year. Two cuts of the same expiries. The count
+                # cliff shows every product with a published expiry, so nothing is hidden by
+                # the free-data revenue gap. The revenue chart below weights only the few
+                # products with tagged revenue, which is sparse and must not read as the
+                # whole cliff.
+                count_by_year: dict = {}
+                rev_by_year: dict = {}
+                for p in prods:
+                    y, r = _loe_year(p), p.get("revenue")
+                    if y and today.year <= y <= today.year + 10:
+                        count_by_year[y] = count_by_year.get(y, 0) + 1
+                        if r:
+                            rev_by_year[y] = rev_by_year.get(y, 0) + r
+                if count_by_year:
+                    years = list(range(today.year, today.year + 11))
+                    section("Loss of exclusivity by year", "products, next 10 years")
+                    bars = [{"label": f"'{y % 100:02d}",
+                             "value": count_by_year.get(y, 0),
+                             "colour": TK.DOWN, "show_value": count_by_year.get(y, 0) > 0}
+                            for y in years]
+                    R.show(CH.bar_chart(bars, 900, 190, value_fmt=lambda v: str(int(v))))
                     st.markdown(
-                        f'<div class="subhead">By disease area<span>{named} areas'
-                        '</span></div>', unsafe_allow_html=True)
-                    R.show(CH.donut(
-                        area_slices, 470, 360, centre_label=T.num(total_mix, 1),
-                        centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                        value_fmt=lambda v: T.num(v / 1e9, 2)))
+                        '<div class="byline">Every marketed product losing US exclusivity '
+                        'that year, expiries from the Orange and Purple Books, counted whether '
+                        'or not its revenue is tagged. A small molecule is placed at its latest '
+                        'patent, a biologic at the later of its listed expiry and the 12-year '
+                        'floor. A product with no published expiry cannot be placed and is left '
+                        'out, never estimated.</div>',
+                        unsafe_allow_html=True)
+                if rev_by_year:
+                    section("Revenue at risk by year", f"tagged products only, {rev_unit} bn")
+                    bars = [{"label": f"'{y % 100:02d}", "value": rev_by_year[y] / 1e9}
+                            for y in sorted(rev_by_year)]
+                    R.show(CH.bar_chart(bars, 900, 190, value_fmt=lambda v: T.num(v, 1)))
+                    st.markdown(
+                        '<div class="byline">The subset of the cliff above whose product '
+                        'revenue is tagged in the SEC data sets, latest reported held flat. '
+                        'Free data tags revenue for only a few products, so this understates '
+                        'the money at risk and is a floor, not the total.</div>',
+                        unsafe_allow_html=True)
 
-            # Loss of exclusivity by year. Two cuts of the same expiries. The count
-            # cliff shows every product with a published expiry, so nothing is hidden by
-            # the free-data revenue gap. The revenue chart below weights only the few
-            # products with tagged revenue, which is sparse and must not read as the
-            # whole cliff.
-            count_by_year: dict = {}
-            rev_by_year: dict = {}
-            for p in prods:
-                y, r = _loe_year(p), p.get("revenue")
-                if y and today.year <= y <= today.year + 10:
-                    count_by_year[y] = count_by_year.get(y, 0) + 1
-                    if r:
-                        rev_by_year[y] = rev_by_year.get(y, 0) + r
-            if count_by_year:
-                years = list(range(today.year, today.year + 11))
-                section("Loss of exclusivity by year", "products, next 10 years")
-                bars = [{"label": f"'{y % 100:02d}",
-                         "value": count_by_year.get(y, 0),
-                         "colour": TK.DOWN, "show_value": count_by_year.get(y, 0) > 0}
-                        for y in years]
-                R.show(CH.bar_chart(bars, 900, 190, value_fmt=lambda v: str(int(v))))
+                section("Products", f"{len(prods)}")
+
+                def _product_card_html(p):
+                    mod = (p.get("modality") or "").lower()
+                    cls = "bio" if "bio" in mod else "small" if mod else ""
+                    y = _loe_year(p)
+                    near = y is not None and y <= today.year + 3
+                    rev_txt = (f'{T.num(p["revenue"] / 1e9, 2)} {p.get("revenue_unit") or ""} bn'
+                               if p.get("revenue") is not None else "no free data")
+                    to_loe = f' · {y - today.year}y' if y else ""
+                    # A small molecule usually has several Orange Book patents; the latest
+                    # overstates the real cliff since generics can challenge the earlier ones.
+                    # Show the earliest-to-latest range so the wall reads as a window, not a
+                    # single hard date. Biologics keep the single merged floor.
+                    ey = p.get("loe_earliest_year")
+                    is_range = cls == "small" and ey and y and ey != y
+                    loe_label = "exclusivity" if is_range else "exclusivity to"
+                    loe_txt = f'{ey}–{y}' if is_range else (f'{y}{to_loe}' if y else "—")
+                    basis = (f'<div class="pf-row"><span class="pf-k"></span>'
+                             f'<span class="pf-v none" style="font-size:9px">'
+                             f'{html_escape(p.get("loe_basis") or "")}</span></div>'
+                             if p.get("loe_basis") else "")
+                    return (
+                        f'<div class="pf-card {cls}">'
+                        f'<div class="pf-head">'
+                        f'<span class="pf-brand">{html_escape(p["brand"])}</span>'
+                        f'<span class="pf-mod">{html_escape(p.get("modality") or "")}</span></div>'
+                        f'<div class="pf-generic">{html_escape(p.get("generic") or "")}</div>'
+                        f'<div class="pf-row"><span class="pf-k">approved</span>'
+                        f'<span class="pf-v">{(p.get("approved") or "—")[:10]}</span></div>'
+                        f'<div class="pf-row"><span class="pf-k">revenue</span>'
+                        f'<span class="pf-v{"" if p.get("revenue") is not None else " none"}">'
+                        f'{rev_txt}</span></div>'
+                        f'<div class="pf-row"><span class="pf-k">{loe_label}</span>'
+                        f'<span class="pf-v {"near" if near else ""}">'
+                        f'{loe_txt}</span></div>'
+                        f'{basis}</div>')
+
+                prods_sorted = sorted(prods, key=lambda p: (-(p.get("revenue") or 0),
+                                                            _loe_year(p) or 9999))
+                # The card itself is the hit area: the grid renders inside a component that
+                # returns the clicked asset id, so there is no separate button and hovering a
+                # card shows it is live. The selection lives in session state and a native
+                # rerun keeps the Portfolio tab active, so the profile opens in place.
+                # An approval clicked on the Universe timeline arrives as an application
+                # number, which is the only product identifier that survives the change feed.
+                # Resolve it here, where the products are known, and consume it so a later
+                # rerun does not keep reopening the same sheet.
+                pending = st.session_state.pop("pending_product", None)
+                if pending:
+                    match = next((p for p in prods
+                                  if str(p.get("application_number") or "").replace(" ", "")
+                                  == pending), None)
+                    if match and match.get("asset_id"):
+                        st.session_state["profile_asset"] = match["asset_id"]
+                sel_aid = st.session_state.get("profile_asset")
+                # The profile sits above the grid, so a click does not push it below a long
+                # card list. Guarded to this company's products, so switching ticker drops a
+                # stale selection rather than asking the API for another company's asset.
+                sel = next((p for p in prods_sorted if p.get("asset_id") == sel_aid), None)
+                if sel is not None:
+                    _render_product_profile(api_base, ticker, sel, today)
+                # Grouped by the disease the label says the product treats, biggest area
+                # first and biggest product inside it. A portfolio is held by franchise, so
+                # a flat list by revenue hid the shape of it: four metabolic drugs reading
+                # as one bet is the fact, not their order. A product whose label is not on
+                # file sits under its own heading rather than being filed under a guess.
+                groups: dict = {}
+                for p in prods_sorted:
+                    if p.get("asset_id") is None:
+                        continue
+                    groups.setdefault(p.get("area") or "Area not stated", []).append(p)
+
+                def _area_revenue(area):
+                    return sum(p.get("revenue") or 0 for p in groups[area])
+
+                order = sorted(groups, key=lambda a: (a == "Area not stated",
+                                                      -_area_revenue(a)))
+                card_tokens = {"panel": TK.PANEL, "panel-hi": TK.RULE,
+                               "rule": TK.RULE, "rule-strong": TK.RULE_STRONG,
+                               "muted": TK.MUTED, "text": TK.TEXT, "up": TK.UP,
+                               "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
+                               "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
+                               "font-ui": TK.FONT_UI}
+                for area in order:
+                    revenue = _area_revenue(area)
+                    section(area, f"{len(groups[area])} &middot; {T.num(revenue / 1e9, 1)}bn"
+                            if revenue else len(groups[area]))
+                    clicked = prodcards.product_cards(
+                        [{"asset_id": p.get("asset_id"), "html": _product_card_html(p)}
+                         for p in groups[area]],
+                        tokens=card_tokens,
+                        # Keyed per company and area: a fixed key would carry one grid's
+                        # last click into the next.
+                        selected=sel_aid,
+                        key=f"prod_cards_{ticker}_{re.sub(r'[^a-z0-9]+', '_', area.lower())}")
+                    # A click is only acted on once: the nonce changes per click, so a rerun
+                    # triggered by anything else does not reopen a closed profile.
+                    if isinstance(clicked, dict) and clicked.get("nonce") != \
+                            st.session_state.get("prod_click_nonce"):
+                        st.session_state["prod_click_nonce"] = clicked.get("nonce")
+                        st.session_state["profile_asset"] = clicked.get("asset_id")
+                        st.rerun()
+
+            # --- Medicare demand ---
+            # Revenue is what a drug earned; this is how many people took it. CMS Part D and
+            # Part B spending, matched to a marketed product by brand, is the real-world US
+            # demand the revenue line cannot show.
+            med = api_get(api_base, f"/companies/{ticker}/demand").get("drugs") or []
+            section("Medicare demand", "US Part D and Part B")
+            if not med:
+                state(f"No Medicare demand on file for {ticker}",
+                      "CMS publishes Part D and Part B spending by drug once a year, matched "
+                      "to a marketed product by brand on refresh. It covers US Medicare only, "
+                      "so a drug used mostly outside it or by under-65s reads low or absent. "
+                      "Press Refresh all if this looks empty.")
+            else:
+                def _yoy(d):
+                    cur, prior = d.get("spending"), d.get("prior_spending")
+                    if not cur or not prior:
+                        return "—"
+                    return f"{(cur / prior - 1) * 100:+.0f}%"
+                med_year = max((d["latest_year"] for d in med), default="")
+                frame = pd.DataFrame([{
+                    "Drug": d["brand"], "Where": d["part_label"],
+                    "Beneficiaries": (f"{d['beneficiaries']:,}"
+                                      if d.get("beneficiaries") is not None else "—"),
+                    "Claims": (f"{d['claims']:,}" if d.get("claims") is not None else "—"),
+                    "Spending $m": (T.num(d["spending"] / 1e6, 1)
+                                    if d.get("spending") is not None else "—"),
+                    "vs prior": _yoy(d), "Year": str(d["latest_year"])}
+                    for d in med[:25]])
+                st.dataframe(
+                    # Direction reads in colour: growth up, decline in oxblood, flat muted.
+                    frame.style.map(
+                        lambda v: (f"color:{T.P.data};font-weight:600" if v.startswith("+")
+                                   else f"color:{T.P.oxblood};font-weight:600"
+                                   if v.startswith("-") else f"color:{T.P.stale}"),
+                        subset=["vs prior"]),
+                    width="stretch", hide_index=True)
                 st.markdown(
-                    '<div class="byline">Every marketed product losing US exclusivity '
-                    'that year, expiries from the Orange and Purple Books, counted whether '
-                    'or not its revenue is tagged. A small molecule is placed at its latest '
-                    'patent, a biologic at the later of its listed expiry and the 12-year '
-                    'floor. A product with no published expiry cannot be placed and is left '
-                    'out, never estimated.</div>',
+                    f'<div class="byline"><b>US Medicare only.</b> CMS Part D (retail '
+                    f'pharmacy) and Part B (given in a clinic) spending by drug, {med_year} '
+                    f'the latest year published, matched to a marketed product by brand. '
+                    f'Beneficiaries is distinct people, not prescriptions; a count CMS '
+                    f'suppressed for privacy reads as a dash, never zero. This is real-world '
+                    f'demand, a different lens from the reported revenue above, and it misses '
+                    f'commercial and ex-US volume entirely.</div>', unsafe_allow_html=True)
+
+            section("Product revenue", f"{len(curated)} from the filings")
+            if not curated:
+                state(f"No product revenue on file for {ticker}",
+                      "The SEC data sets carry revenue per product only where the "
+                      "filer tags a product axis. AbbVie tags none at all, and GSK and "
+                      "Regeneron spread theirs across segments in a way that cannot be "
+                      "resolved without adding them together.")
+            else:
+                for row in curated:
+                    st.markdown(
+                        f'<div class="fitem"><span class="d">FY{row["fiscal_year"]}'
+                        f'</span><span class="t">{html_escape(row["brand_name"])} '
+                        f'<span class="mono">{html_escape(row["internal_code"] or "")}'
+                        f'</span></span><span class="s">'
+                        f'{T.num(row["value"] / 1e9, 2)} {row["unit"] or ""}</span>'
+                        f'</div>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="byline">Worldwide, as the filing tags it, from the SEC '
+                    'Financial Statement Data Sets. Nothing here is typed in: a figure '
+                    'is what the company reported or it is absent.</div>',
                     unsafe_allow_html=True)
-            if rev_by_year:
-                section("Revenue at risk by year", f"tagged products only, {rev_unit} bn")
-                bars = [{"label": f"'{y % 100:02d}", "value": rev_by_year[y] / 1e9}
-                        for y in sorted(rev_by_year)]
-                R.show(CH.bar_chart(bars, 900, 190, value_fmt=lambda v: T.num(v, 1)))
-                st.markdown(
-                    '<div class="byline">The subset of the cliff above whose product '
-                    'revenue is tagged in the SEC data sets, latest reported held flat. '
-                    'Free data tags revenue for only a few products, so this understates '
-                    'the money at risk and is a floor, not the total.</div>',
-                    unsafe_allow_html=True)
 
-            section("Products", f"{len(prods)}")
-
-            def _product_card_html(p):
-                mod = (p.get("modality") or "").lower()
-                cls = "bio" if "bio" in mod else "small" if mod else ""
-                y = _loe_year(p)
-                near = y is not None and y <= today.year + 3
-                rev_txt = (f'{T.num(p["revenue"] / 1e9, 2)} {p.get("revenue_unit") or ""} bn'
-                           if p.get("revenue") is not None else "no free data")
-                to_loe = f' · {y - today.year}y' if y else ""
-                # A small molecule usually has several Orange Book patents; the latest
-                # overstates the real cliff since generics can challenge the earlier ones.
-                # Show the earliest-to-latest range so the wall reads as a window, not a
-                # single hard date. Biologics keep the single merged floor.
-                ey = p.get("loe_earliest_year")
-                is_range = cls == "small" and ey and y and ey != y
-                loe_label = "exclusivity" if is_range else "exclusivity to"
-                loe_txt = f'{ey}–{y}' if is_range else (f'{y}{to_loe}' if y else "—")
-                basis = (f'<div class="pf-row"><span class="pf-k"></span>'
-                         f'<span class="pf-v none" style="font-size:9px">'
-                         f'{html_escape(p.get("loe_basis") or "")}</span></div>'
-                         if p.get("loe_basis") else "")
-                return (
-                    f'<div class="pf-card {cls}">'
-                    f'<div class="pf-head">'
-                    f'<span class="pf-brand">{html_escape(p["brand"])}</span>'
-                    f'<span class="pf-mod">{html_escape(p.get("modality") or "")}</span></div>'
-                    f'<div class="pf-generic">{html_escape(p.get("generic") or "")}</div>'
-                    f'<div class="pf-row"><span class="pf-k">approved</span>'
-                    f'<span class="pf-v">{(p.get("approved") or "—")[:10]}</span></div>'
-                    f'<div class="pf-row"><span class="pf-k">revenue</span>'
-                    f'<span class="pf-v{"" if p.get("revenue") is not None else " none"}">'
-                    f'{rev_txt}</span></div>'
-                    f'<div class="pf-row"><span class="pf-k">{loe_label}</span>'
-                    f'<span class="pf-v {"near" if near else ""}">'
-                    f'{loe_txt}</span></div>'
-                    f'{basis}</div>')
-
-            prods_sorted = sorted(prods, key=lambda p: (-(p.get("revenue") or 0),
-                                                        _loe_year(p) or 9999))
-            # The card itself is the hit area: the grid renders inside a component that
-            # returns the clicked asset id, so there is no separate button and hovering a
-            # card shows it is live. The selection lives in session state and a native
-            # rerun keeps the Portfolio tab active, so the profile opens in place.
-            # An approval clicked on the Universe timeline arrives as an application
-            # number, which is the only product identifier that survives the change feed.
-            # Resolve it here, where the products are known, and consume it so a later
-            # rerun does not keep reopening the same sheet.
-            pending = st.session_state.pop("pending_product", None)
-            if pending:
-                match = next((p for p in prods
-                              if str(p.get("application_number") or "").replace(" ", "")
-                              == pending), None)
-                if match and match.get("asset_id"):
-                    st.session_state["profile_asset"] = match["asset_id"]
-            sel_aid = st.session_state.get("profile_asset")
-            # The profile sits above the grid, so a click does not push it below a long
-            # card list. Guarded to this company's products, so switching ticker drops a
-            # stale selection rather than asking the API for another company's asset.
-            sel = next((p for p in prods_sorted if p.get("asset_id") == sel_aid), None)
-            if sel is not None:
-                _render_product_profile(api_base, ticker, sel, today)
-            # Grouped by the disease the label says the product treats, biggest area
-            # first and biggest product inside it. A portfolio is held by franchise, so
-            # a flat list by revenue hid the shape of it: four metabolic drugs reading
-            # as one bet is the fact, not their order. A product whose label is not on
-            # file sits under its own heading rather than being filed under a guess.
-            groups: dict = {}
-            for p in prods_sorted:
-                if p.get("asset_id") is None:
-                    continue
-                groups.setdefault(p.get("area") or "Area not stated", []).append(p)
-
-            def _area_revenue(area):
-                return sum(p.get("revenue") or 0 for p in groups[area])
-
-            order = sorted(groups, key=lambda a: (a == "Area not stated",
-                                                  -_area_revenue(a)))
-            card_tokens = {"panel": TK.PANEL, "panel-hi": TK.RULE,
-                           "rule": TK.RULE, "rule-strong": TK.RULE_STRONG,
-                           "muted": TK.MUTED, "text": TK.TEXT, "up": TK.UP,
-                           "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
-                           "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
-                           "font-ui": TK.FONT_UI}
-            for area in order:
-                revenue = _area_revenue(area)
-                section(area, f"{len(groups[area])} &middot; {T.num(revenue / 1e9, 1)}bn"
-                        if revenue else len(groups[area]))
-                clicked = prodcards.product_cards(
-                    [{"asset_id": p.get("asset_id"), "html": _product_card_html(p)}
-                     for p in groups[area]],
-                    tokens=card_tokens,
-                    # Keyed per company and area: a fixed key would carry one grid's
-                    # last click into the next.
-                    selected=sel_aid,
-                    key=f"prod_cards_{ticker}_{re.sub(r'[^a-z0-9]+', '_', area.lower())}")
-                # A click is only acted on once: the nonce changes per click, so a rerun
-                # triggered by anything else does not reopen a closed profile.
-                if isinstance(clicked, dict) and clicked.get("nonce") != \
-                        st.session_state.get("prod_click_nonce"):
-                    st.session_state["prod_click_nonce"] = clicked.get("nonce")
-                    st.session_state["profile_asset"] = clicked.get("asset_id")
-                    st.rerun()
-
-        # --- Medicare demand ---
-        # Revenue is what a drug earned; this is how many people took it. CMS Part D and
-        # Part B spending, matched to a marketed product by brand, is the real-world US
-        # demand the revenue line cannot show.
-        med = api_get(api_base, f"/companies/{ticker}/demand").get("drugs") or []
-        section("Medicare demand", "US Part D and Part B")
-        if not med:
-            state(f"No Medicare demand on file for {ticker}",
-                  "CMS publishes Part D and Part B spending by drug once a year, matched "
-                  "to a marketed product by brand on refresh. It covers US Medicare only, "
-                  "so a drug used mostly outside it or by under-65s reads low or absent. "
-                  "Press Refresh all if this looks empty.")
-        else:
-            def _yoy(d):
-                cur, prior = d.get("spending"), d.get("prior_spending")
-                if not cur or not prior:
-                    return "—"
-                return f"{(cur / prior - 1) * 100:+.0f}%"
-            med_year = max((d["latest_year"] for d in med), default="")
-            frame = pd.DataFrame([{
-                "Drug": d["brand"], "Where": d["part_label"],
-                "Beneficiaries": (f"{d['beneficiaries']:,}"
-                                  if d.get("beneficiaries") is not None else "—"),
-                "Claims": (f"{d['claims']:,}" if d.get("claims") is not None else "—"),
-                "Spending $m": (T.num(d["spending"] / 1e6, 1)
-                                if d.get("spending") is not None else "—"),
-                "vs prior": _yoy(d), "Year": str(d["latest_year"])}
-                for d in med[:25]])
-            st.dataframe(
-                # Direction reads in colour: growth up, decline in oxblood, flat muted.
-                frame.style.map(
-                    lambda v: (f"color:{T.P.data};font-weight:600" if v.startswith("+")
-                               else f"color:{T.P.oxblood};font-weight:600"
-                               if v.startswith("-") else f"color:{T.P.stale}"),
-                    subset=["vs prior"]),
-                width="stretch", hide_index=True)
-            st.markdown(
-                f'<div class="byline"><b>US Medicare only.</b> CMS Part D (retail '
-                f'pharmacy) and Part B (given in a clinic) spending by drug, {med_year} '
-                f'the latest year published, matched to a marketed product by brand. '
-                f'Beneficiaries is distinct people, not prescriptions; a count CMS '
-                f'suppressed for privacy reads as a dash, never zero. This is real-world '
-                f'demand, a different lens from the reported revenue above, and it misses '
-                f'commercial and ex-US volume entirely.</div>', unsafe_allow_html=True)
-
-        section("Product revenue", f"{len(curated)} from the filings")
-        if not curated:
-            state(f"No product revenue on file for {ticker}",
-                  "The SEC data sets carry revenue per product only where the "
-                  "filer tags a product axis. AbbVie tags none at all, and GSK and "
-                  "Regeneron spread theirs across segments in a way that cannot be "
-                  "resolved without adding them together.")
-        else:
-            for row in curated:
-                st.markdown(
-                    f'<div class="fitem"><span class="d">FY{row["fiscal_year"]}'
-                    f'</span><span class="t">{html_escape(row["brand_name"])} '
-                    f'<span class="mono">{html_escape(row["internal_code"] or "")}'
-                    f'</span></span><span class="s">'
-                    f'{T.num(row["value"] / 1e9, 2)} {row["unit"] or ""}</span>'
-                    f'</div>', unsafe_allow_html=True)
-            st.markdown(
-                '<div class="byline">Worldwide, as the filing tags it, from the SEC '
-                'Financial Statement Data Sets. Nothing here is typed in: a figure '
-                'is what the company reported or it is absent.</div>',
-                unsafe_allow_html=True)
-
-    # --- Catalysts -------------------------------------------------------
+        # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
         # Derived only, and for the selected company alone. Readouts come from Phase 3
         # primary completion dates on every refresh, so the calendar is rebuilt rather
@@ -2770,82 +2794,83 @@ with main:
 
 
     # --- Runway: the clinical-stage cohort, where revenue analysis says nothing ---
-    with runway_tab:
-        rows = api_get(api_base, "/runway")
-        section("Cash runway, clinical-stage companies", len(rows))
-        st.caption(
-            "Companies with no product revenue, which is where the revenue, exclusivity "
-            "and demand tabs are empty by construction. Runway is cash and marketable "
-            "securities over the trailing twelve-month operating burn, in months at the "
-            "current rate. It is not a forecast: a company that raises, cuts or partners "
-            "moves this the day it does.")
-        if not rows:
-            state("No clinical-stage companies resolved",
-                  "Press Refresh all to pull cash and cash-flow lines from EDGAR. A "
-                  "company is read as clinical-stage when it reports neither inventory "
-                  "nor a cost of revenue.")
-        else:
-            st.dataframe(pd.DataFrame([{
-                "Ticker": r["ticker"],
-                "Company": r["name"],
-                "Cash and investments, m": (r["cash"] / 1e6) if r["cash"] else None,
-                "Burn, m/yr": (abs(r["burn_annual"]) / 1e6) if r["burn_annual"] else None,
-                "Runway, months": r["runway_months"],
-                "Catalysts in runway": r["catalyst_count"],
-                "Next readout": (r["next_catalyst"]["expected_date"]
-                                 if r["next_catalyst"] else None),
-                "Funded to it": ("yes" if r["funded_to_readout"] else
-                                 "no" if r["funded_to_readout"] is False else
-                                 "none scheduled"),
-                # Two ways the figure can mislead, said on the row rather than in a
-                # footnote: a burn paid for by a licence receipt, and a cash figure
-                # missing the securities the company actually holds its runway in.
-                "Read with care": ", ".join(filter(None, [
-                    "burn offset by a receipt" if r["burn_flattered"] else "",
-                    "cash line only" if not r["includes_investments"] else ""])),
-                "As of": r["cash_as_of"],
-            } for r in rows]), width="stretch", hide_index=True,
-                column_config={
-                    "Cash and investments, m": st.column_config.NumberColumn(format="%.0f"),
-                    "Burn, m/yr": st.column_config.NumberColumn(format="%.0f"),
-                    "Runway, months": st.column_config.NumberColumn(format="%.0f")})
+    if runway_tab is not None:
+        with runway_tab:
+            rows = api_get(api_base, "/runway")
+            section("Cash runway, clinical-stage companies", len(rows))
+            st.caption(
+                "Companies with no product revenue, which is where the revenue, exclusivity "
+                "and demand tabs are empty by construction. Runway is cash and marketable "
+                "securities over the trailing twelve-month operating burn, in months at the "
+                "current rate. It is not a forecast: a company that raises, cuts or partners "
+                "moves this the day it does.")
+            if not rows:
+                state("No clinical-stage companies resolved",
+                      "Press Refresh all to pull cash and cash-flow lines from EDGAR. A "
+                      "company is read as clinical-stage when it reports neither inventory "
+                      "nor a cost of revenue.")
+            else:
+                st.dataframe(pd.DataFrame([{
+                    "Ticker": r["ticker"],
+                    "Company": r["name"],
+                    "Cash and investments, m": (r["cash"] / 1e6) if r["cash"] else None,
+                    "Burn, m/yr": (abs(r["burn_annual"]) / 1e6) if r["burn_annual"] else None,
+                    "Runway, months": r["runway_months"],
+                    "Catalysts in runway": r["catalyst_count"],
+                    "Next readout": (r["next_catalyst"]["expected_date"]
+                                     if r["next_catalyst"] else None),
+                    "Funded to it": ("yes" if r["funded_to_readout"] else
+                                     "no" if r["funded_to_readout"] is False else
+                                     "none scheduled"),
+                    # Two ways the figure can mislead, said on the row rather than in a
+                    # footnote: a burn paid for by a licence receipt, and a cash figure
+                    # missing the securities the company actually holds its runway in.
+                    "Read with care": ", ".join(filter(None, [
+                        "burn offset by a receipt" if r["burn_flattered"] else "",
+                        "cash line only" if not r["includes_investments"] else ""])),
+                    "As of": r["cash_as_of"],
+                } for r in rows]), width="stretch", hide_index=True,
+                    column_config={
+                        "Cash and investments, m": st.column_config.NumberColumn(format="%.0f"),
+                        "Burn, m/yr": st.column_config.NumberColumn(format="%.0f"),
+                        "Runway, months": st.column_config.NumberColumn(format="%.0f")})
 
-            # The sharpest thing this page knows. A company whose next readout lands
-            # after its cash does has to finance on no new data, which is the weakest
-            # position a clinical-stage company can raise from. It is a different
-            # situation from having no readout scheduled, and the two were previously
-            # both printed as a zero.
-            unfunded = [r for r in rows if r["funded_to_readout"] is False
-                        and not r["burn_flattered"]]
-            if unfunded:
-                section("Next readout lands after the cash", len(unfunded))
-                st.caption(
-                    "At the current burn these run out of money before their next dated "
-                    "readout, so they have to finance on no new data. Registry dates are "
-                    "estimates and they slip, which moves this the wrong way.")
-                for r in unfunded:
-                    nxt = r["next_catalyst"]
+                # The sharpest thing this page knows. A company whose next readout lands
+                # after its cash does has to finance on no new data, which is the weakest
+                # position a clinical-stage company can raise from. It is a different
+                # situation from having no readout scheduled, and the two were previously
+                # both printed as a zero.
+                unfunded = [r for r in rows if r["funded_to_readout"] is False
+                            and not r["burn_flattered"]]
+                if unfunded:
+                    section("Next readout lands after the cash", len(unfunded))
+                    st.caption(
+                        "At the current burn these run out of money before their next dated "
+                        "readout, so they have to finance on no new data. Registry dates are "
+                        "estimates and they slip, which moves this the wrong way.")
+                    for r in unfunded:
+                        nxt = r["next_catalyst"]
+                        st.markdown(
+                            f'<div class="state err"><div class="t">{r["ticker"]} · '
+                            f'{r["runway_months"]:.0f} months, cash out {r["cash_out"][:7]}'
+                            f'</div><div class="d">'
+                            f'{r["cash"] / 1e6:,.0f}m against a '
+                            f'{abs(r["burn_annual"]) / 1e6:,.0f}m annual burn. Next readout '
+                            f'{html_escape(nxt["expected_date"][:7])}: '
+                            f'{html_escape(nxt["title"][:90])}.</div></div>',
+                            unsafe_allow_html=True)
+
+                silent = [r for r in rows if r["funded_to_readout"] is None
+                          and r["runway_months"] and r["runway_months"] < 24]
+                if silent:
+                    section("No dated readout on file", len(silent))
+                    st.caption(
+                        "Under two years of cash and nothing scheduled that the registry "
+                        "dates. That is usually a gap in what has been registered rather "
+                        "than a company with no plans, so it reads as unknown, not as no "
+                        "catalyst.")
                     st.markdown(
-                        f'<div class="state err"><div class="t">{r["ticker"]} · '
-                        f'{r["runway_months"]:.0f} months, cash out {r["cash_out"][:7]}'
-                        f'</div><div class="d">'
-                        f'{r["cash"] / 1e6:,.0f}m against a '
-                        f'{abs(r["burn_annual"]) / 1e6:,.0f}m annual burn. Next readout '
-                        f'{html_escape(nxt["expected_date"][:7])}: '
-                        f'{html_escape(nxt["title"][:90])}.</div></div>',
-                        unsafe_allow_html=True)
-
-            silent = [r for r in rows if r["funded_to_readout"] is None
-                      and r["runway_months"] and r["runway_months"] < 24]
-            if silent:
-                section("No dated readout on file", len(silent))
-                st.caption(
-                    "Under two years of cash and nothing scheduled that the registry "
-                    "dates. That is usually a gap in what has been registered rather "
-                    "than a company with no plans, so it reads as unknown, not as no "
-                    "catalyst.")
-                st.markdown(
-                    '<div class="state"><div class="d">'
-                    + html_escape(", ".join(
-                        f"{r['ticker']} ({r['runway_months']:.0f}mo)" for r in silent))
-                    + '</div></div>', unsafe_allow_html=True)
+                        '<div class="state"><div class="d">'
+                        + html_escape(", ".join(
+                            f"{r['ticker']} ({r['runway_months']:.0f}mo)" for r in silent))
+                        + '</div></div>', unsafe_allow_html=True)

@@ -92,9 +92,20 @@ def list_companies() -> list[dict]:
              ORDER BY ticker
             """
         ).fetchall()
+        # Whether the company sells anything, read from inventory and cost of revenue.
+        # The company page uses it to decide which tabs mean anything: 30 of these 70
+        # have no product revenue, so loss of exclusivity and revenue mix are empty by
+        # construction for them, and cash runway is empty for the other 38.
+        out = []
+        for row in rows:
+            entry = dict(row)
+            company = conn.execute(
+                "SELECT id FROM companies WHERE ticker = ?", (entry["ticker"],)).fetchone()
+            entry["stage"] = runway_module.stage(conn, company["id"])
+            out.append(entry)
     finally:
         conn.close()
-    return [dict(r) for r in rows]
+    return out
 
 
 @app.get("/companies/{ticker}/prices")
