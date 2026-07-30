@@ -26,6 +26,7 @@ import pandas as pd
 import streamlit as st
 
 import calendar_view
+import engine_strip
 import price_chart
 import revenue_mix
 import scorecard_chart
@@ -34,6 +35,7 @@ import trend as trend_module
 from components import charts as CH
 from components import approvnav
 from components import covnav
+from components import enginepick
 from components import prodcards
 from components import drawchart
 from components import render as R
@@ -42,6 +44,17 @@ from components import tokens as TK
 # Overridable so run.sh can point a frontend at whichever API port it started.
 DEFAULT_API = os.getenv("ER_API_BASE", "http://localhost:8000")
 DEFAULT_TICKER = "LLY"
+
+# The landing page renders inside a component iframe, which inherits none of the host
+# page's CSS variables, so the tokens it needs are handed across. One source of truth
+# stays in tokens.py.
+LANDING_TOKENS = {
+    "ground": TK.GROUND, "panel": TK.PANEL, "rule": TK.RULE,
+    "rule-strong": TK.RULE_STRONG, "text": TK.TEXT, "muted": TK.MUTED,
+    "up": TK.UP, "down": TK.DOWN, "flag": TK.FLAG,
+    "orange-book": TK.ORANGE_BOOK, "purple-book": TK.PURPLE_BOOK,
+    "font-ui": TK.FONT_UI, "font-mono": TK.FONT_MONO, "font-prose": TK.FONT_PROSE,
+}
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
 # Charts collapse the two seamless phases into the phase each one reaches, which is the
 # convention elsewhere in the app: the Key insights strip already counts Phase 2/3 as
@@ -661,64 +674,124 @@ if not companies:
           "backend directory to load the 18 companies and resolve their CIKs.")
     st.stop()
 
-# --- Desks: which terminal is open ----------------------------------------
-# Three desks and a feed, because the questions differ rather than the companies do: 30
-# of these 70 report no product revenue, so exclusivity and revenue mix are empty for
-# them by construction, and cash runway is empty for the other 38.
+# --- Engines: which terminal is open --------------------------------------
+# Three engines over one universe, because the questions differ rather than the companies
+# do. A major is read on where its revenue comes from and when it stops; a platform
+# developer on which platform, how far it has got and how long the cash lasts. Asking
+# both the same questions is what left half the answers blank.
 #
-# The landing page shows only on a visit that names neither a desk nor a company, so a
+# The landing page shows only on a visit that names neither an engine nor a company, so a
 # shared ?ticker= link still opens straight onto that company and a returning session
-# keeps the desk it was last on.
-DESKS = ("major", "biotech", "frontier", "changed")
-desk = (st.query_params.get("desk") or "").lower()
-if desk not in DESKS:
-    desk = ""
-if not desk and st.session_state.get("desk") in DESKS:
-    desk = st.session_state["desk"]
+# keeps the engine it was last on.
+ENGINES = ("pharma", "biotech", "cellgene")
+engine = (st.query_params.get("engine") or "").lower()
+if engine not in ENGINES:
+    engine = ""
+if not engine and st.session_state.get("engine") in ENGINES:
+    engine = st.session_state["engine"]
 
-if not desk and not (st.query_params.get("ticker") or ""):
-    board = api_get(api_base, "/desks")
-    st.markdown(
-        f'<div class="ident"><span class="tk">Novatalis</span>'
-        f'<span class="nm">{board["universe"]} companies</span></div>',
-        unsafe_allow_html=True)
-    # The feed leads on its own row: it spans every desk, so it is not one of the three.
-    feed_desk = next(d for d in board["desks"] if d["key"] == "changed")
-    section("What changed", f"{feed_desk['count']} in 7 days")
-    st.markdown(f'<div class="state"><div class="d">{html_escape(feed_desk["headline"] or "")}'
-                f'</div></div>', unsafe_allow_html=True)
-    if st.button("Open the change feed", key="desk_changed"):
-        st.query_params["desk"] = "changed"
-        st.session_state["desk"] = "changed"
-        st.rerun()
+# The hero says what the terminal is before it asks which part of it you want. Kept here
+# rather than in the API: it is the one string on the page that is not a measurement.
+HERO_LINE = "Where the money is, where the cash runs out, and where the science is new."
+HERO_SUB = (
+    "Three engines over one universe of {universe} companies. Each one asks only what its "
+    "cohort can answer, and each figure below is computed by the same function the engine "
+    "behind it renders. Nothing is estimated to fill a gap: a company with no figure is "
+    "drawn as an empty slot, never as an average.")
 
-    section("Desks")
-    columns = st.columns(3, gap="medium")
-    for column, entry in zip(columns, [d for d in board["desks"]
-                                       if d["key"] != "changed"]):
-        with column:
-            st.markdown(
-                f'<div class="state"><div class="t">{html_escape(entry["label"])} · '
-                f'{entry["count"]} {html_escape(entry["count_label"])}</div>'
-                f'<div class="d">{html_escape(entry["headline"] or "")}</div>'
-                f'<div class="d">{html_escape(entry["detail"])}</div></div>',
-                unsafe_allow_html=True)
-            if st.button(f"Open {entry['label'].lower()}", key=f"desk_{entry['key']}"):
-                st.query_params["desk"] = entry["key"]
-                st.session_state["desk"] = entry["key"]
-                st.rerun()
+
+def _engine_panel(entry: dict) -> str:
+    """One engine as a clickable panel: the spread, the sentence, the three names."""
+    leaders = "".join(
+        f'<div class="e-row"><span class="e-tk">{html_escape(leader["ticker"])}</span>'
+        f'<span class="e-val">{html_escape(leader["display"])}</span></div>'
+        for leader in entry["leaders"])
+    return (
+        f'<div class="engine {html_escape(entry["key"])}">'
+        f'<div class="e-head"><span class="e-name">{html_escape(entry["label"])}</span>'
+        f'<span class="e-count">{entry["count"]} '
+        f'{html_escape(entry["count_label"])}</span></div>'
+        f'<div class="e-tag">{html_escape(entry["tagline"])}</div>'
+        f'<div class="e-strip">{engine_strip.build(entry["strip"])}</div>'
+        f'<div class="e-metric">{html_escape(entry["metric"])}</div>'
+        f'<div class="e-headline">{html_escape(entry["headline"] or "")}</div>'
+        f'<div class="e-leaders">{leaders}</div>'
+        f'<div class="e-foot"><span class="e-detail">'
+        f'{html_escape(entry["detail"])}</span>'
+        f'<span class="go">Open <span class="arrow">&rarr;</span></span></div>'
+        f'</div>')
+
+
+def _signal_rows(board: dict) -> str:
+    """The week's most material changes, one per company, each a link to that company."""
+    rows = "".join(
+        f'<div class="sig" data-ticker="{html_escape(item["ticker"])}" tabindex="0"'
+        f' role="button"><span class="s-date">{html_escape(item["date"])}</span>'
+        f'<span class="s-tk {html_escape(item["engine"] or "")}">'
+        f'{html_escape(item["ticker"])}</span>'
+        f'<span class="s-kind">{html_escape(item["kind"])}</span>'
+        f'<span class="s-text">{html_escape(item["headline"] or "")}</span>'
+        f'<span class="s-go">&rarr;</span></div>'
+        for item in board["signals"])
+    if not rows:
+        return ""
+    return ('<div class="sig-head"><span class="sig-label">Signals</span>'
+            f'<span class="sig-note">the {len(board["signals"])} that matter most in '
+            f'{board["signal_days"]} days</span></div>' + rows)
+
+
+if not engine and not (st.query_params.get("ticker") or ""):
+    board = api_get(api_base, "/engines")
+    hero = (
+        '<div class="hero"><div class="hero-top">'
+        '<span class="wordmark">Novatalis</span>'
+        f'<span class="hero-count">{board["universe"]} companies</span></div>'
+        f'<div class="hero-line">{HERO_LINE}</div>'
+        f'<div class="hero-sub">{HERO_SUB.format(universe=board["universe"])}</div></div>')
+    picked = enginepick.engine_pick(
+        [{"engine": entry["key"], "html": _engine_panel(entry)}
+         for entry in board["engines"]],
+        hero=hero, signals_html=_signal_rows(board),
+        tokens=LANDING_TOKENS, key="engine_pick")
     st.caption(
-        "A desk decides which companies the picker offers and which tabs a company "
+        "An engine decides which companies the picker offers and which tabs a company "
         "page can fill. Search always reaches the whole universe.")
+    # A click is acted on once. The nonce changes per click, so a rerun caused by
+    # anything else does not send the visit somewhere it has already been.
+    if isinstance(picked, dict) and picked.get("nonce") != st.session_state.get(
+            "_engine_nonce"):
+        st.session_state["_engine_nonce"] = picked.get("nonce")
+        if picked.get("engine") in ENGINES:
+            st.query_params["engine"] = picked["engine"]
+            st.session_state["engine"] = picked["engine"]
+            st.rerun()
+        wanted = (picked.get("ticker") or "").upper()
+        if wanted:
+            # A signal opens its company on that company's own engine, so the page it
+            # lands on is the one built for the question the signal raises.
+            home_engine = next(
+                (c.get("engine") for c in companies if c["ticker"] == wanted), None)
+            st.query_params["ticker"] = wanted
+            if home_engine in ENGINES:
+                st.query_params["engine"] = home_engine
+                st.session_state["engine"] = home_engine
+            st.rerun()
     st.stop()
 
-st.session_state["desk"] = desk or "major"
-# A desk narrows the picker to the companies it covers. Search is the escape hatch and
-# still reaches everything, so narrowing costs nothing that cannot be undone.
-if desk in ("major", "biotech"):
-    covered = set(api_get(api_base, f"/desks/{desk}/tickers"))
-    if covered:
-        companies = [c for c in companies if c["ticker"] in covered] or companies
+# A shared ?ticker= link names no engine, so it adopts the company's own. Without this the
+# page opened on the whole universe while the sidebar called it big pharma, and the tabs
+# were decided by a stage test the engines were built to replace.
+_shared = (st.query_params.get("ticker") or "").upper()
+if not engine and _shared:
+    engine = next((c.get("engine") for c in companies
+                   if c["ticker"] == _shared and c.get("engine") in ENGINES), "")
+
+st.session_state["engine"] = engine or st.session_state.get("engine") or "pharma"
+# An engine narrows the picker to the companies it covers. Search is the escape hatch and
+# still reaches everything, so narrowing costs nothing that cannot be undone. The home
+# engine arrives on the company list, so this needs no second request.
+if engine:
+    companies = [c for c in companies if c.get("engine") == engine] or companies
 
 tickers = [c["ticker"] for c in companies]
 names = {c["ticker"]: c["name"] for c in companies}
@@ -787,17 +860,17 @@ with bar[0]:
 company = next((c for c in companies if c["ticker"] == ticker), {})
 st.query_params["ticker"] = ticker
 
-# The way back out. A desk is a filter on the picker, so without this a narrowed
+# The way back out. An engine is a filter on the picker, so without this a narrowed
 # universe would be a one-way door.
-_DESK_LABELS = {"major": "Major pharma", "biotech": "Biotech",
-                "frontier": "Frontier", "changed": "What changed"}
-st.sidebar.markdown("#### Desk")
-st.sidebar.caption(_DESK_LABELS.get(desk, "Major pharma")
+_ENGINE_LABELS = {"pharma": "Big pharma", "biotech": "Biotech",
+                  "cellgene": "Cell and gene"}
+st.sidebar.markdown("#### Engine")
+st.sidebar.caption(_ENGINE_LABELS.get(engine, "The whole universe")
                    + f" · {len(tickers)} companies")
-if st.sidebar.button("Change desk", key="desk_reset"):
-    st.query_params.pop("desk", None)
+if st.sidebar.button("Change engine", key="engine_reset"):
+    st.query_params.pop("engine", None)
     st.query_params.pop("ticker", None)
-    st.session_state.pop("desk", None)
+    st.session_state.pop("engine", None)
     st.rerun()
 
 # --- Per-company data ---------------------------------------------------
@@ -1040,19 +1113,23 @@ if asof_state:
         'to return to live</div>', unsafe_allow_html=True)
 
 with main:
-    # Which tabs a company has depends on whether it sells anything. Portfolio is
-    # revenue mix and loss of exclusivity, and 30 of these 70 companies have neither, so
-    # for them it was three empty charts. Runway is cash against burn, which says nothing
-    # about a company earning 60bn a year. An unknown stage keeps both, since a company
-    # that files nothing with the SEC is not evidence of a company with no product.
+    # Which tabs a company has depends on the engine it is read on, and then on whether it
+    # sells anything. Portfolio is revenue mix and loss of exclusivity: a major always has
+    # both, a mid-cap has them once it markets something, and a platform developer with no
+    # approved product has neither, which used to render as three empty charts. Runway is
+    # cash against burn, which says nothing about a company earning 60bn a year. A company
+    # the engine cannot place keeps both, since an absent engine is not evidence either
+    # way.
+    _engine = (company or {}).get("engine") or ""
     _stage = (company or {}).get("stage") or "unknown"
+    _sells = _stage != "clinical"
     _wanted = [("universe", "Universe"), ("insights", "Key insights"),
                ("prices", "Prices"), ("financials", "Financials"),
                ("pipeline", "Pipeline")]
-    if _stage != "clinical":
+    if _engine == "pharma" or (_engine != "cellgene" and _sells):
         _wanted.append(("portfolio", "Portfolio"))
     _wanted += [("catalysts", "Catalysts"), ("themes", "Themes")]
-    if _stage != "commercial":
+    if _engine == "cellgene" or not _sells or _engine not in ("pharma", "biotech"):
         _wanted.append(("runway", "Runway"))
     _wanted += [("comps", "Comps"), ("news", "News")]
     _panels = dict(zip([name for name, _label in _wanted],
@@ -1113,7 +1190,17 @@ with main:
                         for a in approvals_then]),
                         width="stretch", hide_index=True)
 
-        universe_feed = api_get(api_base, "/changes")
+        # Coverage means this engine's coverage. A grid of seventy panels is a wall
+        # rather than a view, and two thirds of it answers a different question from the
+        # one the open engine is asking: an approval at Merck is not a signal a reader on
+        # the cell and gene engine came for. The API returns the universe, so the engine's
+        # own ticker set narrows it here.
+        _covered = set(tickers)
+        _engine_name = _ENGINE_LABELS.get(engine, "coverage").lower()
+
+        _all_changes = api_get(api_base, "/changes")
+        universe_feed = [it for it in _all_changes
+                         if (it.get("ticker") or "") in _covered]
         # The universe view leads with FDA approvals, the cleanest cross-coverage signal,
         # drawn on a date axis rather than a jargon-heavy list; the full change feed with
         # filings, trial moves and risk-factor edits lives on each company's Key insights.
@@ -1133,11 +1220,18 @@ with main:
                               "key": (f"{tk}|{appno.group(1).replace(' ', '')}"
                                       if appno and tk else ""),
                               "full": f"{drug} — {(it.get('date') or '')[:10]}"})
-        section("FDA approvals across coverage", f"{len(approvals)} on the tape")
+        section(f"FDA approvals across {_engine_name}", f"{len(approvals)} on the tape")
         if not approvals:
-            state("No approvals flagged across the universe",
-                  "New approvals are read from openFDA on refresh. Press Refresh all in "
-                  "the top bar to pull the sources.")
+            # An empty tape means two different things, and pointing at the refresh button
+            # for both of them reads as a broken fetcher when it is a quiet cohort. If the
+            # universe has approvals and this engine has none, that is the answer.
+            _elsewhere = sum(1 for it in _all_changes
+                             if it.get("change_type") == "new_approval")
+            state(f"No approvals flagged across {_engine_name}",
+                  (f"{_elsewhere} landed elsewhere in the universe over the same window, "
+                   "so this is the cohort rather than the source." if _elsewhere else
+                   "New approvals are read from openFDA on refresh. Press Refresh all in "
+                   "the top bar to pull the sources."))
         else:
             approvnav.approvals_nav(
                 CH.approvals_timeline(approvals, 1360, 152, dt.date.today()),
@@ -1148,8 +1242,9 @@ with main:
                 'change feed, filings, trial moves and risk-factor edits, sits on each '
                 "company's Key insights tab.</div>", unsafe_allow_html=True)
 
-        section("Coverage, 90 days", "indexed to the start, one scale")
-        panels = api_get(api_base, "/price-grid?days=90")
+        section("Coverage, 90 days", f"{len(_covered)} companies, one scale")
+        panels = [p for p in api_get(api_base, "/price-grid?days=90")
+                  if p["ticker"] in _covered]
         if any(p["closes"] for p in panels):
             covnav.coverage_nav(
                 CH.small_multiples(
@@ -1165,15 +1260,18 @@ with main:
                   "Press Refresh all in the top bar to pull daily closes.")
 
         soon_cats = [c for c in api_get(api_base, "/catalysts?within_days=30")
-                     if c.get("expected_date")]
+                     if c.get("expected_date") and c.get("ticker") in _covered]
         # Group by company, keeping the soonest-first order the API returns; a company's
         # first appearance is its nearest catalyst, so the boxes read most-imminent first.
         cat_by_company: dict = {}
         for c in soon_cats:
             cat_by_company.setdefault(c["ticker"], []).append(c)
+        # Singular when there is one. A cohort of 27 often has exactly one dated readout,
+        # so "1 companies" is no longer the rare case it was across seventy.
         section("Next 30 days",
-                f"{len(cat_by_company)} companies with a readout" if cat_by_company
-                else "all companies")
+                (f"{len(cat_by_company)} "
+                 f"{'company' if len(cat_by_company) == 1 else 'companies'} with a "
+                 "readout") if cat_by_company else "all companies")
         if not cat_by_company:
             state("Nothing dated inside 30 days",
                   "Readouts derive from registry completion dates on refresh; PDUFA "

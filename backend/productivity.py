@@ -105,6 +105,16 @@ def _latest_fy(conn, company_id: int, metric: str, rates) -> float | None:
     return _usd(row["value"], row["unit"], rates) if row else None
 
 
+def latest_revenue(conn, company_id: int, rates) -> float | None:
+    """The latest full year of revenue in USD, or None when the company reports none.
+
+    The scale measure the whole app sorts and splits on, so it is read in one place. Both
+    this module's own rows and the engine assignment take it from here, which is what
+    keeps a company's revenue on its card and its revenue in the rule identical.
+    """
+    return _latest_fy(conn, company_id, "Revenues", rates)
+
+
 def portfolio_verdict(conn, company_id: int, cutoff: str) -> tuple:
     """(all_recent, all_old, brands) for everything the company markets.
 
@@ -252,7 +262,7 @@ def _company(conn, company, rates, today, name_index=None) -> dict:
     rd_window = _fy_sum(conn, company["id"], "ResearchAndDevelopmentExpense",
                         since, rates)
     rd_latest = _latest_fy(conn, company["id"], "ResearchAndDevelopmentExpense", rates)
-    revenue_latest = _latest_fy(conn, company["id"], "Revenues", rates)
+    revenue_latest = latest_revenue(conn, company["id"], rates)
 
     phases = {r["phase"]: r["n"] for r in conn.execute(
         "SELECT phase, COUNT(*) n FROM trials WHERE sponsor_company_id = ?"

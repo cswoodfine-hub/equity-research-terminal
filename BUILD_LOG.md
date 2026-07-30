@@ -642,3 +642,36 @@ real rates dated 2026-07-24; append-only, no other mutation.
   proves neither reading is refused.
 - Universe: 67 product-years parsed, 57 cross-checked against the SEC data sets, none
   disagree. Ten of them are values the data sets do not tag.
+
+## Three engines, and a front door — 2026-07-30
+- The universe is partitioned once, into big pharma (18), biotech (25) and cell and gene
+  (27), and each engine asks only what its cohort can answer. The rule is derived: revenue
+  at or above 8bn is a major, which is the widest gap in the distribution (Biogen 9.9,
+  Incyte 5.1); a cell or gene platform in a company's own filings under 1bn of revenue is a
+  platform developer; everything else is biotech. Two non-filers have no revenue to read,
+  so a marketed register above thirty places them, which is Roche and Bayer and nobody
+  else.
+- The revenue test is what keeps the third engine honest. Vertex, Gilead and Bristol all
+  describe cell or gene platforms and all earn billions, as do Sarepta and BioNTech and
+  Legend; they are answerable on revenue, which is not the question a startup engine asks.
+  Neurocrine's tag came from a capability list and Pfizer's from a divestment, and both
+  fall out on revenue too.
+- Tabs now key on the engine rather than the raw stage. Abeona had a Portfolio tab reading
+  100% fresh off 3.4m of product revenue, because the stage test only asks whether
+  inventory exists. It reads on cash now, like the rest of its cohort.
+- The Universe tab is the open engine's universe. Seventy price panels is a wall, and two
+  thirds of it answers a different question from the one the engine is asking. An empty
+  approvals tape now says whether the cohort was quiet or the source was, instead of
+  pointing at the refresh button either way.
+- The landing page is one component: hero, three clickable panels, and the week's six most
+  material changes. Each panel carries its cohort's spread as a bar per company, falling
+  left to right, with a stub below the baseline where there is no figure, because a zero
+  and an unknown must not be the same mark.
+- Signals rank by kind before significance. 113 of the week's 183 high-significance items
+  were risk-factor diffs, which is a rewrite of boilerplate, and level with an approval
+  they buried every approval. The change feed keeps its own rank; this orders the strip.
+- Known gap: the cell and gene strip says "furthest stage on file" rather than "reached".
+  Krystal markets Vyjuvek and is not in the marketed register, because Vyjuvek is a CBER
+  licence and drugsfda covers CDER only. The NDC register lists it, and also lists labelers
+  for companies that market nothing, so there is no free route that would not mark a
+  developer marketed.

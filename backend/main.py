@@ -34,7 +34,7 @@ import themes_view as themes_view_module
 import brief as brief_module
 import runway as runway_module
 import productivity as productivity_module
-import desks as desks_module
+import engines as engines_module
 import labels as labels_module
 import fx as fx_module
 import loe as loe_module
@@ -93,16 +93,19 @@ def list_companies() -> list[dict]:
              ORDER BY ticker
             """
         ).fetchall()
-        # Whether the company sells anything, read from inventory and cost of revenue.
-        # The company page uses it to decide which tabs mean anything: 30 of these 70
-        # have no product revenue, so loss of exclusivity and revenue mix are empty by
-        # construction for them, and cash runway is empty for the other 38.
+        # Two facts the company page needs before it can decide what to show. Stage is
+        # whether the company sells anything, read from inventory and cost of revenue.
+        # Engine is which of the three cohorts it is read on, which decides the tabs: a
+        # 6m-revenue gene therapy developer and AbbVie cannot answer the same questions,
+        # and offering both the same tabs is what left them half empty.
+        homes = engines_module.home()
         out = []
         for row in rows:
             entry = dict(row)
             company = conn.execute(
                 "SELECT id FROM companies WHERE ticker = ?", (entry["ticker"],)).fetchone()
             entry["stage"] = runway_module.stage(conn, company["id"])
+            entry["engine"] = homes.get(entry["ticker"])
             out.append(entry)
     finally:
         conn.close()
@@ -692,16 +695,22 @@ def _company_rows(ticker, query):
         conn.close()
 
 
-@app.get("/desks")
-def desks() -> dict:
-    """The four ways into the terminal, each with the live headline from its own desk."""
-    return desks_module.build()
+@app.get("/engines")
+def engines_board() -> dict:
+    """The three engines, each with the live headline and distribution from its cohort."""
+    return engines_module.build()
 
 
-@app.get("/desks/{desk}/tickers")
-def desk_tickers(desk: str) -> list[str]:
-    """The companies a desk covers. The frontier and the feed span the universe."""
-    return desks_module.tickers_for(desk=desk)
+@app.get("/engines/{engine}/tickers")
+def engine_tickers(engine: str) -> list[str]:
+    """The companies one engine covers. An unknown engine returns the whole universe."""
+    return engines_module.tickers_for(engine=engine)
+
+
+@app.get("/engines/home")
+def engine_home() -> dict:
+    """{ticker: engine} for every company, so a caller can place one without the cards."""
+    return engines_module.home()
 
 
 @app.get("/productivity/scorecard")
