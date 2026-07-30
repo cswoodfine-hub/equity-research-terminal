@@ -824,3 +824,19 @@ real rates dated 2026-07-24; append-only, no other mutation.
   and four was making a week with a 2.58bn deal and a Phase 3 result look empty.
 - Label revisions stay out. "Neupogen revised to version 166" is a document increment with
   no statement of what changed, and sixteen of them a week would be the whole page.
+
+## The box says it — 2026-07-30
+- Both captions are gone. With the chip naming the kind, the ticker leading the line in
+  mono and the date on the right, a paragraph explaining the layout was explaining
+  something the layout already said.
+- The kind is one accent colour per box, set as a custom property and used by the rail,
+  the chip, the open state and the source link, so a kind cannot be one colour in one
+  place and another somewhere else. A panel vote takes the Orange Book amber rather than
+  the flag amber, because a vote and a PDUFA sit in the same forward list.
+- A drawn chevron rather than a caption, since with no explanatory text the box has to say
+  it opens.
+- The headline wraps instead of truncating with an ellipsis, and is cut at 104 characters
+  only where a registry title would otherwise set the height of every box beside it. The
+  whole title is the first row of the detail either way.
+- A money figure keeps its own case. The chip's uppercase rule was rendering "$2.58bn" as
+  "$2.58BN".

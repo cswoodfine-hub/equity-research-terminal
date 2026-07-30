@@ -271,50 +271,84 @@ h3 {{ font-size: 0.9rem; }}
   > [data-testid="stColumn"]:first-child {{
     width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; }}
 
-/* Headlines and the forward view: the few things that matter, in boxes that open onto
-   their own detail. Heavier than a feed row on purpose, because the point of the block is
-   that these are not the same kind of thing as the four hundred rows below it. A native
-   disclosure, so opening one costs no rerun. */
-.leads {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
-         gap: 8px; margin: 0.1rem 0 0.4rem; }}
+/* Headlines and the forward view. Two questions, what happened and what is coming, and
+   one form for both so a reader learns the box once. Each carries its kind as a single
+   accent colour set here and used by the rail, the chip and the open state, so a kind
+   cannot be one colour in one place and another somewhere else.
+
+   No caption under either block: with the chip naming the kind, the ticker leading the
+   line and the date on the right, a paragraph explaining the layout was explaining
+   something the layout already said. */
+.leads {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+         gap: 10px; align-items: start; margin: 0.2rem 0 0.5rem; }}
 .lead {{
-  background: linear-gradient(178deg, var(--panel) 0%, var(--ground) 92%);
-  border: 1px solid var(--rule); border-left: 3px solid var(--rule-strong);
+  --accent: var(--rule-strong);
+  background: var(--panel);
+  border: 1px solid var(--rule); border-left: 2px solid var(--accent);
+  transition: border-color 120ms linear, transform 120ms ease-out;
 }}
+.lead:hover {{ border-color: var(--rule-strong); border-left-color: var(--accent);
+              transform: translateY(-1px); }}
+.lead[open] {{ border-color: var(--rule-strong); }}
+.lead-deal {{ --accent: var(--up); }}
+.lead-approval {{ --accent: var(--phase-approved); }}
+.lead-regulatory {{ --accent: var(--flag); }}
+/* A panel vote and a PDUFA sit in the same forward list, so they cannot share the amber
+   the phase ramp gives a filed application. */
+.lead-panel {{ --accent: var(--orange-book); }}
+.lead-filing {{ --accent: var(--muted); }}
+.lead-PDUFA {{ --accent: var(--phase-filed); }}
+.lead-data_readout {{ --accent: var(--phase-3); }}
+.lead-leadership {{ --accent: var(--purple-book); }}
+.lead-trial_stopped {{ --accent: var(--down); }}
+
 .lead > summary {{
-  display: grid; grid-template-columns: auto 1fr auto; gap: 0.55rem;
-  align-items: baseline; padding: 0.45rem 0.6rem; cursor: pointer;
-  list-style: none; transition: background 90ms linear;
+  display: grid; grid-template-columns: 10px auto 1fr auto; gap: 0.55rem;
+  align-items: start; padding: 0.55rem 0.7rem; cursor: pointer; list-style: none;
 }}
 .lead > summary::-webkit-details-marker {{ display: none; }}
-.lead > summary:hover {{ background: var(--rule); }}
-.lead[open] > summary {{ border-bottom: 1px solid var(--rule); }}
-.lead[open] .lead-h {{ color: var(--up); }}
-.lead-deal {{ border-left-color: var(--up); }}
-.lead-approval {{ border-left-color: var(--phase-approved); }}
-.lead-regulatory, .lead-panel {{ border-left-color: var(--flag); }}
-.lead-PDUFA {{ border-left-color: var(--phase-filed); }}
-.lead-data_readout {{ border-left-color: var(--phase-3); }}
-.lead-leadership {{ border-left-color: var(--purple-book); }}
-.lead-trial_stopped {{ border-left-color: var(--down); }}
-.lead-f {{ font-family: var(--font-mono); font-size: 11.5px; font-weight: 600;
-          white-space: nowrap; }}
-.lead-h {{ font-size: 13px; font-weight: 600; letter-spacing: -0.01em;
-          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-.lead-d {{ font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
-          white-space: nowrap; }}
-/* The body only exists once opened, so it can be denser than the summary. */
-.lead-body {{ padding: 0.4rem 0.6rem 0.5rem; }}
-.lead-r {{ display: flex; gap: 0.6rem; align-items: baseline; font-size: 11px;
-          padding: 2px 0; border-bottom: 1px solid var(--rule); }}
-.lead-r:last-of-type {{ border-bottom: none; }}
-.lead-rk {{ color: var(--muted); min-width: 7.5rem; }}
-.lead-rv {{ font-family: var(--font-mono); flex: 1; }}
-.lead-q {{ font-size: 11px; color: var(--muted); font-style: italic; line-height: 1.4;
-          margin-top: 0.35rem; }}
-.lead-l {{ display: inline-block; margin-top: 0.35rem; font-size: 10px; color: var(--muted);
-          letter-spacing: 0.05em; text-transform: uppercase; text-decoration: none; }}
-.lead-l:hover {{ color: var(--up); text-decoration: underline; text-underline-offset: 2px; }}
+/* The disclosure affordance, drawn rather than a glyph so it sits on the baseline and
+   turns with the box. Without a caption the box has to say it opens. */
+.lead-chev {{
+  width: 5px; height: 5px; margin-top: 5px;
+  border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg); transition: transform 140ms ease-out, border-color 120ms;
+}}
+.lead[open] .lead-chev {{ transform: rotate(45deg); border-color: var(--accent); }}
+.lead:hover .lead-chev {{ border-color: var(--accent); }}
+/* The figure as a chip in the kind's colour: it is a label, not a measurement, and
+   reading it as running text made "label expansion" look like the start of a sentence. */
+.lead-f {{
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
+  color: var(--accent); border: 1px solid var(--accent);
+  border-radius: var(--radius-small); padding: 2px 5px; opacity: 0.92;
+  position: relative; top: -1px;
+}}
+/* A money figure keeps its own case: "$2.58bn" is a measurement, not a label. */
+.lead-f-num {{ text-transform: none; letter-spacing: 0; font-size: 10.5px; }}
+/* Wraps rather than truncates. An ellipsis was eating the drug name, which is the part
+   of "NVO efficacy supplement: Macrilen approved" a reader is looking for. */
+.lead-h {{ font-size: 12.5px; line-height: 1.35; }}
+.lead-tk {{ font-family: var(--font-mono); font-weight: 600; margin-right: 0.4rem; }}
+.lead[open] .lead-tk {{ color: var(--accent); }}
+.lead-d {{ font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+          white-space: nowrap; padding-top: 1px; }}
+
+.lead-body {{ padding: 0.1rem 0.7rem 0.6rem 1.25rem; }}
+.lead-r {{ display: grid; grid-template-columns: 8.5rem 1fr; gap: 0.6rem;
+          align-items: baseline; font-size: 11px; padding: 3px 0;
+          border-top: 1px solid var(--rule); }}
+.lead-rk {{ color: var(--muted); font-size: 10px; letter-spacing: 0.03em;
+           text-transform: uppercase; }}
+.lead-rv {{ font-family: var(--font-mono); }}
+.lead-q {{ font-size: 11px; color: var(--muted); font-style: italic; line-height: 1.45;
+          margin-top: 0.45rem; padding-left: 0.55rem;
+          border-left: 1px solid var(--rule-strong); }}
+.lead-l {{ display: inline-block; margin-top: 0.5rem; font-size: 9.5px;
+          color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase;
+          text-decoration: none; }}
+.lead-l:hover {{ color: var(--accent); }}
 
 /* Feed items: a typographic list, not a table. */
 .feed {{ margin: 0.1rem 0 0.3rem; }}

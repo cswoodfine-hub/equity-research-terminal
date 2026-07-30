@@ -60,6 +60,10 @@ PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "P
 # pipeline_filing.STAGES: these are headings a programme sits under, below every phase.
 # How many forward-dated boxes fit before the list stops being a view and
 # starts being a table. The rest are on each company's own Catalysts tab.
+# How long a headline runs before it is cut. The full text is always the first row
+# of the box's own detail.
+_LEAD_CHARS = 104
+
 _AHEAD_SHOWN = 8
 
 FILING_STAGES = ["IND cleared", "IND-enabling", "Development candidate", "Preclinical",
@@ -650,9 +654,27 @@ def _lead_box(item) -> str:
     link = (f'<a class="lead-l" href="{html_escape(item["url"])}" target="_blank" '
             f'rel="noopener">source</a>' if item.get("url") else "")
     kind = html_escape((item.get("kind") or "").replace(" ", "_"))
+    # The ticker leads the line in its own weight, so a reader scans the column of
+    # companies first and reads the sentence second. It is already the first word of the
+    # headline, so it is split off rather than repeated.
+    ticker = html_escape(item.get("ticker") or "")
+    text = item.get("headline") or ""
+    if ticker and text.startswith(ticker + " "):
+        text = text[len(ticker) + 1:]
+    # A registry title runs to two hundred characters and would set the height of every
+    # box beside it. Cut here rather than in the payload: the whole title is the first
+    # row of the detail, so opening the box loses nothing.
+    if len(text) > _LEAD_CHARS:
+        text = text[:_LEAD_CHARS - 1].rstrip() + "…"
+    # A money figure is a measurement, not a label, so it keeps its own case: the chip's
+    # uppercase rule turned "$2.58bn" into "$2.58BN".
+    figure = item.get("figure") or ""
+    chip = "lead-f lead-f-num" if figure.startswith("$") else "lead-f"
     return (f'<details class="lead lead-{kind}"><summary>'
-            f'<span class="lead-f">{html_escape(item.get("figure") or "")}</span>'
-            f'<span class="lead-h">{html_escape(item.get("headline") or "")}</span>'
+            f'<span class="lead-chev"></span>'
+            f'<span class="{chip}">{html_escape(figure)}</span>'
+            f'<span class="lead-h"><span class="lead-tk">{ticker}</span> '
+            f'{html_escape(text)}</span>'
             f'<span class="lead-d">{html_escape(item.get("date") or "")}</span>'
             f'</summary><div class="lead-body">{rows}{quote}{link}</div></details>')
 
@@ -1251,17 +1273,6 @@ with main:
             st.markdown('<div class="leads">'
                         + "".join(_lead_box(h) for h in leads) + "</div>",
                         unsafe_allow_html=True)
-            st.markdown(
-                '<div class="byline">The last week, ranked by kind rather than by when: a '
-                'deal with stated terms, then an approval, an FDA notice, a filing whose '
-                'own title is the news, a senior change, a trial stopping. One per '
-                'company. Open one for its own detail. A deal shows what it pays split '
-                'the way the filing splits it, with the sentence it was read from, '
-                'because the equity inside an upfront is not additional to it. A trial '
-                'date moving is not a headline: it moves the readout on Looking ahead, on '
-                'the horizon rail and on the Catalysts tab instead, which is where a date '
-                'is read.</div>', unsafe_allow_html=True)
-
         _all_changes = api_get(api_base, "/changes")
         universe_feed = [it for it in _all_changes
                          if (it.get("ticker") or "") in _covered]
@@ -1346,18 +1357,6 @@ with main:
             st.markdown('<div class="leads">'
                         + "".join(_lead_box(i) for i in soon[:_AHEAD_SHOWN]) + "</div>",
                         unsafe_allow_html=True)
-            if len(soon) > _AHEAD_SHOWN:
-                st.markdown(f'<div class="byline">{len(soon) - _AHEAD_SHOWN} more inside '
-                            'the window, on each company\'s Catalysts tab.</div>',
-                            unsafe_allow_html=True)
-            st.markdown(
-                '<div class="byline">Everything dated inside 30 days on this engine, '
-                'soonest first, and within a day the firmest kind leads: a decision date, '
-                'then the panel vote that informs it, then a readout. Open one for the '
-                'study, the committee or the application behind it. A PDUFA date and a '
-                'panel vote are stated by the company or the Federal Register; a readout '
-                'is derived from a registry completion date, which is an estimate and '
-                'slips, and each box says which it is.</div>', unsafe_allow_html=True)
 
 
     # --- Key insights: the feed is the most important view ---------------
