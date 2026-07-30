@@ -49,6 +49,7 @@ import datetime as dt
 
 import approval_dates
 import db
+import franchises
 import fx
 import runway
 
@@ -149,13 +150,17 @@ def portfolio_freshness(conn, company_id: int, rates, today=None,
         return {"fresh_share": None, "revenue": None, "dated_revenue": None,
                 "coverage": 0.0, "year": None, "drugs": 0, "identified": 0,
                 "non_product_revenue": None, "inferred_revenue": None,
+                "curated_revenue": None,
                 "reason": "no product revenue on file"}
 
     if name_index is None:
         name_index = approval_dates.build_name_index(conn)
 
     all_recent, all_old, _brands = portfolio_verdict(conn, company_id, cutoff)
-    total = dated = fresh = non_product = inferred = 0.0
+    ticker = (conn.execute("SELECT ticker FROM companies WHERE id = ?",
+                           (company_id,)).fetchone() or [""])[0]
+    franchise_map = franchises.load()
+    total = dated = fresh = non_product = inferred = curated = 0.0
     drugs = identified = 0
     for row in conn.execute(
         """
@@ -181,9 +186,22 @@ def portfolio_freshness(conn, company_id: int, rates, today=None,
         approved, _route = approval_dates.first_approval(
             conn, row["asset_id"], row["name"], name_index)
         if approved is None:
-            # A franchise label names no drug, so nothing can date it. Where every
-            # product the company markets falls on the same side of the cutoff, the
-            # revenue does too and the label does not need resolving.
+            # A franchise label names a disease rather than a drug. The curated map says
+            # which products the franchise covers, and the dates still come from the
+            # register, so a line resolves only when every member of it sits on the same
+            # side of the cutoff. GSK's meningitis revenue comes from products first
+            # marketed in 2016, 2017 and 2025 and stays unresolved.
+            franchise_date, _why = franchises.resolve(
+                conn, ticker, row["name"], cutoff, franchise_map)
+            if franchise_date:
+                identified += 1
+                dated += value
+                if franchise_date >= cutoff:
+                    fresh += value
+                curated += value
+                continue
+            # Where every product the company markets falls on the same side of the
+            # cutoff, the revenue does too and the label does not need resolving.
             if all_recent or all_old:
                 identified += 1
                 dated += value
@@ -213,6 +231,10 @@ def portfolio_freshness(conn, company_id: int, rates, today=None,
             # Revenue placed by the whole-register test rather than by dating its drug,
             # kept visible because it is a weaker claim than the rest.
             "inferred_revenue": inferred or None,
+            # Revenue placed through the curated franchise map. Its membership is
+            # curated and its dates are not, but a reader should still see how much of
+            # the figure rests on a hand-maintained mapping.
+            "curated_revenue": curated or None,
             "reason": None if coverage >= MIN_REVENUE_COVERAGE else
                       f"only {coverage:.0%} of product revenue maps to a dated approval"}
 
@@ -266,6 +288,7 @@ def _company(conn, company, rates, today, name_index=None) -> dict:
         # aside before the share was taken.
         "non_product_revenue": fresh["non_product_revenue"],
         "inferred_revenue": fresh["inferred_revenue"],
+        "curated_revenue": fresh["curated_revenue"],
         "trials_active": active,
         "late_share": (late / active) if active else None,
     }

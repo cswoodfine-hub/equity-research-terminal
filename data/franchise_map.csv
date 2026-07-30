@@ -1,0 +1,27 @@
+# Revenue lines that name a franchise instead of a drug, and which products they cover.
+#
+# Some filers disaggregate revenue by disease rather than by product. GSK reports
+# "Shingles", "Meningitis" and "Influenza"; no free source maps a disease to a drug,
+# because openFDA's label endpoint returns 404 for every vaccine and there is no
+# indication text to match against. So the membership is curated here.
+#
+# What is curated is only the membership: which products a franchise covers. Every date
+# still comes from the register, so a row here cannot make a portfolio look newer than
+# the data says. A franchise whose members straddle the five-year cutoff is reported as
+# undatable rather than resolved to whichever member suits.
+#
+# seasonal=1 marks a vaccine reformulated every year. Its register entry holds only the
+# current season, so the date is an artifact of the formulation and not a launch: Fluarix
+# reads 2026-07-01 for a franchise first licensed decades earlier. A franchise containing
+# one is refused rather than dated, since the only date available is the wrong one.
+#
+# Columns: ticker, franchise, brand, seasonal, note
+ticker,franchise,brand,seasonal,note
+GSK,Shingles,Shingrix,0,the only herpes zoster vaccine GSK markets
+GSK,Meningitis,Bexsero,0,meningococcal group B
+GSK,Meningitis,Menveo,0,meningococcal groups A C W Y
+GSK,Meningitis,Penmenvy,0,meningococcal ABCWY and the newest of the three
+GSK,Influenza,Fluarix,1,reformulated each season so the register holds only the current one
+GSK,Influenza,Flulaval,1,reformulated each season
+GSK,RSV,Arexvy,0,GSK's only RSV vaccine
+GSK,RSVArexvy,Arexvy,0,the label as the filing writes it, run together

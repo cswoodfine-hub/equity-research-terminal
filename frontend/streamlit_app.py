@@ -1727,7 +1727,13 @@ with main:
             "lands on the income statement: spend per approval divides this year's "
             "research budget by an output it did not buy, so it sits beside as the "
             "reference point rather than the answer. Freshness is refused, with the "
-            "reason, where too little of a company's revenue maps to a dated drug.")
+            "reason, where too little of a company's revenue maps to a dated drug. "
+            "A filing that discloses a franchise rather than a drug, as GSK does with "
+            "Shingles and Meningitis, is resolved through a curated membership map in "
+            "data/franchise_map.csv. Only the membership is curated: the dates still "
+            "come from the register, and a franchise whose products straddle the "
+            "five-year line is left unresolved rather than assigned to whichever one "
+            "suits.")
         if prod:
             st.dataframe(pd.DataFrame([{
                 "Ticker": r["ticker"],
