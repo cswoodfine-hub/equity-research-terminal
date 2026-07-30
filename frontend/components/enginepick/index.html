@@ -1,0 +1,243 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* An iframe inherits none of the host page's CSS, so colour, family and size are set
+     here or the text falls back to black on the dark panel and to the system serif. */
+  html, body {
+    margin: 0; padding: 0; background: transparent;
+    color: var(--text); font-family: var(--font-ui); font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- Hero ------------------------------------------------------------- */
+  /* The one place in this app that is allowed a display size. Everywhere else is an
+     instrument read at 11px; this is the front door, and it has to say what the thing
+     is before it asks which part of it you want. */
+  .hero { padding: 0 0 1.1rem; border-bottom: 1px solid var(--rule-strong);
+          margin-bottom: 1.1rem; }
+  .hero-top { display: flex; align-items: baseline; justify-content: space-between;
+              gap: 1rem; }
+  .wordmark { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.14em;
+              text-transform: uppercase; }
+  .hero-count { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
+                letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+  .hero-line { font-family: var(--font-prose); font-size: 2.1rem; line-height: 1.12;
+               letter-spacing: -0.02em; margin: 0.75rem 0 0; max-width: 30ch; }
+  .hero-sub { font-size: 12.5px; color: var(--muted); margin-top: 0.5rem;
+              max-width: 76ch; line-height: 1.45; }
+
+  /* --- Engine panels ---------------------------------------------------- */
+  #panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 900px) { #panels { grid-template-columns: 1fr; } }
+
+  .engine {
+    display: flex; flex-direction: column; gap: 0.5rem;
+    background: linear-gradient(178deg, var(--panel) 0%, var(--ground) 88%);
+    border: 1px solid var(--rule); border-left: 3px solid var(--rule-strong);
+    padding: 0.75rem 0.85rem 0.7rem; cursor: pointer;
+    transition: border-color 110ms linear, transform 110ms ease-out;
+  }
+  /* The accent is the only thing that distinguishes the three at a glance, so it runs
+     down the edge and reappears on the leader rules inside. */
+  .engine.pharma { border-left-color: var(--up); }
+  .engine.biotech { border-left-color: var(--flag); }
+  .engine.cellgene { border-left-color: var(--purple-book); }
+  .engine:hover { border-color: var(--rule-strong); transform: translateY(-2px); }
+  .engine:focus-visible { outline: 1px solid var(--muted); outline-offset: -1px; }
+  .engine:hover .go { color: var(--text); }
+  .engine:hover .go .arrow { transform: translateX(3px); }
+
+  .e-head { display: flex; align-items: baseline; justify-content: space-between;
+            gap: 0.5rem; }
+  .e-name { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.015em; }
+  .e-count { font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+             letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
+  .e-tag { font-size: 11px; color: var(--muted); line-height: 1.3; }
+
+  .e-strip { margin: 0.15rem 0 0; }
+  /* The height is fixed and only the width stretches. The strip's viewBox is drawn wide
+     and shallow with preserveAspectRatio="none", so height:auto made it grow to 230px on
+     a wide panel and swallow the card. */
+  .e-strip svg { display: block; width: 100%; height: 46px; }
+  .e-metric { font-size: 9px; letter-spacing: 0.055em; text-transform: uppercase;
+              color: var(--muted); line-height: 1.35; }
+
+  .e-headline { font-size: 12.5px; line-height: 1.4; }
+
+  .e-leaders { margin-top: 0.1rem; }
+  .e-row { display: flex; align-items: baseline; justify-content: space-between;
+           gap: 0.5rem; font-size: 11px; padding: 3px 0;
+           border-bottom: 1px solid var(--rule); }
+  .e-row:last-child { border-bottom: none; }
+  .e-tk { font-family: var(--font-mono); font-weight: 600; }
+  .e-val { color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+
+  .e-foot { margin-top: auto; padding-top: 0.45rem; display: flex;
+            align-items: baseline; justify-content: space-between; gap: 0.5rem;
+            border-top: 1px solid var(--rule); }
+  .e-detail { font-size: 10px; color: var(--muted); line-height: 1.3; }
+  .go { font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; color: var(--muted);
+        white-space: nowrap; transition: color 110ms linear; }
+  .go .arrow { display: inline-block; transition: transform 110ms ease-out; }
+
+  /* --- Signals ---------------------------------------------------------- */
+  .sig-head { display: flex; align-items: baseline; justify-content: space-between;
+              border-bottom: 1px solid var(--rule-strong); margin: 1.3rem 0 0;
+              padding-bottom: 0.2rem; }
+  .sig-label { font-size: 11.5px; font-weight: 700; letter-spacing: 0.055em;
+               text-transform: uppercase; }
+  .sig-note { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+  .sig {
+    display: grid; grid-template-columns: 4.6rem 3.6rem 8.5rem 1fr auto;
+    gap: 0.6rem; align-items: baseline;
+    padding: 5px 0; border-bottom: 1px solid var(--rule); cursor: pointer;
+  }
+  /* The kind label goes first when there is no room for it, and the row keeps four
+     columns rather than three: display:none takes the label out of grid flow entirely, so
+     a three-column rule left the arrow wrapping onto a line of its own. */
+  @media (max-width: 900px) { .sig { grid-template-columns: 4.6rem 3.6rem 1fr auto; }
+                              .sig .s-kind { display: none; } }
+  .sig:last-child { border-bottom: none; }
+  .sig:hover { background: var(--panel); }
+  .sig:hover .s-go { color: var(--text); }
+  .sig:focus-visible { outline: 1px solid var(--muted); outline-offset: -1px; }
+  .s-date { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+  .s-tk { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; }
+  .s-tk.pharma { color: var(--up); }
+  .s-tk.biotech { color: var(--flag); }
+  .s-tk.cellgene { color: var(--purple-book); }
+  .s-kind { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--muted); }
+  .s-text { font-size: 12px; line-height: 1.35; }
+  .s-go { font-size: 11px; color: var(--rule-strong); }
+</style>
+</head>
+<body>
+<div id="hero"></div>
+<div id="panels"></div>
+<div id="sigwrap"></div>
+<script>
+function post(type, extra) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type },
+                                          extra || {}), "*");
+}
+const Streamlit = {
+  ready() { post("streamlit:componentReady", { apiVersion: 1 }); },
+  height(h) { post("streamlit:setFrameHeight", { height: h }); },
+  value(v) { post("streamlit:setComponentValue", { value: v, dataType: "json" }); },
+};
+
+let wired = false;
+let fontsCopied = false;
+
+function copyFontFaces() {
+  // The host bundles its fonts as @font-face rules with base64 data: sources. A font
+  // loaded in the parent document is not available in this one, and the iframe is
+  // same-origin, so the rules are copied across rather than shipping the binaries twice
+  // or sending them through the component args on every rerun. On any failure the CSS
+  // font stack falls back to the system sans, which still reads correctly.
+  if (fontsCopied) return;
+  fontsCopied = true;
+  try {
+    let faces = "";
+    const sheets = window.parent.document.styleSheets;
+    for (let i = 0; i < sheets.length; i++) {
+      let rules;
+      try { rules = sheets[i].cssRules; } catch (e) { continue; }  // opaque sheet
+      if (!rules) continue;
+      for (let j = 0; j < rules.length; j++) {
+        if (rules[j].type === 5 /* CSSRule.FONT_FACE_RULE */) {
+          faces += rules[j].cssText + "\n";
+        }
+      }
+    }
+    if (faces) {
+      const style = document.createElement("style");
+      style.textContent = faces;
+      document.head.appendChild(style);
+    }
+  } catch (e) { /* cross-origin or no access: the fallback stack stands */ }
+}
+
+let lastHeight = 0;
+function measure() {
+  requestAnimationFrame(function () {
+    const h = Math.ceil(document.body.getBoundingClientRect().height) + 12;
+    // Only when it actually moved. The frame height is set on the parent, which can
+    // reflow this document, so posting unconditionally risks a measure loop.
+    if (Math.abs(h - lastHeight) < 2) return;
+    lastHeight = h;
+    Streamlit.height(h);
+  });
+}
+
+// The panels are a three-column grid that becomes one column under 900px, which triples
+// the height. Streamlit sizes the frame once per render, so without this the page keeps
+// its desktop height on a narrow window and clips two panels and the whole signal strip.
+// Body rather than the root element: body's height is its content's, so it cannot be
+// driven by the frame height this observer is about to change.
+if (window.ResizeObserver) {
+  new ResizeObserver(measure).observe(document.body);
+} else {
+  window.addEventListener("resize", measure);
+}
+
+window.addEventListener("message", function (e) {
+  const d = e.data;
+  if (!d || d.type !== "streamlit:render") return;
+  const a = d.args || {};
+  const tk = a.tokens || {};
+  const root = document.documentElement;
+  // The host page's CSS variables do not cross into the iframe, so the tokens are passed
+  // in and set here. One source of truth stays in tokens.py.
+  Object.keys(tk).forEach(function (k) { root.style.setProperty("--" + k, tk[k]); });
+  copyFontFaces();
+
+  document.getElementById("hero").innerHTML = a.hero || "";
+  document.getElementById("sigwrap").innerHTML = a.signals_html || "";
+
+  const panels = a.panels || [];
+  const p = document.getElementById("panels");
+  // Each panel's html is the .engine element itself, built server-side from escaped
+  // values. Insert them in order, then tag each with its key by position.
+  p.innerHTML = panels.map(function (c) { return c.html; }).join("");
+  Array.prototype.forEach.call(p.children, function (el, i) {
+    const c = panels[i];
+    if (!c) return;
+    el.setAttribute("data-engine", c.engine);
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("role", "button");
+  });
+
+  measure();
+  // A web font arriving after first paint changes the height of everything, so the frame
+  // is measured again once they are ready. Without this the last panel is clipped on a
+  // cold load and correct on every rerun after it, which is the confusing way round.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+
+  if (!wired) {
+    wired = true;
+    function fire(target) {
+      const engine = target.closest("[data-engine]");
+      if (engine) {
+        Streamlit.value({ engine: engine.getAttribute("data-engine"),
+                          nonce: Date.now() });
+        return;
+      }
+      const sig = target.closest("[data-ticker]");
+      if (sig) {
+        Streamlit.value({ ticker: sig.getAttribute("data-ticker"), nonce: Date.now() });
+      }
+    }
+    document.body.addEventListener("click", function (ev) { fire(ev.target); });
+    document.body.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); fire(ev.target); }
+    });
+  }
+});
+Streamlit.ready();
+</script>
+</body>
+</html>
