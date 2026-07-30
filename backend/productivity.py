@@ -104,6 +104,33 @@ def _latest_fy(conn, company_id: int, metric: str, rates) -> float | None:
     return _usd(row["value"], row["unit"], rates) if row else None
 
 
+def portfolio_verdict(conn, company_id: int, cutoff: str) -> tuple:
+    """(all_recent, all_old, brands) for everything the company markets.
+
+    A filing that discloses "Shingles" or "COVID 19" names a franchise rather than a
+    drug, and no free source maps a disease to a product: openFDA's label endpoint
+    returns 404 for every vaccine, so there is no indication text to match against.
+
+    There is still an answer available for some of them, and it needs no mapping. If
+    every product a company markets was first marketed inside the freshness window then
+    all of its product revenue is fresh, whatever the rows are labelled, because there is
+    nothing older for the revenue to have come from. Moderna markets Spikevax, mNEXSPIKE
+    and mRESVIA and nothing else, all after 2024, so its "COVID 19" line is fresh however
+    it is worded. The same reasoning runs the other way for a company whose whole
+    register predates the window.
+
+    A company whose products straddle the cutoff gets no verdict, which is the honest
+    answer: GSK markets vaccines first sold between 2016 and 2026, and its "Meningitis"
+    line could be either.
+    """
+    dates = [r[0] for r in conn.execute(
+        "SELECT first_marketed FROM ndc_products"
+        "  WHERE company_id = ? AND first_marketed IS NOT NULL", (company_id,))]
+    if not dates:
+        return False, False, 0
+    return (all(d >= cutoff for d in dates), all(d < cutoff for d in dates), len(dates))
+
+
 def portfolio_freshness(conn, company_id: int, rates, today=None,
                         name_index: dict | None = None) -> dict:
     """Share of product revenue earned by drugs approved in the last five years.
@@ -121,13 +148,14 @@ def portfolio_freshness(conn, company_id: int, rates, today=None,
     if year is None:
         return {"fresh_share": None, "revenue": None, "dated_revenue": None,
                 "coverage": 0.0, "year": None, "drugs": 0, "identified": 0,
-                "non_product_revenue": None,
+                "non_product_revenue": None, "inferred_revenue": None,
                 "reason": "no product revenue on file"}
 
     if name_index is None:
         name_index = approval_dates.build_name_index(conn)
 
-    total = dated = fresh = non_product = 0.0
+    all_recent, all_old, _brands = portfolio_verdict(conn, company_id, cutoff)
+    total = dated = fresh = non_product = inferred = 0.0
     drugs = identified = 0
     for row in conn.execute(
         """
@@ -153,6 +181,15 @@ def portfolio_freshness(conn, company_id: int, rates, today=None,
         approved, _route = approval_dates.first_approval(
             conn, row["asset_id"], row["name"], name_index)
         if approved is None:
+            # A franchise label names no drug, so nothing can date it. Where every
+            # product the company markets falls on the same side of the cutoff, the
+            # revenue does too and the label does not need resolving.
+            if all_recent or all_old:
+                identified += 1
+                dated += value
+                if all_recent:
+                    fresh += value
+                inferred += value
             continue
         identified += 1
         dated += value
@@ -173,6 +210,9 @@ def portfolio_freshness(conn, company_id: int, rates, today=None,
             "coverage": coverage, "year": year,
             "drugs": drugs, "identified": identified,
             "non_product_revenue": non_product or None,
+            # Revenue placed by the whole-register test rather than by dating its drug,
+            # kept visible because it is a weaker claim than the rest.
+            "inferred_revenue": inferred or None,
             "reason": None if coverage >= MIN_REVENUE_COVERAGE else
                       f"only {coverage:.0%} of product revenue maps to a dated approval"}
 
@@ -225,6 +265,7 @@ def _company(conn, company, rates, today, name_index=None) -> dict:
         # dropped: a reader should be able to see how much of the top line was set
         # aside before the share was taken.
         "non_product_revenue": fresh["non_product_revenue"],
+        "inferred_revenue": fresh["inferred_revenue"],
         "trials_active": active,
         "late_share": (late / active) if active else None,
     }
@@ -280,6 +321,14 @@ COMMERCIAL_INPUTS = (
 # the rest, not the exact distance to the outlier.
 Z_CLIP = 3.0
 
+# The revenue a company needs before it belongs on a chart of large-cap productivity.
+# Not a view about small companies, a statement about what a composite can compare: a
+# 40m-revenue biotech posting 2,900% growth and a 65bn one posting 45% are not on the
+# same scale, and standardising them together put Abeona and Autolus above Lilly. Until
+# freshness became computable for the small names the missing data was filtering them out
+# by accident, which is not a filter.
+SCORECARD_MIN_REVENUE = 1e9
+
 
 def _z_scores(values: dict) -> dict:
     """{key: z} for the values present, or all zeros when they do not vary."""
@@ -299,7 +348,8 @@ def _z_scores(values: dict) -> dict:
             for k, v in values.items()}
 
 
-def scorecard(db_path=None, today=None, rows=None, comps_rows=None) -> list:
+def scorecard(db_path=None, today=None, rows=None, comps_rows=None,
+              min_revenue: float = SCORECARD_MIN_REVENUE) -> list:
     """Each company placed on a research axis and a commercial one.
 
     Both are z-scores against the measured group, weighted and summed, so zero is the
@@ -320,6 +370,8 @@ def scorecard(db_path=None, today=None, rows=None, comps_rows=None) -> list:
 
     merged = []
     for row in rows:
+        if min_revenue and (row.get("revenue_latest") or 0) < min_revenue:
+            continue
         extra = commercial_by_ticker.get(row["ticker"]) or {}
         merged.append({**row,
                        "revenue_growth": extra.get("revenue_growth"),
@@ -364,7 +416,8 @@ def scorecard(db_path=None, today=None, rows=None, comps_rows=None) -> list:
     return sorted(placed, key=lambda r: -(r["rd_score"] + r["commercial_score"]))
 
 
-def scorecard_gaps(db_path=None, today=None) -> list:
+def scorecard_gaps(db_path=None, today=None,
+                   min_revenue: float = SCORECARD_MIN_REVENUE) -> list:
     """The companies a composite cannot place, and what each is missing."""
     import comps as comps_module
 
@@ -372,6 +425,8 @@ def scorecard_gaps(db_path=None, today=None) -> list:
     commercial = {c["ticker"]: c for c in comps_module.build_comps(db_path)}
     gaps = []
     for row in rows:
+        if min_revenue and (row.get("revenue_latest") or 0) < min_revenue:
+            continue
         extra = commercial.get(row["ticker"]) or {}
         merged = {**row, "revenue_growth": extra.get("revenue_growth"),
                   "net_margin": extra.get("net_margin")}

@@ -188,7 +188,8 @@ def test_ranking_puts_the_unmeasurable_last(path):
 def _scored(**kw):
     """A row shaped like build() output, with every scorecard input present."""
     base = {"ticker": "AAA", "name": "A", "fresh_share": 0.2, "approvals_window": 5,
-            "late_share": 0.4, "revenue_growth": 0.05, "net_margin": 0.2}
+            "late_share": 0.4, "revenue_growth": 0.05, "net_margin": 0.2,
+            "revenue_latest": 5e9}
     return {**base, **kw}
 
 
@@ -269,3 +270,18 @@ def test_identical_companies_all_score_zero(tmp_path):
     placed = productivity.scorecard(p, today=TODAY, rows=rows,
                                     comps_rows=_comps("A", "B"))
     assert all(r["rd_score"] == 0 and r["commercial_score"] == 0 for r in placed)
+
+
+def test_a_small_company_is_kept_off_the_chart(tmp_path):
+    """Not a view about small companies, a statement about what a composite can compare.
+    A 40m-revenue biotech posting 2,900% growth and a 65bn one posting 45% are not on the
+    same scale, and standardising them together put Abeona and Autolus above Lilly."""
+    p = str(tmp_path / "t.db")
+    db.init(p)
+    rows = [_scored(ticker="BIG", revenue_latest=60e9),
+            _scored(ticker="ALSO", revenue_latest=20e9),
+            _scored(ticker="TINY", revenue_latest=40e6, revenue_growth=29.0)]
+    comps = [{"ticker": r["ticker"], "revenue_growth": r["revenue_growth"],
+              "net_margin": r["net_margin"]} for r in rows]
+    placed = productivity.scorecard(p, today=TODAY, rows=rows, comps_rows=comps)
+    assert {r["ticker"] for r in placed} == {"BIG", "ALSO"}

@@ -82,7 +82,8 @@ _POLITE_SLEEP_S = 0.12
 # "Pharmaceuticals" matches every other.
 _COMMON_NAME_WORDS = {
     "inc", "corp", "corporation", "company", "co", "plc", "ltd", "limited", "holdings",
-    "group", "the", "and", "pharmaceuticals", "pharmaceutical", "pharms", "pharma",
+    "group", "holding", "the", "and", "pharmaceuticals", "pharmaceutical", "pharms",
+    "pharma",
     "therapeutics", "biosciences", "bioscience", "sciences", "science", "biopharma",
     "biopharmaceuticals", "medicines", "laboratories", "labs", "health", "healthcare",
     "usa", "us", "america", "american", "international", "global", "nv", "sa", "ag",

@@ -20,6 +20,14 @@ Naming. The same product is "Paxlovid" in a revenue table and "Paxlovid (Copacka
 drugsfda, so matching is done on a normalised form with parentheticals and punctuation
 removed.
 
+And a last resort for what none of that reaches. drugsfda is CDER's register, so it
+returns 404 for the BLA numbers behind Shingrix, Comirnaty and Elevidys: no vaccine and
+few gene therapies are in it at all. openFDA's NDC directory does list them, and gives
+the date a package began marketing. That is not an approval date and is never treated as
+one. A product cannot be marketed before it is approved, so the figure errs in one
+direction only, toward looking newer, which is why the route runs last and why the label
+it returns says marketing rather than approval.
+
 Every answer carries the route that produced it, because they are not equally direct and
 a reader deciding whether to trust a date needs to know which one it came from.
 """
@@ -66,6 +74,44 @@ def _biologic_licensure(conn, asset_id: int):
         "  FROM exclusivities WHERE asset_id = ? AND protection_type = ?",
         (asset_id, _FLOOR_TYPE)).fetchone()
     return (row["d"], "Purple Book licensure") if row and row["d"] else (None, None)
+
+
+def _ndc_marketing(conn, asset_id: int, name: str | None):
+    """The date openFDA's NDC directory first records this brand being marketed.
+
+    The last resort, and the only one that reaches a vaccine: drugsfda is CDER's register
+    and returns 404 for BLA125614, BLA125742 and BLA125781, so Shingrix, Comirnaty and
+    Elevidys have no approval anywhere else here.
+
+    It is a marketing date and is labelled as one wherever it surfaces. A product cannot
+    be marketed before it is approved, so the figure is never too early and is sometimes
+    much too late: Comirnaty's oldest surviving package is the 2025 seasonal formulation,
+    four years after licensure. That one-way error is why this route runs last.
+    """
+    row = conn.execute(
+        "SELECT MIN(n.first_marketed) d FROM ndc_products n"
+        "  JOIN assets a ON a.owner_company_id = n.company_id"
+        " WHERE a.id = ? AND n.first_marketed IS NOT NULL"
+        "   AND (upper(n.brand_name) = upper(COALESCE(a.brand_name, ''))"
+        "        OR upper(n.brand_name) = upper(COALESCE(a.generic_name, '')))",
+        (asset_id,)).fetchone()
+    if row and row["d"]:
+        return row["d"], "NDC first marketing"
+    # Failing an exact brand match, a normalised one, which is what carries a revenue
+    # label like "AMONDYS 45" to the register's "Amondys 45".
+    key = normalise(name)
+    if len(key) < 4:
+        return None, None
+    for candidate in conn.execute(
+        "SELECT n.brand_name, n.first_marketed FROM ndc_products n"
+        "  JOIN assets a ON a.owner_company_id = n.company_id"
+        " WHERE a.id = ? AND n.first_marketed IS NOT NULL", (asset_id,)):
+        other = normalise(candidate["brand_name"])
+        if other and (other == key
+                      or (len(other) >= MIN_CONTAINMENT and other in key)
+                      or (len(key) >= MIN_CONTAINMENT and key in other)):
+            return candidate["first_marketed"], "NDC first marketing"
+    return None, None
 
 
 def build_name_index(conn) -> dict:
@@ -122,6 +168,12 @@ def first_approval(conn, asset_id: int, name: str | None = None,
                     if len(known) >= MIN_CONTAINMENT and (known in key or key in known)]
             if hits:
                 return min(hits), "name matched within a combined revenue line"
+
+    # Last, because it is a marketing date rather than an approval and can only err
+    # toward looking newer than the truth.
+    date, route = _ndc_marketing(conn, asset_id, name)
+    if date:
+        return date, route
     return None, None
 
 
