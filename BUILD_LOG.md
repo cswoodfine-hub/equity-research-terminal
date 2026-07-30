@@ -800,3 +800,27 @@ real rates dated 2026-07-24; append-only, no other mutation.
   nobody's commitment.
 - The announcing sentence stored against a PDUFA row was being labelled "Study", which is
   the field an NCT id goes in. It reads as a quote now.
+
+## What a quiet week actually looked like — 2026-07-30
+- Headlines lead the tab again, titled "Headlines this week", with the approvals tape
+  under them.
+- Three headlines for eighteen majors read as a broken filter, so the week was counted:
+  168 tracked items, of which 33 trial dates slipped, 32 trial statuses changed, 16 labels
+  were revised, 16 filings landed and 3 were approvals. None of the 32 status changes was
+  a stop; every one was a trial opening or closing enrolment. So the filter was mostly
+  right and twice wrong.
+- A foreign filer's 6-K carries a free-text title that is the announcement itself:
+  "HANSOH POSITIVE 2ND PHASE III RESULTS FOR RIZ-REZ", "UPDATE ON ULTOMIRIS PHASE III
+  TRIAL IN HSCT-TMA". Nothing else in the model carries those, and they are headlines by
+  any reading. An 8-K's title is an item label from a fixed vocabulary and never is.
+- Most 6-Ks are UK listing-rule housekeeping: a director's share dealing, a buyback
+  tranche, a voting-rights total. Excluded by name.
+- A shouted title is softened to a sentence, keeping what was meant to be capitals. A
+  vowel test alone fails: "III" is all vowels and "HSCT-TMA" contains one. Roman numerals,
+  compounds, four letters or fewer outside a stoplist, and the company's own drug names
+  are all kept. Proper nouns it cannot know stay lower case, which is why the title as
+  filed rides along in the detail.
+- The limit is six rather than four: one per company means six is six different filers,
+  and four was making a week with a 2.58bn deal and a Phase 3 result look empty.
+- Label revisions stay out. "Neupogen revised to version 166" is a document increment with
+  no statement of what changed, and sixteen of them a week would be the whole page.

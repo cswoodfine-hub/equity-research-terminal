@@ -1240,6 +1240,28 @@ with main:
         # rather than by when they happened. The feed below answers "what moved" and
         # answers it four hundred times; this answers "what would you be embarrassed not
         # to know", which is a different question and has to be asked first.
+        leads = api_get(api_base, f"/headlines?engine={urllib.parse.quote(engine or '')}")
+        section("Headlines this week", f"{len(leads)} across {_engine_name}" if leads
+                else _engine_name)
+        if not leads:
+            state(f"Nothing material on {_engine_name} in the last week",
+                  "A headline is a deal with stated terms, an approval, an FDA notice, a "
+                  "senior change or a trial stopping. Quiet is an answer.")
+        else:
+            st.markdown('<div class="leads">'
+                        + "".join(_lead_box(h) for h in leads) + "</div>",
+                        unsafe_allow_html=True)
+            st.markdown(
+                '<div class="byline">The last week, ranked by kind rather than by when: a '
+                'deal with stated terms, then an approval, an FDA notice, a filing whose '
+                'own title is the news, a senior change, a trial stopping. One per '
+                'company. Open one for its own detail. A deal shows what it pays split '
+                'the way the filing splits it, with the sentence it was read from, '
+                'because the equity inside an upfront is not additional to it. A trial '
+                'date moving is not here: three hundred moved this week across the '
+                'universe and they are the change feed\'s subject, not this one\'s.'
+                '</div>', unsafe_allow_html=True)
+
         _all_changes = api_get(api_base, "/changes")
         universe_feed = [it for it in _all_changes
                          if (it.get("ticker") or "") in _covered]
@@ -1283,25 +1305,6 @@ with main:
                 'at its date; hover for the drug and application number. The detailed '
                 'change feed, filings, trial moves and risk-factor edits, sits on each '
                 "company's Key insights tab.</div>", unsafe_allow_html=True)
-
-        leads = api_get(api_base, f"/headlines?engine={urllib.parse.quote(engine or '')}")
-        section("Headlines", f"{len(leads)} in the last week" if leads
-                else "the last week")
-        if not leads:
-            state(f"Nothing material on {_engine_name} in the last week",
-                  "A headline is a deal with stated terms, an approval, an FDA notice, a "
-                  "senior change or a trial stopping. Quiet is an answer.")
-        else:
-            st.markdown('<div class="leads">'
-                        + "".join(_lead_box(h) for h in leads) + "</div>",
-                        unsafe_allow_html=True)
-            st.markdown(
-                '<div class="byline">The last week, ranked by kind rather than by when: a '
-                'deal with stated terms, then an approval, an FDA notice, a senior change, '
-                'a trial stopping. One per company. Open one for its own detail. A deal '
-                'shows what it pays split the way the filing splits it, with the sentence '
-                'it was read from, because the equity inside an upfront is not additional '
-                'to it.</div>', unsafe_allow_html=True)
 
         section("Coverage, 90 days", f"{len(_covered)} companies, one scale")
         panels = [p for p in api_get(api_base, "/price-grid?days=90")

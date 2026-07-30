@@ -38,12 +38,14 @@ LOOKBACK_DAYS = 7
 # is actually planned against.
 AHEAD_DAYS = 30
 
-# How many to show. Four fits above the fold and forces the ranking to mean something.
-LIMIT = 4
+# How many to show. Six fills two rows of the grid, and one per company means six is six
+# different filers. Four was leaving a week that had a $2.58bn deal, three label
+# expansions and a foreign filer's Phase 3 result looking like a quiet week.
+LIMIT = 6
 
 # The order things matter in, most first. Stated rather than scored, so it can be argued
 # with. A kind not listed here does not reach the front page at all.
-ORDER = ("deal", "approval", "regulatory", "leadership", "trial_stopped")
+ORDER = ("deal", "approval", "regulatory", "filing", "leadership", "trial_stopped")
 
 # The same for the forward view. A decision date outranks a vote that informs it, which
 # outranks a readout whose date the registry only estimates.
@@ -51,6 +53,28 @@ AHEAD_ORDER = ("PDUFA", "panel", "data readout")
 
 # A trial that has stopped, rather than one that has started or changed pace.
 _STOPPED = re.compile(r"->\s*(?:Terminated|Withdrawn|Suspended)\b", re.I)
+
+# A filing whose title is the news. An 8-K's title is an item label from a fixed
+# vocabulary, "Regulation FD disclosure, Financial statements and exhibits", which says
+# what section was used and nothing about what happened. A foreign filer's 6-K carries a
+# free-text title that is the announcement itself: "HANSOH POSITIVE 2ND PHASE III RESULTS
+# FOR RIZ-REZ" is a headline in the sense this page means.
+_TITLED_FORMS = ("6-K",)
+
+# Except that most 6-Ks are UK listing-rule housekeeping. A director's share dealing, a
+# buyback tranche and a voting-rights total are filings a company must make, not things
+# that happened to it.
+_ROUTINE_FILING = re.compile(
+    r"^(?:form\s+)?6-k$|director/pdmr|transaction in own shares|total voting rights|"
+    r"holding\(s\) in company|admission of further securities|block listing|"
+    r"annual financial report|notice of results|publication of|"
+    r"result of (?:agm|meeting)|share buyback programme", re.I)
+
+
+def _is_news(form: str, title: str) -> bool:
+    """Whether a filing's title says what happened, or only which form was used."""
+    title = (title or "").strip()
+    return bool(title) and form in _TITLED_FORMS and not _ROUTINE_FILING.search(title)
 
 
 def _money(value: float) -> str:
@@ -199,6 +223,7 @@ def build(db_path=None, tickers=None, days: int = LOOKBACK_DAYS, limit: int = LI
                                   else "label expansion"), since)
             + _deals(conn, wanted, since)
             + _regulatory(db_path, wanted, since)
+            + _filings(conn, wanted, since)
             + _from_feed(feed, wanted, ("leadership_change",), "leadership",
                          "senior change", since)
             # A trial stopping, not a trial starting. A status change to Recruiting is
@@ -342,3 +367,109 @@ def ahead(db_path=None, tickers=None, days: int = AHEAD_DAYS, today=None) -> lis
     # the vote that informs it, which outranks a readout the registry only estimates.
     items.sort(key=order)
     return items
+
+
+# What stays capitalised when a shouted title is softened. A vowel test alone is not
+# enough: "III" is all vowels and "HSCT-TMA" contains one, and both are abbreviations.
+_ROMAN = re.compile(r"^[IVXLCDM]+$")
+_HAS_VOWEL = re.compile(r"[AEIOU]")
+_COMPOUND = re.compile(r"^[A-Z0-9]+[-/&][A-Z0-9]")
+# Short words that are words rather than abbreviations, which is the one thing a length
+# test cannot tell on its own.
+_SHORT_WORDS = {"IN", "ON", "OF", "TO", "AT", "BY", "AS", "IS", "IT", "OR", "AN", "UP",
+                "WE", "DO", "NO", "SO", "BE", "HE", "IF", "MY", "US",
+                "THE", "AND", "FOR", "NEW", "OUR", "ITS", "ALL", "TWO", "ONE", "HAS",
+                "ARE", "WAS", "OUT", "OFF", "PER", "VIA", "TOP", "BIG", "KEY", "NON",
+                "PRE", "MID", "END", "USE", "SET", "GET", "MAY", "CAN", "WILL", "WITH",
+                "FROM", "INTO", "OVER", "THAT", "THIS", "MORE", "FULL", "NEXT", "FIRST"}
+
+# An ordinal is a number and a word ending, not an abbreviation: "2ND QUARTER RESULTS".
+_ORDINAL = re.compile(r"^\d+(?:ST|ND|RD|TH)$")
+
+
+def _is_abbreviation(word: str) -> bool:
+    """Whether a word in a shouted title was meant to be capitals."""
+    letters = "".join(c for c in word if c.isalpha())
+    if not letters:
+        return True
+    if _ORDINAL.match(word):
+        return False                      # 2ND, 3RD
+    if _COMPOUND.match(word) or any(c.isdigit() for c in word):
+        return True                       # R&D, HSCT-TMA, PD-L1
+    if _ROMAN.match(letters):
+        return True                       # III, IV
+    if not _HAS_VOWEL.search(letters):
+        return True                       # GSK, BMS
+    return len(letters) <= 4 and letters not in _SHORT_WORDS
+
+
+def _drug_names(conn) -> dict:
+    """{ticker: {upper-cased drug name}} so a title keeps its own products capitalised.
+
+    Without it "UPDATE ON ULTOMIRIS PHASE III TRIAL" softens to "ultomiris", which is a
+    drug's name written as if it were a word.
+    """
+    out: dict = {}
+    for row in conn.execute(
+            "SELECT c.ticker, a.brand_name, a.generic_name FROM assets a"
+            "  JOIN companies c ON c.id = a.owner_company_id"):
+        for value in (row["brand_name"], row["generic_name"]):
+            for word in (value or "").split():
+                if len(word) > 3:
+                    out.setdefault(row["ticker"], set()).add(word.upper())
+    return out
+
+
+def _sentence_case(title: str, drugs=frozenset()) -> str:
+    """A shouted title softened to a sentence, keeping what was meant to be capitals.
+
+    Proper nouns this cannot know about stay lower case, which is the one thing it gets
+    wrong and the reason the title as filed rides along in the detail.
+    """
+    if title != title.upper():
+        return title                      # already mixed case: the filer's own choice
+    words = []
+    for word in title.split():
+        if _is_abbreviation(word):
+            words.append(word)
+        elif word in drugs:
+            words.append(word.capitalize())
+        else:
+            words.append(word.lower())
+    out = " ".join(words)
+    return out[:1].upper() + out[1:]
+
+
+def _filings(conn, tickers, since) -> list:
+    """A filing whose own title is the announcement.
+
+    Only where the title is news. An 8-K is titled by the items it uses, so its headline
+    is "Other events" however large the event; a 6-K is titled by the filer and reads as a
+    press release, which is what makes it usable here and an 8-K not.
+    """
+    out = []
+    names = _drug_names(conn)
+    for row in conn.execute(
+            "SELECT c.ticker, c.name, f.form_type, f.filed_date, f.title, f.url"
+            "  FROM filings f JOIN companies c ON c.id = f.company_id"
+            " WHERE f.filed_date >= ? AND f.title IS NOT NULL"
+            " ORDER BY f.filed_date DESC", (since,)):
+        if tickers is not None and row["ticker"] not in tickers:
+            continue
+        if not _is_news(row["form_type"], row["title"]):
+            continue
+        # Filers write these in capitals, which shouts over every other headline on the
+        # page. The raw title stays in the detail, so nothing is lost by softening it.
+        title = _sentence_case(row["title"].strip(), names.get(row["ticker"], set()))
+        out.append({
+            "kind": "filing", "ticker": row["ticker"], "name": row["name"],
+            "date": row["filed_date"][:10],
+            "headline": f"{row['ticker']} {title}",
+            "figure": row["form_type"], "detail": "",
+            "summary": [_pair("What", title),
+                        _pair("Filed", row["filed_date"][:10]),
+                        _pair("Form", row["form_type"]),
+                        _pair("As filed", row["title"].strip())],
+            "evidence": None, "url": row["url"], "rank": 0,
+        })
+    return out

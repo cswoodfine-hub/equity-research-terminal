@@ -215,3 +215,74 @@ def test_a_decision_date_does_not_claim_the_registry(tmp_path):
     assert row["evidence"].startswith("The Company's BLA")
     # Somebody stated it, so it is firm even though it was extracted rather than typed.
     assert row["curated"] is True
+
+
+# --- a filing whose title is the news ---------------------------------------------------
+
+def _filing(conn, ticker, form, title, date):
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = ?", (ticker,)).fetchone()[0]
+    conn.execute("INSERT INTO filings (company_id, accession, form_type, filed_date,"
+                 "  title, url) VALUES (?, ?, ?, ?, ?, 'http://x')",
+                 (cid, f"{ticker}-{date}-{title[:8]}", form, date, title))
+    conn.commit()
+
+
+def test_a_six_k_title_is_the_announcement(tmp_path):
+    """A foreign filer titles its own filing, so the title is the news. "HANSOH POSITIVE
+    2ND PHASE III RESULTS" is a headline; nothing else in the model would carry it."""
+    path, conn = _seed(tmp_path)
+    _filing(conn, "MRK", "6-K", "HANSOH POSITIVE 2ND PHASE III RESULTS FOR RIZ-REZ",
+            "2026-07-28")
+    conn.close()
+    row = headlines.build(path, today=TODAY)[0]
+    assert row["kind"] == "filing"
+    assert row["headline"] == "MRK Hansoh positive 2nd phase III results for RIZ-REZ"
+
+
+def test_an_eight_k_title_is_the_form_not_the_news(tmp_path):
+    """An 8-K is titled by the items it uses, so its headline is "Other events" however
+    large the event. Whatever happened reaches the page by another route or not at all."""
+    path, conn = _seed(tmp_path)
+    _filing(conn, "JNJ", "8-K", "Regulation FD disclosure, Financial statements and "
+            "exhibits", "2026-07-29")
+    conn.close()
+    assert headlines.build(path, today=TODAY) == []
+
+
+def test_listing_rule_housekeeping_is_not_news(tmp_path):
+    """Most 6-Ks are UK listing-rule filings: a director's share dealing, a buyback
+    tranche, a voting-rights total. Filings a company must make, not things that
+    happened to it."""
+    path, conn = _seed(tmp_path)
+    for title in ("DIRECTOR/PDMR SHAREHOLDING", "TRANSACTION IN OWN SHARES",
+                  "TOTAL VOTING RIGHTS", "FORM 6-K", "6-K"):
+        _filing(conn, "MRK", "6-K", title, "2026-07-28")
+    conn.close()
+    assert headlines.build(path, today=TODAY) == []
+
+
+def test_a_shouted_title_keeps_what_was_meant_to_be_capitals():
+    """A vowel test alone is not enough: "III" is all vowels and "HSCT-TMA" contains one,
+    and both are abbreviations."""
+    assert headlines._sentence_case(
+        "UPDATE ON ULTOMIRIS PHASE III TRIAL IN HSCT-TMA", {"ULTOMIRIS"}) == (
+        "Update on Ultomiris phase III trial in HSCT-TMA")
+    assert headlines._sentence_case("NEW GSK FLAGSHIP R&D CENTRE") == (
+        "New GSK flagship R&D centre")
+
+
+def test_a_title_the_filer_already_mixed_is_left_alone():
+    """Their capitalisation is their choice where they made one."""
+    assert headlines._sentence_case("Positive Phase III data for Riz-Rez") == (
+        "Positive Phase III data for Riz-Rez")
+
+
+def test_the_title_as_filed_survives_in_the_detail(tmp_path):
+    """Softening a shouted title guesses at proper nouns. The original rides along so the
+    guess is never the only record."""
+    path, conn = _seed(tmp_path)
+    _filing(conn, "MRK", "6-K", "NEW FLAGSHIP R&D CENTRE IN CAMBRIDGE", "2026-07-28")
+    conn.close()
+    row = headlines.build(path, today=TODAY)[0]
+    filed = next(p for p in row["summary"] if p["label"] == "As filed")
+    assert filed["value"] == "NEW FLAGSHIP R&D CENTRE IN CAMBRIDGE"
