@@ -764,3 +764,18 @@ real rates dated 2026-07-24; append-only, no other mutation.
   as filtered rather than as broken.
 - A resource page matched to a company is still not an event: "New Approach Methodologies
   (NAMs)" was bound to Revolution Medicines.
+
+## The terms, everywhere a deal is read — 2026-07-30
+- The structure now reaches all three places a deal appears, not just the headline block:
+  the Key insights deals panel, the morning note, and the ranked headlines. Each was
+  reading a single announced_value string, which for the J&J deal was either nothing or
+  the option price, and never what the company is spending this year.
+- deals.recent_rows carries the four commitments and the sentence they came from, and
+  merges them across filings: a deal arrives on a wire and its structure lands with the
+  8-K a day or two later, so the row that announced it and the row that priced it are not
+  the same row.
+- The card shows the structure where there is one and falls back to the announced figure
+  where there is not, with the terms sentence as the tooltip. The panel's total now reads
+  3.6bn across 2 of 6 rather than 1.0bn across 1 of 6.
+- notecontext built its own deal lines with its own SQL and its own formatting, so it was
+  the one consumer the earlier change missed. It reads the same fields now.

@@ -200,3 +200,45 @@ def test_deal_areas_read_against_the_pipeline(tmp_path):
         "AtaiBeckley is Neuroscience, where it already runs 1 compound.",
         "Ajax Therapeutics is Haematology, where it runs none, so the deal is an entry.",
     ]
+
+
+def test_the_note_gets_the_structure_not_the_headline_figure(tmp_path):
+    """"Collaboration with Sail for $2.58 billion" and "for 785m upfront, of which 465m is
+    equity, and 2.58bn only on the option" are different sentences about one deal, and a
+    note written from the first cannot say what the company is spending this year."""
+    import db as _db
+    import notecontext as _nc
+    path = str(tmp_path / "note.db")
+    _db.init(path)
+    conn = _db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name) VALUES ('JNJ', 'J&J')")
+    cid = conn.execute("SELECT id FROM companies").fetchone()[0]
+    conn.execute(
+        "INSERT INTO deals (company_id, deal_type, counterparty, event_date, quote,"
+        "  announced_value, upfront_usd, equity_usd, milestones_usd, option_usd,"
+        "  headline_usd) VALUES (?, 'collaboration', 'Sail Biomedicines', '2026-07-29',"
+        "  'q', '$2.58 billion', 785e6, 465e6, 140e6, 2.58e9, 2.58e9)", (cid,))
+    conn.commit()
+
+    lines, _rows = _nc._deal_lines(conn, cid, dt.date(2026, 7, 30))
+    conn.close()
+    assert "785m upfront" in lines[0] and "$465m equity" in lines[0]
+
+
+def test_the_note_falls_back_to_the_announced_figure(tmp_path):
+    import db as _db
+    import notecontext as _nc
+    path = str(tmp_path / "note2.db")
+    _db.init(path)
+    conn = _db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name) VALUES ('JNJ', 'J&J')")
+    cid = conn.execute("SELECT id FROM companies").fetchone()[0]
+    conn.execute(
+        "INSERT INTO deals (company_id, deal_type, counterparty, event_date, quote,"
+        "  announced_value) VALUES (?, 'acquisition', 'Firefly Bio', '2026-06-08', 'q',"
+        "  '$1 billion')", (cid,))
+    conn.commit()
+
+    lines, _rows = _nc._deal_lines(conn, cid, dt.date(2026, 6, 9))
+    conn.close()
+    assert "for $1 billion" in lines[0]

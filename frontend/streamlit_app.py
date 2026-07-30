@@ -444,7 +444,14 @@ def deal_card(deal) -> str:
     """One deal: a type badge, a body of counterparty, size and area, and the date."""
     badge = _DEAL_BADGE.get(deal.get("deal_type"), "Deal")
     body = [f'<span class="dp">{html_escape(deal.get("counterparty") or "")}</span>']
-    if deal.get("announced_value"):
+    if deal.get("terms_summary"):
+        # The structure the press release stated, which is four commitments rather than
+        # one figure: what is paid now, how much of it is equity, what is contingent on
+        # data, and what only happens if an option is exercised. A single headline number
+        # is wrong whichever of them it picks.
+        body.append(f'<span class="dv dterms" title="{html_escape(deal.get("terms_evidence") or "")}">'
+                    f'{html_escape(deal["terms_summary"])}</span>')
+    elif deal.get("announced_value"):
         # Announced consideration, and the tooltip names the source that stated it,
         # since a figure a filing gives and one a headline gives are not equally firm.
         origin = {"filing": "as the filing states it",

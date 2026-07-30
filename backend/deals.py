@@ -393,13 +393,20 @@ def recent_rows(conn, cid: int, today=None, within_days: int = 400,
     (agreed, completed, recapped in earnings) is de-duplicated on the party, keeping the
     earliest date, when the market first saw it, and the announced value from whichever
     filing states it. That value is the consideration an announcement stated, milestones
-    and all, and is never the cash the cash flow statement reports."""
+    and all, and is never the cash the cash flow statement reports.
+
+    Where the press release stated the structure, the four commitments ride along too, so
+    a reader sees what is being paid now against what is contingent rather than one figure
+    standing for both.
+    """
     today = today or dt.date.today()
     cutoff = (today - dt.timedelta(days=within_days)).isoformat()
     rows = conn.execute(
         """
         SELECT deal_type, counterparty, announced_value, announced_value_source,
-               area, event_date, event_date_source, source_url, article_url
+               area, event_date, event_date_source, source_url, article_url,
+               upfront_usd, equity_usd, milestones_usd, option_usd, total_usd,
+               headline_usd, terms_evidence
           FROM deals
          WHERE company_id = ? AND deal_type IN
                ('acquisition', 'licensing', 'collaboration', 'divestiture')
@@ -418,25 +425,46 @@ def recent_rows(conn, cid: int, today=None, within_days: int = 400,
                            "area": r["area"], "event_date": r["event_date"],
                            "event_date_source": r["event_date_source"],
                            "source_url": r["source_url"],
-                           "article_url": r["article_url"]}
+                           "article_url": r["article_url"],
+                           "terms": {f: r[f + "_usd"] for f in deal_terms.FIELDS},
+                           "headline_usd": r["headline_usd"],
+                           "terms_evidence": r["terms_evidence"]}
         else:
             deal["article_url"] = deal["article_url"] or r["article_url"]
             if not deal["announced_value"] and r["announced_value"]:
                 deal["announced_value"] = r["announced_value"]
                 deal["announced_value_source"] = r["announced_value_source"]
             deal["area"] = deal["area"] or r["area"]
+            # The filing that states the terms is often not the one that announced it:
+            # a deal arrives on a wire and its structure lands with the 8-K.
+            if not deal["headline_usd"] and r["headline_usd"]:
+                deal["terms"] = {f: r[f + "_usd"] for f in deal_terms.FIELDS}
+                deal["headline_usd"] = r["headline_usd"]
+                deal["terms_evidence"] = r["terms_evidence"]
     kept = [d for d in merged.values() if (d["event_date"] or "") >= cutoff]
     for deal in kept:
         deal["announced_value"] = short_value(deal["announced_value"])
         deal["announced_usd"] = announced_usd(deal["announced_value"])
+        deal["terms_summary"] = deal_terms.summary(deal["terms"])
+        # The stated structure is the better figure where there is one: a wire's "$2.58
+        # billion" is the option price, and the deal is also 785m of cash today.
+        if deal["headline_usd"]:
+            deal["announced_usd"] = deal["headline_usd"]
     kept.sort(key=lambda d: d["event_date"] or "", reverse=True)
     return kept[:limit]
 
 
 def deal_line(deal: dict) -> str:
-    """One deal as a sentence for the note."""
+    """One deal as a sentence for the note.
+
+    The structure where the filing gave one, because "for $2.58 billion" and "785m
+    upfront of which 465m is equity, and 2.58bn only on the option" are different
+    sentences about the same deal and only the second is one a reader can act on.
+    """
     parts = [f"{_DEAL_VERB.get(deal['deal_type'], 'Deal with')} {deal['counterparty']}"]
-    if deal.get("announced_value"):
+    if deal.get("terms_summary"):
+        parts.append(f"for {deal['terms_summary']}")
+    elif deal.get("announced_value"):
         parts.append(f"for {deal['announced_value']}")
     if deal.get("area"):
         parts.append(f"({deal['area']})")

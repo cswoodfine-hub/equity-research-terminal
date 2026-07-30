@@ -226,3 +226,119 @@ def test_deal_area_uses_the_pipeline_taxonomy():
     # A modality is not a disease and is never guessed into an area.
     assert deals.deal_area({"area": "in vivo CAR-T cell therapies", "quote": ""}) is None
     assert deals.deal_area({}) is None
+
+
+# --- the terms, from the press release to the panel ------------------------------------
+
+SAIL_RELEASE = (
+    "Johnson & Johnson Announces Collaboration with Sail Biomedicines. "
+    "Additionally, Johnson & Johnson has been granted an exclusive option to acquire "
+    "Sail for $2.58 billion. Under the terms of the agreements, Johnson & Johnson would "
+    "make total initial payments of $785 million, including a $465 million equity "
+    "investment, and additional contingent payments of $140 million if certain "
+    "development milestones are achieved.")
+
+
+def _deals_db(tmp_path):
+    db_file = tmp_path / "terms.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = 'JNJ'").fetchone()[0]
+    return db_file, conn, cid
+
+
+def _news_deal(conn, cid, party, date):
+    """A deal as the news route captures it: a party, a type, and no size at all."""
+    conn.execute(
+        "INSERT INTO deals (company_id, deal_type, counterparty, event_date, quote,"
+        "  event_date_source) VALUES (?, 'collaboration', ?, ?, 'headline', 'news')",
+        (cid, party, date))
+    conn.commit()
+
+
+def _exhibit(conn, cid, text, date, accession="0001-1", section="exhibit"):
+    conn.execute(
+        "INSERT INTO filing_sections (company_id, accession, form_type, filed_date,"
+        "  section, char_count, text) VALUES (?, ?, '8-K', ?, ?, ?, ?)",
+        (cid, accession, date, section, len(text), text))
+    conn.commit()
+
+
+def test_enrich_fills_a_news_deal_from_the_press_release(tmp_path):
+    """The wire runs the headline the morning of the 8-K. The terms are in the exhibit
+    furnished with it, and the two are matched on the party's name in the document."""
+    db_file, conn, cid = _deals_db(tmp_path)
+    _news_deal(conn, cid, "Sail Biomedicines", "2026-07-29")
+    _exhibit(conn, cid, SAIL_RELEASE, "2026-07-29")
+    conn.close()
+
+    assert deals.enrich(db_file) == {"filled": 1}
+
+    row = deals.recent(db_file, "JNJ", today=dt.date(2026, 7, 30))[0]
+    assert row["terms_summary"] == (
+        "$785m upfront, $465m equity, $140m milestones, $2.58bn option to acquire")
+    assert row["headline_usd"] == 2.58e9
+    assert "total initial payments" in row["terms_evidence"]
+
+
+def test_the_terms_belong_to_the_party_named_in_the_document(tmp_path):
+    """J&J furnished two press releases with one 8-K, Firefly at 1bn and Sail at 2.58bn.
+    Matching on the filing alone would give each the other's numbers."""
+    db_file, conn, cid = _deals_db(tmp_path)
+    _news_deal(conn, cid, "Firefly Bio", "2026-07-29")
+    _exhibit(conn, cid, SAIL_RELEASE, "2026-07-29")
+    _exhibit(conn, cid,
+             "Johnson & Johnson Completes Acquisition of Firefly Bio, Inc. for $1 billion "
+             "in cash.", "2026-07-29", section="exhibit_2")
+    conn.close()
+
+    deals.enrich(db_file)
+    row = deals.recent(db_file, "JNJ", today=dt.date(2026, 7, 30))[0]
+    assert row["headline_usd"] == 1e9
+    assert row["terms_summary"] == "$1bn total"
+
+
+def test_the_structure_beats_a_headline_figure_on_the_card(tmp_path):
+    """A wire's "$2.58 billion" is the option price. The deal is also 785m of cash today,
+    and the card has to be able to say both."""
+    db_file, conn, cid = _deals_db(tmp_path)
+    conn.execute(
+        "INSERT INTO deals (company_id, deal_type, counterparty, event_date, quote,"
+        "  announced_value, announced_value_source) VALUES (?, 'collaboration',"
+        "  'Sail Biomedicines', '2026-07-29', 'q', '$2.58 billion', 'news')", (cid,))
+    conn.commit()
+    _exhibit(conn, cid, SAIL_RELEASE, "2026-07-29")
+    conn.close()
+
+    deals.enrich(db_file)
+    row = deals.recent(db_file, "JNJ", today=dt.date(2026, 7, 30))[0]
+    assert "785m upfront" in deals.deal_line(row)
+    assert row["announced_usd"] == 2.58e9
+
+
+def test_a_deal_with_no_press_release_keeps_what_the_headline_gave(tmp_path):
+    db_file, conn, cid = _deals_db(tmp_path)
+    conn.execute(
+        "INSERT INTO deals (company_id, deal_type, counterparty, event_date, quote,"
+        "  announced_value, announced_value_source) VALUES (?, 'acquisition',"
+        "  'Firefly Bio', '2026-06-08', 'q', '$1 billion', 'news')", (cid,))
+    conn.commit()
+    conn.close()
+
+    assert deals.enrich(db_file) == {"filled": 0}
+    row = deals.recent(db_file, "JNJ", today=dt.date(2026, 6, 9))[0]
+    assert row["terms_summary"] == ""
+    assert row["announced_value"] == "$1 billion"
+    assert "for $1 billion" in deals.deal_line(row)
+
+
+def test_terms_from_a_later_filing_reach_the_earlier_row(tmp_path):
+    """A deal arrives on a wire and its structure lands with the 8-K a day or two after."""
+    db_file, conn, cid = _deals_db(tmp_path)
+    _news_deal(conn, cid, "Sail Biomedicines", "2026-07-27")
+    _exhibit(conn, cid, SAIL_RELEASE, "2026-07-29")
+    conn.close()
+
+    assert deals.enrich(db_file)["filled"] == 1
+    assert deals.recent(db_file, "JNJ", today=dt.date(2026, 7, 30))[0]["headline_usd"]

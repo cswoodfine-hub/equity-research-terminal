@@ -17,6 +17,7 @@ import datetime as dt
 import re
 
 import db
+import deal_terms
 import deals as deals_module
 import therapeutic_areas
 
@@ -272,11 +273,19 @@ def _deal_lines(conn, cid: int, today: dt.date,
     is agreed then completed, or recapped in a later earnings release; the rows are
     de-duplicated on the counterparty keeping the earliest date, so the announcement date
     wins over a recap and the deal reads once.
+
+    Where the press release stated the structure, the note is given that instead of the
+    headline figure. "Collaboration with Sail Biomedicines for $2.58 billion" and "for
+    785m upfront, of which 465m is equity, 140m on milestones and 2.58bn only on the
+    option" are different sentences about the same deal, and a note written from the first
+    cannot say what the company is actually spending this year.
     """
     cutoff = (today - dt.timedelta(days=within_days)).isoformat()
     rows = conn.execute(
         """
-        SELECT deal_type, counterparty, announced_value, area, quote, event_date
+        SELECT deal_type, counterparty, announced_value, area, quote, event_date,
+               upfront_usd, equity_usd, milestones_usd, option_usd, total_usd,
+               headline_usd
           FROM deals
          WHERE company_id = ? AND deal_type IN
                ('acquisition', 'licensing', 'collaboration', 'divestiture')
@@ -291,18 +300,24 @@ def _deal_lines(conn, cid: int, today: dt.date,
             merged[key] = {"deal_type": r["deal_type"], "counterparty": r["counterparty"],
                            "announced_value": r["announced_value"],
                            "area": r["area"], "quote": r["quote"],
-                           "event_date": r["event_date"]}
+                           "event_date": r["event_date"],
+                           "terms": {f: r[f + "_usd"] for f in deal_terms.FIELDS},
+                           "headline_usd": r["headline_usd"]}
             continue
         # fill a figure from any later filing
         deal["announced_value"] = deal["announced_value"] or r["announced_value"]
         deal["area"] = deal["area"] or r["area"]
+        # The filing that states the terms is often not the one that announced it.
+        if not deal["headline_usd"] and r["headline_usd"]:
+            deal["terms"] = {f: r[f + "_usd"] for f in deal_terms.FIELDS}
+            deal["headline_usd"] = r["headline_usd"]
     kept = [d for d in merged.values() if (d["event_date"] or "") >= cutoff]
     kept.sort(key=lambda d: d["event_date"] or "", reverse=True)
     lines = []
     for d in kept[:limit]:
         parts = [f"{_DEAL_VERB.get(d['deal_type'], 'Deal with')} "
                  f"{_short_party(d['counterparty'])}"]
-        value = _short_value(d["announced_value"])
+        value = deal_terms.summary(d["terms"]) or _short_value(d["announced_value"])
         if value:
             parts.append(f"for {value}")
         if d["area"]:
