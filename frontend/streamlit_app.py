@@ -661,6 +661,65 @@ if not companies:
           "backend directory to load the 18 companies and resolve their CIKs.")
     st.stop()
 
+# --- Desks: which terminal is open ----------------------------------------
+# Three desks and a feed, because the questions differ rather than the companies do: 30
+# of these 70 report no product revenue, so exclusivity and revenue mix are empty for
+# them by construction, and cash runway is empty for the other 38.
+#
+# The landing page shows only on a visit that names neither a desk nor a company, so a
+# shared ?ticker= link still opens straight onto that company and a returning session
+# keeps the desk it was last on.
+DESKS = ("major", "biotech", "frontier", "changed")
+desk = (st.query_params.get("desk") or "").lower()
+if desk not in DESKS:
+    desk = ""
+if not desk and st.session_state.get("desk") in DESKS:
+    desk = st.session_state["desk"]
+
+if not desk and not (st.query_params.get("ticker") or ""):
+    board = api_get(api_base, "/desks")
+    st.markdown(
+        f'<div class="ident"><span class="tk">Novatalis</span>'
+        f'<span class="nm">{board["universe"]} companies</span></div>',
+        unsafe_allow_html=True)
+    # The feed leads on its own row: it spans every desk, so it is not one of the three.
+    feed_desk = next(d for d in board["desks"] if d["key"] == "changed")
+    section("What changed", f"{feed_desk['count']} in 7 days")
+    st.markdown(f'<div class="state"><div class="d">{html_escape(feed_desk["headline"] or "")}'
+                f'</div></div>', unsafe_allow_html=True)
+    if st.button("Open the change feed", key="desk_changed"):
+        st.query_params["desk"] = "changed"
+        st.session_state["desk"] = "changed"
+        st.rerun()
+
+    section("Desks")
+    columns = st.columns(3, gap="medium")
+    for column, entry in zip(columns, [d for d in board["desks"]
+                                       if d["key"] != "changed"]):
+        with column:
+            st.markdown(
+                f'<div class="state"><div class="t">{html_escape(entry["label"])} · '
+                f'{entry["count"]} {html_escape(entry["count_label"])}</div>'
+                f'<div class="d">{html_escape(entry["headline"] or "")}</div>'
+                f'<div class="d">{html_escape(entry["detail"])}</div></div>',
+                unsafe_allow_html=True)
+            if st.button(f"Open {entry['label'].lower()}", key=f"desk_{entry['key']}"):
+                st.query_params["desk"] = entry["key"]
+                st.session_state["desk"] = entry["key"]
+                st.rerun()
+    st.caption(
+        "A desk decides which companies the picker offers and which tabs a company "
+        "page can fill. Search always reaches the whole universe.")
+    st.stop()
+
+st.session_state["desk"] = desk or "major"
+# A desk narrows the picker to the companies it covers. Search is the escape hatch and
+# still reaches everything, so narrowing costs nothing that cannot be undone.
+if desk in ("major", "biotech"):
+    covered = set(api_get(api_base, f"/desks/{desk}/tickers"))
+    if covered:
+        companies = [c for c in companies if c["ticker"] in covered] or companies
+
 tickers = [c["ticker"] for c in companies]
 names = {c["ticker"]: c["name"] for c in companies}
 
@@ -727,6 +786,19 @@ with bar[0]:
     st.markdown("</div>", unsafe_allow_html=True)
 company = next((c for c in companies if c["ticker"] == ticker), {})
 st.query_params["ticker"] = ticker
+
+# The way back out. A desk is a filter on the picker, so without this a narrowed
+# universe would be a one-way door.
+_DESK_LABELS = {"major": "Major pharma", "biotech": "Biotech",
+                "frontier": "Frontier", "changed": "What changed"}
+st.sidebar.markdown("#### Desk")
+st.sidebar.caption(_DESK_LABELS.get(desk, "Major pharma")
+                   + f" · {len(tickers)} companies")
+if st.sidebar.button("Change desk", key="desk_reset"):
+    st.query_params.pop("desk", None)
+    st.query_params.pop("ticker", None)
+    st.session_state.pop("desk", None)
+    st.rerun()
 
 # --- Per-company data ---------------------------------------------------
 feed = api_get(api_base, f"/changes?ticker={urllib.parse.quote(ticker)}")
