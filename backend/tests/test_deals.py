@@ -2,6 +2,7 @@
 extraction, candidate selection, and one filing through a fake model. No network."""
 
 import datetime as dt
+import json
 
 import db
 import deals
@@ -273,7 +274,7 @@ def test_enrich_fills_a_news_deal_from_the_press_release(tmp_path):
     _exhibit(conn, cid, SAIL_RELEASE, "2026-07-29")
     conn.close()
 
-    assert deals.enrich(db_file) == {"filled": 1}
+    assert deals.enrich(db_file)["filled"] == 1
 
     row = deals.recent(db_file, "JNJ", today=dt.date(2026, 7, 30))[0]
     assert row["terms_summary"] == (
@@ -326,7 +327,7 @@ def test_a_deal_with_no_press_release_keeps_what_the_headline_gave(tmp_path):
     conn.commit()
     conn.close()
 
-    assert deals.enrich(db_file) == {"filled": 0}
+    assert deals.enrich(db_file)["filled"] == 0
     row = deals.recent(db_file, "JNJ", today=dt.date(2026, 6, 9))[0]
     assert row["terms_summary"] == ""
     assert row["announced_value"] == "$1 billion"
@@ -342,3 +343,116 @@ def test_terms_from_a_later_filing_reach_the_earlier_row(tmp_path):
 
     assert deals.enrich(db_file)["filled"] == 1
     assert deals.recent(db_file, "JNJ", today=dt.date(2026, 7, 30))[0]["headline_usd"]
+
+
+# --- reaching a release that is not stored yet -----------------------------------------
+
+def _filing_row(conn, cid, accession, date, form="8-K"):
+    conn.execute("INSERT INTO filings (company_id, accession, form_type, filed_date,"
+                 "  title, url) VALUES (?, ?, ?, ?, 'Other events',"
+                 "  ?)",
+                 (cid, accession, form, date,
+                  f"https://www.sec.gov/Archives/edgar/data/1/{accession}/x.htm"))
+    conn.commit()
+
+
+def _fake_get(pages):
+    """A get() over a dict of url fragment -> body, counting what it was asked for."""
+    calls = []
+
+    def get(url):
+        calls.append(url)
+        for fragment, body in pages.items():
+            if fragment in url:
+                return body
+        raise RuntimeError(f"no page for {url}")
+
+    return get, calls
+
+
+def test_enrich_fetches_the_release_when_none_is_stored(tmp_path):
+    """The filing-text fetcher keeps the latest few current reports per company, which is
+    a month or two of an active filer. A deal from last summer needs its own release."""
+    db_file, conn, cid = _deals_db(tmp_path)
+    _news_deal(conn, cid, "Sail Biomedicines", "2026-07-29")
+    _filing_row(conn, cid, "0001-9", "2026-07-29")
+    conn.close()
+
+    get, calls = _fake_get({
+        "index.json": json.dumps({"directory": {"item": [{"name": "ex99_1.htm",
+                                                          "size": "900"}]}}),
+        "ex99_1.htm": f"<p>{SAIL_RELEASE}</p>",
+    })
+    assert deals.enrich(db_file, get=get) == {"filled": 1, "fetched": 1, "errors": []}
+    row = deals.recent(db_file, "JNJ", today=dt.date(2026, 7, 30))[0]
+    assert row["headline_usd"] == 2.58e9
+
+
+def test_the_live_fetch_is_bounded(tmp_path):
+    """EDGAR is polite or it is blocked, so a first run works through the backlog rather
+    than pulling every release a company ever filed."""
+    db_file, conn, cid = _deals_db(tmp_path)
+    for day in range(1, 6):
+        _news_deal(conn, cid, f"Party {day} Bio", f"2026-07-0{day}")
+        _filing_row(conn, cid, f"0002-{day}", f"2026-07-0{day}")
+    conn.close()
+
+    get, calls = _fake_get({"index.json": json.dumps({"directory": {"item": []}}),
+                            "x.htm": "<p>nothing here</p>"})
+    result = deals.enrich(db_file, limit=2, get=get)
+    assert result["fetched"] == 2
+    assert result["filled"] == 0
+
+
+def test_one_filing_is_fetched_once_for_two_deals(tmp_path):
+    """A single 8-K can carry the terms of two deals, and a company files several a
+    quarter. Fetching per deal would read the same document twice."""
+    db_file, conn, cid = _deals_db(tmp_path)
+    _news_deal(conn, cid, "Sail Biomedicines", "2026-07-29")
+    _news_deal(conn, cid, "Firefly Bio", "2026-07-29")
+    _filing_row(conn, cid, "0003-1", "2026-07-29")
+    conn.close()
+
+    get, calls = _fake_get({
+        "index.json": json.dumps({"directory": {"item": [{"name": "ex99_1.htm",
+                                                          "size": "900"}]}}),
+        "ex99_1.htm": (f"<p>{SAIL_RELEASE} Separately, we completed the acquisition of "
+                       "Firefly Bio, Inc. for $1 billion in cash.</p>"),
+    })
+    result = deals.enrich(db_file, get=get)
+    assert result["fetched"] == 1          # one accession, not one per deal
+    assert result["filled"] == 2
+
+
+def test_an_unreadable_filing_does_not_stop_the_run(tmp_path):
+    db_file, conn, cid = _deals_db(tmp_path)
+    _news_deal(conn, cid, "Broken Bio", "2026-07-28")
+    _filing_row(conn, cid, "0004-1", "2026-07-28")
+    _news_deal(conn, cid, "Sail Biomedicines", "2026-07-29")
+    _filing_row(conn, cid, "0005-1", "2026-07-29")
+    conn.close()
+
+    def get(url):
+        if "0004-1" in url:
+            raise OSError("timed out")
+        if "index.json" in url:
+            return json.dumps({"directory": {"item": [{"name": "ex99_1.htm",
+                                                        "size": "900"}]}})
+        return f"<p>{SAIL_RELEASE}</p>"
+
+    result = deals.enrich(db_file, get=get)
+    assert result["filled"] == 1
+    assert len(result["errors"]) == 1
+
+
+def test_a_stored_release_costs_no_fetch(tmp_path):
+    db_file, conn, cid = _deals_db(tmp_path)
+    _news_deal(conn, cid, "Sail Biomedicines", "2026-07-29")
+    _exhibit(conn, cid, SAIL_RELEASE, "2026-07-29")
+    _filing_row(conn, cid, "0006-1", "2026-07-29")
+    conn.close()
+
+    get, calls = _fake_get({"x": "unused"})
+    result = deals.enrich(db_file, get=get)
+    assert result == {"filled": 1, "fetched": 0, "errors": []}
+    assert calls == []

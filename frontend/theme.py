@@ -400,7 +400,6 @@ h3 {{ font-size: 0.9rem; }}
 .prof-line .ep {{ display: block; font-size: 10.5px; color: var(--muted);
                  margin-left: 92px; }}
 
-.deal .dnv {{ color: var(--muted); font-style: italic; }}
 /* The stated structure rather than one headline figure. Sized down from .dv because it
    is a clause rather than a number, and it has to sit on one line beside the party. */
 .deal .dterms {{ font-size: 11px; font-weight: 500; letter-spacing: -0.01em; }}

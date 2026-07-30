@@ -41,6 +41,7 @@ MAX_TOKENS = 3072
 THINKING_BUDGET = 512
 _TIMEOUT_S = 30
 MAX_PER_RUN = 300
+_SLEEP_S = 0.3          # EDGAR asks for under ten requests a second
 
 # A filing whose title could carry a deal: the US item-mapped titles for a material
 # agreement or a completed acquisition, an other-events or an earnings 8-K (deals get
@@ -522,27 +523,79 @@ def terms_documents(conn, company_id: int, event_date: str) -> list:
         (company_id, start, end))]
 
 
-def enrich(db_path=None) -> dict:
+# How many press releases a run will fetch for deals whose text is not stored yet. The
+# filing-text fetcher keeps the latest few current reports per company, which covers a
+# month or two of an active filer; a deal from last summer needs its own release pulled.
+MAX_LIVE_LOOKUPS = 40
+
+
+def candidate_filings(conn, company_id: int, event_date: str) -> list:
+    """Current reports around a deal's date, for a deal whose text is not stored."""
+    if not event_date:
+        return []
+    day = (event_date or "")[:10]
+    start = (dt.date.fromisoformat(day) - dt.timedelta(days=TERMS_WINDOW_DAYS)).isoformat()
+    end = (dt.date.fromisoformat(day) + dt.timedelta(days=TERMS_WINDOW_DAYS)).isoformat()
+    return [dict(r) for r in conn.execute(
+        "SELECT accession, form_type, filed_date, url FROM filings"
+        "  WHERE company_id = ? AND form_type IN ('8-K', '6-K') AND url IS NOT NULL"
+        "    AND filed_date BETWEEN ? AND ? ORDER BY filed_date",
+        (company_id, start, end))]
+
+
+def enrich(db_path=None, limit: int = MAX_LIVE_LOOKUPS, get=None) -> dict:
     """Fill in the payment structure of every deal that has none.
 
-    A deal caught from a news headline arrives with a counterparty and nothing else. The
-    press release furnished with the same day's 8-K states what it pays, and that text is
-    already stored, so the two are matched on the party's name appearing in the document.
+    A deal caught from a news headline arrives with a counterparty and nothing else, and
+    the press release furnished with the same day's 8-K states what it pays. Two ways to
+    reach that text, in order: the stored filing sections, which cost nothing, and then a
+    live fetch of the release itself for a deal the stored sections do not cover. The
+    second is bounded per run and cached by accession, since one 8-K can carry the terms of
+    two deals and a company files several a quarter.
+
+    Either way the party's name has to appear in the document. J&J furnished two releases
+    with one 8-K, Firefly at 1bn and Sail at 2.58bn, and a match on the filing alone would
+    have given each the other's numbers.
     """
     conn = db.get_connection(db_path)
-    filled = 0
+    fetch = get or _get
+    filled = looked_up = 0
+    errors: list = []
+    seen: dict = {}
     try:
         pending = conn.execute(
             "SELECT id, company_id, counterparty, event_date FROM deals"
-            "  WHERE headline_usd IS NULL AND counterparty IS NOT NULL").fetchall()
+            "  WHERE headline_usd IS NULL AND counterparty IS NOT NULL"
+            "  ORDER BY event_date DESC").fetchall()
         for deal in pending:
             head = party_head(deal["counterparty"])
             if len(head) < 3:
                 continue
-            for document in terms_documents(conn, deal["company_id"], deal["event_date"]):
-                if head.lower() not in (document["text"] or "").lower():
+            texts = [(d["accession"], d["text"])
+                     for d in terms_documents(conn, deal["company_id"],
+                                              deal["event_date"])]
+            if not any(head.lower() in (t or "").lower() for _a, t in texts):
+                for filing in candidate_filings(conn, deal["company_id"],
+                                                deal["event_date"]):
+                    if filing["accession"] in seen:
+                        texts.append((filing["accession"], seen[filing["accession"]]))
+                        continue
+                    if looked_up >= limit:
+                        break
+                    looked_up += 1
+                    try:
+                        body = deal_text(filing, fetch)
+                    except Exception as exc:
+                        errors.append(f"{filing['accession']}: {exc}")
+                        body = ""
+                    seen[filing["accession"]] = body
+                    texts.append((filing["accession"], body))
+                    time.sleep(_SLEEP_S)
+
+            for accession, text in texts:
+                if head.lower() not in (text or "").lower():
                     continue
-                terms = deal_terms.parse(document["text"])
+                terms = deal_terms.parse(text)
                 size = deal_terms.headline(terms)
                 if size is None:
                     continue
@@ -552,10 +605,10 @@ def enrich(db_path=None) -> dict:
                     "  terms_evidence = ?, terms_source = ? WHERE id = ?",
                     (terms["upfront"], terms["equity"], terms["milestones"],
                      terms["option"], terms["total"], size, terms["evidence"],
-                     document["accession"], deal["id"]))
+                     accession, deal["id"]))
                 filled += 1
                 break
         conn.commit()
     finally:
         conn.close()
-    return {"filled": filled}
+    return {"filled": filled, "fetched": looked_up, "errors": errors}

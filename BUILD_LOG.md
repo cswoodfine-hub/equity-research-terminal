@@ -840,3 +840,18 @@ real rates dated 2026-07-24; append-only, no other mutation.
   whole title is the first row of the detail either way.
 - A money figure keeps its own case. The chip's uppercase rule was rendering "$2.58bn" as
   "$2.58BN".
+
+## Sizes where there are sizes — 2026-07-30
+- The enrichment reaches a press release that is not stored yet. The filing-text fetcher
+  keeps the latest few current reports per company, a month or two of an active filer, so
+  a deal from last summer had nothing to read: 99 of 155 deals had no size and only 2 of
+  those had stored text naming the party. It now falls back to fetching the release for
+  the filing in the deal's own window, bounded at 40 lookups a run and cached by
+  accession, since one 8-K can carry two deals and a company files several a quarter.
+- 69 of 155 deals carry a size now, up from 56, and 27 carry the full structure.
+- The rest have nothing to find, and that was checked rather than assumed. AbbVie's
+  Gilgamesh release and Beam's Bio Palette release both name the party and state no terms
+  at all, which is how most pharma business development is announced.
+- So "size not stated" is gone. It was the commonest thing on the panel and told a reader
+  nothing the empty space does not. The section header still counts how many carry one,
+  which is the honest place for it: "$3.6bn announced across 2 of 6".

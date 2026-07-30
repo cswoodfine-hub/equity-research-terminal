@@ -468,8 +468,10 @@ def deal_card(deal) -> str:
         body.append(f'<span class="dv" title="Announced value, {origin}. '
                     'Consideration including milestones, not cash paid.">'
                     f'{html_escape(deal["announced_value"])}</span>')
-    else:
-        body.append('<span class="dnv">size not stated</span>')
+    # A deal with no figure says nothing where the figure would go. Most pharma business
+    # development is announced without terms, so "size not stated" was the commonest
+    # thing on the panel and told a reader nothing they could not see. The count in the
+    # section header still says how many of them carry one.
     if deal.get("area"):
         body.append(f'<span class="da">{html_escape(deal["area"])}</span>')
     # The announcing article first: a press report of a deal reads in a way a 10-Q
