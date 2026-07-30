@@ -76,7 +76,7 @@ def test_merges_the_derived_row_into_the_marketed_one(tmp_path):
     _trial(conn, derived, "NCT0002")
     conn.close()
 
-    assert asset_merge.merge(path) == {"merged": 1, "trials_moved": 2}
+    assert asset_merge.merge(path) == {"merged": 1, "trials_moved": 2, "by_code": 0}
 
     conn = db.get_connection(path)
     assert conn.execute("SELECT COUNT(*) FROM assets WHERE id = ?",
@@ -86,7 +86,7 @@ def test_merges_the_derived_row_into_the_marketed_one(tmp_path):
     conn.close()
 
     # A second run has nothing left to do.
-    assert asset_merge.merge(path) == {"merged": 0, "trials_moved": 0}
+    assert asset_merge.merge(path) == {"merged": 0, "trials_moved": 0, "by_code": 0}
 
 
 def test_never_merges_across_companies(tmp_path):
@@ -134,3 +134,128 @@ def test_moves_the_rows_that_hang_off_the_derived_asset(tmp_path):
     conn.close()
     assert note["asset_id"] == marketed and note["thesis"] == "mine"
     assert mapped["asset_id"] == marketed
+
+
+# --- the second pass: two derived rows for one programme -------------------------------
+
+def _codes(name):
+    return asset_merge.development_codes(name)
+
+
+def test_a_code_is_read_out_of_a_parenthetical():
+    """canonical() strips parentheticals, which is right for a study's own abbreviation
+    and wrong for the development code Dyne registers its Phase 3 under."""
+    assert _codes("zeleciment basivarsen (DYNE-101)") == {"DYNE-101"}
+
+
+def test_a_target_is_not_a_development_code():
+    """"KYV-101 anti-CD19 CAR-T cell therapy" names one programme, not two."""
+    assert _codes("KYV-101 anti-CD19 CAR-T cell therapy") == {"KYV-101"}
+
+
+def test_an_isotope_is_not_a_development_code():
+    assert _codes("[177Lu]Lu-PSMA-617") == {"PSMA-617"}
+
+
+def test_two_spellings_of_one_programme_merge(tmp_path):
+    """Dyne's Phase 1/2 registers DYNE-101 and its Phase 3 registers the same drug under
+    its INN with the code in brackets. The pipeline showed four programmes for two."""
+    path, conn = _seed(tmp_path)
+    bare = _asset(conn, "LLY", generic="DYNE-101")
+    named = _asset(conn, "LLY", generic="zeleciment basivarsen (DYNE-101)")
+    _trial(conn, bare, "NCT0101")
+    _trial(conn, named, "NCT0102")
+    conn.close()
+
+    result = asset_merge.merge(path)
+    assert result["by_code"] == 1
+    assert result["trials_moved"] == 1
+
+    conn = db.get_connection(path)
+    rows = conn.execute("SELECT id, generic_name, internal_code FROM assets").fetchall()
+    trials = conn.execute("SELECT COUNT(*) FROM trials WHERE asset_id = ?",
+                          (named,)).fetchone()[0]
+    conn.close()
+    assert len(rows) == 1
+    # The survivor is the name that carries both the INN and the code, and the code that
+    # identified the merge is written down.
+    assert rows[0]["generic_name"] == "zeleciment basivarsen (DYNE-101)"
+    assert rows[0]["internal_code"] == "DYNE-101"
+    assert trials == 2
+
+    assert asset_merge.merge(path)["by_code"] == 0
+
+
+def test_the_row_with_the_most_trials_survives(tmp_path):
+    path, conn = _seed(tmp_path)
+    busy = _asset(conn, "LLY", generic="AZD6234")
+    quiet = _asset(conn, "LLY", generic="AZD6234 Formulation 1 given weekly")
+    _trial(conn, busy, "NCT0201")
+    _trial(conn, busy, "NCT0202")
+    _trial(conn, quiet, "NCT0203")
+    conn.close()
+
+    asset_merge.merge(path)
+    conn = db.get_connection(path)
+    rows = conn.execute("SELECT id FROM assets").fetchall()
+    conn.close()
+    assert [r["id"] for r in rows] == [busy]
+
+
+def test_a_combination_is_not_a_duplicate(tmp_path):
+    """"MET233 and MET097" is two compounds. Folding it into MET097 would attribute one
+    drug's study to the other."""
+    path, conn = _seed(tmp_path)
+    single = _asset(conn, "LLY", generic="MET097")
+    combo = _asset(conn, "LLY", generic="MET233 and MET097")
+    _trial(conn, single, "NCT0301")
+    _trial(conn, combo, "NCT0302")
+    conn.close()
+
+    assert asset_merge.merge(path)["by_code"] == 0
+
+
+def test_a_diagnostic_and_a_therapeutic_are_not_one_programme(tmp_path):
+    """Novartis develops [68Ga]Ga-DWJ155 for imaging and [177Lu]Lu-DWJ155 to treat. Same
+    targeting molecule, two products."""
+    path, conn = _seed(tmp_path)
+    imaging = _asset(conn, "LLY", generic="[68Ga]Ga-DWJ155")
+    therapy = _asset(conn, "LLY", generic="[177Lu]Lu-DWJ155")
+    _trial(conn, imaging, "NCT0401")
+    _trial(conn, therapy, "NCT0402")
+    conn.close()
+
+    assert asset_merge.merge(path)["by_code"] == 0
+
+
+def test_the_same_isotope_written_two_ways_still_merges(tmp_path):
+    path, conn = _seed(tmp_path)
+    one = _asset(conn, "LLY", generic="68Ga-NNS309")
+    two = _asset(conn, "LLY", generic="[68Ga]Ga-NNS309")
+    _trial(conn, one, "NCT0501")
+    _trial(conn, two, "NCT0502")
+    conn.close()
+
+    assert asset_merge.merge(path)["by_code"] == 1
+
+
+def test_the_code_pass_never_crosses_companies(tmp_path):
+    path, conn = _seed(tmp_path)
+    mine = _asset(conn, "LLY", generic="ABC-101")
+    theirs = _asset(conn, "MRK", generic="ABC-101")
+    _trial(conn, mine, "NCT0601")
+    _trial(conn, theirs, "NCT0602")
+    conn.close()
+
+    assert asset_merge.merge(path)["by_code"] == 0
+
+
+def test_a_marketed_row_is_left_to_the_first_pass(tmp_path):
+    """The code pass only folds derived rows. Two marketed products can share a token,
+    and Novartis markets both Locametz and Netspot as gallium Ga-68 agents."""
+    path, conn = _seed(tmp_path)
+    _asset(conn, "LLY", generic="Gallium Ga-68 Gozetotide", marketed=1)
+    _asset(conn, "LLY", generic="Gallium Dotatate Ga-68", marketed=1)
+    conn.close()
+
+    assert asset_merge.merge(path) == {"merged": 0, "trials_moved": 0, "by_code": 0}

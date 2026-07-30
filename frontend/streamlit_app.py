@@ -56,6 +56,10 @@ LANDING_TOKENS = {
     "font-ui": TK.FONT_UI, "font-mono": TK.FONT_MONO, "font-prose": TK.FONT_PROSE,
 }
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
+# What a filing states when there is no trial yet, most advanced first. Mirrors
+# pipeline_filing.STAGES: these are headings a programme sits under, below every phase.
+FILING_STAGES = ["IND cleared", "IND-enabling", "Development candidate", "Preclinical",
+                 "Discovery"]
 # Charts collapse the two seamless phases into the phase each one reaches, which is the
 # convention elsewhere in the app: the Key insights strip already counts Phase 2/3 as
 # late phase. Six ordinal steps of one hue is more than colour can carry, and these two
@@ -2311,10 +2315,15 @@ with main:
         if phase_pick:
             programmes = [p for p in programmes if p.get("phase") in phase_pick]
 
+        def _group_of(p):
+            if p.get("source") == "filing":
+                return p.get("stage") or "named in the filing"
+            return p.get("phase") or "unphased"
+
         shown_counts = " · ".join(
             f'{n} {ph}' for ph, n in
-            ((ph, sum(1 for p in programmes if (p.get("phase") or "unphased") == ph))
-             for ph in phase_order) if n)
+            ((ph, sum(1 for p in programmes if _group_of(p) == ph))
+             for ph in phase_order + FILING_STAGES + ["named in the filing"]) if n)
         count = (f"{len(programmes)} of {total_programmes} compounds"
                  if len(programmes) != total_programmes
                  else f"{total_programmes} compounds")
@@ -2324,9 +2333,15 @@ with main:
         # Grouped by the furthest phase each compound has reached, most advanced first,
         # and every phase is shown: early work is most of a pipeline by count, and a
         # Phase 1 programme is the part an analyst is being paid to find early.
+        # A programme with no registered trial is grouped by the stage its filing states,
+        # under a heading of its own. Never mixed in with a phase: a phase is a study that
+        # exists and a stage is a sentence, and putting "IND cleared" in the Phase 1 group
+        # would be reading the sentence as the study.
         by_phase: dict = {}
         for p in programmes:
-            by_phase.setdefault(p.get("phase") or "unphased", []).append(p)
+            by_phase.setdefault(_group_of(p), []).append(p)
+        phase_order = phase_order + [s for s in FILING_STAGES if s in by_phase] + [
+            "named in the filing"]
         if not programmes:
             state(f"No unapproved compounds mapped for {ticker}",
                   "Programmes are derived from the drug each trial names. Press Refresh "
@@ -2362,12 +2377,25 @@ with main:
                     area_txt = (f'{areas[0]}' if areas else "")
                     if len(areas) > 1:
                         area_txt += f' +{len(areas) - 1}'
+                    if p.get("source") == "filing":
+                        # No study to open, so the disclosure holds the sentence it was
+                        # read from and the filing that carried it. A reader who doubts
+                        # the row can check it without leaving the page.
+                        studies = [
+                            f'<div class="prog-s prog-ev">'
+                            f'<span class="d">{html_escape(p.get("form_type") or "")} '
+                            f'{html_escape((p.get("filed_date") or "")[:10])}</span>'
+                            f'<span class="q">{html_escape(p.get("evidence") or "")}</span>'
+                            f'</div>']
+                        area_txt = p.get("indication") or ""
                     html.append(
                         f'<details class="prog"><summary>'
                         f'<span class="prog-n">{html_escape(p.get("name") or "")}</span>'
                         f'<span class="prog-a" title="{html_escape(", ".join(areas))}">'
                         f'{html_escape(area_txt)}</span>'
-                        f'<span class="prog-t">{p.get("trials", 0)} trials</span>'
+                        f'<span class="prog-t">'
+                        f'{"filing" if p.get("source") == "filing" else str(p.get("trials", 0)) + " trials"}'
+                        f'</span>'
                         f'<span class="prog-d">{html_escape(due or "no date")}</span>'
                         f'</summary>{"".join(studies)}</details>')
             html.append("</div>")
@@ -2381,7 +2409,10 @@ with main:
                 'only where a trial names it. A comparator, a shared chemotherapy '
                 'backbone and another company\'s marketed drug are excluded, so this is '
                 'the sponsor\'s own work rather than everything its studies '
-                'mention.</div>', unsafe_allow_html=True)
+                'mention. Below the phases sit the programmes the company describes in '
+                'its own filing and the registry has never seen, at the stage the filing '
+                'states and never at a phase, each opening onto the sentence it was read '
+                'from.</div>', unsafe_allow_html=True)
 
 
     # --- Portfolio -------------------------------------------------------

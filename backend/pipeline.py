@@ -193,6 +193,28 @@ def programmes(db_path, ticker: str) -> list[dict] | None:
             out.append(entry)
         out.sort(key=lambda i: (PHASES.index(i["phase"]) if i["phase"] in PHASES else -1,
                                 i["trials"]), reverse=True)
+        for entry in out:
+            entry["stage"] = entry["phase"]
+            entry["source"] = "registry"
+
+        # Programmes the filing describes and the registry has never seen: preclinical
+        # work, and anything with an IND and no study yet. Dyne names eight and the
+        # registry has four, so without these the pipeline was half the company. They sit
+        # below everything with a trial, because a stage read from a sentence is weaker
+        # evidence than a registered study, and each says where it was read from so the
+        # two can never be taken for each other.
+        for row in conn.execute(
+                "SELECT asset_id, code, stage, indication, evidence, accession,"
+                "       form_type, filed_date"
+                "  FROM filing_programmes WHERE company_id = ? ORDER BY code",
+                (company["id"],)):
+            out.append({
+                "asset_id": row["asset_id"], "name": row["code"], "modality": None,
+                "trials": 0, "next_readout": None, "studies": [],
+                "phase": None, "phases": [], "stage": row["stage"], "source": "filing",
+                "indication": row["indication"], "evidence": row["evidence"],
+                "accession": row["accession"], "form_type": row["form_type"],
+                "filed_date": row["filed_date"], "areas": [], "area": None})
         return out
     finally:
         conn.close()

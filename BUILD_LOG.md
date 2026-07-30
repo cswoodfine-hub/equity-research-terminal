@@ -675,3 +675,33 @@ real rates dated 2026-07-24; append-only, no other mutation.
   licence and drugsfda covers CDER only. The NDC register lists it, and also lists labelers
   for companies that market nothing, so there is no free route that would not mark a
   developer marketed.
+
+## The pipeline the registry cannot see — 2026-07-30
+- Two derived rows for one programme now merge on the development code. canonical() strips
+  parentheticals first, which is right for a study's "(LEN)" and wrong for Dyne's Phase 3
+  registering "zeleciment basivarsen (DYNE-101)" against a Phase 1/2 registering
+  "DYNE-101": the names stopped agreeing, so the pipeline showed Dyne four programmes for
+  two drugs, each split across the phase it was in when the trial was written. 19 groups
+  folded across the universe, 21 trials moved.
+- Three guards, each from a real case. A name carrying two codes is a combination
+  ("MET233 and MET097") or a regimen ("AZD9291 in combination with AZD6094"). Two rows
+  differing by radioisotope are a diagnostic and a therapeutic, not one programme
+  ([68Ga]Ga-DWJ155 against [177Lu]Lu-DWJ155). And a token that looks like a code but names
+  a target, an isotope, a capsid or a rating scale is not one.
+- Programmes are now read out of the MD&A as well. Every previous route into the asset
+  table needed a registered study or an approval, so anything preclinical or newly
+  IND-cleared could not exist: Dyne names eight programmes and the app held two. DYNE-302
+  had FDA clearance to start a Phase 1 in FSHD and was nowhere. 85 programmes recovered
+  across 39 companies.
+- It never assigns a phase. A phase means a registered study; "we plan to evaluate
+  DYNE-302 in a Phase 1" is a plan. What it records is the stage the filing states, IND
+  cleared through to discovery, with the sentence it was read from and the accession.
+- Ownership is a first-person sentence, and a sentence naming another party is not
+  evidence: Merck's filing names TERN-701 and Solid's names Entrada's compound.
+- What it still gets wrong: a trial's name has a compound's shape. The tests are the word
+  next to it ("the STELLAR-303 trial") and whether its prefix appears lower case in the
+  same document ("forward-looking" makes FORWARD-53 a trial). Exelixis lists STELLAR-001
+  to STELLAR-316 with neither signal, so four read as programmes. Every row carries its
+  sentence, so the error is visible rather than silent.
+- Unrelated: tests/test_refresh.py fails intermittently on openFDA HTTP 429. It calls the
+  network. Reproduced on unmodified code.

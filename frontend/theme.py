@@ -490,6 +490,11 @@ h3 {{ font-size: 0.9rem; }}
               white-space: nowrap; }}
 .prog-s a {{ color: var(--text); text-decoration: none; }}
 .prog-s a:hover {{ text-decoration: underline; text-underline-offset: 2px; }}
+/* A programme with no study opens onto the sentence it was read from instead, so the
+   evidence for the weaker kind of row is the thing sitting behind it. Flagged rather than
+   plotted: this came out of prose, and the colour says so. */
+.prog-s.prog-ev {{ grid-template-columns: 96px 1fr; border-left-color: var(--flag); }}
+.prog-s.prog-ev .q {{ color: var(--muted); font-style: italic; }}
 
 /* Trial readouts: a mark and sign, the phase, the drug, and the quote. */
 .readouts {{ margin: 0.1rem 0 0.3rem; }}

@@ -20,6 +20,7 @@ from dataclasses import asdict
 import env  # noqa: F401  loads the .env before any module reads it
 
 import asset_merge
+import pipeline_filing
 import brand_split
 import biologic_loe
 import catalysts
@@ -175,6 +176,11 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # The company axis, read from the filing sections stored above. It runs after the
     # filing text fetch, since it reads what that stored.
     mapped["company_themes"] = themes.derive_companies(db_path)["tagged"]
+    # Programmes the filing describes and the registry has never seen: preclinical work
+    # and anything with an IND and no study yet. Runs after the merge, so a code that
+    # does have a trial is already on one asset row and gets skipped here.
+    pipeline_filing.prune(db_path)
+    mapped["filing_programmes"] = pipeline_filing.build(db_path)["created"]
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
     readouts = catalysts.derive_readouts(db_path)
@@ -279,6 +285,11 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # The company axis, read from the filing sections stored above. It runs after the
     # filing text fetch, since it reads what that stored.
     mapped["company_themes"] = themes.derive_companies(db_path)["tagged"]
+    # Programmes the filing describes and the registry has never seen: preclinical work
+    # and anything with an IND and no study yet. Runs after the merge, so a code that
+    # does have a trial is already on one asset row and gets skipped here.
+    pipeline_filing.prune(db_path)
+    mapped["filing_programmes"] = pipeline_filing.build(db_path)["created"]
     readouts = catalysts.derive_readouts(db_path)
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
     # the acceptance. Without an Anthropic key this reports that it did nothing.
