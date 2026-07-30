@@ -20,6 +20,7 @@ from dataclasses import asdict
 import env  # noqa: F401  loads the .env before any module reads it
 
 import asset_merge
+import financings
 import pipeline_filing
 import brand_split
 import biologic_loe
@@ -181,6 +182,10 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # does have a trial is already on one asset row and gets skipped here.
     pipeline_filing.prune(db_path)
     mapped["filing_programmes"] = pipeline_filing.build(db_path)["created"]
+    # Money raised after the last balance sheet date, read out of the same text. Runs
+    # after the filing text fetch and before the runway is read anywhere, since it moves
+    # the cash figure every downstream view divides by.
+    mapped["financings"] = financings.build(db_path)["written"]
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
     readouts = catalysts.derive_readouts(db_path)
@@ -290,6 +295,10 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # does have a trial is already on one asset row and gets skipped here.
     pipeline_filing.prune(db_path)
     mapped["filing_programmes"] = pipeline_filing.build(db_path)["created"]
+    # Money raised after the last balance sheet date, read out of the same text. Runs
+    # after the filing text fetch and before the runway is read anywhere, since it moves
+    # the cash figure every downstream view divides by.
+    mapped["financings"] = financings.build(db_path)["written"]
     readouts = catalysts.derive_readouts(db_path)
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
     # the acceptance. Without an Anthropic key this reports that it did nothing.

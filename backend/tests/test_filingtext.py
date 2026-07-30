@@ -56,3 +56,37 @@ def test_patent_passages_harvests_only_dated_patent_lines():
     # A line with no future year and one that is just prose are both left out.
     assert not any("founded many years ago" in ln for ln in lines)
     assert not any("launched in 2019" in ln for ln in lines)   # 2019 is not a future year
+
+
+# --- current reports -------------------------------------------------------------------
+
+# The shape of every 8-K: a page and a half of cover boilerplate, then the items.
+EIGHT_K = """8-K
+UNITED STATES SECURITIES AND EXCHANGE COMMISSION
+FORM 8-K
+CURRENT REPORT
+Check the appropriate box below if the Form 8-K filing is intended to simultaneously
+satisfy the filing obligation of the registrant under any of the following provisions:
+Item 2.02 Results of Operations and Financial Condition.
+On July 29, 2026, Dyne Therapeutics, Inc. issued a press release announcing the
+Company's financial results for the quarter ended June 30, 2026. A copy of the press
+release is furnished as Exhibit 99.1 to this Current Report on Form 8-K.
+Item 9.01 Financial Statements and Exhibits.
+"""
+
+
+def test_a_current_report_starts_at_its_first_item():
+    body = filingtext.extract_current_report(EIGHT_K)["body"]
+    assert body.startswith("Item 2.02")
+    assert "Check the appropriate box" not in body
+
+
+def test_a_current_report_with_no_item_heading_is_kept_whole():
+    """A 6-K is a furnished press release with no item structure at all."""
+    text = "Roche reports strong first-half sales growth of 7% at constant exchange rates."
+    assert filingtext.extract_current_report(text)["body"] == text
+
+
+def test_a_current_report_is_bounded():
+    body = filingtext.extract_current_report("Item 1.01 x" + "y" * 400_000)["body"]
+    assert len(body) == filingtext.CURRENT_REPORT_MAX

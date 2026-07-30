@@ -11,6 +11,7 @@ from fetchers.deals_news import DealsNewsFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
 from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.prices import IntradayPricesFetcher, PricesFetcher
+from fetchers.ndc_marketing import NdcMarketingFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 
 FIXTURE = Path(__file__).parent / "fixtures" / "yahoo_chart_lly.json"
@@ -43,6 +44,10 @@ def test_refresh_populates_then_skips_within_ttl(tmp_path, monkeypatch):
     monkeypatch.setattr(ApprovalsOpenFdaFetcher, "fetch", lambda self: {"results": []})
     monkeypatch.setattr(DealsNewsFetcher, "fetch",
                         lambda self: {"feeds": {}, "companies": [], "errors": []})
+    # The NDC register is the one fetcher this test still reached the network for, and
+    # openFDA rate-limits it: the run came back partial on an HTTP 429 that has nothing
+    # to do with what the test asserts.
+    monkeypatch.setattr(NdcMarketingFetcher, "fetch", lambda self: {"results": []})
 
     db_file = tmp_path / "test.db"
     db.init(db_file)

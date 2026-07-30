@@ -1,23 +1,33 @@
-"""Risk factors and MD&A text from EDGAR annual and quarterly filings.
+"""Filing text from EDGAR: the periodic reports, and the current reports between them.
 
-A per-company fetcher that reads the primary document of the recent 10-K, 10-Q and 20-F
-filings already listed in the filings table, extracts the two tracked sections, and
-stores them (migration 008). The diff engine then compares each section to the last
-filing of the same form. Only filings whose sections are not stored yet are downloaded,
-so the first run reads the two most recent of each form to seed a comparison and later
-runs read only what is new.
+A per-company fetcher that reads the primary document of the recent filings already listed
+in the filings table, extracts the tracked sections, and stores them (migration 008). The
+diff engine then compares each section to the last filing of the same form. Only filings
+whose sections are not stored yet are downloaded, so the first run reads the latest few of
+each form and later runs read only what is new.
 
-The documents are large, so the fetch is polite: one section pull per filing, a short
-sleep between, and never more than a handful of filings a company. Foreign filers file a
-20-F, whose sections sit under different item numbers, so it is read by its own rules:
-its risk factors are Item 3.D, and its financial review is kept whole because the review
-Item 5 points at is printed further down the same document.
+Three kinds of document, read by their own rules. A 10-K or 10-Q gives risk factors and
+MD&A by item number. A 20-F is the foreign filer's annual report and is not laid out like
+a 10-K: its risk factors are Item 3.D, and its financial review is kept whole because the
+review Item 5 points at is printed further down the same document.
+
+An 8-K or 6-K is the third, and it is the one that carries what happened between the
+quarters. Its body is short and often only a pointer: Dyne's quarterly 8-K says that "a
+copy of the press release is furnished as Exhibit 99.1", and the results, the cash
+position and the IND clearance are all in that exhibit. So a current report is read twice,
+the body for its item numbers and the exhibit for the news, which needs the filing's own
+directory listing to find. Without the exhibit the stored text says nothing the filing's
+title did not already say.
+
+The documents are large, so the fetch is polite: a short sleep between requests and never
+more than a handful of filings a company.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import time
 import urllib.request
 
@@ -29,10 +39,21 @@ SOURCE = "filing_text"
 TTL_SECONDS = 24 * 60 * 60
 _TIMEOUT_S = 40
 _SLEEP_S = 0.3                      # EDGAR asks for under 10 requests a second
-# The 20-F is the foreign filer's annual report. Roche and Bayer are not SEC
-# registrants at all, so they have no filing here to read whatever the form.
-FORMS = ("10-K", "10-Q", "20-F")
-PER_FORM = 2                        # the latest two of each form seed one comparison
+# The 20-F is the foreign filer's annual report and the 6-K its current report. Roche and
+# Bayer are not SEC registrants at all, so they have no filing here whatever the form.
+FORMS = ("10-K", "10-Q", "20-F", "8-K", "6-K")
+# How many of each form to read. Two of a periodic report seeds one comparison. A current
+# report is not compared to anything, it is read for what it says, and a busy filer files
+# several a quarter, so more of them are taken.
+PER_FORM = {"10-K": 2, "10-Q": 2, "20-F": 2, "8-K": 6, "6-K": 6}
+_DEFAULT_PER_FORM = 2
+CURRENT_REPORTS = ("8-K", "6-K")
+
+# A press release furnished with a current report. Filenames vary by filing agent
+# (dyn-ex99_1.htm, d123456dex991.htm, a8-kex991.htm), and all of them contain "ex99" once
+# the separators are removed.
+_EXHIBIT_NAME = re.compile(r"ex99", re.I)
+_EXHIBITS_PER_FILING = 2            # 99.1 and 99.2; the rest are consents and opinions
 
 
 class FilingTextEdgarFetcher(BaseFetcher):
@@ -59,7 +80,7 @@ class FilingTextEdgarFetcher(BaseFetcher):
                 "SELECT accession, form_type, filed_date, url FROM filings"
                 " WHERE company_id = ? AND form_type = ? AND url IS NOT NULL"
                 " ORDER BY filed_date DESC LIMIT ?",
-                (company["id"], form, PER_FORM)).fetchall()
+                (company["id"], form, PER_FORM.get(form, _DEFAULT_PER_FORM))).fetchall()
             for f in filings:
                 # A 10-K is done only once its patents section is recorded, so filings
                 # stored before that section existed are re-read to add it; a 10-Q has no
@@ -68,13 +89,37 @@ class FilingTextEdgarFetcher(BaseFetcher):
                 # its financial review is, so filings stored before either section
                 # existed are re-read to add it.
                 marker = ("AND section = 'patents'" if form == "10-K" else
-                          "AND section = 'financial_review'" if form == "20-F" else "")
+                          "AND section = 'financial_review'" if form == "20-F" else
+                          "AND section = 'body'" if form in CURRENT_REPORTS else "")
                 have = conn.execute(
                     f"SELECT COUNT(*) FROM filing_sections WHERE accession = ? {marker}",
                     (f["accession"],)).fetchone()[0]
                 if not have:
                     pending.append({**dict(f), "company_id": company["id"]})
         return pending
+
+    def _read(self, url: str, user_agent: str) -> str:
+        request = urllib.request.Request(url, headers={"User-Agent": user_agent})
+        with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
+            return resp.read().decode("utf-8", "replace")
+
+    def _exhibit_urls(self, primary_url: str, user_agent: str) -> list:
+        """The press releases furnished with a current report, from its own directory.
+
+        EDGAR publishes an index.json beside every filing. One extra request buys the
+        exhibit that holds the news, which is the only reason to read an 8-K at all.
+        """
+        directory = primary_url.rsplit("/", 1)[0] + "/"
+        try:
+            listing = json.loads(self._read(directory + "index.json", user_agent))
+        except Exception:
+            return []
+        names = [item.get("name") or ""
+                 for item in listing.get("directory", {}).get("item", [])]
+        wanted = [n for n in names
+                  if _EXHIBIT_NAME.search(n.replace("-", "").replace("_", ""))
+                  and n.lower().endswith((".htm", ".html", ".txt"))]
+        return [directory + n for n in sorted(wanted)[:_EXHIBITS_PER_FILING]]
 
     def fetch(self) -> list[dict]:
         user_agent = (os.getenv("SEC_USER_AGENT") or "").strip()
@@ -88,14 +133,35 @@ class FilingTextEdgarFetcher(BaseFetcher):
         rows = []
         for filing in pending:
             try:
-                request = urllib.request.Request(
-                    filing["url"], headers={"User-Agent": user_agent})
-                with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
-                    html = resp.read().decode("utf-8", "replace")
+                html = self._read(filing["url"], user_agent)
             except Exception:
                 continue                       # one unreadable filing never fails the run
             full = filingtext.html_to_text(html)
-            is_20f = filing["form_type"] == "20-F"
+            form = filing["form_type"]
+            if form in CURRENT_REPORTS:
+                for name, text in filingtext.extract_current_report(full).items():
+                    if text:
+                        rows.append({**filing, "section": name, "text": text})
+                # The body is a pointer; the exhibit is the news. Missing exhibits are not
+                # an error: most 8-Ks furnish none, and the body still stands on its own.
+                # Several exhibits become one section, because filing_sections is unique
+                # on (accession, section) and a second row would be silently dropped.
+                time.sleep(_SLEEP_S)
+                exhibits = []
+                for url in self._exhibit_urls(filing["url"], user_agent):
+                    try:
+                        exhibits.append(
+                            filingtext.html_to_text(self._read(url, user_agent)))
+                    except Exception:
+                        pass
+                    time.sleep(_SLEEP_S)
+                joined = "\n\n".join(t for t in exhibits if t)
+                if joined:
+                    rows.append({**filing, "section": filingtext.EXHIBIT_SECTION,
+                                 "text": joined[:filingtext.CURRENT_REPORT_MAX]})
+                continue
+
+            is_20f = form == "20-F"
             sections = (filingtext.extract_20f_sections(full) if is_20f
                         else filingtext.extract_sections(full))
             for name in (filingtext.SECTIONS_20F if is_20f else filingtext.SECTIONS):
@@ -104,7 +170,7 @@ class FilingTextEdgarFetcher(BaseFetcher):
                     rows.append({**filing, "section": name, "text": text})
             # Patent-cliff years sit in Item 1 and its patent table, not risk factors, so
             # they are harvested from the whole 10-K rather than a section span.
-            if filing["form_type"] in ("10-K", "20-F"):
+            if form in ("10-K", "20-F"):
                 patents = filingtext.patent_passages(full)
                 if patents:
                     rows.append({**filing, "section": "patents", "text": patents})

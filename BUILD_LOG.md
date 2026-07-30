@@ -705,3 +705,34 @@ real rates dated 2026-07-24; append-only, no other mutation.
   sentence, so the error is visible rather than silent.
 - Unrelated: tests/test_refresh.py fails intermittently on openFDA HTTP 429. It calls the
   network. Reproduced on unmodified code.
+
+## Between the quarters — 2026-07-30
+- 8-K and 6-K text is stored now. The body was never the news: Dyne's quarterly 8-K says
+  only that "a copy of the press release is furnished as Exhibit 99.1", and the results,
+  the cash position and the IND clearance are all in that exhibit. So a current report is
+  read twice, the body for its item numbers and the exhibit for what happened, which needs
+  one extra request for the filing's own index.json to find. 79 sections stored across
+  nine companies on the first pass, 25 of them exhibits.
+- The press release an analyst reads on the IR page is an EDGAR document. Nothing here
+  needs a feed or a scrape.
+- Post-period financings are read out of the MD&A and the 8-K exhibit. A balance sheet is
+  one day: Dyne's says 898.5m at 30 June and the company raised 405m net in July, three
+  weeks before filing the 10-Q that says so, and no XBRL fact carries it until November.
+  Five companies corrected. Dyne's runway goes 23 to 33 months, Cabaletta's 10 to 22,
+  Allogene's 20 to 50.
+- Net proceeds only. Dyne's raise was 431m gross and 405m net, and there is no free way to
+  know the fee, so a gross-only statement is skipped rather than discounted by a guess.
+- Five guards, each from a company that produced a wrong figure first: a figure more than
+  sixty characters from the words "net proceeds" is some other number (Dyne's quarterly
+  R&D expense read as a raise); a sentence about spending the proceeds is not a receipt
+  (Allogene); a closed quarter is already on the balance sheet (Cabaletta's Q1 ATM sales);
+  nothing closes after the filing that reports it (Sanofi's 2032 note maturities); and one
+  raise stated at two figures is one raise (an 8-K states proceeds before and after the
+  underwriters' option).
+- The month is bounded before it is chosen. A liquidity sentence names the balance sheet
+  date and the raise date, and nearest-first picked the date the money was not there.
+- The balance sheet figure is untouched. cash, raised_since and available are three fields,
+  so a reader can see which part was tagged and which part was read out of a sentence, and
+  the row drops itself once the next quarter's balance sheet includes it.
+- tests/test_refresh.py stubbed the NDC fetcher. It was the one fetcher still reaching the
+  network in that test, and openFDA's rate limit made the run come back partial.

@@ -15,7 +15,9 @@ Cash is not the cash line. A biotech parks its runway in marketable securities, 
 short-term investments are added where the filer tags them. Reading the cash line alone
 understated Intellia by roughly half. Where a filer does not tag short-term investments
 the figure is cash only, and the row says so rather than quietly reporting a shorter
-runway than the company has.
+runway than the company has. And a balance sheet is one day: money raised after it is
+added from what the filing says in words, because no XBRL fact will carry a July raise
+until the November statements.
 
 Burn is trailing, not annualised. EDGAR reports cash flow cumulatively from the start of
 the year, so a Q3 filing carries nine months and a Q1 filing three. Annualising whichever
@@ -33,6 +35,7 @@ from __future__ import annotations
 import datetime as dt
 
 import db
+import financings
 
 # What marks a company that sells something. A firm that manufactures and sells a drug
 # carries inventory and reports a cost of revenue; a clinical-stage one does neither.
@@ -87,7 +90,8 @@ def liquidity(conn, company_id: int) -> dict:
         "  ORDER BY period_end DESC LIMIT 1", (company_id,)).fetchone()
     if cash_row is None:
         return {"cash": None, "as_of": None, "includes_investments": False,
-                "short_term": None, "long_term": None, "cash_only": None}
+                "short_term": None, "long_term": None, "cash_only": None,
+                "raised_since": None, "raises": [], "available": None}
     as_of = cash_row["period_end"]
     # Both maturities, because that is what a company's own runway guidance counts when
     # it says "cash, cash equivalents and marketable securities sufficient to fund
@@ -101,11 +105,19 @@ def liquidity(conn, company_id: int) -> dict:
         if row and row["value"]:
             parts[metric] = row["value"]
     total = cash_row["value"] + sum(parts.values())
+    # Money raised after this balance sheet date, which no XBRL fact carries until the
+    # next quarter's statements. Kept as its own field rather than folded into cash, so
+    # the balance sheet figure stays exactly what the balance sheet says and a reader can
+    # see which part of the total came from a sentence.
+    raised = financings.since_balance_sheet(conn, company_id, as_of)
     return {"cash": total, "as_of": as_of,
             "includes_investments": bool(parts),
             "short_term": parts.get("ShortTermInvestments"),
             "long_term": parts.get("LongTermInvestments"),
-            "cash_only": cash_row["value"]}
+            "cash_only": cash_row["value"],
+            "raised_since": raised["total"],
+            "raises": raised["rows"],
+            "available": total + (raised["total"] or 0)}
 
 
 def trailing_burn(conn, company_id: int) -> dict:
@@ -179,8 +191,11 @@ def _row(conn, company, today) -> dict:
     # Only a company spending cash has a runway. A cash generative one is not months
     # from anything, and dividing by a positive number would print a negative figure
     # that reads like an emergency.
-    if money["cash"] and burn["burn"] is not None and burn["burn"] < 0:
-        months = money["cash"] / (abs(burn["burn"]) / 12)
+    # Against what the company has now, which is the balance sheet plus anything it has
+    # raised since. A runway is a question about today, and a July raise reported in July
+    # is money in the bank whatever quarter the last tagged balance sheet belongs to.
+    if money["available"] and burn["burn"] is not None and burn["burn"] < 0:
+        months = money["available"] / (abs(burn["burn"]) / 12)
 
     catalysts = []
     cash_out = None
@@ -220,6 +235,11 @@ def _row(conn, company, today) -> dict:
         "includes_investments": money["includes_investments"],
         "cash_only": money["cash_only"],
         "short_term": money.get("short_term"), "long_term": money.get("long_term"),
+        # The balance sheet, what has been raised since, and the sum the runway is
+        # measured against. All three, because a reader has to be able to see which part
+        # of the total was tagged and which part was read out of a sentence.
+        "raised_since": money.get("raised_since"), "raises": money.get("raises") or [],
+        "available": money.get("available"),
         "burn_annual": burn["burn"], "burn_basis": burn["basis"],
         "runway_months": months,
         # What the money is being spent on. R&D running at most of the burn is a company

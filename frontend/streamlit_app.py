@@ -3003,8 +3003,10 @@ with main:
                 "Companies with no product revenue, which is where the revenue, exclusivity "
                 "and demand tabs are empty by construction. Runway is cash and marketable "
                 "securities over the trailing twelve-month operating burn, in months at the "
-                "current rate. It is not a forecast: a company that raises, cuts or partners "
-                "moves this the day it does.")
+                "current rate, counting anything raised since the balance sheet date: a "
+                "July raise is money in the bank three months before any XBRL fact carries "
+                "it. It is not a forecast: a company that raises, cuts or partners moves "
+                "this the day it does.")
             if not rows:
                 state("No clinical-stage companies resolved",
                       "Press Refresh all to pull cash and cash-flow lines from EDGAR. A "
@@ -3015,6 +3017,10 @@ with main:
                     "Ticker": r["ticker"],
                     "Company": r["name"],
                     "Cash and investments, m": (r["cash"] / 1e6) if r["cash"] else None,
+                    # Money raised after the balance sheet date, which no XBRL fact
+                    # carries until the next quarter. Its own column rather than folded
+                    # into cash, so the tagged figure and the read one stay separable.
+                    "Raised since, m": ((r.get("raised_since") or 0) / 1e6) or None,
                     "Burn, m/yr": (abs(r["burn_annual"]) / 1e6) if r["burn_annual"] else None,
                     "Runway, months": r["runway_months"],
                     "Catalysts in runway": r["catalyst_count"],
@@ -3033,6 +3039,7 @@ with main:
                 } for r in rows]), width="stretch", hide_index=True,
                     column_config={
                         "Cash and investments, m": st.column_config.NumberColumn(format="%.0f"),
+                        "Raised since, m": st.column_config.NumberColumn(format="%.0f"),
                         "Burn, m/yr": st.column_config.NumberColumn(format="%.0f"),
                         "Runway, months": st.column_config.NumberColumn(format="%.0f")})
 

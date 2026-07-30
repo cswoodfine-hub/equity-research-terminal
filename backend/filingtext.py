@@ -53,6 +53,19 @@ RISK_END_20F = re.compile(
 SECTIONS_20F = ("risk_factors", "financial_review")
 FINANCIAL_REVIEW_MAX = 700_000
 
+# An 8-K is not laid out in items with names, it is laid out in numbered items, and the
+# document is short. The whole of it is kept from the first item heading, which drops a
+# page and a half of cover boilerplate that is identical in every 8-K ever filed.
+#
+# The body is usually a pointer rather than the news. Dyne's quarterly 8-K says only that
+# "a copy of the press release is furnished as Exhibit 99.1", and the results, the cash
+# position and the pipeline update are all in that exhibit. So an 8-K has two sections:
+# the body for the item numbers, the exhibit for what actually happened.
+SECTIONS_8K = ("body",)
+EXHIBIT_SECTION = "exhibit"
+CURRENT_REPORT_MAX = 200_000
+_ITEM_HEADING = re.compile(r"^\s*item\s+\d\.\d\d\b", re.I | re.M)
+
 # A drug's patent cliff is rarely a clean section: companies scatter it through Item 1's
 # patent discussion, a patent table, and MD&A, by brand or by generic name. Rather than
 # find a section, harvest every line that pairs patent, exclusivity or biosimilar
@@ -106,6 +119,21 @@ def extract_20f_sections(text: str) -> dict:
         "risk_factors": _longest_span(text, RISK_START_20F, RISK_END_20F),
         "financial_review": (text or "")[:FINANCIAL_REVIEW_MAX],
     }
+
+
+def extract_current_report(text: str) -> dict:
+    """An 8-K or 6-K body, from its first numbered item.
+
+    Kept whole rather than cut into items: the document is a few thousand characters and
+    the items it carries differ every time, so a span reader would be guessing at what to
+    look for. A filing with no item heading keeps its text as it is, which is what a 6-K
+    looks like: foreign filers furnish a press release with no item structure at all.
+    """
+    body = text or ""
+    heading = _ITEM_HEADING.search(body)
+    if heading:
+        body = body[heading.start():]
+    return {"body": body.strip()[:CURRENT_REPORT_MAX]}
 
 
 def extract_sections(text: str) -> dict:
