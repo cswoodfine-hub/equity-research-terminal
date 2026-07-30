@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "note": "openFDA /drug/ndc.json, trimmed. What labeler_name:\"biotech\" returned for Krystal Biotech: one row of its own and forty-four belonging to anyone else with Biotech in the name."
+  },
+  "results": [
+    {
+      "brand_name": "VYJUVEK",
+      "generic_name": "beremagene geperpavec-svdt",
+      "labeler_name": "Krystal Biotech, Inc.",
+      "application_number": "BLA125774",
+      "marketing_start_date": "20230519",
+      "marketing_category": "BLA"
+    },
+    {
+      "brand_name": "CARVYKTI",
+      "generic_name": "ciltacabtagene autoleucel",
+      "labeler_name": "Janssen Biotech, Inc.",
+      "application_number": "BLA125746",
+      "marketing_start_date": "20220228",
+      "marketing_category": "BLA"
+    },
+    {
+      "brand_name": "REMICADE",
+      "generic_name": "infliximab",
+      "labeler_name": "Janssen Biotech, Inc.",
+      "application_number": "BLA103772",
+      "marketing_start_date": "19980824",
+      "marketing_category": "BLA"
+    },
+    {
+      "brand_name": "GENOSYL",
+      "generic_name": "nitric oxide",
+      "labeler_name": "VERO BIOTECH, INC.",
+      "application_number": "NDA202860",
+      "marketing_start_date": "20191220",
+      "marketing_category": "NDA"
+    },
+    {
+      "brand_name": "Antibacterial Hand Sanitizer",
+      "generic_name": "alcohol",
+      "labeler_name": "Zhejiang Ayan Biotech Co.,Ltd.",
+      "application_number": "505G(a)(3)",
+      "marketing_start_date": "20160118",
+      "marketing_category": "OTC monograph drug"
+    },
+    {
+      "brand_name": "Immune Booster",
+      "generic_name": "echinacea",
+      "labeler_name": "Sunway Biotech LLC",
+      "marketing_start_date": "20131113",
+      "marketing_category": "unapproved drug other"
+    }
+  ]
+}

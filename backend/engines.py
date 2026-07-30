@@ -159,11 +159,12 @@ STAGE_RANK = dict(catalysts.PHASE_RANK,
 METRICS = {
     PHARMA: "share of product revenue from drugs approved in five years",
     BIOTECH: "months of cash at the current burn",
-    # "On file" rather than "reached": a marketed product is read from the asset table,
-    # and Krystal's Vyjuvek is not in it. Vyjuvek is a CBER licence, drugsfda covers CDER
-    # only, and the NDC register that does list it also lists labelers for companies that
-    # market nothing, so there is no free route that would not mark a developer marketed.
-    CELLGENE: "furthest stage on file",
+    # "Reached", because the asset table now holds the CBER licences that drugsfda has
+    # never carried. Vyjuvek reaches it from the NDC register, and the register is only
+    # safe to read that way because a row counts as this company's when its labeler
+    # carries the whole of the company's name: Sana keeps none of the 82 rows that shared
+    # one word with it, and Krystal keeps the one that is its own.
+    CELLGENE: "furthest stage reached",
 }
 
 TAGLINES = {

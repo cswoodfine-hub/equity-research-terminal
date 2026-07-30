@@ -27,6 +27,7 @@ import db
 import deals
 import diff
 import leadership
+import marketed
 import pdufa
 import revenue_mdna
 import themes
@@ -153,6 +154,11 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
         fetcher.refresh_run_id = run_id
     results = [fetcher.run() for fetcher in fetchers]
 
+    # What the company sells, before what it is testing. A CBER biologic has no approval
+    # row for any of this to read, so the register is the only thing that says Krystal
+    # Biotech sells Vyjuvek, and the pipeline has to know before it decides which
+    # compounds are somebody else's marketed drug appearing as a comparator.
+    sold = marketed.derive(db_path)
     # Bind the trials just fetched to the assets they study, before anything reads the
     # pipeline by product. A compound a company trials but does not sell becomes an
     # unmarketed asset first, so the pipeline reads as programmes rather than loose
@@ -160,6 +166,7 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
     mapped = trial_mapping.map_trials(db_path)
     mapped["pipeline_assets"] = pipeline_assets["created"]
+    mapped["marketed"] = sold
     # A derived compound can lose its own trials to a longer, more specific match; those
     # empty rows are cleared so nothing counts them as programmes.
     mapped["pruned"] = trial_mapping.prune_orphan_pipeline_assets(db_path)["pruned"]
@@ -257,6 +264,11 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         list(pool.map(run_company, companies))
 
+    # What the company sells, before what it is testing. A CBER biologic has no approval
+    # row for any of this to read, so the register is the only thing that says Krystal
+    # Biotech sells Vyjuvek, and the pipeline has to know before it decides which
+    # compounds are somebody else's marketed drug appearing as a comparator.
+    sold = marketed.derive(db_path)
     # Bind the trials just fetched to the assets they study, before anything reads the
     # pipeline by product. A compound a company trials but does not sell becomes an
     # unmarketed asset first, so the pipeline reads as programmes rather than loose
@@ -264,6 +276,7 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
     mapped = trial_mapping.map_trials(db_path)
     mapped["pipeline_assets"] = pipeline_assets["created"]
+    mapped["marketed"] = sold
     # A derived compound can lose its own trials to a longer, more specific match; those
     # empty rows are cleared so nothing counts them as programmes.
     mapped["pruned"] = trial_mapping.prune_orphan_pipeline_assets(db_path)["pruned"]

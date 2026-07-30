@@ -670,8 +670,43 @@ real rates dated 2026-07-24; append-only, no other mutation.
 - Signals rank by kind before significance. 113 of the week's 183 high-significance items
   were risk-factor diffs, which is a rewrite of boilerplate, and level with an approval
   they buried every approval. The change feed keeps its own rank; this orders the strip.
-- Known gap: the cell and gene strip says "furthest stage on file" rather than "reached".
+- Known gap, closed the same day in the entry below: the cell and gene strip says
+  "furthest stage on file" rather than "reached".
   Krystal markets Vyjuvek and is not in the marketed register, because Vyjuvek is a CBER
   licence and drugsfda covers CDER only. The NDC register lists it, and also lists labelers
   for companies that market nothing, so there is no free route that would not mark a
   developer marketed.
+
+## What a company sells, from the register it labels — 2026-07-30
+- The labeler test decides everything downstream, and it was matching on one shared word.
+  A company with no configured openFDA name was searched by the longest word in its own
+  name, which is "Biotechnology" for Sana, "Biotherapeutics" for Atara and "Therapies" for
+  Taysha. Sana held 82 rows of Chinese cosmetics, United Therapeutics held 88 groceries
+  from United Natural Foods, Legend held the entire Janssen catalogue, and Krystal held 44
+  products of anyone with Biotech in the name plus one of its own.
+- A labeler is now kept only when it carries every word of one of the company's names, its
+  legal form aside. That drops 416 of 1,050 rows and takes nothing off any of the majors:
+  GSK keeps its 46, Sanofi its 75, Pfizer its 59, because the test runs one way and a
+  division may add words of its own (GlaxoSmithKline Biologicals, Sanofi Pasteur). The one
+  loss is Autolus, which registers as Autolus Therapeutics and labels as Autolus Inc. It
+  is configured as "Autolus" in the seed, which is what that column is for, and the
+  register holds exactly one row under that name: Aucatzyl, BLA125813, November 2024.
+- The register is polled by the head of the name rather than its longest word. A query
+  returns 100 records, so asking for "biotech" and getting Janssen back is not just noise,
+  it is a real risk of never seeing the company's own row at all.
+- Matching the register's brand against an existing asset, which was the first idea,
+  resolves nothing. It promoted zero assets across the whole universe: Krystal's assets are
+  KB301 and KB407 because they came from its trials, and the register says VYJUVEK. A
+  product the register names and the asset table does not is written as a new asset, keyed
+  by application so five Aleve rows and four Humalog rows are one product each.
+- Only a package licensed under an NDA or a BLA counts. Companies label sunscreen and hand
+  sanitiser too, and a monograph number is not an approval.
+- 24 assets written across the universe, every one a real product. Four companies stop
+  reading as clinical stage: Krystal (Vyjuvek), argenx (Vyvgart), Axsome (Auvelity, Sunosi,
+  Symbravo) and Rocket (Kresladi). Moderna gains Spikevax, mRESVIA and mNEXSPIKE, which had
+  no approval row anywhere because drugsfda carries no BLA. The cell and gene strip reads
+  "furthest stage reached" again.
+- What it does not reach, and why none of it is a fix: Adaptimmune's Tecelra is in the
+  register under USWM CT, LLC, because US WorldMeds bought it. Atara's Ebvallo is not in the
+  US register at all. Capricor, Intellia, Solid and Taysha have no register row, no approval
+  and no marketed product, which is the correct answer rather than a gap.

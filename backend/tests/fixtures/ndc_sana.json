@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "note": "openFDA /drug/ndc.json, trimmed. What labeler_name:\"biotechnology\" returned for Sana Biotechnology, which markets nothing: eighty-two cosmetics rows, none of them a drug and none of them Sana's."
+  },
+  "results": [
+    {
+      "brand_name": "HOEGOA Hair Scalp Sunscreen Mineral",
+      "generic_name": "zinc oxide",
+      "labeler_name": "Guangzhou Hoegoa Biotechnology Co., Ltd.",
+      "application_number": "M020",
+      "marketing_start_date": "20251129",
+      "marketing_category": "OTC monograph drug"
+    },
+    {
+      "brand_name": "Acewink Sunscreen",
+      "generic_name": "octinoxate",
+      "labeler_name": "Shenzhen Qiming Biotechnology Co., Ltd.",
+      "application_number": "M020",
+      "marketing_start_date": "20260610",
+      "marketing_category": "OTC monograph drug"
+    },
+    {
+      "brand_name": "STYE EYE RELIEF SERUM",
+      "generic_name": "boric acid",
+      "labeler_name": "Guangzhou Mizi Biotechnology Co., LTD.",
+      "application_number": "505G(a)(3)",
+      "marketing_start_date": "20250916",
+      "marketing_category": "OTC monograph drug"
+    },
+    {
+      "brand_name": "5% MINOXIDIL TOPICAL Solution",
+      "generic_name": "minoxidil",
+      "labeler_name": "Nanhong (Zhuhai) Biotechnology Co., Ltd.",
+      "application_number": "505G(a)(3)",
+      "marketing_start_date": "20250116",
+      "marketing_category": "OTC monograph drug"
+    },
+    {
+      "brand_name": "WHITENING SUNSCREENANTI WRINKLE",
+      "generic_name": "titanium dioxide",
+      "labeler_name": "Shantou Oushiya Biotechnology Co.,Ltd",
+      "marketing_start_date": "20260521",
+      "marketing_category": "unapproved drug other"
+    }
+  ]
+}

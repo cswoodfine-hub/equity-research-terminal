@@ -1,7 +1,7 @@
 """The distribution of one engine's own metric, as a bar per company.
 
 Three engines, three questions, so three different strips: the share of revenue that is
-new, the months of cash left, the furthest stage on file. Same shape each time, which is
+new, the months of cash left, the furthest stage reached. Same shape each time, which is
 the point. A reader learns the form once and then takes each engine's spread at a glance,
 including how much of it is missing.
 
