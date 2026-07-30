@@ -1258,9 +1258,9 @@ with main:
                 'company. Open one for its own detail. A deal shows what it pays split '
                 'the way the filing splits it, with the sentence it was read from, '
                 'because the equity inside an upfront is not additional to it. A trial '
-                'date moving is not here: three hundred moved this week across the '
-                'universe and they are the change feed\'s subject, not this one\'s.'
-                '</div>', unsafe_allow_html=True)
+                'date moving is not a headline: it moves the readout on Looking ahead, on '
+                'the horizon rail and on the Catalysts tab instead, which is where a date '
+                'is read.</div>', unsafe_allow_html=True)
 
         _all_changes = api_get(api_base, "/changes")
         universe_feed = [it for it in _all_changes
