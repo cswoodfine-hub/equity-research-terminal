@@ -717,6 +717,15 @@ def headline_items(engine: Optional[str] = None, days: int = headlines_module.LO
     return headlines_module.build(tickers=tickers, days=days, limit=limit)
 
 
+@app.get("/lookahead")
+def lookahead_items(engine: Optional[str] = None,
+                    days: int = headlines_module.AHEAD_DAYS) -> list[dict]:
+    """What is dated inside the window on an engine, soonest first."""
+    tickers = (engines_module.tickers_for(engine=engine)
+               if engine in engines_module.ENGINES else None)
+    return headlines_module.ahead(tickers=tickers, days=days)
+
+
 @app.get("/engines/home")
 def engine_home() -> dict:
     """{ticker: engine} for every company, so a caller can place one without the cards."""

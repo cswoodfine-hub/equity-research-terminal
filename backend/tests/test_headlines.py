@@ -105,3 +105,113 @@ def test_a_trial_starting_is_not_a_trial_stopping():
     assert headlines._STOPPED.search("trial NCT1: status Active -> Terminated")
     assert not headlines._STOPPED.search(
         "trial NCT1: status Not yet recruiting -> Recruiting")
+
+
+# --- the forward view ------------------------------------------------------------------
+
+def _catalyst(conn, ticker, kind, date, title, curated=0, nct=None):
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = ?", (ticker,)).fetchone()[0]
+    conn.execute(
+        "INSERT INTO catalysts (company_id, catalyst_type, expected_date, title,"
+        "  description, is_curated, date_confidence, status)"
+        "  VALUES (?, ?, ?, ?, ?, ?, 'estimated', 'pending')",
+        (cid, kind, date, title, nct, curated))
+    conn.commit()
+
+
+def test_the_forward_view_is_a_calendar(tmp_path):
+    """Soonest first: it answers "what is coming", and a ranking by kind would bury
+    tomorrow under something three weeks out."""
+    path, conn = _seed(tmp_path)
+    _catalyst(conn, "MRK", "data readout", "2026-08-20", "Phase 3, Keytruda")
+    _catalyst(conn, "JNJ", "data readout", "2026-08-02", "Phase 2, Something")
+    conn.close()
+    rows = headlines.ahead(path, today=TODAY)
+    assert [r["date"] for r in rows] == ["2026-08-02", "2026-08-20"]
+
+
+def test_the_firmest_kind_leads_its_day(tmp_path):
+    """A decision date outranks the vote that informs it, which outranks a readout the
+    registry only estimates."""
+    path, conn = _seed(tmp_path)
+    _catalyst(conn, "MRK", "data readout", "2026-08-10", "Phase 3, Something")
+    _catalyst(conn, "JNJ", "PDUFA", "2026-08-10", "Icotyde PDUFA", curated=1)
+    conn.close()
+    assert [r["kind"] for r in headlines.ahead(path, today=TODAY)] == [
+        "PDUFA", "data readout"]
+
+
+def test_a_derived_readout_says_it_is_derived(tmp_path):
+    """A registry completion date is an estimate that slips, and the box has to say so
+    rather than leaving a reader to know it."""
+    path, conn = _seed(tmp_path)
+    _catalyst(conn, "MRK", "data readout", "2026-08-10", "Phase 3, X", nct="NCT1")
+    conn.close()
+    row = headlines.ahead(path, today=TODAY)[0]
+    assert row["curated"] is False
+    confidence = next(p for p in row["summary"] if p["label"] == "Confidence")
+    assert "registry primary completion date" in confidence["value"]
+    assert any(p["label"] == "Study" and p["value"] == "NCT1" for p in row["summary"])
+
+
+def test_a_curated_date_says_the_company_stated_it(tmp_path):
+    path, conn = _seed(tmp_path)
+    _catalyst(conn, "JNJ", "PDUFA", "2026-08-10", "Icotyde PDUFA", curated=1)
+    conn.close()
+    row = headlines.ahead(path, today=TODAY)[0]
+    assert row["curated"] is True
+    confidence = next(p for p in row["summary"] if p["label"] == "Confidence")
+    assert "curated" in confidence["value"]
+
+
+def test_nothing_outside_the_window(tmp_path):
+    path, conn = _seed(tmp_path)
+    _catalyst(conn, "MRK", "data readout", "2026-11-01", "Phase 3, Far off")
+    _catalyst(conn, "JNJ", "data readout", "2026-07-01", "Phase 3, Gone by")
+    conn.close()
+    assert headlines.ahead(path, today=TODAY) == []
+
+
+def test_the_forward_view_respects_the_engine(tmp_path):
+    path, conn = _seed(tmp_path)
+    _catalyst(conn, "MRK", "data readout", "2026-08-10", "Phase 3, Theirs")
+    _catalyst(conn, "SRPT", "data readout", "2026-08-11", "Phase 3, Ours")
+    conn.close()
+    rows = headlines.ahead(path, tickers=["SRPT"], today=TODAY)
+    assert [r["ticker"] for r in rows] == ["SRPT"]
+
+
+def test_every_headline_carries_a_summary_to_open(tmp_path):
+    """The box is a disclosure, so an item with nothing behind it opens onto nothing."""
+    path, conn = _seed(tmp_path)
+    _deal(conn, "JNJ", "Sail Biomedicines", "2026-07-29", upfront=785e6, equity=465e6,
+          option=2.58e9, headline=2.58e9, evidence="Under the terms...")
+    conn.close()
+    row = headlines.build(path, today=TODAY)[0]
+    labels = [p["label"] for p in row["summary"]]
+    assert labels[:3] == ["Upfront", "Equity", "Option to acquire"]
+    assert "Counterparty" in labels
+
+
+def test_a_week_is_the_window():
+    """The page answers "what happened since I last looked". A fortnight put things on it
+    that had already been read and acted on."""
+    assert headlines.LOOKBACK_DAYS == 7
+
+
+def test_a_decision_date_does_not_claim_the_registry(tmp_path):
+    """A PDUFA date is read out of an 8-K. Calling it "derived from the registry" names a
+    source that never carried it."""
+    path, conn = _seed(tmp_path)
+    _catalyst(conn, "JNJ", "PDUFA", "2026-08-10", "Icotyde PDUFA",
+              nct="The Company's BLA remains on track for a target action date.")
+    conn.close()
+    row = headlines.ahead(path, today=TODAY)[0]
+    confidence = next(p for p in row["summary"] if p["label"] == "Confidence")
+    assert "8-K" in confidence["value"]
+    assert "registry" not in confidence["value"]
+    # The announcing sentence is a quote, not a study identifier.
+    assert not any(p["label"] == "Study" for p in row["summary"])
+    assert row["evidence"].startswith("The Company's BLA")
+    # Somebody stated it, so it is firm even though it was extracted rather than typed.
+    assert row["curated"] is True

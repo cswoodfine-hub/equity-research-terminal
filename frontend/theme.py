@@ -271,26 +271,50 @@ h3 {{ font-size: 0.9rem; }}
   > [data-testid="stColumn"]:first-child {{
     width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; }}
 
-/* Headlines: the few things that matter, above the feed that lists everything. Heavier
-   than a feed row on purpose, because the point of the block is that these are not the
-   same kind of thing as the four hundred rows below it. */
-.lead {{ border-left: 3px solid var(--rule-strong); padding: 0.35rem 0 0.4rem 0.7rem;
-        margin: 0 0 0.45rem; background: linear-gradient(90deg, var(--panel), transparent 70%); }}
+/* Headlines and the forward view: the few things that matter, in boxes that open onto
+   their own detail. Heavier than a feed row on purpose, because the point of the block is
+   that these are not the same kind of thing as the four hundred rows below it. A native
+   disclosure, so opening one costs no rerun. */
+.leads {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+         gap: 8px; margin: 0.1rem 0 0.4rem; }}
+.lead {{
+  background: linear-gradient(178deg, var(--panel) 0%, var(--ground) 92%);
+  border: 1px solid var(--rule); border-left: 3px solid var(--rule-strong);
+}}
+.lead > summary {{
+  display: grid; grid-template-columns: auto 1fr auto; gap: 0.55rem;
+  align-items: baseline; padding: 0.45rem 0.6rem; cursor: pointer;
+  list-style: none; transition: background 90ms linear;
+}}
+.lead > summary::-webkit-details-marker {{ display: none; }}
+.lead > summary:hover {{ background: var(--rule); }}
+.lead[open] > summary {{ border-bottom: 1px solid var(--rule); }}
+.lead[open] .lead-h {{ color: var(--up); }}
 .lead-deal {{ border-left-color: var(--up); }}
 .lead-approval {{ border-left-color: var(--phase-approved); }}
-.lead-panel {{ border-left-color: var(--flag); }}
+.lead-regulatory, .lead-panel {{ border-left-color: var(--flag); }}
+.lead-PDUFA {{ border-left-color: var(--phase-filed); }}
+.lead-data_readout {{ border-left-color: var(--phase-3); }}
 .lead-leadership {{ border-left-color: var(--purple-book); }}
 .lead-trial_stopped {{ border-left-color: var(--down); }}
-.lead-top {{ display: flex; align-items: baseline; gap: 0.6rem; }}
-.lead-f {{ font-family: var(--font-mono); font-size: 12.5px; font-weight: 600;
+.lead-f {{ font-family: var(--font-mono); font-size: 11.5px; font-weight: 600;
           white-space: nowrap; }}
-.lead-h {{ font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; flex: 1; }}
+.lead-h {{ font-size: 13px; font-weight: 600; letter-spacing: -0.01em;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
 .lead-d {{ font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
           white-space: nowrap; }}
-.lead-s {{ font-family: var(--font-mono); font-size: 11px; color: var(--text);
-          margin-top: 2px; }}
-.lead-q {{ font-size: 11px; color: var(--muted); font-style: italic; line-height: 1.35;
-          margin-top: 3px; }}
+/* The body only exists once opened, so it can be denser than the summary. */
+.lead-body {{ padding: 0.4rem 0.6rem 0.5rem; }}
+.lead-r {{ display: flex; gap: 0.6rem; align-items: baseline; font-size: 11px;
+          padding: 2px 0; border-bottom: 1px solid var(--rule); }}
+.lead-r:last-of-type {{ border-bottom: none; }}
+.lead-rk {{ color: var(--muted); min-width: 7.5rem; }}
+.lead-rv {{ font-family: var(--font-mono); flex: 1; }}
+.lead-q {{ font-size: 11px; color: var(--muted); font-style: italic; line-height: 1.4;
+          margin-top: 0.35rem; }}
+.lead-l {{ display: inline-block; margin-top: 0.35rem; font-size: 10px; color: var(--muted);
+          letter-spacing: 0.05em; text-transform: uppercase; text-decoration: none; }}
+.lead-l:hover {{ color: var(--up); text-decoration: underline; text-underline-offset: 2px; }}
 
 /* Feed items: a typographic list, not a table. */
 .feed {{ margin: 0.1rem 0 0.3rem; }}

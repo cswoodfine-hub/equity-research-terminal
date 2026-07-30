@@ -58,6 +58,10 @@ LANDING_TOKENS = {
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
 # What a filing states when there is no trial yet, most advanced first. Mirrors
 # pipeline_filing.STAGES: these are headings a programme sits under, below every phase.
+# How many forward-dated boxes fit before the list stops being a view and
+# starts being a table. The rest are on each company's own Catalysts tab.
+_AHEAD_SHOWN = 8
+
 FILING_STAGES = ["IND cleared", "IND-enabling", "Development candidate", "Preclinical",
                  "Discovery"]
 # Charts collapse the two seamless phases into the phase each one reaches, which is the
@@ -628,6 +632,29 @@ def snapshot_strip(snapshot: dict) -> str:
                       if snapshot["rd_intensity"] is not None else None, 1),
          "", "", "", "share of sales"),
     ])
+
+
+def _lead_box(item) -> str:
+    """One headline as a box that opens onto its own detail.
+
+    A native disclosure rather than a widget: the summary is already in the payload, so
+    opening one costs no rerun and no round trip, and four of them open at once without
+    the page rebuilding itself four times.
+    """
+    rows = "".join(
+        f'<div class="lead-r"><span class="lead-rk">{html_escape(pair["label"])}</span>'
+        f'<span class="lead-rv">{html_escape(pair["value"])}</span></div>'
+        for pair in (item.get("summary") or []))
+    quote = (f'<div class="lead-q">{html_escape(item["evidence"])}</div>'
+             if item.get("evidence") else "")
+    link = (f'<a class="lead-l" href="{html_escape(item["url"])}" target="_blank" '
+            f'rel="noopener">source</a>' if item.get("url") else "")
+    kind = html_escape((item.get("kind") or "").replace(" ", "_"))
+    return (f'<details class="lead lead-{kind}"><summary>'
+            f'<span class="lead-f">{html_escape(item.get("figure") or "")}</span>'
+            f'<span class="lead-h">{html_escape(item.get("headline") or "")}</span>'
+            f'<span class="lead-d">{html_escape(item.get("date") or "")}</span>'
+            f'</summary><div class="lead-body">{rows}{quote}{link}</div></details>')
 
 
 def note_html(body: str) -> str:
@@ -1213,32 +1240,6 @@ with main:
         # rather than by when they happened. The feed below answers "what moved" and
         # answers it four hundred times; this answers "what would you be embarrassed not
         # to know", which is a different question and has to be asked first.
-        leads = api_get(api_base, f"/headlines?engine={urllib.parse.quote(engine or '')}")
-        section("Headlines", f"{len(leads)} on {_engine_name}" if leads else _engine_name)
-        if not leads:
-            state(f"Nothing material on {_engine_name} in the last fortnight",
-                  "A headline is a deal with stated terms, an approval, a scheduled panel "
-                  "vote, a senior change or a trial stopping. Quiet is an answer.")
-        else:
-            st.markdown("".join(
-                f'<div class="lead lead-{html_escape(h["kind"])}">'
-                f'<div class="lead-top">'
-                f'<span class="lead-f">{html_escape(h["figure"])}</span>'
-                f'<span class="lead-h">{html_escape(h["headline"])}</span>'
-                f'<span class="lead-d">{html_escape(h["date"])}</span></div>'
-                + (f'<div class="lead-s">{html_escape(h["detail"])}</div>'
-                   if h.get("detail") else "")
-                + (f'<div class="lead-q">{html_escape(h["evidence"])}</div>'
-                   if h.get("evidence") and h.get("kind") == "deal" else "")
-                + '</div>' for h in leads), unsafe_allow_html=True)
-            st.markdown(
-                '<div class="byline">Ranked by kind, most material first: a deal with '
-                'stated terms, then an approval, a scheduled panel vote, a senior change, '
-                'a trial stopping. One per company. A deal shows what it pays split the '
-                'way the filing splits it, with the sentence it was read from, because '
-                'the equity inside an upfront is not additional to it.</div>',
-                unsafe_allow_html=True)
-
         _all_changes = api_get(api_base, "/changes")
         universe_feed = [it for it in _all_changes
                          if (it.get("ticker") or "") in _covered]
@@ -1283,6 +1284,25 @@ with main:
                 'change feed, filings, trial moves and risk-factor edits, sits on each '
                 "company's Key insights tab.</div>", unsafe_allow_html=True)
 
+        leads = api_get(api_base, f"/headlines?engine={urllib.parse.quote(engine or '')}")
+        section("Headlines", f"{len(leads)} in the last week" if leads
+                else "the last week")
+        if not leads:
+            state(f"Nothing material on {_engine_name} in the last week",
+                  "A headline is a deal with stated terms, an approval, an FDA notice, a "
+                  "senior change or a trial stopping. Quiet is an answer.")
+        else:
+            st.markdown('<div class="leads">'
+                        + "".join(_lead_box(h) for h in leads) + "</div>",
+                        unsafe_allow_html=True)
+            st.markdown(
+                '<div class="byline">The last week, ranked by kind rather than by when: a '
+                'deal with stated terms, then an approval, an FDA notice, a senior change, '
+                'a trial stopping. One per company. Open one for its own detail. A deal '
+                'shows what it pays split the way the filing splits it, with the sentence '
+                'it was read from, because the equity inside an upfront is not additional '
+                'to it.</div>', unsafe_allow_html=True)
+
         section("Coverage, 90 days", f"{len(_covered)} companies, one scale")
         panels = [p for p in api_get(api_base, "/price-grid?days=90")
                   if p["ticker"] in _covered]
@@ -1300,133 +1320,41 @@ with main:
             state("No price history yet",
                   "Press Refresh all in the top bar to pull daily closes.")
 
-        soon_cats = [c for c in api_get(api_base, "/catalysts?within_days=30")
-                     if c.get("expected_date") and c.get("ticker") in _covered]
-        # Group by company, keeping the soonest-first order the API returns; a company's
-        # first appearance is its nearest catalyst, so the boxes read most-imminent first.
-        cat_by_company: dict = {}
-        for c in soon_cats:
-            cat_by_company.setdefault(c["ticker"], []).append(c)
-        # Singular when there is one. A cohort of 27 often has exactly one dated readout,
-        # so "1 companies" is no longer the rare case it was across seventy.
-        section("Next 30 days",
-                (f"{len(cat_by_company)} "
-                 f"{'company' if len(cat_by_company) == 1 else 'companies'} with a "
-                 "readout") if cat_by_company else "all companies")
-        if not cat_by_company:
+        # One forward view. A readout and a panel vote were two sections asking the same
+        # question, what is coming, split only by which table the date came out of. The
+        # answer to both is a date with a company against it, so they read as one list in
+        # the same boxes the headlines use: what happened, then what is about to.
+        soon = api_get(api_base,
+                       f"/lookahead?engine={urllib.parse.quote(engine or '')}")
+        # Firm against derived, because they are not the same kind of date. A PDUFA or a
+        # panel vote is stated; a readout is a registry completion date, which slips.
+        firm = [i for i in soon if i.get("curated")]
+        section("Looking ahead",
+                (f"{len(soon)} inside 30 days · "
+                 + (f"{len(firm)} firm, {len(soon) - len(firm)} derived" if firm
+                    else "all derived from registry dates"))
+                if soon else "nothing dated inside 30 days")
+        if not soon:
             state("Nothing dated inside 30 days",
-                  "Readouts derive from registry completion dates on refresh; PDUFA "
-                  "dates are read from 8-Ks when a model key is set.")
+                  "Readouts derive from registry completion dates on refresh, panel votes "
+                  "from the Federal Register, and PDUFA dates are read from 8-Ks when a "
+                  "model key is set. Quiet is an answer.")
         else:
-            _CAT_PER_BOX = 5
-            boxes = []
-            # Named box_ticker, not ticker: this runs at module scope, so a loop variable
-            # called ticker would outlive the loop and leave every section rendered after
-            # it, the note, the price events, the portfolio, reading the last company in
-            # this grid rather than the one selected.
-            for box_ticker, cats in cat_by_company.items():
-                items = []
-                for c in cats[:_CAT_PER_BOX]:
-                    phase, study = _cat_phase_study(c.get("title") or "")
-                    # The registry title is stored whole and cut per view; the full one
-                    # rides along as the tooltip, since the part that tells two studies
-                    # apart is usually at the end. The NCT id goes in too, so a hover
-                    # identifies the trial without opening it.
-                    nct = c.get("description") or ""
-                    full = c.get("title") or ""
-                    if nct.startswith("NCT"):
-                        full = f"{full} ({nct})"
-                    shown = study if len(study) <= 60 else study[:59].rstrip() + "…"
-                    ph = (f'<span class="cat-ph">{html_escape(phase)} </span>'
-                          if phase else "")
-                    review = ("" if c.get("is_curated")
-                              else '<span class="rv">review</span>')
-                    body = f'{ph}{html_escape(shown)}{review}'
-                    if c.get("source_url"):
-                        body = (f'<a href="{html_escape(c["source_url"])}" '
-                                f'target="_blank" rel="noopener">{body}</a>')
-                    items.append(
-                        f'<div class="cat-item" title="{html_escape(full)}">'
-                        f'<span class="cat-d">{html_escape(_cat_short_date(c["expected_date"]))}</span>'
-                        f'<span class="cat-t">{body}</span>'
-                        f'</div>')
-                extra = len(cats) - _CAT_PER_BOX
-                more = (f'<div class="cat-more">+{extra} more</div>'
-                        if extra > 0 else "")
-                boxes.append(
-                    f'<div class="cat-box"><div class="cat-box-head">'
-                    f'<span class="cat-tk">{html_escape(box_ticker)}</span>'
-                    f'<span class="cat-n">{len(cats)} in 30d</span></div>'
-                    f'{"".join(items)}{more}</div>')
-            st.markdown('<div class="cat-grid">' + "".join(boxes) + "</div>",
+            st.markdown('<div class="leads">'
+                        + "".join(_lead_box(i) for i in soon[:_AHEAD_SHOWN]) + "</div>",
                         unsafe_allow_html=True)
+            if len(soon) > _AHEAD_SHOWN:
+                st.markdown(f'<div class="byline">{len(soon) - _AHEAD_SHOWN} more inside '
+                            'the window, on each company\'s Catalysts tab.</div>',
+                            unsafe_allow_html=True)
             st.markdown(
-                '<div class="byline">One box per company with a trial readout inside 30 '
-                'days, soonest company first, dated by the registry primary completion '
-                'date. Hover a row for the full study title and its NCT id, click it to '
-                'open the registry entry. Every one is derived, not curated, so each is a '
-                'candidate to review rather than a confirmed event, and registry dates '
-                'slip. No free PDUFA calendar exists, so regulatory decision dates are not '
-                'here unless hand entered.</div>', unsafe_allow_html=True)
-
-        # Advisory committee votes and the announcement feeds are one question, what the
-        # agency is doing, so they read as one timeline: scheduled votes ahead, then what
-        # was announced. The kind is a coloured rail rather than a source column.
-        reg = api_get(api_base, "/regulatory")
-        reg_counts = reg.get("counts") or {}
-        section("FDA regulatory",
-                f'{reg_counts.get("ahead", 0)} ahead · '
-                f'{reg_counts.get("matched", 0)} touch coverage · '
-                f'{reg_counts.get("housekeeping", 0)} set aside')
-        if not (reg.get("ahead") or reg.get("behind")):
-            state("No FDA regulatory items on file",
-                  "Advisory committee meetings come from the Federal Register and the "
-                  "press, drug and MedWatch feeds from FDA. Press Refresh all.")
-        else:
-            _KIND_LABEL = {"panel": "panel vote", "safety": "safety",
-                           "drugs": "drugs", "press": "press"}
-
-            def _reg_item(it) -> str:
-                title = it.get("title") or ""
-                title = title if len(title) <= 96 else title[:95].rstrip() + "…"
-                tick = (f'<b>{html_escape(it["ticker"])}</b> '
-                        if it.get("ticker") else "")
-                sub = (f' <span class="sub">{html_escape(it["detail"])}</span>'
-                       if it.get("detail") else "")
-                body = f'{tick}{html_escape(title)}{sub}'
-                if it.get("url"):
-                    body = (f'<a href="{html_escape(it["url"])}" target="_blank" '
-                            f'rel="noopener">{body}</a>')
-                return (f'<div class="reg-item {html_escape(it.get("kind") or "press")}">'
-                        f'<span class="reg-d">{html_escape(it.get("date") or "")}</span>'
-                        f'<span class="reg-kind">'
-                        f'{html_escape(_KIND_LABEL.get(it.get("kind"), it.get("kind") or ""))}</span>'
-                        f'<span class="reg-t">{body}</span>'
-                        f'<span class="reg-tag">{html_escape(it.get("tag") or "")}</span>'
-                        f'</div>')
-
-            html = ['<div class="reg">']
-            if reg.get("ahead"):
-                html.append('<div class="reg-when">ahead, scheduled</div>')
-                html += [_reg_item(i) for i in reg["ahead"]]
-            if reg.get("behind"):
-                html.append('<div class="reg-when">announced</div>')
-                html += [_reg_item(i) for i in reg["behind"][:20]]
-            html.append("</div>")
-            st.markdown("".join(html), unsafe_allow_html=True)
-            st.markdown(
-                '<div class="byline">Advisory committee votes and the FDA press, drug and '
-                'MedWatch feeds on one timeline, filtered to events. Most of what the '
-                'agency publishes is its own upkeep, guidances and user-fee programmes '
-                'and resource pages reposted, and a device recall at a company this '
-                'universe does not cover is somebody else\'s subject; both are counted '
-                'above rather than listed. The rail colour is the kind: amber a '
-                'scheduled panel vote, red a safety communication, green a drugs item. A '
-                'bold ticker is a matched company and leads its day; an unmatched item is '
-                'agency context, kept rather than dropped. A panel vote leads its decision '
-                'by weeks and is the one firm regulatory date free data gives, since no '
-                'free PDUFA calendar exists. EMA retired its news feed, so the EU signal '
-                'comes from the EPAR data instead.</div>', unsafe_allow_html=True)
+                '<div class="byline">Everything dated inside 30 days on this engine, '
+                'soonest first, and within a day the firmest kind leads: a decision date, '
+                'then the panel vote that informs it, then a readout. Open one for the '
+                'study, the committee or the application behind it. A PDUFA date and a '
+                'panel vote are stated by the company or the Federal Register; a readout '
+                'is derived from a registry completion date, which is an estimate and '
+                'slips, and each box says which it is.</div>', unsafe_allow_html=True)
 
 
     # --- Key insights: the feed is the most important view ---------------

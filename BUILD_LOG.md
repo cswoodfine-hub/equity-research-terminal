@@ -779,3 +779,24 @@ real rates dated 2026-07-24; append-only, no other mutation.
   3.6bn across 2 of 6 rather than 1.0bn across 1 of 6.
 - notecontext built its own deal lines with its own SQL and its own formatting, so it was
   the one consumer the earlier change missed. It reads the same fields now.
+
+## Two directions, one form — 2026-07-30
+- Headlines run over the last week, not a fortnight. The page answers "what happened since
+  I last looked", and fourteen days put things on it that had already been read.
+- The FDA approvals timeline leads the tab now, above the headlines.
+- Headlines and the forward view are boxes that open onto their own detail, a native
+  disclosure so nothing reruns. A deal opens onto its four commitments as separate rows
+  and the sentence they were read from; a readout onto its study, its date and where the
+  date came from.
+- "Next 30 days" and "FDA regulatory" were two sections asking the same question, split
+  only by which table the date came out of. They are one "Looking ahead" list now, soonest
+  first, and within a day the firmest kind leads: a decision date, then the panel vote
+  that informs it, then a readout. The announced half of the regulatory stream moved into
+  the headlines as its own kind, so nothing was dropped in the merge.
+- Each forward box says where its date came from in the words that name the real source. A
+  PDUFA date is read out of an 8-K and a readout out of ClinicalTrials.gov, and one
+  sentence for both named a source that never carried half of them. A date somebody stated
+  counts as firm whether it was typed in or extracted; a registry completion date is
+  nobody's commitment.
+- The announcing sentence stored against a PDUFA row was being labelled "Study", which is
+  the field an NCT id goes in. It reads as a quote now.
