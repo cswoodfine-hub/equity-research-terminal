@@ -921,3 +921,12 @@ real rates dated 2026-07-24; append-only, no other mutation.
   nothing.
 - Squarified rather than sliced, so the small boxes stay square enough to hold a ticker,
   and the label appears only where it fits.
+- The map and the forward view sit side by side at half width each. They answer "how does
+  this engine look" and "what is coming on it", both read at a glance, and neither needed
+  the full page: paired, the two answers fit one screen instead of two scrolls.
+- The treemap canvas went from 1360x460 to 700x560. A wide, shallow one at half width
+  gives the small companies letterbox slivers, which is the shape a treemap is chosen to
+  avoid.
+- A section rule now lets its count wrap rather than run under its own label. At half the
+  page width "MAP16 sized by revenue" printed two facts on top of each other, and both
+  counts are shorter now with the byline carrying the rest.

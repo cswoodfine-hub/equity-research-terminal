@@ -1324,26 +1324,59 @@ with main:
                 'change feed, filings, trial moves and risk-factor edits, sits on each '
                 "company's Key insights tab.</div>", unsafe_allow_html=True)
 
-        # The group at a glance before the ninety panels that show each shape. Area is
-        # what the engine runs on and colour is the move, read independently: a large box
-        # that is deep red is the thing this view exists to show.
-        mmap = api_get(api_base,
-                       f"/marketmap?engine={urllib.parse.quote(engine or '')}")
-        if mmap.get("rows"):
-            unsized = len(mmap.get("unsized") or [])
-            section("Map", f"{len(mmap['rows'])} {mmap['label']}"
-                    + (f" · {unsized} with none" if unsized else ""))
-            R.show(treemap.build(mmap["rows"]), css_class="chart-mount")
-            st.markdown(
-                f'<div class="byline">Area is {html_escape(mmap["label"])}, colour the '
-                f'price move over {mmap["window_days"]} days, green up and red down, '
-                'each read on its own: a large box that is deep red is what the view is '
-                'for. Hover a box for the company and its move. Not market '
-                'capitalisation, which would need shares outstanding against the last '
-                'close, and for a company quoted as an ADR the share count is in ordinary '
-                'shares while the price is per receipt: GSK computes to 223bn against a '
-                'real ninety. A company the metric cannot size is counted above rather '
-                'than drawn at nothing.</div>', unsafe_allow_html=True)
+        # The two summary views side by side: where the money is on this engine, and
+        # what is dated on it. Both are read at a glance and neither needs the full
+        # width, so pairing them puts the answer to "how does it look" and the answer to
+        # "what is coming" in one screen instead of two scrolls.
+        _map_col, _ahead_col = st.columns(2, gap="medium")
+        with _map_col:
+            # The group at a glance before the ninety panels that show each shape. Area is
+            # what the engine runs on and colour is the move, read independently: a large box
+            # that is deep red is the thing this view exists to show.
+            mmap = api_get(api_base,
+                           f"/marketmap?engine={urllib.parse.quote(engine or '')}")
+            if mmap.get("rows"):
+                unsized = len(mmap.get("unsized") or [])
+                # Short, because the column is half a page wide; the byline below
+                # carries what area and colour mean.
+                section("Map", f"{len(mmap['rows'])} by {mmap['metric']}"
+                        + (f" · {unsized} unsized" if unsized else ""))
+                R.show(treemap.build(mmap["rows"]), css_class="chart-mount")
+                st.markdown(
+                    f'<div class="byline">Area is {html_escape(mmap["label"])}, colour the '
+                    f'price move over {mmap["window_days"]} days, green up and red down, '
+                    'each read on its own: a large box that is deep red is what the view is '
+                    'for. Hover a box for the company and its move. Not market '
+                    'capitalisation, which would need shares outstanding against the last '
+                    'close, and for a company quoted as an ADR the share count is in ordinary '
+                    'shares while the price is per receipt: GSK computes to 223bn against a '
+                    'real ninety. A company the metric cannot size is counted above rather '
+                    'than drawn at nothing.</div>', unsafe_allow_html=True)
+
+        with _ahead_col:
+            # One forward view. A readout and a panel vote were two sections asking the same
+            # question, what is coming, split only by which table the date came out of. The
+            # answer to both is a date with a company against it, so they read as one list in
+            # the same boxes the headlines use: what happened, then what is about to.
+            soon = api_get(api_base,
+                           f"/lookahead?engine={urllib.parse.quote(engine or '')}")
+            # Firm against derived, because they are not the same kind of date. A PDUFA or a
+            # panel vote is stated; a readout is a registry completion date, which slips.
+            firm = [i for i in soon if i.get("curated")]
+            section("Looking ahead",
+                    (f"{len(soon)} in 30 days"
+                     + (f" · {len(firm)} firm" if firm else ""))
+                    if soon else "nothing inside 30 days")
+            if not soon:
+                state("Nothing dated inside 30 days",
+                      "Readouts derive from registry completion dates on refresh, panel votes "
+                      "from the Federal Register, and PDUFA dates are read from 8-Ks when a "
+                      "model key is set. Quiet is an answer.")
+            else:
+                st.markdown('<div class="leads">'
+                            + "".join(_lead_box(i) for i in soon[:_AHEAD_SHOWN]) + "</div>",
+                            unsafe_allow_html=True)
+
 
         section("Coverage, 90 days", f"{len(_covered)} companies, one scale")
         panels = [p for p in api_get(api_base, "/price-grid?days=90")
@@ -1361,31 +1394,6 @@ with main:
         else:
             state("No price history yet",
                   "Press Refresh all in the top bar to pull daily closes.")
-
-        # One forward view. A readout and a panel vote were two sections asking the same
-        # question, what is coming, split only by which table the date came out of. The
-        # answer to both is a date with a company against it, so they read as one list in
-        # the same boxes the headlines use: what happened, then what is about to.
-        soon = api_get(api_base,
-                       f"/lookahead?engine={urllib.parse.quote(engine or '')}")
-        # Firm against derived, because they are not the same kind of date. A PDUFA or a
-        # panel vote is stated; a readout is a registry completion date, which slips.
-        firm = [i for i in soon if i.get("curated")]
-        section("Looking ahead",
-                (f"{len(soon)} inside 30 days · "
-                 + (f"{len(firm)} firm, {len(soon) - len(firm)} derived" if firm
-                    else "all derived from registry dates"))
-                if soon else "nothing dated inside 30 days")
-        if not soon:
-            state("Nothing dated inside 30 days",
-                  "Readouts derive from registry completion dates on refresh, panel votes "
-                  "from the Federal Register, and PDUFA dates are read from 8-Ks when a "
-                  "model key is set. Quiet is an answer.")
-        else:
-            st.markdown('<div class="leads">'
-                        + "".join(_lead_box(i) for i in soon[:_AHEAD_SHOWN]) + "</div>",
-                        unsafe_allow_html=True)
-
 
     # --- Key insights: the feed is the most important view ---------------
     with insights_tab:

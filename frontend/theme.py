@@ -224,9 +224,12 @@ h3 {{ font-size: 0.9rem; }}
 .sec-label {{
   font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
   text-transform: uppercase; color: var(--text);
+  flex: 0 0 auto;                 /* the label keeps its width; the count gives way */
 }}
+/* Wraps rather than overlapping. At half the page width a long count ran under its own
+   label, and "MAP16 sized by revenue" is two facts printed on top of each other. */
 .sec-count {{ font-size: 11px; color: var(--muted); font-family: var(--font-mono);
-             white-space: nowrap; }}
+             text-align: right; min-width: 0; }}
 
 /* Identity strip (legacy, used by error paths before the top bar mounts). */
 .ident {{ display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; }}
