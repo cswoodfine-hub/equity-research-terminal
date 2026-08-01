@@ -433,19 +433,23 @@ _DEAL_DATE_NOTE = {
 
 
 def deal_size(deals) -> str | None:
-    """The announced total across the deals that state one, and how many did.
+    """The announced total across the deals that state one.
 
     Announced consideration, not cash: it includes milestones that may never be earned,
     so it is never the acquisition line in the financials tab and is labelled to say so.
-    Deals that state no figure are counted rather than treated as zero.
+
+    Deals that state no figure are simply not in the sum, and the header does not count
+    them either. Most pharma business development is announced without terms, so saying so
+    on every deal and again in the header was the loudest thing on the panel and told a
+    reader nothing: the deal count sits beside this, and a figure is either there or it is
+    not.
     """
     priced = [d["announced_usd"] for d in deals if d.get("announced_usd")]
     if not priced:
         return None
     total = sum(priced)
-    figure = (f"${total / 1e9:.1f}bn" if total >= 1e9 else f"${total / 1e6:.0f}m")
-    return (f"{figure} announced" if len(priced) == len(deals)
-            else f"{figure} announced across {len(priced)} of {len(deals)}")
+    return f"${total / 1e9:.1f}bn announced" if total >= 1e9 \
+        else f"${total / 1e6:.0f}m announced"
 
 
 def deal_card(deal) -> str:

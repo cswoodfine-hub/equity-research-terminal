@@ -855,3 +855,6 @@ real rates dated 2026-07-24; append-only, no other mutation.
 - So "size not stated" is gone. It was the commonest thing on the panel and told a reader
   nothing the empty space does not. The section header still counts how many carry one,
   which is the honest place for it: "$3.6bn announced across 2 of 6".
+- The deals header stops counting the absence too. "$3.6bn announced across 2 of 6" said
+  in the header what the cards had stopped saying on every row. It reads "$3.6bn
+  announced" now, beside the deal count that was always there.
