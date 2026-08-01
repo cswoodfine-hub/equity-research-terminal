@@ -53,9 +53,13 @@ DEBT_COMBINED_CANDIDATES = [("us-gaap", "DebtLongtermAndShorttermCombinedAmount"
 # One more fiscal year is kept than the six shown: the seventh is the base the oldest
 # shown year's year-over-year growth divides by, so the growth and margin lines on the
 # trend start together instead of the growth line missing its first year.
-MAX_FISCAL_YEARS = 7
-MAX_PERIODS = {statements.FY: MAX_FISCAL_YEARS, statements.Q: 12,
-               statements.YTD: 12, statements.INSTANT: 20}
+# Company facts carry the whole history in one response, so the only cost of a longer one
+# is storage. Sixteen years reaches 2010 for a filer that has tagged XBRL since the
+# mandate phased in, which is what makes a growth line long enough to show a patent cliff
+# and a recovery rather than one cycle.
+MAX_FISCAL_YEARS = 17
+MAX_PERIODS = {statements.FY: MAX_FISCAL_YEARS, statements.Q: 40,
+               statements.YTD: 40, statements.INSTANT: 60}
 
 
 # --- pure parsing --------------------------------------------------------
@@ -107,6 +111,45 @@ def _agrees(series, winner) -> bool:
                <= abs(winner[y]["val"]) * _AGREEMENT_TOLERANCE for y in shared)
 
 
+# How far apart two values can sit at a handover and still be the same line. A revenue
+# standard changing does not change the size of a company: JNJ reported 76.5bn in 2017
+# under the old concept and 81.6bn in 2018 under the new one.
+_HANDOVER_RATIO = 2.0
+# And how far apart the two period ends can sit. One fiscal year, give or take the weeks
+# a 52/53-week filer moves its year end by.
+_HANDOVER_MIN_DAYS = 300
+_HANDOVER_MAX_DAYS = 430
+
+
+def _continues(series, winner) -> bool:
+    """True when an annual series ends one year before the winner begins, at a like size.
+
+    The agreement test refuses a series with no shared period, which is right for a
+    concept measuring something else and wrong for a concept the filer stopped using. ASC
+    606 moved revenue from SalesRevenueGoodsNet to RevenueFromContractWithCustomer on a
+    date: JNJ tagged the old one to 2017 and the new one from 2018, and the two never
+    overlap by construction. Without this its history starts in 2018.
+
+    Two conditions, both needed. The two period ends have to be about a year apart, so an
+    unrelated concept that happens to stop early cannot be glued on. And the values at the
+    join have to be within a factor, so a line measuring a different quantity is refused
+    even where its dates line up.
+    """
+    if not series or not winner or set(series) & set(winner):
+        return False
+    last, first = max(series), min(winner)
+    try:
+        gap = (dt.date.fromisoformat(first[0]) - dt.date.fromisoformat(last[0])).days
+    except (ValueError, TypeError, IndexError):
+        return False
+    if not _HANDOVER_MIN_DAYS <= gap <= _HANDOVER_MAX_DAYS:
+        return False
+    old_value, new_value = abs(series[last]["val"]), abs(winner[first]["val"])
+    if not old_value or not new_value:
+        return False
+    return max(old_value, new_value) / min(old_value, new_value) <= _HANDOVER_RATIO
+
+
 def pick_kind_series(facts: dict, candidates, kind: str):
     """Build one period kind's series from the highest-priority concept that reaches
     the latest period, extended backwards by any candidate that agrees with it.
@@ -134,7 +177,11 @@ def pick_kind_series(facts: dict, candidates, kind: str):
 
     merged = {k: dict(v, concept=name) for k, v in chosen.items()}
     for other_name, by_period in per_candidate:
-        if by_period is chosen or not _agrees(by_period, chosen):
+        if by_period is chosen:
+            continue
+        extends = (_agrees(by_period, chosen)
+                   or (kind == statements.FY and _continues(by_period, chosen)))
+        if not extends:
             continue
         for key, entry in by_period.items():
             merged.setdefault(key, dict(entry, concept=other_name))  # winner keeps ties

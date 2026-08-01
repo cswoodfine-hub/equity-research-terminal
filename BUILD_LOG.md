@@ -894,3 +894,30 @@ real rates dated 2026-07-24; append-only, no other mutation.
   Biosciences. The prune clears the ones written before it did, matching the phrase only
   where it sits directly after the captured name: a headline that mentions a subsidiary
   elsewhere in the sentence is still that party's deal.
+
+## A map, and sixteen years instead of seven — 2026-07-30
+- Financial history was capped at seven fiscal years by MAX_FISCAL_YEARS, which is one
+  cycle: long enough to see a growth rate and not long enough to see a patent cliff and
+  what replaced it. Company facts carry the whole history in one response, so the cap cost
+  storage rather than calls. Seventeen years now, and forty quarters.
+- Depth was not only the cap. JNJ's history started in 2018 whatever the cap, because ASC
+  606 moved revenue from SalesRevenueGoodsNet to the contract concept on a date and the
+  old tag was not in the candidate list. Adding it was half the fix; the other half is
+  that the two series never overlap by construction, and the agreement test refuses a
+  series with no shared period. A handover is allowed now where the periods are adjacent
+  and the values at the join are within a factor, so a concept the filer stopped using
+  extends the history and a concept measuring something else still cannot. JNJ 2010-2025,
+  LLY and Merck and Vertex 2009-2025.
+- The Universe tab has a map: every company on the engine as a box, area what the engine
+  runs on and colour the ninety-day move.
+- Area is not market capitalisation and the byline says why. It would be shares
+  outstanding times the last close, and for a company quoted as an ADR the share count is
+  in ordinary shares while the price is per receipt: GSK computes to 223bn against a real
+  ninety and Sanofi to 53 against a real hundred and thirty. The ADR ratio is in no free
+  source, so five of the eighteen majors would be wrong by a factor.
+- So area is revenue on the two engines whose companies are run on revenue, and cash on
+  the one whose companies are not. No map mixes the two. A company the metric cannot size
+  is counted rather than drawn at nothing, since an area of nothing reads as a company of
+  nothing.
+- Squarified rather than sliced, so the small boxes stay square enough to hold a ticker,
+  and the label appears only where it fits.

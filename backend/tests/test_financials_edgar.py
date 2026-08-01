@@ -4,6 +4,7 @@ Locks the tag-drift behaviour (LLY's recent R&D lives under the excluding-acquir
 concept) and the us-gaap vs ifrs-full / currency handling.
 """
 
+from fetchers import financials_edgar as fe
 import json
 from pathlib import Path
 
@@ -139,3 +140,45 @@ def test_jnj_conflicting_rd_concepts_are_not_merged():
     # one must contribute nothing at all.
     assert all(v["val"] > 5e9 for v in rd.values())
     assert rd[2025]["val"] == 14_665_000_000
+
+
+# --- a concept the filer stopped using --------------------------------------------------
+
+def _fy(end, val):
+    return {(end, "FY"): {"val": val, "unit": "USD", "end": end, "period_type": "FY"}}
+
+
+def test_a_tag_handover_extends_the_history():
+    """ASC 606 moved revenue from SalesRevenueGoodsNet to the contract concept on a date.
+    JNJ tagged the old one to 2017 and the new one from 2018, and they never overlap, so
+    the agreement test refuses the older series and the history starts in 2018."""
+    old = {**_fy("2016-01-03", 71890e6), **_fy("2017-12-31", 76450e6)}
+    new = {**_fy("2018-12-30", 81581e6), **_fy("2019-12-29", 82059e6)}
+    assert fe._continues(old, new)
+
+
+def test_a_gap_of_years_is_not_a_handover():
+    old = _fy("2013-12-29", 71312e6)
+    new = _fy("2018-12-30", 81581e6)
+    assert not fe._continues(old, new)
+
+
+def test_a_different_quantity_is_not_a_handover():
+    """The dates can line up and the line still measure something else. JNJ's plain R&D
+    concept holds acquired in-process R&D alone and is two orders of magnitude smaller."""
+    old = _fy("2017-12-31", 500e6)
+    new = _fy("2018-12-30", 81581e6)
+    assert not fe._continues(old, new)
+
+
+def test_an_overlapping_series_is_left_to_the_agreement_test():
+    """Sharing a year is what the agreement test is for, and it checks the values."""
+    old = {**_fy("2017-12-31", 76450e6), **_fy("2018-12-30", 81581e6)}
+    new = _fy("2018-12-30", 81581e6)
+    assert not fe._continues(old, new)
+
+
+def test_the_history_reaches_back_far_enough_for_a_cycle():
+    """Seven years is one cycle. A growth line has to be long enough to show a patent
+    cliff and what replaced it."""
+    assert fe.MAX_FISCAL_YEARS >= 16

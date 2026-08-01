@@ -36,6 +36,7 @@ import runway as runway_module
 import productivity as productivity_module
 import engines as engines_module
 import headlines as headlines_module
+import marketmap as marketmap_module
 import labels as labels_module
 import fx as fx_module
 import loe as loe_module
@@ -715,6 +716,13 @@ def headline_items(engine: Optional[str] = None, days: int = headlines_module.LO
     tickers = (engines_module.tickers_for(engine=engine)
                if engine in engines_module.ENGINES else None)
     return headlines_module.build(tickers=tickers, days=days, limit=limit)
+
+
+@app.get("/marketmap")
+def market_map(engine: Optional[str] = None,
+               days: int = marketmap_module.WINDOW_DAYS) -> dict:
+    """Every company on an engine as a box, sized by what that engine runs on."""
+    return marketmap_module.build(engine=engine, days=days)
 
 
 @app.get("/lookahead")

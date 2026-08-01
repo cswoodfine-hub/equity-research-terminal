@@ -71,6 +71,11 @@ _INCOME = (
         ("us-gaap", "RevenueFromContractWithCustomerExcludingAssessedTax"),
         ("us-gaap", "RevenueFromContractWithCustomerIncludingAssessedTax"),
         ("us-gaap", "SalesRevenueNet"),
+        # What a filer used before ASC 606 moved revenue to the contract concepts
+        # in 2018. Johnson & Johnson tagged this from 2009 to 2017 and nothing
+        # else, so without it their history starts in 2018.
+        ("us-gaap", "SalesRevenueGoodsNet"),
+        ("us-gaap", "SalesRevenueServicesNet"),
         ("ifrs-full", "Revenue"),
         ("ifrs-full", "RevenueFromContractsWithCustomers"),
         ("ifrs-full", "RevenueFromSaleOfGoods"),

@@ -30,6 +30,7 @@ import engine_strip
 import price_chart
 import revenue_mix
 import scorecard_chart
+import treemap
 import theme as T
 import trend as trend_module
 from components import charts as CH
@@ -1322,6 +1323,27 @@ with main:
                 'at its date; hover for the drug and application number. The detailed '
                 'change feed, filings, trial moves and risk-factor edits, sits on each '
                 "company's Key insights tab.</div>", unsafe_allow_html=True)
+
+        # The group at a glance before the ninety panels that show each shape. Area is
+        # what the engine runs on and colour is the move, read independently: a large box
+        # that is deep red is the thing this view exists to show.
+        mmap = api_get(api_base,
+                       f"/marketmap?engine={urllib.parse.quote(engine or '')}")
+        if mmap.get("rows"):
+            unsized = len(mmap.get("unsized") or [])
+            section("Map", f"{len(mmap['rows'])} {mmap['label']}"
+                    + (f" · {unsized} with none" if unsized else ""))
+            R.show(treemap.build(mmap["rows"]), css_class="chart-mount")
+            st.markdown(
+                f'<div class="byline">Area is {html_escape(mmap["label"])}, colour the '
+                f'price move over {mmap["window_days"]} days, green up and red down, '
+                'each read on its own: a large box that is deep red is what the view is '
+                'for. Hover a box for the company and its move. Not market '
+                'capitalisation, which would need shares outstanding against the last '
+                'close, and for a company quoted as an ADR the share count is in ordinary '
+                'shares while the price is per receipt: GSK computes to 223bn against a '
+                'real ninety. A company the metric cannot size is counted above rather '
+                'than drawn at nothing.</div>', unsafe_allow_html=True)
 
         section("Coverage, 90 days", f"{len(_covered)} companies, one scale")
         panels = [p for p in api_get(api_base, "/price-grid?days=90")
