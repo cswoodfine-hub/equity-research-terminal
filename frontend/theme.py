@@ -159,7 +159,7 @@ header[data-testid="stHeader"] {{ background: transparent !important; }}
 
 /* Density: an instrument, not a landing page. 8px base scale. */
 [data-testid="stMainBlockContainer"], .block-container {{
-  padding: 3rem 16px 3rem !important; max-width: 100% !important;
+  padding: 1.75rem 16px 0.6rem !important; max-width: 100% !important;
 }}
 [data-testid="stVerticalBlock"] {{ gap: 8px; }}
 [data-testid="stHorizontalBlock"] {{ gap: 16px; }}
@@ -217,9 +217,12 @@ h3 {{ font-size: 0.9rem; }}
   border-bottom: 1px solid var(--rule-strong);
   padding: 0 0 0.2rem; margin: 0;
 }}
-[data-testid="stElementContainer"]:has(.sec) {{ margin-top: 0.85rem; }}
+/* A label sits close to what it labels and far from what came before, so the air between
+   sections is what separates them. The old spacing had the two nearly equal, which cost a
+   screen's worth of height and read as a list of loose blocks rather than sections. */
+[data-testid="stElementContainer"]:has(.sec) {{ margin-top: 0.9rem; }}
 [data-testid="stElementContainer"]:has(.sec) + [data-testid="stElementContainer"] {{
-  margin-top: 1.4rem;
+  margin-top: 0.55rem;
 }}
 .sec-label {{
   font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
@@ -274,6 +277,16 @@ h3 {{ font-size: 0.9rem; }}
   > [data-testid="stColumn"]:first-child {{
     width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; }}
 
+/* A byline folded to one line. The Universe tab has to fit a screen and its notes are
+   long, so they collapse rather than going away. */
+.note-d {{ margin: 0.1rem 0 0.2rem; }}
+.note-d > summary {{ list-style: none; cursor: pointer; display: inline-block;
+                    font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase;
+                    color: var(--rule-strong); padding: 1px 0; }}
+.note-d > summary::-webkit-details-marker {{ display: none; }}
+.note-d > summary:hover, .note-d[open] > summary {{ color: var(--muted); }}
+.note-d .byline {{ margin-top: 0.2rem; }}
+
 /* Headlines and the forward view. Two questions, what happened and what is coming, and
    one form for both so a reader learns the box once. Each carries its kind as a single
    accent colour set here and used by the rail, the chip and the open state, so a kind
@@ -282,8 +295,12 @@ h3 {{ font-size: 0.9rem; }}
    No caption under either block: with the chip naming the kind, the ticker leading the
    line and the date on the right, a paragraph explaining the layout was explaining
    something the layout already said. */
-.leads {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-         gap: 10px; align-items: start; margin: 0.2rem 0 0.5rem; }}
+.leads {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
+         gap: 8px; align-items: start; margin: 0.2rem 0 0.4rem; }}
+/* Headlines run the full page and its boxes hold one line each, so six fit across
+   and the week is one row. Looking ahead sits in half the width with trial titles
+   in it, and at the same column width those wrap to a column of single words. */
+.leads-wide {{ grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); }}
 .lead {{
   --accent: var(--rule-strong);
   background: var(--panel);

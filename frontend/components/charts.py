@@ -803,6 +803,10 @@ def approvals_timeline(approvals: Sequence[dict], width: int = 1040,
     span = max((end - start).days, 1)
     pad_l, pad_r, mid = 16, 16, height / 2
     plot_w = width - pad_l - pad_r
+    # How far the month and today gridlines run either side of the baseline. Capped by the
+    # canvas so a short timeline draws inside its own box: at the old fixed reach the month
+    # labels fell past the viewBox and arrived half cut off.
+    reach = min(mid - 1, 46)
 
     def xpos(when):
         return pad_l + (when - start).days / span * plot_w
@@ -812,13 +816,14 @@ def approvals_timeline(approvals: Sequence[dict], width: int = 1040,
     while month <= end:
         if month >= start:
             mx = xpos(month)
-            out.append(f'<line x1="{mx:.1f}" y1="{mid - 46:.1f}" x2="{mx:.1f}"'
-                       f' y2="{mid + 46:.1f}" stroke="{TK.RULE}"/>')
-            out.append(_text(mx + 3, mid + 44, month.strftime("%b %y"), 8, TK.MUTED,
+            out.append(f'<line x1="{mx:.1f}" y1="{mid - reach:.1f}" x2="{mx:.1f}"'
+                       f' y2="{mid + reach:.1f}" stroke="{TK.RULE}"/>')
+            out.append(_text(mx + 3, mid + reach - 2, month.strftime("%b %y"), 8, TK.MUTED,
                              family=UI))
         month = _dt.date(month.year + month.month // 12, month.month % 12 + 1, 1)
     tx = xpos(today)
-    out.append(f'<line x1="{tx:.1f}" y1="{mid - 46:.1f}" x2="{tx:.1f}" y2="{mid + 46:.1f}"'
+    out.append(f'<line x1="{tx:.1f}" y1="{mid - reach:.1f}" x2="{tx:.1f}"'
+               f' y2="{mid + reach:.1f}"'
                f' stroke="{TK.TEXT}" stroke-width="1" stroke-dasharray="2,2"/>')
     out.append(f'<line x1="{pad_l}" y1="{mid:.1f}" x2="{width - pad_r}" y2="{mid:.1f}"'
                f' stroke="{TK.RULE_STRONG}" stroke-width="1.2"/>')

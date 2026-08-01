@@ -20,7 +20,7 @@ from components import tokens as TK
 # Drawn into half the page width, beside the forward view, so the canvas is close to
 # square. A wide, shallow one at that width gives the small companies letterbox slivers,
 # which is the shape a treemap is chosen to avoid.
-WIDTH, HEIGHT = 700, 560
+WIDTH, HEIGHT = 700, 215
 PAD = 1.0                # the hairline between boxes
 LABEL_MIN = 34           # a box narrower or shorter than this gets no ticker
 VALUE_MIN = 54           # and none smaller than this gets its percentage too

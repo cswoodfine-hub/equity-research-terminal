@@ -65,7 +65,10 @@ PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "P
 # of the box's own detail.
 _LEAD_CHARS = 104
 
-_AHEAD_SHOWN = 8
+_AHEAD_SHOWN = 5
+
+# The coverage grid draws this many of the covered companies, the ones that moved most.
+_COVERAGE_SHOWN = 12
 
 FILING_STAGES = ["IND cleared", "IND-enabling", "Development candidate", "Preclinical",
                  "Discovery"]
@@ -146,6 +149,18 @@ def section(label: str, count=None):
     tail = f'<span class="sec-count">{count}</span>' if count is not None else ""
     st.markdown(f'<div class="sec"><span class="sec-label">{label}</span>{tail}</div>',
                 unsafe_allow_html=True)
+
+
+def note(text: str):
+    """A byline folded away, for a view that has to fit a screen.
+
+    The Universe tab is read at a glance and its explanations are long, because most of
+    what they say is what a figure is not: area is not market capitalisation, a readout
+    date is not a commitment. Deleting them would buy the height by making the page less
+    honest, so they collapse to one line instead and open where a reader wants them.
+    """
+    st.markdown(f'<details class="note-d"><summary>notes</summary>'
+                f'<div class="byline">{text}</div></details>', unsafe_allow_html=True)
 
 
 def state(title: str, detail: str, error: bool = False):
@@ -1240,12 +1255,11 @@ with main:
                     width="stretch", hide_index=True,
                     column_config={"Revenue then, bn": st.column_config.NumberColumn(
                         format="%.1f")})
-                st.markdown(
-                    '<div class="byline">Reconstructed from the append-only snapshot '
-                    'table at field grain: trial status, phase and completion date as '
-                    'they stood; the financial report in force at the date; and the '
-                    'approvals whose first sighting was on or before it. Everything '
-                    'else in the app stays live.</div>', unsafe_allow_html=True)
+                note('Reconstructed from the append-only snapshot table at field '
+                     'grain: trial status, phase and completion date as they stood; the '
+                     'financial report in force at the date; and the approvals whose '
+                     'first sighting was on or before it. Everything else in the app '
+                     'stays live.')
                 approvals_then = asof_state.get("approvals") or []
                 if approvals_then:
                     section("Approvals known by then", len(approvals_then))
@@ -1277,7 +1291,7 @@ with main:
                   "A headline is a deal with stated terms, an approval, an FDA notice, a "
                   "senior change or a trial stopping. Quiet is an answer.")
         else:
-            st.markdown('<div class="leads">'
+            st.markdown('<div class="leads leads-wide">'
                         + "".join(_lead_box(h) for h in leads) + "</div>",
                         unsafe_allow_html=True)
         _all_changes = api_get(api_base, "/changes")
@@ -1316,13 +1330,12 @@ with main:
                    "the top bar to pull the sources."))
         else:
             approvnav.approvals_nav(
-                CH.approvals_timeline(approvals, 1360, 152, dt.date.today()),
+                CH.approvals_timeline(approvals, 1360, 84, dt.date.today()),
                 muted=TK.MUTED, key="appr_nav")
-            st.markdown(
-                '<div class="byline">Each dot is an FDA approval among covered companies '
-                'at its date; hover for the drug and application number. The detailed '
-                'change feed, filings, trial moves and risk-factor edits, sits on each '
-                "company's Key insights tab.</div>", unsafe_allow_html=True)
+            note('Each dot is an FDA approval among covered companies at its date; hover '
+                 'for the drug and application number. The detailed change feed, filings, '
+                 'trial moves and risk-factor edits, sits on each company\'s Key insights '
+                 'tab.')
 
         # The two summary views side by side: where the money is on this engine, and
         # what is dated on it. Both are read at a glance and neither needs the full
@@ -1342,16 +1355,15 @@ with main:
                 section("Map", f"{len(mmap['rows'])} by {mmap['metric']}"
                         + (f" · {unsized} unsized" if unsized else ""))
                 R.show(treemap.build(mmap["rows"]), css_class="chart-mount")
-                st.markdown(
-                    f'<div class="byline">Area is {html_escape(mmap["label"])}, colour the '
-                    f'price move over {mmap["window_days"]} days, green up and red down, '
-                    'each read on its own: a large box that is deep red is what the view is '
-                    'for. Hover a box for the company and its move. Not market '
+                note(f'Area is {html_escape(mmap["label"])}, colour the price move '
+                     f'over {mmap["window_days"]} days, green up and red down, each read '
+                     'on its own: a large box that is deep red is what the view is '
+                     'for. Hover a box for the company and its move. Not market '
                     'capitalisation, which would need shares outstanding against the last '
                     'close, and for a company quoted as an ADR the share count is in ordinary '
                     'shares while the price is per receipt: GSK computes to 223bn against a '
                     'real ninety. A company the metric cannot size is counted above rather '
-                    'than drawn at nothing.</div>', unsafe_allow_html=True)
+                    'than drawn at nothing.')
 
         with _ahead_col:
             # One forward view. A readout and a panel vote were two sections asking the same
@@ -1378,19 +1390,24 @@ with main:
                             unsafe_allow_html=True)
 
 
-        section("Coverage, 90 days", f"{len(_covered)} companies, one scale")
+        section("Coverage, 90 days",
+                f"the {_COVERAGE_SHOWN} that moved most of {len(_covered)}, one scale")
         panels = [p for p in api_get(api_base, "/price-grid?days=90")
                   if p["ticker"] in _covered]
         if any(p["closes"] for p in panels):
+            # Two rows at a glance, ordered by the move so the ends of the distribution
+            # are the ones on screen. The tab has to fit a screen and the grid is the
+            # tallest thing on it; every company is still one click away in the picker.
+            shown = sorted(panels, key=lambda p: -(abs(p["change"] or 0)))[:_COVERAGE_SHOWN]
+            shown.sort(key=lambda p: p["ticker"])
             covnav.coverage_nav(
                 CH.small_multiples(
                     [{"label": p["ticker"],
                       "values": _pct_from_start(p["closes"] or []),
                       "sub": T.pct(p["change"] * 100) if p["change"] is not None else ""}
-                     for p in panels], 1360, 430, cols=6, link_base="?ticker="),
+                     for p in shown], 1360, 92, cols=6, link_base="?ticker="),
                 muted=TK.MUTED, key="cov_nav")
-            st.markdown('<div class="byline">Click a panel to jump straight to that '
-                        'company\'s Key insights.</div>', unsafe_allow_html=True)
+            note("Click a panel to jump straight to that company's Key insights.")
         else:
             state("No price history yet",
                   "Press Refresh all in the top bar to pull daily closes.")
