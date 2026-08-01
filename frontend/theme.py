@@ -295,14 +295,16 @@ h3 {{ font-size: 0.9rem; }}
    No caption under either block: with the chip naming the kind, the ticker leading the
    line and the date on the right, a paragraph explaining the layout was explaining
    something the layout already said. */
-/* stretch, not start: boxes in a row share a height, so the row has one baseline along
-   the bottom instead of a ragged edge set by whichever headline ran longest. */
-.leads {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
+/* The column count comes from the number of boxes, set as --lead-cols on the container,
+   not from auto-fill. auto-fill packs each row to the width and leaves the remainder
+   alone on the last one, so six headlines in a five-column width came out five and a
+   stray. Counting them instead puts the same number in every row.
+
+   stretch, not start: boxes in a row share a height, so the row ends on one baseline
+   rather than a ragged edge set by whichever headline ran longest. */
+.leads {{ display: grid;
+         grid-template-columns: repeat(var(--lead-cols, 3), minmax(0, 1fr));
          gap: 8px; align-items: stretch; margin: 0.2rem 0 0.4rem; }}
-/* Headlines run the full page and its boxes hold one line each, so six fit across
-   and the week is one row. Looking ahead sits in half the width with trial titles
-   in it, and at the same column width those wrap to a column of single words. */
-.leads-wide {{ grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); }}
 /* Equal heights are for the closed row. Once a box is open its neighbours have no
    reason to grow with it, and stretching them left five empty panels beside the one
    being read. An open box also takes two cells: at one column its terms table had a
@@ -904,6 +906,9 @@ section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
 @media (max-width: 1400px) {{
   .stats {{ gap: 1.4rem; }}
   .block-container {{ padding-left: 8px; padding-right: 8px; }}
+  /* Fewer per row, still split evenly: six headlines become three and three rather
+     than four and two. The second count is computed alongside the first. */
+  .leads {{ grid-template-columns: repeat(var(--lead-cols-narrow, 2), minmax(0, 1fr)); }}
 }}
 </style>
 """

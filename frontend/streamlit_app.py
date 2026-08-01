@@ -65,7 +65,8 @@ PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "P
 # of the box's own detail.
 _LEAD_CHARS = 104
 
-_AHEAD_SHOWN = 5
+# Two across in half the page, so an even count fills its last row.
+_AHEAD_SHOWN = 6
 
 # The coverage grid draws this many of the covered companies, the ones that moved most.
 _COVERAGE_SHOWN = 12
@@ -701,6 +702,27 @@ def _lead_box(item) -> str:
             f'</summary><div class="lead-body">{rows}{quote}{link}</div></details>')
 
 
+def _lead_columns(count: int, per_row: int) -> int:
+    """Columns for ``count`` boxes: as few rows as the width takes, then split evenly.
+
+    Six boxes across a six-wide space is one row of six. Where only four fit it is two
+    rows of three, not four and a stray two, because a row that ends early reads as a
+    box missing rather than as the shape of the week.
+    """
+    if count <= 0:
+        return 1
+    rows = -(-count // max(per_row, 1))
+    return -(-count // rows)
+
+
+def _leads(items, per_row: int, narrow_per_row: int) -> str:
+    """A row of headline boxes, evenly divided at the page's two widths."""
+    return (f'<div class="leads" '
+            f'style="--lead-cols: {_lead_columns(len(items), per_row)}; '
+            f'--lead-cols-narrow: {_lead_columns(len(items), narrow_per_row)}">'
+            + "".join(_lead_box(i) for i in items) + "</div>")
+
+
 def note_html(body: str) -> str:
     """Render the note, giving its section labels the heading treatment.
 
@@ -1291,9 +1313,7 @@ with main:
                   "A headline is a deal with stated terms, an approval, an FDA notice, a "
                   "senior change or a trial stopping. Quiet is an answer.")
         else:
-            st.markdown('<div class="leads leads-wide">'
-                        + "".join(_lead_box(h) for h in leads) + "</div>",
-                        unsafe_allow_html=True)
+            st.markdown(_leads(leads, 6, 3), unsafe_allow_html=True)
         _all_changes = api_get(api_base, "/changes")
         universe_feed = [it for it in _all_changes
                          if (it.get("ticker") or "") in _covered]
@@ -1385,8 +1405,10 @@ with main:
                       "from the Federal Register, and PDUFA dates are read from 8-Ks when a "
                       "model key is set. Quiet is an answer.")
             else:
-                st.markdown('<div class="leads">'
-                            + "".join(_lead_box(i) for i in soon[:_AHEAD_SHOWN]) + "</div>",
+                # Two across at both widths: the narrow rule is keyed to the page, and
+                # this block is already in half of it, so collapsing again stacked six
+                # boxes into a column taller than the map beside it.
+                st.markdown(_leads(soon[:_AHEAD_SHOWN], 2, 2),
                             unsafe_allow_html=True)
 
 
