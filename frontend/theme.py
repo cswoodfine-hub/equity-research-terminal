@@ -295,12 +295,20 @@ h3 {{ font-size: 0.9rem; }}
    No caption under either block: with the chip naming the kind, the ticker leading the
    line and the date on the right, a paragraph explaining the layout was explaining
    something the layout already said. */
+/* stretch, not start: boxes in a row share a height, so the row has one baseline along
+   the bottom instead of a ragged edge set by whichever headline ran longest. */
 .leads {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
-         gap: 8px; align-items: start; margin: 0.2rem 0 0.4rem; }}
+         gap: 8px; align-items: stretch; margin: 0.2rem 0 0.4rem; }}
 /* Headlines run the full page and its boxes hold one line each, so six fit across
    and the week is one row. Looking ahead sits in half the width with trial titles
    in it, and at the same column width those wrap to a column of single words. */
 .leads-wide {{ grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); }}
+/* Equal heights are for the closed row. Once a box is open its neighbours have no
+   reason to grow with it, and stretching them left five empty panels beside the one
+   being read. An open box also takes two cells: at one column its terms table had a
+   136px label column in a 248px box and the values came out a word per line. */
+.leads:has(.lead[open]) {{ align-items: start; }}
+.lead[open] {{ grid-column: span 2; }}
 .lead {{
   --accent: var(--rule-strong);
   background: var(--panel);
@@ -322,15 +330,22 @@ h3 {{ font-size: 0.9rem; }}
 .lead-leadership {{ --accent: var(--purple-book); }}
 .lead-trial_stopped {{ --accent: var(--down); }}
 
+/* Two rows: what kind of thing this is and when, then the sentence across the full box.
+   On one row the chip and the date took their width first and the headline took what was
+   left, so a wide chip like "label expansion" squeezed the sentence to a word per line
+   and that box ran three lines deeper than the ones beside it. */
 .lead > summary {{
-  display: grid; grid-template-columns: 10px auto 1fr auto; gap: 0.55rem;
-  align-items: start; padding: 0.55rem 0.7rem; cursor: pointer; list-style: none;
+  display: grid; grid-template-columns: 10px 1fr auto;
+  grid-template-areas: "chev chip date" ".    head head";
+  gap: 0.3rem 0.5rem;
+  align-items: start; padding: 0.5rem 0.7rem; cursor: pointer; list-style: none;
 }}
 .lead > summary::-webkit-details-marker {{ display: none; }}
 /* The disclosure affordance, drawn rather than a glyph so it sits on the baseline and
    turns with the box. Without a caption the box has to say it opens. */
 .lead-chev {{
-  width: 5px; height: 5px; margin-top: 5px;
+  grid-area: chev;
+  width: 5px; height: 5px; margin-top: 4px;
   border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
   transform: rotate(-45deg); transition: transform 140ms ease-out, border-color 120ms;
 }}
@@ -343,17 +358,17 @@ h3 {{ font-size: 0.9rem; }}
   letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
   color: var(--accent); border: 1px solid var(--accent);
   border-radius: var(--radius-small); padding: 2px 5px; opacity: 0.92;
-  position: relative; top: -1px;
+  grid-area: chip; justify-self: start;
 }}
 /* A money figure keeps its own case: "$2.58bn" is a measurement, not a label. */
 .lead-f-num {{ text-transform: none; letter-spacing: 0; font-size: 10.5px; }}
 /* Wraps rather than truncates. An ellipsis was eating the drug name, which is the part
    of "NVO efficacy supplement: Macrilen approved" a reader is looking for. */
-.lead-h {{ font-size: 12.5px; line-height: 1.35; }}
+.lead-h {{ grid-area: head; font-size: 12.5px; line-height: 1.35; }}
 .lead-tk {{ font-family: var(--font-mono); font-weight: 600; margin-right: 0.4rem; }}
 .lead[open] .lead-tk {{ color: var(--accent); }}
-.lead-d {{ font-family: var(--font-mono); font-size: 10px; color: var(--muted);
-          white-space: nowrap; padding-top: 1px; }}
+.lead-d {{ grid-area: date; font-family: var(--font-mono); font-size: 10px;
+          color: var(--muted); white-space: nowrap; padding-top: 2px; }}
 
 .lead-body {{ padding: 0.1rem 0.7rem 0.6rem 1.25rem; }}
 .lead-r {{ display: grid; grid-template-columns: 8.5rem 1fr; gap: 0.6rem;

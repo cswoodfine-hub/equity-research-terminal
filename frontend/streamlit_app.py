@@ -1405,7 +1405,7 @@ with main:
                     [{"label": p["ticker"],
                       "values": _pct_from_start(p["closes"] or []),
                       "sub": T.pct(p["change"] * 100) if p["change"] is not None else ""}
-                     for p in shown], 1360, 92, cols=6, link_base="?ticker="),
+                     for p in shown], 1360, 112, cols=6, link_base="?ticker="),
                 muted=TK.MUTED, key="cov_nav")
             note("Click a panel to jump straight to that company's Key insights.")
         else:
