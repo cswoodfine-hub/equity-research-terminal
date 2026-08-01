@@ -558,3 +558,30 @@ def test_the_headline_rule_is_not_applied_to_a_filing(tmp_path):
     conn.close()
 
     assert deals.prune_parties(db_file)["dropped"] == 0
+
+
+def test_prune_clears_a_holder_named_instead_of_the_party(tmp_path):
+    """The headline parser steps over "BIOG portfolio company" now. This clears the row
+    it wrote before it did."""
+    db_file, conn, cid = _deals_db(tmp_path)
+    conn.execute(
+        "INSERT INTO deals (company_id, deal_type, counterparty, event_date, quote,"
+        "  event_date_source) VALUES (?, 'acquisition', 'BIOG', '2026-07-28',"
+        "  'argenx SE to acquire BIOG portfolio company, Forte Biosciences, Inc',"
+        "  'news')", (cid,))
+    conn.commit()
+    conn.close()
+    assert deals.prune_parties(db_file)["dropped"] == 1
+
+
+def test_a_company_with_subsidiaries_is_not_a_holder(tmp_path):
+    """The phrase has to sit right after the name. A headline that mentions a party and
+    a subsidiary elsewhere in the sentence is still that party's deal."""
+    db_file, conn, cid = _deals_db(tmp_path)
+    conn.execute(
+        "INSERT INTO deals (company_id, deal_type, counterparty, event_date, quote,"
+        "  event_date_source) VALUES (?, 'acquisition', 'Alpha Bio', '2026-07-28',"
+        "  'J&J to acquire Alpha Bio, expanding a subsidiary in Boston', 'news')", (cid,))
+    conn.commit()
+    conn.close()
+    assert deals.prune_parties(db_file)["dropped"] == 0

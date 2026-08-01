@@ -98,6 +98,15 @@ _DESCRIPTOR = re.compile(
     r"weight[- ]loss|anti[- ]obesity|treatment|therapy|drug|medicine|vaccine|"
     r"antibody|radiopharma|neuro|cardio|derma|respiratory|autoimmune)$")
 
+# A name that turns out to be the holder rather than the party. "argenx SE to acquire
+# BIOG portfolio company, Forte Biosciences, Inc" names the trust that owns Forte, and
+# the company being bought is the one after the phrase. Matched against what follows the
+# captured name, so the reader steps over the holder and takes the next name.
+_HOLDER = re.compile(
+    r"^\s*(?:'s|\u2019s)?\s*(?:portfolio\s+compan(?:y|ies)|subsidiar(?:y|ies)|"
+    r"affiliate|unit|division|arm|spin-?out|spin-?off|joint venture|group compan(?:y|ies)|"
+    r"holding|majority[- ]owned)\b[,:;\s]*", re.I)
+
 # Words a headline hangs off a name: "Innovent Biologics worth $8.85 billion".
 _TAIL = {"worth", "for", "in", "to", "with", "and", "over", "at", "as", "on", "up",
          "valued", "after", "amid", "deal", "agreement", "pact", "programme",
@@ -214,7 +223,16 @@ def parse_deal(headline: str, company_names) -> dict | None:
         match = re.search(rf"(?i:\b{verb})\s+{_NAME}", text)
         if not match:
             continue
-        counterparty = _clean_name(match.group("who"))
+        who = match.group("who")
+        # The captured name can be the holder rather than the party: "acquire BIOG
+        # portfolio company, Forte Biosciences". Step over the phrase and take the name
+        # after it, which is the company actually changing hands.
+        holder = _HOLDER.match(text[match.end():])
+        if holder:
+            after = re.match(_NAME, text[match.end() + holder.end():])
+            if after:
+                who = after.group("who")
+        counterparty = _clean_name(who)
         # An organisation, not the thing being bought. The capital-letter match takes
         # whatever follows the verb, which for "Acquires Selective PDE10A Inhibitor" is
         # the asset and for "acquire China rights" is a market.

@@ -331,3 +331,23 @@ def test_a_plain_deal_still_reads():
         "in vivo CAR-T Programs", ["Johnson & Johnson"])
     assert deal["counterparty"] == "Sail Biomedicines"
     assert deal["deal_type"] == "collaboration"
+
+
+def test_a_holder_is_stepped_over_to_reach_the_party():
+    """"argenx SE to acquire BIOG portfolio company, Forte Biosciences, Inc" names the
+    trust that owns Forte. BIOG is its ticker, and Forte is the company changing hands."""
+    deal = parse_deal(
+        "The Biotech Growth Trust PLC - argenx SE to acquire BIOG portfolio company, "
+        "Forte Biosciences, Inc - Investegate", ["argenx"])
+    assert deal["counterparty"] == "Forte Biosciences"
+
+
+def test_a_subsidiary_names_the_subsidiary():
+    deal = parse_deal("Roche to acquire Genentech subsidiary Alpha Bio for $400 million",
+                      ["Roche"])
+    assert deal["counterparty"] == "Alpha Bio"
+
+
+def test_a_plain_name_is_not_mistaken_for_a_holder():
+    deal = parse_deal("AbbVie acquires Gilgamesh Pharmaceuticals", ["AbbVie"])
+    assert deal["counterparty"] == "Gilgamesh Pharmaceuticals"

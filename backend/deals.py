@@ -241,6 +241,13 @@ _NOT_A_PARTY_ALONE = {
     "division", "subsidiary", "company", "group", "holdings", "partners", "capital",
 }
 
+# A holder named instead of the party. "argenx SE to acquire BIOG portfolio company,
+# Forte Biosciences" names the trust that owns Forte; the headline parser steps over the
+# phrase now, and this clears what it wrote before it did.
+_HOLDER_PHRASE = re.compile(
+    r"\b(?:portfolio\s+compan(?:y|ies)|subsidiar(?:y|ies)|affiliate|spin-?out|"
+    r"spin-?off|group compan(?:y|ies)|majority[- ]owned)\b", re.I)
+
 # A corporate or scientific marker: enough on its own to make a phrase a party.
 _ORGANISATION = re.compile(
     r"\b(?:inc|llc|l\.l\.c|ltd|limited|plc|ag|a/s|s\.?a|n\.?v|gmbh|k\.?k|co|corp|"
@@ -733,8 +740,14 @@ def prune_parties(db_path=None) -> dict:
             # and a sentence about an acquisition will mention a headquarters or an award
             # in passing without being about either.
             from_news = (row["event_date_source"] or "") == "news" or not row["accession"]
-            if not is_party(tidy) or (from_news
-                                      and NOT_OUR_DEAL.search(row["quote"] or "")):
+            quote = row["quote"] or ""
+            # A holder named where the party should be. The phrase sits right after the
+            # captured name in the headline, which is how it is told from a company that
+            # genuinely has subsidiaries.
+            holder = bool(re.search(re.escape(tidy) + r"\W+" + _HOLDER_PHRASE.pattern,
+                                    quote, re.I)) if from_news else False
+            if not is_party(tidy) or holder or (
+                    from_news and NOT_OUR_DEAL.search(quote)):
                 conn.execute("DELETE FROM deals WHERE id = ?", (row["id"],))
                 dropped += 1
             elif tidy != row["counterparty"]:

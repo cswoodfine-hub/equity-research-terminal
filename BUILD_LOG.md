@@ -887,3 +887,10 @@ real rates dated 2026-07-24; append-only, no other mutation.
   two is a person's initials, so J P Morgan is left alone.
 - A publisher's hyphenated description is trimmed too. "Prostate Cancer Treatment-Maker
   Halda" and "CT-based Halda Therapeutics" were two more rows for one deal.
+- BIOG was the last one, and it was a holder rather than a party: "argenx SE to acquire
+  BIOG portfolio company, Forte Biosciences, Inc" names the trust that owns Forte, and
+  BIOG is its ticker. The parser steps over a holder phrase now, portfolio company,
+  subsidiary, affiliate, spin-out, and takes the name after it, so the row reads Forte
+  Biosciences. The prune clears the ones written before it did, matching the phrase only
+  where it sits directly after the captured name: a headline that mentions a subsidiary
+  elsewhere in the sentence is still that party's deal.
