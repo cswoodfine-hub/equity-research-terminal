@@ -283,3 +283,51 @@ def test_links_a_filed_deal_to_the_article_that_announced_it(tmp_path):
     conn.close()
     assert row["article_url"] == "https://n/0"          # the announcement, for the card
     assert "sec.gov" in row["source_url"]               # the filing it was read from
+
+
+def test_a_hyphenated_description_is_trimmed_off_a_name():
+    """"Prostate Cancer Treatment-Maker Halda Therapeutics" and "CT-based Halda
+    Therapeutics" are one company described two ways, and left in they read as two more
+    deals than there were."""
+    deal = parse_deal(
+        "Johnson & Johnson Acquires Prostate Cancer Treatment-Maker Halda Therapeutics "
+        "For $3.1 Billion", ["Johnson & Johnson"])
+    assert deal["counterparty"] == "Halda Therapeutics"
+
+
+def test_a_roundup_names_nobody_s_deal():
+    """A roundup pairs three companies wrongly: WHO ended up against J&J because the
+    headline named Gilead first."""
+    assert parse_deal(
+        "Pharma M&A Roundup: Gilead Sciences Expands Collaboration with World Health "
+        "Organization, Johnson & Johnson Enters Collaboration with Department of Health",
+        ["Johnson & Johnson"]) is None
+
+
+def test_an_award_partnership_is_not_business_development():
+    assert parse_deal(
+        "Johnson & Johnson Announces Collaboration with TIME to Introduce New Healthcare "
+        "Champion of the Year Award", ["Johnson & Johnson"]) is None
+
+
+def test_a_property_deal_that_names_a_company_is_not_its_deal():
+    assert parse_deal(
+        "Rubicon Point Partners Acquires Shockwave Medical Headquarters Campus In "
+        "Silicon Valley", ["Johnson & Johnson"]) is None
+
+
+def test_the_asset_after_the_verb_is_not_the_party():
+    """"Axsome Therapeutics Acquires Selective PDE10A Inhibitor" names no counterparty,
+    and "AstraZeneca to acquire China rights" names a market."""
+    assert parse_deal("Axsome Therapeutics Acquires Selective PDE10A Inhibitor",
+                      ["Axsome Therapeutics"]) is None
+    assert parse_deal("AstraZeneca to acquire China rights for AbelZeta CAR-T therapy",
+                      ["AstraZeneca"]) is None
+
+
+def test_a_plain_deal_still_reads():
+    deal = parse_deal(
+        "Johnson & Johnson Announces Collaboration with Sail Biomedicines to Advance "
+        "in vivo CAR-T Programs", ["Johnson & Johnson"])
+    assert deal["counterparty"] == "Sail Biomedicines"
+    assert deal["deal_type"] == "collaboration"

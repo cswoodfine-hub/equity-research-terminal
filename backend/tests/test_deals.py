@@ -456,3 +456,105 @@ def test_a_stored_release_costs_no_fetch(tmp_path):
     result = deals.enrich(db_file, get=get)
     assert result == {"filled": 1, "fetched": 0, "errors": []}
     assert calls == []
+
+
+# --- what counts as a counterparty ------------------------------------------------------
+
+def test_a_company_is_a_party():
+    for name in ("Sail Biomedicines", "Firefly Bio", "Madrigal Pharmaceuticals",
+                 "RemeGen", "Modella AI", "Viz.ai", "Kyowa Kirin Co., Ltd.",
+                 "Thermo Fisher Scientific", "West Pharmaceutical Services",
+                 "Bio Palette Co., Ltd.", "Mayo Clinic", "US WorldMeds"):
+        assert deals.is_party(name), name
+
+
+def test_the_thing_being_bought_is_not_the_party():
+    """"Arrowhead licenses Clinical MASH Program Targeting PNPLA3 to Madrigal" names
+    Madrigal, and "Axsome Acquires Selective PDE10A Inhibitor" names nobody."""
+    assert not deals.is_party("MASH Program Targeting PNPLA3")
+    assert not deals.is_party("Selective PDE10A Inhibitor")
+    assert not deals.is_party("Biologics License Application")
+
+
+def test_a_building_is_not_a_company():
+    """"Rubicon Point Partners Acquires Shockwave Medical Headquarters Campus" is a
+    real-estate deal that mentions a covered company's address."""
+    assert not deals.is_party("Shockwave Medical Headquarters Campus")
+
+
+def test_a_bare_noun_left_by_a_truncated_name_is_not_a_party():
+    """The capital-letter match stops where a name runs on in lower case: "acquire China
+    rights", "Collaboration with Department of Health - Abu Dhabi"."""
+    assert not deals.is_party("China")
+    assert not deals.is_party("Department")
+    assert not deals.is_party("Application")
+
+
+def test_letters_a_filer_spaced_out_are_rejoined():
+    """A contract exhibit renders with letter spacing: "K YOWA K IRIN C O ., L TD ."."""
+    assert deals.unspace("K YOWA K IRIN C O ., L TD .") == "KYOWA KIRIN CO., LTD."
+
+
+def test_two_initials_are_left_alone():
+    """Three or more single letters is a rendering artefact; two is a person."""
+    assert deals.unspace("J P Morgan") == "J P Morgan"
+
+
+def test_a_roundup_is_not_one_company_s_deal():
+    """"Pharma M&A Roundup: Gilead Expands Collaboration with World Health Organization,
+    Johnson & Johnson Enters Collaboration with Department of Health" put WHO against
+    J&J."""
+    assert deals.NOT_OUR_DEAL.search(
+        "Pharma M&A Roundup: Gilead Sciences Expands Collaboration with WHO")
+
+
+def test_a_marketing_tie_up_is_not_business_development():
+    assert deals.NOT_OUR_DEAL.search(
+        "Johnson & Johnson Announces Collaboration with TIME to Introduce New "
+        "Healthcare Champion of the Year Award")
+
+
+def test_prune_clears_a_party_that_is_not_one(tmp_path):
+    db_file, conn, cid = _deals_db(tmp_path)
+    conn.execute("INSERT INTO deals (company_id, deal_type, counterparty, event_date,"
+                 "  quote, event_date_source) VALUES (?, 'acquisition', 'China',"
+                 "  '2026-01-19', 'AstraZeneca to acquire China rights', 'news')", (cid,))
+    conn.execute("INSERT INTO deals (company_id, deal_type, counterparty, event_date,"
+                 "  quote, event_date_source) VALUES (?, 'collaboration',"
+                 "  'Sail Biomedicines', '2026-07-29', 'J&J and Sail', 'news')", (cid,))
+    conn.commit()
+    conn.close()
+
+    assert deals.prune_parties(db_file)["dropped"] == 1
+    kept = deals.recent(db_file, "JNJ", today=dt.date(2026, 7, 30))
+    assert [d["counterparty"] for d in kept] == ["Sail Biomedicines"]
+
+
+def test_prune_rejoins_a_spaced_name(tmp_path):
+    db_file, conn, cid = _deals_db(tmp_path)
+    conn.execute("INSERT INTO deals (company_id, deal_type, counterparty, event_date,"
+                 "  quote, accession) VALUES (?, 'collaboration',"
+                 "  'K YOWA K IRIN C O ., L TD .', '2026-01-30', 'a contract', '0001-1')",
+                 (cid,))
+    conn.commit()
+    conn.close()
+
+    assert deals.prune_parties(db_file) == {"dropped": 0, "fixed": 1}
+    kept = deals.recent(db_file, "JNJ", today=dt.date(2026, 2, 1))
+    assert kept[0]["counterparty"] == "KYOWA KIRIN CO., LTD."
+
+
+def test_the_headline_rule_is_not_applied_to_a_filing(tmp_path):
+    """A filing's quote is prose. A sentence about an acquisition mentions a headquarters
+    or an award in passing without being about either, and applying a headline rule to it
+    deleted a real deal."""
+    db_file, conn, cid = _deals_db(tmp_path)
+    conn.execute("INSERT INTO deals (company_id, deal_type, counterparty, event_date,"
+                 "  quote, accession, event_date_source) VALUES (?, 'acquisition',"
+                 "  'Vidya Therapeutics', '2026-07-30',"
+                 "  'We acquired Vidya Therapeutics, whose headquarters are in Boston.',"
+                 "  '0002-1', 'filing')", (cid,))
+    conn.commit()
+    conn.close()
+
+    assert deals.prune_parties(db_file)["dropped"] == 0

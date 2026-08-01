@@ -193,13 +193,110 @@ def _party_key(counterparty: str) -> str:
     return tokens[0] if tokens else (counterparty or "").lower()
 
 
+# A headline this route must not read as a deal, however plainly it reads as one.
+#
+# A roundup names three companies and pairs them wrongly: "Pharma M&A Roundup: Gilead
+# Expands Collaboration with World Health Organization, Johnson & Johnson Enters
+# Collaboration with Department of Health" put WHO against J&J.
+#
+# A marketing tie-up is not business development: "Johnson & Johnson Announces
+# Collaboration with TIME to Introduce New Healthcare Champion of the Year Award".
+#
+# And a property transaction that mentions a company's address is somebody else's deal:
+# "Rubicon Point Partners Acquires Shockwave Medical Headquarters Campus".
+NOT_OUR_DEAL = re.compile(
+    r"\broundup\b|\bround-up\b|\bdigest\b|\bin brief\b|\bbriefs\b|"
+    r"\bthis week in\b|\bweekly\b|\bwrap[- ]?up\b|"
+    r"\baward\b|\bprize\b|\bsponsors(?:hip)?\b|\bchampion of the year\b|"
+    r"\bheadquarters\b|\bcampus\b|\breal estate\b|\blease\b", re.I)
+
+
+# --- what counts as a counterparty ------------------------------------------------------
+
+# A deal has two parties. Everything below was captured as one and is not, every case
+# taken from a row this produced before the test existed.
+#
+# The thing being bought is not the party buying it: "Arrowhead licenses Clinical MASH
+# Program Targeting PNPLA3 to Madrigal" names Madrigal, and "Axsome Acquires Selective
+# PDE10A Inhibitor" names nobody. A building is not a company either: "Rubicon Point
+# Partners Acquires Shockwave Medical Headquarters Campus" is a real-estate deal that
+# mentions a covered company's address.
+# Disqualifying on its own, whatever else the phrase contains: "Shockwave Medical
+# Headquarters Campus" carries a corporate word and is a building.
+_NOT_A_PARTY_WORD = re.compile(
+    r"\b(?:program(?:me)?|inhibitor|antibod(?:y|ies)|candidate|compound|molecule|"
+    r"asset|portfolio|pipeline|licen[sc]e|application|rights?|royalt(?:y|ies)|campus|"
+    r"headquarters|facility|facilities|plant|building|stake|shares?|option|"
+    r"agreement|collaboration|partnership)\b", re.I)
+
+# A single word that is a place, a public body or an ordinary noun. These reach the field
+# when a headline's name runs on in lower case and the capital-letter match stops early:
+# "acquire China rights", "Collaboration with Department of Health - Abu Dhabi".
+_NOT_A_PARTY_ALONE = {
+    "china", "japan", "india", "korea", "europe", "america", "africa", "asia", "brazil",
+    "canada", "mexico", "australia", "germany", "france", "spain", "italy", "israel",
+    "department", "ministry", "government", "commission", "agency", "authority",
+    "university", "hospital", "institute", "foundation", "trust", "council", "board",
+    "application", "programme", "program", "product", "products", "business", "unit",
+    "division", "subsidiary", "company", "group", "holdings", "partners", "capital",
+}
+
+# A corporate or scientific marker: enough on its own to make a phrase a party.
+_ORGANISATION = re.compile(
+    r"\b(?:inc|llc|l\.l\.c|ltd|limited|plc|ag|a/s|s\.?a|n\.?v|gmbh|k\.?k|co|corp|"
+    r"corporation|company|holdings?|group|se|oyj|ab|bv|pte|therapeutics?|pharmaceuticals?|"
+    r"pharma|biosciences?|bioscience|biotherapeutics?|biopharma|biopharmaceuticals?|"
+    r"biologics?|medicines?|labs?|laboratories|sciences?|health|healthcare|medical|"
+    r"oncology|genomics?|bio|technologies|systems|partners|ventures)\b\.?", re.I)
+
+# Letters spaced out by the filer's HTML: "K YOWA K IRIN C O ., L TD ." A single capital
+# followed by more capitals is one word broken apart, not two words.
+_SPACED_OUT = re.compile(r"\b([A-Z])\s+(?=[A-Z])")
+
+
+def unspace(name: str) -> str:
+    """Rejoin a name the filing's HTML spaced out letter by letter.
+
+    Only where the damage is unmistakable: three or more single-letter tokens in one name
+    is a rendering artefact, and two is a person's initials.
+    """
+    singles = sum(1 for token in (name or "").split() if len(token.strip(".,")) == 1)
+    if singles < 3:
+        return name
+    joined = _SPACED_OUT.sub(r"\1", name)
+    return re.sub(r"\s+([.,])", r"\1", joined).strip()
+
+
+def is_party(name: str) -> bool:
+    """Whether this names an organisation the company did a deal with.
+
+    Deliberately strict. A wrong party is worse than a missing one: it puts another
+    company's transaction on this company's page, and the panel is read as a record of
+    what the company did.
+    """
+    name = (name or "").strip()
+    if len(name) < 2 or not any(c.isalpha() for c in name):
+        return False
+    words = [w for w in re.split(r"[\s,]+", name) if w]
+    if len(words) == 1 and words[0].strip(".").lower() in _NOT_A_PARTY_ALONE:
+        return False
+    if _NOT_A_PARTY_WORD.search(name):
+        return False
+    # A phrase of ordinary words with no corporate marker is a description, not a name.
+    if _ORGANISATION.search(name):
+        return True
+    return all(w[0].isupper() or not w[0].isalpha() for w in words)
+
+
 def _validate_one(deal: dict, haystack: str, document: str) -> dict | None:
     deal_type = (deal.get("deal_type") or "").strip().lower()
     if deal_type not in _DEAL_TYPES:
         return None
-    counterparty = (deal.get("counterparty") or "").strip()
+    counterparty = unspace((deal.get("counterparty") or "").strip())
     quote = (deal.get("quote") or "").strip()
     if not counterparty or _normalise(counterparty) not in haystack:
+        return None
+    if not is_party(counterparty):
         return None
     needle = _normalise(quote)
     if len(needle) < 25 or needle[:120] not in haystack:
@@ -612,3 +709,39 @@ def enrich(db_path=None, limit: int = MAX_LIVE_LOOKUPS, get=None) -> dict:
     finally:
         conn.close()
     return {"filled": filled, "fetched": looked_up, "errors": errors}
+
+
+def prune_parties(db_path=None) -> dict:
+    """Drop deals whose counterparty is not one, and rejoin the names a filer spaced out.
+
+    The party test guards new rows; this clears the ones written before it existed and
+    keeps clearing them, so a rule tightened later reaches the whole table rather than
+    only what arrives after it.
+    """
+    conn = db.get_connection(db_path)
+    dropped = fixed = 0
+    try:
+        for row in conn.execute(
+                "SELECT id, counterparty, quote, event_date_source, accession"
+                "  FROM deals WHERE counterparty IS NOT NULL"
+                "  AND deal_type IN ('acquisition', 'licensing', 'collaboration',"
+                "                    'divestiture')").fetchall():
+            tidy = unspace(row["counterparty"].strip())
+            # For a news-sourced row the quote is the headline, so the rule that stops a
+            # roundup or an award being read as a deal also clears the rows written
+            # before it existed. It is not applied to a filing's quote: that is prose,
+            # and a sentence about an acquisition will mention a headquarters or an award
+            # in passing without being about either.
+            from_news = (row["event_date_source"] or "") == "news" or not row["accession"]
+            if not is_party(tidy) or (from_news
+                                      and NOT_OUR_DEAL.search(row["quote"] or "")):
+                conn.execute("DELETE FROM deals WHERE id = ?", (row["id"],))
+                dropped += 1
+            elif tidy != row["counterparty"]:
+                conn.execute("UPDATE deals SET counterparty = ? WHERE id = ?",
+                             (tidy, row["id"]))
+                fixed += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return {"dropped": dropped, "fixed": fixed}

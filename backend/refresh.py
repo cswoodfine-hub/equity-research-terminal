@@ -189,6 +189,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # What a deal pays, out of the press release furnished with the 8-K. A deal
     # caught from a news headline arrives with a counterparty and no size, and the
     # text that states the terms is already stored by the filing-text fetch.
+    # A counterparty that is not a party puts another company's transaction on this
+    # company's page, so the table is cleared of them before the terms are read.
+    mapped["deal_parties"] = deals.prune_parties(db_path)["dropped"]
     mapped["deal_terms"] = deals.enrich(db_path)["filled"]
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
@@ -306,6 +309,9 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # What a deal pays, out of the press release furnished with the 8-K. A deal
     # caught from a news headline arrives with a counterparty and no size, and the
     # text that states the terms is already stored by the filing-text fetch.
+    # A counterparty that is not a party puts another company's transaction on this
+    # company's page, so the table is cleared of them before the terms are read.
+    mapped["deal_parties"] = deals.prune_parties(db_path)["dropped"]
     mapped["deal_terms"] = deals.enrich(db_path)["filled"]
     readouts = catalysts.derive_readouts(db_path)
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces

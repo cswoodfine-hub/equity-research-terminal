@@ -858,3 +858,32 @@ real rates dated 2026-07-24; append-only, no other mutation.
 - The deals header stops counting the absence too. "$3.6bn announced across 2 of 6" said
   in the header what the cards had stopped saying on every row. It reads "$3.6bn
   announced" now, beside the deal count that was always there.
+
+## A counterparty has to be a party — 2026-07-30
+- Every bad row on the deals panel was the same mistake in five shapes, and all of them
+  came from a news headline rather than a filing. The thing being bought read as the
+  buyer: "Axsome Acquires Selective PDE10A Inhibitor" named an asset and "Arrowhead
+  Licenses Clinical MASH Program Targeting PNPLA3 to Madrigal" named the programme rather
+  than Madrigal. A truncated name left a bare noun: the capital-letter match stops where a
+  name runs on in lower case, so "acquire China rights" gave "China" and "Collaboration
+  with Department of Health - Abu Dhabi" gave "Department". A building read as a company:
+  "Rubicon Point Partners Acquires Shockwave Medical Headquarters Campus" is a real-estate
+  deal that mentions a covered company's address. A roundup paired the wrong two parties:
+  the World Health Organization ended up against Johnson & Johnson because the headline
+  named Gilead first. And a marketing tie-up read as business development: a Champion of
+  the Year award.
+- is_party() is the test, applied in both routes so the model and the headline parser are
+  guarded by the same rule. Deliberately strict: a wrong party puts another company's
+  transaction on this company's page, and the panel is read as a record of what the
+  company did.
+- Twenty rows cleared from the table, and prune_parties keeps clearing them, so a rule
+  tightened later reaches what was already written rather than only what arrives after it.
+- One thing that had to be scoped rather than shared. Applying the headline rule to a
+  filing's quote deleted a real J&J acquisition, because a sentence about acquiring a
+  company mentions its headquarters in passing. The rule now runs only where the quote is
+  a headline.
+- A filer's HTML that spaces letters out is rejoined: "K YOWA K IRIN C O ., L TD ." became
+  "KYOWA KIRIN CO., LTD.". Three or more single-letter tokens is a rendering artefact and
+  two is a person's initials, so J P Morgan is left alone.
+- A publisher's hyphenated description is trimmed too. "Prostate Cancer Treatment-Maker
+  Halda" and "CT-based Halda Therapeutics" were two more rows for one deal.

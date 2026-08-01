@@ -27,6 +27,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 import db
+import deals
 from fetchers.base import BaseFetcher, RefreshResult
 
 SOURCE = "deals_news"
@@ -88,6 +89,14 @@ _LEAD = {
     "connecticut", "massachusetts", "california", "texas", "ai", "digital", "medical",
     "device", "obesity", "immunology", "inflammatory", "radiopharmaceutical",
 }
+
+# What a publisher hyphenates in front of a name, and the diseases it leads with.
+# "Prostate Cancer Treatment-Maker Halda" is Halda described, not a company called that.
+_DESCRIPTOR = re.compile(
+    r"^(?:[\w']+-(?:maker|based|focused|backed|owned|led|stage|listed)|"
+    r"prostate|breast|lung|kidney|liver|skin|blood|brain|rare|orphan|"
+    r"weight[- ]loss|anti[- ]obesity|treatment|therapy|drug|medicine|vaccine|"
+    r"antibody|radiopharma|neuro|cardio|derma|respiratory|autoimmune)$")
 
 # Words a headline hangs off a name: "Innovent Biologics worth $8.85 billion".
 _TAIL = {"worth", "for", "in", "to", "with", "and", "over", "at", "as", "on", "up",
@@ -164,14 +173,27 @@ def _clean_name(raw: str) -> str | None:
     def token(word: str) -> str:
         return word.lower().strip(".,'\u2019")
 
+    def describes(word: str) -> bool:
+        """Whether a leading word describes the company rather than naming it.
+
+        The set catches the plain ones. The pattern catches what a publisher hyphenates:
+        "Prostate Cancer Treatment-Maker Halda" and "CT-based Halda Therapeutics" are the
+        same company described two ways, and left in they read as two more.
+        """
+        low = token(word)
+        return low in _LEAD or bool(_DESCRIPTOR.match(low))
+
     words = raw.strip(" .,'").split()
-    while words and token(words[0]) in _LEAD:
+    # Stop before the last word: everything cannot be a description, and a company
+    # genuinely called by a descriptor word keeps its name.
+    while len(words) > 1 and describes(words[0]):
         words.pop(0)
     while words and token(words[-1]) in _TAIL:
         words.pop()
     if not words or token(words[0]) in _NOT_A_NAME:
         return None
-    name = " ".join(words)
+    # Trimming "Ltd." off "Bio Palette Co., Ltd." leaves the comma behind it.
+    name = " ".join(words).strip(" ,;:-")
     return name if len(name) >= 3 else None
 
 
@@ -184,7 +206,7 @@ def parse_deal(headline: str, company_names) -> dict | None:
     round, and only one of them is the counterparty.
     """
     text = _clean_title(headline)
-    if not text or _COMMENTARY.search(text):
+    if not text or _COMMENTARY.search(text) or deals.NOT_OUR_DEAL.search(text):
         return None
     for verb, deal_type in _DEAL_VERBS:
         # The verb is read whatever its case; the name is not, so the capitals stay
@@ -193,7 +215,10 @@ def parse_deal(headline: str, company_names) -> dict | None:
         if not match:
             continue
         counterparty = _clean_name(match.group("who"))
-        if not counterparty:
+        # An organisation, not the thing being bought. The capital-letter match takes
+        # whatever follows the verb, which for "Acquires Selective PDE10A Inhibitor" is
+        # the asset and for "acquire China rights" is a market.
+        if not counterparty or not deals.is_party(counterparty):
             continue
         # A headline naming the searched company after the verb is the passive voice
         # ("X acquired by Lilly"), which names no counterparty this way round.
