@@ -279,10 +279,16 @@ h3 {{ font-size: 0.9rem; }}
 
 /* A byline folded to one line. The Universe tab has to fit a screen and its notes are
    long, so they collapse rather than going away. */
-.note-d {{ margin: 0.1rem 0 0.2rem; }}
+/* Closed, the note is a one-line label, but it sat in a full element slot with the 8px
+   block gap above and below, so a line that says nothing cost thirty pixels of the page.
+   The slot is pulled in to the height of the label itself and gives the space back when
+   the note is opened. */
+.note-d {{ margin: 0; }}
+[data-testid="stElementContainer"]:has(.note-d) {{ margin: -8px 0 -7px; }}
+[data-testid="stElementContainer"]:has(.note-d[open]) {{ margin: -4px 0 0.2rem; }}
 .note-d > summary {{ list-style: none; cursor: pointer; display: inline-block;
                     font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase;
-                    color: var(--rule-strong); padding: 1px 0; }}
+                    color: var(--rule-strong); padding: 0; line-height: 1.3; }}
 .note-d > summary::-webkit-details-marker {{ display: none; }}
 .note-d > summary:hover, .note-d[open] > summary {{ color: var(--muted); }}
 .note-d .byline {{ margin-top: 0.2rem; }}
