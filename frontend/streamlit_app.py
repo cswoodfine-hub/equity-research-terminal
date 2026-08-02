@@ -61,6 +61,16 @@ PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "P
 # so the cut costs a click rather than the fact.
 _LEAD_CHARS = 76
 
+# The window the coverage grid reads, and how it is named. A year rather than a quarter,
+# because the map beside it already reads a quarter and two views of one window are one
+# view printed twice.
+COVERAGE_DAYS = 365
+COVERAGE_MONTHS = 12
+
+# Only used to name the map's window in the coverage note on the rare render where
+# the map itself did not draw. The map's own payload states it and overrides this.
+MARKETMAP_FALLBACK_DAYS = 90
+
 # How many forward-dated boxes fit before the list stops being a view and starts being a
 # table. The rest are on each company's own Catalysts tab. Two across in half the page,
 # so an even count fills its last row.
@@ -1315,23 +1325,26 @@ with main:
         # The universe view leads with FDA approvals, the cleanest cross-coverage signal,
         # drawn on a date axis rather than a jargon-heavy list; the full change feed with
         # filings, trial moves and risk-factor edits lives on each company's Key insights.
-        approvals = []
-        for it in universe_feed:
-            if it.get("change_type") != "new_approval":
-                continue
-            drug = (it.get("headline") or "").split("FDA approval:", 1)[-1].strip()
-            # The headline carries the application number in brackets, which is what
-            # identifies the product on the Portfolio tab; it rides along as the click
-            # key so a mark can open its own fact sheet.
-            appno = re.search(r"\(([A-Za-z]{2,4}\s?\d+)\)", drug)
-            tk = it.get("ticker") or ""
-            approvals.append({"ticker": tk,
-                              "label": drug.split(" (")[0].strip(),
-                              "date": it.get("date"),
-                              "key": (f"{tk}|{appno.group(1).replace(' ', '')}"
-                                      if appno and tk else ""),
-                              "full": f"{drug} — {(it.get('date') or '')[:10]}"})
-        section(f"FDA approvals across {_engine_name}", f"{len(approvals)} on the tape")
+        # Year to date, read from the approvals themselves rather than from the change
+        # feed. The feed is bounded by how far back the diff engine looks, so the tape's
+        # span moved with the refresh and opened wherever the oldest surviving change
+        # happened to sit: mid-March, on a page whose other windows are a quarter and a
+        # year. A year to date is a span a reader chose.
+        _ytd = dt.date(dt.date.today().year, 1, 1)
+        approvals = [
+            {"ticker": a["ticker"],
+             "label": a["label"],
+             "date": a["date"],
+             # The application number is what identifies the product on the Portfolio
+             # tab, so it rides along as the click key and a mark opens its fact sheet.
+             "key": (f'{a["ticker"]}|{(a["application_number"] or "").replace(" ", "")}'
+                     if a.get("application_number") and a.get("ticker") else ""),
+             "full": f'{a["label"]} ({a["application_number"] or "no number"})'
+                     f' — {(a["date"] or "")[:10]}'}
+            for a in api_get(api_base, f"/approvals?since={_ytd.isoformat()}")["approvals"]
+            if a["ticker"] in _covered]
+        section(f"FDA approvals across {_engine_name}",
+                f"{len(approvals)} year to date")
         if not approvals:
             # An empty tape means two different things, and pointing at the refresh button
             # for both of them reads as a broken fetcher when it is a quiet cohort. If the
@@ -1345,7 +1358,7 @@ with main:
                    "the top bar to pull the sources."))
         else:
             approvnav.approvals_nav(
-                CH.approvals_timeline(approvals, 1360, 84, dt.date.today()),
+                CH.approvals_timeline(approvals, 1360, 84, dt.date.today(), start=_ytd),
                 muted=TK.MUTED, key="appr_nav")
 
         # The two summary views side by side: where the money is on this engine, and
@@ -1358,12 +1371,16 @@ with main:
         # the small companies, while the forward list is text that wraps at any width and
         # was running half empty down its last two rows.
         _map_col, _ahead_col = st.columns([3, 2], gap="medium")
+        # The map states the window it colours. Held here so the coverage note
+        # below can name it without a second copy of a number owned by the API.
+        _map_days = MARKETMAP_FALLBACK_DAYS
         with _map_col:
             # The group at a glance before the ninety panels that show each shape. Area is
             # what the engine runs on and colour is the move, read independently: a large box
             # that is deep red is the thing this view exists to show.
             mmap = api_get(api_base,
                            f"/marketmap?engine={urllib.parse.quote(engine or '')}")
+            _map_days = mmap.get("window_days") or _map_days
             if mmap.get("rows"):
                 unsized = len(mmap.get("unsized") or [])
                 # Short, because the column is half a page wide; the byline below
@@ -1408,8 +1425,14 @@ with main:
                             unsafe_allow_html=True)
 
 
-        section("Coverage, 90 days", f"{len(_covered)} companies, one scale")
-        panels = [p for p in api_get(api_base, "/price-grid?days=90")
+        # A year, where the map above reads a quarter. The two were the same window and
+        # so the same fact drawn twice, once as colour and once as a line: nothing on the
+        # page said anything the other did not. Set a year apart they answer different
+        # questions, and the interesting companies are the ones where the answers differ.
+        # Bayer is up 29% on the quarter and 70% on the year; Merck is up 15% and 64%.
+        section(f"Coverage, {COVERAGE_MONTHS} months",
+                f"{len(_covered)} companies, one scale")
+        panels = [p for p in api_get(api_base, f"/price-grid?days={COVERAGE_DAYS}")
                   if p["ticker"] in _covered]
         if any(p["closes"] for p in panels):
             shown = sorted(panels, key=lambda p: p["ticker"])
@@ -1421,7 +1444,12 @@ with main:
                      for p in shown], 1360, 112, cols=_coverage_columns(len(shown)),
                     link_base="?ticker="),
                 muted=TK.MUTED, key="cov_nav")
-            note("Click a panel to jump straight to that company's Key insights.")
+            note(f"Each panel is {COVERAGE_MONTHS} months of closes indexed to its own "
+                 "start, all on one scale, so a flat line means flat rather than "
+                 f"autoscaled noise. The map above colours the last {_map_days} "
+                 "days: a company green there and flat here had a good quarter in a "
+                 "dull year, and the reverse is a year that has finished running. "
+                 "Click a panel to jump straight to that company's Key insights.")
         else:
             state("No price history yet",
                   "Press Refresh all in the top bar to pull daily closes.")

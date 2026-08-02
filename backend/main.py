@@ -703,6 +703,37 @@ def engines_board() -> dict:
     return engines_module.build()
 
 
+@app.get("/approvals")
+def universe_approvals(since: str = Query(default="")) -> dict:
+    """Every FDA approval across the universe on or after ``since``, oldest first.
+
+    The universe tape used to read the change feed, which is bounded by how far back the
+    diff engine looks and so gave a window that moved with the refresh rather than one a
+    reader chose. This reads the approvals themselves, so a caller asks for the span it
+    means to draw.
+    """
+    conn = db.get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT c.ticker, a.brand_name, a.generic_name, ap.approval_date,
+                   ap.application_number, ap.indication_text
+              FROM approvals ap
+              JOIN assets a ON a.id = ap.asset_id
+              JOIN companies c ON c.id = a.owner_company_id
+             WHERE ap.approval_date IS NOT NULL AND ap.approval_date >= ?
+             ORDER BY ap.approval_date
+            """, (since or "0001-01-01",)).fetchall()
+    finally:
+        conn.close()
+    return {"since": since, "approvals": [
+        {"ticker": r["ticker"],
+         "label": r["brand_name"] or r["generic_name"] or "",
+         "date": r["approval_date"],
+         "application_number": r["application_number"],
+         "indication": r["indication_text"]} for r in rows]}
+
+
 @app.get("/engines/catalogue")
 def engines_catalogue() -> dict:
     """The three engines by name. What the front door needs and nothing else."""
