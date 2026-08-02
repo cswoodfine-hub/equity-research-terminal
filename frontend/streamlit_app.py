@@ -57,20 +57,19 @@ LANDING_TOKENS = {
     "font-ui": TK.FONT_UI, "font-mono": TK.FONT_MONO, "font-prose": TK.FONT_PROSE,
 }
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
-# What a filing states when there is no trial yet, most advanced first. Mirrors
-# pipeline_filing.STAGES: these are headings a programme sits under, below every phase.
-# How many forward-dated boxes fit before the list stops being a view and
-# starts being a table. The rest are on each company's own Catalysts tab.
-# How long a headline runs before it is cut. The full text is always the first row
-# of the box's own detail.
-_LEAD_CHARS = 104
+# How long a headline runs before it is cut, chosen to hold the box to two lines at the
+# width six of them take. The full text is always the first row of the box's own detail,
+# so the cut costs a click rather than the fact.
+_LEAD_CHARS = 76
 
-# Two across in half the page, so an even count fills its last row.
+# How many forward-dated boxes fit before the list stops being a view and starts being a
+# table. The rest are on each company's own Catalysts tab. Two across in half the page,
+# so an even count fills its last row.
 _AHEAD_SHOWN = 6
 
-# The coverage grid draws this many of the covered companies, the ones that moved most.
-_COVERAGE_SHOWN = 12
 
+# What a filing states when there is no trial yet, most advanced first. Mirrors
+# pipeline_filing.STAGES: these are headings a programme sits under, below every phase.
 FILING_STAGES = ["IND cleared", "IND-enabling", "Development candidate", "Preclinical",
                  "Discovery"]
 # Charts collapse the two seamless phases into the phase each one reaches, which is the
@@ -713,6 +712,18 @@ def _lead_columns(count: int, per_row: int) -> int:
         return 1
     rows = -(-count // max(per_row, 1))
     return -(-count // rows)
+
+
+def _coverage_columns(count: int, max_rows: int = 2, widest: int = 12) -> int:
+    """Columns for the coverage grid: every company drawn, in as few rows as fit.
+
+    Dropping companies to hold the height was the wrong trade. A panel is a shape, not a
+    figure, and a shape stays readable at half the width, so the grid gets wider rather
+    than shorter and the whole cohort is on the screen at once.
+    """
+    if count <= 0:
+        return 1
+    return min(max(-(-count // max(max_rows, 1)), 1), widest)
 
 
 def _leads(items, per_row: int, narrow_per_row: int) -> str:
@@ -1408,22 +1419,18 @@ with main:
                             unsafe_allow_html=True)
 
 
-        section("Coverage, 90 days",
-                f"the {_COVERAGE_SHOWN} that moved most of {len(_covered)}, one scale")
+        section("Coverage, 90 days", f"{len(_covered)} companies, one scale")
         panels = [p for p in api_get(api_base, "/price-grid?days=90")
                   if p["ticker"] in _covered]
         if any(p["closes"] for p in panels):
-            # Two rows at a glance, ordered by the move so the ends of the distribution
-            # are the ones on screen. The tab has to fit a screen and the grid is the
-            # tallest thing on it; every company is still one click away in the picker.
-            shown = sorted(panels, key=lambda p: -(abs(p["change"] or 0)))[:_COVERAGE_SHOWN]
-            shown.sort(key=lambda p: p["ticker"])
+            shown = sorted(panels, key=lambda p: p["ticker"])
             covnav.coverage_nav(
                 CH.small_multiples(
                     [{"label": p["ticker"],
                       "values": _pct_from_start(p["closes"] or []),
                       "sub": T.pct(p["change"] * 100) if p["change"] is not None else ""}
-                     for p in shown], 1360, 112, cols=6, link_base="?ticker="),
+                     for p in shown], 1360, 112, cols=_coverage_columns(len(shown)),
+                    link_base="?ticker="),
                 muted=TK.MUTED, key="cov_nav")
             note("Click a panel to jump straight to that company's Key insights.")
         else:

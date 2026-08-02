@@ -25,9 +25,13 @@ PAD = 1.0                # the hairline between boxes
 LABEL_MIN = 34           # a box narrower or shorter than this gets no ticker
 VALUE_MIN = 54           # and none smaller than this gets its percentage too
 
-# The move at which a box reaches full colour. A display decision rather than a fact about
-# the data: one company up 700% otherwise makes every other box the same shade.
-COLOUR_CLIP = 0.40
+# The move at which a box reaches full colour, and how much colour the smallest move
+# already carries. Display decisions rather than facts about the data: the clip stops one
+# company up 700% making every other box the same shade, and the floor stops a real but
+# ordinary quarter reading as no move at all. A quarter of a quarter is a large move for a
+# major, so the ramp is spent across the range these companies actually trade in.
+COLOUR_CLIP = 0.22
+COLOUR_FLOOR = 0.34
 
 
 def _colour(change) -> str:
@@ -36,7 +40,7 @@ def _colour(change) -> str:
         return TK.PANEL
     weight = min(abs(change) / COLOUR_CLIP, 1.0)
     end = TK.UP if change >= 0 else TK.DOWN
-    return _mix(TK.PANEL, end, 0.18 + 0.82 * weight)
+    return _mix(TK.PANEL, end, COLOUR_FLOOR + (1 - COLOUR_FLOOR) * weight)
 
 
 def _mix(start: str, end: str, position: float) -> str:

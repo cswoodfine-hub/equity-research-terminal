@@ -284,7 +284,7 @@ h3 {{ font-size: 0.9rem; }}
    The slot is pulled in to the height of the label itself and gives the space back when
    the note is opened. */
 .note-d {{ margin: 0; }}
-[data-testid="stElementContainer"]:has(.note-d) {{ margin: -8px 0 -7px; }}
+[data-testid="stElementContainer"]:has(.note-d) {{ margin: -4px 0 -7px; }}
 [data-testid="stElementContainer"]:has(.note-d[open]) {{ margin: -4px 0 0.2rem; }}
 .note-d > summary {{ list-style: none; cursor: pointer; display: inline-block;
                     font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase;
@@ -345,15 +345,15 @@ h3 {{ font-size: 0.9rem; }}
 .lead > summary {{
   display: grid; grid-template-columns: 10px 1fr auto;
   grid-template-areas: "chev chip date" ".    head head";
-  gap: 0.3rem 0.5rem;
-  align-items: start; padding: 0.5rem 0.7rem; cursor: pointer; list-style: none;
+  gap: 0.22rem 0.5rem;
+  align-items: start; padding: 0.35rem 0.6rem; cursor: pointer; list-style: none;
 }}
 .lead > summary::-webkit-details-marker {{ display: none; }}
 /* The disclosure affordance, drawn rather than a glyph so it sits on the baseline and
    turns with the box. Without a caption the box has to say it opens. */
 .lead-chev {{
   grid-area: chev;
-  width: 5px; height: 5px; margin-top: 4px;
+  width: 5px; height: 5px; margin-top: 3px;
   border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
   transform: rotate(-45deg); transition: transform 140ms ease-out, border-color 120ms;
 }}
@@ -365,14 +365,14 @@ h3 {{ font-size: 0.9rem; }}
   font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
   letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
   color: var(--accent); border: 1px solid var(--accent);
-  border-radius: var(--radius-small); padding: 2px 5px; opacity: 0.92;
+  border-radius: var(--radius-small); padding: 1px 4px; opacity: 0.92;
   grid-area: chip; justify-self: start;
 }}
 /* A money figure keeps its own case: "$2.58bn" is a measurement, not a label. */
 .lead-f-num {{ text-transform: none; letter-spacing: 0; font-size: 10.5px; }}
 /* Wraps rather than truncates. An ellipsis was eating the drug name, which is the part
    of "NVO efficacy supplement: Macrilen approved" a reader is looking for. */
-.lead-h {{ grid-area: head; font-size: 12.5px; line-height: 1.35; }}
+.lead-h {{ grid-area: head; font-size: 12px; line-height: 1.28; }}
 .lead-tk {{ font-family: var(--font-mono); font-weight: 600; margin-right: 0.4rem; }}
 .lead[open] .lead-tk {{ color: var(--accent); }}
 .lead-d {{ grid-area: date; font-family: var(--font-mono); font-size: 10px;
