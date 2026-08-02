@@ -96,6 +96,19 @@ def is_material(items) -> bool:
 MATERIAL_LABELS = tuple(ITEMS[code] for code in sorted(MATERIAL) if code in ITEMS)
 
 
+RESULTS = "2.02"
+
+
+def reports_results(title: str) -> bool:
+    """Whether a stored filing title includes the results item.
+
+    Item 2.02 is the earnings release, and its exhibit is the densest document a company
+    files: the quarter's cash, its burn, its product revenue and what it says about the
+    launch, all in one place and months before the equivalent 10-Q figures are tagged.
+    """
+    return ITEMS[RESULTS].lower() in (title or "").lower()
+
+
 def is_material_title(title: str) -> bool:
     """Same judgement, read back off a stored title.
 

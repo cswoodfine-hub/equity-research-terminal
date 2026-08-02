@@ -32,6 +32,7 @@ import time
 import urllib.request
 
 import db
+import edgar_items
 import filingtext
 from fetchers.base import BaseFetcher, RefreshResult
 
@@ -45,8 +46,24 @@ FORMS = ("10-K", "10-Q", "20-F", "8-K", "6-K")
 # How many of each form to read. Two of a periodic report seeds one comparison. A current
 # report is not compared to anything, it is read for what it says, and a busy filer files
 # several a quarter, so more of them are taken.
-PER_FORM = {"10-K": 2, "10-Q": 2, "20-F": 2, "8-K": 6, "6-K": 6}
+PER_FORM = {"10-K": 2, "10-Q": 2, "20-F": 2, "8-K": 8, "6-K": 8}
 _DEFAULT_PER_FORM = 2
+
+# How many of a current report budget are held for the ones that report results, and how
+# far back to look for them.
+#
+# Taking the most recent eight 8-Ks spends the budget on whatever a company happened to
+# file lately, and what a company files lately is mostly director changes and shareholder
+# votes. Abeona's earnings release for the June 2025 quarter is its eleventh most recent
+# 8-K, so it was never read: twelve thousand characters stating 225.9m of cash, the
+# quarter's R&D and SG&A, the balance sheet and the launch of its first approved product,
+# in a filing already indexed and one request away.
+#
+# An earnings release is the densest document a company files, and a small company files
+# few of them and many of everything else, so the reserve matters most exactly where the
+# data is thinnest.
+RESULTS_RESERVED = 5
+_LOOKBACK = 60                      # filings to consider before choosing, per form
 CURRENT_REPORTS = ("8-K", "6-K")
 
 # A press release furnished with a current report. Filenames vary by filing agent, and
@@ -77,11 +94,7 @@ class FilingTextEdgarFetcher(BaseFetcher):
             return []
         pending = []
         for form in FORMS:
-            filings = conn.execute(
-                "SELECT accession, form_type, filed_date, url FROM filings"
-                " WHERE company_id = ? AND form_type = ? AND url IS NOT NULL"
-                " ORDER BY filed_date DESC LIMIT ?",
-                (company["id"], form, PER_FORM.get(form, _DEFAULT_PER_FORM))).fetchall()
+            filings = self._choose(conn, company["id"], form)
             for f in filings:
                 # A 10-K is done only once its patents section is recorded, so filings
                 # stored before that section existed are re-read to add it; a 10-Q has no
@@ -98,6 +111,34 @@ class FilingTextEdgarFetcher(BaseFetcher):
                 if not have:
                     pending.append({**dict(f), "company_id": company["id"]})
         return pending
+
+    def _choose(self, conn, company_id: int, form: str) -> list:
+        """The filings of one form worth reading, newest first.
+
+        For an annual or quarterly report that is simply the most recent ones. For a
+        current report it is the most recent earnings releases first, then the most recent
+        of anything else, because recency alone buys a company's director changes and
+        leaves its results unread.
+        """
+        budget = PER_FORM.get(form, _DEFAULT_PER_FORM)
+        rows = conn.execute(
+            "SELECT accession, form_type, filed_date, url, title FROM filings"
+            " WHERE company_id = ? AND form_type = ? AND url IS NOT NULL"
+            " ORDER BY filed_date DESC LIMIT ?",
+            (company_id, form, _LOOKBACK if form in CURRENT_REPORTS else budget)).fetchall()
+        if form not in CURRENT_REPORTS:
+            return [dict(r) for r in rows]
+        results = [r for r in rows if edgar_items.reports_results(r["title"])]
+        chosen = list(results[:RESULTS_RESERVED])
+        taken = {r["accession"] for r in chosen}
+        for row in rows:                       # fill what is left, newest first
+            if len(chosen) >= budget:
+                break
+            if row["accession"] not in taken:
+                chosen.append(row)
+                taken.add(row["accession"])
+        chosen.sort(key=lambda r: r["filed_date"], reverse=True)
+        return [dict(r) for r in chosen]
 
     def _read(self, url: str, user_agent: str) -> str:
         request = urllib.request.Request(url, headers={"User-Agent": user_agent})
