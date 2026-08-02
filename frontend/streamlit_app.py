@@ -26,7 +26,6 @@ import pandas as pd
 import streamlit as st
 
 import calendar_view
-import engine_strip
 import price_chart
 import revenue_mix
 import scorecard_chart
@@ -845,68 +844,13 @@ if engine not in ENGINES:
 if not engine and st.session_state.get("engine") in ENGINES:
     engine = st.session_state["engine"]
 
-# The hero says what the terminal is before it asks which part of it you want. Kept here
-# rather than in the API: it is the one string on the page that is not a measurement.
-HERO_LINE = "Where the money is, where the cash runs out, and where the science is new."
-HERO_SUB = (
-    "Three engines over one universe of {universe} companies. Each one asks only what its "
-    "cohort can answer, and each figure below is computed by the same function the engine "
-    "behind it renders. Nothing is estimated to fill a gap: a company with no figure is "
-    "drawn as an empty slot, never as an average.")
-
-
-def _engine_panel(entry: dict) -> str:
-    """One engine as a clickable panel: the spread, the sentence, the three names."""
-    leaders = "".join(
-        f'<div class="e-row"><span class="e-tk">{html_escape(leader["ticker"])}</span>'
-        f'<span class="e-val">{html_escape(leader["display"])}</span></div>'
-        for leader in entry["leaders"])
-    return (
-        f'<div class="engine {html_escape(entry["key"])}">'
-        f'<div class="e-head"><span class="e-name">{html_escape(entry["label"])}</span>'
-        f'<span class="e-count">{entry["count"]} '
-        f'{html_escape(entry["count_label"])}</span></div>'
-        f'<div class="e-tag">{html_escape(entry["tagline"])}</div>'
-        f'<div class="e-strip">{engine_strip.build(entry["strip"])}</div>'
-        f'<div class="e-metric">{html_escape(entry["metric"])}</div>'
-        f'<div class="e-headline">{html_escape(entry["headline"] or "")}</div>'
-        f'<div class="e-leaders">{leaders}</div>'
-        f'<div class="e-foot"><span class="e-detail">'
-        f'{html_escape(entry["detail"])}</span>'
-        f'<span class="go">Open <span class="arrow">&rarr;</span></span></div>'
-        f'</div>')
-
-
-def _signal_rows(board: dict) -> str:
-    """The week's most material changes, one per company, each a link to that company."""
-    rows = "".join(
-        f'<div class="sig" data-ticker="{html_escape(item["ticker"])}" tabindex="0"'
-        f' role="button"><span class="s-date">{html_escape(item["date"])}</span>'
-        f'<span class="s-tk {html_escape(item["engine"] or "")}">'
-        f'{html_escape(item["ticker"])}</span>'
-        f'<span class="s-kind">{html_escape(item["kind"])}</span>'
-        f'<span class="s-text">{html_escape(item["headline"] or "")}</span>'
-        f'<span class="s-go">&rarr;</span></div>'
-        for item in board["signals"])
-    if not rows:
-        return ""
-    return ('<div class="sig-head"><span class="sig-label">Signals</span>'
-            f'<span class="sig-note">the {len(board["signals"])} that matter most in '
-            f'{board["signal_days"]} days</span></div>' + rows)
-
-
 if not engine and not (st.query_params.get("ticker") or ""):
-    board = api_get(api_base, "/engines")
-    hero = (
-        '<div class="hero"><div class="hero-top">'
-        '<span class="wordmark">Novatalis</span>'
-        f'<span class="hero-count">{board["universe"]} companies</span></div>'
-        f'<div class="hero-line">{HERO_LINE}</div>'
-        f'<div class="hero-sub">{HERO_SUB.format(universe=board["universe"])}</div></div>')
+    # Names only. The front door selects an engine and shows no figures, so it has no
+    # reason to compute three cohorts to render a poster.
+    catalogue = api_get(api_base, "/engines/catalogue")["engines"]
     picked = enginepick.engine_pick(
-        [{"engine": entry["key"], "html": _engine_panel(entry)}
-         for entry in board["engines"]],
-        hero=hero, signals_html=_signal_rows(board),
+        [{"engine": entry["key"], "label": entry["label"],
+          "tagline": entry["tagline"]} for entry in catalogue],
         tokens=LANDING_TOKENS, key="engine_pick")
     st.caption(
         "An engine decides which companies the picker offers and which tabs a company "

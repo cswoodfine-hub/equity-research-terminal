@@ -10,114 +10,133 @@
     color: var(--text); font-family: var(--font-ui); font-size: 14px;
     -webkit-font-smoothing: antialiased;
   }
+  * { box-sizing: border-box; }
 
-  /* --- Hero ------------------------------------------------------------- */
-  /* The one place in this app that is allowed a display size. Everywhere else is an
-     instrument read at 11px; this is the front door, and it has to say what the thing
-     is before it asks which part of it you want. */
-  .hero { padding: 0 0 1.1rem; border-bottom: 1px solid var(--rule-strong);
-          margin-bottom: 1.1rem; }
-  .hero-top { display: flex; align-items: baseline; justify-content: space-between;
-              gap: 1rem; }
-  .wordmark { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.14em;
-              text-transform: uppercase; }
-  .hero-count { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
-                letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
-  .hero-line { font-family: var(--font-prose); font-size: 2.1rem; line-height: 1.12;
-               letter-spacing: -0.02em; margin: 0.75rem 0 0; max-width: 30ch; }
-  .hero-sub { font-size: 12.5px; color: var(--muted); margin-top: 0.5rem;
-              max-width: 76ch; line-height: 1.45; }
+  /* --- Masthead ---------------------------------------------------------- */
+  /* One line, because the page has one question and the answer is below it. */
+  .mast { display: flex; align-items: center; gap: 1rem; padding: 0 0 1.4rem; }
+  .wordmark { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.26em;
+              text-transform: uppercase; white-space: nowrap; }
+  /* The rule runs to the right edge and the label sits before it, because Streamlit's
+     own Deploy chrome occupies the top right of the page above this frame. */
+  .mast .rule { flex: 1 1 auto; height: 1px; background: var(--rule-strong); }
+  .mast .ask { font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+               letter-spacing: 0.16em; text-transform: uppercase; white-space: nowrap; }
 
-  /* --- Engine panels ---------------------------------------------------- */
-  #panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  @media (max-width: 900px) { #panels { grid-template-columns: 1fr; } }
+  /* --- The three doors --------------------------------------------------- */
+  #panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 1000px) { #panels { grid-template-columns: 1fr; } }
 
   .engine {
-    display: flex; flex-direction: column; gap: 0.5rem;
-    background: linear-gradient(178deg, var(--panel) 0%, var(--ground) 88%);
-    border: 1px solid var(--rule); border-left: 3px solid var(--rule-strong);
-    padding: 0.75rem 0.85rem 0.7rem; cursor: pointer;
-    transition: border-color 110ms linear, transform 110ms ease-out;
+    position: relative; overflow: hidden; isolation: isolate;
+    min-height: 430px; display: flex; flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    cursor: pointer;
+    transition: transform 260ms cubic-bezier(.2,.7,.3,1),
+                border-color 260ms linear, box-shadow 260ms linear;
   }
-  /* The accent is the only thing that distinguishes the three at a glance, so it runs
-     down the edge and reappears on the leader rules inside. */
-  .engine.pharma { border-left-color: var(--up); }
-  .engine.biotech { border-left-color: var(--flag); }
-  .engine.cellgene { border-left-color: var(--purple-book); }
-  .engine:hover { border-color: var(--rule-strong); transform: translateY(-2px); }
-  .engine:focus-visible { outline: 1px solid var(--muted); outline-offset: -1px; }
-  .engine:hover .go { color: var(--text); }
-  .engine:hover .go .arrow { transform: translateX(3px); }
+  @media (max-width: 1000px) { .engine { min-height: 320px; } }
 
-  .e-head { display: flex; align-items: baseline; justify-content: space-between;
-            gap: 0.5rem; }
-  .e-name { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.015em; }
-  .e-count { font-family: var(--font-mono); font-size: 10px; color: var(--muted);
-             letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
-  .e-tag { font-size: 11px; color: var(--muted); line-height: 1.3; }
+  /* The accent is the whole identity of a card, set once per engine and read by the
+     glow, the motif, the rule and the name. */
+  .engine.pharma   { --accent: var(--up); }
+  .engine.biotech  { --accent: var(--flag); }
+  .engine.cellgene { --accent: var(--purple-book); }
 
-  .e-strip { margin: 0.15rem 0 0; }
-  /* The height is fixed and only the width stretches. The strip's viewBox is drawn wide
-     and shallow with preserveAspectRatio="none", so height:auto made it grow to 230px on
-     a wide panel and swallow the card. */
-  .e-strip svg { display: block; width: 100%; height: 46px; }
-  .e-metric { font-size: 9px; letter-spacing: 0.055em; text-transform: uppercase;
-              color: var(--muted); line-height: 1.35; }
-
-  .e-headline { font-size: 12.5px; line-height: 1.4; }
-
-  .e-leaders { margin-top: 0.1rem; }
-  .e-row { display: flex; align-items: baseline; justify-content: space-between;
-           gap: 0.5rem; font-size: 11px; padding: 3px 0;
-           border-bottom: 1px solid var(--rule); }
-  .e-row:last-child { border-bottom: none; }
-  .e-tk { font-family: var(--font-mono); font-weight: 600; }
-  .e-val { color: var(--muted); font-size: 10.5px; white-space: nowrap; }
-
-  .e-foot { margin-top: auto; padding-top: 0.45rem; display: flex;
-            align-items: baseline; justify-content: space-between; gap: 0.5rem;
-            border-top: 1px solid var(--rule); }
-  .e-detail { font-size: 10px; color: var(--muted); line-height: 1.3; }
-  .go { font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; color: var(--muted);
-        white-space: nowrap; transition: color 110ms linear; }
-  .go .arrow { display: inline-block; transition: transform 110ms ease-out; }
-
-  /* --- Signals ---------------------------------------------------------- */
-  .sig-head { display: flex; align-items: baseline; justify-content: space-between;
-              border-bottom: 1px solid var(--rule-strong); margin: 1.3rem 0 0;
-              padding-bottom: 0.2rem; }
-  .sig-label { font-size: 11.5px; font-weight: 700; letter-spacing: 0.055em;
-               text-transform: uppercase; }
-  .sig-note { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
-  .sig {
-    display: grid; grid-template-columns: 4.6rem 3.6rem 8.5rem 1fr auto;
-    gap: 0.6rem; align-items: baseline;
-    padding: 5px 0; border-bottom: 1px solid var(--rule); cursor: pointer;
+  /* A wash of the accent from the top, so the card is lit rather than coloured. */
+  .engine::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background: radial-gradient(120% 70% at 50% 0%,
+                color-mix(in srgb, var(--accent) 26%, transparent) 0%,
+                transparent 62%);
+    opacity: 0.55; transition: opacity 300ms linear;
   }
-  /* The kind label goes first when there is no room for it, and the row keeps four
-     columns rather than three: display:none takes the label out of grid flow entirely, so
-     a three-column rule left the arrow wrapping onto a line of its own. */
-  @media (max-width: 900px) { .sig { grid-template-columns: 4.6rem 3.6rem 1fr auto; }
-                              .sig .s-kind { display: none; } }
-  .sig:last-child { border-bottom: none; }
-  .sig:hover { background: var(--panel); }
-  .sig:hover .s-go { color: var(--text); }
-  .sig:focus-visible { outline: 1px solid var(--muted); outline-offset: -1px; }
-  .s-date { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
-  .s-tk { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; }
-  .s-tk.pharma { color: var(--up); }
-  .s-tk.biotech { color: var(--flag); }
-  .s-tk.cellgene { color: var(--purple-book); }
-  .s-kind { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
-            color: var(--muted); }
-  .s-text { font-size: 12px; line-height: 1.35; }
-  .s-go { font-size: 11px; color: var(--rule-strong); }
+  /* Scanlines. A terminal has them and they cost one gradient. */
+  .engine::after {
+    content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background: repeating-linear-gradient(180deg,
+                rgba(255,255,255,0.022) 0px, rgba(255,255,255,0.022) 1px,
+                transparent 1px, transparent 3px);
+    mix-blend-mode: overlay;
+  }
+  .engine:hover, .engine:focus-visible {
+    transform: translateY(-4px);
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--rule));
+    box-shadow: 0 18px 44px -22px color-mix(in srgb, var(--accent) 70%, transparent);
+    outline: none;
+  }
+  .engine:hover::before, .engine:focus-visible::before { opacity: 1; }
+
+  /* The index, drawn large and nearly invisible, the way a plate number is. */
+  .idx {
+    position: absolute; top: 10px; right: 16px; z-index: 1;
+    font-family: var(--font-mono); font-size: 5.2rem; font-weight: 600;
+    line-height: 1; letter-spacing: -0.04em;
+    color: transparent; -webkit-text-stroke: 1px var(--accent);
+    opacity: 0.16; transition: opacity 300ms linear, transform 400ms ease-out;
+  }
+  .engine:hover .idx { opacity: 0.34; transform: translateY(2px); }
+
+  /* --- Motif ------------------------------------------------------------- */
+  .art { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; }
+  .art svg { display: block; width: 100%; height: 100%; }
+  .art .stroke { stroke: var(--accent); fill: none; vector-effect: non-scaling-stroke; }
+  .art .fill { fill: var(--accent); }
+  .art .dim { opacity: 0.30; }
+  .art .mid { opacity: 0.62; }
+
+  /* --- Plate ------------------------------------------------------------- */
+  .plate { position: relative; z-index: 2; padding: 0 1.15rem 1.15rem; }
+  .kicker { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.2em;
+            text-transform: uppercase; color: var(--accent); opacity: 0.9; }
+  .name { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.03em;
+          line-height: 1.05; margin: 0.42rem 0 0; }
+  .tag { font-size: 11.5px; color: var(--muted); line-height: 1.45; margin-top: 0.4rem; }
+  .enter { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.95rem;
+           padding-top: 0.7rem; border-top: 1px solid var(--rule);
+           font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.16em;
+           text-transform: uppercase; color: var(--muted);
+           transition: color 200ms linear; }
+  .engine:hover .enter { color: var(--text); }
+  .enter .bar { flex: 1 1 auto; height: 1px; background: var(--rule-strong);
+                transform-origin: left; transform: scaleX(0.18);
+                transition: transform 340ms cubic-bezier(.2,.7,.3,1),
+                            background 200ms linear; }
+  .engine:hover .enter .bar { transform: scaleX(1); background: var(--accent); }
+  .enter .arrow { transition: transform 260ms cubic-bezier(.2,.7,.3,1); }
+  .engine:hover .enter .arrow { transform: translateX(4px); }
+
+  /* --- Motion ------------------------------------------------------------ */
+  /* Slow and small. The page should feel alive at a glance and never ask to be
+     watched, so nothing here loops faster than four seconds. */
+  @keyframes glimmer { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+  @keyframes drift   { from { transform: translateX(0); } to { transform: translateX(-80px); } }
+  @keyframes spin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes spinback{ from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+  @keyframes pulse   { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.85; } }
+
+  /* Each capsule fades on its own offset, so the field shifts without anything moving. */
+  .cap { animation: glimmer 5.6s ease-in-out infinite; }
+  .helix   { animation: drift 9s linear infinite; }
+  .ring-a  { transform-origin: 50% 50%; animation: spin 34s linear infinite; }
+  .ring-b  { transform-origin: 50% 50%; animation: spinback 22s linear infinite; }
+  .nucleus { transform-origin: 50% 50%; animation: pulse 3.6s ease-in-out infinite; }
+
+
+  @media (prefers-reduced-motion: reduce) {
+    .cap, .helix, .ring-a, .ring-b, .nucleus { animation: none; }
+    .engine { transition: none; }
+  }
 </style>
 </head>
 <body>
-<div id="hero"></div>
+<div class="mast">
+  <span class="wordmark">Novatalis</span>
+  <span class="ask">Select an engine</span>
+  <span class="rule"></span>
+</div>
 <div id="panels"></div>
-<div id="sigwrap"></div>
 <script>
 function post(type, extra) {
   window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type },
@@ -128,6 +147,146 @@ const Streamlit = {
   height(h) { post("streamlit:setFrameHeight", { height: h }); },
   value(v) { post("streamlit:setComponentValue", { value: v, dataType: "json" }); },
 };
+
+// --- The three motifs ------------------------------------------------------
+// Drawn here rather than server-side because none of it is data. Each is a shape that
+// says what its cohort is without stating a number: mass for the majors, a strand for
+// the ones still proving the science, a cell for the platforms.
+const W = 300, H = 200;
+
+function pharmaArt() {
+  // A field of capsules. The first draft was a skyline of bars, which read as a chart,
+  // and a chart is the one thing this page is not: it would have looked like data with
+  // no data behind it. A capsule is the shape of the industry and means nothing at all.
+  const rows = 5, cols = 7, cw = 34, ch = 13;
+  const gapX = (W + 40) / cols, gapY = (H + 20) / rows;
+  let out = "";
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      // Every other row steps half a column, so the field reads as packed rather than
+      // as a grid, and no two capsules line up down the card.
+      const x = c * gapX + (r % 2 ? gapX / 2 : 0) - 20;
+      const y = r * gapY + 8;
+      const seed = (r * 7 + c * 13) % 11;
+      const filled = seed % 3 === 0;
+      const opacity = 0.24 + (seed / 11) * 0.66;
+      const delay = ((r * cols + c) % 9) * -0.62;
+      out += '<g class="cap" style="animation-delay:' + delay.toFixed(2) + 's"'
+           + ' transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1)
+           + ') rotate(-24)">'
+           + '<rect class="' + (filled ? "fill" : "stroke") + '" x="0" y="0"'
+           + ' width="' + cw + '" height="' + ch + '" rx="' + (ch / 2) + '"'
+           + (filled ? "" : ' stroke-width="1"')
+           + ' opacity="' + opacity.toFixed(2) + '"/>'
+           // The seam across the middle, which is what makes it a capsule rather than a
+           // rounded rectangle.
+           + '<line class="stroke" x1="' + (cw / 2) + '" y1="1.5" x2="' + (cw / 2)
+           + '" y2="' + (ch - 1.5) + '" stroke-width="0.75"'
+           + ' opacity="' + (opacity * 0.75).toFixed(2) + '"/>'
+           + '</g>';
+    }
+  }
+  return svg(out);
+}
+
+function biotechArt() {
+  // A double helix. One strand is the science and the other is the money, and the rungs
+  // are where a readout joins them. Drawn wider than the frame so it can drift.
+  const amp = 46, mid = H / 2, span = W + 100, step = 4;
+  let a = "", b = "";
+  for (let x = 0; x <= span; x += step) {
+    const t = (x / 80) * Math.PI;
+    const ya = mid + Math.sin(t) * amp, yb = mid - Math.sin(t) * amp;
+    a += (x ? "L" : "M") + x + " " + ya.toFixed(1) + " ";
+    b += (x ? "L" : "M") + x + " " + yb.toFixed(1) + " ";
+  }
+  let rungs = "";
+  for (let x = 0; x <= span; x += 20) {
+    const t = (x / 80) * Math.PI;
+    const ya = mid + Math.sin(t) * amp, yb = mid - Math.sin(t) * amp;
+    const near = Math.abs(ya - yb) / (amp * 2);
+    rungs += '<line class="stroke" x1="' + x + '" y1="' + ya.toFixed(1) + '" x2="' + x
+           + '" y2="' + yb.toFixed(1) + '" stroke-width="1"'
+           + ' opacity="' + (0.14 + near * 0.5).toFixed(2) + '"/>'
+           + '<circle class="fill" cx="' + x + '" cy="' + ya.toFixed(1) + '" r="2.2"'
+           + ' opacity="' + (0.35 + near * 0.55).toFixed(2) + '"/>'
+           + '<circle class="fill" cx="' + x + '" cy="' + yb.toFixed(1) + '" r="2.2"'
+           + ' opacity="' + (0.35 + near * 0.55).toFixed(2) + '"/>';
+  }
+  return svg('<g class="helix">' + rungs
+    + '<path class="stroke mid" d="' + a + '" stroke-width="1.6"/>'
+    + '<path class="stroke" d="' + b + '" stroke-width="1.6" opacity="0.85"/></g>');
+}
+
+function cellgeneArt() {
+  // A nucleus and what orbits it. A platform company is one method pointed at many
+  // targets, so the centre is bright and everything else is arranged around it.
+  const cx = W / 2, cy = H / 2;
+  let rings = "";
+  [34, 52, 70, 88].forEach(function (r, i) {
+    rings += '<circle class="stroke ' + (i % 2 ? "dim" : "mid") + '" cx="' + cx
+           + '" cy="' + cy + '" r="' + r + '" stroke-width="' + (i % 2 ? 0.6 : 1)
+           + '" stroke-dasharray="' + (i % 2 ? "2 7" : "1 5") + '"/>';
+  });
+  function nodes(radius, count, offset, size) {
+    let out = "";
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + offset;
+      out += '<circle class="fill" cx="' + (cx + Math.cos(angle) * radius).toFixed(1)
+           + '" cy="' + (cy + Math.sin(angle) * radius).toFixed(1) + '" r="' + size
+           + '" opacity="' + (0.4 + (i % 3) * 0.2).toFixed(2) + '"/>';
+    }
+    return out;
+  }
+  let spokes = "";
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2;
+    spokes += '<line class="stroke dim" x1="' + (cx + Math.cos(angle) * 20).toFixed(1)
+            + '" y1="' + (cy + Math.sin(angle) * 20).toFixed(1)
+            + '" x2="' + (cx + Math.cos(angle) * 92).toFixed(1)
+            + '" y2="' + (cy + Math.sin(angle) * 92).toFixed(1)
+            + '" stroke-width="0.5"/>';
+  }
+  return svg(spokes + rings
+    + '<g class="ring-a">' + nodes(52, 7, 0.3, 3) + '</g>'
+    + '<g class="ring-b">' + nodes(88, 11, 0.9, 2) + '</g>'
+    + '<circle class="fill nucleus" cx="' + cx + '" cy="' + cy + '" r="15"'
+    + ' opacity="0.7"/>'
+    + '<circle class="stroke" cx="' + cx + '" cy="' + cy + '" r="20"'
+    + ' stroke-width="1.2" opacity="0.9"/>');
+}
+
+function svg(inner) {
+  // preserveAspectRatio="none" would shear the helix and oval the nucleus, so the motif
+  // keeps its shape and the card crops it.
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid slice"'
+       + ' xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' + inner + '</svg>';
+}
+
+const ART = { pharma: pharmaArt, biotech: biotechArt, cellgene: cellgeneArt };
+const KICKER = { pharma: "Engine 01", biotech: "Engine 02", cellgene: "Engine 03" };
+const INDEX = { pharma: "01", biotech: "02", cellgene: "03" };
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+function card(entry) {
+  const art = (ART[entry.engine] || pharmaArt)();
+  return '<div class="engine ' + esc(entry.engine) + '" data-engine="' + esc(entry.engine)
+       + '" tabindex="0" role="button" aria-label="' + esc(entry.label) + '">'
+       + '<div class="idx">' + esc(INDEX[entry.engine] || "") + '</div>'
+       + '<div class="art">' + art + '</div>'
+       + '<div class="plate">'
+       + '<div class="kicker">' + esc(KICKER[entry.engine] || "Engine") + '</div>'
+       + '<div class="name">' + esc(entry.label) + '</div>'
+       + '<div class="tag">' + esc(entry.tagline || "") + '</div>'
+       + '<div class="enter"><span>Enter</span><span class="bar"></span>'
+       + '<span class="arrow">&rarr;</span></div>'
+       + '</div></div>';
+}
 
 let wired = false;
 let fontsCopied = false;
@@ -173,11 +332,11 @@ function measure() {
   });
 }
 
-// The panels are a three-column grid that becomes one column under 900px, which triples
+// The cards are a three-column grid that becomes one column under 1000px, which triples
 // the height. Streamlit sizes the frame once per render, so without this the page keeps
-// its desktop height on a narrow window and clips two panels and the whole signal strip.
-// Body rather than the root element: body's height is its content's, so it cannot be
-// driven by the frame height this observer is about to change.
+// its desktop height on a narrow window and clips two cards. Body rather than the root
+// element: body's height is its content's, so it cannot be driven by the frame height
+// this observer is about to change.
 if (window.ResizeObserver) {
   new ResizeObserver(measure).observe(document.body);
 } else {
@@ -195,25 +354,12 @@ window.addEventListener("message", function (e) {
   Object.keys(tk).forEach(function (k) { root.style.setProperty("--" + k, tk[k]); });
   copyFontFaces();
 
-  document.getElementById("hero").innerHTML = a.hero || "";
-  document.getElementById("sigwrap").innerHTML = a.signals_html || "";
-
-  const panels = a.panels || [];
-  const p = document.getElementById("panels");
-  // Each panel's html is the .engine element itself, built server-side from escaped
-  // values. Insert them in order, then tag each with its key by position.
-  p.innerHTML = panels.map(function (c) { return c.html; }).join("");
-  Array.prototype.forEach.call(p.children, function (el, i) {
-    const c = panels[i];
-    if (!c) return;
-    el.setAttribute("data-engine", c.engine);
-    el.setAttribute("tabindex", "0");
-    el.setAttribute("role", "button");
-  });
+  document.getElementById("panels").innerHTML =
+    (a.panels || []).map(card).join("");
 
   measure();
   // A web font arriving after first paint changes the height of everything, so the frame
-  // is measured again once they are ready. Without this the last panel is clipped on a
+  // is measured again once they are ready. Without this the last card is clipped on a
   // cold load and correct on every rerun after it, which is the confusing way round.
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
 
@@ -221,15 +367,8 @@ window.addEventListener("message", function (e) {
     wired = true;
     function fire(target) {
       const engine = target.closest("[data-engine]");
-      if (engine) {
-        Streamlit.value({ engine: engine.getAttribute("data-engine"),
-                          nonce: Date.now() });
-        return;
-      }
-      const sig = target.closest("[data-ticker]");
-      if (sig) {
-        Streamlit.value({ ticker: sig.getAttribute("data-ticker"), nonce: Date.now() });
-      }
+      if (!engine) return;
+      Streamlit.value({ engine: engine.getAttribute("data-engine"), nonce: Date.now() });
     }
     document.body.addEventListener("click", function (ev) { fire(ev.target); });
     document.body.addEventListener("keydown", function (ev) {

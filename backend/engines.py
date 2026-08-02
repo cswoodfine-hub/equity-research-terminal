@@ -173,6 +173,16 @@ TAGLINES = {
 }
 
 
+def catalogue() -> list:
+    """The three engines as names alone, for the front door.
+
+    The landing page selects an engine and shows no figures, so it has no business
+    computing three cohorts to render a poster. Constants only: no database, no fetch.
+    """
+    return [{"key": key, "label": LABELS[key], "tagline": TAGLINES[key]}
+            for key in ENGINES]
+
+
 def _leader(ticker, name, value, display) -> dict:
     return {"ticker": ticker, "name": name, "value": value, "display": display}
 

@@ -703,6 +703,12 @@ def engines_board() -> dict:
     return engines_module.build()
 
 
+@app.get("/engines/catalogue")
+def engines_catalogue() -> dict:
+    """The three engines by name. What the front door needs and nothing else."""
+    return {"engines": engines_module.catalogue()}
+
+
 @app.get("/engines/{engine}/tickers")
 def engine_tickers(engine: str) -> list[str]:
     """The companies one engine covers. An unknown engine returns the whole universe."""
