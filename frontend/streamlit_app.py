@@ -1352,7 +1352,12 @@ with main:
         # what is dated on it. Both are read at a glance and neither needs the full
         # width, so pairing them puts the answer to "how does it look" and the answer to
         # "what is coming" in one screen instead of two scrolls.
-        _map_col, _ahead_col = st.columns(2, gap="medium")
+        #
+        # Three to two, not one to one. They are not the same kind of view and an equal
+        # split served neither: the map is spatial and every pixel of width buys area for
+        # the small companies, while the forward list is text that wraps at any width and
+        # was running half empty down its last two rows.
+        _map_col, _ahead_col = st.columns([3, 2], gap="medium")
         with _map_col:
             # The group at a glance before the ninety panels that show each shape. Area is
             # what the engine runs on and colour is the move, read independently: a large box

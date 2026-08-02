@@ -17,13 +17,20 @@ from __future__ import annotations
 
 from components import tokens as TK
 
-# Drawn into half the page width, beside the forward view, so the canvas is close to
-# square. A wide, shallow one at that width gives the small companies letterbox slivers,
-# which is the shape a treemap is chosen to avoid.
+# Drawn into three fifths of the page width, beside the forward view. A wide, shallow
+# canvas gives the small companies letterbox slivers, which is the shape a treemap is
+# chosen to avoid, so the viewBox stays close to square and the column scales it up.
 WIDTH, HEIGHT = 700, 215
 PAD = 1.0                # the hairline between boxes
-LABEL_MIN = 34           # a box narrower or shorter than this gets no ticker
-VALUE_MIN = 54           # and none smaller than this gets its percentage too
+
+# The smallest box that gets a label, in viewBox units. These are not pixels: the SVG
+# scales to its column, so one unit was 0.98 screen pixels when the map had half the page
+# and is 1.18 with three fifths of it. Holding the numbers fixed while the canvas grew
+# made the test stricter in the only units that matter, and Biogen at 33 units wide, a
+# comfortable 39 pixels, was the box that lost its ticker for being drawn bigger. So they
+# come down by the same ratio the canvas went up.
+LABEL_MIN = 28           # a box narrower or shorter than this gets no ticker
+VALUE_MIN = 45           # and none smaller than this gets its percentage too
 
 # The move at which a box reaches full colour, and how much colour the smallest move
 # already carries. Display decisions rather than facts about the data: the clip stops one
