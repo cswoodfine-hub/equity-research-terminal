@@ -35,12 +35,36 @@ _MONTHS = ("january february march april may june july august september october 
            "november december").split()
 _SPAN_WORDS = {"three": 3, "six": 6, "nine": 9, "twelve": 12}
 
+# "For the" is optional, because Gilead heads its columns "Three Months Ended". "ended
+# on" is excluded, because that is the prose form and never a column header: Pfizer's
+# footnotes say "the three months ended on March 29, 2026".
+#
+# The year may be separated from the date by the scale statement, which Gilead prints
+# between them: "Three Months Ended / March 31, / (in millions, except per share amounts)
+# 2026 2025". Only a parenthesis is allowed to intervene, so a stray year further down
+# the page is never read as this table's.
 _SPAN = re.compile(
-    r"for\s+the\s+(three|six|nine|twelve)\s+months?\s+ended\s+"
-    r"([a-z]+)\.?\s+(\d{1,2}),?\s*(\d{4})?", re.I)
-# "Second Quarter 2026", "Q2 2026" and "Q2 FY2026" above a column block.
+    r"(?:for\s+the\s+)?(three|six|nine|twelve)\s+months?\s+ended\s+(?!on\b)"
+    r"([a-z]+)\.?\s+(\d{1,2}),?\s*(?:\([^)]{0,60}\))?\s*(\d{4})?", re.I)
+# "Second Quarter 2026", "Second-Quarter 2026", "Q2 2026" and "Q2 FY2026". Pfizer heads
+# its revenue table "FIRST-QUARTER 2026 and 2025 - (UNAUDITED)".
 _QUARTER = re.compile(
-    r"\b(?:(first|second|third|fourth)\s+quarter|q([1-4]))\s+(?:fy\s?)?(\d{4})\b", re.I)
+    r"\b(?:(first|second|third|fourth)[-\s]+quarter|q([1-4]))\s+(?:fy\s?)?(\d{4})\b",
+    re.I)
+
+# Names that are revenue line items rather than products. An asset row exists for any
+# name once seen in a revenue table, so "Launches", "License" and "Grant" are assets in
+# the same sense Eliquis is, and a product revenue table has to be told the difference.
+_NOT_A_PRODUCT = re.compile(
+    r"^(launches|licen[cs]e|grant|technology|product and service|collaboration|"
+    r"royalt|contract|milestone|service|other|total|subtotal|rest of|all other|"
+    r"revenue|sales|net |gross )", re.I)
+
+# A column header sits on a short line. A sentence that happens to name a period does not,
+# and Pfizer's exhibit carries several: a 418 character footnote explaining that its
+# international subsidiaries close a month early was being read as a table heading, and
+# the table it then governed was somebody else's.
+HEADING_MAX_LINE = 120
 
 _ORDINALS = {"first": 1, "second": 2, "third": 3, "fourth": 4}
 
@@ -109,6 +133,14 @@ def read_heading(text: str):
     return best[1:] if best else None
 
 
+def _on_a_heading_line(text: str, index: int) -> bool:
+    """Whether the match at ``index`` sits on a line short enough to be a column header."""
+    start = text.rfind("\n", 0, index) + 1
+    stop = text.find("\n", index)
+    stop = len(text) if stop == -1 else stop
+    return stop - start <= HEADING_MAX_LINE
+
+
 def tables(text: str) -> list:
     """Every period heading in the document with the stretch of text it governs.
 
@@ -119,6 +151,8 @@ def tables(text: str) -> list:
     marks = []
     for pattern in (_SPAN, _QUARTER):
         for m in pattern.finditer(text):
+            if not _on_a_heading_line(text, m.start()):
+                continue
             head = read_heading(text[max(0, m.start() - 4): m.end()])
             if head:
                 marks.append((m.start(), head))
@@ -136,6 +170,125 @@ def tables(text: str) -> list:
     return out
 
 
+# --- Table shapes revenue_mdna does not read --------------------------------
+#
+# It reads a table whose row is one line of product name and figures. Two filers here
+# print neither.
+#
+# Gilead splits a product across a geography block, so the name line carries only the US
+# figure and the worldwide total is a bare line of numbers underneath:
+#
+#     Biktarvy U.S. $ 2,573 $ 2,474
+#     Europe 437 375
+#     Rest of World 352 301
+#     3,361 3,150
+#
+# Pfizer leads with the worldwide figure and puts the name on its own line whenever a
+# footnote marker follows it:
+#
+#     Eliquis (b)
+#     2,166 1,923 13% 8% 1,435 1,299 10% 731 624 17% 4%
+#
+# Reading either by position alone would be guessing, so neither is trusted on position:
+# a figure is kept only when the row's own arithmetic holds. Gilead's legs must sum to
+# the total it prints, and Pfizer's United States and international columns must sum to
+# the worldwide one. A misread row does not reconcile and is dropped, which is what makes
+# it safe to read a table this repository cannot see the column headers of.
+
+_NUMBER = re.compile(
+    r"\(?\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)\)?(\s*%)?")
+_GEOGRAPHY = re.compile(r"^\s*(u\.?s\.?|united states|europe|rest of world|international)",
+                        re.I)
+_BRAND = r"[A-Z][A-Za-z0-9\u00ae\u2019'\-/ ]*?"
+# A name that leads its own geography block: "Biktarvy U.S. $ 2,573 $ 2,474".
+_BLOCK_HEAD = re.compile(rf"^\s*({_BRAND})\s*(?:\(\d\))?\s+(?:U\.S\.|United States)\s",
+                         re.I)
+# The same, where a footnote pushes the geographies onto the following lines.
+_BLOCK_ALONE = re.compile(rf"^\s*({_BRAND})(?:\s*-\s*[A-Za-z ]+)?\s*\(\d\)\s*$")
+# A name and its figures on one line, and a name whose figures are on the next.
+_ROW_INLINE = re.compile(rf"^\s*({_BRAND})\s+(\d[\d,.].*)$")
+_ROW_ALONE = re.compile(rf"^\s*({_BRAND})\s*(?:\([a-z]\))?\s*$")
+
+
+def _figures(line: str) -> list:
+    """The plain numbers on a line. Percentages are not figures and are dropped, which is
+    what separates a value column from the change column printed beside it."""
+    return [float(m.group(1).replace(",", ""))
+            for m in _NUMBER.finditer(line) if not m.group(2)]
+
+
+def read_geography_blocks(text: str) -> dict:
+    """{brand: total} for a table that splits each product across its regions."""
+    lines, out = text.split("\n"), {}
+    index = 0
+    while index < len(lines):
+        head = _BLOCK_HEAD.match(lines[index])
+        if head:
+            brand, legs, cursor = head.group(1).strip(), _figures(lines[index])[:1], index + 1
+        else:
+            alone = _BLOCK_ALONE.match(lines[index])
+            if not (alone and index + 1 < len(lines)
+                    and _GEOGRAPHY.match(lines[index + 1])):
+                index += 1
+                continue
+            brand, legs, cursor = alone.group(1).strip(), [], index + 1
+        while cursor < len(lines) and _GEOGRAPHY.match(lines[cursor]):
+            legs += _figures(lines[cursor])[:1] or [0.0]
+            cursor += 1
+        total = _figures(lines[cursor])[:1] if cursor < len(lines) else []
+        # Every leg and the total are printed rounded, so the sum can be out by half a
+        # unit per line. Further apart than that is not this shape, and is dropped.
+        if total and legs and abs(sum(legs) - total[0]) <= 0.5 * (len(legs) + 1):
+            out[brand] = total[0]
+        index = cursor + 1
+    return out
+
+
+def read_worldwide_rows(text: str) -> dict:
+    """{brand: worldwide} for a table whose row leads with the worldwide figure."""
+    lines, out = text.split("\n"), {}
+    for index, line in enumerate(lines):
+        inline = _ROW_INLINE.match(line)
+        if inline:
+            brand, values = inline.group(1).strip(), _figures(inline.group(2))
+        else:
+            alone = _ROW_ALONE.match(line)
+            if not alone or not alone.group(1).strip() or index + 1 >= len(lines):
+                continue
+            brand, values = alone.group(1).strip(), _figures(lines[index + 1])
+        # Worldwide, then the prior year, then the same pair for the United States and
+        # for international. Fewer columns than that is a different table.
+        if len(values) < 5:
+            continue
+        worldwide, united_states, international = values[0], values[2], values[4]
+        if abs((united_states + international) - worldwide) <= 1.5:
+            out[brand] = worldwide
+    return out
+
+
+def read_table(body: str, brands, company_revenue=None) -> dict:
+    """The products in one table, whichever of the three shapes it is printed in.
+
+    The shapes are tried in order and the first that yields anything wins. They do not
+    overlap: a row read by one is not a row the others recognise, since each is gated on
+    arithmetic only its own layout satisfies.
+    """
+    found = revenue_mdna.parse(body, brands, company_revenue)
+    if found:
+        return found
+    known = set(brands)
+    for reader in (read_geography_blocks, read_worldwide_rows):
+        # A subtotal row is shaped exactly like a product row, so the brand list is the
+        # only thing separating "Total HIV" from a drug. Same guard revenue_mdna applies.
+        got = {brand: value for brand, value in reader(body).items() if brand in known}
+        if got:
+            # The table states its own scale. Both filers reading this way print
+            # millions, but the statement is read rather than assumed.
+            scale = revenue_mdna.scale(body)
+            return {brand: value * scale for brand, value in got.items()}
+    return {}
+
+
 def parse(text: str, brands, company_revenue=None) -> dict:
     """{brand: {value, period, period_end, fiscal_year}} for the periods stated.
 
@@ -147,7 +300,7 @@ def parse(text: str, brands, company_revenue=None) -> dict:
     rank = {"FY": 3, "H1": 2}
     found = {}
     for period, period_end, year, body in tables(text):
-        for brand, value in revenue_mdna.parse(body, brands, company_revenue).items():
+        for brand, value in read_table(body, brands, company_revenue).items():
             prior = found.get(brand)
             if prior and rank.get(prior["period"], 1) <= rank.get(period, 1):
                 continue
@@ -189,17 +342,21 @@ def extract(db_path=None) -> dict:
                 "  ORDER BY filed_date DESC LIMIT 8", (company["id"],)).fetchall()
             if not sections:
                 continue
-            # Only products the database can identify by something other than a name, the
-            # same guard revenue_mdna applies: a subtotal row headed "Launches" would
-            # otherwise be collected as if it were a drug.
+            # A product the database can corroborate: it carries a code, an ingredient
+            # or an approval, or it is on the market under a name that is not a line
+            # item. Pfizer's six largest products are brand-only rows with none of the
+            # first three, so requiring them alone left Eliquis and Padcev unreadable
+            # while the exhibit stated both.
             brands = {r["brand_name"]: r["id"] for r in conn.execute(
                 """
                 SELECT a.id, a.brand_name FROM assets a
                  WHERE a.owner_company_id = ? AND a.brand_name IS NOT NULL
                    AND a.brand_name <> ''
                    AND (a.internal_code IS NOT NULL OR a.generic_name IS NOT NULL
+                        OR a.is_marketed = 1
                         OR EXISTS (SELECT 1 FROM approvals ap WHERE ap.asset_id = a.id))
-                """, (company["id"],))}
+                """, (company["id"],))
+                if not _NOT_A_PRODUCT.match(r["brand_name"])}
             if not brands:
                 continue
             for section in sections:
@@ -208,7 +365,7 @@ def extract(db_path=None) -> dict:
                     continue
                 for period, period_end, year, body in tables(section["text"]):
                     total, unit = _quarter_revenue(conn, company["id"], period_end)
-                    for brand, value in revenue_mdna.parse(
+                    for brand, value in read_table(
                             body, list(brands), total).items():
                         asset_id = brands[brand]
                         if conn.execute(

@@ -175,3 +175,87 @@ def test_extract_leaves_an_existing_figure_alone(tmp_path):
                         "  AND period = 'Q2'").fetchone()
     assert kept["value"] == 1.0 and kept["source"] == "hand"
     conn.close()
+
+
+# --- Table shapes revenue_mdna does not read --------------------------------
+
+GILD = (Path(__file__).parent / "fixtures" / "gild_8k_geography_blocks.txt").read_text()
+PFE = (Path(__file__).parent / "fixtures" / "pfe_8k_worldwide_rows.txt").read_text()
+
+GILD_BRANDS = ["Biktarvy", "Descovy", "Genvoya", "Odefsey", "Yeztugo"]
+PFE_BRANDS = ["Eliquis", "Ibrance", "Padcev", "Nurtec ODT/Vydura", "Comirnaty", "Paxlovid",
+              "Abrysvo"]
+
+
+def test_geography_block_takes_the_worldwide_total_not_the_us_column():
+    """Gilead's brand line carries only the United States figure and the worldwide total
+    is a bare line under the regions. Reading the row left to right gives 2,573 for
+    Biktarvy, which is the US number and a quarter light."""
+    found = RE.read_geography_blocks(GILD)
+    assert found["Biktarvy"] == pytest.approx(3361)      # not 2573
+    assert found["Descovy"] == pytest.approx(807)        # not 761
+    assert found["Yeztugo"] == pytest.approx(166)
+
+
+def test_geography_block_drops_a_row_that_does_not_reconcile():
+    """The gate that makes reading an unlabelled column safe: the regions have to add up
+    to the total the filer prints, or the row is not this shape and is not stored."""
+    broken = ("Biktarvy U.S. $ 2,573 $ 2,474\n"
+              "Europe 437 375\n"
+              "Rest of World 352 301\n"
+              "9,999 3,150\n")
+    assert RE.read_geography_blocks(broken) == {}
+
+
+def test_worldwide_row_reads_the_first_column():
+    """Pfizer leads with worldwide, and puts the name on its own line where a footnote
+    marker follows it, so Eliquis's figures are on the line below its name."""
+    found = RE.read_worldwide_rows(PFE)
+    assert found["Eliquis"] == pytest.approx(2166)
+    assert found["Ibrance"] == pytest.approx(1008)
+    assert found["Padcev"] == pytest.approx(591)
+
+
+def test_worldwide_row_drops_a_row_that_does_not_reconcile():
+    """United States plus international must equal worldwide."""
+    broken = "Eliquis (b)\n9,999 1,923 13% 8% 1,435 1,299 10% 731 624 17% 4%\n"
+    assert RE.read_worldwide_rows(broken) == {}
+
+
+def test_read_table_only_returns_names_it_was_given():
+    """A subtotal row is shaped exactly like a product row. "Total HIV" reconciles as
+    cleanly as Biktarvy does, so the brand list is the only thing separating them."""
+    found = RE.read_table(GILD, GILD_BRANDS)
+    assert set(found) <= set(GILD_BRANDS)
+    assert "Total HIV" not in found
+    assert found["Biktarvy"] == pytest.approx(3361e6)
+
+
+def test_pfizer_period_comes_from_its_own_heading():
+    """FIRST-QUARTER 2026, hyphenated, which the sentence form never matched."""
+    assert RE.read_heading("FIRST-QUARTER 2026 and 2025 - (UNAUDITED)") == (
+        "Q1", "2026-03-31", 2026)
+
+
+def test_a_period_named_in_prose_is_not_a_heading():
+    """Pfizer's exhibit carries a 418 character footnote explaining that its
+    international subsidiaries close a month early. It names a period and is not a
+    column header, and the table it was governing belonged to someone else."""
+    footnote = (
+        "(1) The financial statements present the three months ended March 29, 2026 and "
+        "March 30, 2025, while Pfizer's first quarter for subsidiaries operating outside "
+        "the U.S. reflects the three months ended on February 22, 2026 and February 23, "
+        "2025, and certain amounts may not add due to rounding of the underlying values.")
+    assert RE.tables(footnote) == []
+
+
+def test_prose_that_says_ended_on_is_never_a_heading():
+    assert RE.tables("the three months ended on March 29, 2026") == []
+
+
+def test_a_line_item_is_not_a_product():
+    for name in ("Launches", "License", "Grant", "Royalty", "Total product sales",
+                 "Product And Service Other", "Other HIV"):
+        assert RE._NOT_A_PRODUCT.match(name), name
+    for name in ("Eliquis", "Biktarvy", "Padcev", "Livdelzi", "Nurtec ODT/Vydura"):
+        assert not RE._NOT_A_PRODUCT.match(name), name
