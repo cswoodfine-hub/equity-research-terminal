@@ -413,13 +413,13 @@ def company_approvals(ticker: str) -> dict:
                        (SELECT b.loe_year FROM biologic_loe b
                          WHERE b.asset_id = a.id) AS bio_floor_year,
                        (SELECT r.value FROM asset_revenue r
-                         WHERE r.asset_id = a.id
+                         WHERE r.asset_id = a.id AND r.period = 'FY'
                          ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue,
                        (SELECT r.unit FROM asset_revenue r
-                         WHERE r.asset_id = a.id
+                         WHERE r.asset_id = a.id AND r.period = 'FY'
                          ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue_unit,
                        (SELECT r.fiscal_year FROM asset_revenue r
-                         WHERE r.asset_id = a.id
+                         WHERE r.asset_id = a.id AND r.period = 'FY'
                          ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue_year
                   FROM approvals ap JOIN assets a ON ap.asset_id = a.id
                  WHERE a.owner_company_id = ?

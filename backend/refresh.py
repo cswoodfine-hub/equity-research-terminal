@@ -30,6 +30,7 @@ import deals
 import diff
 import leadership
 import pdufa
+import revenue_earnings
 import revenue_mdna
 import themes
 import trial_mapping
@@ -202,6 +203,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     bio_loe = biologic_loe.derive(db_path)
     # Product revenue the SEC data sets do not tag, read from the filing's own table.
     mdna_revenue = revenue_mdna.extract(db_path)["written"]
+    # And the quarterly table in the earnings exhibit, which is the only place a product
+    # acquired mid-year appears until the next 10-K.
+    quarter_revenue = revenue_earnings.extract(db_path)["written"]
     trial_reads = trial_readouts.extract(db_path)
     deal_reads = deals.extract(db_path)
     # Who runs the company. Item 5.02 filings are already on file; this reads the
@@ -217,7 +221,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
               "readouts": readouts, "pdufa": goals, "biologic_loe": bio_loe,
               "trial_mapping": mapped,
-              "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue, "deals": deal_reads, "leadership": leaders, "changes": changes}
+              "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
+              "quarter_revenue": quarter_revenue, "deals": deal_reads,
+              "leadership": leaders, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 
 
@@ -320,6 +326,9 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     bio_loe = biologic_loe.derive(db_path)
     # Product revenue the SEC data sets do not tag, read from the filing's own table.
     mdna_revenue = revenue_mdna.extract(db_path)["written"]
+    # And the quarterly table in the earnings exhibit, which is the only place a product
+    # acquired mid-year appears until the next 10-K.
+    quarter_revenue = revenue_earnings.extract(db_path)["written"]
     trial_reads = trial_readouts.extract(db_path)
     deal_reads = deals.extract(db_path)
     # Who runs the company. Item 5.02 filings are already on file; this reads the
@@ -335,6 +344,7 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
               "sources": list(by_source.values()), "readouts": readouts,
               "trial_mapping": mapped,
               "pdufa": goals, "biologic_loe": bio_loe, "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
+              "quarter_revenue": quarter_revenue,
               "deals": deal_reads, "leadership": leaders, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
 

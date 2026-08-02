@@ -241,6 +241,39 @@ def html_escape(text: str) -> str:
     return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
+def _headline_revenue(prof: dict):
+    """The figure that leads a profile: the latest full year, or the latest quarter where
+    there is no year at all.
+
+    The year is preferred even when a quarter is newer, because this number is read
+    against the same number on other products and a quarter beside a year compares a
+    product to a quarter of itself. The quarter is here for the case that has no year:
+    Empaveli came to Biogen in May 2026 and is in no annual data set until 2027, and a
+    figure the company printed in July beats "no free data".
+    """
+    annual = [r for r in (prof.get("revenue") or []) if r.get("value") is not None]
+    if annual:
+        return max(annual, key=lambda r: r["fiscal_year"])
+    quarters = [r for r in (prof.get("quarterly_revenue") or [])
+                if r.get("value") is not None and r.get("period") != "H1"]
+    return max(quarters, key=lambda r: r["period_end"] or "") if quarters else None
+
+
+def _money(row: dict) -> str:
+    """A revenue figure at the scale it reads at. A quarter of a small product is tens of
+    millions, and "0.03 bn" is a number a reader has to decode rather than read."""
+    value, unit = row["value"], row.get("unit") or ""
+    if abs(value) >= 1e9:
+        return f'{T.num(value / 1e9, 2)} {unit} bn'
+    return f'{T.num(value / 1e6, 1)} {unit} m'
+
+
+def _period_label(row: dict) -> str:
+    """FY2025, or Q2 2026 for a quarter."""
+    period = row.get("period") or "FY"
+    return f'FY{row["fiscal_year"]}' if period == "FY" else f'{period} {row["fiscal_year"]}'
+
+
 def _prof_rows(pairs) -> str:
     """A block of key/value rows for the profile, skipping any pair with no value so an
     empty field never draws a blank row."""
@@ -275,7 +308,7 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
 
     loe = prof.get("loe") or {}
     dem = prof.get("demand")
-    rev = prof["revenue"][-1] if prof.get("revenue") else None
+    rev = _headline_revenue(prof)
     loe_txt = (f'{loe.get("loe_year")}' if loe.get("loe_year") else "—")
     if loe.get("loe_earliest_year") and loe.get("loe_year") \
             and loe["loe_earliest_year"] != loe["loe_year"] \
@@ -291,8 +324,8 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         '<div class="pos">'
         f'<div><span class="k">latest revenue</span>'
         f'<span class="v{"" if rev else " none"}">'
-        f'{T.num(rev["value"] / 1e9, 2) + " " + (rev["unit"] or "") + " bn" if rev else "no free data"}'
-        f'</span><span class="sub">{"FY" + str(rev["fiscal_year"]) if rev else "SEC tags few products"}</span></div>'
+        f'{_money(rev) if rev else "no free data"}'
+        f'</span><span class="sub">{_period_label(rev) if rev else "SEC tags few products"}</span></div>'
         f'<div><span class="k">exclusivity</span>'
         f'<span class="v{"" if loe.get("loe_year") else " none"}">{loe_txt}</span>'
         f'<span class="sub">{loe_note}</span></div>'
@@ -319,6 +352,13 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         html.append(_prof_rows(
             [(f'FY{r["fiscal_year"]}', f'{T.num(r["value"] / 1e9, 2)} {r.get("unit") or ""} bn')
              for r in prof["revenue"]]))
+    # The quarters, read from the earnings exhibit. Kept in their own block rather than
+    # merged into the years above: a quarter printed beside a year reads as a collapse.
+    quarters = [r for r in (prof.get("quarterly_revenue") or []) if r["period"] != "H1"]
+    if quarters:
+        html.append('<div class="prof-sub">revenue, quarters stated</div>')
+        html.append(_prof_rows(
+            [(_period_label(r), _money(r)) for r in quarters]))
     # Approvals, one line each with the approved indication.
     if prof.get("approvals"):
         html.append('<div class="prof-sub">approvals</div>')

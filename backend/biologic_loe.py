@@ -154,7 +154,8 @@ def _targets(conn):
           JOIN companies c ON c.id = a.owner_company_id
          WHERE a.brand_name IS NOT NULL
            AND LOWER(COALESCE(a.modality, '')) LIKE 'bio%'
-           AND EXISTS (SELECT 1 FROM asset_revenue r WHERE r.asset_id = a.id)
+           AND EXISTS (SELECT 1 FROM asset_revenue r WHERE r.asset_id = a.id
+                         AND r.period = 'FY')
            AND COALESCE((SELECT MAX(e.expiry_date) FROM exclusivities e
                           WHERE e.asset_id = a.id
                             AND e.protection_type != 'orphan exclusivity'), '') = ''

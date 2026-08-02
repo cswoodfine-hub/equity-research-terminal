@@ -487,9 +487,10 @@ class ProductRevenueFetcher(BaseFetcher):
                 conn.execute(
                     """
                     INSERT INTO asset_revenue
-                        (asset_id, fiscal_year, value, unit, source, note, is_curated)
-                    VALUES (?, ?, ?, ?, ?, ?, 0)
-                    ON CONFLICT(asset_id, fiscal_year) DO UPDATE SET
+                        (asset_id, fiscal_year, period, value, unit, source, note,
+                         is_curated)
+                    VALUES (?, ?, 'FY', ?, ?, ?, ?, 0)
+                    ON CONFLICT(asset_id, fiscal_year, period) DO UPDATE SET
                         value=excluded.value, unit=excluded.unit,
                         source=excluded.source, note=excluded.note,
                         updated_at=datetime('now')

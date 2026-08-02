@@ -155,7 +155,8 @@ def portfolio_freshness(conn, company_id: int, rates, today=None,
     cutoff = today.replace(year=today.year - FRESH_YEARS).isoformat()
     year = conn.execute(
         "SELECT MAX(ar.fiscal_year) FROM asset_revenue ar JOIN assets a"
-        "  ON a.id = ar.asset_id WHERE a.owner_company_id = ?", (company_id,)).fetchone()[0]
+        "  ON a.id = ar.asset_id WHERE a.owner_company_id = ? AND ar.period = 'FY'",
+        (company_id,)).fetchone()[0]
     if year is None:
         return {"fresh_share": None, "revenue": None, "dated_revenue": None,
                 "coverage": 0.0, "year": None, "drugs": 0, "identified": 0,
@@ -179,6 +180,9 @@ def portfolio_freshness(conn, company_id: int, rates, today=None,
           FROM asset_revenue ar
           JOIN assets a ON a.id = ar.asset_id
          WHERE a.owner_company_id = ? AND ar.fiscal_year = ? AND ar.value IS NOT NULL
+           -- The year, not the quarters inside it: summing both counts the same sales
+           -- twice and reads as a company half again its size.
+           AND ar.period = 'FY'
         """, (company_id, year)):
         value = _usd(row["value"], row["unit"], rates)
         if value is None:

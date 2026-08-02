@@ -327,14 +327,17 @@ def _diff_product_revenue(conn, run_id) -> int:
     """
     rows = conn.execute(
         """
-        SELECT r.asset_id, r.fiscal_year, r.value, r.unit, a.brand_name, c.ticker
+        SELECT r.asset_id, r.fiscal_year, r.period, r.value, r.unit,
+               a.brand_name, c.ticker
           FROM asset_revenue r JOIN assets a ON a.id = r.asset_id
           LEFT JOIN companies c ON c.id = a.owner_company_id
         """
     ).fetchall()
     emitted = 0
     for row in rows:
-        key = f"{row['asset_id']}:{row['fiscal_year']}"
+        # The period is part of the key. Without it a quarter and its year shared one
+        # slot and each refresh read the other as a restatement of it.
+        key = f"{row['asset_id']}:{row['fiscal_year']}:{row['period']}"
         payload = {"value": row["value"], "unit": row["unit"],
                    "ticker": row["ticker"], "brand": row["brand_name"]}
         prior = _last_snapshot(conn, "asset_revenue", "product_revenue", key)

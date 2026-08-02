@@ -161,17 +161,22 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
         # any other; the filed figure stays beside it and an unconvertible one is left
         # as filed rather than counted at par.
         rates = fx.latest_usd_rates(db_path)
-        revenue = []
+        # The annual series and the quarterly one are kept apart. Interleaved they read
+        # as a collapse, since a quarter beside a year is a quarter of the number and
+        # nothing in the row says which it is.
+        revenue, quarterly = [], []
         for r in conn.execute(
-                "SELECT fiscal_year, value, unit FROM asset_revenue"
-                "  WHERE asset_id = ? ORDER BY fiscal_year", (asset_id,)):
+                "SELECT fiscal_year, period, period_end, value, unit, source"
+                "  FROM asset_revenue WHERE asset_id = ?"
+                "  ORDER BY fiscal_year, period_end", (asset_id,)):
             row = dict(r)
             row["reported_value"], row["reported_unit"] = row["value"], row["unit"]
             if row["unit"] and row["unit"] != "USD":
                 converted = fx.to_usd(row["value"], row["unit"], rates)
                 if converted is not None:
                     row["value"], row["unit"] = converted, "USD"
-            revenue.append(row)
+            (revenue if row["period"] == "FY" else quarterly).append(row)
+        quarterly.sort(key=lambda r: r["period_end"] or "")
         label = conn.execute(
             "SELECT effective_time, indication_count, indications_text, population_text"
             "  FROM labels WHERE asset_id = ? ORDER BY effective_time DESC LIMIT 1",
@@ -227,6 +232,7 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
             "approvals": approvals,
             "first_approval": approvals[0]["approval_date"] if approvals else None,
             "revenue": revenue,
+            "quarterly_revenue": quarterly,
             "loe": _loe(conn, asset_id),
             "demand": _demand(conn, asset_id),
             "label": dict(label) if label else None,

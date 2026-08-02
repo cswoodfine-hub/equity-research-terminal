@@ -64,7 +64,7 @@ def list_revenue(db_path=None, ticker: str = "") -> list[dict]:
             SELECT r.id, r.asset_id, r.fiscal_year, r.value, r.unit, r.source, r.note,
                    a.brand_name, a.generic_name, a.internal_code, a.modality
               FROM asset_revenue r JOIN assets a ON a.id = r.asset_id
-             WHERE a.owner_company_id = ?
+             WHERE a.owner_company_id = ? AND r.period = 'FY'
              ORDER BY r.fiscal_year DESC, r.value DESC
             """,
             (company_id,),
@@ -90,9 +90,9 @@ def set_revenue(db_path, ticker: str, application_number: str, fiscal_year: int,
         conn.execute(
             """
             INSERT INTO asset_revenue
-                (asset_id, fiscal_year, value, unit, source, note, is_curated)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
-            ON CONFLICT(asset_id, fiscal_year) DO UPDATE SET
+                (asset_id, fiscal_year, period, value, unit, source, note, is_curated)
+            VALUES (?, ?, 'FY', ?, ?, ?, ?, 1)
+            ON CONFLICT(asset_id, fiscal_year, period) DO UPDATE SET
                 value=excluded.value, unit=excluded.unit, source=excluded.source,
                 note=excluded.note, updated_at=datetime('now')
             """,
@@ -100,7 +100,8 @@ def set_revenue(db_path, ticker: str, application_number: str, fiscal_year: int,
         )
         conn.commit()
         row = conn.execute(
-            "SELECT id FROM asset_revenue WHERE asset_id = ? AND fiscal_year = ?",
+            "SELECT id FROM asset_revenue WHERE asset_id = ? AND fiscal_year = ?"
+            "  AND period = 'FY'",
             (asset_id, int(fiscal_year)),
         ).fetchone()
         return row["id"]
@@ -125,7 +126,7 @@ def _latest_revenue(conn, company_id: int) -> dict:
         """
         SELECT r.asset_id, r.fiscal_year, r.value, r.unit
           FROM asset_revenue r JOIN assets a ON a.id = r.asset_id
-         WHERE a.owner_company_id = ?
+         WHERE a.owner_company_id = ? AND r.period = 'FY'
          ORDER BY r.asset_id, r.fiscal_year
         """,
         (company_id,),

@@ -226,15 +226,23 @@ CREATE TABLE asset_revenue (
     id          INTEGER PRIMARY KEY,
     asset_id    INTEGER NOT NULL REFERENCES assets(id),
     fiscal_year INTEGER NOT NULL,
+    -- What stretch the figure covers. A quarter stored as if it were the year
+    -- understates a product fourfold, so the period is part of the key.
+    period      TEXT NOT NULL DEFAULT 'FY',  -- FY, Q1..Q4, H1
+    period_end  TEXT,                        -- ISO date the period closes on
     value       REAL,               -- as reported, not scaled
     unit        TEXT,               -- reporting currency, e.g. USD
     source      TEXT,               -- where it was read from, e.g. "FY2025 10-K"
     note        TEXT,
-    is_curated  INTEGER DEFAULT 1,  -- 1 hand entered; nothing writes 0 yet
+    is_curated  INTEGER DEFAULT 1,  -- 1 hand entered; 0 fetched
     updated_at  TEXT DEFAULT (datetime('now')),
-    UNIQUE(asset_id, fiscal_year)
+    UNIQUE(asset_id, fiscal_year, period)
 );
 CREATE INDEX idx_asset_revenue ON asset_revenue(asset_id, fiscal_year);
+-- The period index is created by migration 034, not here. schema.sql runs against an
+-- existing database before the migrations do, and on one that has not been migrated yet
+-- there is no period column for this index to name.
+
 
 CREATE TABLE filings (
     id         INTEGER PRIMARY KEY,
