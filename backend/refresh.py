@@ -22,6 +22,7 @@ import env  # noqa: F401  loads the .env before any module reads it
 import asset_identity
 import asset_merge
 import financings
+import vouchers
 import pipeline_filing
 import brand_split
 import biologic_loe
@@ -206,6 +207,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # after the filing text fetch and before the runway is read anywhere, since it moves
     # the cash figure every downstream view divides by.
     mapped["financings"] = financings.build(db_path)["written"]
+    # A voucher sold after the balance sheet date is the same gap and the larger
+    # number, and no XBRL fact carries the sale until the next quarter closes.
+    mapped["vouchers"] = vouchers.build(db_path)["written"]
     # What a deal pays, out of the press release furnished with the 8-K. A deal
     # caught from a news headline arrives with a counterparty and no size, and the
     # text that states the terms is already stored by the filing-text fetch.
@@ -347,6 +351,9 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # after the filing text fetch and before the runway is read anywhere, since it moves
     # the cash figure every downstream view divides by.
     mapped["financings"] = financings.build(db_path)["written"]
+    # A voucher sold after the balance sheet date is the same gap and the larger
+    # number, and no XBRL fact carries the sale until the next quarter closes.
+    mapped["vouchers"] = vouchers.build(db_path)["written"]
     # What a deal pays, out of the press release furnished with the 8-K. A deal
     # caught from a news headline arrives with a counterparty and no size, and the
     # text that states the terms is already stored by the filing-text fetch.

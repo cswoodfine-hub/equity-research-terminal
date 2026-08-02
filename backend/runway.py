@@ -36,6 +36,7 @@ import datetime as dt
 
 import db
 import financings
+import vouchers
 
 # What marks a company that sells something. A firm that manufactures and sells a drug
 # carries inventory and reports a cost of revenue; a clinical-stage one does neither.
@@ -91,7 +92,8 @@ def liquidity(conn, company_id: int) -> dict:
     if cash_row is None:
         return {"cash": None, "as_of": None, "includes_investments": False,
                 "short_term": None, "long_term": None, "cash_only": None,
-                "raised_since": None, "raises": [], "available": None}
+                "raised_since": None, "raises": [],
+                "voucher_since": None, "vouchers": [], "available": None}
     as_of = cash_row["period_end"]
     # Both maturities, because that is what a company's own runway guidance counts when
     # it says "cash, cash equivalents and marketable securities sufficient to fund
@@ -110,6 +112,11 @@ def liquidity(conn, company_id: int) -> dict:
     # the balance sheet figure stays exactly what the balance sheet says and a reader can
     # see which part of the total came from a sentence.
     raised = financings.since_balance_sheet(conn, company_id, as_of)
+    # A priority review voucher sold after the balance sheet date is the same problem and
+    # the larger number: Abeona's was 155m against a 226m balance sheet. Kept separate
+    # from the raises because it is not one. Nobody was diluted, and a reader comparing
+    # two companies' runways should see which of them had to sell equity for it.
+    voucher = vouchers.since_balance_sheet(conn, company_id, as_of)
     return {"cash": total, "as_of": as_of,
             "includes_investments": bool(parts),
             "short_term": parts.get("ShortTermInvestments"),
@@ -117,7 +124,9 @@ def liquidity(conn, company_id: int) -> dict:
             "cash_only": cash_row["value"],
             "raised_since": raised["total"],
             "raises": raised["rows"],
-            "available": total + (raised["total"] or 0)}
+            "voucher_since": voucher["total"],
+            "vouchers": voucher["rows"],
+            "available": total + (raised["total"] or 0) + (voucher["total"] or 0)}
 
 
 def trailing_burn(conn, company_id: int) -> dict:
@@ -239,6 +248,8 @@ def _row(conn, company, today) -> dict:
         # measured against. All three, because a reader has to be able to see which part
         # of the total was tagged and which part was read out of a sentence.
         "raised_since": money.get("raised_since"), "raises": money.get("raises") or [],
+        "voucher_since": money.get("voucher_since"),
+        "vouchers": money.get("vouchers") or [],
         "available": money.get("available"),
         "burn_annual": burn["burn"], "burn_basis": burn["basis"],
         "runway_months": months,
