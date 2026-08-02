@@ -68,10 +68,20 @@ NOT_A_PRODUCT = {
     "pharmaceutical", "otherproductsandservices", "othersales",
 }
 
+# The note every row this fetcher creates carries, which is how the cleanup below knows
+# which rows are its own to retire.
+CREATED_NOTE = ("created from product revenue reported in the filing; no Orange Book or "
+                "openFDA entry, which is normal for a vaccine or a partnered product")
+
 # Prefixes filers put in front of a brand on the product axis. Merck reports partnered
-# products as AllianceRevenueLynparza, which is Lynparza with a revenue type glued on.
+# products as AllianceRevenueLynparza, which is Lynparza with a revenue type glued on,
+# and Gilead files its whole catalogue under the category it sits in, so Biktarvy arrives
+# as HIVProductsBiktarvy. Stripping the category recovers the product, and recovers it
+# under the name the rest of the database already knows it by.
 MEMBER_PREFIXES = ("alliancerevenue", "collaborationrevenue", "productrevenue",
-                   "netproductsales", "netsales", "revenuefrom")
+                   "netproductsales", "netsales", "revenuefrom",
+                   "hivproducts", "celltherapyproducts", "liverdiseaseproducts",
+                   "oncologyproducts", "rsvvaccines", "rsv")
 
 # Members that name a grouping rather than a product. Filers put products and the
 # categories containing them on the same axis, so Novo tags Ozempic and also
@@ -80,7 +90,7 @@ MEMBER_PREFIXES = ("alliancerevenue", "collaborationrevenue", "productrevenue",
 AGGREGATE_PATTERN = re.compile(
     r"^(total|all|other|combined|excluding|including|sales|revenue|net|gross)"
     r"|(total|portfolio|brands|products|franchise|therapeutics|business|segment"
-    r"|revenues?|sales|medicines?|care|health|diseases?)$",
+    r"|group|revenues?|sales|medicines?|care|health|diseases?|other)$",
     re.I)
 
 # Therapeutic areas and portfolio groupings, which read like products but contain them.
@@ -91,23 +101,33 @@ AGGREGATE_WORDS = {
     "growthbrands", "legacybrands", "keyproducts", "top20products", "restofportfolio",
     "specialtymedicine", "generalmedicines", "establishedbrands", "matureproducts",
     "innovativemedicine", "medtech", "pharmaceuticals", "biopharma",
+    # Indications a filer reports a franchise under. GSK files by disease rather than by
+    # brand for its vaccines, so Shingles is Shingrix and everything else for shingles,
+    # and Moderna's COVID19 line is the whole respiratory franchise.
+    "influenza", "meningitis", "shingles", "covid", "covid19", "rsv", "hepatitis",
+    "polio", "malaria", "biosimilars", "biosimilar", "dermatology", "ophthalmology",
+    # Johnson & Johnson reports MedTech by surgical category. These are not drugs and
+    # never were, and each was carrying revenue against a name no product answers to.
+    "advanced", "electrophysiology", "general", "hips", "knees", "trauma", "spine",
+    "sports", "contactlenses", "orthopaedics", "orthopedics", "surgery", "vision",
+    "wound", "interventional", "cardiovascularsolutions",
 }
 
-
-def is_aggregate(member: str) -> bool:
-    """True when a member names a grouping rather than a single product.
-
-    The test is deliberately eager. A product wrongly dropped costs coverage, which the
-    chart shows honestly as unattributed revenue. A grouping wrongly kept is counted
-    twice and quietly inflates the company, which nothing on the page would reveal.
-    """
-    normalised = _norm(member)
-    if normalised in NOT_A_PRODUCT or normalised in AGGREGATE_WORDS:
-        return True
-    words = re.split(r"(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+", member)
-    if any(_norm(word) in AGGREGATE_WORDS for word in words if word):
-        return True
-    return bool(AGGREGATE_PATTERN.search(member))
+# Words that make a member a line on an income statement rather than a product. A filer
+# puts these on the same axis as its brands, so Moderna's grant income and Regeneron's
+# reimbursed expenses arrive looking exactly like drugs.
+LINE_ITEM_WORDS = {
+    "licence", "license", "licences", "licenses", "licensing", "royalty", "royalties",
+    "grant", "grants", "service", "services", "collaboration", "collaborative",
+    "collaborativeand", "contract", "contracts", "milestone", "milestones",
+    "reimbursement", "partnership", "partnerships", "technology", "options",
+    "commercial", "manufacturing", "manufactured", "launches", "antibodies",
+    "alliance", "subscription", "distribution", "supply",
+    # A member naming a company is a business, not a drug. Johnson & Johnson reports
+    # Abiomed and Shockwave Medical as MedTech lines, and both are acquisitions rather
+    # than products.
+    "inc", "corp", "corporation", "llc", "ltd", "plc", "gmbh", "holdings",
+}
 
 
 def _split_camel(member: str) -> str:
@@ -132,6 +152,30 @@ def display_name(member: str) -> str:
                 == prefix else _split_camel(re.sub(
                     f"(?i)^{prefix}", "", member.replace(" ", "")))
     return _split_camel(member)
+
+def is_aggregate(member: str) -> bool:
+    """True when a member names a grouping rather than a single product.
+
+    The test is deliberately eager. A product wrongly dropped costs coverage, which the
+    chart shows honestly as unattributed revenue. A grouping wrongly kept is counted
+    twice and quietly inflates the company, which nothing on the page would reveal.
+    """
+    # A category glued to a brand names the brand, so the test is asked of what is left
+    # once the category comes off: HIVProductsBiktarvy is Biktarvy and not the HIV
+    # franchise, while HIV on its own is the franchise.
+    member = display_name(member).replace(" ", "") or member
+    normalised = _norm(member)
+    if normalised in NOT_A_PRODUCT or normalised in AGGREGATE_WORDS:
+        return True
+    words = [w for w in re.split(r"(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+", member) if w]
+    if any(_norm(word) in AGGREGATE_WORDS for word in words):
+        return True
+    # One line-item word is enough. "Royalty Contract And Other" and "Spinraza
+    # Royalties" are both revenue this company earns and neither is a product it sells.
+    if any(_norm(word) in LINE_ITEM_WORDS for word in words):
+        return True
+    return bool(AGGREGATE_PATTERN.search(member))
+
 
 # Geography member sets that partition the world, so their parts may be summed. Anything
 # else is left alone: a filer reporting Europe and International may be double counting,
@@ -454,9 +498,7 @@ class ProductRevenueFetcher(BaseFetcher):
             INSERT INTO assets (owner_company_id, brand_name, is_marketed, notes)
             VALUES (?, ?, 1, ?)
             """,
-            (company_id, name,
-             "created from product revenue reported in the filing; no Orange Book or "
-             "openFDA entry, which is normal for a vaccine or a partnered product"),
+            (company_id, name, CREATED_NOTE),
         )
         assets[(ticker, _norm(name))] = cur.lastrowid
         assets[(ticker, _norm(member))] = cur.lastrowid
@@ -507,3 +549,95 @@ class ProductRevenueFetcher(BaseFetcher):
             conn.close()
         return RefreshResult(self.source, written, list(self._errors), False, 0,
                              notes=list(self._notes))
+
+
+
+def _referencing_tables(conn) -> list:
+    """(table, whether asset_id may be null) for every table keyed on an asset.
+
+    Read from the schema rather than listed here, so a migration adding a table cannot
+    quietly outdate the cleanup below.
+    """
+    tables = [r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table'")]
+    out = []
+    for table in tables:
+        keyed = any(fk[2] == "assets" and fk[3] == "asset_id"
+                    for fk in conn.execute(f'PRAGMA foreign_key_list("{table}")'))
+        if not keyed:
+            continue
+        nullable = not any(column[1] == "asset_id" and column[3]
+                           for column in conn.execute(f'PRAGMA table_info("{table}")'))
+        out.append((table, nullable))
+    return out
+
+
+def _detach(conn, table: str, nullable: bool, asset_id: int) -> None:
+    """Take an asset out of one table.
+
+    A trial is a real study that was mapped to the wrong row, so it keeps its own record
+    and loses the mapping. Everything else, a label or a theme or a revenue figure, exists
+    only as a property of the asset and goes with it.
+    """
+    if nullable:
+        conn.execute(f"UPDATE {table} SET asset_id = NULL WHERE asset_id = ?", (asset_id,))
+    else:
+        conn.execute(f"DELETE FROM {table} WHERE asset_id = ?", (asset_id,))
+
+
+def prune(db_path=None) -> dict:
+    """Retire the rows this fetcher created for members that are not products.
+
+    The rules above decide what a member is, and they have grown as the filings showed
+    what they contain. Rows created under the older, looser rules are still here, holding
+    revenue against a name no product answers to: Johnson & Johnson had KNEES and
+    CONTACTLENSESOTHER, Moderna had Grant, and Gilead had its whole HIV catalogue filed
+    twice, once as Biktarvy and once as HIVProductsBiktarvy.
+
+    Two outcomes. A member the rules now call an aggregate is retired, and its revenue
+    with it, because that revenue was never attributable to a product and belongs in the
+    unattributed remainder the charts already show honestly. A member that turns out to
+    be a brand behind a category prefix is renamed to the brand, and the merge pass then
+    folds it into the row that was already there.
+
+    Only rows this fetcher created, and only rows nothing else has attached to. A row
+    with a trial, an approval or a label against it has been identified by something
+    since, and this has no business deleting it.
+    """
+    conn = db.get_connection(db_path)
+    retired = renamed = kept = 0
+    try:
+        rows = conn.execute(
+            "SELECT id, brand_name FROM assets WHERE notes = ?"
+            "  AND brand_name IS NOT NULL AND brand_name <> ''", (CREATED_NOTE,)).fetchall()
+        for row in rows:
+            member = (row["brand_name"] or "").replace(" ", "")
+            if is_aggregate(member):
+                # An approval is the one attachment that carries identity of its own: it
+                # is an application number the FDA issued, not a name match. A row that
+                # has one is left alone and reported, because something real reached it
+                # and a person should look.
+                if conn.execute("SELECT 1 FROM approvals WHERE asset_id = ? LIMIT 1",
+                                (row["id"],)).fetchone():
+                    kept += 1
+                    continue
+                # Everything else attached to this row attached on the strength of the
+                # name, and the name is the thing that is wrong. DailyMed matched a label
+                # to KNEES because an ointment is indicated "for temporary relief of
+                # pain", and to License because a hand sanitiser is a licensed product.
+                # Keeping the row on that evidence keeps the error.
+                for table, nullable in _referencing_tables(conn):
+                    _detach(conn, table, nullable, row["id"])
+                conn.execute("DELETE FROM assets WHERE id = ?", (row["id"],))
+                retired += 1
+                continue
+            name = display_name(member)
+            if name and name != row["brand_name"]:
+                conn.execute(
+                    "UPDATE assets SET brand_name = ?, updated_at = datetime('now')"
+                    "  WHERE id = ?", (name, row["id"]))
+                renamed += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return {"retired": retired, "renamed": renamed, "kept": kept}

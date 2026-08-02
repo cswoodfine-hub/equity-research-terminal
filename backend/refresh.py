@@ -37,6 +37,7 @@ import themes
 import trial_mapping
 import trial_readouts
 from fetchers import brand_lookup_openfda
+from fetchers import product_revenue_sec
 from fetchers.adcomm_fedreg import AdCommFetcher
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 from fetchers.deals_news import DealsNewsFetcher
@@ -168,6 +169,11 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # A derived compound can lose its own trials to a longer, more specific match; those
     # empty rows are cleared so nothing counts them as programmes.
     mapped["pruned"] = trial_mapping.prune_orphan_pipeline_assets(db_path)["pruned"]
+    # Retire the rows the revenue fetcher created for members that turned out not to be
+    # products, and rename the ones that are a brand behind a category prefix. Before the
+    # merge, so a renamed row folds into the product it was always a second copy of.
+    _pruned = product_revenue_sec.prune(db_path)
+    mapped["revenue_members_retired"] = _pruned["retired"]
     # A compound the registry names by ingredient can be the product openFDA lists by
     # brand. Folding the two together keeps an approved drug out of the pipeline.
     mapped["merged"] = asset_merge.merge(db_path)["merged"]
@@ -304,6 +310,11 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # A derived compound can lose its own trials to a longer, more specific match; those
     # empty rows are cleared so nothing counts them as programmes.
     mapped["pruned"] = trial_mapping.prune_orphan_pipeline_assets(db_path)["pruned"]
+    # Retire the rows the revenue fetcher created for members that turned out not to be
+    # products, and rename the ones that are a brand behind a category prefix. Before the
+    # merge, so a renamed row folds into the product it was always a second copy of.
+    _pruned = product_revenue_sec.prune(db_path)
+    mapped["revenue_members_retired"] = _pruned["retired"]
     # A compound the registry names by ingredient can be the product openFDA lists by
     # brand. Folding the two together keeps an approved drug out of the pipeline.
     mapped["merged"] = asset_merge.merge(db_path)["merged"]
