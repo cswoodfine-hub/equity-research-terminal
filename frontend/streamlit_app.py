@@ -1326,10 +1326,12 @@ with main:
         # drawn on a date axis rather than a jargon-heavy list; the full change feed with
         # filings, trial moves and risk-factor edits lives on each company's Key insights.
         # Year to date, read from the approvals themselves rather than from the change
-        # feed. The feed is bounded by how far back the diff engine looks, so the tape's
-        # span moved with the refresh and opened wherever the oldest surviving change
-        # happened to sit: mid-March, on a page whose other windows are a quarter and a
-        # year. A year to date is a span a reader chose.
+        # feed, which is bounded by how far back the diff engine looks and so gave a
+        # window that moved with the refresh rather than one a reader chose.
+        #
+        # The year bounds what is fetched; the axis still opens on the first approval in
+        # it. Nothing cleared before 17 March this year, so the tape starts in March, and
+        # a January approval next year will pull it back to January on its own.
         _ytd = dt.date(dt.date.today().year, 1, 1)
         approvals = [
             {"ticker": a["ticker"],
@@ -1358,7 +1360,7 @@ with main:
                    "the top bar to pull the sources."))
         else:
             approvnav.approvals_nav(
-                CH.approvals_timeline(approvals, 1360, 84, dt.date.today(), start=_ytd),
+                CH.approvals_timeline(approvals, 1360, 84, dt.date.today()),
                 muted=TK.MUTED, key="appr_nav")
 
         # The two summary views side by side: where the money is on this engine, and

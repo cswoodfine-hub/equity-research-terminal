@@ -777,7 +777,7 @@ def timeline_spine(items: Sequence[dict], today, width: int = 200,
 
 # --- 11. approvals timeline ----------------------------------------------
 def approvals_timeline(approvals: Sequence[dict], width: int = 1040,
-                       height: int = 150, today=None, start=None) -> str:
+                       height: int = 150, today=None) -> str:
     """Recent FDA approvals across coverage on one date axis, in place of a jargon feed.
 
     Each approval is a dot at its date on a baseline, labelled with the ticker and drug
@@ -796,13 +796,12 @@ def approvals_timeline(approvals: Sequence[dict], width: int = 1040,
 
     items = sorted(((d, a) for a in approvals if (d := _d(a.get("date")))),
                    key=lambda pair: pair[0])
-    if not items and not start:
+    if not items:
         return ""
-    # The caller may fix the left edge, so a tape drawn year to date opens on 1 January
-    # whether or not anything was approved that week. Without it the axis begins at the
-    # first approval and the span moves every time one lands.
-    floor = _d(start) if start else None
-    start = floor or min(items[0][0], today - _dt.timedelta(days=14))
+    # The axis opens on the first mark, not on the first day of whatever window the
+    # caller filtered to. An empty January is empty space that says nothing, and the
+    # months with approvals in them get the width instead.
+    start = min(items[0][0], today - _dt.timedelta(days=14))
     end = max(items[-1][0], today)
     span = max((end - start).days, 1)
     pad_l, pad_r, mid = 16, 16, height / 2
