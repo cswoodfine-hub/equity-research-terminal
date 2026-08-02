@@ -1352,10 +1352,6 @@ with main:
             approvnav.approvals_nav(
                 CH.approvals_timeline(approvals, 1360, 84, dt.date.today()),
                 muted=TK.MUTED, key="appr_nav")
-            note('Each dot is an FDA approval among covered companies at its date; hover '
-                 'for the drug and application number. The detailed change feed, filings, '
-                 'trial moves and risk-factor edits, sits on each company\'s Key insights '
-                 'tab.')
 
         # The two summary views side by side: where the money is on this engine, and
         # what is dated on it. Both are read at a glance and neither needs the full
