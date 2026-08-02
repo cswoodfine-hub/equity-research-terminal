@@ -19,6 +19,7 @@ from dataclasses import asdict
 
 import env  # noqa: F401  loads the .env before any module reads it
 
+import asset_identity
 import asset_merge
 import financings
 import pipeline_filing
@@ -35,6 +36,7 @@ import revenue_mdna
 import themes
 import trial_mapping
 import trial_readouts
+from fetchers import brand_lookup_openfda
 from fetchers.adcomm_fedreg import AdCommFetcher
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 from fetchers.deals_news import DealsNewsFetcher
@@ -169,6 +171,17 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # A compound the registry names by ingredient can be the product openFDA lists by
     # brand. Folding the two together keeps an approved drug out of the pipeline.
     mapped["merged"] = asset_merge.merge(db_path)["merged"]
+    # A brand-only row left over from a partner's product gets the ingredient the
+    # universe already names, so every rule that asks a row to prove it is a drug
+    # can answer for it.
+    mapped["identified"] = asset_identity.fill(db_path)["named"]
+    # Last resort for a brand nothing on file can identify, asked of openFDA by brand
+    # rather than by sponsor. Soft: a failure here leaves a row unidentified, not a run
+    # broken.
+    try:
+        mapped["identified"] += brand_lookup_openfda.resolve(db_path)["found"]
+    except Exception as exc:                      # network, and never fatal
+        mapped["brand_lookup_error"] = str(exc)
     # One molecule sold as two products: the registry names the ingredient, so the
     # label decides which brand a study belongs to.
     mapped["brand_split"] = brand_split.split(db_path)["moved"]
@@ -294,6 +307,17 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # A compound the registry names by ingredient can be the product openFDA lists by
     # brand. Folding the two together keeps an approved drug out of the pipeline.
     mapped["merged"] = asset_merge.merge(db_path)["merged"]
+    # A brand-only row left over from a partner's product gets the ingredient the
+    # universe already names, so every rule that asks a row to prove it is a drug
+    # can answer for it.
+    mapped["identified"] = asset_identity.fill(db_path)["named"]
+    # Last resort for a brand nothing on file can identify, asked of openFDA by brand
+    # rather than by sponsor. Soft: a failure here leaves a row unidentified, not a run
+    # broken.
+    try:
+        mapped["identified"] += brand_lookup_openfda.resolve(db_path)["found"]
+    except Exception as exc:                      # network, and never fatal
+        mapped["brand_lookup_error"] = str(exc)
     # One molecule sold as two products: the registry names the ingredient, so the
     # label decides which brand a study belongs to.
     mapped["brand_split"] = brand_split.split(db_path)["moved"]

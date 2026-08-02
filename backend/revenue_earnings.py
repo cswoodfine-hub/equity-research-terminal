@@ -52,14 +52,6 @@ _QUARTER = re.compile(
     r"\b(?:(first|second|third|fourth)[-\s]+quarter|q([1-4]))\s+(?:fy\s?)?(\d{4})\b",
     re.I)
 
-# Names that are revenue line items rather than products. An asset row exists for any
-# name once seen in a revenue table, so "Launches", "License" and "Grant" are assets in
-# the same sense Eliquis is, and a product revenue table has to be told the difference.
-_NOT_A_PRODUCT = re.compile(
-    r"^(launches|licen[cs]e|grant|technology|product and service|collaboration|"
-    r"royalt|contract|milestone|service|other|total|subtotal|rest of|all other|"
-    r"revenue|sales|net |gross )", re.I)
-
 # A column header sits on a short line. A sentence that happens to name a period does not,
 # and Pfizer's exhibit carries several: a 418 character footnote explaining that its
 # international subsidiaries close a month early was being read as a table heading, and
@@ -342,21 +334,19 @@ def extract(db_path=None) -> dict:
                 "  ORDER BY filed_date DESC LIMIT 8", (company["id"],)).fetchall()
             if not sections:
                 continue
-            # A product the database can corroborate: it carries a code, an ingredient
-            # or an approval, or it is on the market under a name that is not a line
-            # item. Pfizer's six largest products are brand-only rows with none of the
-            # first three, so requiring them alone left Eliquis and Padcev unreadable
-            # while the exhibit stated both.
+            # Only products the database can identify by something other than a name: a
+            # subtotal row headed "Launches" would otherwise be collected as a drug.
+            # Pfizer's six largest products failed this for a while, being brand-only
+            # rows whose applications Astellas and Bristol Myers hold; asset_identity
+            # gives them their ingredient, so the guard can stay as strict as it reads.
             brands = {r["brand_name"]: r["id"] for r in conn.execute(
                 """
                 SELECT a.id, a.brand_name FROM assets a
                  WHERE a.owner_company_id = ? AND a.brand_name IS NOT NULL
                    AND a.brand_name <> ''
                    AND (a.internal_code IS NOT NULL OR a.generic_name IS NOT NULL
-                        OR a.is_marketed = 1
                         OR EXISTS (SELECT 1 FROM approvals ap WHERE ap.asset_id = a.id))
-                """, (company["id"],))
-                if not _NOT_A_PRODUCT.match(r["brand_name"])}
+                """, (company["id"],))}
             if not brands:
                 continue
             for section in sections:

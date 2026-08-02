@@ -124,6 +124,56 @@ def find_duplicates(conn, company_id: int) -> list[tuple]:
     return pairs
 
 
+# A brand stripped to what identifies the product. The parenthetical goes because
+# openFDA qualifies a brand by presentation, "Paxlovid (Copackaged)" and "Wainua
+# (Autoinjector)", while a filer's revenue table prints the brand alone. Case and
+# punctuation go because a filer prints KRYSTEXXA and openFDA prints Krystexxa. What
+# survives is alphanumeric, so "Prevnar 13" and "Prevnar 20" stay two products.
+_QUALIFIER = re.compile(r"\([^)]*\)")
+
+
+def canonical_brand(name: str) -> str:
+    """A brand reduced to the letters and digits that identify the product."""
+    return re.sub(r"[^a-z0-9]+", "", _QUALIFIER.sub(" ", name or "").lower())
+
+
+def _is_identified(row) -> bool:
+    """Whether a row carries anything behind its name."""
+    return bool(row["generic_name"] or row["internal_code"] or row["approvals"])
+
+
+def find_brand_duplicates(conn, company_id: int) -> list[tuple]:
+    """(survivor_id, [loser_ids]) for one company's marketed rows that share a brand.
+
+    A product reaches the database twice when two sources name it differently: openFDA
+    files Pfizer's antiviral as "Paxlovid (Copackaged)" with its ingredient and its NDA,
+    and the revenue table files it as "Paxlovid" with nothing. The second row then reads
+    as a product with no approval on file, which is the opposite of true.
+
+    Only an unidentified row is folded away, and only into exactly one identified row. Two
+    identified rows sharing a brand are left alone: both carry an approval, and choosing
+    between them would throw one away on a spelling.
+    """
+    rows = conn.execute(
+        "SELECT id, generic_name, brand_name, internal_code,"
+        "       (SELECT COUNT(*) FROM approvals ap WHERE ap.asset_id = assets.id) AS approvals"
+        "  FROM assets WHERE owner_company_id = ? AND is_marketed = 1"
+        "    AND brand_name IS NOT NULL AND brand_name <> ''", (company_id,)).fetchall()
+    groups: dict = {}
+    for row in rows:
+        brand = canonical_brand(row["brand_name"])
+        if len(brand) > 2:
+            groups.setdefault(brand, []).append(row)
+
+    pairs = []
+    for group in groups.values():
+        identified = [r for r in group if _is_identified(r)]
+        losers = [r["id"] for r in group if not _is_identified(r)]
+        if len(identified) == 1 and losers:
+            pairs.append((identified[0]["id"], losers))
+    return pairs
+
+
 def development_codes(text: str) -> set:
     """Every development code a name carries, ignoring targets, isotopes and scales."""
     out = set()
@@ -218,7 +268,17 @@ def merge(db_path=None) -> dict:
                 conn.execute(
                     "UPDATE assets SET internal_code = COALESCE(internal_code, ?),"
                     "  updated_at = datetime('now') WHERE id = ?", (code, survivor_id))
+        # Last, because it folds an unidentified row into an identified one and the two
+        # passes above can leave a fresh pair behind.
+        by_brand = 0
+        for company_id in companies:
+            for survivor_id, losers in find_brand_duplicates(conn, company_id):
+                for loser_id in losers:
+                    moved += _absorb(conn, survivor_id, loser_id)
+                    merged += 1
+                    by_brand += 1
         conn.commit()
     finally:
         conn.close()
-    return {"merged": merged, "trials_moved": moved, "by_code": by_code}
+    return {"merged": merged, "trials_moved": moved, "by_code": by_code,
+            "by_brand": by_brand}

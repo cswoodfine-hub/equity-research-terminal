@@ -76,7 +76,7 @@ def test_merges_the_derived_row_into_the_marketed_one(tmp_path):
     _trial(conn, derived, "NCT0002")
     conn.close()
 
-    assert asset_merge.merge(path) == {"merged": 1, "trials_moved": 2, "by_code": 0}
+    assert asset_merge.merge(path) == {"merged": 1, "trials_moved": 2, "by_code": 0, "by_brand": 0}
 
     conn = db.get_connection(path)
     assert conn.execute("SELECT COUNT(*) FROM assets WHERE id = ?",
@@ -86,7 +86,7 @@ def test_merges_the_derived_row_into_the_marketed_one(tmp_path):
     conn.close()
 
     # A second run has nothing left to do.
-    assert asset_merge.merge(path) == {"merged": 0, "trials_moved": 0, "by_code": 0}
+    assert asset_merge.merge(path) == {"merged": 0, "trials_moved": 0, "by_code": 0, "by_brand": 0}
 
 
 def test_never_merges_across_companies(tmp_path):
@@ -258,4 +258,4 @@ def test_a_marketed_row_is_left_to_the_first_pass(tmp_path):
     _asset(conn, "LLY", generic="Gallium Dotatate Ga-68", marketed=1)
     conn.close()
 
-    assert asset_merge.merge(path) == {"merged": 0, "trials_moved": 0, "by_code": 0}
+    assert asset_merge.merge(path) == {"merged": 0, "trials_moved": 0, "by_code": 0, "by_brand": 0}

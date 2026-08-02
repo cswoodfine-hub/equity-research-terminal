@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+import asset_identity
 import revenue_earnings as RE
 
 FIXTURE = Path(__file__).parent / "fixtures" / "biib_8k_product_revenue.txt"
@@ -256,6 +257,6 @@ def test_prose_that_says_ended_on_is_never_a_heading():
 def test_a_line_item_is_not_a_product():
     for name in ("Launches", "License", "Grant", "Royalty", "Total product sales",
                  "Product And Service Other", "Other HIV"):
-        assert RE._NOT_A_PRODUCT.match(name), name
+        assert not asset_identity.looks_like_a_product(name), name
     for name in ("Eliquis", "Biktarvy", "Padcev", "Livdelzi", "Nurtec ODT/Vydura"):
-        assert not RE._NOT_A_PRODUCT.match(name), name
+        assert asset_identity.looks_like_a_product(name), name
