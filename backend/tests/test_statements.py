@@ -147,6 +147,15 @@ def test_every_line_key_is_unique_and_maps_back():
     assert all(statements.LINES_BY_KEY[key].key == key for key in keys)
 
 
+def test_reference_lines_are_stored_but_never_drawn():
+    """They answer a question about the statements rather than appearing on one, so the
+    fetcher walks them and the three statement views do not."""
+    drawn = {line.key for statement in statements.STATEMENTS
+             for line in statements.lines_for(statement)}
+    assert "ResearchExcludingAcquiredIprd" in statements.LINES_BY_KEY
+    assert "ResearchExcludingAcquiredIprd" not in drawn
+
+
 def test_derived_lines_reference_lines_that_exist():
     for line in statements.LINES:
         if not line.derived:

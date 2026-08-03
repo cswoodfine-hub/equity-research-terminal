@@ -792,17 +792,22 @@ def _cash_panel(built: dict) -> None:
 # neighbouring warm hues because they are the same act, money handed back.
 ALLOCATION_COLOURS = {
     "rd": TK.UP,
+    # A darker green beside the brighter one: research bought rather than done, so
+    # it reads as related to the segment it sits next to and not as a sixth thing.
+    "acquired_rd": T.P.phase_tints[2],
     "capex": TK.MUTED,
     "acquisitions": TK.PURPLE_BOOK,
     "buybacks": TK.ORANGE_BOOK,
     "dividends": TK.FLAG,
 }
-ALLOCATION_LABELS = {"rd": "Research", "capex": "Plant",
+ALLOCATION_LABELS = {"rd": "Research", "acquired_rd": "Acquired R&D",
+                     "capex": "Plant",
                      "acquisitions": "Acquisitions", "buybacks": "Buybacks",
                      "dividends": "Dividends"}
 # Drawn in this order left to right: what the business costs to run, then what is done
 # with the money afterwards.
-ALLOCATION_ORDER = ("rd", "capex", "acquisitions", "buybacks", "dividends")
+ALLOCATION_ORDER = ("rd", "acquired_rd", "capex", "acquisitions",
+                    "buybacks", "dividends")
 
 
 def _allocation_band(api_base: str, ticker: str) -> None:
@@ -845,16 +850,32 @@ def _allocation_band(api_base: str, ticker: str) -> None:
     # not and which would count the research twice.
     latest = years[0]
     generated = latest.get("operating")
-    below = sum(latest[key] or 0 for key in ALLOCATION_ORDER if key not in ("rd",))
+    below = sum(latest[key] or 0 for key in ALLOCATION_ORDER if key != "rd")
     parts = ["Research is an operating expense and is already inside the cash the rest "
              "is spent from, so the bar is what the company spent rather than what it "
              "did with its free cash flow."]
     if generated:
+        # Cash paid for in-process research is an investing outflow like the rest of the
+        # bar, so it belongs in the total, but it is not plant and not a company bought
+        # and the sentence has to name it or the arithmetic will not tie out on a filer
+        # that spends three billion a year that way.
+        spent_on = ("research bought, plant, acquisitions and shareholders"
+                    if latest.get("acquired_rd")
+                    else "plant, acquisitions and shareholders")
         parts.append(
             f'In FY{latest["fiscal_year"] % 100:02d} it generated '
             f'{T.num(generated / scale, 1)}{unit} from operations and spent '
-            f'{T.num(below / scale, 1)}{unit} of it on plant, acquisitions and '
-            "shareholders.")
+            f'{T.num(below / scale, 1)}{unit} of it on {spent_on}.')
+    # Where the filer reports cash paid for molecules but no research figure with it
+    # taken out, the two cannot be told apart and the money stays inside research. Say
+    # which years, because the alternative is a reader assuming the company bought
+    # nothing in them.
+    if spend.get("inside_research"):
+        shown = ", ".join(f"FY{year % 100:02d}"
+                          for year in spend["inside_research"][:4])
+        parts.append(f'{ticker} reports cash paid for in-process research in {shown} but '
+                     "no research figure with it taken out, so it stays inside research "
+                     "rather than being drawn twice.")
     if spend.get("untagged"):
         parts.append(f'{ticker} files no '
                      f'{html_escape(" or ".join(w.lower() for w in spend["untagged"]))}'

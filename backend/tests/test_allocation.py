@@ -1,7 +1,7 @@
-"""Where the money went: the five things a company spends on, by year.
+"""Where the money went: the things a company spends on, by year.
 
-Research, plant, acquisitions, buybacks and dividends. The mix is a decision rather than
-a result, and nothing else in this repository reads it.
+Research done, research bought, plant, acquisitions, buybacks and dividends. The mix is
+a decision rather than a result, and nothing else in this repository reads it.
 """
 
 import pytest
@@ -115,6 +115,56 @@ def test_research_is_marked_as_sitting_above_the_line():
     assert "rd" in allocation.ABOVE_THE_LINE
     assert all(key not in allocation.ABOVE_THE_LINE
                for key in ("capex", "acquisitions", "buybacks", "dividends"))
+
+
+def test_molecules_bought_are_drawn_where_research_is_known_to_exclude_them(tmp_path):
+    """Lilly structures most of its business development as asset acquisitions, so it
+    tags no acquisitions line and three billion a year of its spending sat in no segment.
+    It publishes research excluding acquired in-process cost, which is what makes the two
+    separable."""
+    path = _seed(tmp_path, [
+        ("2025-12-31", "ResearchAndDevelopmentExpense", 13.34e9),
+        ("2025-12-31", "ResearchExcludingAcquiredIprd", 13.34e9),
+        ("2025-12-31", "AcquiredIprd", 3.01e9),
+    ], ticker="LLY")
+    row = allocation.build(path, "LLY")["years"][0]
+    assert row["acquired_rd"] == pytest.approx(3.01e9)
+    assert row["rd"] == pytest.approx(13.34e9)
+
+
+def test_molecules_bought_are_dropped_where_research_may_already_contain_them(tmp_path):
+    """Allogene's 2018 research of 152m is 109m of acquired in-process cost and the rest
+    spent in the labs. It never publishes the excluding concept, so the two cannot be
+    told apart, and drawing both would count that 109m twice."""
+    path = _seed(tmp_path, [
+        ("2018-12-31", "ResearchAndDevelopmentExpense", 152e6),
+        ("2018-12-31", "AcquiredIprd", 109e6),
+    ], ticker="ALLO")
+    built = allocation.build(path, "ALLO")
+    assert built["years"][0]["acquired_rd"] is None
+    assert built["years"][0]["rd"] == pytest.approx(152e6)
+    # The money is not lost, it stays inside research where the filer put it, and the
+    # year is named so the panel can say so. Allogene does file the line, so calling it
+    # untagged would be untrue.
+    assert built["inside_research"] == [2018]
+    assert "Acquired R&D" not in built["untagged"]
+
+
+def test_the_separability_test_is_made_year_by_year(tmp_path):
+    """Lilly began publishing the excluding concept in 2021. The years before it are
+    plain-tag years and are read as such."""
+    path = _seed(tmp_path, [
+        ("2021-12-31", "ResearchAndDevelopmentExpense", 6.93e9),
+        ("2021-12-31", "ResearchExcludingAcquiredIprd", 6.93e9),
+        ("2021-12-31", "AcquiredIprd", 0.67e9),
+        ("2020-12-31", "ResearchAndDevelopmentExpense", 5.98e9),
+        ("2020-12-31", "AcquiredIprd", 0.66e9),
+    ], ticker="LLY")
+    built = allocation.build(path, "LLY")
+    drawn = {row["fiscal_year"]: row["acquired_rd"] for row in built["years"]}
+    assert drawn[2021] == pytest.approx(0.67e9)
+    assert drawn[2020] is None
+    assert built["inside_research"] == [2020]
 
 
 def test_a_reported_zero_is_not_an_untagged_line(tmp_path):

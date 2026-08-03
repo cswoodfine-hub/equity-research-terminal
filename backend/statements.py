@@ -333,7 +333,23 @@ _CASHFLOW = (
          )),
 )
 
-LINES: tuple[Line, ...] = _INCOME + _BALANCE + _CASHFLOW
+# Lines fetched and stored but never drawn, because they answer a question about the
+# statements rather than appearing on one. ``lines_for`` only serves the three statements
+# in STATEMENTS, so nothing here reaches the UI.
+_REFERENCE = (
+    # Whether this filer's research figure already has acquired in-process cost taken out
+    # of it. The R&D line above tries the excluding concept first, so where the filer
+    # publishes it this row carries the same value, and where it does not this row is
+    # absent. That absence is the whole point: the allocation band needs to know which of
+    # the two it is holding before it can draw cash paid for in-process research beside
+    # research expense, because on a plain-tag filer the one is inside the other.
+    Line("ResearchExcludingAcquiredIprd", "R&D excluding acquired in-process cost",
+         "reference", "duration", role="memo", candidates=(
+             ("us-gaap", "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"),
+         )),
+)
+
+LINES: tuple[Line, ...] = _INCOME + _BALANCE + _CASHFLOW + _REFERENCE
 LINES_BY_KEY: dict[str, Line] = {line.key: line for line in LINES}
 STATEMENTS = ("income", "balance", "cashflow")
 STATEMENT_LABELS = {"income": "Income statement", "balance": "Balance sheet",

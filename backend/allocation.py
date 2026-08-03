@@ -1,17 +1,17 @@
-"""Where the money went, by year: the five things a pharmaceutical company spends on.
+"""Where the money went, by year: the things a pharmaceutical company spends on.
 
-Research, plant, acquisitions, buybacks and dividends. Every one is a decision the
-management took rather than a result that happened to them, and the mix is the clearest
-statement of strategy a company makes: Merck spends eighteen billion on research and one
-on its own shares, Johnson & Johnson spends twelve on dividends and fifteen on buying
-other companies, and neither of those sentences is anywhere else in this repository.
+Research done, research bought, plant, acquisitions, buybacks and dividends. Every one is
+a decision the management took rather than a result that happened to them, and the mix is
+the clearest statement of strategy a company makes: Merck spends eighteen billion on
+research and one on its own shares, Johnson & Johnson spends twelve on dividends and
+fifteen on buying other companies, Lilly buys three billion a year of other people's
+molecules outright, and none of those sentences is anywhere else in this repository.
 
-Two of the five are not like the other three, and the view has to say so. Research and
-plant are what it costs to run and grow the business, and research is expensed above the
-line, so it is already inside the operating cash flow the other spending comes out of.
-Acquisitions, buybacks and dividends are what is done with the money afterwards. The
+Research is not like the rest, and the view has to say so. It is expensed above the line,
+so it is already inside the operating cash flow everything else is spent out of, while
+plant, molecules, companies, buybacks and dividends are all paid for from that cash. The
 total is what the company spent, not what it did with its free cash flow, and reading it
-as the second would double count the research.
+as the second would count the research twice.
 
 Every figure is a tagged annual line. A company that never tags one gets no segment for
 it rather than a zero: Biogen pays no dividend and Merck reports no acquisitions in 2024,
@@ -29,6 +29,19 @@ from financials_view import _nearest_month_end
 # what is handed back. Each is (key, metric, label).
 USES = (
     ("rd", "ResearchAndDevelopmentExpense", "Research"),
+    # Molecules bought outright, which for some filers is the whole deal budget. Lilly
+    # structures most of its business development as asset acquisitions rather than
+    # business combinations: buying a company whose only asset is a compound is an asset
+    # purchase under ASC 805, the in-process research is written off at once instead of
+    # becoming goodwill, and no line called acquisitions is ever tagged. Three billion a
+    # year of Lilly's spending sat in no segment because of it.
+    #
+    # It does not double count the research above. Where a filer publishes research both
+    # ways, the statement layer takes the figure that excludes acquired in-process cost,
+    # which is what Lilly's 13.3bn is.
+    ("acquired_rd", "AcquiredIprd", "Acquired R&D"),
+    # Only drawn where the filer's research figure is known to exclude it: see
+    # SEPARABLE_ACQUIRED_RD below.
     ("capex", "CapitalExpenditure", "Plant"),
     ("acquisitions", "AcquisitionsNet", "Acquisitions"),
     ("buybacks", "ShareRepurchases", "Buybacks"),
@@ -41,6 +54,15 @@ LABELS = {key: label for key, _, label in USES}
 ABOVE_THE_LINE = ("rd",)
 
 DEFAULT_YEARS = 10
+
+# Cash paid for in-process research can only be drawn next to research expense where the
+# research expense is known not to contain it, and that is only true of a filer that
+# publishes the excluding-acquired concept. Lilly, Biogen and Vertex do. Allogene does
+# not, and its 2018 research of 152m is 109m of acquired in-process cost with the rest
+# spent in the labs, so drawing both would count that 109m twice and overstate what the
+# company spent by two thirds. Where the filer is silent the segment is dropped rather
+# than guessed, and the money stays inside research where the filer put it.
+SEPARABLE_ACQUIRED_RD = "ResearchExcludingAcquiredIprd"
 
 
 def _annual(conn, company_id: int, metric: str) -> dict:
@@ -75,6 +97,7 @@ def build(db_path=None, ticker: str = "", years: int = DEFAULT_YEARS) -> dict | 
         if company is None:
             return None
         series = {key: _annual(conn, company["id"], metric) for key, metric, _ in USES}
+        separable = _annual(conn, company["id"], SEPARABLE_ACQUIRED_RD)
         operating = _annual(conn, company["id"], "CashFlowOperating")
         shares = _annual(conn, company["id"], "WeightedAverageDilutedShares")
         currency = conn.execute(
@@ -83,6 +106,13 @@ def build(db_path=None, ticker: str = "", years: int = DEFAULT_YEARS) -> dict | 
             (company["id"],)).fetchone()
     finally:
         conn.close()
+
+    # Per year, since a filer can start publishing the excluding concept partway through
+    # the window: Lilly's runs from 2021 and the years before it are plain-tag years.
+    inside_research = sorted(
+        (year for year in series["acquired_rd"] if year not in separable), reverse=True)
+    series["acquired_rd"] = {year: value for year, value in series["acquired_rd"].items()
+                             if year in separable}
 
     seen = {year for values in series.values() for year in values}
     rows = []
@@ -100,14 +130,20 @@ def build(db_path=None, ticker: str = "", years: int = DEFAULT_YEARS) -> dict | 
     # year, having closed Abiomed in the one before. Biogen does not tag a dividend line
     # at all. Neither draws a segment, because neither has a width, and only the second
     # is an absence of disclosure.
+    #
+    # Acquired research is never named here. Allogene does tag it, so saying the line is
+    # not filed would be untrue; it is folded into research instead, and ``inside_research``
+    # is how the panel says which years that happened in.
     untagged = [label for key, _, label in USES
-                if all(row.get(key) is None for row in rows)]
+                if key != "acquired_rd" and all(row.get(key) is None for row in rows)]
     # Where a use is reported and reported as nothing, so the panel can say so rather
     # than leave a gap that reads like the line above.
     reported_nil = {key: [row["fiscal_year"] for row in rows if row.get(key) == 0]
                     for key, _, _ in USES}
     reported_nil = {key: years for key, years in reported_nil.items() if years}
+    drawn = {row["fiscal_year"] for row in rows}
     return {"ticker": ticker, "currency": (currency or {})["unit"] if currency else None,
             "years": rows, "untagged": untagged,
+            "inside_research": [year for year in inside_research if year in drawn],
             "reported_nil": {LABELS[key]: years
                              for key, years in reported_nil.items()}}
