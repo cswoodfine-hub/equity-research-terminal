@@ -228,9 +228,18 @@ def test_the_extra_stored_year_gives_the_oldest_shown_year_its_growth(loaded):
 def test_trend_matches_a_52_week_filers_shifting_quarter_end(loaded):
     trend = financials_view.build_statements(loaded, "JNJ", basis="quarterly")["trend"]
     # A 52/53 week filer moves its quarter end by a day or two a year, so the year-ago
-    # match is by nearest date rather than by exact one. Every quarter with a year of
-    # history behind it in the series finds its comparison.
-    assert all(p["revenue_growth"] is not None for p in trend[4:])
+    # match is by nearest date rather than by exact one. Every quarter whose own year-ago
+    # quarter is in the series finds it; the ones without are the quarters a refused
+    # fourth-quarter derivation left out, and they read as gaps rather than as figures.
+    present = {p["label"] for p in trend}
+
+    def year_before(label):
+        quarter, year = label.split()
+        return f"{quarter} {int(year) - 1:02d}"
+
+    for point in trend:
+        if year_before(point["label"]) in present:
+            assert point["revenue_growth"] is not None, point["label"]
 
 
 def test_prior_period_rejects_a_date_more_than_a_fortnight_out():
@@ -319,3 +328,74 @@ def test_a_quarter_and_a_year_ending_the_same_day_both_survive():
     series = {("2025-12-31", statements.Q): 25.0,
               ("2025-12-31", statements.FY): 100.0}
     assert financials_view.collapse_adjacent(series) == series
+
+
+# --- A derived fourth quarter, and when not to derive one -------------------
+# Q4 = full year minus nine months. Exact arithmetic, and exact only while both figures
+# describe the same company.
+
+def _pair(fy_revenue, ytd_revenue, quarters):
+    """A revenue series shaped like one year: three quarters, a nine month, a full year."""
+    series = {("2021-10-03", statements.YTD): ytd_revenue,
+              ("2022-01-02", statements.FY): fy_revenue}
+    for end, value in zip(("2021-04-04", "2021-07-04", "2021-10-03"), quarters):
+        series[(end, statements.Q)] = value
+    return ({"Revenues": series},
+            ("2022-01-02", statements.FY), ("2021-10-03", statements.YTD))
+
+
+def test_a_restated_year_is_not_subtracted_from_an_unrestated_nine_months():
+    """Johnson & Johnson's fiscal 2021, the case this guard exists for. The year is on
+    file restated for the Kenvue separation at 78.74bn and the nine months as reported
+    with consumer health still in it at 68.97bn, which subtract to a fourth quarter of
+    9.77bn against three quarters averaging 23.0. The real figure was 24.8."""
+    by_metric, fy, ytd = _pair(78.74e9, 68.97e9, (22.32e9, 23.31e9, 23.34e9))
+    assert financials_view._q4_reconciles(by_metric, fy, ytd) is False
+
+
+def test_an_ordinary_year_still_derives_its_fourth_quarter():
+    """The same company a year earlier, where both figures are the same basis."""
+    by_metric, fy, ytd = _pair(82.58e9, 60.11e9, (20.69e9, 18.34e9, 21.08e9))
+    assert financials_view._q4_reconciles(by_metric, fy, ytd) is True
+
+
+def test_a_milestone_landing_in_the_fourth_quarter_is_kept():
+    """Beam's fourth quarter of 2023 is fifteen times its average because a licence fee
+    landed in it, and Moderna's of 2020 is seven times because that is when the vaccine
+    shipped. A company whose revenue arrives in lumps has no expectation to violate."""
+    by_metric, fy, ytd = _pair(0.38e9, 0.06e9, (0.02e9, 0.02e9, 0.02e9))
+    assert financials_view._q4_reconciles(by_metric, fy, ytd) is True
+
+
+def test_lumpy_quarters_are_never_judged():
+    """Three quarters that disagree with each other cannot predict a fourth."""
+    by_metric, fy, ytd = _pair(30e9, 28e9, (16e9, 8e9, 4e9))
+    assert financials_view._q4_reconciles(by_metric, fy, ytd) is True
+
+
+def test_a_negative_quarter_is_refused_at_any_size():
+    """No company sells a negative amount in three months. Intellia and Voyager both
+    have a year that subtracts below zero, and neither is near the size the rest of the
+    test applies at."""
+    by_metric, fy, ytd = _pair(0.040e9, 0.041e9, (0.013e9, 0.014e9, 0.014e9))
+    assert financials_view._q4_reconciles(by_metric, fy, ytd) is False
+
+
+def test_a_year_with_no_revenue_on_file_is_derived_as_before():
+    """A developer's lines are losses and cash burn, where a wide swing is the business.
+    There is nothing to reconcile against and nothing is refused."""
+    assert financials_view._q4_reconciles(
+        {}, ("2022-01-02", statements.FY), ("2021-10-03", statements.YTD)) is True
+
+
+def test_the_refused_quarter_is_a_gap_not_a_wrong_number(loaded):
+    """What a refusal looks like downstream: the column has no revenue rather than a
+    figure the company never reported."""
+    q4 = ("2022-01-02", statements.Q)
+    by_metric = {"Revenues": _pair(78.74e9, 68.97e9,
+                                   (22.32e9, 23.31e9, 23.34e9))[0]["Revenues"]}
+    values, filled = financials_view._fill_fourth_quarters(
+        by_metric, {q4: (("2022-01-02", statements.FY),
+                         ("2021-10-03", statements.YTD))})
+    assert q4 not in values["Revenues"]
+    assert ("Revenues", q4) not in filled

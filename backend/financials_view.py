@@ -197,10 +197,94 @@ def _derive(key: str, values: dict, period) -> float | None:
     return a - b
 
 
+# What a derived fourth quarter may be, as a multiple of the year's other quarters, and
+# how alike those quarters must be before the test means anything.
+#
+# The subtraction is exact arithmetic on two published figures and stays exact only while
+# both describe the same company. Johnson & Johnson's fiscal 2021 is on file twice over:
+# the full year restated for the Kenvue separation at 78.74bn, and the nine months as
+# originally reported, consumer health still in it, at 68.97bn. Subtracting one from the
+# other gives a fourth quarter of 9.77bn against three quarters averaging 23.0bn. The
+# real figure was 24.8bn, and the twelve billion the subtraction lost is the consumer
+# business leaving the numerator only.
+#
+# Nothing in the facts says which year is restated, so the tell has to be the answer
+# itself. But an answer is only surprising against an expectation, and most of this
+# universe has none: a developer whose revenue is milestone payments can book nothing for
+# three quarters and forty million in the fourth, and Moderna's fourth quarter of 2020 was
+# seven times its average because that is when the vaccine shipped. Judging those on the
+# same rule deletes the most interesting quarter each company has.
+#
+# So the test runs only where the three quarters already reported are close enough
+# together to predict a fourth from. That is true of a major with a marketed portfolio
+# and false of everyone whose revenue arrives in lumps, which is the correct place for
+# the line: the first is where a restatement hides, and the second is where it cannot be
+# told from the business.
+# Only the low side is refused, and only above a size. A restatement removes a business
+# from the year and not from the nine months, so it always makes the fourth quarter too
+# small: Johnson & Johnson comes out at 0.42 and Merck at 0.35. Every quarter that came
+# out high turned out to be the business, not the arithmetic. Beam's fourth quarter of
+# 2023 is fifteen times its average because a licence fee landed in it, Moderna's of 2020
+# is seven times because that is when the vaccine shipped, and refusing those deletes the
+# most consequential quarter each company has.
+Q4_PLAUSIBLE_LOW = 0.5
+Q4_STEADY_SPREAD = 1.6          # the widest max-over-min that still counts as steady
+# Below this a quarter's revenue is milestones and licence fees rather than a book of
+# products, and a year that looks unlike its quarters is the business rather than a
+# restatement of it.
+Q4_JUDGED_ABOVE = 250e6
+
+
+def _quarters_within(series: dict, nine_months, full_year) -> list:
+    """The reported quarters inside a nine month window, by date."""
+    opens = dt.date.fromisoformat(full_year[0]) - dt.timedelta(days=370)
+    closes = dt.date.fromisoformat(nine_months[0])
+    return [value for (end, kind), value in series.items()
+            if kind == statements.Q and value is not None
+            and opens < dt.date.fromisoformat(end) <= closes]
+
+
+def _q4_reconciles(by_metric: dict, full_year, nine_months) -> bool:
+    """Whether a year and its nine months are the same basis, judged on revenue.
+
+    Judged once for the pair rather than per line, because a restatement moves every line
+    together: if the year excludes a business the nine months included, no figure in it is
+    comparable, not the revenue and not the tax charge.
+
+    Anything the test cannot speak to is derived as before. Never refuse on a guess.
+    """
+    revenue = by_metric.get("Revenues", {})
+    year, ytd = revenue.get(full_year), revenue.get(nine_months)
+    if year is None or ytd is None or ytd <= 0:
+        return True
+
+    # No company sells a negative amount in a quarter. Whatever produced it, the two
+    # figures are not the same basis, and this holds at any size.
+    if year - ytd < 0:
+        return False
+
+    quarters = _quarters_within(revenue, nine_months, full_year)
+    if len(quarters) < 3 or min(quarters) <= 0:
+        return True                      # nothing to form an expectation from
+    if max(quarters) / min(quarters) > Q4_STEADY_SPREAD:
+        return True                      # lumpy by nature, so a wide fourth says nothing
+
+    typical = sorted(quarters)[len(quarters) // 2]
+    if typical < Q4_JUDGED_ABOVE:
+        return True                      # too small for the test to mean anything
+    return (year - ytd) / typical >= Q4_PLAUSIBLE_LOW
+
+
 def _fill_fourth_quarters(by_metric: dict, q4_map: dict):
-    """A copy of the series with fourth quarters filled, plus which cells were filled."""
+    """A copy of the series with fourth quarters filled, plus which cells were filled.
+
+    A pair that does not reconcile is left alone, so the quarter reads as the gap it is
+    rather than as a collapse the company never had.
+    """
     values = {key: dict(series) for key, series in by_metric.items()}
     filled: set[tuple[str, tuple]] = set()
+    q4_map = {period: pair for period, pair in q4_map.items()
+              if _q4_reconciles(by_metric, *pair)}
     for period, (full_year, nine_months) in q4_map.items():
         for key, series in by_metric.items():
             line = statements.LINES_BY_KEY.get(key)
