@@ -808,7 +808,11 @@ h3 {{ font-size: 0.9rem; }}
 
 /* Chart mount: the SVG always draws at its own declared size. */
 .trend {{ margin: 0.35rem 0 0.1rem; }}
-.trend svg {{ display: block; }}
+/* Width from the column, height from the viewBox. A chart primitive that sets both
+   attributes keeps its declared height while the width shrinks to fit, and the default
+   preserveAspectRatio then letterboxes the drawing inside it: the allocation band came
+   out with fifty pixels of blank above and below the bars. */
+.trend svg {{ display: block; width: 100%; height: auto; }}
 /* Pure-CSS hover on SVG charts: a transparent band per x slot reveals its readout. */
 .hoverband .tip {{ display: none; }}
 .hoverband:hover .tip {{ display: block; }}

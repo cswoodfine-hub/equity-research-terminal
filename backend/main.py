@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 import env  # noqa: F401  loads the .env from the repo root, before any module reads it
 import annotations as annotations_module
+import allocation as allocation_module
 import asof as asof_module
 import backtest as backtest_module
 import asset_revenue as asset_revenue_module
@@ -248,6 +249,18 @@ def company_cashflow(ticker: str) -> dict:
     built = cashflow_module.build_cashflow(None, ticker)
     if built is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return built
+
+
+@app.get("/companies/{ticker}/allocation")
+def company_allocation(
+    ticker: str,
+    years: int = Query(default=allocation_module.DEFAULT_YEARS),
+) -> dict:
+    """Where the money went by year: research, plant, acquisitions, buybacks, dividends."""
+    built = allocation_module.build(None, ticker, years=max(1, min(years, 20)))
+    if built is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker: {ticker}")
     return built
 
 

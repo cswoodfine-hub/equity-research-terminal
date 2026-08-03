@@ -787,6 +787,81 @@ def _cash_panel(built: dict) -> None:
         unsafe_allow_html=True)
 
 
+# What each use of cash is drawn in. Research leads in the plotted-series colour because
+# it is the one a pharmaceutical company is judged on; buybacks and dividends take
+# neighbouring warm hues because they are the same act, money handed back.
+ALLOCATION_COLOURS = {
+    "rd": TK.UP,
+    "capex": TK.MUTED,
+    "acquisitions": TK.PURPLE_BOOK,
+    "buybacks": TK.ORANGE_BOOK,
+    "dividends": TK.FLAG,
+}
+ALLOCATION_LABELS = {"rd": "Research", "capex": "Plant",
+                     "acquisitions": "Acquisitions", "buybacks": "Buybacks",
+                     "dividends": "Dividends"}
+# Drawn in this order left to right: what the business costs to run, then what is done
+# with the money afterwards.
+ALLOCATION_ORDER = ("rd", "capex", "acquisitions", "buybacks", "dividends")
+
+
+def _allocation_band(api_base: str, ticker: str) -> None:
+    """Where the money went, one stacked bar a year.
+
+    The mix is the clearest statement of strategy a company makes, and it was the one
+    thing on this tab that could be read off the filings and was not being read: Merck
+    spends eighteen billion on research and one on its own shares, Johnson & Johnson
+    twelve on dividends and fifteen on buying other companies.
+    """
+    spend = api_get(api_base, f"/companies/{ticker}/allocation")
+    years = spend.get("years") or []
+    if len(years) < 2:
+        return
+
+    scale = 1e9 if max(
+        (value for row in years for key in ALLOCATION_ORDER
+         if (value := row.get(key))), default=0) >= BILLIONS_ABOVE else 1e6
+    unit = "bn" if scale == 1e9 else "m"
+    rows = [{"label": f'FY{row["fiscal_year"] % 100:02d}',
+             "segments": [{"name": ALLOCATION_LABELS[key],
+                           "value": row[key] / scale,
+                           "colour": ALLOCATION_COLOURS[key]}
+                          for key in ALLOCATION_ORDER if row.get(key)]}
+            for row in years]
+    legend = [(ALLOCATION_LABELS[key], ALLOCATION_COLOURS[key])
+              for key in ALLOCATION_ORDER
+              if any(row.get(key) for row in years)]
+
+    section("Where the money went",
+            f'{spend.get("currency") or ""} {unit} a year'.strip())
+    st.markdown(
+        f'<div class="trend">'
+        f'{CH.stacked_bar(rows, 1100, 40 + 26 * len(rows), legend=legend, value_fmt=lambda v: T.num(v, 1))}'
+        f'</div>', unsafe_allow_html=True)
+
+    # Research is expensed above the line, so it is already inside the operating cash
+    # flow the rest is spent out of. Saying so is the difference between a chart of what
+    # a company spent and a chart of what it did with its free cash flow, which this is
+    # not and which would count the research twice.
+    latest = years[0]
+    generated = latest.get("operating")
+    below = sum(latest[key] or 0 for key in ALLOCATION_ORDER if key not in ("rd",))
+    parts = ["Research is an operating expense and is already inside the cash the rest "
+             "is spent from, so the bar is what the company spent rather than what it "
+             "did with its free cash flow."]
+    if generated:
+        parts.append(
+            f'In FY{latest["fiscal_year"] % 100:02d} it generated '
+            f'{T.num(generated / scale, 1)}{unit} from operations and spent '
+            f'{T.num(below / scale, 1)}{unit} of it on plant, acquisitions and '
+            "shareholders.")
+    if spend.get("untagged"):
+        parts.append(f'{ticker} tags no '
+                     f'{html_escape(" or ".join(w.lower() for w in spend["untagged"]))}'
+                     " line, so it has no segment rather than a zero.")
+    note(" ".join(parts))
+
+
 def statement_table(block: dict, currency: str | None,
                     lens: str = ABSOLUTE) -> str:
     """One statement as a table: lines down, periods across, most recent first.
@@ -2095,6 +2170,9 @@ with main:
                 # instead is whether the cash lasts, which is the same question the
                 # Runway tab answers at length and this says in one line.
                 _cash_panel(built)
+
+        if snapshot:
+            _allocation_band(api_base, ticker)
 
         if snapshot or built["is_sec_filer"]:
             section("Statements")
