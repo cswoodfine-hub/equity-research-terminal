@@ -415,12 +415,32 @@ h3 {{ font-size: 0.9rem; }}
 
 /* Feed items: a typographic list, not a table. */
 .feed {{ margin: 0.1rem 0 0.3rem; }}
-/* The changes list is the last band on Key insights and takes whatever height the screen
-   has left, which is three rows on a laptop and all twelve on a tall display. Bounded
-   and scrolled rather than cut, so a short screen loses none of them, and capped at the
-   top end so a company with a busy week does not turn the band into the whole page. */
-.feed.changes {{ max-height: clamp(5rem, calc(100vh - 620px), 26rem);
-                overflow-y: auto; scrollbar-width: thin; }}
+/* The changes list is the last thing in the column beside the note and the only element
+   on the tab that gives way. The note is read at its own length and never scrolls, and
+   the forward list above this one is capped at four, so this takes exactly the depth the
+   note leaves and scrolls past it. Measured against the note rather than the viewport:
+   a note runs 850 to 1500 characters depending on the week, so a height guessed from the
+   screen was either short of the note or past the bottom of it. */
+/* The row runs to the bottom of the screen whatever the note's length, so the changes
+   list rather than the page carries the slack. Without it a short note left the tab
+   ending two thirds down with a band of empty page under it, which is the state this
+   layout was built to get rid of. A note longer than the screen still wins: min-height
+   cannot shrink content, so the note is never the thing that gives. */
+[data-testid="stHorizontalBlock"]:has(.note-fit) {{ min-height: calc(100vh - 405px); }}
+/* The list takes the free space its column has left, which is what makes it the element
+   that gives: flex-basis zero, so its own content length never widens the column. */
+[data-testid="stElementContainer"]:has(.changes-block) {{ flex: 1 1 0; min-height: 5rem; }}
+[data-testid="stElementContainer"]:has(.changes-block) .stMarkdown,
+[data-testid="stElementContainer"]:has(.changes-block) [data-testid="stMarkdownContainer"] {{
+  height: 100%;
+}}
+/* The list and its notes line as one column: the list is the part that shrinks and the
+   notes line keeps its size, so on a quiet company the list ends after its last row with
+   the notes directly under it, and on a busy one the list scrolls with the notes still
+   sitting at the bottom of the block rather than off the end of it. */
+.changes-block {{ display: flex; flex-direction: column; height: 100%; min-height: 0; }}
+.feed.changes {{ flex: 0 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; }}
+.changes-block > .note-d {{ flex: 0 0 auto; }}
 .fitem {{
   display: grid; grid-template-columns: 84px 1fr auto auto; gap: 0.85rem;
   align-items: baseline; padding: 0.34rem 0;
@@ -685,15 +705,11 @@ h3 {{ font-size: 0.9rem; }}
    loudest thing on a tab whose subject is the boxes above it. */
 .note {{ font-family: var(--font-prose); font-size: 13.5px; line-height: 1.5;
         max-width: 68ch; margin: 0.35rem 0 0.2rem; }}
-/* Bounded so the tab it sits on stays one screen. The note is as long as the week was,
-   which is the one height on Key insights the layout does not choose, so it scrolls
-   inside its own box rather than pushing everything below it off the page.
-
-   A flat cap rather than one that flexes with the viewport. Shrinking it on a short
-   screen bought thirteen pixels and cost half the note, because the forward list beside
-   it sets the floor for that row; the changes band underneath is the one that flexes. */
-.note.note-fit {{ max-height: 11rem; overflow-y: auto; padding-right: 0.6rem;
-                 scrollbar-width: thin; }}
+/* The note is never bounded and never scrolls. It is the one piece of writing on the tab
+   and the reason a reader opens it, so it is read at its own length and everything else
+   is sized around it: the forward list beside it grows to match, and the changes band
+   under it takes what is left. */
+.note.note-fit {{ padding-right: 0.6rem; }}
 .note h4 {{ font-family: var(--font-ui); font-size: 10.5px; letter-spacing: 0.09em;
            text-transform: uppercase; color: var(--muted); margin: 0.7rem 0 0.1rem; }}
 .note ul {{ margin: 0.1rem 0; padding-left: 1.1rem; }}

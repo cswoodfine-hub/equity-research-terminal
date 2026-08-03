@@ -186,6 +186,12 @@ def section(label: str, count=None, basis: str = ""):
                 f'{tail}</div>', unsafe_allow_html=True)
 
 
+def note_markup(text: str) -> str:
+    """The folded byline as a string, for callers that put it inside another block."""
+    return (f'<details class="note-d"><summary>notes</summary>'
+            f'<div class="byline">{text}</div></details>')
+
+
 def note(text: str):
     """A byline folded away, for a view that has to fit a screen.
 
@@ -194,8 +200,7 @@ def note(text: str):
     date is not a commitment. Deleting them would buy the height by making the page less
     honest, so they collapse to one line instead and open where a reader wants them.
     """
-    st.markdown(f'<details class="note-d"><summary>notes</summary>'
-                f'<div class="byline">{text}</div></details>', unsafe_allow_html=True)
+    st.markdown(note_markup(text), unsafe_allow_html=True)
 
 
 def state(title: str, detail: str, error: bool = False):
@@ -2033,11 +2038,18 @@ with main:
                 state(f"Nothing has landed for {ticker} in the window",
                       "The dated items beside this are still ahead of it.")
 
-        # The note and the forward list side by side, three to two, the same split the
-        # universe tab gives the map and its forward list. The note was running the full
-        # width of the page in a 15.5px reading face, which set a measure of about two
-        # hundred characters and pushed everything under it off the screen.
-        _note_col, _ahead_col = st.columns([3, 2], gap="medium")
+        # The note on one side, both lists stacked on the other, in equal halves.
+        #
+        # The note is read at its own length and never scrolls, so the layout's job is to
+        # put enough beside it to reach the same depth. One list could not do that: a note
+        # runs 850 to 1500 characters, which is 270 to 460 pixels of prose, while Vertex
+        # has a single dated item to put next to it and Biogen four. Both lists together
+        # always have the material, because a company quiet on one is busy on the other.
+        #
+        # Equal halves rather than three to two because the note sets its own measure at
+        # 68 characters and stops: given three fifths of the page it left a strip of empty
+        # column, and given two fifths it would have run half as wide and twice as deep.
+        _note_col, _side_col = st.columns(2, gap="medium")
 
         with _note_col:
             section("Morning note")
@@ -2060,16 +2072,24 @@ with main:
                             unsafe_allow_html=True)
                 layer = ("rules layer, no Anthropic key set"
                          if written.get("model") == "rules"
-                         else f"written by {written.get('model')}")
+                         else written.get("model") or "")
+                # One line, not two. It sits directly under the note and the note is what
+                # sets the height of this half of the tab, so a second line of provenance
+                # costs a line of the thing it is describing. The Generate button above
+                # already says how to rebuild it.
                 st.markdown(
-                    f'<div class="byline">{layer} · written '
-                    f'{written.get("generated_at")} from the feed as it stood then. '
-                    'Press Generate to rebuild it.</div>', unsafe_allow_html=True)
+                    f'<div class="byline">{html_escape(layer)} · '
+                    f'{html_escape((written.get("generated_at") or "")[:16])} · '
+                    'the feed as it stood then</div>', unsafe_allow_html=True)
             if written.get("error"):
                 state("The note fell back to the rules layer", written["error"],
                       error=True)
 
-        with _ahead_col:
+        # Both lists in the other half, dated first. What is coming has a claim on the eye
+        # that what already happened does not, and the changes underneath are the band
+        # that gives way: it is the one place on the tab where a reader is scanning rather
+        # than reading, so it takes whatever depth the note leaves and scrolls past that.
+        with _side_col:
             section("Dated ahead", len(ahead) or None,
                     "catalysts and exclusivity" if ahead else "")
             if ahead:
@@ -2082,35 +2102,35 @@ with main:
                       "No catalyst inside 60 days and no exclusivity loss inside 24 "
                       "months.")
 
-        # --- What changed ------------------------------------------------
-        # The snapshot diff itself, which is the thing this app is for and was the one
-        # part of the feed with nowhere to go. The strip above counts 36 flagged items
-        # for GSK and the two bands account for 11 of them: the other 25 are approvals,
-        # trial completion dates moving and risk-factor sections being rewritten, and
-        # every one of them is a change to the case rather than an event with a press
-        # release. Two columns because they are one-line facts and a single column down
-        # the page would run past the fold at a quarter of the density.
-        changed = sorted(
-            (it for it in feed if it["kind"] == "change"),
-            key=lambda it: (_SEVERITY_RANK.get(it.get("significance"), 3),
-                            _flip_date(it.get("date"))))
-        if changed:
-            high = sum(1 for it in changed if it.get("significance") == "high")
-            section("What changed", len(changed),
-                    f"{high} high" if high else "since the last refresh")
-            _left, _right = st.columns(2, gap="medium")
-            half = -(-min(len(changed), _CHANGES_SHOWN) // 2)
-            for column, part in ((_left, changed[:half]),
-                                 (_right, changed[half:_CHANGES_SHOWN])):
-                with column:
-                    st.markdown('<div class="feed changes">' + "".join(
-                        change_row(it) for it in part) + "</div>",
-                        unsafe_allow_html=True)
-            note("Every line is a difference between the last two snapshots of the same "
-                 "entity, not a headline. A trial completion date moving and a risk "
-                 "factor section being rewritten have no press release and are the "
-                 "reason the snapshots are kept. The full history is on the company's "
-                 "own News and Pipeline tabs.")
+            # The snapshot diff itself, which is the thing this app is for. The strip
+            # above counts 36 flagged items for GSK and the two bands account for 11 of
+            # them: the other 25 are approvals, trial completion dates moving and
+            # risk-factor sections being rewritten, every one a change to the case rather
+            # than an event with a press release.
+            changed = sorted(
+                (it for it in feed if it["kind"] == "change"),
+                key=lambda it: (_SEVERITY_RANK.get(it.get("significance"), 3),
+                                _flip_date(it.get("date"))))
+            if changed:
+                high = sum(1 for it in changed if it.get("significance") == "high")
+                section("What changed", len(changed),
+                        f"{high} high" if high else "since the last refresh")
+                # The list and its notes line go out as one element, so the notes stay
+                # under the last row rather than at the foot of the column. Streamlit
+                # gives each markdown call its own flex child, and this list is the one
+                # that shrinks: separated, the notes line sat wherever the shrinking left
+                # it, two hundred pixels below the list on a quiet company.
+                st.markdown(
+                    '<div class="changes-block"><div class="feed changes">'
+                    + "".join(change_row(it) for it in changed[:_CHANGES_SHOWN])
+                    + "</div>"
+                    + note_markup(
+                        "Every line is a difference between the last two snapshots of "
+                        "the same entity, not a headline. A trial completion date moving "
+                        "and a risk factor section being rewritten have no press release "
+                        "and are the reason the snapshots are kept. The full history is "
+                        "on the company's own News and Pipeline tabs.")
+                    + "</div>", unsafe_allow_html=True)
 
     # --- Prices ----------------------------------------------------------
     with prices_tab:
