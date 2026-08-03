@@ -82,6 +82,11 @@ _AHEAD_SHOWN = 6
 # is cut is the oldest; the company's own Catalysts, Portfolio and News tabs carry it.
 _INSIGHT_SHOWN = 6
 
+# Detected changes listed under the two bands, split across two columns. Twelve fills the
+# width at the height a tall screen leaves and stops the list turning into the whole page
+# on a company with a busy week; the section count states the true total either way.
+_CHANGES_SHOWN = 12
+
 # Forward-dated boxes in the column beside the note. Four rather than the six the
 # universe tab shows, because these carry registry trial titles that wrap to four lines
 # in a half-width box, and a third row of them was the one thing pushing this tab off the
@@ -524,6 +529,13 @@ def deal_size(deals) -> str | None:
 _DEAL_PHRASE = {"acquisition": "acquisition of", "divestiture": "divestiture of",
                 "licensing": "licence with", "collaboration": "collaboration with"}
 
+# What the chip says for a deal with no stated figure, which is most of them. Short,
+# because the chip shares its line with the date inside a box a sixth of the page wide:
+# spelled out, "COLLABORATION" is wider than the box and pushed the date off the edge.
+# The full word is the Type row of the detail, so the abbreviation costs nothing.
+_DEAL_CHIP = {"acquisition": "M&A", "licensing": "Licence",
+              "collaboration": "Partner", "divestiture": "Divest"}
+
 
 def _deal_lead(deal, ticker: str) -> dict:
     kind = deal.get("deal_type") or ""
@@ -553,7 +565,7 @@ def _deal_lead(deal, ticker: str) -> dict:
     else:
         # Most pharma business development is announced without terms, so the chip says
         # what kind of deal it is rather than nothing.
-        figure = _DEAL_BADGE.get(kind, "Deal")
+        figure = _DEAL_CHIP.get(kind, "Deal")
     return {
         "kind": "deal",
         "figure": figure,
@@ -585,6 +597,41 @@ def _readout_lead(readout, ticker: str) -> dict:
         "evidence": readout.get("quote") or "",
         "url": readout.get("url") or readout.get("source_url") or "",
     }
+
+
+def change_row(item) -> str:
+    """One detected change as a line: when, what, and how much it matters.
+
+    A list rather than a box. These are one-sentence facts already, twenty-five of them
+    for GSK, and a grid of boxes would give each one the weight of a Phase 3 result.
+    """
+    date = (item.get("date") or "")[:10]
+    sev = item.get("significance") or "low"
+    url = item.get("url")
+    open_tag = (f'<a class="fitem link" href="{html_escape(url)}" target="_blank" '
+                'rel="noopener noreferrer">' if url else '<div class="fitem">')
+    # Four children whether or not a rule is named, so the severity column stays flush
+    # right down the list.
+    return (f'{open_tag}<span class="d">{date}</span>'
+            f'<span class="t">{html_escape(item.get("headline") or "")}</span>'
+            f'<span class="why">{html_escape(item.get("reason") or "")}</span>'
+            f'<span class="s {sev}">{sev}</span>{"</a>" if url else "</div>"}')
+
+
+# High first, then newest. A risk-factor rewrite from April outranks a label version bump
+# from this morning, and sorting by date alone buried both of GSK's approvals under
+# twenty-three label revisions.
+_SEVERITY_RANK = {"high": 0, "medium": 1, "low": 2}
+
+
+def _flip_date(value) -> str:
+    """A date that sorts newest-first while ascending, so it can ride behind severity.
+
+    Inverting each digit rather than reversing the sort, because severity and date run in
+    opposite directions and a single key cannot do both.
+    """
+    return "".join(str(9 - int(ch)) if ch.isdigit() else ch
+                   for ch in str(value or "")[:10])
 
 
 # What the chip says for a feed item. The feed's own kind is a mechanism word; these are
@@ -2034,6 +2081,36 @@ with main:
                 state(f"Nothing dated ahead for {ticker}",
                       "No catalyst inside 60 days and no exclusivity loss inside 24 "
                       "months.")
+
+        # --- What changed ------------------------------------------------
+        # The snapshot diff itself, which is the thing this app is for and was the one
+        # part of the feed with nowhere to go. The strip above counts 36 flagged items
+        # for GSK and the two bands account for 11 of them: the other 25 are approvals,
+        # trial completion dates moving and risk-factor sections being rewritten, and
+        # every one of them is a change to the case rather than an event with a press
+        # release. Two columns because they are one-line facts and a single column down
+        # the page would run past the fold at a quarter of the density.
+        changed = sorted(
+            (it for it in feed if it["kind"] == "change"),
+            key=lambda it: (_SEVERITY_RANK.get(it.get("significance"), 3),
+                            _flip_date(it.get("date"))))
+        if changed:
+            high = sum(1 for it in changed if it.get("significance") == "high")
+            section("What changed", len(changed),
+                    f"{high} high" if high else "since the last refresh")
+            _left, _right = st.columns(2, gap="medium")
+            half = -(-min(len(changed), _CHANGES_SHOWN) // 2)
+            for column, part in ((_left, changed[:half]),
+                                 (_right, changed[half:_CHANGES_SHOWN])):
+                with column:
+                    st.markdown('<div class="feed changes">' + "".join(
+                        change_row(it) for it in part) + "</div>",
+                        unsafe_allow_html=True)
+            note("Every line is a difference between the last two snapshots of the same "
+                 "entity, not a headline. A trial completion date moving and a risk "
+                 "factor section being rewritten have no press release and are the "
+                 "reason the snapshots are kept. The full history is on the company's "
+                 "own News and Pipeline tabs.")
 
     # --- Prices ----------------------------------------------------------
     with prices_tab:

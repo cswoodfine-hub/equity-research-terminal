@@ -363,7 +363,9 @@ h3 {{ font-size: 0.9rem; }}
 .lead > summary {{
   display: grid; grid-template-columns: 10px 1fr auto;
   grid-template-areas: "chev chip date" ".    head head";
-  gap: 0.22rem 0.5rem;
+  /* The column gap is tight because the chip and the date share this row inside a box a
+     sixth of the page wide, and every pixel between them is one the chip cannot have. */
+  gap: 0.22rem 0.4rem;
   align-items: start; padding: 0.35rem 0.6rem; cursor: pointer; list-style: none;
 }}
 .lead > summary::-webkit-details-marker {{ display: none; }}
@@ -383,7 +385,7 @@ h3 {{ font-size: 0.9rem; }}
   font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
   letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
   color: var(--accent); border: 1px solid var(--accent);
-  border-radius: var(--radius-small); padding: 1px 4px; opacity: 0.92;
+  border-radius: var(--radius-small); padding: 1px 3px; opacity: 0.92;
   grid-area: chip; justify-self: start;
 }}
 /* A money figure keeps its own case: "$2.58bn" is a measurement, not a label. */
@@ -413,6 +415,12 @@ h3 {{ font-size: 0.9rem; }}
 
 /* Feed items: a typographic list, not a table. */
 .feed {{ margin: 0.1rem 0 0.3rem; }}
+/* The changes list is the last band on Key insights and takes whatever height the screen
+   has left, which is three rows on a laptop and all twelve on a tall display. Bounded
+   and scrolled rather than cut, so a short screen loses none of them, and capped at the
+   top end so a company with a busy week does not turn the band into the whole page. */
+.feed.changes {{ max-height: clamp(5rem, calc(100vh - 620px), 26rem);
+                overflow-y: auto; scrollbar-width: thin; }}
 .fitem {{
   display: grid; grid-template-columns: 84px 1fr auto auto; gap: 0.85rem;
   align-items: baseline; padding: 0.34rem 0;
@@ -679,7 +687,11 @@ h3 {{ font-size: 0.9rem; }}
         max-width: 68ch; margin: 0.35rem 0 0.2rem; }}
 /* Bounded so the tab it sits on stays one screen. The note is as long as the week was,
    which is the one height on Key insights the layout does not choose, so it scrolls
-   inside its own box rather than pushing everything below it off the page. */
+   inside its own box rather than pushing everything below it off the page.
+
+   A flat cap rather than one that flexes with the viewport. Shrinking it on a short
+   screen bought thirteen pixels and cost half the note, because the forward list beside
+   it sets the floor for that row; the changes band underneath is the one that flexes. */
 .note.note-fit {{ max-height: 11rem; overflow-y: auto; padding-right: 0.6rem;
                  scrollbar-width: thin; }}
 .note h4 {{ font-family: var(--font-ui); font-size: 10.5px; letter-spacing: 0.09em;
