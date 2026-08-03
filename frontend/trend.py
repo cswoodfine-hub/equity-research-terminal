@@ -17,7 +17,11 @@ import html
 from theme import MINUS, P
 
 W = 1100             # fills most of the column; the SVG scales to fit narrower ones
-H = 340
+# Taller than it was. The SVG scales to its column's width and takes its height from
+# this ratio, so since the panel moved into half a row it needed a deeper box to keep
+# the same plot area: at 340 the two lines had about a hundred pixels to move in and
+# a margin compressing over forty quarters read as a flat line.
+H = 470
 PAD_L = 52           # room for the percentage axis figures
 PAD_R = 20
 TOP = 46             # room for the legend row

@@ -961,7 +961,10 @@ def _allocation_band(api_base: str, ticker: str) -> None:
             f'{spend.get("currency") or ""} {unit} a year'.strip())
     st.markdown(
         f'<div class="trend">'
-        f'{CH.stacked_bar(rows, 1100, 40 + 26 * len(rows), legend=legend, value_fmt=lambda v: T.num(v, 1))}'
+        # 36 per row rather than 26: the band shares a row with the trend panel now,
+        # so it scales to half the width and the bars came out too thin to compare
+        # one year's mix against another.
+        f'{CH.stacked_bar(rows, 1100, 48 + 36 * len(rows), legend=legend, value_fmt=lambda v: T.num(v, 1))}'
         f'</div>', unsafe_allow_html=True)
 
     # Research is expensed above the line, so it is already inside the operating cash

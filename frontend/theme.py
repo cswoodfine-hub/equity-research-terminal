@@ -664,17 +664,17 @@ h3 {{ font-size: 0.9rem; }}
 .tiles {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
          border-top: 1px solid var(--rule-strong);
          border-bottom: 1px solid var(--rule); margin: 0.25rem 0 0.5rem; }}
-.tiles > div {{ padding: 0.7rem 0.6rem 0.75rem 1rem;
+.tiles > div {{ padding: 0.5rem 0.6rem 0.55rem 1rem;
                border-left: 1px solid var(--rule); }}
 .tiles > div:first-child {{ border-left: 0; padding-left: 2px; }}
 .tiles .k {{ display: block; font-size: 9.5px; letter-spacing: 0.07em;
-            text-transform: uppercase; color: var(--muted); margin-bottom: 7px;
+            text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
             white-space: nowrap; }}
 /* Number and change share a baseline, so the change reads as part of the figure. */
 .tiles .row {{ display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }}
-.tiles .v {{ font-family: var(--font-mono); font-size: 1.6rem; font-weight: 600;
+.tiles .v {{ font-family: var(--font-mono); font-size: 1.25rem; font-weight: 600;
             line-height: 1; letter-spacing: -0.02em; color: var(--text); }}
-.tiles .v .u {{ font-size: 0.72rem; font-weight: 500; color: var(--muted);
+.tiles .v .u {{ font-size: 0.66rem; font-weight: 500; color: var(--muted);
                letter-spacing: 0; margin-left: 2px; }}
 .tiles .v.none {{ font-size: 0.95rem; font-weight: 400; color: var(--muted); }}
 .tiles .d {{ font-family: var(--font-mono); font-size: 11.5px; color: var(--muted);
@@ -682,7 +682,7 @@ h3 {{ font-size: 0.9rem; }}
 .tiles .d.up {{ color: var(--up); }}
 .tiles .d.down {{ color: var(--down); }}
 /* A qualifier the number cannot be read without, and nothing else. */
-.tiles .n {{ display: block; margin-top: 6px; font-size: 10.5px; color: var(--muted); }}
+.tiles .n {{ display: block; margin-top: 4px; font-size: 10.5px; color: var(--muted); }}
 
 .pos {{ display: flex; gap: 2rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
 .pos .k {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
