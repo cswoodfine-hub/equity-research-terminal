@@ -869,6 +869,14 @@ h3 {{ font-size: 0.9rem; }}
                  width: auto; max-width: 100%; }}
 .mix-donut {{ display: flex; justify-content: center; }}
 
+/* The product card grid scrolls inside its own box. One franchise can hold sixteen
+   products, which is four hundred and seventy pixels of cards before the tables under
+   them begin; the component sizes its own iframe, so the cap goes on the slot. */
+[data-testid="stElementContainer"]:has(iframe[title$="prodcards"]) {{
+  max-height: clamp(11rem, calc(100vh - 500px), 24rem);
+  overflow-y: auto; scrollbar-width: thin;
+}}
+
 /* Catalyst calendar. */
 .cal {{
   display: grid; grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));

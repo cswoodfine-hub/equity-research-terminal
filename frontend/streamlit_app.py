@@ -3349,8 +3349,16 @@ with main:
             # The two tables at the foot of the tab, side by side. One is what the
             # market paid and the other is how many people took it, read against each
             # other rather than a screen apart.
-            _demand_col, _prodrev_col = st.columns(2, gap="medium")
-            with _demand_col:
+            # The three detail panels behind one control rather than stacked. Each asks a
+            # different question about the same products and a reader asks one at a time;
+            # end to end they were eight hundred pixels at the foot of the tab. The
+            # control names all three, so nothing is hidden, only unstacked.
+            _panel = st.segmented_control(
+                "Detail", ["Medicare demand", "Product revenue", "Studies underway"],
+                default="Medicare demand", label_visibility="collapsed",
+                key=f"pf_panel_{ticker}") or "Medicare demand"
+
+            if _panel == "Medicare demand":
                 # --- Medicare demand ---
                 # Revenue is what a drug earned; this is how many people took it. CMS Part D and
                 # Part B spending, matched to a marketed product by brand, is the real-world US
@@ -3396,7 +3404,7 @@ with main:
                         f'demand, a different lens from the reported revenue above, and it misses '
                         f'commercial and ex-US volume entirely.</div>', unsafe_allow_html=True)
 
-            with _prodrev_col:
+            elif _panel == "Product revenue":
                 section("Product revenue", f"{len(curated)} from the filings")
                 if not curated:
                     state(f"No product revenue on file for {ticker}",
@@ -3419,28 +3427,29 @@ with main:
                         'is what the company reported or it is absent.</div>',
                         unsafe_allow_html=True)
 
-            # --- Studies still running on approved products ------------------
-            # Not pipeline, which is why the counts on the Pipeline tab no longer include
-            # it, and not nothing either: a new indication, a new formulation, a
-            # paediatric arm or a post-marketing commitment is real spending on a real
-            # product. Nexium was approved in 2001 and has a Phase 3 finishing this
-            # month, and before this it appeared nowhere in the app.
-            post = api_get(api_base,
-                           f"/companies/{ticker}/post-approval").get("studies") or []
-            if post:
-                late = sum(1 for s in post if (s.get("phase") or "").startswith(
-                    ("Phase 3", "Phase 4")))
-                section("Studies on approved products", len(post),
-                        f"{late} in Phase 3 or 4" if late else "lifecycle work")
-                st.markdown('<div class="feed post-approval">' + "".join(
-                    _post_approval_row(s) for s in post[:_POST_APPROVAL_SHOWN])
-                    + "</div>", unsafe_allow_html=True)
-                note("Trials whose compound this company already sells, so none of them "
-                     "is pipeline and the counts on the Pipeline tab exclude them. A "
-                     "date in the past is a study whose primary completion has passed "
-                     "and whose registry entry is still open."
-                     + (f" Showing {_POST_APPROVAL_SHOWN} of {len(post)}, soonest first."
-                        if len(post) > _POST_APPROVAL_SHOWN else ""))
+            else:
+                # --- Studies still running on approved products ------------------
+                # Not pipeline, which is why the counts on the Pipeline tab no longer include
+                # it, and not nothing either: a new indication, a new formulation, a
+                # paediatric arm or a post-marketing commitment is real spending on a real
+                # product. Nexium was approved in 2001 and has a Phase 3 finishing this
+                # month, and before this it appeared nowhere in the app.
+                post = api_get(api_base,
+                               f"/companies/{ticker}/post-approval").get("studies") or []
+                if post:
+                    late = sum(1 for s in post if (s.get("phase") or "").startswith(
+                        ("Phase 3", "Phase 4")))
+                    section("Studies on approved products", len(post),
+                            f"{late} in Phase 3 or 4" if late else "lifecycle work")
+                    st.markdown('<div class="feed post-approval">' + "".join(
+                        _post_approval_row(s) for s in post[:_POST_APPROVAL_SHOWN])
+                        + "</div>", unsafe_allow_html=True)
+                    note("Trials whose compound this company already sells, so none of them "
+                         "is pipeline and the counts on the Pipeline tab exclude them. A "
+                         "date in the past is a study whose primary completion has passed "
+                         "and whose registry entry is still open."
+                         + (f" Showing {_POST_APPROVAL_SHOWN} of {len(post)}, soonest first."
+                            if len(post) > _POST_APPROVAL_SHOWN else ""))
 
         # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
