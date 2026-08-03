@@ -1651,7 +1651,10 @@ if pinned:
         + (f'<div class="pin-detail">{detail}</div>' if detail else "")
         + "</div>", unsafe_allow_html=True)
 
-main, rail_col = st.columns([1, 0.34], gap="medium")
+# The rail is a reference column, not a view: dates and one line of what each is. Every
+# point of width it takes comes off the tab beside it, where the charts and statements
+# are, so it is sized to the longest date plus a readable clause and no more.
+main, rail_col = st.columns([1, 0.27], gap="medium")
 
 with rail_col:
     # Marker so the theme can find and drop this column on the Universe tab, where the
@@ -2394,36 +2397,49 @@ with main:
             # is measured at a few pixels and draws about 160px wide for good (see the
             # chart helper), and this panel has to hold its width on this tab.
             panel = trend_module.render(built.get("trend") or [], built["basis"])
-            if panel:
-                section("Growth against margin",
-                        f'{len(built["trend"])} periods on file')
-                st.markdown(f'<div class="trend">{panel}</div>', unsafe_allow_html=True)
-            else:
-                # No revenue, so no growth and no margin. What a developer is judged on
-                # instead is whether the cash lasts, which is the same question the
-                # Runway tab answers at length and this says in one line.
-                _cash_panel(built)
-
-        if snapshot:
-            _allocation_band(api_base, ticker)
+            # The two histories share a row. One is how the business has performed and
+            # the other is what it chose to spend on, both read across the same years,
+            # and stacked they were three hundred pixels between the period figures at
+            # the top of the tab and the statements at the foot of it.
+            _trend_col, _alloc_col = st.columns(2, gap="medium")
+            with _trend_col:
+                if panel:
+                    section("Growth against margin",
+                            f'{len(built["trend"])} periods on file')
+                    st.markdown(f'<div class="trend">{panel}</div>',
+                                unsafe_allow_html=True)
+                else:
+                    # No revenue, so no growth and no margin. What a developer is judged
+                    # on instead is whether the cash lasts, which is the same question
+                    # the Runway tab answers at length and this says in one line.
+                    _cash_panel(built)
+            with _alloc_col:
+                if snapshot:
+                    _allocation_band(api_base, ticker)
 
         if snapshot or built["is_sec_filer"]:
             section("Statements")
-            controls = st.columns([1.0, 1.3, 1.5])
+            # Segmented controls rather than radios, the same as the prices tab. Three
+            # horizontal radio groups carry three sets of radio dots and their labels
+            # wrapped at this width, so the row stood at 67px; as segments it is one
+            # line and the statements grid starts that much higher up the page.
+            controls = st.columns([0.85, 1.9, 1.6], vertical_alignment="center")
             with controls[0]:
                 # An annual-only filer gets no toggle at all. Offering a control that
                 # can only produce an empty grid is worse than not offering it.
                 if built["has_interim"]:
-                    st.radio("Basis", ["Quarterly", "Annual"], horizontal=True,
-                             label_visibility="collapsed", key=basis_key)
+                    st.segmented_control(
+                        "Basis", ["Quarterly", "Annual"], default="Quarterly",
+                        label_visibility="collapsed", key=basis_key)
             with controls[1]:
-                which = st.radio(
-                    "Statement", [label for _, label in STATEMENT_ORDER],
-                    horizontal=True, label_visibility="collapsed",
-                    key=f"stmt_{ticker}")
+                _labels = [label for _, label in STATEMENT_ORDER]
+                which = st.segmented_control(
+                    "Statement", _labels, default=_labels[0],
+                    label_visibility="collapsed", key=f"stmt_{ticker}") or _labels[0]
             with controls[2]:
-                lens = st.radio("Lens", LENSES, horizontal=True,
-                                label_visibility="collapsed", key=f"lens_{ticker}")
+                lens = st.segmented_control(
+                    "Lens", LENSES, default=ABSOLUTE, label_visibility="collapsed",
+                    key=f"lens_{ticker}") or ABSOLUTE
 
             key = next(k for k, label in STATEMENT_ORDER if label == which)
             block = built["statements"][key]

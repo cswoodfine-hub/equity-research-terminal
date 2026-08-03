@@ -12,7 +12,8 @@
         "--port",
         "8000"
       ],
-      "port": 8000
+      "port": 8000,
+      "autoPort": false
     },
     {
       "name": "ui",
@@ -25,7 +26,8 @@
         "--server.headless",
         "true"
       ],
-      "port": 8501
+      "port": 8501,
+      "autoPort": false
     }
   ]
 }
