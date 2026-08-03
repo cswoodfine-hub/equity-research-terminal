@@ -76,6 +76,19 @@ MARKETMAP_FALLBACK_DAYS = 90
 # so an even count fills its last row.
 _AHEAD_SHOWN = 6
 
+# The same idea on Key insights, across the full page rather than half of it. Six, the
+# count the universe headline row uses, because it is the largest that still divides into
+# two even rows at the narrow width, and three rows do not leave room for the note. What
+# is cut is the oldest; the company's own Catalysts, Portfolio and News tabs carry it.
+_INSIGHT_SHOWN = 6
+
+# Forward-dated boxes in the column beside the note. Four rather than the six the
+# universe tab shows, because these carry registry trial titles that wrap to four lines
+# in a half-width box, and a third row of them was the one thing pushing this tab off the
+# screen. The section count still states the true total, and the Catalysts tab has them
+# all.
+_INSIGHT_AHEAD = 4
+
 
 # What a filing states when there is no trial yet, most advanced first. Mirrors
 # pipeline_filing.STAGES: these are headings a programme sits under, below every phase.
@@ -224,34 +237,6 @@ FEED_SECTIONS = (
      "Latest protection per marketed product, next 24 months. Orphan exclusivity is "
      "not a cliff."),
 )
-
-
-def feed_row(item, show_reason: bool = False) -> str:
-    """One feed line as type, not as a table row.
-
-    Two or three items in a grid widget is all chrome and no content, so the feed is a
-    date, a headline, and a severity, aligned on a grid. ``show_reason`` prints the
-    materiality rule that flagged the item, which is what the universe brief leads with.
-    """
-    date = (item.get("date") or "")[:10]
-    sev = item.get("significance") or "low"
-    modality = (item.get("modality") or "").lower()
-    css = "small" if modality.startswith("small") else "bio" if modality.startswith("bio") else ""
-    headline = html_escape(item.get("headline") or "")
-    if css:
-        headline = f'<span class="m {css}">{headline}</span>'
-    reason = (html_escape(item["reason"])
-              if show_reason and item.get("reason") else "")
-    # A row that has a source is the anchor itself rather than a div wrapping one, so
-    # the whole line is the target and the grid it lays out in is untouched.
-    url = item.get("url")
-    open_tag = (f'<a class="fitem link" href="{html_escape(url)}" target="_blank" '
-                'rel="noopener noreferrer">' if url else '<div class="fitem">')
-    # The reason cell is always present so every row has four children and the
-    # severity column stays flush right whether or not a rule is named.
-    return (f'{open_tag}<span class="d">{date}</span>'
-            f'<span class="t">{headline}</span><span class="why">{reason}</span>'
-            f'<span class="s {sev}">{sev}</span>{"</a>" if url else "</div>"}')
 
 
 def html_escape(text: str) -> str:
@@ -525,58 +510,117 @@ def deal_size(deals) -> str | None:
         else f"${total / 1e6:.0f}m announced"
 
 
-def deal_card(deal) -> str:
-    """One deal: a type badge, a body of counterparty, size and area, and the date."""
-    badge = _DEAL_BADGE.get(deal.get("deal_type"), "Deal")
-    body = [f'<span class="dp">{html_escape(deal.get("counterparty") or "")}</span>']
+# --- One company's events as headline boxes ------------------------------
+# The universe tab reads as a front page because every item on it is the same object: a
+# chip saying what kind of thing this is, a sentence, a date, and a detail that opens in
+# place. Key insights held the same material in three different list shapes, so a deal, a
+# readout and a catalyst looked like three unrelated features of the app rather than
+# three things that happened to one company. These turn each of them into the same box.
+#
+# Nothing here invents a field. Where a source has no figure the chip carries the kind
+# instead, which is what the box is for.
+# How each kind of deal reads in a sentence. A company is acquired, a partner is
+# collaborated with, and "acquisition with Kelonia" is not English.
+_DEAL_PHRASE = {"acquisition": "acquisition of", "divestiture": "divestiture of",
+                "licensing": "licence with", "collaboration": "collaboration with"}
+
+
+def _deal_lead(deal, ticker: str) -> dict:
+    kind = deal.get("deal_type") or ""
+    counterparty = deal.get("counterparty") or "an undisclosed counterparty"
+    rows = [{"label": "Counterparty", "value": counterparty},
+            {"label": "Type", "value": _DEAL_BADGE.get(kind, "Deal")}]
+    # The stated structure first, since it is four commitments rather than one figure and
+    # the single headline number is wrong whichever of them it picks.
     if deal.get("terms_summary"):
-        # The structure the press release stated, which is four commitments rather than
-        # one figure: what is paid now, how much of it is equity, what is contingent on
-        # data, and what only happens if an option is exercised. A single headline number
-        # is wrong whichever of them it picks.
-        body.append(f'<span class="dv dterms" title="{html_escape(deal.get("terms_evidence") or "")}">'
-                    f'{html_escape(deal["terms_summary"])}</span>')
-    elif deal.get("announced_value"):
-        # Announced consideration, and the tooltip names the source that stated it,
-        # since a figure a filing gives and one a headline gives are not equally firm.
-        origin = {"filing": "as the filing states it",
-                  "news": "as the announcing headline states it"}.get(
-                      deal.get("announced_value_source"), "as announced")
-        body.append(f'<span class="dv" title="Announced value, {origin}. '
-                    'Consideration including milestones, not cash paid.">'
-                    f'{html_escape(deal["announced_value"])}</span>')
-    # A deal with no figure says nothing where the figure would go. Most pharma business
-    # development is announced without terms, so "size not stated" was the commonest
-    # thing on the panel and told a reader nothing they could not see. The count in the
-    # section header still says how many of them carry one.
+        rows.append({"label": "Terms", "value": deal["terms_summary"]})
+    if deal.get("announced_value"):
+        rows.append({"label": "Announced", "value": deal["announced_value"]})
     if deal.get("area"):
-        body.append(f'<span class="da">{html_escape(deal["area"])}</span>')
-    # The announcing article first: a press report of a deal reads in a way a 10-Q
-    # does not. The filing is the fallback, for a deal no headline has been matched to.
-    url = deal.get("article_url") or deal.get("source_url")
-    classes = f'deal dt-{html_escape(deal.get("deal_type") or "")}{" link" if url else ""}'
-    open_tag = (f'<a class="{classes}" href="{html_escape(url)}" target="_blank" '
-                'rel="noopener noreferrer">' if url
-                else f'<div class="{classes}">')
-    return (f'{open_tag}'
-            f'<span class="db">{badge}</span>'
-            f'<span class="dbody">{" &middot; ".join(body)}</span>'
-            f'<span class="dd" title="{_DEAL_DATE_NOTE.get(deal.get("event_date_source"), "The date on file.")}">'
-            f'{(deal.get("event_date") or "")[:10]}</span>'
-            + ("</a>" if url else "</div>"))
+        rows.append({"label": "Area", "value": deal["area"]})
+    rows.append({"label": "Date on file",
+                 "value": _DEAL_DATE_NOTE.get(deal.get("event_date_source"),
+                                              "The date on file.")})
+    # The same figure the universe row shows for the same deal, written the same way.
+    # announced_usd is the stated structure where the filing gives one, which is what
+    # headlines.py ranks and prints, so the two tabs cannot disagree about a deal's size.
+    # Spelled out as "$10.6 billion" it was also wide enough to push the date off the
+    # box; the stated wording stays in the Announced row of the detail.
+    usd = deal.get("announced_usd")
+    if usd:
+        figure = (f"${usd / 1e9:.2f}".rstrip("0").rstrip(".") + "bn" if usd >= 1e9
+                  else f"${usd / 1e6:,.0f}m")
+    else:
+        # Most pharma business development is announced without terms, so the chip says
+        # what kind of deal it is rather than nothing.
+        figure = _DEAL_BADGE.get(kind, "Deal")
+    return {
+        "kind": "deal",
+        "figure": figure,
+        "ticker": ticker,
+        "headline": f'{_DEAL_PHRASE.get(kind, "deal with")} {counterparty}',
+        "date": (deal.get("event_date") or "")[:10],
+        "summary": rows,
+        "evidence": deal.get("terms_evidence") or "",
+        "url": deal.get("article_url") or deal.get("source_url") or "",
+    }
 
 
-def readout_card(readout) -> str:
-    """One signed readout: a mark and the sign, the phase, the drug, the quoted sentence."""
+def _readout_lead(readout, ticker: str) -> dict:
+    """A signed readout. Hit and miss take their own accent, because a Phase 3 that
+    missed and a Phase 3 that met are the two most different items on the page and the
+    green the phase ramp gives them both is the one thing they must not share."""
     positive = readout.get("outcome") == "positive"
-    mark = "&#10003;" if positive else "&#10007;"          # check or cross
-    cls = "rd-pos" if positive else "rd-neg"
-    return (f'<div class="readout {cls}"><span class="rm">{mark}</span>'
-            f'<span class="rh">Ph {readout.get("phase")} {readout.get("outcome")}</span>'
-            f'<span class="rbody"><span class="rp">'
-            f'{html_escape(readout.get("drug") or "")}</span> '
-            f'<span class="rq">{html_escape(readout.get("quote") or "")}</span></span>'
-            f'<span class="rd">{(readout.get("event_date") or "")[:10]}</span></div>')
+    drug = readout.get("drug") or "an unnamed programme"
+    phase = readout.get("phase") or ""
+    return {
+        "kind": "readout_hit" if positive else "readout_miss",
+        "figure": f"Ph {phase}".strip(),
+        "ticker": ticker,
+        "headline": f'{drug} {"met" if positive else "missed"} in Phase {phase}'.strip(),
+        "date": (readout.get("event_date") or "")[:10],
+        "summary": [{"label": "Programme", "value": drug},
+                    {"label": "Phase", "value": f"Phase {phase}".strip()},
+                    {"label": "Outcome", "value": readout.get("outcome") or ""}],
+        "evidence": readout.get("quote") or "",
+        "url": readout.get("url") or readout.get("source_url") or "",
+    }
+
+
+# What the chip says for a feed item. The feed's own kind is a mechanism word; these are
+# what the thing is.
+_FEED_FIGURE = {"catalyst": "Catalyst", "loe": "Exclusivity", "filing": "Filing"}
+
+# Shorter than the universe row's limit, because a catalyst headline is a registry trial
+# title, "Phase 3, A Study of Lebrikizumab in Adult Participants With Moderate to Severe
+# Atopic Dermatitis", and these boxes are half the page wide. At the shared limit every
+# one of them ran to four lines and the column set the height of the whole tab. The full
+# title is the first row of the detail, so opening the box loses nothing.
+_FEED_LEAD_CHARS = 54
+
+
+def _feed_lead(item) -> dict:
+    full = item.get("headline") or ""
+    rows = []
+    if len(full) > _FEED_LEAD_CHARS:
+        rows.append({"label": "Full title", "value": full})
+    if item.get("reason"):
+        rows.append({"label": "Why it is flagged", "value": item["reason"]})
+    if item.get("significance"):
+        rows.append({"label": "Significance", "value": item["significance"]})
+    if item.get("change_type"):
+        rows.append({"label": "Change", "value": item["change_type"]})
+    return {
+        "kind": item.get("kind") or "filing",
+        "figure": _FEED_FIGURE.get(item.get("kind"), item.get("kind") or "Item"),
+        "ticker": item.get("ticker") or "",
+        "headline": (full if len(full) <= _FEED_LEAD_CHARS
+                     else full[:_FEED_LEAD_CHARS - 1].rstrip() + "…"),
+        "date": (item.get("date") or "")[:10],
+        "summary": rows,
+        "evidence": item.get("evidence") or "",
+        "url": item.get("url") or "",
+    }
 
 
 # --- Statements ----------------------------------------------------------
@@ -1031,6 +1075,17 @@ def snapshot_strip(snapshot: dict) -> str:
     ])
 
 
+def _quoted(text) -> str:
+    """Text lifted out of a filing, ready to put back into a page.
+
+    Decoded once before it is escaped again. The evidence sentences are cut out of filing
+    HTML and a fifth of them still carry its entities, so GSK's Nuvalent terms read
+    "estimated to be $9.4 billion (&#xA3;7.1 billion)" on the page: escaping alone turns
+    the ampersand into &amp; and prints the entity as itself instead of a pound sign.
+    """
+    return html_escape(html.unescape(str(text or "")))
+
+
 def _lead_box(item) -> str:
     """One headline as a box that opens onto its own detail.
 
@@ -1040,9 +1095,9 @@ def _lead_box(item) -> str:
     """
     rows = "".join(
         f'<div class="lead-r"><span class="lead-rk">{html_escape(pair["label"])}</span>'
-        f'<span class="lead-rv">{html_escape(pair["value"])}</span></div>'
+        f'<span class="lead-rv">{_quoted(pair["value"])}</span></div>'
         for pair in (item.get("summary") or []))
-    quote = (f'<div class="lead-q">{html_escape(item["evidence"])}</div>'
+    quote = (f'<div class="lead-q">{_quoted(item["evidence"])}</div>'
              if item.get("evidence") else "")
     link = (f'<a class="lead-l" href="{html_escape(item["url"])}" target="_blank" '
             f'rel="noopener">source</a>' if item.get("url") else "")
@@ -1105,12 +1160,17 @@ def _leads(items, per_row: int, narrow_per_row: int) -> str:
             + "".join(_lead_box(i) for i in items) + "</div>")
 
 
-def note_html(body: str) -> str:
+def note_html(body: str, fit: bool = False) -> str:
     """Render the note, giving its section labels the heading treatment.
 
     The rules layer emits plain lines like "Catalysts inside 60 days (2)" followed by
     dashed items. Left as prose they read as a run-on, so labels become headings and
     dashed lines become a list.
+
+    ``fit`` bounds the height and scrolls inside it. Key insights has to fit one screen
+    and the note is the only thing on it whose length is set by how much happened rather
+    than by the layout, so it gets its own scroll rather than pushing the rest of the tab
+    below the fold. Nothing is cut: the whole note is still there to scroll through.
     """
     out, bullets = [], []
 
@@ -1132,7 +1192,8 @@ def note_html(body: str) -> str:
             flush()
             out.append(f"<p>{line}</p>")
     flush()
-    return f'<div class="note">{"".join(out)}</div>'
+    return (f'<div class="note{" note-fit" if fit else ""}">'
+            f'{"".join(out)}</div>')
 
 
 st.set_page_config(page_title="Equity research terminal", layout="wide",
@@ -1853,7 +1914,10 @@ with main:
             closes = [b["close"] for b in bars]
             session_starts = [i for i, b in enumerate(bars)
                               if i and b["as_of"][:10] != bars[i - 1]["as_of"][:10]]
-            R.show(CH.sparkline(closes, 832, 72, label_last=True, marks=session_starts),
+            # Shallow on purpose. This is the shape of the week rather than a chart to
+            # read a level off, the Prices tab has the real one, and every pixel it takes
+            # comes out of the boxes below it on a tab that has to fit one screen.
+            R.show(CH.sparkline(closes, 832, 54, label_last=True, marks=session_starts),
                    css_class="chart-mount stretch")
 
         if write_sheet:
@@ -1868,88 +1932,108 @@ with main:
                 'Open it and print to A4, or save as PDF.</div>',
                 unsafe_allow_html=True)
 
-        section("Morning note")
-
-        if regenerate:
-            with st.spinner(f"Writing the {ticker} note"):
-                st.session_state["note"] = api_get(
-                    api_base, f"/companies/{ticker}/note?refresh=true")
-        elif st.session_state.get("note", {}).get("ticker") != ticker:
-            st.session_state["note"] = api_get(api_base, f"/companies/{ticker}/note")
-
-        # Not "note": this module runs top to bottom, so a name bound here shadows the
-        # note() helper for every tab below it, and the financials tab calls it.
-        written = st.session_state.get("note") or {}
-        if not written.get("body"):
-            state(f"No note for {ticker} yet",
-                  "Press Generate. Without an Anthropic key the note is the rules "
-                  "layer, which lists the flagged items grouped by kind.")
-        else:
-            st.markdown(note_html(written["body"]), unsafe_allow_html=True)
-            layer = ("rules layer, no Anthropic key set"
-                     if written.get("model") == "rules"
-                     else f"written by {written.get('model')}")
-            st.markdown(
-                f'<div class="byline">{layer} · written {written.get("generated_at")} '
-                'from the feed as it stood then. Press Generate to rebuild it.</div>',
-                unsafe_allow_html=True)
-        if written.get("error"):
-            state("The note fell back to the rules layer", written["error"], error=True)
-
-        # --- What matters now, in structured sections --------------------
-        # Broken out by the thing that moves a case, not by the snapshot-diff mechanics.
-        # Catalysts, exclusivity and material filings come from the feed; deals and
-        # readouts are read from their own endpoints. The raw "changes since the last
-        # refresh" list, trial status and date wording, is dropped from this view: it read
-        # as jargon and the events that matter surface in the sections below instead.
+        # --- What happened, as headline boxes ----------------------------
+        # The same object the universe tab uses, for the same reason: a deal, a readout
+        # and a catalyst are three things that happened to one company, and holding each
+        # of them in its own list shape made them read as three unrelated features.
+        # Catalysts, exclusivity and filings come from the feed; deals and readouts from
+        # their own endpoints. The raw change list, trial status and date wording, stays
+        # out of this view: it read as jargon and the events that matter are here.
         deals_data = api_get(api_base, f"/companies/{ticker}/deals").get("deals") or []
         readouts_data = api_get(api_base, f"/companies/{ticker}/readouts").get("readouts") or []
         catalyst_items = [it for it in feed if it["kind"] == "catalyst"]
         loe_items = [it for it in feed if it["kind"] == "loe"]
         filing_items = [it for it in feed if it["kind"] == "filing"]
 
-        if not (deals_data or readouts_data or catalyst_items or loe_items or filing_items):
+        # What happened: things with a result, newest first. Ordered by date rather than
+        # by kind on purpose. Grouped by kind, GSK's six readouts filled the row and its
+        # six deals never appeared at all, which is the opposite of what a row headed
+        # "what happened" should do. A date sort mixes them and answers the question.
+        happened = sorted(
+            [_readout_lead(r, ticker) for r in readouts_data]
+            + [_deal_lead(d, ticker) for d in deals_data]
+            + [_feed_lead(it) for it in filing_items],
+            key=lambda box: box["date"] or "", reverse=True)
+        # What is coming: things with a date in front of them, soonest first, so the row
+        # is cut at the far end rather than the near one.
+        ahead = sorted([_feed_lead(it) for it in catalyst_items + loe_items],
+                       key=lambda box: box["date"] or "9999-99-99")
+
+        if not (happened or ahead):
             section("Nothing flagged")
             state(f"Nothing coming up for {ticker}",
                   "The position above is current either way. Catalysts, deals, readouts "
                   "and exclusivity fill in as refreshes run; a refresh from the Prices "
                   "tab pulls the latest.")
-
-        if catalyst_items:
-            section("Catalysts inside 60 days", len(catalyst_items))
-            st.markdown('<div class="feed">' + "".join(
-                feed_row(it, show_reason=True) for it in catalyst_items) + "</div>",
-                unsafe_allow_html=True)
-
-        if deals_data:
+        else:
             size = deal_size(deals_data)
-            section("Deals", f"{len(deals_data)} &middot; {size}" if size
-                    else len(deals_data))
-            st.markdown('<div class="deals">' + "".join(
-                deal_card(d) for d in deals_data) + "</div>", unsafe_allow_html=True)
+            # A literal separator, not an entity: section() escapes the basis chip, so
+            # "&middot;" would print as itself.
+            basis = " · ".join(
+                part for part in (f"{len(readouts_data)} readouts" if readouts_data else "",
+                                  f"{len(deals_data)} deals" if deals_data else "",
+                                  size or "") if part)
+            section("What happened", len(happened) or None, basis)
+            if happened:
+                st.markdown(_leads(happened[:_INSIGHT_SHOWN], 6, 3),
+                            unsafe_allow_html=True)
+                note("Readouts are Phase 2 and 3 topline results classified from the "
+                     "press releases, each carrying the sentence it was read from. Deal "
+                     "values are announced consideration including milestones, not cash "
+                     "paid, so they are not the acquisitions line on the financials tab. "
+                     "Filings are material 8-K items beyond the deals themselves.")
+            else:
+                state(f"Nothing has landed for {ticker} in the window",
+                      "The dated items beside this are still ahead of it.")
 
-        if readouts_data:
-            section("Trial readouts", len(readouts_data))
-            st.markdown('<div class="readouts">' + "".join(
-                readout_card(r) for r in readouts_data) + "</div>",
-                unsafe_allow_html=True)
-            st.markdown('<div class="byline">Phase 2 and 3 topline results classified '
-                        'from the press releases, each with the sentence that carried it. '
-                        'A check met the endpoint, a cross missed.</div>',
-                        unsafe_allow_html=True)
+        # The note and the forward list side by side, three to two, the same split the
+        # universe tab gives the map and its forward list. The note was running the full
+        # width of the page in a 15.5px reading face, which set a measure of about two
+        # hundred characters and pushed everything under it off the screen.
+        _note_col, _ahead_col = st.columns([3, 2], gap="medium")
 
-        if loe_items:
-            section("Loss of exclusivity ahead", len(loe_items))
-            st.markdown('<div class="feed">' + "".join(
-                feed_row(it) for it in loe_items) + "</div>", unsafe_allow_html=True)
+        with _note_col:
+            section("Morning note")
+            if regenerate:
+                with st.spinner(f"Writing the {ticker} note"):
+                    st.session_state["note"] = api_get(
+                        api_base, f"/companies/{ticker}/note?refresh=true")
+            elif st.session_state.get("note", {}).get("ticker") != ticker:
+                st.session_state["note"] = api_get(api_base, f"/companies/{ticker}/note")
 
-        if filing_items:
-            section("Recent material filings", len(filing_items))
-            st.markdown('<div class="feed">' + "".join(
-                feed_row(it) for it in filing_items) + "</div>", unsafe_allow_html=True)
-            st.markdown('<div class="byline">Material 8-K items beyond the deals above: '
-                        'impairments, terminations and other agreements.</div>',
-                        unsafe_allow_html=True)
+            # Not "note": this module runs top to bottom, so a name bound here shadows
+            # the note() helper for every tab below it, and the financials tab calls it.
+            written = st.session_state.get("note") or {}
+            if not written.get("body"):
+                state(f"No note for {ticker} yet",
+                      "Press Generate. Without an Anthropic key the note is the rules "
+                      "layer, which lists the flagged items grouped by kind.")
+            else:
+                st.markdown(note_html(written["body"], fit=True),
+                            unsafe_allow_html=True)
+                layer = ("rules layer, no Anthropic key set"
+                         if written.get("model") == "rules"
+                         else f"written by {written.get('model')}")
+                st.markdown(
+                    f'<div class="byline">{layer} · written '
+                    f'{written.get("generated_at")} from the feed as it stood then. '
+                    'Press Generate to rebuild it.</div>', unsafe_allow_html=True)
+            if written.get("error"):
+                state("The note fell back to the rules layer", written["error"],
+                      error=True)
+
+        with _ahead_col:
+            section("Dated ahead", len(ahead) or None,
+                    "catalysts and exclusivity" if ahead else "")
+            if ahead:
+                st.markdown(_leads(ahead[:_INSIGHT_AHEAD], 2, 2), unsafe_allow_html=True)
+                note("Catalysts are readouts and PDUFA dates inside 60 days. Exclusivity "
+                     "is a molecule losing protection inside 24 months, from the Orange "
+                     "and Purple Books.")
+            else:
+                state(f"Nothing dated ahead for {ticker}",
+                      "No catalyst inside 60 days and no exclusivity loss inside 24 "
+                      "months.")
 
     # --- Prices ----------------------------------------------------------
     with prices_tab:

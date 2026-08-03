@@ -348,6 +348,13 @@ h3 {{ font-size: 0.9rem; }}
 .lead-data_readout {{ --accent: var(--phase-3); }}
 .lead-leadership {{ --accent: var(--purple-book); }}
 .lead-trial_stopped {{ --accent: var(--down); }}
+/* Key insights carries signed readouts, where the endpoint was either met or missed.
+   Those are the two most different items on the page and cannot share the green the
+   phase ramp gives them both. */
+.lead-readout_hit {{ --accent: var(--up); }}
+.lead-readout_miss {{ --accent: var(--down); }}
+.lead-catalyst {{ --accent: var(--phase-filed); }}
+.lead-loe {{ --accent: var(--orange-book); }}
 
 /* Two rows: what kind of thing this is and when, then the sentence across the full box.
    On one row the chip and the date took their width first and the headline took what was
@@ -414,9 +421,9 @@ h3 {{ font-size: 0.9rem; }}
 .fitem:last-child {{ border-bottom: none; }}
 /* A row or card that has a source reads as itself, not as a link: the underline and
    the blue belong to prose. The cursor and a lift on hover say it is clickable. */
-.fitem.link, .deal.link {{ text-decoration: none; color: inherit; cursor: pointer; }}
-.fitem.link:hover, .deal.link:hover {{ background: var(--panel); }}
-.fitem.link:hover .t, .deal.link:hover .dp {{ color: var(--up); }}
+.fitem.link {{ text-decoration: none; color: inherit; cursor: pointer; }}
+.fitem.link:hover {{ background: var(--panel); }}
+.fitem.link:hover .t {{ color: var(--up); }}
 .fitem .d {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted); }}
 .fitem .t {{ font-size: 12.5px; line-height: 1.35; }}
 .fitem .s {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
@@ -429,36 +436,12 @@ h3 {{ font-size: 0.9rem; }}
 .fitem .why {{ font-size: 10px; color: var(--flag); letter-spacing: 0.04em;
               text-transform: uppercase; white-space: nowrap; }}
 
-/* Deals: a type badge, a body of party, value and area, and the date. */
-.deals {{ margin: 0.1rem 0 0.3rem; }}
-.deal {{
-  display: grid; grid-template-columns: 104px 1fr auto; gap: 0.8rem;
-  align-items: baseline; padding: 0.4rem 0; border-bottom: 1px solid var(--rule);
-}}
-.deal:last-child {{ border-bottom: none; }}
-.deal .db {{ font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
-            font-weight: 700; color: var(--muted); white-space: nowrap;
-            align-self: center; }}
-.deal.dt-acquisition .db {{ color: var(--down); }}
-.deal.dt-licensing .db {{ color: var(--purple-book); }}
-.deal.dt-collaboration .db {{ color: var(--up); }}
-.deal.dt-divestiture .db {{ color: var(--orange-book); }}
-.deal .dbody {{ font-size: 12.5px; line-height: 1.4; }}
-.deal .dp {{ font-weight: 600; }}
-.deal .dv {{ font-family: var(--font-mono); font-weight: 600; }}
-.deal .da {{ color: var(--muted); }}
 /* The label's own sentence on what the drug is, set as prose above the figures. */
 .prof-summary {{ font-size: 12.5px; line-height: 1.5; color: var(--text);
                 max-width: 78ch; margin: 0.1rem 0 0.55rem; }}
 /* The endpoint a completed study measured, quieter than its title. */
 .prof-line .ep {{ display: block; font-size: 10.5px; color: var(--muted);
                  margin-left: 92px; }}
-
-/* The stated structure rather than one headline figure. Sized down from .dv because it
-   is a clause rather than a number, and it has to sit on one line beside the party. */
-.deal .dterms {{ font-size: 11px; font-weight: 500; letter-spacing: -0.01em; }}
-.deal .dd {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted);
-            white-space: nowrap; align-self: center; }}
 
 /* Portfolio: one card per approved product, a modality stripe down the left, the
    figures in mono. A near-term loss of exclusivity reads in the down colour. */
@@ -631,23 +614,6 @@ h3 {{ font-size: 0.9rem; }}
 .prog-s.prog-ev {{ grid-template-columns: 96px 1fr; border-left-color: var(--flag); }}
 .prog-s.prog-ev .q {{ color: var(--muted); font-style: italic; }}
 
-/* Trial readouts: a mark and sign, the phase, the drug, and the quote. */
-.readouts {{ margin: 0.1rem 0 0.3rem; }}
-.readout {{
-  display: grid; grid-template-columns: 16px 92px 1fr auto; gap: 0.6rem;
-  align-items: baseline; padding: 0.42rem 0; border-bottom: 1px solid var(--rule);
-}}
-.readout:last-child {{ border-bottom: none; }}
-.readout .rm {{ font-weight: 700; align-self: center; }}
-.readout .rh {{ font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
-               font-weight: 700; white-space: nowrap; align-self: center; }}
-.readout.rd-pos .rm, .readout.rd-pos .rh {{ color: var(--up); }}
-.readout.rd-neg .rm, .readout.rd-neg .rh {{ color: var(--down); }}
-.readout .rp {{ font-weight: 600; font-size: 12.5px; }}
-.readout .rq {{ font-size: 11.5px; color: var(--muted); line-height: 1.35; }}
-.readout .rd {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted);
-               white-space: nowrap; align-self: center; }}
-
 /* Chart mounts: a chart is a fixed-width SVG. By default it centres in its column and an
    over-wide one shrinks to fit; the "stretch" variant fills the column edge to edge, used
    where a chart is meant to span its space. The horizon rail keeps its own class. */
@@ -705,9 +671,17 @@ h3 {{ font-size: 0.9rem; }}
 .stat .v.none {{ color: var(--muted); font-weight: 400; }}
 .stat .v.risk {{ color: var(--down); }}
 
-/* The note is the one piece of prose, so it gets the reading face. */
-.note {{ font-family: var(--font-prose); font-size: 15.5px; line-height: 1.55;
-        max-width: none; margin: 0.35rem 0 0.2rem; }}
+/* The note is the one piece of prose, so it gets the reading face. Sized to sit in a
+   column rather than across the page: at 15.5px over the full width it set a measure of
+   around two hundred characters, which is twice what prose is read at, and it was the
+   loudest thing on a tab whose subject is the boxes above it. */
+.note {{ font-family: var(--font-prose); font-size: 13.5px; line-height: 1.5;
+        max-width: 68ch; margin: 0.35rem 0 0.2rem; }}
+/* Bounded so the tab it sits on stays one screen. The note is as long as the week was,
+   which is the one height on Key insights the layout does not choose, so it scrolls
+   inside its own box rather than pushing everything below it off the page. */
+.note.note-fit {{ max-height: 11rem; overflow-y: auto; padding-right: 0.6rem;
+                 scrollbar-width: thin; }}
 .note h4 {{ font-family: var(--font-ui); font-size: 10.5px; letter-spacing: 0.09em;
            text-transform: uppercase; color: var(--muted); margin: 0.7rem 0 0.1rem; }}
 .note ul {{ margin: 0.1rem 0; padding-left: 1.1rem; }}
