@@ -442,11 +442,89 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
                         f'{(c.get("expected_date") or "")[:10]}</span>{html_escape(t)}</div>')
     html.append('</div>')
     st.markdown("".join(html), unsafe_allow_html=True)
+    # What used to be three company-wide tables at the foot of the tab, cut to this one
+    # product. Asked of a portfolio they were a ranking; asked of a drug they are the
+    # three things a reader wants next to its revenue: who actually takes it, what the
+    # filer books for it, and what is still being trialled on it.
+    _profile_detail(api_base, ticker, prof, aid)
+
     st.markdown(
         '<div class="byline">Every field here is sourced: approval and supplements '
         'from openFDA, revenue from the SEC data sets, exclusivity from the Orange and '
         'Purple Books, demand from CMS, the label from DailyMed. A field with no free '
         'data is left out rather than filled.</div>', unsafe_allow_html=True)
+
+
+def _profile_detail(api_base: str, ticker: str, prof: dict, aid) -> None:
+    """Medicare demand, booked revenue and live studies, for this product alone.
+
+    Each is absent for most products, and an absence is stated rather than drawn as a
+    gap: free data carries CMS spending for the drugs Medicare buys, tagged revenue only
+    where the filer tags a product axis, and a trial only where one is running.
+    """
+    brand = (prof.get("brand") or "").lower()
+    generic = (prof.get("generic") or "").lower()
+
+    def _mine(text: str) -> bool:
+        low = (text or "").lower()
+        return bool(low) and ((brand and brand in low) or (generic and generic in low))
+
+    demand = [d for d in (api_get(api_base, f"/companies/{ticker}/demand").get("drugs")
+                          or []) if _mine(d.get("brand")) or _mine(d.get("generic"))]
+    # Revenue rows carry the asset id, so this one needs no name matching at all.
+    revenue = [r for r in (api_get(api_base, f"/companies/{ticker}/revenue").get("rows")
+                           or []) if r.get("asset_id") == aid]
+    studies = [s for s in (api_get(api_base, f"/companies/{ticker}/post-approval")
+                           .get("studies") or []) if s.get("asset_id") == aid]
+
+    cols = st.columns(3, gap="medium")
+    with cols[0]:
+        section("Medicare demand", len(demand) or None, "US Part D and Part B")
+        if not demand:
+            state("Not in the CMS files",
+                  "CMS publishes spending for the drugs Medicare buys. A product it "
+                  "does not cover, or one sold only outside the US, has no row.")
+        else:
+            # Each row is one Medicare part with a year series; the latest year is what
+            # a reader wants, and the part says whether it is the pharmacy or the clinic.
+            rows_html = []
+            for d in demand[:6]:
+                latest = (d.get("series") or [])[-1:] or [{}]
+                point = latest[0]
+                rows_html.append(
+                    f'<div class="fitem"><span class="d">'
+                    f'{html_escape(str(point.get("year") or ""))}</span>'
+                    f'<span class="t">{html_escape(d.get("brand") or "")}</span>'
+                    f'<span class="why">{html_escape(d.get("part_label") or "")}</span>'
+                    f'<span class="s">'
+                    f'{T.num((point.get("spending") or 0) / 1e6, 0)}m</span></div>')
+            st.markdown('<div class="feed">' + "".join(rows_html) + "</div>",
+                        unsafe_allow_html=True)
+    with cols[1]:
+        section("Booked revenue", len(revenue) or None, "as the filer tags it")
+        if not revenue:
+            state("Not tagged",
+                  "The SEC data sets carry revenue per product only where the filer "
+                  "tags a product axis. Most do not, for most products.")
+        else:
+            st.markdown('<div class="feed">' + "".join(
+                f'<div class="fitem"><span class="d">FY{r.get("fiscal_year")}</span>'
+                f'<span class="t">{html_escape(prof.get("brand") or "")}</span>'
+                f'<span class="why"></span><span class="s">'
+                f'{T.num((r.get("value") or 0) / 1e9, 2)} {html_escape(r.get("unit") or "")}'
+                f' bn</span></div>' for r in revenue[:8]) + "</div>",
+                unsafe_allow_html=True)
+    with cols[2]:
+        section("Studies underway", len(studies) or None, "on this approved product")
+        if not studies:
+            state("None running",
+                  "No registered trial is open on this product. Lifecycle work is a new "
+                  "indication, a formulation or a post-marketing commitment, and not "
+                  "every product has one.")
+        else:
+            st.markdown('<div class="feed">' + "".join(
+                _post_approval_row(s) for s in studies[:8]) + "</div>",
+                unsafe_allow_html=True)
 
 
 def _pct_from_start(closes) -> list:
@@ -3252,6 +3330,12 @@ with main:
                              "card to see whether that is protection already lapsed or "
                              "nothing published yet.")
 
+                    # The fact sheet, under the cliff rather than inside the card grid.
+                    # Opening above the cards pushed them down the page on every click;
+                    # here it fills the column the charts leave, and the cards it is
+                    # about stay where they were.
+                    _profile_slot = st.container()
+
 
                 with _products_col:
                     section("Products", f"{len(prods)}")
@@ -3350,8 +3434,6 @@ with main:
                     # card list. Guarded to this company's products, so switching ticker drops a
                     # stale selection rather than asking the API for another company's asset.
                     sel = next((p for p in prods_sorted if p.get("asset_id") == sel_aid), None)
-                    if sel is not None:
-                        _render_product_profile(api_base, ticker, sel, today)
                     # Grouped by the disease the label says the product treats, biggest area
                     # first and biggest product inside it. A portfolio is held by franchise, so
                     # a flat list by revenue hid the shape of it: four metabolic drugs reading
@@ -3406,110 +3488,15 @@ with main:
                             st.session_state["profile_asset"] = clicked.get("asset_id")
                             st.rerun()
 
-            # The two tables at the foot of the tab, side by side. One is what the
-            # market paid and the other is how many people took it, read against each
-            # other rather than a screen apart.
-            # The three detail panels behind one control rather than stacked. Each asks a
-            # different question about the same products and a reader asks one at a time;
-            # end to end they were eight hundred pixels at the foot of the tab. The
-            # control names all three, so nothing is hidden, only unstacked.
-            _panel = st.segmented_control(
-                "Detail", ["Medicare demand", "Product revenue", "Studies underway"],
-                default="Medicare demand", label_visibility="collapsed",
-                key=f"pf_panel_{ticker}") or "Medicare demand"
-
-            if _panel == "Medicare demand":
-                # --- Medicare demand ---
-                # Revenue is what a drug earned; this is how many people took it. CMS Part D and
-                # Part B spending, matched to a marketed product by brand, is the real-world US
-                # demand the revenue line cannot show.
-                med = api_get(api_base, f"/companies/{ticker}/demand").get("drugs") or []
-                section("Medicare demand", "US Part D and Part B")
-                if not med:
-                    state(f"No Medicare demand on file for {ticker}",
-                          "CMS publishes Part D and Part B spending by drug once a year, matched "
-                          "to a marketed product by brand on refresh. It covers US Medicare only, "
-                          "so a drug used mostly outside it or by under-65s reads low or absent. "
-                          "Press Refresh all if this looks empty.")
-                else:
-                    def _yoy(d):
-                        cur, prior = d.get("spending"), d.get("prior_spending")
-                        if not cur or not prior:
-                            return "—"
-                        return f"{(cur / prior - 1) * 100:+.0f}%"
-                    med_year = max((d["latest_year"] for d in med), default="")
-                    frame = pd.DataFrame([{
-                        "Drug": d["brand"], "Where": d["part_label"],
-                        "Beneficiaries": (f"{d['beneficiaries']:,}"
-                                          if d.get("beneficiaries") is not None else "—"),
-                        "Claims": (f"{d['claims']:,}" if d.get("claims") is not None else "—"),
-                        "Spending $m": (T.num(d["spending"] / 1e6, 1)
-                                        if d.get("spending") is not None else "—"),
-                        "vs prior": _yoy(d), "Year": str(d["latest_year"])}
-                        for d in med[:25]])
-                    st.dataframe(
-                        # Direction reads in colour: growth up, decline in oxblood, flat muted.
-                        frame.style.map(
-                            lambda v: (f"color:{T.P.data};font-weight:600" if v.startswith("+")
-                                       else f"color:{T.P.oxblood};font-weight:600"
-                                       if v.startswith("-") else f"color:{T.P.stale}"),
-                            subset=["vs prior"]),
-                        width="stretch", hide_index=True)
-                    st.markdown(
-                        f'<div class="byline"><b>US Medicare only.</b> CMS Part D (retail '
-                        f'pharmacy) and Part B (given in a clinic) spending by drug, {med_year} '
-                        f'the latest year published, matched to a marketed product by brand. '
-                        f'Beneficiaries is distinct people, not prescriptions; a count CMS '
-                        f'suppressed for privacy reads as a dash, never zero. This is real-world '
-                        f'demand, a different lens from the reported revenue above, and it misses '
-                        f'commercial and ex-US volume entirely.</div>', unsafe_allow_html=True)
-
-            elif _panel == "Product revenue":
-                section("Product revenue", f"{len(curated)} from the filings")
-                if not curated:
-                    state(f"No product revenue on file for {ticker}",
-                          "The SEC data sets carry revenue per product only where the "
-                          "filer tags a product axis. AbbVie tags none at all, and GSK and "
-                          "Regeneron spread theirs across segments in a way that cannot be "
-                          "resolved without adding them together.")
-                else:
-                    for row in curated:
-                        st.markdown(
-                            f'<div class="fitem"><span class="d">FY{row["fiscal_year"]}'
-                            f'</span><span class="t">{html_escape(row["brand_name"])} '
-                            f'<span class="mono">{html_escape(row["internal_code"] or "")}'
-                            f'</span></span><span class="s">'
-                            f'{T.num(row["value"] / 1e9, 2)} {row["unit"] or ""}</span>'
-                            f'</div>', unsafe_allow_html=True)
-                    st.markdown(
-                        '<div class="byline">Worldwide, as the filing tags it, from the SEC '
-                        'Financial Statement Data Sets. Nothing here is typed in: a figure '
-                        'is what the company reported or it is absent.</div>',
-                        unsafe_allow_html=True)
-
-            else:
-                # --- Studies still running on approved products ------------------
-                # Not pipeline, which is why the counts on the Pipeline tab no longer include
-                # it, and not nothing either: a new indication, a new formulation, a
-                # paediatric arm or a post-marketing commitment is real spending on a real
-                # product. Nexium was approved in 2001 and has a Phase 3 finishing this
-                # month, and before this it appeared nowhere in the app.
-                post = api_get(api_base,
-                               f"/companies/{ticker}/post-approval").get("studies") or []
-                if post:
-                    late = sum(1 for s in post if (s.get("phase") or "").startswith(
-                        ("Phase 3", "Phase 4")))
-                    section("Studies on approved products", len(post),
-                            f"{late} in Phase 3 or 4" if late else "lifecycle work")
-                    st.markdown('<div class="feed post-approval">' + "".join(
-                        _post_approval_row(s) for s in post[:_POST_APPROVAL_SHOWN])
-                        + "</div>", unsafe_allow_html=True)
-                    note("Trials whose compound this company already sells, so none of them "
-                         "is pipeline and the counts on the Pipeline tab exclude them. A "
-                         "date in the past is a study whose primary completion has passed "
-                         "and whose registry entry is still open."
-                         + (f" Showing {_POST_APPROVAL_SHOWN} of {len(post)}, soonest first."
-                            if len(post) > _POST_APPROVAL_SHOWN else ""))
+                with _profile_slot:
+                    if sel is not None:
+                        _render_product_profile(api_base, ticker, sel, today)
+                    else:
+                        section("Product fact sheet")
+                        state("Pick a product",
+                              "Click a card to read what it earns, who takes it, what "
+                              "is still being trialled on it, and when it loses its "
+                              "market.")
 
         # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
