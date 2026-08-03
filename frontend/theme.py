@@ -667,6 +667,13 @@ h3 {{ font-size: 0.9rem; }}
 .tiles > div {{ padding: 0.5rem 0.6rem 0.55rem 1rem;
                border-left: 1px solid var(--rule); }}
 .tiles > div:first-child {{ border-left: 0; padding-left: 2px; }}
+/* Every figure on one line, however many there are, for a block with the full width of
+   the page. The rules come off with it: the section heading already separates one row
+   from the next, and a box per cell drew nine lines to say what the spacing said. */
+.tiles.tiles-row {{ grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+                   grid-template-columns: none; border: 0; margin: 0.15rem 0 0.35rem; }}
+.tiles.tiles-row > div {{ border-left: 0; padding: 0.35rem 1.1rem 0.4rem 0; }}
+.tiles.tiles-row .k, .tiles.tiles-row .n {{ overflow: hidden; text-overflow: ellipsis; }}
 .tiles .k {{ display: block; font-size: 9.5px; letter-spacing: 0.07em;
             text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
             white-space: nowrap; }}

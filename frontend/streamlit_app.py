@@ -799,7 +799,12 @@ def _cash_block(api_base: str, ticker: str) -> None:
     section("The year",
             basis=(f'FY{cash["fiscal_year"]}' if cash.get("fiscal_year")
                    else "latest year"))
+    # Ordered as a sentence: what the year earned before the accountants got to it, how
+    # much of that became cash, what share of profit that was, what the company owes
+    # against those earnings, and what it spent buying other people. Net debt is quoted
+    # in turns of EBITDA, so EBITDA has to be on the row before it rather than implied.
     st.markdown(metric_tiles([
+        ("EBITDA", _bn(cash.get("ebitda")), "bn", "", "", "before D&A"),
         ("Free cash flow", _bn(cash.get("fcf")), "bn", "", "",
          (T.pct(cash["fcf_margin"] * 100, 1) + " of revenue"
           if cash.get("fcf_margin") is not None else "")),
@@ -812,7 +817,7 @@ def _cash_block(api_base: str, ticker: str) -> None:
         # click apart, so this one says which it is.
         ("Acquisitions", _bn((cash.get("inputs") or {}).get("acquisitions")), "bn",
          "", "", "cash paid"),
-    ]), unsafe_allow_html=True)
+    ], one_row=True), unsafe_allow_html=True)
 
     inputs = cash.get("inputs") or {}
     missing = [name.replace("_", " ") for name, value in inputs.items()
@@ -1089,7 +1094,7 @@ def statement_table(block: dict, currency: str | None,
             f'{head}</tr></thead><tbody>{"".join(body)}</tbody></table></div>')
 
 
-def metric_tiles(items) -> str:
+def metric_tiles(items, one_row: bool = False) -> str:
     """A row of headline figures, in one language every block can use.
 
     Each item is (label, value, unit, change, tone, note). The unit rides with the
@@ -1098,6 +1103,9 @@ def metric_tiles(items) -> str:
     line of its own: stacked underneath, four figures read as twelve unrelated lines.
     A note appears only where the number cannot be read without it.
     """
+    # one_row puts every figure on a single line whatever the count, for a block that has
+    # the full width of the page. The default still wraps, which is what a half-width
+    # column needs.
     out = []
     for label, value, unit, change, tone, note in items:
         missing = value is None or value == T.num(None)
@@ -1111,7 +1119,8 @@ def metric_tiles(items) -> str:
             + '</span>'
             + (f'<span class="n">{html_escape(note)}</span>' if note else "")
             + '</div>')
-    return f'<div class="tiles">{"".join(out)}</div>'
+    return (f'<div class="tiles{" tiles-row" if one_row else ""}">'
+            f'{"".join(out)}</div>')
 
 
 def snapshot_meta(snapshot: dict) -> str:
@@ -1151,7 +1160,7 @@ def snapshot_strip(snapshot: dict) -> str:
         ("R&D", T.pct(snapshot["rd_intensity"] * 100
                       if snapshot["rd_intensity"] is not None else None, 1),
          "", "", "", "share of sales"),
-    ])
+    ], one_row=True)
 
 
 def _quoted(text) -> str:
@@ -2366,7 +2375,11 @@ with main:
         # annual free cash flow in the same tiles at the same weight. Two columns
         # separate them structurally rather than by a label, and the page loses the
         # height it was spending saying so twice.
-        left, right = st.columns(2, gap="medium")
+        # Two full-width rows rather than two half-width columns. Each block's figures
+        # then fit on one line: at half a page the period strip wrapped R&D onto a second
+        # row and the cash strip wrapped acquisitions, so a four-figure block stood two
+        # deep and the two blocks disagreed about where their own baseline was.
+        left, right = st.container(), st.container()
 
         if snapshot:
             with left:
