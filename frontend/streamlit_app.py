@@ -3129,7 +3129,9 @@ with main:
                 # being a scroll. The charts keep the wider half: two donuts need the
                 # room for their outside labels, and the cliff shares their x axis of
                 # years.
-                _charts_col, _products_col = st.columns([3, 2], gap="medium")
+                # Near enough equal. Three to two left the charts with air they did not
+                # use and pushed the cards into a strip against the right edge.
+                _charts_col, _products_col = st.columns([1.08, 1], gap="medium")
 
                 with _charts_col:
                     # Revenue mix leads: what the company earns today, by product, before the

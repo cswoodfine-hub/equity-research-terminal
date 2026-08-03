@@ -867,7 +867,9 @@ h3 {{ font-size: 0.9rem; }}
    capped, they still carry every label and the rest of the page fits behind them. */
 .mix-donut svg {{ max-height: clamp(160px, calc(100vh - 560px), 240px);
                  width: auto; max-width: 100%; }}
-.mix-donut {{ display: flex; justify-content: center; }}
+/* Left-aligned, not centred: two donuts centred in their own halves left a channel of
+   empty page down the middle of the pair. */
+.mix-donut {{ display: flex; justify-content: flex-start; }}
 
 /* The product card grid scrolls inside its own box. One franchise can hold sixteen
    products, which is four hundred and seventy pixels of cards before the tables under
