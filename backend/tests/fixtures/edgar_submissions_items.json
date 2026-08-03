@@ -1,0 +1,69 @@
+{
+  "cik": "1121404",
+  "name": "TITLE SHAPES",
+  "_comment": "A composite submissions payload: one row per title shape the live feed produces, taken verbatim from several filers, because no single filer files both an 8-K and a 6-K. The form, items and primaryDocDescription of each row are as data.sec.gov returned them on 2026-08-03. Rows 1-4 are AMGN and LLY 8-Ks: items always populated, primaryDocDescription always the form's own name. Rows 5-7 are SNY, BNTX and ARGX 6-Ks, which carry no items at all because the item taxonomy belongs to the domestic forms; the first two describe them '6-K' and 'FORM 6-K', ARGX writes the announcement. The cik is SNY's, since the URL builder needs one and the parser does not read it per row.",
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0000318154-26-000042",
+        "0000318154-26-000031",
+        "0000059478-26-000018",
+        "0000059478-26-000009",
+        "0001121404-26-000008",
+        "0001776985-26-000047",
+        "0001697862-26-000033",
+        "0000318154-26-000003"
+      ],
+      "filingDate": [
+        "2026-07-31",
+        "2026-05-20",
+        "2026-04-30",
+        "2026-02-11",
+        "2026-07-30",
+        "2026-07-29",
+        "2026-07-23",
+        "2026-01-15"
+      ],
+      "form": [
+        "8-K",
+        "8-K",
+        "8-K",
+        "8-K",
+        "6-K",
+        "6-K",
+        "6-K",
+        "144"
+      ],
+      "items": [
+        "1.05",
+        "5.07,9.01",
+        "2.02,9.01",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "primaryDocument": [
+        "amgn-20260731.htm",
+        "amgn-20260520.htm",
+        "lly-20260430.htm",
+        "lly-20260211.htm",
+        "a6kcoverpagepressreleaseq2.htm",
+        "form6-kxfgvariantvaccineec.htm",
+        "argx-20260630.htm",
+        "xslF345X03/primary_doc.xml"
+      ],
+      "primaryDocDescription": [
+        "8-K",
+        "8-K",
+        "FORM 8-K",
+        "CURRENT REPORT",
+        "6-K",
+        "FORM 6-K",
+        "DIRECTOR/PDMR SHAREHOLDING",
+        ""
+      ]
+    }
+  }
+}

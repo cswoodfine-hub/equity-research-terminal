@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.request
 
 import db
@@ -25,6 +26,53 @@ MAX_FILINGS = 60  # keep the recent material filings, not the whole history
 
 MATERIAL_FORMS = {"8-K", "6-K", "10-K", "10-Q", "20-F", "40-F"}
 NEWS_FORMS = {"8-K", "6-K"}
+
+# The SEC's own name for each form, which is what filers type into
+# primaryDocDescription when they have nothing else to say. "CURRENT REPORT" is the
+# 8-K; it names the form a second time and says nothing about the filing.
+_FORM_NAMES = frozenset({
+    "current report", "annual report", "quarterly report", "transition report",
+    "report of foreign private issuer", "report of foreign issuer",
+})
+
+
+def _says_only_the_form(description: str, form_type: str) -> bool:
+    """Whether a document description names the form and nothing more.
+
+    primaryDocDescription is filer-written free text. Most filers put the form name in
+    it, spelled "8-K", "FORM 6-K" or "CURRENT REPORT", none of which is worth more than
+    the form type already on the row. A few write the announcement itself, and that is
+    the only case worth keeping.
+    """
+    cleaned = re.sub(r"[^a-z0-9-]+", " ", (description or "").lower()).strip()
+    cleaned = re.sub(r"^form\s+", "", cleaned)
+    return not cleaned or cleaned == form_type.lower() or cleaned in _FORM_NAMES
+
+
+def describe_filing(form_type: str, item_codes, description: str) -> str:
+    """A filing's title: what it is about, or its form when nothing says. Pure.
+
+    The item codes are the answer for an 8-K and are never there for a 6-K, because the
+    item taxonomy is a domestic form's. A foreign filer's description carries the
+    announcement often enough to be worth the fallback.
+    """
+    title = edgar_items.describe(item_codes, form_type)
+    if title != form_type:
+        return title
+    return form_type if _says_only_the_form(description, form_type) else description.strip()
+
+
+def news_title(form_type: str, title: str) -> str:
+    """The headline for a filing that is news. Pure.
+
+    "8-K: Results of operations" reads as an event. When no description resolved, the
+    title is already the form type, and naming the form twice gives "8-K: 8-K", which
+    reads as a rendering fault rather than as a filing.
+    """
+    title = (title or "").strip()
+    if not title or title == form_type:
+        return form_type
+    return f"{form_type}: {title}"
 
 
 def _doc_url(cik, accession, primary_document) -> str:
@@ -53,9 +101,7 @@ def parse_submissions(payload: dict, cik: str) -> list[dict]:
         item_codes = items[i] if i < len(items) else ""
         # The item codes say what an 8-K is about. primaryDocDescription is almost
         # always just the form name, so the whole feed read "8-K: 8-K" without this.
-        title = edgar_items.describe(item_codes, form)
-        if title == form and description and description != form:
-            title = description
+        title = describe_filing(form, item_codes, description)
         rows.append(
             {
                 "form_type": form,
@@ -172,14 +218,19 @@ class FilingsEdgarFetcher(BaseFetcher):
                      row["title"], row["url"], EDGAR_SOURCE),
                 )
                 if row["form_type"] in NEWS_FORMS:
+                    # The title updates rather than being left alone. It is derived from
+                    # the feed, so a better derivation has to reach rows already written:
+                    # when the item taxonomy landed, filings healed on the next refresh
+                    # and news did not, and 323 rows sat on "8-K: 8-K" for weeks.
                     conn.execute(
                         """
                         INSERT INTO news (company_id, source, title, url, published_at)
                         VALUES (?, 'edgar_8k', ?, ?, ?)
-                        ON CONFLICT(url) DO NOTHING
+                        ON CONFLICT(url) DO UPDATE SET title = excluded.title
+                        WHERE news.source = 'edgar_8k'
                         """,
-                        (company_id, f"{row['form_type']}: {row['title']}", row["url"],
-                         row["filed_date"]),
+                        (company_id, news_title(row["form_type"], row["title"]),
+                         row["url"], row["filed_date"]),
                     )
             conn.commit()
         finally:
