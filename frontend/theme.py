@@ -849,11 +849,12 @@ h3 {{ font-size: 0.9rem; }}
 .hoverband .tip {{ display: none; }}
 .hoverband:hover .tip {{ display: block; }}
 
-/* The statement selectors and the grid they drive. Segmented controls carry no outer
-   margin, so the row of them sat directly on the first line of the table and the
-   selected pill overlapped the column headings. */
-[data-testid="stHorizontalBlock"]:has([data-testid="stSegmentedControl"]) {{
-  margin-bottom: 0.55rem;
+/* The statement selectors, above the grid they drive and below the rule that heads the
+   section. Segmented controls carry no outer margin and sit higher than their container
+   implies, so the section's bottom border ran straight through the pills and the row
+   below them sat on the table's first line. Cleared on both sides. */
+[data-testid="stLayoutWrapper"]:has([data-testid="stButtonGroup"]) {{
+  margin-top: 0.75rem; margin-bottom: 0.55rem;
 }}
 
 /* Catalyst calendar. */

@@ -97,7 +97,36 @@ def _reported(conn, tickers, since) -> list:
     The fetcher only stores them above a very high figure, so anything that reaches here
     is a story that moved both companies on the day it broke.
     """
-    out = []
+    # Both sides of the same story file a row each: the wire writes "AstraZeneca held
+    # talks with Bristol Myers" and "Bristol Myers in merger talks with AstraZeneca", and
+    # each is stored against its own company. That is right in the table, where a reader
+    # opening either company should find it, and wrong on the front page, where the same
+    # merger appeared as two headlines. Where the counterparty is itself a covered
+    # company the pair is folded into one item naming both.
+    covered = {r["ticker"]: r["name"] for r in conn.execute(
+        "SELECT ticker, name FROM companies")}
+
+    def _key(text: str) -> str:
+        """Letters and digits only, lowered. A wire writes "Bristol Myers Squibb" and the
+        register holds "Bristol-Myers Squibb Company", and a hyphen is not a difference
+        between two companies."""
+        return "".join(ch for ch in (text or "").lower() if ch.isalnum())
+
+    def _partner(counterparty: str) -> str | None:
+        """The ticker the counterparty names, where it is one of ours."""
+        low = _key(counterparty)
+        if not low:
+            return None
+        for tk, name in covered.items():
+            full = _key(name)
+            # The first two words, which is what a headline uses: "Bristol Myers" for
+            # "Bristol-Myers Squibb Company". One word alone matches far too much.
+            head = _key(" ".join((name or "").split()[:2]))
+            if len(head) > 6 and (head in low or low in full):
+                return tk
+        return None
+
+    out, folded = [], set()
     for row in conn.execute(
             "SELECT c.ticker, c.name, r.counterparty, r.deal_type, r.event_date,"
             "       r.reported_value, r.reported_usd, r.quote, r.publisher, r.article_url"
@@ -105,10 +134,23 @@ def _reported(conn, tickers, since) -> list:
             " WHERE r.event_date >= ? ORDER BY r.reported_usd DESC", (since,)):
         if tickers is not None and row["ticker"] not in tickers:
             continue
+        partner = _partner(row["counterparty"])
+        # The unordered pair, so whichever side is read first stands for both.
+        pair = tuple(sorted((row["ticker"], partner))) if partner else None
+        if pair and pair in folded:
+            continue
+        if pair:
+            folded.add(pair)
+        # Both tickers where both are covered, so the box can set each in its own
+        # weight rather than putting one in the margin and the other in the sentence.
+        parties = list(pair) if pair else [row["ticker"]]
         out.append({
             "kind": "reported", "ticker": row["ticker"], "name": row["name"],
+            "tickers": parties,
             "date": (row["event_date"] or "")[:10],
-            "headline": (f'{row["ticker"]} reported in {row["deal_type"] or "deal"} '
+            "headline": (f'reported in {row["deal_type"] or "deal"} talks'
+                         if pair else
+                         f'{row["ticker"]} reported in {row["deal_type"] or "deal"} '
                          f'talks with {row["counterparty"]}'),
             "figure": f'{_money(row["reported_usd"])} reported',
             "detail": "",

@@ -992,50 +992,10 @@ def _allocation_band(api_base: str, ticker: str) -> None:
         f'{CH.stacked_bar(rows, 1100, 48 + 36 * len(rows), legend=legend, value_fmt=lambda v: T.num(v, 1))}'
         f'</div>', unsafe_allow_html=True)
 
-    # Research is expensed above the line, so it is already inside the operating cash
-    # flow the rest is spent out of. Saying so is the difference between a chart of what
-    # a company spent and a chart of what it did with its free cash flow, which this is
-    # not and which would count the research twice.
-    latest = years[0]
-    generated = latest.get("operating")
-    below = sum(latest[key] or 0 for key in ALLOCATION_ORDER if key != "rd")
-    parts = ["Research is an operating expense and is already inside the cash the rest "
-             "is spent from, so the bar is what the company spent rather than what it "
-             "did with its free cash flow."]
-    if generated:
-        # Cash paid for in-process research is an investing outflow like the rest of the
-        # bar, so it belongs in the total, but it is not plant and not a company bought
-        # and the sentence has to name it or the arithmetic will not tie out on a filer
-        # that spends three billion a year that way.
-        spent_on = ("research bought, plant, acquisitions and shareholders"
-                    if latest.get("acquired_rd")
-                    else "plant, acquisitions and shareholders")
-        parts.append(
-            f'In FY{latest["fiscal_year"] % 100:02d} it generated '
-            f'{T.num(generated / scale, 1)}{unit} from operations and spent '
-            f'{T.num(below / scale, 1)}{unit} of it on {spent_on}.')
-    # Where the filer reports cash paid for molecules but no research figure with it
-    # taken out, the two cannot be told apart and the money stays inside research. Say
-    # which years, because the alternative is a reader assuming the company bought
-    # nothing in them.
-    if spend.get("inside_research"):
-        shown = ", ".join(f"FY{year % 100:02d}"
-                          for year in spend["inside_research"][:4])
-        parts.append(f'{ticker} reports cash paid for in-process research in {shown} but '
-                     "no research figure with it taken out, so it stays inside research "
-                     "rather than being drawn twice.")
-    if spend.get("untagged"):
-        parts.append(f'{ticker} files no '
-                     f'{html_escape(" or ".join(w.lower() for w in spend["untagged"]))}'
-                     " line at all, so there is no segment for it.")
-    # A year reported as nothing has no width to draw, and a gap where a segment would
-    # be reads like the line above rather than like a decision. Johnson & Johnson bought
-    # nothing in 2023, having closed Abiomed in 2022, and tagged that zero three times.
-    for label, years in (spend.get("reported_nil") or {}).items():
-        shown = ", ".join(f"FY{year % 100:02d}" for year in sorted(years, reverse=True)[:4])
-        parts.append(f'{html_escape(label)} is reported and reported as nothing in '
-                     f'{shown}, which is a year with none rather than a line not filed.')
-    note(" ".join(parts))
+    # No notes fold under this band. What it said was a caveat about research being
+    # an operating expense, which the segment order already shows, and a recital of
+    # figures the bar prints; on a tab that has to fit a screen it was a line of
+    # chrome hiding four sentences nobody opened.
 
 
 def statement_table(block: dict, currency: str | None,
@@ -1213,10 +1173,15 @@ def _lead_box(item) -> str:
     # The ticker leads the line in its own weight, so a reader scans the column of
     # companies first and reads the sentence second. It is already the first word of the
     # headline, so it is split off rather than repeated.
-    ticker = html_escape(item.get("ticker") or "")
+    # Where an item names two covered companies, both lead the line in their own weight
+    # rather than one being the box's ticker and the other a word in the sentence. A
+    # merger of two of your companies is not one company's news.
+    parties = item.get("tickers") or [item.get("ticker") or ""]
+    ticker = " and ".join(html_escape(p) for p in parties if p)
     text = item.get("headline") or ""
-    if ticker and text.startswith(ticker + " "):
-        text = text[len(ticker) + 1:]
+    lead = html_escape(item.get("ticker") or "")
+    if lead and text.startswith(lead + " "):
+        text = text[len(lead) + 1:]
     # A registry title runs to two hundred characters and would set the height of every
     # box beside it. Cut here rather than in the payload: the whole title is the first
     # row of the detail, so opening the box loses nothing.
