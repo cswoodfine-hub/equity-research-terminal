@@ -80,3 +80,38 @@ def test_value_usd_reads_the_scale():
 def test_the_threshold_is_stated_rather_than_scored():
     """It is a number in one place that can be argued with and changed."""
     assert deals_news.REPORTED_MIN_USD == 10e9
+
+
+def test_a_verb_after_the_subject_is_not_the_counterparty():
+    """"AbbVie (ABBV) Approaches $10.9 Billion Acquisition of Apogee" gave Approaches as
+    the party, because a headline capitalises the verb that follows the subject."""
+    got = deals_news.parse_reported(
+        "AbbVie (ABBV) Approaches $10.9 Billion Acquisition of Apogee - GuruFocus",
+        {"AbbVie", "ABBV"})
+    assert got is None or got["counterparty"] != "Approaches"
+
+
+def test_a_story_about_who_advised_is_not_a_deal_report():
+    """"Kirkland, Wachtell Advise On AbbVie's $63B Merger With Allergan" is trade press
+    about law firms, and the names leading it are the advisers."""
+    assert deals_news.parse_reported(
+        "Kirkland, Wachtell Advise On AbbVie\u2019s $63B Merger With Allergan"
+        " - Bloomberg Law News", {"AbbVie", "ABBV"}) is None
+
+
+def test_the_real_story_still_parses():
+    """The one this lane exists for, as the wire actually wrote it."""
+    got = deals_news.parse_reported(
+        "AstraZeneca held talks with Bristol Myers Squibb on $400 billion megadeal,"
+        " source says - Reuters", {"AstraZeneca", "AZN"})
+    assert got["counterparty"] == "Bristol Myers Squibb"
+    assert got["reported_usd"] == 400e9
+
+
+def test_a_party_named_before_the_verb_keeps_its_name():
+    """"Summit Is in Talks for a $15 Billion Partnership" put the auxiliary inside the
+    name."""
+    got = deals_news.parse_reported(
+        "Summit Is in Talks for $15 Billion Partnership With AstraZeneca - Bloomberg",
+        {"AstraZeneca", "AZN"})
+    assert got["counterparty"] == "Summit"

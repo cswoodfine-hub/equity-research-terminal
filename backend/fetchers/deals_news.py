@@ -111,7 +111,12 @@ _HOLDER = re.compile(
 _TAIL = {"worth", "for", "in", "to", "with", "and", "over", "at", "as", "on", "up",
          "valued", "after", "amid", "deal", "agreement", "pact", "programme",
          "program", "rights", "unit", "business", "assets", "inc", "inc.", "plc",
-         "corporation", "corp", "corp.", "ltd", "ltd.", "sa", "nv", "ag"}
+         "corporation", "corp", "corp.", "ltd", "ltd.", "sa", "nv", "ag",
+         # Auxiliaries a headline puts straight after the subject. A talks story often
+         # leads with the party, "Summit Is in Talks for a $15 Billion Partnership",
+         # and the capital on the verb made it part of the company's name.
+         "is", "are", "was", "were", "has", "have", "had", "said", "says", "will",
+         "could", "may", "might", "reportedly", "eyes", "eyeing", "nears", "nearing"}
 
 # Title case makes an ordinary word look like a company. None of these is one.
 _NOT_A_NAME = {
@@ -120,6 +125,8 @@ _NOT_A_NAME = {
     "second", "new", "more", "most", "another", "women", "men", "market", "markets",
     "challenge", "expand", "advance", "strengthen", "boost", "build", "further",
     "agreement", "collaboration", "licensing", "partnership", "acquisition", "buy",
+    "approaches", "approach", "advise", "advises", "advised", "explores", "explore",
+    "weighs", "weigh", "mulls", "mull", "considers", "consider", "talks", "merger",
 }
 
 
@@ -287,6 +294,10 @@ _TALKS_TYPE = ((r"merger|merge|combin", "merger"),
 # argued with and changed in one place.
 REPORTED_MIN_USD = 10e9
 
+# Who advised on a deal is trade-press copy, not a deal report, and the names leading it
+# are law firms rather than parties.
+_ADVISERS = re.compile(r"\b(?:advise[sd]?|advis(?:er|or)s?|counsel to)\b", re.I)
+
 _MULTIPLIER = {"billion": 1e9, "bn": 1e9, "b": 1e9,
                "million": 1e6, "mn": 1e6, "m": 1e6}
 
@@ -312,7 +323,8 @@ def parse_reported(headline: str, company_names) -> dict | None:
     words that were written and no summary of them.
     """
     text = _clean_title(headline)
-    if not text or not _TALKS.search(text) or deals.NOT_OUR_DEAL.search(text):
+    if (not text or not _TALKS.search(text) or deals.NOT_OUR_DEAL.search(text)
+            or _ADVISERS.search(text)):
         return None
     usd = value_usd(text)
     if usd is None or usd < REPORTED_MIN_USD:
