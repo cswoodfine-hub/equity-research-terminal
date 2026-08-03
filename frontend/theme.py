@@ -856,6 +856,15 @@ h3 {{ font-size: 0.9rem; }}
 [data-testid="stLayoutWrapper"]:has([data-testid="stButtonGroup"]) {{
   margin-top: 0.75rem; margin-bottom: 0.55rem;
 }}
+/* The portfolio's area pills are not a statements row: they sit under their own heading
+   with the cards directly beneath, and the air above was pushing the grid down a third
+   of a card. Tight above, tighter below. */
+[data-baseweb="tab-panel"]:has(.no-rail)
+  [data-testid="stElementContainer"]:has([data-testid="stButtonGroup"]) {{
+  margin-top: -0.15rem; margin-bottom: -0.2rem;
+}}
+[data-baseweb="tab-panel"]:has(.no-rail)
+  [data-testid="stElementContainer"]:has(.sec) {{ margin-top: 0.5rem; }}
 
 /* Lifecycle studies scroll inside their own box. A large filer has over a hundred and
    they sit at the foot of the tab, so unbounded they were most of its height. */
@@ -875,7 +884,9 @@ h3 {{ font-size: 0.9rem; }}
    products, which is four hundred and seventy pixels of cards before the tables under
    them begin; the component sizes its own iframe, so the cap goes on the slot. */
 [data-testid="stElementContainer"]:has(iframe[title$="prodcards"]) {{
-  max-height: clamp(9rem, calc(100vh - 590px), 17rem);
+  /* Three rows of two cards before anything scrolls. Two rows was the whole of a
+     franchise on a screen and the fourth product needed a scrollbar to reach. */
+  max-height: clamp(26rem, calc(100vh - 400px), 36rem);
   overflow-y: auto; scrollbar-width: thin;
 }}
 /* The detail panel under the cards takes what is left of the screen, not what its own
