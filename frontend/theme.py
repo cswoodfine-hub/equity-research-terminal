@@ -857,6 +857,18 @@ h3 {{ font-size: 0.9rem; }}
   margin-top: 0.75rem; margin-bottom: 0.55rem;
 }}
 
+/* Lifecycle studies scroll inside their own box. A large filer has over a hundred and
+   they sit at the foot of the tab, so unbounded they were most of its height. */
+.feed.post-approval {{ max-height: clamp(9rem, calc(100vh - 460px), 22rem);
+                      overflow-y: auto; scrollbar-width: thin; }}
+
+/* The revenue donuts read at a glance and do not get better with size. Left to scale to
+   the column they came out near five hundred pixels tall each and were most of the tab;
+   capped, they still carry every label and the rest of the page fits behind them. */
+.mix-donut svg {{ max-height: clamp(190px, calc(100vh - 520px), 300px);
+                 width: auto; max-width: 100%; }}
+.mix-donut {{ display: flex; justify-content: center; }}
+
 /* Catalyst calendar. */
 .cal {{
   display: grid; grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));

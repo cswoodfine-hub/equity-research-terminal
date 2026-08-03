@@ -3163,17 +3163,19 @@ with main:
                         st.markdown('<div class="subhead">By product</div>',
                                     unsafe_allow_html=True)
                         R.show(CH.donut(
-                            slices, 470, 360, centre_label=T.num(total_mix, 1),
+                            slices, 470, 290, centre_label=T.num(total_mix, 1),
                             centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                            value_fmt=lambda v: T.num(v / 1e9, 2)))
+                            value_fmt=lambda v: T.num(v / 1e9, 2)),
+                            css_class="chart-mount mix-donut")
                     with right:
                         st.markdown(
                             f'<div class="subhead">By disease area<span>{named} areas'
                             '</span></div>', unsafe_allow_html=True)
                         R.show(CH.donut(
-                            area_slices, 470, 360, centre_label=T.num(total_mix, 1),
+                            area_slices, 470, 290, centre_label=T.num(total_mix, 1),
                             centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                            value_fmt=lambda v: T.num(v / 1e9, 2)))
+                            value_fmt=lambda v: T.num(v / 1e9, 2)),
+                            css_class="chart-mount mix-donut")
 
                 # Loss of exclusivity by year. Two cuts of the same expiries. The count
                 # cliff shows every product with a published expiry, so nothing is hidden by
@@ -3202,7 +3204,7 @@ with main:
                                      "value": count_by_year.get(y, 0), "colour": TK.DOWN,
                                      "show_value": count_by_year.get(y, 0) > 0}
                                     for y in years]
-                            R.show(CH.bar_chart(bars, 640, 180,
+                            R.show(CH.bar_chart(bars, 640, 150,
                                                 value_fmt=lambda v: str(int(v))),
                                    css_class="chart-mount stretch")
                             note("Every marketed product losing US exclusivity that year, "
@@ -3219,7 +3221,7 @@ with main:
                             bars = [{"label": f"'{y % 100:02d}",
                                      "value": rev_by_year.get(y, 0) / 1e9}
                                     for y in years]
-                            R.show(CH.bar_chart(bars, 640, 180,
+                            R.show(CH.bar_chart(bars, 640, 150,
                                                 value_fmt=lambda v: T.num(v, 1)),
                                    css_class="chart-mount stretch")
                             note("The subset of the cliff beside this whose product "
@@ -3312,7 +3314,19 @@ with main:
                                "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
                                "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
                                "font-ui": TK.FONT_UI}
-                for area in order:
+                # One area at a time, picked from a row of pills. Six areas stacked as six
+                # card grids was most of this tab's height and pushed the tables under it
+                # two screens down, and a reader looks at one franchise at a time anyway.
+                # Each pill carries its own count, so the shape of the portfolio is still
+                # readable without opening any of them.
+                _labels = {a: f"{a} ({len(groups[a])})" for a in order}
+                _picked = st.pills(
+                    "Disease area", [_labels[a] for a in order],
+                    default=_labels[order[0]] if order else None,
+                    key=f"prod_area_{ticker}", label_visibility="collapsed")
+                _chosen = next((a for a in order if _labels[a] == _picked),
+                               order[0] if order else None)
+                for area in [a for a in order if a == _chosen]:
                     revenue = _area_revenue(area)
                     section(area, f"{len(groups[area])} &middot; {T.num(revenue / 1e9, 1)}bn"
                             if revenue else len(groups[area]))
