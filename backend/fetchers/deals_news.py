@@ -160,6 +160,16 @@ def _clean_title(title: str) -> str:
     return re.sub(r"\s+-\s+[^-]+$", "", (title or "").strip())
 
 
+def _publisher(title: str) -> str | None:
+    """Who wrote it, from the tail _clean_title removes.
+
+    A rumour is worth what its source is worth, so the publisher is stored beside the
+    words rather than thrown away with the formatting.
+    """
+    match = re.search(r"\s+-\s+([^-]+)$", (title or "").strip())
+    return match.group(1).strip() if match else None
+
+
 def parse_value(headline: str) -> str | None:
     """The deal value as written, or None. Kept as text because a headline value is a
     headline value: "up to" almost always means milestones are included, and turning it
@@ -248,9 +258,90 @@ def parse_deal(headline: str, company_names) -> dict | None:
     return None
 
 
+# --- deals nobody has announced ------------------------------------------------------
+# What the commentary filter above throws away is almost all noise, and one thing a year
+# that moves the whole sector: two large caps confirmed to be in merger talks. That is
+# not a deal and must never be counted as one, but a reader who opens the terminal that
+# morning and sees nothing has been failed by it.
+#
+# So the same headlines are read a second time under a far higher bar. A report qualifies
+# only when it names a figure, that figure is enormous, and it names the other party.
+# Everything short of that stays discarded.
+
+# The verbs that say a deal is being discussed rather than done.
+_TALKS = re.compile(
+    r"\b(?:in (?:advanced )?talks|merger talks|weigh(?:s|ing)?|mull(?:s|ing)?"
+    r"|explor(?:es|ing)|consider(?:s|ing)|approach(?:ed|es)|held talks"
+    r"|near(?:s|ing)(?= a| an| deal| merger)|bid for|takeover (?:approach|interest)"
+    r"|combin(?:e|ing) with|merge with|merger with)\b", re.I)
+
+# What kind of thing is being discussed. A merger of two large caps is the case this lane
+# exists for; a takeover reads the same way from the other side.
+_TALKS_TYPE = ((r"merger|merge|combin", "merger"),
+               (r"takeover|acquir|buy|bid", "acquisition"),
+               (r"stake", "stake"))
+
+# The bar, in dollars. Ten billion is roughly the point below which a reported deal is a
+# business development story rather than a sector one, and above which both share prices
+# move on the report alone. It is a stated threshold, not a scored one, so it can be
+# argued with and changed in one place.
+REPORTED_MIN_USD = 10e9
+
+_MULTIPLIER = {"billion": 1e9, "bn": 1e9, "b": 1e9,
+               "million": 1e6, "mn": 1e6, "m": 1e6}
+
+
+def value_usd(headline: str) -> float | None:
+    """The headline's figure as a number, or None where it states none."""
+    match = _VALUE.search(headline or "")
+    if not match:
+        return None
+    _, amount, unit = match.groups()
+    try:
+        return float(amount.replace(",", "")) * _MULTIPLIER[unit.lower().rstrip(".")]
+    except (ValueError, KeyError):
+        return None
+
+
+def parse_reported(headline: str, company_names) -> dict | None:
+    """{deal_type, counterparty, reported_value, reported_usd} for a reported deal.
+
+    None unless the headline says a deal is being discussed, states a figure at or above
+    the threshold, and names a counterparty that is not the company searched for. The
+    headline is returned verbatim as the quote, because a report is worth exactly the
+    words that were written and no summary of them.
+    """
+    text = _clean_title(headline)
+    if not text or not _TALKS.search(text) or deals.NOT_OUR_DEAL.search(text):
+        return None
+    usd = value_usd(text)
+    if usd is None or usd < REPORTED_MIN_USD:
+        return None
+    # The other party, taken the same way a confirmed deal takes it: the capitalised name
+    # that is not the company being searched for.
+    counterparty = None
+    for match in re.finditer(_NAME, text):
+        name = _clean_name(match.group("who"))
+        if not name or not deals.is_party(name):
+            continue
+        if any(n.lower() in name.lower() or name.lower() in n.lower()
+               for n in company_names):
+            continue
+        counterparty = name
+        break
+    if not counterparty:
+        return None
+    kind = next((label for pattern, label in _TALKS_TYPE
+                 if re.search(pattern, text, re.I)), "deal")
+    return {"deal_type": kind, "counterparty": counterparty,
+            "reported_value": parse_value(text), "reported_usd": usd, "quote": text}
+
+
 def _feed_url(company_name: str) -> str:
+    # Merger and takeover terms ride along with the announced-deal words. Without them
+    # the feed never returns a talks story, so the lane below would have nothing to read.
     query = (f'"{company_name}" (acquires OR acquisition OR licensing OR '
-             f'collaboration OR partnership)')
+             f'collaboration OR partnership OR merger OR takeover OR "in talks")')
     return FEED + "?" + urllib.parse.urlencode(
         {"q": query, "hl": "en-US", "gl": "US", "ceid": "US:en"})
 
@@ -314,6 +405,10 @@ class DealsNewsFetcher(BaseFetcher):
     def normalise(self, raw) -> list[dict]:
         by_ticker = {c["ticker"]: c for c in raw["companies"]}
         merged: dict[tuple, dict] = {}
+        # Reported deals ride along on the same pass. They are kept apart from the first
+        # character to the last: their own dict here, their own table on the way out, and
+        # nothing that sums a deal value ever reads them.
+        self.reported: dict[tuple, dict] = {}
         for ticker, xml_text in raw["feeds"].items():
             company = by_ticker[ticker]
             # The company's own names, so the passive voice is recognised rather than
@@ -327,6 +422,20 @@ class DealsNewsFetcher(BaseFetcher):
             for item in items:
                 deal = parse_deal(item["title"], names)
                 if not deal:
+                    talk = parse_reported(item["title"], names)
+                    if talk:
+                        key = (ticker,
+                               talk["counterparty"].split()[0].lower().strip(".,'"))
+                        prior = self.reported.get(key)
+                        # The biggest telling wins. Outlets round the same rumour
+                        # differently and the largest figure is the one being discussed.
+                        if prior is None or talk["reported_usd"] > prior["reported_usd"]:
+                            self.reported[key] = {
+                                **talk, "ticker": ticker,
+                                "company_id": company["id"],
+                                "event_date": item["date"],
+                                "article_url": item["link"],
+                                "publisher": _publisher(item["title"])}
                     continue
                 row = {**deal, "ticker": ticker, "company_id": company["id"],
                        "event_date": item["date"], "source_url": item["link"]}
@@ -443,10 +552,35 @@ class DealsNewsFetcher(BaseFetcher):
                      row["event_date"], row["quote"], row["source_url"],
                      row["source_url"]))
                 written += 1
+
+            # Reported deals, written last and written apart. A report that names a
+            # counterparty the company has since actually done a deal with is dropped:
+            # once it is announced, the rumour is history and the deal is the record.
+            reported = 0
+            for row in getattr(self, "reported", {}).values():
+                done = conn.execute(
+                    "SELECT 1 FROM deals WHERE company_id = ?"
+                    "   AND LOWER(COALESCE(counterparty, '')) = LOWER(?)",
+                    (row["company_id"], row["counterparty"])).fetchone()
+                if done:
+                    continue
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO reported_deals
+                        (company_id, counterparty, deal_type, reported_value,
+                         reported_usd, quote, publisher, article_url, event_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (row["company_id"], row["counterparty"], row["deal_type"],
+                     row["reported_value"], row["reported_usd"], row["quote"],
+                     row["publisher"], row["article_url"], row["event_date"]))
+                reported += 1
             conn.commit()
         finally:
             conn.close()
         notes = []
+        if reported:
+            notes.append(f"{reported} reported deals, unannounced and not counted as deals")
         if filled:
             notes.append(f"{filled} filed deals gained a size from a headline")
         if redated:

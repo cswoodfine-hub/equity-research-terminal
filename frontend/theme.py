@@ -353,6 +353,10 @@ h3 {{ font-size: 0.9rem; }}
    phase ramp gives them both. */
 .lead-readout_hit {{ --accent: var(--up); }}
 .lead-readout_miss {{ --accent: var(--down); }}
+/* A deal the press reports is being discussed, which nobody has announced. The flag
+   token, which everywhere else in this app means uncurated or needs review, because
+   that is exactly what an unannounced report is. */
+.lead-reported {{ --accent: var(--flag); }}
 .lead-catalyst {{ --accent: var(--phase-filed); }}
 .lead-loe {{ --accent: var(--orange-book); }}
 

@@ -45,7 +45,8 @@ LIMIT = 6
 
 # The order things matter in, most first. Stated rather than scored, so it can be argued
 # with. A kind not listed here does not reach the front page at all.
-ORDER = ("deal", "approval", "regulatory", "filing", "leadership", "trial_stopped")
+ORDER = ("deal", "reported", "approval", "regulatory", "filing", "leadership",
+         "trial_stopped")
 
 # The same for the forward view. A decision date outranks a vote that informs it, which
 # outranks a readout whose date the registry only estimates.
@@ -85,6 +86,45 @@ def _money(value: float) -> str:
 
 def _pair(label: str, value) -> dict:
     return {"label": label, "value": str(value)}
+
+
+def _reported(conn, tickers, since) -> list:
+    """Deals the press says are being discussed, which nobody has announced.
+
+    These are not deals and the box has to say so in every place a reader looks: the chip
+    carries the figure with "reported" beside it, the headline says talks rather than a
+    verb that states one happened, and the first row of the detail names the publisher.
+    The fetcher only stores them above a very high figure, so anything that reaches here
+    is a story that moved both companies on the day it broke.
+    """
+    out = []
+    for row in conn.execute(
+            "SELECT c.ticker, c.name, r.counterparty, r.deal_type, r.event_date,"
+            "       r.reported_value, r.reported_usd, r.quote, r.publisher, r.article_url"
+            "  FROM reported_deals r JOIN companies c ON c.id = r.company_id"
+            " WHERE r.event_date >= ? ORDER BY r.reported_usd DESC", (since,)):
+        if tickers is not None and row["ticker"] not in tickers:
+            continue
+        out.append({
+            "kind": "reported", "ticker": row["ticker"], "name": row["name"],
+            "date": (row["event_date"] or "")[:10],
+            "headline": (f'{row["ticker"]} reported in {row["deal_type"] or "deal"} '
+                         f'talks with {row["counterparty"]}'),
+            "figure": f'{_money(row["reported_usd"])} reported',
+            "detail": "",
+            "summary": [
+                _pair("Status", "Reported, not announced"),
+                _pair("Counterparty", row["counterparty"]),
+                _pair("Reported value", row["reported_value"] or "not stated"),
+                _pair("Publisher", row["publisher"] or "not stated"),
+            ],
+            "evidence": row["quote"],
+            "url": row["article_url"],
+            # Ranked below every confirmed deal whatever the figures, so a signed
+            # billion always leads an unsigned hundred.
+            "rank": row["reported_usd"],
+        })
+    return out
 
 
 def _deals(conn, tickers, since) -> list:
@@ -222,6 +262,7 @@ def build(db_path=None, tickers=None, days: int = LOOKBACK_DAYS, limit: int = LI
                        lambda i: ("approval" if i["change_type"] == "new_approval"
                                   else "label expansion"), since)
             + _deals(conn, wanted, since)
+            + _reported(conn, wanted, since)
             + _regulatory(db_path, wanted, since)
             + _filings(conn, wanted, since)
             + _from_feed(feed, wanted, ("leadership_change",), "leadership",
