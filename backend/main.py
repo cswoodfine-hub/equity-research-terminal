@@ -307,6 +307,13 @@ def company_trials(ticker: str, phase: Optional[str] = Query(default=None)) -> d
     return {"ticker": ticker.upper(), "phase": phase, "trials": rows}
 
 
+@app.get("/companies/{ticker}/post-approval")
+def post_approval(ticker: str) -> dict:
+    """Trials still running on drugs this company already sells."""
+    return {"ticker": ticker.upper(),
+            "studies": pipeline_module.post_approval_studies(ticker=ticker)}
+
+
 @app.get("/companies/{ticker}/programmes")
 def company_programmes(ticker: str) -> dict:
     """Compounds the company is trialling but does not yet sell, each with the studies

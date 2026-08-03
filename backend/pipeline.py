@@ -69,11 +69,22 @@ def build_pipeline(db_path=None) -> list[dict]:
         counts: dict[tuple, int] = {}
         furthest: dict[tuple, str] = {}
         unattributed: dict[int, int] = {}
+        # Studies of compounds that are not approved yet, which is what a pipeline is.
+        # A trial on an already-marketed drug is lifecycle work: Nexium was approved in
+        # 2001 and still has a Phase 3 running, and counting it here made this grid
+        # disagree with the programme list beneath it, which has always excluded
+        # marketed assets. Eighty-nine of AstraZeneca's 167 Phase 3 studies were of that
+        # kind. The post-approval work is not lost, it is shown on the portfolio tab
+        # where the products it belongs to are.
+        #
+        # A LEFT JOIN, so a trial whose asset was never mapped still counts towards the
+        # study total and the unattributed tally rather than vanishing with it.
         for row in conn.execute(
             f"""
-            SELECT sponsor_company_id AS cid, asset_id, phase
-              FROM trials
-             WHERE phase IN ({_PLACEHOLDERS}) AND sponsor_company_id IS NOT NULL
+            SELECT t.sponsor_company_id AS cid, t.asset_id, t.phase
+              FROM trials t LEFT JOIN assets a ON a.id = t.asset_id
+             WHERE t.phase IN ({_PLACEHOLDERS}) AND t.sponsor_company_id IS NOT NULL
+               AND COALESCE(a.is_marketed, 0) = 0
             """,
             PHASES,
         ):
@@ -97,9 +108,10 @@ def build_pipeline(db_path=None) -> list[dict]:
         follow: dict[int, int] = {}
         for row in conn.execute(
             f"""
-            SELECT sponsor_company_id AS cid, title
-              FROM trials
-             WHERE phase IN ({_PLACEHOLDERS}) AND phase != ?
+            SELECT t.sponsor_company_id AS cid, t.title
+              FROM trials t LEFT JOIN assets a ON a.id = t.asset_id
+             WHERE t.phase IN ({_PLACEHOLDERS}) AND t.phase != ?
+               AND COALESCE(a.is_marketed, 0) = 0
             """,
             (*PHASES, POST_APPROVAL),
         ):
@@ -261,3 +273,40 @@ def trials_for(db_path, ticker: str, phase: str | None = None) -> list[dict] | N
         return rows
     finally:
         conn.close()
+
+
+def post_approval_studies(db_path=None, ticker: str = "") -> list[dict]:
+    """Trials still running on drugs that are already approved.
+
+    Lifecycle work: a new indication, a new formulation, a paediatric arm, a
+    post-marketing commitment. It is not pipeline and the counts above exclude it, but it
+    is real spending on real products and it belongs beside those products rather than
+    nowhere. Nexium was approved in 2001 and has a Phase 3 finishing this month.
+
+    Newest readout first, so what lands soonest leads.
+    """
+    conn = db.get_connection(db_path)
+    try:
+        company = conn.execute(
+            "SELECT id FROM companies WHERE ticker = ?", (ticker.upper(),)).fetchone()
+        if company is None:
+            return []
+        rows = conn.execute(
+            """
+            SELECT a.id AS asset_id,
+                   COALESCE(a.brand_name, a.generic_name) AS product,
+                   a.generic_name, a.modality,
+                   t.nct_id, t.title, t.phase, t.overall_status,
+                   t.primary_completion_date AS due, t.conditions
+              FROM assets a JOIN trials t ON t.asset_id = a.id
+             WHERE a.owner_company_id = ? AND a.is_marketed = 1
+             ORDER BY (t.primary_completion_date IS NULL),
+                      t.primary_completion_date
+            """, (company["id"],)).fetchall()
+    finally:
+        conn.close()
+    return [{"asset_id": r["asset_id"], "product": r["product"],
+             "generic_name": r["generic_name"], "modality": r["modality"],
+             "nct_id": r["nct_id"], "title": r["title"], "phase": r["phase"],
+             "status": r["overall_status"], "due": r["due"],
+             "conditions": r["conditions"]} for r in rows]

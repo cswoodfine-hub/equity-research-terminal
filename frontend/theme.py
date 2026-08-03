@@ -288,6 +288,15 @@ h3 {{ font-size: 0.9rem; }}
   > [data-testid="stColumn"]:first-child {{
     width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; }}
 
+/* The same for any tab whose own content asks for it, found by a marker inside the
+   visible panel rather than by counting tabs: which position Portfolio sits at depends
+   on the engine, and a tab index would silently point at the wrong tab elsewhere. */
+[data-testid="stHorizontalBlock"]:has([data-baseweb="tab-panel"]:not([hidden]) .no-rail)
+  > [data-testid="stColumn"]:has(.rail-anchor) {{ display: none !important; }}
+[data-testid="stHorizontalBlock"]:has([data-baseweb="tab-panel"]:not([hidden]) .no-rail)
+  > [data-testid="stColumn"]:first-child {{
+    width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; }}
+
 /* A byline folded to one line. The Universe tab has to fit a screen and its notes are
    long, so they collapse rather than going away. */
 /* Closed, the note is a one-line label, but it sat in a full element slot with the 8px
@@ -675,7 +684,7 @@ h3 {{ font-size: 0.9rem; }}
    the page. The rules come off with it: the section heading already separates one row
    from the next, and a box per cell drew nine lines to say what the spacing said. */
 .tiles.tiles-row {{ grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
-                   grid-template-columns: none; border: 0; margin: 0.15rem 0 0.35rem; }}
+                   grid-template-columns: none; border: 0; margin: 0.1rem 0 0; }}
 .tiles.tiles-row > div {{ border-left: 0; padding: 0.35rem 1.1rem 0.4rem 0; }}
 .tiles.tiles-row .k, .tiles.tiles-row .n {{ overflow: hidden; text-overflow: ellipsis; }}
 .tiles .k {{ display: block; font-size: 9.5px; letter-spacing: 0.07em;
@@ -840,17 +849,30 @@ h3 {{ font-size: 0.9rem; }}
 .hoverband .tip {{ display: none; }}
 .hoverband:hover .tip {{ display: block; }}
 
+/* The statement selectors and the grid they drive. Segmented controls carry no outer
+   margin, so the row of them sat directly on the first line of the table and the
+   selected pill overlapped the column headings. */
+[data-testid="stHorizontalBlock"]:has([data-testid="stSegmentedControl"]) {{
+  margin-bottom: 0.55rem;
+}}
+
 /* Catalyst calendar. */
 .cal {{
   display: grid; grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
-  grid-auto-rows: 1fr;
+  grid-auto-rows: auto;
   gap: 1px; background: var(--rule); border: 1px solid var(--rule);
   margin: 0.3rem 0 0.2rem;
 }}
+/* A fixed, short box. Before this the grid rows sized to the busiest month, so one
+   month with fourteen readouts made every box in the calendar fourteen deep and the
+   year ran off the screen. The entries scroll inside instead. */
 .cal-month {{
-  background: var(--ground); padding: 0.45rem 0.6rem 0.55rem; min-height: 96px;
-  position: relative;
+  background: var(--ground); padding: 0.45rem 0.6rem 0.5rem;
+  height: 132px; display: flex; flex-direction: column; position: relative;
 }}
+.cal-body {{ overflow-y: auto; min-height: 0; flex: 1 1 auto; scrollbar-width: thin; }}
+.cal-body::-webkit-scrollbar {{ width: 5px; }}
+.cal-body::-webkit-scrollbar-thumb {{ background: var(--rule-strong); }}
 .cal-month.empty {{ background: var(--panel); }}
 .cal-month.now {{ box-shadow: inset 2px 0 0 var(--up); }}
 .cal-head {{

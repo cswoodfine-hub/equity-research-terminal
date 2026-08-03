@@ -916,6 +916,10 @@ def scatter(points: Sequence[dict], width: int = 760, height: int = 280,
 
 
 # --- 10. donut ------------------------------------------------------------
+# Two lines of label need this much vertical room before they touch.
+_DONUT_LABEL_GAP = 21
+
+
 def donut(slices: Sequence[dict], width: int = 760, height: int = 300,
           centre_label: str = "", centre_sub: str = "",
           value_fmt: Callable[[float], str] = None) -> str:
@@ -937,6 +941,7 @@ def donut(slices: Sequence[dict], width: int = 760, height: int = 300,
 
     out = [_svg_open(width, height, "revenue mix")]
     angle = -math.pi / 2
+    labels: list[dict] = []
     for s in slices:
         frac = (s.get("value") or 0) / total
         if frac <= 0:
@@ -954,22 +959,49 @@ def donut(slices: Sequence[dict], width: int = 760, height: int = 300,
             f"A{r_in:.1f},{r_in:.1f} 0 {large} 0 {x1i:.1f},{y1i:.1f} Z\" "
             f'fill="{s["colour"]}" stroke="{TK.GROUND}" stroke-width="1">'
             f"<title>{_esc(s['label'])} {_esc(value_fmt(s['value']))}</title></path>")
-        # leader line and outside label at the mid angle
+        # The label's anchor on the arc. Where it is finally printed is decided after
+        # every slice is known, because two thin slices next to each other put their
+        # mid-angles within a degree of one another and their labels on top of each
+        # other. A disease area with 2% of revenue is exactly the case: it is small
+        # because it is small, not because it does not matter.
         mid = (a0 + a1) / 2
-        ex, ey = _pt(r_out + 6, mid)
-        kx, ky = _pt(r_out + 16, mid)
-        right = math.cos(mid) >= 0
+        labels.append({
+            "anchor": _pt(r_out + 6, mid), "elbow": _pt(r_out + 16, mid),
+            "right": math.cos(mid) >= 0, "label": s["label"],
+            "value": f"{value_fmt(s['value'])}  {frac * 100:.1f}%",
+            "colour": TK.MUTED if s.get("muted") else TK.TEXT,
+        })
+        angle = a1
+
+    # Push the labels apart down each side, keeping their order round the ring, then
+    # bring the column back inside the box if the shoving ran it off the bottom. Two
+    # lines of text need about twenty pixels; less and they touch.
+    for right in (True, False):
+        side = [entry for entry in labels if entry["right"] is right]
+        side.sort(key=lambda entry: entry["elbow"][1])
+        for i in range(1, len(side)):
+            gap = side[i]["elbow"][1] - side[i - 1]["elbow"][1]
+            if gap < _DONUT_LABEL_GAP:
+                x, _y = side[i]["elbow"]
+                side[i]["elbow"] = (x, side[i - 1]["elbow"][1] + _DONUT_LABEL_GAP)
+        if side:
+            overflow = side[-1]["elbow"][1] - (height - 6)
+            if overflow > 0:
+                for entry in side:
+                    x, y = entry["elbow"]
+                    entry["elbow"] = (x, y - overflow)
+
+    for entry in labels:
+        (ex, ey), (kx, ky) = entry["anchor"], entry["elbow"]
+        right = entry["right"]
         tx = kx + (10 if right else -10)
         out.append(f'<polyline points="{ex:.1f},{ey:.1f} {kx:.1f},{ky:.1f}'
                    f' {tx:.1f},{ky:.1f}" fill="none" stroke="{TK.MUTED}"'
                    f' stroke-width="0.8"/>')
-        colour = TK.MUTED if s.get("muted") else TK.TEXT
-        out.append(_text(tx + (4 if right else -4), ky + 3, s["label"], 9.5, colour,
-                         "start" if right else "end", UI))
-        out.append(_text(tx + (4 if right else -4), ky + 13,
-                         f"{value_fmt(s['value'])}  {frac * 100:.1f}%", 8.5,
+        out.append(_text(tx + (4 if right else -4), ky + 3, entry["label"], 9.5,
+                         entry["colour"], "start" if right else "end", UI))
+        out.append(_text(tx + (4 if right else -4), ky + 13, entry["value"], 8.5,
                          TK.MUTED, "start" if right else "end", MONO))
-        angle = a1
     if centre_label:
         out.append(_text(cx, cy - 1, centre_label, 15, TK.TEXT, "middle", MONO,
                          "700"))

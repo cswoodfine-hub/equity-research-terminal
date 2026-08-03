@@ -628,6 +628,26 @@ def news_row(item) -> str:
             f'{"</a>" if url else "</div>"}')
 
 
+# One screen of lifecycle studies. The rest are on the company's own Pipeline and
+# Catalysts tabs, and the section count states the true total.
+_POST_APPROVAL_SHOWN = 30
+
+
+def _post_approval_row(study) -> str:
+    """One trial on a product the company already sells: when, which product, what it is."""
+    url = (f'https://clinicaltrials.gov/study/{study["nct_id"]}'
+           if study.get("nct_id") else "")
+    open_tag = (f'<a class="fitem link" href="{html_escape(url)}" target="_blank" '
+                'rel="noopener noreferrer">' if url else '<div class="fitem">')
+    return (f'{open_tag}'
+            f'<span class="d">{html_escape((study.get("due") or "no date")[:10])}</span>'
+            f'<span class="t"><b>{html_escape(study.get("product") or "")}</b> '
+            f'{html_escape((study.get("title") or "")[:96])}</span>'
+            f'<span class="why">{html_escape(study.get("status") or "")}</span>'
+            f'<span class="s">{html_escape(study.get("phase") or "")}</span>'
+            f'{"</a>" if url else "</div>"}')
+
+
 def change_row(item) -> str:
     """One detected change as a line: when, what, and how much it matters.
 
@@ -3018,6 +3038,9 @@ with main:
     # --- Portfolio -------------------------------------------------------
     if portfolio_tab is not None:
         with portfolio_tab:
+            # The rail is a forward calendar and this tab is a record of what is
+            # already sold, so the marker tells the theme to hand its width back.
+            st.markdown('<span class="no-rail"></span>', unsafe_allow_html=True)
             approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
             # Revenue-mix data fetched once here: the donut renders above the product cards
             # (inside the else), and the product-revenue list below reuses these rows.
@@ -3416,6 +3439,29 @@ with main:
                         'Financial Statement Data Sets. Nothing here is typed in: a figure '
                         'is what the company reported or it is absent.</div>',
                         unsafe_allow_html=True)
+
+            # --- Studies still running on approved products ------------------
+            # Not pipeline, which is why the counts on the Pipeline tab no longer include
+            # it, and not nothing either: a new indication, a new formulation, a
+            # paediatric arm or a post-marketing commitment is real spending on a real
+            # product. Nexium was approved in 2001 and has a Phase 3 finishing this
+            # month, and before this it appeared nowhere in the app.
+            post = api_get(api_base,
+                           f"/companies/{ticker}/post-approval").get("studies") or []
+            if post:
+                late = sum(1 for s in post if (s.get("phase") or "").startswith(
+                    ("Phase 3", "Phase 4")))
+                section("Studies on approved products", len(post),
+                        f"{late} in Phase 3 or 4" if late else "lifecycle work")
+                st.markdown('<div class="feed post-approval">' + "".join(
+                    _post_approval_row(s) for s in post[:_POST_APPROVAL_SHOWN])
+                    + "</div>", unsafe_allow_html=True)
+                note("Trials whose compound this company already sells, so none of them "
+                     "is pipeline and the counts on the Pipeline tab exclude them. A "
+                     "date in the past is a study whose primary completion has passed "
+                     "and whose registry entry is still open."
+                     + (f" Showing {_POST_APPROVAL_SHOWN} of {len(post)}, soonest first."
+                        if len(post) > _POST_APPROVAL_SHOWN else ""))
 
         # --- Catalysts -------------------------------------------------------
     with catalysts_tab:

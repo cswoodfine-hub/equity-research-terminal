@@ -115,7 +115,10 @@ def render(catalysts, months: int = DEFAULT_MONTHS, today=None) -> str:
                          if confidence == "month" else confidence)
             marked = ' none" title="month only' if confidence == "month" else '"'
             rows.append(
-                f'<div class="cal-item">'
+                # The styled popup is clipped once a busy month scrolls, so the same
+                # words ride on a native tooltip too. A reader never loses the full
+                # title to a scrollbar.
+                f'<div class="cal-item" title="{when} · {kind} · {full}">'
                 f'<span class="cal-day{marked}">{day or "—"}</span>'
                 f'<span class="cal-title">{html.escape(_shorten(item.get("title")))}'
                 f'</span>'
@@ -129,7 +132,9 @@ def render(catalysts, months: int = DEFAULT_MONTHS, today=None) -> str:
             f'<div class="{" ".join(classes)}">'
             f'<div class="cal-head"><span>{MONTHS[month - 1]} {year % 100:02d}</span>'
             f'{f"<span class=cal-n>{len(entries)}</span>" if entries else ""}</div>'
-            f'{"".join(rows)}</div>')
+            # The entries scroll inside the month rather than stretching it. One busy
+            # month used to set the height of every box in the grid.
+            f'<div class="cal-body">{"".join(rows)}</div></div>')
 
     return f'<div class="cal">{"".join(cells)}</div>'
 
