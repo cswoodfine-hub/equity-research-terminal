@@ -3123,275 +3123,286 @@ with main:
                     f'</span></div>'
                     '</div>', unsafe_allow_html=True)
 
-                # Revenue mix leads: what the company earns today, by product, before the
-                # cliff charts say what is at risk. The mix is the base the rest is read
-                # against, so it comes first.
-                if mix_drivers:
-                    section("Revenue mix", f"FY{mix_year}")
-                    ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
-                    slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
-                               "value": p["value"], "colour": ramp[i % len(ramp)]}
-                              for i, p in enumerate(mix_drivers)]
-                    if mix_tail:
-                        slices.append({"label": f"{len(mix_tail)} smaller products",
-                                       "value": sum(p["value"] for p in mix_tail),
-                                       "colour": TK.RULE_STRONG, "muted": True})
-                    rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
-                    if rest:
-                        slices.append({"label": "not attributed by product",
-                                       "value": rest, "colour": TK.PANEL, "muted": True})
-                    # The same revenue twice: by product, and by the disease the label says
-                    # each product treats. One says which drugs carry the company, the other
-                    # says which franchise does, and a portfolio held in one area reads very
-                    # differently from the same revenue spread across four.
-                    # The revenue rows carry their own area, so a product that earns under
-                    # this company but is approved to another still lands in a franchise.
-                    area_by_asset = {p.get("asset_id"): p.get("area") for p in prods
-                                     if p.get("asset_id")}
-                    by_area: dict = {}
-                    for row in mix_rows:
-                        area = (row.get("area")
-                                or area_by_asset.get(row.get("asset_id"))
-                                or "area not stated")
-                        by_area[area] = by_area.get(area, 0) + (row.get("value") or 0)
-                    area_order = sorted(by_area, key=lambda a: (a == "area not stated",
-                                                                -by_area[a]))
-                    # A donut half the width cannot carry "Immunology and inflammation" as
-                    # a leader label, so the long areas go by their head word here. The
-                    # product grid below keeps the full names.
-                    short = {"Immunology and inflammation": "Immunology",
-                             "Renal and hepatic": "Renal and hepatic",
-                             "Infectious disease": "Infectious",
-                             "Healthy volunteers": "Healthy volunteers"}
-                    # Categories, not magnitudes: a lightness ramp would say oncology is
-                    # more than neuroscience. Hue carries the area, each area keeps its own
-                    # colour across companies, and the two donuts stop looking like one
-                    # chart drawn twice.
-                    area_colour = area_colours(
-                        [a for a in area_order if a != "area not stated"])
-                    area_slices = [
-                        {"label": short.get(area, area), "value": by_area[area],
-                         "colour": (TK.RULE_STRONG if area == "area not stated"
-                                    else area_colour[area]),
-                         "muted": area == "area not stated"}
-                        for area in area_order]
-                    if rest:
-                        area_slices.append({"label": "not attributed by product",
-                                            "value": rest, "colour": TK.PANEL,
-                                            "muted": True})
+                # The charts on one side, the products on the other. Stacked, the two
+                # donuts and the cliff filled a screen before a single product card
+                # appeared; side by side each half is read at a glance and the tab stops
+                # being a scroll. The charts keep the wider half: two donuts need the
+                # room for their outside labels, and the cliff shares their x axis of
+                # years.
+                _charts_col, _products_col = st.columns([3, 2], gap="medium")
 
-                    # The same total in both centres, because it is the same revenue cut
-                    # two ways; the heading over each says which cut it is.
-                    total_mix = sum(sl["value"] for sl in slices) / 1e9
-                    named = len([a for a in area_order if a != "area not stated"])
-                    left, right = st.columns(2, gap="small")
-                    with left:
-                        st.markdown('<div class="subhead">By product</div>',
-                                    unsafe_allow_html=True)
-                        R.show(CH.donut(
-                            slices, 470, 290, centre_label=T.num(total_mix, 1),
-                            centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                            value_fmt=lambda v: T.num(v / 1e9, 2)),
-                            css_class="chart-mount mix-donut")
-                    with right:
-                        st.markdown(
-                            f'<div class="subhead">By disease area<span>{named} areas'
-                            '</span></div>', unsafe_allow_html=True)
-                        R.show(CH.donut(
-                            area_slices, 470, 290, centre_label=T.num(total_mix, 1),
-                            centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                            value_fmt=lambda v: T.num(v / 1e9, 2)),
-                            css_class="chart-mount mix-donut")
+                with _charts_col:
+                    # Revenue mix leads: what the company earns today, by product, before the
+                    # cliff charts say what is at risk. The mix is the base the rest is read
+                    # against, so it comes first.
+                    if mix_drivers:
+                        section("Revenue mix", f"FY{mix_year}")
+                        ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
+                        slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
+                                   "value": p["value"], "colour": ramp[i % len(ramp)]}
+                                  for i, p in enumerate(mix_drivers)]
+                        if mix_tail:
+                            slices.append({"label": f"{len(mix_tail)} smaller products",
+                                           "value": sum(p["value"] for p in mix_tail),
+                                           "colour": TK.RULE_STRONG, "muted": True})
+                        rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
+                        if rest:
+                            slices.append({"label": "not attributed by product",
+                                           "value": rest, "colour": TK.PANEL, "muted": True})
+                        # The same revenue twice: by product, and by the disease the label says
+                        # each product treats. One says which drugs carry the company, the other
+                        # says which franchise does, and a portfolio held in one area reads very
+                        # differently from the same revenue spread across four.
+                        # The revenue rows carry their own area, so a product that earns under
+                        # this company but is approved to another still lands in a franchise.
+                        area_by_asset = {p.get("asset_id"): p.get("area") for p in prods
+                                         if p.get("asset_id")}
+                        by_area: dict = {}
+                        for row in mix_rows:
+                            area = (row.get("area")
+                                    or area_by_asset.get(row.get("asset_id"))
+                                    or "area not stated")
+                            by_area[area] = by_area.get(area, 0) + (row.get("value") or 0)
+                        area_order = sorted(by_area, key=lambda a: (a == "area not stated",
+                                                                    -by_area[a]))
+                        # A donut half the width cannot carry "Immunology and inflammation" as
+                        # a leader label, so the long areas go by their head word here. The
+                        # product grid below keeps the full names.
+                        short = {"Immunology and inflammation": "Immunology",
+                                 "Renal and hepatic": "Renal and hepatic",
+                                 "Infectious disease": "Infectious",
+                                 "Healthy volunteers": "Healthy volunteers"}
+                        # Categories, not magnitudes: a lightness ramp would say oncology is
+                        # more than neuroscience. Hue carries the area, each area keeps its own
+                        # colour across companies, and the two donuts stop looking like one
+                        # chart drawn twice.
+                        area_colour = area_colours(
+                            [a for a in area_order if a != "area not stated"])
+                        area_slices = [
+                            {"label": short.get(area, area), "value": by_area[area],
+                             "colour": (TK.RULE_STRONG if area == "area not stated"
+                                        else area_colour[area]),
+                             "muted": area == "area not stated"}
+                            for area in area_order]
+                        if rest:
+                            area_slices.append({"label": "not attributed by product",
+                                                "value": rest, "colour": TK.PANEL,
+                                                "muted": True})
 
-                # Loss of exclusivity by year. Two cuts of the same expiries. The count
-                # cliff shows every product with a published expiry, so nothing is hidden by
-                # the free-data revenue gap. The revenue chart below weights only the few
-                # products with tagged revenue, which is sparse and must not read as the
-                # whole cliff.
-                count_by_year: dict = {}
-                rev_by_year: dict = {}
-                for p in prods:
-                    y, r = _loe_year(p), p.get("revenue")
-                    if y and today.year <= y <= today.year + 10:
-                        count_by_year[y] = count_by_year.get(y, 0) + 1
-                        if r:
-                            rev_by_year[y] = rev_by_year.get(y, 0) + r
-                # The cliff, full width. The revenue-at-risk chart that used to sit
-                # beside it is gone: it weighted only the products whose revenue the
-                # filer happens to tag, which for Lilly is four of the fourteen expiring
-                # in the window, and a bar chart of a quarter of the truth read as the
-                # whole of it. The count below hides nothing, because it draws every
-                # product with a published expiry whether or not its revenue is known.
-                if count_by_year:
-                    years = list(range(today.year, today.year + 11))
-                    section("Loss of exclusivity by year", "products, next 10 years")
-                    bars = [{"label": f"'{y % 100:02d}",
-                             "value": count_by_year.get(y, 0), "colour": TK.DOWN,
-                             "show_value": count_by_year.get(y, 0) > 0}
-                            for y in years]
-                    R.show(CH.bar_chart(bars, 1100, 118,
-                                        value_fmt=lambda v: str(int(v))),
-                           css_class="chart-mount stretch")
-                    note("Every marketed product losing US exclusivity that year, "
-                         "expiries from the Orange and Purple Books, counted whether or "
-                         "not its revenue is tagged. A small molecule is placed at its "
-                         "latest patent, a biologic at the later of its listed expiry "
-                         "and the 12-year floor. A product with no published expiry "
-                         "cannot be placed and is left out, never estimated: open its "
-                         "card to see whether that is protection already lapsed or "
-                         "nothing published yet.")
+                        # The same total in both centres, because it is the same revenue cut
+                        # two ways; the heading over each says which cut it is.
+                        total_mix = sum(sl["value"] for sl in slices) / 1e9
+                        named = len([a for a in area_order if a != "area not stated"])
+                        left, right = st.columns(2, gap="small")
+                        with left:
+                            st.markdown('<div class="subhead">By product</div>',
+                                        unsafe_allow_html=True)
+                            R.show(CH.donut(
+                                slices, 470, 290, centre_label=T.num(total_mix, 1),
+                                centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                                value_fmt=lambda v: T.num(v / 1e9, 2)),
+                                css_class="chart-mount mix-donut")
+                        with right:
+                            st.markdown(
+                                f'<div class="subhead">By disease area<span>{named} areas'
+                                '</span></div>', unsafe_allow_html=True)
+                            R.show(CH.donut(
+                                area_slices, 470, 290, centre_label=T.num(total_mix, 1),
+                                centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                                value_fmt=lambda v: T.num(v / 1e9, 2)),
+                                css_class="chart-mount mix-donut")
 
-                section("Products", f"{len(prods)}")
+                    # Loss of exclusivity by year. Two cuts of the same expiries. The count
+                    # cliff shows every product with a published expiry, so nothing is hidden by
+                    # the free-data revenue gap. The revenue chart below weights only the few
+                    # products with tagged revenue, which is sparse and must not read as the
+                    # whole cliff.
+                    count_by_year: dict = {}
+                    rev_by_year: dict = {}
+                    for p in prods:
+                        y, r = _loe_year(p), p.get("revenue")
+                        if y and today.year <= y <= today.year + 10:
+                            count_by_year[y] = count_by_year.get(y, 0) + 1
+                            if r:
+                                rev_by_year[y] = rev_by_year.get(y, 0) + r
+                    # The cliff, full width. The revenue-at-risk chart that used to sit
+                    # beside it is gone: it weighted only the products whose revenue the
+                    # filer happens to tag, which for Lilly is four of the fourteen expiring
+                    # in the window, and a bar chart of a quarter of the truth read as the
+                    # whole of it. The count below hides nothing, because it draws every
+                    # product with a published expiry whether or not its revenue is known.
+                    if count_by_year:
+                        years = list(range(today.year, today.year + 11))
+                        section("Loss of exclusivity by year", "products, next 10 years")
+                        bars = [{"label": f"'{y % 100:02d}",
+                                 "value": count_by_year.get(y, 0), "colour": TK.DOWN,
+                                 "show_value": count_by_year.get(y, 0) > 0}
+                                for y in years]
+                        R.show(CH.bar_chart(bars, 1100, 118,
+                                            value_fmt=lambda v: str(int(v))),
+                               css_class="chart-mount stretch")
+                        note("Every marketed product losing US exclusivity that year, "
+                             "expiries from the Orange and Purple Books, counted whether or "
+                             "not its revenue is tagged. A small molecule is placed at its "
+                             "latest patent, a biologic at the later of its listed expiry "
+                             "and the 12-year floor. A product with no published expiry "
+                             "cannot be placed and is left out, never estimated: open its "
+                             "card to see whether that is protection already lapsed or "
+                             "nothing published yet.")
 
-                def _product_card_html(p):
-                    mod = (p.get("modality") or "").lower()
-                    cls = "bio" if "bio" in mod else "small" if mod else ""
-                    y = _loe_year(p)
-                    near = y is not None and y <= today.year + 3
-                    rev_txt = (f'{T.num(p["revenue"] / 1e9, 2)} {p.get("revenue_unit") or ""} bn'
-                               if p.get("revenue") is not None else "no free data")
-                    to_loe = f' · {y - today.year}y' if y else ""
-                    # A small molecule usually has several Orange Book patents; the latest
-                    # overstates the real cliff since generics can challenge the earlier ones.
-                    # Show the earliest-to-latest range so the wall reads as a window, not a
-                    # single hard date. Biologics keep the single merged floor.
-                    ey = p.get("loe_earliest_year")
-                    is_range = cls == "small" and ey and y and ey != y
-                    loe_label = "exclusivity" if is_range else "exclusivity to"
-                    loe_txt = f'{ey}–{y}' if is_range else (f'{y}{to_loe}' if y else "—")
-                    # Where there is no expiry, say which kind of nothing it is. The
-                    # Orange Book lists only unexpired patents and unexpired
-                    # exclusivities, so no rows means either every one of them has run
-                    # out or none was ever listed, and those are opposite facts. Age
-                    # separates them: a small molecule's protection cannot outlast its
-                    # approval by more than about fourteen years, so an older product
-                    # with nothing listed has lost it, and a recent one has simply not
-                    # had anything published. Neither is a date and neither is guessed.
-                    status, status_why = "", ""
-                    if not y:
-                        approved_year = int((p.get("approved") or "0000")[:4] or 0)
-                        age = today.year - approved_year if approved_year else 0
-                        if approved_year and age >= _LOE_LAPSED_AFTER_YEARS:
-                            status = "protection lapsed"
-                            status_why = (f"Approved {age} years ago and no unexpired "
-                                          "patent or exclusivity is listed, so the "
-                                          "protection it had has run out. Generics or "
-                                          "biosimilars may already be on sale. Not a "
-                                          "date: the register says only that nothing "
-                                          "unexpired remains.")
-                        else:
-                            status = "none listed"
-                            status_why = ("No patent or exclusivity is published for "
-                                          "this product yet. Recently approved products "
-                                          "are often listed late, so this is an absence "
-                                          "of data rather than an absence of protection.")
-                    basis = (f'<div class="pf-row" title="{html_escape(_WHY_BASIS)}">'
-                             f'<span class="pf-k"></span>'
-                             f'<span class="pf-v none" style="font-size:9px">'
-                             f'{html_escape(p.get("loe_basis") or "")}</span></div>'
-                             if p.get("loe_basis") else "")
-                    if status:
-                        basis = (f'<div class="pf-row" title="{html_escape(status_why)}">'
+
+                with _products_col:
+                    section("Products", f"{len(prods)}")
+
+                    def _product_card_html(p):
+                        mod = (p.get("modality") or "").lower()
+                        cls = "bio" if "bio" in mod else "small" if mod else ""
+                        y = _loe_year(p)
+                        near = y is not None and y <= today.year + 3
+                        rev_txt = (f'{T.num(p["revenue"] / 1e9, 2)} {p.get("revenue_unit") or ""} bn'
+                                   if p.get("revenue") is not None else "no free data")
+                        to_loe = f' · {y - today.year}y' if y else ""
+                        # A small molecule usually has several Orange Book patents; the latest
+                        # overstates the real cliff since generics can challenge the earlier ones.
+                        # Show the earliest-to-latest range so the wall reads as a window, not a
+                        # single hard date. Biologics keep the single merged floor.
+                        ey = p.get("loe_earliest_year")
+                        is_range = cls == "small" and ey and y and ey != y
+                        loe_label = "exclusivity" if is_range else "exclusivity to"
+                        loe_txt = f'{ey}–{y}' if is_range else (f'{y}{to_loe}' if y else "—")
+                        # Where there is no expiry, say which kind of nothing it is. The
+                        # Orange Book lists only unexpired patents and unexpired
+                        # exclusivities, so no rows means either every one of them has run
+                        # out or none was ever listed, and those are opposite facts. Age
+                        # separates them: a small molecule's protection cannot outlast its
+                        # approval by more than about fourteen years, so an older product
+                        # with nothing listed has lost it, and a recent one has simply not
+                        # had anything published. Neither is a date and neither is guessed.
+                        status, status_why = "", ""
+                        if not y:
+                            approved_year = int((p.get("approved") or "0000")[:4] or 0)
+                            age = today.year - approved_year if approved_year else 0
+                            if approved_year and age >= _LOE_LAPSED_AFTER_YEARS:
+                                status = "protection lapsed"
+                                status_why = (f"Approved {age} years ago and no unexpired "
+                                              "patent or exclusivity is listed, so the "
+                                              "protection it had has run out. Generics or "
+                                              "biosimilars may already be on sale. Not a "
+                                              "date: the register says only that nothing "
+                                              "unexpired remains.")
+                            else:
+                                status = "none listed"
+                                status_why = ("No patent or exclusivity is published for "
+                                              "this product yet. Recently approved products "
+                                              "are often listed late, so this is an absence "
+                                              "of data rather than an absence of protection.")
+                        basis = (f'<div class="pf-row" title="{html_escape(_WHY_BASIS)}">'
                                  f'<span class="pf-k"></span>'
                                  f'<span class="pf-v none" style="font-size:9px">'
-                                 f'{status}</span></div>')
-                    return (
-                        f'<div class="pf-card {cls}">'
-                        f'<div class="pf-head">'
-                        f'<span class="pf-brand">{html_escape(p["brand"])}</span>'
-                        f'<span class="pf-mod" title="{html_escape(_WHY_MODALITY)}">'
-                        f'{html_escape(p.get("modality") or "")}</span></div>'
-                        f'<div class="pf-generic">{html_escape(p.get("generic") or "")}</div>'
-                        f'<div class="pf-row" title="{html_escape(_WHY_APPROVED)}">'
-                        f'<span class="pf-k">approved</span>'
-                        f'<span class="pf-v">{(p.get("approved") or "—")[:10]}</span></div>'
-                        f'<div class="pf-row" title="{html_escape(_WHY_REVENUE)}">'
-                        f'<span class="pf-k">revenue</span>'
-                        f'<span class="pf-v{"" if p.get("revenue") is not None else " none"}">'
-                        f'{rev_txt}</span></div>'
-                        f'<div class="pf-row" title="{html_escape(_WHY_RANGE if is_range else _WHY_LOE)}">'
-                        f'<span class="pf-k">{loe_label}</span>'
-                        f'<span class="pf-v {"near" if near else ""}">'
-                        f'{loe_txt}</span></div>'
-                        f'{basis}</div>')
+                                 f'{html_escape(p.get("loe_basis") or "")}</span></div>'
+                                 if p.get("loe_basis") else "")
+                        if status:
+                            basis = (f'<div class="pf-row" title="{html_escape(status_why)}">'
+                                     f'<span class="pf-k"></span>'
+                                     f'<span class="pf-v none" style="font-size:9px">'
+                                     f'{status}</span></div>')
+                        return (
+                            f'<div class="pf-card {cls}">'
+                            f'<div class="pf-head">'
+                            f'<span class="pf-brand">{html_escape(p["brand"])}</span>'
+                            f'<span class="pf-mod" title="{html_escape(_WHY_MODALITY)}">'
+                            f'{html_escape(p.get("modality") or "")}</span></div>'
+                            f'<div class="pf-generic">{html_escape(p.get("generic") or "")}</div>'
+                            f'<div class="pf-row" title="{html_escape(_WHY_APPROVED)}">'
+                            f'<span class="pf-k">approved</span>'
+                            f'<span class="pf-v">{(p.get("approved") or "—")[:10]}</span></div>'
+                            f'<div class="pf-row" title="{html_escape(_WHY_REVENUE)}">'
+                            f'<span class="pf-k">revenue</span>'
+                            f'<span class="pf-v{"" if p.get("revenue") is not None else " none"}">'
+                            f'{rev_txt}</span></div>'
+                            f'<div class="pf-row" title="{html_escape(_WHY_RANGE if is_range else _WHY_LOE)}">'
+                            f'<span class="pf-k">{loe_label}</span>'
+                            f'<span class="pf-v {"near" if near else ""}">'
+                            f'{loe_txt}</span></div>'
+                            f'{basis}</div>')
 
-                prods_sorted = sorted(prods, key=lambda p: (-(p.get("revenue") or 0),
-                                                            _loe_year(p) or 9999))
-                # The card itself is the hit area: the grid renders inside a component that
-                # returns the clicked asset id, so there is no separate button and hovering a
-                # card shows it is live. The selection lives in session state and a native
-                # rerun keeps the Portfolio tab active, so the profile opens in place.
-                # An approval clicked on the Universe timeline arrives as an application
-                # number, which is the only product identifier that survives the change feed.
-                # Resolve it here, where the products are known, and consume it so a later
-                # rerun does not keep reopening the same sheet.
-                pending = st.session_state.pop("pending_product", None)
-                if pending:
-                    match = next((p for p in prods
-                                  if str(p.get("application_number") or "").replace(" ", "")
-                                  == pending), None)
-                    if match and match.get("asset_id"):
-                        st.session_state["profile_asset"] = match["asset_id"]
-                sel_aid = st.session_state.get("profile_asset")
-                # The profile sits above the grid, so a click does not push it below a long
-                # card list. Guarded to this company's products, so switching ticker drops a
-                # stale selection rather than asking the API for another company's asset.
-                sel = next((p for p in prods_sorted if p.get("asset_id") == sel_aid), None)
-                if sel is not None:
-                    _render_product_profile(api_base, ticker, sel, today)
-                # Grouped by the disease the label says the product treats, biggest area
-                # first and biggest product inside it. A portfolio is held by franchise, so
-                # a flat list by revenue hid the shape of it: four metabolic drugs reading
-                # as one bet is the fact, not their order. A product whose label is not on
-                # file sits under its own heading rather than being filed under a guess.
-                groups: dict = {}
-                for p in prods_sorted:
-                    if p.get("asset_id") is None:
-                        continue
-                    groups.setdefault(p.get("area") or "Area not stated", []).append(p)
+                    prods_sorted = sorted(prods, key=lambda p: (-(p.get("revenue") or 0),
+                                                                _loe_year(p) or 9999))
+                    # The card itself is the hit area: the grid renders inside a component that
+                    # returns the clicked asset id, so there is no separate button and hovering a
+                    # card shows it is live. The selection lives in session state and a native
+                    # rerun keeps the Portfolio tab active, so the profile opens in place.
+                    # An approval clicked on the Universe timeline arrives as an application
+                    # number, which is the only product identifier that survives the change feed.
+                    # Resolve it here, where the products are known, and consume it so a later
+                    # rerun does not keep reopening the same sheet.
+                    pending = st.session_state.pop("pending_product", None)
+                    if pending:
+                        match = next((p for p in prods
+                                      if str(p.get("application_number") or "").replace(" ", "")
+                                      == pending), None)
+                        if match and match.get("asset_id"):
+                            st.session_state["profile_asset"] = match["asset_id"]
+                    sel_aid = st.session_state.get("profile_asset")
+                    # The profile sits above the grid, so a click does not push it below a long
+                    # card list. Guarded to this company's products, so switching ticker drops a
+                    # stale selection rather than asking the API for another company's asset.
+                    sel = next((p for p in prods_sorted if p.get("asset_id") == sel_aid), None)
+                    if sel is not None:
+                        _render_product_profile(api_base, ticker, sel, today)
+                    # Grouped by the disease the label says the product treats, biggest area
+                    # first and biggest product inside it. A portfolio is held by franchise, so
+                    # a flat list by revenue hid the shape of it: four metabolic drugs reading
+                    # as one bet is the fact, not their order. A product whose label is not on
+                    # file sits under its own heading rather than being filed under a guess.
+                    groups: dict = {}
+                    for p in prods_sorted:
+                        if p.get("asset_id") is None:
+                            continue
+                        groups.setdefault(p.get("area") or "Area not stated", []).append(p)
 
-                def _area_revenue(area):
-                    return sum(p.get("revenue") or 0 for p in groups[area])
+                    def _area_revenue(area):
+                        return sum(p.get("revenue") or 0 for p in groups[area])
 
-                order = sorted(groups, key=lambda a: (a == "Area not stated",
-                                                      -_area_revenue(a)))
-                card_tokens = {"panel": TK.PANEL, "panel-hi": TK.RULE,
-                               "rule": TK.RULE, "rule-strong": TK.RULE_STRONG,
-                               "muted": TK.MUTED, "text": TK.TEXT, "up": TK.UP,
-                               "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
-                               "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
-                               "font-ui": TK.FONT_UI}
-                # One area at a time, picked from a row of pills. Six areas stacked as six
-                # card grids was most of this tab's height and pushed the tables under it
-                # two screens down, and a reader looks at one franchise at a time anyway.
-                # Each pill carries its own count, so the shape of the portfolio is still
-                # readable without opening any of them.
-                _labels = {a: f"{a} ({len(groups[a])})" for a in order}
-                _picked = st.pills(
-                    "Disease area", [_labels[a] for a in order],
-                    default=_labels[order[0]] if order else None,
-                    key=f"prod_area_{ticker}", label_visibility="collapsed")
-                _chosen = next((a for a in order if _labels[a] == _picked),
-                               order[0] if order else None)
-                for area in [a for a in order if a == _chosen]:
-                    revenue = _area_revenue(area)
-                    section(area, f"{len(groups[area])} &middot; {T.num(revenue / 1e9, 1)}bn"
-                            if revenue else len(groups[area]))
-                    clicked = prodcards.product_cards(
-                        [{"asset_id": p.get("asset_id"), "html": _product_card_html(p)}
-                         for p in groups[area]],
-                        tokens=card_tokens,
-                        # Keyed per company and area: a fixed key would carry one grid's
-                        # last click into the next.
-                        selected=sel_aid,
-                        key=f"prod_cards_{ticker}_{re.sub(r'[^a-z0-9]+', '_', area.lower())}")
-                    # A click is only acted on once: the nonce changes per click, so a rerun
-                    # triggered by anything else does not reopen a closed profile.
-                    if isinstance(clicked, dict) and clicked.get("nonce") != \
-                            st.session_state.get("prod_click_nonce"):
-                        st.session_state["prod_click_nonce"] = clicked.get("nonce")
-                        st.session_state["profile_asset"] = clicked.get("asset_id")
-                        st.rerun()
+                    order = sorted(groups, key=lambda a: (a == "Area not stated",
+                                                          -_area_revenue(a)))
+                    card_tokens = {"panel": TK.PANEL, "panel-hi": TK.RULE,
+                                   "rule": TK.RULE, "rule-strong": TK.RULE_STRONG,
+                                   "muted": TK.MUTED, "text": TK.TEXT, "up": TK.UP,
+                                   "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
+                                   "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
+                                   "font-ui": TK.FONT_UI}
+                    # One area at a time, picked from a row of pills. Six areas stacked as six
+                    # card grids was most of this tab's height and pushed the tables under it
+                    # two screens down, and a reader looks at one franchise at a time anyway.
+                    # Each pill carries its own count, so the shape of the portfolio is still
+                    # readable without opening any of them.
+                    _labels = {a: f"{a} ({len(groups[a])})" for a in order}
+                    _picked = st.pills(
+                        "Disease area", [_labels[a] for a in order],
+                        default=_labels[order[0]] if order else None,
+                        key=f"prod_area_{ticker}", label_visibility="collapsed")
+                    _chosen = next((a for a in order if _labels[a] == _picked),
+                                   order[0] if order else None)
+                    for area in [a for a in order if a == _chosen]:
+                        revenue = _area_revenue(area)
+                        section(area, f"{len(groups[area])} &middot; {T.num(revenue / 1e9, 1)}bn"
+                                if revenue else len(groups[area]))
+                        clicked = prodcards.product_cards(
+                            [{"asset_id": p.get("asset_id"), "html": _product_card_html(p)}
+                             for p in groups[area]],
+                            tokens=card_tokens,
+                            # Keyed per company and area: a fixed key would carry one grid's
+                            # last click into the next.
+                            selected=sel_aid,
+                            key=f"prod_cards_{ticker}_{re.sub(r'[^a-z0-9]+', '_', area.lower())}")
+                        # A click is only acted on once: the nonce changes per click, so a rerun
+                        # triggered by anything else does not reopen a closed profile.
+                        if isinstance(clicked, dict) and clicked.get("nonce") != \
+                                st.session_state.get("prod_click_nonce"):
+                            st.session_state["prod_click_nonce"] = clicked.get("nonce")
+                            st.session_state["profile_asset"] = clicked.get("asset_id")
+                            st.rerun()
 
             # The two tables at the foot of the tab, side by side. One is what the
             # market paid and the other is how many people took it, read against each
