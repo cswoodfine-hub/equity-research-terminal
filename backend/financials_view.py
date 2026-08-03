@@ -25,6 +25,14 @@ import statements
 
 DEFAULT_PERIODS = 6
 
+# How far back the trend runs, which is as far as the EDGAR pull holds. Four quarters was
+# the old limit and four points cannot show anything a trend exists to show: not a cycle,
+# not a margin compressing, not a patent cliff arriving. Johnson & Johnson has forty
+# quarters on file and seventeen years, and the chart is the one place on the tab with
+# room for them.
+TREND_QUARTERS = 40
+TREND_YEARS = 17
+
 ANNUAL, QUARTERLY = "annual", "quarterly"
 
 
@@ -38,6 +46,31 @@ def _rows(conn, company_id):
     ).fetchall()
 
 
+def collapse_adjacent(series: dict) -> dict:
+    """One entry per period, where EDGAR carries a period under two nearby dates.
+
+    A filer that restates its period end leaves both in the company facts: Exelixis has
+    its June 2016 quarter at 36.3m under 2016-06-30 and again, to the cent, under
+    2016-07-01. Two dates a day apart are never two quarters, so the later one wins,
+    being the view the more recent filing took.
+
+    This only became visible once the trend drew its whole history, where it plotted the
+    same quarter twice side by side.
+    """
+    out: dict = {}
+    for key in sorted(series):
+        end, kind = key
+        date = dt.date.fromisoformat(end)
+        twin = next((k for k in out
+                     if k[1] == kind
+                     and 0 < (date - dt.date.fromisoformat(k[0])).days <= _SPILL_DAYS),
+                    None)
+        if twin is not None:
+            del out[twin]
+        out[key] = series[key]
+    return out
+
+
 def _fiscal_year_end_month(by_metric) -> int:
     """The month the filer's year ends in, from the latest annual revenue period."""
     ends = sorted(end for (end, kind) in by_metric.get("Revenues", {})
@@ -45,19 +78,46 @@ def _fiscal_year_end_month(by_metric) -> int:
     return int(ends[-1][5:7]) if ends else 12
 
 
+# How far into a month a period end may fall and still belong to the month before. A
+# 52/53 week quarter closes within a few days of the boundary; nothing legitimately ends
+# a fiscal quarter on the fifth.
+_SPILL_DAYS = 4
+
+
+def _nearest_month_end(date: dt.date) -> tuple[int, int]:
+    """(month, year) the period ends nearest, snapping a few days back over a boundary."""
+    if date.day <= _SPILL_DAYS:
+        first = date.replace(day=1)
+        previous = first - dt.timedelta(days=1)
+        return previous.month, previous.year
+    return date.month, date.year
+
+
 def _period_label(period_end: str, period_type: str, months: str | None,
                   fy_end_month: int) -> str:
     """A column heading: FY25, Q1 26, 6M 25, or Mar 26 for a balance sheet date."""
     date = dt.date.fromisoformat(period_end)
-    short_year = f"{date.year % 100:02d}"
+    # Every label reads the month the period ends nearest, not the one the date falls
+    # in. Johnson & Johnson's fiscal 2011 ended on 1 January 2012 and its fiscal 2016 on
+    # 1 January 2017, so a label taken from the calendar year put both a year late and
+    # collided each with the year that followed it.
+    month, year = _nearest_month_end(date)
+    short_year = f"{year % 100:02d}"
     if period_type == statements.FY:
         return f"FY{short_year}"
     if period_type == statements.INSTANT:
-        return f"{date.strftime('%b')} {short_year}"
+        return f"{dt.date(year, month, 1).strftime('%b')} {short_year}"
     # Months into the fiscal year, 1 through 12, so the quarter number holds for a
     # filer whose year does not end in December.
-    into_year = (date.month - fy_end_month - 1) % 12 + 1
-    fiscal_year = date.year + (1 if date.month > fy_end_month else 0)
+    #
+    # The month is the one the period ends nearest, not the one the date falls in. A
+    # filer on a 52 or 53 week calendar ends its quarters on a Sunday, so the date
+    # wanders either side of the month boundary: Johnson & Johnson's third quarter of
+    # 2017 ended on 1 October and its second of 2018 on 1 July. Read by calendar month
+    # both land a quarter late, which is how the same chart came to carry two columns
+    # headed Q4 17 and a growth figure comparing a quarter against itself.
+    into_year = (month - fy_end_month - 1) % 12 + 1
+    fiscal_year = year + (1 if month > fy_end_month else 0)
     if period_type == statements.Q:
         return f"Q{-(-into_year // 3)} {fiscal_year % 100:02d}"
     return f"{months or ''} {fiscal_year % 100:02d}".strip()
@@ -99,6 +159,15 @@ def _periods_for(statement: str, basis: str, keys_present: set,
         wanted = [k for k in keys_present if k[1] == statements.INSTANT]
         if basis == ANNUAL:
             wanted = [k for k in wanted if int(k[0][5:7]) == fy_end_month]
+            # The year end, not every balance date the filer tagged in that month. Legend
+            # Biotech carries 16 December alongside 31 December, from a cover page share
+            # count, and both are headed "Dec 22".
+            latest: dict = {}
+            for key in wanted:
+                year = key[0][:4]
+                if year not in latest or key[0] > latest[year][0]:
+                    latest[year] = key
+            wanted = list(latest.values())
     elif basis == ANNUAL:
         wanted = [k for k in keys_present if k[1] == statements.FY]
     elif statement == "cashflow":
@@ -168,7 +237,7 @@ def _prior_period(series: dict, key: tuple, tolerance_days: int = 14):
 
 
 def build_trend(values: dict, months_by_key: dict, fy_end_month: int,
-                basis: str = QUARTERLY, limit: int = 9) -> list[dict]:
+                basis: str = QUARTERLY, limit: int = TREND_QUARTERS) -> list[dict]:
     """Revenue growth and net margin per period, oldest first.
 
     The two are returned together and on the same scale because the question they answer
@@ -223,6 +292,11 @@ def build_statements(db_path=None, ticker: str = "", basis: str = QUARTERLY,
             months_by_key[key] = row["fiscal_period"]
         if row["unit"]:
             units.setdefault(row["metric"], row["unit"])
+
+    # Collapsed before anything reads a series, so the trend, the statements and the
+    # snapshot all see one entry per period rather than two.
+    by_metric = {metric: collapse_adjacent(series)
+                 for metric, series in by_metric.items()}
 
     fy_end_month = _fiscal_year_end_month(by_metric)
     currency = units.get("Revenues") or units.get("NetIncomeLoss")
@@ -289,7 +363,7 @@ def build_statements(db_path=None, ticker: str = "", basis: str = QUARTERLY,
         # Annual shows DEFAULT_PERIODS years; the extra stored year is not shown, it is the
         # base the oldest shown year's growth divides by, so both lines start together.
         "trend": build_trend(values, months_by_key, fy_end_month, basis,
-                             limit=DEFAULT_PERIODS if basis == ANNUAL else 9),
+                             limit=TREND_YEARS if basis == ANNUAL else TREND_QUARTERS),
     }
 
 

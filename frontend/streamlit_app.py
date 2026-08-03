@@ -117,7 +117,6 @@ _INTERVAL_BASE = {
 SPARK_SESSIONS = 5
 CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
 # Quarters in the growth-against-margin panel: the most recent year, one bar per quarter.
-TREND_QUARTERS = 4
 # The registry page for a trial, keyed by its NCT id.
 # Months of catalyst calendar. Two years covers the readout horizon without a control
 # to set it: the dates inside it are estimates anyway, so a tighter window would be
@@ -154,10 +153,19 @@ def api_delete(base: str, path: str):
 
 
 # --- Presentation helpers -----------------------------------------------
-def section(label: str, count=None):
+def section(label: str, count=None, basis: str = ""):
+    """A section rule, optionally carrying the period its figures are measured over.
+
+    The basis is a chip rather than more grey text because of one specific misreading:
+    the financials tab puts a quarter's income statement directly above a year's cash
+    flow, in the same tiles at the same weight, and the only thing separating 25.3bn of
+    quarterly revenue from 19.7bn of annual free cash flow was a muted line at the far
+    right of the rule. Two bases stacked need to say so where the eye already is.
+    """
     tail = f'<span class="sec-count">{count}</span>' if count is not None else ""
-    st.markdown(f'<div class="sec"><span class="sec-label">{label}</span>{tail}</div>',
-                unsafe_allow_html=True)
+    chip = (f'<span class="sec-basis">{html_escape(basis)}</span>' if basis else "")
+    st.markdown(f'<div class="sec"><span class="sec-label">{label}</span>{chip}'
+                f'{tail}</div>', unsafe_allow_html=True)
 
 
 def note(text: str):
@@ -590,9 +598,58 @@ def line_scale(unit: str | None, currency: str | None):
     return 1e9, 2, f"{currency or unit} bn".strip()
 
 
+# Columns in the statements grid. The API caps it at twelve.
+STATEMENT_PERIODS = 12
+
+ABSOLUTE, COMMON_SIZE, GROWTH = "Absolute", "Common size", "Growth"
+LENSES = (ABSOLUTE, COMMON_SIZE, GROWTH)
+
+# How far back a growth column looks. A quarter is compared with the same quarter a year
+# earlier, never the one before it: pharma quarters carry stocking, launch timing and
+# tender phasing, and sequential change reads as news when it is a calendar. A year is
+# compared with the year before.
+_YEAR_BACK_DAYS = 365
+_YEAR_BACK_TOLERANCE = 45
+
+
+def _year_ago_column(periods: list, index: int) -> int | None:
+    """The column a year before ``index``, by date rather than by counting back four.
+
+    Counting positions assumes the columns are a regular series, and they are not: a
+    filer that missed an interim period, or whose fourth quarter is derived, leaves a
+    hole that would silently shift every comparison by one quarter.
+    """
+    import datetime as _dt
+
+    def when(i):
+        try:
+            return _dt.date.fromisoformat(str(periods[i]["period_end"])[:10])
+        except (ValueError, TypeError, KeyError, IndexError):
+            return None
+
+    here = when(index)
+    if here is None:
+        return None
+    target = here - _dt.timedelta(days=_YEAR_BACK_DAYS)
+    best, gap = None, None
+    for other in range(index + 1, len(periods)):
+        there = when(other)
+        if there is None:
+            continue
+        distance = abs((there - target).days)
+        if distance <= _YEAR_BACK_TOLERANCE and (gap is None or distance < gap):
+            best, gap = other, distance
+    return best
+
+
 def statement_table(block: dict, currency: str | None,
-                    common_size: bool = False) -> str:
+                    lens: str = ABSOLUTE) -> str:
     """One statement as a table: lines down, periods across, most recent first.
+
+    Three lenses over the same grid, because an analyst asks three questions of a
+    statement and only one of them is what the number was. Common size asks what share
+    of sales a line takes; growth asks which way it is moving. Both were arithmetic the
+    reader was doing by eye across six columns.
 
     The common-size base comes from the API, read at each column's own period. Taking
     it from a line in this grid would work for the balance sheet and silently fail for
@@ -600,6 +657,8 @@ def statement_table(block: dict, currency: str | None,
     are cumulative where the income statement's are discrete.
     """
     periods, lines = block["periods"], block["lines"]
+    common_size = lens == COMMON_SIZE
+    growth = lens == GROWTH
     base = block["base"]["values"] if common_size else []
 
     head = "".join(f'<th class="{"now" if i == 0 else ""}">{html_escape(p["label"])}</th>'
@@ -618,6 +677,17 @@ def statement_table(block: dict, currency: str | None,
                 value = (value / denominator * 100
                          if divisor_ok and value is not None and denominator else None)
                 text = T.num(value, 1)
+            elif growth:
+                back = _year_ago_column(periods, index)
+                earlier = (line["cells"][back]["value"]
+                           if back is not None and back < len(line["cells"]) else None)
+                # A sign change has no percentage: a loss becoming a profit is not
+                # "up 240%", it is a different thing happening, and the arithmetic that
+                # produces that number is the arithmetic that hides it.
+                value = ((value / earlier - 1) * 100
+                         if value is not None and earlier not in (None, 0)
+                         and (value > 0) == (earlier > 0) else None)
+                text = T.pct(value, 1) if value is not None else "—"
             else:
                 text = T.num(value / divisor if value is not None else None, decimals)
             classes = ["now" if index == 0 else "",
@@ -630,7 +700,7 @@ def statement_table(block: dict, currency: str | None,
         # name their unit. Without this a diluted share count reads as a money figure.
         _, _, unit_label = line_scale(line.get("unit"), currency)
         label = html_escape(line["label"])
-        if not common_size and unit_label not in (f"{currency} bn", "bn"):
+        if lens == ABSOLUTE and unit_label not in (f"{currency} bn", "bn"):
             label += f'<span class="lu">, {html_escape(unit_label)}</span>'
         if line.get("note"):
             label = f'<span title="{html_escape(line["note"])}">{label}</span>'
@@ -641,6 +711,7 @@ def statement_table(block: dict, currency: str | None,
     # mode: putting it on the section rule instead left "USD bn" standing over a table
     # of percentages.
     unit = (f'% of {block["base"]["label"].lower()}' if common_size
+            else "% on a year earlier" if growth
             else f'{currency or ""} bn'.strip())
     return (f'<div class="fin-wrap"><table class="fin">'
             f'<thead><tr><th class="l">{html_escape(unit)}</th>'
@@ -1812,15 +1883,20 @@ with main:
         wanted = st.session_state.get(basis_key, "Quarterly")
 
         def fetch(basis):
-            return api_get(api_base,
-                           f"/companies/{ticker}/statements?basis={basis}")
+            # Twelve columns, not six. A pharma quarter carries stocking and launch
+            # timing, so a year and a half of them cannot show what is seasonal and what
+            # is the trend, and the growth lens needs a year of history behind the oldest
+            # column it prints.
+            return api_get(api_base, f"/companies/{ticker}/statements"
+                                     f"?basis={basis}&periods={STATEMENT_PERIODS}")
 
         built = fetch("annual" if wanted == "Annual" else "quarterly")
         if built["basis"] == "quarterly" and not built["has_interim"]:
             built = fetch("annual")     # a 20-F filer has no quarters to show
         snapshot = built.get("snapshot")
 
-        section("Latest reported", snapshot_meta(snapshot) if snapshot else None)
+        section("Latest reported", snapshot_meta(snapshot) if snapshot else None,
+                basis=(snapshot or {}).get("label") or "")
         if snapshot:
             st.markdown(snapshot_strip(snapshot), unsafe_allow_html=True)
 
@@ -1832,9 +1908,11 @@ with main:
             # No second heading: the quarter above and the year here are one reading of
             # the company, and two headers stacked made it read as two walls of figures.
             # A rule and the period label carry the change of basis instead.
-            section("Cash and leverage",
-                    f'{("FY" + str(cash["fiscal_year"])) if cash.get("fiscal_year") else "latest year"}'
-                    f' &middot; {cf_cur} bn unless stated')
+            _cash_basis = (f'FY{cash["fiscal_year"]}' if cash.get("fiscal_year")
+                           else "latest year")
+            # The chip says the year, so the tail no longer repeats it.
+            section("Cash and leverage", f'{cf_cur} bn unless stated',
+                    basis=_cash_basis)
 
             def _cf_bn(value, dp=1):
                 return T.num(value / 1e9, dp) if value is not None else None
@@ -1896,13 +1974,12 @@ with main:
                 st.markdown(f'<div class="byline">{cash_notes}</div>',
                             unsafe_allow_html=True)
 
-            # The quarterly panel shows the most recent year, one bar per quarter. Growth
-            # is year-over-year on the whole series, so the last four keep their real
-            # comparison; the older quarters are dropped from the view, not the maths.
-            # Annual is left whole, since a four-year panel is too short to read a trend.
+            # Every period the API returns, which is every period on file: forty quarters
+            # or seventeen years. This used to cut the quarterly panel to the last four,
+            # and four points cannot show a cycle, a margin compressing or a cliff
+            # arriving, which is the entire reason to draw a trend rather than print the
+            # latest number twice.
             trend_points = built.get("trend") or []
-            if built["basis"] == "quarterly":
-                trend_points = trend_points[-TREND_QUARTERS:]
 
             # Built as SVG rather than through Altair. A chart made inside a hidden tab
             # is measured at a few pixels and draws about 160px wide for good (see the
@@ -1922,7 +1999,7 @@ with main:
 
         if snapshot:
             section("Statements")
-            controls = st.columns([1.1, 1.3, 1.4])
+            controls = st.columns([1.0, 1.3, 1.5])
             with controls[0]:
                 # An annual-only filer gets no toggle at all. Offering a control that
                 # can only produce an empty grid is worse than not offering it.
@@ -1935,7 +2012,8 @@ with main:
                     horizontal=True, label_visibility="collapsed",
                     key=f"stmt_{ticker}")
             with controls[2]:
-                common_size = st.checkbox("Common size", key=f"cs_{ticker}")
+                lens = st.radio("Lens", LENSES, horizontal=True,
+                                label_visibility="collapsed", key=f"lens_{ticker}")
 
             key = next(k for k, label in STATEMENT_ORDER if label == which)
             block = built["statements"][key]
@@ -1944,7 +2022,7 @@ with main:
                       "The filer tags nothing here for the periods selected.")
             else:
                 st.markdown(
-                    statement_table(block, built["currency"], common_size),
+                    statement_table(block, built["currency"], lens),
                     unsafe_allow_html=True)
                 footnotes = []
                 if not built["has_interim"]:

@@ -23,6 +23,15 @@ PAD_R = 20
 TOP = 46             # room for the legend row
 BOTTOM = 30          # room for the period labels
 
+# How many period labels the axis can carry before they touch. The series itself is not
+# thinned: every quarter is still plotted, and only the naming of them is rationed.
+MAX_LABELS = 13
+
+# How much of each tail the axis ignores when scaling, and the shortest series it is
+# applied to. A short series has no outliers, only points.
+TRIM = 0.05
+MIN_FOR_TRIM = 12
+
 GROWTH_COLOUR = P.data          # revenue growth, the plotted-series colour
 MARGIN_COLOUR = P.orange_book   # net margin, a distinct second hue
 
@@ -37,8 +46,25 @@ def _pct(value, decimals=1) -> str:
 
 def _domain(values, include_zero=False, pad=0.1):
     """Padded [lo, hi] for the shared axis, optionally forced to span zero so a
-    sign change and the zero line always sit on the plane."""
-    lo, hi = min(values), max(values)
+    sign change and the zero line always sit on the plane.
+
+    Scaled to the body of the series rather than to its extremes. Over four quarters the
+    two are the same; over forty they are not, and one quarter carrying a tax charge or
+    a derived fourth quarter built on a mismatched full year flattens the other
+    thirty-nine into a straight line. Johnson & Johnson has a quarter at minus fifty-three
+    per cent and another at a hundred and twenty-two, and against those the eight years
+    of margin either side read as no movement at all.
+
+    Nothing is dropped. A point outside the frame is still drawn, clamped to the edge and
+    marked, so the reader sees that it went off the top rather than that it went missing.
+    """
+    ordered = sorted(values)
+    if len(ordered) >= MIN_FOR_TRIM:
+        cut = max(1, int(len(ordered) * TRIM))
+        body = ordered[cut:len(ordered) - cut] or ordered
+    else:
+        body = ordered
+    lo, hi = min(body), max(body)
     if include_zero:
         lo, hi = min(lo, 0.0), max(hi, 0.0)
     span = (hi - lo) or 0.02
@@ -88,8 +114,12 @@ def render(points, basis: str = "quarterly") -> str:
     def x_at(index):
         return PAD_L + (index / (n - 1)) * plot_w
 
+    def off_scale(value):
+        return value is not None and not (lo <= value <= hi)
+
     def y_at(value):
-        return TOP + (hi - value) / (hi - lo) * plot_h
+        clamped = min(max(value, lo), hi)
+        return TOP + (hi - clamped) / (hi - lo) * plot_h
 
     out = [
         f'<svg viewBox="0 0 {W} {H}" width="100%"'
@@ -130,12 +160,36 @@ def render(points, basis: str = "quarterly") -> str:
                 pts = " ".join(f"{x_at(i):.1f},{y_at(v):.1f}" for i, v in run)
                 out.append(f'<polyline points="{pts}" fill="none" stroke="{colour}"'
                            f' stroke-width="1.8"/>')
-        for i, v in [(i, v) for i, v in enumerate(values) if v is not None]:
-            out.append(f'<circle cx="{x_at(i):.1f}" cy="{y_at(v):.1f}" r="2.4"'
-                       f' fill="{colour}"/>')
+        # A dot per point reads as a marked series at nine points and as a thick smear
+        # at forty, so the radius comes down as the series lengthens and the dots stop
+        # once they would be closer together than they are wide.
+        radius = 2.4 if n <= 16 else (1.6 if n <= 28 else 0)
+        if radius:
+            for i, v in [(i, v) for i, v in enumerate(values) if v is not None]:
+                out.append(f'<circle cx="{x_at(i):.1f}" cy="{y_at(v):.1f}"'
+                           f' r="{radius}" fill="{colour}"/>')
+        # A point outside the frame gets a caret at the edge it left through, pointing
+        # the way it went, with its real figure on hover. Drawn at every length, since
+        # this is the one mark that must not be thinned away.
+        for i, v in enumerate(values):
+            if not off_scale(v):
+                continue
+            up = v > hi
+            edge = TOP + (2 if up else plot_h - 2)
+            tip = -5 if up else 5
+            out.append(
+                f'<polygon points="{x_at(i) - 3.4:.1f},{edge:.1f} '
+                f'{x_at(i) + 3.4:.1f},{edge:.1f} {x_at(i):.1f},{edge + tip:.1f}"'
+                f' fill="{colour}"><title>{_pct(v)}, beyond the axis</title></polygon>')
 
-    # Period labels along the bottom, first-to-latest.
+    # Period labels along the bottom, thinned to what fits. Forty quarters at the width
+    # of "Q2 26" would overprint into a grey band, so every nth is drawn and the rest are
+    # left to the dots. The last point always keeps its label, because the period a
+    # reader is standing on is the one they need named.
+    every = max(1, -(-n // MAX_LABELS))
     for i, p in enumerate(points):
+        if i % every and i != n - 1:
+            continue
         out.append(f'<text x="{x_at(i):.1f}" y="{TOP + plot_h + 16:.1f}" font-size="8.5"'
                    f' text-anchor="middle" fill="{P.stale}" font-family="{MONO}">'
                    f'{html.escape(str(p.get("label") or ""))}</text>')

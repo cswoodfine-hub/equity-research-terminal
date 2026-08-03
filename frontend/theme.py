@@ -213,7 +213,7 @@ h3 {{ font-size: 0.9rem; }}
 
 /* Section rule: a hairline and a caps label, never a card. */
 .sec {{
-  display: flex; align-items: baseline; justify-content: space-between;
+  display: flex; align-items: baseline; justify-content: flex-start;
   border-bottom: 1px solid var(--rule-strong);
   padding: 0 0 0.2rem; margin: 0;
 }}
@@ -232,7 +232,18 @@ h3 {{ font-size: 0.9rem; }}
 /* Wraps rather than overlapping. At half the page width a long count ran under its own
    label, and "MAP16 sized by revenue" is two facts printed on top of each other. */
 .sec-count {{ font-size: 11px; color: var(--muted); font-family: var(--font-mono);
-             text-align: right; min-width: 0; }}
+             text-align: right; min-width: 0; margin-left: auto; }}
+/* The period a section's figures are measured over, said loudly enough that two
+   sections on different bases cannot be read as one. A quarter's revenue sitting above
+   a year's free cash flow is the case: same tiles, same weight, and the only thing
+   between them was muted text at the far right of the rule. */
+.sec-basis {{
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+  color: var(--text); border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small); padding: 1px 6px;
+  margin-left: 0.6rem; flex: 0 0 auto; position: relative; top: -1px;
+}}
 
 /* Identity strip (legacy, used by error paths before the top bar mounts). */
 .ident {{ display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; }}

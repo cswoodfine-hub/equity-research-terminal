@@ -188,8 +188,13 @@ def test_trend_has_no_hole_where_a_fourth_quarter_belongs(loaded):
     labels = [p["label"] for p in trend]
 
     assert "Q4 25" in labels and "Q4 24" in labels
-    assert all(p["revenue_growth"] is not None for p in trend)
     assert all(p["net_margin"] is not None for p in trend)
+    # Growth wherever a year-earlier quarter exists to divide by, which is every quarter
+    # but the first four: the trend now runs the whole stored history rather than the
+    # last nine points, so it begins where the data begins and nothing precedes it.
+    assert all(p["revenue_growth"] is not None for p in trend[4:])
+    fourths = [p for p in trend[4:] if p["label"].startswith("Q4")]
+    assert fourths and all(p["revenue_growth"] is not None for p in fourths)
 
 
 def test_trend_growth_compares_the_same_quarter_not_the_one_before(loaded):
@@ -211,14 +216,21 @@ def test_the_extra_stored_year_gives_the_oldest_shown_year_its_growth(loaded):
     than the growth line missing its first year. Growth still comes only from a genuinely
     adjacent prior (see _prior_period), never whatever happens to be nearest."""
     annual = financials_view.build_statements(loaded, "NVO", basis="annual")["trend"]
-    assert annual[0]["revenue_growth"] is not None   # starts with growth, not a gap
+    # The oldest year on file has nothing before it to divide by. Every year after it
+    # does, including the one that used to be the oldest shown before the window opened
+    # onto the whole history.
+    assert annual[0]["revenue_growth"] is None
+    assert all(p["revenue_growth"] is not None for p in annual[1:])
     assert annual[0]["net_margin"] is not None
     assert annual[-1]["revenue_growth"] is not None
 
 
 def test_trend_matches_a_52_week_filers_shifting_quarter_end(loaded):
     trend = financials_view.build_statements(loaded, "JNJ", basis="quarterly")["trend"]
-    assert all(p["revenue_growth"] is not None for p in trend[1:])
+    # A 52/53 week filer moves its quarter end by a day or two a year, so the year-ago
+    # match is by nearest date rather than by exact one. Every quarter with a year of
+    # history behind it in the series finds its comparison.
+    assert all(p["revenue_growth"] is not None for p in trend[4:])
 
 
 def test_prior_period_rejects_a_date_more_than_a_fortnight_out():
@@ -231,3 +243,79 @@ def test_prior_period_takes_the_nearest_candidate():
               ("2026-03-31", statements.Q): 3.0}
     assert financials_view._prior_period(
         series, ("2026-03-31", statements.Q)) == ("2025-03-29", statements.Q)
+
+
+# --- 52/53 week calendars ---------------------------------------------------
+# A filer on a 52/53 week year closes its periods on a fixed weekday, so a period end
+# wanders either side of the month boundary. Every date here is a real one.
+
+@pytest.mark.parametrize("period_end, expected", [
+    # Johnson & Johnson. The third quarter of 2017 closed on 1 October and the second of
+    # 2018 on 1 July; read by calendar month both land a quarter late.
+    ("2017-10-01", "Q3 17"),
+    ("2018-07-01", "Q2 18"),
+    ("2023-10-01", "Q3 23"),
+    # And the ordinary cases still read as themselves.
+    ("2017-12-31", "Q4 17"),
+    ("2026-06-28", "Q2 26"),
+    ("2025-09-30", "Q3 25"),
+])
+def test_a_quarter_is_labelled_by_the_month_it_closes_nearest(period_end, expected):
+    assert financials_view._period_label(
+        period_end, statements.Q, "3M", 12) == expected
+
+
+@pytest.mark.parametrize("period_end, expected", [
+    # Johnson & Johnson's fiscal 2011 closed on 1 January 2012 and its 2016 on
+    # 1 January 2017. Taken from the calendar year each collided with the year after it.
+    ("2012-01-01", "FY11"),
+    ("2017-01-01", "FY16"),
+    ("2023-01-01", "FY22"),
+    ("2012-12-30", "FY12"),
+    ("2025-12-28", "FY25"),
+])
+def test_a_year_is_labelled_by_the_year_it_closes_nearest(period_end, expected):
+    assert financials_view._period_label(
+        period_end, statements.FY, "12M", 12) == expected
+
+
+def test_a_balance_date_snaps_the_same_way():
+    assert financials_view._period_label(
+        "2023-01-01", statements.INSTANT, None, 12) == "Dec 22"
+
+
+def test_a_filer_whose_year_does_not_end_in_december_is_unaffected():
+    """The snap is about the day of the month, not the month, so a June year end still
+    counts its quarters from July."""
+    assert financials_view._period_label(
+        "2025-09-30", statements.Q, "3M", 6) == "Q1 26"
+
+
+def test_two_dates_a_day_apart_are_one_period():
+    """Exelixis carries its June 2016 quarter at 36.3m under 2016-06-30 and again, to
+    the cent, under 2016-07-01. The later date wins, being the more recent filing's
+    view of where the quarter ended."""
+    collapsed = financials_view.collapse_adjacent({
+        ("2016-06-30", statements.Q): 36.3,
+        ("2016-07-01", statements.Q): 36.3,
+        ("2016-09-30", statements.Q): 62.2,
+    })
+    assert list(collapsed) == [("2016-07-01", statements.Q),
+                               ("2016-09-30", statements.Q)]
+
+
+def test_two_real_periods_are_never_collapsed():
+    """Consecutive quarters are three months apart and a year is twelve. Only a date
+    that has moved by a day or two is the same period seen twice."""
+    series = {("2025-03-31", statements.Q): 1.0,
+              ("2025-06-30", statements.Q): 2.0,
+              ("2025-09-30", statements.Q): 3.0}
+    assert financials_view.collapse_adjacent(series) == series
+
+
+def test_a_quarter_and_a_year_ending_the_same_day_both_survive():
+    """A fourth quarter and its fiscal year close on the same date and are different
+    facts. The collapse is within one period type, never across two."""
+    series = {("2025-12-31", statements.Q): 25.0,
+              ("2025-12-31", statements.FY): 100.0}
+    assert financials_view.collapse_adjacent(series) == series
