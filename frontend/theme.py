@@ -865,7 +865,7 @@ h3 {{ font-size: 0.9rem; }}
 /* The revenue donuts read at a glance and do not get better with size. Left to scale to
    the column they came out near five hundred pixels tall each and were most of the tab;
    capped, they still carry every label and the rest of the page fits behind them. */
-.mix-donut svg {{ max-height: clamp(190px, calc(100vh - 520px), 300px);
+.mix-donut svg {{ max-height: clamp(160px, calc(100vh - 560px), 240px);
                  width: auto; max-width: 100%; }}
 .mix-donut {{ display: flex; justify-content: center; }}
 
@@ -873,8 +873,14 @@ h3 {{ font-size: 0.9rem; }}
    products, which is four hundred and seventy pixels of cards before the tables under
    them begin; the component sizes its own iframe, so the cap goes on the slot. */
 [data-testid="stElementContainer"]:has(iframe[title$="prodcards"]) {{
-  max-height: clamp(11rem, calc(100vh - 500px), 24rem);
+  max-height: clamp(9rem, calc(100vh - 590px), 17rem);
   overflow-y: auto; scrollbar-width: thin;
+}}
+/* The detail panel under the cards takes what is left of the screen, not what its own
+   table wants. Medicare demand runs to forty drugs and was the tallest thing on the tab
+   once the cards were capped. */
+[data-baseweb="tab-panel"]:has(.no-rail) [data-testid="stDataFrame"] {{
+  max-height: clamp(8rem, calc(100vh - 600px), 16rem);
 }}
 
 /* Catalyst calendar. */

@@ -628,6 +628,32 @@ def news_row(item) -> str:
             f'{"</a>" if url else "</div>"}')
 
 
+# What each figure on a product card means, shown on hover. Every one is a measurement
+# whose basis is not obvious from the number: a revenue that is worldwide and tagged, a
+# date that is the last unexpired patent rather than a forecast.
+_WHY_APPROVED = ("The FDA approval date for this application, from the openFDA drugs "
+                 "register. The original approval, not a later supplement.")
+_WHY_REVENUE = ("Worldwide revenue for the latest full year as the filer tagged it in "
+                "the SEC Financial Statement Data Sets. Free data tags revenue for only "
+                "a few products, so \u201cno free data\u201d means the company did not "
+                "tag this one, never that it earned nothing.")
+_WHY_LOE = ("The date the product loses its US market: the latest unexpired patent or "
+            "exclusivity on file, or for a biologic the later of that and the 12-year "
+            "statutory floor. A statutory floor is a legal minimum, not a forecast, and "
+            "a listed patent can be shortened by a challenge.")
+_WHY_RANGE = ("Earliest to latest unexpired Orange Book patent. A generic can challenge "
+              "the earlier patents, so the wall is a window rather than one date. The "
+              "later end is the last patent standing.")
+_WHY_MODALITY = ("Small molecule or biologic, which decides the register the expiry "
+                 "comes from: the Orange Book for one, the Purple Book for the other.")
+_WHY_BASIS = "Which patent or exclusivity sets the date above."
+
+# How long after approval a small molecule can still hold unexpired protection. Beyond
+# it, nothing listed means nothing left rather than nothing published: five years of new
+# chemical entity exclusivity plus a patent term that rarely runs past the middle of the
+# product's second decade on sale.
+_LOE_LAPSED_AFTER_YEARS = 14
+
 # One screen of lifecycle studies. The rest are on the company's own Pipeline and
 # Catalysts tabs, and the section count states the true total.
 _POST_APPROVAL_SHOWN = 30
@@ -3190,45 +3216,30 @@ with main:
                         count_by_year[y] = count_by_year.get(y, 0) + 1
                         if r:
                             rev_by_year[y] = rev_by_year.get(y, 0) + r
-                # The cliff and the money on it, side by side. They share a year axis and
-                # the second is a subset of the first, so reading them is a comparison,
-                # and stacked they were four hundred pixels of scrolling between two
-                # charts that answer one question together.
-                if count_by_year or rev_by_year:
-                    _cliff_col, _risk_col = st.columns(2, gap="medium")
+                # The cliff, full width. The revenue-at-risk chart that used to sit
+                # beside it is gone: it weighted only the products whose revenue the
+                # filer happens to tag, which for Lilly is four of the fourteen expiring
+                # in the window, and a bar chart of a quarter of the truth read as the
+                # whole of it. The count below hides nothing, because it draws every
+                # product with a published expiry whether or not its revenue is known.
+                if count_by_year:
                     years = list(range(today.year, today.year + 11))
-                    with _cliff_col:
-                        if count_by_year:
-                            section("Loss of exclusivity by year", "products, next 10 years")
-                            bars = [{"label": f"'{y % 100:02d}",
-                                     "value": count_by_year.get(y, 0), "colour": TK.DOWN,
-                                     "show_value": count_by_year.get(y, 0) > 0}
-                                    for y in years]
-                            R.show(CH.bar_chart(bars, 640, 150,
-                                                value_fmt=lambda v: str(int(v))),
-                                   css_class="chart-mount stretch")
-                            note("Every marketed product losing US exclusivity that year, "
-                                 "expiries from the Orange and Purple Books, counted "
-                                 "whether or not its revenue is tagged. A small molecule "
-                                 "is placed at its latest patent, a biologic at the later "
-                                 "of its listed expiry and the 12-year floor. A product "
-                                 "with no published expiry cannot be placed and is left "
-                                 "out, never estimated.")
-                    with _risk_col:
-                        if rev_by_year:
-                            section("Revenue at risk by year",
-                                    f"tagged products only, {rev_unit} bn")
-                            bars = [{"label": f"'{y % 100:02d}",
-                                     "value": rev_by_year.get(y, 0) / 1e9}
-                                    for y in years]
-                            R.show(CH.bar_chart(bars, 640, 150,
-                                                value_fmt=lambda v: T.num(v, 1)),
-                                   css_class="chart-mount stretch")
-                            note("The subset of the cliff beside this whose product "
-                                 "revenue is tagged in the SEC data sets, latest reported "
-                                 "held flat. Free data tags revenue for only a few "
-                                 "products, so this understates the money at risk and is "
-                                 "a floor, not the total.")
+                    section("Loss of exclusivity by year", "products, next 10 years")
+                    bars = [{"label": f"'{y % 100:02d}",
+                             "value": count_by_year.get(y, 0), "colour": TK.DOWN,
+                             "show_value": count_by_year.get(y, 0) > 0}
+                            for y in years]
+                    R.show(CH.bar_chart(bars, 1100, 118,
+                                        value_fmt=lambda v: str(int(v))),
+                           css_class="chart-mount stretch")
+                    note("Every marketed product losing US exclusivity that year, "
+                         "expiries from the Orange and Purple Books, counted whether or "
+                         "not its revenue is tagged. A small molecule is placed at its "
+                         "latest patent, a biologic at the later of its listed expiry "
+                         "and the 12-year floor. A product with no published expiry "
+                         "cannot be placed and is left out, never estimated: open its "
+                         "card to see whether that is protection already lapsed or "
+                         "nothing published yet.")
 
                 section("Products", f"{len(prods)}")
 
@@ -3248,22 +3259,58 @@ with main:
                     is_range = cls == "small" and ey and y and ey != y
                     loe_label = "exclusivity" if is_range else "exclusivity to"
                     loe_txt = f'{ey}–{y}' if is_range else (f'{y}{to_loe}' if y else "—")
-                    basis = (f'<div class="pf-row"><span class="pf-k"></span>'
+                    # Where there is no expiry, say which kind of nothing it is. The
+                    # Orange Book lists only unexpired patents and unexpired
+                    # exclusivities, so no rows means either every one of them has run
+                    # out or none was ever listed, and those are opposite facts. Age
+                    # separates them: a small molecule's protection cannot outlast its
+                    # approval by more than about fourteen years, so an older product
+                    # with nothing listed has lost it, and a recent one has simply not
+                    # had anything published. Neither is a date and neither is guessed.
+                    status, status_why = "", ""
+                    if not y:
+                        approved_year = int((p.get("approved") or "0000")[:4] or 0)
+                        age = today.year - approved_year if approved_year else 0
+                        if approved_year and age >= _LOE_LAPSED_AFTER_YEARS:
+                            status = "protection lapsed"
+                            status_why = (f"Approved {age} years ago and no unexpired "
+                                          "patent or exclusivity is listed, so the "
+                                          "protection it had has run out. Generics or "
+                                          "biosimilars may already be on sale. Not a "
+                                          "date: the register says only that nothing "
+                                          "unexpired remains.")
+                        else:
+                            status = "none listed"
+                            status_why = ("No patent or exclusivity is published for "
+                                          "this product yet. Recently approved products "
+                                          "are often listed late, so this is an absence "
+                                          "of data rather than an absence of protection.")
+                    basis = (f'<div class="pf-row" title="{html_escape(_WHY_BASIS)}">'
+                             f'<span class="pf-k"></span>'
                              f'<span class="pf-v none" style="font-size:9px">'
                              f'{html_escape(p.get("loe_basis") or "")}</span></div>'
                              if p.get("loe_basis") else "")
+                    if status:
+                        basis = (f'<div class="pf-row" title="{html_escape(status_why)}">'
+                                 f'<span class="pf-k"></span>'
+                                 f'<span class="pf-v none" style="font-size:9px">'
+                                 f'{status}</span></div>')
                     return (
                         f'<div class="pf-card {cls}">'
                         f'<div class="pf-head">'
                         f'<span class="pf-brand">{html_escape(p["brand"])}</span>'
-                        f'<span class="pf-mod">{html_escape(p.get("modality") or "")}</span></div>'
+                        f'<span class="pf-mod" title="{html_escape(_WHY_MODALITY)}">'
+                        f'{html_escape(p.get("modality") or "")}</span></div>'
                         f'<div class="pf-generic">{html_escape(p.get("generic") or "")}</div>'
-                        f'<div class="pf-row"><span class="pf-k">approved</span>'
+                        f'<div class="pf-row" title="{html_escape(_WHY_APPROVED)}">'
+                        f'<span class="pf-k">approved</span>'
                         f'<span class="pf-v">{(p.get("approved") or "—")[:10]}</span></div>'
-                        f'<div class="pf-row"><span class="pf-k">revenue</span>'
+                        f'<div class="pf-row" title="{html_escape(_WHY_REVENUE)}">'
+                        f'<span class="pf-k">revenue</span>'
                         f'<span class="pf-v{"" if p.get("revenue") is not None else " none"}">'
                         f'{rev_txt}</span></div>'
-                        f'<div class="pf-row"><span class="pf-k">{loe_label}</span>'
+                        f'<div class="pf-row" title="{html_escape(_WHY_RANGE if is_range else _WHY_LOE)}">'
+                        f'<span class="pf-k">{loe_label}</span>'
                         f'<span class="pf-v {"near" if near else ""}">'
                         f'{loe_txt}</span></div>'
                         f'{basis}</div>')
