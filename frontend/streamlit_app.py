@@ -120,6 +120,11 @@ DISPLAY_PHASES = [p for p in PIPELINE_PHASES
 # the stored history are hidden rather than drawn short.
 PRICE_WINDOWS = [("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", 1826),
                  ("Max", None)]
+# The price chart's height. The component takes a fixed pixel height rather than sizing
+# itself, so this is set against what the tab has left once the heading, the one control
+# row, the window and figures row and the legend are drawn: enough that the chart is the
+# tab and low enough that it ends above the fold on a laptop.
+PRICE_CHART_HEIGHT = 430
 # Bar interval, coarsest ask first as a trader reads them. Each maps to (base series held
 # on the backend, pandas resample rule or None, is-intraday). 15m/30m resample from the
 # 5m base, 4H from the 60m base, 1W/1M from daily; the rest are a base as-is.
@@ -152,21 +157,6 @@ def api_get(base: str, path: str):
 def api_post(base: str, path: str, timeout: int = 300):
     request = urllib.request.Request(base.rstrip("/") + path, method="POST")
     with urllib.request.urlopen(request, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
-
-
-def api_post_json(base: str, path: str, body: dict):
-    data = json.dumps(body).encode("utf-8")
-    request = urllib.request.Request(
-        base.rstrip("/") + path, data=data, method="POST",
-        headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(request, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8"))
-
-
-def api_delete(base: str, path: str):
-    request = urllib.request.Request(base.rstrip("/") + path, method="DELETE")
-    with urllib.request.urlopen(request, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -602,6 +592,40 @@ def _readout_lead(readout, ticker: str) -> dict:
         "evidence": readout.get("quote") or "",
         "url": readout.get("url") or readout.get("source_url") or "",
     }
+
+
+# Where a news item came from, as the chip says it. EDGAR is the fallback because a row
+# with no source is an SEC filing: the FDA feeds all name themselves.
+_NEWS_SOURCES = {"fda_press": "FDA press", "fda_drugs": "FDA drug",
+                 "fda_safety": "FDA safety"}
+# One screen of headlines. The rest are a scroll rather than a click, and the note says
+# how many were cut.
+_NEWS_SHOWN = 40
+
+
+def news_row(item) -> str:
+    """One announcement as a line: when, what it says, and who published it.
+
+    The whole row is the anchor, so the headline is the link rather than a cell called
+    "Link" sitting beside it.
+    """
+    url = item.get("url")
+    source = _NEWS_SOURCES.get(item.get("source"), "EDGAR")
+    # "8-K: 8-K" is what the fetcher stores when it cannot resolve the filing's item
+    # description, which is most of them for some filers. Said once it reads as the form
+    # it is; said twice it reads as a rendering fault.
+    title = (item.get("title") or "").strip()
+    head, _, tail = title.partition(": ")
+    if tail.strip() == head.strip():
+        title = head
+    open_tag = (f'<a class="fitem link" href="{html_escape(url)}" target="_blank" '
+                'rel="noopener noreferrer">' if url else '<div class="fitem">')
+    return (f'{open_tag}'
+            f'<span class="d">{html_escape((item.get("published_at") or "")[:10])}</span>'
+            f'<span class="t">{html_escape(title)}</span>'
+            f'<span class="why"></span>'
+            f'<span class="s">{html_escape(source)}</span>'
+            f'{"</a>" if url else "</div>"}')
 
 
 def change_row(item) -> str:
@@ -1453,6 +1477,14 @@ with bar[3]:
             f'<div class="topbar-run">last refresh {latest_run["finished_at"]} UTC'
             f' · <span class="{cls}">{latest_run.get("status")}</span></div>',
             unsafe_allow_html=True)
+    elif latest_run.get("started_at"):
+        # A run with no finish is one still going, or one whose process died holding the
+        # row open. Both read as "no refresh run yet" before, which told a reader their
+        # data had never been pulled when in fact it had been pulled minutes ago.
+        st.markdown(
+            f'<div class="topbar-run">refresh {html_escape(latest_run.get("status") or "running")}'
+            f' since {html_escape(str(latest_run["started_at"]))} UTC</div>',
+            unsafe_allow_html=True)
     else:
         st.markdown('<div class="topbar-run">no refresh run yet</div>',
                     unsafe_allow_html=True)
@@ -1672,7 +1704,13 @@ with main:
                ("pipeline", "Pipeline")]
     if _engine == "pharma" or (_engine != "cellgene" and _sells):
         _wanted.append(("portfolio", "Portfolio"))
-    _wanted += [("catalysts", "Catalysts"), ("themes", "Themes")]
+    _wanted.append(("catalysts", "Catalysts"))
+    # Themes reads coverage by modality rather than by ticker, which is the question the
+    # biotech and cell and gene engines exist to ask. Every big pharma company spans every
+    # modality, so on that engine the tab grouped all eighteen under most headings and
+    # answered nothing a reader came for.
+    if _engine != "pharma":
+        _wanted.append(("themes", "Themes"))
     if _engine == "cellgene" or not _sells or _engine not in ("pharma", "biotech"):
         _wanted.append(("runway", "Runway"))
     _wanted += [("comps", "Comps"), ("news", "News")]
@@ -1684,7 +1722,7 @@ with main:
     financials_tab = _panels["financials"]
     pipeline_tab = _panels["pipeline"]
     catalysts_tab = _panels["catalysts"]
-    themes_tab = _panels["themes"]
+    themes_tab = _panels.get("themes")
     comps_tab = _panels["comps"]
     news_tab = _panels["news"]
     portfolio_tab = _panels.get("portfolio")
@@ -2134,15 +2172,25 @@ with main:
 
     # --- Prices ----------------------------------------------------------
     with prices_tab:
+        # Everything above the chart on one line. The tab used to stack a heading, a
+        # refresh button, an interval row, a window row, a stats strip and a row of
+        # toggles before the chart began, which put the chart itself below the fold on
+        # the tab whose whole subject is the chart.
         section("Price", prices.get("currency") or "")
-        if st.button("Refresh prices", key="refresh_prices"):
-            run_refresh(api_base, f"/refresh?ticker={urllib.parse.quote(ticker)}",
-                        "price_run", f"Refreshing {ticker} from Yahoo")
-            st.rerun()
+        ctrl_int, ctrl_view, ctrl_events, ctrl_grid, ctrl_refresh = st.columns(
+            [3.2, 1.3, 0.8, 0.7, 1.0], vertical_alignment="center")
+        with ctrl_events:
+            show_events = st.toggle("Events", value=True, key=f"events_{ticker}")
+        with ctrl_grid:
+            show_grid = st.toggle("Grid", value=True, key=f"grid_{ticker}")
+        with ctrl_refresh:
+            if st.button("Refresh", key="refresh_prices", width="stretch"):
+                run_refresh(api_base, f"/refresh?ticker={urllib.parse.quote(ticker)}",
+                            "price_run", f"Refreshing {ticker} from Yahoo")
+                st.rerun()
 
         # The bar interval and the line/candle view. The window radio comes after the base
         # series loads, since which windows can be filled depends on how far it reaches.
-        ctrl_int, ctrl_view = st.columns([3.6, 1.4])
         with ctrl_int:
             interval = st.segmented_control(
                 "Interval", PRICE_INTERVALS, default="1D", key="price_interval_v2",
@@ -2194,8 +2242,13 @@ with main:
             # Open on 5Y rather than Max, so the daily chart does not start fully zoomed
             # out over ten years; Max and pan reach the older bars.
             default_win = labels.index("5Y") if "5Y" in labels else len(labels) - 1
-            span = st.radio("Window", labels, index=default_win, horizontal=True,
-                            key="price_window", label_visibility="collapsed")
+            # The window picker and the figures it describes share a row. Stacked they
+            # were two bands of chrome between the controls and the chart, and the
+            # figures are a reading of the window rather than a separate subject.
+            win_col, stat_col = st.columns([2.1, 3.4], vertical_alignment="center")
+            with win_col:
+                span = st.radio("Window", labels, index=default_win, horizontal=True,
+                                key="price_window", label_visibility="collapsed")
             days = dict(choices)[span]
 
             windowed = (bar_frame if days is None else
@@ -2206,20 +2259,21 @@ with main:
             low, high = windowed["low"].min(), windowed["high"].max()
             low = windowed["close"].min() if pd.isna(low) else low
             high = windowed["close"].max() if pd.isna(high) else high
-            st.markdown(
-                '<div class="stats">'
-                f'<span class="stat"><span class="k">last</span>'
-                f'<span class="v">{T.num(latest_close, 2)}</span></span>'
-                f'<span class="stat"><span class="k">as of</span>'
-                f'<span class="v">{str(chart_rows[-1]["as_of"])}</span></span>'
-                f'<span class="stat"><span class="k">{span} change</span>'
-                f'<span class="v {"risk" if (change or 0) < 0 else ""}">'
-                f'{T.pct(change)}</span></span>'
-                f'<span class="stat"><span class="k">{span} range</span>'
-                f'<span class="v">{T.num(low, 2)} to {T.num(high, 2)}</span></span>'
-                f'<span class="stat"><span class="k">bars</span>'
-                f'<span class="v">{len(windowed)}</span></span></div>',
-                unsafe_allow_html=True)
+            with stat_col:
+                st.markdown(
+                    '<div class="stats stats-tight">'
+                    f'<span class="stat"><span class="k">last</span>'
+                    f'<span class="v">{T.num(latest_close, 2)}</span></span>'
+                    f'<span class="stat"><span class="k">as of</span>'
+                    f'<span class="v">{str(chart_rows[-1]["as_of"])}</span></span>'
+                    f'<span class="stat"><span class="k">{span} change</span>'
+                    f'<span class="v {"risk" if (change or 0) < 0 else ""}">'
+                    f'{T.pct(change)}</span></span>'
+                    f'<span class="stat"><span class="k">{span} range</span>'
+                    f'<span class="v">{T.num(low, 2)} to {T.num(high, 2)}</span></span>'
+                    f'<span class="stat"><span class="k">bars</span>'
+                    f'<span class="v">{len(windowed)}</span></span></div>',
+                    unsafe_allow_html=True)
 
             # Major events on the chart, from the data rather than typed in: FDA approvals
             # (up arrow, below the bar) and any loss-of-exclusivity date inside the window
@@ -2238,10 +2292,10 @@ with main:
                     events.append({"date": appr["loe"], "label": f"{name} LOE",
                                    "kind": "loe"})
 
-            # A bidirectional lightweight-charts component: native two-finger zoom that
-            # stretches the sticks and auto-fits the y-axis, plus trendlines you can draw,
-            # drag and delete. The line set round-trips back and is persisted as one
-            # annotation row per ticker, so drawings survive a refresh.
+            # A lightweight-charts component with native two-finger zoom that stretches
+            # the sticks and auto-fits the y-axis. Drawing trendlines on it is gone: it
+            # did not work, and the toggle, its Clear button and the annotation
+            # round-trip cost a control row on a tab that has to fit one screen.
             data = price_chart.series_data(chart_rows, view, intraday)
             # "rule" draws the chart's gridlines only, so it takes the faint token: a
             # price chart draws far more lines than a table draws borders, and at the
@@ -2249,27 +2303,6 @@ with main:
             theme = {"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.RULE_FAINT,
                      "rule_strong": TK.RULE_STRONG, "up": TK.UP, "down": TK.DOWN,
                      "flag": TK.FLAG}
-
-            saved = api_get(api_base, f"/annotations?ticker={urllib.parse.quote(ticker)}"
-                                      "&entity_type=price_line")
-            stored_id = saved[0]["id"] if saved else None
-            try:
-                stored_lines = json.loads(saved[0]["body"]) if saved else []
-            except (ValueError, TypeError):
-                stored_lines = []
-
-            draw_row = st.columns([1.2, 1.1, 1.6, 1.2, 2.4])
-            with draw_row[0]:
-                show_events = st.toggle("Events", value=True, key=f"events_{ticker}")
-            with draw_row[1]:
-                show_grid = st.toggle("Grid", value=True, key=f"grid_{ticker}")
-            with draw_row[2]:
-                draw_mode = st.toggle("Draw trendlines", key=f"drawtoggle_{ticker}")
-            with draw_row[3]:
-                if stored_lines and st.button("Clear lines", key=f"clearlines_{ticker}"):
-                    if stored_id is not None:
-                        api_delete(api_base, f"/annotations/{stored_id}")
-                    st.rerun()
 
             # Gridlines off is the background colour rather than a transparent value,
             # which the chart library would fall back to its own default for.
@@ -2279,35 +2312,26 @@ with main:
             # clean.
             markers = price_chart.event_markers(
                 chart_rows, events if show_events else [], intraday)
-            result = drawchart.draw_chart(
+            drawchart.draw_chart(
                 data=data, markers=markers, mode=view, intraday=intraday,
-                lines=stored_lines, draw_mode=bool(draw_mode), theme=theme,
-                view_key=f"{ticker}|{interval}|{view}", height=560,
+                lines=[], draw_mode=False, theme=theme,
+                view_key=f"{ticker}|{interval}|{view}", height=PRICE_CHART_HEIGHT,
                 key=f"drawchart_{ticker}")
-            # The component returns the current line set; persist it only when it changes,
-            # replacing the single stored row (a converging round-trip, no loop).
-            if result is not None and result != stored_lines:
-                if stored_id is not None:
-                    api_delete(api_base, f"/annotations/{stored_id}")
-                if result:
-                    api_post_json(api_base, "/annotations", {
-                        "ticker": ticker, "entity_type": "price_line",
-                        "entity_id": None, "body": json.dumps(result)})
-                st.rerun()
 
-            shown = len(markers)
-            st.markdown(
-                '<div class="byline">'
-                '<span style="color:var(--up)">▲</span> FDA approval'
-                '&nbsp;&nbsp;<span style="color:var(--down)">▼</span> loss of '
-                f'exclusivity &nbsp;·&nbsp; {shown} on this view. Read from the '
-                'approvals and exclusivity data; a date outside the loaded window is not '
-                'marked here.</div>', unsafe_allow_html=True)
+            legend = ('<span style="color:var(--up)">▲</span> FDA approval'
+                      '&nbsp;&nbsp;<span style="color:var(--down)">▼</span> loss of '
+                      f'exclusivity &nbsp;·&nbsp; {len(markers)} on this view')
+            detail = ("Markers are read from the approvals and exclusivity data; a date "
+                      "outside the loaded window is not drawn. ")
             if intraday:
-                st.markdown('<div class="byline">Intraday is a rolling window from the free '
-                            'feed: minutes reach back about two months, hours about two '
-                            'years. Older bars are unavailable, not missing.</div>',
-                            unsafe_allow_html=True)
+                detail += ("Intraday is a rolling window from the free feed: minutes "
+                           "reach back about two months, hours about two years. Older "
+                           "bars are unavailable, not missing.")
+            # Legend visible, the caveats folded. Two stacked bylines under the chart were
+            # sixty pixels of the height the chart wanted.
+            st.markdown(f'<div class="byline chart-legend">{legend}</div>',
+                        unsafe_allow_html=True)
+            note(detail)
 
     # --- Financials ------------------------------------------------------
     with financials_tab:
@@ -2425,9 +2449,18 @@ with main:
 
     # --- Comps -----------------------------------------------------------
     with comps_tab:
+        # Comparables means comparable. Every table, chart and screen on this tab is cut
+        # to the open engine's own cohort: ranking Lilly's net margin against a
+        # clinical-stage biotech with no revenue is not a comparison, and a scatter that
+        # mixes the two puts eighteen large caps in one corner and the rest on the axis.
+        # The engine's ticker list is already resolved above for the picker, so this
+        # needs no second request.
+        _peers = set(tickers)
+        _peer_rows = lambda rows: [r for r in rows if r.get("ticker") in _peers]
+
         # --- R&D productivity, before the valuation comps ---------------------
         board = api_get(api_base, "/productivity/scorecard")
-        placed = board["placed"]
+        placed = _peer_rows(board["placed"])
         if placed:
             section("R&D against commercial performance", f"{len(placed)} placed")
             st.caption(
@@ -2448,7 +2481,7 @@ with main:
                        "rank one company on two measures against another on five."
                        if board["gaps"] else ""))
 
-        prod = api_get(api_base, "/productivity")
+        prod = _peer_rows(api_get(api_base, "/productivity"))
         measured = [r for r in prod if r["fresh_share"] is not None]
         section("R&D productivity", f"{len(measured)} of {len(prod)} measurable")
         st.caption(
@@ -2520,7 +2553,8 @@ with main:
                 "trials table keeps studies that are still running, so the early work "
                 "behind an approved drug has already left it.")
 
-        section("Comparables", "18 companies")
+        section("Comparables",
+                f'{len(_peers)} in {_ENGINE_LABELS.get(engine, "coverage").lower()}')
         if st.button("Refresh all", key="refresh_all"):
             run_refresh(api_base, "/refresh?scope=all", "all_run",
                         "Refreshing the universe")
@@ -2531,7 +2565,8 @@ with main:
         # report in different currencies still compare.
         ct = api_get(api_base, "/comps/trend")
         ct_labels = ct.get("labels") or []
-        ct_by = {c["ticker"]: c for c in ct.get("companies") or []}
+        ct_by = {c["ticker"]: c for c in ct.get("companies") or []
+                 if c["ticker"] in _peers}
         if ct_labels and ct_by:
             section("Compare over time", "revenue growth or net margin")
             # Pills, not a radio and a dropdown: every company is one click away and the
@@ -2569,10 +2604,10 @@ with main:
                 state("Pick companies to compare",
                       "Choose one or more from the control above.")
 
-        comps = api_get(api_base, "/comps")
-        screen_rows = {r["ticker"]: r for r in api_get(api_base, "/screen")}
+        comps = _peer_rows(api_get(api_base, "/comps"))
+        screen_rows = {r["ticker"]: r for r in _peer_rows(api_get(api_base, "/screen"))}
         spark_rows = {p["ticker"]: p["closes"] for p in
-                      api_get(api_base, "/price-grid?days=90")}
+                      _peer_rows(api_get(api_base, "/price-grid?days=90"))}
         # The scatter and heatmap below keep reading this clean-named frame.
         display = pd.DataFrame([{
             "Ticker": c["ticker"], "Name": c["name"], "FY": c["fiscal_year"],
@@ -2636,7 +2671,7 @@ with main:
         # A matrix of every company against every phase, so it belongs with the
         # other cross-sectional views rather than in a tab that is otherwise one
         # company at a time.
-        rows = api_get(api_base, "/pipeline")
+        rows = _peer_rows(api_get(api_base, "/pipeline"))
         unattributed = sum(r.get("unattributed", 0) for r in rows)
         section("Compounds in development by phase",
                 "lead sponsored" + (f" · {unattributed} trials unattributed"
@@ -3133,33 +3168,45 @@ with main:
                         count_by_year[y] = count_by_year.get(y, 0) + 1
                         if r:
                             rev_by_year[y] = rev_by_year.get(y, 0) + r
-                if count_by_year:
+                # The cliff and the money on it, side by side. They share a year axis and
+                # the second is a subset of the first, so reading them is a comparison,
+                # and stacked they were four hundred pixels of scrolling between two
+                # charts that answer one question together.
+                if count_by_year or rev_by_year:
+                    _cliff_col, _risk_col = st.columns(2, gap="medium")
                     years = list(range(today.year, today.year + 11))
-                    section("Loss of exclusivity by year", "products, next 10 years")
-                    bars = [{"label": f"'{y % 100:02d}",
-                             "value": count_by_year.get(y, 0),
-                             "colour": TK.DOWN, "show_value": count_by_year.get(y, 0) > 0}
-                            for y in years]
-                    R.show(CH.bar_chart(bars, 900, 190, value_fmt=lambda v: str(int(v))))
-                    st.markdown(
-                        '<div class="byline">Every marketed product losing US exclusivity '
-                        'that year, expiries from the Orange and Purple Books, counted whether '
-                        'or not its revenue is tagged. A small molecule is placed at its latest '
-                        'patent, a biologic at the later of its listed expiry and the 12-year '
-                        'floor. A product with no published expiry cannot be placed and is left '
-                        'out, never estimated.</div>',
-                        unsafe_allow_html=True)
-                if rev_by_year:
-                    section("Revenue at risk by year", f"tagged products only, {rev_unit} bn")
-                    bars = [{"label": f"'{y % 100:02d}", "value": rev_by_year[y] / 1e9}
-                            for y in sorted(rev_by_year)]
-                    R.show(CH.bar_chart(bars, 900, 190, value_fmt=lambda v: T.num(v, 1)))
-                    st.markdown(
-                        '<div class="byline">The subset of the cliff above whose product '
-                        'revenue is tagged in the SEC data sets, latest reported held flat. '
-                        'Free data tags revenue for only a few products, so this understates '
-                        'the money at risk and is a floor, not the total.</div>',
-                        unsafe_allow_html=True)
+                    with _cliff_col:
+                        if count_by_year:
+                            section("Loss of exclusivity by year", "products, next 10 years")
+                            bars = [{"label": f"'{y % 100:02d}",
+                                     "value": count_by_year.get(y, 0), "colour": TK.DOWN,
+                                     "show_value": count_by_year.get(y, 0) > 0}
+                                    for y in years]
+                            R.show(CH.bar_chart(bars, 640, 180,
+                                                value_fmt=lambda v: str(int(v))),
+                                   css_class="chart-mount stretch")
+                            note("Every marketed product losing US exclusivity that year, "
+                                 "expiries from the Orange and Purple Books, counted "
+                                 "whether or not its revenue is tagged. A small molecule "
+                                 "is placed at its latest patent, a biologic at the later "
+                                 "of its listed expiry and the 12-year floor. A product "
+                                 "with no published expiry cannot be placed and is left "
+                                 "out, never estimated.")
+                    with _risk_col:
+                        if rev_by_year:
+                            section("Revenue at risk by year",
+                                    f"tagged products only, {rev_unit} bn")
+                            bars = [{"label": f"'{y % 100:02d}",
+                                     "value": rev_by_year.get(y, 0) / 1e9}
+                                    for y in years]
+                            R.show(CH.bar_chart(bars, 640, 180,
+                                                value_fmt=lambda v: T.num(v, 1)),
+                                   css_class="chart-mount stretch")
+                            note("The subset of the cliff beside this whose product "
+                                 "revenue is tagged in the SEC data sets, latest reported "
+                                 "held flat. Free data tags revenue for only a few "
+                                 "products, so this understates the money at risk and is "
+                                 "a floor, not the total.")
 
                 section("Products", f"{len(prods)}")
 
@@ -3265,72 +3312,78 @@ with main:
                         st.session_state["profile_asset"] = clicked.get("asset_id")
                         st.rerun()
 
-            # --- Medicare demand ---
-            # Revenue is what a drug earned; this is how many people took it. CMS Part D and
-            # Part B spending, matched to a marketed product by brand, is the real-world US
-            # demand the revenue line cannot show.
-            med = api_get(api_base, f"/companies/{ticker}/demand").get("drugs") or []
-            section("Medicare demand", "US Part D and Part B")
-            if not med:
-                state(f"No Medicare demand on file for {ticker}",
-                      "CMS publishes Part D and Part B spending by drug once a year, matched "
-                      "to a marketed product by brand on refresh. It covers US Medicare only, "
-                      "so a drug used mostly outside it or by under-65s reads low or absent. "
-                      "Press Refresh all if this looks empty.")
-            else:
-                def _yoy(d):
-                    cur, prior = d.get("spending"), d.get("prior_spending")
-                    if not cur or not prior:
-                        return "—"
-                    return f"{(cur / prior - 1) * 100:+.0f}%"
-                med_year = max((d["latest_year"] for d in med), default="")
-                frame = pd.DataFrame([{
-                    "Drug": d["brand"], "Where": d["part_label"],
-                    "Beneficiaries": (f"{d['beneficiaries']:,}"
-                                      if d.get("beneficiaries") is not None else "—"),
-                    "Claims": (f"{d['claims']:,}" if d.get("claims") is not None else "—"),
-                    "Spending $m": (T.num(d["spending"] / 1e6, 1)
-                                    if d.get("spending") is not None else "—"),
-                    "vs prior": _yoy(d), "Year": str(d["latest_year"])}
-                    for d in med[:25]])
-                st.dataframe(
-                    # Direction reads in colour: growth up, decline in oxblood, flat muted.
-                    frame.style.map(
-                        lambda v: (f"color:{T.P.data};font-weight:600" if v.startswith("+")
-                                   else f"color:{T.P.oxblood};font-weight:600"
-                                   if v.startswith("-") else f"color:{T.P.stale}"),
-                        subset=["vs prior"]),
-                    width="stretch", hide_index=True)
-                st.markdown(
-                    f'<div class="byline"><b>US Medicare only.</b> CMS Part D (retail '
-                    f'pharmacy) and Part B (given in a clinic) spending by drug, {med_year} '
-                    f'the latest year published, matched to a marketed product by brand. '
-                    f'Beneficiaries is distinct people, not prescriptions; a count CMS '
-                    f'suppressed for privacy reads as a dash, never zero. This is real-world '
-                    f'demand, a different lens from the reported revenue above, and it misses '
-                    f'commercial and ex-US volume entirely.</div>', unsafe_allow_html=True)
-
-            section("Product revenue", f"{len(curated)} from the filings")
-            if not curated:
-                state(f"No product revenue on file for {ticker}",
-                      "The SEC data sets carry revenue per product only where the "
-                      "filer tags a product axis. AbbVie tags none at all, and GSK and "
-                      "Regeneron spread theirs across segments in a way that cannot be "
-                      "resolved without adding them together.")
-            else:
-                for row in curated:
+            # The two tables at the foot of the tab, side by side. One is what the
+            # market paid and the other is how many people took it, read against each
+            # other rather than a screen apart.
+            _demand_col, _prodrev_col = st.columns(2, gap="medium")
+            with _demand_col:
+                # --- Medicare demand ---
+                # Revenue is what a drug earned; this is how many people took it. CMS Part D and
+                # Part B spending, matched to a marketed product by brand, is the real-world US
+                # demand the revenue line cannot show.
+                med = api_get(api_base, f"/companies/{ticker}/demand").get("drugs") or []
+                section("Medicare demand", "US Part D and Part B")
+                if not med:
+                    state(f"No Medicare demand on file for {ticker}",
+                          "CMS publishes Part D and Part B spending by drug once a year, matched "
+                          "to a marketed product by brand on refresh. It covers US Medicare only, "
+                          "so a drug used mostly outside it or by under-65s reads low or absent. "
+                          "Press Refresh all if this looks empty.")
+                else:
+                    def _yoy(d):
+                        cur, prior = d.get("spending"), d.get("prior_spending")
+                        if not cur or not prior:
+                            return "—"
+                        return f"{(cur / prior - 1) * 100:+.0f}%"
+                    med_year = max((d["latest_year"] for d in med), default="")
+                    frame = pd.DataFrame([{
+                        "Drug": d["brand"], "Where": d["part_label"],
+                        "Beneficiaries": (f"{d['beneficiaries']:,}"
+                                          if d.get("beneficiaries") is not None else "—"),
+                        "Claims": (f"{d['claims']:,}" if d.get("claims") is not None else "—"),
+                        "Spending $m": (T.num(d["spending"] / 1e6, 1)
+                                        if d.get("spending") is not None else "—"),
+                        "vs prior": _yoy(d), "Year": str(d["latest_year"])}
+                        for d in med[:25]])
+                    st.dataframe(
+                        # Direction reads in colour: growth up, decline in oxblood, flat muted.
+                        frame.style.map(
+                            lambda v: (f"color:{T.P.data};font-weight:600" if v.startswith("+")
+                                       else f"color:{T.P.oxblood};font-weight:600"
+                                       if v.startswith("-") else f"color:{T.P.stale}"),
+                            subset=["vs prior"]),
+                        width="stretch", hide_index=True)
                     st.markdown(
-                        f'<div class="fitem"><span class="d">FY{row["fiscal_year"]}'
-                        f'</span><span class="t">{html_escape(row["brand_name"])} '
-                        f'<span class="mono">{html_escape(row["internal_code"] or "")}'
-                        f'</span></span><span class="s">'
-                        f'{T.num(row["value"] / 1e9, 2)} {row["unit"] or ""}</span>'
-                        f'</div>', unsafe_allow_html=True)
-                st.markdown(
-                    '<div class="byline">Worldwide, as the filing tags it, from the SEC '
-                    'Financial Statement Data Sets. Nothing here is typed in: a figure '
-                    'is what the company reported or it is absent.</div>',
-                    unsafe_allow_html=True)
+                        f'<div class="byline"><b>US Medicare only.</b> CMS Part D (retail '
+                        f'pharmacy) and Part B (given in a clinic) spending by drug, {med_year} '
+                        f'the latest year published, matched to a marketed product by brand. '
+                        f'Beneficiaries is distinct people, not prescriptions; a count CMS '
+                        f'suppressed for privacy reads as a dash, never zero. This is real-world '
+                        f'demand, a different lens from the reported revenue above, and it misses '
+                        f'commercial and ex-US volume entirely.</div>', unsafe_allow_html=True)
+
+            with _prodrev_col:
+                section("Product revenue", f"{len(curated)} from the filings")
+                if not curated:
+                    state(f"No product revenue on file for {ticker}",
+                          "The SEC data sets carry revenue per product only where the "
+                          "filer tags a product axis. AbbVie tags none at all, and GSK and "
+                          "Regeneron spread theirs across segments in a way that cannot be "
+                          "resolved without adding them together.")
+                else:
+                    for row in curated:
+                        st.markdown(
+                            f'<div class="fitem"><span class="d">FY{row["fiscal_year"]}'
+                            f'</span><span class="t">{html_escape(row["brand_name"])} '
+                            f'<span class="mono">{html_escape(row["internal_code"] or "")}'
+                            f'</span></span><span class="s">'
+                            f'{T.num(row["value"] / 1e9, 2)} {row["unit"] or ""}</span>'
+                            f'</div>', unsafe_allow_html=True)
+                    st.markdown(
+                        '<div class="byline">Worldwide, as the filing tags it, from the SEC '
+                        'Financial Statement Data Sets. Nothing here is typed in: a figure '
+                        'is what the company reported or it is absent.</div>',
+                        unsafe_allow_html=True)
 
         # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
@@ -3382,19 +3435,18 @@ with main:
                   "FDA press, drug and safety feeds matched to this company. European "
                   "filers submit 6-K, not 8-K.")
         else:
-            _src = {"fda_press": "FDA press", "fda_drugs": "FDA drug",
-                    "fda_safety": "FDA safety"}
-            st.dataframe(
-                pd.DataFrame([{
-                    "Published": n["published_at"],
-                    "Source": _src.get(n.get("source"), "EDGAR"),
-                    "Title": n["title"], "Link": n["url"]} for n in news]),
-                width="stretch", hide_index=True,
-                column_config={"Link": st.column_config.LinkColumn("Link")})
-            st.markdown('<div class="byline">EDGAR 8-K and 6-K material events, plus '
-                        'the FDA press, drug and MedWatch feeds matched to this company '
-                        'by name or brand. The full FDA feed is on the Universe '
-                        'tab.</div>', unsafe_allow_html=True)
+            # The same list the rest of the app uses, not a spreadsheet. A grid widget
+            # gave a headline the same weight as a cell of a table, put the link in its
+            # own column as the word "Link", and looked like a different application from
+            # the tab beside it. Each row is now the anchor itself.
+            st.markdown('<div class="feed news">' + "".join(
+                news_row(n) for n in news[:_NEWS_SHOWN]) + "</div>",
+                unsafe_allow_html=True)
+            note("EDGAR 8-K and 6-K material events, plus the FDA press, drug and "
+                 "MedWatch feeds matched to this company by name or brand. The full FDA "
+                 "feed is on the Universe tab."
+                 + (f" Showing the {_NEWS_SHOWN} most recent of {len(news)}."
+                    if len(news) > _NEWS_SHOWN else ""))
 
         # --- Filing text changes ---
         # The numbers in a 10-K change on their own schedule; the words change once a
@@ -3425,100 +3477,102 @@ with main:
                         for p in s["added_passages"][:5]), unsafe_allow_html=True)
 
     # --- Themes: the universe read by modality rather than by ticker ------
-    with themes_tab:
-        payload = api_get(api_base, "/themes")
-        rows, cover = payload["themes"], payload["coverage"]
-        section("Modality themes across coverage", len(rows))
-        if not rows:
-            state("No themes derived yet",
-                  "Press Refresh all. Themes are read from what each drug is called, "
-                  "the stems in its INN, and the class statement its label opens with.")
-        else:
-            # The coverage line sits above the table, not below it. The counts are
-            # floors, and a reader who takes them for totals concludes that companies
-            # absent from a theme do not work in it, which is the one wrong reading
-            # this view can produce.
-            st.caption(
-                f"Two axes, never added. {cover['tagged']} of {cover['assets']} "
-                "programmes state what they are, read from the drug's own name or "
-                f"label. {cover['companies_on_platform']} of {cover['companies']} "
-                "companies describe a platform in their own annual filing, which "
-                "reaches the ones whose drugs are code numbers: Beam and Editas run "
-                "gene editing and hold no programme any free source classifies. "
-                "Programme counts are a floor; the platform column is the better "
-                "guide to who is in a modality"
-                + (f". {len(cover['companies_unreached'])} companies are reached by "
-                   "neither: " + ", ".join(cover["companies_unreached"])
-                   if cover["companies_unreached"] else "."))
-            st.dataframe(pd.DataFrame([{
-                "Theme": r["theme"],
-                "Companies": r["companies"],
-                "Programmes": r["assets"],
-                "Marketed": r["marketed"],
-                # The four most advanced stages. The full mix runs to seven entries
-                # and its column then crowds out the companies, which are the point.
-                "Stage mix": ", ".join(
-                    [f"{k.lower()} {v}" for k, v in list(r["stage_mix"].items())[:4]]
-                    + ([f"+{len(r['stage_mix']) - 4} more"]
-                       if len(r["stage_mix"]) > 4 else [])),
-                "Changes, 90d": r["changes"],
-                "Most exposed": ", ".join(f"{c['ticker']} {c['assets']}"
-                                          for c in r["top_companies"][:4]),
-                # The second axis. Companies whose own filing describes the platform,
-                # which is the only way the editors appear at all.
-                "On platform": len(r["platform_companies"]),
-                "Platform only": ", ".join(r["platform_only"][:6]),
-            } for r in rows]), width="stretch", hide_index=True)
-
-            chosen = st.selectbox("Theme", [r["theme"] for r in rows],
-                                  key="theme_pick")
-            slug = urllib.parse.quote(chosen, safe="")
-            detail = api_get(api_base, f"/themes/{slug}")
-            marketed = [a for a in detail["assets"] if a["is_marketed"]]
-            clinical = [a for a in detail["assets"] if not a["is_marketed"]]
-
-            section(f"{chosen} programmes", len(detail["assets"]))
-            st.dataframe(pd.DataFrame([{
-                "Ticker": a["ticker"],
-                "Programme": a["name"],
-                "Stage": "Marketed" if a["is_marketed"] else (a["phase"] or "—"),
-                "Trials": a["trials"],
-                # The phrase the tag was read from. A modality tag is a judgement made
-                # from text, so the evidence travels with it rather than living in a
-                # log: "why is this a radioligand" is answerable in the row.
-                "Read from": a["evidence"],
-                "Source": a["source"],
-            } for a in marketed + clinical]), width="stretch", hide_index=True)
-
-            if detail.get("platform"):
-                section(f"Companies whose filing describes this platform",
-                        len(detail["platform"]))
-                st.caption(
-                    "Read from each company's own annual filing, in the first person, "
-                    "so a competitor paragraph cannot claim a platform. A company with "
-                    "0 classified programmes appears here and nowhere else in the tab.")
-                st.dataframe(pd.DataFrame([{
-                    "Ticker": r["ticker"],
-                    "Company": r["company"],
-                    "Classified programmes": r["assets"],
-                    "Read from": r["evidence"],
-                } for r in detail["platform"]]), width="stretch", hide_index=True)
-
-            section(f"Brief on {chosen}")
-            existing = api_get(api_base, f"/themes/{slug}/brief")
-            if st.button("Write the brief", key=f"brief_{chosen}"):
-                with st.spinner(f"Reading {chosen} across coverage"):
-                    existing = api_post(api_base, f"/themes/{slug}/brief")
-            if existing.get("body"):
-                st.markdown(note_html(existing["body"]), unsafe_allow_html=True)
-                st.caption(f"{existing.get('model') or 'rules'}"
-                           + (f" · {existing['generated_at'][:16]} UTC"
-                              if existing.get("generated_at") else ""))
+    # Absent on big pharma: see the tab list above.
+    if themes_tab is not None:
+        with themes_tab:
+            payload = api_get(api_base, "/themes")
+            rows, cover = payload["themes"], payload["coverage"]
+            section("Modality themes across coverage", len(rows))
+            if not rows:
+                state("No themes derived yet",
+                      "Press Refresh all. Themes are read from what each drug is called, "
+                      "the stems in its INN, and the class statement its label opens with.")
             else:
-                state("No brief written yet",
-                      "Press the button to read this modality across every company in "
-                      "coverage. Without a model key this is the rules layer, which "
-                      "states the shape rather than a view, and says so.")
+                # The coverage line sits above the table, not below it. The counts are
+                # floors, and a reader who takes them for totals concludes that companies
+                # absent from a theme do not work in it, which is the one wrong reading
+                # this view can produce.
+                st.caption(
+                    f"Two axes, never added. {cover['tagged']} of {cover['assets']} "
+                    "programmes state what they are, read from the drug's own name or "
+                    f"label. {cover['companies_on_platform']} of {cover['companies']} "
+                    "companies describe a platform in their own annual filing, which "
+                    "reaches the ones whose drugs are code numbers: Beam and Editas run "
+                    "gene editing and hold no programme any free source classifies. "
+                    "Programme counts are a floor; the platform column is the better "
+                    "guide to who is in a modality"
+                    + (f". {len(cover['companies_unreached'])} companies are reached by "
+                       "neither: " + ", ".join(cover["companies_unreached"])
+                       if cover["companies_unreached"] else "."))
+                st.dataframe(pd.DataFrame([{
+                    "Theme": r["theme"],
+                    "Companies": r["companies"],
+                    "Programmes": r["assets"],
+                    "Marketed": r["marketed"],
+                    # The four most advanced stages. The full mix runs to seven entries
+                    # and its column then crowds out the companies, which are the point.
+                    "Stage mix": ", ".join(
+                        [f"{k.lower()} {v}" for k, v in list(r["stage_mix"].items())[:4]]
+                        + ([f"+{len(r['stage_mix']) - 4} more"]
+                           if len(r["stage_mix"]) > 4 else [])),
+                    "Changes, 90d": r["changes"],
+                    "Most exposed": ", ".join(f"{c['ticker']} {c['assets']}"
+                                              for c in r["top_companies"][:4]),
+                    # The second axis. Companies whose own filing describes the platform,
+                    # which is the only way the editors appear at all.
+                    "On platform": len(r["platform_companies"]),
+                    "Platform only": ", ".join(r["platform_only"][:6]),
+                } for r in rows]), width="stretch", hide_index=True)
+
+                chosen = st.selectbox("Theme", [r["theme"] for r in rows],
+                                      key="theme_pick")
+                slug = urllib.parse.quote(chosen, safe="")
+                detail = api_get(api_base, f"/themes/{slug}")
+                marketed = [a for a in detail["assets"] if a["is_marketed"]]
+                clinical = [a for a in detail["assets"] if not a["is_marketed"]]
+
+                section(f"{chosen} programmes", len(detail["assets"]))
+                st.dataframe(pd.DataFrame([{
+                    "Ticker": a["ticker"],
+                    "Programme": a["name"],
+                    "Stage": "Marketed" if a["is_marketed"] else (a["phase"] or "—"),
+                    "Trials": a["trials"],
+                    # The phrase the tag was read from. A modality tag is a judgement made
+                    # from text, so the evidence travels with it rather than living in a
+                    # log: "why is this a radioligand" is answerable in the row.
+                    "Read from": a["evidence"],
+                    "Source": a["source"],
+                } for a in marketed + clinical]), width="stretch", hide_index=True)
+
+                if detail.get("platform"):
+                    section(f"Companies whose filing describes this platform",
+                            len(detail["platform"]))
+                    st.caption(
+                        "Read from each company's own annual filing, in the first person, "
+                        "so a competitor paragraph cannot claim a platform. A company with "
+                        "0 classified programmes appears here and nowhere else in the tab.")
+                    st.dataframe(pd.DataFrame([{
+                        "Ticker": r["ticker"],
+                        "Company": r["company"],
+                        "Classified programmes": r["assets"],
+                        "Read from": r["evidence"],
+                    } for r in detail["platform"]]), width="stretch", hide_index=True)
+
+                section(f"Brief on {chosen}")
+                existing = api_get(api_base, f"/themes/{slug}/brief")
+                if st.button("Write the brief", key=f"brief_{chosen}"):
+                    with st.spinner(f"Reading {chosen} across coverage"):
+                        existing = api_post(api_base, f"/themes/{slug}/brief")
+                if existing.get("body"):
+                    st.markdown(note_html(existing["body"]), unsafe_allow_html=True)
+                    st.caption(f"{existing.get('model') or 'rules'}"
+                               + (f" · {existing['generated_at'][:16]} UTC"
+                                  if existing.get("generated_at") else ""))
+                else:
+                    state("No brief written yet",
+                          "Press the button to read this modality across every company in "
+                          "coverage. Without a model key this is the rules layer, which "
+                          "states the shape rather than a view, and says so.")
 
 
     # --- Runway: the clinical-stage cohort, where revenue analysis says nothing ---

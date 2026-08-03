@@ -464,6 +464,11 @@ h3 {{ font-size: 0.9rem; }}
 .fitem .why {{ font-size: 10px; color: var(--flag); letter-spacing: 0.04em;
               text-transform: uppercase; white-space: nowrap; }}
 
+/* The announcements list scrolls inside itself so the filing-text section under it stays
+   on the screen. Forty headlines down the page pushed it two screens away. */
+.feed.news {{ max-height: clamp(12rem, calc(100vh - 330px), 34rem);
+             overflow-y: auto; scrollbar-width: thin; }}
+
 /* The label's own sentence on what the drug is, set as prose above the figures. */
 .prof-summary {{ font-size: 12.5px; line-height: 1.5; color: var(--text);
                 max-width: 78ch; margin: 0.1rem 0 0.55rem; }}
@@ -693,6 +698,11 @@ h3 {{ font-size: 0.9rem; }}
 /* Stat strip. */
 .stats {{ display: flex; gap: 2.1rem; padding: 0.5rem 0 0.1rem; margin-bottom: 0.8rem;
          border-bottom: 1px solid var(--rule); flex-wrap: wrap; }}
+/* The prices tab reads these beside the window picker rather than as a band under it, so
+   they carry no rule and no trailing margin: the row itself is the separation. */
+.stats.stats-tight {{ padding: 0; margin-bottom: 0; border-bottom: none;
+                     gap: 1.5rem; justify-content: flex-end; }}
+.chart-legend {{ margin-top: 0.25rem; }}
 .stat .k {{ font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
            color: var(--muted); display: block; }}
 .stat .v {{ font-size: 1.05rem; font-weight: 600; font-family: var(--font-mono); }}
