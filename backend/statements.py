@@ -308,6 +308,9 @@ _CASHFLOW = (
          candidates=(
              ("us-gaap", "PaymentsToAcquireBusinessesNetOfCashAcquired"),
              ("us-gaap", "PaymentsToAcquireBusinessesGross"),
+             # Last, so it is only read where a filer publishes no primary line. Lilly
+             # files this and nothing else for its business combinations.
+             ("us-gaap", "OtherPaymentsToAcquireBusinesses"),
              ("ifrs-full",
               "CashFlowsUsedInObtainingControlOfSubsidiariesOrOtherBusinessesClassifiedAsInvestingActivities"),
          )),
