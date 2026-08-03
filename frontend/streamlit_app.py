@@ -856,9 +856,16 @@ def _allocation_band(api_base: str, ticker: str) -> None:
             f'{T.num(below / scale, 1)}{unit} of it on plant, acquisitions and '
             "shareholders.")
     if spend.get("untagged"):
-        parts.append(f'{ticker} tags no '
+        parts.append(f'{ticker} files no '
                      f'{html_escape(" or ".join(w.lower() for w in spend["untagged"]))}'
-                     " line, so it has no segment rather than a zero.")
+                     " line at all, so there is no segment for it.")
+    # A year reported as nothing has no width to draw, and a gap where a segment would
+    # be reads like the line above rather than like a decision. Johnson & Johnson bought
+    # nothing in 2023, having closed Abiomed in 2022, and tagged that zero three times.
+    for label, years in (spend.get("reported_nil") or {}).items():
+        shown = ", ".join(f"FY{year % 100:02d}" for year in sorted(years, reverse=True)[:4])
+        parts.append(f'{html_escape(label)} is reported and reported as nothing in '
+                     f'{shown}, which is a year with none rather than a line not filed.')
     note(" ".join(parts))
 
 

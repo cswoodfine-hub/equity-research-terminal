@@ -115,3 +115,20 @@ def test_research_is_marked_as_sitting_above_the_line():
     assert "rd" in allocation.ABOVE_THE_LINE
     assert all(key not in allocation.ABOVE_THE_LINE
                for key in ("capex", "acquisitions", "buybacks", "dividends"))
+
+
+def test_a_reported_zero_is_not_an_untagged_line(tmp_path):
+    """Johnson & Johnson tags zero acquisitions for fiscal 2023, three times over three
+    annual reports: it bought nothing that year, having closed Abiomed in the one before.
+    Biogen files no dividend line at all. Neither draws a segment, because neither has a
+    width, and only the second is an absence of disclosure."""
+    path = _seed(tmp_path, [
+        ("2023-12-31", "ResearchAndDevelopmentExpense", 15.1e9),
+        ("2023-12-31", "AcquisitionsNet", 0.0),
+    ])
+    built = allocation.build(path, "JNJ")
+    assert "Acquisitions" not in built["untagged"]
+    assert built["reported_nil"]["Acquisitions"] == [2023]
+    # Dividends were never filed, so they are the absence.
+    assert "Dividends" in built["untagged"]
+    assert "Dividends" not in built["reported_nil"]

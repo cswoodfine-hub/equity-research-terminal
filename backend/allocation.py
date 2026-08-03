@@ -35,6 +35,8 @@ USES = (
     ("dividends", "DividendsPaid", "Dividends"),
 )
 
+LABELS = {key: label for key, _, label in USES}
+
 # The two that are already inside operating cash flow rather than spent out of it.
 ABOVE_THE_LINE = ("rd",)
 
@@ -92,9 +94,20 @@ def build(db_path=None, ticker: str = "", years: int = DEFAULT_YEARS) -> dict | 
                      "operating": operating.get(year),
                      "shares": shares.get(year)})
 
-    # Lines this filer never tags in the window, so the view can say which segments are
-    # absent because there is no disclosure rather than because there was no spending.
+    # Lines this filer never tags in the window, which is not the same as lines it
+    # reports as nothing. Johnson & Johnson tags zero acquisitions for fiscal 2023 and
+    # tags it three times, in three consecutive annual reports: it bought nothing that
+    # year, having closed Abiomed in the one before. Biogen does not tag a dividend line
+    # at all. Neither draws a segment, because neither has a width, and only the second
+    # is an absence of disclosure.
     untagged = [label for key, _, label in USES
-                if not any(row.get(key) for row in rows)]
+                if all(row.get(key) is None for row in rows)]
+    # Where a use is reported and reported as nothing, so the panel can say so rather
+    # than leave a gap that reads like the line above.
+    reported_nil = {key: [row["fiscal_year"] for row in rows if row.get(key) == 0]
+                    for key, _, _ in USES}
+    reported_nil = {key: years for key, years in reported_nil.items() if years}
     return {"ticker": ticker, "currency": (currency or {})["unit"] if currency else None,
-            "years": rows, "untagged": untagged}
+            "years": rows, "untagged": untagged,
+            "reported_nil": {LABELS[key]: years
+                             for key, years in reported_nil.items()}}
