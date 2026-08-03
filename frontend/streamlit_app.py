@@ -642,6 +642,151 @@ def _year_ago_column(periods: list, index: int) -> int | None:
     return best
 
 
+def _bn(value, dp=1):
+    """A figure in billions, or None where the line was never tagged."""
+    return T.num(value / 1e9, dp) if value is not None else None
+
+
+# Where a figure stops reading in billions. A major's cash is 30bn and a developer's is
+# 898m, and rendering the second as "0.9bn" throws away the digits that matter: the whole
+# biotech engine lives between one and nine hundred million, where a billions figure has
+# one significant digit and moves in steps of a hundred million.
+BILLIONS_ABOVE = 1e9
+
+
+def _scaled(value, dp=1):
+    """(figure, unit) at the scale the number reads at, or (None, "")."""
+    if value is None:
+        return None, ""
+    if abs(value) >= BILLIONS_ABOVE:
+        return T.num(value / 1e9, dp), "bn"
+    return T.num(value / 1e6, 0), "m"
+
+
+def _times(value, dp=2):
+    return f"{value:.{dp}f}x" if value is not None else None
+
+
+def _cash_block(api_base: str, ticker: str) -> None:
+    """The year's cash and what the balance sheet owes, for a company with revenue.
+
+    What it kept, not what it earned. Every figure is computed from lines already
+    filed; one missing an input is a dash naming the line it wanted, never a zero.
+    """
+    cash = api_get(api_base, f"/companies/{ticker}/cashflow")
+    # No tail: every tile below carries its own unit, and the rail sits close enough at
+    # half a page that a currency here is cut off by it.
+    section("The year",
+            basis=(f'FY{cash["fiscal_year"]}' if cash.get("fiscal_year")
+                   else "latest year"))
+    st.markdown(metric_tiles([
+        ("Free cash flow", _bn(cash.get("fcf")), "bn", "", "",
+         (T.pct(cash["fcf_margin"] * 100, 1) + " of revenue"
+          if cash.get("fcf_margin") is not None else "")),
+        ("Cash conversion", _times(cash.get("cash_conversion")), "", "", "",
+         "FCF over net income"),
+        ("Net debt", _bn(cash.get("net_debt")), "bn", "", "",
+         (_times(cash.get("net_debt_ebitda")) + " EBITDA"
+          if cash.get("net_debt_ebitda") is not None else "")),
+        # Cash paid is not the announced value on the deals, and the two figures are one
+        # click apart, so this one says which it is.
+        ("Acquisitions", _bn((cash.get("inputs") or {}).get("acquisitions")), "bn",
+         "", "", "cash paid"),
+    ]), unsafe_allow_html=True)
+
+    inputs = cash.get("inputs") or {}
+    missing = [name.replace("_", " ") for name, value in inputs.items()
+               if value is None and name not in
+               ("cash_lines", "debt_as_of", "operating_income_basis")]
+    derived = str(inputs.get("operating_income_basis") or "")
+    notes = "".join((
+        ("Operating income is not tagged by this filer, so EBITDA takes the "
+         "subtraction its income statement already shows: revenue less cost of sales, "
+         "R&D and SG&A. " if derived.startswith("derived") else ""),
+        (f"Nothing is computed from a line the filer did not tag: this company is "
+         f"missing {html_escape(', '.join(missing))}." if missing else ""),
+    ))
+    if notes:
+        note(notes)
+
+
+def _pre_revenue_blocks(api_base: str, ticker: str, left, right) -> None:
+    """The two columns for a company that has no product yet.
+
+    Revenue, margin and cash conversion are the wrong questions to ask a developer, and
+    asking them is why this tab was blank for seven companies. What it is judged on is
+    what it spends and how long the money lasts, which is what these say.
+    """
+    money = api_get(api_base, f"/companies/{ticker}/runway")
+    with left:
+        section("The quarter", "annualised",
+                basis=(money.get("cash_as_of") or "")[:10])
+        months = money.get("runway_months")
+        burn = abs(money["burn_annual"]) if money.get("burn_annual") else None
+        st.markdown(metric_tiles([
+            ("Cash", *_scaled(money.get("cash")), "", "",
+             "and investments" if money.get("includes_investments") else "on hand"),
+            ("Burn", *_scaled(burn), "", "", "a year, trailing twelve months"),
+            ("Runway", (f"{months:.0f}" if months is not None else None), " mo",
+             "", "", "on the cash alone"),
+            ("R&D", *_scaled(money.get("rd_annual")), "", "", "a year"),
+        ]), unsafe_allow_html=True)
+    with right:
+        # Whether the money reaches the next readout, which is the question a developer
+        # is actually valued on. Everything here is dated after the balance sheet, so no
+        # tagged figure carries it yet.
+        raised, voucher = money.get("raised_since"), money.get("voucher_since")
+        funded = money.get("funded_to_readout")
+        count = money.get("catalyst_count") or 0
+        section("What the cash reaches", basis="post-period")
+        st.markdown(metric_tiles([
+            ("Available", *_scaled(money.get("available")), "", "",
+             "cash plus what came after"),
+            ("Raised", *_scaled(raised), "", "",
+             (money["raises"][0]["kind"] if money.get("raises")
+              else "since the balance sheet")),
+            ("Cash out", (money.get("cash_out") or "")[:10] or None, "", "", "",
+             "at the trailing burn"),
+            ("Catalysts funded", (str(count) if money.get("cash_out") else None), "",
+             "", "",
+             ("reaches the next readout" if funded
+              else "the next readout is beyond it" if funded is False
+              else "nothing dated ahead")),
+        ]), unsafe_allow_html=True)
+        if voucher:
+            figure, unit = _scaled(voucher)
+            note(f"{figure}{unit} of the available figure is a priority review "
+                 "voucher sold after the balance sheet date.")
+
+
+def _cash_panel(built: dict) -> None:
+    """Cash by period, for a company with no revenue to plot growth against.
+
+    The balance sheet is already in the payload, so this costs no second fetch. Bars
+    rather than a line: a balance is a level at a date, not a rate over one.
+    """
+    balance = (built.get("statements") or {}).get("balance") or {}
+    line = next((l for l in balance.get("lines") or []
+                 if l["key"] == "CashAndEquivalents"), None)
+    if not line or not balance.get("periods"):
+        return
+    figures = [cell["value"] for cell in line["cells"] if cell["value"] is not None]
+    if not figures:
+        return
+    # The same scale the tiles use. Sana holds 101m, and a chart of it in billions is
+    # four bars between 0.1 and 0.2 where the tiles beside it read in whole millions.
+    billions = max(figures) >= BILLIONS_ABOVE
+    divisor, unit, places = (1e9, "bn", 1) if billions else (1e6, "m", 0)
+    bars = [{"label": period["label"],
+             "value": (cell["value"] / divisor if cell["value"] is not None else None)}
+            for period, cell in zip(balance["periods"], line["cells"])][::-1]
+    section("Cash", f'{built.get("currency") or ""} {unit} at each period end')
+    st.markdown(
+        f'<div class="trend">'
+        f'{CH.bar_chart(bars, 1100, 240, value_fmt=lambda v: T.num(v, places))}</div>',
+        unsafe_allow_html=True)
+
+
 def statement_table(block: dict, currency: str | None,
                     lens: str = ABSOLUTE) -> str:
     """One statement as a table: lines down, periods across, most recent first.
@@ -744,10 +889,13 @@ def metric_tiles(items) -> str:
 
 
 def snapshot_meta(snapshot: dict) -> str:
-    """The period and the scale, said once in the heading so no tile repeats them."""
-    return " &middot; ".join(part for part in (
-        snapshot.get("label"), f'ending {snapshot["period_end"]}',
-        f'{snapshot.get("currency") or ""} bn unless stated') if part)
+    """The closing date, and only that.
+
+    The period label is the chip beside the heading now and every tile carries its own
+    unit, so a rule that also said both wrapped onto a second line and over its own
+    figures once the block moved into half a page.
+    """
+    return f'to {snapshot["period_end"]}'
 
 
 def snapshot_strip(snapshot: dict) -> str:
@@ -1626,21 +1774,24 @@ with main:
         elif st.session_state.get("note", {}).get("ticker") != ticker:
             st.session_state["note"] = api_get(api_base, f"/companies/{ticker}/note")
 
-        note = st.session_state.get("note") or {}
-        if not note.get("body"):
+        # Not "note": this module runs top to bottom, so a name bound here shadows the
+        # note() helper for every tab below it, and the financials tab calls it.
+        written = st.session_state.get("note") or {}
+        if not written.get("body"):
             state(f"No note for {ticker} yet",
                   "Press Generate. Without an Anthropic key the note is the rules "
                   "layer, which lists the flagged items grouped by kind.")
         else:
-            st.markdown(note_html(note["body"]), unsafe_allow_html=True)
-            layer = ("rules layer, no Anthropic key set" if note.get("model") == "rules"
-                     else f"written by {note.get('model')}")
+            st.markdown(note_html(written["body"]), unsafe_allow_html=True)
+            layer = ("rules layer, no Anthropic key set"
+                     if written.get("model") == "rules"
+                     else f"written by {written.get('model')}")
             st.markdown(
-                f'<div class="byline">{layer} · written {note.get("generated_at")} '
+                f'<div class="byline">{layer} · written {written.get("generated_at")} '
                 'from the feed as it stood then. Press Generate to rebuild it.</div>',
                 unsafe_allow_html=True)
-        if note.get("error"):
-            state("The note fell back to the rules layer", note["error"], error=True)
+        if written.get("error"):
+            state("The note fell back to the rules layer", written["error"], error=True)
 
         # --- What matters now, in structured sections --------------------
         # Broken out by the thing that moves a case, not by the snapshot-diff mechanics.
@@ -1895,109 +2046,57 @@ with main:
             built = fetch("annual")     # a 20-F filer has no quarters to show
         snapshot = built.get("snapshot")
 
-        section("Latest reported", snapshot_meta(snapshot) if snapshot else None,
-                basis=(snapshot or {}).get("label") or "")
+        # --- The two readings, side by side -------------------------------
+        # A quarter's income statement and a year's cash flow are different bases,
+        # and stacking them put 25.3bn of quarterly revenue directly above 19.7bn of
+        # annual free cash flow in the same tiles at the same weight. Two columns
+        # separate them structurally rather than by a label, and the page loses the
+        # height it was spending saying so twice.
+        left, right = st.columns(2, gap="medium")
+
         if snapshot:
-            st.markdown(snapshot_strip(snapshot), unsafe_allow_html=True)
+            with left:
+                section("The quarter" if built["basis"] == "quarterly" else "The year",
+                        snapshot_meta(snapshot), basis=snapshot.get("label") or "")
+                st.markdown(snapshot_strip(snapshot), unsafe_allow_html=True)
+            with right:
+                _cash_block(api_base, ticker)
+        elif built["is_sec_filer"]:
+            # A company with no revenue is not a company with no financials. Dyne has
+            # thirty-one quarters of equity and twenty-three of net loss on file, and
+            # this tab told it there were none, because the snapshot leads on revenue
+            # and returns nothing without it. Seven companies in the universe read that
+            # way, all of them in the two engines built for companies that have no
+            # product yet.
+            _pre_revenue_blocks(api_base, ticker, left, right)
+        else:
+            state(f"{ticker} does not file with the SEC",
+                  "Roche and Bayer are not SEC registrants, so EDGAR holds no company "
+                  "facts for them. Their financials come from investor relations, "
+                  "which this build does not read.")
 
-            # --- Cash generation and leverage ---------------------------------
-            # What the company kept, not what it earned. Both are computed from lines
-            # already filed; a figure missing an input is a dash naming the line it wanted.
-            cash = api_get(api_base, f"/companies/{ticker}/cashflow")
-            cf_cur = cash.get("currency") or ""
-            # No second heading: the quarter above and the year here are one reading of
-            # the company, and two headers stacked made it read as two walls of figures.
-            # A rule and the period label carry the change of basis instead.
-            _cash_basis = (f'FY{cash["fiscal_year"]}' if cash.get("fiscal_year")
-                           else "latest year")
-            # The chip says the year, so the tail no longer repeats it.
-            section("Cash and leverage", f'{cf_cur} bn unless stated',
-                    basis=_cash_basis)
-
-            def _cf_bn(value, dp=1):
-                return T.num(value / 1e9, dp) if value is not None else None
-
-            def _cf_x(value, dp=2):
-                return f"{value:.{dp}f}x" if value is not None else None
-
-            # Two tiers, in the same language as the period above. The cash a year
-            # produced leads as tiles; leverage and deal spend support it and sit in one
-            # quiet line, so the tab reads as a page with a point rather than a wall.
-            st.markdown(metric_tiles([
-                ("Free cash flow", _cf_bn(cash.get("fcf")), "bn", "", "", ""),
-                ("FCF margin", (T.pct(cash["fcf_margin"] * 100, 1)
-                                if cash.get("fcf_margin") is not None else None),
-                 "", "", "", "of revenue"),
-                ("Cash conversion", _cf_x(cash.get("cash_conversion")), "", "", "",
-                 "FCF over net income"),
-                # Cash paid is not the announced value on the deals, and the two figures
-                # are one click apart, so this one says which it is.
-                ("Acquisitions", _cf_bn((cash.get("inputs") or {}).get(
-                    "acquisitions")), "bn", "", "", "cash paid"),
-            ]), unsafe_allow_html=True)
-
-            # The same scale as the tiles above, said on each figure, since this line
-            # is read across rather than down and a bare 38.0 beside a 1.20x does not
-            # say which of the two is money.
-            cf_second = [
-                ("net debt", _cf_bn(cash.get("net_debt")), "bn"),
-                ("net debt / EBITDA", _cf_x(cash.get("net_debt_ebitda")), ""),
-                ("EBITDA", _cf_bn(cash.get("ebitda")), "bn"),
-                ("businesses", _cf_bn((cash.get("inputs") or {}).get(
-                    "acquisitions_businesses"), 2), "bn"),
-                ("assets", _cf_bn((cash.get("inputs") or {}).get(
-                    "acquisitions_assets"), 2), "bn"),
-            ]
-            st.markdown(
-                '<div class="metricbar">' + "".join(
-                    f'<div><span class="k">{html_escape(label)}</span>'
-                    f'<span class="v{"" if value else " none"}">'
-                    + (f'{html_escape(value)}<span class="u">{unit}</span>'
-                       if value else "—")
-                    + '</span></div>'
-                    for label, value, unit in cf_second) + '</div>',
-                unsafe_allow_html=True)
-            cf_inputs = cash.get("inputs") or {}
-            cf_missing = [name.replace("_", " ") for name, value in cf_inputs.items()
-                          if value is None and name not in
-                          ("cash_lines", "debt_as_of", "operating_income_basis")]
-            cf_derived = str(cf_inputs.get("operating_income_basis") or "")
-            cash_notes = "".join((
-                ('Operating income is not tagged by this filer, so EBITDA takes the '
-                 'subtraction its income statement already shows: revenue less cost of '
-                 'sales, R&D and SG&A. ' if cf_derived.startswith("derived") else ''),
-                (f'Nothing is computed from a line the filer did not tag: this company '
-                 f'is missing {html_escape(", ".join(cf_missing))}.'
-                 if cf_missing else ''),
-            ))
-            if cash_notes:
-                st.markdown(f'<div class="byline">{cash_notes}</div>',
-                            unsafe_allow_html=True)
-
+        if snapshot or built["is_sec_filer"]:
             # Every period the API returns, which is every period on file: forty quarters
             # or seventeen years. This used to cut the quarterly panel to the last four,
             # and four points cannot show a cycle, a margin compressing or a cliff
             # arriving, which is the entire reason to draw a trend rather than print the
             # latest number twice.
-            trend_points = built.get("trend") or []
-
+            #
             # Built as SVG rather than through Altair. A chart made inside a hidden tab
             # is measured at a few pixels and draws about 160px wide for good (see the
             # chart helper), and this panel has to hold its width on this tab.
-            panel = trend_module.render(trend_points, built["basis"])
+            panel = trend_module.render(built.get("trend") or [], built["basis"])
             if panel:
-                section("Growth against margin")
+                section("Growth against margin",
+                        f'{len(built["trend"])} periods on file')
                 st.markdown(f'<div class="trend">{panel}</div>', unsafe_allow_html=True)
-        elif not built["is_sec_filer"]:
-            state(f"{ticker} does not file with the SEC",
-                  "Roche and Bayer are not SEC registrants, so EDGAR holds no company "
-                  "facts for them. Their financials come from investor relations, "
-                  "which this build does not read.")
-        else:
-            state(f"No financials on file for {ticker}",
-                  "Press Refresh all on the Comps tab to pull EDGAR company facts.")
+            else:
+                # No revenue, so no growth and no margin. What a developer is judged on
+                # instead is whether the cash lasts, which is the same question the
+                # Runway tab answers at length and this says in one line.
+                _cash_panel(built)
 
-        if snapshot:
+        if snapshot or built["is_sec_filer"]:
             section("Statements")
             controls = st.columns([1.0, 1.3, 1.5])
             with controls[0]:
@@ -3037,12 +3136,6 @@ with main:
                         f'<div class="rf-add">{html_escape(p[:400])}'
                         f'{"…" if len(p) > 400 else ""}</div>'
                         for p in s["added_passages"][:5]), unsafe_allow_html=True)
-            mdna = next((s for s in ftext if s["section"] == "mdna"
-                         and s.get("ratio") is not None), None)
-            note = ("" if not mdna else
-                    f" MD&A is rewritten each period, {round((1 - mdna['ratio']) * 100)}% "
-                    f"changed in the latest {mdna['form']}, so it is kept but not flagged "
-                    f"as an event.")
 
     # --- Themes: the universe read by modality rather than by ticker ------
     with themes_tab:
