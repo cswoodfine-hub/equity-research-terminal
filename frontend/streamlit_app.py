@@ -3121,7 +3121,6 @@ with main:
             mix_reported = (revenue_payload.get("company_revenue") or {}).get(
                 str(mix_year)) or {}
             mix_drivers, mix_tail = revenue_mix.split(mix_rows)
-            section(f"{ticker} portfolio")
             if not approvals:
                 state(f"No approvals on file for {ticker}",
                       "openFDA files an approval under the legal entity that holds the "
@@ -3184,22 +3183,6 @@ with main:
                 horizon = today.year + 5
                 at_risk = sum(p["revenue"] for p in prods if p.get("revenue")
                               and (_loe_year(p) or 9999) <= horizon)
-                st.markdown(
-                    '<div class="pos">'
-                    f'<div><span class="k">products</span>'
-                    f'<span class="v">{len(prods)}</span>'
-                    f'<span class="sub">approved or protected</span></div>'
-                    f'<div><span class="k">tagged revenue</span>'
-                    f'<span class="v{"" if total_rev else " none"}">'
-                    f'{T.num(total_rev / 1e9, 1) if total_rev else "none"}</span>'
-                    f'<span class="sub">{rev_unit} bn, latest FY</span></div>'
-                    f'<div><span class="k">rolling off by {horizon}</span>'
-                    f'<span class="v {"down" if at_risk else "none"}">'
-                    f'{T.num(at_risk / 1e9, 1) if at_risk else "none"}</span>'
-                    f'<span class="sub">'
-                    f'{str(round(at_risk / total_rev * 100)) + "% of tagged" if total_rev and at_risk else "loses exclusivity"}'
-                    f'</span></div>'
-                    '</div>', unsafe_allow_html=True)
 
                 # The charts on one side, the products on the other. Stacked, the two
                 # donuts and the cliff filled a screen before a single product card
@@ -3212,6 +3195,27 @@ with main:
                 _charts_col, _products_col = st.columns([1.08, 1], gap="medium")
 
                 with _charts_col:
+                    # The heading and its three figures lead the left column, so
+                    # the products column starts level with them and the space
+                    # that sat empty beside the figures is the cards.
+                    section(f"{ticker} portfolio")
+                    st.markdown(
+                        '<div class="pos">'
+                        f'<div><span class="k">products</span>'
+                        f'<span class="v">{len(prods)}</span>'
+                        f'<span class="sub">approved or protected</span></div>'
+                        f'<div><span class="k">tagged revenue</span>'
+                        f'<span class="v{"" if total_rev else " none"}">'
+                        f'{T.num(total_rev / 1e9, 1) if total_rev else "none"}</span>'
+                        f'<span class="sub">{rev_unit} bn, latest FY</span></div>'
+                        f'<div><span class="k">rolling off by {horizon}</span>'
+                        f'<span class="v {"down" if at_risk else "none"}">'
+                        f'{T.num(at_risk / 1e9, 1) if at_risk else "none"}</span>'
+                        f'<span class="sub">'
+                        f'{str(round(at_risk / total_rev * 100)) + "% of tagged" if total_rev and at_risk else "loses exclusivity"}'
+                        f'</span></div>'
+                        '</div>', unsafe_allow_html=True)
+
                     # Revenue mix leads: what the company earns today, by product, before the
                     # cliff charts say what is at risk. The mix is the base the rest is read
                     # against, so it comes first.
