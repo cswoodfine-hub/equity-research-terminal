@@ -631,3 +631,32 @@ def test_a_combined_depreciation_line_wins_over_the_pair(tmp_path):
     r = cashflow.build_cashflow(db_file, "LLY")
     assert r["ebitda"] == 48.0                     # the filed 8, not the summed 10
     assert r["inputs"]["depreciation_amortisation_basis"] == "reported"
+
+
+def test_comps_trend_keys_a_year_on_when_it_closes(tmp_path):
+    """Johnson & Johnson runs a 52/53 week calendar, so its fiscal 2020 closed on
+    3 January 2021 and EDGAR files it against 2021. Keyed on the stored column there was
+    no row labelled 2020 at all, so the year after it had no prior year to divide by and
+    its revenue growth came out blank on the comps chart."""
+    import comps as comps_module
+    path = tmp_path / "t.db"
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'JNJ', 'JNJ')")
+    for period_end, value in (("2019-12-29", 82.1e9),   # fiscal 2019
+                              ("2021-01-03", 82.6e9),   # fiscal 2020, filed as 2021
+                              ("2022-01-02", 78.7e9)):  # fiscal 2021, filed as 2022
+        conn.execute(
+            "INSERT INTO financials (company_id, period_end, period_type, metric, value,"
+            "                        unit, fiscal_year)"
+            " VALUES (1, ?, 'FY', 'Revenues', ?, 'USD', ?)",
+            (period_end, value, int(period_end[:4])))
+    conn.commit()
+    conn.close()
+
+    built = comps_module.comps_trend(path)
+    company = built["companies"][0]
+    growth = dict(zip(built["labels"], company["revenue_growth"]))
+    # 2020 closed above 2019, and 2021 fell below 2020. Both are now computable.
+    assert growth["FY20"] is not None and growth["FY20"] > 0
+    assert growth["FY21"] is not None and growth["FY21"] < 0

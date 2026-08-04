@@ -11,8 +11,11 @@ from __future__ import annotations
 
 import json
 
+import datetime as dt
+
 import db
 import fx
+from financials_view import _nearest_month_end
 
 
 def _pct_change(latest, prior):
@@ -195,8 +198,9 @@ def comps_trend(db_path=None, shown_years: int = 6) -> dict:
             "SELECT id, ticker FROM companies ORDER BY ticker").fetchall()
         rows = conn.execute(
             """
-            SELECT company_id, fiscal_year, metric, value FROM financials
+            SELECT company_id, period_end, metric, value FROM financials
              WHERE period_type = 'FY' AND metric IN ('Revenues', 'NetIncomeLoss')
+               AND period_end IS NOT NULL AND value IS NOT NULL
             """).fetchall()
     finally:
         conn.close()
@@ -204,8 +208,15 @@ def comps_trend(db_path=None, shown_years: int = 6) -> dict:
     by: dict = {}
     years: set = set()
     for r in rows:
-        by.setdefault((r["company_id"], r["metric"]), {})[r["fiscal_year"]] = r["value"]
-        years.add(r["fiscal_year"])
+        # Keyed on the year the period actually closes, not the stored fiscal_year
+        # column. Johnson & Johnson runs a 52/53 week calendar, so its fiscal 2020 ended
+        # on 3 January 2021 and EDGAR files it against 2021: there is no row labelled
+        # 2020 at all, and growth for the year after it had no prior year to divide by
+        # and came out blank. The same snapping the statement labels and the allocation
+        # band use.
+        _, year = _nearest_month_end(dt.date.fromisoformat(r["period_end"]))
+        by.setdefault((r["company_id"], r["metric"]), {})[year] = r["value"]
+        years.add(year)
     # The oldest shown year still gets growth from the year before it, which is kept in
     # store even though it is not shown, so the growth series is not short a year.
     display = sorted(years)[-shown_years:]
