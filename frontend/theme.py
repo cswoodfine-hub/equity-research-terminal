@@ -903,6 +903,22 @@ h3 {{ font-size: 0.9rem; }}
   max-height: clamp(150px, calc(50vh - 210px), 260px); width: auto; max-width: 100%;
 }}
 
+/* Head to head: one company each side, the measure between them, so the eye runs down
+   the middle and compares across it. The winning side is marked in the up colour and
+   carries the mono weight; nothing is coloured red, because the other company losing a
+   measure is not a warning about it. */
+.h2h {{ margin: 0.2rem 0 0.3rem; }}
+.h2h-r {{ display: grid; grid-template-columns: 1fr 12rem 1fr; align-items: baseline;
+         gap: 0.6rem; padding: 0.3rem 0; border-bottom: 1px solid var(--rule); }}
+.h2h-r:last-child {{ border-bottom: none; }}
+.h2h-head {{ border-bottom: 1px solid var(--rule-strong); padding-bottom: 0.35rem; }}
+.h2h-head .h2h-v {{ font-size: 1rem; font-weight: 700; color: var(--text); }}
+.h2h-k {{ text-align: center; font-size: 10px; letter-spacing: 0.06em;
+         text-transform: uppercase; color: var(--muted); }}
+.h2h-v {{ font-family: var(--font-mono); font-size: 13px; color: var(--muted); }}
+.h2h-r > .h2h-v:first-child {{ text-align: right; }}
+.h2h-v.win {{ color: var(--up); font-weight: 600; }}
+
 /* Catalyst calendar. */
 .cal {{
   display: grid; grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));

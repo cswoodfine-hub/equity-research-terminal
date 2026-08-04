@@ -737,6 +737,53 @@ _LOE_LAPSED_AFTER_YEARS = 14
 _POST_APPROVAL_SHOWN = 30
 
 
+# The measures a head to head is argued on, and which direction is better on each.
+# Stated rather than inferred: more revenue is better, a nearer patent cliff is not, and
+# a valuation multiple is not a scoreboard at all, so it is shown and left unmarked.
+#   (key, label, formatter, higher_is_better or None for "no better side")
+_H2H_ROWS = (
+    ("revenue", "Revenue", lambda v: f"{T.num(v / 1e9, 1)}bn", True),
+    ("revenue_growth", "Revenue growth", lambda v: T.pct(v * 100, 1), True),
+    ("net_margin", "Net margin", lambda v: T.pct(v * 100, 1), True),
+    ("rd_pct", "R&D, share of sales", lambda v: T.pct(v * 100, 1), None),
+    ("market_cap", "Market cap", lambda v: f"{T.num(v / 1e9, 0)}bn", None),
+    ("pe", "P/E", lambda v: T.num(v, 1), None),
+    ("ev_sales", "EV / sales", lambda v: T.num(v, 1), None),
+    ("late_trials", "Late-stage trials", lambda v: str(int(v)), True),
+    ("catalysts_12m", "Catalysts, 12m", lambda v: str(int(v)), True),
+    ("loe_share_5y", "Revenue off patent, 5y", lambda v: T.pct(v * 100, 1), False),
+    ("ttm_price_change", "Price, 12m", lambda v: T.pct(v * 100, 1), True),
+)
+
+
+def _head_to_head(a: dict, b: dict, ta: str, tb: str) -> str:
+    """Two companies as one column of measures, the better side marked on each.
+
+    A measure either company is missing is printed as a dash on that side and marked on
+    neither: an absent figure is not a worse one, and the free sources leave plenty of
+    them absent.
+    """
+    rows = []
+    for key, label, fmt, higher in _H2H_ROWS:
+        va, vb = a.get(key), b.get(key)
+        wa = wb = ""
+        if higher is not None and isinstance(va, (int, float)) \
+                and isinstance(vb, (int, float)) and va != vb:
+            better_is_a = (va > vb) if higher else (va < vb)
+            wa, wb = ("win", "") if better_is_a else ("", "win")
+        rows.append(
+            f'<div class="h2h-r">'
+            f'<span class="h2h-v {wa}">{fmt(va) if isinstance(va, (int, float)) else "—"}</span>'
+            f'<span class="h2h-k">{html_escape(label)}</span>'
+            f'<span class="h2h-v {wb}">{fmt(vb) if isinstance(vb, (int, float)) else "—"}</span>'
+            f'</div>')
+    return (f'<div class="h2h"><div class="h2h-r h2h-head">'
+            f'<span class="h2h-v">{html_escape(ta)}</span>'
+            f'<span class="h2h-k">{html_escape(str(a.get("fiscal_year") or ""))}</span>'
+            f'<span class="h2h-v">{html_escape(tb)}</span></div>'
+            + "".join(rows) + "</div>")
+
+
 def _post_approval_row(study) -> str:
     """One trial on a product the company already sells: when, which product, what it is."""
     url = (f'https://clinicaltrials.gov/study/{study["nct_id"]}'
@@ -2576,8 +2623,11 @@ with main:
         # mixes the two puts eighteen large caps in one corner and the rest on the axis.
         # The engine's ticker list is already resolved above for the picker, so this
         # needs no second request.
-        # Marker so the theme can size this tab's charts against the screen.
-        st.markdown('<span class="comps-anchor"></span>', unsafe_allow_html=True)
+        # Two markers: one lets the theme size this tab's charts against the screen, the
+        # other drops the horizon rail. The rail is one company's forward calendar and
+        # this tab is every company at once, so its width belongs to the comparison.
+        st.markdown('<span class="comps-anchor"></span><span class="no-rail"></span>',
+                    unsafe_allow_html=True)
         _peers = set(tickers)
         _peer_rows = lambda rows: [r for r in rows if r.get("ticker") in _peers]
 
@@ -2644,6 +2694,35 @@ with main:
                        else "", subset=numeric_cols))
         rows = _peer_rows(api_get(api_base, "/pipeline"))
         unattributed = sum(r.get("unattributed", 0) for r in rows)
+
+        # Head to head. The charts below place every company at once, which answers
+        # "who is where" and never "how do these two compare", and that second question
+        # is the one an analyst actually asks out loud. Two picks, one line per measure,
+        # the better side marked. Better is stated per measure rather than assumed:
+        # more revenue is better, a nearer patent cliff is not.
+        _h2h = {r["ticker"]: r for r in comps}
+        for r in _peer_rows(api_get(api_base, "/screen")):
+            _h2h.setdefault(r["ticker"], {}).update(
+                {k: v for k, v in r.items() if k not in ("ticker", "name")})
+        _order = sorted(_h2h, key=lambda t: -(_h2h[t].get("revenue") or 0))
+        if len(_order) >= 2:
+            section("Head to head", "pick two")
+            _pa, _pb = st.columns(2, gap="medium")
+            with _pa:
+                _a = st.selectbox("A", _order, index=_order.index(ticker)
+                                  if ticker in _order else 0,
+                                  key=f"h2h_a_{engine}", label_visibility="collapsed")
+            with _pb:
+                _rest = [t for t in _order if t != _a]
+                _b = st.selectbox("B", _rest, index=0, key=f"h2h_b_{engine}",
+                                  label_visibility="collapsed")
+            st.markdown(_head_to_head(_h2h.get(_a) or {}, _h2h.get(_b) or {}, _a, _b),
+                        unsafe_allow_html=True)
+            note("Every figure is the one the tables below carry, put side by side. The "
+                 "marked side is the better of the two on that measure only, and better "
+                 "is stated per measure: more revenue and a higher margin are better, a "
+                 "nearer loss of exclusivity is not. A measure missing for either "
+                 "company is left unmarked rather than assumed to be worse.")
 
         # Four cross-sectional views, two to a row. Each is read at a glance and
         # none needs the full width; stacked they were three screens of scrolling.
