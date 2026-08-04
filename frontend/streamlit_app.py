@@ -2576,66 +2576,22 @@ with main:
         # mixes the two puts eighteen large caps in one corner and the rest on the axis.
         # The engine's ticker list is already resolved above for the picker, so this
         # needs no second request.
+        # Marker so the theme can size this tab's charts against the screen.
+        st.markdown('<span class="comps-anchor"></span>', unsafe_allow_html=True)
         _peers = set(tickers)
         _peer_rows = lambda rows: [r for r in rows if r.get("ticker") in _peers]
 
         # --- R&D productivity, before the valuation comps ---------------------
+        # Every frame this tab draws is built first, in one place. The charts
+        # below then sit wherever the layout wants them: while the fetching was
+        # interleaved with the drawing, moving a chart moved its data with it and
+        # the phase grid lost the variable the comparables block defined.
         board = api_get(api_base, "/productivity/scorecard")
         placed = _peer_rows(board["placed"])
-        if placed:
-            section("R&D against commercial performance", f"{len(placed)} placed")
-            st.markdown(scorecard_chart.build(placed), unsafe_allow_html=True)
-
-
-        # The R&D productivity table is gone and its captions with it: a fourteen
-        # column grid and two hundred words of caveat were the tallest thing on a
-        # tab whose subject is comparison, and every figure in it is a ratio the
-        # charts below already draw. This tab is read as charts.
-        section("Comparables",
-                f'{len(_peers)} in {_ENGINE_LABELS.get(engine, "coverage").lower()}')
-        if st.button("Refresh all", key="refresh_all"):
-            run_refresh(api_base, "/refresh?scope=all", "all_run",
-                        "Refreshing the universe")
-            st.rerun()
-
-        # Multi-company comparison: pick a metric and the companies, one coloured line
-        # each over the fiscal years. Both ratios are currency-internal, so filers who
-        # report in different currencies still compare.
         ct = api_get(api_base, "/comps/trend")
         ct_labels = ct.get("labels") or []
         ct_by = {c["ticker"]: c for c in ct.get("companies") or []
                  if c["ticker"] in _peers}
-        if ct_labels and ct_by:
-            section("Compare over time", "revenue growth or net margin")
-            # Pills, not a radio and a dropdown: every company is one click away and the
-            # selection is readable without opening anything. A dropdown hid which
-            # companies were on the chart behind a closed control.
-            metric_label = st.pills(
-                "Metric", ["Revenue growth", "Net margin"],
-                default="Revenue growth", key="comps_metric",
-                label_visibility="collapsed") or "Revenue growth"
-            metric_key = ("revenue_growth" if metric_label == "Revenue growth"
-                          else "net_margin")
-            default_sel = [t for t in (ticker, "LLY", "NVO", "MRK", "PFE")
-                           if t in ct_by][:5]
-            picked = st.pills(
-                "Companies", sorted(ct_by), selection_mode="multi",
-                default=default_sel, key="comps_pick",
-                label_visibility="collapsed") or []
-            palette = [TK.UP, TK.ORANGE_BOOK, TK.PURPLE_BOOK, TK.DOWN, TK.FLAG, TK.MUTED]
-            series = [{"name": tk,
-                       "values": [v * 100 if v is not None else None
-                                  for v in ct_by[tk][metric_key]],
-                       "colour": palette[i % len(palette)]}
-                      for i, tk in enumerate(picked)]
-            if series:
-                R.show(CH.line_chart(series, ct_labels, 1040, 360,
-                                     y_fmt=lambda v: f"{v:.0f}%"),
-                       css_class="chart-mount stretch")
-            else:
-                state("Pick companies to compare",
-                      "Choose one or more from the control above.")
-
         comps = _peer_rows(api_get(api_base, "/comps"))
         screen_rows = {r["ticker"]: r for r in _peer_rows(api_get(api_base, "/screen"))}
         spark_rows = {p["ticker"]: p["closes"] for p in
@@ -2686,7 +2642,106 @@ with main:
                   .map(lambda v: f"color:{T.P.oxblood}"
                        if isinstance(v, (int, float)) and not pd.isna(v) and v < 0
                        else "", subset=numeric_cols))
-        st.dataframe(styled, width="stretch", hide_index=True,
+        rows = _peer_rows(api_get(api_base, "/pipeline"))
+        unattributed = sum(r.get("unattributed", 0) for r in rows)
+
+        # Four cross-sectional views, two to a row. Each is read at a glance and
+        # none needs the full width; stacked they were three screens of scrolling.
+        _c_left, _c_right = st.columns(2, gap="medium")
+        with _c_left:
+            if placed:
+                section("R&D against commercial performance", f"{len(placed)} placed")
+                st.markdown(scorecard_chart.build(placed), unsafe_allow_html=True)
+
+
+            # The R&D productivity table is gone and its captions with it: a fourteen
+            # column grid and two hundred words of caveat were the tallest thing on a
+            # tab whose subject is comparison, and every figure in it is a ratio the
+            # charts below already draw. This tab is read as charts.
+            section("Compounds in development by phase",
+                    "lead sponsored" + (f" · {unattributed} trials unattributed"
+                                        if unattributed else ""))
+            # No total column: it counts every phase, and carrying an all-phases figure
+            # beside development-only columns is the disagreement this view just lost.
+            grid = pd.DataFrame([{"Ticker": r["ticker"], **r["compounds"]} for r in rows])
+            if grid[DISPLAY_PHASES].to_numpy().sum() == 0:
+                state("No compounds mapped",
+                      "Press Refresh all on the Comps tab to pull trials from "
+                      "ClinicalTrials.gov and bind each to the compound it studies.")
+            else:
+                charted = [p for p in PIPELINE_PHASES if p not in POST_APPROVAL]
+                long = grid.melt(id_vars="Ticker", value_vars=charted,
+                                 var_name="Phase", value_name="Compounds")
+                long["Phase"] = long["Phase"].replace(PHASE_MERGE)
+                long = long.groupby(["Ticker", "Phase"], as_index=False)["Compounds"].sum()
+                # The count is printed in the cell, so colour is a second reading of the
+                # same number, never the only one. Sqrt weight keeps the largest pipeline
+                # from flattening everyone else into one tone.
+                peak = max(int(long["Compounds"].max()), 1)
+                cells = {(row.Ticker, row.Phase): {
+                            "count": int(row.Compounds),
+                            "weight": (row.Compounds / peak) ** 0.5}
+                         for row in long.itertuples() if row.Compounds}
+                R.show(CH.heatmap_grid(list(grid["Ticker"]), DISPLAY_PHASES, cells,
+                                       860, 460))
+
+
+        with _c_right:
+            if ct_labels and ct_by:
+                section("Compare over time", "revenue growth or net margin")
+                # Pills, not a radio and a dropdown: every company is one click away and the
+                # selection is readable without opening anything. A dropdown hid which
+                # companies were on the chart behind a closed control.
+                metric_label = st.pills(
+                    "Metric", ["Revenue growth", "Net margin"],
+                    default="Revenue growth", key="comps_metric",
+                    label_visibility="collapsed") or "Revenue growth"
+                metric_key = ("revenue_growth" if metric_label == "Revenue growth"
+                              else "net_margin")
+                default_sel = [t for t in (ticker, "LLY", "NVO", "MRK", "PFE")
+                               if t in ct_by][:5]
+                picked = st.pills(
+                    "Companies", sorted(ct_by), selection_mode="multi",
+                    default=default_sel, key="comps_pick",
+                    label_visibility="collapsed") or []
+                palette = [TK.UP, TK.ORANGE_BOOK, TK.PURPLE_BOOK, TK.DOWN, TK.FLAG, TK.MUTED]
+                series = [{"name": tk,
+                           "values": [v * 100 if v is not None else None
+                                      for v in ct_by[tk][metric_key]],
+                           "colour": palette[i % len(palette)]}
+                          for i, tk in enumerate(picked)]
+                if series:
+                    R.show(CH.line_chart(series, ct_labels, 1040, 360,
+                                         y_fmt=lambda v: f"{v:.0f}%"),
+                           css_class="chart-mount stretch")
+                else:
+                    state("Pick companies to compare",
+                          "Choose one or more from the control above.")
+
+            scatter_rows = display.dropna(subset=["Growth", "Net margin"])
+            if not scatter_rows.empty:
+                section("Growth against margin", f"{ticker} marked")
+                R.show(CH.scatter(
+                    [{"label": row["Ticker"], "x": row["Growth"],
+                      "y": row["Net margin"], "selected": row["Ticker"] == ticker}
+                     for _, row in scatter_rows.iterrows()],
+                    832, 300, x_label="Revenue growth, %", y_label="Net margin, %"))
+
+        # --- Pipeline --------------------------------------------------------
+
+        section("Comparables",
+                f'{len(_peers)} in {_ENGINE_LABELS.get(engine, "coverage").lower()}')
+        if st.button("Refresh all", key="refresh_all"):
+            run_refresh(api_base, "/refresh?scope=all", "all_run",
+                        "Refreshing the universe")
+            st.rerun()
+
+        # Multi-company comparison: pick a metric and the companies, one coloured line
+        # each over the fiscal years. Both ratios are currency-internal, so filers who
+        # report in different currencies still compare.
+        # A fixed height: seventeen companies at fourteen columns is a reference
+        # grid, not a view, and it was the last thing keeping this tab off one page.
+        st.dataframe(styled, width="stretch", hide_index=True, height=300,
                      column_config={"90d": st.column_config.LineChartColumn(
                          "90d", width="small")})
 
@@ -2694,44 +2749,6 @@ with main:
         # other cross-sectional views rather than in a tab that is otherwise one
         # company at a time.
         rows = _peer_rows(api_get(api_base, "/pipeline"))
-        unattributed = sum(r.get("unattributed", 0) for r in rows)
-        section("Compounds in development by phase",
-                "lead sponsored" + (f" · {unattributed} trials unattributed"
-                                    if unattributed else ""))
-        # No total column: it counts every phase, and carrying an all-phases figure
-        # beside development-only columns is the disagreement this view just lost.
-        grid = pd.DataFrame([{"Ticker": r["ticker"], **r["compounds"]} for r in rows])
-        if grid[DISPLAY_PHASES].to_numpy().sum() == 0:
-            state("No compounds mapped",
-                  "Press Refresh all on the Comps tab to pull trials from "
-                  "ClinicalTrials.gov and bind each to the compound it studies.")
-        else:
-            charted = [p for p in PIPELINE_PHASES if p not in POST_APPROVAL]
-            long = grid.melt(id_vars="Ticker", value_vars=charted,
-                             var_name="Phase", value_name="Compounds")
-            long["Phase"] = long["Phase"].replace(PHASE_MERGE)
-            long = long.groupby(["Ticker", "Phase"], as_index=False)["Compounds"].sum()
-            # The count is printed in the cell, so colour is a second reading of the
-            # same number, never the only one. Sqrt weight keeps the largest pipeline
-            # from flattening everyone else into one tone.
-            peak = max(int(long["Compounds"].max()), 1)
-            cells = {(row.Ticker, row.Phase): {
-                        "count": int(row.Compounds),
-                        "weight": (row.Compounds / peak) ** 0.5}
-                     for row in long.itertuples() if row.Compounds}
-            R.show(CH.heatmap_grid(list(grid["Ticker"]), DISPLAY_PHASES, cells,
-                                   860, 460))
-
-        scatter_rows = display.dropna(subset=["Growth", "Net margin"])
-        if not scatter_rows.empty:
-            section("Growth against margin", f"{ticker} marked")
-            R.show(CH.scatter(
-                [{"label": row["Ticker"], "x": row["Growth"],
-                  "y": row["Net margin"], "selected": row["Ticker"] == ticker}
-                 for _, row in scatter_rows.iterrows()],
-                832, 300, x_label="Revenue growth, %", y_label="Net margin, %"))
-
-    # --- Pipeline --------------------------------------------------------
     with pipeline_tab:
         # --- Therapeutic areas: click a band to reveal its trials ---
         # Development trials drive the bars and the "in development" count. Two kinds of

@@ -896,6 +896,13 @@ h3 {{ font-size: 0.9rem; }}
   max-height: clamp(8rem, calc(100vh - 600px), 16rem);
 }}
 
+/* Comps draws four cross-sectional charts and a reference grid. Each is read as a shape
+   rather than off an axis, so they take what the screen has rather than what their own
+   viewBox asks for, and the tab stops being a scroll. */
+[data-baseweb="tab-panel"]:has(.comps-anchor) svg {{
+  max-height: clamp(150px, calc(50vh - 210px), 260px); width: auto; max-width: 100%;
+}}
+
 /* Catalyst calendar. */
 .cal {{
   display: grid; grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
