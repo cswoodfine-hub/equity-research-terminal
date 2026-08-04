@@ -908,8 +908,8 @@ h3 {{ font-size: 0.9rem; }}
    carries the mono weight; nothing is coloured red, because the other company losing a
    measure is not a warning about it. */
 .h2h {{ margin: 0.2rem 0 0.3rem; }}
-.h2h-r {{ display: grid; grid-template-columns: 1fr 12rem 1fr; align-items: baseline;
-         gap: 0.6rem; padding: 0.3rem 0; border-bottom: 1px solid var(--rule); }}
+.h2h-r {{ display: grid; grid-template-columns: 1fr 10.5rem 1fr; align-items: baseline;
+         gap: 0.5rem; padding: 0.17rem 0; border-bottom: 1px solid var(--rule); }}
 .h2h-r:last-child {{ border-bottom: none; }}
 .h2h-head {{ border-bottom: 1px solid var(--rule-strong); padding-bottom: 0.35rem; }}
 .h2h-head .h2h-v {{ font-size: 1rem; font-weight: 700; color: var(--text); }}
