@@ -23,6 +23,7 @@ can see the order here rather than inferring it from the output.
 from __future__ import annotations
 
 import datetime as dt
+import math
 import re
 
 import db
@@ -51,6 +52,34 @@ ORDER = ("deal", "reported", "approval", "regulatory", "filing", "leadership",
 # The same for the forward view. A decision date outranks a vote that informs it, which
 # outranks a readout whose date the registry only estimates.
 AHEAD_ORDER = ("PDUFA", "panel", "data readout")
+
+# What makes one upcoming event bigger news than another. The forward list used to be a
+# calendar, so a forty-patient Phase 2 in an unnamed indication led the page whenever it
+# happened to be dated first, and the Phase 3 that moves a share price sat below the
+# fold. These are the three things that separate them, stated rather than scored from
+# something clever:
+#
+#   what kind of event it is   a decision outranks a vote outranks a readout
+#   how far the drug has come  a Phase 3 result is the one that decides a launch
+#   how big the study is       a 5,000-patient trial is not a 40-patient one
+#
+# A curated row is worth a nudge over a derived one, because somebody put it there on
+# purpose. Enrollment is compressed hard: it separates a large trial from a small one
+# without letting one enormous outcomes study outrank every decision on the calendar.
+_AHEAD_KIND_WEIGHT = {"PDUFA": 60, "panel": 45, "approval decision": 60}
+_AHEAD_PHASE_WEIGHT = {"Phase 3": 30, "Phase 2/3": 22, "Phase 2": 12,
+                       "Phase 1/2": 6, "Phase 1": 3}
+
+
+def _ahead_weight(kind, phase, enrollment, is_curated) -> float:
+    """How big this event is, for ordering the forward list."""
+    weight = float(_AHEAD_KIND_WEIGHT.get(kind, 20))
+    weight += _AHEAD_PHASE_WEIGHT.get(phase or "", 0)
+    if enrollment and enrollment > 0:
+        weight += min(math.log10(enrollment) * 6, 24)
+    if is_curated:
+        weight += 5
+    return weight
 
 # A trial that has stopped, rather than one that has started or changed pace.
 _STOPPED = re.compile(r"->\s*(?:Terminated|Withdrawn|Suspended)\b", re.I)
@@ -363,10 +392,14 @@ def _catalysts(conn, tickers, today, until) -> list:
     completion date that slips, and the row says so instead of the reader having to know.
     """
     out = []
+    # The trial behind a readout, where the row names one. Its phase and enrollment are
+    # what make one readout bigger news than another, and neither is on the catalyst.
     for row in conn.execute(
             "SELECT c.ticker, c.name, k.catalyst_type, k.expected_date, k.title,"
-            "       k.description, k.is_curated, k.source_url, k.date_confidence"
+            "       k.description, k.is_curated, k.source_url, k.date_confidence,"
+            "       t.phase, t.enrollment"
             "  FROM catalysts k JOIN companies c ON c.id = k.company_id"
+            "  LEFT JOIN trials t ON t.nct_id = k.description"
             " WHERE k.expected_date >= ? AND k.expected_date <= ?"
             " ORDER BY k.expected_date", (today, until)):
         if tickers is not None and row["ticker"] not in tickers:
@@ -387,6 +420,8 @@ def _catalysts(conn, tickers, today, until) -> list:
         out.append({
             "kind": kind, "ticker": row["ticker"], "name": row["name"],
             "date": row["expected_date"][:10],
+            "weight": _ahead_weight(kind, row["phase"], row["enrollment"],
+                                    row["is_curated"]),
             "headline": f"{row['ticker']} {row['title'] or kind}",
             "figure": kind, "detail": note if note.startswith("NCT") else "",
             "summary": summary, "evidence": evidence, "url": row["source_url"],
@@ -443,11 +478,14 @@ def ahead(db_path=None, tickers=None, days: int = AHEAD_DAYS, today=None) -> lis
 
     def order(item):
         kind = item["kind"]
-        return (item["date"],
+        return (-item.get("weight", 0), item["date"],
                 AHEAD_ORDER.index(kind) if kind in AHEAD_ORDER else len(AHEAD_ORDER))
 
-    # A calendar sorts by date. Within a day the firmest kind leads: a decision outranks
-    # the vote that informs it, which outranks a readout the registry only estimates.
+    # Biggest first, not soonest. This is the front page of a research terminal rather
+    # than a diary: what a reader needs is the Phase 3 that decides a launch, and the
+    # date it lands is the second thing they want, not the first. Ties fall back to the
+    # date and then to the firmest kind, so a decision still outranks the vote that
+    # informs it. The company's own Catalysts tab remains a calendar, in date order.
     items.sort(key=order)
     return items
 

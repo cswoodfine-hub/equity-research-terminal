@@ -286,3 +286,30 @@ def test_the_title_as_filed_survives_in_the_detail(tmp_path):
     row = headlines.build(path, today=TODAY)[0]
     filed = next(p for p in row["summary"] if p["label"] == "As filed")
     assert filed["value"] == "NEW FLAGSHIP R&D CENTRE IN CAMBRIDGE"
+
+
+def test_the_forward_list_leads_with_the_biggest_not_the_soonest():
+    """A forty-patient Phase 2 dated tomorrow used to lead the front page over the
+    Phase 3 that decides a launch, because the list was a calendar."""
+    small = headlines._ahead_weight("data readout", "Phase 2", 40, 0)
+    large = headlines._ahead_weight("data readout", "Phase 3", 5000, 0)
+    assert large > small
+
+
+def test_a_decision_outranks_a_readout_of_the_same_size():
+    """A PDUFA date is a decision; a registry completion date is an estimate."""
+    assert headlines._ahead_weight("PDUFA", "Phase 3", 500, 1) > \
+        headlines._ahead_weight("data readout", "Phase 3", 500, 1)
+
+
+def test_one_enormous_study_cannot_outrank_every_decision():
+    """Enrollment is compressed, so a 90,000-patient outcomes trial informs the order
+    without taking it over."""
+    huge = headlines._ahead_weight("data readout", "Phase 3", 90_000, 0)
+    assert huge < headlines._ahead_weight("PDUFA", "Phase 3", 100, 0) + 30
+
+
+def test_a_missing_phase_or_enrollment_still_ranks():
+    """Most registry rows carry neither. They rank on the kind alone rather than erroring
+    or sorting to the bottom as zero."""
+    assert headlines._ahead_weight("data readout", None, None, 0) > 0
