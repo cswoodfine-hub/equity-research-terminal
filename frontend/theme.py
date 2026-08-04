@@ -900,7 +900,7 @@ h3 {{ font-size: 0.9rem; }}
    rather than off an axis, so they take what the screen has rather than what their own
    viewBox asks for, and the tab stops being a scroll. */
 [data-baseweb="tab-panel"]:has(.comps-anchor) svg {{
-  max-height: clamp(150px, calc(50vh - 210px), 260px); width: auto; max-width: 100%;
+  max-height: clamp(210px, calc(50vh - 130px), 340px); width: 100%; max-width: 100%;
 }}
 
 /* Head to head: one company each side, the measure between them, so the eye runs down
