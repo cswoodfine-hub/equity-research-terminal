@@ -2632,12 +2632,6 @@ with main:
                 R.show(CH.line_chart(series, ct_labels, 1040, 360,
                                      y_fmt=lambda v: f"{v:.0f}%"),
                        css_class="chart-mount stretch")
-                st.markdown(
-                    '<div class="byline">Year-over-year revenue growth or net margin per '
-                    'fiscal year, one line per company; a line breaks where a year is '
-                    'missing rather than bridging it. Both are currency-internal, so a '
-                    'euro filer and a dollar filer compare directly.</div>',
-                    unsafe_allow_html=True)
             else:
                 state("Pick companies to compare",
                       "Choose one or more from the control above.")
@@ -2695,16 +2689,6 @@ with main:
         st.dataframe(styled, width="stretch", hide_index=True,
                      column_config={"90d": st.column_config.LineChartColumn(
                          "90d", width="small")})
-        st.markdown(
-            '<div class="byline">Revenue is converted to dollars at the ECB daily '
-            'reference rate so the column ranks, and Cur names the currency the company '
-            'actually files in; a currency with no rate on file shows a dash rather than '
-            'being counted at par. Derived columns: late trials are lead-sponsored '
-            'Phase 3 and Phase 2/3; revenue per late trial divides that converted '
-            'revenue by the count; LOE 5y is the share of tagged product revenue whose '
-            'US protection expires inside five years, with the unpriced product count '
-            'beside it. A dash is a missing input, never zero.</div>',
-            unsafe_allow_html=True)
 
         # A matrix of every company against every phase, so it belongs with the
         # other cross-sectional views rather than in a tab that is otherwise one
@@ -2737,15 +2721,6 @@ with main:
                      for row in long.itertuples() if row.Compounds}
             R.show(CH.heatmap_grid(list(grid["Ticker"]), DISPLAY_PHASES, cells,
                                    860, 460))
-            st.markdown(
-                '<div class="byline">Each compound is counted once, at the furthest '
-                'phase it has reached, so a row is the number of candidates a company '
-                'has rather than the number of protocols it has registered. Counting '
-                'studies measured how finely a programme was split: on trials '
-                'AstraZeneca ran more than twice Pfizer\'s Phase 3, where on compounds '
-                'the two are level. A trial whose intervention names nothing on file has '
-                'no compound to attribute and is counted nowhere; the figure above says '
-                'how many.</div>', unsafe_allow_html=True)
 
         scatter_rows = display.dropna(subset=["Growth", "Net margin"])
         if not scatter_rows.empty:

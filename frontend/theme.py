@@ -861,7 +861,7 @@ h3 {{ font-size: 0.9rem; }}
    of a card. Tight above, tighter below. */
 [data-baseweb="tab-panel"]:has(.no-rail)
   [data-testid="stElementContainer"]:has([data-testid="stButtonGroup"]) {{
-  margin-top: 0.35rem; margin-bottom: -0.15rem;
+  margin-top: 0.9rem; margin-bottom: -0.15rem;
 }}
 [data-baseweb="tab-panel"]:has(.no-rail)
   [data-testid="stElementContainer"]:has(.sec) {{ margin-top: 0.5rem; }}
