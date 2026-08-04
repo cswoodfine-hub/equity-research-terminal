@@ -899,8 +899,16 @@ h3 {{ font-size: 0.9rem; }}
 /* Comps draws four cross-sectional charts and a reference grid. Each is read as a shape
    rather than off an axis, so they take what the screen has rather than what their own
    viewBox asks for, and the tab stops being a scroll. */
+/* The cohort charts below take the height. A scatter of eighteen companies and a matrix
+   of eighteen rows are the two that reward size; the pair at the top is a list beside a
+   two-line chart, and neither needs as much. */
 [data-baseweb="tab-panel"]:has(.comps-anchor) svg {{
-  max-height: clamp(210px, calc(50vh - 130px), 340px); width: 100%; max-width: 100%;
+  max-height: clamp(260px, calc(60vh - 100px), 420px); width: 100%; max-width: 100%;
+}}
+/* The trend chart is two lines over a decade and reads fine short, so it keeps the top
+   row down to the height of the measure list beside it. */
+[data-baseweb="tab-panel"]:has(.comps-anchor) .comps-pair svg {{
+  max-height: clamp(150px, calc(28vh - 40px), 210px);
 }}
 
 /* Head to head: one company each side, the measure between them, so the eye runs down
@@ -909,7 +917,7 @@ h3 {{ font-size: 0.9rem; }}
    measure is not a warning about it. */
 .h2h {{ margin: 0.2rem 0 0.3rem; }}
 .h2h-r {{ display: grid; grid-template-columns: 1fr 10.5rem 1fr; align-items: baseline;
-         gap: 0.5rem; padding: 0.17rem 0; border-bottom: 1px solid var(--rule); }}
+         gap: 0.5rem; padding: 0.1rem 0; border-bottom: 1px solid var(--rule); }}
 .h2h-r:last-child {{ border-bottom: none; }}
 .h2h-head {{ border-bottom: 1px solid var(--rule-strong); padding-bottom: 0.35rem; }}
 .h2h-head .h2h-v {{ font-size: 1rem; font-weight: 700; color: var(--text); }}

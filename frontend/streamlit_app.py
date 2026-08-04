@@ -2762,9 +2762,9 @@ with main:
                            "colour": palette[i % len(palette)]}
                           for i, tk in enumerate(picked)]
                 if series:
-                    R.show(CH.line_chart(series, ct_labels, 1040, 330,
+                    R.show(CH.line_chart(series, ct_labels, 1040, 300,
                                          y_fmt=lambda v: f"{v:.0f}%"),
-                           css_class="chart-mount stretch")
+                           css_class="chart-mount stretch comps-pair")
                 else:
                     state("No history for these two",
                           "Neither company has enough reported years to draw a line. "
@@ -2810,8 +2810,10 @@ with main:
                             "count": int(row.Compounds),
                             "weight": (row.Compounds / peak) ** 0.5}
                          for row in long.itertuples() if row.Compounds}
+                # Eighteen rows of three: the matrix wants height, and its width was
+                # making it render short in a half-page column.
                 R.show(CH.heatmap_grid(list(grid["Ticker"]), DISPLAY_PHASES, cells,
-                                       860, 460))
+                                       700, 600))
 
 
 

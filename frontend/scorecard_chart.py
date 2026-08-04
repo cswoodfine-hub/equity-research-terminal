@@ -18,7 +18,10 @@ from __future__ import annotations
 
 from components import tokens as TK
 
-WIDTH, HEIGHT = 760, 520
+# Taller than it is wide by more than it was. The chart renders at whatever width its
+# column gives it and takes its height from this ratio, so a squatter viewBox came
+# out small in a half-page column however much room was left below it.
+WIDTH, HEIGHT = 700, 600
 PAD_LEFT, PAD_RIGHT = 64, 64
 PAD_TOP, PAD_BOTTOM = 40, 56
 
