@@ -2584,96 +2584,13 @@ with main:
         placed = _peer_rows(board["placed"])
         if placed:
             section("R&D against commercial performance", f"{len(placed)} placed")
-            st.caption(
-                "Each axis is a weighted score against the companies on the chart, so "
-                "the lines cross at their average rather than at any absolute standard. "
-                "Research is portfolio freshness at half weight, approvals in five "
-                "years at three tenths, and the share of the pipeline in Phase 3 at two "
-                "tenths. Commercial is revenue growth at six tenths and net margin at "
-                "four. A company ahead on both is picked out in colour.")
             st.markdown(scorecard_chart.build(placed), unsafe_allow_html=True)
 
-            both = [r["ticker"] for r in placed if r["quadrant"] == "Both"]
-            if both:
-                st.caption(
-                    "Ahead of these peers on both axes: " + ", ".join(both) + ". "
-                    + (f"{len(board['gaps'])} companies are not placed, because a "
-                       "composite built over whatever inputs happened to exist would "
-                       "rank one company on two measures against another on five."
-                       if board["gaps"] else ""))
 
-        prod = _peer_rows(api_get(api_base, "/productivity"))
-        measured = [r for r in prod if r["fresh_share"] is not None]
-        section("R&D productivity", f"{len(measured)} of {len(prod)} measurable")
-        st.caption(
-            "Portfolio freshness is the share of product revenue earned by drugs "
-            "approved in the last five years. It is the productivity question that "
-            "lands on the income statement: spend per approval divides this year's "
-            "research budget by an output it did not buy, so it sits beside as the "
-            "reference point rather than the answer. Freshness is refused, with the "
-            "reason, where too little of a company's revenue maps to a dated drug. "
-            "A filing that discloses a franchise rather than a drug, as GSK does with "
-            "Shingles and Meningitis, is resolved through a curated membership map in "
-            "data/franchise_map.csv. Only the membership is curated: the dates still "
-            "come from the register, and a franchise whose products straddle the "
-            "five-year line is left unresolved rather than assigned to whichever one "
-            "suits.")
-        if prod:
-            st.dataframe(pd.DataFrame([{
-                "Ticker": r["ticker"],
-                "Fresh revenue, %": (r["fresh_share"] * 100
-                                     if r["fresh_share"] is not None else None),
-                "Revenue dated, %": r["fresh_coverage"] * 100,
-                "Revenue, bn": (r["revenue_latest"] / 1e9
-                                if r["revenue_latest"] else None),
-                "R&D, bn": r["rd_latest"] / 1e9 if r["rd_latest"] else None,
-                "R&D, % of revenue": (r["rd_intensity"] * 100
-                                      if r["rd_intensity"] else None),
-                "Approvals, 5y": r["approvals_window"],
-                "R&D per approval, bn": (r["rd_per_approval"] / 1e9
-                                         if r["rd_per_approval"] else None),
-                "Phase 3 share, %": (r["late_share"] * 100
-                                     if r["late_share"] is not None else None),
-                # Empty rather than None: a measured company has no reason to give,
-                # and the word "None" in that column reads as a value.
-                "Why not measured": r["fresh_reason"] or "",
-            } for r in prod]), width="stretch", hide_index=True,
-                column_config={
-                    "Fresh revenue, %": st.column_config.NumberColumn(format="%.0f"),
-                    "Revenue dated, %": st.column_config.NumberColumn(format="%.0f"),
-                    "Revenue, bn": st.column_config.NumberColumn(format="%.0f"),
-                    "R&D, bn": st.column_config.NumberColumn(format="%.1f"),
-                    "R&D, % of revenue": st.column_config.NumberColumn(format="%.0f"),
-                    "R&D per approval, bn": st.column_config.NumberColumn(format="%.1f"),
-                    "Phase 3 share, %": st.column_config.NumberColumn(format="%.0f")})
-
-            if measured:
-                lead, lag = measured[0], measured[-1]
-                st.markdown(
-                    f'<div class="state"><div class="t">Portfolio renewal splits the '
-                    f'group</div><div class="d">'
-                    f'{lead["ticker"]} earns {lead["fresh_share"]:.0%} of its identified '
-                    f'product revenue from drugs approved since '
-                    f'{dt.date.today().year - 5}, against {lag["fresh_share"]:.0%} at '
-                    f'{lag["ticker"]}. Spending does not explain it: '
-                    f'{lead["ticker"]} runs R&amp;D at '
-                    f'{lead["rd_intensity"]:.0%} of revenue and {lag["ticker"]} at '
-                    f'{lag["rd_intensity"]:.0%}.</div></div>',
-                    unsafe_allow_html=True)
-
-            # Said plainly rather than left for the reader to infer from blanks. Three
-            # of the P3i measures have no free route at all, and a panel that quietly
-            # omitted them would read as though these were the whole picture.
-            st.caption(
-                "Not shown, because no free source carries them: market access and "
-                "prior-authorisation rates, which come from payer claims; multi-year "
-                "launch revenue curves, since the revenue table holds one year; and "
-                "probability of technical success, which needs a cohort followed "
-                "forward rather than the single cross-section stored here. Development "
-                "timelines are absent for the same reason the pipeline trend is: the "
-                "trials table keeps studies that are still running, so the early work "
-                "behind an approved drug has already left it.")
-
+        # The R&D productivity table is gone and its captions with it: a fourteen
+        # column grid and two hundred words of caveat were the tallest thing on a
+        # tab whose subject is comparison, and every figure in it is a ratio the
+        # charts below already draw. This tab is read as charts.
         section("Comparables",
                 f'{len(_peers)} in {_ENGINE_LABELS.get(engine, "coverage").lower()}')
         if st.button("Refresh all", key="refresh_all"):
