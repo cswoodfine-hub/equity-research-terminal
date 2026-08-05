@@ -52,14 +52,39 @@ def resolve_asset(conn, ticker: str, application_number: str):
     return row["id"] if row else None
 
 
+def _dedupe_key(row) -> tuple:
+    """What makes two rows the same product filed twice.
+
+    The assets table carries duplicates: the same drug resolved to two ids, so the same
+    figure is attached to both and the mix counts it twice. Bristol had Opdivo at 10.05bn
+    against two asset ids, Sprycel at 0.49bn against two more, and Opdivo Qvantig against
+    an id whose brand had been mis-transcribed as "Ovantig". Its product rows summed to
+    56.3bn against 48.2bn reported, so Eliquis printed at 25.7% of revenue when its true
+    share is 30.0%, understating exactly the concentration a reader opens this for.
+
+    The test is the first word of the brand and the figure itself: two rows that name the
+    same drug and carry the same number to the penny are one filing counted twice. Two
+    rows naming the same drug with different figures are left alone, because a filer that
+    splits a product across segments is reporting two real amounts, and Opdivo at 10.05bn
+    sits beside Opdivo Qvantig at 0.24bn untouched.
+    """
+    brand = (row.get("brand_name") or row.get("generic_name") or "").strip().lower()
+    head = brand.split()[0] if brand.split() else brand
+    return (row.get("fiscal_year"), head, round(row.get("value") or 0.0, 2))
+
+
 def list_revenue(db_path=None, ticker: str = "") -> list[dict]:
-    """Every curated figure for one company, newest fiscal year first."""
+    """Every curated figure for one company, newest fiscal year first.
+
+    One row per product per year: see _dedupe_key for what counts as the same product
+    filed twice, and why summing them was overstating the base every share is struck on.
+    """
     conn = db.get_connection(db_path)
     try:
         company_id = _company_id(conn, ticker)
         if company_id is None:
             return []
-        return [dict(r) for r in conn.execute(
+        rows = [dict(r) for r in conn.execute(
             """
             SELECT r.id, r.asset_id, r.fiscal_year, r.value, r.unit, r.source, r.note,
                    a.brand_name, a.generic_name, a.internal_code, a.modality
@@ -71,6 +96,18 @@ def list_revenue(db_path=None, ticker: str = "") -> list[dict]:
         )]
     finally:
         conn.close()
+
+    # The fullest telling of the name wins. Where two spellings are the same length,
+    # "Opdivo Ovantig" against "Opdivo Qvantig", one is a mis-transcription and nothing
+    # in the data says which, so the survivor is arbitrary and only the figure is not.
+    kept: dict = {}
+    for row in rows:
+        key = _dedupe_key(row)
+        prior = kept.get(key)
+        if prior is None or len(row.get("brand_name") or "") > len(
+                prior.get("brand_name") or ""):
+            kept[key] = row
+    return [row for row in rows if kept.get(_dedupe_key(row)) is row]
 
 
 def set_revenue(db_path, ticker: str, application_number: str, fiscal_year: int,

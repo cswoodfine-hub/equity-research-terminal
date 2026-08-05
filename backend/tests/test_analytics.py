@@ -660,3 +660,57 @@ def test_comps_trend_keys_a_year_on_when_it_closes(tmp_path):
     # 2020 closed above 2019, and 2021 fell below 2020. Both are now computable.
     assert growth["FY20"] is not None and growth["FY20"] > 0
     assert growth["FY21"] is not None and growth["FY21"] < 0
+
+
+def test_the_same_product_filed_twice_is_counted_once(tmp_path):
+    """Bristol carried Opdivo against two asset ids, so its product rows summed to
+    56.3bn against 48.2bn reported and Eliquis printed at 25.7% of revenue when its true
+    share is 30.0%. The mix understated exactly the concentration a reader opens it for.
+    """
+    import asset_revenue
+    path = tmp_path / "t.db"
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'BMY', 'BMY')")
+    for aid, brand in ((1, "Eliquis"), (2, "Opdivo"), (3, "Opdivo"),
+                       (4, "Opdivo Ovantig"), (5, "Opdivo Qvantig")):
+        conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                     " VALUES (?, 1, ?, 1)", (aid, brand))
+    for aid, value in ((1, 14.44e9), (2, 10.05e9), (3, 10.05e9),
+                       (4, 0.24e9), (5, 0.24e9)):
+        conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value,"
+                     "                           unit, source)"
+                     " VALUES (?, 2025, 'FY', ?, 'USD', 'test')", (aid, value))
+    conn.commit(); conn.close()
+
+    rows = asset_revenue.list_revenue(path, "BMY")
+    brands = [r["brand_name"] for r in rows]
+    assert brands.count("Opdivo") == 1
+    # One of the two Qvantig spellings survives. Which one is not assertable: the register
+    # holds "Ovantig" and "Qvantig" for the same drug at the same figure, one of them a
+    # mis-transcription, and nothing in the data says which. What matters is that the
+    # 0.24bn is counted once.
+    assert sum(1 for b in brands if b.startswith("Opdivo ")) == 1
+    assert sum(r["value"] for r in rows) == 14.44e9 + 10.05e9 + 0.24e9
+
+
+def test_two_figures_for_one_drug_are_not_a_duplicate(tmp_path):
+    """A filer that splits a product across segments is reporting two real amounts, and
+    Opdivo at 10.05bn sits beside Opdivo Qvantig at 0.24bn untouched."""
+    import asset_revenue
+    path = tmp_path / "t.db"
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'BMY', 'BMY')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Opdivo', 1)")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (2, 1, 'Opdivo Qvantig', 1)")
+    conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value, unit,"
+                 "                           source)"
+                 " VALUES (1, 2025, 'FY', 10.05e9, 'USD', 'test')")
+    conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value, unit,"
+                 "                           source)"
+                 " VALUES (2, 2025, 'FY', 0.24e9, 'USD', 'test')")
+    conn.commit(); conn.close()
+    assert len(asset_revenue.list_revenue(path, "BMY")) == 2
