@@ -39,6 +39,21 @@ _HEADLINE_WORDS = {
 }
 MAX_WORDS = 4          # a company name is short; a headline is not
 
+# A word the whole industry shares. Alone it is not a company, it is the noun half of a
+# thousand of them, and the registry's lead-sponsor query matches on substring: a search
+# for "Therapeutics" returns MediLink, Abbisko, Juncell, Corcept, Mirati and Cullinan,
+# and every one of their studies was then filed under Pfizer. That single word put 1,394
+# other sponsors' trials on Pfizer's pipeline and made it read ten times any peer. A
+# place name does the same for a university: "Massachusetts" finds Massachusetts General.
+_GENERIC_ALONE = {
+    "therapeutics", "pharmaceuticals", "pharmaceutical", "pharma", "biosciences",
+    "bioscience", "biotechnology", "biotechnologies", "biotech", "biopharma",
+    "biopharmaceuticals", "sciences", "science", "medicines", "medicine", "health",
+    "healthcare", "laboratories", "labs", "oncology", "diagnostics", "genomics",
+    "bio", "inc", "corp", "corporation", "ltd", "limited", "plc", "holdings", "group",
+    "massachusetts", "california", "texas", "boston", "cambridge", "london",
+}
+
 
 def _plausible(name: str) -> bool:
     """Whether a counterparty name is specific enough to search a registry with."""
@@ -49,6 +64,12 @@ def _plausible(name: str) -> bool:
     if len(words) > MAX_WORDS:
         return False
     if any(w.lower().strip(",.") in _HEADLINE_WORDS for w in words):
+        return False
+    # A name that is only industry words names no company: "Therapeutics" on its own,
+    # or "Bio Sciences". The registry matches on substring, so one of these searches
+    # returns every sponsor in the field.
+    bare = [w.lower().strip(",.") for w in words]
+    if all(w in _GENERIC_ALONE for w in bare):
         return False
     # Two words is specific enough. One word has to be long: AtaiBeckley names one
     # company and Engage names a verb.

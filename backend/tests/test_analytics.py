@@ -714,3 +714,23 @@ def test_two_figures_for_one_drug_are_not_a_duplicate(tmp_path):
                  " VALUES (2, 2025, 'FY', 0.24e9, 'USD', 'test')")
     conn.commit(); conn.close()
     assert len(asset_revenue.list_revenue(path, "BMY")) == 2
+
+
+def test_a_bare_industry_word_is_not_a_sponsor_to_search_for():
+    """Pfizer's acquired-sponsor list held the single word "Therapeutics", read off a
+    headline. The registry matches lead sponsor on substring, so that one search returned
+    MediLink, Abbisko, Juncell, Corcept, Mirati and Cullinan, and 1,380 of their studies
+    were filed under Pfizer: it read 1,063 compounds in development against 115 for the
+    largest real pipeline in the cohort."""
+    import acquired_sponsors
+    for bare in ("Therapeutics", "Pharmaceuticals", "Biosciences", "Massachusetts",
+                 "Bio Sciences"):
+        assert not acquired_sponsors._plausible(bare), bare
+
+
+def test_a_real_acquisition_still_passes():
+    """The filter must not take the specific names with the generic ones."""
+    import acquired_sponsors
+    for real in ("Trillium Therapeutics", "Biohaven Pharmaceuticals", "Sierra Oncology",
+                 "Metsera, Inc.", "AtaiBeckley"):
+        assert acquired_sponsors._plausible(real), real
