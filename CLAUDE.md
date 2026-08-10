@@ -177,7 +177,14 @@ curl -X POST localhost:8000/refresh
 - Work one build phase per session (see `docs/PRD.md`). Use plan mode, get the plan agreed, then implement.
 - Snapshot before you mutate current-state tables, so a diff is always possible.
 - When a source's real payload differs from these notes, trust the payload, update the fetcher, and update the fixture. Report the discrepancy in your summary.
-- Do not add data sources that need paid subscriptions or scraping behind logins.
+- Do not add data sources that need a paid subscription.
+- A source that needs a login is allowed. It is not free in the way a registry is, so it
+  carries conditions: the session belongs to a throwaway account rather than a personal
+  one, credentials live in `.env` and never in the repo or the database, the fetcher
+  reports a soft error rather than crashing when the session expires, and any view built
+  on one says so. Expect these to break more often than the registries and to break
+  silently. A cookie is a session, not an API, and the account carrying it can be
+  rate-limited or closed by the platform.
 
 ## House style for generated text and UI copy
 
