@@ -675,7 +675,12 @@ def _readout_lead(readout, ticker: str) -> dict:
 # Where a news item came from, as the chip says it. EDGAR is the fallback because a row
 # with no source is an SEC filing: the FDA feeds all name themselves.
 _NEWS_SOURCES = {"fda_press": "FDA press", "fda_drugs": "FDA drug",
-                 "fda_safety": "FDA safety"}
+                 "fda_safety": "FDA safety",
+                 # The company's own words, whether they came off its feed or its page.
+                 # Which of the two is a fetcher's business and not a reader's; that it
+                 # was the company speaking rather than the SEC or the FDA is the fact
+                 # the chip is for.
+                 "press_ir": "Company", "press_page": "Company"}
 # One screen of headlines. The rest are a scroll rather than a click, and the note says
 # how many were cut.
 _NEWS_SHOWN = 40

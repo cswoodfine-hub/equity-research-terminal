@@ -221,3 +221,69 @@ def test_a_company_with_no_page_reports_nothing_and_fails_nothing(tmp_path, monk
     assert result.errors == []
     assert result.rows_fetched == 0
     assert "no IR page" in " ".join(result.notes)
+
+
+# --- dates the listing carries ---------------------------------------------
+
+def test_every_layout_dates_every_release():
+    """Roche's release pages carry no Published Time. Read from the page alone its news
+    arrives undated, and an undated release never reaches the change feed."""
+    for md, listing in ((JNJ, JNJ_URL), (MRK, MRK_URL), (ROG, ROG_URL)):
+        urls = press_pages.release_urls(md, listing)
+        dates = press_pages.listing_dates(md, listing)
+        assert set(urls) <= set(dates), listing
+        assert all(d.startswith("202") and len(d) == 10 for d in dates.values())
+
+
+def test_the_date_is_read_wherever_the_page_puts_it():
+    """Johnson & Johnson puts it at the end of the line above the headline, Merck on the
+    line above as a link of its own, Roche on the line below."""
+    assert press_pages.listing_dates(JNJ, JNJ_URL)[
+        f"{JNJ_URL}/johnson-johnson-completes-acquisition-of-firefly-bio-inc-to-advance"
+        "-next-generation-oncology-innovation"] == "2026-07-29"
+    assert press_pages.listing_dates(ROG, ROG_URL)[
+        "https://www.roche.com/media/releases/med-cor-2026-07-15"] == "2026-07-15"
+
+
+def test_a_line_with_no_date_yields_none():
+    assert press_pages._line_date("Johnson & Johnson to participate in a conference") is None
+    assert press_pages._line_date("July 2026") is None      # a month is not a date
+
+
+def test_the_page_date_wins_over_the_listing(tmp_path, monkeypatch):
+    """The listing rounds to a day and the page states the moment. Where both exist the
+    release's own page is the better record."""
+    listing = ROG_URL
+    urls = press_pages.release_urls(ROG, listing)
+
+    def read(url, timeout=None):
+        if url == listing:
+            return ROG
+        return (f"Title: Release {url.rsplit('/', 1)[-1]}\n"
+                "Published Time: 2026-01-02T00:00:00Z\n\nMarkdown Content:\n")
+
+    fetcher, path = _fetcher(tmp_path, monkeypatch)
+    monkeypatch.setattr("fetchers.press_page._read", read)
+    fetcher.run()
+    stored = {r["url"]: r["published_at"]
+              for r in _rows(path, "SELECT url, published_at FROM news")}
+    assert stored[urls[0]] == "2026-01-02"
+
+
+def test_a_release_with_no_date_of_its_own_takes_the_listings(tmp_path, monkeypatch):
+    """Which is every Roche release: its pages carry no Published Time at all."""
+    listing = ROG_URL
+
+    def read(url, timeout=None):
+        if url == listing:
+            return ROG
+        return f"Title: Release {url.rsplit('/', 1)[-1]}\n\nMarkdown Content:\n"
+
+    fetcher, path = _fetcher(tmp_path, monkeypatch)
+    monkeypatch.setattr("fetchers.press_page._read", read)
+    fetcher.run()
+    dates = press_pages.listing_dates(ROG, ROG_URL)
+    stored = _rows(path, "SELECT url, published_at FROM news")
+    assert stored
+    for row in stored:
+        assert row["published_at"] == dates[row["url"]]

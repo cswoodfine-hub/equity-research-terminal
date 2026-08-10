@@ -27,6 +27,7 @@ This module is the parsing. The fetching, and the rate limit that comes with it,
 
 from __future__ import annotations
 
+import datetime as dt
 import re
 import urllib.parse
 
@@ -49,6 +50,24 @@ _SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+){2,}$", re.I)
 _LANG = re.compile(r"^[a-z]{2}(?:-[a-z]{2})?$", re.I)
 
 
+def _qualifies(url: str, listing) -> str | None:
+    """The release's slug if this url is one, else None. Shared by both readers."""
+    segments = [s for s in listing.path.strip("/").split("/") if s]
+    section = segments[-1] if segments else ""
+    parts = urllib.parse.urlsplit(url)
+    if parts.netloc != listing.netloc:
+        return None
+    path = [s for s in parts.path.strip("/").split("/") if s]
+    if not path or section not in path:
+        return None
+    if not _SLUG.match(path[-1]):
+        return None
+    # The same release in another language is the same release.
+    if any(_LANG.match(s) and s not in segments for s in path[:-1]):
+        return None
+    return path[-1]
+
+
 def release_urls(markdown: str, listing_url: str) -> list[str]:
     """The release urls a listing page links to, in the order it lists them.
 
@@ -59,28 +78,80 @@ def release_urls(markdown: str, listing_url: str) -> list[str]:
     any shared segment lets /media/company-fact-sheet/ in.
     """
     listing = urllib.parse.urlsplit(listing_url)
-    segments = [s for s in listing.path.strip("/").split("/") if s]
-    section = segments[-1] if segments else ""
     seen, out = set(), []
     for url in _LINK.findall(markdown):
-        parts = urllib.parse.urlsplit(url)
-        if parts.netloc != listing.netloc:
-            continue
-        path = [s for s in parts.path.strip("/").split("/") if s]
-        if not path or section not in path:
-            continue
-        slug = path[-1]
-        if not _SLUG.match(slug):
-            continue
-        # The same release in another language is the same release.
-        if any(_LANG.match(s) and s not in segments for s in path[:-1]):
-            continue
-        if slug in seen:
+        slug = _qualifies(url, listing)
+        if not slug or slug in seen:
             continue
         seen.add(slug)
+        parts = urllib.parse.urlsplit(url)
         out.append(urllib.parse.urlunsplit(
             (parts.scheme, parts.netloc, parts.path, "", "")))
     return out
+
+
+def listing_dates(markdown: str, listing_url: str) -> dict:
+    """{release url: YYYY-MM-DD} for the dates the listing itself prints.
+
+    Roche's release pages carry no Published Time, so read from the page alone its news
+    has no date, and a release with no date never reaches the change feed. The listing
+    prints one under every headline, so it is the fallback.
+
+    Where the date sits relative to the link is the one thing these pages disagree about
+    most: inside the link text at GSK, at the end of the list line at Johnson & Johnson,
+    on the line above at Merck, on the line below at Roche. So the nearest date within two
+    lines wins, ties going to the line before, which is the order they occur in.
+    """
+    listing = urllib.parse.urlsplit(listing_url)
+    lines = markdown.splitlines()
+    dated = {i: d for i, line in enumerate(lines)
+             for d in [_line_date(line)] if d}
+    out = {}
+    for i, line in enumerate(lines):
+        for url in _LINK.findall(line):
+            slug = _qualifies(url, listing)
+            if not slug:
+                continue
+            parts = urllib.parse.urlsplit(url)
+            clean = urllib.parse.urlunsplit(
+                (parts.scheme, parts.netloc, parts.path, "", ""))
+            if clean in out:
+                continue
+            for j in (i, i - 1, i + 1, i - 2, i + 2):
+                if j in dated:
+                    out[clean] = dated[j]
+                    break
+    return out
+
+
+_MONTHS = {m: n for n, m in enumerate(
+    ("january", "february", "march", "april", "may", "june", "july", "august",
+     "september", "october", "november", "december"), start=1)}
+_DATES = (
+    re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b"),
+    re.compile(r"\b(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})\b"),          # 29 July 2026
+    re.compile(r"\b([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})\b"),         # July 24, 2026
+)
+
+
+def _line_date(line: str) -> str | None:
+    """The first full date a line states, as YYYY-MM-DD."""
+    for pattern in _DATES:
+        match = pattern.search(line)
+        if not match:
+            continue
+        a, b, c = match.groups()
+        try:
+            if a.isdigit() and len(a) == 4:
+                year, month, day = int(a), int(b), int(c)
+            elif a.isdigit():
+                day, month, year = int(a), _MONTHS[b.lower()], int(c)
+            else:
+                month, day, year = _MONTHS[a.lower()], int(b), int(c)
+            return dt.date(year, month, day).isoformat()
+        except (ValueError, KeyError):
+            continue
+    return None
 
 
 def release(markdown: str) -> dict | None:

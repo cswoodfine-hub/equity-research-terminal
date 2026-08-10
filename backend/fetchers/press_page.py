@@ -110,7 +110,12 @@ class PressPageFetcher(BaseFetcher):
         listing = (company["ir_news_url"] or "").strip()
         if not listing:
             return {"company": company, "releases": None}
-        urls = press_pages.release_urls(_read(listing), listing)
+        index = _read(listing)
+        urls = press_pages.release_urls(index, listing)
+        # Roche's release pages carry no Published Time, so without the listing's own
+        # dates its news would arrive undated, and an undated release never reaches the
+        # change feed. The page's date still wins where it has one.
+        dates = press_pages.listing_dates(index, listing)
         self.listed = len(urls)
         fresh = [u for u in urls if u not in self._known(urls)][:MAX_RELEASES]
         releases = []
@@ -123,7 +128,8 @@ class PressPageFetcher(BaseFetcher):
                 self.errors.append(f"{self.ticker} {url}: {exc}")
                 continue
             if page:
-                releases.append({**page, "url": url})
+                releases.append({**page, "url": url,
+                                 "published": page["published"] or dates.get(url)})
         return {"company": company, "releases": releases}
 
     def normalise(self, raw) -> list[dict]:

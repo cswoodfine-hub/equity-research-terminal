@@ -70,7 +70,8 @@ def _event_dates(conn) -> dict:
     for r in conn.execute(
         "SELECT c.ticker, n.url, n.published_at FROM news n"
         "  JOIN companies c ON c.id = n.company_id"
-        " WHERE n.source = 'press_ir' AND n.published_at IS NOT NULL"):
+        " WHERE n.source IN ('press_ir', 'press_page')"
+        "   AND n.published_at IS NOT NULL"):
         dates[("company", f"{r['ticker']}|{r['url']}")] = r["published_at"]
     return dates
 
