@@ -37,6 +37,8 @@ VRTX,Casgevy,"Anemia, Sickle Cell",US,base,incidence,,2000,,patients/yr,CDC: SCD
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,penetration_peak_pct,,0.011,,share of pool/yr,"least-squares fit of the pool identity to the workbook's own SCD curve (rmse 71 patients/yr over 2024-2035)",post-2031 residual is the identity's correction: 4;070 cumulative barely depletes a 40;000 pool at ~800/yr eligible inflow
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,ramp_midpoint_year,,2027,,year,"least-squares fit of the pool identity to the workbook's own SCD curve (rmse 71 patients/yr over 2024-2035)",
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,ramp_steepness,,1.2,,,"least-squares fit of the pool identity to the workbook's own SCD curve (rmse 71 patients/yr over 2024-2035)",
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,implied_acceptance_low,,0.035,,share of eligible,"inversion of the workbook's own curve: a free fit is the depletion of ~1,400 of the 40,000 stated eligible (rmse 10/yr); docs/casgevy_uptake_audit.md",the audited quantity to vet: what share of eligible patients ever comes forward
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,implied_acceptance_high,,0.12,,share of eligible,"a single acceptance rate on stock and flow fits at 12% (rmse 18/yr); docs/casgevy_uptake_audit.md",the IR question that separates the two: the infusion mix between newly eligible and prevalent adults
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2024,5,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2025,45,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2026,120,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
