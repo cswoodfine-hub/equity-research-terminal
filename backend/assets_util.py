@@ -26,11 +26,32 @@ def normalize_appl(appl_type: str, appl_no: str) -> str:
     return f"{prefix}{digits}" if digits else ""
 
 
+def resolve_alias(conn, internal_code):
+    """The asset an absorbed application number now belongs to, or None.
+
+    One product holds several applications, one per formulation and strength, and the
+    merge folds them onto a single row. Without this the next refresh would recreate every
+    row the merge removed, since a product is looked up by application number alone.
+    """
+    row = conn.execute(
+        "SELECT asset_id FROM asset_aliases WHERE internal_code = ?",
+        (internal_code,)).fetchone()
+    return row[0] if row else None
+
+
 def upsert_asset(conn, company_id, internal_code, brand, generic, modality) -> int:
-    """Insert or fetch a marketed asset by internal_code; return its id."""
+    """Insert or fetch a marketed asset by internal_code; return its id.
+
+    An application number already folded into another product resolves to that product
+    rather than being inserted again.
+    """
     row = conn.execute(
         "SELECT id FROM assets WHERE internal_code = ?", (internal_code,)
     ).fetchone()
+    if row is None:
+        merged_into = resolve_alias(conn, internal_code)
+        if merged_into is not None:
+            row = (merged_into,)
     if row is not None:
         conn.execute(
             """

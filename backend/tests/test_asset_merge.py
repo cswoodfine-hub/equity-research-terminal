@@ -76,7 +76,9 @@ def test_merges_the_derived_row_into_the_marketed_one(tmp_path):
     _trial(conn, derived, "NCT0002")
     conn.close()
 
-    assert asset_merge.merge(path) == {"merged": 1, "trials_moved": 2, "by_code": 0, "by_brand": 0}
+    got = asset_merge.merge(path)
+    assert (got["merged"], got["trials_moved"], got["by_code"], got["by_brand"]) \
+        == (1, 2, 0, 0)
 
     conn = db.get_connection(path)
     assert conn.execute("SELECT COUNT(*) FROM assets WHERE id = ?",
@@ -86,7 +88,9 @@ def test_merges_the_derived_row_into_the_marketed_one(tmp_path):
     conn.close()
 
     # A second run has nothing left to do.
-    assert asset_merge.merge(path) == {"merged": 0, "trials_moved": 0, "by_code": 0, "by_brand": 0}
+    got = asset_merge.merge(path)
+    assert (got["merged"], got["trials_moved"], got["by_code"], got["by_brand"]) \
+        == (0, 0, 0, 0)
 
 
 def test_never_merges_across_companies(tmp_path):
@@ -258,4 +262,137 @@ def test_a_marketed_row_is_left_to_the_first_pass(tmp_path):
     _asset(conn, "LLY", generic="Gallium Dotatate Ga-68", marketed=1)
     conn.close()
 
-    assert asset_merge.merge(path) == {"merged": 0, "trials_moved": 0, "by_code": 0, "by_brand": 0}
+    got = asset_merge.merge(path)
+    assert (got["merged"], got["trials_moved"], got["by_code"], got["by_brand"]) \
+        == (0, 0, 0, 0)
+
+
+# --- one product filed under several application numbers -------------------
+
+def test_a_salt_is_the_same_molecule():
+    """Calquence is filed as acalabrutinib and acalabrutinib maleate, Mekinist as
+    trametinib and trametinib dimethyl sulfoxide. A salt is how a molecule is formulated,
+    not which molecule it is."""
+    same = asset_merge.canonical_generic
+    assert same("Acalabrutinib") == same("Acalabrutinib Maleate")
+    assert same("Trametinib") == same("Trametinib Dimethyl Sulfoxide")
+    assert same("Lenacapavir") == same("Lenacapavir Sodium")
+    assert same("Ivabradine") == same("Ivabradine Hydrochloride")
+
+
+def test_a_different_active_is_not_a_salt():
+    """Emend covers aprepitant and fosaprepitant, an oral drug and an intravenous prodrug.
+    They differ before any salt is stripped, so they stay apart."""
+    same = asset_merge.canonical_generic
+    assert same("Aprepitant") != same("Fosaprepitant Dimeglumine")
+
+
+def test_seven_applications_for_one_drug_become_one_product(tmp_path):
+    """Zithromax is seven NDAs for azithromycin, one per formulation and strength. Left
+    alone the universe counts one product as seven, and every revenue, exclusivity and
+    indication lookup sees a fraction of it."""
+    path, conn = _seed(tmp_path)
+    ids = [_asset(conn, "LLY", brand="Zithromax", generic="Azithromycin", marketed=1,
+                  code=f"NDA5071{n}") for n in range(7)]
+    conn.commit()
+    out = asset_merge.merge(path)
+    assert out["by_formulation"] == 6
+    conn = db.get_connection(path)
+    rows = conn.execute("SELECT id FROM assets WHERE brand_name = 'Zithromax'").fetchall()
+    assert [r["id"] for r in rows] == [min(ids)]      # the oldest survives, stably
+    conn.close()
+
+
+def test_two_brands_of_one_molecule_are_left_alone(tmp_path):
+    """Same molecule, different brand, is two products. Folding them would merge a
+    company's own competitor into it."""
+    path, conn = _seed(tmp_path)
+    _asset(conn, "LLY", brand="Brandone", generic="Azithromycin", marketed=1, code="NDA1")
+    _asset(conn, "LLY", brand="Brandtwo", generic="Azithromycin", marketed=1, code="NDA2")
+    conn.commit()
+    assert asset_merge.merge(path)["by_formulation"] == 0
+
+
+def test_one_brand_covering_two_molecules_is_left_alone(tmp_path):
+    path, conn = _seed(tmp_path)
+    _asset(conn, "LLY", brand="Emend", generic="Aprepitant", marketed=1, code="NDA1")
+    _asset(conn, "LLY", brand="Emend", generic="Fosaprepitant Dimeglumine",
+           marketed=1, code="NDA2")
+    conn.commit()
+    assert asset_merge.merge(path)["by_formulation"] == 0
+
+
+def test_two_companies_are_never_merged(tmp_path):
+    path, conn = _seed(tmp_path)
+    _asset(conn, "LLY", brand="Same", generic="Azithromycin", marketed=1, code="NDA1")
+    _asset(conn, "MRK", brand="Same", generic="Azithromycin", marketed=1, code="NDA2")
+    conn.commit()
+    assert asset_merge.merge(path)["by_formulation"] == 0
+
+
+# --- the merge has to survive the next refresh -----------------------------
+
+def test_an_absorbed_application_number_still_resolves(tmp_path):
+    """A product is looked up by application number, so a folded row would be recreated by
+    the next openFDA or Orange Book refresh and the merge would undo itself daily."""
+    import assets_util
+    path, conn = _seed(tmp_path)
+    keep = _asset(conn, "LLY", brand="Zithromax", generic="Azithromycin", marketed=1,
+                  code="NDA1")
+    _asset(conn, "LLY", brand="Zithromax", generic="Azithromycin", marketed=1, code="NDA2")
+    conn.commit()
+    asset_merge.merge(path)
+    conn = db.get_connection(path)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    again = assets_util.upsert_asset(conn, company, "NDA2", "Zithromax",
+                                     "Azithromycin", "small molecule")
+    assert again == keep
+    assert conn.execute("SELECT COUNT(*) FROM assets WHERE brand_name='Zithromax'"
+                        ).fetchone()[0] == 1
+    conn.close()
+
+
+def test_the_earliest_paragraph_iv_is_the_one_kept(tmp_path):
+    """Two formulations are challenged separately and the table holds one row per asset,
+    so the merge has to choose. Keeping the survivor's own date put Ozempic's first
+    challenge two and a half years late and Nexium's eight years late."""
+    path, conn = _seed(tmp_path)
+    keep = _asset(conn, "LLY", brand="Ozempic", generic="Semaglutide", marketed=1,
+                  code="NDA1")
+    other = _asset(conn, "LLY", brand="Ozempic", generic="Semaglutide", marketed=1,
+                   code="NDA2")
+    conn.execute("INSERT INTO patent_challenges (asset_id, application_number,"
+                 " first_submission) VALUES (?, 'NDA1', '2024-07-15')", (keep,))
+    conn.execute("INSERT INTO patent_challenges (asset_id, application_number,"
+                 " first_submission) VALUES (?, 'NDA2', '2021-12-06')", (other,))
+    conn.commit()
+    asset_merge.merge(path)
+    conn = db.get_connection(path)
+    rows = conn.execute("SELECT asset_id, first_submission FROM patent_challenges").fetchall()
+    assert len(rows) == 1
+    assert rows[0]["first_submission"] == "2021-12-06"
+    conn.close()
+
+
+def test_a_collapse_that_drops_a_row_says_so(tmp_path):
+    """A row that will not move collided with one the survivor already holds. Reported,
+    because a real loss would look exactly the same in silence."""
+    path, conn = _seed(tmp_path)
+    a = _asset(conn, "LLY", brand="Zithromax", generic="Azithromycin", marketed=1, code="N1")
+    b = _asset(conn, "LLY", brand="Zithromax", generic="Azithromycin", marketed=1, code="N2")
+    for asset_id in (a, b):
+        conn.execute("INSERT INTO patent_challenges (asset_id, application_number,"
+                     " first_submission) VALUES (?, 'X', '2024-01-01')", (asset_id,))
+    conn.commit()
+    out = asset_merge.merge(path)
+    assert out["duplicate_rows_collapsed"].get("patent_challenges") == 1
+
+
+def test_folding_is_idempotent(tmp_path):
+    path, conn = _seed(tmp_path)
+    for n in range(4):
+        _asset(conn, "LLY", brand="Neoral", generic="Cyclosporine", marketed=1,
+               code=f"NDA{n}")
+    conn.commit()
+    assert asset_merge.merge(path)["by_formulation"] == 3
+    assert asset_merge.merge(path)["by_formulation"] == 0

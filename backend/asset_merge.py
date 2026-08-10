@@ -86,6 +86,11 @@ _NOT_A_CODE = _ELEMENTS | _BIOLOGY | _INSTRUMENTS | _TIME | _WORDS
 _ISOTOPE = re.compile(r"\[?(\d{1,3})\s?([A-Z][a-z]?)\]?")
 
 
+# Rows a merge could not move because the survivor already held the same key. Reported
+# by merge() so a collapse that loses something says so.
+DROPPED: dict = {}
+
+
 def _canonical_names(asset) -> set:
     """Every canonical spelling a row answers to: its generic, its brand, its code."""
     names = set()
@@ -174,6 +179,65 @@ def find_brand_duplicates(conn, company_id: int) -> list[tuple]:
     return pairs
 
 
+# A salt or hydrate is how a molecule is formulated, not which molecule it is. Calquence
+# is filed as both acalabrutinib and acalabrutinib maleate, Mekinist as trametinib and
+# trametinib dimethyl sulfoxide. Stripping these lets one product's applications agree,
+# while a genuinely different active does not: Emend covers aprepitant and fosaprepitant,
+# which differ before any salt is removed and so are left apart.
+_SALTS = (
+    "dimethyl sulfoxide", "hydrochloride", "hydrobromide", "dimeglumine", "besylate",
+    "tosylate", "mesylate", "maleate", "succinate", "fumarate", "hemifumarate",
+    "tartrate", "citrate", "acetate", "phosphate", "diphosphate", "sulfate", "sulphate",
+    "oxalate", "lactate", "gluconate", "carbonate", "bicarbonate", "nitrate", "bromide",
+    "chloride", "iodide", "disodium", "sodium", "potassium", "calcium", "magnesium",
+    "meglumine", "trometamol", "tromethamine", "arginine", "lysine", "choline",
+    "monohydrate", "dihydrate", "trihydrate", "hydrate", "anhydrous", "pentahydrate",
+    # Salts met in the universe that the common list misses. "malate" sits beside
+    # "maleate" deliberately: Torecan is filed as thiethylperazine under both, and they
+    # are two salts of one molecule rather than two molecules.
+    "hyclate", "pamoate", "edisylate", "palmitate", "malate", "napsylate", "embonate",
+    "valerate", "propionate", "dipropionate", "furoate", "xinafoate", "bitartrate",
+)
+
+
+def canonical_generic(name: str) -> str:
+    """A generic name reduced to the molecule, with salt and hydrate words removed."""
+    text = " " + re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip() + " "
+    for salt in _SALTS:
+        text = text.replace(f" {salt} ", " ")
+    return re.sub(r"[^a-z0-9]+", "", text)
+
+
+def find_formulation_duplicates(conn, company_id: int) -> list[tuple]:
+    """(survivor_id, [loser_ids]) for one product filed under several applications.
+
+    A marketed product holds one application per formulation and strength: Zithromax is
+    seven NDAs for azithromycin, Neoral six for cyclosporine. Each arrived as its own
+    asset, so the universe counted one drug as seven and every revenue, exclusivity and
+    indication lookup saw a fraction of it.
+
+    The brand and the molecule both have to agree, which is what keeps this apart from the
+    brand pass above. That pass refuses to choose between two identified rows, correctly,
+    because a shared brand alone can hide two different drugs. Here nothing is being
+    chosen: the rows are the same molecule under the same brand from the same company, and
+    what differs is which application number the FDA gave the formulation.
+    """
+    rows = conn.execute(
+        "SELECT id, brand_name, generic_name, internal_code FROM assets"
+        " WHERE owner_company_id = ? AND is_marketed = 1"
+        "   AND COALESCE(brand_name, '') <> '' AND COALESCE(generic_name, '') <> ''",
+        (company_id,)).fetchall()
+    groups: dict = {}
+    for row in rows:
+        brand = canonical_brand(row["brand_name"])
+        generic = canonical_generic(row["generic_name"])
+        if len(brand) > 2 and len(generic) > 2:
+            groups.setdefault((brand, generic), []).append(row["id"])
+    # The oldest row survives, so the choice is stable across runs and the id an earlier
+    # refresh already wrote down keeps meaning the same product.
+    return [(min(ids), sorted(ids)[1:]) for ids in groups.values() if len(ids) > 1]
+
+
 def development_codes(text: str) -> set:
     """Every development code a name carries, ignoring targets, isotopes and scales."""
     out = set()
@@ -226,8 +290,41 @@ def find_code_duplicates(conn, company_id: int) -> list[tuple]:
     return out
 
 
+def _fold_one_per_asset(conn, survivor_id: int, loser_id: int) -> None:
+    """Settle the tables that hold exactly one row per asset, before the generic move.
+
+    ``patent_challenges`` is UNIQUE(asset_id): one row saying when a generic first
+    challenged the product. Two formulations of one drug are challenged separately, so a
+    merge has to choose, and the generic move keeps whichever row the survivor happened to
+    hold. That is not a spelling choice, it is a date: across seventeen products it put the
+    first Paragraph IV later than the truth, Ozempic by two and a half years and Nexium by
+    eight. The earliest is the fact, so the earliest is kept.
+    """
+    rows = conn.execute(
+        "SELECT asset_id, first_submission FROM patent_challenges"
+        "  WHERE asset_id IN (?, ?)", (survivor_id, loser_id)).fetchall()
+    dates = sorted(r["first_submission"] for r in rows if r["first_submission"])
+    if not dates:
+        return
+    holder = survivor_id if any(r["asset_id"] == survivor_id for r in rows) else loser_id
+    conn.execute("UPDATE patent_challenges SET first_submission = ? WHERE asset_id = ?",
+                 (dates[0], holder))
+
+
 def _absorb(conn, survivor_id: int, loser_id: int) -> int:
     """Move everything keyed to the loser onto the survivor and delete the empty row."""
+    # An application number is how a marketed product is looked up, so a folded row would
+    # be recreated by the next openFDA or Orange Book refresh and the merge would undo
+    # itself daily. The number is recorded against the survivor instead, which stops the
+    # churn and keeps a fact worth having: which applications make up one product.
+    code = conn.execute("SELECT internal_code FROM assets WHERE id = ?",
+                        (loser_id,)).fetchone()
+    if code and code[0]:
+        conn.execute(
+            "INSERT INTO asset_aliases (internal_code, asset_id, note)"
+            " VALUES (?, ?, 'absorbed by merge') ON CONFLICT(internal_code)"
+            " DO UPDATE SET asset_id = excluded.asset_id", (code[0], survivor_id))
+    _fold_one_per_asset(conn, survivor_id, loser_id)
     moved = conn.execute("UPDATE trials SET asset_id = ? WHERE asset_id = ?",
                          (survivor_id, loser_id)).rowcount
     # Anything else keyed to the losing row follows the trials, so the delete cannot
@@ -239,6 +336,13 @@ def _absorb(conn, survivor_id: int, loser_id: int) -> int:
             continue                      # already moved, and counted, above
         conn.execute(f"UPDATE OR IGNORE {table} SET asset_id = ? WHERE asset_id = ?",
                      (survivor_id, loser_id))
+        # Whatever would not move collided with a row the survivor already holds, so it
+        # is the same fact twice and the survivor's copy is kept. Counted rather than
+        # dropped in silence, because that is how a real loss would look too.
+        stuck = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE asset_id = ?",
+                             (loser_id,)).fetchone()[0]
+        if stuck:
+            DROPPED[table] = DROPPED.get(table, 0) + stuck
         conn.execute(f"DELETE FROM {table} WHERE asset_id = ?", (loser_id,))
     conn.execute("DELETE FROM assets WHERE id = ?", (loser_id,))
     return moved
@@ -247,6 +351,7 @@ def _absorb(conn, survivor_id: int, loser_id: int) -> int:
 def merge(db_path=None) -> dict:
     """Both passes: derived into marketed, then derived rows that share a code."""
     conn = db.get_connection(db_path)
+    DROPPED.clear()
     merged = moved = by_code = 0
     try:
         companies = [r["id"] for r in conn.execute("SELECT id FROM companies")]
@@ -277,8 +382,18 @@ def merge(db_path=None) -> dict:
                     moved += _absorb(conn, survivor_id, loser_id)
                     merged += 1
                     by_brand += 1
+        # One product filed under several application numbers. Last, so the passes above
+        # have already settled which row is the product.
+        by_formulation = 0
+        for company_id in companies:
+            for survivor_id, losers in find_formulation_duplicates(conn, company_id):
+                for loser_id in losers:
+                    moved += _absorb(conn, survivor_id, loser_id)
+                    merged += 1
+                    by_formulation += 1
         conn.commit()
     finally:
         conn.close()
     return {"merged": merged, "trials_moved": moved, "by_code": by_code,
-            "by_brand": by_brand}
+            "by_brand": by_brand, "by_formulation": by_formulation,
+            "duplicate_rows_collapsed": dict(DROPPED)}
