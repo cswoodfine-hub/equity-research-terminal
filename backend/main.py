@@ -568,6 +568,22 @@ def save_forecast_assumptions(ticker: str, asset_id: int, body: AssumptionsIn) -
     return out
 
 
+@app.get("/companies/{ticker}/forecast/{asset_id}/whatif")
+def forecast_whatif(ticker: str, asset_id: int,
+                    scenario: str = Query(default="base"),
+                    volume: Optional[float] = Query(default=None),
+                    price: Optional[float] = Query(default=None),
+                    wacc: Optional[float] = Query(default=None),
+                    pos: Optional[float] = Query(default=None)) -> dict:
+    """The sliders: base and variation from the same engine, side by side."""
+    out = forecast_view_module.whatif(None, ticker, asset_id, scenario,
+                                      volume=volume, price=price, wacc=wacc, pos=pos)
+    if out is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no forecastable asset {asset_id} for {ticker.upper()}")
+    return out
+
+
 @app.get("/companies/{ticker}/forecast/{asset_id}/sensitivity")
 def forecast_sensitivity(ticker: str, asset_id: int,
                          scenario: str = Query(default="base"),

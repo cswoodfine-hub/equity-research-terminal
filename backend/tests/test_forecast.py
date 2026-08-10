@@ -281,3 +281,52 @@ def test_incidence_passes_the_same_eligibility_filter_as_the_pool():
     # At a high, fast penetration the tail is the eligible inflow: 2000 x 16% x 2.5.
     assert got["derived"][-1] == pytest.approx(2000 * 0.16 * 2.5, rel=0.05)
     assert any("eligibility share" in n for n in notes)
+
+
+# --- the what-if levers (forecast_view.whatif) -------------------------------
+
+def test_whatif_levers(tmp_path):
+    """Each slider is a real driver run through the same engine: volume scales revenue
+    linearly, price moves it proportionally, WACC and PoS replace the derived values,
+    and no overrides means no difference."""
+    import db
+    import assumptions as A
+    import forecast_view as V
+    path = str(tmp_path / "wi.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'VRTX', 'Vertex')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Casgevy', 1)")
+    conn.execute("INSERT INTO indications (id, name) VALUES (1, 'Anemia, Sickle Cell')")
+    rows = [{"key": k, "value": v, "source": "t"} for k, v in (
+        ("net_price_per_patient", 1.8), ("cogs_per_patient", 0.75),
+        ("sga_pct", 0.2), ("rd_pct", 0.1), ("tax_rate", 0.15),
+        ("wacc", 0.10), ("pos", 0.8), ("forecast_start_year", 2026),
+        ("forecast_years", 3))]
+    rows.append({"key": "therapy_mode", "text_value": "one_time", "source": "t"})
+    for year, patients in ((2026, 100), (2027, 200), (2028, 300)):
+        rows.append({"key": "new_patients", "indication_id": 1, "year": year,
+                     "value": patients, "source": "t"})
+    A.save(conn, 1, rows)
+    conn.commit(); conn.close()
+
+    same = V.whatif(path, "VRTX", 1)
+    assert same["base"]["rnpv"] == same["varied"]["rnpv"]
+
+    volume = V.whatif(path, "VRTX", 1, volume=0.5)
+    assert volume["varied"]["revenue"] == pytest.approx(
+        [v * 0.5 for v in volume["base"]["revenue"]])
+
+    price = V.whatif(path, "VRTX", 1, price=0.9)
+    assert price["varied"]["revenue"] == pytest.approx(
+        [v * 0.5 for v in price["base"]["revenue"]])
+
+    rate = V.whatif(path, "VRTX", 1, wacc=0.20)
+    assert rate["varied"]["rnpv"] < rate["base"]["rnpv"]
+    assert rate["varied"]["wacc"] == 0.20
+
+    pos = V.whatif(path, "VRTX", 1, pos=0.4)
+    assert pos["varied"]["rnpv"] == pytest.approx(pos["base"]["rnpv"] * 0.5)
+
+    assert V.whatif(path, "LLY", 1) is None       # another company's asset

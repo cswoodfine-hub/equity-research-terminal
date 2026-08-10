@@ -8,6 +8,8 @@ server error.
 
 from __future__ import annotations
 
+import copy
+
 import assumptions as assumptions_module
 import db
 import forecast
@@ -171,6 +173,70 @@ def sensitivity(db_path, ticker: str, asset_id: int, scenario: str = "base",
                                     "net_price_per_patient", ys)
         bases = {"x": built["wacc_basis"], "y": "net price per patient"}
     return {"ok": True, "preset": preset, "bases": bases, **grid}
+
+
+def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
+           volume=None, price=None, wacc=None, pos=None):
+    """The slider endpoint: the engine run twice, base beside the variation.
+
+    Four levers, each a real driver rather than a scaler of the answer. Volume
+    multiplies the patient curve, which is the acceptance lever the CASGEVY audit
+    surfaced: the workbook's own scenario block varies exactly this. Price sets the net
+    price per patient. WACC and PoS replace the derived values outright, and PoS strips
+    the composite factors first because factors beat a stated value in the engine.
+
+    Everything is recomputed by the same engine as the base, so a slider cannot say
+    anything the model itself would not.
+    """
+    conn = db.get_connection(db_path)
+    try:
+        company = _company(conn, ticker)
+        if company is None or _accessible(conn, company["id"], asset_id,
+                                          ticker) is None:
+            return None
+        inputs = assumptions_module.load(conn, asset_id, scenario)
+    finally:
+        conn.close()
+
+    def slim(result):
+        return {"years": result["years"], "revenue": result["revenue_after_loe"],
+                "patients": result["patients"]["total"],
+                "rnpv": result["rnpv"], "npv": result["npv"],
+                "owner_rnpv": result["owner_rnpv"],
+                "terminal_pv": result["terminal_pv"],
+                "wacc": result["wacc"], "pos": result["pos"]}
+
+    try:
+        base = forecast.build(inputs)
+    except forecast.ForecastError as err:
+        return {"ok": False, "missing": err.missing}
+
+    varied_inputs = copy.deepcopy(inputs)
+    scalars = varied_inputs["scalars"]
+    if volume is not None:
+        for ind in varied_inputs.get("indications") or []:
+            series = (ind.get("series") or {}).get("new_patients")
+            if series:
+                for year in series:
+                    series[year] = series[year] * volume
+            if (ind.get("scalars") or {}).get("penetration_peak_pct") is not None:
+                ind["scalars"]["penetration_peak_pct"] *= volume
+    if price is not None:
+        scalars["net_price_per_patient"] = price
+    if wacc is not None:
+        scalars["wacc"] = wacc
+    if pos is not None:
+        for key in ("pos_regulatory", "pos_launch", "pos_reimbursement",
+                    "pos_durability"):
+            scalars.pop(key, None)
+        scalars["pos"] = pos
+    try:
+        varied = forecast.build(varied_inputs)
+    except forecast.ForecastError as err:
+        return {"ok": False, "missing": err.missing}
+    return {"ok": True, "base": slim(base), "varied": slim(varied),
+            "overrides": {"volume": volume, "price": price, "wacc": wacc,
+                          "pos": pos}}
 
 
 def company_rollup(db_path, ticker: str):
