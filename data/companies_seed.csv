@@ -2,70 +2,70 @@ ticker,name,primary_exchange,country,reporting_currency,us_adr_ticker,is_foreign
 LLY,Eli Lilly and Company,NYSE,US,USD,,0,1,,https://investor.lilly.com/rss/news-releases.xml,Eli Lilly and Company,Eli Lilly and Company,ELI LILLY,LILLY,LILLY
 NVO,Novo Nordisk A/S,Copenhagen,DK,DKK,NVO,1,1,,,Novo Nordisk A/S,Novo Nordisk,NOVO NORDISK,NOVO NORDISK,NOVO NORDISK
 MRK,Merck & Co Inc,NYSE,US,USD,,0,1,,,Merck Sharp & Dohme LLC,Merck Sharp & Dohme,MERCK SHARP DOHME,MERCK SHARP|MSD|MERCK AND CO|MERCK CO INC|MERCK RESEARCH LAB,MERCK SHARP|MSD|MERCK & CO|MERCK AND CO|ORGANON|SCHERING CORPORATION
-PFE,Pfizer Inc,NYSE,US,USD,,0,1,,,Pfizer,Pfizer,PFIZER,PFIZER|WYETH,PFIZER|WYETH|HOSPIRA
+PFE,Pfizer Inc,NYSE,US,USD,,0,1,,https://www.pfizer.com/rss.xml,Pfizer,Pfizer,PFIZER,PFIZER|WYETH,PFIZER|WYETH|HOSPIRA
 ABBV,AbbVie Inc,NYSE,US,USD,,0,1,,https://investors.abbvie.com/rss/news-releases.xml,AbbVie,AbbVie,ABBVIE,ABBVIE|ALLERGAN,ABBVIE|ALLERGAN
 JNJ,Johnson & Johnson,NYSE,US,USD,,0,1,,,"Janssen Research & Development, LLC",Janssen,JANSSEN,JANSSEN|ORTHO MCNEIL,JANSSEN
 AZN,AstraZeneca PLC,London,GB,USD,AZN,1,1,,https://www.astrazeneca.com/rss.xml,AstraZeneca,AstraZeneca,ASTRAZENECA,ASTRAZENECA,ASTRAZENECA|MEDIMMUNE
 GSK,GSK plc,London,GB,GBP,GSK,1,1,,,GlaxoSmithKline,GlaxoSmithKline,GLAXOSMITHKLINE,GLAXO|VIIV,GLAXO|VIIV
-NVS,Novartis AG,SIX Swiss,CH,USD,NVS,1,1,,,Novartis Pharmaceuticals,Novartis,NOVARTIS,NOVARTIS,NOVARTIS
+NVS,Novartis AG,SIX Swiss,CH,USD,NVS,1,1,,https://novartis.gcs-web.com/rss/news-releases.xml,Novartis Pharmaceuticals,Novartis,NOVARTIS,NOVARTIS,NOVARTIS
 ROG,Roche Holding AG,SIX Swiss,CH,CHF,RHHBY,1,0,,,Hoffmann-La Roche,Genentech|Hoffmann-La Roche,GENENTECH,GENENTECH|HOFFMANN|ROCHE,GENENTECH|HOFFMANN|ROCHE
 SNY,Sanofi,Euronext Paris,FR,EUR,SNY,1,1,,,Sanofi,sanofi-aventis|Genzyme,SANOFI,SANOFI|GENZYME|AVENTIS,SANOFI|GENZYME|AVENTIS
-BMY,Bristol-Myers Squibb Co,NYSE,US,USD,,0,1,,,Bristol-Myers Squibb,Bristol-Myers Squibb,BRISTOL MYERS SQUIBB,BRISTOL|CELGENE,BRISTOL|CELGENE
+BMY,Bristol-Myers Squibb Co,NYSE,US,USD,,0,1,,https://investors.bms.com/rss/pressrelease.aspx,Bristol-Myers Squibb,Bristol-Myers Squibb,BRISTOL MYERS SQUIBB,BRISTOL|CELGENE,BRISTOL|CELGENE
 AMGN,Amgen Inc,Nasdaq,US,USD,,0,1,,https://investors.amgen.com/rss/news-releases.xml,Amgen,Amgen,AMGEN,AMGEN,AMGEN
-GILD,Gilead Sciences Inc,Nasdaq,US,USD,,0,1,,,Gilead Sciences,Gilead Sciences,GILEAD,GILEAD,GILEAD|KITE
+GILD,Gilead Sciences Inc,Nasdaq,US,USD,,0,1,,https://investors.gilead.com/rss/pressrelease.aspx,Gilead Sciences,Gilead Sciences,GILEAD,GILEAD,GILEAD|KITE
 VRTX,Vertex Pharmaceuticals Inc,Nasdaq,US,USD,,0,1,,https://investors.vrtx.com/rss/news-releases.xml,Vertex Pharmaceuticals Incorporated,Vertex Pharmaceuticals,VERTEX,VERTEX PHARM,VERTEX
 REGN,Regeneron Pharmaceuticals Inc,Nasdaq,US,USD,,0,1,,https://investor.regeneron.com/rss/news-releases.xml,Regeneron Pharmaceuticals,Regeneron Pharmaceuticals,REGENERON,REGENERON,REGENERON
 BIIB,Biogen Inc,Nasdaq,US,USD,,0,1,,https://investors.biogen.com/rss/news-releases.xml,Biogen,Biogen,BIOGEN,BIOGEN,BIOGEN
 BAYN,Bayer AG,XETRA,DE,EUR,BAYRY,1,0,,,Bayer,Bayer,BAYER,BAYER,BAYER
-LEGN,Legend Biotech Corporation,NASDAQ,US,USD,,0,1,,,Legend Biotech,,,,
+LEGN,Legend Biotech Corporation,NASDAQ,US,USD,,0,1,,https://investors.legendbiotech.com/rss/news-releases.xml,Legend Biotech,,,,
 CAPR,"Capricor Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,"Capricor, Inc.",,,,
-ALLO,"Allogene Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Allogene Therapeutics,,,,
+ALLO,"Allogene Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,https://ir.allogene.com/rss/news-releases.xml,Allogene Therapeutics,,,,
 CRBU,"Caribou Biosciences, Inc.",NASDAQ,US,USD,,0,1,,,Caribou Biosciences,,,,
-IOVA,"Iovance Biotherapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Iovance Biotherapeutics,,,,
-SANA,"Sana Biotechnology, Inc.",NASDAQ,US,USD,,0,1,,,Sana Biotechnology,,,,
-NTLA,"Intellia Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Intellia Therapeutics,,,,
-BEAM,Beam Therapeutics Inc.,NASDAQ,US,USD,,0,1,,,Beam Therapeutics,,,,
-CRSP,CRISPR Therapeutics AG,NASDAQ,US,USD,,0,1,,,CRISPR Therapeutics,,,,
-RCKT,"Rocket Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,,Rocket Pharmaceuticals,,,,
-SRPT,"Sarepta Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Sarepta Therapeutics,,,,
-ALNY,"Alnylam Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,,Alnylam Pharmaceuticals,,,,
-IONS,"Ionis Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,,Ionis Pharmaceuticals,,,,
-ARWR,"Arrowhead Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,,Arrowhead Pharmaceuticals,,,,
+IOVA,"Iovance Biotherapeutics, Inc.",NASDAQ,US,USD,,0,1,,https://ir.iovance.com/rss/news-releases.xml,Iovance Biotherapeutics,,,,
+SANA,"Sana Biotechnology, Inc.",NASDAQ,US,USD,,0,1,,https://ir.sana.com/rss/news-releases.xml,Sana Biotechnology,,,,
+NTLA,"Intellia Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,https://ir.intelliatx.com/rss/news-releases.xml,Intellia Therapeutics,,,,
+BEAM,Beam Therapeutics Inc.,NASDAQ,US,USD,,0,1,,https://investors.beamtx.com/rss/news-releases.xml,Beam Therapeutics,,,,
+CRSP,CRISPR Therapeutics AG,NASDAQ,US,USD,,0,1,,https://ir.crisprtx.com/rss/news-releases.xml,CRISPR Therapeutics,,,,
+RCKT,"Rocket Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,https://ir.rocketpharma.com/rss/news-releases.xml,Rocket Pharmaceuticals,,,,
+SRPT,"Sarepta Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,https://investorrelations.sarepta.com/rss/news-releases.xml,Sarepta Therapeutics,,,,
+ALNY,"Alnylam Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,https://www.alnylam.com/rss.xml,Alnylam Pharmaceuticals,,,,
+IONS,"Ionis Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,https://ir.ionis.com/rss/news-releases.xml,Ionis Pharmaceuticals,,,,
+ARWR,"Arrowhead Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,https://ir.arrowheadpharma.com/rss/news-releases.xml,Arrowhead Pharmaceuticals,,,,
 MRNA,"Moderna, Inc.",NASDAQ,US,USD,,0,1,,,"ModernaTX, Inc.",,,,
 BNTX,BioNTech SE,NASDAQ,US,USD,,0,1,,https://investors.biontech.de/rss/news-releases.xml,BioNTech SE,,,,
 VKTX,"Viking Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Viking Therapeutics,,,,
-ALT,"Altimmune, Inc.",NASDAQ,US,USD,,0,1,,,Altimmune,,,,
-GPCR,Structure Therapeutics Inc.,NASDAQ,US,USD,,0,1,,,Structure Therapeutics,,,,
-RVMD,"Revolution Medicines, Inc.",NASDAQ,US,USD,,0,1,,,Revolution Medicines,,,,
-LNTH,"Lantheus Holdings, Inc.",NASDAQ,US,USD,,0,1,,,Lantheus,,,,
-ARGX,argenx SE,NASDAQ,US,USD,,0,1,,,argenx,,,,
+ALT,"Altimmune, Inc.",NASDAQ,US,USD,,0,1,,https://ir.altimmune.com/rss/news-releases.xml,Altimmune,,,,
+GPCR,Structure Therapeutics Inc.,NASDAQ,US,USD,,0,1,,https://ir.structuretx.com/rss/news-releases.xml,Structure Therapeutics,,,,
+RVMD,"Revolution Medicines, Inc.",NASDAQ,US,USD,,0,1,,https://ir.revmed.com/rss/news-releases.xml,Revolution Medicines,,,,
+LNTH,"Lantheus Holdings, Inc.",NASDAQ,US,USD,,0,1,,https://investor.lantheus.com/rss/news-releases.xml,Lantheus,,,,
+ARGX,argenx SE,NASDAQ,US,USD,,0,1,,https://argenx.gcs-web.com/rss/news-releases.xml,argenx,,,,
 AXSM,"Axsome Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Axsome Therapeutics,,,,
-NBIX,"Neurocrine Biosciences, Inc.",NASDAQ,US,USD,,0,1,,,Neurocrine Biosciences,,,,
-BMRN,BioMarin Pharmaceutical Inc.,NASDAQ,US,USD,,0,1,,,BioMarin Pharmaceutical,,,,
+NBIX,"Neurocrine Biosciences, Inc.",NASDAQ,US,USD,,0,1,,https://neurocrine.gcs-web.com/rss/news-releases.xml,Neurocrine Biosciences,,,,
+BMRN,BioMarin Pharmaceutical Inc.,NASDAQ,US,USD,,0,1,,https://investors.biomarin.com/rss/pressrelease.aspx,BioMarin Pharmaceutical,,,,
 UTHR,United Therapeutics Corporation,NASDAQ,US,USD,,0,1,,,United Therapeutics,,,,
 INCY,Incyte Corporation,NASDAQ,US,USD,,0,1,,https://investor.incyte.com/rss/news-releases.xml,Incyte Corporation,,,,
 EXEL,"Exelixis, Inc.",NASDAQ,US,USD,,0,1,,https://ir.exelixis.com/rss/news-releases.xml,Exelixis,,,,
-QURE,uniQure N.V.,NASDAQ,US,USD,,0,1,,,uniQure,,,,
-EDIT,"Editas Medicine, Inc.",NASDAQ,US,USD,,0,1,,,Editas Medicine,,,,
-PRME,"Prime Medicine, Inc.",NASDAQ,US,USD,,0,1,,,Prime Medicine,,,,
-SGMOQ,"Sangamo Therapeutics, Inc.",OTC,US,USD,,0,1,,,Sangamo Therapeutics,,,,
-VYGR,"Voyager Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Voyager Therapeutics,,,,
-RGNX,REGENXBIO Inc.,NASDAQ,US,USD,,0,1,,,REGENXBIO,,,,
-KRYS,"Krystal Biotech, Inc.",NASDAQ,US,USD,,0,1,,,Krystal Biotech,,,,
-TSHA,"Taysha Gene Therapies, Inc.",NASDAQ,US,USD,,0,1,,,Taysha Gene Therapies,,,,
+QURE,uniQure N.V.,NASDAQ,US,USD,,0,1,,https://uniqure.gcs-web.com/rss/news-releases.xml,uniQure,,,,
+EDIT,"Editas Medicine, Inc.",NASDAQ,US,USD,,0,1,,https://ir.editasmedicine.com/rss/news-releases.xml,Editas Medicine,,,,
+PRME,"Prime Medicine, Inc.",NASDAQ,US,USD,,0,1,,https://investors.primemedicine.com/rss/news-releases.xml,Prime Medicine,,,,
+SGMOQ,"Sangamo Therapeutics, Inc.",OTC,US,USD,,0,1,,https://investor.sangamo.com/rss/news-releases.xml,Sangamo Therapeutics,,,,
+VYGR,"Voyager Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,https://ir.voyagertherapeutics.com/rss/news-releases.xml,Voyager Therapeutics,,,,
+RGNX,REGENXBIO Inc.,NASDAQ,US,USD,,0,1,,https://ir.regenxbio.com/rss/news-releases.xml,REGENXBIO,,,,
+KRYS,"Krystal Biotech, Inc.",NASDAQ,US,USD,,0,1,,https://ir.krystalbio.com/rss/news-releases.xml,Krystal Biotech,,,,
+TSHA,"Taysha Gene Therapies, Inc.",NASDAQ,US,USD,,0,1,,https://ir.tayshagtx.com/rss/news-releases.xml,Taysha Gene Therapies,,,,
 ABEO,Abeona Therapeutics Inc.,NASDAQ,US,USD,,0,1,,,Abeona Therapeutics,,,,
-SLDB,Solid Biosciences Inc.,NASDAQ,US,USD,,0,1,,,Solid Biosciences,,,,
+SLDB,Solid Biosciences Inc.,NASDAQ,US,USD,,0,1,,https://investors.solidbio.com/rss/news-releases.xml,Solid Biosciences,,,,
 ADAPY,Adaptimmune Therapeutics PLC,NASDAQ,US,USD,,0,1,,,Adaptimmune,,,,
-FATE,"Fate Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Fate Therapeutics,,,,
+FATE,"Fate Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,https://ir.fatetherapeutics.com/rss/news-releases.xml,Fate Therapeutics,,,,
 ATRA,"Atara Biotherapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Atara Biotherapeutics,,,,
 AUTL,Autolus Therapeutics plc,NASDAQ,US,USD,,0,1,,,Autolus Limited,,,,
 CABA,"Cabaletta Bio, Inc.",NASDAQ,US,USD,,0,1,,,Cabaletta Bio,,,,
 KYTX,"Kyverna Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Kyverna Therapeutics,,,,
 IPSC,"Century Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Century Therapeutics,,,,
-VOR,Vor Biopharma Inc.,NASDAQ,US,USD,,0,1,,,Vor Biopharma,,,,
-WVE,Wave Life Sciences Ltd.,NASDAQ,US,USD,,0,1,,,Wave Life Sciences,,,,
-STOK,"Stoke Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Stoke Therapeutics,,,,
-ARCT,Arcturus Therapeutics Holdings Inc.,NASDAQ,US,USD,,0,1,,,Arcturus Therapeutics,,,,
-DYN,"Dyne Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Dyne Therapeutics,,,,
-KRRO,"Korro Bio, Inc.",NASDAQ,US,USD,,0,1,,,Korro Bio,,,,
-PEPG,PepGen Inc.,NASDAQ,US,USD,,0,1,,,PepGen,,,,
+VOR,Vor Biopharma Inc.,NASDAQ,US,USD,,0,1,,https://ir.vorbio.com/rss/news-releases.xml,Vor Biopharma,,,,
+WVE,Wave Life Sciences Ltd.,NASDAQ,US,USD,,0,1,,https://wavelifesciences.gcs-web.com/rss/news-releases.xml,Wave Life Sciences,,,,
+STOK,"Stoke Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,https://investor.stoketherapeutics.com/rss/news-releases.xml,Stoke Therapeutics,,,,
+ARCT,Arcturus Therapeutics Holdings Inc.,NASDAQ,US,USD,,0,1,,https://ir.arcturusrx.com/rss/news-releases.xml,Arcturus Therapeutics,,,,
+DYN,"Dyne Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,https://investors.dyne-tx.com/rss/news-releases.xml,Dyne Therapeutics,,,,
+KRRO,"Korro Bio, Inc.",NASDAQ,US,USD,,0,1,,https://ir.korrobio.com/rss/news-releases.xml,Korro Bio,,,,
+PEPG,PepGen Inc.,NASDAQ,US,USD,,0,1,,https://investors.pepgen.com/rss/news-releases.xml,PepGen,,,,
