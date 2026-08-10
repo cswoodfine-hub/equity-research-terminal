@@ -163,6 +163,19 @@ def _asset_names(conn, company_id: int) -> list[tuple[str, int]]:
                 if key not in seen:
                     seen.add(key)
                     names.append(key)
+    # Names the product answers to that appear nowhere on its own row: the development
+    # name it was trialled under, whether the filings gave it up or an analyst wrote it
+    # down. Casgevy is the case that needs the second kind, since its studies are filed
+    # under CTX001 and nothing on record joins that to the brand.
+    for row in conn.execute(
+            "SELECT al.internal_code, al.asset_id FROM asset_aliases al"
+            "  JOIN assets a ON a.id = al.asset_id"
+            " WHERE a.owner_company_id = ?", (company_id,)):
+        for candidate in aliases(row[0]):
+            key = (candidate, row[1])
+            if key not in seen:
+                seen.add(key)
+                names.append(key)
     names.sort(key=lambda n: len(n[0]), reverse=True)
     return names
 

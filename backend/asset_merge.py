@@ -44,6 +44,7 @@ import re
 
 import assets_util
 import programme_alias
+import trial_mapping
 import db
 import trial_mapping
 
@@ -207,6 +208,34 @@ def canonical_generic(name: str) -> str:
     for salt in _SALTS:
         text = text.replace(f" {salt} ", " ")
     return re.sub(r"[^a-z0-9]+", "", text)
+
+
+def find_alias_duplicates(conn) -> list[tuple]:
+    """(loser_id, survivor_id) where an asset's own name is recorded as another's alias.
+
+    Casgevy is why this exists. Its studies are registered under CTX001, the filings bind
+    the brand to "exa-cel", and nothing on record joins those two, so no derivation can
+    reach it. An analyst writes one row saying CTX001 is Casgevy, and the pipeline copy
+    folds into the product on the next run rather than being corrected by hand every time.
+    """
+    pairs = []
+    for row in conn.execute(
+            """SELECT al.internal_code AS name, al.asset_id AS survivor_id,
+                      a.owner_company_id AS company_id
+                 FROM asset_aliases al JOIN assets a ON a.id = al.asset_id"""):
+        wanted = trial_mapping.aliases(row["name"])
+        if not wanted:
+            continue
+        for other in conn.execute(
+                "SELECT id, brand_name, generic_name, internal_code FROM assets"
+                " WHERE owner_company_id = ? AND id <> ?",
+                (row["company_id"], row["survivor_id"])):
+            names: set = set()
+            for field in ("brand_name", "generic_name", "internal_code"):
+                names |= trial_mapping.aliases(other[field])
+            if names & wanted:
+                pairs.append((other["id"], row["survivor_id"]))
+    return pairs
 
 
 def find_formulation_duplicates(conn, company_id: int) -> list[tuple]:
@@ -383,10 +412,22 @@ def merge(db_path=None) -> dict:
                     moved += _absorb(conn, survivor_id, loser_id)
                     merged += 1
                     by_brand += 1
+        by_alias = 0
+        # The hand-kept names first, so an override applies on a database rebuilt from
+        # scratch rather than only where someone remembered to write the row.
+        programme_alias.load_curated(conn)
+        # A row whose own name is an alias of another asset. The filing pass writes
+        # those aliases, and an analyst writes the ones no filing gives up, so this is
+        # also the path a curated override takes: name the programme against the product
+        # and the row folds on the next run.
+        for loser_id, survivor_id in find_alias_duplicates(conn):
+            moved += _absorb(conn, survivor_id, loser_id)
+            merged += 1
+            by_alias += 1
+
         # A programme that turns out to be a product already sold, linked by the way the
         # company introduces it in its own filings. Before the formulation pass, so the
         # trials land on the row that pass will keep.
-        by_alias = 0
         for link in programme_alias.find_links(conn):
             moved += _absorb(conn, link["marketed_id"], link["programme_id"])
             # The programme name is recorded against the product, or the next refresh

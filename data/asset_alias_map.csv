@@ -1,0 +1,13 @@
+# A development name a product was trialled under, where nothing on record joins the two.
+#
+# A drug is registered under its programme name and sold under a brand. Where the company
+# says so in a filing, programme_alias reads the link itself: "Cobenfy (KarXT)". This file
+# is for the cases no filing gives up, and it holds only the name, never a date or a
+# figure. The studies, phases and indications that follow all still come from the registry.
+#
+# Casgevy is the case it was written for. The filings bind the brand to "exa-cel" and
+# ClinicalTrials.gov files the studies under "CTX001", so no derivation can join them, and
+# without this row an approved product shows no trials and a marketed drug sits in the
+# pipeline as an unapproved compound.
+ticker,programme_name,brand,note
+VRTX,CTX001,Casgevy,development name of Casgevy (exa-cel)

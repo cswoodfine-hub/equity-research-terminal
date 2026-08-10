@@ -24,7 +24,47 @@ is the example: the filings bind it to "exa-cel" and the registry files the stud
 from __future__ import annotations
 
 import collections
+import csv
+import pathlib
 import re
+
+CURATED = (pathlib.Path(__file__).resolve().parent.parent
+           / "data" / "asset_alias_map.csv")
+
+
+def load_curated(conn, path=None) -> int:
+    """Write the hand-kept programme names into ``asset_aliases``. Returns rows written.
+
+    Run before the merge and on every refresh, so an override survives a database rebuilt
+    from scratch. It carries a name and nothing else: no date, no figure, no phase. What
+    follows from it still comes from the registry.
+    """
+    source = pathlib.Path(path) if path else CURATED
+    if not source.exists():
+        return 0
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = [line for line in handle if not line.lstrip().startswith("#")]
+    written = 0
+    for row in csv.DictReader(rows):
+        ticker = (row.get("ticker") or "").strip().upper()
+        name = (row.get("programme_name") or "").strip()
+        brand = (row.get("brand") or "").strip()
+        if not (ticker and name and brand):
+            continue
+        asset = conn.execute(
+            """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                WHERE c.ticker = ? AND LOWER(TRIM(a.brand_name)) = LOWER(?)
+                ORDER BY a.is_marketed DESC, a.id LIMIT 1""", (ticker, brand)).fetchone()
+        if not asset:
+            continue          # the product is not on file yet; nothing to point at
+        conn.execute(
+            "INSERT INTO asset_aliases (internal_code, asset_id, note) VALUES (?, ?, ?)"
+            " ON CONFLICT(internal_code) DO UPDATE SET asset_id = excluded.asset_id,"
+            "   note = excluded.note",
+            (name, asset["id"], f"curated: {(row.get('note') or '').strip()}"))
+        written += 1
+    return written
+
 
 # The naming constructions a company actually uses to introduce a product. Anchored on the
 # punctuation, so a pipeline table listing many drugs in sequence matches none of them.

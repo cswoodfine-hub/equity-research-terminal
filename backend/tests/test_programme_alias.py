@@ -175,3 +175,76 @@ def test_the_alias_pass_is_idempotent(tmp_path):
     conn.close()
     assert asset_merge.merge(path)["by_alias"] == 1
     assert asset_merge.merge(path)["by_alias"] == 0
+
+
+# --- the curated override, for what no filing gives up ---------------------
+
+CURATED = ("ticker,programme_name,brand,note\n"
+           "AZN,CTX001,Enhertu,development name\n")
+
+
+def _curated(tmp_path, body=CURATED):
+    f = tmp_path / "alias_map.csv"
+    f.write_text("# a comment line that must be skipped\n" + body)
+    return str(f)
+
+
+def test_a_curated_name_is_written_against_the_product(tmp_path):
+    path, conn = _seed(tmp_path)
+    assert pa.load_curated(conn, _curated(tmp_path)) == 1
+    row = conn.execute("SELECT asset_id, note FROM asset_aliases"
+                       " WHERE internal_code = 'CTX001'").fetchone()
+    assert row["asset_id"] == 1
+    assert row["note"].startswith("curated:")
+    conn.close()
+
+
+def test_a_curated_name_folds_the_pipeline_row(tmp_path):
+    """Casgevy is the case: the studies are filed under CTX001, the filings bind the brand
+    to exa-cel, and nothing on record joins those two. One row settles it, and settles it
+    on every future refresh rather than once by hand."""
+    path, conn = _seed(tmp_path)
+    conn.execute("UPDATE assets SET generic_name = 'CTX001' WHERE id = 2")
+    conn.execute("DELETE FROM filing_sections")       # no filing evidence at all
+    conn.commit(); conn.close()
+    import shutil
+    shutil.copy(_curated(tmp_path), tmp_path / "map.csv")
+    import programme_alias
+    real = programme_alias.CURATED
+    programme_alias.CURATED = tmp_path / "map.csv"
+    try:
+        out = asset_merge.merge(path)
+    finally:
+        programme_alias.CURATED = real
+    assert out["by_alias"] == 1
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT COUNT(*) FROM trials WHERE asset_id = 1").fetchone()[0] == 2
+    assert conn.execute("SELECT COUNT(*) FROM assets WHERE id = 2").fetchone()[0] == 0
+    conn.close()
+
+
+def test_an_override_for_a_product_not_yet_on_file_is_skipped(tmp_path):
+    """A fresh database has no products until the fetchers run, and a row pointing at
+    nothing must not fail the merge."""
+    path, conn = _seed(tmp_path)
+    body = "ticker,programme_name,brand,note\nAZN,XYZ999,Nothinghere,n/a\n"
+    assert pa.load_curated(conn, _curated(tmp_path, body)) == 0
+    conn.close()
+
+
+def test_a_missing_override_file_is_not_an_error(tmp_path):
+    path, conn = _seed(tmp_path)
+    assert pa.load_curated(conn, str(tmp_path / "absent.csv")) == 0
+    conn.close()
+
+
+def test_the_shipped_override_file_parses():
+    """The real file, so a typo in it fails here rather than silently doing nothing."""
+    import csv as _csv
+    with pa.CURATED.open(newline="", encoding="utf-8") as handle:
+        rows = list(_csv.DictReader(
+            [l for l in handle if not l.lstrip().startswith("#")]))
+    assert rows, "the curated file should hold at least the Casgevy row"
+    for row in rows:
+        assert row["ticker"] and row["programme_name"] and row["brand"]
+    assert any(r["programme_name"] == "CTX001" and r["brand"] == "Casgevy" for r in rows)
