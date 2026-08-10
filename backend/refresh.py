@@ -54,6 +54,7 @@ from fetchers.ndc_marketing import NdcMarketingFetcher
 from fetchers.news_fda import NewsFdaFetcher
 from fetchers.paragraph_iv_fda import ParagraphIvFetcher
 from fetchers.press_ir import PressIrFetcher
+from fetchers.press_page import PressPageFetcher
 from fetchers.prices import (FiveMinuteBarsFetcher, HourlyBarsFetcher,
                              IntradayPricesFetcher, PricesFetcher)
 from fetchers.product_revenue_sec import ProductRevenueFetcher
@@ -89,6 +90,10 @@ def _company_fetchers(company, db_path):
     # report having nothing to read.
     if (company["ir_rss_url"] or "").strip():
         fetchers.append(PressIrFetcher(company["ticker"], db_path))
+    elif (company["ir_news_url"] or "").strip():
+        # Only where there is no feed. A page read through Jina is the weaker route and
+        # never runs beside the stronger one.
+        fetchers.append(PressPageFetcher(company["ticker"], db_path))
     if company["is_sec_filer"] and company["cik"]:
         fetchers.append(FinancialsEdgarFetcher(company["ticker"], db_path))
         fetchers.append(FilingsEdgarFetcher(company["ticker"], db_path))
@@ -186,8 +191,8 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     conn = db.get_connection(db_path)
     try:
         company = conn.execute(
-            "SELECT ticker, cik, is_sec_filer, ir_rss_url FROM companies"
-            " WHERE ticker = ?", (ticker,)
+            "SELECT ticker, cik, is_sec_filer, ir_rss_url, ir_news_url"
+            " FROM companies WHERE ticker = ?", (ticker,)
         ).fetchone()
     finally:
         conn.close()
@@ -304,8 +309,8 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     conn = db.get_connection(db_path)
     try:
         companies = conn.execute(
-            "SELECT ticker, cik, is_sec_filer, ir_rss_url FROM companies"
-            " ORDER BY ticker"
+            "SELECT ticker, cik, is_sec_filer, ir_rss_url, ir_news_url"
+            " FROM companies ORDER BY ticker"
         ).fetchall()
     finally:
         conn.close()

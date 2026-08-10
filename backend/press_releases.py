@@ -12,8 +12,10 @@ That matters most for catalysts. There is no free PDUFA calendar, which is why t
 catalyst table is curated by hand; a company announcing its own decision date is the one
 free route to the same fact, and it is the company's own words rather than an inference.
 
-This module is the parsing and the classifying, kept pure so the fetcher around it is
-only plumbing and every rule here has a test with a saved payload.
+This module is the parsing, the classifying, and the one write path both routes into it
+share. A feed and a scraped page differ in how a headline is obtained and in nothing that
+happens after, so ``record`` is here rather than duplicated in two fetchers that are
+forbidden from importing each other.
 """
 
 from __future__ import annotations
@@ -181,3 +183,80 @@ def _as_date(raw: str) -> str | None:
         return dt.datetime.strptime(raw[:25].strip(), _RSS_DATE).date().isoformat()
     except ValueError:
         return None
+
+
+# --- what a classified release becomes -------------------------------------
+
+# How recent an announcement must be to also count as a change. The first run for a
+# company reads its whole archive, which for AstraZeneca is 1,626 items back to 2013 and
+# 523 that classify. Writing a change for each would bury the day's news under a decade
+# of it. Everything older is still stored as news; it just does not claim to be new.
+CHANGE_WINDOW_DAYS = 21
+
+# What a kind is worth in the feed. An approval or a deal moves the stock, a CHMP opinion
+# or a filing acceptance is a step on the way, and a dividend is neither.
+SIGNIFICANCE = {
+    "approval": "high",
+    "deal": "high",
+    "PDUFA": "high",
+    "data readout": "high",
+    "regulatory": "medium",
+    "panel": "medium",
+    "results": "low",
+    "dividend": "low",
+}
+
+# The kinds that name a dated future event, and so can become a catalyst as well as a
+# change. A decision date being set is itself news, so both rows are written.
+CATALYST_KINDS = {"PDUFA": "PDUFA", "panel": "AdCom"}
+
+
+def change_type(kind: str) -> str:
+    """A press release's change type, e.g. ``press_data_readout``.
+
+    The kind stays in the type rather than in a separate column, so the changes table
+    keeps saying what it holds and one prefix separates announcements from everything
+    else.
+    """
+    return "press_" + kind.lower().replace(" ", "_")
+
+
+def record(conn, rows, source: str, refresh_run_id=None, today=None) -> tuple:
+    """Write releases to news, and the recent classified ones on to changes and
+    catalysts. Returns (written, changed, catalysts).
+
+    The caller commits. Only the insert that takes decides anything, so a re-run over the
+    same feed reports nothing twice.
+    """
+    cutoff = ((today or dt.date.today())
+              - dt.timedelta(days=CHANGE_WINDOW_DAYS)).isoformat()
+    written = changed = catalysts = 0
+    for row in rows:
+        cursor = conn.execute(
+            "INSERT INTO news (company_id, source, title, url, published_at)"
+            " VALUES (?, ?, ?, ?, ?) ON CONFLICT(url) DO NOTHING",
+            (row["company_id"], source, row["title"], row["url"], row["published"]))
+        if not cursor.rowcount:
+            continue
+        written += 1
+        if not row["kind"]:
+            continue
+        if row["published"] and row["published"] >= cutoff:
+            conn.execute(
+                "INSERT INTO changes (entity_type, entity_key, field, old_value,"
+                "  new_value, change_type, significance, refresh_run_id)"
+                " VALUES ('company', ?, 'press release', NULL, ?, ?, ?, ?)",
+                (f"{row['ticker']}|{row['url']}", row["title"],
+                 change_type(row["kind"]), SIGNIFICANCE.get(row["kind"], "low"),
+                 refresh_run_id))
+            changed += 1
+        if row["ahead"] and row["stated_date"]:
+            conn.execute(
+                "INSERT INTO catalysts (company_id, catalyst_type, expected_date,"
+                "  date_confidence, title, description, is_curated, source_url, status)"
+                " VALUES (?, ?, ?, 'confirmed', ?, ?, 0, ?, 'pending')",
+                (row["company_id"], CATALYST_KINDS[row["kind"]], row["stated_date"],
+                 row["title"], f"Announced by {row['ticker']} on {row['published']}",
+                 row["url"]))
+            catalysts += 1
+    return written, changed, catalysts

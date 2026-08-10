@@ -23,7 +23,6 @@ This module is the plumbing around them.
 
 from __future__ import annotations
 
-import datetime as dt
 import json
 import urllib.request
 
@@ -48,39 +47,6 @@ USER_AGENT = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.3
 CONTACT = "cswoodfine@icloud.com"
 HEADERS = {"User-Agent": USER_AGENT, "From": CONTACT,
            "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8"}
-
-# How recent an announcement must be to also count as a change. The first run for a
-# company reads its whole archive, which for AstraZeneca is 1,626 items back to 2013 and
-# 523 that classify. Writing a change for each would bury the day's news under a decade
-# of it. Everything older is still stored as news; it just does not claim to be new.
-CHANGE_WINDOW_DAYS = 21
-
-# What a kind is worth in the feed. An approval or a deal moves the stock, a CHMP opinion
-# or a filing acceptance is a step on the way, and a scheduled earnings call is neither.
-SIGNIFICANCE = {
-    "approval": "high",
-    "deal": "high",
-    "PDUFA": "high",
-    "data readout": "high",
-    "regulatory": "medium",
-    "panel": "medium",
-    "results": "low",
-    "dividend": "low",
-}
-
-# The kinds that name a dated future event, and so can become a catalyst rather than a
-# change. Both are also written as a change: a decision date being set is itself news.
-CATALYST_KINDS = {"PDUFA": "PDUFA", "panel": "AdCom"}
-
-
-def change_type(kind: str) -> str:
-    """A press release's change type, e.g. ``press_data_readout``.
-
-    The kind stays in the type rather than in a separate column, so the changes table
-    keeps saying what it holds and one prefix separates announcements from everything
-    else.
-    """
-    return "press_" + kind.lower().replace(" ", "_")
 
 
 class PressIrFetcher(BaseFetcher):
@@ -166,45 +132,10 @@ class PressIrFetcher(BaseFetcher):
     def upsert(self, rows: list[dict]) -> RefreshResult:
         if getattr(self, "no_feed", False):
             return RefreshResult(SOURCE, 0, notes=[f"{self.ticker}: no IR feed seeded"])
-        cutoff = (dt.date.today()
-                  - dt.timedelta(days=CHANGE_WINDOW_DAYS)).isoformat()
         conn = db.get_connection(self.db_path)
-        written = changed = catalysts = 0
         try:
-            for row in rows:
-                cursor = conn.execute(
-                    "INSERT INTO news (company_id, source, title, url, published_at)"
-                    " VALUES (?, ?, ?, ?, ?) ON CONFLICT(url) DO NOTHING",
-                    (row["company_id"], SOURCE, row["title"], row["url"],
-                     row["published"]))
-                # A release already stored is already reported. Only the insert that
-                # takes decides anything, so a re-run cannot repeat a change.
-                if not cursor.rowcount:
-                    continue
-                written += 1
-                if not row["kind"]:
-                    continue
-                if row["published"] and row["published"] >= cutoff:
-                    conn.execute(
-                        "INSERT INTO changes (entity_type, entity_key, field,"
-                        "  old_value, new_value, change_type, significance,"
-                        "  refresh_run_id)"
-                        " VALUES ('company', ?, 'press release', NULL, ?, ?, ?, ?)",
-                        (f"{row['ticker']}|{row['url']}", row["title"],
-                         change_type(row["kind"]),
-                         SIGNIFICANCE.get(row["kind"], "low"), self.refresh_run_id))
-                    changed += 1
-                if row["ahead"] and row["stated_date"]:
-                    conn.execute(
-                        "INSERT INTO catalysts (company_id, catalyst_type,"
-                        "  expected_date, date_confidence, title, description,"
-                        "  is_curated, source_url, status)"
-                        " VALUES (?, ?, ?, 'confirmed', ?, ?, 0, ?, 'pending')",
-                        (row["company_id"], CATALYST_KINDS[row["kind"]],
-                         row["stated_date"], row["title"],
-                         f"Announced by {row['ticker']} on {row['published']}",
-                         row["url"]))
-                    catalysts += 1
+            written, changed, catalysts = press_releases.record(
+                conn, rows, SOURCE, self.refresh_run_id)
             conn.commit()
         finally:
             conn.close()
