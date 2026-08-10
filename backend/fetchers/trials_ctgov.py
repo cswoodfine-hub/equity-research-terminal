@@ -48,6 +48,10 @@ FIELDS = [
     "protocolSection.designModule.studyType",
     "protocolSection.designModule.enrollmentInfo",
     "protocolSection.conditionsModule.conditions",
+    # The controlled vocabulary the registry already derives. The sponsor's free text
+    # spells one indication three ways; the MeSH descriptor is one id. Ancestors are
+    # not requested: they carry Neoplasms for every oncology study.
+    "derivedSection.conditionBrowseModule",
     "protocolSection.armsInterventionsModule.interventions",
     "protocolSection.sponsorCollaboratorsModule.leadSponsor.name",
     # What it measures and how it is built. Watched for change, not shown: an endpoint
@@ -157,6 +161,7 @@ def parse_studies(payload: dict) -> list[dict]:
                 "start_date": _date(status.get("startDateStruct")),
                 "first_posted": _date(status.get("studyFirstPostDateStruct")),
                 "conditions": ps.get("conditionsModule", {}).get("conditions") or [],
+                "mesh_terms": _meshes(study),
                 "enrollment": (design.get("enrollmentInfo") or {}).get("count"),
                 "interventions": drugs,
                 # Who the registry says leads it, which is how a study acquired with a
@@ -168,6 +173,22 @@ def parse_studies(payload: dict) -> list[dict]:
             }
         )
     return rows
+
+
+def _meshes(study: dict) -> dict:
+    """The registry's MeSH indexing for a study: {"meshes": [...], "ancestors": [...]}.
+
+    Both halves are stored, because neither alone says which term is the indication.
+    ``meshes`` is not reliably specific: for NCT06926621 it runs to twelve terms ending in
+    "Nervous System Diseases", while for NCT05027269 it holds two and the broad ones sit in
+    ``ancestors``. What ``ancestors`` is reliably good for is the opposite job, naming
+    terms that are somebody's parent somewhere, which is how the broad ones are recognised
+    across the corpus.
+    """
+    browse = (study.get("derivedSection") or {}).get("conditionBrowseModule") or {}
+    pick = lambda key: [{"id": m["id"], "term": m["term"]}
+                        for m in (browse.get(key) or []) if m.get("id") and m.get("term")]
+    return {"meshes": pick("meshes"), "ancestors": pick("ancestors")}
 
 
 def _phase_counts(rows: list[dict]) -> dict:
@@ -321,11 +342,11 @@ class TrialsFetcher(BaseFetcher):
                     INSERT INTO trials
                         (nct_id, sponsor_company_id, title, phase, overall_status,
                          primary_completion_date, primary_completion_type,
-                         completion_date, enrollment, conditions,
+                         completion_date, enrollment, conditions, mesh_terms,
                          last_update_posted, start_date, first_posted,
                          lead_sponsor, primary_outcome, design,
                          source, fetched_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                             datetime('now'))
                     ON CONFLICT(nct_id) DO UPDATE SET
                         sponsor_company_id=excluded.sponsor_company_id, title=excluded.title,
@@ -334,6 +355,7 @@ class TrialsFetcher(BaseFetcher):
                         primary_completion_type=excluded.primary_completion_type,
                         completion_date=excluded.completion_date, enrollment=excluded.enrollment,
                         conditions=excluded.conditions,
+                        mesh_terms=excluded.mesh_terms,
                         last_update_posted=excluded.last_update_posted,
                         start_date=excluded.start_date,
                         first_posted=excluded.first_posted,
@@ -346,7 +368,9 @@ class TrialsFetcher(BaseFetcher):
                         row["overall_status"], row["primary_completion_date"],
                         row.get("primary_completion_type"),
                         row["completion_date"], row["enrollment"],
-                        json.dumps(row["conditions"]), row["last_update_posted"],
+                        json.dumps(row["conditions"]),
+                        json.dumps(row.get("mesh_terms") or []),
+                        row["last_update_posted"],
                         row.get("start_date"), row.get("first_posted"),
                         row.get("lead_sponsor"), row.get("primary_outcome"),
                         row.get("design"), CTGOV_SOURCE,

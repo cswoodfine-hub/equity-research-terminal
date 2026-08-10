@@ -22,6 +22,7 @@ import env  # noqa: F401  loads the .env before any module reads it
 import asset_identity
 import asset_merge
 import financings
+import indication_mapping
 import vouchers
 import pipeline_filing
 import brand_split
@@ -228,6 +229,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # universe already names, so every rule that asks a row to prove it is a drug
     # can answer for it.
     mapped["identified"] = asset_identity.fill(db_path)["named"]
+    # Asset-indication pairs, once the trials know which asset they belong to. Runs after
+    # mapping and merging, since a pair is only as good as the asset behind it.
+    mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
     # Last resort for a brand nothing on file can identify, asked of openFDA by brand
     # rather than by sponsor. Soft: a failure here leaves a row unidentified, not a run
     # broken.
@@ -373,6 +377,9 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # universe already names, so every rule that asks a row to prove it is a drug
     # can answer for it.
     mapped["identified"] = asset_identity.fill(db_path)["named"]
+    # Asset-indication pairs, once the trials know which asset they belong to. Runs after
+    # mapping and merging, since a pair is only as good as the asset behind it.
+    mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
     # Last resort for a brand nothing on file can identify, asked of openFDA by brand
     # rather than by sponsor. Soft: a failure here leaves a row unidentified, not a run
     # broken.

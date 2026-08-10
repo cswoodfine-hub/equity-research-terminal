@@ -1,0 +1,167 @@
+{
+ "studies": [
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT06926621"
+    },
+    "conditionsModule": {
+     "conditions": [
+      "Myotonic Dystrophy Type 1 (DM1)"
+     ]
+    }
+   },
+   "derivedSection": {
+    "conditionBrowseModule": {
+     "meshes": [
+      {
+       "id": "D009223",
+       "term": "Myotonic Dystrophy"
+      },
+      {
+       "id": "D009222",
+       "term": "Myotonia"
+      },
+      {
+       "id": "D020967",
+       "term": "Myotonic Disorders"
+      },
+      {
+       "id": "D020966",
+       "term": "Muscular Disorders, Atrophic"
+      },
+      {
+       "id": "D009135",
+       "term": "Muscular Diseases"
+      },
+      {
+       "id": "D009140",
+       "term": "Musculoskeletal Diseases"
+      },
+      {
+       "id": "D009468",
+       "term": "Neuromuscular Diseases"
+      },
+      {
+       "id": "D009422",
+       "term": "Nervous System Diseases"
+      },
+      {
+       "id": "D030342",
+       "term": "Genetic Diseases, Inborn"
+      },
+      {
+       "id": "D020271",
+       "term": "Heredodegenerative Disorders, Nervous System"
+      },
+      {
+       "id": "D019636",
+       "term": "Neurodegenerative Diseases"
+      },
+      {
+       "id": "D009136",
+       "term": "Muscular Dystrophies"
+      }
+     ],
+     "ancestors": [
+      {
+       "id": "D009358",
+       "term": "Congenital, Hereditary, and Neonatal Diseases and Abnormalities"
+      },
+      {
+       "id": "D020879",
+       "term": "Neuromuscular Manifestations"
+      },
+      {
+       "id": "D009461",
+       "term": "Neurologic Manifestations"
+      },
+      {
+       "id": "D012816",
+       "term": "Signs and Symptoms"
+      },
+      {
+       "id": "D013568",
+       "term": "Pathological Conditions, Signs and Symptoms"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT05027269"
+    },
+    "conditionsModule": {
+     "conditions": [
+      "DM1",
+      "Myotonic Dystrophy 1",
+      "Myotonic Dystrophy",
+      "Myotonic Dystrophy Type 1 (DM1)",
+      "Dystrophy Myotonic",
+      "Myotonic Disorders",
+      "Steinert Disease",
+      "Myotonic Muscular Dystrophy"
+     ]
+    }
+   },
+   "derivedSection": {
+    "conditionBrowseModule": {
+     "meshes": [
+      {
+       "id": "D009223",
+       "term": "Myotonic Dystrophy"
+      },
+      {
+       "id": "D020967",
+       "term": "Myotonic Disorders"
+      }
+     ],
+     "ancestors": [
+      {
+       "id": "D009136",
+       "term": "Muscular Dystrophies"
+      },
+      {
+       "id": "D020966",
+       "term": "Muscular Disorders, Atrophic"
+      },
+      {
+       "id": "D009135",
+       "term": "Muscular Diseases"
+      },
+      {
+       "id": "D009140",
+       "term": "Musculoskeletal Diseases"
+      },
+      {
+       "id": "D020271",
+       "term": "Heredodegenerative Disorders, Nervous System"
+      },
+      {
+       "id": "D019636",
+       "term": "Neurodegenerative Diseases"
+      },
+      {
+       "id": "D009422",
+       "term": "Nervous System Diseases"
+      },
+      {
+       "id": "D009468",
+       "term": "Neuromuscular Diseases"
+      },
+      {
+       "id": "D030342",
+       "term": "Genetic Diseases, Inborn"
+      },
+      {
+       "id": "D009358",
+       "term": "Congenital, Hereditary, and Neonatal Diseases and Abnormalities"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}
