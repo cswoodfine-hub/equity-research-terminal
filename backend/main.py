@@ -1048,7 +1048,18 @@ def refresh(
     ticker: str = Query(default=refresh_module.DEFAULT_TICKER),
     scope: Optional[str] = Query(default=None),
 ) -> dict:
-    """Refresh one company, or the whole universe with ?scope=all."""
-    if scope == "all":
-        return refresh_module.run_refresh_all()
-    return refresh_module.run_refresh(ticker=ticker)
+    """Refresh one company, or the whole universe with ?scope=all.
+
+    409 where one is already going, rather than starting a second. The caller gets the
+    run that is already in flight and when it started, so the UI can say so instead of
+    the reader pressing the button again and wondering why the app stopped responding.
+    """
+    try:
+        if scope == "all":
+            return refresh_module.run_refresh_all()
+        return refresh_module.run_refresh(ticker=ticker)
+    except refresh_module.RefreshInFlight as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "a refresh is already running", "run_id": exc.run_id,
+                    "started_at": exc.started_at})

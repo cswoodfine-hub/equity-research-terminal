@@ -187,3 +187,45 @@ def test_the_scheduled_job_runs_with_no_arguments(monkeypatch):
                         scheduled_refresh.LOCK_FILE.parent / "test.lock")
     assert scheduled_refresh.run() == 0
     assert seen == {"db_path": None, "force": True}
+
+
+def test_a_second_refresh_will_not_start_on_top_of_a_running_one(tmp_path):
+    """Pressing Refresh all twice put two full universe runs inside one API process,
+    took it to 99% of a core, and every request behind them queued for twenty seconds
+    until the app stopped loading. Nothing checked that one was already going."""
+    import refresh as refresh_module
+    path = tmp_path / "t.db"
+    db.init(path)
+    first = refresh_module._start_run(path)
+    try:
+        refresh_module._start_run(path)
+    except refresh_module.RefreshInFlight as exc:
+        assert exc.run_id == first
+    else:
+        raise AssertionError("a second run was allowed to start")
+
+
+def test_a_run_left_open_by_a_killed_process_does_not_block_forever(tmp_path):
+    """A process killed mid-refresh leaves its row open. Later runs must not be refused
+    by a run that is no longer happening."""
+    import refresh as refresh_module
+    path = tmp_path / "t.db"
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute(
+        "INSERT INTO refresh_runs (started_at, status)"
+        " VALUES (datetime('now', '-%d hours'), 'running')"
+        % (refresh_module.STALE_RUN_HOURS + 1))
+    conn.commit(); conn.close()
+    assert refresh_module._start_run(path)      # allowed, the old one is abandoned
+
+
+def test_a_finished_run_never_blocks(tmp_path):
+    import refresh as refresh_module
+    path = tmp_path / "t.db"
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO refresh_runs (started_at, finished_at, status)"
+                 " VALUES (datetime('now'), datetime('now'), 'complete')")
+    conn.commit(); conn.close()
+    assert refresh_module._start_run(path)

@@ -53,6 +53,7 @@ from fetchers.labels_dailymed import LabelsDailyMedFetcher
 from fetchers.ndc_marketing import NdcMarketingFetcher
 from fetchers.news_fda import NewsFdaFetcher
 from fetchers.paragraph_iv_fda import ParagraphIvFetcher
+from fetchers.press_ir import PressIrFetcher
 from fetchers.prices import (FiveMinuteBarsFetcher, HourlyBarsFetcher,
                              IntradayPricesFetcher, PricesFetcher)
 from fetchers.product_revenue_sec import ProductRevenueFetcher
@@ -83,6 +84,11 @@ def _company_fetchers(company, db_path):
         NdcMarketingFetcher(company["ticker"], db_path),
         LabelsDailyMedFetcher(company["ticker"], db_path),
     ]
+    # What the company said about itself, for the ones whose IR feed answers. Gated on
+    # the seeded url so the rest of the universe does not run a fetcher that can only
+    # report having nothing to read.
+    if (company["ir_rss_url"] or "").strip():
+        fetchers.append(PressIrFetcher(company["ticker"], db_path))
     if company["is_sec_filer"] and company["cik"]:
         fetchers.append(FinancialsEdgarFetcher(company["ticker"], db_path))
         fetchers.append(FilingsEdgarFetcher(company["ticker"], db_path))
@@ -102,9 +108,43 @@ def _universe_fetchers(db_path):
             ParagraphIvFetcher(db_path), DemandCmsFetcher(db_path)]
 
 
+# How long a run may be in flight before a later one is allowed to assume it died. A
+# full universe refresh takes about an hour against seventy companies and a dozen
+# sources, so anything still open after this was left behind by a process that was
+# killed, not by work still going on.
+STALE_RUN_HOURS = 4
+
+
+class RefreshInFlight(Exception):
+    """Raised when a refresh is asked for while one is already running."""
+
+    def __init__(self, run_id: int, started_at: str):
+        self.run_id, self.started_at = run_id, started_at
+        super().__init__(f"refresh {run_id} has been running since {started_at}")
+
+
+def _in_flight(conn):
+    """The run already going, or None. A run left open by a killed process is not one."""
+    return conn.execute(
+        "SELECT id, started_at FROM refresh_runs"
+        " WHERE finished_at IS NULL AND status = 'running'"
+        "   AND started_at >= datetime('now', ?)"
+        " ORDER BY id DESC LIMIT 1", (f"-{STALE_RUN_HOURS} hours",)).fetchone()
+
+
 def _start_run(db_path) -> int:
+    """Open a run, or refuse because one is already going.
+
+    Two refreshes at once is not twice the work, it is the same work twice over the same
+    rows: pressing Refresh all a second time put two full universe runs inside one API
+    process, took it to 99% of a core, and every request behind them queued for twenty
+    seconds until the app stopped loading at all. Nothing checked.
+    """
     conn = db.get_connection(db_path)
     try:
+        running = _in_flight(conn)
+        if running is not None:
+            raise RefreshInFlight(running["id"], running["started_at"])
         cur = conn.execute(
             "INSERT INTO refresh_runs (started_at, status) VALUES (datetime('now'), 'running')"
         )
@@ -146,7 +186,8 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     conn = db.get_connection(db_path)
     try:
         company = conn.execute(
-            "SELECT ticker, cik, is_sec_filer FROM companies WHERE ticker = ?", (ticker,)
+            "SELECT ticker, cik, is_sec_filer, ir_rss_url FROM companies"
+            " WHERE ticker = ?", (ticker,)
         ).fetchone()
     finally:
         conn.close()
@@ -263,7 +304,8 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     conn = db.get_connection(db_path)
     try:
         companies = conn.execute(
-            "SELECT ticker, cik, is_sec_filer FROM companies ORDER BY ticker"
+            "SELECT ticker, cik, is_sec_filer, ir_rss_url FROM companies"
+            " ORDER BY ticker"
         ).fetchall()
     finally:
         conn.close()
