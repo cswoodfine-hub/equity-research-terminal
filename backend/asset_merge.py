@@ -43,6 +43,7 @@ from __future__ import annotations
 import re
 
 import assets_util
+import programme_alias
 import db
 import trial_mapping
 
@@ -382,6 +383,24 @@ def merge(db_path=None) -> dict:
                     moved += _absorb(conn, survivor_id, loser_id)
                     merged += 1
                     by_brand += 1
+        # A programme that turns out to be a product already sold, linked by the way the
+        # company introduces it in its own filings. Before the formulation pass, so the
+        # trials land on the row that pass will keep.
+        by_alias = 0
+        for link in programme_alias.find_links(conn):
+            moved += _absorb(conn, link["marketed_id"], link["programme_id"])
+            # The programme name is recorded against the product, or the next refresh
+            # derives the pipeline row again from the same intervention and the merge
+            # undoes itself.
+            conn.execute(
+                "INSERT INTO asset_aliases (internal_code, asset_id, note)"
+                " VALUES (?, ?, ?) ON CONFLICT(internal_code) DO UPDATE SET"
+                "   asset_id = excluded.asset_id",
+                (link["code"], link["marketed_id"],
+                 f"development name of {link['brand']}, from the filings"))
+            merged += 1
+            by_alias += 1
+
         # One product filed under several application numbers. Last, so the passes above
         # have already settled which row is the product.
         by_formulation = 0
@@ -396,4 +415,4 @@ def merge(db_path=None) -> dict:
         conn.close()
     return {"merged": merged, "trials_moved": moved, "by_code": by_code,
             "by_brand": by_brand, "by_formulation": by_formulation,
-            "duplicate_rows_collapsed": dict(DROPPED)}
+            "by_alias": by_alias, "duplicate_rows_collapsed": dict(DROPPED)}

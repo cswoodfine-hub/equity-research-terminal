@@ -216,6 +216,11 @@ def derive_pipeline_assets(db_path=None) -> dict:
                 "SELECT brand_name, generic_name, internal_code FROM assets"):
             for field in ("brand_name", "generic_name", "internal_code"):
                 marketed |= aliases(row[field])
+        # A development name already folded into the product it became. Without this the
+        # next run derives the pipeline row again from the same intervention, and the
+        # merge that recognised it is undone every refresh.
+        for row in conn.execute("SELECT internal_code FROM asset_aliases"):
+            marketed |= aliases(row[0])
 
         rows = conn.execute(
             """
