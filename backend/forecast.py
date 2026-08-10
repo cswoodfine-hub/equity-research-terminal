@@ -106,12 +106,16 @@ def patients_for_indication(ind: dict, years: list[int], notes: list) -> dict:
     if None not in (prevalence, eligible_pct, incidence, peak, midpoint, steepness):
         multiple = 1.0 + (scalars.get("exus_multiple") or 0.0)
         pool = prevalence * eligible_pct * multiple
-        # The same multiple scales incidence, which is an assumption of its own and is
-        # said aloud rather than buried.
-        inc = incidence * multiple
+        # Incidence feeds the same eligible pool, so it passes the same eligibility
+        # filter as prevalence. Feeding raw births into a severe-and-of-age pool
+        # overstated the inflow 6x for sickle cell: 2,000 births a year are not 2,000
+        # patients with two crises a year aged twelve or more. The ex-US multiple scales
+        # it too, which is an assumption of its own and is said aloud.
+        inc = incidence * eligible_pct * multiple
         if scalars.get("exus_multiple"):
-            notes.append(f"{ind.get('name', 'indication')}: ex-US pool and incidence "
-                         f"scaled by the seeded multiple ({multiple:.1f}x US)")
+            notes.append(f"{ind.get('name', 'indication')}: incidence filtered by the "
+                         f"eligibility share ({eligible_pct:.0%}) and scaled with the "
+                         f"pool by the ex-US multiple ({multiple:.1f}x US)")
         # Optional funnel refinements. Absent factors leave the funnel coarser, which is
         # the workbook's own shape (eligible_pct carries the whole funnel there).
         funnel = 1.0

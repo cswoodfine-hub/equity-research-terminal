@@ -81,10 +81,10 @@ def test_the_workbook_valuation_to_the_dollar():
     assert got["rnpv"] == pytest.approx(1911.72, abs=0.5)
 
 
-def test_the_economics_split_is_arithmetic_not_a_stale_cache():
-    """The workbook's cached cell labelled CRISPR 40% holds 1,147.03, which is 60% of
-    its own rNPV: the cache is stale against its formulas. The engine does the
-    arithmetic: owner 60% = 1,147.03, partner 40% = 764.69."""
+def test_the_economics_split_matches_the_workbook():
+    """Vertex 60% = 1,147.03 (row 43) and CRISPR 40% = 764.69 (row 44), both read from
+    the workbook's own cached cells. An earlier read of this block was off by one row
+    and called the CRISPR cell a stale cache; it never was, and this pins the truth."""
     got = F.build(casgevy_inputs())
     assert got["owner_rnpv"] == pytest.approx(1147.03, abs=0.5)
     assert got["partner_rnpv"] == pytest.approx(764.69, abs=0.5)
@@ -264,3 +264,20 @@ def test_the_loe_by_erosion_preset_spans_the_question_that_cannot_be_pinned():
         assert row[0] < row[1] < row[2]
     for i in range(3):                              # gentler year one is worth more
         assert grid["grid"][0][i] >= grid["grid"][1][i]
+
+
+def test_incidence_passes_the_same_eligibility_filter_as_the_pool():
+    """2,000 sickle cell births a year are not 2,000 patients with two crises a year
+    aged twelve or more. Feeding raw births into the eligible pool overstated the inflow
+    six-fold and the derived curve climbed forever instead of humping."""
+    ind = {"name": "SCD",
+           "scalars": {"prevalence": 100000, "eligible_pct": 0.16, "incidence": 2000,
+                       "exus_multiple": 1.5, "penetration_peak_pct": 0.5,
+                       "ramp_midpoint_year": 0, "ramp_steepness": 5.0},
+           "series": {}}
+    notes = []
+    years = list(range(2024, 2074))
+    got = F.patients_for_indication(ind, years, notes)
+    # At a high, fast penetration the tail is the eligible inflow: 2000 x 16% x 2.5.
+    assert got["derived"][-1] == pytest.approx(2000 * 0.16 * 2.5, rel=0.05)
+    assert any("eligibility share" in n for n in notes)

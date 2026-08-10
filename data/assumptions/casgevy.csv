@@ -33,10 +33,10 @@ VRTX,Casgevy,,US,base,forecast_years,,10,,years,workbook projection period (C48)
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,prevalence,,100000,,patients,CDC / FDA (workbook C15),
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,eligible_pct,,0.16,,share of prevalence,">=2 VOC/yr, age >=12 (workbook C16)",
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,exus_multiple,,1.5,,x US,"EU, UK, Middle East estimate (workbook C21)",
-VRTX,Casgevy,"Anemia, Sickle Cell",US,base,incidence,,2000,,patients/yr,CDC: SCD occurs in about 1 in 365 Black births; ~2000 US births a year,for review: the workbook holds prevalence only
-VRTX,Casgevy,"Anemia, Sickle Cell",US,base,penetration_peak_pct,,0.03,,share of pool/yr,,for review: chosen so the derived curve brackets the analyst series
-VRTX,Casgevy,"Anemia, Sickle Cell",US,base,ramp_midpoint_year,,2029,,year,,for review
-VRTX,Casgevy,"Anemia, Sickle Cell",US,base,ramp_steepness,,0.9,,,,for review
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,incidence,,2000,,patients/yr,CDC: SCD occurs in about 1 in 365 Black births; ~2000 US births a year,the engine filters this by the eligibility share before it enters the pool
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,penetration_peak_pct,,0.011,,share of pool/yr,"least-squares fit of the pool identity to the workbook's own SCD curve (rmse 71 patients/yr over 2024-2035)",post-2031 residual is the identity's correction: 4;070 cumulative barely depletes a 40;000 pool at ~800/yr eligible inflow
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,ramp_midpoint_year,,2027,,year,"least-squares fit of the pool identity to the workbook's own SCD curve (rmse 71 patients/yr over 2024-2035)",
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,ramp_steepness,,1.2,,,"least-squares fit of the pool identity to the workbook's own SCD curve (rmse 71 patients/yr over 2024-2035)",
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2024,5,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2025,45,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2026,120,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
