@@ -168,3 +168,64 @@ def test_a_lone_product_has_no_siblings(tmp_path):
     conn = db.get_connection(path)
     assert molecules.siblings(conn, 3) == []
     conn.close()
+
+
+# --- the ingredient list, which the generic name cannot stand in for -------
+
+def test_a_combination_is_not_the_single_agent_it_starts_with():
+    """drugsfda gave the first ingredient only, so Breztri, which is budesonide with
+    glycopyrrolate and formoterol, read as plain "Budesonide" beside Rhinocort, a
+    budesonide nasal spray, and ten groups folded a combination in with a single agent."""
+    triple = '["Budesonide", "Glycopyrrolate", "Formoterol Fumarate"]'
+    single = '["Budesonide"]'
+    assert molecules.group_key(1, "Budesonide", triple) != \
+        molecules.group_key(1, "Budesonide", single)
+
+
+def test_two_brands_of_one_ingredient_are_still_one_molecule():
+    """The case the grouping exists for must survive the fix."""
+    assert molecules.group_key(1, "Semaglutide", '["Semaglutide"]') == \
+        molecules.group_key(1, "Semaglutide", '["Semaglutide"]')
+
+
+def test_the_order_the_payload_lists_them_in_does_not_matter():
+    a = molecules.group_key(1, "Budesonide", '["Budesonide", "Formoterol Fumarate"]')
+    b = molecules.group_key(1, "Formoterol", '["Formoterol Fumarate", "Budesonide"]')
+    assert a == b
+
+
+def test_a_salt_does_not_split_an_ingredient_list():
+    assert molecules.group_key(1, "x", '["Acalabrutinib"]') == \
+        molecules.group_key(1, "x", '["Acalabrutinib Maleate"]')
+
+
+def test_the_generic_name_is_the_fallback_where_no_list_is_on_file():
+    """Most pipeline rows never went through drugsfda and have no list at all."""
+    assert molecules.group_key(1, "Semaglutide", None) == \
+        molecules.group_key(1, "Semaglutide", "")
+    assert molecules.group_key(1, "Semaglutide", None) is not None
+
+
+def test_a_broken_list_falls_back_rather_than_failing():
+    assert molecules.group_key(1, "Semaglutide", "not json") == \
+        molecules.group_key(1, "Semaglutide", None)
+    assert molecules.group_key(1, "Semaglutide", '{"a": 1}') == \
+        molecules.group_key(1, "Semaglutide", None)
+
+
+def test_a_combination_and_a_single_agent_end_up_in_different_groups(tmp_path):
+    path, conn = _seed(tmp_path)
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " is_marketed, active_ingredients) VALUES"
+                 " (3, 1, 'Breztri', 'Budesonide', 1,"
+                 "  '[\"Budesonide\", \"Glycopyrrolate\", \"Formoterol Fumarate\"]')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " is_marketed, active_ingredients) VALUES"
+                 " (4, 1, 'Rhinocort', 'Budesonide', 1, '[\"Budesonide\"]')")
+    conn.commit(); conn.close()
+    molecules.assign(path)
+    conn = db.get_connection(path)
+    rows = dict(conn.execute("SELECT brand_name, molecule_id FROM assets"
+                             " WHERE id IN (3, 4)").fetchall())
+    assert rows["Breztri"] != rows["Rhinocort"]
+    conn.close()

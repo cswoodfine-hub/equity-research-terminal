@@ -33,20 +33,51 @@ returns and the approvals fetcher already reads without storing.
 
 from __future__ import annotations
 
+import json
+
 import asset_merge
 import db
 
 
-def group_key(owner_company_id, generic_name: str):
-    """What makes two brands the same molecule, or None where the name cannot say.
+def ingredients(raw) -> tuple:
+    """The active ingredients a product contains, canonical and ordered, from the column.
 
-    The same canonical generic used by the merge, so a salt does not split a molecule:
-    Calquence is filed as both acalabrutinib and acalabrutinib maleate.
+    Ordered rather than as written, so budesonide with formoterol is the same molecule
+    however the payload lists them, and canonicalised so a salt does not split it.
     """
-    canonical = asset_merge.canonical_generic(generic_name)
-    if not owner_company_id or len(canonical) < 3:
+    if not raw:
+        return ()
+    try:
+        names = json.loads(raw)
+    except (TypeError, ValueError):
+        return ()
+    if not isinstance(names, list):
+        return ()
+    parts = {asset_merge.canonical_generic(str(n)) for n in names if n}
+    return tuple(sorted(p for p in parts if len(p) >= 3))
+
+
+def group_key(owner_company_id, generic_name: str, active_ingredients=None):
+    """What makes two brands the same molecule, or None where nothing on file can say.
+
+    The full ingredient list decides it where drugsfda gave one. The generic name alone
+    cannot: it holds the first ingredient only, so Breztri, which is budesonide with
+    glycopyrrolate and formoterol, reads as "Budesonide" beside Rhinocort, a budesonide
+    nasal spray, and the two are not one molecule.
+
+    Where no list is on file the generic name is the fallback, canonical so that a salt
+    does not split a molecule: Calquence is filed as both acalabrutinib and acalabrutinib
+    maleate.
+    """
+    if not owner_company_id:
         return None
-    return (owner_company_id, canonical)
+    parts = ingredients(active_ingredients)
+    if parts:
+        return (owner_company_id, parts)
+    canonical = asset_merge.canonical_generic(generic_name)
+    if len(canonical) < 3:
+        return None
+    return (owner_company_id, (canonical,))
 
 
 def holder(rows) -> int:
@@ -70,12 +101,14 @@ def assign(db_path=None) -> dict:
     try:
         rows = [dict(r) for r in conn.execute(
             """SELECT a.id, a.owner_company_id, a.generic_name, a.is_marketed,
+                      a.active_ingredients,
                       (SELECT MIN(ap.approval_date) FROM approvals ap
                         WHERE ap.asset_id = a.id) AS first_approval
                  FROM assets a""")]
         groups: dict = {}
         for row in rows:
-            key = group_key(row["owner_company_id"], row["generic_name"])
+            key = group_key(row["owner_company_id"], row["generic_name"],
+                            row["active_ingredients"])
             if key:
                 groups.setdefault(key, []).append(row)
 

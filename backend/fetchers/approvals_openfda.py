@@ -172,9 +172,24 @@ def parse_drugsfda(payload: dict, ticker: str) -> list[dict]:
                 "modality": _modality(appl),
                 "approval_date": approval_date,
                 "marketing_status": products[0].get("marketing_status"),
+                "active_ingredients": _ingredients(products[0]),
             }
         )
     return rows
+
+
+def _ingredients(product: dict) -> list:
+    """Every active ingredient the product contains, in the order the payload gives them.
+
+    ``_generic`` below keeps only the first, which is right for it: the generic name is
+    what binds a trial's intervention to an asset, and "Budesonide" matches a budesonide
+    study where the full triple would not. But the first ingredient alone cannot tell
+    Breztri, which is budesonide with glycopyrrolate and formoterol, from Rhinocort, which
+    is a budesonide nasal spray, and molecule grouping has to.
+    """
+    return [str(item["name"]).title()
+            for item in (product.get("active_ingredients") or [])
+            if item.get("name")]
 
 
 def _generic(result: dict, product: dict) -> str | None:
@@ -431,6 +446,10 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
                     conn, company_id, row["internal_code"], row["brand"],
                     row["generic"], row["modality"],
                 )
+                if row.get("active_ingredients"):
+                    conn.execute(
+                        "UPDATE assets SET active_ingredients = ? WHERE id = ?",
+                        (json.dumps(row["active_ingredients"]), asset_id))
                 conn.execute(
                     "DELETE FROM approvals WHERE asset_id = ? AND source = ?",
                     (asset_id, OPENFDA_SOURCE),

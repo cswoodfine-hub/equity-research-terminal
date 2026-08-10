@@ -1,0 +1,11 @@
+-- Every active ingredient a product contains, not just the first one.
+--
+-- The approvals fetcher read active_ingredients from drugsfda and kept ingredients[0],
+-- so Breztri, which is budesonide, glycopyrrolate and formoterol, was filed as plain
+-- "Budesonide" alongside Rhinocort, a budesonide nasal spray. Molecule grouping keys on
+-- the generic name, so ten groups folded a combination in with a single agent.
+--
+-- generic_name is deliberately left as it was. It is what binds a trial's intervention to
+-- an asset, and "Budesonide" matches a budesonide study where the full triple would not.
+-- So the list goes in its own column, and only the grouping reads it.
+ALTER TABLE assets ADD COLUMN active_ingredients TEXT;   -- JSON array, title case
