@@ -81,4 +81,9 @@ def change_reason(change_type: str, old_value=None, new_value=None) -> Optional[
         return f"restated over {REVENUE_RESTATEMENT_PCT:.0%}"
     if change_type == "leadership_change":
         return "8-K item 5.02"
+    # A press release carries its kind in its type, e.g. press_data_readout. The rule
+    # that flagged it is the company saying so, and the kind is what it said.
+    if change_type.startswith("press_"):
+        kind = change_type[len("press_"):].replace("_", " ")
+        return "PDUFA" if kind == "pdufa" else kind
     return None

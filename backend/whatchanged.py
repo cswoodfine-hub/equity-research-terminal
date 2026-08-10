@@ -64,6 +64,14 @@ def _event_dates(conn) -> dict:
         "  JOIN companies c ON c.id = l.company_id"
         " WHERE l.filed_date IS NOT NULL"):
         dates[("company", f"{r['ticker']}|{r['accession']}")] = r["filed_date"]
+    # A press release happened on the day the company published it. The first run for a
+    # company reads its whole archive at once, so without this the recent ones would all
+    # arrive dated today.
+    for r in conn.execute(
+        "SELECT c.ticker, n.url, n.published_at FROM news n"
+        "  JOIN companies c ON c.id = n.company_id"
+        " WHERE n.source = 'press_ir' AND n.published_at IS NOT NULL"):
+        dates[("company", f"{r['ticker']}|{r['url']}")] = r["published_at"]
     return dates
 
 
@@ -98,7 +106,14 @@ def _recent_changes(conn, days):
             # Sarepta filed the same chief executive departure twice, five months
             # apart, and a key without it collapsed them onto one date.
             ticker = r["entity_key"].split("|")[0]
-            headline = f"{ticker} {(r['new_value'] or '').lower()}"
+            # A leadership change stores a fragment ("Chief Executive Officer
+            # departure") that reads as a sentence once lowered. A press release stores
+            # the company's own headline, where the case is carrying drug names, so it
+            # is printed as written.
+            if (r["change_type"] or "").startswith("press_"):
+                headline = f"{ticker} {r['new_value']}"
+            else:
+                headline = f"{ticker} {(r['new_value'] or '').lower()}"
             date_key = ("company", r["entity_key"])
         else:  # filing / approval headlines already carry the ticker prefix
             ticker = (r["new_value"] or "").split(" ", 1)[0] or None

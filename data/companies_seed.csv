@@ -1,21 +1,21 @@
 ticker,name,primary_exchange,country,reporting_currency,us_adr_ticker,is_foreign_private_issuer,is_sec_filer,cik,ir_rss_url,ctgov_sponsor,openfda_manufacturer,openfda_sponsor,orange_book_applicant,purple_book_applicant
-LLY,Eli Lilly and Company,NYSE,US,USD,,0,1,,,Eli Lilly and Company,Eli Lilly and Company,ELI LILLY,LILLY,LILLY
+LLY,Eli Lilly and Company,NYSE,US,USD,,0,1,,https://investor.lilly.com/rss/news-releases.xml,Eli Lilly and Company,Eli Lilly and Company,ELI LILLY,LILLY,LILLY
 NVO,Novo Nordisk A/S,Copenhagen,DK,DKK,NVO,1,1,,,Novo Nordisk A/S,Novo Nordisk,NOVO NORDISK,NOVO NORDISK,NOVO NORDISK
 MRK,Merck & Co Inc,NYSE,US,USD,,0,1,,,Merck Sharp & Dohme LLC,Merck Sharp & Dohme,MERCK SHARP DOHME,MERCK SHARP|MSD|MERCK AND CO|MERCK CO INC|MERCK RESEARCH LAB,MERCK SHARP|MSD|MERCK & CO|MERCK AND CO|ORGANON|SCHERING CORPORATION
 PFE,Pfizer Inc,NYSE,US,USD,,0,1,,,Pfizer,Pfizer,PFIZER,PFIZER|WYETH,PFIZER|WYETH|HOSPIRA
-ABBV,AbbVie Inc,NYSE,US,USD,,0,1,,,AbbVie,AbbVie,ABBVIE,ABBVIE|ALLERGAN,ABBVIE|ALLERGAN
+ABBV,AbbVie Inc,NYSE,US,USD,,0,1,,https://investors.abbvie.com/rss/news-releases.xml,AbbVie,AbbVie,ABBVIE,ABBVIE|ALLERGAN,ABBVIE|ALLERGAN
 JNJ,Johnson & Johnson,NYSE,US,USD,,0,1,,,"Janssen Research & Development, LLC",Janssen,JANSSEN,JANSSEN|ORTHO MCNEIL,JANSSEN
-AZN,AstraZeneca PLC,London,GB,USD,AZN,1,1,,,AstraZeneca,AstraZeneca,ASTRAZENECA,ASTRAZENECA,ASTRAZENECA|MEDIMMUNE
+AZN,AstraZeneca PLC,London,GB,USD,AZN,1,1,,https://www.astrazeneca.com/rss.xml,AstraZeneca,AstraZeneca,ASTRAZENECA,ASTRAZENECA,ASTRAZENECA|MEDIMMUNE
 GSK,GSK plc,London,GB,GBP,GSK,1,1,,,GlaxoSmithKline,GlaxoSmithKline,GLAXOSMITHKLINE,GLAXO|VIIV,GLAXO|VIIV
 NVS,Novartis AG,SIX Swiss,CH,USD,NVS,1,1,,,Novartis Pharmaceuticals,Novartis,NOVARTIS,NOVARTIS,NOVARTIS
 ROG,Roche Holding AG,SIX Swiss,CH,CHF,RHHBY,1,0,,,Hoffmann-La Roche,Genentech|Hoffmann-La Roche,GENENTECH,GENENTECH|HOFFMANN|ROCHE,GENENTECH|HOFFMANN|ROCHE
 SNY,Sanofi,Euronext Paris,FR,EUR,SNY,1,1,,,Sanofi,sanofi-aventis|Genzyme,SANOFI,SANOFI|GENZYME|AVENTIS,SANOFI|GENZYME|AVENTIS
 BMY,Bristol-Myers Squibb Co,NYSE,US,USD,,0,1,,,Bristol-Myers Squibb,Bristol-Myers Squibb,BRISTOL MYERS SQUIBB,BRISTOL|CELGENE,BRISTOL|CELGENE
-AMGN,Amgen Inc,Nasdaq,US,USD,,0,1,,,Amgen,Amgen,AMGEN,AMGEN,AMGEN
+AMGN,Amgen Inc,Nasdaq,US,USD,,0,1,,https://investors.amgen.com/rss/news-releases.xml,Amgen,Amgen,AMGEN,AMGEN,AMGEN
 GILD,Gilead Sciences Inc,Nasdaq,US,USD,,0,1,,,Gilead Sciences,Gilead Sciences,GILEAD,GILEAD,GILEAD|KITE
-VRTX,Vertex Pharmaceuticals Inc,Nasdaq,US,USD,,0,1,,,Vertex Pharmaceuticals Incorporated,Vertex Pharmaceuticals,VERTEX,VERTEX PHARM,VERTEX
-REGN,Regeneron Pharmaceuticals Inc,Nasdaq,US,USD,,0,1,,,Regeneron Pharmaceuticals,Regeneron Pharmaceuticals,REGENERON,REGENERON,REGENERON
-BIIB,Biogen Inc,Nasdaq,US,USD,,0,1,,,Biogen,Biogen,BIOGEN,BIOGEN,BIOGEN
+VRTX,Vertex Pharmaceuticals Inc,Nasdaq,US,USD,,0,1,,https://investors.vrtx.com/rss/news-releases.xml,Vertex Pharmaceuticals Incorporated,Vertex Pharmaceuticals,VERTEX,VERTEX PHARM,VERTEX
+REGN,Regeneron Pharmaceuticals Inc,Nasdaq,US,USD,,0,1,,https://investor.regeneron.com/rss/news-releases.xml,Regeneron Pharmaceuticals,Regeneron Pharmaceuticals,REGENERON,REGENERON,REGENERON
+BIIB,Biogen Inc,Nasdaq,US,USD,,0,1,,https://investors.biogen.com/rss/news-releases.xml,Biogen,Biogen,BIOGEN,BIOGEN,BIOGEN
 BAYN,Bayer AG,XETRA,DE,EUR,BAYRY,1,0,,,Bayer,Bayer,BAYER,BAYER,BAYER
 LEGN,Legend Biotech Corporation,NASDAQ,US,USD,,0,1,,,Legend Biotech,,,,
 CAPR,"Capricor Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,"Capricor, Inc.",,,,
@@ -32,7 +32,7 @@ ALNY,"Alnylam Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,,Alnylam Pharmaceutical
 IONS,"Ionis Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,,Ionis Pharmaceuticals,,,,
 ARWR,"Arrowhead Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,,Arrowhead Pharmaceuticals,,,,
 MRNA,"Moderna, Inc.",NASDAQ,US,USD,,0,1,,,"ModernaTX, Inc.",,,,
-BNTX,BioNTech SE,NASDAQ,US,USD,,0,1,,,BioNTech SE,,,,
+BNTX,BioNTech SE,NASDAQ,US,USD,,0,1,,https://investors.biontech.de/rss/news-releases.xml,BioNTech SE,,,,
 VKTX,"Viking Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Viking Therapeutics,,,,
 ALT,"Altimmune, Inc.",NASDAQ,US,USD,,0,1,,,Altimmune,,,,
 GPCR,Structure Therapeutics Inc.,NASDAQ,US,USD,,0,1,,,Structure Therapeutics,,,,
@@ -43,8 +43,8 @@ AXSM,"Axsome Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,,Axsome Therapeutics,,,,
 NBIX,"Neurocrine Biosciences, Inc.",NASDAQ,US,USD,,0,1,,,Neurocrine Biosciences,,,,
 BMRN,BioMarin Pharmaceutical Inc.,NASDAQ,US,USD,,0,1,,,BioMarin Pharmaceutical,,,,
 UTHR,United Therapeutics Corporation,NASDAQ,US,USD,,0,1,,,United Therapeutics,,,,
-INCY,Incyte Corporation,NASDAQ,US,USD,,0,1,,,Incyte Corporation,,,,
-EXEL,"Exelixis, Inc.",NASDAQ,US,USD,,0,1,,,Exelixis,,,,
+INCY,Incyte Corporation,NASDAQ,US,USD,,0,1,,https://investor.incyte.com/rss/news-releases.xml,Incyte Corporation,,,,
+EXEL,"Exelixis, Inc.",NASDAQ,US,USD,,0,1,,https://ir.exelixis.com/rss/news-releases.xml,Exelixis,,,,
 QURE,uniQure N.V.,NASDAQ,US,USD,,0,1,,,uniQure,,,,
 EDIT,"Editas Medicine, Inc.",NASDAQ,US,USD,,0,1,,,Editas Medicine,,,,
 PRME,"Prime Medicine, Inc.",NASDAQ,US,USD,,0,1,,,Prime Medicine,,,,
