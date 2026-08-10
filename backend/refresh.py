@@ -23,6 +23,7 @@ import asset_identity
 import asset_merge
 import financings
 import indication_mapping
+import molecules
 import vouchers
 import pipeline_filing
 import brand_split
@@ -212,6 +213,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # unmarketed asset first, so the pipeline reads as programmes rather than loose
     # studies. Both are idempotent, and neither overwrites a curated mapping.
     pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
+    # Which brands are one molecule, before the trials are matched: where two rows
+    # answer to the same name the holder takes the study, rather than row order.
+    molecules.assign(db_path)
     mapped = trial_mapping.map_trials(db_path)
     mapped["pipeline_assets"] = pipeline_assets["created"]
     # A derived compound can lose its own trials to a longer, more specific match; those
@@ -231,6 +235,8 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     mapped["identified"] = asset_identity.fill(db_path)["named"]
     # Asset-indication pairs, once the trials know which asset they belong to. Runs after
     # mapping and merging, since a pair is only as good as the asset behind it.
+    # Again after the merges, so a row that only exists now is grouped too.
+    mapped["molecules"] = molecules.assign(db_path)["groups_with_siblings"]
     mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
     # Last resort for a brand nothing on file can identify, asked of openFDA by brand
     # rather than by sponsor. Soft: a failure here leaves a row unidentified, not a run
@@ -360,6 +366,9 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # unmarketed asset first, so the pipeline reads as programmes rather than loose
     # studies. Both are idempotent, and neither overwrites a curated mapping.
     pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
+    # Which brands are one molecule, before the trials are matched: where two rows
+    # answer to the same name the holder takes the study, rather than row order.
+    molecules.assign(db_path)
     mapped = trial_mapping.map_trials(db_path)
     mapped["pipeline_assets"] = pipeline_assets["created"]
     # A derived compound can lose its own trials to a longer, more specific match; those
@@ -379,6 +388,8 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     mapped["identified"] = asset_identity.fill(db_path)["named"]
     # Asset-indication pairs, once the trials know which asset they belong to. Runs after
     # mapping and merging, since a pair is only as good as the asset behind it.
+    # Again after the merges, so a row that only exists now is grouped too.
+    mapped["molecules"] = molecules.assign(db_path)["groups_with_siblings"]
     mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
     # Last resort for a brand nothing on file can identify, asked of openFDA by brand
     # rather than by sponsor. Soft: a failure here leaves a row unidentified, not a run

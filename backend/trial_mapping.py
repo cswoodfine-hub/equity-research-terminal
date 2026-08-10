@@ -176,7 +176,20 @@ def _asset_names(conn, company_id: int) -> list[tuple[str, int]]:
             if key not in seen:
                 seen.add(key)
                 names.append(key)
-    names.sort(key=lambda n: len(n[0]), reverse=True)
+    # Where two of a company's rows answer to the same name, they are the same molecule
+    # under two brands: Ozempic and Wegovy are both semaglutide. The molecule's holder
+    # takes it, so the study lands on the row the drug has been known by longest instead
+    # of on whichever was fetched first. The siblings reach it through molecule_id.
+    holders = {r[0] for r in conn.execute(
+        "SELECT id FROM assets WHERE molecule_id = id")}
+    best: dict = {}
+    for name, asset_id in names:
+        current = best.get(name)
+        if current is None or (asset_id in holders and current not in holders) \
+                or (asset_id < current and (current not in holders
+                                            or asset_id in holders)):
+            best[name] = asset_id
+    names = sorted(best.items(), key=lambda n: len(n[0]), reverse=True)
     return names
 
 
