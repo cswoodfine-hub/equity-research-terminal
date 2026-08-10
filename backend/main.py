@@ -27,6 +27,7 @@ import db
 import deals as deals_module
 import demand as demand_module
 import filing_diff as filing_diff_module
+import forecast_view as forecast_view_module
 import trial_readouts as trial_readouts_module
 import valuation as valuation_module
 import financials_view as financials_view_module
@@ -508,6 +509,101 @@ def save_product_notes(ticker: str, asset_id: int, body: ProductNotesIn) -> dict
             detail=f"no product {asset_id} for {ticker.upper()}")
     product_profile_module.save_notes(None, asset_id, body.model_dump())
     return {"asset_id": asset_id, "saved": True}
+
+
+@app.get("/companies/{ticker}/forecast")
+def company_forecast(ticker: str) -> dict:
+    """Every forecast this company has economics in, summed against reported revenue."""
+    rollup = forecast_view_module.company_rollup(None, ticker)
+    if rollup is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    assets = forecast_view_module.assets_for(None, ticker)
+    return {**rollup, "pickable": assets["assets"], "partnered": assets["partnered"]}
+
+
+@app.get("/companies/{ticker}/forecast/{asset_id}")
+def company_asset_forecast(ticker: str, asset_id: int,
+                           scenario: str = Query(default="base")) -> dict:
+    """One asset's forecast, or the named gaps that stop it."""
+    state = forecast_view_module.asset_forecast(None, ticker, asset_id, scenario)
+    if state is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no forecastable asset {asset_id} for {ticker.upper()}")
+    return state
+
+
+class AssumptionRowIn(BaseModel):
+    key: str
+    indication_id: Optional[int] = None
+    region: str = "US"
+    scenario: str = "base"
+    year: Optional[int] = None
+    value: Optional[float] = None
+    text_value: Optional[str] = None
+    unit: Optional[str] = None
+    source: Optional[str] = None
+    note: Optional[str] = None
+    as_of: Optional[str] = None
+
+
+class AssumptionsIn(BaseModel):
+    rows: list[AssumptionRowIn]
+    scenario: str = "base"
+
+
+@app.post("/companies/{ticker}/forecast/{asset_id}/assumptions")
+def save_forecast_assumptions(ticker: str, asset_id: int, body: AssumptionsIn) -> dict:
+    """Write the editor's rows. The ticker scopes the asset, so an assumption cannot be
+    written against another company's product by id alone. The resulting forecast is
+    snapshotted, so history is never overwritten."""
+    try:
+        out = forecast_view_module.save_assumptions(
+            None, ticker, asset_id, [row.model_dump() for row in body.rows],
+            body.scenario)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if out is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no forecastable asset {asset_id} for {ticker.upper()}")
+    return out
+
+
+@app.get("/companies/{ticker}/forecast/{asset_id}/sensitivity")
+def forecast_sensitivity(ticker: str, asset_id: int,
+                         scenario: str = Query(default="base"),
+                         preset: str = Query(default="price")) -> dict:
+    """The two grids: WACC x net price, and LOE year x year-one erosion."""
+    grid = forecast_view_module.sensitivity(None, ticker, asset_id, scenario, preset)
+    if grid is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no forecastable asset {asset_id} for {ticker.upper()}")
+    return grid
+
+
+@app.get("/companies/{ticker}/forecast/{asset_id}/export.xlsx")
+def forecast_export(ticker: str, asset_id: int,
+                    scenario: str = Query(default="base")):
+    """The canonical two-sheet workbook, for vetting in Excel."""
+    from fastapi.responses import Response
+
+    import assumptions as assumptions_module
+    import forecast as forecast_engine
+    state = forecast_view_module.asset_forecast(None, ticker, asset_id, scenario)
+    if state is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no forecastable asset {asset_id} for {ticker.upper()}")
+    conn = db.get_connection()
+    try:
+        blob = assumptions_module.export_xlsx(
+            conn, asset_id, scenario, state.get("result"))
+    finally:
+        conn.close()
+    name = (state.get("name") or str(asset_id)).lower().replace(" ", "_")
+    return Response(
+        content=blob,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition":
+                 f'attachment; filename="{name}_forecast.xlsx"'})
 
 
 @app.get("/companies/{ticker}/revenue")

@@ -1,0 +1,16 @@
+# Phase-gated probability of success, used only where an asset has no PoS assumption of
+# its own. The roadmap requires these base rates surfaced and editable rather than buried
+# in code, so they live here with their source, and any row can be argued with.
+#
+# The convention they implement comes from the analyst call of 2026-08-06: PoS ramps from
+# roughly 20% to 100% as an asset moves through phases, and a Phase 3 asset sits in a 50
+# to 80% band, of which this file takes the middle. A launched asset does not use this
+# ramp at all: it takes composite factors (regulatory x launch x reimbursement x
+# durability), the CASGEVY workbook's own framework for a marketed product.
+phase,pos,source,note
+Phase 1,0.10,"BIO/Informa/QLS, Clinical Development Success Rates 2011-2020, LOA from Phase 1","overall likelihood of approval from phase entry"
+Phase 1/2,0.15,"BIO/Informa/QLS, Clinical Development Success Rates 2011-2020","between the Phase 1 and Phase 2 rates"
+Phase 2,0.20,"analyst convention (call of 2026-08-06); BIO 2011-2020 LOA from Phase 2 is ~15%","the 20% floor of the stated ramp"
+Phase 2/3,0.40,"midpoint of the Phase 2 and Phase 3 rows","for combined-phase registrations"
+Phase 3,0.65,"analyst convention (call of 2026-08-06): Phase 3 sits 50-80%; midpoint taken","edit per asset where the readout risk is known"
+Phase 4,1.00,"approved product running post-marketing studies","phase ramp does not apply"

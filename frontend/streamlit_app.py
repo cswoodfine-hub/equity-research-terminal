@@ -160,6 +160,17 @@ def api_post(base: str, path: str, timeout: int = 300):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def api_post_json(base: str, path: str, payload: dict, timeout: int = 60):
+    """POST with a JSON body. The forecast editor is the first write-back surface the
+    app has had, so this is the first caller."""
+    request = urllib.request.Request(
+        base.rstrip("/") + path, method="POST",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(request, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
 # --- Presentation helpers -----------------------------------------------
 def section(label: str, count=None, basis: str = ""):
     """A section rule, optionally carrying the period its figures are measured over.
@@ -1259,6 +1270,303 @@ def metric_tiles(items, one_row: bool = False) -> str:
             f'{"".join(out)}</div>')
 
 
+def _forecast_editor(api_base: str, ticker: str, asset_id: int, scenario: str,
+                     rows: list[dict]):
+    """The assumptions grid: every number the forecast rests on, editable in place.
+
+    Each row carries its source, and a row without one is the analyst's own risk: it is
+    listed above the grid rather than silently equal to a sourced line. Removing a row
+    deletes it; the save round-trips through the API and the forecast reflows.
+    """
+    frame = pd.DataFrame([{
+        "indication": row.get("indication") or "",
+        "key": row["key"], "year": row.get("year"),
+        "value": row.get("value"), "text": row.get("text_value") or "",
+        "unit": row.get("unit") or "", "source": row.get("source") or "",
+        "note": row.get("note") or "",
+        "_indication_id": row.get("indication_id"),
+    } for row in rows]) if rows else pd.DataFrame(
+        columns=["indication", "key", "year", "value", "text", "unit", "source",
+                 "note", "_indication_id"])
+    known = {row.get("indication") or "": row.get("indication_id") for row in rows}
+    edited = st.data_editor(
+        frame, num_rows="dynamic", hide_index=True, width="stretch", height=420,
+        key=f"fc_editor_{ticker}_{asset_id}_{scenario}",
+        column_config={
+            "_indication_id": None,
+            "indication": st.column_config.TextColumn(
+                "indication", help="blank for an asset-level number"),
+            "value": st.column_config.NumberColumn("value", format="%g"),
+        })
+    if not st.button("Save assumptions", key=f"fc_save_{ticker}_{asset_id}_{scenario}"):
+        return
+    payload = []
+    kept = set()
+    for _, row in edited.iterrows():
+        key = str(row.get("key") or "").strip()
+        if not key:
+            continue
+        indication_id = row.get("_indication_id")
+        if pd.isna(indication_id):
+            indication_id = known.get(str(row.get("indication") or "").strip())
+        year = None if pd.isna(row.get("year")) else int(row["year"])
+        value = None if pd.isna(row.get("value")) else float(row["value"])
+        text = str(row.get("text") or "").strip() or None
+        kept.add((indication_id, key, year))
+        payload.append({
+            "key": key, "indication_id": indication_id, "scenario": scenario,
+            "year": year, "value": value, "text_value": text,
+            "unit": str(row.get("unit") or "").strip() or None,
+            "source": str(row.get("source") or "").strip() or None,
+            "note": str(row.get("note") or "").strip() or None,
+        })
+    # A row removed from the grid is a deletion, sent as an empty value.
+    for row in rows:
+        identity = (row.get("indication_id"), row["key"], row.get("year"))
+        if identity not in kept and row.get("scenario", scenario) == scenario:
+            payload.append({"key": row["key"], "indication_id": row.get("indication_id"),
+                            "scenario": scenario, "year": row.get("year"),
+                            "value": None, "text_value": None})
+    try:
+        api_post_json(api_base,
+                      f"/companies/{ticker}/forecast/{asset_id}/assumptions",
+                      {"rows": payload, "scenario": scenario})
+    except (urllib.error.URLError, OSError) as exc:
+        st.error(f"save failed: {exc}")
+        return
+    api_get.clear()
+    st.rerun()
+
+
+def _forecast_import(api_base: str, ticker: str, asset_id: int, scenario: str,
+                     rows: list[dict]):
+    """The Excel round trip's return leg: the exported sheet, vetted, comes back in.
+
+    Parsed client side and posted as rows, so the API needs no upload plumbing. An
+    indication is matched by name against the rows already on file; a name the asset
+    does not carry is reported, not guessed at.
+    """
+    uploaded = st.file_uploader("Import assumptions (CSV, the exported sheet's columns)",
+                                type=["csv"], key=f"fc_up_{ticker}_{asset_id}")
+    if uploaded is None:
+        return
+    import csv as _csv
+    import io as _io
+    known = {(row.get("indication") or "").strip().lower(): row.get("indication_id")
+             for row in rows}
+    known[""] = None
+    reader = _csv.DictReader(
+        line for line in _io.TextIOWrapper(uploaded, encoding="utf-8")
+        if not line.lstrip().startswith("#"))
+    payload, unknown = [], set()
+    for row in reader:
+        name = (row.get("indication") or "").strip().lower()
+        if name not in known:
+            unknown.add(row["indication"])
+            continue
+        payload.append({
+            "key": (row.get("key") or "").strip(),
+            "indication_id": known[name],
+            "scenario": (row.get("scenario") or scenario).strip() or scenario,
+            "year": int(row["year"]) if (row.get("year") or "").strip() else None,
+            "value": float(row["value"]) if (row.get("value") or "").strip() else None,
+            "text_value": (row.get("text_value") or "").strip() or None,
+            "unit": (row.get("unit") or "").strip() or None,
+            "source": (row.get("source") or "").strip() or None,
+            "note": (row.get("note") or "").strip() or None,
+        })
+    if unknown:
+        st.warning("skipped rows for indications not on this asset: "
+                   + ", ".join(sorted(unknown)))
+    if payload and st.button("Apply imported rows",
+                             key=f"fc_apply_{ticker}_{asset_id}"):
+        api_post_json(api_base,
+                      f"/companies/{ticker}/forecast/{asset_id}/assumptions",
+                      {"rows": payload, "scenario": scenario})
+        api_get.clear()
+        st.rerun()
+
+
+def _render_forecast_tab(api_base: str, ticker: str):
+    """The sales tab: patients x price to revenue, revenue to rNPV, beside its own
+    calibration. Everything on screen traces to an assumption row with a source; the
+    engine computes and never invents, and where it refuses the tab says which numbers
+    are missing rather than showing a blank.
+    """
+    st.markdown('<span class="no-rail"></span>', unsafe_allow_html=True)
+    try:
+        overview = api_get(api_base, f"/companies/{ticker}/forecast")
+    except (urllib.error.URLError, OSError) as exc:
+        state("Forecast unavailable", f"the API did not answer: {exc}", error=True)
+        return
+    options = [(a["asset_id"], a["name"], a["assumption_rows"])
+               for a in overview.get("pickable") or []]
+    options += [(a["asset_id"], f"{a['name']} (via {a['owner']})",
+                 a["assumption_rows"])
+                for a in overview.get("partnered") or []]
+    if not options:
+        state("No forecastable products",
+              "a forecast starts from a marketed product or an assumption seed under "
+              "data/assumptions/")
+        return
+    labels = {aid: name + ("" if n else "  (start one)") for aid, name, n in options}
+    ordered = sorted(options, key=lambda o: (o[2] == 0, o[1]))
+    pick_col, scenario_col = st.columns([2.4, 1])
+    with pick_col:
+        sel = st.selectbox("Product", [aid for aid, _n, _r in ordered],
+                           format_func=lambda aid: labels[aid],
+                           key=f"fc_pick_{ticker}", label_visibility="collapsed")
+    with scenario_col:
+        scenario = st.segmented_control(
+            "Scenario", ["base", "bear", "bull"], default="base",
+            key=f"fc_scenario_{ticker}_{sel}", label_visibility="collapsed") or "base"
+
+    try:
+        data = api_get(api_base,
+                       f"/companies/{ticker}/forecast/{sel}?scenario={scenario}")
+    except (urllib.error.URLError, OSError) as exc:
+        state("Forecast unavailable", str(exc), error=True)
+        return
+
+    if not data.get("ok"):
+        missing = ", ".join(data.get("missing") or [])
+        state("No forecast yet", f"missing: {missing}")
+        template = data.get("template") or []
+        if template:
+            note("required keys: " + "; ".join(
+                f"{row['key']} ({row['hint']})" for row in template))
+        _forecast_editor(api_base, ticker, sel, scenario,
+                         data.get("assumptions") or [])
+        _forecast_import(api_base, ticker, sel, scenario,
+                         data.get("assumptions") or [])
+        return
+
+    result = data["result"]
+    years = result["years"]
+    x_labels = [str(y) for y in years]
+    unsourced = data.get("unsourced") or []
+
+    charts_col, facts_col = st.columns([1.25, 1])
+    with charts_col:
+        section(f"{data['name']} revenue", basis=scenario)
+        rev_series = [{"name": "modelled, mm", "values": result["revenue_after_loe"],
+                       "colour": TK.UP}]
+        if result["revenue_after_loe"] != result["revenue"]:
+            rev_series.append({"name": "before erosion", "values": result["revenue"],
+                               "colour": TK.MUTED})
+        R.show(CH.line_chart(rev_series, x_labels, 620, 240,
+                             y_fmt=lambda v: f"{v:,.0f}"),
+               css_class="chart-mount")
+        section("New patients", basis="per year")
+        by_ind = result["patients"]["by_indication"]
+        explicit_all = [ind["explicit"] for ind in by_ind.values()
+                        if ind.get("explicit")]
+        derived_all = [ind["derived"] for ind in by_ind.values()
+                       if ind.get("derived")]
+        patient_series = [{"name": "analyst series" if explicit_all else "used",
+                           "values": result["patients"]["total"],
+                           "colour": TK.UP}]
+        if derived_all:
+            derived_total = [sum(series[i] for series in derived_all)
+                             for i in range(len(years))]
+            patient_series.append({"name": "pool identity (where inputs exist)",
+                                   "values": derived_total, "colour": TK.FLAG})
+        R.show(CH.line_chart(patient_series, x_labels, 620, 220,
+                             y_fmt=lambda v: f"{v:,.0f}"),
+               css_class="chart-mount")
+        note("the pool identity derives the curve from prevalence, incidence and "
+             "penetration: the hump is arithmetic, the tail is the incidence run "
+             "rate, and it can be argued against the hand series above it")
+
+    with facts_col:
+        section("Valuation", basis="mm USD")
+        share = result.get("economics_share")
+        tiles = [("rNPV", T.num(result["rnpv"]), "mm", None, "", None),
+                 ("base NPV", T.num(result["npv"]), "mm", None, "", None),
+                 ("WACC", f"{result['wacc'] * 100:.2f}", "%", None, "",
+                  result.get("wacc_basis")),
+                 ("PoS", f"{result['pos'] * 100:.2f}", "%", None, "",
+                  result.get("pos_basis"))]
+        if share is not None:
+            tiles.insert(1, ("owner share", T.num(result["owner_rnpv"]), "mm", None,
+                             "", f"{share:.0%} of economics"))
+            tiles.insert(2, ("partner share", T.num(result["partner_rnpv"]), "mm",
+                             None, "", f"{1 - share:.0%}"))
+        st.markdown(metric_tiles(tiles), unsafe_allow_html=True)
+        loe_line = ("no LOE on file" if not result.get("loe_year") else
+                    f"LOE {result['loe_year']} ({result.get('loe_basis')})")
+        st.markdown(f'<div class="byline">{html_escape(loe_line)}'
+                    + (f' · erosion: {html_escape(result["erosion_basis"])}'
+                       if result.get("erosion_basis") else "")
+                    + "</div>", unsafe_allow_html=True)
+        if unsourced:
+            st.markdown(f'<div class="byline">unsourced assumptions: '
+                        f'{html_escape(", ".join(unsourced))}</div>',
+                        unsafe_allow_html=True)
+        calibration = result.get("calibration") or []
+        if calibration:
+            section("Calibration", basis="modelled vs reported")
+            lines = []
+            for row in calibration:
+                variance = (f'{row["variance_pct"]:+.1%}'
+                            if row.get("variance_pct") is not None else "partial year")
+                lines.append(
+                    f'<div class="byline">{row["year"]} {row["period"]}: modelled '
+                    f'{row["modelled"]:,.1f} vs reported {row["reported"]:,.1f} mm '
+                    f'({variance})</div>')
+            st.markdown("".join(lines), unsafe_allow_html=True)
+        if result.get("notes"):
+            note(" · ".join(result["notes"]))
+
+    section("Sensitivity", basis="rNPV, mm")
+    preset = st.segmented_control(
+        "Grid", ["price", "loe"], default="price",
+        format_func=lambda p: "WACC x net price" if p == "price"
+        else "LOE year x year-one erosion",
+        key=f"fc_grid_{ticker}_{sel}") or "price"
+    try:
+        grid = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/sensitivity"
+                                 f"?scenario={scenario}&preset={preset}")
+    except (urllib.error.URLError, OSError):
+        grid = None
+    if grid and grid.get("ok"):
+        values = [v for row in grid["grid"] for v in row if v is not None]
+        low, high = (min(values), max(values)) if values else (0, 1)
+        span = (high - low) or 1.0
+        row_labels = [f"{y:g}" for y in grid["y_values"]]
+        col_labels = [f"{x:g}" for x in grid["x_values"]]
+        cells = {}
+        for i, row_label in enumerate(row_labels):
+            for j, col_label in enumerate(col_labels):
+                value = grid["grid"][i][j]
+                if value is None:
+                    continue
+                cells[(row_label, col_label)] = {
+                    "count": int(round(value)),
+                    "weight": (value - low) / span, "flagged": False}
+        R.show(CH.heatmap_grid(row_labels, col_labels, cells, 940, 60 + 44
+                               * len(row_labels)),
+               css_class="chart-mount stretch")
+        note(f"columns: {grid['x_key']} ({grid['bases']['x']}) · rows: "
+             f"{grid['y_key']} ({grid['bases']['y']})")
+
+    with st.expander("Assumptions", expanded=False):
+        _forecast_editor(api_base, ticker, sel, scenario,
+                         data.get("assumptions") or [])
+        export_url = (api_base.rstrip("/") + f"/companies/{ticker}/forecast/{sel}"
+                      f"/export.xlsx?scenario={scenario}")
+        try:
+            with urllib.request.urlopen(export_url, timeout=30) as resp:
+                blob = resp.read()
+            st.download_button("Export to Excel", data=blob,
+                               file_name=f"{data['name'].lower()}_forecast.xlsx",
+                               key=f"fc_dl_{ticker}_{sel}")
+        except (urllib.error.URLError, OSError):
+            pass
+        _forecast_import(api_base, ticker, sel, scenario,
+                         data.get("assumptions") or [])
+
+
 def snapshot_meta(snapshot: dict) -> str:
     """The closing date, and only that.
 
@@ -1861,6 +2169,7 @@ with main:
     if _engine == "pharma" or (_engine != "cellgene" and _sells):
         _wanted.append(("portfolio", "Portfolio"))
     _wanted.append(("catalysts", "Catalysts"))
+    _wanted.append(("forecast", "Forecast"))
     # Themes reads coverage by modality rather than by ticker, which is the question the
     # biotech and cell and gene engines exist to ask. Every big pharma company spans every
     # modality, so on that engine the tab grouped all eighteen under most headings and
@@ -1878,6 +2187,7 @@ with main:
     financials_tab = _panels["financials"]
     pipeline_tab = _panels["pipeline"]
     catalysts_tab = _panels["catalysts"]
+    forecast_tab = _panels["forecast"]
     themes_tab = _panels.get("themes")
     comps_tab = _panels["comps"]
     news_tab = _panels["news"]
@@ -3545,6 +3855,9 @@ with main:
 
     # --- Labels ----------------------------------------------------------
     # --- News ------------------------------------------------------------
+    with forecast_tab:
+        _render_forecast_tab(api_base, ticker)
+
     with news_tab:
         news = api_get(api_base, f"/companies/{ticker}/news")["news"]
         section(f"News and announcements for {ticker}", len(news))

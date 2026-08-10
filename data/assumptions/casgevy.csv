@@ -1,0 +1,66 @@
+# CASGEVY (exagamglogene autotemcel), seeded from CASGEVY_DCF_Model_v2.xlsx with the
+# workbook's own stated sources. Every row is an analyst input the terminal computes from
+# and never invents; a row marked "for review" is a number the workbook did not carry and
+# the analyst should vet before trusting (the pool identity needs incidence, the workbook
+# held prevalence only).
+#
+# The explicit new_patients series is the workbook's hand-typed curve, kept so the
+# terminal reproduces the reference model exactly. The pool-identity inputs sit beside it
+# so the derived curve can be argued against the hand one.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+VRTX,Casgevy,,US,base,therapy_mode,,,one_time,,CASGEVY_DCF_Model_v2 assumptions,one-time curative therapy
+VRTX,Casgevy,,US,base,list_price_per_patient,,2.2,,mm USD,"Vertex, Dec 2023 launch price (workbook C9)",
+VRTX,Casgevy,,US,base,net_price_per_patient,,1.8,,mm USD,"~18% gross-to-net; Medicare max 1.65mm (workbook C10)",
+VRTX,Casgevy,,US,base,cogs_per_patient,,0.75,,mm USD,"est. 500k-1mm manufacturing cost; midpoint (workbook C11)",
+VRTX,Casgevy,,US,base,sga_pct,,0.20,,share of revenue,gene therapy high-touch commercialisation (workbook C50),
+VRTX,Casgevy,,US,base,rd_pct,,0.10,,share of revenue,ongoing post-market and lifecycle studies (workbook C51),
+VRTX,Casgevy,,US,base,tax_rate,,0.15,,,"Vertex effective rate, IP-heavy (workbook C33)",
+VRTX,Casgevy,,US,base,risk_free,,0.0437,,,"US 10Y Treasury, Apr 2026 (workbook C28)",
+VRTX,Casgevy,,US,base,erp,,0.05,,,Damodaran US ERP estimate (workbook C29),
+VRTX,Casgevy,,US,base,beta,,1.15,,,Alpha Spread / Bloomberg (workbook C30),
+VRTX,Casgevy,,US,base,cost_of_debt,,0.055,,,Vertex corporate bond yield estimate (workbook C32),
+VRTX,Casgevy,,US,base,debt_weight,,0.05,,,Vertex near-zero debt (workbook C35),
+VRTX,Casgevy,,US,base,pos_regulatory,,1.0,,,"approved FDA Dec 2023 (SCD), Jan 2024 (TDT)",
+VRTX,Casgevy,,US,base,pos_launch,,1.0,,,launched Dec 2023; uptake risk sits in the volume build,
+VRTX,Casgevy,,US,base,pos_reimbursement,,0.95,,,CMS SCD Access Model (Jan 2025) plus major Medicaid coverage,
+VRTX,Casgevy,,US,base,pos_durability,,0.85,,,4-5 year data clean; long-term durability the one live risk,
+VRTX,Casgevy,,US,base,terminal_growth,,0,,,one-time therapy; no perpetuity growth (workbook C47),
+VRTX,Casgevy,,US,base,terminal_mode,,,perpetuity,,workbook takes a zero-growth perpetuity of 2035 FCFF,tail year is the incidence run rate
+VRTX,Casgevy,,US,base,economics_share,,0.6,,,60/40 Vertex/CRISPR amended collaboration,
+VRTX,Casgevy,,US,base,partner_ticker,,,CRSP,,CRISPR Therapeutics holds the remaining 40%,
+VRTX,Casgevy,,US,base,forecast_start_year,,2026,,,workbook projection period 2026-2035,
+VRTX,Casgevy,,US,base,forecast_years,,10,,years,workbook projection period (C48),
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,prevalence,,100000,,patients,CDC / FDA (workbook C15),
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,eligible_pct,,0.16,,share of prevalence,">=2 VOC/yr, age >=12 (workbook C16)",
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,exus_multiple,,1.5,,x US,"EU, UK, Middle East estimate (workbook C21)",
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,incidence,,2000,,patients/yr,CDC: SCD occurs in about 1 in 365 Black births; ~2000 US births a year,for review: the workbook holds prevalence only
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,penetration_peak_pct,,0.03,,share of pool/yr,,for review: chosen so the derived curve brackets the analyst series
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,ramp_midpoint_year,,2029,,year,,for review
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,ramp_steepness,,0.9,,,,for review
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2024,5,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2025,45,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2026,120,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2027,200,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2028,320,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2029,450,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2030,550,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2031,600,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2032,550,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2033,480,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2034,400,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,"Anemia, Sickle Cell",US,base,new_patients,2035,350,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 6,
+VRTX,Casgevy,beta-Thalassemia,US,base,prevalence,,3000,,patients,NIH / literature (workbook C18),
+VRTX,Casgevy,beta-Thalassemia,US,base,eligible_pct,,0.5,,share of prevalence,"age >=12, no matched donor (workbook C19)",
+VRTX,Casgevy,beta-Thalassemia,US,base,exus_multiple,,3.0,,x US,"Mediterranean, Middle East, South Asia (workbook C22)",
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2024,0,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2025,19,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2026,50,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2027,80,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2028,130,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2029,180,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2030,220,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2031,240,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2032,220,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2033,190,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2034,160,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,
+VRTX,Casgevy,beta-Thalassemia,US,base,new_patients,2035,140,,patients,analyst curve; CASGEVY_DCF_Model_v2 revenue build row 12,

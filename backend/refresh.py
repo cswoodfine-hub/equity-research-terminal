@@ -22,6 +22,7 @@ import env  # noqa: F401  loads the .env before any module reads it
 import asset_identity
 import asset_merge
 import financings
+import assumptions as assumptions_module
 import indication_mapping
 import molecules
 import vouchers
@@ -238,6 +239,13 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # Again after the merges, so a row that only exists now is grouped too.
     mapped["molecules"] = molecules.assign(db_path)["groups_with_siblings"]
     mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
+    # The curated assumption seeds, insert-only: a rebuilt database gets the layer back,
+    # and an analyst's live edit is never overwritten by the file it started from.
+    conn = db.get_connection(db_path)
+    try:
+        mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
+    finally:
+        conn.close()
     # Last resort for a brand nothing on file can identify, asked of openFDA by brand
     # rather than by sponsor. Soft: a failure here leaves a row unidentified, not a run
     # broken.
@@ -391,6 +399,13 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # Again after the merges, so a row that only exists now is grouped too.
     mapped["molecules"] = molecules.assign(db_path)["groups_with_siblings"]
     mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
+    # The curated assumption seeds, insert-only: a rebuilt database gets the layer back,
+    # and an analyst's live edit is never overwritten by the file it started from.
+    conn = db.get_connection(db_path)
+    try:
+        mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
+    finally:
+        conn.close()
     # Last resort for a brand nothing on file can identify, asked of openFDA by brand
     # rather than by sponsor. Soft: a failure here leaves a row unidentified, not a run
     # broken.

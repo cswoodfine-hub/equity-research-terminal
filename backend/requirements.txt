@@ -27,3 +27,6 @@ python-dotenv==1.2.1
 
 # Tests
 pytest==8.4.2
+
+# Forecast workbook export: the assumptions sheet an analyst vets in Excel.
+openpyxl==3.1.5

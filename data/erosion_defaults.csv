@@ -1,0 +1,16 @@
+# Post-LOE erosion by modality, used only where an asset carries no erosion assumption of
+# its own, and always labelled "curated default" wherever it is applied.
+#
+# Curated rather than measured, and the reason is recorded in docs/ROADMAP.md: filtering
+# the CMS beneficiary series to brands whose LOE actually falls inside the 2020-2024
+# window leaves eleven observations, all biologic, one of them Prevnar 13, which fell
+# because Prevnar 20 replaced it. Unfiltered decline is not erosion. So these are
+# literature figures an analyst can vet, not derivations, and the erosion axis of any
+# valuation stays a sensitivity rather than a point estimate.
+#
+# year1_pct is the share of revenue lost in the first year after LOE; decay_pct the share
+# of the remainder lost in each following year.
+modality,year1_pct,decay_pct,source,note
+small molecule,0.60,0.35,"FDA/ASPE and IQVIA generic entry studies: small-molecule brands typically lose 50-80% of volume within the first year of multi-source generic entry","cliff shape; sensitivity should sweep 0.4-0.8"
+biologic,0.25,0.20,"IQVIA Biosimilars in the United States reports: reference biologics typically cede share gradually, ~20-35% in the first year where biosimilars launch","slower than small molecule; adoption varies by class"
+gene therapy,0.05,0.05,"no observed precedent: no gene therapy has yet faced a direct analogue of generic entry","placeholder for review; one-time therapies deplete their pool instead"
