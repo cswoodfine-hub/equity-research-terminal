@@ -115,3 +115,12 @@ def test_the_reset_button_returns_the_tab_to_rest(app):
     body = " ".join(str(m.value) for m in app.markdown)
     assert "1,911.7" in body
     assert "vs base" not in body
+
+
+def test_the_catalysts_tab_prices_the_casgevy_readout(app):
+    """Read-only: the at-stake section renders above the calendar with the one priced
+    catalyst, ranked list shape, no resolve clicked against the live database."""
+    body = " ".join(str(m.value) for m in app.markdown)
+    assert "At stake" in body or "AT STAKE" in body
+    assert "swing" in body
+    assert "0.95" in body and "0.40" in body        # the two legs on display

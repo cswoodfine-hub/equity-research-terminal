@@ -39,6 +39,9 @@ TEMPLATE = {
         ("new_patients", "per indication, one row per year; or supply the pool inputs "
          "prevalence/eligible_pct/incidence/penetration_peak_pct/ramp_midpoint_year/"
          "ramp_steepness", "series"),
+        ("pos_success", "PoS if the next catalyst reads out well; with pos_failure, "
+         "prices the catalyst's value swing", "value"),
+        ("pos_failure", "PoS if it reads out badly", "value"),
     ),
     "chronic": (
         ("therapy_mode", "chronic", "text"),

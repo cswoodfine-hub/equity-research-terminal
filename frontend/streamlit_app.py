@@ -1532,14 +1532,14 @@ def _render_forecast_tab(api_base: str, ticker: str):
                         if ind.get("explicit")]
         derived_all = [ind["derived"] for ind in by_ind.values()
                        if ind.get("derived")]
-        patient_series = [{"name": "analyst" if explicit_all else "used",
+        patient_series = [{"name": "entered" if explicit_all else "used",
                            "values": [v * volume_scale
                                       for v in result["patients"]["total"]],
                            "colour": TK.UP}]
         if derived_all:
             derived_total = [sum(series[i] for series in derived_all) * volume_scale
                              for i in range(len(years))]
-            patient_series.append({"name": "identity", "values": derived_total,
+            patient_series.append({"name": "derived", "values": derived_total,
                                    "colour": TK.FLAG})
         R.show(CH.line_chart(patient_series, x_labels, 620, 220,
                              y_fmt=lambda v: f"{v:,.0f}", y_span=patients_span),
@@ -3885,6 +3885,72 @@ with main:
 
         # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
+        # What each event is worth before when it lands: the modelled swing between the
+        # success and failure legs, at this company's share of the economics, ranked by
+        # size rather than by date. A catalyst is priced only where the analyst has put
+        # both legs on file; the rest say which two keys would price them.
+        try:
+            stakes = api_get(api_base, f"/companies/{ticker}/catalysts/stakes")
+        except (urllib.error.URLError, OSError):
+            stakes = None
+        if stakes and (stakes.get("priced") or stakes.get("unpriced")):
+            section("At stake", basis="rNPV swing, ranked by size")
+            for row in stakes["priced"]:
+                info_col, act_col = st.columns([5, 1])
+                with info_col:
+                    per_share = (f" · {row['per_share']:+,.2f}/sh"
+                                 if row.get("per_share") is not None else "")
+                    st.markdown(
+                        f'<div class="byline"><b>{html_escape(row["asset_name"])}</b> '
+                        f'{row["expected_date"]} · {html_escape(row["catalyst_type"])} · '
+                        f'{html_escape(calendar_view._shorten(row["title"], 64))}<br>'
+                        f'swing <b>{row["swing"]:,.0f}mm</b> · this company '
+                        f'{row["share"]:.0%}: <b>{row["share_swing"]:,.0f}mm</b>'
+                        f'{per_share} · PoS {row["pos_now"]:.2f} now, '
+                        f'{row["pos_success"]:.2f} met, {row["pos_failure"]:.2f} missed'
+                        "</div>", unsafe_allow_html=True)
+                with act_col:
+                    # Two clicks, not one: resolving steps the live PoS and writes
+                    # history, and a stray click should never do that. The first click
+                    # arms; the second, on the same outcome, commits.
+                    armed_key = f"cat_arm_{ticker}_{row['id']}"
+                    armed = st.session_state.get(armed_key)
+                    met_col, miss_col = st.columns(2)
+                    clicked = None
+                    with met_col:
+                        label = "sure?" if armed == "met" else "met"
+                        if st.button(label, key=f"cat_met_{ticker}_{row['id']}"):
+                            clicked = "met"
+                    with miss_col:
+                        label = "sure?" if armed == "missed" else "missed"
+                        if st.button(label, key=f"cat_miss_{ticker}_{row['id']}"):
+                            clicked = "missed"
+                    if clicked:
+                        if armed == clicked:
+                            try:
+                                api_post_json(
+                                    api_base,
+                                    f"/companies/{ticker}/catalysts/{row['id']}"
+                                    "/resolve", {"outcome": clicked})
+                                st.session_state.pop(armed_key, None)
+                                api_get.clear()
+                                st.rerun()
+                            except (urllib.error.URLError, OSError) as exc:
+                                st.error(f"resolve failed: {exc}")
+                        else:
+                            st.session_state[armed_key] = clicked
+                            st.rerun()
+            for row in stakes["unpriced"][:6]:
+                st.markdown(
+                    f'<div class="byline">{html_escape(row["asset_name"])} '
+                    f'{row["expected_date"]} · '
+                    f'{html_escape(calendar_view._shorten(row["title"], 64))} · '
+                    f'unpriced: add {html_escape(", ".join(row["missing"]))} on the '
+                    "Forecast tab</div>", unsafe_allow_html=True)
+            if len(stakes["unpriced"]) > 6:
+                note(f'{len(stakes["unpriced"]) - 6} more unpriced catalysts sit in '
+                     "the calendar below")
+
         # Derived only, and for the selected company alone. Readouts come from Phase 3
         # primary completion dates on every refresh, so the calendar is rebuilt rather
         # than maintained. The add form is gone: a date typed in once goes stale

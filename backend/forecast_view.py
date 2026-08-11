@@ -240,6 +240,158 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
                           "pos": pos}}
 
 
+def _diluted_shares(conn, company_id: int):
+    row = conn.execute(
+        """SELECT value FROM financials WHERE company_id = ?
+            AND metric = 'WeightedAverageDilutedShares' AND period_type = 'FY'
+            ORDER BY fiscal_year DESC LIMIT 1""", (company_id,)).fetchone()
+    return row["value"] if row and row["value"] else None
+
+
+def catalyst_stakes(db_path, ticker: str):
+    """The catalyst calendar ranked by dollars at stake rather than by date.
+
+    A catalyst is priced only where its asset carries ``pos_success`` and
+    ``pos_failure`` assumption rows: the stake is the rNPV under one minus the rNPV
+    under the other, taken at this company's share of the economics, and per share
+    where diluted shares are on file. Nothing is derived for the unpriced rest; they
+    rank below the priced, by date, each naming the two keys that would price it. The
+    engine behind both legs is the same whatif the sliders use, so a stake cannot say
+    anything the model itself would not.
+    """
+    conn = db.get_connection(db_path)
+    try:
+        company = _company(conn, ticker)
+        if company is None:
+            return None
+        rows = [dict(r) for r in conn.execute(
+            """SELECT cat.id, cat.catalyst_type, cat.expected_date,
+                      cat.date_confidence, cat.title, cat.description, cat.source_url,
+                      cat.is_curated, cat.asset_id,
+                      COALESCE(a.brand_name, a.generic_name) AS asset_name,
+                      a.owner_company_id
+                 FROM catalysts cat JOIN assets a ON a.id = cat.asset_id
+                WHERE cat.status = 'pending' AND cat.expected_date >= date('now')
+                  AND (a.owner_company_id = ? OR cat.asset_id IN
+                       (SELECT asset_id FROM assumptions WHERE key = 'partner_ticker'
+                          AND UPPER(COALESCE(text_value, '')) = ?))
+                ORDER BY cat.expected_date""",
+            (company["id"], ticker.upper()))]
+        shares = _diluted_shares(conn, company["id"])
+        pairs = {}
+        for row in rows:
+            asset_id = row["asset_id"]
+            if asset_id not in pairs:
+                scalars = assumptions_module.load(conn, asset_id)["scalars"]
+                pairs[asset_id] = (scalars.get("pos_success"),
+                                  scalars.get("pos_failure"),
+                                  scalars.get("economics_share"),
+                                  scalars.get("pos"))
+    finally:
+        conn.close()
+
+    priced, unpriced = [], []
+    for row in rows:
+        success, failure, share, _stated = pairs[row["asset_id"]]
+        owned = row.pop("owner_company_id") == company["id"]
+        if owned:
+            portion = share if share is not None else 1.0
+        else:
+            portion = 1.0 - (share if share is not None else 1.0)
+        if success is None or failure is None:
+            missing = [k for k, v in (("pos_success", success),
+                                      ("pos_failure", failure)) if v is None]
+            unpriced.append({**row, "priced": False, "missing": missing})
+            continue
+        up = whatif(db_path, ticker, row["asset_id"], pos=success)
+        down = whatif(db_path, ticker, row["asset_id"], pos=failure)
+        if not (up and up.get("ok") and down and down.get("ok")):
+            unpriced.append({**row, "priced": False,
+                             "missing": (up or {}).get("missing")
+                             or (down or {}).get("missing") or ["a forecast"]})
+            continue
+        swing = up["varied"]["rnpv"] - down["varied"]["rnpv"]
+        share_swing = swing * portion
+        priced.append({
+            **row, "priced": True,
+            "pos_now": up["base"]["pos"], "pos_success": success,
+            "pos_failure": failure,
+            "rnpv_success": up["varied"]["rnpv"],
+            "rnpv_failure": down["varied"]["rnpv"],
+            "swing": swing, "share": portion, "share_swing": share_swing,
+            "per_share": (share_swing * 1e6 / shares) if shares else None,
+        })
+    priced.sort(key=lambda r: (-abs(r["share_swing"]), r["expected_date"]))
+    return {"ticker": company["ticker"], "priced": priced, "unpriced": unpriced,
+            "diluted_shares": shares}
+
+
+OUTCOMES = {"met": "pos_success", "missed": "pos_failure"}
+
+
+def resolve_catalyst(db_path, ticker: str, catalyst_id: int, outcome: str):
+    """One click after the readout: the PoS steps to the leg that happened.
+
+    The order is the roadmap's discipline. The pre-event forecast is snapshotted
+    first, then the stated pos is written through save_assumptions, which snapshots
+    the post-event state itself, and only then does the catalyst leave the calendar
+    with the outcome and the applied pos noted on its row. History is never
+    overwritten: both sides of the event stay on file.
+    """
+    if outcome not in OUTCOMES:
+        raise ValueError(f"outcome must be met or missed, got '{outcome}'")
+    conn = db.get_connection(db_path)
+    try:
+        company = _company(conn, ticker)
+        if company is None:
+            return None
+        catalyst = conn.execute(
+            "SELECT id, asset_id, status FROM catalysts WHERE id = ?",
+            (catalyst_id,)).fetchone()
+        if catalyst is None or catalyst["asset_id"] is None:
+            return None
+        if _accessible(conn, company["id"], catalyst["asset_id"], ticker) is None:
+            return None
+        if catalyst["status"] != "pending":
+            raise ValueError(f"catalyst {catalyst_id} is already {catalyst['status']}")
+        asset_id = catalyst["asset_id"]
+        scalars = assumptions_module.load(conn, asset_id)["scalars"]
+        applied = scalars.get(OUTCOMES[outcome])
+        if applied is None:
+            raise ValueError(f"{OUTCOMES[outcome]} is not on file for this asset, "
+                             "so the outcome has no priced leg to step to")
+    finally:
+        conn.close()
+
+    # The pre-event record first, then the write (which snapshots post-event itself).
+    before = asset_forecast(db_path, ticker, asset_id)
+    if before and before.get("ok"):
+        conn = db.get_connection(db_path)
+        try:
+            assumptions_module.snapshot(conn, asset_id, "base", before["result"])
+            conn.commit()
+        finally:
+            conn.close()
+    saved = save_assumptions(db_path, ticker, asset_id, [{
+        "key": "pos", "value": applied,
+        "source": f"catalyst {catalyst_id} resolved {outcome}",
+        "note": f"stepped to {OUTCOMES[outcome]} on resolution",
+    }])
+    import catalysts as catalysts_module
+    catalysts_module.set_status(db_path, catalyst_id, outcome)
+    conn = db.get_connection(db_path)
+    try:
+        conn.execute(
+            "UPDATE catalysts SET description = COALESCE(description, '') ||"
+            " ' | resolved ' || ? || ', pos -> ' || ? WHERE id = ?",
+            (outcome, f"{applied:g}", catalyst_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"catalyst_id": catalyst_id, "outcome": outcome, "pos_applied": applied,
+            "state": saved["state"] if saved else None}
+
+
 def company_rollup(db_path, ticker: str):
     """Every forecast this company has economics in, summed against reported revenue.
 

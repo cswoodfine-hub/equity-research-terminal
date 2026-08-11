@@ -568,6 +568,34 @@ def save_forecast_assumptions(ticker: str, asset_id: int, body: AssumptionsIn) -
     return out
 
 
+@app.get("/companies/{ticker}/catalysts/stakes")
+def company_catalyst_stakes(ticker: str) -> dict:
+    """The catalyst calendar ranked by dollars at stake rather than by date."""
+    out = forecast_view_module.catalyst_stakes(None, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    return out
+
+
+class ResolveIn(BaseModel):
+    outcome: str    # met | missed
+
+
+@app.post("/companies/{ticker}/catalysts/{catalyst_id}/resolve")
+def resolve_company_catalyst(ticker: str, catalyst_id: int, body: ResolveIn) -> dict:
+    """One click after the readout: pre-event snapshot, PoS steps to the leg that
+    happened, and the catalyst leaves the calendar with the outcome on its row."""
+    try:
+        out = forecast_view_module.resolve_catalyst(None, ticker, catalyst_id,
+                                                    body.outcome)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if out is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no catalyst {catalyst_id} for {ticker.upper()}")
+    return out
+
+
 @app.get("/companies/{ticker}/forecast/{asset_id}/whatif")
 def forecast_whatif(ticker: str, asset_id: int,
                     scenario: str = Query(default="base"),

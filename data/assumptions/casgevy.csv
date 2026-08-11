@@ -24,6 +24,8 @@ VRTX,Casgevy,,US,base,pos_regulatory,,1.0,,,"approved FDA Dec 2023 (SCD), Jan 20
 VRTX,Casgevy,,US,base,pos_launch,,1.0,,,launched Dec 2023; uptake risk sits in the volume build,
 VRTX,Casgevy,,US,base,pos_reimbursement,,0.95,,,CMS SCD Access Model (Jan 2025) plus major Medicaid coverage,
 VRTX,Casgevy,,US,base,pos_durability,,0.85,,,4-5 year data clean; long-term durability the one live risk,
+VRTX,Casgevy,,US,base,pos_success,,0.95,,,"durability risk retired on a clean long-term readout: 1.0 x 1.0 x 0.95 x 1.0 (docs/casgevy_uptake_audit.md; NCT05356195)",prices the pediatric Phase 3 catalyst
+VRTX,Casgevy,,US,base,pos_failure,,0.40,,,"adverse long-term readout: durability halved and reimbursement pressured (NCT05356195)",for review: the failure leg is the analyst's judgement
 VRTX,Casgevy,,US,base,terminal_growth,,0,,,one-time therapy; no perpetuity growth (workbook C47),
 VRTX,Casgevy,,US,base,terminal_mode,,,perpetuity,,workbook takes a zero-growth perpetuity of 2035 FCFF,tail year is the incidence run rate
 VRTX,Casgevy,,US,base,economics_share,,0.6,,,60/40 Vertex/CRISPR amended collaboration,

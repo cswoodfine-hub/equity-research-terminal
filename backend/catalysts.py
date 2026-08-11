@@ -85,16 +85,23 @@ def add_catalyst(db_path, ticker, catalyst_type, expected_date, title,
 
 
 def list_catalysts(db_path=None, within_days=90, ticker=None):
-    """Upcoming catalysts (expected_date from today to +within_days), soonest first."""
+    """Upcoming catalysts (expected_date from today to +within_days), soonest first.
+
+    Pending only: a catalyst resolved met or missed has become history, and history
+    already has a home in the snapshots the resolve wrote. ``asset_id`` rides along
+    because the stakes view needs a handle on the asset; before it was added, the
+    payload's only route to one was the NCT id in ``description``.
+    """
     conn = db.get_connection(db_path)
     try:
         query = """
             SELECT cat.id, c.ticker, c.name, cat.catalyst_type, cat.expected_date,
                    cat.date_confidence, cat.title, cat.description, cat.status,
-                   cat.is_curated, cat.source_url
+                   cat.is_curated, cat.source_url, cat.asset_id
               FROM catalysts cat JOIN companies c ON cat.company_id = c.id
              WHERE cat.expected_date >= date('now')
                AND cat.expected_date <= date('now', ?)
+               AND cat.status = 'pending'
         """
         params = [f"+{int(within_days)} days"]
         if ticker:
