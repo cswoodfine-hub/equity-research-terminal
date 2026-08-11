@@ -1586,20 +1586,6 @@ def _render_forecast_tab(api_base: str, ticker: str):
             st.markdown(f'<div class="byline">unsourced assumptions: '
                         f'{html_escape(", ".join(unsourced))}</div>',
                         unsafe_allow_html=True)
-        calibration = result.get("calibration") or []
-        if calibration:
-            section("Calibration", basis="modelled vs reported")
-            lines = []
-            for row in calibration:
-                variance = (f'{row["variance_pct"]:+.1%}'
-                            if row.get("variance_pct") is not None else "partial year")
-                lines.append(
-                    f'<div class="byline">{row["year"]} {row["period"]}: modelled '
-                    f'{row["modelled"]:,.1f} vs reported {row["reported"]:,.1f} mm '
-                    f'({variance})</div>')
-            st.markdown("".join(lines), unsafe_allow_html=True)
-        if result.get("notes"):
-            note(" · ".join(result["notes"]))
 
     section("Sensitivity", basis="rNPV, mm")
     preset = st.segmented_control(
