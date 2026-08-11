@@ -1491,6 +1491,22 @@ def _render_forecast_tab(api_base: str, ticker: str):
             varied, base_slim = wi["varied"], wi["base"]
     volume_scale = moved.get("volume", 1.0) if varied else 1.0
 
+    # One frame for the whole scenario family, so switching bear to bull moves the
+    # line rather than the scale. The span folds every scenario's revenue in; values
+    # a slider pushes outside it still expand the domain rather than clipping.
+    span_values = []
+    for scenario_name in ("base", "bear", "bull"):
+        try:
+            other = api_get(api_base, f"/companies/{ticker}/forecast/{sel}"
+                                      f"?scenario={scenario_name}")
+        except (urllib.error.URLError, OSError):
+            continue
+        if other.get("ok"):
+            span_values += other["result"]["revenue_after_loe"]
+    revenue_span = (min(span_values), max(span_values)) if span_values else None
+    patients_span = (min(result["patients"]["total"]),
+                     max(result["patients"]["total"]))
+
     charts_col, facts_col = st.columns([1.25, 1])
     with charts_col:
         section(f"{data['name']} revenue",
@@ -1507,7 +1523,7 @@ def _render_forecast_tab(api_base: str, ticker: str):
                 rev_series.append({"name": "pre-LOE", "values": result["revenue"],
                                    "colour": TK.MUTED})
         R.show(CH.line_chart(rev_series, x_labels, 620, 240,
-                             y_fmt=lambda v: f"{v:,.0f}"),
+                             y_fmt=lambda v: f"{v:,.0f}", y_span=revenue_span),
                css_class="chart-mount")
         section("New patients", basis="per year"
                 + (f" · {volume_scale:.2f}x" if volume_scale != 1.0 else ""))
@@ -1526,7 +1542,7 @@ def _render_forecast_tab(api_base: str, ticker: str):
             patient_series.append({"name": "identity", "values": derived_total,
                                    "colour": TK.FLAG})
         R.show(CH.line_chart(patient_series, x_labels, 620, 220,
-                             y_fmt=lambda v: f"{v:,.0f}"),
+                             y_fmt=lambda v: f"{v:,.0f}", y_span=patients_span),
                css_class="chart-mount")
         note("the pool identity derives the curve from prevalence, incidence and "
              "penetration: the hump is arithmetic, the tail is the incidence run "

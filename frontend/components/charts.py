@@ -161,13 +161,18 @@ def sparkline(values: Sequence[Optional[float]], width: int = 140,
 # --- 2. line chart --------------------------------------------------------
 def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900,
                height: int = 300, y_fmt: Callable[[float], str] = None,
-               hover: bool = True) -> str:
+               hover: bool = True, y_span=None) -> str:
     """Multi-series line. Each series: {name, values, colour, axis: left|right}.
 
     Series marked axis=right scale on their own zero-free domain; both ends are
     labelled in the series colour so the two scales cannot be confused. A null
     breaks its line rather than bridging. Hover is pure CSS: a slot band per x
     index reveals the values for that index.
+
+    ``y_span`` is a (low, high) the left axis must at least contain, for a caller
+    that redraws one line out of a known family: the forecast tab's scenarios share
+    one frame, so switching bear to bull moves the line rather than the scale. Data
+    outside the span still expands the domain, so nothing is ever clipped.
     """
     y_fmt = y_fmt or (lambda v: _fmt(v, 1))
     pad_l, pad_r, top, bottom = 54, 54, 12, 24
@@ -177,7 +182,10 @@ def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900
 
     left = [s for s in series if s.get("axis") != "right"]
     right = [s for s in series if s.get("axis") == "right"]
-    dom_l = _domain([v for s in left for v in s["values"]])
+    left_values = [v for s in left for v in s["values"]]
+    if y_span:
+        left_values = left_values + [y_span[0], y_span[1]]
+    dom_l = _domain(left_values)
     dom_r = _domain([v for s in right for v in s["values"]])
     y_l = _scale(dom_l, (floor, top))
     y_r = _scale(dom_r, (floor, top))
