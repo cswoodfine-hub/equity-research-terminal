@@ -84,28 +84,25 @@ def _slider(app, name):
 
 def test_the_tab_renders_the_sliders_at_base_values(app):
     assert not app.exception
-    volume = _slider(app, "volume")
-    assert volume.value == 1.0
-    assert _slider(app, "price").value == pytest.approx(1.8)
+    assert _slider(app, "volume").value == 1.0
     assert _slider(app, "wacc").value == pytest.approx(0.0985, abs=1e-4)
     assert _slider(app, "pos").value == pytest.approx(0.8075, abs=1e-4)
     body = " ".join(str(m.value) for m in app.markdown)
-    assert "move a slider" in body          # the resting hint, not the tiles
+    assert "1,911.7" in body                # base valuation on the tiles
+    assert "vs base" not in body            # no delta badge at rest
 
 
-def test_moving_the_volume_slider_reruns_the_engine_and_shows_the_delta(app):
+def test_moving_the_volume_slider_retells_the_page_itself(app):
+    """No separate section: the revenue chart and the valuation tiles are the display,
+    and a moved slider changes them, base kept as a muted reference line."""
     _slider(app, "volume").set_value(0.7)
     app.run()
     assert not app.exception
     body = " ".join(str(m.value) for m in app.markdown)
-    assert "what-if rNPV" in body
-    # volume scales revenue linearly and PoS is untouched, so the variation is
-    # rnpv x ~0.7 against 1,911.7: about 1,338, and the delta is negative.
-    assert "1,338" in body or "1,337" in body
-    assert "-573" in body or "-574" in body
-    assert "terminal PV" in body
+    assert "1,338" in body or "1,337" in body       # varied rNPV on the main tile
+    assert "vs base" in body and ("-573" in body or "-574" in body)
     charts = " ".join(str(m.value) for m in app.markdown if "svg" in str(m.value))
-    assert "what if, mm" in charts and "base, mm" in charts
+    assert "varied" in charts and "base" in charts  # overlay on the top chart
 
 
 def test_the_reset_button_returns_the_tab_to_rest(app):
@@ -116,4 +113,5 @@ def test_the_reset_button_returns_the_tab_to_rest(app):
     assert not app.exception
     assert _slider(app, "volume").value == 1.0
     body = " ".join(str(m.value) for m in app.markdown)
-    assert "move a slider" in body
+    assert "1,911.7" in body
+    assert "vs base" not in body

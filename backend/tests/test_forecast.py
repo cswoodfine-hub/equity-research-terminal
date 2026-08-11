@@ -330,3 +330,12 @@ def test_whatif_levers(tmp_path):
     assert pos["varied"]["rnpv"] == pytest.approx(pos["base"]["rnpv"] * 0.5)
 
     assert V.whatif(path, "LLY", 1) is None       # another company's asset
+
+
+def test_a_stated_pos_outranks_the_factors_it_inherits():
+    """A bear scenario writes one pos row of 0.65 and inherits the base factors beside
+    it. The row means exactly that number, and must not lose to the inheritance."""
+    inputs = casgevy_inputs(scalars={"pos": 0.65})
+    got = F.build(inputs)
+    assert got["pos"] == 0.65
+    assert got["pos_basis"] == "stated"

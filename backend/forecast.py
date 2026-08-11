@@ -176,12 +176,17 @@ def wacc(scalars: dict):
 
 
 def pos(scalars: dict, phase=None, pos_defaults=None):
-    """(pos, basis). Composite factors where stated, else the phase-gated default.
+    """(pos, basis). A stated value first, then composite factors, then the phase ramp.
 
-    A launched asset states its factors (the workbook's regulatory x launch x
-    reimbursement x durability); a pipeline asset without them falls to the curated
-    phase ramp, and the basis says which happened.
+    The most explicit statement wins. A launched asset usually states its factors (the
+    workbook's regulatory x launch x reimbursement x durability) and no single value,
+    so factors carry it; but a scenario that writes one ``pos`` row means exactly that
+    number, and must not lose to the base factors it inherits alongside. A pipeline
+    asset with neither falls to the curated phase ramp, and the basis says which
+    happened.
     """
+    if scalars.get("pos") is not None:
+        return scalars["pos"], "stated"
     factors = [scalars.get(k) for k in ("pos_regulatory", "pos_launch",
                                         "pos_reimbursement", "pos_durability")]
     if any(f is not None for f in factors):
@@ -189,8 +194,6 @@ def pos(scalars: dict, phase=None, pos_defaults=None):
         for f in factors:
             composite *= 1.0 if f is None else f
         return composite, "composite factors"
-    if scalars.get("pos") is not None:
-        return scalars["pos"], "stated"
     if phase and pos_defaults and phase in pos_defaults:
         return pos_defaults[phase]["pos"], (f"phase default ({phase}), "
                                             f"{pos_defaults[phase]['source']}")

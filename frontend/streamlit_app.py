@@ -1411,7 +1411,8 @@ def _render_forecast_tab(api_base: str, ticker: str):
         return
     labels = {aid: name + ("" if n else "  (start one)") for aid, name, n in options}
     ordered = sorted(options, key=lambda o: (o[2] == 0, o[1]))
-    pick_col, scenario_col = st.columns([2.4, 1])
+    pick_col, scenario_col, vol_col, wacc_col, pos_col, reset_col = st.columns(
+        [1.7, 0.9, 0.62, 0.62, 0.62, 0.34])
     with pick_col:
         sel = st.selectbox("Product", [aid for aid, _n, _r in ordered],
                            format_func=lambda aid: labels[aid],
@@ -1446,31 +1447,84 @@ def _render_forecast_tab(api_base: str, ticker: str):
     x_labels = [str(y) for y in years]
     unsourced = data.get("unsourced") or []
 
+    # The sliders live in the control row and drive the page itself: move one and the
+    # revenue chart and the valuation retell the story under that assumption, with the
+    # base kept as a muted reference line. Same engine either way, so a slider cannot
+    # say anything the model would not.
+    slider_keys = [f"fc_wi_{name}_{ticker}_{sel}" for name in ("volume", "wacc", "pos")]
+    base_wacc = round(result["wacc"], 4)
+    base_pos = round(result["pos"], 4)
+    with vol_col:
+        wi_volume = st.slider("volume", 0.4, 1.6, 1.0, 0.05, format="%.2fx",
+                              key=slider_keys[0],
+                              help="scales the patient curve; the acceptance lever "
+                                   "the uptake audit surfaced")
+    with wacc_col:
+        wi_wacc = st.slider("WACC", round(base_wacc - 0.03, 4),
+                            round(base_wacc + 0.03, 4), base_wacc, 0.0025,
+                            format="%.3f", key=slider_keys[1])
+    with pos_col:
+        wi_pos = st.slider("PoS", 0.20, 1.00, base_pos, 0.025, key=slider_keys[2])
+    with reset_col:
+        if st.button("Reset", key=f"fc_wi_reset_{ticker}_{sel}",
+                     help="back to the seeded assumptions"):
+            for key in slider_keys:
+                st.session_state.pop(key, None)
+            st.rerun()
+    moved = {}
+    if abs(wi_volume - 1.0) > 1e-9:
+        moved["volume"] = wi_volume
+    if abs(wi_wacc - base_wacc) > 1e-9:
+        moved["wacc"] = wi_wacc
+    if abs(wi_pos - base_pos) > 1e-9:
+        moved["pos"] = wi_pos
+    varied = base_slim = None
+    if moved:
+        query = "&".join(f"{k}={v}" for k, v in moved.items())
+        try:
+            wi = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/whatif"
+                                   f"?scenario={scenario}&{query}")
+        except (urllib.error.URLError, OSError) as exc:
+            wi = None
+            st.error(f"variation failed: {exc}")
+        if wi and wi.get("ok"):
+            varied, base_slim = wi["varied"], wi["base"]
+    volume_scale = moved.get("volume", 1.0) if varied else 1.0
+
     charts_col, facts_col = st.columns([1.25, 1])
     with charts_col:
-        section(f"{data['name']} revenue", basis=scenario)
-        rev_series = [{"name": "modelled, mm", "values": result["revenue_after_loe"],
-                       "colour": TK.UP}]
-        if result["revenue_after_loe"] != result["revenue"]:
-            rev_series.append({"name": "before erosion", "values": result["revenue"],
-                               "colour": TK.MUTED})
+        section(f"{data['name']} revenue",
+                basis=scenario + (" · varied" if varied else ""))
+        if varied:
+            rev_series = [{"name": "varied", "values": varied["revenue"],
+                           "colour": TK.FLAG},
+                          {"name": "base", "values": base_slim["revenue"],
+                           "colour": TK.MUTED}]
+        else:
+            rev_series = [{"name": "modelled", "values": result["revenue_after_loe"],
+                           "colour": TK.UP}]
+            if result["revenue_after_loe"] != result["revenue"]:
+                rev_series.append({"name": "pre-LOE", "values": result["revenue"],
+                                   "colour": TK.MUTED})
         R.show(CH.line_chart(rev_series, x_labels, 620, 240,
                              y_fmt=lambda v: f"{v:,.0f}"),
                css_class="chart-mount")
-        section("New patients", basis="per year")
+        section("New patients", basis="per year"
+                + (f" · {volume_scale:.2f}x" if volume_scale != 1.0 else ""))
         by_ind = result["patients"]["by_indication"]
         explicit_all = [ind["explicit"] for ind in by_ind.values()
                         if ind.get("explicit")]
         derived_all = [ind["derived"] for ind in by_ind.values()
                        if ind.get("derived")]
-        patient_series = [{"name": "analyst series" if explicit_all else "used",
-                           "values": result["patients"]["total"],
+        patient_series = [{"name": "analyst" if explicit_all else "used",
+                           "values": [v * volume_scale
+                                      for v in result["patients"]["total"]],
                            "colour": TK.UP}]
         if derived_all:
-            derived_total = [sum(series[i] for series in derived_all)
+            derived_total = [sum(series[i] for series in derived_all) * volume_scale
                              for i in range(len(years))]
-            patient_series.append({"name": "pool identity (where inputs exist)",
-                                   "values": derived_total, "colour": TK.FLAG})
+            patient_series.append({"name": "identity", "values": derived_total,
+                                   "colour": TK.FLAG})
         R.show(CH.line_chart(patient_series, x_labels, 620, 220,
                              y_fmt=lambda v: f"{v:,.0f}"),
                css_class="chart-mount")
@@ -1479,18 +1533,31 @@ def _render_forecast_tab(api_base: str, ticker: str):
              "rate, and it can be argued against the hand series above it")
 
     with facts_col:
-        section("Valuation", basis="mm USD")
+        section("Valuation", basis="mm USD" + (" · varied" if varied else ""))
         share = result.get("economics_share")
-        tiles = [("rNPV", T.num(result["rnpv"]), "mm", None, "", None),
-                 ("base NPV", T.num(result["npv"]), "mm", None, "", None),
-                 ("WACC", f"{result['wacc'] * 100:.2f}", "%", None, "",
-                  result.get("wacc_basis")),
-                 ("PoS", f"{result['pos'] * 100:.2f}", "%", None, "",
-                  result.get("pos_basis"))]
+        shown = varied or result
+        if varied:
+            delta = varied["rnpv"] - base_slim["rnpv"]
+            change = f"{delta:+,.0f}mm vs base"
+            tone = " up" if delta >= 0 else " down"
+        else:
+            change, tone = None, ""
+        rnpv_value = shown["rnpv"]
+        npv_value = shown["npv"]
+        owner_value = shown["owner_rnpv"] if share is not None else None
+        partner_value = shown["partner_rnpv"] if share is not None else None
+        wacc_note = ("slider" if "wacc" in moved and varied
+                     else result.get("wacc_basis"))
+        pos_note = ("slider" if "pos" in moved and varied
+                    else result.get("pos_basis"))
+        tiles = [("rNPV", T.num(rnpv_value), "mm", change, tone, None),
+                 ("base NPV", T.num(npv_value), "mm", None, "", None),
+                 ("WACC", f"{shown['wacc'] * 100:.2f}", "%", None, "", wacc_note),
+                 ("PoS", f"{shown['pos'] * 100:.2f}", "%", None, "", pos_note)]
         if share is not None:
-            tiles.insert(1, ("owner share", T.num(result["owner_rnpv"]), "mm", None,
+            tiles.insert(1, ("owner share", T.num(owner_value), "mm", None,
                              "", f"{share:.0%} of economics"))
-            tiles.insert(2, ("partner share", T.num(result["partner_rnpv"]), "mm",
+            tiles.insert(2, ("partner share", T.num(partner_value), "mm",
                              None, "", f"{1 - share:.0%}"))
         st.markdown(metric_tiles(tiles), unsafe_allow_html=True)
         loe_line = ("no LOE on file" if not result.get("loe_year") else
@@ -1517,83 +1584,6 @@ def _render_forecast_tab(api_base: str, ticker: str):
             st.markdown("".join(lines), unsafe_allow_html=True)
         if result.get("notes"):
             note(" · ".join(result["notes"]))
-
-    section("What if", basis="live, same engine")
-    result_base = result
-    price_base = next((r / pt for r, pt in zip(result_base["revenue"],
-                                               result_base["patients"]["total"])
-                       if pt), 1.0)
-    slider_keys = [f"fc_wi_{name}_{ticker}_{sel}"
-                   for name in ("volume", "price", "wacc", "pos")]
-    vol_col, price_col, wacc_col, pos_col, reset_col = st.columns([1, 1, 1, 1, 0.5])
-    with vol_col:
-        wi_volume = st.slider("patient volume", 0.4, 1.6, 1.0, 0.05,
-                              format="%.2fx", key=slider_keys[0],
-                              help="scales the patient curve; this is the acceptance "
-                                   "lever the uptake audit surfaced")
-    with price_col:
-        wi_price = st.slider("net price, mm", round(price_base * 0.6, 2),
-                             round(price_base * 1.4, 2), round(price_base, 2), 0.05,
-                             key=slider_keys[1])
-    with wacc_col:
-        wi_wacc = st.slider("WACC", round(result_base["wacc"] - 0.03, 4),
-                            round(result_base["wacc"] + 0.03, 4),
-                            round(result_base["wacc"], 4), 0.0025,
-                            format="%.2f", key=slider_keys[2])
-    with pos_col:
-        wi_pos = st.slider("PoS", 0.20, 1.00, round(result_base["pos"], 4), 0.025,
-                           key=slider_keys[3])
-    with reset_col:
-        if st.button("Reset", key=f"fc_wi_reset_{ticker}_{sel}"):
-            for key in slider_keys:
-                st.session_state.pop(key, None)
-            st.rerun()
-    moved = {}
-    if abs(wi_volume - 1.0) > 1e-9:
-        moved["volume"] = wi_volume
-    if abs(wi_price - round(price_base, 2)) > 1e-9:
-        moved["price"] = wi_price
-    if abs(wi_wacc - round(result_base["wacc"], 4)) > 1e-9:
-        moved["wacc"] = wi_wacc
-    if abs(wi_pos - round(result_base["pos"], 4)) > 1e-9:
-        moved["pos"] = wi_pos
-    if moved:
-        query = "&".join(f"{k}={v}" for k, v in moved.items())
-        try:
-            wi = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/whatif"
-                                   f"?scenario={scenario}&{query}")
-        except (urllib.error.URLError, OSError) as exc:
-            wi = None
-            st.error(f"what-if failed: {exc}")
-        if wi and wi.get("ok"):
-            base_v, varied = wi["base"], wi["varied"]
-            delta = varied["rnpv"] - base_v["rnpv"]
-            pct = delta / base_v["rnpv"] if base_v["rnpv"] else 0.0
-            tone = " up" if delta >= 0 else " down"
-            last_year = varied["years"][-1]
-            st.markdown(metric_tiles([
-                ("what-if rNPV", T.num(varied["rnpv"]), "mm",
-                 f"{delta:+,.0f}mm ({pct:+.0%})", tone, None),
-                ("owner share", T.num(varied["owner_rnpv"]), "mm", None, "",
-                 "same economics split"),
-                ("terminal PV", T.num(varied["terminal_pv"]), "mm",
-                 f"{varied['terminal_pv'] - base_v['terminal_pv']:+,.0f}mm", tone,
-                 "capitalises the tail year"),
-                (f"{last_year} revenue", T.num(varied["revenue"][-1]), "mm",
-                 f"{varied['revenue'][-1] - base_v['revenue'][-1]:+,.0f}mm", tone,
-                 None),
-            ], one_row=True), unsafe_allow_html=True)
-            R.show(CH.line_chart(
-                [{"name": "base, mm", "values": base_v["revenue"],
-                  "colour": TK.MUTED},
-                 {"name": "what if, mm", "values": varied["revenue"],
-                  "colour": TK.FLAG}],
-                [str(y) for y in varied["years"]], 1240, 240,
-                y_fmt=lambda v: f"{v:,.0f}"),
-                css_class="chart-mount stretch")
-    else:
-        note("move a slider to run the engine against a variation; base values are "
-             "the seeded assumptions")
 
     section("Sensitivity", basis="rNPV, mm")
     preset = st.segmented_control(

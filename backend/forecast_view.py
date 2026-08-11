@@ -203,6 +203,7 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
                 "patients": result["patients"]["total"],
                 "rnpv": result["rnpv"], "npv": result["npv"],
                 "owner_rnpv": result["owner_rnpv"],
+                "partner_rnpv": result["partner_rnpv"],
                 "terminal_pv": result["terminal_pv"],
                 "wacc": result["wacc"], "pos": result["pos"]}
 

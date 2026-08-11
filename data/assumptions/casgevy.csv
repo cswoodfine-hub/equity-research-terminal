@@ -30,6 +30,14 @@ VRTX,Casgevy,,US,base,economics_share,,0.6,,,60/40 Vertex/CRISPR amended collabo
 VRTX,Casgevy,,US,base,partner_ticker,,,CRSP,,CRISPR Therapeutics holds the remaining 40%,
 VRTX,Casgevy,,US,base,forecast_start_year,,2026,,,workbook projection period 2026-2035,
 VRTX,Casgevy,,US,base,forecast_years,,10,,years,workbook projection period (C48),
+VRTX,Casgevy,,US,bear,net_price_per_patient,,1.5,,mm USD,workbook sensitivity sheet scenario analysis bear column,scenario restates only what it changes; everything else inherits from base
+VRTX,Casgevy,,US,bear,wacc,,0.11,,,workbook sensitivity sheet scenario analysis bear column,
+VRTX,Casgevy,,US,bear,sga_pct,,0.25,,share of revenue,workbook sensitivity sheet scenario analysis bear column,
+VRTX,Casgevy,,US,bear,pos,,0.65,,,workbook sensitivity sheet scenario analysis bear column,a stated pos outranks the inherited base factors
+VRTX,Casgevy,,US,bull,net_price_per_patient,,2.0,,mm USD,workbook sensitivity sheet scenario analysis bull column,
+VRTX,Casgevy,,US,bull,wacc,,0.08,,,workbook sensitivity sheet scenario analysis bull column,
+VRTX,Casgevy,,US,bull,sga_pct,,0.15,,share of revenue,workbook sensitivity sheet scenario analysis bull column,
+VRTX,Casgevy,,US,bull,pos,,0.90,,,workbook sensitivity sheet scenario analysis bull column,
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,prevalence,,100000,,patients,CDC / FDA (workbook C15),
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,eligible_pct,,0.16,,share of prevalence,">=2 VOC/yr, age >=12 (workbook C16)",
 VRTX,Casgevy,"Anemia, Sickle Cell",US,base,exus_multiple,,1.5,,x US,"EU, UK, Middle East estimate (workbook C21)",
