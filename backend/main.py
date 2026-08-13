@@ -27,6 +27,7 @@ import db
 import deals as deals_module
 import demand as demand_module
 import filing_diff as filing_diff_module
+import consensus as consensus_module
 import forecast_view as forecast_view_module
 import trial_readouts as trial_readouts_module
 import valuation as valuation_module
@@ -565,6 +566,15 @@ def save_forecast_assumptions(ticker: str, asset_id: int, body: AssumptionsIn) -
     if out is None:
         raise HTTPException(status_code=404,
                             detail=f"no forecastable asset {asset_id} for {ticker.upper()}")
+    return out
+
+
+@app.get("/companies/{ticker}/street")
+def company_street(ticker: str) -> dict:
+    """Reported, guidance, street and mine, side by side, newest revision of each."""
+    out = consensus_module.street_view(None, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
     return out
 
 

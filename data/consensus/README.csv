@@ -1,0 +1,17 @@
+# The manual column of the consensus layer. Drop CSVs in this directory and they load on
+# every refresh, insert-only: a row that already exists is never overwritten, so a live
+# revision beats the file it started from.
+#
+# Use it for anything gated: a street number read off a terminal, a broker target, a
+# figure from a paywalled preview. Every row needs its source and as-of date, because an
+# estimate without provenance is indistinguishable from an invented one.
+#
+# metric: Revenue | EPS | RevenueGrowth. Revenue and EPS are absolute amounts in
+# currency units (63.5bn = 63500000000); RevenueGrowth is a percent range with currency
+# blank. period: FY2026. source: manual (or name the desk). value may be blank when low
+# and high carry a range; the reader midpoints it.
+#
+# Example (commented out; uncomment and edit to use):
+# ticker,metric,period,value,low,high,currency,source,as_of,note
+# VRTX,Revenue,FY2026,12050000000,11900000000,12200000000,USD,manual,2026-08-11,example only
+ticker,metric,period,value,low,high,currency,source,as_of,note

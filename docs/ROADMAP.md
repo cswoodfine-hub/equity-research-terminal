@@ -94,10 +94,14 @@ Two gaps decide the shape of Build 1. Both are settled below.
    indication and Build 4 is entirely indication-scoped, so this table is a prerequisite
    rather than a detail. See "Assigning asset indications".
 
-Build 2 is cheaper than the order above implies: `consensus_estimates` already exists as a
-table and `FMP_API_KEY` is already set, which buys company-level consensus EPS and revenue
-immediately. It does not buy drug-level consensus, which is what the delta view wants, so
-the ordering stands for the full ambition.
+Build 2 is cheaper than the order above implies, but not for the reason first recorded
+here. `consensus_estimates` already exists as a table, and `FMP_API_KEY` is named in
+`.env` with an empty value: the key is not set, so the paid street feed buys nothing
+today. What is free is the company's own guidance, which is already on file in
+`filing_sections` and needs no key at all. Build 2 therefore ships three columns rather
+than two: reported, guidance and mine, with the street column written and gated, waiting
+for a key. Even with one, FMP buys company-level consensus only, not the drug-level
+consensus the delta view wants, so the ordering stands for the full ambition.
 
 ## The assumption layer
 

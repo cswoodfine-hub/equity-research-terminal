@@ -1,0 +1,47 @@
+[
+  {
+    "symbol": "VRTX",
+    "date": "2027-12-31",
+    "revenueLow": 13400000000,
+    "revenueHigh": 14600000000,
+    "revenueAvg": 14020000000,
+    "ebitdaLow": 5900000000,
+    "ebitdaHigh": 6800000000,
+    "ebitdaAvg": 6350000000,
+    "netIncomeLow": 4100000000,
+    "netIncomeHigh": 4900000000,
+    "netIncomeAvg": 4500000000,
+    "epsLow": 15.9,
+    "epsHigh": 19.1,
+    "epsAvg": 17.5,
+    "numAnalystsRevenue": 24,
+    "numAnalystsEps": 22
+  },
+  {
+    "symbol": "VRTX",
+    "date": "2026-12-31",
+    "revenueLow": 12400000000,
+    "revenueHigh": 12900000000,
+    "revenueAvg": 12650000000,
+    "ebitdaLow": 5200000000,
+    "ebitdaHigh": 5700000000,
+    "ebitdaAvg": 5450000000,
+    "netIncomeLow": 3600000000,
+    "netIncomeHigh": 4000000000,
+    "netIncomeAvg": 3800000000,
+    "epsLow": 13.8,
+    "epsHigh": 15.2,
+    "epsAvg": 14.5,
+    "numAnalystsRevenue": 27,
+    "numAnalystsEps": 25
+  },
+  {
+    "symbol": "VRTX",
+    "date": "2028-12-31",
+    "revenueAvg": null,
+    "epsLow": 18.2,
+    "epsHigh": 22.4,
+    "epsAvg": 20.3,
+    "numAnalystsEps": 9
+  }
+]

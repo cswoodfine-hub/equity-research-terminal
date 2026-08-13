@@ -30,9 +30,11 @@ import pipeline_filing
 import brand_split
 import biologic_loe
 import catalysts
+import consensus as consensus_module
 import db
 import deals
 import diff
+import guidance as guidance_module
 import leadership
 import pdufa
 import revenue_earnings
@@ -44,6 +46,7 @@ from fetchers import brand_lookup_openfda
 from fetchers import product_revenue_sec
 from fetchers.adcomm_fedreg import AdCommFetcher
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
+from fetchers.consensus_fmp import ConsensusFmpFetcher, api_key as fmp_key
 from fetchers.deals_news import DealsNewsFetcher
 from fetchers.demand_cms import DemandCmsFetcher
 from fetchers.filing_text_edgar import FilingTextEdgarFetcher
@@ -97,6 +100,10 @@ def _company_fetchers(company, db_path):
         # Only where there is no feed. A page read through Jina is the weaker route and
         # never runs beside the stronger one.
         fetchers.append(PressPageFetcher(company["ticker"], db_path))
+    # Street estimates, only where a key exists: an unkeyed checkout should not run
+    # seventy fetchers that can only report having nothing to read.
+    if fmp_key():
+        fetchers.append(ConsensusFmpFetcher(company["ticker"], db_path))
     if company["is_sec_filer"] and company["cik"]:
         fetchers.append(FinancialsEdgarFetcher(company["ticker"], db_path))
         fetchers.append(FilingsEdgarFetcher(company["ticker"], db_path))
@@ -244,6 +251,7 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     conn = db.get_connection(db_path)
     try:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
+        mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
     finally:
         conn.close()
     # Last resort for a brand nothing on file can identify, asked of openFDA by brand
@@ -285,6 +293,9 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     # date that moved this run is already a catalyst by the time changes are computed.
     readouts = catalysts.derive_readouts(db_path)
     goals = pdufa.extract(db_path)
+    # Management guidance out of the same filings, ledgered so the model spend is
+    # bounded to sections not yet read.
+    guided = guidance_module.extract(db_path)
     # After the filing text is on file, derive a biologic LOE for the valuation from the
     # 12-year floor and any cliff year the 10-K discloses.
     bio_loe = biologic_loe.derive(db_path)
@@ -306,7 +317,8 @@ def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
     status = "partial" if any(r.errors for r in results) else "complete"
     detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
-              "readouts": readouts, "pdufa": goals, "biologic_loe": bio_loe,
+              "readouts": readouts, "pdufa": goals, "guidance": guided,
+              "biologic_loe": bio_loe,
               "trial_mapping": mapped,
               "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
               "quarter_revenue": quarter_revenue, "deals": deal_reads,
@@ -404,6 +416,7 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     conn = db.get_connection(db_path)
     try:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
+        mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
     finally:
         conn.close()
     # Last resort for a brand nothing on file can identify, asked of openFDA by brand
@@ -445,6 +458,9 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
     # the acceptance. Without an Anthropic key this reports that it did nothing.
     goals = pdufa.extract(db_path)
+    # Management guidance out of the same filings, ledgered so the model spend is
+    # bounded to sections not yet read.
+    guided = guidance_module.extract(db_path)
     bio_loe = biologic_loe.derive(db_path)
     # Product revenue the SEC data sets do not tag, read from the filing's own table.
     mdna_revenue = revenue_mdna.extract(db_path)["written"]
@@ -465,7 +481,8 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     detail = {"scope": "all", "companies": len(companies),
               "sources": list(by_source.values()), "readouts": readouts,
               "trial_mapping": mapped,
-              "pdufa": goals, "biologic_loe": bio_loe, "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
+              "pdufa": goals, "guidance": guided, "biologic_loe": bio_loe,
+              "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
               "quarter_revenue": quarter_revenue,
               "deals": deal_reads, "leadership": leaders, "changes": changes}
     return _finish_run(db_path, run_id, status, detail)
