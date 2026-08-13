@@ -1022,6 +1022,83 @@ def _cash_block(api_base: str, ticker: str) -> None:
         note(notes)
 
 
+def _street_figure(metric: str, value, currency: str):
+    """A consensus figure and the unit it is quoted in. None stays None."""
+    if value is None:
+        return None, ""
+    if metric == "RevenueGrowth":
+        return T.num(value, 1), "%"
+    if metric == "EPS":
+        return T.num(value, 2), (f"{currency} " if currency else "") + "per share"
+    return T.num(value / 1e9, 2), (f"{currency} " if currency else "") + "bn"
+
+
+def _street_block(api_base: str, ticker: str) -> None:
+    """What the year ahead is expected to be: management's number, the street's, mine.
+
+    Only periods carrying an estimate show. A period holding nothing but a reported
+    actual is the block above this one said twice, and a company with no estimates on
+    file gets no heading at all rather than an empty one.
+
+    The three columns are not the same kind of number and the block says so. Guidance is
+    what the company stated, quoted verbatim in the fold. Street is the paid feed or a
+    curated row. Mine is the drug forecast rolled up, which covers only the assets that
+    have one: Vertex's is one product against a company guiding thirteen billion, so the
+    tile names the assets rather than letting the layout imply coverage it does not have.
+    """
+    try:
+        view = api_get(api_base, f"/companies/{ticker}/street")
+    except (urllib.error.URLError, OSError):
+        return
+    rows = [row for row in (view.get("rows") or [])
+            if row.get("guidance") or row.get("street")]
+    if not rows:
+        return
+    fallback = view.get("reporting_currency") or ""
+    covered = view.get("mine_lines") or []
+    section("The year ahead", basis="guidance vs street vs mine")
+    quotes = []
+    for row in rows:
+        metric, period = row["metric"], row["period"]
+        name = "" if metric == "Revenue" else (
+            " growth" if metric == "RevenueGrowth" else " EPS")
+        tiles = []
+        for label, entry in (("guidance", row.get("guidance")),
+                             ("street", row.get("street"))):
+            if not entry or entry.get("value") is None:
+                continue
+            currency = entry.get("currency") or (
+                "" if metric == "RevenueGrowth" else fallback)
+            value, unit = _street_figure(metric, entry["value"], currency)
+            low, _ = _street_figure(metric, entry.get("low"), "")
+            high, _ = _street_figure(metric, entry.get("high"), "")
+            detail = f"{low} to {high}" if low and high and low != high else ""
+            if entry.get("as_of"):
+                detail = (detail + ", " if detail else "") + entry["as_of"]
+            delta = row.get(f"{label}_vs_street")
+            tiles.append((f"{period}{name} {label}", value, unit,
+                          (f"{delta * 100:+.0f}% vs street" if delta else ""),
+                          " up" if delta and delta > 0 else
+                          " down" if delta else "", detail))
+            if label == "guidance" and entry.get("note"):
+                quotes.append(f'{period}: "{entry["note"]}"')
+        if row.get("mine") is not None:
+            value, unit = _street_figure(metric, row["mine"], "USD")
+            delta = row.get("mine_vs_street")
+            tiles.append((f"{period}{name} mine", value, unit,
+                          (f"{delta * 100:+.0f}% vs street" if delta else ""),
+                          " up" if delta and delta > 0 else
+                          " down" if delta else "",
+                          ", ".join(covered) if len(covered) < 3
+                          else f"{len(covered)} assets modelled"))
+        if tiles:
+            st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+    if quotes:
+        # The sentence the figure was read out of, so a guidance number can always be
+        # argued with rather than taken on trust.
+        note(" ".join(_quoted(quote) for quote in quotes))
+
+
 def _pre_revenue_blocks(api_base: str, ticker: str, left, right) -> None:
     """The two columns for a company that has no product yet.
 
@@ -2921,6 +2998,11 @@ with main:
                   "Roche and Bayer are not SEC registrants, so EDGAR holds no company "
                   "facts for them. Their financials come from investor relations, "
                   "which this build does not read.")
+
+        # The reported period, then the year it is guiding to. Consensus belongs here
+        # rather than on the forecast tab: this is where the reported number it is being
+        # compared against already sits.
+        _street_block(api_base, ticker)
 
         if snapshot or built["is_sec_filer"]:
             # Every period the API returns, which is every period on file: forty quarters
