@@ -313,3 +313,142 @@ def test_a_missing_phase_or_enrollment_still_ranks():
     """Most registry rows carry neither. They rank on the kind alone rather than erroring
     or sorting to the bottom as zero."""
     assert headlines._ahead_weight("data readout", None, None, 0) > 0
+
+
+# --- Phase 3 results -------------------------------------------------------
+# The most material thing that happens to a drug, and it used to reach the front page
+# only sideways, as a trial whose status had changed.
+
+def _filed_readout(conn, ticker, date, phase="3", outcome="positive",
+                   drug="volrustomig", quote="The trial met its primary endpoint."):
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                       (ticker,)).fetchone()[0]
+    conn.execute(
+        "INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome,"
+        "  event_date, quote, source_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (f"acc-{ticker}-{date}", cid, drug, phase, outcome, date, quote,
+         "https://example.com/8k"))
+    conn.commit()
+
+
+def _press_readout(conn, ticker, date, title):
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                       (ticker,)).fetchone()[0]
+    conn.execute(
+        "INSERT INTO news (company_id, source, title, url, published_at)"
+        " VALUES (?, 'press_ir', ?, ?, ?)",
+        (cid, title, f"https://example.com/{ticker}-{date}", date))
+    # Detected now, dated when the company published it. The feed's window is measured
+    # against the wall clock, while the headline is dated off the release itself, which
+    # is the same split a real run has: today's read of a release from last Tuesday.
+    conn.execute(
+        "INSERT INTO changes (entity_type, entity_key, field, old_value, new_value,"
+        "  change_type, significance, detected_at) VALUES"
+        "  ('company', ?, 'press', NULL, ?, 'press_data_readout', 'high',"
+        "   datetime('now'))",
+        (f"{ticker}|https://example.com/{ticker}-{date}", title))
+    conn.commit()
+
+
+def test_a_filed_phase_3_result_leads_with_its_outcome(tmp_path):
+    path, conn = _seed(tmp_path)
+    _filed_readout(conn, "MRK", "2026-07-29", outcome="positive", drug="intismeran")
+    conn.close()
+
+    rows = headlines.build(path, today=TODAY)
+    readout = next(r for r in rows if r["kind"] == "readout")
+    assert readout["figure"] == "Phase 3 positive"
+    assert "intismeran" in readout["headline"]
+    # The sentence it was read out of travels with it.
+    assert readout["evidence"] == "The trial met its primary endpoint."
+
+
+def test_a_negative_result_is_the_same_size_of_news(tmp_path):
+    path, conn = _seed(tmp_path)
+    _filed_readout(conn, "MRK", "2026-07-29", outcome="negative")
+    conn.close()
+
+    readout = next(r for r in headlines.build(path, today=TODAY)
+                   if r["kind"] == "readout")
+    assert readout["figure"] == "Phase 3 negative"
+
+
+def test_a_phase_2_result_is_not_a_phase_3_headline(tmp_path):
+    path, conn = _seed(tmp_path)
+    _filed_readout(conn, "MRK", "2026-07-29", phase="2")
+    _press_readout(conn, "SRPT", "2026-07-29",
+                   "SRPT Announces Positive Topline Results from Phase 2 Study")
+    conn.close()
+
+    assert not [r for r in headlines.build(path, today=TODAY)
+                if r["kind"] == "readout"]
+
+
+def test_an_announcement_stating_phase_3_reaches_the_page(tmp_path):
+    path, conn = _seed(tmp_path)
+    _press_readout(conn, "MRK", "2026-07-29",
+                   "Merck and Moderna Announce Phase 3 INTerpath-001 Trial Met Endpoints")
+    conn.close()
+
+    readout = next(r for r in headlines.build(path, today=TODAY)
+                   if r["kind"] == "readout")
+    # No outcome is claimed off a company's own adjective; the figure says a result
+    # exists and the headline says what the company said.
+    assert readout["figure"] == "Phase 3 result"
+    assert "INTerpath-001" in readout["headline"]
+
+
+def test_phase_iii_in_roman_numerals_is_the_same_event(tmp_path):
+    path, conn = _seed(tmp_path)
+    _press_readout(conn, "MRK", "2026-07-29",
+                   "Update on eVOLVE-Lung02 Phase III trial of volrustomig")
+    conn.close()
+    assert [r for r in headlines.build(path, today=TODAY) if r["kind"] == "readout"]
+
+
+def test_an_announcement_naming_no_phase_is_not_assumed_to_be_one(tmp_path):
+    path, conn = _seed(tmp_path)
+    _press_readout(conn, "MRK", "2026-07-29", "Merck reports topline results")
+    conn.close()
+    assert not [r for r in headlines.build(path, today=TODAY)
+                if r["kind"] == "readout"]
+
+
+def test_the_filed_result_wins_where_both_describe_it(tmp_path):
+    path, conn = _seed(tmp_path)
+    _filed_readout(conn, "MRK", "2026-07-28", outcome="negative")
+    _press_readout(conn, "MRK", "2026-07-29",
+                   "Update on eVOLVE-Lung02 Phase III trial of volrustomig")
+    conn.close()
+
+    readouts = [r for r in headlines.build(path, today=TODAY) if r["kind"] == "readout"]
+    # One per company, and the one kept is the one with a stated outcome.
+    assert len(readouts) == 1
+    assert readouts[0]["figure"] == "Phase 3 negative"
+
+
+def test_a_result_outranks_an_approval_on_the_page(tmp_path):
+    path, conn = _seed(tmp_path)
+    _filed_readout(conn, "MRK", "2026-07-29")
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = 'SRPT'").fetchone()[0]
+    conn.execute(
+        "INSERT INTO changes (entity_type, entity_key, field, old_value, new_value,"
+        "  change_type, significance, detected_at) VALUES"
+        "  ('asset', 'SRPT|1', 'approval', NULL, 'FDA approval', 'new_approval',"
+        "   'high', '2026-07-29')")
+    conn.commit()
+    conn.close()
+
+    kinds = [r["kind"] for r in headlines.build(path, today=TODAY)]
+    if "approval" in kinds:
+        assert kinds.index("readout") < kinds.index("approval")
+    else:
+        assert "readout" in kinds
+
+
+def test_a_result_older_than_the_lookback_is_not_this_week(tmp_path):
+    path, conn = _seed(tmp_path)
+    _filed_readout(conn, "MRK", "2026-07-01")
+    conn.close()
+    assert not [r for r in headlines.build(path, today=TODAY)
+                if r["kind"] == "readout"]
