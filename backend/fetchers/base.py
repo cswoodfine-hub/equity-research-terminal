@@ -96,6 +96,46 @@ class BaseFetcher(ABC):
             conn.close()
         return row[0] if row and row[0] else None
 
+    def _last_snapshot_id(self) -> int:
+        conn = db.get_connection(self.db_path)
+        try:
+            row = conn.execute(
+                "SELECT MAX(id) FROM snapshots WHERE source = ? AND entity_key = ?",
+                (self.source, self.entity_key)).fetchone()
+        finally:
+            conn.close()
+        return (row[0] or 0) if row else 0
+
+    def _mark_snapshot_failed(self, before_id: int, exc: BaseException) -> None:
+        """Say that the fetch failed, on the snapshot the failure just wrote.
+
+        A source that raises falls back to ``_snapshot_cache``, which every fetcher
+        stamps ``fetch_kind: "cache"``, exactly what a TTL skip writes. So a source that
+        was down and a source that was deliberately not fetched left the same mark, and
+        the only record of the difference was the run's detail JSON. Merck's press page
+        failed that way on four consecutive nights while the runs that would have
+        reported it were themselves crashing before they wrote their detail, and the
+        readout it was carrying went unseen for a fortnight.
+
+        The continuity snapshot still goes in, because the change history must not gap.
+        It just no longer claims the fetch was skipped.
+        """
+        conn = db.get_connection(self.db_path)
+        try:
+            row = conn.execute(
+                "SELECT MAX(id) FROM snapshots WHERE source = ? AND entity_key = ?",
+                (self.source, self.entity_key)).fetchone()
+            new_id = (row[0] or 0) if row else 0
+            if new_id <= before_id:
+                return                  # the fallback wrote nothing to correct
+            conn.execute(
+                "UPDATE snapshots SET payload = json_set(payload,"
+                " '$.fetch_kind', 'error', '$.error', ?) WHERE id = ?",
+                (f"{type(exc).__name__}: {exc}"[:500], new_id))
+            conn.commit()
+        finally:
+            conn.close()
+
     def _within_ttl(self) -> bool:
         # A run told to fetch, fetches. The TTL exists so an analyst clicking refresh
         # twice does not re-download the Orange Book; it is not a reason for the daily
@@ -135,7 +175,9 @@ class BaseFetcher(ABC):
         except Exception as exc:  # a source outage is reported, not fatal
             errors.append(f"{self.source}: {exc}")
             try:
+                before = self._last_snapshot_id()
                 self._snapshot_cache()
+                self._mark_snapshot_failed(before, exc)
             except Exception:
                 pass
         elapsed_ms = int((time.perf_counter() - start) * 1000)
