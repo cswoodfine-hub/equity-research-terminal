@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import traceback
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
@@ -193,11 +194,39 @@ def _finish_run(db_path, run_id: int, status: str, detail: dict) -> dict:
     return out
 
 
+def _fail_run(db_path, run_id: int, exc: BaseException) -> None:
+    """Close a run the code crashed out of, rather than leaving it open forever.
+
+    A run row is opened before the work and closed after it. Nothing stood between the
+    two, so an exception anywhere in the middle left ``status = 'running'`` and
+    ``finished_at`` NULL for good: five days of daily runs died on the same foreign key
+    and every one of them is still, on the record, in progress. The app reads that as a
+    refresh underway, and ``_in_flight`` refuses to start another until the row ages out
+    of the staleness window.
+
+    The failure is written where the run history is read, so the tab that says a refresh
+    is running says what happened to it instead.
+    """
+    detail = {"error": f"{type(exc).__name__}: {exc}",
+              "traceback": traceback.format_exc()}
+    try:
+        _finish_run(db_path, run_id, "failed", detail)
+    except Exception:            # a failure to record the failure is not the story
+        pass
+
+
 def run_refresh(db_path=None, ticker: str = DEFAULT_TICKER) -> dict:
     ticker = ticker.upper()
     db.init(db_path)
     run_id = _start_run(db_path)
+    try:
+        return _run_refresh(db_path, ticker, run_id)
+    except Exception as exc:
+        _fail_run(db_path, run_id, exc)
+        raise
 
+
+def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     conn = db.get_connection(db_path)
     try:
         company = conn.execute(
@@ -335,7 +364,14 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     """
     db.init(db_path)
     run_id = _start_run(db_path)
+    try:
+        return _run_refresh_all(db_path, force, run_id)
+    except Exception as exc:
+        _fail_run(db_path, run_id, exc)
+        raise
 
+
+def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     conn = db.get_connection(db_path)
     try:
         companies = conn.execute(

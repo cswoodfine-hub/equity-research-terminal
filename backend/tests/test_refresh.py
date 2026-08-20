@@ -1,6 +1,7 @@
 """Refresh pipeline test with the Yahoo fetch monkeypatched to a fixture. No network."""
 
 import json
+import sqlite3
 from pathlib import Path
 
 import db
@@ -229,3 +230,67 @@ def test_a_finished_run_never_blocks(tmp_path):
                  " VALUES (datetime('now'), datetime('now'), 'complete')")
     conn.commit(); conn.close()
     assert refresh_module._start_run(path)
+
+
+# --- a run the code crashes out of -----------------------------------------
+# The row is opened before the work and closed after it, and for five days nothing
+# stood between the two: every scheduled run died on the same foreign key and stayed
+# on the record as still running, which is what the app went on showing.
+
+def _crash(*_args, **_kwargs):
+    raise sqlite3.IntegrityError("FOREIGN KEY constraint failed")
+
+
+def test_a_crash_marks_the_run_failed_rather_than_leaving_it_open(tmp_path,
+                                                                  monkeypatch):
+    import refresh as refresh_module
+    path = tmp_path / "t.db"
+    db.init(path)
+    monkeypatch.setattr(refresh_module, "_run_refresh_all", _crash)
+
+    try:
+        refresh_module.run_refresh_all(path)
+    except sqlite3.IntegrityError:
+        pass                      # the caller still hears about it
+    else:
+        raise AssertionError("the failure was swallowed")
+
+    conn = db.get_connection(path)
+    row = conn.execute("SELECT status, finished_at, detail FROM refresh_runs"
+                       " ORDER BY id DESC LIMIT 1").fetchone()
+    assert row["status"] == "failed"
+    assert row["finished_at"] is not None
+    # The reason is written where the run history is read.
+    detail = json.loads(row["detail"])
+    assert "FOREIGN KEY constraint failed" in detail["error"]
+    assert "Traceback" in detail["traceback"]
+    conn.close()
+
+
+def test_a_failed_run_does_not_block_the_next_one(tmp_path, monkeypatch):
+    import refresh as refresh_module
+    path = tmp_path / "t.db"
+    db.init(path)
+    monkeypatch.setattr(refresh_module, "_run_refresh_all", _crash)
+    try:
+        refresh_module.run_refresh_all(path)
+    except sqlite3.IntegrityError:
+        pass
+    # Five crashed runs in a row used to mean five open rows, and _in_flight refused
+    # every manual refresh until each aged out of the staleness window.
+    assert refresh_module._start_run(path)
+
+
+def test_a_single_company_refresh_closes_its_run_on_a_crash(tmp_path, monkeypatch):
+    import refresh as refresh_module
+    path = tmp_path / "t.db"
+    db.init(path)
+    monkeypatch.setattr(refresh_module, "_run_refresh", _crash)
+    try:
+        refresh_module.run_refresh(path, "LLY")
+    except sqlite3.IntegrityError:
+        pass
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT status FROM refresh_runs ORDER BY id DESC"
+                        " LIMIT 1").fetchone()["status"] == "failed"
+    conn.close()
