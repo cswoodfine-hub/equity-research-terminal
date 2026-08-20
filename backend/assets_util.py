@@ -78,6 +78,28 @@ def upsert_asset(conn, company_id, internal_code, brand, generic, modality) -> i
     return cur.lastrowid
 
 
+def referring_columns(conn) -> list:
+    """Every (table, column) in the schema that points at ``assets(id)``.
+
+    The whole reference graph, not the part that happens to be named ``asset_id``.
+    Molecule grouping added ``assets.molecule_id``, a row pointing at the head of its
+    own molecule, and that is a reference like any other: absorb the head into another
+    row and the delete breaks a foreign key. The daily refresh crashed on exactly that
+    for five days, on Otezla, because the caller below only ever looked for a column
+    called ``asset_id`` and skipped the assets table outright.
+
+    Reading the FK list rather than the column names keeps the next such column covered
+    the day it exists, whatever it is called and whichever table it sits in.
+    """
+    out = []
+    for (name,) in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"):
+        for fk in conn.execute(f"PRAGMA foreign_key_list({name})"):
+            if fk[2] == "assets" and (fk[4] or "id") == "id":
+                out.append((name, fk[3]))
+    return sorted(set(out))
+
+
 def referring_tables(conn) -> list:
     """Every table with an ``asset_id`` that points at ``assets``, from the schema.
 
@@ -85,16 +107,9 @@ def referring_tables(conn) -> list:
     callers had already listed the tables they knew about, and both then failed on a
     foreign key the moment a derived asset had a completed study. Reading the schema
     keeps a new table respected the day it exists.
+
+    Rows in other tables only. A caller that has to account for every reference,
+    including the assets table's own, wants ``referring_columns``.
     """
-    out = []
-    for (name,) in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table'"):
-        if name == "assets":
-            continue
-        columns = {c[1] for c in conn.execute(f"PRAGMA table_info({name})")}
-        if "asset_id" not in columns:
-            continue
-        if any(fk[2] == "assets" for fk in
-               conn.execute(f"PRAGMA foreign_key_list({name})")):
-            out.append(name)
-    return sorted(out)
+    return sorted({table for table, column in referring_columns(conn)
+                   if table != "assets" and column == "asset_id"})

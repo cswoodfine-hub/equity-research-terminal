@@ -361,19 +361,29 @@ def _absorb(conn, survivor_id: int, loser_id: int) -> int:
     # orphan a mapping or break a foreign key. Where the survivor already holds the same
     # key, the move is skipped and the duplicate dropped: it is the same fact recorded
     # twice, and the copy kept is the one on the row that survives.
-    for table in assets_util.referring_tables(conn):
+    for table, column in assets_util.referring_columns(conn):
         if table == "trials":
             continue                      # already moved, and counted, above
-        conn.execute(f"UPDATE OR IGNORE {table} SET asset_id = ? WHERE asset_id = ?",
+        if table == "assets":
+            # The assets table points at itself: molecule grouping names the head of
+            # each molecule, and a head can be the row that gets absorbed. The pointer
+            # follows the merge like every other reference, but nothing is deleted
+            # here, because the rows holding it are live assets that merely named the
+            # loser. The loser's own row goes at the end of this function.
+            conn.execute(
+                f"UPDATE assets SET {column} = ? WHERE {column} = ? AND id <> ?",
+                (survivor_id, loser_id, loser_id))
+            continue
+        conn.execute(f"UPDATE OR IGNORE {table} SET {column} = ? WHERE {column} = ?",
                      (survivor_id, loser_id))
         # Whatever would not move collided with a row the survivor already holds, so it
         # is the same fact twice and the survivor's copy is kept. Counted rather than
         # dropped in silence, because that is how a real loss would look too.
-        stuck = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE asset_id = ?",
+        stuck = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {column} = ?",
                              (loser_id,)).fetchone()[0]
         if stuck:
             DROPPED[table] = DROPPED.get(table, 0) + stuck
-        conn.execute(f"DELETE FROM {table} WHERE asset_id = ?", (loser_id,))
+        conn.execute(f"DELETE FROM {table} WHERE {column} = ?", (loser_id,))
     conn.execute("DELETE FROM assets WHERE id = ?", (loser_id,))
     return moved
 

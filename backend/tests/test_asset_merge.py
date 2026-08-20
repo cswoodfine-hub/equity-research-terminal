@@ -396,3 +396,64 @@ def test_folding_is_idempotent(tmp_path):
     conn.commit()
     assert asset_merge.merge(path)["by_formulation"] == 3
     assert asset_merge.merge(path)["by_formulation"] == 0
+
+
+# --- the self-reference that stopped the daily refresh ---------------------
+# Molecule grouping points a row at the head of its own molecule, in
+# assets.molecule_id. Nothing moved that pointer on a merge, so absorbing a head
+# broke a foreign key and every scheduled run died on it for five days, on Otezla.
+
+def test_the_schema_walk_finds_the_assets_table_pointing_at_itself(tmp_path):
+    import assets_util
+    path, conn = _seed(tmp_path)
+    columns = assets_util.referring_columns(conn)
+    assert ("assets", "molecule_id") in columns
+    assert ("trials", "asset_id") in columns
+    # The older helper still answers the question its callers ask: other tables,
+    # keyed by asset_id, which is the shape their SQL is written around.
+    tables = assets_util.referring_tables(conn)
+    assert "assets" not in tables and "trials" in tables
+    conn.close()
+
+
+def test_absorbing_a_molecule_head_repoints_its_siblings(tmp_path):
+    path, conn = _seed(tmp_path)
+    marketed = _asset(conn, "MRK", brand="Otezla", generic="Apremilast",
+                      marketed=1, code="NDA205437")
+    derived = _asset(conn, "MRK", generic="Apremilast")
+    # The row about to be absorbed is the head of the molecule, and the row absorbing
+    # it is one of the rows naming it. That is the Otezla case exactly, and it raised
+    # IntegrityError: FOREIGN KEY constraint failed on every scheduled run.
+    conn.execute("UPDATE assets SET molecule_id = ? WHERE id IN (?, ?)",
+                 (derived, derived, marketed))
+    conn.commit()
+    conn.close()
+
+    assert asset_merge.merge(path)["merged"] == 1
+
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT COUNT(*) FROM assets WHERE id = ?",
+                        (derived,)).fetchone()[0] == 0
+    # The survivor heads the molecule it just absorbed the head of, which is the
+    # convention the rest of the table already keeps.
+    head = conn.execute("SELECT molecule_id FROM assets WHERE id = ?",
+                        (marketed,)).fetchone()["molecule_id"]
+    assert head == marketed
+    conn.close()
+
+
+def test_the_orphan_prune_will_not_delete_a_row_another_asset_names(tmp_path):
+    import trial_mapping
+    path, conn = _seed(tmp_path)
+    head = _asset(conn, "LLY", generic="Retatrutide")
+    sibling = _asset(conn, "LLY", generic="Retatrutide", marketed=1)
+    conn.execute("UPDATE assets SET molecule_id = ? WHERE id = ?", (head, sibling))
+    conn.commit()
+    conn.close()
+
+    trial_mapping.prune_orphan_pipeline_assets(path)
+
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT COUNT(*) FROM assets WHERE id = ?",
+                        (head,)).fetchone()[0] == 1
+    conn.close()

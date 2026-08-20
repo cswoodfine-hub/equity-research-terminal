@@ -303,10 +303,15 @@ def prune_orphan_pipeline_assets(db_path=None) -> dict:
     try:
         # Nothing may point at a row before it is removed. The tables that could are
         # read from the schema, so a table added later is respected without an edit.
+        # Every column that points at a row, including the assets table's own
+        # molecule_id: a row named as the head of a molecule cannot be deleted out from
+        # under the rows naming it, which is the foreign key that stopped the daily
+        # refresh for five days one function over.
         guards = "".join(
             f"\n               AND NOT EXISTS (SELECT 1 FROM {table} x"
-            f" WHERE x.asset_id = assets.id)"
-            for table in assets_util.referring_tables(conn))
+            f" WHERE x.{column} = assets.id"
+            + (" AND x.id <> assets.id" if table == "assets" else "") + ")"
+            for table, column in assets_util.referring_columns(conn))
         cur = conn.execute(
             f"DELETE FROM assets WHERE is_marketed = 0{guards}")
         conn.commit()
