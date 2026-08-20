@@ -6,6 +6,7 @@ live with. Lilly's is the Q4/Investis shape most of the seeded feeds share.
 """
 
 import datetime as dt
+import json
 import pathlib
 
 import db
@@ -271,3 +272,57 @@ def test_a_dividend_is_not_results():
     """"AMGEN ANNOUNCES 2026 THIRD QUARTER DIVIDEND" is a quarter and a payout, not the
     quarter's numbers."""
     assert _kind("AMGEN ANNOUNCES 2026 THIRD QUARTER DIVIDEND") == "dividend"
+
+
+# --- a feed that answers, and says nothing new -----------------------------
+# Moderna's seeded feed returns HTTP 200 and 142 items on every run, newest dated
+# 2025-05-01: the URL serves an abandoned commentary feed rather than the press wire.
+# Counting what parsed and calling it success left the company unwatched for fifteen
+# months with nothing anywhere saying so.
+
+def _feed_items(published):
+    return [{"published": d, "kind": None, "title": "x", "url": f"u{i}"}
+            for i, d in enumerate(published)]
+
+
+def test_a_feed_frozen_a_year_ago_is_reported_as_stale():
+    import datetime as dt
+    from fetchers.press_ir import PressIrFetcher
+
+    fetcher = PressIrFetcher("MRNA")
+    old = (dt.date.today() - dt.timedelta(days=476)).isoformat()
+    behind = fetcher.stale_by_days(_feed_items([old, "2024-01-01"]))
+    assert behind is not None and 470 <= behind <= 480
+    assert fetcher.newest_published(_feed_items([old, "2024-01-01"])) == old
+
+
+def test_a_current_feed_is_not_reported():
+    import datetime as dt
+    from fetchers.press_ir import PressIrFetcher
+
+    recent = (dt.date.today() - dt.timedelta(days=3)).isoformat()
+    assert PressIrFetcher("VRTX").stale_by_days(_feed_items([recent])) is None
+
+
+def test_an_undated_feed_makes_no_claim_either_way():
+    from fetchers.press_ir import PressIrFetcher
+    assert PressIrFetcher("ABEO").stale_by_days(_feed_items([None, None])) is None
+    assert PressIrFetcher("ABEO").stale_by_days([]) is None
+
+
+def test_the_snapshot_records_the_newest_item_it_saw(tmp_path):
+    import db
+    from fetchers.press_ir import PressIrFetcher
+
+    path = str(tmp_path / "n.db")
+    db.init(path)
+    fetcher = PressIrFetcher("MRNA", path)
+    fetcher.snapshot(_feed_items(["2025-05-01", "2024-02-02"]))
+
+    conn = db.get_connection(path)
+    payload = json.loads(conn.execute(
+        "SELECT payload FROM snapshots ORDER BY id DESC LIMIT 1").fetchone()["payload"])
+    conn.close()
+    # The date is on the snapshot, so the history itself shows when a feed went quiet.
+    assert payload["newest_published"] == "2025-05-01"
+    assert payload["fetch_kind"] == "live"

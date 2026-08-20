@@ -23,6 +23,7 @@ This module is the plumbing around them.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import urllib.request
 
@@ -33,6 +34,9 @@ from fetchers.base import BaseFetcher, RefreshResult
 SOURCE = "press_ir"
 TTL_SECONDS = 6 * 60 * 60
 _TIMEOUT_S = 30
+# A feed whose newest item is older than a quarter has stopped
+# carrying the company, whatever HTTP status it returns.
+STALE_FEED_DAYS = 90
 
 # The default urllib agent is refused with a 403 by AstraZeneca and others, so the agent
 # is browser-shaped, with the project's name left on it so the request is still
@@ -102,10 +106,40 @@ class PressIrFetcher(BaseFetcher):
             })
         return rows
 
+    def newest_published(self, rows: list[dict]) -> str | None:
+        dates = sorted(r["published"] for r in rows if r.get("published"))
+        return dates[-1] if dates else None
+
+    def stale_by_days(self, rows: list[dict]) -> int | None:
+        """How far behind the feed's newest item is, or None if it is current.
+
+        A dead feed does not answer with an error. Moderna's returns HTTP 200 and 142
+        items every single run, and the newest is dated 2025-05-01: the URL now serves
+        an abandoned commentary feed rather than the press wire. Counting what parsed
+        and calling it a success meant the company went unwatched for fifteen months
+        with nothing anywhere saying so.
+
+        No large-cap goes a quarter without announcing anything, so a feed whose newest
+        item is older than that is reporting on itself, not on the company.
+        """
+        newest = self.newest_published(rows)
+        if not newest:
+            return None
+        try:
+            newest_dt = dt.date.fromisoformat(newest[:10])
+        except ValueError:
+            return None
+        behind = (dt.date.today() - newest_dt).days
+        return behind if behind > STALE_FEED_DAYS else None
+
     def snapshot(self, rows: list[dict]) -> None:
         classified = sum(1 for r in rows if r["kind"])
-        self._write_snapshot({"releases": len(rows), "classified": classified,
-                              "fetch_kind": "live"})
+        payload = {"releases": len(rows), "classified": classified,
+                   "fetch_kind": "live"}
+        newest = self.newest_published(rows)
+        if newest:
+            payload["newest_published"] = newest
+        self._write_snapshot(payload)
 
     def _snapshot_cache(self) -> None:
         conn = db.get_connection(self.db_path)
@@ -143,4 +177,12 @@ class PressIrFetcher(BaseFetcher):
         if written:
             notes.append(f"{self.ticker}: {written} releases, {changed} changes,"
                          f" {catalysts} catalysts")
+        behind = self.stale_by_days(rows)
+        if behind is not None:
+            # A note, not an error: the fetch worked, the feed answered, and what it
+            # said is the finding. Errors mark a run partial, and a feed the company
+            # abandoned is not this run failing.
+            notes.append(f"{self.ticker}: feed newest item is {behind} days old"
+                         f" ({self.newest_published(rows)}); the URL seeded for this"
+                         f" company has stopped carrying its releases")
         return RefreshResult(SOURCE, written, notes=notes)
