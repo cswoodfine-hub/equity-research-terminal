@@ -22,7 +22,9 @@ import datetime as dt
 import json
 import traceback
 import os
+import socket
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -35,6 +37,14 @@ _REPO = Path(__file__).resolve().parent.parent
 LOG_DIR = _REPO / "logs"
 LOG_FILE = LOG_DIR / "refresh.log"
 LOCK_FILE = LOG_DIR / "refresh.lock"
+
+# The machine this runs on is a laptop that wakes for the job, and its
+# network associates after the process starts. EDGAR is the probe because it
+# is the source the run cannot do without. Twenty minutes, which is longer
+# than any wake has taken and far short of the next scheduled run.
+NETWORK_PROBE = "data.sec.gov"
+NETWORK_ATTEMPTS = 40
+NETWORK_PAUSE_S = 30
 
 
 def _log(message: str) -> None:
@@ -72,6 +82,34 @@ def _acquire_lock() -> bool:
             return _acquire_lock()   # stale lock reclaimed
 
 
+def wait_for_network(probe=None, attempts: int = NETWORK_ATTEMPTS,
+                     pause_s: float = NETWORK_PAUSE_S, sleep=time.sleep) -> bool:
+    """Wait until a name resolves, or give up. True when the network answered.
+
+    A refresh that starts before the machine has a network does not fail, which is the
+    problem. It fetches seventy companies over a dozen sources and every one of them
+    raises a DNS error, so the run finishes 'partial' having written almost nothing: on
+    2026-08-21 the 06:00 job recorded 688 failed fetches against 179 live ones and
+    detected zero changes, and a reader would have had to open the run detail to find
+    out that the morning's data never arrived.
+
+    A laptop that wakes for a scheduled job is the ordinary case here, and its Wi-Fi
+    associates seconds to minutes after the process starts. So waiting is not a
+    workaround, it is the job's first step.
+    """
+    probe = probe or NETWORK_PROBE
+    for attempt in range(attempts):
+        try:
+            socket.getaddrinfo(probe, 443)
+            if attempt:
+                _log(f"network up after {attempt * pause_s:.0f}s")
+            return True
+        except OSError:
+            if attempt + 1 < attempts:
+                sleep(pause_s)
+    return False
+
+
 def run(refresh_fn=None, db_path=None) -> int:
     """Run one scheduled refresh. ``refresh_fn`` is injectable for tests."""
     # A scheduled run fetches. Left to the TTLs it would skip everything a rebuilt
@@ -85,6 +123,14 @@ def run(refresh_fn=None, db_path=None) -> int:
         _log("skipped: another refresh is already running")
         return 0
     try:
+        # Before the lock is spent on a run that cannot fetch. A refresh with no network
+        # is not a refresh; better to say so and let the next scheduled run have it than
+        # to write an hour of failed fetches and call the result partial.
+        if not wait_for_network():
+            _log(f"skipped: no network after "
+                 f"{NETWORK_ATTEMPTS * NETWORK_PAUSE_S / 60:.0f} minutes waiting for "
+                 f"{NETWORK_PROBE}")
+            return 3
         result = refresh_fn(db_path) if db_path is not None else refresh_fn()
         status = result.get("status", "unknown")
         detail = result.get("detail", {}) if isinstance(result, dict) else {}
