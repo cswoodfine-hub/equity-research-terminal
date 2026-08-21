@@ -9,7 +9,9 @@ reported RefreshResult rather than a crash.
 from __future__ import annotations
 
 import datetime as dt
+import socket
 import time
+import urllib.error
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
@@ -17,6 +19,37 @@ from typing import Protocol, runtime_checkable
 import db
 
 _SQLITE_TS = "%Y-%m-%d %H:%M:%S"  # shape of datetime('now'), always UTC
+
+# How many times a fetch is tried when the failure was the local resolver rather than
+# the source. Three attempts with a widening pause clears the transient case without
+# turning one slow source into a stalled run.
+FETCH_ATTEMPTS = 3
+FETCH_BACKOFF_S = 2.0
+
+# EAI_NONAME and EAI_AGAIN: the resolver could not answer, which says nothing about
+# whether the source would have.
+_DNS_ERRNOS = {socket.EAI_NONAME, socket.EAI_AGAIN}
+
+
+def _is_transient(exc: BaseException) -> bool:
+    """True when trying again in a moment is worth the request.
+
+    A resolver failure, a connection reset or a timeout. Not an HTTP status: a 403 and a
+    404 mean the same thing on the second attempt as on the first.
+    """
+    seen = set()
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        if isinstance(exc, urllib.error.HTTPError):
+            return False            # the source answered, and its answer was no
+        if isinstance(exc, (socket.gaierror, TimeoutError, ConnectionError)):
+            return True
+        if isinstance(exc, OSError) and exc.errno in _DNS_ERRNOS:
+            return True
+        exc = getattr(exc, "reason", None) or exc.__cause__
+        if not isinstance(exc, BaseException):
+            break
+    return False
 
 
 @dataclass
@@ -153,6 +186,32 @@ class BaseFetcher(ABC):
         age_s = (dt.datetime.now(dt.timezone.utc) - last_dt).total_seconds()
         return age_s < self.ttl_seconds
 
+    def _fetch_with_retry(self):
+        """The source's own fetch, tried again when the failure was the local resolver.
+
+        Not a general retry. A 403, a 404 and a malformed payload all fail the same way
+        on a second attempt, and retrying them would triple the load on a source that
+        already answered clearly. What this is for is the failure that says nothing
+        about the source at all: name resolution giving up under the load of seventy
+        companies across a dozen sources.
+
+        That failure is real and it is not rare here. The 2026-08-21 runs recorded 439
+        DNS failures against 408 successful fetches, spread evenly across every source,
+        about forty each: with every provider failing equally the common factor is this
+        machine's resolver, not any of them. A second attempt a moment later succeeds.
+        """
+        last = None
+        for attempt in range(FETCH_ATTEMPTS):
+            try:
+                return self.fetch()
+            except Exception as exc:
+                if not _is_transient(exc):
+                    raise
+                last = exc
+                if attempt + 1 < FETCH_ATTEMPTS:
+                    time.sleep(FETCH_BACKOFF_S * (attempt + 1))
+        raise last
+
     def run(self) -> RefreshResult:
         start = time.perf_counter()
         errors: list[str] = []
@@ -164,7 +223,9 @@ class BaseFetcher(ABC):
                 skipped = True
                 self._snapshot_cache()  # keep the change history gap-free
             else:
-                rows = self.normalise(self.fetch())
+                # Only the fetch is retried. Normalising, snapshotting and upserting
+                # happen once, on whatever the fetch finally returned.
+                rows = self.normalise(self._fetch_with_retry())
                 self.snapshot(rows)
                 result = self.upsert(rows)
                 rows_fetched = result.rows_fetched
