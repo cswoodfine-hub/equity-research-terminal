@@ -373,15 +373,79 @@ def test_a_negative_result_is_the_same_size_of_news(tmp_path):
     assert readout["figure"] == "Phase 3 negative"
 
 
-def test_a_phase_2_result_is_not_a_phase_3_headline(tmp_path):
+def test_a_phase_2_result_reaches_the_page_too(tmp_path):
     path, conn = _seed(tmp_path)
-    _filed_readout(conn, "MRK", "2026-07-29", phase="2")
+    _filed_readout(conn, "MRK", "2026-07-29", phase="2", drug="pemvidutide")
+    conn.close()
+
+    readout = next(r for r in headlines.build(path, today=TODAY)
+                   if r["kind"] == "readout")
+    assert readout["figure"] == "Phase 2 positive"
+    assert "pemvidutide" in readout["headline"]
+
+
+def test_a_phase_2_announcement_reaches_the_page(tmp_path):
+    path, conn = _seed(tmp_path)
     _press_readout(conn, "SRPT", "2026-07-29",
                    "SRPT Announces Positive Topline Results from Phase 2 Study")
     conn.close()
 
+    readout = next(r for r in headlines.build(path, today=TODAY)
+                   if r["kind"] == "readout")
+    assert readout["figure"] == "Phase 2 result"
+
+
+def test_a_phase_3_outranks_a_phase_2(tmp_path):
+    """Both belong on the page and they do not belong on it equally. A Phase 3 result
+    decides whether a drug launches; a Phase 2 decides whether it gets the chance."""
+    path, conn = _seed(tmp_path)
+    _filed_readout(conn, "MRK", "2026-07-29", phase="2")
+    _filed_readout(conn, "SRPT", "2026-07-28", phase="3")
+    conn.close()
+
+    readouts = [r for r in headlines.build(path, today=TODAY)
+                if r["kind"] == "readout"]
+    assert [r["ticker"] for r in readouts] == ["SRPT", "MRK"]
+
+
+def test_a_phase_1_result_is_not_news_about_a_drug(tmp_path):
+    """A dose-escalation result is a step in a programme, not a readout."""
+    path, conn = _seed(tmp_path)
+    _filed_readout(conn, "MRK", "2026-07-29", phase="1")
+    _press_readout(conn, "SRPT", "2026-07-29",
+                   "SRPT reports Phase 1 dose escalation data")
+    conn.close()
+
     assert not [r for r in headlines.build(path, today=TODAY)
                 if r["kind"] == "readout"]
+
+
+def test_a_combined_phase_2_3_is_read_as_the_three_it_registers_on(tmp_path):
+    path, conn = _seed(tmp_path)
+    _press_readout(conn, "MRK", "2026-07-29",
+                   "Merck reports results from its Phase 2/3 registrational study")
+    conn.close()
+
+    readout = next(r for r in headlines.build(path, today=TODAY)
+                   if r["kind"] == "readout")
+    assert readout["figure"] == "Phase 3 result"
+
+
+def test_the_phase_comes_off_the_column_whether_it_is_text_or_a_number(tmp_path):
+    # The extractor writes whatever the model returned, so the column holds '3' in some
+    # rows and 3 in others.
+    path, conn = _seed(tmp_path)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = 'MRK'").fetchone()[0]
+    conn.execute(
+        "INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome,"
+        "  event_date, quote) VALUES ('a1', ?, 'x', 3, 'positive', '2026-07-29', 'q')",
+        (cid,))
+    conn.commit()
+    conn.close()
+
+    readout = next(r for r in headlines.build(path, today=TODAY)
+                   if r["kind"] == "readout")
+    assert readout["figure"] == "Phase 3 positive"
 
 
 def test_an_announcement_stating_phase_3_reaches_the_page(tmp_path):

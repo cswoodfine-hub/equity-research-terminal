@@ -47,11 +47,12 @@ LIMIT = 6
 # The order things matter in, most first. Stated rather than scored, so it can be argued
 # with. A kind not listed here does not reach the front page at all.
 #
-# A Phase 3 readout sits second, under a deal with a stated price and above everything
-# else. It is the event that decides whether a drug exists, and an approval is largely
-# its consequence: by the time the agency clears a compound the question the readout
-# answered has been answered for a year. A negative one ranks exactly as high, because
-# the programme ending is the same size of news as the programme working.
+# A readout sits second, under a deal with a stated price and above everything else. It
+# is the event that decides whether a drug exists, and an approval is largely its
+# consequence: by the time the agency clears a compound the question the readout answered
+# has been answered for a year. A negative one ranks exactly as high, because the
+# programme ending is the same size of news as the programme working. Phase 3 outranks
+# Phase 2 within the kind, by rank rather than by a second entry here.
 ORDER = ("deal", "readout", "reported", "approval", "regulatory", "filing",
          "leadership", "trial_stopped")
 
@@ -287,17 +288,38 @@ def _from_feed(feed, tickers, kinds, kind, figure, since="", matching=None) -> l
     return out
 
 
-# A Phase 3 result stated in the headline of a press release. The registry writes "Phase
-# 3" and the European filers write "Phase III", and both are the same event.
-_PHASE_3 = re.compile(r"\bphase\s*(?:3|III)\b", re.I)
+# A phase stated in the headline of a press release. The registry writes "Phase 3" and
+# the European filers write "Phase III", and both are the same event. A combined
+# Phase 2/3 is read as the 3 it registers on, because that is the arm that supports a
+# filing.
+_PHASE_IN_TEXT = re.compile(
+    r"\bphase\s*(?:2\s*/\s*3|II\s*/\s*III|3|III|2|II)\b", re.I)
+_PHASE_3_TEXT = re.compile(r"\bphase\s*(?:2\s*/\s*3|II\s*/\s*III|3|III)\b", re.I)
+
+# How far the drug has come, for ordering within the readout kind. A Phase 3 result
+# decides whether a drug launches; a Phase 2 decides whether it gets the chance to try.
+# Both belong on the page and they do not belong on it equally.
+_READOUT_PHASE_RANK = {"3": 10, "2": 5}
+
+
+def _phase_in(text: str) -> str | None:
+    """The phase a headline states, or None where it states none.
+
+    None is the answer, not a guess. A release headed "Merck reports topline results"
+    has not said what it ran, and inferring a phase from the drug or the wording would
+    put a number on the page that nobody wrote.
+    """
+    if not _PHASE_IN_TEXT.search(text or ""):
+        return None
+    return "3" if _PHASE_3_TEXT.search(text) else "2"
 
 
 def _readouts(conn, feed, tickers, since) -> list:
-    """Phase 3 results, from the filing that states one and the release that announces it.
+    """Trial results, from the filing that states one and the release that announces it.
 
-    The single most material thing that happens to a drug, and until now it reached the
-    front page only sideways, as a trial whose status had changed. Two sources, because
-    they answer at different speeds and with different certainty:
+    The most material thing that happens to a drug, and until now it reached the front
+    page only sideways, as a trial whose status had changed. Two sources, because they
+    answer at different speeds and with different certainty:
 
     ``trial_readouts`` is read out of the filings and carries the phase and the outcome as
     fields, each with the sentence it came from. A press release arrives days earlier and
@@ -305,22 +327,31 @@ def _readouts(conn, feed, tickers, since) -> list:
     states it, and no outcome is claimed at all. "Positive topline results" in a company's
     own title is the company's word for it, not a field this engine can stand behind.
 
-    Where both describe the same result the filed one wins, because it is the one with a
-    stated outcome; build() keeps one row per company and ranks a stated outcome first.
+    Phase 3 and Phase 2 both reach the page and are not ranked equally: a Phase 3 result
+    decides whether a drug launches, a Phase 2 decides whether it gets the chance to try.
+    Phase 1 does not appear at all, because a dose-escalation result is a step in a
+    programme rather than news about a drug.
+
+    Where both sources describe the same result the filed one wins, because it is the one
+    with a stated outcome; build() keeps one row per company and ranks by the same key.
     """
     out = []
     for row in conn.execute(
             """SELECT tr.event_date, tr.phase, tr.outcome, tr.drug, tr.quote,
                       tr.source_url, c.ticker
                  FROM trial_readouts tr JOIN companies c ON c.id = tr.company_id
-                WHERE tr.phase = '3' AND tr.outcome IN ('positive', 'negative')
+                WHERE tr.phase IN ('2', '3') AND tr.outcome IN ('positive', 'negative')
                   AND tr.event_date >= ?
                 ORDER BY tr.event_date DESC""", (since,)):
         ticker = (row["ticker"] or "").upper()
         if not ticker or (tickers is not None and ticker not in tickers):
             continue
+        # The column holds '3' in some rows and 3 in others, because the extractor
+        # writes whatever the model returned and SQLite stores it as given.
+        phase = str(row["phase"]).strip()
         drug = row["drug"] or "an unnamed compound"
-        summary = [_pair("What", f"Phase 3 result for {drug}, reported {row['outcome']}"),
+        summary = [_pair("What", f"Phase {phase} result for {drug},"
+                                 f" reported {row['outcome']}"),
                    _pair("Read out of", "the company's own filing")]
         if row["quote"]:
             summary.append(_pair("Stated", row["quote"]))
@@ -328,12 +359,13 @@ def _readouts(conn, feed, tickers, since) -> list:
         out.append({
             "kind": "readout", "ticker": ticker, "name": "",
             "date": (row["event_date"] or "")[:10],
-            "headline": f"{ticker} Phase 3 {row['outcome']} for {drug}",
-            "figure": f"Phase 3 {row['outcome']}",
+            "headline": f"{ticker} Phase {phase} {row['outcome']} for {drug}",
+            "figure": f"Phase {phase} {row['outcome']}",
             "detail": "", "summary": summary,
             "evidence": row["quote"], "url": row["source_url"],
-            # A stated outcome outranks a headline that only says a result exists.
-            "rank": 1,
+            # Phase first, then a stated outcome over a headline that only says a
+            # result exists.
+            "rank": _READOUT_PHASE_RANK[phase] + 1,
         })
 
     for item in feed:
@@ -346,20 +378,22 @@ def _readouts(conn, feed, tickers, since) -> list:
         if (item.get("date") or "")[:10] < since:
             continue
         text = item.get("headline") or ""
-        if not _PHASE_3.search(text):
-            continue          # a Phase 2 announcement is not this
+        phase = _phase_in(text)
+        if phase is None:
+            continue          # a release that names no phase is not a readout here
         if text.upper().startswith(ticker + " "):
             text = text[len(ticker) + 1:]
         out.append({
             "kind": "readout", "ticker": ticker, "name": "",
             "date": (item.get("date") or "")[:10],
             "headline": f"{ticker} {text}",
-            "figure": "Phase 3 result",
+            "figure": f"Phase {phase} result",
             "detail": "", "summary": [
                 _pair("What", text),
                 _pair("Read out of", "the company's own announcement"),
                 _pair("Read on", (item.get("date") or "")[:10])],
-            "evidence": item.get("headline"), "url": None, "rank": 0,
+            "evidence": item.get("headline"), "url": None,
+            "rank": _READOUT_PHASE_RANK[phase],
         })
     return out
 
