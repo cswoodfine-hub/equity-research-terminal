@@ -22,3 +22,4 @@ MRK,Keytruda,,US,base,erp,,0.05,,,Damodaran US ERP estimate,"market-level, share
 MRK,Keytruda,,US,base,beta,,0.47,,,"computed from 261 weekly returns vs S&P 500, 2021-08 to 2026-08, Blume-adjusted (0.67 raw + 0.33)","five-year weekly is the conventional window; the two-year one puts JNJ at -0.03, which is a real measurement and not a forward input"
 MRK,Keytruda,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",market-level for investment-grade pharma; edit where the issuer's own spread is known
 MRK,Keytruda,,US,base,debt_weight,,0.125,,,"filed TotalDebt over debt plus market cap, at the 2026-08-27 close",
+MRK,Keytruda,,US,base,net_price_per_patient,,0.079464,,mm USD per year,"comparator estimate: Keytruda itself, CMS Part B 2024: 5.99bn over 75,361 beneficiaries. Part B pays ASP plus 6%, so this is close to a realised net price rather than a list","Part B ASP, no further haircut applied"

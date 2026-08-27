@@ -20,3 +20,5 @@ NVO,Cagrilintide,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 202
 NVO,Cagrilintide,,US,base,erp,,0.05,,,Damodaran US ERP estimate,"market-level, shared with the CASGEVY model"
 NVO,Cagrilintide,,US,base,beta,,0.85,,,"computed from 261 weekly returns vs S&P 500, 2021-08 to 2026-08, Blume-adjusted (0.67 raw + 0.33)","five-year weekly is the conventional window; the two-year one puts JNJ at -0.03, which is a real measurement and not a forward input"
 NVO,Cagrilintide,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",market-level for investment-grade pharma; edit where the issuer's own spread is known
+NVO,Cagrilintide,,US,base,list_price_per_patient,,0.006642,,mm USD per year,"comparator estimate: incretin median, CMS Part D 2024 spending per beneficiary","CMS Part D spending is gross of manufacturer rebates, so this is an upper bound and the haircut below is what makes it a net price"
+NVO,Cagrilintide,,US,base,gross_to_net_pct,,0.5,,share,analyst convention: manufacturer rebates in a competitive Part D retail class. Edit per asset; this is the visible half of the estimate,
