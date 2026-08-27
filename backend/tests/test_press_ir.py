@@ -120,7 +120,27 @@ def test_a_date_already_past_is_not_a_catalyst():
 
 # --- the fetcher -----------------------------------------------------------
 
+# The fixtures are two real feeds, captured with the dates they were published on: the
+# newest AstraZeneca item is 2026-07-31 and the newest Lilly one 2026-08-05. The change
+# window is 21 days wide and measured from the wall clock, so these tests quietly stopped
+# testing anything the moment the fixtures aged past it, and then failed outright on
+# 2026-08-27. Freezing the clock keeps the fixture and the window in the same relation
+# forever, which is what the assertions were written to describe.
+FROZEN_TODAY = dt.date(2026, 8, 6)
+
+
+class _FixedDate(dt.date):
+    @classmethod
+    def today(cls):
+        return FROZEN_TODAY
+
+
+def _freeze(monkeypatch):
+    monkeypatch.setattr(pr.dt, "date", _FixedDate)
+
+
 def _fetcher(tmp_path, monkeypatch, xml=AZN, feed="https://example.test/rss.xml"):
+    _freeze(monkeypatch)
     path = str(tmp_path / "t.db")
     db.init(path)
     conn = db.get_connection(path)
@@ -188,7 +208,7 @@ def test_only_a_recent_release_becomes_a_change(tmp_path, monkeypatch):
     and do not claim to be new."""
     fetcher, path = _fetcher(tmp_path, monkeypatch)
     fetcher.run()
-    cutoff = (dt.date.today() - dt.timedelta(days=21)).isoformat()
+    cutoff = (FROZEN_TODAY - dt.timedelta(days=21)).isoformat()
     dated = {n["url"]: n["published_at"]
              for n in _rows(path, "SELECT url, published_at FROM news")}
     for change in _rows(path, "SELECT entity_key FROM changes"):
