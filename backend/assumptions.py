@@ -238,12 +238,21 @@ def load_seeds(conn, directory=None) -> dict:
         for row in csv.DictReader(lines):
             ticker = (row.get("ticker") or "").strip().upper()
             brand = (row.get("brand") or "").strip()
+            # Brand or generic. A compound in development has no brand yet: retatrutide,
+            # milvexian and every other Phase 3 asset carries a generic name and a null
+            # brand, so a loader that only matched brand could seed marketed products and
+            # nothing in the pipeline, which is where a forecast is worth most. Brand still
+            # wins where both match, so a launched product is never shadowed by a compound
+            # sharing its ingredient name.
             asset = conn.execute(
                 """SELECT a.id FROM assets a JOIN companies c
                      ON c.id = a.owner_company_id
-                    WHERE c.ticker = ? AND LOWER(TRIM(a.brand_name)) = LOWER(?)
-                    ORDER BY a.is_marketed DESC, a.id LIMIT 1""",
-                (ticker, brand)).fetchone()
+                    WHERE c.ticker = ?
+                      AND (LOWER(TRIM(a.brand_name)) = LOWER(?)
+                           OR LOWER(TRIM(a.generic_name)) = LOWER(?))
+                    ORDER BY (LOWER(TRIM(COALESCE(a.brand_name, ''))) = LOWER(?)) DESC,
+                             a.is_marketed DESC, a.id LIMIT 1""",
+                (ticker, brand, brand, brand)).fetchone()
             if not asset:
                 skipped += 1
                 continue

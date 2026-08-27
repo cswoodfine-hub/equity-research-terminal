@@ -1,0 +1,21 @@
+# Lepodisiran (LLY). Lp(a) siRNA.
+# Scaffold, not a forecast. Every row here is read from a source the terminal
+# already holds; nothing is estimated. What is deliberately absent is what only
+# an analyst can supply, and the forecast tab lists it until it is filled:
+# net_price_per_patient, the patient curve.
+#
+# beta, cost_of_debt and debt_weight are absent too. risk_free and erp are
+# market-level and shared; the other three are company-specific and this
+# database holds no source for them. Supply those three, or a single wacc.
+#
+# Seeds are insert-only. Editing a number here after it has loaded does nothing;
+# edit it in the terminal, where it lives.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+LLY,Lepodisiran,,US,base,therapy_mode,,,chronic,,dosing schedule of the programme,"continuing therapy, not a one-time treatment"
+LLY,Lepodisiran,,US,base,forecast_start_year,,2027,,year,convention: first full year after the current one,edit to the expected launch year
+LLY,Lepodisiran,,US,base,cogs_pct,,0.1696,,share of revenue,"LLY FY2025 10-K, computed from the filed lines",company-level rate; edit where the product's economics differ
+LLY,Lepodisiran,,US,base,rd_pct,,0.2046,,share of revenue,"LLY FY2025 10-K, computed from the filed lines",company-level rate; edit where the product's economics differ
+LLY,Lepodisiran,,US,base,sga_pct,,0.1702,,share of revenue,"LLY FY2025 10-K, computed from the filed lines",company-level rate; edit where the product's economics differ
+LLY,Lepodisiran,,US,base,tax_rate,,0.1979,,effective rate,"LLY FY2025 10-K, computed from the filed lines",company-level rate; edit where the product's economics differ
+LLY,Lepodisiran,,US,base,risk_free,,0.0437,,,"US 10Y Treasury, Apr 2026","market-level, shared with the CASGEVY model"
+LLY,Lepodisiran,,US,base,erp,,0.05,,,Damodaran US ERP estimate,"market-level, shared with the CASGEVY model"

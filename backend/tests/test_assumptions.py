@@ -186,3 +186,41 @@ def test_xlsx_export_round_trips_through_openpyxl(tmp_path):
               for row in sheet.iter_rows(min_row=2, values_only=True)}
     assert values["net_price_per_patient"] == 1.8
     conn.close()
+
+
+def test_a_seed_can_name_a_compound_that_has_no_brand_yet(tmp_path):
+    """Retatrutide, milvexian and every other Phase 3 asset carries a generic name and a
+    null brand. A loader matching brand alone could seed marketed products and nothing in
+    the pipeline, which is where a forecast is worth most."""
+    path, conn = _seed(tmp_path)
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, is_marketed)"
+                 " VALUES (2, 1, 'Retatrutide', 0)")
+    conn.commit()
+    directory = tmp_path / "seeds"
+    directory.mkdir()
+    (directory / "reta.csv").write_text(
+        "ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note\n"
+        "VRTX,Retatrutide,,US,base,tax_rate,,0.2,,,10-K,\n", encoding="utf-8")
+
+    assert A.load_seeds(conn, directory)["written"] == 1
+    got = A.load(conn, 2)
+    assert got["scalars"]["tax_rate"] == 0.2
+    conn.close()
+
+
+def test_a_brand_still_wins_over_a_compound_of_the_same_name(tmp_path):
+    path, conn = _seed(tmp_path)
+    # A launched product must never be shadowed by a compound sharing its ingredient.
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, is_marketed)"
+                 " VALUES (3, 1, 'Casgevy', 0)")
+    conn.commit()
+    directory = tmp_path / "seeds"
+    directory.mkdir()
+    (directory / "c.csv").write_text(
+        "ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note\n"
+        "VRTX,Casgevy,,US,base,tax_rate,,0.15,,,workbook,\n", encoding="utf-8")
+    A.load_seeds(conn, directory)
+
+    assert A.load(conn, 1)["scalars"].get("tax_rate") == 0.15   # the marketed row
+    assert not A.load(conn, 3)["scalars"]
+    conn.close()
