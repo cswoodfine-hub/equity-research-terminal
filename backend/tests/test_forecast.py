@@ -339,3 +339,75 @@ def test_a_stated_pos_outranks_the_factors_it_inherits():
     got = F.build(inputs)
     assert got["pos"] == 0.65
     assert got["pos_basis"] == "stated"
+
+
+# --- chronic accumulation --------------------------------------------------
+# Both modes ran the same revenue line, and the pool identity that fed it computes new
+# starts while depleting a prevalent pool. That is a one-time therapy's shape, and it
+# understated every year after the first for a drug people take every week.
+
+def test_the_stock_accumulates_when_nobody_stops():
+    assert F.treated_stock([10] * 5, 0.0) == [10, 20, 30, 40, 50]
+
+
+def test_the_stock_settles_where_starts_meet_departures():
+    # 10 a year against half the stock leaving converges on 20, which is 10 / 0.5.
+    stock = F.treated_stock([10] * 40, 0.5)
+    assert abs(stock[-1] - 20.0) < 1e-6
+
+
+def test_total_discontinuation_is_the_old_behaviour():
+    """At 1.0 nobody carries over, so the stock is the year's new starts. That is exactly
+    what chronic mode did before it had an accumulation of its own."""
+    assert F.treated_stock([7, 9, 4], 1.0) == [7, 9, 4]
+
+
+def test_an_opening_stock_separates_a_launch_from_a_product_already_selling():
+    assert F.treated_stock([10] * 2, 0.2, opening=100) == [90.0, 82.0]
+    assert F.treated_stock([10] * 2, 0.2) == [10.0, 18.0]
+
+
+def _chronic(**overrides):
+    scalars = {"therapy_mode": "chronic", "net_price_per_patient": 0.01,
+               "wacc": 0.10, "forecast_start_year": 2027, "forecast_years": 5,
+               "cogs_pct": 0.2, "sga_pct": 0.2, "rd_pct": 0.1, "tax_rate": 0.2,
+               "pos": 1.0, "discontinuation_pct": 0.25}
+    scalars.update(overrides)
+    return {"scalars": scalars,
+            "indications": [{"name": "X", "scalars": {},
+                             "series": {"new_patients": {y: 100 for y in range(2027, 2032)}}}]}
+
+
+def test_chronic_revenue_is_the_stock_not_the_starts():
+    built = F.build(_chronic())
+    starts = built["patients"]["total"]
+    treated = built["patients"]["treated"]
+    assert starts == [100] * 5
+    # 100 starts a year at 25% attrition builds a stock that is larger every year.
+    assert treated[0] == 100 and treated[1] == 175.0
+    assert built["revenue"][1] > built["revenue"][0]
+    # And revenue meets the stock, not the starts.
+    assert abs(built["revenue"][1] - treated[1] * 0.01) < 1e-9
+
+
+def test_chronic_without_a_discontinuation_rate_refuses_to_guess():
+    try:
+        F.build(_chronic(discontinuation_pct=None))
+    except F.ForecastError as exc:
+        assert any("discontinuation_pct" in m for m in exc.missing)
+    else:
+        raise AssertionError("chronic mode invented a persistence rate")
+
+
+def test_a_one_time_therapy_is_untouched_by_any_of_this():
+    """Casgevy is billed once. Its patients and its treated series are the same, and no
+    discontinuation rate is asked for."""
+    built = F.build({
+        "scalars": {"therapy_mode": "one_time", "net_price_per_patient": 1.8,
+                    "wacc": 0.10, "forecast_start_year": 2027, "forecast_years": 3,
+                    "cogs_per_patient": 0.1, "sga_pct": 0.2, "rd_pct": 0.1,
+                    "tax_rate": 0.2, "pos": 1.0},
+        "indications": [{"name": "X", "scalars": {},
+                         "series": {"new_patients": {2027: 10, 2028: 20, 2029: 30}}}]})
+    assert built["patients"]["treated"] == built["patients"]["total"] == [10, 20, 30]
+    assert built["revenue"] == [18.0, 36.0, 54.0]

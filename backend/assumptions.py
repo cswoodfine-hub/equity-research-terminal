@@ -51,8 +51,13 @@ TEMPLATE = {
         ("rd_pct", "R&D as a share of revenue", "value"),
         ("tax_rate", "effective tax rate", "value"),
         ("wacc", "discount rate or CAPM components", "value"),
+        ("discontinuation_pct", "share of the treated stock that stops each year; "
+                                "chronic revenue is the stock on therapy, not new starts",
+         "value"),
+        ("opening_treated_patients", "patients already on therapy before the first "
+                                     "forecast year; omit for a launch", "value"),
         ("forecast_start_year", "first DCF year", "value"),
-        ("new_patients", "treated patients per year, per indication", "series"),
+        ("new_patients", "patients STARTING per year, per indication; the stock on therapy is derived from these and discontinuation_pct", "series"),
     ),
 }
 

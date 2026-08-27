@@ -151,6 +151,34 @@ def patients_for_indication(ind: dict, years: list[int], notes: list) -> dict:
 
 # --- money -------------------------------------------------------------------
 
+def treated_stock(new_patients, discontinuation, opening=0.0):
+    """The patients on therapy each year, from the patients who start each year.
+
+    A chronic therapy is not billed once. Someone who starts in 2027 and stays on it is
+    revenue in 2028 and 2029 too, so the number that meets the annual price is the stock
+    still being treated, not the year's new starts.
+
+    Until this existed both modes ran the same line, and the pool identity that feeds it
+    computes new starts while depleting a prevalent pool. That is the shape of a one-time
+    therapy, which is why Zolgensma plateaued, and it is the wrong shape for a drug people
+    take every week: it understated the stock in every year after the first and then
+    decayed to an incidence run rate that a chronic product does not have.
+
+        stock(t) = stock(t-1) * (1 - discontinuation) + new(t)
+
+    ``discontinuation`` is the share of the treated stock that stops each year. At 1.0
+    nobody carries over and the series collapses to new starts, which is exactly the old
+    behaviour. ``opening`` is the stock already on therapy in the year before the first,
+    which is what separates a launch from a product that is already selling.
+    """
+    out, stock = [], float(opening)
+    for started in new_patients:
+        stock = stock * (1.0 - discontinuation) + started
+        out.append(stock)
+    return out
+
+
+
 def net_price(scalars: dict):
     """Net price per patient, given directly or as list price less gross-to-net."""
     if scalars.get("net_price_per_patient") is not None:
@@ -319,10 +347,23 @@ def build(inputs: dict) -> dict:
                       for i in range(len(years))]
 
     if mode == "one_time":
-        revenue = [p * price for p in total_patients]
+        # Billed once, so the year's patients are the year's revenue.
+        treated = total_patients
+        revenue = [p * price for p in treated]
     else:
-        revenue = [p * price for p in total_patients]
-        notes.append("chronic mode: revenue is treated patients x annual net price")
+        discontinuation = scalars.get("discontinuation_pct")
+        if discontinuation is None:
+            raise ForecastError([
+                "discontinuation_pct (share of the treated stock that stops each year; "
+                "chronic revenue is the stock still on therapy, not the year's new "
+                "starts, and without this the two cannot be told apart)"])
+        opening = scalars.get("opening_treated_patients") or 0.0
+        treated = treated_stock(total_patients, discontinuation, opening)
+        revenue = [p * price for p in treated]
+        notes.append(
+            f"chronic mode: revenue is the treated stock x annual net price, carried "
+            f"forward at {(1 - discontinuation):.0%} persistence a year"
+            + (f" from an opening {opening:,.0f} already on therapy" if opening else ""))
 
     # Erosion, only where the horizon runs past the LOE on file or assumed.
     loe = inputs.get("loe") or {}
@@ -384,7 +425,10 @@ def build(inputs: dict) -> dict:
 
     return {
         "mode": mode, "years": years, "dcf_years": dcf_years,
-        "patients": {"total": total_patients, "by_indication": per_indication},
+        # total is who started each year; treated is who is still on it, which is what
+        # meets the price. They are the same series only for a one-time therapy.
+        "patients": {"total": total_patients, "treated": treated,
+                     "by_indication": per_indication},
         "revenue": revenue, "revenue_after_loe": eroded, "pnl": pnl,
         "wacc": rate, "wacc_basis": rate_basis,
         "pos": probability, "pos_basis": pos_basis,
