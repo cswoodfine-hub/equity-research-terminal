@@ -4,9 +4,9 @@
 # an analyst can supply, and the forecast tab lists it until it is filled:
 # net_price_per_patient, the patient curve, sga_pct.
 #
-# beta, cost_of_debt and debt_weight are absent too. risk_free and erp are
-# market-level and shared; the other three are company-specific and this
-# database holds no source for them. Supply those three, or a single wacc.
+# The discount rate is still short of debt_weight; supply those or a
+# single wacc. The rest is computed: risk_free and cost_of_debt from FRED, erp
+# from Damodaran, beta from five years of weekly returns against the S&P 500.
 #
 # Seeds are insert-only. Editing a number here after it has loaded does nothing;
 # edit it in the terminal, where it lives.
@@ -16,5 +16,7 @@ NVO,Cagrilintide,,US,base,forecast_start_year,,2027,,year,convention: first full
 NVO,Cagrilintide,,US,base,cogs_pct,,0.1902,,share of revenue,"NVO FY2025 10-K, computed from the filed lines",company-level rate; edit where the product's economics differ
 NVO,Cagrilintide,,US,base,rd_pct,,0.1684,,share of revenue,"NVO FY2025 10-K, computed from the filed lines",company-level rate; edit where the product's economics differ
 NVO,Cagrilintide,,US,base,tax_rate,,0.2153,,effective rate,"NVO FY2025 10-K, computed from the filed lines",company-level rate; edit where the product's economics differ
-NVO,Cagrilintide,,US,base,risk_free,,0.0437,,,"US 10Y Treasury, Apr 2026","market-level, shared with the CASGEVY model"
+NVO,Cagrilintide,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26","market-level, shared with the CASGEVY model"
 NVO,Cagrilintide,,US,base,erp,,0.05,,,Damodaran US ERP estimate,"market-level, shared with the CASGEVY model"
+NVO,Cagrilintide,,US,base,beta,,0.85,,,"computed from 261 weekly returns vs S&P 500, 2021-08 to 2026-08, Blume-adjusted (0.67 raw + 0.33)","five-year weekly is the conventional window; the two-year one puts JNJ at -0.03, which is a real measurement and not a forward input"
+NVO,Cagrilintide,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",market-level for investment-grade pharma; edit where the issuer's own spread is known
