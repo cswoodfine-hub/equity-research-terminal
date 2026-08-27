@@ -1,0 +1,11 @@
+-- Which way the position was taken.
+--
+-- 044 recorded an entry price and an exit price and left the sign of the trade to be
+-- inferred, which cannot be done: 174 in and 133 out is a loss on a long and a gain on a
+-- short, and the two prices are identical either way. Every return in the book is
+-- undefined without this column, so it is a column rather than a convention.
+--
+-- long | short, following the vocabulary-in-a-comment habit of scenario in assumptions.
+-- Defaulted to long because that is what most of the book will be, and because a row
+-- with no direction at all would reintroduce exactly the ambiguity this fixes.
+ALTER TABLE positions ADD COLUMN direction TEXT NOT NULL DEFAULT 'long';

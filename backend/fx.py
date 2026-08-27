@@ -83,6 +83,39 @@ def latest_usd_rates(db_path=None) -> dict:
     return out
 
 
+def rates_on(db_path, on_date: str) -> dict:
+    """The rate set published on or before ``on_date``, plus the date actually used.
+
+    ``latest_usd_rates`` answers "what is a krone worth now", which is the right question
+    for a current figure and the wrong one for a price paid in the past. A position
+    entered in kroner and exited in kroner made what it made in kroner; converting both
+    ends at today's rate rescales the two legs identically and reports the local return
+    wearing a dollar sign, while converting each end at its own rate gives the number a
+    dollar investor actually experienced.
+
+    Returns {} when the history does not reach back that far. The reference set starts on
+    2026-07-24, so a position older than that has no honest conversion and is told so
+    rather than quietly given today's rate.
+    """
+    if not on_date:
+        return {}
+    conn = db.get_connection(db_path)
+    try:
+        newest = conn.execute(
+            "SELECT MAX(as_of) FROM fx_rates WHERE quote = 'USD' AND as_of <= ?",
+            (on_date[:10],)).fetchone()[0]
+        if not newest:
+            return {}
+        rows = conn.execute(
+            "SELECT base, rate FROM fx_rates WHERE quote = 'USD' AND as_of = ?",
+            (newest,)).fetchall()
+    finally:
+        conn.close()
+    out = {r["base"]: r["rate"] for r in rows}
+    out["as_of"] = newest
+    return out
+
+
 def to_usd(value, currency, rates: dict) -> float | None:
     """Convert ``value`` in ``currency`` to USD using a rates dict from
     ``latest_usd_rates``. None when the value, currency, or rate is absent, so an

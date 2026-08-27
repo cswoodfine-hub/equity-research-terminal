@@ -103,3 +103,122 @@ def test_the_migration_runs_exactly_once(tmp_path):
                            " WHERE filename = '044_positions.sql'").fetchone()[0]
     assert applied == 1
     conn.close()
+
+
+# --- what the book made ----------------------------------------------------
+
+def test_the_direction_decides_whether_a_fall_is_a_loss(tmp_path):
+    """174 in and 133 out is a loss on a long and a gain on a short. The two prices are
+    identical either way, which is why direction is a column and not a convention."""
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _row(conn, ticker="LONG", direction="long", entry_date="2026-08-19",
+         entry_price=174.38, exit_date="2026-08-20", exit_price=133.32)
+    _row(conn, ticker="SHORT", direction="short", entry_date="2026-08-19",
+         entry_price=174.38, exit_date="2026-08-20", exit_price=133.32)
+    conn.close()
+
+    by = {p["ticker"]: p for p in positions.book(path)}
+    assert round(by["LONG"]["return_pct"], 4) == -0.2355
+    assert round(by["SHORT"]["return_pct"], 4) == 0.2355
+
+
+def test_an_open_position_has_not_made_anything_yet(tmp_path):
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _row(conn)
+    conn.close()
+
+    p = positions.book(path)[0]
+    assert p["is_open"] is True
+    assert p["return_pct"] is None and p["exit_price_usd"] is None
+
+
+def test_a_dollar_position_needs_no_conversion(tmp_path):
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _row(conn, entry_price=100.0, exit_date="2026-08-20", exit_price=110.0)
+    conn.close()
+
+    p = positions.book(path)[0]
+    assert p["entry_price_usd"] == 100.0
+    assert round(p["return_pct_usd"], 4) == round(p["return_pct"], 4) == 0.1
+    assert p["fx_note"] is None
+
+
+def _rate(conn, base, as_of, rate):
+    conn.execute("INSERT INTO fx_rates (base, quote, rate, as_of)"
+                 " VALUES (?, 'USD', ?, ?)", (base, rate, as_of))
+    conn.commit()
+
+
+def test_each_leg_converts_at_its_own_rate(tmp_path):
+    """Converting both ends at one rate rescales them identically and hands back the
+    local return wearing a dollar sign. The dollar return has to carry the currency
+    move, or it is not the number a dollar investor experienced."""
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _rate(conn, "DKK", "2026-08-01", 0.16)
+    _rate(conn, "DKK", "2026-08-20", 0.14)      # the krone fell between the two legs
+    _row(conn, ticker="NVO", currency="DKK", entry_date="2026-08-01", entry_price=100.0,
+         exit_date="2026-08-20", exit_price=110.0)
+    conn.close()
+
+    p = positions.book(path)[0]
+    assert round(p["return_pct"], 4) == 0.1                  # up 10% in kroner
+    assert p["entry_price_usd"] == 16.0 and round(p["exit_price_usd"], 4) == 15.4
+    # And down in dollars, because the currency took more than the trade made.
+    assert round(p["return_pct_usd"], 4) == -0.0375
+    assert "each leg at its own rate" in p["fx_note"]
+
+
+def test_a_rate_is_rolled_back_to_the_last_published_one(tmp_path):
+    # Exit on a Saturday takes Friday's reference rate, not tomorrow's.
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _rate(conn, "DKK", "2026-08-21", 0.155)
+    _row(conn, ticker="NVO", currency="DKK", entry_date="2026-08-22", entry_price=100.0)
+    conn.close()
+
+    p = positions.book(path)[0]
+    assert p["fx_entry_rate_date"] == "2026-08-21"
+
+
+def test_a_position_older_than_the_rate_history_is_told_so(tmp_path):
+    """Never today's rate standing in for a rate nobody recorded."""
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _rate(conn, "DKK", "2026-08-20", 0.14)
+    _row(conn, ticker="NVO", currency="DKK", entry_date="2024-01-05", entry_price=100.0,
+         exit_date="2026-08-20", exit_price=110.0)
+    conn.close()
+
+    p = positions.book(path)[0]
+    assert p["entry_price_usd"] is None
+    assert p["return_pct_usd"] is None
+    # The local return still stands, because the call was still right or wrong.
+    assert round(p["return_pct"], 4) == 0.1
+    assert "reference set begins" in p["fx_note"]
+
+
+def test_the_book_can_be_read_for_one_name(tmp_path):
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _row(conn, ticker="MRNA")
+    _row(conn, ticker="MRK")
+    conn.close()
+    assert [p["ticker"] for p in positions.book(path, ticker="mrk")] == ["MRK"]
