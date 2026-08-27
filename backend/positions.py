@@ -11,6 +11,10 @@ honest when each leg is converted at its own date. Converting both ends at today
 would rescale them identically and hand back the local return wearing a dollar sign,
 which is the mistake the currency column exists to prevent rather than to commit.
 
+Size is held as a weight at entry, and every closed position reports what it contributed
+to the book: the return times the weight. That is what the column is for. A return on its
+own says whether the analyst was right, and only the contribution says whether it counted.
+
 The reference rates begin on 2026-07-24. A position entered before that has no honest
 conversion, so it gets None and a note saying why, never today's rate standing in for a
 rate nobody recorded.
@@ -82,6 +86,13 @@ def book(db_path=None, ticker: str | None = None) -> list[dict]:
         row["is_open"] = row.get("exit_date") is None
         row["return_pct"] = _return(row.get("direction"), row.get("entry_price"),
                                     row.get("exit_price"))
+        # What the position added to the book, which is the only reason size is a
+        # column: a 5% conviction call that doubled and a 0.5% starter that doubled are
+        # the same return and not the same decision.
+        weight = row.get("book_weight")
+        row["contribution"] = (
+            None if weight is None or row["return_pct"] is None
+            else weight * row["return_pct"])
         row["entry_price_usd"] = entry_usd
         row["exit_price_usd"] = exit_usd
         row["fx_entry_rate_date"] = entry_rate
@@ -102,5 +113,8 @@ def book(db_path=None, ticker: str | None = None) -> list[dict]:
                 f"no {currency} reference rate on or before the {missing} date;"
                 f" the reference set begins 2026-07-24, so the dollar return is not"
                 f" computable and the local return stands alone")
+        row["contribution_usd"] = (
+            None if weight is None or row["return_pct_usd"] is None
+            else weight * row["return_pct_usd"])
         out.append(row)
     return out

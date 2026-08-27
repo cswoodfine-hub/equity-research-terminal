@@ -222,3 +222,98 @@ def test_the_book_can_be_read_for_one_name(tmp_path):
     _row(conn, ticker="MRK")
     conn.close()
     assert [p["ticker"] for p in positions.book(path, ticker="mrk")] == ["MRK"]
+
+
+# --- size, so two calls can be compared ------------------------------------
+
+def test_the_same_return_at_two_sizes_is_two_different_decisions(tmp_path):
+    """A 5% conviction position that doubled and a 0.5% starter that doubled are the
+    same return and not the same call. Size is what tells them apart."""
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _row(conn, ticker="BIG", book_weight=0.05, entry_price=100.0,
+         exit_date="2026-08-20", exit_price=200.0)
+    _row(conn, ticker="SMALL", book_weight=0.005, entry_price=100.0,
+         exit_date="2026-08-20", exit_price=200.0)
+    conn.close()
+
+    by = {p["ticker"]: p for p in positions.book(path)}
+    assert by["BIG"]["return_pct"] == by["SMALL"]["return_pct"] == 1.0
+    assert by["BIG"]["contribution"] == 0.05        # five points of book return
+    assert by["SMALL"]["contribution"] == 0.005
+
+
+def test_a_weight_is_a_fraction_not_a_percentage(tmp_path):
+    # economics_share and pos are fractions and print with :.0% at the edge. This is the
+    # same, so nothing has to remember which columns are which.
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _row(conn, book_weight=0.025, entry_price=100.0, exit_date="2026-08-20",
+         exit_price=120.0)
+    conn.close()
+
+    p = positions.book(path)[0]
+    assert p["book_weight"] == 0.025
+    assert f"{p['book_weight']:.1%}" == "2.5%"
+    assert round(p["contribution"], 5) == 0.005
+
+
+def test_an_unsized_position_reports_no_contribution(tmp_path):
+    """A position with no weight has a return and no claim about what it was worth to
+    the book, which is honest rather than a zero."""
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _row(conn, entry_price=100.0, exit_date="2026-08-20", exit_price=120.0)
+    conn.close()
+
+    p = positions.book(path)[0]
+    assert p["return_pct"] is not None
+    assert p["book_weight"] is None and p["contribution"] is None
+
+
+def test_a_short_contributes_positively_when_the_price_falls(tmp_path):
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _row(conn, direction="short", book_weight=0.02, entry_price=100.0,
+         exit_date="2026-08-20", exit_price=75.0)
+    conn.close()
+
+    p = positions.book(path)[0]
+    assert p["return_pct"] == 0.25
+    assert p["contribution"] == 0.005
+
+
+def test_the_dollar_contribution_follows_the_dollar_return(tmp_path):
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _rate(conn, "DKK", "2026-08-01", 0.16)
+    _rate(conn, "DKK", "2026-08-20", 0.14)
+    _row(conn, ticker="NVO", currency="DKK", book_weight=0.04,
+         entry_date="2026-08-01", entry_price=100.0,
+         exit_date="2026-08-20", exit_price=110.0)
+    conn.close()
+
+    p = positions.book(path)[0]
+    # Up in kroner, down in dollars, and the contribution says so both ways.
+    assert round(p["contribution"], 5) == 0.004
+    assert round(p["contribution_usd"], 5) == -0.0015
+
+
+def test_an_open_position_contributes_nothing_yet(tmp_path):
+    import positions
+    path = tmp_path / "p.db"
+    db.init(path)
+    conn = _open(path)
+    _row(conn, book_weight=0.03)
+    conn.close()
+    assert positions.book(path)[0]["contribution"] is None

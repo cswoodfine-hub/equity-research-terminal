@@ -1,0 +1,15 @@
+-- How much of the book the position was, so two calls can be compared.
+--
+-- Without it every position in the table weighs the same, and a 5% conviction position
+-- that doubled reads identically to a 0.5% starter that doubled. Size is what turns a
+-- list of opinions into a book: the number that decides whether being right mattered.
+--
+-- Taken at entry, because that is the decision the analyst actually made. A weight that
+-- drifts with the price afterwards is an outcome, not a choice, and this table records
+-- choices.
+--
+-- Stored as a fraction, 0.05 being five per cent, following economics_share and pos,
+-- which are both fractions and both printed with :.0% at the edge. The name says weight
+-- rather than pct so nothing has to remember which columns in this schema are percentages
+-- and which are not: they are all fractions, and that is the whole convention.
+ALTER TABLE positions ADD COLUMN book_weight REAL;
