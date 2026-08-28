@@ -486,3 +486,43 @@ def test_without_an_loe_it_runs_to_the_horizon():
     built = F.build(_marketed())
     assert built["loe_year"] is None
     assert built["revenue_after_loe"] == built["revenue"]
+
+
+# --- growth fades ----------------------------------------------------------
+# A near-term rate is not a long-run one. Vertex guides the CF franchise to about 9.6%
+# for one year; held flat to 2037 that is 31bn of Trikafta, close to three times the
+# entire US CF population at its net price, and Journavx's launch rate held to 2043 is
+# 570bn, larger than the industry.
+
+def test_growth_held_flat_is_still_the_default():
+    # Compounded step by step rather than raised to a power, so compare with tolerance.
+    got = F.grown_revenue(100.0, 0.10, 3)
+    assert [round(v, 6) for v in got] == [110.0, 121.0, 133.1]
+
+
+def test_the_rate_decays_to_the_long_run_one():
+    got = F.grown_revenue(100.0, 0.10, 7, fade_to=0.0, fade_years=5)
+    steps = [b / a - 1 for a, b in zip([100.0] + got, got)]
+    # Starts at the near-term rate, arrives at the long-run one, never goes back up.
+    assert round(steps[0], 6) == 0.10
+    assert round(steps[-1], 6) == 0.0
+    assert steps == sorted(steps, reverse=True)
+
+
+def test_it_plateaus_once_the_fade_is_done():
+    got = F.grown_revenue(100.0, 0.20, 9, fade_to=0.0, fade_years=4)
+    assert round(got[-1], 6) == round(got[-2], 6) == round(got[-3], 6)
+
+
+def test_a_fade_to_a_positive_rate_keeps_growing():
+    got = F.grown_revenue(100.0, 0.20, 8, fade_to=0.02, fade_years=4)
+    assert round(got[-1] / got[-2] - 1, 6) == 0.02
+
+
+def test_the_fade_reaches_the_engine():
+    flat = F.build(_marketed(revenue_growth_pct=0.10, forecast_years=12))
+    faded = F.build(_marketed(revenue_growth_pct=0.10, forecast_years=12,
+                              terminal_growth_pct=0.0, growth_fade_years=5))
+    assert faded["revenue"][-1] < flat["revenue"][-1]
+    assert faded["rnpv"] < flat["rnpv"]
+    assert "fading to" in " ".join(faded["notes"])

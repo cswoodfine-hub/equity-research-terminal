@@ -19,3 +19,6 @@ VRTX,Journavx,,US,base,sga_pct,,0.1461,,share of revenue,"VRTX FY2025 10-K, comp
 VRTX,Journavx,,US,base,rd_pct,,0.3258,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
 VRTX,Journavx,,US,base,tax_rate,,0.1486,,effective rate,"VRTX FY2025 10-K, computed from the filed lines",
 VRTX,Journavx,,US,base,forecast_years,,18,,years,set to reach past the 2040 loss of exclusivity on file,"exclusivity runs to 2040, and a ten-year window ends in 2035: the cliff would sit outside the forecast and the terminal value would carry revenue with a known end date"
+VRTX,Journavx,,US,base,revenue_growth_pct,,0.664,,"annual, near term","FY2026 H1 of $49.6mm annualised against FY2025 of $59.6mm, both on file. A floor rather than an estimate: H2 of a launch ramp exceeds H1",
+VRTX,Journavx,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to zero, which is what the terminal value already assumes, so the two halves of the model agree. Held flat instead, this rate reaches 31bn of Trikafta by its 2037 LOE, close to three times the entire US CF population at its net price, and 570bn of Journavx by 2043"
+VRTX,Journavx,,US,base,growth_fade_years,,5,,years,convention: a guided rate describes next year,"five years to the long-run rate. A guided rate describes next year, not the decade after it"

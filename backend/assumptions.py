@@ -46,7 +46,11 @@ TEMPLATE = {
     "marketed": (
         ("therapy_mode", "marketed", "text"),
         ("base_revenue", "last reported full year of product revenue, mm", "value"),
-        ("revenue_growth_pct", "annual growth before LOE erosion, e.g. 0.04", "value"),
+        ("revenue_growth_pct", "near-term annual growth, before LOE erosion", "value"),
+        ("terminal_growth_pct", "long-run growth the near-term rate fades to; omit to "
+                                "hold the rate flat", "value"),
+        ("growth_fade_years", "years over which growth fades to the long-run rate, "
+                              "default 5", "value"),
         ("cogs_pct", "cost of goods as a share of revenue", "value"),
         ("sga_pct", "SG&A as a share of revenue", "value"),
         ("rd_pct", "R&D as a share of revenue", "value"),

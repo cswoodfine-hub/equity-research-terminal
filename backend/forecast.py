@@ -180,18 +180,39 @@ def treated_stock(new_patients, discontinuation, opening=0.0):
 
 
 
-def grown_revenue(base: float, growth: float, years: int) -> list:
+def grown_revenue(base: float, growth: float, years: int,
+                  fade_to: float | None = None, fade_years: int = 5) -> list:
     """A launched product's revenue, carried forward from what it actually did.
 
     Nobody rebuilds the patient funnel for a drug already selling ten billion a year. The
     reported number is the anchor, growth is the judgement, and the erosion the LOE map
-    already carries does the rest. That is how a marketed product is modelled, and until
-    this existed the engine could only value things by counting patients into them.
+    already carries does the rest.
+
+    Growth fades, because a near-term rate is not a long-run one and holding one constant
+    across a fifteen-year window produces arithmetic rather than a forecast. Vertex guides
+    the CF franchise to about 9.6% for one year; held flat to 2037 that is 31bn of
+    Trikafta, which at its net price is close to three times the entire US CF population.
+    Journavx's launch rate of 66% held to 2043 is 570bn, which is larger than the industry.
+    Neither is a view anybody holds, and both came out of the model before this existed.
+
+    So the rate decays linearly from ``growth`` to ``fade_to`` across ``fade_years`` and
+    stays there. With ``fade_to`` unset the rate is constant, which is the old behaviour
+    and still right for a short horizon.
 
     Year one is the base grown once, because the base is last year's reported figure and
     the forecast starts after it.
     """
-    return [base * (1.0 + growth) ** (i + 1) for i in range(years)]
+    out, level = [], base
+    for i in range(years):
+        if fade_to is None or fade_years <= 0:
+            rate = growth
+        elif i >= fade_years:
+            rate = fade_to
+        else:
+            rate = growth + (fade_to - growth) * (i / fade_years)
+        level *= (1.0 + rate)
+        out.append(level)
+    return out
 
 
 
@@ -360,12 +381,20 @@ def build(inputs: dict) -> dict:
     if mode == "marketed":
         base_rev = scalars["base_revenue"]
         growth = scalars["revenue_growth_pct"]
-        revenue = grown_revenue(base_rev, growth, len(years))
+        revenue = grown_revenue(
+            base_rev, growth, len(years),
+            fade_to=scalars.get("terminal_growth_pct"),
+            fade_years=int(scalars.get("growth_fade_years") or 5))
         per_indication = {}
         treated = total_patients = [None] * len(years)
+        fade = scalars.get("terminal_growth_pct")
         notes.append(
             f"marketed mode: revenue grown from a reported {base_rev:,.0f}mm at "
-            f"{growth:+.1%} a year, before erosion")
+            f"{growth:+.1%}"
+            + (f", fading to {fade:+.1%} over "
+               f"{int(scalars.get('growth_fade_years') or 5)} years"
+               if fade is not None else " held flat")
+            + ", before erosion")
     else:
         # Patients, per indication and in total.
         per_indication = {}
