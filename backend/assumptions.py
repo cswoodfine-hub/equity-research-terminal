@@ -51,6 +51,9 @@ TEMPLATE = {
                                 "hold the rate flat", "value"),
         ("growth_fade_years", "years over which growth fades to the long-run rate, "
                               "default 5", "value"),
+        ("revenue_ceiling_musd", "the most this product can earn in a year, mm; a "
+                                 "bounded market a growth rate would otherwise grow "
+                                 "through. Optional", "value"),
         ("cogs_pct", "cost of goods as a share of revenue", "value"),
         ("sga_pct", "SG&A as a share of revenue", "value"),
         ("rd_pct", "R&D as a share of revenue", "value"),

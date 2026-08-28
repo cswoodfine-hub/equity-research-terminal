@@ -526,3 +526,48 @@ def test_the_fade_reaches_the_engine():
     assert faded["revenue"][-1] < flat["revenue"][-1]
     assert faded["rnpv"] < flat["rnpv"]
     assert "fading to" in " ".join(faded["notes"])
+
+
+# --- A bounded market -------------------------------------------------------
+#
+# A fade slows growth. It does not stop a product growing through the market it sells
+# into, and a launch rate compounds fast enough to do that inside the fade. Vertex is
+# switching CF patients from Trikafta to Alyftrek: read off the halves those two grow at
+# -4.6% and +176%, one pool of patients moving between them. Alyftrek on its own rate
+# passes the entire CF franchise in 2029 and reaches 26bn in 2030.
+
+def test_the_ceiling_binds_the_level_not_the_rate():
+    got = F.grown_revenue(100.0, 1.0, 8, ceiling=400.0)
+    assert got[:2] == [200.0, 400.0]
+    assert got[2:] == [400.0] * 6
+
+
+def test_a_ceiling_above_the_path_never_binds():
+    free = F.grown_revenue(100.0, 0.10, 8, fade_to=0.0, fade_years=4)
+    capped = F.grown_revenue(100.0, 0.10, 8, fade_to=0.0, fade_years=4, ceiling=1e9)
+    assert capped == free
+
+
+def test_the_ceiling_survives_a_fade():
+    """The fade is still applied underneath. A product held at its ceiling stays there
+    rather than resuming growth once the rate settles."""
+    got = F.grown_revenue(100.0, 1.5, 10, fade_to=0.0, fade_years=5, ceiling=500.0)
+    assert max(got) == 500.0
+    assert got[-1] == 500.0
+
+
+def test_the_ceiling_reaches_the_engine_and_says_so():
+    free = F.build(_marketed(revenue_growth_pct=1.0, forecast_years=10,
+                             terminal_growth_pct=0.0, growth_fade_years=5))
+    capped = F.build(_marketed(revenue_growth_pct=1.0, forecast_years=10,
+                               terminal_growth_pct=0.0, growth_fade_years=5,
+                               revenue_ceiling_musd=max(free["revenue"]) / 2))
+    assert max(capped["revenue"]) < max(free["revenue"])
+    assert capped["rnpv"] < free["rnpv"]
+    assert "ceiling" in " ".join(capped["notes"])
+
+
+def test_no_ceiling_is_the_old_behaviour():
+    assert (F.build(_marketed(revenue_growth_pct=0.10, forecast_years=10))["revenue"]
+            == F.build(_marketed(revenue_growth_pct=0.10, forecast_years=10,
+                                 revenue_ceiling_musd=None))["revenue"])

@@ -181,7 +181,8 @@ def treated_stock(new_patients, discontinuation, opening=0.0):
 
 
 def grown_revenue(base: float, growth: float, years: int,
-                  fade_to: float | None = None, fade_years: int = 5) -> list:
+                  fade_to: float | None = None, fade_years: int = 5,
+                  ceiling: float | None = None) -> list:
     """A launched product's revenue, carried forward from what it actually did.
 
     Nobody rebuilds the patient funnel for a drug already selling ten billion a year. The
@@ -199,6 +200,13 @@ def grown_revenue(base: float, growth: float, years: int,
     stays there. With ``fade_to`` unset the rate is constant, which is the old behaviour
     and still right for a short horizon.
 
+    A fading rate is not always enough. Vertex is switching its CF patients from Trikafta
+    to Alyftrek, and read off the halves those two grow at -4.6% and +176%: one pool of
+    patients, moving. Alyftrek compounded off its own launch rate passes the entire CF
+    franchise in three years and reaches 26bn in five, because nothing in a growth rate
+    knows the pool is finite. ``ceiling`` is that bound, and it binds the level rather
+    than the rate, so a product that reaches it stays there instead of growing through it.
+
     Year one is the base grown once, because the base is last year's reported figure and
     the forecast starts after it.
     """
@@ -211,6 +219,8 @@ def grown_revenue(base: float, growth: float, years: int,
         else:
             rate = growth + (fade_to - growth) * (i / fade_years)
         level *= (1.0 + rate)
+        if ceiling is not None:
+            level = min(level, ceiling)
         out.append(level)
     return out
 
@@ -381,10 +391,12 @@ def build(inputs: dict) -> dict:
     if mode == "marketed":
         base_rev = scalars["base_revenue"]
         growth = scalars["revenue_growth_pct"]
+        ceiling = scalars.get("revenue_ceiling_musd")
         revenue = grown_revenue(
             base_rev, growth, len(years),
             fade_to=scalars.get("terminal_growth_pct"),
-            fade_years=int(scalars.get("growth_fade_years") or 5))
+            fade_years=int(scalars.get("growth_fade_years") or 5),
+            ceiling=ceiling)
         per_indication = {}
         treated = total_patients = [None] * len(years)
         fade = scalars.get("terminal_growth_pct")
@@ -395,6 +407,11 @@ def build(inputs: dict) -> dict:
                f"{int(scalars.get('growth_fade_years') or 5)} years"
                if fade is not None else " held flat")
             + ", before erosion")
+        if ceiling is not None and revenue and max(revenue) >= ceiling - 1e-9:
+            notes.append(
+                f"revenue is held at a ceiling of {ceiling:,.0f}mm from "
+                f"{years[revenue.index(ceiling)] if ceiling in revenue else years[-1]} "
+                "onward, so the growth rate above describes the years before it only")
     else:
         # Patients, per indication and in total.
         per_indication = {}
