@@ -1395,7 +1395,8 @@ def _the_call(api_base: str, ticker: str, asset_id: int, scenario: str) -> None:
         base_ps = (spread.get("base") or {}).get("per_share")
         low = (spread.get("bear") or {}).get("per_share")
         high = (spread.get("bull") or {}).get("per_share")
-        if low is not None and high is not None and base_ps is not None:
+        if (v.get("has_range") and low is not None and high is not None
+                and base_ps is not None):
             section("The range", basis="same engine, three sets of assumptions")
             R.show(CH.tornado([{"label": "per share", "low": low, "high": high}],
                               520, 86, centre=base_ps,

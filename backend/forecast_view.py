@@ -614,12 +614,16 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         name = asset["brand_name"] or asset["generic_name"]
         inputs = assumptions_module.load(conn, asset_id, scenario)
         rows = assumptions_module.rows(conn, asset_id, scenario)
-        by_scenario = {}
+        # A scenario inherits base and restates only what it changes, so one with no
+        # rows of its own is base wearing another name. Counting them is how the range
+        # can decline to draw itself rather than showing a spread of nothing.
+        by_scenario, defined = {}, {}
         for other in ("bear", "base", "bull"):
+            defined[other] = len(assumptions_module.rows(conn, asset_id, other)) > 0
             try:
                 by_scenario[other] = forecast.build(
                     assumptions_module.load(conn, asset_id, other))["rnpv"]
-            except (forecast.ForecastError, Exception):
+            except forecast.ForecastError:
                 continue
     finally:
         conn.close()
@@ -639,8 +643,11 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
     spread = {}
     for label, rnpv in by_scenario.items():
         owned = rnpv * (share if share is not None else 1.0)
-        spread[label] = {"rnpv": rnpv,
+        spread[label] = {"rnpv": rnpv, "defined": defined.get(label, False),
                          "per_share": (owned * 1e6 / shares) if shares else None}
+    # Only a real spread counts. Bear and bull that merely inherit base produce the same
+    # number three times, and a range drawn across it would claim work nobody did.
+    has_range = bool(defined.get("bear") or defined.get("bull"))
 
     return {
         "ok": True, "ticker": company["ticker"], "asset_id": asset_id, "name": name,
@@ -656,7 +663,8 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         "wacc": built["wacc"], "wacc_basis": built.get("wacc_basis"),
         "pos": built["pos"], "pos_basis": built.get("pos_basis"),
         "loe_year": built.get("loe_year"), "loe_basis": built.get("loe_basis"),
-        "spread": spread, "levers": _levers(inputs, built),
+        "spread": spread, "has_range": has_range,
+        "levers": _levers(inputs, built),
         "next_catalyst": catalyst,
         "unsourced": [r["key"] for r in rows if not (r["source"] or "").strip()],
         "notes": built.get("notes") or [],

@@ -21,7 +21,7 @@ def _verdict(**over):
                     {"lever": "discount rate", "span": 774.0}],
          "next_catalyst": {"catalyst_type": "data readout",
                            "expected_date": "2027-11-14"},
-         "unsourced": []}
+         "has_range": True, "unsourced": []}
     v.update(over)
     return v
 
@@ -85,3 +85,18 @@ def test_it_describes_rather_than_recommends():
     for word in ("buy", "sell", "overweight", "underweight", "we recommend",
                  "price target", "upside to"):
         assert word not in text
+
+
+def test_a_scenario_that_only_inherits_is_not_a_range():
+    """A scenario inherits base and restates only what it changes. One with no rows of
+    its own is base wearing another name, and a range drawn across it would claim work
+    nobody did."""
+    body = " ".join(forecast_note.write(_verdict(has_range=False))["body"])
+    assert "no bear or bull case on file" in body
+    assert "$1.42 to $8.91" not in body
+
+
+def test_a_real_range_is_still_reported():
+    body = " ".join(forecast_note.write(_verdict(has_range=True))["body"])
+    assert "$1.42 to $8.91" in body
+    assert "no bear or bull case" not in body

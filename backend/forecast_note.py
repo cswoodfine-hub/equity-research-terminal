@@ -59,7 +59,12 @@ def body(v: dict) -> list[str]:
 
     spread = v.get("spread") or {}
     bear, bull = spread.get("bear"), spread.get("bull")
-    if bear and bull and bear.get("per_share") and bull.get("per_share"):
+    if not v.get("has_range"):
+        out.append(
+            "There is no bear or bull case on file, so this is one set of assumptions "
+            "rather than a range. A scenario inherits the base and restates only what it "
+            "changes, and nothing has been restated.")
+    elif bear and bull and bear.get("per_share") and bull.get("per_share"):
         out.append(
             f"The scenarios run {_per_share(bear['per_share'])} to "
             f"{_per_share(bull['per_share'])} a share, a "

@@ -106,3 +106,29 @@ def test_another_company_cannot_shape_this_asset(tmp_path):
     conn.execute("INSERT INTO companies (id, ticker, name) VALUES (2, 'MRK', 'Merck')")
     conn.commit(); conn.close()
     assert forecast_view.shape_curve(path, "MRK", 1, peak=0.05, midpoint=4) is None
+
+
+def test_a_verdict_knows_whether_its_scenarios_are_real(tmp_path):
+    """Only Casgevy has bear and bull rows. Everything else would have shown the same
+    number three times and called it a spread."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO assumptions (asset_id, indication_id, key, value, source)"
+                 " VALUES (1, 1, 'penetration_peak_pct', 0.05, 'test')")
+    conn.execute("INSERT INTO assumptions (asset_id, indication_id, key, value, source)"
+                 " VALUES (1, 1, 'ramp_midpoint_year', 4, 'test')")
+    conn.commit(); conn.close()
+
+    v = forecast_view.verdict(path, "LLY", 1)
+    assert v["ok"] is True
+    assert v["has_range"] is False
+    assert v["spread"]["bear"]["defined"] is False
+
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO assumptions (asset_id, key, value, scenario, source)"
+                 " VALUES (1, 'net_price_per_patient', 0.004, 'bear', 'test')")
+    conn.commit(); conn.close()
+
+    v = forecast_view.verdict(path, "LLY", 1)
+    assert v["has_range"] is True
+    assert v["spread"]["bear"]["rnpv"] < v["spread"]["base"]["rnpv"]
