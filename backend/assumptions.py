@@ -43,6 +43,17 @@ TEMPLATE = {
          "prices the catalyst's value swing", "value"),
         ("pos_failure", "PoS if it reads out badly", "value"),
     ),
+    "marketed": (
+        ("therapy_mode", "marketed", "text"),
+        ("base_revenue", "last reported full year of product revenue, mm", "value"),
+        ("revenue_growth_pct", "annual growth before LOE erosion, e.g. 0.04", "value"),
+        ("cogs_pct", "cost of goods as a share of revenue", "value"),
+        ("sga_pct", "SG&A as a share of revenue", "value"),
+        ("rd_pct", "R&D as a share of revenue", "value"),
+        ("tax_rate", "effective tax rate", "value"),
+        ("wacc", "discount rate or CAPM components", "value"),
+        ("forecast_start_year", "first DCF year", "value"),
+    ),
     "chronic": (
         ("therapy_mode", "chronic", "text"),
         ("net_price_per_patient", "annual net price per patient", "value"),

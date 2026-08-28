@@ -29,6 +29,8 @@ from __future__ import annotations
 import csv
 import io
 import os
+import functools
+import pathlib
 import re
 import time
 import urllib.error
@@ -142,9 +144,30 @@ def _split_camel(member: str) -> str:
     return re.sub(r"\s+", " ", spaced).strip()
 
 
+@functools.lru_cache(maxsize=1)
+def _curated_names() -> dict:
+    """Members whose brands cannot be told apart by any rule, so they are written down.
+
+    ``GardasilGardasil9`` splits itself on the case boundary. ``TRIKAFTAKAFTRIO`` has
+    none, and no rule can say where Trikafta ends and Kaftrio begins. Five of these exist
+    across the universe and they are curated in data/product_display_names.csv.
+    """
+    path = (pathlib.Path(__file__).resolve().parent.parent.parent
+            / "data" / "product_display_names.csv")
+    if not path.exists():
+        return {}
+    with path.open(newline="", encoding="utf-8") as handle:
+        lines = [line for line in handle if not line.lstrip().startswith("#")]
+    return {_norm(row["member"]): row["display"].strip()
+            for row in csv.DictReader(lines) if (row.get("display") or "").strip()}
+
+
 def display_name(member: str) -> str:
     """The product name to show, with any revenue-type prefix taken off the front."""
     lowered = _norm(member)
+    curated = _curated_names().get(lowered)
+    if curated:
+        return curated
     for prefix in MEMBER_PREFIXES:
         if lowered.startswith(prefix) and len(lowered) > len(prefix) + 2:
             # Cut the prefix off the original, preserving its capitalisation.

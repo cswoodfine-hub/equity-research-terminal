@@ -36,7 +36,7 @@ REQUIRED = ("therapy_mode", "net_price_per_patient")
 
 # One-time therapies bill the patient once, so COGS rides per patient; chronic therapies
 # bill per year and carry COGS as a share of revenue.
-MODES = ("one_time", "chronic")
+MODES = ("one_time", "chronic", "marketed")
 
 
 class ForecastError(ValueError):
@@ -179,6 +179,22 @@ def treated_stock(new_patients, discontinuation, opening=0.0):
 
 
 
+
+def grown_revenue(base: float, growth: float, years: int) -> list:
+    """A launched product's revenue, carried forward from what it actually did.
+
+    Nobody rebuilds the patient funnel for a drug already selling ten billion a year. The
+    reported number is the anchor, growth is the judgement, and the erosion the LOE map
+    already carries does the rest. That is how a marketed product is modelled, and until
+    this existed the engine could only value things by counting patients into them.
+
+    Year one is the base grown once, because the base is last year's reported figure and
+    the forecast starts after it.
+    """
+    return [base * (1.0 + growth) ** (i + 1) for i in range(years)]
+
+
+
 def net_price(scalars: dict):
     """Net price per patient, given directly or as list price less gross-to-net."""
     if scalars.get("net_price_per_patient") is not None:
@@ -305,7 +321,13 @@ def build(inputs: dict) -> dict:
     mode = (scalars.get("therapy_mode") or "").strip()
     price = net_price(scalars)
     missing = [k for k in ("therapy_mode",) if not mode]
-    if price is None:
+    if mode == "marketed":
+        # Anchored on reported revenue, so a price per patient is the wrong question.
+        if scalars.get("base_revenue") is None:
+            missing.append("base_revenue (last reported full year, mm)")
+        if scalars.get("revenue_growth_pct") is None:
+            missing.append("revenue_growth_pct (annual, before LOE erosion)")
+    elif price is None:
         missing.append("net_price_per_patient (or list price and gross-to-net)")
     rate, rate_basis = wacc(scalars)
     if rate is None:
@@ -333,20 +355,35 @@ def build(inputs: dict) -> dict:
     years = list(range(first, start + horizon))
     dcf_years = list(range(start, start + horizon))
 
-    # Patients, per indication and in total.
-    per_indication = {}
-    for ind in inputs.get("indications") or []:
-        result = patients_for_indication(ind, years, notes)
-        if result["used"] is None:
-            continue
-        per_indication[ind.get("name") or f"indication {len(per_indication) + 1}"] = result
-    if not per_indication:
-        raise ForecastError(["no indication has a usable patient series: supply "
-                             "new_patients rows or the pool identity inputs"])
-    total_patients = [sum(per_indication[n]["used"][i] for n in per_indication)
-                      for i in range(len(years))]
+    # A launched product is anchored on what it reported, so it never enters the patient
+    # build at all: there is no funnel to rebuild for a drug already selling.
+    if mode == "marketed":
+        base_rev = scalars["base_revenue"]
+        growth = scalars["revenue_growth_pct"]
+        revenue = grown_revenue(base_rev, growth, len(years))
+        per_indication = {}
+        treated = total_patients = [None] * len(years)
+        notes.append(
+            f"marketed mode: revenue grown from a reported {base_rev:,.0f}mm at "
+            f"{growth:+.1%} a year, before erosion")
+    else:
+        # Patients, per indication and in total.
+        per_indication = {}
+        for ind in inputs.get("indications") or []:
+            result = patients_for_indication(ind, years, notes)
+            if result["used"] is None:
+                continue
+            per_indication[ind.get("name")
+                           or f"indication {len(per_indication) + 1}"] = result
+        if not per_indication:
+            raise ForecastError(["no indication has a usable patient series: supply "
+                                 "new_patients rows or the pool identity inputs"])
+        total_patients = [sum(per_indication[n]["used"][i] for n in per_indication)
+                          for i in range(len(years))]
 
-    if mode == "one_time":
+    if mode == "marketed":
+        pass                    # revenue is already built above
+    elif mode == "one_time":
         # Billed once, so the year's patients are the year's revenue.
         treated = total_patients
         revenue = [p * price for p in treated]

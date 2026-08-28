@@ -1,0 +1,17 @@
+# Members a filer reports as one revenue line covering several brands, where the label
+# arrives with no case boundary for _split_camel to work on. "GardasilGardasil9" splits
+# itself; "TRIKAFTAKAFTRIO" cannot, and rendered as shouted concatenation in every place
+# a product name is shown.
+#
+# Curated, because splitting these needs to know where one brand ends and the next
+# begins, and no rule can. Five across the universe as of 2026-08-28. The separator is a
+# slash to keep the fact visible that this is one reported number covering several
+# products; nothing here splits the money between them, because the filing does not.
+#
+# member: matched case-insensitively against the label as filed, ignoring spaces.
+member,display,note
+TRIKAFTAKAFTRIO,Trikafta / Kaftrio,"Vertex: Trikafta in the US, Kaftrio in the EU, one reported line"
+RYBREVANTLAZCLUZE,Rybrevant / Lazcluze,"J&J: reported together as the combination regimen"
+INVEGASUSTENNAXEPLIONTRINZATREVICTA,Invega Sustenna / Xeplion / Trinza / Trevicta,"J&J: the long-acting paliperidone family across regions"
+PREZISTAPREZCOBIXREZOLSTASYMTUZA,Prezista / Prezcobix / Rezolsta / Symtuza,"J&J: the darunavir HIV family across regions"
+MINJUVIMONJUVI,Minjuvi / Monjuvi,"Incyte: tafasitamab, Monjuvi in the US and Minjuvi elsewhere"

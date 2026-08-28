@@ -411,3 +411,78 @@ def test_a_one_time_therapy_is_untouched_by_any_of_this():
                          "series": {"new_patients": {2027: 10, 2028: 20, 2029: 30}}}]})
     assert built["patients"]["treated"] == built["patients"]["total"] == [10, 20, 30]
     assert built["revenue"] == [18.0, 36.0, 54.0]
+
+
+# --- marketed products -----------------------------------------------------
+# Nobody rebuilds the patient funnel for a drug already selling ten billion a year. The
+# reported number is the anchor and growth is the judgement.
+
+def _marketed(**over):
+    scalars = {"therapy_mode": "marketed", "base_revenue": 10312.7,
+               "revenue_growth_pct": 0.04, "wacc": 0.085,
+               "forecast_start_year": 2026, "forecast_years": 10,
+               "cogs_pct": 0.14, "sga_pct": 0.15, "rd_pct": 0.33, "tax_rate": 0.15,
+               "pos": 1.0}
+    scalars.update(over)
+    return {"scalars": scalars, "indications": []}
+
+
+def test_revenue_grows_from_what_was_reported():
+    got = F.grown_revenue(100.0, 0.10, 3)
+    assert [round(v, 6) for v in got] == [110.0, 121.0, 133.1]
+
+
+def test_year_one_is_the_base_grown_once():
+    """The base is last year's reported figure and the forecast starts after it."""
+    assert F.grown_revenue(100.0, 0.05, 1) == [105.0]
+
+
+def test_a_marketed_product_needs_no_patients_at_all():
+    built = F.build(_marketed())
+    assert built["mode"] == "marketed"
+    assert built["patients"]["total"] == [None] * len(built["years"])
+    assert built["revenue"][0] > 10312.7
+    assert built["rnpv"] > 0
+
+
+def test_it_refuses_to_guess_the_anchor_or_the_growth():
+    for missing in ("base_revenue", "revenue_growth_pct"):
+        try:
+            F.build(_marketed(**{missing: None}))
+        except F.ForecastError as exc:
+            assert any(missing in m for m in exc.missing)
+        else:
+            raise AssertionError(f"marketed mode invented {missing}")
+
+
+def test_a_marketed_product_does_not_ask_for_a_price():
+    """A price per patient is the wrong question for a drug that files its own sales."""
+    try:
+        F.build(_marketed())
+    except F.ForecastError as exc:
+        assert not any("net_price" in m for m in exc.missing)
+
+
+def test_exclusivity_still_erodes_a_marketed_product():
+    plain = F.build(_marketed())
+    eroded = F.build({**_marketed(erosion_year1_pct=0.6, erosion_decay_pct=0.3),
+                      "loe": {"year": 2030, "basis": "test"}})
+    assert eroded["rnpv"] < plain["rnpv"]
+    assert eroded["loe_year"] == 2030
+    assert eroded["revenue_after_loe"] != eroded["revenue"]
+
+
+def test_an_loe_with_no_erosion_shape_erodes_nothing():
+    """The engine will not invent a decay curve. An LOE year with no shape to apply, and
+    no modality to take a curated default from, leaves the revenue alone: a gap that has
+    to be visible rather than filled in."""
+    built = F.build({**_marketed(), "loe": {"year": 2030, "basis": "test"}})
+    assert built["loe_year"] == 2030
+    assert built["erosion_basis"] is None
+    assert built["revenue_after_loe"] == built["revenue"]
+
+
+def test_without_an_loe_it_runs_to_the_horizon():
+    built = F.build(_marketed())
+    assert built["loe_year"] is None
+    assert built["revenue_after_loe"] == built["revenue"]

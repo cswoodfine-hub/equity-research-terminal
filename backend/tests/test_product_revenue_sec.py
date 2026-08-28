@@ -195,3 +195,21 @@ def test_concatenated_brands_are_spaced_not_split():
 
     assert display_name("GardasilGardasil9") == "Gardasil Gardasil 9"
     assert display_name("Pneumovax23") == "Pneumovax 23"
+
+
+def test_a_shouted_multi_brand_member_gets_a_curated_name():
+    """GardasilGardasil9 splits itself on the case boundary. TRIKAFTAKAFTRIO has none,
+    and no rule can say where Trikafta ends and Kaftrio begins, so the five that arrive
+    this way are written down instead."""
+    from fetchers.product_revenue_sec import display_name
+    assert display_name("TRIKAFTAKAFTRIO") == "Trikafta / Kaftrio"
+    assert display_name("MINJUVIMONJUVI") == "Minjuvi / Monjuvi"
+    # Case and spacing in the filed label do not matter.
+    assert display_name("trikaftakaftrio") == "Trikafta / Kaftrio"
+
+
+def test_curation_does_not_disturb_the_rules():
+    from fetchers.product_revenue_sec import display_name
+    assert display_name("GardasilGardasil9") == "Gardasil Gardasil 9"
+    assert display_name("AlliancerevenueLynparza") == "Lynparza"
+    assert display_name("Trikafta") == "Trikafta"

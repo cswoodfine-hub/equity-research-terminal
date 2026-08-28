@@ -33,3 +33,7 @@ exports/*.html
 
 # Scheduled-refresh logs and lock
 logs/
+
+# Orphaned inodes left by a file deleted while still open, on this FUSE-backed volume.
+# Not artefacts of the project and never wanted in a commit.
+.fuse_hidden*

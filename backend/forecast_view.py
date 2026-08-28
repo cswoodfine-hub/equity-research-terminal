@@ -651,7 +651,7 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
 
     return {
         "ok": True, "ticker": company["ticker"], "asset_id": asset_id, "name": name,
-        "scenario": scenario,
+        "scenario": scenario, "mode": built.get("mode"),
         "rnpv": built["rnpv"], "npv": built["npv"], "owner_rnpv": owner,
         "economics_share": share,
         "diluted_shares": shares, "per_share": per_share,

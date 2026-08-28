@@ -1,0 +1,20 @@
+# Journavx (VRTX). non-opioid acute pain, launched 2025.
+# Marketed, so revenue is anchored on what the filing reported rather than
+# built from patients. Everything here is read from a source; the single
+# judgement left is revenue_growth_pct, and the forecast says so until it is set.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+VRTX,Journavx,,US,base,base_revenue,,59.6,,mm USD,"VRTX FY2025 reported product revenue, from the 10-K product axis",the anchor. Growth is the judgement on top of it
+VRTX,Journavx,,US,base,therapy_mode,,,marketed,,"already selling, so revenue is reported rather than built",no patient funnel is rebuilt for a drug that files its own sales
+VRTX,Journavx,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+VRTX,Journavx,,US,base,pos,,1.0,,,approved and selling; the phase ramp does not apply to a Phase 4 product,development risk is retired. Commercial risk lives in the growth rate
+VRTX,Journavx,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+VRTX,Journavx,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+VRTX,Journavx,,US,base,beta,,0.69,,,"computed from 262 weekly returns vs S&P 500 over five years, Blume-adjusted",Casgevy keeps the workbook's 1.15 on purpose: that is the analyst's own figure and this one is measured
+VRTX,Journavx,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED), 2026-08-26",
+VRTX,Journavx,,US,base,debt_weight,,0.05,,,Vertex near-zero debt (CASGEVY workbook C35),"no TotalDebt is tagged in the filings, so the workbook's curated figure stands"
+VRTX,Journavx,,US,base,cogs_pct,,0.1376,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Journavx,,US,base,sga_pct,,0.1461,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Journavx,,US,base,rd_pct,,0.3258,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Journavx,,US,base,tax_rate,,0.1486,,effective rate,"VRTX FY2025 10-K, computed from the filed lines",

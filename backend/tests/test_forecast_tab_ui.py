@@ -72,11 +72,26 @@ def app():
     test = AppTest.from_file(str(APP), default_timeout=120)
     test.query_params["ticker"] = "VRTX"
     test.run()
+    # Pick Casgevy explicitly. Vertex used to have one modelled asset and now has four,
+    # so whichever the picker defaults to is not something these assertions should rest
+    # on: they are about the sliders, not about the ordering of a list.
+    # Set the widget's real value rather than driving the picker. AppTest reports a
+    # selectbox's formatted labels as its options and hands whatever is selected straight
+    # back to format_func, so both set_value("Casgevy") and select_index raise KeyError
+    # against a format function keyed on asset ids. Session state holds what the app
+    # itself holds, which is the id.
+    test.session_state["fc_pick_VRTX"] = CASGEVY
+    test.run()
     return test
 
 
+# Casgevy. Vertex used to have one modelled asset and now has four, so which one the
+# picker defaults to is not something these assertions should rest on.
+CASGEVY = 371
+
+
 def _slider(app, name):
-    key = f"fc_wi_{name}_VRTX_371"
+    key = f"fc_wi_{name}_VRTX_{CASGEVY}"
     matches = [s for s in app.slider if s.key == key]
     assert matches, f"slider {key} not rendered"
     return matches[0]

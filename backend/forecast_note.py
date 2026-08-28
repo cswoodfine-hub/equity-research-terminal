@@ -50,6 +50,13 @@ def body(v: dict) -> list[str]:
     """The paragraphs under the headline, each one a fact the engine produced."""
     out = []
 
+    if v.get("mode") == "marketed" and not v.get("loe_year"):
+        out.append(
+            "No exclusivity is on file for this product, so nothing erodes and the "
+            "revenue runs to the horizon and into the terminal value. For a marketed "
+            "drug that is the most dangerous default in the model: set an LOE year, or "
+            "read this as a deliberate perpetuity.")
+
     if v.get("peak_revenue") and v.get("peak_year"):
         line = (f"Revenue peaks at {_mm(v['peak_revenue'])} in {v['peak_year']}")
         if v.get("loe_year"):
