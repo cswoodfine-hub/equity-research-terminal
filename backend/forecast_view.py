@@ -103,6 +103,67 @@ def asset_forecast(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         conn.close()
 
 
+# The two numbers the data cannot settle. Steepness falls out of a launch's early growth
+# and incidence out of a cohort study, but a ceiling cannot be read off a curve that has
+# not reached one, and the midpoint is coupled to the ceiling. They are the analyst's, and
+# this is how the analyst is given something to point at while choosing them.
+CURVE_KEYS = ("penetration_peak_pct", "ramp_midpoint_year")
+
+
+def shape_curve(db_path, ticker: str, asset_id: int, scenario: str = "base",
+                peak=None, midpoint=None):
+    """Run the engine with a proposed ceiling and midpoint, without saving either.
+
+    An asset blocked on these two shows nothing at all, which makes the hardest judgement
+    in the model the one made with the least feedback. This lets the curve be moved and
+    watched before it is committed: same engine, same inputs, two values injected into
+    every indication that has a pool but no ramp.
+
+    Returns None when the asset is not this company's, and the usual missing-key shape
+    when something other than the ramp is absent, so a caller cannot mistake a blocked
+    forecast for a shaped one.
+    """
+    conn = db.get_connection(db_path)
+    try:
+        company = _company(conn, ticker)
+        if company is None or _accessible(conn, company["id"], asset_id,
+                                          ticker) is None:
+            return None
+        inputs = assumptions_module.load(conn, asset_id, scenario)
+        # The indications that have a pool, by id, so a caller that likes what it sees
+        # can write the two values back against the right rows.
+        pooled = [dict(r) for r in conn.execute(
+            """SELECT DISTINCT s.indication_id AS id, i.name
+                 FROM assumptions s JOIN indications i ON i.id = s.indication_id
+                WHERE s.asset_id = ? AND s.key = 'prevalence'
+                  AND s.indication_id IS NOT NULL""", (asset_id,))]
+    finally:
+        conn.close()
+
+    shaped = 0
+    for ind in inputs.get("indications") or []:
+        scalars = ind.setdefault("scalars", {})
+        if scalars.get("prevalence") is None:
+            continue                    # no pool here, so no ramp to give it
+        if peak is not None and scalars.get("penetration_peak_pct") is None:
+            scalars["penetration_peak_pct"] = peak
+        if midpoint is not None and scalars.get("ramp_midpoint_year") is None:
+            scalars["ramp_midpoint_year"] = midpoint
+        shaped += 1
+    try:
+        result = forecast.build(inputs)
+    except forecast.ForecastError as err:
+        return {"ok": False, "missing": err.missing, "shaped_indications": shaped,
+                "pooled": pooled}
+    return {"ok": True, "shaped_indications": shaped, "pooled": pooled,
+            "peak": peak, "midpoint": midpoint,
+            "years": result["years"], "patients": result["patients"],
+            "revenue": result["revenue_after_loe"],
+            "rnpv": result["rnpv"], "npv": result["npv"],
+            "wacc": result["wacc"], "pos": result["pos"],
+            "loe_year": result.get("loe_year")}
+
+
 def _template():
     return [{"key": key, "hint": hint, "kind": kind}
             for key, hint, kind in assumptions_module.TEMPLATE["one_time"]]

@@ -1347,6 +1347,116 @@ def metric_tiles(items, one_row: bool = False) -> str:
             f'{"".join(out)}</div>')
 
 
+CURVE_KEYS = ("penetration_peak_pct", "ramp_midpoint_year")
+
+
+def _curve_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
+                  missing: list) -> bool:
+    """The two numbers no source settles, given something to be judged against.
+
+    Steepness comes out of a launch's early growth and incidence out of a cohort study,
+    but a ceiling cannot be read off a curve that has not reached one, and the midpoint is
+    coupled to the ceiling. So the hardest judgement in the model was the one made with
+    the least feedback: a blocked asset drew nothing at all.
+
+    Here the two are handles. The engine runs on every move, against the same assumptions
+    as the real forecast, and nothing is written until the numbers are committed. Returns
+    True when it drew, so the caller knows the dead end has been replaced.
+    """
+    # The test is not what the error message says. build() reports one generic line when
+    # no indication has a series, and names the individual pool inputs in its notes, which
+    # do not survive the exception. So ask the question directly: does supplying these two
+    # make it compute? If it does, they are what is missing.
+    probe_peak, probe_mid = 0.05, 4
+    try:
+        probe = api_get(
+            api_base,
+            f"/companies/{ticker}/forecast/{asset_id}/shape"
+            f"?scenario={scenario}&peak={probe_peak}&midpoint={probe_mid}")
+    except (urllib.error.URLError, OSError):
+        return False
+    if not probe.get("ok"):
+        return False
+
+    section("Shape the uptake curve",
+            basis="nothing is saved until you commit it")
+    note("Every other input is on file and sourced. These two are the analyst's: the "
+         "ceiling cannot be read off a curve that has not reached one, and the midpoint "
+         "moves with it. Set them here and watch what they do.")
+
+    left, right = st.columns([1, 1.6])
+    with left:
+        # In percent, because that is how the number is spoken. The engine wants a
+        # fraction, and formatting a fraction with %% printed 0.05 as "0.1%".
+        peak_pct = st.slider("peak penetration, %", 0.5, 30.0, 5.0, 0.5,
+                             format="%.1f%%", key=f"shape_peak_{ticker}_{asset_id}",
+                             help="share of the eligible pool treated at the plateau")
+        peak = peak_pct / 100.0
+        midpoint = st.slider("years to half of peak", 1, 12, 4, 1,
+                             key=f"shape_mid_{ticker}_{asset_id}",
+                             help="how long the ramp takes to get halfway there")
+    try:
+        shaped = api_get(
+            api_base,
+            f"/companies/{ticker}/forecast/{asset_id}/shape"
+            f"?scenario={scenario}&peak={peak}&midpoint={midpoint}")
+    except (urllib.error.URLError, OSError) as exc:
+        st.error(f"preview failed: {exc}")
+        return True
+
+    if not shaped.get("ok"):
+        with right:
+            state("Still short of something else",
+                  "missing: " + ", ".join(shaped.get("missing") or []))
+        return True
+
+    years = [str(y) for y in shaped["years"]]
+    revenue = shaped["revenue"]
+    treated = (shaped.get("patients") or {}).get("treated") or []
+    starts = (shaped.get("patients") or {}).get("total") or []
+    with right:
+        R.show(CH.line_chart(
+            [{"name": "revenue", "values": revenue, "colour": TK.UP}],
+            years, 560, 200, y_fmt=lambda v: f"{v:,.0f}"), css_class="chart-mount")
+        peak_year = shaped["years"][revenue.index(max(revenue))] if revenue else None
+        st.markdown(metric_tiles([
+            ("rNPV", T.num(shaped["rnpv"]), "mm", None, "", "risk-adjusted"),
+            ("peak revenue", T.num(max(revenue) if revenue else None), "mm", None, "",
+             f"in {peak_year}" if peak_year else ""),
+            ("peak treated", T.num(max(treated) if treated else None), "patients",
+             None, "", "on therapy at the top"),
+            ("peak starts", T.num(max(starts) if starts else None), "patients",
+             None, "", "in a single year"),
+        ], one_row=True), unsafe_allow_html=True)
+
+    pooled = shaped.get("pooled") or []
+    if pooled and st.button(f"Commit {peak:.1%} and {midpoint} years",
+                            key=f"shape_save_{ticker}_{asset_id}",
+                            help="writes both against "
+                                 + ", ".join(p["name"] for p in pooled)):
+        rows = []
+        for entry in pooled:
+            rows.append({"key": "penetration_peak_pct", "indication_id": entry["id"],
+                         "value": peak, "unit": "share of the eligible pool",
+                         "source": "analyst judgement, set in the curve shaper",
+                         "note": "the ceiling no launch curve can yet show"})
+            rows.append({"key": "ramp_midpoint_year", "indication_id": entry["id"],
+                         "value": float(midpoint), "unit": "years from the start",
+                         "source": "analyst judgement, set in the curve shaper",
+                         "note": "years to half the ceiling above"})
+        try:
+            api_post_json(api_base,
+                          f"/companies/{ticker}/forecast/{asset_id}/assumptions",
+                          {"rows": rows, "scenario": scenario})
+        except (urllib.error.URLError, OSError) as exc:
+            st.error(f"save failed: {exc}")
+            return True
+        api_get.clear()
+        st.rerun()
+    return True
+
+
+
 def _forecast_editor(api_base: str, ticker: str, asset_id: int, scenario: str,
                      rows: list[dict]):
     """The assumptions grid: every number the forecast rests on, editable in place.
@@ -1508,11 +1618,14 @@ def _render_forecast_tab(api_base: str, ticker: str):
 
     if not data.get("ok"):
         missing = ", ".join(data.get("missing") or [])
-        state("No forecast yet", f"missing: {missing}")
-        template = data.get("template") or []
-        if template:
-            note("required keys: " + "; ".join(
-                f"{row['key']} ({row['hint']})" for row in template))
+        drew = _curve_shaper(api_base, ticker, sel, scenario,
+                             data.get("missing") or [])
+        if not drew:
+            state("No forecast yet", f"missing: {missing}")
+            template = data.get("template") or []
+            if template:
+                note("required keys: " + "; ".join(
+                    f"{row['key']} ({row['hint']})" for row in template))
         _forecast_editor(api_base, ticker, sel, scenario,
                          data.get("assumptions") or [])
         _forecast_import(api_base, ticker, sel, scenario,

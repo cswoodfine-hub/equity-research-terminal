@@ -10,6 +10,11 @@
 #
 # Seeds are insert-only. Editing a number here after it has loaded does nothing;
 # edit it in the terminal, where it lives.
+# eligible_pct is still blank, and deliberately. The programmes enrol elevated
+# Lp(a) WITH established ASCVD, but the published statistic runs the other way:
+# 44.7% of ASCVD patients carry elevated Lp(a), which is a different denominator
+# and not the fraction this pool needs. The clean fix is to rebuild the pool on
+# ASCVD prevalence and use that 44.7% as the eligible share.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AMGN,Olpasiran,,US,base,therapy_mode,,,chronic,,dosing schedule of the programme,"continuing therapy, not a one-time treatment"
 AMGN,Olpasiran,,US,base,forecast_start_year,,2027,,year,convention: first full year after the current one,edit to the expected launch year
@@ -27,3 +32,4 @@ AMGN,Olpasiran,,US,base,gross_to_net_pct,,0.5,,share,analyst convention: manufac
 AMGN,Olpasiran,Cardiovascular Diseases,US,base,prevalence,,53395654,,patients,"NHLBI 2024: roughly 1 in 5 adults carry Lp(a) above 50 mg/dL, applied to the US resident population 18+, 266,978,268, Census SCPRC-EST2024-18+POP, 1 Jul 2024","the pool is elevated Lp(a) alone. Both programmes enrol elevated Lp(a) WITH established ASCVD, so eligible_pct is a real narrowing and is left for you"
 AMGN,Olpasiran,,US,base,discontinuation_pct,,0.121,,share of the stock per year,"inclisiran 12-month discontinuation 12.1% (persistence 81.8%), systematic review and meta-analysis of real-world cohorts. The closest analogue on both mechanism and dosing burden: infrequent injection, administered rather than self-managed","the study measures the share of a starting cohort that stops within 12 months; the engine applies it to the whole stock each year. First-year attrition runs higher than later-year, so this understates the stock rather than flattering it"
 AMGN,Olpasiran,Cardiovascular Diseases,US,base,ramp_steepness,,0.657,,,"logistic k implied by Leqvio's observed CMS Part D uptake, 721 beneficiaries in 2022 to 2,681 in 2024. A genuine launch ramp for an infrequently dosed lipid injectable","incidence is left blank on purpose: elevated Lp(a) is congenital, so the pool does not take new cases, it takes people turning eighteen"
+AMGN,Olpasiran,Cardiovascular Diseases,US,base,incidence,,849539,,patients per year,"congenital, so the inflow is demographic rather than clinical: 4,247,694 US births registered in 2008 (CDC NCHS, Births: Final Data for 2008), the cohort turning 18 in 2026, times the 20% carrying elevated Lp(a)","re-derive as the birth cohort ages: this is one year's intake, not a trend. The pool itself is fixed at birth, which is why the ceiling matters more here than the inflow"
