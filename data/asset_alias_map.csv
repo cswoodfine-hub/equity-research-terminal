@@ -11,3 +11,4 @@
 # pipeline as an unapproved compound.
 ticker,programme_name,brand,note
 VRTX,CTX001,Casgevy,development name of Casgevy (exa-cel)
+VRTX,Trikafta / Kaftrio,Trikafta (Copackaged),"the SEC product axis reports Trikafta and Kaftrio as one revenue line, and nothing joins that line to the Orange Book row carrying the exclusivity, the modality and the NDA. Without this the franchise is valued as a perpetuity"

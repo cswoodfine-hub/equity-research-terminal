@@ -1,29 +1,31 @@
-# Trikafta / Kaftrio (VRTX). the CF franchise, 91% of what the model did not cover.
-# Marketed, so revenue is anchored on what the filing reported rather than
-# built from patients. Everything here is read from a source; the single
-# judgement left is revenue_growth_pct, and the forecast says so until it is set.
+# Trikafta / Kaftrio (VRTX). The CF franchise, and the largest single line in the
+# company. Marketed, so revenue is anchored on the FY2025 product axis rather than
+# built from patients.
 #
-# NO EXCLUSIVITY ON FILE for this row. The revenue line and the Orange Book
-# entry sit on different asset rows, so the erosion step has nothing to fire
-# on and this runs uneroded to the horizon. That is the most dangerous default
-# in the model for a product this size: set loe_year, or accept a perpetuity.
+# The revenue line and the Orange Book row used to sit on different assets, so the
+# franchise had no exclusivity to erode against and no modality to take an erosion
+# curve from. A curated alias folded them: this seeds against the surviving row,
+# which carries NDA217660, the small-molecule erosion default, and a drug substance
+# patent running to 2037.
 #
-# And the row carries no modality, so even with an LOE year there is no curated erosion
-# curve to apply. Set erosion_year1_pct and erosion_decay_pct alongside loe_year, or the
-# cliff will be dated and then not happen.
+# The horizon is set to fifteen years so that 2037 falls inside it. At ten the cliff
+# sits past the window, nothing erodes, and half the value is terminal.
+#
+# One judgement is left: revenue_growth_pct.
 #
 # Seeds are insert-only. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
-VRTX,Trikafta / Kaftrio,,US,base,base_revenue,,10312.7,,mm USD,"VRTX FY2025 reported product revenue, from the 10-K product axis",the anchor. Growth is the judgement on top of it
-VRTX,Trikafta / Kaftrio,,US,base,therapy_mode,,,marketed,,"already selling, so revenue is reported rather than built",no patient funnel is rebuilt for a drug that files its own sales
-VRTX,Trikafta / Kaftrio,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
-VRTX,Trikafta / Kaftrio,,US,base,pos,,1.0,,,approved and selling; the phase ramp does not apply to a Phase 4 product,development risk is retired. Commercial risk lives in the growth rate
-VRTX,Trikafta / Kaftrio,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
-VRTX,Trikafta / Kaftrio,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
-VRTX,Trikafta / Kaftrio,,US,base,beta,,0.69,,,"computed from 262 weekly returns vs S&P 500 over five years, Blume-adjusted",Casgevy keeps the workbook's 1.15 on purpose: that is the analyst's own figure and this one is measured
-VRTX,Trikafta / Kaftrio,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED), 2026-08-26",
-VRTX,Trikafta / Kaftrio,,US,base,debt_weight,,0.05,,,Vertex near-zero debt (CASGEVY workbook C35),"no TotalDebt is tagged in the filings, so the workbook's curated figure stands"
-VRTX,Trikafta / Kaftrio,,US,base,cogs_pct,,0.1376,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
-VRTX,Trikafta / Kaftrio,,US,base,sga_pct,,0.1461,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
-VRTX,Trikafta / Kaftrio,,US,base,rd_pct,,0.3258,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
-VRTX,Trikafta / Kaftrio,,US,base,tax_rate,,0.1486,,effective rate,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Trikafta (Copackaged),,US,base,base_revenue,,10312.7,,mm USD,"VRTX FY2025 reported product revenue, from the 10-K product axis",the anchor. Growth is the judgement on top of it
+VRTX,Trikafta (Copackaged),,US,base,therapy_mode,,,marketed,,"already selling, so revenue is reported rather than built",no patient funnel is rebuilt for a drug that files its own sales
+VRTX,Trikafta (Copackaged),,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+VRTX,Trikafta (Copackaged),,US,base,pos,,1.0,,,approved and selling; the phase ramp does not apply to a Phase 4 product,development risk is retired. Commercial risk lives in the growth rate
+VRTX,Trikafta (Copackaged),,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+VRTX,Trikafta (Copackaged),,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+VRTX,Trikafta (Copackaged),,US,base,beta,,0.69,,,"computed from 262 weekly returns vs S&P 500 over five years, Blume-adjusted",Casgevy keeps the workbook's 1.15 on purpose: that is the analyst's own figure and this one is measured
+VRTX,Trikafta (Copackaged),,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED), 2026-08-26",
+VRTX,Trikafta (Copackaged),,US,base,debt_weight,,0.05,,,Vertex near-zero debt (CASGEVY workbook C35),"no TotalDebt is tagged in the filings, so the workbook's curated figure stands"
+VRTX,Trikafta (Copackaged),,US,base,cogs_pct,,0.1376,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Trikafta (Copackaged),,US,base,sga_pct,,0.1461,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Trikafta (Copackaged),,US,base,rd_pct,,0.3258,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Trikafta (Copackaged),,US,base,tax_rate,,0.1486,,effective rate,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Trikafta (Copackaged),,US,base,forecast_years,,15,,years,set to reach past the 2037 drug substance patent,"a ten-year window ends in 2035 and the cliff never happens inside it, which prices the franchise as a perpetuity it is not"

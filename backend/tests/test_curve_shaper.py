@@ -196,3 +196,40 @@ def test_thin_coverage_is_flagged_and_full_coverage_is_not(tmp_path):
 def test_an_unknown_ticker_is_none(tmp_path):
     path = _company(tmp_path)
     assert forecast_view.company_verdict(path, "ZZZZ") is None
+
+
+def test_a_marketed_price_becomes_a_patient_count_to_check(tmp_path):
+    """A marketed product is valued off revenue, so its price is otherwise unused.
+    Dividing one by the other turns the price into a check an analyst can hold against a
+    registry."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("DELETE FROM assumptions WHERE asset_id = 1")
+    for key, value in (("base_revenue", 1000.0), ("revenue_growth_pct", 0.0),
+                       ("wacc", 0.08), ("forecast_start_year", 2026),
+                       ("cogs_pct", 0.2), ("sga_pct", 0.2), ("rd_pct", 0.2),
+                       ("tax_rate", 0.2), ("pos", 1.0),
+                       ("net_price_per_patient", 0.25)):
+        conn.execute("INSERT INTO assumptions (asset_id, key, value, source)"
+                     " VALUES (1, ?, ?, 'test')", (key, value))
+    conn.execute("INSERT INTO assumptions (asset_id, key, text_value, source)"
+                 " VALUES (1, 'therapy_mode', 'marketed', 'test')")
+    conn.commit(); conn.close()
+
+    v = forecast_view.verdict(path, "LLY", 1)
+    assert v["ok"] is True
+    # 1,000mm of revenue at 0.25mm a patient is 4,000 patients.
+    assert round(v["implied_patients"]) == 4000
+
+
+def test_a_patient_built_forecast_implies_nothing_of_the_kind(tmp_path):
+    """The check only means something where revenue was the input rather than the
+    output."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO assumptions (asset_id, indication_id, key, value, source)"
+                 " VALUES (1, 1, 'penetration_peak_pct', 0.05, 'test')")
+    conn.execute("INSERT INTO assumptions (asset_id, indication_id, key, value, source)"
+                 " VALUES (1, 1, 'ramp_midpoint_year', 4, 'test')")
+    conn.commit(); conn.close()
+    assert forecast_view.verdict(path, "LLY", 1)["implied_patients"] is None

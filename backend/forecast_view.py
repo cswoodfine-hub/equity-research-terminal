@@ -652,6 +652,14 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
     return {
         "ok": True, "ticker": company["ticker"], "asset_id": asset_id, "name": name,
         "scenario": scenario, "mode": built.get("mode"),
+        "horizon_end": (built.get("dcf_years") or [None])[-1],
+        # A marketed product is valued off revenue, so its price is otherwise unused.
+        # Dividing one by the other turns the price into a check: the patient count it
+        # implies is a number an analyst can hold against a registry.
+        "implied_patients": (
+            (built["revenue"][0] / forecast.net_price(inputs["scalars"]))
+            if built.get("mode") == "marketed" and built.get("revenue")
+            and forecast.net_price(inputs["scalars"]) else None),
         "rnpv": built["rnpv"], "npv": built["npv"], "owner_rnpv": owner,
         "economics_share": share,
         "diluted_shares": shares, "per_share": per_share,

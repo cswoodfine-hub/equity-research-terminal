@@ -1,0 +1,30 @@
+# Net price per patient across the Vertex portfolio, and an honest account of where it
+# could and could not be sourced.
+#
+# WHAT IS HERE. Kalydeco, computed from CMS Part D 2024 in this database: $28,727,989 of
+# spending across 105 beneficiaries is $273,600 a patient a year. Real, US, transacted,
+# and re-derivable by anyone who runs the query. It is gross of manufacturer rebates, so
+# it is an upper bound on net, and it is a Medicare population, which for a CF drug is a
+# small and old slice of the whole.
+#
+# WHAT IS NOT, AND WHY. Vertex publishes a WAC list for the portfolio in its state
+# prescriber disclosures. Both the Colorado PDF and the Vermont page refuse this client
+# with HTTP 403, so the figures reported for Trikafta, Alyftrek, Orkambi, Symdeko and
+# Journavx could not be read from the source and are not seeded on the strength of a
+# search summary.
+#
+# One figure was checked and rejected rather than used. CADTH's Trikafta treatment cost of
+# 306,810 is CANADIAN DOLLARS on a Canadian payer perspective, and would have been wrong
+# on both currency and jurisdiction had it gone in as a US price.
+#
+# Orkambi has CMS data too, from 2020 only, across 31 beneficiaries. Six years stale on a
+# sample that small is not a price, so it is recorded here and not seeded.
+#
+# TO FINISH THIS. Open the Colorado disclosure in a browser, take the 28-day WAC for each
+# product, multiply by 13.036, and enter it as list_price_per_patient with a gross-to-net
+# beside it. The forecast will then report the patient count each price implies, which is
+# the check that matters: the CF Foundation registry counts roughly 40,000 people with CF
+# in the US and 92.4% of them eligible for a modulator.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+VRTX,Kalydeco,,US,base,list_price_per_patient,,0.2736,,mm USD per year,"CMS Part D 2024: $28,727,989 across 105 beneficiaries, computed from drug_demand","gross of manufacturer rebates, so an upper bound on net; a Medicare slice of a mostly younger population"
+VRTX,Kalydeco,,US,base,gross_to_net_pct,,0.5,,share,analyst convention pending a disclosed realisation rate,"the visible half of the estimate; edit it"

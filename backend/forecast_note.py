@@ -57,6 +57,22 @@ def body(v: dict) -> list[str]:
             "drug that is the most dangerous default in the model: set an LOE year, or "
             "read this as a deliberate perpetuity.")
 
+    implied = v.get("implied_patients")
+    if implied:
+        out.append(
+            f"At the net price on file the first forecast year implies "
+            f"{implied:,.0f} patients. That is the check the price is for in a mode "
+            f"valued off revenue: hold it against the population the product actually "
+            f"treats, and if it does not fit, one of the two is wrong.")
+
+    horizon_end = v.get("horizon_end")
+    if v.get("loe_year") and horizon_end and v["loe_year"] > horizon_end:
+        out.append(
+            f"Exclusivity runs to {v['loe_year']} and the forecast stops at "
+            f"{horizon_end}, so the cliff never happens inside the window and the "
+            f"terminal value carries revenue that has a known end date. Lengthen the "
+            f"horizon past the LOE, or the perpetuity is doing work the patent will not.")
+
     if v.get("peak_revenue") and v.get("peak_year"):
         line = (f"Revenue peaks at {_mm(v['peak_revenue'])} in {v['peak_year']}")
         if v.get("loe_year"):
