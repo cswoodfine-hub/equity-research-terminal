@@ -1,52 +1,40 @@
-# Net price per patient across the Vertex portfolio, and an honest account of where it
-# could and could not be sourced.
+# Net price per patient across the Vertex CF portfolio, from the primary source.
 #
-# WHAT IS HERE. Kalydeco, computed from CMS Part D 2024 in this database: $28,727,989 of
-# spending across 105 beneficiaries is $273,600 a patient a year. Real, US, transacted,
-# and re-derivable by anyone who runs the query. It is gross of manufacturer rebates, so
-# it is an upper bound on net, and it is a Medicare population, which for a CF drug is a
-# small and old slice of the whole.
+# Vertex's WAC Disclosure for Colorado Prescribers, effective July 2026, read directly
+# rather than through a summary. WAC is the published catalog price to wholesalers before
+# any discount, rebate or reduction, in Vertex's own words, so it is the list price and
+# gross_to_net_pct is what turns it into a net one.
 #
-# WHAT IS NOT, AND WHY. Vertex publishes a WAC list for the portfolio in its state
-# prescriber disclosures. Both the Colorado PDF and the Vermont page refuse this client
-# with HTTP 403, so the figures reported for Trikafta, Alyftrek, Orkambi, Symdeko and
-# Journavx could not be read from the source and are not seeded on the strength of a
-# search summary.
+#   KALYDECO   $29,057.52 / 28 days   ->  $378,786 a year
+#   ORKAMBI    $23,773.48             ->  $309,904
+#   SYMDEKO    $25,456.29             ->  $331,841
+#   TRIKAFTA   $29,057.52             ->  $378,786
+#   ALYFTREK   $29,057.52             ->  $378,786
 #
-# One figure was checked and rejected rather than used. CADTH's Trikafta treatment cost of
-# 306,810 is CANADIAN DOLLARS on a Canadian payer perspective, and would have been wrong
-# on both currency and jurisdiction had it gone in as a US price.
+# The gross-to-net is derived rather than assumed, and it is a FLOOR. Kalydeco is the one
+# product where this database holds both ends: CMS Part D 2024 paid $273,600 per
+# beneficiary against a $378,786 WAC, which is 72.2% of list. Part D spending is itself
+# gross of manufacturer rebates, so the true discount is larger than 27.8%.
 #
-# Orkambi has CMS data too, from 2020 only, across 31 beneficiaries. Six years stale on a
-# sample that small is not a price, so it is recorded here and not seeded.
+# The implied patient count agrees. Trikafta at this net price implies 37,694 patients
+# against FY2025 revenue, and that is a global line covering Trikafta in the US and
+# Kaftrio in the EU, while the CF Foundation counts roughly 40,000 people with CF in the
+# US alone with 92.4% of them modulator-eligible. Too few patients means the price is too
+# high, which is the direction the rebate caveat already pointed.
 #
-# TO FINISH THIS, AND WHAT IS NOW KNOWN ABOUT HOW.
+# JOURNAVX is not here. It is not in the Colorado CF disclosure, and it is an acute pain
+# course rather than a year of therapy, so a price per patient per year is the wrong unit
+# for it. Its Vermont disclosure is a separate pair of PDFs, on an AWP basis.
 #
-# Two disclosures exist and they are NOT the same basis, which matters more than the
-# arithmetic:
-#
-#   Colorado  https://www.vrtx.com/sites/default/files/colorado-cf-disclosure-form.pdf
-#             Wholesale Acquisition Cost. 28-day supply x 13.036 gives the annual figure.
-#
-#   Vermont   https://www.vrtx.com/information-vermont-prescribers-prescription-drugs/
-#             AVERAGE WHOLESALE PRICE, not WAC, and AWP conventionally runs about 20%
-#             above WAC. The page also states it lists only the smallest package size of
-#             each product, so the pack has to be converted before the year is. Long and
-#             short form PDFs per product, plus a separate pair for Journavx.
-#
-# Reading either one automatically has been tried and does not work. The HTML pages load
-# fine; every PDF under vrtx.com returns 403 to a scripted client, with a browser user
-# agent and a referer set, and the in-app browser is handed a download rather than a page.
-# Claude in Chrome was not connected to try the real browser. So this needs a person with
-# a browser, once, per product.
-#
-# Whichever is used, record which basis it was on the source field. A WAC and an AWP
-# entered into the same column as though they were the same number is the kind of error
-# this file exists to prevent.
-#
-# The forecast then reports the patient count the price implies, which is the check that
-# matters: the CF Foundation registry counts roughly 40,000 people with CF in the US and
-# 92.4% of them eligible for a modulator.
+# Seeds are insert-only. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
-VRTX,Kalydeco,,US,base,list_price_per_patient,,0.2736,,mm USD per year,"CMS Part D 2024: $28,727,989 across 105 beneficiaries, computed from drug_demand","gross of manufacturer rebates, so an upper bound on net; a Medicare slice of a mostly younger population"
-VRTX,Kalydeco,,US,base,gross_to_net_pct,,0.5,,share,analyst convention pending a disclosed realisation rate,"the visible half of the estimate; edit it"
+VRTX,Kalydeco,,US,base,list_price_per_patient,,0.378786,,mm USD per year,"Vertex WAC Disclosure for Colorado Prescribers, effective July 2026, VXR-US-20-1900562 v27.0: 29,057.52 per 28-day supply x 365/28","WAC is the published catalog price to wholesalers, before any discount, rebate or reduction, in Vertex's own words"
+VRTX,Kalydeco,,US,base,gross_to_net_pct,,0.2777,,share off list,"derived: Kalydeco's CMS Part D 2024 spend per beneficiary of $273,600 against its $378,786 WAC is 72.2% of list","a FLOOR on the discount, not an estimate of it. Part D spending is itself gross of manufacturer rebates, so true net sits below this. The implied patient count says the same: Trikafta at this net gives 37,694 patients against a global franchise whose US CF population alone is about 40,000"
+VRTX,Orkambi,,US,base,list_price_per_patient,,0.309904,,mm USD per year,"Vertex WAC Disclosure for Colorado Prescribers, effective July 2026, VXR-US-20-1900562 v27.0: 23,773.48 per 28-day supply x 365/28","WAC is the published catalog price to wholesalers, before any discount, rebate or reduction, in Vertex's own words"
+VRTX,Orkambi,,US,base,gross_to_net_pct,,0.2777,,share off list,"derived: Kalydeco's CMS Part D 2024 spend per beneficiary of $273,600 against its $378,786 WAC is 72.2% of list","a FLOOR on the discount, not an estimate of it. Part D spending is itself gross of manufacturer rebates, so true net sits below this. The implied patient count says the same: Trikafta at this net gives 37,694 patients against a global franchise whose US CF population alone is about 40,000"
+VRTX,Symdeko (Copackaged),,US,base,list_price_per_patient,,0.331841,,mm USD per year,"Vertex WAC Disclosure for Colorado Prescribers, effective July 2026, VXR-US-20-1900562 v27.0: 25,456.29 per 28-day supply x 365/28","WAC is the published catalog price to wholesalers, before any discount, rebate or reduction, in Vertex's own words"
+VRTX,Symdeko (Copackaged),,US,base,gross_to_net_pct,,0.2777,,share off list,"derived: Kalydeco's CMS Part D 2024 spend per beneficiary of $273,600 against its $378,786 WAC is 72.2% of list","a FLOOR on the discount, not an estimate of it. Part D spending is itself gross of manufacturer rebates, so true net sits below this. The implied patient count says the same: Trikafta at this net gives 37,694 patients against a global franchise whose US CF population alone is about 40,000"
+VRTX,Trikafta (Copackaged),,US,base,list_price_per_patient,,0.378786,,mm USD per year,"Vertex WAC Disclosure for Colorado Prescribers, effective July 2026, VXR-US-20-1900562 v27.0: 29,057.52 per 28-day supply x 365/28","WAC is the published catalog price to wholesalers, before any discount, rebate or reduction, in Vertex's own words"
+VRTX,Trikafta (Copackaged),,US,base,gross_to_net_pct,,0.2777,,share off list,"derived: Kalydeco's CMS Part D 2024 spend per beneficiary of $273,600 against its $378,786 WAC is 72.2% of list","a FLOOR on the discount, not an estimate of it. Part D spending is itself gross of manufacturer rebates, so true net sits below this. The implied patient count says the same: Trikafta at this net gives 37,694 patients against a global franchise whose US CF population alone is about 40,000"
+VRTX,Alyftrek,,US,base,list_price_per_patient,,0.378786,,mm USD per year,"Vertex WAC Disclosure for Colorado Prescribers, effective July 2026, VXR-US-20-1900562 v27.0: 29,057.52 per 28-day supply x 365/28","WAC is the published catalog price to wholesalers, before any discount, rebate or reduction, in Vertex's own words"
+VRTX,Alyftrek,,US,base,gross_to_net_pct,,0.2777,,share off list,"derived: Kalydeco's CMS Part D 2024 spend per beneficiary of $273,600 against its $378,786 WAC is 72.2% of list","a FLOOR on the discount, not an estimate of it. Part D spending is itself gross of manufacturer rebates, so true net sits below this. The implied patient count says the same: Trikafta at this net gives 37,694 patients against a global franchise whose US CF population alone is about 40,000"
