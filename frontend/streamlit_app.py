@@ -1350,6 +1350,53 @@ def metric_tiles(items, one_row: bool = False) -> str:
 CURVE_KEYS = ("penetration_peak_pct", "ramp_midpoint_year")
 
 
+def _company_call(api_base: str, ticker: str) -> None:
+    """The frame the per-asset calls sit inside.
+
+    An analyst covers a name, not a compound. This states what the modelled pipeline is
+    worth per share and what fraction of the price that explains, and in the same breath
+    how much of the business it actually covers, because a model over one product of six
+    will always look small against a market capitalisation and reading that as "the
+    market is wrong" rather than "the model is thin" is the easiest mistake this page
+    could invite.
+    """
+    try:
+        v = api_get(api_base, f"/companies/{ticker}/forecast-verdict")
+    except (urllib.error.URLError, OSError):
+        return
+    if not v.get("ok") or not v.get("per_share"):
+        return
+    note_body = v.get("note") or {}
+    coverage = v.get("coverage") or {}
+
+    section(f"{ticker}, all modelled assets",
+            basis=f"{len(v.get('modelled') or [])} of the book")
+    st.markdown(
+        f'<div class="call-lead">{html_escape(note_body.get("headline") or "")}</div>',
+        unsafe_allow_html=True)
+    tiles = [("pipeline per share", T.num(v.get("per_share"), 2), "", None, "",
+              "modelled assets only"),
+             ("share price", T.num(v.get("close"), 2), "", None, "",
+              f"close {v.get('close_date') or ''}"),
+             ("share of price", T.pct((v.get("pct_of_price") or 0) * 100, 1), "",
+              None, "", "explained by the model")]
+    if coverage.get("share") is not None:
+        tiles.append(("revenue covered", T.pct(coverage["share"] * 100, 1), "",
+                      None, "", f"of FY{coverage['fiscal_year']} product sales"))
+    st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+
+    unmodelled = coverage.get("unmodelled") or []
+    if unmodelled:
+        R.show(CH.bar_chart(
+            [{"label": u["name"][:22], "value": u["revenue"] / 1e6}
+             for u in unmodelled], 620, 30 + 26 * len(unmodelled), horizontal=True,
+            value_fmt=lambda x: f"{x:,.0f}"), css_class="chart-mount")
+    for paragraph in note_body.get("body") or []:
+        st.markdown(f'<div class="byline">{html_escape(paragraph)}</div>',
+                    unsafe_allow_html=True)
+
+
+
 def _the_call(api_base: str, ticker: str, asset_id: int, scenario: str) -> None:
     """The top of the tab: what the model says, what it rests on, what settles it.
 
@@ -1648,6 +1695,10 @@ def _render_forecast_tab(api_base: str, ticker: str):
     are missing rather than showing a blank.
     """
     st.markdown('<span class="no-rail"></span>', unsafe_allow_html=True)
+    # The company sits above the compound, because that is the unit of coverage. It draws
+    # only where something computes, so a name with nothing modelled is not given a
+    # heading with nothing under it.
+    _company_call(api_base, ticker)
     try:
         overview = api_get(api_base, f"/companies/{ticker}/forecast")
     except (urllib.error.URLError, OSError) as exc:

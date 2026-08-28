@@ -132,3 +132,67 @@ def test_a_verdict_knows_whether_its_scenarios_are_real(tmp_path):
     v = forecast_view.verdict(path, "LLY", 1)
     assert v["has_range"] is True
     assert v["spread"]["bear"]["rnpv"] < v["spread"]["base"]["rnpv"]
+
+
+# --- the company call ------------------------------------------------------
+# An analyst covers a name, not a compound. What makes the sum honest is saying in the
+# same breath how much of the business it covers.
+
+def _company(tmp_path):
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO assumptions (asset_id, indication_id, key, value, source)"
+                 " VALUES (1, 1, 'penetration_peak_pct', 0.05, 'test')")
+    conn.execute("INSERT INTO assumptions (asset_id, indication_id, key, value, source)"
+                 " VALUES (1, 1, 'ramp_midpoint_year', 4, 'test')")
+    conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year,"
+                 " period_end, value, unit) VALUES"
+                 " (1, 'WeightedAverageDilutedShares', 'FY', 2025, '2025-12-31',"
+                 "  258000000, 'shares')")
+    conn.execute("INSERT INTO prices (company_id, as_of, close, interval)"
+                 " VALUES (1, '2026-08-27', 547.55, '1d')")
+    # One modelled product and one much larger one that is not.
+    conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value)"
+                 " VALUES (1, 2025, 'FY', 120000000)")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (2, 1, 'Trikafta', 1)")
+    conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value)"
+                 " VALUES (2, 2025, 'FY', 10310000000)")
+    conn.commit(); conn.close()
+    return path
+
+
+def test_the_company_call_reports_coverage_beside_the_number(tmp_path):
+    path = _company(tmp_path)
+    v = forecast_view.company_verdict(path, "LLY")
+    assert v["per_share"] > 0
+    assert v["pct_of_price"] == v["per_share"] / 547.55
+    # The guard: one product of two, and the small one.
+    assert round(v["coverage"]["share"], 3) == 0.012
+    assert v["coverage"]["unmodelled"][0]["name"] == "Trikafta"
+
+
+def test_the_note_leads_with_what_is_not_modelled(tmp_path):
+    import forecast_note
+    path = _company(tmp_path)
+    note = forecast_note.write_company(forecast_view.company_verdict(path, "LLY"))
+    assert "1.2% of FY2025 product revenue" in note["headline"]
+    assert "Trikafta alone is 99%" in note["headline"]
+    body = " ".join(note["body"])
+    assert "point it at the rest" in body          # thin coverage is called out
+    assert "work queue" in body
+
+
+def test_thin_coverage_is_flagged_and_full_coverage_is_not(tmp_path):
+    import forecast_note
+    path = _company(tmp_path)
+    v = forecast_view.company_verdict(path, "LLY")
+    assert "point it at the rest" in " ".join(forecast_note.company_body(v))
+    v["coverage"]["share"] = 0.90
+    v["coverage"]["unmodelled"] = []
+    assert "point it at the rest" not in " ".join(forecast_note.company_body(v))
+
+
+def test_an_unknown_ticker_is_none(tmp_path):
+    path = _company(tmp_path)
+    assert forecast_view.company_verdict(path, "ZZZZ") is None

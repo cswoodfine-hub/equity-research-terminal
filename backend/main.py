@@ -570,6 +570,18 @@ def save_forecast_assumptions(ticker: str, asset_id: int, body: AssumptionsIn) -
     return out
 
 
+# Not /forecast/verdict: that collides with /forecast/{asset_id}, which FastAPI matches
+# first and then fails to cast "verdict" to an int. A distinct path beats relying on
+# declaration order for correctness.
+@app.get("/companies/{ticker}/forecast-verdict")
+def company_forecast_verdict(ticker: str) -> dict:
+    """Every modelled asset in one name, per share, against what the share costs."""
+    out = forecast_view_module.company_verdict(None, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    return {**out, "note": forecast_note.write_company(out)}
+
+
 @app.get("/companies/{ticker}/forecast/{asset_id}/verdict")
 def forecast_verdict(ticker: str, asset_id: int, scenario: str = "base") -> dict:
     """The forecast as a view: per share, against the market, ranked, and written."""

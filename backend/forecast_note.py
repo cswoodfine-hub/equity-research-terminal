@@ -120,3 +120,78 @@ def write(v: dict) -> dict:
                 "headline": f"No forecast for {(v or {}).get('name') or 'this asset'} yet.",
                 "body": [f"Still missing: {missing}."]}
     return {"ok": True, "headline": headline(v), "body": body(v)}
+
+
+# --- the company ------------------------------------------------------------
+# An analyst covers a name, not a compound, so the per-asset calls have to add up. What
+# makes the sum honest is stating in the same breath how much of the business it covers.
+
+# Below this share of product revenue, the model is a sample of the company rather than a
+# view of it, and the note says so before it says anything else.
+THIN_COVERAGE = 0.25
+
+
+def company_headline(v: dict) -> str:
+    if not v.get("per_share"):
+        return (f"{v.get('name') or v.get('ticker')} has no modelled asset that "
+                f"computes yet, so there is no company number to state.")
+    price = v.get("close")
+    lead = (f"{v['ticker']}'s modelled pipeline is worth "
+            f"{_per_share(v['per_share'])} a share")
+    if price:
+        lead += (f" against a {_per_share(price)} share price, "
+                 f"{v['pct_of_price']:.1%} of the company")
+    coverage = v.get("coverage") or {}
+    if coverage.get("share") is not None:
+        lead += (f". That is {len(v.get('modelled') or [])} asset"
+                 f"{'s' if len(v.get('modelled') or []) != 1 else ''} out of a book: "
+                 f"the model covers {coverage['share']:.1%} of FY"
+                 f"{coverage['fiscal_year']} product revenue")
+        biggest = (coverage.get("unmodelled") or [None])[0]
+        if biggest and biggest.get("share"):
+            lead += (f", and {biggest['name']} alone is {biggest['share']:.0%} of what "
+                     f"it does not")
+    return lead + "."
+
+
+def company_body(v: dict) -> list[str]:
+    out = []
+    coverage = v.get("coverage") or {}
+    if coverage.get("share") is not None and coverage["share"] < THIN_COVERAGE:
+        out.append(
+            "Read the share of price with that in mind. A model over a fraction of the "
+            "revenue will always look small against a market capitalisation, and the "
+            "answer to that is to point it at the rest rather than to conclude the "
+            "market is wrong.")
+
+    modelled = v.get("modelled") or []
+    if len(modelled) > 1:
+        ranked = ", ".join(f"{m['name']} at {_per_share(m['per_share'])}"
+                           for m in modelled[:4] if m.get("per_share"))
+        out.append(f"What is modelled, largest first: {ranked}.")
+
+    unmodelled = coverage.get("unmodelled") or []
+    if unmodelled:
+        queue = ", ".join(f"{u['name']} ({_mm(u['revenue'] / 1e6)})"
+                          for u in unmodelled[:4])
+        out.append(f"What is not, by last year's revenue: {queue}. That is the work "
+                   f"queue, in the order it would change the answer.")
+
+    refused = v.get("refused") or []
+    if refused:
+        named = ", ".join(str(r.get("name") or r.get("asset_id")) for r in refused[:4])
+        out.append(f"Started and not finished: {named}. Each has assumptions on file "
+                   f"and something still missing.")
+
+    catalyst = v.get("next_catalyst")
+    if catalyst and catalyst.get("expected_date"):
+        out.append(f"The next dated event on anything modelled is a "
+                   f"{catalyst.get('catalyst_type') or 'catalyst'} on "
+                   f"{catalyst['expected_date']}.")
+    return out
+
+
+def write_company(v: dict) -> dict:
+    if not v or not v.get("ok"):
+        return {"ok": False, "headline": "No company forecast yet.", "body": []}
+    return {"ok": True, "headline": company_headline(v), "body": company_body(v)}

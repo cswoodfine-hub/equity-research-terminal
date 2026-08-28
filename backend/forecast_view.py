@@ -669,3 +669,87 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         "unsourced": [r["key"] for r in rows if not (r["source"] or "").strip()],
         "notes": built.get("notes") or [],
     }
+
+
+def _revenue_coverage(conn, company_id: int, modelled_ids: list):
+    """What share of last year's product revenue the modelled assets account for.
+
+    The number that keeps a company call honest. A pipeline worth 0.8% of the share price
+    sounds like a rounding error until you see that it is one product out of a book where
+    another does 86% of the sales, at which point the right response is not to distrust
+    the model but to point it at the rest.
+    """
+    year = conn.execute(
+        """SELECT MAX(ar.fiscal_year) FROM asset_revenue ar JOIN assets a
+             ON a.id = ar.asset_id
+            WHERE a.owner_company_id = ? AND ar.period = 'FY'""",
+        (company_id,)).fetchone()[0]
+    if not year:
+        return None
+    rows = [dict(r) for r in conn.execute(
+        """SELECT a.id, a.brand_name, ar.value FROM asset_revenue ar
+             JOIN assets a ON a.id = ar.asset_id
+            WHERE a.owner_company_id = ? AND ar.period = 'FY'
+              AND ar.fiscal_year = ? AND ar.value IS NOT NULL
+            ORDER BY ar.value DESC""", (company_id, year))]
+    total = sum(r["value"] for r in rows) or None
+    if not total:
+        return None
+    covered = sum(r["value"] for r in rows if r["id"] in set(modelled_ids))
+    return {
+        "fiscal_year": year, "product_revenue": total, "modelled_revenue": covered,
+        "share": covered / total,
+        "unmodelled": [{"name": r["brand_name"], "revenue": r["value"],
+                        "share": r["value"] / total}
+                       for r in rows if r["id"] not in set(modelled_ids)][:6],
+    }
+
+
+def company_verdict(db_path, ticker: str):
+    """Every modelled asset in one name, per share, against what the share costs.
+
+    An analyst covers a company, not a compound, so this is where the per-asset calls add
+    up. It reports three things together and refuses to report the first without the
+    other two: what the modelled pipeline is worth per share, what fraction of today's
+    price that explains, and how much of the business it actually covers.
+
+    The last one is the guard. A model over one product of six will always look small
+    against a market capitalisation, and reading that as "the market is wrong" rather
+    than "the model is thin" is the easiest mistake this page could invite.
+    """
+    rollup = company_rollup(db_path, ticker)
+    if rollup is None:
+        return None
+    conn = db.get_connection(db_path)
+    try:
+        company = _company(conn, ticker)
+        shares = _diluted_shares(conn, company["id"])
+        close, close_date = _last_close(conn, company["id"])
+        modelled_ids = [line["asset_id"] for line in rollup["lines"]]
+        coverage = _revenue_coverage(conn, company["id"], modelled_ids)
+        catalyst = None
+        for asset_id in modelled_ids:
+            found = _next_catalyst(conn, asset_id)
+            if found and (catalyst is None
+                          or found["expected_date"] < catalyst["expected_date"]):
+                catalyst = found
+    finally:
+        conn.close()
+
+    per_share = rollup.get("rnpv_per_share")
+    lines = []
+    for line in rollup["lines"]:
+        lines.append({**line,
+                      "per_share": (line["rnpv_share"] * 1e6 / shares)
+                      if shares else None})
+    lines.sort(key=lambda r: -(r["rnpv_share"] or 0))
+    return {
+        "ok": True, "ticker": rollup["ticker"], "name": company["name"],
+        "modelled": lines, "refused": rollup.get("refused") or [],
+        "rnpv_total": rollup["rnpv_total"], "per_share": per_share,
+        "diluted_shares": shares, "close": close, "close_date": close_date,
+        "pct_of_price": (per_share / close) if (per_share and close) else None,
+        "market_cap": (shares * close) if (shares and close) else None,
+        "coverage": coverage, "next_catalyst": catalyst,
+        "combined": rollup["combined"], "reported_revenue": rollup["reported_revenue"],
+    }
