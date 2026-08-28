@@ -20,11 +20,33 @@
 # Orkambi has CMS data too, from 2020 only, across 31 beneficiaries. Six years stale on a
 # sample that small is not a price, so it is recorded here and not seeded.
 #
-# TO FINISH THIS. Open the Colorado disclosure in a browser, take the 28-day WAC for each
-# product, multiply by 13.036, and enter it as list_price_per_patient with a gross-to-net
-# beside it. The forecast will then report the patient count each price implies, which is
-# the check that matters: the CF Foundation registry counts roughly 40,000 people with CF
-# in the US and 92.4% of them eligible for a modulator.
+# TO FINISH THIS, AND WHAT IS NOW KNOWN ABOUT HOW.
+#
+# Two disclosures exist and they are NOT the same basis, which matters more than the
+# arithmetic:
+#
+#   Colorado  https://www.vrtx.com/sites/default/files/colorado-cf-disclosure-form.pdf
+#             Wholesale Acquisition Cost. 28-day supply x 13.036 gives the annual figure.
+#
+#   Vermont   https://www.vrtx.com/information-vermont-prescribers-prescription-drugs/
+#             AVERAGE WHOLESALE PRICE, not WAC, and AWP conventionally runs about 20%
+#             above WAC. The page also states it lists only the smallest package size of
+#             each product, so the pack has to be converted before the year is. Long and
+#             short form PDFs per product, plus a separate pair for Journavx.
+#
+# Reading either one automatically has been tried and does not work. The HTML pages load
+# fine; every PDF under vrtx.com returns 403 to a scripted client, with a browser user
+# agent and a referer set, and the in-app browser is handed a download rather than a page.
+# Claude in Chrome was not connected to try the real browser. So this needs a person with
+# a browser, once, per product.
+#
+# Whichever is used, record which basis it was on the source field. A WAC and an AWP
+# entered into the same column as though they were the same number is the kind of error
+# this file exists to prevent.
+#
+# The forecast then reports the patient count the price implies, which is the check that
+# matters: the CF Foundation registry counts roughly 40,000 people with CF in the US and
+# 92.4% of them eligible for a modulator.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 VRTX,Kalydeco,,US,base,list_price_per_patient,,0.2736,,mm USD per year,"CMS Part D 2024: $28,727,989 across 105 beneficiaries, computed from drug_demand","gross of manufacturer rebates, so an upper bound on net; a Medicare slice of a mostly younger population"
 VRTX,Kalydeco,,US,base,gross_to_net_pct,,0.5,,share,analyst convention pending a disclosed realisation rate,"the visible half of the estimate; edit it"
