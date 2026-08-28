@@ -12,6 +12,7 @@ from fetchers.deals_news import DealsNewsFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
 from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.prices import IntradayPricesFetcher, PricesFetcher
+from fetchers.press_ir import PressIrFetcher
 from fetchers.ndc_marketing import NdcMarketingFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 
@@ -35,6 +36,19 @@ def _snapshot_kind_counts(conn, ticker):
     return {r["kind"]: r["n"] for r in rows}
 
 
+def _ir_pages_without_the_network(self):
+    """What PressIrFetcher.fetch returns for a company with no feed seeded, which is the
+    path it already treats as nothing to report rather than something to fix."""
+    conn = db.get_connection(self.db_path)
+    try:
+        company = conn.execute(
+            "SELECT id, ticker, name, ir_rss_url FROM companies WHERE ticker = ?",
+            (self.ticker,)).fetchone()
+    finally:
+        conn.close()
+    return {"company": dict(company), "xml": None}
+
+
 def test_refresh_populates_then_skips_within_ttl(tmp_path, monkeypatch):
     payload = json.loads(FIXTURE.read_text())
     # Return fixtures instead of hitting the network; keeps the test offline. The
@@ -49,6 +63,11 @@ def test_refresh_populates_then_skips_within_ttl(tmp_path, monkeypatch):
     # openFDA rate-limits it: the run came back partial on an HTTP 429 that has nothing
     # to do with what the test asserts.
     monkeypatch.setattr(NdcMarketingFetcher, "fetch", lambda self: {"results": []})
+    # The same, for the investor relations pages: Lilly's answers a scripted client with
+    # an HTTP 403 and the run goes partial on it. The docstring says no network and means
+    # it; every fetcher a refresh reaches has to be stubbed for that to hold. This takes
+    # the fetcher's own no-feed path, so everything but the HTTP call still runs.
+    monkeypatch.setattr(PressIrFetcher, "fetch", _ir_pages_without_the_network)
 
     db_file = tmp_path / "test.db"
     db.init(db_file)
