@@ -100,3 +100,18 @@ def test_a_real_range_is_still_reported():
     body = " ".join(forecast_note.write(_verdict(has_range=True))["body"])
     assert "$1.42 to $8.91" in body
     assert "no bear or bull case" not in body
+
+
+def test_a_course_priced_drug_implies_courses_not_patients():
+    """Journavx treats acute pain and its label says use has not been studied beyond 14
+    days. Calling the count it implies "patients" would be a quiet lie."""
+    body = " ".join(forecast_note.write(
+        _verdict(implied_patients=256344, price_basis="course"))["body"])
+    assert "256,344 courses" in body
+    assert "patients" not in body
+
+
+def test_a_yearly_price_still_implies_patients():
+    body = " ".join(forecast_note.write(
+        _verdict(implied_patients=39201))["body"])
+    assert "39,201 patients" in body

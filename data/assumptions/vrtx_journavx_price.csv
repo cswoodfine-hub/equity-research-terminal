@@ -1,0 +1,28 @@
+# Journavx (suzetrigine), priced as what it is: a course, not a year.
+#
+# The other Vertex products are taken every day for life and a price per patient per year
+# is the natural unit. Journavx treats moderate-to-severe acute pain, and its label says
+# use "has not been studied beyond 14 days" and should run "for the shortest duration
+# consistent with individual patient treatment goals". Annualising it would invent a
+# quantity nobody buys.
+#
+# Two sources, and they reconcile, which is why both are cited. The FDA label on DailyMed
+# gives the regimen: a 100 mg loading dose, then 50 mg every 12 hours. ICER's review gives
+# the WAC as $15.50 per 50 mg pill and a typical seven-day course as $232.50. That course
+# is exactly fifteen pills, which is the two-pill loading dose plus thirteen maintenance
+# doses across the week, so the price and the label agree to the pill.
+#
+# A fourteen-day course, the label's outer limit, would be twenty-nine pills at $449.50.
+# Which of the two to model is a clinical judgement about the mix of procedures Journavx
+# is used after, and it is left alone here.
+#
+# No gross-to-net. The CF portfolio's 27.77% is derived from Kalydeco against Medicare
+# Part D and describes a lifelong specialty drug in a monopoly class. Journavx is an acute
+# retail product competing with generic opioids and NSAIDs, and carrying that figure
+# across would be borrowing a number from a market it does not belong to.
+#
+# The implied count is courses, not patients: FY2025 revenue of $59.6mm over a $232.50
+# course is about 256,000 courses, or about 133,000 at the fourteen-day price.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+VRTX,Journavx,,US,base,price_basis,,,course,,"FDA label (DailyMed): acute pain, not studied beyond 14 days","tells the forecast to report implied courses rather than implied patients"
+VRTX,Journavx,,US,base,net_price_per_patient,,0.0002325,,mm USD per course,"ICER review of suzetrigine (PMC12204333): WAC $15.50 per 50mg pill, typical 7-day course $232.50; reconciles to 15 pills against the DailyMed regimen","WAC basis, so gross of any discount. A 14-day course would be 29 pills at $449.50"

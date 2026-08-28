@@ -59,11 +59,14 @@ def body(v: dict) -> list[str]:
 
     implied = v.get("implied_patients")
     if implied:
+        # A price per course buys a course, not a year of treatment, and the count it
+        # implies has to be named for what it is.
+        unit = "courses" if (v.get("price_basis") or "") == "course" else "patients"
         out.append(
             f"At the net price on file the first forecast year implies "
-            f"{implied:,.0f} patients. That is the check the price is for in a mode "
-            f"valued off revenue: hold it against the population the product actually "
-            f"treats, and if it does not fit, one of the two is wrong.")
+            f"{implied:,.0f} {unit}. That is the check the price is for in a mode "
+            f"valued off revenue: hold it against what the product actually treats, and "
+            f"if it does not fit, one of the two is wrong.")
 
     horizon_end = v.get("horizon_end")
     if v.get("loe_year") and horizon_end and v["loe_year"] > horizon_end:

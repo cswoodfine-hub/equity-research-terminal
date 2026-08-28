@@ -653,6 +653,7 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         "ok": True, "ticker": company["ticker"], "asset_id": asset_id, "name": name,
         "scenario": scenario, "mode": built.get("mode"),
         "horizon_end": (built.get("dcf_years") or [None])[-1],
+        "price_basis": (inputs.get("scalars") or {}).get("price_basis"),
         # A marketed product is valued off revenue, so its price is otherwise unused.
         # Dividing one by the other turns the price into a check: the patient count it
         # implies is a number an analyst can hold against a registry.

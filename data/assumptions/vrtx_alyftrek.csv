@@ -18,3 +18,4 @@ VRTX,Alyftrek,,US,base,cogs_pct,,0.1376,,share of revenue,"VRTX FY2025 10-K, com
 VRTX,Alyftrek,,US,base,sga_pct,,0.1461,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
 VRTX,Alyftrek,,US,base,rd_pct,,0.3258,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
 VRTX,Alyftrek,,US,base,tax_rate,,0.1486,,effective rate,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Alyftrek,,US,base,forecast_years,,18,,years,set to reach past the 2040 loss of exclusivity on file,"exclusivity runs to 2040, and a ten-year window ends in 2035: the cliff would sit outside the forecast and the terminal value would carry revenue with a known end date"
