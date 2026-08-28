@@ -1,7 +1,11 @@
 # Alyftrek (VRTX). the next-generation CF triple.
-# Marketed, so revenue is anchored on what the filing reported rather than
-# built from patients. Everything here is read from a source; the single
-# judgement left is revenue_growth_pct, and the forecast says so until it is set.
+# Marketed, so revenue is anchored on what the filing reported rather than built from
+# patients.
+#
+# Alyftrek is where Vertex is moving the CF franchise, so its growth is not its own: it
+# is Trikafta's decline seen from the other side. FY2026 is pinned by guidance, and the
+# ceiling stops the launch rate compounding past the franchise it is taking share of.
+# The open judgement is the share Alyftrek settles at and how fast Trikafta gives it up.
 #
 # Seeds are insert-only. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
@@ -19,6 +23,7 @@ VRTX,Alyftrek,,US,base,sga_pct,,0.1461,,share of revenue,"VRTX FY2025 10-K, comp
 VRTX,Alyftrek,,US,base,rd_pct,,0.3258,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
 VRTX,Alyftrek,,US,base,tax_rate,,0.1486,,effective rate,"VRTX FY2025 10-K, computed from the filed lines",
 VRTX,Alyftrek,,US,base,forecast_years,,18,,years,set to reach past the 2040 loss of exclusivity on file,"exclusivity runs to 2040, and a ten-year window ends in 2035: the cliff would sit outside the forecast and the terminal value would carry revenue with a known end date"
-VRTX,Alyftrek,,US,base,revenue_growth_pct,,0.0962,,"annual, near term","derived from Vertex's own FY2026 guidance of $13.1-13.2bn (raised 2026-08-03, quote on file): company revenue less other revenue held flat, less the two launches annualised from their FY2026 H1 actuals, leaves the CF franchise at +9.62%. The decomposition reproduces the $13,150mm midpoint exactly. applied to Trikafta and Alyftrek alike. Vertex is converting patients from one to the other, so the split between these two rows is wrong in detail and right in sum: a switch moves revenue between them without changing the franchise total, which is the number actually guided. Split them before valuing either product on its own",
+VRTX,Alyftrek,,US,base,revenue_growth_pct,,1.755825,,"annual, near term","derived from Vertex's FY2026 guidance of $13.1-13.2bn, raised 2026-08-03: the $500mm or more of non-CF revenue the same release attributes to CASGEVY and JOURNAVX comes off the top, then TRIKAFTA/KAFTRIO and the other CF products are carried to the full year on their own H1 2026 actuals and last year's second-half shape. The decomposition reproduces the $13,150mm midpoint exactly. Alyftrek is the residual: $13,150 less $500 non-CF less $9,836.9 Trikafta less $504.3 other CF products leaves $2,308.8mm","the switch target, and the one CF line guidance does not pin directly. $2,308.8mm implies a second half of $1,310.8mm against a first half of $998.0mm, about $655mm a quarter against the $573.6mm it did in Q2 2026. Read it with revenue_ceiling_musd: a launch rate compounded past FY2026 is arithmetic, and the pool it is taking is finite"
+VRTX,Alyftrek,,US,base,revenue_ceiling_musd,,12650,,mm USD,"Vertex FY2026 guidance midpoint of $13,150mm less the $500mm of non-CF revenue the same release states, so the CF franchise it is guiding to is $12,650mm","Alyftrek and Trikafta dispense to one pool of patients, so Alyftrek at most replaces Trikafta and cannot earn more than the whole franchise does. Without the bound its own launch rate compounds past the entire franchise in 2029 and reaches $26bn in 2030. The bound is held flat, which understates a franchise Vertex expects to grow"
 VRTX,Alyftrek,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to zero, which is what the terminal value already assumes, so the two halves of the model agree. Held flat instead, this rate reaches 31bn of Trikafta by its 2037 LOE, close to three times the entire US CF population at its net price, and 570bn of Journavx by 2043"
 VRTX,Alyftrek,,US,base,growth_fade_years,,5,,years,convention: a guided rate describes next year,"five years to the long-run rate. A guided rate describes next year, not the decade after it"
