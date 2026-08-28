@@ -1694,8 +1694,9 @@ def _render_forecast_tab(api_base: str, ticker: str):
         if other.get("ok"):
             span_values += other["result"]["revenue_after_loe"]
     revenue_span = (min(span_values), max(span_values)) if span_values else None
-    patients_span = (min(result["patients"]["total"]),
-                     max(result["patients"]["total"]))
+    _pat = list(result["patients"]["total"]) + list(
+        result["patients"].get("treated") or [])
+    patients_span = (min(_pat), max(_pat))
 
     charts_col, facts_col = st.columns([1.25, 1])
     with charts_col:
@@ -1731,12 +1732,26 @@ def _render_forecast_tab(api_base: str, ticker: str):
                              for i in range(len(years))]
             patient_series.append({"name": "derived", "values": derived_total,
                                    "colour": TK.FLAG})
+        # The stock still on therapy, which is the line revenue actually meets. For a
+        # one-time therapy it sits exactly on the starts and is left off rather than
+        # drawn twice; for a chronic one it is the larger number and the whole point.
+        treated = result["patients"].get("treated") or []
+        if treated and treated != result["patients"]["total"]:
+            patient_series.append({"name": "on therapy",
+                                   "values": [v * volume_scale for v in treated],
+                                   "colour": TK.DOWN})
         R.show(CH.line_chart(patient_series, x_labels, 620, 220,
                              y_fmt=lambda v: f"{v:,.0f}", y_span=patients_span),
                css_class="chart-mount")
-        note("the pool identity derives the curve from prevalence, incidence and "
-             "penetration: the hump is arithmetic, the tail is the incidence run "
-             "rate, and it can be argued against the hand series above it")
+        if treated and treated != result["patients"]["total"]:
+            note("two lines, two quantities. Starts are who begins in a year; on therapy "
+                 "is who is still taking it, carried forward at the persistence rate and "
+                 "the series the annual price is charged against. The gap between them "
+                 "is the whole economics of a chronic drug.")
+        else:
+            note("the pool identity derives the curve from prevalence, incidence and "
+                 "penetration: the hump is arithmetic, the tail is the incidence run "
+                 "rate, and it can be argued against the hand series above it")
 
     with facts_col:
         section("Valuation", basis="mm USD" + (" · varied" if varied else ""))
