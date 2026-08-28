@@ -61,8 +61,11 @@ def test_a_product_absent_from_one_table_is_absent_rather_than_wrong():
     stay missing: carrying the quarter into the half year would invent a figure."""
     import revenue_mdna
 
-    per_period = {period: revenue_mdna.parse(body, BRANDS)
-                  for period, _, _, body in RE.tables(BIIB)}
+    # Merged rather than keyed on the last table of each period: Biogen prints a second
+    # three month table, the total revenue one, and it states no products at all.
+    per_period = {}
+    for period, _, _, body in RE.tables(BIIB):
+        per_period.setdefault(period, {}).update(revenue_mdna.parse(body, BRANDS))
     assert "Byooviz" in per_period["Q2"]
     assert "Byooviz" not in per_period["H1"]
 
@@ -260,3 +263,47 @@ def test_a_line_item_is_not_a_product():
         assert not asset_identity.looks_like_a_product(name), name
     for name in ("Eliquis", "Biktarvy", "Padcev", "Livdelzi", "Nurtec ODT/Vydura"):
         assert asset_identity.looks_like_a_product(name), name
+
+
+# --- Two headings on one line -----------------------------------------------
+#
+# Vertex prints one product table under both periods side by side. Biogen's case is two
+# tables stacked, which the reader handles by taking the nearest heading above. Stacked
+# is not this: here the periods run left to right along with the columns, and the figures
+# the readers return are the leftmost ones.
+
+VRTX = (Path(__file__).parent / "fixtures" / "vrtx_8k_side_by_side_periods.txt").read_text()
+
+VRTX_BRANDS = ["TRIKAFTA/KAFTRIO", "ALYFTREK", "CASGEVY", "JOURNAVX"]
+
+
+def test_side_by_side_headings_collapse_to_the_leftmost():
+    """The line reads "Three Months Ended June 30, Six Months Ended June 30,". Only the
+    second states a year on the line, the first taking it from the shared row beneath, so
+    the second was the only heading read and it governed the whole table."""
+    assert [(period, end) for period, end, _, _ in RE.tables(VRTX)] == [("Q2", "2026-06-30")]
+
+
+def test_the_quarter_column_is_not_filed_as_the_half_year():
+    """Casgevy's June quarter is 76.4 and its first half is 119.3, two columns to the
+    right. Binding the row to the nearest heading above stored 76.4 as six months."""
+    found = RE.parse(VRTX, VRTX_BRANDS)
+    assert found["CASGEVY"]["value"] == pytest.approx(76.4e6)
+    assert found["CASGEVY"]["period"] == "Q2"
+    assert found["JOURNAVX"]["value"] == pytest.approx(49.6e6)
+    assert found["JOURNAVX"]["period"] == "Q2"
+
+
+def test_the_half_year_column_is_left_alone_rather_than_guessed():
+    """No reader here reaches past the first pair of columns, so the six month figures
+    are not extracted at all. Absent beats attributed to the wrong period."""
+    values = {brand: row["value"] for brand, row in RE.parse(VRTX, VRTX_BRANDS).items()}
+    assert 119.3e6 not in values.values()
+    assert 78.6e6 not in values.values()
+
+
+def test_a_heading_with_no_year_of_its_own_takes_its_neighbours():
+    """The first heading on the line ends at "June 30," with the year a row below. Read
+    alone it is not a period at all, which is why it was being dropped."""
+    line = "Three Months Ended June 30, Six Months Ended June 30,\n2026 2025 2026 2025\n"
+    assert [head[:3] for head in RE.tables(line)] == [("Q2", "2026-06-30", 2026)]

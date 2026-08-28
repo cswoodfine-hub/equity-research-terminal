@@ -52,6 +52,22 @@ _QUARTER = re.compile(
     r"\b(?:(first|second|third|fourth)[-\s]+quarter|q([1-4]))\s+(?:fy\s?)?(\d{4})\b",
     re.I)
 
+# A line naming a period that no pattern above turns into one. Bristol Myers heads both
+# its product tables with a column header this module cannot read: "($ amounts in
+# millions) Year Ended December 31, 2025 % Change from Year Ended December 31, 2024 %
+# Change from Year Ended December 31, 2024 Ex-F/X**" is 190 characters, too long to be a
+# heading line, and states a year rather than a span of months. The quarterly table's
+# header is the same shape. So neither table has a heading, and the module's rule is that
+# such a table is skipped rather than guessed at. Without this the nearest heading eight
+# thousand characters above reaches down and claims it, and Eliquis's full year of 14,443
+# is stored as a quarter.
+#
+# "ended on" is excluded here for the same reason it is excluded above: that is the prose
+# form, and Pfizer's footnote about its international subsidiaries is not a column header
+# whose table should be skipped.
+_PERIOD_PHRASE = re.compile(
+    r"\b(?:year|(?:three|six|nine|twelve)\s+months?)\s+ended\s+(?!on\b)", re.I)
+
 # A column header sits on a short line. A sentence that happens to name a period does not,
 # and Pfizer's exhibit carries several: a 418 character footnote explaining that its
 # international subsidiaries close a month early was being read as a table heading, and
@@ -88,6 +104,41 @@ def span_to_period(months: int, end_month: int) -> str | None:
     return None
 
 
+def _span_head(m, year=None):
+    """(period, period_end, fiscal_year) for a span match, or None where it is not one.
+
+    ``year`` is the fallback for a heading that states none of its own, which is what
+    happens where several headings share a line and the year row printed beneath them.
+    """
+    month_name = m.group(2).lower()
+    if month_name not in _MONTHS:
+        return None
+    stated = m.group(4) or year
+    if not stated:
+        return None                      # a period with no year is not a period
+    end_month = _MONTHS.index(month_name) + 1
+    period = span_to_period(_SPAN_WORDS[m.group(1).lower()], end_month)
+    if period is None:
+        return None
+    try:
+        end = dt.date(int(stated), end_month, int(m.group(3)))
+    except ValueError:
+        return None
+    return period, end.isoformat(), int(stated)
+
+
+def _quarter_head(m):
+    """(period, period_end, fiscal_year) for a bare quarter label.
+
+    A quarter label carries no closing day, so the period end is the quarter's on a
+    calendar year. A filer on a broken fiscal year states the span form instead.
+    """
+    quarter = _ORDINALS.get((m.group(1) or "").lower()) or int(m.group(2))
+    year, month = int(m.group(3)), quarter * 3
+    end = dt.date(year, month, 30 if month in (6, 9) else 31)
+    return f"Q{quarter}", end.isoformat(), year
+
+
 def read_heading(text: str):
     """The last period heading in ``text``, as (period, period_end, fiscal_year).
 
@@ -96,32 +147,11 @@ def read_heading(text: str):
     document. Returns None where no heading can be read, which is the signal to skip.
     """
     best = None
-    for m in _SPAN.finditer(text):
-        month_name = m.group(2).lower()
-        if month_name not in _MONTHS:
-            continue
-        months = _SPAN_WORDS[m.group(1).lower()]
-        end_month = _MONTHS.index(month_name) + 1
-        year = m.group(4)
-        if not year:
-            continue                     # a period with no year is not a period
-        period = span_to_period(months, end_month)
-        if period is None:
-            continue
-        try:
-            end = dt.date(int(year), end_month, int(m.group(3)))
-        except ValueError:
-            continue
-        best = (m.start(), period, end.isoformat(), int(year))
-    for m in _QUARTER.finditer(text):
-        quarter = _ORDINALS.get((m.group(1) or "").lower()) or int(m.group(2))
-        year = int(m.group(3))
-        # A quarter label carries no closing day, so the period end is the quarter's on a
-        # calendar year. A filer on a broken fiscal year states the span form instead.
-        month = quarter * 3
-        end = dt.date(year, month, 30 if month in (6, 9) else 31)
-        if best is None or m.start() > best[0]:
-            best = (m.start(), f"Q{quarter}", end.isoformat(), year)
+    for pattern, reader in ((_SPAN, _span_head), (_QUARTER, _quarter_head)):
+        for m in pattern.finditer(text):
+            head = reader(m)
+            if head and (best is None or m.start() >= best[0]):
+                best = (m.start(), *head)
     return best[1:] if best else None
 
 
@@ -133,6 +163,58 @@ def _on_a_heading_line(text: str, index: int) -> bool:
     return stop - start <= HEADING_MAX_LINE
 
 
+def _line_start(text: str, index: int) -> int:
+    """Where the line holding ``index`` begins."""
+    return text.rfind("\n", 0, index) + 1
+
+
+def _one_per_line(text: str, marks: list) -> list:
+    """Collapse a line of headings to the leftmost, which heads the leftmost columns.
+
+    Vertex prints its product table under two headings on one line, "Three Months Ended
+    June 30, Six Months Ended June 30,", over the columns 2026 2025 2026 2025. Every
+    reader here takes the figures at the front of a row, so the figures they return are
+    the quarter's, and the heading describing them is the first on the line rather than
+    the last. Binding them to the nearest heading above filed each Vertex quarter as a
+    half year: Casgevy's June quarter of 76.4 was stored as six months, when the six
+    month column two places to its right reads 119.3.
+
+    The rest of the line is dropped rather than parsed, because the columns those
+    headings own are not columns these readers can reach. The headings share the year
+    row printed beneath them, so one stating no year of its own takes a neighbour's.
+    """
+    out, index = [], 0
+    while index < len(marks):
+        line = _line_start(text, marks[index][0])
+        stop = index
+        while stop < len(marks) and _line_start(text, marks[stop][0]) == line:
+            stop += 1
+        group = marks[index:stop]
+        year = next((head[2] for _, head, _ in reversed(group) if head), None)
+        start, head, match = group[0]
+        if head is None and match is not None and year is not None:
+            head = _span_head(match, year)
+        if head:
+            out.append((start, head))
+        index = stop
+    return out
+
+
+def _unread_headings(text: str, headed: set) -> list:
+    """Line starts that name a period but that no reader here turned into one, sorted.
+
+    These fence a heading's reach. A table sitting under one of them is headed by
+    something this module cannot read, and the module skips such a table rather than
+    letting a heading further up the page describe it.
+    """
+    out = set()
+    for m in _PERIOD_PHRASE.finditer(text):
+        line = _line_start(text, m.start())
+        if line not in headed:
+            out.add(line)
+    return sorted(out)
+
+
 def tables(text: str) -> list:
     """Every period heading in the document with the stretch of text it governs.
 
@@ -141,22 +223,23 @@ def tables(text: str) -> list:
     product to whichever heading is nearest above it.
     """
     marks = []
-    for pattern in (_SPAN, _QUARTER):
+    for pattern, reader in ((_SPAN, _span_head), (_QUARTER, _quarter_head)):
         for m in pattern.finditer(text):
-            if not _on_a_heading_line(text, m.start()):
-                continue
-            head = read_heading(text[max(0, m.start() - 4): m.end()])
-            if head:
-                marks.append((m.start(), head))
-    marks.sort()
+            if _on_a_heading_line(text, m.start()):
+                marks.append((m.start(), reader(m), m if pattern is _SPAN else None))
+    marks.sort(key=lambda mark: mark[0])
+    heads = _one_per_line(text, marks)
+    fences = _unread_headings(text, {_line_start(text, start) for start, _ in heads})
     out = []
-    for i, (start, head) in enumerate(marks):
-        stop = marks[i + 1][0] if i + 1 < len(marks) else len(text)
-        # A heading owns the text up to the next heading, capped so a document that
-        # states one heading and then runs on does not hand a table the whole filing.
-        # The lead-in reaches back for the title and scale line printed above it, but
-        # never past the previous heading, which belongs to another period.
-        floor = marks[i - 1][0] if i else 0
+    for i, (start, head) in enumerate(heads):
+        stop = heads[i + 1][0] if i + 1 < len(heads) else len(text)
+        # A heading owns the text up to the next heading or the next header line that
+        # could not be read as one, capped so a document that states one heading and then
+        # runs on does not hand a table the whole filing. The lead-in reaches back for the
+        # title and scale line printed above it, but never past the previous heading,
+        # which belongs to another period.
+        stop = min(stop, next((f for f in fences if f > start), stop))
+        floor = heads[i - 1][0] if i else 0
         body = text[max(floor, start - LEAD_IN): min(stop, start + TABLE_WINDOW)]
         out.append((*head, body))
     return out
