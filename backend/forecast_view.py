@@ -515,3 +515,149 @@ def company_rollup(db_path, ticker: str):
             "combined": sorted(combined.items()),
             "rnpv_total": rnpv_total, "rnpv_per_share": per_share,
             "reported_revenue": revenue_actuals}
+
+
+# --- the call ---------------------------------------------------------------
+# What the tab is for. Everything above computes a number in millions; this is where the
+# number meets a share price, which is the only form in which a forecast is a view.
+
+# How far each lever is pushed to rank what the answer actually rests on. A fifth is
+# large enough to separate the drivers and small enough that the engine stays in the
+# region the assumptions describe.
+_LEVER_STEP = 0.20
+
+
+def _last_close(conn, company_id: int):
+    row = conn.execute(
+        """SELECT close, as_of FROM prices WHERE company_id = ? AND interval = '1d'
+            AND close IS NOT NULL ORDER BY as_of DESC LIMIT 1""",
+        (company_id,)).fetchone()
+    return (row["close"], row["as_of"]) if row else (None, None)
+
+
+def _next_catalyst(conn, asset_id: int):
+    row = conn.execute(
+        """SELECT catalyst_type, expected_date, title FROM catalysts
+            WHERE asset_id = ? AND status = 'pending' AND expected_date >= date('now')
+            ORDER BY expected_date LIMIT 1""", (asset_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def _levers(inputs, built):
+    """What the answer rests on, ranked by how far each moves it.
+
+    A tornado rather than a grid. The grid crosses two axes; this asks the narrower and
+    more useful question an analyst is actually asked, which is what would have to be
+    wrong for the number to be wrong.
+
+    Each lever is pushed by overriding the computed value, not the raw input, because
+    WACC arrives from CAPM components and PoS from composite factors, and perturbing a
+    scalar that is not there moves nothing. PoS strips its factors first, since factors
+    beat a stated value in the engine.
+    """
+    scalars = inputs.get("scalars") or {}
+    base_rnpv = built["rnpv"]
+    levers = [("net price", "net_price_per_patient", scalars.get("net_price_per_patient")),
+              ("discount rate", "wacc", built["wacc"]),
+              ("probability of success", "pos", built["pos"]),
+              ("persistence", "discontinuation_pct",
+               scalars.get("discontinuation_pct"))]
+    out = []
+    for label, key, current in levers:
+        if current is None:
+            continue
+        swings = []
+        for direction in (1 - _LEVER_STEP, 1 + _LEVER_STEP):
+            trial = dict(scalars)
+            trial[key] = current * direction
+            if key == "pos":
+                trial[key] = min(trial[key], 1.0)
+                for factor in ("pos_regulatory", "pos_launch", "pos_reimbursement",
+                               "pos_competition"):
+                    trial.pop(factor, None)
+            try:
+                moved = forecast.build({**inputs, "scalars": trial})["rnpv"]
+            except forecast.ForecastError:
+                continue
+            swings.append(moved - base_rnpv)
+        if len(swings) == 2:
+            out.append({"lever": label, "key": key, "value": current,
+                        "down": min(swings), "up": max(swings),
+                        "span": max(swings) - min(swings)})
+    out.sort(key=lambda r: -abs(r["span"]))
+    return out
+
+
+def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
+    """One asset's forecast expressed as a view: per share, against the market, ranked.
+
+    The rNPV is the model's answer and nobody trades a number in millions. This turns it
+    into the three things a note has to carry: what the asset is worth per share, how that
+    sits against what the share costs today, and which assumption the answer depends on
+    most. The scenario spread comes from the same engine run three times, so the range is
+    the model's own and not a decoration on it.
+
+    A single asset is not a company, and the share of the price it explains is reported as
+    exactly that rather than as a target.
+    """
+    conn = db.get_connection(db_path)
+    try:
+        company = _company(conn, ticker)
+        if company is None:
+            return None
+        asset = _accessible(conn, company["id"], asset_id, ticker)
+        if asset is None:
+            return None
+        shares = _diluted_shares(conn, company["id"])
+        close, close_date = _last_close(conn, company["id"])
+        catalyst = _next_catalyst(conn, asset_id)
+        name = asset["brand_name"] or asset["generic_name"]
+        inputs = assumptions_module.load(conn, asset_id, scenario)
+        rows = assumptions_module.rows(conn, asset_id, scenario)
+        by_scenario = {}
+        for other in ("bear", "base", "bull"):
+            try:
+                by_scenario[other] = forecast.build(
+                    assumptions_module.load(conn, asset_id, other))["rnpv"]
+            except (forecast.ForecastError, Exception):
+                continue
+    finally:
+        conn.close()
+
+    try:
+        built = forecast.build(inputs)
+    except forecast.ForecastError as err:
+        return {"ok": False, "missing": err.missing, "name": name}
+
+    share = built.get("economics_share")
+    owner = built["owner_rnpv"] if share is not None else built["rnpv"]
+    per_share = (owner * 1e6 / shares) if shares else None
+    revenue = built["revenue_after_loe"]
+    peak = max(revenue) if revenue else None
+    peak_year = built["years"][revenue.index(peak)] if peak is not None else None
+
+    spread = {}
+    for label, rnpv in by_scenario.items():
+        owned = rnpv * (share if share is not None else 1.0)
+        spread[label] = {"rnpv": rnpv,
+                         "per_share": (owned * 1e6 / shares) if shares else None}
+
+    return {
+        "ok": True, "ticker": company["ticker"], "asset_id": asset_id, "name": name,
+        "scenario": scenario,
+        "rnpv": built["rnpv"], "npv": built["npv"], "owner_rnpv": owner,
+        "economics_share": share,
+        "diluted_shares": shares, "per_share": per_share,
+        "close": close, "close_date": close_date,
+        "pct_of_price": (per_share / close) if (per_share and close) else None,
+        "peak_revenue": peak, "peak_year": peak_year,
+        "terminal_share": (built["terminal_pv"] / built["npv"]
+                           if built.get("npv") else None),
+        "wacc": built["wacc"], "wacc_basis": built.get("wacc_basis"),
+        "pos": built["pos"], "pos_basis": built.get("pos_basis"),
+        "loe_year": built.get("loe_year"), "loe_basis": built.get("loe_basis"),
+        "spread": spread, "levers": _levers(inputs, built),
+        "next_catalyst": catalyst,
+        "unsourced": [r["key"] for r in rows if not (r["source"] or "").strip()],
+        "notes": built.get("notes") or [],
+    }

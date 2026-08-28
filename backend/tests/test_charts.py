@@ -367,3 +367,44 @@ def test_donut_every_slice_gets_an_outside_label_on_a_leader():
 
 def test_donut_with_no_total_renders_nothing():
     assert charts.donut([{"label": "x", "value": 0, "colour": tokens.UP}]) == ""
+
+
+# --- tornado ---------------------------------------------------------------
+# dumbbell was the nearest thing and it is built for date slippage: it hardcodes days as
+# the unit and colours by direction, so a lever worth $945mm rendered as "945d" in the
+# down colour whichever way it moved.
+
+def test_a_tornado_draws_both_sides_of_the_centre():
+    svg = charts.tornado([{"label": "net price", "low": -945, "high": 945}],
+                         value_fmt=lambda v: f"{v:,.0f}")
+    assert svg.startswith("<svg")
+    assert "net price" in svg
+    # Both ends printed, so the geometry is never the only signal.
+    assert "-945" in svg and "945" in svg
+
+
+def test_the_two_sides_carry_different_colours():
+    from components import tokens as TK
+    svg = charts.tornado([{"label": "x", "low": -10, "high": 10}])
+    assert TK.DOWN in svg and TK.UP in svg
+
+
+def test_an_asymmetric_lever_looks_asymmetric():
+    """A discount rate helps more falling than it hurts rising. That has to show as a
+    longer arm, not as two numbers to compare in your head."""
+    import re
+    svg = charts.tornado([{"label": "wacc", "low": -100, "high": 400}])
+    widths = [float(w) for w in re.findall(r'<rect[^>]*width="([\d.]+)"', svg)]
+    assert len(widths) == 2 and max(widths) > 2 * min(widths)
+
+
+def test_rows_without_both_ends_are_dropped():
+    assert charts.tornado([]) == ""
+    assert charts.tornado([{"label": "x", "low": None, "high": 1}]) == ""
+
+
+def test_the_centre_can_sit_away_from_zero():
+    # The scenario range is centred on the base case, not on nothing.
+    svg = charts.tornado([{"label": "per share", "low": 1.42, "high": 8.91}],
+                         centre=4.45, value_fmt=lambda v: f"${v:,.2f}")
+    assert "$4.45" in svg

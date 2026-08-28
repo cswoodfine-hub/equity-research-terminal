@@ -407,6 +407,11 @@ h3 {{ font-size: 0.9rem; }}
    of "NVO efficacy supplement: Macrilen approved" a reader is looking for. */
 .lead-h {{ grid-area: head; font-size: 12px; line-height: 1.28; }}
 .lead-tk {{ font-family: var(--font-mono); font-weight: 600; margin-right: 0.4rem; }}
+/* The forecast's answer, stated once at the top of its tab. Larger than a byline and
+   quieter than a heading: it is a sentence to be read, not a label to be scanned, and
+   everything under it is the working. */
+.call-lead {{ font-size: 15px; line-height: 1.45; color: var(--text);
+             max-width: 74ch; margin: 0.2rem 0 0.7rem 0; }}
 .lead[open] .lead-tk {{ color: var(--accent); }}
 .lead-d {{ grid-area: date; font-family: var(--font-mono); font-size: 10px;
           color: var(--muted); white-space: nowrap; padding-top: 2px; }}

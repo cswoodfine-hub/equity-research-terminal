@@ -1,0 +1,117 @@
+"""The written half of the forecast: what the model says, in sentences.
+
+A number in millions is not a view. An analyst's output is prose that states the answer,
+the range around it, what the answer rests on and what will settle it, and this writes
+exactly that from the facts ``forecast_view.verdict`` assembles.
+
+Rules only, deliberately. ``insights.py`` earns its model call because it reads a month of
+unstructured change and has to choose what matters. Here the facts are already chosen and
+already numeric, so a model could only paraphrase them, and paraphrase is where invented
+numbers come from. Every sentence below is a template over a value the engine computed.
+
+It describes rather than recommends. What a share is worth against what it costs is the
+model's output; what to do about it is not this file's business and not this product's.
+"""
+
+from __future__ import annotations
+
+# A share of NPV that comes from the terminal value rather than the forecast horizon.
+# Past this, the answer is mostly about what happens after the model stops looking.
+TERMINAL_HEAVY = 0.35
+
+
+def _mm(value) -> str:
+    if value is None:
+        return "an unknown amount"
+    if abs(value) >= 1000:
+        return f"${value / 1000:,.1f}bn"
+    return f"${value:,.0f}mm"
+
+
+def _per_share(value) -> str:
+    return "an unknown amount" if value is None else f"${value:,.2f}"
+
+
+def headline(v: dict) -> str:
+    """The answer, in one sentence, leading with the number."""
+    if v.get("per_share") is None:
+        return (f"{v['name']} carries {_mm(v.get('owner_rnpv'))} of risk-adjusted value. "
+                f"No diluted share count is on file, so it cannot be put per share.")
+    price = v.get("close")
+    if not price:
+        return (f"{v['name']} carries {_per_share(v['per_share'])} a share of "
+                f"risk-adjusted value, {_mm(v.get('owner_rnpv'))} in total.")
+    return (f"{v['name']} carries {_per_share(v['per_share'])} a share of risk-adjusted "
+            f"value against a {_per_share(price)} share price, so this one asset "
+            f"explains {v['pct_of_price']:.1%} of what the company costs today.")
+
+
+def body(v: dict) -> list[str]:
+    """The paragraphs under the headline, each one a fact the engine produced."""
+    out = []
+
+    if v.get("peak_revenue") and v.get("peak_year"):
+        line = (f"Revenue peaks at {_mm(v['peak_revenue'])} in {v['peak_year']}")
+        if v.get("loe_year"):
+            line += (f", and exclusivity runs out in {v['loe_year']}"
+                     + (f" on the {v['loe_basis']}" if v.get("loe_basis") else ""))
+        out.append(line + ".")
+
+    spread = v.get("spread") or {}
+    bear, bull = spread.get("bear"), spread.get("bull")
+    if bear and bull and bear.get("per_share") and bull.get("per_share"):
+        out.append(
+            f"The scenarios run {_per_share(bear['per_share'])} to "
+            f"{_per_share(bull['per_share'])} a share, a "
+            f"{bull['per_share'] / bear['per_share']:.1f}x spread between the bear case "
+            f"and the bull case. Same engine, three sets of assumptions.")
+
+    levers = v.get("levers") or []
+    if levers:
+        top = levers[0]
+        out.append(
+            f"The answer rests on {top['lever']} more than anything else: a fifth either "
+            f"way moves it {_mm(abs(top['span']) / 2)}. "
+            + (f"Next is {levers[1]['lever']} at {_mm(abs(levers[1]['span']) / 2)}."
+               if len(levers) > 1 else ""))
+
+    if v.get("terminal_share") and v["terminal_share"] > TERMINAL_HEAVY:
+        out.append(
+            f"{v['terminal_share']:.0%} of the NPV is terminal value, so most of this "
+            f"number is about what happens after the forecast stops looking rather than "
+            f"inside it.")
+
+    catalyst = v.get("next_catalyst")
+    if catalyst and catalyst.get("expected_date"):
+        out.append(
+            f"The next thing that settles any of it is a "
+            f"{catalyst.get('catalyst_type') or 'catalyst'} on "
+            f"{catalyst['expected_date']}.")
+
+    if v.get("pos") is not None:
+        line = f"Probability of success is {v['pos']:.0%}"
+        if v.get("pos_basis"):
+            line += f", {v['pos_basis']}"
+        if v.get("wacc") is not None:
+            line += f", discounted at {v['wacc'] * 100:.2f}%"
+            if v.get("wacc_basis"):
+                line += f" ({v['wacc_basis']})"
+        out.append(line + ".")
+
+    unsourced = v.get("unsourced") or []
+    if unsourced:
+        shown = ", ".join(unsourced[:4])
+        more = f" and {len(unsourced) - 4} more" if len(unsourced) > 4 else ""
+        out.append(
+            f"Carrying no source, and therefore the analyst's own risk: {shown}{more}.")
+    return out
+
+
+def write(v: dict) -> dict:
+    """The note, or the reason there is not one."""
+    if not v or not v.get("ok"):
+        missing = ", ".join((v or {}).get("missing") or ["assumptions"])
+        return {"ok": False,
+                "headline": f"No forecast for {(v or {}).get('name') or 'this asset'} yet.",
+                "body": [f"Still missing: {missing}."]}
+    return {"ok": True, "headline": headline(v), "body": body(v)}

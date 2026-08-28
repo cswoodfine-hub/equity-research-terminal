@@ -497,6 +497,52 @@ def dumbbell(rows: Sequence[dict], width: int = 900, height: int = 400,
     return "".join(out)
 
 
+
+def tornado(rows: Sequence[dict], width: int = 520, height: int = 160,
+            centre: float = 0.0, value_fmt: Callable[[float], str] = None,
+            label_width: int = 150) -> str:
+    """Spans either side of a reference, ranked. Each row: {label, low, high}.
+
+    What an analyst is actually asked, which is not "how do two variables cross" but
+    "what would have to be wrong for this to be wrong". Each bar runs from the downside
+    to the upside through a marked centre, so an asymmetric lever looks asymmetric: a
+    discount rate helps more falling than it hurts rising, and that shows as a longer
+    right arm rather than as two numbers to compare in your head.
+
+    Colour is by side rather than by direction, because both ends of every row are real.
+    """
+    value_fmt = value_fmt or (lambda v: _fmt(v, 0))
+    usable = [r for r in rows if r.get("low") is not None and r.get("high") is not None]
+    if not usable:
+        return ""
+    pad_r, pad_t = 96, 22
+    span = [r["low"] for r in usable] + [r["high"] for r in usable] + [centre]
+    dom = _domain(span, pad=0.12)
+    x = _scale(dom, (label_width, width - pad_r))
+    n = len(usable)
+    row_h = (height - pad_t - 8) / n
+    cx = x(centre)
+
+    out = [_svg_open(width, height, "tornado chart")]
+    out.append(f'<line x1="{cx:.1f}" y1="{pad_t - 8}" x2="{cx:.1f}"'
+               f' y2="{height - 6}" stroke="{TK.RULE}"/>')
+    out.append(_text(cx, pad_t - 12, value_fmt(centre), 9, TK.MUTED, "middle", MONO))
+    for i, r in enumerate(usable):
+        cy = pad_t + row_h * i + row_h / 2
+        bar = max(6.0, row_h * 0.42)
+        out.append(_text(label_width - 10, cy + 3.5, r["label"], 10, TK.TEXT, "end"))
+        for value, colour in ((r["low"], TK.DOWN), (r["high"], TK.UP)):
+            x0, x1 = sorted((cx, x(value)))
+            out.append(f'<rect x="{x0:.1f}" y="{cy - bar / 2:.1f}"'
+                       f' width="{max(x1 - x0, 1):.1f}" height="{bar:.1f}"'
+                       f' fill="{colour}" opacity="0.82"/>')
+        out.append(_text(width - pad_r + 10, cy + 3.5,
+                         f"{value_fmt(r['low'])} / {value_fmt(r['high'])}",
+                         9.5, TK.MUTED, "start", MONO))
+    out.append("</svg>")
+    return "".join(out)
+
+
 # --- 7. waterfall ---------------------------------------------------------
 def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
               value_fmt: Callable[[float], str] = None) -> str:

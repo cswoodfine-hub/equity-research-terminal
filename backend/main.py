@@ -28,6 +28,7 @@ import deals as deals_module
 import demand as demand_module
 import filing_diff as filing_diff_module
 import consensus as consensus_module
+import forecast_note
 import forecast_view as forecast_view_module
 import trial_readouts as trial_readouts_module
 import valuation as valuation_module
@@ -567,6 +568,16 @@ def save_forecast_assumptions(ticker: str, asset_id: int, body: AssumptionsIn) -
         raise HTTPException(status_code=404,
                             detail=f"no forecastable asset {asset_id} for {ticker.upper()}")
     return out
+
+
+@app.get("/companies/{ticker}/forecast/{asset_id}/verdict")
+def forecast_verdict(ticker: str, asset_id: int, scenario: str = "base") -> dict:
+    """The forecast as a view: per share, against the market, ranked, and written."""
+    out = forecast_view_module.verdict(None, ticker, asset_id, scenario)
+    if out is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no asset {asset_id} for {ticker}")
+    return {**out, "note": forecast_note.write(out)}
 
 
 @app.get("/companies/{ticker}/forecast/{asset_id}/shape")

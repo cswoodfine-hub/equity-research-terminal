@@ -1350,6 +1350,72 @@ def metric_tiles(items, one_row: bool = False) -> str:
 CURVE_KEYS = ("penetration_peak_pct", "ramp_midpoint_year")
 
 
+def _the_call(api_base: str, ticker: str, asset_id: int, scenario: str) -> None:
+    """The top of the tab: what the model says, what it rests on, what settles it.
+
+    Everything below this computes; this is the part an analyst would actually send. The
+    rNPV is turned into a per-share figure and set against what the share costs, the
+    scenarios are drawn as the range they are, and the assumptions are ranked by how far
+    each one moves the answer.
+
+    It describes rather than recommends. What a share is worth against what it costs is
+    the model's output; what to do about it is not this product's business.
+    """
+    try:
+        v = api_get(api_base,
+                    f"/companies/{ticker}/forecast/{asset_id}/verdict"
+                    f"?scenario={scenario}")
+    except (urllib.error.URLError, OSError):
+        return
+    if not v.get("ok"):
+        return
+
+    note_body = v.get("note") or {}
+    section("The call", basis=f"{scenario} case")
+    st.markdown(
+        f'<div class="call-lead">{html_escape(note_body.get("headline") or "")}</div>',
+        unsafe_allow_html=True)
+
+    tiles = [("per share", T.num(v.get("per_share"), 2), "",
+              None, "", "risk-adjusted, this asset only")]
+    if v.get("close"):
+        tiles.append(("share price", T.num(v["close"], 2), "", None, "",
+                      f"close {v.get('close_date') or ''}"))
+    if v.get("pct_of_price") is not None:
+        tiles.append(("share of price", T.pct(v["pct_of_price"] * 100, 1), "",
+                      None, "", "explained by this asset"))
+    if v.get("peak_revenue"):
+        tiles.append(("peak revenue", T.num(v["peak_revenue"]), "mm", None, "",
+                      f"in {v.get('peak_year')}"))
+    st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+
+    left, right = st.columns([1, 1])
+    spread = v.get("spread") or {}
+    with left:
+        base_ps = (spread.get("base") or {}).get("per_share")
+        low = (spread.get("bear") or {}).get("per_share")
+        high = (spread.get("bull") or {}).get("per_share")
+        if low is not None and high is not None and base_ps is not None:
+            section("The range", basis="same engine, three sets of assumptions")
+            R.show(CH.tornado([{"label": "per share", "low": low, "high": high}],
+                              520, 86, centre=base_ps,
+                              value_fmt=lambda x: f"${x:,.2f}"),
+                   css_class="chart-mount")
+    with right:
+        levers = v.get("levers") or []
+        if levers:
+            section("What it rests on", basis="a fifth either way, mm")
+            R.show(CH.tornado(
+                [{"label": l["lever"], "low": l["down"], "high": l["up"]}
+                 for l in levers], 520, 40 + 34 * len(levers),
+                value_fmt=lambda x: f"{x:,.0f}"), css_class="chart-mount")
+
+    for paragraph in note_body.get("body") or []:
+        st.markdown(f'<div class="byline">{html_escape(paragraph)}</div>',
+                    unsafe_allow_html=True)
+
+
+
 def _curve_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
                   missing: list) -> bool:
     """The two numbers no source settles, given something to be judged against.
@@ -1697,6 +1763,8 @@ def _render_forecast_tab(api_base: str, ticker: str):
     _pat = list(result["patients"]["total"]) + list(
         result["patients"].get("treated") or [])
     patients_span = (min(_pat), max(_pat))
+
+    _the_call(api_base, ticker, sel, scenario)
 
     charts_col, facts_col = st.columns([1.25, 1])
     with charts_col:
