@@ -139,3 +139,54 @@ def test_the_catalysts_tab_prices_the_casgevy_readout(app):
     assert "At stake" in body or "AT STAKE" in body
     assert "swing" in body
     assert "0.95" in body and "0.40" in body        # the two legs on display
+
+
+# --- The franchise handle ---------------------------------------------------
+#
+# Alyftrek and Trikafta are one pool. Every number on either is read off a filing except
+# one: the share Alyftrek settles at once the switch is done. That is the only judgement
+# in the pair, so the tab gives it a slider and nothing else.
+
+ALYFTREK = 207
+
+
+@pytest.fixture(scope="module")
+def franchise_app():
+    from streamlit.testing.v1 import AppTest
+
+    _patch_button_group_serialisation()
+    if str(FRONTEND) not in sys.path:
+        sys.path.insert(0, str(FRONTEND))
+    test = AppTest.from_file(str(APP), default_timeout=120)
+    test.query_params["ticker"] = "VRTX"
+    test.run()
+    test.session_state["fc_pick_VRTX"] = ALYFTREK
+    test.run()
+    return test
+
+
+def _plateau(app):
+    key = f"share_plateau_VRTX_{ALYFTREK}"
+    matches = [s for s in app.slider if s.key == key]
+    assert matches, f"slider {key} not rendered"
+    return matches[0]
+
+
+def test_a_franchise_member_gets_a_settling_share_slider(franchise_app):
+    assert not franchise_app.exception
+    assert _plateau(franchise_app).value == pytest.approx(90.0)
+
+
+def test_the_first_year_does_not_move_with_the_plateau(franchise_app):
+    """FY2026 is guided and half reported. The slider re-solves the ramp around it rather
+    than through it, so the one year the model already knows stays put."""
+    body = " ".join(str(m.value) for m in franchise_app.markdown)
+    assert "2,308" in body or "2,309" in body
+    _plateau(franchise_app).set_value(60.0).run()
+    moved = " ".join(str(m.value) for m in franchise_app.markdown)
+    assert "2,308" in moved or "2,309" in moved
+    _plateau(franchise_app).set_value(90.0).run()
+
+
+def test_a_product_that_is_not_in_a_franchise_has_no_such_slider(app):
+    assert not [s for s in app.slider if s.key == f"share_plateau_VRTX_{CASGEVY}"]

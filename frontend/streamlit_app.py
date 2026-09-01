@@ -1688,6 +1688,112 @@ def _forecast_import(api_base: str, ticker: str, asset_id: int, scenario: str,
         st.rerun()
 
 
+def _render_patient_chart(result, years, x_labels, volume_scale, patients_span):
+    """The patient curve, for the modes that have one.
+
+    Lifted out of the tab so the revenue-anchored modes can skip it wholesale. Every
+    series here multiplies a patient count, and marketed and franchise mode report those
+    as nulls, so there is nothing to scale and nothing to draw.
+    """
+    section("New patients", basis="per year"
+        + (f" · {volume_scale:.2f}x" if volume_scale != 1.0 else ""))
+    by_ind = result["patients"]["by_indication"]
+    explicit_all = [ind["explicit"] for ind in by_ind.values()
+                    if ind.get("explicit")]
+    derived_all = [ind["derived"] for ind in by_ind.values()
+                   if ind.get("derived")]
+    patient_series = [{"name": "entered" if explicit_all else "used",
+                       "values": [v * volume_scale
+                                  for v in result["patients"]["total"]],
+                       "colour": TK.UP}]
+    if derived_all:
+        derived_total = [sum(series[i] for series in derived_all) * volume_scale
+                         for i in range(len(years))]
+        patient_series.append({"name": "derived", "values": derived_total,
+                               "colour": TK.FLAG})
+    # The stock still on therapy, which is the line revenue actually meets. For a
+    # one-time therapy it sits exactly on the starts and is left off rather than
+    # drawn twice; for a chronic one it is the larger number and the whole point.
+    treated = result["patients"].get("treated") or []
+    if treated and treated != result["patients"]["total"]:
+        patient_series.append({"name": "on therapy",
+                               "values": [v * volume_scale for v in treated],
+                               "colour": TK.DOWN})
+    R.show(CH.line_chart(patient_series, x_labels, 620, 220,
+                         y_fmt=lambda v: f"{v:,.0f}", y_span=patients_span),
+           css_class="chart-mount")
+    if treated and treated != result["patients"]["total"]:
+        note("two lines, two quantities. Starts are who begins in a year; on therapy "
+             "is who is still taking it, carried forward at the persistence rate and "
+             "the series the annual price is charged against. The gap between them "
+             "is the whole economics of a chronic drug.")
+    else:
+        note("the pool identity derives the curve from prevalence, incidence and "
+             "penetration: the hump is arithmetic, the tail is the incidence run "
+             "rate, and it can be argued against the hand series above it")
+
+
+def _share_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
+                  result: dict) -> None:
+    """The one judgement in a franchise: where the share settles.
+
+    Every other number on a franchise member is read off a filing. The pool is reported,
+    its growth comes out of guidance, the current share is arithmetic on two figures in
+    the same table, and the ramp is the rate that carries one to the other. What nobody
+    can source is the end state, so that is the handle, and it is the only one.
+
+    Moving it leaves the first forecast year alone, because that year is guided and half
+    reported already. The ramp re-solves around it instead.
+    """
+    franchise = result.get("franchise")
+    if not franchise:
+        return
+    section("Where the share settles",
+            basis="nothing is saved until you commit it")
+    note("The pool, its growth and today's share are all read off the filings. This is "
+         "the number that is not: the share this product holds once the switch is done. "
+         "The first year does not move with it, because guidance already sets that.")
+
+    left, right = st.columns([1, 1.6])
+    with left:
+        plateau_pct = st.slider(
+            "settling share of the franchise, %", 20.0, 99.0, 90.0, 1.0,
+            format="%.0f%%", key=f"share_plateau_{ticker}_{asset_id}",
+            help="what this product holds once the switch has run its course")
+    try:
+        shaped = api_get(
+            api_base,
+            f"/companies/{ticker}/forecast/{asset_id}/shape"
+            f"?scenario={scenario}&plateau={plateau_pct / 100.0}")
+    except (urllib.error.URLError, OSError) as exc:
+        st.error(f"preview failed: {exc}")
+        return
+    if not shaped.get("ok"):
+        with right:
+            state("Out of reach", "; ".join(shaped.get("missing") or []))
+        return
+
+    years = [str(y) for y in shaped["years"]]
+    share = (shaped.get("franchise") or {}).get("share") or []
+    base_share = franchise.get("share") or []
+    with right:
+        R.show(CH.line_chart(
+            [{"name": "share", "values": [s * 100 for s in share], "colour": TK.UP},
+             {"name": "as seeded", "values": [s * 100 for s in base_share],
+              "colour": TK.MUTED}],
+            years, 560, 200, y_fmt=lambda v: f"{v:,.0f}%"), css_class="chart-mount")
+        peak = max(shaped["revenue"]) if shaped["revenue"] else None
+        st.markdown(metric_tiles([
+            ("rNPV", T.num(shaped["rnpv"]), "mm", None, "", "risk-adjusted"),
+            ("share by " + years[-1], T.num(share[-1] * 100 if share else None), "%",
+             None, "", f"against a {plateau_pct:.0f}% plateau"),
+            ("peak revenue", T.num(peak), "mm", None, "",
+             f"in {shaped['years'][shaped['revenue'].index(peak)]}" if peak else ""),
+            ("first year", T.num(shaped["revenue"][0] if shaped["revenue"] else None),
+             "mm", None, "", "guided, so it does not move"),
+        ], one_row=True), unsafe_allow_html=True)
+
+
 def _render_forecast_tab(api_base: str, ticker: str):
     """The sales tab: patients x price to revenue, revenue to rNPV, beside its own
     calibration. Everything on screen traces to an assumption row with a source; the
@@ -1812,9 +1918,14 @@ def _render_forecast_tab(api_base: str, ticker: str):
         if other.get("ok"):
             span_values += other["result"]["revenue_after_loe"]
     revenue_span = (min(span_values), max(span_values)) if span_values else None
-    _pat = list(result["patients"]["total"]) + list(
-        result["patients"].get("treated") or [])
-    patients_span = (min(_pat), max(_pat))
+    # A product valued off revenue reports no patients at all, so the series is a row of
+    # nulls rather than a row of numbers and min() over it raises. Marketed mode has had
+    # that shape since it was added and franchise mode has it too; only a patient-built
+    # forecast has a span to hold the axis to.
+    _pat = [v for v in (list(result["patients"]["total"] or [])
+                        + list(result["patients"].get("treated") or []))
+            if v is not None]
+    patients_span = (min(_pat), max(_pat)) if _pat else None
 
     _the_call(api_base, ticker, sel, scenario)
 
@@ -1836,42 +1947,16 @@ def _render_forecast_tab(api_base: str, ticker: str):
         R.show(CH.line_chart(rev_series, x_labels, 620, 240,
                              y_fmt=lambda v: f"{v:,.0f}", y_span=revenue_span),
                css_class="chart-mount")
-        section("New patients", basis="per year"
-                + (f" · {volume_scale:.2f}x" if volume_scale != 1.0 else ""))
-        by_ind = result["patients"]["by_indication"]
-        explicit_all = [ind["explicit"] for ind in by_ind.values()
-                        if ind.get("explicit")]
-        derived_all = [ind["derived"] for ind in by_ind.values()
-                       if ind.get("derived")]
-        patient_series = [{"name": "entered" if explicit_all else "used",
-                           "values": [v * volume_scale
-                                      for v in result["patients"]["total"]],
-                           "colour": TK.UP}]
-        if derived_all:
-            derived_total = [sum(series[i] for series in derived_all) * volume_scale
-                             for i in range(len(years))]
-            patient_series.append({"name": "derived", "values": derived_total,
-                                   "colour": TK.FLAG})
-        # The stock still on therapy, which is the line revenue actually meets. For a
-        # one-time therapy it sits exactly on the starts and is left off rather than
-        # drawn twice; for a chronic one it is the larger number and the whole point.
-        treated = result["patients"].get("treated") or []
-        if treated and treated != result["patients"]["total"]:
-            patient_series.append({"name": "on therapy",
-                                   "values": [v * volume_scale for v in treated],
-                                   "colour": TK.DOWN})
-        R.show(CH.line_chart(patient_series, x_labels, 620, 220,
-                             y_fmt=lambda v: f"{v:,.0f}", y_span=patients_span),
-               css_class="chart-mount")
-        if treated and treated != result["patients"]["total"]:
-            note("two lines, two quantities. Starts are who begins in a year; on therapy "
-                 "is who is still taking it, carried forward at the persistence rate and "
-                 "the series the annual price is charged against. The gap between them "
-                 "is the whole economics of a chronic drug.")
+        # A product valued off revenue has no patient curve to draw: marketed and
+        # franchise mode both report a row of nulls rather than a row of numbers, and
+        # every line below multiplies them. The chart is skipped rather than drawn empty.
+        if patients_span is None:
+            note("no patient curve: this product is anchored on revenue rather than "
+                 "built from patients, so the funnel is not rebuilt for it. The price "
+                 "per patient still earns its keep as the implied patient count in the "
+                 "call above.")
         else:
-            note("the pool identity derives the curve from prevalence, incidence and "
-                 "penetration: the hump is arithmetic, the tail is the incidence run "
-                 "rate, and it can be argued against the hand series above it")
+            _render_patient_chart(result, years, x_labels, volume_scale, patients_span)
 
     with facts_col:
         section("Valuation", basis="mm USD" + (" · varied" if varied else ""))
@@ -1911,6 +1996,9 @@ def _render_forecast_tab(api_base: str, ticker: str):
             st.markdown(f'<div class="byline">unsourced assumptions: '
                         f'{html_escape(", ".join(unsourced))}</div>',
                         unsafe_allow_html=True)
+
+    if result.get("mode") == "franchise":
+        _share_shaper(api_base, ticker, sel, scenario, result)
 
     section("Sensitivity", basis="rNPV, mm")
     preset = st.segmented_control(
