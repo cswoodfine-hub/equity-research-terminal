@@ -392,6 +392,81 @@ def stacked_bar(rows: Sequence[dict], width: int = 760, height: int = 260,
     return "".join(out)
 
 
+# --- 4b. stacked columns -------------------------------------------------
+def stacked_columns(x_labels: Sequence[str], series: Sequence[dict],
+                    width: int = 900, height: int = 300,
+                    value_fmt: Callable[[float], str] = None,
+                    reference: Optional[dict] = None) -> str:
+    """Vertical stacked columns, one per x, with an optional reference line over them.
+
+    The company revenue build: each series is a band, {name, values, colour, hatched?},
+    stacked in the order given, and ``reference`` is {name, values, colour} drawn as a
+    line with a dot per point, for the history the forecast has to meet. A null in a
+    series is a gap in that band, never a zero; a null in the reference breaks the line.
+    A hatched band is one the caller wants seen and not believed, which is how an asset
+    on a placeholder curve is drawn.
+    """
+    value_fmt = value_fmt or (lambda v: _fmt(v, 0))
+    pad_l, pad_r, top, bottom, legend_h = 58, 16, 12, 24, 22
+    floor = height - bottom
+    n = max(len(x_labels), 1)
+    slot = (width - pad_l - pad_r) / n
+    col_w = min(slot * 0.66, 34)
+    totals = [sum(s["values"][i] or 0.0 for s in series if i < len(s["values"]))
+              for i in range(n)]
+    ref_vals = (reference or {}).get("values") or []
+    dom = _domain(totals + [v for v in ref_vals if v is not None], zero=True)
+    y = _scale(dom, (floor, top + legend_h))
+    hid = _uid("hatch")
+
+    out = [_svg_open(width, height, "stacked columns"),
+           f"<defs>{_hatch(hid)}</defs>"]
+    # legend
+    lx, ly = pad_l, 13
+    for s in list(series) + ([reference] if reference else []):
+        out.append(f'<rect x="{lx}" y="{ly - 9}" width="11" height="11"'
+                   f' fill="{s["colour"]}" opacity="{0.9 if s is not reference else 1}"/>')
+        out.append(_text(lx + 15, ly, s["name"], 10.5, TK.TEXT, family=UI))
+        lx += 15 + 6.6 * len(str(s["name"])) + 18
+    for frac in (0.0, 0.5, 1.0):
+        gy = top + legend_h + (floor - top - legend_h) * frac
+        out.append(f'<line x1="{pad_l}" y1="{gy:.1f}" x2="{width - pad_r}"'
+                   f' y2="{gy:.1f}" stroke="{TK.RULE}" stroke-width="0.6"/>')
+        out.append(_text(pad_l - 6, gy + 3.5, value_fmt(dom[1] - (dom[1] - dom[0]) * frac),
+                         9.5, TK.MUTED, "end", MONO))
+    for i, label in enumerate(x_labels):
+        cx = pad_l + slot * i + slot / 2
+        run = 0.0
+        for s in series:
+            v = s["values"][i] if i < len(s["values"]) else None
+            if v is None or v == 0:
+                continue
+            y0, y1 = y(run), y(run + v)
+            fill = f"url(#{hid})" if s.get("hatched") else s["colour"]
+            out.append(f'<rect x="{cx - col_w / 2:.1f}" y="{min(y0, y1):.1f}"'
+                       f' width="{col_w:.1f}" height="{abs(y0 - y1):.1f}" fill="{fill}"'
+                       + (f' stroke="{s["colour"]}" stroke-width="0.8"'
+                          if s.get("hatched") else "")
+                       + f'><title>{_esc(label)} {_esc(s["name"])} '
+                         f'{_esc(value_fmt(v))}</title></rect>')
+            run += v
+        if run:
+            out.append(_text(cx, y(run) - 4, value_fmt(run), 8.5, TK.MUTED, "middle",
+                             MONO))
+        out.append(_text(cx, floor + 15, label, 9.5, TK.MUTED, "middle", MONO))
+    if reference:
+        xs = lambda i: pad_l + slot * i + slot / 2
+        _polyline_runs(out, ref_vals, xs, y, reference["colour"], 1.8)
+        for i, v in enumerate(ref_vals):
+            if v is not None:
+                out.append(f'<circle cx="{xs(i):.1f}" cy="{y(v):.1f}" r="3"'
+                           f' fill="{reference["colour"]}"><title>{_esc(x_labels[i])} '
+                           f'{_esc(reference["name"])} {_esc(value_fmt(v))}</title>'
+                           f'</circle>')
+    out.append("</svg>")
+    return "".join(out)
+
+
 # --- 5. heatmap grid ------------------------------------------------------
 def _blend(low: str, high: str, t: float) -> str:
     """Linear sRGB blend; adequate for a two-stop density ramp."""

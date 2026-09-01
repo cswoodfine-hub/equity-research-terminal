@@ -1350,6 +1350,66 @@ def metric_tiles(items, one_row: bool = False) -> str:
 CURVE_KEYS = ("penetration_peak_pct", "ramp_midpoint_year")
 
 
+def _revenue_build(v: dict) -> None:
+    """History running into forecast, stacked by what produces it.
+
+    The first chart in any sell-side model and the one this tab did not have: the
+    rollup computed the combined path and the reported history and neither was drawn.
+    Every modelled asset is a band, every revenue line no asset carries is a band, an
+    asset drawn on a placeholder curve is hatched so it is seen and not believed, and
+    the reported figures sit over the top as the line the bands have to meet.
+
+    What has no path is not drawn as one. Revenue with neither a product row nor a line
+    is stated as a figure beside the chart, because a flat band for it would be a
+    forecast nobody made.
+    """
+    modelled = v.get("modelled") or []
+    streams = v.get("streams") or []
+    history = [(int(r["fiscal_year"]), r["value"]) for r in v.get("reported_revenue") or []
+               if r.get("value") is not None]
+    if not modelled and not streams:
+        return
+    forecast_years = sorted({y for m in modelled for y in m.get("years") or []}
+                            | {y for s in streams for y in s.get("years") or []})
+    if not forecast_years:
+        return
+    # Four years of history, then the whole forecast.
+    hist_years = [y for y, _ in history if y < forecast_years[0]][-4:]
+    years = hist_years + forecast_years
+    labels = [str(y) for y in years]
+
+    palette = [TK.UP, TK.PURPLE_BOOK, TK.ORANGE_BOOK, TK.FLAG, TK.DOWN, TK.MUTED]
+    series = []
+    ranked = sorted(modelled, key=lambda m: -(m.get("rnpv_share") or 0))
+    for i, m in enumerate(ranked):
+        by_year = dict(zip(m.get("years") or [], m.get("revenue_share") or []))
+        series.append({"name": m["name"][:22], "colour": palette[i % len(palette)],
+                       "hatched": not m.get("counted", True),
+                       "values": [by_year.get(y) for y in years]})
+    for j, s in enumerate(streams):
+        by_year = dict(zip(s.get("years") or [], s.get("revenue") or []))
+        series.append({"name": s["line"][:22], "colour": TK.MUTED,
+                       "values": [by_year.get(y) for y in years]})
+    ref_by_year = dict(history)
+    section("Revenue build", basis="mm USD · reported over modelled")
+    R.show(CH.stacked_columns(
+        labels, series, 1000, 300, value_fmt=lambda x: f"{x:,.0f}",
+        reference={"name": "reported", "colour": TK.TEXT,
+                   "values": [ref_by_year.get(y) for y in years]}),
+        css_class="chart-mount")
+    coverage = v.get("coverage") or {}
+    bits = []
+    if coverage.get("untagged_revenue"):
+        bits.append(f"{coverage['untagged_revenue'] / 1e6:,.0f}mm of "
+                    f"FY{coverage['fiscal_year']} revenue has neither a product row nor "
+                    f"a line, and is not drawn: there is no path to draw for it")
+    if any(not m.get("counted", True) for m in modelled):
+        bits.append("hatched bands run on a placeholder curve and are left out of the "
+                    "per-share number")
+    if bits:
+        note(". ".join(bits) + ".")
+
+
 def _company_call(api_base: str, ticker: str) -> None:
     """The frame the per-asset calls sit inside.
 
@@ -1364,26 +1424,38 @@ def _company_call(api_base: str, ticker: str) -> None:
         v = api_get(api_base, f"/companies/{ticker}/forecast-verdict")
     except (urllib.error.URLError, OSError):
         return
-    if not v.get("ok") or not v.get("per_share"):
+    # Drawn whenever there is anything to say: a counted asset, a stream, or an asset on
+    # a placeholder curve. The last has no per-share number and still has a revenue
+    # build worth seeing, which is the whole point of drawing it.
+    if not v.get("ok"):
+        return
+    if not (v.get("per_share") or v.get("streams") or v.get("placeholders")):
         return
     note_body = v.get("note") or {}
     coverage = v.get("coverage") or {}
+    counted = [m for m in v.get("modelled") or [] if m.get("counted", True)]
 
     section(f"{ticker}, all modelled assets",
-            basis=f"{len(v.get('modelled') or [])} of the book")
+            basis=f"{len(counted)} counted of {len(v.get('modelled') or [])} drawn")
     st.markdown(
         f'<div class="call-lead">{html_escape(note_body.get("headline") or "")}</div>',
         unsafe_allow_html=True)
-    tiles = [("pipeline per share", T.num(v.get("per_share"), 2), "", None, "",
-              "modelled assets only"),
+    tiles = [("pipeline per share",
+              T.num(v.get("per_share"), 2) if v.get("per_share") else "—", "", None, "",
+              "counted assets and lines"),
              ("share price", T.num(v.get("close"), 2), "", None, "",
               f"close {v.get('close_date') or ''}"),
-             ("share of price", T.pct((v.get("pct_of_price") or 0) * 100, 1), "",
-              None, "", "explained by the model")]
+             ("share of price",
+              T.pct((v.get("pct_of_price") or 0) * 100, 1) if v.get("pct_of_price")
+              else "—", "", None, "", "explained by the model")]
     if coverage.get("share") is not None:
+        basis = ("reported revenue" if coverage.get("basis") == "reported total"
+                 else "tagged product rows")
         tiles.append(("revenue covered", T.pct(coverage["share"] * 100, 1), "",
-                      None, "", f"of FY{coverage['fiscal_year']} product sales"))
+                      None, "", f"of FY{coverage['fiscal_year']} {basis}"))
     st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+
+    _revenue_build(v)
 
     unmodelled = coverage.get("unmodelled") or []
     if unmodelled:
@@ -1733,6 +1805,51 @@ def _render_patient_chart(result, years, x_labels, volume_scale, patients_span):
              "rate, and it can be argued against the hand series above it")
 
 
+def _pnl_section(result: dict, varied) -> None:
+    """The P&L that produces the FCFF, which the engine computed and nothing showed.
+
+    Revenue, COGS, SG&A, R&D, EBIT, tax and FCFF by year, with the margins beside them,
+    because a valuation nobody can trace to a margin is a number rather than a view.
+    The allocation is said aloud: every asset is charged the company's own ratios on its
+    own revenue. That nets out across a fully covered company and is wrong per asset, a
+    marketed product does not spend a third of its sales on R&D, so the ratios are
+    editable per asset below and the default is named as a default here.
+    """
+    rows = (varied or {}).get("pnl") if isinstance(varied, dict) else None
+    rows = rows or result.get("pnl") or []
+    years = result.get("years") or []
+    if not rows or not years:
+        return
+    section("P&L", basis="mm USD" + (" · varied" if varied else "")
+            + " · company ratios applied to this revenue")
+    last = rows[-1]
+    first = rows[0]
+    st.markdown(metric_tiles([
+        ("FCFF margin, year one", T.pct(first["fcff"] / first["revenue"] * 100, 1)
+         if first.get("revenue") else "—", "", None, "", f"{years[0]}"),
+        ("FCFF margin, final year", T.pct(last["fcff"] / last["revenue"] * 100, 1)
+         if last.get("revenue") else "—", "", None, "", f"{years[-1]}"),
+        ("R&D charged", T.pct(first["rd"] / first["revenue"] * 100, 1)
+         if first.get("revenue") else "—", "", None, "",
+         "the company ratio, on this product's revenue"),
+        ("cumulative FCFF", T.num(sum(r["fcff"] for r in rows)), "mm", None, "",
+         "undiscounted, before PoS"),
+    ], one_row=True), unsafe_allow_html=True)
+    table = pd.DataFrame([{
+        "year": y, "revenue": r["revenue"], "COGS": -r["cogs"], "SG&A": -r["sga"],
+        "R&D": -r["rd"], "EBIT": r["ebit"], "tax": -r["tax"], "FCFF": r["fcff"],
+        "FCFF margin": (r["fcff"] / r["revenue"]) if r["revenue"] else None,
+    } for y, r in zip(years, rows)])
+    st.dataframe(
+        table.style.format({c: "{:,.0f}" for c in
+                            ("revenue", "COGS", "SG&A", "R&D", "EBIT", "tax", "FCFF")}
+                           | {"FCFF margin": "{:.1%}"}),
+        width="stretch", hide_index=True, height=min(60 + 36 * len(rows), 420))
+    note("COGS, SG&A, R&D and tax are the company's FY ratios from the 10-K, applied to "
+         "this product's revenue. Across a company the model covers in full they sum to "
+         "the company's own P&L; on any one product they are an allocation, not a cost.")
+
+
 def _share_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
                   result: dict) -> None:
     """The one judgement in a franchise: where the share settles.
@@ -1795,10 +1912,13 @@ def _share_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
 
 
 def _render_forecast_tab(api_base: str, ticker: str):
-    """The sales tab: patients x price to revenue, revenue to rNPV, beside its own
-    calibration. Everything on screen traces to an assumption row with a source; the
-    engine computes and never invents, and where it refuses the tab says which numbers
-    are missing rather than showing a blank.
+    """The sales tab: patients x price to revenue, revenue to FCFF, FCFF to rNPV, with
+    the P&L that produced it. Everything on screen traces to an assumption row with a
+    source; the engine computes and never invents, and where it refuses the tab says
+    which numbers are missing rather than showing a blank. The engine also returns a
+    calibration table, modelled against reported for overlapping years; it is not drawn
+    here, and for every seed on file it is empty, because the forecasts start the year
+    after the last reported one.
     """
     st.markdown('<span class="no-rail"></span>', unsafe_allow_html=True)
     # The company sits above the compound, because that is the unit of coverage. It draws
@@ -1988,14 +2108,26 @@ def _render_forecast_tab(api_base: str, ticker: str):
         st.markdown(metric_tiles(tiles), unsafe_allow_html=True)
         loe_line = ("no LOE on file" if not result.get("loe_year") else
                     f"LOE {result['loe_year']} ({result.get('loe_basis')})")
+        curve_line = (f" · uptake curve: {html_escape(result['curve_basis'][:60])}"
+                      if result.get("curve_basis") else "")
         st.markdown(f'<div class="byline">{html_escape(loe_line)}'
                     + (f' · erosion: {html_escape(result["erosion_basis"])}'
                        if result.get("erosion_basis") else "")
-                    + "</div>", unsafe_allow_html=True)
+                    + curve_line + "</div>", unsafe_allow_html=True)
         if unsourced:
             st.markdown(f'<div class="byline">unsourced assumptions: '
                         f'{html_escape(", ".join(unsourced))}</div>',
                         unsafe_allow_html=True)
+
+    if (result.get("curve_basis") or "").startswith("placeholder"):
+        state("Drawn on a placeholder curve, and not counted",
+              "the uptake ceiling and midpoint below are the shaper's probe values, "
+              "5% of the eligible pool at peak and half of it by year four. They exist "
+              "so there is a curve to argue with. This asset is left out of the company "
+              "per-share figure until real values are committed here.")
+        _curve_shaper(api_base, ticker, sel, scenario, [])
+
+    _pnl_section(result, varied)
 
     if result.get("mode") == "franchise":
         _share_shaper(api_base, ticker, sel, scenario, result)

@@ -408,3 +408,16 @@ def test_the_centre_can_sit_away_from_zero():
     svg = charts.tornado([{"label": "per share", "low": 1.42, "high": 8.91}],
                          centre=4.45, value_fmt=lambda v: f"${v:,.2f}")
     assert "$4.45" in svg
+
+
+def test_stacked_columns_stacks_and_hatches():
+    import components.charts as CH
+    svg = CH.stacked_columns(
+        ["2025", "2026"],
+        [{"name": "A", "values": [None, 10.0], "colour": "#111"},
+         {"name": "B", "values": [None, 5.0], "colour": "#222", "hatched": True}],
+        reference={"name": "reported", "values": [12.0, None], "colour": "#333"})
+    assert svg.count("<rect") >= 3                    # two segments plus legend swatches
+    assert "url(#hatch" in svg                        # the placeholder band is hatched
+    assert "<circle" in svg                           # the reported point is drawn
+    assert "2026 B 5" in svg                          # the hover carries the figure
