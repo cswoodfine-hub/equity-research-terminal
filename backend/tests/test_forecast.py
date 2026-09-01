@@ -571,3 +571,102 @@ def test_no_ceiling_is_the_old_behaviour():
     assert (F.build(_marketed(revenue_growth_pct=0.10, forecast_years=10))["revenue"]
             == F.build(_marketed(revenue_growth_pct=0.10, forecast_years=10,
                                  revenue_ceiling_musd=None))["revenue"])
+
+
+# --- One pool, two products -------------------------------------------------
+#
+# Trikafta and Alyftrek dispense to the same CF patients. Forecast apart, on growth rates
+# of -4.6% and +176% read off their own halves, the pair carried 40% more revenue by 2028
+# than the franchise they are both inside. The quantity that behaves is share: Alyftrek
+# went 2.0%, 5.4%, 14.6%, 17.9% over four quarters while Trikafta went 92.4%, 87.9%,
+# 80.8%, 77.8%, which is one number and its complement.
+
+def _franchise(**over):
+    scalars = {"therapy_mode": "franchise", "franchise_revenue": 11150.5,
+               "franchise_growth_pct": 0.089252, "share_now": 0.075136,
+               "share_plateau": 0.90, "share_ramp_pct": 0.150084, "wacc": 0.085,
+               "forecast_start_year": 2026, "forecast_years": 10,
+               "cogs_pct": 0.14, "sga_pct": 0.15, "rd_pct": 0.33, "tax_rate": 0.15,
+               "pos": 1.0}
+    scalars.update(over)
+    return {"scalars": scalars, "indications": []}
+
+
+def test_share_starts_from_now_and_settles_at_the_plateau():
+    got = F.share_path(0.10, 0.80, 0.20, 60)
+    assert got[0] > 0.10 and got[0] < 0.80          # one year of ramp, not none
+    assert got == sorted(got)                        # monotone
+    assert got[-1] == pytest.approx(0.80, abs=1e-4)  # arrives
+
+
+def test_share_runs_downhill_too():
+    """The product giving the franchise up approaches its plateau from above. One curve
+    does both directions, which is what lets the two shares stay complementary."""
+    got = F.share_path(0.90, 0.10, 0.20, 60)
+    assert got == sorted(got, reverse=True)
+    assert got[-1] == pytest.approx(0.10, abs=1e-4)
+
+
+def test_a_shared_ramp_makes_the_shares_sum_to_one():
+    """The property the whole mode rests on. Shares that sum to one at the base year and
+    at the plateau sum to one in every year between, whatever the ramp, so long as every
+    member decays at the same rate. Nothing can be counted twice."""
+    for ramp in (0.05, 0.150084, 0.4, 1.2):
+        a = F.share_path(0.075136, 0.90, ramp, 20)
+        b = F.share_path(1 - 0.075136, 0.10, ramp, 20)
+        assert [round(x + y, 12) for x, y in zip(a, b)] == [1.0] * 20
+
+
+def test_a_ramp_they_do_not_share_breaks_the_identity():
+    """Stated as a test because it is the failure the company call watches for: differing
+    ramps still start and end at one and drift in between."""
+    a = F.share_path(0.075136, 0.90, 0.15, 20)
+    b = F.share_path(1 - 0.075136, 0.10, 0.30, 20)
+    assert max(abs(x + y - 1.0) for x, y in zip(a, b)) > 0.05
+
+
+def test_two_members_sum_to_the_pool_in_every_year():
+    aly = F.build(_franchise())
+    tri = F.build(_franchise(share_now=1 - 0.075136, share_plateau=0.10))
+    pool = aly["franchise"]["revenue"]
+    assert tri["franchise"]["revenue"] == pool          # the same pool, from both sides
+    for i, total in enumerate(pool):
+        assert aly["revenue"][i] + tri["revenue"][i] == pytest.approx(total)
+
+
+def test_the_franchise_reproduces_the_guided_first_year():
+    """FY2026 is the year Vertex has guided and half reported, so the model has to land
+    on it: 12,145.7mm of pool, 2,308.8 of it Alyftrek and 9,836.9 Trikafta."""
+    aly = F.build(_franchise())
+    tri = F.build(_franchise(share_now=1 - 0.075136, share_plateau=0.10))
+    assert aly["franchise"]["revenue"][0] == pytest.approx(12145.7, abs=0.5)
+    assert aly["revenue"][0] == pytest.approx(2308.8, abs=1.0)
+    assert tri["revenue"][0] == pytest.approx(9836.9, abs=1.0)
+
+
+def test_the_taker_overtakes_the_giver():
+    aly = F.build(_franchise())["revenue"]
+    tri = F.build(_franchise(share_now=1 - 0.075136, share_plateau=0.10))["revenue"]
+    crossed = [i for i in range(len(aly)) if aly[i] > tri[i]]
+    assert crossed, "Alyftrek should pass Trikafta inside the horizon"
+    assert crossed[0] == 4                              # 2030 on a 2026 start
+
+
+def test_franchise_mode_names_what_it_is_missing():
+    with pytest.raises(F.ForecastError) as raised:
+        F.build({"scalars": {"therapy_mode": "franchise", "wacc": 0.085},
+                 "indications": []})
+    named = " ".join(raised.value.missing)
+    for key in ("franchise_revenue", "franchise_growth_pct", "share_now",
+                "share_plateau", "share_ramp_pct"):
+        assert key in named
+
+
+def test_franchise_mode_never_asks_for_a_price():
+    """It is anchored on a pool, so a price per patient is the wrong question, exactly as
+    it is for a marketed product."""
+    assert F.build(_franchise())["rnpv"] > 0
+
+
+def test_the_other_modes_carry_no_franchise():
+    assert F.build(_marketed())["franchise"] is None

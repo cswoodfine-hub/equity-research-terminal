@@ -36,7 +36,7 @@ REQUIRED = ("therapy_mode", "net_price_per_patient")
 
 # One-time therapies bill the patient once, so COGS rides per patient; chronic therapies
 # bill per year and carry COGS as a share of revenue.
-MODES = ("one_time", "chronic", "marketed")
+MODES = ("one_time", "chronic", "marketed", "franchise")
 
 
 class ForecastError(ValueError):
@@ -226,6 +226,33 @@ def grown_revenue(base: float, growth: float, years: int,
 
 
 
+def share_path(now: float, plateau: float, ramp: float, years: int) -> list:
+    """A product's share of its franchise, closing the gap to a plateau each year.
+
+    ``share(t) = plateau + (now - plateau) * exp(-ramp * t)``. Monotone, bounded between
+    the two, and it runs in either direction: the product taking share approaches its
+    plateau from below, the one giving it up approaches from above. ``ramp`` is the rate
+    the remaining gap closes, so ln(2)/ramp is the half-life of the switch.
+
+    Two products that share one pool of patients cannot be forecast apart. Trikafta and
+    Alyftrek were, on their own growth rates of -4.6% and +176%, and the pair carried 40%
+    more revenue by 2028 than the franchise they are both inside. Growth is the wrong
+    quantity: it is share that Vertex reports and share that is well behaved. Alyftrek
+    went 2.0%, 5.4%, 14.6%, 17.9% across four quarters while Trikafta went 92.4%, 87.9%,
+    80.8%, 77.8%, which is one number and its complement.
+
+    Members of one franchise sharing a ramp is what makes the split an identity rather
+    than an arrangement. The shares then sum to
+
+        sum(plateau) + (sum(now) - sum(plateau)) * exp(-ramp * t)
+
+    so shares that sum to one at the base year and at the plateau sum to one in every
+    year between, whatever the ramp. Nothing can be counted twice, and no member needs to
+    know what the others hold.
+    """
+    return [plateau + (now - plateau) * math.exp(-ramp * (i + 1)) for i in range(years)]
+
+
 def net_price(scalars: dict):
     """Net price per patient, given directly or as list price less gross-to-net."""
     if scalars.get("net_price_per_patient") is not None:
@@ -350,6 +377,7 @@ def build(inputs: dict) -> dict:
     notes: list[str] = []
 
     mode = (scalars.get("therapy_mode") or "").strip()
+    franchise = None
     price = net_price(scalars)
     missing = [k for k in ("therapy_mode",) if not mode]
     if mode == "marketed":
@@ -358,6 +386,18 @@ def build(inputs: dict) -> dict:
             missing.append("base_revenue (last reported full year, mm)")
         if scalars.get("revenue_growth_pct") is None:
             missing.append("revenue_growth_pct (annual, before LOE erosion)")
+    elif mode == "franchise":
+        # Anchored on the pool it takes a share of, so neither a price per patient nor a
+        # growth rate of its own is the question.
+        for key, what in (
+                ("franchise_revenue", "the pool's last reported full year, mm"),
+                ("franchise_growth_pct", "annual growth of the pool, not of this product"),
+                ("share_now", "this product's share of the pool in the base year"),
+                ("share_plateau", "the share it settles at"),
+                ("share_ramp_pct", "rate the gap to the plateau closes each year; every "
+                                   "member of one franchise must use the same one")):
+            if scalars.get(key) is None:
+                missing.append(f"{key} ({what})")
     elif price is None:
         missing.append("net_price_per_patient (or list price and gross-to-net)")
     rate, rate_basis = wacc(scalars)
@@ -412,6 +452,31 @@ def build(inputs: dict) -> dict:
                 f"revenue is held at a ceiling of {ceiling:,.0f}mm from "
                 f"{years[revenue.index(ceiling)] if ceiling in revenue else years[-1]} "
                 "onward, so the growth rate above describes the years before it only")
+    elif mode == "franchise":
+        pool_base = scalars["franchise_revenue"]
+        pool_growth = scalars["franchise_growth_pct"]
+        fade = scalars.get("terminal_growth_pct")
+        pool = grown_revenue(
+            pool_base, pool_growth, len(years), fade_to=fade,
+            fade_years=int(scalars.get("growth_fade_years") or 5))
+        shares = share_path(scalars["share_now"], scalars["share_plateau"],
+                            scalars["share_ramp_pct"], len(years))
+        revenue = [p * s for p, s in zip(pool, shares)]
+        franchise = {"revenue": pool, "share": shares}
+        per_indication = {}
+        treated = total_patients = [None] * len(years)
+        notes.append(
+            f"franchise mode: a pool of {pool_base:,.0f}mm growing {pool_growth:+.1%}"
+            + (f", fading to {fade:+.1%} over "
+               f"{int(scalars.get('growth_fade_years') or 5)} years"
+               if fade is not None else " held flat")
+            + f", of which this product holds {shares[0]:.1%} in {years[0]} and "
+              f"{shares[-1]:.1%} by {years[-1]}, against a plateau of "
+              f"{scalars['share_plateau']:.1%}")
+        notes.append(
+            "the share is what is forecast here, not the revenue. A product taking a "
+            "franchise off another cannot be grown at a rate of its own without the two "
+            "together outgrowing the pool they share")
     else:
         # Patients, per indication and in total.
         per_indication = {}
@@ -427,7 +492,7 @@ def build(inputs: dict) -> dict:
         total_patients = [sum(per_indication[n]["used"][i] for n in per_indication)
                           for i in range(len(years))]
 
-    if mode == "marketed":
+    if mode in ("marketed", "franchise"):
         pass                    # revenue is already built above
     elif mode == "one_time":
         # Billed once, so the year's patients are the year's revenue.
@@ -513,6 +578,8 @@ def build(inputs: dict) -> dict:
         "patients": {"total": total_patients, "treated": treated,
                      "by_indication": per_indication},
         "revenue": revenue, "revenue_after_loe": eroded, "pnl": pnl,
+        # The pool and this product's share of it, for franchise mode. None elsewhere.
+        "franchise": franchise,
         "wacc": rate, "wacc_basis": rate_basis,
         "pos": probability, "pos_basis": pos_basis,
         "loe_year": loe_year, "loe_basis": loe_basis, "erosion_basis": erosion_basis,

@@ -61,6 +61,28 @@ TEMPLATE = {
         ("wacc", "discount rate or CAPM components", "value"),
         ("forecast_start_year", "first DCF year", "value"),
     ),
+    "franchise": (
+        ("therapy_mode", "franchise", "text"),
+        ("franchise_revenue", "the pool this product takes a share of, last reported "
+                              "full year, mm", "value"),
+        ("franchise_growth_pct", "annual growth of the pool, not of this product",
+         "value"),
+        ("share_now", "this product's share of the pool in the base year", "value"),
+        ("share_plateau", "the share it settles at; the judgement", "value"),
+        ("share_ramp_pct", "rate the gap to the plateau closes each year. Every member "
+                           "of one franchise must use the same one, which is what keeps "
+                           "their shares summing to one", "value"),
+        ("terminal_growth_pct", "long-run growth of the pool the near-term rate fades "
+                                "to", "value"),
+        ("growth_fade_years", "years over which the pool's growth fades, default 5",
+         "value"),
+        ("cogs_pct", "cost of goods as a share of revenue", "value"),
+        ("sga_pct", "SG&A as a share of revenue", "value"),
+        ("rd_pct", "R&D as a share of revenue", "value"),
+        ("tax_rate", "effective tax rate", "value"),
+        ("wacc", "discount rate or CAPM components", "value"),
+        ("forecast_start_year", "first DCF year", "value"),
+    ),
     "chronic": (
         ("therapy_mode", "chronic", "text"),
         ("net_price_per_patient", "annual net price per patient", "value"),
