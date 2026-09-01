@@ -433,8 +433,14 @@ def company_approvals(ticker: str) -> dict:
                        (SELECT e2.protection_type FROM exclusivities e2
                          WHERE e2.asset_id = a.id
                          ORDER BY e2.expiry_date DESC LIMIT 1) AS loe_basis,
-                       (SELECT b.loe_year FROM biologic_loe b
+                       (SELECT b.floor_year FROM biologic_loe b
                          WHERE b.asset_id = a.id) AS bio_floor_year,
+                       (SELECT b.loe_date FROM biologic_loe b
+                         WHERE b.asset_id = a.id AND b.disclosed_year IS NOT NULL)
+                         AS bio_disclosed_date,
+                       (SELECT b.basis FROM biologic_loe b
+                         WHERE b.asset_id = a.id AND b.disclosed_year IS NOT NULL)
+                         AS bio_disclosed_basis,
                        (SELECT r.value FROM asset_revenue r
                          WHERE r.asset_id = a.id AND r.period = 'FY'
                          ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue,
@@ -461,9 +467,14 @@ def company_approvals(ticker: str) -> dict:
     areas = product_areas.areas_for(None, [r["asset_id"] for r in rows])
     for r in rows:
         r["area"] = areas.get(r["asset_id"])
+        # The filer's own biosimilar date sets the LOE where the 10-K states one; the
+        # statutory floor is a floor. Same rule as the forecast, so the two views agree.
+        disclosed_date = r.pop("bio_disclosed_date", None)
+        disclosed_basis = r.pop("bio_disclosed_basis", None)
         r["loe"], r["loe_basis"] = loe_module.effective(
             r.pop("loe_max"), r["loe_basis"], r.pop("bio_floor_year"),
-            r.get("substance_max"))
+            r.get("substance_max"),
+            disclosed=(disclosed_date, disclosed_basis) if disclosed_date else None)
         # The window is the molecule patents where the book flags them, since that is
         # what a generic has to wait out.
         r["loe_earliest"] = r.pop("substance_earliest") or r["loe_earliest"]

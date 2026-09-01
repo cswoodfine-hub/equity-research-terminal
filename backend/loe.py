@@ -32,14 +32,26 @@ def merged_loe(loe_max, loe_basis, bio_floor_year):
     return loe_max, loe_basis
 
 
-def effective(loe_max, loe_basis, bio_floor_year, substance_max=None):
+def effective(loe_max, loe_basis, bio_floor_year, substance_max=None,
+              disclosed=None):
     """The date a product loses its market, and what sets it.
 
     A molecule patent gates a generic outright; a method-of-use patent covers one
     indication and can be carved out of a generic's label. So where the Orange Book
     flags a drug substance patent, that patent sets the date even when a use patent runs
     later, and the biologic floor still applies on top.
+
+    ``disclosed`` is the biosimilar date the filer itself states, as (date, basis), and
+    it sets the date outright. Orphan exclusivity on one indication is the same kind of
+    thing as a use patent: it holds that indication, not the molecule. Keytruda carries
+    a 2031 orphan date on its latest indication while Merck's 10-K says biosimilar
+    competition could begin in December 2028 when the compound patent expires, and the
+    later of the two is the wrong one. The statutory floor still applies underneath,
+    because a disclosure cannot run earlier than the law allows.
     """
+    if disclosed and disclosed[0]:
+        return merged_loe(disclosed[0], disclosed[1] or "10-K disclosure",
+                          bio_floor_year)
     latest, basis = loe_max, loe_basis
     if substance_max:
         latest, basis = substance_max, "drug substance patent"
@@ -55,14 +67,20 @@ def _asset_loe(conn):
     app knows about that, and the UI has to say so rather than imply a worldwide date.
     """
     placeholders = ", ".join("?" for _ in NOT_A_CLIFF)
+    # A biosimilar date the filer states in its 10-K is the cliff, ahead of the book's
+    # latest expiry: Keytruda's Purple Book runs to 2031 on an orphan indication and
+    # Merck says December 2028. One row per asset in biologic_loe, so the aggregate
+    # over the join is the row itself.
     return conn.execute(
         f"""
         SELECT a.owner_company_id AS cid, a.id AS asset_id,
                COALESCE(
+                 MAX(CASE WHEN b.disclosed_year IS NOT NULL THEN b.loe_date END),
                  MAX(CASE WHEN e.patent_kind = 'substance' THEN e.expiry_date END),
                  MAX(e.expiry_date)) AS loe
           FROM assets a
           JOIN exclusivities e ON e.asset_id = a.id
+          LEFT JOIN biologic_loe b ON b.asset_id = a.id
          WHERE COALESCE(e.protection_type, '') NOT IN ({placeholders})
          GROUP BY a.id
         """,
@@ -143,8 +161,14 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
                      ORDER BY x.expiry_date DESC, x.protection_type
                      LIMIT 1) AS loe_basis,
                    -- The biologic 12-year statutory floor, when computed; merged below.
-                   (SELECT b.loe_year FROM biologic_loe b WHERE b.asset_id = a.id)
+                   (SELECT b.floor_year FROM biologic_loe b WHERE b.asset_id = a.id)
                      AS bio_floor_year,
+                   -- And the filer's own biosimilar date where the 10-K states one,
+                   -- which sets the LOE outright rather than flooring it.
+                   (SELECT b.loe_date FROM biologic_loe b WHERE b.asset_id = a.id
+                     AND b.disclosed_year IS NOT NULL) AS bio_disclosed_date,
+                   (SELECT b.basis FROM biologic_loe b WHERE b.asset_id = a.id
+                     AND b.disclosed_year IS NOT NULL) AS bio_disclosed_basis,
                    -- A Paragraph IV certification on record is a filed challenge to the
                    -- patent that sets this date, so the expiry may not hold. The join
                    -- is on the asset; the date is the first certification, or null for
@@ -168,8 +192,11 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
         # sets the date and the use patents behind it are reported separately: a generic
         # can carve a method-of-use claim out of its label, so a use patent running two
         # years past the substance patent does not buy two more years of exclusivity.
-        loe, basis = effective(asset["loe_max"], asset["loe_basis"],
-                               asset["bio_floor_year"], asset["substance_max"])
+        loe, basis = effective(
+            asset["loe_max"], asset["loe_basis"], asset["bio_floor_year"],
+            asset["substance_max"],
+            disclosed=(asset["bio_disclosed_date"], asset["bio_disclosed_basis"])
+            if asset["bio_disclosed_date"] else None)
         if loe is None or int(loe[:4]) < this_year:
             continue
         item = dict(asset)

@@ -233,8 +233,16 @@ def derive(db_path=None, complete=None, today=None) -> dict:
                 # run the model rate-limited does not wipe it back to the floor. A fresh
                 # disclosure overrides the stored one.
                 prior = conn.execute(
-                    "SELECT disclosed_year, evidence, source_url FROM biologic_loe"
-                    " WHERE asset_id = ?", (asset["asset_id"],)).fetchone()
+                    "SELECT disclosed_year, evidence, source_url, is_curated"
+                    " FROM biologic_loe WHERE asset_id = ?",
+                    (asset["asset_id"],)).fetchone()
+                # A curated row is an analyst's reading of the filing and outranks this
+                # reader's. Keytruda's 10-K says biosimilar competition could begin in
+                # December 2028; the sentence also names the 2029 patent expiries, and
+                # the regex took those. The table has had an is_curated column for this
+                # since it was created and the upsert below never consulted it.
+                if prior and prior["is_curated"]:
+                    continue
                 if found:
                     disclosed_year, evidence, src = found["year"], found["quote"], source_url
                 elif prior and prior["disclosed_year"] is not None:

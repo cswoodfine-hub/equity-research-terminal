@@ -99,12 +99,21 @@ def _loe(conn, asset_id: int) -> dict:
                (SELECT x.protection_type FROM exclusivities x
                  WHERE x.asset_id = ? ORDER BY x.expiry_date DESC, x.protection_type
                  LIMIT 1) AS basis,
-               (SELECT b.loe_year FROM biologic_loe b WHERE b.asset_id = ?)
-                 AS bio_floor_year
+               (SELECT b.floor_year FROM biologic_loe b WHERE b.asset_id = ?)
+                 AS bio_floor_year,
+               (SELECT b.loe_date FROM biologic_loe b WHERE b.asset_id = ?
+                 AND b.disclosed_year IS NOT NULL) AS bio_disclosed_date,
+               (SELECT b.basis FROM biologic_loe b WHERE b.asset_id = ?
+                 AND b.disclosed_year IS NOT NULL) AS bio_disclosed_basis
           FROM exclusivities e WHERE e.asset_id = ?
-        """, (asset_id, asset_id, asset_id)).fetchone()
-    date, basis = loe_module.effective(row["loe_max"], row["basis"],
-                                       row["bio_floor_year"], row["substance_max"])
+        """, (asset_id, asset_id, asset_id, asset_id, asset_id)).fetchone()
+    # The biologic row holds two different things: the statutory floor, which is a
+    # floor, and where the 10-K states one, the filer's own biosimilar date, which sets
+    # the date rather than floors it. They were being passed as one number.
+    date, basis = loe_module.effective(
+        row["loe_max"], row["basis"], row["bio_floor_year"], row["substance_max"],
+        disclosed=(row["bio_disclosed_date"], row["bio_disclosed_basis"])
+        if row["bio_disclosed_date"] else None)
     earliest = row["substance_earliest"] or row["loe_earliest"]
     return {
         "loe": date, "basis": basis,
