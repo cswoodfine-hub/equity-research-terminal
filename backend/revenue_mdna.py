@@ -35,8 +35,11 @@ _ANCHORS = (
     r"sales of (?:our|the company's) products",
     r"worldwide product sales",
     # A scale statement is itself a table: filers print one immediately above the
-    # columns, and no prose carries it.
+    # columns, and no prose carries it. Merck writes it without the brackets, on its own
+    # line between the period and the years, so the bracketed form alone opened no window
+    # over its product table at all.
     r"\((?:dollars? |dollar )?(?:amounts )?in (?:millions|thousands)\)",
+    r"(?:^|\n)\s*\$?\s*(?:amounts )?in (?:millions|thousands)\s*(?:$|\n)",
     # A 20-F prints its scale in the column header rather than a sentence: "2025 $m %
     # %". AstraZeneca's revenue table carries no other heading a reader could match.
     r"\$m\s+%",
@@ -195,14 +198,14 @@ def read_row(run: str, spaced: bool = None) -> float | None:
 
     # Revenue then its growth: "Prolia $ 4,414 1 %". The growth is a bare small
     # integer, which is what separates it from another money column.
-    if (len(numbers) >= 2 and _looks_like_money(values[0])
+    if (len(numbers) >= 2 and _money_in_row(values[0])
             and _looks_like_percent(values[1])):
         return numbers[0]
 
     # This year, last year, then growth: "Camzyos 2,910 2,530 15 %". Both money
     # columns carry a separator and only the third is small and bare.
-    if (len(numbers) >= 3 and _looks_like_money(values[0])
-            and _looks_like_money(values[1]) and _looks_like_percent(values[2])):
+    if (len(numbers) >= 3 and _money_in_row(values[0])
+            and _money_in_row(values[1]) and _looks_like_percent(values[2])):
         return numbers[0]
 
     # Any run of money columns closed by a percentage column, the first being the
@@ -252,13 +255,34 @@ def _looks_like_money(value) -> bool:
     A revenue in millions carries a thousands separator or a decimal point. A bare
     four-digit integer in a product table is a year: Gilead prints patent expiries
     beside its products, and "Veklury 2036 (7) 2035" is not two billion dollars of
-    revenue. Refusing it costs the products stated under a thousand million without a
-    separator, which are the rows that cannot be told from a footnote anyway.
+    revenue.
+
+    Strict, and used wherever a figure has to stand on its own. ``_money_in_row`` below
+    is the same test relaxed for a number with a row around it.
     """
     number, raw, has_sign = value
     if has_sign:
         return False                  # a percentage is not money, however it is written
     return ("," in raw or "." in raw or " " in raw) and number > 0
+
+
+def _money_in_row(value) -> bool:
+    """Whether a number is money, given that a percentage closes the row it sits in.
+
+    A bare integer under a thousand cannot be a year, so what makes it ambiguous is not
+    its shape but its company: alone it is as likely a footnote marker. Biogen writes
+    "we completed the sale of our rights to BYOOVIZ. (3) Other includes FUMADERM", and
+    that 3 read as three million dollars of a product with no row in the table at all.
+
+    Inside a row it is unambiguous, and refusing it cost every product a filer reports
+    below a billion without a separator, which is most of Merck's table: "BRIDION 469
+    429 9 %" could not be read. So this is used only by the two branches that require a
+    percentage to close the row, and never for a number standing by itself.
+    """
+    number, raw, has_sign = value
+    if has_sign:
+        return False
+    return number > 0 and ("," in raw or "." in raw or " " in raw or number < 1000)
 
 
 def parse(text: str, brands: list, company_revenue: float | None = None) -> dict:
@@ -345,6 +369,14 @@ def geographic_row(window: str, at: int, brands: list, spaced: bool = None):
     return read_row(match.group(1), spaced)
 
 
+_GROUP_JOIN = re.compile(r"(?:/|,|\band)\s*$", re.I)
+
+
+def _in_a_printed_group(window: str, at: int) -> bool:
+    """Whether the name at ``at`` is joined to the name before it."""
+    return bool(_GROUP_JOIN.search(window[max(0, at - 6):at]))
+
+
 def _parse_window(window: str, brands: list, company_revenue: float | None) -> dict:
     """The products one candidate table names."""
     multiplier = scale(window)
@@ -362,7 +394,15 @@ def _parse_window(window: str, brands: list, company_revenue: float | None) -> d
             + r"[\s®™*†‡]*(?:\((?:\*|\d|[a-z])\)[\s]*)?"
             + f"((?:{_CELL}){{1,8}})",
             re.I)
-        match = pattern.search(window)
+        # A brand printed as a member of a group is not a row of its own. Merck heads
+        # a line "KEYTRUDA/KEYTRUDA QLEX 8,366", "GARDASIL/GARDASIL 9 1,169", "JANUVIA/
+        # JANUMET 2,544" and "PROQUAD, M-M-R II and VARIVAX 2,451"; the first name is
+        # never followed by a figure and was never read, but the last one is, so Keytruda
+        # Qlex was booked the pair, Gardasil 9 the pair and Varivax the trio. A name that
+        # follows a slash, a comma or "and" belongs to the group, and the group's figure
+        # belongs to no single product.
+        match = next((m for m in pattern.finditer(window)
+                      if not _in_a_printed_group(window, m.start())), None)
         if match:
             value = read_row(match.group(1), spaced)
         else:

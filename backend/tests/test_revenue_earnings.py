@@ -307,3 +307,114 @@ def test_a_heading_with_no_year_of_its_own_takes_its_neighbours():
     alone it is not a period at all, which is why it was being dropped."""
     line = "Three Months Ended June 30, Six Months Ended June 30,\n2026 2025 2026 2025\n"
     assert [head[:3] for head in RE.tables(line)] == [("Q2", "2026-06-30", 2026)]
+
+
+# --- Merck: a stacked header, a grouped row, and a grid that must not be read ---------
+#
+# Merck's exhibit prints its column header one token to a line, "Second Quarter / $ in
+# millions / 2026 / 2025", and its full-year table under "Year Ended / $ in millions /
+# Dec. 31, 2025". Neither was a heading the reader knew, so the product tables had none
+# and were claimed from thousands of characters up the page. Then Table 3, the
+# franchise grid, prints every quarter of two years on one row, and read_row proved
+# 7,205 + 7,956 = 15,161 and 7,205 + 7,956 + 8,142 + 8,337 = 31,641 as totals: a half
+# year stored as Q2 and a full year as Q4, on the product that is half of Merck.
+
+MRK_Q2 = (Path(__file__).parent / "fixtures" / "mrk_8k_stacked_header.txt").read_text()
+MRK_Q4 = (Path(__file__).parent / "fixtures" / "mrk_8k_year_ended.txt").read_text()
+
+
+def test_a_bare_ordinal_over_a_scale_line_is_a_quarter_heading():
+    heads = [(p, e, y) for p, e, y, _ in RE.tables(MRK_Q2)]
+    assert ("Q2", "2026-06-30", 2026) in heads
+
+
+def test_year_ended_over_a_scale_line_is_a_full_year_heading():
+    heads = [(p, e, y) for p, e, y, _ in RE.tables(MRK_Q4)]
+    assert ("Q4", "2025-12-31", 2025) in heads
+    assert ("FY", "2025-12-31", 2025) in heads          # "Year Ended / $ in millions / Dec. 31, 2025"
+
+
+def test_the_quarter_heading_does_not_reach_into_the_full_year_table():
+    bodies = {p: body for p, _, _, body in RE.tables(MRK_Q4)}
+    assert "31,680" not in bodies["Q4"]
+    assert "31,680" in bodies["FY"]
+
+
+def test_the_grid_is_fenced_and_never_read_as_a_quarter():
+    """Table 3's Keytruda row sums three ways. None of those sums may come back."""
+    found = RE.parse(MRK_Q2, ["Keytruda", "Keytruda Qlex", "Bridion"])
+    values = {round(v["value"] / 1e6) for v in found.values()}
+    assert not values & {15161, 15810, 31641, 7906, 7904}
+    for _, _, _, body in RE.tables(MRK_Q2):
+        assert "15,161" not in body                     # the grid is inside no heading's reach
+
+
+def test_a_group_member_is_not_booked_the_group():
+    """"KEYTRUDA/ KEYTRUDA QLEX 8,366": the first name was never read, the second was."""
+    found = RE.parse(MRK_Q2, ["Keytruda", "Keytruda Qlex", "Gardasil", "Gardasil 9"])
+    assert "Keytruda Qlex" not in found
+    assert "Gardasil 9" not in found
+    assert "Keytruda" not in found and "Gardasil" not in found
+
+
+def test_a_product_on_its_own_line_is_read_from_the_stacked_table():
+    """"WINREVAIR 588 336 75 % 75 %": a row of bare figures under a thousand, which the
+    money test refused outright until a percentage closing the row made them readable."""
+    found = RE.parse(MRK_Q2, ["Winrevair", "Keytruda", "Gardasil 9"])
+    assert found["Winrevair"]["value"] == pytest.approx(588e6)
+    assert found["Winrevair"]["period"] == "Q2"
+    assert found["Winrevair"]["fiscal_year"] == 2026
+
+
+def test_a_month_can_be_abbreviated():
+    heads = [(p, e) for p, e, _, _ in RE.tables("Year Ended\n$ in millions\nDec. 31, 2025\n")]
+    assert heads == [("FY", "2025-12-31")]
+    heads = [(p, e) for p, e, _, _ in RE.tables("Three Months Ended Sept. 30, 2025\n")]
+    assert heads == [("Q3", "2025-09-30")]
+
+
+def test_a_long_year_ended_line_is_still_a_fence_not_a_heading():
+    """Bristol Myers' 190-character column header names "Year Ended" three times and is
+    too long to be a heading. Reading "year ended" as a span must not promote it."""
+    line = ("($ amounts in millions) Year Ended December 31, 2025 % Change from Year Ended "
+            "December 31, 2024 % Change from Year Ended December 31, 2024 Ex-F/X**\n"
+            "Eliquis 10,239 4,205 14,443 6 % 14 % 8 %\n")
+    assert RE.tables(line) == []
+    assert RE._unread_headings(line, set()) == [0]
+
+
+# --- BioMarin: the same header, wrapped ----------------------------------------------
+#
+# One header over six columns and two headings across three lines:
+#
+#     Three Months Ended
+#     June 30, Six Months Ended
+#     June 30,
+#     2026 2025 % Change 2026 2025 % Change
+#
+# Keyed on a shared line, the three month heading was invisible and the six month one
+# took the table, so VOXZOGO's June quarter of $253mm was filed as a half year against
+# the $472mm printed three columns along.
+
+BMRN = (Path(__file__).parent / "fixtures" / "bmrn_8k_wrapped_header.txt").read_text()
+
+BMRN_BRANDS = ["Voxzogo", "Vimizim", "Naglazyme", "Palynziq", "Brineura"]
+
+
+def test_a_wrapped_header_still_collapses_to_its_leftmost_heading():
+    assert [(p, e, y) for p, e, y, _ in RE.tables(BMRN)] == [("Q2", "2026-06-30", 2026)]
+
+
+def test_the_quarter_column_is_read_not_the_half_year_three_along():
+    found = RE.parse(BMRN, BMRN_BRANDS)
+    assert found["Voxzogo"]["value"] == pytest.approx(253e6)
+    assert found["Voxzogo"]["period"] == "Q2"
+    assert found["Vimizim"]["value"] == pytest.approx(194e6)
+    values = {round(v["value"] / 1e6) for v in found.values()}
+    assert not values & {472, 405, 265}          # none of the six month columns
+
+
+def test_the_dropped_half_of_a_header_does_not_fence_its_own_table():
+    """The six month heading sits on a line of its own once the header wraps. Fencing
+    there cut the table off from the heading just chosen for it, and nothing was read."""
+    assert RE.parse(BMRN, BMRN_BRANDS)

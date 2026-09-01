@@ -43,14 +43,37 @@ _SPAN_WORDS = {"three": 3, "six": 6, "nine": 9, "twelve": 12}
 # between them: "Three Months Ended / March 31, / (in millions, except per share amounts)
 # 2026 2025". Only a parenthesis is allowed to intervene, so a stray year further down
 # the page is never read as this table's.
+#
+# Merck stacks its column header one token to a line and puts the scale between the
+# span and the date: "Year Ended / $ in millions / Dec. 31, 2025". So "year ended" is a
+# twelve month span, an unbracketed scale line may sit before the date, and the month
+# may be abbreviated. Its quarterly table does the same with a bare ordinal: "Second
+# Quarter / $ in millions / 2026".
 _SPAN = re.compile(
-    r"(?:for\s+the\s+)?(three|six|nine|twelve)\s+months?\s+ended\s+(?!on\b)"
-    r"([a-z]+)\.?\s+(\d{1,2}),?\s*(?:\([^)]{0,60}\))?\s*(\d{4})?", re.I)
+    r"(?:for\s+the\s+)?(?:(?P<months>three|six|nine|twelve)\s+months?|(?P<year_span>year))"
+    r"\s+ended\s+(?!on\b)"
+    r"(?:\$?\s*in\s+(?:millions|thousands|billions)\s*)?"
+    r"(?P<month>[a-z]+)\.?\s+(?P<day>\d{1,2}),?\s*(?:\([^)]{0,60}\))?\s*(?P<year>\d{4})?",
+    re.I)
 # "Second Quarter 2026", "Second-Quarter 2026", "Q2 2026" and "Q2 FY2026". Pfizer heads
 # its revenue table "FIRST-QUARTER 2026 and 2025 - (UNAUDITED)".
 _QUARTER = re.compile(
-    r"\b(?:(first|second|third|fourth)[-\s]+quarter|q([1-4]))\s+(?:fy\s?)?(\d{4})\b",
+    r"\b(?:(first|second|third|fourth)[-\s]+quarter|q([1-4]))"
+    r"(?:\s*\$?\s*in\s+(?:millions|thousands|billions))?"
+    r"\s+(?:fy\s?)?(\d{4})\b",
     re.I)
+
+# A table these readers must not touch, whatever heading sits above it. Merck's Table 3,
+# "Franchise / Key Product Sales", prints every quarter of two years plus the year-to-
+# date and full-year columns on one row: "Keytruda 7,906 7,904 15,810 7,205 7,956
+# 15,161 8,142 8,337 31,641". read_row proves a total by its arithmetic, and here the
+# arithmetic holds three times over, so it returned 15,161 for a heading that said Q2
+# and 31,641 for one that said Q4. A half year and a full year were stored as quarters.
+# Reading that grid means mapping figures to column headers, which nothing here does;
+# until something does, the grid fences a heading's reach the way an unreadable header
+# line does. A YTD column is the same shape by any filer.
+_UNREADABLE_TABLE = re.compile(
+    r"franchise\s*/\s*key\s+product\s+sales|^\s*(?:[a-z]+\s+)?ytd\s*$", re.I | re.M)
 
 # A line naming a period that no pattern above turns into one. Bristol Myers heads both
 # its product tables with a column header this module cannot read: "($ amounts in
@@ -104,24 +127,35 @@ def span_to_period(months: int, end_month: int) -> str | None:
     return None
 
 
+def _month_index(name: str):
+    """1..12 for a month written in full or abbreviated, else None. "Dec." and "Sept" are
+    both Merck's; three letters settle every month."""
+    name = name.lower().rstrip(".")
+    for i, full in enumerate(_MONTHS):
+        if name == full or (len(name) >= 3 and full.startswith(name[:3])
+                            and full.startswith(name)):
+            return i + 1
+    return None
+
+
 def _span_head(m, year=None):
     """(period, period_end, fiscal_year) for a span match, or None where it is not one.
 
     ``year`` is the fallback for a heading that states none of its own, which is what
     happens where several headings share a line and the year row printed beneath them.
     """
-    month_name = m.group(2).lower()
-    if month_name not in _MONTHS:
+    end_month = _month_index(m.group("month"))
+    if end_month is None:
         return None
-    stated = m.group(4) or year
+    stated = m.group("year") or year
     if not stated:
         return None                      # a period with no year is not a period
-    end_month = _MONTHS.index(month_name) + 1
-    period = span_to_period(_SPAN_WORDS[m.group(1).lower()], end_month)
+    months = 12 if m.group("year_span") else _SPAN_WORDS[m.group("months").lower()]
+    period = span_to_period(months, end_month)
     if period is None:
         return None
     try:
-        end = dt.date(int(stated), end_month, int(m.group(3)))
+        end = dt.date(int(stated), end_month, int(m.group("day")))
     except ValueError:
         return None
     return period, end.isoformat(), int(stated)
@@ -168,36 +202,62 @@ def _line_start(text: str, index: int) -> int:
     return text.rfind("\n", 0, index) + 1
 
 
-def _one_per_line(text: str, marks: list) -> list:
-    """Collapse a line of headings to the leftmost, which heads the leftmost columns.
+# How far apart two headings can sit and still head one table's columns. Vertex prints
+# both on one line with a space between them; BioMarin's wraps, so its "Three Months
+# Ended" and "Six Months Ended" are separated by a newline and the date that belongs to
+# the first. Two headings over two different tables are separated by the whole of the
+# first table, which is never this close.
+HEADER_GAP = 80
+
+
+def _one_per_header(text: str, marks: list) -> list:
+    """Collapse a block of headings to the leftmost, which heads the leftmost columns.
 
     Vertex prints its product table under two headings on one line, "Three Months Ended
     June 30, Six Months Ended June 30,", over the columns 2026 2025 2026 2025. Every
     reader here takes the figures at the front of a row, so the figures they return are
-    the quarter's, and the heading describing them is the first on the line rather than
+    the quarter's, and the heading describing them is the first of the block rather than
     the last. Binding them to the nearest heading above filed each Vertex quarter as a
     half year: Casgevy's June quarter of 76.4 was stored as six months, when the six
     month column two places to its right reads 119.3.
 
-    The rest of the line is dropped rather than parsed, because the columns those
-    headings own are not columns these readers can reach. The headings share the year
-    row printed beneath them, so one stating no year of its own takes a neighbour's.
+    Proximity rather than a shared line, because the same header wraps. BioMarin prints
+
+        Three Months Ended
+        June 30, Six Months Ended
+        June 30,
+        2026 2025 % Change 2026 2025 % Change
+
+    which is one header over six columns and two headings on three lines. Keyed on the
+    line, the three month heading was invisible and the six month one took the table, so
+    VOXZOGO's June quarter of $253mm was filed as a half year against the $472mm printed
+    three columns along.
+
+    The rest of the block is dropped rather than parsed, because the columns those
+    headings own are not columns these readers can reach. The headings share the year row
+    printed beneath them, so one stating no year of its own takes a neighbour's.
     """
-    out, index = [], 0
+    out, consumed, index = [], set(), 0
     while index < len(marks):
-        line = _line_start(text, marks[index][0])
-        stop = index
-        while stop < len(marks) and _line_start(text, marks[stop][0]) == line:
+        stop = index + 1
+        while stop < len(marks) and marks[stop][0] - marks[stop - 1][1] <= HEADER_GAP:
             stop += 1
         group = marks[index:stop]
-        year = next((head[2] for _, head, _ in reversed(group) if head), None)
-        start, head, match = group[0]
+        year = next((head[2] for _, _, head, _ in reversed(group) if head), None)
+        start, _end, head, match = group[0]
         if head is None and match is not None and year is not None:
             head = _span_head(match, year)
         if head:
             out.append((start, head))
+            # Every line the block spans, so the members this dropped are not then read
+            # as headers nobody could parse. BioMarin's header wraps onto the line that
+            # carries its six month heading, and fencing there cut the table off at the
+            # heading that had just been chosen for it.
+            for mark in group:
+                consumed.add(_line_start(text, mark[0]))
+                consumed.add(_line_start(text, mark[1]))
         index = stop
-    return out
+    return out, consumed
 
 
 def _unread_headings(text: str, headed: set) -> list:
@@ -206,12 +266,19 @@ def _unread_headings(text: str, headed: set) -> list:
     These fence a heading's reach. A table sitting under one of them is headed by
     something this module cannot read, and the module skips such a table rather than
     letting a heading further up the page describe it.
+
+    ``headed`` is every line a heading block covers, not only the line of the heading
+    kept from it: a block's other members were read and deliberately dropped, and a
+    fence on one of those lines would cut a table off from the heading just chosen for
+    it.
     """
     out = set()
     for m in _PERIOD_PHRASE.finditer(text):
         line = _line_start(text, m.start())
         if line not in headed:
             out.add(line)
+    for m in _UNREADABLE_TABLE.finditer(text):
+        out.add(_line_start(text, m.start()))
     return sorted(out)
 
 
@@ -226,10 +293,11 @@ def tables(text: str) -> list:
     for pattern, reader in ((_SPAN, _span_head), (_QUARTER, _quarter_head)):
         for m in pattern.finditer(text):
             if _on_a_heading_line(text, m.start()):
-                marks.append((m.start(), reader(m), m if pattern is _SPAN else None))
+                marks.append((m.start(), m.end(), reader(m),
+                              m if pattern is _SPAN else None))
     marks.sort(key=lambda mark: mark[0])
-    heads = _one_per_line(text, marks)
-    fences = _unread_headings(text, {_line_start(text, start) for start, _ in heads})
+    heads, consumed = _one_per_header(text, marks)
+    fences = _unread_headings(text, consumed)
     out = []
     for i, (start, head) in enumerate(heads):
         stop = heads[i + 1][0] if i + 1 < len(heads) else len(text)

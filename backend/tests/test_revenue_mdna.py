@@ -203,3 +203,15 @@ def test_an_expense_schedule_is_not_a_revenue_table():
 def test_a_total_that_does_not_name_revenue_is_not_accepted():
     balanced = ("(in millions) 2025 Alpha 600.0 Beta 400.0 Total operating costs 1,000.0")
     assert revenue_mdna.discover(balanced, 5e9) == {}
+
+
+def test_a_name_joined_to_the_one_before_it_is_a_group_not_a_row():
+    """Merck prints "GARDASIL/GARDASIL 9 1,169" and "PROQUAD, M-M-R II and VARIVAX 2,451".
+    The last name on each line is followed by the figure and was being booked it."""
+    import revenue_mdna as M
+    window = ("Second Quarter\n$ in millions\n2026\n2025\nChange\n"
+              "GARDASIL/GARDASIL 9\n1,169\n1,126\n4 %\n"
+              "PROQUAD, M-M-R II and VARIVAX\n1,003\n940\n7 %\n"
+              "BRIDION\n469\n429\n9 %\n")
+    found = M.parse(window, ["Gardasil 9", "Varivax", "Bridion", "Gardasil"])
+    assert found == {"Bridion": 469e6}
