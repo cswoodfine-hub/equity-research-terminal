@@ -22,6 +22,7 @@ DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 SEED_DIR = DATA_DIR / "assumptions"
 POS_DEFAULTS = DATA_DIR / "pos_defaults.csv"
 EROSION_DEFAULTS = DATA_DIR / "erosion_defaults.csv"
+CURVE_DEFAULTS = DATA_DIR / "curve_defaults.csv"
 
 # What the empty state asks for, per mode. Everything else refines rather than gates.
 TEMPLATE = {
@@ -122,6 +123,12 @@ def pos_defaults() -> dict:
     return _defaults(POS_DEFAULTS, "phase")
 
 
+def curve_defaults() -> dict:
+    """{therapy_mode: {penetration_peak_pct, ramp_midpoint_year, source, note}}, the
+    placeholder uptake curve for an indication that has every other pool input."""
+    return _defaults(CURVE_DEFAULTS, "therapy_mode")
+
+
 def erosion_defaults() -> dict:
     """The curated erosion shapes, keyed by modality, each row carrying its source."""
     return _defaults(EROSION_DEFAULTS, "modality")
@@ -195,6 +202,7 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "modality": asset["modality"] if asset else None,
         "pos_defaults": pos_defaults(),
         "erosion_defaults": erosion_defaults(),
+        "curve_defaults": curve_defaults(),
     }
 
 

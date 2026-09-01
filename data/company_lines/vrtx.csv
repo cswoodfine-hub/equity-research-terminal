@@ -1,0 +1,41 @@
+# Vertex revenue that no asset on file carries, so that the model reconciles to the
+# reported total of $12,001.3mm rather than to the $11,325.9mm of product rows it holds.
+#
+# "Other CF product revenues" is how Vertex reports Kalydeco, Orkambi and Symdeko/Symkevi:
+# one line, never split. The three assets exist and have assumption rows, and they will
+# stay blocked until Vertex splits the line, because a share of it for each would be a
+# guess. This line carries the total instead. It is shrinking as patients move to the
+# triples, and its growth is read off the halves the same way Trikafta's was.
+#
+# "Other revenues" was $30.7mm in FY2025 and nil in both quarters of 2026. It runs to
+# zero, which is what the filings show rather than an assumption about them.
+#
+# Margins and the discount rate are the company's, from the same 10-K lines every Vertex
+# asset carries, so the four assets and two lines together are the company's own P&L.
+ticker,line,scenario,key,value,text_value,unit,source,note
+VRTX,Other CF products,base,base_revenue,644.7,,mm USD,"Vertex Q4 2025 8-K exhibit (0000875320-26-000034): Other product revenues FY2025 of $820.1mm less the $115.8mm CASGEVY and $59.6mm JOURNAVX the footnote attributes, leaving KALYDECO, ORKAMBI and SYMDEKO/SYMKEVI","reported as one line. Kalydeco, Orkambi and Symdeko each have an asset and each stays blocked, because Vertex does not split this and a split would be invented"
+VRTX,Other CF products,base,revenue_growth_pct,-0.217765,,"annual, near term","Other CF product revenues H1 2026 of $273.0mm against H1 2025 of $349.0mm, Q2 2026 8-K exhibit (0000875320-26-000256)","the older CF products giving way to the triples. Held at this rate rather than faded: a line being replaced does not level off"
+VRTX,Other CF products,base,forecast_start_year,2026,,year,the year after the last reported full year,
+VRTX,Other CF products,base,forecast_years,15,,years,the horizon Trikafta carries,"long enough for the run-off to be nearly complete inside the window"
+VRTX,Other CF products,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+VRTX,Other CF products,base,erp,0.05,,,Damodaran US ERP estimate,
+VRTX,Other CF products,base,beta,0.69,,,"computed from 262 weekly returns vs S&P 500 over five years, Blume-adjusted",the company's, as every Vertex asset carries
+VRTX,Other CF products,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED), 2026-08-26",
+VRTX,Other CF products,base,debt_weight,0.05,,,Vertex near-zero debt (CASGEVY workbook C35),
+VRTX,Other CF products,base,cogs_pct,0.1376,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Other CF products,base,sga_pct,0.1461,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Other CF products,base,rd_pct,0.3258,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Other CF products,base,tax_rate,0.1486,,effective rate,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Other revenues,base,base_revenue,30.7,,mm USD,"Vertex Q4 2025 8-K exhibit (0000875320-26-000034): Other revenues, twelve months ended December 31 2025","collaboration and other. Nil in both quarters of 2026"
+VRTX,Other revenues,base,revenue_growth_pct,-1.0,,"annual, near term","Other revenues were nil in Q1 and Q2 2026 against $10.0mm and $20.7mm a year earlier, Q1 and Q2 2026 8-K exhibits","runs to zero in the first forecast year, which is what the filings show. Worth carrying so the FY2025 base reconciles, not for its value"
+VRTX,Other revenues,base,forecast_start_year,2026,,year,the year after the last reported full year,
+VRTX,Other revenues,base,forecast_years,15,,years,the horizon Trikafta carries,
+VRTX,Other revenues,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+VRTX,Other revenues,base,erp,0.05,,,Damodaran US ERP estimate,
+VRTX,Other revenues,base,beta,0.69,,,"computed from 262 weekly returns vs S&P 500 over five years, Blume-adjusted",
+VRTX,Other revenues,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED), 2026-08-26",
+VRTX,Other revenues,base,debt_weight,0.05,,,Vertex near-zero debt (CASGEVY workbook C35),
+VRTX,Other revenues,base,cogs_pct,0.1376,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Other revenues,base,sga_pct,0.1461,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Other revenues,base,rd_pct,0.3258,,share of revenue,"VRTX FY2025 10-K, computed from the filed lines",
+VRTX,Other revenues,base,tax_rate,0.1486,,effective rate,"VRTX FY2025 10-K, computed from the filed lines",

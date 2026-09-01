@@ -81,15 +81,23 @@ def derive_new_patients(pool: float, incidence: float, penetration,
     return out
 
 
-def patients_for_indication(ind: dict, years: list[int], notes: list) -> dict:
+def patients_for_indication(ind: dict, years: list[int], notes: list,
+                            curve_defaults=None, mode=None) -> dict:
     """One indication's patient series: the explicit hand series where the analyst gave
     one, the derived identity beside it where its inputs exist.
 
     Returns {"used": [...], "explicit": [...] | None, "derived": [...] | None,
-    "basis": str}. ``used`` is what revenue is built on.
+    "basis": str, "curve_basis": str | None}. ``used`` is what revenue is built on.
+
+    ``curve_defaults`` are the placeholder peak and midpoint from data/curve_defaults.csv,
+    used only where an indication has every other pool input and lacks exactly those
+    two. Six of eight pipeline assets were blocked on them and drew nothing. An asset on
+    the placeholder draws a curve to be argued with, says so in ``curve``, and is kept out
+    of any per-share number by the caller until a real value is committed.
     """
     scalars = ind.get("scalars") or {}
     series = ind.get("series") or {}
+    curve_basis = None
 
     explicit = None
     if "new_patients" in series:
@@ -103,6 +111,19 @@ def patients_for_indication(ind: dict, years: list[int], notes: list) -> dict:
     peak = scalars.get("penetration_peak_pct")
     midpoint = scalars.get("ramp_midpoint_year")
     steepness = scalars.get("ramp_steepness")
+    placeholder = (curve_defaults or {}).get(mode)
+    if (placeholder and None not in (prevalence, eligible_pct, incidence, steepness)
+            and (peak is None or midpoint is None)):
+        peak = float(placeholder["penetration_peak_pct"]) if peak is None else peak
+        midpoint = (float(placeholder["ramp_midpoint_year"]) if midpoint is None
+                    else midpoint)
+        curve_basis = f"placeholder curve, {placeholder['source']}"
+        notes.append(f"{ind.get('name', 'indication')}: drawn on a placeholder curve, "
+                     f"{peak:.0%} of the eligible pool at peak and half of it by year "
+                     f"{midpoint:.0f}. Not a forecast of uptake; set both from the curve "
+                     f"shaper")
+    elif peak is not None and midpoint is not None:
+        curve_basis = "stated"
     if None not in (prevalence, eligible_pct, incidence, peak, midpoint, steepness):
         multiple = 1.0 + (scalars.get("exus_multiple") or 0.0)
         pool = prevalence * eligible_pct * multiple
@@ -146,7 +167,8 @@ def patients_for_indication(ind: dict, years: list[int], notes: list) -> dict:
     else:
         basis = "none"
     return {"used": explicit if explicit is not None else derived,
-            "explicit": explicit, "derived": derived, "basis": basis}
+            "explicit": explicit, "derived": derived, "basis": basis,
+            "curve_basis": curve_basis}
 
 
 # --- money -------------------------------------------------------------------
@@ -340,8 +362,8 @@ def fcff(revenue: list[float], patients: list[float], scalars: dict,
             cogs = (scalars.get("cogs_pct") or 0.0) * rev
         ebit = rev - cogs - sga * rev - rd * rev
         taxed = max(0.0, ebit * tax)
-        rows.append({"revenue": rev, "cogs": cogs, "ebit": ebit, "tax": taxed,
-                     "fcff": ebit - taxed})
+        rows.append({"revenue": rev, "cogs": cogs, "sga": sga * rev, "rd": rd * rev,
+                     "ebit": ebit, "tax": taxed, "fcff": ebit - taxed})
     return rows
 
 
@@ -378,6 +400,7 @@ def build(inputs: dict) -> dict:
 
     mode = (scalars.get("therapy_mode") or "").strip()
     franchise = None
+    curve_basis = None
     price = net_price(scalars)
     missing = [k for k in ("therapy_mode",) if not mode]
     if mode == "marketed":
@@ -481,7 +504,12 @@ def build(inputs: dict) -> dict:
         # Patients, per indication and in total.
         per_indication = {}
         for ind in inputs.get("indications") or []:
-            result = patients_for_indication(ind, years, notes)
+            result = patients_for_indication(ind, years, notes,
+                                             inputs.get("curve_defaults"), mode)
+            if (result.get("curve_basis") or "").startswith("placeholder"):
+                curve_basis = result["curve_basis"]
+            elif result.get("curve_basis") == "stated" and curve_basis is None:
+                curve_basis = "stated"
             if result["used"] is None:
                 continue
             per_indication[ind.get("name")
@@ -582,6 +610,9 @@ def build(inputs: dict) -> dict:
         "franchise": franchise,
         "wacc": rate, "wacc_basis": rate_basis,
         "pos": probability, "pos_basis": pos_basis,
+        # "stated", or "placeholder curve, ..." where the uptake ceiling and midpoint came
+        # from data/curve_defaults.csv rather than the asset. None where no curve is built.
+        "curve_basis": curve_basis,
         "loe_year": loe_year, "loe_basis": loe_basis, "erosion_basis": erosion_basis,
         "pv_fcff": sum(pvs), "terminal_value": tv, "terminal_pv": tv_pv,
         "npv": npv, "rnpv": rnpv,

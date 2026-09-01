@@ -24,6 +24,7 @@ import asset_identity
 import asset_merge
 import financings
 import assumptions as assumptions_module
+import company_lines
 import indication_mapping
 import molecules
 import vouchers
@@ -280,6 +281,7 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     conn = db.get_connection(db_path)
     try:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
+        mapped["line_seeds"] = company_lines.load_seeds(conn)["written"]
         mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
     finally:
         conn.close()
@@ -452,6 +454,7 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     conn = db.get_connection(db_path)
     try:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
+        mapped["line_seeds"] = company_lines.load_seeds(conn)["written"]
         mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
     finally:
         conn.close()

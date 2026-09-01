@@ -159,6 +159,13 @@ THIN_COVERAGE = 0.25
 
 def company_headline(v: dict) -> str:
     if not v.get("per_share"):
+        placeholders = v.get("placeholders") or []
+        if placeholders:
+            named = ", ".join(str(p.get("name")) for p in placeholders[:3])
+            return (f"{v.get('name') or v.get('ticker')} has nothing counted yet: "
+                    f"{named} {'draws' if len(placeholders) == 1 else 'draw'} on a "
+                    f"placeholder uptake curve and stays out of the per-share number "
+                    f"until a real ceiling is committed from the curve shaper.")
         return (f"{v.get('name') or v.get('ticker')} has no modelled asset that "
                 f"computes yet, so there is no company number to state.")
     price = v.get("close")
@@ -169,10 +176,16 @@ def company_headline(v: dict) -> str:
                  f"{v['pct_of_price']:.1%} of the company")
     coverage = v.get("coverage") or {}
     if coverage.get("share") is not None:
-        lead += (f". That is {len(v.get('modelled') or [])} asset"
-                 f"{'s' if len(v.get('modelled') or []) != 1 else ''} out of a book: "
-                 f"the model covers {coverage['share']:.1%} of FY"
-                 f"{coverage['fiscal_year']} product revenue")
+        counted = [m for m in v.get("modelled") or [] if m.get("counted", True)]
+        streams = v.get("streams") or []
+        parts = [f"{len(counted)} asset{'s' if len(counted) != 1 else ''}"]
+        if streams:
+            parts.append(f"{len(streams)} revenue line{'s' if len(streams) != 1 else ''} "
+                         f"no asset carries")
+        lead += (f". That is {' and '.join(parts)} out of a book: the model covers "
+                 f"{coverage['share']:.1%} of FY{coverage['fiscal_year']} "
+                 f"{'reported' if coverage.get('basis') == 'reported total' else 'tagged'}"
+                 f" revenue")
         biggest = (coverage.get("unmodelled") or [None])[0]
         if biggest and biggest.get("share"):
             lead += (f", and {biggest['name']} alone is {biggest['share']:.0%} of what "
@@ -202,6 +215,38 @@ def company_body(v: dict) -> list[str]:
                           for u in unmodelled[:4])
         out.append(f"What is not, by last year's revenue: {queue}. That is the work "
                    f"queue, in the order it would change the answer.")
+
+    streams = v.get("streams") or []
+    if streams:
+        named = ", ".join(f"{s['line']} at {_per_share(s['per_share'])}"
+                          if s.get("per_share") else s["line"] for s in streams[:4])
+        out.append(f"Revenue no asset carries, modelled as its own line: {named}. "
+                   f"These are what the filer reports and does not split, and without "
+                   f"them the model could never reconcile to the total the company "
+                   f"actually reported.")
+
+    untagged = coverage.get("untagged_revenue")
+    if untagged and coverage.get("reported_revenue") and (
+            untagged / coverage["reported_revenue"]) > 0.005:
+        out.append(f"{_mm(untagged / 1e6)} of FY{coverage['fiscal_year']} revenue, "
+                   f"{untagged / coverage['reported_revenue']:.1%} of it, has neither a "
+                   f"product row nor a line: it is reported in the total and nowhere "
+                   f"else on file. Until it is named it is the part of the company the "
+                   f"model cannot see.")
+    elif coverage.get("basis") == "tagged rows":
+        out.append("No reported total is on file for that year, so coverage is measured "
+                   "against the product rows the data sets tag, which is a ceiling on "
+                   "the company rather than the company.")
+
+    placeholders = v.get("placeholders") or []
+    if placeholders:
+        named = ", ".join(str(p.get("name")) for p in placeholders[:4])
+        out.append(f"Drawn and not counted: {named}. Each runs on a placeholder uptake "
+                   f"curve, 5% of the eligible pool at peak and half of it by year four, "
+                   f"which exists so there is a shape to argue with and is not a view. "
+                   f"Their revenue is in the build, hatched; their value is left out of "
+                   f"the per-share figure until a real ceiling is committed from the "
+                   f"curve shaper.")
 
     for f in v.get("franchises") or []:
         members = " and ".join(f.get("members") or [])

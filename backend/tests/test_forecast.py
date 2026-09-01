@@ -670,3 +670,63 @@ def test_franchise_mode_never_asks_for_a_price():
 
 def test_the_other_modes_carry_no_franchise():
     assert F.build(_marketed())["franchise"] is None
+
+
+# --- A placeholder curve, so a blocked asset draws --------------------------------
+#
+# Six of eight pipeline assets were blocked on the two uptake numbers no source settles,
+# the peak share of the pool and the midpoint of the ramp, and drew nothing. A placeholder
+# from data/curve_defaults.csv lets them draw a curve to be argued with. It is labelled
+# on the result, and the rollup leaves such an asset out of the per-share number.
+
+PLACEHOLDER = {"chronic": {"penetration_peak_pct": 0.05, "ramp_midpoint_year": 4,
+                           "source": "test placeholder", "note": ""}}
+
+
+def _pool(**over):
+    ind = {"name": "Obesity", "scalars": {
+        "prevalence": 1_000_000, "eligible_pct": 0.5, "incidence": 50_000,
+        "ramp_steepness": 1.2}, "series": {}}
+    ind["scalars"].update(over)
+    scalars = {"therapy_mode": "chronic", "net_price_per_patient": 0.01,
+               "discontinuation_pct": 0.3, "wacc": 0.09, "forecast_start_year": 2027,
+               "forecast_years": 8, "cogs_pct": 0.1, "sga_pct": 0.1, "rd_pct": 0.1,
+               "tax_rate": 0.2, "pos": 0.5}
+    return {"scalars": scalars, "indications": [ind], "curve_defaults": PLACEHOLDER}
+
+
+def test_the_placeholder_fills_only_the_two_judgements():
+    got = F.build(_pool())
+    assert got["curve_basis"].startswith("placeholder curve")
+    assert got["revenue"][0] > 0
+    assert any("placeholder curve" in n for n in got["notes"])
+
+
+def test_a_stated_curve_is_not_overridden():
+    got = F.build(_pool(penetration_peak_pct=0.30, ramp_midpoint_year=3))
+    assert got["curve_basis"] == "stated"
+    assert not any("placeholder" in n for n in got["notes"])
+
+
+def test_the_placeholder_does_not_invent_epidemiology():
+    """A pool missing eligible_pct is missing a fact, not a judgement, and stays blocked
+    rather than being drawn on a made-up share."""
+    inputs = _pool()
+    del inputs["indications"][0]["scalars"]["eligible_pct"]
+    with pytest.raises(F.ForecastError):
+        F.build(inputs)
+
+
+def test_no_defaults_means_the_old_refusal():
+    inputs = _pool()
+    inputs.pop("curve_defaults")
+    with pytest.raises(F.ForecastError):
+        F.build(inputs)
+
+
+def test_the_pnl_carries_every_line():
+    row = F.build(_marketed())["pnl"][0]
+    for key in ("revenue", "cogs", "sga", "rd", "ebit", "tax", "fcff"):
+        assert key in row
+    assert row["ebit"] == pytest.approx(row["revenue"] - row["cogs"] - row["sga"]
+                                        - row["rd"])

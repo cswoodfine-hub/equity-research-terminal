@@ -1,0 +1,18 @@
+# The two uptake numbers no source settles, used only where an indication has every other
+# pool input and lacks these, and labelled "placeholder curve" wherever they are applied.
+#
+# Prevalence, eligibility, incidence and steepness are read off registries, cohort studies
+# and a launch's own early quarters. A peak share of the eligible pool cannot be read off
+# a curve that has not reached one, and the midpoint moves with the peak. Six of the eight
+# pipeline assets on file were blocked on exactly these two, drawing nothing at all, so
+# the hardest judgement in the model was the one made with the least feedback.
+#
+# These are placeholders in the sense the gene therapy row of erosion_defaults.csv is a
+# placeholder: they exist so that an asset draws a curve to be argued with, they are never
+# written into an asset's own assumptions, and an asset running on them is drawn in the
+# revenue build and excluded from the company's per-share number until a real value is
+# committed from the curve shaper. The values are the ones the shaper itself probes with,
+# chosen to be visibly low rather than plausible, so nobody mistakes them for a view.
+therapy_mode,penetration_peak_pct,ramp_midpoint_year,source,note
+chronic,0.05,4,"placeholder for review: the curve shaper's own probe values (5% of the eligible pool at peak, half of it by year four). No disease-agnostic figure exists for either","set both per indication from the shaper; nothing here is a forecast of uptake"
+one_time,0.05,4,"placeholder for review: the curve shaper's own probe values (5% of the eligible pool at peak, half of it by year four). No disease-agnostic figure exists for either","set both per indication from the shaper; nothing here is a forecast of uptake"

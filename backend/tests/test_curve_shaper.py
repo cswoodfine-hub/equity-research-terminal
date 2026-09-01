@@ -47,8 +47,15 @@ def test_the_curve_can_be_shaped_before_it_is_committed(tmp_path):
     assert out["ok"] is True
     assert out["shaped_indications"] == 1
     assert out["rnpv"] > 0
-    # And nothing was written: the asset is still blocked on its own.
-    assert forecast_view.asset_forecast(path, "LLY", 1)["ok"] is False
+    # And nothing was written. On its own the asset now draws on the placeholder curve
+    # rather than refusing, and says so; the two values it lacks are still not on file.
+    own = forecast_view.asset_forecast(path, "LLY", 1)
+    assert own["ok"] is True
+    assert own["result"]["curve_basis"].startswith("placeholder curve")
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT COUNT(*) FROM assumptions WHERE key IN"
+                        " ('penetration_peak_pct', 'ramp_midpoint_year')").fetchone()[0] == 0
+    conn.close()
 
 
 def test_a_higher_ceiling_is_worth_more(tmp_path):
@@ -176,7 +183,9 @@ def test_the_note_leads_with_what_is_not_modelled(tmp_path):
     import forecast_note
     path = _company(tmp_path)
     note = forecast_note.write_company(forecast_view.company_verdict(path, "LLY"))
-    assert "1.2% of FY2025 product revenue" in note["headline"]
+    # No reported total is seeded here, so coverage is against the tagged rows and the
+    # headline says so rather than calling that the company.
+    assert "1.2% of FY2025 tagged revenue" in note["headline"]
     assert "Trikafta alone is 99%" in note["headline"]
     body = " ".join(note["body"])
     assert "point it at the rest" in body          # thin coverage is called out

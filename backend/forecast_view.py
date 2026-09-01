@@ -12,6 +12,7 @@ import copy
 import math
 
 import assumptions as assumptions_module
+import company_lines
 import db
 import forecast
 
@@ -511,10 +512,11 @@ def company_rollup(db_path, ticker: str):
             """SELECT value FROM financials WHERE company_id = ?
                 AND metric = 'WeightedAverageDilutedShares' AND period_type = 'FY'
                 ORDER BY fiscal_year DESC LIMIT 1""", (company["id"],)).fetchone()
+        stream_inputs = company_lines.load(conn, company["id"])
     finally:
         conn.close()
 
-    lines, refused = [], []
+    lines, refused, placeholders = [], [], []
     combined: dict[int, float] = {}
     rnpv_total = 0.0
     for asset_id in dict.fromkeys(owned + partnered):
@@ -530,18 +532,46 @@ def company_rollup(db_path, ticker: str):
             share = share if share is not None else 1.0
         else:
             share = 1.0 - (share if share is not None else 1.0)
+        # An asset drawn on a placeholder curve is shown and not counted. Its revenue
+        # goes into the build, hatched, so the analyst can see the shape they are being
+        # asked to replace; its rNPV stays out of the per-share number, because a figure
+        # built on a value chosen to be visibly wrong is not a view of anything.
+        counted = not (result.get("curve_basis") or "").startswith("placeholder")
         for year, value in zip(result["years"], result["revenue_after_loe"]):
             combined[year] = combined.get(year, 0.0) + value * share
-        rnpv_total += result["rnpv"] * share
+        if counted:
+            rnpv_total += result["rnpv"] * share
+        else:
+            placeholders.append({"asset_id": asset_id, "name": state["name"],
+                                 "rnpv_share": result["rnpv"] * share})
         lines.append({"asset_id": asset_id, "name": state["name"], "share": share,
-                      "rnpv_share": result["rnpv"] * share,
+                      "rnpv_share": result["rnpv"] * share, "counted": counted,
                       "years": result["years"],
                       "revenue_share": [v * share
                                         for v in result["revenue_after_loe"]]})
+    # Streams: lines the company reports that no asset carries, run through the same
+    # engine as a marketed product. They count in full; a stream is the company's own.
+    streams, stream_refused = [], []
+    for entry in stream_inputs:
+        built = company_lines.build(entry)
+        if not built["ok"]:
+            stream_refused.append({"line": built["line"], "missing": built["missing"]})
+            continue
+        result = built["result"]
+        for year, value in zip(result["years"], result["revenue_after_loe"]):
+            combined[year] = combined.get(year, 0.0) + value
+        rnpv_total += result["rnpv"]
+        streams.append({"line": built["line"], "rnpv": result["rnpv"],
+                        "base_revenue": entry["scalars"].get("base_revenue"),
+                        "years": result["years"], "revenue": result["revenue_after_loe"],
+                        "unsourced": built.get("unsourced") or [],
+                        "notes": result.get("notes") or []})
     per_share = None
     if shares and shares["value"]:
         per_share = rnpv_total * 1e6 / shares["value"]
     return {"ticker": company["ticker"], "lines": lines, "refused": refused,
+            "placeholders": placeholders, "streams": streams,
+            "stream_refused": stream_refused,
             "combined": sorted(combined.items()),
             "rnpv_total": rnpv_total, "rnpv_per_share": per_share,
             "reported_revenue": revenue_actuals}
@@ -710,13 +740,20 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
     }
 
 
-def _revenue_coverage(conn, company_id: int, modelled_ids: list):
-    """What share of last year's product revenue the modelled assets account for.
+def _revenue_coverage(conn, company_id: int, modelled_ids: list, streams=None):
+    """What share of last year's reported revenue the model accounts for.
 
-    The number that keeps a company call honest. A pipeline worth 0.8% of the share price
-    sounds like a rounding error until you see that it is one product out of a book where
-    another does 86% of the sales, at which point the right response is not to distrust
-    the model but to point it at the rest.
+    The number that keeps a company call honest, and it was measured against the wrong
+    denominator: the product rows on file rather than what the company reported. Those
+    rows are only what the data sets tag. For Vertex that is 94.4% of revenue, for
+    Johnson & Johnson 64.4%, so a fully modelled J&J would have read 100% with a third
+    of the company invisible. The denominator is now ``financials.Revenues`` for the
+    same year, and the gap between it and the rows is named rather than dropped.
+
+    Three kinds of revenue count as covered: assets that compute, and streams, which are
+    lines the company reports that no asset carries (company_lines). What remains is
+    ``untagged``: revenue with neither a product row nor a stream, which is the work
+    queue nobody had a name for.
     """
     year = conn.execute(
         """SELECT MAX(ar.fiscal_year) FROM asset_revenue ar JOIN assets a
@@ -731,15 +768,32 @@ def _revenue_coverage(conn, company_id: int, modelled_ids: list):
             WHERE a.owner_company_id = ? AND ar.period = 'FY'
               AND ar.fiscal_year = ? AND ar.value IS NOT NULL
             ORDER BY ar.value DESC""", (company_id, year))]
-    total = sum(r["value"] for r in rows) or None
-    if not total:
-        return None
+    tagged = sum(r["value"] for r in rows)
+    reported = conn.execute(
+        """SELECT value FROM financials WHERE company_id = ? AND metric = 'Revenues'
+            AND period_type = 'FY' AND fiscal_year = ?""",
+        (company_id, year)).fetchone()
+    reported = reported["value"] if reported and reported["value"] else None
     covered = sum(r["value"] for r in rows if r["id"] in set(modelled_ids))
+    # Streams run in millions, everything in asset_revenue and financials in dollars.
+    stream_rows = [{"name": s["line"], "revenue": s["base_revenue"] * 1e6}
+                   for s in (streams or []) if s.get("base_revenue") is not None]
+    from_streams = sum(s["revenue"] for s in stream_rows)
+    denominator = reported if reported else tagged
+    if not denominator:
+        return None
+    untagged = (reported - tagged - from_streams) if reported else None
     return {
-        "fiscal_year": year, "product_revenue": total, "modelled_revenue": covered,
-        "share": covered / total,
+        "fiscal_year": year, "basis": "reported total" if reported else "tagged rows",
+        "reported_revenue": reported, "tagged_revenue": tagged,
+        "modelled_revenue": covered, "stream_revenue": from_streams,
+        # Can go slightly negative where a stream overlaps a tagged row; that is a
+        # seeding error and is left visible rather than clamped away.
+        "untagged_revenue": untagged,
+        "share": (covered + from_streams) / denominator,
+        "streams": stream_rows,
         "unmodelled": [{"name": r["brand_name"], "revenue": r["value"],
-                        "share": r["value"] / total}
+                        "share": r["value"] / denominator}
                        for r in rows if r["id"] not in set(modelled_ids)][:6],
     }
 
@@ -819,7 +873,10 @@ def company_verdict(db_path, ticker: str):
         shares = _diluted_shares(conn, company["id"])
         close, close_date = _last_close(conn, company["id"])
         modelled_ids = [line["asset_id"] for line in rollup["lines"]]
-        coverage = _revenue_coverage(conn, company["id"], modelled_ids)
+        coverage = _revenue_coverage(conn, company["id"],
+                                     [l["asset_id"] for l in rollup["lines"]
+                                      if l.get("counted", True)],
+                                     streams=rollup.get("streams"))
         franchises = _franchises(conn, modelled_ids)
         catalyst = None
         for asset_id in modelled_ids:
@@ -837,6 +894,8 @@ def company_verdict(db_path, ticker: str):
                       "per_share": (line["rnpv_share"] * 1e6 / shares)
                       if shares else None})
     lines.sort(key=lambda r: -(r["rnpv_share"] or 0))
+    streams = [{**s, "per_share": (s["rnpv"] * 1e6 / shares) if shares else None}
+               for s in rollup.get("streams") or []]
     return {
         "ok": True, "ticker": rollup["ticker"], "name": company["name"],
         "modelled": lines, "refused": rollup.get("refused") or [],
@@ -845,5 +904,7 @@ def company_verdict(db_path, ticker: str):
         "pct_of_price": (per_share / close) if (per_share and close) else None,
         "market_cap": (shares * close) if (shares and close) else None,
         "coverage": coverage, "next_catalyst": catalyst, "franchises": franchises,
+        "streams": streams, "stream_refused": rollup.get("stream_refused") or [],
+        "placeholders": rollup.get("placeholders") or [],
         "combined": rollup["combined"], "reported_revenue": rollup["reported_revenue"],
     }
