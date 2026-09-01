@@ -9,6 +9,7 @@ server error.
 from __future__ import annotations
 
 import copy
+import math
 
 import assumptions as assumptions_module
 import db
@@ -111,7 +112,7 @@ CURVE_KEYS = ("penetration_peak_pct", "ramp_midpoint_year")
 
 
 def shape_curve(db_path, ticker: str, asset_id: int, scenario: str = "base",
-                peak=None, midpoint=None):
+                peak=None, midpoint=None, plateau=None):
     """Run the engine with a proposed ceiling and midpoint, without saving either.
 
     An asset blocked on these two shows nothing at all, which makes the hardest judgement
@@ -140,6 +141,33 @@ def shape_curve(db_path, ticker: str, asset_id: int, scenario: str = "base",
     finally:
         conn.close()
 
+    # A franchise member has one judgement in it and it is not a curve: the share the
+    # product settles at. Everything else is read off a filing, so this is the handle
+    # that matters, and moving it moves the other member the opposite way.
+    scalars = inputs.get("scalars") or {}
+    is_franchise = (scalars.get("therapy_mode") or "").strip() == "franchise"
+    if is_franchise and plateau is not None:
+        now, ramp = scalars.get("share_now"), scalars.get("share_ramp_pct")
+        # The first forecast year is not a judgement: it is guided and half reported, and
+        # the seeded ramp is the rate that reaches it. So moving the plateau must leave
+        # that year where it is and re-solve the ramp around it, or the slider would
+        # walk the model off the one number in it that is already known.
+        first = (plateau if now is None or ramp is None
+                 else scalars["share_plateau"]
+                 + (now - scalars["share_plateau"]) * math.exp(-ramp))
+        gap_now, gap_first = now - plateau, first - plateau
+        if gap_now * gap_first > 0:      # the plateau is still on the far side of year one
+            scalars["share_ramp_pct"] = -math.log(gap_first / gap_now)
+            scalars["share_plateau"] = plateau
+        else:
+            # A plateau at or inside the first year cannot be approached from where the
+            # product already is. Refused rather than clamped: a slider that silently
+            # stops meaning what it says is worse than one that says it cannot go there.
+            return {"ok": False, "shaped_indications": 0, "pooled": pooled,
+                    "missing": [f"share_plateau of {plateau:.0%} is not reachable: the "
+                                f"product already holds {first:.1%} in the first "
+                                f"forecast year, which guidance sets"]}
+
     shaped = 0
     for ind in inputs.get("indications") or []:
         scalars = ind.setdefault("scalars", {})
@@ -157,6 +185,8 @@ def shape_curve(db_path, ticker: str, asset_id: int, scenario: str = "base",
                 "pooled": pooled}
     return {"ok": True, "shaped_indications": shaped, "pooled": pooled,
             "peak": peak, "midpoint": midpoint,
+            "franchise": result.get("franchise"), "is_franchise": is_franchise,
+            "plateau": scalars.get("share_plateau") if is_franchise else None,
             "years": result["years"], "patients": result["patients"],
             "revenue": result["revenue_after_loe"],
             "rnpv": result["rnpv"], "npv": result["npv"],
@@ -654,12 +684,12 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         "scenario": scenario, "mode": built.get("mode"),
         "horizon_end": (built.get("dcf_years") or [None])[-1],
         "price_basis": (inputs.get("scalars") or {}).get("price_basis"),
-        # A marketed product is valued off revenue, so its price is otherwise unused.
-        # Dividing one by the other turns the price into a check: the patient count it
-        # implies is a number an analyst can hold against a registry.
+        # A product valued off revenue never uses its price, so dividing one by the
+        # other turns the price into a check: the patient count it implies is a number
+        # an analyst can hold against a registry.
         "implied_patients": (
             (built["revenue"][0] / forecast.net_price(inputs["scalars"]))
-            if built.get("mode") == "marketed" and built.get("revenue")
+            if built.get("mode") in ("marketed", "franchise") and built.get("revenue")
             and forecast.net_price(inputs["scalars"]) else None),
         "rnpv": built["rnpv"], "npv": built["npv"], "owner_rnpv": owner,
         "economics_share": share,
@@ -714,6 +744,60 @@ def _revenue_coverage(conn, company_id: int, modelled_ids: list):
     }
 
 
+def _franchises(conn, asset_ids: list) -> list:
+    """Every franchise among the modelled assets, and whether its members agree.
+
+    The split is an identity only while the members hold to it: one pool, one ramp, and
+    shares that sum to one. Each asset carries its own copy of those numbers because the
+    engine values one asset at a time, so nothing stops two members disagreeing. This is
+    what notices when they do.
+    """
+    groups = {}
+    for asset_id in asset_ids:
+        scalars = (assumptions_module.load(conn, asset_id) or {}).get("scalars") or {}
+        if (scalars.get("therapy_mode") or "").strip() != "franchise":
+            continue
+        pool = scalars.get("franchise_revenue")
+        row = conn.execute(
+            "SELECT COALESCE(brand_name, generic_name) AS nm FROM assets WHERE id = ?",
+            (asset_id,)).fetchone()
+        groups.setdefault(pool, []).append({
+            "asset_id": asset_id, "name": row["nm"] if row else str(asset_id),
+            "growth": scalars.get("franchise_growth_pct"),
+            "ramp": scalars.get("share_ramp_pct"),
+            "share_now": scalars.get("share_now"),
+            "share_plateau": scalars.get("share_plateau")})
+    out = []
+    for pool, members in groups.items():
+        def total(key):
+            got = [m[key] for m in members if m[key] is not None]
+            return sum(got) if got else None
+
+        def one(key):
+            got = {round(m[key], 9) for m in members if m[key] is not None}
+            return got.pop() if len(got) == 1 else None
+
+        now, plateau = total("share_now"), total("share_plateau")
+        # A share that sums to one at the base year and at the plateau sums to one in
+        # every year between, but only while every member decays at the same rate.
+        problems = []
+        if one("ramp") is None:
+            problems.append("members disagree on share_ramp_pct")
+        if one("growth") is None:
+            problems.append("members disagree on franchise_growth_pct")
+        for label, got in (("share_now", now), ("share_plateau", plateau)):
+            if got is not None and abs(got - 1.0) > 0.005:
+                problems.append(f"{label} sums to {got:.1%}, not 100%")
+        out.append({"pool": pool, "members": [m["name"] for m in members],
+                    "share_now": now, "share_plateau": plateau,
+                    "ramp": one("ramp"), "problems": problems,
+                    # Complete only when the shares account for the whole pool. A
+                    # franchise missing a member is not wrong, it is partial, and the
+                    # products in it are worth less than the pool they sit in.
+                    "complete": now is not None and abs(now - 1.0) <= 0.005})
+    return out
+
+
 def company_verdict(db_path, ticker: str):
     """Every modelled asset in one name, per share, against what the share costs.
 
@@ -736,6 +820,7 @@ def company_verdict(db_path, ticker: str):
         close, close_date = _last_close(conn, company["id"])
         modelled_ids = [line["asset_id"] for line in rollup["lines"]]
         coverage = _revenue_coverage(conn, company["id"], modelled_ids)
+        franchises = _franchises(conn, modelled_ids)
         catalyst = None
         for asset_id in modelled_ids:
             found = _next_catalyst(conn, asset_id)
@@ -759,6 +844,6 @@ def company_verdict(db_path, ticker: str):
         "diluted_shares": shares, "close": close, "close_date": close_date,
         "pct_of_price": (per_share / close) if (per_share and close) else None,
         "market_cap": (shares * close) if (shares and close) else None,
-        "coverage": coverage, "next_catalyst": catalyst,
+        "coverage": coverage, "next_catalyst": catalyst, "franchises": franchises,
         "combined": rollup["combined"], "reported_revenue": rollup["reported_revenue"],
     }

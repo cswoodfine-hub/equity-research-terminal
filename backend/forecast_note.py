@@ -50,7 +50,7 @@ def body(v: dict) -> list[str]:
     """The paragraphs under the headline, each one a fact the engine produced."""
     out = []
 
-    if v.get("mode") == "marketed" and not v.get("loe_year"):
+    if v.get("mode") in ("marketed", "franchise") and not v.get("loe_year"):
         out.append(
             "No exclusivity is on file for this product, so nothing erodes and the "
             "revenue runs to the horizon and into the terminal value. For a marketed "
@@ -202,6 +202,28 @@ def company_body(v: dict) -> list[str]:
                           for u in unmodelled[:4])
         out.append(f"What is not, by last year's revenue: {queue}. That is the work "
                    f"queue, in the order it would change the answer.")
+
+    for f in v.get("franchises") or []:
+        members = " and ".join(f.get("members") or [])
+        if f.get("problems"):
+            out.append(
+                f"The {members} franchise does not hold together: "
+                f"{'; '.join(f['problems'])}. Until that is fixed the two are being "
+                f"forecast against different pools and their revenue can be counted "
+                f"twice, which is the whole thing a franchise is there to stop.")
+        elif f.get("complete"):
+            out.append(
+                f"{members} are one franchise, not two products: they share a pool of "
+                f"{_mm(f['pool'])} and their shares of it sum to 100% in every year. "
+                f"Neither can be read alone, and neither has a growth rate. What is "
+                f"forecast is the share, and the judgement in it is where that share "
+                f"settles.")
+        else:
+            out.append(
+                f"{members} share a pool of {_mm(f['pool'])} but hold only "
+                f"{f['share_now']:.0%} of it between them. The rest belongs to members "
+                f"that are not modelled, so this is a part of the franchise rather than "
+                f"the franchise.")
 
     refused = v.get("refused") or []
     if refused:

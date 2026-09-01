@@ -595,13 +595,17 @@ def forecast_verdict(ticker: str, asset_id: int, scenario: str = "base") -> dict
 @app.get("/companies/{ticker}/forecast/{asset_id}/shape")
 def forecast_shape(ticker: str, asset_id: int, scenario: str = "base",
                    peak: Optional[float] = None,
-                   midpoint: Optional[float] = None) -> dict:
+                   midpoint: Optional[float] = None,
+                   plateau: Optional[float] = None) -> dict:
     """The uptake curve under a proposed ceiling and midpoint, saving neither.
 
-    The two numbers no source settles, given something to be judged against.
+    The numbers no source settles, given something to be judged against: a ceiling and a
+    midpoint for a curve built from patients, and the settling share for a product taking
+    a franchise off another.
     """
     out = forecast_view_module.shape_curve(None, ticker, asset_id, scenario,
-                                           peak=peak, midpoint=midpoint)
+                                           peak=peak, midpoint=midpoint,
+                                           plateau=plateau)
     if out is None:
         raise HTTPException(status_code=404,
                             detail=f"no asset {asset_id} for {ticker}")
