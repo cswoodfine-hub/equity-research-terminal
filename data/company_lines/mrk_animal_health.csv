@@ -1,0 +1,33 @@
+# Merck Animal Health. $6,354mm in FY2025, 9.8% of the company, and the largest thing
+# the model did not cover.
+#
+# A segment rather than a product: livestock and companion animal vaccines and
+# medicines, sold to farmers and vets. No asset carries it and none should, so it is a
+# line of its own.
+#
+# The margin is the reason this is worth doing properly rather than at the company's
+# ratios. Merck discloses Animal Health segment profits of $2,131mm on $6,354mm, a 33.5%
+# margin, and the 10-K says those profits are already net of all cost of sales and of the
+# SG&A and R&D the segment itself incurs. Charging it the pharmaceutical R&D ratio of
+# 24.3% would take a quarter of its revenue for research it does not do.
+#
+# Growing, unlike most of what surrounds it: +10.3% on the halves, and the prior year up
+# 8.1% on the one before.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,line,scenario,key,value,text_value,unit,source,note
+MRK,Animal Health,base,base_revenue,6354,,mm USD,"MRK FY2025, 8-K exhibit Table 3 (0001104659-26-009495, filed 2026-02-03)","the anchor, as the segment reports it"
+MRK,Animal Health,base,revenue_growth_pct,0.102659,,"annual, near term","8-K exhibit Table 3 (0001104659-26-090045, filed 2026-08-04): $3,566mm in the first half of 2026 against $3,234mm in the first half of 2025","the halves. The years agree in direction, $6,354mm against $5,877mm"
+MRK,Animal Health,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+MRK,Animal Health,base,growth_fade_years,5,,years,"convention: a recent rate describes next year, not the decade after it",
+MRK,Animal Health,base,forecast_start_year,2026,,year,the year after the last reported full year,
+MRK,Animal Health,base,forecast_years,10,,years,the convention: a segment has no cliff to reach past,
+MRK,Animal Health,base,cogs_pct,0.664621,,share of revenue,"MRK FY2025 10-K segment note: Animal Health segment profits of $2,131mm on segment sales of $6,354mm, a margin of 33.5%. The 10-K defines those profits as segment sales less all cost of sales, as well as SG&A and R&D expenses directly incurred by the segment","the segment's whole cost base in one number, because the disclosure gives it as one number. The two ratios below are zero for that reason, not because the segment spends nothing on them"
+MRK,Animal Health,base,sga_pct,0.0,,share of revenue,included in the segment cost above,
+MRK,Animal Health,base,rd_pct,0.0,,share of revenue,included in the segment cost above,
+MRK,Animal Health,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26","Merck's own, as every Merck line carries"
+MRK,Animal Health,base,erp,0.05,,,Damodaran US ERP estimate,"Merck's own, as every Merck line carries"
+MRK,Animal Health,base,beta,0.47,,,"computed from 261 weekly returns vs S&P 500, 2021-08 to 2026-08, Blume-adjusted","Merck's own, as every Merck line carries"
+MRK,Animal Health,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26","Merck's own, as every Merck line carries"
+MRK,Animal Health,base,debt_weight,0.128821,,,"filed TotalDebt of $53,906mm at 2026-06-30 over debt plus market capitalisation: 2,467.2mm shares at the $147.76 close of 2026-08-31","Merck's own, as every Merck line carries"
+MRK,Animal Health,base,tax_rate,0.1331,,effective rate,"MRK FY2025 10-K, computed from the filed lines","Merck's own, as every Merck line carries"
