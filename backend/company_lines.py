@@ -26,6 +26,7 @@ SEED_DIR = DATA_DIR / "company_lines"
 # and has no patent to lose. A negative growth rate is how a line runs off.
 KEYS = ("therapy_mode", "base_revenue", "revenue_growth_pct", "terminal_growth_pct",
         "growth_fade_years", "revenue_ceiling_musd", "cogs_pct", "sga_pct", "rd_pct",
+        "other_costs_pct",
         "tax_rate", "wacc", "risk_free", "erp", "beta", "cost_of_debt", "debt_weight",
         "forecast_start_year", "forecast_years", "pos")
 
