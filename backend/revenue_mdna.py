@@ -887,15 +887,23 @@ def extract(db_path=None) -> dict:
                 asset_id = brands.get(brand)
                 if asset_id is None:
                     continue
+                # The year's full-year row, not any row of the year: a quarter from an
+                # earnings release is not the annual figure, and a guard written before
+                # the table carried periods let one block the year from ever being read.
                 existing = conn.execute(
                     "SELECT source FROM asset_revenue WHERE asset_id = ?"
-                    "  AND fiscal_year = ?", (asset_id, year)).fetchone()
+                    "  AND fiscal_year = ? AND period = 'FY'", (asset_id, year)).fetchone()
                 if existing:
                     continue      # the data sets already tag it, or this already ran
+                # Read by a parser, so not curated. The column defaults to 1, meaning
+                # hand entered, and leaving it unset marked every row this wrote as a
+                # hand entry that outranks its own later corrections: Sanofi's
+                # Aldurazyme stayed at the Europe column's 84 after the reader learned
+                # to add the regions to the 305 the filer prints.
                 conn.execute(
                     "INSERT INTO asset_revenue (asset_id, fiscal_year, value, unit,"
-                    "                           source, note)"
-                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    "                           source, note, is_curated)"
+                    " VALUES (?, ?, ?, ?, ?, ?, 0)",
                     (asset_id, year, value, total["unit"] or "USD", MDNA_SOURCE,
                      f"revenue by product table, filed {section['filed_date']}"))
                 written += 1

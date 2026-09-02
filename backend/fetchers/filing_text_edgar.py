@@ -73,6 +73,26 @@ CURRENT_REPORTS = ("8-K", "6-K")
 _EXHIBIT_NAME = re.compile(r"ex(?:hibit)?9{2}", re.I)
 _EXHIBITS_PER_FILING = 3            # 99.1 to 99.3; the rest are consents and opinions
 
+# The filing's own index page states each document's type, and that is the record to
+# read. Lilly's agent names its release "q226lillysalesandearningsp.htm", with no
+# "ex99" anywhere in it, and every Lilly earnings release on file was the 8-K's body
+# alone: a pointer, with the news missing. A row of the index table is the sequence,
+# the description, the document link, the type and the size.
+_INDEX_ROW = re.compile(
+    r"<tr[^>]*>\s*<td[^>]*>\d+</td>\s*<td[^>]*>[^<]*</td>\s*"
+    r"<td[^>]*><a href=\"([^\"]+)\">[^<]*</a>[^<]*(?:<(?!/tr>)[^>]+>[^<]*)*</td>\s*"
+    r"<td[^>]*>(EX-99[^<]*)</td>", re.I | re.S)
+
+
+def exhibits_from_index(page: str) -> list:
+    """The documents an index page types as exhibit 99, as site-relative paths."""
+    out = []
+    for href, _kind in _INDEX_ROW.findall(page or ""):
+        if href.startswith("/ix?doc="):
+            href = href[len("/ix?doc="):]
+        out.append(href)
+    return out
+
 
 class FilingTextEdgarFetcher(BaseFetcher):
     source = SOURCE
@@ -152,6 +172,19 @@ class FilingTextEdgarFetcher(BaseFetcher):
         exhibit that holds the news, which is the only reason to read an 8-K at all.
         """
         directory = primary_url.rsplit("/", 1)[0] + "/"
+        # The typed index first. The folder name is the accession without its dashes.
+        folder = directory.rstrip("/").rsplit("/", 1)[-1]
+        if len(folder) == 18 and folder.isdigit():
+            accession = f"{folder[:10]}-{folder[10:12]}-{folder[12:]}"
+            try:
+                page = self._read(f"{directory}{accession}-index.html", user_agent)
+                typed = [f"https://www.sec.gov{path}" if path.startswith("/") else directory + path
+                         for path in exhibits_from_index(page)
+                         if path.lower().endswith((".htm", ".html", ".txt"))]
+                if typed:
+                    return typed[:_EXHIBITS_PER_FILING]
+            except Exception:
+                pass                           # the untyped listing below still serves
         try:
             listing = json.loads(self._read(directory + "index.json", user_agent))
         except Exception:
