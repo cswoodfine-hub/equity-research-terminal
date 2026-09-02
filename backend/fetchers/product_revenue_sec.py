@@ -258,10 +258,12 @@ def worldwide(by_geography: dict[str | None, float]) -> float | None:
     return None
 
 
-def extract_products(rows, adsh: str, ddate: str) -> dict[str, dict]:
+def extract_products(rows, adsh: str, ddate: str = None) -> dict[str, dict]:
     """{product member: {'value', 'unit'}} for one filing and one period end.
 
     ``rows`` are dicts with the num.txt columns. Only full-year durations are read.
+    With ``ddate`` given, only that year. ``extract_products_by_year`` below reads every
+    year the filing carries, which is what a growth rate needs.
 
     Products are rarely tagged on their own. Merck reports every product inside a
     business segment, JNJ inside a segment and a subsegment, Novo inside a segment.
@@ -280,7 +282,7 @@ def extract_products(rows, adsh: str, ddate: str) -> dict[str, dict]:
             continue
         if not (row.get("tag") or "").startswith("Revenue"):
             continue
-        if row.get("qtrs") != "4" or row.get("ddate") != ddate:
+        if row.get("qtrs") != "4" or (ddate is not None and row.get("ddate") != ddate):
             continue
         axes = parse_segments(row.get("segments"))
         product = next((axes[a] for a in PRODUCT_AXES if a in axes), None)
@@ -313,6 +315,25 @@ def extract_products(rows, adsh: str, ddate: str) -> dict[str, dict]:
         if len(units) != 1:
             continue                 # a product priced in two units cannot be totalled
         out[product] = {"value": total, "unit": units.pop()}
+    return out
+
+
+def extract_products_by_year(rows, adsh: str) -> dict[str, dict]:
+    """{period end: {product member: {'value', 'unit'}}} for every year the filing states.
+
+    A 10-K carries its comparative years in the same file, tagged the same way against
+    the same product axis. Reading only the filing's own period threw those away, and
+    threw away with them the one thing a growth rate is made of: what each product did
+    the year before. Twelve of the largest companies in this universe had a revenue
+    figure and no way to grow it, and the prior year was in the download all along.
+    """
+    periods = {row.get("ddate") for row in rows
+               if row.get("adsh") == adsh and row.get("qtrs") == "4" and row.get("ddate")}
+    out = {}
+    for period in periods:
+        found = extract_products(rows, adsh, period)
+        if found:
+            out[period] = found
     return out
 
 
@@ -409,13 +430,14 @@ class ProductRevenueFetcher(BaseFetcher):
                             bucket.append(row)
                 for adsh, ticker in wanted.items():
                     meta = found[ticker]
-                    products = extract_products(rows_by_adsh[adsh], adsh, meta["ddate"])
-                    for member, found_row in products.items():
-                        payload.append({"ticker": ticker, "member": member,
-                                        "value": found_row["value"],
-                                        "unit": found_row["unit"],
-                                        "fiscal_year": int(meta["ddate"][:4]),
-                                        "form": meta["form"], "adsh": adsh})
+                    by_year = extract_products_by_year(rows_by_adsh[adsh], adsh)
+                    for period, products in by_year.items():
+                        for member, found_row in products.items():
+                            payload.append({"ticker": ticker, "member": member,
+                                            "value": found_row["value"],
+                                            "unit": found_row["unit"],
+                                            "fiscal_year": int(period[:4]),
+                                            "form": meta["form"], "adsh": adsh})
         return payload
 
     def normalise(self, raw) -> list[dict]:

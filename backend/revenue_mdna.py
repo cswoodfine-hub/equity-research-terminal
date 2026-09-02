@@ -147,6 +147,51 @@ def _read_spaced(values) -> float | None:
     return None
 
 
+# How closely a printed percentage has to match the ratio of two figures before it is
+# taken as proof they are the same line in consecutive years. A filer rounds its own
+# percentage to a whole number or one decimal, so a point of slack is the rounding, not
+# a tolerance for being wrong.
+_GROWTH_TOLERANCE = 0.011
+
+
+def read_growth(run: str, spaced: bool = None):
+    """(current, prior) for a product row, or None where the row does not prove it.
+
+    Every reader above returns what a product earned. This returns what it earned and
+    what it earned a year earlier, which is the pair a growth rate is made of, and no
+    filing states a growth rate for the analyst to take instead.
+
+    The danger is that a row of figures says nothing about which column is which year.
+    So the proof required is the filer's own percentage: a row that prints 4,591, 3,926
+    and 17% is proved, because 4,591 over 3,926 is 16.9% and no other pairing in that row
+    comes to what the filer printed. A row with no percentage, or whose percentage does
+    not match, returns nothing rather than a guess. That is what makes this safe to run
+    across filers whose table shapes this module has never seen.
+    """
+    values = _numbers(run, spaced)
+    if len(values) < 3:
+        return None
+    money = [(i, v) for i, (v, _raw, pct) in enumerate(values) if not pct and v > 0]
+    percents = [(i, v / 100.0, values[i][1]) for i, (v, _raw, pct) in enumerate(values) if pct]
+    if not money or not percents:
+        return None
+    for a, (i, current) in enumerate(money):
+        for j, prior in money[a + 1:]:
+            if prior <= 0:
+                continue
+            ratio = current / prior - 1.0
+            for k, stated, _raw in percents:
+                if k < j:
+                    continue                  # the percentage closes the pair, never precedes it
+                # Magnitudes, because a filer brackets a fall rather than signing it and
+                # the bracket is not part of the number. The direction is not taken from
+                # the percentage anyway: it is the two figures that say which way the
+                # product went, and the percentage only proves they are the right pair.
+                if abs(abs(ratio) - stated) <= _GROWTH_TOLERANCE:
+                    return current, prior
+    return None
+
+
 def read_row(run: str, spaced: bool = None) -> float | None:
     """The revenue on one product's row, or None when the row cannot be read.
 
