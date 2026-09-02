@@ -337,6 +337,170 @@ def extract_products_by_year(rows, adsh: str) -> dict[str, dict]:
     return out
 
 
+# How closely a parent has to match the sum of its members, in every cell, before it is
+# taken as one. Tight on purpose. Read against a single figure the test is worthless:
+# with twenty products on the page, some subset adds up to almost anything, and a loose
+# reading of Novo's 2025 column names Ozempic as a grouping of Wegovy and three others.
+# What rescues it is that these filers report every line by geography and carry their
+# comparative years in the same filing, so one ambiguous equation becomes eighteen
+# simultaneous ones. A coincidence does not hold in the US and in China and in Europe
+# and in all three years at once, and at this tolerance none does.
+_HIERARCHY_TOLERANCE = 0.02
+
+# Fewer cells than this and the test is not constrained enough to trust. Measured: at
+# six cells it starts calling Tagrisso a grouping of four smaller AstraZeneca products.
+_HIERARCHY_MIN_CELLS = 4
+
+
+def _cells(rows: list[dict], adsh: str) -> dict:
+    """``{(geography, period): {member: value}}`` for one filing.
+
+    The geography detail that ``extract_products`` adds up is exactly what tells a
+    parent from a product here, so this reads the rows before that happens.
+    """
+    out: dict = {}
+    for row in rows:
+        if row.get("adsh") != adsh or row.get("coreg") or row.get("qtrs") != "4":
+            continue
+        if not (row.get("tag") or "").startswith("Revenue"):
+            continue
+        axes = parse_segments(row.get("segments"))
+        member = next((axes[a] for a in PRODUCT_AXES if a in axes), None)
+        geography = next((axes[a] for a in GEOGRAPHY_AXES if a in axes), None)
+        if not member or not geography or is_aggregate(member):
+            continue
+        try:
+            value = float(row["value"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        siblings = tuple(sorted((axis, name) for axis, name in axes.items()
+                                if axis not in PRODUCT_AXES and axis not in GEOGRAPHY_AXES))
+        out.setdefault((geography, row.get("ddate")), {})[member] = (value, siblings)
+    return out
+
+
+def _subsets_summing_to(pool: list, target: float, depth: int, start: int = 0,
+                        running: float = 0.0, chosen: tuple = ()):
+    """Every combination of ``pool`` that sums to ``target``, in turn.
+
+    Every one, not the first. A single column cannot tell a real grouping from an
+    accident, so the first subset that adds up is as likely to be the accident as the
+    answer, and stopping there loses the answer: it is what let Novo's FastActingInsulin
+    through while PremixInsulin and LongActingInsulin, both just as real, were missed.
+    The caller tests each against the other cells and keeps the one that survives.
+
+    ``pool`` is sorted descending, which lets a branch stop once it has overshot rather
+    than enumerating every combination of twenty products four at a time.
+    """
+    if len(chosen) == depth:
+        if abs(running / target - 1) < _HIERARCHY_TOLERANCE:
+            yield chosen
+        return
+    for i in range(start, len(pool)):
+        nxt = running + pool[i][1]
+        if nxt > target * (1 + _HIERARCHY_TOLERANCE):
+            continue                      # too big on its own, but a smaller one may fit
+        yield from _subsets_summing_to(pool, target, depth, i + 1, nxt,
+                                       chosen + (pool[i][0],))
+
+
+def grouping_members(rows: list[dict], adsh: str) -> set:
+    """Members that are the total of other members, judged across every cell at once.
+
+    ``drop_groupings`` below catches a parent that says so in its name, Gilead's
+    HIVProductSales sitting over HIVProductsBiktarvy. Novo's do not: LongActingInsulin
+    and Tresiba read as two products of equal standing, and nothing in the text says one
+    contains the other. The filer's arithmetic says it, in every geography and every
+    year the filing carries, and that is what is read here.
+
+    Only members sharing the parent's segment are candidates, because a grouping is made
+    of the lines printed beneath it, not of lines from another part of the business.
+    """
+    cells = _cells(rows, adsh)
+    if len(cells) < _HIERARCHY_MIN_CELLS:
+        return set()
+    widest = max(cells, key=lambda key: len(cells[key]))
+    found = set()
+    for parent, (value, siblings) in cells[widest].items():
+        if parent in found or value <= 0:
+            continue          # a line the filer reports as nil says nothing about a total
+        pool = sorted(((name, other) for name, (other, kin) in cells[widest].items()
+                       if name != parent and other < value and kin == siblings),
+                      key=lambda pair: -pair[1])
+        if len(pool) < 2:
+            continue
+        # Novo reports Ryzodeg and Awigli as nil in the United States, and a cell where
+        # the parent is nil cannot test anything but can divide by zero.
+        live = [key for key in cells
+                if parent in cells[key] and cells[key][parent][0] > 0]
+        if len(live) < _HIERARCHY_MIN_CELLS:
+            continue
+        for depth in (2, 3, 4):
+            if any(all(abs(sum(cells[key][name][0] for name in members
+                               if name in cells[key]) / cells[key][parent][0] - 1)
+                       < _HIERARCHY_TOLERANCE for key in live)
+                   for members in _subsets_summing_to(pool, value, depth)):
+                found.add(parent)
+                break
+    return found
+
+
+# How closely a parent has to match the sum of its members before it is taken as one.
+# Gilead's HIV franchise is 20,752 against members summing to 20,252, the difference
+# being the products inside it that are not separately tagged, so this cannot be tight.
+# It does not need to be: the test is that a member is roughly the sum of several others
+# whose names contain its own, which nothing but a grouping satisfies.
+_GROUPING_TOLERANCE = 0.06
+_GROUPING_SUFFIXES = ("productsales", "products", "productrevenue", "sales", "revenue")
+
+
+def _stem(member: str) -> str:
+    """A member's name with a trailing revenue word removed, for matching its members."""
+    text = _norm(member)
+    for suffix in _GROUPING_SUFFIXES:
+        if text.endswith(suffix) and len(text) > len(suffix) + 2:
+            return text[: -len(suffix)]
+    return text
+
+
+def drop_groupings(rows: list[dict]) -> list[dict]:
+    """Remove members that are the total of other members in the same filing.
+
+    A filer tags a franchise and the products inside it against the same axis and at the
+    same level, so both arrive here looking like products. Gilead tags HIVProductSales at
+    20,752 beside HIVProductsBiktarvy at 14,334 and four more that add up to it; United
+    Therapeutics tags Tyvaso at 1,878 beside TyvasoDPI at 1,292 and NebulizedTyvaso at
+    586, which is exactly it. Keeping both counts the franchise twice, and the guard that
+    notices sums past company revenue then threw away the whole company rather than one
+    row: five companies had no product revenue at all for that reason, and Gilead's
+    twenty-nine billion read as unattributable.
+
+    A parent is found by arithmetic rather than by a list of names: it is a member whose
+    value is about the sum of two or more others whose names contain its stem. One member
+    inside another is not enough, or Keytruda would be a grouping of Keytruda Qlex.
+    """
+    kept, dropped = [], set()
+    by_key: dict[tuple, list] = {}
+    for row in rows:
+        by_key.setdefault((row["ticker"], row["fiscal_year"]), []).append(row)
+    for key, group in by_key.items():
+        for parent in group:
+            stem = _stem(parent["member"])
+            if len(stem) < 3:
+                continue
+            children = [r for r in group if r is not parent and stem in _norm(r["member"])]
+            if len(children) < 2:
+                continue
+            total = sum(r["value"] for r in children)
+            if parent["value"] > 0 and abs(total - parent["value"]) <= (
+                    parent["value"] * _GROUPING_TOLERANCE):
+                dropped.add((key, parent["member"]))
+    for row in rows:
+        if ((row["ticker"], row["fiscal_year"]), row["member"]) not in dropped:
+            kept.append(row)
+    return kept
+
+
 # --- fetcher -------------------------------------------------------------
 class ProductRevenueFetcher(BaseFetcher):
     """Universe-level: one set of downloads serves every company in it."""
@@ -430,9 +594,14 @@ class ProductRevenueFetcher(BaseFetcher):
                             bucket.append(row)
                 for adsh, ticker in wanted.items():
                     meta = found[ticker]
+                    # A grouping has to go before its members are read, not after,
+                    # because reading it is what makes the year double count.
+                    groupings = grouping_members(rows_by_adsh[adsh], adsh)
                     by_year = extract_products_by_year(rows_by_adsh[adsh], adsh)
                     for period, products in by_year.items():
                         for member, found_row in products.items():
+                            if member in groupings:
+                                continue
                             payload.append({"ticker": ticker, "member": member,
                                             "value": found_row["value"],
                                             "unit": found_row["unit"],
@@ -565,7 +734,7 @@ class ProductRevenueFetcher(BaseFetcher):
             companies = {r["ticker"]: r["id"] for r in conn.execute(
                 "SELECT id, ticker FROM companies")}
 
-            rows = self._drop_double_counted(conn, rows)
+            rows = self._drop_double_counted(conn, drop_groupings(rows))
             for row in rows:
                 asset_id = self._resolve_asset(conn, assets, companies,
                                                row["ticker"], row["member"])

@@ -227,3 +227,122 @@ def test_merck_group_lines_read_as_the_groups_they_are():
     assert display_name("IsentressIsentressHD") == "Isentress / Isentress HD"
     # A revenue-type prefix still comes off a curated member's own label.
     assert display_name("AdempasVerquvo") == "Adempas / Verquvo"
+
+
+def test_a_member_that_is_the_sum_of_others_is_a_grouping():
+    """Gilead tags its HIV franchise beside the products inside it, both at the same
+    level and both looking like products. Keeping both counted 20.7bn twice, which the
+    sum-past-revenue guard then answered by discarding the whole company."""
+    from fetchers.product_revenue_sec import drop_groupings
+
+    rows = [{"ticker": "GILD", "fiscal_year": 2025, "member": m, "value": v}
+            for m, v in (("HIVProductSales", 20752e6), ("HIVProductsBiktarvy", 14334e6),
+                         ("HIVProductsDescovy", 2758e6), ("HIVProductsGenvoya", 1498e6),
+                         ("HIVProductsOdefsey", 1167e6), ("HIVProductsSymtuzaRevenueShare", 495e6),
+                         ("Trodelvy", 1397e6))]
+    kept = {r["member"] for r in drop_groupings(rows)}
+    assert "HIVProductSales" not in kept
+    assert "HIVProductsBiktarvy" in kept and "Trodelvy" in kept
+
+
+def test_a_grouping_is_found_where_the_members_name_it():
+    """United Therapeutics tags Tyvaso at exactly TyvasoDPI plus NebulizedTyvaso."""
+    from fetchers.product_revenue_sec import drop_groupings
+
+    rows = [{"ticker": "UTHR", "fiscal_year": 2025, "member": m, "value": v}
+            for m, v in (("Tyvaso", 1878e6), ("TyvasoDPI", 1292e6),
+                         ("NebulizedTyvaso", 586e6), ("Remodulin", 527e6))]
+    kept = {r["member"] for r in drop_groupings(rows)}
+    assert kept == {"TyvasoDPI", "NebulizedTyvaso", "Remodulin"}
+
+
+def test_one_product_inside_another_is_not_a_grouping():
+    """Keytruda Qlex is a form of Keytruda and is nothing like the whole of it. A single
+    member sharing a name proves nothing, which is why two are required."""
+    from fetchers.product_revenue_sec import drop_groupings
+
+    rows = [{"ticker": "MRK", "fiscal_year": 2025, "member": m, "value": v}
+            for m, v in (("Keytruda", 31641e6), ("KeytrudaQlex", 40e6))]
+    assert len(drop_groupings(rows)) == 2
+
+
+def test_members_that_do_not_add_up_are_all_kept():
+    from fetchers.product_revenue_sec import drop_groupings
+
+    rows = [{"ticker": "X", "fiscal_year": 2025, "member": m, "value": v}
+            for m, v in (("AlphaProducts", 900e6), ("AlphaProductsOne", 100e6),
+                         ("AlphaProductsTwo", 120e6))]
+    assert len(drop_groupings(rows)) == 3
+
+
+def _novo_row(geography, ddate, member, value, segment="ObesityAndDiabetesCare"):
+    return {"adsh": "novo", "qtrs": "4", "ddate": ddate, "coreg": "",
+            "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "value": str(value), "uom": "DKK",
+            "segments": f"GeographicalAreas={geography};ProductsAndServices={member};"
+                        f"Segments={segment};"}
+
+
+# Novo's premix insulin, its two members, and one product that has nothing to do with
+# either, as filed in three geographies. The categories carry no hint in their names
+# that they contain anything, which is the whole difficulty.
+_PREMIX = {
+    "US":   {"PremixInsulin": 570, "NovoMixAndNovoLogMix": 320, "Ryzodeg": 250, "Ozempic": 88470},
+    "CN":   {"PremixInsulin": 4100, "NovoMixAndNovoLogMix": 2600, "Ryzodeg": 1500, "Ozempic": 6200},
+    "EUCAN": {"PremixInsulin": 1800, "NovoMixAndNovoLogMix": 900, "Ryzodeg": 900, "Ozempic": 21000},
+}
+
+
+def test_a_grouping_is_found_where_only_the_arithmetic_says_so():
+    """LongActingInsulin and Tresiba read as two products of equal standing. Nothing in
+    either name says one contains the other, and Novo's did: 47bn of insulin categories
+    were counted twice, which put every year past reported revenue and lost the company."""
+    from fetchers.product_revenue_sec import grouping_members
+
+    rows = [_novo_row(geo, ddate, member, value)
+            for ddate in ("20241231", "20251231")
+            for geo, members in _PREMIX.items()
+            for member, value in members.items()]
+    assert grouping_members(rows, "novo") == {"PremixInsulin"}
+
+
+def test_a_coincidence_in_one_column_is_not_a_grouping():
+    """The test is worthless read against a single column: with twenty products on the
+    page some subset adds up to almost anything, and Novo's 2025 column alone names
+    Ozempic as a grouping of Wegovy and three others. Six cells and it does not."""
+    from fetchers.product_revenue_sec import grouping_members
+
+    # Ozempic is the sum of the other two in the United States and nowhere else.
+    rows = [_novo_row(geo, ddate, member, value)
+            for ddate in ("20241231", "20251231")
+            for geo, members in (
+                ("US", {"Ozempic": 900, "Wegovy": 600, "Rybelsus": 300}),
+                ("CN", {"Ozempic": 900, "Wegovy": 100, "Rybelsus": 200}),
+                ("EUCAN", {"Ozempic": 900, "Wegovy": 400, "Rybelsus": 100}))
+            for member, value in members.items()]
+    assert grouping_members(rows, "novo") == set()
+
+
+def test_too_few_cells_to_judge_decides_nothing():
+    """A filer that reports one column has no evidence to offer, and guessing from it
+    called Tagrisso a grouping of four smaller AstraZeneca products."""
+    from fetchers.product_revenue_sec import grouping_members
+
+    rows = [_novo_row("US", "20251231", m, v)
+            for m, v in (("Ozempic", 900), ("Wegovy", 600), ("Rybelsus", 300))]
+    assert grouping_members(rows, "novo") == set()
+
+
+def test_a_grouping_does_not_reach_across_segments():
+    """A grouping is made of the lines printed beneath it. Novo's rare disease lines add
+    up to its insulin categories often enough to matter, and belong to neither."""
+    from fetchers.product_revenue_sec import grouping_members
+
+    rows = [_novo_row(geo, ddate, member, value, segment)
+            for ddate in ("20241231", "20251231")
+            for geo in ("US", "CN", "EUCAN")
+            for member, value, segment in (
+                ("PremixInsulin", 900, "ObesityAndDiabetesCare"),
+                ("NovoSeven", 600, "RareDisease"),
+                ("HaemophiliaA", 300, "RareDisease"))]
+    assert grouping_members(rows, "novo") == set()
