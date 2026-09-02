@@ -154,6 +154,28 @@ def _read_spaced(values) -> float | None:
 _GROWTH_TOLERANCE = 0.011
 
 
+# A filer brackets a fall rather than signing it, and the bracket is not part of the
+# number, so it was dropped and the percentage read as a magnitude. That let a decline
+# prove an increase. Regeneron prints Libtayo as 342.6, 146.8, 489.4 for this quarter,
+# the same three for last, and 30%: the United States, elsewhere, and the total. Both
+# 489.4 over 376.5 and 342.6 over 489.4 come to thirty per cent, one up and one down,
+# and the magnitude test took whichever it reached first, which was the wrong one. The
+# filer had said which: it brackets its falls, and 30% is not bracketed.
+_PERCENT_SIGN = re.compile(r"(\()?\s*(-)?\s*\d[\d,]*(?:\.\d+)?\s*%\s*(\))?")
+
+
+def _percent_signs(run: str, count: int) -> list:
+    """+1 or -1 for each percentage in the run, in the order they are printed.
+
+    Where the run does not yield the same number of percentages this reads elsewhere,
+    every sign is positive, which leaves the row proved on magnitude as before. A row
+    whose signs cannot be established is not a row to start reading signs into.
+    """
+    signs = [-1.0 if (m.group(1) or m.group(2) or m.group(3)) else 1.0
+             for m in _PERCENT_SIGN.finditer(run or "")]
+    return signs if len(signs) == count else [1.0] * count
+
+
 def read_growth(run: str, spaced: bool = None):
     """(current, prior) for a product row, or None where the row does not prove it.
 
@@ -167,6 +189,10 @@ def read_growth(run: str, spaced: bool = None):
     comes to what the filer printed. A row with no percentage, or whose percentage does
     not match, returns nothing rather than a guess. That is what makes this safe to run
     across filers whose table shapes this module has never seen.
+
+    The percentage is read with its sign, because on a row carrying a geography split as
+    well as a total, a rise and a fall of the same size are both on the page and only the
+    sign says which one the filer meant.
     """
     values = _numbers(run, spaced)
     if len(values) < 3:
@@ -175,19 +201,16 @@ def read_growth(run: str, spaced: bool = None):
     percents = [(i, v / 100.0, values[i][1]) for i, (v, _raw, pct) in enumerate(values) if pct]
     if not money or not percents:
         return None
+    signs = _percent_signs(run, len(percents))
     for a, (i, current) in enumerate(money):
         for j, prior in money[a + 1:]:
             if prior <= 0:
                 continue
             ratio = current / prior - 1.0
-            for k, stated, _raw in percents:
+            for position, (k, stated, _raw) in enumerate(percents):
                 if k < j:
                     continue                  # the percentage closes the pair, never precedes it
-                # Magnitudes, because a filer brackets a fall rather than signing it and
-                # the bracket is not part of the number. The direction is not taken from
-                # the percentage anyway: it is the two figures that say which way the
-                # product went, and the percentage only proves they are the right pair.
-                if abs(abs(ratio) - stated) <= _GROWTH_TOLERANCE:
+                if abs(ratio - stated * signs[position]) <= _GROWTH_TOLERANCE:
                     return current, prior
     return None
 
@@ -380,7 +403,10 @@ _GEOGRAPHY_SPAN = 420
 # outside its bracket: AbbVie writes "(49.5) %", and a token that closed at the bracket
 # left the percent behind, so the figure read as a fourth money column and the row was
 # refused for having no percentage to close it.
-_CELL = r"\(?[-+]?\$?\s*[\d,.]+\s*\)?\s*%?(?:\s+|$)"
+# The closing bracket can fall either side of the percent sign, and Regeneron puts it
+# after: "(52 %)". Without the second, the cell ended at "(52 " and the row lost the
+# percentage that proves it, so every fall Regeneron reports was unreadable.
+_CELL = r"\(?[-+]?\$?\s*[\d,.]+\s*\)?\s*%?\s*\)?(?:\s+|$)"
 
 _TOTAL_ROW = re.compile(r"\btotal\b[\s®™*†‡:]*" + f"((?:{_CELL}){{1,8}})", re.I)
 

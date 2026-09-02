@@ -215,3 +215,29 @@ def test_a_name_joined_to_the_one_before_it_is_a_group_not_a_row():
               "BRIDION\n469\n429\n9 %\n")
     found = M.parse(window, ["Gardasil 9", "Varivax", "Bridion", "Gardasil"])
     assert found == {"Bridion": 469e6}
+
+
+def test_a_bracketed_fall_does_not_prove_a_rise():
+    """Regeneron prints Libtayo as the United States, elsewhere, and the total, for this
+    quarter and for last, then 30%. Both 489.4 over 376.5 and 342.6 over 489.4 come to
+    thirty per cent, one up and one down, and reading the percentage as a magnitude took
+    whichever it reached first. It reached the wrong one, and turned a product growing
+    30% into one falling 30%. The filer had said which: it brackets its falls."""
+    row = "$ 342.6 $ 146.8 $ 489.4 $ 247.8 $ 128.7 $ 376.5 30 % "
+    assert revenue_mdna.read_growth(row) == (489.4, 376.5)
+
+
+def test_a_bracketed_percentage_proves_the_fall_it_marks():
+    """EYLEA on the same page, which Regeneron reports down and brackets to say so. The
+    bracket closes after the percent sign, and while the cell pattern stopped at "(52 "
+    the row lost the very figure that proves it: every fall Regeneron reports was
+    unreadable, so only its rising products could be seen at all."""
+    row = "$ 412.2 $ 300.2 $ 712.4 $ 754.3 $ 736.0 $ 1,490.3 (52 %) "
+    assert revenue_mdna.read_growth(row) == (712.4, 1490.3)
+
+
+def test_signs_are_left_alone_where_the_row_does_not_show_them():
+    """A row this reads two percentages from, where the sign pattern finds a different
+    number of them, is proved on magnitude as before rather than on a guessed sign."""
+    row = "4,591 3,926 17 % "
+    assert revenue_mdna.read_growth(row) == (4591.0, 3926.0)
