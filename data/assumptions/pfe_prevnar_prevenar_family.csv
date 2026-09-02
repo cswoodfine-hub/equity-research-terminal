@@ -1,0 +1,25 @@
+# Prevnar Prevenar Family (PFE). $6,494mm in FY2025.
+#
+# Marketed, anchored on the reported year and grown on Pfizer's own six-month
+# comparison, read from the 'Prevnar family' row.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+PFE,"Prevnar / Prevenar family",,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+PFE,"Prevnar / Prevenar family",,US,base,base_revenue,,6494.0,,mm USD,"PFE FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
+PFE,"Prevnar / Prevenar family",,US,base,revenue_growth_pct,,-0.005258,,"annual, near term","Pfizer's six-month revenue table in the 8-K exhibit (0000078003-26-000094, filed 2026-08-04), the 'Prevnar family' row: $3,027mm in the first half of 2026 against $3,043mm in the first half of 2025. The row is accepted on its own arithmetic, the two territories summing to the worldwide figure in both years","the halves, which is the comparison Pfizer makes itself"
+PFE,"Prevnar / Prevenar family",,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+PFE,"Prevnar / Prevenar family",,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+PFE,"Prevnar / Prevenar family",,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+PFE,"Prevnar / Prevenar family",,US,base,forecast_years,,10,,years,"no exclusivity on file, so the horizon is the convention",
+PFE,"Prevnar / Prevenar family",,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+PFE,"Prevnar / Prevenar family",,US,base,cogs_pct,,0.2567,,share of revenue,"PFE FY2025, computed from the filed lines","Pfizer's own, as every Pfizer asset carries"
+PFE,"Prevnar / Prevenar family",,US,base,sga_pct,,0.2204,,share of revenue,"PFE FY2025, computed from the filed lines","Pfizer's own, as every Pfizer asset carries"
+PFE,"Prevnar / Prevenar family",,US,base,rd_pct,,0.1668,,share of revenue,"PFE FY2025, computed from the filed lines","Pfizer's own, as every Pfizer asset carries"
+PFE,"Prevnar / Prevenar family",,US,base,tax_rate,,0.0501,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income. Pfizer's FY2025 rate alone is negative, which in a forward model would add to cash flow rather than take from it","Pfizer's own, as every Pfizer asset carries"
+PFE,"Prevnar / Prevenar family",,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26","Pfizer's own, as every Pfizer asset carries"
+PFE,"Prevnar / Prevenar family",,US,base,erp,,0.05,,,Damodaran US ERP estimate,"Pfizer's own, as every Pfizer asset carries"
+PFE,"Prevnar / Prevenar family",,US,base,beta,,0.64,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.46 raw)","Pfizer's own, as every Pfizer asset carries"
+PFE,"Prevnar / Prevenar family",,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26","Pfizer's own, as every Pfizer asset carries"
+PFE,"Prevnar / Prevenar family",,US,base,debt_weight,,0.279719,,,"filed TotalDebt of $63,194mm over debt plus market capitalisation: 5,699.7mm shares at 2026-07-29 at the $28.55 close of 2026-09-01","Pfizer's own, as every Pfizer asset carries"
+PFE,"Prevnar / Prevenar family",,US,base,other_costs_pct,,0.22177,,share of revenue,"derived: Pfizer generated $23,703mm of free cash flow on $185,759mm of revenue over 2023, 2024 and 2025, a 12.76% margin, against the 33.8% its cost of sales, SG&A and R&D leave. The 2021 and 2022 COVID years are excluded because a 36% margin on a vaccine windfall is not what this company earns","amortisation of acquired intangibles above all, then restructuring and the rest. Pfizer bought Seagen and its filed expense lines do not carry what that cost. Without this row the model values the company at nearly three times the cash it makes"

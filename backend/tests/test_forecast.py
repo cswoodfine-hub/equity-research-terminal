@@ -730,3 +730,21 @@ def test_the_pnl_carries_every_line():
         assert key in row
     assert row["ebit"] == pytest.approx(row["revenue"] - row["cogs"] - row["sga"]
                                         - row["rd"])
+
+
+def test_other_costs_are_a_line_of_their_own():
+    """Cost of sales, SG&A and R&D are the only expenses the data sets tag, and for a
+    company that bought its pipeline they are not most of its costs. Pfizer's three lines
+    leave a 33.8% cash margin against the 12.8% it has earned since the COVID years."""
+    plain = F.build(_marketed())
+    charged = F.build(_marketed(other_costs_pct=0.2218))
+    assert charged["pnl"][0]["other"] == pytest.approx(
+        plain["pnl"][0]["revenue"] * 0.2218)
+    assert charged["pnl"][0]["ebit"] < plain["pnl"][0]["ebit"]
+    assert charged["rnpv"] < plain["rnpv"]
+
+
+def test_no_other_costs_leaves_the_p_and_l_as_it_was():
+    row = F.build(_marketed())["pnl"][0]
+    assert row["other"] == 0.0
+    assert row["ebit"] == pytest.approx(row["revenue"] - row["cogs"] - row["sga"] - row["rd"])

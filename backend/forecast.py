@@ -354,16 +354,25 @@ def fcff(revenue: list[float], patients: list[float], scalars: dict,
     sga = scalars.get("sga_pct") or 0.0
     rd = scalars.get("rd_pct") or 0.0
     tax = scalars.get("tax_rate") or 0.0
+    # What stands between the three expense lines a filer tags and the cash it actually
+    # generates: amortisation of acquired intangibles above all, then restructuring and
+    # the rest. Cost of sales, SG&A and R&D are the only expenses in the data sets, and
+    # for a company that has bought its pipeline they are not most of its costs. Pfizer's
+    # three lines leave a 33.8% cash margin against the 12.8% it has actually earned
+    # since the COVID years, so a model without this values it at nearly three times the
+    # cash it makes. Zero where a company's filed lines already reconcile to its cash.
+    other = scalars.get("other_costs_pct") or 0.0
     rows = []
     for rev, pats in zip(revenue, patients):
         if mode == "one_time":
             cogs = (scalars.get("cogs_per_patient") or 0.0) * pats
         else:
             cogs = (scalars.get("cogs_pct") or 0.0) * rev
-        ebit = rev - cogs - sga * rev - rd * rev
+        ebit = rev - cogs - sga * rev - rd * rev - other * rev
         taxed = max(0.0, ebit * tax)
         rows.append({"revenue": rev, "cogs": cogs, "sga": sga * rev, "rd": rd * rev,
-                     "ebit": ebit, "tax": taxed, "fcff": ebit - taxed})
+                     "other": other * rev, "ebit": ebit, "tax": taxed,
+                     "fcff": ebit - taxed})
     return rows
 
 

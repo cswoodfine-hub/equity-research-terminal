@@ -1837,12 +1837,14 @@ def _pnl_section(result: dict, varied) -> None:
     ], one_row=True), unsafe_allow_html=True)
     table = pd.DataFrame([{
         "year": y, "revenue": r["revenue"], "COGS": -r["cogs"], "SG&A": -r["sga"],
-        "R&D": -r["rd"], "EBIT": r["ebit"], "tax": -r["tax"], "FCFF": r["fcff"],
+        "R&D": -r["rd"], "other": -r.get("other", 0.0), "EBIT": r["ebit"],
+        "tax": -r["tax"], "FCFF": r["fcff"],
         "FCFF margin": (r["fcff"] / r["revenue"]) if r["revenue"] else None,
     } for y, r in zip(years, rows)])
     st.dataframe(
         table.style.format({c: "{:,.0f}" for c in
-                            ("revenue", "COGS", "SG&A", "R&D", "EBIT", "tax", "FCFF")}
+                            ("revenue", "COGS", "SG&A", "R&D", "other", "EBIT", "tax",
+                             "FCFF")}
                            | {"FCFF margin": "{:.1%}"}),
         width="stretch", hide_index=True, height=min(60 + 36 * len(rows), 420))
     note("COGS, SG&A, R&D and tax are the company's FY ratios from the 10-K, applied to "
