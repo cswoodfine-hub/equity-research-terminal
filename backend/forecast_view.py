@@ -332,8 +332,44 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
                           "pos": pos}}
 
 
+def _to_price_units(conn, company_id: int, ordinary: float):
+    """A count of ordinary shares, turned into the divisor described above.
+
+    Two steps. The depositary ratio, because a share and a share are not the same thing:
+    AstraZeneca's ADS is half an ordinary share and GSK's is two, so dividing an rNPV by
+    ordinary shares puts one at twice the price it should be compared with and the other
+    at half. Then the exchange rate, folded into the divisor rather than applied to the
+    rNPV, so that every caller dividing by this gets dollars without knowing it needs to.
+    A dollar filer has neither a ratio nor a rate and comes back unchanged.
+    """
+    company = conn.execute(
+        "SELECT ticker, reporting_currency FROM companies WHERE id = ?",
+        (company_id,)).fetchone()
+    ratio = conn.execute(
+        "SELECT ordinary_per_adr FROM adr_ratios WHERE ticker = ?",
+        (company["ticker"],)).fetchone() if company else None
+    per_adr = ratio["ordinary_per_adr"] if ratio and ratio["ordinary_per_adr"] else 1.0
+    shares = ordinary / per_adr
+    currency = (company["reporting_currency"] or "USD") if company else "USD"
+    if currency == "USD":
+        return shares
+    rate = conn.execute(
+        """SELECT rate FROM fx_rates WHERE base = ? AND quote = 'USD'
+            ORDER BY as_of DESC LIMIT 1""", (currency,)).fetchone()
+    if not (rate and rate["rate"]):
+        return None            # an rNPV in kroner divided by shares is not a dollar figure
+    return shares / rate["rate"]
+
+
 def _diluted_shares(conn, company_id: int):
-    """The share count a per-share figure divides by, in the unit the price is quoted in.
+    """The divisor that turns an rNPV into a figure per share the price can be read against.
+
+    Not simply a share count, and the difference matters for a filer that does not report
+    in dollars. An rNPV is in the currency of the accounts it was built from, Sanofi's in
+    euro and Novo's in kroner, while the price on file is what the American depositary
+    share trades at in dollars. Two conversions stand between them, and both are folded
+    in here so every caller gets a figure that can be compared with the price rather than
+    one that is out by an exchange rate, a depositary ratio, or both.
 
     A foreign private issuer tags neither a diluted share count nor a shares outstanding:
     AstraZeneca and Novartis file neither, so their rNPV had nowhere to go and the company
@@ -347,13 +383,17 @@ def _diluted_shares(conn, company_id: int):
     its per-share figure at twice the number the price can be compared with. The curated
     ADR ratio converts one to the other.
     """
+    ordinary = None
     for metric in ("WeightedAverageDilutedShares", "SharesOutstanding"):
         row = conn.execute(
             """SELECT value FROM financials WHERE company_id = ? AND metric = ?
                 AND period_type IN ('FY', 'instant') ORDER BY fiscal_year DESC,
                 period_end DESC LIMIT 1""", (company_id, metric)).fetchone()
         if row and row["value"]:
-            return row["value"]
+            ordinary = row["value"]
+            break
+    if ordinary:
+        return _to_price_units(conn, company_id, ordinary)
     income = conn.execute(
         """SELECT value, fiscal_year FROM financials WHERE company_id = ?
             AND metric = 'NetIncomeLoss' AND period_type = 'FY'
@@ -367,11 +407,7 @@ def _diluted_shares(conn, company_id: int):
     if not (eps and eps["value"]):
         return None
     ordinary = income["value"] / eps["value"]
-    ratio = conn.execute(
-        """SELECT r.ordinary_per_adr FROM adr_ratios r JOIN companies c ON c.ticker = r.ticker
-            WHERE c.id = ?""", (company_id,)).fetchone()
-    per_adr = ratio["ordinary_per_adr"] if ratio and ratio["ordinary_per_adr"] else 1.0
-    return ordinary / per_adr if ordinary > 0 else None
+    return _to_price_units(conn, company_id, ordinary) if ordinary > 0 else None
 
 
 def catalyst_stakes(db_path, ticker: str):
