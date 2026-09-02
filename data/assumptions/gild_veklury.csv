@@ -1,0 +1,25 @@
+# Veklury (GILD). 911mm USD in FY2025.
+#
+# Marketed, anchored on the reported year and grown against the same product axis a
+# year earlier, both from the SEC financial statement data sets.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+GILD,Veklury,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+GILD,Veklury,,US,base,base_revenue,,911.0,,mm USD,"GILD FY2025 reported product revenue, from the annual report product axis (sec_fsds)",the anchor
+GILD,Veklury,,US,base,revenue_growth_pct,,-0.493608,,"annual, near term","the same product axis a year earlier: 911 against 1,799 a year before, both in USD from the SEC financial statement data sets, tagged in the same filing",the last reported year over the one before it
+GILD,Veklury,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+GILD,Veklury,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+GILD,Veklury,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+GILD,Veklury,,US,base,forecast_years,,20,,years,set to run past the 2041 loss of exclusivity,
+GILD,Veklury,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+GILD,Veklury,,US,base,cogs_pct,,0.2117,,share of revenue,"GILD FY2025, from the filed lines",
+GILD,Veklury,,US,base,sga_pct,,0.1961,,share of revenue,"GILD FY2025, from the filed lines",
+GILD,Veklury,,US,base,rd_pct,,0.197,,share of revenue,"GILD FY2025, from the filed lines",
+GILD,Veklury,,US,base,other_costs_pct,,0.0,,share of revenue,derived and found to be nil: the filed expense lines already leave less than the 31.86% of revenue this company turned into free cash over 2023 to 2025,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+GILD,Veklury,,US,base,tax_rate,,0.231,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+GILD,Veklury,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+GILD,Veklury,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+GILD,Veklury,,US,base,beta,,0.62,,,"computed from 261 weekly returns vs S&P 500, 2021-W34 to 2026-W35, Blume-adjusted (0.43 raw)",
+GILD,Veklury,,US,base,cost_of_debt,,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+GILD,Veklury,,US,base,debt_weight,,0.123183,,,"filed TotalDebt of 26,246mm USD at 2026-06-30 over debt plus market capitalisation",

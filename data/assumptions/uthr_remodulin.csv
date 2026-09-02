@@ -1,0 +1,25 @@
+# Remodulin (UTHR). 527mm USD in FY2025.
+#
+# Marketed, anchored on the reported year and grown against the same product axis a
+# year earlier, both from the SEC financial statement data sets.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+UTHR,Remodulin,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+UTHR,Remodulin,,US,base,base_revenue,,526.8,,mm USD,"UTHR FY2025 reported product revenue, from the annual report product axis (sec_fsds)",the anchor
+UTHR,Remodulin,,US,base,revenue_growth_pct,,-0.021,,"annual, near term","the same product axis a year earlier: 527 against 538 a year before, both in USD from the SEC financial statement data sets, tagged in the same filing",the last reported year over the one before it
+UTHR,Remodulin,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+UTHR,Remodulin,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+UTHR,Remodulin,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+UTHR,Remodulin,,US,base,forecast_years,,10,,years,no exclusivity on file,
+UTHR,Remodulin,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+UTHR,Remodulin,,US,base,cogs_pct,,0.1208,,share of revenue,"UTHR FY2025, from the filed lines",
+UTHR,Remodulin,,US,base,sga_pct,,0.2375,,share of revenue,"UTHR FY2025, from the filed lines",
+UTHR,Remodulin,,US,base,rd_pct,,0.1728,,share of revenue,"UTHR FY2025, from the filed lines",
+UTHR,Remodulin,,US,base,other_costs_pct,,0.03028,,share of revenue,derived: UTHR turned 34.20% of revenue into free cash over 2023 to 2025 against the 36.6% its filed expense lines leave,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+UTHR,Remodulin,,US,base,tax_rate,,0.2203,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+UTHR,Remodulin,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+UTHR,Remodulin,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+UTHR,Remodulin,,US,base,beta,,0.71,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.56 raw)",
+UTHR,Remodulin,,US,base,cost_of_debt,,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+UTHR,Remodulin,,US,base,debt_weight,,0.0,,,"no debt is tagged in the SEC company facts for United Therapeutics, and its FY2025 10-K states that the outstanding balance under its 2025 revolving credit agreement, which matures in 2030, was zero as of December 31, 2025","zero is a reading of the balance sheet rather than a convention. The cost of debt beside it is inert while this holds"
