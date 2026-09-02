@@ -1,0 +1,25 @@
+# Zejula (GSK). 557mm GBP in FY2025.
+#
+# Marketed, anchored on the reported year and grown against the same product axis a
+# year earlier, both from the SEC financial statement data sets.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+GSK,Zejula,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+GSK,Zejula,,US,base,base_revenue,,557.0,,mm GBP,"GSK FY2025 reported product revenue, from the annual report product axis (sec_fsds)","GSK reports in pounds sterling. The figure is as filed, not converted."
+GSK,Zejula,,US,base,revenue_growth_pct,,-0.06,,"annual, near term","GSK's full-year 2025 results (6-K 0001654954-26-000892, filed 2026-02-04), sales table by product: £557m for the year, which the filing states as -6% at actual exchange rates against 2024. The data sets tag no prior year for this product, so the filer's own reported growth is the comparison","the quarter against the same quarter a year before, which is the most recent comparison this filer states"
+GSK,Zejula,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+GSK,Zejula,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+GSK,Zejula,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+GSK,Zejula,,US,base,forecast_years,,19,,years,set to run past the 2039 loss of exclusivity,
+GSK,Zejula,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+GSK,Zejula,,US,base,cogs_pct,,0.276,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Zejula,,US,base,sga_pct,,0.2782,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Zejula,,US,base,rd_pct,,0.2304,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Zejula,,US,base,other_costs_pct,,0.014402,,share of revenue,derived: GSK turned 18.02% of revenue into free cash over 2023 to 2025 against the 19.3% its filed expense lines leave,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+GSK,Zejula,,US,base,tax_rate,,0.1037,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
+GSK,Zejula,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+GSK,Zejula,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+GSK,Zejula,,US,base,beta,,0.55,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.33 raw)",
+GSK,Zejula,,US,base,cost_of_debt,,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+GSK,Zejula,,US,base,debt_weight,,0.194899,,,"filed TotalDebt of 14,453mm GBP at 2025-12-31 over debt plus market capitalisation",
