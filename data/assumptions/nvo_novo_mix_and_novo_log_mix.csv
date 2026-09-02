@@ -1,0 +1,25 @@
+# Novo Mix And Novo Log Mix (NVO). 4,933mm DKK in FY2025.
+#
+# Marketed, anchored on the reported year and grown against the same product axis a
+# year earlier, both from the SEC financial statement data sets.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+NVO,Novo Mix And Novo Log Mix,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+NVO,Novo Mix And Novo Log Mix,,US,base,base_revenue,,4933.0,,mm DKK,"NVO FY2025 reported product revenue, from the annual report product axis (sec_fsds)","Novo reports in Danish kroner. The figure is as filed, not converted."
+NVO,Novo Mix And Novo Log Mix,,US,base,revenue_growth_pct,,-0.158191,,"annual, near term","the same product axis a year earlier: 4,933 against 5,860 a year before, both in DKK from the SEC financial statement data sets, tagged in the same filing",the last reported year over the one before it
+NVO,Novo Mix And Novo Log Mix,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+NVO,Novo Mix And Novo Log Mix,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+NVO,Novo Mix And Novo Log Mix,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+NVO,Novo Mix And Novo Log Mix,,US,base,forecast_years,,10,,years,no exclusivity on file,
+NVO,Novo Mix And Novo Log Mix,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+NVO,Novo Mix And Novo Log Mix,,US,base,cogs_pct,,0.1902,,share of revenue,"NVO FY2025, from the filed lines",
+NVO,Novo Mix And Novo Log Mix,,US,base,sga_pct,,0.0193,,share of revenue,"NVO FY2025, from the filed lines",
+NVO,Novo Mix And Novo Log Mix,,US,base,rd_pct,,0.1684,,share of revenue,"NVO FY2025, from the filed lines",
+NVO,Novo Mix And Novo Log Mix,,US,base,other_costs_pct,,0.295858,,share of revenue,derived: NVO turned 25.95% of revenue into free cash over 2023 to 2025 against the 49.5% its filed expense lines leave,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+NVO,Novo Mix And Novo Log Mix,,US,base,tax_rate,,0.2044,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
+NVO,Novo Mix And Novo Log Mix,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+NVO,Novo Mix And Novo Log Mix,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+NVO,Novo Mix And Novo Log Mix,,US,base,beta,,0.85,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.78 raw)",
+NVO,Novo Mix And Novo Log Mix,,US,base,cost_of_debt,,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+NVO,Novo Mix And Novo Log Mix,,US,base,debt_weight,,0.015446,,,"filed TotalDebt of 130,958mm DKK at 2025-12-31 over debt plus market capitalisation",

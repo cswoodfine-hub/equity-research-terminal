@@ -1,0 +1,25 @@
+# Sarclisa (SNY). 588mm EUR in FY2025.
+#
+# Marketed, anchored on the reported year and grown against the same product axis a
+# year earlier, both from the SEC financial statement data sets.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+SNY,Sarclisa,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+SNY,Sarclisa,,US,base,base_revenue,,588.0,,mm EUR,"SNY FY2025 reported product revenue, from the annual report product axis (sec_fsds)","Sanofi reports in euro. The figure is as filed, not converted."
+SNY,Sarclisa,,US,base,revenue_growth_pct,,0.248408,,"annual, near term","the same product axis a year earlier: 588 against 471 a year before, both in EUR from the SEC financial statement data sets, tagged in the same filing",the last reported year over the one before it
+SNY,Sarclisa,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+SNY,Sarclisa,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+SNY,Sarclisa,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+SNY,Sarclisa,,US,base,forecast_years,,12,,years,set to run past the 2032 loss of exclusivity,
+SNY,Sarclisa,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+SNY,Sarclisa,,US,base,cogs_pct,,0.2991,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Sarclisa,,US,base,sga_pct,,0.2187,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Sarclisa,,US,base,rd_pct,,0.1798,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Sarclisa,,US,base,other_costs_pct,,0.104502,,share of revenue,derived: SNY turned 16.69% of revenue into free cash over 2023 to 2025 against the 25.5% its filed expense lines leave,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+SNY,Sarclisa,,US,base,tax_rate,,0.1566,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as net income plus the tax charge, this filer not tagging pre-tax income",
+SNY,Sarclisa,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+SNY,Sarclisa,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+SNY,Sarclisa,,US,base,beta,,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.41 raw)",
+SNY,Sarclisa,,US,base,cost_of_debt,,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+SNY,Sarclisa,,US,base,debt_weight,,0.188414,,,"filed TotalDebt of 18,702mm EUR at 2025-12-31 over debt plus market capitalisation",
