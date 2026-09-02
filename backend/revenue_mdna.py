@@ -161,7 +161,11 @@ _GROWTH_TOLERANCE = 0.011
 # 489.4 over 376.5 and 342.6 over 489.4 come to thirty per cent, one up and one down,
 # and the magnitude test took whichever it reached first, which was the wrong one. The
 # filer had said which: it brackets its falls, and 30% is not bracketed.
-_PERCENT_SIGN = re.compile(r"(\()?\s*(-)?\s*\d[\d,]*(?:\.\d+)?\s*%\s*(\))?")
+#
+# The bracket closes on either side of the percent sign. Regeneron writes "(52 %)" and
+# Bristol writes "(62) %", and a pattern that knew only the first found no sign at all
+# on a Bristol row, fell back to magnitudes, and proved nothing.
+_PERCENT_SIGN = re.compile(r"(\()?\s*(-)?\s*\d[\d,]*(?:\.\d+)?\s*(\))?\s*%\s*(\))?")
 
 
 def _percent_signs(run: str, count: int) -> list:
@@ -171,9 +175,32 @@ def _percent_signs(run: str, count: int) -> list:
     every sign is positive, which leaves the row proved on magnitude as before. A row
     whose signs cannot be established is not a row to start reading signs into.
     """
-    signs = [-1.0 if (m.group(1) or m.group(2) or m.group(3)) else 1.0
+    signs = [-1.0 if any(m.group(i) for i in (1, 2, 3, 4)) else 1.0
              for m in _PERCENT_SIGN.finditer(run or "")]
     return signs if len(signs) == count else [1.0] * count
+
+
+def _totals(numbers: list) -> set:
+    """Positions of the cells that are the sum of the two to four cells before them.
+
+    A row that splits a product by geography prints the parts and then the whole, and
+    the whole is the only cell a growth rate should be built on. Bristol's Abraxane
+    reads "12 43 55 33 72 105" and then six percentages: the United States, the rest
+    of the world, and the total, this quarter and last. The international pair, 43
+    against 72, is a fall of 40%, and the row prints a 40% because that is what the
+    international column did. It is a true pair and the wrong one, and the reader took
+    it because it came first. 55 against 105 is the product.
+    """
+    found = set()
+    for end in range(2, len(numbers)):
+        running = 0.0
+        for start in range(end - 1, max(-1, end - 5), -1):
+            running += numbers[start]
+            if end - start >= 2 and abs(running - numbers[end]) <= max(
+                    1.0, abs(numbers[end]) * 0.003):
+                found.add(end)
+                break
+    return found
 
 
 def read_growth(run: str, spaced: bool = None):
@@ -192,7 +219,8 @@ def read_growth(run: str, spaced: bool = None):
 
     The percentage is read with its sign, because on a row carrying a geography split as
     well as a total, a rise and a fall of the same size are both on the page and only the
-    sign says which one the filer meant.
+    sign says which one the filer meant. And on such a row only the totals are paired,
+    because the parts carry percentages of their own that prove pairs of their own.
     """
     values = _numbers(run, spaced)
     if len(values) < 3:
@@ -201,6 +229,12 @@ def read_growth(run: str, spaced: bool = None):
     percents = [(i, v / 100.0, values[i][1]) for i, (v, _raw, pct) in enumerate(values) if pct]
     if not money or not percents:
         return None
+    # Where the row prints parts and their totals, only the totals are candidates. One
+    # total proves nothing about the shape, since any two cells might add to a third;
+    # two is a row that does this on purpose.
+    totals = _totals([v for _i, v in money])
+    if len(totals) >= 2:
+        money = [pair for k, pair in enumerate(money) if k in totals]
     signs = _percent_signs(run, len(percents))
     for a, (i, current) in enumerate(money):
         for j, prior in money[a + 1:]:

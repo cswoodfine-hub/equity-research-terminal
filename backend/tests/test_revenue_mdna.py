@@ -241,3 +241,34 @@ def test_signs_are_left_alone_where_the_row_does_not_show_them():
     number of them, is proved on magnitude as before rather than on a guessed sign."""
     row = "4,591 3,926 17 % "
     assert revenue_mdna.read_growth(row) == (4591.0, 3926.0)
+
+
+def test_the_bracket_is_read_on_either_side_of_the_percent_sign():
+    """Bristol writes "(6) %" where Regeneron writes "(52 %)". Opdivo: 2,485 against
+    2,560 is a fall of 3%, printed as (3) %, and a pattern that knew only Regeneron's
+    bracket found no sign on this row at all."""
+    row = "$ 1,417 $ 1,068 $ 2,485 $ 1,506 $ 1,053 $ 2,560 (6) % 1 % (3) % (6) % (1) % (4) % "
+    assert revenue_mdna.read_growth(row) == (2485.0, 2560.0)
+
+
+def test_on_a_row_of_parts_and_totals_only_the_totals_are_paired():
+    """Bristol's Abraxane: the United States, the rest of the world and the total, this
+    quarter and last, then six percentages. 43 against 72 is a fall of 40% and the row
+    prints a 40%, because that is what the international column did. It is a true pair
+    and the wrong one. The product is 55 against 105."""
+    row = "12 43 55 33 72 105 (62) % (40) % (47) % (62) % (40) % (47) % "
+    # The caller says whether the table spaces its thousands, read off the whole table.
+    # Bristol's does not, and left to this one row "72 105" would read as one number.
+    assert revenue_mdna.read_growth(row, spaced=False) == (55.0, 105.0)
+
+
+def test_totals_are_preferred_on_the_half_year_row_too():
+    """Eliquis for the six months: 6,434 and 2,183 make 8,617; 5,299 and 1,946 make
+    7,245; and 8,617 over 7,245 is the 19% printed third."""
+    row = "6,434 2,183 8,617 5,299 1,946 7,245 21 % 12 % 19 % 21 % 6 % 17 % "
+    assert revenue_mdna.read_growth(row) == (8617.0, 7245.0)
+
+
+def test_a_row_with_no_totals_is_read_as_before():
+    row = "4,591 3,926 17 % "
+    assert revenue_mdna.read_growth(row) == (4591.0, 3926.0)
