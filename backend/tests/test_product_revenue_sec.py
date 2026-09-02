@@ -193,8 +193,9 @@ def test_concatenated_brands_are_spaced_not_split():
     """The filing reports one number against several brands, so the row stays one row."""
     from fetchers.product_revenue_sec import display_name
 
-    assert display_name("GardasilGardasil9") == "Gardasil Gardasil 9"
     assert display_name("Pneumovax23") == "Pneumovax 23"
+    # A member the case rule can space is still spaced, where nothing curates it.
+    assert display_name("FooBar9") == "Foo Bar 9"
 
 
 def test_a_shouted_multi_brand_member_gets_a_curated_name():
@@ -210,6 +211,19 @@ def test_a_shouted_multi_brand_member_gets_a_curated_name():
 
 def test_curation_does_not_disturb_the_rules():
     from fetchers.product_revenue_sec import display_name
-    assert display_name("GardasilGardasil9") == "Gardasil Gardasil 9"
     assert display_name("AlliancerevenueLynparza") == "Lynparza"
     assert display_name("Trikafta") == "Trikafta"
+
+
+def test_merck_group_lines_read_as_the_groups_they_are():
+    """Merck reports four of its lines against several brands at once and never splits
+    them. Spacing the concatenation left "Gardasil Gardasil 9" and, where the case rule
+    had nothing to work on, "Pro Quad MMRIIVarivax", which reads as neither a product nor
+    a group. The slash is what says one number covers several brands."""
+    from fetchers.product_revenue_sec import display_name
+
+    assert display_name("GardasilGardasil9") == "Gardasil / Gardasil 9"
+    assert display_name("ProQuadMMRIIVarivax") == "ProQuad / M-M-R II / Varivax"
+    assert display_name("IsentressIsentressHD") == "Isentress / Isentress HD"
+    # A revenue-type prefix still comes off a curated member's own label.
+    assert display_name("AdempasVerquvo") == "Adempas / Verquvo"
