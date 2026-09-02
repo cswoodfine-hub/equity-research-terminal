@@ -51,6 +51,9 @@ _ANCHORS = (
     r"change\s*\(at\s*cer\)",
     r"\bnet\s+sales\b",
     r"(?:million|millions)\s+of\s+(?:euro|dkk|kroner)",
+    # GSK heads every column of its sales tables "£m AER% CER%", and nothing else on the
+    # page says the table is there.
+    r"[£€]m\s+(?:aer|cer|%)",
 )
 _ANCHOR = re.compile("|".join(_ANCHORS), re.I)
 
@@ -68,9 +71,18 @@ _NUMBER = re.compile(r"\(?([-+]?)\s*\$?\s*(\d[\d,]*(?:\.\d+)?)\)?\s*(%?)")
 # Exactly one group is merged, never a run of them: "1 198 754" is Leqvio's 1,198
 # followed by last year's 754, not 1.2 trillion. One merge reaches 999 999, which is
 # more than a product earns in millions of any currency.
+# The leading group of a spaced thousand is never a nought: "0 125" is not a number
+# written with spaces, it is a nil followed by 125. A nil cell is read as a nought
+# below, and United Therapeutics prints "Orenitram 125.7 — 125.7", which merged the
+# nought into the figure after it and lost the row.
 _NUMBER_SPACED = re.compile(
-    r"\(?([-+]?)\s*\$?\s*(\d{1,3}[ ]\d{3}|\d[\d,]*(?:\.\d+)?)\)?\s*(%?)")
+    r"\(?([-+]?)\s*\$?\s*([1-9]\d{0,2}[ ]\d{3}|\d[\d,]*(?:\.\d+)?)\)?\s*(%?)")
 _COMMA_THOUSANDS = re.compile(r"\d,\d{3}")
+# A dash standing alone between cells: an en dash or an em dash always, and a hyphen
+# only where no figure follows it. Novartis writes its falls with a space after the
+# sign, "Lucentis 643 1 044 - 38", and that hyphen is the minus on thirty-eight, not
+# a nil. Every filer here prints a nil with a proper dash.
+_NIL_CELL = re.compile(r"(?:(?<=\s)|^)(?:[\u2013\u2014]|-(?!\s*[\d(]))(?=\s|$)")
 
 # How far past the anchor a table runs. Long enough for thirty products, short enough
 # that the next section's numbers are not swept in.
@@ -105,6 +117,12 @@ def _numbers(run: str, spaced: bool = None) -> list:
     if spaced is None:
         spaced = not _COMMA_THOUSANDS.search(run or "")
     pattern = _NUMBER_SPACED if spaced else _NUMBER
+    # A nil printed as a dash is a zero, and it has to count as one for the row's
+    # arithmetic to hold. Biogen prints Byooviz as "0.1 — 0.1 2.5 6.1 8.6", the United
+    # States, elsewhere and the total for the quarter and then for the half. Skip the
+    # dash and 0.1 plus 2.5 plus 6.1 comes within rounding of 8.6, and the half year
+    # is returned as the quarter; count it and 0.1 plus nought is 0.1, found first.
+    run = _NIL_CELL.sub("0", run or "")
     out = []
     for match in pattern.finditer(run):
         sign, raw, pct = match.group(1), match.group(2), match.group(3)
@@ -281,7 +299,13 @@ def read_row(run: str, spaced: bool = None) -> float | None:
             # Tight: a filer's rounding is a unit or two, and a loose tolerance lets
             # consecutive patent years satisfy the arithmetic (2036 + 7 is 2035 to
             # within half a percent).
-            if (end > start and not values[end + 1][2]
+            # A total is never smaller than the figure the row leads with. GSK prints
+            # "Menveo 402 4 6 303 2 5 8", and 2 and 5 make 7, which is 8 within the
+            # rounding allowed here; but 8 is not the total of a row that opens with
+            # 402. The shape cannot tell a growth rate from a small product, Bristol's
+            # "Camzyos 214 46 260" being sixty million dollars of the rest of the
+            # world, so the size of the row is what settles it.
+            if (end > start and not values[end + 1][2] and total >= numbers[0]
                     and abs(running - total) <= max(2.0, total * 0.001)):
                 return total
 
@@ -440,7 +464,9 @@ _GEOGRAPHY_SPAN = 420
 # The closing bracket can fall either side of the percent sign, and Regeneron puts it
 # after: "(52 %)". Without the second, the cell ended at "(52 " and the row lost the
 # percentage that proves it, so every fall Regeneron reports was unreadable.
-_CELL = r"\(?[-+]?\$?\s*[\d,.]+\s*\)?\s*%?\s*\)?(?:\s+|$)"
+# A nil is a cell too. GSK prints one as a dash, "Ventolin 703 – 3 365", and a pattern
+# that stopped at the dash left the row a single bare 703, which is refused on its own.
+_CELL = r"(?:\(?[-+]?\$?\s*[\d,.]+\s*\)?\s*%?\s*\)?|(?:[\u2013\u2014]|-(?!\s*[\d(]))(?=\s|$))(?:\s+|$)"
 
 _TOTAL_ROW = re.compile(r"\btotal\b[\s®™*†‡:]*" + f"((?:{_CELL}){{1,8}})", re.I)
 
@@ -475,11 +501,54 @@ def geographic_row(window: str, at: int, brands: list, spaced: bool = None):
 
 
 _GROUP_JOIN = re.compile(r"(?:/|,|\band)\s*$", re.I)
+_SLASH_JOIN = re.compile(r"([A-Za-z][A-Za-z0-9\-]*(?:\s+[A-Za-z0-9\-]+){0,3})\s*/\s*$", re.I)
 
 
-def _in_a_printed_group(window: str, at: int) -> bool:
-    """Whether the name at ``at`` is joined to the name before it."""
-    return bool(_GROUP_JOIN.search(window[max(0, at - 6):at]))
+def _in_a_printed_group(window: str, at: int, brands: list = ()) -> bool:
+    """Whether the name at ``at`` is joined to another product's name before it.
+
+    A comma or an "and" always joins products: Merck's "PROQUAD, M-M-R II and VARIVAX"
+    is three vaccines and one figure. A slash may instead join one product's two names.
+    GSK prints "Relvar/Breo Ellipta" and "Flixotide/Flovent", and Relvar and Flixotide
+    are not products on file, so the figure belongs to Breo Ellipta alone and there is
+    no group. Merck's "KEYTRUDA/KEYTRUDA QLEX" is a group, because both names are
+    products on file, and its figure belongs to neither of them.
+    """
+    if not _GROUP_JOIN.search(window[max(0, at - 6):at]):
+        return False
+    slash = _SLASH_JOIN.search(window[max(0, at - 60):at])
+    if not slash or not brands:
+        return True
+    words = slash.group(1).lower().split()
+    known = {b.lower() for b in brands if b}
+    return any(" ".join(words[i:]) in known for i in range(len(words)))
+
+
+# FDA names a product with its presentation and the filer prints the name alone:
+# "Cabenuva Kit" is what the approval says and "Cabenuva" is what GSK's table says.
+_PRESENTATION = ("kit", "pen")
+
+
+def _names_for(brand: str, brands: list) -> list:
+    """The brand, and its stem where the brand ends in a presentation word.
+
+    Never where the stem is a product of its own. Novartis files both "Promacta Kit"
+    and "Promacta", and a stem read for the kit would book the tablet's row twice.
+    """
+    names = [brand]
+    lower = brand.lower()
+    for word in _PRESENTATION:
+        if lower.endswith(" " + word):
+            stem = brand[: -len(word) - 1].strip()
+            others = {b.lower() for b in brands if b and b != brand}
+            if stem.lower() not in others and not any(
+                    o.startswith(stem.lower() + " ") for o in others):
+                names.append(stem)
+    return names
+
+
+_ALIAS_TAIL = r"(?:\s*/\s*(?P<alias>[A-Za-z][A-Za-z0-9\-]*))?"
+_PROSE_AFTER = re.compile(r"[a-z]")
 
 
 def _parse_window(window: str, brands: list, company_revenue: float | None) -> dict:
@@ -487,36 +556,53 @@ def _parse_window(window: str, brands: list, company_revenue: float | None) -> d
     multiplier = scale(window)
     spaced = not _COMMA_THOUSANDS.search(window)
     out = {}
+    known = {b.lower() for b in brands if b}
     for brand in sorted(brands, key=len, reverse=True):
         if not brand or len(brand) < 4:
             continue
-        pattern = re.compile(
-            # The trailing separator is optional on the last column, or a row that
-            # ends the window loses the very number the row is for.
-            # Trademark symbols and footnote markers sit between the name and its
-            # number: Novo writes "Wegovy ® 79,106", Sanofi "Sarclisa (*) 588".
-            re.escape(brand)
-            + r"[\s®™*†‡]*(?:\((?:\*|\d|[a-z])\)[\s]*)?"
-            + f"((?:{_CELL}){{1,8}})",
-            re.I)
-        # A brand printed as a member of a group is not a row of its own. Merck heads
-        # a line "KEYTRUDA/KEYTRUDA QLEX 8,366", "GARDASIL/GARDASIL 9 1,169", "JANUVIA/
-        # JANUMET 2,544" and "PROQUAD, M-M-R II and VARIVAX 2,451"; the first name is
-        # never followed by a figure and was never read, but the last one is, so Keytruda
-        # Qlex was booked the pair, Gardasil 9 the pair and Varivax the trio. A name that
-        # follows a slash, a comma or "and" belongs to the group, and the group's figure
-        # belongs to no single product.
-        match = next((m for m in pattern.finditer(window)
-                      if not _in_a_printed_group(window, m.start())), None)
+        match = None
+        for name in _names_for(brand, brands):
+            pattern = re.compile(
+                # The trailing separator is optional on the last column, or a row that
+                # ends the window loses the very number the row is for.
+                # Trademark symbols and footnote markers sit between the name and its
+                # number: Novo writes "Wegovy ® 79,106", Sanofi "Sarclisa (*) 588".
+                # A second name may follow a slash: GSK writes "Ojjaara/Omjjara 554",
+                # and Omjjara is the same drug's name in Europe, not another product.
+                re.escape(name) + _ALIAS_TAIL
+                + r"[\s®™*†‡]*(?:\((?:\*|\d|[a-z])\)[\s]*)?"
+                + f"(?P<cells>(?:{_CELL}){{1,8}})",
+                re.I)
+            # A brand printed as a member of a group is not a row of its own. Merck
+            # heads a line "KEYTRUDA/KEYTRUDA QLEX 8,366", "GARDASIL/GARDASIL 9 1,169",
+            # "JANUVIA/JANUMET 2,544" and "PROQUAD, M-M-R II and VARIVAX 2,451"; the
+            # first name is never followed by a figure and was never read, but the last
+            # one is, so Keytruda Qlex was booked the pair, Gardasil 9 the pair and
+            # Varivax the trio. A name that follows another product's name and a slash,
+            # a comma or "and" belongs to the group, and the group's figure belongs to
+            # no single product. A slash to a name that is not a product on file is the
+            # filer's second name for this one.
+            # A lone figure followed by a word is prose: Novo writes "Wegovy 7.2 mg
+            # single-dose pen", and 7.2 is a dose, not seven million. Only a lone one.
+            # A row of several cells is a row whatever follows it, and what follows is
+            # often lowercase: AbbVie closes Creon's with "n/m" and Linzess's with the
+            # footnote letter "a", and both were refused as prose.
+            match = next((m for m in pattern.finditer(window)
+                          if not _in_a_printed_group(window, m.start(), brands)
+                          and (m.group("alias") or "").lower() not in known
+                          and not (len(m.group("cells").split()) == 1
+                                   and _PROSE_AFTER.match(window, m.end()))), None)
+            if match:
+                break
         if match:
-            value = read_row(match.group(1), spaced)
+            value = read_row(match.group("cells"), spaced)
         else:
             # The name may be followed by a geography label rather than a figure.
             plain = re.compile(re.escape(brand) + r"[\s®™*†‡]*", re.I).search(window)
             value = (geographic_row(window, plain.end(), brands, spaced)
                      if plain else None)
-        if value is None:
-            continue
+        if not value:
+            continue                  # nil, or a row that could not be read
         value *= multiplier
         if company_revenue and value > company_revenue:
             continue                  # not a revenue table, whatever else it is

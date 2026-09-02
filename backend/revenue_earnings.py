@@ -29,6 +29,9 @@ import revenue_mdna
 
 SOURCE = "earnings_exhibit"
 
+# A 6-K body shorter than this is a notice, not a results release.
+RESULTS_BODY_MIN_CHARS = 40000
+
 # The heading a filer prints above a period's columns. Two shapes cover the filers that
 # state one at all: the sentence form every US filer uses, and the bare quarter label.
 _MONTHS = ("january february march april may june july august september october "
@@ -49,11 +52,17 @@ _SPAN_WORDS = {"three": 3, "six": 6, "nine": 9, "twelve": 12}
 # twelve month span, an unbracketed scale line may sit before the date, and the month
 # may be abbreviated. Its quarterly table does the same with a bare ordinal: "Second
 # Quarter / $ in millions / 2026".
+#
+# A British filer puts the day first. GSK heads its sales tables "year ended 31 December
+# 2025" and "three months ended 31 December 2025", and a pattern that knew only the
+# American order read neither, so its full-year table had no heading of its own and its
+# quarter was filed under whatever heading stood nearest above.
 _SPAN = re.compile(
     r"(?:for\s+the\s+)?(?:(?P<months>three|six|nine|twelve)\s+months?|(?P<year_span>year))"
     r"\s+ended\s+(?!on\b)"
     r"(?:\$?\s*in\s+(?:millions|thousands|billions)\s*)?"
-    r"(?P<month>[a-z]+)\.?\s+(?P<day>\d{1,2}),?\s*(?:\([^)]{0,60}\))?\s*(?P<year>\d{4})?",
+    r"(?:(?P<day_first>\d{1,2})\s+(?P<month_after>[a-z]+)\.?,?\s*(?P<year_after>\d{4})"
+    r"|(?P<month>[a-z]+)\.?\s+(?P<day>\d{1,2}),?\s*(?:\([^)]{0,60}\))?\s*(?P<year>\d{4})?)",
     re.I)
 # "Second Quarter 2026", "Second-Quarter 2026", "Q2 2026" and "Q2 FY2026". Pfizer heads
 # its revenue table "FIRST-QUARTER 2026 and 2025 - (UNAUDITED)".
@@ -100,6 +109,12 @@ _SPAN_YEARS = re.compile(
 # whose table should be skipped.
 _PERIOD_PHRASE = re.compile(
     r"\b(?:year|(?:three|six|nine|twelve)\s+months?)\s+ended\s+(?!on\b)", re.I)
+
+# A half-year or a bare year on a line of its own: a period label this module has no
+# reader for, whose presence just before a quarter label says the quarter is not the
+# first column.
+_LONGER_PERIOD_BEFORE = re.compile(
+    r"(?im)^[ \t\u200b]*(?:H[12]\s+(?:FY)?\s*(?:19|20)\d\d|(?:FY\s*)?(?:19|20)\d\d)[ \t\u200b]*$")
 
 # A column header sits on a short line. A sentence that happens to name a period does not,
 # and Pfizer's exhibit carries several: a 418 character footnote explaining that its
@@ -154,10 +169,11 @@ def _span_head(m, year=None):
     ``year`` is the fallback for a heading that states none of its own, which is what
     happens where several headings share a line and the year row printed beneath them.
     """
-    end_month = _month_index(m.group("month"))
+    day_first = m.group("day_first")
+    end_month = _month_index(m.group("month_after" if day_first else "month"))
     if end_month is None:
         return None
-    stated = m.group("year") or year
+    stated = (m.group("year_after") if day_first else m.group("year")) or year
     if not stated:
         return None                      # a period with no year is not a period
     months = 12 if m.group("year_span") else _SPAN_WORDS[m.group("months").lower()]
@@ -165,7 +181,7 @@ def _span_head(m, year=None):
     if period is None:
         return None
     try:
-        end = dt.date(int(stated), end_month, int(m.group("day")))
+        end = dt.date(int(stated), end_month, int(day_first or m.group("day")))
     except ValueError:
         return None
     return period, end.isoformat(), int(stated)
@@ -328,8 +344,22 @@ def tables(text: str) -> list:
                 marks.append((m.start(), m.end(), reader(m),
                               m if pattern is _SPAN else None))
     marks.sort(key=lambda mark: mark[0])
+    # A quarter label with a period this module cannot read standing just before it
+    # heads a grid whose rows lead with the longer period. AstraZeneca heads its
+    # product table "H1 2026 ... Q2 2026" and GSK's narrative table "2025 / Q4 2025",
+    # and under the quarter's heading the first figure on every row is the half or
+    # the year. The heading is dropped, and the rows go unread rather than misfiled.
+    # The other order is fine: GSK's "Q2 2026 / Year to date" leads with the quarter.
+    grids = [mark[0] for mark in marks
+             if mark[3] is None and _LONGER_PERIOD_BEFORE.search(
+                 text[max(0, mark[0] - HEADER_GAP):mark[0]])]
+    marks = [mark for mark in marks if mark[0] not in grids]
     heads, consumed = _one_per_header(text, marks)
-    fences = _unread_headings(text, consumed)
+    # The grid's label fences as well as failing to head, or a heading further up the
+    # page reaches down and claims the rows instead: AstraZeneca's outlook mentions
+    # Q3 2026 twenty lines above its product table, and that is where the half-year
+    # figures went once the Q2 label beneath was dropped.
+    fences = sorted(set(_unread_headings(text, consumed)) | set(grids))
     out = []
     for i, (start, head) in enumerate(heads):
         stop = heads[i + 1][0] if i + 1 < len(heads) else len(text)
@@ -509,11 +539,24 @@ def extract(db_path=None) -> dict:
     conn = db.get_connection(db_path)
     written, skipped_no_period = 0, 0
     try:
-        for company in conn.execute("SELECT id, ticker FROM companies"):
+        for company in conn.execute(
+                "SELECT id, ticker, reporting_currency FROM companies"):
             sections = conn.execute(
-                "SELECT text, filed_date, accession, form_type FROM filing_sections"
+                "SELECT text, filed_date, accession, form_type, section"
+                "  FROM filing_sections"
                 "  WHERE company_id = ? AND form_type IN ('8-K', '6-K')"
                 "    AND section LIKE 'exhibit%'"
+                "  ORDER BY filed_date DESC LIMIT 8", (company["id"],)).fetchall()
+            # A foreign private issuer files its results release as the body of a 6-K,
+            # not as an exhibit to one. GSK's is the body, and so are AstraZeneca's and
+            # Novo's. The length separates a results release from the buyback notices
+            # and director dealings the same filer sends on the same form, which run to
+            # two thousand characters against a hundred and seventy thousand.
+            sections += conn.execute(
+                "SELECT text, filed_date, accession, form_type, section"
+                "  FROM filing_sections"
+                "  WHERE company_id = ? AND form_type = '6-K' AND section = 'body'"
+                f"    AND char_count >= {RESULTS_BODY_MIN_CHARS}"
                 "  ORDER BY filed_date DESC LIMIT 8", (company["id"],)).fetchall()
             if not sections:
                 continue
@@ -546,14 +589,18 @@ def extract(db_path=None) -> dict:
                                 "  AND fiscal_year = ? AND period = ?",
                                 (asset_id, year, period)).fetchone():
                             continue
+                        # The unit is the quarter's where one is on file, and the
+                        # filer's own currency where none is: a full-year table has no
+                        # quarter, and GSK's pounds stored as dollars would be wrong by
+                        # a third.
                         conn.execute(
                             "INSERT INTO asset_revenue (asset_id, fiscal_year, period,"
                             "   period_end, value, unit, source, note, is_curated)"
                             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
-                            (asset_id, year, period, period_end, value, unit or "USD",
-                             SOURCE,
-                             f"{section['form_type']} exhibit {section['accession']}, "
-                             f"filed {section['filed_date']}"))
+                            (asset_id, year, period, period_end, value,
+                             unit or company["reporting_currency"] or "USD", SOURCE,
+                             f"{section['form_type']} {section['section']} "
+                             f"{section['accession']}, filed {section['filed_date']}"))
                         written += 1
         conn.commit()
     finally:

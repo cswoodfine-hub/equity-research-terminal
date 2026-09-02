@@ -457,3 +457,98 @@ def test_the_prose_that_names_a_span_is_not_a_heading():
     line = ("Results for the second quarter and first six months of 2026 and 2025 (7) are "
             "summarized below.\n")
     assert not [h for h in RE.tables(line) if h[0] == "H1"]
+
+
+# --- GSK: a British filer, headings with the day first, sterling, nil cells as dashes ---
+
+GSK = (Path(__file__).parent / "fixtures" / "gsk_6k_day_first_headings.txt").read_text()
+GSK_BRANDS = ["Dovato", "Cabenuva Kit", "Shingrix", "Trelegy Ellipta", "Breo Ellipta",
+              "Ojjaara", "Ventolin", "Menveo", "Flovent", "Nucala", "Tivicay", "Juluca",
+              "Infanrix", "Pediarix", "Advair Hfa", "Advair Diskus 500/50"]
+
+
+def _by_period(text, brands):
+    out = {}
+    for period, period_end, year, body in RE.tables(text):
+        for brand, value in RE.read_table(body, brands).items():
+            out.setdefault(period, {})[brand] = value
+    return out
+
+
+def test_a_heading_with_the_day_first_is_a_heading():
+    """"year ended 31 December 2025" is the year and "three months ended 31 December
+    2025" is the fourth quarter, however the filer orders the date."""
+    heads = {(period, period_end, year) for period, period_end, year, _ in RE.tables(GSK)}
+    assert ("FY", "2025-12-31", 2025) in heads
+    assert ("Q4", "2025-12-31", 2025) in heads
+
+
+def test_the_full_year_table_reads_under_the_full_year_heading():
+    found = _by_period(GSK, GSK_BRANDS)
+    assert found["FY"]["Dovato"] == pytest.approx(2678e6)
+    assert found["FY"]["Shingrix"] == pytest.approx(3558e6)
+    assert found["FY"]["Trelegy Ellipta"] == pytest.approx(2986e6)
+    assert found["Q4"]["Dovato"] == pytest.approx(758e6)
+
+
+def test_a_nil_printed_as_a_dash_does_not_end_the_row():
+    """Ventolin 703 – 3 365: the dash is nil growth, and a pattern that stopped at it
+    left a single bare 703, which is refused on its own."""
+    assert _by_period(GSK, GSK_BRANDS)["FY"]["Ventolin"] == pytest.approx(703e6)
+
+
+def test_two_growth_rates_do_not_add_up_to_a_total():
+    """Menveo 402 4 6 303 2 5 8: 2 and 5 make 7, and 8 was returned as the total."""
+    assert _by_period(GSK, GSK_BRANDS)["FY"]["Menveo"] == pytest.approx(402e6)
+
+
+def test_a_second_name_for_the_same_product_is_not_a_group():
+    """Relvar/Breo Ellipta and Ojjaara/Omjjara are one product each under two names,
+    and Relvar and Omjjara are not products on file. Infanrix, Pediarix are two
+    products on file, so that figure belongs to neither."""
+    found = _by_period(GSK, GSK_BRANDS)["FY"]
+    assert found["Breo Ellipta"] == pytest.approx(1017e6)
+    assert found["Ojjaara"] == pytest.approx(554e6)
+    assert found["Flovent"] == pytest.approx(421e6)
+    assert "Infanrix" not in found and "Pediarix" not in found
+
+
+def test_the_presentation_word_fda_appends_is_not_required_of_the_filer():
+    """The approval says Cabenuva Kit and the table says Cabenuva."""
+    assert _by_period(GSK, GSK_BRANDS)["FY"]["Cabenuva Kit"] == pytest.approx(1402e6)
+
+
+def test_two_products_sharing_a_stem_are_not_read_from_one_row():
+    """Seretide/Advair is one row, and Advair Hfa and Advair Diskus are two products on
+    file; neither can claim it."""
+    found = _by_period(GSK, GSK_BRANDS)["FY"]
+    assert "Advair Hfa" not in found and "Advair Diskus 500/50" not in found
+
+
+def test_a_quarter_label_after_a_half_year_label_does_not_head_the_rows():
+    """AstraZeneca heads its product table "H1 2026 ... Q2 2026", and every row leads
+    with the half year. Under a Q2 heading Strensiq's 1,053 for the half was filed as
+    the quarter. The heading is dropped and the rows go unread."""
+    text = ("Table 3: Product Revenue (PR) by medicine\n\u200b\nH1 2026\n\u200b\n% Change\n"
+            "\u200b\nQ2 2026\n\u200b\n% Change\n$m\n% Total\nActual\nCER\n$m\n% Total\n"
+            "Actual\nCER\nStrensiq\n1,053\n\u200b\n3\n\u200b\n41\n\u200b\n40\n\u200b\n536\n"
+            "\u200b\n3\n\u200b\n36\n\u200b\n36\nKoselugo\n347\n1\n26\n21\n177\n1\n29\n27\n")
+    assert RE.tables(text) == []
+    # Nor does a heading further up the page reach down and claim the rows instead.
+    above = "Outlook for Q3 2026 is unchanged.\n" + text
+    assert all("Strensiq" not in body for _p, _e, _y, body in RE.tables(above))
+
+
+def test_a_bare_year_before_a_quarter_label_is_the_same_grid():
+    """GSK's narrative table is headed "2025 / Q4 2025" and Nucala's row reads 2,008
+    for the year and then 567 for the quarter."""
+    text = ("2025\nQ4 2025\n£m\nAER\nCER\n£m\nAER\nCER\nNucala\n2,008\n13%\n15%\n567\n17%\n19%\n")
+    assert RE.tables(text) == []
+
+
+def test_the_quarter_first_and_the_year_to_date_after_it_still_heads():
+    """The other order is fine: GSK's "Q2 2026 / Year to date" leads with the quarter."""
+    text = ("Q2 2026\nYear to date\nKey Drivers\n£m\nAER%\nCER%\n£m\nAER%\nCER%\n"
+            "Nucala\n610\n22\n23\n1,094\n16\n18\n")
+    found = _by_period(text, ["Nucala"])
+    assert found == {"Q2": {"Nucala": pytest.approx(610e6)}}

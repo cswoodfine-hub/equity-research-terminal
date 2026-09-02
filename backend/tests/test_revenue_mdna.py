@@ -272,3 +272,61 @@ def test_totals_are_preferred_on_the_half_year_row_too():
 def test_a_row_with_no_totals_is_read_as_before():
     row = "4,591 3,926 17 % "
     assert revenue_mdna.read_growth(row) == (4591.0, 3926.0)
+
+
+def test_a_group_of_two_products_on_file_is_still_a_group():
+    """Merck's KEYTRUDA/KEYTRUDA QLEX 8,366: both are products on file, so the figure
+    belongs to neither. Only a slash to a name that is not on file is an alias."""
+    window = "KEYTRUDA/KEYTRUDA QLEX 8,366 7,800 7 % GARDASIL/GARDASIL 9 1,169 1,100 6 % "
+    brands = ["Keytruda", "Keytruda Qlex", "Gardasil", "Gardasil 9"]
+    assert revenue_mdna._parse_window(window, brands, None) == {}
+
+
+def test_a_kit_is_not_stemmed_where_the_stem_is_a_product_of_its_own():
+    """Novartis files Promacta Kit and Promacta, and a stem read for the kit would book
+    the tablet's row twice."""
+    assert revenue_mdna._names_for("Promacta Kit", ["Promacta Kit", "Promacta"]) == ["Promacta Kit"]
+    assert revenue_mdna._names_for("Cabenuva Kit", ["Cabenuva Kit", "Dovato"]) == ["Cabenuva Kit", "Cabenuva"]
+
+
+def test_a_nil_printed_as_a_dash_counts_as_nought_in_the_arithmetic():
+    """Biogen's Byooviz: "0.1 — 0.1 2.5 6.1 8.6" is the United States, elsewhere and
+    the total for the quarter and then for the half. Skip the dash and 0.1 plus 2.5
+    plus 6.1 comes within rounding of 8.6; count it and 0.1 plus nought is 0.1."""
+    assert revenue_mdna.read_row("0.1 — 0.1 2.5 6.1 8.6 ", spaced=False) == 0.1
+    assert revenue_mdna.read_row("703 – 3 365 1 4 120 12 10 218 (6) (1) ", spaced=False) == 703.0
+
+
+def test_a_nil_beside_a_figure_is_not_a_spaced_thousand():
+    """United Therapeutics prints "Orenitram 125.7 — 125.7 123.9 — 123.9" in a table
+    with no comma anywhere, so it reads as one that spaces its thousands. The nil is a
+    nought, and "0 125" is not a number written with spaces: a thousands group never
+    begins with a nought."""
+    assert revenue_mdna.read_row("125.7 — 125.7 123.9 — 123.9 ", spaced=True) == 125.7
+    # Novartis's spaced thousand still merges.
+    assert [v for v, _r, _p in revenue_mdna._numbers("1 198 754 ", spaced=True)] == [1198.0, 754.0]
+
+
+def test_a_figure_in_prose_is_not_a_row():
+    """Novo writes "Wegovy 7.2 mg single-dose pen", and 7.2 is a dose. A row in a table
+    is followed by the next product's name, capitalised, or by nothing."""
+    window = "in millions Wegovy 7.2 mg single-dose pen in the UK. Wegovy 79,106 Ozempic 127,089 "
+    assert revenue_mdna._parse_window(window, ["Wegovy", "Ozempic"], None) == {
+        "Wegovy": 79106e6, "Ozempic": 127089e6}
+
+
+def test_a_row_of_several_cells_is_a_row_whatever_follows_it():
+    """AbbVie closes Creon's row with "n/m" and Linzess's with a footnote letter, and
+    a rule that took any lowercase word after the figures for prose refused both."""
+    window = ("in millions Creon 1,512 — 1,512 9.3 n/m 9.3 n/m 9.3 "
+              "Linzess 555 23 578 43.6 13.7 42.1 7.2 41.8 a \"Operational\" comparisons ")
+    assert revenue_mdna._parse_window(window, ["Creon", "Linzess"], None) == {
+        "Creon": 1512e6, "Linzess": 578e6}
+
+
+def test_a_spaced_minus_is_a_sign_and_not_a_nil():
+    """Novartis writes "Lucentis 643 1 044 - 38 1 475 - 29": this year, last year and a
+    fall of 38%, then the year before and a fall of 29%. The hyphen with a space after
+    it is the minus on 38, and reading it as a nil left the row unable to prove itself."""
+    assert revenue_mdna.read_row("643 1 044 - 38 1 475 - 29 ", spaced=True) == 643.0
+    assert revenue_mdna.read_row("1 104 1 671 - 34 1 848 - 10 ", spaced=True) == 1104.0
