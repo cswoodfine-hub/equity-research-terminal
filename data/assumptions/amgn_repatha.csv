@@ -1,0 +1,26 @@
+# Repatha (AMGN). $3,016mm in FY2025.
+#
+# Marketed, anchored on the reported year and grown against the same product axis a
+# year earlier. Both figures come from the SEC financial statement data sets, tagged
+# in the same filing, so the pair needs no reading of a table to establish.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AMGN,Repatha,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+AMGN,Repatha,,US,base,base_revenue,,3016.0,,mm USD,"AMGN FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
+AMGN,Repatha,,US,base,revenue_growth_pct,,0.357336,,"annual, near term","the same product axis a year earlier: $3,016mm in FY2025 against $2,222mm in FY2024, both from the SEC financial statement data sets. The comparative year is tagged in the same filing as the anchor",the last reported year over the one before it
+AMGN,Repatha,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+AMGN,Repatha,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+AMGN,Repatha,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+AMGN,Repatha,,US,base,forecast_years,,10,,years,set to run past the 2028 loss of exclusivity and through the erosion tail,
+AMGN,Repatha,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+AMGN,Repatha,,US,base,cogs_pct,,0.3275,,share of revenue,"AMGN FY2025, computed from the filed lines",
+AMGN,Repatha,,US,base,sga_pct,,0.1918,,share of revenue,"AMGN FY2025, computed from the filed lines",
+AMGN,Repatha,,US,base,rd_pct,,0.1979,,share of revenue,"AMGN FY2025, computed from the filed lines",
+AMGN,Repatha,,US,base,other_costs_pct,,0.0,,share of revenue,"derived and found to be nil: AMGN's filed expense lines already leave less than the 26.28% of revenue it turned into free cash over 2023 to 2025, so there is nothing left to charge","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+AMGN,Repatha,,US,base,tax_rate,,0.1236,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+AMGN,Repatha,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+AMGN,Repatha,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+AMGN,Repatha,,US,base,beta,,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.41 raw)",
+AMGN,Repatha,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",
+AMGN,Repatha,,US,base,debt_weight,,0.194802,,,"filed TotalDebt of $57,304mm over debt plus market capitalisation: 540.6mm shares at 2026-07-30 at the $438.12 close of 2026-09-01",
