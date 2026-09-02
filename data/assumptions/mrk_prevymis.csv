@@ -1,0 +1,24 @@
+# Prevymis (MRK). $978mm in FY2025.
+#
+# Marketed, so revenue is anchored on what was reported rather than built from
+# patients. Growth is read off Table 3, which prints this line's own quarters.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+MRK,Prevymis,,US,base,therapy_mode,,,marketed,,approved and selling; Merck reports it as its own revenue line,no patient funnel is rebuilt for a line that files its own sales
+MRK,Prevymis,,US,base,base_revenue,,978.0,,mm USD,"MRK FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor. Its quarters are on file from Table 3 and sum to it
+MRK,Prevymis,,US,base,revenue_growth_pct,,0.302752,,"annual, near term","8-K exhibit Table 3, Franchise / Key Product Sales: $568mm in the first half of 2026 against $436mm in the first half of 2025","the halves, which is the most recent full comparison the filing gives"
+MRK,Prevymis,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat, so the two halves of the model agree"
+MRK,Prevymis,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+MRK,Prevymis,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+MRK,Prevymis,,US,base,forecast_years,,11,,years,set to run past the 2031 loss of exclusivity and through the erosion tail,
+MRK,Prevymis,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies to it"
+MRK,Prevymis,,US,base,cogs_pct,,0.252,,share of revenue,"MRK FY2025 10-K, computed from the filed lines","Merck's own, as every Merck asset carries"
+MRK,Prevymis,,US,base,sga_pct,,0.1651,,share of revenue,"MRK FY2025 10-K, computed from the filed lines","Merck's own, as every Merck asset carries"
+MRK,Prevymis,,US,base,rd_pct,,0.2429,,share of revenue,"MRK FY2025 10-K, computed from the filed lines","Merck's own, as every Merck asset carries"
+MRK,Prevymis,,US,base,tax_rate,,0.1331,,effective rate,"MRK FY2025 10-K, computed from the filed lines","Merck's own, as every Merck asset carries"
+MRK,Prevymis,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26","Merck's own, as every Merck asset carries"
+MRK,Prevymis,,US,base,erp,,0.05,,,Damodaran US ERP estimate,"Merck's own, as every Merck asset carries"
+MRK,Prevymis,,US,base,beta,,0.47,,,"computed from 261 weekly returns vs S&P 500, 2021-08 to 2026-08, Blume-adjusted","Merck's own, as every Merck asset carries"
+MRK,Prevymis,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26","Merck's own, as every Merck asset carries"
+MRK,Prevymis,,US,base,debt_weight,,0.128821,,,"filed TotalDebt of $53,906mm at 2026-06-30 over debt plus market capitalisation: 2,467.2mm shares at the $147.76 close of 2026-08-31","Merck's own, as every Merck asset carries"
