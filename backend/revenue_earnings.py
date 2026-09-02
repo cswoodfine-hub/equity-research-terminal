@@ -75,6 +75,16 @@ _QUARTER = re.compile(
 _UNREADABLE_TABLE = re.compile(
     r"franchise\s*/\s*key\s+product\s+sales|^\s*(?:[a-z]+\s+)?ytd\s*$", re.I | re.M)
 
+# "SIX MONTHS 2026 and 2025 - (UNAUDITED)" is how Pfizer heads its year-to-date table,
+# and it says neither "ended" nor a month. Anchored to the start of a line, because the
+# same words appear in prose that is not a heading: "Results for the second quarter and
+# first six months of 2026 and 2025 are summarized below" is 94 characters, short enough
+# to pass for a header line, and it sits above the quarterly table rather than the
+# year-to-date one. A span with no closing date takes the calendar year's, exactly as the
+# bare quarter label above already does.
+_SPAN_YEARS = re.compile(
+    r"^[ \t]*(three|six|nine|twelve)\s+months?\s+(\d{4})\b", re.I | re.M)
+
 # A line naming a period that no pattern above turns into one. Bristol Myers heads both
 # its product tables with a column header this module cannot read: "($ amounts in
 # millions) Year Ended December 31, 2025 % Change from Year Ended December 31, 2024 %
@@ -173,6 +183,17 @@ def _quarter_head(m):
     return f"Q{quarter}", end.isoformat(), year
 
 
+def _span_years_head(m):
+    """(period, period_end, fiscal_year) for a span headed with years and no month."""
+    months = _SPAN_WORDS[m.group(1).lower()]
+    period = span_to_period(months, months)
+    if period is None:
+        return None                      # nine months is neither a quarter nor a year
+    year = int(m.group(2))
+    day = 31 if months in (3, 12) else 30
+    return period, dt.date(year, months, day).isoformat(), year
+
+
 def read_heading(text: str):
     """The last period heading in ``text``, as (period, period_end, fiscal_year).
 
@@ -181,7 +202,8 @@ def read_heading(text: str):
     document. Returns None where no heading can be read, which is the signal to skip.
     """
     best = None
-    for pattern, reader in ((_SPAN, _span_head), (_QUARTER, _quarter_head)):
+    for pattern, reader in ((_SPAN, _span_head), (_QUARTER, _quarter_head),
+                            (_SPAN_YEARS, _span_years_head)):
         for m in pattern.finditer(text):
             head = reader(m)
             if head and (best is None or m.start() >= best[0]):
@@ -279,6 +301,15 @@ def _unread_headings(text: str, headed: set) -> list:
             out.add(line)
     for m in _UNREADABLE_TABLE.finditer(text):
         out.add(_line_start(text, m.start()))
+    # A span headed with years alone and no month, where the span is one this module does
+    # not store. Pfizer heads its third-quarter year-to-date table "NINE MONTHS 2025 and
+    # 2024", and nine months is neither a quarter nor a year, so it yields no heading and
+    # without this the quarterly heading above it reaches down and takes the cumulative
+    # column: Eliquis's nine months of 5,941 was stored as its third quarter.
+    for m in _SPAN_YEARS.finditer(text):
+        line = _line_start(text, m.start())
+        if line not in headed:
+            out.add(line)
     return sorted(out)
 
 
@@ -290,7 +321,8 @@ def tables(text: str) -> list:
     product to whichever heading is nearest above it.
     """
     marks = []
-    for pattern, reader in ((_SPAN, _span_head), (_QUARTER, _quarter_head)):
+    for pattern, reader in ((_SPAN, _span_head), (_QUARTER, _quarter_head),
+                            (_SPAN_YEARS, _span_years_head)):
         for m in pattern.finditer(text):
             if _on_a_heading_line(text, m.start()):
                 marks.append((m.start(), m.end(), reader(m),

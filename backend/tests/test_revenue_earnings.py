@@ -418,3 +418,42 @@ def test_the_dropped_half_of_a_header_does_not_fence_its_own_table():
     """The six month heading sits on a line of its own once the header wraps. Fencing
     there cut the table off from the heading just chosen for it, and nothing was read."""
     assert RE.parse(BMRN, BMRN_BRANDS)
+
+
+# --- Pfizer: a year-to-date table under a quarterly heading ---------------------------
+#
+# Pfizer heads its cumulative table "SIX MONTHS 2026 and 2025 - (UNAUDITED)", which says
+# neither "ended" nor a month, so it was no heading at all and the "SECOND-QUARTER 2026
+# and 2025" heading above it took the table. Every Pfizer quarter after the first was
+# therefore the year to date: Eliquis was stored at 1,923, 3,926, 5,941 and 7,961 for the
+# four quarters of 2025, the last of which is its reported year.
+
+def test_a_span_headed_with_years_alone_is_a_heading():
+    assert [(p, e, y) for p, e, y, _ in RE.tables(
+        "SIX MONTHS 2026 and 2025 - (UNAUDITED)\nEliquis 4,591 3,926 17%\n")] == [
+        ("H1", "2026-06-30", 2026)]
+    assert [(p, e, y) for p, e, y, _ in RE.tables(
+        "THREE MONTHS 2026 and 2025\nEliquis 2,425 2,003\n")] == [("Q1", "2026-03-31", 2026)]
+
+
+def test_nine_months_is_not_a_period_and_fences_instead():
+    """Nine months is neither a quarter nor a year, so it heads nothing. Without the
+    fence the quarterly heading above reached down and took the cumulative column."""
+    # A table's worth of rows between the two headings, because that is what separates
+    # them in the filing. Two headings closer together than that are one header over one
+    # table's columns, which is the Vertex and BioMarin case and is collapsed instead.
+    quarter = "\n".join(f"Product{n} {n * 11},{n:03d} {n * 10},{n:03d}" for n in range(1, 9))
+    text = ("THIRD-QUARTER 2025 and 2024 - (UNAUDITED)\n" + quarter + "\nEliquis 2,015 1,900\n"
+            "NINE MONTHS 2025 and 2024 - (UNAUDITED)\n" + quarter + "\nEliquis 5,941 5,600\n")
+    heads = RE.tables(text)
+    assert [(p, e) for p, e, _, _ in heads] == [("Q3", "2025-09-30")]
+    assert "5,941" not in heads[0][3]
+
+
+def test_the_prose_that_names_a_span_is_not_a_heading():
+    """"Results for the second quarter and first six months of 2026 and 2025 are
+    summarized below" is short enough to pass for a header line and sits above the
+    quarterly table. The pattern is anchored to the start of a line for that reason."""
+    line = ("Results for the second quarter and first six months of 2026 and 2025 (7) are "
+            "summarized below.\n")
+    assert not [h for h in RE.tables(line) if h[0] == "H1"]
