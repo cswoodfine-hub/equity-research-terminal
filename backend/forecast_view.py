@@ -333,11 +333,45 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
 
 
 def _diluted_shares(conn, company_id: int):
-    row = conn.execute(
-        """SELECT value FROM financials WHERE company_id = ?
-            AND metric = 'WeightedAverageDilutedShares' AND period_type = 'FY'
+    """The share count a per-share figure divides by, in the unit the price is quoted in.
+
+    A foreign private issuer tags neither a diluted share count nor a shares outstanding:
+    AstraZeneca and Novartis file neither, so their rNPV had nowhere to go and the company
+    call showed nothing at all for two of the largest names in the universe. Every filer
+    states earnings per share though, and net income over it is the share count that
+    produced it.
+
+    Then the unit. The price on file is what the ADR trades at, and the count derived from
+    a foreign filer's accounts is of ordinary shares, which are not the same thing:
+    AstraZeneca's ADS is half an ordinary share, so dividing by ordinary shares would put
+    its per-share figure at twice the number the price can be compared with. The curated
+    ADR ratio converts one to the other.
+    """
+    for metric in ("WeightedAverageDilutedShares", "SharesOutstanding"):
+        row = conn.execute(
+            """SELECT value FROM financials WHERE company_id = ? AND metric = ?
+                AND period_type IN ('FY', 'instant') ORDER BY fiscal_year DESC,
+                period_end DESC LIMIT 1""", (company_id, metric)).fetchone()
+        if row and row["value"]:
+            return row["value"]
+    income = conn.execute(
+        """SELECT value, fiscal_year FROM financials WHERE company_id = ?
+            AND metric = 'NetIncomeLoss' AND period_type = 'FY'
             ORDER BY fiscal_year DESC LIMIT 1""", (company_id,)).fetchone()
-    return row["value"] if row and row["value"] else None
+    if not (income and income["value"]):
+        return None
+    eps = conn.execute(
+        """SELECT value FROM financials WHERE company_id = ? AND metric =
+            'EarningsPerShareDiluted' AND period_type = 'FY' AND fiscal_year = ?""",
+        (company_id, income["fiscal_year"])).fetchone()
+    if not (eps and eps["value"]):
+        return None
+    ordinary = income["value"] / eps["value"]
+    ratio = conn.execute(
+        """SELECT r.ordinary_per_adr FROM adr_ratios r JOIN companies c ON c.ticker = r.ticker
+            WHERE c.id = ?""", (company_id,)).fetchone()
+    per_adr = ratio["ordinary_per_adr"] if ratio and ratio["ordinary_per_adr"] else 1.0
+    return ordinary / per_adr if ordinary > 0 else None
 
 
 def catalyst_stakes(db_path, ticker: str):
@@ -508,10 +542,9 @@ def company_rollup(db_path, ticker: str):
             """SELECT fiscal_year, value / 1e6 AS value FROM financials
                 WHERE company_id = ? AND metric = 'Revenues' AND period_type = 'FY'
                 ORDER BY fiscal_year""", (company["id"],))]
-        shares = conn.execute(
-            """SELECT value FROM financials WHERE company_id = ?
-                AND metric = 'WeightedAverageDilutedShares' AND period_type = 'FY'
-                ORDER BY fiscal_year DESC LIMIT 1""", (company["id"],)).fetchone()
+        # The same helper the company call uses, so a filer that tags no share count is
+        # not silently left without a per-share figure here while the call finds one.
+        shares = _diluted_shares(conn, company["id"])
         stream_inputs = company_lines.load(conn, company["id"])
     finally:
         conn.close()
@@ -566,9 +599,7 @@ def company_rollup(db_path, ticker: str):
                         "years": result["years"], "revenue": result["revenue_after_loe"],
                         "unsourced": built.get("unsourced") or [],
                         "notes": result.get("notes") or []})
-    per_share = None
-    if shares and shares["value"]:
-        per_share = rnpv_total * 1e6 / shares["value"]
+    per_share = (rnpv_total * 1e6 / shares) if shares else None
     return {"ticker": company["ticker"], "lines": lines, "refused": refused,
             "placeholders": placeholders, "streams": streams,
             "stream_refused": stream_refused,
