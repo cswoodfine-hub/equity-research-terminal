@@ -1,26 +1,25 @@
-# Trulicity (LLY). $4,276mm in FY2025.
+# Trulicity (LLY). 4,276mm USD in FY2025.
 #
 # Marketed, anchored on the reported year and grown against the same product axis a
-# year earlier. Both figures come from the SEC financial statement data sets, tagged
-# in the same filing, so the pair needs no reading of a table to establish.
+# year earlier, both from the SEC financial statement data sets.
 #
 # Seeds are insert-only. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 LLY,Trulicity,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
-LLY,Trulicity,,US,base,base_revenue,,4276.0,,mm USD,"LLY FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
-LLY,Trulicity,,US,base,revenue_growth_pct,,-0.186144,,"annual, near term","the same product axis a year earlier: $4,276mm in FY2025 against $5,254mm in FY2024, both from the SEC financial statement data sets. The comparative year is tagged in the same filing as the anchor",the last reported year over the one before it
+LLY,Trulicity,,US,base,base_revenue,,4276.0,,mm USD,"LLY FY2025 reported product revenue, from the annual report product axis (sec_fsds)",the anchor
+LLY,Trulicity,,US,base,revenue_growth_pct,,-0.186144,,"annual, near term","the same product axis a year earlier: 4,276 against 5,254 a year before, both in USD from the SEC financial statement data sets, tagged in the same filing",the last reported year over the one before it
 LLY,Trulicity,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-LLY,Trulicity,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+LLY,Trulicity,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
 LLY,Trulicity,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
-LLY,Trulicity,,US,base,forecast_years,,10,,years,set to run past the 2026 loss of exclusivity and through the erosion tail,
+LLY,Trulicity,,US,base,forecast_years,,10,,years,set to run past the 2026 loss of exclusivity,
 LLY,Trulicity,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
-LLY,Trulicity,,US,base,cogs_pct,,0.1696,,share of revenue,"LLY FY2025, computed from the filed lines",
-LLY,Trulicity,,US,base,sga_pct,,0.1702,,share of revenue,"LLY FY2025, computed from the filed lines",
-LLY,Trulicity,,US,base,rd_pct,,0.2046,,share of revenue,"LLY FY2025, computed from the filed lines",
-LLY,Trulicity,,US,base,other_costs_pct,,0.343575,,share of revenue,"derived: LLY generated $13,524mm of free cash flow on $144,346mm of revenue over 2023, 2024 and 2025, a 9.37% margin, against the 38.1% its filed expense lines leave","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
-LLY,Trulicity,,US,base,tax_rate,,0.1637,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+LLY,Trulicity,,US,base,cogs_pct,,0.1696,,share of revenue,"LLY FY2025, from the filed lines",
+LLY,Trulicity,,US,base,sga_pct,,0.1702,,share of revenue,"LLY FY2025, from the filed lines",
+LLY,Trulicity,,US,base,rd_pct,,0.2046,,share of revenue,"LLY FY2025, from the filed lines",
+LLY,Trulicity,,US,base,other_costs_pct,,0.284646,,share of revenue,derived: LLY turned 14.30% of revenue into free cash over 2018 to 2025 against the 38.1% its filed expense lines leave,"amortisation, restructuring and capital spending, none of which the filed lines carry. Read over eight years and not the usual three: Lilly turned 20.0% of revenue into free cash over 2018 to 2022 and 9.4% over 2023 to 2025, the difference being a capacity build-out that took capital spending from 5% of revenue to 12%. Three years takes the trough of that build as the perpetual margin; eight spans both phases"
+LLY,Trulicity,,US,base,tax_rate,,0.1637,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
 LLY,Trulicity,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 LLY,Trulicity,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
 LLY,Trulicity,,US,base,beta,,0.69,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.54 raw)",
-LLY,Trulicity,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",
-LLY,Trulicity,,US,base,debt_weight,,0.047876,,,"filed TotalDebt of $54,908mm over debt plus market capitalisation: 941.4mm shares at 2026-08-03 at the $1,160.00 close of 2026-09-01",
+LLY,Trulicity,,US,base,cost_of_debt,,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+LLY,Trulicity,,US,base,debt_weight,,0.050003,,,"filed TotalDebt of 54,908mm USD at 2026-06-30 over debt plus market capitalisation",
