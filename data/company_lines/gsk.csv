@@ -1,0 +1,29 @@
+# GSK revenue that no asset on file can carry, so that the model reconciles to the
+# reported total of GBP 32,667mm rather than to the product rows alone.
+#
+# "Seretide/Advair" is one row in GSK's sales table and two products in the database:
+# Advair Hfa and Advair Diskus 500/50, each with its own approval. Neither can be given
+# the row, because GSK does not split it and a split would be invented, and giving it to
+# both would count it twice. The line carries the pair instead, and both assets stay
+# blocked until GSK splits them. It is running off as the inhaled respiratory portfolio
+# gives way to Trelegy.
+#
+# Margins and the discount rate are the company's, from the same filed lines every GSK
+# asset carries, so the assets and this line together are the company's own P&L.
+ticker,line,scenario,key,value,text_value,unit,source,note
+GSK,Seretide/Advair,base,base_revenue,858,,mm GBP,"GSK full-year 2025 results (6-K 0001654954-26-000892, filed 2026-02-04), General Medicines sales table: Seretide/Advair GBP 858m for the year","one row, two products on file. Neither Advair asset can hold it"
+GSK,Seretide/Advair,base,revenue_growth_pct,-0.19,,"annual, near term","the same table states the year at -19% at actual exchange rates against 2024","held at this rate rather than faded: a franchise being replaced does not level off"
+GSK,Seretide/Advair,base,terminal_growth_pct,-0.19,,"annual, long run",the same rate carried through,"no fade, for the reason above"
+GSK,Seretide/Advair,base,forecast_start_year,2026,,year,the year after the last reported full year,
+GSK,Seretide/Advair,base,forecast_years,15,,years,the horizon GSK's marketed assets carry,"long enough for the run-off to be nearly complete inside the window"
+GSK,Seretide/Advair,base,pos,1.0,,,approved and selling,"stated, because no development phase applies"
+GSK,Seretide/Advair,base,cogs_pct,0.276,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Seretide/Advair,base,sga_pct,0.2782,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Seretide/Advair,base,rd_pct,0.2304,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Seretide/Advair,base,other_costs_pct,0.005608,,share of revenue,"derived: GSK turned 18.02% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave","amortisation, restructuring and capital spending, none of which the filed lines carry"
+GSK,Seretide/Advair,base,tax_rate,0.1413,,effective rate,"aggregate effective rate over the three years to 2025",
+GSK,Seretide/Advair,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+GSK,Seretide/Advair,base,erp,0.05,,,Damodaran US ERP estimate,
+GSK,Seretide/Advair,base,beta,0.55,,,"computed from weekly returns vs S&P 500, Blume-adjusted",the company's, as every GSK asset carries
+GSK,Seretide/Advair,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+GSK,Seretide/Advair,base,debt_weight,0.194899,,,"filed TotalDebt over debt plus market capitalisation",the company's, as every GSK asset carries
