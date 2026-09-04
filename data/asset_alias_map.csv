@@ -12,3 +12,10 @@
 ticker,programme_name,brand,note
 VRTX,CTX001,Casgevy,development name of Casgevy (exa-cel)
 VRTX,Trikafta / Kaftrio,Trikafta (Copackaged),"the SEC product axis reports Trikafta and Kaftrio as one revenue line, and nothing joins that line to the Orange Book row carrying the exclusivity, the modality and the NDA. Without this the franchise is valued as a perpetuity"
+AZN,Breztri Aerosphere,Breztri,"the same inhaler under its full name. The approval, ten exclusivities and the CMS demand sat on this row and the forecast on the other, so Breztri was modelled with no loss of exclusivity date"
+AZN,BGF MDI,Breztri,"budesonide, glycopyrronium and formoterol in a metered dose inhaler is what Breztri is. The registry names the arms by the molecules and the strength"
+AZN,BFF MDI,Breztri,"the budesonide and formoterol arm of the Breztri trials, not a programme of its own"
+AZN,GP MDI,Breztri,"the glycopyrronium arm of the Breztri trials, not a programme of its own"
+AZN,BDA MDI,Airsupra,"budesonide and albuterol in a metered dose inhaler is what Airsupra is"
+AZN,AS MDI,Airsupra,"the albuterol arm of the Airsupra trials, not a programme of its own"
+AZN,MEDI-546,Saphnelo,"anifrolumab's development code. The registry files studies under it and openFDA lists the brand"

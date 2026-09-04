@@ -267,6 +267,13 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # A compound the registry names by ingredient can be the product openFDA lists by
     # brand. Folding the two together keeps an approved drug out of the pipeline.
     mapped["merged"] = asset_merge.merge(db_path)["merged"]
+    # Whatever is left that names a study's arm rather than a compound: a strength
+    # written as a ratio, a numbered dose regimen, a molecule named with the
+    # chemotherapy beside it. After the merge, so an arm the alias map or the merge
+    # can claim is folded into its product rather than retired away from it.
+    _arms = trial_mapping.prune_arms(db_path)
+    mapped["arms_retired"] = _arms["retired"]
+    mapped["arms_merged"] = _arms["merged"]
     # A brand-only row left over from a partner's product gets the ingredient the
     # universe already names, so every rule that asks a row to prove it is a drug
     # can answer for it.
@@ -440,6 +447,13 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # A compound the registry names by ingredient can be the product openFDA lists by
     # brand. Folding the two together keeps an approved drug out of the pipeline.
     mapped["merged"] = asset_merge.merge(db_path)["merged"]
+    # Whatever is left that names a study's arm rather than a compound: a strength
+    # written as a ratio, a numbered dose regimen, a molecule named with the
+    # chemotherapy beside it. After the merge, so an arm the alias map or the merge
+    # can claim is folded into its product rather than retired away from it.
+    _arms = trial_mapping.prune_arms(db_path)
+    mapped["arms_retired"] = _arms["retired"]
+    mapped["arms_merged"] = _arms["merged"]
     # A brand-only row left over from a partner's product gets the ingredient the
     # universe already names, so every rule that asks a row to prove it is a drug
     # can answer for it.
