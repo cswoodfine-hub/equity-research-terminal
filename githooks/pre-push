@@ -1,0 +1,14 @@
+#!/bin/sh
+# Run the suite before anything leaves this machine.
+#
+# Belt as well as braces. `make verify` is the right thing to type, but a chain like
+# `pytest -q | tail -2 && git push` looks like it gates on the tests and does not: a
+# pipeline reports its last command, so tail's success masks pytest's failure. This
+# hook does not care what was typed.
+#
+# Skip deliberately with `git push --no-verify` when you mean to.
+echo "pre-push: running the test suite"
+if ! make verify; then
+    echo "pre-push: tests failed, nothing pushed. Use --no-verify to override." >&2
+    exit 1
+fi

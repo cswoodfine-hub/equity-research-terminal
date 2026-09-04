@@ -1,14 +1,32 @@
 # Equity research terminal.
 PY := backend/.venv/bin/python
 
-.PHONY: dev test refresh refresh-daily tearsheets tearsheets-all \
+.PHONY: dev test verify hooks refresh refresh-daily tearsheets tearsheets-all \
         history-export history-rebuild clean
 
 dev:            ## start the API (8000) and the UI (8501)
 	./run.sh
 
-test:           ## run the full test suite
+test:           ## run the full test suite, including the network tests
 	cd backend && .venv/bin/python -m pytest tests/ -q
+
+# Safe before a commit or a push in a && chain, which `pytest | tail` is not: a
+# pipeline reports the exit status of its LAST command, so piping pytest into tail to
+# shorten the output throws the result away and the chain runs on regardless. That is
+# how a push once went out over five errors. Here the status is captured before
+# anything is piped anywhere, so the summary still prints and the exit code survives.
+#
+# test_refresh.py is left out: its ten tests go to the network and take four minutes
+# against thirty-five seconds for the other 1,520, so gating every push on them would
+# fail a push on a train. `make test` runs them.
+verify:         ## fast suite with a real exit code; safe before a commit or a push
+	@cd backend && .venv/bin/python -m pytest tests/ -q \
+	  --ignore=tests/test_refresh.py > /tmp/er_verify.log 2>&1; \
+	  status=$$?; tail -3 /tmp/er_verify.log; exit $$status
+
+hooks:          ## install the pre-push hook (undo: git config --unset core.hooksPath)
+	@git config core.hooksPath githooks
+	@echo "pre-push hook installed; pushes now run make verify first"
 
 refresh:        ## pull every source for the whole universe (needs the API up)
 	curl -s -X POST 'localhost:8000/refresh?scope=all' | $(PY) -m json.tool
