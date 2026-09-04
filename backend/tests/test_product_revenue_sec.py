@@ -346,3 +346,46 @@ def test_a_grouping_does_not_reach_across_segments():
                 ("NovoSeven", 600, "RareDisease"),
                 ("HaemophiliaA", 300, "RareDisease"))]
     assert grouping_members(rows, "novo") == set()
+
+
+def _azn_row(tag, member, value, geography=None, ddate="20251231"):
+    seg = f"ProductsAndServices={member};"
+    if geography:
+        seg = f"MarketsOfCustomers={geography};" + seg
+    return {"adsh": "azn", "qtrs": "4", "ddate": ddate, "coreg": "", "tag": tag,
+            "value": str(value), "uom": "USD", "segments": seg}
+
+
+def test_alliance_revenue_is_added_to_the_product_it_belongs_to():
+    """A partnered medicine earns AstraZeneca two different things and it tags them
+    separately. Enhertu is 977 of RevenueFromSaleOfGoods and 1,798 of AllianceRevenue in
+    FY2025, and AstraZeneca's own table calls the 2,775 Product Revenue. Reading only the
+    tags that begin with "Revenue" took the 977 and called it the year."""
+    from fetchers.product_revenue_sec import extract_products
+
+    rows = [_azn_row("RevenueFromSaleOfGoods", "Enhertu", 977e6),
+            _azn_row("AllianceRevenue", "Enhertu", 1798e6),
+            _azn_row("RevenueFromSaleOfGoods", "Tezspire", 458e6),
+            _azn_row("AllianceRevenue", "Tezspire", 673e6)]
+    found = extract_products(rows, "azn")
+    assert found["Enhertu"]["value"] == 2775e6
+    assert found["Tezspire"]["value"] == 1131e6
+
+
+def test_an_expense_carrying_a_product_axis_is_still_not_revenue():
+    """Lilly and Biogen tag research and development against a product, and Biogen and
+    Vertex tag cost of goods. Those pass no filter here and must not: adding an expense
+    to a product's revenue would be worse than missing the revenue."""
+    from fetchers.product_revenue_sec import extract_products
+
+    rows = [_azn_row("RevenueFromSaleOfGoods", "Tagrisso", 7254e6),
+            _azn_row("ResearchAndDevelopmentExpense", "Tagrisso", 900e6),
+            _azn_row("CostOfGoodsAndServicesSold", "Tagrisso", 500e6)]
+    assert extract_products(rows, "azn")["Tagrisso"]["value"] == 7254e6
+
+
+def test_a_product_with_only_sales_is_unchanged():
+    from fetchers.product_revenue_sec import extract_products
+
+    rows = [_azn_row("RevenueFromSaleOfGoods", "Farxiga", 8000e6)]
+    assert extract_products(rows, "azn")["Farxiga"]["value"] == 8000e6

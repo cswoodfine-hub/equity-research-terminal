@@ -258,6 +258,14 @@ def worldwide(by_geography: dict[str | None, float]) -> float | None:
     return None
 
 
+# Revenue a filer books under a name that does not begin with "Revenue". Only these
+# two: everything else this filter would otherwise catch is an expense that happens to
+# carry a product axis, research and development or cost of goods, and adding those to
+# a product's revenue would be worse than missing them. AstraZeneca is the only filer in
+# this universe that uses either, and between them they carry 9bn of its revenue.
+_ALLIANCE_TAGS = ("AllianceRevenue", "CollaborationRevenue")
+
+
 def extract_products(rows, adsh: str, ddate: str = None) -> dict[str, dict]:
     """{product member: {'value', 'unit'}} for one filing and one period end.
 
@@ -280,7 +288,9 @@ def extract_products(rows, adsh: str, ddate: str = None) -> dict[str, dict]:
     for row in rows:
         if row.get("adsh") != adsh or row.get("coreg"):
             continue
-        if not (row.get("tag") or "").startswith("Revenue"):
+        tag = row.get("tag") or ""
+        alliance = tag in _ALLIANCE_TAGS
+        if not (tag.startswith("Revenue") or alliance):
             continue
         if row.get("qtrs") != "4" or (ddate is not None and row.get("ddate") != ddate):
             continue
@@ -299,7 +309,8 @@ def extract_products(rows, adsh: str, ddate: str = None) -> dict[str, dict]:
         # The unit travels with the value. Novo reports in DKK and Sanofi in EUR, and
         # a DKK figure stored as USD would be wrong by a factor of six.
         by_level = collected.setdefault(product, {})
-        by_level.setdefault(extras, {})[geography] = (value, row.get("uom") or "")
+        by_level.setdefault(extras, {}).setdefault(geography, {})[
+            "alliance" if alliance else "sales"] = (value, row.get("uom") or "")
 
     out = {}
     for product, by_level in collected.items():
@@ -308,10 +319,17 @@ def extract_products(rows, adsh: str, ddate: str = None) -> dict[str, dict]:
         if len(level) != 1:
             continue                 # several segments at the top: would need summing
         by_geography = level[0]
-        total = worldwide({geo: value for geo, (value, _) in by_geography.items()})
+        # Sales and alliance revenue are added, because they are what the filer adds.
+        # A partnered medicine earns AstraZeneca two different things and it tags them
+        # separately: Enhertu is 977 of RevenueFromSaleOfGoods and 1,798 of
+        # AllianceRevenue in FY2025, and its own table calls the 2,775 Product Revenue.
+        # Nothing else here is split this way, so nothing else changes.
+        total = worldwide({geo: sum(value for value, _ in kinds.values())
+                           for geo, kinds in by_geography.items()})
         if total is None or total <= 0:
             continue
-        units = {unit for _, unit in by_geography.values() if unit}
+        units = {unit for kinds in by_geography.values()
+                 for _, unit in kinds.values() if unit}
         if len(units) != 1:
             continue                 # a product priced in two units cannot be totalled
         out[product] = {"value": total, "unit": units.pop()}
