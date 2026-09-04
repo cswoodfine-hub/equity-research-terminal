@@ -1,0 +1,25 @@
+# Savolitinib: SAFFRON read out positive on both progression-free and overall survival in
+# MET-driven EGFR-mutated non-small cell lung cancer, which is why this is modelled and the
+# two assets alongside it in this batch are not.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Savolitinib,,US,base,therapy_mode,,,chronic,,dosing schedule of the programme,""
+AZN,Savolitinib,,US,base,gross_to_net_pct,,0.5,,share off list,"analyst convention: manufacturer rebates in a competitive class",""
+AZN,Savolitinib,,US,base,cogs_pct,,0.181,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Savolitinib,,US,base,sga_pct,,0.3393,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Savolitinib,,US,base,rd_pct,,0.2423,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Savolitinib,,US,base,other_costs_pct,,0.013002,,share of revenue,"derived: AstraZeneca's free cash conversion against what its filed expense lines leave",""
+AZN,Savolitinib,,US,base,tax_rate,,0.1377,,effective rate,"aggregate effective rate over the five years to 2025",""
+AZN,Savolitinib,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
+AZN,Savolitinib,,US,base,erp,,0.05,,,"Damodaran US ERP estimate",""
+AZN,Savolitinib,,US,base,beta,,0.56,,,"computed from 261 weekly returns vs S&P 500, Blume-adjusted",""
+AZN,Savolitinib,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED)",""
+AZN,Savolitinib,,US,base,debt_weight,,0.054933,,,"filed TotalDebt of 29,622mm USD at 2025-12-31 over debt plus market capitalisation",""
+AZN,Savolitinib,,US,base,list_price_per_patient,,0.081962,,mm USD,"the price is Truqap's $81,962 a Medicare beneficiary, AstraZeneca's own oral oncology product","a comparator, not a price this product has"
+AZN,Savolitinib,,US,base,discontinuation_pct,,0.55,,share stopping a year,"advanced solid tumour therapy runs until progression, and a median progression-free survival near a year turns over about half the treated stock annually",""
+AZN,Savolitinib,,US,base,forecast_start_year,,2027,,year,"the earliest primary completion among this asset's phase 3 trials, plus the time to file and launch","read off the trial records"
+AZN,Savolitinib,"Carcinoma, Non-Small-Cell Lung",US,base,prevalence,,192650,,patients,"226,650 new US lung cancers in 2025 (SEER), about 85% non-small cell",""
+AZN,Savolitinib,"Carcinoma, Non-Small-Cell Lung",US,base,eligible_pct,,0.0375,,share of the pool,"roughly 15% of US non-small cell lung cancer carries an EGFR mutation, and MET amplification drives resistance in about a quarter of those progressing on osimertinib, which is the population SAFFRON enrolled","the two filters multiplied, so about 7,200 patients a year"
+AZN,Savolitinib,"Carcinoma, Non-Small-Cell Lung",US,base,incidence,,192650,,patients a year,"lung cancer incidence is the pool: diagnosed and treated annually rather than accumulated",""
+AZN,Savolitinib,"Carcinoma, Non-Small-Cell Lung",US,base,ramp_steepness,,1.08,,logistic k,"Enhertu's own launch, fitted: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 are reproduced by a logistic of k=1.08 with a midpoint at 2.2 years",""
+AZN,Savolitinib,"Carcinoma, Non-Small-Cell Lung",US,base,ramp_midpoint_year,,2.2,,years from the forecast start,"Enhertu's own launch, fitted: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 are reproduced by a logistic of k=1.08 with a midpoint at 2.2 years",""
+AZN,Savolitinib,"Carcinoma, Non-Small-Cell Lung",US,base,penetration_peak_pct,,0.35,,share of the untreated pool per year,"a share of the pool above, set against what the molecule has to displace","a third of the untreated pool a year, high because there is no competing MET inhibitor in this setting and the population is defined by a test the patient has already had"

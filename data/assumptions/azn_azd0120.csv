@@ -1,0 +1,22 @@
+# AZD0120: a dual-targeted CAR-T in multiple myeloma, billed once rather than annually.
+# Three phase 3 trials, two of them in newly diagnosed disease.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,AZD0120,,US,base,therapy_mode,,,one_time,,"a cell therapy, infused once","the mode the engine has for a one-off"
+AZN,AZD0120,,US,base,sga_pct,,0.3393,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,AZD0120,,US,base,rd_pct,,0.2423,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,AZD0120,,US,base,other_costs_pct,,0.013002,,share of revenue,"derived: AstraZeneca's free cash conversion against what its filed expense lines leave",""
+AZN,AZD0120,,US,base,tax_rate,,0.1377,,effective rate,"aggregate effective rate over the five years to 2025",""
+AZN,AZD0120,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
+AZN,AZD0120,,US,base,erp,,0.05,,,"Damodaran US ERP estimate",""
+AZN,AZD0120,,US,base,beta,,0.56,,,"computed from 261 weekly returns vs S&P 500, Blume-adjusted",""
+AZN,AZD0120,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED)",""
+AZN,AZD0120,,US,base,debt_weight,,0.054933,,,"filed TotalDebt of 29,622mm USD at 2025-12-31 over debt plus market capitalisation",""
+AZN,AZD0120,,US,base,net_price_per_patient,,0.45,,mm USD,"comparator estimate: the approved BCMA cell therapies in multiple myeloma are listed near $0.5mm a patient, and this is set just under","a comparator, not a price this product has"
+AZN,AZD0120,,US,base,cogs_per_patient,,0.14,,mm USD,"comparator estimate: autologous cell therapy manufacturing runs near a third of the list price","the cost of goods on a cell therapy is a manufacturing slot, not a percentage of revenue"
+AZN,AZD0120,,US,base,forecast_start_year,,2030,,year,"the earliest primary completion among its three phase 3 trials is 2028-06-14, plus the time to file and launch a cell therapy","read off the trial records"
+AZN,AZD0120,"Multiple Myeloma",US,base,prevalence,,36110,,patients,"about 36,110 new US multiple myeloma diagnoses in 2025 (American Cancer Society)",""
+AZN,AZD0120,"Multiple Myeloma",US,base,eligible_pct,,0.30,,share of the pool,"the share reaching the lines of therapy a CAR-T is given in, and fit enough for apheresis and lymphodepletion","two of the three phase 3 trials are in newly diagnosed disease, which would widen this if they read out"
+AZN,AZD0120,"Multiple Myeloma",US,base,incidence,,36110,,patients a year,"annual diagnoses feeding the same pool",""
+AZN,AZD0120,"Multiple Myeloma",US,base,ramp_steepness,,1.08,,logistic k,"Enhertu's fitted oncology launch curve, k=1.08","a cell therapy is slower than this in practice, because the constraint is manufacturing slots rather than demand"
+AZN,AZD0120,"Multiple Myeloma",US,base,ramp_midpoint_year,,3,,years from the forecast start,"Enhertu's fitted midpoint of 2.2 years, pushed out to three","a cell therapy launches into a fixed number of qualified centres"
+AZN,AZD0120,"Multiple Myeloma",US,base,penetration_peak_pct,,0.12,,share of the untreated pool per year,"a share of the pool above","12% a year. Cell therapy in myeloma is capacity-limited rather than demand-limited: the approved BCMA products have been supply-constrained since launch, and a dual-targeted entrant arrives into the same bottleneck"

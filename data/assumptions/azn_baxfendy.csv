@@ -1,0 +1,25 @@
+# Baxfendy (baxdrostat): launched in 2026 and reported at $3m for the first half, which is a
+# number too small to grow. It is modelled as the launch it is, on the resistant hypertension
+# population, rather than as a growth rate off a rounding.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Baxfendy,,US,base,therapy_mode,,,chronic,,dosing schedule of the programme,""
+AZN,Baxfendy,,US,base,gross_to_net_pct,,0.5,,share off list,"analyst convention: manufacturer rebates in a competitive class",""
+AZN,Baxfendy,,US,base,cogs_pct,,0.181,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Baxfendy,,US,base,sga_pct,,0.3393,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Baxfendy,,US,base,rd_pct,,0.2423,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Baxfendy,,US,base,other_costs_pct,,0.013002,,share of revenue,"derived: AstraZeneca's free cash conversion against what its filed expense lines leave",""
+AZN,Baxfendy,,US,base,tax_rate,,0.1377,,effective rate,"aggregate effective rate over the five years to 2025",""
+AZN,Baxfendy,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
+AZN,Baxfendy,,US,base,erp,,0.05,,,"Damodaran US ERP estimate",""
+AZN,Baxfendy,,US,base,beta,,0.56,,,"computed from 261 weekly returns vs S&P 500, Blume-adjusted",""
+AZN,Baxfendy,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED)",""
+AZN,Baxfendy,,US,base,debt_weight,,0.054933,,,"filed TotalDebt of 29,622mm USD at 2025-12-31 over debt plus market capitalisation",""
+AZN,Baxfendy,,US,base,list_price_per_patient,,0.005364,,mm USD,"the price is Leqvio's $5,364 a Medicare beneficiary, the closest cardiovascular comparator on file: a branded specialist agent added on top of generics","a comparator, not a price this product has"
+AZN,Baxfendy,,US,base,discontinuation_pct,,0.30,,share stopping a year,"advanced solid tumour therapy runs until progression, and a median progression-free survival near a year turns over about half the treated stock annually",""
+AZN,Baxfendy,,US,base,forecast_start_year,,2026,,year,"the earliest primary completion among this asset's phase 3 trials, plus the time to file and launch","read off the trial records"
+AZN,Baxfendy,"Hypertension",US,base,prevalence,,14640000,,patients,"roughly 122mm US adults have hypertension (American Heart Association 2025 statistics), of whom about 12% are uncontrolled on multiple agents, which is the resistant population baxdrostat is for",""
+AZN,Baxfendy,"Hypertension",US,base,eligible_pct,,1.0,,share of the pool,"the pool is already drawn to the resistant population, so the narrowing is in it rather than after it",""
+AZN,Baxfendy,"Hypertension",US,base,incidence,,1200000,,patients a year,"about 1% of the treated hypertensive population becomes resistant each year",""
+AZN,Baxfendy,"Hypertension",US,base,ramp_steepness,,0.657,,logistic k,"Enhertu's own launch, fitted: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 are reproduced by a logistic of k=1.08 with a midpoint at 2.2 years",""
+AZN,Baxfendy,"Hypertension",US,base,ramp_midpoint_year,,5,,years from the forecast start,"Enhertu's own launch, fitted: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 are reproduced by a logistic of k=1.08 with a midpoint at 2.2 years",""
+AZN,Baxfendy,"Hypertension",US,base,penetration_peak_pct,,0.06,,share of the untreated pool per year,"a share of the pool above, set against what the molecule has to displace","6% of the untreated pool a year. Baxdrostat is the first aldosterone synthase inhibitor to reach the market and has no direct competitor, but resistant hypertension is managed in primary care where a new branded agent is adopted slowly and spironolactone is generic"
