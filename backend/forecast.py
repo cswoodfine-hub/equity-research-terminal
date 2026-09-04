@@ -285,6 +285,23 @@ def net_price(scalars: dict):
     return None
 
 
+def _price_factor(scalars: dict, year_index: int) -> float:
+    """What a year's net price is as a share of the first year's.
+
+    A price built from patients and a price per patient was multiplied by one number for
+    the whole horizon, so a twenty-year forecast charged 2046 at 2027's price. That is
+    not what a net price does in a class with competitors: Lilly reports its US realised
+    price falling while volume rises, and holding it flat prices away the discount that
+    won the volume.
+
+    Absent, the price is flat and nothing changes. This never carries the fall at loss of
+    exclusivity, which the erosion module applies to revenue further down: that is a
+    different event with its own evidence, and charging both would count it twice.
+    """
+    decline = scalars.get("net_price_decline_pct")
+    return 1.0 if not decline else (1.0 - decline) ** year_index
+
+
 def wacc(scalars: dict):
     """(wacc, basis). Given directly, or derived CAPM from components."""
     if scalars.get("wacc") is not None:
@@ -534,7 +551,8 @@ def build(inputs: dict) -> dict:
     elif mode == "one_time":
         # Billed once, so the year's patients are the year's revenue.
         treated = total_patients
-        revenue = [p * price for p in treated]
+        revenue = [p * price * _price_factor(scalars, i)
+                   for i, p in enumerate(treated)]
     else:
         discontinuation = scalars.get("discontinuation_pct")
         if discontinuation is None:
@@ -544,11 +562,18 @@ def build(inputs: dict) -> dict:
                 "starts, and without this the two cannot be told apart)"])
         opening = scalars.get("opening_treated_patients") or 0.0
         treated = treated_stock(total_patients, discontinuation, opening)
-        revenue = [p * price for p in treated]
+        revenue = [p * price * _price_factor(scalars, i)
+                   for i, p in enumerate(treated)]
         notes.append(
             f"chronic mode: revenue is the treated stock x annual net price, carried "
             f"forward at {(1 - discontinuation):.0%} persistence a year"
             + (f" from an opening {opening:,.0f} already on therapy" if opening else ""))
+        if scalars.get("net_price_decline_pct"):
+            fall = scalars["net_price_decline_pct"]
+            notes.append(
+                f"net price falls {fall:.1%} a year, so the last forecast year is priced "
+                f"at {_price_factor(scalars, len(years) - 1):.0%} of the first. Loss of "
+                f"exclusivity is not in this and is applied separately")
 
     # Erosion, only where the horizon runs past the LOE on file or assumed.
     loe = inputs.get("loe") or {}

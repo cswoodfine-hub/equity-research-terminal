@@ -748,3 +748,15 @@ def test_no_other_costs_leaves_the_p_and_l_as_it_was():
     row = F.build(_marketed())["pnl"][0]
     assert row["other"] == 0.0
     assert row["ebit"] == pytest.approx(row["revenue"] - row["cogs"] - row["sga"] - row["rd"])
+
+
+def test_a_net_price_can_fall_and_holds_flat_when_it_is_not_set():
+    """Revenue built from patients times a price was charged one price for the whole
+    horizon, so a twenty-year forecast billed 2046 at 2027's price. Lilly reports its US
+    realised price falling while volume rises, and there was no input for it."""
+    from forecast import _price_factor
+
+    assert _price_factor({}, 9) == 1.0
+    assert _price_factor({"net_price_decline_pct": 0.0}, 9) == 1.0
+    assert _price_factor({"net_price_decline_pct": 0.03}, 0) == 1.0
+    assert round(_price_factor({"net_price_decline_pct": 0.03}, 8), 4) == 0.7837

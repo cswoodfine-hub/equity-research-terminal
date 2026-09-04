@@ -29,6 +29,9 @@ TEMPLATE = {
     "one_time": (
         ("therapy_mode", "one_time", "text"),
         ("net_price_per_patient", "net price per patient, mm USD", "value"),
+        ("net_price_decline_pct", "annual fall in that net price, before any loss of "
+                                  "exclusivity, which is applied separately. Omit to "
+                                  "hold the price flat", "value"),
         ("cogs_per_patient", "cost of goods per patient, mm USD", "value"),
         ("sga_pct", "SG&A as a share of revenue", "value"),
         ("rd_pct", "R&D as a share of revenue", "value"),
@@ -90,6 +93,9 @@ TEMPLATE = {
     "chronic": (
         ("therapy_mode", "chronic", "text"),
         ("net_price_per_patient", "annual net price per patient", "value"),
+        ("net_price_decline_pct", "annual fall in that net price, before any loss of "
+                                  "exclusivity, which is applied separately. Omit to "
+                                  "hold the price flat", "value"),
         ("cogs_pct", "cost of goods as a share of revenue", "value"),
         ("sga_pct", "SG&A as a share of revenue", "value"),
         ("rd_pct", "R&D as a share of revenue", "value"),
