@@ -1,0 +1,26 @@
+# Truqap (AZN). 728mm USD in FY2025.
+#
+# Marketed, anchored on the reported year and grown against the same product axis a
+# year earlier, both from the SEC financial statement data sets.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Truqap,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+AZN,Truqap,,US,base,base_revenue,,728.0,,mm USD,"AZN FY2025 reported product revenue, from the annual report product axis (sec_fsds)",the anchor
+AZN,Truqap,,US,base,revenue_growth_pct,,0.693023,,"annual, near term","AZN FY2025 20-F product axis (sec_fsds), product sales plus the alliance revenue the same filing tags separately: $728mm in FY2025 against $430mm in FY2024","the quarter against the same quarter a year before, which is the most recent comparison this filer states"
+AZN,Truqap,,US,base,revenue_ceiling_musd,,3000,,mm USD,"capivasertib treats HR-positive, HER2-negative advanced breast cancer carrying a PIK3CA, AKT1 or PTEN alteration. About 40% of tumours in CAPItello-291 carried one and the literature puts it as high as 50% in advanced HR-positive disease, against a US prevalent metastatic HR-positive HER2-negative population of roughly 160,000. At 45% altered that is about 72,000 eligible, and Truqap cost Medicare $81,962 a beneficiary in 2024","the input is a plateau near 35% of that eligible group, which is $2bn in the US and about $3bn worldwide. Truqap is not alone in the pathway: alpelisib preceded it and inavolisib followed, so this is a share of a contested biomarker niche rather than the whole of it"
+AZN,Truqap,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+AZN,Truqap,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+AZN,Truqap,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+AZN,Truqap,,US,base,forecast_years,,13,,years,set to run past the 2033 loss of exclusivity,
+AZN,Truqap,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+AZN,Truqap,,US,base,cogs_pct,,0.181,,share of revenue,"AZN FY2025, from the filed lines",
+AZN,Truqap,,US,base,sga_pct,,0.3393,,share of revenue,"AZN FY2025, from the filed lines",
+AZN,Truqap,,US,base,rd_pct,,0.2423,,share of revenue,"AZN FY2025, from the filed lines",
+AZN,Truqap,,US,base,other_costs_pct,,0.013002,,share of revenue,derived: AZN turned 19.35% of revenue into free cash over 2023 to 2025 against the 20.5% its filed expense lines leave,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+AZN,Truqap,,US,base,tax_rate,,0.1377,,effective rate,"aggregate effective rate over the 5 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
+AZN,Truqap,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+AZN,Truqap,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+AZN,Truqap,,US,base,beta,,0.56,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.34 raw)",
+AZN,Truqap,,US,base,cost_of_debt,,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+AZN,Truqap,,US,base,debt_weight,,0.054328,,,"filed TotalDebt of 29,622mm USD at 2025-12-31 over debt plus market capitalisation",
