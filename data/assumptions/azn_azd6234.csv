@@ -1,0 +1,25 @@
+# AZD6234: AstraZeneca's obesity programme, on the pool every obesity asset here shares.
+# The company rates are AstraZeneca's own. What differs between the four companies in
+# this category is the peak share, and the note on it says why.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,AZD6234,,US,base,therapy_mode,,,chronic,,"dosing schedule of the programme",""
+AZN,AZD6234,,US,base,forecast_start_year,,2029,,year,"the trials themselves: every Phase 3 study on file for this asset has a primary completion date in 2028 (elecoglipron NCT07662135, NCT07662044, NCT07664553, NCT07667803 and NCT07662109; AZD6234 NCT07776509, NCT07784270 and NCT07784725), so a filing follows in 2028 and a first full year of revenue in 2029 at the earliest","2027 was wrong and would have been worth two years of discounting it has not earned. The other obesity assets in this book start in 2027 because their programmes are further along; these two read their own trial records"
+AZN,AZD6234,,US,base,list_price_per_patient,,0.006642,,mm USD,"comparator estimate: incretin median, CMS Part D 2024",""
+AZN,AZD6234,,US,base,gross_to_net_pct,,0.5,,share off list,"analyst convention: manufacturer rebates in a competitive class",""
+AZN,AZD6234,,US,base,discontinuation_pct,,0.648,,share stopping a year,"GLP-1 discontinuation at one year without type 2 diabetes",""
+AZN,AZD6234,,US,base,cogs_pct,,0.181,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,AZD6234,,US,base,sga_pct,,0.3393,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,AZD6234,,US,base,rd_pct,,0.2423,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,AZD6234,,US,base,other_costs_pct,,0.013002,,share of revenue,"derived: AstraZeneca's free cash conversion against what its filed expense lines leave",""
+AZN,AZD6234,,US,base,tax_rate,,0.1377,,effective rate,"aggregate effective rate over the five years to 2025",""
+AZN,AZD6234,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
+AZN,AZD6234,,US,base,erp,,0.05,,,"Damodaran US ERP estimate",""
+AZN,AZD6234,,US,base,beta,,0.56,,,"computed from 261 weekly returns vs S&P 500, Blume-adjusted",""
+AZN,AZD6234,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED)",""
+AZN,AZD6234,,US,base,debt_weight,,0.054933,,,"filed TotalDebt of 29,622mm USD at 2025-12-31 over debt plus market capitalisation",""
+AZN,AZD6234,Obesity,US,base,prevalence,,107592242,,patients,"CDC NHANES August 2021 to August 2023: 40.3% of US adults 20 and over have obesity, applied to the adult population","the same pool every obesity asset in this book uses"
+AZN,AZD6234,Obesity,US,base,eligible_pct,,1.0,,share of the pool,"the label criterion is the prevalence threshold, BMI 30 or 27 with a comorbidity, so the two coincide","the narrowing belongs in the funnel, and penetration carries it here"
+AZN,AZD6234,Obesity,US,base,incidence,,4478747,,patients a year,"28.1 per 1,000 person-years applied to the non-obese adult population","new cases feeding the same pool"
+AZN,AZD6234,Obesity,US,base,ramp_steepness,,1.402,,logistic k,"logistic k from Mounjaro's CMS Part D uptake 2022 to 2024","the obesity launch curve these seeds read from"
+AZN,AZD6234,Obesity,US,base,penetration_peak_pct,,0.020,,share of the untreated pool per year,"Zepbound's observed capture of this same pool: net of the 64.8% who stop each year its reported revenue implies 1.38% of the untreated population in 2024, 3.35% in 2025 and 4.39% annualised in 2026. Every obesity asset in this book is set against that 4.39%","the lowest of the obesity assets in this book, level with VK2735. An amylin analogue is most likely to be used in combination rather than alone, which makes it a component of somebody's regimen rather than the regimen, and AstraZeneca is last of the five companies here into a category that will by then have four established products"
+AZN,AZD6234,Obesity,US,base,ramp_midpoint_year,,4,,years from the forecast start,"Mounjaro reached half its capture rate in about two years, and only a midpoint of 1.9 reproduces its 2023 to 2024 step at the k of 1.402 these seeds take from the same series","four, for the reason Elecoglipron's is four: the organisation, not the science"

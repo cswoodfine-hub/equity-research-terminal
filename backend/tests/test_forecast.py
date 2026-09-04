@@ -760,3 +760,22 @@ def test_a_net_price_can_fall_and_holds_flat_when_it_is_not_set():
     assert _price_factor({"net_price_decline_pct": 0.0}, 9) == 1.0
     assert _price_factor({"net_price_decline_pct": 0.03}, 0) == 1.0
     assert round(_price_factor({"net_price_decline_pct": 0.03}, 8), 4) == 0.7837
+
+
+def test_a_later_launch_is_discounted_for_the_wait():
+    """Discounting by position values a first year the same whenever it falls, so an
+    asset whose phase 3 trials read out in 2028 and which cannot sell until 2029 was
+    worth what it would be worth selling next year. Every pipeline asset was priced
+    that way; a marketed product opening the year after the last reported one is
+    unaffected, which is why nothing else moves."""
+    from forecast import periods_from
+
+    assert periods_from([2026, 2027, 2028], 2025) == [0.5, 1.5, 2.5]
+    assert periods_from([2029, 2030], 2025) == [3.5, 4.5]
+
+
+def test_without_a_valuation_year_the_periods_are_positional():
+    """The old behaviour, kept so a caller that supplies no anchor is unchanged."""
+    from forecast import discount
+
+    assert discount([100, 100], 0.1) == discount([100, 100], 0.1, periods=[0.5, 1.5])

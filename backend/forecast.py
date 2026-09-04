@@ -393,10 +393,33 @@ def fcff(revenue: list[float], patients: list[float], scalars: dict,
     return rows
 
 
-def discount(values: list[float], rate: float, midyear: bool = True) -> list[float]:
-    """Present values, mid-year convention by default (periods 0.5, 1.5, ...)."""
+def periods_from(years: list, base_year, midyear: bool = True) -> list:
+    """How far each forecast year is from the valuation, in years.
+
+    The distance has to be calendar, not positional. Discounting by position values a
+    first year the same whenever it falls, so an asset whose phase 3 trials read out in
+    2028 and which cannot sell anything until 2029 was worth exactly what it would be
+    worth selling next year. Every pipeline asset in the book was priced that way, and
+    they are the ones the mistake flatters, because a marketed product starts next year
+    anyway and is unaffected either way.
+
+    ``base_year`` is the last completed year, so a forecast opening the year after it
+    sits half a year out on the mid-year convention, which is where it sat before.
+    """
     offset = 0.5 if midyear else 1.0
-    return [v / (1.0 + rate) ** (i + offset) for i, v in enumerate(values)]
+    return [(y - base_year) - 1 + offset for y in years]
+
+
+def discount(values: list[float], rate: float, midyear: bool = True,
+             periods: list = None) -> list[float]:
+    """Present values, mid-year convention by default (periods 0.5, 1.5, ...).
+
+    ``periods`` overrides the positional default with the real distance to each year.
+    """
+    offset = 0.5 if midyear else 1.0
+    if periods is None:
+        periods = [i + offset for i in range(len(values))]
+    return [v / (1.0 + rate) ** p for v, p in zip(values, periods)]
 
 
 def terminal_value(last_fcff: float, growth: float, rate: float,
@@ -600,10 +623,17 @@ def build(inputs: dict) -> dict:
     pnl = fcff([eroded[i] for i in window], [total_patients[i] for i in window],
                scalars, mode)
     flows = [row["fcff"] for row in pnl]
-    pvs = discount(flows, rate)
+    # The valuation is anchored on the last completed year, so a forecast that opens
+    # later is discounted for the wait. Absent one, the periods are positional and
+    # nothing moves.
+    base_year = inputs.get("valuation_year")
+    window_years = [years[i] for i in window]
+    spans = (periods_from(window_years, base_year) if base_year is not None else None)
+    pvs = discount(flows, rate, periods=spans)
     growth = scalars.get("terminal_growth") or 0.0
     if (scalars.get("terminal_mode") or "perpetuity") == "perpetuity":
-        tv, tv_pv = terminal_value(flows[-1], growth, rate, len(flows) - 0.5)
+        last = spans[-1] if spans else len(flows) - 0.5
+        tv, tv_pv = terminal_value(flows[-1], growth, rate, last)
     else:
         tv, tv_pv = 0.0, 0.0
         notes.append("no terminal value taken")

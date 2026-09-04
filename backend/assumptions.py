@@ -10,6 +10,7 @@ number and every number carries its source; the terminal computes and never inve
 
 from __future__ import annotations
 
+import datetime as dt
 import csv
 import json
 import pathlib
@@ -203,11 +204,25 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
                      WHEN 'Phase 1/2' THEN 2 WHEN 'Phase 1' THEN 1 ELSE 0 END DESC
             LIMIT 1""", (asset_id,)).fetchone()
 
+    # The year the valuation stands in, so a forecast that opens later is discounted for
+    # the wait rather than treated as though it opened next year.
+    #
+    # The last COMPLETED year, which is not the same as the latest one any filer has
+    # tagged: a company on a broken fiscal year has already reported an FY2026, and
+    # taking that made the current year the anchor, which gave the first forecast year a
+    # period of minus a half and discounted it backwards. Casgevy gained 10% of its
+    # value from a sign.
+    reported = conn.execute(
+        "SELECT MAX(fiscal_year) y FROM financials WHERE metric = 'Revenues'"
+        "  AND period_type = 'FY' AND fiscal_year < ?",
+        (dt.date.today().year,)).fetchone()
+
     return {
         "scalars": scalars,
         "indications": list(indications.values()),
         "loe": {"year": loe_year, "basis": loe.get("basis")} if loe_year else None,
         "actuals": actuals,
+        "valuation_year": reported["y"] if reported and reported["y"] else None,
         "phase": phase["phase"] if phase else None,
         "modality": asset["modality"] if asset else None,
         "pos_defaults": pos_defaults(),
