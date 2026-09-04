@@ -1,0 +1,25 @@
+# Volrustomig: an AstraZeneca late-stage oncology asset, on the pool its label defines.
+# The uptake curve is Enhertu's, fitted from its own CMS beneficiary series, because
+# this book had no oncology launch curve before these four.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Volrustomig,,US,base,therapy_mode,,,chronic,,"dosing continues until progression",""
+AZN,Volrustomig,,US,base,gross_to_net_pct,,0.5,,share off list,"analyst convention: manufacturer rebates in a competitive class",""
+AZN,Volrustomig,,US,base,cogs_pct,,0.181,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Volrustomig,,US,base,sga_pct,,0.3393,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Volrustomig,,US,base,rd_pct,,0.2423,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Volrustomig,,US,base,other_costs_pct,,0.013002,,share of revenue,"derived: AstraZeneca's free cash conversion against what its filed expense lines leave",""
+AZN,Volrustomig,,US,base,tax_rate,,0.1377,,effective rate,"aggregate effective rate over the five years to 2025",""
+AZN,Volrustomig,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
+AZN,Volrustomig,,US,base,erp,,0.05,,,"Damodaran US ERP estimate",""
+AZN,Volrustomig,,US,base,beta,,0.56,,,"computed from 261 weekly returns vs S&P 500, Blume-adjusted",""
+AZN,Volrustomig,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED)",""
+AZN,Volrustomig,,US,base,debt_weight,,0.054933,,,"filed TotalDebt of 29,622mm USD at 2025-12-31 over debt plus market capitalisation",""
+AZN,Volrustomig,,US,base,list_price_per_patient,,0.056999,,mm USD,"the price is Imfinzi's $56,999 a Medicare beneficiary, AstraZeneca's own checkpoint inhibitor and the nearest thing on file to what this would be priced at","a comparator, not a price this product has"
+AZN,Volrustomig,,US,base,discontinuation_pct,,0.55,,share stopping a year,"advanced solid tumour therapy runs until progression, and a median progression-free survival near a year in these settings turns over about half the treated stock annually",""
+AZN,Volrustomig,,US,base,forecast_start_year,,2029,,year,"the earliest primary completion among this asset's phase 3 trials, plus the time to file and launch","read off the trial records rather than assumed"
+AZN,Volrustomig,"Carcinoma, Non-Small-Cell Lung",US,base,prevalence,,192650,,patients,"226,650 new US lung cancers in 2025 (SEER), of which about 85% are non-small cell","the annual diagnosed population"
+AZN,Volrustomig,"Carcinoma, Non-Small-Cell Lung",US,base,eligible_pct,,0.40,,share of the pool,"advanced or metastatic disease eligible for a checkpoint inhibitor, which is roughly 55% of non-small cell presentations narrowed by the PD-L1 and histology criteria these trials enrol on","volrustomig is also in mesothelioma and cervical cancer, neither of which is in this number"
+AZN,Volrustomig,"Carcinoma, Non-Small-Cell Lung",US,base,incidence,,192650,,patients a year,"lung cancer incidence is the pool: it is diagnosed, treated and turned over annually rather than accumulated",""
+AZN,Volrustomig,"Carcinoma, Non-Small-Cell Lung",US,base,ramp_steepness,,1.08,,logistic k,"Enhertu's own launch, fitted: its CMS Part B beneficiaries went 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024, and a logistic of k=1.08 with a midpoint at 2.2 years reproduces those four steps. It is the oncology curve this book did not have, sitting between the obesity k of 1.402 read off Mounjaro and the cardiovascular 0.657 off Leqvio",""
+AZN,Volrustomig,"Carcinoma, Non-Small-Cell Lung",US,base,ramp_midpoint_year,,2.2,,years from the forecast start,"Enhertu's own launch, fitted: its CMS Part B beneficiaries went 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024, and a logistic of k=1.08 with a midpoint at 2.2 years reproduces those four steps. It is the oncology curve this book did not have, sitting between the obesity k of 1.402 read off Mounjaro and the cardiovascular 0.657 off Leqvio",""
+AZN,Volrustomig,"Carcinoma, Non-Small-Cell Lung",US,base,penetration_peak_pct,,0.2,,share of the untreated pool per year,"a share of the pool defined above, set against what the molecule has to displace","a fifth of the untreated pool a year. A PD-1 and CTLA-4 bispecific enters the most crowded category in oncology against pembrolizumab, and its case is the combination AstraZeneca already sells separately as Imfinzi and Imjudo in one molecule"

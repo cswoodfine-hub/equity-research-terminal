@@ -1,0 +1,25 @@
+# Sonesitatug vedotin: an AstraZeneca late-stage oncology asset, on the pool its label defines.
+# The uptake curve is Enhertu's, fitted from its own CMS beneficiary series, because
+# this book had no oncology launch curve before these four.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Sonesitatug vedotin,,US,base,therapy_mode,,,chronic,,"dosing continues until progression",""
+AZN,Sonesitatug vedotin,,US,base,gross_to_net_pct,,0.5,,share off list,"analyst convention: manufacturer rebates in a competitive class",""
+AZN,Sonesitatug vedotin,,US,base,cogs_pct,,0.181,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Sonesitatug vedotin,,US,base,sga_pct,,0.3393,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Sonesitatug vedotin,,US,base,rd_pct,,0.2423,,share of revenue,"AZN FY2025, from the filed lines",""
+AZN,Sonesitatug vedotin,,US,base,other_costs_pct,,0.013002,,share of revenue,"derived: AstraZeneca's free cash conversion against what its filed expense lines leave",""
+AZN,Sonesitatug vedotin,,US,base,tax_rate,,0.1377,,effective rate,"aggregate effective rate over the five years to 2025",""
+AZN,Sonesitatug vedotin,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
+AZN,Sonesitatug vedotin,,US,base,erp,,0.05,,,"Damodaran US ERP estimate",""
+AZN,Sonesitatug vedotin,,US,base,beta,,0.56,,,"computed from 261 weekly returns vs S&P 500, Blume-adjusted",""
+AZN,Sonesitatug vedotin,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED)",""
+AZN,Sonesitatug vedotin,,US,base,debt_weight,,0.054933,,,"filed TotalDebt of 29,622mm USD at 2025-12-31 over debt plus market capitalisation",""
+AZN,Sonesitatug vedotin,,US,base,list_price_per_patient,,0.082521,,mm USD,"the price is Trodelvy's $82,521 a Medicare beneficiary, an antibody-drug conjugate in a solid tumour and the closest comparator on file","a comparator, not a price this product has"
+AZN,Sonesitatug vedotin,,US,base,discontinuation_pct,,0.55,,share stopping a year,"advanced solid tumour therapy runs until progression, and a median progression-free survival near a year in these settings turns over about half the treated stock annually",""
+AZN,Sonesitatug vedotin,,US,base,forecast_start_year,,2031,,year,"the earliest primary completion among this asset's phase 3 trials, plus the time to file and launch","read off the trial records rather than assumed"
+AZN,Sonesitatug vedotin,Adenocarcinoma Of Esophagus,US,base,prevalence,,16834,,patients,"30,300 new US gastric cancers in 2025 plus roughly 14,000 oesophageal adenocarcinomas, of which about 38% express claudin 18.2 at the threshold these trials enrol on","the biomarker the molecule is directed at"
+AZN,Sonesitatug vedotin,Adenocarcinoma Of Esophagus,US,base,eligible_pct,,0.55,,share of the pool,"the advanced or metastatic share, which is where a claudin 18.2 ADC is given",""
+AZN,Sonesitatug vedotin,Adenocarcinoma Of Esophagus,US,base,incidence,,16834,,patients a year,"gastric and oesophageal incidence is the pool, diagnosed and treated annually",""
+AZN,Sonesitatug vedotin,Adenocarcinoma Of Esophagus,US,base,ramp_steepness,,1.08,,logistic k,"Enhertu's own launch, fitted: its CMS Part B beneficiaries went 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024, and a logistic of k=1.08 with a midpoint at 2.2 years reproduces those four steps. It is the oncology curve this book did not have, sitting between the obesity k of 1.402 read off Mounjaro and the cardiovascular 0.657 off Leqvio",""
+AZN,Sonesitatug vedotin,Adenocarcinoma Of Esophagus,US,base,ramp_midpoint_year,,2.2,,years from the forecast start,"Enhertu's own launch, fitted: its CMS Part B beneficiaries went 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024, and a logistic of k=1.08 with a midpoint at 2.2 years reproduces those four steps. It is the oncology curve this book did not have, sitting between the obesity k of 1.402 read off Mounjaro and the cardiovascular 0.657 off Leqvio",""
+AZN,Sonesitatug vedotin,Adenocarcinoma Of Esophagus,US,base,penetration_peak_pct,,0.3,,share of the untreated pool per year,"a share of the pool defined above, set against what the molecule has to displace","a third of the untreated pool a year, the highest here, because the pool is already narrowed to the biomarker the drug targets and there is little else for those patients"
