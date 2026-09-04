@@ -382,3 +382,41 @@ def test_a_numbered_code_survives_the_cleaning():
     # Stripping digits collapsed a company's whole numbered series into one programme.
     assert tm.canonical("BAY 3547922") == "bay 3547922"
     assert tm.canonical("LOXO-435") == "loxo 435"
+
+
+def test_a_strength_written_as_a_ratio_is_not_a_compound():
+    """AstraZeneca's inhalers arrive from the registry as "BGF MDI 320/14.4/9.6 ug", one
+    spelling per strength. The unit list knew mg and ug but not the micro sign, and knew
+    a single dose but not a ratio, so five inhaler strengths counted as five assets."""
+    from trial_mapping import canonical
+
+    assert canonical("BGF MDI 320/14.4/9.6 μg") == canonical("BGF MDI")
+    assert canonical("Glycopyrronium bromide 25ug") == canonical("Glycopyrronium bromide")
+    assert canonical("Iptcaopan 200 mg") == canonical("Iptcaopan")
+
+
+def test_a_numbered_dose_regimen_is_the_study_labelling_its_arms():
+    from trial_mapping import NOT_A_COMPOUND, normalise
+
+    assert NOT_A_COMPOUND.search(normalise("Tozorakimab Dose Regimen 1"))
+    assert NOT_A_COMPOUND.search(normalise("BNT327 Dose Level 1"))
+    assert not NOT_A_COMPOUND.search(normalise("Tozorakimab"))
+
+
+def test_a_molecule_named_with_its_chemotherapy_is_a_regimen():
+    """"Durvalumab + Chemotherapy" names what durvalumab was given alongside. Durvalumab
+    already has a row; this made a second programme out of the protocol's shorthand. The
+    test is on the canonical key, because normalising drops the plus that joins them."""
+    from trial_mapping import REGIMEN_WORDS, canonical
+
+    assert REGIMEN_WORDS.search(canonical("Durvalumab + Chemotherapy"))
+    assert REGIMEN_WORDS.search(canonical("Osimertinib+cisplatin or carboplatin"))
+    assert not REGIMEN_WORDS.search(canonical("Durvalumab"))
+    assert not REGIMEN_WORDS.search(canonical("Nivolumab + Relatlimab"))
+
+
+def test_a_delivery_device_is_formulation_not_molecule():
+    from trial_mapping import canonical
+
+    assert canonical("Rimegepant 75 mg ODT") == canonical("Rimegepant")
+    assert canonical("PDS Implant with Ranibizumab") == canonical("PDS with Ranibizumab")

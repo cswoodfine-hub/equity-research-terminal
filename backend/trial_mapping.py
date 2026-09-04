@@ -56,7 +56,21 @@ NOT_A_COMPOUND = re.compile(
     r"\bplacebo\b|\bsham\b|\bvehicle\b"
     r"|^(saline|comparator|control|standard of care|soc"
     r"|rescue medication|rescue medications|best supportive care"
-    r"|normal saline|dextrose|water|diluent|no intervention|observation)\b")
+    r"|normal saline|dextrose|water|diluent|no intervention|observation)\b"
+    # A numbered dose regimen is the study's own labelling of its arms, not a compound:
+    # "Tozorakimab Dose Regimen 1" and "Tozorakimab Dose Regimen 2" are one programme.
+    r"|\bdose (regimen|level|cohort|escalation)\b"
+    )
+
+# Words that make a name a regimen rather than a molecule. Tested against the canonical
+# key, not the raw name, because normalising drops the "+" that joins them: "Durvalumab +
+# Chemotherapy" arrives here as "durvalumab chemotherapy". The molecule in such a name
+# already has a row of its own, and taking the whole string made a second programme out
+# of the protocol's shorthand for what it was given alongside.
+REGIMEN_WORDS = re.compile(
+    r"\b(chemotherapy|chemo|chemoradiation|radiotherapy|soc|rchop|chop|"
+    r"carboplatin|cisplatin|paclitaxel|docetaxel|pemetrexed|rituximab|"
+    r"lenalidomide|dexamethasone|bortezomib|fulvestrant)\b")
 
 # Route, formulation and strength words. The registry names the same molecule a dozen
 # ways, once per arm: "Oral Lenacapavir", "Lenacapavir Injection", "Subcutaneous (SC)
@@ -65,6 +79,9 @@ NOT_A_COMPOUND = re.compile(
 FORM_WORDS = {
     "oral", "orally", "injection", "injectable", "injections", "tablet", "tablets",
     "capsule", "capsules", "infusion", "iv", "intravenous", "intravenously",
+    # Delivery devices, which name how a dose is given rather than what is in it.
+    "mdi", "dpi", "hfo", "aerosphere", "autoinjector", "pen", "vial", "syringe",
+    "prefilled", "implant", "odt", "nebulized", "nebulised",
     "subcutaneous", "subcutaneously", "sc", "im", "intramuscular", "solution",
     "suspension", "cream", "gel", "patch", "inhaled", "inhalation", "topical",
     "ophthalmic", "spray", "powder", "sachet", "syrup", "drops", "prefilled",
@@ -112,8 +129,16 @@ def canonical(raw: str) -> str:
     # is usually half a compound's name, so removing every digit turned LOXO-435 into
     # "loxo" and BAY 3547922 into "bay", collapsing a company's whole numbered series
     # into one programme.
-    text = re.sub(r"\b\d+(?:\.\d+)?\s*(?:mg|mcg|ug|g|ml|l|iu|kg|%)\b", " ", text,
+    # A strength written as a ratio names a fixed-dose combination's arm rather than a
+    # molecule: "BGF MDI 320/14.4/9.6 ug" is one inhaler at one strength, not a compound
+    # called BGF MDI 320. The ratio goes before the dose, since it carries the unit.
+    text = re.sub(r"\b\d+(?:\.\d+)?(?:\s*/\s*\d+(?:\.\d+)?)+\s*"
+                  r"(?:mg|mcg|ug|\u00b5g|\u03bcg|g|ml|l|iu|kg|%)?\b", " ", text,
                   flags=re.IGNORECASE)
+    # The micro sign and the Greek mu are both used for micrograms and neither was in
+    # this list, so "Glycopyrronium bromide 25ug" lost its dose and "25 \u03bcg" kept it.
+    text = re.sub(r"\b\d+(?:\.\d+)?\s*(?:mg|mcg|ug|\u00b5g|\u03bcg|g|ml|l|iu|kg|%)\b",
+                  " ", text, flags=re.IGNORECASE)
     words = [w for w in normalise(text).split()
              if w not in FORM_WORDS and w not in UNIT_WORDS]
     # A trailing single letter labels a variant, not a molecule: "Evolocumab Drug
@@ -263,7 +288,8 @@ def derive_pipeline_assets(db_path=None) -> dict:
         groups: dict = {}
         for row in rows:
             key = canonical(row["name"])
-            if not key or NOT_A_COMPOUND.search(normalise(row["name"])):
+            if (not key or NOT_A_COMPOUND.search(normalise(row["name"]))
+                    or REGIMEN_WORDS.search(key)):
                 continue                       # study design, not a compound
             entry = groups.setdefault(key, {"names": set(), "sponsors": set(),
                                             "trials": set()})
@@ -404,3 +430,103 @@ def map_trials(db_path=None) -> dict:
             "mapped": mapped, "total": total,
             "unmapped": total - mapped, "curated": len(overrides),
             "no_interventions": no_interventions}
+
+
+def prune_arms(db_path=None, dry_run: bool = False) -> dict:
+    """Retire asset rows that are a study's arm rather than a compound.
+
+    The rules above decide what a name means, and they have grown as the registry showed
+    what it contains. Rows created under the older, looser rules are still here: a dose
+    in micrograms the unit list did not know, a fixed-dose strength written as a ratio,
+    a numbered dose regimen, a molecule named with the chemotherapy it was given
+    alongside. Each became its own programme, so AstraZeneca's pipeline counted five
+    inhaler strengths as five assets.
+
+    Only rows anchored by nothing are considered. An approval, a revenue figure, an
+    assumption or an exclusivity means something outside the registry vouches for the
+    asset, and none of those is overruled by a name.
+
+    Two outcomes, and no third. Where the name now canonicalises onto another asset of
+    the same company, the trials move to it and the arm goes, because they are one
+    programme spelled twice. Where it canonicalises onto nothing, the arm goes and its
+    trials keep their own records and lose the mapping, which is what this module already
+    does with a trial mapped to the wrong row.
+    """
+    import db as db_module
+
+    conn = db_module.get_connection(db_path)
+    merged = retired = 0
+    moved_trials = 0
+    detail = []
+    try:
+        loose = conn.execute(
+            """
+            SELECT a.id, a.owner_company_id,
+                   COALESCE(a.brand_name, a.generic_name, a.internal_code) AS name
+              FROM assets a
+             WHERE NOT EXISTS (SELECT 1 FROM approvals x WHERE x.asset_id = a.id)
+               AND NOT EXISTS (SELECT 1 FROM asset_revenue x WHERE x.asset_id = a.id)
+               AND NOT EXISTS (SELECT 1 FROM assumptions x WHERE x.asset_id = a.id)
+               AND NOT EXISTS (SELECT 1 FROM exclusivities x WHERE x.asset_id = a.id)
+            """).fetchall()
+        # Every asset's canonical key, so an arm can find the programme it belongs to.
+        keys = {}
+        for row in conn.execute(
+                "SELECT id, owner_company_id, brand_name, generic_name, internal_code"
+                "  FROM assets"):
+            for spelling in (row["brand_name"], row["generic_name"],
+                             row["internal_code"]):
+                key = canonical(spelling or "")
+                if key:
+                    keys.setdefault((row["owner_company_id"], key), row["id"])
+
+        for row in loose:
+            name = row["name"] or ""
+            key = canonical(name)
+            rejected = (not key or NOT_A_COMPOUND.search(normalise(name))
+                        or REGIMEN_WORDS.search(key))
+            target = keys.get((row["owner_company_id"], key)) if key else None
+            if target == row["id"]:
+                target = None
+            if not rejected and target is None:
+                continue                       # a compound this module still recognises
+            if target is not None:
+                n = conn.execute(
+                    "UPDATE trials SET asset_id = ? WHERE asset_id = ?",
+                    (target, row["id"])).rowcount
+                moved_trials += n
+                merged += 1
+                detail.append((name, "merged", n))
+            else:
+                retired += 1
+                detail.append((name, "retired", 0))
+            for table, nullable in _arm_tables(conn):
+                if nullable:
+                    conn.execute(
+                        f"UPDATE {table} SET asset_id = NULL WHERE asset_id = ?",
+                        (row["id"],))
+                else:
+                    conn.execute(f"DELETE FROM {table} WHERE asset_id = ?", (row["id"],))
+            conn.execute("DELETE FROM assets WHERE id = ?", (row["id"],))
+        if dry_run:
+            conn.rollback()
+        else:
+            conn.commit()
+    finally:
+        conn.close()
+    return {"merged": merged, "retired": retired, "trials_moved": moved_trials,
+            "detail": detail}
+
+
+def _arm_tables(conn) -> list:
+    """(table, whether asset_id may be null) for every table keyed on an asset."""
+    out = []
+    for name in [r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'")]:
+        if not any(fk[2] == "assets" and fk[3] == "asset_id"
+                   for fk in conn.execute(f'PRAGMA foreign_key_list("{name}")')):
+            continue
+        nullable = not any(c[1] == "asset_id" and c[3]
+                           for c in conn.execute(f'PRAGMA table_info("{name}")'))
+        out.append((name, nullable))
+    return out
