@@ -92,6 +92,39 @@ def residual(products, company_revenue) -> float | None:
     return gap if gap > 0 else None
 
 
+# A remainder smaller than this share of revenue is rounding, not a fact about the
+# company, and drawing it puts a label on the legend for a quarter of a percent.
+SLIVER = 0.0025
+
+
+def line_slices(lines, rest, fiscal_year, reported_total):
+    """(named, remainder, overshoot) for the revenue no product carries.
+
+    ``rest`` is what :func:`residual` returned, so it is None when the tagged products
+    already exceed reported revenue. That happens, it is a double count rather than a
+    negative wedge, and nothing here may compare it with a number.
+
+    Where the company reports the gap as a line and the app carries that line, the wedge
+    has a name. A third of Johnson & Johnson is MedTech, and calling it "not attributed"
+    said the app did not know what it plainly did. Only lines whose base year is the year
+    on the chart are used, because the chart is one fiscal year.
+
+    Lines worth more than the gap are refused as a set rather than trimmed: an overshoot
+    means a line is counting a product the chart already draws, and the caller says so.
+    """
+    if not rest or rest <= 0:
+        return [], 0.0, 0.0
+    named = [ln for ln in (lines or [])
+             if ln.get("value") and ln.get("base_year") == fiscal_year]
+    total = sum(ln["value"] for ln in named)
+    if total > rest:
+        return [], rest, total - rest
+    remainder = rest - total
+    if remainder <= (reported_total or 0) * SLIVER:
+        remainder = 0.0
+    return named, remainder, 0.0
+
+
 def render(products, currency: str | None = None, fiscal_year=None,
            company_revenue: float | None = None) -> str:
     """SVG for the revenue mix, or "" when there is nothing to draw."""

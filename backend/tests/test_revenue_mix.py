@@ -157,3 +157,61 @@ def test_a_singular_tail_reads_singular():
                          ("E", 4e9), ("F", 3e9), ("G", 2e9))
     svg = revenue_mix.render(products, "USD")
     assert "1 smaller product<" in svg
+
+
+# --- naming the money no product carries ----------------------------------
+
+def _line(name, value, year=2025):
+    return {"line": name, "value": value, "base_year": year}
+
+
+def test_a_line_matching_the_year_names_the_wedge():
+    named, remainder, over = revenue_mix.line_slices(
+        [_line("MedTech", 30.48e9), _line("Innovative Medicine other", 3.01e9)],
+        33.49e9, 2025, 94.19e9)
+    assert [n["line"] for n in named] == ["MedTech", "Innovative Medicine other"]
+    assert remainder == 0.0 and over == 0.0
+
+
+def test_a_gap_the_lines_do_not_cover_keeps_its_grey_wedge():
+    """GSK carries one line against eight billion of unattributed revenue. Naming the
+    part it knows must not imply it knows the rest."""
+    named, remainder, over = revenue_mix.line_slices(
+        [_line("Seretide/Advair", 1.16e9)], 8.47e9, 2025, 44.2e9)
+    assert len(named) == 1
+    assert round(remainder / 1e9, 2) == 7.31
+    assert over == 0.0
+
+
+def test_a_residual_of_none_draws_nothing_and_does_not_compare():
+    """Novo's tagged products exceed its reported revenue, so residual() returns None.
+    That is a double count to fix in the data, not a wedge, and an ordering comparison
+    against None would take the whole tab down."""
+    named, remainder, over = revenue_mix.line_slices(
+        [_line("Rare blood disorders not broken out", 0.12e9)], None, 2025, 48.0e9)
+    assert (named, remainder, over) == ([], 0.0, 0.0)
+
+
+def test_lines_worth_more_than_the_gap_are_refused_as_a_set():
+    """A line bigger than the gap is counting a product the chart already draws. Better
+    to fall back to the one grey wedge and say so than to draw a wrong split."""
+    named, remainder, over = revenue_mix.line_slices(
+        [_line("Everything", 40e9)], 33.49e9, 2025, 94.19e9)
+    assert named == []
+    assert remainder == 33.49e9
+    assert round(over / 1e9, 2) == 6.51
+
+
+def test_a_line_from_another_year_is_not_drawn_on_this_one():
+    named, remainder, _ = revenue_mix.line_slices(
+        [_line("MedTech", 30.48e9, year=2024)], 33.49e9, 2025, 94.19e9)
+    assert named == []
+    assert remainder == 33.49e9
+
+
+def test_a_rounding_sliver_is_not_given_a_label():
+    """Regeneron's five lines land within a quarter of a percent of the gap. A wedge for
+    that is a label on the legend for arithmetic, not for revenue."""
+    _, remainder, _ = revenue_mix.line_slices(
+        [_line("Sanofi collaboration", 8.01e9)], 8.04e9, 2025, 16.0e9)
+    assert remainder == 0.0

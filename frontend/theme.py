@@ -635,7 +635,7 @@ h3 {{ font-size: 0.9rem; }}
           border-bottom: 1px solid var(--rule-strong); padding-bottom: 2px; }}
 .prog-h span {{ font-family: var(--font-mono); }}
 .prog {{ border-bottom: 1px solid var(--rule); }}
-.prog > summary {{ display: grid; grid-template-columns: 1fr 170px 74px 84px;
+.prog > summary {{ display: grid; grid-template-columns: 1fr 170px 74px 84px 76px;
                   gap: 0.7rem; align-items: baseline; font-size: 11.5px;
                   padding: 3px 2px; cursor: pointer; list-style: none; }}
 .prog-a {{ font-size: 9.5px; color: var(--muted); white-space: nowrap;
@@ -647,6 +647,11 @@ h3 {{ font-size: 0.9rem; }}
 .prog[open] .prog-n {{ color: var(--up); }}
 .prog-t, .prog-d {{ font-family: var(--font-mono); color: var(--muted);
                    text-align: right; }}
+/* What the compound is worth a share, where the forecast reaches it. Bright, because
+   it is the only number in the row that is a view rather than a fact; muted where the
+   model refused the asset or ran it on a placeholder curve and does not count it. */
+.prog-v {{ font-family: var(--font-mono); text-align: right; color: var(--text); }}
+.prog-v.off {{ color: var(--muted); }}
 /* The studies behind one compound. */
 .prog-s {{ display: grid; grid-template-columns: 74px 62px 1fr auto; gap: 0.6rem;
           align-items: baseline; font-size: 10.5px; line-height: 1.3;

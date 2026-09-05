@@ -59,6 +59,37 @@ def load(conn, company_id: int, scenario: str = "base") -> list[dict]:
     return list(lines.values())
 
 
+def reported(conn, company_id: int, scenario: str = "base") -> list[dict]:
+    """What each line says it earned, and the year it earned it in.
+
+    The forecast reads these lines as streams. The portfolio does not: it shows reported
+    revenue for one fiscal year, and until this existed it could only show the money no
+    product carried as a single anonymous wedge. The wedge is not anonymous any more, and
+    naming it is the whole point of writing the lines down.
+
+    ``base_revenue`` is the last completed year, which is the year before the forecast
+    starts. A line with no start year cannot be placed against a fiscal year, so it is
+    returned with ``base_year`` None and the caller leaves it out rather than guessing.
+    """
+    detail = {}
+    for row in rows(conn, company_id, "base") + (
+            rows(conn, company_id, scenario) if scenario != "base" else []):
+        detail[(row["line"], row["key"])] = row
+    out = []
+    for entry in load(conn, company_id, scenario):
+        base = entry["scalars"].get("base_revenue")
+        if base is None:
+            continue
+        start = entry["scalars"].get("forecast_start_year")
+        source = detail.get((entry["line"], "base_revenue"))
+        out.append({"line": entry["line"], "base_revenue": base,
+                    "base_year": int(start) - 1 if start else None,
+                    "unit": (source or {}).get("unit"),
+                    "source": (source or {}).get("source"),
+                    "note": (source or {}).get("note")})
+    return sorted(out, key=lambda r: -r["base_revenue"])
+
+
 def build(entry: dict) -> dict:
     """The engine's result for one line, or {"ok": False, "missing": [...]}."""
     try:

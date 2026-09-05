@@ -160,3 +160,64 @@ def test_seeds_bootstrap_and_never_overwrite(tmp_path):
     assert by_line["Royalties"] == 500                # the row on file wins
     assert by_line["Milestones"] == 40
     conn.close()
+
+
+# --- what a line reports, for the portfolio rather than the forecast -------
+
+def test_reported_names_the_line_and_the_year_it_earned_in(tmp_path):
+    """The portfolio shows one fiscal year of reported revenue. A line's base_revenue is
+    the last completed year, which is the year before the forecast starts, and without
+    that year the mix cannot know whether the line belongs on the chart it is drawing."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    out = company_lines.reported(conn, 1)
+    conn.close()
+    assert [(r["line"], r["base_revenue"], r["base_year"]) for r in out] == [
+        ("Royalties", 500, 2025)]
+
+
+def test_reported_carries_the_source_so_the_wedge_can_be_checked(tmp_path):
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    out = company_lines.reported(conn, 1)
+    conn.close()
+    assert out[0]["source"] == "test"
+
+
+def test_a_line_with_no_base_revenue_is_left_out(tmp_path):
+    """A line seeded with margins and no base is not revenue, and drawing it as a wedge
+    would invent one."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    company_lines.save(conn, 1, "Empty", [{"key": "wacc", "value": 0.08,
+                                           "source": "test"}])
+    conn.commit()
+    out = company_lines.reported(conn, 1)
+    conn.close()
+    assert [r["line"] for r in out] == ["Royalties"]
+
+
+def test_a_line_with_no_start_year_reports_no_year(tmp_path):
+    """Returned, but with base_year None, so the caller leaves it off a dated chart
+    rather than guessing which year it belongs to."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("DELETE FROM company_lines WHERE key = 'forecast_start_year'")
+    conn.commit()
+    out = company_lines.reported(conn, 1)
+    conn.close()
+    assert out[0]["base_year"] is None
+
+
+def test_reported_lines_come_back_largest_first(tmp_path):
+    """The mix draws them in order, and a legend that jumps around between refreshes
+    reads as instability in the data rather than in the sort."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    company_lines.save(conn, 1, "Bigger", [
+        {"key": "base_revenue", "value": 900, "source": "test"},
+        {"key": "forecast_start_year", "value": 2026, "source": "test"}])
+    conn.commit()
+    out = company_lines.reported(conn, 1)
+    conn.close()
+    assert [r["line"] for r in out] == ["Bigger", "Royalties"]

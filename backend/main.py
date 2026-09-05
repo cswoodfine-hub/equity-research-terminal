@@ -20,6 +20,7 @@ import asof as asof_module
 import backtest as backtest_module
 import asset_revenue as asset_revenue_module
 import catalyst_grid as catalyst_grid_module
+import company_lines as company_lines_module
 import catalysts as catalysts_module
 import cashflow as cashflow_module
 import comps as comps_module
@@ -760,8 +761,28 @@ def company_asset_revenue(ticker: str) -> dict:
         if total.get("unit") and total["unit"] != "USD":
             total["value"] = fx_module.to_usd(total["value"], total["unit"], rates)
             total["unit"] = "USD" if total["value"] is not None else total["reported_unit"]
+    # The lines the company reports that no product carries, so the mix can name the
+    # money instead of drawing one anonymous wedge for it. Read straight from the table,
+    # not through the forecast engine: this is reported revenue, not a valuation.
+    conn = db.get_connection()
+    try:
+        company = conn.execute(
+            "SELECT id FROM companies WHERE ticker = ?", (ticker,)).fetchone()
+        lines = (company_lines_module.reported(conn, company["id"]) if company else [])
+    finally:
+        conn.close()
+    # A line is seeded in millions of the filing's own currency ("mm GBP"), and the
+    # products beside it are absolute and converted. Put the two on one scale here, by
+    # the same rule the rows above follow: no rate means no converted value.
+    for line in lines:
+        line["reported_value"], line["reported_unit"] = line["base_revenue"], line["unit"]
+        currency = (line["unit"] or "").split()[-1].upper() if line["unit"] else "USD"
+        absolute = line["base_revenue"] * 1e6
+        line["value"] = (absolute if currency == "USD"
+                         else fx_module.to_usd(absolute, currency, rates))
+        line["unit"] = "USD" if line["value"] is not None else line["reported_unit"]
     return {"ticker": ticker, "rows": rows, "company_revenue": totals,
-            "fx_as_of": rates.get("as_of")}
+            "lines": lines, "fx_as_of": rates.get("as_of")}
 
 
 class AssetRevenueIn(BaseModel):

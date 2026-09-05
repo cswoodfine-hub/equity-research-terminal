@@ -3930,6 +3930,47 @@ with main:
         # trials sit in; phase matches the furthest it has reached, which is the heading
         # it sits under. What the filter left shows in the section count, so clicking a
         # pill adds no line of its own.
+        # What each compound is worth, so the pipeline reads as a book of value and not
+        # only a list of studies. The forecast tab already computes this; without it here
+        # a compound modelled at two dollars a share and one nobody has valued look the
+        # same, which is the opposite of what the list is for. Cached for thirty seconds
+        # like every other call, so opening both tabs computes it once. A forecast that
+        # cannot be built must never take the pipeline down with it.
+        try:
+            _v = api_get(api_base, f"/companies/{ticker}/forecast-verdict")
+        except Exception:
+            _v = {}
+        _shares = _v.get("diluted_shares") or 0
+        valued = {m["asset_id"]: m.get("per_share")
+                  for m in (_v.get("modelled") or []) if m.get("asset_id")}
+        # Shown and not counted: the engine ran it on a placeholder curve, so the figure
+        # exists but the company total deliberately excludes it. Marked, never hidden.
+        held = {m["asset_id"]: (m.get("rnpv_share") or 0) * 1e6 / _shares if _shares
+                else None for m in (_v.get("placeholders") or []) if m.get("asset_id")}
+        blocked = {m["asset_id"]: (m.get("missing") or [])
+                   for m in (_v.get("refused") or []) if m.get("asset_id")}
+
+        def _value_cell(asset_id) -> str:
+            """The rightmost column: what the compound is worth a share, or why not.
+
+            Four states, and the difference between the last two is the point. "no
+            forecast" means nobody has written the assumptions. The refused row means
+            they were written, the engine read them and stopped on a named gap, which is
+            a piece of work with a next step attached rather than an absence.
+            """
+            if asset_id in valued:
+                return (f'<span class="prog-v" title="rNPV a share, counted in the '
+                        f'company total">{T.num(valued[asset_id] or 0, 2)}</span>')
+            if asset_id in held:
+                figure = T.num(held[asset_id] or 0, 2) if held[asset_id] else "held"
+                return (f'<span class="prog-v off" title="built on a placeholder curve, '
+                        f'so it is shown and not counted">{figure} *</span>')
+            if asset_id in blocked:
+                want = ", ".join(str(x) for x in blocked[asset_id][:6]) or "inputs"
+                return (f'<span class="prog-v off" title="the engine stopped on: '
+                        f'{html_escape(want)}">needs</span>')
+            return '<span class="prog-v off" title="no assumptions on file">&mdash;</span>'
+
         total_programmes = len(programmes)
         if area_pick:
             programmes = [p for p in programmes
@@ -3949,8 +3990,14 @@ with main:
         count = (f"{len(programmes)} of {total_programmes} compounds"
                  if len(programmes) != total_programmes
                  else f"{total_programmes} compounds")
+        # The value of what is shown, not of the whole pipeline, so the figure agrees
+        # with the rows under it when a pill is filtering the list.
+        _shown_value = sum(valued.get(p.get("asset_id")) or 0 for p in programmes)
+        _shown_n = sum(1 for p in programmes if valued.get(p.get("asset_id")))
+        value_txt = (f" · {_shown_n} valued at {T.num(_shown_value, 2)} a share"
+                     if _shown_n else "")
         section("Programmes in development",
-                count + (f" · {shown_counts}" if shown_counts else ""))
+                count + (f" · {shown_counts}" if shown_counts else "") + value_txt)
 
         # Grouped by the furthest phase each compound has reached, most advanced first,
         # and every phase is shown: early work is most of a pipeline by count, and a
@@ -4019,6 +4066,7 @@ with main:
                         f'{"filing" if p.get("source") == "filing" else str(p.get("trials", 0)) + " trials"}'
                         f'</span>'
                         f'<span class="prog-d">{html_escape(due or "no date")}</span>'
+                        f'{_value_cell(p.get("asset_id"))}'
                         f'</summary>{"".join(studies)}</details>')
             html.append("</div>")
             st.markdown("".join(html), unsafe_allow_html=True)
@@ -4034,7 +4082,12 @@ with main:
                 'mention. Below the phases sit the programmes the company describes in '
                 'its own filing and the registry has never seen, at the stage the filing '
                 'states and never at a phase, each opening onto the sentence it was read '
-                'from.</div>', unsafe_allow_html=True)
+                'from. The last column is what the compound is worth a share on the '
+                'forecast tab: a figure where the engine builds it, "needs" where it '
+                'read the assumptions and stopped on a gap the tooltip names, a starred '
+                'figure where it ran on a placeholder curve and is shown without being '
+                'counted, and a dash where no assumptions are on file at all.</div>',
+                unsafe_allow_html=True)
 
 
     # --- Portfolio -------------------------------------------------------
@@ -4162,10 +4215,23 @@ with main:
                             slices.append({"label": f"{len(mix_tail)} smaller products",
                                            "value": sum(p["value"] for p in mix_tail),
                                            "colour": TK.RULE_STRONG, "muted": True})
+                        # The money no product carries used to be one anonymous wedge.
+                        # Where the company reports it as a line and the app carries that
+                        # line, it has a name, and the name is worth more than the grey.
+                        # The composition is in revenue_mix, which is pure and tested;
+                        # this is only the colouring.
                         rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
-                        if rest:
+                        named_lines, remainder, over = revenue_mix.line_slices(
+                            revenue_payload.get("lines"), rest, mix_year,
+                            mix_reported.get("value"))
+                        named_lines = [{"label": ln["line"], "value": ln["value"],
+                                        "colour": TK.MUTED, "muted": True}
+                                       for ln in named_lines]
+                        slices.extend(named_lines)
+                        if remainder:
                             slices.append({"label": "not attributed by product",
-                                           "value": rest, "colour": TK.PANEL, "muted": True})
+                                           "value": remainder, "colour": TK.PANEL,
+                                           "muted": True})
                         # The same revenue twice: by product, and by the disease the label says
                         # each product treats. One says which drugs carry the company, the other
                         # says which franchise does, and a portfolio held in one area reads very
@@ -4201,9 +4267,13 @@ with main:
                                         else area_colour[area]),
                              "muted": area == "area not stated"}
                             for area in area_order]
-                        if rest:
+                        # A segment line has no disease area, so it lands here under its
+                        # own name too. "MedTech" is a truer answer to which area carries
+                        # the revenue than "not attributed" was.
+                        area_slices.extend(named_lines)
+                        if remainder:
                             area_slices.append({"label": "not attributed by product",
-                                                "value": rest, "colour": TK.PANEL,
+                                                "value": remainder, "colour": TK.PANEL,
                                                 "muted": True})
 
                         # The same total in both centres, because it is the same revenue cut
@@ -4228,6 +4298,21 @@ with main:
                                 centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
                                 value_fmt=lambda v: T.num(v / 1e9, 2)),
                                 css_class="chart-mount mix-donut")
+                        if named_lines:
+                            note("The grey wedges are revenue the company reports as a "
+                                 "line rather than a product: "
+                                 + ", ".join(f"{sl['label']} at "
+                                             f"{T.num(sl['value'] / 1e9, 2)}bn"
+                                             for sl in named_lines)
+                                 + ". They are carried in the forecast as streams, which "
+                                   "is why the model reconciles to the reported total "
+                                   "rather than to the products alone.")
+                        if over:
+                            note(f"The lines on file come to {T.num(over / 1e9, 2)}bn more "
+                                 "than the revenue no product carries, so they are drawn "
+                                 "as one wedge instead of by name. A line worth more than "
+                                 "the gap is counting a product twice, which is a defect "
+                                 "in the line rather than in the chart.")
 
                     # Loss of exclusivity by year. Two cuts of the same expiries. The count
                     # cliff shows every product with a published expiry, so nothing is hidden by
