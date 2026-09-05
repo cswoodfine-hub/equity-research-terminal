@@ -1,0 +1,26 @@
+# Talvey (JNJ). 463mm USD in FY2025.
+#
+# Marketed, anchored on the reported year and grown against the same product axis a
+# year earlier, both from the SEC financial statement data sets.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+JNJ,Talvey,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+JNJ,Talvey,,US,base,base_revenue,,463.0,,mm USD,"JNJ FY2025 reported product revenue, from the annual report product axis (sec_fsds)",the anchor
+JNJ,Talvey,,US,base,revenue_growth_pct,,0.61324,,"annual, near term",JNJ FY2025 product axis (sec_fsds): $463mm in FY2025 against $287mm in FY2024,"the quarter against the same quarter a year before, which is the most recent comparison this filer states"
+JNJ,Talvey,,US,base,revenue_ceiling_musd,,1200,,mm USD,"the later-line share of the same 36,110 US myeloma diagnoses, about 14,400, at the $104,377 a beneficiary Talvey cost Medicare on Part B in 2024","a third of that group is the input. Talvey is a GPRC5D bispecific used after BCMA therapy, so its population is the one Carvykti and Tecvayli have already been through"
+JNJ,Talvey,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+JNJ,Talvey,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+JNJ,Talvey,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+JNJ,Talvey,,US,base,forecast_years,,15,,years,set to run past the 2035 loss of exclusivity,
+JNJ,Talvey,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+JNJ,Talvey,,US,base,cogs_pct,,0.3212,,share of revenue,"JNJ FY2025, from the filed lines",
+JNJ,Talvey,,US,base,sga_pct,,0.2514,,share of revenue,"JNJ FY2025, from the filed lines",
+JNJ,Talvey,,US,base,rd_pct,,0.1557,,share of revenue,"JNJ FY2025, from the filed lines",
+JNJ,Talvey,,US,base,other_costs_pct,,0.021102,,share of revenue,derived: JNJ turned 21.57% of revenue into free cash over 2023 to 2025 against the 23.4% its filed expense lines leave,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+JNJ,Talvey,,US,base,tax_rate,,0.1395,,effective rate,"aggregate effective rate over the 5 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
+JNJ,Talvey,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+JNJ,Talvey,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+JNJ,Talvey,,US,base,beta,,0.47,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.20 raw)",
+JNJ,Talvey,,US,base,cost_of_debt,,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+JNJ,Talvey,,US,base,debt_weight,,0.068326,,,"filed TotalDebt of 49,036mm USD at 2026-06-28 over debt plus market capitalisation",

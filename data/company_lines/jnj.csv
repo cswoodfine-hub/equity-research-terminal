@@ -1,0 +1,27 @@
+# Johnson & Johnson's MedTech segment, which no asset row can hold.
+#
+# The company is organised into two segments and says so in the first line of its 10-K:
+# Innovative Medicine and MedTech. MedTech is orthopaedics, surgery, cardiovascular and
+# vision, and at $33,792mm it is a third of the company. Every drug on file belongs to the
+# other segment, so the model covered 59% of the revenue and there was nothing wrong with
+# the drugs: the missing third was never going to be one.
+#
+# Carried at what the company reports for it, grown at the rate the company reports for it.
+ticker,line,scenario,key,value,text_value,unit,source,note
+JNJ,MedTech,base,base_revenue,33792.0,,mm USD,"Johnson & Johnson's own supplementary sales data in the Q4 2025 8-K exhibit (0000200406-26-000002): MedTech sold $33,792mm in 2025 against $31,857mm in 2024, which the same table states as +6.1%. Innovative Medicine, the other segment, was $60,401mm, and the two make the $94,193mm worldwide total","orthopaedics, surgery, cardiovascular and vision. A third of the company and not a drug in it, so no asset row could ever carry this and the model read 59% of Johnson & Johnson"
+JNJ,MedTech,base,revenue_growth_pct,0.0608,,annual, near term,"Johnson & Johnson's own supplementary sales data in the Q4 2025 8-K exhibit (0000200406-26-000002): MedTech sold $33,792mm in 2025 against $31,857mm in 2024, which the same table states as +6.1%. Innovative Medicine, the other segment, was $60,401mm, and the two make the $94,193mm worldwide total","the segment's own reported growth, 33,792 over 31,857"
+JNJ,MedTech,base,terminal_growth_pct,0.0,,annual, long run,"the engine's terminal value is a zero-growth perpetuity","faded to flat"
+JNJ,MedTech,base,growth_fade_years,5,,years,"convention: a recent rate describes next year",""
+JNJ,MedTech,base,forecast_start_year,2026,,year,"the year after the last reported full year",""
+JNJ,MedTech,base,forecast_years,15,,years,"the horizon Johnson & Johnson's marketed assets carry",""
+JNJ,MedTech,base,pos,1.0,,,"booked revenue","stated, because no development phase applies"
+JNJ,MedTech,base,cogs_pct,0.3212,,share of revenue,"JNJ FY2025, from the filed lines","the company's blended ratios, which already contain MedTech: a device business carries a heavier cost of goods than a drug, and this blend is the closest thing on file to its own"
+JNJ,MedTech,base,sga_pct,0.2514,,share of revenue,"JNJ FY2025, from the filed lines",""
+JNJ,MedTech,base,rd_pct,0.1557,,share of revenue,"JNJ FY2025, from the filed lines","overstated for a device segment, which spends less on research than a pharmaceutical one, and the reason this line's margin should be read as the company's rather than the segment's"
+JNJ,MedTech,base,other_costs_pct,0.021102,,share of revenue,"derived: JNJ's free cash conversion against what its filed expense lines leave",""
+JNJ,MedTech,base,tax_rate,0.141489,,effective rate,"aggregate effective rate over the years to 2025",""
+JNJ,MedTech,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
+JNJ,MedTech,base,erp,0.05,,,"Damodaran US ERP estimate",""
+JNJ,MedTech,base,beta,0.469474,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's"
+JNJ,MedTech,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED)",""
+JNJ,MedTech,base,debt_weight,0.069753,,,"filed TotalDebt over debt plus market capitalisation","the company's"
