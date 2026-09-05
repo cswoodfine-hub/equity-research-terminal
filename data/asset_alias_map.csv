@@ -28,3 +28,5 @@ JNJ,Cilta-cel,Carvykti,"ciltacabtagene autoleucel's short name. Six studies file
 JNJ,14C-bleximenib,Bleximenib,"the carbon-14 label used for the mass balance study. Same compound, not a programme of its own"
 LNTH,Piflufolastat F 18 Intravenous Solution [PYLARIFY],PYLARIFY,"the same product under the name the MD&A prints. Both rows carried $989.1mm for 2025, which on its own put Lantheus $905mm above the revenue it reported"
 UTHR,Nebulized Tyvaso,Tyvaso,"United Therapeutics reports Tyvaso DPI and nebulized Tyvaso as two lines. The nebulized line is Tyvaso itself, which already holds the approval, so tagging it twice counted $587mm that the company books once"
+BMY,Pomalyst Imnovid,Pomalyst,"pomalidomide under both its brands, Pomalyst in the US and Imnovid elsewhere, reported as one line on the product axis"
+BMY,Opdivo Ovantig,Opdivo Qvantig,"the subcutaneous nivolumab. The product axis spells Qvantig with an O and the earnings exhibit with a Q, so the same product arrived twice"

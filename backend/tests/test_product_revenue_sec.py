@@ -196,6 +196,19 @@ def test_a_therapy_area_named_disorders_is_a_grouping():
         assert not is_aggregate(product), product
 
 
+def test_a_mode_of_action_and_a_singular_product_suffix_are_groupings():
+    """Biogen groups by mode of action: Fumarate is Tecfidera and Vumerity, Interferon is
+    Avonex and Plegridy, and each sums to its members exactly. It also files
+    TysabriProductMember beside Tysabri itself, and the vocabulary caught the plural
+    "products" but not the singular, so the brand arrived twice."""
+    from fetchers.product_revenue_sec import is_aggregate
+
+    for grouping in ("Fumarate", "Interferon", "Tysabri Product", "Growth Brand"):
+        assert is_aggregate(grouping), grouping
+    for product in ("Tysabri", "Tecfidera", "Vumerity", "Avonex", "Plegridy"):
+        assert not is_aggregate(product), product
+
+
 def test_a_revenue_type_prefix_is_stripped_from_the_name():
     """Merck reports partnered products as AllianceRevenueLynparza."""
     from fetchers.product_revenue_sec import display_name

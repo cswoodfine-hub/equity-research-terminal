@@ -91,7 +91,7 @@ MEMBER_PREFIXES = ("alliancerevenue", "collaborationrevenue", "productrevenue",
 # Novo's members came to 279% of the company.
 AGGREGATE_PATTERN = re.compile(
     r"^(total|all|other|combined|excluding|including|sales|revenue|net|gross)"
-    r"|(total|portfolio|brands|products|franchise|therapeutics|business|segment"
+    r"|(total|portfolio|brands?|products?|franchise|therapeutics|business|segment"
     r"|group|revenues?|sales|medicines?|care|health|diseases?|disorders?|other)$",
     re.I)
 
@@ -110,6 +110,10 @@ AGGREGATE_WORDS = {
     "polio", "malaria", "biosimilars", "biosimilar", "dermatology", "ophthalmology",
     # Johnson & Johnson reports MedTech by surgical category. These are not drugs and
     # never were, and each was carrying revenue against a name no product answers to.
+    # Biogen groups by mode of action: Fumarate is Tecfidera and Vumerity, Interferon is
+    # Avonex and Plegridy. Each sums to its members exactly, and each was carrying their
+    # revenue a second time.
+    "interferon", "fumarate",
     "advanced", "electrophysiology", "general", "hips", "knees", "trauma", "spine",
     "sports", "contactlenses", "orthopaedics", "orthopedics", "surgery", "vision",
     "wound", "interventional", "cardiovascularsolutions",
