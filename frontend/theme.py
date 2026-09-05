@@ -1004,6 +1004,24 @@ h3 {{ font-size: 0.9rem; }}
 .stTabs [aria-selected="true"] {{ color: var(--text); font-weight: 700; }}
 .stTabs [data-baseweb="tab-highlight"] {{ background: var(--up); height: 2px; }}
 
+/* The forecast tab's own layers. A second tab strip directly under the first reads as
+   a second navigation unless it is quieter than the one above it, so this one is
+   smaller, spaced wider, upper-case like a section rule, and marks the selected layer
+   with the muted rule rather than the accent. It is a table of contents for one page,
+   not a way out of it. */
+.fc-layers + div .stTabs [data-baseweb="tab-list"] {{
+  gap: 1.5rem; border-bottom: 1px solid var(--rule);
+  margin: 0.35rem 0 0.15rem;
+}}
+.fc-layers + div .stTabs [data-baseweb="tab"] {{
+  font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase;
+  font-weight: 600; padding: 0.25rem 0;
+}}
+.fc-layers + div .stTabs [data-baseweb="tab-highlight"] {{
+  background: var(--rule-strong); height: 1px;
+}}
+.fc-layers + div .stTabs [aria-selected="true"] {{ color: var(--text); }}
+
 /* Controls: square, quiet, legible; hover, focus and disabled states. */
 .stButton button {{
   border-radius: var(--radius); border: 1px solid var(--rule-strong);

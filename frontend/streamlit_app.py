@@ -1410,8 +1410,14 @@ def _revenue_build(v: dict) -> None:
         note(". ".join(bits) + ".")
 
 
-def _company_call(api_base: str, ticker: str) -> None:
+def _company_call(api_base: str, ticker: str, part: str = "all") -> None:
     """The frame the per-asset calls sit inside.
+
+    ``part`` splits it in two. "head" is the sentence and the four figures, which is what
+    an analyst needs in front of them the whole time; "detail" is the revenue build and
+    the products the model does not reach, which is worth a look and not worth a screen.
+    The tab draws the head at the top and hangs the detail off a sub-tab, because a page
+    that scrolls three times to reach the sensitivity grid is a page nobody scrolls.
 
     An analyst covers a name, not a compound. This states what the modelled pipeline is
     worth per share and what fraction of the price that explains, and in the same breath
@@ -1435,11 +1441,12 @@ def _company_call(api_base: str, ticker: str) -> None:
     coverage = v.get("coverage") or {}
     counted = [m for m in v.get("modelled") or [] if m.get("counted", True)]
 
-    section(f"{ticker}, all modelled assets",
-            basis=f"{len(counted)} counted of {len(v.get('modelled') or [])} drawn")
-    st.markdown(
-        f'<div class="call-lead">{html_escape(note_body.get("headline") or "")}</div>',
-        unsafe_allow_html=True)
+    if part in ("all", "head"):
+        section(f"{ticker}, all modelled assets",
+                basis=f"{len(counted)} counted of {len(v.get('modelled') or [])} drawn")
+        st.markdown(
+            f'<div class="call-lead">{html_escape(note_body.get("headline") or "")}</div>',
+            unsafe_allow_html=True)
     tiles = [("pipeline per share",
               T.num(v.get("per_share"), 2) if v.get("per_share") else "—", "", None, "",
               "counted assets and lines"),
@@ -1453,7 +1460,10 @@ def _company_call(api_base: str, ticker: str) -> None:
                  else "tagged product rows")
         tiles.append(("revenue covered", T.pct(coverage["share"] * 100, 1), "",
                       None, "", f"of FY{coverage['fiscal_year']} {basis}"))
-    st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+    if part in ("all", "head"):
+        st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+        if part == "head":
+            return
 
     _revenue_build(v)
 
@@ -1469,8 +1479,13 @@ def _company_call(api_base: str, ticker: str) -> None:
 
 
 
-def _the_call(api_base: str, ticker: str, asset_id: int, scenario: str) -> None:
+def _the_call(api_base: str, ticker: str, asset_id: int, scenario: str,
+              part: str = "all") -> None:
     """The top of the tab: what the model says, what it rests on, what settles it.
+
+    Split the same way the company call is. "head" is the sentence and the four figures.
+    "detail" is the scenario range, the ranked levers and the written body, which answer
+    "why" rather than "what" and belong a click away rather than in the way.
 
     Everything below this computes; this is the part an analyst would actually send. The
     rNPV is turned into a per-share figure and set against what the share costs, the
@@ -1490,23 +1505,26 @@ def _the_call(api_base: str, ticker: str, asset_id: int, scenario: str) -> None:
         return
 
     note_body = v.get("note") or {}
-    section("The call", basis=f"{scenario} case")
-    st.markdown(
-        f'<div class="call-lead">{html_escape(note_body.get("headline") or "")}</div>',
-        unsafe_allow_html=True)
+    if part in ("all", "head"):
+        section("The call", basis=f"{scenario} case")
+        st.markdown(
+            f'<div class="call-lead">{html_escape(note_body.get("headline") or "")}</div>',
+            unsafe_allow_html=True)
 
+    # No share price tile: the company head carries it a few lines above, and printing
+    # the same figure twice on one screen spends a tile on nothing.
     tiles = [("per share", T.num(v.get("per_share"), 2), "",
               None, "", "risk-adjusted, this asset only")]
-    if v.get("close"):
-        tiles.append(("share price", T.num(v["close"], 2), "", None, "",
-                      f"close {v.get('close_date') or ''}"))
     if v.get("pct_of_price") is not None:
         tiles.append(("share of price", T.pct(v["pct_of_price"] * 100, 1), "",
                       None, "", "explained by this asset"))
     if v.get("peak_revenue"):
         tiles.append(("peak revenue", T.num(v["peak_revenue"]), "mm", None, "",
                       f"in {v.get('peak_year')}"))
-    st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+    if part in ("all", "head"):
+        st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+        if part == "head":
+            return
 
     left, right = st.columns([1, 1])
     spread = v.get("spread") or {}
@@ -1926,7 +1944,7 @@ def _render_forecast_tab(api_base: str, ticker: str):
     # The company sits above the compound, because that is the unit of coverage. It draws
     # only where something computes, so a name with nothing modelled is not given a
     # heading with nothing under it.
-    _company_call(api_base, ticker)
+    _company_call(api_base, ticker, part="head")
     try:
         overview = api_get(api_base, f"/companies/{ticker}/forecast")
     except (urllib.error.URLError, OSError) as exc:
@@ -2049,8 +2067,11 @@ def _render_forecast_tab(api_base: str, ticker: str):
             if v is not None]
     patients_span = (min(_pat), max(_pat)) if _pat else None
 
-    _the_call(api_base, ticker, sel, scenario)
+    _the_call(api_base, ticker, sel, scenario, part="head")
 
+    # The hero: the revenue line and the valuation beside it. Everything an analyst needs
+    # to hold a view is now above the fold; the layers under it answer a question that
+    # has already been asked rather than sitting in the way of the first one.
     charts_col, facts_col = st.columns([1.25, 1])
     with charts_col:
         section(f"{data['name']} revenue",
@@ -2066,19 +2087,9 @@ def _render_forecast_tab(api_base: str, ticker: str):
             if result["revenue_after_loe"] != result["revenue"]:
                 rev_series.append({"name": "pre-LOE", "values": result["revenue"],
                                    "colour": TK.MUTED})
-        R.show(CH.line_chart(rev_series, x_labels, 620, 240,
+        R.show(CH.line_chart(rev_series, x_labels, 620, 208,
                              y_fmt=lambda v: f"{v:,.0f}", y_span=revenue_span),
                css_class="chart-mount")
-        # A product valued off revenue has no patient curve to draw: marketed and
-        # franchise mode both report a row of nulls rather than a row of numbers, and
-        # every line below multiplies them. The chart is skipped rather than drawn empty.
-        if patients_span is None:
-            note("no patient curve: this product is anchored on revenue rather than "
-                 "built from patients, so the funnel is not rebuilt for it. The price "
-                 "per patient still earns its keep as the implied patient count in the "
-                 "call above.")
-        else:
-            _render_patient_chart(result, years, x_labels, volume_scale, patients_span)
 
     with facts_col:
         section("Valuation", basis="mm USD" + (" · varied" if varied else ""))
@@ -2121,30 +2132,83 @@ def _render_forecast_tab(api_base: str, ticker: str):
                         f'{html_escape(", ".join(unsourced))}</div>',
                         unsafe_allow_html=True)
 
-    if (result.get("curve_basis") or "").startswith("placeholder"):
+    placeholder = (result.get("curve_basis") or "").startswith("placeholder")
+    if placeholder:
         state("Drawn on a placeholder curve, and not counted",
-              "the uptake ceiling and midpoint below are the shaper's probe values, "
-              "5% of the eligible pool at peak and half of it by year four. They exist "
-              "so there is a curve to argue with. This asset is left out of the company "
-              "per-share figure until real values are committed here.")
-        _curve_shaper(api_base, ticker, sel, scenario, [])
+              "the uptake ceiling and midpoint are the shaper's probe values, 5% of the "
+              "eligible pool at peak and half of it by year four. They exist so there is "
+              "a curve to argue with. This asset is left out of the company per-share "
+              "figure until real values are committed, under Uptake below.")
 
-    _pnl_section(result, varied)
+    # Everything under the call is a layer, not a step. Each answers a question the
+    # figures above provoke, and only one is ever being asked at a time, so they share
+    # one screen instead of three: how the patients build, what the range and the levers
+    # say, where the cash goes, what breaks it, what the model does not reach, and the
+    # numbers themselves. The order is the order an analyst asks them in.
+    st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
+    # Only the layers with something in them. A marketed product is anchored on revenue
+    # and has no patient curve to draw, and an empty first tab is worse than no tab: it
+    # is the one the page opens on, so it teaches the reader the layers are empty.
+    has_uptake = (patients_span is not None or placeholder
+                  or result.get("mode") == "franchise")
+    layer_names = (["Uptake"] if has_uptake else []) + [
+        "Range and levers", "P&L", "Sensitivity", "Coverage", "Assumptions"]
+    panels = dict(zip(layer_names, st.tabs(layer_names)))
 
-    if result.get("mode") == "franchise":
-        _share_shaper(api_base, ticker, sel, scenario, result)
+    if has_uptake:
+        with panels["Uptake"]:
+            if patients_span is None:
+                note("no patient curve: this product is anchored on revenue rather than "
+                     "built from patients, so the funnel is not rebuilt for it.")
+            else:
+                _render_patient_chart(result, years, x_labels, volume_scale,
+                                      patients_span)
+            if placeholder:
+                _curve_shaper(api_base, ticker, sel, scenario, [])
+            if result.get("mode") == "franchise":
+                _share_shaper(api_base, ticker, sel, scenario, result)
 
-    section("Sensitivity", basis="rNPV, mm")
-    preset = st.segmented_control(
-        "Grid", ["price", "loe"], default="price",
-        format_func=lambda p: "WACC x net price" if p == "price"
-        else "LOE year x year-one erosion",
-        key=f"fc_grid_{ticker}_{sel}") or "price"
-    try:
-        grid = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/sensitivity"
-                                 f"?scenario={scenario}&preset={preset}")
-    except (urllib.error.URLError, OSError):
-        grid = None
+    with panels["Range and levers"]:
+        _the_call(api_base, ticker, sel, scenario, part="detail")
+
+    with panels["P&L"]:
+        _pnl_section(result, varied)
+
+    with panels["Coverage"]:
+        _company_call(api_base, ticker, part="detail")
+
+    with panels["Sensitivity"]:
+        preset = st.segmented_control(
+            "Grid", ["price", "loe"], default="price",
+            format_func=lambda p: "WACC x net price" if p == "price"
+            else "LOE year x year-one erosion",
+            key=f"fc_grid_{ticker}_{sel}") or "price"
+        try:
+            grid = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/sensitivity"
+                                     f"?scenario={scenario}&preset={preset}")
+        except (urllib.error.URLError, OSError):
+            grid = None
+        _sensitivity_grid(grid)
+
+    with panels["Assumptions"]:
+        _forecast_editor(api_base, ticker, sel, scenario,
+                         data.get("assumptions") or [])
+        export_url = (api_base.rstrip("/") + f"/companies/{ticker}/forecast/{sel}"
+                      f"/export.xlsx?scenario={scenario}")
+        try:
+            with urllib.request.urlopen(export_url, timeout=30) as resp:
+                blob = resp.read()
+            st.download_button("Export to Excel", data=blob,
+                               file_name=f"{data['name'].lower()}_forecast.xlsx",
+                               key=f"fc_dl_{ticker}_{sel}")
+        except (urllib.error.URLError, OSError):
+            pass
+        _forecast_import(api_base, ticker, sel, scenario,
+                         data.get("assumptions") or [])
+
+
+def _sensitivity_grid(grid) -> None:
+    """The rNPV grid, or nothing where the engine could not build one."""
     if grid and grid.get("ok"):
         values = [v for row in grid["grid"] for v in row if v is not None]
         low, high = (min(values), max(values)) if values else (0, 1)
@@ -2165,22 +2229,6 @@ def _render_forecast_tab(api_base: str, ticker: str):
                css_class="chart-mount stretch")
         note(f"columns: {grid['x_key']} ({grid['bases']['x']}) · rows: "
              f"{grid['y_key']} ({grid['bases']['y']})")
-
-    with st.expander("Assumptions", expanded=False):
-        _forecast_editor(api_base, ticker, sel, scenario,
-                         data.get("assumptions") or [])
-        export_url = (api_base.rstrip("/") + f"/companies/{ticker}/forecast/{sel}"
-                      f"/export.xlsx?scenario={scenario}")
-        try:
-            with urllib.request.urlopen(export_url, timeout=30) as resp:
-                blob = resp.read()
-            st.download_button("Export to Excel", data=blob,
-                               file_name=f"{data['name'].lower()}_forecast.xlsx",
-                               key=f"fc_dl_{ticker}_{sel}")
-        except (urllib.error.URLError, OSError):
-            pass
-        _forecast_import(api_base, ticker, sel, scenario,
-                         data.get("assumptions") or [])
 
 
 def snapshot_meta(snapshot: dict) -> str:
