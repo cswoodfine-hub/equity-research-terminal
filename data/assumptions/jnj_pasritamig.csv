@@ -1,22 +1,22 @@
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
-JNJ,Pasritamig,,US,base,therapy_mode,,,chronic,,dosing schedule of the programme,""
-JNJ,Pasritamig,,US,base,cogs_pct,,0.3212,,share of revenue,"JNJ FY2025, from the filed lines",""
-JNJ,Pasritamig,,US,base,sga_pct,,0.2514,,share of revenue,"JNJ FY2025, from the filed lines",""
-JNJ,Pasritamig,,US,base,rd_pct,,0.1557,,share of revenue,"JNJ FY2025, from the filed lines",""
-JNJ,Pasritamig,,US,base,other_costs_pct,,0.021102,,share of revenue,"derived: JNJ's free cash conversion against what its filed expense lines leave",""
-JNJ,Pasritamig,,US,base,tax_rate,,0.141489,,effective rate,"aggregate effective rate over the years to 2025",""
-JNJ,Pasritamig,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
-JNJ,Pasritamig,,US,base,erp,,0.05,,,"Damodaran US ERP estimate",""
-JNJ,Pasritamig,,US,base,beta,,0.469474,,,"computed from weekly returns vs S&P 500, Blume-adjusted",""
-JNJ,Pasritamig,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED)",""
-JNJ,Pasritamig,,US,base,debt_weight,,0.069753,,,"filed TotalDebt over debt plus market capitalisation",""
+JNJ,Pasritamig,,US,base,therapy_mode,,,chronic,,dosing schedule of the programme,
+JNJ,Pasritamig,,US,base,cogs_pct,,0.3212,,share of revenue,"JNJ FY2025, from the filed lines",
+JNJ,Pasritamig,,US,base,sga_pct,,0.2514,,share of revenue,"JNJ FY2025, from the filed lines",
+JNJ,Pasritamig,,US,base,rd_pct,,0.1557,,share of revenue,"JNJ FY2025, from the filed lines",
+JNJ,Pasritamig,,US,base,other_costs_pct,,0.021102,,share of revenue,derived: JNJ's free cash conversion against what its filed expense lines leave,
+JNJ,Pasritamig,,US,base,tax_rate,,0.141489,,effective rate,aggregate effective rate over the years to 2025,
+JNJ,Pasritamig,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+JNJ,Pasritamig,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+JNJ,Pasritamig,,US,base,beta,,0.469474,,,"computed from weekly returns vs S&P 500, Blume-adjusted",
+JNJ,Pasritamig,,US,base,cost_of_debt,,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+JNJ,Pasritamig,,US,base,debt_weight,,0.069753,,,filed TotalDebt over debt plus market capitalisation,
 JNJ,Pasritamig,,US,base,list_price_per_patient,,0.129048,,mm USD,"the price is Tecvayli's $129,048 a Medicare beneficiary, Johnson & Johnson's own T-cell engager","a comparator, not a price this product has"
-JNJ,Pasritamig,,US,base,gross_to_net_pct,,0.5,,share off list,"analyst convention: manufacturer rebates in a competitive class",""
-JNJ,Pasritamig,,US,base,discontinuation_pct,,0.55,,share stopping a year,"advanced cancer therapy runs until progression, and the median progression-free survival in these settings turns over about half the treated stock a year",""
-JNJ,Pasritamig,,US,base,forecast_start_year,,2029,,year,"the earliest primary completion among this asset's phase 3 trials, plus the time to file and launch","read off the trial records"
-JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,prevalence,,313780,,patients,"about 313,780 new US prostate cancer diagnoses in 2025 (American Cancer Society)",""
-JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,eligible_pct,,0.10,,share of the pool,"the share reaching metastatic castration-resistant disease, which both phase 3 trials enrol","about 31,000 patients"
-JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,incidence,,313780,,patients a year,"annual diagnoses feeding the same pool",""
-JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,ramp_steepness,,1.08,,logistic k,"Enhertu's fitted oncology launch: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 are reproduced by a logistic of k=1.08 with a midpoint at 2.2 years",""
-JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,ramp_midpoint_year,,2.2,,years from the forecast start,"Enhertu's fitted oncology launch: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 are reproduced by a logistic of k=1.08 with a midpoint at 2.2 years",""
-JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,penetration_peak_pct,,0.20,,share of the untreated pool per year,"a share of the pool above, set against what it has to displace","a fifth of the untreated pool a year. Castration-resistant prostate cancer is a crowded setting with several approved classes, and one phase 3 tests this on top of docetaxel rather than instead of it"
+JNJ,Pasritamig,,US,base,gross_to_net_pct,,0.5,,share off list,analyst convention: manufacturer rebates in a competitive class,
+JNJ,Pasritamig,,US,base,discontinuation_pct,,0.55,,share stopping a year,"advanced cancer therapy runs until progression, and the median progression-free survival in these settings turns over about half the treated stock a year",
+JNJ,Pasritamig,,US,base,forecast_start_year,,2029,,year,"the earliest primary completion among this asset's phase 3 trials, plus the time to file and launch",read off the trial records
+JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,prevalence,,313780,,patients,"US mCRPC incidence is about 36,100 a year (Scher et al. 2015, the US prostate cancer state-transition model, cited in Su, Wu and Shi 2021 doi:10.3389/fphar.2020.610601). Against 313,780 diagnoses that is 11.5%","prevalence is set equal to incidence because mCRPC median overall survival is 9 to 13 months, so the standing pool is about one year of it"
+JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,eligible_pct,,0.115,,share of the pool,"US mCRPC incidence is about 36,100 a year (Scher et al. 2015, the US prostate cancer state-transition model, cited in Su, Wu and Shi 2021 doi:10.3389/fphar.2020.610601). Against 313,780 diagnoses that is 11.5%","about 36,100 patients. Was 10%, reasoned from the trial designs; this is the published figure instead"
+JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,incidence,,313780,,patients a year,"US mCRPC incidence is about 36,100 a year (Scher et al. 2015, the US prostate cancer state-transition model, cited in Su, Wu and Shi 2021 doi:10.3389/fphar.2020.610601). Against 313,780 diagnoses that is 11.5%",
+JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,ramp_steepness,,1.08,,logistic k,"Enhertu's fitted oncology launch: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 are reproduced by a logistic of k=1.08 with a midpoint at 2.2 years",
+JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,ramp_midpoint_year,,2.2,,years from the forecast start,"Enhertu's fitted oncology launch: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 are reproduced by a logistic of k=1.08 with a midpoint at 2.2 years",
+JNJ,Pasritamig,"Prostatic Neoplasms, Castration-Resistant",US,base,penetration_peak_pct,,0.152,,share of the untreated pool per year,"fitted to Tecvayli, Johnson & Johnson's own T-cell engager and this seed's price comparator. CMS beneficiaries of 987 in 2023 and 1,562 in 2024, against Pomalyst's 12,739 and 14,325, a label restricted to two prior lines and so an observed relapsed and refractory population. Tecvayli held 10.9% of it in its second full year, which this curve reproduces at a 15.2% peak","15.2% of the untreated pool a year. Was 20%, set by judgement against a crowded setting. The first-mover bispecific in an equally crowded late line is the closer analogue, and it fits lower. The whole bispecific and CAR-T class together fits 27.0%, which is the ceiling if this one arrives alone"

@@ -9,8 +9,8 @@
 # Carried at what the company reports for it, grown at the rate the company reports for it.
 ticker,line,scenario,key,value,text_value,unit,source,note
 JNJ,MedTech,base,base_revenue,30483.0,,mm USD,"Johnson & Johnson's supplementary sales data in the Q4 2025 8-K exhibit (0000200406-26-000002) puts MedTech at $33,792mm in 2025 against $31,857mm in 2024, +6.1%. Two MedTech products are already modelled as assets from the product axis, Abiomed at $1,751mm and the surgery line at $1,558mm, so this line carries the segment less those: $30,483mm","net of what is already counted elsewhere, which the coverage told me: with the whole segment here the company modelled 100.3% of its own revenue, and the 0.3% was Abiomed and surgery being counted twice, once as products and once inside the segment that contains them"
-JNJ,MedTech,base,revenue_growth_pct,0.0608,,annual, near term,"Johnson & Johnson's own supplementary sales data in the Q4 2025 8-K exhibit (0000200406-26-000002): MedTech sold $33,792mm in 2025 against $31,857mm in 2024, which the same table states as +6.1%. Innovative Medicine, the other segment, was $60,401mm, and the two make the $94,193mm worldwide total","the segment's own reported growth, 33,792 over 31,857"
-JNJ,MedTech,base,terminal_growth_pct,0.0,,annual, long run,"the engine's terminal value is a zero-growth perpetuity","faded to flat"
+JNJ,MedTech,base,revenue_growth_pct,0.0608,,"annual, near term","Johnson & Johnson's own supplementary sales data in the Q4 2025 8-K exhibit (0000200406-26-000002): MedTech sold $33,792mm in 2025 against $31,857mm in 2024, which the same table states as +6.1%. Innovative Medicine, the other segment, was $60,401mm, and the two make the $94,193mm worldwide total","the segment's own reported growth, 33,792 over 31,857"
+JNJ,MedTech,base,terminal_growth_pct,0.0,,"annual, long run","the engine's terminal value is a zero-growth perpetuity","faded to flat"
 JNJ,MedTech,base,growth_fade_years,5,,years,"convention: a recent rate describes next year",""
 JNJ,MedTech,base,forecast_start_year,2026,,year,"the year after the last reported full year",""
 JNJ,MedTech,base,forecast_years,15,,years,"the horizon Johnson & Johnson's marketed assets carry",""
@@ -25,3 +25,36 @@ JNJ,MedTech,base,erp,0.05,,,"Damodaran US ERP estimate",""
 JNJ,MedTech,base,beta,0.469474,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's"
 JNJ,MedTech,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED)",""
 JNJ,MedTech,base,debt_weight,0.069753,,,"filed TotalDebt over debt plus market capitalisation","the company's"
+#
+# The Innovative Medicine revenue that no product row carries.
+#
+# The segment sold $60,401mm in 2025. The 21 drugs tagged to it sold $57,388mm, so $3,013mm
+# of reported revenue belongs to products the company does not break out. This is where
+# Imaavy, Akeega and Icotyde sit, and it is why none of them has a revenue row:
+#   Imaavy  approved 2025-04-29 (BLA761430), eight months inside the reported year, never separated
+#   Akeega  approved 2023-08-11 (NDA216793). CMS observes it directly at $6mm of gross Part D
+#           spending across 74 beneficiaries in 2024, up from $1mm and 16. It is not broken
+#           out because it is immaterial, and the data say so rather than the absence of data
+#   Icotyde approved 2026-03-17 (NDA220149), after the last reported full year. It has no
+#           revenue because it had not launched, not because the revenue is missing
+#
+# I previously said seeding these would double-count against the segment. That was wrong: the
+# $60,697mm I compared against $60,401mm included Abiomed and the surgery line, which are
+# MedTech. The like-for-like figure is $57,388mm and the segment has $3,013mm of room.
+JNJ,Innovative Medicine other,base,base_revenue,3013.0,,mm USD,"Johnson & Johnson's Q4 2025 8-K supplementary sales exhibit (0000200406-26-000002): Innovative Medicine $60,401mm, less the $57,388mm carried by the 21 tagged drugs","the reported segment less what the assets already hold"
+JNJ,Innovative Medicine other,base,revenue_growth_pct,-0.0966,,annual near term,"the same residual a year earlier was $3,335mm ($56,964mm of segment less $53,629mm tagged), so it fell 9.7%","the line's own observed rate, not the segment's +6.0%. Caplyta is the only product newly broken out in 2025 and it arrived by acquisition, so the fall is erosion of an old tail rather than revenue reclassified out of it. The tail shrank 9.7% while absorbing Imaavy's first eight months, so the products already in it are declining faster than that"
+JNJ,Innovative Medicine other,base,terminal_growth_pct,0.0,,annual long run,"the engine's terminal value is a zero-growth perpetuity","faded to flat, which for a declining tail is the generous end and is the convention the MedTech line above also runs"
+JNJ,Innovative Medicine other,base,growth_fade_years,5,,years,"convention: a recent rate describes next year",""
+JNJ,Innovative Medicine other,base,forecast_start_year,2026,,year,"the year after the last reported full year",""
+JNJ,Innovative Medicine other,base,forecast_years,15,,years,"the horizon Johnson & Johnson's marketed assets carry",""
+JNJ,Innovative Medicine other,base,pos,1.0,,,"booked revenue","stated, because no development phase applies"
+JNJ,Innovative Medicine other,base,cogs_pct,0.3212,,share of revenue,"JNJ FY2025, from the filed lines",""
+JNJ,Innovative Medicine other,base,sga_pct,0.2514,,share of revenue,"JNJ FY2025, from the filed lines",""
+JNJ,Innovative Medicine other,base,rd_pct,0.1557,,share of revenue,"JNJ FY2025, from the filed lines",""
+JNJ,Innovative Medicine other,base,other_costs_pct,0.021102,,share of revenue,"derived: JNJ's free cash conversion against what its filed expense lines leave",""
+JNJ,Innovative Medicine other,base,tax_rate,0.141489,,effective rate,"aggregate effective rate over the years to 2025",""
+JNJ,Innovative Medicine other,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
+JNJ,Innovative Medicine other,base,erp,0.05,,,"Damodaran US ERP estimate",""
+JNJ,Innovative Medicine other,base,beta,0.469474,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's"
+JNJ,Innovative Medicine other,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED)",""
+JNJ,Innovative Medicine other,base,debt_weight,0.069753,,,"filed TotalDebt over debt plus market capitalisation","the company's"
