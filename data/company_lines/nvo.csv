@@ -10,8 +10,26 @@
 # The figure is arithmetic on the filer's own two numbers, not an estimate: the parent
 # line less the members printed under it. It has widened each year, 335 in 2023 and 395
 # in 2024, as the named haemophilia products decline faster than the rest.
+#
+# Novo's other rare disease line: growth hormone and the rest of rare endocrine.
+#
+# The company runs two segments, Obesity and Diabetes care and Rare disease, and reports
+# Rare disease as rare blood disorders, rare endocrine disorders and other rare disease.
+# The blood products are tagged individually and the line above carries what they leave.
+# Nothing under rare endocrine is tagged at all: no growth hormone product appears on the
+# product axis, so the whole DKK 5,959mm sat outside the model.
+#
+# The figure needs saying carefully. It was read from Novo's own product axis by the
+# product_revenue fetcher and is held in the snapshot table, entity product_revenue
+# 6508:2025:FY, captured 2026-09-03 on refresh run 90, with 4,993 for 2024 and 3,836 for
+# 2023 beside it. The member no longer appears in the data sets the app currently caches,
+# and the 20-F on file defers its therapy table to an annual report the SEC does not hold,
+# so this is the app's own recorded reading rather than a figure re-derivable today. It is
+# corroborated by a document that is readable: the H1 2026 6-K (0000353278-26-000023) puts
+# rare endocrine disorders at DKK 2,685mm for the half, 3% above the same half of 2025,
+# which implies a first half of about 2,607 and a full year in the region of this number.
 ticker,line,scenario,key,value,text_value,unit,source,note
-NVO,Rare blood disorders not broken out,base,base_revenue,803,,mm DKK,"Novo Nordisk FY2025 20-F product axis (sec_fsds): the Rare blood disorders line of DKK 11,955mm less NovoSeven 7,326, Haemophilia A 2,414 and Haemophilia B 1,412, the three products tagged beneath it","arithmetic on the filer's own figures. Novo reports in kroner; the figure is as filed"
+NVO,Rare blood disorders not broken out,base,base_revenue,803,,mm DKK,"Novo Nordisk FY2025 20-F product axis (sec_fsds): the Rare blood disorders line of DKK 11,955mm less NovoSeven 7,326, Haemophilia A 2,414 and Haemophilia B 1,412, the three products tagged beneath it",arithmetic on the filer's own figures. Novo reports in kroner; the figure is as filed
 NVO,Rare blood disorders not broken out,base,revenue_growth_pct,0.1032,,"annual, near term","the same subtraction a year earlier: 803 in FY2025 against 395 in FY2024 and 335 in FY2023, a compound 54.8% over two years, taken here at the rate of the whole rare blood line instead","the remainder has grown because the named products fall faster than the rest, which is a fact about the named products. Held at the parent line's own two-year rate, +10.3%, rather than at the remainder's, which compounds an accounting difference"
 NVO,Rare blood disorders not broken out,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
 NVO,Rare blood disorders not broken out,base,growth_fade_years,5,,years,convention: a recent rate describes next year,
@@ -21,10 +39,27 @@ NVO,Rare blood disorders not broken out,base,pos,1.0,,,approved and selling,"sta
 NVO,Rare blood disorders not broken out,base,cogs_pct,0.1902,,share of revenue,"NVO FY2025, from the filed lines",
 NVO,Rare blood disorders not broken out,base,sga_pct,0.0193,,share of revenue,"NVO FY2025, from the filed lines",
 NVO,Rare blood disorders not broken out,base,rd_pct,0.1684,,share of revenue,"NVO FY2025, from the filed lines",
-NVO,Rare blood disorders not broken out,base,other_costs_pct,0.294485,,share of revenue,"derived: NVO turned 25.95% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave","amortisation, restructuring and capital spending, none of which the filed lines carry"
-NVO,Rare blood disorders not broken out,base,tax_rate,0.2078,,effective rate,"aggregate effective rate over the three years to 2025",
+NVO,Rare blood disorders not broken out,base,other_costs_pct,0.294485,,share of revenue,derived: NVO turned 25.95% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+NVO,Rare blood disorders not broken out,base,tax_rate,0.2078,,effective rate,aggregate effective rate over the three years to 2025,
 NVO,Rare blood disorders not broken out,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 NVO,Rare blood disorders not broken out,base,erp,0.05,,,Damodaran US ERP estimate,
-NVO,Rare blood disorders not broken out,base,beta,0.85,,,"computed from weekly returns vs S&P 500, Blume-adjusted",the company's, as every Novo asset carries
+NVO,Rare blood disorders not broken out,base,beta,0.85,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's, as every Novo asset carries"
 NVO,Rare blood disorders not broken out,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
-NVO,Rare blood disorders not broken out,base,debt_weight,0.015446,,,"filed TotalDebt over debt plus market capitalisation",the company's, as every Novo asset carries
+NVO,Rare blood disorders not broken out,base,debt_weight,0.015446,,,filed TotalDebt over debt plus market capitalisation,"the company's, as every Novo asset carries"
+NVO,Rare endocrine disorders,base,base_revenue,5959,,mm DKK,"snapshot of the product_revenue read of Novo's product axis, entity 6508:2025:FY, captured 2026-09-03 on refresh run 90. Cross-checked against the H1 2026 6-K (0000353278-26-000023), which states DKK 2,685mm for the half at +3%","none of this line is tagged to a product, so unlike the rare blood line it is carried whole rather than as a remainder"
+NVO,Rare endocrine disorders,base,revenue_growth_pct,0.03,,"annual, near term",the H1 2026 6-K (0000353278-26-000023) states rare endocrine disorders at +3% reported and +9% at constant exchange rates against the same half of 2025,"the most recent rate the company has stated for this line. The two years before it were faster, 5,959 against 4,993 and 3,836, but a growth rate is a statement about what comes next and the company has made one"
+NVO,Rare endocrine disorders,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+NVO,Rare endocrine disorders,base,growth_fade_years,5,,years,convention: a recent rate describes next year,
+NVO,Rare endocrine disorders,base,forecast_start_year,2026,,year,the year after the last reported full year,
+NVO,Rare endocrine disorders,base,forecast_years,10,,years,the horizon Novo's marketed assets carry,
+NVO,Rare endocrine disorders,base,pos,1.0,,,approved and selling,"stated, because no development phase applies"
+NVO,Rare endocrine disorders,base,cogs_pct,0.1902,,share of revenue,"NVO FY2025, from the filed lines",
+NVO,Rare endocrine disorders,base,sga_pct,0.0193,,share of revenue,"NVO FY2025, from the filed lines",
+NVO,Rare endocrine disorders,base,rd_pct,0.1684,,share of revenue,"NVO FY2025, from the filed lines",
+NVO,Rare endocrine disorders,base,other_costs_pct,0.294485,,share of revenue,derived: NVO turned 25.95% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave,
+NVO,Rare endocrine disorders,base,tax_rate,0.2078,,effective rate,aggregate effective rate over the three years to 2025,
+NVO,Rare endocrine disorders,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+NVO,Rare endocrine disorders,base,erp,0.05,,,Damodaran US ERP estimate,
+NVO,Rare endocrine disorders,base,beta,0.85,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's, as every Novo asset carries"
+NVO,Rare endocrine disorders,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+NVO,Rare endocrine disorders,base,debt_weight,0.015446,,,filed TotalDebt over debt plus market capitalisation,"the company's, as every Novo asset carries"

@@ -14,7 +14,7 @@
 # calibration in other_costs_pct absorbs: the derivation targets what the company actually
 # turned into cash, so a missing expense line cannot flatter the result.
 ticker,line,scenario,key,value,text_value,unit,source,note
-REGN,Sanofi collaboration,base,base_revenue,5884.0,,mm USD,"Regeneron FY2025 10-K (0000872589-26-000008), revenues table: Sanofi collaboration revenue of $5,884.0mm","Regeneron's share of the profits Sanofi makes on Dupixent and Kevzara. Sanofi records the sales; this is what Regeneron books"
+REGN,Sanofi collaboration,base,base_revenue,5884.0,,mm USD,"Regeneron FY2025 10-K (0000872589-26-000008), revenues table: Sanofi collaboration revenue of $5,884.0mm",Regeneron's share of the profits Sanofi makes on Dupixent and Kevzara. Sanofi records the sales; this is what Regeneron books
 REGN,Sanofi collaboration,base,revenue_growth_pct,0.4388,,"annual, near term","the halves in the Q2 2026 10-Q (0000872589-26-000025): $3,779.4mm in the first half of 2026 against $2,626.8mm a year earlier","Dupixent is still growing 38% on Sanofi's own reported global sales. Regeneron also said on 2026-07-30 that the Sanofi Development Balance is now fully repaid, which it expects to step collaboration profits up again from the third quarter, so this rate does not yet include that"
 REGN,Sanofi collaboration,base,revenue_ceiling_musd,11800,,mm USD,"Regeneron's FY2025 10-K (0000872589-26-000008) states the arithmetic directly: Dupixent and Kevzara net product sales of $18,381.3mm, Regeneron's share of collaboration profits $6,171.3mm, less $929.7mm reimbursing Sanofi's development spending, leaving the $5,241.6mm it books as its share of profits, which the filing puts at 29% of those sales. That reimbursement is the development balance, and Regeneron said on 2026-07-30 that it is now fully repaid, so the line keeps what it was paying away: $6,814mm on FY2025 sales, 37.1%. At a plateau of $32bn of Dupixent and Kevzara sales that is $11.8bn","the $32bn peak is the analyst input and the only one here. Dupixent and Kevzara sold $18.4bn in 2025 and grew 26%, and Dupixent alone grew 38% in the second quarter of 2026, so $32bn is reached in the late 2020s and holds until exclusivity goes in the early 2030s, which this ceiling does not model. Without it the line compounds its half-year rate to $18.5bn a year, which would need Dupixent to sell about $50bn"
 REGN,Sanofi collaboration,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
@@ -25,15 +25,15 @@ REGN,Sanofi collaboration,base,pos,1.0,,,booked revenue,"stated, because no deve
 REGN,Sanofi collaboration,base,cogs_pct,0.0000,,share of revenue,"REGN FY2025: no cost of revenue is tagged, so this is nil and other_costs_pct carries it",
 REGN,Sanofi collaboration,base,sga_pct,0.1882,,share of revenue,"REGN FY2025, from the filed lines",
 REGN,Sanofi collaboration,base,rd_pct,0.4079,,share of revenue,"REGN FY2025, from the filed lines",
-REGN,Sanofi collaboration,base,other_costs_pct,0.095937,,share of revenue,"derived: REGN turned 27.89% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave","amortisation, restructuring, capital spending and the cost of revenue this filer does not tag"
-REGN,Sanofi collaboration,base,tax_rate,0.0942,,effective rate,"aggregate effective rate over the three years to 2025",
+REGN,Sanofi collaboration,base,other_costs_pct,0.095937,,share of revenue,derived: REGN turned 27.89% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave,"amortisation, restructuring, capital spending and the cost of revenue this filer does not tag"
+REGN,Sanofi collaboration,base,tax_rate,0.0942,,effective rate,aggregate effective rate over the three years to 2025,
 REGN,Sanofi collaboration,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 REGN,Sanofi collaboration,base,erp,0.05,,,Damodaran US ERP estimate,
-REGN,Sanofi collaboration,base,beta,0.77,,,"computed from weekly returns vs S&P 500, Blume-adjusted",the company's, as every Regeneron asset carries
+REGN,Sanofi collaboration,base,beta,0.77,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's, as every Regeneron asset carries"
 REGN,Sanofi collaboration,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
-REGN,Sanofi collaboration,base,debt_weight,0.021715,,,"filed TotalDebt over debt plus market capitalisation",the company's, as every Regeneron asset carries
-REGN,Bayer collaboration,base,base_revenue,1422.4,,mm USD,"Regeneron FY2025 10-K (0000872589-26-000008), revenues table: Bayer collaboration revenue of $1,422.4mm","Regeneron's share of what Bayer earns on EYLEA outside the United States"
-REGN,Bayer collaboration,base,revenue_growth_pct,-0.2575,,"annual, near term","the halves in the Q2 2026 10-Q (0000872589-26-000025): $563.5mm in the first half of 2026 against $758.9mm a year earlier","EYLEA is losing share to biosimilars outside the United States as it is inside, and this line falls with it"
+REGN,Sanofi collaboration,base,debt_weight,0.021715,,,filed TotalDebt over debt plus market capitalisation,"the company's, as every Regeneron asset carries"
+REGN,Bayer collaboration,base,base_revenue,1422.4,,mm USD,"Regeneron FY2025 10-K (0000872589-26-000008), revenues table: Bayer collaboration revenue of $1,422.4mm",Regeneron's share of what Bayer earns on EYLEA outside the United States
+REGN,Bayer collaboration,base,revenue_growth_pct,-0.2575,,"annual, near term",the halves in the Q2 2026 10-Q (0000872589-26-000025): $563.5mm in the first half of 2026 against $758.9mm a year earlier,"EYLEA is losing share to biosimilars outside the United States as it is inside, and this line falls with it"
 REGN,Bayer collaboration,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
 REGN,Bayer collaboration,base,growth_fade_years,5,,years,convention: a recent rate describes next year,
 REGN,Bayer collaboration,base,forecast_start_year,2026,,year,the year after the last reported full year,
@@ -42,13 +42,13 @@ REGN,Bayer collaboration,base,pos,1.0,,,booked revenue,"stated, because no devel
 REGN,Bayer collaboration,base,cogs_pct,0.0000,,share of revenue,"REGN FY2025: no cost of revenue is tagged, so this is nil and other_costs_pct carries it",
 REGN,Bayer collaboration,base,sga_pct,0.1882,,share of revenue,"REGN FY2025, from the filed lines",
 REGN,Bayer collaboration,base,rd_pct,0.4079,,share of revenue,"REGN FY2025, from the filed lines",
-REGN,Bayer collaboration,base,other_costs_pct,0.095937,,share of revenue,"derived: REGN turned 27.89% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave","amortisation, restructuring, capital spending and the cost of revenue this filer does not tag"
-REGN,Bayer collaboration,base,tax_rate,0.0942,,effective rate,"aggregate effective rate over the three years to 2025",
+REGN,Bayer collaboration,base,other_costs_pct,0.095937,,share of revenue,derived: REGN turned 27.89% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave,"amortisation, restructuring, capital spending and the cost of revenue this filer does not tag"
+REGN,Bayer collaboration,base,tax_rate,0.0942,,effective rate,aggregate effective rate over the three years to 2025,
 REGN,Bayer collaboration,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 REGN,Bayer collaboration,base,erp,0.05,,,Damodaran US ERP estimate,
-REGN,Bayer collaboration,base,beta,0.77,,,"computed from weekly returns vs S&P 500, Blume-adjusted",the company's, as every Regeneron asset carries
+REGN,Bayer collaboration,base,beta,0.77,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's, as every Regeneron asset carries"
 REGN,Bayer collaboration,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
-REGN,Bayer collaboration,base,debt_weight,0.021715,,,"filed TotalDebt over debt plus market capitalisation",the company's, as every Regeneron asset carries
+REGN,Bayer collaboration,base,debt_weight,0.021715,,,filed TotalDebt over debt plus market capitalisation,"the company's, as every Regeneron asset carries"
 REGN,Ilaris royalty,base,base_revenue,274.8,,mm USD,"Regeneron's FY2025 10-K (0000872589-26-000008), other revenue table: royalties on sales of Novartis' Ilaris of $274.8mm","a tiered royalty on someone else's product. The rates start at 4% and reach 15% once annual sales pass $1.5bn, which the same table states"
 REGN,Ilaris royalty,base,revenue_growth_pct,0.2478,,"annual, near term","Ilaris itself: Novartis reported $1,883mm in FY2025 against $1,509mm in FY2024, from the SEC financial statement data sets. The royalty tracks the product it is levied on","Regeneron's $274.8mm is 14.6% of Novartis' $1,883mm, so the blended rate has already reached the 15% ceiling the agreement sets and the royalty now grows with Ilaris and nothing else"
 REGN,Ilaris royalty,base,revenue_ceiling_musd,422,,mm USD,"15% of Ilaris at its peak, which is the most this royalty can be. The rate is capped at 15% by the agreement, and this terminal's own Novartis model peaks Ilaris at $2,816mm in 2027 before its exclusivity goes","no judgement in this one: the rate cap is the filer's and the peak is the model's own forecast of the product being sold. It falls after 2027 with Ilaris, which this flat ceiling does not carry"
@@ -60,13 +60,13 @@ REGN,Ilaris royalty,base,pos,1.0,,,booked revenue,"stated, because no developmen
 REGN,Ilaris royalty,base,cogs_pct,0.0000,,share of revenue,"REGN FY2025: no cost of revenue is tagged, so this is nil and other_costs_pct carries it",
 REGN,Ilaris royalty,base,sga_pct,0.1882,,share of revenue,"REGN FY2025, from the filed lines",
 REGN,Ilaris royalty,base,rd_pct,0.4079,,share of revenue,"REGN FY2025, from the filed lines",
-REGN,Ilaris royalty,base,other_costs_pct,0.095937,,share of revenue,"derived: REGN turned 27.89% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave","amortisation, restructuring, capital spending and the cost of revenue this filer does not tag"
-REGN,Ilaris royalty,base,tax_rate,0.0942,,effective rate,"aggregate effective rate over the three years to 2025",
+REGN,Ilaris royalty,base,other_costs_pct,0.095937,,share of revenue,derived: REGN turned 27.89% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave,"amortisation, restructuring, capital spending and the cost of revenue this filer does not tag"
+REGN,Ilaris royalty,base,tax_rate,0.0942,,effective rate,aggregate effective rate over the three years to 2025,
 REGN,Ilaris royalty,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 REGN,Ilaris royalty,base,erp,0.05,,,Damodaran US ERP estimate,
-REGN,Ilaris royalty,base,beta,0.77,,,"computed from weekly returns vs S&P 500, Blume-adjusted",the company's, as every Regeneron asset carries
+REGN,Ilaris royalty,base,beta,0.77,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's, as every Regeneron asset carries"
 REGN,Ilaris royalty,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
-REGN,Ilaris royalty,base,debt_weight,0.021715,,,"filed TotalDebt over debt plus market capitalisation",the company's, as every Regeneron asset carries
+REGN,Ilaris royalty,base,debt_weight,0.021715,,,filed TotalDebt over debt plus market capitalisation,"the company's, as every Regeneron asset carries"
 REGN,Arcalyst profit share,base,base_revenue,231.2,,mm USD,"Regeneron's FY2025 10-K (0000872589-26-000008), other revenue table: Regeneron's share of profits from sales of ARCALYST of $231.2mm","Regeneron is entitled to 50% of Kiniksa's profits on ARCALYST, which the same table states. It rose from $115.2mm as Kiniksa's own sales scaled"
 REGN,Arcalyst profit share,base,revenue_growth_pct,0.336,,"annual, near term","Kiniksa's guidance for the product: it reported ARCALYST net revenue of $677.6mm for 2025 against $423.2mm for 2024, and guides $900mm to $920mm for 2026, a rise of 33.6% at the midpoint","Regeneron's take was 34.1% of Kiniksa's net sales in 2025 against 27.2% in 2024, because it is half of a profit that widens as fixed costs are covered. Grown here at Kiniksa's own sales guidance rather than at Regeneron's 101%, which is that margin effect and cannot repeat indefinitely"
 REGN,Arcalyst profit share,base,revenue_ceiling_musd,450,,mm USD,"Kiniksa says about 18% of the 14,000 US patients with multiple recurrences of pericarditis were on ARCALYST at the end of 2025, which is $269k a patient on its $677.6mm. 35% of that population is $1.32bn of Kiniksa sales, and Regeneron's 34% of it is $450mm","the 35% is the analyst input. ARCALYST is the only approved therapy in recurrent pericarditis and is at 18% today, so a third of the population is a plateau rather than a ceiling on the science"
@@ -78,14 +78,14 @@ REGN,Arcalyst profit share,base,pos,1.0,,,booked revenue,"stated, because no dev
 REGN,Arcalyst profit share,base,cogs_pct,0.0000,,share of revenue,"REGN FY2025: no cost of revenue is tagged, so this is nil and other_costs_pct carries it",
 REGN,Arcalyst profit share,base,sga_pct,0.1882,,share of revenue,"REGN FY2025, from the filed lines",
 REGN,Arcalyst profit share,base,rd_pct,0.4079,,share of revenue,"REGN FY2025, from the filed lines",
-REGN,Arcalyst profit share,base,other_costs_pct,0.095937,,share of revenue,"derived: REGN turned 27.89% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave","amortisation, restructuring, capital spending and the cost of revenue this filer does not tag"
-REGN,Arcalyst profit share,base,tax_rate,0.0942,,effective rate,"aggregate effective rate over the three years to 2025",
+REGN,Arcalyst profit share,base,other_costs_pct,0.095937,,share of revenue,derived: REGN turned 27.89% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave,"amortisation, restructuring, capital spending and the cost of revenue this filer does not tag"
+REGN,Arcalyst profit share,base,tax_rate,0.0942,,effective rate,aggregate effective rate over the three years to 2025,
 REGN,Arcalyst profit share,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 REGN,Arcalyst profit share,base,erp,0.05,,,Damodaran US ERP estimate,
-REGN,Arcalyst profit share,base,beta,0.77,,,"computed from weekly returns vs S&P 500, Blume-adjusted",the company's, as every Regeneron asset carries
+REGN,Arcalyst profit share,base,beta,0.77,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's, as every Regeneron asset carries"
 REGN,Arcalyst profit share,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
-REGN,Arcalyst profit share,base,debt_weight,0.021715,,,"filed TotalDebt over debt plus market capitalisation",the company's, as every Regeneron asset carries
-REGN,Other licensing,base,base_revenue,196.6,,mm USD,"Regeneron's FY2025 10-K (0000872589-26-000008), other revenue table: the residual 'other' line of $196.6mm, after the Ilaris royalty and the ARCALYST profit share are taken out","what is left when the two named streams are removed: assorted licensing and contract manufacturing"
+REGN,Arcalyst profit share,base,debt_weight,0.021715,,,filed TotalDebt over debt plus market capitalisation,"the company's, as every Regeneron asset carries"
+REGN,Other licensing,base,base_revenue,196.6,,mm USD,"Regeneron's FY2025 10-K (0000872589-26-000008), other revenue table: the residual 'other' line of $196.6mm, after the Ilaris royalty and the ARCALYST profit share are taken out",what is left when the two named streams are removed: assorted licensing and contract manufacturing
 REGN,Other licensing,base,revenue_growth_pct,-0.1157,,"annual, near term","Regeneron's FY2025 10-K (0000872589-26-000008), other revenue table: $196.6mm in FY2025 against $222.3mm in FY2024 and $321.9mm in FY2023","held at the last year's rate rather than faded, because a residual running off does not level out. It has fallen every year for three"
 REGN,Other licensing,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
 REGN,Other licensing,base,growth_fade_years,5,,years,convention: a recent rate describes next year,
@@ -95,10 +95,10 @@ REGN,Other licensing,base,pos,1.0,,,booked revenue,"stated, because no developme
 REGN,Other licensing,base,cogs_pct,0.0000,,share of revenue,"REGN FY2025: no cost of revenue is tagged, so this is nil and other_costs_pct carries it",
 REGN,Other licensing,base,sga_pct,0.1882,,share of revenue,"REGN FY2025, from the filed lines",
 REGN,Other licensing,base,rd_pct,0.4079,,share of revenue,"REGN FY2025, from the filed lines",
-REGN,Other licensing,base,other_costs_pct,0.095937,,share of revenue,"derived: REGN turned 27.89% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave","amortisation, restructuring, capital spending and the cost of revenue this filer does not tag"
-REGN,Other licensing,base,tax_rate,0.0942,,effective rate,"aggregate effective rate over the three years to 2025",
+REGN,Other licensing,base,other_costs_pct,0.095937,,share of revenue,derived: REGN turned 27.89% of revenue into free cash over 2023 to 2025 against what its filed expense lines leave,"amortisation, restructuring, capital spending and the cost of revenue this filer does not tag"
+REGN,Other licensing,base,tax_rate,0.0942,,effective rate,aggregate effective rate over the three years to 2025,
 REGN,Other licensing,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 REGN,Other licensing,base,erp,0.05,,,Damodaran US ERP estimate,
-REGN,Other licensing,base,beta,0.77,,,"computed from weekly returns vs S&P 500, Blume-adjusted",the company's, as every Regeneron asset carries
+REGN,Other licensing,base,beta,0.77,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's, as every Regeneron asset carries"
 REGN,Other licensing,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
-REGN,Other licensing,base,debt_weight,0.021715,,,"filed TotalDebt over debt plus market capitalisation",the company's, as every Regeneron asset carries
+REGN,Other licensing,base,debt_weight,0.021715,,,filed TotalDebt over debt plus market capitalisation,"the company's, as every Regeneron asset carries"
