@@ -19,3 +19,7 @@ AZN,GP MDI,Breztri,"the glycopyrronium arm of the Breztri trials, not a programm
 AZN,BDA MDI,Airsupra,"budesonide and albuterol in a metered dose inhaler is what Airsupra is"
 AZN,AS MDI,Airsupra,"the albuterol arm of the Airsupra trials, not a programme of its own"
 AZN,MEDI-546,Saphnelo,"anifrolumab's development code. The registry files studies under it and openFDA lists the brand"
+JNJ,Simponi,Simponi Simponi Aria,"the SEC product axis reports Simponi and Simponi Aria as one revenue line; the approval and the trials sit on the single-brand row"
+JNJ,Rybrevant,Rybrevant / Lazcluze,"amivantamab. The product axis reports it with lazertinib as one line, and fifteen trials sit on the single-brand row"
+JNJ,Rybrevant Faspro,Rybrevant / Lazcluze,"the subcutaneous formulation of the same amivantamab"
+JNJ,Lazcluze,Rybrevant / Lazcluze,"lazertinib, reported in the same combined line as amivantamab"
