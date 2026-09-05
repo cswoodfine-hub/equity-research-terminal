@@ -92,13 +92,13 @@ MEMBER_PREFIXES = ("alliancerevenue", "collaborationrevenue", "productrevenue",
 AGGREGATE_PATTERN = re.compile(
     r"^(total|all|other|combined|excluding|including|sales|revenue|net|gross)"
     r"|(total|portfolio|brands|products|franchise|therapeutics|business|segment"
-    r"|group|revenues?|sales|medicines?|care|health|diseases?|other)$",
+    r"|group|revenues?|sales|medicines?|care|health|diseases?|disorders?|other)$",
     re.I)
 
 # Therapeutic areas and portfolio groupings, which read like products but contain them.
 AGGREGATE_WORDS = {
     "oncology", "immunology", "neuroscience", "cardiovascular", "cardiometabolic",
-    "cardiometabolichealth", "vaccines", "vaccine", "raredisease", "raredis eases",
+    "cardiometabolichealth", "vaccines", "vaccine", "raredisease", "rarediseases",
     "diabetes", "obesity", "respiratory", "virology", "hiv", "inflammation",
     "growthbrands", "legacybrands", "keyproducts", "top20products", "restofportfolio",
     "specialtymedicine", "generalmedicines", "establishedbrands", "matureproducts",

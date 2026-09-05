@@ -181,6 +181,21 @@ def test_a_product_is_kept_and_a_grouping_is_not():
         assert is_aggregate(grouping), grouping
 
 
+def test_a_therapy_area_named_disorders_is_a_grouping():
+    """Novo files "Rare Blood Disorders" beside NovoSeven, Haemophilia A and
+    Haemophilia B, which are its members. Keeping it counted those three twice and put
+    the company 7,688mm kroner above the revenue it reported. The vocabulary already
+    caught "diseases" and stopped a word short of the synonym the same filer uses."""
+    from fetchers.product_revenue_sec import is_aggregate
+
+    for grouping in ("Rare Blood Disorders", "Rare Endocrine Disorders",
+                     "Bleeding Disorder", "Rare Diseases"):
+        assert is_aggregate(grouping), grouping
+    # The members themselves stay products, or the fix trades one error for another.
+    for product in ("NovoSeven", "Haemophilia A", "Haemophilia B", "Norditropin"):
+        assert not is_aggregate(product), product
+
+
 def test_a_revenue_type_prefix_is_stripped_from_the_name():
     """Merck reports partnered products as AllianceRevenueLynparza."""
     from fetchers.product_revenue_sec import display_name

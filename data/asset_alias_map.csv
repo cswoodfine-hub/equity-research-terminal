@@ -26,3 +26,5 @@ JNJ,Lazcluze,Rybrevant / Lazcluze,"lazertinib, reported in the same combined lin
 JNJ,M281,Imaavy,"nipocalimab's development code. The registry files six studies under M281 and openFDA lists Imaavy (BLA761430, approved 2025-04-29), so an approved product sat in the pipeline as an unvalued Phase 2/3 compound"
 JNJ,Cilta-cel,Carvykti,"ciltacabtagene autoleucel's short name. Six studies file under it while the approval, the revenue and the exclusivity sit on Carvykti"
 JNJ,14C-bleximenib,Bleximenib,"the carbon-14 label used for the mass balance study. Same compound, not a programme of its own"
+LNTH,Piflufolastat F 18 Intravenous Solution [PYLARIFY],PYLARIFY,"the same product under the name the MD&A prints. Both rows carried $989.1mm for 2025, which on its own put Lantheus $905mm above the revenue it reported"
+UTHR,Nebulized Tyvaso,Tyvaso,"United Therapeutics reports Tyvaso DPI and nebulized Tyvaso as two lines. The nebulized line is Tyvaso itself, which already holds the approval, so tagging it twice counted $587mm that the company books once"

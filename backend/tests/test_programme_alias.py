@@ -276,3 +276,56 @@ def test_a_brand_still_wins_over_a_compound_sharing_the_name(tmp_path):
                        " WHERE internal_code = 'CTX001'").fetchone()
     assert row["asset_id"] == 1          # the product, not the compound named after it
     conn.close()
+
+
+def test_a_curated_alias_does_not_swallow_another_formulation(tmp_path):
+    """United Therapeutics is the case. "Nebulized Tyvaso" and "Tyvaso" are one product
+    reported under two names, so an override folds them. But find_alias_duplicates matched
+    on the canonical spelling, which drops route and device words, and "Tyvaso DPI"
+    canonicalises to "tyvaso" too. One override written to fix a single duplicate took the
+    dry powder inhaler with it: a different NDA, its own revenue line, $1,292mm gone.
+
+    An analyst writing a name by hand has already said which row they mean.
+    """
+    path, conn = _seed(tmp_path)
+    conn.execute("UPDATE assets SET brand_name = 'Tyvaso', generic_name = 'Treprostinil'"
+                 " WHERE id = 1")
+    conn.execute("UPDATE assets SET brand_name = 'Nebulized Tyvaso',"
+                 " generic_name = NULL WHERE id = 2")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " is_marketed) VALUES (4, 1, 'Tyvaso DPI', 'Treprostinil', 1)")
+    conn.execute("INSERT INTO asset_aliases (internal_code, asset_id, note)"
+                 " VALUES ('Nebulized Tyvaso', 1, 'curated: the same product')")
+    conn.commit()
+    pairs = asset_merge.find_alias_duplicates(conn)
+    conn.close()
+    losers = {loser for loser, _ in pairs}
+    assert 2 in losers, "the row the override names must still fold"
+    assert 4 not in losers, "the dry powder inhaler is a different product"
+
+
+def test_a_derived_alias_still_matches_loosely(tmp_path):
+    """The exact rule is for curated rows only. A development code arriving from a
+    registry still needs the salt and suffix spellings to reach the product."""
+    path, conn = _seed(tmp_path)
+    conn.execute("UPDATE assets SET generic_name = 'Trastuzumab Deruxtecan-nxki'"
+                 " WHERE id = 2")
+    conn.execute("INSERT INTO asset_aliases (internal_code, asset_id, note)"
+                 " VALUES ('trastuzumab deruxtecan', 1, 'from the filings')")
+    conn.commit()
+    pairs = asset_merge.find_alias_duplicates(conn)
+    conn.close()
+    assert (2, 1) in pairs
+
+
+def test_a_curated_alias_whose_name_has_nothing_to_strip_still_matches(tmp_path):
+    """CTX001 canonicalises to itself, so an exact rule that simply dropped the canonical
+    spelling would leave a curated row with nothing to match on at all."""
+    path, conn = _seed(tmp_path)
+    conn.execute("UPDATE assets SET generic_name = 'CTX001' WHERE id = 2")
+    conn.execute("INSERT INTO asset_aliases (internal_code, asset_id, note)"
+                 " VALUES ('CTX001', 1, 'curated: development name')")
+    conn.commit()
+    pairs = asset_merge.find_alias_duplicates(conn)
+    conn.close()
+    assert (2, 1) in pairs

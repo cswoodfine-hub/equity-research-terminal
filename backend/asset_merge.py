@@ -210,6 +210,27 @@ def canonical_generic(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", text)
 
 
+def _exact_aliases(raw) -> set:
+    """The spellings of a name that do not throw part of it away.
+
+    Everything ``trial_mapping.aliases`` returns except the canonical form, which drops
+    route, form and device words. Case, spacing, punctuation and a biologic's four-letter
+    suffix still normalise, so "Nebulized Tyvaso" and "nebulized tyvaso" are one name and
+    "Tyvaso DPI" is not.
+    """
+    text = (raw or "").strip()
+    if not text:
+        return set()
+    out = trial_mapping.aliases(text)
+    canon, norm = trial_mapping.canonical(text), trial_mapping.normalise(text)
+    # Only drop the canonical form where it actually threw a word away. For "CTX001" it
+    # is the same string as the normalised name, and subtracting it would leave nothing
+    # for a curated row to match on at all.
+    if canon and canon != norm:
+        out = out - {canon}
+    return out
+
+
 def find_alias_duplicates(conn) -> list[tuple]:
     """(loser_id, survivor_id) where an asset's own name is recorded as another's alias.
 
@@ -221,9 +242,17 @@ def find_alias_duplicates(conn) -> list[tuple]:
     pairs = []
     for row in conn.execute(
             """SELECT al.internal_code AS name, al.asset_id AS survivor_id,
-                      a.owner_company_id AS company_id
+                      al.note AS note, a.owner_company_id AS company_id
                  FROM asset_aliases al JOIN assets a ON a.id = al.asset_id"""):
-        wanted = trial_mapping.aliases(row["name"])
+        # A hand-written alias is matched as written. trial_mapping.aliases includes the
+        # canonical spelling, which strips route and device words, and that is right for
+        # a development code arriving from a registry. It is wrong for a curated row: an
+        # alias reading "Nebulized Tyvaso" canonicalises to "tyvaso" and so does "Tyvaso
+        # DPI", which is a different NDA with its own revenue line, and one override
+        # written to fold a single duplicate swallowed every formulation of the product.
+        # An analyst writing the name by hand has already said which row they mean.
+        exact = (row["note"] or "").startswith("curated:")
+        wanted = _exact_aliases(row["name"]) if exact else trial_mapping.aliases(row["name"])
         if not wanted:
             continue
         for other in conn.execute(
@@ -232,7 +261,8 @@ def find_alias_duplicates(conn) -> list[tuple]:
                 (row["company_id"], row["survivor_id"])):
             names: set = set()
             for field in ("brand_name", "generic_name", "internal_code"):
-                names |= trial_mapping.aliases(other[field])
+                names |= (_exact_aliases(other[field]) if exact
+                          else trial_mapping.aliases(other[field]))
             if names & wanted:
                 pairs.append((other["id"], row["survivor_id"]))
     return pairs
