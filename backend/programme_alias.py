@@ -51,10 +51,20 @@ def load_curated(conn, path=None) -> int:
         brand = (row.get("brand") or "").strip()
         if not (ticker and name and brand):
             continue
+        # Brand or generic. A compound in development has no brand yet, so a target
+        # column that only matched brand_name could merge a development code into a
+        # marketed product and never into another compound. That is the wrong way round:
+        # the duplicates that need merging most are pipeline pairs, where the registry
+        # files one study under a radiolabel or a dose arm and another under the compound.
+        # Brand still wins where both match, so a launched product is never shadowed.
         asset = conn.execute(
             """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
-                WHERE c.ticker = ? AND LOWER(TRIM(a.brand_name)) = LOWER(?)
-                ORDER BY a.is_marketed DESC, a.id LIMIT 1""", (ticker, brand)).fetchone()
+                WHERE c.ticker = ?
+                  AND (LOWER(TRIM(a.brand_name)) = LOWER(?)
+                       OR LOWER(TRIM(a.generic_name)) = LOWER(?))
+                ORDER BY (LOWER(TRIM(COALESCE(a.brand_name, ''))) = LOWER(?)) DESC,
+                         a.is_marketed DESC, a.id LIMIT 1""",
+            (ticker, brand, brand, brand)).fetchone()
         if not asset:
             continue          # the product is not on file yet; nothing to point at
         conn.execute(

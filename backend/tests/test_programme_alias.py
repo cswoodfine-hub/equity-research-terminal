@@ -248,3 +248,31 @@ def test_the_shipped_override_file_parses():
     for row in rows:
         assert row["ticker"] and row["programme_name"] and row["brand"]
     assert any(r["programme_name"] == "CTX001" and r["brand"] == "Casgevy" for r in rows)
+
+
+def test_a_curated_row_can_point_at_a_compound_that_has_no_brand(tmp_path):
+    """14C-bleximenib is the case: the registry files a mass balance study under the
+    carbon-14 label and the compound itself has no brand, so a target column that only
+    matched brand_name could never join them. The pairs that need merging most are two
+    pipeline rows, not a code and a product."""
+    path, conn = _seed(tmp_path)
+    body = ("ticker,programme_name,brand,note\n"
+            "AZN,14C-trastuzumab deruxtecan,trastuzumab deruxtecan,the radiolabel\n")
+    assert pa.load_curated(conn, _curated(tmp_path, body)) == 1
+    row = conn.execute("SELECT asset_id FROM asset_aliases"
+                       " WHERE internal_code = '14C-trastuzumab deruxtecan'").fetchone()
+    assert row["asset_id"] == 2          # the compound, matched on its generic name
+    conn.close()
+
+
+def test_a_brand_still_wins_over_a_compound_sharing_the_name(tmp_path):
+    """The fallback must not let a development row shadow a launched product."""
+    path, conn = _seed(tmp_path)
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, is_marketed)"
+                 " VALUES (3, 1, 'Enhertu', 0)")
+    conn.commit()
+    assert pa.load_curated(conn, _curated(tmp_path)) == 1
+    row = conn.execute("SELECT asset_id FROM asset_aliases"
+                       " WHERE internal_code = 'CTX001'").fetchone()
+    assert row["asset_id"] == 1          # the product, not the compound named after it
+    conn.close()

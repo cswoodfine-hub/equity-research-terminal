@@ -23,3 +23,6 @@ JNJ,Simponi,Simponi Simponi Aria,"the SEC product axis reports Simponi and Simpo
 JNJ,Rybrevant,Rybrevant / Lazcluze,"amivantamab. The product axis reports it with lazertinib as one line, and fifteen trials sit on the single-brand row"
 JNJ,Rybrevant Faspro,Rybrevant / Lazcluze,"the subcutaneous formulation of the same amivantamab"
 JNJ,Lazcluze,Rybrevant / Lazcluze,"lazertinib, reported in the same combined line as amivantamab"
+JNJ,M281,Imaavy,"nipocalimab's development code. The registry files six studies under M281 and openFDA lists Imaavy (BLA761430, approved 2025-04-29), so an approved product sat in the pipeline as an unvalued Phase 2/3 compound"
+JNJ,Cilta-cel,Carvykti,"ciltacabtagene autoleucel's short name. Six studies file under it while the approval, the revenue and the exclusivity sit on Carvykti"
+JNJ,14C-bleximenib,Bleximenib,"the carbon-14 label used for the mass balance study. Same compound, not a programme of its own"
