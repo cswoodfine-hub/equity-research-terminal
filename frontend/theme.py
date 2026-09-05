@@ -284,16 +284,21 @@ h3 {{ font-size: 0.9rem; }}
    other tab leaves the rail in place. */
 [data-testid="stHorizontalBlock"]:has(.stTabs [data-baseweb="tab"]:first-of-type[aria-selected="true"])
   > [data-testid="stColumn"]:has(.rail-anchor) {{ display: none !important; }}
-[data-testid="stHorizontalBlock"]:has(.stTabs [data-baseweb="tab"]:first-of-type[aria-selected="true"])
+[data-testid="stHorizontalBlock"]:has(.stTabs [data-baseweb="tab"]:first-of-type[aria-selected="true"]):has(> [data-testid="stColumn"] .rail-anchor)
   > [data-testid="stColumn"]:first-child {{
     width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; }}
 
 /* The same for any tab whose own content asks for it, found by a marker inside the
    visible panel rather than by counting tabs: which position Portfolio sits at depends
-   on the engine, and a tab index would silently point at the wrong tab elsewhere. */
+   on the engine, and a tab index would silently point at the wrong tab elsewhere.
+
+   Both pairs also require the rail anchor as a direct child column. :has() reaches any
+   descendant, so a tab strip nested inside a column made the block holding that column
+   match, and the rule written for the page-level split widened an inner one to 100% and
+   stacked it. The Portfolio tab's own layers did exactly that to its two columns. */
 [data-testid="stHorizontalBlock"]:has([data-baseweb="tab-panel"]:not([hidden]) .no-rail)
   > [data-testid="stColumn"]:has(.rail-anchor) {{ display: none !important; }}
-[data-testid="stHorizontalBlock"]:has([data-baseweb="tab-panel"]:not([hidden]) .no-rail)
+[data-testid="stHorizontalBlock"]:has([data-baseweb="tab-panel"]:not([hidden]) .no-rail):has(> [data-testid="stColumn"] .rail-anchor)
   > [data-testid="stColumn"]:first-child {{
     width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; }}
 
@@ -629,6 +634,13 @@ h3 {{ font-size: 0.9rem; }}
    opens onto its own studies, so the link from programme to trial is one click and
    needs no rerun. */
 .progs {{ margin: 0.2rem 0 0.3rem; }}
+/* A phase group, folded where it is early-stage. The summary is the old heading, so a
+   folded group and an open one carry the same rule and the same count. */
+.prog-g {{ margin: 0; }}
+.prog-g > summary {{ list-style: none; cursor: pointer; }}
+.prog-g > summary::-webkit-details-marker {{ display: none; }}
+.prog-g:not([open]) > summary {{ color: var(--muted); }}
+.prog-g > summary:hover {{ color: var(--text); }}
 .prog-h {{ display: flex; justify-content: space-between; align-items: baseline;
           font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
           color: var(--muted); margin: 0.6rem 0 0.15rem;

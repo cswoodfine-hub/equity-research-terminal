@@ -3857,7 +3857,10 @@ with main:
 
         # The count lives under the programme list, which is where it can be checked
         # against the compounds it counts. Saying it twice invited the two to disagree.
-        section(f"{ticker} by therapeutic area")
+        # The chart is built here and drawn under "By area" below. It is a summary of
+        # the list, and a summary that costs three quarters of the first screen buys
+        # its space from the thing it summarises.
+        _area_chart = None
         # Defined before the branch: the programme list below reads these, and a company
         # with no trials draws no pills to set them.
         area_pick: list = []
@@ -3934,9 +3937,9 @@ with main:
             tags = [t for t, has in (("Phase 4", post), ("follow-up", followup)) if has]
             if tags:
                 legend.append((" and ".join(tags) + ", post-development", TK.MUTED))
-            R.show(CH.stacked_bar(
+            _area_chart = CH.stacked_bar(
                 stack_rows, 832, max(170, 34 * len(order) + 22),
-                value_fmt=lambda v: f"{v:.0f}", legend=legend))
+                value_fmt=lambda v: f"{v:.0f}", legend=legend)
 
             # Pills stay plain labels: rewriting a pill's own label as it is selected made
             # its highlight take two clicks. The count for what is selected shows in a line
@@ -3963,179 +3966,202 @@ with main:
                 key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
 
 
-        # --- Programmes: the compounds behind the studies -------------------
-        # A trial list answers what is running; this answers what is being developed.
-        # Each row is a compound the company is trialling but does not yet sell, bound to
-        # its studies through the intervention names the registry publishes.
-        programmes = api_get(api_base,
-                             f"/companies/{ticker}/programmes").get("programmes") or []
-        phase_order = ["Phase 3", "Phase 2/3", "Phase 2", "Phase 1/2", "Phase 1",
-                       "Phase 4", "unphased"]
+        # One strip, two layers. The list is the tab's work and is what it opens on;
+        # the chart over it was a summary that pushed the first compound three quarters
+        # of the way down the screen, so it is a click away instead.
+        st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
+        _pipe_names = ["Programmes"] + (["By area"] if _area_chart else [])
+        _pipe = dict(zip(_pipe_names, st.tabs(_pipe_names)))
+        if _area_chart:
+            with _pipe["By area"]:
+                section(f"{ticker} by therapeutic area")
+                R.show(_area_chart)
+        with _pipe["Programmes"]:
+            # --- Programmes: the compounds behind the studies -------------------
+            # A trial list answers what is running; this answers what is being developed.
+            # Each row is a compound the company is trialling but does not yet sell, bound to
+            # its studies through the intervention names the registry publishes.
+            programmes = api_get(api_base,
+                                 f"/companies/{ticker}/programmes").get("programmes") or []
+            phase_order = ["Phase 3", "Phase 2/3", "Phase 2", "Phase 1/2", "Phase 1",
+                           "Phase 4", "unphased"]
 
-        # The pills above drive this list, so the spotlight on the chart and the compounds
-        # underneath are one selection rather than two controls saying different things.
-        # Area matches every area a compound is studied in, not just the one most of its
-        # trials sit in; phase matches the furthest it has reached, which is the heading
-        # it sits under. What the filter left shows in the section count, so clicking a
-        # pill adds no line of its own.
-        # What each compound is worth, so the pipeline reads as a book of value and not
-        # only a list of studies. The forecast tab already computes this; without it here
-        # a compound modelled at two dollars a share and one nobody has valued look the
-        # same, which is the opposite of what the list is for. Cached for thirty seconds
-        # like every other call, so opening both tabs computes it once. A forecast that
-        # cannot be built must never take the pipeline down with it.
-        try:
-            _v = api_get(api_base, f"/companies/{ticker}/forecast-verdict")
-        except Exception:
-            _v = {}
-        _shares = _v.get("diluted_shares") or 0
-        valued = {m["asset_id"]: m.get("per_share")
-                  for m in (_v.get("modelled") or []) if m.get("asset_id")}
-        # Shown and not counted: the engine ran it on a placeholder curve, so the figure
-        # exists but the company total deliberately excludes it. Marked, never hidden.
-        held = {m["asset_id"]: (m.get("rnpv_share") or 0) * 1e6 / _shares if _shares
-                else None for m in (_v.get("placeholders") or []) if m.get("asset_id")}
-        blocked = {m["asset_id"]: (m.get("missing") or [])
-                   for m in (_v.get("refused") or []) if m.get("asset_id")}
+            # The pills above drive this list, so the spotlight on the chart and the compounds
+            # underneath are one selection rather than two controls saying different things.
+            # Area matches every area a compound is studied in, not just the one most of its
+            # trials sit in; phase matches the furthest it has reached, which is the heading
+            # it sits under. What the filter left shows in the section count, so clicking a
+            # pill adds no line of its own.
+            # What each compound is worth, so the pipeline reads as a book of value and not
+            # only a list of studies. The forecast tab already computes this; without it here
+            # a compound modelled at two dollars a share and one nobody has valued look the
+            # same, which is the opposite of what the list is for. Cached for thirty seconds
+            # like every other call, so opening both tabs computes it once. A forecast that
+            # cannot be built must never take the pipeline down with it.
+            try:
+                _v = api_get(api_base, f"/companies/{ticker}/forecast-verdict")
+            except Exception:
+                _v = {}
+            _shares = _v.get("diluted_shares") or 0
+            valued = {m["asset_id"]: m.get("per_share")
+                      for m in (_v.get("modelled") or []) if m.get("asset_id")}
+            # Shown and not counted: the engine ran it on a placeholder curve, so the figure
+            # exists but the company total deliberately excludes it. Marked, never hidden.
+            held = {m["asset_id"]: (m.get("rnpv_share") or 0) * 1e6 / _shares if _shares
+                    else None for m in (_v.get("placeholders") or []) if m.get("asset_id")}
+            blocked = {m["asset_id"]: (m.get("missing") or [])
+                       for m in (_v.get("refused") or []) if m.get("asset_id")}
 
-        def _value_cell(asset_id) -> str:
-            """The rightmost column: what the compound is worth a share, or why not.
+            def _value_cell(asset_id) -> str:
+                """The rightmost column: what the compound is worth a share, or why not.
 
-            Four states, and the difference between the last two is the point. "no
-            forecast" means nobody has written the assumptions. The refused row means
-            they were written, the engine read them and stopped on a named gap, which is
-            a piece of work with a next step attached rather than an absence.
-            """
-            if asset_id in valued:
-                return (f'<span class="prog-v" title="rNPV a share, counted in the '
-                        f'company total">{T.num(valued[asset_id] or 0, 2)}</span>')
-            if asset_id in held:
-                figure = T.num(held[asset_id] or 0, 2) if held[asset_id] else "held"
-                return (f'<span class="prog-v off" title="built on a placeholder curve, '
-                        f'so it is shown and not counted">{figure} *</span>')
-            if asset_id in blocked:
-                want = ", ".join(str(x) for x in blocked[asset_id][:6]) or "inputs"
-                return (f'<span class="prog-v off" title="the engine stopped on: '
-                        f'{html_escape(want)}">needs</span>')
-            return '<span class="prog-v off" title="no assumptions on file">&mdash;</span>'
+                Four states, and the difference between the last two is the point. "no
+                forecast" means nobody has written the assumptions. The refused row means
+                they were written, the engine read them and stopped on a named gap, which is
+                a piece of work with a next step attached rather than an absence.
+                """
+                if asset_id in valued:
+                    return (f'<span class="prog-v" title="rNPV a share, counted in the '
+                            f'company total">{T.num(valued[asset_id] or 0, 2)}</span>')
+                if asset_id in held:
+                    figure = T.num(held[asset_id] or 0, 2) if held[asset_id] else "held"
+                    return (f'<span class="prog-v off" title="built on a placeholder curve, '
+                            f'so it is shown and not counted">{figure} *</span>')
+                if asset_id in blocked:
+                    want = ", ".join(str(x) for x in blocked[asset_id][:6]) or "inputs"
+                    return (f'<span class="prog-v off" title="the engine stopped on: '
+                            f'{html_escape(want)}">needs</span>')
+                return '<span class="prog-v off" title="no assumptions on file">&mdash;</span>'
 
-        total_programmes = len(programmes)
-        if area_pick:
-            programmes = [p for p in programmes
-                          if set(p.get("areas") or []) & set(area_pick)]
-        if phase_pick:
-            programmes = [p for p in programmes if p.get("phase") in phase_pick]
+            total_programmes = len(programmes)
+            if area_pick:
+                programmes = [p for p in programmes
+                              if set(p.get("areas") or []) & set(area_pick)]
+            if phase_pick:
+                programmes = [p for p in programmes if p.get("phase") in phase_pick]
 
-        def _group_of(p):
-            if p.get("source") == "filing":
-                return p.get("stage") or "named in the filing"
-            return p.get("phase") or "unphased"
+            def _group_of(p):
+                if p.get("source") == "filing":
+                    return p.get("stage") or "named in the filing"
+                return p.get("phase") or "unphased"
 
-        shown_counts = " · ".join(
-            f'{n} {ph}' for ph, n in
-            ((ph, sum(1 for p in programmes if _group_of(p) == ph))
-             for ph in phase_order + FILING_STAGES + ["named in the filing"]) if n)
-        count = (f"{len(programmes)} of {total_programmes} compounds"
-                 if len(programmes) != total_programmes
-                 else f"{total_programmes} compounds")
-        # The value of what is shown, not of the whole pipeline, so the figure agrees
-        # with the rows under it when a pill is filtering the list.
-        _shown_value = sum(valued.get(p.get("asset_id")) or 0 for p in programmes)
-        _shown_n = sum(1 for p in programmes if valued.get(p.get("asset_id")))
-        value_txt = (f" · {_shown_n} valued at {T.num(_shown_value, 2)} a share"
-                     if _shown_n else "")
-        section("Programmes in development",
-                count + (f" · {shown_counts}" if shown_counts else "") + value_txt)
+            shown_counts = " · ".join(
+                f'{n} {ph}' for ph, n in
+                ((ph, sum(1 for p in programmes if _group_of(p) == ph))
+                 for ph in phase_order + FILING_STAGES + ["named in the filing"]) if n)
+            count = (f"{len(programmes)} of {total_programmes} compounds"
+                     if len(programmes) != total_programmes
+                     else f"{total_programmes} compounds")
+            # The value of what is shown, not of the whole pipeline, so the figure agrees
+            # with the rows under it when a pill is filtering the list.
+            _shown_value = sum(valued.get(p.get("asset_id")) or 0 for p in programmes)
+            _shown_n = sum(1 for p in programmes if valued.get(p.get("asset_id")))
+            value_txt = (f" · {_shown_n} valued at {T.num(_shown_value, 2)} a share"
+                         if _shown_n else "")
+            section("Programmes in development",
+                    count + (f" · {shown_counts}" if shown_counts else "") + value_txt)
 
-        # Grouped by the furthest phase each compound has reached, most advanced first,
-        # and every phase is shown: early work is most of a pipeline by count, and a
-        # Phase 1 programme is the part an analyst is being paid to find early.
-        # A programme with no registered trial is grouped by the stage its filing states,
-        # under a heading of its own. Never mixed in with a phase: a phase is a study that
-        # exists and a stage is a sentence, and putting "IND cleared" in the Phase 1 group
-        # would be reading the sentence as the study.
-        by_phase: dict = {}
-        for p in programmes:
-            by_phase.setdefault(_group_of(p), []).append(p)
-        phase_order = phase_order + [s for s in FILING_STAGES if s in by_phase] + [
-            "named in the filing"]
-        if not programmes:
-            state(f"No unapproved compounds mapped for {ticker}",
-                  "Programmes are derived from the drug each trial names. Press Refresh "
-                  "all to pull the registry and bind them.")
-        else:
-            html = ['<div class="progs">']
-            for ph in phase_order:
-                group = by_phase.get(ph)
-                if not group:
-                    continue
-                html.append(f'<div class="prog-h">{html_escape(ph)}'
-                            f'<span>{len(group)}</span></div>')
-                for p in group:
-                    due = (p.get("next_readout") or "")[:10]
-                    # A native disclosure, so a programme opens onto its own studies
-                    # without a widget and without a rerun.
-                    studies = []
-                    for s in p.get("studies") or []:
-                        title = (s.get("title") or "").strip()
-                        title = title if len(title) <= 84 else title[:83].rstrip() + "…"
-                        studies.append(
-                            f'<div class="prog-s" title="{html_escape(s.get("title") or "")}">'
-                            f'<span class="d">{html_escape((s.get("due") or "")[:10] or "no date")}</span>'
-                            f'<span class="ph">{html_escape(s.get("phase") or "")}</span>'
-                            f'<a href="https://clinicaltrials.gov/study/{html_escape(s.get("nct_id") or "")}"'
-                            f' target="_blank" rel="noopener">{html_escape(title)}</a>'
-                            f'<span class="st">{html_escape(s.get("area") or "")}'
-                            f' · {html_escape(s.get("status") or "")}</span>'
-                            f'</div>')
-                    # The lead area, with a count when the compound spans more, so a
-                    # programme being developed across indications reads as one.
-                    areas = p.get("areas") or []
-                    area_txt = (f'{areas[0]}' if areas else "")
-                    if len(areas) > 1:
-                        area_txt += f' +{len(areas) - 1}'
-                    if p.get("source") == "filing":
-                        # No study to open, so the disclosure holds the sentence it was
-                        # read from and the filing that carried it. A reader who doubts
-                        # the row can check it without leaving the page.
-                        studies = [
-                            f'<div class="prog-s prog-ev">'
-                            f'<span class="d">{html_escape(p.get("form_type") or "")} '
-                            f'{html_escape((p.get("filed_date") or "")[:10])}</span>'
-                            f'<span class="q">{html_escape(p.get("evidence") or "")}</span>'
-                            f'</div>']
-                        area_txt = p.get("indication") or ""
-                    html.append(
-                        f'<details class="prog"><summary>'
-                        f'<span class="prog-n">{html_escape(p.get("name") or "")}</span>'
-                        f'<span class="prog-a" title="{html_escape(", ".join(areas))}">'
-                        f'{html_escape(area_txt)}</span>'
-                        f'<span class="prog-t">'
-                        f'{"filing" if p.get("source") == "filing" else str(p.get("trials", 0)) + " trials"}'
-                        f'</span>'
-                        f'<span class="prog-d">{html_escape(due or "no date")}</span>'
-                        f'{_value_cell(p.get("asset_id"))}'
-                        f'</summary>{"".join(studies)}</details>')
-            html.append("</div>")
-            st.markdown("".join(html), unsafe_allow_html=True)
-            st.markdown(
-                '<div class="byline">One row per compound in trials that the company does '
-                'not yet sell, grouped by the furthest phase it has reached, with the '
-                'number of studies behind it and the next primary completion date due. '
-                'Open a compound for its own studies, each linking to the registry. '
-                'Derived from the drug each registry entry names, so a compound appears '
-                'only where a trial names it. A comparator, a shared chemotherapy '
-                'backbone and another company\'s marketed drug are excluded, so this is '
-                'the sponsor\'s own work rather than everything its studies '
-                'mention. Below the phases sit the programmes the company describes in '
-                'its own filing and the registry has never seen, at the stage the filing '
-                'states and never at a phase, each opening onto the sentence it was read '
-                'from. The last column is what the compound is worth a share on the '
-                'forecast tab: a figure where the engine builds it, "needs" where it '
-                'read the assumptions and stopped on a gap the tooltip names, a starred '
-                'figure where it ran on a placeholder curve and is shown without being '
-                'counted, and a dash where no assumptions are on file at all.</div>',
-                unsafe_allow_html=True)
+            # Grouped by the furthest phase each compound has reached, most advanced first,
+            # and every phase is shown: early work is most of a pipeline by count, and a
+            # Phase 1 programme is the part an analyst is being paid to find early.
+            # A programme with no registered trial is grouped by the stage its filing states,
+            # under a heading of its own. Never mixed in with a phase: a phase is a study that
+            # exists and a stage is a sentence, and putting "IND cleared" in the Phase 1 group
+            # would be reading the sentence as the study.
+            by_phase: dict = {}
+            for p in programmes:
+                by_phase.setdefault(_group_of(p), []).append(p)
+            phase_order = phase_order + [s for s in FILING_STAGES if s in by_phase] + [
+                "named in the filing"]
+            if not programmes:
+                state(f"No unapproved compounds mapped for {ticker}",
+                      "Programmes are derived from the drug each trial names. Press Refresh "
+                      "all to pull the registry and bind them.")
+            else:
+                html = ['<div class="progs">']
+                for ph in phase_order:
+                    group = by_phase.get(ph)
+                    if not group:
+                        continue
+                    # Late phase open, early phase folded. Most of a pipeline by count is
+                    # Phase 1, and for Lilly that is 43 rows of internal codes between the
+                    # reader and the end of the list. The count stays on every heading, so
+                    # a folded group still says how large it is, and opening one is a click
+                    # against the browser rather than a rerun. A phase the pills asked for
+                    # is open whatever its stage, because asking for it is the request to
+                    # read it, and a short list is left open in full.
+                    opened = " open" if (ph in ("Phase 3", "Phase 2/3")
+                                         or ph in phase_pick
+                                         or len(programmes) <= 12) else ""
+                    html.append(f'<details class="prog-g"{opened}>'
+                                f'<summary class="prog-h">{html_escape(ph)}'
+                                f'<span>{len(group)}</span></summary>')
+                    for p in group:
+                        due = (p.get("next_readout") or "")[:10]
+                        # A native disclosure, so a programme opens onto its own studies
+                        # without a widget and without a rerun.
+                        studies = []
+                        for s in p.get("studies") or []:
+                            title = (s.get("title") or "").strip()
+                            title = title if len(title) <= 84 else title[:83].rstrip() + "…"
+                            studies.append(
+                                f'<div class="prog-s" title="{html_escape(s.get("title") or "")}">'
+                                f'<span class="d">{html_escape((s.get("due") or "")[:10] or "no date")}</span>'
+                                f'<span class="ph">{html_escape(s.get("phase") or "")}</span>'
+                                f'<a href="https://clinicaltrials.gov/study/{html_escape(s.get("nct_id") or "")}"'
+                                f' target="_blank" rel="noopener">{html_escape(title)}</a>'
+                                f'<span class="st">{html_escape(s.get("area") or "")}'
+                                f' · {html_escape(s.get("status") or "")}</span>'
+                                f'</div>')
+                        # The lead area, with a count when the compound spans more, so a
+                        # programme being developed across indications reads as one.
+                        areas = p.get("areas") or []
+                        area_txt = (f'{areas[0]}' if areas else "")
+                        if len(areas) > 1:
+                            area_txt += f' +{len(areas) - 1}'
+                        if p.get("source") == "filing":
+                            # No study to open, so the disclosure holds the sentence it was
+                            # read from and the filing that carried it. A reader who doubts
+                            # the row can check it without leaving the page.
+                            studies = [
+                                f'<div class="prog-s prog-ev">'
+                                f'<span class="d">{html_escape(p.get("form_type") or "")} '
+                                f'{html_escape((p.get("filed_date") or "")[:10])}</span>'
+                                f'<span class="q">{html_escape(p.get("evidence") or "")}</span>'
+                                f'</div>']
+                            area_txt = p.get("indication") or ""
+                        html.append(
+                            f'<details class="prog"><summary>'
+                            f'<span class="prog-n">{html_escape(p.get("name") or "")}</span>'
+                            f'<span class="prog-a" title="{html_escape(", ".join(areas))}">'
+                            f'{html_escape(area_txt)}</span>'
+                            f'<span class="prog-t">'
+                            f'{"filing" if p.get("source") == "filing" else str(p.get("trials", 0)) + " trials"}'
+                            f'</span>'
+                            f'<span class="prog-d">{html_escape(due or "no date")}</span>'
+                            f'{_value_cell(p.get("asset_id"))}'
+                            f'</summary>{"".join(studies)}</details>')
+                    html.append("</details>")
+                html.append("</div>")
+                st.markdown("".join(html), unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="byline">One row per compound in trials that the company does '
+                    'not yet sell, grouped by the furthest phase it has reached, with the '
+                    'number of studies behind it and the next primary completion date due. '
+                    'Open a compound for its own studies, each linking to the registry. '
+                    'Derived from the drug each registry entry names, so a compound appears '
+                    'only where a trial names it. A comparator, a shared chemotherapy '
+                    'backbone and another company\'s marketed drug are excluded, so this is '
+                    'the sponsor\'s own work rather than everything its studies '
+                    'mention. Below the phases sit the programmes the company describes in '
+                    'its own filing and the registry has never seen, at the stage the filing '
+                    'states and never at a phase, each opening onto the sentence it was read '
+                    'from. The last column is what the compound is worth a share on the '
+                    'forecast tab: a figure where the engine builds it, "needs" where it '
+                    'read the assumptions and stopped on a gap the tooltip names, a starred '
+                    'figure where it ran on a placeholder curve and is shown without being '
+                    'counted, and a dash where no assumptions are on file at all.</div>',
+                    unsafe_allow_html=True)
 
 
     # --- Portfolio -------------------------------------------------------
@@ -4250,165 +4276,183 @@ with main:
                         f'</span></div>'
                         '</div>', unsafe_allow_html=True)
 
-                    # Revenue mix leads: what the company earns today, by product, before the
-                    # cliff charts say what is at risk. The mix is the base the rest is read
-                    # against, so it comes first.
-                    if mix_drivers:
-                        section("Revenue mix", f"FY{mix_year}")
-                        ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
-                        slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
-                                   "value": p["value"], "colour": ramp[i % len(ramp)]}
-                                  for i, p in enumerate(mix_drivers)]
-                        if mix_tail:
-                            slices.append({"label": f"{len(mix_tail)} smaller products",
-                                           "value": sum(p["value"] for p in mix_tail),
-                                           "colour": TK.RULE_STRONG, "muted": True})
-                        # The money no product carries used to be one anonymous wedge.
-                        # Where the company reports it as a line and the app carries that
-                        # line, it has a name, and the name is worth more than the grey.
-                        # The composition is in revenue_mix, which is pure and tested;
-                        # this is only the colouring.
-                        rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
-                        named_lines, remainder, over = revenue_mix.line_slices(
-                            revenue_payload.get("lines"), rest, mix_year,
-                            mix_reported.get("value"))
-                        named_lines = [{"label": ln["line"], "value": ln["value"],
-                                        "colour": TK.MUTED, "muted": True}
-                                       for ln in named_lines]
-                        slices.extend(named_lines)
-                        if remainder:
-                            slices.append({"label": "not attributed by product",
-                                           "value": remainder, "colour": TK.PANEL,
-                                           "muted": True})
-                        # The same revenue twice: by product, and by the disease the label says
-                        # each product treats. One says which drugs carry the company, the other
-                        # says which franchise does, and a portfolio held in one area reads very
-                        # differently from the same revenue spread across four.
-                        # The revenue rows carry their own area, so a product that earns under
-                        # this company but is approved to another still lands in a franchise.
-                        area_by_asset = {p.get("asset_id"): p.get("area") for p in prods
-                                         if p.get("asset_id")}
-                        by_area: dict = {}
-                        for row in mix_rows:
-                            area = (row.get("area")
-                                    or area_by_asset.get(row.get("asset_id"))
-                                    or "area not stated")
-                            by_area[area] = by_area.get(area, 0) + (row.get("value") or 0)
-                        area_order = sorted(by_area, key=lambda a: (a == "area not stated",
-                                                                    -by_area[a]))
-                        # A donut half the width cannot carry "Immunology and inflammation" as
-                        # a leader label, so the long areas go by their head word here. The
-                        # product grid below keeps the full names.
-                        short = {"Immunology and inflammation": "Immunology",
-                                 "Renal and hepatic": "Renal and hepatic",
-                                 "Infectious disease": "Infectious",
-                                 "Healthy volunteers": "Healthy volunteers"}
-                        # Categories, not magnitudes: a lightness ramp would say oncology is
-                        # more than neuroscience. Hue carries the area, each area keeps its own
-                        # colour across companies, and the two donuts stop looking like one
-                        # chart drawn twice.
-                        area_colour = area_colours(
-                            [a for a in area_order if a != "area not stated"])
-                        area_slices = [
-                            {"label": short.get(area, area), "value": by_area[area],
-                             "colour": (TK.RULE_STRONG if area == "area not stated"
-                                        else area_colour[area]),
-                             "muted": area == "area not stated"}
-                            for area in area_order]
-                        # A segment line has no disease area, so it lands here under its
-                        # own name too. "MedTech" is a truer answer to which area carries
-                        # the revenue than "not attributed" was.
-                        area_slices.extend(named_lines)
-                        if remainder:
-                            area_slices.append({"label": "not attributed by product",
-                                                "value": remainder, "colour": TK.PANEL,
-                                                "muted": True})
 
-                        # The same total in both centres, because it is the same revenue cut
-                        # two ways; the heading over each says which cut it is.
-                        total_mix = sum(sl["value"] for sl in slices) / 1e9
-                        named = len([a for a in area_order if a != "area not stated"])
-                        left, right = st.columns(2, gap="small")
-                        with left:
-                            st.markdown('<div class="subhead">By product</div>',
-                                        unsafe_allow_html=True)
-                            R.show(CH.donut(
-                                slices, 470, 290, centre_label=T.num(total_mix, 1),
-                                centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                                value_fmt=lambda v: T.num(v / 1e9, 2)),
-                                css_class="chart-mount mix-donut")
-                        with right:
-                            st.markdown(
-                                f'<div class="subhead">By disease area<span>{named} areas'
-                                '</span></div>', unsafe_allow_html=True)
-                            R.show(CH.donut(
-                                area_slices, 470, 290, centre_label=T.num(total_mix, 1),
-                                centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                                value_fmt=lambda v: T.num(v / 1e9, 2)),
-                                css_class="chart-mount mix-donut")
-                        if named_lines:
-                            note("The grey wedges are revenue the company reports as a "
-                                 "line rather than a product: "
-                                 + ", ".join(f"{sl['label']} at "
-                                             f"{T.num(sl['value'] / 1e9, 2)}bn"
-                                             for sl in named_lines)
-                                 + ". They are carried in the forecast as streams, which "
-                                   "is why the model reconciles to the reported total "
-                                   "rather than to the products alone.")
-                        if over:
-                            note(f"The lines on file come to {T.num(over / 1e9, 2)}bn more "
-                                 "than the revenue no product carries, so they are drawn "
-                                 "as one wedge instead of by name. A line worth more than "
-                                 "the gap is counting a product twice, which is a defect "
-                                 "in the line rather than in the chart.")
-
-                    # Loss of exclusivity by year. Two cuts of the same expiries. The count
-                    # cliff shows every product with a published expiry, so nothing is hidden by
-                    # the free-data revenue gap. The revenue chart below weights only the few
-                    # products with tagged revenue, which is sparse and must not read as the
-                    # whole cliff.
-                    count_by_year: dict = {}
-                    rev_by_year: dict = {}
-                    for p in prods:
-                        y, r = _loe_year(p), p.get("revenue")
-                        if y and today.year <= y <= today.year + 10:
-                            count_by_year[y] = count_by_year.get(y, 0) + 1
-                            if r:
-                                rev_by_year[y] = rev_by_year.get(y, 0) + r
-                    # The cliff, full width. The revenue-at-risk chart that used to sit
-                    # beside it is gone: it weighted only the products whose revenue the
-                    # filer happens to tag, which for Lilly is four of the fourteen expiring
-                    # in the window, and a bar chart of a quarter of the truth read as the
-                    # whole of it. The count below hides nothing, because it draws every
-                    # product with a published expiry whether or not its revenue is known.
-                    if count_by_year:
-                        years = list(range(today.year, today.year + 11))
-                        section("Loss of exclusivity by year", "products, next 10 years")
-                        bars = [{"label": f"'{y % 100:02d}",
-                                 "value": count_by_year.get(y, 0), "colour": TK.DOWN,
-                                 "show_value": count_by_year.get(y, 0) > 0}
-                                for y in years]
-                        R.show(CH.bar_chart(bars, 1100, 118,
-                                            value_fmt=lambda v: str(int(v))),
-                               css_class="chart-mount stretch")
-                        note("Every marketed product losing US exclusivity that year, "
-                             "expiries from the Orange and Purple Books, counted whether or "
-                             "not its revenue is tagged. A small molecule is placed at its "
-                             "latest patent, a biologic at the later of its listed expiry "
-                             "and the 12-year floor. A product with no published expiry "
-                             "cannot be placed and is left out, never estimated: open its "
-                             "card to see whether that is protection already lapsed or "
-                             "nothing published yet.")
-
-                    # The fact sheet, under the cliff rather than inside the card grid.
-                    # Opening above the cards pushed them down the page on every click;
-                    # here it fills the column the charts leave, and the cards it is
-                    # about stay where they were.
+                    # The left column stacked four panels and the last of them was a
+                    # placeholder until a card was clicked. The two charts are layers
+                    # now, and the fact sheet sits above them rather than among them: a
+                    # card click is a request to read that product, and st.tabs keeps
+                    # the selected label across a rerun, so adding a "Fact sheet" tab
+                    # left the reader looking at the revenue mix they had already seen.
+                    # Filled after the cards are drawn, since the click that selects a
+                    # product happens in the column beside this one.
                     _profile_slot = st.container()
+                    st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
+                    _pf_names = ["Revenue mix", "Exclusivity"]
+                    _pf = dict(zip(_pf_names, st.tabs(_pf_names)))
+
+                    with _pf["Revenue mix"]:
+                        # Revenue mix leads: what the company earns today, by product, before the
+                        # cliff charts say what is at risk. The mix is the base the rest is read
+                        # against, so it comes first.
+                        if mix_drivers:
+                            section("Revenue mix", f"FY{mix_year}")
+                            ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
+                            slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
+                                       "value": p["value"], "colour": ramp[i % len(ramp)]}
+                                      for i, p in enumerate(mix_drivers)]
+                            if mix_tail:
+                                slices.append({"label": f"{len(mix_tail)} smaller products",
+                                               "value": sum(p["value"] for p in mix_tail),
+                                               "colour": TK.RULE_STRONG, "muted": True})
+                            # The money no product carries used to be one anonymous wedge.
+                            # Where the company reports it as a line and the app carries that
+                            # line, it has a name, and the name is worth more than the grey.
+                            # The composition is in revenue_mix, which is pure and tested;
+                            # this is only the colouring.
+                            rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
+                            named_lines, remainder, over = revenue_mix.line_slices(
+                                revenue_payload.get("lines"), rest, mix_year,
+                                mix_reported.get("value"))
+                            named_lines = [{"label": ln["line"], "value": ln["value"],
+                                            "colour": TK.MUTED, "muted": True}
+                                           for ln in named_lines]
+                            slices.extend(named_lines)
+                            if remainder:
+                                slices.append({"label": "not attributed by product",
+                                               "value": remainder, "colour": TK.PANEL,
+                                               "muted": True})
+                            # The same revenue twice: by product, and by the disease the label says
+                            # each product treats. One says which drugs carry the company, the other
+                            # says which franchise does, and a portfolio held in one area reads very
+                            # differently from the same revenue spread across four.
+                            # The revenue rows carry their own area, so a product that earns under
+                            # this company but is approved to another still lands in a franchise.
+                            area_by_asset = {p.get("asset_id"): p.get("area") for p in prods
+                                             if p.get("asset_id")}
+                            by_area: dict = {}
+                            for row in mix_rows:
+                                area = (row.get("area")
+                                        or area_by_asset.get(row.get("asset_id"))
+                                        or "area not stated")
+                                by_area[area] = by_area.get(area, 0) + (row.get("value") or 0)
+                            area_order = sorted(by_area, key=lambda a: (a == "area not stated",
+                                                                        -by_area[a]))
+                            # A donut half the width cannot carry "Immunology and inflammation" as
+                            # a leader label, so the long areas go by their head word here. The
+                            # product grid below keeps the full names.
+                            short = {"Immunology and inflammation": "Immunology",
+                                     "Renal and hepatic": "Renal and hepatic",
+                                     "Infectious disease": "Infectious",
+                                     "Healthy volunteers": "Healthy volunteers"}
+                            # Categories, not magnitudes: a lightness ramp would say oncology is
+                            # more than neuroscience. Hue carries the area, each area keeps its own
+                            # colour across companies, and the two donuts stop looking like one
+                            # chart drawn twice.
+                            area_colour = area_colours(
+                                [a for a in area_order if a != "area not stated"])
+                            area_slices = [
+                                {"label": short.get(area, area), "value": by_area[area],
+                                 "colour": (TK.RULE_STRONG if area == "area not stated"
+                                            else area_colour[area]),
+                                 "muted": area == "area not stated"}
+                                for area in area_order]
+                            # A segment line has no disease area, so it lands here under its
+                            # own name too. "MedTech" is a truer answer to which area carries
+                            # the revenue than "not attributed" was.
+                            area_slices.extend(named_lines)
+                            if remainder:
+                                area_slices.append({"label": "not attributed by product",
+                                                    "value": remainder, "colour": TK.PANEL,
+                                                    "muted": True})
+
+                            # The same total in both centres, because it is the same revenue cut
+                            # two ways; the heading over each says which cut it is.
+                            total_mix = sum(sl["value"] for sl in slices) / 1e9
+                            named = len([a for a in area_order if a != "area not stated"])
+                            left, right = st.columns(2, gap="small")
+                            with left:
+                                st.markdown('<div class="subhead">By product</div>',
+                                            unsafe_allow_html=True)
+                                R.show(CH.donut(
+                                    slices, 470, 290, centre_label=T.num(total_mix, 1),
+                                    centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                                    value_fmt=lambda v: T.num(v / 1e9, 2)),
+                                    css_class="chart-mount mix-donut")
+                            with right:
+                                st.markdown(
+                                    f'<div class="subhead">By disease area<span>{named} areas'
+                                    '</span></div>', unsafe_allow_html=True)
+                                R.show(CH.donut(
+                                    area_slices, 470, 290, centre_label=T.num(total_mix, 1),
+                                    centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                                    value_fmt=lambda v: T.num(v / 1e9, 2)),
+                                    css_class="chart-mount mix-donut")
+                            if named_lines:
+                                note("The grey wedges are revenue the company reports as a "
+                                     "line rather than a product: "
+                                     + ", ".join(f"{sl['label']} at "
+                                                 f"{T.num(sl['value'] / 1e9, 2)}bn"
+                                                 for sl in named_lines)
+                                     + ". They are carried in the forecast as streams, which "
+                                       "is why the model reconciles to the reported total "
+                                       "rather than to the products alone.")
+                            if over:
+                                note(f"The lines on file come to {T.num(over / 1e9, 2)}bn more "
+                                     "than the revenue no product carries, so they are drawn "
+                                     "as one wedge instead of by name. A line worth more than "
+                                     "the gap is counting a product twice, which is a defect "
+                                     "in the line rather than in the chart.")
+
+
+                    with _pf["Exclusivity"]:
+                        # Loss of exclusivity by year. Two cuts of the same expiries. The count
+                        # cliff shows every product with a published expiry, so nothing is hidden by
+                        # the free-data revenue gap. The revenue chart below weights only the few
+                        # products with tagged revenue, which is sparse and must not read as the
+                        # whole cliff.
+                        count_by_year: dict = {}
+                        rev_by_year: dict = {}
+                        for p in prods:
+                            y, r = _loe_year(p), p.get("revenue")
+                            if y and today.year <= y <= today.year + 10:
+                                count_by_year[y] = count_by_year.get(y, 0) + 1
+                                if r:
+                                    rev_by_year[y] = rev_by_year.get(y, 0) + r
+                        # The cliff, full width. The revenue-at-risk chart that used to sit
+                        # beside it is gone: it weighted only the products whose revenue the
+                        # filer happens to tag, which for Lilly is four of the fourteen expiring
+                        # in the window, and a bar chart of a quarter of the truth read as the
+                        # whole of it. The count below hides nothing, because it draws every
+                        # product with a published expiry whether or not its revenue is known.
+                        if count_by_year:
+                            years = list(range(today.year, today.year + 11))
+                            section("Loss of exclusivity by year", "products, next 10 years")
+                            bars = [{"label": f"'{y % 100:02d}",
+                                     "value": count_by_year.get(y, 0), "colour": TK.DOWN,
+                                     "show_value": count_by_year.get(y, 0) > 0}
+                                    for y in years]
+                            R.show(CH.bar_chart(bars, 1100, 118,
+                                                value_fmt=lambda v: str(int(v))),
+                                   css_class="chart-mount stretch")
+                            note("Every marketed product losing US exclusivity that year, "
+                                 "expiries from the Orange and Purple Books, counted whether or "
+                                 "not its revenue is tagged. A small molecule is placed at its "
+                                 "latest patent, a biologic at the later of its listed expiry "
+                                 "and the 12-year floor. A product with no published expiry "
+                                 "cannot be placed and is left out, never estimated: open its "
+                                 "card to see whether that is protection already lapsed or "
+                                 "nothing published yet.")
+
+                        # The fact sheet, under the cliff rather than inside the card grid.
+                        # Opening above the cards pushed them down the page on every click;
+                        # here it fills the column the charts leave, and the cards it is
+                        # about stay where they were.
+
 
 
                 with _products_col:
-                    section("Products", f"{len(prods)}")
+                    section("Products",
+                            f"{len(prods)} &middot; click one for its fact sheet")
 
                     def _product_card_html(p):
                         mod = (p.get("modality") or "").lower()
@@ -4558,15 +4602,13 @@ with main:
                             st.session_state["profile_asset"] = clicked.get("asset_id")
                             st.rerun()
 
-                with _profile_slot:
-                    if sel is not None:
+                # Nothing where no card has been clicked. The panel used to hold a
+                # placeholder saying to click one, which spent a quarter of the column on
+                # an instruction; the hint now sits on the Products heading, next to the
+                # cards it is about.
+                if sel is not None:
+                    with _profile_slot:
                         _render_product_profile(api_base, ticker, sel, today)
-                    else:
-                        section("Product fact sheet")
-                        state("Pick a product",
-                              "Click a card to read what it earns, who takes it, what "
-                              "is still being trialled on it, and when it loses its "
-                              "market.")
 
         # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
