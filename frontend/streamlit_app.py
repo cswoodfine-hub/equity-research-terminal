@@ -354,8 +354,20 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
     if prof.get("summary"):
         # The label's own first sentence, which says what the drug is and what it
         # treats. Not written here, so a product with no label carries no summary.
-        st.markdown(f'<div class="prof-summary">{html_escape(prof["summary"])}</div>',
-                    unsafe_allow_html=True)
+        #
+        # A sentence, except where the label does not write in sentences. Darzalex
+        # Faspro's runs to two hundred words of indications joined by commas and filled
+        # the whole column, so a long one is folded to its opening and opens in place.
+        _sum = prof["summary"]
+        if len(_sum) > 260:
+            _head = _sum[:230].rsplit(" ", 1)[0]
+            st.markdown(
+                f'<details class="prof-summary long"><summary>{html_escape(_head)}'
+                f'<span class="more">more</span></summary>'
+                f'{html_escape(_sum)}</details>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="prof-summary">{html_escape(_sum)}</div>',
+                        unsafe_allow_html=True)
     st.markdown(stats, unsafe_allow_html=True)
 
     html = ['<div class="prof">']
@@ -2521,6 +2533,14 @@ if (isinstance(_cov, dict) and _cov.get("ticker") in tickers
 
 # A click on the approvals timeline names a company and an application number. The
 # company is applied here, before the selector reads its key; the application number is
+# A wedge on the revenue mix links to ?product=<asset id>. Read once, held in session
+# and cleared from the URL, so the selection survives the reruns that follow and the
+# address bar does not pin a product the reader has since clicked away from.
+_url_product = (st.query_params.get("product") or "").strip()
+if _url_product.isdigit():
+    st.session_state["profile_asset"] = int(_url_product)
+    del st.query_params["product"]
+
 # held for the Portfolio tab, which is the only place that knows which product it is.
 _appr = st.session_state.get("appr_nav")
 if (isinstance(_appr, dict) and _appr.get("key")
@@ -4090,12 +4110,28 @@ with main:
                     # against the browser rather than a rerun. A phase the pills asked for
                     # is open whatever its stage, because asking for it is the request to
                     # read it, and a short list is left open in full.
+                    _worth_here = [valued[p["asset_id"]] for p in group
+                                   if p.get("asset_id") in valued
+                                   and valued[p["asset_id"]] is not None]
+                    # Open where there is money in it. Folding is for the bulk nobody
+                    # reads, and a compound carrying a forecast is the opposite of that:
+                    # hiding its figure behind a click is hiding the one number on the
+                    # row worth crossing the page for.
                     opened = " open" if (ph in ("Phase 3", "Phase 2/3")
                                          or ph in phase_pick
+                                         or _worth_here
                                          or len(programmes) <= 12) else ""
+                    # What the group is worth, on the heading. Folding hid the value
+                    # column behind a click, which is the one thing on the row nobody
+                    # should have to ask for twice: a folded phase now says how many
+                    # compounds it holds, how many of them carry a forecast, and what
+                    # they come to a share, so the money is readable shut.
+                    _sum = (f'<span class="prog-gv">&middot; {len(_worth_here)} valued '
+                            f'&middot; {T.num(sum(_worth_here), 2)}</span>'
+                            if _worth_here else "")
                     html.append(f'<details class="prog-g"{opened}>'
                                 f'<summary class="prog-h">{html_escape(ph)}'
-                                f'<span>{len(group)}</span></summary>')
+                                f'<span>{len(group)}{_sum}</span></summary>')
                     for p in group:
                         due = (p.get("next_readout") or "")[:10]
                         # A native disclosure, so a programme opens onto its own studies
@@ -4287,7 +4323,7 @@ with main:
                     # product happens in the column beside this one.
                     _profile_slot = st.container()
                     st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
-                    _pf_names = ["Revenue mix", "Exclusivity"]
+                    _pf_names = ["Revenue mix", "By area", "Exclusivity"]
                     _pf = dict(zip(_pf_names, st.tabs(_pf_names)))
 
                     with _pf["Revenue mix"]:
@@ -4297,8 +4333,22 @@ with main:
                         if mix_drivers:
                             section("Revenue mix", f"FY{mix_year}")
                             ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
+
+                            def _slice_href(row):
+                                """The fact sheet for the product a wedge measures.
+
+                                A bracketed tail, a reported segment line and revenue the
+                                filing attributes to nothing are not products, hold no asset
+                                and so open nothing."""
+                                aid = row.get("asset_id")
+                                if not aid:
+                                    return None
+                                return (f"?ticker={urllib.parse.quote(ticker)}"
+                                        f"&product={aid}")
+
                             slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
-                                       "value": p["value"], "colour": ramp[i % len(ramp)]}
+                                       "value": p["value"], "colour": ramp[i % len(ramp)],
+                                       "href": _slice_href(p)}
                                       for i, p in enumerate(mix_drivers)]
                             if mix_tail:
                                 slices.append({"label": f"{len(mix_tail)} smaller products",
@@ -4365,28 +4415,32 @@ with main:
                                                     "value": remainder, "colour": TK.PANEL,
                                                     "muted": True})
 
-                            # The same total in both centres, because it is the same revenue cut
-                            # two ways; the heading over each says which cut it is.
+                            # One ring, the width of the column. Two of them side by side
+                            # inside half a page left each about 390 pixels for a chart
+                            # drawn at 470 with labels on leader lines outside it, so the
+                            # names crushed into the middle and the cut nobody was reading
+                            # took half the room from the cut they were. The disease-area
+                            # cut is the same revenue and gets its own layer.
                             total_mix = sum(sl["value"] for sl in slices) / 1e9
                             named = len([a for a in area_order if a != "area not stated"])
-                            left, right = st.columns(2, gap="small")
-                            with left:
-                                st.markdown('<div class="subhead">By product</div>',
-                                            unsafe_allow_html=True)
-                                R.show(CH.donut(
-                                    slices, 470, 290, centre_label=T.num(total_mix, 1),
-                                    centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                                    value_fmt=lambda v: T.num(v / 1e9, 2)),
-                                    css_class="chart-mount mix-donut")
-                            with right:
-                                st.markdown(
-                                    f'<div class="subhead">By disease area<span>{named} areas'
-                                    '</span></div>', unsafe_allow_html=True)
-                                R.show(CH.donut(
-                                    area_slices, 470, 290, centre_label=T.num(total_mix, 1),
-                                    centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                                    value_fmt=lambda v: T.num(v / 1e9, 2)),
-                                    css_class="chart-mount mix-donut")
+                            R.show(CH.donut(
+                                slices, 840, 330, centre_label=T.num(total_mix, 1),
+                                centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                                value_fmt=lambda v: T.num(v / 1e9, 2)),
+                                css_class="chart-mount mix-donut")
+                            # The build under the ring. The mix says where a year of revenue
+                            # comes from; this says where it goes, the same products as bands
+                            # out to the horizon with the reported line over them. It is the
+                            # forecast tab's chart, drawn here because this is the tab about
+                            # the book that produces it.
+                            try:
+                                _bv = api_get(api_base,
+                                              f"/companies/{ticker}/forecast-verdict")
+                            except (urllib.error.URLError, OSError):
+                                _bv = None
+                            if _bv and _bv.get("ok"):
+                                _revenue_build(_bv)
+
                             if named_lines:
                                 note("The grey wedges are revenue the company reports as a "
                                      "line rather than a product: "
@@ -4402,6 +4456,20 @@ with main:
                                      "as one wedge instead of by name. A line worth more than "
                                      "the gap is counting a product twice, which is a defect "
                                      "in the line rather than in the chart.")
+
+                    # The same revenue, cut by the disease each label names. Its own
+                    # layer rather than a second ring beside the first: they are the
+                    # same total and only one is being read at a time.
+                    if mix_drivers:
+                        with _pf["By area"]:
+                            st.markdown(
+                                f'<div class="subhead">By disease area<span>{named} areas'
+                                '</span></div>', unsafe_allow_html=True)
+                            R.show(CH.donut(
+                                area_slices, 840, 330, centre_label=T.num(total_mix, 1),
+                                centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                                value_fmt=lambda v: T.num(v / 1e9, 2)),
+                                css_class="chart-mount mix-donut")
 
 
                     with _pf["Exclusivity"]:

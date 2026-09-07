@@ -495,6 +495,15 @@ h3 {{ font-size: 0.9rem; }}
 /* The label's own sentence on what the drug is, set as prose above the figures. */
 .prof-summary {{ font-size: 12.5px; line-height: 1.5; color: var(--text);
                 max-width: 78ch; margin: 0.1rem 0 0.55rem; }}
+/* A label that does not write in sentences, folded to its opening. The marker is the
+   word "more" rather than a triangle, so the fold reads as a sentence continuing. */
+details.prof-summary.long {{ cursor: pointer; }}
+details.prof-summary.long > summary {{ list-style: none; }}
+details.prof-summary.long > summary::-webkit-details-marker {{ display: none; }}
+details.prof-summary.long .more {{ color: var(--up); margin-left: 0.4rem;
+  font-size: 11px; }}
+details.prof-summary.long[open] .more {{ display: none; }}
+details.prof-summary.long[open] > summary {{ display: none; }}
 /* The endpoint a completed study measured, quieter than its title. */
 .prof-line .ep {{ display: block; font-size: 10.5px; color: var(--muted);
                  margin-left: 92px; }}
@@ -640,6 +649,10 @@ h3 {{ font-size: 0.9rem; }}
 .prog-g > summary {{ list-style: none; cursor: pointer; }}
 .prog-g > summary::-webkit-details-marker {{ display: none; }}
 .prog-g:not([open]) > summary {{ color: var(--muted); }}
+/* The group's own money, beside its count. Brighter than the count, because a folded
+   heading is read for this and not for how many rows it hides. */
+.prog-gv {{ margin-left: 0.9rem; color: var(--text); }}
+.prog-g:not([open]) .prog-gv {{ color: var(--text); }}
 .prog-g > summary:hover {{ color: var(--text); }}
 .prog-h {{ display: flex; justify-content: space-between; align-items: baseline;
           font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
@@ -1015,6 +1028,12 @@ h3 {{ font-size: 0.9rem; }}
 }}
 .stTabs [aria-selected="true"] {{ color: var(--text); font-weight: 700; }}
 .stTabs [data-baseweb="tab-highlight"] {{ background: var(--up); height: 2px; }}
+
+/* A linked slice. Cursor and a lift on hover, so a ring that can be opened says so
+   before it is clicked, and the wedge under the pointer separates from its neighbours. */
+.chart-mount a.slice {{ cursor: pointer; }}
+.chart-mount a.slice:hover path {{ stroke: var(--text); stroke-width: 1.6; }}
+.chart-mount a.slice:hover text {{ fill: var(--text); }}
 
 /* The forecast tab's own layers. A second tab strip directly under the first reads as
    a second navigation unless it is quieter than the one above it, so this one is

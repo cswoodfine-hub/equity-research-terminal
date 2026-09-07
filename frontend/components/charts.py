@@ -1057,9 +1057,13 @@ def donut(slices: Sequence[dict], width: int = 760, height: int = 300,
           value_fmt: Callable[[float], str] = None) -> str:
     """Share-of-total ring with labels outside on leader lines.
 
-    Each slice: {label, value, colour, muted?}. Labels alternate sides by
+    Each slice: {label, value, colour, muted?, href?}. Labels alternate sides by
     mid-angle, each with a leader from arc to text, so nothing is printed inside
     a thin segment.
+
+    A slice carrying ``href`` becomes an anchor over both the wedge and its label, so
+    the ring is a way into the thing it measures rather than only a picture of it. A
+    plain SVG anchor, no script: the same device the timeline spine already uses.
     """
     value_fmt = value_fmt or (lambda v: _fmt(v, 1))
     total = sum(s["value"] for s in slices if s.get("value"))
@@ -1085,12 +1089,18 @@ def donut(slices: Sequence[dict], width: int = 760, height: int = 300,
         x1o, y1o = _pt(r_out, a1)
         x0i, y0i = _pt(r_in, a1)
         x1i, y1i = _pt(r_in, a0)
+        href = s.get("href")
+        if href:
+            out.append(f'<a href="{_esc(href)}" class="slice">')
         out.append(
             f'<path d="M{x0o:.1f},{y0o:.1f} A{r_out:.1f},{r_out:.1f} 0 {large} 1 '
             f"{x1o:.1f},{y1o:.1f} L{x0i:.1f},{y0i:.1f} "
             f"A{r_in:.1f},{r_in:.1f} 0 {large} 0 {x1i:.1f},{y1i:.1f} Z\" "
             f'fill="{s["colour"]}" stroke="{TK.GROUND}" stroke-width="1">'
-            f"<title>{_esc(s['label'])} {_esc(value_fmt(s['value']))}</title></path>")
+            f"<title>{_esc(s['label'])} {_esc(value_fmt(s['value']))}"
+            f"{' — open its fact sheet' if href else ''}</title></path>")
+        if href:
+            out.append("</a>")
         # The label's anchor on the arc. Where it is finally printed is decided after
         # every slice is known, because two thin slices next to each other put their
         # mid-angles within a degree of one another and their labels on top of each
@@ -1102,6 +1112,7 @@ def donut(slices: Sequence[dict], width: int = 760, height: int = 300,
             "right": math.cos(mid) >= 0, "label": s["label"],
             "value": f"{value_fmt(s['value'])}  {frac * 100:.1f}%",
             "colour": TK.MUTED if s.get("muted") else TK.TEXT,
+            "href": href,
         })
         angle = a1
 
@@ -1127,6 +1138,10 @@ def donut(slices: Sequence[dict], width: int = 760, height: int = 300,
         (ex, ey), (kx, ky) = entry["anchor"], entry["elbow"]
         right = entry["right"]
         tx = kx + (10 if right else -10)
+        # The label is part of the target. A 2% wedge is a hard thing to hit and its
+        # name beside it is not, so both carry the link where there is one.
+        if entry.get("href"):
+            out.append(f'<a href="{_esc(entry["href"])}" class="slice">')
         out.append(f'<polyline points="{ex:.1f},{ey:.1f} {kx:.1f},{ky:.1f}'
                    f' {tx:.1f},{ky:.1f}" fill="none" stroke="{TK.MUTED}"'
                    f' stroke-width="0.8"/>')
@@ -1134,6 +1149,8 @@ def donut(slices: Sequence[dict], width: int = 760, height: int = 300,
                          entry["colour"], "start" if right else "end", UI))
         out.append(_text(tx + (4 if right else -4), ky + 13, entry["value"], 8.5,
                          TK.MUTED, "start" if right else "end", MONO))
+        if entry.get("href"):
+            out.append("</a>")
     if centre_label:
         out.append(_text(cx, cy - 1, centre_label, 15, TK.TEXT, "middle", MONO,
                          "700"))
