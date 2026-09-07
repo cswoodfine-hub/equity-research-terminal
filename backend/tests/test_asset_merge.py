@@ -457,3 +457,44 @@ def test_the_orphan_prune_will_not_delete_a_row_another_asset_names(tmp_path):
     assert conn.execute("SELECT COUNT(*) FROM assets WHERE id = ?",
                         (head,)).fetchone()[0] == 1
     conn.close()
+
+
+def test_one_brand_under_one_application_number_is_one_product(tmp_path):
+    """Novartis had Kesimpta twice, both BLA125326, both seeded and both counted, which
+    put $4,426mm of revenue and a whole forecast into the company twice. Two identified
+    rows are normally left alone because choosing between them would throw one away on a
+    spelling; where they carry the same application number there is no spelling to
+    choose between."""
+    path = str(tmp_path / "m.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'NVS', 'Novartis')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " internal_code, is_marketed) VALUES"
+                 " (1, 1, 'Kesimpta', 'Ofatumumab', 'BLA125326', 1)")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " internal_code, is_marketed) VALUES"
+                 " (2, 1, 'Kesimpta', NULL, 'BLA125326', 1)")
+    conn.execute("INSERT INTO approvals (asset_id, region, agency, approval_date,"
+                 " application_number) VALUES (1, 'US', 'FDA', '2020-08-20', 'BLA125326')")
+    conn.commit()
+    assert asset_merge.find_brand_duplicates(conn, 1) == [(1, [2])]
+    conn.close()
+
+
+def test_two_products_sharing_a_brand_and_not_a_code_are_left_alone(tmp_path):
+    """The rule it relaxes still holds everywhere else: two rows that share a brand and
+    carry different applications are two products, and picking one would lose the other."""
+    path = str(tmp_path / "m2.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'NVS', 'Novartis')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " internal_code, is_marketed) VALUES"
+                 " (1, 1, 'Emend', 'Aprepitant', 'NDA21549', 1)")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " internal_code, is_marketed) VALUES"
+                 " (2, 1, 'Emend', 'Fosaprepitant', 'NDA22023', 1)")
+    conn.commit()
+    assert asset_merge.find_brand_duplicates(conn, 1) == []
+    conn.close()

@@ -176,6 +176,20 @@ def find_brand_duplicates(conn, company_id: int) -> list[tuple]:
     for group in groups.values():
         identified = [r for r in group if _is_identified(r)]
         losers = [r["id"] for r in group if not _is_identified(r)]
+        # Two identified rows are normally left alone, because choosing between them
+        # would throw one away on a spelling. Not where they carry the same application
+        # number: one brand filed under one code is one product however many rows reached
+        # it, and there is no spelling to choose between. Novartis had Kesimpta twice,
+        # both BLA125326, both seeded, both counted, which put $4,426mm of revenue and a
+        # whole forecast into the company twice.
+        if len(identified) > 1:
+            codes = {(r["internal_code"] or "").strip() for r in identified}
+            if len(codes) == 1 and codes != {""}:
+                ranked = sorted(identified,
+                                key=lambda r: (-r["approvals"],
+                                               not bool(r["generic_name"]), r["id"]))
+                identified, extra = ranked[:1], ranked[1:]
+                losers += [r["id"] for r in extra]
         if len(identified) == 1 and losers:
             pairs.append((identified[0]["id"], losers))
     return pairs
