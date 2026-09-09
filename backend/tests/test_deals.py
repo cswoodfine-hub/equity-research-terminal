@@ -659,3 +659,79 @@ def test_the_summary_carries_only_the_questions_that_were_answered():
     assert "Why: Strengthens the lung cancer portfolio." in line
     assert "Approval: US approval in EGFR exon 20 insertion NSCLC." in line
     assert "Use:" not in line and "Next:" not in line
+
+
+# --- backfilling deals recorded before the questions were asked ----------
+
+def _deal_db(tmp_path, *, sections=True, terms=True):
+    path = str(tmp_path / "d.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'AZN', 'AstraZeneca')")
+    conn.execute(
+        "INSERT INTO deals (id, accession, company_id, deal_type, counterparty,"
+        " event_date, quote, terms_evidence) VALUES (1, 'a1', 1, 'acquisition',"
+        " 'Dizal', '2026-09-01', ?, ?)",
+        ("AstraZeneca acquires ZEGFROVY rights for $600 million",
+         ZEGFROVY_DOC if terms else None))
+    if sections:
+        conn.execute(
+            "INSERT INTO filing_sections (company_id, accession, form_type, filed_date,"
+            " section, text) VALUES (1, 'a1', '8-K', '2026-09-01', 'body', ?)",
+            (ZEGFROVY_DOC,))
+    conn.commit()
+    conn.close()
+    return path
+
+
+def test_a_deal_with_only_its_own_headline_is_not_sent_to_the_model(tmp_path):
+    """One sentence cannot answer four questions. Asking anyway spends a call to be told
+    nothing, or tempts an answer the grounding then throws away."""
+    path = _deal_db(tmp_path, sections=False, terms=False)
+    calls = []
+
+    def complete(*a, **k):
+        calls.append(a)
+        raise AssertionError("should not be called")
+
+    out = deals.backfill_aspects(path, complete=complete)
+    assert calls == []
+    assert out["read"] == 0 and out["skipped"] == 1 and out["filled"] == 0
+
+
+def test_a_deal_with_a_filing_on_file_is_read_and_filled(tmp_path):
+    path = _deal_db(tmp_path)
+    reply = ('{"rationale": "Strengthens AstraZeneca\'s lung cancer portfolio and '
+             'complements its existing EGFR medicines", "intended_use": null, '
+             '"approval_scope": "Approved in the US for metastatic non-small cell lung '
+             'cancer with EGFR exon 20 insertion mutations", "expansion": null}')
+    out = deals.backfill_aspects(path, complete=lambda *a, **k: reply)
+    assert out["read"] == 1 and out["filled"] == 1
+    conn = db.get_connection(path)
+    row = conn.execute("SELECT * FROM deals WHERE id = 1").fetchone()
+    conn.close()
+    assert row["rationale"].startswith("Strengthens")
+    assert "exon 20" in row["approval_scope"]
+    assert row["intended_use"] is None and row["expansion"] is None
+
+
+def test_the_backfill_is_idempotent(tmp_path):
+    """A row carrying any answer is not read again, so a second pass costs nothing."""
+    path = _deal_db(tmp_path)
+    reply = '{"rationale": "Strengthens the lung cancer portfolio", "intended_use": null,' \
+            ' "approval_scope": null, "expansion": null}'
+    assert deals.backfill_aspects(path, complete=lambda *a, **k: reply)["filled"] == 1
+    again = deals.backfill_aspects(path, complete=lambda *a, **k: reply)
+    assert again["read"] == 0 and again["filled"] == 0
+
+
+def test_an_answer_the_document_does_not_carry_is_refused_on_backfill_too(tmp_path):
+    path = _deal_db(tmp_path)
+    reply = ('{"rationale": "Expands the paediatric rheumatology franchise across '
+             'Japanese hospital formularies", "intended_use": null, '
+             '"approval_scope": null, "expansion": null}')
+    out = deals.backfill_aspects(path, complete=lambda *a, **k: reply)
+    assert out["read"] == 1 and out["filled"] == 0
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT rationale FROM deals WHERE id = 1").fetchone()[0] is None
+    conn.close()

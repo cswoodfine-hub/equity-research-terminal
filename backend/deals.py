@@ -107,6 +107,116 @@ approval.
 filings or geographies. Null when the text states no forward plan."""
 
 
+ASPECT_PROMPT = """You read a company's filing or press release about one \
+business-development deal it has announced, and answer four questions about that deal.
+
+Return JSON only, no prose:
+{"rationale": str or null, "intended_use": str or null, "approval_scope": str or null, \
+"expansion": str or null}
+
+Each is ONE short sentence in your own words, drawn ONLY from this text, or null where \
+the text does not address it. Null is the right answer far more often than a guess: most \
+announcements answer one or two of these, not four. Never carry in what you know about \
+the companies from elsewhere.
+  rationale: why the company did this deal. The strategic fit, the gap it fills, what \
+the company says it gains.
+  intended_use: what the company will do with what it acquired. The programme it joins, \
+the franchise it strengthens, who will sell or develop it.
+  approval_scope: what any approval named in the text actually covers. The indication, \
+the line of therapy, the patient population, the geography. Null when the text names no \
+approval.
+  expansion: what the company says comes next for it. Further indications, trials, \
+filings or geographies. Null when the text states no forward plan."""
+
+# A quote is one sentence and cannot answer four questions. Below this much text beyond
+# it there is nothing to read, and asking anyway would spend a model call to be told
+# nothing, or tempt an answer the grounding then throws away.
+_ASPECT_MIN_CHARS = 400
+ASPECT_FIELDS = ("rationale", "intended_use", "approval_scope", "expansion")
+
+
+def aspect_document(conn, deal: dict) -> str | None:
+    """The best text on file about one deal, or None where there is not enough.
+
+    The filing the deal was read from where its sections are stored, then the paragraph
+    that stated the terms, then the announcing sentence. No network: a backfill reads
+    what the database already holds, so it can be re-run without asking EDGAR again.
+    """
+    parts = []
+    for row in conn.execute(
+            "SELECT text FROM filing_sections WHERE accession = ?", (deal["accession"],)):
+        parts.append(row["text"])
+    for field in ("terms_evidence", "quote"):
+        if deal.get(field):
+            parts.append(deal[field])
+    document = "\n\n".join(p for p in parts if p)
+    quote_len = len(deal.get("quote") or "")
+    return document if len(document) - quote_len >= _ASPECT_MIN_CHARS else None
+
+
+def backfill_aspects(db_path=None, limit: int = 500, complete=None) -> dict:
+    """Read the four reader questions for deals recorded before they were asked for.
+
+    Only where a document exists to read them from, and only into rows that carry none of
+    them, so the pass is idempotent and a second run costs nothing. A deal whose only text
+    is its own headline is left alone and counted as skipped rather than sent to the model
+    to have nulls confirmed.
+    """
+    if complete is None:
+        if llm.provider() is None:
+            return {"status": "no key", "read": 0, "filled": 0, "skipped": 0}
+        complete = llm.complete
+    conn = db.get_connection(db_path)
+    read = filled = skipped = 0
+    errors: list[str] = []
+    try:
+        rows = [dict(r) for r in conn.execute(
+            """SELECT id, accession, counterparty, quote, terms_evidence
+                 FROM deals
+                WHERE deal_type IN ('acquisition', 'licensing', 'collaboration',
+                                    'divestiture')
+                  AND counterparty IS NOT NULL
+                  AND rationale IS NULL AND intended_use IS NULL
+                  AND approval_scope IS NULL AND expansion IS NULL
+                ORDER BY event_date DESC""")]
+        # The limit counts documents read, not rows considered. Most deals arrive from a
+        # wire and carry only their own headline, and slicing the candidate list first
+        # spent the whole budget skipping those before reaching one worth reading.
+        for deal in rows:
+            if read >= limit:
+                break
+            document = aspect_document(conn, deal)
+            if not document:
+                skipped += 1
+                continue
+            read += 1
+            try:
+                reply = complete(
+                    ASPECT_PROMPT,
+                    f"Deal counterparty: {deal['counterparty']}\n\n"
+                    f"Text:\n{document[:pdufa._MAX_CHARS]}",
+                    MAX_TOKENS, thinking_budget=THINKING_BUDGET)
+                answers = parse_reply(reply) or {}
+            except Exception as exc:                       # one deal must not stop the pass
+                errors.append(f"{deal['counterparty']}: {exc}")
+                continue
+            haystack = _normalise(document)
+            kept = {f: _grounded_prose(answers.get(f), haystack) for f in ASPECT_FIELDS}
+            if not any(kept.values()):
+                continue
+            conn.execute(
+                "UPDATE deals SET rationale = ?, intended_use = ?, approval_scope = ?,"
+                "  expansion = ? WHERE id = ?",
+                (kept["rationale"], kept["intended_use"], kept["approval_scope"],
+                 kept["expansion"], deal["id"]))
+            conn.commit()
+            filled += 1
+    finally:
+        conn.close()
+    return {"status": "ok", "read": read, "filled": filled, "skipped": skipped,
+            "errors": errors[:5]}
+
+
 def _get(url: str) -> str:
     user_agent = (os.getenv("SEC_USER_AGENT") or "").strip()
     if not user_agent:
