@@ -69,7 +69,8 @@ earnings release can announce several at once, so return all of them.
 Return JSON only, no prose:
 {"deals": [{"deal_type": "acquisition" or "licensing" or "collaboration" or \
 "divestiture", "counterparty": str, "value": str or null, "area": str or null, \
-"announced_date": str or null, "quote": str}]}
+"announced_date": str or null, "quote": str, "rationale": str or null, \
+"intended_use": str or null, "approval_scope": str or null, "expansion": str or null}]}
 Return {"deals": []} when the text announces none.
 
 Rules, in order of importance:
@@ -90,7 +91,20 @@ area, asset or modality, taken from the text.
 6. announced_date is the date the company announced this deal, taken from the text and \
 written as YYYY-MM-DD; null when the text states no date for it. Do not infer or estimate \
 a date.
-7. quote is one sentence copied verbatim from the text that announces that deal."""
+7. quote is one sentence copied verbatim from the text that announces that deal.
+8. The last four fields answer what a reader asks about a deal. Each is one short \
+sentence in your own words, drawn ONLY from this text, or null where the text does not \
+address it. Null is the right answer far more often than a guess: a three-line \
+announcement carries one of these, not four.
+   rationale: why the company did this deal. The strategic fit, the gap it fills, what \
+the company says it gains.
+   intended_use: what the company will do with what it bought. The programme it joins, \
+the franchise it strengthens, who will sell or develop it.
+   approval_scope: what any approval named in the text actually covers. The indication, \
+the line of therapy, the patient population, the geography. Null when the text names no \
+approval.
+   expansion: what the company says comes next for it. Further indications, trials, \
+filings or geographies. Null when the text states no forward plan."""
 
 
 def _get(url: str) -> str:
@@ -295,6 +309,27 @@ def is_party(name: str) -> bool:
     return all(w[0].isupper() or not w[0].isalpha() for w in words)
 
 
+# The share of a summary's own words that must appear in the filing for it to count as
+# drawn from it. These four fields are the model's sentences rather than the filer's, so
+# they cannot be checked by substring the way a quote is, and a summary is allowed to
+# join words the source keeps apart. What it is not allowed to do is introduce subject
+# matter the source never mentions, and that is what this catches.
+_PROSE_GROUND = 0.7
+_PROSE_MAX = 300
+
+
+def _grounded_prose(value, haystack: str) -> str | None:
+    """A one-line summary kept only where its substance is in the document."""
+    text = (value or "").strip()
+    if not text or len(text) > _PROSE_MAX:
+        return None
+    words = [w for w in _normalise(text).split() if len(w) > 4]
+    if not words:
+        return None
+    hit = sum(1 for w in words if w in haystack)
+    return text if hit / len(words) >= _PROSE_GROUND else None
+
+
 def _validate_one(deal: dict, haystack: str, document: str) -> dict | None:
     deal_type = (deal.get("deal_type") or "").strip().lower()
     if deal_type not in _DEAL_TYPES:
@@ -318,7 +353,11 @@ def _validate_one(deal: dict, haystack: str, document: str) -> dict | None:
     return {"deal_type": deal_type, "counterparty": counterparty,
             "announced_value": value,
             "area": area, "announced_date": _grounded_date(deal.get("announced_date"),
-                                                           document), "quote": quote}
+                                                           document), "quote": quote,
+            "rationale": _grounded_prose(deal.get("rationale"), haystack),
+            "intended_use": _grounded_prose(deal.get("intended_use"), haystack),
+            "approval_scope": _grounded_prose(deal.get("approval_scope"), haystack),
+            "expansion": _grounded_prose(deal.get("expansion"), haystack)}
 
 
 def validate(reply: dict | None, document: str) -> list[dict]:
@@ -378,13 +417,17 @@ def _store(conn, filing: dict, results: list[dict]) -> None:
             """
             INSERT INTO deals
                 (accession, company_id, deal_type, counterparty, announced_value,
-                 announced_value_source, area, event_date, quote, source_url)
+                 announced_value_source, area, event_date, quote, source_url,
+                 rationale, intended_use, approval_scope, expansion)
             VALUES (?, ?, ?, ?, ?,
-                    CASE WHEN ? IS NULL THEN NULL ELSE 'filing' END, ?, ?, ?, ?)
+                    CASE WHEN ? IS NULL THEN NULL ELSE 'filing' END, ?, ?, ?, ?,
+                    ?, ?, ?, ?)
             """,
             (filing["accession"], filing["company_id"], r["deal_type"], r["counterparty"],
              r["announced_value"], r["announced_value"], r["area"], event_date,
-             r["quote"], filing["url"]))
+             r["quote"], filing["url"],
+             r.get("rationale"), r.get("intended_use"), r.get("approval_scope"),
+             r.get("expansion")))
 
 
 def extract(db_path=None, limit: int = MAX_PER_RUN, today=None) -> dict:
@@ -511,7 +554,8 @@ def recent_rows(conn, cid: int, today=None, within_days: int = 400,
         SELECT deal_type, counterparty, announced_value, announced_value_source,
                area, event_date, event_date_source, source_url, article_url,
                upfront_usd, equity_usd, milestones_usd, option_usd, total_usd,
-               headline_usd, terms_evidence
+               headline_usd, terms_evidence,
+               rationale, intended_use, approval_scope, expansion
           FROM deals
          WHERE company_id = ? AND deal_type IN
                ('acquisition', 'licensing', 'collaboration', 'divestiture')
@@ -533,13 +577,21 @@ def recent_rows(conn, cid: int, today=None, within_days: int = 400,
                            "article_url": r["article_url"],
                            "terms": {f: r[f + "_usd"] for f in deal_terms.FIELDS},
                            "headline_usd": r["headline_usd"],
-                           "terms_evidence": r["terms_evidence"]}
+                           "terms_evidence": r["terms_evidence"],
+                           "rationale": r["rationale"],
+                           "intended_use": r["intended_use"],
+                           "approval_scope": r["approval_scope"],
+                           "expansion": r["expansion"]}
         else:
             deal["article_url"] = deal["article_url"] or r["article_url"]
             if not deal["announced_value"] and r["announced_value"]:
                 deal["announced_value"] = r["announced_value"]
                 deal["announced_value_source"] = r["announced_value_source"]
             deal["area"] = deal["area"] or r["area"]
+            # A wire says what was bought and for how much; the 8-K that follows says why
+            # and what happens next. Whichever row carries an answer keeps it.
+            for field in ("rationale", "intended_use", "approval_scope", "expansion"):
+                deal[field] = deal.get(field) or r[field]
             # The filing that states the terms is often not the one that announced it:
             # a deal arrives on a wire and its structure lands with the 8-K.
             if not deal["headline_usd"] and r["headline_usd"]:
@@ -559,6 +611,13 @@ def recent_rows(conn, cid: int, today=None, within_days: int = 400,
     return kept[:limit]
 
 
+# The order a reader asks in: why, then what it cost, then what they will do with it,
+# what the approval covers, and what comes next. The figure is already in the opening
+# clause, so the rest follow it.
+_DEAL_ASPECTS = (("rationale", "Why"), ("intended_use", "Use"),
+                 ("approval_scope", "Approval"), ("expansion", "Next"))
+
+
 def deal_line(deal: dict) -> str:
     """One deal as a sentence for the note.
 
@@ -573,7 +632,19 @@ def deal_line(deal: dict) -> str:
         parts.append(f"for {deal['announced_value']}")
     if deal.get("area"):
         parts.append(f"({deal['area']})")
-    return " ".join(parts) + f", {(deal['event_date'] or '')[:10]}."
+    return " ".join(parts) + f", {(deal['event_date'] or '')[:10]}." + deal_aspects(deal)
+
+
+def deal_aspects(deal: dict) -> str:
+    """The questions a reader has about a deal, in the order they ask them.
+
+    Only the ones the announcement answered. A deal announced in three lines carries one
+    of these and is not padded out to five, because a heading with nothing under it reads
+    as a fact withheld rather than a fact absent.
+    """
+    said = [f" {label}: {deal[field].rstrip('.')}."
+            for field, label in _DEAL_ASPECTS if deal.get(field)]
+    return "".join(said)
 
 
 def recent(db_path=None, ticker: str = "", today=None, within_days: int = 400,

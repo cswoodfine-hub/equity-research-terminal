@@ -285,7 +285,7 @@ def _deal_lines(conn, cid: int, today: dt.date,
         """
         SELECT deal_type, counterparty, announced_value, area, quote, event_date,
                upfront_usd, equity_usd, milestones_usd, option_usd, total_usd,
-               headline_usd
+               headline_usd, rationale, intended_use, approval_scope, expansion
           FROM deals
          WHERE company_id = ? AND deal_type IN
                ('acquisition', 'licensing', 'collaboration', 'divestiture')
@@ -301,12 +301,21 @@ def _deal_lines(conn, cid: int, today: dt.date,
                            "announced_value": r["announced_value"],
                            "area": r["area"], "quote": r["quote"],
                            "event_date": r["event_date"],
+                           "rationale": r["rationale"],
+                           "intended_use": r["intended_use"],
+                           "approval_scope": r["approval_scope"],
+                           "expansion": r["expansion"],
                            "terms": {f: r[f + "_usd"] for f in deal_terms.FIELDS},
                            "headline_usd": r["headline_usd"]}
             continue
         # fill a figure from any later filing
         deal["announced_value"] = deal["announced_value"] or r["announced_value"]
         deal["area"] = deal["area"] or r["area"]
+        # The announcement and the filing that follows it answer different questions:
+        # a headline says what was bought and for how much, the 8-K says why and what
+        # happens next. Whichever row carries an answer keeps it.
+        for field in ("rationale", "intended_use", "approval_scope", "expansion"):
+            deal[field] = deal.get(field) or r[field]
         # The filing that states the terms is often not the one that announced it.
         if not deal["headline_usd"] and r["headline_usd"]:
             deal["terms"] = {f: r[f + "_usd"] for f in deal_terms.FIELDS}
@@ -322,7 +331,8 @@ def _deal_lines(conn, cid: int, today: dt.date,
             parts.append(f"for {value}")
         if d["area"]:
             parts.append(f"({d['area']})")
-        lines.append(" ".join(parts) + f", {(d['event_date'] or '')[:10]}.")
+        lines.append(" ".join(parts) + f", {(d['event_date'] or '')[:10]}."
+                     + deals_module.deal_aspects(d))
     return lines, kept[:limit]
 
 

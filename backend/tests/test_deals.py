@@ -585,3 +585,77 @@ def test_a_company_with_subsidiaries_is_not_a_holder(tmp_path):
     conn.commit()
     conn.close()
     assert deals.prune_parties(db_file)["dropped"] == 0
+
+
+# --- the questions a reader asks about a deal ----------------------------
+
+ZEGFROVY_DOC = (
+    "AstraZeneca has acquired exclusive rights to ZEGFROVY from Dizal outside "
+    "Greater China. Financial considerations AstraZeneca will make an upfront payment "
+    "of $600m to Dizal together with additional payments of up to $900m upon "
+    "achievement of specific development, regulatory and sales-related milestones. "
+    "ZEGFROVY is approved in the US for adult patients with locally advanced or "
+    "metastatic non-small cell lung cancer with EGFR exon 20 insertion mutations "
+    "whose disease has progressed on or after platinum-based chemotherapy. The "
+    "acquisition strengthens AstraZeneca's lung cancer portfolio and complements its "
+    "existing EGFR medicines. AstraZeneca plans to explore ZEGFROVY in earlier lines "
+    "of therapy and to file in additional geographies."
+)
+
+
+def _reply(**over):
+    deal = {"deal_type": "acquisition", "counterparty": "Dizal",
+            "value": "$600m", "area": "lung cancer", "announced_date": None,
+            "quote": "AstraZeneca has acquired exclusive rights to ZEGFROVY from Dizal "
+                     "outside Greater China"}
+    deal.update(over)
+    return {"deals": [deal]}
+
+
+def test_the_four_reader_questions_are_kept_when_the_text_answers_them():
+    """A deal was recorded as a verb, a party and a figure, which answers one of the five
+    things a reader asks and none of the other four."""
+    got = deals.validate(_reply(
+        rationale="Strengthens AstraZeneca's lung cancer portfolio and complements its "
+                  "existing EGFR medicines",
+        intended_use="Adds an EGFR medicine to the lung cancer portfolio",
+        approval_scope="Approved in the US for metastatic non-small cell lung cancer "
+                       "with EGFR exon 20 insertion mutations after platinum-based "
+                       "chemotherapy",
+        expansion="Plans to explore earlier lines of therapy and to file in additional "
+                  "geographies"), ZEGFROVY_DOC)
+    assert len(got) == 1
+    assert got[0]["rationale"].startswith("Strengthens")
+    assert "exon 20" in got[0]["approval_scope"]
+    assert "earlier lines" in got[0]["expansion"]
+
+
+def test_an_answer_the_document_does_not_support_is_dropped():
+    """These are the model's sentences, not the filer's, so they cannot be checked by
+    substring the way a quote is. What they may not do is introduce subject matter the
+    source never mentions."""
+    got = deals.validate(_reply(
+        rationale="Expands the company's presence in paediatric rheumatology and "
+                  "dermatology across Japanese hospital formularies"), ZEGFROVY_DOC)
+    assert got[0]["rationale"] is None
+
+
+def test_an_unanswered_question_is_null_rather_than_padded():
+    got = deals.validate(_reply(), ZEGFROVY_DOC)
+    assert got[0]["rationale"] is None
+    assert got[0]["expansion"] is None
+
+
+def test_the_summary_carries_only_the_questions_that_were_answered():
+    """A deal announced in three lines carries one of these, not five: a heading with
+    nothing under it reads as a fact withheld rather than a fact absent."""
+    line = deals.deal_line({
+        "deal_type": "acquisition", "counterparty": "Dizal", "event_date": "2026-09-01",
+        "announced_value": "$600 million", "area": "Oncology",
+        "rationale": "Strengthens the lung cancer portfolio.",
+        "approval_scope": "US approval in EGFR exon 20 insertion NSCLC.",
+        "intended_use": None, "expansion": None})
+    assert line.startswith("Acquired Dizal for $600 million (Oncology), 2026-09-01.")
+    assert "Why: Strengthens the lung cancer portfolio." in line
+    assert "Approval: US approval in EGFR exon 20 insertion NSCLC." in line
+    assert "Use:" not in line and "Next:" not in line
