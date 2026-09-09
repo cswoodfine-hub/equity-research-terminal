@@ -330,3 +330,57 @@ def test_a_spaced_minus_is_a_sign_and_not_a_nil():
     it is the minus on 38, and reading it as a nil left the row unable to prove itself."""
     assert revenue_mdna.read_row("643 1 044 - 38 1 475 - 29 ", spaced=True) == 643.0
     assert revenue_mdna.read_row("1 104 1 671 - 34 1 848 - 10 ", spaced=True) == 1104.0
+
+
+# --- a filer that states the change instead of printing the comparative ---------
+
+SANOFI_TABLE = (
+    "2/ Net sales by medicine, vaccine and geography - 2025 compared with 2024 "
+    "(EUR million) Total sales Change (on a reported basis) Change (at CER) "
+    "United States Change (at CER) Europe Change (at CER) Rest of the world "
+    "Change (at CER) Immunology "
+    "Dupixent 15,714 +20.2% +25.2% 11,538 +26.7% 1,957 +20.8% 2,219 +21.3% "
+    "Kevzara 507 +19.6% +23.6% 321 +36.6% 127 +5.0% 59 +7.0% Rare diseases "
+    "Fabrazyme 1,019 -2.7% +0.1% 508 -0.4% 263 +3.5% 248 -2.3% "
+    "Cerezyme 695 -6.3% -3.9% 178 -2.6% 232 -4.9% 285 -3.9%"
+)
+
+
+def test_a_stated_change_is_read_from_a_row_with_no_comparative():
+    """Sanofi prints one money column and the change beside it. read_growth wants two
+    figures proved by a percentage and rightly returns nothing here; the growth is on
+    the page all the same."""
+    assert revenue_mdna.read_stated_growth(
+        "1,019 -2.7% +0.1% 508 -0.4% 263 +3.5% 248 -2.3%") == pytest.approx(-0.027)
+    assert revenue_mdna.read_stated_growth(
+        "15,714 +20.2% +25.2% 11,538 +26.7%") == pytest.approx(0.202)
+
+
+def test_a_row_that_prints_a_comparative_is_not_read_as_a_stated_change():
+    """The cell after the total has to be a percentage. A row carrying the prior year
+    there is the shape read_growth handles and must not be read as a rate."""
+    assert revenue_mdna.read_stated_growth("4,591 3,926 17%") is None
+    assert revenue_mdna.read_stated_growth("1,019 508 263") is None
+    assert revenue_mdna.read_stated_growth("+2.7% 1,019") is None
+
+
+def test_a_bracketed_fall_is_read_as_negative():
+    assert revenue_mdna.read_stated_growth("695 (6.3)% (3.9)%") == pytest.approx(-0.063)
+
+
+def test_the_table_is_read_only_where_its_header_says_so():
+    """Anchored on the header, so a filer whose columns run the other way round is never
+    read this way. Strip the header and the same rows return nothing."""
+    brands = ["Dupixent", "Kevzara", "Fabrazyme", "Cerezyme"]
+    assert revenue_mdna.parse_stated_growth(SANOFI_TABLE, brands) == {
+        "Dupixent": pytest.approx(0.202), "Kevzara": pytest.approx(0.196),
+        "Fabrazyme": pytest.approx(-0.027), "Cerezyme": pytest.approx(-0.063)}
+    headless = SANOFI_TABLE.replace("Change (on a reported basis)", "Change")
+    assert revenue_mdna.parse_stated_growth(headless, brands) == {}
+
+
+def test_a_presentation_name_finds_the_stem_row():
+    """The asset is "Lantus SoloStar", the pen; the table prints "Lantus"."""
+    table = SANOFI_TABLE + " Lantus 1,733 +6.4% +9.7% 402 +21.9% 297 -2.0%"
+    got = revenue_mdna.parse_stated_growth(table, ["Lantus Solostar"])
+    assert got["Lantus Solostar"] == pytest.approx(0.064)

@@ -267,6 +267,47 @@ def read_growth(run: str, spaced: bool = None):
     return None
 
 
+# A filer that prints a change instead of a comparative. Sanofi's product table heads
+# its columns "Total sales | Change (on a reported basis) | Change (at CER) | United
+# States | ...", so a row reads "Fabrazyme 1,019 -2.7% +0.1% 508 -0.4% ...": one total,
+# then the growth the filer states, then the same thing at constant currency, then the
+# geography split. read_growth cannot help here and is right not to: it wants two figures
+# proved by a percentage and this row has one figure. The growth is on the page all the
+# same, and it is the number a forecast wants.
+#
+# Anchored on the header, not on position. Only a table that says in words that the cell
+# after the total is the change on a reported basis is read this way, so a filer whose
+# columns run the other way round is never mistaken for this one.
+_STATED_CHANGE_HEADER = re.compile(
+    r"total\s+sales\s+change\s*\(?\s*(?:on\s+a\s+)?reported", re.I)
+
+# Beyond this a stated change is not a change, it is a misread cell.
+_STATED_CHANGE_LIMIT = 3.0
+
+
+def read_stated_growth(run: str, spaced: bool = None) -> float | None:
+    """The growth a row states, as a fraction, or None where the row does not state one.
+
+    The row must open with a money cell and follow it with a percentage. Anything else,
+    including a row that opens with a percentage or prints no percentage at all, is not
+    the shape this reads and returns nothing.
+    """
+    numbers = _numbers(run, spaced)
+    if len(numbers) < 2:
+        return None
+    (total, _raw, total_pct), (change, _craw, change_pct) = numbers[0], numbers[1]
+    if total_pct or not change_pct:
+        return None
+    # A bracket is how some filers write a fall. _numbers reads a leading minus; this
+    # reads the bracket, and either is enough to make the change negative.
+    signs = _percent_signs(run, sum(1 for n in numbers if n[2]))
+    growth = -abs(change) if (signs and signs[0] < 0) else change
+    growth /= 100.0
+    if abs(growth) > _STATED_CHANGE_LIMIT:
+        return None
+    return growth
+
+
 def read_row(run: str, spaced: bool = None) -> float | None:
     """The revenue on one product's row, or None when the row cannot be read.
 
@@ -443,6 +484,24 @@ def parse(text: str, brands: list, company_revenue: float | None = None) -> dict
     return merged
 
 
+def parse_stated_growth(text: str, brands: list) -> dict:
+    """{brand: growth} from a table that states a change instead of printing a prior year.
+
+    Guarded on the header, so only a table whose columns are labelled the way Sanofi
+    labels them is read. Everything else returns nothing rather than a rate read off a
+    column that might be constant-currency, or a geography, or last quarter.
+    """
+    merged: dict = {}
+    for start, end in table_regions(text or ""):
+        window = re.sub(r"\s+", " ", text[start:end])
+        if not _STATED_CHANGE_HEADER.search(window):
+            continue
+        found = _parse_window(window, brands, None, reader=read_stated_growth)
+        for brand, growth in found.items():
+            merged.setdefault(brand, growth)
+    return merged
+
+
 # A filer that reports each product by geography puts a label between the name and its
 # first number, so "Skyrizi United States $ 15,202" defeats a pattern expecting the
 # figure to follow the name. AbbVie lays out every product that way, three rows deep:
@@ -526,7 +585,10 @@ def _in_a_printed_group(window: str, at: int, brands: list = ()) -> bool:
 
 # FDA names a product with its presentation and the filer prints the name alone:
 # "Cabenuva Kit" is what the approval says and "Cabenuva" is what GSK's table says.
-_PRESENTATION = ("kit", "pen")
+# SoloStar is Sanofi's injector pen, so "Lantus SoloStar" is a presentation of Lantus
+# and the table prints the stem. The guard below still refuses a stem that is a
+# product in its own right.
+_PRESENTATION = ("kit", "pen", "solostar")
 
 
 def _names_for(brand: str, brands: list) -> list:
@@ -551,8 +613,16 @@ _ALIAS_TAIL = r"(?:\s*/\s*(?P<alias>[A-Za-z][A-Za-z0-9\-]*))?"
 _PROSE_AFTER = re.compile(r"[a-z]")
 
 
-def _parse_window(window: str, brands: list, company_revenue: float | None) -> dict:
-    """The products one candidate table names."""
+def _parse_window(window: str, brands: list, company_revenue: float | None,
+                  reader=None) -> dict:
+    """The products one candidate table names.
+
+    ``reader`` turns a row's cells into the number wanted. The default reads what the
+    product earned; read_stated_growth reads the change the row states instead, and a
+    rate is neither scaled by the table's units nor bounded by company revenue.
+    """
+    rate = reader is not None
+    reader = reader or read_row
     multiplier = scale(window)
     spaced = not _COMMA_THOUSANDS.search(window)
     out = {}
@@ -595,17 +665,24 @@ def _parse_window(window: str, brands: list, company_revenue: float | None) -> d
             if match:
                 break
         if match:
-            value = read_row(match.group("cells"), spaced)
+            value = reader(match.group("cells"), spaced)
+        elif rate:
+            continue                  # no geography fallback for a stated rate
         else:
             # The name may be followed by a geography label rather than a figure.
             plain = re.compile(re.escape(brand) + r"[\s®™*†‡]*", re.I).search(window)
             value = (geographic_row(window, plain.end(), brands, spaced)
                      if plain else None)
-        if not value:
-            continue                  # nil, or a row that could not be read
-        value *= multiplier
-        if company_revenue and value > company_revenue:
-            continue                  # not a revenue table, whatever else it is
+        if rate:
+            # A rate of nought is a real answer, so this cannot test for falsiness.
+            if value is None:
+                continue
+        else:
+            if not value:
+                continue              # nil, or a row that could not be read
+            value *= multiplier
+            if company_revenue and value > company_revenue:
+                continue              # not a revenue table, whatever else it is
         out[brand] = value
     return out
 
