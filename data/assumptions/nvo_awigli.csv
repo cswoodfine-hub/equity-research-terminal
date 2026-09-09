@@ -1,0 +1,31 @@
+# Awigli (NVO). 410mm DKK in FY2025, +2058% on FY2024.
+#
+# A launch still climbing, so the trailing rate is not the forecast. What is sourced
+# is the peak and the year it is expected in; the growth rate is solved backwards from
+# those two, and the fade runs to the peak year rather than to the usual five.
+#
+# Peak 12,900mm DKK in 2031.
+#
+# Ratios and discount rate are NVO's own, from nvo_awigli.csv.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+NVO,Awigli,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+NVO,Awigli,,US,base,base_revenue,,410.0,,mm DKK,NVO FY2025 reported product revenue,the anchor
+NVO,Awigli,,US,base,revenue_growth_pct,,1.409768,,"annual, near term","solved, not observed: the rate that carries 410mm to the peak below by 2031, fading to nought as it arrives","the trailing year was +2058%, which is a real rate and not a forecast: compounded it reaches many times the peak anyone expects. What is sourced here is the peak and the year, and the rate follows from them"
+NVO,Awigli,,US,base,revenue_ceiling_musd,,12900.0,,mm DKK,"DKK 12,900mm, being USD 2 billion at the ECB rate of 2026-09-08. Analysts put Awiqli at 10 to 15% of a USD 19.65 billion basal insulin market within five years, USD 2-3 billion; this is the bottom of that range, because Lilly's efsitora is expected to take share","the path is checked against the same analysts' nearer years: it gives DKK 988mm in 2026 against their USD 174mm, and DKK 2,149mm in 2027 against their USD 311mm"
+NVO,Awigli,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+NVO,Awigli,,US,base,growth_fade_years,,6,,years,"the ramp's own length: growth fades to nought in 2031, the year the peak is expected, rather than at the five-year convention",a five-year fade cannot describe a seven-year ramp; it exhausts the growth before the product arrives and the ceiling then binds years too early
+NVO,Awigli,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+NVO,Awigli,,US,base,forecast_years,,12,,years,long enough to carry the ramp and a tail beyond it,"no exclusivity on file, so nothing erodes the tail"
+NVO,Awigli,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+NVO,Awigli,,US,base,cogs_pct,,0.1902,,share of revenue,"NVO FY2025, from the filed lines",
+NVO,Awigli,,US,base,sga_pct,,0.0193,,share of revenue,"NVO FY2025, from the filed lines",
+NVO,Awigli,,US,base,rd_pct,,0.1684,,share of revenue,"NVO FY2025, from the filed lines",
+NVO,Awigli,,US,base,other_costs_pct,,0.295858,,share of revenue,derived: NVO turned 25.95% of revenue into free cash over 2023 to 2025 against the 49.5% its filed expense lines leave,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+NVO,Awigli,,US,base,tax_rate,,0.2044,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
+NVO,Awigli,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+NVO,Awigli,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+NVO,Awigli,,US,base,beta,,0.85,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.78 raw)",
+NVO,Awigli,,US,base,cost_of_debt,,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+NVO,Awigli,,US,base,debt_weight,,0.015446,,,"filed TotalDebt of 130,958mm DKK at 2025-12-31 over debt plus market capitalisation",
