@@ -735,3 +735,28 @@ def test_an_answer_the_document_does_not_carry_is_refused_on_backfill_too(tmp_pa
     conn = db.get_connection(path)
     assert conn.execute("SELECT rationale FROM deals WHERE id = 1").fetchone()[0] is None
     conn.close()
+
+
+def test_a_terms_figure_that_is_the_company_s_own_revenue_is_refused(tmp_path):
+    """AbbVie's RemeGen licence and its West Pharmaceutical agreement both came back at
+    $61,160mm of milestones, which is AbbVie's revenue for 2025: the terms reader found
+    the biggest figure in an exhibit that was a results announcement.
+
+    The test is equality, not size. A real acquisition can pass a year of the buyer's
+    revenue and AbbVie's own Allergan deal did, so a bound on size would refuse the deals
+    worth reading most."""
+    path = str(tmp_path / "r.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'ABBV', 'AbbVie')")
+    conn.execute(
+        "INSERT INTO financials (company_id, period_end, period_type, metric, value,"
+        " unit, fiscal_year, fiscal_period) VALUES (1, '2025-12-31', 'FY', 'Revenues',"
+        " 61160000000.0, 'USD', 2025, 'FY')")
+    conn.commit()
+    assert deals.is_own_revenue(conn, 1, 61_160_000_000) is True
+    assert deals.is_own_revenue(conn, 1, 61_000_000_000) is True      # inside rounding
+    assert deals.is_own_revenue(conn, 1, 63_000_000_000) is False     # Allergan, a real deal
+    assert deals.is_own_revenue(conn, 1, 10_900_000_000) is False
+    assert deals.is_own_revenue(conn, 1, None) is False
+    conn.close()

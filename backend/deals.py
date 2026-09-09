@@ -217,6 +217,31 @@ def backfill_aspects(db_path=None, limit: int = 500, complete=None) -> dict:
             "errors": errors[:5]}
 
 
+# A deal's consideration read out of the acquirer's own earnings release. AbbVie's
+# RemeGen licence and its West Pharmaceutical agreement both came back at $61,160mm of
+# milestones, which is AbbVie's revenue for 2025: the terms reader found the biggest
+# figure in an exhibit that was a results announcement rather than a deal announcement.
+#
+# The test is equality, not size. A real acquisition can approach or pass a year of the
+# buyer's revenue, and AbbVie's own Allergan deal did, so a bound on size would refuse
+# the deals worth reading most. A figure that lands exactly on a revenue the company
+# reported is not a coincidence, it is that line.
+_REVENUE_MATCH = 0.005
+
+
+def is_own_revenue(conn, company_id: int, size: float | None) -> bool:
+    """Whether a terms figure is really the company's own reported revenue."""
+    if not size:
+        return False
+    for row in conn.execute(
+            "SELECT value FROM financials WHERE company_id = ? AND metric = 'Revenues'"
+            "  AND period_type = 'FY'", (company_id,)):
+        reported = row["value"]
+        if reported and abs(size - reported) <= reported * _REVENUE_MATCH:
+            return True
+    return False
+
+
 def _get(url: str) -> str:
     user_agent = (os.getenv("SEC_USER_AGENT") or "").strip()
     if not user_agent:
@@ -883,6 +908,8 @@ def enrich(db_path=None, limit: int = MAX_LIVE_LOOKUPS, get=None) -> dict:
                 terms = deal_terms.parse(text)
                 size = deal_terms.headline(terms)
                 if size is None:
+                    continue
+                if is_own_revenue(conn, deal["company_id"], size):
                     continue
                 conn.execute(
                     "UPDATE deals SET upfront_usd = ?, equity_usd = ?, milestones_usd = ?,"
