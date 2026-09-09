@@ -21,6 +21,7 @@ import datetime as dt
 import asset_revenue
 import db
 import fx
+import loe as loe_module
 
 # The discount rate applied to the protected cash stream. One stated number, not a term
 # structure, and exposed so a caller can re-run the scaffold at a different rate.
@@ -60,17 +61,20 @@ def company_valuation(db_path, ticker: str, rate: float = DISCOUNT_RATE) -> dict
         loe_rows = conn.execute(
             """
             SELECT a.id AS asset_id, a.brand_name, a.generic_name, a.modality,
-                   a.internal_code,
-                   (SELECT MAX(e.expiry_date) FROM exclusivities e
-                     WHERE e.asset_id = a.id
-                       AND COALESCE(e.protection_type, '') != ?) AS book_loe,
-                   bl.loe_date AS bio_loe, bl.basis AS bio_basis
-              FROM assets a
-              LEFT JOIN biologic_loe bl ON bl.asset_id = a.id
-             WHERE a.owner_company_id = ?
+                   a.internal_code
+              FROM assets a WHERE a.owner_company_id = ?
             """,
-            (NOT_A_CLIFF, company_id),
+            (company_id,),
         ).fetchall()
+        # One rule, shared with every other view. This used to take the latest expiry
+        # of any kind, which for Farxiga is a 2041 method-of-use patent on the kidney
+        # indication and gave the scaffold fifteen years of annuity the molecule does
+        # not have.
+        # Orphan exclusivity holds one indication and does not gate a biosimilar, so an
+        # orphan-only biologic has no cliff to value and is named unvalued rather than
+        # given an annuity. Same exclusion the cliff chart makes.
+        resolved = loe_module.for_assets(
+            conn, [r["asset_id"] for r in loe_rows], exclude_orphan=True)
         latest_year = conn.execute(
             "SELECT MAX(year) FROM drug_demand").fetchone()[0]
         demand = {r["asset_id"]: r["spend"] for r in conn.execute(
@@ -89,18 +93,8 @@ def company_valuation(db_path, ticker: str, rate: float = DISCOUNT_RATE) -> dict
         # one, and stay null when it is absent rather than being counted at par.
         revenue_usd = (known["value"] if known["unit"] == "USD"
                        else fx.to_usd(known["value"], known["unit"], rates))
-        # The protection date is the later of the published Orange or Purple Book cliff
-        # and the derived biologic LOE, since a biologic is protected until both have
-        # lapsed. The basis records which one governs, so the source is always visible.
-        book, bio = row["book_loe"], row["bio_loe"]
-        if book and bio:
-            loe, loe_basis = (book, "Orange/Purple Book") if book >= bio else (bio, row["bio_basis"])
-        elif book:
-            loe, loe_basis = book, "Orange/Purple Book"
-        elif bio:
-            loe, loe_basis = bio, row["bio_basis"]
-        else:
-            loe, loe_basis = None, None
+        found = resolved.get(row["asset_id"]) or {}
+        loe, loe_basis = found.get("date"), found.get("basis")
         loe_year = int(loe[:4]) if loe else None
         years = (loe_year - today.year) if loe_year is not None else None
         rnpv = None

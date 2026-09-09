@@ -86,44 +86,42 @@ def summarise(indications: str | None) -> str | None:
 
 
 def _loe(conn, asset_id: int) -> dict:
-    """The effective loss of exclusivity for the asset, latest and earliest listed expiry
-    with the biologic 12-year floor merged in, the same rule the LOE views use."""
+    """The effective loss of exclusivity for the asset, on the one rule every view uses.
+
+    The date is the compound patent where the Orange Book flags a drug substance, which
+    is the earliest of them with its paediatric extension rather than the latest of
+    anything. The later dates are still reported beside it: an analyst wants to see the
+    use patent running to 2041, and wants not to be told that is when the generic comes.
+    """
     row = conn.execute(
         """
         SELECT MAX(e.expiry_date) AS loe_max, MIN(e.expiry_date) AS loe_earliest,
-               MAX(CASE WHEN e.patent_kind = 'substance' THEN e.expiry_date END)
-                 AS substance_max,
-               MIN(CASE WHEN e.patent_kind = 'substance' THEN e.expiry_date END)
-                 AS substance_earliest,
                MAX(CASE WHEN e.patent_kind = 'use' THEN e.expiry_date END) AS use_max,
-               (SELECT x.protection_type FROM exclusivities x
-                 WHERE x.asset_id = ? ORDER BY x.expiry_date DESC, x.protection_type
-                 LIMIT 1) AS basis,
-               (SELECT b.floor_year FROM biologic_loe b WHERE b.asset_id = ?)
-                 AS bio_floor_year,
-               (SELECT b.loe_date FROM biologic_loe b WHERE b.asset_id = ?
-                 AND b.disclosed_year IS NOT NULL) AS bio_disclosed_date,
-               (SELECT b.basis FROM biologic_loe b WHERE b.asset_id = ?
-                 AND b.disclosed_year IS NOT NULL) AS bio_disclosed_basis
+               MAX(CASE WHEN e.patent_kind = 'substance' THEN e.expiry_date END)
+                 AS substance_max
           FROM exclusivities e WHERE e.asset_id = ?
-        """, (asset_id, asset_id, asset_id, asset_id, asset_id)).fetchone()
-    # The biologic row holds two different things: the statutory floor, which is a
-    # floor, and where the 10-K states one, the filer's own biosimilar date, which sets
-    # the date rather than floors it. They were being passed as one number.
-    date, basis = loe_module.effective(
-        row["loe_max"], row["basis"], row["bio_floor_year"], row["substance_max"],
-        disclosed=(row["bio_disclosed_date"], row["bio_disclosed_basis"])
-        if row["bio_disclosed_date"] else None)
-    earliest = row["substance_earliest"] or row["loe_earliest"]
+        """, (asset_id,)).fetchone()
+    found = loe_module.for_assets(conn, [asset_id]).get(asset_id) or {}
+    date, basis = found.get("date"), found.get("basis")
     return {
         "loe": date, "basis": basis,
         "loe_year": int(date[:4]) if date else None,
-        "loe_earliest_year": int(earliest[:4]) if earliest else None,
+        "loe_identifier": found.get("identifier"),
+        "loe_past": bool(found.get("past")),
+        "loe_earliest_year": (int(row["loe_earliest"][:4])
+                              if row and row["loe_earliest"] else None),
         # Reported beside the date rather than folded into it: a use patent running
-        # later does not hold the market, but an analyst still wants to see it.
-        "use_patent_year": int(row["use_max"][:4]) if row["use_max"] else None,
+        # later does not hold the market, but an analyst still wants to see it. The same
+        # goes for a second substance patent, which claims a salt or a form rather than
+        # the molecule and which a generic designs around.
+        "use_patent_year": (int(row["use_max"][:4])
+                            if row and row["use_max"] else None),
+        "last_listed_year": (int(row["loe_max"][:4])
+                             if row and row["loe_max"] else None),
+        "later_substance_year": (int(row["substance_max"][:4])
+                                 if row and row["substance_max"]
+                                 and (not date or row["substance_max"] > date) else None),
     }
-
 
 def _demand(conn, asset_id: int) -> dict | None:
     """Medicare Part D and Part B demand, the latest year with the year before it for

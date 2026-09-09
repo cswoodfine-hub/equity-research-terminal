@@ -21,6 +21,7 @@ import datetime as dt
 
 import db
 import fx
+import loe as loe_module
 
 HORIZON = 10          # years of cliff, matching loe.HORIZON
 
@@ -197,23 +198,23 @@ def build_exposure(db_path=None, ticker: str = "", horizon: int = HORIZON) -> di
             return None
         revenue = _latest_revenue(conn, company_id)
         # The basis comes from its own ordered subquery rather than from the grouped
-        # MAX: SQLite rejects an aggregate referenced inside a correlated subquery, and
-        # ordering by expiry gives the same row the MAX picked.
-        rows = conn.execute(
+        rows = [dict(r) for r in conn.execute(
             """
             SELECT a.id AS asset_id, a.brand_name, a.generic_name, a.modality,
-                   a.internal_code,
-                   (SELECT MAX(e.expiry_date) FROM exclusivities e
-                     WHERE e.asset_id = a.id) AS loe,
-                   (SELECT e2.protection_type FROM exclusivities e2
-                     WHERE e2.asset_id = a.id
-                     ORDER BY e2.expiry_date DESC LIMIT 1) AS basis
+                   a.internal_code
               FROM assets a
              WHERE a.owner_company_id = ?
                AND EXISTS (SELECT 1 FROM exclusivities e3 WHERE e3.asset_id = a.id)
             """,
             (company_id,),
-        ).fetchall()
+        )]
+        # The one rule, shared with the cliff, the profile and the scaffold. This read
+        # the latest expiry of any kind, which put Farxiga on the 2041 wall for a
+        # method-of-use patent when its compound patent went in April 2026.
+        resolved = loe_module.for_assets(conn, [r["asset_id"] for r in rows])
+        for row in rows:
+            found = resolved.get(row["asset_id"]) or {}
+            row["loe"], row["basis"] = found.get("date"), found.get("basis")
     finally:
         conn.close()
 

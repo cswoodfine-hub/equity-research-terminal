@@ -1,0 +1,15 @@
+# The patent that claims the molecule, where an analyst has established which one it is.
+#
+# The Orange Book flags several patents per product as "drug substance" and does not say
+# which of them is the compound patent. Farxiga carries two, Ozempic six, Trikafta twelve.
+# Taking the earliest is right for Farxiga and wrong for Ozempic, whose earliest substance
+# patent expires 2026-03-20 while semaglutide's own runs to 2031-12-05; taking the latest
+# is the reverse. Neither can be derived, so it is written down here or not claimed.
+#
+# Without a row, the LOE falls back to the latest drug substance patent, which is what the
+# app did before this file existed. A row here sets the date to that patent, and to its
+# paediatric extension where the book lists one.
+#
+ticker,brand,patent,note
+AZN,Farxiga,6515117,"dapagliflozin. Expired 2025-10-04 with paediatric exclusivity to 2026-04-04, which is when generics could enter. The book also lists 7919598 as a drug substance patent to 2029-12-16 and method-of-use patents for the heart failure and kidney indications to 2041-10-01, and neither holds the molecule"
+AZN,Xigduo Xr,6515117,"the same dapagliflozin patent, in the metformin combination"

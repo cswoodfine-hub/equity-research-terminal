@@ -7,11 +7,13 @@ optional note layer that summarises this per company lives in ``insights.py``.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import re
 
 import db
 import edgar_items
+import loe as loe_module
 import materiality
 
 _SIG_RANK = {"high": 0, "medium": 1, "low": 2}
@@ -236,6 +238,7 @@ def _near_term_loe(conn, months, limit, ticker=None):
     horizon = _date_offset(conn, months * 30)
     sql = """
         SELECT c.ticker, a.brand_name, a.modality, a.internal_code,
+               a.id AS asset_id,
                MAX(e.expiry_date) AS loe,
                (SELECT x.protection_type FROM exclusivities x
                  WHERE x.asset_id = a.id
@@ -250,12 +253,22 @@ def _near_term_loe(conn, months, limit, ticker=None):
         params.append(ticker.upper())
     sql += """
          GROUP BY a.id
-        HAVING loe >= date('now') AND loe <= ?
-         ORDER BY loe LIMIT ?
     """
-    params += [horizon, limit]
+    # Resolved on the shared rule and filtered here rather than in SQL. The date that
+    # matters is the compound patent where the book flags a drug substance, and a HAVING
+    # on the latest listed expiry put Farxiga's 2041 method-of-use patent on the wall.
+    candidates = [dict(r) for r in conn.execute(sql, params)]
+    resolved = loe_module.for_assets(conn, [r["asset_id"] for r in candidates])
+    today = dt.date.today().isoformat()
+    rows = []
+    for r in candidates:
+        found = resolved.get(r["asset_id"]) or {}
+        r["loe"], r["loe_basis"] = found.get("date"), found.get("basis") or r["loe_basis"]
+        if r["loe"] and today <= r["loe"] <= horizon:
+            rows.append(r)
+    rows.sort(key=lambda r: r["loe"])
     items = []
-    for r in conn.execute(sql, params):
+    for r in rows[:limit]:
         # A brand can hold several applications, one per formulation, each with its own
         # expiry. Naming the application keeps two Corlanor rows distinguishable instead
         # of reading as the same product listed twice.

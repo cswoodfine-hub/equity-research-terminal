@@ -133,25 +133,72 @@ def test_loe_detail_shows_range_and_merges_floor(tmp_path):
     assert floored["loe_basis"] == "statutory floor (12y)"
 
 
-def test_a_substance_patent_sets_the_date_over_a_later_use_patent():
-    # Mounjaro's use patent runs to 2041 and its molecule patents to 2039. A generic
-    # can carve a method-of-use claim out of its label, so 2041 is not the cliff.
-    date, basis = loe.effective("2041-12-30", "patent", None,
-                                substance_max="2039-06-14")
+def test_the_compound_patent_sets_the_date_over_a_later_use_patent():
+    # Mounjaro's use patent runs to 2041 and its molecule patent to 2039. A generic can
+    # carve a method-of-use claim out of its label, so 2041 is not the cliff.
+    date, basis = loe.effective("2041-12-30", "patent", None, compound="2039-06-14")
     assert date == "2039-06-14"
-    assert basis == "drug substance patent"
+    assert basis == "compound patent"
 
 
 def test_without_a_substance_flag_the_latest_listed_date_still_stands():
-    date, basis = loe.effective("2033-03-01", "patent", None, substance_max=None)
+    date, basis = loe.effective("2033-03-01", "patent", None, compound=None)
     assert (date, basis) == ("2033-03-01", "patent")
 
 
-def test_the_biologic_floor_still_applies_over_a_substance_patent():
-    date, basis = loe.effective("2030-01-01", "patent", 2035,
-                                substance_max="2030-01-01")
+def test_the_biologic_floor_still_applies_over_a_compound_patent():
+    date, basis = loe.effective("2030-01-01", "patent", 2035, compound="2030-01-01")
     assert date == "2035-12-31"
     assert basis == "statutory floor (12y)"
+
+
+def test_a_curated_compound_patent_sets_the_date_with_its_paediatric_extension():
+    """Farxiga is the case. 6515117 is dapagliflozin, expiring 2025-10-04 with paediatric
+    exclusivity to 2026-04-04, and April 2026 is when generics could come. The book also
+    flags 7919598 as a drug substance patent to 2029-12-16 and lists method-of-use patents
+    for the heart failure and kidney indications to 2041-10-01."""
+    rows = [
+        {"identifier": "6515117", "expiry_date": "2025-10-04", "patent_kind": "substance"},
+        {"identifier": "6515117*PED", "expiry_date": "2026-04-04", "patent_kind": None},
+        {"identifier": "7919598", "expiry_date": "2029-12-16", "patent_kind": "substance"},
+        {"identifier": "12213988", "expiry_date": "2041-04-01", "patent_kind": "use"},
+    ]
+    assert loe.compound_expiry(rows, "6515117") == ("2026-04-04", "6515117")
+
+
+def test_without_a_curated_patent_the_latest_substance_patent_still_stands():
+    """The earliest cannot be assumed. Ozempic's earliest drug substance patent expires
+    2026-03-20 while semaglutide's own runs to 2031-12-05, so a rule that took the
+    earliest would put the largest product in the universe out of patent five years
+    early. Nothing is claimed where nothing is known."""
+    rows = [
+        {"identifier": "8536122", "expiry_date": "2026-03-20", "patent_kind": "substance"},
+        {"identifier": "8129343", "expiry_date": "2031-12-05", "patent_kind": "substance"},
+        {"identifier": "12239739", "expiry_date": "2034-05-02", "patent_kind": "substance"},
+    ]
+    assert loe.compound_expiry(rows) == ("2034-05-02", "12239739")
+
+
+def test_a_curated_patent_the_book_does_not_list_falls_back(tmp_path):
+    """A row naming a patent that is not on the product is not a reason to return nothing."""
+    rows = [{"identifier": "999", "expiry_date": "2033-01-01", "patent_kind": "substance"}]
+    assert loe.compound_expiry(rows, "6515117") == ("2033-01-01", "999")
+
+
+def test_a_paediatric_extension_is_read_as_the_same_patent():
+    """"*PED" is the patent plus six months, not a second molecule patent, so a curated
+    row naming the patent picks up its extension."""
+    rows = [
+        {"identifier": "111*PED", "expiry_date": "2030-01-01", "patent_kind": None},
+        {"identifier": "111", "expiry_date": "2029-07-01", "patent_kind": "substance"},
+    ]
+    assert loe.compound_expiry(rows, "111") == ("2030-01-01", "111")
+
+
+def test_no_substance_patent_yields_nothing_rather_than_a_guess():
+    assert loe.compound_expiry([
+        {"identifier": "999", "expiry_date": "2035-01-01", "patent_kind": "use"}]) == (
+        None, None)
 
 
 def test_the_approvals_view_carries_the_use_patent_tail():

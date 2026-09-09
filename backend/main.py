@@ -458,6 +458,10 @@ def company_approvals(ticker: str) -> dict:
                 (company["id"],),
             )
         ]
+        # One rule for every view: the compound patent where the book flags a
+        # drug substance, the filer's own biosimilar date where it states one, the
+        # statutory floor under both. Resolved once for the page, not per row.
+        resolved = loe_module.for_assets(conn, [r["asset_id"] for r in rows])
     finally:
         conn.close()
     # Merge the biologic 12-year floor into the latest expiry, the same rule loe_detail
@@ -470,20 +474,27 @@ def company_approvals(ticker: str) -> dict:
         r["area"] = areas.get(r["asset_id"])
         # The filer's own biosimilar date sets the LOE where the 10-K states one; the
         # statutory floor is a floor. Same rule as the forecast, so the two views agree.
-        disclosed_date = r.pop("bio_disclosed_date", None)
-        disclosed_basis = r.pop("bio_disclosed_basis", None)
-        r["loe"], r["loe_basis"] = loe_module.effective(
-            r.pop("loe_max"), r["loe_basis"], r.pop("bio_floor_year"),
-            r.get("substance_max"),
-            disclosed=(disclosed_date, disclosed_basis) if disclosed_date else None)
-        # The window is the molecule patents where the book flags them, since that is
-        # what a generic has to wait out.
+        r.pop("bio_disclosed_date", None)
+        r.pop("bio_disclosed_basis", None)
+        r.pop("bio_floor_year", None)
+        found = resolved.get(r["asset_id"]) or {}
+        r["loe"], r["loe_basis"] = found.get("date"), found.get("basis")
+        r["loe_past"] = bool(found.get("past"))
+        r["loe_identifier"] = found.get("identifier")
+        # The window opens at the compound patent, which is what a generic waits out.
         r["loe_earliest"] = r.pop("substance_earliest") or r["loe_earliest"]
-        # Popped first and read after: reading it inside the conditional after the pop
-        # is a KeyError the moment a product actually has a use patent.
+        # Reported beside the date and never as it. A use patent covers one indication
+        # and a later substance patent claims a salt or a form; neither holds the market
+        # once the molecule is open. Farxiga's run to 2041 and 2029 against a compound
+        # patent that went in April 2026.
         use_max = r.pop("use_max", None)
         r["use_patent_year"] = int(use_max[:4]) if use_max else None
-        r.pop("substance_max", None)
+        substance_max = r.pop("substance_max", None)
+        r["later_substance_year"] = (
+            int(substance_max[:4]) if substance_max and
+            (not r["loe"] or substance_max > r["loe"]) else None)
+        last = r.pop("loe_max", None)
+        r["last_listed_year"] = int(last[:4]) if last else None
         # Same rule as the mix: a card's revenue is shown in dollars whatever the filer
         # reports in, with the filed figure kept beside it.
         r["reported_revenue"], r["reported_unit"] = r.get("revenue"), r.get("revenue_unit")

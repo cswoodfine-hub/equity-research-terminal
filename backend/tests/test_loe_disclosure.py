@@ -35,7 +35,7 @@ def test_without_a_disclosure_the_old_rule_stands():
                          disclosed=(None, None)) == ("2031-01-25", "orphan exclusivity")
 
 
-def test_a_substance_patent_yields_to_a_disclosure_too():
-    date, basis = loe.effective("2035-01-01", "patent", None, substance_max="2033-06-01",
+def test_a_compound_patent_yields_to_a_disclosure_too():
+    date, basis = loe.effective("2035-01-01", "patent", None, compound="2033-06-01",
                                 disclosed=("2030-12-31", "10-K disclosure"))
     assert date == "2030-12-31"
