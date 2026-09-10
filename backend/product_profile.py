@@ -85,6 +85,55 @@ def summarise(indications: str | None) -> str | None:
     return (first + ".") if first else None
 
 
+# What the Orange Book's drug substance flag means in a sentence a reader can use. The
+# book's own words are "drug substance", "drug product" and "method of use"; the first
+# claims the molecule, the second a formulation or a salt, the third one indication.
+PATENT_KINDS = {"substance": "molecule", "product": "formulation", "use": "method of use"}
+
+
+def _patents(conn, asset_id: int, governing: str | None) -> list[dict]:
+    """Every patent and exclusivity on the product, with the one that sets the date marked.
+
+    A product does not have a patent, it has a stack of them, and the stack is why two
+    pages could disagree about Farxiga. Dapagliflozin's own patent expired in April 2026
+    and the book also lists a second drug substance patent to 2029 and method-of-use
+    patents for the heart failure and kidney indications to 2041. Showing the stack is
+    what makes the date arguable instead of mysterious.
+
+    A paediatric extension is not a patent. It is the same number with "*PED" after it and
+    six more months, so it is folded into the row it extends rather than listed beside it.
+    """
+    rows = [dict(r) for r in conn.execute(
+        """SELECT identifier, expiry_date, patent_kind, protection_type, source
+             FROM exclusivities WHERE asset_id = ? ORDER BY expiry_date""", (asset_id,))]
+    extensions = {}
+    for row in rows:
+        name = row["identifier"] or ""
+        if name.endswith("*PED"):
+            extensions[name[: -len("*PED")]] = row["expiry_date"]
+    out = []
+    for row in rows:
+        name = row["identifier"] or ""
+        if name.endswith("*PED"):
+            continue
+        extended = extensions.get(name)
+        out.append({
+            "identifier": name or None,
+            "expiry": row["expiry_date"],
+            # The date it actually runs to, extension included, which is what the stack
+            # has to be sorted and read on.
+            "effective": max(row["expiry_date"], extended) if extended
+                         else row["expiry_date"],
+            "extended_to": extended,
+            "kind": PATENT_KINDS.get(row["patent_kind"] or ""),
+            "type": row["protection_type"],
+            "governs": bool(governing and name == governing),
+            "source": row["source"],
+        })
+    out.sort(key=lambda r: (r["effective"] or "", r["identifier"] or ""))
+    return out
+
+
 def _loe(conn, asset_id: int) -> dict:
     """The effective loss of exclusivity for the asset, on the one rule every view uses.
 
@@ -240,7 +289,8 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
             "first_approval": approvals[0]["approval_date"] if approvals else None,
             "revenue": revenue,
             "quarterly_revenue": quarterly,
-            "loe": _loe(conn, asset_id),
+            "loe": (found_loe := _loe(conn, asset_id)),
+            "patents": _patents(conn, asset_id, found_loe.get("loe_identifier")),
             "demand": _demand(conn, asset_id),
             "label": dict(label) if label else None,
             "supplements": supplements,

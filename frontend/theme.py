@@ -493,6 +493,28 @@ h3 {{ font-size: 0.9rem; }}
              overflow-y: auto; scrollbar-width: thin; }}
 
 /* The label's own sentence on what the drug is, set as prose above the figures. */
+/* The patent that sets the cliff, named beside the date on the card. Quiet, because it
+   is a reference and the date is the fact. */
+.pf-pat {{ display: block; font-family: var(--font-mono); font-size: 8.5px;
+          color: var(--muted); letter-spacing: 0; }}
+
+/* The patent stack. The one that sets the date leads and is marked; the rest fold. A
+   patent number is a reference, so it sits in the mono face beside its kind. */
+.prof-row.pt .prof-k {{ font-family: var(--font-mono); font-size: 10.5px; }}
+.pt-kind {{ display: block; font-family: var(--font-ui); font-size: 9px;
+           color: var(--muted); letter-spacing: 0.03em; }}
+.prof-row.pt.gov .prof-k, .prof-row.pt.gov .prof-v {{ color: var(--text); }}
+.prof-row.pt.gov {{ border-left: 2px solid var(--up); padding-left: 6px; }}
+.pt-gov {{ display: block; font-size: 9px; color: var(--up); letter-spacing: 0.04em;
+          text-transform: uppercase; }}
+.pt-ped {{ display: block; font-size: 9px; color: var(--muted); }}
+details.pt-more {{ margin: 0.15rem 0 0.35rem; }}
+details.pt-more > summary {{ list-style: none; cursor: pointer; font-size: 10px;
+  color: var(--muted); padding: 2px 0; }}
+details.pt-more > summary::-webkit-details-marker {{ display: none; }}
+details.pt-more > summary:hover {{ color: var(--text); }}
+details.pt-more[open] > summary {{ color: var(--text); }}
+
 .prof-summary {{ font-size: 12.5px; line-height: 1.5; color: var(--text);
                 max-width: 78ch; margin: 0.1rem 0 0.55rem; }}
 /* A label that does not write in sentences, folded to its opening. The marker is the

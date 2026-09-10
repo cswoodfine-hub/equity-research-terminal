@@ -327,12 +327,25 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
             and loe["loe_earliest_year"] != loe["loe_year"] \
             and "molecule" in (prof.get("modality") or "").lower():
         loe_txt = f'{loe["loe_earliest_year"]}–{loe["loe_year"]}'
-    # The use patents sit beside the date rather than inside it: they run later and do
-    # not hold the market, since a generic can carve the indication out of its label.
+    # A date that has gone is an event, not a countdown, and the heading says so rather
+    # than printing a range that reads as protection the product still has.
+    if loe.get("loe_past") and loe.get("loe_year"):
+        loe_txt = f'lapsed {loe["loe_year"]}'
+    # The later patents sit beside the date rather than inside it. A method-of-use patent
+    # covers one indication and a generic carves it out of the label; a second molecule
+    # patent claims a salt or a form. Neither holds the market once the molecule is open,
+    # and both are worth seeing.
     loe_note = html_escape(loe.get("basis") or "no expiry on file")
+    if loe.get("loe_identifier"):
+        loe_note += f' {html_escape(str(loe["loe_identifier"]))}'
+    tail = []
+    if loe.get("later_substance_year"):
+        tail.append(f'molecule patents to {loe["later_substance_year"]}')
     if loe.get("use_patent_year") and loe.get("loe_year") \
             and loe["use_patent_year"] > loe["loe_year"]:
-        loe_note += f' &middot; use patents to {loe["use_patent_year"]}'
+        tail.append(f'use patents to {loe["use_patent_year"]}')
+    if tail:
+        loe_note += " &middot; " + ", ".join(tail)
     stats = (
         '<div class="pos">'
         f'<div><span class="k">latest revenue</span>'
@@ -394,6 +407,48 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
                 f'<div class="prof-line"><span class="d">{(ap.get("approval_date") or "")[:10]}</span>'
                 f'{html_escape(ap.get("application_number") or "")}'
                 f'{" · " + html_escape(ind) if ind else ""}</div>')
+    # The patent stack. A product does not have a patent, it has a stack of them, and
+    # the stack is why two pages could once disagree about Farxiga: dapagliflozin's own
+    # patent went in April 2026 while the book also lists a second molecule patent to
+    # 2030 and method-of-use patents for the heart failure and kidney indications to
+    # 2041. Showing it is what makes the date arguable rather than mysterious.
+    #
+    # The one that sets the date leads and is marked. The rest are folded, because a
+    # reader who wants the cliff wants one line and a reader who doubts it wants all
+    # twenty-one.
+    patents = prof.get("patents") or []
+    if patents:
+        governing = [p for p in patents if p.get("governs")]
+        rest = [p for p in patents if not p.get("governs")]
+        html.append(f'<div class="prof-sub">patents and exclusivity &middot; '
+                    f'{len(patents)} on file</div>')
+
+        def _patent_row(p, lead=False):
+            kind = p.get("kind") or p.get("type") or ""
+            base = (p.get("expiry") or "")[:10]
+            eff = (p.get("effective") or "")[:10]
+            ped = (f'<span class="pt-ped">+6mo to {eff}</span>'
+                   if p.get("extended_to") and p["extended_to"] != base else "")
+            mark = ('<span class="pt-gov">sets the date</span>' if lead else "")
+            return (f'<div class="prof-row pt{" gov" if lead else ""}">'
+                    f'<span class="prof-k">{html_escape(p.get("identifier") or "—")}'
+                    f'<span class="pt-kind">{html_escape(kind)}</span></span>'
+                    f'<span class="prof-v">{html_escape(base)}{ped}{mark}</span></div>')
+
+        for p in governing:
+            html.append(_patent_row(p, lead=True))
+        if rest:
+            html.append(f'<details class="pt-more"><summary>{len(rest)} more, '
+                        f'to {html_escape((rest[-1].get("effective") or "")[:4])}'
+                        f'</summary>')
+            html.extend(_patent_row(p) for p in rest)
+            html.append("</details>")
+        if not governing:
+            note_txt = ("no drug substance patent flagged, so the date is the latest "
+                        "listed expiry")
+            html.append(f'<div class="prof-row"><span class="prof-k">basis</span>'
+                        f'<span class="prof-v none">{note_txt}</span></div>')
+
     # Label, supplements, challenges: the regulatory footprint.
     lab = prof.get("label")
     if lab:
@@ -743,13 +798,19 @@ _WHY_REVENUE = ("Worldwide revenue for the latest full year as the filer tagged 
                 "the SEC Financial Statement Data Sets. Free data tags revenue for only "
                 "a few products, so \u201cno free data\u201d means the company did not "
                 "tag this one, never that it earned nothing.")
-_WHY_LOE = ("The date the product loses its US market: the latest unexpired patent or "
-            "exclusivity on file, or for a biologic the later of that and the 12-year "
-            "statutory floor. A statutory floor is a legal minimum, not a forecast, and "
-            "a listed patent can be shortened by a challenge.")
-_WHY_RANGE = ("Earliest to latest unexpired Orange Book patent. A generic can challenge "
-              "the earlier patents, so the wall is a window rather than one date. The "
-              "later end is the last patent standing.")
+_WHY_LOE = ("The date the product loses its US market, and the patent that sets it. A "
+            "product has a stack of patents, not one: the molecule patent gates a "
+            "generic outright, a formulation or method-of-use patent running later does "
+            "not, and for a biologic the 12-year statutory floor applies underneath. "
+            "Open the product for the whole stack. A listed patent can be shortened by "
+            "a challenge, and a statutory floor is a legal minimum, not a forecast.")
+_WHY_RANGE = ("First expiry to the one that sets the date. A generic can challenge the "
+              "earlier patents, so the wall is a window rather than one date. Open the "
+              "product to see which patent each end is.")
+_WHY_LAPSED = ("This product's protection has already gone. The date is the event, not "
+               "a forecast: the patent that gated a generic has expired, and later "
+               "patents on the same product cover a formulation or one indication and "
+               "do not hold the molecule.")
 _WHY_MODALITY = ("Small molecule or biologic, which decides the register the expiry "
                  "comes from: the Orange Book for one, the Purple Book for the other.")
 _WHY_BASIS = "Which patent or exclusivity sets the date above."
@@ -4538,6 +4599,15 @@ with main:
                         is_range = cls == "small" and ey and y and ey != y
                         loe_label = "exclusivity" if is_range else "exclusivity to"
                         loe_txt = f'{ey}–{y}' if is_range else (f'{y}{to_loe}' if y else "—")
+                        # Past means the event has happened, so the card says so rather
+                        # than counting down to a date that has gone.
+                        if p.get("loe_past") and y:
+                            loe_label, loe_txt, is_range = "exclusivity", f"lapsed {y}", False
+                        # The patent that sets the date, named on the card. Which of a
+                        # product's twenty patents is the cliff is the question the stack
+                        # exists to answer, and the answer belongs where the date is.
+                        patent_txt = (f' &middot; {html_escape(str(p["loe_identifier"]))}'
+                                      if p.get("loe_identifier") else "")
                         # Where there is no expiry, say which kind of nothing it is. The
                         # Orange Book lists only unexpired patents and unexpired
                         # exclusivities, so no rows means either every one of them has run
@@ -4588,10 +4658,11 @@ with main:
                             f'<span class="pf-k">revenue</span>'
                             f'<span class="pf-v{"" if p.get("revenue") is not None else " none"}">'
                             f'{rev_txt}</span></div>'
-                            f'<div class="pf-row" title="{html_escape(_WHY_RANGE if is_range else _WHY_LOE)}">'
+                            f'<div class="pf-row" title="{html_escape(_WHY_LAPSED if p.get("loe_past") else (_WHY_RANGE if is_range else _WHY_LOE))}">'
                             f'<span class="pf-k">{loe_label}</span>'
                             f'<span class="pf-v {"near" if near else ""}">'
-                            f'{loe_txt}</span></div>'
+                            f'{loe_txt}<span class="pf-pat">{patent_txt}</span>'
+                            f'</span></div>'
                             f'{basis}</div>')
 
                     prods_sorted = sorted(prods, key=lambda p: (-(p.get("revenue") or 0),
