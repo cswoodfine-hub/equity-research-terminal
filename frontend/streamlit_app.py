@@ -811,6 +811,20 @@ _WHY_LAPSED = ("This product's protection has already gone. The date is the even
                "a forecast: the patent that gated a generic has expired, and later "
                "patents on the same product cover a formulation or one indication and "
                "do not hold the molecule.")
+# A therapeutic area by its head word, for a chart too narrow to carry the full name.
+# "Immunology and inflammation" is 27 characters against a label column of about ten,
+# and a clipped label is worse than a short one. Used by the pipeline bars and the
+# portfolio's disease ring, so the two never disagree about what an area is called.
+AREA_SHORT = {"Immunology and inflammation": "Immunology",
+              "Infectious disease": "Infectious",
+              "Healthy volunteers": "Volunteers",
+              "Renal and hepatic": "Renal"}
+
+
+def area_label(area: str) -> str:
+    return AREA_SHORT.get(area, area)
+
+
 _WHY_MODALITY = ("Small molecule or biologic, which decides the register the expiry "
                  "comes from: the Orange Book for one, the Purple Book for the other.")
 _WHY_BASIS = "Which patent or exclusivity sets the date above."
@@ -4013,13 +4027,14 @@ with main:
                         "name": f"{life}, {count} compound{'s' if count != 1 else ''}, {tag}",
                         "value": count,
                         "colour": TK.RULE if dimmed else TK.MUTED})
-                stack_rows.append({"label": area, "segments": segments})
+                stack_rows.append({"label": area_label(area), "segments": segments})
             legend = [(p, TK.PHASE_RAMP[p]) for p in DISPLAY_PHASES]
             tags = [t for t, has in (("Phase 4", post), ("follow-up", followup)) if has]
             if tags:
                 legend.append((" and ".join(tags) + ", post-development", TK.MUTED))
+            # Sized for the column it sits in rather than the page it used to span.
             _area_chart = CH.stacked_bar(
-                stack_rows, 832, max(170, 34 * len(order) + 22),
+                stack_rows, 560, max(170, 30 * len(order) + 30),
                 value_fmt=lambda v: f"{v:.0f}", legend=legend)
 
             # Pills stay plain labels: rewriting a pill's own label as it is selected made
@@ -4047,17 +4062,17 @@ with main:
                 key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
 
 
-        # One strip, two layers. The list is the tab's work and is what it opens on;
-        # the chart over it was a summary that pushed the first compound three quarters
-        # of the way down the screen, so it is a click away instead.
-        st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
-        _pipe_names = ["Programmes"] + (["By area"] if _area_chart else [])
-        _pipe = dict(zip(_pipe_names, st.tabs(_pipe_names)))
+        # Side by side, because the chart is read against the list rather than instead
+        # of it: the areas say what the company is, the rows say what it holds, and an
+        # analyst scanning one wants the other in view. Stacked, the chart pushed the
+        # first compound three quarters of the way down the screen; behind a tab it was
+        # out of sight exactly when it was useful. In a column it is neither.
+        _chart_col, _list_col = st.columns([1, 1.6], gap="medium")
         if _area_chart:
-            with _pipe["By area"]:
+            with _chart_col:
                 section(f"{ticker} by therapeutic area")
                 R.show(_area_chart)
-        with _pipe["Programmes"]:
+        with _list_col:
             # --- Programmes: the compounds behind the studies -------------------
             # A trial list answers what is running; this answers what is being developed.
             # Each row is a compound the company is trialling but does not yet sell, bound to
@@ -4451,10 +4466,7 @@ with main:
                             # A donut half the width cannot carry "Immunology and inflammation" as
                             # a leader label, so the long areas go by their head word here. The
                             # product grid below keeps the full names.
-                            short = {"Immunology and inflammation": "Immunology",
-                                     "Renal and hepatic": "Renal and hepatic",
-                                     "Infectious disease": "Infectious",
-                                     "Healthy volunteers": "Healthy volunteers"}
+                            short = AREA_SHORT
                             # Categories, not magnitudes: a lightness ramp would say oncology is
                             # more than neuroscience. Hue carries the area, each area keeps its own
                             # colour across companies, and the two donuts stop looking like one
