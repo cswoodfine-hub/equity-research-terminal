@@ -1,0 +1,93 @@
+# A revenue line joined to the FDA application whose exclusivity governs it.
+#
+# A company books revenue under a name the FDA does not know it by. Sanofi books
+# Dupixent and the BLA is Regeneron's; Pfizer books Eliquis on Bristol's NDA and Xtandi on
+# Astellas's; Novo books Rybelsus on its own NDA, which the approvals feed folded into
+# Ozempic; Merck books Lynparza on AstraZeneca's. The Orange Book and the Purple Book
+# attach exclusivity to the applicant, so none of these lines carried a date, and 121
+# of the 297 revenue-anchored forecasts ran to perpetuity for want of one.
+#
+# This file holds only the join. The date still comes from the books, on the same rule
+# as every other asset: where the application sits under another asset on file the line
+# reads that asset's resolved date (so Rybelsus takes semaglutide's curated compound
+# patent, as Ozempic does); where nothing on file holds it, the book fetchers attach the
+# application's own rows to the line directly. A family line names the member whose
+# exclusivity runs latest, and says so.
+#
+# Application numbers and sponsors were checked against openFDA drugsfda on 2026-09-11.
+ticker,asset,application_number,note
+NVO,Rybelsus,NDA213051,"oral semaglutide; openFDA lists the NDA under Novo and the approvals feed folded it into Ozempic, whose curated compound patent (8129343, 2031-12-05) is the same molecule"
+SNY,Dupixent,BLA761055,"Regeneron's BLA; Sanofi books the global sales"
+PFE,Eliquis,NDA202155,"Bristol-Myers Squibb's NDA; Pfizer books its share of the alliance"
+AZN,Ultomiris,BLA761108,"Alexion's BLA, approved 2018-12-21; Alexion is AstraZeneca since 2021 and is not in the applicant map because mapping it would spawn a second Ultomiris"
+AZN,Soliris,BLA125166,"Alexion's BLA, approved 2007-03-16"
+AZN,Strensiq,BLA125513,"Alexion's BLA, approved 2015-10-23"
+AZN,Enhertu,BLA761139,"Daiichi Sankyo's BLA, approved 2019-12-20; AstraZeneca co-commercialises"
+AZN,Tezspire,BLA761224,"the BLA is Amgen's (BLA761224 under AstraZeneca AB in openFDA, held on Amgen's asset here); AstraZeneca books its share"
+AZN,Beyfortus,BLA761328,"AstraZeneca AB's BLA, approved 2023-07-17, booked by AstraZeneca and marketed by Sanofi"
+AZN,Synagis,BLA103770,"BLA now Sobi's; AstraZeneca books ex-US"
+AZN,Zoladex,NDA019726,"TerSera holds the US NDA; AstraZeneca books ex-US. Approved 1989, no live patent"
+NVO,Xultophy,BLA208583,"the same application as the Xultophy 100/3.6 asset"
+NVO,Fiasp,BLA208751,"the same application as the Fiasp Penfill asset"
+JNJ,Invega Sustenna / Xeplion / Trinza / Trevicta,NDA022264,"the family line reads Invega Sustenna's NDA, the member whose exclusivity runs latest on file"
+JNJ,IMBRUVICA,NDA205552,"Pharmacyclics's original capsule NDA, approved 2013-11-13; the asset carries the tablet NDA217003"
+JNJ,OPSUMIT,NDA204410,"Actelion's NDA, approved 2013-10-18"
+JNJ,UPTRAVI,NDA207947,"Actelion's NDA, approved 2015-12-21"
+JNJ,Prezista / Prezcobix / Rezolsta / Symtuza,NDA021976,"Prezista's NDA, approved 2006-06-23, the member the line is named for"
+JNJ,EDURANTrilpivirine,NDA202022,"Edurant, rilpivirine, Janssen, approved 2011-05-20"
+LLY,Jardiance,NDA204629,"Boehringer Ingelheim's NDA, approved 2014-08-01; Lilly books its share of the alliance"
+AMGN,Enbrel,BLA103795,"Immunex's BLA, approved 1998-11-02; the asset already carries the code and the applicant is not mapped"
+PFE,Enbrel,BLA103795,"the same BLA; Pfizer books ex-US"
+AMGN,Xgeva,BLA125320,"denosumab shares one BLA with Prolia, which holds the rows"
+PFE,Xtandi,NDA203415,"Astellas's NDA, approved 2012-08-31; Pfizer books its share"
+PFE,Padcev,BLA761137,"Astellas and Seagen's BLA, approved 2019-12-18"
+PFE,Adcetris,BLA125388,"Seagen's BLA, approved 2011-08-19"
+PFE,Tukysa,NDA213411,"Seagen's NDA, approved 2020-04-17"
+PFE,Tivdak,BLA761208,"Seagen's BLA, approved 2021-09-20"
+PFE,Braftovi / Mektovi,NDA210496,"Braftovi's NDA (Array), approved 2018-06-27, the member the line is named for"
+PFE,Nurtec ODT / Vydura,NDA212728,"the same application as the Nurtec Odt asset"
+PFE,Prevnar / Prevenar family,BLA125731,"the family line reads Prevnar 20's BLA, the member whose exclusivity runs latest"
+PFE,Comirnaty,BLA125742,"BioNTech's BLA, approved 2021-08-23; the asset already carries the code and the applicant is not mapped"
+PFE,Genotropin,BLA020280,"Pharmacia's application, approved 1995-08-24, held on the Genotropin Preservative Free asset"
+PFE,Inflectra / Remsima,BLA125544,"Celltrion's BLA, approved 2016-04-05; a biosimilar, so the floor is not reference-product exclusivity"
+PFE,Cresemba,NDA207500,"Astellas's NDA, approved 2015-03-06"
+PFE,Orgovyx,NDA214621,"Sumitomo Pharma's NDA, approved 2020-12-18; Pfizer co-promotes"
+MRK,Lynparza,NDA206162,"AstraZeneca's NDA; Merck books its share of the alliance. The asset on file carries the compound patent chain"
+MRK,Gardasil / Gardasil 9,BLA125508,"the family line reads Gardasil 9's BLA, the member whose exclusivity runs latest"
+MRK,Isentress / Isentress HD,NDA022145,"the same application as the Isentress Hd asset"
+MRK,Adempas / Verquvo,NDA204819,"Adempas's NDA (Bayer), the member the line is named for; Merck books ex-US"
+MRK,Lenvima,NDA206947,"Eisai's NDA, approved 2015-02-13; Merck books its share"
+MRK,Reblozyl,BLA761136,"Celgene's BLA, approved 2019-11-08; Merck books ex-US"
+NVS,Xolair,BLA103976,"Genentech's BLA; Novartis books ex-US"
+NVS,Lucentis,BLA125156,"Genentech's BLA; Novartis books ex-US"
+NVS,Jakavi,NDA202192,"ruxolitinib is Incyte's Jakafi in the US; Novartis books ex-US on the same molecule"
+NVS,Aimovig,BLA761077,"Amgen's BLA; Novartis books ex-US"
+NVS,Lutathera,NDA208700,"Advanced Accelerator Applications's NDA, approved 2018-01-26; a Novartis company"
+INCY,JAKAVI,NDA202192,"Incyte's own ex-US royalty line on Jakafi's NDA"
+INCY,OLUMIANT,NDA207924,"Lilly's NDA; Incyte books a royalty"
+INCY,TABRECTA,NDA213591,"Novartis's NDA; Incyte books a royalty"
+INCY,ICLUSIG,NDA203469,"Takeda's NDA, approved 2012-12-14; Incyte holds ex-US rights"
+SNY,Rezurock,NDA214783,"Kadmon's NDA, approved 2021-07-16; a Sanofi company"
+SNY,Tzield,BLA761183,"Provention Bio's BLA, approved 2022-11-17; a Sanofi company"
+UTHR,Adcirca,NDA022332,"Lilly's NDA, approved 2009-05-22; no live patent, tadalafil generics since 2018"
+PFE,Vyndaqel,NDA212161,"the Vyndaqel line is the tafamidis franchise; Vyndaqel's own NDA211996 is discontinued and the patents to 2035 sit on Vyndamax's NDA"
+GILD,Sofosbuvir Velpatasvir,NDA214187,"Epclusa; Gilead's own NDA, held on the Epclusa asset"
+PFE,Zavicefta,NDA206494,"ceftazidime-avibactam is AbbVie's Avycaz in the US; Pfizer sells it ex-US on the same molecule"
+NVS,Piqray Vijoice,NDA212526,"alpelisib; Piqray's NDA, held on the Piqray asset"
+GILD,Symtuza Revenue Share,NDA210455,"Janssen's Symtuza NDA; Gilead books a share of the revenue"
+INCY,Minjuvi / Monjuvi,BLA761163,"tafasitamab; Monjuvi's BLA, held on the Monjuvi asset"
+AZN,Flumist,BLA125020,"MedImmune's BLA, held on the Flumist Quad asset"
+PFE,FSME-IMMUN / TicoVac,BLA125740,"TicoVac's BLA, licensed 2021-08-13, held on the Ticovac asset"
+MRK,ProQuad / M-M-R II / Varivax,BLA125108,"the family line reads ProQuad's BLA, the member licensed latest (2005)"
+NVO,Novo Rapid And Novo Log,BLA020986,"insulin aspart; NovoLog's application, held on the Novolog asset"
+NVO,Novo Mix And Novo Log Mix,BLA021172,"insulin aspart mixes; NovoLog Mix 70/30's application"
+NVO,Human Insulin,BLA019938,"Novolin R's application, 1991; no exclusivity remains on human insulin"
+NVO,Novo Seven,BLA103665,"NovoSeven's BLA, licensed 1999"
+NVO,Haemophilia A,BLA125671,"the line reads Esperoct's BLA, the member licensed latest (2019); NovoEight's runs to 2025"
+NVO,Haemophilia B,BLA125611,"Rebinyn's BLA, licensed 2017"
+NVO,Ryzodeg,BLA203314,"degludec and aspart; the degludec exclusivity is Tresiba's, licensed the same day"
+JNJ,CONCERTAMethylphenidate,NDA021121,"Concerta's NDA, approved 2000; the Orange Book lists nothing live"
+AZN,Seloken,NDA019962,"metoprolol succinate is Toprol-XL in the US, an NDA AstraZeneca no longer holds; nothing live is listed"
+JNJ,Prezista / Prezcobix / Rezolsta / Symtuza,NDA202895,"Prezista's later NDA, the one the asset on file carries; the original NDA021976 is folded into it"
+PFE,Zithromax Zmax,NDA050710,"azithromycin; Zithromax's NDA, approved 1995; the Orange Book lists nothing live"
+BIIB,FAMPYRA,NDA022250,"fampridine is Acorda's Ampyra in the US, approved 2010; Biogen sells it ex-US. The patents were held invalid in 2018 and the book lists nothing live"

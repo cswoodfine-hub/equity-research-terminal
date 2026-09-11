@@ -13,8 +13,15 @@ import datetime as dt
 import pathlib
 
 import db
+import loe_link
 
 DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
+
+# The longest a US patent can protect a product: a twenty-year term (35 U.S.C. 154)
+# plus at most five years of restoration for regulatory delay (35 U.S.C. 156(g)(6)).
+# The compound patent is filed before approval, so a product approved more than this
+# many years ago has no compound patent left whatever the books list.
+MAX_PATENT_TERM_YEARS = 25
 
 HORIZON = 10  # number of upcoming years shown as columns
 
@@ -90,7 +97,8 @@ def compound_expiry(rows, identifier=None) -> tuple:
     return last["expiry_date"], last["identifier"] or None
 
 
-def for_assets(conn, asset_ids=None, exclude_orphan: bool = False) -> dict:
+def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
+               _linked: bool = True) -> dict:
     """{asset_id: {date, basis, identifier, past}} on one rule, for every caller.
 
     Computed in Python from the rows rather than as an aggregate, because the compound
@@ -147,6 +155,80 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False) -> dict:
             why = "drug substance patent"
         out[asset_id] = {"date": date, "basis": why, "identifier": identifier,
                          "past": bool(date and date < today)}
+
+    requested = set(asset_ids) if asset_ids is not None else None
+
+    # A revenue line joined to another asset's application reads that asset's date,
+    # curated compound patent and all: Rybelsus takes semaglutide's patent as Ozempic
+    # does, and Sanofi's Dupixent reads Regeneron's BLA. Resolved without the link map,
+    # so a holder cannot chain to a holder.
+    links = loe_link.load(conn)
+    for asset_id, link in links.items():
+        if requested is not None and asset_id not in requested:
+            continue
+        if (out.get(asset_id) or {}).get("date"):
+            continue
+        for holder in loe_link.holders(conn, link["code"], exclude=(asset_id,)):
+            found = out.get(holder)
+            if found is None and (requested is None or holder not in requested):
+                found = for_assets(conn, [holder], exclude_orphan=exclude_orphan,
+                                   _linked=False).get(holder)
+            if found and found.get("date"):
+                name = conn.execute(
+                    "SELECT COALESCE(brand_name, generic_name) AS nm FROM assets"
+                    " WHERE id = ?", (holder,)).fetchone()
+                out[asset_id] = {**found, "via": holder,
+                                 "basis": f"{found['basis']} via "
+                                          f"{link['application_number']}"
+                                          + (f" ({name['nm']})" if name else "")}
+                break
+
+    if _linked:
+        # The Orange Book lists every unexpired patent an NDA holder has submitted, so a
+        # marketed product it lists with nothing live has nothing protecting it: the
+        # loss of exclusivity is in the past. Symbicort, Crestor and Zytiga.
+        where, params = "", []
+        if requested is not None:
+            where = f" WHERE asset_id IN ({', '.join('?' for _ in requested)})"
+            params = list(requested)
+        try:
+            listings = conn.execute(
+                "SELECT asset_id, approval_date FROM orange_book_listings"
+                f"{where} AND live_rows = 0" if where else
+                "SELECT asset_id, approval_date FROM orange_book_listings"
+                " WHERE live_rows = 0", params).fetchall()
+        except Exception:      # a database from before the listings table
+            listings = []
+        for row in listings:
+            if (out.get(row["asset_id"]) or {}).get("date"):
+                continue
+            approved = row["approval_date"] or today
+            out[row["asset_id"]] = {
+                "date": min(approved, today), "identifier": None, "past": True,
+                "basis": "no live patent or exclusivity listed in the Orange Book"}
+
+    # An approval older than the longest term a patent can run is a loss of
+    # exclusivity in the past, whatever the books list: nothing filed before a 1989
+    # approval can still be in force. Read only where nothing else set a date.
+    if _linked:
+        cutoff = dt.date.today().replace(year=dt.date.today().year - MAX_PATENT_TERM_YEARS)
+        where = ""
+        params: list = []
+        if requested is not None:
+            where = f" AND asset_id IN ({', '.join('?' for _ in requested)})"
+            params = list(requested)
+        for row in conn.execute(
+                "SELECT asset_id, MIN(approval_date) AS first FROM approvals"
+                " WHERE approval_date IS NOT NULL" + where + " GROUP BY asset_id",
+                params):
+            if (out.get(row["asset_id"]) or {}).get("date"):
+                continue
+            if row["first"] and row["first"] < cutoff.isoformat():
+                expired = f"{int(row['first'][:4]) + MAX_PATENT_TERM_YEARS}-12-31"
+                out[row["asset_id"]] = {
+                    "date": expired, "identifier": None, "past": True,
+                    "basis": f"statutory patent term elapsed (approved "
+                             f"{row['first'][:4]}, {MAX_PATENT_TERM_YEARS}y maximum)"}
     return out
 
 

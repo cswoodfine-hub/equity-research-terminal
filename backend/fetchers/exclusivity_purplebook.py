@@ -64,6 +64,16 @@ APPLICANT_MAP = {
     "REGN": ["REGENERON"],
     "BIIB": ["BIOGEN"],
     "BAYN": ["BAYER"],
+    "INCY": ["INCYTE"],
+    "UTHR": ["UNITED THERAP"],
+    "ALNY": ["ALNYLAM"],
+    "BMRN": ["BIOMARIN"],
+    "ARGX": ["ARGENX"],
+    "BNTX": ["BIONTECH"],
+    "MRNA": ["MODERNATX", "MODERNA"],
+    "SRPT": ["SAREPTA"],
+    "KRYS": ["KRYSTAL BIOTECH"],
+    "LEGN": ["LEGEND BIOTECH"],
 }
 
 EXCLUSIVITY_COLUMNS = [
@@ -132,9 +142,16 @@ def _clean(value):
     return value if value and value.upper() != "N/A" else None
 
 
-def parse_purple_book(csv_text, applicant_map, today=None) -> list[dict]:
-    """Turn the Purple Book CSV into biologic product rows with exclusivity. Pure."""
+def parse_purple_book(csv_text, applicant_map, today=None, linked=None) -> list[dict]:
+    """Turn the Purple Book CSV into biologic product rows with exclusivity. Pure.
+
+    ``linked`` is {BLA code: [asset ids]} for applications an asset on file already
+    holds under an applicant the map does not know (Alexion's Ultomiris, booked by
+    AstraZeneca). Such a product is kept with ``asset_ids`` in place of a ticker and
+    its rows are attached to those assets rather than to a new one.
+    """
     today = today or dt.date.today()
+    linked = linked or {}
     rows = list(csv.reader(io.StringIO(csv_text)))
     header_idx = next((i for i, r in enumerate(rows) if "BLA Number" in r), None)
     if header_idx is None:
@@ -148,10 +165,11 @@ def parse_purple_book(csv_text, applicant_map, today=None) -> list[dict]:
     products: dict[str, dict] = {}
     for row in rows[header_idx + 1:]:
         ticker = _match_ticker(field(row, "Applicant"), applicant_map)
-        if not ticker:
-            continue
         bla = field(row, "BLA Number")
         if not bla:
+            continue
+        asset_ids = linked.get("BLA" + re.sub(r"\D", "", bla)) if not ticker else None
+        if not ticker and not asset_ids:
             continue
         exclusivities = []
         for column, ptype in EXCLUSIVITY_COLUMNS:
@@ -172,6 +190,7 @@ def parse_purple_book(csv_text, applicant_map, today=None) -> list[dict]:
         if product is None:
             products[key] = {
                 "ticker": ticker,
+                "asset_ids": asset_ids,
                 "internal_code": key,
                 "brand": _clean(field(row, "Proprietary Name")),
                 "generic": _clean(field(row, "Proper Name")),
@@ -242,10 +261,16 @@ class PurpleBookFetcher(BaseFetcher):
         return {"csvs": csvs}
 
     def normalise(self, raw) -> list[dict]:
+        import loe_link
+        conn = db.get_connection(self.db_path)
+        try:
+            linked = loe_link.attach_targets(conn)
+        finally:
+            conn.close()
         # Merge months newest-first; the first time we see a BLA wins (most recent data).
         merged: dict[str, dict] = {}
         for csv_text in raw["csvs"]:
-            for product in parse_purple_book(csv_text, APPLICANT_MAP):
+            for product in parse_purple_book(csv_text, APPLICANT_MAP, linked=linked):
                 merged.setdefault(product["internal_code"], product)
         return list(merged.values())
 
@@ -291,7 +316,11 @@ class PurpleBookFetcher(BaseFetcher):
             companies = {r["ticker"]: r["id"] for r in conn.execute(
                 "SELECT ticker, id FROM companies")}
             written = 0
+            from fetchers.exclusivity_orangebook import attach_direct
             for product in rows:
+                if product.get("asset_ids"):
+                    written += attach_direct(conn, product, PB_SOURCE, with_kind=False)
+                    continue
                 company_id = companies.get(product["ticker"])
                 if company_id is None:
                     continue

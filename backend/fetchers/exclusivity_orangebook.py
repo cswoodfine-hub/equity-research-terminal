@@ -16,7 +16,7 @@ import urllib.request
 import zipfile
 
 import db
-from assets_util import normalize_appl, upsert_asset
+from assets_util import normalize_appl, resolve_alias, upsert_asset
 from fetchers.base import BaseFetcher, RefreshResult
 
 SOURCE = "exclusivities"
@@ -53,6 +53,19 @@ APPLICANT_MAP = {
     "REGN": ["REGENERON"],
     "BIIB": ["BIOGEN"],
     "BAYN": ["BAYER"],
+    # The rest of the universe's filers. Incyte and United Therapeutics were missing
+    # for as long as the map existed, so Jakafi and Tyvaso never carried a patent.
+    "INCY": ["INCYTE"],
+    "UTHR": ["UNITED THERAP"],
+    "ALNY": ["ALNYLAM"],
+    "BMRN": ["BIOMARIN"],
+    "EXEL": ["EXELIXIS"],
+    "IONS": ["IONIS"],
+    "NBIX": ["NEUROCRINE"],
+    "SRPT": ["SAREPTA"],
+    "AXSM": ["AXSOME"],
+    "KRYS": ["KRYSTAL BIOTECH"],
+    "LNTH": ["LANTHEUS"],
 }
 
 
@@ -99,8 +112,16 @@ def patent_kind(flags) -> str | None:
     return "use" if flags.get("use") else None
 
 
-def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_map) -> list[dict]:
-    """Turn the three Orange Book files into protected marketed-product rows. Pure."""
+def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_map,
+                      linked=None) -> list[dict]:
+    """Turn the three Orange Book files into protected marketed-product rows. Pure.
+
+    ``linked`` is {application code: [asset ids]} for applications an asset on file
+    already holds under an applicant the map does not know: Pfizer books Xtandi on
+    Astellas's NDA. Such a product is kept and carries ``asset_ids`` instead of a
+    ticker, and the upsert attaches its rows to those assets rather than creating one.
+    """
+    linked = linked or {}
     pidx, prows = _rows(products_text)
     products: dict[str, dict] = {}
     for parts in prows:
@@ -110,10 +131,12 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
         # Merck & Co from Merck KGaA.
         ticker = _match_ticker(_field(parts, pidx, "Applicant_Full_Name"), applicant_map) \
             or _match_ticker(_field(parts, pidx, "Applicant"), applicant_map)
-        if not ticker:
-            continue
         appl_no = _field(parts, pidx, "Appl_No")
         if not appl_no:
+            continue
+        code = normalize_appl(_field(parts, pidx, "Appl_Type"), appl_no)
+        asset_ids = linked.get(code) if not ticker else None
+        if not ticker and not asset_ids:
             continue
         # Type is RX, OTC, or DISCN. A discontinued product is off the market, so its
         # patents running to 2027 are not a loss of exclusivity, they are a dead
@@ -125,10 +148,14 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
             continue
         products[appl_no] = {
             "ticker": ticker,
+            "asset_ids": asset_ids,
             "marketed": marketed,
             "appl_type": _field(parts, pidx, "Appl_Type"),
             "brand": _field(parts, pidx, "Trade_Name").strip().title() or None,
             "generic": _field(parts, pidx, "Ingredient").strip().title() or None,
+            "approval_date": (_parse_date(_field(parts, pidx, "Approval_Date")) or dt.date.min).isoformat()
+            if _parse_date(_field(parts, pidx, "Approval_Date")) else None,
+            "applicant": _field(parts, pidx, "Applicant_Full_Name").strip() or None,
         }
     products = {no: p for no, p in products.items() if p["marketed"]}
 
@@ -185,19 +212,67 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
                              "patent_kind": patent_kind(
                                  patent_kinds.get((appl_no, identifier)))
                              if kind == "patent" else None})
-        if not rows:  # only keep products with listed protection
-            continue
+        # A marketed product with nothing listed is kept, marked, and attached only to
+        # an asset already on file: the silence is a finding about that product, and
+        # not a reason to create an asset for every old NDA in the book.
         out.append(
             {
                 "ticker": product["ticker"],
+                "asset_ids": product.get("asset_ids"),
                 "internal_code": normalize_appl(product["appl_type"], appl_no),
                 "brand": product["brand"],
                 "generic": product["generic"],
                 "modality": "small molecule",
                 "exclusivities": rows,
+                "listed_only": not rows,
+                "approval_date": product.get("approval_date"),
+                "applicant": product.get("applicant"),
             }
         )
     return out
+
+
+def record_listing(conn, product: dict, asset_id: int) -> None:
+    """Note that the book lists this product for this asset, and how many live rows."""
+    conn.execute(
+        """INSERT INTO orange_book_listings
+               (asset_id, appl_code, approval_date, applicant, live_rows, fetched_at)
+           VALUES (?, ?, ?, ?, ?, datetime('now'))
+           ON CONFLICT(asset_id) DO UPDATE SET appl_code = excluded.appl_code,
+               approval_date = excluded.approval_date, applicant = excluded.applicant,
+               live_rows = excluded.live_rows, fetched_at = datetime('now')""",
+        (asset_id, product.get("internal_code"), product.get("approval_date"),
+         product.get("applicant"), len(product.get("exclusivities") or [])))
+
+
+def attach_direct(conn, product: dict, source: str, with_kind: bool) -> int:
+    """Write a product's rows onto the assets on file that hold its application,
+    creating nothing. Returns rows written. The modality is filled where the asset had
+    none, since the book that lists it says what it is."""
+    written = 0
+    for asset_id in product.get("asset_ids") or []:
+        if source == OB_SOURCE:
+            record_listing(conn, product, asset_id)
+        conn.execute("DELETE FROM exclusivities WHERE asset_id = ? AND source = ?",
+                     (asset_id, source))
+        conn.execute("UPDATE assets SET modality = COALESCE(modality, ?) WHERE id = ?",
+                     (product.get("modality"), asset_id))
+        for excl in product["exclusivities"]:
+            if with_kind:
+                conn.execute(
+                    "INSERT INTO exclusivities (asset_id, region, protection_type,"
+                    " identifier, expiry_date, patent_kind, source)"
+                    " VALUES (?, 'US', ?, ?, ?, ?, ?)",
+                    (asset_id, excl["protection_type"], excl["identifier"],
+                     excl["expiry_date"], excl.get("patent_kind"), source))
+            else:
+                conn.execute(
+                    "INSERT INTO exclusivities (asset_id, region, protection_type,"
+                    " identifier, expiry_date, source) VALUES (?, 'US', ?, ?, ?, ?)",
+                    (asset_id, excl["protection_type"], excl["identifier"],
+                     excl["expiry_date"], source))
+            written += 1
+    return written
 
 
 class OrangeBookFetcher(BaseFetcher):
@@ -222,8 +297,14 @@ class OrangeBookFetcher(BaseFetcher):
         }
 
     def normalise(self, raw) -> list[dict]:
+        import loe_link
+        conn = db.get_connection(self.db_path)
+        try:
+            linked = loe_link.attach_targets(conn)
+        finally:
+            conn.close()
         return parse_orange_book(
-            raw["products"], raw["patents"], raw["exclusivity"], APPLICANT_MAP
+            raw["products"], raw["patents"], raw["exclusivity"], APPLICANT_MAP, linked
         )
 
     def _write_snapshot(self, conn, payload):
@@ -272,13 +353,27 @@ class OrangeBookFetcher(BaseFetcher):
                 "SELECT ticker, id FROM companies")}
             written = 0
             for product in rows:
+                if product.get("asset_ids"):
+                    written += attach_direct(conn, product, OB_SOURCE, with_kind=True)
+                    continue
                 company_id = companies.get(product["ticker"])
                 if company_id is None:
+                    continue
+                if product.get("listed_only"):
+                    # Only an asset already on file takes the finding.
+                    existing = conn.execute(
+                        "SELECT id FROM assets WHERE internal_code = ?",
+                        (product["internal_code"],)).fetchone()
+                    alias = None if existing else resolve_alias(conn, product["internal_code"])
+                    target = existing[0] if existing else alias
+                    if target is not None:
+                        record_listing(conn, product, target)
                     continue
                 asset_id = upsert_asset(
                     conn, company_id, product["internal_code"], product["brand"],
                     product["generic"], product["modality"],
                 )
+                record_listing(conn, product, asset_id)
                 # Refresh this asset's Orange Book exclusivities in place.
                 conn.execute(
                     "DELETE FROM exclusivities WHERE asset_id = ? AND source = ?",
