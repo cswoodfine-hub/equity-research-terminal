@@ -1078,6 +1078,10 @@ def test_the_sum_names_what_it_cannot_do(tmp_path):
     assert s["forward_12m"] is None and s["dps"] is None
     assert s["enterprise_per_share"] is not None
     assert any("no debt line filed" in m for m in s["missing"])
+    import forecast_note
+    line = forecast_note.write_company(V.company_verdict(path, "TST"))["headline"]
+    assert line.startswith("On the model TST's business is worth $")
+    assert "enterprise value" in line and "cash on hand" in line
 
 
 def test_a_launch_window_runs_through_its_loe_and_the_erosion_after_it():

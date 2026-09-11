@@ -1795,6 +1795,19 @@ def _book(api_base: str, ticker: str, selected):
                   f"close {v.get('close_date') or ''}"),
                  ("against the price", f"{up:+.0%}" if up is not None else "—", "",
                   None, "", "12-month value over the close")]
+    elif sotp.get("enterprise_per_share") is not None:
+        # The balance sheet could not be added: the sum stops at enterprise value and
+        # the cash on hand is shown beside it rather than folded in.
+        tiles = [("enterprise per share", T.num(sotp["enterprise_per_share"], 2), "",
+                  None, "", "sum of the parts, before the balance sheet"),
+                 ("cash on hand", T.num(sotp.get("cash_per_share"), 2)
+                  if sotp.get("cash_per_share") is not None else "none", "", None, "",
+                  "a share; no debt line filed against it"),
+                 ("share price", T.num(v.get("close"), 2), "", None, "",
+                  f"close {v.get('close_date') or ''}"),
+                 ("share of price",
+                  T.pct((v.get("pct_of_price") or 0) * 100, 1) if v.get("pct_of_price")
+                  else "—", "", None, "", "enterprise value over the close")]
     else:
         tiles = [("pipeline per share",
                   T.num(v.get("per_share"), 2) if v.get("per_share") else "—", "", None,

@@ -162,15 +162,26 @@ def _sotp_headline(v: dict) -> str | None:
     """The company in one sentence: what the parts add up to per share, today and in
     twelve months, against the price. None where a part is missing."""
     s = v.get("sotp") or {}
-    if s.get("equity_per_share") is None or not s.get("close"):
+    if not s.get("close"):
         return None
-    lead = (f"On the model {v['ticker']}'s equity is worth "
-            f"{_per_share(s['equity_per_share'])} a share today")
-    if s.get("forward_12m") is not None:
-        lead += f" and {_per_share(s['forward_12m'])} in twelve months"
-    lead += f" against a {_per_share(s['close'])} share price"
-    if s.get("upside") is not None:
-        lead += f", {s['upside']:+.0%} on the twelve-month figure"
+    if s.get("equity_per_share") is None:
+        # The sum stops at enterprise value where the balance sheet cannot be added.
+        if s.get("enterprise_per_share") is None:
+            return None
+        lead = (f"On the model {v['ticker']}'s business is worth "
+                f"{_per_share(s['enterprise_per_share'])} a share of enterprise value "
+                f"against a {_per_share(s['close'])} share price")
+        if s.get("cash_per_share") is not None:
+            lead += (f", before {_per_share(s['cash_per_share'])} a share of cash on "
+                     f"hand that no debt line is filed against")
+    else:
+        lead = (f"On the model {v['ticker']}'s equity is worth "
+                f"{_per_share(s['equity_per_share'])} a share today")
+        if s.get("forward_12m") is not None:
+            lead += f" and {_per_share(s['forward_12m'])} in twelve months"
+        lead += f" against a {_per_share(s['close'])} share price"
+        if s.get("upside") is not None:
+            lead += f", {s['upside']:+.0%} on the twelve-month figure"
     parts = []
     m, p, lines = s.get("marketed") or {}, s.get("pipeline") or {}, s.get("lines") or {}
     if m.get("n"):
@@ -185,7 +196,7 @@ def _sotp_headline(v: dict) -> str | None:
     if s.get("net_cash_per_share") is not None:
         word = "net cash" if s["net_cash_per_share"] >= 0 else "net debt"
         parts.append(f"{word} {_per_share(s['net_cash_per_share'])}")
-    return lead + ": " + ", ".join(parts) + "."
+    return lead + (": " + ", ".join(parts) if parts else "") + "."
 
 
 def _sotp_body(v: dict) -> list[str]:
