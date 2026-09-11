@@ -186,7 +186,10 @@ def test_the_note_leads_with_what_is_not_modelled(tmp_path):
     # No reported total is seeded here, so coverage is against the tagged rows and the
     # headline says so rather than calling that the company.
     assert "1.2% of FY2025 tagged revenue" in note["headline"]
-    assert "Trikafta alone is 99%" in note["headline"]
+    # 10,430mm tagged, 120mm of it modelled, so 10,310mm is uncovered and Trikafta is
+    # all of it. The clause used to print 99%, which is Trikafta's share of the whole
+    # book wearing the label "of what it does not": the right denominator is the gap.
+    assert "Trikafta alone is 100% of what it does not" in note["headline"]
     body = " ".join(note["body"])
     assert "point it at the rest" in body          # thin coverage is called out
     assert "work queue" in body

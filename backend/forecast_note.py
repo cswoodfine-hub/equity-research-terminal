@@ -158,6 +158,46 @@ def write(v: dict) -> dict:
 THIN_COVERAGE = 0.25
 
 
+def _coverage_clause(v: dict) -> str:
+    """How much of the business the figure in front of it actually covers.
+
+    Never optional. A model over a fraction of the revenue will always look small
+    against a market capitalisation, and reading that as "the market is wrong" rather
+    than "the model is thin" is the easiest mistake this page could invite. So no
+    headline states a per-share number without this behind it.
+    """
+    coverage = v.get("coverage") or {}
+    if coverage.get("share") is None:
+        return ""
+    counted = [m for m in v.get("modelled") or [] if m.get("counted", True)]
+    streams = v.get("streams") or []
+    parts = [f"{len(counted)} asset{'s' if len(counted) != 1 else ''}"]
+    if streams:
+        parts.append(f"{len(streams)} revenue line{'s' if len(streams) != 1 else ''} "
+                     f"no asset carries")
+    clause = (f" That is {' and '.join(parts)} out of a book: the model covers "
+              f"{coverage['share']:.1%} of FY{coverage['fiscal_year']} "
+              f"{'reported' if coverage.get('basis') == 'reported total' else 'tagged'}"
+              f" revenue")
+    # "X alone is Y% of what it does not" has to be a share of what is uncovered, not
+    # of the whole. The row carries its share of total revenue, which is the same thing
+    # only when coverage is thin: on a company covering 97%, Datroway's 0.1% of revenue
+    # printed as "0% of what it does not", which is both wrong and says nothing.
+    biggest = (coverage.get("unmodelled") or [None])[0]
+    # From the absolutes, not by dividing one ratio by another: the covered share and
+    # the row's share are measured against the same denominator, and taking their
+    # quotient compounds both roundings into a figure that can exceed 100%.
+    denominator = coverage.get("reported_revenue") or coverage.get("tagged_revenue")
+    uncovered = (denominator - (coverage.get("modelled_revenue") or 0.0)
+                 - (coverage.get("stream_revenue") or 0.0)) if denominator else None
+    if biggest and biggest.get("revenue") and uncovered and uncovered > 0:
+        of_the_gap = biggest["revenue"] / uncovered
+        if of_the_gap >= 0.05:
+            clause += (f", and {biggest['name']} alone is {of_the_gap:.0%} of what "
+                       f"it does not")
+    return clause + "."
+
+
 def _sotp_headline(v: dict) -> str | None:
     """The company in one sentence: what the parts add up to per share, today and in
     twelve months, against the price. None where a part is missing."""
@@ -196,7 +236,8 @@ def _sotp_headline(v: dict) -> str | None:
     if s.get("net_cash_per_share") is not None:
         word = "net cash" if s["net_cash_per_share"] >= 0 else "net debt"
         parts.append(f"{word} {_per_share(s['net_cash_per_share'])}")
-    return lead + (": " + ", ".join(parts) if parts else "") + "."
+    return (lead + (": " + ", ".join(parts) if parts else "") + "."
+            + _coverage_clause(v))
 
 
 def _sotp_body(v: dict) -> list[str]:
@@ -260,23 +301,7 @@ def company_headline(v: dict) -> str:
     if price:
         lead += (f" against a {_per_share(price)} share price, "
                  f"{v['pct_of_price']:.1%} of the company")
-    coverage = v.get("coverage") or {}
-    if coverage.get("share") is not None:
-        counted = [m for m in v.get("modelled") or [] if m.get("counted", True)]
-        streams = v.get("streams") or []
-        parts = [f"{len(counted)} asset{'s' if len(counted) != 1 else ''}"]
-        if streams:
-            parts.append(f"{len(streams)} revenue line{'s' if len(streams) != 1 else ''} "
-                         f"no asset carries")
-        lead += (f". That is {' and '.join(parts)} out of a book: the model covers "
-                 f"{coverage['share']:.1%} of FY{coverage['fiscal_year']} "
-                 f"{'reported' if coverage.get('basis') == 'reported total' else 'tagged'}"
-                 f" revenue")
-        biggest = (coverage.get("unmodelled") or [None])[0]
-        if biggest and biggest.get("share"):
-            lead += (f", and {biggest['name']} alone is {biggest['share']:.0%} of what "
-                     f"it does not")
-    return lead + "."
+    return lead + "." + _coverage_clause(v)
 
 
 def company_body(v: dict) -> list[str]:
