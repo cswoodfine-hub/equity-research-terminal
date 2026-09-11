@@ -130,16 +130,14 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
         if val(row) is not None:
             cash_value = (cash_value or 0) + val(row)
             cash_lines_used.append(name)
-    # No debt tagged on or near the balance sheet date is read as no debt, and said
-    # so: a filer with borrowings tags them, and the cash-rich names in the universe
-    # are exactly the ones with nothing to tag.
-    if cash_value is not None and val(debt) is None:
-        debt_basis = "no debt tagged within a year of the balance sheet; taken as none"
-        net_debt = -cash_value
-    else:
-        debt_basis = "filed" if val(debt) is not None else None
-        net_debt = (val(debt) - cash_value
-                    if val(debt) is not None and cash_value is not None else None)
+    # No debt line on or near the balance sheet date leaves net debt empty rather
+    # than guessed, which is the rule every ratio here follows; the basis names the
+    # missing line so the blank can be read.
+    debt_basis = ("filed" if val(debt) is not None
+                  else "no debt line filed within a year of the balance sheet"
+                  if cash_value is not None else None)
+    net_debt = (val(debt) - cash_value
+                if val(debt) is not None and cash_value is not None else None)
 
     # Operating income is not tagged by every filer: Lilly reports its way down to income
     # before tax without it, which left the leverage multiple blank while every line it

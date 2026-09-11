@@ -1685,8 +1685,9 @@ def _sotp_bridge(s: dict) -> None:
                     f"{(p.get('per_share') or 0):,.2f} after")
     if s.get("balance_sheet_as_of"):
         bits.append(f"balance sheet {s['balance_sheet_as_of']}"
-                    + (", no debt tagged so taken as none"
-                       if (s.get("debt_basis") or "").startswith("no debt") else ""))
+                    + (f", cash {s['cash']:,.0f}mm on hand and no debt line filed"
+                       if (s.get("debt_basis") or "").startswith("no debt")
+                       and s.get("cash") is not None else ""))
     if s.get("cost_of_equity") is not None:
         bits.append(f"cost of equity {s['cost_of_equity']:.2%}, "
                     f"{_short(s.get('cost_of_equity_basis'), 44)}")

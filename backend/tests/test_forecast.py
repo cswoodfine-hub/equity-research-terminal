@@ -1068,19 +1068,16 @@ def test_the_sum_names_what_it_cannot_do(tmp_path):
     path = _sotp_db(tmp_path)
     import db
     conn = db.get_connection(path)
-    # No debt tagged is read as none; no cash line at all is no balance sheet.
-    conn.execute("DELETE FROM financials WHERE metric = 'TotalDebt'")
-    conn.commit()
-    s = V.company_verdict(path, "TST")["sotp"]
-    assert s["net_cash"] == pytest.approx(300.0)
-    assert s["debt_basis"].startswith("no debt tagged")
-    conn.execute("DELETE FROM financials WHERE metric IN"
-                 " ('CashAndEquivalents', 'DividendsPaid')")
+    # No debt line leaves the sum at enterprise value and names the gap; the cash
+    # on hand is still reported so the reader sees what is there.
+    conn.execute("DELETE FROM financials WHERE metric IN ('TotalDebt', 'DividendsPaid')")
     conn.commit(); conn.close()
     s = V.company_verdict(path, "TST")["sotp"]
     assert s["net_cash"] is None and s["equity_per_share"] is None
+    assert s["cash"] == pytest.approx(300.0) and s["cash_per_share"] == pytest.approx(3.0)
     assert s["forward_12m"] is None and s["dps"] is None
-    assert any(m.startswith("net cash") for m in s["missing"])
+    assert s["enterprise_per_share"] is not None
+    assert any("no debt line filed" in m for m in s["missing"])
 
 
 def test_a_launch_window_runs_through_its_loe_and_the_erosion_after_it():

@@ -1059,10 +1059,14 @@ def _balance_sheet(conn, db_path, ticker: str, company_id: int):
         built = cashflow.build_cashflow(db_path, ticker)
     except Exception:
         built = None
-    if not built or built.get("net_debt") is None:
+    if not built:
         return None
     inputs = built.get("inputs") or {}
-    return {"net_cash": -built["net_debt"] / 1e6, "currency": built.get("currency"),
+    if inputs.get("cash") is None:
+        return None
+    net_debt = built.get("net_debt")
+    return {"net_cash": (-net_debt / 1e6) if net_debt is not None else None,
+            "cash": inputs["cash"] / 1e6, "currency": built.get("currency"),
             "as_of": inputs.get("balance_sheet_as_of") or built.get("fiscal_year"),
             "debt_basis": inputs.get("debt_basis")}
 
@@ -1108,6 +1112,7 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
     ev = m_rnpv + p_rnpv + s_rnpv
     balance = _balance_sheet(conn, db_path, ticker, company_id)
     net_cash = balance["net_cash"] if balance else None
+    cash = balance["cash"] if balance else None
     equity = (ev + net_cash) if net_cash is not None else None
     ke, ke_basis = _cost_of_equity(conn, [l["asset_id"] for l in counted])
     dividends, div_year = _dividends(conn, company_id)
@@ -1156,6 +1161,7 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
         "lines": {"n": len(streams), "rnpv": s_rnpv, "per_share": per_share(s_rnpv)},
         "enterprise": ev, "enterprise_per_share": per_share(ev),
         "net_cash": net_cash, "net_cash_per_share": per_share(net_cash),
+        "cash": cash, "cash_per_share": per_share(cash),
         "balance_sheet_as_of": balance["as_of"] if balance else None,
         "debt_basis": balance.get("debt_basis") if balance else None,
         "equity": equity, "equity_per_share": equity_ps,
@@ -1170,7 +1176,9 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
                           if last else None),
         "not_valued": not_valued,
         "missing": [what for what, ok in (
-            ("net cash: no balance sheet on file", net_cash is not None),
+            ("net cash: no balance sheet on file" if cash is None else
+             "net cash: no debt line filed near the balance sheet, so the sum stops "
+             "at enterprise value", net_cash is not None),
             ("diluted shares: no share count on file", bool(shares)),
             ("cost of equity: no CAPM components on file", ke is not None),
             ("share price: none on file", bool(close))) if not ok],
