@@ -905,3 +905,74 @@ def test_build_states_the_erosion_pair_and_the_price_in_force():
     inputs["scalars"]["loe_year"] = 2028
     got = F.build(inputs)
     assert (got["erosion_year1_pct"], got["erosion_decay_pct"]) == (0.3, 0.1)
+
+
+# --- loss of exclusivity: what the engine does with what is on file ------------------
+
+def test_an_loe_already_in_the_base_is_not_eroded_again():
+    """Cerezyme lost exclusivity in 2006. Its reported revenue was earned after that and
+    its growth rate carries the trend, so eroding it from year one counted the cliff
+    twice. The year-one drop still lands where the cliff falls inside the window."""
+    inputs = casgevy_inputs()
+    inputs["modality"] = "biologic"
+    inputs["erosion_defaults"] = {"biologic": {"year1_pct": 0.3, "decay_pct": 0.2,
+                                               "source": "t"}}
+    inputs["loe"] = {"year": 2006, "basis": "reference product exclusivity (12y)"}
+    got = F.build(inputs)
+    assert got["loe_in_base"] is True
+    assert got["revenue_after_loe"] == got["revenue"]
+    assert any("in the base" in n for n in got["notes"])
+    # The cliff one year before the window still takes its year-one drop in year one.
+    inputs["loe"] = {"year": got["years"][0] - 1, "basis": "patent"}
+    again = F.build(inputs)
+    assert again["loe_in_base"] is False
+    assert again["revenue_after_loe"][0] == pytest.approx(again["revenue"][0] * 0.7)
+
+
+def test_an_unlaunched_product_takes_the_statutory_default_loe():
+    """A pipeline asset has no patent in either book, so it ran to the horizon and into
+    a perpetuity. The default counts the statute from the launch year, says so, and
+    steps aside for anything on file."""
+    inputs = casgevy_inputs()
+    inputs["is_marketed"] = False
+    inputs["modality"] = "biologic"
+    inputs["loe"] = None
+    inputs["loe_defaults"] = {
+        "biologic": {"years_from_launch": 12, "source": "42 U.S.C. 262(k)(7)(A)"},
+        "unknown": {"years_from_launch": 12, "source": "the shorter term"}}
+    got = F.build(inputs)
+    start = int(inputs["scalars"]["forecast_start_year"])
+    assert got["loe_year"] == start + 12
+    assert got["loe_basis"].startswith("default: 12 years from launch")
+    # Something on file wins over the default.
+    inputs["loe"] = {"year": start + 9, "basis": "patent"}
+    assert F.build(inputs)["loe_year"] == start + 9
+    # A marketed product never takes it: its exclusivity is a fact to be found, not
+    # a term to be assumed.
+    inputs["loe"] = None
+    inputs["is_marketed"] = True
+    assert F.build(inputs)["loe_year"] is None
+
+
+def test_the_engine_reads_the_valuation_loe_rule(tmp_path):
+    """An orphan exclusivity holds one indication, not the molecule, and is left out of
+    the engine's LOE as it is left out of the cliff. A biologic with only a statutory
+    floor on file and no book row still has an LOE."""
+    import db
+    import assumptions as A
+    path = str(tmp_path / "loe.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'NVS', 'Novartis')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed,"
+                 " modality) VALUES (1, 1, 'Kesimpta', 1, 'biologic'),"
+                 " (2, 1, 'Tepezza', 1, 'biologic')")
+    conn.execute("INSERT INTO exclusivities (asset_id, region, protection_type,"
+                 " identifier, expiry_date, source) VALUES"
+                 " (1, 'US', 'orphan exclusivity', 'orphan', '2023-08-20', 't')")
+    conn.execute("INSERT INTO biologic_loe (asset_id, loe_year, loe_date, basis,"
+                 " floor_year) VALUES (2, 2032, '2032-06-30', 'statutory floor', 2032)")
+    conn.commit()
+    assert A.load(conn, 1)["loe"] is None
+    assert A.load(conn, 2)["loe"] == {"year": 2032, "basis": "statutory floor (12y)"}
+    conn.close()

@@ -602,6 +602,21 @@ def build(inputs: dict) -> dict:
     loe = inputs.get("loe") or {}
     loe_year = scalars.get("loe_year") or loe.get("year")
     loe_basis = "assumed" if scalars.get("loe_year") else (loe.get("basis") or None)
+    # A product that has not launched has no patent on file to lose, and running it to
+    # the horizon and into a perpetuity values a molecule as though exclusivity never
+    # ends. The default is the statute for a biologic and the Hatch-Waxman cap for a
+    # small molecule, counted from the launch year, and it is labelled as a default
+    # wherever it is read so an analyst can replace it with the patent when known.
+    if loe_year is None and inputs.get("is_marketed") is False:
+        defaults = inputs.get("loe_defaults") or {}
+        default = defaults.get(inputs.get("modality") or "") or defaults.get("unknown")
+        if default and default.get("years_from_launch"):
+            loe_year = start + int(default["years_from_launch"])
+            loe_basis = (f"default: {default['years_from_launch']} years from launch, "
+                         f"{default['source']}")
+            notes.append(f"no exclusivity on file for an unlaunched product, so LOE is "
+                         f"taken as {loe_year}, {default['years_from_launch']} years "
+                         f"from a {start} launch ({default['source']})")
     year1 = scalars.get("erosion_year1_pct")
     decay = scalars.get("erosion_decay_pct")
     erosion_basis = "stated" if year1 is not None else None
@@ -613,7 +628,20 @@ def build(inputs: dict) -> dict:
                             f"{default['source']}")
     if loe_year is not None:
         loe_year = int(loe_year)
-    eroded = erode(revenue, years, loe_year, year1, decay)
+    # An LOE whose cliff year is already behind the first forecast year is in the base:
+    # the reported revenue the forecast grows from was earned after it, and the growth
+    # rate read off the filing already carries the decline. Eroding it again compounded
+    # the decay from year one on Cerezyme, off patent since 2006, and halved it in four
+    # years. The year-one drop still lands where the cliff falls inside the window.
+    in_base = loe_year is not None and loe_year + 1 < years[0]
+    if in_base:
+        eroded = list(revenue)
+        erosion_basis = None
+        notes.append(f"LOE {loe_year} ({loe_basis}) is in the base: the reported "
+                     "revenue already reflects it and the growth rate carries the "
+                     "trend, so no erosion is applied again")
+    else:
+        eroded = erode(revenue, years, loe_year, year1, decay)
     if loe_year is not None and max(years) <= loe_year:
         notes.append(f"LOE {loe_year} ({loe_basis}) is at or beyond the horizon, "
                      "so no erosion applies inside it")
@@ -678,6 +706,7 @@ def build(inputs: dict) -> dict:
         # from data/curve_defaults.csv rather than the asset. None where no curve is built.
         "curve_basis": curve_basis,
         "loe_year": loe_year, "loe_basis": loe_basis, "erosion_basis": erosion_basis,
+        "loe_in_base": in_base,
         # The erosion pair and the net price in force, stated or defaulted, so a control
         # that moves them can start from where they are rather than from a guess.
         "erosion_year1_pct": year1, "erosion_decay_pct": decay, "net_price": price,

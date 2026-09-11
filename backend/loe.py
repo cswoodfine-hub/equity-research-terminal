@@ -123,7 +123,13 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False) -> dict:
 
     today = dt.date.today().isoformat()
     out = {}
-    for asset_id, rows in grouped.items():
+    # An asset can carry a statutory floor or a filer's own biosimilar date without a
+    # single Purple Book row: Tepezza's 10-K says 2032 and the book lists nothing. Iterating
+    # the exclusivity rows alone dropped every such asset, so the floors are folded in.
+    wanted = set(grouped) | {aid for aid in floors
+                             if asset_ids is None or aid in set(asset_ids)}
+    for asset_id in wanted:
+        rows = grouped.get(asset_id, [])
         dated = [r for r in rows if r["expiry_date"]
                  and not (exclude_orphan
                           and (r["protection_type"] or "") in NOT_A_CLIFF)]

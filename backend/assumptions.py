@@ -24,6 +24,7 @@ SEED_DIR = DATA_DIR / "assumptions"
 POS_DEFAULTS = DATA_DIR / "pos_defaults.csv"
 EROSION_DEFAULTS = DATA_DIR / "erosion_defaults.csv"
 CURVE_DEFAULTS = DATA_DIR / "curve_defaults.csv"
+LOE_DEFAULTS = DATA_DIR / "loe_defaults.csv"
 
 # What the empty state asks for, per mode. Everything else refines rather than gates.
 TEMPLATE = {
@@ -134,6 +135,16 @@ def pos_defaults() -> dict:
     return _defaults(POS_DEFAULTS, "phase")
 
 
+def loe_defaults() -> dict:
+    """{modality: {years_from_launch, source, note}}, the exclusivity a product that has
+    not launched yet is given from its launch year, where nothing on file sets one."""
+    out = _defaults(LOE_DEFAULTS, "modality")
+    for entry in out.values():
+        if entry.get("years_from_launch") not in (None, ""):
+            entry["years_from_launch"] = int(float(entry["years_from_launch"]))
+    return out
+
+
 def curve_defaults() -> dict:
     """{therapy_mode: {penetration_peak_pct, ramp_midpoint_year, source, note}}, the
     placeholder uptake curve for an indication that has every other pool input."""
@@ -187,10 +198,16 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
             entry["series"].setdefault(key, {})[int(year)] = value
 
     asset = conn.execute(
-        "SELECT modality, brand_name, generic_name, owner_company_id FROM assets"
-        " WHERE id = ?", (asset_id,)).fetchone()
-    loe = product_profile._loe(conn, asset_id)
-    loe_year = int(loe["loe"][:4]) if loe and loe.get("loe") else None
+        "SELECT modality, brand_name, generic_name, owner_company_id, is_marketed"
+        " FROM assets WHERE id = ?", (asset_id,)).fetchone()
+    # The valuation rule, not the profile's: orphan exclusivity holds one indication and
+    # not the molecule, so it is left out here as it is in the cliff. Kesimpta carried a
+    # 2023 orphan date into the engine and was eroded from year one while growing 30%.
+    import loe as loe_module
+    found = loe_module.for_assets(conn, [asset_id], exclude_orphan=True).get(asset_id)
+    loe = {"loe": found["date"], "basis": found["basis"]} if found and found.get("date") \
+        else {}
+    loe_year = int(loe["loe"][:4]) if loe.get("loe") else None
     actuals = [dict(r) for r in conn.execute(
         "SELECT fiscal_year, period, value FROM asset_revenue"
         " WHERE asset_id = ? ORDER BY fiscal_year, period", (asset_id,))]
@@ -221,6 +238,8 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "scalars": scalars,
         "indications": list(indications.values()),
         "loe": {"year": loe_year, "basis": loe.get("basis")} if loe_year else None,
+        "is_marketed": bool(asset["is_marketed"]) if asset else None,
+        "loe_defaults": loe_defaults(),
         "actuals": actuals,
         "valuation_year": reported["y"] if reported and reported["y"] else None,
         "phase": phase["phase"] if phase else None,

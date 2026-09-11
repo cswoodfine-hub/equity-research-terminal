@@ -1,0 +1,17 @@
+# The exclusivity a product that has not launched yet is given, counted from its launch
+# year, used only where nothing on file sets one and labelled "default" wherever it is
+# applied. A pipeline asset has no patent in the Orange Book and no licensure in the
+# Purple Book, so without this it ran to the horizon and into a perpetuity, which values
+# a molecule as though exclusivity never ends: Elecoglipron carried 70% of its NPV in the
+# terminal value.
+#
+# Each row cites the statute it rests on rather than an analogue. A biologic keeps its
+# market for twelve years from first licensure whatever its patents say (42 U.S.C.
+# 262(k)(7)(A)); a small molecule's effective patent life after term restoration cannot
+# exceed fourteen years from approval (35 U.S.C. 156(c)(3)), so fourteen is the longest
+# the law allows and a ceiling rather than an expectation. Where the modality is not on
+# file the biologic term is used, the shorter of the two.
+modality,years_from_launch,source,note
+biologic,12,"42 U.S.C. 262(k)(7)(A): reference product exclusivity, 12 years from first licensure","the BPCIA floor; a compound patent may run later"
+small molecule,14,"35 U.S.C. 156(c)(3): effective patent life after term restoration capped at 14 years from approval","a statutory ceiling; the compound patent usually expires earlier"
+unknown,12,"42 U.S.C. 262(k)(7)(A), taken as the shorter of the two statutory terms where the modality is not on file","replace with the patent or the modality when known"
