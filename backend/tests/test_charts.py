@@ -460,3 +460,17 @@ def test_stacked_columns_legend_wraps_instead_of_overflowing():
     second_row = re.findall(r'<rect x="[\d.]+" y="21"', svg)
     assert xs and max(xs) < 600           # nothing placed past the right edge
     assert second_row                     # and the overflow went to a second row
+
+
+def test_waterfall_reference_is_a_dashed_rule_inside_the_domain():
+    steps = [{"label": "a", "value": 10.0, "kind": "start"},
+             {"label": "b", "value": 5.0, "kind": "step"},
+             {"label": "c", "kind": "end"}]
+    svg = charts.waterfall(steps, reference={"label": "price", "value": 40.0})
+    assert svg.count('class="reference"') == 1
+    assert ">price 40.0<" in svg
+    # The rule sits above every bar: the domain grew to hold it.
+    ry = float(re.search(r'class="reference"', svg) and
+               re.search(r'y1="([\d.]+)" x2="[\d.]+" y2="[\d.]+" stroke="#D9B26B"', svg).group(1))
+    tops = [float(m) for m in re.findall(r'<rect x="[\d.]+" y="([\d.]+)"', svg)]
+    assert ry < min(tops)

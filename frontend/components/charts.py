@@ -672,11 +672,15 @@ def tornado(rows: Sequence[dict], width: int = 520, height: int = 160,
 
 # --- 7. waterfall ---------------------------------------------------------
 def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
-              value_fmt: Callable[[float], str] = None) -> str:
+              value_fmt: Callable[[float], str] = None,
+              reference: Optional[dict] = None) -> str:
     """Running decomposition. Each step: {label, value, kind: start|step|end|null}.
 
     A null step hatches at the running level with no height, saying "something
-    belongs here whose size is unknown" without inventing the size.
+    belongs here whose size is unknown" without inventing the size. ``reference`` is
+    {label, value, colour?}, a dashed rule across the plot: the share price a
+    per-share bridge is read against, which the bars have to be compared with and
+    which is not one of them.
     """
     value_fmt = value_fmt or (lambda v: _fmt(v, 1))
     pad_l, top, bottom = 52, 16, 34
@@ -689,6 +693,8 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
         elif s.get("kind") == "step" and s.get("value") is not None:
             running += s["value"]
         peaks.append(running)
+    if reference and reference.get("value") is not None:
+        peaks.append(reference["value"])
     dom = _domain(peaks, zero=True)
     y = _scale(dom, (floor, top))
     n = max(len(steps), 1)
@@ -741,6 +747,15 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
                        f' stroke-width="0.8" stroke-dasharray="2,2"/>')
         prev_edge = edge
         out.append(_text(cx, height - 10, s["label"], 9, TK.MUTED, "middle", UI))
+    if reference and reference.get("value") is not None:
+        ry = y(reference["value"])
+        colour = reference.get("colour") or TK.FLAG
+        out.append(f'<line x1="{pad_l - 4}" y1="{ry:.1f}" x2="{width - 8}"'
+                   f' y2="{ry:.1f}" stroke="{colour}" stroke-width="1"'
+                   ' stroke-dasharray="4,3" class="reference"/>')
+        out.append(_text(width - 8, ry - 4, f"{reference.get('label') or ''} "
+                         f"{value_fmt(reference['value'])}".strip(), 9, colour, "end",
+                         MONO, "600"))
     out.append("</svg>")
     return "".join(out)
 

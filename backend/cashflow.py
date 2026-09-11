@@ -43,6 +43,30 @@ def _instant(conn, cid, metric):
         """, (cid, metric)).fetchone()
 
 
+def _instant_at(conn, cid, metric, period_end, within_days=0):
+    """A stock line on one balance sheet date, or the latest within ``within_days``
+    before it. One date for every line, because a balance sheet is a single day:
+    adding this quarter's cash to a two-year-old investments line, or netting it
+    against a debt figure from 2011, is not a balance sheet."""
+    row = conn.execute(
+        """SELECT value, unit, period_end FROM financials
+            WHERE company_id = ? AND metric = ? AND period_type = 'instant'
+              AND period_end = ?""", (cid, metric, period_end)).fetchone()
+    if row or not within_days:
+        return row
+    return conn.execute(
+        """SELECT value, unit, period_end FROM financials
+            WHERE company_id = ? AND metric = ? AND period_type = 'instant'
+              AND period_end < ? AND period_end >= date(?, ?)
+            ORDER BY period_end DESC LIMIT 1""",
+        (cid, metric, period_end, period_end, f"-{int(within_days)} days")).fetchone()
+
+
+# How far back a debt line may sit from the cash it is netted against. A year covers
+# an annual filer whose latest quarter tags cash and not borrowings.
+DEBT_WITHIN_DAYS = 400
+
+
 def _ratio(numerator, denominator):
     if numerator is None or denominator in (None, 0):
         return None
@@ -73,8 +97,17 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
         cost_of_revenue = _fy(conn, cid, "CostOfRevenue")
         rd = _fy(conn, cid, "ResearchAndDevelopmentExpense")
         sga = _fy(conn, cid, "SellingGeneralAndAdministrative")
-        debt = _instant(conn, cid, "TotalDebt")
-        cash_rows = {name: _instant(conn, cid, name) for name in _CASH_LINES}
+        # The balance sheet is dated by its cash line, and every other stock line is
+        # read on that date. Incyte's latest debt row was a 2018 mis-tag of 19bn and
+        # Vertex's was 105mm from 2011; both were netted against this year's cash.
+        anchor = _instant(conn, cid, "CashAndEquivalents")
+        balance_date = anchor["period_end"] if anchor else None
+        if balance_date:
+            debt = _instant_at(conn, cid, "TotalDebt", balance_date, DEBT_WITHIN_DAYS)
+            cash_rows = {name: _instant_at(conn, cid, name, balance_date)
+                         for name in _CASH_LINES}
+        else:
+            debt, cash_rows = None, {name: None for name in _CASH_LINES}
         rates = fx.latest_usd_rates(db_path)
     finally:
         conn.close()
@@ -97,8 +130,16 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
         if val(row) is not None:
             cash_value = (cash_value or 0) + val(row)
             cash_lines_used.append(name)
-    net_debt = (val(debt) - cash_value
-                if val(debt) is not None and cash_value is not None else None)
+    # No debt tagged on or near the balance sheet date is read as no debt, and said
+    # so: a filer with borrowings tags them, and the cash-rich names in the universe
+    # are exactly the ones with nothing to tag.
+    if cash_value is not None and val(debt) is None:
+        debt_basis = "no debt tagged within a year of the balance sheet; taken as none"
+        net_debt = -cash_value
+    else:
+        debt_basis = "filed" if val(debt) is not None else None
+        net_debt = (val(debt) - cash_value
+                    if val(debt) is not None and cash_value is not None else None)
 
     # Operating income is not tagged by every filer: Lilly reports its way down to income
     # before tax without it, which left the leverage multiple blank while every line it
@@ -178,6 +219,8 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
             "acquisitions_assets": assets_bought,
             "total_debt": val(debt), "cash": cash_value,
             "cash_lines": cash_lines_used,
+            "balance_sheet_as_of": balance_date,
             "debt_as_of": debt["period_end"] if debt else None,
+            "debt_basis": debt_basis,
         },
     }

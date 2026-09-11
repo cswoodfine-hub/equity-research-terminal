@@ -976,3 +976,130 @@ def test_the_engine_reads_the_valuation_loe_rule(tmp_path):
     assert A.load(conn, 1)["loe"] is None
     assert A.load(conn, 2)["loe"] == {"year": 2032, "basis": "statutory floor (12y)"}
     conn.close()
+
+
+# --- the sum of the parts ----------------------------------------------------------
+
+def _sotp_db(tmp_path):
+    """One marketed product, one pipeline asset at 50% PoS, cash, debt, a dividend and
+    the CAPM components a company carries."""
+    import db
+    import assumptions as A
+    path = str(tmp_path / "sotp.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name, reporting_currency)"
+                 " VALUES (1, 'TST', 'Test Pharma', 'USD')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed,"
+                 " modality) VALUES (1, 1, 'Tagrisso', 1, 'small molecule'),"
+                 " (2, 1, 'AZD1', 0, 'biologic')")
+    conn.execute("INSERT INTO indications (id, name) VALUES (1, 'X')")
+    capm = (("risk_free", 0.04), ("beta", 1.0), ("erp", 0.05), ("cost_of_debt", 0.05),
+            ("debt_weight", 0.0), ("tax_rate", 0.2))
+    common = (("cogs_pct", 0.2), ("sga_pct", 0.3), ("rd_pct", 0.2), ("other_costs_pct", 0.0),
+              ("forecast_start_year", 2026), ("forecast_years", 5)) + capm
+    rows = [{"key": k, "value": v, "source": "t"} for k, v in common + (
+        ("base_revenue", 1000.0), ("revenue_growth_pct", 0.0), ("pos", 1.0),
+        ("loe_year", 2040))]
+    rows.append({"key": "therapy_mode", "text_value": "marketed", "source": "t"})
+    A.save(conn, 1, rows)
+    rows = [{"key": k, "value": v, "source": "t"} for k, v in common + (
+        ("net_price_per_patient", 0.1), ("pos", 0.5), ("loe_year", 2040))]
+    rows.append({"key": "therapy_mode", "text_value": "one_time", "source": "t"})
+    for year in range(2026, 2031):
+        rows.append({"key": "new_patients", "indication_id": 1, "year": year,
+                     "value": 1000.0, "source": "t"})
+    A.save(conn, 2, rows)
+    fin = (("Revenues", "FY", 2025, "2025-12-31", 1000e6),
+           ("WeightedAverageDilutedShares", "FY", 2025, "2025-12-31", 100e6),
+           ("CashAndEquivalents", "instant", 2025, "2025-12-31", 300e6),
+           ("TotalDebt", "instant", 2025, "2025-12-31", 100e6),
+           ("DividendsPaid", "FY", 2025, "2025-12-31", -50e6),
+           ("CashFlowOperating", "FY", 2025, "2025-12-31", 200e6),
+           ("NetIncomeLoss", "FY", 2025, "2025-12-31", 100e6))
+    for metric, ptype, fy, end, value in fin:
+        conn.execute("INSERT INTO financials (company_id, metric, period_type,"
+                     " fiscal_year, period_end, value, unit) VALUES (1, ?, ?, ?, ?, ?, 'USD')",
+                     (metric, ptype, fy, end, value))
+    conn.execute("INSERT INTO prices (company_id, interval, as_of, close)"
+                 " VALUES (1, '1d', '2026-09-10', 20.0)")
+    conn.commit(); conn.close()
+    return path
+
+
+def test_the_sum_of_the_parts_adds_up_and_rolls_forward(tmp_path):
+    import forecast_view as V
+    v = V.company_verdict(_sotp_db(tmp_path), "TST")
+    s = v["sotp"]
+    assert s["marketed"]["n"] == 1 and s["pipeline"]["n"] == 1
+    # The pipeline counts after its probability, and the unrisked figure is kept.
+    assert s["pipeline"]["rnpv"] == pytest.approx(s["pipeline"]["npv"] * 0.5)
+    assert s["enterprise"] == pytest.approx(s["marketed"]["rnpv"] + s["pipeline"]["rnpv"])
+    # Cash 300 less debt 100 is 200mm of net cash, over 100mm shares.
+    assert s["net_cash"] == pytest.approx(200.0)
+    assert s["net_cash_per_share"] == pytest.approx(2.0)
+    assert s["equity"] == pytest.approx(s["enterprise"] + 200.0)
+    assert s["equity_per_share"] == pytest.approx(s["equity"] * 1e6 / 100e6)
+    assert s["cost_of_equity"] == pytest.approx(0.09)     # 4% + 1.0 x 5%
+    assert s["dps"] == pytest.approx(0.5)                 # the outflow's magnitude
+    assert s["forward_12m"] == pytest.approx(s["equity_per_share"] * 1.09 - 0.5)
+    assert s["upside"] == pytest.approx(s["forward_12m"] / 20.0 - 1.0)
+    assert s["balance_sheet_as_of"] == "2025-12-31"
+    assert s["missing"] == []
+    # Revenue by year, split, with the pipeline before and after its probability.
+    path = s["revenue_path"]
+    assert [r["year"] for r in path] == [2026, 2027, 2028]
+    assert path[0]["marketed"] == pytest.approx(1000.0)
+    assert path[0]["pipeline"] == pytest.approx(100.0)
+    assert path[0]["pipeline_risked"] == pytest.approx(50.0)
+    assert path[0]["total_risked"] == pytest.approx(1050.0)
+    # The written company call leads with the whole.
+    import forecast_note
+    note = forecast_note.write_company(v)
+    assert note["headline"].startswith("On the model TST's equity is worth $")
+    assert "1 marketed product" in note["headline"] and "after probability" in note["headline"]
+    assert "net cash $2.00" in note["headline"]
+    body = " ".join(note["body"])
+    assert "risk-adjusted value" in body and "cost of equity" in body
+
+
+def test_the_sum_names_what_it_cannot_do(tmp_path):
+    import forecast_view as V
+    path = _sotp_db(tmp_path)
+    import db
+    conn = db.get_connection(path)
+    # No debt tagged is read as none; no cash line at all is no balance sheet.
+    conn.execute("DELETE FROM financials WHERE metric = 'TotalDebt'")
+    conn.commit()
+    s = V.company_verdict(path, "TST")["sotp"]
+    assert s["net_cash"] == pytest.approx(300.0)
+    assert s["debt_basis"].startswith("no debt tagged")
+    conn.execute("DELETE FROM financials WHERE metric IN"
+                 " ('CashAndEquivalents', 'DividendsPaid')")
+    conn.commit(); conn.close()
+    s = V.company_verdict(path, "TST")["sotp"]
+    assert s["net_cash"] is None and s["equity_per_share"] is None
+    assert s["forward_12m"] is None and s["dps"] is None
+    assert any(m.startswith("net cash") for m in s["missing"])
+
+
+def test_a_launch_window_runs_through_its_loe_and_the_erosion_after_it():
+    """A ten-year window from launch with a twelve-year exclusivity put the cliff past
+    the end and capitalised the peak. The window stretches to cover the tail; a
+    marketed product's horizon is left as the analyst set it."""
+    inputs = casgevy_inputs()
+    inputs["is_marketed"] = False
+    inputs["modality"] = "biologic"
+    inputs["loe"] = None
+    inputs["loe_defaults"] = {"biologic": {"years_from_launch": 12, "source": "s"}}
+    inputs["scalars"]["forecast_years"] = 10
+    got = F.build(inputs)
+    start = int(inputs["scalars"]["forecast_start_year"])
+    assert got["loe_year"] == start + 12
+    assert got["dcf_years"][-1] == start + 12 + F.LOE_TAIL_YEARS
+    assert any("horizon stretched" in n for n in got["notes"])
+    # The erosion is inside the window now: the last year is well under the peak.
+    assert got["revenue_after_loe"][-1] < 0.5 * max(got["revenue_after_loe"])
+    inputs["is_marketed"] = True
+    inputs["loe"] = {"year": start + 12, "basis": "patent"}
+    assert F.build(inputs)["dcf_years"][-1] == start + 9

@@ -676,7 +676,8 @@ def company_rollup(db_path, ticker: str):
         revenue = result["revenue_after_loe"]
         peak = max(revenue) if revenue else None
         lines.append({"asset_id": asset_id, "name": state["name"], "share": share,
-                      "rnpv_share": result["rnpv"] * share, "counted": counted,
+                      "rnpv_share": result["rnpv"] * share,
+                      "npv_share": result["npv"] * share, "counted": counted,
                       "mode": result.get("mode"), "pos": result.get("pos"),
                       "loe_year": result.get("loe_year"),
                       "peak_revenue": peak,
@@ -1025,6 +1026,157 @@ def _franchises(conn, asset_ids: list) -> list:
     return out
 
 
+# --- the sum of the parts ------------------------------------------------------------
+# The company as a whole: what the marketed book is worth, what the pipeline adds once
+# its probability is taken off, what the lines no asset carries add, and then the
+# balance sheet, because an rNPV is an enterprise figure and a share price is an equity
+# one. Every part is on file or it is named as missing; nothing is filled in.
+
+ANCHORED = ("marketed", "franchise")
+
+
+def _cost_of_equity(conn, asset_ids):
+    """(ke, basis) from the CAPM components the modelled assets carry, which are the
+    company's: risk_free + beta x erp. Falls back to the first WACC on file, and says
+    so, where the components are not stated."""
+    for asset_id in asset_ids:
+        scalars = (assumptions_module.load(conn, asset_id) or {}).get("scalars") or {}
+        needed = ("risk_free", "beta", "erp")
+        if all(scalars.get(k) is not None for k in needed):
+            return (scalars["risk_free"] + scalars["beta"] * scalars["erp"],
+                    "CAPM: risk-free plus beta times the equity risk premium")
+        rate, basis = forecast.wacc(scalars)
+        if rate is not None:
+            return rate, f"WACC ({basis}), no equity components on file"
+    return None, None
+
+
+def _balance_sheet(conn, db_path, ticker: str, company_id: int):
+    """Net cash in the reporting currency's millions, dated, from the cash-flow view
+    the Financials tab already shows, so the two never disagree. Positive is cash."""
+    try:
+        import cashflow
+        built = cashflow.build_cashflow(db_path, ticker)
+    except Exception:
+        built = None
+    if not built or built.get("net_debt") is None:
+        return None
+    inputs = built.get("inputs") or {}
+    return {"net_cash": -built["net_debt"] / 1e6, "currency": built.get("currency"),
+            "as_of": inputs.get("balance_sheet_as_of") or built.get("fiscal_year"),
+            "debt_basis": inputs.get("debt_basis")}
+
+
+def _dividends(conn, company_id: int):
+    """The last full year's dividends paid, in millions, and the year. Filers sign the
+    outflow both ways, so the magnitude is taken."""
+    row = conn.execute(
+        """SELECT value, fiscal_year FROM financials WHERE company_id = ?
+            AND metric = 'DividendsPaid' AND period_type = 'FY' AND value IS NOT NULL
+            ORDER BY fiscal_year DESC LIMIT 1""", (company_id,)).fetchone()
+    if not row or not row["value"]:
+        return None, None
+    return abs(row["value"]) / 1e6, row["fiscal_year"]
+
+
+def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: list,
+          shares, close, reported_revenue: list, coverage):
+    """The sum of the parts, and the twelve-month value it rolls to.
+
+    Marketed products count at their rNPV, which for an approved product is its NPV.
+    Pipeline assets count at their rNPV, the NPV cut by the probability of success,
+    and the unrisked figure is kept beside it so the haircut is visible. Lines no
+    asset carries count in full. That sum is the modelled enterprise value; net cash
+    turns it into equity; diluted shares turn equity into a figure per share.
+
+    The twelve-month value is the standard roll-forward: a DCF's value grows at the
+    cost of equity over the year, and the dividend paid out during it is subtracted,
+    since it has left the company by then. It is a mechanical consequence of the
+    model, not a target, and it is only as good as the parts above it. Whatever the
+    model does not reach is named beside the figure rather than filled in.
+    """
+    def per_share(mm):
+        return (mm * 1e6 / shares) if (shares and mm is not None) else None
+
+    counted = [l for l in lines if l.get("counted", True)]
+    marketed = [l for l in counted if l.get("mode") in ANCHORED]
+    pipeline = [l for l in counted if l.get("mode") not in ANCHORED]
+    m_rnpv = sum(l["rnpv_share"] for l in marketed)
+    p_rnpv = sum(l["rnpv_share"] for l in pipeline)
+    p_npv = sum(l.get("npv_share") or 0.0 for l in pipeline)
+    s_rnpv = sum(s["rnpv"] for s in streams)
+    ev = m_rnpv + p_rnpv + s_rnpv
+    balance = _balance_sheet(conn, db_path, ticker, company_id)
+    net_cash = balance["net_cash"] if balance else None
+    equity = (ev + net_cash) if net_cash is not None else None
+    ke, ke_basis = _cost_of_equity(conn, [l["asset_id"] for l in counted])
+    dividends, div_year = _dividends(conn, company_id)
+    equity_ps = per_share(equity)
+    dps = per_share(dividends)
+    forward = None
+    if equity_ps is not None and ke is not None:
+        forward = equity_ps * (1.0 + ke) - (dps or 0.0)
+
+    # Revenue by year, split the same way, for the next three years beside the last
+    # reported one. Pipeline revenue is shown before and after its probability.
+    by_year: dict = {}
+    for group, items in (("marketed", marketed), ("pipeline", pipeline)):
+        for l in items:
+            pos = l.get("pos") if l.get("pos") is not None else 1.0
+            for year, value in zip(l.get("years") or [], l.get("revenue_share") or []):
+                entry = by_year.setdefault(year, {"marketed": 0.0, "pipeline": 0.0,
+                                                  "pipeline_risked": 0.0, "lines": 0.0})
+                entry[group] += value
+                if group == "pipeline":
+                    entry["pipeline_risked"] += value * pos
+    for s in streams:
+        for year, value in zip(s.get("years") or [], s.get("revenue") or []):
+            by_year.setdefault(year, {"marketed": 0.0, "pipeline": 0.0,
+                                      "pipeline_risked": 0.0, "lines": 0.0})["lines"] += value
+    last = next((r for r in sorted(reported_revenue, key=lambda r: -r["fiscal_year"])
+                 if r.get("value") is not None), None)
+    first_year = (last["fiscal_year"] + 1) if last else min(by_year, default=None)
+    path = []
+    if first_year is not None:
+        for year in range(first_year, first_year + 3):
+            entry = by_year.get(year)
+            if not entry:
+                continue
+            path.append({"year": year, **entry,
+                         "total": entry["marketed"] + entry["pipeline"] + entry["lines"],
+                         "total_risked": (entry["marketed"] + entry["pipeline_risked"]
+                                          + entry["lines"])})
+    not_valued = [{"name": u["name"], "revenue": u["revenue"] / 1e6}
+                  for u in ((coverage or {}).get("unmodelled") or [])]
+    return {
+        "marketed": {"n": len(marketed), "rnpv": m_rnpv, "per_share": per_share(m_rnpv)},
+        "pipeline": {"n": len(pipeline), "rnpv": p_rnpv, "npv": p_npv,
+                     "per_share": per_share(p_rnpv),
+                     "per_share_unrisked": per_share(p_npv)},
+        "lines": {"n": len(streams), "rnpv": s_rnpv, "per_share": per_share(s_rnpv)},
+        "enterprise": ev, "enterprise_per_share": per_share(ev),
+        "net_cash": net_cash, "net_cash_per_share": per_share(net_cash),
+        "balance_sheet_as_of": balance["as_of"] if balance else None,
+        "debt_basis": balance.get("debt_basis") if balance else None,
+        "equity": equity, "equity_per_share": equity_ps,
+        "cost_of_equity": ke, "cost_of_equity_basis": ke_basis,
+        "dividends": dividends, "dividends_year": div_year, "dps": dps,
+        "forward_12m": forward, "close": close,
+        "upside": (forward / close - 1.0) if (forward is not None and close) else None,
+        "upside_today": (equity_ps / close - 1.0)
+        if (equity_ps is not None and close) else None,
+        "revenue_path": path,
+        "last_reported": ({"fiscal_year": last["fiscal_year"], "value": last["value"]}
+                          if last else None),
+        "not_valued": not_valued,
+        "missing": [what for what, ok in (
+            ("net cash: no balance sheet on file", net_cash is not None),
+            ("diluted shares: no share count on file", bool(shares)),
+            ("cost of equity: no CAPM components on file", ke is not None),
+            ("share price: none on file", bool(close))) if not ok],
+    }
+
+
 def company_verdict(db_path, ticker: str):
     """Every modelled asset in one name, per share, against what the share costs.
 
@@ -1069,8 +1221,15 @@ def company_verdict(db_path, ticker: str):
     lines.sort(key=lambda r: -(r["rnpv_share"] or 0))
     streams = [{**s, "per_share": (s["rnpv"] * 1e6 / shares) if shares else None}
                for s in rollup.get("streams") or []]
+    conn = db.get_connection(db_path)
+    try:
+        sotp = _sotp(conn, db_path, rollup["ticker"], company["id"], lines, streams,
+                     shares, close, rollup["reported_revenue"], coverage)
+    finally:
+        conn.close()
     return {
         "ok": True, "ticker": rollup["ticker"], "name": company["name"],
+        "sotp": sotp,
         "modelled": lines, "refused": rollup.get("refused") or [],
         "rnpv_total": rollup["rnpv_total"], "per_share": per_share,
         "diluted_shares": shares, "close": close, "close_date": close_date,

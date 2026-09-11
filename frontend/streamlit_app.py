@@ -1479,6 +1479,10 @@ _BOOK_CSS = """
 .bk-more > summary::-webkit-details-marker { display: none; }
 .bk-more > summary:hover { color: var(--text); }
 .bk-tail { font-size: 10.5px; color: var(--muted); padding: 6px 8px 2px; line-height: 1.45; }
+.bk-h { display: flex; justify-content: space-between; font-family: var(--font-mono);
+        font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+        color: var(--muted); padding: 7px 8px 3px; border-bottom: 1px solid var(--rule-strong); }
+.bk-h span:last-child { color: var(--text); }
 .bk-tail b { color: var(--text); font-weight: 500; }
 """
 
@@ -1515,17 +1519,31 @@ def _value_book(v: dict, ticker: str, selected):
     modelled = sorted(v.get("modelled") or [],
                       key=lambda m: -(m.get("per_share") or 0.0))
     top_ps = max((m.get("per_share") or 0.0 for m in modelled), default=0.0) or 1.0
-    head, rest = modelled[:_BOOK_TOP], modelled[_BOOK_TOP:]
-    rows = [{"id": m["asset_id"], "html": _book_row(m, top_ps, selected)}
-            for m in head]
-    if rest:
-        rest_ps = sum(m.get("per_share") or 0.0 for m in rest)
-        inner = "".join(_book_row(m, top_ps, selected) for m in rest)
-        is_open = any(m.get("asset_id") == selected for m in rest)
-        rows.append({"id": None, "html":
-                     f'<details class="bk-more"{" open" if is_open else ""}>'
-                     f'<summary>{len(rest)} more · {rest_ps:.2f} a share</summary>'
-                     f'{inner}</details>'})
+    rows = []
+    # Two groups, because the sum of the parts is two sums: the marketed book at its
+    # NPV, and the pipeline after each asset's probability. A heading over each says
+    # what the group adds up to, so "is the pipeline in it" is answered by the list.
+    groups = [("marketed", [m for m in modelled if m.get("mode") in ("marketed", "franchise")]),
+              ("pipeline, after PoS",
+               [m for m in modelled if m.get("mode") not in ("marketed", "franchise")])]
+    for label, members in groups:
+        if not members:
+            continue
+        total = sum(m.get("per_share") or 0.0 for m in members if m.get("counted", True))
+        rows.append({"id": None, "html": f'<div class="bk-h"><span>{html_escape(label)}'
+                                         f' · {len(members)}</span><span>{total:,.2f} a share'
+                                         f'</span></div>'})
+        head, rest = members[:_BOOK_TOP], members[_BOOK_TOP:]
+        rows += [{"id": m["asset_id"], "html": _book_row(m, top_ps, selected)}
+                 for m in head]
+        if rest:
+            rest_ps = sum(m.get("per_share") or 0.0 for m in rest)
+            inner = "".join(_book_row(m, top_ps, selected) for m in rest)
+            is_open = any(m.get("asset_id") == selected for m in rest)
+            rows.append({"id": None, "html":
+                         f'<details class="bk-more"{" open" if is_open else ""}>'
+                         f'<summary>{len(rest)} more · {rest_ps:.2f} a share</summary>'
+                         f'{inner}</details>'})
     tail = []
     lines = [s for s in v.get("streams") or [] if s.get("per_share") is not None]
     if lines:
@@ -1623,6 +1641,117 @@ def _book_top(api_base: str, ticker: str):
     return max(modelled, key=lambda m: m["per_share"])["asset_id"]
 
 
+def _sotp_bridge(s: dict) -> None:
+    """The sum of the parts as a bridge, per share, read against the price.
+
+    Marketed products, then the pipeline after its probability, then the lines no
+    asset carries, add to the modelled enterprise value; net cash turns it into
+    equity; the roll-forward at the cost of equity less the dividend is the
+    twelve-month figure. The price is the dashed rule the bars are read against,
+    and it is not one of them.
+    """
+    m, p, lines = s.get("marketed") or {}, s.get("pipeline") or {}, s.get("lines") or {}
+    if m.get("per_share") is None:
+        return
+    steps = [{"label": "marketed", "value": m["per_share"], "kind": "start"}]
+    if p.get("n"):
+        steps.append({"label": f"pipeline, PoS", "value": p.get("per_share") or 0.0,
+                      "kind": "step"})
+    if lines.get("n"):
+        steps.append({"label": "lines", "value": lines.get("per_share") or 0.0,
+                      "kind": "step"})
+    steps.append({"label": "enterprise", "kind": "end"})
+    if s.get("net_cash_per_share") is not None:
+        steps.append({"label": "net cash" if s["net_cash_per_share"] >= 0 else "net debt",
+                      "value": s["net_cash_per_share"], "kind": "step"})
+        steps.append({"label": "equity today", "kind": "end"})
+    else:
+        steps.append({"label": "net cash", "value": None, "kind": "null"})
+    if s.get("forward_12m") is not None and s.get("equity_per_share") is not None:
+        ke = s.get("cost_of_equity") or 0.0
+        steps.append({"label": f"+{ke * 100:.1f}% a year", "value": s["equity_per_share"] * ke,
+                      "kind": "step"})
+        if s.get("dps"):
+            steps.append({"label": "dividend", "value": -s["dps"], "kind": "step"})
+        steps.append({"label": "12 months", "kind": "end"})
+    section("Sum of the parts", basis="$ a share · read against the price")
+    R.show(CH.waterfall(steps, 700, 250, value_fmt=lambda x: f"{x:,.2f}",
+                        reference=({"label": "price", "value": s["close"]}
+                                   if s.get("close") else None)),
+           css_class="chart-mount stretch")
+    bits = []
+    if p.get("n") and p.get("per_share_unrisked") is not None:
+        bits.append(f"pipeline {p['per_share_unrisked']:,.2f} before probability, "
+                    f"{(p.get('per_share') or 0):,.2f} after")
+    if s.get("balance_sheet_as_of"):
+        bits.append(f"balance sheet {s['balance_sheet_as_of']}"
+                    + (", no debt tagged so taken as none"
+                       if (s.get("debt_basis") or "").startswith("no debt") else ""))
+    if s.get("cost_of_equity") is not None:
+        bits.append(f"cost of equity {s['cost_of_equity']:.2%}, "
+                    f"{_short(s.get('cost_of_equity_basis'), 44)}")
+    if s.get("dps"):
+        bits.append(f"dividends FY{s.get('dividends_year')} {s['dps']:,.2f} a share")
+    for missing in s.get("missing") or []:
+        bits.append(missing)
+    if bits:
+        st.markdown(f'<div class="byline">{html_escape(" · ".join(bits))}</div>',
+                    unsafe_allow_html=True)
+
+
+def _revenue_split(s: dict) -> None:
+    """Revenue by year, marketed against pipeline, beside the last year reported.
+
+    The pipeline is shown before and after its probability, because the sum of the
+    parts counts it after and the build draws it before, and a reader should be able
+    to see both numbers in one place. Whatever has no forecast is named under it.
+    """
+    path = s.get("revenue_path") or []
+    last = s.get("last_reported")
+    if not path:
+        return
+    section("Revenue by year", basis="mm · marketed, pipeline, lines")
+    years = ([f"FY{last['fiscal_year']}A"] if last else []) + [f"FY{r['year']}E" for r in path]
+    has_lines = any(r.get("lines") for r in path)
+    has_pipe = any(r.get("pipeline") for r in path)
+    rows = [("marketed", [None if last else None] + [r["marketed"] for r in path])]
+    if has_pipe:
+        rows.append(("pipeline, before PoS", [None] + [r["pipeline"] for r in path]))
+        rows.append(("pipeline, after PoS", [None] + [r["pipeline_risked"] for r in path]))
+    if has_lines:
+        rows.append(("lines", [None] + [r["lines"] for r in path]))
+    rows.append(("total, risked", ([last["value"]] if last else [])
+                 + [r["total_risked"] for r in path]))
+    if not last:
+        rows = [(k, v[1:]) for k, v in rows]
+    growth = []
+    prev = last["value"] if last else None
+    for r in path:
+        growth.append((r["total_risked"] / prev - 1.0) if prev else None)
+        prev = r["total_risked"]
+    rows.append(("growth", ([None] if last else []) + growth))
+
+    def cell(value, pct=False):
+        if value is None:
+            return '<td class="rs-v none">·</td>'
+        if pct:
+            return f'<td class="rs-v">{value:+.1%}</td>'
+        return f'<td class="rs-v">{value:,.0f}</td>'
+    head = "".join(f"<th>{html_escape(y)}</th>" for y in years)
+    body = ""
+    for label, values in rows:
+        cls = ' class="rs-total"' if label.startswith("total") else ""
+        body += (f'<tr{cls}><td class="rs-k">{html_escape(label)}</td>'
+                 + "".join(cell(v, pct=(label == "growth")) for v in values) + "</tr>")
+    st.markdown(f'<table class="rs"><thead><tr><th></th>{head}</tr></thead>'
+                f'<tbody>{body}</tbody></table>', unsafe_allow_html=True)
+    if s.get("not_valued"):
+        st.markdown('<div class="byline">no forecast, so not in any of these: '
+                    + html_escape(", ".join(f"{n['name']} {n['revenue']:,.0f}mm"
+                                            for n in s["not_valued"])) + "</div>",
+                    unsafe_allow_html=True)
+
+
 def _book(api_base: str, ticker: str, selected):
     """The company above the compound, because that is the unit of coverage.
 
@@ -1649,18 +1778,31 @@ def _book(api_base: str, ticker: str, selected):
     modelled = v.get("modelled") or []
     counted = [m for m in modelled if m.get("counted", True)]
 
-    section(f"{ticker} · the book",
+    section(f"{ticker} · the whole company",
             basis=f"{len(counted)} counted of {len(modelled)} drawn")
     st.markdown(f'<div class="call-lead">{html_escape(note_body.get("headline") or "")}'
                 '</div>', unsafe_allow_html=True)
-    tiles = [("pipeline per share",
-              T.num(v.get("per_share"), 2) if v.get("per_share") else "—", "", None, "",
-              "counted assets and lines"),
-             ("share price", T.num(v.get("close"), 2), "", None, "",
-              f"close {v.get('close_date') or ''}"),
-             ("share of price",
-              T.pct((v.get("pct_of_price") or 0) * 100, 1) if v.get("pct_of_price")
-              else "—", "", None, "", "explained by the model")]
+    sotp = v.get("sotp") or {}
+    if sotp.get("equity_per_share") is not None:
+        up = sotp.get("upside")
+        tiles = [("equity per share", T.num(sotp["equity_per_share"], 2), "", None, "",
+                  "sum of the parts, today"),
+                 ("12-month value", T.num(sotp.get("forward_12m"), 2)
+                  if sotp.get("forward_12m") is not None else "—", "", None, "",
+                  "rolled at the cost of equity, less dividends"),
+                 ("share price", T.num(v.get("close"), 2), "", None, "",
+                  f"close {v.get('close_date') or ''}"),
+                 ("against the price", f"{up:+.0%}" if up is not None else "—", "",
+                  None, "", "12-month value over the close")]
+    else:
+        tiles = [("pipeline per share",
+                  T.num(v.get("per_share"), 2) if v.get("per_share") else "—", "", None,
+                  "", "counted assets and lines"),
+                 ("share price", T.num(v.get("close"), 2), "", None, "",
+                  f"close {v.get('close_date') or ''}"),
+                 ("share of price",
+                  T.pct((v.get("pct_of_price") or 0) * 100, 1) if v.get("pct_of_price")
+                  else "—", "", None, "", "explained by the model")]
     if coverage.get("share") is not None:
         basis = ("reported revenue" if coverage.get("basis") == "reported total"
                  else "tagged product rows")
@@ -1671,6 +1813,13 @@ def _book(api_base: str, ticker: str, selected):
         tiles.append(("next catalyst", nxt["expected_date"], "", None, "",
                       (nxt.get("title") or nxt.get("catalyst_type") or "")[:34]))
     st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+
+    if sotp.get("marketed", {}).get("per_share") is not None:
+        bridge_col, split_col = st.columns([1.35, 1], gap="medium")
+        with bridge_col:
+            _sotp_bridge(sotp)
+        with split_col:
+            _revenue_split(sotp)
 
     left, right = st.columns([1, 1.5], gap="medium")
     with left:

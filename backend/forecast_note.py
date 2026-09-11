@@ -158,7 +158,81 @@ def write(v: dict) -> dict:
 THIN_COVERAGE = 0.25
 
 
+def _sotp_headline(v: dict) -> str | None:
+    """The company in one sentence: what the parts add up to per share, today and in
+    twelve months, against the price. None where a part is missing."""
+    s = v.get("sotp") or {}
+    if s.get("equity_per_share") is None or not s.get("close"):
+        return None
+    lead = (f"On the model {v['ticker']}'s equity is worth "
+            f"{_per_share(s['equity_per_share'])} a share today")
+    if s.get("forward_12m") is not None:
+        lead += f" and {_per_share(s['forward_12m'])} in twelve months"
+    lead += f" against a {_per_share(s['close'])} share price"
+    if s.get("upside") is not None:
+        lead += f", {s['upside']:+.0%} on the twelve-month figure"
+    parts = []
+    m, p, lines = s.get("marketed") or {}, s.get("pipeline") or {}, s.get("lines") or {}
+    if m.get("n"):
+        parts.append(f"{m['n']} marketed product{'s' if m['n'] != 1 else ''} "
+                     f"{_per_share(m['per_share'])}")
+    if p.get("n"):
+        parts.append(f"{p['n']} pipeline asset{'s' if p['n'] != 1 else ''} "
+                     f"{_per_share(p['per_share'])} after probability")
+    if lines.get("n"):
+        parts.append(f"{lines['n']} line{'s' if lines['n'] != 1 else ''} no asset "
+                     f"carries {_per_share(lines['per_share'])}")
+    if s.get("net_cash_per_share") is not None:
+        word = "net cash" if s["net_cash_per_share"] >= 0 else "net debt"
+        parts.append(f"{word} {_per_share(s['net_cash_per_share'])}")
+    return lead + ": " + ", ".join(parts) + "."
+
+
+def _sotp_body(v: dict) -> list[str]:
+    s = v.get("sotp") or {}
+    out = []
+    if not s:
+        return out
+    p = s.get("pipeline") or {}
+    if p.get("n") and p.get("per_share_unrisked") and p.get("per_share") is not None:
+        out.append(
+            f"The pipeline is in the sum at its risk-adjusted value: "
+            f"{_per_share(p['per_share_unrisked'])} a share before each asset's "
+            f"probability of success, {_per_share(p['per_share'])} after it. A marketed "
+            f"product carries a probability of one, so its figure is its NPV.")
+    if s.get("forward_12m") is not None and s.get("cost_of_equity") is not None:
+        line = (f"The twelve-month figure rolls today's value forward at a "
+                f"{s['cost_of_equity']:.1%} cost of equity")
+        if s.get("dps"):
+            line += (f" and takes off the {_per_share(s['dps'])} a share paid out as "
+                     f"dividends in FY{s.get('dividends_year')}")
+        out.append(line + ". It is arithmetic on the parts above it, not a target.")
+    gaps = []
+    if s.get("not_valued"):
+        gaps.append("revenue with no forecast, " + ", ".join(
+            f"{n['name']} ({_mm(n['revenue'])})" for n in s["not_valued"][:3]))
+    coverage = v.get("coverage") or {}
+    if coverage.get("untagged_revenue") and coverage.get("reported_revenue") and (
+            coverage["untagged_revenue"] / coverage["reported_revenue"]) > 0.005:
+        gaps.append(f"{_mm(coverage['untagged_revenue'] / 1e6)} of reported revenue "
+                    f"with neither a product row nor a line")
+    if s.get("upside") is not None and s["upside"] < -0.25:
+        gaps.append("everything past the horizon: each product fades to its long-run "
+                    "rate and erodes at its LOE, and nothing is counted for products "
+                    "not yet in the pipeline table, so the figure is what today's book "
+                    "is worth rather than what the company will find next")
+    if gaps:
+        out.append("What the model does not hold, and the price does: "
+                   + "; ".join(gaps) + ".")
+    for missing in s.get("missing") or []:
+        out.append(f"Missing from the sum: {missing}.")
+    return out
+
+
 def company_headline(v: dict) -> str:
+    whole = _sotp_headline(v)
+    if whole:
+        return whole
     if not v.get("per_share"):
         placeholders = v.get("placeholders") or []
         if placeholders:
@@ -195,7 +269,7 @@ def company_headline(v: dict) -> str:
 
 
 def company_body(v: dict) -> list[str]:
-    out = []
+    out = _sotp_body(v)
     coverage = v.get("coverage") or {}
     if coverage.get("share") is not None and coverage["share"] < THIN_COVERAGE:
         out.append(

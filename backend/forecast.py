@@ -38,6 +38,10 @@ REQUIRED = ("therapy_mode", "net_price_per_patient")
 # bill per year and carry COGS as a share of revenue.
 MODES = ("one_time", "chronic", "marketed", "franchise")
 
+# How far past a launch's loss of exclusivity its window runs: the year-one drop and
+# five years of decay, by which point a biologic's tail is under a tenth of its peak.
+LOE_TAIL_YEARS = 6
+
 
 class ForecastError(ValueError):
     """A required assumption is missing. Carries the key names, so the caller can say
@@ -482,6 +486,24 @@ def build(inputs: dict) -> dict:
 
     start = int(scalars.get("forecast_start_year") or 0)
     horizon = int(scalars.get("forecast_years") or 10)
+    # An unlaunched product's window runs through its loss of exclusivity and the
+    # erosion after it. A ten-year window from launch with a twelve-year exclusivity
+    # put the cliff three years past the end, so the terminal value capitalised the
+    # peak as though it never came: Elecoglipron carried 70% of its value there.
+    # Only a launch is stretched; a marketed product's horizon is the analyst's.
+    loe_ahead = scalars.get("loe_year") or (inputs.get("loe") or {}).get("year")
+    if loe_ahead is None and inputs.get("is_marketed") is False and start:
+        defaults = inputs.get("loe_defaults") or {}
+        default = defaults.get(inputs.get("modality") or "") or defaults.get("unknown")
+        if default and default.get("years_from_launch"):
+            loe_ahead = start + int(default["years_from_launch"])
+    if (inputs.get("is_marketed") is False and start and loe_ahead
+            and int(loe_ahead) + LOE_TAIL_YEARS >= start + horizon):
+        stretched = int(loe_ahead) + LOE_TAIL_YEARS - start + 1
+        notes.append(f"horizon stretched from {horizon} to {stretched} years so the "
+                     f"window runs {LOE_TAIL_YEARS} years past the {int(loe_ahead)} "
+                     "loss of exclusivity rather than capitalising the peak")
+        horizon = stretched
     # The display series starts where the analyst's data starts; the DCF window is
     # start..start+horizon-1, which is how the workbook shows 2024 actuals beside a
     # 2026-2035 valuation.
