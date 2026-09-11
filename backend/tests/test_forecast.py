@@ -779,3 +779,115 @@ def test_without_a_valuation_year_the_periods_are_positional():
     from forecast import discount
 
     assert discount([100, 100], 0.1) == discount([100, 100], 0.1, periods=[0.5, 1.5])
+
+
+def _marketed_db(tmp_path):
+    """A company with one product anchored on reported revenue, LOE on file through a
+    scalar, and two years of actuals: the shape 297 of the 323 forecasts have."""
+    import db
+    import assumptions as A
+    path = str(tmp_path / "mk.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'AZN', 'Astra')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed,"
+                 " modality) VALUES (1, 1, 'Tagrisso', 1, 'small molecule')")
+    for year, value in ((2024, 6580e6), (2025, 7254e6)):
+        conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value,"
+                     " source) VALUES (1, ?, 'FY', ?, 't')", (year, value))
+    rows = [{"key": k, "value": v, "source": "t"} for k, v in (
+        ("base_revenue", 7254.0), ("revenue_growth_pct", 0.10),
+        ("terminal_growth_pct", 0.0), ("growth_fade_years", 5),
+        ("cogs_pct", 0.18), ("sga_pct", 0.34), ("rd_pct", 0.24),
+        ("tax_rate", 0.14), ("wacc", 0.073), ("pos", 1.0),
+        ("forecast_start_year", 2026), ("forecast_years", 12),
+        ("loe_year", 2032))]
+    rows.append({"key": "therapy_mode", "text_value": "marketed", "source": "t"})
+    A.save(conn, 1, rows)
+    conn.commit(); conn.close()
+    return path
+
+
+def test_whatif_moves_the_levers_a_marketed_product_has(tmp_path):
+    """Growth, the long-run rate, the LOE year and year-one erosion each change the
+    answer on a revenue-anchored product, and volume does not: there is no patient
+    curve for it to scale."""
+    import forecast_view as V
+    path = _marketed_db(tmp_path)
+    same = V.whatif(path, "AZN", 1)
+    assert same["base"]["rnpv"] == same["varied"]["rnpv"]
+    assert same["base"]["loe_year"] == 2032
+    assert same["base"]["pv_fcff"] + same["base"]["terminal_pv"] == pytest.approx(
+        same["base"]["npv"])
+
+    assert V.whatif(path, "AZN", 1, volume=0.5)["varied"]["rnpv"] == pytest.approx(
+        same["base"]["rnpv"])
+    faster = V.whatif(path, "AZN", 1, growth=0.20)
+    assert faster["varied"]["rnpv"] > faster["base"]["rnpv"]
+    assert faster["varied"]["revenue"][0] == pytest.approx(7254.0 * 1.2)
+    later = V.whatif(path, "AZN", 1, loe_year=2036)
+    assert later["varied"]["rnpv"] > later["base"]["rnpv"]
+    assert later["varied"]["loe_year"] == 2036
+    # Before the cliff the two paths agree; after it the later LOE keeps more.
+    assert later["varied"]["revenue"][:6] == pytest.approx(later["base"]["revenue"][:6])
+    assert later["varied"]["revenue"][8] > later["base"]["revenue"][8]
+    harsher = V.whatif(path, "AZN", 1, erosion=0.9)
+    assert harsher["varied"]["rnpv"] < harsher["base"]["rnpv"]
+    slower_tail = V.whatif(path, "AZN", 1, terminal_growth=-0.05)
+    assert slower_tail["varied"]["rnpv"] < slower_tail["base"]["rnpv"]
+
+
+def test_levers_follow_the_mode(tmp_path):
+    """A marketed product's tornado ranks growth, LOE and erosion, not a net price it
+    does not have, and leaves out a PoS that is already one. A date is pushed two years
+    either way rather than by a fifth, and says so."""
+    import forecast_view as V
+    path = _marketed_db(tmp_path)
+    v = V.verdict(path, "AZN", 1)
+    keys = {l["key"]: l for l in v["levers"]}
+    assert {"wacc", "revenue_growth_pct", "loe_year", "erosion_year1_pct"} <= set(keys)
+    assert "net_price_per_patient" not in keys and "pos" not in keys
+    assert "terminal_growth_pct" not in keys           # zero cannot be scaled
+    assert keys["loe_year"]["step"] == "two years either way"
+    assert keys["wacc"]["step"] == "a fifth either way"
+    assert keys["loe_year"]["down"] < 0 < keys["loe_year"]["up"]
+    assert v["levers"] == sorted(v["levers"], key=lambda l: -abs(l["span"]))
+    # The written line reads the step off the lever rather than assuming a fifth.
+    import forecast_note
+    body = " ".join(forecast_note.write(v)["body"])
+    top = v["levers"][0]
+    assert top["step"] in body
+
+
+def test_sensitivity_draws_a_grid_for_a_product_with_no_price(tmp_path):
+    """The workbook's WACC x net price grid raised on every revenue-anchored product,
+    because there is no price to cross. Growth stands in, and the grid says so."""
+    import forecast_view as V
+    path = _marketed_db(tmp_path)
+    grid = V.sensitivity(path, "AZN", 1, preset="price")
+    assert grid["ok"] and grid["y_key"] == "revenue_growth_pct"
+    assert grid["labels"] == {"x": "WACC", "y": "growth"}
+    assert 0.10 in grid["y_values"]
+    assert all(v is not None for row in grid["grid"] for v in row)
+    # Higher growth, higher value, along every column.
+    for j in range(len(grid["x_values"])):
+        column = [row[j] for row in grid["grid"]]
+        assert column == sorted(column)
+    loe = V.sensitivity(path, "AZN", 1, preset="loe")
+    assert loe["ok"] and loe["labels"]["x"] == "LOE year"
+
+
+def test_the_asset_payload_carries_its_history_and_the_rollup_its_facts(tmp_path):
+    """The path is drawn from the reported years, so they travel with the forecast in
+    the engine's millions; the book reads mode, PoS, LOE and peak off each line."""
+    import forecast_view as V
+    path = _marketed_db(tmp_path)
+    state = V.asset_forecast(path, "AZN", 1)
+    assert state["actuals"] == [{"fiscal_year": 2024, "value": 6580.0},
+                                {"fiscal_year": 2025, "value": 7254.0}]
+    line = V.company_rollup(path, "AZN")["lines"][0]
+    assert line["mode"] == "marketed" and line["pos"] == 1.0
+    assert line["loe_year"] == 2032
+    assert line["peak_revenue"] == max(line["revenue_share"])
+    assert line["peak_year"] == line["years"][line["revenue_share"].index(
+        line["peak_revenue"])]

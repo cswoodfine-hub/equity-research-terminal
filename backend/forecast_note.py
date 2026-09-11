@@ -101,8 +101,9 @@ def body(v: dict) -> list[str]:
     if levers:
         top = levers[0]
         out.append(
-            f"The answer rests on {top['lever']} more than anything else: a fifth either "
-            f"way moves it {_mm(abs(top['span']) / 2)}. "
+            f"The answer rests on {top['lever']} more than anything else: "
+            f"{top.get('step') or 'a fifth either way'} moves it "
+            f"{_mm(abs(top['span']) / 2)}. "
             + (f"Next is {levers[1]['lever']} at {_mm(abs(levers[1]['span']) / 2)}."
                if len(levers) > 1 else ""))
 

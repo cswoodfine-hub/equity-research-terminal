@@ -100,7 +100,12 @@ def asset_forecast(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         except forecast.ForecastError as err:
             return {**base, "ok": False, "missing": err.missing,
                     "template": _template()}
-        return {**base, "ok": True, "result": result}
+        # The full years the product actually reported, in the engine's millions, so
+        # the path can be drawn from where it came rather than from where it starts.
+        actuals = [{"fiscal_year": a["fiscal_year"], "value": a["value"]}
+                   for a in inputs.get("actuals") or []
+                   if a.get("period") == "FY" and a.get("value") is not None]
+        return {**base, "ok": True, "result": result, "actuals": actuals}
     finally:
         conn.close()
 
@@ -260,22 +265,46 @@ def sensitivity(db_path, ticker: str, asset_id: int, scenario: str = "base",
         rate = built["wacc"]
         price = forecast.net_price(inputs["scalars"])
         xs = [round(rate + step, 4) for step in (-0.02, -0.01, 0.0, 0.01, 0.02)]
-        ys = [round(price * f, 3) for f in (0.78, 0.89, 1.0, 1.11, 1.22)]
-        grid = forecast.sensitivity(inputs, "wacc", xs,
-                                    "net_price_per_patient", ys)
-        bases = {"x": built["wacc_basis"], "y": "net price per patient"}
-    return {"ok": True, "preset": preset, "bases": bases, **grid}
+        if price is not None:
+            ys = [round(price * f, 3) for f in (0.78, 0.89, 1.0, 1.11, 1.22)]
+            grid = forecast.sensitivity(inputs, "wacc", xs,
+                                        "net_price_per_patient", ys)
+            bases = {"x": built["wacc_basis"], "y": "net price per patient"}
+            labels = {"x": "WACC", "y": "net price, mm"}
+        else:
+            # A product anchored on reported revenue has no price to cross with the
+            # rate. What it has is a growth rate, and the workbook's price axis is
+            # standing in for the same question: how much revenue there is to discount.
+            growth = inputs["scalars"].get("revenue_growth_pct") or 0.0
+            ys = [round(growth + step, 4) for step in (-0.06, -0.03, 0.0, 0.03, 0.06)]
+            grid = forecast.sensitivity(inputs, "wacc", xs,
+                                        "revenue_growth_pct", ys)
+            bases = {"x": built["wacc_basis"],
+                     "y": "near-term revenue growth, before erosion"}
+            labels = {"x": "WACC", "y": "growth"}
+    if preset == "loe":
+        labels = {"x": "LOE year", "y": "year-one erosion"}
+    return {"ok": True, "preset": preset, "bases": bases, "labels": labels, **grid}
 
 
 def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
-           volume=None, price=None, wacc=None, pos=None):
+           volume=None, price=None, wacc=None, pos=None, growth=None,
+           terminal_growth=None, loe_year=None, erosion=None):
     """The slider endpoint: the engine run twice, base beside the variation.
 
-    Four levers, each a real driver rather than a scaler of the answer. Volume
-    multiplies the patient curve, which is the acceptance lever the CASGEVY audit
-    surfaced: the workbook's own scenario block varies exactly this. Price sets the net
-    price per patient. WACC and PoS replace the derived values outright, and PoS strips
-    the composite factors first because factors beat a stated value in the engine.
+    Each lever is a real driver rather than a scaler of the answer, and which ones
+    apply depends on how the product is built. A patient-built forecast has four:
+    volume multiplies the patient curve, which is the acceptance lever the CASGEVY
+    audit surfaced and the one the workbook's own scenario block varies; price sets the
+    net price per patient; WACC and PoS replace the derived values outright, PoS
+    stripping the composite factors first because factors beat a stated value in the
+    engine.
+
+    A product anchored on reported revenue has no patient curve and no price, so
+    volume and price move nothing on it, and 297 of the 323 forecasts on file are
+    built that way. Its levers are the ones its mode reads: the near-term growth rate,
+    the long-run rate it fades to, the year exclusivity ends and how much goes in the
+    year after. Those four are here for exactly that reason.
 
     Everything is recomputed by the same engine as the base, so a slider cannot say
     anything the model itself would not.
@@ -292,12 +321,14 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
 
     def slim(result):
         return {"years": result["years"], "revenue": result["revenue_after_loe"],
+                "revenue_pre_loe": result["revenue"],
                 "patients": result["patients"]["total"],
                 "rnpv": result["rnpv"], "npv": result["npv"],
                 "owner_rnpv": result["owner_rnpv"],
                 "partner_rnpv": result["partner_rnpv"],
-                "terminal_pv": result["terminal_pv"],
-                "wacc": result["wacc"], "pos": result["pos"]}
+                "pv_fcff": result["pv_fcff"], "terminal_pv": result["terminal_pv"],
+                "wacc": result["wacc"], "pos": result["pos"],
+                "loe_year": result.get("loe_year"), "pnl": result.get("pnl")}
 
     try:
         base = forecast.build(inputs)
@@ -323,13 +354,33 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
                     "pos_durability"):
             scalars.pop(key, None)
         scalars["pos"] = pos
+    if growth is not None:
+        scalars["revenue_growth_pct"] = growth
+    if terminal_growth is not None:
+        scalars["terminal_growth_pct"] = terminal_growth
+    if loe_year is not None:
+        # A scalar loe_year outranks the LOE map in the engine, which is the point: the
+        # slider asks what the product is worth if the cliff comes earlier or later.
+        scalars["loe_year"] = int(loe_year)
+    if erosion is not None:
+        scalars["erosion_year1_pct"] = erosion
+        if scalars.get("erosion_decay_pct") is None:
+            # The default pair travels together. Overriding only the first year would
+            # leave the decay at nothing, and a cliff with no slope after it is not
+            # what any erosion evidence describes.
+            default = (inputs.get("erosion_defaults") or {}).get(
+                inputs.get("modality") or "")
+            if default:
+                scalars["erosion_decay_pct"] = default["decay_pct"]
     try:
         varied = forecast.build(varied_inputs)
     except forecast.ForecastError as err:
         return {"ok": False, "missing": err.missing}
     return {"ok": True, "base": slim(base), "varied": slim(varied),
             "overrides": {"volume": volume, "price": price, "wacc": wacc,
-                          "pos": pos}}
+                          "pos": pos, "growth": growth,
+                          "terminal_growth": terminal_growth,
+                          "loe_year": loe_year, "erosion": erosion}}
 
 
 def _to_price_units(conn, company_id: int, ordinary: float):
@@ -613,11 +664,17 @@ def company_rollup(db_path, ticker: str):
         else:
             placeholders.append({"asset_id": asset_id, "name": state["name"],
                                  "rnpv_share": result["rnpv"] * share})
+        revenue = result["revenue_after_loe"]
+        peak = max(revenue) if revenue else None
         lines.append({"asset_id": asset_id, "name": state["name"], "share": share,
                       "rnpv_share": result["rnpv"] * share, "counted": counted,
+                      "mode": result.get("mode"), "pos": result.get("pos"),
+                      "loe_year": result.get("loe_year"),
+                      "peak_revenue": peak,
+                      "peak_year": (result["years"][revenue.index(peak)]
+                                    if peak is not None else None),
                       "years": result["years"],
-                      "revenue_share": [v * share
-                                        for v in result["revenue_after_loe"]]})
+                      "revenue_share": [v * share for v in revenue]})
     # Streams: lines the company reports that no asset carries, run through the same
     # engine as a marketed product. They count in full; a stream is the company's own.
     streams, stream_refused = [], []
@@ -677,38 +734,78 @@ def _levers(inputs, built):
     more useful question an analyst is actually asked, which is what would have to be
     wrong for the number to be wrong.
 
+    Which levers exist depends on how the product is built. A patient-built forecast
+    rests on its net price, its persistence, its PoS and the discount rate. A product
+    anchored on reported revenue has none of the first two and an approved product's
+    PoS is one, so on 297 of the 323 forecasts on file the old list came back with the
+    discount rate and a PoS that could only fall. What such a product rests on is its
+    growth rate, the long-run rate it fades to, the year exclusivity ends and the drop
+    in the year after, so those are its levers.
+
     Each lever is pushed by overriding the computed value, not the raw input, because
     WACC arrives from CAPM components and PoS from composite factors, and perturbing a
     scalar that is not there moves nothing. PoS strips its factors first, since factors
-    beat a stated value in the engine.
+    beat a stated value in the engine. A fifth either way for a rate or a price; two
+    years either way for a date, because a fifth of a year number is nonsense. Each row
+    says which, so the sentence written from it can too.
     """
     scalars = inputs.get("scalars") or {}
     base_rnpv = built["rnpv"]
-    levers = [("net price", "net_price_per_patient", scalars.get("net_price_per_patient")),
-              ("discount rate", "wacc", built["wacc"]),
-              ("probability of success", "pos", built["pos"]),
-              ("persistence", "discontinuation_pct",
-               scalars.get("discontinuation_pct"))]
+    mode = built.get("mode")
+    fifth = "a fifth either way"
+    levers = [("discount rate", "wacc", built["wacc"], "rate", fifth)]
+    if mode in ("marketed", "franchise"):
+        loe_year = built.get("loe_year")
+        default = (inputs.get("erosion_defaults") or {}).get(inputs.get("modality") or "")
+        year1 = scalars.get("erosion_year1_pct")
+        if year1 is None and default:
+            year1 = default["year1_pct"]
+        levers += [
+            ("near-term growth", "revenue_growth_pct",
+             scalars.get("revenue_growth_pct"), "rate", fifth),
+            ("long-run growth", "terminal_growth_pct",
+             scalars.get("terminal_growth_pct"), "rate", fifth),
+            ("LOE year", "loe_year", loe_year, "year", "two years either way"),
+            ("year-one erosion", "erosion_year1_pct", year1, "rate", fifth),
+        ]
+        if built["pos"] is not None and built["pos"] < 1.0:
+            levers.append(("probability of success", "pos", built["pos"], "rate", fifth))
+    else:
+        levers += [
+            ("net price", "net_price_per_patient", forecast.net_price(scalars), "rate",
+             fifth),
+            ("probability of success", "pos", built["pos"], "rate", fifth),
+            ("persistence", "discontinuation_pct", scalars.get("discontinuation_pct"),
+             "rate", fifth),
+        ]
     out = []
-    for label, key, current in levers:
-        if current is None:
+    for label, key, current, kind, step in levers:
+        if current is None or (kind == "rate" and current == 0):
             continue
         swings = []
-        for direction in (1 - _LEVER_STEP, 1 + _LEVER_STEP):
+        if kind == "year":
+            trials = (current - 2, current + 2)
+        else:
+            trials = (current * (1 - _LEVER_STEP), current * (1 + _LEVER_STEP))
+        for pushed in trials:
             trial = dict(scalars)
-            trial[key] = current * direction
+            trial[key] = pushed
             if key == "pos":
                 trial[key] = min(trial[key], 1.0)
                 for factor in ("pos_regulatory", "pos_launch", "pos_reimbursement",
-                               "pos_competition"):
+                               "pos_durability"):
                     trial.pop(factor, None)
+            if key == "erosion_year1_pct":
+                trial[key] = min(trial[key], 1.0)
+                if trial.get("erosion_decay_pct") is None and default:
+                    trial["erosion_decay_pct"] = default["decay_pct"]
             try:
                 moved = forecast.build({**inputs, "scalars": trial})["rnpv"]
             except forecast.ForecastError:
                 continue
             swings.append(moved - base_rnpv)
         if len(swings) == 2:
-            out.append({"lever": label, "key": key, "value": current,
+            out.append({"lever": label, "key": key, "value": current, "step": step,
                         "down": min(swings), "up": max(swings),
                         "span": max(swings) - min(swings)})
     out.sort(key=lambda r: -abs(r["span"]))

@@ -678,10 +678,16 @@ def forecast_whatif(ticker: str, asset_id: int,
                     volume: Optional[float] = Query(default=None),
                     price: Optional[float] = Query(default=None),
                     wacc: Optional[float] = Query(default=None),
-                    pos: Optional[float] = Query(default=None)) -> dict:
+                    pos: Optional[float] = Query(default=None),
+                    growth: Optional[float] = Query(default=None),
+                    terminal_growth: Optional[float] = Query(default=None),
+                    loe_year: Optional[int] = Query(default=None),
+                    erosion: Optional[float] = Query(default=None)) -> dict:
     """The sliders: base and variation from the same engine, side by side."""
     out = forecast_view_module.whatif(None, ticker, asset_id, scenario,
-                                      volume=volume, price=price, wacc=wacc, pos=pos)
+                                      volume=volume, price=price, wacc=wacc, pos=pos,
+                                      growth=growth, terminal_growth=terminal_growth,
+                                      loe_year=loe_year, erosion=erosion)
     if out is None:
         raise HTTPException(status_code=404,
                             detail=f"no forecastable asset {asset_id} for {ticker.upper()}")
