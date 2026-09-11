@@ -869,6 +869,8 @@ def test_sensitivity_draws_a_grid_for_a_product_with_no_price(tmp_path):
     assert grid["labels"] == {"x": "WACC", "y": "growth"}
     assert 0.10 in grid["y_values"]
     assert all(v is not None for row in grid["grid"] for v in row)
+    # The middle cell is the live model, exactly, so the view can mark it.
+    assert grid["grid"][2][2] == pytest.approx(V.verdict(path, "AZN", 1)["rnpv"])
     # Higher growth, higher value, along every column.
     for j in range(len(grid["x_values"])):
         column = [row[j] for row in grid["grid"]]
@@ -891,3 +893,15 @@ def test_the_asset_payload_carries_its_history_and_the_rollup_its_facts(tmp_path
     assert line["peak_revenue"] == max(line["revenue_share"])
     assert line["peak_year"] == line["years"][line["revenue_share"].index(
         line["peak_revenue"])]
+
+
+def test_build_states_the_erosion_pair_and_the_price_in_force():
+    got = F.build(casgevy_inputs())
+    assert got["net_price"] == F.net_price(casgevy_inputs()["scalars"])
+    inputs = casgevy_inputs()
+    inputs["modality"] = "biologic"
+    inputs["erosion_defaults"] = {"biologic": {"year1_pct": 0.3, "decay_pct": 0.1,
+                                               "source": "t"}}
+    inputs["scalars"]["loe_year"] = 2028
+    got = F.build(inputs)
+    assert (got["erosion_year1_pct"], got["erosion_decay_pct"]) == (0.3, 0.1)

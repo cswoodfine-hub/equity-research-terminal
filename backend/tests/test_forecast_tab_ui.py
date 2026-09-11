@@ -100,7 +100,7 @@ def _slider(app, name):
 def test_the_tab_renders_the_sliders_at_base_values(app):
     assert not app.exception
     assert _slider(app, "volume").value == 1.0
-    assert _slider(app, "wacc").value == pytest.approx(0.0985, abs=1e-4)
+    assert _slider(app, "wacc").value == pytest.approx(9.85, abs=1e-2)   # a percent
     assert _slider(app, "pos").value == pytest.approx(0.8075, abs=1e-4)
     body = " ".join(str(m.value) for m in app.markdown)
     assert "1,911.7" in body                # base valuation on the tiles

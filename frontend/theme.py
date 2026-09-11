@@ -1057,6 +1057,26 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .chart-mount a.slice:hover path {{ stroke: var(--text); stroke-width: 1.6; }}
 .chart-mount a.slice:hover text {{ fill: var(--text); }}
 
+/* The forecast workbench. A rule above the picker separates the product from the book
+   over it, since both are the same kind of block and the eye needs to be told where one
+   company ends and one product begins. */
+[data-testid="stElementContainer"]:has(.fc-bench) {{
+  border-top: 1px solid var(--rule-strong); margin-top: 1.1rem; padding-top: 0.4rem;
+}}
+/* The product's identity as chips beside the picker: how it is built, what it is, when
+   exclusivity ends. Facts rather than figures, so they take the form the section basis
+   uses, and the two the reader needs first are the brighter ones. */
+.fc-id {{ display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center;
+         padding-top: 0.5rem; }}
+.fc-id span {{ font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+              letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+              border: 1px solid var(--rule-strong); border-radius: var(--radius-small);
+              padding: 1px 6px; white-space: nowrap; }}
+.fc-id span.hot {{ color: var(--text); }}
+.fc-id span.warn {{ color: var(--flag); border-color: var(--flag); }}
+/* The reset sits on the sliders' baseline rather than on their labels'. */
+.fc-reset {{ height: 1.55rem; }}
+
 /* The forecast tab's own layers. A second tab strip directly under the first reads as
    a second navigation unless it is quieter than the one above it, so this one is
    smaller, spaced wider, upper-case like a section rule, and marks the selected layer

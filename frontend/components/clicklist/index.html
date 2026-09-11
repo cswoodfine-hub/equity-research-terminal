@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* An iframe inherits none of the host page's CSS, so colour, family and size are set
+     here or the text falls back to black on the dark panel and to the system serif. The
+     rows' own styling arrives with the render call, so this file knows nothing about
+     what a row looks like beyond the fact that it can be clicked. */
+  html, body {
+    margin: 0; padding: 0; background: transparent;
+    color: var(--text); font-family: var(--font-ui); font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  #l > * { cursor: pointer; }
+  #l > *:focus-visible { outline: 1px solid var(--muted); outline-offset: -1px; }
+</style>
+<style id="rows"></style>
+</head>
+<body>
+<div id="l"></div>
+<script>
+function post(type, extra) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type },
+                                          extra || {}), "*");
+}
+const Streamlit = {
+  ready() { post("streamlit:componentReady", { apiVersion: 1 }); },
+  height(h) { post("streamlit:setFrameHeight", { height: h }); },
+  value(v) { post("streamlit:setComponentValue", { value: v, dataType: "json" }); },
+};
+
+let wired = false;
+let fontsCopied = false;
+
+function copyFontFaces() {
+  // The host bundles its fonts as @font-face rules with base64 data: sources. A font
+  // loaded in the parent document is not available in this one, and the iframe is
+  // same-origin, so the rules are copied across rather than shipping the binaries
+  // twice. On any failure the CSS font stack falls back to the system sans.
+  if (fontsCopied) return;
+  fontsCopied = true;
+  try {
+    let faces = "";
+    const sheets = window.parent.document.styleSheets;
+    for (let i = 0; i < sheets.length; i++) {
+      let rules;
+      try { rules = sheets[i].cssRules; } catch (e) { continue; }
+      if (!rules) continue;
+      for (let j = 0; j < rules.length; j++) {
+        if (rules[j].type === 5 /* CSSRule.FONT_FACE_RULE */) {
+          faces += rules[j].cssText + "\n";
+        }
+      }
+    }
+    if (faces) {
+      const style = document.createElement("style");
+      style.textContent = faces;
+      document.head.appendChild(style);
+    }
+  } catch (e) { /* cross-origin or no access: the fallback stack stands */ }
+}
+
+function fit() {
+  const l = document.getElementById("l");
+  Streamlit.height(Math.ceil(l.getBoundingClientRect().height) + 4);
+}
+
+window.addEventListener("message", function (e) {
+  const d = e.data;
+  if (!d || d.type !== "streamlit:render") return;
+  const a = d.args || {};
+  const tk = a.tokens || {};
+  const root = document.documentElement;
+  // The host page's CSS variables do not cross into the iframe, so the tokens are
+  // passed in and set here. One source of truth stays in tokens.py.
+  Object.keys(tk).forEach(function (k) { root.style.setProperty("--" + k, tk[k]); });
+  copyFontFaces();
+  document.getElementById("rows").textContent = a.css || "";
+
+  const l = document.getElementById("l");
+  const rows = a.rows || [];
+  // Each row's html is the row element itself, built server-side from escaped values.
+  // Insert them in order, then tag each with its id by position.
+  l.innerHTML = rows.map(function (r) { return r.html; }).join("");
+  Array.prototype.forEach.call(l.children, function (row, i) {
+    const r = rows[i];
+    if (!r) return;
+    row.setAttribute("data-id", r.id);
+    row.setAttribute("tabindex", "0");
+    row.setAttribute("role", "button");
+    if (a.selected != null && r.id === a.selected) row.classList.add("sel");
+  });
+
+  requestAnimationFrame(fit);
+  // A <details> inside a row changes the height after the fact.
+  l.querySelectorAll("details").forEach(function (el) {
+    el.addEventListener("toggle", function () { requestAnimationFrame(fit); });
+  });
+
+  if (!wired) {
+    wired = true;
+    function fire(target) {
+      // A click on a fold's summary opens the fold; it does not pick a row.
+      if (target.closest("summary")) return;
+      const row = target.closest("[data-id]");
+      if (!row) return;
+      const id = parseInt(row.getAttribute("data-id"), 10);
+      if (!isNaN(id)) Streamlit.value({ id: id, nonce: Date.now() });
+    }
+    l.addEventListener("click", function (ev) { fire(ev.target); });
+    l.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); fire(ev.target); }
+    });
+  }
+});
+Streamlit.ready();
+</script>
+</body>
+</html>

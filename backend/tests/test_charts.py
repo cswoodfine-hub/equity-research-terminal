@@ -421,3 +421,42 @@ def test_stacked_columns_stacks_and_hatches():
     assert "url(#hatch" in svg                        # the placeholder band is hatched
     assert "<circle" in svg                           # the reported point is drawn
     assert "2026 B 5" in svg                          # the hover carries the figure
+
+
+def test_line_chart_draws_reported_years_as_dots_not_a_line():
+    """History beside a forecast is two kinds of number. The dots carry their own
+    label and hover, count toward the axis, and are never joined to each other."""
+    svg = charts.line_chart(
+        [{"name": "modelled", "values": [None, None, 8.0, 9.0], "colour": "#4C9A7A"}],
+        ["2024", "2025", "2026", "2027"],
+        points=[{"name": "reported", "values": [6.0, 7.0, None, None],
+                 "colour": "#E8EDEA"}])
+    assert svg.count('class="point"') == 2
+    assert "2024 reported 6.0" in svg
+    assert ">reported<" in svg
+    assert len(_polyline_points(svg)) == 1        # the forecast alone is a line
+
+
+def test_line_chart_marks_a_year_with_a_labelled_rule_and_shades_after_it():
+    svg = charts.line_chart(
+        [{"name": "r", "values": [1.0, 2.0, 3.0, 1.0, 0.5], "colour": "#4C9A7A"}],
+        ["2030", "2031", "2032", "2033", "2034"],
+        markers=[{"index": 2, "label": "LOE 2032"}], shade=(2, 4))
+    assert svg.count('class="marker"') == 1
+    assert ">LOE 2032<" in svg
+    assert svg.count('class="shade"') == 1
+    # A marker off the axis is dropped rather than drawn in the margin.
+    off = charts.line_chart(
+        [{"name": "r", "values": [1.0, 2.0], "colour": "#4C9A7A"}], ["a", "b"],
+        markers=[{"index": 9, "label": "x"}])
+    assert 'class="marker"' not in off
+
+
+def test_stacked_columns_legend_wraps_instead_of_overflowing():
+    series = [{"name": f"product number {i}", "values": [1.0, 2.0], "colour": "#4C9A7A"}
+              for i in range(8)]
+    svg = charts.stacked_columns(["a", "b"], series, 600, 300)
+    xs = [float(m) for m in re.findall(r'<rect x="([\d.]+)" y="4"', svg)]
+    second_row = re.findall(r'<rect x="[\d.]+" y="21"', svg)
+    assert xs and max(xs) < 600           # nothing placed past the right edge
+    assert second_row                     # and the overflow went to a second row

@@ -161,7 +161,8 @@ def sparkline(values: Sequence[Optional[float]], width: int = 140,
 # --- 2. line chart --------------------------------------------------------
 def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900,
                height: int = 300, y_fmt: Callable[[float], str] = None,
-               hover: bool = True, y_span=None) -> str:
+               hover: bool = True, y_span=None, markers: Sequence[dict] = (),
+               points: Sequence[dict] = (), shade=None, zero: bool = False) -> str:
     """Multi-series line. Each series: {name, values, colour, axis: left|right}.
 
     Series marked axis=right scale on their own zero-free domain; both ends are
@@ -173,6 +174,16 @@ def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900
     that redraws one line out of a known family: the forecast tab's scenarios share
     one frame, so switching bear to bull moves the line rather than the scale. Data
     outside the span still expands the domain, so nothing is ever clipped.
+
+    Three things a forecast path needs that a line alone does not carry. ``points``
+    are series drawn as dots with no line between them, {name, values, colour}: the
+    years a product actually reported, beside the years the model draws, which are two
+    kinds of number and are not joined. ``markers`` are vertical rules at an x index,
+    {index, label, colour?}: the year exclusivity ends. ``shade`` is (from_index,
+    to_index), a tint behind the plot for the years after it. All three share the left
+    axis, and the dots count toward its domain so a reported year is never clipped.
+    ``zero`` holds the left axis to zero: a revenue path has no negative years, and an
+    axis that pads below zero prints a figure nothing can take.
     """
     y_fmt = y_fmt or (lambda v: _fmt(v, 1))
     pad_l, pad_r, top, bottom = 54, 54, 12, 24
@@ -183,9 +194,10 @@ def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900
     left = [s for s in series if s.get("axis") != "right"]
     right = [s for s in series if s.get("axis") == "right"]
     left_values = [v for s in left for v in s["values"]]
+    left_values += [v for pt in points for v in pt["values"]]
     if y_span:
         left_values = left_values + [y_span[0], y_span[1]]
-    dom_l = _domain(left_values)
+    dom_l = _domain(left_values, zero=zero)
     dom_r = _domain([v for s in right for v in s["values"]])
     y_l = _scale(dom_l, (floor, top))
     y_r = _scale(dom_r, (floor, top))
@@ -195,11 +207,35 @@ def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900
            # behaves identically in the app, a gallery, or an exported tearsheet.
            "<style>.hoverband .tip{display:none}"
            ".hoverband:hover .tip{display:block}</style>"]
+    if shade and len(shade) == 2:
+        x0, x1 = sorted((x(max(0, shade[0])), x(min(n - 1, shade[1]))))
+        out.append(f'<rect x="{x0:.1f}" y="{top}" width="{max(x1 - x0, 0):.1f}"'
+                   f' height="{floor - top}" fill="{TK.RULE}" opacity="0.45"'
+                   ' class="shade"/>')
     # gridlines: three, quiet
     for frac in (0.0, 0.5, 1.0):
         gy = top + (floor - top) * frac
         out.append(f'<line x1="{pad_l}" y1="{gy:.1f}" x2="{pad_l + plot_w}"'
                    f' y2="{gy:.1f}" stroke="{TK.RULE}" stroke-width="1"/>')
+    for m in markers:
+        idx = m.get("index")
+        if idx is None or not (0 <= idx <= n - 1):
+            continue
+        mx, colour = x(idx), m.get("colour") or TK.MUTED
+        out.append(f'<line x1="{mx:.1f}" y1="{top}" x2="{mx:.1f}" y2="{floor}"'
+                   f' stroke="{colour}" stroke-width="1" stroke-dasharray="3,3"'
+                   ' class="marker"/>')
+        if m.get("label"):
+            out.append(_text(mx, top - 3, m["label"], 8.5, colour, "middle", MONO,
+                             "600"))
+    for pt in points:
+        for i, v in enumerate(pt["values"]):
+            if v is None or v != v:
+                continue
+            out.append(f'<circle cx="{x(i):.1f}" cy="{y_l(v):.1f}" r="3"'
+                       f' fill="{pt["colour"]}" class="point"><title>'
+                       f'{_esc(x_labels[i] if i < len(x_labels) else i)} '
+                       f'{_esc(pt["name"])} {_esc(y_fmt(v))}</title></circle>')
     # axis end labels
     out.append(_text(pad_l - 6, y_l(dom_l[1]) + 8, y_fmt(dom_l[1]), 9,
                      left[0]["colour"] if left else TK.MUTED, "end", MONO))
@@ -235,11 +271,18 @@ def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900
             out.append(_text(x(i), height - 8, x_labels[i], 9, TK.MUTED, "middle",
                              MONO))
 
+    for pt in points:
+        first_i, first_v = next(((i, v) for i, v in enumerate(pt["values"])
+                                 if v is not None), (None, None))
+        if first_v is not None:
+            out.append(_text(max(x(first_i) - 6, 2), y_l(first_v) + 3, pt["name"],
+                             9.5, pt["colour"], "end", UI, "600"))
+
     if hover:
         slot = plot_w / max(n - 1, 1)
         for i, lbl in enumerate(x_labels):
             vals = []
-            for s in series:
+            for s in list(series) + list(points):
                 v = s["values"][i] if i < len(s["values"]) else None
                 if v is not None:
                     vals.append(f"{s['name']} {y_fmt(v)}")
@@ -407,7 +450,7 @@ def stacked_columns(x_labels: Sequence[str], series: Sequence[dict],
     on a placeholder curve is drawn.
     """
     value_fmt = value_fmt or (lambda v: _fmt(v, 0))
-    pad_l, pad_r, top, bottom, legend_h = 58, 16, 12, 24, 22
+    pad_l, pad_r, top, bottom = 58, 16, 12, 24
     floor = height - bottom
     n = max(len(x_labels), 1)
     slot = (width - pad_l - pad_r) / n
@@ -416,18 +459,27 @@ def stacked_columns(x_labels: Sequence[str], series: Sequence[dict],
               for i in range(n)]
     ref_vals = (reference or {}).get("values") or []
     dom = _domain(totals + [v for v in ref_vals if v is not None], zero=True)
-    y = _scale(dom, (floor, top + legend_h))
     hid = _uid("hatch")
+
+    # The legend wraps. Laid out first, because the plot starts under it and a legend
+    # of nine bands needs two rows at this width, not one row running off the edge.
+    entries = list(series) + ([reference] if reference else [])
+    placed, lx, row = [], pad_l, 0
+    for s in entries:
+        w = 15 + 6.6 * len(str(s["name"])) + 18
+        if lx + w > width - pad_r and lx > pad_l:
+            lx, row = pad_l, row + 1
+        placed.append((s, lx, 13 + 17 * row))
+        lx += w
+    legend_h = 22 + 17 * row
+    y = _scale(dom, (floor, top + legend_h))
 
     out = [_svg_open(width, height, "stacked columns"),
            f"<defs>{_hatch(hid)}</defs>"]
-    # legend
-    lx, ly = pad_l, 13
-    for s in list(series) + ([reference] if reference else []):
+    for s, lx, ly in placed:
         out.append(f'<rect x="{lx}" y="{ly - 9}" width="11" height="11"'
                    f' fill="{s["colour"]}" opacity="{0.9 if s is not reference else 1}"/>')
         out.append(_text(lx + 15, ly, s["name"], 10.5, TK.TEXT, family=UI))
-        lx += 15 + 6.6 * len(str(s["name"])) + 18
     for frac in (0.0, 0.5, 1.0):
         gy = top + legend_h + (floor - top - legend_h) * frac
         out.append(f'<line x1="{pad_l}" y1="{gy:.1f}" x2="{width - pad_r}"'

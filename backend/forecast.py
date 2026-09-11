@@ -678,6 +678,9 @@ def build(inputs: dict) -> dict:
         # from data/curve_defaults.csv rather than the asset. None where no curve is built.
         "curve_basis": curve_basis,
         "loe_year": loe_year, "loe_basis": loe_basis, "erosion_basis": erosion_basis,
+        # The erosion pair and the net price in force, stated or defaulted, so a control
+        # that moves them can start from where they are rather than from a guess.
+        "erosion_year1_pct": year1, "erosion_decay_pct": decay, "net_price": price,
         "pv_fcff": sum(pvs), "terminal_value": tv, "terminal_pv": tv_pv,
         "npv": npv, "rnpv": rnpv,
         "owner_rnpv": rnpv * share if share is not None else None,

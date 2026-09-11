@@ -105,7 +105,11 @@ def asset_forecast(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         actuals = [{"fiscal_year": a["fiscal_year"], "value": a["value"]}
                    for a in inputs.get("actuals") or []
                    if a.get("period") == "FY" and a.get("value") is not None]
-        return {**base, "ok": True, "result": result, "actuals": actuals}
+        # The scalars the engine actually ran on, base and scenario merged, so a control
+        # that moves one starts from the value in force rather than from a scenario's
+        # partial restatement of it.
+        return {**base, "ok": True, "result": result, "actuals": actuals,
+                "scalars": inputs.get("scalars") or {}}
     finally:
         conn.close()
 
@@ -264,9 +268,13 @@ def sensitivity(db_path, ticker: str, asset_id: int, scenario: str = "base",
     else:
         rate = built["wacc"]
         price = forecast.net_price(inputs["scalars"])
-        xs = [round(rate + step, 4) for step in (-0.02, -0.01, 0.0, 0.01, 0.02)]
+        # The centre of each axis is the live value itself, unrounded, so the middle
+        # cell is the model's own figure and can be marked as such.
+        xs = [rate if step == 0 else round(rate + step, 4)
+              for step in (-0.02, -0.01, 0.0, 0.01, 0.02)]
         if price is not None:
-            ys = [round(price * f, 3) for f in (0.78, 0.89, 1.0, 1.11, 1.22)]
+            ys = [price if f == 1.0 else round(price * f, 3)
+                  for f in (0.78, 0.89, 1.0, 1.11, 1.22)]
             grid = forecast.sensitivity(inputs, "wacc", xs,
                                         "net_price_per_patient", ys)
             bases = {"x": built["wacc_basis"], "y": "net price per patient"}
@@ -276,7 +284,8 @@ def sensitivity(db_path, ticker: str, asset_id: int, scenario: str = "base",
             # rate. What it has is a growth rate, and the workbook's price axis is
             # standing in for the same question: how much revenue there is to discount.
             growth = inputs["scalars"].get("revenue_growth_pct") or 0.0
-            ys = [round(growth + step, 4) for step in (-0.06, -0.03, 0.0, 0.03, 0.06)]
+            ys = [growth if step == 0 else round(growth + step, 4)
+                  for step in (-0.06, -0.03, 0.0, 0.03, 0.06)]
             grid = forecast.sensitivity(inputs, "wacc", xs,
                                         "revenue_growth_pct", ys)
             bases = {"x": built["wacc_basis"],
