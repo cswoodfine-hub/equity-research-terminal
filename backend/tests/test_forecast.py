@@ -1104,3 +1104,46 @@ def test_a_launch_window_runs_through_its_loe_and_the_erosion_after_it():
     inputs["is_marketed"] = True
     inputs["loe"] = {"year": start + 12, "basis": "patent"}
     assert F.build(inputs)["dcf_years"][-1] == start + 9
+
+
+def test_a_dateless_past_loss_is_in_the_base_and_takes_no_default():
+    inputs = casgevy_inputs()
+    inputs["loe"] = {"year": None, "basis": "lapsed", "in_base": True}
+    inputs["is_marketed"] = False
+    inputs["loe_defaults"] = {"unknown": {"years_from_launch": 12, "source": "s"}}
+    got = F.build(inputs)
+    assert got["loe_in_base"] is True and got["loe_year"] is None
+    assert got["revenue_after_loe"] == got["revenue"]
+
+
+def test_erosion_falls_back_when_no_modality_is_on_file():
+    """Gardasil had an LOE inside the window and no modality, and ran flat through it."""
+    inputs = casgevy_inputs()
+    inputs["modality"] = None
+    inputs["erosion_defaults"] = {"unknown": {"year1_pct": 0.25, "decay_pct": 0.2,
+                                              "source": "s"}}
+    first = inputs["scalars"]["forecast_start_year"]
+    inputs["loe"] = {"year": int(first) + 1, "basis": "patent"}
+    got = F.build(inputs)
+    assert got["erosion_year1_pct"] == 0.25
+    assert "modality not on file" in got["erosion_basis"]
+    assert got["revenue_after_loe"][-1] < got["revenue"][-1]
+
+
+def test_the_sum_buckets_on_approval_and_bounds_the_dividend(tmp_path):
+    import db
+    import forecast_view as V
+    path = _sotp_db(tmp_path)
+    conn = db.get_connection(path)
+    # The patient-built asset is approved: it belongs with the marketed book.
+    conn.execute("UPDATE assets SET is_marketed = 1 WHERE id = 2")
+    # A dividend nine years old is not taken off.
+    conn.execute("UPDATE financials SET fiscal_year = 2016 WHERE metric = 'DividendsPaid'")
+    conn.commit(); conn.close()
+    v = V.company_verdict(path, "TST")
+    s = v["sotp"]
+    assert s["marketed"]["n"] == 2 and s["pipeline"]["n"] == 0
+    assert s["dps"] is None
+    assert any(m.startswith("dividend") for m in s["missing"])
+    # The growth base is the modelled book's own revenue, not the company total.
+    assert "last_modelled" in s and s["last_modelled"] is None   # no product rows seeded

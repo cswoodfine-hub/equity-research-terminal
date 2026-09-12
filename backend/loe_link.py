@@ -63,8 +63,10 @@ def load(conn, path=None) -> dict:
                 WHERE c.ticker = ? AND LOWER(TRIM(COALESCE(a.brand_name, a.generic_name)))
                       = LOWER(?) LIMIT 1""", (ticker, name)).fetchone()
         if found:
+            flag = (row.get("reference_product") or "").strip()
             out[found["id"]] = {"code": _code(appl), "application_number": appl,
-                                "note": (row.get("note") or "").strip()}
+                                "note": (row.get("note") or "").strip(),
+                                "reference_product": False if flag == "0" else None}
     return out
 
 
@@ -172,10 +174,8 @@ def sync_approvals(conn, fetch=fetch_openfda, links=None) -> dict:
             (asset_id, found["approval_date"],
              f"original approval, {found.get('sponsor') or 'sponsor not stated'}",
              found["application_number"], LINK_SOURCE))
-        # The application type says what the product is, where nothing on file does.
-        modality = ("biologic" if found["application_number"].upper().startswith("BLA")
-                    else "small molecule")
-        conn.execute("UPDATE assets SET modality = COALESCE(modality, ?) WHERE id = ?",
-                     (modality, asset_id))
+        # No modality is written from the application type. A BLA number covers
+        # biosimilars and the insulins deemed BLAs in 2020, and calling those biologics
+        # handed them a twelve-year floor the statute denies them.
         written += 1
     return {"written": written, "skipped": skipped, "unknown": unknown}

@@ -15,7 +15,11 @@
 # exclusivity runs latest, and says so.
 #
 # Application numbers and sponsors were checked against openFDA drugsfda on 2026-09-11.
-ticker,asset,application_number,note
+#
+# reference_product is 0 for a biosimilar or an insulin deemed a BLA in March 2020:
+# neither is a reference product, so no date resting on the BPCIA twelve years is read
+# for it. Blank means no claim either way.
+ticker,asset,application_number,note,reference_product
 NVO,Rybelsus,NDA213051,"oral semaglutide; openFDA lists the NDA under Novo and the approvals feed folded it into Ozempic, whose curated compound patent (8129343, 2031-12-05) is the same molecule"
 SNY,Dupixent,BLA761055,"Regeneron's BLA; Sanofi books the global sales"
 PFE,Eliquis,NDA202155,"Bristol-Myers Squibb's NDA; Pfizer books its share of the alliance"
@@ -27,8 +31,8 @@ AZN,Tezspire,BLA761224,"the BLA is Amgen's (BLA761224 under AstraZeneca AB in op
 AZN,Beyfortus,BLA761328,"AstraZeneca AB's BLA, approved 2023-07-17, booked by AstraZeneca and marketed by Sanofi"
 AZN,Synagis,BLA103770,"BLA now Sobi's; AstraZeneca books ex-US"
 AZN,Zoladex,NDA019726,"TerSera holds the US NDA; AstraZeneca books ex-US. Approved 1989, no live patent"
-NVO,Xultophy,BLA208583,"the same application as the Xultophy 100/3.6 asset"
-NVO,Fiasp,BLA208751,"the same application as the Fiasp Penfill asset"
+NVO,Xultophy,BLA208583,"the same application as the Xultophy 100/3.6 asset",0
+NVO,Fiasp,BLA208751,"the same application as the Fiasp Penfill asset",0
 JNJ,Invega Sustenna / Xeplion / Trinza / Trevicta,NDA022264,"the family line reads Invega Sustenna's NDA, the member whose exclusivity runs latest on file"
 JNJ,IMBRUVICA,NDA205552,"Pharmacyclics's original capsule NDA, approved 2013-11-13; the asset carries the tablet NDA217003"
 JNJ,OPSUMIT,NDA204410,"Actelion's NDA, approved 2013-10-18"
@@ -49,7 +53,7 @@ PFE,Nurtec ODT / Vydura,NDA212728,"the same application as the Nurtec Odt asset"
 PFE,Prevnar / Prevenar family,BLA125731,"the family line reads Prevnar 20's BLA, the member whose exclusivity runs latest"
 PFE,Comirnaty,BLA125742,"BioNTech's BLA, approved 2021-08-23; the asset already carries the code and the applicant is not mapped"
 PFE,Genotropin,BLA020280,"Pharmacia's application, approved 1995-08-24, held on the Genotropin Preservative Free asset"
-PFE,Inflectra / Remsima,BLA125544,"Celltrion's BLA, approved 2016-04-05; a biosimilar, so the floor is not reference-product exclusivity"
+PFE,Inflectra / Remsima,BLA125544,"Celltrion's BLA, approved 2016-04-05; a biosimilar, so the floor is not reference-product exclusivity",0
 PFE,Cresemba,NDA207500,"Astellas's NDA, approved 2015-03-06"
 PFE,Orgovyx,NDA214621,"Sumitomo Pharma's NDA, approved 2020-12-18; Pfizer co-promotes"
 MRK,Lynparza,NDA206162,"AstraZeneca's NDA; Merck books its share of the alliance. The asset on file carries the compound patent chain"
@@ -79,13 +83,13 @@ INCY,Minjuvi / Monjuvi,BLA761163,"tafasitamab; Monjuvi's BLA, held on the Monjuv
 AZN,Flumist,BLA125020,"MedImmune's BLA, held on the Flumist Quad asset"
 PFE,FSME-IMMUN / TicoVac,BLA125740,"TicoVac's BLA, licensed 2021-08-13, held on the Ticovac asset"
 MRK,ProQuad / M-M-R II / Varivax,BLA125108,"the family line reads ProQuad's BLA, the member licensed latest (2005)"
-NVO,Novo Rapid And Novo Log,BLA020986,"insulin aspart; NovoLog's application, held on the Novolog asset"
-NVO,Novo Mix And Novo Log Mix,BLA021172,"insulin aspart mixes; NovoLog Mix 70/30's application"
-NVO,Human Insulin,BLA019938,"Novolin R's application, 1991; no exclusivity remains on human insulin"
+NVO,Novo Rapid And Novo Log,BLA020986,"insulin aspart; NovoLog's application, held on the Novolog asset",0
+NVO,Novo Mix And Novo Log Mix,BLA021172,"insulin aspart mixes; NovoLog Mix 70/30's application",0
+NVO,Human Insulin,BLA019938,"Novolin R's application, 1991; no exclusivity remains on human insulin",0
 NVO,Novo Seven,BLA103665,"NovoSeven's BLA, licensed 1999"
 NVO,Haemophilia A,BLA125671,"the line reads Esperoct's BLA, the member licensed latest (2019); NovoEight's runs to 2025"
 NVO,Haemophilia B,BLA125611,"Rebinyn's BLA, licensed 2017"
-NVO,Ryzodeg,BLA203314,"degludec and aspart; the degludec exclusivity is Tresiba's, licensed the same day"
+NVO,Ryzodeg,BLA203314,"degludec and aspart; the degludec exclusivity is Tresiba's, licensed the same day",0
 JNJ,CONCERTAMethylphenidate,NDA021121,"Concerta's NDA, approved 2000; the Orange Book lists nothing live"
 AZN,Seloken,NDA019962,"metoprolol succinate is Toprol-XL in the US, an NDA AstraZeneca no longer holds; nothing live is listed"
 JNJ,Prezista / Prezcobix / Rezolsta / Symtuza,NDA202895,"Prezista's later NDA, the one the asset on file carries; the original NDA021976 is folded into it"

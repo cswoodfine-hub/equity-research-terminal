@@ -239,10 +239,23 @@ def record_listing(conn, product: dict, asset_id: int) -> None:
                (asset_id, appl_code, approval_date, applicant, live_rows, fetched_at)
            VALUES (?, ?, ?, ?, ?, datetime('now'))
            ON CONFLICT(asset_id) DO UPDATE SET appl_code = excluded.appl_code,
-               approval_date = excluded.approval_date, applicant = excluded.applicant,
-               live_rows = excluded.live_rows, fetched_at = datetime('now')""",
+               approval_date = MIN(COALESCE(orange_book_listings.approval_date, '9999'),
+                                   COALESCE(excluded.approval_date, '9999')),
+               applicant = excluded.applicant,
+               live_rows = orange_book_listings.live_rows + excluded.live_rows,
+               fetched_at = datetime('now')""",
         (asset_id, product.get("internal_code"), product.get("approval_date"),
          product.get("applicant"), len(product.get("exclusivities") or [])))
+
+
+def clear_direct(conn, rows: list, source: str) -> None:
+    """Clear this source's rows once per targeted asset, before any product attaches.
+    An asset can be the target of two applications (Xtandi's capsule and tablet NDAs);
+    clearing per product kept only the last one's patents."""
+    targets = sorted({aid for p in rows for aid in (p.get("asset_ids") or [])})
+    for aid in targets:
+        conn.execute("DELETE FROM exclusivities WHERE asset_id = ? AND source = ?",
+                     (aid, source))
 
 
 def attach_direct(conn, product: dict, source: str, with_kind: bool) -> int:
@@ -253,8 +266,6 @@ def attach_direct(conn, product: dict, source: str, with_kind: bool) -> int:
     for asset_id in product.get("asset_ids") or []:
         if source == OB_SOURCE:
             record_listing(conn, product, asset_id)
-        conn.execute("DELETE FROM exclusivities WHERE asset_id = ? AND source = ?",
-                     (asset_id, source))
         conn.execute("UPDATE assets SET modality = COALESCE(modality, ?) WHERE id = ?",
                      (product.get("modality"), asset_id))
         for excl in product["exclusivities"]:
@@ -352,6 +363,10 @@ class OrangeBookFetcher(BaseFetcher):
             companies = {r["ticker"]: r["id"] for r in conn.execute(
                 "SELECT ticker, id FROM companies")}
             written = 0
+            # The listings are rebuilt from the full book each run, and accumulate across
+            # the applications one asset holds within it.
+            conn.execute("DELETE FROM orange_book_listings")
+            clear_direct(conn, rows, OB_SOURCE)
             for product in rows:
                 if product.get("asset_ids"):
                     written += attach_direct(conn, product, OB_SOURCE, with_kind=True)

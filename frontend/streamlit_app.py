@@ -332,6 +332,8 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
     # than printing a range that reads as protection the product still has.
     if loe.get("loe_past") and loe.get("loe_year"):
         loe_txt = f'lapsed {loe["loe_year"]}'
+    elif loe.get("loe_past"):
+        loe_txt = "lapsed"
     # The later patents sit beside the date rather than inside it. A method-of-use patent
     # covers one indication and a generic carves it out of the label; a second molecule
     # patent claims a salt or a form. Neither holds the market once the molecule is open,
@@ -1493,7 +1495,7 @@ def _book_row(m: dict, top_ps: float, selected) -> str:
     bar takes the pipeline colour and its qualifier is the PoS it was cut by; a marketed
     product's is the year exclusivity ends. An asset on a placeholder curve is hatched
     and its figure muted, because it is drawn and not counted."""
-    pipe = m.get("mode") not in ("marketed", "franchise")
+    pipe = not m.get("is_marketed")
     counted = m.get("counted", True)
     ps = m.get("per_share")
     width = (max(ps, 0.0) / top_ps * 100.0) if (top_ps and ps) else 0.0
@@ -1504,7 +1506,8 @@ def _book_row(m: dict, top_ps: float, selected) -> str:
     elif pipe:
         meta = f"PoS {m['pos']:.0%}" if m.get("pos") is not None else "pipeline"
     else:
-        meta = f"LOE {m['loe_year']}" if m.get("loe_year") else "no LOE"
+        meta = (f"LOE {m['loe_year']}" if m.get("loe_year")
+                else "lapsed" if m.get("loe_in_base") else "no LOE")
     return (f'<div class="{classes}" data-id="{m.get("asset_id")}">'
             f'<span class="bk-n">{html_escape(m.get("name") or "")}</span>'
             f'<span class="bk-bar"><i style="width:{width:.0f}%"></i></span>'
@@ -1523,9 +1526,8 @@ def _value_book(v: dict, ticker: str, selected):
     # Two groups, because the sum of the parts is two sums: the marketed book at its
     # NPV, and the pipeline after each asset's probability. A heading over each says
     # what the group adds up to, so "is the pipeline in it" is answered by the list.
-    groups = [("marketed", [m for m in modelled if m.get("mode") in ("marketed", "franchise")]),
-              ("pipeline, after PoS",
-               [m for m in modelled if m.get("mode") not in ("marketed", "franchise")])]
+    groups = [("approved", [m for m in modelled if m.get("is_marketed")]),
+              ("pipeline, after PoS", [m for m in modelled if not m.get("is_marketed")])]
     for label, members in groups:
         if not members:
             continue
@@ -1711,7 +1713,7 @@ def _revenue_split(s: dict) -> None:
     last = s.get("last_reported")
     if not path:
         return
-    section("Revenue by year", basis="mm · marketed, pipeline, lines")
+    section("Revenue by year", basis="mm · the modelled book")
     years = ([f"FY{last['fiscal_year']}A"] if last else []) + [f"FY{r['year']}E" for r in path]
     has_lines = any(r.get("lines") for r in path)
     has_pipe = any(r.get("pipeline") for r in path)
@@ -1721,16 +1723,22 @@ def _revenue_split(s: dict) -> None:
         rows.append(("pipeline, after PoS", [None] + [r["pipeline_risked"] for r in path]))
     if has_lines:
         rows.append(("lines", [None] + [r["lines"] for r in path]))
-    rows.append(("total, risked", ([last["value"]] if last else [])
+    base = s.get("last_modelled")
+    rows.append(("total, risked", ([base] if last else [])
                  + [r["total_risked"] for r in path]))
     if not last:
         rows = [(k, v[1:]) for k, v in rows]
     growth = []
-    prev = last["value"] if last else None
+    # Growth runs on the modelled book against its own reported revenue. Measured
+    # against the whole company's total, a book covering 68% of Sanofi read as a 21.5%
+    # fall; the company total sits in its own row so the gap stays visible.
+    prev = base
     for r in path:
         growth.append((r["total_risked"] / prev - 1.0) if prev else None)
         prev = r["total_risked"]
     rows.append(("growth", ([None] if last else []) + growth))
+    if last:
+        rows.append(("reported, whole company", [last["value"]] + [None] * len(path)))
 
     def cell(value, pct=False):
         if value is None:
@@ -1883,6 +1891,9 @@ def _identity(data: dict, result: dict) -> str:
     if result.get("loe_year"):
         chips.append(f'<span class="hot">LOE {result["loe_year"]} · '
                      f'{html_escape(_short(result.get("loe_basis"), 36))}</span>')
+    elif result.get("loe_in_base"):
+        chips.append(f'<span class="hot">LOE past · '
+                     f'{html_escape(_short(result.get("loe_basis"), 36))}</span>')
     else:
         chips.append('<span>no LOE on file</span>')
     years = result.get("dcf_years") or result.get("years") or []
@@ -1924,7 +1935,8 @@ def _lever_controls(ticker: str, sel: int, result: dict, scalars: dict) -> dict:
     if mode in ("marketed", "franchise"):
         growth = scalars.get("revenue_growth_pct")
         fade = scalars.get("terminal_growth_pct")
-        loe = result.get("loe_year")
+        # A loss already in the base cannot erode again, so neither slider could move it.
+        loe = None if result.get("loe_in_base") else result.get("loe_year")
         year1 = result.get("erosion_year1_pct")
         cols = st.columns([1, 1, 1, 1, 1, 0.5])
         slot = 0
@@ -2528,9 +2540,10 @@ def _render_forecast_tab(api_base: str, ticker: str):
     except (urllib.error.URLError, OSError) as exc:
         state("Forecast unavailable", f"the API did not answer: {exc}", error=True)
         return
-    options = [(a["asset_id"], a["name"], a["assumption_rows"])
+    options = [(a["asset_id"], a["name"] or f"Unnamed asset {a['asset_id']}",
+                a["assumption_rows"])
                for a in overview.get("pickable") or []]
-    options += [(a["asset_id"], f"{a['name']} (via {a['owner']})",
+    options += [(a["asset_id"], f"{a['name'] or 'Unnamed asset'} (via {a['owner']})",
                  a["assumption_rows"])
                 for a in overview.get("partnered") or []]
     if not options:
@@ -2692,9 +2705,11 @@ def _render_forecast_tab(api_base: str, ticker: str):
         loe_shown = shown.get("loe_year") if varied else result.get("loe_year")
         # "none" rather than a dash: the tiles read a dash as data that is missing,
         # and an asset with no exclusivity on file is a fact, not a gap in a source.
-        tiles.append(("LOE", str(loe_shown) if loe_shown else "none", "", None, "",
+        tiles.append(("LOE", str(loe_shown) if loe_shown
+                      else "past" if result.get("loe_in_base") else "none", "", None, "",
                       "slider" if "loe_year" in moved and varied
                       else clause(result.get("loe_basis")) if loe_shown
+                      else "date not on file" if result.get("loe_in_base")
                       else "no exclusivity on file"))
         st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
         if unsourced:

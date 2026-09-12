@@ -50,7 +50,8 @@ def body(v: dict) -> list[str]:
     """The paragraphs under the headline, each one a fact the engine produced."""
     out = []
 
-    if v.get("mode") in ("marketed", "franchise") and not v.get("loe_year"):
+    if v.get("mode") in ("marketed", "franchise") and not v.get("loe_year") \
+            and not v.get("loe_in_base"):
         out.append(
             "No exclusivity is on file for this product, so nothing erodes and the "
             "revenue runs to the horizon and into the terminal value. For a marketed "
@@ -228,7 +229,7 @@ def _sotp_headline(v: dict) -> str | None:
         parts.append(f"{m['n']} marketed product{'s' if m['n'] != 1 else ''} "
                      f"{_per_share(m['per_share'])}")
     if p.get("n"):
-        parts.append(f"{p['n']} pipeline asset{'s' if p['n'] != 1 else ''} "
+        parts.append(f"{p['n']} unapproved asset{'s' if p['n'] != 1 else ''} "
                      f"{_per_share(p['per_share'])} after probability")
     if lines.get("n"):
         parts.append(f"{lines['n']} line{'s' if lines['n'] != 1 else ''} no asset "
@@ -250,8 +251,9 @@ def _sotp_body(v: dict) -> list[str]:
         out.append(
             f"The pipeline is in the sum at its risk-adjusted value: "
             f"{_per_share(p['per_share_unrisked'])} a share before each asset's "
-            f"probability of success, {_per_share(p['per_share'])} after it. A marketed "
-            f"product carries a probability of one, so its figure is its NPV.")
+            f"probability of success, {_per_share(p['per_share'])} after it. An approved "
+            f"product is counted at its own risk-adjusted value, which is its NPV unless "
+            f"durability or reimbursement factors are on file.")
     if s.get("forward_12m") is not None and s.get("cost_of_equity") is not None:
         line = (f"The twelve-month figure rolls today's value forward at a "
                 f"{s['cost_of_equity']:.1%} cost of equity")

@@ -440,6 +440,20 @@ def terminal_value(last_fcff: float, growth: float, rate: float,
 
 # --- the whole build --------------------------------------------------------
 
+def erosion_default(inputs: dict):
+    """(default row, what it was chosen for) from the curated erosion file: the
+    modality's row, or the "unknown" row where no modality is on file. A product with
+    an LOE inside the window and no modality eroded at nothing, so Gardasil ran flat
+    through its own cliff."""
+    defaults = inputs.get("erosion_defaults") or {}
+    modality = inputs.get("modality")
+    if modality and defaults.get(modality):
+        return defaults[modality], modality
+    if defaults.get("unknown"):
+        return defaults["unknown"], "modality not on file"
+    return None, None
+
+
 def build(inputs: dict) -> dict:
     """Assumptions in, forecast out. Raises ForecastError when a required key is absent.
 
@@ -629,7 +643,8 @@ def build(inputs: dict) -> dict:
     # ends. The default is the statute for a biologic and the Hatch-Waxman cap for a
     # small molecule, counted from the launch year, and it is labelled as a default
     # wherever it is read so an analyst can replace it with the patent when known.
-    if loe_year is None and inputs.get("is_marketed") is False:
+    known_past = bool(loe.get("in_base")) and loe_year is None
+    if loe_year is None and not known_past and inputs.get("is_marketed") is False:
         defaults = inputs.get("loe_defaults") or {}
         default = defaults.get(inputs.get("modality") or "") or defaults.get("unknown")
         if default and default.get("years_from_launch"):
@@ -642,12 +657,12 @@ def build(inputs: dict) -> dict:
     year1 = scalars.get("erosion_year1_pct")
     decay = scalars.get("erosion_decay_pct")
     erosion_basis = "stated" if year1 is not None else None
-    if year1 is None and inputs.get("modality") and inputs.get("erosion_defaults"):
-        default = inputs["erosion_defaults"].get(inputs["modality"])
+    if year1 is None:
+        default, which = erosion_default(inputs)
         if default:
-            year1, decay = default["year1_pct"], default["decay_pct"]
-            erosion_basis = (f"curated default ({inputs['modality']}), "
-                            f"{default['source']}")
+            year1 = default["year1_pct"]
+            decay = decay if decay is not None else default["decay_pct"]
+            erosion_basis = f"curated default ({which}), {default['source']}"
     if loe_year is not None:
         loe_year = int(loe_year)
     # An LOE whose cliff year is already behind the first forecast year is in the base:
@@ -655,11 +670,11 @@ def build(inputs: dict) -> dict:
     # rate read off the filing already carries the decline. Eroding it again compounded
     # the decay from year one on Cerezyme, off patent since 2006, and halved it in four
     # years. The year-one drop still lands where the cliff falls inside the window.
-    in_base = loe_year is not None and loe_year + 1 < years[0]
+    in_base = known_past or (loe_year is not None and loe_year + 1 < years[0])
     if in_base:
         eroded = list(revenue)
         erosion_basis = None
-        notes.append(f"LOE {loe_year} ({loe_basis}) is in the base: the reported "
+        notes.append(f"LOE {loe_year or 'already past'} ({loe_basis}) is in the base: the reported "
                      "revenue already reflects it and the growth rate carries the "
                      "trend, so no erosion is applied again")
     else:

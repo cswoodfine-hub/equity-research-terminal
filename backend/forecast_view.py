@@ -377,8 +377,7 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
             # The default pair travels together. Overriding only the first year would
             # leave the decay at nothing, and a cliff with no slope after it is not
             # what any erosion evidence describes.
-            default = (inputs.get("erosion_defaults") or {}).get(
-                inputs.get("modality") or "")
+            default = forecast.erosion_default(inputs)[0]
             if default:
                 scalars["erosion_decay_pct"] = default["decay_pct"]
     try:
@@ -614,6 +613,16 @@ def resolve_catalyst(db_path, ticker: str, catalyst_id: int, outcome: str):
             "state": saved["state"] if saved else None}
 
 
+def _is_marketed(db_path, asset_id: int) -> bool:
+    conn = db.get_connection(db_path)
+    try:
+        row = conn.execute("SELECT is_marketed FROM assets WHERE id = ?",
+                           (asset_id,)).fetchone()
+        return bool(row and row["is_marketed"])
+    finally:
+        conn.close()
+
+
 def company_rollup(db_path, ticker: str):
     """Every forecast this company has economics in, summed against reported revenue.
 
@@ -679,7 +688,9 @@ def company_rollup(db_path, ticker: str):
                       "rnpv_share": result["rnpv"] * share,
                       "npv_share": result["npv"] * share, "counted": counted,
                       "mode": result.get("mode"), "pos": result.get("pos"),
+                      "is_marketed": _is_marketed(db_path, asset_id),
                       "loe_year": result.get("loe_year"),
+                      "loe_in_base": result.get("loe_in_base"),
                       "peak_revenue": peak,
                       "peak_year": (result["years"][revenue.index(peak)]
                                     if peak is not None else None),
@@ -765,8 +776,9 @@ def _levers(inputs, built):
     fifth = "a fifth either way"
     levers = [("discount rate", "wacc", built["wacc"], "rate", fifth)]
     if mode in ("marketed", "franchise"):
-        loe_year = built.get("loe_year")
-        default = (inputs.get("erosion_defaults") or {}).get(inputs.get("modality") or "")
+        # A loss already in the base does not erode again, so neither lever can move it.
+        loe_year = None if built.get("loe_in_base") else built.get("loe_year")
+        default = forecast.erosion_default(inputs)[0]
         year1 = scalars.get("erosion_year1_pct")
         if year1 is None and default:
             year1 = default["year1_pct"]
@@ -776,7 +788,8 @@ def _levers(inputs, built):
             ("long-run growth", "terminal_growth_pct",
              scalars.get("terminal_growth_pct"), "rate", fifth),
             ("LOE year", "loe_year", loe_year, "year", "two years either way"),
-            ("year-one erosion", "erosion_year1_pct", year1, "rate", fifth),
+            ("year-one erosion", "erosion_year1_pct", year1 if loe_year else None,
+             "rate", fifth),
         ]
         if built["pos"] is not None and built["pos"] < 1.0:
             levers.append(("probability of success", "pos", built["pos"], "rate", fifth))
@@ -906,6 +919,7 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         "wacc": built["wacc"], "wacc_basis": built.get("wacc_basis"),
         "pos": built["pos"], "pos_basis": built.get("pos_basis"),
         "loe_year": built.get("loe_year"), "loe_basis": built.get("loe_basis"),
+        "loe_in_base": built.get("loe_in_base"),
         "spread": spread, "has_range": has_range,
         "levers": _levers(inputs, built),
         "next_catalyst": catalyst,
@@ -1074,10 +1088,19 @@ def _balance_sheet(conn, db_path, ticker: str, company_id: int):
 def _dividends(conn, company_id: int):
     """The last full year's dividends paid, in millions, and the year. Filers sign the
     outflow both ways, so the magnitude is taken."""
+    # Only a dividend from the last completed year or the one before counts. GSK's only
+    # row is FY2017, paid by a group that still held Haleon, and taking it off a 2026
+    # value made the twelve-month figure fall.
+    latest = conn.execute(
+        """SELECT MAX(fiscal_year) FROM financials WHERE company_id = ?
+            AND metric = 'Revenues' AND period_type = 'FY'""", (company_id,)).fetchone()[0]
+    if not latest:
+        return None, None
     row = conn.execute(
         """SELECT value, fiscal_year FROM financials WHERE company_id = ?
             AND metric = 'DividendsPaid' AND period_type = 'FY' AND value IS NOT NULL
-            ORDER BY fiscal_year DESC LIMIT 1""", (company_id,)).fetchone()
+            AND fiscal_year >= ? ORDER BY fiscal_year DESC LIMIT 1""",
+        (company_id, latest - 1)).fetchone()
     if not row or not row["value"]:
         return None, None
     return abs(row["value"]) / 1e6, row["fiscal_year"]
@@ -1103,8 +1126,10 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
         return (mm * 1e6 / shares) if (shares and mm is not None) else None
 
     counted = [l for l in lines if l.get("counted", True)]
-    marketed = [l for l in counted if l.get("mode") in ANCHORED]
-    pipeline = [l for l in counted if l.get("mode") not in ANCHORED]
+    # Approved against not yet approved, not how revenue is built: Casgevy is on sale
+    # and patient-built, and its 81% is durability and reimbursement, not approval.
+    marketed = [l for l in counted if l.get("is_marketed")]
+    pipeline = [l for l in counted if not l.get("is_marketed")]
     m_rnpv = sum(l["rnpv_share"] for l in marketed)
     p_rnpv = sum(l["rnpv_share"] for l in pipeline)
     p_npv = sum(l.get("npv_share") or 0.0 for l in pipeline)
@@ -1174,6 +1199,12 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
         "revenue_path": path,
         "last_reported": ({"fiscal_year": last["fiscal_year"], "value": last["value"]}
                           if last else None),
+        # The modelled book's own revenue in the reported year, the like-for-like base
+        # for a growth rate. Dividing the modelled forecast by the whole company's total
+        # showed Sanofi falling 21.5% when the book it models grows 15%.
+        "last_modelled": ((((coverage or {}).get("modelled_revenue") or 0.0)
+                           + ((coverage or {}).get("stream_revenue") or 0.0)) / 1e6
+                          if (coverage or {}).get("fiscal_year") else None),
         "not_valued": not_valued,
         "missing": [what for what, ok in (
             ("net cash: no balance sheet on file" if cash is None else
@@ -1181,6 +1212,8 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
              "at enterprise value", net_cash is not None),
             ("diluted shares: no share count on file", bool(shares)),
             ("cost of equity: no CAPM components on file", ke is not None),
+            ("dividend: no recent dividends-paid line on file, so nothing is taken off "
+             "the roll-forward", dividends is not None),
             ("share price: none on file", bool(close))) if not ok],
     }
 

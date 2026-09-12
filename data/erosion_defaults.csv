@@ -14,3 +14,4 @@ modality,year1_pct,decay_pct,source,note
 small molecule,0.60,0.35,"FDA/ASPE and IQVIA generic entry studies: small-molecule brands typically lose 50-80% of volume within the first year of multi-source generic entry","cliff shape; sensitivity should sweep 0.4-0.8"
 biologic,0.25,0.20,"IQVIA Biosimilars in the United States reports: reference biologics typically cede share gradually, ~20-35% in the first year where biosimilars launch","slower than small molecule; adoption varies by class"
 gene therapy,0.05,0.05,"no observed precedent: no gene therapy has yet faced a direct analogue of generic entry","placeholder for review; one-time therapies deplete their pool instead"
+unknown,0.25,0.20,"IQVIA Biosimilars in the United States reports, taken as the gentler of the two modality shapes where the modality is not on file","replace with the modality when known; the small-molecule cliff is steeper"

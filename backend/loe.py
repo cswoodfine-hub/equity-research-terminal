@@ -23,6 +23,11 @@ DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 # many years ago has no compound patent left whatever the books list.
 MAX_PATENT_TERM_YEARS = 25
 
+# How long after approval the Orange Book's silence means nothing is left rather than
+# nothing published yet: five years of new chemical entity exclusivity and a patent term
+# that rarely runs past the product's second decade on sale.
+LAPSED_AFTER_YEARS = 14
+
 HORIZON = 10  # number of upcoming years shown as columns
 
 
@@ -98,7 +103,7 @@ def compound_expiry(rows, identifier=None) -> tuple:
 
 
 def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
-               _linked: bool = True) -> dict:
+               _follow_links: bool = True) -> dict:
     """{asset_id: {date, basis, identifier, past}} on one rule, for every caller.
 
     Computed in Python from the rows rather than as an aggregate, because the compound
@@ -157,78 +162,84 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
                          "past": bool(date and date < today)}
 
     requested = set(asset_ids) if asset_ids is not None else None
+    today_date = dt.date.today()
 
-    # A revenue line joined to another asset's application reads that asset's date,
-    # curated compound patent and all: Rybelsus takes semaglutide's patent as Ozempic
-    # does, and Sanofi's Dupixent reads Regeneron's BLA. Resolved without the link map,
-    # so a holder cannot chain to a holder.
-    links = loe_link.load(conn)
-    for asset_id, link in links.items():
-        if requested is not None and asset_id not in requested:
+    # Two inferences from silence, run before links so a holder carries what they give.
+    # Each establishes that exclusivity is gone and not when it went, so each records a
+    # past loss with no date: printing the approval year as the cliff put Crestor's
+    # generics in 2003 when they came in 2016.
+    where, params = "", []
+    if requested is not None:
+        where = f" AND asset_id IN ({', '.join('?' for _ in requested)})"
+        params = list(requested)
+    try:
+        listings = conn.execute(
+            "SELECT asset_id, approval_date FROM orange_book_listings"
+            " WHERE live_rows = 0" + where, params).fetchall()
+    except Exception:          # a database from before the listings table
+        listings = []
+    # The book lists every unexpired patent an NDA holder has submitted, so silence on a
+    # product approved long enough ago means nothing is left. On a recent approval it
+    # means nothing published yet: Prezcobix's 2026 NDA lists nothing and is not generic.
+    old_enough = today_date.replace(year=today_date.year - LAPSED_AFTER_YEARS).isoformat()
+    for row in listings:
+        if (out.get(row["asset_id"]) or {}).get("date"):
             continue
-        if (out.get(asset_id) or {}).get("date"):
+        approved = row["approval_date"]      # None only for "prior to Jan 1, 1982"
+        if approved and approved > old_enough:
             continue
-        for holder in loe_link.holders(conn, link["code"], exclude=(asset_id,)):
-            found = out.get(holder)
-            if found is None and (requested is None or holder not in requested):
-                found = for_assets(conn, [holder], exclude_orphan=exclude_orphan,
-                                   _linked=False).get(holder)
-            if found and found.get("date"):
-                name = conn.execute(
-                    "SELECT COALESCE(brand_name, generic_name) AS nm FROM assets"
-                    " WHERE id = ?", (holder,)).fetchone()
-                out[asset_id] = {**found, "via": holder,
-                                 "basis": f"{found['basis']} via "
-                                          f"{link['application_number']}"
-                                          + (f" ({name['nm']})" if name else "")}
-                break
+        out[row["asset_id"]] = {
+            "date": None, "identifier": None, "past": True,
+            "basis": "lapsed, date not in the Orange Book: nothing live is listed on "
+                     "a product approved " + (approved[:4] if approved else "before 1982")}
 
-    if _linked:
-        # The Orange Book lists every unexpired patent an NDA holder has submitted, so a
-        # marketed product it lists with nothing live has nothing protecting it: the
-        # loss of exclusivity is in the past. Symbicort, Crestor and Zytiga.
-        where, params = "", []
-        if requested is not None:
-            where = f" WHERE asset_id IN ({', '.join('?' for _ in requested)})"
-            params = list(requested)
-        try:
-            listings = conn.execute(
-                "SELECT asset_id, approval_date FROM orange_book_listings"
-                f"{where} AND live_rows = 0" if where else
-                "SELECT asset_id, approval_date FROM orange_book_listings"
-                " WHERE live_rows = 0", params).fetchall()
-        except Exception:      # a database from before the listings table
-            listings = []
-        for row in listings:
-            if (out.get(row["asset_id"]) or {}).get("date"):
-                continue
-            approved = row["approval_date"] or today
+    cutoff = today_date.replace(year=today_date.year - MAX_PATENT_TERM_YEARS).isoformat()
+    for row in conn.execute(
+            "SELECT asset_id, MIN(approval_date) AS first FROM approvals"
+            " WHERE approval_date IS NOT NULL" + where + " GROUP BY asset_id", params):
+        if (out.get(row["asset_id"]) or {}).get("date") or row["asset_id"] in out:
+            continue
+        if row["first"] and row["first"] < cutoff:
             out[row["asset_id"]] = {
-                "date": min(approved, today), "identifier": None, "past": True,
-                "basis": "no live patent or exclusivity listed in the Orange Book"}
+                "date": None, "identifier": None, "past": True,
+                "basis": f"lapsed by {int(row['first'][:4]) + MAX_PATENT_TERM_YEARS} at "
+                         f"the latest: approved {row['first'][:4]}, and no patent runs "
+                         f"past {MAX_PATENT_TERM_YEARS} years"}
 
-    # An approval older than the longest term a patent can run is a loss of
-    # exclusivity in the past, whatever the books list: nothing filed before a 1989
-    # approval can still be in force. Read only where nothing else set a date.
-    if _linked:
-        cutoff = dt.date.today().replace(year=dt.date.today().year - MAX_PATENT_TERM_YEARS)
-        where = ""
-        params: list = []
-        if requested is not None:
-            where = f" AND asset_id IN ({', '.join('?' for _ in requested)})"
-            params = list(requested)
-        for row in conn.execute(
-                "SELECT asset_id, MIN(approval_date) AS first FROM approvals"
-                " WHERE approval_date IS NOT NULL" + where + " GROUP BY asset_id",
-                params):
-            if (out.get(row["asset_id"]) or {}).get("date"):
+    links = loe_link.load(conn)
+    if _follow_links:
+        # A revenue line joined to another asset's application reads that asset's
+        # resolution, curated compound patent and all. The holder is resolved with the
+        # link map switched off, so a holder cannot chain to a holder or loop.
+        for asset_id, link in links.items():
+            if requested is not None and asset_id not in requested:
                 continue
-            if row["first"] and row["first"] < cutoff.isoformat():
-                expired = f"{int(row['first'][:4]) + MAX_PATENT_TERM_YEARS}-12-31"
-                out[row["asset_id"]] = {
-                    "date": expired, "identifier": None, "past": True,
-                    "basis": f"statutory patent term elapsed (approved "
-                             f"{row['first'][:4]}, {MAX_PATENT_TERM_YEARS}y maximum)"}
+            if asset_id in out and (out[asset_id].get("date") or out[asset_id].get("past")):
+                continue
+            for holder in loe_link.holders(conn, link["code"], exclude=(asset_id,)):
+                found = out.get(holder)
+                if found is None and (requested is None or holder not in requested):
+                    found = for_assets(conn, [holder], exclude_orphan=exclude_orphan,
+                                       _follow_links=False).get(holder)
+                if found and (found.get("date") or found.get("past")):
+                    name = conn.execute(
+                        "SELECT COALESCE(brand_name, generic_name) AS nm FROM assets"
+                        " WHERE id = ?", (holder,)).fetchone()
+                    out[asset_id] = {**found, "via": holder,
+                                     "basis": f"{found['basis']} via "
+                                              f"{link['application_number']}"
+                                              + (f" ({name['nm']})" if name else "")}
+                    break
+
+    # A biosimilar, or an insulin deemed a BLA in 2020, is not a reference product and
+    # the BPCIA twelve years do not apply to it. A date resting on that statute is
+    # dropped for a line the link file marks as such, leaving no free data rather than
+    # Inflectra protected to 2028 against biosimilars that have competed since 2016.
+    for asset_id, link in links.items():
+        if link.get("reference_product") is False and asset_id in out:
+            basis = (out[asset_id].get("basis") or "").lower()
+            if "statutory floor" in basis or "reference product exclusivity" in basis:
+                del out[asset_id]
     return out
 
 

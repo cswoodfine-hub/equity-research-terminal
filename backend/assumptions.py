@@ -205,8 +205,8 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
     # 2023 orphan date into the engine and was eroded from year one while growing 30%.
     import loe as loe_module
     found = loe_module.for_assets(conn, [asset_id], exclude_orphan=True).get(asset_id)
-    loe = {"loe": found["date"], "basis": found["basis"]} if found and found.get("date") \
-        else {}
+    loe = ({"loe": found.get("date"), "basis": found["basis"],
+            "past": bool(found.get("past"))} if found else {})
     loe_year = int(loe["loe"][:4]) if loe.get("loe") else None
     actuals = [dict(r) for r in conn.execute(
         "SELECT fiscal_year, period, value FROM asset_revenue"
@@ -237,7 +237,10 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
     return {
         "scalars": scalars,
         "indications": list(indications.values()),
-        "loe": {"year": loe_year, "basis": loe.get("basis")} if loe_year else None,
+        # A loss known to be past with no date is carried as that, not as a year.
+        "loe": ({"year": loe_year, "basis": loe.get("basis")} if loe_year
+                else {"year": None, "basis": loe.get("basis"), "in_base": True}
+                if loe.get("past") else None),
         "is_marketed": bool(asset["is_marketed"]) if asset else None,
         "loe_defaults": loe_defaults(),
         "actuals": actuals,

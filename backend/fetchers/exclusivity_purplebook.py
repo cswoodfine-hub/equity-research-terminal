@@ -316,7 +316,8 @@ class PurpleBookFetcher(BaseFetcher):
             companies = {r["ticker"]: r["id"] for r in conn.execute(
                 "SELECT ticker, id FROM companies")}
             written = 0
-            from fetchers.exclusivity_orangebook import attach_direct
+            from fetchers.exclusivity_orangebook import attach_direct, clear_direct
+            clear_direct(conn, rows, PB_SOURCE)
             for product in rows:
                 if product.get("asset_ids"):
                     written += attach_direct(conn, product, PB_SOURCE, with_kind=False)

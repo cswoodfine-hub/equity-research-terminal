@@ -133,8 +133,18 @@ def test_attach_direct_writes_onto_the_asset_and_creates_nothing(tmp_path):
     product = {"asset_ids": [824], "modality": "small molecule", "exclusivities": [
         {"protection_type": "patent", "identifier": "7709517",
          "expiry_date": "2027-08-13", "patent_kind": "substance"}]}
+    from fetchers.exclusivity_orangebook import clear_direct
+    clear_direct(conn, [product], OB_SOURCE)
     assert attach_direct(conn, product, OB_SOURCE, with_kind=True) == 1
-    assert attach_direct(conn, product, OB_SOURCE, with_kind=True) == 1   # in place
+    # A second application on the same asset adds its rows rather than replacing them.
+    tablet = {"asset_ids": [824], "modality": "small molecule", "exclusivities": [
+        {"protection_type": "patent", "identifier": "9999", "expiry_date": "2033-01-01",
+         "patent_kind": "product"}]}
+    assert attach_direct(conn, tablet, OB_SOURCE, with_kind=True) == 1
+    assert conn.execute("SELECT COUNT(*) FROM exclusivities").fetchone()[0] == 2
+    # Clearing once per run then re-attaching rebuilds in place.
+    clear_direct(conn, [product, tablet], OB_SOURCE)
+    assert attach_direct(conn, product, OB_SOURCE, with_kind=True) == 1
     rows = conn.execute("SELECT asset_id, identifier, patent_kind, source FROM"
                         " exclusivities").fetchall()
     assert [tuple(r) for r in rows] == [(824, "7709517", "substance", OB_SOURCE)]
@@ -175,8 +185,15 @@ def test_a_listing_with_nothing_live_reads_as_an_loe_in_the_past(tmp_path):
     record_listing(conn, {"internal_code": "NDA21929", "approval_date": "2006-07-21",
                           "applicant": "ASTRAZENECA LP", "exclusivities": []}, 522)
     got = loe.for_assets(conn, [522])[522]
-    assert got["past"] is True and got["date"] == "2006-07-21"
-    assert got["basis"].startswith("no live patent or exclusivity listed")
+    # Past and dateless: the approval year is not the year generics came.
+    assert got["past"] is True and got["date"] is None
+    assert got["basis"].startswith("lapsed, date not in the Orange Book")
+    # A recent approval with nothing listed is not a lapsed product.
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (523, 1, 'Prezcobix', 1)")
+    record_listing(conn, {"internal_code": "NDA220092", "approval_date": "2026-02-27",
+                          "applicant": "JANSSEN", "exclusivities": []}, 523)
+    assert 523 not in loe.for_assets(conn, [523])
     # A live row on file outranks the listing.
     conn.execute("INSERT INTO exclusivities (asset_id, region, protection_type,"
                  " identifier, expiry_date, source) VALUES"
