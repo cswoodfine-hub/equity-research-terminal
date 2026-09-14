@@ -1106,8 +1106,31 @@ def _dividends(conn, company_id: int):
     return abs(row["value"]) / 1e6, row["fiscal_year"]
 
 
+def _valuation_anchor(conn):
+    """The date every rNPV stands at: the end of the last completed fiscal year, the
+    same year assumptions.load hands the engine as its valuation base. Cash flows are
+    discounted to it, so a figure read against today's price has to be carried forward
+    from it first."""
+    import datetime as dt
+    row = conn.execute(
+        "SELECT MAX(fiscal_year) y FROM financials WHERE metric = 'Revenues'"
+        "  AND period_type = 'FY' AND fiscal_year < ?", (dt.date.today().year,)).fetchone()
+    return f"{row['y']}-12-31" if row and row["y"] else None
+
+
+def _years_between(start: str | None, end: str | None) -> float:
+    import datetime as dt
+    if not (start and end):
+        return 0.0
+    try:
+        days = (dt.date.fromisoformat(end[:10]) - dt.date.fromisoformat(start[:10])).days
+    except ValueError:
+        return 0.0
+    return max(days, 0) / 365.25
+
+
 def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: list,
-          shares, close, reported_revenue: list, coverage):
+          shares, close, reported_revenue: list, coverage, close_date=None):
     """The sum of the parts, and the twelve-month value it rolls to.
 
     Marketed products count at their rNPV, which for an approved product is its NPV.
@@ -1138,8 +1161,17 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
     balance = _balance_sheet(conn, db_path, ticker, company_id)
     net_cash = balance["net_cash"] if balance else None
     cash = balance["cash"] if balance else None
-    equity = (ev + net_cash) if net_cash is not None else None
     ke, ke_basis = _cost_of_equity(conn, [l["asset_id"] for l in counted])
+    # The rNPV stands at the last fiscal year end and the price at the last close. The
+    # enterprise value is carried across that gap at the cost of equity before it is
+    # read against the price: Amgen's gap is eight months, about 5.6% of the value, and
+    # labelling the year-end figure "today" left it uncredited. Net cash is added after
+    # the carry, since the balance sheet is already the latest one filed.
+    anchor = _valuation_anchor(conn)
+    years_to_price = _years_between(anchor, close_date) if ke is not None else 0.0
+    carry = ev * ((1.0 + ke) ** years_to_price - 1.0) if ke is not None else 0.0
+    enterprise_today = ev + carry
+    equity = (enterprise_today + net_cash) if net_cash is not None else None
     dividends, div_year = _dividends(conn, company_id)
     equity_ps = per_share(equity)
     dps = per_share(dividends)
@@ -1185,6 +1217,11 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
                      "per_share_unrisked": per_share(p_npv)},
         "lines": {"n": len(streams), "rnpv": s_rnpv, "per_share": per_share(s_rnpv)},
         "enterprise": ev, "enterprise_per_share": per_share(ev),
+        "valuation_anchor": anchor, "price_date": close_date,
+        "years_to_price": years_to_price, "carry": carry,
+        "carry_per_share": per_share(carry),
+        "enterprise_today": enterprise_today,
+        "enterprise_today_per_share": per_share(enterprise_today),
         "net_cash": net_cash, "net_cash_per_share": per_share(net_cash),
         "cash": cash, "cash_per_share": per_share(cash),
         "balance_sheet_as_of": balance["as_of"] if balance else None,
@@ -1265,7 +1302,8 @@ def company_verdict(db_path, ticker: str):
     conn = db.get_connection(db_path)
     try:
         sotp = _sotp(conn, db_path, rollup["ticker"], company["id"], lines, streams,
-                     shares, close, rollup["reported_revenue"], coverage)
+                     shares, close, rollup["reported_revenue"], coverage,
+                     close_date=close_date)
     finally:
         conn.close()
     return {

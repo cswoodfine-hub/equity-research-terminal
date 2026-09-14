@@ -1662,7 +1662,15 @@ def _sotp_bridge(s: dict) -> None:
     if lines.get("n"):
         steps.append({"label": "lines", "value": lines.get("per_share") or 0.0,
                       "kind": "step"})
-    steps.append({"label": "enterprise", "kind": "end"})
+    anchor_year = (s.get("valuation_anchor") or "")[:4]
+    steps.append({"label": f"FY{anchor_year} end" if anchor_year else "enterprise",
+                  "kind": "end"})
+    # The rNPV stands at the fiscal year end; carry it to the price date before the
+    # price rule means anything.
+    if s.get("carry_per_share"):
+        steps.append({"label": "to the close", "value": s["carry_per_share"],
+                      "kind": "step"})
+        steps.append({"label": "enterprise today", "kind": "end"})
     if s.get("net_cash_per_share") is not None:
         steps.append({"label": "net cash" if s["net_cash_per_share"] >= 0 else "net debt",
                       "value": s["net_cash_per_share"], "kind": "step"})
@@ -1690,6 +1698,9 @@ def _sotp_bridge(s: dict) -> None:
                     + (f", cash {s['cash']:,.0f}mm on hand and no debt line filed"
                        if (s.get("debt_basis") or "").startswith("no debt")
                        and s.get("cash") is not None else ""))
+    if s.get("valuation_anchor") and s.get("years_to_price"):
+        bits.append(f"valued at {s['valuation_anchor']}, carried "
+                    f"{s['years_to_price']:.2f}y to the {s.get('price_date')} close")
     if s.get("cost_of_equity") is not None:
         bits.append(f"cost of equity {s['cost_of_equity']:.2%}, "
                     f"{_short(s.get('cost_of_equity_basis'), 44)}")
@@ -1806,8 +1817,10 @@ def _book(api_base: str, ticker: str, selected):
     elif sotp.get("enterprise_per_share") is not None:
         # The balance sheet could not be added: the sum stops at enterprise value and
         # the cash on hand is shown beside it rather than folded in.
-        tiles = [("enterprise per share", T.num(sotp["enterprise_per_share"], 2), "",
-                  None, "", "sum of the parts, before the balance sheet"),
+        tiles = [("enterprise per share",
+                  T.num(sotp.get("enterprise_today_per_share",
+                                 sotp["enterprise_per_share"]), 2), "",
+                  None, "", "sum of the parts, today, before the balance sheet"),
                  ("cash on hand", T.num(sotp.get("cash_per_share"), 2)
                   if sotp.get("cash_per_share") is not None else "none", "", None, "",
                   "a share; no debt line filed against it"),

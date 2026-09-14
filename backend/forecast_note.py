@@ -207,10 +207,11 @@ def _sotp_headline(v: dict) -> str | None:
         return None
     if s.get("equity_per_share") is None:
         # The sum stops at enterprise value where the balance sheet cannot be added.
-        if s.get("enterprise_per_share") is None:
+        ev_today = s.get("enterprise_today_per_share", s.get("enterprise_per_share"))
+        if ev_today is None:
             return None
         lead = (f"On the model {v['ticker']}'s business is worth "
-                f"{_per_share(s['enterprise_per_share'])} a share of enterprise value "
+                f"{_per_share(ev_today)} a share of enterprise value "
                 f"against a {_per_share(s['close'])} share price")
         if s.get("cash_per_share") is not None:
             lead += (f", before {_per_share(s['cash_per_share'])} a share of cash on "
@@ -255,8 +256,15 @@ def _sotp_body(v: dict) -> list[str]:
             f"product is counted at its own risk-adjusted value, which is its NPV unless "
             f"durability or reimbursement factors are on file.")
     if s.get("forward_12m") is not None and s.get("cost_of_equity") is not None:
-        line = (f"The twelve-month figure rolls today's value forward at a "
-                f"{s['cost_of_equity']:.1%} cost of equity")
+        line = ""
+        if s.get("valuation_anchor") and s.get("years_to_price"):
+            line = (f"Every cash flow is discounted to {s['valuation_anchor']}, so the "
+                    f"enterprise value is carried {s['years_to_price']:.2f} years to the "
+                    f"{s.get('price_date')} close, adding "
+                    f"{_per_share(s.get('carry_per_share'))} a share, before it is read "
+                    f"against the price. ")
+        line += (f"The twelve-month figure rolls today's value forward at a "
+                 f"{s['cost_of_equity']:.1%} cost of equity")
         if s.get("dps"):
             line += (f" and takes off the {_per_share(s['dps'])} a share paid out as "
                      f"dividends in FY{s.get('dividends_year')}")

@@ -1038,7 +1038,14 @@ def test_the_sum_of_the_parts_adds_up_and_rolls_forward(tmp_path):
     # Cash 300 less debt 100 is 200mm of net cash, over 100mm shares.
     assert s["net_cash"] == pytest.approx(200.0)
     assert s["net_cash_per_share"] == pytest.approx(2.0)
-    assert s["equity"] == pytest.approx(s["enterprise"] + 200.0)
+    # The rNPV stands at 2025-12-31 and the close is 2026-09-10: the enterprise value
+    # is carried across those 0.69 years at the 9% cost of equity before net cash.
+    assert s["valuation_anchor"] == "2025-12-31" and s["price_date"] == "2026-09-10"
+    assert s["years_to_price"] == pytest.approx(253 / 365.25)
+    assert s["enterprise_today"] == pytest.approx(
+        s["enterprise"] * 1.09 ** (253 / 365.25))
+    assert s["carry"] == pytest.approx(s["enterprise_today"] - s["enterprise"])
+    assert s["equity"] == pytest.approx(s["enterprise_today"] + 200.0)
     assert s["equity_per_share"] == pytest.approx(s["equity"] * 1e6 / 100e6)
     assert s["cost_of_equity"] == pytest.approx(0.09)     # 4% + 1.0 x 5%
     assert s["dps"] == pytest.approx(0.5)                 # the outflow's magnitude
