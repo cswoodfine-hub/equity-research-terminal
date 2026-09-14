@@ -235,6 +235,9 @@ def _sotp_headline(v: dict) -> str | None:
     if lines.get("n"):
         parts.append(f"{lines['n']} line{'s' if lines['n'] != 1 else ''} no asset "
                      f"carries {_per_share(lines['per_share'])}")
+    future = s.get("future") or {}
+    if future.get("per_share") is not None:
+        parts.append(f"future launches {_per_share(future['per_share'])}")
     if s.get("net_cash_per_share") is not None:
         word = "net cash" if s["net_cash_per_share"] >= 0 else "net debt"
         parts.append(f"{word} {_per_share(s['net_cash_per_share'])}")
@@ -255,6 +258,28 @@ def _sotp_body(v: dict) -> list[str]:
             f"probability of success, {_per_share(p['per_share'])} after it. An approved "
             f"product is counted at its own risk-adjusted value, which is its NPV unless "
             f"durability or reimbursement factors are on file.")
+    future = s.get("future") or {}
+    if future.get("per_share") is not None:
+        own = future.get("own_rate")
+        line = (f"The R&D every product is charged buys launches beyond the modelled "
+                f"pipeline, and they are in the sum at {_per_share(future['per_share'])} "
+                f"a share. Across {future.get('pooled_filers')} large filers, drugs "
+                f"approved in the last ten years earn {future['rate']:.2f} of annual "
+                f"revenue per dollar of R&D spent over the ten years before")
+        if own is not None:
+            line += f"; {v['ticker']}'s own record is {own:.2f}"
+        line += (f". Each year's R&D is taken to buy launches "
+                 f"{future.get('lag_years')} years later, earning that rate for "
+                 f"{future.get('life_years')} years before eroding, costed on the "
+                 f"company's own ratios; the first arrive in "
+                 f"{future.get('first_launch_year')}.")
+        if s.get("enterprise_book_only") is not None and s.get("close"):
+            line += (" Without them the products on file are a run-off: every one fades "
+                     "and erodes and nothing replaces it.")
+        out.append(line)
+    elif future.get("reason"):
+        out.append(f"No value is taken for launches beyond the modelled pipeline: "
+                   f"{future['reason']}.")
     if s.get("forward_12m") is not None and s.get("cost_of_equity") is not None:
         line = ""
         if s.get("valuation_anchor") and s.get("years_to_price"):

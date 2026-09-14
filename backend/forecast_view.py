@@ -695,6 +695,13 @@ def company_rollup(db_path, ticker: str):
                       "peak_year": (result["years"][revenue.index(peak)]
                                     if peak is not None else None),
                       "years": result["years"],
+                      # The P&L at this company's share, for the lines the book's own
+                      # R&D and cost ratios are read off.
+                      "dcf_years": result.get("dcf_years") or [],
+                      "pnl_share": [{k: (v * share if isinstance(v, (int, float)) else v)
+                                     for k, v in row.items()}
+                                    for row in result.get("pnl") or []],
+                      "wacc": result.get("wacc"),
                       "revenue_share": [v * share for v in revenue]})
     # Streams: lines the company reports that no asset carries, run through the same
     # engine as a marketed product. They count in full; a stream is the company's own.
@@ -711,6 +718,11 @@ def company_rollup(db_path, ticker: str):
         streams.append({"line": built["line"], "rnpv": result["rnpv"],
                         "base_revenue": entry["scalars"].get("base_revenue"),
                         "years": result["years"], "revenue": result["revenue_after_loe"],
+                        "dcf_years": result.get("dcf_years") or [],
+                      "pnl_share": [{k: (v * 1.0 if isinstance(v, (int, float)) else v)
+                                     for k, v in row.items()}
+                                    for row in result.get("pnl") or []],
+                      "wacc": result.get("wacc"),
                         "unsourced": built.get("unsourced") or [],
                         "notes": result.get("notes") or []})
     per_share = (rnpv_total * 1e6 / shares) if shares else None
@@ -1129,6 +1141,61 @@ def _years_between(start: str | None, end: str | None) -> float:
     return max(days, 0) / 365.25
 
 
+def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "") -> dict:
+    """The launches the book's R&D buys, valued. {value, reason, ...}; value is None
+    with a reason wherever an input is not on file."""
+    import future_pipeline as FP
+    if not anchor:
+        return {"value": None, "reason": "no valuation year on file"}
+    base_year = int(anchor[:4])
+    book_rd: dict = {}
+    totals = {"revenue": 0.0, "cogs": 0.0, "sga": 0.0, "rd": 0.0, "other": 0.0,
+              "ebit": 0.0, "tax": 0.0}
+    waccs = []
+    for part in parts:
+        rows = part.get("pnl_share") or []
+        for year, row in zip(part.get("dcf_years") or [], rows):
+            book_rd[year] = book_rd.get(year, 0.0) + (row.get("rd") or 0.0)
+        if rows:
+            first = rows[0]
+            for k in totals:
+                totals[k] += first.get(k) or 0.0
+            if part.get("wacc") is not None and first.get("revenue"):
+                waccs.append((first["revenue"], part["wacc"]))
+    if not book_rd or not totals["revenue"]:
+        return {"value": None, "reason": "no R&D in the modelled book's P&L"}
+    pool = FP.pooled(db_path)
+    if pool.get("rate") is None:
+        return {"value": None, "reason": "no pooled launch productivity on file"}
+    bounds = FP.defaults()
+    loe_default = (assumptions_module.loe_defaults().get("unknown") or {})
+    erosion = (assumptions_module.erosion_defaults().get("unknown") or {})
+    if not (loe_default.get("years_from_launch") and erosion.get("year1_pct") is not None):
+        return {"value": None, "reason": "no exclusivity or erosion default on file"}
+    revenue = totals["revenue"]
+    ratios = {"cogs": totals["cogs"] / revenue, "sga": totals["sga"] / revenue,
+              "rd": totals["rd"] / revenue, "other": totals["other"] / revenue,
+              "tax": (totals["tax"] / totals["ebit"]) if totals["ebit"] > 0 else 0.0}
+    wacc = sum(r * w for r, w in waccs) / sum(r for r, _ in waccs) if waccs else None
+    if wacc is None:
+        return {"value": None, "reason": "no discount rate in the modelled book"}
+    lag = int(bounds["lag_years"]["value"])
+    got = FP.simulate(book_rd, pool["rate"], lag, int(loe_default["years_from_launch"]),
+                      erosion["year1_pct"], erosion.get("decay_pct") or 0.0, ratios,
+                      wacc, base_year, int(bounds["horizon_years"]["value"]))
+    own = next((f for f in pool.get("filers") or [] if f["ticker"] == ticker.upper()), None)
+    return {"value": got["value"], "reason": None, "rate": pool["rate"],
+            "own_rate": own["rate"] if own else None,
+            "own_counted": bool(own and own["counted"]),
+            "pooled_filers": pool["n"], "lag_years": lag,
+            "lag_source": bounds["lag_years"]["source"],
+            "life_years": int(loe_default["years_from_launch"]),
+            "first_launch_year": got["first_launch_year"], "cohorts": got["cohorts"],
+            "replacement": got["replacement"], "wacc": wacc, "ratios": ratios,
+            "book_rd_first": book_rd.get(base_year + 1),
+            "flows": [f for f in got["flows"] if f["revenue"]][:40]}
+
+
 def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: list,
           shares, close, reported_revenue: list, coverage, close_date=None):
     """The sum of the parts, and the twelve-month value it rolls to.
@@ -1157,7 +1224,13 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
     p_rnpv = sum(l["rnpv_share"] for l in pipeline)
     p_npv = sum(l.get("npv_share") or 0.0 for l in pipeline)
     s_rnpv = sum(s["rnpv"] for s in streams)
-    ev = m_rnpv + p_rnpv + s_rnpv
+    # The research the book is charged buys launches beyond the modelled pipeline, and
+    # this is what that has historically been worth. Built over the counted assets and
+    # the lines, which are what pays the R&D.
+    future = _future_pipeline(db_path, counted + list(streams), _valuation_anchor(conn),
+                              ticker)
+    f_value = future.get("value") or 0.0
+    ev = m_rnpv + p_rnpv + s_rnpv + f_value
     balance = _balance_sheet(conn, db_path, ticker, company_id)
     net_cash = balance["net_cash"] if balance else None
     cash = balance["cash"] if balance else None
@@ -1216,6 +1289,11 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
                      "per_share": per_share(p_rnpv),
                      "per_share_unrisked": per_share(p_npv)},
         "lines": {"n": len(streams), "rnpv": s_rnpv, "per_share": per_share(s_rnpv)},
+        "future": {**{k: v for k, v in future.items() if k != "flows"},
+                   "per_share": per_share(future.get("value")),
+                   "flows": future.get("flows") or []},
+        # The sum without the future pipeline, so the run-off value stays readable.
+        "enterprise_book_only": ev - f_value,
         "enterprise": ev, "enterprise_per_share": per_share(ev),
         "valuation_anchor": anchor, "price_date": close_date,
         "years_to_price": years_to_price, "carry": carry,
@@ -1251,6 +1329,7 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
             ("cost of equity: no CAPM components on file", ke is not None),
             ("dividend: no recent dividends-paid line on file, so nothing is taken off "
              "the roll-forward", dividends is not None),
+            (f"future pipeline: {future.get('reason')}", future.get("value") is not None),
             ("share price: none on file", bool(close))) if not ok],
     }
 

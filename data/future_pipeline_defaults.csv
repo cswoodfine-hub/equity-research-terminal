@@ -1,0 +1,16 @@
+# What the future pipeline line needs that the filings do not state, one row per key,
+# each cited. Everything else it uses is measured: the R&D the modelled book pays each
+# year comes from the book's own P&L, and the revenue that R&D historically bought comes
+# from the filers' own product revenue and approval dates.
+#
+# The lag is the one number taken from the literature rather than from the data. The
+# trials table holds studies still running, so development timelines cannot be measured
+# from it (productivity.py says why), and the figure below is the most widely cited
+# measured one. It is the mean from the start of clinical testing to approval; spend
+# before the clinic is not in it, which makes the lag short, and spend late in the
+# clinic is heavier than early, which makes it long. Sensitivity sweeps it.
+key,value,source,note
+lag_years,8,"DiMasi, Grabowski and Hansen (2016), Journal of Health Economics 47: mean clinical phase to approval of 96.8 months for new compounds first tested 1995-2007","years from the R&D spend to the launches it buys"
+horizon_years,60,"a computation bound, not a claim: at a 7% discount rate a cash flow sixty years out is worth under 2% of its face value","how far forward launches are simulated"
+min_rd_years,8,"a coverage bound: the ten-year R&D window has to be at least this complete for a filer to enter the pooled rate","filers with a shorter R&D history on file are shown and not pooled"
+min_revenue_musd,5000,"a scale bound: below five billion a single launch dominates a decade's cohort","filers below it are shown and not pooled"

@@ -1052,7 +1052,10 @@ def test_the_sum_of_the_parts_adds_up_and_rolls_forward(tmp_path):
     assert s["forward_12m"] == pytest.approx(s["equity_per_share"] * 1.09 - 0.5)
     assert s["upside"] == pytest.approx(s["forward_12m"] / 20.0 - 1.0)
     assert s["balance_sheet_as_of"] == "2025-12-31"
-    assert s["missing"] == []
+    # No product revenue is seeded, so there is no launch record to value future
+    # launches from, and the gap is named rather than filled.
+    assert s["missing"] == ["future pipeline: no pooled launch productivity on file"]
+    assert s["future"]["per_share"] is None
     # Revenue by year, split, with the pipeline before and after its probability.
     path = s["revenue_path"]
     assert [r["year"] for r in path] == [2026, 2027, 2028]
@@ -1154,3 +1157,26 @@ def test_the_sum_buckets_on_approval_and_bounds_the_dividend(tmp_path):
     assert any(m.startswith("dividend") for m in s["missing"])
     # The growth base is the modelled book's own revenue, not the company total.
     assert "last_modelled" in s and s["last_modelled"] is None   # no product rows seeded
+
+
+def test_future_launches_enter_the_sum_from_the_books_own_rd(tmp_path, monkeypatch):
+    """With a launch record on file the book's R&D buys a value, the enterprise value
+    carries it, and the run-off figure without it stays readable."""
+    import forecast_view as V
+    import future_pipeline as FP
+    path = _sotp_db(tmp_path)
+    before = V.company_verdict(path, "TST")["sotp"]
+    monkeypatch.setattr(FP, "pooled", lambda db_path=None, refresh=False: {
+        "rate": 0.3, "n": 14, "filers": [{"ticker": "TST", "rate": 0.5, "counted": True,
+                                          "rd_years": 10, "revenue": 1e10}]})
+    s = V.company_verdict(path, "TST")["sotp"]
+    f = s["future"]
+    assert f["value"] > 0 and f["rate"] == 0.3 and f["own_rate"] == 0.5
+    assert f["first_launch_year"] == 2026 + int(FP.defaults()["lag_years"]["value"])
+    assert s["enterprise"] == pytest.approx(before["enterprise"] + f["value"])
+    assert s["enterprise_book_only"] == pytest.approx(before["enterprise"])
+    assert not any(m.startswith("future pipeline") for m in s["missing"])
+    import forecast_note
+    note = forecast_note.write_company(V.company_verdict(path, "TST"))
+    assert "future launches $" in note["headline"]
+    assert "own record is 0.50" in " ".join(note["body"])

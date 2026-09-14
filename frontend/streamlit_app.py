@@ -1657,33 +1657,39 @@ def _sotp_bridge(s: dict) -> None:
         return
     steps = [{"label": "marketed", "value": m["per_share"], "kind": "start"}]
     if p.get("n"):
-        steps.append({"label": f"pipeline, PoS", "value": p.get("per_share") or 0.0,
+        steps.append({"label": "pipeline", "value": p.get("per_share") or 0.0,
                       "kind": "step"})
     if lines.get("n"):
         steps.append({"label": "lines", "value": lines.get("per_share") or 0.0,
                       "kind": "step"})
+    future = s.get("future") or {}
+    if future.get("per_share") is not None:
+        steps.append({"label": "launches", "value": future["per_share"],
+                      "kind": "step"})
+    else:
+        steps.append({"label": "launches", "value": None, "kind": "null"})
     anchor_year = (s.get("valuation_anchor") or "")[:4]
-    steps.append({"label": f"FY{anchor_year} end" if anchor_year else "enterprise",
+    steps.append({"label": f"FY{anchor_year[2:]} EV" if anchor_year else "EV",
                   "kind": "end"})
     # The rNPV stands at the fiscal year end; carry it to the price date before the
     # price rule means anything.
     if s.get("carry_per_share"):
-        steps.append({"label": "to the close", "value": s["carry_per_share"],
+        steps.append({"label": "to close", "value": s["carry_per_share"],
                       "kind": "step"})
-        steps.append({"label": "enterprise today", "kind": "end"})
+        steps.append({"label": "EV today", "kind": "end"})
     if s.get("net_cash_per_share") is not None:
         steps.append({"label": "net cash" if s["net_cash_per_share"] >= 0 else "net debt",
                       "value": s["net_cash_per_share"], "kind": "step"})
-        steps.append({"label": "equity today", "kind": "end"})
+        steps.append({"label": "equity", "kind": "end"})
     else:
         steps.append({"label": "net cash", "value": None, "kind": "null"})
     if s.get("forward_12m") is not None and s.get("equity_per_share") is not None:
         ke = s.get("cost_of_equity") or 0.0
-        steps.append({"label": f"+{ke * 100:.1f}% a year", "value": s["equity_per_share"] * ke,
+        steps.append({"label": f"+{ke * 100:.1f}%", "value": s["equity_per_share"] * ke,
                       "kind": "step"})
         if s.get("dps"):
             steps.append({"label": "dividend", "value": -s["dps"], "kind": "step"})
-        steps.append({"label": "12 months", "kind": "end"})
+        steps.append({"label": "12m", "kind": "end"})
     section("Sum of the parts", basis="$ a share · read against the price")
     R.show(CH.waterfall(steps, 700, 250, value_fmt=lambda x: f"{x:,.2f}",
                         reference=({"label": "price", "value": s["close"]}
@@ -1693,6 +1699,13 @@ def _sotp_bridge(s: dict) -> None:
     if p.get("n") and p.get("per_share_unrisked") is not None:
         bits.append(f"pipeline {p['per_share_unrisked']:,.2f} before probability, "
                     f"{(p.get('per_share') or 0):,.2f} after")
+    if future.get("per_share") is not None:
+        own = future.get("own_rate")
+        bits.append(f"future launches at {future['rate']:.2f} of revenue per R&D dollar "
+                    f"({future.get('pooled_filers')} filers pooled"
+                    + (f", {own:.2f} own" if own is not None else "")
+                    + f"), {future.get('lag_years')}y lag, first in "
+                    f"{future.get('first_launch_year')}")
     if s.get("balance_sheet_as_of"):
         bits.append(f"balance sheet {s['balance_sheet_as_of']}"
                     + (f", cash {s['cash']:,.0f}mm on hand and no debt line filed"
