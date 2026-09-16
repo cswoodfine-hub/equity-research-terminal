@@ -347,6 +347,24 @@ _REFERENCE = (
          "reference", "duration", role="memo", candidates=(
              ("us-gaap", "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"),
          )),
+    # Interest paid, where it sits inside operating cash flow. Free cash flow is struck
+    # after it there, and a valuation that also subtracts net debt takes the cost of the
+    # debt off twice unless it is added back. US GAAP always classifies interest paid as
+    # operating, so both US concepts belong here, the net-of-capitalised one first. IFRS
+    # lets a filer choose, and only the operating choice is read into this line.
+    Line("InterestPaidOperating", "Interest paid, in operating cash flow", "reference",
+         "duration", role="memo", candidates=(
+             ("us-gaap", "InterestPaidNet"),
+             ("us-gaap", "InterestPaid"),
+             ("ifrs-full", "InterestPaidClassifiedAsOperatingActivities"),
+         )),
+    # The IFRS filer that books interest under financing instead. Its free cash flow is
+    # already struck before interest, so there is nothing to add back, and this line is
+    # what shows that the check was made rather than that the data was missing.
+    Line("InterestPaidFinancing", "Interest paid, in financing cash flow", "reference",
+         "duration", role="memo", candidates=(
+             ("ifrs-full", "InterestPaidClassifiedAsFinancingActivities"),
+         )),
 )
 
 LINES: tuple[Line, ...] = _INCOME + _BALANCE + _CASHFLOW + _REFERENCE

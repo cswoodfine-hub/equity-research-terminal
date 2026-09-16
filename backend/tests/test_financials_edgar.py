@@ -182,3 +182,24 @@ def test_the_history_reaches_back_far_enough_for_a_cycle():
     """Seven years is one cycle. A growth line has to be long enough to show a patent
     cliff and what replaced it."""
     assert fe.MAX_FISCAL_YEARS >= 16
+
+
+def test_interest_paid_is_read_where_the_filer_books_it():
+    """US GAAP interest paid is operating; an IFRS filer's operating choice lands on the
+    same line and its financing choice on its own, so a filer with nothing to add back
+    is told apart from one with nothing on file."""
+    from fetchers.financials_edgar import parse_statements
+    us = parse_statements({"facts": {"us-gaap": {
+        "Revenues": {"units": {"USD": [_annual("2025-01-01", "2025-12-31", 62579000000, "10-K")]}},
+        "InterestPaidNet": {"units": {"USD": [_annual("2025-01-01", "2025-12-31", 2739000000, "10-K")]}},
+    }}})
+    got = us["lines"]["InterestPaidOperating"]["periods"]
+    assert [e["val"] for e in got.values()] == [2739000000]
+    assert "InterestPaidFinancing" not in us["lines"] or not us["lines"]["InterestPaidFinancing"]["periods"]
+    ifrs = parse_statements({"facts": {"ifrs-full": {
+        "Revenue": {"units": {"GBP": [_annual("2025-01-01", "2025-12-31", 32667000000, "20-F")]}},
+        "InterestPaidClassifiedAsFinancingActivities": {"units": {"GBP": [
+            _annual("2025-01-01", "2025-12-31", 679000000, "20-F")]}},
+    }}})
+    assert [e["val"] for e in ifrs["lines"]["InterestPaidFinancing"]["periods"].values()] == [679000000]
+    assert not (ifrs["lines"].get("InterestPaidOperating") or {}).get("periods")
