@@ -203,3 +203,39 @@ def test_interest_paid_is_read_where_the_filer_books_it():
     }}})
     assert [e["val"] for e in ifrs["lines"]["InterestPaidFinancing"]["periods"].values()] == [679000000]
     assert not (ifrs["lines"].get("InterestPaidOperating") or {}).get("periods")
+
+
+def test_rd_before_the_excluding_concept_is_plain_rd_less_tagged_in_process_rd():
+    """Vertex's plain R&D includes acquired in-process R&D; less the tagged amount it
+    reconciles to the excluding concept in 2020 and 2021, so 2017 to 2019 read the same
+    way. A year with no in-process tag is not filled."""
+    from fetchers.financials_edgar import parse_statements
+    def usd(rows):
+        return {"units": {"USD": [_annual(f"{y}-01-01", f"{y}-12-31", v, "10-K") for y, v in rows]}}
+    payload = {"facts": {"us-gaap": {
+        "Revenues": usd([(2025, 12001.3e6)]),
+        "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost": usd([(2020, 1644.9e6), (2021, 1937.8e6), (2025, 3909.5e6)]),
+        "ResearchAndDevelopmentExpense": usd([(2016, 1047.7e6), (2017, 1324.6e6), (2018, 1416.5e6), (2020, 1829.5e6), (2021, 3051.1e6)]),
+        "ResearchAndDevelopmentInProcess": usd([(2017, 160.0e6), (2018, 0.0), (2020, 184.6e6), (2021, 1113.3e6)]),
+    }}}
+    periods = parse_statements(payload)["lines"]["ResearchAndDevelopmentExpense"]["periods"]
+    by_year = {int(end[:4]): e for (end, kind), e in periods.items() if kind == "FY"}
+    assert by_year[2017]["val"] == pytest.approx(1164.6e6) and by_year[2018]["val"] == pytest.approx(1416.5e6)
+    assert "in-process" in by_year[2017]["concept"] and 2016 not in by_year
+    assert by_year[2020]["val"] == pytest.approx(1644.9e6)
+
+
+def test_the_rd_fill_is_refused_where_the_tags_do_not_reconcile():
+    """Gilead's 2018 plain R&D sits $1,098mm above its excluding figure against a tagged
+    in-process nil, so nothing earlier is filled."""
+    from fetchers.financials_edgar import parse_statements
+    def usd(rows):
+        return {"units": {"USD": [_annual(f"{y}-01-01", f"{y}-12-31", v, "10-K") for y, v in rows]}}
+    payload = {"facts": {"us-gaap": {
+        "Revenues": usd([(2025, 29e9)]),
+        "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost": usd([(2018, 3920e6), (2025, 5799e6)]),
+        "ResearchAndDevelopmentExpense": usd([(2016, 5098e6), (2017, 3734e6), (2018, 5018e6)]),
+        "ResearchAndDevelopmentInProcess": usd([(2017, 0.0), (2018, 0.0)]),
+    }}}
+    periods = parse_statements(payload)["lines"]["ResearchAndDevelopmentExpense"]["periods"]
+    assert sorted(int(end[:4]) for end, kind in periods if kind == "FY") == [2018, 2025]

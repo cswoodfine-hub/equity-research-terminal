@@ -189,6 +189,59 @@ def pick_kind_series(facts: dict, candidates, kind: str):
     return chosen[max(chosen)]["unit"], merged
 
 
+# Concepts a filer tags acquired in-process R&D under, the part the excluding concept
+# leaves out and the plain concept keeps in.
+_IPRD_CONCEPTS = ("ResearchAndDevelopmentInProcess",
+                  "ResearchAndDevelopmentAssetAcquiredOtherThanThroughBusinessCombinationWrittenOff")
+
+
+def backfill_rd_less_iprd(facts: dict, periods: dict) -> dict:
+    """Years before a filer's excluding-acquired R&D series begins, read as its plain R&D
+    less the acquired in-process R&D it tags for the same year.
+
+    Vertex moved to the excluding concept in 2020, and the plain one includes acquired
+    in-process R&D, so the two disagree and the agreement test refuses the older years.
+    Its history on file started in 2020, and its launch record was measured on five years
+    of R&D. But the difference is exactly what it tags as acquired in-process R&D:
+    $1,829.5mm less $184.6mm is the excluding concept's $1,644.9mm for 2020, and 2021
+    reconciles the same way. Where that holds in every year all three are tagged, the
+    earlier years are the plain figure less the tagged in-process amount.
+
+    A year is filled only where both are tagged, a zero included. The fill is refused
+    outright if any year with all three tagged fails to reconcile. Gilead's 2018 plain
+    figure sits $1,098mm above its excluding one against a tagged in-process nil, so its
+    older years stay off. Returns the new entries, keyed like ``periods``.
+    """
+    us = facts.get("us-gaap") or {}
+    fy = statements.FY
+    winner = {int(end[:4]): e for (end, kind), e in periods.items()
+              if kind == fy and e.get("concept") == "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"}
+    if not winner or "ResearchAndDevelopmentExpense" not in us:
+        return {}
+    plain = {int(end[:4]): e for (end, _), e in
+             _entries_by_period(us["ResearchAndDevelopmentExpense"], fy).items()}
+    iprd: dict[int, float] = {}
+    for name in _IPRD_CONCEPTS:
+        if name in us:
+            for (end, _), e in _entries_by_period(us[name], fy).items():
+                iprd.setdefault(int(end[:4]), e["val"])
+    shared = set(winner) & set(plain) & set(iprd)
+    if not shared:
+        return {}
+    for year in shared:
+        expected = winner[year]["val"]
+        if abs(plain[year]["val"] - iprd[year] - expected) > abs(expected) * _AGREEMENT_TOLERANCE:
+            return {}
+    first = min(winner)
+    out = {}
+    for year, e in plain.items():
+        if year >= first or year not in iprd:
+            continue
+        out[(e["end"], fy)] = dict(e, val=e["val"] - iprd[year],
+                                   concept="ResearchAndDevelopmentExpense less in-process R&D")
+    return out
+
+
 def pick_annual_series(facts: dict, candidates):
     """The fiscal-year series, keyed by year. Returns (unit, {year: {'val','end'}})."""
     unit, series = pick_kind_series(facts, candidates, statements.FY)
@@ -321,6 +374,9 @@ def parse_statements(payload: dict) -> dict:
             # quarters are tagged in a different unit cannot rename the column.
             if kind_unit and (unit is None or kind == statements.FY):
                 unit = kind_unit
+        if line.key == "ResearchAndDevelopmentExpense" and periods:
+            for key, entry in backfill_rd_less_iprd(facts, periods).items():
+                periods.setdefault(key, entry)
         if periods:
             lines[line.key] = {"unit": unit, "periods": _trim(periods)}
 
