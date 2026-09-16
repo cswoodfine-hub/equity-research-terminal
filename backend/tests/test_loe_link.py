@@ -201,3 +201,27 @@ def test_a_filers_own_10k_date_sets_the_loe_over_the_books(tmp_path, monkeypatch
     assert got[51]["date"] == "2028-04-01"
     assert got[52]["date"] == "2033-12-31"          # a stated year runs to its end
     assert set(loe.curated_disclosed(conn)) == {50, 51, 52}
+
+
+def test_a_filer_saying_generics_are_on_its_market_is_a_loss_with_no_year(tmp_path,
+                                                                          monkeypatch):
+    """BMS says generics have entered the US market for Sprycel and gives no year, while
+    the books list a substance patent to 2026. The row marks the loss as past with no
+    date, which the forecast carries as already in the base, and no year is made up."""
+    conn = _db(tmp_path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (5, 'BMY', 'BMS')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (60, 5, 'Sprycel', 1)")
+    conn.execute("INSERT INTO exclusivities (asset_id, region, protection_type,"
+                 " identifier, expiry_date, patent_kind, source) VALUES"
+                 " (60, 'US', 'patent', '7', '2026-12-31', 'substance', 't')")
+    conn.execute("INSERT INTO orange_book_listings (asset_id, approval_date, live_rows)"
+                 " VALUES (60, '2006-06-28', 0)")
+    conn.commit()
+    path = tmp_path / "d.csv"
+    path.write_text("ticker,brand,loe,basis,note\n"
+                    "BMY,Sprycel,expired,BMS 10-K U.S. generic entry,no year stated\n")
+    monkeypatch.setattr(loe, "CURATED_DISCLOSED", path)
+    got = loe.for_assets(conn, [60])[60]
+    assert got["date"] is None and got["past"] is True
+    assert got["basis"] == "BMS 10-K U.S. generic entry (expired)"

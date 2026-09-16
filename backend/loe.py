@@ -95,7 +95,11 @@ def _period_end(stated: str) -> str:
 
 def curated_disclosed(conn, path=None) -> dict:
     """{asset_id: {date, stated, basis, note}} for exclusivity a filer states in its own
-    10-K and an analyst has written down. Set outright, over the books."""
+    10-K and an analyst has written down. Set outright, over the books.
+
+    ``expired`` in place of a date is a filer saying generics or biosimilars are already
+    on its US market without saying since when: BMS on Sprycel, Biogen on Tecfidera. The
+    date is then None, a known loss with no year, and never a year made up for it."""
     source = pathlib.Path(path) if path else CURATED_DISCLOSED
     if not source.exists():
         return {}
@@ -113,7 +117,9 @@ def curated_disclosed(conn, path=None) -> dict:
                 WHERE c.ticker = ? AND LOWER(TRIM(COALESCE(a.brand_name, a.generic_name)))
                       = LOWER(?) LIMIT 1""", (ticker, brand)).fetchone()
         if found:
-            out[found["id"]] = {"date": _period_end(stated), "stated": stated,
+            expired = stated.lower() == "expired"
+            out[found["id"]] = {"date": None if expired else _period_end(stated),
+                                "stated": stated,
                                 "basis": (row.get("basis") or "").strip(),
                                 "note": (row.get("note") or "").strip()}
     return out
@@ -213,7 +219,7 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
         if requested is not None and asset_id not in requested:
             continue
         out[asset_id] = {"date": stated["date"], "identifier": None,
-                         "past": stated["date"] < today,
+                         "past": stated["date"] is None or stated["date"] < today,
                          "basis": f"{stated['basis']} ({stated['stated']})",
                          "note": stated["note"] or None}
 
@@ -236,7 +242,8 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
     # means nothing published yet: Prezcobix's 2026 NDA lists nothing and is not generic.
     old_enough = today_date.replace(year=today_date.year - LAPSED_AFTER_YEARS).isoformat()
     for row in listings:
-        if (out.get(row["asset_id"]) or {}).get("date"):
+        known = out.get(row["asset_id"]) or {}
+        if known.get("date") or known.get("past"):
             continue
         approved = row["approval_date"]      # None only for "prior to Jan 1, 1982"
         if approved and approved > old_enough:
