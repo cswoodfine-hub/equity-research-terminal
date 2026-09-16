@@ -1261,3 +1261,17 @@ def test_shares_that_do_not_add_up_are_refused_rather_than_scaled():
     assert len(regions) == 1 and us == pytest.approx(0.75)
     got = F.build(_regional([{"share": 0.7, "year": 2026}, {"share": 0.6, "year": 2026}]))
     assert got["regions"] == [] and got["revenue_after_loe"] == F.build(_regional([]))["revenue_after_loe"]
+
+
+def test_a_region_without_a_date_keeps_the_us_date_unless_its_statutory_floor_is_later():
+    """No European date disclosed: Europe follows the US, except where its ten years of
+    data and market protection run past the US date. A floor is only a lower bound, so
+    with no US date at all it sets nothing."""
+    later = F.build(_regional([{"region": "EU", "share": 0.4, "year": None, "floor_year": 2033,
+                                "floor_basis": "EU data protection"}], loe=2029))
+    assert later["regions"][0]["loe_year"] == 2033 and later["regions"][0]["loe_basis"] == "EU data protection"
+    earlier = F.build(_regional([{"region": "EU", "share": 0.4, "year": None, "floor_year": 2027}], loe=2029))
+    assert earlier["regions"][0]["loe_year"] == 2029
+    inputs = _regional([{"region": "EU", "share": 0.4, "year": None, "floor_year": 2033}])
+    inputs["loe"] = None
+    assert F.build(inputs)["regions"][0]["loe_year"] is None

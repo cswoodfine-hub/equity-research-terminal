@@ -737,7 +737,15 @@ def build(inputs: dict) -> dict:
         r_year = region.get("year")
         r_year = int(r_year) if r_year is not None else None
         r_known_past = bool(region.get("in_base")) and r_year is None
-        if r_year is None and not r_known_past:
+        floor = region.get("floor_year")
+        if (r_year is None and not r_known_past and floor is not None
+                and (known_past or (loe_year is not None and loe_year < int(floor)))):
+            # No date disclosed, and the region's statutory protection outlasts the US
+            # date: Europe's ten years from first authorisation still stand.
+            r_year = int(floor)
+            r_basis = region.get("floor_basis") or "statutory protection, later than the US date"
+            r_in_base = r_year + 1 < years[0]
+        elif r_year is None and not r_known_past:
             # No date for the region: it keeps the US date, as the whole line did before.
             r_year, r_basis, r_in_base = loe_year, "no date for the region, so the US date", in_base
         else:

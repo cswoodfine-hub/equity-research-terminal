@@ -18,6 +18,7 @@ import pathlib
 import db
 import forecast
 import product_profile
+import regional_loe
 
 DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 SEED_DIR = DATA_DIR / "assumptions"
@@ -242,6 +243,9 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
                 else {"year": None, "basis": loe.get("basis"), "in_base": True}
                 if loe.get("past") else None),
         "is_marketed": bool(asset["is_marketed"]) if asset else None,
+        # Each region the product reports sales in, with its own exclusivity date, so a
+        # market that opens early or late is eroded when it does (regional_loe).
+        "regions": regional_loe.for_asset(conn, asset_id) if asset else [],
         "loe_defaults": loe_defaults(),
         "actuals": actuals,
         "valuation_year": reported["y"] if reported and reported["y"] else None,
