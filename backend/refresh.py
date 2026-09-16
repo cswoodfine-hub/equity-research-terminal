@@ -54,6 +54,7 @@ from fetchers.demand_cms import DemandCmsFetcher
 from fetchers.filing_text_edgar import FilingTextEdgarFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
 from fetchers.exclusivity_purplebook import PurpleBookFetcher
+from fetchers.eu_medicines_ema import EuMedicinesFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
 from fetchers.fx_ecb import FxEcbFetcher
@@ -117,9 +118,11 @@ def _company_fetchers(company, db_path):
 
 def _universe_fetchers(db_path):
     """Sources that download one file for the whole universe (LOE weekly, product
-    revenue from the SEC bulk data sets which move quarterly, and the ECB daily FX
-    reference set that lets the universe view convert to one display currency)."""
+    revenue from the SEC bulk data sets which move quarterly, the ECB daily FX
+    reference set that lets the universe view convert to one display currency, and the
+    EMA's authorisations, which start each product's European data protection)."""
     return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path),
+            EuMedicinesFetcher(db_path),
             ProductRevenueFetcher(db_path), FxEcbFetcher(db_path),
             NewsFdaFetcher(db_path), AdCommFetcher(db_path),
             ParagraphIvFetcher(db_path), DemandCmsFetcher(db_path)]
