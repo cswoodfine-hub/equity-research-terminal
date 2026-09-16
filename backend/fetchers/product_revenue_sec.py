@@ -336,8 +336,34 @@ def extract_products(rows, adsh: str, ddate: str = None) -> dict[str, dict]:
                  for _, unit in kinds.values() if unit}
         if len(units) != 1:
             continue                 # a product priced in two units cannot be totalled
-        out[product] = {"value": total, "unit": units.pop()}
+        # The split is kept beside the total. It is what a regional exclusivity date is
+        # applied to, and it was being added up and discarded.
+        regional = {geo: sum(value for value, _ in kinds.values())
+                    for geo, kinds in by_geography.items() if geo}
+        out[product] = {"value": total, "unit": units.pop(), "geography": regional}
     return out
+
+
+# The filer's geography members, as the codes regional exclusivity dates are keyed on.
+# INTL is everything outside the US together; ROW is a residual that is not.
+REGION_CODES = {
+    "us": "US", "unitedstates": "US", "domestic": "US",
+    "nonus": "INTL", "international": "INTL", "foreign": "INTL", "outsideus": "INTL",
+    "exus": "INTL", "internationaloperations": "INTL",
+    "europe": "EU", "eu": "EU", "eucan": "EU", "de": "EU", "europeexcludinggermany": "EU",
+    "ifrseurope": "EU",
+    "japan": "JP", "jp": "JP", "china": "CN", "cn": "CN",
+    "emergingmarkets": "EM", "apac": "APAC", "asia": "APAC",
+    # AstraZeneca's Established Rest of World: Japan, Canada, Australia and New Zealand.
+    "worldexcludingemergingmarketsunitedstatesandeurope": "ESTROW",
+    "restofworld": "ROW", "restoftheworld": "ROW", "other": "ROW",
+    "othercountriesinsegmentresults": "ROW",
+    "segmentgeographicalgroupsofcountriesgroupother": "ROW",
+}
+
+
+def region_code(member: str) -> str:
+    return REGION_CODES.get(_norm(member), "OTHER")
 
 
 def extract_products_by_year(rows, adsh: str) -> dict[str, dict]:
@@ -627,6 +653,7 @@ class ProductRevenueFetcher(BaseFetcher):
                             payload.append({"ticker": ticker, "member": member,
                                             "value": found_row["value"],
                                             "unit": found_row["unit"],
+                                            "geography": found_row.get("geography") or {},
                                             "fiscal_year": int(period[:4]),
                                             "form": meta["form"], "adsh": adsh})
         return payload
@@ -779,6 +806,23 @@ class ProductRevenueFetcher(BaseFetcher):
                      row.get("unit") or "USD", SEC_SOURCE,
                      f'{row["form"]} {row["adsh"]}'),
                 )
+                for member, value in (row.get("geography") or {}).items():
+                    conn.execute(
+                        """
+                        INSERT INTO asset_revenue_regions
+                            (asset_id, fiscal_year, member, region, value, unit, source,
+                             note, is_curated)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+                        ON CONFLICT(asset_id, fiscal_year, member) DO UPDATE SET
+                            region=excluded.region, value=excluded.value,
+                            unit=excluded.unit, source=excluded.source,
+                            note=excluded.note, updated_at=datetime('now')
+                         WHERE asset_revenue_regions.is_curated = 0
+                        """,
+                        (asset_id, row["fiscal_year"], member, region_code(member), value,
+                         row.get("unit") or "USD", SEC_SOURCE,
+                         f'{row["form"]} {row["adsh"]}'),
+                    )
                 written += 1
             conn.commit()
         finally:

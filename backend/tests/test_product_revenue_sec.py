@@ -14,6 +14,7 @@ from fetchers.product_revenue_sec import (
     extract_products,
     parse_segments,
     quarters_back,
+    region_code,
     worldwide,
 )
 
@@ -64,6 +65,27 @@ def test_worldwide_product_revenue_matches_the_filing():
     assert products["Mounjaro"]["value"] == pytest.approx(22.966e9)
     assert products["Zepbound"]["value"] == pytest.approx(13.542e9)
     assert products["Verzenio"]["value"] == pytest.approx(5.723e9)
+
+
+def test_the_geography_split_is_kept_beside_the_total():
+    """The split is what a regional exclusivity date applies to. Zepbound is 13.484bn in
+    the US and 58mm outside it, and both parts survive the sum."""
+    products = extract_products(_rows(), LLY_ADSH, "20251231")
+    assert products["Zepbound"]["geography"] == {"US": pytest.approx(13.484e9),
+                                                 "NonUs": pytest.approx(58e6)}
+    rows = [{"adsh": "X", "tag": "Revenue", "ddate": "20251231", "qtrs": "4", "coreg": "",
+             "value": v, "uom": "DKK", "segments": seg} for v, seg in (
+        ("127089", "ProductsAndServices=Ozempic;"),
+        ("80000", "GeographicalAreas=US;ProductsAndServices=Ozempic;"),
+        ("3000", "GeographicalAreas=CN;ProductsAndServices=Ozempic;"))]
+    got = extract_products(rows, "X", "20251231")["Ozempic"]
+    assert got["value"] == 127089 and got["geography"] == {"US": 80000, "CN": 3000}
+
+
+def test_geography_members_map_to_region_codes():
+    assert [region_code(m) for m in ("US", "NonUs", "EUCAN", "CN", "EmergingMarkets",
+                                     "APAC", "RestOfWorld", "Atlantis")] == [
+        "US", "INTL", "EU", "CN", "EM", "APAC", "ROW", "OTHER"]
 
 
 def test_the_unit_travels_with_the_value():
@@ -417,3 +439,24 @@ def test_a_product_with_only_sales_is_unchanged():
 
     rows = [_azn_row("RevenueFromSaleOfGoods", "Farxiga", 8000e6)]
     assert extract_products(rows, "azn")["Farxiga"]["value"] == 8000e6
+
+
+def test_the_split_is_stored_and_a_curated_row_is_not_overwritten(tmp_path):
+    import db
+    from fetchers.product_revenue_sec import ProductRevenueFetcher
+    path = str(tmp_path / "pr.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Lilly')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed) VALUES (7, 1, 'Zepbound', 1)")
+    conn.execute("INSERT INTO asset_revenue_regions (asset_id, fiscal_year, member, region, value,"
+                 " unit, source, is_curated) VALUES (7, 2025, 'NonUs', 'INTL', 60e6, 'USD', 'hand', 1)")
+    conn.commit()
+    fetcher = ProductRevenueFetcher(path)
+    fetcher._errors, fetcher._notes = [], []
+    fetcher.upsert([{"ticker": "LLY", "member": "Zepbound", "value": 13.542e9, "unit": "USD",
+                     "geography": {"US": 13.484e9, "NonUs": 58e6}, "fiscal_year": 2025,
+                     "form": "10-K", "adsh": LLY_ADSH}])
+    got = {r["member"]: (r["region"], r["value"], r["is_curated"]) for r in conn.execute(
+        "SELECT member, region, value, is_curated FROM asset_revenue_regions WHERE asset_id = 7")}
+    assert got == {"US": ("US", 13.484e9, 0), "NonUs": ("INTL", 60e6, 1)}
