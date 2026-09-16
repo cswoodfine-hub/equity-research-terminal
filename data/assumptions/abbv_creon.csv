@@ -1,0 +1,44 @@
+# Creon (ABBV). $1,512mm in FY2025.
+#
+# Marketed, so revenue is anchored on what was reported rather than built from
+# patients.
+#
+# The 2026 anchor is the first half as reported, $706mm, plus the second
+# quarter's $345mm twice: $1,396mm, -7.7% on FY2025. Both from the
+# 10-Q for the quarter to 30 June 2026 (0001551152-26-000026).
+#
+# Loss of exclusivity. The loader reads the date from the book.
+# AbbVie states no US loss of exclusivity date for Creon in the FY2025 10-K
+# (0001551152-26-000008) or in either 2026 10-Q (0001551152-26-000017,
+# 0001551152-26-000026). Its patent discussion dates Skyrizi and Rinvoq only and then
+# says: "AbbVie believes that no other single patent, license, trademark (or related
+# group of patents, licenses, or trademarks), is material in relation to the company's
+# business as a whole."
+#
+# The book holds one date, the Purple Book 12-year reference product exclusivity
+# floor of 2021-04-30, so on the book's reading Creon has already lost exclusivity
+# and the loss sits in the base. Neither the FY2025 10-K nor the 2026 10-Qs name
+# a competing pancrelipase, and US revenue rose 9.3% in FY2025 before falling 7.0% in the
+# first half of 2026, so the lapse is a statutory date rather than an erosion
+# the reported figures show.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+ABBV,Creon,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+ABBV,Creon,,US,base,base_revenue,,1512.0,,mm USD,"AbbVie FY2025 10-K (0001551152-26-000008), MD&A net revenues table: Creon United States $1,512mm, no international line, total 1,512mm in FY2025 and 1,383mm in FY2024",the anchor
+ABBV,Creon,,US,base,revenue_growth_pct,,-0.076720,,"annual, near term","the 2026 the filed quarters imply against the FY2025 reported 1,512mm: the first half of 2026 as reported, 706mm, and the second half at the second quarter's pace, 345mm twice, 1,396mm. AbbVie 10-Q for the quarter to 2026-06-30 (0001551152-26-000026), MD&A net revenues table, Creon; the same figures in the results exhibit (8-K 0001551152-26-000023, filed 2026-07-31)",the book's 2026 anchor convention; the rate fades to nought over five years
+ABBV,Creon,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+ABBV,Creon,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+ABBV,Creon,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+ABBV,Creon,,US,base,forecast_years,,10,,years,the convention for a product whose loss of exclusivity is already in the base: ten years. The book's only date is the 2021-04-30 Purple Book reference product exclusivity floor,
+ABBV,Creon,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+ABBV,Creon,,US,base,cogs_pct,,0.2976,,share of revenue,"ABBV FY2025, computed from the filed lines","ABBV's own, as every ABBV asset carries"
+ABBV,Creon,,US,base,sga_pct,,0.2291,,share of revenue,"ABBV FY2025, computed from the filed lines","ABBV's own, as every ABBV asset carries"
+ABBV,Creon,,US,base,rd_pct,,0.1487,,share of revenue,"ABBV FY2025, computed from the filed lines","ABBV's own, as every ABBV asset carries"
+ABBV,Creon,,US,base,tax_rate,,0.1081,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, from the filed lines. A single year is unusable for these filers: impairments and acquired IPR&D swing the annual rate between -105% and +36%, and one of the three reports a negative rate for FY2025","ABBV's own, as every ABBV asset carries"
+ABBV,Creon,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26","ABBV's own, as every ABBV asset carries"
+ABBV,Creon,,US,base,erp,,0.05,,,Damodaran US ERP estimate,"ABBV's own, as every ABBV asset carries"
+ABBV,Creon,,US,base,beta,,0.53,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.29 raw)","ABBV's own, as every ABBV asset carries"
+ABBV,Creon,,US,base,cost_of_debt,,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26","ABBV's own, as every ABBV asset carries"
+ABBV,Creon,,US,base,debt_weight,,0.123112,,,"filed TotalDebt of $64,503mm over debt plus market capitalisation: 1,767.1mm shares at 2026-07-27 at the $259.99 close of 2026-09-01","ABBV's own, as every ABBV asset carries"
+ABBV,Creon,,US,base,other_costs_pct,,-0.059378,,share of revenue,"derived and found to be nil: AbbVie generated $17,816mm of free cash flow on $61,160mm of revenue in FY2025, a 29.13% margin, against the 28.95% its cost of sales, SG&A and R&D leave. The two reconcile to within a fifth of a point, which is why this is zero rather than absent: the check was run and it found nothing to charge. Restated before interest: ABBV paid $3,002mm of interest inside operating cash flow over 2025, 4.91% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so adding it back only widens a gap the filed lines already leave, and the charge stays nil. Restated at replacement capex: ABBV spent $1,214mm on plant over 2025 against $762mm of plant depreciation, 0.74% of revenue above what keeps the plant running. Taken at depreciation, the charge stays nil. Checked without one-off cash: deal payments are booked under investing, so free cash flow never carried them, and no settlement or transition tax is stated for the window, so the charge stands. Restated to the amortisation floor: the filed cost lines leave a 32.46% pre-tax margin where the cash over 2025 supports 38.40%, so the charge rebuilds at -5.94%. It was held at nil, but ABBV books $7,377mm of non-cash amortisation of acquired intangibles inside cost of sales in FY2025 (0001551152-26-000008), 12.06% of revenue, so the charge takes the rebuilt figure: -5.94%.","AbbVie books its amortisation of acquired intangibles inside cost of sales, $7,377mm of it, which is why its 29.8% cost of sales is so far above Pfizer's 25.7% and why the same test that charged Pfizer 22% charges AbbVie nothing. The older windows would imply a credit, not a cost: 33.6% over three years and 36.3% over five, both above the model, because they carry peak Humira. A backward window cannot be used to charge a company whose margin is falling"
