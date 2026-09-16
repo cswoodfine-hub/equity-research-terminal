@@ -75,3 +75,14 @@ def test_a_seed_file_keeps_its_line_endings(tmp_path):
     raw = path.read_bytes()
     assert raw.count(b"\r\n") == 4 and b"\n" not in raw.replace(b"\r\n", b"")
     assert b"PFE,X,,US,base,cogs_pct,,0.25,,u,s,\r\n" in raw
+
+
+def test_a_fiscal_year_filed_twice_is_counted_once(tmp_path):
+    """J&J's FY2023 is on file ending 2023-12-31 and 2024-01-01. Summing both overstated
+    the window's revenue and interest; the latest-dated row is the year."""
+    conn = _db(tmp_path, PFE)
+    conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year,"
+                 " period_end, value, unit) VALUES (1, 'Revenues', 'FY', 2023, '2023-12-30',"
+                 " 99e9, 'USD'), (1, 'InterestPaidOperating', 'FY', 2023, '2023-12-30', 9e9, 'USD')")
+    conn.commit()
+    assert IA.measure(conn, "PFE")["share"] == pytest.approx(8.181e9 / 185.76e9)

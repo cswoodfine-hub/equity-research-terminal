@@ -42,14 +42,26 @@ COMPARATORS = {"VKTX": "LLY"}
 MARKER = "before interest"
 
 
-def _fy_sum(conn, company_id: int, metric: str, first: int, last: int):
+def fy_series(conn, company_id: int, metric: str, first: int, last: int) -> dict:
+    """{fiscal_year: row} with one row per year, the latest-dated. A 52 or 53 week filer
+    can carry two rows labelled the same fiscal year: Johnson & Johnson's FY2023 is on
+    file ending both 2023-12-31 and 2024-01-01, and summing both read its revenue over
+    2023 to 2025 as $348bn rather than $263bn."""
     rows = conn.execute(
-        """SELECT fiscal_year, value, unit FROM financials WHERE company_id = ?
-            AND metric = ? AND period_type = 'FY' AND fiscal_year BETWEEN ? AND ?
-            AND value IS NOT NULL""", (company_id, metric, first, last)).fetchall()
-    years = {r["fiscal_year"] for r in rows}
-    units = {r["unit"] for r in rows}
-    return sum(r["value"] for r in rows), years, units
+        """SELECT fiscal_year, value, unit, period_end FROM financials
+            WHERE company_id = ? AND metric = ? AND period_type = 'FY'
+              AND fiscal_year BETWEEN ? AND ? AND value IS NOT NULL
+            ORDER BY fiscal_year, period_end""", (company_id, metric, first, last))
+    out = {}
+    for row in rows:
+        out[row["fiscal_year"]] = row
+    return out
+
+
+def _fy_sum(conn, company_id: int, metric: str, first: int, last: int):
+    series = fy_series(conn, company_id, metric, first, last)
+    return (sum(r["value"] for r in series.values()), set(series),
+            {r["unit"] for r in series.values()})
 
 
 def measure(conn, ticker: str) -> dict:
