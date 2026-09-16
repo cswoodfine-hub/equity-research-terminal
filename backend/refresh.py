@@ -24,6 +24,7 @@ import asset_identity
 import asset_merge
 import financings
 import assumptions as assumptions_module
+import regional_loe
 import company_lines
 import indication_mapping
 import molecules
@@ -293,6 +294,10 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
         mapped["line_seeds"] = company_lines.load_seeds(conn)["written"]
         mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
+        # Regional sales a filer prints but does not tag. After the product revenue
+        # fetcher, so the curated rows are written over the assets it resolved.
+        mapped["region_revenue"] = regional_loe.load_curated_revenue(conn)
+        conn.commit()
     finally:
         conn.close()
     # Last resort for a brand nothing on file can identify, asked of openFDA by brand
@@ -473,6 +478,10 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
         mapped["line_seeds"] = company_lines.load_seeds(conn)["written"]
         mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
+        # Regional sales a filer prints but does not tag. After the product revenue
+        # fetcher, so the curated rows are written over the assets it resolved.
+        mapped["region_revenue"] = regional_loe.load_curated_revenue(conn)
+        conn.commit()
     finally:
         conn.close()
     # Last resort for a brand nothing on file can identify, asked of openFDA by brand

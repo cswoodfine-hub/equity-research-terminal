@@ -1,0 +1,379 @@
+# Product revenue by region, printed in a filer's FY2025 annual report tables but not
+# tagged in the SEC data sets, so not read by the product revenue fetcher.
+#
+# Ten modelled filers tag the split in XBRL and it is fetched. Pfizer, BMS, AbbVie,
+# Novartis, Sanofi, Regeneron and the rest print it in their annual report tables
+# instead, and these rows are those tables, loaded by regional_loe.load_curated_revenue
+# as curated rows that outrank a fetched split. value is in millions of the reporting
+# currency as printed, region is US, INTL (all outside the US together), EU, JP, CN, EM
+# or ROW, and region_label is the filer's own column heading. Every row has the
+# accession and a verbatim quote checked against the filed document.
+ticker,brand,fiscal_year,region,region_label,value,unit,accession,quote
+ABBV,Skyrizi,2025,US,United States,15202,USD,0001551152-26-000008,"Skyrizi | United States | $ | 15,202 | $ | 10,086 | $ | 6,753 | | International | 2,360"
+ABBV,Skyrizi,2025,INTL,International,2360,USD,0001551152-26-000008,"Skyrizi | United States | $ | 15,202 | $ | 10,086 | $ | 6,753 | | International | 2,360"
+ABBV,Rinvoq,2025,US,United States,5940,USD,0001551152-26-000008,"Rinvoq | United States | $ | 5,940 | $ | 4,259 | $ | 2,824 | | International | 2,364"
+ABBV,Rinvoq,2025,INTL,International,2364,USD,0001551152-26-000008,"Rinvoq | United States | $ | 5,940 | $ | 4,259 | $ | 2,824 | | International | 2,364"
+ABBV,Humira,2025,US,United States,3062,USD,0001551152-26-000008,"Humira | United States | $ | 3,062 | $ | 7,142 | $ | 12,160 | | International | 1,478"
+ABBV,Humira,2025,INTL,International,1478,USD,0001551152-26-000008,"Humira | United States | $ | 3,062 | $ | 7,142 | $ | 12,160 | | International | 1,478"
+ABBV,Vraylar,2025,US,United States,3612,USD,0001551152-26-000008,"Vraylar | United States | $ | 3,612 | $ | 3,260 | $ | 2,755 | | International | 9"
+ABBV,Vraylar,2025,INTL,International,9,USD,0001551152-26-000008,"Vraylar | United States | $ | 3,612 | $ | 3,260 | $ | 2,755 | | International | 9"
+ABBV,Botox,2025,US,United States,1504,USD,0001551152-26-000008,"Botox Cosmetic | United States | $ | 1,504 | $ | 1,682 | $ | 1,670"
+ABBV,Botox,2025,INTL,International,1098,USD,0001551152-26-000008,"Botox Cosmetic | United States | $ | 1,504 | $ | 1,682 | $ | 1,670 | (10.5) | % | 0.7 | % | (10.5) | % | 0.7 | % | International | 1,098"
+ABBV,Venclexta,2025,US,United States,1306,USD,0001551152-26-000008,"Venclexta | United States | $ | 1,306 | $ | 1,234 | $ | 1,087 | | International | 1,486"
+ABBV,Venclexta,2025,INTL,International,1486,USD,0001551152-26-000008,"Venclexta | United States | $ | 1,306 | $ | 1,234 | $ | 1,087 | | International | 1,486"
+ABBV,Ubrelvy,2025,US,United States,1239,USD,0001551152-26-000008,"Ubrelvy | United States | $ | 1,239 | $ | 981 | $ | 803 | | International | 32"
+ABBV,Ubrelvy,2025,INTL,International,32,USD,0001551152-26-000008,"Ubrelvy | United States | $ | 1,239 | $ | 981 | $ | 803 | | International | 32"
+ABBV,Qulipta,2025,US,United States,906,USD,0001551152-26-000008,Qulipta | United States | $ | 906 | $ | 628 | $ | 405 | | International | 130
+ABBV,Qulipta,2025,INTL,International,130,USD,0001551152-26-000008,Qulipta | United States | $ | 906 | $ | 628 | $ | 405 | | International | 130
+AZN,Tagrisso,2025,US,US,3064,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Tagrisso | 7,254 | 10 | 10 | 3,064 | 11 | 1,971 | 12 | 14 | 1,423 | 9 | 6 | 796 | 5 | 5"
+AZN,Tagrisso,2025,EM,Emerging Markets,1971,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Tagrisso | 7,254 | 10 | 10 | 3,064 | 11 | 1,971 | 12 | 14 | 1,423 | 9 | 6 | 796 | 5 | 5"
+AZN,Tagrisso,2025,EU,Europe,1423,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Tagrisso | 7,254 | 10 | 10 | 3,064 | 11 | 1,971 | 12 | 14 | 1,423 | 9 | 6 | 796 | 5 | 5"
+AZN,Tagrisso,2025,ROW,Established ROW,796,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Tagrisso | 7,254 | 10 | 10 | 3,064 | 11 | 1,971 | 12 | 14 | 1,423 | 9 | 6 | 796 | 5 | 5"
+AZN,Imfinzi,2025,US,US,3509,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Imfinzi | 6,063 | 29 | 28 | 3,509 | 35 | 640 | 34 | 38 | 1,239 | 31 | 26 | 675 | (2) | (2)"
+AZN,Imfinzi,2025,EM,Emerging Markets,640,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Imfinzi | 6,063 | 29 | 28 | 3,509 | 35 | 640 | 34 | 38 | 1,239 | 31 | 26 | 675 | (2) | (2)"
+AZN,Imfinzi,2025,EU,Europe,1239,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Imfinzi | 6,063 | 29 | 28 | 3,509 | 35 | 640 | 34 | 38 | 1,239 | 31 | 26 | 675 | (2) | (2)"
+AZN,Imfinzi,2025,ROW,Established ROW,675,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Imfinzi | 6,063 | 29 | 28 | 3,509 | 35 | 640 | 34 | 38 | 1,239 | 31 | 26 | 675 | (2) | (2)"
+AZN,Calquence,2025,US,US,2339,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Calquence | 3,518 | 12 | 12 | 2,339 | 7 | 233 | 52 | 54 | 784 | 20 | 15 | 162 | 25 | 27"
+AZN,Calquence,2025,EM,Emerging Markets,233,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Calquence | 3,518 | 12 | 12 | 2,339 | 7 | 233 | 52 | 54 | 784 | 20 | 15 | 162 | 25 | 27"
+AZN,Calquence,2025,EU,Europe,784,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Calquence | 3,518 | 12 | 12 | 2,339 | 7 | 233 | 52 | 54 | 784 | 20 | 15 | 162 | 25 | 27"
+AZN,Calquence,2025,ROW,Established ROW,162,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Calquence | 3,518 | 12 | 12 | 2,339 | 7 | 233 | 52 | 54 | 784 | 20 | 15 | 162 | 25 | 27"
+AZN,Lynparza,2025,US,US,1434,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Lynparza | 3,279 | 7 | 6 | 1,434 | 8 | 669 | 2 | 1 | 914 | 10 | 6 | 262 | 3 | 4"
+AZN,Lynparza,2025,EM,Emerging Markets,669,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Lynparza | 3,279 | 7 | 6 | 1,434 | 8 | 669 | 2 | 1 | 914 | 10 | 6 | 262 | 3 | 4"
+AZN,Lynparza,2025,EU,Europe,914,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Lynparza | 3,279 | 7 | 6 | 1,434 | 8 | 669 | 2 | 1 | 914 | 10 | 6 | 262 | 3 | 4"
+AZN,Lynparza,2025,ROW,Established ROW,262,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Lynparza | 3,279 | 7 | 6 | 1,434 | 8 | 669 | 2 | 1 | 914 | 10 | 6 | 262 | 3 | 4"
+AZN,Enhertu,2025,EM,Emerging Markets,668,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Enhertu | 977 | 79 | 81 | — | — | 668 | 91 | 95 | 207 | 64 | 58 | 102 | 47 | 51
+AZN,Enhertu,2025,EU,Europe,207,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Enhertu | 977 | 79 | 81 | — | — | 668 | 91 | 95 | 207 | 64 | 58 | 102 | 47 | 51
+AZN,Enhertu,2025,ROW,Established ROW,102,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Enhertu | 977 | 79 | 81 | — | — | 668 | 91 | 95 | 207 | 64 | 58 | 102 | 47 | 51
+AZN,Zoladex,2025,US,US,19,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Zoladex | 1,106 | 5 | 6 | 19 | 17 | 842 | 6 | 8 | 157 | 6 | 3 | 88 | (11) | (10)"
+AZN,Zoladex,2025,EM,Emerging Markets,842,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Zoladex | 1,106 | 5 | 6 | 19 | 17 | 842 | 6 | 8 | 157 | 6 | 3 | 88 | (11) | (10)"
+AZN,Zoladex,2025,EU,Europe,157,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Zoladex | 1,106 | 5 | 6 | 19 | 17 | 842 | 6 | 8 | 157 | 6 | 3 | 88 | (11) | (10)"
+AZN,Zoladex,2025,ROW,Established ROW,88,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Zoladex | 1,106 | 5 | 6 | 19 | 17 | 842 | 6 | 8 | 157 | 6 | 3 | 88 | (11) | (10)"
+AZN,Truqap,2025,US,US,586,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Truqap | 728 | 69 | 68 | 586 | 44 | 23 | n/m | n/m | 85 | n/m | n/m | 34 | n/m | n/m
+AZN,Truqap,2025,EM,Emerging Markets,23,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Truqap | 728 | 69 | 68 | 586 | 44 | 23 | n/m | n/m | 85 | n/m | n/m | 34 | n/m | n/m
+AZN,Truqap,2025,EU,Europe,85,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Truqap | 728 | 69 | 68 | 586 | 44 | 23 | n/m | n/m | 85 | n/m | n/m | 34 | n/m | n/m
+AZN,Truqap,2025,ROW,Established ROW,34,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Truqap | 728 | 69 | 68 | 586 | 44 | 23 | n/m | n/m | 85 | n/m | n/m | 34 | n/m | n/m
+AZN,Imjudo,2025,US,US,227,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Imjudo | 346 | 23 | 23 | 227 | 26 | 22 | 40 | 43 | 52 | 43 | 38 | 45 | (9) | (9)
+AZN,Imjudo,2025,EM,Emerging Markets,22,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Imjudo | 346 | 23 | 23 | 227 | 26 | 22 | 40 | 43 | 52 | 43 | 38 | 45 | (9) | (9)
+AZN,Imjudo,2025,EU,Europe,52,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Imjudo | 346 | 23 | 23 | 227 | 26 | 22 | 40 | 43 | 52 | 43 | 38 | 45 | (9) | (9)
+AZN,Imjudo,2025,ROW,Established ROW,45,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Imjudo | 346 | 23 | 23 | 227 | 26 | 22 | 40 | 43 | 52 | 43 | 38 | 45 | (9) | (9)
+AZN,Farxiga,2025,US,US,1730,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Farxiga | 8,400 | 10 | 9 | 1,730 | (1) | 3,324 | 17 | 18 | 2,941 | 12 | 8 | 405 | (3) | (3)"
+AZN,Farxiga,2025,EM,Emerging Markets,3324,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Farxiga | 8,400 | 10 | 9 | 1,730 | (1) | 3,324 | 17 | 18 | 2,941 | 12 | 8 | 405 | (3) | (3)"
+AZN,Farxiga,2025,EU,Europe,2941,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Farxiga | 8,400 | 10 | 9 | 1,730 | (1) | 3,324 | 17 | 18 | 2,941 | 12 | 8 | 405 | (3) | (3)"
+AZN,Farxiga,2025,ROW,Established ROW,405,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Farxiga | 8,400 | 10 | 9 | 1,730 | (1) | 3,324 | 17 | 18 | 2,941 | 12 | 8 | 405 | (3) | (3)"
+AZN,Crestor,2025,US,US,45,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Crestor | 1,216 | 5 | 6 | 45 | (3) | 1,041 | 11 | 12 | 1 | (97) | (97) | 129 | (5) | (5)"
+AZN,Crestor,2025,EM,Emerging Markets,1041,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Crestor | 1,216 | 5 | 6 | 45 | (3) | 1,041 | 11 | 12 | 1 | (97) | (97) | 129 | (5) | (5)"
+AZN,Crestor,2025,EU,Europe,1,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Crestor | 1,216 | 5 | 6 | 45 | (3) | 1,041 | 11 | 12 | 1 | (97) | (97) | 129 | (5) | (5)"
+AZN,Crestor,2025,ROW,Established ROW,129,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Crestor | 1,216 | 5 | 6 | 45 | (3) | 1,041 | 11 | 12 | 1 | (97) | (97) | 129 | (5) | (5)"
+AZN,Brilinta,2025,US,US,393,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Brilinta | 823 | (38) | (38) | 393 | (48) | 273 | (7) | (7) | 147 | (45) | (46) | 10 | (51) | (48)
+AZN,Brilinta,2025,EM,Emerging Markets,273,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Brilinta | 823 | (38) | (38) | 393 | (48) | 273 | (7) | (7) | 147 | (45) | (46) | 10 | (51) | (48)
+AZN,Brilinta,2025,EU,Europe,147,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Brilinta | 823 | (38) | (38) | 393 | (48) | 273 | (7) | (7) | 147 | (45) | (46) | 10 | (51) | (48)
+AZN,Brilinta,2025,ROW,Established ROW,10,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Brilinta | 823 | (38) | (38) | 393 | (48) | 273 | (7) | (7) | 147 | (45) | (46) | 10 | (51) | (48)
+AZN,Lokelma,2025,US,US,301,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Lokelma | 698 | 29 | 28 | 301 | 18 | 129 | 50 | 52 | 129 | 39 | 34 | 139 | 29 | 28
+AZN,Lokelma,2025,EM,Emerging Markets,129,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Lokelma | 698 | 29 | 28 | 301 | 18 | 129 | 50 | 52 | 129 | 39 | 34 | 139 | 29 | 28
+AZN,Lokelma,2025,EU,Europe,129,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Lokelma | 698 | 29 | 28 | 301 | 18 | 129 | 50 | 52 | 129 | 39 | 34 | 139 | 29 | 28
+AZN,Lokelma,2025,ROW,Established ROW,139,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Lokelma | 698 | 29 | 28 | 301 | 18 | 129 | 50 | 52 | 129 | 39 | 34 | 139 | 29 | 28
+AZN,Seloken,2025,EM,Emerging Markets,586,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Seloken | 607 | — | 2 | — | — | 586 | (1) | 1 | 18 | 43 | 43 | 3 | 1 | 14
+AZN,Seloken,2025,EU,Europe,18,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Seloken | 607 | — | 2 | — | — | 586 | (1) | 1 | 18 | 43 | 43 | 3 | 1 | 14
+AZN,Seloken,2025,ROW,Established ROW,3,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Seloken | 607 | — | 2 | — | — | 586 | (1) | 1 | 18 | 43 | 43 | 3 | 1 | 14
+AZN,Roxadustat,2025,EM,Emerging Markets,274,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Roxadustat | 274 | (17) | (17) | — | — | 274 | (17) | (17) | — | — | — | — | — | —
+AZN,Symbicort,2025,US,US,1193,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Symbicort | 2,885 | — | — | 1,193 | 1 | 801 | (1) | 1 | 560 | — | (3) | 331 | 1 | 3"
+AZN,Symbicort,2025,EM,Emerging Markets,801,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Symbicort | 2,885 | — | — | 1,193 | 1 | 801 | (1) | 1 | 560 | — | (3) | 331 | 1 | 3"
+AZN,Symbicort,2025,EU,Europe,560,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Symbicort | 2,885 | — | — | 1,193 | 1 | 801 | (1) | 1 | 560 | — | (3) | 331 | 1 | 3"
+AZN,Symbicort,2025,ROW,Established ROW,331,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Symbicort | 2,885 | — | — | 1,193 | 1 | 801 | (1) | 1 | 560 | — | (3) | 331 | 1 | 3"
+AZN,Fasenra,2025,US,US,1195,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Fasenra | 1,981 | 17 | 16 | 1,195 | 14 | 117 | 27 | 29 | 482 | 19 | 15 | 187 | 29 | 30"
+AZN,Fasenra,2025,EM,Emerging Markets,117,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Fasenra | 1,981 | 17 | 16 | 1,195 | 14 | 117 | 27 | 29 | 482 | 19 | 15 | 187 | 29 | 30"
+AZN,Fasenra,2025,EU,Europe,482,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Fasenra | 1,981 | 17 | 16 | 1,195 | 14 | 117 | 27 | 29 | 482 | 19 | 15 | 187 | 29 | 30"
+AZN,Fasenra,2025,ROW,Established ROW,187,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Fasenra | 1,981 | 17 | 16 | 1,195 | 14 | 117 | 27 | 29 | 482 | 19 | 15 | 187 | 29 | 30"
+AZN,Breztri,2025,US,US,614,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Breztri | 1,199 | 23 | 22 | 614 | 19 | 298 | 22 | 22 | 191 | 33 | 29 | 96 | 30 | 30"
+AZN,Breztri,2025,EM,Emerging Markets,298,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Breztri | 1,199 | 23 | 22 | 614 | 19 | 298 | 22 | 22 | 191 | 33 | 29 | 96 | 30 | 30"
+AZN,Breztri,2025,EU,Europe,191,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Breztri | 1,199 | 23 | 22 | 614 | 19 | 298 | 22 | 22 | 191 | 33 | 29 | 96 | 30 | 30"
+AZN,Breztri,2025,ROW,Established ROW,96,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Breztri | 1,199 | 23 | 22 | 614 | 19 | 298 | 22 | 22 | 191 | 33 | 29 | 96 | 30 | 30"
+AZN,Tezspire,2025,EM,Emerging Markets,40,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Tezspire | 458 | 85 | 80 | — | — | 40 | n/m | n/m | 297 | 90 | 83 | 121 | 51 | 51
+AZN,Tezspire,2025,EU,Europe,297,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Tezspire | 458 | 85 | 80 | — | — | 40 | n/m | n/m | 297 | 90 | 83 | 121 | 51 | 51
+AZN,Tezspire,2025,ROW,Established ROW,121,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Tezspire | 458 | 85 | 80 | — | — | 40 | n/m | n/m | 297 | 90 | 83 | 121 | 51 | 51
+AZN,Saphnelo,2025,US,US,596,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Saphnelo | 686 | 45 | 44 | 596 | 40 | 16 | n/m | n/m | 49 | 89 | 81 | 25 | 52 | 52
+AZN,Saphnelo,2025,EM,Emerging Markets,16,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Saphnelo | 686 | 45 | 44 | 596 | 40 | 16 | n/m | n/m | 49 | 89 | 81 | 25 | 52 | 52
+AZN,Saphnelo,2025,EU,Europe,49,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Saphnelo | 686 | 45 | 44 | 596 | 40 | 16 | n/m | n/m | 49 | 89 | 81 | 25 | 52 | 52
+AZN,Saphnelo,2025,ROW,Established ROW,25,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Saphnelo | 686 | 45 | 44 | 596 | 40 | 16 | n/m | n/m | 49 | 89 | 81 | 25 | 52 | 52
+AZN,Pulmicort,2025,US,US,5,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Pulmicort | 518 | (24) | (24) | 5 | (21) | 414 | (27) | (27) | 63 | (12) | (15) | 36 | (1) | 1
+AZN,Pulmicort,2025,EM,Emerging Markets,414,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Pulmicort | 518 | (24) | (24) | 5 | (21) | 414 | (27) | (27) | 63 | (12) | (15) | 36 | (1) | 1
+AZN,Pulmicort,2025,EU,Europe,63,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Pulmicort | 518 | (24) | (24) | 5 | (21) | 414 | (27) | (27) | 63 | (12) | (15) | 36 | (1) | 1
+AZN,Pulmicort,2025,ROW,Established ROW,36,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Pulmicort | 518 | (24) | (24) | 5 | (21) | 414 | (27) | (27) | 63 | (12) | (15) | 36 | (1) | 1
+AZN,Airsupra,2025,US,US,162,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Airsupra | 166 | n/m | n/m | 162 | n/m | 4 | n/m | n/m | — | — | — | — | — | —
+AZN,Airsupra,2025,EM,Emerging Markets,4,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Airsupra | 166 | n/m | n/m | 162 | n/m | 4 | n/m | n/m | — | — | — | — | — | —
+AZN,Beyfortus,2025,US,US,184,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Beyfortus | 281 | (12) | (12) | 184 | (21) | — | — | — | 94 | 12 | 12 | 3 | 58 | 53
+AZN,Beyfortus,2025,EU,Europe,94,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Beyfortus | 281 | (12) | (12) | 184 | (21) | — | — | — | 94 | 12 | 12 | 3 | 58 | 53
+AZN,Beyfortus,2025,ROW,Established ROW,3,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Beyfortus | 281 | (12) | (12) | 184 | (21) | — | — | — | 94 | 12 | 12 | 3 | 58 | 53
+AZN,Synagis,2025,US,US,-3,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Synagis | 292 | (35) | (34) | (3) | (57) | 214 | 2 | 4 | 50 | (56) | (57) | 31 | (76) | (76)
+AZN,Synagis,2025,EM,Emerging Markets,214,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Synagis | 292 | (35) | (34) | (3) | (57) | 214 | 2 | 4 | 50 | (56) | (57) | 31 | (76) | (76)
+AZN,Synagis,2025,EU,Europe,50,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Synagis | 292 | (35) | (34) | (3) | (57) | 214 | 2 | 4 | 50 | (56) | (57) | 31 | (76) | (76)
+AZN,Synagis,2025,ROW,Established ROW,31,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Synagis | 292 | (35) | (34) | (3) | (57) | 214 | 2 | 4 | 50 | (56) | (57) | 31 | (76) | (76)
+AZN,Flumist,2025,US,US,28,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... FluMist | 272 | 6 | 3 | 28 | 1 | 5 | n/m | n/m | 210 | 3 | (1) | 29 | 19 | 19
+AZN,Flumist,2025,EM,Emerging Markets,5,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... FluMist | 272 | 6 | 3 | 28 | 1 | 5 | n/m | n/m | 210 | 3 | (1) | 29 | 19 | 19
+AZN,Flumist,2025,EU,Europe,210,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... FluMist | 272 | 6 | 3 | 28 | 1 | 5 | n/m | n/m | 210 | 3 | (1) | 29 | 19 | 19
+AZN,Flumist,2025,ROW,Established ROW,29,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... FluMist | 272 | 6 | 3 | 28 | 1 | 5 | n/m | n/m | 210 | 3 | (1) | 29 | 19 | 19
+AZN,Ultomiris,2025,US,US,2667,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Ultomiris | 4,718 | 20 | 19 | 2,667 | 18 | 261 | 84 | 90 | 1,053 | 19 | 15 | 737 | 16 | 15"
+AZN,Ultomiris,2025,EM,Emerging Markets,261,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Ultomiris | 4,718 | 20 | 19 | 2,667 | 18 | 261 | 84 | 90 | 1,053 | 19 | 15 | 737 | 16 | 15"
+AZN,Ultomiris,2025,EU,Europe,1053,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Ultomiris | 4,718 | 20 | 19 | 2,667 | 18 | 261 | 84 | 90 | 1,053 | 19 | 15 | 737 | 16 | 15"
+AZN,Ultomiris,2025,ROW,Established ROW,737,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Ultomiris | 4,718 | 20 | 19 | 2,667 | 18 | 261 | 84 | 90 | 1,053 | 19 | 15 | 737 | 16 | 15"
+AZN,Soliris,2025,US,US,1092,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Soliris | 1,837 | (29) | (28) | 1,092 | (28) | 405 | (9) | (1) | 200 | (52) | (53) | 140 | (32) | (31)"
+AZN,Soliris,2025,EM,Emerging Markets,405,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Soliris | 1,837 | (29) | (28) | 1,092 | (28) | 405 | (9) | (1) | 200 | (52) | (53) | 140 | (32) | (31)"
+AZN,Soliris,2025,EU,Europe,200,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Soliris | 1,837 | (29) | (28) | 1,092 | (28) | 405 | (9) | (1) | 200 | (52) | (53) | 140 | (32) | (31)"
+AZN,Soliris,2025,ROW,Established ROW,140,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Soliris | 1,837 | (29) | (28) | 1,092 | (28) | 405 | (9) | (1) | 200 | (52) | (53) | 140 | (32) | (31)"
+AZN,Strensiq,2025,US,US,1332,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Strensiq | 1,678 | 19 | 18 | 1,332 | 14 | 104 | 94 | 84 | 123 | 25 | 21 | 119 | 23 | 23"
+AZN,Strensiq,2025,EM,Emerging Markets,104,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Strensiq | 1,678 | 19 | 18 | 1,332 | 14 | 104 | 94 | 84 | 123 | 25 | 21 | 119 | 23 | 23"
+AZN,Strensiq,2025,EU,Europe,123,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Strensiq | 1,678 | 19 | 18 | 1,332 | 14 | 104 | 94 | 84 | 123 | 25 | 21 | 119 | 23 | 23"
+AZN,Strensiq,2025,ROW,Established ROW,119,USD,0001104659-26-019130,"World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Strensiq | 1,678 | 19 | 18 | 1,332 | 14 | 104 | 94 | 84 | 123 | 25 | 21 | 119 | 23 | 23"
+AZN,Koselugo,2025,US,US,219,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Koselugo | 662 | 25 | 22 | 219 | 3 | 228 | 29 | 25 | 161 | 57 | 51 | 54 | 38 | 38
+AZN,Koselugo,2025,EM,Emerging Markets,228,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Koselugo | 662 | 25 | 22 | 219 | 3 | 228 | 29 | 25 | 161 | 57 | 51 | 54 | 38 | 38
+AZN,Koselugo,2025,EU,Europe,161,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Koselugo | 662 | 25 | 22 | 219 | 3 | 228 | 29 | 25 | 161 | 57 | 51 | 54 | 38 | 38
+AZN,Koselugo,2025,ROW,Established ROW,54,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Koselugo | 662 | 25 | 22 | 219 | 3 | 228 | 29 | 25 | 161 | 57 | 51 | 54 | 38 | 38
+AZN,Nexium,2025,US,US,67,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Nexium | 816 | (6) | (5) | 67 | (30) | 611 | 3 | 5 | 50 | (18) | (20) | 88 | (26) | (26)
+AZN,Nexium,2025,EM,Emerging Markets,611,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Nexium | 816 | (6) | (5) | 67 | (30) | 611 | 3 | 5 | 50 | (18) | (20) | 88 | (26) | (26)
+AZN,Nexium,2025,EU,Europe,50,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Nexium | 816 | (6) | (5) | 67 | (30) | 611 | 3 | 5 | 50 | (18) | (20) | 88 | (26) | (26)
+AZN,Nexium,2025,ROW,Established ROW,88,USD,0001104659-26-019130,World | US | Emerging Markets | Europe | Established ROW ... 2025 | $m ... Nexium | 816 | (6) | (5) | 67 | (30) | 611 | 3 | 5 | 50 | (18) | (20) | 88 | (26) | (26)
+BMY,Opdivo,2025,US,U.S.,5904,USD,0000014272-26-000004,"Opdivo | $ | 10,049 | $ | 9,304 | 8 | % | U.S. | 5,904 | 5,350 | 10 | % | Non-U.S. | 4,145"
+BMY,Opdivo,2025,INTL,Non-U.S.,4145,USD,0000014272-26-000004,"Opdivo | $ | 10,049 | $ | 9,304 | 8 | % | U.S. | 5,904 | 5,350 | 10 | % | Non-U.S. | 4,145"
+BMY,Orencia,2025,US,U.S.,2736,USD,0000014272-26-000004,"Orencia | 3,705 | 3,682 | 1 | % | U.S. | 2,736 | 2,770 | (1) | % | Non-U.S. | 969"
+BMY,Orencia,2025,INTL,Non-U.S.,969,USD,0000014272-26-000004,"Orencia | 3,705 | 3,682 | 1 | % | U.S. | 2,736 | 2,770 | (1) | % | Non-U.S. | 969"
+BMY,Yervoy,2025,US,U.S.,1825,USD,0000014272-26-000004,"Yervoy | 2,900 | 2,530 | 15 | % | U.S. | 1,825 | 1,599 | 14 | % | Non-U.S. | 1,075"
+BMY,Yervoy,2025,INTL,Non-U.S.,1075,USD,0000014272-26-000004,"Yervoy | 2,900 | 2,530 | 15 | % | U.S. | 1,825 | 1,599 | 14 | % | Non-U.S. | 1,075"
+BMY,Reblozyl,2025,US,U.S.,1888,USD,0000014272-26-000004,"Reblozyl | 2,327 | 1,773 | 31 | % | U.S. | 1,888 | 1,444 | 31 | % | Non-U.S. | 438"
+BMY,Reblozyl,2025,INTL,Non-U.S.,438,USD,0000014272-26-000004,"Reblozyl | 2,327 | 1,773 | 31 | % | U.S. | 1,888 | 1,444 | 31 | % | Non-U.S. | 438"
+BMY,Breyanzi,2025,US,U.S.,994,USD,0000014272-26-000004,"Breyanzi | 1,358 | 747 | 82 | % | U.S. | 994 | 591 | 68 | % | Non-U.S. | 364"
+BMY,Breyanzi,2025,INTL,Non-U.S.,364,USD,0000014272-26-000004,"Breyanzi | 1,358 | 747 | 82 | % | U.S. | 994 | 591 | 68 | % | Non-U.S. | 364"
+BMY,Opdualag,2025,US,U.S.,1045,USD,0000014272-26-000004,"Opdualag | 1,185 | 928 | 28 | % | U.S. | 1,045 | 870 | 20 | % | Non-U.S. | 140"
+BMY,Opdualag,2025,INTL,Non-U.S.,140,USD,0000014272-26-000004,"Opdualag | 1,185 | 928 | 28 | % | U.S. | 1,045 | 870 | 20 | % | Non-U.S. | 140"
+BMY,Camzyos,2025,US,U.S.,863,USD,0000014272-26-000004,"Camzyos | 1,068 | 602 | 77 | % | U.S. | 863 | 543 | 59 | % | Non-U.S. | 204"
+BMY,Camzyos,2025,INTL,Non-U.S.,204,USD,0000014272-26-000004,"Camzyos | 1,068 | 602 | 77 | % | U.S. | 863 | 543 | 59 | % | Non-U.S. | 204"
+BMY,Zeposia,2025,US,U.S.,392,USD,0000014272-26-000004,Zeposia | 577 | 566 | 2 | % | U.S. | 392 | 403 | (3) | % | Non-U.S. | 186
+BMY,Zeposia,2025,INTL,Non-U.S.,186,USD,0000014272-26-000004,Zeposia | 577 | 566 | 2 | % | U.S. | 392 | 403 | (3) | % | Non-U.S. | 186
+BMY,Abecma,2025,US,U.S.,208,USD,0000014272-26-000004,Abecma | 427 | 406 | 5 | % | U.S. | 208 | 242 | (14) | % | Non-U.S. | 219
+BMY,Abecma,2025,INTL,Non-U.S.,219,USD,0000014272-26-000004,Abecma | 427 | 406 | 5 | % | U.S. | 208 | 242 | (14) | % | Non-U.S. | 219
+BMY,Sotyktu,2025,US,U.S.,182,USD,0000014272-26-000004,Sotyktu | 291 | 246 | 19 | % | U.S. | 182 | 190 | (5) | % | Non-U.S. | 110
+BMY,Sotyktu,2025,INTL,Non-U.S.,110,USD,0000014272-26-000004,Sotyktu | 291 | 246 | 19 | % | U.S. | 182 | 190 | (5) | % | Non-U.S. | 110
+BMY,Krazati,2025,US,U.S.,192,USD,0000014272-26-000004,Krazati | 205 | 126 | 62 | % | U.S. | 192 | 118 | 63 | % | Non-U.S. | 13
+BMY,Krazati,2025,INTL,Non-U.S.,13,USD,0000014272-26-000004,Krazati | 205 | 126 | 62 | % | U.S. | 192 | 118 | 63 | % | Non-U.S. | 13
+BMY,Cobenfy,2025,US,U.S.,155,USD,0000014272-26-000004,Cobenfy | 155 | 10 | >200% | U.S. | 155 | 10 | >200% | Non-U.S. | — | —
+BMY,Cobenfy,2025,INTL,Non-U.S.,0,USD,0000014272-26-000004,Cobenfy | 155 | 10 | >200% | U.S. | 155 | 10 | >200% | Non-U.S. | — | —
+BMY,Eliquis,2025,US,U.S.,10239,USD,0000014272-26-000004,"Eliquis | $ | 14,443 | $ | 13,333 | 8 | % | U.S. | 10,239 | 9,631 | 6 | % | Non-U.S. | 4,205"
+BMY,Eliquis,2025,INTL,Non-U.S.,4205,USD,0000014272-26-000004,"Eliquis | $ | 14,443 | $ | 13,333 | 8 | % | U.S. | 10,239 | 9,631 | 6 | % | Non-U.S. | 4,205"
+BMY,Revlimid,2025,US,U.S.,2535,USD,0000014272-26-000004,"Revlimid | 2,951 | 5,773 | (49) | % | U.S. | 2,535 | 4,999 | (49) | % | Non-U.S. | 416"
+BMY,Revlimid,2025,INTL,Non-U.S.,416,USD,0000014272-26-000004,"Revlimid | 2,951 | 5,773 | (49) | % | U.S. | 2,535 | 4,999 | (49) | % | Non-U.S. | 416"
+BMY,Pomalyst,2025,US,U.S.,2341,USD,0000014272-26-000004,"Pomalyst/Imnovid | 2,733 | 3,545 | (23) | % | U.S. | 2,341 | 2,695 | (13) | % | Non-U.S. | 391"
+BMY,Pomalyst,2025,INTL,Non-U.S.,391,USD,0000014272-26-000004,"Pomalyst/Imnovid | 2,733 | 3,545 | (23) | % | U.S. | 2,341 | 2,695 | (13) | % | Non-U.S. | 391"
+BMY,Sprycel,2025,US,U.S.,299,USD,0000014272-26-000004,"Sprycel | 493 | 1,286 | (62) | % | U.S. | 299 | 983 | (70) | % | Non-U.S. | 194"
+BMY,Sprycel,2025,INTL,Non-U.S.,194,USD,0000014272-26-000004,"Sprycel | 493 | 1,286 | (62) | % | U.S. | 299 | 983 | (70) | % | Non-U.S. | 194"
+BMY,Abraxane,2025,US,U.S.,116,USD,0000014272-26-000004,Abraxane | 368 | 875 | (58) | % | U.S. | 116 | 541 | (78) | % | Non-U.S. | 251
+BMY,Abraxane,2025,INTL,Non-U.S.,251,USD,0000014272-26-000004,Abraxane | 368 | 875 | (58) | % | U.S. | 116 | 541 | (78) | % | Non-U.S. | 251
+GSK,Tivicay,2025,US,US,801,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Tivicay | 1,323 | (2) | – | 801 | 3 | 6 | 237 | (6) | (7) | 285 | (10) | (9)"
+GSK,Tivicay,2025,EU,Europe,237,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Tivicay | 1,323 | (2) | – | 801 | 3 | 6 | 237 | (6) | (7) | 285 | (10) | (9)"
+GSK,Tivicay,2025,ROW,International,285,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Tivicay | 1,323 | (2) | – | 801 | 3 | 6 | 237 | (6) | (7) | 285 | (10) | (9)"
+GSK,Triumeq,2025,US,US,728,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Triumeq | 991 | (25) | (23) | 728 | (23) | (21) | 153 | (31) | (32) | 110 | (32) | (28)
+GSK,Triumeq,2025,EU,Europe,153,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Triumeq | 991 | (25) | (23) | 728 | (23) | (21) | 153 | (31) | (32) | 110 | (32) | (28)
+GSK,Triumeq,2025,ROW,International,110,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Triumeq | 991 | (25) | (23) | 728 | (23) | (21) | 153 | (31) | (32) | 110 | (32) | (28)
+GSK,Juluca,2025,US,US,527,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Juluca | 656 | (4) | (2) | 527 | (3) | (1) | 117 | (8) | (9) | 12 | – | 8
+GSK,Juluca,2025,EU,Europe,117,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Juluca | 656 | (4) | (2) | 527 | (3) | (1) | 117 | (8) | (9) | 12 | – | 8
+GSK,Juluca,2025,ROW,International,12,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Juluca | 656 | (4) | (2) | 527 | (3) | (1) | 117 | (8) | (9) | 12 | – | 8
+GSK,Dovato,2025,US,US,1511,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Dovato | 2,678 | 20 | 22 | 1,511 | 19 | 23 | 829 | 16 | 15 | 338 | 32 | 37"
+GSK,Dovato,2025,EU,Europe,829,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Dovato | 2,678 | 20 | 22 | 1,511 | 19 | 23 | 829 | 16 | 15 | 338 | 32 | 37"
+GSK,Dovato,2025,ROW,International,338,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Dovato | 2,678 | 20 | 22 | 1,511 | 19 | 23 | 829 | 16 | 15 | 338 | 32 | 37"
+GSK,Cabenuva Kit,2025,US,US,1160,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Cabenuva | 1,402 | 38 | 42 | 1,160 | 40 | 44 | 202 | 29 | 28 | 40 | 54 | 62"
+GSK,Cabenuva Kit,2025,EU,Europe,202,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Cabenuva | 1,402 | 38 | 42 | 1,160 | 40 | 44 | 202 | 29 | 28 | 40 | 54 | 62"
+GSK,Cabenuva Kit,2025,ROW,International,40,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Cabenuva | 1,402 | 38 | 42 | 1,160 | 40 | 44 | 202 | 29 | 28 | 40 | 54 | 62"
+GSK,Apretude,2025,US,US,432,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Apretude | 439 | 57 | 62 | 432 | 60 | 64 | – | – | – | 7 | (22) | (22)
+GSK,Apretude,2025,ROW,International,7,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Apretude | 439 | 57 | 62 | 432 | 60 | 64 | – | – | – | 7 | (22) | (22)
+GSK,Rukobia,2025,US,US,150,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Rukobia | 169 | 5 | 8 | 150 | 1 | 4 | 10 | 25 | 25 | 9 | >100 | >100
+GSK,Rukobia,2025,EU,Europe,10,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Rukobia | 169 | 5 | 8 | 150 | 1 | 4 | 10 | 25 | 25 | 9 | >100 | >100
+GSK,Rukobia,2025,ROW,International,9,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Rukobia | 169 | 5 | 8 | 150 | 1 | 4 | 10 | 25 | 25 | 9 | >100 | >100
+GSK,Nucala,2025,US,US,1040,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Nucala | 2,008 | 13 | 15 | 1,040 | 7 | 10 | 521 | 16 | 15 | 447 | 23 | 28"
+GSK,Nucala,2025,EU,Europe,521,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Nucala | 2,008 | 13 | 15 | 1,040 | 7 | 10 | 521 | 16 | 15 | 447 | 23 | 28"
+GSK,Nucala,2025,ROW,International,447,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Nucala | 2,008 | 13 | 15 | 1,040 | 7 | 10 | 521 | 16 | 15 | 447 | 23 | 28"
+GSK,Benlysta,2025,US,US,1464,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Benlysta | 1,773 | 19 | 22 | 1,464 | 20 | 23 | 134 | 17 | 15 | 175 | 14 | 20"
+GSK,Benlysta,2025,EU,Europe,134,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Benlysta | 1,773 | 19 | 22 | 1,464 | 20 | 23 | 134 | 17 | 15 | 175 | 14 | 20"
+GSK,Benlysta,2025,ROW,International,175,GBP,0001654954-26-000892,"Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Benlysta | 1,773 | 19 | 22 | 1,464 | 20 | 23 | 134 | 17 | 15 | 175 | 14 | 20"
+GSK,Jemperli,2025,US,US,647,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Jemperli | 861 | 84 | 89 | 647 | 69 | 74 | 159 | >100 | >100 | 55 | >100 | >100
+GSK,Jemperli,2025,EU,Europe,159,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Jemperli | 861 | 84 | 89 | 647 | 69 | 74 | 159 | >100 | >100 | 55 | >100 | >100
+GSK,Jemperli,2025,ROW,International,55,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Jemperli | 861 | 84 | 89 | 647 | 69 | 74 | 159 | >100 | >100 | 55 | >100 | >100
+GSK,Zejula,2025,US,US,292,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Zejula | 557 | (6) | (4) | 292 | (4) | (2) | 215 | (7) | (8) | 50 | (12) | (2)
+GSK,Zejula,2025,EU,Europe,215,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Zejula | 557 | (6) | (4) | 292 | (4) | (2) | 215 | (7) | (8) | 50 | (12) | (2)
+GSK,Zejula,2025,ROW,International,50,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Zejula | 557 | (6) | (4) | 292 | (4) | (2) | 215 | (7) | (8) | 50 | (12) | (2)
+GSK,Ojjaara,2025,US,US,417,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Ojjaara/Omjjara | 554 | 57 | 60 | 417 | 32 | 36 | 98 | >100 | >100 | 39 | >100 | >100
+GSK,Ojjaara,2025,EU,Europe,98,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Ojjaara/Omjjara | 554 | 57 | 60 | 417 | 32 | 36 | 98 | >100 | >100 | 39 | >100 | >100
+GSK,Ojjaara,2025,ROW,International,39,GBP,0001654954-26-000892,Specialty Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Ojjaara/Omjjara | 554 | 57 | 60 | 417 | 32 | 36 | 98 | >100 | >100 | 39 | >100 | >100
+GSK,Shingrix,2025,US,US,1200,GBP,0001654954-26-000892,"Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Shingrix | 3,558 | 6 | 8 | 1,200 | (20) | (17) | 1,317 | 44 | 42 | 1,041 | 9 | 13"
+GSK,Shingrix,2025,EU,Europe,1317,GBP,0001654954-26-000892,"Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Shingrix | 3,558 | 6 | 8 | 1,200 | (20) | (17) | 1,317 | 44 | 42 | 1,041 | 9 | 13"
+GSK,Shingrix,2025,ROW,International,1041,GBP,0001654954-26-000892,"Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Shingrix | 3,558 | 6 | 8 | 1,200 | (20) | (17) | 1,317 | 44 | 42 | 1,041 | 9 | 13"
+GSK,Bexsero,2025,US,US,358,GBP,0001654954-26-000892,"Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Bexsero | 1,150 | 14 | 16 | 358 | (2) | 1 | 593 | 26 | 24 | 199 | 14 | 24"
+GSK,Bexsero,2025,EU,Europe,593,GBP,0001654954-26-000892,"Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Bexsero | 1,150 | 14 | 16 | 358 | (2) | 1 | 593 | 26 | 24 | 199 | 14 | 24"
+GSK,Bexsero,2025,ROW,International,199,GBP,0001654954-26-000892,"Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Bexsero | 1,150 | 14 | 16 | 358 | (2) | 1 | 593 | 26 | 24 | 199 | 14 | 24"
+GSK,Menveo,2025,US,US,303,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Menveo | 402 | 4 | 6 | 303 | 2 | 5 | 8 | 14 | 14 | 91 | 11 | 12
+GSK,Menveo,2025,EU,Europe,8,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Menveo | 402 | 4 | 6 | 303 | 2 | 5 | 8 | 14 | 14 | 91 | 11 | 12
+GSK,Menveo,2025,ROW,International,91,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Menveo | 402 | 4 | 6 | 303 | 2 | 5 | 8 | 14 | 14 | 91 | 11 | 12
+GSK,Arexvy,2025,US,US,301,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Arexvy | 593 | 1 | 2 | 301 | (40) | (39) | 218 | >100 | >100 | 74 | 37 | 44
+GSK,Arexvy,2025,EU,Europe,218,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Arexvy | 593 | 1 | 2 | 301 | (40) | (39) | 218 | >100 | >100 | 74 | 37 | 44
+GSK,Arexvy,2025,ROW,International,74,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Arexvy | 593 | 1 | 2 | 301 | (40) | (39) | 218 | >100 | >100 | 74 | 37 | 44
+GSK,Boostrix,2025,US,US,400,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Boostrix | 654 | (4) | (2) | 400 | (7) | (4) | 142 | 4 | 2 | 112 | (3) | 3
+GSK,Boostrix,2025,EU,Europe,142,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Boostrix | 654 | (4) | (2) | 400 | (7) | (4) | 142 | 4 | 2 | 112 | (3) | 3
+GSK,Boostrix,2025,ROW,International,112,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Boostrix | 654 | (4) | (2) | 400 | (7) | (4) | 142 | 4 | 2 | 112 | (3) | 3
+GSK,Cervarix,2025,EU,Europe,8,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Cervarix | 23 | (68) | (68) | – | – | – | 8 | (43) | (43) | 15 | (74) | (74)
+GSK,Cervarix,2025,ROW,International,15,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Cervarix | 23 | (68) | (68) | – | – | – | 8 | (43) | (43) | 15 | (74) | (74)
+GSK,Rotarix,2025,US,US,160,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Rotarix | 546 | (7) | (5) | 160 | (7) | (4) | 128 | 4 | 3 | 258 | (12) | (9)
+GSK,Rotarix,2025,EU,Europe,128,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Rotarix | 546 | (7) | (5) | 160 | (7) | (4) | 128 | 4 | 3 | 258 | (12) | (9)
+GSK,Rotarix,2025,ROW,International,258,GBP,0001654954-26-000892,Vaccines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Rotarix | 546 | (7) | (5) | 160 | (7) | (4) | 128 | 4 | 3 | 258 | (12) | (9)
+GSK,Anoro Ellipta,2025,US,US,207,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Anoro Ellipta | 542 | (5) | (4) | 207 | (20) | (17) | 235 | 6 | 5 | 100 | 8 | 13
+GSK,Anoro Ellipta,2025,EU,Europe,235,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Anoro Ellipta | 542 | (5) | (4) | 207 | (20) | (17) | 235 | 6 | 5 | 100 | 8 | 13
+GSK,Anoro Ellipta,2025,ROW,International,100,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Anoro Ellipta | 542 | (5) | (4) | 207 | (20) | (17) | 235 | 6 | 5 | 100 | 8 | 13
+GSK,Flovent,2025,US,US,277,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Flixotide/Flovent | 421 | (20) | (18) | 277 | (23) | (21) | 63 | (11) | (11) | 81 | (16) | (12)
+GSK,Flovent,2025,EU,Europe,63,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Flixotide/Flovent | 421 | (20) | (18) | 277 | (23) | (21) | 63 | (11) | (11) | 81 | (16) | (12)
+GSK,Flovent,2025,ROW,International,81,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Flixotide/Flovent | 421 | (20) | (18) | 277 | (23) | (21) | 63 | (11) | (11) | 81 | (16) | (12)
+GSK,Breo Ellipta,2025,US,US,367,GBP,0001654954-26-000892,"General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Relvar/Breo Ellipta | 1,017 | (5) | (3) | 367 | (7) | (4) | 352 | (5) | (6) | 298 | (1) | 3"
+GSK,Breo Ellipta,2025,EU,Europe,352,GBP,0001654954-26-000892,"General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Relvar/Breo Ellipta | 1,017 | (5) | (3) | 367 | (7) | (4) | 352 | (5) | (6) | 298 | (1) | 3"
+GSK,Breo Ellipta,2025,ROW,International,298,GBP,0001654954-26-000892,"General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Relvar/Breo Ellipta | 1,017 | (5) | (3) | 367 | (7) | (4) | 352 | (5) | (6) | 298 | (1) | 3"
+GSK,Trelegy Ellipta,2025,US,US,2183,GBP,0001654954-26-000892,"General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Trelegy Ellipta | 2,986 | 11 | 13 | 2,183 | 10 | 13 | 335 | 7 | 6 | 468 | 16 | 21"
+GSK,Trelegy Ellipta,2025,EU,Europe,335,GBP,0001654954-26-000892,"General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Trelegy Ellipta | 2,986 | 11 | 13 | 2,183 | 10 | 13 | 335 | 7 | 6 | 468 | 16 | 21"
+GSK,Trelegy Ellipta,2025,ROW,International,468,GBP,0001654954-26-000892,"General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Trelegy Ellipta | 2,986 | 11 | 13 | 2,183 | 10 | 13 | 335 | 7 | 6 | 468 | 16 | 21"
+GSK,Ventolin,2025,US,US,365,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Ventolin | 703 | – | 3 | 365 | 1 | 4 | 120 | 12 | 10 | 218 | (6) | (1)
+GSK,Ventolin,2025,EU,Europe,120,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Ventolin | 703 | – | 3 | 365 | 1 | 4 | 120 | 12 | 10 | 218 | (6) | (1)
+GSK,Ventolin,2025,ROW,International,218,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Ventolin | 703 | – | 3 | 365 | 1 | 4 | 120 | 12 | 10 | 218 | (6) | (1)
+GSK,Lamictal,2025,US,US,159,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Lamictal | 391 | (3) | (1) | 159 | (2) | – | 102 | (4) | (5) | 130 | (4) | –
+GSK,Lamictal,2025,EU,Europe,102,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Lamictal | 391 | (3) | (1) | 159 | (2) | – | 102 | (4) | (5) | 130 | (4) | –
+GSK,Lamictal,2025,ROW,International,130,GBP,0001654954-26-000892,General Medicines turnover – year ended 31 December 2025 | Total | US | Europe | International ... Lamictal | 391 | (3) | (1) | 159 | (2) | – | 102 | (4) | (5) | 130 | (4) | –
+INCY,Opzelura,2025,INTL,outside of the U.S.,130.0,USD,0000879169-26-000010,"The increase in OPZELURA net product revenues from 2024 to 2025 was primarily due to increased patient demand and refills in the U.S. in both atopic dermatitis and vitiligo. Additionally, $130.0 million of net product revenues for 2025 were from outside of the U.S."
+INCY,JAKAVI,2025,INTL,outside of the United States,457.7,USD,0000879169-26-000010,"Product royalty revenue related to Novartis’ net sales of JAKAVI outside of the United States for the years ended December 31, 2025, 2024 and 2023 was $457.7 million, $418.8 million and $367.6 million, respectively."
+INCY,OLUMIANT,2025,INTL,outside of the United States,144.6,USD,0000879169-26-000010,"Product royalty revenue related to Lilly net sales of OLUMIANT outside of the United States for the years ended December 31, 2025, 2024 and 2023, was $144.6 million, $135.6 million and $136.1 million, respectively."
+NVS,Entresto,2025,US,US,3285,USD,0001114448-26-000004,"Entresto | Cardiovascular, renal and metabolic | Chronic heart failure, hypertension | 3 285 | 4 463 | 7 748"
+NVS,Entresto,2025,INTL,Rest of world,4463,USD,0001114448-26-000004,"Entresto | Cardiovascular, renal and metabolic | Chronic heart failure, hypertension | 3 285 | 4 463 | 7 748"
+NVS,Cosentyx,2025,US,US,3839,USD,0001114448-26-000004,"Cosentyx | Immunology | Psoriasis (PsO), ankylosing spondylitis (AS), psoriatic arthritis (PsA), non-radiographic axial spondyloarthritis (nr-axSPA), hidradenitis suppurativa (HS) | 3 839 | 2 829 | 6 668"
+NVS,Cosentyx,2025,INTL,Rest of world,2829,USD,0001114448-26-000004,"Cosentyx | Immunology | Psoriasis (PsO), ankylosing spondylitis (AS), psoriatic arthritis (PsA), non-radiographic axial spondyloarthritis (nr-axSPA), hidradenitis suppurativa (HS) | 3 839 | 2 829 | 6 668"
+NVS,Kisqali,2025,US,US,2975,USD,0001114448-26-000004,Kisqali | Oncology | HR+/HER2- metastatic breast cancer and early breast cancer | 2 975 | 1 808 | 4 783
+NVS,Kisqali,2025,INTL,Rest of world,1808,USD,0001114448-26-000004,Kisqali | Oncology | HR+/HER2- metastatic breast cancer and early breast cancer | 2 975 | 1 808 | 4 783
+NVS,Kesimpta,2025,US,US,2943,USD,0001114448-26-000004,Kesimpta | Neuroscience | Relapsing forms of multiple sclerosis (MS) | 2 943 | 1 483 | 4 426
+NVS,Kesimpta,2025,INTL,Rest of world,1483,USD,0001114448-26-000004,Kesimpta | Neuroscience | Relapsing forms of multiple sclerosis (MS) | 2 943 | 1 483 | 4 426
+NVS,Mekinist,2025,US,US,867,USD,0001114448-26-000004,"Tafinlar + Mekinist | Oncology | BRAF V600+ metastatic and adjuvant melanoma, advanced non-small cell lung cancer (NSCLC), tumor agnostic with BRAF mutation indication, pediatric low grade glioma (pLGG) | 867 | 1 348 | 2 215"
+NVS,Mekinist,2025,INTL,Rest of world,1348,USD,0001114448-26-000004,"Tafinlar + Mekinist | Oncology | BRAF V600+ metastatic and adjuvant melanoma, advanced non-small cell lung cancer (NSCLC), tumor agnostic with BRAF mutation indication, pediatric low grade glioma (pLGG) | 867 | 1 348 | 2 215"
+NVS,Jakavi,2025,INTL,Rest of world,2110,USD,0001114448-26-000004,"Jakavi | Oncology | Myelofibrosis (MF), polycythemia vera (PV), graft-versus-host disease (GvHD) | 2 110 | 2 110"
+NVS,Pluvicto,2025,US,US,1596,USD,0001114448-26-000004,"Pluvicto | Oncology | PSMA-positive mCRPC patients post-ARPI, pre- and post-Taxane | 1 596 | 398 | 1 994"
+NVS,Pluvicto,2025,INTL,Rest of world,398,USD,0001114448-26-000004,"Pluvicto | Oncology | PSMA-positive mCRPC patients post-ARPI, pre- and post-Taxane | 1 596 | 398 | 1 994"
+NVS,Ilaris,2025,US,US,1041,USD,0001114448-26-000004,"Ilaris | Immunology | Auto-inflammatory (CAPS, TRAPS, HIDS/MKD, FMF, SJIA, AOSD, gout) | 1 041 | 842 | 1 883"
+NVS,Ilaris,2025,INTL,Rest of world,842,USD,0001114448-26-000004,"Ilaris | Immunology | Auto-inflammatory (CAPS, TRAPS, HIDS/MKD, FMF, SJIA, AOSD, gout) | 1 041 | 842 | 1 883"
+NVS,Xolair,2025,INTL,Rest of world,1723,USD,0001114448-26-000004,"Xolair 2 | Immunology | Severe allergic asthma (SAA), chronic spontaneous urticaria (CSU), nasal polyps, food allergy (FA) | 1 723 | 1 723"
+NVS,Promacta,2025,US,US,636,USD,0001114448-26-000004,"Promacta/Revolade | Oncology | Immune thrombocytopenia (ITP), severe aplastic anemia (SAA) | 636 | 1 000 | 1 636"
+NVS,Promacta,2025,INTL,Rest of world,1000,USD,0001114448-26-000004,"Promacta/Revolade | Oncology | Immune thrombocytopenia (ITP), severe aplastic anemia (SAA) | 636 | 1 000 | 1 636"
+NVS,Scemblix,2025,US,US,824,USD,0001114448-26-000004,Scemblix | Oncology | Philadelphia chromosome-positive chronic myeloid leukemia (Ph+ CML) in chronic phase (CP); Ph+ CML in CP with the T315I mutation | 824 | 461 | 1 285
+NVS,Scemblix,2025,INTL,Rest of world,461,USD,0001114448-26-000004,Scemblix | Oncology | Philadelphia chromosome-positive chronic myeloid leukemia (Ph+ CML) in chronic phase (CP); Ph+ CML in CP with the T315I mutation | 824 | 461 | 1 285
+NVS,Zolgensma,2025,US,US,413,USD,0001114448-26-000004,Zolgensma Group | Neuroscience | Spinal muscular atrophy (SMA) | 413 | 819 | 1 232
+NVS,Zolgensma,2025,INTL,Rest of world,819,USD,0001114448-26-000004,Zolgensma Group | Neuroscience | Spinal muscular atrophy (SMA) | 413 | 819 | 1 232
+NVS,Sandostatin,2025,US,US,729,USD,0001114448-26-000004,"Sandostatin Group | Established brands | Carcinoid tumors, acromegaly | 729 | 484 | 1 213"
+NVS,Sandostatin,2025,INTL,Rest of world,484,USD,0001114448-26-000004,"Sandostatin Group | Established brands | Carcinoid tumors, acromegaly | 729 | 484 | 1 213"
+NVS,Leqvio,2025,US,US,575,USD,0001114448-26-000004,"Leqvio | Cardiovascular, renal and metabolic | Atherosclerotic cardiovascular disease (ASCVD) | 575 | 623 | 1 198"
+NVS,Leqvio,2025,INTL,Rest of world,623,USD,0001114448-26-000004,"Leqvio | Cardiovascular, renal and metabolic | Atherosclerotic cardiovascular disease (ASCVD) | 575 | 623 | 1 198"
+NVS,Tasigna,2025,US,US,486,USD,0001114448-26-000004,Tasigna | Oncology | Chronic myeloid leukemia (CML) | 486 | 618 | 1 104
+NVS,Tasigna,2025,INTL,Rest of world,618,USD,0001114448-26-000004,Tasigna | Oncology | Chronic myeloid leukemia (CML) | 486 | 618 | 1 104
+NVS,Lutathera,2025,US,US,588,USD,0001114448-26-000004,Lutathera | Oncology | GEP-NETs gastroenteropancreatic neuroendocrine tumors | 588 | 228 | 816
+NVS,Lutathera,2025,INTL,Rest of world,228,USD,0001114448-26-000004,Lutathera | Oncology | GEP-NETs gastroenteropancreatic neuroendocrine tumors | 588 | 228 | 816
+NVS,Lucentis,2025,INTL,Rest of world,643,USD,0001114448-26-000004,"Lucentis | Established brands | Age-related macular degeneration (AMD), diabetic macular edema (DME), retinal vein occlusion (RVO) | 643 | 643"
+NVS,Fabhalta,2025,US,US,317,USD,0001114448-26-000004,"Fabhalta 3 | Oncology | Paroxysmal Nocturnal Hemoglobinuria (PNH), IgA Nephropathy (IgAN), Adult C3 Glomerulopathy (C3G) | 317 | 188 | 505"
+NVS,Fabhalta,2025,INTL,Rest of world,188,USD,0001114448-26-000004,"Fabhalta 3 | Oncology | Paroxysmal Nocturnal Hemoglobinuria (PNH), IgA Nephropathy (IgAN), Adult C3 Glomerulopathy (C3G) | 317 | 188 | 505"
+PFE,Eliquis,2025,US,U.S.,5148,USD,0000078003-26-000026,"Eliquis | $7,961 Up 7% (operationally) | U.S. | $ | 5,148"
+PFE,Eliquis,2025,INTL,Int’l.,2813,USD,0000078003-26-000026,"Int’l. | 2,813 | 2,563 | 10 | 7 | | Worldwide | $ | 7,961"
+PFE,Prevnar / Prevenar family,2025,US,U.S.,4151,USD,0000078003-26-000026,"Prevnar family | $6,494 Up 1% (operationally) | U.S. | $ | 4,151"
+PFE,Prevnar / Prevenar family,2025,INTL,Int’l.,2342,USD,0000078003-26-000026,"Int’l. | 2,342 | 2,178 | 8 | 7 | | Worldwide | $ | 6,494"
+PFE,Vyndaqel,2025,US,U.S.,3834,USD,0000078003-26-000026,"Vyndaqel family | $6,380 Up 16% (operationally) | U.S. | $ | 3,834"
+PFE,Vyndaqel,2025,INTL,Int’l.,2546,USD,0000078003-26-000026,"Int’l. | 2,546 | 1,904 | 34 | 30 | | Worldwide | $ | 6,380"
+PFE,Comirnaty,2025,US,U.S.,1663,USD,0000078003-26-000026,"Comirnaty | $4,367 Down 20% (operationally) | U.S. | $ | 1,663"
+PFE,Comirnaty,2025,INTL,Int’l.,2705,USD,0000078003-26-000026,"Int’l. | 2,705 | 3,349 | (19) | (21) | | Worldwide | $ | 4,367"
+PFE,Ibrance,2025,US,U.S.,2710,USD,0000078003-26-000026,"Ibrance | $4,122 Down 6% (operationally) | U.S. | $ | 2,710"
+PFE,Ibrance,2025,INTL,Int’l.,1412,USD,0000078003-26-000026,"Int’l. | 1,412 | 1,518 | (7) | (9) | | Worldwide | $ | 4,122"
+PFE,Xtandi,2025,US,U.S.,2194,USD,0000078003-26-000026,"Xtandi | $2,194 Up 8% (operationally) | U.S. | $ | 2,194"
+PFE,Xtandi,2025,INTL,Int’l.,0,USD,0000078003-26-000026,"Int’l. | — | — | — | — | | Worldwide | $ | 2,194"
+PFE,Padcev,2025,US,U.S.,1902,USD,0000078003-26-000026,"Padcev | $1,940 Up 22% (operationally) | U.S. | $ | 1,902"
+PFE,Padcev,2025,INTL,Int’l.,38,USD,0000078003-26-000026,"Int’l. | 38 | 27 | 42 | 43 | | Worldwide | $ | 1,940"
+PFE,Nurtec ODT / Vydura,2025,US,U.S.,1322,USD,0000078003-26-000026,"Nurtec ODT/Vydura | $1,424 Up 13% (operationally) | U.S. | $ | 1,322"
+PFE,Nurtec ODT / Vydura,2025,INTL,Int’l.,102,USD,0000078003-26-000026,"Int’l. | 102 | 69 | 46 | 44 | | Worldwide | $ | 1,424"
+PFE,Xeljanz,2025,US,U.S.,625,USD,0000078003-26-000026,"Xeljanz | $1,087 Down 7% (operationally) | U.S. | $ | 625"
+PFE,Xeljanz,2025,INTL,Int’l.,462,USD,0000078003-26-000026,"Int’l. | 462 | 488 | (5) | (6) | | Worldwide | $ | 1,087"
+PFE,Abrysvo,2025,US,U.S.,542,USD,0000078003-26-000026,"Abrysvo | $1,033 Up 36% (operationally) | U.S. | $ | 542"
+PFE,Abrysvo,2025,INTL,Int’l.,491,USD,0000078003-26-000026,"Int’l. | 491 | 160 | * | * | | Worldwide | $ | 1,033"
+PFE,Lorbrena,2025,US,U.S.,407,USD,0000078003-26-000026,"Lorbrena | $1,023 Up 40% (operationally) | U.S. | $ | 407"
+PFE,Lorbrena,2025,INTL,Int’l.,616,USD,0000078003-26-000026,"Int’l. | 616 | 424 | 45 | 44 | | Worldwide | $ | 1,023"
+PFE,Adcetris,2025,US,U.S.,885,USD,0000078003-26-000026,Adcetris | $907 Down 17% (operationally) | U.S. | $ | 885
+PFE,Adcetris,2025,INTL,Int’l.,23,USD,0000078003-26-000026,Int’l. | 23 | 30 | (25) | (23) | | Worldwide | $ | 907
+PFE,Pfizer Centre One,2025,US,U.S.,329,USD,0000078003-26-000026,"PC1 | $1,338 Up 15% (operationally) | U.S. | $ | 329"
+PFE,Pfizer Centre One,2025,INTL,Int’l.,1010,USD,0000078003-26-000026,"Int’l. | 1,010 | 868 | 16 | 15 | | Worldwide | $ | 1,338"
+REGN,Eylea Hd,2025,US,U.S.,1636.9,USD,0000872589-26-000008,"(In millions) | U.S. ROW(f) Total | U.S. | ROW | Total | U.S. | ROW | Total ... EYLEA HD(a) $ | 1,636.9 | $ | 932.7 | $ | 2,569.6 | $ | 1,201.1 | $ | 239.9 | $ | 1,441.0 | $ | 165.8 | $ | — | $ | 165.8 | ... Rest of world (""ROW"")"
+REGN,Eylea Hd,2025,INTL,ROW (Rest of world),932.7,USD,0000872589-26-000008,"(In millions) | U.S. ROW(f) Total | U.S. | ROW | Total | U.S. | ROW | Total ... EYLEA HD(a) $ | 1,636.9 | $ | 932.7 | $ | 2,569.6 | $ | 1,201.1 | $ | 239.9 | $ | 1,441.0 | $ | 165.8 | $ | — | $ | 165.8 | ... Rest of world (""ROW"")"
+REGN,Eylea,2025,US,U.S.,2747.8,USD,0000872589-26-000008,"(In millions) | U.S. ROW(f) Total | U.S. | ROW | Total | U.S. | ROW | Total ... EYLEA(a) $ | 2,747.8 | $ | 2,573.6 | $ | 5,321.4 | $ | 4,767.1 | $ | 3,336.9 | $ | 8,104.0 | $ | 5,719.6 | $ | 3,495.2 | $ | 9,214.8 | ... Rest of world (""ROW"")"
+REGN,Eylea,2025,INTL,ROW (Rest of world),2573.6,USD,0000872589-26-000008,"(In millions) | U.S. ROW(f) Total | U.S. | ROW | Total | U.S. | ROW | Total ... EYLEA(a) $ | 2,747.8 | $ | 2,573.6 | $ | 5,321.4 | $ | 4,767.1 | $ | 3,336.9 | $ | 8,104.0 | $ | 5,719.6 | $ | 3,495.2 | $ | 9,214.8 | ... Rest of world (""ROW"")"
+REGN,Libtayo,2025,US,U.S.,944.7,USD,0000872589-26-000008,"(In millions) | U.S. ROW(f) Total | U.S. | ROW | Total | U.S. | ROW | Total ... Libtayo(c) $ | 944.7 | $ | 507.5 | $ | 1,452.2 | $ | 787.3 | $ | 429.5 | $ | 1,216.8 | $ | 538.8 | $ | 330.0 | $ | 868.8 | ... Rest of world (""ROW"")"
+REGN,Libtayo,2025,INTL,ROW (Rest of world),507.5,USD,0000872589-26-000008,"(In millions) | U.S. ROW(f) Total | U.S. | ROW | Total | U.S. | ROW | Total ... Libtayo(c) $ | 944.7 | $ | 507.5 | $ | 1,452.2 | $ | 787.3 | $ | 429.5 | $ | 1,216.8 | $ | 538.8 | $ | 330.0 | $ | 868.8 | ... Rest of world (""ROW"")"
+REGN,Praluent,2025,US,U.S.,262.5,USD,0000872589-26-000008,"(In millions) | U.S. ROW(f) Total | U.S. | ROW | Total | U.S. | ROW | Total ... Praluent(d) $ | 262.5 | $ | 594.3 | $ | 856.8 | $ | 241.7 | $ | 523.3 | $ | 765.0 | $ | 182.4 | $ | 456.5 | $ | 638.9 | ... Rest of world (""ROW"")"
+REGN,Praluent,2025,INTL,ROW (Rest of world),594.3,USD,0000872589-26-000008,"(In millions) | U.S. ROW(f) Total | U.S. | ROW | Total | U.S. | ROW | Total ... Praluent(d) $ | 262.5 | $ | 594.3 | $ | 856.8 | $ | 241.7 | $ | 523.3 | $ | 765.0 | $ | 182.4 | $ | 456.5 | $ | 638.9 | ... Rest of world (""ROW"")"
+SNY,Dupixent,2025,US,United States,11538,EUR,0001628280-26-008403,"Dupixent | 15,714 | +20.2% | +25.2% | 11,538 | +26.7% | 1,957 | +20.8% | 2,219 | +21.3%"
+SNY,Dupixent,2025,EU,Europe,1957,EUR,0001628280-26-008403,"Dupixent | 15,714 | +20.2% | +25.2% | 11,538 | +26.7% | 1,957 | +20.8% | 2,219 | +21.3%"
+SNY,Dupixent,2025,ROW,Rest of the world,2219,EUR,0001628280-26-008403,"Dupixent | 15,714 | +20.2% | +25.2% | 11,538 | +26.7% | 1,957 | +20.8% | 2,219 | +21.3%"
+SNY,Kevzara,2025,US,United States,321,EUR,0001628280-26-008403,Kevzara | 507 | +19.6% | +23.6% | 321 | +36.6% | 127 | +5.0% | 59 | +7.0%
+SNY,Kevzara,2025,EU,Europe,127,EUR,0001628280-26-008403,Kevzara | 507 | +19.6% | +23.6% | 321 | +36.6% | 127 | +5.0% | 59 | +7.0%
+SNY,Kevzara,2025,ROW,Rest of the world,59,EUR,0001628280-26-008403,Kevzara | 507 | +19.6% | +23.6% | 321 | +36.6% | 127 | +5.0% | 59 | +7.0%
+SNY,ALTUVIIIO,2025,US,United States,979,EUR,0001628280-26-008403,"ALTUVIIIO (*) | 1,160 | +70.1% | +77.6% | 979 | +66.5% | — | —% | 181 | +183.1%"
+SNY,ALTUVIIIO,2025,ROW,Rest of the world,181,EUR,0001628280-26-008403,"ALTUVIIIO (*) | 1,160 | +70.1% | +77.6% | 979 | +66.5% | — | —% | 181 | +183.1%"
+SNY,Fabrazyme,2025,US,United States,508,EUR,0001628280-26-008403,"Fabrazyme | 1,019 | -2.7% | +0.1% | 508 | -0.4% | 263 | +3.5% | 248 | -2.3%"
+SNY,Fabrazyme,2025,EU,Europe,263,EUR,0001628280-26-008403,"Fabrazyme | 1,019 | -2.7% | +0.1% | 508 | -0.4% | 263 | +3.5% | 248 | -2.3%"
+SNY,Fabrazyme,2025,ROW,Rest of the world,248,EUR,0001628280-26-008403,"Fabrazyme | 1,019 | -2.7% | +0.1% | 508 | -0.4% | 263 | +3.5% | 248 | -2.3%"
+SNY,Nexviazyme,2025,US,United States,393,EUR,0001628280-26-008403,Nexviazyme / Nexviadyme (*) | 790 | +18.4% | +21.4% | 393 | +13.6% | 279 | +38.8% | 118 | +15.2%
+SNY,Nexviazyme,2025,EU,Europe,279,EUR,0001628280-26-008403,Nexviazyme / Nexviadyme (*) | 790 | +18.4% | +21.4% | 393 | +13.6% | 279 | +38.8% | 118 | +15.2%
+SNY,Nexviazyme,2025,ROW,Rest of the world,118,EUR,0001628280-26-008403,Nexviazyme / Nexviadyme (*) | 790 | +18.4% | +21.4% | 393 | +13.6% | 279 | +38.8% | 118 | +15.2%
+SNY,Cerezyme,2025,US,United States,178,EUR,0001628280-26-008403,Cerezyme | 695 | -6.3% | -3.9% | 178 | -2.6% | 232 | -4.9% | 285 | -3.9%
+SNY,Cerezyme,2025,EU,Europe,232,EUR,0001628280-26-008403,Cerezyme | 695 | -6.3% | -3.9% | 178 | -2.6% | 232 | -4.9% | 285 | -3.9%
+SNY,Cerezyme,2025,ROW,Rest of the world,285,EUR,0001628280-26-008403,Cerezyme | 695 | -6.3% | -3.9% | 178 | -2.6% | 232 | -4.9% | 285 | -3.9%
+SNY,Myozyme,2025,US,United States,173,EUR,0001628280-26-008403,Myozyme | 519 | -22.7% | -21.0% | 173 | -23.1% | 173 | -33.5% | 173 | —%
+SNY,Myozyme,2025,EU,Europe,173,EUR,0001628280-26-008403,Myozyme | 519 | -22.7% | -21.0% | 173 | -23.1% | 173 | -33.5% | 173 | —%
+SNY,Myozyme,2025,ROW,Rest of the world,173,EUR,0001628280-26-008403,Myozyme | 519 | -22.7% | -21.0% | 173 | -23.1% | 173 | -33.5% | 173 | —%
+SNY,Cerdelga,2025,US,United States,180,EUR,0001628280-26-008403,Cerdelga | 335 | +0.6% | +3.0% | 180 | +1.1% | 137 | +7.0% | 18 | -5.3%
+SNY,Cerdelga,2025,EU,Europe,137,EUR,0001628280-26-008403,Cerdelga | 335 | +0.6% | +3.0% | 180 | +1.1% | 137 | +7.0% | 18 | -5.3%
+SNY,Cerdelga,2025,ROW,Rest of the world,18,EUR,0001628280-26-008403,Cerdelga | 335 | +0.6% | +3.0% | 180 | +1.1% | 137 | +7.0% | 18 | -5.3%
+SNY,Aldurazyme,2025,US,United States,74,EUR,0001628280-26-008403,Aldurazyme | 305 | +2.7% | +5.1% | 74 | +8.3% | 84 | —% | 147 | +6.4%
+SNY,Aldurazyme,2025,EU,Europe,84,EUR,0001628280-26-008403,Aldurazyme | 305 | +2.7% | +5.1% | 74 | +8.3% | 84 | —% | 147 | +6.4%
+SNY,Aldurazyme,2025,ROW,Rest of the world,147,EUR,0001628280-26-008403,Aldurazyme | 305 | +2.7% | +5.1% | 74 | +8.3% | 84 | —% | 147 | +6.4%
+SNY,Cablivi,2025,US,United States,143,EUR,0001628280-26-008403,Cablivi (*) | 271 | +8.8% | +12.0% | 143 | +9.6% | 107 | +15.1% | 21 | +15.0%
+SNY,Cablivi,2025,EU,Europe,107,EUR,0001628280-26-008403,Cablivi (*) | 271 | +8.8% | +12.0% | 143 | +9.6% | 107 | +15.1% | 21 | +15.0%
+SNY,Cablivi,2025,ROW,Rest of the world,21,EUR,0001628280-26-008403,Cablivi (*) | 271 | +8.8% | +12.0% | 143 | +9.6% | 107 | +15.1% | 21 | +15.0%
+SNY,Xenpozyme,2025,US,United States,95,EUR,0001628280-26-008403,Xenpozyme (*) | 228 | +51.0% | +54.3% | 95 | +23.5% | 89 | +93.5% | 44 | +83.3%
+SNY,Xenpozyme,2025,EU,Europe,89,EUR,0001628280-26-008403,Xenpozyme (*) | 228 | +51.0% | +54.3% | 95 | +23.5% | 89 | +93.5% | 44 | +83.3%
+SNY,Xenpozyme,2025,ROW,Rest of the world,44,EUR,0001628280-26-008403,Xenpozyme (*) | 228 | +51.0% | +54.3% | 95 | +23.5% | 89 | +93.5% | 44 | +83.3%
+SNY,Aubagio,2025,US,United States,135,EUR,0001628280-26-008403,Aubagio | 238 | -37.2% | -35.4% | 135 | -24.1% | 67 | -55.9% | 36 | -10.0%
+SNY,Aubagio,2025,EU,Europe,67,EUR,0001628280-26-008403,Aubagio | 238 | -37.2% | -35.4% | 135 | -24.1% | 67 | -55.9% | 36 | -10.0%
+SNY,Aubagio,2025,ROW,Rest of the world,36,EUR,0001628280-26-008403,Aubagio | 238 | -37.2% | -35.4% | 135 | -24.1% | 67 | -55.9% | 36 | -10.0%
+SNY,Sarclisa,2025,US,United States,244,EUR,0001628280-26-008403,Sarclisa (*) | 588 | +24.8% | +28.5% | 244 | +27.5% | 174 | +29.9% | 170 | +28.5%
+SNY,Sarclisa,2025,EU,Europe,174,EUR,0001628280-26-008403,Sarclisa (*) | 588 | +24.8% | +28.5% | 244 | +27.5% | 174 | +29.9% | 170 | +28.5%
+SNY,Sarclisa,2025,ROW,Rest of the world,170,EUR,0001628280-26-008403,Sarclisa (*) | 588 | +24.8% | +28.5% | 244 | +27.5% | 174 | +29.9% | 170 | +28.5%
+SNY,Jevtana Kit,2025,US,United States,200,EUR,0001628280-26-008403,Jevtana | 263 | -9.3% | -5.9% | 200 | -3.3% | 3 | -57.1% | 60 | -8.7%
+SNY,Jevtana Kit,2025,EU,Europe,3,EUR,0001628280-26-008403,Jevtana | 263 | -9.3% | -5.9% | 200 | -3.3% | 3 | -57.1% | 60 | -8.7%
+SNY,Jevtana Kit,2025,ROW,Rest of the world,60,EUR,0001628280-26-008403,Jevtana | 263 | -9.3% | -5.9% | 200 | -3.3% | 3 | -57.1% | 60 | -8.7%
+SNY,Lantus Solostar,2025,US,United States,808,EUR,0001628280-26-008403,"Lantus | 1,733 | +6.4% | +10.3% | 808 | +32.1% | 297 | -12.4% | 628 | +0.8%"
+SNY,Lantus Solostar,2025,EU,Europe,297,EUR,0001628280-26-008403,"Lantus | 1,733 | +6.4% | +10.3% | 808 | +32.1% | 297 | -12.4% | 628 | +0.8%"
+SNY,Lantus Solostar,2025,ROW,Rest of the world,628,EUR,0001628280-26-008403,"Lantus | 1,733 | +6.4% | +10.3% | 808 | +32.1% | 297 | -12.4% | 628 | +0.8%"
+SNY,Toujeo Solostar,2025,US,United States,240,EUR,0001628280-26-008403,"Toujeo | 1,345 | +9.6% | +12.0% | 240 | +15.2% | 500 | +4.4% | 605 | +17.5%"
+SNY,Toujeo Solostar,2025,EU,Europe,500,EUR,0001628280-26-008403,"Toujeo | 1,345 | +9.6% | +12.0% | 240 | +15.2% | 500 | +4.4% | 605 | +17.5%"
+SNY,Toujeo Solostar,2025,ROW,Rest of the world,605,EUR,0001628280-26-008403,"Toujeo | 1,345 | +9.6% | +12.0% | 240 | +15.2% | 500 | +4.4% | 605 | +17.5%"
+SNY,Plavix,2025,US,United States,6,EUR,0001628280-26-008403,Plavix | 910 | -0.4% | +3.1% | 6 | —% | 88 | -3.3% | 816 | +3.8%
+SNY,Plavix,2025,EU,Europe,88,EUR,0001628280-26-008403,Plavix | 910 | -0.4% | +3.1% | 6 | —% | 88 | -3.3% | 816 | +3.8%
+SNY,Plavix,2025,ROW,Rest of the world,816,EUR,0001628280-26-008403,Plavix | 910 | -0.4% | +3.1% | 6 | —% | 88 | -3.3% | 816 | +3.8%
+SNY,Rezurock,2025,US,United States,425,EUR,0001628280-26-008403,Rezurock (*) | 490 | +4.3% | +8.7% | 425 | +4.2% | 18 | -35.7% | 47 | +194.1%
+SNY,Rezurock,2025,EU,Europe,18,EUR,0001628280-26-008403,Rezurock (*) | 490 | +4.3% | +8.7% | 425 | +4.2% | 18 | -35.7% | 47 | +194.1%
+SNY,Rezurock,2025,ROW,Rest of the world,47,EUR,0001628280-26-008403,Rezurock (*) | 490 | +4.3% | +8.7% | 425 | +4.2% | 18 | -35.7% | 47 | +194.1%
+SNY,Thymoglobulin,2025,US,United States,307,EUR,0001628280-26-008403,Thymoglobulin | 490 | -0.4% | +3.7% | 307 | +2.9% | 41 | +5.1% | 142 | +5.0%
+SNY,Thymoglobulin,2025,EU,Europe,41,EUR,0001628280-26-008403,Thymoglobulin | 490 | -0.4% | +3.7% | 307 | +2.9% | 41 | +5.1% | 142 | +5.0%
+SNY,Thymoglobulin,2025,ROW,Rest of the world,142,EUR,0001628280-26-008403,Thymoglobulin | 490 | -0.4% | +3.7% | 307 | +2.9% | 41 | +5.1% | 142 | +5.0%
+SNY,Multaq,2025,US,United States,285,EUR,0001628280-26-008403,Multaq | 314 | +1.0% | +5.1% | 285 | +6.8% | 10 | -9.1% | 19 | -9.1%
+SNY,Multaq,2025,EU,Europe,10,EUR,0001628280-26-008403,Multaq | 314 | +1.0% | +5.1% | 285 | +6.8% | 10 | -9.1% | 19 | -9.1%
+SNY,Multaq,2025,ROW,Rest of the world,19,EUR,0001628280-26-008403,Multaq | 314 | +1.0% | +5.1% | 285 | +6.8% | 10 | -9.1% | 19 | -9.1%
+SNY,Tzield,2025,US,United States,59,EUR,0001628280-26-008403,Tzield (*) | 63 | +16.7% | +22.2% | 59 | +19.2% | 2 | +100.0% | 2 | +100.0%
+SNY,Tzield,2025,EU,Europe,2,EUR,0001628280-26-008403,Tzield (*) | 63 | +16.7% | +22.2% | 59 | +19.2% | 2 | +100.0% | 2 | +100.0%
+SNY,Tzield,2025,ROW,Rest of the world,2,EUR,0001628280-26-008403,Tzield (*) | 63 | +16.7% | +22.2% | 59 | +19.2% | 2 | +100.0% | 2 | +100.0%
+SNY,Mozobil,2025,US,United States,4,EUR,0001628280-26-008403,Mozobil | 32 | -56.8% | -54.1% | 4 | -58.3% | 8 | -79.5% | 20 | -8.7%
+SNY,Mozobil,2025,EU,Europe,8,EUR,0001628280-26-008403,Mozobil | 32 | -56.8% | -54.1% | 4 | -58.3% | 8 | -79.5% | 20 | -8.7%
+SNY,Mozobil,2025,ROW,Rest of the world,20,EUR,0001628280-26-008403,Mozobil | 32 | -56.8% | -54.1% | 4 | -58.3% | 8 | -79.5% | 20 | -8.7%
+SNY,Beyfortus,2025,US,United States,723,EUR,0001628280-26-008403,"RSV (Beyfortus) (*) | 1,781 | +5.6% | +9.5% | 723 | -27.9% | 601 | +36.1% | 457 | +168.5%"
+SNY,Beyfortus,2025,EU,Europe,601,EUR,0001628280-26-008403,"RSV (Beyfortus) (*) | 1,781 | +5.6% | +9.5% | 723 | -27.9% | 601 | +36.1% | 457 | +168.5%"
+SNY,Beyfortus,2025,ROW,Rest of the world,457,EUR,0001628280-26-008403,"RSV (Beyfortus) (*) | 1,781 | +5.6% | +9.5% | 723 | -27.9% | 601 | +36.1% | 457 | +168.5%"
