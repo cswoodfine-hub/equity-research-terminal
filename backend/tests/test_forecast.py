@@ -895,6 +895,26 @@ def test_the_asset_payload_carries_its_history_and_the_rollup_its_facts(tmp_path
         line["peak_revenue"])]
 
 
+def test_the_company_call_names_a_line_modelled_under_two_assets(tmp_path):
+    """Fiasp Penfill carried Fiasp's whole model and the sum of the parts added both.
+    Which row is the copy is the analyst's call, so the pair is named, not chosen."""
+    import assumptions as A
+    import db
+    import forecast_view as V
+    path = _marketed_db(tmp_path)
+    assert V.company_rollup(path, "AZN")["shared_lines"] == []
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed,"
+                 " modality) VALUES (2, 1, 'Tagrisso Penfill', 1, 'small molecule')")
+    A.save(conn, 2, [{k: row[k] for k in ("key", "value", "text_value", "source")}
+                     for row in A.rows(conn, 1)])
+    conn.commit(); conn.close()
+    shared = V.company_rollup(path, "AZN")["shared_lines"]
+    assert [(s["kind"], s["asset_id"], s["other_id"], s["periods"]) for s in shared] == [
+        ("base_revenue", 2, 1, [(2025, "FY")])]
+    assert V.company_verdict(path, "AZN")["shared_lines"] == shared
+
+
 def test_build_states_the_erosion_pair_and_the_price_in_force():
     got = F.build(casgevy_inputs())
     assert got["net_price"] == F.net_price(casgevy_inputs()["scalars"])

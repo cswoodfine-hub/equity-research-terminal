@@ -11,6 +11,7 @@ from __future__ import annotations
 import copy
 import math
 
+import asset_revenue
 import assumptions as assumptions_module
 import company_lines
 import db
@@ -651,6 +652,9 @@ def company_rollup(db_path, ticker: str):
         # not silently left without a per-share figure here while the call finds one.
         shares = _diluted_shares(conn, company["id"])
         stream_inputs = company_lines.load(conn, company["id"])
+        # One reported line modelled under two assets is counted twice below. Named
+        # rather than dropped, since which of the two is the copy is the analyst's call.
+        shared = asset_revenue.shared_lines(conn, company["id"])
     finally:
         conn.close()
 
@@ -737,7 +741,7 @@ def company_rollup(db_path, ticker: str):
             "stream_refused": stream_refused,
             "combined": sorted(combined.items()),
             "rnpv_total": rnpv_total, "rnpv_per_share": per_share,
-            "reported_revenue": revenue_actuals}
+            "reported_revenue": revenue_actuals, "shared_lines": shared}
 
 
 # --- the call ---------------------------------------------------------------
@@ -1420,5 +1424,6 @@ def company_verdict(db_path, ticker: str):
         "coverage": coverage, "next_catalyst": catalyst, "franchises": franchises,
         "streams": streams, "stream_refused": rollup.get("stream_refused") or [],
         "placeholders": rollup.get("placeholders") or [],
+        "shared_lines": rollup.get("shared_lines") or [],
         "combined": rollup["combined"], "reported_revenue": rollup["reported_revenue"],
     }

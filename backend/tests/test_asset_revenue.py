@@ -7,6 +7,7 @@ nothing in this file is a claim about what any company earned.
 import pytest
 
 import asset_revenue
+import assumptions
 import db
 import seed
 
@@ -167,3 +168,101 @@ def test_deleting_a_figure_returns_the_product_to_uncovered(loaded):
 def test_unknown_ticker_has_no_exposure(loaded):
     assert asset_revenue.build_exposure(loaded, "NOPE") is None
     assert asset_revenue.list_revenue(loaded, "NOPE") == []
+
+
+# --- one reported line valued twice ----------------------------------------------------
+
+def _book(tmp_path):
+    """One company, no products yet."""
+    path = str(tmp_path / "book.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'TST', 'Test')")
+    return conn
+
+
+def _product(conn, asset_id, brand, base=None, revenue=()):
+    """A marketed product, modelled when ``base`` is given. ``revenue`` holds
+    (fiscal_year, period, value, source) rows, value as reported."""
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (?, 1, ?, 1)", (asset_id, brand))
+    for year, period, value, source in revenue:
+        conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value,"
+                     " source, is_curated) VALUES (?, ?, ?, ?, ?, 0)",
+                     (asset_id, year, period, value, source))
+    if base is not None:
+        assumptions.save(conn, asset_id, [{"key": "base_revenue", "value": base,
+                                           "source": "t"}])
+
+
+def test_a_model_anchored_on_another_products_line_is_named(tmp_path):
+    """Fiasp Penfill: no revenue of its own, valued on the figure Fiasp reports."""
+    conn = _book(tmp_path)
+    _product(conn, 1, "Penfill", base=2818.0)
+    _product(conn, 2, "Fiasp", base=2818.0,
+             revenue=[(2024, "FY", 1869e6, "sec_fsds"), (2025, "FY", 2818e6, "sec_fsds")])
+    found = asset_revenue.shared_lines(conn, 1)
+    assert [(f["kind"], f["asset_id"], f["other_id"], f["periods"]) for f in found] == [
+        ("base_revenue", 1, 2, [(2025, "FY")])]
+
+
+def test_two_products_holding_one_sources_figures_are_named(tmp_path):
+    """Nebulised Tyvaso held Tyvaso DPI's two earlier years from the same data set."""
+    conn = _book(tmp_path)
+    _product(conn, 1, "Tyvaso", base=585.7,
+             revenue=[(2023, "FY", 731.1e6, "sec_fsds"), (2024, "FY", 1033.6e6, "sec_fsds"),
+                      (2025, "FY", 585.7e6, "filing_table")])
+    _product(conn, 2, "Tyvaso DPI", base=1292.5,
+             revenue=[(2023, "FY", 731.1e6, "sec_fsds"), (2024, "FY", 1033.6e6, "sec_fsds"),
+                      (2025, "FY", 1292.5e6, "sec_fsds")])
+    found = asset_revenue.shared_lines(conn, 1)
+    assert [(f["kind"], f["asset_id"], f["other_id"], f["periods"]) for f in found] == [
+        ("revenue_rows", 1, 2, [(2023, "FY"), (2024, "FY")])]
+
+    # Put right, the two lines are two lines.
+    conn.execute("UPDATE asset_revenue SET value = ? WHERE asset_id = 1 AND fiscal_year = ?",
+                 (502.6e6, 2023))
+    conn.execute("UPDATE asset_revenue SET value = ? WHERE asset_id = 1 AND fiscal_year = ?",
+                 (586.8e6, 2024))
+    assert asset_revenue.shared_lines(conn, 1) == []
+
+
+def test_a_figure_two_products_happen_to_share_is_not_a_line(tmp_path):
+    """Each reports the figure itself, or differs in another period."""
+    conn = _book(tmp_path)
+    # Sanofi: Rezurock and Thymoglobulin at 490mm euro each, read from two tables.
+    _product(conn, 1, "Rezurock", base=490.0,
+             revenue=[(2024, "FY", 470e6, "sec_fsds"), (2025, "FY", 490e6, "sec_fsds")])
+    _product(conn, 2, "Thymoglobulin", base=490.0,
+             revenue=[(2025, "FY", 490e6, "mdna_10k")])
+    # Incyte: 144,578 thousand rounds to the 144.6 the other product reports exactly.
+    _product(conn, 3, "Minjuvi", base=144.6,
+             revenue=[(2025, "FY", 144_578_000.0, "sec_fsds")])
+    _product(conn, 4, "Olumiant", base=144.6,
+             revenue=[(2025, "FY", 144_600_000.0, "sec_fsds")])
+    # One quarter equal to the million, the next one not.
+    _product(conn, 5, "Abraxane", revenue=[(2026, "Q1", 50e6, "earnings_exhibit"),
+                                           (2026, "Q2", 55e6, "earnings_exhibit")])
+    _product(conn, 6, "Krazati", revenue=[(2026, "Q1", 50e6, "earnings_exhibit"),
+                                          (2026, "Q2", 61e6, "earnings_exhibit")])
+    for asset_id in (5, 6):
+        assumptions.save(conn, asset_id, [{"key": "therapy_mode",
+                                           "text_value": "marketed", "source": "t"}])
+    # A pipeline seed at a zero base beside a product that reported nothing, twice.
+    _product(conn, 7, "Compound A", base=0.0)
+    _product(conn, 8, "Compound B", base=0.0,
+             revenue=[(2024, "FY", 0.0, "sec_fsds"), (2025, "FY", 0.0, "sec_fsds")])
+    _product(conn, 9, "Compound C", base=0.0,
+             revenue=[(2024, "FY", 0.0, "sec_fsds"), (2025, "FY", 0.0, "sec_fsds")])
+    assert asset_revenue.shared_lines(conn, 1) == []
+
+
+def test_a_line_only_one_model_counts_is_not_named(tmp_path):
+    """No double count without two models: the product that reports the line has none."""
+    conn = _book(tmp_path)
+    _product(conn, 1, "Penfill", base=2818.0)
+    _product(conn, 2, "Fiasp", revenue=[(2024, "FY", 1869e6, "sec_fsds"),
+                                        (2025, "FY", 2818e6, "sec_fsds")])
+    _product(conn, 3, "Fiasp FlexTouch", revenue=[(2024, "FY", 1869e6, "sec_fsds"),
+                                                  (2025, "FY", 2818e6, "sec_fsds")])
+    assert asset_revenue.shared_lines(conn, 1) == []

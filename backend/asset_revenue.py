@@ -111,6 +111,92 @@ def list_revenue(db_path=None, ticker: str = "") -> list[dict]:
     return [row for row in rows if kept.get(_dedupe_key(row)) is row]
 
 
+# How near a model's base revenue has to sit to a reported figure to be read off it. A
+# seed carries millions to one decimal, and a filer reporting in thousands rounds to it:
+# Incyte's Minjuvi/Monjuvi is 144,578 thousand and its seed says 144.6.
+_BASE_TOLERANCE_MM = 0.05
+
+
+def shared_lines(conn, company_id: int) -> list[dict]:
+    """Modelled products of one company that are valued on one reported revenue line.
+
+    The sum of the parts adds every product that carries assumptions, so a line modelled
+    under two assets is counted twice. Two ways it happened, and each is named:
+
+    - ``base_revenue``: a model anchored on a figure another modelled product reports
+      and it does not. Fiasp Penfill was valued on Fiasp's 2,818mm DKK, worth about 60
+      cents a Novo share a second time, and nebulised Tyvaso on Tyvaso DPI's 1,292.5mm.
+    - ``revenue_rows``: two products holding the same figures from one source, equal in
+      at least two periods and different in none. The revenue fetcher had filed Tyvaso
+      DPI's FY2023 and FY2024 under nebulised Tyvaso as well.
+
+    A figure two products happen to share is not a line. Sanofi reports Rezurock and
+    Thymoglobulin at 490mm euro each in 2025, Incyte books Minjuvi/Monjuvi and the
+    Olumiant royalty at 144.6mm each, and Pfizer's quarters coincide to the million every
+    so often. Each of those products reports the figure itself, or differs in another
+    period, so none is named here.
+    """
+    modelled = {r["id"]: r["name"] for r in conn.execute(
+        """SELECT DISTINCT a.id, COALESCE(a.brand_name, a.generic_name) AS name
+             FROM assets a JOIN assumptions s ON s.asset_id = a.id
+            WHERE a.owner_company_id = ?""", (company_id,))}
+    if len(modelled) < 2:
+        return []
+    marks = ", ".join("?" for _ in modelled)
+    rows = [dict(r) for r in conn.execute(
+        f"""SELECT asset_id, fiscal_year, period, value, source FROM asset_revenue
+             WHERE asset_id IN ({marks}) AND value IS NOT NULL""", list(modelled))]
+    found = []
+
+    # A nil is left out on both sides: a pipeline seed's zero base and a year a product
+    # reported nothing say nothing about whose line it is.
+    full_years = [r for r in rows if r["period"] == "FY" and r["value"] > 0]
+    for base in conn.execute(
+            f"""SELECT asset_id, value FROM assumptions
+                 WHERE asset_id IN ({marks}) AND key = 'base_revenue'
+                   AND scenario = 'base' AND indication_id IS NULL AND year IS NULL
+                   AND value > 0 ORDER BY asset_id""", list(modelled)):
+        near = [r for r in full_years
+                if abs(r["value"] / 1e6 - base["value"]) <= _BASE_TOLERANCE_MM]
+        if any(r["asset_id"] == base["asset_id"] for r in near):
+            continue                  # its own line, whoever else reports the same
+        by_other: dict = {}
+        for row in near:
+            by_other.setdefault(row["asset_id"], []).append(row)
+        for other_id, held in sorted(by_other.items()):
+            found.append({"kind": "base_revenue", "asset_id": base["asset_id"],
+                          "name": modelled[base["asset_id"]], "other_id": other_id,
+                          "other_name": modelled[other_id],
+                          "periods": sorted((r["fiscal_year"], "FY") for r in held),
+                          "source": held[-1]["source"]})
+
+    slots: dict = {}
+    for row in rows:
+        slots.setdefault((row["source"], row["fiscal_year"], row["period"]),
+                         {})[row["asset_id"]] = row["value"]
+    tally: dict = {}
+    for (source, year, period), values in slots.items():
+        ids = sorted(values)
+        for i, first in enumerate(ids):
+            for second in ids[i + 1:]:
+                if values[first] == values[second] == 0:
+                    continue
+                entry = tally.setdefault((first, second, source),
+                                         {"same": [], "differ": 0})
+                if values[first] == values[second]:
+                    entry["same"].append((year, period))
+                else:
+                    entry["differ"] += 1
+    for (first, second, source), entry in sorted(
+            tally.items(), key=lambda item: (item[0][0], item[0][1], item[0][2] or "")):
+        if len(entry["same"]) >= 2 and not entry["differ"]:
+            found.append({"kind": "revenue_rows", "asset_id": first,
+                          "name": modelled[first], "other_id": second,
+                          "other_name": modelled[second],
+                          "periods": sorted(entry["same"]), "source": source})
+    return found
+
+
 def set_revenue(db_path, ticker: str, application_number: str, fiscal_year: int,
                 value: float, unit: str = "USD", source: str = "",
                 note: str = "") -> int:
