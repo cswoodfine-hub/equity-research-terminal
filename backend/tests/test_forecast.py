@@ -1186,3 +1186,26 @@ def test_future_launches_enter_the_sum_from_the_books_own_rd(tmp_path, monkeypat
     body = " ".join(note["body"])
     assert "at 0.40 of annual revenue" in body
     assert "TST earns 0.50 on 6 launches" in body and "50% weight" in body
+
+
+def test_a_ceiling_never_sits_below_the_latest_run_rate():
+    """Mounjaro's stated $38bn sat under its Q2 2026 annualised, which flattened it from
+    year one. The latest quarter annualised is the floor, and a half counts where no
+    quarter is on file."""
+    assert F.latest_run_rate([{"fiscal_year": 2026, "period": "Q1", "value": 8662.0},
+                              {"fiscal_year": 2026, "period": "Q2", "value": 9943.0},
+                              {"fiscal_year": 2025, "period": "FY", "value": 22966.0}]
+                             )[0] == pytest.approx(39772.0)
+    assert F.latest_run_rate([{"fiscal_year": 2026, "period": "H1", "value": 100.0}]
+                             )[0] == pytest.approx(200.0)
+    assert F.latest_run_rate([{"fiscal_year": 2025, "period": "FY", "value": 1.0}]) == (None, None)
+    inputs = {"scalars": {"therapy_mode": "marketed", "base_revenue": 22966.0,
+                          "revenue_growth_pct": 1.0, "revenue_ceiling_musd": 38000.0,
+                          "wacc": 0.08, "pos": 1.0, "forecast_start_year": 2026,
+                          "forecast_years": 3},
+              "actuals": [{"fiscal_year": 2026, "period": "Q2", "value": 9943.0}]}
+    got = F.build(inputs)
+    assert max(got["revenue"]) == pytest.approx(39772.0)
+    assert any("below the latest run rate" in n for n in got["notes"])
+    inputs["actuals"] = [{"fiscal_year": 2026, "period": "Q2", "value": 5000.0}]
+    assert max(F.build(inputs)["revenue"]) == pytest.approx(38000.0)

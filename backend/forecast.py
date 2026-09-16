@@ -440,6 +440,25 @@ def terminal_value(last_fcff: float, growth: float, rate: float,
 
 # --- the whole build --------------------------------------------------------
 
+_PERIOD_ORDER = {"Q1": 1, "H1": 2, "Q2": 2, "Q3": 3, "Q4": 4}
+
+
+def latest_run_rate(actuals) -> tuple:
+    """(annualised revenue, label) from the latest reported quarter, or the latest half
+    where no quarter is on file. (None, None) where neither is. A quarter is taken over
+    a half ending on the same date, since it is the more recent pace."""
+    periods = [a for a in actuals or []
+               if a.get("period") in _PERIOD_ORDER and a.get("value")]
+    if not periods:
+        return None, None
+    latest = max(periods, key=lambda a: (a["fiscal_year"], _PERIOD_ORDER[a["period"]],
+                                         a["period"].startswith("Q")))
+    factor = 2 if latest["period"] == "H1" else 4
+    return (latest["value"] * factor,
+            f"{latest['period']} {latest['fiscal_year']} of {latest['value']:,.0f}mm, "
+            f"annualised")
+
+
 def erosion_default(inputs: dict):
     """(default row, what it was chosen for) from the curated erosion file: the
     modality's row, or the "unknown" row where no modality is on file. A product with
@@ -540,6 +559,16 @@ def build(inputs: dict) -> dict:
         base_rev = scalars["base_revenue"]
         growth = scalars["revenue_growth_pct"]
         ceiling = scalars.get("revenue_ceiling_musd")
+        # A ceiling below what the product already sells is not a ceiling, it is a cut.
+        # Mounjaro's $38bn sat under its own second quarter of 2026 annualised, so the
+        # model flattened it from the first forecast year. The floor is the latest
+        # reported quarter annualised, and the note says when it binds.
+        run_rate, run_label = latest_run_rate(inputs.get("actuals"))
+        if ceiling is not None and run_rate is not None and run_rate > ceiling:
+            notes.append(f"the stated ceiling of {ceiling:,.0f}mm sits below the latest "
+                         f"run rate, {run_label} to {run_rate:,.0f}mm, so the run rate is "
+                         f"the ceiling")
+            ceiling = run_rate
         revenue = grown_revenue(
             base_rev, growth, len(years),
             fade_to=scalars.get("terminal_growth_pct"),
