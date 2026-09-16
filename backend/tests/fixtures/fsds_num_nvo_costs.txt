@@ -1,0 +1,19 @@
+adsh	tag	version	ddate	qtrs	uom	segments	coreg	value	footnote
+0000353278-26-000012	AdministrativeExpense	ifrs/2025	20241231	4	DKK			5276000000.0000	
+0000353278-26-000012	Revenue	ifrs/2025	20241231	4	DKK			290403000000.0000	
+0000353278-26-000012	Revenue	ifrs/2025	20251231	4	DKK			309064000000.0000	
+0000353278-26-000012	AdministrativeExpense	ifrs/2025	20231231	4	DKK			4855000000.0000	
+0000353278-26-000012	SellingExpenseAndDistributionCosts	0000353278-26-000012	20241231	4	DKK	SegmentConsolidationItems=OperatingSegments;Segments=RareDisease;		4261000000.0000	
+0000353278-26-000012	SellingExpenseAndDistributionCosts	0000353278-26-000012	20251231	4	DKK	SegmentConsolidationItems=OperatingSegments;Segments=ObesityAndDiabetesCare;		60274000000.0000	
+0000353278-26-000012	ProfitLossFromOperatingActivities	ifrs/2025	20251231	4	DKK			127658000000.0000	
+0000353278-26-000012	SellingExpenseAndDistributionCosts	0000353278-26-000012	20241231	4	DKK			62101000000.0000	
+0000353278-26-000012	AdministrativeExpense	ifrs/2025	20251231	4	DKK			5969000000.0000	
+0000353278-26-000012	ProfitLossFromOperatingActivities	ifrs/2025	20231231	4	DKK			102574000000.0000	
+0000353278-26-000012	ProfitLossFromOperatingActivities	ifrs/2025	20241231	4	DKK			128339000000.0000	
+0000353278-26-000012	SellingExpenseAndDistributionCosts	0000353278-26-000012	20231231	4	DKK			56743000000.0000	
+0000353278-26-000012	SellingExpenseAndDistributionCosts	0000353278-26-000012	20251231	4	DKK			64310000000.0000	
+0000353278-26-000012	SellingExpenseAndDistributionCosts	0000353278-26-000012	20231231	4	DKK	SegmentConsolidationItems=OperatingSegments;Segments=ObesityAndDiabetesCare;		52477000000.0000	
+0000353278-26-000012	SellingExpenseAndDistributionCosts	0000353278-26-000012	20231231	4	DKK	SegmentConsolidationItems=OperatingSegments;Segments=RareDisease;		4266000000.0000	
+0000353278-26-000012	SellingExpenseAndDistributionCosts	0000353278-26-000012	20241231	4	DKK	SegmentConsolidationItems=OperatingSegments;Segments=ObesityAndDiabetesCare;		57840000000.0000	
+0000353278-26-000012	SellingExpenseAndDistributionCosts	0000353278-26-000012	20251231	4	DKK	SegmentConsolidationItems=OperatingSegments;Segments=RareDisease;		4036000000.0000	
+0000353278-26-000012	Revenue	ifrs/2025	20231231	4	DKK			232261000000.0000	

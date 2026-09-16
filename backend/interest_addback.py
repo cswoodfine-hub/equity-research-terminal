@@ -129,10 +129,10 @@ def restate_row(row: dict, m: dict, company_name: str = "") -> dict | None:
     return {**row, "value": new, "source": source.rstrip(". ") + "." + clause(m, old, new, company_name)}
 
 
-def rewrite_csv(path: pathlib.Path, restate) -> int:
-    """Rewrite only the other_costs_pct lines of a seed file, leaving every other line,
-    comment and quoting exactly as it was. ``restate(fields)`` returns the new fields
-    dict or None. Returns lines changed."""
+def rewrite_csv(path: pathlib.Path, restate, key: str = "other_costs_pct") -> int:
+    """Rewrite only the ``key`` lines of a seed file (the other_costs_pct charge unless
+    told otherwise), leaving every other line, comment and quoting exactly as it was.
+    ``restate(fields)`` returns the new fields dict or None. Returns lines changed."""
     # Read and written without newline translation: the seed files carry CRLF endings,
     # and a text-mode round trip rewrote every line of every file to change 331.
     with path.open(encoding="utf-8", newline="") as handle:
@@ -150,7 +150,7 @@ def rewrite_csv(path: pathlib.Path, restate) -> int:
             out.append(line)
             continue
         fields = dict(zip(header, cells))
-        if fields.get("key") != "other_costs_pct":
+        if fields.get("key") != key:
             out.append(line)
             continue
         new = restate(fields)
