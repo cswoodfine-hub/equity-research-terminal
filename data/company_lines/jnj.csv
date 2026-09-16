@@ -18,7 +18,7 @@ JNJ,MedTech,base,pos,1.0,,,"booked revenue","stated, because no development phas
 JNJ,MedTech,base,cogs_pct,0.3212,,share of revenue,"JNJ FY2025, from the filed lines","the company's blended ratios, which already contain MedTech: a device business carries a heavier cost of goods than a drug, and this blend is the closest thing on file to its own"
 JNJ,MedTech,base,sga_pct,0.2514,,share of revenue,"JNJ FY2025, from the filed lines",""
 JNJ,MedTech,base,rd_pct,0.1557,,share of revenue,"JNJ FY2025, from the filed lines","overstated for a device segment, which spends less on research than a pharmaceutical one, and the reason this line's margin should be read as the company's rather than the segment's"
-JNJ,MedTech,base,other_costs_pct,0.021102,,share of revenue,"derived: JNJ's free cash conversion against what its filed expense lines leave",""
+JNJ,MedTech,base,other_costs_pct,0.00251,,share of revenue,"derived: JNJ's free cash conversion against what its filed expense lines leave. Restated before interest: JNJ paid $6,473mm of interest inside operating cash flow over 2023 to 2025, 1.86% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 2.11% to 0.25%.",
 JNJ,MedTech,base,tax_rate,0.141489,,effective rate,"aggregate effective rate over the years to 2025",""
 JNJ,MedTech,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
 JNJ,MedTech,base,erp,0.05,,,"Damodaran US ERP estimate",""
@@ -51,7 +51,7 @@ JNJ,Innovative Medicine other,base,pos,1.0,,,"booked revenue","stated, because n
 JNJ,Innovative Medicine other,base,cogs_pct,0.3212,,share of revenue,"JNJ FY2025, from the filed lines",""
 JNJ,Innovative Medicine other,base,sga_pct,0.2514,,share of revenue,"JNJ FY2025, from the filed lines",""
 JNJ,Innovative Medicine other,base,rd_pct,0.1557,,share of revenue,"JNJ FY2025, from the filed lines",""
-JNJ,Innovative Medicine other,base,other_costs_pct,0.021102,,share of revenue,"derived: JNJ's free cash conversion against what its filed expense lines leave",""
+JNJ,Innovative Medicine other,base,other_costs_pct,0.00251,,share of revenue,"derived: JNJ's free cash conversion against what its filed expense lines leave. Restated before interest: JNJ paid $6,473mm of interest inside operating cash flow over 2023 to 2025, 1.86% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 2.11% to 0.25%.",
 JNJ,Innovative Medicine other,base,tax_rate,0.141489,,effective rate,"aggregate effective rate over the years to 2025",""
 JNJ,Innovative Medicine other,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
 JNJ,Innovative Medicine other,base,erp,0.05,,,"Damodaran US ERP estimate",""

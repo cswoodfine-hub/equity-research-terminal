@@ -16,7 +16,7 @@ GSK,Triumeq,,US,base,pos,,1.0,,,approved and selling,"stated, because no develop
 GSK,Triumeq,,US,base,cogs_pct,,0.276,,share of revenue,"GSK FY2025, from the filed lines",
 GSK,Triumeq,,US,base,sga_pct,,0.2782,,share of revenue,"GSK FY2025, from the filed lines",
 GSK,Triumeq,,US,base,rd_pct,,0.2304,,share of revenue,"GSK FY2025, from the filed lines",
-GSK,Triumeq,,US,base,other_costs_pct,,0.014402,,share of revenue,derived: GSK turned 18.02% of revenue into free cash over 2023 to 2025 against the 19.3% its filed expense lines leave,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+GSK,Triumeq,,US,base,other_costs_pct,,0.014402,,share of revenue,"derived: GSK turned 18.02% of revenue into free cash over 2023 to 2025 against the 19.3% its filed expense lines leave. Checked before interest: interest paid is booked under financing, so free cash flow is already struck before interest, so the charge stands.","amortisation, restructuring and capital spending, none of which the filed lines carry"
 GSK,Triumeq,,US,base,tax_rate,,0.1037,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
 GSK,Triumeq,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 GSK,Triumeq,,US,base,erp,,0.05,,,Damodaran US ERP estimate,

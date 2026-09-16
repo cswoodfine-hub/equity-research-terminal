@@ -17,7 +17,7 @@ INCY,TABRECTA,,US,base,pos,,1.0,,,approved and selling,"stated, because no devel
 INCY,TABRECTA,,US,base,cogs_pct,,0.0724,,share of revenue,"INCY FY2025, computed from the filed lines",
 INCY,TABRECTA,,US,base,sga_pct,,0.2677,,share of revenue,"INCY FY2025, computed from the filed lines",
 INCY,TABRECTA,,US,base,rd_pct,,0.3988,,share of revenue,"INCY FY2025, computed from the filed lines",
-INCY,TABRECTA,,US,base,other_costs_pct,,0.051534,,share of revenue,"derived: INCY generated $2,245mm of free cash flow on $13,078mm of revenue over 2023, 2024 and 2025, a 17.17% margin, against the 21.4% its filed expense lines leave","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+INCY,TABRECTA,,US,base,other_costs_pct,,0.051534,,share of revenue,"derived: INCY generated $2,245mm of free cash flow on $13,078mm of revenue over 2023, 2024 and 2025, a 17.17% margin, against the 21.4% its filed expense lines leave. Checked before interest: no interest paid on file for every year of the window, so the charge stands.","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
 INCY,TABRECTA,,US,base,tax_rate,,0.181,,effective rate,aggregate effective rate over the 5 years to 2025 with positive pre-tax income,
 INCY,TABRECTA,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 INCY,TABRECTA,,US,base,erp,,0.05,,,Damodaran US ERP estimate,

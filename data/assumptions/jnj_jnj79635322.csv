@@ -3,7 +3,7 @@ JNJ,JNJ-79635322,,US,base,therapy_mode,,,chronic,,dosing schedule of the program
 JNJ,JNJ-79635322,,US,base,cogs_pct,,0.3212,,share of revenue,"JNJ FY2025, from the filed lines",""
 JNJ,JNJ-79635322,,US,base,sga_pct,,0.2514,,share of revenue,"JNJ FY2025, from the filed lines",""
 JNJ,JNJ-79635322,,US,base,rd_pct,,0.1557,,share of revenue,"JNJ FY2025, from the filed lines",""
-JNJ,JNJ-79635322,,US,base,other_costs_pct,,0.021102,,share of revenue,"derived: JNJ's free cash conversion against what its filed expense lines leave",""
+JNJ,JNJ-79635322,,US,base,other_costs_pct,,0.00251,,share of revenue,"derived: JNJ's free cash conversion against what its filed expense lines leave. Restated before interest: JNJ paid $6,473mm of interest inside operating cash flow over 2023 to 2025, 1.86% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 2.11% to 0.25%.",
 JNJ,JNJ-79635322,,US,base,tax_rate,,0.141489,,effective rate,"aggregate effective rate over the years to 2025",""
 JNJ,JNJ-79635322,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
 JNJ,JNJ-79635322,,US,base,erp,,0.05,,,"Damodaran US ERP estimate",""

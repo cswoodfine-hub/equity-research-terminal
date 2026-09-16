@@ -17,7 +17,7 @@ AMGN,Tezspire,,US,base,pos,,1.0,,,approved and selling,"stated, because no devel
 AMGN,Tezspire,,US,base,cogs_pct,,0.3275,,share of revenue,"AMGN FY2025, computed from the filed lines",
 AMGN,Tezspire,,US,base,sga_pct,,0.1918,,share of revenue,"AMGN FY2025, computed from the filed lines",
 AMGN,Tezspire,,US,base,rd_pct,,0.1979,,share of revenue,"AMGN FY2025, computed from the filed lines",
-AMGN,Tezspire,,US,base,other_costs_pct,,0.0,,share of revenue,"derived and found to be nil: AMGN's filed expense lines already leave less than the 26.28% of revenue it turned into free cash over 2023 to 2025, so there is nothing left to charge","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+AMGN,Tezspire,,US,base,other_costs_pct,,0,,share of revenue,"derived and found to be nil: AMGN's filed expense lines already leave less than the 26.28% of revenue it turned into free cash over 2023 to 2025, so there is nothing left to charge. Restated before interest: AMGN paid $8,600mm of interest inside operating cash flow over 2023 to 2025, 8.74% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so adding it back only widens a gap the filed lines already leave, and the charge stays nil.","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
 AMGN,Tezspire,,US,base,tax_rate,,0.1236,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
 AMGN,Tezspire,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 AMGN,Tezspire,,US,base,erp,,0.05,,,Damodaran US ERP estimate,

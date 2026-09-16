@@ -8,7 +8,7 @@ AZN,Ceralasertib,,US,base,forecast_start_year,,2026,,year,"LATIFY, its only phas
 AZN,Ceralasertib,,US,base,forecast_years,,10,,years,"LATIFY, its only phase 3, missed its primary endpoint. Ceralasertib with Imfinzi did not improve overall survival against docetaxel in previously treated advanced non-small cell lung cancer, reported at the European Lung Cancer Congress in 2026","nil is the finding, not a gap. Seeded at nought so the asset stops reading as pipeline awaiting a pool, when what it is awaiting is a different trial"
 AZN,Ceralasertib,,US,base,sga_pct,,0.3393,,share of revenue,"AZN FY2025, from the filed lines",""
 AZN,Ceralasertib,,US,base,rd_pct,,0.2423,,share of revenue,"AZN FY2025, from the filed lines",""
-AZN,Ceralasertib,,US,base,other_costs_pct,,0.013002,,share of revenue,"derived: AstraZeneca's free cash conversion against what its filed expense lines leave",""
+AZN,Ceralasertib,,US,base,other_costs_pct,,0,,share of revenue,"derived: AstraZeneca's free cash conversion against what its filed expense lines leave. Restated before interest: AZN paid $3,710mm of interest inside operating cash flow over 2023 to 2025, 2.34% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 1.30% to 0.00%.",
 AZN,Ceralasertib,,US,base,tax_rate,,0.1377,,effective rate,"aggregate effective rate over the five years to 2025",""
 AZN,Ceralasertib,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",""
 AZN,Ceralasertib,,US,base,erp,,0.05,,,"Damodaran US ERP estimate",""

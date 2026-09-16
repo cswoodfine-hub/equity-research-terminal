@@ -17,7 +17,7 @@ AZN,Wainua (Autoinjector),,US,base,pos,,1.0,,,approved and selling,"stated, beca
 AZN,Wainua (Autoinjector),,US,base,cogs_pct,,0.181,,share of revenue,"AZN FY2025, from the filed lines",
 AZN,Wainua (Autoinjector),,US,base,sga_pct,,0.3393,,share of revenue,"AZN FY2025, from the filed lines",
 AZN,Wainua (Autoinjector),,US,base,rd_pct,,0.2423,,share of revenue,"AZN FY2025, from the filed lines",
-AZN,Wainua (Autoinjector),,US,base,other_costs_pct,,0.013002,,share of revenue,derived: AZN turned 19.35% of revenue into free cash over 2023 to 2025 against the 20.5% its filed expense lines leave,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+AZN,Wainua (Autoinjector),,US,base,other_costs_pct,,0,,share of revenue,"derived: AZN turned 19.35% of revenue into free cash over 2023 to 2025 against the 20.5% its filed expense lines leave. Restated before interest: AZN paid $3,710mm of interest inside operating cash flow over 2023 to 2025, 2.34% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 1.30% to 0.00%.","amortisation, restructuring and capital spending, none of which the filed lines carry"
 AZN,Wainua (Autoinjector),,US,base,tax_rate,,0.1377,,effective rate,"aggregate effective rate over the 5 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
 AZN,Wainua (Autoinjector),,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 AZN,Wainua (Autoinjector),,US,base,erp,,0.05,,,Damodaran US ERP estimate,

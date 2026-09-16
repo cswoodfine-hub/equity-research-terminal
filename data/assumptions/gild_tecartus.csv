@@ -16,7 +16,7 @@ GILD,Tecartus,,US,base,pos,,1.0,,,approved and selling,"stated, because no devel
 GILD,Tecartus,,US,base,cogs_pct,,0.2117,,share of revenue,"GILD FY2025, from the filed lines",
 GILD,Tecartus,,US,base,sga_pct,,0.1961,,share of revenue,"GILD FY2025, from the filed lines",
 GILD,Tecartus,,US,base,rd_pct,,0.197,,share of revenue,"GILD FY2025, from the filed lines",
-GILD,Tecartus,,US,base,other_costs_pct,,0.0,,share of revenue,derived and found to be nil: the filed expense lines already leave less than the 31.86% of revenue this company turned into free cash over 2023 to 2025,"amortisation, restructuring and capital spending, none of which the filed lines carry"
+GILD,Tecartus,,US,base,other_costs_pct,,0,,share of revenue,"derived and found to be nil: the filed expense lines already leave less than the 31.86% of revenue this company turned into free cash over 2023 to 2025. Restated before interest: GILD paid $2,878mm of interest inside operating cash flow over 2023 to 2025, 3.37% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so adding it back only widens a gap the filed lines already leave, and the charge stays nil.","amortisation, restructuring and capital spending, none of which the filed lines carry"
 GILD,Tecartus,,US,base,tax_rate,,0.231,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
 GILD,Tecartus,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
 GILD,Tecartus,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
