@@ -974,12 +974,15 @@ def test_an_unlaunched_product_takes_the_statutory_default_loe():
     assert F.build(inputs)["loe_year"] is None
 
 
-def test_the_engine_reads_the_valuation_loe_rule(tmp_path):
+def test_the_engine_reads_the_valuation_loe_rule(tmp_path, monkeypatch):
     """An orphan exclusivity holds one indication, not the molecule, and is left out of
     the engine's LOE as it is left out of the cliff. A biologic with only a statutory
     floor on file and no book row still has an LOE."""
     import db
     import assumptions as A
+    import loe
+    # The real curated file dates Novartis's own Kesimpta, and this fixture reuses the name.
+    monkeypatch.setattr(loe, "CURATED_DISCLOSED", tmp_path / "none.csv")
     path = str(tmp_path / "loe.db")
     db.init(path)
     conn = db.get_connection(path)

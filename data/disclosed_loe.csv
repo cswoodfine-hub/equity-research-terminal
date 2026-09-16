@@ -17,6 +17,23 @@
 # Source for every PFE row: Pfizer Inc. Form 10-K for 2025, filed 2026-02-26, accession
 # 0000078003-26-000026, Item 1 "Patents and Other Intellectual Property Rights", U.S.
 # basic product patent expiration year column and its footnotes.
+#
+# The other seventeen modelled filers were read the same way on 2026-09-16, each from its
+# FY2025 10-K or 20-F, and a row is written only where the filer's US date differs from
+# the one the model held. Every such row names the accession and the table or footnote in
+# its note, and its wording was checked against the filed document. The date taken is the
+# molecule's: the compound, basic product or new molecular entity patent, or the
+# regulatory exclusivity where that runs later, never a formulation or method of use
+# patent. A settled generic or biosimilar entry date is taken over the patent, as for
+# Eliquis above. A biologic's compound patent that ends before its twelve years of
+# exclusivity is not a date the market opens, so it is not taken. Where a filer folds
+# extensions into its dates without saying which are granted (Lilly, Novo Nordisk), the
+# USPTO list of patent term extension certificates issued decides; one not on it is
+# pending and not taken.
+#
+# "expired" in the loe column is a filer saying generics or biosimilars are already on
+# its US market without giving a year. The loss is then past with no date, and no year
+# is supplied for it.
 ticker,brand,loe,basis,note
 PFE,Xeljanz,2026,"Pfizer 10-K, U.S. basic product patent",""
 PFE,Xeljanz Xr,2026,"Pfizer 10-K, U.S. basic product patent","the same tofacitinib patent as Xeljanz"
@@ -48,3 +65,78 @@ PFE,Elrexfio,2036,"Pfizer 10-K, U.S. basic product patent","2037 pending extensi
 PFE,Hympavzi,2036,"Pfizer 10-K, U.S. basic product patent","2038 pending extension not taken"
 PFE,Comirnaty,2041,"Pfizer 10-K, U.S. basic product patent","commercialised with BioNTech, footnote 18"
 PFE,Paxlovid (Copackaged),2041,"Pfizer 10-K, U.S. basic product patent",""
+ABBV,Skyrizi,2033,"AbbVie 10-K, U.S. composition of matter patent","0001551152-26-000008, Item 1 Intellectual Property Protection and Regulatory Exclusivity. The books gave 2034, the statutory floor counted from BLA761262 (2022), a later licence of a molecule first licensed in 2019"
+AMGN,Repatha,2029-08-27,"Amgen 10-K, U.S. antibodies patent","0000318154-26-000010, Item 1 Patents table. U.S. methods of treatment patent to 5/10/2032 not taken"
+AMGN,Enbrel,2028-11-22,"Amgen 10-K, U.S. fusion protein and pharmaceutical compositions patent","0000318154-26-000010, Item 1 Patents table. DNA and methods of making 4/24/2029, formulations 10/19/2037 and methods of treatment 2/22/2038 not taken. U.S. Enbrel biosimilars approved but not launched"
+AMGN,Blincyto,2030-04-06,"Amgen 10-K, U.S. compositions and bifunctional polypeptides patent","0000318154-26-000010, Item 1 Patents table. U.S. method of treatment patent to 8/26/2031 not taken"
+AMGN,Tezspire,2034-02-03,"Amgen 10-K, U.S. polypeptides patent","0000318154-26-000010, Item 1 Patents table. U.S. methods of treatment patent to 8/23/2038 not taken"
+AMGN,Kyprolis,2028-06-07,"Amgen 10-K, U.S. compositions and compounds patent with granted pediatric exclusivity","0000318154-26-000010, Item 1 Patents table, patent 12/7/2027 and footnote 4: pediatric exclusivity granted to June 7, 2028. Methods of making 5/8/2033 not taken"
+AMGN,Krystexxa,2026-04-11,"Amgen 10-K, U.S. polypeptides and pharmaceutical compositions patent","0000318154-26-000010, Item 1 Patents table. U.S. methods of treatment patent to 10/5/2040 not taken"
+AMGN,Prolia,2025-02,"Amgen 10-K, U.S. RANKL antibody patents expired","0000318154-26-000010, Item 1 Prolia: multiple biosimilars have launched in the United States"
+AMGN,Xgeva,2025-02,"Amgen 10-K, U.S. RANKL antibody patents expired","0000318154-26-000010, Item 1 XGEVA: multiple biosimilars have launched in the United States"
+AZN,Calquence,2032,"AstraZeneca 20-F, U.S. new molecular entity patent","0001104659-26-019130, Patent Expiries of Key Marketed Products table (bold dates are new molecular entity patents; dates include granted SPC, PTE and paediatric exclusivity). U.S. NME patents 2026-2032, the latest taken; other patents 2032-2036 not taken"
+AZN,Enhertu,2033,"AstraZeneca 20-F, U.S. new molecular entity patent","0001104659-26-019130, Patent Expiries of Key Marketed Products table (bold dates are new molecular entity patents; dates include granted SPC, PTE and paediatric exclusivity). Other patents 2035 not taken"
+AZN,Imfinzi,2031,"AstraZeneca 20-F, U.S. new molecular entity patent","0001104659-26-019130, Patent Expiries of Key Marketed Products table (bold dates are new molecular entity patents; dates include granted SPC, PTE and paediatric exclusivity)"
+AZN,Truqap,2030,"AstraZeneca 20-F, U.S. new molecular entity patent","0001104659-26-019130, Patent Expiries of Key Marketed Products table (bold dates are new molecular entity patents; dates include granted SPC, PTE and paediatric exclusivity). U.S. NME patents 2028-2030, the latest taken; other patents 2025-2033 not taken"
+AZN,Brilinta,2025,"AstraZeneca 20-F, U.S. new molecular entity patent","0001104659-26-019130, Patent Expiries of Key Marketed Products table (bold dates are new molecular entity patents; dates include granted SPC, PTE and paediatric exclusivity). Other patents 2030-2036 not taken; U.S. product sales fell from 751 to 393 in 2025"
+AZN,Soliris,2025-03-01,"AstraZeneca 20-F, settled biosimilar entry","0001104659-26-019130, Patent Expiries of Key Marketed Products table (bold dates are new molecular entity patents; dates include granted SPC, PTE and paediatric exclusivity), footnote 18: settled with Amgen and Samsung Bioepis for licensed biosimilar entry on 1 March 2025. U.S. NME patent 2027, other patents 2025-2032"
+AZN,Strensiq,2029,"AstraZeneca 20-F, U.S. new molecular entity patent","0001104659-26-019130, Patent Expiries of Key Marketed Products table (bold dates are new molecular entity patents; dates include granted SPC, PTE and paediatric exclusivity). U.S. NME patents 2025-2029, the latest taken; other patents 2035-2038 not taken"
+AZN,Ultomiris,2035,"AstraZeneca 20-F, U.S. new molecular entity patent","0001104659-26-019130, Patent Expiries of Key Marketed Products table (bold dates are new molecular entity patents; dates include granted SPC, PTE and paediatric exclusivity). Other patents 2038-2041 not taken"
+BIIB,Plegridy,2027,"Biogen 10-K, U.S. polymer conjugates of interferon beta-1a patent","0000875045-26-000013, Our Patent Portfolio table, U.S. 8,017,733; footnote 1: U.S. regulatory exclusivity 2026"
+BIIB,Zurzuvae,2034,"Biogen 10-K, U.S. compound patents","0000875045-26-000013, Our Patent Portfolio table: U.S. 9,512,165, 10,172,871, 10,342,810 and crystalline form 11,236,121, all 2034. Footnote 5: may be entitled to patent term extension, not taken. Footnote 1: U.S. regulatory exclusivity 2028"
+BIIB,Tecfidera,expired,"Biogen 10-K, U.S. generic entry","0000875045-26-000013, Generic and Biosimilars Competition: multiple Tecfidera generic entrants are now in North America. The filing gives no year; the books' 2035 rested on method of use patents"
+BMY,Abecma,2036,"BMS 10-K, U.S. estimated minimum market exclusivity","0000014272-26-000004, Estimated Minimum Market Exclusivity Date table"
+BMY,Cobenfy,2030,"BMS 10-K, U.S. combination patents","0000014272-26-000004, Estimated Minimum Market Exclusivity Date table, footnote d: patents covering the combination expire in 2030; a PTR application to 2033 is pending and not taken"
+BMY,Eliquis,2028,"BMS 10-K, settled generic entry","0000014272-26-000004, Estimated Minimum Market Exclusivity Date table, footnote e: generic companies with whom BMS settled are permitted to launch in 2028, subject to additional challenges"
+BMY,Krazati,2037,"BMS 10-K, U.S. estimated minimum market exclusivity","0000014272-26-000004, Estimated Minimum Market Exclusivity Date table"
+BMY,Opdivo,2028,"BMS 10-K, U.S. estimated minimum market exclusivity","0000014272-26-000004, Estimated Minimum Market Exclusivity Date table"
+BMY,Pomalyst,2026-03,"BMS 10-K, expected U.S. generic entry","0000014272-26-000004, Estimated Minimum Market Exclusivity Date table, footnote j: generic entry is expected in the first quarter of 2026"
+BMY,Revlimid,2026-01-31,"BMS 10-K, settled generic licences no longer volume-limited","0000014272-26-000004, Estimated Minimum Market Exclusivity Date table, footnote l: generics sold under volume-limited settlement licences, which are no longer volume-limited as of January 31, 2026"
+BMY,Zeposia,2033,"BMS 10-K, U.S. estimated minimum market exclusivity","0000014272-26-000004, Estimated Minimum Market Exclusivity Date table, footnote p: Orange Book patent litigations settled"
+BMY,Abraxane,expired,"BMS 10-K, U.S. generic entry","0000014272-26-000004, Estimated Minimum Market Exclusivity Date table, footnote a: generics have entered the market in the U.S.; no year stated"
+BMY,Sprycel,expired,"BMS 10-K, U.S. generic entry","0000014272-26-000004, Estimated Minimum Market Exclusivity Date table, footnote n: generics have entered the market in the U.S.; no year stated"
+GILD,Descovy,2031,"Gilead 10-K, U.S. primary compound patent","0000882095-26-000006, principal products patent table (primary, typically compound, patents incl. granted extensions), footnote 2: TAF patent litigation settled with five generic manufacturers in 2022, terms not stated"
+GILD,Vemlidy,2031,"Gilead 10-K, U.S. primary compound patent","0000882095-26-000006, principal products patent table (primary, typically compound, patents incl. granted extensions), footnote 2: TAF patent litigation settled in 2022, terms not stated"
+GILD,Sofosbuvir Velpatasvir,2033,"Gilead 10-K, U.S. primary compound patent for Epclusa","0000882095-26-000006, principal products patent table (primary, typically compound, patents incl. granted extensions)"
+GILD,Biktarvy,2036-04-01,"Gilead 10-K, settled generic entry","0000882095-26-000006, principal products patent table (primary, typically compound, patents incl. granted extensions), footnote 6: October 2025 settlements with Lupin, Cipla and Laurus; no generic entry expected before April 1, 2036, subject to standard acceleration provisions"
+GILD,Veklury,2036,"Gilead 10-K, U.S. primary compound patent with granted pediatric exclusivity","0000882095-26-000006, principal products patent table (primary, typically compound, patents incl. granted extensions), footnote 7: pediatric exclusivity granted January 2024 and reflected in the date"
+GSK,Rukobia,2029,"GSK 20-F, U.S. new molecular entity patent","0001131399-26-000004, Patent expiry dates table (normal text is the latest new molecular entity patent, italics other patents; includes granted PTE and paediatric exclusivity). Other patents 2027"
+GSK,Tivicay,2028,"GSK 20-F, U.S. new molecular entity patent","0001131399-26-000004, Patent expiry dates table (normal text is the latest new molecular entity patent, italics other patents; includes granted PTE and paediatric exclusivity). Other patents 2030 not taken"
+GSK,Triumeq,2028,"GSK 20-F, U.S. new molecular entity patent","0001131399-26-000004, Patent expiry dates table (normal text is the latest new molecular entity patent, italics other patents; includes granted PTE and paediatric exclusivity). Other patents 2030 not taken"
+GSK,Dovato,2028,"GSK 20-F, U.S. new molecular entity patent","0001131399-26-000004, Patent expiry dates table (normal text is the latest new molecular entity patent, italics other patents; includes granted PTE and paediatric exclusivity). Other patents 2030-2031 not taken"
+GSK,Juluca,2028,"GSK 20-F, U.S. new molecular entity patent","0001131399-26-000004, Patent expiry dates table (normal text is the latest new molecular entity patent, italics other patents; includes granted PTE and paediatric exclusivity). Other patents 2030-2038 not taken"
+INCY,Pemazyre,2035,"Incyte 10-K, U.S. estimated minimum market exclusivity","0000879169-26-000010, Estimated Minimum Market Exclusivity Dates table (later of composition of matter patent and data protection; granted PTE included). Additional Orange Book patents 2039 and 2040 not taken"
+INCY,Zynyz,2036,"Incyte 10-K, U.S. estimated minimum market exclusivity","0000879169-26-000010, Estimated Minimum Market Exclusivity Dates table (later of composition of matter patent and data protection; granted PTE included)"
+INCY,Minjuvi / Monjuvi,2033,"Incyte 10-K, U.S. estimated minimum market exclusivity with granted PTE","0000879169-26-000010, Estimated Minimum Market Exclusivity Dates table (later of composition of matter patent and data protection; granted PTE included), footnote 5: date reflects the grant of PTE in the US"
+JNJ,Darzalex,2029,"J&J 10-K, U.S. expiry of the Genmab Darzalex patent families","0000200406-26-000016, Item 1 Patents: the two Genmab patent families licensed to Janssen expire in the United States in 2029; Janssen's separate Darzalex Faspro and IV portfolios carry no stated date"
+JNJ,Opsumit,2026,"J&J 10-K, expected U.S. generic competition","0000200406-26-000016, MD&A Pulmonary Hypertension"
+JNJ,Stelara,expired,"J&J 10-K, U.S. biosimilar competition","0000200406-26-000016, MD&A: the Stelara sales decline, primarily due to biosimilar competition, cut 2025 U.S. sales growth by about 12.3%; no year of entry stated"
+LLY,Jardiance,2029,"Lilly 10-K, U.S. compound patent","0000059478-26-000013, Our Intellectual Property Portfolio table (dates include pending or granted PTE, and pediatric exclusivity where granted)"
+LLY,Trulicity,2027,"Lilly 10-K, U.S. compound patent and biologics data protection","0000059478-26-000013, Our Intellectual Property Portfolio table (dates include pending or granted PTE, and pediatric exclusivity where granted). Both 2027"
+LLY,Taltz,2030,"Lilly 10-K, U.S. compound patent","0000059478-26-000013, Our Intellectual Property Portfolio table (dates include pending or granted PTE, and pediatric exclusivity where granted). Biologics data protection U.S. 2028. Lilly does not say which PTEs are granted; the USPTO list of PTE certificates issued shows ixekizumab's"
+MRK,Lenvima,2030-07,"Merck 10-K, settled generic entry","0000310158-26-000063, Item 1 patent table footnote 5: settlement agreements on an additional product-related patent mean generic entry is not expected until July 2030; litigation is ongoing. The table's U.S. key patent year is 2026"
+MRK,Gardasil / Gardasil 9,2028,"Merck 10-K, U.S. key patent","0000310158-26-000063, Item 1 patent table: Gardasil 2028 compound patent, Gardasil 9 2028 composition patent (footnote 9)"
+MRK,CAPVAXIVE,2038,"Merck 10-K, U.S. composition patent","0000310158-26-000063, Item 1 patent table, footnote 9"
+MRK,Winrevair,2036,"Merck 10-K, U.S. data exclusivity","0000310158-26-000063, Item 1 patent table footnote 8: 12 years of U.S. data exclusivity expiring 2036; compound patent 2027. Method of treatment patents expiring 2037 absent PTE may provide additional exclusivity and are not taken"
+NVO,Victoza,2024-06-22,"Novo Nordisk 20-F, settled generic entry","0000353278-26-000012, Item 4 Patent situation: settled ANDA filers licensed to launch generic Victoza as of June 22, 2024; U.S. compound patent expired 2023"
+NVO,Saxenda,2023,"Novo Nordisk 20-F, U.S. liraglutide compound patent expired","0000353278-26-000012, Item 4 Patent situation: Saxenda's liraglutide compound patent has expired in all countries, and the liraglutide compound patent expired in the US in 2023 (Victoza paragraph). U.S. Saxenda settlements are confidential"
+NVO,Tresiba,2029,"Novo Nordisk annual report, U.S. active ingredient patent","0000353278-26-000012, Annual Report 2025 exhibit, Patent status for products with marketing authorisation (active ingredient patents incl. actual and estimated extensions). The USPTO list of PTE certificates issued shows the insulin degludec extension"
+NVO,Ryzodeg,2029,"Novo Nordisk annual report, U.S. active ingredient patent","0000353278-26-000012, Annual Report 2025 exhibit, Patent status for products with marketing authorisation (active ingredient patents incl. actual and estimated extensions). Insulin degludec, as Tresiba"
+NVO,Xultophy,2029,"Novo Nordisk annual report, U.S. active ingredient patent","0000353278-26-000012, Annual Report 2025 exhibit, Patent status for products with marketing authorisation (active ingredient patents incl. actual and estimated extensions). Insulin degludec, as Tresiba"
+NVS,Entresto,2025-09,"Novartis 20-F, U.S. generic entry","0001114448-26-000004, Item 5: generic entry in the US in the third quarter of 2025. Item 4 key marketed products table (basic CoM patent incl. granted PTE, or regulatory exclusivity, whichever is later): U.S. combination patent expired"
+NVS,Tasigna,expired,"Novartis 20-F, U.S. generic competition","0001114448-26-000004, Item 4 key marketed products table (basic CoM patent incl. granted PTE, or regulatory exclusivity, whichever is later): U.S. CoM patent expired. Item 5: US sales offset by generic competition for Tasigna; no year stated"
+NVS,Cosentyx,2029,"Novartis 20-F, U.S. basic exclusivity","0001114448-26-000004, Item 4 key marketed products table (basic CoM patent incl. granted PTE, or regulatory exclusivity, whichever is later)"
+NVS,Kesimpta,2031,"Novartis 20-F, U.S. basic exclusivity","0001114448-26-000004, Item 4 key marketed products table (basic CoM patent incl. granted PTE, or regulatory exclusivity, whichever is later)"
+NVS,Zolgensma,2033,"Novartis 20-F, U.S. basic exclusivity","0001114448-26-000004, Item 4 key marketed products table (basic CoM patent incl. granted PTE, or regulatory exclusivity, whichever is later)"
+NVS,Scemblix,2035,"Novartis 20-F, U.S. basic exclusivity","0001114448-26-000004, Item 4 key marketed products table (basic CoM patent incl. granted PTE, or regulatory exclusivity, whichever is later)"
+NVS,Fabhalta,2034,"Novartis 20-F, U.S. basic exclusivity","0001114448-26-000004, Item 4 key marketed products table (basic CoM patent incl. granted PTE, or regulatory exclusivity, whichever is later), footnote 5: PTE applied for and pending, not included"
+REGN,Libtayo,2035-09-18,"Regeneron 10-K, U.S. composition of matter patent","0000872589-26-000008, Patents, Trademarks, and Trade Secrets table, U.S. 9,987,500; a second composition of matter patent 10,737,113 expires April 10, 2035. Formulation 2038 and methods of treatment 2037-2038 not taken"
+SNY,Dupixent,2031-03,"Sanofi 20-F, U.S. compound patent with PTE","0001628280-26-008403, Item 4 Product and patent overview table. U.S. regulatory exclusivity March 2029; later filed patents pending"
+SNY,ALTUVIIIO,2037-02,"Sanofi 20-F, U.S. compound patent with PTA","0001628280-26-008403, Item 4 Product and patent overview table. PTE pending, not taken; U.S. regulatory exclusivity February 2035"
+SNY,Cablivi,2032-02,"Sanofi 20-F, U.S. compound patent with PTA and PTE","0001628280-26-008403, Item 4 Product and patent overview table. U.S. regulatory exclusivity February 2031"
+SNY,Aubagio,2023-03-12,"Sanofi 20-F, settled generic entry","0001628280-26-008403, Item 4 Aubagio: 2017 settlement with all 20 generic ANDA first filers licensed U.S. entry on March 12, 2023"
+UTHR,Tyvaso,2026-01,"United Therapeutics 10-K, settled generic entry","0001082554-26-000006, Generic Competition: the Watson settlement permits a generic Nebulized Tyvaso as early as January 2026; Watson has not received FDA approval"
+UTHR,Orenitram,2027-06,"United Therapeutics 10-K, settled generic entry","0001082554-26-000006, Generic Competition: Actavis may launch in June 2027 and ANI in December 2027, either possibly earlier"
+UTHR,Remodulin,2019-03,"United Therapeutics 10-K, settled generic launch","0001082554-26-000006, Generic Competition: Sandoz announced U.S. availability of its settled generic in March 2019; limited erosion through 2025"
+VRTX,Kalydeco,2028,"Vertex 10-K, U.S. basic product patent with pediatric exclusivity","0000875320-26-000056, Item 1 basic product patent table, footnote 1: includes pediatric exclusivity"
+VRTX,Orkambi,2031,"Vertex 10-K, U.S. basic product patent with pediatric exclusivity","0000875320-26-000056, Item 1 basic product patent table (lumacaftor), footnote 1: includes pediatric exclusivity"
