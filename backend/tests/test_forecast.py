@@ -1209,3 +1209,55 @@ def test_a_ceiling_never_sits_below_the_latest_run_rate():
     assert any("below the latest run rate" in n for n in got["notes"])
     inputs["actuals"] = [{"fiscal_year": 2026, "period": "Q2", "value": 5000.0}]
     assert max(F.build(inputs)["revenue"]) == pytest.approx(38000.0)
+
+
+def _regional(regions, loe=2031, **over):
+    inputs = _marketed(**over)
+    inputs["modality"] = "small_molecule"
+    inputs["erosion_defaults"] = {"small_molecule": {"year1_pct": 0.5, "decay_pct": 0.2,
+                                                     "source": "t"}}
+    inputs["loe"] = {"year": loe, "basis": "compound patent"}
+    inputs["regions"] = regions
+    return inputs
+
+
+def test_each_region_loses_exclusivity_on_its_own_date():
+    """Semaglutide opened in China in 2026 and runs to 2031 in the US. Eroding the whole
+    line on the US date kept China's share at full price for five years it no longer
+    had; eroding it on China's date takes that share down from 2027."""
+    whole = F.build(_regional([]))
+    split = F.build(_regional([{"region": "CN", "label": "China", "share": 0.1,
+                                "share_basis": "filed", "year": 2026, "basis": "patent lapsed"}]))
+    years = split["years"]
+    assert split["us_share"] == pytest.approx(0.9)
+    at = years.index(2027)
+    assert split["revenue_after_loe"][at] == pytest.approx(
+        split["revenue"][at] * 0.9 + split["revenue"][at] * 0.1 * 0.5)
+    assert split["revenue_after_loe"][years.index(2026)] == pytest.approx(split["revenue"][0])
+    # From the US cliff on, both parts are eroded and the difference is China's head start.
+    assert split["npv"] < whole["npv"]
+    assert split["regions"][0]["loe_year"] == 2026 and not split["regions"][0]["in_base"]
+    assert any("China: 10% of revenue" in n and "2026" in n for n in split["notes"])
+
+
+def test_a_region_already_past_is_in_the_base_and_one_without_a_date_keeps_the_us_date():
+    got = F.build(_regional([
+        {"region": "EU", "label": "Europe", "share": 0.3, "year": 2020, "basis": "SPC expired"},
+        {"region": "JP", "label": "Japan", "share": 0.1, "year": None}]))
+    eu, jp = got["regions"]
+    assert eu["in_base"] is True and eu["revenue_after_loe"] == pytest.approx([v * 0.3 for v in got["revenue"]])
+    assert jp["loe_year"] == 2031 and "US date" in jp["loe_basis"]
+    whole = F.build(_regional([]))
+    # Japan on the US date and Europe with no cliff ahead: only the US and Japan erode.
+    last = -1
+    assert got["revenue_after_loe"][last] == pytest.approx(
+        whole["revenue_after_loe"][last] * 0.7 + got["revenue"][last] * 0.3)
+
+
+def test_shares_that_do_not_add_up_are_refused_rather_than_scaled():
+    regions, us = F.regional_split([{"share": 0.7}, {"share": 0.6}])
+    assert regions == [] and us == 1.0
+    regions, us = F.regional_split([{"share": None}, {"share": 0.25}])
+    assert len(regions) == 1 and us == pytest.approx(0.75)
+    got = F.build(_regional([{"share": 0.7, "year": 2026}, {"share": 0.6, "year": 2026}]))
+    assert got["regions"] == [] and got["revenue_after_loe"] == F.build(_regional([]))["revenue_after_loe"]

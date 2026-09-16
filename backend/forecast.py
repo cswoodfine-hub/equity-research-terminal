@@ -365,6 +365,20 @@ def erode(revenue: list[float], years: list[int], loe_year,
     return out
 
 
+def regional_split(regions) -> tuple[list[dict], float]:
+    """(regions that carry a share, the US share left over). A region without a share,
+    or with a share that is not a fraction, cannot be split off and is dropped: its
+    revenue stays with the US line and loses exclusivity on the US date, which is what
+    happened to every region before this existed. Shares that sum past one are refused
+    whole rather than scaled, since scaling would invent a split the filer never gave."""
+    usable = [r for r in regions or []
+              if r.get("share") is not None and 0.0 < float(r["share"]) <= 1.0]
+    total = sum(float(r["share"]) for r in usable)
+    if total > 1.0 + 1e-9:
+        return [], 1.0
+    return usable, max(0.0, 1.0 - total)
+
+
 def fcff(revenue: list[float], patients: list[float], scalars: dict,
          mode: str) -> list[dict]:
     """The workbook's P&L per year: COGS, SG&A, R&D, tax, NOPAT = FCFF.
@@ -700,17 +714,51 @@ def build(inputs: dict) -> dict:
     # the decay from year one on Cerezyme, off patent since 2006, and halved it in four
     # years. The year-one drop still lands where the cliff falls inside the window.
     in_base = known_past or (loe_year is not None and loe_year + 1 < years[0])
+    # Exclusivity ends market by market. Ozempic's compound patent lapsed in China and
+    # Canada in 2026 and runs to 2031 in Europe; Eliquis opens in Europe two years before
+    # the US. A region the filer reports sales for, with a date of its own, is split off
+    # at its reported share and eroded on its own clock. The rest stays on the US date.
+    regions, us_share = regional_split(inputs.get("regions"))
+    us_revenue = [value * us_share for value in revenue]
     if in_base:
-        eroded = list(revenue)
-        erosion_basis = None
+        eroded = list(us_revenue)
         notes.append(f"LOE {loe_year or 'already past'} ({loe_basis}) is in the base: the reported "
                      "revenue already reflects it and the growth rate carries the "
                      "trend, so no erosion is applied again")
     else:
-        eroded = erode(revenue, years, loe_year, year1, decay)
+        eroded = erode(us_revenue, years, loe_year, year1, decay)
     if loe_year is not None and max(years) <= loe_year:
         notes.append(f"LOE {loe_year} ({loe_basis}) is at or beyond the horizon, "
                      "so no erosion applies inside it")
+    regional = []
+    for region in regions:
+        share = float(region["share"])
+        part = [value * share for value in revenue]
+        r_year = region.get("year")
+        r_year = int(r_year) if r_year is not None else None
+        r_known_past = bool(region.get("in_base")) and r_year is None
+        if r_year is None and not r_known_past:
+            # No date for the region: it keeps the US date, as the whole line did before.
+            r_year, r_basis, r_in_base = loe_year, "no date for the region, so the US date", in_base
+        else:
+            r_basis = region.get("basis")
+            r_in_base = r_known_past or r_year + 1 < years[0]
+        r_eroded = part if r_in_base else erode(part, years, r_year, year1, decay)
+        eroded = [a + b for a, b in zip(eroded, r_eroded)]
+        label = region.get("label") or region.get("region")
+        notes.append(f"{label}: {share:.0%} of revenue ({region.get('share_basis') or 'share as stated'}), "
+                     + (f"exclusivity {r_year or 'already lost'} ({r_basis}) is in the base"
+                        if r_in_base else f"loses exclusivity in {r_year} ({r_basis})"))
+        regional.append({"region": region.get("region"), "label": label, "share": share,
+                         "share_basis": region.get("share_basis"), "loe_year": r_year,
+                         "loe_basis": r_basis, "in_base": r_in_base,
+                         "revenue_after_loe": r_eroded})
+    if regions:
+        notes.append(f"US: {us_share:.0%} of revenue, on the US date "
+                     f"{loe_year or ('already past' if known_past else 'not on file')}")
+    # Erosion is described wherever any part of the line still has a cliff ahead.
+    if in_base and not any(not r["in_base"] for r in regional):
+        erosion_basis = None
 
     # P&L and valuation over the DCF window only.
     window = [i for i, y in enumerate(years) if y in dcf_years]
@@ -773,6 +821,9 @@ def build(inputs: dict) -> dict:
         "curve_basis": curve_basis,
         "loe_year": loe_year, "loe_basis": loe_basis, "erosion_basis": erosion_basis,
         "loe_in_base": in_base,
+        # The US line's share and each region split off it, with its own date. Empty
+        # regions and a US share of one where no regional split is on file.
+        "us_share": us_share, "regions": regional,
         # The erosion pair and the net price in force, stated or defaulted, so a control
         # that moves them can start from where they are rather than from a guess.
         "erosion_year1_pct": year1, "erosion_decay_pct": decay, "net_price": price,
