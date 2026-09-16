@@ -691,6 +691,8 @@ def company_rollup(db_path, ticker: str):
                       "is_marketed": _is_marketed(db_path, asset_id),
                       "loe_year": result.get("loe_year"),
                       "loe_in_base": result.get("loe_in_base"),
+                      "long_run_growth": (state.get("scalars") or {}).get(
+                          "terminal_growth_pct"),
                       "peak_revenue": peak,
                       "peak_year": (result["years"][revenue.index(peak)]
                                     if peak is not None else None),
@@ -1151,7 +1153,7 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "")
     book_rd: dict = {}
     totals = {"revenue": 0.0, "cogs": 0.0, "sga": 0.0, "rd": 0.0, "other": 0.0,
               "ebit": 0.0, "tax": 0.0}
-    waccs = []
+    waccs, growths = [], []
     for part in parts:
         rows = part.get("pnl_share") or []
         for year, row in zip(part.get("dcf_years") or [], rows):
@@ -1162,6 +1164,8 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "")
                 totals[k] += first.get(k) or 0.0
             if part.get("wacc") is not None and first.get("revenue"):
                 waccs.append((first["revenue"], part["wacc"]))
+            if part.get("long_run_growth") is not None and first.get("revenue"):
+                growths.append((first["revenue"], part["long_run_growth"]))
     if not book_rd or not totals["revenue"]:
         return {"value": None, "reason": "no R&D in the modelled book's P&L"}
     pool = FP.pooled(db_path)
@@ -1180,18 +1184,34 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "")
     if wacc is None:
         return {"value": None, "reason": "no discount rate in the modelled book"}
     lag = int(bounds["lag_years"]["value"])
-    got = FP.simulate(book_rd, pool["rate"], lag, int(loe_default["years_from_launch"]),
-                      erosion["year1_pct"], erosion.get("decay_pct") or 0.0, ratios,
-                      wacc, base_year, int(bounds["horizon_years"]["value"]))
     own = next((f for f in pool.get("filers") or [] if f["ticker"] == ticker.upper()), None)
+    # The filer's own record at its credibility, the pool for the rest. A filer with no
+    # launch record on file takes the pool outright.
+    rate_used = own["blended"] if own and own.get("blended") is not None else pool["rate"]
+    # The franchise grows no faster than the book says its own products do in the long
+    # run. Where no long-run rate is on file it replaces the book and does not grow.
+    long_run = (sum(r * g for r, g in growths) / sum(r for r, _ in growths)
+                if growths else 0.0)
+    long_run_basis = ("the book's revenue-weighted long-run growth" if growths
+                      else "no long-run growth on file, so replacement only")
+    got = FP.simulate(book_rd, rate_used, lag, int(loe_default["years_from_launch"]),
+                      erosion["year1_pct"], erosion.get("decay_pct") or 0.0, ratios,
+                      wacc, base_year, int(bounds["horizon_years"]["value"]),
+                      long_run_growth=long_run)
     return {"value": got["value"], "reason": None, "rate": pool["rate"],
+            "rate_used": rate_used,
             "own_rate": own["rate"] if own else None,
+            "own_launches": own["launch_count"] if own else 0,
+            "credibility": own["credibility"] if own else 0.0,
+            "credibility_k": (pool.get("credibility") or {}).get("k"),
             "own_counted": bool(own and own["counted"]),
             "pooled_filers": pool["n"], "lag_years": lag,
             "lag_source": bounds["lag_years"]["source"],
             "life_years": int(loe_default["years_from_launch"]),
             "first_launch_year": got["first_launch_year"], "cohorts": got["cohorts"],
             "replacement": got["replacement"], "wacc": wacc, "ratios": ratios,
+            "renewal": got["renewal"], "credited_share": got["credited_share"],
+            "long_run_growth": long_run, "long_run_basis": long_run_basis,
             "book_rd_first": book_rd.get(base_year + 1),
             "flows": [f for f in got["flows"] if f["revenue"]][:40]}
 

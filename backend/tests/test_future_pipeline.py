@@ -52,3 +52,58 @@ def test_defaults_cite_every_row():
     assert {"lag_years", "horizon_years", "min_rd_years", "min_revenue_musd"} <= set(rows)
     assert all(r["source"] for r in rows.values())
     assert rows["lag_years"]["value"] == 8
+
+
+def test_credibility_trusts_many_launches_more_than_one():
+    """Two filers differ by far more than their noise: each earns weight on its own
+    rate, and the one resting on more launches earns more."""
+    filers = [
+        {"rate": 1.0, "rd": 100.0, "launch_revenues": [20.0, 25.0, 30.0, 25.0]},
+        {"rate": 0.2, "rd": 100.0, "launch_revenues": [4.0, 5.0, 6.0, 5.0]},
+        {"rate": 0.5, "rd": 100.0, "launch_revenues": [5.0] * 10},
+    ]
+    got = FP.credibility(filers)
+    assert got["k"] is not None and got["tau2"] > 0
+    few, _ = FP.blend(1.0, 2, 0.4, got["k"])
+    many, _ = FP.blend(1.0, 20, 0.4, got["k"])
+    assert 0.4 < few < many < 1.0
+    assert FP.blend(1.0, 20, 0.4, got["k"])[1] == pytest.approx(20 / (20 + got["k"]))
+
+
+def test_filers_no_more_different_than_their_noise_all_take_the_pool():
+    """One launch each at wildly different sizes: the spread is all noise."""
+    filers = [{"rate": r, "rd": 100.0, "launch_revenues": [r * 100.0, r * 100.0 * 9]}
+              for r in (0.3, 0.31, 0.29)]
+    got = FP.credibility(filers)
+    assert got["k"] is None
+    assert FP.blend(0.31, 5, 0.3, got["k"]) == (0.3, 0.0)
+
+
+def test_no_launch_record_takes_the_pool():
+    assert FP.blend(None, 0, 0.3, 5.0) == (0.3, 0.0)
+    assert FP.blend(0.9, 0, 0.3, 5.0) == (0.3, 0.0)
+
+
+def test_renewal_is_rate_times_rd_times_a_launch_lifetime():
+    assert FP.renewal(0.3, 0.2, 12, 0.25, 0.2) == pytest.approx(0.3 * 0.2 * (12 + 3.75))
+
+
+def test_a_compounding_franchise_is_held_to_the_long_run_growth():
+    """Vertex's shape: a high rate on a high R&D ratio compounds without a cap and the
+    value then rests on the horizon. Capped at zero long-run growth it replaces itself,
+    and the horizon stops mattering."""
+    heavy = {**RATIOS, "rd": 0.32}
+    free40 = _sim(rate=0.51, ratios=heavy, horizon=40)["value"]
+    free100 = _sim(rate=0.51, ratios=heavy, horizon=100)["value"]
+    assert free100 > free40 * 1.5
+    capped = _sim(rate=0.51, ratios=heavy, horizon=100, long_run_growth=0.0)
+    assert capped["credited_share"] == pytest.approx(1.0 / capped["renewal"])
+    assert capped["value"] < free100
+    capped40 = _sim(rate=0.51, ratios=heavy, horizon=40, long_run_growth=0.0)["value"]
+    assert capped["value"] < capped40 * 1.3
+
+
+def test_a_franchise_that_runs_down_is_not_capped():
+    got = _sim(rate=0.1, long_run_growth=0.0)
+    assert got["renewal"] < 1 and got["credited_share"] == 1.0
+    assert got["value"] == pytest.approx(_sim(rate=0.1)["value"])

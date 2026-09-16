@@ -1167,11 +1167,15 @@ def test_future_launches_enter_the_sum_from_the_books_own_rd(tmp_path, monkeypat
     path = _sotp_db(tmp_path)
     before = V.company_verdict(path, "TST")["sotp"]
     monkeypatch.setattr(FP, "pooled", lambda db_path=None, refresh=False: {
-        "rate": 0.3, "n": 14, "filers": [{"ticker": "TST", "rate": 0.5, "counted": True,
-                                          "rd_years": 10, "revenue": 1e10}]})
+        "rate": 0.3, "n": 14, "credibility": {"k": 6.0},
+        "filers": [{"ticker": "TST", "rate": 0.5, "counted": True, "rd_years": 10,
+                    "revenue": 1e10, "launch_count": 6, "blended": 0.4,
+                    "credibility": 0.5}]})
     s = V.company_verdict(path, "TST")["sotp"]
     f = s["future"]
     assert f["value"] > 0 and f["rate"] == 0.3 and f["own_rate"] == 0.5
+    # The blend is what the simulation runs on, not the pool.
+    assert f["rate_used"] == 0.4 and f["credibility"] == 0.5 and f["own_launches"] == 6
     assert f["first_launch_year"] == 2026 + int(FP.defaults()["lag_years"]["value"])
     assert s["enterprise"] == pytest.approx(before["enterprise"] + f["value"])
     assert s["enterprise_book_only"] == pytest.approx(before["enterprise"])
@@ -1179,4 +1183,6 @@ def test_future_launches_enter_the_sum_from_the_books_own_rd(tmp_path, monkeypat
     import forecast_note
     note = forecast_note.write_company(V.company_verdict(path, "TST"))
     assert "future launches $" in note["headline"]
-    assert "own record is 0.50" in " ".join(note["body"])
+    body = " ".join(note["body"])
+    assert "at 0.40 of annual revenue" in body
+    assert "TST earns 0.50 on 6 launches" in body and "50% weight" in body

@@ -1701,10 +1701,15 @@ def _sotp_bridge(s: dict) -> None:
                     f"{(p.get('per_share') or 0):,.2f} after")
     if future.get("per_share") is not None:
         own = future.get("own_rate")
-        bits.append(f"future launches at {future['rate']:.2f} of revenue per R&D dollar "
-                    f"({future.get('pooled_filers')} filers pooled"
-                    + (f", {own:.2f} own" if own is not None else "")
-                    + f"), {future.get('lag_years')}y lag, first in "
+        bits.append(f"future launches at "
+                    f"{future.get('rate_used', future['rate']):.2f} of revenue per R&D "
+                    f"dollar: own {own:.2f} on {future.get('own_launches')} launches at "
+                    f"{future.get('credibility', 0):.0%} weight, pool "
+                    f"{future['rate']:.2f} across {future.get('pooled_filers')} filers"
+                    if own is not None else
+                    f"future launches at {future['rate']:.2f} of revenue per R&D dollar, "
+                    f"the pool across {future.get('pooled_filers')} filers")
+        bits.append(f"{future.get('lag_years')}y lag, first in "
                     f"{future.get('first_launch_year')}")
     if s.get("balance_sheet_as_of"):
         bits.append(f"balance sheet {s['balance_sheet_as_of']}"

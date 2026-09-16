@@ -263,16 +263,27 @@ def _sotp_body(v: dict) -> list[str]:
         own = future.get("own_rate")
         line = (f"The R&D every product is charged buys launches beyond the modelled "
                 f"pipeline, and they are in the sum at {_per_share(future['per_share'])} "
-                f"a share. Across {future.get('pooled_filers')} large filers, drugs "
-                f"approved in the last ten years earn {future['rate']:.2f} of annual "
-                f"revenue per dollar of R&D spent over the ten years before")
+                f"a share, at {future.get('rate_used', future['rate']):.2f} of annual "
+                f"revenue per dollar of R&D. That rate blends {v['ticker']}'s own record "
+                f"with the pool: across {future.get('pooled_filers')} large filers, "
+                f"drugs approved in the last ten years earn {future['rate']:.2f} per "
+                f"dollar spent over the ten years before")
         if own is not None:
-            line += f"; {v['ticker']}'s own record is {own:.2f}"
+            line += (f", {v['ticker']} earns {own:.2f} on "
+                     f"{future.get('own_launches')} launches, and those launches earn "
+                     f"its own record a {future.get('credibility', 0):.0%} weight")
         line += (f". Each year's R&D is taken to buy launches "
                  f"{future.get('lag_years')} years later, earning that rate for "
                  f"{future.get('life_years')} years before eroding, costed on the "
                  f"company's own ratios; the first arrive in "
                  f"{future.get('first_launch_year')}.")
+        if (future.get("credited_share") or 1.0) < 1.0:
+            line += (f" At that rate each generation of launches would buy "
+                     f"{future['renewal']:.1f} times itself and compound past the "
+                     f"{future.get('long_run_growth', 0):.0%} long-run growth the book "
+                     f"assumes for its own products, so only "
+                     f"{future['credited_share']:.0%} of the launches' R&D is credited "
+                     f"with further launches; all of it is still charged.")
         if s.get("enterprise_book_only") is not None and s.get("close"):
             line += (" Without them the products on file are a run-off: every one fades "
                      "and erodes and nothing replaces it.")

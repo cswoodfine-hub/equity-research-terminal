@@ -12,8 +12,9 @@ Productivity is the revenue a company earns in its latest year from drugs first 
 in the last ten, per dollar of R&D it spent over the ten years before. It is measured per
 filer and pooled across the large ones, because one filer's decade is dominated by one
 or two launches: Merck reads 4.5 cents because Keytruda's 2014 approval falls a year
-outside the window, and Novo reads $1.13 on the GLP-1s alone. The pooled rate is what
-the line uses; each filer's own rate is reported beside it.
+outside the window, and Novo reads $1.13 on the GLP-1s alone. So each filer's own rate
+is blended with the pool at a weight the data sets (credibility, below): the more
+launches its decade rests on, the more its own record counts.
 
 Each year's R&D in the model buys a cohort of launches that arrives after the lag, earns
 the productivity rate on that spend for the exclusivity term, and then erodes on the
@@ -107,8 +108,56 @@ def filer_productivity(conn, company_id: int, rates, name_index) -> dict:
     launches.sort(key=lambda r: -r["revenue"])
     return {"rate": rate, "year": year, "revenue": total, "dated_share": coverage,
             "fresh_revenue": fresh, "rd": rd, "rd_years": rd_years,
-            "launches": launches[:8],
+            "launches": launches[:8], "launch_count": len(launches),
+            "launch_revenues": [r["revenue"] for r in launches],
             "reason": None if rate is not None else "no R&D on file for the window"}
+
+
+def credibility(filers: list) -> dict:
+    """How far a filer's own rate can be trusted against the pool, from the data.
+
+    Buhlmann-Straub credibility (Buhlmann and Straub, 1970), the method insurers use to
+    weigh one risk's own experience against the book's. Each launch is an observation:
+    scaled so that a filer's launches average to its own rate, their spread inside a
+    filer is the noise in that rate (sigma2), and the spread of the rates across
+    filers, less what that noise alone would produce, is how much filers really differ
+    (tau2). A filer with n launches earns weight n / (n + sigma2 / tau2) on its own rate
+    and the rest on the pool. A decade resting on one blockbuster earns little; one
+    resting on sixteen launches earns most.
+
+    ``filers`` are the pooled filers, each {rate, launch_revenues, rd}. Returns
+    {k, sigma2, tau2, mean}; k is None where the filers do not differ by more than
+    their noise, and every filer then takes the pool.
+    """
+    usable = [f for f in filers if f.get("launch_revenues")]
+    total = sum(len(f["launch_revenues"]) for f in usable)
+    if len(usable) < 2 or not total:
+        return {"k": None, "sigma2": None, "tau2": None, "mean": None}
+    mean = sum(len(f["launch_revenues"]) * f["rate"] for f in usable) / total
+    within, dof = 0.0, 0
+    for f in usable:
+        n = len(f["launch_revenues"])
+        if n < 2:
+            continue
+        xs = [n * r / f["rd"] for r in f["launch_revenues"]]
+        within += sum((x - f["rate"]) ** 2 for x in xs)
+        dof += n - 1
+    if not dof:
+        return {"k": None, "sigma2": None, "tau2": None, "mean": mean}
+    sigma2 = within / dof
+    between = sum(len(f["launch_revenues"]) * (f["rate"] - mean) ** 2 for f in usable)
+    spread = total - sum(len(f["launch_revenues"]) ** 2 for f in usable) / total
+    tau2 = (between - (len(usable) - 1) * sigma2) / spread if spread else 0.0
+    return {"k": sigma2 / tau2 if tau2 > 0 else None, "sigma2": sigma2, "tau2": tau2,
+            "mean": mean}
+
+
+def blend(own: float | None, launches: int, pool_rate: float, k: float | None) -> tuple:
+    """(rate, weight on own). The own rate at its credibility, the pool for the rest."""
+    if own is None or k is None or launches <= 0:
+        return pool_rate, 0.0
+    weight = launches / (launches + k)
+    return weight * own + (1.0 - weight) * pool_rate, weight
 
 
 def pooled(db_path=None, refresh: bool = False) -> dict:
@@ -135,21 +184,40 @@ def pooled(db_path=None, refresh: bool = False) -> dict:
                        and got["dated_share"] >= productivity.MIN_REVENUE_COVERAGE)
             filers.append({"ticker": company["ticker"], "rate": got["rate"],
                            "counted": counted, "rd_years": got["rd_years"],
-                           "revenue": got["revenue"]})
+                           "revenue": got["revenue"], "rd": got["rd"],
+                           "launch_count": got["launch_count"],
+                           "launch_revenues": got["launch_revenues"]})
             if counted:
                 fresh += got["fresh_revenue"]
                 rd += got["rd"]
     finally:
         conn.close()
-    out = {"rate": fresh / rd if rd else None,
-           "filers": filers, "n": sum(1 for f in filers if f["counted"])}
+    rate = fresh / rd if rd else None
+    weights = credibility([f for f in filers if f["counted"]])
+    for f in filers:
+        f["blended"], f["credibility"] = (blend(f["rate"], f["launch_count"], rate,
+                                                weights["k"])
+                                          if rate is not None else (None, 0.0))
+    out = {"rate": rate, "filers": filers, "credibility": weights,
+           "n": sum(1 for f in filers if f["counted"])}
     _CACHE[key] = (time.time(), out)
     return out
 
 
+def renewal(rate: float, rd_ratio: float, life: int, erosion_year1: float,
+            erosion_decay: float) -> float:
+    """What one generation of launches buys of the next, per dollar of its revenue.
+
+    A dollar of launch revenue a year funds rd_ratio of R&D a year, which buys rate of
+    revenue a year for ``life`` years and then an eroding tail worth (1 - year-one drop)
+    / decay years more. Above one the franchise compounds, below one it runs down."""
+    tail = (1.0 - erosion_year1) / erosion_decay if erosion_decay > 0 else 0.0
+    return rate * rd_ratio * (life + tail)
+
+
 def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: float,
              erosion_decay: float, ratios: dict, discount: float, base_year: int,
-             horizon: int) -> dict:
+             horizon: int, long_run_growth: float | None = None) -> dict:
     """The launches bought by the book's R&D and by the launches' own R&D, valued.
 
     ``book_rd`` is {year: R&D the modelled book charges that year}. A cohort bought in
@@ -158,9 +226,22 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
     ``ratios`` (cogs, sga, rd, other, tax, each a share of revenue), and its R&D buys
     the next cohort. Cash flows are discounted mid-year from the end of ``base_year``,
     the same convention as the engine. Pure.
+
+    ``long_run_growth`` caps the renewal. Where one generation would buy more than the
+    growth allows over a generation's length, only the share of its R&D that holds the
+    franchise to that growth is credited with launches; the rest is still charged. The
+    book's own products fade to their long-run rate, and a franchise compounding past
+    it is a claim the book does not make: Vertex, spending 32% of revenue on R&D at a
+    0.51 rate, compounded 6.6% a year for sixty years and put most of its value after
+    2055. None means uncapped.
     """
     years = list(range(base_year + 1, base_year + 1 + horizon))
     spend = {y: book_rd.get(y, 0.0) for y in years}
+    generation = renewal(rate, ratios["rd"], life, erosion_year1, erosion_decay)
+    credited = 1.0
+    if long_run_growth is not None and generation > 0:
+        allowed = (1.0 + long_run_growth) ** (lag + life / 2.0)
+        credited = min(1.0, allowed / generation)
     revenue = {y: 0.0 for y in years}
     cohorts = 0
     for s in years:                        # a year's spend is final once reached
@@ -177,7 +258,7 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
             else:
                 earned = level * (1.0 - erosion_year1) * (1.0 - erosion_decay) ** (i - life)
             revenue[y] += earned
-            spend[y] += earned * ratios["rd"]
+            spend[y] += earned * ratios["rd"] * credited
     margin = 1.0 - ratios["cogs"] - ratios["sga"] - ratios["rd"] - ratios["other"]
     pv, flows = 0.0, []
     for y in years:
@@ -188,6 +269,7 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
     first = next((f["year"] for f in flows if f["revenue"] > 0), None)
     book_total = sum(book_rd.values())
     return {"value": pv, "flows": flows, "first_launch_year": first, "cohorts": cohorts,
+            "renewal": generation, "credited_share": credited,
             # R&D the launches go on to fund across the horizon, against the R&D the
             # book funds. Undiscounted, so it describes scale rather than value.
             "replacement": (sum(spend.values()) - book_total) / book_total
