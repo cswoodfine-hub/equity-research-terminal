@@ -282,6 +282,9 @@ _CASHFLOW = (
          candidates=(
              ("us-gaap", "Depreciation"),
              ("ifrs-full", "DepreciationPropertyPlantAndEquipment"),
+             # Novo tags plant depreciation only with right-of-use assets folded in.
+             # Last, so a filer that separates the two is read on plant alone.
+             ("ifrs-full", "DepreciationPropertyPlantAndEquipmentIncludingRightofuseAssets"),
          )),
     Line("AmortisationOfIntangibles", "Amortisation of intangibles", "cashflow",
          "duration", role="memo", candidates=(
