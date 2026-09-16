@@ -691,6 +691,10 @@ def company_rollup(db_path, ticker: str):
                       "is_marketed": _is_marketed(db_path, asset_id),
                       "loe_year": result.get("loe_year"),
                       "loe_in_base": result.get("loe_in_base"),
+                      # Each region's own date and share, without its revenue series.
+                      "regions": [{key: region.get(key) for key in
+                                   ("region", "label", "share", "loe_year", "in_base")}
+                                  for region in result.get("regions") or []],
                       "long_run_growth": (state.get("scalars") or {}).get(
                           "terminal_growth_pct"),
                       "peak_revenue": peak,

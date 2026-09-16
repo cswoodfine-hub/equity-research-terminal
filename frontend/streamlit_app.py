@@ -1508,6 +1508,22 @@ def _book_row(m: dict, top_ps: float, selected) -> str:
     else:
         meta = (f"LOE {m['loe_year']}" if m.get("loe_year")
                 else "lapsed" if m.get("loe_in_base") else "no LOE")
+        # The first region to open ahead of the US, where one does. Nothing opens ahead
+        # of a US market already lost.
+        us_year = m.get("loe_year")
+
+        def opens_first(r):
+            if m.get("loe_in_base"):
+                return False
+            if r.get("in_base"):
+                return True
+            return bool(r.get("loe_year")) and (us_year is None or r["loe_year"] < us_year)
+
+        ahead = [r for r in m.get("regions") or [] if opens_first(r)]
+        if ahead:
+            first = min(ahead, key=lambda r: (not r.get("in_base"), r.get("loe_year") or 0))
+            meta += (f" · {_REGION_WORD.get(first.get('region'), first.get('region'))} "
+                     f"{'lapsed' if first.get('in_base') else first['loe_year']}")
     return (f'<div class="{classes}" data-id="{m.get("asset_id")}">'
             f'<span class="bk-n">{html_escape(m.get("name") or "")}</span>'
             f'<span class="bk-bar"><i style="width:{width:.0f}%"></i></span>'
@@ -1912,6 +1928,10 @@ def _short(text, limit: int = 40) -> str:
     return cut or head[:limit]
 
 
+_REGION_WORD = {"INTL": "ex-US", "EU": "Europe", "JP": "Japan", "CN": "China",
+                "EM": "EM", "APAC": "APAC", "ESTROW": "Est. RoW", "ROW": "RoW"}
+
+
 def _identity(data: dict, result: dict) -> str:
     """The product's facts as chips: how it is built, what it is, when exclusivity ends,
     how far the model looks, and whether its curve or its erosion came from a default.
@@ -1919,14 +1939,23 @@ def _identity(data: dict, result: dict) -> str:
     chips = [f'<span class="hot">{html_escape(_MODE_WORD.get(result.get("mode"), result.get("mode") or ""))}</span>']
     if data.get("modality"):
         chips.append(f'<span>{html_escape(data["modality"])}</span>')
+    regions = result.get("regions") or []
+    # Where the product's sales are split by region, the US date is only the US's, and
+    # each region shows its own date and how much of the product it carries.
+    where = f"US {result.get('us_share', 1.0):.0%} " if regions else ""
     if result.get("loe_year"):
-        chips.append(f'<span class="hot">LOE {result["loe_year"]} · '
+        chips.append(f'<span class="hot">LOE {where}{result["loe_year"]} · '
                      f'{html_escape(_short(result.get("loe_basis"), 36))}</span>')
     elif result.get("loe_in_base"):
-        chips.append(f'<span class="hot">LOE past · '
+        chips.append(f'<span class="hot">LOE {where}past · '
                      f'{html_escape(_short(result.get("loe_basis"), 36))}</span>')
     else:
-        chips.append('<span>no LOE on file</span>')
+        chips.append(f'<span>{"US " if regions else ""}no LOE on file</span>')
+    for region in regions:
+        when = ("past" if region.get("in_base") else region.get("loe_year") or "none")
+        chips.append(f'<span class="hot" title="{html_escape(region.get("loe_basis") or "")}">'
+                     f'{html_escape(_REGION_WORD.get(region.get("region"), region.get("region") or ""))} '
+                     f'{region.get("share", 0):.0%} {when}</span>')
     years = result.get("dcf_years") or result.get("years") or []
     if years:
         chips.append(f'<span>{years[0]}–{years[-1]}</span>')
