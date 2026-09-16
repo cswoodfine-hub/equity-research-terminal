@@ -361,6 +361,17 @@ _REFERENCE = (
              ("us-gaap", "InterestPaid"),
              ("ifrs-full", "InterestPaidClassifiedAsOperatingActivities"),
          )),
+    # Marketable securities held beyond a year: debt securities a filer counts in its own
+    # liquidity, as Vertex does in its "total cash, cash equivalents and marketable
+    # securities" of $13.6bn, of which $5.8bn is long-term. Kept apart from long-term
+    # investments, which is broader and carries equity stakes: Lilly's $3.9bn is its
+    # strategic holdings, and it is not cash in any sense.
+    Line("MarketableSecuritiesNoncurrent", "Long-term marketable securities", "reference",
+         "instant", role="memo", candidates=(
+             ("us-gaap", "MarketableSecuritiesNoncurrent"),
+             ("us-gaap", "AvailableForSaleSecuritiesDebtSecuritiesNoncurrent"),
+             ("us-gaap", "HeldToMaturitySecuritiesNoncurrent"),
+         )),
     # The IFRS filer that books interest under financing instead. Its free cash flow is
     # already struck before interest, so there is nothing to add back, and this line is
     # what shows that the check was made rather than that the data was missing.

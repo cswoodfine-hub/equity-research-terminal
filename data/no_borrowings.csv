@@ -1,0 +1,12 @@
+# Filers that state they had no borrowings on a balance sheet date.
+#
+# A company with no debt tags no debt line, which reads the same as a missing one, so the
+# sum of the parts stopped at enterprise value and never added the cash. cashflow.py takes
+# debt as nil on as_of only where a row here quotes the filer saying so. Leases are not
+# counted, as they are not in any filer's debt line. Commitments signed after as_of are in
+# the note, not the figure: they are not debt on that date.
+ticker,as_of,accession,quote,note
+VRTX,2026-06-30,0000875320-26-000259,"We have not drawn upon the 2026 Revolver to date. ... We have not drawn upon the 2026 Term Loan to date.","Q2 2026 10-Q, filed 2026-08-04. The 2026 Revolver and the $4.5bn 2026 Term Loan were both entered into in July 2026, after the balance sheet date, and the term loan is to fund the pending Crinetics acquisition. The 2022 facility they replaced was undrawn: the Q1 2026 10-Q (filed 2026-05-05) states 'The Credit Agreement was not drawn upon at closing and we have not drawn upon it to date.' The Q2 balance sheet carries no borrowings."
+INCY,2026-03-31,0000879169-26-000026,"As of March 31, 2026, we had no outstanding borrowings and were in compliance with all covenants under this facility.","Q1 2026 10-Q."
+INCY,2026-06-30,0000879169-26-000056,"As of June 30, 2026, we had no outstanding borrowings and were in compliance with all covenants under this facility.","Q2 2026 10-Q."
+UTHR,2026-06-30,0001082554-26-000027,"Our aggregate outstanding debt balance remained zero as of June 30, 2026.","Q2 2026 10-Q. The $2.5bn 2025 Credit Agreement is undrawn."

@@ -14,13 +14,39 @@ against a year of debt would compare two different things.
 
 from __future__ import annotations
 
+import csv
+import pathlib
+
 import db
 import fx
 
 # Net debt is debt less the cash that could repay it. Short-term investments are counted
-# when the filer reports them, since they are cash in all but name at this horizon; the
-# result records whether they were included so the definition is never ambiguous.
-_CASH_LINES = ("CashAndEquivalents", "ShortTermInvestments")
+# when the filer reports them, since they are cash in all but name at this horizon, and so
+# are marketable debt securities held beyond a year, which the filer counts in its own
+# liquidity: Vertex's $5.8bn of them was left out of a balance sheet it describes as $13.6bn
+# of cash and marketable securities. Long-term investments at large are not, since they
+# carry equity stakes. The result records which lines were included.
+_CASH_LINES = ("CashAndEquivalents", "ShortTermInvestments", "MarketableSecuritiesNoncurrent")
+
+# A filer that has no borrowings tags no debt line, which reads the same as a filer whose
+# debt line is missing. Where the filer states in a filing that nothing is drawn, a curated
+# row says so, dated to the balance sheet it describes, and debt is taken as nil on that
+# date only. Leases are not debt here, as they are not in any filer's debt line.
+NO_BORROWINGS = pathlib.Path(__file__).resolve().parent.parent / "data" / "no_borrowings.csv"
+
+
+def stated_no_borrowings(ticker: str, balance_date: str | None, path=None) -> dict | None:
+    """The curated statement that a filer had nothing drawn on ``balance_date``, or None."""
+    source = pathlib.Path(path) if path else NO_BORROWINGS
+    if not balance_date or not source.exists():
+        return None
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = csv.DictReader(line for line in handle if not line.lstrip().startswith("#"))
+        for row in rows:
+            if ((row.get("ticker") or "").strip().upper() == ticker.upper()
+                    and (row.get("as_of") or "").strip() == balance_date):
+                return row
+    return None
 
 
 def _fy(conn, cid, metric):
@@ -133,11 +159,18 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
     # No debt line on or near the balance sheet date leaves net debt empty rather
     # than guessed, which is the rule every ratio here follows; the basis names the
     # missing line so the blank can be read.
-    debt_basis = ("filed" if val(debt) is not None
+    debt_value, debt_as_of = val(debt), (debt["period_end"] if debt else None)
+    debt_basis = ("filed" if debt_value is not None
                   else "no debt line filed within a year of the balance sheet"
                   if cash_value is not None else None)
-    net_debt = (val(debt) - cash_value
-                if val(debt) is not None and cash_value is not None else None)
+    stated = (stated_no_borrowings(ticker, balance_date)
+              if debt_value is None and cash_value is not None else None)
+    if stated:
+        debt_value, debt_as_of = 0.0, balance_date
+        debt_basis = (f"no borrowings, as the filer states for {balance_date} "
+                      f"({stated.get('accession')})")
+    net_debt = (debt_value - cash_value
+                if debt_value is not None and cash_value is not None else None)
 
     # Operating income is not tagged by every filer: Lilly reports its way down to income
     # before tax without it, which left the leverage multiple blank while every line it
@@ -215,10 +248,10 @@ def build_cashflow(db_path=None, ticker: str = "") -> dict | None:
             "acquisitions": acquisitions_total,
             "acquisitions_businesses": _abs(val(acquisitions)),
             "acquisitions_assets": assets_bought,
-            "total_debt": val(debt), "cash": cash_value,
+            "total_debt": debt_value, "cash": cash_value,
             "cash_lines": cash_lines_used,
             "balance_sheet_as_of": balance_date,
-            "debt_as_of": debt["period_end"] if debt else None,
+            "debt_as_of": debt_as_of,
             "debt_basis": debt_basis,
         },
     }
