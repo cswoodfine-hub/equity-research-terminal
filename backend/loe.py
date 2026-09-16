@@ -76,6 +76,49 @@ def curated_compound(conn, path=None) -> dict:
     return out
 
 
+CURATED_DISCLOSED = DATA_DIR / "disclosed_loe.csv"
+
+
+def _period_end(stated: str) -> str:
+    """The last day of the period a filing states: 2030 is 2030-12-31, 2026-12 is
+    2026-12-31, a full date is itself. A table that gives a year has said the patent
+    runs into that year, not that it ends on the first of it."""
+    import calendar
+    parts = stated.strip().split("-")
+    if len(parts) == 1:
+        return f"{parts[0]}-12-31"
+    if len(parts) == 2:
+        year, month = int(parts[0]), int(parts[1])
+        return f"{year:04d}-{month:02d}-{calendar.monthrange(year, month)[1]:02d}"
+    return stated.strip()
+
+
+def curated_disclosed(conn, path=None) -> dict:
+    """{asset_id: {date, stated, basis, note}} for exclusivity a filer states in its own
+    10-K and an analyst has written down. Set outright, over the books."""
+    source = pathlib.Path(path) if path else CURATED_DISCLOSED
+    if not source.exists():
+        return {}
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = [line for line in handle if not line.lstrip().startswith("#")]
+    out = {}
+    for row in csv.DictReader(rows):
+        ticker = (row.get("ticker") or "").strip().upper()
+        brand = (row.get("brand") or "").strip()
+        stated = (row.get("loe") or "").strip()
+        if not (ticker and brand and stated):
+            continue
+        found = conn.execute(
+            """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                WHERE c.ticker = ? AND LOWER(TRIM(COALESCE(a.brand_name, a.generic_name)))
+                      = LOWER(?) LIMIT 1""", (ticker, brand)).fetchone()
+        if found:
+            out[found["id"]] = {"date": _period_end(stated), "stated": stated,
+                                "basis": (row.get("basis") or "").strip(),
+                                "note": (row.get("note") or "").strip()}
+    return out
+
+
 def compound_expiry(rows, identifier=None) -> tuple:
     """(date, identifier) of the patent that holds the molecule, PED included.
 
@@ -163,6 +206,16 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
 
     requested = set(asset_ids) if asset_ids is not None else None
     today_date = dt.date.today()
+
+    # What the filer states in its own 10-K sets the date outright, over everything the
+    # books imply, and before the inferences and links below, which only fill a gap.
+    for asset_id, stated in curated_disclosed(conn).items():
+        if requested is not None and asset_id not in requested:
+            continue
+        out[asset_id] = {"date": stated["date"], "identifier": None,
+                         "past": stated["date"] < today,
+                         "basis": f"{stated['basis']} ({stated['stated']})",
+                         "note": stated["note"] or None}
 
     # Two inferences from silence, run before links so a holder carries what they give.
     # Each establishes that exclusivity is gone and not when it went, so each records a

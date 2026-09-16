@@ -1,0 +1,50 @@
+# Loss-of-exclusivity dates a filer states in its own annual report, where an analyst has
+# read them off the filing.
+#
+# The Orange Book lists every patent an NDA holder submits and never says which one a
+# generic has to wait for; the Purple Book lists exclusivity and no patents at all. A
+# filer's 10-K patent table does say, product by product, and where it disagrees with
+# what the books imply the filer's own statement is the better evidence of when its
+# market opens. Pfizer's table put Vyndaqel's basic patent at 2026 when the books implied
+# 2035, and Comirnaty's at 2041 when the books implied 2033.
+#
+# A row here sets the date for that asset outright, over the books, the curated compound
+# patent and the statutory floor. The dates are as the filing states them: a year where
+# the table gives a year, a month or a day where a footnote does. Pending patent term
+# extensions are recorded in the note and not taken, following the table's own rule that
+# its years include granted extensions only.
+#
+# Source for every PFE row: Pfizer Inc. Form 10-K for 2025, filed 2026-02-26, accession
+# 0000078003-26-000026, Item 1 "Patents and Other Intellectual Property Rights", U.S.
+# basic product patent expiration year column and its footnotes.
+ticker,brand,loe,basis,note
+PFE,Xeljanz,2026,"Pfizer 10-K, U.S. basic product patent",""
+PFE,Xeljanz Xr,2026,"Pfizer 10-K, U.S. basic product patent","the same tofacitinib patent as Xeljanz"
+PFE,Prevnar 13,2026,"Pfizer 10-K, U.S. basic product patent",""
+PFE,Adcetris,2026,"Pfizer 10-K, U.S. basic product patent","commercialised with Takeda, footnote 4"
+PFE,Eliquis,2028-04-01,"Pfizer 10-K, settled generic entry","footnote 5: settled generic companies may launch on April 1, 2028. The composition of matter patent expires November 2026 and the formulation patent in 2031, and the table's basic patent year of 2027 includes paediatric exclusivity; the settlement date is when generics are permitted"
+PFE,Ibrance,2027,"Pfizer 10-K, U.S. basic product patent",""
+PFE,Xtandi,2027,"Pfizer 10-K, U.S. basic product patent","commercialised with Astellas, footnote 7"
+PFE,Vyndaqel,2026-12,"Pfizer 10-K, U.S. basic product patent with granted interim extension","footnote 8: interim extensions granted to December 2026; an application to extend to 2028 is pending and is not taken"
+PFE,Vyndamax,2026-12,"Pfizer 10-K, U.S. basic product patent with granted interim extension","the same tafamidis patent, footnote 8"
+PFE,Xalkori,2029,"Pfizer 10-K, U.S. basic product patent",""
+PFE,Braftovi / Mektovi,2030,"Pfizer 10-K, U.S. basic product patent for Braftovi","Braftovi 2030 with 2031 pending; Mektovi's composition of matter patent is 2026 with 2027 pending (footnote 12). The line is dated on Braftovi, the member it is named for"
+PFE,Talzenna,2029,"Pfizer 10-K, U.S. basic product patent","2032 pending extension not taken"
+PFE,Lorbrena,2033,"Pfizer 10-K, U.S. basic product patent",""
+PFE,Padcev,2033,"Pfizer 10-K, U.S. basic product patent","commercialised with Astellas, footnote 13"
+PFE,Tukysa,2031,"Pfizer 10-K, U.S. basic product patent","2034 pending extension not taken"
+PFE,Zavzpret,2031,"Pfizer 10-K, U.S. basic product patent","2034 pending extension not taken"
+PFE,Velsipity,2030,"Pfizer 10-K, U.S. basic product patent","2035 pending extension not taken"
+PFE,Prevnar 20,2035,"Pfizer 10-K, U.S. basic product patent",""
+PFE,Prevnar / Prevenar family,2035,"Pfizer 10-K, U.S. basic product patent for Prevnar 20","Prevnar 13's is 2026; the family line is dated on Prevnar 20"
+PFE,Nurtec Odt,2034,"Pfizer 10-K, U.S. basic product patent",""
+PFE,Nurtec ODT / Vydura,2034,"Pfizer 10-K, U.S. basic product patent",""
+PFE,Ngenla,2035,"Pfizer 10-K, U.S. regulatory exclusivity","footnote 2: expiry is provided by regulatory exclusivity in this market"
+PFE,Cibinqo,2036,"Pfizer 10-K, U.S. basic product patent",""
+PFE,Tivdak,2035,"Pfizer 10-K, U.S. basic product patent","commercialised with Genmab, footnote 16"
+PFE,Litfulo,2034,"Pfizer 10-K, U.S. basic product patent","2037 pending extension not taken"
+PFE,Abrysvo,2036,"Pfizer 10-K, U.S. basic product patent","2037 pending extension not taken"
+PFE,Elrexfio,2036,"Pfizer 10-K, U.S. basic product patent","2037 pending extension not taken"
+PFE,Hympavzi,2036,"Pfizer 10-K, U.S. basic product patent","2038 pending extension not taken"
+PFE,Comirnaty,2041,"Pfizer 10-K, U.S. basic product patent","commercialised with BioNTech, footnote 18"
+PFE,Paxlovid (Copackaged),2041,"Pfizer 10-K, U.S. basic product patent",""

@@ -2,9 +2,18 @@
 
 import datetime as dt
 
+import pytest
+
 import db
 import loe
 import loe_link
+
+
+@pytest.fixture(autouse=True)
+def _no_curated_disclosures(tmp_path, monkeypatch):
+    """The real curated 10-K file dates real Pfizer brands, and these fixtures reuse the
+    names. Each test starts with none unless it writes its own."""
+    monkeypatch.setattr(loe, "CURATED_DISCLOSED", tmp_path / "none.csv")
 
 
 def _db(tmp_path):
@@ -166,3 +175,29 @@ def test_a_non_reference_product_takes_no_bpcia_floor(tmp_path, monkeypatch):
     path.write_text("ticker,asset,application_number,note,reference_product\n"
                     "PFE,Inflectra,BLA125544,biosimilar,\n")
     assert loe.for_assets(conn, [40])[40]["date"] == "2028-12-31"
+
+
+def test_a_filers_own_10k_date_sets_the_loe_over_the_books(tmp_path, monkeypatch):
+    """Pfizer's 10-K puts Vyndaqel's basic patent at December 2026 while the books
+    implied 2035, and Eliquis's settled generic entry at April 2028 while the compound
+    patent is November 2026. The filer's statement wins, as stated."""
+    conn = _db(tmp_path)
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (50, 3, 'Vyndaqel', 1), (51, 3, 'Eliquis', 1), (52, 3, 'Lorbrena', 1)")
+    conn.execute("INSERT INTO exclusivities (asset_id, region, protection_type,"
+                 " identifier, expiry_date, patent_kind, source) VALUES"
+                 " (50, 'US', 'patent', '1', '2035-08-31', 'substance', 't'),"
+                 " (51, 'US', 'patent', '2', '2026-11-21', 'substance', 't')")
+    conn.commit()
+    path = tmp_path / "d.csv"
+    path.write_text("# c\nticker,brand,loe,basis,note\n"
+                    "PFE,Vyndaqel,2026-12,Pfizer 10-K,pending 2028 not taken\n"
+                    "PFE,Eliquis,2028-04-01,Pfizer 10-K settled entry,\n"
+                    "PFE,Lorbrena,2033,Pfizer 10-K,\n"
+                    "PFE,Nobody,2030,Pfizer 10-K,\n")
+    monkeypatch.setattr(loe, "CURATED_DISCLOSED", path)
+    got = loe.for_assets(conn, [50, 51, 52])
+    assert got[50]["date"] == "2026-12-31" and got[50]["basis"] == "Pfizer 10-K (2026-12)"
+    assert got[51]["date"] == "2028-04-01"
+    assert got[52]["date"] == "2033-12-31"          # a stated year runs to its end
+    assert set(loe.curated_disclosed(conn)) == {50, 51, 52}
