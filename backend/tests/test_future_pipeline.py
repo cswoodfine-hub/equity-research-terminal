@@ -130,3 +130,50 @@ def test_rd_is_read_net_of_in_process_rd_expensed_inside_it(tmp_path):
     got = FP.filer_productivity(conn, 1, {}, {})
     assert got["rd"] == pytest.approx(19122e6 + 17938e6) and got["rd_years"] == 2
     assert got["rate"] == pytest.approx(1443e6 / (19122e6 + 17938e6))
+
+
+def _filer(tmp_path, years):
+    import db
+    path = str(tmp_path / "fp.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'JNJ', 'Johnson & Johnson')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed) VALUES (1, 1, 'Tremfya', 1)")
+    conn.execute("INSERT INTO approvals (asset_id, region, agency, approval_date, application_number)"
+                 " VALUES (1, 'US', 'FDA', '2017-07-13', 'BLA761061')")
+    conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value, unit, source)"
+                 " VALUES (1, 2025, 'FY', 5155e6, 'USD', 't')")
+    for fy in years:
+        conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year, period_end, value, unit)"
+                     " VALUES (1, 'ResearchAndDevelopmentExpense', 'FY', ?, ?, 15000e6, 'USD')", (fy, f"{fy}-12-31"))
+    conn.commit()
+    return conn
+
+
+def test_rd_outside_medicines_is_taken_out_only_for_a_whole_window(tmp_path):
+    conn = _filer(tmp_path, (2023, 2024))
+    whole = FP.filer_productivity(conn, 1, {}, {}, outside={"JNJ": {2023: (3000e6, "USD"), 2024: (3000e6, "USD")}})
+    assert whole["rd"] == pytest.approx(24000e6) and whole["rd_outside_medicines"] == pytest.approx(6000e6)
+    assert whole["rate"] == pytest.approx(5155e6 / 24000e6)
+    part = FP.filer_productivity(conn, 1, {}, {}, outside={"JNJ": {2024: (3000e6, "USD")}})
+    assert part["rd"] == pytest.approx(30000e6) and part["rd_outside_medicines"] == 0.0
+    assert "not reported for 2023" in part["rd_outside_basis"]
+    assert FP.filer_productivity(conn, 1, {}, {}, outside={})["rd_outside_basis"] is None
+
+
+def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(monkeypatch):
+    import forecast_view as V
+    seen = {}
+
+    def fake_simulate(book_rd, rate, *args, **kwargs):
+        seen["book_rd"] = dict(book_rd)
+        return {"value": 1.0, "flows": [], "first_launch_year": 2030, "cohorts": 0,
+                "replacement": None, "renewal": None, "credited_share": None}
+    monkeypatch.setattr(FP, "simulate", fake_simulate)
+    monkeypatch.setattr(FP, "pooled", lambda db_path=None: {"rate": 0.3, "filers": [], "n": 0, "credibility": {}})
+    row = {"revenue": 100.0, "cogs": 20.0, "sga": 20.0, "rd": 15.0, "other": 0.0, "ebit": 45.0, "tax": 5.0}
+    drug = {"asset_id": 1, "pnl_share": [row], "dcf_years": [2026], "wacc": 0.08}
+    medtech = {"line": "MedTech", "buys_launches": False, "pnl_share": [dict(row, rd=40.0)],
+               "dcf_years": [2026], "wacc": 0.08}
+    V._future_pipeline(None, [drug, medtech], "2025-12-31", "JNJ")
+    assert seen["book_rd"] == {2026: 15.0}

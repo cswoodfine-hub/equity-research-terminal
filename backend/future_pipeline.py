@@ -43,6 +43,9 @@ import productivity
 
 DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 DEFAULTS = DATA_DIR / "future_pipeline_defaults.csv"
+# R&D a filer spends on businesses that are not medicines, by year, as its segment note
+# reports it: Johnson & Johnson's MedTech develops devices, which earn no drug approval.
+OUTSIDE_MEDICINES = DATA_DIR / "rd_outside_medicines.csv"
 COHORT_YEARS = 10
 _CACHE: dict = {}
 _CACHE_SECONDS = 3600
@@ -57,7 +60,25 @@ def defaults(path=None) -> dict:
             for r in csv.DictReader(rows)}
 
 
-def filer_productivity(conn, company_id: int, rates, name_index) -> dict:
+def outside_medicines(path=None) -> dict:
+    """{ticker: {fiscal_year: (value, unit)}} of R&D spent outside medicines."""
+    source = pathlib.Path(path) if path else OUTSIDE_MEDICINES
+    out: dict = {}
+    if not source.exists():
+        return out
+    with source.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(line for line in handle if not line.lstrip().startswith("#")):
+            try:
+                value = float(row["rd_musd"]) * 1e6
+                year = int(row["fiscal_year"])
+            except (TypeError, ValueError, KeyError):
+                continue
+            out.setdefault((row.get("ticker") or "").strip().upper(), {})[year] = (
+                value, (row.get("unit") or "USD").strip() or "USD")
+    return out
+
+
+def filer_productivity(conn, company_id: int, rates, name_index, outside=None) -> dict:
     """One filer's launch productivity, and what it was built from.
 
     Revenue is the latest full year's, over product lines only, in dollars; a line is
@@ -100,7 +121,7 @@ def filer_productivity(conn, company_id: int, rates, name_index) -> dict:
     # next year's label, so one label can hold two real years and both belong in the sum.
     by_period: dict = {}
     for row in conn.execute(
-            """SELECT period_end, metric, value, unit FROM financials
+            """SELECT period_end, fiscal_year, metric, value, unit FROM financials
                 WHERE company_id = ?
                 AND metric IN ('ResearchAndDevelopmentExpense', 'ResearchLessExpensedIprd')
                 AND period_type = 'FY' AND fiscal_year BETWEEN ? AND ?
@@ -108,17 +129,39 @@ def filer_productivity(conn, company_id: int, rates, name_index) -> dict:
                 ORDER BY period_end, metric""",
             (company_id, year - COHORT_YEARS, year - 1)):
         by_period[row["period_end"]] = row    # the net figure sorts after the filed one
-    rd, rd_years = 0.0, 0
+    rd, rd_years, rd_years_seen = 0.0, 0, []
     for row in by_period.values():
         value = productivity._usd(row["value"], row["unit"], rates)
         if value:
             rd += value
             rd_years += 1
+            rd_years_seen.append(row["fiscal_year"])
+    # R&D spent outside medicines buys no drug launches, so it is not in the denominator.
+    # Taken out only where the filer reports it for every year of the window: a part of
+    # the decade corrected and the rest not would be a rate on no consistent basis.
+    ticker = conn.execute("SELECT ticker FROM companies WHERE id = ?",
+                          (company_id,)).fetchone()
+    reported = (outside_medicines() if outside is None else outside).get(
+        (ticker["ticker"] if ticker else "").upper(), {})
+    rd_outside, outside_basis = 0.0, None
+    if reported:
+        if rd_years_seen and all(y in reported for y in rd_years_seen):
+            rd_outside = sum(productivity._usd(reported[y][0], reported[y][1], rates) or 0.0
+                             for y in rd_years_seen)
+            rd -= rd_outside
+            outside_basis = (f"R&D outside medicines taken out for all {len(rd_years_seen)} "
+                             "years of the window, as the segment note reports it")
+        else:
+            missing = sorted(y for y in rd_years_seen if y not in reported)
+            outside_basis = ("R&D outside medicines is not reported for "
+                             + ", ".join(str(y) for y in missing)
+                             + ", so the window's R&D is read whole")
     coverage = dated / total if total else 0.0
     rate = fresh / rd if rd else None
     launches.sort(key=lambda r: -r["revenue"])
     return {"rate": rate, "year": year, "revenue": total, "dated_share": coverage,
             "fresh_revenue": fresh, "rd": rd, "rd_years": rd_years,
+            "rd_outside_medicines": rd_outside, "rd_outside_basis": outside_basis,
             "launches": launches[:8], "launch_count": len(launches),
             "launch_revenues": [r["revenue"] for r in launches],
             "reason": None if rate is not None else "no R&D on file for the window"}

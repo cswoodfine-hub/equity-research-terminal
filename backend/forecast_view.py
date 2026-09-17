@@ -728,6 +728,7 @@ def company_rollup(db_path, ticker: str):
         rnpv_total += result["rnpv"]
         streams.append({"line": built["line"], "rnpv": result["rnpv"],
                         "base_revenue": entry["scalars"].get("base_revenue"),
+                        "buys_launches": entry["scalars"].get("buys_launches", 1) != 0,
                         "years": result["years"], "revenue": result["revenue_after_loe"],
                         "dcf_years": result.get("dcf_years") or [],
                       "pnl_share": [{k: (v * 1.0 if isinstance(v, (int, float)) else v)
@@ -1254,6 +1255,10 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
               "ebit": 0.0, "tax": 0.0}
     waccs, growths = [], []
     for part in parts:
+        # A line whose R&D develops something other than medicines buys no launches, and
+        # its margins are not the ones a future drug would earn.
+        if part.get("buys_launches") is False:
+            continue
         rows = part.get("pnl_share") or []
         for year, row in zip(part.get("dcf_years") or [], rows):
             book_rd[year] = book_rd.get(year, 0.0) + (row.get("rd") or 0.0)

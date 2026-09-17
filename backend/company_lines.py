@@ -29,7 +29,11 @@ KEYS = ("therapy_mode", "base_revenue", "revenue_growth_pct", "terminal_growth_p
         "growth_fade_years", "revenue_ceiling_musd", "cogs_pct", "sga_pct", "rd_pct",
         "other_costs_pct",
         "tax_rate", "wacc", "risk_free", "erp", "beta", "cost_of_debt", "debt_weight",
-        "forecast_start_year", "forecast_years", "pos")
+        "forecast_start_year", "forecast_years", "pos",
+        # 0 for a line whose R&D develops something other than medicines (Johnson &
+        # Johnson's MedTech): that R&D buys no drug launches, so the future pipeline
+        # leaves the line out. Absent means 1.
+        "buys_launches")
 
 
 def rows(conn, company_id: int, scenario: str = "base") -> list[dict]:
