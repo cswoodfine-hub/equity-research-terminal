@@ -47,6 +47,10 @@ DEFAULTS = DATA_DIR / "future_pipeline_defaults.csv"
 # company R&D also carries MedTech, and until the Kenvue separation consumer health, and
 # neither develops drugs that earn an approval.
 MEDICINES_RD = DATA_DIR / "rd_medicines_segment.csv"
+# New forms of a molecule already sold, which its own patients switch to: EYLEA HD from
+# EYLEA, Keytruda Qlex from Keytruda. Dated from the form they replace, not their own
+# approval, since their revenue is largely the older form's moving across.
+SWITCH_FORMS = DATA_DIR / "switch_forms.csv"
 COHORT_YEARS = 10
 _CACHE: dict = {}
 _CACHE_SECONDS = 3600
@@ -79,6 +83,21 @@ def medicines_rd(path=None) -> dict:
     return out
 
 
+def switch_forms(path=None) -> dict:
+    """{(ticker, product): parent product} for new forms of a molecule already sold."""
+    source = pathlib.Path(path) if path else SWITCH_FORMS
+    out: dict = {}
+    if not source.exists():
+        return out
+    with source.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(line for line in handle if not line.lstrip().startswith("#")):
+            ticker = (row.get("ticker") or "").strip().upper()
+            product, parent = (row.get("product") or "").strip(), (row.get("parent") or "").strip()
+            if ticker and product and parent:
+                out[(ticker, product.lower())] = parent
+    return out
+
+
 def _fiscal_year_of(period_end: str) -> int:
     """The year a period mostly falls in: Johnson & Johnson's 52-week year ending on 3
     January 2016 is its 2015, whatever label the filing gave it. Any other end is its own
@@ -87,11 +106,14 @@ def _fiscal_year_of(period_end: str) -> int:
     return year - 1 if month == 1 else year
 
 
-def filer_productivity(conn, company_id: int, rates, name_index, segment=None) -> dict:
+def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
+                        switches=None) -> dict:
     """One filer's launch productivity, and what it was built from.
 
     Revenue is the latest full year's, over product lines only, in dollars; a line is
-    fresh when its drug's first approval falls in the ten years ending that year. R&D is
+    fresh when its drug's first approval falls in the ten years ending that year. A new
+    form of a molecule already sold (``data/switch_forms.csv``) is dated from the form it
+    replaces, so a franchise moving to its new form is not counted as a launch. R&D is
     the ten full years before it. Both are converted at the same latest rates, so the
     ratio carries no currency.
     """
@@ -103,7 +125,11 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None) -
         return {"rate": None, "reason": "no product revenue on file"}
     cutoff = f"{year - COHORT_YEARS + 1}-01-01"
     total = dated = fresh = 0.0
-    launches = []
+    launches, switched = [], []
+    ticker_row = conn.execute("SELECT ticker FROM companies WHERE id = ?",
+                              (company_id,)).fetchone()
+    ticker = (ticker_row["ticker"] if ticker_row else "").upper()
+    forms = switch_forms() if switches is None else switches
     for row in conn.execute(
             """SELECT ar.asset_id, ar.value, ar.unit,
                       COALESCE(a.brand_name, a.generic_name) AS name
@@ -116,6 +142,18 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None) -
         total += value
         approved, _route = approval_dates.first_approval(
             conn, row["asset_id"], row["name"], name_index)
+        parent = forms.get((ticker, (row["name"] or "").lower()))
+        if parent:
+            found = conn.execute(
+                """SELECT id FROM assets WHERE owner_company_id = ?
+                    AND LOWER(COALESCE(brand_name, generic_name)) = LOWER(?) LIMIT 1""",
+                (company_id, parent)).fetchone()
+            older, _ = (approval_dates.first_approval(conn, found["id"], parent, name_index)
+                        if found else (None, None))
+            if older and (approved is None or older < approved):
+                switched.append({"name": row["name"], "approved": (approved or "")[:10],
+                                 "dated_from": parent, "parent_approved": older[:10]})
+                approved = older
         if approved is None:
             continue
         dated += value
@@ -149,10 +187,7 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None) -
     # that is the denominator: R&D on devices or consumer products buys no drug approvals.
     # Only for a whole window, since a decade part medicines and part company is a rate on
     # no consistent basis.
-    ticker = conn.execute("SELECT ticker FROM companies WHERE id = ?",
-                          (company_id,)).fetchone()
-    reported = (medicines_rd() if segment is None else segment).get(
-        (ticker["ticker"] if ticker else "").upper(), {})
+    reported = (medicines_rd() if segment is None else segment).get(ticker, {})
     rd_basis = None
     if reported:
         missing = sorted({y for y in years_seen if y not in reported})
@@ -172,7 +207,7 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None) -
     launches.sort(key=lambda r: -r["revenue"])
     return {"rate": rate, "year": year, "revenue": total, "dated_share": coverage,
             "fresh_revenue": fresh, "rd": rd, "rd_years": rd_years,
-            "rd_basis": rd_basis,
+            "rd_basis": rd_basis, "switch_forms": switched,
             "launches": launches[:8], "launch_count": len(launches),
             "launch_revenues": [r["revenue"] for r in launches],
             "reason": None if rate is not None else "no R&D on file for the window"}

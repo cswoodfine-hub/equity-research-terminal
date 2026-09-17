@@ -182,3 +182,24 @@ def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(monkeyp
                "dcf_years": [2026], "wacc": 0.08}
     V._future_pipeline(None, [drug, medtech], "2025-12-31", "JNJ")
     assert seen["book_rd"] == {2026: 15.0}
+
+
+def test_a_switch_form_is_dated_from_the_form_it_replaces(tmp_path):
+    import db
+    path = str(tmp_path / "sw.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'REGN', 'Regeneron')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed) VALUES (1, 1, 'Eylea', 1), (2, 1, 'Eylea Hd', 1)")
+    conn.execute("INSERT INTO approvals (asset_id, region, agency, approval_date, application_number) VALUES"
+                 " (1, 'US', 'FDA', '2011-11-18', 'BLA125387'), (2, 'US', 'FDA', '2023-08-18', 'BLA125387s')")
+    for aid, value in ((1, 2747.8e6), (2, 1636.9e6)):
+        conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value, unit, source) VALUES (?, 2025, 'FY', ?, 'USD', 't')", (aid, value))
+    conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year, period_end, value, unit)"
+                 " VALUES (1, 'ResearchAndDevelopmentExpense', 'FY', 2024, '2024-12-31', 5000e6, 'USD')")
+    conn.commit()
+    counted = FP.filer_productivity(conn, 1, {}, {}, segment={}, switches={})
+    assert counted["fresh_revenue"] == pytest.approx(1636.9e6)
+    switched = FP.filer_productivity(conn, 1, {}, {}, segment={}, switches={("REGN", "eylea hd"): "Eylea"})
+    assert switched["fresh_revenue"] == 0.0
+    assert switched["switch_forms"] == [{"name": "Eylea Hd", "approved": "2023-08-18", "dated_from": "Eylea", "parent_approved": "2011-11-18"}]

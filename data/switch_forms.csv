@@ -1,0 +1,20 @@
+# New forms of a molecule a company already sells, which its own patients switch to.
+#
+# Launch productivity counts a product as fresh when it was first approved in the last ten
+# years (backend/future_pipeline.py). A new strength or delivery form of a molecule already
+# on the market has its own approval, but much of its revenue is the older form's patients
+# moving across, so counting it as a launch counts the same franchise twice. From the third
+# quarter of 2025 to the second quarter of 2026 EYLEA fell from $1,302.0mm to $712.4mm while
+# EYLEA HD rose from $663.0mm to $962.6mm. Such a form is dated from the product it
+# replaces, the way a new indication on an old product already is.
+#
+# A new molecule, a combination adding a molecule, or a new route into a new disease
+# (Opzelura, topical ruxolitinib for skin disease after oral Jakafi for blood cancers) is not
+# listed: its revenue is new.
+#
+# Columns: ticker, product (as the revenue line is named), parent (the form it replaces),
+# note (the molecule and the filed figures that show the switch).
+ticker,product,parent,note
+REGN,Eylea Hd,Eylea,"aflibercept 8 mg after aflibercept 2 mg; EYLEA $1,302.0mm and EYLEA HD $663.0mm in Q3 2025, EYLEA $712.4mm and EYLEA HD $962.6mm in Q2 2026 (Regeneron earnings exhibits)"
+MRK,Keytruda Qlex,Keytruda,"subcutaneous pembrolizumab after intravenous pembrolizumab; Keytruda Qlex $35mm in Q4 2025, $128mm in Q1 2026 and $463mm in Q2 2026 while Keytruda held at $7,906mm and $7,904mm (Merck filings)"
+UTHR,Tyvaso Dpi,Tyvaso,"dry powder inhaled treprostinil after nebulized inhaled treprostinil; Tyvaso DPI $1,033.6mm in FY2024 and $1,292.5mm in FY2025 while nebulized Tyvaso held at $586.8mm and $585.7mm (United Therapeutics earnings exhibits). Its growth is pulmonary hypertension with interstitial lung disease, which was on nebulized Tyvaso's label first: ""In March 2021, the FDA granted three-year clinical trial exclusivity for PH-ILD as a result of the INCREASE study and the expansion of the Nebulized Tyvaso label to include a PH-ILD indication"" (United Therapeutics 10-Q); Tyvaso DPI was approved in May 2022"
