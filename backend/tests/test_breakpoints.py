@@ -81,3 +81,47 @@ def test_the_break_point_is_where_equity_meets_the_price(tmp_path):
     trial = V.apply_lever(inputs, "revenue_growth_pct", growth["break"])
     moved = forecast.build(trial)["rnpv"]
     assert (moved * 1e6 + (1000e6 - 3000e6)) / 100e6 == pytest.approx(close, rel=1e-4)
+
+
+def test_groups_read_the_file_and_match_what_the_company_carries(tmp_path):
+    import risk_groups
+    path = tmp_path / "groups.csv"
+    path.write_text(
+        "# c\ngroup,kind,ticker,member,source,quote,note\n"
+        "Lp(a) lowering,mechanism,AMGN,Olpasiran,NCT05581303,\"q\",\n"
+        "Lp(a) lowering,mechanism,LLY,Lepodisiran,NCT06292013,\"q\",\n"
+        "Medicare price negotiation,payer,AMGN,Otezla,0000318154-26-000126,\"q\",\n"
+        "Medicare price negotiation,payer,AMGN,Enbrel,x,\"q\",\n"
+        "Nonsense,other,AMGN,Otezla,x,\"q\",\n")
+    parts = [{"asset_id": 1, "name": "Olpasiran"}, {"asset_id": 2, "name": "Otezla"},
+             {"line": "Other products", "rnpv": 1.0}]
+    got = {g["group"]: g for g in risk_groups.for_company("AMGN", parts, path)}
+    assert set(got) == {"Lp(a) lowering", "Medicare price negotiation"}
+    assert got["Lp(a) lowering"]["elsewhere"] == ["LLY"]
+    assert [m["name"] for m in got["Medicare price negotiation"]["members"]] == ["Otezla"]
+
+
+def test_the_sentence_names_the_three_with_least_room_and_their_evidence():
+    levers = [
+        {"scope": "asset", "name": "MariTide", "lever": "peak uptake", "key": "penetration_peak_pct",
+         "kind": "scale", "model": 1.0, "break": 0.9, "reachable": True, "evidence": "judgement",
+         "evidence_class": "assumption", "shown": [{"model": 0.03, "break": 0.027}]},
+        {"scope": "asset", "name": "MariTide", "lever": "net price", "key": "net_price_per_patient",
+         "kind": "price", "model": 0.0033, "break": 0.0031, "reachable": True, "evidence": "analogue",
+         "evidence_class": "partial evidence"},
+        {"scope": "company", "name": "Amgen", "lever": "every discount rate", "key": "wacc_shift",
+         "kind": "rate", "model": 0.071, "break": 0.0715, "reachable": True, "evidence": "measured",
+         "evidence_class": "evidence"},
+        {"scope": "asset", "name": "Repatha", "lever": "near-term growth", "key": "revenue_growth_pct",
+         "kind": "rate", "model": 0.24, "break": 0.19, "reachable": True, "evidence": "filed",
+         "evidence_class": "evidence"},
+    ]
+    result = {"name": "Amgen", "close": 376.35, "equity_per_share": 379.15, "direction": "down",
+              "levers": levers, "groups": []}
+    body = B.sentence(result, lambda name: 320.66 if name == "MariTide" else None)["body"]
+    assert body[0].startswith("Amgen reads $379.15 against a $376.35 price, and holds it while")
+    assert "MariTide's peak uptake stays above 2.70%" in body[0] and "Repatha" in body[0]
+    assert "net price" not in body[0]                  # one lever per product
+    assert body[1].startswith("We have evidence for every discount rate (measured data) and Repatha's near-term growth (the filings); ")
+    assert "MariTide's peak uptake (a judgement) remains an assumption" in body[1]
+    assert body[2] == "If MariTide fails outright, Amgen is worth $320.66 a share."

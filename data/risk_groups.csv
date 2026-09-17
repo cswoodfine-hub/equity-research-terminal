@@ -1,0 +1,42 @@
+# Risks the model treats as independent that are not.
+#
+# The engine values every product and every probability of success on its own. Some
+# products share a fate: drugs of one class read out on one biology and are covered or not
+# by one payer decision, and products selected for Medicare price negotiation share one
+# set of government-set prices. risk_groups.py and breakpoints.py read this file to show,
+# for each company, the value that sits in each group and, for a mechanism group, what the
+# company is worth if every pipeline member fails together. That joint case is a stress,
+# not a probability: nothing here says how likely it is.
+#
+# kind is mechanism (a shared biology or class; pipeline members are failed together) or
+# payer (a shared pricing event; exposure only). member is the product's brand or generic
+# name as on file, or a company line. Every row has a source and a quote.
+group,kind,ticker,member,source,quote,note
+Obesity incretin and amylin agents,mechanism,AMGN,Maridebart Cafraglutide,0000318154-26-000010,MariTide U.S. Antibody-peptide conjugates 2038,"Amgen's monthly GLP-1/GIP antagonist conjugate for obesity, from its 10-K patent table"
+Obesity incretin and amylin agents,mechanism,PFE,Berobenatide,NCT07823608,A PHASE 3 ... STUDY TO ASSESS THE EFFICACY AND SAFETY OF ONCE-MONTHLY BEROBENATIDE IN ADULTS WITH OBSTRUCTIVE SLEEP APNEA AND OVERWEIGHT OR OBESITY,"Metsera's GLP-1 receptor agonist (MET-097i, PF-08653944); Pfizer's 10-K lists MET-097i for chronic weight management"
+Obesity incretin and amylin agents,mechanism,LLY,Retatrutide,data/assumptions/retatrutide.csv,"Retatrutide (LLY). obesity, triple GIP/GLP-1/glucagon agonist.",
+Obesity incretin and amylin agents,mechanism,LLY,Eloralintide,data/assumptions/lly_eloralintide.csv,"Eloralintide (LLY). obesity, selective amylin agonist, Phase 3.",
+Obesity incretin and amylin agents,mechanism,AZN,AZD6234,0001104659-26-019130,AZD9550 + AZD6234 GLP-1R glucagon dual agonist + selective amylin agonist ... obesity,"AstraZeneca's selective amylin agonist, in its 20-F pipeline table"
+Obesity incretin and amylin agents,mechanism,AZN,Elecoglipron,0001104659-26-086846,"In the VISTA Phase IIb trial in adults with obesity or overweight and at least one comorbidity, elecoglipron demonstrated a clinically meaningful","AstraZeneca's obesity programme, from its July 2026 results"
+Obesity incretin and amylin agents,mechanism,NVO,Cagrilintide,data/assumptions/cagrilintide.csv,"Cagrilintide (NVO). obesity, amylin analogue.",
+Obesity incretin and amylin agents,mechanism,VKTX,VK2735,data/assumptions/vk2735.csv,"VK2735 (VKTX). obesity, dual GLP-1/GIP; the whole company.",
+PD-1 x VEGF bispecifics,mechanism,PFE,PF-08634404,0000078003-26-000026,"SSGJ-707/PF-08634404, a bispecific antibody targeting PD-1 and vascular endothelial growth factor",licensed from 3SBio
+PD-1 x VEGF bispecifics,mechanism,ABBV,ABBV-1480,data/assumptions/abbv_abbv_1480.csv,"ABBV-1480 (RC148): a PD-1/VEGF bispecific antibody AbbVie licensed from RemeGen in March 2026 for everywhere outside China.","the seed cites AbbVie's 2026 10-Qs, Note 4 (0001551152-26-000017, 0001551152-26-000026)"
+Lp(a) lowering,mechanism,AMGN,Olpasiran,NCT05581303,Olpasiran Trials of Cardiovascular Events and Lipoprotein(a) Reduction (OCEAN(a)) - Outcomes Trial,"both lower lipoprotein(a), and both depend on an outcomes trial showing that lowering it cuts cardiovascular events"
+Lp(a) lowering,mechanism,LLY,Lepodisiran,NCT06292013,A Study to Investigate the Effect of Lepodisiran on the Reduction of Major Adverse Cardiovascular Events in Adults With Elevated Lipoprotein(a) - ACCLAIM-Lp(a),
+Medicare price negotiation,payer,ABBV,Imbruvica,0001551152-26-000008,"selected Imbruvica as one of 10 medicines subject to government-set prices in Medicare Part D beginning January 1, 2026",effective 2026; a company line
+Medicare price negotiation,payer,ABBV,Vraylar,0001551152-26-000008,"selected Vraylar and Linzess as two of 15 medicines subject to government-set prices in Medicare Part D beginning January 1, 2027",effective 2027
+Medicare price negotiation,payer,ABBV,Linzess,0001551152-26-000008,"selected Vraylar and Linzess as two of 15 medicines subject to government-set prices in Medicare Part D beginning January 1, 2027",effective 2027
+Medicare price negotiation,payer,ABBV,Botox,0001551152-26-000008,"In January 2026, Botox was selected as one of 15 medicines subject to government-set prices in Medicare Parts B and D beginning January 1, 2028.",effective 2028
+Medicare price negotiation,payer,AMGN,Otezla,0000318154-26-000126,"In January 2025, as part of the IRA, the Company's product Otezla was selected by CMS for Medicare price setting that will be applicable beginning on January 1, 2027.",effective 2027
+Medicare price negotiation,payer,BMY,Orencia,0000014272-26-000004,"In January 2026, the HHS selected Orencia as a medicine subject to ""negotiation"" for government-set prices beginning in 2028.",effective 2028
+Medicare price negotiation,payer,GILD,Biktarvy,0000882095-26-000031,"In January 2026, the Department of Health and Human Services selected Biktarvy for Maximum Fair Price determination under Medicare, effective beginning in 2028",effective 2028
+Medicare price negotiation,payer,LLY,Jardiance,0000059478-26-000081,"HHS selected Jardiance, which is part of our collaboration with Boehringer Ingelheim, in August 2023 (effective 2026)",effective 2026
+Medicare price negotiation,payer,LLY,Trulicity,0000059478-26-000081,"selected Trulicity and Verzenio in January 2026 (to be effective 2028), as medicines subject to government-set prices",effective 2028
+Medicare price negotiation,payer,LLY,Verzenio,0000059478-26-000081,"selected Trulicity and Verzenio in January 2026 (to be effective 2028), as medicines subject to government-set prices",effective 2028
+Medicare price negotiation,payer,MRK,Januvia,0000310158-26-000063,"selected Januvia in 2023 for the first year of the IRA's ""Drug Price Negotiation Program""",effective 2026
+Medicare price negotiation,payer,MRK,Janumet,0000310158-26-000063,selected Janumet and Janumet XR in 2025 for the second year of the IRA's Program,effective 2027
+Medicare price negotiation,payer,PFE,Eliquis,0000078003-26-000026,"In August 2023, CMS selected Eliquis for the MDPNP, and its government-set Maximum Fair Price became effective January 1, 2026.",effective 2026
+Medicare price negotiation,payer,PFE,Ibrance,0000078003-26-000026,CMS has since selected Ibrance and Xtandi for the MDPNP with Maximum Fair Price effective in 2027 and Xeljanz for Maximum Fair Price effective in 2028,effective 2027
+Medicare price negotiation,payer,PFE,Xtandi,0000078003-26-000026,CMS has since selected Ibrance and Xtandi for the MDPNP with Maximum Fair Price effective in 2027 and Xeljanz for Maximum Fair Price effective in 2028,effective 2027
+Medicare price negotiation,payer,PFE,Xeljanz,0000078003-26-000026,CMS has since selected Ibrance and Xtandi for the MDPNP with Maximum Fair Price effective in 2027 and Xeljanz for Maximum Fair Price effective in 2028,effective 2028

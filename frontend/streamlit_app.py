@@ -1876,6 +1876,32 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
                f"holds {held}")
     st.markdown(f'<div class="byline">{html_escape(caption)}</div>',
                 unsafe_allow_html=True)
+    groups = b.get("groups") or []
+    if not groups:
+        return
+    section("Risks that move together", basis="valued apart, fail together")
+    rows = ""
+    for g in groups:
+        members = ", ".join(
+            f"{m['name']} {m['per_share']:,.2f}" if m.get("per_share") is not None
+            else m["name"] for m in g.get("members") or [])
+        fail = (f"{g['if_all_fail']:,.2f}" if g.get("if_all_fail") is not None
+                else "exposure only")
+        also = ", ".join(g.get("elsewhere") or []) or "·"
+        exposure = (f"{g['exposure_per_share']:,.2f}"
+                    if g.get("exposure_per_share") is not None else "·")
+        rows += (f'<tr><td class="rs-k">{html_escape(g["group"])}</td>'
+                 f'<td class="rs-k">{html_escape(g["kind"])}</td>'
+                 f'<td class="rs-k">{html_escape(members)}</td>'
+                 f'<td class="rs-v">{html_escape(exposure)}</td>'
+                 f'<td class="rs-v">{html_escape(fail)}</td>'
+                 f'<td class="rs-k">{html_escape(also)}</td></tr>')
+    st.markdown('<table class="rs"><thead><tr><th>group</th><th>kind</th><th>members, $ a '
+                'share</th><th>exposure</th><th>value if all fail</th><th>also held by</th>'
+                f'</tr></thead><tbody>{rows}</tbody></table>', unsafe_allow_html=True)
+    st.markdown('<div class="byline">a mechanism group\'s pipeline members failed together '
+                'is a stress, not a probability; a payer group or franchise is exposure '
+                'only</div>', unsafe_allow_html=True)
 
 
 def _book(api_base: str, ticker: str, selected):

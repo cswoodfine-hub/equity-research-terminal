@@ -38,6 +38,7 @@ import db
 import evidence
 import forecast
 import forecast_view as V
+import risk_groups
 
 TOP_ASSETS = 6          # products and lines by value, beyond which a lever cannot matter
 TOP_LINES = 3
@@ -368,12 +369,157 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
     for row in out:
         if math.isinf(row["distance"]):
             row["distance"] = None          # not reachable by this lever alone
-    return {
+
+    def equity_without(removed: list) -> float:
+        kept = [p for p in parts if p not in removed]
+        lost = sum((p.get("rnpv_share") if "asset_id" in p else p.get("rnpv")) or 0.0
+                   for p in removed)
+        return price_gap(book - lost, kept) + close
+
+    def per_share(mm: float) -> float:
+        return mm * 1e6 / shares
+
+    groups = []
+    for g in risk_groups.for_company(verdict["ticker"], parts):
+        members = [{"name": m.get("name") or m.get("line"),
+                    "per_share": per_share((m.get("rnpv_share") if "asset_id" in m
+                                            else m.get("rnpv")) or 0.0),
+                    "pipeline": ("asset_id" in m and not m.get("is_marketed"))}
+                   for m in g["members"]]
+        failing = [m for m in g["members"] if "asset_id" in m and not m.get("is_marketed")]
+        groups.append({
+            "group": g["group"], "kind": g["kind"], "members": members,
+            "exposure_per_share": sum(m["per_share"] for m in members),
+            # A mechanism group's pipeline members failed together: the stress the
+            # independent probabilities never show. A payer group is exposure only.
+            "if_all_fail": (equity_without(failing)
+                            if g["kind"] == "mechanism" and failing else None),
+            "elsewhere": g["elsewhere"], "sources": g["sources"]})
+    # A franchise is one pool shared by its members, so one loss of exclusivity or one
+    # price event reaches all of them: exposure, read off the engine's own franchises.
+    value_by_name = {l["name"]: per_share(l["rnpv_share"]) for l in counted}
+    for f in verdict.get("franchises") or []:
+        names = [n if isinstance(n, str) else n.get("name") for n in f.get("members") or []]
+        members = [{"name": n, "per_share": value_by_name.get(n), "pipeline": False}
+                   for n in names]
+        groups.append({"group": " and ".join(names) + " franchise", "kind": "franchise",
+                       "members": members,
+                       "exposure_per_share": sum(m["per_share"] or 0.0 for m in members),
+                       "if_all_fail": None, "elsewhere": [], "sources": []})
+
+    result = {
         "ok": True, "ticker": verdict["ticker"], "name": verdict["name"],
         "close": close, "equity_per_share": equity,
         "gap_per_share": close - equity,
         "direction": "up" if equity < close else "down",
         "levers": out,
+        "groups": groups,
         "held": ["every other assumption", "the cost of equity carrying the year-end "
                  "value to the price date"],
     }
+    pipeline_by_name = {l["name"]: l for l in counted if not l.get("is_marketed")}
+    result["sentence"] = sentence(result, lambda name: (
+        equity_without([pipeline_by_name[name]]) if name in pipeline_by_name else None))
+    return result
+
+
+_GRADE_WORDS = {"filed": "the filings", "measured": "measured data",
+                "published": "published work", "analogue": "an analogue",
+                "convention": "a convention", "judgement": "a judgement", None: "no graded source"}
+
+
+def _money(x: float) -> str:
+    return f"${x:,.2f}"
+
+
+def _subject(lever: dict) -> str:
+    if lever["scope"] == "company":
+        return lever["lever"]
+    return f"{lever['name']}'s {lever['lever']}"
+
+
+def _listed(items: list, last: str = "and") -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + f" {last} " + items[-1]
+
+
+def _value_words(lever: dict, value) -> str:
+    kind = lever["kind"]
+    if lever["key"] == "launch_rate":
+        return f"{value:.3f} of revenue per R&D dollar"
+    if kind == "year":
+        return f"{int(value)}"
+    if kind == "price":
+        return f"${value * 1e6:,.0f} a patient"
+    if kind == "scale":
+        shown = lever.get("shown") or []
+        if len(shown) == 1:
+            return f"{shown[0]['model'] * value:.2%}"
+        return f"{value:.2f} times the modelled peak"
+    return f"{value:.2%}"
+
+
+def sentence(result: dict, fails=None) -> dict:
+    """The one paragraph a board needs: what the value rests on, how well each piece is
+    evidenced, and what happens if the weakest fails. Written from the break-points, three
+    assumptions with the least room, each on a different product or lever, rules only."""
+    reachable = [l for l in result.get("levers") or [] if l.get("reachable")]
+    chosen, seen = [], set()
+    for lever in reachable:
+        tag = (lever["name"], lever["lever"]) if lever["scope"] != "company" else lever["lever"]
+        owner = lever["name"] if lever["scope"] != "company" else lever["lever"]
+        if tag in seen or owner in {c[1] for c in chosen}:
+            continue
+        seen.add(tag)
+        chosen.append((lever, owner))
+        if len(chosen) == 3:
+            break
+    if not chosen:
+        return {"body": []}
+    name, close = result["name"], result["close"]
+    items = []
+    for lever, _ in chosen:
+        model, value = lever["model"], lever["break"]
+        if result["direction"] == "down":
+            side = "above" if value < model else "below"
+            items.append(f"{_subject(lever)} stays {side} {_value_words(lever, value)} "
+                         f"(the model has {_value_words(lever, model)})")
+        else:
+            items.append(f"{_subject(lever)} reaches {_value_words(lever, value)} "
+                         f"(the model has {_value_words(lever, model)})")
+    joined = _listed(items, "and" if result["direction"] == "down" else "or")
+    body = []
+    reads = f"{name} reads {_money(result['equity_per_share'])} against a {_money(close)} price"
+    if result["direction"] == "down":
+        body.append(f"{reads}, and holds it while {joined}.")
+    else:
+        body.append(f"{reads}. The price is reached only if {joined}, any one of them alone.")
+    classes: dict = {}
+    for lever, _ in chosen:
+        classes.setdefault(lever["evidence_class"], []).append(
+            f"{_subject(lever)} ({_GRADE_WORDS.get(lever['evidence'])})")
+    parts = []
+    if classes.get("evidence"):
+        parts.append("we have evidence for " + _listed(classes["evidence"]))
+    if classes.get("partial evidence"):
+        parts.append("partial evidence for " + _listed(classes["partial evidence"]))
+    if classes.get("assumption"):
+        parts.append(_listed(classes["assumption"])
+                     + (" remains an assumption" if len(classes["assumption"]) == 1
+                        else " remain assumptions"))
+    if parts:
+        text = "; ".join(parts)
+        body.append(text[0].upper() + text[1:] + ".")
+    weakest = max(chosen, key=lambda c: evidence.GRADES.index(c[0]["evidence"])
+                  if c[0]["evidence"] in evidence.GRADES else len(evidence.GRADES))[0]
+    failed = fails(weakest["name"]) if (fails and weakest["scope"] == "asset") else None
+    if failed is not None:
+        body.append(f"If {weakest['name']} fails outright, {name} is worth "
+                    f"{_money(failed)} a share.")
+    else:
+        stressed = [g for g in result.get("groups") or []
+                    if g["kind"] == "mechanism" and g.get("if_all_fail") is not None]
+        if stressed:
+            g = min(stressed, key=lambda g: g["if_all_fail"])
+            body.append(f"If the {g['group']} it holds fail together, {name} is worth "
+                        f"{_money(g['if_all_fail'])} a share.")
+    return {"body": body}
