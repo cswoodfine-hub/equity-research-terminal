@@ -61,6 +61,11 @@ class Line:
     # months, which is only a fact for a line that adds up: doing it to earnings per
     # share would invent a number, since the share count moves between periods.
     additive: bool = True
+    # Concepts whose sign is reversed on the way in, so a line reads one way whichever
+    # taxonomy carried it. US GAAP tags a rise in receivables as a positive
+    # IncreaseDecreaseInAccountsReceivable, and IFRS tags the same rise as a negative
+    # AdjustmentsForDecreaseIncreaseInTradeAccountReceivable.
+    resign: tuple[str, ...] = ()
 
 
 # Keys that predate this module stay spelled exactly as they were. comps.py and the
@@ -170,9 +175,13 @@ _BALANCE = (
              ("us-gaap", "AvailableForSaleSecuritiesNoncurrent"),
              ("us-gaap", "LongTermInvestments"),
          )),
+    # The broad concept first, where a filer tags it, and trade receivables alone where it
+    # tags only those (Novo, Novartis, Sanofi). Incyte tags the net figure without "current".
     Line("AccountsReceivable", "Receivables", "balance", "instant", candidates=(
         ("us-gaap", "AccountsReceivableNetCurrent"),
         ("ifrs-full", "TradeAndOtherCurrentReceivables"),
+        ("us-gaap", "AccountsReceivableNet"),
+        ("ifrs-full", "CurrentTradeReceivables"),
     )),
     Line("Inventory", "Inventory", "balance", "instant", candidates=(
         ("us-gaap", "InventoryNet"),
@@ -205,6 +214,8 @@ _BALANCE = (
     Line("AccountsPayable", "Payables", "balance", "instant", candidates=(
         ("us-gaap", "AccountsPayableCurrent"),
         ("ifrs-full", "TradeAndOtherCurrentPayables"),
+        ("ifrs-full", "TradeAndOtherCurrentPayablesToTradeSuppliers"),
+        ("ifrs-full", "TradeAndOtherPayablesToTradeSuppliers"),
     )),
     Line("TotalCurrentLiabilities", "Total current liabilities", "balance", "instant",
          role="subtotal", candidates=(
@@ -384,6 +395,49 @@ _REFERENCE = (
     Line("InterestPaidFinancing", "Interest paid, in financing cash flow", "reference",
          "duration", role="memo", candidates=(
              ("ifrs-full", "InterestPaidClassifiedAsFinancingActivities"),
+         )),
+    # Working capital as it moved operating cash flow, each line signed as its cash effect:
+    # negative where receivables or inventories grew, positive where payables did. Read off
+    # the cash flow statement rather than the balance sheet, because a balance sheet also
+    # moves with what an acquisition brought and with currency translation, neither of which
+    # is cash in operations. Amgen's balance sheet grew $3.8bn of working capital over 2023
+    # to 2025, most of it Horizon's inventory at fair value, while its cash flow statement
+    # shows a release of $1.0bn.
+    #
+    # Payables come in two lines. Some filers present them only together with accrued
+    # liabilities (Lilly, AbbVie, Johnson & Johnson, Regeneron), and that line stands in
+    # for payables where the narrow one is not tagged, since it is what the filer reports.
+    Line("ReceivablesCashEffect", "Change in receivables, as its cash effect", "reference",
+         "duration", role="memo",
+         resign=("IncreaseDecreaseInAccountsReceivable", "IncreaseDecreaseInReceivables",
+                 "IncreaseDecreaseInAccountsAndOtherReceivables"),
+         candidates=(
+             ("us-gaap", "IncreaseDecreaseInAccountsReceivable"),
+             ("us-gaap", "IncreaseDecreaseInReceivables"),
+             ("us-gaap", "IncreaseDecreaseInAccountsAndOtherReceivables"),
+             ("ifrs-full", "AdjustmentsForDecreaseIncreaseInTradeAccountReceivable"),
+             ("ifrs-full", "AdjustmentsForDecreaseIncreaseInTradeAndOtherReceivables"),
+         )),
+    Line("InventoriesCashEffect", "Change in inventories, as its cash effect", "reference",
+         "duration", role="memo", resign=("IncreaseDecreaseInInventories",),
+         candidates=(
+             ("us-gaap", "IncreaseDecreaseInInventories"),
+             ("ifrs-full", "AdjustmentsForDecreaseIncreaseInInventories"),
+         )),
+    Line("PayablesCashEffect", "Change in payables, as its cash effect", "reference",
+         "duration", role="memo", candidates=(
+             ("us-gaap", "IncreaseDecreaseInAccountsPayable"),
+             ("us-gaap", "IncreaseDecreaseInAccountsPayableTrade"),
+             ("ifrs-full", "AdjustmentsForIncreaseDecreaseInTradeAccountPayable"),
+         )),
+    Line("PayablesAccruedCashEffect",
+         "Change in payables and accrued liabilities, as its cash effect", "reference",
+         "duration", role="memo", candidates=(
+             ("us-gaap", "IncreaseDecreaseInAccountsPayableAndAccruedLiabilities"),
+             ("ifrs-full", "AdjustmentsForIncreaseDecreaseInTradeAndOtherPayables"),
+             # Biogen presents payables, accrued expenses and other liabilities as one line
+             # and tags it here.
+             ("us-gaap", "IncreaseDecreaseInAccruedLiabilities"),
          )),
 )
 

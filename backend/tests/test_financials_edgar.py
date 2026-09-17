@@ -278,3 +278,25 @@ def test_a_filer_presenting_in_process_rd_on_its_own_line_is_not_netted_twice():
     net = {int(end[:4]): e["val"] for (end, kind), e in
            parse_statements(payload)["lines"]["ResearchLessExpensedIprd"]["periods"].items()}
     assert net[2020] == pytest.approx(5976e6) and net[2021] == pytest.approx(6931e6)
+
+
+def _fy_values(parsed, key):
+    return {end[:4]: e["val"] for (end, kind), e in parsed["lines"][key]["periods"].items()
+            if kind == "FY"}
+
+
+def test_working_capital_lines_read_as_their_cash_effect_under_both_taxonomies():
+    """US GAAP tags a rise in receivables as a positive increase, IFRS as a negative
+    adjustment. Both land as a negative cash effect, so a build reads one way."""
+    amgn = fe.parse_statements(_facts("companyfacts_amgn_working_capital.json"))
+    # Amgen's receivables rose $2,676mm in 2025 and its inventories fell $886mm.
+    assert _fy_values(amgn, "ReceivablesCashEffect")["2025"] == -2_676_000_000
+    assert _fy_values(amgn, "InventoriesCashEffect")["2025"] == 886_000_000
+    assert _fy_values(amgn, "PayablesCashEffect")["2025"] == 428_000_000
+
+    nvo = fe.parse_statements(_facts("companyfacts_nvo_working_capital.json"))
+    # Novo's trade receivables rose DKK 14,210mm in 2023, tagged as a negative adjustment
+    # and kept negative; payables rose DKK 7,529mm, a positive cash effect.
+    assert _fy_values(nvo, "ReceivablesCashEffect")["2023"] == -14_210_000_000
+    assert _fy_values(nvo, "InventoriesCashEffect")["2025"] == -8_774_000_000
+    assert _fy_values(nvo, "PayablesCashEffect")["2023"] == 7_529_000_000

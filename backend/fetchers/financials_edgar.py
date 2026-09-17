@@ -423,6 +423,10 @@ def parse_statements(payload: dict) -> dict:
             # quarters are tagged in a different unit cannot rename the column.
             if kind_unit and (unit is None or kind == statements.FY):
                 unit = kind_unit
+        if line.resign:
+            periods = {key: (dict(entry, val=-entry["val"])
+                             if entry.get("concept") in line.resign else entry)
+                       for key, entry in periods.items()}
         if line.key == "ResearchAndDevelopmentExpense" and periods:
             for key, entry in backfill_rd_less_iprd(facts, periods).items():
                 periods.setdefault(key, entry)
