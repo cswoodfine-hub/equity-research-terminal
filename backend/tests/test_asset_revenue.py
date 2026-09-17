@@ -266,3 +266,26 @@ def test_a_line_only_one_model_counts_is_not_named(tmp_path):
     _product(conn, 3, "Fiasp FlexTouch", revenue=[(2024, "FY", 1869e6, "sec_fsds"),
                                                   (2025, "FY", 2818e6, "sec_fsds")])
     assert asset_revenue.shared_lines(conn, 1) == []
+
+
+def test_curated_product_revenue_is_written_in_units_and_survives_a_rerun(tmp_path):
+    """A product the filer prints in a table and does not tag: the file's millions land as
+    units on the asset, a quarter keeps its period, and a second load changes nothing."""
+    path = str(tmp_path / "pr.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'AMGN', 'Amgen')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed) VALUES (7, 1, 'Uplizna', 1)")
+    csv_path = tmp_path / "product_revenue.csv"
+    csv_path.write_text(
+        "# c\nticker,brand,fiscal_year,period,period_end,value,unit,accession,quote\n"
+        "AMGN,Uplizna,2025,FY,2025-12-31,655,USD,0000318154-26-000010,\"UPLIZNA 528 127\"\n"
+        "AMGN,Uplizna,2026,Q2,2026-06-30,335,USD,0000318154-26-000126,\"UPLIZNA 317 18 335\"\n"
+        "AMGN,Nothing,2025,FY,2025-12-31,1,USD,x,\"q\"\n")
+    assert asset_revenue.load_curated(conn, csv_path) == 2
+    assert asset_revenue.load_curated(conn, csv_path) == 2
+    rows = {(r["fiscal_year"], r["period"]): r for r in conn.execute(
+        "SELECT * FROM asset_revenue WHERE asset_id = 7")}
+    assert rows[(2025, "FY")]["value"] == pytest.approx(655e6) and rows[(2025, "FY")]["is_curated"] == 1
+    assert rows[(2026, "Q2")]["value"] == pytest.approx(335e6) and len(rows) == 2
+    assert "0000318154-26-000010" in rows[(2025, "FY")]["source"]

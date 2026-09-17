@@ -22,6 +22,7 @@ import env  # noqa: F401  loads the .env before any module reads it
 
 import asset_identity
 import asset_merge
+import asset_revenue
 import financings
 import assumptions as assumptions_module
 import regional_loe
@@ -301,6 +302,7 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
         # Regional sales a filer prints but does not tag. After the product revenue
         # fetcher, so the curated rows are written over the assets it resolved.
         mapped["region_revenue"] = regional_loe.load_curated_revenue(conn)
+        mapped["product_revenue"] = asset_revenue.load_curated(conn)
         conn.commit()
     finally:
         conn.close()
@@ -488,6 +490,7 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
         # Regional sales a filer prints but does not tag. After the product revenue
         # fetcher, so the curated rows are written over the assets it resolved.
         mapped["region_revenue"] = regional_loe.load_curated_revenue(conn)
+        mapped["product_revenue"] = asset_revenue.load_curated(conn)
         conn.commit()
     finally:
         conn.close()

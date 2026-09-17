@@ -1,0 +1,15 @@
+# Product revenue a filer prints in its annual report or 10-Q tables but does not tag
+# against the SEC product axis, so neither the data sets nor the results exhibit reader
+# carries it. asset_revenue.load_curated writes it on every refresh as curated rows.
+#
+# value is in millions of unit as printed; a year is the sum of the regions the table
+# prints for it, and the quote shows them. Every row has the accession and a verbatim quote.
+ticker,brand,fiscal_year,period,period_end,value,unit,accession,quote
+AMGN,Uplizna,2024,FY,2024-12-31,379,USD,0000318154-26-000010,UPLIZNA — U.S. (1) 528 68 % 314 * 60 UPLIZNA — ROW (1) 127 95 % 65 * 5
+AMGN,Uplizna,2025,FY,2025-12-31,655,USD,0000318154-26-000010,UPLIZNA — U.S. (1) 528 68 % 314 * 60 UPLIZNA — ROW (1) 127 95 % 65 * 5
+AMGN,Uplizna,2026,H1,2026-06-30,597,USD,0000318154-26-000126,"Three months ended June 30, 2026 ... UPLIZNA 317 18 335 ... Six months ended June 30, 2026 ... UPLIZNA 563 34 597"
+AMGN,Uplizna,2026,Q2,2026-06-30,335,USD,0000318154-26-000126,"Three months ended June 30, 2026 ... UPLIZNA 317 18 335 ... Six months ended June 30, 2026 ... UPLIZNA 563 34 597"
+AMGN,Imdelltra,2024,FY,2024-12-31,115,USD,0000318154-26-000010,IMDELLTRA — U.S. 513 * 115 N/A — IMDYLLTRA — ROW 114 N/A — N/A —
+AMGN,Imdelltra,2025,FY,2025-12-31,627,USD,0000318154-26-000010,IMDELLTRA — U.S. 513 * 115 N/A — IMDYLLTRA — ROW 114 N/A — N/A —
+AMGN,Imdelltra,2026,H1,2026-06-30,546,USD,0000318154-26-000126,"Three months ended June 30, 2026 ... IMDELLTRA/IMDYLLTRA 233 55 288 ... Six months ended June 30, 2026 ... IMDELLTRA/IMDYLLTRA 421 125 546"
+AMGN,Imdelltra,2026,Q2,2026-06-30,288,USD,0000318154-26-000126,"Three months ended June 30, 2026 ... IMDELLTRA/IMDYLLTRA 233 55 288 ... Six months ended June 30, 2026 ... IMDELLTRA/IMDYLLTRA 421 125 546"

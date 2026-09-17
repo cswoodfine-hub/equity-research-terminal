@@ -17,11 +17,18 @@ Two rules run through the module:
 
 from __future__ import annotations
 
+import csv
 import datetime as dt
+import pathlib
 
 import db
 import fx
 import loe as loe_module
+
+# Product revenue a filer prints in its annual report or 10-Q tables and does not tag
+# against the product axis, so neither the data sets nor the results exhibit reader
+# carries it. One row per product and period, each with the accession and a verbatim quote.
+CURATED = pathlib.Path(__file__).resolve().parent.parent / "data" / "product_revenue.csv"
 
 HORIZON = 10          # years of cliff, matching loe.HORIZON
 
@@ -195,6 +202,47 @@ def shared_lines(conn, company_id: int) -> list[dict]:
                           "other_name": modelled[second],
                           "periods": sorted(entry["same"]), "source": source})
     return found
+
+
+def load_curated(conn, path=None) -> int:
+    """Write ``data/product_revenue.csv`` into ``asset_revenue`` as curated rows, in units
+    rather than the file's millions. Runs on every refresh, so a rebuilt database keeps
+    the rows. A product not on file is skipped. Returns rows written."""
+    source = pathlib.Path(path) if path else CURATED
+    if not source.exists():
+        return 0
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(line for line in handle
+                                   if not line.lstrip().startswith("#")))
+    written = 0
+    for row in rows:
+        ticker = (row.get("ticker") or "").strip().upper()
+        brand = (row.get("brand") or "").strip()
+        value = (row.get("value") or "").strip()
+        if not (ticker and brand and value):
+            continue
+        asset = conn.execute(
+            """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                WHERE c.ticker = ? AND LOWER(TRIM(COALESCE(a.brand_name, a.generic_name)))
+                      = LOWER(?) ORDER BY a.is_marketed DESC, a.id LIMIT 1""",
+            (ticker, brand)).fetchone()
+        if asset is None:
+            continue
+        conn.execute(
+            """INSERT INTO asset_revenue (asset_id, fiscal_year, period, period_end, value,
+                                         unit, source, note, is_curated)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+               ON CONFLICT(asset_id, fiscal_year, period) DO UPDATE SET
+                   period_end=excluded.period_end, value=excluded.value,
+                   unit=excluded.unit, source=excluded.source, note=excluded.note,
+                   is_curated=1, updated_at=datetime('now')""",
+            (asset["id"], int(row["fiscal_year"]), (row.get("period") or "FY").strip(),
+             (row.get("period_end") or "").strip() or None, float(value) * 1e6,
+             (row.get("unit") or "USD").strip(),
+             f"filing table {(row.get('accession') or '').strip()}",
+             (row.get("quote") or "").strip()))
+        written += 1
+    return written
 
 
 def set_revenue(db_path, ticker: str, application_number: str, fiscal_year: int,
