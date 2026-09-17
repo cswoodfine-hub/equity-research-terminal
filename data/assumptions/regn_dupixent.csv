@@ -1,0 +1,27 @@
+# Dupixent (REGN). Regeneron's share of the Sanofi antibody collaboration.
+#
+# Sanofi records Dupixent's sales; Regeneron books its share of the profits and a
+# reimbursement for the commercial supply it manufactures. That revenue was a company
+# line with no loss of exclusivity. It is carried here on Dupixent's own growth and
+# exclusivity, so the collaboration ends where the drug does.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+REGN,Dupixent,,US,base,therapy_mode,,,marketed,,booked collaboration revenue,"Regeneron's share of the Sanofi collaboration, which is Dupixent and Kevzara, modelled on Dupixent's own shape and exclusivity rather than as a line without either"
+REGN,Dupixent,,US,base,base_revenue,,6813.7,,mm USD,"Regeneron FY2025 10-K (0000872589-26-000008), Sanofi collaboration revenue table: 'Regeneron's share of collaboration profits in connection with commercialization of antibodies | 6,171.3' less '(929.7)' reimbursing Sanofi's development expenses, plus 'Reimbursement for manufacturing of commercial supplies(a) | 642.4', so $5,884.0mm as booked and $6,813.7mm before the reimbursement. The development balance was fully repaid on 30 June 2026 (Q2 2026 10-Q, 0000872589-26-000025), so the deduction does not recur","the collaboration revenue Regeneron books, not Dupixent's sales, which are Sanofi's to record"
+REGN,Dupixent,,US,base,revenue_growth_pct,,0.202111,,"annual, near term","Dupixent's growth as Sanofi's own Dupixent forecast carries it: 15,714 against 13,072 a year before, both in EUR from the SEC financial statement data sets, so Regeneron's share moves with the drug and the two books agree","Regeneron's booked revenue grew faster, 43.9% in the first half of 2026, on the repayment ending, operating leverage and a stronger euro; this takes the drug's rate, and reaches about $12bn by 2030, the $32bn plateau the line's ceiling assumed at 37% before repayment"
+REGN,Dupixent,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+REGN,Dupixent,,US,base,growth_fade_years,,5,,years,"the fade Sanofi's Dupixent forecast carries: measured from 53 drugs that grew 10% to 25% a year, the median took 4.5 years of fading growth to reach its peak revenue (data/growth_analogues.csv)",
+REGN,Dupixent,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+REGN,Dupixent,,US,base,forecast_years,,15,,years,long enough to run past the 2031 loss of exclusivity and through the erosion tail,
+REGN,Dupixent,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+REGN,Dupixent,,US,base,cogs_pct,,0,,share of revenue,"REGN FY2025, from the filed lines",
+REGN,Dupixent,,US,base,sga_pct,,0.1882,,share of revenue,"REGN FY2025, from the filed lines",
+REGN,Dupixent,,US,base,rd_pct,,0.4079,,share of revenue,"REGN FY2025, from the filed lines",
+REGN,Dupixent,,US,base,other_costs_pct,,0.05616,,share of revenue,"derived: REGN turned 27.89% of revenue into free cash over 2023 to 2025 against the 36.1% its filed expense lines leave. Restated before interest: REGN paid $167mm of interest inside operating cash flow over 2023 to 2025, 0.40% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 9.20% to 8.79%. Restated at replacement capex: REGN spent $2,373mm on plant over 2023 to 2025 against $1,048mm of depreciation and amortisation less amortisation of intangibles, 3.18% of revenue above what keeps the plant running. Taken at depreciation, the charge falls from 8.79% to 5.24%. Restated without one-off cash: REGN's free cash flow over 2023 to 2025 carried $411mm of deal payments in operating cash flow, capital allocation whose assets the book values separately. None recurs, so the charge falls from 5.24% to 4.25%. Restated without working capital build: over 2023 to 2025 REGN's cash flow statement shows receivables up $395mm, inventories up $1,167mm, payables and accrued liabilities up $2,070mm, a working capital release of $509mm, 1.22% of revenue. A release flatters the window once and does not recur, so the charge rises from 4.25% to 5.62%.",
+REGN,Dupixent,,US,base,tax_rate,,0.1058,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
+REGN,Dupixent,,US,base,risk_free,,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+REGN,Dupixent,,US,base,erp,,0.05,,,Damodaran US ERP estimate,
+REGN,Dupixent,,US,base,beta,,0.77,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.65 raw)",
+REGN,Dupixent,,US,base,cost_of_debt,,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+REGN,Dupixent,,US,base,debt_weight,,0.021715,,,"filed TotalDebt of 1,986mm USD at 2025-12-31 over debt plus market capitalisation",
