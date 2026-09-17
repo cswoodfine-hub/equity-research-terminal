@@ -14,7 +14,7 @@ left for the valuation's conventions:
   and enterprise value to last-fiscal-year revenue (filed), applied to the company at the
   peers' quartiles.
 - **Takeover precedents.** What acquirers paid for commercial-stage biopharma, enterprise
-  value over the target's last full year of revenue (``data/precedent_transactions.csv``).
+  value over the target's trailing revenue (``data/precedent_transactions.csv``).
 - **Analyst price targets**, low to high, from the same feed.
 - **The trading range** of the last 52 weeks.
 
@@ -356,7 +356,7 @@ def comps(book: B.Book, peers: list[dict]) -> list[dict]:
 PRECEDENTS = pathlib.Path(__file__).resolve().parent.parent / "data" / "precedent_transactions.csv"
 # A multiple paid for a company with one launch and little revenue measures the launch,
 # not a business, and runs to hundreds of times sales. Only targets with at least this
-# much revenue in their last full year are read.
+# much trailing revenue are read.
 MIN_TARGET_REVENUE_MUSD = 1000.0
 
 
@@ -377,7 +377,9 @@ def precedents(path=None) -> list[dict]:
     out = []
     with source.open(newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(line for line in handle if not line.lstrip().startswith("#")):
-            revenue = _float(row.get("revenue_fy_musd"))
+            # The twelve months to the last 10-Q before announcement where there is one,
+            # the last full year otherwise: what the acquirer could see.
+            revenue = _float(row.get("revenue_ttm_musd")) or _float(row.get("revenue_fy_musd"))
             ev = _float(row.get("enterprise_value_musd"))
             if ev is None:
                 equity = _float(row.get("equity_value_musd"))
@@ -394,7 +396,7 @@ def precedents(path=None) -> list[dict]:
 
 
 def takeover(book: B.Book, deals: list[dict] | None = None) -> dict | None:
-    """The company at the quartiles of what acquirers paid for revenue."""
+    """The company at the quartiles of what acquirers paid for trailing revenue."""
     deals = precedents() if deals is None else deals
     usable = [d for d in deals if d["revenue_musd"] >= MIN_TARGET_REVENUE_MUSD]
     q = _quartiles([d["multiple"] for d in usable])
@@ -408,7 +410,7 @@ def takeover(book: B.Book, deals: list[dict] | None = None) -> dict | None:
             "peer_quartiles": q, "deals": len(usable),
             "basis": (f"what acquirers paid for {len(usable)} commercial-stage biopharma "
                       f"companies with at least ${MIN_TARGET_REVENUE_MUSD:,.0f}mm of revenue, "
-                      "enterprise value over the target's last full year of revenue at the "
+                      "enterprise value over the target's trailing revenue at the "
                       "quartiles, times this company's FY revenue, plus its net cash; a "
                       "control premium is in every one of them")}
 

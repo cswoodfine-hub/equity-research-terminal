@@ -122,6 +122,7 @@ def test_the_company_view_carries_its_lenses_with_bases(tmp_path, monkeypatch):
     measured = {"bands": [{"band": (0.0, 0.10), "n": 9, "peaked": 6, "censored": 3,
                            "low": 3, "median": 5, "high": 8}]}
     monkeypatch.setattr(F.GA, "measure", lambda path=None: measured)
+    monkeypatch.setattr(F, "precedents", lambda path=None: [])      # tested on its own below
     path = _company(tmp_path, guidance=[("Revenue", "FY2026", 3630e6, 3465e6, 3795e6)])
     got = F.company(path, "AMGN", peers=[])
     keys = [l["key"] for l in got["lenses"]]
@@ -156,13 +157,15 @@ def test_takeover_precedents_read_the_file_and_skip_small_targets(tmp_path):
         "A,T3,2020-01-01,1,,24000,stated,,,,4000,2019,,,,a,q,\n"
         "A,T4,2020-01-01,1,,50000,stated,,,,5000,2019,,,,a,q,\n"
         "A,T5,2020-01-01,1,,9000,stated,,,,300,2019,,,,a,q,\n"
-        "A,T6,2020-01-01,1,20000,,computed,,,,2000,2019,,,,a,q,\n")
+        "A,T6,2020-01-01,1,20000,,computed,,,,2000,2019,,,,a,q,\n"
+        "A,T7,2020-01-01,1,,8000,stated,,,,900,2019,1600,2019-09-30,,a,q,\n")
     deals = F.precedents(csv_path)
-    assert [d["target"] for d in deals] == ["T1", "T2", "T3", "T4", "T5"]
+    assert [d["target"] for d in deals] == ["T1", "T2", "T3", "T4", "T5", "T7"]
+    assert deals[-1]["revenue_musd"] == 1600             # trailing twelve months win
     assert deals[1]["ev_musd"] == 32000 and deals[1]["multiple"] == pytest.approx(6.4)
     book = B.Book(_company(tmp_path / "c"), "AMGN")
     got = F.takeover(book, deals)
     own = F._metrics(book)
-    assert got["deals"] == 4                         # T5's 300mm of revenue is left out
-    assert got["peer_quartiles"] == pytest.approx((5.5, 6.2, 7.3))   # multiples 4, 6, 6.4, 10
-    assert got["mid"] == pytest.approx(6.2 * own["revenue_ps"] + own["net_cash_ps"])
+    assert got["deals"] == 5                         # T5's 300mm of revenue is left out
+    assert got["peer_quartiles"] == pytest.approx((5.0, 6.0, 6.4))   # multiples 4, 5, 6, 6.4, 10
+    assert got["mid"] == pytest.approx(6.0 * own["revenue_ps"] + own["net_cash_ps"])
