@@ -51,6 +51,9 @@ MEDICINES_RD = DATA_DIR / "rd_medicines_segment.csv"
 # EYLEA, Keytruda Qlex from Keytruda. Dated from the form they replace, not their own
 # approval, since their revenue is largely the older form's moving across.
 SWITCH_FORMS = DATA_DIR / "switch_forms.csv"
+# Launches a collaborator paid to develop, where the filer books that funding as a cut to
+# its own R&D line: the revenue is the filer's, the cost is not in its R&D.
+PARTNER_FUNDED = DATA_DIR / "partner_funded_launches.csv"
 COHORT_YEARS = 10
 _CACHE: dict = {}
 _CACHE_SECONDS = 3600
@@ -98,6 +101,22 @@ def switch_forms(path=None) -> dict:
     return out
 
 
+def partner_funded(path=None) -> dict:
+    """{(ticker, product): partner} for launches a collaborator funded outside the
+    filer's R&D line."""
+    source = pathlib.Path(path) if path else PARTNER_FUNDED
+    out: dict = {}
+    if not source.exists():
+        return out
+    with source.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(line for line in handle if not line.lstrip().startswith("#")):
+            ticker = (row.get("ticker") or "").strip().upper()
+            product, partner = (row.get("product") or "").strip(), (row.get("partner") or "").strip()
+            if ticker and product and partner:
+                out[(ticker, product.lower())] = partner
+    return out
+
+
 def _fiscal_year_of(period_end: str) -> int:
     """The year a period mostly falls in: Johnson & Johnson's 52-week year ending on 3
     January 2016 is its 2015, whatever label the filing gave it. Any other end is its own
@@ -107,13 +126,16 @@ def _fiscal_year_of(period_end: str) -> int:
 
 
 def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
-                        switches=None) -> dict:
+                        switches=None, funded=None) -> dict:
     """One filer's launch productivity, and what it was built from.
 
     Revenue is the latest full year's, over product lines only, in dollars; a line is
     fresh when its drug's first approval falls in the ten years ending that year. A new
     form of a molecule already sold (``data/switch_forms.csv``) is dated from the form it
-    replaces, so a franchise moving to its new form is not counted as a launch. R&D is
+    replaces, so a franchise moving to its new form is not counted as a launch. A launch a
+    collaborator paid to develop outside the filer's R&D line
+    (``data/partner_funded_launches.csv``) is not counted either, since its cost is not
+    in the denominator. R&D is
     the ten full years before it. Both are converted at the same latest rates, so the
     ratio carries no currency.
     """
@@ -125,11 +147,12 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
         return {"rate": None, "reason": "no product revenue on file"}
     cutoff = f"{year - COHORT_YEARS + 1}-01-01"
     total = dated = fresh = 0.0
-    launches, switched = [], []
+    launches, switched, partnered = [], [], []
     ticker_row = conn.execute("SELECT ticker FROM companies WHERE id = ?",
                               (company_id,)).fetchone()
     ticker = (ticker_row["ticker"] if ticker_row else "").upper()
     forms = switch_forms() if switches is None else switches
+    partners = partner_funded() if funded is None else funded
     for row in conn.execute(
             """SELECT ar.asset_id, ar.value, ar.unit,
                       COALESCE(a.brand_name, a.generic_name) AS name
@@ -157,7 +180,11 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
         if approved is None:
             continue
         dated += value
-        if approved >= cutoff:
+        partner = partners.get((ticker, (row["name"] or "").lower()))
+        if approved >= cutoff and partner:
+            partnered.append({"name": row["name"], "approved": approved[:10],
+                              "revenue": value, "partner": partner})
+        elif approved >= cutoff:
             fresh += value
             launches.append({"name": row["name"], "approved": approved[:10],
                              "revenue": value})
@@ -208,6 +235,7 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
     return {"rate": rate, "year": year, "revenue": total, "dated_share": coverage,
             "fresh_revenue": fresh, "rd": rd, "rd_years": rd_years,
             "rd_basis": rd_basis, "switch_forms": switched,
+            "partner_funded": partnered,
             "launches": launches[:8], "launch_count": len(launches),
             "launch_revenues": [r["revenue"] for r in launches],
             "reason": None if rate is not None else "no R&D on file for the window"}

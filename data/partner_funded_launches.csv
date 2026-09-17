@@ -1,0 +1,17 @@
+# Launches a collaborator paid to develop, booked so that the cost never reaches the filer's
+# R&D line.
+#
+# Launch productivity is fresh revenue over the R&D the filer spent in the ten years before
+# (backend/future_pipeline.py). Where a collaborator funds development and the filer records
+# that funding as a reduction to its own R&D expense, the launch's revenue is the filer's and
+# its cost is not in the denominator, so counting it reads the filer's record high. Such a
+# launch is left out of the filer's fresh revenue.
+#
+# Not listed: a co-development where each party pays its share through its own R&D line and
+# books its share of the revenue, since both sides of the ratio are shares; and the
+# collaborator's own record, where the funding is in its R&D (Sanofi books Dupixent's sales
+# and pays for its development).
+#
+# Columns: ticker, product (as the revenue line is named), partner, note (the filed terms).
+ticker,product,partner,note
+REGN,Dupixent,Sanofi,"The line is Regeneron's total Sanofi collaboration revenue, its profit share on Dupixent and Kevzara. Regeneron's FY2025 10-K (0000872589-26-000008): ""Sanofi is generally responsible for funding 80% to 100% of agreed-upon development expenses as incurred"", and it lists ""Reimbursement of Regeneron's research and development expenses"" as a ""Reduction to Research and development expense"". Regeneron repays 30% to 50% of that funding out of its share of profits, not through R&D: a development balance of about $595 million at December 31, 2025."

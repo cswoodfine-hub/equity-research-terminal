@@ -245,3 +245,24 @@ def test_the_room_is_the_books_best_year_less_what_it_sells():
     assert space == {2026: 20.0, 2027: 0.0, 2028: 10.0, 2029: 40.0}
     grown, _, _ = FP.room({2026: 100.0, 2027: 50.0}, long_run_growth=0.1)
     assert grown[2027] == pytest.approx(60.0)
+
+
+def test_a_launch_a_partner_funded_is_not_in_the_filers_record(tmp_path):
+    import db
+    path = str(tmp_path / "pf.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'REGN', 'Regeneron')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed) VALUES (1, 1, 'Dupixent', 1), (2, 1, 'Libtayo', 1)")
+    conn.execute("INSERT INTO approvals (asset_id, region, agency, approval_date, application_number) VALUES"
+                 " (1, 'US', 'FDA', '2017-03-28', 'BLA761055'), (2, 'US', 'FDA', '2018-09-28', 'BLA761097')")
+    for aid, value in ((1, 5884.0e6), (2, 1452.2e6)):
+        conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value, unit, source) VALUES (?, 2025, 'FY', ?, 'USD', 't')", (aid, value))
+    conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year, period_end, value, unit)"
+                 " VALUES (1, 'ResearchAndDevelopmentExpense', 'FY', 2024, '2024-12-31', 5000e6, 'USD')")
+    conn.commit()
+    both = FP.filer_productivity(conn, 1, {}, {}, segment={}, switches={}, funded={})
+    assert both["fresh_revenue"] == pytest.approx(7336.2e6) and both["launch_count"] == 2
+    own = FP.filer_productivity(conn, 1, {}, {}, segment={}, switches={}, funded={("REGN", "dupixent"): "Sanofi"})
+    assert own["fresh_revenue"] == pytest.approx(1452.2e6) and own["launch_count"] == 1
+    assert own["partner_funded"] == [{"name": "Dupixent", "approved": "2017-03-28", "revenue": 5884.0e6, "partner": "Sanofi"}]
