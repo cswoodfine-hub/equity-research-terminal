@@ -2,8 +2,9 @@
 
 Each company's ``other_costs_pct`` is solved so its book reproduces the free cash flow it
 earned over a window: other = book pre-tax margin - cash pre-tax margin, where the cash
-margin is free cash flow restated before interest, at replacement capex and without
-one-off cash (``interest_addback``, ``replacement_capex``, ``one_off_cash``). A charge was
+margin is free cash flow restated before interest, at replacement capex, without one-off
+cash and without working capital build (``interest_addback``, ``replacement_capex``,
+``one_off_cash``, ``working_capital``). A charge was
 never allowed below nil, on the reasoning that it should not credit the book with cash its
 own costs do not leave.
 
@@ -32,6 +33,7 @@ import pathlib
 import interest_addback as IA
 import one_off_cash as OC
 import replacement_capex as RC
+import working_capital as WC
 
 DATA = pathlib.Path(__file__).resolve().parent.parent / "data" / "amortisation_in_cost_lines.csv"
 MARKER = "to the amortisation floor"
@@ -83,29 +85,34 @@ def measure(conn, ticker: str, path=None) -> dict:
     tax = ratios["tax_rate"]
     cash = (fcf / total / (1.0 - tax) + (IA.measure(conn, ticker).get("share") or 0.0)
             + (RC.measure(conn, ticker).get("cut") or 0.0)
-            + (OC.measure(conn, ticker).get("cut") or 0.0))
+            + (OC.measure(conn, ticker).get("cut") or 0.0)
+            + (WC.measure(conn, ticker).get("cut") or 0.0))
     book = 1.0 - ratios["cogs_pct"] - ratios["sga_pct"] - ratios["rd_pct"]
     rebuilt = book - cash
-    out = {**base, "book": book, "cash": cash, "rebuilt": rebuilt}
+    out = {**base, "book": book, "cash": cash, "rebuilt": rebuilt, "floor": 0.0}
+    amort = amortisation(ticker, path)
+    where = ((amort or {}).get("presented_in") or "").strip()
+    year_revenue = revenue[last]
+    unit = (((amort or {}).get("unit") or "").split() or [""])[0]
+    if not amort or not (amort.get("amount") or "").strip():
+        reason = "no amortisation figure on file for the filer"
+    elif where not in INSIDE:
+        reason = ("the filer books amortisation on a line of its own, outside the cost "
+                  "lines the book uses" if where == "separate_line" else
+                  "the filer does not say which line carries its amortisation")
+    elif unit not in ("", year_revenue["unit"]):
+        reason = "amortisation and revenue in different units"
+    else:
+        reason = None
+        out.update(floor=-float(amort["amount"]) * 1e6 / year_revenue["value"],
+                   amount=float(amort["amount"]), where=where,
+                   accession=(amort.get("accession") or "").strip(),
+                   unit=year_revenue["unit"], year=last)
     if rebuilt >= 0:
         return {**out, "new": None, "reason": "the charge rebuilds at or above nil, so no floor binds"}
-    amort = amortisation(ticker, path)
-    if not amort or not (amort.get("amount") or "").strip():
-        return {**out, "new": None, "reason": "no amortisation figure on file for the filer"}
-    where = (amort.get("presented_in") or "").strip()
-    if where not in INSIDE:
-        return {**out, "new": None,
-                "reason": ("the filer books amortisation on a line of its own, outside the cost "
-                           "lines the book uses" if where == "separate_line" else
-                           "the filer does not say which line carries its amortisation")}
-    year_revenue = revenue[last]
-    unit = ((amort.get("unit") or "").split() or [""])[0]
-    if unit not in ("", year_revenue["unit"]):
-        return {**out, "new": None, "reason": "amortisation and revenue in different units"}
-    floor = -float(amort["amount"]) * 1e6 / year_revenue["value"]
-    return {**out, "new": max(floor, rebuilt), "floor": floor, "amount": float(amort["amount"]),
-            "where": where, "accession": (amort.get("accession") or "").strip(),
-            "unit": year_revenue["unit"], "year": last, "reason": None}
+    if reason:
+        return {**out, "new": None, "reason": reason}
+    return {**out, "new": max(out["floor"], rebuilt), "reason": None}
 
 
 def clause(m: dict) -> str:

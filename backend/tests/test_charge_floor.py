@@ -7,6 +7,7 @@ import db
 import interest_addback as IA
 import one_off_cash as OC
 import replacement_capex as RC
+import working_capital as WC
 
 
 def _db(tmp_path, ticker, cfo, capex, cogs=0.2976, sga=0.2291, rd=0.1487, tax=0.1081):
@@ -26,8 +27,8 @@ def _db(tmp_path, ticker, cfo, capex, cogs=0.2976, sga=0.2291, rd=0.1487, tax=0.
 
 @pytest.fixture
 def plain(monkeypatch):
-    """The three restatements off, so the rebuild is the free cash margin alone."""
-    for module, key in ((IA, "share"), (RC, "cut"), (OC, "cut")):
+    """The four restatements off, so the rebuild is the free cash margin alone."""
+    for module, key in ((IA, "share"), (RC, "cut"), (OC, "cut"), (WC, "cut")):
         monkeypatch.setattr(module, "measure", lambda conn, t, *a, _k=key, **kw: {_k: None})
 
 
