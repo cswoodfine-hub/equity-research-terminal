@@ -37,6 +37,7 @@ import breakpoints as B
 import db
 import forecast
 import forecast_view as V
+import growth_analogues as GA
 
 GUIDED_YEAR = 2026
 WACC_STEP = 0.01
@@ -213,6 +214,34 @@ def discount_range(book: B.Book) -> dict:
     low, high = at(WACC_STEP), at(-WACC_STEP)
     return {"low": low, "mid": book.equity, "high": high,
             "basis": "every product's and line's discount rate a point higher and lower"}
+
+
+def fade_range(book: B.Book, measured: dict | None = None) -> dict | None:
+    """Every measured fade at its band's lower and upper quartile, the rest held."""
+    measured = GA.measure() if measured is None else measured
+
+    def at(which: str):
+        touched = []
+
+        def asset_trial(part, inputs):
+            got = GA.applies(inputs.get("scalars") or {}, book.rows_by_asset[part["asset_id"]])
+            band = GA.for_growth(measured, got[1]) if got else None
+            if band is None:
+                return None
+            touched.append(part["name"])
+            return V.apply_lever(inputs, "growth_fade_years", round(band[which]))
+        value = book.equity_with(asset_trial, lambda part, scalars: None)
+        return value, touched
+    low, touched = at("low")
+    high, _ = at("high")
+    if not touched or math.isnan(low) or math.isnan(high):
+        return None
+    return {"lens": "sum of the parts, growth fade at the analogue quartiles",
+            "key": "sotp_fade", "low": min(low, high), "mid": book.equity,
+            "high": max(low, high), "products": len(touched),
+            "basis": (f"the {len(touched)} products whose fade is measured, each at the lower "
+                      "and upper quartile of the fade peaked drugs growing as fast took; "
+                      "every other assumption held")}
 
 
 # --- trading comparables ----------------------------------------------------------
@@ -428,6 +457,11 @@ def company(db_path, ticker: str, peers: list[dict] | None = None) -> dict | Non
     peers = cached_universe(db_path) if peers is None else peers
     lenses = [{"lens": "sum of the parts, discount rate ±1 point", "key": "sotp_wacc",
                **discount_range(book)}]
+    measured = GA.measure()
+    fades = fade_range(book, measured) if measured["bands"] and any(
+        "median" in b for b in measured["bands"]) else None
+    if fades:
+        lenses.append(fades)
     split = revenue_split(book)
     if split["ok"] and split["matched_equity"] is not None:
         lenses.append({"lens": f"sum of the parts, revenue matched to FY{split['year']} guidance",

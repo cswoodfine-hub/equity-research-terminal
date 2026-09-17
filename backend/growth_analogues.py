@@ -169,3 +169,36 @@ def band_words(band: tuple) -> str:
     lo, hi = band
     return (f"more than {lo:.0%} a year" if math.isinf(hi)
             else f"{lo:.0%} to {hi:.0%} a year")
+
+
+# The growth a fade starts from, by how the product is built.
+GROWTH_KEYS = {"marketed": "revenue_growth_pct", "franchise": "franchise_growth_pct"}
+
+
+def applies(scalars: dict, rows: list) -> tuple | None:
+    """(growth key, growth) where a measured fade replaces the convention; None where it
+    does not. It applies to a product anchored on reported revenue, or a franchise pool,
+    that fades to a long-run rate from growth read off its filings. A rate solved to reach
+    a published peak by a year already has its length set by that year, and a product
+    that is not growing has no climb ahead to measure."""
+    key = GROWTH_KEYS.get(scalars.get("therapy_mode"))
+    if key is None or scalars.get("terminal_growth_pct") is None:
+        return None
+    growth = scalars.get(key)
+    if growth is None or growth <= 0:
+        return None
+    source = next((r.get("source") or "" for r in rows
+                   if r["key"] == key and r.get("indication_id") is None
+                   and r.get("scenario", "base") == "base"), "")
+    if source.strip().lower().startswith("solved"):
+        return None
+    return key, growth
+
+
+def fade_source(row: dict, censored: int, path_name: str = "data/growth_analogues.csv") -> str:
+    """The source text for a measured fade row."""
+    return (f"measured from peaked drugs: {row['n']} that grew {band_words(row['band'])} "
+            f"took a median {row['median']:g} years of fading growth to reach their peak "
+            f"revenue (quartiles {row['low']:g} to {row['high']:g}), fitted to each drug's "
+            f"actual climb in {path_name}. {censored} drugs still near their best are left "
+            "out, so this is a floor")

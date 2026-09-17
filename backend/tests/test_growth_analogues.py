@@ -86,3 +86,23 @@ def test_a_basis_break_is_not_growth_and_a_part_year_is_not_a_year(tmp_path):
     series = G.load(path)
     assert 2009 not in series["BIIB Drug"]["years"]
     assert 2012 not in [o["year"] for o in G.measure(path)["observations"]]
+
+
+def test_a_measured_fade_applies_to_filed_growth_only():
+    marketed = {"therapy_mode": "marketed", "revenue_growth_pct": 0.2, "terminal_growth_pct": 0.0}
+    filed = [{"key": "revenue_growth_pct", "indication_id": None, "source": "the 2026 the filed quarters imply"}]
+    solved = [{"key": "revenue_growth_pct", "indication_id": None, "source": "solved, not observed: the rate"}]
+    assert G.applies(marketed, filed) == ("revenue_growth_pct", 0.2)
+    assert G.applies(marketed, solved) is None
+    assert G.applies({**marketed, "revenue_growth_pct": -0.03}, filed) is None
+    assert G.applies({**marketed, "terminal_growth_pct": None}, filed) is None
+    franchise = {"therapy_mode": "franchise", "franchise_growth_pct": 0.04, "terminal_growth_pct": 0.0}
+    assert G.applies(franchise, []) == ("franchise_growth_pct", 0.04)
+    assert G.applies({"therapy_mode": "chronic"}, []) is None
+
+
+def test_the_fade_source_names_the_band_the_count_and_the_floor():
+    row = {"band": (0.10, 0.25), "n": 9, "median": 6.0, "low": 4.0, "high": 8.5}
+    text = G.fade_source(row, 12)
+    assert "9 that grew 10% to 25% a year took a median 6 years" in text
+    assert "quartiles 4 to 8.5" in text and "growth_analogues.csv" in text and "a floor" in text
