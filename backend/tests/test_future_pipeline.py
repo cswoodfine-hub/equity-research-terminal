@@ -176,6 +176,7 @@ def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(monkeyp
                 "replacement": None, "renewal": None, "credited_share": None}
     monkeypatch.setattr(FP, "simulate", fake_simulate)
     monkeypatch.setattr(FP, "pooled", lambda db_path=None: {"rate": 0.3, "filers": [], "n": 0, "credibility": {}})
+    monkeypatch.setattr(V, "_launch_record", lambda *a, **k: {"history_rd": {}, "launched": set()})
     row = {"revenue": 100.0, "cogs": 20.0, "sga": 20.0, "rd": 15.0, "other": 0.0, "ebit": 45.0, "tax": 5.0}
     drug = {"asset_id": 1, "pnl_share": [row], "dcf_years": [2026], "wacc": 0.08}
     medtech = {"line": "MedTech", "buys_launches": False, "pnl_share": [dict(row, rd=40.0)],
@@ -266,3 +267,46 @@ def test_a_launch_a_partner_funded_is_not_in_the_filers_record(tmp_path):
     own = FP.filer_productivity(conn, 1, {}, {}, segment={}, switches={}, funded={("REGN", "dupixent"): "Sanofi"})
     assert own["fresh_revenue"] == pytest.approx(1452.2e6) and own["launch_count"] == 1
     assert own["partner_funded"] == [{"name": "Dupixent", "approved": "2017-03-28", "revenue": 5884.0e6, "partner": "Sanofi"}]
+
+
+def test_rd_already_spent_buys_the_launches_before_the_lag_runs_out():
+    ahead = _sim(ratios={**RATIOS, "rd": 0.0})
+    spent = _sim(ratios={**RATIOS, "rd": 0.0}, history_rd={2019: 50.0, 2025: 60.0, 2010: 999.0})
+    rev = {f["year"]: f["revenue"] for f in spent["flows"]}
+    assert rev[2026] == 0.0 and rev[2027] == pytest.approx(15.0)     # 2019 spend, 8y lag
+    assert rev[2033] == pytest.approx(15.0 + 18.0)                  # 2025 spend arrives
+    assert rev[2034] == pytest.approx(15.0 + 18.0 + 30.0)           # the book's own
+    assert spent["history_cohorts"] == 2 and spent["value"] > ahead["value"]
+
+
+def test_launches_the_book_names_come_off_what_the_cohorts_earn():
+    spent = dict(ratios={**RATIOS, "rd": 0.0}, history_rd={2019: 50.0})
+    named = _sim(**spent, named={2027: 10.0, 2028: 40.0})
+    rev = {f["year"]: f["revenue"] for f in named["flows"]}
+    assert rev[2027] == pytest.approx(5.0) and rev[2028] == 0.0 and rev[2029] == pytest.approx(15.0)
+    assert named["named_overlap"] == pytest.approx(10.0 + 15.0)
+
+
+def test_rd_history_reads_the_net_figure_and_the_medicines_segment(tmp_path):
+    import db
+    path = str(tmp_path / "rh.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'JNJ', 'Johnson & Johnson')")
+    rows = [("ResearchAndDevelopmentExpense", 2018, "2018-12-30", 10800e6),
+            ("ResearchAndDevelopmentExpense", 2019, "2019-12-29", 11400e6),
+            ("ResearchLessExpensedIprd", 2019, "2019-12-29", 11000e6),
+            ("ResearchAndDevelopmentExpense", 2021, "2021-01-03", 12200e6),
+            ("ResearchAndDevelopmentExpense", 2017, "2017-12-31", 9000e6)]
+    for metric, year, end, value in rows:
+        conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year, period_end, value, unit)"
+                     " VALUES (1, ?, 'FY', ?, ?, ?, 'USD')", (metric, year, end, value))
+    conn.commit()
+    got = FP.rd_history(conn, 1, 2018, 2020, segment={"JNJ": {2018: (8000e6, "USD")}})
+    assert got == {2018: 8000.0, 2019: 11000.0, 2020: 12200.0}
+
+
+def test_a_named_launch_does_not_come_off_the_forecasts_own_cohorts():
+    free = _sim(ratios={**RATIOS, "rd": 0.0})
+    named = _sim(ratios={**RATIOS, "rd": 0.0}, named={y: 100.0 for y in range(2026, 2086)})
+    assert named["value"] == pytest.approx(free["value"]) and named["named_overlap"] == 0.0

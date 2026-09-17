@@ -1729,6 +1729,12 @@ def _sotp_bridge(s: dict) -> None:
                     f"the pool across {future.get('pooled_filers')} filers")
         bits.append(f"{future.get('lag_years')}y lag, first in "
                     f"{future.get('first_launch_year')}")
+        if future.get("history_cohorts"):
+            history = future.get("history_rd") or {}
+            bits.append(f"{sum(history.values()):,.0f}mm of R&D already spent "
+                        f"({min(history)}-{max(history)}) buys the launches before then, "
+                        f"less {future.get('named_overlap') or 0:,.0f}mm of revenue from "
+                        "launches the book names")
         if future.get("capped_from"):
             bits.append(f"launches held to the book's {future.get('book_peak_year')} "
                         f"revenue of {future.get('book_peak', 0):,.0f}mm from "

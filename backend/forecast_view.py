@@ -1245,6 +1245,47 @@ def _years_between(start: str | None, end: str | None) -> float:
     return max(days, 0) / 365.25
 
 
+_LAUNCH_RECORD: dict = {}
+
+
+def _launch_record(db_path, ticker: str, anchor: str, lag: int) -> dict:
+    """{history_rd, launched}: the R&D the company spent in the ``lag`` years to the
+    valuation year, and the ids of its products already selling or approved by then.
+    Cached for an hour, since a break-point revalues the book many times."""
+    import time
+    import approval_dates
+    import future_pipeline as FP
+    key = (str(db_path), ticker.upper(), anchor, lag)
+    hit = _LAUNCH_RECORD.get(key)
+    if hit and time.time() - hit[0] < 3600:
+        return hit[1]
+    base_year = int(anchor[:4])
+    conn = db.get_connection(db_path)
+    try:
+        company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                               (ticker.upper(),)).fetchone()
+        out = {"history_rd": {}, "launched": set()}
+        if company is not None:
+            out["history_rd"] = FP.rd_history(conn, company["id"], base_year - lag + 1,
+                                              base_year)
+            for row in conn.execute(
+                    """SELECT a.id, COALESCE(a.brand_name, a.generic_name) AS name,
+                              EXISTS (SELECT 1 FROM asset_revenue r WHERE r.asset_id = a.id
+                                        AND r.fiscal_year <= ? AND r.value > 0) AS sold
+                         FROM assets a WHERE a.owner_company_id = ?""",
+                    (base_year, company["id"])):
+                if row["sold"]:
+                    out["launched"].add(row["id"])
+                    continue
+                approved, _route = approval_dates.first_approval(conn, row["id"], row["name"])
+                if approved and approved[:10] <= anchor[:10]:
+                    out["launched"].add(row["id"])
+    finally:
+        conn.close()
+    _LAUNCH_RECORD[key] = (time.time(), out)
+    return out
+
+
 def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
                      rate_override: float | None = None) -> dict:
     """The launches the book's R&D buys, valued. {value, reason, ...}; value is None
@@ -1257,7 +1298,7 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
     book_rd: dict = {}
     totals = {"revenue": 0.0, "cogs": 0.0, "sga": 0.0, "rd": 0.0, "other": 0.0,
               "ebit": 0.0, "tax": 0.0}
-    waccs, growths, book_parts = [], [], []
+    waccs, growths, book_parts, named_parts = [], [], [], []
     for part in parts:
         # A line whose R&D develops something other than medicines buys no launches, and
         # its margins are not the ones a future drug would earn.
@@ -1273,6 +1314,8 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
                            "loe_year": part.get("loe_year"),
                            "loe_in_base": part.get("loe_in_base"),
                            "growth": part.get("long_run_growth")})
+        if part.get("asset_id") is not None:
+            named_parts.append((part["asset_id"], book_parts[-1]))
         for year, row in zip(part.get("dcf_years") or [], rows):
             book_rd[year] = book_rd.get(year, 0.0) + (row.get("rd") or 0.0)
         if rows:
@@ -1317,9 +1360,20 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
     book = FP.book_revenue(book_parts, list(range(base_year + 1, base_year + 1 + horizon)),
                            erosion["year1_pct"], erosion.get("decay_pct") or 0.0)
     space, peak, peak_year = FP.room(book, long_run)
+    # Launches the R&D already spent will buy, less the ones the book names: a product
+    # neither selling nor approved by the valuation date is one of those launches.
+    record = (_launch_record(db_path, ticker, anchor, lag) if ticker
+              else {"history_rd": {}, "launched": set()})
+    named: dict = {}
+    for asset_id, entry in named_parts:
+        if asset_id in record["launched"]:
+            continue
+        for year, value in entry["revenue"].items():
+            named[year] = named.get(year, 0.0) + value
     got = FP.simulate(book_rd, rate_used, lag, int(loe_default["years_from_launch"]),
                       erosion["year1_pct"], erosion.get("decay_pct") or 0.0, ratios,
-                      wacc, base_year, horizon, long_run_growth=long_run, room=space)
+                      wacc, base_year, horizon, long_run_growth=long_run, room=space,
+                      history_rd=record["history_rd"], named=named)
     return {"value": got["value"], "reason": None, "rate": pool["rate"],
             "rate_used": rate_used,
             "own_rate": own["rate"] if own else None,
@@ -1336,6 +1390,9 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
             "long_run_growth": long_run, "long_run_basis": long_run_basis,
             "book_rd_first": book_rd.get(base_year + 1),
             "book_peak": peak, "book_peak_year": peak_year,
+            "history_rd": record["history_rd"], "history_cohorts": got.get("history_cohorts"),
+            "named_launch_revenue": sum(named.values()),
+            "named_overlap": got.get("named_overlap"),
             "capped_from": got.get("capped_from"), "capped_share": got.get("capped_share"),
             "flows": [f for f in got["flows"] if f["revenue"]][:40]}
 

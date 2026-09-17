@@ -93,6 +93,36 @@ def medicines_rd(path=None) -> dict:
     return out
 
 
+def rd_history(conn, company_id: int, first: int, last: int, segment=None) -> dict:
+    """{fiscal_year: R&D in millions of the reporting currency} for ``first`` to ``last``,
+    read the way the productivity window reads it: net of expensed acquired IPR&D where
+    that figure is on file, the medicines segment's where the filer reports it for the
+    year, and keyed on the period end so a 52-week year lands in the year it covers. A
+    year not on file is absent, never a zero."""
+    ticker_row = conn.execute("SELECT ticker FROM companies WHERE id = ?",
+                              (company_id,)).fetchone()
+    ticker = (ticker_row["ticker"] if ticker_row else "").upper()
+    reported = (medicines_rd() if segment is None else segment).get(ticker, {})
+    by_period: dict = {}
+    for row in conn.execute(
+            """SELECT period_end, metric, value FROM financials
+                WHERE company_id = ?
+                AND metric IN ('ResearchAndDevelopmentExpense', 'ResearchLessExpensedIprd')
+                AND period_type = 'FY' AND fiscal_year BETWEEN ? AND ?
+                AND value IS NOT NULL
+                ORDER BY period_end, metric""", (company_id, first - 1, last + 1)):
+        by_period[row["period_end"]] = row    # the net figure sorts after the filed one
+    out: dict = {}
+    for period_end in sorted(by_period):
+        year = _fiscal_year_of(period_end)
+        if first <= year <= last:
+            out[year] = by_period[period_end]["value"] / 1e6
+    for year, (value, _unit) in reported.items():
+        if year in out:
+            out[year] = value / 1e6
+    return out
+
+
 def switch_forms(path=None) -> dict:
     """{(ticker, product): parent product} for new forms of a molecule already sold."""
     source = pathlib.Path(path) if path else SWITCH_FORMS
@@ -403,7 +433,8 @@ def room(book: dict, long_run_growth: float = 0.0) -> tuple[dict, float, int | N
 def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: float,
              erosion_decay: float, ratios: dict, discount: float, base_year: int,
              horizon: int, long_run_growth: float | None = None,
-             room: dict | None = None) -> dict:
+             room: dict | None = None, history_rd: dict | None = None,
+             named: dict | None = None) -> dict:
     """The launches bought by the book's R&D and by the launches' own R&D, valued.
 
     ``book_rd`` is {year: R&D the modelled book charges that year}. A cohort bought in
@@ -429,6 +460,14 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
     make up: launches replace what the book loses and no more. Revenue past the room is
     not earned and its R&D buys nothing, while the book's R&D stays charged. None means
     uncapped.
+
+    ``history_rd`` is {year: R&D the company has already spent}, for the years up to
+    ``base_year``. The book's R&D starts buying launches in its first forecast year, so
+    they arrive only after the lag, and the launches of the years before that were
+    bought by spend already made. A year of it within ``lag`` of the base year buys a
+    cohort the same way. ``named`` is {year: expected revenue of launches the book
+    already models by name}, which those cohorts would otherwise count twice: it comes
+    off what the cohorts earn before the room is applied.
     """
     years = list(range(base_year + 1, base_year + 1 + horizon))
     spend = {y: book_rd.get(y, 0.0) for y in years}
@@ -437,16 +476,39 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
     if long_run_growth is not None and generation > 0:
         allowed = (1.0 + long_run_growth) ** (lag + life / 2.0)
         credited = min(1.0, allowed / generation)
-    bought = {y: 0.0 for y in years}       # what the cohorts would earn
-    revenue = {y: 0.0 for y in years}      # what they may earn, within the room
-    cohorts = 0
+    bought = {y: 0.0 for y in years}       # what the forecast's cohorts would earn
+    spent = {y: 0.0 for y in years}        # what the cohorts of R&D already spent would
+    revenue = {y: 0.0 for y in years}      # what they may earn, net of named, within room
+    cohorts = history_cohorts = 0
+
+    def buy(into: dict, level: float, launch: int) -> None:
+        for i, y in enumerate(range(launch, years[-1] + 1)):
+            if i < life:
+                earned = level
+            else:
+                earned = level * (1.0 - erosion_year1) * (1.0 - erosion_decay) ** (i - life)
+            into[y] += earned
+
+    history = {y: v for y, v in (history_rd or {}).items()
+               if y <= base_year and y + lag >= years[0] and v and v > 0}
+    for s in sorted(history):
+        if s + lag > years[-1]:
+            continue
+        history_cohorts += 1
+        buy(spent, rate * history[s], s + lag)
     capped_from = None
+    offered = overlap = 0.0
     for s in years:
         # A year's revenue and spend are final once reached: every cohort earning in it
-        # was bought at least ``lag`` years before.
-        revenue[s] = (bought[s] if room is None
-                      else min(bought[s], max(0.0, room.get(s, 0.0))))
-        if capped_from is None and bought[s] - revenue[s] > 1e-9:
+        # was bought at least ``lag`` years before. A launch the book names was bought by
+        # R&D already spent, so it comes off those cohorts and not the forecast's.
+        own = (named or {}).get(s, 0.0)
+        overlap += min(spent[s], own)
+        available = max(0.0, spent[s] - own) + bought[s]
+        offered += available
+        revenue[s] = (available if room is None
+                      else min(available, max(0.0, room.get(s, 0.0))))
+        if capped_from is None and available - revenue[s] > 1e-9:
             capped_from = s
         spend[s] += revenue[s] * ratios["rd"] * credited
         if spend[s] <= 0:
@@ -455,13 +517,7 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
         if launch > years[-1]:
             continue
         cohorts += 1
-        level = rate * spend[s]
-        for i, y in enumerate(range(launch, years[-1] + 1)):
-            if i < life:
-                earned = level
-            else:
-                earned = level * (1.0 - erosion_year1) * (1.0 - erosion_decay) ** (i - life)
-            bought[y] += earned
+        buy(bought, rate * spend[s], launch)
     margin = 1.0 - ratios["cogs"] - ratios["sga"] - ratios["rd"] - ratios["other"]
     pv, flows = 0.0, []
     for y in years:
@@ -471,12 +527,11 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
         flows.append({"year": y, "revenue": revenue[y], "fcff": fcff})
     first = next((f["year"] for f in flows if f["revenue"] > 0), None)
     book_total = sum(book_rd.values())
-    total_bought = sum(bought.values())
     return {"value": pv, "flows": flows, "first_launch_year": first, "cohorts": cohorts,
+            "history_cohorts": history_cohorts, "named_overlap": overlap,
             "renewal": generation, "credited_share": credited,
             "capped_from": capped_from,
-            "capped_share": (1.0 - sum(revenue.values()) / total_bought
-                             if total_bought else 0.0),
+            "capped_share": (1.0 - sum(revenue.values()) / offered if offered else 0.0),
             # R&D the launches go on to fund across the horizon, against the R&D the
             # book funds. Undiscounted, so it describes scale rather than value.
             "replacement": (sum(spend.values()) - book_total) / book_total
