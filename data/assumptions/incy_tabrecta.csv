@@ -10,7 +10,7 @@ INCY,TABRECTA,,US,base,therapy_mode,,,marketed,,approved and selling,no patient 
 INCY,TABRECTA,,US,base,base_revenue,,26.7,,mm USD,"INCY FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
 INCY,TABRECTA,,US,base,revenue_growth_pct,,0.176211,,"annual, near term","the same product axis a year earlier: $27mm in FY2025 against $23mm in FY2024, both from the SEC financial statement data sets. The comparative year is tagged in the same filing as the anchor",the last reported year over the one before it
 INCY,TABRECTA,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-INCY,TABRECTA,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+INCY,TABRECTA,,US,base,growth_fade_years,,5,,years,"measured from 53 drugs that grew 10% to 25% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 20 of them censored because they are still near their best or lost exclusivity at their peak",
 INCY,TABRECTA,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 INCY,TABRECTA,,US,base,forecast_years,,10,,years,"no exclusivity on file, so the horizon is the convention",
 INCY,TABRECTA,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

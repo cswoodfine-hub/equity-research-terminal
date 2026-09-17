@@ -9,7 +9,7 @@ GSK,Nucala,,US,base,therapy_mode,,,marketed,,approved and selling,no patient fun
 GSK,Nucala,,US,base,base_revenue,,2008.0,,mm GBP,"GSK FY2025 reported product revenue, from the annual report product axis (sec_fsds)","GSK reports in pounds sterling. The figure is as filed, not converted."
 GSK,Nucala,,US,base,revenue_growth_pct,,0.13,,"annual, near term","GSK's full-year 2025 results (6-K 0001654954-26-000892, filed 2026-02-04), sales table by product: £2,008m for the year, which the filing states as +13% at actual exchange rates against 2024. The data sets tag no prior year for this product, so the filer's own reported growth is the comparison","the quarter against the same quarter a year before, which is the most recent comparison this filer states"
 GSK,Nucala,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-GSK,Nucala,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+GSK,Nucala,,US,base,growth_fade_years,,5,,years,"measured from 53 drugs that grew 10% to 25% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 20 of them censored because they are still near their best or lost exclusivity at their peak",
 GSK,Nucala,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 GSK,Nucala,,US,base,forecast_years,,11,,years,set to run past the 2031 loss of exclusivity,
 GSK,Nucala,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

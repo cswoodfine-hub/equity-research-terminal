@@ -10,7 +10,7 @@ JNJ,Xarelto,,US,base,therapy_mode,,,marketed,,approved and selling,no patient fu
 JNJ,Xarelto,,US,base,base_revenue,,2633.0,,mm USD,"JNJ FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
 JNJ,Xarelto,,US,base,revenue_growth_pct,,0.109566,,"annual, near term","the same product axis a year earlier: $2,633mm in FY2025 against $2,373mm in FY2024, both from the SEC financial statement data sets. The comparative year is tagged in the same filing as the anchor",the last reported year over the one before it
 JNJ,Xarelto,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-JNJ,Xarelto,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+JNJ,Xarelto,,US,base,growth_fade_years,,5,,years,"measured from 53 drugs that grew 10% to 25% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 20 of them censored because they are still near their best or lost exclusivity at their peak",
 JNJ,Xarelto,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 JNJ,Xarelto,,US,base,forecast_years,,14,,years,set to run past the 2034 loss of exclusivity and through the erosion tail,
 JNJ,Xarelto,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

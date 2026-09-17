@@ -9,7 +9,7 @@ SNY,Sarclisa,,US,base,therapy_mode,,,marketed,,approved and selling,no patient f
 SNY,Sarclisa,,US,base,base_revenue,,588.0,,mm EUR,"SNY FY2025 reported product revenue, from the annual report product axis (sec_fsds)","Sanofi reports in euro. The figure is as filed, not converted."
 SNY,Sarclisa,,US,base,revenue_growth_pct,,0.248408,,"annual, near term","the same product axis a year earlier: 588 against 471 a year before, both in EUR from the SEC financial statement data sets, tagged in the same filing",the last reported year over the one before it
 SNY,Sarclisa,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-SNY,Sarclisa,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+SNY,Sarclisa,,US,base,growth_fade_years,,5,,years,"measured from 53 drugs that grew 10% to 25% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 20 of them censored because they are still near their best or lost exclusivity at their peak",
 SNY,Sarclisa,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 SNY,Sarclisa,,US,base,forecast_years,,12,,years,set to run past the 2032 loss of exclusivity,
 SNY,Sarclisa,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

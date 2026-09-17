@@ -10,7 +10,7 @@ NVS,Zolgensma,,US,base,therapy_mode,,,marketed,,approved and selling,no patient 
 NVS,Zolgensma,,US,base,base_revenue,,1232.0,,mm USD,"NVS FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
 NVS,Zolgensma,,US,base,revenue_growth_pct,,0.014827,,"annual, near term","the same product axis a year earlier: $1,232mm in FY2025 against $1,214mm in FY2024, both from the SEC financial statement data sets. The comparative year is tagged in the same filing as the anchor",the last reported year over the one before it
 NVS,Zolgensma,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-NVS,Zolgensma,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+NVS,Zolgensma,,US,base,growth_fade_years,,10,,years,"measured from 36 drugs that grew 0% to 10% a year: the median took 10 years of fading growth to reach its peak revenue (quartiles 2.5 to 17.5), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 14 of them censored because they are still near their best or lost exclusivity at their peak",
 NVS,Zolgensma,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 NVS,Zolgensma,,US,base,forecast_years,,11,,years,set to run past the 2031 loss of exclusivity and through the erosion tail,
 NVS,Zolgensma,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

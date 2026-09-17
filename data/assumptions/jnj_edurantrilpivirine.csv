@@ -10,7 +10,7 @@ JNJ,EDURANTrilpivirine,,US,base,therapy_mode,,,marketed,,approved and selling,no
 JNJ,EDURANTrilpivirine,,US,base,base_revenue,,1486.0,,mm USD,"JNJ FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
 JNJ,EDURANTrilpivirine,,US,base,revenue_growth_pct,,0.168239,,"annual, near term","the same product axis a year earlier: $1,486mm in FY2025 against $1,272mm in FY2024, both from the SEC financial statement data sets. The comparative year is tagged in the same filing as the anchor",the last reported year over the one before it
 JNJ,EDURANTrilpivirine,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-JNJ,EDURANTrilpivirine,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+JNJ,EDURANTrilpivirine,,US,base,growth_fade_years,,5,,years,"measured from 53 drugs that grew 10% to 25% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 20 of them censored because they are still near their best or lost exclusivity at their peak",
 JNJ,EDURANTrilpivirine,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 JNJ,EDURANTrilpivirine,,US,base,forecast_years,,10,,years,"no exclusivity on file, so the horizon is the convention",
 JNJ,EDURANTrilpivirine,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

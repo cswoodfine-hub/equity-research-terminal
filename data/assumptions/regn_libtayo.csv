@@ -9,7 +9,7 @@ REGN,Libtayo,,US,base,therapy_mode,,,marketed,,approved and selling,no patient f
 REGN,Libtayo,,US,base,base_revenue,,1452.2,,mm USD,"REGN FY2025 reported product revenue, from the annual report product axis (sec_fsds)",the anchor
 REGN,Libtayo,,US,base,revenue_growth_pct,,0.299867,,"annual, near term","Regeneron's second quarter 2026 earnings exhibit (0000872589-26-000023, filed 2026-07-30): $489.4mm against $376.5mm in the same quarter a year before, which the filing states as 30%. The data sets carry no prior year for this filer, so the quarter it prints is the only comparison it makes","the quarter against the same quarter a year before, which is the most recent comparison this filer states"
 REGN,Libtayo,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-REGN,Libtayo,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+REGN,Libtayo,,US,base,growth_fade_years,,5,,years,"measured from 52 drugs that grew 25% to 50% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2.5 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 22 of them censored because they are still near their best or lost exclusivity at their peak",
 REGN,Libtayo,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 REGN,Libtayo,,US,base,forecast_years,,10,,years,set to run past the 2030 loss of exclusivity,
 REGN,Libtayo,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

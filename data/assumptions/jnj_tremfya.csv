@@ -10,7 +10,7 @@ JNJ,Tremfya,,US,base,therapy_mode,,,marketed,,approved and selling,no patient fu
 JNJ,Tremfya,,US,base,base_revenue,,5155.0,,mm USD,"JNJ FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
 JNJ,Tremfya,,US,base,revenue_growth_pct,,0.404632,,"annual, near term","the same product axis a year earlier: $5,155mm in FY2025 against $3,670mm in FY2024, both from the SEC financial statement data sets. The comparative year is tagged in the same filing as the anchor",the last reported year over the one before it
 JNJ,Tremfya,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-JNJ,Tremfya,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+JNJ,Tremfya,,US,base,growth_fade_years,,5,,years,"measured from 52 drugs that grew 25% to 50% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2.5 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 22 of them censored because they are still near their best or lost exclusivity at their peak",
 JNJ,Tremfya,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 JNJ,Tremfya,,US,base,forecast_years,,10,,years,set to run past the 2029 loss of exclusivity and through the erosion tail,
 JNJ,Tremfya,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

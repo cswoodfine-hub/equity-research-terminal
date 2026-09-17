@@ -9,7 +9,7 @@ NVO,Fiasp,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funn
 NVO,Fiasp,,US,base,base_revenue,,2818.0,,mm DKK,"NVO FY2025 reported product revenue, from the annual report product axis (sec_fsds)","Novo reports in Danish kroner. The figure is as filed, not converted."
 NVO,Fiasp,,US,base,revenue_growth_pct,,0.507758,,"annual, near term","the same product axis a year earlier: 2,818 against 1,869 a year before, both in DKK from the SEC financial statement data sets, tagged in the same filing",the last reported year over the one before it
 NVO,Fiasp,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-NVO,Fiasp,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+NVO,Fiasp,,US,base,growth_fade_years,,5,,years,"measured from 32 drugs that grew 50% to 100% a year: the median took 5 years of fading growth to reach its peak revenue (quartiles 3 to at least 9), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 18 of them censored because they are still near their best or lost exclusivity at their peak",
 NVO,Fiasp,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 NVO,Fiasp,,US,base,forecast_years,,10,,years,no exclusivity on file,
 NVO,Fiasp,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

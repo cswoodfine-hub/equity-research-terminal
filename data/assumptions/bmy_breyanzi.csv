@@ -9,7 +9,7 @@ BMY,Breyanzi,,US,base,therapy_mode,,,marketed,,approved and selling,no patient f
 BMY,Breyanzi,,US,base,base_revenue,,1358.0,,mm USD,"BMY FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
 BMY,Breyanzi,,US,base,revenue_growth_pct,,0.476112,,"annual, near term",the halves already on file from the 8-K earnings exhibits: $896mm in the first half of 2026 against $607mm in the first half of 2025,"the halves, which is the most recent full comparison on file"
 BMY,Breyanzi,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-BMY,Breyanzi,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+BMY,Breyanzi,,US,base,growth_fade_years,,5,,years,"measured from 52 drugs that grew 25% to 50% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2.5 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 22 of them censored because they are still near their best or lost exclusivity at their peak",
 BMY,Breyanzi,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 BMY,Breyanzi,,US,base,forecast_years,,13,,years,set to run past the 2033 loss of exclusivity and through the erosion tail,
 BMY,Breyanzi,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

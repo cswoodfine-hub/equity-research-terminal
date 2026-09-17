@@ -9,7 +9,7 @@ PFE,Ibrance,,US,base,therapy_mode,,,marketed,,approved and selling,no patient fu
 PFE,Ibrance,,US,base,base_revenue,,4122.0,,mm USD,"PFE FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
 PFE,Ibrance,,US,base,revenue_growth_pct,,0.019743,,"annual, near term","Pfizer's six-month revenue table in the 8-K exhibit (0000078003-26-000094, filed 2026-08-04), the 'Ibrance' row: $2,066mm in the first half of 2026 against $2,026mm in the first half of 2025. The row is accepted on its own arithmetic, the two territories summing to the worldwide figure in both years","the halves, which is the comparison Pfizer makes itself"
 PFE,Ibrance,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-PFE,Ibrance,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+PFE,Ibrance,,US,base,growth_fade_years,,10,,years,"measured from 36 drugs that grew 0% to 10% a year: the median took 10 years of fading growth to reach its peak revenue (quartiles 2.5 to 17.5), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 14 of them censored because they are still near their best or lost exclusivity at their peak",
 PFE,Ibrance,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 PFE,Ibrance,,US,base,forecast_years,,17,,years,set to run past the 2037 loss of exclusivity and through the erosion tail,
 PFE,Ibrance,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

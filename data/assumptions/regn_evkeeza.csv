@@ -9,7 +9,7 @@ REGN,Evkeeza,,US,base,therapy_mode,,,marketed,,approved and selling,no patient f
 REGN,Evkeeza,,US,base,base_revenue,,162.2,,mm USD,"REGN FY2025 reported product revenue, from the annual report product axis (sec_fsds)",the anchor
 REGN,Evkeeza,,US,base,revenue_growth_pct,,0.2904,,"annual, near term","Regeneron FY2025 10-K (0000872589-26-000008), revenues table: $162.2mm in FY2025 against $125.7mm in FY2024, which the filing states as +29%","the quarter against the same quarter a year before, which is the most recent comparison this filer states"
 REGN,Evkeeza,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-REGN,Evkeeza,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+REGN,Evkeeza,,US,base,growth_fade_years,,5,,years,"measured from 52 drugs that grew 25% to 50% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2.5 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 22 of them censored because they are still near their best or lost exclusivity at their peak",
 REGN,Evkeeza,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 REGN,Evkeeza,,US,base,forecast_years,,13,,years,set to run past the 2033 loss of exclusivity,
 REGN,Evkeeza,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

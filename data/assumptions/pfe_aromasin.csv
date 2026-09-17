@@ -12,7 +12,7 @@ PFE,Aromasin,,US,base,therapy_mode,,,marketed,,approved and selling,no patient f
 PFE,Aromasin,,US,base,base_revenue,,450.0,,mm USD,"PFE FY2025 reported product revenue, from the SEC financial statement data sets",the anchor
 PFE,Aromasin,,US,base,revenue_growth_pct,,0.296830,,"annual, near term","450 in FY2025 from the SEC financial statement data sets, against 347 in FY2024 from the same source",the last reported year over the one before it
 PFE,Aromasin,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-PFE,Aromasin,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+PFE,Aromasin,,US,base,growth_fade_years,,5,,years,"measured from 52 drugs that grew 25% to 50% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2.5 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 22 of them censored because they are still near their best or lost exclusivity at their peak",
 PFE,Aromasin,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 PFE,Aromasin,,US,base,forecast_years,,10,,years,"convention, and the horizon every marketed asset carries","no exclusivity on file, so nothing erodes the tail"
 PFE,Aromasin,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

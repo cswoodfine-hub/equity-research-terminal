@@ -10,7 +10,7 @@ AMGN,Tepezza,,US,base,therapy_mode,,,marketed,,approved and selling,no patient f
 AMGN,Tepezza,,US,base,base_revenue,,1903.0,,mm USD,"AMGN FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
 AMGN,Tepezza,,US,base,revenue_growth_pct,,0.165528,,"annual, near term","the 2026 the filed quarters imply against the FY2025 reported 1,903mm: the first half of 2026 as reported, 1,066mm, and the second half at the second quarter's pace, 576mm twice, 2,218mm. Amgen 10-Q for the quarter to 2026-06-30 (0000318154-26-000126), Note 3 revenues table, TEPEZZA","replaces +2.8%, FY2025 over FY2024, which predates the first half of 2026"
 AMGN,Tepezza,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-AMGN,Tepezza,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+AMGN,Tepezza,,US,base,growth_fade_years,,5,,years,"measured from 53 drugs that grew 10% to 25% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 20 of them censored because they are still near their best or lost exclusivity at their peak",
 AMGN,Tepezza,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 AMGN,Tepezza,,US,base,forecast_years,,10,,years,"no exclusivity on file, so the horizon is the convention",
 AMGN,Tepezza,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

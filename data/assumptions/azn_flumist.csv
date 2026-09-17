@@ -9,7 +9,7 @@ AZN,Flumist,,US,base,therapy_mode,,,marketed,,approved and selling,no patient fu
 AZN,Flumist,,US,base,base_revenue,,272.0,,mm USD,"AZN FY2025 reported product revenue, from the 20-F product axis (sec_fsds)",the anchor
 AZN,Flumist,,US,base,revenue_growth_pct,,0.054264,,"annual, near term","the same product axis a year earlier: $272mm in FY2025 against $258mm in FY2024, both from the SEC financial statement data sets",the last reported year over the one before it
 AZN,Flumist,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-AZN,Flumist,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+AZN,Flumist,,US,base,growth_fade_years,,10,,years,"measured from 36 drugs that grew 0% to 10% a year: the median took 10 years of fading growth to reach its peak revenue (quartiles 2.5 to 17.5), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 14 of them censored because they are still near their best or lost exclusivity at their peak",
 AZN,Flumist,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 AZN,Flumist,,US,base,forecast_years,,10,,years,no exclusivity on file,
 AZN,Flumist,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

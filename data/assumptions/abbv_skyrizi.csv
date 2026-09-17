@@ -9,7 +9,7 @@ ABBV,Skyrizi,,US,base,therapy_mode,,,marketed,,approved and selling,no patient f
 ABBV,Skyrizi,,US,base,base_revenue,,17562.0,,mm USD,"ABBV FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
 ABBV,Skyrizi,,US,base,revenue_growth_pct,,0.273,,"annual, near term","AbbVie's own six-month table in the 8-K exhibit (0001551152-26-000023, filed 2026-07-31): total net revenues of $9,988mm in the first half of 2026, which it reports as +27.3% against the first half of 2025, reported basis","the halves, which is the most recent full comparison on file"
 ABBV,Skyrizi,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-ABBV,Skyrizi,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+ABBV,Skyrizi,,US,base,growth_fade_years,,5,,years,"measured from 52 drugs that grew 25% to 50% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2.5 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 22 of them censored because they are still near their best or lost exclusivity at their peak",
 ABBV,Skyrizi,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 ABBV,Skyrizi,,US,base,forecast_years,,14,,years,set to run past the 2034 loss of exclusivity and through the erosion tail,
 ABBV,Skyrizi,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

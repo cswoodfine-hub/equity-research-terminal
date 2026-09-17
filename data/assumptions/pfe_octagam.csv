@@ -9,7 +9,7 @@ PFE,Octagam,,US,base,therapy_mode,,,marketed,,approved and selling,no patient fu
 PFE,Octagam,,US,base,base_revenue,,418.0,,mm USD,"PFE FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
 PFE,Octagam,,US,base,revenue_growth_pct,,0.413043,,"annual, near term","Pfizer's six-month revenue table in the 8-K exhibit (0000078003-26-000094, filed 2026-08-04), the 'Octagam' row: $260mm in the first half of 2026 against $184mm in the first half of 2025. The row is accepted on its own arithmetic, the two territories summing to the worldwide figure in both years","the halves, which is the comparison Pfizer makes itself"
 PFE,Octagam,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-PFE,Octagam,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+PFE,Octagam,,US,base,growth_fade_years,,5,,years,"measured from 52 drugs that grew 25% to 50% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2.5 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 22 of them censored because they are still near their best or lost exclusivity at their peak",
 PFE,Octagam,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 PFE,Octagam,,US,base,forecast_years,,10,,years,"no exclusivity on file, so the horizon is the convention",
 PFE,Octagam,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

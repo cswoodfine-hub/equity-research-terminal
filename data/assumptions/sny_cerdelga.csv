@@ -13,7 +13,7 @@ SNY,Cerdelga,,US,base,therapy_mode,,,marketed,,approved and selling,no patient f
 SNY,Cerdelga,,US,base,base_revenue,,335.0,,mm EUR,"Sanofi FY2025 net sales, from the same table (0001628280-26-008403)",the anchor
 SNY,Cerdelga,,US,base,revenue_growth_pct,,0.006000,,"annual, near term","Sanofi's 20-F 2025 net sales by medicine table (0001628280-26-008403), which heads its columns ""Total sales, Change (on a reported basis), Change (at CER)"" and states +0.6% for this product","the filer's own stated change, not a rate derived from two years. Sanofi prints no comparative in this table"
 SNY,Cerdelga,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-SNY,Cerdelga,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+SNY,Cerdelga,,US,base,growth_fade_years,,10,,years,"measured from 36 drugs that grew 0% to 10% a year: the median took 10 years of fading growth to reach its peak revenue (quartiles 2.5 to 17.5), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 14 of them censored because they are still near their best or lost exclusivity at their peak",
 SNY,Cerdelga,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 SNY,Cerdelga,,US,base,forecast_years,,10,,years,"convention, and the horizon every marketed asset carries","the expiry on file, 2038, is applied by the engine over the top of it"
 SNY,Cerdelga,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"

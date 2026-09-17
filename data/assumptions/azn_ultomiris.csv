@@ -9,7 +9,7 @@ AZN,Ultomiris,,US,base,therapy_mode,,,marketed,,approved and selling,no patient 
 AZN,Ultomiris,,US,base,base_revenue,,4718.0,,mm USD,"AZN FY2025 reported product revenue, from the 20-F product axis (sec_fsds)",the anchor
 AZN,Ultomiris,,US,base,revenue_growth_pct,,0.202345,,"annual, near term","the same product axis a year earlier: $4,718mm in FY2025 against $3,924mm in FY2024, both from the SEC financial statement data sets",the last reported year over the one before it
 AZN,Ultomiris,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-AZN,Ultomiris,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
+AZN,Ultomiris,,US,base,growth_fade_years,,5,,years,"measured from 53 drugs that grew 10% to 25% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 20 of them censored because they are still near their best or lost exclusivity at their peak",
 AZN,Ultomiris,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 AZN,Ultomiris,,US,base,forecast_years,,10,,years,no exclusivity on file,
 AZN,Ultomiris,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
