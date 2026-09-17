@@ -1,0 +1,54 @@
+# Amgen revenue that no asset on file carries.
+#
+# Two lines from the FY2025 10-K (0000318154-26-000010), with the SEC product axis's
+# Other products and Other revenues less what the book already values beside them.
+#
+# Other products is $7,263mm on the axis. UPLIZNA ($655mm) and IMDELLTRA/IMDYLLTRA
+# ($627mm) sit inside it there and are modelled as products of their own from the MD&A
+# other product sales table, so this line is the remaining $5,981mm: MVASI, PAVBLU,
+# AMJEVITA/AMGEVITA, TAVNEOS, RAVICTI, PROCYSBI and the products footnote (2) lists. The
+# Q2 2026 10-Q (0000318154-26-000126) prints UPLIZNA and IMDELLTRA on their own lines and
+# Other products without them, so the line takes the first-half anchor every Amgen
+# product takes. It holds biosimilars and products past their patents alongside Tavneos
+# and the Horizon rare disease brands, and carries no date: a basket has none of its own.
+#
+# Other revenues is $1,603mm, less the $266mm the axis tags to BeOne, which is modelled on
+# its own asset. The 10-Q prints Other revenues with BeOne inside it, so the line grows at
+# FY2025 over FY2024 rather than on a 2026 anchor.
+#
+# Margins and the discount rate are Amgen's own, copied unchanged from the Tezspire seed.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,line,scenario,key,value,text_value,unit,source,note
+AMGN,Other products,base,base_revenue,5981,,mm USD,"Amgen FY2025 10-K (0000318154-26-000010): Other products $7,263mm in FY2025 against $5,630mm in FY2024 (U.S. $5,437mm, ROW $1,826mm), less UPLIZNA $655mm and IMDELLTRA/IMDYLLTRA $627mm from the MD&A other product sales table, which are modelled as products; 5,136mm on the same basis in FY2024","a residual: biosimilars, rare disease brands and products Amgen does not break out on the product axis"
+AMGN,Other products,base,revenue_growth_pct,0.106671,,"annual, near term","the 2026 the filed quarters imply against the FY2025 residual of 5,981mm: the first half of 2026 as reported, 3,225mm, and the second half at the second quarter's pace, 1,697mm twice, 6,619mm. Amgen 10-Q for the quarter to 2026-06-30 (0000318154-26-000126), Note 3 revenues table, Other products, which prints UPLIZNA and IMDELLTRA on lines of their own",FY2025 over FY2024 on the same basis was +16.5%
+AMGN,Other products,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+AMGN,Other products,base,growth_fade_years,5,,years,"convention: a recent rate describes next year, not the decade after it",
+AMGN,Other products,base,forecast_start_year,2026,,year,the year after the last reported full year,
+AMGN,Other products,base,forecast_years,10,,years,"the convention for a line: it carries no loss of exclusivity, so there is no cliff to run past",a basket takes no date; its biosimilars and older brands erode inside the growth it reports
+AMGN,Other products,base,cogs_pct,0.3275,,share of revenue,"AMGN FY2025, computed from the filed lines",
+AMGN,Other products,base,sga_pct,0.1918,,share of revenue,"AMGN FY2025, computed from the filed lines",
+AMGN,Other products,base,rd_pct,0.1979,,share of revenue,"AMGN FY2025, computed from the filed lines",
+AMGN,Other products,base,other_costs_pct,-0.117004,,share of revenue,"derived and found to be nil: AMGN's filed expense lines already leave less than the 26.28% of revenue it turned into free cash over 2023 to 2025, so there is nothing left to charge. Restated before interest: AMGN paid $8,600mm of interest inside operating cash flow over 2023 to 2025, 8.74% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so adding it back only widens a gap the filed lines already leave, and the charge stays nil. Restated at replacement capex: AMGN spent $4,066mm on plant over 2023 to 2025 against $2,142mm of plant depreciation, 1.96% of revenue above what keeps the plant running. Taken at depreciation, the charge stays nil. Restated without one-off cash: AMGN's free cash flow over 2023 to 2025 carried $1,800mm of US transition tax (2025 instalment 1,800mm). None recurs, so the charge stays nil. Restated to the amortisation floor: the filed cost lines leave a 28.28% pre-tax margin where the cash over 2023 to 2025 supports 43.05%, so the charge rebuilds at -14.77%. It was held at nil, but AMGN books $4,300mm of non-cash amortisation of acquired intangibles inside its cost lines in FY2025 (0000318154-26-000010), 11.70% of revenue, so the charge stops at that floor: -11.70%.","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+AMGN,Other products,base,tax_rate,0.1236,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+AMGN,Other products,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+AMGN,Other products,base,erp,0.05,,,Damodaran US ERP estimate,
+AMGN,Other products,base,beta,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.41 raw)",
+AMGN,Other products,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",
+AMGN,Other products,base,debt_weight,0.194802,,,"filed TotalDebt of $57,304mm over debt plus market capitalisation: 540.6mm shares at 2026-07-30 at the $438.12 close of 2026-09-01",
+AMGN,Other revenues,base,base_revenue,1337,,mm USD,"Amgen FY2025 10-K (0000318154-26-000010): Other revenues $1,603mm in FY2025 against $1,398mm in FY2024, less the $266mm and $259mm the SEC product axis tags to BeOne, which is modelled on its own asset","royalty, collaboration and other revenue Amgen does not break out"
+AMGN,Other revenues,base,revenue_growth_pct,0.173837,,"annual, near term","the same lines a year earlier: 1,337mm in FY2025 against 1,139mm in FY2024","the years, not a 2026 anchor, because the 10-Q prints Other revenues with BeOne inside it (917mm in the first half of 2026)"
+AMGN,Other revenues,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+AMGN,Other revenues,base,growth_fade_years,5,,years,"convention: a recent rate describes next year, not the decade after it",
+AMGN,Other revenues,base,forecast_start_year,2026,,year,the year after the last reported full year,
+AMGN,Other revenues,base,forecast_years,10,,years,"the convention for a line: it carries no loss of exclusivity, so there is no cliff to run past",a residual takes no date
+AMGN,Other revenues,base,cogs_pct,0.3275,,share of revenue,"AMGN FY2025, computed from the filed lines",
+AMGN,Other revenues,base,sga_pct,0.1918,,share of revenue,"AMGN FY2025, computed from the filed lines",
+AMGN,Other revenues,base,rd_pct,0.1979,,share of revenue,"AMGN FY2025, computed from the filed lines",
+AMGN,Other revenues,base,other_costs_pct,-0.117004,,share of revenue,"derived and found to be nil: AMGN's filed expense lines already leave less than the 26.28% of revenue it turned into free cash over 2023 to 2025, so there is nothing left to charge. Restated before interest: AMGN paid $8,600mm of interest inside operating cash flow over 2023 to 2025, 8.74% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so adding it back only widens a gap the filed lines already leave, and the charge stays nil. Restated at replacement capex: AMGN spent $4,066mm on plant over 2023 to 2025 against $2,142mm of plant depreciation, 1.96% of revenue above what keeps the plant running. Taken at depreciation, the charge stays nil. Restated without one-off cash: AMGN's free cash flow over 2023 to 2025 carried $1,800mm of US transition tax (2025 instalment 1,800mm). None recurs, so the charge stays nil. Restated to the amortisation floor: the filed cost lines leave a 28.28% pre-tax margin where the cash over 2023 to 2025 supports 43.05%, so the charge rebuilds at -14.77%. It was held at nil, but AMGN books $4,300mm of non-cash amortisation of acquired intangibles inside its cost lines in FY2025 (0000318154-26-000010), 11.70% of revenue, so the charge stops at that floor: -11.70%.","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+AMGN,Other revenues,base,tax_rate,0.1236,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+AMGN,Other revenues,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+AMGN,Other revenues,base,erp,0.05,,,Damodaran US ERP estimate,
+AMGN,Other revenues,base,beta,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.41 raw)",
+AMGN,Other revenues,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",
+AMGN,Other revenues,base,debt_weight,0.194802,,,"filed TotalDebt of $57,304mm over debt plus market capitalisation: 540.6mm shares at 2026-07-30 at the $438.12 close of 2026-09-01",
