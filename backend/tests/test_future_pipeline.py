@@ -150,15 +150,20 @@ def _filer(tmp_path, years):
     return conn
 
 
-def test_rd_outside_medicines_is_taken_out_only_for_a_whole_window(tmp_path):
+def test_the_medicines_segments_rd_is_the_denominator_only_for_a_whole_window(tmp_path):
     conn = _filer(tmp_path, (2023, 2024))
-    whole = FP.filer_productivity(conn, 1, {}, {}, outside={"JNJ": {2023: (3000e6, "USD"), 2024: (3000e6, "USD")}})
-    assert whole["rd"] == pytest.approx(24000e6) and whole["rd_outside_medicines"] == pytest.approx(6000e6)
-    assert whole["rate"] == pytest.approx(5155e6 / 24000e6)
-    part = FP.filer_productivity(conn, 1, {}, {}, outside={"JNJ": {2024: (3000e6, "USD")}})
-    assert part["rd"] == pytest.approx(30000e6) and part["rd_outside_medicines"] == 0.0
-    assert "not reported for 2023" in part["rd_outside_basis"]
-    assert FP.filer_productivity(conn, 1, {}, {}, outside={})["rd_outside_basis"] is None
+    whole = FP.filer_productivity(conn, 1, {}, {}, segment={"JNJ": {2023: (12000e6, "USD"), 2024: (12000e6, "USD")}})
+    assert whole["rd"] == pytest.approx(24000e6) and whole["rate"] == pytest.approx(5155e6 / 24000e6)
+    assert "all 2 years" in whole["rd_basis"]
+    part = FP.filer_productivity(conn, 1, {}, {}, segment={"JNJ": {2024: (12000e6, "USD")}})
+    assert part["rd"] == pytest.approx(30000e6) and "not reported for 2023" in part["rd_basis"]
+    assert FP.filer_productivity(conn, 1, {}, {}, segment={})["rd_basis"] is None
+
+
+def test_a_52_week_year_is_matched_to_the_year_it_falls_in():
+    assert FP._fiscal_year_of("2016-01-03") == 2015
+    assert FP._fiscal_year_of("2017-12-31") == 2017
+    assert FP._fiscal_year_of("2025-06-30") == 2025
 
 
 def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(monkeypatch):

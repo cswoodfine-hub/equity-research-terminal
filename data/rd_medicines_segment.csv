@@ -1,0 +1,23 @@
+# R&D a filer reports for its medicines segment alone, by fiscal year, where its company R&D
+# also carries businesses that develop no drugs. Launch productivity divides a filer's
+# fresh drug revenue by this in place of its company R&D, and only where every year of
+# the window is here (backend/future_pipeline.py).
+#
+# Johnson & Johnson reports R&D by segment in every 10-K. Its company R&D carries MedTech
+# throughout, and consumer health until the Kenvue separation in 2023, neither of which
+# earns a drug approval. The segment was named Pharmaceutical to FY2022 and Innovative
+# Medicine since. Each year is the latest filing that prints it, so restatements win:
+# 2016 and 2017 were restated in the FY2018 10-K for an accounting change, 2021 in the
+# FY2023 10-K, and 2022 after the Kenvue separation.
+ticker,fiscal_year,segment,rd_musd,unit,accession,quote
+JNJ,2015,Pharmaceutical,6821,USD,0000200406-16-000071,"Research and development expense by segment of business was as follows: 2015 2014 2013 | Pharmaceutical 6,821 21.7 6,213 19.2 5,810 20.7"
+JNJ,2016,Pharmaceutical,7001,USD,0000200406-19-000009,"Research and development expense by segment of business was as follows: 2018 2017 2016 | Pharmaceutical 8,446 20.7 8,392 23.1 7,001 20.9"
+JNJ,2017,Pharmaceutical,8392,USD,0000200406-19-000009,"Research and development expense by segment of business was as follows: 2018 2017 2016 | Pharmaceutical 8,446 20.7 8,392 23.1 7,001 20.9"
+JNJ,2018,Pharmaceutical,8446,USD,0000200406-19-000009,"Research and development expense by segment of business was as follows: 2018 2017 2016 | Pharmaceutical 8,446 20.7 8,392 23.1 7,001 20.9"
+JNJ,2019,Pharmaceutical,8834,USD,0000200406-20-000010,"Research and development expense by segment of business was as follows: 2019 2018 | Pharmaceutical 8,834 20.9 8,446 20.7"
+JNJ,2020,Pharmaceutical,9563,USD,0000200406-21-000008,"Research and development expense by segment of business was as follows: 2020 2019 | Pharmaceutical 9,563 21.0 8,834 20.9"
+JNJ,2021,Pharmaceutical,11878,USD,0000200406-23-000016,"Research and development expense by segment of business was as follows: 2022 2021 | Pharmaceutical 11,622 22.1 11,878 23.0"
+JNJ,2022,Innovative Medicine,11642,USD,0000200406-24-000013,"Research and development expense by segment of business was as follows: 2023 2022 | Innovative Medicine $11,963 21.8 % $11,642 22.1 %"
+JNJ,2023,Innovative Medicine,11963,USD,0000200406-24-000013,"Research and development expense by segment of business was as follows: 2023 2022 | Innovative Medicine $11,963 21.8 % $11,642 22.1 %"
+JNJ,2024,Innovative Medicine,13529,USD,0000200406-25-000038,"Research and development expense by segment of business was as follows: 2024 2023 | Innovative Medicine $13,529 23.8 % $11,963 21.8 %"
+JNJ,2025,Innovative Medicine,11827,USD,0000200406-26-000016,"Research and development expense by segment of business was as follows: 2025 2024 | Innovative Medicine $11,827 19.6 % $13,529 23.8 %"

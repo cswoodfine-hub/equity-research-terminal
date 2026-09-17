@@ -58,3 +58,4 @@ JNJ,Innovative Medicine other,base,erp,0.05,,,"Damodaran US ERP estimate",""
 JNJ,Innovative Medicine other,base,beta,0.469474,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's"
 JNJ,Innovative Medicine other,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED)",""
 JNJ,Innovative Medicine other,base,debt_weight,0.069753,,,"filed TotalDebt over debt plus market capitalisation","the company's"
+JNJ,MedTech,base,buys_launches,0,,flag,"MedTech develops devices, which earn no drug approvals, so its R&D buys no drug launches and the future pipeline leaves this line out. Johnson & Johnson reports MedTech R&D apart from Innovative Medicine R&D in every 10-K (FY2025 10-K 0000200406-26-000016: MedTech 2,838, Innovative Medicine 11,827)",its margins are not the ones a future drug would earn either
