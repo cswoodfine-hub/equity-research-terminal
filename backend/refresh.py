@@ -25,6 +25,7 @@ import asset_merge
 import financings
 import assumptions as assumptions_module
 import regional_loe
+import retained_programmes
 import company_lines
 import indication_mapping
 import molecules
@@ -253,7 +254,10 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # Bind the trials just fetched to the assets they study, before anything reads the
     # pipeline by product. A compound a company trials but does not sell becomes an
     # unmarketed asset first, so the pipeline reads as programmes rather than loose
-    # studies. Both are idempotent, and neither overwrites a curated mapping.
+    # studies. Both are idempotent, and neither overwrites a curated mapping. A compound
+    # the seller kept when the company was bought is released first, so it is never
+    # derived as the acquirer's programme.
+    retained_programmes.release(db_path)
     pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
     # Which brands are one molecule, before the trials are matched: where two rows
     # answer to the same name the holder takes the study, rather than row order.
@@ -437,7 +441,10 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # Bind the trials just fetched to the assets they study, before anything reads the
     # pipeline by product. A compound a company trials but does not sell becomes an
     # unmarketed asset first, so the pipeline reads as programmes rather than loose
-    # studies. Both are idempotent, and neither overwrites a curated mapping.
+    # studies. Both are idempotent, and neither overwrites a curated mapping. A compound
+    # the seller kept when the company was bought is released first, so it is never
+    # derived as the acquirer's programme.
+    retained_programmes.release(db_path)
     pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
     # Which brands are one molecule, before the trials are matched: where two rows
     # answer to the same name the holder takes the study, rather than row order.

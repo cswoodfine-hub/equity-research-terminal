@@ -1,0 +1,10 @@
+# Programmes a seller kept when a company in the universe bought it, read off the
+# acquirer's own filing with a verbatim quote per row.
+#
+# retained_programmes.py releases every study naming one of these from the acquirer on
+# each refresh, before the pipeline is derived, so the programme stops reading as the
+# acquirer's. programme is matched against the registry's intervention names the way
+# trial mapping matches them.
+ticker,programme,seller,accession,quote,note
+PFE,troriluzole,Biohaven Ltd,0000078003-25-000054,"Effective immediately prior to the closing of the acquisition, Biohaven completed the spin-off of Biohaven Ltd. (NYSE: BHVN), distributing Biohaven Ltd.’s shares to Biohaven shareholders. Biohaven Ltd. became a new publicly traded company that retained Biohaven’s non-CGRP development stage pipeline compounds.","Note 2 (FY2024 10-K), the Biohaven acquisition. Troriluzole is a glutamate modulator, not a CGRP drug. Its spinocerebellar ataxia studies are registered under Biohaven Pharmaceuticals, Inc., the entity Pfizer bought."
+PFE,taldefgrobep alfa,Biohaven Ltd,0000078003-25-000054,"Effective immediately prior to the closing of the acquisition, Biohaven completed the spin-off of Biohaven Ltd. (NYSE: BHVN), distributing Biohaven Ltd.’s shares to Biohaven shareholders. Biohaven Ltd. became a new publicly traded company that retained Biohaven’s non-CGRP development stage pipeline compounds.","Note 2 (FY2024 10-K), the Biohaven acquisition. Taldefgrobep alfa is an anti-myostatin adnectin, not a CGRP drug. Its spinal muscular atrophy Phase 3 is registered under Biohaven Pharmaceuticals, Inc. and a later study under Biohaven Therapeutics Ltd."
