@@ -1334,3 +1334,31 @@ def test_a_region_without_a_date_keeps_the_us_date_unless_its_statutory_floor_is
     inputs = _regional([{"region": "EU", "share": 0.4, "year": None, "floor_year": 2033}])
     inputs["loe"] = None
     assert F.build(inputs)["regions"][0]["loe_year"] is None
+
+
+# --- the terminal value past a loss of exclusivity ---------------------------
+
+def test_the_terminal_multiple_follows_the_products_own_cliff():
+    r = 0.07
+    assert F.terminal_multiple(0.0, r, 2035) == pytest.approx(1 / r)
+    assert F.terminal_multiple(0.0, r, 2035, 2020, in_base=True, year1_pct=0.25,
+                               decay_pct=0.2) == pytest.approx(1 / r)
+    # Seven years into a 20% decay: the tail keeps decaying rather than holding flat.
+    assert F.terminal_multiple(0.0, r, 2035, 2028, False, 0.25, 0.2) == pytest.approx(
+        0.8 / 0.27)
+    # A cliff two years past the horizon: two flat years, the drop, then the decay.
+    flat_two = 1 / 1.07 + 1 / 1.07 ** 2
+    assert F.terminal_multiple(0.0, r, 2035, 2037, False, 0.25, 0.2) == pytest.approx(
+        flat_two + 0.75 / 1.07 ** 2 / 0.27)
+    # No erosion shape, nothing to follow.
+    assert F.terminal_multiple(0.0, r, 2035, 2028, False, None, None) == pytest.approx(1 / r)
+
+
+def test_a_horizon_ending_inside_erosion_no_longer_capitalises_the_tail_flat():
+    flat = F.build(casgevy_inputs())
+    eroding = F.build(casgevy_inputs(
+        scalars={"erosion_year1_pct": 0.25, "erosion_decay_pct": 0.2},
+        loe={"year": 2031, "basis": "test"}))
+    assert eroding["terminal_pv"] < flat["terminal_pv"] * 0.5
+    assert any("terminal value follows the loss of exclusivity" in n
+               for n in eroding["notes"])

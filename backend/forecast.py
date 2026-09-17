@@ -475,6 +475,34 @@ def terminal_value(last_fcff: float, growth: float, rate: float,
     return tv, tv / (1.0 + rate) ** periods
 
 
+def terminal_multiple(growth: float, rate: float, last_year: int, loe_year=None,
+                      in_base: bool = True, year1_pct=None, decay_pct=None) -> float:
+    """What one unit of the final year's cash flow is worth at the end of that year, once
+    the product's own loss of exclusivity is carried past the horizon.
+
+    A zero-growth perpetuity of the final year is right for a product with no cliff
+    ahead of it. It is wrong for one the horizon ends inside: Keytruda's forecast stops in
+    2035, seven years into a US erosion running at 20% a year, and a flat perpetuity
+    froze that tail at its 2035 level for ever, $20.4bn of Merck's value. So the multiple
+    follows the same curve the forecast does. A product already eroding keeps decaying;
+    one whose LOE falls after the horizon runs flat to it, takes the year-one drop, and
+    then decays. A product with no LOE, a cliff in the base, or no erosion shape keeps
+    the perpetuity.
+    """
+    if rate - growth <= 0:
+        return 0.0
+    flat = (1.0 + growth) / (rate - growth)
+    if loe_year is None or in_base or year1_pct is None:
+        return flat
+    decay = decay_pct or 0.0
+    if last_year > loe_year:
+        return (1.0 - decay) / (rate + decay)
+    step = (1.0 + growth) / (1.0 + rate)
+    n = int(loe_year) - int(last_year)
+    before = sum(step ** k for k in range(1, n + 1))
+    return before + step ** n * (1.0 - year1_pct) / (rate + decay)
+
+
 # --- the whole build --------------------------------------------------------
 
 _PERIOD_ORDER = {"Q1": 1, "H1": 2, "Q2": 2, "Q3": 3, "Q4": 4}
@@ -807,6 +835,24 @@ def build(inputs: dict) -> dict:
     if (scalars.get("terminal_mode") or "perpetuity") == "perpetuity":
         last = spans[-1] if spans else len(flows) - 0.5
         tv, tv_pv = terminal_value(flows[-1], growth, rate, last)
+        # Each part of the line's final year carries its own exclusivity past the horizon,
+        # weighted by what that part earned in the final year.
+        end = window_years[-1] if window_years else None
+        final = eroded[window[-1]] if window else 0.0
+        parts = [(final - sum(r["revenue_after_loe"][window[-1]] for r in regional),
+                  loe_year, in_base)]
+        parts += [(r["revenue_after_loe"][window[-1]], r["loe_year"], r["in_base"])
+                  for r in regional]
+        if end is not None and final > 0 and rate - growth > 0:
+            multiple = sum(w / final * terminal_multiple(growth, rate, end, y, b, year1, decay)
+                           for w, y, b in parts)
+            flat = (1.0 + growth) / (rate - growth)
+            if abs(multiple - flat) > 1e-9:
+                tv = flows[-1] * multiple
+                tv_pv = tv / (1.0 + rate) ** last
+                notes.append(f"terminal value follows the loss of exclusivity past {end}: "
+                             f"{multiple:.2f}x the final year's cash flow against "
+                             f"{flat:.2f}x for a flat perpetuity")
     else:
         tv, tv_pv = 0.0, 0.0
         notes.append("no terminal value taken")
