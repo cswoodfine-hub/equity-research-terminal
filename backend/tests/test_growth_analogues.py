@@ -32,29 +32,41 @@ def test_the_engines_own_path_is_fitted_back_to_its_fade():
 
 
 def test_a_peaked_drug_gives_one_observation_a_year_before_its_peak(tmp_path):
-    years = _grow(1000, 0.30, 6, 2010, after=(0.8, 0.6))
+    years = _grow(1000, 0.30, 6, 2010, after=(0.85, 0.75))
     path = _csv(tmp_path, [("MRK", "Drug", y, v) for y, v in years.items()])
     got = G.measure(path)
     obs = got["observations"]
-    assert [o["year"] for o in obs] == list(range(2011, 2016))
-    # The first year is growth into it, the full 30%, and the rest of the climb is five
-    # years of the fade that started a year earlier, so it fits a little under six.
-    assert obs[0]["growth"] == pytest.approx(0.30) and obs[0]["years_to_peak"] == 5
-    assert 4 <= obs[0]["fade"] <= 6
+    # 2011 is growth out of the first year on file, a launch year, and is not measured.
+    assert [o["year"] for o in obs] == list(range(2012, 2016))
+    assert obs[0]["years_to_peak"] == 4
+    assert 3 <= obs[0]["fade"] <= 5
     assert got["censored"] == []
 
 
-def test_a_drug_still_near_its_best_is_censored_not_measured(tmp_path):
-    years = _grow(1000, 0.30, 6, 2018, after=(0.97,))
-    path = _csv(tmp_path, [("LLY", "Climber", y, v) for y, v in years.items()])
+def test_a_drug_still_near_its_best_or_cut_by_exclusivity_is_censored(tmp_path):
+    growing = _grow(1000, 0.30, 6, 2018, after=(0.97,))
+    cliff = _grow(1000, 0.30, 6, 2000, after=(0.62, 0.35))
+    path = _csv(tmp_path, [("LLY", "Climber", y, v) for y, v in growing.items()]
+                + [("ABBV", "Cliff", y, v) for y, v in cliff.items()])
     got = G.measure(path)
-    assert got["observations"] == [] and got["censored"] == ["LLY Climber"]
+    assert got["censored"] == ["ABBV Cliff (lost exclusivity at its peak)",
+                               "LLY Climber (still near its best)"]
+    assert got["observations"] and all(o["censored"] for o in got["observations"])
+
+
+def test_kaplan_meier_reads_a_censored_length_as_at_least():
+    # Four drugs stop at 2, 4, 6 and 8 years; two more are still growing at 5 and 9.
+    values = [(2, False), (4, False), (5, True), (6, False), (8, False), (9, True)]
+    curve = G.kaplan_meier(values)
+    assert curve[0] == (2, pytest.approx(5 / 6))
+    assert G.km_quantile(curve, 0.5) == 6          # a plain median of the four is 5
+    assert G.km_quantile([(2, 0.9), (4, 0.8)], 0.5) is None
 
 
 def test_bands_count_each_drug_once_and_need_three_for_quartiles(tmp_path):
     rows = []
     for name, fade in (("A", 3), ("B", 5), ("C", 8), ("D", 10)):
-        years = _grow(1000, 0.18, fade, 2000, after=(0.5, 0.4))
+        years = _grow(1000, 0.18, fade, 2000, after=(0.85, 0.8))
         rows += [("PFE", name, y, v) for y, v in years.items()]
     got = G.measure(_csv(tmp_path, rows))
     band = next(b for b in got["bands"] if b["band"] == (0.10, 0.25))
@@ -101,8 +113,10 @@ def test_a_measured_fade_applies_to_filed_growth_only():
     assert G.applies({"therapy_mode": "chronic"}, []) is None
 
 
-def test_the_fade_source_names_the_band_the_count_and_the_floor():
-    row = {"band": (0.10, 0.25), "n": 9, "median": 6.0, "low": 4.0, "high": 8.5}
-    text = G.fade_source(row, 12)
-    assert "9 that grew 10% to 25% a year took a median 6 years" in text
-    assert "quartiles 4 to 8.5" in text and "growth_analogues.csv" in text and "a floor" in text
+def test_the_fade_source_names_the_band_the_count_and_the_censoring():
+    row = {"band": (0.10, 0.25), "n": 9, "censored": 3, "median": 6.0, "low": 4.0, "high": None,
+           "high_at_least": 11.0}
+    text = G.fade_source(row)
+    assert "9 drugs that grew 10% to 25% a year: the median took 6 years" in text
+    assert "quartiles 4 to at least 11" in text and "3 of them censored" in text
+    assert "growth_analogues.csv" in text

@@ -19,10 +19,17 @@ rests on.
 Observations are grouped by the growth rate they start from, since a drug growing 60% a
 year is at a different point in its life from one growing 8%. Each drug counts once in a
 band, at the median of its own years there, so a long-lived drug with many years in a band
-does not outvote the rest. A drug still growing at its last reported year has not shown
-its peak, so it is left out of the measurement and counted as censored: its fade can only
-be longer than what it has shown, which makes the measured lengths a floor rather than an
-estimate biased long.
+does not outvote the rest.
+
+Two kinds of drug have not shown how long their growth would have lasted, and dropping
+them would bias every length short, since the drugs that grow longest are the ones most
+likely to be growing still. A drug still near its best has a climb that is only a lower
+bound. A drug whose revenue fell by more than 40% within two years of its peak lost
+exclusivity at the peak (Humira, Revlimid), and the engine already charges that fall
+through erosion, so its growth was cut rather than spent. Both are kept as censored
+observations, "at least this long", and the lengths are read off a Kaplan-Meier estimate
+rather than a plain median. A quartile the censoring leaves undetermined is left out, not
+guessed.
 """
 
 from __future__ import annotations
@@ -39,6 +46,8 @@ BANDS = ((0.0, 0.10), (0.10, 0.25), (0.25, 0.50), (0.50, 1.00), (1.00, math.inf)
 MAX_FADE = 30
 # A drug has peaked when its last reported year is at least this far below its best.
 PEAKED_BELOW = 0.90
+# A fall this steep this soon after the peak is a loss of exclusivity, not a spent climb.
+CLIFF_DROP, CLIFF_YEARS = 0.40, 2
 
 
 # A drug that changed hands is one drug: Humira under Abbott and then AbbVie, Revlimid
@@ -98,23 +107,37 @@ def band_of(growth: float):
     return next((b for b in BANDS if b[0] < growth <= b[1]), None)
 
 
+def status(years: dict) -> str:
+    """peaked, cliff (lost exclusivity at the peak) or growing (still near its best)."""
+    peak_year = max(years, key=lambda y: years[y])
+    last = max(years)
+    if not (peak_year < last and years[last] <= PEAKED_BELOW * years[peak_year]):
+        return "growing"
+    after = [years[y] for y in range(peak_year + 1, peak_year + CLIFF_YEARS + 1) if y in years]
+    if after and min(after) <= (1.0 - CLIFF_DROP) * years[peak_year]:
+        return "cliff"
+    return "peaked"
+
+
 def observations(series: dict) -> tuple[list, list]:
-    """(observations, censored). An observation is one year of a peaked drug before its
-    peak with positive growth: {product, year, growth, climb, fade, years_to_peak}.
-    ``censored`` names the drugs still at or near their best."""
+    """(observations, censored). An observation is one year before a drug's best with
+    measurable growth: {product, year, growth, climb, fade, years_to_peak, censored}.
+    ``censored`` names the drugs whose climb is a lower bound, with why."""
     out, censored = [], []
     for product, entry in series.items():
         years = entry["years"]
         if len(years) < 3:
             continue
+        state = status(years)
+        if state != "peaked":
+            censored.append(f"{product} ({'still near its best' if state == 'growing' else 'lost exclusivity at its peak'})")
         peak_year = max(years, key=lambda y: years[y])
-        last = max(years)
-        if not (peak_year < last and years[last] <= PEAKED_BELOW * years[peak_year]):
-            censored.append(product)
-            continue
+        first = min(years)
         for year in sorted(years):
+            # The first year on file is usually a launch year sold for part of it, so the
+            # step out of it is not a year's growth.
             if (year >= peak_year or (year - 1) not in years or years[year - 1] <= 0
-                    or year in entry.get("breaks", ())):
+                    or year - 1 == first or year in entry.get("breaks", ())):
                 continue
             growth = years[year] / years[year - 1] - 1.0
             if growth <= 0:
@@ -122,28 +145,51 @@ def observations(series: dict) -> tuple[list, list]:
             climb = years[peak_year] / years[year]
             out.append({"product": product, "year": year, "growth": growth, "climb": climb,
                         "fade": fitted_fade(growth, climb),
-                        "years_to_peak": peak_year - year})
+                        "years_to_peak": peak_year - year, "censored": state != "peaked"})
     return out, censored
 
 
+def kaplan_meier(values: list) -> list:
+    """[(time, survival)] for (value, censored) pairs: the share still growing past each
+    length, where a censored value is known only to be at least that long."""
+    times = sorted({v for v, c in values if not c})
+    survival, curve = 1.0, []
+    for t in times:
+        at_risk = sum(1 for v, _ in values if v >= t)
+        events = sum(1 for v, c in values if v == t and not c)
+        if at_risk:
+            survival *= 1.0 - events / at_risk
+        curve.append((t, survival))
+    return curve
+
+
+def km_quantile(curve: list, p: float):
+    """The shortest length by which a share ``p`` of drugs had stopped growing, or None
+    where the censoring leaves it undetermined."""
+    return next((t for t, s in curve if s <= 1.0 - p + 1e-12), None)
+
+
 def by_band(observed: list) -> list[dict]:
-    """Per growth band: the drugs in it, each at its own median fade, and the quartiles
-    across drugs. A band with fewer than three drugs gives no quartiles."""
+    """Per growth band: each drug once, at its median fade there, censored if its climb
+    is a lower bound, and the Kaplan-Meier quartiles across drugs."""
     out = []
     for band in BANDS:
         per_product: dict = {}
         for o in observed:
             if band_of(o["growth"]) == band:
                 per_product.setdefault(o["product"], []).append(o)
-        fades = sorted(statistics.median(x["fade"] for x in obs)
-                       for obs in per_product.values())
-        peaks = sorted(statistics.median(x["years_to_peak"] for x in obs)
-                       for obs in per_product.values())
-        row = {"band": band, "products": sorted(per_product), "n": len(fades)}
-        if len(fades) >= 3:
-            q = statistics.quantiles(fades, n=4, method="inclusive")
-            row.update(low=q[0], median=q[1], high=q[2],
-                       years_to_peak_median=statistics.median(peaks))
+        values = [(statistics.median(x["fade"] for x in obs), obs[0]["censored"])
+                  for obs in per_product.values()]
+        row = {"band": band, "products": sorted(per_product), "n": len(values),
+               "peaked": sum(1 for _, c in values if not c),
+               "censored": sum(1 for _, c in values if c)}
+        curve = kaplan_meier(values)
+        median = km_quantile(curve, 0.5)
+        if row["peaked"] >= 3 and median is not None:
+            row.update(low=km_quantile(curve, 0.25), median=median,
+                       high=km_quantile(curve, 0.75))
+            if row["high"] is None:
+                row["high_at_least"] = max(v for v, _ in values)
         out.append(row)
     return out
 
@@ -162,7 +208,13 @@ def for_growth(measured: dict, growth: float) -> dict | None:
     if band is None:
         return None
     row = next(b for b in measured["bands"] if b["band"] == band)
-    return row if "median" in row else None
+    return row if row.get("median") is not None and row.get("low") is not None else None
+
+
+def whole_years(value: float) -> int:
+    """A fade length in whole years, halves rounded up: the engine reads whole years, and
+    a measured 4.5 is not four."""
+    return int(math.floor(value + 0.5))
 
 
 def band_words(band: tuple) -> str:
@@ -195,10 +247,12 @@ def applies(scalars: dict, rows: list) -> tuple | None:
     return key, growth
 
 
-def fade_source(row: dict, censored: int, path_name: str = "data/growth_analogues.csv") -> str:
+def fade_source(row: dict, path_name: str = "data/growth_analogues.csv") -> str:
     """The source text for a measured fade row."""
-    return (f"measured from peaked drugs: {row['n']} that grew {band_words(row['band'])} "
-            f"took a median {row['median']:g} years of fading growth to reach their peak "
-            f"revenue (quartiles {row['low']:g} to {row['high']:g}), fitted to each drug's "
-            f"actual climb in {path_name}. {censored} drugs still near their best are left "
-            "out, so this is a floor")
+    high = (f"{row['high']:g}" if row.get("high") is not None
+            else f"at least {row['high_at_least']:g}")
+    return (f"measured from {row['n']} drugs that grew {band_words(row['band'])}: the median "
+            f"took {row['median']:g} years of fading growth to reach its peak revenue "
+            f"(quartiles {row['low']:g} to {high}), each fitted to its own climb in "
+            f"{path_name}. Kaplan-Meier across drugs, {row['censored']} of them censored "
+            "because they are still near their best or lost exclusivity at their peak")

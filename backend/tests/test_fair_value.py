@@ -117,16 +117,22 @@ def test_comps_value_the_company_at_its_peers_quartiles(tmp_path):
     assert lenses["ev_sales"]["low"] == pytest.approx(3 * own["revenue_ps"] + own["net_cash_ps"])
 
 
-def test_the_company_view_carries_its_lenses_with_bases(tmp_path):
+def test_the_company_view_carries_its_lenses_with_bases(tmp_path, monkeypatch):
+    # Repatha grows 10% a year on a filed rate: its band's fade quartiles are 3 and 8 years.
+    measured = {"bands": [{"band": (0.0, 0.10), "n": 9, "peaked": 6, "censored": 3,
+                           "low": 3, "median": 5, "high": 8}]}
+    monkeypatch.setattr(F.GA, "measure", lambda path=None: measured)
     path = _company(tmp_path, guidance=[("Revenue", "FY2026", 3630e6, 3465e6, 3795e6)])
     got = F.company(path, "AMGN", peers=[])
     keys = [l["key"] for l in got["lenses"]]
-    assert keys == ["sotp_wacc", "sotp_guidance", "targets", "range"]
+    assert keys == ["sotp_wacc", "sotp_fade", "sotp_guidance", "targets", "range"]
+    fade = got["lenses"][1]
+    assert fade["products"] == 1 and fade["low"] < got["equity_per_share"] < fade["high"]
     wacc = got["lenses"][0]
     assert wacc["mid"] == pytest.approx(got["equity_per_share"])
     assert wacc["low"] < wacc["mid"] < wacc["high"]
-    assert (got["lenses"][2]["low"], got["lenses"][2]["high"]) == (280, 400)
-    assert (got["lenses"][3]["low"], got["lenses"][3]["high"]) == (250, 300)
+    assert (got["lenses"][3]["low"], got["lenses"][3]["high"]) == (280, 400)
+    assert (got["lenses"][4]["low"], got["lenses"][4]["high"]) == (250, 300)
     assert all(l["basis"] for l in got["lenses"])
 
 

@@ -229,7 +229,8 @@ def fade_range(book: B.Book, measured: dict | None = None) -> dict | None:
             if band is None:
                 return None
             touched.append(part["name"])
-            return V.apply_lever(inputs, "growth_fade_years", round(band[which]))
+            value = band.get(which) if band.get(which) is not None else band.get(f"{which}_at_least")
+            return V.apply_lever(inputs, "growth_fade_years", GA.whole_years(value))
         value = book.equity_with(asset_trial, lambda part, scalars: None)
         return value, touched
     low, touched = at("low")
