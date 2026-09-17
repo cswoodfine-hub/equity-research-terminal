@@ -1,0 +1,53 @@
+# Novartis net sales that no product on file carries, so the model reconciles to the reported
+# USD 54,532mm rather than to the product rows alone.
+#
+# The FY2025 20-F (0001114448-26-000004), Note 4, lists net sales by product. The 23 products
+# modelled sum to USD 44,312mm; the rest of the table is five lines, USD 10,220mm, and tagged
+# plus untagged ties to reported net sales in 2023, 2024 and 2025.
+#
+# Established brands: Exforge, Diovan, Galvus and 'Other', a tail the filing does not break
+# down. Coartem sits inside Other by footnote, and Gilenya was folded into it in 2025.
+# Contract manufacturing: manufacturing services for other companies, moved over from Sandoz
+# in 2023. It is not a drug and it swings with orders, so it is held at its level.
+#
+# Other revenues (USD 2,142mm in 2025: profit sharing, royalties, milestones) sit outside net
+# sales and outside the reported revenue every ratio is struck on, and are not carried here.
+#
+# Margins and the discount rate are the company's, copied from the rows every Novartis product
+# carries, so the products and these lines together are the company's own P&L. Contract
+# manufacturing earns less than that, and the other lines more.
+ticker,line,scenario,key,value,text_value,unit,source,note
+NVS,Established brands,base,base_revenue,8801.0,,mm USD,"Novartis FY2025 20-F (0001114448-26-000004), Note 4 net sales by product: Exforge Group 727, Diovan Group 604, Galvus Group 487 and Other 6,983, USD mm",Coartem is inside Other by the table's footnote; Gilenya was folded into Other in the 2025 presentation
+NVS,Established brands,base,revenue_growth_pct,-0.071918,,"annual, near term","the same table a year earlier: 8,801 against 9,483 in 2024 (Exforge 703, Diovan 590, Galvus 602, Other 7,588 as restated), -7.2% in USD","the year before fell 9.4%, from 10,471 in 2023"
+NVS,Established brands,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+NVS,Established brands,base,growth_fade_years,5,,years,convention: a recent rate describes next year,
+NVS,Established brands,base,forecast_start_year,2026,,year,the year after the last reported full year,
+NVS,Established brands,base,forecast_years,10,,years,the horizon most of NVS's marketed assets carry,
+NVS,Established brands,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+NVS,Established brands,base,cogs_pct,0.2512,,share of revenue,"NVS FY2025, computed from the filed lines",
+NVS,Established brands,base,sga_pct,0.2429,,share of revenue,"NVS FY2025, computed from the filed lines",
+NVS,Established brands,base,rd_pct,0.2054,,share of revenue,"NVS FY2025, computed from the filed lines",
+NVS,Established brands,base,other_costs_pct,-0.05862612777818529,,share of revenue,"derived and found to be nil: NVS's filed expense lines already leave less than the 31.44% of revenue it turned into free cash over 2023 to 2025, so there is nothing left to charge. Restated before interest: NVS paid $2,587mm of interest inside operating cash flow over 2023 to 2025, 1.72% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so adding it back only widens a gap the filed lines already leave, and the charge stays nil. Checked at replacement capex: no plant depreciation on file for every year, and no amortisation line to take it out of the combined figure, so the charge stands. Checked without one-off cash: deal payments are booked under investing, so free cash flow never carried them, and no settlement or transition tax is stated for the window, so the charge stands. Restated to the amortisation floor: the filed cost lines leave a 30.05% pre-tax margin where the cash over 2023 to 2025 supports 37.20%, so the charge rebuilds at -7.15%. It was held at nil, but NVS books $3,197mm of non-cash amortisation of acquired intangibles inside its cost lines in FY2025 (0001114448-26-000004), 5.86% of revenue, so the charge stops at that floor: -5.86%. Restated without working capital build: over 2023 to 2025 NVS's cash flow statement shows receivables up $3,559mm, inventories up $737mm, payables up $101mm, a working capital build of $4,195mm, 2.79% of revenue. Growth ties that cash up once, not on every product for ever, so the charge was held at the amortisation floor, -5.86% where the filed figures rebuild it at -7.15%, and stays there.","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+NVS,Established brands,base,tax_rate,0.114,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+NVS,Established brands,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+NVS,Established brands,base,erp,0.05,,,Damodaran US ERP estimate,
+NVS,Established brands,base,beta,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.42 raw)",
+NVS,Established brands,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",
+NVS,Established brands,base,debt_weight,0.085397,,,"filed TotalDebt of $28,729mm over debt plus market capitalisation: 1,908.2mm shares at 2025-12-31 at the $161.25 close of 2026-09-01",
+NVS,Contract manufacturing,base,base_revenue,1419.0,,mm USD,"Novartis FY2025 20-F (0001114448-26-000004), Note 4 net sales by product: Contract manufacturing 1,419 USD mm","manufacturing services for other companies, not a drug franchise"
+NVS,Contract manufacturing,base,revenue_growth_pct,0.0,,"annual, near term","held at its 2025 level: the line swings with orders, 1,490 in 2023, 1,152 in 2024 and 1,419 in 2025 (same table), so neither year's change is a rate",two years net: -4.8%
+NVS,Contract manufacturing,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+NVS,Contract manufacturing,base,growth_fade_years,5,,years,convention: nothing to fade from a held level,
+NVS,Contract manufacturing,base,forecast_start_year,2026,,year,the year after the last reported full year,
+NVS,Contract manufacturing,base,forecast_years,10,,years,the horizon most of NVS's marketed assets carry,
+NVS,Contract manufacturing,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+NVS,Contract manufacturing,base,cogs_pct,0.2512,,share of revenue,"NVS FY2025, computed from the filed lines",
+NVS,Contract manufacturing,base,sga_pct,0.2429,,share of revenue,"NVS FY2025, computed from the filed lines",
+NVS,Contract manufacturing,base,rd_pct,0.2054,,share of revenue,"NVS FY2025, computed from the filed lines",
+NVS,Contract manufacturing,base,other_costs_pct,-0.05862612777818529,,share of revenue,"derived and found to be nil: NVS's filed expense lines already leave less than the 31.44% of revenue it turned into free cash over 2023 to 2025, so there is nothing left to charge. Restated before interest: NVS paid $2,587mm of interest inside operating cash flow over 2023 to 2025, 1.72% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so adding it back only widens a gap the filed lines already leave, and the charge stays nil. Checked at replacement capex: no plant depreciation on file for every year, and no amortisation line to take it out of the combined figure, so the charge stands. Checked without one-off cash: deal payments are booked under investing, so free cash flow never carried them, and no settlement or transition tax is stated for the window, so the charge stands. Restated to the amortisation floor: the filed cost lines leave a 30.05% pre-tax margin where the cash over 2023 to 2025 supports 37.20%, so the charge rebuilds at -7.15%. It was held at nil, but NVS books $3,197mm of non-cash amortisation of acquired intangibles inside its cost lines in FY2025 (0001114448-26-000004), 5.86% of revenue, so the charge stops at that floor: -5.86%. Restated without working capital build: over 2023 to 2025 NVS's cash flow statement shows receivables up $3,559mm, inventories up $737mm, payables up $101mm, a working capital build of $4,195mm, 2.79% of revenue. Growth ties that cash up once, not on every product for ever, so the charge was held at the amortisation floor, -5.86% where the filed figures rebuild it at -7.15%, and stays there.","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+NVS,Contract manufacturing,base,tax_rate,0.114,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+NVS,Contract manufacturing,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+NVS,Contract manufacturing,base,erp,0.05,,,Damodaran US ERP estimate,
+NVS,Contract manufacturing,base,beta,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.42 raw)",
+NVS,Contract manufacturing,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",
+NVS,Contract manufacturing,base,debt_weight,0.085397,,,"filed TotalDebt of $28,729mm over debt plus market capitalisation: 1,908.2mm shares at 2025-12-31 at the $161.25 close of 2026-09-01",
