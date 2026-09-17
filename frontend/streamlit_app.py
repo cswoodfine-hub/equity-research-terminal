@@ -1152,7 +1152,8 @@ def _street_block(api_base: str, ticker: str) -> None:
         metric, period = row["metric"], row["period"]
         name = "" if metric == "Revenue" else (
             " growth" if metric == "RevenueGrowth" else
-            " price target" if metric == "PriceTarget" else " EPS")
+            " price target" if metric == "PriceTarget" else
+            " product sales" if metric == "ProductSales" else " EPS")
         tiles = []
         for label, entry in (("guidance", row.get("guidance")),
                              ("street", row.get("street"))):

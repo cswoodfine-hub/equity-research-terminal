@@ -50,30 +50,41 @@ def _quartiles(values: list) -> tuple | None:
 
 # --- revenue against guidance ------------------------------------------------------
 def guidance(conn, company_id: int, year: int, prior_revenue: float | None,
-             unit: str | None) -> dict | None:
+             unit: str | None) -> dict:
     """The newest revenue guidance for the year, in millions of the reporting currency.
-    Growth guidance is applied to the prior year's reported revenue, and says so."""
+    Growth guidance is applied to the prior year's reported revenue, and says so. Where
+    none can be read against the book, {"reason"} says why: no guidance, guidance in
+    words, guidance on product sales alone, or a currency the book is not in."""
     row = conn.execute(
         """SELECT metric, value, low, high, currency, as_of, note FROM consensus_estimates
             WHERE company_id = ? AND source = 'guidance' AND period = ?
-              AND metric IN ('Revenue', 'RevenueGrowth')
-              AND (value IS NOT NULL OR (low IS NOT NULL AND high IS NOT NULL))
+              AND metric IN ('Revenue', 'RevenueGrowth', 'ProductSales')
             ORDER BY as_of DESC, metric = 'Revenue' DESC LIMIT 1""",
         (company_id, f"FY{year}")).fetchone()
     if row is None:
-        return None
+        return {"reason": f"no FY{year} revenue guidance on file"}
+    if row["metric"] == "ProductSales":
+        return {"reason": f"FY{year} guidance covers product sales only, not total revenue"}
+    if row["value"] is None and (row["low"] is None or row["high"] is None):
+        return {"reason": (f"FY{year} revenue guidance is stated in words, not a number"
+                           if row["metric"] == "RevenueGrowth"
+                           else f"the company gives no FY{year} revenue guidance")}
     mid = row["value"] if row["value"] is not None else (row["low"] + row["high"]) / 2.0
     low = row["low"] if row["low"] is not None else mid
     high = row["high"] if row["high"] is not None else mid
     if row["metric"] == "RevenueGrowth":
         if prior_revenue is None:
-            return None
+            return {"reason": f"no FY{year - 1} revenue to apply growth guidance to"}
         scale = prior_revenue / 1e6
+        note = (row["note"] or "").lower()
+        cer = (" at constant exchange rates" if ("constant" in note or " cer" in note)
+               else "")
+        stated = f"about {mid:g}%" if low == high else f"{low:g}% to {high:g}%"
         return {"mid": scale * (1 + mid / 100), "low": scale * (1 + low / 100),
                 "high": scale * (1 + high / 100), "as_of": row["as_of"], "note": row["note"],
-                "basis": f"growth of {low:g}% to {high:g}% on FY{year - 1} reported revenue"}
+                "basis": f"growth of {stated}{cer}, applied to FY{year - 1} reported revenue"}
     if (row["currency"] or unit or "").upper() != (unit or "").upper():
-        return None
+        return {"reason": f"FY{year} guidance is in {row['currency']}, the book in {unit}"}
     return {"mid": mid / 1e6, "low": low / 1e6, "high": high / 1e6, "as_of": row["as_of"],
             "note": row["note"], "basis": "revenue as guided"}
 
@@ -152,8 +163,8 @@ def revenue_split(book: B.Book, year: int = GUIDED_YEAR) -> dict:
                           prior["unit"] if prior else None)
     finally:
         conn.close()
-    if guided is None:
-        return {"ok": False, "reason": f"no FY{year} revenue guidance on file"}
+    if "reason" in guided:
+        return {"ok": False, "reason": guided["reason"]}
     modelled = model_revenue(book, year)
     coverage = book.verdict.get("coverage") or {}
     unmodelled = max(0.0, (coverage.get("untagged_revenue") or 0.0) / 1e6)

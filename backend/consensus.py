@@ -29,7 +29,7 @@ SEED_DIR = pathlib.Path(__file__).resolve().parent.parent / "data" / "consensus"
 # because companies that guide in growth (Novo's "sales growth of 8-14%") state exactly
 # that, and deriving an absolute from it would compound a constant-currency rate onto a
 # reported base the company did not use.
-METRICS = ("Revenue", "EPS", "RevenueGrowth", "PriceTarget")
+METRICS = ("Revenue", "EPS", "RevenueGrowth", "PriceTarget", "ProductSales")
 
 
 def latest(conn, company_id: int) -> list[dict]:

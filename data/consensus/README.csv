@@ -6,7 +6,7 @@
 # figure from a paywalled preview. Every row needs its source and as-of date, because an
 # estimate without provenance is indistinguishable from an invented one.
 #
-# metric: Revenue | EPS | RevenueGrowth. Revenue and EPS are absolute amounts in
+# metric: Revenue | EPS | RevenueGrowth | PriceTarget | ProductSales. Revenue and EPS are absolute amounts in
 # currency units (63.5bn = 63500000000); RevenueGrowth is a percent range with currency
 # blank. period: FY2026. source: manual (or name the desk). value may be blank when low
 # and high carry a range; the reader midpoints it.

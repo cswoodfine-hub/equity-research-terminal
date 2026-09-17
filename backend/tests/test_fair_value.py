@@ -62,13 +62,13 @@ def test_growth_guidance_is_applied_to_the_prior_year_and_says_so(tmp_path):
     got = F.guidance(conn, 1, 2026, 3000e6, "USD")
     conn.close()
     assert (got["low"], got["mid"], got["high"]) == pytest.approx((3090, 3120, 3150))
-    assert "growth of 3% to 5%" in got["basis"]
+    assert got["basis"] == "growth of 3% to 5%, applied to FY2025 reported revenue"
 
 
 def test_guidance_in_another_currency_is_not_read_against_the_book(tmp_path):
     path = _company(tmp_path, guidance=[("Revenue", "FY2026", 3300e6, None, None)])
     conn = db.get_connection(path)
-    assert F.guidance(conn, 1, 2026, 3000e6, "DKK") is None
+    assert F.guidance(conn, 1, 2026, 3000e6, "DKK") == {"reason": "FY2026 guidance is in USD, the book in DKK"}
     assert F.guidance(conn, 1, 2026, 3000e6, "USD")["mid"] == pytest.approx(3300)
     conn.close()
 
@@ -128,3 +128,12 @@ def test_the_company_view_carries_its_lenses_with_bases(tmp_path):
     assert (got["lenses"][2]["low"], got["lenses"][2]["high"]) == (280, 400)
     assert (got["lenses"][3]["low"], got["lenses"][3]["high"]) == (250, 300)
     assert all(l["basis"] for l in got["lenses"])
+
+
+def test_guidance_that_cannot_be_read_against_the_book_says_why(tmp_path):
+    cases = (([("RevenueGrowth", "FY2026", None, None, None)], "FY2026 revenue guidance is stated in words, not a number"),
+             ([("Revenue", "FY2026", None, None, None)], "the company gives no FY2026 revenue guidance"),
+             ([("ProductSales", "FY2026", 5195e6, 5130e6, 5260e6)], "FY2026 guidance covers product sales only, not total revenue"))
+    for i, (rows, reason) in enumerate(cases):
+        path = _company(tmp_path / str(i), guidance=rows)
+        assert F.revenue_split(B.Book(path, "AMGN")) == {"ok": False, "reason": reason}
