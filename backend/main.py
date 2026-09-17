@@ -18,6 +18,7 @@ import annotations as annotations_module
 import allocation as allocation_module
 import asof as asof_module
 import breakpoints
+import fair_value
 import backtest as backtest_module
 import asset_revenue as asset_revenue_module
 import catalyst_grid as catalyst_grid_module
@@ -611,6 +612,16 @@ def company_breakpoints(ticker: str) -> dict:
     """For every assumption the company's value rests on, the value at which it meets
     the price, with the evidence grade of the row it rests on."""
     out = breakpoints.company(None, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    return out
+
+
+@app.get("/companies/{ticker}/fair-value")
+def company_fair_value(ticker: str) -> dict:
+    """The company's value across lenses, each a range with its basis, against the
+    price, and the modelled revenue against guidance with the value it explains."""
+    out = fair_value.company(None, ticker)
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
     return out
