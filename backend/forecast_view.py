@@ -16,6 +16,7 @@ import assumptions as assumptions_module
 import company_lines
 import db
 import forecast
+import loe_link
 
 
 def _company(conn, ticker: str):
@@ -950,6 +951,29 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
     }
 
 
+def _read_twice(conn, company_id: int, rows: list) -> set:
+    """Assets whose full-year figure is another asset's, read from a second filing.
+
+    Pfizer's Inflectra arrives twice: the 10-K product axis files it as "Inflectra /
+    Remsima" and the results exhibit as "Inflectra", the name the FDA holds the BLA under.
+    Both rows said $646mm for FY2025, so the tagged total counted it twice and the untagged
+    remainder read $646mm short. ``data/loe_link.csv`` already says the application is the
+    revenue line's, so another asset of the company holding that application and reporting
+    the same figure is the same revenue. A different figure is left alone: that is two
+    products sharing an application, not one product read twice.
+    """
+    by_asset = {r["id"]: r["value"] for r in rows}
+    out = set()
+    for line_id, link in loe_link.load(conn).items():
+        if line_id not in by_asset:
+            continue
+        for holder in loe_link.holders(conn, link["code"], exclude=(line_id,)):
+            if (holder in by_asset and holder not in out
+                    and abs(by_asset[holder] - by_asset[line_id]) < 0.5e6):
+                out.add(holder)
+    return out
+
+
 def _revenue_coverage(conn, company_id: int, modelled_ids: list, streams=None):
     """What share of last year's reported revenue the model accounts for.
 
@@ -978,6 +1002,8 @@ def _revenue_coverage(conn, company_id: int, modelled_ids: list, streams=None):
             WHERE a.owner_company_id = ? AND ar.period = 'FY'
               AND ar.fiscal_year = ? AND ar.value IS NOT NULL
             ORDER BY ar.value DESC""", (company_id, year))]
+    twice = _read_twice(conn, company_id, rows)
+    rows = [r for r in rows if r["id"] not in twice]
     tagged = sum(r["value"] for r in rows)
     reported = conn.execute(
         """SELECT value FROM financials WHERE company_id = ? AND metric = 'Revenues'

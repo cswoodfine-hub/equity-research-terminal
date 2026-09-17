@@ -221,3 +221,34 @@ def test_reported_lines_come_back_largest_first(tmp_path):
     out = company_lines.reported(conn, 1)
     conn.close()
     assert [r["line"] for r in out] == ["Bigger", "Royalties"]
+
+
+def _second_reading(path, tmp_path, monkeypatch, value):
+    """An asset holding the application the link file joins to Trikafta, with its own
+    full-year row: Pfizer's Inflectra beside Inflectra / Remsima."""
+    import loe_link
+    links = tmp_path / "loe_link.csv"
+    links.write_text("ticker,asset,application_number,note,reference_product\n"
+                     "VRTX,Trikafta,NDA212273,the line's application,\n")
+    monkeypatch.setattr(loe_link, "LINK_FILE", links)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, internal_code,"
+                 " is_marketed) VALUES (5, 1, 'Trikafta tablets', 'NDA212273', 1)")
+    conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value, unit,"
+                 " source) VALUES (5, 2025, 'FY', ?, 'USD', 'exhibit')", (value * MM,))
+    conn.commit()
+    conn.close()
+    return forecast_view.company_verdict(path, "VRTX")["coverage"]
+
+
+def test_one_figure_read_from_two_filings_is_counted_once(tmp_path, monkeypatch):
+    c = _second_reading(_seed(tmp_path, reported=12_000), tmp_path, monkeypatch, 10_000)
+    assert c["tagged_revenue"] == pytest.approx(11_000 * MM)
+    assert c["untagged_revenue"] == pytest.approx(500 * MM)
+    assert "Trikafta tablets" not in [u["name"] for u in c["unmodelled"]]
+
+
+def test_a_different_figure_on_the_same_application_still_counts(tmp_path, monkeypatch):
+    c = _second_reading(_seed(tmp_path, reported=12_000), tmp_path, monkeypatch, 300)
+    assert c["tagged_revenue"] == pytest.approx(11_300 * MM)
+    assert "Trikafta tablets" in [u["name"] for u in c["unmodelled"]]
