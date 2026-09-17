@@ -1814,9 +1814,11 @@ def _breakpoints(api_base: str, ticker: str):
         return None
 
 
-def _lever_value(kind: str, value) -> str:
+def _lever_value(kind: str, value, key: str = "") -> str:
     if value is None:
         return "·"
+    if key == "launch_rate":
+        return f"{value:.3f} per R&D $"
     if kind == "year":
         return f"{int(value)}"
     if kind in ("scale",):
@@ -1826,9 +1828,11 @@ def _lever_value(kind: str, value) -> str:
     return f"{value:.2%}"
 
 
-def _lever_move(kind: str, model, value) -> str:
+def _lever_move(kind: str, model, value, key: str = "") -> str:
     if value is None:
         return "not reachable alone"
+    if key == "launch_rate":
+        return f"{value - model:+.3f}"
     if kind == "year":
         return f"{int(value) - int(model):+d}y"
     if kind in ("scale", "price"):
@@ -1856,8 +1860,8 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
     body = ""
     for l in levers:
         shown = l.get("shown") or []
-        model = _lever_value(l["kind"], l["model"])
-        brk = _lever_value(l["kind"], l["break"])
+        model = _lever_value(l["kind"], l["model"], l.get("key", ""))
+        brk = _lever_value(l["kind"], l["break"], l.get("key", ""))
         if l["kind"] == "scale" and len(shown) == 1 and shown[0].get("break") is not None:
             model, brk = f"{shown[0]['model']:.2%}", f"{shown[0]['break']:.2%}"
         grade = l.get("evidence") or "ungraded"
@@ -1865,7 +1869,7 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
                  f'<td class="rs-k">{html_escape(l["lever"])}</td>'
                  f'<td class="rs-v">{html_escape(model)}</td>'
                  f'<td class="rs-v">{html_escape(brk)}</td>'
-                 f'<td class="rs-v">{html_escape(_lever_move(l["kind"], l["model"], l["break"]))}</td>'
+                 f'<td class="rs-v">{html_escape(_lever_move(l["kind"], l["model"], l["break"], l.get("key", "")))}</td>'
                  f'<td class="rs-k">{html_escape(grade)} · {html_escape(l.get("evidence_class") or "")}</td></tr>')
     st.markdown('<table class="rs"><thead><tr><th>where</th><th>assumption</th>'
                 '<th>model</th><th>break</th><th>move</th><th>evidence</th></tr></thead>'
