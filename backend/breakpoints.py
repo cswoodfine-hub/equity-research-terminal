@@ -182,53 +182,130 @@ def _peaks(inputs: dict) -> list:
             if (ind.get("scalars") or {}).get("penetration_peak_pct") is not None]
 
 
-def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
-    """Break-points for one company's value against its last close. None for an unknown
-    ticker; {"ok": False, "reason"} where the value or the price is not on file."""
-    verdict = V.company_verdict(db_path, ticker)
-    if verdict is None:
-        return None
-    sotp = verdict.get("sotp") or {}
-    close, shares = sotp.get("close"), verdict.get("diluted_shares")
-    equity, ev = sotp.get("equity_per_share"), sotp.get("enterprise")
-    if None in (close, shares, equity, ev, sotp.get("net_cash")) or not ev:
-        return {"ok": False, "ticker": verdict["ticker"],
-                "reason": "no value against a price: equity, shares or the close is "
-                          "not on file"}
-    carry = sotp["enterprise_today"] / ev
-    net_cash = sotp["net_cash"]
-    counted = [l for l in verdict["modelled"] if l.get("counted", True)]
-    streams = list(verdict.get("streams") or [])
-    parts = counted + streams
-    conn = db.get_connection(db_path)
-    try:
-        anchor = V._valuation_anchor(conn)
-        company_id = conn.execute("SELECT id FROM companies WHERE ticker = ?",
-                                  (verdict["ticker"],)).fetchone()["id"]
-        inputs_by_asset = {l["asset_id"]: assumptions_module.load(conn, l["asset_id"])
-                           for l in counted}
-        rows_by_asset = {l["asset_id"]: assumptions_module.rows(conn, l["asset_id"])
-                         for l in counted}
-        line_entries = {e["line"]: e for e in company_lines.load(conn, company_id)}
-        line_rows = company_lines.rows(conn, company_id)
-    finally:
-        conn.close()
+class Book:
+    """One company's valued book, ready to be revalued with any assumption changed.
 
-    base_future = sotp["future"].get("value") or 0.0
-    book = ev - base_future
+    Shared by the break-points and the fair value lenses (fair_value.py), so every
+    question asked of the book runs the same engine the same way: a product rebuilt with
+    its trial inputs and put back, the future pipeline recomputed from the book's new
+    R&D, and the year-end value carried to the price date at the cost of equity. ``ok``
+    is False, with ``reason``, where the value or the price is not on file."""
 
-    def price_gap(new_book: float, new_parts: list, rate=None) -> float:
-        future = V._future_pipeline(db_path, new_parts, anchor, verdict["ticker"],
+    def __init__(self, db_path, ticker: str):
+        self.db_path = db_path
+        verdict = V.company_verdict(db_path, ticker)
+        self.verdict = verdict
+        self.ok = False
+        self.reason = None
+        if verdict is None:
+            return
+        sotp = verdict.get("sotp") or {}
+        self.sotp = sotp
+        self.ticker = verdict["ticker"]
+        self.name = verdict["name"]
+        self.close, self.shares = sotp.get("close"), verdict.get("diluted_shares")
+        self.equity, ev = sotp.get("equity_per_share"), sotp.get("enterprise")
+        if None in (self.close, self.shares, self.equity, ev, sotp.get("net_cash")) or not ev:
+            self.reason = ("no value against a price: equity, shares or the close is not "
+                           "on file")
+            return
+        self.ok = True
+        self.carry = sotp["enterprise_today"] / ev
+        self.net_cash = sotp["net_cash"]
+        self.counted = [l for l in verdict["modelled"] if l.get("counted", True)]
+        self.streams = list(verdict.get("streams") or [])
+        self.parts = self.counted + self.streams
+        conn = db.get_connection(db_path)
+        try:
+            self.anchor = V._valuation_anchor(conn)
+            company_id = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                                      (self.ticker,)).fetchone()["id"]
+            self.company_id = company_id
+            self.inputs_by_asset = {l["asset_id"]: assumptions_module.load(conn, l["asset_id"])
+                                    for l in self.counted}
+            self.rows_by_asset = {l["asset_id"]: assumptions_module.rows(conn, l["asset_id"])
+                                  for l in self.counted}
+            self.line_entries = {e["line"]: e for e in company_lines.load(conn, company_id)}
+            self.line_rows = company_lines.rows(conn, company_id)
+        finally:
+            conn.close()
+        self.base_future = sotp["future"].get("value") or 0.0
+        self.book = ev - self.base_future
+
+    def per_share(self, mm: float) -> float:
+        return mm * 1e6 / self.shares
+
+    def price_gap(self, new_book: float, new_parts: list, rate=None) -> float:
+        """Equity per share less the close, for a book and parts."""
+        future = V._future_pipeline(self.db_path, new_parts, self.anchor, self.ticker,
                                     rate_override=rate).get("value") or 0.0
-        equity_ps = ((new_book + future) * carry + net_cash) * 1e6 / shares
-        return equity_ps - close
+        equity_ps = ((new_book + future) * self.carry + self.net_cash) * 1e6 / self.shares
+        return equity_ps - self.close
 
+    @staticmethod
     def rebuilt(part: dict, result: dict, share: float, scalars: dict) -> dict:
         return {**part, "rnpv_share": result["rnpv"] * share,
                 "pnl_share": [{k: (v * share if isinstance(v, (int, float)) else v)
                                for k, v in row.items()} for row in result.get("pnl") or []],
                 "dcf_years": result.get("dcf_years") or [], "wacc": result.get("wacc"),
                 "long_run_growth": scalars.get("terminal_growth_pct")}
+
+    def gap_with(self, asset_trial, line_trial) -> float:
+        """The price gap with every product's inputs and every line's scalars passed
+        through a trial; a trial returning None leaves that part as it is."""
+        new_parts, new_book = [], 0.0
+        for part in self.parts:
+            if "asset_id" in part and part["asset_id"] in self.inputs_by_asset:
+                trial = asset_trial(part, self.inputs_by_asset[part["asset_id"]])
+                if trial is None:
+                    new_parts.append(part)
+                    new_book += part.get("rnpv_share") or 0.0
+                    continue
+                try:
+                    result = forecast.build(trial)
+                except forecast.ForecastError:
+                    return math.nan
+                share = part.get("share") if part.get("share") is not None else 1.0
+                new = self.rebuilt(part, result, share, trial["scalars"])
+                new_book += new["rnpv_share"]
+            else:
+                entry = self.line_entries.get(part.get("line"))
+                scalars = line_trial(part, entry["scalars"]) if entry is not None else None
+                if scalars is None:
+                    new_parts.append(part)
+                    new_book += part.get("rnpv") or 0.0
+                    continue
+                got = company_lines.build({**entry, "scalars": scalars})
+                if not got["ok"]:
+                    return math.nan
+                result = got["result"]
+                new = {**part, "rnpv": result["rnpv"], "wacc": result.get("wacc"),
+                       "pnl_share": result.get("pnl") or part.get("pnl_share") or [],
+                       "dcf_years": result.get("dcf_years") or part.get("dcf_years") or []}
+                new_book += new["rnpv"]
+            new_parts.append(new)
+        return self.price_gap(new_book, new_parts)
+
+    def equity_with(self, asset_trial, line_trial) -> float:
+        """Equity per share with the trials applied."""
+        return self.gap_with(asset_trial, line_trial) + self.close
+
+
+def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
+    """Break-points for one company's value against its last close. None for an unknown
+    ticker; {"ok": False, "reason"} where the value or the price is not on file."""
+    b = Book(db_path, ticker)
+    if b.verdict is None:
+        return None
+    if not b.ok:
+        return {"ok": False, "ticker": b.verdict["ticker"], "reason": b.reason}
+    verdict, sotp, close, shares = b.verdict, b.sotp, b.close, b.shares
+    equity, net_cash = b.equity, b.net_cash
+    counted, streams, parts = b.counted, b.streams, b.parts
+    inputs_by_asset, rows_by_asset = b.inputs_by_asset, b.rows_by_asset
+    line_entries, line_rows = b.line_entries, b.line_rows
+    book = b.book
+    price_gap, rebuilt, book_gap = b.price_gap, b.rebuilt, b.gap_with
 
     out = []
 
@@ -337,42 +414,6 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
                                      or [None])
             lever_row("line", part["line"], None, label, key, kind, current, found,
                       grade, f"the {key} row")
-
-    def book_gap(asset_trial, line_trial) -> float:
-        """The price gap with every product's inputs and every line's scalars passed
-        through a trial; a trial returning None leaves that part as it is."""
-        new_parts, new_book = [], 0.0
-        for part in parts:
-            if "asset_id" in part and part["asset_id"] in inputs_by_asset:
-                trial = asset_trial(part, inputs_by_asset[part["asset_id"]])
-                if trial is None:
-                    new_parts.append(part)
-                    new_book += part.get("rnpv_share") or 0.0
-                    continue
-                try:
-                    result = forecast.build(trial)
-                except forecast.ForecastError:
-                    return math.nan
-                share = part.get("share") if part.get("share") is not None else 1.0
-                new = rebuilt(part, result, share, trial["scalars"])
-                new_book += new["rnpv_share"]
-            else:
-                entry = line_entries.get(part.get("line"))
-                scalars = line_trial(part, entry["scalars"]) if entry is not None else None
-                if scalars is None:
-                    new_parts.append(part)
-                    new_book += part.get("rnpv") or 0.0
-                    continue
-                got = company_lines.build({**entry, "scalars": scalars})
-                if not got["ok"]:
-                    return math.nan
-                result = got["result"]
-                new = {**part, "rnpv": result["rnpv"], "wacc": result.get("wacc"),
-                       "pnl_share": result.get("pnl") or part.get("pnl_share") or [],
-                       "dcf_years": result.get("dcf_years") or part.get("dcf_years") or []}
-                new_book += new["rnpv"]
-            new_parts.append(new)
-        return price_gap(new_book, new_parts)
 
     def largest_grade(keys) -> str | None:
         having = [l for l in counted
