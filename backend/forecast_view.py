@@ -1257,13 +1257,22 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
     book_rd: dict = {}
     totals = {"revenue": 0.0, "cogs": 0.0, "sga": 0.0, "rd": 0.0, "other": 0.0,
               "ebit": 0.0, "tax": 0.0}
-    waccs, growths = [], []
+    waccs, growths, book_parts = [], [], []
     for part in parts:
         # A line whose R&D develops something other than medicines buys no launches, and
         # its margins are not the ones a future drug would earn.
         if part.get("buys_launches") is False:
             continue
         rows = part.get("pnl_share") or []
+        # Expected revenue: a pipeline product's P&L is unrisked, and a book that counted
+        # it in full would leave its launches too little room.
+        odds = part.get("pos") if part.get("pos") is not None else 1.0
+        book_parts.append({"revenue": {year: (row.get("revenue") or 0.0) * odds
+                                       for year, row
+                                       in zip(part.get("dcf_years") or [], rows)},
+                           "loe_year": part.get("loe_year"),
+                           "loe_in_base": part.get("loe_in_base"),
+                           "growth": part.get("long_run_growth")})
         for year, row in zip(part.get("dcf_years") or [], rows):
             book_rd[year] = book_rd.get(year, 0.0) + (row.get("rd") or 0.0)
         if rows:
@@ -1304,10 +1313,13 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
                 if growths else 0.0)
     long_run_basis = ("the book's revenue-weighted long-run growth" if growths
                       else "no long-run growth on file, so replacement only")
+    horizon = int(bounds["horizon_years"]["value"])
+    book = FP.book_revenue(book_parts, list(range(base_year + 1, base_year + 1 + horizon)),
+                           erosion["year1_pct"], erosion.get("decay_pct") or 0.0)
+    space, peak, peak_year = FP.room(book, long_run)
     got = FP.simulate(book_rd, rate_used, lag, int(loe_default["years_from_launch"]),
                       erosion["year1_pct"], erosion.get("decay_pct") or 0.0, ratios,
-                      wacc, base_year, int(bounds["horizon_years"]["value"]),
-                      long_run_growth=long_run)
+                      wacc, base_year, horizon, long_run_growth=long_run, room=space)
     return {"value": got["value"], "reason": None, "rate": pool["rate"],
             "rate_used": rate_used,
             "own_rate": own["rate"] if own else None,
@@ -1323,6 +1335,8 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
             "renewal": got["renewal"], "credited_share": got["credited_share"],
             "long_run_growth": long_run, "long_run_basis": long_run_basis,
             "book_rd_first": book_rd.get(base_year + 1),
+            "book_peak": peak, "book_peak_year": peak_year,
+            "capped_from": got.get("capped_from"), "capped_share": got.get("capped_share"),
             "flows": [f for f in got["flows"] if f["revenue"]][:40]}
 
 

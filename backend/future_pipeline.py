@@ -315,9 +315,60 @@ def renewal(rate: float, rd_ratio: float, life: int, erosion_year1: float,
     return rate * rd_ratio * (life + tail)
 
 
+def book_revenue(parts: list, years: list, erosion_year1: float,
+                 erosion_decay: float) -> dict:
+    """{year: revenue} for the modelled book across ``years``, each part carried past its
+    own forecast the way its terminal value carries it (forecast.terminal_multiple): flat
+    at its long-run growth where no loss of exclusivity lies ahead or the cliff is already
+    in the base, decaying where its final year is already eroding, and flat to its LOE,
+    then the year-one drop and decay, where the LOE falls after the forecast ends. The
+    erosion shape past the forecast is the curated default, not each product's own.
+
+    ``parts`` are {"revenue": {year: value}, "loe_year", "loe_in_base", "growth"}. Pure."""
+    out = {y: 0.0 for y in years}
+    for part in parts:
+        series = {y: v for y, v in (part.get("revenue") or {}).items() if v is not None}
+        if not series:
+            continue
+        last = max(series)
+        final = series[last]
+        loe, in_base = part.get("loe_year"), part.get("loe_in_base")
+        growth = part.get("growth") or 0.0
+        for y in years:
+            if y in series:
+                out[y] += series[y]
+                continue
+            if y < last:
+                continue
+            k = y - last
+            if loe is None or in_base:
+                out[y] += final * (1.0 + growth) ** k
+            elif last >= loe:
+                out[y] += final * (1.0 - erosion_decay) ** k
+            elif y <= loe:
+                out[y] += final * (1.0 + growth) ** k
+            else:
+                out[y] += (final * (1.0 + growth) ** (loe - last) * (1.0 - erosion_year1)
+                           * (1.0 - erosion_decay) ** (y - loe - 1))
+    return out
+
+
+def room(book: dict, long_run_growth: float = 0.0) -> tuple[dict, float, int | None]:
+    """({year: revenue the launches may add}, the book's peak, its year). The book plus its
+    launches is held to the book's own best year, grown from then at the long-run rate."""
+    if not book or max(book.values()) <= 0:
+        return {}, 0.0, None
+    peak_year = max(book, key=lambda y: (book[y], -y))
+    peak = book[peak_year]
+    g = long_run_growth or 0.0
+    return ({y: max(0.0, peak * (1.0 + g) ** max(0, y - peak_year) - book[y]) for y in book},
+            peak, peak_year)
+
+
 def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: float,
              erosion_decay: float, ratios: dict, discount: float, base_year: int,
-             horizon: int, long_run_growth: float | None = None) -> dict:
+             horizon: int, long_run_growth: float | None = None,
+             room: dict | None = None) -> dict:
     """The launches bought by the book's R&D and by the launches' own R&D, valued.
 
     ``book_rd`` is {year: R&D the modelled book charges that year}. A cohort bought in
@@ -334,6 +385,15 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
     it is a claim the book does not make: Vertex, spending 32% of revenue on R&D at a
     0.51 rate, compounded 6.6% a year for sixty years and put most of its value after
     2055. None means uncapped.
+
+    ``room`` caps the first generation too: {year: revenue the launches may add}. The
+    renewal cap holds the launches' own R&D to the long-run rate, but the book's R&D
+    buys launches at the rate on every dollar, so a book spending 41% of revenue on R&D
+    (Regeneron) bought launches that took the company to 1.61 times its revenue by 2045.
+    The book's own products fade to their long-run rate, and so does the company they
+    make up: launches replace what the book loses and no more. Revenue past the room is
+    not earned and its R&D buys nothing, while the book's R&D stays charged. None means
+    uncapped.
     """
     years = list(range(base_year + 1, base_year + 1 + horizon))
     spend = {y: book_rd.get(y, 0.0) for y in years}
@@ -342,9 +402,18 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
     if long_run_growth is not None and generation > 0:
         allowed = (1.0 + long_run_growth) ** (lag + life / 2.0)
         credited = min(1.0, allowed / generation)
-    revenue = {y: 0.0 for y in years}
+    bought = {y: 0.0 for y in years}       # what the cohorts would earn
+    revenue = {y: 0.0 for y in years}      # what they may earn, within the room
     cohorts = 0
-    for s in years:                        # a year's spend is final once reached
+    capped_from = None
+    for s in years:
+        # A year's revenue and spend are final once reached: every cohort earning in it
+        # was bought at least ``lag`` years before.
+        revenue[s] = (bought[s] if room is None
+                      else min(bought[s], max(0.0, room.get(s, 0.0))))
+        if capped_from is None and bought[s] - revenue[s] > 1e-9:
+            capped_from = s
+        spend[s] += revenue[s] * ratios["rd"] * credited
         if spend[s] <= 0:
             continue
         launch = s + lag
@@ -357,8 +426,7 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
                 earned = level
             else:
                 earned = level * (1.0 - erosion_year1) * (1.0 - erosion_decay) ** (i - life)
-            revenue[y] += earned
-            spend[y] += earned * ratios["rd"] * credited
+            bought[y] += earned
     margin = 1.0 - ratios["cogs"] - ratios["sga"] - ratios["rd"] - ratios["other"]
     pv, flows = 0.0, []
     for y in years:
@@ -368,8 +436,12 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
         flows.append({"year": y, "revenue": revenue[y], "fcff": fcff})
     first = next((f["year"] for f in flows if f["revenue"] > 0), None)
     book_total = sum(book_rd.values())
+    total_bought = sum(bought.values())
     return {"value": pv, "flows": flows, "first_launch_year": first, "cohorts": cohorts,
             "renewal": generation, "credited_share": credited,
+            "capped_from": capped_from,
+            "capped_share": (1.0 - sum(revenue.values()) / total_bought
+                             if total_bought else 0.0),
             # R&D the launches go on to fund across the horizon, against the R&D the
             # book funds. Undiscounted, so it describes scale rather than value.
             "replacement": (sum(spend.values()) - book_total) / book_total

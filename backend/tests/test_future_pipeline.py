@@ -203,3 +203,45 @@ def test_a_switch_form_is_dated_from_the_form_it_replaces(tmp_path):
     switched = FP.filer_productivity(conn, 1, {}, {}, segment={}, switches={("REGN", "eylea hd"): "Eylea"})
     assert switched["fresh_revenue"] == 0.0
     assert switched["switch_forms"] == [{"name": "Eylea Hd", "approved": "2023-08-18", "dated_from": "Eylea", "parent_approved": "2011-11-18"}]
+
+
+def test_launches_are_held_to_the_room_the_book_leaves():
+    free = _sim(ratios={**RATIOS, "rd": 0.0})
+    held = _sim(ratios={**RATIOS, "rd": 0.0}, room={y: 12.0 for y in range(2026, 2086)})
+    rev = {f["year"]: f["revenue"] for f in held["flows"]}
+    assert rev[2034] == pytest.approx(12.0) and rev[2046] == pytest.approx(12.0)
+    assert rev[2050] == pytest.approx(30.0 * 0.75 * 0.8 ** 4)     # the tail fits again
+    assert held["capped_from"] == 2034 and 0 < held["capped_share"] < 1
+    assert held["value"] < free["value"]
+    assert free["capped_from"] is None and free["capped_share"] == 0.0
+
+
+def test_revenue_past_the_room_buys_no_next_generation():
+    free = _sim()
+    held = _sim(room={y: 10.0 for y in range(2026, 2086)})
+    assert max(f["revenue"] for f in held["flows"]) <= 10.0 + 1e-9
+    assert held["replacement"] < free["replacement"]
+
+
+def test_the_book_is_carried_past_its_forecast_the_way_its_terminal_value_is():
+    years = list(range(2026, 2036))
+    parts = [
+        {"revenue": {2026: 100.0, 2027: 100.0}, "loe_year": None, "growth": 0.0},
+        {"revenue": {2026: 50.0, 2027: 40.0}, "loe_year": 2026, "loe_in_base": False},
+        {"revenue": {2026: 20.0, 2027: 20.0}, "loe_year": 2029, "loe_in_base": False},
+        {"revenue": {2026: 10.0, 2027: 10.0}, "loe_year": 2024, "loe_in_base": True},
+    ]
+    got = FP.book_revenue(parts, years, erosion_year1=0.5, erosion_decay=0.2)
+    assert got[2027] == pytest.approx(170.0)
+    assert got[2028] == pytest.approx(100.0 + 40.0 * 0.8 + 20.0 + 10.0)
+    assert got[2029] == pytest.approx(100.0 + 40.0 * 0.64 + 20.0 + 10.0)
+    assert got[2030] == pytest.approx(100.0 + 40.0 * 0.8 ** 3 + 10.0 + 10.0)
+    assert got[2031] == pytest.approx(100.0 + 40.0 * 0.8 ** 4 + 8.0 + 10.0)
+
+
+def test_the_room_is_the_books_best_year_less_what_it_sells():
+    space, peak, year = FP.room({2026: 80.0, 2027: 100.0, 2028: 90.0, 2029: 60.0})
+    assert (peak, year) == (100.0, 2027)
+    assert space == {2026: 20.0, 2027: 0.0, 2028: 10.0, 2029: 40.0}
+    grown, _, _ = FP.room({2026: 100.0, 2027: 50.0}, long_run_growth=0.1)
+    assert grown[2027] == pytest.approx(60.0)

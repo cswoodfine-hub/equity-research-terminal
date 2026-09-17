@@ -1729,6 +1729,11 @@ def _sotp_bridge(s: dict) -> None:
                     f"the pool across {future.get('pooled_filers')} filers")
         bits.append(f"{future.get('lag_years')}y lag, first in "
                     f"{future.get('first_launch_year')}")
+        if future.get("capped_from"):
+            bits.append(f"launches held to the book's {future.get('book_peak_year')} "
+                        f"revenue of {future.get('book_peak', 0):,.0f}mm from "
+                        f"{future['capped_from']}, which cuts "
+                        f"{future.get('capped_share', 0):.0%} of what they would sell")
     if s.get("balance_sheet_as_of"):
         bits.append(f"balance sheet {s['balance_sheet_as_of']}"
                     + (f", cash {s['cash']:,.0f}mm on hand and no debt line filed"
