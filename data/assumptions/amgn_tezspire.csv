@@ -8,7 +8,7 @@
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AMGN,Tezspire,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 AMGN,Tezspire,,US,base,base_revenue,,1478.0,,mm USD,"AMGN FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
-AMGN,Tezspire,,US,base,revenue_growth_pct,,0.520576,,"annual, near term","the same product axis a year earlier: $1,478mm in FY2025 against $972mm in FY2024, both from the SEC financial statement data sets. The comparative year is tagged in the same filing as the anchor",the last reported year over the one before it
+AMGN,Tezspire,,US,base,revenue_growth_pct,,0.218539,,"annual, near term","the 2026 the filed quarters imply against the FY2025 reported 1,478mm: the first half of 2026 as reported, 829mm, and the second half at the second quarter's pace, 486mm twice, 1,801mm. Amgen 10-Q for the quarter to 2026-06-30 (0000318154-26-000126), Note 3 revenues table, TEZSPIRE","replaces +52.1%, FY2025 over FY2024, which predates the first half of 2026"
 AMGN,Tezspire,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
 AMGN,Tezspire,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
 AMGN,Tezspire,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,

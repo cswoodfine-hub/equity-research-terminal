@@ -8,7 +8,7 @@
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AMGN,Kyprolis,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 AMGN,Kyprolis,,US,base,base_revenue,,1412.0,,mm USD,"AMGN FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
-AMGN,Kyprolis,,US,base,revenue_growth_pct,,-0.060546,,"annual, near term","the same product axis a year earlier: $1,412mm in FY2025 against $1,503mm in FY2024, both from the SEC financial statement data sets. The comparative year is tagged in the same filing as the anchor",the last reported year over the one before it
+AMGN,Kyprolis,,US,base,revenue_growth_pct,,-0.09915,,"annual, near term","the 2026 the filed quarters imply against the FY2025 reported 1,412mm: the first half of 2026 as reported, 644mm, and the second half at the second quarter's pace, 314mm twice, 1,272mm. Amgen 10-Q for the quarter to 2026-06-30 (0000318154-26-000126), Note 3 revenues table, KYPROLIS","replaces -6.1%, FY2025 over FY2024, which predates the first half of 2026"
 AMGN,Kyprolis,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
 AMGN,Kyprolis,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
 AMGN,Kyprolis,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
