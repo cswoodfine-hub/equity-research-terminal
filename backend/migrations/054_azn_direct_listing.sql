@@ -8,12 +8,14 @@
 -- ordinary share throughout, so the ratio of one half, seeded in 015, divided the
 -- company's value by twice its shares and put it at half the price.
 --
--- The old row is snapshotted first, so the change is on the record.
+-- The old row is snapshotted first, so the change is on the record. A database being built
+-- from nothing holds no companies yet and has no history to keep, so it takes no snapshot.
 
 INSERT INTO snapshots (source, entity_type, entity_key, payload)
 SELECT 'adr_ratios', 'company', ticker,
        json_object('ordinary_per_adr', ordinary_per_adr, 'note', note, 'updated_at', updated_at)
-  FROM adr_ratios WHERE ticker = 'AZN';
+  FROM adr_ratios
+ WHERE ticker = 'AZN' AND EXISTS (SELECT 1 FROM companies);
 
 UPDATE adr_ratios
    SET ordinary_per_adr = 1.0,
