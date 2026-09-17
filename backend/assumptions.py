@@ -16,6 +16,7 @@ import json
 import pathlib
 
 import db
+import evidence
 import forecast
 import product_profile
 import regional_loe
@@ -164,7 +165,8 @@ def rows(conn, asset_id: int, scenario: str = "base") -> list[dict]:
     return [dict(r) for r in conn.execute(
         """SELECT a.id, a.asset_id, a.indication_id, i.name AS indication,
                   a.region, a.scenario, a.key, a.year, a.value, a.text_value,
-                  a.unit, a.source, a.note, a.as_of, a.updated_at
+                  a.unit, a.source, a.note, a.as_of, a.updated_at, a.evidence,
+                  a.evidence_reviewed
              FROM assumptions a LEFT JOIN indications i ON i.id = a.indication_id
             WHERE a.asset_id = ? AND a.scenario = ?
             ORDER BY a.indication_id IS NOT NULL, i.name, a.key, a.year""",
@@ -283,19 +285,33 @@ def save(conn, asset_id: int, incoming: list[dict]) -> int:
                     AND scenario = ? AND key = ? AND IFNULL(year, 0) = IFNULL(?, 0)""",
                 (asset_id, indication_id, region, scenario, key, year))
             continue
+        # A grade the analyst states is reviewed and kept; otherwise the rules read one
+        # off the row's own source, unreviewed, so it follows the text when it changes.
+        stated = (row.get("evidence") or "").strip().lower() or None
+        if stated is not None and stated not in evidence.GRADES:
+            raise ValueError(f"'{stated}' is not an evidence grade")
+        grade = stated or evidence.grade(row.get("source"), row.get("note"), key)
         conn.execute(
             """INSERT INTO assumptions
                    (asset_id, indication_id, region, scenario, key, year, value,
-                    text_value, unit, source, note, as_of, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    text_value, unit, source, note, as_of, evidence, evidence_reviewed,
+                    updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                ON CONFLICT(asset_id, IFNULL(indication_id, 0), region, scenario, key,
                            IFNULL(year, 0))
                DO UPDATE SET value = excluded.value, text_value = excluded.text_value,
                              unit = excluded.unit, source = excluded.source,
                              note = excluded.note, as_of = excluded.as_of,
+                             evidence = CASE WHEN excluded.evidence_reviewed = 1
+                                              OR assumptions.evidence_reviewed = 0
+                                             THEN excluded.evidence
+                                             ELSE assumptions.evidence END,
+                             evidence_reviewed = MAX(assumptions.evidence_reviewed,
+                                                     excluded.evidence_reviewed),
                              updated_at = datetime('now')""",
             (asset_id, indication_id, region, scenario, key, year, value, text,
-             row.get("unit"), row.get("source"), row.get("note"), row.get("as_of")))
+             row.get("unit"), row.get("source"), row.get("note"), row.get("as_of"),
+             grade, 1 if stated else 0))
         written += 1
     return written
 
@@ -389,6 +405,7 @@ def load_seeds(conn, directory=None) -> dict:
                 "text_value": row.get("text_value"),
                 "unit": row.get("unit"), "source": row.get("source"),
                 "note": row.get("note"), "as_of": row.get("as_of"),
+                "evidence": row.get("evidence"),
             }])
     conn.commit()
     return {"written": written, "skipped": skipped}

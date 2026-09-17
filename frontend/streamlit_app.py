@@ -2328,10 +2328,13 @@ def _forecast_editor(api_base: str, ticker: str, asset_id: int, scenario: str,
         "value": row.get("value"), "text": row.get("text_value") or "",
         "unit": row.get("unit") or "", "source": row.get("source") or "",
         "note": row.get("note") or "",
+        # Read off the source by the rules until an analyst confirms it, and said so.
+        "evidence": (row.get("evidence") or "ungraded")
+                    + ("" if row.get("evidence_reviewed") else " · auto"),
         "_indication_id": row.get("indication_id"),
     } for row in rows]) if rows else pd.DataFrame(
         columns=["indication", "key", "year", "value", "text", "unit", "source",
-                 "note", "_indication_id"])
+                 "note", "evidence", "_indication_id"])
     known = {row.get("indication") or "": row.get("indication_id") for row in rows}
     edited = st.data_editor(
         frame, num_rows="dynamic", hide_index=True, width="stretch", height=420,
@@ -2341,6 +2344,10 @@ def _forecast_editor(api_base: str, ticker: str, asset_id: int, scenario: str,
             "indication": st.column_config.TextColumn(
                 "indication", help="blank for an asset-level number"),
             "value": st.column_config.NumberColumn("value", format="%g"),
+            "evidence": st.column_config.TextColumn(
+                "evidence", disabled=True,
+                help="filed, measured, published, analogue, convention or judgement; "
+                     "auto until reviewed"),
         })
     if not st.button("Save assumptions", key=f"fc_save_{ticker}_{asset_id}_{scenario}"):
         return

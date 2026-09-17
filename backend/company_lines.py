@@ -17,6 +17,7 @@ from __future__ import annotations
 import csv
 import pathlib
 
+import evidence
 import forecast
 
 DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
@@ -33,7 +34,8 @@ KEYS = ("therapy_mode", "base_revenue", "revenue_growth_pct", "terminal_growth_p
 
 def rows(conn, company_id: int, scenario: str = "base") -> list[dict]:
     return [dict(r) for r in conn.execute(
-        """SELECT line, scenario, key, value, text_value, unit, source, note
+        """SELECT line, scenario, key, value, text_value, unit, source, note, evidence,
+                  evidence_reviewed
              FROM company_lines WHERE company_id = ? AND scenario = ?
             ORDER BY line, key""", (company_id, scenario))]
 
@@ -153,13 +155,18 @@ def load_seeds(conn, directory=None) -> dict:
                     (company["id"], line, scenario, key)).fetchone():
                 continue
             value = (row.get("value") or "").strip()
+            stated = (row.get("evidence") or "").strip().lower() or None
+            if stated is not None and stated not in evidence.GRADES:
+                raise ValueError(f"'{stated}' is not an evidence grade ({path.name})")
             conn.execute(
                 """INSERT INTO company_lines (company_id, line, scenario, key, value,
-                       text_value, unit, source, note)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       text_value, unit, source, note, evidence, evidence_reviewed)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (company["id"], line, scenario, key, float(value) if value else None,
                  (row.get("text_value") or "").strip() or None, row.get("unit"),
-                 row.get("source"), row.get("note")))
+                 row.get("source"), row.get("note"),
+                 stated or evidence.grade(row.get("source"), row.get("note"), key),
+                 1 if stated else 0))
             written += 1
     conn.commit()
     return {"written": written, "skipped": skipped}

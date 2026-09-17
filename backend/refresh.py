@@ -39,6 +39,7 @@ import consensus as consensus_module
 import db
 import deals
 import diff
+import evidence
 import guidance as guidance_module
 import leadership
 import pdufa
@@ -303,6 +304,8 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
         # fetcher, so the curated rows are written over the assets it resolved.
         mapped["region_revenue"] = regional_loe.load_curated_revenue(conn)
         mapped["product_revenue"] = asset_revenue.load_curated(conn)
+        # Every unreviewed evidence grade re-read from its row's source text.
+        mapped["evidence_graded"] = sum(evidence.backfill(conn).values())
         conn.commit()
     finally:
         conn.close()
@@ -491,6 +494,8 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
         # fetcher, so the curated rows are written over the assets it resolved.
         mapped["region_revenue"] = regional_loe.load_curated_revenue(conn)
         mapped["product_revenue"] = asset_revenue.load_curated(conn)
+        # Every unreviewed evidence grade re-read from its row's source text.
+        mapped["evidence_graded"] = sum(evidence.backfill(conn).values())
         conn.commit()
     finally:
         conn.close()
