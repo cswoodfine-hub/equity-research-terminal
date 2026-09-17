@@ -28,6 +28,13 @@ the launches rather than a full lag before, and R&D has grown, so the denominato
 larger than the spend that bought the launches and the rate reads low. And launches a
 filer bought rather than discovered are in the numerator while the acquisition spend is
 not in the denominator, which reads high.
+
+The window's edge is left where it falls. Darzalex, approved on 16 November 2015, misses
+Johnson & Johnson's FY2025 window by 46 days and takes $14.4bn of revenue out of its
+record, as Keytruda's 2014 approval does for Merck. Moving the edge for one drug would
+be choosing the answer; any window drops a launch just outside it, and one just inside
+counts in full. The credibility weight is what absorbs it: a record resting on few
+launches leans on the pool.
 """
 
 from __future__ import annotations
