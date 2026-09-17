@@ -1,0 +1,120 @@
+{
+ "data": {
+  "symbol": "nvo",
+  "quarterlyForecast": {
+   "asOf": null,
+   "headers": {
+    "fiscalEnd": "Fiscal Quarter End",
+    "consensusEPSForecast": "Consensus EPS* Forecast",
+    "highEPSForecast": "High EPS* Forecast",
+    "lowEPSForecast": "Low EPS* Forecast",
+    "noOfEstimates": "Number of Estimates",
+    "up": "Over the Last 4 Weeks Number of Revisions - Up",
+    "down": "Over the Last 4 Weeks Number of Revisions - Down"
+   },
+   "rows": [
+    {
+     "fiscalEnd": "Sep 2026",
+     "consensusEPSForecast": 0.8,
+     "highEPSForecast": 0.86,
+     "lowEPSForecast": 0.74,
+     "noOfEstimates": 5,
+     "up": 1,
+     "down": 1
+    },
+    {
+     "fiscalEnd": "Dec 2026",
+     "consensusEPSForecast": 0.78,
+     "highEPSForecast": 0.78,
+     "lowEPSForecast": 0.77,
+     "noOfEstimates": 3,
+     "up": 1,
+     "down": 1
+    },
+    {
+     "fiscalEnd": "Mar 2027",
+     "consensusEPSForecast": 0.91,
+     "highEPSForecast": 0.95,
+     "lowEPSForecast": 0.87,
+     "noOfEstimates": 2,
+     "up": 0,
+     "down": 0
+    },
+    {
+     "fiscalEnd": "Jun 2027",
+     "consensusEPSForecast": 0.92,
+     "highEPSForecast": 0.93,
+     "lowEPSForecast": 0.91,
+     "noOfEstimates": 2,
+     "up": 1,
+     "down": 0
+    },
+    {
+     "fiscalEnd": "Sep 2027",
+     "consensusEPSForecast": 0.87,
+     "highEPSForecast": 0.91,
+     "lowEPSForecast": 0.82,
+     "noOfEstimates": 2,
+     "up": 1,
+     "down": 0
+    }
+   ]
+  },
+  "yearlyForecast": {
+   "asOf": null,
+   "headers": {
+    "fiscalEnd": "Fiscal Year End",
+    "consensusEPSForecast": "Consensus EPS* Forecast",
+    "highEPSForecast": "High EPS* Forecast",
+    "lowEPSForecast": "Low EPS* Forecast",
+    "noOfEstimates": "Number of Estimates",
+    "up": "Over the Last 4 Weeks Number of Revisions - Up",
+    "down": "Over the Last 4 Weeks Number of Revisions - Down"
+   },
+   "rows": [
+    {
+     "fiscalEnd": "Dec 2026",
+     "consensusEPSForecast": 3.53,
+     "highEPSForecast": 4.03,
+     "lowEPSForecast": 3.07,
+     "noOfEstimates": 7,
+     "up": 3,
+     "down": 1
+    },
+    {
+     "fiscalEnd": "Dec 2027",
+     "consensusEPSForecast": 3.38,
+     "highEPSForecast": 3.6,
+     "lowEPSForecast": 3.11,
+     "noOfEstimates": 7,
+     "up": 3,
+     "down": 1
+    },
+    {
+     "fiscalEnd": "Dec 2028",
+     "consensusEPSForecast": 3.53,
+     "highEPSForecast": 3.68,
+     "lowEPSForecast": 3.44,
+     "noOfEstimates": 3,
+     "up": 1,
+     "down": 1
+    },
+    {
+     "fiscalEnd": "Dec 2029",
+     "consensusEPSForecast": 3.99,
+     "highEPSForecast": 3.99,
+     "lowEPSForecast": 3.99,
+     "noOfEstimates": 1,
+     "up": 0,
+     "down": 0
+    }
+   ]
+  }
+ },
+ "message": null,
+ "status": {
+  "rCode": 200,
+  "bCodeMessage": null,
+  "developerMessage": null
+ }
+}

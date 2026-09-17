@@ -7,6 +7,7 @@ and the view the Street section renders.
 
 Sources share one table and are told apart by ``source``: ``fmp`` is the street (the
 key-gated fetcher), ``guidance`` is management's own numbers read out of filings, and
+``nasdaq`` is the keyless street feed (annual EPS and the price target, no revenue), and
 ``manual`` is the curated CSV column the roadmap promised for anything gated. Revisions
 accumulate as rows because the UNIQUE key includes ``as_of``; the reader always takes
 the newest per (metric, period, source), so the history of revisions stays queryable
@@ -28,7 +29,7 @@ SEED_DIR = pathlib.Path(__file__).resolve().parent.parent / "data" / "consensus"
 # because companies that guide in growth (Novo's "sales growth of 8-14%") state exactly
 # that, and deriving an absolute from it would compound a constant-currency rate onto a
 # reported base the company did not use.
-METRICS = ("Revenue", "EPS", "RevenueGrowth")
+METRICS = ("Revenue", "EPS", "RevenueGrowth", "PriceTarget")
 
 
 def latest(conn, company_id: int) -> list[dict]:
@@ -102,7 +103,8 @@ def street_view(db_path, ticker: str):
         entry = {"metric": metric, "period": period,
                  "reported": reported.get((metric, period)),
                  "guidance": sources.get("guidance"),
-                 "street": sources.get("fmp") or sources.get("manual"),
+                 "street": (sources.get("fmp") or sources.get("nasdaq")
+                            or sources.get("manual")),
                  "mine": mine.get(period) if metric == "Revenue" else None}
         street = entry["street"]
         if street and street.get("value"):

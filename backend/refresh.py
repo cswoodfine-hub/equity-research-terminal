@@ -53,6 +53,7 @@ from fetchers import product_revenue_sec
 from fetchers.adcomm_fedreg import AdCommFetcher
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 from fetchers.consensus_fmp import ConsensusFmpFetcher, api_key as fmp_key
+from fetchers.consensus_nasdaq import ConsensusNasdaqFetcher
 from fetchers.deals_news import DealsNewsFetcher
 from fetchers.demand_cms import DemandCmsFetcher
 from fetchers.filing_text_edgar import FilingTextEdgarFetcher
@@ -111,6 +112,8 @@ def _company_fetchers(company, db_path):
     # seventy fetchers that can only report having nothing to read.
     if fmp_key():
         fetchers.append(ConsensusFmpFetcher(company["ticker"], db_path))
+    # The keyless street feed: annual EPS and the price target, for every listed company.
+    fetchers.append(ConsensusNasdaqFetcher(company["ticker"], db_path))
     if company["is_sec_filer"] and company["cik"]:
         fetchers.append(FinancialsEdgarFetcher(company["ticker"], db_path))
         fetchers.append(FilingsEdgarFetcher(company["ticker"], db_path))

@@ -1,0 +1,181 @@
+{
+ "data": {
+  "symbol": "nvo",
+  "consensusOverview": {
+   "lowPriceTarget": 40.0,
+   "highPriceTarget": 47.0,
+   "priceTarget": 44.0,
+   "buy": 0,
+   "sell": 1,
+   "hold": 5
+  },
+  "historicalConsensus": [
+   {
+    "z": {
+     "buy": 3,
+     "hold": 3,
+     "sell": 0,
+     "date": "09/01/2025",
+     "consensus": "Buy",
+     "latest": null
+    },
+    "x": 1756684800,
+    "y": 56.46
+   },
+   {
+    "z": {
+     "buy": 5,
+     "hold": 2,
+     "sell": 1,
+     "date": "10/01/2025",
+     "consensus": "Buy",
+     "latest": null
+    },
+    "x": 1759276800,
+    "y": 59.17
+   },
+   {
+    "z": {
+     "buy": 5,
+     "hold": 3,
+     "sell": 1,
+     "date": "11/01/2025",
+     "consensus": "Buy",
+     "latest": null
+    },
+    "x": 1761955200,
+    "y": 49.46
+   },
+   {
+    "z": {
+     "buy": 7,
+     "hold": 3,
+     "sell": 1,
+     "date": "12/01/2025",
+     "consensus": "Buy",
+     "latest": null
+    },
+    "x": 1764547200,
+    "y": 48.43
+   },
+   {
+    "z": {
+     "buy": 4,
+     "hold": 4,
+     "sell": 1,
+     "date": "01/01/2026",
+     "consensus": "Buy",
+     "latest": null
+    },
+    "x": 1767225600,
+    "y": 50.88
+   },
+   {
+    "z": {
+     "buy": 4,
+     "hold": 3,
+     "sell": 1,
+     "date": "02/01/2026",
+     "consensus": "Buy",
+     "latest": null
+    },
+    "x": 1769904000,
+    "y": 59.43
+   },
+   {
+    "z": {
+     "buy": 2,
+     "hold": 6,
+     "sell": 0,
+     "date": "03/01/2026",
+     "consensus": "Neutral",
+     "latest": null
+    },
+    "x": 1772323200,
+    "y": 37.45
+   },
+   {
+    "z": {
+     "buy": 1,
+     "hold": 7,
+     "sell": 0,
+     "date": "04/01/2026",
+     "consensus": "Neutral",
+     "latest": null
+    },
+    "x": 1775001600,
+    "y": 36.48
+   },
+   {
+    "z": {
+     "buy": 1,
+     "hold": 7,
+     "sell": 0,
+     "date": "05/01/2026",
+     "consensus": "Neutral",
+     "latest": null
+    },
+    "x": 1777593600,
+    "y": 43.88
+   },
+   {
+    "z": {
+     "buy": 1,
+     "hold": 4,
+     "sell": 0,
+     "date": "06/01/2026",
+     "consensus": "Neutral",
+     "latest": null
+    },
+    "x": 1780272000,
+    "y": 44.07
+   },
+   {
+    "z": {
+     "buy": 0,
+     "hold": 3,
+     "sell": 0,
+     "date": "07/01/2026",
+     "consensus": "Neutral",
+     "latest": null
+    },
+    "x": 1782864000,
+    "y": 48.77
+   },
+   {
+    "z": {
+     "buy": 0,
+     "hold": 4,
+     "sell": 0,
+     "date": "08/01/2026",
+     "consensus": "Neutral",
+     "latest": null
+    },
+    "x": 1785542400,
+    "y": 47.08
+   },
+   {
+    "z": {
+     "buy": 0,
+     "hold": 5,
+     "sell": 0,
+     "date": "09/01/2026",
+     "consensus": "Neutral",
+     "latest": {
+      "high": 46.16,
+      "avg": 45.61,
+      "low": 45.065
+     }
+    },
+    "x": 1788220800,
+    "y": 44.0
+   }
+  ]
+ },
+ "message": null,
+ "status": {
+  "rCode": 200,
+  "bCodeMessage": null,
+  "developerMessage": null
+ }
+}

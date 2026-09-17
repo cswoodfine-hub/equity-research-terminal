@@ -1118,7 +1118,7 @@ def _street_figure(metric: str, value, currency: str):
         return None, ""
     if metric == "RevenueGrowth":
         return T.num(value, 1), "%"
-    if metric == "EPS":
+    if metric in ("EPS", "PriceTarget"):
         return T.num(value, 2), (f"{currency} " if currency else "") + "per share"
     return T.num(value / 1e9, 2), (f"{currency} " if currency else "") + "bn"
 
@@ -1151,7 +1151,8 @@ def _street_block(api_base: str, ticker: str) -> None:
     for row in rows:
         metric, period = row["metric"], row["period"]
         name = "" if metric == "Revenue" else (
-            " growth" if metric == "RevenueGrowth" else " EPS")
+            " growth" if metric == "RevenueGrowth" else
+            " price target" if metric == "PriceTarget" else " EPS")
         tiles = []
         for label, entry in (("guidance", row.get("guidance")),
                              ("street", row.get("street"))):
