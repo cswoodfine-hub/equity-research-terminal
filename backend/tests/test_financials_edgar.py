@@ -239,3 +239,42 @@ def test_the_rd_fill_is_refused_where_the_tags_do_not_reconcile():
     }}}
     periods = parse_statements(payload)["lines"]["ResearchAndDevelopmentExpense"]["periods"]
     assert sorted(int(end[:4]) for end, kind in periods if kind == "FY") == [2018, 2025]
+
+
+def _usd_years(rows):
+    return {"units": {"USD": [_annual(f"{y}-01-01", f"{y}-12-31", v, "10-K") for y, v in rows]}}
+
+
+def test_rd_expensing_acquired_in_process_rd_inside_it_is_read_net_of_it():
+    """Merck tags plain R&D only, and $11,409mm of acquired in-process R&D written off in
+    2023 inside its $30,531mm. The net line takes it out; a year with nothing tagged is
+    the line as filed."""
+    from fetchers.financials_edgar import parse_statements
+    payload = {"facts": {"us-gaap": {
+        "Revenues": _usd_years([(2025, 65011e6)]),
+        "ResearchAndDevelopmentExpense": _usd_years([(2022, 13548e6), (2023, 30531e6), (2025, 15789e6)]),
+        "ResearchAndDevelopmentAssetAcquiredOtherThanThroughBusinessCombinationWrittenOff":
+            _usd_years([(2022, 0.0), (2023, 11409e6)]),
+    }}}
+    lines = parse_statements(payload)["lines"]
+    net = {int(end[:4]): e for (end, kind), e in lines["ResearchLessExpensedIprd"]["periods"].items()}
+    assert net[2023]["val"] == pytest.approx(19122e6) and "less expensed" in net[2023]["concept"]
+    assert net[2022]["val"] == pytest.approx(13548e6) and net[2025]["val"] == pytest.approx(15789e6)
+    filed = {int(end[:4]): e for (end, kind), e in lines["ResearchAndDevelopmentExpense"]["periods"].items() if kind == "FY"}
+    assert filed[2023]["val"] == pytest.approx(30531e6)
+
+
+def test_a_filer_presenting_in_process_rd_on_its_own_line_is_not_netted_twice():
+    """Lilly's plain and excluding R&D agree in 2021 against $970mm tagged in-process, so
+    its tagged amounts sit outside R&D and its plain years are not netted."""
+    from fetchers.financials_edgar import parse_statements
+    payload = {"facts": {"us-gaap": {
+        "Revenues": _usd_years([(2025, 65179e6)]),
+        "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost": _usd_years([(2021, 6931e6), (2025, 13337e6)]),
+        "ResearchAndDevelopmentExpense": _usd_years([(2019, 5595e6), (2020, 5976e6), (2021, 6931e6)]),
+        "ResearchAndDevelopmentAssetAcquiredOtherThanThroughBusinessCombinationWrittenOff":
+            _usd_years([(2020, 500e6), (2021, 970e6)]),
+    }}}
+    net = {int(end[:4]): e["val"] for (end, kind), e in
+           parse_statements(payload)["lines"]["ResearchLessExpensedIprd"]["periods"].items()}
+    assert net[2020] == pytest.approx(5976e6) and net[2021] == pytest.approx(6931e6)

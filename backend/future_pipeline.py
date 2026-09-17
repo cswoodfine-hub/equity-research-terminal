@@ -93,12 +93,23 @@ def filer_productivity(conn, company_id: int, rates, name_index) -> dict:
             fresh += value
             launches.append({"name": row["name"], "approved": approved[:10],
                              "revenue": value})
-    rd, rd_years = 0.0, 0
+    # Research, not asset purchases: where a filer expenses acquired in-process R&D inside
+    # its R&D line, the year is read net of it (statements, ResearchLessExpensedIprd).
+    # A year with no net figure on file reads the line as filed. Keyed on the period end,
+    # not the label: Johnson & Johnson's 52-week years ending in early January carry the
+    # next year's label, so one label can hold two real years and both belong in the sum.
+    by_period: dict = {}
     for row in conn.execute(
-            """SELECT value, unit FROM financials WHERE company_id = ?
-                AND metric = 'ResearchAndDevelopmentExpense' AND period_type = 'FY'
-                AND fiscal_year BETWEEN ? AND ? AND value IS NOT NULL""",
+            """SELECT period_end, metric, value, unit FROM financials
+                WHERE company_id = ?
+                AND metric IN ('ResearchAndDevelopmentExpense', 'ResearchLessExpensedIprd')
+                AND period_type = 'FY' AND fiscal_year BETWEEN ? AND ?
+                AND value IS NOT NULL
+                ORDER BY period_end, metric""",
             (company_id, year - COHORT_YEARS, year - 1)):
+        by_period[row["period_end"]] = row    # the net figure sorts after the filed one
+    rd, rd_years = 0.0, 0
+    for row in by_period.values():
         value = productivity._usd(row["value"], row["unit"], rates)
         if value:
             rd += value

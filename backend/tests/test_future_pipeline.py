@@ -107,3 +107,26 @@ def test_a_franchise_that_runs_down_is_not_capped():
     got = _sim(rate=0.1, long_run_growth=0.0)
     assert got["renewal"] < 1 and got["credited_share"] == 1.0
     assert got["value"] == pytest.approx(_sim(rate=0.1)["value"])
+
+
+def test_rd_is_read_net_of_in_process_rd_expensed_inside_it(tmp_path):
+    """A year with a net R&D figure on file reads it; a year without reads R&D as filed."""
+    import db
+    path = str(tmp_path / "fp.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'MRK', 'Merck')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed) VALUES (1, 1, 'Winrevair', 1)")
+    conn.execute("INSERT INTO approvals (asset_id, region, agency, approval_date, application_number)"
+                 " VALUES (1, 'US', 'FDA', '2024-03-26', 'BLA761363')")
+    conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value, unit, source)"
+                 " VALUES (1, 2025, 'FY', 1443e6, 'USD', 't')")
+    for fy, rd in ((2023, 30531e6), (2024, 17938e6)):
+        conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year, period_end, value, unit)"
+                     " VALUES (1, 'ResearchAndDevelopmentExpense', 'FY', ?, ?, ?, 'USD')", (fy, f"{fy}-12-31", rd))
+    conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year, period_end, value, unit)"
+                 " VALUES (1, 'ResearchLessExpensedIprd', 'FY', 2023, '2023-12-31', 19122e6, 'USD')")
+    conn.commit()
+    got = FP.filer_productivity(conn, 1, {}, {})
+    assert got["rd"] == pytest.approx(19122e6 + 17938e6) and got["rd_years"] == 2
+    assert got["rate"] == pytest.approx(1443e6 / (19122e6 + 17938e6))

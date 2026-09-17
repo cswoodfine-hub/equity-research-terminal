@@ -242,6 +242,55 @@ def backfill_rd_less_iprd(facts: dict, periods: dict) -> dict:
     return out
 
 
+def rd_less_expensed_iprd(facts: dict, periods: dict) -> dict:
+    """Every fiscal year of the R&D line with the acquired in-process R&D inside it taken
+    out, keyed like ``periods``.
+
+    Launch productivity divides the revenue R&D bought by the R&D that bought it, and an
+    asset purchase expensed as in-process R&D is capital allocation, not research: the
+    cost charge already treats deal payments that way. Merck expenses them inside R&D,
+    $11.4bn of its $30.5bn in 2023, so its research read a third larger than it was, while
+    AbbVie, Pfizer and Lilly present them on a line of their own and report R&D without.
+
+    Only a year the R&D line took from the plain concept is netted, by the in-process
+    amount tagged for that year. The excluding concept and the backfilled fill already
+    leave it out. A filer whose plain and excluding figures agree in a year it tags
+    in-process R&D is presenting that R&D elsewhere, so nothing of it is netted: Lilly's
+    2021 plain and excluding R&D are both $6,931mm against $970mm tagged.
+    """
+    us = facts.get("us-gaap") or {}
+    fy = statements.FY
+    iprd: dict[int, float] = {}
+    for name in _IPRD_CONCEPTS:
+        if name in us:
+            for (end, _), e in _entries_by_period(us[name], fy).items():
+                if e["val"]:
+                    iprd.setdefault(int(end[:4]), e["val"])
+    annual = {key: e for key, e in periods.items() if key[1] == fy}
+    if not annual:
+        return {}
+    excluding = "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"
+    if iprd and excluding in us and "ResearchAndDevelopmentExpense" in us:
+        plain = {int(end[:4]): e["val"] for (end, _), e in
+                 _entries_by_period(us["ResearchAndDevelopmentExpense"], fy).items()}
+        excl = {int(end[:4]): e["val"] for (end, _), e in
+                _entries_by_period(us[excluding], fy).items()}
+        for year in set(plain) & set(excl) & set(iprd):
+            if abs(plain[year] - excl[year]) <= abs(excl[year]) * _AGREEMENT_TOLERANCE:
+                iprd = {}
+                break
+    out = {}
+    for key, e in annual.items():
+        year = int(e["end"][:4])
+        amount = iprd.get(year)
+        if e.get("concept") == "ResearchAndDevelopmentExpense" and amount and 0 < amount < e["val"]:
+            out[key] = dict(e, val=e["val"] - amount,
+                            concept="ResearchAndDevelopmentExpense less expensed in-process R&D")
+        else:
+            out[key] = dict(e)
+    return out
+
+
 def pick_annual_series(facts: dict, candidates):
     """The fiscal-year series, keyed by year. Returns (unit, {year: {'val','end'}})."""
     unit, series = pick_kind_series(facts, candidates, statements.FY)
@@ -379,6 +428,12 @@ def parse_statements(payload: dict) -> dict:
                 periods.setdefault(key, entry)
         if periods:
             lines[line.key] = {"unit": unit, "periods": _trim(periods)}
+
+    rd = lines.get("ResearchAndDevelopmentExpense")
+    if rd:
+        net = rd_less_expensed_iprd(facts, rd["periods"])
+        if net:
+            lines["ResearchLessExpensedIprd"] = {"unit": rd["unit"], "periods": net}
 
     debt = total_debt_series(facts)
     if debt:
