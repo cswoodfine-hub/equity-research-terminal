@@ -1821,6 +1821,10 @@ def _lever_value(kind: str, value, key: str = "") -> str:
         return f"{value:.3f} per R&D $"
     if kind == "year":
         return f"{int(value)}"
+    if kind == "years":
+        return f"{int(value)}y" if float(value).is_integer() else f"{value:.1f}y"
+    if kind == "level":
+        return f"${value:,.0f}mm"
     if kind in ("scale",):
         return f"×{value:.2f}"
     if kind == "price":
@@ -1835,7 +1839,9 @@ def _lever_move(kind: str, model, value, key: str = "") -> str:
         return f"{value - model:+.3f}"
     if kind == "year":
         return f"{int(value) - int(model):+d}y"
-    if kind in ("scale", "price"):
+    if kind == "years":
+        return f"{value - model:+.0f}y"
+    if kind in ("scale", "price", "level"):
         return f"{value / model - 1:+.0%}" if model else "·"
     return f"{(value - model) * 100:+.2f} pts"
 
@@ -1880,6 +1886,13 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
                f"holds {held}")
     st.markdown(f'<div class="byline">{html_escape(caption)}</div>',
                 unsafe_allow_html=True)
+    uncapped = next((l for l in levers if l.get("key") == "fade_shift_uncapped"
+                     and l.get("shown")), None)
+    if uncapped:
+        peaks = "; ".join(f'{p["product"]} {p["model"]:,.0f}mm to {p["break"]:,.0f}mm'
+                          for p in uncapped["shown"])
+        st.markdown(f'<div class="byline">{html_escape("uncapped growth fade at the break, peak revenue: " + peaks)}</div>',
+                    unsafe_allow_html=True)
     groups = b.get("groups") or []
     if not groups:
         return
