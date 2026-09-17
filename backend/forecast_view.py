@@ -799,6 +799,8 @@ def _levers(inputs, built):
         swings = []
         if kind == "year":
             trials = (current - 2, current + 2)
+        elif kind == "years":
+            trials = (max(1, current - 2), current + 2)
         else:
             trials = (current * (1 - _LEVER_STEP), current * (1 + _LEVER_STEP))
         for pushed in trials:
@@ -833,15 +835,25 @@ def lever_specs(inputs, built) -> list:
         year1 = scalars.get("erosion_year1_pct")
         if year1 is None and default:
             year1 = default["year1_pct"]
+        # How long near-term growth lasts, and the level it stops at: the two a price
+        # that reads above the book is usually a bet on. A fade only exists where the
+        # product fades to a long-run rate; the engine reads a missing one as five years.
+        fades = scalars.get("terminal_growth_pct") is not None
         levers += [
             ("near-term growth", "revenue_growth_pct",
              scalars.get("revenue_growth_pct"), "rate", fifth),
             ("long-run growth", "terminal_growth_pct",
              scalars.get("terminal_growth_pct"), "rate", fifth),
+            ("growth fade", "growth_fade_years",
+             int(scalars.get("growth_fade_years") or 5) if fades else None, "years",
+             "two years either way"),
             ("LOE year", "loe_year", loe_year, "year", "two years either way"),
             ("year-one erosion", "erosion_year1_pct", year1 if loe_year else None,
              "rate", fifth),
         ]
+        if mode == "marketed":
+            levers.append(("revenue ceiling", "revenue_ceiling_musd",
+                           scalars.get("revenue_ceiling_musd"), "level", fifth))
         if built["pos"] is not None and built["pos"] < 1.0:
             levers.append(("probability of success", "pos", built["pos"], "rate", fifth))
     else:
@@ -874,7 +886,39 @@ def apply_lever(inputs, key: str, value):
         default = forecast.erosion_default(inputs)[0]
         if scalars.get("erosion_decay_pct") is None and default:
             scalars["erosion_decay_pct"] = default["decay_pct"]
+    if key == "growth_fade_years":
+        scalars[key] = max(1, int(round(scalars[key])))
+    if key == "revenue_ceiling_musd":
+        solved = _resolved_growth(inputs.get("scalars") or {}, value)
+        if solved is not None:
+            scalars["revenue_growth_pct"] = solved
     return {**inputs, "scalars": scalars}
+
+
+def _resolved_growth(scalars: dict, ceiling: float):
+    """The growth rate that reaches ``ceiling`` by the end of the fade, where the product's
+    own rate was solved to reach its stated ceiling that way; None where it was not.
+
+    A launch product's growth is not observed. It is the rate that carries its run rate
+    to a published peak by a year, fading to nought as it arrives (Kisunla, Foundayo). A
+    higher ceiling alone moves nothing there, since the path stops growing exactly at the
+    old one, so asking what peak the price needs has to move the rate with it. A product
+    whose growth is read off its filings (Mounjaro) keeps its rate, and the ceiling binds
+    or does not."""
+    base, growth = scalars.get("base_revenue"), scalars.get("revenue_growth_pct")
+    old, fade_to = scalars.get("revenue_ceiling_musd"), scalars.get("terminal_growth_pct")
+    fade = int(scalars.get("growth_fade_years") or 5)
+    if None in (base, growth, old, fade_to) or not base or old <= base or ceiling <= 0:
+        return None
+    reach = forecast.grown_revenue(base, growth, fade, fade_to=fade_to, fade_years=fade)[-1]
+    if abs(reach / old - 1.0) > 0.005:
+        return None
+    lo, hi = -0.99, 10.0
+    for _ in range(80):
+        mid = (lo + hi) / 2.0
+        got = forecast.grown_revenue(base, mid, fade, fade_to=fade_to, fade_years=fade)[-1]
+        lo, hi = (mid, hi) if got < ceiling else (lo, mid)
+    return (lo + hi) / 2.0
 
 
 def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):

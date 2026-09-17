@@ -125,3 +125,77 @@ def test_the_sentence_names_the_three_with_least_room_and_their_evidence():
     assert body[1].startswith("We have evidence for every discount rate (measured data) and Repatha's near-term growth (the filings); ")
     assert "MariTide's peak uptake (a judgement) remains an assumption" in body[1]
     assert body[2] == "If MariTide fails outright, Amgen is worth $320.66 a share."
+
+
+def test_a_launch_rate_solved_to_its_ceiling_moves_with_it():
+    """Kisunla's rate carries 625mm to 2,300mm over a seven-year fade. Doubling the ceiling
+    re-solves the rate to reach 4,600mm the same way; a rate read off the filings keeps."""
+    import forecast
+    import forecast_view as V
+    solved = {"base_revenue": 625.0, "revenue_growth_pct": 0.365963, "growth_fade_years": 7,
+              "terminal_growth_pct": 0.0, "revenue_ceiling_musd": 2300.0}
+    moved = V.apply_lever({"scalars": solved}, "revenue_ceiling_musd", 4600.0)["scalars"]
+    assert moved["revenue_growth_pct"] > 0.365963
+    path = forecast.grown_revenue(625.0, moved["revenue_growth_pct"], 7, fade_to=0.0,
+                                  fade_years=7)
+    assert path[-1] == pytest.approx(4600.0, rel=1e-6)
+
+    filed = {**solved, "revenue_growth_pct": 0.60, "revenue_ceiling_musd": 72000.0}
+    kept = V.apply_lever({"scalars": filed}, "revenue_ceiling_musd", 144000.0)["scalars"]
+    assert kept["revenue_growth_pct"] == 0.60 and kept["revenue_ceiling_musd"] == 144000.0
+    assert V.apply_lever({"scalars": filed}, "growth_fade_years", 0)["scalars"]["growth_fade_years"] == 1
+
+
+def test_fade_and_ceiling_are_levers_and_the_uncapped_fade_shows_its_peaks(tmp_path):
+    import assumptions
+    import forecast_view as V
+    path = _company(tmp_path, close=1.0)
+    conn = db.get_connection(path)
+    assumptions.save(conn, 1, [{"key": "revenue_ceiling_musd", "value": 3500,
+                                "source": "judgement"}])
+    conn.commit()
+    conn.close()
+    base = V.company_verdict(path, "AMGN")["sotp"]["equity_per_share"]
+    path = _company(tmp_path / "b", close=base * 1.3)
+    conn = db.get_connection(path)
+    assumptions.save(conn, 1, [{"key": "revenue_ceiling_musd", "value": 3500,
+                                "source": "judgement"}])
+    conn.commit()
+    conn.close()
+    got = B.company(path, "AMGN")
+    by_key = {(l["scope"], l["key"]): l for l in got["levers"]}
+    fade = by_key[("asset", "growth_fade_years")]
+    assert fade["kind"] == "years" and fade["model"] == 5
+    assert (fade["evidence"], fade["basis"]) == ("convention", "the engine's five years, where no fade is stated")
+    ceiling = by_key[("asset", "revenue_ceiling_musd")]
+    # Uncapped, the product only grows to about 4,000mm over its fade, so no ceiling closes
+    # a 30% gap: the lever says so rather than inventing a break.
+    assert ceiling["kind"] == "level" and not ceiling["reachable"] and ceiling["break"] is None
+    assert ceiling["evidence"] == "judgement"
+    assert ("company", "fade_shift") in by_key and ("company", "ceiling_scale") in by_key
+    uncapped = by_key[("company", "fade_shift_uncapped")]
+    assert uncapped["reachable"] and uncapped["break"] > 5
+    assert uncapped["shown"][0]["product"] == "Repatha"
+    assert uncapped["shown"][0]["break"] > uncapped["shown"][0]["model"]
+
+
+def test_years_and_levels_read_in_their_own_units_and_the_sentence_names_the_peak():
+    fade = {"scope": "company", "name": "Lilly", "lever": "uncapped growth fade",
+            "key": "fade_shift_uncapped", "kind": "years", "model": 4.989, "break": 7.989,
+            "reachable": True, "evidence": "convention", "evidence_class": "assumption",
+            "shown": [{"product": "Mounjaro", "model": 72000.0, "break": 279226.0}]}
+    ceiling = {"scope": "asset", "name": "Foundayo", "lever": "revenue ceiling",
+               "key": "revenue_ceiling_musd", "kind": "level", "model": 18000.0,
+               "break": 267165.0, "reachable": True, "evidence": None,
+               "evidence_class": "assumption"}
+    scale = {"scope": "company", "name": "Lilly", "lever": "every revenue ceiling",
+             "key": "ceiling_scale", "kind": "scale", "model": 1.0, "break": 8.28,
+             "reachable": True, "evidence": "judgement", "evidence_class": "assumption"}
+    assert B._value_words(fade, 8) == "8 years" and B._value_words(fade, 7.989) == "8.0 years"
+    assert B._value_words(ceiling, 267165.0) == "$267,165mm"
+    body = B.sentence({"name": "Lilly", "close": 1137.82, "equity_per_share": 555.21,
+                       "direction": "up", "levers": [fade, ceiling, scale], "groups": []})["body"]
+    assert ("uncapped growth fade reaches 8.0 years (the model has 5.0 years), which takes "
+            "Mounjaro to $279,226mm at peak against $72,000mm") in body[0]
+    assert "every revenue ceiling reaches 8.28 times the modelled peak or" not in body[0]
+    assert "every revenue ceiling reaches 8.28 times the modelled peak, any one" in body[0]

@@ -8,11 +8,17 @@ is noise on one product and a franchise on another.
 
 So each lever is solved instead. For every assumption the company's value rests on, the
 break-point is the value at which, moved alone, equity per share equals the last close:
-the growth, LOE year, erosion, peak uptake, price, persistence, probability or discount
-rate the price implies. Where the model reads below the price it is what would have to
-be true to get there; where it reads above, how far the assumption can fall before the
-price is no longer supported. Two company-wide levers sit beside the products: one shift
-applied to every discount rate, and the launch productivity the future pipeline earns.
+the growth, how long it lasts and where it stops, LOE year, erosion, peak uptake, price,
+persistence, probability or discount rate the price implies. Where the model reads below
+the price it is what would have to be true to get there; where it reads above, how far
+the assumption can fall before the price is no longer supported. Company-wide levers sit
+beside the products: one shift applied to every discount rate, one to every growth fade,
+one scale on every revenue ceiling, and the launch productivity the future pipeline earns.
+
+The fade and the ceiling are there because a price far above the book is usually a bet on
+growth lasting longer than five years or running past the peak anyone has published, and
+neither shows as a growth rate. A launch product's rate was solved to reach its published
+peak, so its ceiling moves with the rate (forecast_view.apply_lever).
 
 Every trial runs the real engine. The product is rebuilt with the lever set, put back into
 the book, and the future pipeline recomputed from the book's new R&D, since a product's
@@ -48,8 +54,10 @@ ITERATIONS = 48
 BOUNDS = {"wacc": (0.02, 0.30), "revenue_growth_pct": (-0.95, 3.0),
           "terminal_growth_pct": (-0.30, None), "erosion_year1_pct": (0.0, 1.0),
           "pos": (0.0001, 1.0), "discontinuation_pct": (0.01, 1.0)}
-SCALE = (0.01, 20.0)    # net price and peak uptake, as a multiple of the model's
+SCALE = (0.01, 20.0)    # net price, peak uptake and a ceiling, as a multiple of the model's
 YEARS = (-15, 30)       # an LOE year, relative to the model's
+FADE = (1, 40)          # a growth fade, in years
+FADE_SHIFT = (-4, 30)   # one shift on every fade, in years
 CAPM_KEYS = ("wacc", "risk_free", "erp", "beta", "cost_of_debt", "debt_weight")
 PRICE_KEYS = ("net_price_per_patient", "list_price_per_patient", "gross_to_net_pct")
 
@@ -109,9 +117,9 @@ def _distance(kind: str, model: float, value: float | None) -> float:
     only."""
     if value is None:
         return math.inf
-    if kind == "year":
+    if kind in ("year", "years"):
         return abs(value - model) / 2.0
-    if kind == "scale":
+    if kind in ("scale", "level"):
         return abs(value - model) / (0.2 * abs(model))
     return abs(value - model) / max(0.2 * abs(model), 0.01)
 
@@ -146,6 +154,11 @@ def _lever_evidence(key: str, rows: list, built: dict) -> tuple:
     if key == "net_price_per_patient":
         grades = _row_grades(rows, PRICE_KEYS)
         return (evidence.weakest(grades) if grades else None), "the price rows"
+    if key == "growth_fade_years":
+        grades = _row_grades(rows, (key,))
+        if grades:
+            return evidence.weakest(grades), "the growth fade row"
+        return "convention", "the engine's five years, where no fade is stated"
     if key == "penetration_peak_pct":
         grades = _row_grades(rows, ("penetration_peak_pct",), indication=True)
         return (evidence.weakest(grades) if grades else None), "the peak uptake rows"
@@ -254,7 +267,10 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
                 lo, hi = current + YEARS[0], current + YEARS[1]
                 found = solve(lambda x: gap_for(V.apply_lever(inputs, key, int(x))),
                               current, lo, hi, integer=True)
-            elif key == "net_price_per_patient":
+            elif kind == "years":
+                found = solve(lambda x: gap_for(V.apply_lever(inputs, key, int(x))),
+                              current, *FADE, integer=True)
+            elif kind == "level" or key == "net_price_per_patient":
                 found = solve(lambda x: gap_for(V.apply_lever(inputs, key, x)),
                               current, current * SCALE[0], current * SCALE[1])
             else:
@@ -299,26 +315,40 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
 
         scalars = entry["scalars"]
         for label, key in (("near-term growth", "revenue_growth_pct"),
-                           ("long-run growth", "terminal_growth_pct")):
+                           ("long-run growth", "terminal_growth_pct"),
+                           ("growth fade", "growth_fade_years")):
             current = scalars.get(key)
-            if current is None:
+            if key == "growth_fade_years":
+                if scalars.get("terminal_growth_pct") is None:
+                    continue
+                current = int(current or 5)
+                found = solve(lambda x: line_gap({**scalars, key: int(x)}), current, *FADE,
+                              integer=True)
+                kind = "years"
+            elif current is None:
                 continue
-            lo, hi = BOUNDS[key]
-            if key == "terminal_growth_pct":
-                hi = (part.get("wacc") or 0.07) - 0.005
-            found = solve(lambda x: line_gap({**scalars, key: x}), current, lo, hi)
+            else:
+                lo, hi = BOUNDS[key]
+                if key == "terminal_growth_pct":
+                    hi = (part.get("wacc") or 0.07) - 0.005
+                found = solve(lambda x: line_gap({**scalars, key: x}), current, lo, hi)
+                kind = "rate"
             grade = evidence.weakest([r.get("evidence") for r in rows if r["key"] == key]
                                      or [None])
-            lever_row("line", part["line"], None, label, key, "rate", current, found,
+            lever_row("line", part["line"], None, label, key, kind, current, found,
                       grade, f"the {key} row")
 
-    # One shift on every discount rate in the book.
-    def shifted(d: float) -> float:
+    def book_gap(asset_trial, line_trial) -> float:
+        """The price gap with every product's inputs and every line's scalars passed
+        through a trial; a trial returning None leaves that part as it is."""
         new_parts, new_book = [], 0.0
         for part in parts:
             if "asset_id" in part and part["asset_id"] in inputs_by_asset:
-                inputs = inputs_by_asset[part["asset_id"]]
-                trial = V.apply_lever(inputs, "wacc", (part.get("wacc") or 0.07) + d)
+                trial = asset_trial(part, inputs_by_asset[part["asset_id"]])
+                if trial is None:
+                    new_parts.append(part)
+                    new_book += part.get("rnpv_share") or 0.0
+                    continue
                 try:
                     result = forecast.build(trial)
                 except forecast.ForecastError:
@@ -328,20 +358,35 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
                 new_book += new["rnpv_share"]
             else:
                 entry = line_entries.get(part.get("line"))
-                if entry is None:
+                scalars = line_trial(part, entry["scalars"]) if entry is not None else None
+                if scalars is None:
                     new_parts.append(part)
                     new_book += part.get("rnpv") or 0.0
                     continue
-                got = company_lines.build(
-                    {**entry, "scalars": {**entry["scalars"],
-                                          "wacc": (part.get("wacc") or 0.07) + d}})
+                got = company_lines.build({**entry, "scalars": scalars})
                 if not got["ok"]:
                     return math.nan
-                new = {**part, "rnpv": got["result"]["rnpv"],
-                       "wacc": got["result"].get("wacc")}
+                result = got["result"]
+                new = {**part, "rnpv": result["rnpv"], "wacc": result.get("wacc"),
+                       "pnl_share": result.get("pnl") or part.get("pnl_share") or [],
+                       "dcf_years": result.get("dcf_years") or part.get("dcf_years") or []}
                 new_book += new["rnpv"]
             new_parts.append(new)
         return price_gap(new_book, new_parts)
+
+    def largest_grade(keys) -> str | None:
+        having = [l for l in counted
+                  if _row_grades(rows_by_asset[l["asset_id"]], keys)]
+        if not having:
+            return None
+        biggest = max(having, key=lambda l: abs(l["rnpv_share"]))
+        return evidence.weakest(_row_grades(rows_by_asset[biggest["asset_id"]], keys))
+
+    # One shift on every discount rate in the book.
+    def shifted(d: float) -> float:
+        return book_gap(
+            lambda part, inputs: V.apply_lever(inputs, "wacc", (part.get("wacc") or 0.07) + d),
+            lambda part, scalars: {**scalars, "wacc": (part.get("wacc") or 0.07) + d})
 
     book_wacc = (sotp["future"].get("wacc") or 0.07)
     found = solve(shifted, 0.0, -0.04, 0.10)
@@ -355,6 +400,97 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
               "rate", book_wacc, found, grade,
               "one shift on every product's and line's discount rate; the book's "
               "revenue-weighted rate is shown")
+
+    # One shift on every growth fade: how many more years the price needs growth to last.
+    def faded(part, scalars_of) -> tuple:
+        return (scalars_of.get("terminal_growth_pct") is not None,
+                int(scalars_of.get("growth_fade_years") or 5))
+
+    def fade_trial(inputs, d: int, lifted: bool):
+        has, fade = faded(None, inputs.get("scalars") or {})
+        if not has or not (d or lifted):
+            return None
+        trial = V.apply_lever(inputs, "growth_fade_years", fade + d)
+        if lifted:
+            trial = {**trial, "scalars": {k: v for k, v in trial["scalars"].items()
+                                          if k != "revenue_ceiling_musd"}}
+        return trial
+
+    def fade_shift(d: float, lifted: bool = False) -> float:
+        d = int(d)
+
+        def asset_trial(part, inputs):
+            return fade_trial(inputs, d, lifted)
+
+        def line_trial(part, scalars):
+            has, fade = faded(part, scalars)
+            return {**scalars, "growth_fade_years": max(1, fade + d)} if has and d else None
+        return book_gap(asset_trial, line_trial)
+
+    weights = []
+    for part in parts:
+        scalars_of = ((inputs_by_asset[part["asset_id"]].get("scalars") or {})
+                      if "asset_id" in part and part["asset_id"] in inputs_by_asset
+                      else (line_entries.get(part.get("line")) or {}).get("scalars") or {})
+        has, fade = faded(part, scalars_of)
+        first = (part.get("pnl_share") or [{}])[0].get("revenue") or 0.0
+        if has and first:
+            weights.append((first, fade))
+    if weights:
+        book_fade = sum(r * f for r, f in weights) / sum(r for r, _ in weights)
+        found = solve(fade_shift, 0, *FADE_SHIFT, integer=True)
+        if found["value"] is not None:
+            found = {**found, "value": book_fade + found["value"]}
+        grade = largest_grade(("growth_fade_years",)) or "convention"
+        lever_row("company", verdict["name"], None, "every growth fade", "fade_shift",
+                  "years", book_fade, found, grade,
+                  "one shift, in years, on how long every product's and line's near-term "
+                  "growth lasts, every ceiling held; the book's revenue-weighted fade is shown")
+        # The same shift with no ceiling in the way. Where the ceilings bind, a longer fade
+        # alone moves little, and the question a price far above the book asks is how long
+        # growth has to run if nothing caps it. What that implies for the largest products'
+        # peaks is shown beside it, since that is the part a reader can argue with.
+        found = solve(lambda d: fade_shift(d, lifted=True), 0, *FADE_SHIFT, integer=True)
+        shown = None
+        if found["value"] is not None:
+            shown = []
+            capped = [l for l in counted
+                      if (inputs_by_asset[l["asset_id"]].get("scalars") or {})
+                      .get("revenue_ceiling_musd")]
+            for l in sorted(capped, key=lambda l: -abs(l["rnpv_share"]))[:3]:
+                inputs = inputs_by_asset[l["asset_id"]]
+                trial = fade_trial(inputs, int(found["value"]), True)
+                try:
+                    model_peak = max(forecast.build(inputs).get("revenue") or [0.0])
+                    break_peak = (max(forecast.build(trial).get("revenue") or [0.0])
+                                  if trial else model_peak)
+                except forecast.ForecastError:
+                    continue
+                shown.append({"product": l["name"], "model": model_peak,
+                              "break": break_peak})
+            found = {**found, "value": book_fade + found["value"]}
+        lever_row("company", verdict["name"], None, "uncapped growth fade",
+                  "fade_shift_uncapped", "years", book_fade, found, grade,
+                  "one shift, in years, on how long every product's and line's near-term "
+                  "growth lasts, with every revenue ceiling lifted; the largest capped "
+                  "products' peak revenue at the break is shown", shown=shown)
+
+    # One scale on every revenue ceiling: the peaks the price needs, against the ones in
+    # the model. A launch product's growth moves with its ceiling.
+    ceilings = {aid: (inputs.get("scalars") or {}).get("revenue_ceiling_musd")
+                for aid, inputs in inputs_by_asset.items()}
+    if any(c for c in ceilings.values()):
+        def ceiling_scale(x: float) -> float:
+            return book_gap(
+                lambda part, inputs: (V.apply_lever(inputs, "revenue_ceiling_musd",
+                                                    ceilings[part["asset_id"]] * x)
+                                      if ceilings.get(part["asset_id"]) else None),
+                lambda part, scalars: None)
+        found = solve(ceiling_scale, 1.0, *SCALE)
+        lever_row("company", verdict["name"], None, "every revenue ceiling", "ceiling_scale",
+                  "scale", 1.0, found, largest_grade(("revenue_ceiling_musd",)),
+                  "one multiple on every product's revenue ceiling, with a growth rate "
+                  "solved to reach its ceiling solved again")
 
     # The launch productivity the future pipeline earns.
     rate = sotp["future"].get("rate_used")
@@ -448,6 +584,11 @@ def _value_words(lever: dict, value) -> str:
         return f"{value:.3f} of revenue per R&D dollar"
     if kind == "year":
         return f"{int(value)}"
+    if kind == "years":
+        return (f"{int(value)} years" if float(value).is_integer()
+                else f"{value:.1f} years")
+    if kind == "level":
+        return f"${value:,.0f}mm"
     if kind == "price":
         return f"${value * 1e6:,.0f} a patient"
     if kind == "scale":
@@ -479,13 +620,19 @@ def sentence(result: dict, fails=None) -> dict:
     items = []
     for lever, _ in chosen:
         model, value = lever["model"], lever["break"]
+        # A multiple of the model is measured from the model, so there is nothing to add.
+        had = ("" if lever["kind"] == "scale" and not lever.get("shown") and model == 1.0
+               else f" (the model has {_value_words(lever, model)})")
+        peaks = [p for p in lever.get("shown") or [] if p.get("product")]
+        implied = (f", which takes {peaks[0]['product']} to ${peaks[0]['break']:,.0f}mm at "
+                   f"peak against ${peaks[0]['model']:,.0f}mm" if peaks else "")
         if result["direction"] == "down":
             side = "above" if value < model else "below"
-            items.append(f"{_subject(lever)} stays {side} {_value_words(lever, value)} "
-                         f"(the model has {_value_words(lever, model)})")
+            items.append(f"{_subject(lever)} stays {side} {_value_words(lever, value)}{had}"
+                         f"{implied}")
         else:
-            items.append(f"{_subject(lever)} reaches {_value_words(lever, value)} "
-                         f"(the model has {_value_words(lever, model)})")
+            items.append(f"{_subject(lever)} reaches {_value_words(lever, value)}{had}"
+                         f"{implied}")
     joined = _listed(items, "and" if result["direction"] == "down" else "or")
     body = []
     reads = f"{name} reads {_money(result['equity_per_share'])} against a {_money(close)} price"
