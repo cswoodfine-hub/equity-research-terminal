@@ -9,8 +9,16 @@
 # measured one. It is the mean from the start of clinical testing to approval; spend
 # before the clinic is not in it, which makes the lag short, and spend late in the
 # clinic is heavier than early, which makes it long. Sensitivity sweeps it.
+#
+# The franchise's long-run growth is the market's expected inflation on the day every discount
+# rate takes its risk-free rate. Products fade to nothing and lose exclusivity; the company they
+# make up replaces them through launches, and a company that only replaces them keeps its real
+# size, not its nominal one. At a nominal discount rate a franchise held flat in dollars shrinks
+# by inflation every year for ever, which is a claim of decline no filing makes. Real growth is
+# not assumed: that would be a view.
 key,value,source,note
 lag_years,8,"DiMasi, Grabowski and Hansen (2016), Journal of Health Economics 47: mean clinical phase to approval of 96.8 months for new compounds first tested 1995-2007","years from the R&D spend to the launches it buys"
 horizon_years,60,"a computation bound, not a claim: at a 7% discount rate a cash flow sixty years out is worth under 2% of its face value","how far forward launches are simulated"
 min_rd_years,8,"a coverage bound: the ten-year R&D window has to be at least this complete for a filer to enter the pooled rate","filers with a shorter R&D history on file are shown and not pooled"
 min_revenue_musd,5000,"a scale bound: below five billion a single launch dominates a decade's cohort","filers below it are shown and not pooled"
+franchise_growth,0.0232,"FRED T10YIE, 10-year breakeven inflation, 2.32% on 2026-08-26: the nominal 10-year Treasury (DGS10, 4.66%, the risk-free rate in every discount rate) less the inflation-indexed one (DFII10, 2.34%) on the same day","the long-run growth the company's franchise holds: the room its launches may fill and the renewal cap both grow at it"

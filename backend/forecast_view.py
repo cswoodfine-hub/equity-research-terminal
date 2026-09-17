@@ -1350,12 +1350,17 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
     rate_used = own["blended"] if own and own.get("blended") is not None else pool["rate"]
     if rate_override is not None:
         rate_used = rate_override
-    # The franchise grows no faster than the book says its own products do in the long
-    # run. Where no long-run rate is on file it replaces the book and does not grow.
-    long_run = (sum(r * g for r, g in growths) / sum(r for r, _ in growths)
-                if growths else 0.0)
-    long_run_basis = ("the book's revenue-weighted long-run growth" if growths
-                      else "no long-run growth on file, so replacement only")
+    # The franchise holds its real size: its room and its renewal grow at expected
+    # inflation (future_pipeline_defaults.csv says why). Without that row it grows no
+    # faster than the book says its own products do in the long run.
+    if bounds.get("franchise_growth") is not None:
+        long_run = bounds["franchise_growth"]["value"]
+        long_run_basis = bounds["franchise_growth"]["source"]
+    else:
+        long_run = (sum(r * g for r, g in growths) / sum(r for r, _ in growths)
+                    if growths else 0.0)
+        long_run_basis = ("the book's revenue-weighted long-run growth" if growths
+                          else "no long-run growth on file, so replacement only")
     horizon = int(bounds["horizon_years"]["value"])
     book = FP.book_revenue(book_parts, list(range(base_year + 1, base_year + 1 + horizon)),
                            erosion["year1_pct"], erosion.get("decay_pct") or 0.0)
