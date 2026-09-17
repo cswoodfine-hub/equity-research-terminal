@@ -65,12 +65,18 @@ def s_curve(year_index: float, peak: float, midpoint: float, steepness: float) -
 
 
 def derive_new_patients(pool: float, incidence: float, penetration,
-                        years: int, capacity=None) -> list[float]:
+                        years: int, capacity=None, carryover: float = 1.0) -> list[float]:
     """The identity. ``penetration`` is a callable of year index; ``capacity`` an
     optional per-year list of treatment slots.
 
-    The pool never goes negative and the tail converges on incidence x penetration,
-    both by construction rather than by assertion.
+    ``carryover`` is the share of the patients not started in a year who are still
+    eligible the next. At 1.0, the default, nobody leaves: a prevalent pool is drawn down
+    and the tail converges on the incidence run rate, the Zolgensma shape. At 0.0 each
+    year's eligible patients are that year's alone, as in a line of cancer therapy, where
+    a patient not started on this drug starts another and leaves the line, and the tail
+    converges on incidence x penetration.
+
+    The pool never goes negative, by construction rather than by assertion.
     """
     remaining = float(pool)
     out = []
@@ -81,7 +87,7 @@ def derive_new_patients(pool: float, incidence: float, penetration,
             new = min(new, capacity[i])
         new = min(new, eligible)
         out.append(new)
-        remaining = max(0.0, remaining + incidence - new)
+        remaining = max(0.0, remaining + incidence - new) * carryover
     return out
 
 
@@ -153,7 +159,24 @@ def patients_for_indication(ind: dict, years: list[int], notes: list,
         capacity = None
         if "capacity_patients" in series:
             capacity = [series["capacity_patients"].get(y) for y in years]
-        derived = derive_new_patients(pool, inc, curve, len(years), capacity)
+        # Whether the patients not started in a year are still there the next. A seed can
+        # say so outright. Where it does not, a pool stated equal to its own inflow is the
+        # year's diagnoses, which is how every cancer seed writes a line of therapy ("lung
+        # cancer incidence is the pool: diagnosed and treated each year rather than
+        # accumulated"). Carrying its untreated patients forward treated every one of them
+        # in the end, whatever the peak share, and put a PD-1/VEGF bispecific above
+        # Keytruda. Such a pool is the inflow alone, so the opening pool is not counted on
+        # top of the first year's diagnoses either.
+        carryover = scalars.get("untreated_carryover_pct")
+        if carryover is None and prevalence and abs(prevalence - incidence) < 0.5:
+            carryover, pool = 0.0, 0.0
+            notes.append(f"{ind.get('name', 'indication')}: the pool is the year's own "
+                         f"diagnoses (prevalence equals incidence), so a patient not "
+                         f"started in a year does not carry into the next, and the peak "
+                         f"penetration of {peak * funnel:.1%} is the share of each year's "
+                         f"eligible patients the drug reaches")
+        derived = derive_new_patients(pool, inc, curve, len(years), capacity,
+                                      carryover=1.0 if carryover is None else carryover)
     else:
         missing = [k for k, v in (("prevalence", prevalence),
                                   ("eligible_pct", eligible_pct),

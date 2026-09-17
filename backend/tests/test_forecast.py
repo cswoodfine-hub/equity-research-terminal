@@ -283,6 +283,42 @@ def test_incidence_passes_the_same_eligibility_filter_as_the_pool():
     assert any("eligibility share" in n for n in notes)
 
 
+def test_with_no_carryover_the_tail_is_the_peak_share_of_the_inflow():
+    """A line of cancer therapy: a patient not started this year starts something else.
+    Carried forward, the untreated patients were all treated in the end."""
+    carried = F.derive_new_patients(pool=0, incidence=1000,
+                                    penetration=lambda i: 0.2, years=30)
+    kept = F.derive_new_patients(pool=0, incidence=1000,
+                                 penetration=lambda i: 0.2, years=30, carryover=0.0)
+    assert carried[-1] == pytest.approx(1000, rel=0.01)
+    assert kept[-1] == pytest.approx(200) and kept[0] == pytest.approx(200)
+
+
+def _lung(**extra):
+    return {"name": "NSCLC",
+            "scalars": {"prevalence": 192650, "incidence": 192650, "eligible_pct": 0.35,
+                        "penetration_peak_pct": 0.2, "ramp_midpoint_year": 0,
+                        "ramp_steepness": 8.0, **extra},
+            "series": {}}
+
+
+def test_a_pool_equal_to_its_inflow_is_the_years_diagnoses_alone():
+    notes = []
+    got = F.patients_for_indication(_lung(), list(range(2030, 2050)), notes)
+    assert got["derived"][-1] == pytest.approx(192650 * 0.35 * 0.2, rel=0.01)
+    # The opening pool is the first year's diagnoses, not a second cohort beside them.
+    assert got["derived"][0] <= 192650 * 0.35 * 0.2 + 1e-6
+    assert any("does not carry into the next" in n for n in notes)
+
+
+def test_a_stated_carryover_outranks_the_inflow_rule():
+    notes = []
+    got = F.patients_for_indication(_lung(untreated_carryover_pct=1.0),
+                                    list(range(2030, 2050)), notes)
+    assert got["derived"][-1] == pytest.approx(192650 * 0.35, rel=0.02)
+    assert not any("does not carry into the next" in n for n in notes)
+
+
 # --- the what-if levers (forecast_view.whatif) -------------------------------
 
 def test_whatif_levers(tmp_path):
