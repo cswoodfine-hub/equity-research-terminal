@@ -17,6 +17,7 @@ import env  # noqa: F401  loads the .env from the repo root, before any module r
 import annotations as annotations_module
 import allocation as allocation_module
 import asof as asof_module
+import breakpoints
 import backtest as backtest_module
 import asset_revenue as asset_revenue_module
 import catalyst_grid as catalyst_grid_module
@@ -603,6 +604,16 @@ def company_forecast_verdict(ticker: str) -> dict:
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
     return {**out, "note": forecast_note.write_company(out)}
+
+
+@app.get("/companies/{ticker}/breakpoints")
+def company_breakpoints(ticker: str) -> dict:
+    """For every assumption the company's value rests on, the value at which it meets
+    the price, with the evidence grade of the row it rests on."""
+    out = breakpoints.company(None, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    return out
 
 
 @app.get("/companies/{ticker}/forecast/{asset_id}/verdict")

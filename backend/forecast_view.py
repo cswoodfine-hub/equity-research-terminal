@@ -793,8 +793,36 @@ def _levers(inputs, built):
     years either way for a date, because a fifth of a year number is nonsense. Each row
     says which, so the sentence written from it can too.
     """
-    scalars = inputs.get("scalars") or {}
     base_rnpv = built["rnpv"]
+    out = []
+    for label, key, current, kind, step in lever_specs(inputs, built):
+        swings = []
+        if kind == "year":
+            trials = (current - 2, current + 2)
+        else:
+            trials = (current * (1 - _LEVER_STEP), current * (1 + _LEVER_STEP))
+        for pushed in trials:
+            try:
+                moved = forecast.build(apply_lever(inputs, key, pushed))["rnpv"]
+            except forecast.ForecastError:
+                continue
+            swings.append(moved - base_rnpv)
+        if len(swings) == 2:
+            out.append({"lever": label, "key": key, "value": current, "step": step,
+                        "down": min(swings), "up": max(swings),
+                        "span": max(swings) - min(swings)})
+    out.sort(key=lambda r: -abs(r["span"]))
+    return out
+
+
+def lever_specs(inputs, built) -> list:
+    """(label, key, current, kind, step) for every lever this product's value rests on.
+
+    Shared by the tornado and the break-points, so the two always ask about the same
+    assumptions. A lever with no current value, or a rate at nil, is left out: there is
+    nothing to push.
+    """
+    scalars = inputs.get("scalars") or {}
     mode = built.get("mode")
     fifth = "a fifth either way"
     levers = [("discount rate", "wacc", built["wacc"], "rate", fifth)]
@@ -824,38 +852,29 @@ def _levers(inputs, built):
             ("persistence", "discontinuation_pct", scalars.get("discontinuation_pct"),
              "rate", fifth),
         ]
-    out = []
-    for label, key, current, kind, step in levers:
-        if current is None or (kind == "rate" and current == 0):
-            continue
-        swings = []
-        if kind == "year":
-            trials = (current - 2, current + 2)
-        else:
-            trials = (current * (1 - _LEVER_STEP), current * (1 + _LEVER_STEP))
-        for pushed in trials:
-            trial = dict(scalars)
-            trial[key] = pushed
-            if key == "pos":
-                trial[key] = min(trial[key], 1.0)
-                for factor in ("pos_regulatory", "pos_launch", "pos_reimbursement",
-                               "pos_durability"):
-                    trial.pop(factor, None)
-            if key == "erosion_year1_pct":
-                trial[key] = min(trial[key], 1.0)
-                if trial.get("erosion_decay_pct") is None and default:
-                    trial["erosion_decay_pct"] = default["decay_pct"]
-            try:
-                moved = forecast.build({**inputs, "scalars": trial})["rnpv"]
-            except forecast.ForecastError:
-                continue
-            swings.append(moved - base_rnpv)
-        if len(swings) == 2:
-            out.append({"lever": label, "key": key, "value": current, "step": step,
-                        "down": min(swings), "up": max(swings),
-                        "span": max(swings) - min(swings)})
-    out.sort(key=lambda r: -abs(r["span"]))
-    return out
+    return [lever for lever in levers
+            if lever[2] is not None and not (lever[3] == "rate" and lever[2] == 0)]
+
+
+def apply_lever(inputs, key: str, value):
+    """The inputs with one lever set, overriding the computed value rather than the raw
+    input: WACC arrives from CAPM components and PoS from composite factors, and
+    perturbing a scalar that is not there moves nothing. PoS strips its factors first,
+    since factors beat a stated value in the engine; erosion takes the default decay with
+    its year-one drop where the product states neither."""
+    scalars = dict(inputs.get("scalars") or {})
+    scalars[key] = value
+    if key == "pos":
+        scalars[key] = min(scalars[key], 1.0)
+        for factor in ("pos_regulatory", "pos_launch", "pos_reimbursement",
+                       "pos_durability"):
+            scalars.pop(factor, None)
+    if key == "erosion_year1_pct":
+        scalars[key] = min(scalars[key], 1.0)
+        default = forecast.erosion_default(inputs)[0]
+        if scalars.get("erosion_decay_pct") is None and default:
+            scalars["erosion_decay_pct"] = default["decay_pct"]
+    return {**inputs, "scalars": scalars}
 
 
 def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
@@ -1177,9 +1196,11 @@ def _years_between(start: str | None, end: str | None) -> float:
     return max(days, 0) / 365.25
 
 
-def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "") -> dict:
+def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
+                     rate_override: float | None = None) -> dict:
     """The launches the book's R&D buys, valued. {value, reason, ...}; value is None
-    with a reason wherever an input is not on file."""
+    with a reason wherever an input is not on file. ``rate_override`` replaces the blended
+    launch productivity, for a break-point asking what rate the price assumes."""
     import future_pipeline as FP
     if not anchor:
         return {"value": None, "reason": "no valuation year on file"}
@@ -1222,6 +1243,8 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "")
     # The filer's own record at its credibility, the pool for the rest. A filer with no
     # launch record on file takes the pool outright.
     rate_used = own["blended"] if own and own.get("blended") is not None else pool["rate"]
+    if rate_override is not None:
+        rate_used = rate_override
     # The franchise grows no faster than the book says its own products do in the long
     # run. Where no long-run rate is on file it replaces the book and does not grow.
     long_run = (sum(r * g for r, g in growths) / sum(r for r, _ in growths)

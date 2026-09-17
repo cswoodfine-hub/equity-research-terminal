@@ -1806,6 +1806,78 @@ def _revenue_split(s: dict) -> None:
                     unsafe_allow_html=True)
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def _breakpoints(api_base: str, ticker: str):
+    try:
+        return api_get(api_base, f"/companies/{ticker}/breakpoints")
+    except (urllib.error.URLError, OSError):
+        return None
+
+
+def _lever_value(kind: str, value) -> str:
+    if value is None:
+        return "·"
+    if kind == "year":
+        return f"{int(value)}"
+    if kind in ("scale",):
+        return f"×{value:.2f}"
+    if kind == "price":
+        return f"${value * 1e6:,.0f}"
+    return f"{value:.2%}"
+
+
+def _lever_move(kind: str, model, value) -> str:
+    if value is None:
+        return "not reachable alone"
+    if kind == "year":
+        return f"{int(value) - int(model):+d}y"
+    if kind in ("scale", "price"):
+        return f"{value / model - 1:+.0%}" if model else "·"
+    return f"{(value - model) * 100:+.2f} pts"
+
+
+def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
+    """Which assumptions the value rests on, and how far each can move before the value
+    and the price meet. A board does not need the number to the cent; it needs to know
+    what breaks it, and whether that rests on a filing or on a judgement."""
+    b = _breakpoints(api_base, ticker)
+    if not b or not b.get("ok"):
+        return
+    levers = [l for l in b.get("levers") or [] if l.get("reachable")][:limit]
+    if not levers:
+        return
+    gap = b.get("gap_per_share") or 0.0
+    basis = ("what the price needs, each alone" if b.get("direction") == "up"
+             else "how far each can fall before the price, each alone")
+    section("What breaks it", basis=basis)
+    for sentence in (b.get("sentence") or {}).get("body") or []:
+        st.markdown(f'<div class="byline">{html_escape(sentence)}</div>',
+                    unsafe_allow_html=True)
+    body = ""
+    for l in levers:
+        shown = l.get("shown") or []
+        model = _lever_value(l["kind"], l["model"])
+        brk = _lever_value(l["kind"], l["break"])
+        if l["kind"] == "scale" and len(shown) == 1 and shown[0].get("break") is not None:
+            model, brk = f"{shown[0]['model']:.2%}", f"{shown[0]['break']:.2%}"
+        grade = l.get("evidence") or "ungraded"
+        body += (f'<tr><td class="rs-k">{html_escape(l["name"])}</td>'
+                 f'<td class="rs-k">{html_escape(l["lever"])}</td>'
+                 f'<td class="rs-v">{html_escape(model)}</td>'
+                 f'<td class="rs-v">{html_escape(brk)}</td>'
+                 f'<td class="rs-v">{html_escape(_lever_move(l["kind"], l["model"], l["break"]))}</td>'
+                 f'<td class="rs-k">{html_escape(grade)} · {html_escape(l.get("evidence_class") or "")}</td></tr>')
+    st.markdown('<table class="rs"><thead><tr><th>where</th><th>assumption</th>'
+                '<th>model</th><th>break</th><th>move</th><th>evidence</th></tr></thead>'
+                f'<tbody>{body}</tbody></table>', unsafe_allow_html=True)
+    held = " and ".join(b.get("held") or [])
+    caption = (f"value {b['equity_per_share']:,.2f} against a close of {b['close']:,.2f}, "
+               f"a gap of {gap:+,.2f} a share; each row moves one assumption alone and "
+               f"holds {held}")
+    st.markdown(f'<div class="byline">{html_escape(caption)}</div>',
+                unsafe_allow_html=True)
+
+
 def _book(api_base: str, ticker: str, selected):
     """The company above the compound, because that is the unit of coverage.
 
@@ -1889,6 +1961,8 @@ def _book(api_base: str, ticker: str, selected):
             _sotp_bridge(sotp)
         with split_col:
             _revenue_split(sotp)
+
+    _what_breaks_it(api_base, ticker)
 
     left, right = st.columns([1, 1.5], gap="medium")
     with left:
