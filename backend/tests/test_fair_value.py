@@ -137,3 +137,26 @@ def test_guidance_that_cannot_be_read_against_the_book_says_why(tmp_path):
     for i, (rows, reason) in enumerate(cases):
         path = _company(tmp_path / str(i), guidance=rows)
         assert F.revenue_split(B.Book(path, "AMGN")) == {"ok": False, "reason": reason}
+
+
+def test_takeover_precedents_read_the_file_and_skip_small_targets(tmp_path):
+    csv_path = tmp_path / "p.csv"
+    csv_path.write_text(
+        "# c\nacquirer,target,announced,offer_per_share_usd,equity_value_musd,enterprise_value_musd,ev_basis,"
+        "target_cash_musd,target_debt_musd,balance_sheet_date,revenue_fy_musd,revenue_fy_year,revenue_ttm_musd,"
+        "ttm_end,premium_pct,accessions,quotes,note\n"
+        "A,T1,2020-01-01,1,,40000,stated,,,,10000,2019,,,,a,q,\n"
+        "A,T2,2020-01-01,1,30000,,computed,2000,4000,2019-12-31,5000,2019,,,,a,q,\n"
+        "A,T3,2020-01-01,1,,24000,stated,,,,4000,2019,,,,a,q,\n"
+        "A,T4,2020-01-01,1,,50000,stated,,,,5000,2019,,,,a,q,\n"
+        "A,T5,2020-01-01,1,,9000,stated,,,,300,2019,,,,a,q,\n"
+        "A,T6,2020-01-01,1,20000,,computed,,,,2000,2019,,,,a,q,\n")
+    deals = F.precedents(csv_path)
+    assert [d["target"] for d in deals] == ["T1", "T2", "T3", "T4", "T5"]
+    assert deals[1]["ev_musd"] == 32000 and deals[1]["multiple"] == pytest.approx(6.4)
+    book = B.Book(_company(tmp_path / "c"), "AMGN")
+    got = F.takeover(book, deals)
+    own = F._metrics(book)
+    assert got["deals"] == 4                         # T5's 300mm of revenue is left out
+    assert got["peer_quartiles"] == pytest.approx((5.5, 6.2, 7.3))   # multiples 4, 6, 6.4, 10
+    assert got["mid"] == pytest.approx(6.2 * own["revenue_ps"] + own["net_cash_ps"])

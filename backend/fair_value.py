@@ -13,6 +13,8 @@ left for the valuation's conventions:
 - **Trading comparables.** The peers' price to next-twelve-months consensus EPS (Nasdaq)
   and enterprise value to last-fiscal-year revenue (filed), applied to the company at the
   peers' quartiles.
+- **Takeover precedents.** What acquirers paid for commercial-stage biopharma, enterprise
+  value over the target's last full year of revenue (``data/precedent_transactions.csv``).
 - **Analyst price targets**, low to high, from the same feed.
 - **The trading range** of the last 52 weeks.
 
@@ -27,6 +29,9 @@ import datetime as dt
 import math
 import statistics
 import time
+
+import csv
+import pathlib
 
 import breakpoints as B
 import db
@@ -317,6 +322,67 @@ def comps(book: B.Book, peers: list[dict]) -> list[dict]:
     return lenses
 
 
+# --- takeover precedents -----------------------------------------------------------
+PRECEDENTS = pathlib.Path(__file__).resolve().parent.parent / "data" / "precedent_transactions.csv"
+# A multiple paid for a company with one launch and little revenue measures the launch,
+# not a business, and runs to hundreds of times sales. Only targets with at least this
+# much revenue in their last full year are read.
+MIN_TARGET_REVENUE_MUSD = 1000.0
+
+
+def _float(text):
+    try:
+        return float(text) if (text or "").strip() else None
+    except ValueError:
+        return None
+
+
+def precedents(path=None) -> list[dict]:
+    """Deals with an enterprise value and trailing revenue, each with its multiple.
+    Enterprise value is the stated one, or equity value less cash plus debt where the
+    filings give both."""
+    source = pathlib.Path(path) if path else PRECEDENTS
+    if not source.exists():
+        return []
+    out = []
+    with source.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(line for line in handle if not line.lstrip().startswith("#")):
+            revenue = _float(row.get("revenue_fy_musd"))
+            ev = _float(row.get("enterprise_value_musd"))
+            if ev is None:
+                equity = _float(row.get("equity_value_musd"))
+                cash, debt = _float(row.get("target_cash_musd")), _float(row.get("target_debt_musd"))
+                if None not in (equity, cash, debt):
+                    ev = equity - cash + debt
+            if ev is None or not revenue:
+                continue
+            out.append({"acquirer": row.get("acquirer"), "target": row.get("target"),
+                        "announced": row.get("announced"), "ev_musd": ev,
+                        "revenue_musd": revenue, "multiple": ev / revenue,
+                        "premium_pct": _float(row.get("premium_pct"))})
+    return out
+
+
+def takeover(book: B.Book, deals: list[dict] | None = None) -> dict | None:
+    """The company at the quartiles of what acquirers paid for revenue."""
+    deals = precedents() if deals is None else deals
+    usable = [d for d in deals if d["revenue_musd"] >= MIN_TARGET_REVENUE_MUSD]
+    q = _quartiles([d["multiple"] for d in usable])
+    own = _metrics(book)
+    if q is None or not own.get("revenue_ps"):
+        return None
+    return {"lens": f"takeover precedents, EV / trailing revenue", "key": "precedents",
+            "low": q[0] * own["revenue_ps"] + own["net_cash_ps"],
+            "mid": q[1] * own["revenue_ps"] + own["net_cash_ps"],
+            "high": q[2] * own["revenue_ps"] + own["net_cash_ps"],
+            "peer_quartiles": q, "deals": len(usable),
+            "basis": (f"what acquirers paid for {len(usable)} commercial-stage biopharma "
+                      f"companies with at least ${MIN_TARGET_REVENUE_MUSD:,.0f}mm of revenue, "
+                      "enterprise value over the target's last full year of revenue at the "
+                      "quartiles, times this company's FY revenue, plus its net cash; a "
+                      "control premium is in every one of them")}
+
+
 # --- the market's own markers -----------------------------------------------------
 def price_targets(book: B.Book) -> dict | None:
     conn = db.get_connection(book.db_path)
@@ -369,7 +435,7 @@ def company(db_path, ticker: str, peers: list[dict] | None = None) -> dict | Non
                        "mid": split["matched_equity"], "high": split["matched_high"],
                        "basis": split["basis"]})
     lenses += comps(book, peers)
-    for extra in (price_targets(book), trading_range(book)):
+    for extra in (takeover(book), price_targets(book), trading_range(book)):
         if extra:
             lenses.append(extra)
     return {"ok": True, "ticker": book.ticker, "name": book.name, "close": book.close,
