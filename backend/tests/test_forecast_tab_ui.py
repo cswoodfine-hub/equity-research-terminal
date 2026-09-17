@@ -103,7 +103,11 @@ def test_the_tab_renders_the_sliders_at_base_values(app):
     assert _slider(app, "wacc").value == pytest.approx(9.85, abs=1e-2)   # a percent
     assert _slider(app, "pos").value == pytest.approx(0.8075, abs=1e-4)
     body = " ".join(str(m.value) for m in app.markdown)
-    assert "1,911.7" in body                # base valuation on the tiles
+    # Base valuation on the tiles. It was the workbook's 1,911.7 while the terminal value
+    # was a flat perpetuity at Casgevy's 2035 LOE; the tail now takes the cliff that LOE
+    # implies (forecast.terminal_multiple), and the engine test still reproduces the
+    # workbook where no erosion shape is given.
+    assert "1,374.7" in body
     assert "vs base" not in body            # no delta badge at rest
 
 
@@ -114,8 +118,8 @@ def test_moving_the_volume_slider_retells_the_page_itself(app):
     app.run()
     assert not app.exception
     body = " ".join(str(m.value) for m in app.markdown)
-    assert "1,338" in body or "1,337" in body       # varied rNPV on the main tile
-    assert "vs base" in body and ("-573" in body or "-574" in body)
+    assert "962" in body                            # varied rNPV on the main tile
+    assert "vs base" in body and ("-412" in body or "-413" in body)
     charts = " ".join(str(m.value) for m in app.markdown if "svg" in str(m.value))
     assert "varied" in charts and "base" in charts  # overlay on the top chart
 
@@ -128,7 +132,7 @@ def test_the_reset_button_returns_the_tab_to_rest(app):
     assert not app.exception
     assert _slider(app, "volume").value == 1.0
     body = " ".join(str(m.value) for m in app.markdown)
-    assert "1,911.7" in body
+    assert "1,374.7" in body
     assert "vs base" not in body
 
 
