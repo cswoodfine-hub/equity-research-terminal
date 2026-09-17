@@ -702,6 +702,10 @@ def company_rollup(db_path, ticker: str):
                                   for region in result.get("regions") or []],
                       "long_run_growth": (state.get("scalars") or {}).get(
                           "terminal_growth_pct"),
+                      # A device a drug company sells (Abiomed at Johnson & Johnson) is
+                      # flagged the way a device line is, so its R&D buys no drug launches.
+                      "buys_launches": (state.get("scalars") or {}).get(
+                          "buys_launches", 1) != 0,
                       "peak_revenue": peak,
                       "peak_year": (result["years"][revenue.index(peak)]
                                     if peak is not None else None),
