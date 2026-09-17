@@ -474,3 +474,22 @@ def test_waterfall_reference_is_a_dashed_rule_inside_the_domain():
                re.search(r'y1="([\d.]+)" x2="[\d.]+" y2="[\d.]+" stroke="#D9B26B"', svg).group(1))
     tops = [float(m) for m in re.findall(r'<rect x="[\d.]+" y="([\d.]+)"', svg)]
     assert ry < min(tops)
+
+
+# --- football field --------------------------------------------------------
+def test_a_football_field_draws_each_range_and_the_price_once():
+    svg = charts.football_field(
+        [{"label": "sum of the parts", "low": 485.9, "high": 642.6, "mid": 555.2, "emphasis": True},
+         {"label": "analyst price targets", "low": 940, "high": 1600, "mid": 1382}],
+        marker=1137.82, value_fmt=lambda v: f"${v:,.0f}")
+    ET.fromstring(svg)
+    assert svg.count("<rect") == 2
+    assert "sum of the parts" in svg and "$486 to $643" in svg and "price $1,138" in svg
+    assert tokens.UP in svg and tokens.FLAG in svg
+
+
+def test_a_football_field_row_without_both_ends_is_dropped_not_zeroed():
+    assert charts.football_field([{"label": "x", "low": None, "high": 3}]) == ""
+    svg = charts.football_field([{"label": "a", "low": 1, "high": 2},
+                                 {"label": "b", "low": None, "high": 5}])
+    assert svg.count("<rect") == 1 and ">b<" not in svg

@@ -1847,6 +1847,59 @@ def _lever_move(kind: str, model, value, key: str = "") -> str:
     return f"{(value - model) * 100:+.2f} pts"
 
 
+def _fair_value_range(api_base: str, ticker: str) -> None:
+    """The value across lenses, each a range with its basis, against the price.
+
+    The sum of the parts is the model's own number and is drawn as such; the rest are the
+    ways a price is otherwise judged, and they are checks on it rather than answers. The
+    line under the chart splits the gap to the price into what the revenue forecast
+    explains, read against the company's own guidance, and what is left for the
+    valuation's conventions."""
+    try:
+        fv = api_get(api_base, f"/companies/{ticker}/fair-value")
+    except (urllib.error.URLError, OSError):
+        return
+    if not fv or not fv.get("ok") or not fv.get("lenses"):
+        return
+    close = fv["close"]
+    money = (lambda v: f"${v:,.2f}") if close < 100 else (lambda v: f"${v:,.0f}")
+    section("Fair value range", basis="$ a share · each lens a range, the price dashed")
+    rows = [{"label": l["lens"], "low": l["low"], "high": l["high"], "mid": l.get("mid"),
+             "emphasis": l["key"].startswith("sotp")} for l in fv["lenses"]]
+    R.show(CH.football_field(rows, 760, 36 + 30 * len(rows), marker=close,
+                             value_fmt=money, label_width=300), css_class="chart-mount")
+    split = fv.get("revenue_split") or {}
+    if split.get("ok") and split.get("matched_equity") is not None:
+        g, m = split["guidance"], split["modelled"]
+        unmodelled = split.get("unmodelled_prior_year") or 0.0
+        gap = close - fv["equity_per_share"]
+        cur = f"{split.get('unit') or ''} ".lstrip()
+        text = (f"FY{split['year']}: the modelled book reads {cur}{m['total'] / 1e3:,.1f}bn"
+                + (f" plus {cur}{unmodelled / 1e3:,.1f}bn of FY{split['year'] - 1} revenue it "
+                   "does not carry" if unmodelled >= 1 else "")
+                + f", against guidance of {cur}{g['mid'] / 1e3:,.1f}bn ({split['gap_pct']:+.1%}; "
+                f"{g['basis']}). Matched to guidance the value is "
+                f"{money(split['matched_equity'])}, so the revenue level explains "
+                f"{split['explained_by_revenue']:+,.2f} of the {gap:+,.2f} gap to the price, "
+                f"and {split['left_for_conventions']:+,.2f} is left for how long growth "
+                "lasts, costs, discounting and what the book does not carry.")
+        st.markdown(f'<div class="byline">{html_escape(text)}</div>', unsafe_allow_html=True)
+    elif split.get("reason"):
+        st.markdown(f'<div class="byline">{html_escape("revenue against guidance: " + split["reason"])}</div>',
+                    unsafe_allow_html=True)
+    with st.expander("How each lens is built"):
+        body = "".join(
+            f'<tr><td class="rs-k">{html_escape(l["lens"])}</td>'
+            f'<td class="rs-v">{html_escape(money(l["low"]))}</td>'
+            f'<td class="rs-v">{html_escape(money(l["mid"])) if l.get("mid") is not None else "·"}</td>'
+            f'<td class="rs-v">{html_escape(money(l["high"]))}</td>'
+            f'<td class="rs-k">{html_escape(l.get("basis") or "")}</td></tr>'
+            for l in fv["lenses"])
+        st.markdown('<table class="rs"><thead><tr><th>lens</th><th>low</th><th>mid</th>'
+                    f'<th>high</th><th>basis</th></tr></thead><tbody>{body}</tbody></table>',
+                    unsafe_allow_html=True)
+
+
 def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
     """Which assumptions the value rests on, and how far each can move before the value
     and the price meet. A board does not need the number to the cent; it needs to know
@@ -2006,6 +2059,7 @@ def _book(api_base: str, ticker: str, selected):
         with split_col:
             _revenue_split(sotp)
 
+    _fair_value_range(api_base, ticker)
     _what_breaks_it(api_base, ticker)
 
     left, right = st.columns([1, 1.5], gap="medium")

@@ -670,6 +670,57 @@ def tornado(rows: Sequence[dict], width: int = 520, height: int = 160,
     return "".join(out)
 
 
+def football_field(rows: Sequence[dict], width: int = 760, height: int = 220,
+                   marker: Optional[float] = None, marker_label: str = "price",
+                   value_fmt: Callable[[float], str] = None,
+                   label_width: int = 250) -> str:
+    """Ranges of value from different lenses, on one axis, against the price.
+
+    Each row: {label, low, high, mid?, emphasis?}. A bar runs low to high with a tick at
+    the mid, so a lens that is a range reads as one and its central figure is still
+    visible. The price is one rule down the whole chart, since every lens is read against
+    it and it is not one of them. The row carrying ``emphasis`` is the model's own and is
+    drawn in the measured-series colour; the rest are muted, because they are checks.
+    """
+    value_fmt = value_fmt or (lambda v: _fmt(v, 0))
+    usable = [r for r in rows if r.get("low") is not None and r.get("high") is not None]
+    if not usable:
+        return ""
+    pad_r, pad_t = 110, 24
+    span = [r["low"] for r in usable] + [r["high"] for r in usable]
+    if marker is not None:
+        span.append(marker)
+    dom = _domain(span, pad=0.08)
+    x = _scale(dom, (label_width, width - pad_r))
+    n = len(usable)
+    row_h = (height - pad_t - 8) / n
+
+    out = [_svg_open(width, height, "football field chart")]
+    for i, r in enumerate(usable):
+        cy = pad_t + row_h * i + row_h / 2
+        bar = max(6.0, row_h * 0.46)
+        lo, hi = sorted((r["low"], r["high"]))
+        colour = TK.UP if r.get("emphasis") else TK.MUTED
+        out.append(_text(label_width - 10, cy + 3.5, r["label"], 10, TK.TEXT, "end"))
+        out.append(f'<rect x="{x(lo):.1f}" y="{cy - bar / 2:.1f}"'
+                   f' width="{max(x(hi) - x(lo), 2):.1f}" height="{bar:.1f}"'
+                   f' fill="{colour}" opacity="0.55"/>')
+        if r.get("mid") is not None:
+            mx = x(r["mid"])
+            out.append(f'<line x1="{mx:.1f}" y1="{cy - bar / 2 - 2:.1f}" x2="{mx:.1f}"'
+                       f' y2="{cy + bar / 2 + 2:.1f}" stroke="{TK.TEXT}" stroke-width="2"/>')
+        out.append(_text(width - pad_r + 10, cy + 3.5,
+                         f"{value_fmt(lo)} to {value_fmt(hi)}", 9.5, TK.MUTED, "start", MONO))
+    if marker is not None:
+        mx = x(marker)
+        out.append(f'<line x1="{mx:.1f}" y1="{pad_t - 8}" x2="{mx:.1f}" y2="{height - 6}"'
+                   f' stroke="{TK.FLAG}" stroke-dasharray="4 3"/>')
+        out.append(_text(mx, pad_t - 12, f"{marker_label} {value_fmt(marker)}", 9, TK.FLAG,
+                         "middle", MONO))
+    out.append("</svg>")
+    return "".join(out)
+
+
 # --- 7. waterfall ---------------------------------------------------------
 def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
               value_fmt: Callable[[float], str] = None,
