@@ -1686,6 +1686,10 @@ def _sotp_bridge(s: dict) -> None:
                       "kind": "step"})
     else:
         steps.append({"label": "launches", "value": None, "kind": "null"})
+    growth = s.get("growth_investment") or {}
+    if growth.get("per_share"):
+        steps.append({"label": "growth capital", "value": growth["per_share"],
+                      "kind": "step"})
     anchor_year = (s.get("valuation_anchor") or "")[:4]
     steps.append({"label": f"FY{anchor_year[2:]} EV" if anchor_year else "EV",
                   "kind": "end"})
@@ -1729,6 +1733,10 @@ def _sotp_bridge(s: dict) -> None:
                     f"the pool across {future.get('pooled_filers')} filers")
         bits.append(f"{future.get('lag_years')}y lag, first in "
                     f"{future.get('first_launch_year')}")
+    if (s.get("growth_investment") or {}).get("share"):
+        g = s["growth_investment"]
+        bits.append(f"growth capital at {g['share']:.2f} of every dollar of revenue the "
+                    f"book adds: {g.get('basis') or ''}")
         if future.get("history_cohorts"):
             history = future.get("history_rd") or {}
             bits.append(f"{sum(history.values()):,.0f}mm of R&D already spent "

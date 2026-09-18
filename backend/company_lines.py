@@ -109,7 +109,9 @@ def build(entry: dict) -> dict:
     try:
         result = forecast.build({"scalars": entry["scalars"], "indications": [],
                                  "loe": None, "actuals": [], "phase": None,
-                                 "erosion_defaults": assumptions_module.erosion_defaults()})
+                                 "erosion_defaults": assumptions_module.erosion_defaults(),
+                                 "growth_investment": entry.get("growth_investment")})
+
     except forecast.ForecastError as err:
         return {"ok": False, "line": entry["line"], "missing": err.missing}
     return {"ok": True, "line": entry["line"], "result": result,

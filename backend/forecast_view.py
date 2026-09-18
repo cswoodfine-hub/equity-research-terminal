@@ -1386,10 +1386,25 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
             continue
         for year, value in entry["revenue"].items():
             named[year] = named.get(year, 0.0) + value
+    # The launches are charged the capital their growth takes, as the book's own
+    # products are: a franchise that grows builds the plant to make what it sells.
+    import growth_investment as GI
+    conn_gi = db.get_connection(db_path)
+    try:
+        charge = conn_gi.execute(
+            """SELECT a.source FROM assumptions a JOIN assets s ON s.id = a.asset_id
+                 JOIN companies c ON c.id = s.owner_company_id
+                WHERE c.ticker = ? AND a.key = 'other_costs_pct' LIMIT 1""",
+            (ticker.upper(),)).fetchone() if ticker else None
+        invest = ((GI.for_company(conn_gi, ticker, charge["source"] if charge else None)
+                   .get("value") or 0.0) if ticker else 0.0)
+    finally:
+        conn_gi.close()
     got = FP.simulate(book_rd, rate_used, lag, int(loe_default["years_from_launch"]),
                       erosion["year1_pct"], erosion.get("decay_pct") or 0.0, ratios,
                       wacc, base_year, horizon, long_run_growth=long_run, room=space,
-                      history_rd=record["history_rd"], named=named)
+                      history_rd=record["history_rd"], named=named,
+                      growth_investment=invest)
     return {"value": got["value"], "reason": None, "rate": pool["rate"],
             "rate_used": rate_used,
             "own_rate": own["rate"] if own else None,
@@ -1406,11 +1421,52 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
             "long_run_growth": long_run, "long_run_basis": long_run_basis,
             "book_rd_first": book_rd.get(base_year + 1),
             "book_peak": peak, "book_peak_year": peak_year,
+            "growth_investment": invest,
             "history_rd": record["history_rd"], "history_cohorts": got.get("history_cohorts"),
             "named_launch_revenue": sum(named.values()),
             "named_overlap": got.get("named_overlap"),
             "capped_from": got.get("capped_from"), "capped_share": got.get("capped_share"),
             "flows": [f for f in got["flows"] if f["revenue"]][:40]}
+
+
+def _growth_investment(conn, ticker: str, parts: list, anchor, wacc, opening=None):
+    """The present value of the capital the book's net revenue growth takes.
+
+    ``growth_investment`` measures what a dollar of revenue added has cost the filers in
+    plant above plant depreciation and in working capital. It is charged here on the
+    book's own net growth, year by year, discounted at the rate its products carry. A
+    year that adds nothing is charged nothing, and a year that shrinks is not credited.
+    """
+    import growth_investment as GI
+    if not anchor or wacc is None:
+        return {"value": None, "reason": "no valuation year or discount rate on file"}
+    charge = conn.execute(
+        """SELECT a.source FROM assumptions a JOIN assets s ON s.id = a.asset_id
+             JOIN companies c ON c.id = s.owner_company_id
+            WHERE c.ticker = ? AND a.key = 'other_costs_pct' LIMIT 1""",
+        (ticker.upper(),)).fetchone() if ticker else None
+    got = GI.for_company(conn, ticker, charge["source"] if charge else None)
+    share = got.get("value")
+    if not share:
+        return {"value": 0.0, "share": share, "basis": got.get("basis"),
+                "reason": got.get("reason")}
+    revenue: dict = {}
+    for part in parts:
+        odds = part.get("pos") if part.get("pos") is not None else 1.0
+        for year, row in zip(part.get("dcf_years") or [], part.get("pnl_share") or []):
+            revenue[year] = revenue.get(year, 0.0) + (row.get("revenue") or 0.0) * odds
+    if not revenue:
+        return {"value": 0.0, "share": share, "basis": got.get("basis")}
+    # The first forecast year's growth is measured against what the company already
+    # sells, so the step from the reported year into the book is charged like any other.
+    base_year, pv, previous = int(anchor[:4]), 0.0, opening
+    for year in sorted(revenue):
+        if previous is not None and revenue[year] > previous:
+            pv += (share * (revenue[year] - previous)
+                   / (1.0 + wacc) ** ((year - base_year) - 0.5))
+        previous = revenue[year]
+    return {"value": pv, "share": share, "basis": got.get("basis"),
+            "peak_revenue": max(revenue.values())}
 
 
 def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: list,
@@ -1447,7 +1503,25 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
     future = _future_pipeline(db_path, counted + list(streams), _valuation_anchor(conn),
                               ticker)
     f_value = future.get("value") or 0.0
-    ev = m_rnpv + p_rnpv + s_rnpv + f_value
+    # The capital the book's own growth takes. Charged once over the book rather than
+    # inside each product, because the share was measured against each filer's net
+    # revenue growth: a franchise moving from one product to the next builds capacity
+    # for the difference, not for the whole of the new one. The launch line charges its
+    # own growth inside the simulation.
+    reported_now = next((r["value"] for r in sorted(reported_revenue,
+                                                    key=lambda r: -r["fiscal_year"])
+                         if r.get("value") is not None), None)
+    # Revenue the book carries that the reported total never held (Sanofi's other
+    # revenues, the products an acquisition brought) is part of where the book starts,
+    # not growth it has to build for.
+    outside = sum(s["base_revenue"] for s in streams
+                  if s.get("base_revenue") is not None
+                  and not s.get("in_reported_revenue", True))
+    growth = _growth_investment(conn, ticker, counted + list(streams),
+                                _valuation_anchor(conn), future.get("wacc"),
+                                opening=(reported_now + outside) if reported_now else None)
+    g_value = growth.get("value") or 0.0
+    ev = m_rnpv + p_rnpv + s_rnpv + f_value - g_value
     balance = _balance_sheet(conn, db_path, ticker, company_id)
     net_cash = balance["net_cash"] if balance else None
     cash = balance["cash"] if balance else None
@@ -1509,6 +1583,9 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
         "future": {**{k: v for k, v in future.items() if k != "flows"},
                    "per_share": per_share(future.get("value")),
                    "flows": future.get("flows") or []},
+        # What the book's own growth costs in plant and working capital, charged once
+        # over the book: a cost, so the per-share figure is negative.
+        "growth_investment": {**growth, "per_share": per_share(-g_value)},
         # The sum without the future pipeline, so the run-off value stays readable.
         "enterprise_book_only": ev - f_value,
         "enterprise": ev, "enterprise_per_share": per_share(ev),

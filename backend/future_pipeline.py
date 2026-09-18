@@ -434,7 +434,7 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
              erosion_decay: float, ratios: dict, discount: float, base_year: int,
              horizon: int, long_run_growth: float | None = None,
              room: dict | None = None, history_rd: dict | None = None,
-             named: dict | None = None) -> dict:
+             named: dict | None = None, growth_investment: float = 0.0) -> dict:
     """The launches bought by the book's R&D and by the launches' own R&D, valued.
 
     ``book_rd`` is {year: R&D the modelled book charges that year}. A cohort bought in
@@ -468,6 +468,11 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
     cohort the same way. ``named`` is {year: expected revenue of launches the book
     already models by name}, which those cohorts would otherwise count twice: it comes
     off what the cohorts earn before the room is applied.
+
+    ``growth_investment`` is the share of the revenue each year adds that goes into plant
+    and working capital, charged the way the book's own products are charged it
+    (``growth_investment``): a franchise that grows for sixty years builds the capacity
+    to make what it sells.
     """
     years = list(range(base_year + 1, base_year + 1 + horizon))
     spend = {y: book_rd.get(y, 0.0) for y in years}
@@ -520,11 +525,15 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
         buy(bought, rate * spend[s], launch)
     margin = 1.0 - ratios["cogs"] - ratios["sga"] - ratios["rd"] - ratios["other"]
     pv, flows = 0.0, []
+    previous = 0.0
     for y in years:
         ebit = revenue[y] * margin
-        fcff = ebit - max(0.0, ebit * ratios["tax"])
+        invested = (growth_investment or 0.0) * max(0.0, revenue[y] - previous)
+        previous = revenue[y]
+        fcff = ebit - max(0.0, ebit * ratios["tax"]) - invested
         pv += fcff / (1.0 + discount) ** ((y - base_year) - 0.5)
-        flows.append({"year": y, "revenue": revenue[y], "fcff": fcff})
+        flows.append({"year": y, "revenue": revenue[y], "fcff": fcff,
+                      "growth_investment": invested})
     first = next((f["year"] for f in flows if f["revenue"] > 0), None)
     book_total = sum(book_rd.values())
     return {"value": pv, "flows": flows, "first_launch_year": first, "cohorts": cohorts,

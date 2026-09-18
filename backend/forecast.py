@@ -403,11 +403,16 @@ def regional_split(regions) -> tuple[list[dict], float]:
 
 
 def fcff(revenue: list[float], patients: list[float], scalars: dict,
-         mode: str) -> list[dict]:
-    """The workbook's P&L per year: COGS, SG&A, R&D, tax, NOPAT = FCFF.
+         mode: str, opening: float | None = None,
+         growth_investment: float = 0.0) -> list[dict]:
+    """The workbook's P&L per year: COGS, SG&A, R&D, tax, NOPAT, less growth investment.
 
-    No capex and no working capital line, matching the reference model, and the
-    simplification is stated in the output notes rather than hidden.
+    No capex line and no working capital line, matching the reference model: what a
+    company spends to keep the plant it has is inside ``other_costs_pct``, which is
+    solved against its own free cash flow. What it spends to grow is not, because that
+    is not a share of revenue. It is a share of the revenue a year adds, and this takes
+    it off the cash of every year that adds any (``growth_investment``). A year that
+    grows by nothing is charged nothing, and a year that shrinks is not credited.
     """
     sga = scalars.get("sga_pct") or 0.0
     rd = scalars.get("rd_pct") or 0.0
@@ -420,7 +425,10 @@ def fcff(revenue: list[float], patients: list[float], scalars: dict,
     # since the COVID years, so a model without this values it at nearly three times the
     # cash it makes. Zero where a company's filed lines already reconcile to its cash.
     other = scalars.get("other_costs_pct") or 0.0
+    invest_rate = scalars.get("growth_investment_pct")
+    invest_rate = growth_investment if invest_rate is None else invest_rate
     rows = []
+    previous = opening
     for rev, pats in zip(revenue, patients):
         if mode == "one_time":
             cogs = (scalars.get("cogs_per_patient") or 0.0) * pats
@@ -428,9 +436,11 @@ def fcff(revenue: list[float], patients: list[float], scalars: dict,
             cogs = (scalars.get("cogs_pct") or 0.0) * rev
         ebit = rev - cogs - sga * rev - rd * rev - other * rev
         taxed = max(0.0, ebit * tax)
+        invested = (invest_rate or 0.0) * max(0.0, rev - (previous or 0.0))
+        previous = rev
         rows.append({"revenue": rev, "cogs": cogs, "sga": sga * rev, "rd": rd * rev,
                      "other": other * rev, "ebit": ebit, "tax": taxed,
-                     "fcff": ebit - taxed})
+                     "growth_investment": invested, "fcff": ebit - taxed - invested})
     return rows
 
 
@@ -821,8 +831,13 @@ def build(inputs: dict) -> dict:
 
     # P&L and valuation over the DCF window only.
     window = [i for i, y in enumerate(years) if y in dcf_years]
+    # The first forecast year's growth is measured against what the product already
+    # sells, so a book anchored on a reported year is not charged for reaching it.
+    opening = (eroded[window[0] - 1] if window and window[0] > 0
+               else (scalars.get("base_revenue") if mode == "marketed" else 0.0))
     pnl = fcff([eroded[i] for i in window], [total_patients[i] for i in window],
-               scalars, mode)
+               scalars, mode, opening=opening,
+               growth_investment=inputs.get("growth_investment") or 0.0)
     flows = [row["fcff"] for row in pnl]
     # The valuation is anchored on the last completed year, so a forecast that opens
     # later is discounted for the wait. Absent one, the periods are positional and
