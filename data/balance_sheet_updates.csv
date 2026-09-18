@@ -1,0 +1,21 @@
+# Balance sheet lines a filer has published that EDGAR's structured data does not carry yet,
+# read off the filing with the caption as printed and a verbatim quote.
+#
+# backend/balance_updates.py writes these into financials as instants, insert-only: the day
+# companyfacts tags the period, the fetcher's own value replaces this one. Each row is a line
+# as printed, never a sum or a net figure, so every one can be checked against the filing.
+#
+# Biogen closed its acquisition of Apellis on 14 May 2026, paying about $5.3bn in cash and
+# drawing a $2.0bn term loan. Its 10-Q for the June quarter was filed on 29 July 2026 and
+# companyfacts still ended at the March quarter seven weeks later, so the model netted
+# $1,540mm of debt against a price that already knew about $6,805mm. An explicit nil is
+# carried for the marketable securities, which the filing says were all sold, so a stale
+# balance from an earlier quarter cannot be read as still held.
+#
+# Columns: ticker, period_end, metric, value_musd (millions as printed), unit, accession,
+# caption (as the filing prints it), quote.
+ticker,period_end,metric,value_musd,unit,accession,caption,quote
+BIIB,2026-06-30,CashAndEquivalents,1285.0,USD,0000875045-26-000075,Cash and cash equivalents,"ASSETS Current assets: Cash and cash equivalents $ 1,285.0 $ 3,008.5"
+BIIB,2026-06-30,ShortTermInvestments,0.0,USD,0000875045-26-000075,Current portion of marketable securities,"Current portion of marketable securities — 807.2, where an em dash is nil: ""As of June 30, 2026, we have sold all of our marketable debt securities."""
+BIIB,2026-06-30,MarketableSecuritiesNoncurrent,0.0,USD,0000875045-26-000075,Marketable securities,"Marketable securities — 431.9, where an em dash is nil: ""As of June 30, 2026, we have sold all of our marketable debt securities."""
+BIIB,2026-06-30,TotalDebt,8090.3,USD,0000875045-26-000075,Current portion of term loan plus notes payable and term loan,"Current portion of term loan $ 800.0 $ — ... Notes payable and term loan 7,290.3 6,286.8. Note 8 splits the 2026 Term Loan raised for the acquisition: ""2026 Term Loan 364-day tranche (1) $ 799.9 $ 800.0"" and ""2026 Term Loan two-year tranche (1) 999.9 1,000.0"""

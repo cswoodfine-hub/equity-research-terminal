@@ -23,6 +23,7 @@ import env  # noqa: F401  loads the .env before any module reads it
 import asset_identity
 import asset_merge
 import asset_revenue
+import balance_updates
 import financings
 import assumptions as assumptions_module
 import regional_loe
@@ -303,6 +304,9 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
         mapped["line_seeds"] = company_lines.load_seeds(conn)["written"]
         mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
+        # A balance sheet the filer has published that companyfacts does not carry yet.
+        # Insert-only, so the day EDGAR tags the period its own figure takes over.
+        mapped["balance_updates"] = balance_updates.load(conn)["written"]
         # Regional sales a filer prints but does not tag. After the product revenue
         # fetcher, so the curated rows are written over the assets it resolved.
         mapped["region_revenue"] = regional_loe.load_curated_revenue(conn)
@@ -493,6 +497,9 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
         mapped["line_seeds"] = company_lines.load_seeds(conn)["written"]
         mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
+        # A balance sheet the filer has published that companyfacts does not carry yet.
+        # Insert-only, so the day EDGAR tags the period its own figure takes over.
+        mapped["balance_updates"] = balance_updates.load(conn)["written"]
         # Regional sales a filer prints but does not tag. After the product revenue
         # fetcher, so the curated rows are written over the assets it resolved.
         mapped["region_revenue"] = regional_loe.load_curated_revenue(conn)
