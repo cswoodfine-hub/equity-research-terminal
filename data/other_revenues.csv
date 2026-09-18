@@ -1,0 +1,17 @@
+# Revenue a filer reports beside the total the model reconciles to, by year.
+#
+# Sanofi and Novartis both report net sales and then other revenues, and their filed cost
+# lines sit against the two together. So their product cost ratios are struck on the sum
+# (data/company_lines/sny.csv, nvs.csv), and anything that rebuilds a charge from the filed
+# lines has to use the same denominator or it compares a cost struck on one revenue with
+# cash earned on another. Every other filer in the book reports one revenue total and needs
+# no row here.
+#
+# Columns: ticker, fiscal_year, other_revenues_mm (as printed), unit, accession, quote.
+ticker,fiscal_year,other_revenues_mm,unit,accession,quote
+SNY,2025,3090,EUR,0001628280-26-008403,"Note D.34.2 other revenues: VaxServe sales of non-Sanofi products 1,780, other (manufacturing services) 557, Opella products retained 487, royalties 146, sales to Opella 120"
+SNY,2024,3205,EUR,0001628280-26-008403,"Note D.34.2, 2024 column: VaxServe 1,959, other 623, Opella products retained 339, royalties 121, sales to Opella 163"
+SNY,2023,3801,EUR,0001628280-26-008403,"Note D.34.2, 2023 column: VaxServe 2,167, other 534, COVID-19 vaccine related revenues 509, Opella products retained 296, royalties 107, sales to Opella 188"
+NVS,2025,2142,USD,0001114448-26-000004,"Note 4: ""Profit-sharing income 1 341 1 063 941 Royalty income 1 379 37 87 Milestone income 117 28 45 Other 2 305 277 147 Total other revenues 2 142 1 405 1 220"""
+NVS,2024,1405,USD,0001114448-26-000004,"Note 4, 2024 column of the same table"
+NVS,2023,1220,USD,0001114448-26-000004,"Note 4, 2023 column of the same table"
