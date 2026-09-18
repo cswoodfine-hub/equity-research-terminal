@@ -1,0 +1,111 @@
+# Biogen revenue that is not product sales, USD 2,771mm of USD 9,890.6mm in FY2025, which no
+# product on file carries. Every product line in the FY2025 10-K (0000875045-26-000013) is
+# modelled and matches the filing; the rest is three kinds of revenue, and the lines follow
+# them.
+#
+# Anti-CD20: the Ocrevus royalty from Genentech, and Biogen's share of U.S. pre-tax profits on
+# Rituxan, Gazyva and Lunsumio. It is profit and royalty, with costs netted before Biogen books
+# it. The Ocrevus royalty is one molecule's, halves when the first FDA-approved Ocrevus
+# biosimilar enters, and loses exclusivity with Ocrevus. Leqembi: Biogen's 50% share of
+# Leqembi's revenue net of cost of sales; its share of development and marketing costs sits in
+# R&D and SG&A, and the collaboration is still loss-making for Biogen. Contract manufacturing:
+# batches made for others, Eisai's Leqembi among them, at lower margins by the filing's own
+# account.
+# loss-making for Biogen. Contract manufacturing: batches made for others, Eisai's Leqembi
+# among them, at lower margins by the filing's own account.
+#
+# Margins and the discount rate are the company's, copied from the rows every Biogen product
+# carries, so the products and these lines together are the company's own P&L, even though
+# royalty revenue carries no cost of its own and contract manufacturing carries more.
+#
+# Apellis, acquired on 14 May 2026, is not in these lines: its products (Syfovre, Empaveli)
+# and its contract manufacturing arrived after the valuation year.
+ticker,line,scenario,key,value,text_value,unit,source,note
+BIIB,Ocrevus royalty,base,base_revenue,1414.9,,mm USD,"Biogen FY2025 10-K (0000875045-26-000013): Ocrevus royalty revenue 1,414.9","tiered from 13.5% to 24% on U.S. sales, 3% outside the U.S. for 11 years from each country's first sale"
+BIIB,Ocrevus royalty,base,revenue_growth_pct,0.05629,,"annual, near term","the same line a year earlier: 1,414.9 against 1,339.5 in 2024, +5.6%","the first half of 2026 grew 8.7%, 698.6 against 642.6 (Q2 2026 10-Q, 0000875045-26-000075)"
+BIIB,Ocrevus royalty,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+BIIB,Ocrevus royalty,base,growth_fade_years,10,,years,"measured from 36 drugs that grew 0% to 10% a year: the median took 10 years of fading growth to reach its peak revenue (quartiles 2.5 to 17.5), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 14 of them censored because they are still near their best or lost exclusivity at their peak",
+BIIB,Ocrevus royalty,base,forecast_start_year,2026,,year,the year after the last reported full year,
+BIIB,Ocrevus royalty,base,forecast_years,10,,years,the horizon most of BIIB's marketed assets carry,
+BIIB,Ocrevus royalty,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+BIIB,Ocrevus royalty,base,loe_year,2029,,year,"Ocrevus's reference product exclusivity, 12 years from its 28 March 2017 licensure, ends 28 March 2029 (the date the database holds for Roche's Ocrevus): no biosimilar can be approved before it",the earliest the step-down can come; no filing gives an expected date
+BIIB,Ocrevus royalty,base,erosion_year1_pct,0.625,,share lost in year one,"the royalty halves: ""There will be a 50.0 % reduction to these royalties upon the first entry of an FDA-approved biosimilar to OCREVUS"" (Q2 2026 10-Q, 0000875045-26-000075), on Ocrevus sales that fall by the curated biologic year-one share of 25% (data/erosion_defaults.csv, IQVIA): 1 - 0.5 x 0.75",
+BIIB,Ocrevus royalty,base,erosion_decay_pct,0.2,,annual,curated default for a biologic (data/erosion_defaults.csv): IQVIA Biosimilars in the United States reports,
+BIIB,Ocrevus royalty,base,cogs_pct,0.2431,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Ocrevus royalty,base,sga_pct,0.2461,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Ocrevus royalty,base,rd_pct,0.1798,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Ocrevus royalty,base,other_costs_pct,0.04297498829098273,,share of revenue,"derived: BIIB generated $6,043mm of free cash flow on $29,402mm of revenue over 2023, 2024 and 2025, a 20.55% margin, against the 28.0% its filed expense lines leave. Restated before interest: BIIB paid $762mm of interest inside operating cash flow over 2023 to 2025, 2.59% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 8.78% to 6.19%. Restated at replacement capex: BIIB spent $584mm on plant over 2023 to 2025 against $814mm of plant depreciation, 0.78% of revenue below what keeps the plant running. Taken at depreciation, the charge rises from 6.19% to 7.11%. Restated without one-off cash: BIIB's free cash flow over 2023 to 2025 carried $444mm of deal payments in operating cash flow, capital allocation whose assets the book values separately; $234mm of US transition tax (2025 instalment 234mm). None recurs, so the charge falls from 7.11% to 4.66%. Restated without working capital build: over 2023 to 2025 BIIB's cash flow statement shows receivables down $386mm, inventories up $469mm, payables and accrued liabilities down $6mm, a working capital build of $89mm, 0.30% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from 4.66% to 4.30%.","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+BIIB,Ocrevus royalty,base,tax_rate,0.1552,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+BIIB,Ocrevus royalty,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+BIIB,Ocrevus royalty,base,erp,0.05,,,Damodaran US ERP estimate,
+BIIB,Ocrevus royalty,base,beta,0.68,,,"computed from 261 weekly returns vs S&P 500, 2021-W34 to 2026-W35, Blume-adjusted (0.52 raw)",
+BIIB,Ocrevus royalty,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",
+BIIB,Ocrevus royalty,base,debt_weight,0.161284,,,"filed TotalDebt of $6,288mm over debt plus market capitalisation: 147.6mm shares at 2026-04-27 at the $221.50 close of 2026-08-27",
+BIIB,Anti-CD20 profit share,base,base_revenue,445.7,,mm USD,"Biogen FY2025 10-K (0000875045-26-000013): share of U.S. pre-tax profits for Rituxan, Gazyva and Lunsumio 420.2, other anti-CD20 revenue 25.5","profit, not sales: the collaboration's costs are netted before Biogen books its 30% to 35% share"
+BIIB,Anti-CD20 profit share,base,revenue_growth_pct,0.086014,,"annual, near term","the same lines a year earlier: 445.7 against 410.4 in 2024 (392.0 and 18.4), +8.6%","the first half of 2026 grew 15.3%, 234.0 against 202.9 (Q2 2026 10-Q, 0000875045-26-000075)"
+BIIB,Anti-CD20 profit share,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+BIIB,Anti-CD20 profit share,base,growth_fade_years,10,,years,"measured from 36 drugs that grew 0% to 10% a year: the median took 10 years of fading growth to reach its peak revenue (quartiles 2.5 to 17.5), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 14 of them censored because they are still near their best or lost exclusivity at their peak",
+BIIB,Anti-CD20 profit share,base,forecast_start_year,2026,,year,the year after the last reported full year,
+BIIB,Anti-CD20 profit share,base,forecast_years,10,,years,the horizon most of BIIB's marketed assets carry,
+BIIB,Anti-CD20 profit share,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+BIIB,Anti-CD20 profit share,base,cogs_pct,0.2431,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Anti-CD20 profit share,base,sga_pct,0.2461,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Anti-CD20 profit share,base,rd_pct,0.1798,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Anti-CD20 profit share,base,other_costs_pct,0.04297498829098273,,share of revenue,"derived: BIIB generated $6,043mm of free cash flow on $29,402mm of revenue over 2023, 2024 and 2025, a 20.55% margin, against the 28.0% its filed expense lines leave. Restated before interest: BIIB paid $762mm of interest inside operating cash flow over 2023 to 2025, 2.59% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 8.78% to 6.19%. Restated at replacement capex: BIIB spent $584mm on plant over 2023 to 2025 against $814mm of plant depreciation, 0.78% of revenue below what keeps the plant running. Taken at depreciation, the charge rises from 6.19% to 7.11%. Restated without one-off cash: BIIB's free cash flow over 2023 to 2025 carried $444mm of deal payments in operating cash flow, capital allocation whose assets the book values separately; $234mm of US transition tax (2025 instalment 234mm). None recurs, so the charge falls from 7.11% to 4.66%. Restated without working capital build: over 2023 to 2025 BIIB's cash flow statement shows receivables down $386mm, inventories up $469mm, payables and accrued liabilities down $6mm, a working capital build of $89mm, 0.30% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from 4.66% to 4.30%.","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+BIIB,Anti-CD20 profit share,base,tax_rate,0.1552,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+BIIB,Anti-CD20 profit share,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+BIIB,Anti-CD20 profit share,base,erp,0.05,,,Damodaran US ERP estimate,
+BIIB,Anti-CD20 profit share,base,beta,0.68,,,"computed from 261 weekly returns vs S&P 500, 2021-W34 to 2026-W35, Blume-adjusted (0.52 raw)",
+BIIB,Anti-CD20 profit share,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",
+BIIB,Anti-CD20 profit share,base,debt_weight,0.161284,,,"filed TotalDebt of $6,288mm over debt plus market capitalisation: 147.6mm shares at 2026-04-27 at the $221.50 close of 2026-08-27",
+BIIB,Contract manufacturing,base,base_revenue,679.4,,mm USD,Biogen FY2025 10-K (0000875045-26-000013): contract manufacturing revenue 679.4,"lower margin by the filing's account: cost of sales ""was adversely affected by LEQEMBI batches due to lower margins associated with this business"""
+BIIB,Contract manufacturing,base,revenue_growth_pct,0.0,,"annual, near term","held at its level: it follows batch timing, 848.2 in 2023, 592.1 in 2024 and 679.4 in 2025, and fell 7.4% in the first half of 2026 before Apellis's business was added (Q2 2026 10-Q, 0000875045-26-000075)",
+BIIB,Contract manufacturing,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+BIIB,Contract manufacturing,base,growth_fade_years,5,,years,convention: nothing to fade from a held level,
+BIIB,Contract manufacturing,base,forecast_start_year,2026,,year,the year after the last reported full year,
+BIIB,Contract manufacturing,base,forecast_years,10,,years,the horizon most of BIIB's marketed assets carry,
+BIIB,Contract manufacturing,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+BIIB,Contract manufacturing,base,cogs_pct,0.2431,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Contract manufacturing,base,sga_pct,0.2461,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Contract manufacturing,base,rd_pct,0.1798,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Contract manufacturing,base,other_costs_pct,0.04297498829098273,,share of revenue,"derived: BIIB generated $6,043mm of free cash flow on $29,402mm of revenue over 2023, 2024 and 2025, a 20.55% margin, against the 28.0% its filed expense lines leave. Restated before interest: BIIB paid $762mm of interest inside operating cash flow over 2023 to 2025, 2.59% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 8.78% to 6.19%. Restated at replacement capex: BIIB spent $584mm on plant over 2023 to 2025 against $814mm of plant depreciation, 0.78% of revenue below what keeps the plant running. Taken at depreciation, the charge rises from 6.19% to 7.11%. Restated without one-off cash: BIIB's free cash flow over 2023 to 2025 carried $444mm of deal payments in operating cash flow, capital allocation whose assets the book values separately; $234mm of US transition tax (2025 instalment 234mm). None recurs, so the charge falls from 7.11% to 4.66%. Restated without working capital build: over 2023 to 2025 BIIB's cash flow statement shows receivables down $386mm, inventories up $469mm, payables and accrued liabilities down $6mm, a working capital build of $89mm, 0.30% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from 4.66% to 4.30%.","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+BIIB,Contract manufacturing,base,tax_rate,0.1552,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+BIIB,Contract manufacturing,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+BIIB,Contract manufacturing,base,erp,0.05,,,Damodaran US ERP estimate,
+BIIB,Contract manufacturing,base,beta,0.68,,,"computed from 261 weekly returns vs S&P 500, 2021-W34 to 2026-W35, Blume-adjusted (0.52 raw)",
+BIIB,Contract manufacturing,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",
+BIIB,Contract manufacturing,base,debt_weight,0.161284,,,"filed TotalDebt of $6,288mm over debt plus market capitalisation: 147.6mm shares at 2026-04-27 at the $221.50 close of 2026-08-27",
+BIIB,Leqembi collaboration,base,base_revenue,177.7,,mm USD,"Biogen FY2025 10-K (0000875045-26-000013): Alzheimer's collaboration revenue 177.7, Biogen's 50% share of Leqembi revenue net of cost of sales",Biogen's share of Leqembi development (126.5) and marketing (350.8) costs is in R&D and SG&A
+BIIB,Leqembi collaboration,base,revenue_growth_pct,0.401593,,"annual, near term","the halves in the Q2 2026 10-Q (0000875045-26-000075): 123.2 in the first half of 2026 against 87.9 a year earlier, +40.2%. The full year's +197% (177.7 against 59.9) is a launch ramp from a small base","the 2025 half was flattered by the timing of shipments to China, by the 10-Q"
+BIIB,Leqembi collaboration,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+BIIB,Leqembi collaboration,base,growth_fade_years,5,,years,"measured from 52 drugs that grew 25% to 50% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2.5 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 22 of them censored because they are still near their best or lost exclusivity at their peak",
+BIIB,Leqembi collaboration,base,forecast_start_year,2026,,year,the year after the last reported full year,
+BIIB,Leqembi collaboration,base,forecast_years,10,,years,the horizon most of BIIB's marketed assets carry,
+BIIB,Leqembi collaboration,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+BIIB,Leqembi collaboration,base,cogs_pct,0.2431,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Leqembi collaboration,base,sga_pct,0.2461,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Leqembi collaboration,base,rd_pct,0.1798,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Leqembi collaboration,base,other_costs_pct,0.04297498829098273,,share of revenue,"derived: BIIB generated $6,043mm of free cash flow on $29,402mm of revenue over 2023, 2024 and 2025, a 20.55% margin, against the 28.0% its filed expense lines leave. Restated before interest: BIIB paid $762mm of interest inside operating cash flow over 2023 to 2025, 2.59% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 8.78% to 6.19%. Restated at replacement capex: BIIB spent $584mm on plant over 2023 to 2025 against $814mm of plant depreciation, 0.78% of revenue below what keeps the plant running. Taken at depreciation, the charge rises from 6.19% to 7.11%. Restated without one-off cash: BIIB's free cash flow over 2023 to 2025 carried $444mm of deal payments in operating cash flow, capital allocation whose assets the book values separately; $234mm of US transition tax (2025 instalment 234mm). None recurs, so the charge falls from 7.11% to 4.66%. Restated without working capital build: over 2023 to 2025 BIIB's cash flow statement shows receivables down $386mm, inventories up $469mm, payables and accrued liabilities down $6mm, a working capital build of $89mm, 0.30% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from 4.66% to 4.30%.","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+BIIB,Leqembi collaboration,base,tax_rate,0.1552,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+BIIB,Leqembi collaboration,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+BIIB,Leqembi collaboration,base,erp,0.05,,,Damodaran US ERP estimate,
+BIIB,Leqembi collaboration,base,beta,0.68,,,"computed from 261 weekly returns vs S&P 500, 2021-W34 to 2026-W35, Blume-adjusted (0.52 raw)",
+BIIB,Leqembi collaboration,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",
+BIIB,Leqembi collaboration,base,debt_weight,0.161284,,,"filed TotalDebt of $6,288mm over debt plus market capitalisation: 147.6mm shares at 2026-04-27 at the $221.50 close of 2026-08-27",
+BIIB,Royalty and other,base,base_revenue,53.5,,mm USD,"Biogen FY2025 10-K (0000875045-26-000013): royalty and other revenue 53.5, of which Samsung Bioepis licence royalties 15.5",
+BIIB,Royalty and other,base,revenue_growth_pct,-0.115702,,"annual, near term","the same line a year earlier: 53.5 against 60.5 in 2024, -11.6%",
+BIIB,Royalty and other,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+BIIB,Royalty and other,base,growth_fade_years,5,,years,convention: a recent rate describes next year,
+BIIB,Royalty and other,base,forecast_start_year,2026,,year,the year after the last reported full year,
+BIIB,Royalty and other,base,forecast_years,10,,years,the horizon most of BIIB's marketed assets carry,
+BIIB,Royalty and other,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+BIIB,Royalty and other,base,cogs_pct,0.2431,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Royalty and other,base,sga_pct,0.2461,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Royalty and other,base,rd_pct,0.1798,,share of revenue,"BIIB FY2025, computed from the filed lines",
+BIIB,Royalty and other,base,other_costs_pct,0.04297498829098273,,share of revenue,"derived: BIIB generated $6,043mm of free cash flow on $29,402mm of revenue over 2023, 2024 and 2025, a 20.55% margin, against the 28.0% its filed expense lines leave. Restated before interest: BIIB paid $762mm of interest inside operating cash flow over 2023 to 2025, 2.59% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 8.78% to 6.19%. Restated at replacement capex: BIIB spent $584mm on plant over 2023 to 2025 against $814mm of plant depreciation, 0.78% of revenue below what keeps the plant running. Taken at depreciation, the charge rises from 6.19% to 7.11%. Restated without one-off cash: BIIB's free cash flow over 2023 to 2025 carried $444mm of deal payments in operating cash flow, capital allocation whose assets the book values separately; $234mm of US transition tax (2025 instalment 234mm). None recurs, so the charge falls from 7.11% to 4.66%. Restated without working capital build: over 2023 to 2025 BIIB's cash flow statement shows receivables down $386mm, inventories up $469mm, payables and accrued liabilities down $6mm, a working capital build of $89mm, 0.30% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from 4.66% to 4.30%.","amortisation of acquired intangibles, restructuring and capital spending, none of which the filed expense lines carry"
+BIIB,Royalty and other,base,tax_rate,0.1552,,effective rate,aggregate effective rate over the 6 years to 2025 with positive pre-tax income,
+BIIB,Royalty and other,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+BIIB,Royalty and other,base,erp,0.05,,,Damodaran US ERP estimate,
+BIIB,Royalty and other,base,beta,0.68,,,"computed from 261 weekly returns vs S&P 500, 2021-W34 to 2026-W35, Blume-adjusted (0.52 raw)",
+BIIB,Royalty and other,base,cost_of_debt,0.0523,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-08-26",
+BIIB,Royalty and other,base,debt_weight,0.161284,,,"filed TotalDebt of $6,288mm over debt plus market capitalisation: 147.6mm shares at 2026-04-27 at the $221.50 close of 2026-08-27",
