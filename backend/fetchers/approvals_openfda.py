@@ -450,9 +450,16 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
                     conn.execute(
                         "UPDATE assets SET active_ingredients = ? WHERE id = ?",
                         (json.dumps(row["active_ingredients"]), asset_id))
+                # Only this application's own row. A product can hold several: Cosentyx
+                # is BLA125504 from 2015 and BLA761349, the intravenous form, from 2023,
+                # and both resolve to one asset. Clearing every row first left whichever
+                # application happened to be processed last, so Cosentyx read as a 2023
+                # launch and its whole $6.7bn counted as revenue recent research had
+                # bought. The earliest row is what first_approval reads.
                 conn.execute(
-                    "DELETE FROM approvals WHERE asset_id = ? AND source = ?",
-                    (asset_id, OPENFDA_SOURCE),
+                    "DELETE FROM approvals WHERE asset_id = ? AND source = ?"
+                    "  AND application_number = ?",
+                    (asset_id, OPENFDA_SOURCE, row["application_number"]),
                 )
                 conn.execute(
                     """

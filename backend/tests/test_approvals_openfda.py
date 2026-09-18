@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import db
+from fetchers import approvals_openfda
 from fetchers.approvals_openfda import parse_drugsfda
 
 FIXTURE = Path(__file__).parent / "fixtures" / "drugsfda_lly.json"
@@ -185,3 +187,31 @@ def test_a_company_with_no_generics_on_file_asks_nothing(tmp_path, monkeypatch):
     monkeypatch.setattr(fetcher, "_run", lambda q: calls.append(q) or [])
     assert fetcher._by_generic_name() == []
     assert calls == []
+
+
+def test_a_product_keeps_every_application_it_holds(tmp_path):
+    """Cosentyx is a 2015 BLA and a 2023 one for the intravenous form, and both resolve
+    to one asset. Keeping only the last read it as a 2023 launch."""
+    import approval_dates
+    path = str(tmp_path / "ap.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'NVS', 'Novartis')")
+    conn.commit()
+    conn.close()
+    fetcher = approvals_openfda.ApprovalsOpenFdaFetcher("NVS", db_path=path)
+    rows = [{"ticker": "NVS", "internal_code": "BLA125504", "application_number": "BLA125504",
+             "brand": "Cosentyx", "generic": "secukinumab", "modality": "biologic",
+             "approval_date": "2015-01-21", "marketing_status": "Prescription",
+             "active_ingredients": None},
+            {"ticker": "NVS", "internal_code": "BLA125504", "application_number": "BLA761349",
+             "brand": "Cosentyx", "generic": "secukinumab", "modality": "biologic",
+             "approval_date": "2023-10-06", "marketing_status": "Prescription",
+             "active_ingredients": None}]
+    fetcher.upsert({"approvals": rows, "supplements": []})
+    conn = db.get_connection(path)
+    got = conn.execute("SELECT approval_date FROM approvals ORDER BY approval_date").fetchall()
+    assert [r["approval_date"] for r in got] == ["2015-01-21", "2023-10-06"]
+    asset = conn.execute("SELECT id FROM assets WHERE brand_name = 'Cosentyx'").fetchone()
+    assert approval_dates.first_approval(conn, asset["id"], "Cosentyx")[0] == "2015-01-21"
+    conn.close()
