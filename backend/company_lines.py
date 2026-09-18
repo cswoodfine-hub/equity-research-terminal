@@ -36,7 +36,11 @@ KEYS = ("therapy_mode", "base_revenue", "revenue_growth_pct", "terminal_growth_p
         # 0 for a line whose R&D develops something other than medicines (Johnson &
         # Johnson's MedTech): that R&D buys no drug launches, so the future pipeline
         # leaves the line out. Absent means 1.
-        "buys_launches")
+        "buys_launches",
+        # 0 for a line the filer earns outside the revenue total it reports as its top
+        # line: Sanofi's and Novartis's other revenues sit beside net sales, not in
+        # them, so counting them in coverage would read past 100%. Absent means 1.
+        "in_reported_revenue")
 
 
 def rows(conn, company_id: int, scenario: str = "base") -> list[dict]:

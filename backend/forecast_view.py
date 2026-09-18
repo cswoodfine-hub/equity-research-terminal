@@ -733,6 +733,8 @@ def company_rollup(db_path, ticker: str):
         streams.append({"line": built["line"], "rnpv": result["rnpv"],
                         "base_revenue": entry["scalars"].get("base_revenue"),
                         "buys_launches": entry["scalars"].get("buys_launches", 1) != 0,
+                        "in_reported_revenue":
+                            entry["scalars"].get("in_reported_revenue", 1) != 0,
                         "loe_year": entry["scalars"].get("loe_year"),
                         "years": result["years"], "revenue": result["revenue_after_loe"],
                         "dcf_years": result.get("dcf_years") or [],
@@ -1081,8 +1083,14 @@ def _revenue_coverage(conn, company_id: int, modelled_ids: list, streams=None):
     reported = reported["value"] if reported and reported["value"] else None
     covered = sum(r["value"] for r in rows if r["id"] in set(modelled_ids))
     # Streams run in millions, everything in asset_revenue and financials in dollars.
+    # A line the filer earns outside its reported top line (Sanofi's other revenues sit
+    # beside net sales) is valued and named, but it is not coverage of that total.
     stream_rows = [{"name": s["line"], "revenue": s["base_revenue"] * 1e6}
-                   for s in (streams or []) if s.get("base_revenue") is not None]
+                   for s in (streams or []) if s.get("base_revenue") is not None
+                   and s.get("in_reported_revenue", True)]
+    outside = [{"name": s["line"], "revenue": s["base_revenue"] * 1e6}
+               for s in (streams or []) if s.get("base_revenue") is not None
+               and not s.get("in_reported_revenue", True)]
     from_streams = sum(s["revenue"] for s in stream_rows)
     denominator = reported if reported else tagged
     if not denominator:
@@ -1095,6 +1103,8 @@ def _revenue_coverage(conn, company_id: int, modelled_ids: list, streams=None):
         # Can go slightly negative where a stream overlaps a tagged row; that is a
         # seeding error and is left visible rather than clamped away.
         "untagged_revenue": untagged,
+        "outside_reported_revenue": sum(s["revenue"] for s in outside),
+        "outside_lines": outside,
         "share": (covered + from_streams) / denominator,
         "streams": stream_rows,
         "unmodelled": [{"name": r["brand_name"], "revenue": r["value"],

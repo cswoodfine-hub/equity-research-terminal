@@ -270,3 +270,19 @@ def test_a_line_that_is_one_molecule_loses_exclusivity_like_a_product():
     assert lost["result"]["rnpv"] < held["result"]["rnpv"]
     defaulted = company_lines.build({"line": "Royalty", "scalars": {**scalars, "loe_year": 2029}})
     assert dict(zip(defaulted["result"]["years"], defaulted["result"]["revenue_after_loe"]))[2030] == pytest.approx(750.0)
+
+
+def test_revenue_earned_outside_the_reported_total_is_not_coverage_of_it(tmp_path):
+    path = _seed(tmp_path, reported=12_000)
+    conn = db.get_connection(path)
+    company_lines.save(conn, 1, "Other revenues", [
+        {"key": "base_revenue", "value": 2_000, "source": "filed beside net sales"},
+        {"key": "in_reported_revenue", "value": 0, "source": "sits outside the reported total"}])
+    conn.commit()
+    streams = [{"line": "Kalydeco/Orkambi/Symdeko", "base_revenue": 1_000, "in_reported_revenue": True},
+               {"line": "Other revenues", "base_revenue": 2_000, "in_reported_revenue": False}]
+    got = forecast_view._revenue_coverage(conn, 1, [1], streams)
+    assert got["share"] == pytest.approx((10_000 + 1_000) / 12_000)
+    assert got["outside_reported_revenue"] == pytest.approx(2_000 * MM)
+    assert [s["name"] for s in got["outside_lines"]] == ["Other revenues"]
+    conn.close()

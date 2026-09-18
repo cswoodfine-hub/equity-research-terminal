@@ -2085,6 +2085,11 @@ def _book(api_base: str, ticker: str, selected):
         bits.append(f"{coverage['untagged_revenue'] / 1e6:,.0f}mm of "
                     f"FY{coverage['fiscal_year']} revenue has neither a product row nor "
                     f"a line and is not drawn: there is no path to draw for it.")
+    if coverage.get("outside_reported_revenue"):
+        names = ", ".join(s["name"] for s in coverage.get("outside_lines") or [])
+        bits.append(f"{coverage['outside_reported_revenue'] / 1e6:,.0f}mm is earned "
+                    f"outside the reported total ({names}), so it is valued and drawn "
+                    "but is not coverage of it.")
     if any(not m.get("counted", True) for m in modelled):
         bits.append("Hatched bands run on a placeholder curve and are left out of the "
                     "per-share figure.")
