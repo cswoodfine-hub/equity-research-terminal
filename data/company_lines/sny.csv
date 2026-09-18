@@ -1,0 +1,73 @@
+# Sanofi net sales that no product on file carries, EUR 13,836mm of EUR 43,626mm in FY2025,
+# so the model reconciles to the reported total rather than to the product rows alone.
+#
+# The FY2025 20-F (0001628280-26-008403) lists net sales by product and by vaccine franchise.
+# The 23 products modelled sum to 29,790; the rest is the 15 lines below, and the two together
+# are the reported total in both 2025 and 2024 (FY2024 20-F 0001121404-25-000010).
+#
+# Vaccines: the franchises outside Beyfortus. COVID-19 and influenza sell in the second half
+# of the year, and the COVID part is Novavax's vaccine, on which Novavax takes a royalty.
+# Established medicines: Lovenox, Praluent, Aprovel, Soliqua, Alprolix, Eloctate, Fasturtec,
+# industrial sales of active ingredients to third parties, and 'Others', a tail Sanofi does
+# not break down. Launches: Ayvakit, which came with Blueprint in July 2025 and is a growth
+# product rather than a tail, with Qfitlia and Wayrilz beside it.
+#
+# Other revenues of 3,090 (VaxServe distribution of other companies' products 1,780, contract
+# manufacturing 557, Opella products 487, royalties 146, sales to Opella 120) sit outside net
+# sales, outside the reported revenue every ratio is struck on, and are not carried here.
+# Opella, the consumer business, is a discontinued operation and is in neither.
+#
+# Margins and the discount rate are the company's, copied from the rows every Sanofi product
+# carries, so the products and these lines together are the company's own P&L.
+ticker,line,scenario,key,value,text_value,unit,source,note
+SNY,Vaccines other,base,base_revenue,6155.0,,mm EUR,"Sanofi FY2025 20-F (0001628280-26-008403), net sales by franchise: Polio/Pertussis/Hib and Boosters 2,554, COVID-19 and Influenza 2,314, Meningitis, Travel and Endemics 1,287, EUR mm",Beyfortus is modelled as a product
+SNY,Vaccines other,base,revenue_growth_pct,-0.069118,,"annual, near term","the same franchises a year earlier (FY2024 20-F 0001121404-25-000010): 2,741, 2,555 and 1,316, together 6,612, so -6.9% in reported EUR","the first half of 2026 was 2,050 against 2,184, with influenza and COVID-19 selling in the second half (6-K 0001628280-26-050803)"
+SNY,Vaccines other,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+SNY,Vaccines other,base,growth_fade_years,5,,years,convention: a recent rate describes next year,
+SNY,Vaccines other,base,forecast_start_year,2026,,year,the year after the last reported full year,
+SNY,Vaccines other,base,forecast_years,10,,years,the horizon most of SNY's marketed assets carry,
+SNY,Vaccines other,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+SNY,Vaccines other,base,cogs_pct,0.2991,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Vaccines other,base,sga_pct,0.2187,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Vaccines other,base,rd_pct,0.1798,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Vaccines other,base,other_costs_pct,0.07532955510456313,,share of revenue,"derived: SNY turned 16.69% of revenue into free cash over 2023 to 2025 against the 25.5% its filed expense lines leave. Restated before interest: SNY paid 1,631mm EUR of interest inside operating cash flow over 2023 to 2025, 1.33% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 10.45% to 9.12%. Checked at replacement capex: no plant depreciation on file for every year, and no amortisation line to take it out of the combined figure, so the charge stands. Checked without one-off cash: deal payments are booked under investing, so free cash flow never carried them, and no settlement or transition tax is stated for the window, so the charge stands. Left out: 350mm USD of legal settlement in 2025, printed only in USD, rather than converted. Restated without working capital build: over 2023 to 2025 SNY's cash flow statement shows receivables up 1,702mm EUR, inventories up 1,382mm EUR, payables up 1,445mm EUR, a working capital build of 1,639mm EUR, 1.34% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from 9.12% to 7.53%.","amortisation, restructuring and capital spending, none of which the filed lines carry"
+SNY,Vaccines other,base,tax_rate,0.1566,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as net income plus the tax charge, this filer not tagging pre-tax income",
+SNY,Vaccines other,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+SNY,Vaccines other,base,erp,0.05,,,Damodaran US ERP estimate,
+SNY,Vaccines other,base,beta,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.41 raw)",
+SNY,Vaccines other,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+SNY,Vaccines other,base,debt_weight,0.188414,,,"filed TotalDebt of 18,702mm EUR at 2025-12-31 over debt plus market capitalisation",
+SNY,Established medicines,base,base_revenue,7360.0,,mm EUR,"Sanofi FY2025 20-F (0001628280-26-008403), net sales by product: Others 3,777, Lovenox 822, Alprolix 603, Praluent 526, Industrial Sales 483, Aprovel 417, Soliqua 282, Eloctate 275, Fasturtec 175, EUR mm","Industrial Sales are active ingredients and semi-finished products sold to other companies; Alprolix and Eloctate include supply sales to Sobi, which Sanofi does not size"
+SNY,Established medicines,base,revenue_growth_pct,-0.095489,,"annual, near term","the same lines a year earlier (FY2024 20-F 0001121404-25-000010): 4,367 (including Enjaymo, sold in November 2024), 982, 588, 483, 523, 416, 227, 368 and 183, together 8,137, so -9.5% in reported EUR","Aubagio joins Others in 2026, so the line is not like-for-like from then"
+SNY,Established medicines,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+SNY,Established medicines,base,growth_fade_years,5,,years,convention: a recent rate describes next year,
+SNY,Established medicines,base,forecast_start_year,2026,,year,the year after the last reported full year,
+SNY,Established medicines,base,forecast_years,10,,years,the horizon most of SNY's marketed assets carry,
+SNY,Established medicines,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+SNY,Established medicines,base,cogs_pct,0.2991,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Established medicines,base,sga_pct,0.2187,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Established medicines,base,rd_pct,0.1798,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Established medicines,base,other_costs_pct,0.07532955510456313,,share of revenue,"derived: SNY turned 16.69% of revenue into free cash over 2023 to 2025 against the 25.5% its filed expense lines leave. Restated before interest: SNY paid 1,631mm EUR of interest inside operating cash flow over 2023 to 2025, 1.33% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 10.45% to 9.12%. Checked at replacement capex: no plant depreciation on file for every year, and no amortisation line to take it out of the combined figure, so the charge stands. Checked without one-off cash: deal payments are booked under investing, so free cash flow never carried them, and no settlement or transition tax is stated for the window, so the charge stands. Left out: 350mm USD of legal settlement in 2025, printed only in USD, rather than converted. Restated without working capital build: over 2023 to 2025 SNY's cash flow statement shows receivables up 1,702mm EUR, inventories up 1,382mm EUR, payables up 1,445mm EUR, a working capital build of 1,639mm EUR, 1.34% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from 9.12% to 7.53%.","amortisation, restructuring and capital spending, none of which the filed lines carry"
+SNY,Established medicines,base,tax_rate,0.1566,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as net income plus the tax charge, this filer not tagging pre-tax income",
+SNY,Established medicines,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+SNY,Established medicines,base,erp,0.05,,,Damodaran US ERP estimate,
+SNY,Established medicines,base,beta,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.41 raw)",
+SNY,Established medicines,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+SNY,Established medicines,base,debt_weight,0.188414,,,"filed TotalDebt of 18,702mm EUR at 2025-12-31 over debt plus market capitalisation",
+SNY,Launches,base,base_revenue,321.0,,mm EUR,"Sanofi FY2025 20-F (0001628280-26-008403), net sales by product: Ayvakit 305, Qfitlia 9, Wayrilz 7, EUR mm","Ayvakit came with the Blueprint acquisition in July 2025, so 2025 holds less than half a year of it"
+SNY,Launches,base,revenue_growth_pct,1.529595,,"annual, near term","to the latest run rate in 2026, the engine's own convention (a half annualised where no quarter is given): Ayvakit 367, Wayrilz 27 and Qfitlia 12 in the first half of 2026 (6-K 0001628280-26-050803), 812 a year, against 321","held there from 2027: no peak is modelled, and no exclusivity, so this reads low while they grow and high once they lose it"
+SNY,Launches,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+SNY,Launches,base,growth_fade_years,1,,years,one year: the rate carries 2025 to the latest run rate and stops,
+SNY,Launches,base,forecast_start_year,2026,,year,the year after the last reported full year,
+SNY,Launches,base,forecast_years,10,,years,the horizon most of SNY's marketed assets carry,
+SNY,Launches,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+SNY,Launches,base,cogs_pct,0.2991,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Launches,base,sga_pct,0.2187,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Launches,base,rd_pct,0.1798,,share of revenue,"SNY FY2025, from the filed lines",
+SNY,Launches,base,other_costs_pct,0.07532955510456313,,share of revenue,"derived: SNY turned 16.69% of revenue into free cash over 2023 to 2025 against the 25.5% its filed expense lines leave. Restated before interest: SNY paid 1,631mm EUR of interest inside operating cash flow over 2023 to 2025, 1.33% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 10.45% to 9.12%. Checked at replacement capex: no plant depreciation on file for every year, and no amortisation line to take it out of the combined figure, so the charge stands. Checked without one-off cash: deal payments are booked under investing, so free cash flow never carried them, and no settlement or transition tax is stated for the window, so the charge stands. Left out: 350mm USD of legal settlement in 2025, printed only in USD, rather than converted. Restated without working capital build: over 2023 to 2025 SNY's cash flow statement shows receivables up 1,702mm EUR, inventories up 1,382mm EUR, payables up 1,445mm EUR, a working capital build of 1,639mm EUR, 1.34% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from 9.12% to 7.53%.","amortisation, restructuring and capital spending, none of which the filed lines carry"
+SNY,Launches,base,tax_rate,0.1566,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as net income plus the tax charge, this filer not tagging pre-tax income",
+SNY,Launches,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+SNY,Launches,base,erp,0.05,,,Damodaran US ERP estimate,
+SNY,Launches,base,beta,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.41 raw)",
+SNY,Launches,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+SNY,Launches,base,debt_weight,0.188414,,,"filed TotalDebt of 18,702mm EUR at 2025-12-31 over debt plus market capitalisation",
