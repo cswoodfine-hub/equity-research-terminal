@@ -733,6 +733,7 @@ def company_rollup(db_path, ticker: str):
         streams.append({"line": built["line"], "rnpv": result["rnpv"],
                         "base_revenue": entry["scalars"].get("base_revenue"),
                         "buys_launches": entry["scalars"].get("buys_launches", 1) != 0,
+                        "loe_year": entry["scalars"].get("loe_year"),
                         "years": result["years"], "revenue": result["revenue_after_loe"],
                         "dcf_years": result.get("dcf_years") or [],
                       "pnl_share": [{k: (v * 1.0 if isinstance(v, (int, float)) else v)

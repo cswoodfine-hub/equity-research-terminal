@@ -23,13 +23,16 @@ import forecast
 DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 SEED_DIR = DATA_DIR / "company_lines"
 
-# What a line may carry. The marketed vocabulary, less an LOE: a line is not a molecule
-# and has no patent to lose. A negative growth rate is how a line runs off.
+# What a line may carry. The marketed vocabulary. Most lines are not one molecule and
+# have no patent to lose, and a negative growth rate is how they run off. A line that is
+# one molecule's revenue booked another way (Biogen's Ocrevus royalty) does lose it, so
+# it may carry the year and the erosion shape a product would.
 KEYS = ("therapy_mode", "base_revenue", "revenue_growth_pct", "terminal_growth_pct",
         "growth_fade_years", "revenue_ceiling_musd", "cogs_pct", "sga_pct", "rd_pct",
         "other_costs_pct",
         "tax_rate", "wacc", "risk_free", "erp", "beta", "cost_of_debt", "debt_weight",
         "forecast_start_year", "forecast_years", "pos",
+        "loe_year", "erosion_year1_pct", "erosion_decay_pct",
         # 0 for a line whose R&D develops something other than medicines (Johnson &
         # Johnson's MedTech): that R&D buys no drug launches, so the future pipeline
         # leaves the line out. Absent means 1.
@@ -98,9 +101,11 @@ def reported(conn, company_id: int, scenario: str = "base") -> list[dict]:
 
 def build(entry: dict) -> dict:
     """The engine's result for one line, or {"ok": False, "missing": [...]}."""
+    import assumptions as assumptions_module
     try:
         result = forecast.build({"scalars": entry["scalars"], "indications": [],
-                                 "loe": None, "actuals": [], "phase": None})
+                                 "loe": None, "actuals": [], "phase": None,
+                                 "erosion_defaults": assumptions_module.erosion_defaults()})
     except forecast.ForecastError as err:
         return {"ok": False, "line": entry["line"], "missing": err.missing}
     return {"ok": True, "line": entry["line"], "result": result,

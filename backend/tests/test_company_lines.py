@@ -252,3 +252,21 @@ def test_a_different_figure_on_the_same_application_still_counts(tmp_path, monke
     c = _second_reading(_seed(tmp_path, reported=12_000), tmp_path, monkeypatch, 300)
     assert c["tagged_revenue"] == pytest.approx(11_300 * MM)
     assert "Trikafta tablets" in [u["name"] for u in c["unmodelled"]]
+
+
+def test_a_line_that_is_one_molecule_loses_exclusivity_like_a_product():
+    scalars = {"therapy_mode": "marketed", "base_revenue": 1000.0, "revenue_growth_pct": 0.0,
+               "terminal_growth_pct": 0.0,
+               "forecast_start_year": 2026, "forecast_years": 10, "pos": 1.0,
+               "cogs_pct": 0.2, "sga_pct": 0.2, "rd_pct": 0.1, "tax_rate": 0.2,
+               "wacc": 0.08}
+    held = company_lines.build({"line": "Royalty", "scalars": scalars})
+    lost = company_lines.build({"line": "Royalty", "scalars": {
+        **scalars, "loe_year": 2029, "erosion_year1_pct": 0.625, "erosion_decay_pct": 0.2}})
+    assert held["ok"] and lost["ok"]
+    revenue = dict(zip(lost["result"]["years"], lost["result"]["revenue_after_loe"]))
+    assert revenue[2029] == pytest.approx(1000.0)
+    assert revenue[2030] == pytest.approx(375.0)
+    assert lost["result"]["rnpv"] < held["result"]["rnpv"]
+    defaulted = company_lines.build({"line": "Royalty", "scalars": {**scalars, "loe_year": 2029}})
+    assert dict(zip(defaulted["result"]["years"], defaulted["result"]["revenue_after_loe"]))[2030] == pytest.approx(750.0)
