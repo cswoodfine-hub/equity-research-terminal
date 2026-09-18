@@ -127,7 +127,7 @@ def test_rd_is_read_net_of_in_process_rd_expensed_inside_it(tmp_path):
     conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year, period_end, value, unit)"
                  " VALUES (1, 'ResearchLessExpensedIprd', 'FY', 2023, '2023-12-31', 19122e6, 'USD')")
     conn.commit()
-    got = FP.filer_productivity(conn, 1, {}, {})
+    got = FP.filer_productivity(conn, 1, {}, {}, switches={}, funded={}, bought={})
     assert got["rd"] == pytest.approx(19122e6 + 17938e6) and got["rd_years"] == 2
     assert got["rate"] == pytest.approx(1443e6 / (19122e6 + 17938e6))
 
@@ -310,3 +310,27 @@ def test_a_named_launch_does_not_come_off_the_forecasts_own_cohorts():
     free = _sim(ratios={**RATIOS, "rd": 0.0})
     named = _sim(ratios={**RATIOS, "rd": 0.0}, named={y: 100.0 for y in range(2026, 2086)})
     assert named["value"] == pytest.approx(free["value"]) and named["named_overlap"] == 0.0
+
+
+def test_a_launch_that_came_with_a_company_is_not_the_filers_research(tmp_path):
+    import db
+    path = str(tmp_path / "acq.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'AMGN', 'Amgen')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed) VALUES (1, 1, 'Tepezza', 1), (2, 1, 'Imdelltra', 1)")
+    conn.execute("INSERT INTO approvals (asset_id, region, agency, approval_date, application_number) VALUES"
+                 " (1, 'US', 'FDA', '2020-01-21', 'BLA761143'), (2, 'US', 'FDA', '2024-05-16', 'BLA761344')")
+    for aid, value in ((1, 1900.0e6), (2, 630.0e6)):
+        conn.execute("INSERT INTO asset_revenue (asset_id, fiscal_year, period, value, unit, source) VALUES (?, 2025, 'FY', ?, 'USD', 't')", (aid, value))
+    conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year, period_end, value, unit)"
+                 " VALUES (1, 'ResearchAndDevelopmentExpense', 'FY', 2024, '2024-12-31', 5000e6, 'USD')")
+    conn.commit()
+    both = FP.filer_productivity(conn, 1, {}, {}, segment={}, switches={}, funded={}, bought={})
+    assert both["fresh_revenue"] == pytest.approx(2530.0e6) and both["launch_count"] == 2
+    own = FP.filer_productivity(conn, 1, {}, {}, segment={}, switches={}, funded={},
+                                bought={("AMGN", "tepezza"): "Horizon Therapeutics"})
+    assert own["fresh_revenue"] == pytest.approx(630.0e6) and own["launch_count"] == 1
+    assert own["acquired"] == [{"name": "Tepezza", "approved": "2020-01-21",
+                                "revenue": 1900.0e6,
+                                "acquired_from": "Horizon Therapeutics"}]

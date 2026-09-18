@@ -1,0 +1,62 @@
+# Launches that came with a company, or with a marketed product, the filer bought.
+#
+# Launch productivity is fresh revenue over the R&D spent in the ten years before
+# (backend/future_pipeline.py). A drug that arrived through an acquisition was paid for by
+# the purchase price, which is nowhere in that R&D, so counting its revenue reads as
+# research that never happened: Amgen's Otezla came with $13.4bn paid to Celgene, Gilead's
+# Yescarta with Kite, Bristol's Reblozyl with Celgene. Each of these is left out of the
+# filer's fresh revenue, which leaves deals where the other-costs charge leaves them:
+# capital allocation, neither charged nor credited.
+#
+# Not listed, and so still counted as the filer's own research:
+#   a molecule licensed in, where the filer ran the development that followed and paid for
+#   it through its R&D line (AbbVie's Skyrizi from Boehringer Ingelheim, Biogen's Vumerity
+#   from Alkermes, Amgen's Tezspire with AstraZeneca, J&J's Carvykti with Legend);
+#   a combination whose new molecule is the filer's own (Bristol's Opdualag pairs Medarex's
+#   nivolumab with relatlimab, which Bristol discovered);
+#   a new form of a molecule already sold, which data/switch_forms.csv dates from the form
+#   it replaces (Bristol's Opdivo Qvantig);
+#   Pfizer's Ibrance and Sanofi's Nexviazyme, where no filing establishes the molecule's
+#   origin either way. Both stay in the numerator, which reads the filer's record high.
+#
+# Columns: ticker, product (as the revenue line is named), acquired_from, year,
+# consideration, accession, quote.
+ticker,product,acquired_from,year,consideration,accession,quote
+ABBV,Ubrelvy,Allergan plc,2020,"$64,084m total consideration",0001551152-21-000008,"On May 8, 2020, AbbVie completed its previously announced acquisition of all outstanding equity interests in Allergan in a cash and stock transaction."
+ABBV,Qulipta,Allergan plc,2020,"$64,084m total consideration",0001564590-20-005038,Atogepant Central Nervous System Prophylaxis Migraine 2021 III (Allergan FY2019 10-K pipeline table)
+AMGN,Otezla,Celgene Corporation (worldwide Otezla rights),2019,$13.4bn cash,0000318154-20-000017,"On November 21, 2019, we acquired worldwide rights to Otezla, the only oral, non-biologic treatment for psoriasis and psoriatic arthritis, along with certain related assets and liabilities, from Celgene Corporation (Celgene)."
+AMGN,Tepezza,Horizon Therapeutics plc,2023,$27.8bn ($116.50/share cash),0000318154-24-000011,"Products were acquired from our Horizon acquisition on October 6, 2023"
+AMGN,Uplizna,Horizon Therapeutics plc,2023,$27.8bn ($116.50/share cash),0000318154-24-000011,"Products were acquired from our Horizon acquisition on October 6, 2023"
+AZN,Ultomiris,Alexion Pharmaceuticals Inc.,2021,"$41,058m",0001104659-22-025720,"C5 franchise (Soliris/Ultomiris) intangible assets arising from the acquisition of Alexion 17,724"
+AZN,Calquence,Acerta Pharma B.V.,2016,"$3,809m total consideration for 55%",0000950103-17-002275,Acquisition of majority stake in Acerta Pharma providing access to acalabrutinib
+AZN,Fasenra,"MedImmune, Inc.",2007,$15.6bn total cash,0000950103-08-000636,MEDI-563 anti-IL-5R antibody asthma (in the acquired MedImmune pipeline); the total cash paid to acquire MedImmune was $15.6bn
+AZN,Breztri,"Pearl Therapeutics, Inc.",2013,"$569m upfront, up to $450m milestones, up to $140m sales payments",0000950103-14-001994,AstraZeneca acquired 100% of Pearl Therapeutics' shares for an upfront consideration of $569m.
+BIIB,Skyclarys,"Reata Pharmaceuticals, Inc.",2023,"$7,193.4m total consideration ($172.50/share)",0000875045-24-000009,"On September 26, 2023, we completed the acquisition of all of the issued and outstanding shares of Reata... As a result of this transaction we acquired SKYCLARYS (omaveloxolone)"
+BMY,Reblozyl,Celgene Corporation,2019,~$80.3bn aggregate purchase price,0000014272-20-000082,The regulatory approval was obtained by Celgene prior to the completion of the Celgene transaction.
+BMY,Breyanzi,Celgene Corporation,2019,~$80.3bn aggregate purchase price,0000014272-20-000082,"upon FDA approval of all three of the following milestones: (1) ozanimod by December 31, 2020, (2) liso-cel (JCAR017) by December 31, 2020, and (3) ide-cel (bb2121) by March 31, 2021"
+BMY,Abecma,Celgene Corporation,2019,~$80.3bn aggregate purchase price,0000014272-20-000082,"upon FDA approval of all three of the following milestones: (1) ozanimod by December 31, 2020, (2) liso-cel (JCAR017) by December 31, 2020, and (3) ide-cel (bb2121) by March 31, 2021"
+BMY,Krazati,"Mirati Therapeutics, Inc.",2024,$4.8bn ($58.00/share cash),0000014272-25-000039,Krazati was brought into the BMS portfolio as part of the Mirati acquisition completed in 2024.
+GILD,Yescarta,"Kite Pharma, Inc.",2017,"$11,155m consideration transferred ($180/share cash)",0000882095-18-000008,"On October 3, 2017 (the Acquisition Date), we completed a tender offer for all of the outstanding common stock of Kite Pharma, Inc. (Kite) for $180 per share in cash"
+GILD,Trodelvy,"Immunomedics, Inc.",2020,"$20,597m total consideration transferred",0000882095-21-000008,"the acquisition of Immunomedics, Inc. (Immunomedics) added Trodelvy and other pipeline programs to our oncology portfolio"
+GILD,Sofosbuvir Velpatasvir,"Pharmasset, Inc. (sofosbuvir component)",2012,$11.05bn,0000882095-13-000015,"Through our acquisition of Pharmasset, we gained ownership of sofosbuvir"
+GSK,Jemperli,"TESARO, Inc.",2019,GBP 3.9bn (announced US$5.1bn),0001193125-20-065064,"This reflected the progression of assets from the Tesaro acquisition, primarily Zejula and dostarlimab"
+GSK,Zejula,"TESARO, Inc.",2019,GBP 3.9bn (announced US$5.1bn),0001193125-20-065064,"This reflected the progression of assets from the Tesaro acquisition, primarily Zejula and dostarlimab"
+GSK,Ojjaara,"Sierra Oncology, Inc.",2022,$1.9bn (GBP 1.6bn),0001131399-24-000007,"On 1 July 2022, GSK completed the acquisition of 100% of Sierra Oncology, Inc. ... for $1.9 billion (GBP 1.6 billion). The main asset is momelotinib"
+GSK,Penmenvy,Novartis vaccines business,2015,"up to US$7,055m plus royalties",0001131399-26-000004,"Penmenvy, our 5-in-1 MenABCWY vaccine combines our meningitis ACWY vaccine, Menveo, and our meningitis B vaccine, Bexsero"
+JNJ,Erleada,"Aragon Pharmaceuticals, Inc.",2013,"$810m IPR&D; 2013 acquisitions $835m cash + $193m liabilities, up to $350m milestones",0000200406-14-000033,"The IPR&D related to the acquisition of Aragon Pharmaceuticals, Inc. of $810 million is associated with Aragon's androgen receptor antagonist program for treatment of hormonally-driven cancers."
+JNJ,Caplyta,"Intra-Cellular Therapies, Inc.",2025,$132.00 per share; total consideration transferred $14.5bn,0000200406-26-000016,"Neuroscience products, which include sales of CAPLYTA (lumateperone) acquired with the Intra-Cellular Therapies (Intra-Cellular) acquisition on April 2, 2025"
+MRK,Winrevair,Acceleron Pharma Inc.,2021,$11.5bn total consideration,0000310158-22-000003,"In November 2021, Merck acquired Acceleron, a publicly traded biopharmaceutical company, for total consideration of $11.5 billion ... Acceleron's lead therapeutic candidate, sotatercept (MK-7962)"
+MRK,Welireg,"Peloton Therapeutics, Inc.",2019,$1.2bn upfront plus milestones,0000310158-22-000003,"Former Peloton shareholders received a $50 million milestone payment from Merck in 2021 upon first commercial sale of Peloton's lead candidate, Welireg (belzutifan)"
+MRK,Reblozyl,Acceleron Pharma Inc.,2021,part of the same $11.5bn,0000310158-22-000003,"In addition to sotatercept, Acceleron's portfolio includes Reblozyl (luspatercept), a first-in-class erythroid maturation recombinant fusion protein"
+MRK,Ohtuvayre,Verona Pharma plc,2025,$10.4bn total consideration,0000310158-26-000063,"In October 2025, Merck acquired Verona Pharma plc (Verona Pharma) ... for total consideration of $10.4 billion. Through this acquisition, Merck acquired Ohtuvayre (ensifentrine)"
+NVS,Mekinist,GSK oncology products business,2015,$16.0bn aggregate cash consideration,0001047469-16-009872,Tafinlar and Mekinist were each acquired from GSK.
+NVS,Pluvicto,"Endocyte, Inc.",2018,~US$2.1bn,0001370368-19-000002,177 Lu-PSMA-617 Metastatic castration-resistant prostate cancer Added Acquired with acquisition of Endocyte
+NVS,Zolgensma,"AveXis, Inc.",2018,~US$8.7bn ($218/share cash),0001370368-19-000002,"AVXS-101 (Zolgensma) Spinal muscular atrophy type 1 (IV formulation) Added Acquired with acquisition of AveXis, Inc."
+NVS,Leqvio,The Medicines Company,2020,~US$9.6bn ($85/share cash),0001370368-21-000006,"This merger broadens our cardiovascular portfolio by adding inclisiran, an investigational cholesterol-lowering therapy."
+NVS,Lutathera,Advanced Accelerator Applications S.A.,2018,US$3.9bn,0001370368-19-000002,"AAA is a radiopharmaceutical company ... that develops, produces and commercializes molecular nuclear medicines - including Lutathera"
+PFE,Vyndaqel,"FoldRx Pharmaceuticals, Inc.",2010,"~$400m at close, up to $455m further milestones",0001193125-11-048877,"On October 6, 2010, we completed our acquisition of FoldRx Pharmaceuticals, Inc. (FoldRx) ... FoldRx's lead product candidate, tafamidis meglumine, is in registration in both the U.S. and the EU."
+PFE,Padcev,Seagen Inc.,2023,$44.2bn total fair value of consideration transferred ($229/share),0000078003-24-000039,"With the addition of Seagen's pipeline and its four in-line medicines (Padcev, Adcetris, Tukysa and Tivdak), Pfizer's oncology portfolio spans multiple modalities"
+PFE,Nurtec ODT / Vydura,Biohaven Pharmaceutical Holding Company Ltd.,2022,~$11.5bn ($148.50/share) plus $863m debt and $495m preferred redemption,0000078003-24-000039,"On October 3, 2022, we acquired Biohaven, the maker of Nurtec ODT/Vydura (rimegepant)"
+SNY,Rezurock,"Kadmon Holdings, Inc.",2021,~$1.9bn equity value ($9.50/share),0001121404-22-000007,"we have acquired Kadmon Holdings, Inc. ... and immediately add Rezurock (belumosudil) to our transplant portfolio"
+SNY,Cablivi,Ablynx NV,2018,EUR 3.9bn,0001193125-19-068926,This deal was completed in June 2018 at a price of EUR 3.9 billion; it enhances our portfolio with the addition of Cablivi (caplacizumab)
+SNY,Xenpozyme,Genzyme Corporation,2011,"$20.4bn (EUR 14.3bn), $74 per share",0001193125-12-098598,Genzyme portfolio: rhASM - Enzyme replacement therapy targeting the treatment of Niemann-Pick B disease. A Phase II study is under preparation.

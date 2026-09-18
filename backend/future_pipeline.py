@@ -23,11 +23,18 @@ that R&D buys the next cohort in turn, so replacement is simulated rather than a
 Nothing is risk-adjusted a second time: the rate is measured on what reached market, so
 the failures are already in it.
 
-Two biases are stated rather than corrected. The ratio's R&D window sits one year before
+One bias is stated rather than corrected. The ratio's R&D window sits one year before
 the launches rather than a full lag before, and R&D has grown, so the denominator is
-larger than the spend that bought the launches and the rate reads low. And launches a
-filer bought rather than discovered are in the numerator while the acquisition spend is
-not in the denominator, which reads high.
+larger than the spend that bought the launches and the rate reads low.
+
+The bias that ran the other way is corrected. A launch that came with a company the filer
+bought was paid for by the purchase price, which is not in the R&D the rate divides by,
+so counting its revenue read as research that never happened: Amgen's Otezla came with
+Celgene's divestiture, Gilead's Yescarta with Kite, Bristol's Reblozyl with Celgene. Those
+launches are named in ``data/acquired_launches.csv`` and left out of the numerator, which
+leaves deals where the other-costs charge leaves them (``one_off_cash``): capital
+allocation, neither charged nor credited. A molecule licensed in is not bought, because
+the development that followed ran through the filer's own R&D line.
 
 The window's edge is left where it falls. Darzalex, approved on 16 November 2015, misses
 Johnson & Johnson's FY2025 window by 46 days and takes $14.4bn of revenue out of its
@@ -61,6 +68,9 @@ SWITCH_FORMS = DATA_DIR / "switch_forms.csv"
 # Launches a collaborator paid to develop, where the filer books that funding as a cut to
 # its own R&D line: the revenue is the filer's, the cost is not in its R&D.
 PARTNER_FUNDED = DATA_DIR / "partner_funded_launches.csv"
+# Launches that came with a company the filer bought. The purchase price is what bought
+# them, and it is nowhere in the R&D the rate divides by.
+ACQUIRED = DATA_DIR / "acquired_launches.csv"
 COHORT_YEARS = 10
 _CACHE: dict = {}
 _CACHE_SECONDS = 3600
@@ -154,6 +164,22 @@ def partner_funded(path=None) -> dict:
     return out
 
 
+def acquired_launches(path=None) -> dict:
+    """{(ticker, product): the company it came with} for launches a filer bought."""
+    source = pathlib.Path(path) if path else ACQUIRED
+    out: dict = {}
+    if not source.exists():
+        return out
+    with source.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(line for line in handle if not line.lstrip().startswith("#")):
+            ticker = (row.get("ticker") or "").strip().upper()
+            product = (row.get("product") or "").strip()
+            came_with = (row.get("acquired_from") or "").strip()
+            if ticker and product and came_with:
+                out[(ticker, product.lower())] = came_with
+    return out
+
+
 def _fiscal_year_of(period_end: str) -> int:
     """The year a period mostly falls in: Johnson & Johnson's 52-week year ending on 3
     January 2016 is its 2015, whatever label the filing gave it. Any other end is its own
@@ -163,7 +189,7 @@ def _fiscal_year_of(period_end: str) -> int:
 
 
 def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
-                        switches=None, funded=None) -> dict:
+                        switches=None, funded=None, bought=None) -> dict:
     """One filer's launch productivity, and what it was built from.
 
     Revenue is the latest full year's, over product lines only, in dollars; a line is
@@ -171,8 +197,9 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
     form of a molecule already sold (``data/switch_forms.csv``) is dated from the form it
     replaces, so a franchise moving to its new form is not counted as a launch. A launch a
     collaborator paid to develop outside the filer's R&D line
-    (``data/partner_funded_launches.csv``) is not counted either, since its cost is not
-    in the denominator. R&D is
+    (``data/partner_funded_launches.csv``), or one that came with a company the filer
+    bought (``data/acquired_launches.csv``), is not counted either: neither was paid for
+    by the R&D in the denominator. R&D is
     the ten full years before it. Both are converted at the same latest rates, so the
     ratio carries no currency.
     """
@@ -184,12 +211,13 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
         return {"rate": None, "reason": "no product revenue on file"}
     cutoff = f"{year - COHORT_YEARS + 1}-01-01"
     total = dated = fresh = 0.0
-    launches, switched, partnered = [], [], []
+    launches, switched, partnered, purchased = [], [], [], []
     ticker_row = conn.execute("SELECT ticker FROM companies WHERE id = ?",
                               (company_id,)).fetchone()
     ticker = (ticker_row["ticker"] if ticker_row else "").upper()
     forms = switch_forms() if switches is None else switches
     partners = partner_funded() if funded is None else funded
+    acquired = acquired_launches() if bought is None else bought
     for row in conn.execute(
             """SELECT ar.asset_id, ar.value, ar.unit,
                       COALESCE(a.brand_name, a.generic_name) AS name
@@ -218,7 +246,11 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
             continue
         dated += value
         partner = partners.get((ticker, (row["name"] or "").lower()))
-        if approved >= cutoff and partner:
+        came_with = acquired.get((ticker, (row["name"] or "").lower()))
+        if approved >= cutoff and came_with:
+            purchased.append({"name": row["name"], "approved": approved[:10],
+                              "revenue": value, "acquired_from": came_with})
+        elif approved >= cutoff and partner:
             partnered.append({"name": row["name"], "approved": approved[:10],
                               "revenue": value, "partner": partner})
         elif approved >= cutoff:
@@ -272,7 +304,7 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
     return {"rate": rate, "year": year, "revenue": total, "dated_share": coverage,
             "fresh_revenue": fresh, "rd": rd, "rd_years": rd_years,
             "rd_basis": rd_basis, "switch_forms": switched,
-            "partner_funded": partnered,
+            "partner_funded": partnered, "acquired": purchased,
             "launches": launches[:8], "launch_count": len(launches),
             "launch_revenues": [r["revenue"] for r in launches],
             "reason": None if rate is not None else "no R&D on file for the window"}
