@@ -27,3 +27,68 @@ GSK,Seretide/Advair,base,erp,0.05,,,Damodaran US ERP estimate,
 GSK,Seretide/Advair,base,beta,0.55,,,"computed from weekly returns vs S&P 500, Blume-adjusted","the company's, as every GSK asset carries"
 GSK,Seretide/Advair,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
 GSK,Seretide/Advair,base,debt_weight,0.194899,,,filed TotalDebt over debt plus market capitalisation,"the company's, as every GSK asset carries"
+#
+# The rest of GSK's product table, GBP 5,404mm in FY2025, which no product on file carries.
+#
+# GSK's FY2025 results announcement (6-K 0001654954-26-000892) lists turnover by product; its
+# sub-groups tie to the FY2025 20-F turnover note (0001131399-26-000004). The 26 products and
+# Seretide/Advair above sum to GBP 27,263mm; the rest, below, brings the total to 32,667 in
+# 2025 and 31,376 in 2024 (FY2024 results, 6-K 0001654954-25-001166).
+#
+# Established vaccines: Fluarix/FluLaval, hepatitis (Engerix, Twinrix, Havrix), Infanrix/
+# Pediarix, Priorix, Synflorix, meningitis other and established vaccines other. 2024
+# included around GBP 130mm of non-repeating contracted sales, which GSK names but does not
+# place in a line, so the decline is read as filed. General Medicines: Augmentin, other
+# respiratory and other General Medicines, which holds Avodart and dermatology. Specialty
+# other: other HIV, other immunology, other oncology, Blenrep and pandemic sales.
+GSK,Established vaccines,base,base_revenue,2223.0,,mm GBP,"GSK FY2025 results (6-K 0001654954-26-000892), turnover by product: Fluarix/FluLaval 303, Hepatitis 643, Infanrix/Pediarix 519, Priorix/Priorix Tetra/Varilrix 425, Synflorix 159, Established Vaccines other 151, Meningitis other 23, GBP mm","Shingrix, Arexvy, Bexsero, Menveo, Boostrix, Rotarix, Cervarix and Penmenvy are modelled as products"
+GSK,Established vaccines,base,revenue_growth_pct,-0.091541,,"annual, near term","the same lines a year earlier (FY2024 results, 6-K 0001654954-25-001166): 408, 692, 512, 323, 226, 246 and 40, together 2,447, so -9.2% in GBP","2024 held around GBP 130mm of non-repeating contracted sales including divested brands, by GSK's own figure"
+GSK,Established vaccines,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+GSK,Established vaccines,base,growth_fade_years,5,,years,convention: a recent rate describes next year,
+GSK,Established vaccines,base,forecast_start_year,2026,,year,the year after the last reported full year,
+GSK,Established vaccines,base,forecast_years,10,,years,the horizon most of GSK's marketed assets carry,
+GSK,Established vaccines,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+GSK,Established vaccines,base,cogs_pct,0.276,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Established vaccines,base,sga_pct,0.2782,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Established vaccines,base,rd_pct,0.2304,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Established vaccines,base,other_costs_pct,-0.024734441485290967,,share of revenue,"derived: GSK turned 18.02% of revenue into free cash over 2023 to 2025 against the 19.3% its filed expense lines leave. Checked before interest: interest paid is booked under financing, so free cash flow is already struck before interest, so the charge stands. Restated at replacement capex: GSK spent 4,061mm GBP on plant over 2023 to 2025 against 2,628mm GBP of plant depreciation, 1.52% of revenue above what keeps the plant running. Taken at depreciation, the charge falls from 1.44% to 0.00%. Restated without one-off cash: GSK's free cash flow over 2023 to 2025 carried 1,867mm GBP of legal settlements. None recurs, so the charge stays nil. Restated to the amortisation floor: the filed cost lines leave a 21.54% pre-tax margin where the cash over 2023 to 2025 supports 23.77%, so the charge rebuilds at -2.23%. It was held at nil, but GSK books 808mm GBP of non-cash amortisation of acquired intangibles inside its cost lines in FY2025 (0001131399-26-000004), 2.47% of revenue, so the charge takes the rebuilt figure: -2.23%. Restated without working capital build: over 2023 to 2025 GSK's cash flow statement shows receivables up 1,109mm GBP, inventories up 858mm GBP, payables down 63mm GBP, a working capital build of 2,030mm GBP, 2.15% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from -2.23% to -2.47%.","amortisation, restructuring and capital spending, none of which the filed lines carry"
+GSK,Established vaccines,base,tax_rate,0.1037,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
+GSK,Established vaccines,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+GSK,Established vaccines,base,erp,0.05,,,Damodaran US ERP estimate,
+GSK,Established vaccines,base,beta,0.55,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.33 raw)",
+GSK,Established vaccines,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+GSK,Established vaccines,base,debt_weight,0.194899,,,"filed TotalDebt of 14,453mm GBP at 2025-12-31 over debt plus market capitalisation",
+GSK,General Medicines other,base,base_revenue,3118.0,,mm GBP,"GSK FY2025 results (6-K 0001654954-26-000892), turnover by product: Augmentin 602, Other Respiratory 541, Other General Medicines 1,975, GBP mm","Other General Medicines holds Avodart/Duodart (297) and dermatology (204), by the 20-F"
+GSK,General Medicines other,base,revenue_growth_pct,-0.08186,,"annual, near term","the same lines a year earlier (FY2024 results, 6-K 0001654954-25-001166): 635, 586 and 2,175, together 3,396, so -8.2% in GBP",81% of Other General Medicines is sold outside the US and Europe
+GSK,General Medicines other,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+GSK,General Medicines other,base,growth_fade_years,5,,years,convention: a recent rate describes next year,
+GSK,General Medicines other,base,forecast_start_year,2026,,year,the year after the last reported full year,
+GSK,General Medicines other,base,forecast_years,10,,years,the horizon most of GSK's marketed assets carry,
+GSK,General Medicines other,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+GSK,General Medicines other,base,cogs_pct,0.276,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,General Medicines other,base,sga_pct,0.2782,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,General Medicines other,base,rd_pct,0.2304,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,General Medicines other,base,other_costs_pct,-0.024734441485290967,,share of revenue,"derived: GSK turned 18.02% of revenue into free cash over 2023 to 2025 against the 19.3% its filed expense lines leave. Checked before interest: interest paid is booked under financing, so free cash flow is already struck before interest, so the charge stands. Restated at replacement capex: GSK spent 4,061mm GBP on plant over 2023 to 2025 against 2,628mm GBP of plant depreciation, 1.52% of revenue above what keeps the plant running. Taken at depreciation, the charge falls from 1.44% to 0.00%. Restated without one-off cash: GSK's free cash flow over 2023 to 2025 carried 1,867mm GBP of legal settlements. None recurs, so the charge stays nil. Restated to the amortisation floor: the filed cost lines leave a 21.54% pre-tax margin where the cash over 2023 to 2025 supports 23.77%, so the charge rebuilds at -2.23%. It was held at nil, but GSK books 808mm GBP of non-cash amortisation of acquired intangibles inside its cost lines in FY2025 (0001131399-26-000004), 2.47% of revenue, so the charge takes the rebuilt figure: -2.23%. Restated without working capital build: over 2023 to 2025 GSK's cash flow statement shows receivables up 1,109mm GBP, inventories up 858mm GBP, payables down 63mm GBP, a working capital build of 2,030mm GBP, 2.15% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from -2.23% to -2.47%.","amortisation, restructuring and capital spending, none of which the filed lines carry"
+GSK,General Medicines other,base,tax_rate,0.1037,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
+GSK,General Medicines other,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+GSK,General Medicines other,base,erp,0.05,,,Damodaran US ERP estimate,
+GSK,General Medicines other,base,beta,0.55,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.33 raw)",
+GSK,General Medicines other,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+GSK,General Medicines other,base,debt_weight,0.194899,,,"filed TotalDebt of 14,453mm GBP at 2025-12-31 over debt plus market capitalisation",
+GSK,Specialty other,base,base_revenue,63.0,,mm GBP,"GSK FY2025 results (6-K 0001654954-26-000892), turnover by product: HIV other 29, Respiratory, Immunology & Inflammation other 29, Blenrep 17, Oncology other (12), Pandemic 0, GBP mm",
+GSK,Specialty other,base,revenue_growth_pct,0.0,,"annual, near term","held at its level: Blenrep, relaunched, rose from 2 to 17 while pandemic sales fell from 12 to nil, and the lines together went from 71 to 63",
+GSK,Specialty other,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
+GSK,Specialty other,base,growth_fade_years,5,,years,convention: nothing to fade from a held level,
+GSK,Specialty other,base,forecast_start_year,2026,,year,the year after the last reported full year,
+GSK,Specialty other,base,forecast_years,10,,years,the horizon most of GSK's marketed assets carry,
+GSK,Specialty other,base,pos,1.0,,,booked revenue,"stated, because no development phase applies"
+GSK,Specialty other,base,cogs_pct,0.276,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Specialty other,base,sga_pct,0.2782,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Specialty other,base,rd_pct,0.2304,,share of revenue,"GSK FY2025, from the filed lines",
+GSK,Specialty other,base,other_costs_pct,-0.024734441485290967,,share of revenue,"derived: GSK turned 18.02% of revenue into free cash over 2023 to 2025 against the 19.3% its filed expense lines leave. Checked before interest: interest paid is booked under financing, so free cash flow is already struck before interest, so the charge stands. Restated at replacement capex: GSK spent 4,061mm GBP on plant over 2023 to 2025 against 2,628mm GBP of plant depreciation, 1.52% of revenue above what keeps the plant running. Taken at depreciation, the charge falls from 1.44% to 0.00%. Restated without one-off cash: GSK's free cash flow over 2023 to 2025 carried 1,867mm GBP of legal settlements. None recurs, so the charge stays nil. Restated to the amortisation floor: the filed cost lines leave a 21.54% pre-tax margin where the cash over 2023 to 2025 supports 23.77%, so the charge rebuilds at -2.23%. It was held at nil, but GSK books 808mm GBP of non-cash amortisation of acquired intangibles inside its cost lines in FY2025 (0001131399-26-000004), 2.47% of revenue, so the charge takes the rebuilt figure: -2.23%. Restated without working capital build: over 2023 to 2025 GSK's cash flow statement shows receivables up 1,109mm GBP, inventories up 858mm GBP, payables down 63mm GBP, a working capital build of 2,030mm GBP, 2.15% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from -2.23% to -2.47%.","amortisation, restructuring and capital spending, none of which the filed lines carry"
+GSK,Specialty other,base,tax_rate,0.1037,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income, taken as pre-tax income as filed",
+GSK,Specialty other,base,risk_free,0.0466,,,"US 10Y Treasury (FRED DGS10), 2026-08-26",
+GSK,Specialty other,base,erp,0.05,,,Damodaran US ERP estimate,
+GSK,Specialty other,base,beta,0.55,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.33 raw)",
+GSK,Specialty other,base,cost_of_debt,0.0523,,,ICE BofA A-rated US corporate effective yield (FRED),
+GSK,Specialty other,base,debt_weight,0.194899,,,"filed TotalDebt of 14,453mm GBP at 2025-12-31 over debt plus market capitalisation",
