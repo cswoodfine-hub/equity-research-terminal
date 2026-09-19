@@ -10,6 +10,20 @@
 #
 # year1_pct is the share of revenue lost in the first year after LOE; decay_pct the share
 # of the remainder lost in each following year.
+# Measured against our own data on 2026-09-18, and left unchanged, because neither dataset
+# can settle it:
+#   data/growth_analogues.csv holds 11 drugs that fell more than 15% in the year after their
+#   peak. Median year-one fall 27% for small molecules and 24% for biologics, decaying 22% and
+#   24% a year after. But those series are worldwide revenue, and exclusivity ends market by
+#   market, so the fall is spread across years the US cliff is not: Cymbalta reads 68% and
+#   Humira 32%, and the engine erodes the US share alone.
+#   CMS Medicare spending (drug_demand, US only, the right basis) covers 2020 to 2024, which
+#   holds only nine losses of exclusivity above $20mm of spending, eight of them biologics.
+#   Those read a 11% year-one fall, and two of the nine rise, which says more about the dates
+#   on file than about erosion.
+# What would settle it: CMS publishes one release at a time and does not keep the earlier
+# years, so the archive would have to be rebuilt release by release, or product revenue split
+# by market for the drugs that have already been through a cliff.
 modality,year1_pct,decay_pct,source,note
 small molecule,0.60,0.35,"FDA/ASPE and IQVIA generic entry studies: small-molecule brands typically lose 50-80% of volume within the first year of multi-source generic entry","cliff shape; sensitivity should sweep 0.4-0.8"
 biologic,0.25,0.20,"IQVIA Biosimilars in the United States reports: reference biologics typically cede share gradually, ~20-35% in the first year where biosimilars launch","slower than small molecule; adoption varies by class"
