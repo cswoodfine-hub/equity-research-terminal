@@ -26,6 +26,7 @@ DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 SEED_DIR = DATA_DIR / "assumptions"
 POS_DEFAULTS = DATA_DIR / "pos_defaults.csv"
 POS_BY_AREA = DATA_DIR / "pos_by_area.csv"
+LAUNCH_RAMP = DATA_DIR / "launch_ramp.csv"
 EROSION_DEFAULTS = DATA_DIR / "erosion_defaults.csv"
 CURVE_DEFAULTS = DATA_DIR / "curve_defaults.csv"
 LOE_DEFAULTS = DATA_DIR / "loe_defaults.csv"
@@ -161,6 +162,26 @@ def pos_by_area(path=None) -> dict:
     return out
 
 
+def launch_ramp(path=None) -> dict:
+    """{curve: [(share of the climb, share of peak)], products, years_to_peak}: the
+    average launch's path to its peak, measured from the launches that have made it."""
+    source = pathlib.Path(path) if path else LAUNCH_RAMP
+    if not source.exists():
+        return {}
+    curve, products = [], 0
+    with source.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(line for line in handle
+                                  if not line.lstrip().startswith("#")):
+            try:
+                curve.append((float(row["share_of_climb"]), float(row["share_of_peak"])))
+                products = max(products, int(row.get("products") or 0))
+            except (TypeError, ValueError, KeyError):
+                continue
+    # The median years from launch to peak across the same launches, which the file's
+    # header states and an asset overrides with years_to_peak where its forecast names one.
+    return {"curve": sorted(curve), "products": products, "years_to_peak": 9}
+
+
 def loe_defaults() -> dict:
     """{modality: {years_from_launch, source, note}}, the exclusivity a product that has
     not launched yet is given from its launch year, where nothing on file sets one."""
@@ -282,6 +303,7 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         # rates for it: an oncology phase 3 asset is not the same bet as a haematology one.
         "therapeutic_area": (product_areas.area_for(conn, asset_id) if asset else None),
         "pos_by_area": pos_by_area(),
+        "launch_ramp": launch_ramp(),
         "erosion_defaults": erosion_defaults(),
         "curve_defaults": curve_defaults(),
     }

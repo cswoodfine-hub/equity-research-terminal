@@ -1,0 +1,31 @@
+# How a launch gets to its peak, measured from the launches that already have.
+#
+# An asset that has not launched cannot be anchored on reported revenue, and building a
+# patient funnel for it needs epidemiology, a price and a share of the pool, each of which
+# has to be sourced per asset (uptake_must_be_evidenced). Where a published peak sales
+# forecast exists and that research does not, this is the honest middle: the peak is the
+# forecast's, and the path to it is the average path of the launches in
+# data/growth_analogues.csv.
+#
+# Measured over 41 products in that file whose whole climb is on file, from the first year
+# of sales to the year of peak revenue, each normalised onto its own path so a six-year
+# climb and a nineteen-year one can be averaged: Humira, Revlimid, Trulicity, Eylea,
+# Stelara, Gardasil, Lipitor, Crestor and 33 others. The median product reaches its peak
+# nine years after launch, with quartiles at seven and thirteen, which is what
+# years_to_peak carries where an asset's own forecast names no year.
+#
+# Read as: at this share of the way from launch to peak, the product sells this share of
+# its peak. A launch year is a part year in most of these, which is why the first point is
+# not zero. Between points the engine interpolates.
+#
+# Columns: share_of_climb, share_of_peak, products.
+share_of_climb,share_of_peak,products
+0.000,0.056,41
+0.125,0.207,40
+0.250,0.347,34
+0.375,0.476,41
+0.500,0.611,35
+0.625,0.725,41
+0.750,0.848,34
+0.875,0.949,40
+1.000,1.000,41

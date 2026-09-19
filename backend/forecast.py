@@ -36,7 +36,7 @@ REQUIRED = ("therapy_mode", "net_price_per_patient")
 
 # One-time therapies bill the patient once, so COGS rides per patient; chronic therapies
 # bill per year and carry COGS as a share of revenue.
-MODES = ("one_time", "chronic", "marketed", "franchise")
+MODES = ("one_time", "chronic", "marketed", "franchise", "launch")
 
 # How far past a launch's loss of exclusivity its window runs: the year-one drop and
 # five years of decay, by which point a biologic's tail is under a tenth of its peak.
@@ -343,6 +343,31 @@ def wacc(scalars: dict):
     return (1.0 - dw) * ke + dw * kd, "CAPM from components"
 
 
+def launch_path(peak: float, years_to_peak: int, horizon: int, ramp) -> list[float]:
+    """Revenue from a launch year to a stated peak and flat after it.
+
+    ``ramp`` is the average launch's path to its peak, measured from the products that
+    have already made the climb (data/launch_ramp.csv): at a share of the way to peak,
+    a share of peak. Between its points this interpolates, and a year past the peak holds
+    at it, leaving the loss of exclusivity to take the revenue down rather than a guess
+    about what the product does next. Pure.
+    """
+    if not ramp or peak is None or years_to_peak <= 0:
+        return [peak or 0.0] * horizon
+    points = sorted(ramp)
+    out = []
+    for i in range(horizon):
+        share = min(1.0, i / years_to_peak)
+        before = [p for p in points if p[0] <= share][-1]
+        after = next((p for p in points if p[0] >= share), before)
+        if after[0] == before[0]:
+            out.append(peak * before[1])
+            continue
+        weight = (share - before[0]) / (after[0] - before[0])
+        out.append(peak * (before[1] + weight * (after[1] - before[1])))
+    return out
+
+
 def pos(scalars: dict, phase=None, pos_defaults=None, area=None, by_area=None):
     """(pos, basis). A stated value first, then composite factors, then the phase ramp.
 
@@ -580,6 +605,13 @@ def build(inputs: dict) -> dict:
             missing.append("base_revenue (last reported full year, mm)")
         if scalars.get("revenue_growth_pct") is None:
             missing.append("revenue_growth_pct (annual, before LOE erosion)")
+    elif mode == "launch":
+        # Anchored on a published peak, so neither reported revenue nor a price per
+        # patient is the question. The climb to it is the measured average launch.
+        if scalars.get("peak_revenue_musd") is None:
+            missing.append("peak_revenue_musd (a published peak sales forecast, mm)")
+        if scalars.get("forecast_start_year") is None:
+            missing.append("forecast_start_year (the launch year)")
     elif mode == "franchise":
         # Anchored on the pool it takes a share of, so neither a price per patient nor a
         # growth rate of its own is the question.
@@ -674,6 +706,18 @@ def build(inputs: dict) -> dict:
                 f"revenue is held at a ceiling of {ceiling:,.0f}mm from "
                 f"{years[revenue.index(ceiling)] if ceiling in revenue else years[-1]} "
                 "onward, so the growth rate above describes the years before it only")
+    elif mode == "launch":
+        peak = scalars["peak_revenue_musd"]
+        ramp = inputs.get("launch_ramp") or {}
+        to_peak = int(scalars.get("years_to_peak") or ramp.get("years_to_peak") or 9)
+        revenue = launch_path(peak, to_peak, len(years), ramp.get("curve") or [])
+        per_indication = {}
+        treated = total_patients = [None] * len(years)
+        notes.append(
+            f"launch mode: revenue climbs to a published peak of {peak:,.0f}mm "
+            f"{to_peak} years after launch, on the average path of the "
+            f"{ramp.get('products') or 41} launches measured in data/launch_ramp.csv, "
+            "then holds at the peak until exclusivity ends")
     elif mode == "franchise":
         pool_base = scalars["franchise_revenue"]
         pool_growth = scalars["franchise_growth_pct"]
@@ -719,7 +763,7 @@ def build(inputs: dict) -> dict:
         total_patients = [sum(per_indication[n]["used"][i] for n in per_indication)
                           for i in range(len(years))]
 
-    if mode in ("marketed", "franchise"):
+    if mode in ("marketed", "franchise", "launch"):
         pass                    # revenue is already built above
     elif mode == "one_time":
         # Billed once, so the year's patients are the year's revenue.
