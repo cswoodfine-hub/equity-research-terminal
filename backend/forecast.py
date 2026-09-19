@@ -403,22 +403,60 @@ def pos(scalars: dict, phase=None, pos_defaults=None, area=None, by_area=None):
     return None, None
 
 
+def late_rate(decay_pct, late_decay_pct) -> float:
+    """The rate a product decays at once the cliff is years behind it.
+
+    Never worse than the early rate: a line already seeded gentler than the late default
+    keeps its own shape rather than being made to fall faster.
+    """
+    early = decay_pct or 0.0
+    # A blank cell reaches here as "" from a CSV that was read without casting.
+    if late_decay_pct is None or late_decay_pct == "":
+        return early
+    return min(float(late_decay_pct), early)
+
+
+def decaying_pv(first: float, rate: float, decay_pct, late_decay_pct,
+                early_years: int) -> float:
+    """Present value, at the end of a year, of a stream that starts at ``first`` next
+    year, decays at ``decay_pct`` for ``early_years`` of them, then at the late rate for
+    ever. With no late rate, or a late rate equal to the early one, this is exactly the
+    single-rate perpetuity it replaces."""
+    late = late_rate(decay_pct, late_decay_pct)
+    total, level, disc = 0.0, first, 1.0 / (1.0 + rate)
+    for _ in range(max(0, early_years)):
+        total += level * disc
+        level *= (1.0 - (decay_pct or 0.0))
+        disc /= (1.0 + rate)
+    return total + level * disc * (1.0 + rate) / (rate + late)
+
+
 def erode(revenue: list[float], years: list[int], loe_year,
-          year1_pct, decay_pct) -> list[float]:
+          year1_pct, decay_pct, late_decay_pct=None, late_from_year=None) -> list[float]:
     """Revenue after loss of exclusivity: a year-one drop, then decay of the remainder.
 
     Years at or before the LOE year are untouched. Where the horizon ends at LOE, which
     is the CASGEVY case, nothing changes and nothing pretends to.
+
+    The decay runs in two stages where the modality has a late rate on file. A brand's
+    steep fall is a cliff, not a permanent rate: CMS Part D spending on brands four to
+    eight years past their US loss of exclusivity falls about a tenth a year, against the
+    third the first years take. Without a late rate the second stage never starts and the
+    single rate runs on, which is what every seeded shape still does.
     """
     if loe_year is None or year1_pct is None:
         return list(revenue)
+    switch = int(late_from_year) if late_from_year else None
     out = []
     factor = 1.0
     for year, value in zip(years, revenue):
-        if year == loe_year + 1:
+        since = year - loe_year
+        if since == 1:
             factor = 1.0 - year1_pct
-        elif year > loe_year + 1:
-            factor *= (1.0 - (decay_pct or 0.0))
+        elif since > 1:
+            slowed = switch is not None and since >= switch
+            factor *= (1.0 - (late_rate(decay_pct, late_decay_pct) if slowed
+                              else (decay_pct or 0.0)))
         out.append(value * factor if year > loe_year else value)
     return out
 
@@ -521,7 +559,8 @@ def terminal_value(last_fcff: float, growth: float, rate: float,
 
 
 def terminal_multiple(growth: float, rate: float, last_year: int, loe_year=None,
-                      in_base: bool = True, year1_pct=None, decay_pct=None) -> float:
+                      in_base: bool = True, year1_pct=None, decay_pct=None,
+                      late_decay_pct=None, late_from_year=None) -> float:
     """What one unit of the final year's cash flow is worth at the end of that year, once
     the product's own loss of exclusivity is carried past the horizon.
 
@@ -540,12 +579,22 @@ def terminal_multiple(growth: float, rate: float, last_year: int, loe_year=None,
     if loe_year is None or in_base or year1_pct is None:
         return flat
     decay = decay_pct or 0.0
+    switch = int(late_from_year) if late_from_year else None
     if last_year > loe_year:
-        return (1.0 - decay) / (rate + decay)
+        # Already eroding at the horizon. The years still on the steep rate are carried
+        # one by one and the slower rate takes the stream from there.
+        since = int(last_year) - int(loe_year)
+        early_years = max(0, (switch - 1 - since)) if switch else 0
+        first = (1.0 - decay) if early_years > 0 or not switch or since + 1 < switch \
+            else (1.0 - late_rate(decay_pct, late_decay_pct))
+        return decaying_pv(first, rate, decay_pct, late_decay_pct, early_years)
     step = (1.0 + growth) / (1.0 + rate)
     n = int(loe_year) - int(last_year)
     before = sum(step ** k for k in range(1, n + 1))
-    return before + step ** n * (1.0 - year1_pct) / (rate + decay)
+    # The cliff lands after the horizon: the year-one drop, then the same two stages.
+    tail = decaying_pv(1.0 - year1_pct, rate, decay_pct, late_decay_pct,
+                       max(0, switch - 2) if switch else 0)
+    return before + step ** n * tail
 
 
 # --- the whole build --------------------------------------------------------
@@ -826,12 +875,20 @@ def build(inputs: dict) -> dict:
                          f"from a {start} launch ({default['source']})")
     year1 = scalars.get("erosion_year1_pct")
     decay = scalars.get("erosion_decay_pct")
+    # The second stage of the decay, where the modality has one on file. A seed may state
+    # its own; otherwise it comes with the curated default, and a modality with no late
+    # rate keeps the single rate it has always run.
+    late_decay = scalars.get("erosion_late_decay_pct")
+    late_from = scalars.get("erosion_late_from_year")
     erosion_basis = "stated" if year1 is not None else None
     if year1 is None:
         default, which = erosion_default(inputs)
         if default:
             year1 = default["year1_pct"]
             decay = decay if decay is not None else default["decay_pct"]
+            if late_decay is None:
+                late_decay = default.get("late_decay_pct")
+                late_from = default.get("late_from_year")
             erosion_basis = f"curated default ({which}), {default['source']}"
     if loe_year is not None:
         loe_year = int(loe_year)
@@ -853,7 +910,8 @@ def build(inputs: dict) -> dict:
                      "revenue already reflects it and the growth rate carries the "
                      "trend, so no erosion is applied again")
     else:
-        eroded = erode(us_revenue, years, loe_year, year1, decay)
+        eroded = erode(us_revenue, years, loe_year, year1, decay,
+                       late_decay, late_from)
     if loe_year is not None and max(years) <= loe_year:
         notes.append(f"LOE {loe_year} ({loe_basis}) is at or beyond the horizon, "
                      "so no erosion applies inside it")
@@ -878,7 +936,8 @@ def build(inputs: dict) -> dict:
         else:
             r_basis = region.get("basis")
             r_in_base = r_known_past or r_year + 1 < years[0]
-        r_eroded = part if r_in_base else erode(part, years, r_year, year1, decay)
+        r_eroded = part if r_in_base else erode(part, years, r_year, year1, decay,
+                                                late_decay, late_from)
         eroded = [a + b for a, b in zip(eroded, r_eroded)]
         label = region.get("label") or region.get("region")
         notes.append(f"{label}: {share:.0%} of revenue ({region.get('share_basis') or 'share as stated'}), "
@@ -931,7 +990,8 @@ def build(inputs: dict) -> dict:
         parts += [(r["revenue_after_loe"][window[-1]], r["loe_year"], r["in_base"])
                   for r in regional]
         if end is not None and final > 0 and rate - growth > 0:
-            multiple = sum(w / final * terminal_multiple(growth, rate, end, y, b, year1, decay)
+            multiple = sum(w / final * terminal_multiple(growth, rate, end, y, b, year1,
+                                                         decay, late_decay, late_from)
                            for w, y, b in parts)
             flat = (1.0 + growth) / (rate - growth)
             if abs(multiple - flat) > 1e-9:

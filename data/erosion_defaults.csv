@@ -24,8 +24,32 @@
 # What would settle it: CMS publishes one release at a time and does not keep the earlier
 # years, so the archive would have to be rebuilt release by release, or product revenue split
 # by market for the drugs that have already been through a cliff.
-modality,year1_pct,decay_pct,source,note
-small molecule,0.60,0.35,"FDA/ASPE and IQVIA generic entry studies: small-molecule brands typically lose 50-80% of volume within the first year of multi-source generic entry","cliff shape; sensitivity should sweep 0.4-0.8"
-biologic,0.25,0.20,"IQVIA Biosimilars in the United States reports: reference biologics typically cede share gradually, ~20-35% in the first year where biosimilars launch","slower than small molecule; adoption varies by class"
-gene therapy,0.05,0.05,"no observed precedent: no gene therapy has yet faced a direct analogue of generic entry","placeholder for review; one-time therapies deplete their pool instead"
-unknown,0.25,0.20,"IQVIA Biosimilars in the United States reports, taken as the gentler of the two modality shapes where the modality is not on file","replace with the modality when known; the small-molecule cliff is steeper"
+# The decay runs in two stages where a late rate is on file. The steep fall after a cliff
+# is a cliff, not a permanent rate, and applying one rate for ever is arithmetic rather
+# than a finding: the studies behind the first-year figures below describe the first year
+# or two of generic entry, not a perpetuity.
+#   late_decay_pct is the share lost in each year from late_from_year onwards, counted
+#   from the loss of exclusivity. It is never applied above the early rate.
+# Measured on the right geography, 2026-09-19: CMS Medicare Part D spending (drug_demand)
+# for brands four to eight years past their US loss of exclusivity falls a median 10.4% a
+# year across seven small molecules (Gleevec -17.7%, Nexium -13.4%, Crestor -12.5%,
+# Diovan HCT -11.6%, Diovan -9.2%, Cymbalta -7.7%). Widened to all eighteen CMS brands
+# whose exclusivity ended before 2016 it is -12.9%, with sixteen of the eighteen falling,
+# so 0.10 is the conservative end of what the US data shows.
+#   data/growth_analogues.csv agrees on shape from the filers' own worldwide revenue: after
+#   a cliff of 20% or more the decay runs 15.4% a year in years two and three and 5.6%
+#   from year four (n=40 each).
+# A residual floor was tested and rejected. Four worldwide series do flatten (Lipitor at
+# 0.206 of peak eight years out, Diovan 0.258 at eleven, Crestor 0.514 at eight, Plavix
+# 0.683 at six), but Crestor rises worldwide while its US Part D spending falls 12.5% a
+# year, and Diovan falls 3% worldwide against 9.2% in the US. The flatness is ex-US, not a
+# US residual, so the model keeps decaying and does not stop at a floor.
+# Only the small molecule row carries a late rate. The biologic and unknown rows are held
+# deliberately: the late stage has one observation in each dataset, Remicade, and it rises
+# in both (+10.2% worldwide, +4.6% in Part D). One drug that went up is not a rate, and
+# biologics are the majority of the value a late rate would move.
+modality,year1_pct,decay_pct,late_decay_pct,late_from_year,source,note
+small molecule,0.60,0.35,0.10,4,"FDA/ASPE and IQVIA generic entry studies: small-molecule brands typically lose 50-80% of volume within the first year of multi-source generic entry","cliff shape; sensitivity should sweep 0.4-0.8"
+biologic,0.25,0.20,,,"IQVIA Biosimilars in the United States reports: reference biologics typically cede share gradually, ~20-35% in the first year where biosimilars launch","slower than small molecule; adoption varies by class"
+gene therapy,0.05,0.05,,,"no observed precedent: no gene therapy has yet faced a direct analogue of generic entry","placeholder for review; one-time therapies deplete their pool instead"
+unknown,0.25,0.20,,,"IQVIA Biosimilars in the United States reports, taken as the gentler of the two modality shapes where the modality is not on file","replace with the modality when known; the small-molecule cliff is steeper"

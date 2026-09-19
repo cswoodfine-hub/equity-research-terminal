@@ -128,9 +128,12 @@ def _defaults(path, key_field):
     out = {}
     for row in csv.DictReader(rows):
         entry = dict(row)
-        for field in ("pos", "year1_pct", "decay_pct"):
-            if entry.get(field) not in (None, ""):
-                entry[field] = float(entry[field])
+        for field in ("pos", "year1_pct", "decay_pct", "late_decay_pct",
+                      "late_from_year"):
+            # An empty cell is an absent figure, not a zero and not a string: a modality
+            # with no late decay rate has to reach the engine as None.
+            entry[field] = (float(entry[field])
+                            if entry.get(field) not in (None, "") else None)
         out[row[key_field]] = entry
     return out
 
