@@ -260,6 +260,20 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
     # The valuation rule, not the profile's: orphan exclusivity holds one indication and
     # not the molecule, so it is left out here as it is in the cliff. Kesimpta carried a
     # 2023 orphan date into the engine and was eroded from year one while growing 30%.
+    # A product costs what its kind of product costs to make, not what the company's
+    # whole book averages. The factor is normalised on the company's own mix, so the
+    # blended ratio in the anchor year is unchanged and only its split moves
+    # (modality_costs).
+    import modality_costs
+    if asset and scalars.get("cogs_pct") is not None:
+        moved, why = modality_costs.for_asset(conn, asset["owner_company_id"],
+                                              asset["modality"], scalars["cogs_pct"],
+                                              asset["generic_name"])
+        if moved is not None:
+            scalars["cogs_pct_blended"] = scalars["cogs_pct"]
+            scalars["cogs_pct"] = moved
+            scalars["cogs_pct_basis"] = why
+
     import loe as loe_module
     found = loe_module.for_assets(conn, [asset_id], exclude_orphan=True).get(asset_id)
     loe = ({"loe": found.get("date"), "basis": found["basis"],
