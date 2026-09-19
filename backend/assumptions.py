@@ -140,6 +140,15 @@ def pos_defaults() -> dict:
     return _defaults(POS_DEFAULTS, "phase")
 
 
+def _approval_year(conn, asset_id: int):
+    import approval_dates
+    date, _route = approval_dates.first_approval(conn, asset_id)
+    try:
+        return int(str(date)[:4]) if date else None
+    except ValueError:
+        return None
+
+
 def pos_by_area(path=None) -> dict:
     """{(area, phase): {pos, sample_size, note}} from the published study, so a phase 3
     oncology asset takes oncology's likelihood of approval rather than the book's."""
@@ -303,6 +312,10 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         # rates for it: an oncology phase 3 asset is not the same bet as a haematology one.
         "therapeutic_area": (product_areas.area_for(conn, asset_id) if asset else None),
         "pos_by_area": pos_by_area(),
+        # The year the product was first approved, so a marketed product with no
+        # exclusivity on file can still be given the statutory term from it rather than
+        # running flat for ever.
+        "approval_year": _approval_year(conn, asset_id),
         "launch_ramp": launch_ramp(),
         "erosion_defaults": erosion_defaults(),
         "curve_defaults": curve_defaults(),

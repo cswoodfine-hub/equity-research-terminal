@@ -63,3 +63,24 @@ def test_the_measured_ramp_on_file_is_read():
     assert ramp["products"] >= 40 and ramp["years_to_peak"] == 9
     assert ramp["curve"][0][0] == 0.0 and ramp["curve"][-1] == (1.0, 1.0)
     assert 0.0 < ramp["curve"][0][1] < 0.1        # a part year at launch
+
+
+def test_a_marketed_product_with_no_date_takes_the_statute_from_its_own_approval():
+    """Sixty-six marketed products had no exclusivity on file and ran flat for ever.
+    Novo's insulin aspart was approved in 2000, so the statute puts it long past."""
+    scalars = {"therapy_mode": "marketed", "base_revenue": 1000.0,
+               "revenue_growth_pct": -0.05, "terminal_growth_pct": 0.0,
+               "forecast_start_year": 2026, "forecast_years": 12, "pos": 1.0,
+               "cogs_pct": 0.2, "sga_pct": 0.2, "rd_pct": 0.1, "tax_rate": 0.2, "wacc": 0.08}
+    inputs = {"scalars": scalars, "indications": [], "loe": None, "actuals": [],
+              "is_marketed": True, "modality": "biologic",
+              "loe_defaults": assumptions.loe_defaults(),
+              "erosion_defaults": assumptions.erosion_defaults()}
+    past = forecast.build({**inputs, "approval_year": 2000})
+    assert past["loe_year"] == 2012
+    assert "2000 approval" in (past["loe_basis"] or "")
+    assert any("in the base" in n for n in past["notes"])      # not eroded twice
+    ahead = forecast.build({**inputs, "approval_year": 2017})
+    assert ahead["loe_year"] == 2029 and ahead["rnpv"] < past["rnpv"]
+    # No approval year and already selling: nothing to date it from, as before.
+    assert forecast.build({**inputs, "approval_year": None})["loe_year"] is None

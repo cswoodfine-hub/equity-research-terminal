@@ -802,10 +802,22 @@ def build(inputs: dict) -> dict:
     # small molecule, counted from the launch year, and it is labelled as a default
     # wherever it is read so an analyst can replace it with the patent when known.
     known_past = bool(loe.get("in_base")) and loe_year is None
-    if loe_year is None and not known_past and inputs.get("is_marketed") is False:
+    if loe_year is None and not known_past:
         defaults = inputs.get("loe_defaults") or {}
         default = defaults.get(inputs.get("modality") or "") or defaults.get("unknown")
-        if default and default.get("years_from_launch"):
+        approved = inputs.get("approval_year")
+        # A product already selling gets the statutory term from its own approval, not
+        # from the forecast's first year. Sixty-six marketed products had no date on file
+        # and ran flat to the horizon and into a perpetuity, Novo's insulins among them,
+        # which values a 2000 approval as though exclusivity never ended.
+        if default and default.get("years_from_launch") and approved:
+            loe_year = approved + int(default["years_from_launch"])
+            loe_basis = (f"default: {default['years_from_launch']} years from the "
+                         f"{approved} approval, {default['source']}")
+            notes.append(f"no exclusivity on file, so LOE is taken as {loe_year}, "
+                         f"{default['years_from_launch']} years from the {approved} "
+                         f"approval ({default['source']})")
+        elif default and default.get("years_from_launch") and inputs.get("is_marketed") is False:
             loe_year = start + int(default["years_from_launch"])
             loe_basis = (f"default: {default['years_from_launch']} years from launch, "
                          f"{default['source']}")
