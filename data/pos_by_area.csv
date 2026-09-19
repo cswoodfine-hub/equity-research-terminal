@@ -1,0 +1,113 @@
+# Probability of success by therapeutic area and phase, from the one free, citable study
+# that reports both: BIO / Informa Pharma Intelligence (Biomedtracker) / QLS Advisors,
+# "Clinical Development Success Rates and Contributing Factors 2011-2020", published
+# February 2021, from 12,728 phase transitions across 9,704 programmes and 1,779
+# companies between 1 January 2011 and 30 November 2020.
+# https://go.bio.org/rs/490-EHZ-999/images/ClinicalDevelopmentSuccessRates2011_2020.pdf
+#
+# pos_defaults.csv held one number per phase for the whole book, so an oncology phase 3
+# asset and a haematology one carried the same 65%. The study puts them at 43.9% and
+# 71.5%. This file replaces that ramp wherever an asset's area is known, and
+# pos_defaults.csv still answers where it is not.
+#
+# pos is the likelihood of approval from the phase the asset is in now, which is what the
+# model needs: the chance this programme ever reaches the market, not the chance it clears
+# the next gate. Figures 2 and 5b of the report, pages 7 and 11.
+#
+# area is this model's own vocabulary (backend/therapeutic_areas.py), mapped to the
+# study's disease areas:
+#   Oncology -> Oncology. Immunology and inflammation -> Autoimmune.
+#   Metabolic -> Metabolic. Neuroscience -> Neurology, the larger of the study's two
+#   nervous-system areas and the lower; its psychiatry rates are a little higher
+#   (13.8% from phase 2, 51.4% from phase 3).
+#   Cardiovascular -> Cardiovascular. Infectious disease -> Infectious disease.
+#   Respiratory -> Respiratory. Haematology -> Hematology. Urology -> Urology.
+#   Ophthalmology -> Ophthalmology. Renal and hepatic has no counterpart in the study and
+#   takes all indications.
+#   Anything else, including an asset whose area cannot be read, takes All indications.
+#
+# Two caveats the study states and this file inherits. These are commercial rather than
+# technical probabilities: the denominator includes programmes stopped for business
+# reasons. And they are all-indication rates, not lead-indication rates, which run about
+# 1.7 times higher; all-indication is right here, because the model's unit is the
+# asset-indication pair.
+#
+# A combined phase (1/2, 2/3) is not in the study and is interpolated, marked as such in
+# its note. "Filed" is the study's NDA/BLA-to-approval rate, which allows resubmission
+# after a complete response letter, so it is an eventual approval rate rather than a
+# first-cycle one.
+#
+# Columns: area, phase, pos, sample_size, note.
+area,phase,pos,sample_size,note
+Oncology,Phase 1,0.053,"n(LOA)=4,179",""
+Oncology,Phase 1/2,0.078,,"interpolated between the phase 1 and phase 2 rates"
+Oncology,Phase 2,0.108,"n(LOA)=2,551",""
+Oncology,Phase 2/3,0.242,,"interpolated between the phase 2 and phase 3 rates"
+Oncology,Phase 3,0.439,n(LOA)=819,""
+Oncology,Filed,0.920,n(LOA)=324,"NDA/BLA to approval"
+Immunology and inflammation,Phase 1,0.107,"n(LOA)=1,305","the study's autoimmune area"
+Immunology and inflammation,Phase 1/2,0.147,,"interpolated between the phase 1 and phase 2 rates"
+Immunology and inflammation,Phase 2,0.193,n(LOA)=892,"the study's autoimmune area"
+Immunology and inflammation,Phase 2/3,0.373,,"interpolated between the phase 2 and phase 3 rates"
+Immunology and inflammation,Phase 3,0.614,n(LOA)=421,"the study's autoimmune area"
+Immunology and inflammation,Filed,0.941,n(LOA)=202,"NDA/BLA to approval"
+Metabolic,Phase 1,0.155,n(LOA)=399,""
+Metabolic,Phase 1/2,0.198,,"interpolated between the phase 1 and phase 2 rates"
+Metabolic,Phase 2,0.250,n(LOA)=263,""
+Metabolic,Phase 2/3,0.395,,"interpolated between the phase 2 and phase 3 rates"
+Metabolic,Phase 3,0.557,n(LOA)=114,""
+Metabolic,Filed,0.875,n(LOA)=48,"NDA/BLA to approval"
+Neuroscience,Phase 1,0.059,"n(LOA)=1,411","the study's neurology area; its psychiatry rates are higher at 13.8% and 51.4%"
+Neuroscience,Phase 1/2,0.086,,"interpolated between the phase 1 and phase 2 rates"
+Neuroscience,Phase 2,0.123,n(LOA)=895,"the study's neurology area"
+Neuroscience,Phase 2/3,0.269,,"interpolated between the phase 2 and phase 3 rates"
+Neuroscience,Phase 3,0.460,n(LOA)=391,"the study's neurology area"
+Neuroscience,Filed,0.867,n(LOA)=165,"NDA/BLA to approval"
+Cardiovascular,Phase 1,0.048,n(LOA)=651,""
+Cardiovascular,Phase 1/2,0.067,,"interpolated between the phase 1 and phase 2 rates"
+Cardiovascular,Phase 2,0.096,n(LOA)=437,""
+Cardiovascular,Phase 2/3,0.231,,"interpolated between the phase 2 and phase 3 rates"
+Cardiovascular,Phase 3,0.456,n(LOA)=185,""
+Cardiovascular,Filed,0.825,n(LOA)=80,"NDA/BLA to approval"
+Infectious disease,Phase 1,0.132,"n(LOA)=1,170",""
+Infectious disease,Phase 1/2,0.176,,"interpolated between the phase 1 and phase 2 rates"
+Infectious disease,Phase 2,0.228,n(LOA)=767,""
+Infectious disease,Phase 2/3,0.393,,"interpolated between the phase 2 and phase 3 rates"
+Infectious disease,Phase 3,0.594,n(LOA)=353,""
+Infectious disease,Filed,0.929,n(LOA)=156,"NDA/BLA to approval"
+All indications,Phase 1,0.079,"n(LOA)=12,728","the whole study, where an asset's area cannot be read"
+All indications,Phase 1/2,0.111,,"interpolated between the phase 1 and phase 2 rates"
+All indications,Phase 2,0.151,"n(LOA)=8,314",""
+All indications,Phase 2/3,0.317,,"interpolated between the phase 2 and phase 3 rates"
+All indications,Phase 3,0.524,"n(LOA)=3,381",""
+All indications,Filed,0.906,"n(LOA)=1,453","NDA/BLA to approval"
+Respiratory,Phase 1,0.075,n(LOA)=501,""
+Respiratory,Phase 1/2,0.101,,"interpolated between the phase 1 and phase 2 rates"
+Respiratory,Phase 2,0.135,n(LOA)=322,""
+Respiratory,Phase 2/3,0.376,,"interpolated between the phase 2 and phase 3 rates"
+Respiratory,Phase 3,0.616,n(LOA)=107,""
+Respiratory,Filed,0.956,n(LOA)=45,"NDA/BLA to approval"
+Haematology,Phase 1,0.239,n(LOA)=352,"the study's hematology area, the highest in the book"
+Haematology,Phase 1/2,0.286,,"interpolated between the phase 1 and phase 2 rates"
+Haematology,Phase 2,0.344,n(LOA)=260,"the study's hematology area"
+Haematology,Phase 2/3,0.514,,"interpolated between the phase 2 and phase 3 rates"
+Haematology,Phase 3,0.715,n(LOA)=154,"the study's hematology area"
+Haematology,Filed,0.931,n(LOA)=72,"NDA/BLA to approval"
+Urology,Phase 1,0.036,n(LOA)=339,"thin at phase 3, where the study counts 13 transitions"
+Urology,Phase 1/2,0.055,,"interpolated between the phase 1 and phase 2 rates"
+Urology,Phase 2,0.088,n(LOA)=222,""
+Urology,Phase 2/3,0.291,,"interpolated between the phase 2 and phase 3 rates"
+Urology,Phase 3,0.586,n(LOA)=58,"the study counts only 13 phase 3 transitions here; treat as weak"
+Urology,Filed,0.846,n(LOA)=26,"NDA/BLA to approval"
+Ophthalmology,Phase 1,0.119,n(LOA)=415,""
+Ophthalmology,Phase 1/2,0.140,,"interpolated between the phase 1 and phase 2 rates"
+Ophthalmology,Phase 2,0.166,n(LOA)=327,""
+Ophthalmology,Phase 2/3,0.281,,"interpolated between the phase 2 and phase 3 rates"
+Ophthalmology,Phase 3,0.467,n(LOA)=127,""
+Ophthalmology,Filed,0.911,n(LOA)=45,"NDA/BLA to approval"
+Renal and hepatic,Phase 1,0.079,"n(LOA)=12,728","the study has no renal or hepatic area, so this takes all indications"
+Renal and hepatic,Phase 1/2,0.111,,"interpolated; all indications"
+Renal and hepatic,Phase 2,0.151,"n(LOA)=8,314","all indications"
+Renal and hepatic,Phase 2/3,0.317,,"interpolated; all indications"
+Renal and hepatic,Phase 3,0.524,"n(LOA)=3,381","all indications"
+Renal and hepatic,Filed,0.906,"n(LOA)=1,453","all indications, NDA/BLA to approval"

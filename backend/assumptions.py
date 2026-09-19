@@ -19,11 +19,13 @@ import db
 import evidence
 import forecast
 import product_profile
+import product_areas
 import regional_loe
 
 DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 SEED_DIR = DATA_DIR / "assumptions"
 POS_DEFAULTS = DATA_DIR / "pos_defaults.csv"
+POS_BY_AREA = DATA_DIR / "pos_by_area.csv"
 EROSION_DEFAULTS = DATA_DIR / "erosion_defaults.csv"
 CURVE_DEFAULTS = DATA_DIR / "curve_defaults.csv"
 LOE_DEFAULTS = DATA_DIR / "loe_defaults.csv"
@@ -135,6 +137,28 @@ def _defaults(path, key_field):
 def pos_defaults() -> dict:
     """The curated phase ramp, keyed by phase, each row carrying its source."""
     return _defaults(POS_DEFAULTS, "phase")
+
+
+def pos_by_area(path=None) -> dict:
+    """{(area, phase): {pos, sample_size, note}} from the published study, so a phase 3
+    oncology asset takes oncology's likelihood of approval rather than the book's."""
+    source = pathlib.Path(path) if path else POS_BY_AREA
+    out: dict = {}
+    if not source.exists():
+        return out
+    with source.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(line for line in handle
+                                  if not line.lstrip().startswith("#")):
+            area, phase = (row.get("area") or "").strip(), (row.get("phase") or "").strip()
+            try:
+                value = float(row["pos"])
+            except (TypeError, ValueError, KeyError):
+                continue
+            if area and phase:
+                out[(area, phase)] = {"pos": value,
+                                      "sample_size": (row.get("sample_size") or "").strip(),
+                                      "note": (row.get("note") or "").strip()}
+    return out
 
 
 def loe_defaults() -> dict:
@@ -254,6 +278,10 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "phase": phase["phase"] if phase else None,
         "modality": asset["modality"] if asset else None,
         "pos_defaults": pos_defaults(),
+        # The area the asset's own label or trials put it in, and the published success
+        # rates for it: an oncology phase 3 asset is not the same bet as a haematology one.
+        "therapeutic_area": (product_areas.area_for(conn, asset_id) if asset else None),
+        "pos_by_area": pos_by_area(),
         "erosion_defaults": erosion_defaults(),
         "curve_defaults": curve_defaults(),
     }

@@ -343,15 +343,16 @@ def wacc(scalars: dict):
     return (1.0 - dw) * ke + dw * kd, "CAPM from components"
 
 
-def pos(scalars: dict, phase=None, pos_defaults=None):
+def pos(scalars: dict, phase=None, pos_defaults=None, area=None, by_area=None):
     """(pos, basis). A stated value first, then composite factors, then the phase ramp.
 
     The most explicit statement wins. A launched asset usually states its factors (the
     workbook's regulatory x launch x reimbursement x durability) and no single value,
     so factors carry it; but a scenario that writes one ``pos`` row means exactly that
     number, and must not lose to the base factors it inherits alongside. A pipeline
-    asset with neither falls to the curated phase ramp, and the basis says which
-    happened.
+    asset with neither falls to the published success rate for its own therapeutic area
+    and phase, and to the curated phase ramp where its area is not on file. The basis
+    says which happened.
     """
     if scalars.get("pos") is not None:
         return scalars["pos"], "stated"
@@ -362,6 +363,15 @@ def pos(scalars: dict, phase=None, pos_defaults=None):
         for f in factors:
             composite *= 1.0 if f is None else f
         return composite, "composite factors"
+    # The study's own rate for this area and phase, then its all-indication rate, then
+    # the curated ramp. An area the study does not cover reads as all indications.
+    if phase and by_area:
+        for key, label in ((area, area), ("All indications", "all indications")):
+            row = by_area.get((key, phase)) if key else None
+            if row:
+                size = f", {row['sample_size']}" if row.get("sample_size") else ""
+                return row["pos"], (f"published likelihood of approval from {phase} for "
+                                    f"{label} (BIO/Informa/QLS 2011-2020{size})")
     if phase and pos_defaults and phase in pos_defaults:
         return pos_defaults[phase]["pos"], (f"phase default ({phase}), "
                                             f"{pos_defaults[phase]['source']}")
@@ -874,7 +884,9 @@ def build(inputs: dict) -> dict:
     npv = sum(pvs) + tv_pv
 
     probability, pos_basis = pos(scalars, inputs.get("phase"),
-                                 inputs.get("pos_defaults"))
+                                 inputs.get("pos_defaults"),
+                                 area=inputs.get("therapeutic_area"),
+                                 by_area=inputs.get("pos_by_area"))
     if probability is None:
         raise ForecastError(["pos (factors, a stated value, or a phase for the "
                              "curated default)"])
