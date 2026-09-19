@@ -912,7 +912,13 @@ def build(inputs: dict) -> dict:
     window_years = [years[i] for i in window]
     spans = (periods_from(window_years, base_year) if base_year is not None else None)
     pvs = discount(flows, rate, periods=spans)
-    growth = scalars.get("terminal_growth") or 0.0
+    # The seeds carry this as terminal_growth_pct, the same key the revenue fade reads
+    # above. Reading the shorter name meant a line seeded to grow in the terminal was
+    # capitalised at nil: J&J's Abiomed and SURGICAL are seeded at 2.32% and were the
+    # only two in the book that lost anything by it, worth $1.45 a share.
+    growth = (scalars.get("terminal_growth_pct")
+              if scalars.get("terminal_growth_pct") is not None
+              else scalars.get("terminal_growth")) or 0.0
     if (scalars.get("terminal_mode") or "perpetuity") == "perpetuity":
         last = spans[-1] if spans else len(flows) - 0.5
         tv, tv_pv = terminal_value(flows[-1], growth, rate, last)
