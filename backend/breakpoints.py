@@ -212,6 +212,9 @@ class Book:
         self.ok = True
         self.carry = sotp["enterprise_today"] / ev
         self.net_cash = sotp["net_cash"]
+        # Filed claims outside cash and debt, already in the equity above. A trial that
+        # rebuilds equity has to carry them too or every break-point moves by their size.
+        self.other_claims = sotp.get("other_claims_total") or 0.0
         self.counted = [l for l in verdict["modelled"] if l.get("counted", True)]
         self.streams = list(verdict.get("streams") or [])
         self.parts = self.counted + self.streams
@@ -239,7 +242,8 @@ class Book:
         """Equity per share less the close, for a book and parts."""
         future = V._future_pipeline(self.db_path, new_parts, self.anchor, self.ticker,
                                     rate_override=rate).get("value") or 0.0
-        equity_ps = ((new_book + future) * self.carry + self.net_cash) * 1e6 / self.shares
+        equity_ps = ((new_book + future) * self.carry + self.net_cash
+                     + self.other_claims) * 1e6 / self.shares
         return equity_ps - self.close
 
     @staticmethod

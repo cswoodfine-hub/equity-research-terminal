@@ -22,6 +22,7 @@ import env  # noqa: F401  loads the .env before any module reads it
 
 import asset_identity
 import asset_merge
+import other_claims
 import asset_revenue
 import balance_updates
 import financings
@@ -287,6 +288,16 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # A compound the registry names by ingredient can be the product openFDA lists by
     # brand. Folding the two together keeps an approved drug out of the pipeline.
     mapped["merged"] = asset_merge.merge(db_path)["merged"]
+    # The claims that sit between enterprise value and the shareholders, from the data
+    # sets the revenue fetcher caches. Stored here rather than read at valuation time,
+    # because a quarter's numeric file is hundreds of megabytes.
+    _conn = db.get_connection(db_path)
+    try:
+        mapped["other_claims"] = other_claims.store(_conn)["written"]
+    except Exception as exc:                      # a cache that is absent or half written
+        mapped["other_claims_error"] = str(exc)
+    finally:
+        _conn.close()
     # Whatever is left that names a study's arm rather than a compound: a strength
     # written as a ratio, a numbered dose regimen, a molecule named with the
     # chemotherapy beside it. After the merge, so an arm the alias map or the merge
@@ -480,6 +491,16 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # A compound the registry names by ingredient can be the product openFDA lists by
     # brand. Folding the two together keeps an approved drug out of the pipeline.
     mapped["merged"] = asset_merge.merge(db_path)["merged"]
+    # The claims that sit between enterprise value and the shareholders, from the data
+    # sets the revenue fetcher caches. Stored here rather than read at valuation time,
+    # because a quarter's numeric file is hundreds of megabytes.
+    _conn = db.get_connection(db_path)
+    try:
+        mapped["other_claims"] = other_claims.store(_conn)["written"]
+    except Exception as exc:                      # a cache that is absent or half written
+        mapped["other_claims_error"] = str(exc)
+    finally:
+        _conn.close()
     # Whatever is left that names a study's arm rather than a compound: a strength
     # written as a ratio, a numbered dose regimen, a molecule named with the
     # chemotherapy beside it. After the merge, so an arm the alias map or the merge

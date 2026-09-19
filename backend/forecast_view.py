@@ -16,6 +16,7 @@ import assumptions as assumptions_module
 import company_lines
 import db
 import forecast
+import other_claims
 import loe_link
 
 
@@ -1544,7 +1545,14 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
     years_to_price = _years_between(anchor, close_date) if ke is not None else 0.0
     carry = ev * ((1.0 + ke) ** years_to_price - 1.0) if ke is not None else 0.0
     enterprise_today = ev + carry
-    equity = (enterprise_today + net_cash) if net_cash is not None else None
+    # Cash and debt are not the only claims between the enterprise and the shareholders.
+    # A pension deficit, a deal instalment still owed, a minority's slice of a
+    # consolidated subsidiary and a business held at equity are all filed, and all sit
+    # outside net cash (other_claims).
+    claims = other_claims.for_company(conn, ticker)
+    claims_total = claims["total"] if not claims.get("reason") else 0.0
+    equity = ((enterprise_today + net_cash + claims_total)
+              if net_cash is not None else None)
     dividends, div_year = _dividends(conn, company_id)
     equity_ps = per_share(equity)
     dps = per_share(dividends)
@@ -1604,6 +1612,8 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
         "enterprise_today": enterprise_today,
         "enterprise_today_per_share": per_share(enterprise_today),
         "net_cash": net_cash, "net_cash_per_share": per_share(net_cash),
+        "other_claims": claims, "other_claims_total": claims_total,
+        "other_claims_per_share": per_share(claims_total),
         "cash": cash, "cash_per_share": per_share(cash),
         "balance_sheet_as_of": balance["as_of"] if balance else None,
         "debt_basis": balance.get("debt_basis") if balance else None,

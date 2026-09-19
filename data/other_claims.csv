@@ -1,0 +1,16 @@
+# Claims on the company that a filing states in words, or inside an aggregate no tag
+# breaks out. Everything XBRL does tag is read straight from the filing by
+# backend/other_claims.py; this file is only for what it cannot.
+#
+# value is in the millions of the currency the filer reports in, the same unit net cash
+# is read in. kind is liability (deducted from equity) or asset (added).
+#
+# A claim the filer declines to quantify is not quantified here either. J&J reversed
+# $7.0bn of talc reserves in fiscal 2025 when the settlement route failed and it returned
+# to the tort system, and its auditor's critical audit matter records that management "is
+# unable to estimate the possible loss or range of loss" for the matters left. What it
+# does state is the reserve it holds, and that is what is taken.
+ticker,item,label,kind,value,as_of,source,note
+JNJ,talc_reserve,talc claims,liability,3400,2025-12-28,"J&J 10-K for fiscal 2025, accession 0000200406-26-000016, Note 19 and the critical audit matter: ""As of December 28, 2025, the total present value of the reserve to resolve the talc claims is approximately $3.4 billion, comprising previously executed settlement agreements, litigation defense, and other costs.""","the reserve only. J&J reversed about $7.0bn in fiscal 2025 after the Texas dismissal and says it cannot estimate the loss on what is left, so the tail is named and not counted. About a third of the reserve is current."
+JNJ,opioid_settlement,opioid litigation,liability,1100,2025-12-28,"J&J 10-K for fiscal 2025, accession 0000200406-26-000016, liquidity discussion: the company lists ""the remaining approximately $1.1 billion to settle opioid litigation"" among the calls on its resources.","settled amounts still to pay, so this one is quantified by the filer"
+SNY,pension_deficit,pension and post-employment deficit,liability,1440,2025-12-31,"Sanofi 20-F for 2025, accession 0001628280-26-008403, note D.19 movements in non-current provisions: ""Provisions for pensions and other post-employment benefits"" stands at EUR 1,440mm at 31 December 2025 within total non-current provisions of EUR 4,541mm.","Sanofi tags only the aggregate ""Provisions and other non-current liabilities"" of EUR 6,703mm, so the pension line is read from the note. Other long-term benefits of EUR 827mm, restructuring of EUR 654mm and other provisions of EUR 1,620mm are left out: restructuring is already treated as a recurring cost in the charge."

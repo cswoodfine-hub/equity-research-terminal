@@ -1,0 +1,12 @@
+adsh	tag	version	coreg	ddate	qtrs	uom	segments	value
+0000200406-26-000016	PensionAndOtherPostretirementDefinedBenefitPlansLiabilitiesNoncurrent	us-gaap/2025		20251231	0	USD		6957000000
+0000200406-26-000016	PensionAndOtherPostretirementDefinedBenefitPlansLiabilitiesNoncurrent	us-gaap/2025		20241231	0	USD		9000000000
+0000200406-26-000016	MinorityInterest	us-gaap/2025		20251231	0	USD	segment=Innovative	500000000
+0001131399-26-000004	NoncontrollingInterests	ifrs-full/2025		20251231	0	GBP		-421000000
+0001131399-26-000004	ContingentConsiderationLiabilities	0001131399-26-000004		20251231	0	GBP		1348000000
+0001131399-26-000004	NoncurrentProvisionsForEmployeeBenefits	ifrs-full/2025		20251231	0	GBP		1687000000
+0001131399-26-000004	InvestmentAccountedForUsingEquityMethod	ifrs-full/2025		20251231	0	GBP		89000000
+0000879169-26-000010	BusinessCombinationContingentConsiderationLiabilityCurrent	us-gaap/2025		20251231	0	USD		41000000
+0000879169-26-000010	BusinessCombinationContingentConsiderationLiabilityNoncurrent	us-gaap/2025		20251231	0	USD		80000000
+0000879169-26-000010	Revenues	us-gaap/2025		20251231	4	USD		4800000000
+0000000000-26-000001	MinorityInterest	us-gaap/2025		20251231	0	USD		7000000
