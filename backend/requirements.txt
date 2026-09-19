@@ -14,6 +14,9 @@ pydantic==2.13.4
 # Frontend
 streamlit==1.50.0
 pandas==2.3.3
+# Streamlit's file watcher polls without this and says so on every start. With it the
+# reload is event driven, which matters because the app is one 330kB module.
+watchdog==6.0.0
 
 # Filing text: a 10-K primary document is sometimes a PDF rather than HTML.
 pypdf==6.14.2
