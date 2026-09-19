@@ -1364,7 +1364,16 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
     # The franchise holds its real size: its room and its renewal grow at expected
     # inflation (future_pipeline_defaults.csv says why). Without that row it grows no
     # faster than the book says its own products do in the long run.
-    if bounds.get("franchise_growth") is not None:
+    # Expected inflation as the market last quoted it, so the franchise's long-run
+    # growth moves with the same rates its discount rate does. The defaults file carries
+    # the reasoning and the fallback where the series has not been fetched.
+    from fetchers import rates_fred
+    breakeven = rates_fred.latest(db_path, "T10YIE")
+    if breakeven:
+        long_run = breakeven["value"]
+        long_run_basis = (f"{breakeven['description']} (FRED T10YIE), {breakeven['as_of']}: "
+                          f"{breakeven['value']:.2%}, the same rates the discount rate reads")
+    elif bounds.get("franchise_growth") is not None:
         long_run = bounds["franchise_growth"]["value"]
         long_run_basis = bounds["franchise_growth"]["source"]
     else:

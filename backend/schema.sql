@@ -337,3 +337,15 @@ CREATE TABLE valuation_assumptions (
     updated_at          TEXT DEFAULT (datetime('now')),
     UNIQUE(asset_indication_id)
 );
+
+-- The market rates every discount rate is built on, one row per series per day
+-- (fetchers/rates_fred.py). A rate, not a percentage: 0.0500 is 5.00%.
+CREATE TABLE market_rates (
+    id      INTEGER PRIMARY KEY,
+    series  TEXT NOT NULL,
+    as_of   TEXT NOT NULL,
+    value   REAL NOT NULL,
+    source  TEXT,
+    UNIQUE(series, as_of)
+);
+CREATE INDEX idx_market_rates_series ON market_rates(series, as_of);
