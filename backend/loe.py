@@ -77,6 +77,7 @@ def curated_compound(conn, path=None) -> dict:
 
 
 CURATED_DISCLOSED = DATA_DIR / "disclosed_loe.csv"
+CMS_DESELECTIONS = DATA_DIR / "cms_deselections.csv"
 
 
 def _period_end(stated: str) -> str:
@@ -122,6 +123,39 @@ def curated_disclosed(conn, path=None) -> dict:
                                 "stated": stated,
                                 "basis": (row.get("basis") or "").strip(),
                                 "note": (row.get("note") or "").strip()}
+    return out
+
+
+def cms_deselections(conn, path=None) -> dict:
+    """{asset_id: {date, stated, basis, note}} for drugs CMS has removed from Medicare
+    price negotiation because a generic or biosimilar is being marketed.
+
+    CMS deselects a drug only once FDA has approved the competing product and that
+    product is on sale, so the determination is a dated finding by the payer that the
+    market has opened. The date taken is the month of the determination, not the removal
+    date, which is administrative.
+    """
+    source = pathlib.Path(path) if path else CMS_DESELECTIONS
+    if not source.exists():
+        return {}
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = [line for line in handle if not line.lstrip().startswith("#")]
+    out = {}
+    for row in csv.DictReader(rows):
+        ticker = (row.get("ticker") or "").strip().upper()
+        brand = (row.get("brand") or "").strip()
+        stated = (row.get("determination") or "").strip()
+        if not (ticker and brand and stated):
+            continue
+        found = conn.execute(
+            """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                WHERE c.ticker = ? AND LOWER(TRIM(COALESCE(a.brand_name, a.generic_name)))
+                      = LOWER(?) LIMIT 1""", (ticker, brand)).fetchone()
+        if found:
+            out[found["id"]] = {
+                "date": _period_end(stated), "stated": stated,
+                "basis": "CMS deselection, generic or biosimilar marketed",
+                "note": (row.get("note") or "").strip()}
     return out
 
 
@@ -222,6 +256,23 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
                          "past": stated["date"] is None or stated["date"] < today,
                          "basis": f"{stated['basis']} ({stated['stated']})",
                          "note": stated["note"] or None}
+
+    # CMS removing a drug from price negotiation is the payer stating that a generic or
+    # biosimilar is on sale. It can only pull a date earlier: a deselection proves the
+    # market opened by then, and says nothing about a product CMS never selected.
+    for asset_id, found in cms_deselections(conn).items():
+        if requested is not None and asset_id not in requested:
+            continue
+        known = out.get(asset_id) or {}
+        held = known.get("date")
+        if known.get("past") and held is None:
+            continue                      # already a loss with no date; nothing to add
+        if held and held <= found["date"]:
+            continue
+        out[asset_id] = {"date": found["date"], "identifier": None,
+                         "past": found["date"] < today,
+                         "basis": f"{found['basis']} ({found['stated']})",
+                         "note": found["note"] or None}
 
     # Two inferences from silence, run before links so a holder carries what they give.
     # Each establishes that exclusivity is gone and not when it went, so each records a

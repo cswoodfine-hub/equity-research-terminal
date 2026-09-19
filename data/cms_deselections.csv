@@ -1,0 +1,32 @@
+# Drugs CMS has removed from Medicare price negotiation because a generic or biosimilar
+# reached the market, from the agency that pays for them.
+#
+# CMS states the rule: a selected drug "will cease to be a selected drug" when FDA "has
+# approved a generic drug ... or has licensed a biosimilar" and "the generic drug or
+# biosimilar, as applicable, is marketed pursuant to such approval or licensure". So a
+# deselection determination is a dated finding by the payer that competition is being
+# sold, which is a stronger statement than any patent listing: the Orange Book says when
+# a patent runs out, this says a rival product is on the shelf.
+#
+# The date taken is the month CMS made the determination, not the removal date. Removal
+# is administrative and always lands on 1 January of a later year; the determination is
+# when CMS found the competing product marketed.
+#
+# A row only ever moves a date earlier. A deselection cannot prove exclusivity lasts
+# longer than the model already holds, and CMS determines nothing about a product it
+# never selected.
+#
+# Source for every row: Centers for Medicare & Medicaid Services, "Medicare Drug Price
+# Negotiation Program: Selected Drugs and Negotiated Prices", table "Drugs with
+# Deselection Determinations", read 2026-09-19, page last modified 2026-09-15.
+# https://www.cms.gov/initiatives/medicare-prescription-drug-affordability/overview/medicare-drug-price-negotiation-program/selected-drugs-negotiated-prices
+# Each determination is also published as a CMS Health Plan Management System memo.
+ticker,brand,determination,removal,note
+JNJ,Stelara,2025-10,2027-01-01,"ustekinumab biosimilars marketed; the book held no end date for Stelara"
+NVS,Entresto,2025-10,2027-01-01,"sacubitril/valsartan generics marketed; agrees with the 2025-09 date Novartis states in its own 20-F"
+JNJ,Xarelto,2025-10,2027-01-01,"rivaroxaban generics marketed; the Orange Book listing ran to 2034-08-17"
+NVO,Fiasp,2026-03,2027-01-01,"the determination covers NovoLog, NovoLog FlexPen, NovoLog PenFill, Fiasp, Fiasp FlexTouch and Fiasp PenFill as one selected drug; the book carries the insulin aspart franchise on this line"
+NVO,Fiasp Penfill,2026-03,2027-01-01,"named in the same determination as Fiasp"
+NVO,Novolog Penfill,2026-03,2027-01-01,"named in the same determination as Fiasp"
+PFE,Xeljanz,2026-06,2029-01-01,"tofacitinib generics marketed; Pfizer's own 10-K gives 2026 for the basic product patent"
+PFE,Xeljanz Xr,2026-06,2029-01-01,"named in the same determination as Xeljanz"
