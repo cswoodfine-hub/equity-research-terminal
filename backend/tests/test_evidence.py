@@ -84,3 +84,25 @@ def test_a_seed_evidence_column_is_taken_as_reviewed(tmp_path):
         "AMGN,Other products,base,revenue_growth_pct,0.1,,,the analyst's call,,judgement\n")
     company_lines.load_seeds(conn, lines)
     assert conn.execute("SELECT evidence, evidence_reviewed FROM company_lines").fetchone()[:] == ("judgement", 1)
+
+def test_a_named_research_house_publishing_a_peak_is_published_evidence():
+    """A row solved to a bank's or a research house's peak forecast graded as nothing at
+    all, which put it below a judgement in the audit."""
+    assert E.grade("the $6bn peak sales potential Bank of America gives it") == \
+        "published"
+    assert E.grade("GlobalData's consensus forecast of $1.1bn in 2030") == "published"
+    assert E.grade("consensus risk-adjusted peak near $3.5bn") == "published"
+    assert E.grade("Leerink puts risk-adjusted sales at $10.7bn") == "published"
+
+
+def test_a_pubmed_identifier_is_a_citation_whatever_the_authors_are():
+    """One row named all four authors of a BMC Medicine paper, so the "et al" rule missed
+    a properly cited epidemiology figure."""
+    assert E.grade("Rogers MAM, Kim C, Banerjee T, Lee JM, BMC Medicine 2017 "
+                          "(PMC5688827): about 64,000 new US cases a year") == "published"
+    assert E.grade("PMID 29391917, incidence in a national cohort") == "published"
+
+
+def test_holding_a_line_at_its_run_rate_is_a_convention():
+    assert E.grade("held at the 2026 run rate: AbbVie publishes no peak for "
+                          "Vyalev") == "convention"

@@ -43,16 +43,25 @@ _RULES = (
         r"(?<!not a )\bconvention\b|engine's terminal value|the year after the last reported|"
         r"\bplaceholder\b|phase default|curated default|\bdefault:|\bby construction\b|"
         r"no exclusivity on file|^\s*assumed\s*$|feeding the same pool|incidence is the pool|"
-        r"the year after the \d{4} run rate", re.I)),
+        r"the year after the \d{4} run rate|held at the \d{4} run rate", re.I)),
     ("analogue", re.compile(
         r"reused from|\banalogue\b|\banalog\b|\bas [\w./ -]+ carries it\b|"
         r"\bfitted\b|own launch|comparator|borrowed from|taken from [\w./-]+\.csv|"
         r"\b\w+_\w+\.csv\b|workbook", re.I)),
     ("published", re.compile(
         r"\bdoi\b|doi\.org|\bet al\b|N Engl J Med|\bNEJM\b|\bJAMA\b|Lancet|"
+        # A PubMed identifier is a citation whether or not the row wrote "et al": one row
+        # named all four authors of a BMC Medicine paper and graded as nothing at all.
+        r"\bPMC\d{6,8}\b|\bPMID\b|BMC Medicine|\bBMJ\b|"
         r"J Clin Oncol|\bASCO\b|\bICER\b|BIO/Informa|Damodaran|U\.S\.C\.|"
         r"Directive \d|journal|Cancer Facts|American Cancer Society|\bstudy\b|"
-        r"\blabel\b|prescribing information|\banalysts put\b", re.I)),
+        r"\blabel\b|prescribing information|\banalysts put\b|"
+        # A peak forecast a named research house or bank has published, with the
+        # publication named beside it, is published evidence. Without this a row sourced
+        # to GlobalData's own consensus forecast graded as nothing at all.
+        r"peak sales (?:potential|estimates?)|consensus (?:forecast|estimate|peak|"
+        r"risk-adjusted)|\bGlobalData\b|\bEvaluate Pharma\b|\bLeerink\b|"
+        r"Bank of America|\bBofA\b", re.I)),
     ("measured", re.compile(
         r"\bCMS\b|Part [BD]\b|\bFRED\b|weekly returns|drug_demand|\bSEER\b|NHANES|"
         r"Census|\bCDC\b|ClinicalTrials|\bNCT\d{8}\b|\bregistry\b|openFDA|Orange Book|"
