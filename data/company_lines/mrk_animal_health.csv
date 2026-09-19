@@ -18,7 +18,7 @@
 ticker,line,scenario,key,value,text_value,unit,source,note
 MRK,Animal Health,base,base_revenue,6354,,mm USD,"MRK FY2025, 8-K exhibit Table 3 (0001104659-26-009495, filed 2026-02-03)","the anchor, as the segment reports it"
 MRK,Animal Health,base,revenue_growth_pct,0.102659,,"annual, near term","8-K exhibit Table 3 (0001104659-26-090045, filed 2026-08-04): $3,566mm in the first half of 2026 against $3,234mm in the first half of 2025","the halves. The years agree in direction, $6,354mm against $5,877mm"
-MRK,Animal Health,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+MRK,Animal Health,base,terminal_growth_pct,0.0232,,"annual, long run","expected inflation, so the business holds its real size: FRED T10YIE 10-year breakeven inflation, 2.32% on 2026-08-26, the day the risk-free rate in every discount rate is read (data/future_pipeline_defaults.csv, franchise_growth). Animal Health is a reportable segment with its own R&D, filed at $2,131mm of segment profit on $6,354mm, and it earns no drug approvals, so the launch line cannot renew it and the rule the drug franchise follows applies to it.","near-term growth of +10.3% fades down to this rate rather than to nil, which is the MedTech shape. Of the $6.85 a share it is worth, $4.26 is the terminal and $2.59 the in-horizon fade target"
 MRK,Animal Health,base,growth_fade_years,5,,years,"convention: a recent rate describes next year, not the decade after it",
 MRK,Animal Health,base,forecast_start_year,2026,,year,the year after the last reported full year,
 MRK,Animal Health,base,forecast_years,10,,years,the convention: a segment has no cliff to reach past,
