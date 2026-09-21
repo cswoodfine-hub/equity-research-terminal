@@ -39,6 +39,32 @@ denominator never saw. The credibility blend is what stands between that and the
 valuation, and with fourteen launches Merck earns most of its own weight, so it barely
 moderates it: 0.319 own, 0.306 blended.
 
+The R&D history was then extended to fiscal 2006 (``rd_backfill``), which made the lagged
+window available for 17 of 19 filers, and it was NOT adopted, for a measured reason
+rather than a cautious one. Lag-aligning lifts the pooled rate by 38% to 40% on a consistent
+filer set (0.2969 to 0.4102 with AbbVie out, which files no R&D before 2011; 0.3063 to
+0.4293 with it in). But the rate is then measured on spend from 2006 to 2017 and applied to
+spend that is 59% larger, so it also assumes the next R&D dollar buys what that one did. Three tests were
+run on returns to scale, each independently re-run. Across firms, the big spenders' lower
+rates are smaller than the ratio artefact produces from noise (a rate divides by R&D, so a
+negative slope appears from nothing; 20,000 shuffles put the observed slope inside the
+null). Within firms, the late cohort (approved 2020 to 2025, ramp-corrected on the measured
+climb) earns 0.61 of the early cohort's rate and 13 of 15 filers fell, but the filers whose
+spend was flat, GSK, Pfizer and Sanofi, fell as hard as those whose spend grew, and the
+cluster bootstrap on the ratio runs from 0.25 to 1.19: vintage, not scale. Over time,
+approvals per lagged R&D dollar fall 7.9% a year on our own data, a halving every 8.8
+years, which is Scannell's Eroom's law figure almost exactly, and in the rate's own
+currency, peak-adjusted revenue per lagged dollar, the decay is 5.5% to 6.6% a year.
+
+That last number decides it. The as-built rate is the lag-aligned rate discounted at 4.0%
+to 4.1% a year over the eight-year shift between the two windows, and the decay the data
+shows is larger than that. Lag alignment and productivity decay are the same object
+pointed in opposite directions, and the decay more than covers the uplift. So the as-built
+rate stands, not as a convention but as the lag-aligned rate net of measured decay with a
+little to spare, and 0.4102 is the top of the range a reader should carry beside it. The uplift is also thin in composition: over approvals from 2014 it is
+0.413, from 2016 it is 0.291 and from 2018 it is 0.244, so it rests on the 2014 and 2015
+vintage, which is Keytruda and Darzalex again.
+
 The bias that ran the other way is corrected. A launch that came with a company the filer
 bought was paid for by the purchase price, which is not in the R&D the rate divides by,
 so counting its revenue read as research that never happened: Amgen's Otezla came with
