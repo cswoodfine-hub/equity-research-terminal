@@ -10,8 +10,42 @@
 #
 # year1_pct is the share of revenue lost in the first year after LOE; decay_pct the share
 # of the remainder lost in each following year.
-# Measured against our own data on 2026-09-18, and left unchanged, because neither dataset
-# can settle it:
+# Measured against US-basis evidence on 2026-09-20, and the 0.25 first-year figure is kept
+# because the evidence lands on it, not because nothing was found.
+#
+# Eight US observations of a biologic losing revenue to biosimilars, every one the filer's
+# own printed United States line, dated from when a biosimilar was actually marketed
+# rather than approved: Stelara -42.7% (2025), Humira -34.7% (2023), Neupogen -32.7%
+# (first full year, 2016), Neulasta -27.2% (first full year, 2019), Eylea -26.5% (2025,
+# an upper bound because Regeneron names four causes), Xgeva -10.1% (part year), Remicade
+# -6.5% (one entrant six weeks before the year began), Prolia +3.2%, which rose.
+# Median -26.9%, which is the 0.25 on file. So the level stands and the dispersion is the
+# finding: +3% to -43%, and what separates them is how many biosimilars launched and how
+# much of the year they had, not the modality.
+#   The trend runs the wrong way for this figure. The two most recent large cliffs, with
+#   many entrants and pharmacy benefit managers switching formularies, are the two
+#   steepest: Humira and Stelara at -34.7% and -42.7%. Read as a forecast for the next
+#   cliff rather than an average of past ones, 0.25 is generous.
+# Later years, from the same filers: Humira -41.3% then -57.1%; Neulasta -28.9%, -24.3%,
+# -36.7%, -26.0%; Remicade -19.0%, -16.0%, -18.5%, -19.5%. CMS Part B agrees on shape
+# (Rituxan -40.9%, -24.3%, -16.5%, -9.7%; Avastin -45.7%, -31.6%, -16.8%, -23.1%). The
+# 0.20 decay is if anything gentle, so it stands too.
+# NO LATE RATE FOR A BIOLOGIC. Unlike a small molecule, these do not reliably slow: Remicade
+# fades to -5.7% by year nine in Part B but Neupogen is still falling 25.5% a year at year
+# ten, and Neulasta -42.5%, -53.0%, -42.2% at years five to seven. A second stage would be
+# fitted to two products that disagree, so the biologic row keeps one rate.
+#
+# Why the earlier attempt found nothing, recorded so it is not repeated. It read CMS Part D
+# spending, which CMS states is "based on the gross drug cost" and "do[es] not reflect any
+# manufacturers' rebates". Humira's Part D spending ROSE through its cliff, $5,411mm in
+# 2022 to $5,908mm in 2025, while AbbVie's US net sales fell 84%. Part D revenue is not a
+# revenue proxy for a rebated brand. Part B is struck off ASP and is usable; Part D
+# beneficiary and claim counts are usable for share.
+# The earlier note that CMS covers 2020-2024 is also out of date: CMS publishes quarterly
+# Part B and Part D releases carrying full-year 2025 and 2026 Q1, which is what makes the
+# 2025 entries measurable at all.
+#
+# The older measurement, kept for the record:
 #   data/growth_analogues.csv holds 11 drugs that fell more than 15% in the year after their
 #   peak. Median year-one fall 27% for small molecules and 24% for biologics, decaying 22% and
 #   24% a year after. But those series are worldwide revenue, and exclusivity ends market by
@@ -50,6 +84,6 @@
 # biologics are the majority of the value a late rate would move.
 modality,year1_pct,decay_pct,late_decay_pct,late_from_year,source,note
 small molecule,0.60,0.35,0.10,4,"FDA/ASPE and IQVIA generic entry studies: small-molecule brands typically lose 50-80% of volume within the first year of multi-source generic entry","cliff shape; sensitivity should sweep 0.4-0.8"
-biologic,0.25,0.20,,,"IQVIA Biosimilars in the United States reports: reference biologics typically cede share gradually, ~20-35% in the first year where biosimilars launch","slower than small molecule; adoption varies by class"
+biologic,0.25,0.20,,,"eight US-basis observations of a biologic losing revenue to marketed biosimilars, each the filer's own printed United States line, median first-year fall 26.9% (Stelara 42.7%, Humira 34.7%, Neupogen 32.7%, Neulasta 27.2%, Eylea 26.5%, Xgeva 10.1%, Remicade 6.5%, Prolia rose 3.2%); the decay from the same series and from CMS Part B, which runs 16% to 45% a year and does not reliably slow","the level is measured and the dispersion is the risk: +3% to -43% depending on how many biosimilars launched and how much of the year they had. The two most recent cliffs are the two steepest, so as a forecast this is generous. No late rate: Remicade fades to 5.7% by year nine while Neupogen still falls 25.5% at year ten"
 gene therapy,0.05,0.05,,,"no observed precedent: no gene therapy has yet faced a direct analogue of generic entry","placeholder for review; one-time therapies deplete their pool instead"
 unknown,0.25,0.20,,,"IQVIA Biosimilars in the United States reports, taken as the gentler of the two modality shapes where the modality is not on file","replace with the modality when known; the small-molecule cliff is steeper"
