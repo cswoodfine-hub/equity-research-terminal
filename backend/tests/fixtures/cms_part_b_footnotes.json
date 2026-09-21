@@ -1,0 +1,15 @@
+[
+  {"Brnd_Name": "Prolia*", "Gnrc_Name": "Denosumab", "Tot_Spndng_2024": "2430900000",
+   "Tot_Benes_2024": "900000", "Tot_Clms_2024": "1500000", "Tot_Dsg_Unts_2024": "54000000"},
+  {"Brnd_Name": "Actemra (J3262)", "Gnrc_Name": "Tocilizumab", "Tot_Spndng_2024": "463200000",
+   "Tot_Benes_2024": "13490", "Tot_Clms_2024": "120000", "Tot_Dsg_Unts_2024": "9000000"},
+  {"Brnd_Name": "Infliximab*", "Gnrc_Name": "Infliximab", "Tot_Spndng_2024": "366700000",
+   "Tot_Benes_2024": "22000", "Tot_Clms_2024": "150000", "Tot_Dsg_Unts_2024": "40000000"},
+  {"Brnd_Name": "Afluria Trivalent  (90657)*", "Gnrc_Name": "Influenza vaccine",
+   "Tot_Spndng_2024": "53322", "Tot_Benes_2024": "900", "Tot_Clms_2024": "950",
+   "Tot_Dsg_Unts_2024": "950"},
+  {"Brnd_Name": "Keytruda", "Gnrc_Name": "Pembrolizumab", "Tot_Spndng_2024": "5000000000",
+   "Tot_Benes_2024": "120000", "Tot_Clms_2024": "800000", "Tot_Dsg_Unts_2024": "70000000"},
+  {"Brnd_Name": "Nothing We Model*", "Gnrc_Name": "Unmodelled", "Tot_Spndng_2024": "1000",
+   "Tot_Benes_2024": "10", "Tot_Clms_2024": "10", "Tot_Dsg_Unts_2024": "10"}
+]

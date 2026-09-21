@@ -30,8 +30,25 @@ _TIMEOUT_S = 90
 _PAGE = 5000
 
 
+# CMS decorates a brand with a footnote marker, and sometimes with the billing code it
+# reports the line under. Neither is part of the name, and an exact match against the
+# decorated string silently dropped 110 of the 799 Part B lines, $6,890mm of 2024
+# spending, including Prolia, Orencia, Comirnaty, Botox and the whole infliximab series.
+_CODE_SUFFIX = re.compile(r"\s*\((?:[A-Z]?\d{4,5})\)\s*$")
+
+
 def _norm(name: str) -> str:
-    return re.sub(r"\s+", " ", (name or "").strip().lower())
+    """A CMS drug name reduced to the name itself: footnote marker and trailing billing
+    code removed, whitespace collapsed, lowercased."""
+    # The marker can sit either side of the code ("Afluria Trivalent (90657)*"), so both
+    # are stripped until neither is left.
+    text = (name or "").strip()
+    for _ in range(3):
+        stripped = _CODE_SUFFIX.sub("", text.rstrip("*").strip()).strip()
+        if stripped == text:
+            break
+        text = stripped
+    return re.sub(r"\s+", " ", text).lower()
 
 
 class DemandCmsFetcher(BaseFetcher):
@@ -63,11 +80,26 @@ class DemandCmsFetcher(BaseFetcher):
                 + [{**r, "_part": "B"} for r in part_b])
 
     def _brand_map(self, conn) -> dict:
-        brands = {}
+        """{normalised name: asset_id}, by brand and then by generic name.
+
+        CMS names a clinician-administered line by its ingredient where the code covers
+        several brands: J1745 is "Infliximab*", not Remicade. A generic is only used
+        where exactly one asset carries it, so an ingredient two companies both sell
+        (Dupixent under Regeneron and Sanofi) resolves to neither rather than the wrong
+        one. Brands always win over generics.
+        """
+        brands, generics, seen = {}, {}, {}
         for row in conn.execute(
-            "SELECT id AS asset_id, brand_name FROM assets"
-            " WHERE brand_name IS NOT NULL"):
-            brands.setdefault(_norm(row["brand_name"]), row["asset_id"])
+            "SELECT id AS asset_id, brand_name, generic_name FROM assets"):
+            if row["brand_name"]:
+                brands.setdefault(_norm(row["brand_name"]), row["asset_id"])
+            if row["generic_name"]:
+                key = _norm(row["generic_name"])
+                seen[key] = seen.get(key, 0) + 1
+                generics.setdefault(key, row["asset_id"])
+        for key, count in seen.items():
+            if count == 1 and key not in brands:
+                brands[key] = generics[key]
         return brands
 
     def normalise(self, raw) -> list[dict]:
