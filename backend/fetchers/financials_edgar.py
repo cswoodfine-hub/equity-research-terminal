@@ -54,10 +54,16 @@ DEBT_COMBINED_CANDIDATES = [("us-gaap", "DebtLongtermAndShorttermCombinedAmount"
 # shown year's year-over-year growth divides by, so the growth and margin lines on the
 # trend start together instead of the growth line missing its first year.
 # Company facts carry the whole history in one response, so the only cost of a longer one
-# is storage. Sixteen years reaches 2010 for a filer that has tagged XBRL since the
-# mandate phased in, which is what makes a growth line long enough to show a patent cliff
-# and a recovery rather than one cycle.
-MAX_FISCAL_YEARS = 17
+# is storage. Twenty years reaches 2006 for a filer that has tagged XBRL since the mandate
+# phased in, which is what makes a growth line long enough to show a patent cliff and a
+# recovery rather than one cycle.
+# It was seventeen, which cut off at exactly 2009 and threw away years the payload already
+# carried: the FY2009 10-K tags its two comparative columns, so 2007 and 2008 are in the
+# response for eight of the filers and were being dropped on the floor. The launch
+# productivity rate divides fresh revenue by the R&D that bought it, and every year of R&D
+# history it loses is a year the window cannot be moved back towards the spend that
+# actually paid for the launches.
+MAX_FISCAL_YEARS = 20
 MAX_PERIODS = {statements.FY: MAX_FISCAL_YEARS, statements.Q: 40,
                statements.YTD: 40, statements.INSTANT: 60}
 
