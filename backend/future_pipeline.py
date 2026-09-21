@@ -11,8 +11,9 @@ This is that line, and it is built from observation rather than from a view.
 Productivity is the revenue a company earns in its latest year from drugs first approved
 in the last ten, per dollar of R&D it spent over the ten years before. It is measured per
 filer and pooled across the large ones, because one filer's decade is dominated by one
-or two launches: Merck reads 4.5 cents because Keytruda's 2014 approval falls a year
-outside the window, and Novo reads $1.13 on the GLP-1s alone. So each filer's own rate
+or two launches: Novo reads about a dollar on the GLP-1s alone, and Merck's own rate moves
+from 2.6 cents to 32 on whether Keytruda's September 2014 approval falls inside the window
+or a year outside it. So each filer's own rate
 is blended with the pool at a weight the data sets (credibility, below): the more
 launches its decade rests on, the more its own record counts.
 
@@ -23,9 +24,20 @@ that R&D buys the next cohort in turn, so replacement is simulated rather than a
 Nothing is risk-adjusted a second time: the rate is measured on what reached market, so
 the failures are already in it.
 
-One bias is stated rather than corrected. The ratio's R&D window sits one year before
-the launches rather than a full lag before, and R&D has grown, so the denominator is
-larger than the spend that bought the launches and the rate reads low.
+One bias is stated rather than corrected, and it cannot be corrected on free data. The
+R&D window sits alongside the launches rather than a full lag before them, and R&D has
+grown, so the denominator is larger than the spend that actually bought the launches and
+the rate reads low. Shifting it back by the eight-year lag would need R&D from 2006, and
+not one of the eighteen filers has it: XBRL starts in 2009 for the Americans, 2015 for
+AstraZeneca, Novartis and Novo, and 2016 for GSK and Sanofi. With R&D flat the plain ratio
+recovers the rate exactly whatever the window, because the cohorts arriving and leaving
+balance, so the bias is the growth in R&D and nothing else.
+  How far it can reach is measurable, and ``funded_share`` is the diagnostic. Only 12% of
+Keytruda's development sits inside Merck's window, yet its revenue is three quarters of
+Merck's fresh total, so Merck's own rate of 0.32 is largely paid for by research the
+denominator never saw. The credibility blend is what stands between that and the
+valuation, and with fourteen launches Merck earns most of its own weight, so it barely
+moderates it: 0.319 own, 0.306 blended.
 
 The bias that ran the other way is corrected. A launch that came with a company the filer
 bought was paid for by the purchase price, which is not in the R&D the rate divides by,
@@ -36,7 +48,9 @@ leaves deals where the other-costs charge leaves them (``one_off_cash``): capita
 allocation, neither charged nor credited. A molecule licensed in is not bought, because
 the development that followed ran through the filer's own R&D line.
 
-The window's edge is left where it falls. Darzalex, approved on 16 November 2015, misses
+The window is the exclusivity term the simulation grants a cohort, not a round number,
+so a launch still earning in the model is still counted in the measurement that calibrates
+it. The edge is left where it falls. Darzalex, approved on 16 November 2015, misses
 Johnson & Johnson's FY2025 window by 46 days and takes $14.4bn of revenue out of its
 record, as Keytruda's 2014 approval does for Merck. Moving the edge for one drug would
 be choosing the answer; any window drops a launch just outside it, and one just inside
@@ -71,7 +85,25 @@ PARTNER_FUNDED = DATA_DIR / "partner_funded_launches.csv"
 # Launches that came with a company the filer bought. The purchase price is what bought
 # them, and it is nowhere in the R&D the rate divides by.
 ACQUIRED = DATA_DIR / "acquired_launches.csv"
-COHORT_YEARS = 10
+# How many years of launches the rate is measured over. It is the exclusivity term the
+# simulation grants a cohort, not a round number: ``simulate`` has each year's spend earn
+# for ``loe_defaults[...]["years_from_launch"]`` years, so a launch eleven years old is
+# still earning in the model and its revenue belongs in the measurement that calibrates
+# it. At ten the two disagreed, and the disagreement was worth more than any assumption in
+# the line: Merck's own rate reads 0.026 over ten years and 0.319 over twelve, because
+# Keytruda was approved in September 2014 and a ten-year window from a 2025 anchor starts
+# in 2016.
+def _cohort_years(default: int = 12) -> int:
+    try:
+        import assumptions
+        found = (assumptions.loe_defaults() or {}).get("unknown", {})
+        years = int(found.get("years_from_launch") or default)
+        return years if years > 0 else default
+    except Exception:
+        return default
+
+
+COHORT_YEARS = _cohort_years()
 _CACHE: dict = {}
 _CACHE_SECONDS = 3600
 
@@ -188,6 +220,47 @@ def _fiscal_year_of(period_end: str) -> int:
     return year - 1 if month == 1 else year
 
 
+def _lag_years(default: int = 8) -> int:
+    """Years from the spend to the launch it buys, from the defaults file."""
+    try:
+        found = defaults().get("lag_years") or {}
+        return int(float(found.get("value") or default)) or default
+    except Exception:
+        return default
+
+
+def funded_share(approved: str, rd_first_year: int, rd_last_year: int, lag: int) -> float:
+    """How much of a launch's development the R&D window actually paid for, from nil to
+    one.
+
+    A drug approved in year a was developed over roughly the ``lag`` years before it, so
+    the spend that bought it runs from a - lag to a. Only the part of that overlapping the
+    denominator's own years was counted in the denominator, and only that part of the
+    launch's revenue belongs in the numerator. The module already applies this rule
+    discretely to launches an acquisition or a partner paid for; this applies it by degree
+    to launches the window paid for in part.
+
+    NOT APPLIED to the rate, and the reason is worth keeping. Weighting the numerator this
+    way and leaving the denominator whole biases the rate down: the window's R&D also
+    bought launches that have not arrived yet, so taking revenue out for spend that
+    happened earlier while leaving in spend whose output is still to come charges the same
+    lag twice. With R&D flat the plain ratio recovers the rate exactly at any window up to
+    the earning life, because the cohorts arriving and the cohorts leaving balance. The
+    lag only bites where R&D is growing, which is the bias the module docstring states.
+    This stays as a diagnostic: it is how to see that Merck's rate rests on a drug the
+    window did not pay for.
+    """
+    if not approved or lag <= 0:
+        return 1.0
+    try:
+        year = int(str(approved)[:4])
+    except ValueError:
+        return 1.0
+    start, end = year - lag, year
+    overlap = min(end, rd_last_year + 1) - max(start, rd_first_year)
+    return max(0.0, min(1.0, overlap / float(lag)))
+
+
 def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
                         switches=None, funded=None, bought=None) -> dict:
     """One filer's launch productivity, and what it was built from.
@@ -299,10 +372,22 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
                         + (", ".join(str(y) for y in missing) or "every year once")
                         + ", so the window reads the company's R&D")
     coverage = dated / total if total else 0.0
-    rate = fresh / rd if rd else None
+    # A filer whose R&D history is shorter than the window must not be handed a smaller
+    # denominator for it. Sanofi's XBRL starts in 2016 and AstraZeneca's in 2015, so a
+    # twelve-year window adds their later launches to the numerator while the denominator
+    # stops at nine or ten years, and the rate rises for no reason but a missing filing.
+    # The years on file are carried to the full window at their own average. R&D has
+    # grown, so scaling a later average back over earlier years overstates what was spent
+    # then and the rate reads low, which is the safe direction.
+    scaled_rd, rd_scaled = rd, False
+    if rd and 0 < rd_years < COHORT_YEARS:
+        scaled_rd = rd / rd_years * COHORT_YEARS
+        rd_scaled = True
+    rate = fresh / scaled_rd if scaled_rd else None
     launches.sort(key=lambda r: -r["revenue"])
     return {"rate": rate, "year": year, "revenue": total, "dated_share": coverage,
-            "fresh_revenue": fresh, "rd": rd, "rd_years": rd_years,
+            "fresh_revenue": fresh, "rd": scaled_rd, "rd_filed": rd,
+            "rd_scaled": rd_scaled, "rd_years": rd_years,
             "rd_basis": rd_basis, "switch_forms": switched,
             "partner_funded": partnered, "acquired": purchased,
             "launches": launches[:8], "launch_count": len(launches),

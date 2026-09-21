@@ -128,8 +128,11 @@ def test_rd_is_read_net_of_in_process_rd_expensed_inside_it(tmp_path):
                  " VALUES (1, 'ResearchLessExpensedIprd', 'FY', 2023, '2023-12-31', 19122e6, 'USD')")
     conn.commit()
     got = FP.filer_productivity(conn, 1, {}, {}, switches={}, funded={}, bought={})
-    assert got["rd"] == pytest.approx(19122e6 + 17938e6) and got["rd_years"] == 2
-    assert got["rate"] == pytest.approx(1443e6 / (19122e6 + 17938e6))
+    # rd_filed is what was read off the filings; rd is that carried to the full
+    # window, which a two-year fixture exercises but min_rd_years excludes from the pool.
+    assert got["rd_filed"] == pytest.approx(19122e6 + 17938e6) and got["rd_years"] == 2
+    assert got["rate"] == pytest.approx(
+        1443e6 / ((19122e6 + 17938e6) / 2 * FP.COHORT_YEARS))
 
 
 def _filer(tmp_path, years):
@@ -153,10 +156,12 @@ def _filer(tmp_path, years):
 def test_the_medicines_segments_rd_is_the_denominator_only_for_a_whole_window(tmp_path):
     conn = _filer(tmp_path, (2023, 2024))
     whole = FP.filer_productivity(conn, 1, {}, {}, segment={"JNJ": {2023: (12000e6, "USD"), 2024: (12000e6, "USD")}})
-    assert whole["rd"] == pytest.approx(24000e6) and whole["rate"] == pytest.approx(5155e6 / 24000e6)
+    assert whole["rd_filed"] == pytest.approx(24000e6)
+    # Two years of segment R&D carried to the window the rate is measured over.
+    assert whole["rate"] == pytest.approx(5155e6 / (24000e6 / 2 * FP.COHORT_YEARS))
     assert "all 2 years" in whole["rd_basis"]
     part = FP.filer_productivity(conn, 1, {}, {}, segment={"JNJ": {2024: (12000e6, "USD")}})
-    assert part["rd"] == pytest.approx(30000e6) and "not reported for 2023" in part["rd_basis"]
+    assert part["rd_filed"] == pytest.approx(30000e6) and "not reported for 2023" in part["rd_basis"]
     assert FP.filer_productivity(conn, 1, {}, {}, segment={})["rd_basis"] is None
 
 
