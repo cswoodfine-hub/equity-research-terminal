@@ -71,10 +71,17 @@ def load(conn, path=None) -> dict:
             unknown += 1
             continue
         end = period_end(row["ticker"], row["fiscal_year"])
+        # A filed year is recognised by WHEN IT ENDS, not by its label. Johnson & Johnson's
+        # 53-week fiscal 2009 ended on 3 January 2010 and companyfacts labels it 2010, so a
+        # check on the label found no 2009 and wrote a second copy of a year that was
+        # already there, and the productivity window summed it twice. Any filed FY row
+        # ending within ten days of the curated one is the same year.
         held = conn.execute(
             """SELECT 1 FROM financials WHERE company_id = ? AND metric = ?
-                AND period_type = 'FY' AND fiscal_year = ? AND value IS NOT NULL""",
-            (company_id, METRIC, row["fiscal_year"])).fetchone()
+                AND period_type = 'FY' AND value IS NOT NULL
+                AND (fiscal_year = ?
+                     OR ABS(julianday(period_end) - julianday(?)) <= 10)""",
+            (company_id, METRIC, row["fiscal_year"], end)).fetchone()
         if held:
             skipped += 1                      # the filer tagged it; the filing wins
             continue

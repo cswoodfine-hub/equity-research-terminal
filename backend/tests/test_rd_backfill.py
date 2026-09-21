@@ -84,3 +84,26 @@ def test_the_committed_file_carries_a_source_on_every_row():
     # Schering-Plough's figures must never appear under Merck: its FY2006 R&D was 2,188mm.
     merck = {r["fiscal_year"]: r["value"] for r in got if r["ticker"] == "MRK"}
     assert merck.get(2006) == 4782.9e6, "MRK 2006 must be old Merck & Co, not Schering-Plough"
+
+
+def test_a_year_filed_under_a_53_week_label_is_recognised_by_when_it_ends(tmp_path):
+    """Johnson & Johnson's fiscal 2009 ended on 3 January 2010 and companyfacts labels it
+    2010. A check on the label saw a hole and wrote a second copy, which the productivity
+    window then summed twice. The filed year is recognised by its period end."""
+    conn = _db(tmp_path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (3, 'JNJ', 'J&J')")
+    conn.execute("""INSERT INTO financials (company_id, period_end, period_type, metric,
+        value, unit, fiscal_year, fiscal_period, source)
+        VALUES (3, '2010-01-03', 'FY', 'ResearchAndDevelopmentExpense', 6986000000.0,
+                'USD', 2010, 'FY', 'edgar_companyfacts')""")
+    conn.commit()
+    path = _file(tmp_path, "JNJ,2009,6986,USD,acc 0000950123-10-019392,Research expense 6986\n")
+    got = RB.load(conn, path)
+    assert got["written"] == 0 and got["already_filed"] == 1
+    assert conn.execute("SELECT COUNT(*) FROM financials WHERE company_id=3").fetchone()[0] == 1
+    conn.close()
+
+
+def test_the_committed_file_holds_no_johnson_and_johnson_53_week_years():
+    years = {r["fiscal_year"] for r in RB.rows() if r["ticker"] == "JNJ"}
+    assert 2009 not in years and 2015 not in years
