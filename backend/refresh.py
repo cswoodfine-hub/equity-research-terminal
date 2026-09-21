@@ -23,6 +23,7 @@ import env  # noqa: F401  loads the .env before any module reads it
 import asset_identity
 import asset_merge
 import other_claims
+import rd_backfill
 import asset_revenue
 import balance_updates
 import financings
@@ -298,6 +299,16 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
         mapped["other_claims_error"] = str(exc)
     finally:
         _conn.close()
+    # R&D from before XBRL, so the productivity window can reach back towards the spend
+    # that bought the launches. Insert-only: a year the filer has tagged is never
+    # overwritten by one an analyst read out of a filing.
+    _conn = db.get_connection(db_path)
+    try:
+        mapped["rd_backfill"] = rd_backfill.load(_conn)["written"]
+    except Exception as exc:
+        mapped["rd_backfill_error"] = str(exc)
+    finally:
+        _conn.close()
     # Whatever is left that names a study's arm rather than a compound: a strength
     # written as a ratio, a numbered dose regimen, a molecule named with the
     # chemotherapy beside it. After the merge, so an arm the alias map or the merge
@@ -499,6 +510,16 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
         mapped["other_claims"] = other_claims.store(_conn)["written"]
     except Exception as exc:                      # a cache that is absent or half written
         mapped["other_claims_error"] = str(exc)
+    finally:
+        _conn.close()
+    # R&D from before XBRL, so the productivity window can reach back towards the spend
+    # that bought the launches. Insert-only: a year the filer has tagged is never
+    # overwritten by one an analyst read out of a filing.
+    _conn = db.get_connection(db_path)
+    try:
+        mapped["rd_backfill"] = rd_backfill.load(_conn)["written"]
+    except Exception as exc:
+        mapped["rd_backfill_error"] = str(exc)
     finally:
         _conn.close()
     # Whatever is left that names a study's arm rather than a compound: a strength

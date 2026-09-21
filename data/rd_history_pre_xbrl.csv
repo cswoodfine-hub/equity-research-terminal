@@ -1,0 +1,92 @@
+# Research and development spend from before XBRL, read out of the filings themselves.
+#
+# The launch productivity rate divides fresh revenue by the R&D that bought it, and the
+# R&D window has to sit a development lag before the launches or it divides by the wrong
+# decade. companyfacts only carries tagged facts, and tagging began with the 2009 mandate
+# for US filers and years later for foreign private issuers, so the history stopped at
+# 2007 for the Americans and 2015 or 2016 for AstraZeneca, Novartis, Novo, GSK and Sanofi.
+# The filings go back much further and are free. Each row below was read out of one, and
+# every figure was extracted once and then re-fetched and re-read from the same document
+# by a second pass before it was written here.
+#
+# An annual report prints three years of income statement and the older ones carry five
+# years of selected financial data, so one filing covers most of a filer's gap: a single
+# AstraZeneca 20-F carries 2004 through 2008.
+#
+# THE MERCK TRAP, recorded because it is the one that would do real damage. The repo maps
+# MRK to CIK 310158, which before the 2009 merger was SCHERING-PLOUGH, whose FY2006 R&D
+# was $2,188mm. The rows below are old Merck & Co's, CIK 64978, whose FY2006 R&D was
+# $4,782.9mm, because Merck was the accounting acquirer and its history is the one that
+# continues into the filer the model values. companyfacts agrees: under CIK 310158 it
+# reports FY2007 as $4,882.8mm, Merck's figure and not Schering-Plough's.
+#
+# GSK is on the total basis, which is what its XBRL series carries. Its filings also print
+# a before-restructuring figure (3,237 in 2007, 3,506 in 2008) and that is a different
+# series; joining the two would put a step in the middle of the window.
+#
+# Not here, and why. Sanofi: no free authoritative route was found for 2006 to 2008.
+# sanofi.com publishes Form 20-F only from FY2013 and the French regulator's archive
+# defeated the search, so its EDGAR filings are the remaining route and are untested.
+# AbbVie: it did not exist before the 2013 Abbott separation, so there is no earlier R&D
+# to find. CRISPR Therapeutics was founded in 2013.
+#
+# value is in millions of the unit stated, which is the filer's own reporting currency.
+ticker,fiscal_year,value_musd,unit,accession_or_url,quote
+AMGN,2006,3366,USD,"acc 0001193125-09-041091, https://www.sec.gov/Archives/edgar/data/318154/000119312509041091/d10k.htm","Research and development 3,030 3,266 3,366"
+AMGN,2007,3266,USD,"accn 0001193125-10-044311 (FY2009 10-K, third comparative column). Cross-read two ways: companyfacts https://data.sec.gov/api/xbrl/companyfacts/CIK0000318154.json, us-gaap:ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost, start 2007-01-01 end 2007-12-31; and FSDS 2010q1 num.txt row for ad",ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost	ddate=20071231	qtrs=4	value=3266000000.0000
+AMGN,2008,3030,USD,accn 0001193125-10-044311 (FY2009 10-K) and again 0000950123-11-018800 (FY2010 10-K). companyfacts CIK0000318154; FSDS 2010q1 num.txt,ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost	ddate=20081231	qtrs=4	value=3030000000.0000
+AZN,2004,3467,USD,"accession 0000950103-09-000555, EX-15.1 dp12778_ex1501.htm, ""GROUP FINANCIAL RECORD"" five-year table (header ascending 2004|2005|2006|2007|2008, $m)","Research and development | (3,467) | (3,379) | (3,902) | (5,162) | (5,179) |"
+AZN,2005,3379,USD,"accession 0000950103-09-000555, EX-15.1 dp12778_ex1501.htm, ""GROUP FINANCIAL RECORD"" five-year table","Research and development | (3,467) | (3,379) | (3,902) | (5,162) | (5,179) |"
+AZN,2006,3902,USD,"accession 0000950103-09-000555 (20-F FY2008, filed 2009-03-17), exhibit EX-15.1 dp12778_ex1501.htm, table ""CONSOLIDATED INCOME STATEMENT FOR THE YEAR ENDED 31 DECEMBER"", 2006 column. Same figure repeated in the ""GROUP FINANCIAL RECORD"" five-year table in the same document.","Research and development | (5,179) | (5,162) | (3,902) |   [header: 2008 | 2007 | 2006 | ... $m]"
+AZN,2007,5162,USD,"accession 0000950103-09-000555, EX-15.1 dp12778_ex1501.htm, consolidated income statement, 2007 column. Independently reproduced by accession 0000950103-12-001564 (20-F FY2011) five-year record.","Research and development | (5,179) | (5,162) | (3,902) |"
+AZN,2008,5179,USD,"accession 0000950103-09-000555, EX-15.1 dp12778_ex1501.htm, consolidated income statement, 2008 column. Independently reproduced by accession 0000950103-12-001564 five-year record.","Research and development | (5,179) | (5,162) | (3,902) |"
+AZN,2009,4409,USD,"accession 0000950103-12-001564 (20-F FY2011, filed 2012-03-28), EX-15.1 dp29467_ex1501.htm, ""Group Financial Record"" five-year table (header ascending 2007|2008|2009|2010|2011, $m)","Research and development | (5,162) | (5,179) | (4,409) | (5,318) | (5,523) |"
+AZN,2010,5318,USD,"accession 0000950103-12-001564, EX-15.1 dp29467_ex1501.htm, ""Group Financial Record"" five-year table","Research and development | (5,162) | (5,179) | (4,409) | (5,318) | (5,523) |"
+AZN,2011,5523,USD,"accession 0000950103-12-001564, EX-15.1 dp29467_ex1501.htm, ""Group Financial Record"" five-year table","Research and development | (5,162) | (5,179) | (4,409) | (5,318) | (5,523) |"
+BIIB,2006,718.39,USD,"acc 0000950135-09-000730, https://www.sec.gov/Archives/edgar/data/875045/000095013509000730/b73435bie10vk.htm","Research and development 1,072,058 925,164 718,390"
+BIIB,2007,925.164,USD,"accn 0000950123-10-010528 (FY2009 10-K). companyfacts CIK0000875045, us-gaap:ResearchAndDevelopmentExpense, 2007-01-01..2007-12-31; same value in FSDS 2010q1 num.txt",ResearchAndDevelopmentExpense	ddate=20071231	qtrs=4	value=925164000.0000
+BIIB,2008,1072.06,USD,accn 0000950123-10-010528 and 0000950123-11-009300. companyfacts CIK0000875045; FSDS 2010q1 num.txt,ResearchAndDevelopmentExpense	ddate=20081231	qtrs=4	value=1072058000.0000
+BMY,2006,2951,USD,"acc 0001193125-09-033538, https://www.sec.gov/Archives/edgar/data/14272/000119312509033538/d10k.htm","Research and development 3,585 3,227 2,951"
+BMY,2007,3160,USD,"accn 0001193125-10-035167 (FY2009 10-K). companyfacts CIK0000014272, us-gaap:ResearchAndDevelopmentExpense, 2007-01-01..2007-12-31; same value in FSDS 2010q1 num.txt, and in frames CY2006-CY2011 (us-gaap ResearchAndDevelopmentExpense/USD/CY2007.json)",ResearchAndDevelopmentExpense	ddate=20071231	qtrs=4	value=3160000000.0000
+BMY,2008,3512,USD,accn 0001193125-10-035167 and 0001193125-11-040120. companyfacts CIK0000014272; FSDS 2010q1 num.txt; frames CY2008,ResearchAndDevelopmentExpense	ddate=20081231	qtrs=4	value=3512000000.0000
+GILD,2006,383.861,USD,"acc 0001193125-09-040769, https://www.sec.gov/Archives/edgar/data/882095/000119312509040769/d10k.htm","Research and development 721,768 591,026 383,861"
+GILD,2007,591.026,USD,"accn 0001193125-10-044753 (FY2009 10-K). companyfacts CIK0000882095, us-gaap:ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost, 2007-01-01..2007-12-31; same value in FSDS 2010q1 num.txt",ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost	ddate=20071231	qtrs=4	value=591026000.0000
+GILD,2008,721.768,USD,accn 0001193125-10-044753 and 0001193125-11-050041. companyfacts CIK0000882095; FSDS 2010q1 num.txt,ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost	ddate=20081231	qtrs=4	value=721768000.0000
+GSK,2004,2904,GBP,"accession 0001156973-07-000334, u52008-20f.htm, MD&A total results table, 2004 column","Research and development | (3,457) | 11 | 10 | (3,136) | ... | (2,904) |"
+GSK,2005,3136,GBP,"accession 0001156973-07-000334 (20-F FY2006, filed 2007-03-02), primary document u52008-20f.htm, MD&A ""total results"" table (year columns interleaved with two growth-percentage columns)","Research and development | (3,457) | 11 | 10 | (3,136) | ... (2,904) |   [turnover row in same table: 23,225 | 9 | 7 | 21,660 | 7 | 8 | 19,986, confirming 2006|2005|2004 mapping]"
+GSK,2006,3457,GBP,"accession 0001156973-09-000126 (20-F FY2008, filed 2009-03-04), primary document u06336e20vf.htm, ""Consolidated income statement for the year ended 31st December 2008"", 2006 Total column. Independently reproduced by accession 0001156973-07-000334 (20-F FY2006).","Research and development | (3,506) | (175) | (3,681) | (3,237) | (90) | (3,327) | (3,457) |   [header: Results before major restructuring | Major restructuring | Total £m (2008) | same three for 2007 | Total £m (2006)]"
+GSK,2007,3327,GBP,"accession 0001156973-09-000126, u06336e20vf.htm, consolidated income statement, 2007 Total column","Research and development | (3,506) | (175) | (3,681) | (3,237) | (90) | (3,327) | (3,457) |"
+GSK,2008,3681,GBP,"accession 0001156973-09-000126, u06336e20vf.htm, consolidated income statement, 2008 Total column","Research and development | (3,506) | (175) | (3,681) | (3,237) | (90) | (3,327) | (3,457) |"
+INCY,2006,87.596,USD,"acc 0001047469-09-002189, https://www.sec.gov/Archives/edgar/data/879169/000104746909002189/a2190988z10-k.htm","Research and development | 146,362 104,889 87,596"
+INCY,2007,104.889,USD,acc 0001047469-09-002189,"Research and development | 146,362 104,889 87,596"
+INCY,2008,146.362,USD,acc 0001047469-09-002189,"Research and development | 146,362 104,889 87,596"
+JNJ,2006,7125,USD,"acc 0000950123-09-003187 EX-13, https://www.sec.gov/Archives/edgar/data/200406/000095012309003187/y74152exv13.htm","Research expense | 7,577 | 7,680 | 7,125"
+JNJ,2007,7680,USD,"accn 0000950123-10-019392 (FY2009 10-K). companyfacts CIK0000200406, period 2007-01-01..2007-12-30 (52/53-week year); same value in FSDS 2010q1 num.txt. Absent from the frames API entirely",ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost	ddate=20071231	qtrs=4	value=7680000000.0000
+JNJ,2008,7577,USD,"accn 0000950123-10-019392 and 0000950123-11-018128. companyfacts CIK0000200406, period 2007-12-31..2008-12-28; FSDS 2010q1 num.txt",ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost	ddate=20081231	qtrs=4	value=7577000000.0000
+LLY,2006,3129.3,USD,"acc 0000950152-09-001897, https://www.sec.gov/Archives/edgar/data/59478/000095015209001897/c49534e10vk.htm","Research and development 3,840.9 3,486.7 3,129.3"
+LLY,2007,3486.7,USD,"accn 0000950123-10-014958 (FY2009 10-K, filed 2010-02-22). companyfacts CIK0000059478, us-gaap:ResearchAndDevelopmentExpense, 2007-01-01..2007-12-31; same value in FSDS 2010q1 num.txt and in frames CY2007",ResearchAndDevelopmentExpense	ddate=20071231	qtrs=4	value=3486700000.0000
+LLY,2008,3840.9,USD,accn 0000950123-10-014958 and 0001193125-11-041620. companyfacts CIK0000059478; FSDS 2010q1 num.txt; frames CY2008,ResearchAndDevelopmentExpense	ddate=20081231	qtrs=4	value=3840900000.0000
+MRK,2006,4782.9,USD,"acc 0000950123-09-003688, https://www.sec.gov/Archives/edgar/data/64978/000095012309003688/y74217e10vk.htm","Research and development 4,805.3 4,882.8 4,782.9"
+MRK,2007,4882.8,USD,"accn 0000950123-10-018679 (FY2009 10-K). companyfacts CIK0000310158, 2007-01-01..2007-12-31; same value in FSDS 2010q1 num.txt and frames CY2007",ResearchAndDevelopmentExpense	ddate=20071231	qtrs=4	value=4882800000.0000
+MRK,2008,4805.3,USD,"4,805.3mm from accn 0000950123-10-018679 (FY2009 10-K); 4,805.0mm from accn 0000950123-11-019286 (FY2010 10-K). companyfacts CIK0000310158 carries both; FSDS 2010q1 num.txt carries the first",ResearchAndDevelopmentExpense	ddate=20081231	qtrs=4	value=4805300000.0000
+NVO,2007,8538,DKK,https://www.novonordisk.com/content/dam/nncorp/global/en/investors/irmaterial/annual_report/2010/20100203_Annual%20Report%202009_UK.pdf,"Research and development costs 5, 7 7,864 7,856 8,538"
+NVO,2008,7856,DKK,https://www.novonordisk.com/content/dam/nncorp/global/en/investors/irmaterial/annual_report/2010/20100203_Annual%20Report%202009_UK.pdf,"Research and development costs 5, 7 7,864 7,856 8,538"
+NVO,2009,7864,DKK,https://www.novonordisk.com/content/dam/nncorp/global/en/investors/irmaterial/annual_report/2010/20100203_Annual%20Report%202009_UK.pdf,"Research and development costs 5, 7 7,864 7,856 8,538"
+NVS,2003,3612,USD,https://www.novartis.com/sites/novartis_com/files/novartis-annual-report-2007-en.pdf,Research & development expenditure4 6 430 5 321 4 797 4 029 3 612
+NVS,2004,4152,USD,"accession 0001047469-07-000510, a2175772z20-f.htm, consolidated income statements, 2004 column","Research & development | (5,349) | (4,825) | (4,152) |"
+NVS,2005,4825,USD,"accession 0001047469-07-000510, a2175772z20-f.htm, consolidated income statements, 2005 column","Research & development | (5,349) | (4,825) | (4,152) |"
+NVS,2006,5321,USD,"accession 0001047469-09-000435 (20-F FY2008, filed 2009-01-28), primary document a2190064z20-f.htm, ""CONSOLIDATED INCOME STATEMENTS (for the years ended December 31, 2008, 2007 and 2006)"", 2006 column","Research & development | (7,217) | (6,430) | (5,321) |   [header: 2008 | 2007 | 2006, $ millions]"
+NVS,2007,6430,USD,"accession 0001047469-09-000435, a2190064z20-f.htm, consolidated income statements, 2007 column","Research & development | (7,217) | (6,430) | (5,321) |"
+NVS,2008,7217,USD,"accession 0001047469-09-000435, a2190064z20-f.htm, consolidated income statements, 2008 column. Narrative in the same filing corroborates: ""Research & development rose 12% to $7.2 billion"".","Research & development | (7,217) | (6,430) | (5,321) |"
+PFE,2006,7599,USD,"acc 0001193125-09-040568 EX-13, https://www.sec.gov/Archives/edgar/data/78003/000119312509040568/dex13.htm","Research and development expenses(a) 7,945 | 8,089 | 7,599"
+PFE,2007,8089,USD,accn 0001193125-10-042425 (FY2009 10-K). companyfacts CIK0000078003; same value in FSDS 2010q1 num.txt,ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost	ddate=20071231	qtrs=4	value=8089000000.0000
+PFE,2008,7945,USD,accn 0001193125-10-042425 and 0001193125-11-048877. companyfacts CIK0000078003; FSDS 2010q1 num.txt,ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost	ddate=20081231	qtrs=4	value=7945000000.0000
+REGN,2006,137.064,USD,"acc 0001206774-09-000338, https://www.sec.gov/Archives/edgar/data/872589/000120677409000338/regeneron_10k.htm","Research and development | 278,016 201,613 137,064"
+REGN,2007,201.613,USD,acc 0001206774-09-000338,"Research and development | 278,016 201,613 137,064"
+REGN,2008,274.903,USD,"accn 0001206774-11-000263 (FY2010 10-K, third comparative column). companyfacts https://data.sec.gov/api/xbrl/companyfacts/CIK0000872589.json; also frames us-gaap/ResearchAndDevelopmentExpense/USD/CY2008.json","us-gaap:ResearchAndDevelopmentExpense, start 2008-01-01, end 2008-12-31, val 274903000, form 10-K"
+UTHR,2006,57.57,USD,"acc 0001047469-09-001859, https://www.sec.gov/Archives/edgar/data/1082554/000104746909001859/a2190414z10-k.htm","Research and development | 239,181 83,352 57,570"
+UTHR,2007,83.352,USD,acc 0001047469-09-001859,"Research and development | 239,181 83,352 57,570"
+UTHR,2008,239.181,USD,accn 0001047469-11-001229 (FY2010 10-K). companyfacts CIK0001082554; also frames CY2008,"us-gaap:ResearchAndDevelopmentExpense, start 2008-01-01, end 2008-12-31, val 239181000, form 10-K"
+VRTX,2006,379.228,USD,"acc 0001047469-09-001305, https://www.sec.gov/Archives/edgar/data/875320/000104746909001305/a2190245z10-k.htm","Research and development expenses | 516,292 518,677 379,228"
+VRTX,2007,518.677,USD,acc 0001047469-09-001305,"Research and development expenses | 516,292 518,677 379,228"
+VRTX,2008,516.912,USD,"accn 0001047469-11-001025 (FY2010 10-K). companyfacts CIK0000875320; also frames CY2008. Note the repo's own database starts VRTX R&D at 2015, so these seven years are already free in a payload the refresh downloads","us-gaap:ResearchAndDevelopmentExpense, start 2008-01-01, end 2008-12-31, val 516912000, form 10-K"
