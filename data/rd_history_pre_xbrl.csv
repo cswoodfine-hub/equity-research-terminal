@@ -30,6 +30,22 @@
 # AbbVie: it did not exist before the 2013 Abbott separation, so there is no earlier R&D
 # to find. CRISPR Therapeutics was founded in 2013.
 #
+#
+# Second pass, 2026-09-21: the middle of the window, fiscal 2009 to 2015, which falls
+# between the old filings read in the first pass and where XBRL tagging begins. 44 more
+# filer-years, each extracted and then independently re-read from the same document.
+# Sanofi's EDGAR route, untested in the first pass, works: an unbroken run of 20-Fs under
+# one CIK from FY2002, filed as Sanofi-Synthelabo and then Sanofi-Aventis.
+#
+# Two figures were corrected on verification and both are recorded as corrections rather
+# than quietly replaced. Novartis FY2014 read 9,943 and is 9,086 on the face of the
+# statement. Sanofi 2009, 2010, 2013 and 2014 were first taken from later filings that
+# restate them to include Merial and then Animal Health; the figures here are as
+# published, excluding that business, which is the basis today's Sanofi and its XBRL years
+# are on. Sanofi 2011 and 2012 do still include Animal Health, at about EUR 146mm and
+# 164mm on a 4,800mm base, because those are the figures as first published and no
+# ex-Animal-Health restatement of them exists. That is under a third of one per cent of a
+# twelve-year denominator and is left visible rather than derived away.
 # value is in millions of the unit stated, which is the filer's own reporting currency.
 ticker,fiscal_year,value_musd,unit,accession_or_url,quote
 AMGN,2006,3366,USD,"acc 0001193125-09-041091, https://www.sec.gov/Archives/edgar/data/318154/000119312509041091/d10k.htm","Research and development 3,030 3,266 3,366"
@@ -90,3 +106,47 @@ UTHR,2008,239.181,USD,accn 0001047469-11-001229 (FY2010 10-K). companyfacts CIK0
 VRTX,2006,379.228,USD,"acc 0001047469-09-001305, https://www.sec.gov/Archives/edgar/data/875320/000104746909001305/a2190245z10-k.htm","Research and development expenses | 516,292 518,677 379,228"
 VRTX,2007,518.677,USD,acc 0001047469-09-001305,"Research and development expenses | 516,292 518,677 379,228"
 VRTX,2008,516.912,USD,"accn 0001047469-11-001025 (FY2010 10-K). companyfacts CIK0000875320; also frames CY2008. Note the repo's own database starts VRTX R&D at 2015, so these seven years are already free in a payload the refresh downloads","us-gaap:ResearchAndDevelopmentExpense, start 2008-01-01, end 2008-12-31, val 516912000, form 10-K"
+AZN,2012,5243,USD,0000950103-13-001915,"Research and development expense | 2 | (5,243 | ) | (5,523 | ) | (5,318 | )   [header: 2012 $m | 2011 $m | 2010 $m]"
+AZN,2013,4821,USD,0000950103-14-001994,"Research and development expense | 2 | (4,821 | ) | (5,243 | ) | (5,523 | )   [header: 2013 $m | 2012 Restated $m | 2011 Restated $m]"
+AZN,2014,5579,USD,0000950103-15-001933,"Research and development expense | 2 | (5,579 | ) | (4,821 | ) | (5,243 | )   [header: 2014 $m | 2013 $m | 2012 $m]"
+GILD,2013,2119.76,USD,0000882095-14-000013,"Research and development expenses | 2,119,756 | 1,759,945 | 1,229,151"
+GILD,2014,2854,USD,0000882095-16-000039,"Research and development expenses | 3,014 | 2,854 | 2,120"
+GILD,2015,3014,USD,0000882095-16-000039,"Research and development expenses | 3,014 | 2,854 | 2,120"
+GILD,2016,5098,USD,0000882095-18-000008,"Research and development expenses | 3,734 | 5,098 | 3,014"
+GILD,2017,3734,USD,0000882095-18-000008,"Research and development expenses | 3,734 | 5,098 | 3,014"
+GSK,2009,4106,GBP,0001193125-12-112357,"Research and development | (3,951) | (155) | (4,106)   [EX-15.2 d268160dex152.htm, ""Consolidated income statement for the year ended 31 December 2011"", 2009 comparative column set; header: Results before major restructuring £m | Major restructuring £"
+GSK,2010,4457,GBP,0001193125-12-112357,"Research and development | (3,964) | (493) | (4,457)   [EX-15.2 d268160dex152.htm, ""Consolidated income statement for the year ended 31 December 2011"", 2010 comparative column set; header: Results before major restructuring £m | Major restructuring £"
+GSK,2011,4009,GBP,0001193125-12-112357,"Research and development | (3,912) | (97) | (4,009)   [EX-15.2 d268160dex152.htm, ""Consolidated income statement for the year ended 31 December 2011"", 2011 column set; header: Notes | Results before major restructuring £m | Major restructuring £m | T"
+GSK,2012,3968,GBP,0001193125-13-098802,"Research and development | (3,968) | (4,009) | (4,457)   [EX-15.2 d470564dex152.htm, ""Consolidated income statement for the year ended 31 December 2012""; header: Notes | 2012 £m | 2011 (restated) £m | 2010 (restated) £m]"
+GSK,2013,3923,GBP,0001193125-14-077405,"Research and development | (3,923) | (3,979) | (4,020)   [EX-15.2 d682829dex152.htm, ""Consolidated income statement for the year ended 31 December 2013""; header: Notes | 2013 £m | 2012 (restated) £m | 2011 (restated) £m]"
+GSK,2014,3450,GBP,0001193125-15-070125,"Research and development | (3,450) | (3,923) | (3,979)   [EX-15.2 d856918dex152.htm, ""Consolidated income statement for the year ended 31 December 2014""; header: Notes | 2014 £m | 2013 £m | 2012 £m]"
+GSK,2015,3560,GBP,0001193125-16-510261,"Research and development | (3,560) | (3,450) | (3,923)   [EX-15.2 d32974dex152.htm, ""Consolidated income statement for the year ended 31 December 2015""; header: Notes | 2015 £m | 2014 £m | 2013 £m]"
+JNJ,2009,6986,USD,0000950123-10-019392,"Research expense | 6,986 | 7,577 | 7,680   [header: (Dollars in Millions Except Per Share Figures) 2009 | 2008 | 2007]"
+JNJ,2015,9046,USD,0000200406-16-000071,"Research and development expense | 9,046 | 8,494 | 8,183   [header: 2015 | 2014 | 2013; In-process research and development on the next line: 224 | 178 | 580]"
+NVO,2006,6316,DKK,accession 0001208646-07-000097,"Research and development  costs | 6,  7 | | 6,316 | | 5,085 | | 4,352   [header: DKK million | Note | 2006 | 2005 | 2004]"
+NVO,2010,9602,DKK,accession 0001208646-12-000035,"Research and development costs | 2, 4, 6 | | 9,628 | | 9,602 | | 7,864   [header: 2011 | 2010 | 2009, DKK million]"
+NVO,2011,9628,DKK,accession 0001208646-13-000045,"Research and development  costs | 2.2,  2.3 | | 10,897 | | 9,628 | | 9,602   [header: 2012 | 2011 | 2010, DKK million]"
+NVO,2012,10897,DKK,accession 0001208646-13-000045,"Research and development  costs | 2.2,  2.3 | | 10,897 | | 9,628 | | 9,602   [header: 2012 | 2011 | 2010, DKK million]"
+NVO,2013,11733,DKK,accession 0001208646-14-000044,"Research and development costs | 2.2, 2.3 | | 11,733 | | 10,897 | | 9,628   [header: 2013 | 2012 | 2011, DKK million]"
+NVO,2014,13762,DKK,accession 0001171843-15-000624,"Research and development costs | 2.2, 2.3, 2.4 | 13,762 | 11,733 | 10,897   [header: DKK million Note 2014 2013 2012; the document's text layer renders with broken letter spacing, e.g. ""Resea r c h an d developmen t costs""]"
+NVS,2009,7469,USD,0001047469-11-000325,"Research & Development | (9,070 | ) | (7,469 | ) | (7,217 | )   [header: Note | 2010 | 2009 | 2008; $ millions. From ""CONSOLIDATED INCOME STATEMENTS (for the years ended December 31, 2010, 2009 and 2008)"", primary document a2201576z20-f.htm]"
+NVS,2010,9070,USD,0001047469-12-000354,"Research & Development | (9,583 | ) | (9,070 | ) | (7,469 | )   [header: Note | 2011 | 2010 | 2009; $ m. From ""CONSOLIDATED INCOME STATEMENTS (for the years ended December 31, 2011, 2010 and 2009)"", primary document a2205643z20-f.htm]"
+NVS,2011,9583,USD,0001047469-12-000354,"Research & Development | (9,583 | ) | (9,070 | ) | (7,469 | )   [header: Note | 2011 | 2010 | 2009; $ m. From ""CONSOLIDATED INCOME STATEMENTS (for the years ended December 31, 2011, 2010 and 2009)"", primary document a2205643z20-f.htm]"
+NVS,2012,9332,USD,0001047469-13-000377,"Research & Development | (9,332 | ) | (9,583 | ) | (9,070 | )   [header: Note | 2012 | 2011 | 2010; $ m. From ""CONSOLIDATED INCOME STATEMENTS (For the years ended December 31, 2012, 2011 and 2010)"", primary document a2212460z20-f.htm]"
+NVS,2013,9852,USD,0001047469-14-000415,"Research & Development | (9,852 | ) | (9,332 | ) | (9,583 | )   [header: Note | 2013 | Restated 2012 (1) | Restated 2011 (1); $ m. From ""CONSOLIDATED INCOME STATEMENTS (For the years ended December 31, 2013, 2012 and 2011)"", primary document a2217883"
+NVS,2014,9086,USD,0001047469-15-000433,"Research & Development | (7,331 | ) | (7,242 | ) | (928 | ) | (1,042 | ) | (827 | ) | (787 | ) | (9,086 | ) | (9,071 | ) | (857 | ) | (781 | ) | (9,943 | ) | (9,852 | )   [header: Pharmaceuticals | Alcon | Sandoz | Corporate | Total continuing operat"
+SNY,2006,4430,EUR,0001193125-09-044756,"Research and development expenses | (4,575) | (4,537) | (4,430)   [CONSOLIDATED INCOME STATEMENTS, (EUR million), header: Year ended December 31, 2008 | Year ended December 31, 2007 | Year ended December 31, 2006]"
+SNY,2007,4537,EUR,0001193125-09-044756,"Research and development expenses | (4,575) | (4,537) | (4,430)   [CONSOLIDATED INCOME STATEMENTS, (EUR million), 2008 | 2007 | 2006 columns]"
+SNY,2008,4575,EUR,0001193125-09-044756,"Research and development expenses | (4,575) | (4,537) | (4,430)   [CONSOLIDATED INCOME STATEMENTS, (EUR million), 2008 current-year column]"
+SNY,2009,4583,EUR,0001193125-12-098598,"Research and development expenses | (4,811) | (4,547) | (4,626)   [CONSOLIDATED INCOME STATEMENTS, (EUR million), header: Year ended December 31, 2011 | Year ended December 31, 2010 (1) | Year ended December 31, 2009 (1)]"
+SNY,2010,4401,EUR,0001193125-12-098598,"Research and development expenses | (4,811) | (4,547) | (4,626)   [CONSOLIDATED INCOME STATEMENTS, (EUR million), 2010 (1) column]"
+SNY,2011,4811,EUR,0001193125-12-098598,"Research and development expenses | (4,811) | (4,547) | (4,626)   [CONSOLIDATED INCOME STATEMENTS, (EUR million), 2011 current-year column]"
+SNY,2012,4922,EUR,0001047469-13-002333,"Research and development expenses | (4,922) | (4,811) | (4,547)   [CONSOLIDATED INCOME STATEMENTS, (EUR million), header: Year ended December 31, 2012 | Year ended December 31, 2011 | Year ended December 31, 2010]"
+SNY,2013,4605,EUR,0001047469-14-001951,"Research and development expenses | (4,770) | (4,905) | (4,788)   [CONSOLIDATED INCOME STATEMENTS, (EUR million), header: 2013 | 2012(1) | 2011(1)]"
+SNY,2014,4667,EUR,0001047469-15-001974,"Research and development expenses | (4,824) | (4,770) | (4,905)   [CONSOLIDATED INCOME STATEMENTS, (EUR million), header: 2014 | 2013(1) | 2012(1)]"
+VRTX,2009,550.274,USD,0001047469-12-001298,"Research and development expenses | 707,706 | 637,416 | 550,274"
+VRTX,2010,637.416,USD,0001047469-12-001298,"Research and development expenses | 707,706 | 637,416 | 550,274"
+VRTX,2011,707.706,USD,0001047469-12-001298,"Research and development expenses | 707,706 | 637,416 | 550,274"
+VRTX,2012,765.905,USD,0000875320-15-000012,"Research and development expenses | 855,506 | 882,097 | 765,905"
+VRTX,2013,882.097,USD,0000875320-15-000012,"Research and development expenses | 855,506 | 882,097 | 765,905"
+VRTX,2014,855.506,USD,0000875320-15-000012,"Research and development expenses | 855,506 | 882,097 | 765,905"
