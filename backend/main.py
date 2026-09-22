@@ -37,6 +37,7 @@ import trial_readouts as trial_readouts_module
 import valuation as valuation_module
 import financials_view as financials_view_module
 import insights as insights_module
+import markets as markets_module
 import themes_view as themes_view_module
 import brief as brief_module
 import runway as runway_module
@@ -924,6 +925,12 @@ def screen() -> list[dict]:
 def price_grid(days: int = Query(default=90)) -> list[dict]:
     """Recent closes for all companies in one payload, for the universe grid."""
     return comps_module.price_grid(days=max(5, min(days, 1900)))
+
+
+@app.get("/markets")
+def markets(days: int = Query(default=markets_module.DEFAULT_DAYS)) -> dict:
+    """Rates, FX and benchmark closes, each cell with the day it was published."""
+    return markets_module.build(days=days)
 
 
 @app.get("/as-of")
