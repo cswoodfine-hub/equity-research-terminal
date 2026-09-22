@@ -192,10 +192,21 @@ class TrialsCompletedFetcher(BaseFetcher):
         return rows
 
     def snapshot(self, rows: list[dict]) -> None:
+        """The live write, and it has to say so.
+
+        ``BaseFetcher._last_live_fetch_at`` finds the TTL's starting point in a
+        snapshot whose payload carries ``fetch_kind = 'live'``. The cache path below
+        has always stamped its own kind and this one never did, so there was no last
+        live fetch, ``_within_ttl`` was always false, and the registry was asked for
+        two thousand studies per sponsor on every run whatever the daily TTL said.
+        Measured on refresh run 114: seventy snapshots from this source, every one
+        with a null fetch_kind.
+        """
         conn = db.get_connection(self.db_path)
         try:
             self._write_snapshot(conn, {"source": CTGOV_SOURCE, "completed": len(rows),
-                                        "mapped": sum(1 for r in rows if r["asset_id"])})
+                                        "mapped": sum(1 for r in rows if r["asset_id"]),
+                                        "fetch_kind": "live"})
             conn.commit()
         finally:
             conn.close()

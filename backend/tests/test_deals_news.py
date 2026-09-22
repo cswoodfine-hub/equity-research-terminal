@@ -351,3 +351,47 @@ def test_a_subsidiary_names_the_subsidiary():
 def test_a_plain_name_is_not_mistaken_for_a_holder():
     deal = parse_deal("AbbVie acquires Gilgamesh Pharmaceuticals", ["AbbVie"])
     assert deal["counterparty"] == "Gilgamesh Pharmaceuticals"
+
+
+def test_a_live_snapshot_starts_the_ttl_and_a_cache_snapshot_does_not(tmp_path):
+    """The TTL is read off a snapshot claiming a live fetch. Without the claim the
+    news queries ran on every refresh whatever the TTL said."""
+    import json
+
+    path, _cid = _seed(tmp_path)
+    fetcher = DealsNewsFetcher(path)
+    assert fetcher._last_live_fetch_at() is None
+    assert fetcher._within_ttl() is False
+
+    fetcher.snapshot([{"quote": "a deal"}, {"quote": "another"}])
+    assert fetcher._last_live_fetch_at() is not None
+    assert fetcher._within_ttl() is True
+
+    conn = db.get_connection(path)
+    payload = json.loads(conn.execute(
+        "SELECT payload FROM snapshots WHERE source = 'deals_news'"
+        " ORDER BY id DESC LIMIT 1").fetchone()[0])
+    conn.close()
+    assert payload["fetch_kind"] == "live"
+    assert payload["deals"] == 2
+
+
+def test_a_cache_snapshot_leaves_the_ttl_unstarted(tmp_path):
+    import json
+
+    path, cid = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO deals (company_id, deal_type, quote, source_url)"
+                 " VALUES (?, 'licensing', 'a headline', 'u')", (cid,))
+    conn.commit()
+    conn.close()
+
+    fetcher = DealsNewsFetcher(path)
+    fetcher._snapshot_cache()
+    conn = db.get_connection(path)
+    payload = json.loads(conn.execute(
+        "SELECT payload FROM snapshots WHERE source = 'deals_news'").fetchone()[0])
+    conn.close()
+    assert payload["fetch_kind"] == "cache"
+    assert fetcher._last_live_fetch_at() is None
+    assert fetcher._within_ttl() is False

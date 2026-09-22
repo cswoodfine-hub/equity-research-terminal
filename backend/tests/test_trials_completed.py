@@ -91,3 +91,55 @@ def test_no_label_means_no_summary():
     assert product_profile.summarise(None) is None
     assert product_profile.summarise("") is None
     assert product_profile.summarise("INDICATIONS AND USAGE .") is None
+
+
+def test_a_live_snapshot_starts_the_ttl_and_a_cache_snapshot_does_not(tmp_path):
+    """The daily TTL is read off a snapshot claiming a live fetch. Without the claim
+    the registry was asked for two thousand studies per sponsor on every run, and
+    refresh run 114 wrote seventy of these with a null fetch_kind."""
+    path = str(tmp_path / "ttl.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name) VALUES ('LLY', 'Eli Lilly')")
+    conn.commit()
+    conn.close()
+
+    fetcher = TrialsCompletedFetcher("LLY", path)
+    assert fetcher._last_live_fetch_at() is None
+    assert fetcher._within_ttl() is False
+
+    fetcher.snapshot([{"asset_id": 1}, {"asset_id": None}])
+    assert fetcher._last_live_fetch_at() is not None
+    assert fetcher._within_ttl() is True
+
+    conn = db.get_connection(path)
+    payload = json.loads(conn.execute(
+        "SELECT payload FROM snapshots WHERE source = 'trials_completed'"
+        " ORDER BY id DESC LIMIT 1").fetchone()[0])
+    conn.close()
+    assert payload["fetch_kind"] == "live"
+    assert payload["completed"] == 2 and payload["mapped"] == 1
+
+
+def test_a_cache_snapshot_leaves_the_ttl_unstarted(tmp_path):
+    """A run that did not reach the registry keeps the change history unbroken and
+    must not be mistaken for one that did."""
+    path = str(tmp_path / "ttl2.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name) VALUES ('LLY', 'Eli Lilly')")
+    cid = conn.execute("SELECT id FROM companies").fetchone()["id"]
+    conn.execute("INSERT INTO completed_trials (nct_id, sponsor_company_id, title)"
+                 " VALUES ('NCT9001', ?, 'A study')", (cid,))
+    conn.commit()
+    conn.close()
+
+    fetcher = TrialsCompletedFetcher("LLY", path)
+    fetcher._snapshot_cache()
+    conn = db.get_connection(path)
+    payload = json.loads(conn.execute(
+        "SELECT payload FROM snapshots WHERE source = 'trials_completed'").fetchone()[0])
+    conn.close()
+    assert payload["fetch_kind"] == "cache"
+    assert fetcher._last_live_fetch_at() is None
+    assert fetcher._within_ttl() is False

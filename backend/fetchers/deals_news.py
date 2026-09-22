@@ -476,9 +476,18 @@ class DealsNewsFetcher(BaseFetcher):
         return list(merged.values())
 
     def snapshot(self, rows: list[dict]) -> None:
+        """The live write, and it has to say so.
+
+        ``BaseFetcher._last_live_fetch_at`` finds the TTL's starting point in a
+        snapshot whose payload carries ``fetch_kind = 'live'``. The cache path below
+        has always stamped its own kind and this one never did, so there was no last
+        live fetch and ``_within_ttl`` was always false: the news queries ran on every
+        refresh whatever the TTL said.
+        """
         conn = db.get_connection(self.db_path)
         try:
-            self._write_snapshot(conn, {"source": NEWS_SOURCE, "deals": len(rows)})
+            self._write_snapshot(conn, {"source": NEWS_SOURCE, "deals": len(rows),
+                                        "fetch_kind": "live"})
             conn.commit()
         finally:
             conn.close()
