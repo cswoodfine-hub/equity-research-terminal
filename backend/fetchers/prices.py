@@ -352,9 +352,20 @@ class FiveMinuteBarsFetcher(IntradayBarsFetcher):
 
 
 class HourlyBarsFetcher(IntradayBarsFetcher):
-    """Hourly bars, about two years back. Powers 1H, and 4H by resampling."""
+    """Hourly bars, two years back. Powers 1H, and 4H by resampling.
+
+    The range is "2y" and not "730d", which is the same window said in a way the
+    endpoint documents. Yahoo lists validRanges as 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y,
+    ytd and max; "730d" is not among them and what it does with one it does not
+    recognise turns out to depend on the ticker. Kyverna first traded on 2024-02-09,
+    and asking it for 730d of hourly bars returned "1h data not available for
+    startTime=1707489000 ... must be within the last 730 days", a 422 naming that first
+    trade date rather than the window asked for, while Lilly and Pfizer answered the
+    same request. Asked for 2y every ticker returns the same 3,488 bars from
+    2024-09-23.
+    """
 
     source = "prices_60m"
-    chart_range = "730d"
+    chart_range = "2y"
     chart_interval = "60m"
     bar_interval = "60m"
