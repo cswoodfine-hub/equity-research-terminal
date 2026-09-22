@@ -1439,34 +1439,49 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
             "flows": [f for f in got["flows"] if f["revenue"]][:40]}
 
 
-def _growth_investment(conn, ticker: str, parts: list, anchor, wacc, opening=None):
-    """The present value of the capital the book's net revenue growth takes.
+def growth_share(conn, ticker: str) -> dict:
+    """What a dollar of revenue added has cost the filers, and where that came from.
 
-    ``growth_investment`` measures what a dollar of revenue added has cost the filers in
-    plant above plant depreciation and in working capital. It is charged here on the
-    book's own net growth, year by year, discounted at the rate its products carry. A
-    year that adds nothing is charged nothing, and a year that shrinks is not credited.
+    A company constant measured from the filers' own history, so it does not move with
+    a forecast. Split out from the charge itself because a break-point trial rebuilds
+    the revenue path hundreds of times and must not re-read this for each one.
     """
     import growth_investment as GI
-    if not anchor or wacc is None:
-        return {"value": None, "reason": "no valuation year or discount rate on file"}
     charge = conn.execute(
         """SELECT a.source FROM assumptions a JOIN assets s ON s.id = a.asset_id
              JOIN companies c ON c.id = s.owner_company_id
             WHERE c.ticker = ? AND a.key = 'other_costs_pct' LIMIT 1""",
         (ticker.upper(),)).fetchone() if ticker else None
-    got = GI.for_company(conn, ticker, charge["source"] if charge else None)
+    return GI.for_company(conn, ticker, charge["source"] if charge else None)
+
+
+def growth_charge(parts: list, anchor, wacc, got: dict, opening=None) -> dict:
+    """The present value of the capital the book's net revenue growth takes.
+
+    Charged on the book's own net growth, year by year, discounted at the rate its
+    products carry. A year that adds nothing is charged nothing, and a year that
+    shrinks is not credited.
+
+    Pure, given ``got`` from ``growth_share``. It has to be, because the break-points
+    engine rebuilds the book on every trial and has to charge the trial's own revenue
+    path: freezing this at the base book made a trial that halves a product still pay
+    for the plant that product no longer needs.
+    """
+    if not anchor or wacc is None:
+        return {"value": None, "opening": opening,
+                "reason": "no valuation year or discount rate on file"}
     share = got.get("value")
     if not share:
         return {"value": 0.0, "share": share, "basis": got.get("basis"),
-                "reason": got.get("reason")}
+                "reason": got.get("reason"), "opening": opening}
     revenue: dict = {}
     for part in parts:
         odds = part.get("pos") if part.get("pos") is not None else 1.0
         for year, row in zip(part.get("dcf_years") or [], part.get("pnl_share") or []):
             revenue[year] = revenue.get(year, 0.0) + (row.get("revenue") or 0.0) * odds
     if not revenue:
-        return {"value": 0.0, "share": share, "basis": got.get("basis")}
+        return {"value": 0.0, "share": share, "basis": got.get("basis"),
+                "opening": opening}
     # The first forecast year's growth is measured against what the company already
     # sells, so the step from the reported year into the book is charged like any other.
     base_year, pv, previous = int(anchor[:4]), 0.0, opening
@@ -1475,8 +1490,18 @@ def _growth_investment(conn, ticker: str, parts: list, anchor, wacc, opening=Non
             pv += (share * (revenue[year] - previous)
                    / (1.0 + wacc) ** ((year - base_year) - 0.5))
         previous = revenue[year]
+    # The opening rides back out so a caller rebuilding this book charges its growth
+    # from the same starting point rather than from the first modelled year.
     return {"value": pv, "share": share, "basis": got.get("basis"),
-            "peak_revenue": max(revenue.values())}
+            "peak_revenue": max(revenue.values()), "opening": opening}
+
+
+def _growth_investment(conn, ticker: str, parts: list, anchor, wacc, opening=None):
+    """Read the share, then charge it. The two steps kept together for one caller."""
+    if not anchor or wacc is None:
+        return {"value": None, "opening": opening,
+                "reason": "no valuation year or discount rate on file"}
+    return growth_charge(parts, anchor, wacc, growth_share(conn, ticker), opening)
 
 
 def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: list,

@@ -199,3 +199,97 @@ def test_years_and_levels_read_in_their_own_units_and_the_sentence_names_the_pea
             "Mounjaro to $279,226mm at peak against $72,000mm") in body[0]
     assert "every revenue ceiling reaches 8.28 times the modelled peak or" not in body[0]
     assert "every revenue ceiling reaches 8.28 times the modelled peak, any one" in body[0]
+
+
+def test_a_trial_that_changes_nothing_reproduces_the_verdict_exactly(tmp_path):
+    """The identity of the whole engine. Every break-point is a search over this
+    function, so if it does not agree with company_verdict where nothing has moved,
+    every lever it reports is offset by whatever the disagreement is.
+
+    It did not agree. company_verdict subtracts the growth-capital charge from
+    enterprise value and price_gap rebuilt equity from part rNPVs alone, which never
+    carried it, so a revalued book came back high by the charge: on the real database
+    that was 57.65 a share on Lilly, 28.24 on Regeneron and 23.92 on Vertex.
+    """
+    import forecast_view as V
+
+    path = _company(tmp_path, close=100.0)
+    book = B.Book(path, "AMGN")
+    assert book.ok
+    identity = book.equity_with(lambda part, inputs: None, lambda part, scalars: None)
+    assert identity == pytest.approx(
+        V.company_verdict(path, "AMGN")["sotp"]["equity_per_share"], abs=1e-9)
+
+
+def test_the_rebuilt_book_pays_the_growth_charge(tmp_path, monkeypatch):
+    """The defect itself. price_gap took no growth charge, so the book it rebuilt was
+    flat in it: a filer charging nothing per dollar of revenue added and one charging
+    thirty cents came out at the same equity per share, and every lever searched over
+    that function was offset by the difference. On the real database the offset was
+    57.65 a share on Lilly, 28.24 on Regeneron and 23.92 on Vertex.
+
+    The fixture company is too small to measure a pooled charge or a launch rate from,
+    so the launch value and the charge are both handed in.
+    """
+    import forecast_view as V
+
+    path = _company(tmp_path, close=100.0)
+    book = B.Book(path, "AMGN")
+    assert book.ok
+    monkeypatch.setattr(V, "_future_pipeline",
+                        lambda *a, **k: {"value": 0.0, "wacc": 0.08})
+    book.growth_opening = 3000.0
+    parts = [{"dcf_years": [2026, 2027],
+              "pnl_share": [{"revenue": 3300.0}, {"revenue": 3600.0}]}]
+
+    book.growth_share = {"value": 0.0, "basis": "nothing charged"}
+    free = book.price_gap(10_000.0, parts)
+    book.growth_share = {"value": 0.30, "basis": "thirty cents a dollar added"}
+    charged = book.price_gap(10_000.0, parts)
+
+    assert charged < free                       # before the fix these were equal
+    # And by the charge itself, carried to the price date and put on a per-share basis.
+    expected = V.growth_charge(parts, book.anchor, 0.08, book.growth_share,
+                               opening=book.growth_opening)["value"]
+    assert free - charged == pytest.approx(
+        expected * book.carry * 1e6 / book.shares, rel=1e-9)
+
+
+def test_the_charge_follows_the_revenue_path_it_is_given(tmp_path):
+    """Capital the book's growth needs, so a book that grows nothing needs none, and
+    the first step out of the reported year is charged like any other."""
+    import forecast_view as V
+
+    share = {"value": 0.5, "basis": "half a dollar per dollar added"}
+    years = [2026, 2027]
+    rising = [{"dcf_years": years, "pnl_share": [{"revenue": 1100.0},
+                                                 {"revenue": 1200.0}]}]
+    flat = [{"dcf_years": years, "pnl_share": [{"revenue": 1000.0},
+                                               {"revenue": 1000.0}]}]
+    # Undiscounted the charge is half of 100 added in each year, from an opening of
+    # 1,000. Discounting at zero makes the arithmetic readable.
+    assert V.growth_charge(rising, "2025-12-31", 0.0, share,
+                           opening=1000.0)["value"] == pytest.approx(100.0)
+    assert V.growth_charge(flat, "2025-12-31", 0.0, share,
+                           opening=1000.0)["value"] == pytest.approx(0.0)
+    # A year that shrinks is not credited back.
+    falling = [{"dcf_years": years, "pnl_share": [{"revenue": 900.0},
+                                                  {"revenue": 800.0}]}]
+    assert V.growth_charge(falling, "2025-12-31", 0.0, share,
+                           opening=1000.0)["value"] == pytest.approx(0.0)
+
+
+def test_the_opening_rides_out_so_a_rebuild_starts_where_the_book_did(tmp_path):
+    """Charged from the first modelled year instead, the step out of the reported year
+    goes uncharged and the book gets its first year of growth free. 500 of it here."""
+    import forecast_view as V
+
+    share = {"value": 0.5, "basis": "half a dollar per dollar added"}
+    parts = [{"dcf_years": [2026], "pnl_share": [{"revenue": 2000.0}]}]
+    from_reported = V.growth_charge(parts, "2025-12-31", 0.0, share, opening=1000.0)
+    from_nothing = V.growth_charge(parts, "2025-12-31", 0.0, share, opening=None)
+    assert from_reported["value"] == pytest.approx(500.0)
+    assert from_nothing["value"] == pytest.approx(0.0)
+    # And it rides back out, on every path, so a caller never has to guess it.
+    assert from_reported["opening"] == 1000.0
+    assert V.growth_charge(parts, None, 0.0, share, opening=1000.0)["opening"] == 1000.0

@@ -230,8 +230,14 @@ class Book:
                                   for l in self.counted}
             self.line_entries = {e["line"]: e for e in company_lines.load(conn, company_id)}
             self.line_rows = company_lines.rows(conn, company_id)
+            # What a dollar of revenue added costs this filer in plant and working
+            # capital, and the revenue the book starts from. Both are constants of the
+            # company rather than of a trial, so they are read once here and not on
+            # each of the several hundred trials a break-point search runs.
+            self.growth_share = V.growth_share(conn, self.ticker)
         finally:
             conn.close()
+        self.growth_opening = (sotp.get("growth_investment") or {}).get("opening")
         self.base_future = sotp["future"].get("value") or 0.0
         self.book = ev - self.base_future
 
@@ -239,10 +245,26 @@ class Book:
         return mm * 1e6 / self.shares
 
     def price_gap(self, new_book: float, new_parts: list, rate=None) -> float:
-        """Equity per share less the close, for a book and parts."""
+        """Equity per share less the close, for a book and parts.
+
+        The growth charge is subtracted here because ``company_verdict`` subtracts it
+        from enterprise value and ``new_book`` is rebuilt from part rNPVs alone, which
+        never carried it. Left out, every revalued book came back high by the charge:
+        Lilly by 57.65 a share, Regeneron by 28.24, Vertex by 23.92, which on Lilly
+        turned a point of discount rate either way into a band reading minus 5 and
+        plus 138 rather than about minus 63 and plus 80.
+
+        It is recomputed on the trial's own revenue path rather than held at the base
+        book's. The charge is capital the book's growth needs, so a trial that halves
+        a product must not keep paying for the plant that product no longer sells.
+        """
         future = V._future_pipeline(self.db_path, new_parts, self.anchor, self.ticker,
-                                    rate_override=rate).get("value") or 0.0
-        equity_ps = ((new_book + future) * self.carry + self.net_cash
+                                    rate_override=rate)
+        f_value = future.get("value") or 0.0
+        g_value = V.growth_charge(new_parts, self.anchor, future.get("wacc"),
+                                  self.growth_share,
+                                  opening=self.growth_opening).get("value") or 0.0
+        equity_ps = ((new_book + f_value - g_value) * self.carry + self.net_cash
                      + self.other_claims) * 1e6 / self.shares
         return equity_ps - self.close
 
