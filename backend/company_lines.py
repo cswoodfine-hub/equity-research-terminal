@@ -57,11 +57,16 @@ def load(conn, company_id: int, scenario: str = "base") -> list[dict]:
     for row in rows(conn, company_id, "base") + (
             rows(conn, company_id, scenario) if scenario != "base" else []):
         merged[(row["line"], row["key"])] = row
+    import assumptions as assumptions_module
     lines: dict = {}
     for (line, key), row in merged.items():
         entry = lines.setdefault(line, {"line": line, "scalars": {}, "unsourced": []})
         entry["scalars"][key] = (row["value"] if row["value"] is not None
                                  else row["text_value"])
+        if key in assumptions_module.DATED_KEYS:
+            when = assumptions_module.dated(row["source"])
+            if when:
+                entry["scalars"][f"{key}_as_of"] = when
         if not (row["source"] or "").strip():
             entry["unsourced"].append(key)
     # Always marketed. The key is accepted in a seed for symmetry with an asset file
@@ -71,7 +76,6 @@ def load(conn, company_id: int, scenario: str = "base") -> list[dict]:
     # asset: all 58 line rows carry the same CAPM legs, and a line discounting at the
     # rate somebody typed while the product beside it discounts at the market's would
     # put two rates inside one sum of the parts.
-    import assumptions as assumptions_module
     for entry in lines.values():
         entry["scalars"]["therapy_mode"] = "marketed"
         entry["scalars"].setdefault("pos", 1.0)

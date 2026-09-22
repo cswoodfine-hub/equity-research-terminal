@@ -58,8 +58,12 @@ def test_the_seeded_rate_stands_where_nothing_has_been_fetched(tmp_path):
     assert scalars["risk_free"] == pytest.approx(0.0466)
     assert scalars["cost_of_debt"] == pytest.approx(0.0540)
     assert "risk_free_as_of" not in scalars
-    # And the basis says nothing about a vintage it does not have.
-    assert forecast.wacc(scalars)[1] == "CAPM from components"
+    assert "cost_of_debt_as_of" not in scalars
+    # The basis names no fetched series, because none was read. The premium still
+    # dates itself, since its own source says when it was struck.
+    basis = forecast.wacc(scalars)[1]
+    assert "DGS10" not in basis and "BAMLC0A3CAEY" not in basis
+    assert basis == "CAPM from components, premium 2026-09-01"
 
 
 def test_the_fetched_rate_replaces_the_seeded_one_and_dates_itself(tmp_path):
@@ -157,3 +161,81 @@ def test_the_newest_observation_wins_and_the_date_follows_it(tmp_path):
     conn.close()
     assert scalars["risk_free"] == pytest.approx(0.0501)
     assert scalars["risk_free_as_of"] == "2026-09-18"
+
+
+def test_a_legs_vintage_is_read_out_of_its_own_source(tmp_path):
+    """Read from the source text rather than a column, because the seed CSVs have no
+    date column and a value rebuilt from seed must carry the same vintage as one
+    restated in place. One string to edit, so the date and the citation cannot drift."""
+    assert assumptions.dated("Damodaran implied US equity risk premium, 2026-09-01: "
+                             "4.14%") == "2026-09-01"
+    assert assumptions.dated("Damodaran US ERP estimate") is None
+    assert assumptions.dated(None) is None
+    assert assumptions.dated("") is None
+
+
+def test_the_three_legs_carry_three_different_dates(tmp_path):
+    """The whole point of naming vintages. Two legs are the market's on the day they
+    were fetched and one is a published estimate refreshed monthly, so a reader
+    comparing two discount rates has to be able to see which is which."""
+    path = _db(tmp_path, "vintage.db")
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'AMGN', 'Amgen')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Repatha', 1)")
+    assumptions.save(conn, 1, [
+        {"key": k, "value": v, "text_value": None, "source": s}
+        for k, v, s in (
+            ("risk_free", 0.0466, "FRED DGS10, 2026-08-01"),
+            ("erp", 0.0414, "Damodaran implied US equity risk premium, 2026-09-01"),
+            ("beta", 0.69, "computed weekly against the S&P"),
+            ("cost_of_debt", 0.0540, "FRED BAMLC0A3CAEY, 2026-08-01"),
+            ("debt_weight", 0.05, "filed"), ("tax_rate", 0.16, "filed"))])
+    conn.commit()
+    conn.close()
+    _rates(path, ("DGS10", "2026-09-18", 0.0501),
+                 ("BAMLC0A3CAEY", "2026-09-18", 0.0559))
+
+    conn = db.get_connection(path)
+    scalars = assumptions.load(conn, 1)["scalars"]
+    conn.close()
+    # The two fetched legs take the fetched date; the premium keeps its own.
+    assert scalars["risk_free_as_of"] == "2026-09-18"
+    assert scalars["cost_of_debt_as_of"] == "2026-09-18"
+    assert scalars["erp_as_of"] == "2026-09-01"
+    basis = forecast.wacc(scalars)[1]
+    assert "risk-free DGS10 2026-09-18" in basis
+    assert "premium 2026-09-01" in basis
+
+
+def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
+    """440 rows held 0.05 sourced "Damodaran US ERP estimate". His estimate is not 0.05
+    and matches none of his five published variants, so the row named an author and
+    did not carry his number."""
+    import csv
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[2] / "data"
+    seen = 0
+    for folder in ("assumptions", "company_lines"):
+        for path in sorted((root / folder).glob("*.csv")):
+            with open(path, encoding="utf-8", newline="") as handle:
+                lines = [l for l in handle.read().splitlines()
+                         if l.strip() and not l.startswith("#")]
+            if not lines:
+                continue
+            header = next(csv.reader([lines[0]]))
+            if "key" not in header:
+                continue
+            ik, iv, isrc = (header.index("key"), header.index("value"),
+                            header.index("source"))
+            for line in lines[1:]:
+                row = next(csv.reader([line]))
+                if len(row) <= ik or row[ik] != "erp":
+                    continue
+                seen += 1
+                assert row[iv] == "0.0414", f"{path.name} still holds {row[iv]}"
+                assert assumptions.dated(row[isrc]) == "2026-09-01", path.name
+                # The variant is named, so the choice among his five is visible.
+                assert "trailing twelve month" in row[isrc], path.name
+    assert seen == 440

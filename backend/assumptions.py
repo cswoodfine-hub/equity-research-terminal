@@ -14,6 +14,7 @@ import datetime as dt
 import csv
 import json
 import pathlib
+import re
 
 import db
 import evidence
@@ -230,6 +231,24 @@ def rows(conn, asset_id: int, scenario: str = "base") -> list[dict]:
         (asset_id, scenario))]
 
 
+# The legs whose vintage a reader needs, because they are no longer the same age: two
+# are the market's on the day they were fetched and one is a monthly published estimate.
+DATED_KEYS = ("risk_free", "cost_of_debt", "erp")
+_ISO = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+
+
+def dated(source: str | None) -> str | None:
+    """The day a source says it was struck, from the first ISO date it carries.
+
+    Read out of the source text rather than a column, because the seed CSVs have no
+    date column and a value rebuilt from seed must carry the same vintage as one
+    restated in place. It also means the date and the citation cannot drift apart:
+    there is one string to edit.
+    """
+    found = _ISO.search(source or "")
+    return found.group(1) if found else None
+
+
 # Which stored CAPM leg each fetched series stands in for. The premium is absent on
 # purpose: it is a published estimate refreshed monthly, not a rate anyone quotes, so
 # it stays a stored row and is never overridden from a market series.
@@ -307,6 +326,15 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
     # whole book averages. The factor is normalised on the company's own mix, so the
     # blended ratio in the anchor year is unchanged and only its split moves
     # (modality_costs).
+    # The vintage each dated leg was struck on, from its own row. live_rates replaces
+    # the two it fetches and their dates with it; whatever it does not reach keeps the
+    # date the analyst wrote down.
+    for (indication_id, _region, key, year), row in merged.items():
+        if indication_id is None and year is None and key in DATED_KEYS:
+            when = dated(row["source"])
+            if when:
+                scalars[f"{key}_as_of"] = when
+
     scalars = live_rates(conn, scalars)
 
     import modality_costs
