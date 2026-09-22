@@ -44,9 +44,27 @@ class FxEcbFetcher(BaseFetcher):
 
     def snapshot(self, rows: list[dict]) -> None:
         payload = ({"as_of": rows[0]["as_of"], "currencies": len(rows[0]["usd_rates"]),
+                    "crosses": self._crosses(rows[0]["usd_rates"]),
                     "fetch_kind": "live"} if rows
                    else {"fetch_kind": "live", "as_of": None})
         self._write_snapshot(payload)
+
+    def _crosses(self, usd_rates: dict) -> dict:
+        """The rates the universe actually reports in, by value.
+
+        The payload used to carry only the date and a count of currencies, so a diff
+        could see that the file had moved to a new day and nothing about whether any
+        rate the book uses had changed with it.
+        """
+        conn = db.get_connection(self.db_path)
+        try:
+            wanted = [r[0] for r in conn.execute(
+                "SELECT DISTINCT reporting_currency FROM companies"
+                " WHERE reporting_currency IS NOT NULL"
+                "   AND reporting_currency <> 'USD' ORDER BY reporting_currency")]
+        finally:
+            conn.close()
+        return {cur: usd_rates[cur] for cur in wanted if cur in usd_rates}
 
     def _snapshot_cache(self) -> None:
         latest = fx.latest_usd_rates(self.db_path)

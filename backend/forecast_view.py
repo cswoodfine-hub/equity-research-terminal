@@ -415,12 +415,45 @@ def _to_price_units(conn, company_id: int, ordinary: float):
     currency = (company["reporting_currency"] or "USD") if company else "USD"
     if currency == "USD":
         return shares
-    rate = conn.execute(
-        """SELECT rate FROM fx_rates WHERE base = ? AND quote = 'USD'
-            ORDER BY as_of DESC LIMIT 1""", (currency,)).fetchone()
-    if not (rate and rate["rate"]):
+    # Through fx, not raw SQL. This was the one place in the app that read fx_rates
+    # directly, so the module that owns every other rate did not own the largest
+    # per-unit sensitivity in the valuation: a 2% stronger krone is 2% more dollars of
+    # Novo per share against an unchanged dollar price. It also reported no date, so a
+    # per-share figure could not say which day's rate made it.
+    import fx as fx_module
+    rates = fx_module.latest_usd_rates(None if conn is None else _db_of(conn))
+    rate = rates.get(currency)
+    if not rate:
         return None            # an rNPV in kroner divided by shares is not a dollar figure
-    return shares / rate["rate"]
+    return shares / rate
+
+
+def _db_of(conn):
+    """The file a connection is open on, so a module read can join a caller's database.
+
+    fx takes a path rather than a connection, and every caller here holds a connection
+    to a database a test may have put somewhere temporary.
+    """
+    row = conn.execute("PRAGMA database_list").fetchone()
+    return (row["file"] or None) if row is not None else None
+
+
+def price_unit_rate(conn, company_id: int) -> dict:
+    """{currency, rate, as_of} for the translation a per-share figure used.
+
+    Split out so the figure can say which day's rate made it. A dollar filer needs no
+    rate and says so rather than reporting one it did not use.
+    """
+    company = conn.execute(
+        "SELECT reporting_currency FROM companies WHERE id = ?",
+        (company_id,)).fetchone()
+    currency = (company["reporting_currency"] or "USD") if company else "USD"
+    if currency == "USD":
+        return {"currency": "USD", "rate": None, "as_of": None}
+    import fx as fx_module
+    rates = fx_module.latest_usd_rates(_db_of(conn))
+    return {"currency": currency, "rate": rates.get(currency),
+            "as_of": rates.get("as_of")}
 
 
 def _diluted_shares(conn, company_id: int):
@@ -1632,6 +1665,9 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
         # The sum without the future pipeline, so the run-off value stays readable.
         "enterprise_book_only": ev - f_value,
         "enterprise": ev, "enterprise_per_share": per_share(ev),
+        # The translation the per-share figures used, so a reader of a Novo figure in
+        # dollars can see the krone rate and its day rather than infer them.
+        "fx": price_unit_rate(conn, company_id),
         "valuation_anchor": anchor, "price_date": close_date,
         "years_to_price": years_to_price, "carry": carry,
         "carry_per_share": per_share(carry),

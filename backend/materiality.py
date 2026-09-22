@@ -89,6 +89,8 @@ def change_reason(change_type: str, old_value=None, new_value=None) -> Optional[
         return "credit spread moved"
     if change_type == "inflation_move":
         return "breakeven inflation moved"
+    if change_type == "fx_move":
+        return "reporting currency moved"
     # A press release carries its kind in its type, e.g. press_data_readout. The rule
     # that flagged it is the company saying so, and the kind is what it said.
     if change_type.startswith("press_"):

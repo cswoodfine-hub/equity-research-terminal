@@ -312,6 +312,41 @@ def universe(db_path=None) -> list[dict]:
     return out
 
 
+# How far either way the reporting cross is taken. Larger than the 2% bar that flags a
+# move, because a lens is a range the value could reasonably be in rather than a
+# threshold: the four crosses the universe reports in each travelled about 3% across the
+# stored set in two months.
+TRANSLATION_SHIFT = 0.05
+
+
+def translation_range(book) -> dict | None:
+    """The reporting cross 5% either way, for a filer that does not report in dollars.
+
+    None for a dollar filer, which has no translation to vary, and that is most of the
+    universe: this lens reaches Novo, Sanofi and GSK.
+
+    Exact rather than measured, and it is the only lens here that can be. The rate is
+    folded into the divisor as ``shares / rate``, so equity per share is value times
+    rate over shares, linear in the rate, and nothing else in the valuation touches it.
+    The business is unchanged in its own currency; only the dollars it is read in move.
+    """
+    fx_used = (book.sotp or {}).get("fx") or {}
+    if fx_used.get("currency") in (None, "USD") or not fx_used.get("rate"):
+        return None
+    if book.equity is None:
+        return None
+    return {"lens": f"the {fx_used['currency']} translation ±5%",
+            "key": "translation",
+            "low": book.equity * (1.0 - TRANSLATION_SHIFT),
+            "mid": book.equity,
+            "high": book.equity * (1.0 + TRANSLATION_SHIFT),
+            "basis": (f"the reference rate {TRANSLATION_SHIFT:.0%} stronger and weaker, "
+                      f"the business unchanged: {fx_used['currency']} at "
+                      f"{fx_used['rate']:.4f} USD on {fx_used['as_of']}, folded into "
+                      "the per-share divisor, so dollar value per share moves with it "
+                      "one for one")}
+
+
 def cached_universe(db_path=None) -> list[dict]:
     """The peer multiples, rebuilt at most every fifteen minutes: every company's book
     is valued to read them, and one page asks for all of them."""
@@ -471,6 +506,9 @@ def company(db_path, ticker: str, peers: list[dict] | None = None) -> dict | Non
                        "key": "sotp_guidance", "low": split["matched_low"],
                        "mid": split["matched_equity"], "high": split["matched_high"],
                        "basis": split["basis"]})
+    currency = translation_range(book)
+    if currency:
+        lenses.append(currency)
     lenses += comps(book, peers)
     for extra in (takeover(book), price_targets(book), trading_range(book)):
         if extra:

@@ -79,11 +79,28 @@ def stage(conn, company_id: int) -> str:
     return COMMERCIAL if sells else CLINICAL
 
 
-def liquidity(conn, company_id: int) -> dict:
+# The money fields, so a conversion covers all of them or none. A total converted while
+# its parts were not would be a balance sheet that does not add up.
+_MONEY_KEYS = ("cash", "short_term", "long_term", "cash_only", "raised_since",
+               "voucher_since", "available")
+
+
+def liquidity(conn, company_id: int, rates: dict | None = None) -> dict:
     """Cash plus short-term investments at the most recent balance sheet date.
 
     Both are read at the same date, so the total is a balance sheet rather than two
     dates added together.
+
+    ``rates`` converts every money field to dollars, and is how a caller ranking
+    companies against each other asks for figures it can rank. Without it the figures
+    stay in the currency the accounts were filed in, which is what a reader looking at
+    one company wants. The treemap sized by cash was ranking Novo's kroner against
+    Lilly's dollars while the same treemap sized by revenue converted properly, and a
+    krone is 0.15 of a dollar.
+
+    A currency with no stored rate converts to None rather than being passed through
+    unconverted, so an unconvertible company drops out of a ranking instead of joining
+    it at the wrong size.
     """
     cash_row = conn.execute(
         "SELECT period_end, value FROM financials"
@@ -93,7 +110,8 @@ def liquidity(conn, company_id: int) -> dict:
         return {"cash": None, "as_of": None, "includes_investments": False,
                 "short_term": None, "long_term": None, "cash_only": None,
                 "raised_since": None, "raises": [],
-                "voucher_since": None, "vouchers": [], "available": None}
+                "voucher_since": None, "vouchers": [], "available": None,
+                "currency": None, "converted": False}
     as_of = cash_row["period_end"]
     # Both maturities, because that is what a company's own runway guidance counts when
     # it says "cash, cash equivalents and marketable securities sufficient to fund
@@ -117,16 +135,34 @@ def liquidity(conn, company_id: int) -> dict:
     # from the raises because it is not one. Nobody was diluted, and a reader comparing
     # two companies' runways should see which of them had to sell equity for it.
     voucher = vouchers.since_balance_sheet(conn, company_id, as_of)
-    return {"cash": total, "as_of": as_of,
-            "includes_investments": bool(parts),
-            "short_term": parts.get("ShortTermInvestments"),
-            "long_term": parts.get("LongTermInvestments"),
-            "cash_only": cash_row["value"],
-            "raised_since": raised["total"],
-            "raises": raised["rows"],
-            "voucher_since": voucher["total"],
-            "vouchers": voucher["rows"],
-            "available": total + (raised["total"] or 0) + (voucher["total"] or 0)}
+    out = {"cash": total, "as_of": as_of,
+           "includes_investments": bool(parts),
+           "short_term": parts.get("ShortTermInvestments"),
+           "long_term": parts.get("LongTermInvestments"),
+           "cash_only": cash_row["value"],
+           "raised_since": raised["total"],
+           "raises": raised["rows"],
+           "voucher_since": voucher["total"],
+           "vouchers": voucher["rows"],
+           "available": total + (raised["total"] or 0) + (voucher["total"] or 0)}
+    return _in_dollars(conn, company_id, out, rates)
+
+
+def _in_dollars(conn, company_id: int, out: dict, rates: dict | None) -> dict:
+    """Every money field converted, or none of them, with the currency named."""
+    import fx as fx_module
+
+    row = conn.execute("SELECT reporting_currency FROM companies WHERE id = ?",
+                       (company_id,)).fetchone()
+    currency = (row["reporting_currency"] if row else None) or "USD"
+    out = {**out, "currency": currency, "converted": False}
+    if rates is None or currency == "USD":
+        return out
+    for key in _MONEY_KEYS:
+        out[key] = fx_module.to_usd(out.get(key), currency, rates)
+    out["currency"], out["converted"] = "USD", True
+    out["filed_currency"], out["fx_as_of"] = currency, rates.get("as_of")
+    return out
 
 
 def trailing_burn(conn, company_id: int) -> dict:

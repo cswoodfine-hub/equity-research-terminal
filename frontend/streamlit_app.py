@@ -1753,6 +1753,13 @@ def _sotp_bridge(s: dict) -> None:
     if future.get("long_run_basis") and future.get("long_run_growth") is not None:
         bits.append(f"long-run growth {future['long_run_growth']:.2%}, "
                     f"{_short(future['long_run_basis'], 62)}")
+    # Computed on every foreign filer's per-share figure and rendered nowhere, so a
+    # Novo figure in dollars gave no way to see the krone rate that made it. The
+    # translation is the largest per-unit sensitivity in the app: one for one.
+    _fx = s.get("fx") or {}
+    if _fx.get("rate") and _fx.get("currency"):
+        bits.append(f"translated at {_fx['currency']} {_fx['rate']:.4f} USD"
+                    + (f", {_fx['as_of']}" if _fx.get("as_of") else ""))
     if s.get("balance_sheet_as_of"):
         bits.append(f"balance sheet {s['balance_sheet_as_of']}"
                     + (f", cash {s['cash']:,.0f}mm on hand and no debt line filed"

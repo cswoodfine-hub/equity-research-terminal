@@ -101,7 +101,13 @@ def _recent_changes(conn, days):
             # A rate move belongs to the whole universe, so it carries no ticker and
             # is not fanned out to nineteen identical rows. The headline is composed
             # where the move is measured, because it has to name both dates compared.
-            ticker, headline = None, r["new_value"]
+            #
+            # A currency move is fanned out, because it is one fact about each filer
+            # that reports in that currency and nothing about the rest, so its key
+            # carries the ticker the way a company key does.
+            headline = r["new_value"]
+            ticker = (r["entity_key"].split("|")[1]
+                      if "|" in (r["entity_key"] or "") else None)
         elif r["entity_type"] == "trial":
             ticker = nct_ticker.get(r["entity_key"])
             headline = _trial_headline(ticker, r["entity_key"], r["change_type"],
@@ -129,8 +135,8 @@ def _recent_changes(conn, days):
         # A trial change has no date of its own beyond when the registry was updated,
         # so it keeps the detection time. An approval and a filing both do.
         happened = event_dates.get(date_key)
-        extra = ({"series": r["entity_key"], "field": r["field"],
-                  "anchor_value": r["old_value"]}
+        extra = ({"series": (r["entity_key"] or "").split("|")[0],
+                  "field": r["field"], "anchor_value": r["old_value"]}
                  if r["entity_type"] == "market" else {})
         items.append({
             **extra,
@@ -355,10 +361,12 @@ def build_feed(db_path=None, days=30, catalyst_days=60,
         # (it is derived from the headline), so they are filtered here; that query has
         # no LIMIT, so nothing is lost by filtering after the fact.
         want = ticker.upper()
-        # A market move carries no ticker because it belongs to all of them, so it
-        # survives the filter rather than being dropped for lacking one.
+        # A market move with no ticker belongs to every company, so it survives the
+        # filter rather than being dropped for lacking one. A currency move carries the
+        # filer it belongs to and is filtered like anything else, or Lilly's feed would
+        # carry the krone.
         items = [it for it in items
-                 if it.get("kind") == "market"
+                 if (it.get("kind") == "market" and not it.get("ticker"))
                  or (it.get("ticker") or "").upper() == want]
     items.sort(key=_rank)
     return items

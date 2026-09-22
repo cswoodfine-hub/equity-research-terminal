@@ -77,7 +77,10 @@ def build(db_path=None, engine: str | None = None, days: int = WINDOW_DAYS) -> d
             if engine in engines.ENGINES and homes.get(company["ticker"]) != engine:
                 continue
             if metric == BY_CASH:
-                size = runway.liquidity(conn, company["id"])["available"]
+                # Converted, because this is a ranking. The revenue metric beside it
+                # has always converted and this one did not, so a krone of Novo's cash
+                # ranked as a dollar of Lilly's.
+                size = runway.liquidity(conn, company["id"], rates)["available"]
             else:
                 size = productivity.latest_revenue(conn, company["id"], rates)
             if not size or size <= 0:

@@ -476,7 +476,32 @@ def _diff_market(conn, run_id) -> int:
     for signal in fired:
         market_signals.set_anchor(conn, signal["signal_key"], signal["value"],
                                   signal["as_of"], flagged=True)
-    return len(by_series)
+    return len(by_series) + _diff_fx(conn, run_id)
+
+
+def _diff_fx(conn, run_id) -> int:
+    """Reporting crosses, fanned out to the filers that report in them.
+
+    Fanned out where a rate move is not, because the consequence differs: a rate move
+    reprices every company through its own discount rate and is one fact about the
+    market, while a cross moving is one fact about each company that reports in it and
+    nothing at all about the fifteen that report in dollars.
+    """
+    import market_signals
+
+    emitted = 0
+    filers = market_signals.fx_filers(conn)
+    for fired in market_signals.evaluate_fx(conn):
+        for ticker in filers.get(fired["base"], []):
+            _write_change(conn, "market", f"{fired['base']}|{ticker}",
+                          f"rate@{fired['anchor_as_of']}",
+                          f"{fired['anchor_value']:.6f}",
+                          market_signals.fx_headline(fired, ticker),
+                          fired["change_type"], fired["significance"], run_id)
+            emitted += 1
+        market_signals.set_anchor(conn, fired["signal_key"], fired["value"],
+                                  fired["as_of"], flagged=True)
+    return emitted
 
 
 def detect_changes(db_path=None, run_id=None) -> dict:

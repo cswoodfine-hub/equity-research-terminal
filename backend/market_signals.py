@@ -59,6 +59,16 @@ SIGNALS = (
      "label": "single-A corporate yields"},
 )
 
+# The bar on a reporting cross, as a percentage of the rate rather than basis points,
+# because the question is how much more of a dollar a krone of revenue is worth.
+#
+# 2% against the measured daily moves over the stored set: median absolute 0.18% on the
+# euro and the krone, 0.21% on sterling, 0.25% on the franc. It fires once or twice per
+# cross over two months of history. It is also chosen to clear the roughly one
+# percentage point of currency effect the 2026 guidance rows state, so a cross that
+# fires has moved further than the company's own stated effect.
+FX_BAR_PCT = 2.0
+
 # How far the real rate and the breakeven may miss the nominal move before the split is
 # dropped. The three series publish on their own dates, so on any day the two parts can
 # be measured over different windows from the whole; 2bp is the most that can be
@@ -68,6 +78,96 @@ DECOMPOSE_TOLERANCE_BP = 2.0
 
 def key_of(signal: dict) -> str:
     return f"{signal['series']}:{signal['bp']}"
+
+
+def fx_key(base: str) -> str:
+    return f"FX:{base}:{FX_BAR_PCT}"
+
+
+def fx_filers(conn) -> dict:
+    """{currency: [ticker]} for the covered companies that do not report in dollars.
+
+    Read from the universe rather than listed, and the fan-out is per filer because
+    the consequence is: a cross moving is one fact about the market and a different
+    fact about each company that reports in it.
+    """
+    out: dict = {}
+    for row in conn.execute(
+            "SELECT ticker, reporting_currency FROM companies"
+            " WHERE reporting_currency IS NOT NULL AND reporting_currency <> 'USD'"
+            " ORDER BY reporting_currency, ticker"):
+        out.setdefault(row["reporting_currency"], []).append(row["ticker"])
+    return out
+
+
+def evaluate_fx(conn) -> list[dict]:
+    """Every reporting cross that has moved past the bar, against its own anchor.
+
+    Measured as a percentage of the anchor, not in points, and first sightings baseline
+    silently exactly as the rate bars do.
+    """
+    import fx as fx_module
+
+    fired = []
+    held = anchors(conn)
+    for base in fx_filers(conn):
+        points = fx_module.history(None, base, conn=conn)
+        if not points:
+            continue
+        now = points[-1]
+        signal_key = fx_key(base)
+        anchor = held.get(signal_key)
+        if anchor is None:
+            set_anchor(conn, signal_key, now["rate"], now["as_of"])
+            continue
+        if not anchor["armed"] or not anchor["anchor_value"]:
+            continue
+        move_pct = round((now["rate"] / anchor["anchor_value"] - 1.0) * 100.0, 4)
+        if abs(move_pct) < FX_BAR_PCT:
+            continue
+        fired.append({"base": base, "signal_key": signal_key,
+                      "anchor_value": anchor["anchor_value"],
+                      "anchor_as_of": anchor["anchor_as_of"],
+                      "value": now["rate"], "as_of": now["as_of"],
+                      "move_pct": move_pct, "change_type": "fx_move",
+                      "significance": "medium"})
+    return fired
+
+
+# What a currency is called in a sentence, so a note reads as English rather than as a
+# three-letter code. Only the crosses the universe reports in are named.
+CURRENCY_NAMES = {"EUR": "the euro", "CHF": "the franc", "DKK": "the krone",
+                  "GBP": "sterling", "JPY": "the yen"}
+
+
+def fx_headline(fired: dict, ticker: str | None = None) -> str:
+    direction = "stronger" if fired["move_pct"] > 0 else "weaker"
+    name = CURRENCY_NAMES.get(fired["base"], fired["base"])
+    lead = f"{ticker} " if ticker else ""
+    return (f"{lead}{name} is {abs(fired['move_pct']):.1f}% {direction} against the "
+            f"dollar since {fired['anchor_as_of']}, at {fired['value']:.4f} USD "
+            f"({fired['anchor_as_of']} to {fired['as_of']})")
+
+
+def fx_sentence(fired: dict, ticker: str) -> str:
+    """The currency paragraph for one filer.
+
+    The per-share effect is exact rather than measured, and it is the one figure in
+    this module that does not need a book rerun. ``_to_price_units`` folds the rate
+    into the divisor as ``shares / rate``, so equity per share is value times rate over
+    shares and moves one for one with the cross. Nothing else in the valuation touches
+    it: the forecast runs in the reporting currency throughout.
+    """
+    name = CURRENCY_NAMES.get(fired["base"], fired["base"])
+    direction = "stronger" if fired["move_pct"] > 0 else "weaker"
+    higher = "higher" if fired["move_pct"] > 0 else "lower"
+    return (f"{_opening(name)} is {abs(fired['move_pct']):.1f}% {direction} against "
+            f"the dollar since {fired['anchor_as_of']}, at {fired['value']:.4f} USD. "
+            f"{ticker} converts {abs(fired['move_pct']):.1f}% {higher} everywhere this "
+            f"terminal ranks companies in dollars, and its dollar value per share moves "
+            f"with it one for one. The forecast itself is unchanged: it runs in "
+            f"{fired['base']}. Dates compared: {fired['anchor_as_of']} and "
+            f"{fired['as_of']}.")
 
 
 def anchors(conn) -> dict:
@@ -282,6 +382,27 @@ def replay(conn, series: str, field: str, anchor_value) -> dict | None:
             "move_bp": round((now["value"] - anchor) * 10_000.0, 2)}
 
 
+def replay_fx(conn, base: str, field: str, anchor_value) -> dict | None:
+    """A written currency change, back in the shape ``fx_sentence`` reads."""
+    import fx as fx_module
+
+    if anchor_value is None:
+        return None
+    try:
+        anchor = float(anchor_value)
+    except (TypeError, ValueError):
+        return None
+    as_of = (field or "").split("@", 1)[1] if "@" in (field or "") else None
+    points = fx_module.history(None, base, conn=conn)
+    if not as_of or not points or not anchor:
+        return None
+    now = points[-1]
+    return {"base": base, "signal_key": fx_key(base), "anchor_value": anchor,
+            "anchor_as_of": as_of, "value": now["rate"], "as_of": now["as_of"],
+            "move_pct": round((now["rate"] / anchor - 1.0) * 100.0, 4),
+            "change_type": "fx_move", "significance": "medium"}
+
+
 def notes_from(items: list[dict], ticker: str, db_path=None,
                limit: int = 1) -> list[str]:
     """The macro paragraphs for one company, from the market changes already flagged.
@@ -304,6 +425,16 @@ def notes_from(items: list[dict], ticker: str, db_path=None,
         # trip a handful of times a year.
         scored = []
         for item in rows:
+            if item.get("change_type") == "fx_move":
+                # A currency move needs no rerun: the rate is folded into the per-share
+                # divisor, so its effect is exactly the move itself and ranks as such.
+                signal = replay_fx(conn, item["series"], item.get("field"),
+                                   item["anchor_value"])
+                if signal is None:
+                    continue
+                scored.append((abs(signal["move_pct"]) / 100.0,
+                               fx_sentence(signal, ticker)))
+                continue
             signal = replay(conn, item["series"], item.get("field"),
                             item["anchor_value"])
             if signal is None:
