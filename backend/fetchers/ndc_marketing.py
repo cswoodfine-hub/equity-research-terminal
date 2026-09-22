@@ -169,19 +169,32 @@ class NdcMarketingFetcher(BaseFetcher):
                 for brand, (started, application, labeler) in found.items()]
 
     def snapshot(self, rows: list[dict]) -> None:
+        self._write({"brands": len(rows)}, "live")
+
+    def _snapshot_cache(self) -> None:
+        """A run that did not reach openFDA. It used to write brands = 0 through the
+        live path, which reads as a register that has emptied rather than one that was
+        not asked."""
+        self._write({"brands": None}, "cache")
+
+    def _write(self, payload: dict, fetch_kind: str) -> None:
+        """Write the snapshot, saying whether openFDA was actually reached.
+
+        ``BaseFetcher._last_live_fetch_at`` reads the TTL's starting point off a
+        payload carrying ``fetch_kind = 'live'``. This fetcher wrote none, so the
+        weekly TTL never applied and nineteen companies were queried on every run.
+        """
         conn = db.get_connection(self.db_path)
         try:
             conn.execute(
                 "INSERT INTO snapshots (source, entity_type, entity_key, payload,"
                 " refresh_run_id) VALUES (?, 'company', ?, ?, ?)",
-                (self.source, self.ticker, json.dumps({"brands": len(rows)}),
+                (self.source, self.ticker,
+                 json.dumps({**payload, "fetch_kind": fetch_kind}),
                  self.refresh_run_id))
             conn.commit()
         finally:
             conn.close()
-
-    def _snapshot_cache(self) -> None:
-        self.snapshot([])
 
     def upsert(self, rows: list[dict]) -> RefreshResult:
         conn = db.get_connection(self.db_path)

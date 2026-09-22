@@ -60,12 +60,17 @@ class NegotiatedPricesCmsFetcher(BaseFetcher):
     def snapshot(self, rows: list[dict]) -> None:
         """The price in force for each drug, so a change of price is a change in the
         history rather than a silent overwrite."""
+        self._write(self._drugs(rows), "live")
+
+    @staticmethod
+    def _drugs(rows: list[dict]) -> dict:
+        """{drug: price in force}. Pure, so a live write and a cache write agree."""
         drugs = sorted({r["drug"] for r in rows})
-        self._write({d: {"ipay": next(r["ipay"] for r in rows if r["drug"] == d),
-                         "mfp_30des": (ira.current(rows, d) or {}).get("mfp_30des"),
-                         "effective_from": (ira.current(rows, d) or {}).get(
-                             "effective_from")}
-                     for d in drugs})
+        return {d: {"ipay": next(r["ipay"] for r in rows if r["drug"] == d),
+                    "mfp_30des": (ira.current(rows, d) or {}).get("mfp_30des"),
+                    "effective_from": (ira.current(rows, d) or {}).get(
+                        "effective_from")}
+                for d in drugs}
 
     def _snapshot_cache(self) -> None:
         conn = db.get_connection(self.db_path)
@@ -75,9 +80,18 @@ class NegotiatedPricesCmsFetcher(BaseFetcher):
                 "  FROM negotiated_prices")]
         finally:
             conn.close()
-        self.snapshot(rows) if rows else self._write({})
+        self._write(self._drugs(rows) if rows else {}, "cache")
 
-    def _write(self, payload: dict) -> None:
+    def _write(self, drugs: dict, fetch_kind: str) -> None:
+        """Write the snapshot, saying whether CMS was actually reached.
+
+        ``BaseFetcher._last_live_fetch_at`` reads the TTL's starting point off a
+        payload carrying ``fetch_kind = 'live'``. This fetcher wrote none, so the
+        weekly TTL never applied and a 5MB zip was pulled on every run. The cache path
+        used to re-enter ``snapshot`` and write a payload identical to a live one, so a
+        CMS outage and a successful fetch left the same mark.
+        """
+        payload = {"drugs": drugs, "fetch_kind": fetch_kind}
         conn = db.get_connection(self.db_path)
         try:
             conn.execute(

@@ -95,3 +95,43 @@ def test_the_archive_reader_takes_the_csv():
         archive.writestr("prices.csv", FIXTURE.read_text())
     from fetchers import negotiated_prices_cms as mod
     assert "ELIQUIS" in mod.csv_from_zip(buf.getvalue())
+
+
+def test_a_live_snapshot_says_so_and_a_cache_snapshot_does_not(tmp_path):
+    """The weekly TTL is read off a snapshot claiming a live fetch. Without the claim
+    CMS was asked for a 5MB zip on every run, and an outage left the same mark as a
+    successful pull."""
+    import json
+
+    path = str(tmp_path / "ira.db")
+    db.init(path)
+    fetcher = NegotiatedPricesCmsFetcher(db_path=path)
+    assert fetcher._last_live_fetch_at() is None
+    assert fetcher._within_ttl() is False
+
+    fetcher.snapshot(_rows())
+    assert fetcher._within_ttl() is True
+    conn = db.get_connection(path)
+    payload = json.loads(conn.execute(
+        "SELECT payload FROM snapshots WHERE source = 'cms_mfp'"
+        " ORDER BY id DESC LIMIT 1").fetchone()[0])
+    conn.close()
+    assert payload["fetch_kind"] == "live"
+    assert payload["drugs"]["ELIQUIS"]["mfp_30des"] == 237.25
+    assert "fetch_kind" not in payload["drugs"]
+
+
+def test_a_cache_snapshot_leaves_the_ttl_unstarted(tmp_path):
+    import json
+
+    path = str(tmp_path / "ira2.db")
+    db.init(path)
+    fetcher = NegotiatedPricesCmsFetcher(db_path=path)
+    fetcher._snapshot_cache()
+    conn = db.get_connection(path)
+    payload = json.loads(conn.execute(
+        "SELECT payload FROM snapshots WHERE source = 'cms_mfp'").fetchone()[0])
+    conn.close()
+    assert payload["fetch_kind"] == "cache"
+    assert fetcher._last_live_fetch_at() is None
+    assert fetcher._within_ttl() is False

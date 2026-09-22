@@ -154,3 +154,33 @@ def test_an_empty_register_gives_no_verdict(tmp_path):
     recent, old, n = productivity.portfolio_verdict(conn, cid, "2021-07-30")
     conn.close()
     assert (recent, old, n) == (False, False, 0)
+
+
+def test_a_live_snapshot_starts_the_ttl_and_a_cache_snapshot_does_not(tmp_path):
+    """The weekly TTL is read off a snapshot claiming a live fetch. Without the claim
+    nineteen companies were queried on every run. The cache path used to write
+    brands = 0 through the live path, which reads as a register that has emptied."""
+    import json
+
+    path = str(tmp_path / "ndc.db")
+    db.init(path)
+    fetcher = N.NdcMarketingFetcher("PFE", db_path=path)
+    assert fetcher._within_ttl() is False
+
+    fetcher.snapshot([{"brand_name": "Prevnar"}])
+    assert fetcher._within_ttl() is True
+    conn = db.get_connection(path)
+    live = json.loads(conn.execute(
+        "SELECT payload FROM snapshots WHERE source = 'ndc_marketing'"
+        " ORDER BY id DESC LIMIT 1").fetchone()[0])
+    conn.close()
+    assert live == {"brands": 1, "fetch_kind": "live"}
+
+    fetcher._snapshot_cache()
+    conn = db.get_connection(path)
+    cached = json.loads(conn.execute(
+        "SELECT payload FROM snapshots WHERE source = 'ndc_marketing'"
+        " ORDER BY id DESC LIMIT 1").fetchone()[0])
+    conn.close()
+    # Not zero: the register was never asked, so its size is unknown, not empty.
+    assert cached == {"brands": None, "fetch_kind": "cache"}
