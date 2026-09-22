@@ -119,7 +119,11 @@ def test_baseline_then_detect_then_idempotent(tmp_path):
                                             "new_approvals": 0, "restatements": 0,
                                             "label_changes": 0,
                                             "efficacy_supplements": 0,
-                                            "filing_text_changes": 0}
+                                            "filing_text_changes": 0,
+                                            # The rate anchors are baselined on the
+                                            # first pass and flag nothing, because a
+                                            # first sighting is not a move.
+                                            "market_moves": 0}
     assert _changes(db_file) == []
 
     # Change the trial and add a new filing.

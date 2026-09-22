@@ -81,6 +81,14 @@ def change_reason(change_type: str, old_value=None, new_value=None) -> Optional[
         return f"restated over {REVENUE_RESTATEMENT_PCT:.0%}"
     if change_type == "leadership_change":
         return "8-K item 5.02"
+    # Measured against the level the last flag was written from, not the last refresh,
+    # so the label says which bar was crossed rather than implying a one-day move.
+    if change_type == "rate_move":
+        return "risk-free rate moved"
+    if change_type == "credit_move":
+        return "credit spread moved"
+    if change_type == "inflation_move":
+        return "breakeven inflation moved"
     # A press release carries its kind in its type, e.g. press_data_readout. The rule
     # that flagged it is the company saying so, and the kind is what it said.
     if change_type.startswith("press_"):

@@ -430,6 +430,55 @@ def _diff_filing_text(conn, run_id) -> int:
     return emitted
 
 
+def _diff_market(conn, run_id) -> int:
+    """Rate moves measured against the level each was last flagged from.
+
+    Not against the previous snapshot. Both market fetchers snapshot on every refresh
+    whether or not the numbers moved, so consecutive snapshots are usually identical,
+    and even when they are not the daily step is far below any bar worth having: over
+    thirteen months no series here moved 25bp day on day, once. The anchor lives in
+    market_signal_state and only moves when a flag is written, which is what lets a
+    rate that walks 3bp a day be caught after nine of them.
+
+    A first sighting baselines silently rather than announcing the rate on the day the
+    terminal was installed.
+    """
+    import market_signals
+
+    fired = market_signals.evaluate(conn)
+    # One row per series, not one per bar. The ten-year carries a 10bp bar and a 25bp
+    # bar, and a 34bp day trips both, which put the same sentence in the feed twice.
+    # The row takes the widest move, because the bar that has been anchored longest
+    # says the most about how far the book has drifted from what it priced against,
+    # and the strongest significance any of the bars carried.
+    rank = {"high": 0, "medium": 1, "low": 2}
+    by_series: dict = {}
+    for signal in fired:
+        best = by_series.get(signal["series"])
+        if best is None or abs(signal["move_bp"]) > abs(best["move_bp"]):
+            signal = {**signal, "significance": min(
+                [signal["significance"]] + ([best["significance"]] if best else []),
+                key=lambda s: rank.get(s, 9))}
+            by_series[signal["series"]] = signal
+        elif rank.get(signal["significance"], 9) < rank.get(best["significance"], 9):
+            best["significance"] = signal["significance"]
+
+    for signal in by_series.values():
+        # "level@2026-08-27": the field, and the date the anchor was struck. Everything
+        # a note needs to restate the move is then on the row, since the anchor itself
+        # has moved on by the time any note is written.
+        _write_change(conn, "market", signal["series"],
+                      f"level@{signal['anchor_as_of']}",
+                      f"{signal['anchor_value']:.6f}", market_signals.headline(signal),
+                      signal["change_type"], signal["significance"], run_id)
+    # Every bar that fired re-anchors, including one whose row was folded into
+    # another's, or it would fire again unchanged on the next refresh.
+    for signal in fired:
+        market_signals.set_anchor(conn, signal["signal_key"], signal["value"],
+                                  signal["as_of"], flagged=True)
+    return len(by_series)
+
+
 def detect_changes(db_path=None, run_id=None) -> dict:
     conn = db.get_connection(db_path)
     try:
@@ -441,6 +490,7 @@ def detect_changes(db_path=None, run_id=None) -> dict:
             "label_changes": _diff_labels(conn, run_id),
             "efficacy_supplements": _diff_supplements(conn, run_id),
             "filing_text_changes": _diff_filing_text(conn, run_id),
+            "market_moves": _diff_market(conn, run_id),
         }
         conn.commit()
     finally:

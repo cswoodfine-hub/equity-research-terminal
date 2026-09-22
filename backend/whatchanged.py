@@ -97,7 +97,12 @@ def _recent_changes(conn, days):
         (f"-{int(days)} days",),
     ):
         date_key = (r["entity_type"], r["entity_key"])
-        if r["entity_type"] == "trial":
+        if r["entity_type"] == "market":
+            # A rate move belongs to the whole universe, so it carries no ticker and
+            # is not fanned out to nineteen identical rows. The headline is composed
+            # where the move is measured, because it has to name both dates compared.
+            ticker, headline = None, r["new_value"]
+        elif r["entity_type"] == "trial":
             ticker = nct_ticker.get(r["entity_key"])
             headline = _trial_headline(ticker, r["entity_key"], r["change_type"],
                                        r["old_value"], r["new_value"])
@@ -124,8 +129,13 @@ def _recent_changes(conn, days):
         # A trial change has no date of its own beyond when the registry was updated,
         # so it keeps the detection time. An approval and a filing both do.
         happened = event_dates.get(date_key)
+        extra = ({"series": r["entity_key"], "field": r["field"],
+                  "anchor_value": r["old_value"]}
+                 if r["entity_type"] == "market" else {})
         items.append({
-            "kind": "change", "significance": r["significance"],
+            **extra,
+            "kind": "market" if r["entity_type"] == "market" else "change",
+            "significance": r["significance"],
             "date": happened or r["detected_at"], "detected_at": r["detected_at"],
             "ticker": ticker, "change_type": r["change_type"], "headline": headline,
             "change_id": r["id"],  # ties a generated note back to its evidence
@@ -345,7 +355,11 @@ def build_feed(db_path=None, days=30, catalyst_days=60,
         # (it is derived from the headline), so they are filtered here; that query has
         # no LIMIT, so nothing is lost by filtering after the fact.
         want = ticker.upper()
-        items = [it for it in items if (it.get("ticker") or "").upper() == want]
+        # A market move carries no ticker because it belongs to all of them, so it
+        # survives the filter rather than being dropped for lacking one.
+        items = [it for it in items
+                 if it.get("kind") == "market"
+                 or (it.get("ticker") or "").upper() == want]
     items.sort(key=_rank)
     return items
 
@@ -359,5 +373,5 @@ def _rank(item):
     """
     date = (item.get("date") or "")[:10]
     ordinal = int(date.replace("-", "")) if date[:4].isdigit() else 0
-    backwards = item.get("kind") in ("change", "filing")
+    backwards = item.get("kind") in ("change", "filing", "market")
     return (_SIG_RANK.get(item.get("significance"), 3), -ordinal if backwards else ordinal)

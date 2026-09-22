@@ -39,9 +39,17 @@ _SIG_ORDER = ("high", "medium", "low")
 _KIND_SECTIONS = (
     ("filing", "Material events"),
     ("change", "Changes since the last refresh"),
+    ("market", "Market rates"),
     ("catalyst", "Catalysts inside 60 days"),
     ("loe", "Loss of exclusivity ahead"),
 )
+
+# Kinds the model never sees. CLAUDE.md confines the API to the note step and the
+# market work is rules only, so these are filtered out of the payload and their
+# sentences are appended verbatim afterwards. It is also what the sources require:
+# FRED's terms restrict feeding its values into an artificial-intelligence process,
+# and the ICE credit index may not be furnished to a third party at all.
+UNMODELLED_KINDS = ("market", "fx")
 
 SYSTEM_PROMPT = """You are a sell-side equity analyst covering large-cap pharma. Write \
 the morning note on one company: what a portfolio manager needs to know before the open, \
@@ -203,9 +211,30 @@ def _user_content(ticker: str, items: list[dict], context: str = "") -> str:
     parts = [f"Company: {ticker}"]
     if context:
         parts.append("Company snapshot:\n" + context)
-    parts.append("Ranked change feed:\n" + _format_items(items))
+    # Market levels are stripped here rather than at the call site, so every caller
+    # gets the confinement whether or not it remembered to ask for it.
+    seen = [it for it in items if it.get("kind") not in UNMODELLED_KINDS]
+    parts.append("Ranked change feed:\n" + _format_items(seen))
     parts.append("Write the note.")
     return "\n\n".join(parts)
+
+
+def _macro_text(items: list[dict], ticker: str, db_path=None) -> str:
+    """The rate paragraphs for this company, composed from levels and measurements.
+
+    Appended to whatever wrote the body, model or rules, rather than being written by
+    either. A sentence here states a per-share consequence, and the only honest way to
+    get one is to rebuild the book at the old rate: a model paraphrasing a headline
+    would be inventing the number.
+    """
+    if not any(it.get("kind") == "market" for it in items):
+        return ""
+    try:
+        import market_signals
+        said = market_signals.notes_from(items, ticker, db_path)
+    except Exception:
+        return ""                      # a rate paragraph never fails a note
+    return ("\n\n" + "\n\n".join(said)) if said else ""
 
 
 def _store(db_path, ticker: str, body: str, model: str, change_ids: list,
@@ -270,6 +299,7 @@ def generate_note(db_path=None, ticker: str = "LLY", days: int = 30,
         except Exception as exc:  # a dead API degrades the note, it never fails it
             error = f"{type(exc).__name__}: {exc}"
 
+    body += _macro_text(items, ticker, db_path)
     out = _store(db_path, ticker, body, model, change_ids, refresh_run_id)
     out["error"] = error
     out["item_count"] = len(items)
