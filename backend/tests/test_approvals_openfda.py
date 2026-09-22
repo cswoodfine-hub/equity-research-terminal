@@ -215,3 +215,34 @@ def test_a_product_keeps_every_application_it_holds(tmp_path):
     asset = conn.execute("SELECT id FROM assets WHERE brand_name = 'Cosentyx'").fetchone()
     assert approval_dates.first_approval(conn, asset["id"], "Cosentyx")[0] == "2015-01-21"
     conn.close()
+
+
+def test_a_combination_product_is_asked_for_one_molecule_at_a_time():
+    """openFDA stores a combination as one string joined by a semicolon, and its
+    parser answers a quoted phrase containing one with 400 BAD_REQUEST, "Search not
+    supported". The fetcher only ever expected a 404, so Axsome lost every approval to
+    a raised error on refresh run 114."""
+    from fetchers.approvals_openfda import _molecules
+
+    assert _molecules("Bupropion Hydrochloride; Dextromethorphan Hydrobromide") == [
+        "Bupropion Hydrochloride", "Dextromethorphan Hydrobromide"]
+    assert _molecules("Meloxicam; Rizatriptan Benzoate") == [
+        "Meloxicam", "Rizatriptan Benzoate"]
+
+
+def test_a_single_molecule_is_unchanged_and_still_loses_its_route_and_form():
+    from fetchers.approvals_openfda import _molecules
+
+    assert _molecules("Solriamfetol Hydrochloride") == ["Solriamfetol Hydrochloride"]
+    # The form words still come off, which is what the single-name path always did.
+    assert _molecules("Oral Extended-Release Treprostinil") == ["Treprostinil"]
+    assert _molecules("") == []
+    assert _molecules(None) == []
+
+
+def test_a_repeated_part_is_asked_for_once():
+    """A name that says the same salt twice should not spend two requests on it."""
+    from fetchers.approvals_openfda import _molecules
+
+    assert _molecules("Meloxicam; Meloxicam") == ["Meloxicam"]
+    assert _molecules("Meloxicam; meloxicam ") == ["Meloxicam"]

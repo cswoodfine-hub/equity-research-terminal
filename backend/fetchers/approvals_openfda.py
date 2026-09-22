@@ -111,6 +111,26 @@ def _molecule(generic: str) -> str:
     return text.strip()
 
 
+def _molecules(generic: str) -> list[str]:
+    """The molecules in a generic name, because a combination product holds several.
+
+    openFDA stores a combination as one string with its parts joined by a semicolon,
+    "Bupropion Hydrochloride; Dextromethorphan Hydrobromide". Asked for that inside a
+    quoted phrase its parser answers 400 BAD_REQUEST, "Search not supported", and the
+    fetcher only ever expected a 404, so Axsome lost its approvals to a raised error on
+    refresh run 114. Each part asked for on its own returns results.
+
+    Deduped and order-preserving, so a name repeating a salt asks once.
+    """
+    seen, out = set(), []
+    for part in re.split(r"[;/]", generic or ""):
+        molecule = _molecule(part)
+        if molecule and molecule.lower() not in seen:
+            seen.add(molecule.lower())
+            out.append(molecule)
+    return out
+
+
 def _distinctive_words(name: str) -> set:
     """The words in a name that could identify the company.
 
@@ -303,15 +323,25 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
 
         wanted = _distinctive_words(company["name"])
         found = []
-        for generic in generics:
-            generic = _molecule(generic)
-            # A code number is not a generic name and matches nothing here.
-            if not generic or len(generic) < 6 or re.search(r"\d", generic):
-                continue
-            for result in self._run(f'openfda.generic_name:"{generic}"'):
-                if _distinctive_words(result.get("sponsor_name") or "") & wanted:
-                    found.append(result)
-            time.sleep(_POLITE_SLEEP_S)
+        for stored in generics:
+            for generic in _molecules(stored):
+                # A code number is not a generic name and matches nothing here.
+                if len(generic) < 6 or re.search(r"\d", generic):
+                    continue
+                found += self._for_molecule(generic, wanted)
+        return found
+
+    def _for_molecule(self, generic: str, wanted: set) -> list[dict]:
+        """One molecule's approvals, kept only where the sponsor is this company.
+
+        A generic can be sold by a dozen manufacturers, so every result is checked
+        against the company's own name before it is kept.
+        """
+        found = []
+        for result in self._run(f'openfda.generic_name:"{generic}"'):
+            if _distinctive_words(result.get("sponsor_name") or "") & wanted:
+                found.append(result)
+        time.sleep(_POLITE_SLEEP_S)
         return found
 
     def fetch(self) -> dict:
