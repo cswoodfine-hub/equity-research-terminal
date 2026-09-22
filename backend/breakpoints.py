@@ -66,6 +66,18 @@ def _sign(x: float) -> int:
     return (x > 0) - (x < 0)
 
 
+def _part_key(part: dict):
+    """A part's identity, so a trial's parts can be matched to the base book's by what
+    they are rather than by where they sit. A lever that drops a product hands back a
+    shorter list, so position is not an identity."""
+    return ("asset", part["asset_id"]) if "asset_id" in part else ("line",
+                                                                   part.get("line"))
+
+
+def _part_value(part: dict) -> float:
+    return (part.get("rnpv_share") if "asset_id" in part else part.get("rnpv")) or 0.0
+
+
 def solve(f, current: float, lo: float, hi: float, integer: bool = False) -> dict:
     """The value between the bounds where ``f`` crosses nil, searched from the current
     value toward whichever bound changes its sign. Assumes the lever moves the value one
@@ -240,6 +252,13 @@ class Book:
         self.growth_opening = (sotp.get("growth_investment") or {}).get("opening")
         self.base_future = sotp["future"].get("value") or 0.0
         self.book = ev - self.base_future
+        # The stub between the valuation year end and the close, and the rate it is
+        # carried at. Held here so a trial that moves the book's discount rate can
+        # move the carry with it rather than rolling forward at the base rate.
+        self.base_ke = sotp.get("cost_of_equity")
+        self.years_to_price = sotp.get("years_to_price") or 0.0
+        self.base_rate = {_part_key(p): p.get("wacc") for p in self.parts}
+        self.base_weight = {_part_key(p): abs(_part_value(p)) for p in self.parts}
 
     def per_share(self, mm: float) -> float:
         return mm * 1e6 / self.shares
@@ -264,9 +283,52 @@ class Book:
         g_value = V.growth_charge(new_parts, self.anchor, future.get("wacc"),
                                   self.growth_share,
                                   opening=self.growth_opening).get("value") or 0.0
-        equity_ps = ((new_book + f_value - g_value) * self.carry + self.net_cash
-                     + self.other_claims) * 1e6 / self.shares
+        equity_ps = ((new_book + f_value - g_value) * self.carry_for(new_parts)
+                     + self.net_cash + self.other_claims) * 1e6 / self.shares
         return equity_ps - self.close
+
+    def rate_shift(self, new_parts: list) -> float:
+        """How far the trial moved the book's discount rate, value weighted.
+
+        Weighted on the base book's values, not the trial's, and measured as the
+        average of each part's own change rather than the change in the average. Both
+        choices exist so that composition cannot move this: a lever that drops a
+        product, or one that only moves revenue, returns exactly nil and leaves the
+        carry where it was.
+        """
+        weighted, total = 0.0, 0.0
+        for part in new_parts:
+            key = _part_key(part)
+            weight = self.base_weight.get(key)
+            base = self.base_rate.get(key)
+            if not weight or base is None or part.get("wacc") is None:
+                continue
+            weighted += weight * (part["wacc"] - base)
+            total += weight
+        return (weighted / total) if total else 0.0
+
+    def carry_for(self, new_parts: list) -> float:
+        """The roll-forward from the valuation year end to the close, at the trial's
+        own cost of equity.
+
+        The carry was frozen at the base rate, so a trial shifting every product's
+        discount rate by a point discounted the book harder and still rolled the stub
+        forward at the old rate. That is the one stretch of time the shift did not
+        reach, and it runs the wrong way: a higher required return compounds the
+        year-end value faster, so holding it fixed overstated what a rate rise costs,
+        by about 0.17% of equity per 25bp and 3.32 a share on Lilly at a full point.
+
+        A shift in the weighted average cost of capital is taken as the same shift in
+        the cost of equity. That is what the lever already assumes about every product
+        it moves, and the alternative needs a debt weight and a tax rate this stub
+        does not carry.
+        """
+        if self.base_ke is None or not self.years_to_price:
+            return self.carry
+        shift = self.rate_shift(new_parts)
+        if not shift:
+            return self.carry
+        return (1.0 + self.base_ke + shift) ** self.years_to_price
 
     @staticmethod
     def rebuilt(part: dict, result: dict, share: float, scalars: dict) -> dict:

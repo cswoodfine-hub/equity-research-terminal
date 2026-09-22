@@ -293,3 +293,56 @@ def test_the_opening_rides_out_so_a_rebuild_starts_where_the_book_did(tmp_path):
     # And it rides back out, on every path, so a caller never has to guess it.
     assert from_reported["opening"] == 1000.0
     assert V.growth_charge(parts, None, 0.0, share, opening=1000.0)["opening"] == 1000.0
+
+
+def _company_priced_later(tmp_path, close, as_of="2026-09-21"):
+    """The fixture prices on the valuation date itself, so its stub is nil and the
+    carry is exactly one. The carry only exists where the close is later."""
+    path = _company(tmp_path, close=close)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO prices (company_id, as_of, close, interval, source)"
+                 " VALUES (1, ?, ?, '1d', 't')", (as_of, close))
+    conn.commit()
+    conn.close()
+    return path
+
+
+def test_the_carry_moves_with_the_trials_own_rate(tmp_path):
+    """The carry rolls the year-end value forward to the close at the cost of equity.
+    It was frozen at the base rate, so a trial that discounted every product a point
+    harder still rolled the stub forward at the old rate. That is the one stretch of
+    time the shift did not reach, and it runs the other way: a higher required return
+    compounds the year-end value faster, so freezing it overstated what a rate rise
+    costs, by 3.32 a share on Lilly at a full point."""
+    path = _company_priced_later(tmp_path, close=100.0)
+    book = B.Book(path, "AMGN")
+    assert book.base_ke is not None and book.years_to_price > 0.5
+
+    flat = [dict(p) for p in book.parts]
+    assert book.rate_shift(flat) == pytest.approx(0.0)
+    assert book.carry_for(flat) == pytest.approx(book.carry)
+
+    harder = [{**p, "wacc": (p.get("wacc") or 0.0) + 0.01} for p in book.parts]
+    assert book.rate_shift(harder) == pytest.approx(0.01)
+    assert book.carry_for(harder) == pytest.approx(
+        (1.0 + book.base_ke + 0.01) ** book.years_to_price)
+    assert book.carry_for(harder) > book.carry
+
+
+def test_composition_alone_never_moves_the_carry(tmp_path):
+    """A lever that drops a product, or one that only moves revenue, is not a
+    statement about the cost of capital. Weighting on the base book and averaging each
+    part's own change rather than changing the average is what keeps it at nil."""
+    path = _company_priced_later(tmp_path, close=100.0)
+    book = B.Book(path, "AMGN")
+
+    dropped = [dict(p) for p in book.parts[:-1]]
+    assert book.rate_shift(dropped) == pytest.approx(0.0)
+    assert book.carry_for(dropped) == pytest.approx(book.carry)
+
+    richer = [{**p, "rnpv_share": (p.get("rnpv_share") or 0.0) * 3} for p in book.parts]
+    assert book.rate_shift(richer) == pytest.approx(0.0)
+    assert book.carry_for(richer) == pytest.approx(book.carry)
+
+    # A part the base book never had cannot move it either.
+    assert book.rate_shift([{"asset_id": 9999, "wacc": 0.5}]) == pytest.approx(0.0)
