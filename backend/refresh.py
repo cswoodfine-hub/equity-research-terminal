@@ -69,6 +69,7 @@ from fetchers.fx_ecb import FxEcbFetcher
 from fetchers.labels_dailymed import LabelsDailyMedFetcher
 from fetchers.ndc_marketing import NdcMarketingFetcher
 from fetchers.negotiated_prices_cms import NegotiatedPricesCmsFetcher
+from fetchers.benchmarks import BenchmarksFetcher
 from fetchers.rates_fred import RatesFredFetcher
 from fetchers.news_fda import NewsFdaFetcher
 from fetchers.paragraph_iv_fda import ParagraphIvFetcher
@@ -133,14 +134,14 @@ def _universe_fetchers(db_path):
     revenue from the SEC bulk data sets which move quarterly, the ECB daily FX
     reference set that lets the universe view convert to one display currency, and the
     EMA's authorisations, which start each product's European data protection, and the
-    market rates every discount rate is built on, and the Medicare prices CMS
-    has negotiated)."""
+    market rates every discount rate is built on, the index and sector closes a beta
+    is measured against, and the Medicare prices CMS has negotiated)."""
     return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path),
             EuMedicinesFetcher(db_path),
             ProductRevenueFetcher(db_path), FxEcbFetcher(db_path),
             NewsFdaFetcher(db_path), AdCommFetcher(db_path),
             ParagraphIvFetcher(db_path), DemandCmsFetcher(db_path),
-            RatesFredFetcher(db_path),
+            RatesFredFetcher(db_path), BenchmarksFetcher(db_path),
             NegotiatedPricesCmsFetcher(db_path)]
 
 
