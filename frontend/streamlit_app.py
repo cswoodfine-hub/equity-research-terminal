@@ -3214,6 +3214,114 @@ def _coverage_columns(count: int, max_rows: int = 2, widest: int = 12) -> int:
     return min(max(-(-count // max(max_rows, 1)), 1), widest)
 
 
+# --- the market level ------------------------------------------------------------
+# What the book is discounted against, above what moved. The four rate series and the
+# ECB crosses have been fetched since the terminal was built and read by two functions
+# between them, so the level a valuation was struck at was never on a screen.
+
+_RATE_LABELS = {"DGS10": "10-year Treasury", "DFII10": "10-year real",
+                "T10YIE": "breakeven", "BAMLC0A3CAEY": "single-A yield"}
+# The owner is named on the cell so the level is never read as ours, and named in full
+# in the note below. In full on the cell it wrapped the date onto a second line and
+# made one tile taller than the eight beside it.
+_OWNER_SHORT = {"ICE Data Indices, LLC": "ICE"}
+# A ticker is what the endpoint is keyed on. A reader wants the index.
+_BENCHMARK_NAMES = {"^GSPC": "S&P 500", "^VIX": "VIX", "XLV": "XLV health",
+                    "XBI": "XBI biotech"}
+# A month, because it is long enough for a rate to have moved and short enough that the
+# move is still the one a reader is carrying in their head.
+_MARKETS_DAYS = 30
+
+
+def _day(iso) -> str:
+    """18 Sep, from an ISO date. The year is dropped: every cell is within the month."""
+    if not iso:
+        return ""
+    try:
+        return dt.date.fromisoformat(str(iso)[:10]).strftime("%-d %b")
+    except ValueError:
+        return str(iso)[:10]
+
+
+def _markets_strip(api_base: str) -> None:
+    """The standing level, one tile per series, each dated to its own publication day.
+
+    Rates carry no colour. The app's convention is green up and red down as pure
+    direction, and on this book a rate rising is value-negative, so a green ten-year
+    would read as good news for the opposite of the reason it is here. The crosses and
+    the index keep the colour, because a stronger euro and a higher market both do lift
+    what this book is worth.
+    """
+    try:
+        built = api_get(api_base, f"/markets?days={_MARKETS_DAYS}")
+    except Exception:
+        return                                   # a strip is context, never a blocker
+    rates = [r for r in (built.get("rates") or []) if r.get("value") is not None]
+    crosses = [f for f in (built.get("fx") or []) if f.get("rate") is not None]
+    marks = [b for b in (built.get("benchmarks") or []) if b.get("close") is not None]
+    if not (rates or crosses or marks):
+        return
+
+    days = built.get("days") or _MARKETS_DAYS
+    section("Markets", f"{days}-day change", "the level the book is discounted at")
+
+    tiles = []
+    for r in rates:
+        move = (f"{T.num(r['change_bp'], 0)}bp" if r.get("change_bp") is not None
+                else "")
+        if move and (r.get("change_bp") or 0) > 0:
+            move = "+" + move
+        owner = r.get("restricted_to")
+        short = _OWNER_SHORT.get(owner, owner)
+        tiles.append((_RATE_LABELS.get(r["series"], r["series"]),
+                      T.pct(r["value"] * 100, 2), "", move, "",
+                      " · ".join(x for x in (_day(r.get("as_of")), short) if x)))
+    for f in crosses:
+        pct_move = f.get("change_pct")
+        tiles.append((f"{f['base']}/USD", T.num(f["rate"], 4), "",
+                      f"{'+' if (pct_move or 0) > 0 else ''}{T.pct(pct_move * 100, 2)}"
+                      if pct_move is not None else "",
+                      " up" if (pct_move or 0) > 0 else " down" if pct_move else "",
+                      _day(f.get("as_of"))))
+    for b in marks:
+        pct_move = b.get("change_pct")
+        tiles.append((_BENCHMARK_NAMES.get(b["symbol"], b["symbol"].lstrip("^")),
+                      T.num(b["close"], 0), "",
+                      f"{'+' if (pct_move or 0) > 0 else ''}{T.pct(pct_move * 100, 2)}"
+                      if pct_move is not None else "",
+                      " up" if (pct_move or 0) > 0 else " down" if pct_move else "",
+                      _day(b.get("as_of"))))
+    st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+
+    # Every date on the strip is the day that series last published, and they differ:
+    # the indexed Treasury lags two days, the ECB keeps TARGET days and the index the
+    # NYSE calendar. Saying so is the point of putting the date on the cell.
+    dates = {t[5].split(" · ")[0] for t in tiles if t[5]}
+    bits = ["Each cell is dated to the day its own source last published, so the dates "
+            "differ: the indexed Treasury series lags two days, the ECB publishes on "
+            "TARGET days and the index on NYSE days."
+            if len(dates) > 1 else
+            "Every series last published on the same day."]
+    refused = [r for r in (built.get("rates") or []) if r.get("no_change_reason")]
+    if refused:
+        bits.append("No change is shown for "
+                    + ", ".join(_RATE_LABELS.get(r["series"], r["series"])
+                                for r in refused)
+                    + ": " + refused[0]["no_change_reason"] + ".")
+    stale = [b for b in marks if b.get("as_of") and rates
+             and b["as_of"] < max(r["as_of"] for r in rates if r.get("as_of"))]
+    if stale:
+        bits.append("The index closes are a one-off backfill and are not on the "
+                    "refresh, so they sit behind the rates beside them.")
+    owners = sorted({r["restricted_to"] for r in rates if r.get("restricted_to")})
+    if owners:
+        bits.append("The corporate yield is " + " and ".join(owners)
+                    + ", read here to set a cost of debt and not redistributed.")
+    bits.append("A rate rising lowers what the book is worth, which is why the rate "
+                "cells carry no colour.")
+    note(" ".join(bits))
+
+
 def _leads(items, per_row: int, narrow_per_row: int) -> str:
     """A row of headline boxes, evenly divided at the page's two widths."""
     return (f'<div class="leads" '
@@ -3782,6 +3890,10 @@ with main:
         # rather than by when they happened. The feed below answers "what moved" and
         # answers it four hundred times; this answers "what would you be embarrassed not
         # to know", which is a different question and has to be asked first.
+        # Above the headlines, because it is the standing level the rest is read
+        # against rather than another thing that happened this week.
+        _markets_strip(api_base)
+
         leads = api_get(api_base, f"/headlines?engine={urllib.parse.quote(engine or '')}")
         section("Headlines this week", f"{len(leads)} across {_engine_name}" if leads
                 else _engine_name)
