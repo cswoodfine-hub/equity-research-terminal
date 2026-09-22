@@ -123,18 +123,80 @@ def selected(conn) -> list[dict]:
         " LEFT JOIN companies c ON c.id = a.owner_company_id"
         " WHERE a.brand_name IS NOT NULL"):
         assets.setdefault(_norm(row["brand_name"]), (row["asset_id"], row["ticker"]))
+    # One row per drug, brand and selection year. It used to take the first ipay it
+    # found per drug through next(...), which happens to be right today because no drug
+    # yet spans two cycles, and would silently hide the second the moment one does.
+    # CMS reselects: a 2026 drug can appear again for a later year at a new price.
     out = []
-    for drug in sorted({r["drug"] for r in rows}):
-        price = current(rows, drug)
+    for drug, ipay in sorted({(r["drug"], r["ipay"]) for r in rows}):
+        for_year = [r for r in rows if r["drug"] == drug and r["ipay"] == ipay]
+        price = current(for_year, drug)
         for brand in brands(drug):
             asset_id, ticker = assets.get(_norm(brand), (None, None))
             out.append({"drug": drug, "brand": brand, "asset_id": asset_id,
-                        "ticker": ticker,
-                        "ipay": next(r["ipay"] for r in rows if r["drug"] == drug),
+                        "ticker": ticker, "ipay": ipay,
                         "mfp_30des": (price or {}).get("mfp_30des"),
                         "effective_from": (price or {}).get("effective_from"),
+                        "effective_to": (price or {}).get("effective_to"),
                         "in_force": bool(price)})
     return out
+
+
+def company_exposure(conn, ticker: str, rates: dict | None = None) -> dict:
+    """What Medicare's gross spending on a company's selected drugs is worth to it.
+
+    Part D gross spending summed over the selected assets the company owns, against its
+    latest reported revenue in dollars. It is a share of revenue exposed to a
+    negotiated price, not a cut: the price CMS replaced was net of rebates nobody
+    publishes, so how much of that spending actually falls is not knowable from free
+    data. ``ceiling_cut`` gives the upper bound on the price and this gives the base it
+    would apply to, and the two are deliberately not multiplied.
+
+    Gross spending is Medicare's, in dollars, and revenue is the company's worldwide
+    total converted to dollars, so the share is Medicare Part D against the world. That
+    is the comparison a reader wants for a US policy, and it is stated rather than
+    implied.
+
+    ``assets_without_part_d`` is the count of selected assets carrying no Part D row.
+    They are a gap in the figure, not a zero, so the share is a floor whenever it is
+    above nil.
+    """
+    import fx as fx_module
+    import productivity
+
+    company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                           (ticker.upper(),)).fetchone()
+    if company is None:
+        return {"reason": f"unknown ticker {ticker}"}
+    mine = [s for s in selected(conn)
+            if (s["ticker"] or "").upper() == ticker.upper() and s["asset_id"]]
+    if not mine:
+        return {"reason": "no selected drug the book models belongs to this company"}
+
+    # One asset can carry several selected brands (Ozempic, Rybelsus and Wegovy are one
+    # asset), and Part D spending is per asset, so counting it once per brand would
+    # multiply the exposure by the number of trade names.
+    spending, missing, years = 0.0, 0, set()
+    for asset_id in sorted({s["asset_id"] for s in mine}):
+        got = exposure(conn, asset_id)
+        if got.get("reason"):
+            missing += 1
+            continue
+        spending += got["part_d_spending"] or 0.0
+        years.add(got["year"])
+
+    rates = fx_module.latest_usd_rates() if rates is None else rates
+    revenue = productivity.latest_revenue(conn, company["id"], rates)
+    share = (spending / revenue) if (revenue and spending) else None
+    return {"ticker": ticker.upper(), "part_d_spending": spending or None,
+            "revenue_usd": revenue, "share": share,
+            "brands": len(mine), "assets": len({s["asset_id"] for s in mine}),
+            "assets_without_part_d": missing,
+            "spending_years": sorted(years),
+            "ipay_years": sorted({s["ipay"] for s in mine}),
+            "reason": None if share is not None else
+            ("no Part D spending on file for any selected asset" if not spending
+             else "no reported revenue to read the spending against")}
 
 
 def exposure(conn, asset_id: int, year: int | None = None) -> dict:
@@ -166,3 +228,102 @@ def ceiling_cut(gross_per_claim: float | None, mfp_30des: float | None) -> float
     if not gross_per_claim or not mfp_30des:
         return None
     return max(0.0, 1.0 - mfp_30des / gross_per_claim)
+
+
+# The share of latest reported revenue that Medicare's gross Part D spending on a
+# company's selected drugs has to reach before a note says anything about it. Below
+# this the selection is a fact for the feed and not a paragraph in a morning note.
+NOTE_GATE = 0.01
+
+# CMS marks why a row was end dated. "Deselect" is a drug leaving the programme because
+# a generic or biosimilar is being sold; "Inflation" and "End Date" are the annual
+# rebasing and administrative housekeeping, which are not events. The column says which
+# directly, so nothing here reads the Remarks prose to tell them apart.
+DESELECT_KIND = "Deselect"
+
+
+def signals(conn) -> dict:
+    """{"selections": [...], "deselections": [...]} worth flagging.
+
+    Pure of side effects. The caller decides what to write and what to anchor.
+    """
+    chosen = [s for s in selected(conn) if s["ticker"]]
+    years: dict = {}
+    for row in chosen:
+        years.setdefault((row["ticker"], row["ipay"]), []).append(row)
+    selections = [{"ticker": t, "ipay": y, "brands": sorted(r["brand"] for r in rows),
+                   "assets": sorted({r["asset_id"] for r in rows if r["asset_id"]}),
+                   "key": f"IRA:{t}:{y}"}
+                  for (t, y), rows in sorted(years.items())]
+
+    by_brand = {}
+    for row in chosen:
+        by_brand.setdefault(row["drug"], row)
+    dropped = []
+    for drug, count in conn.execute(
+            "SELECT drug, COUNT(*) FROM negotiated_prices WHERE update_kind = ?"
+            " GROUP BY drug", (DESELECT_KIND,)):
+        row = by_brand.get(drug)
+        dropped.append({"drug": drug, "ndcs": count,
+                        "ticker": (row or {}).get("ticker"),
+                        "key": f"IRA:DESELECT:{drug}"})
+    return {"selections": selections, "deselections": sorted(
+        dropped, key=lambda d: d["drug"])}
+
+
+def sentence(conn, ticker: str, ipay: int, rates: dict | None = None) -> str | None:
+    """The paragraph for one company's selection year, or None below the gate.
+
+    Every figure is read rather than asserted, and the one thing it refuses to do is
+    multiply the ceiling cut by the exposure. The ceiling is the most a list price
+    could fall and the exposure is gross spending at list, so their product would be a
+    loss estimate built from two numbers that are both gross of rebates nobody
+    publishes.
+    """
+    got = company_exposure(conn, ticker, rates)
+    if got.get("share") is None or got["share"] < NOTE_GATE:
+        return None
+    names = [s["brand"] for s in selected(conn)
+             if (s["ticker"] or "").upper() == ticker.upper() and s["ipay"] == ipay]
+    count = len(set(names))
+    noun = "drug" if count == 1 else "drugs"
+    gap = ""
+    if got["assets_without_part_d"]:
+        gap = (f" {got['assets_without_part_d']} of them carry no Part D row, so the "
+               "share is a floor.")
+    return (f"CMS lists {count} {ticker.upper()} {noun} for IPAY {ipay}: "
+            f"{', '.join(sorted(set(names)))}. Medicare's gross Part D spending on this "
+            f"company's selected drugs was ${got['part_d_spending'] / 1e9:,.1f}bn, "
+            f"{got['share']:.1%} of its latest reported revenue.{gap} That is gross "
+            "spending at list against net revenue, not revenue at risk: the rebates a "
+            "maximum fair price replaces are confidential, so the realised cut is "
+            "smaller by an amount free data cannot show.")
+
+
+def company_view(conn, ticker: str, rates: dict | None = None) -> dict:
+    """One company's Medicare selection, for a strip: what, when, at what price.
+
+    The ceiling cut and the exposure are both carried and neither is multiplied by the
+    other. Each is an upper bound built from a gross figure, and their product would
+    read as a loss estimate that free data cannot support.
+    """
+    mine = [s for s in selected(conn)
+            if (s["ticker"] or "").upper() == ticker.upper()]
+    if not mine:
+        return {"ticker": ticker.upper(), "selected": [], "reason":
+                "no drug CMS has selected belongs to this company"}
+    got = company_exposure(conn, ticker, rates)
+    drugs = []
+    for row in sorted(mine, key=lambda r: (r["ipay"], r["brand"])):
+        bound = None
+        if row["asset_id"]:
+            spend = exposure(conn, row["asset_id"])
+            bound = ceiling_cut(spend.get("gross_per_claim"), row["mfp_30des"])
+        drugs.append({**row, "ceiling_cut": bound})
+    priced = [d["mfp_30des"] for d in drugs if d["mfp_30des"]]
+    return {"ticker": ticker.upper(), "selected": drugs,
+            "count": len({d["brand"] for d in drugs}),
+            "earliest_ipay": min(d["ipay"] for d in drugs),
+            "mfp_30des_low": min(priced) if priced else None,
+            "mfp_30des_high": max(priced) if priced else None,
+            "exposure": got, "reason": None}

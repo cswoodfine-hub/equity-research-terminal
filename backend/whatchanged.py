@@ -108,6 +108,11 @@ def _recent_changes(conn, days):
             headline = r["new_value"]
             ticker = (r["entity_key"].split("|")[1]
                       if "|" in (r["entity_key"] or "") else None)
+        elif r["entity_type"] == "policy":
+            # CMS names the brand, so this binds to one company and the key carries it
+            # first, the way a company key does. The headline already opens with it.
+            ticker = (r["entity_key"] or "").split("|")[0]
+            headline = r["new_value"]
         elif r["entity_type"] == "trial":
             ticker = nct_ticker.get(r["entity_key"])
             headline = _trial_headline(ticker, r["entity_key"], r["change_type"],
@@ -137,10 +142,13 @@ def _recent_changes(conn, days):
         happened = event_dates.get(date_key)
         extra = ({"series": (r["entity_key"] or "").split("|")[0],
                   "field": r["field"], "anchor_value": r["old_value"]}
-                 if r["entity_type"] == "market" else {})
+                 if r["entity_type"] == "market"
+                 else {"entity_key": r["entity_key"]}
+                 if r["entity_type"] == "policy" else {})
         items.append({
             **extra,
-            "kind": "market" if r["entity_type"] == "market" else "change",
+            "kind": {"market": "market", "policy": "policy"}.get(
+                r["entity_type"], "change"),
             "significance": r["significance"],
             "date": happened or r["detected_at"], "detected_at": r["detected_at"],
             "ticker": ticker, "change_type": r["change_type"], "headline": headline,

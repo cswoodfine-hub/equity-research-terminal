@@ -37,6 +37,7 @@ import trial_readouts as trial_readouts_module
 import valuation as valuation_module
 import financials_view as financials_view_module
 import insights as insights_module
+import ira
 import markets as markets_module
 import themes_view as themes_view_module
 import brief as brief_module
@@ -925,6 +926,16 @@ def screen() -> list[dict]:
 def price_grid(days: int = Query(default=90)) -> list[dict]:
     """Recent closes for all companies in one payload, for the universe grid."""
     return comps_module.price_grid(days=max(5, min(days, 1900)))
+
+
+@app.get("/companies/{ticker}/ira")
+def company_ira(ticker: str) -> dict:
+    """Medicare price negotiation for one company: what CMS selected, when, at what."""
+    conn = db.get_connection()
+    try:
+        return ira.company_view(conn, ticker)
+    finally:
+        conn.close()
 
 
 @app.get("/companies/{ticker}/relative")

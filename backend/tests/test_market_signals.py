@@ -221,7 +221,13 @@ def test_no_market_level_ever_reaches_the_model():
     payload = insights._user_content("AMGN", items)
     assert "Treasury" not in payload and "EUR" not in payload
     assert "phase 3 read out" in payload
-    assert set(insights.UNMODELLED_KINDS) == {"market", "fx"}
+    # Policy joined them: the CMS sentence carries measured spending and a share of
+    # revenue, composed by rules, and a model paraphrasing those would be restating
+    # numbers it did not compute.
+    assert set(insights.UNMODELLED_KINDS) == {"market", "fx", "policy"}
+    policy = [{"kind": "policy", "significance": "high", "date": "2026-09-22",
+               "headline": "AMGN CMS selects 1 drug, IPAY 2027: OTEZLA"}]
+    assert "OTEZLA" not in insights._user_content("AMGN", policy)
 
 
 def test_the_thresholds_are_the_measured_ones():

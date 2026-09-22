@@ -123,7 +123,11 @@ def test_baseline_then_detect_then_idempotent(tmp_path):
                                             # The rate anchors are baselined on the
                                             # first pass and flag nothing, because a
                                             # first sighting is not a move.
-                                            "market_moves": 0}
+                                            "market_moves": 0,
+                                            # The IRA lane baselines on the first pass
+                                            # too: a fresh install must not announce
+                                            # three years of past selections as news.
+                                            "ira_moves": 0}
     assert _changes(db_file) == []
 
     # Change the trial and add a new filing.

@@ -2092,6 +2092,9 @@ def _book(api_base: str, ticker: str, selected):
             _revenue_split(sotp)
 
     _fair_value_range(api_base, ticker)
+    # Under the range and above what breaks it: a selection is a fact about the book
+    # rather than a lever on it, and nothing here multiplies into a value.
+    _ira_strip(api_base, ticker)
     _what_breaks_it(api_base, ticker)
 
     left, right = st.columns([1, 1.5], gap="medium")
@@ -3296,6 +3299,53 @@ def _vs_sector(api_base: str, ticker: str, span: str) -> str:
     tone = " risk" if move < 0 else ""
     return (f'<span class="rel{tone}">{"+" if move > 0 else ""}'
             f'{T.num(move, 1)}% vs XLV</span>')
+
+
+def _ira_strip(api_base: str, ticker: str) -> None:
+    """Medicare price negotiation for this company, where CMS has selected anything.
+
+    The ceiling cut and the exposure sit beside each other and are never multiplied.
+    Both are built from gross figures, so their product would read as a loss estimate
+    that free data cannot support, and the note under the strip says so.
+    """
+    try:
+        got = api_get(api_base, f"/companies/{ticker}/ira")
+    except Exception:
+        return
+    drugs = got.get("selected") or []
+    if not drugs:
+        return
+    exposure = got.get("exposure") or {}
+    cuts = [d["ceiling_cut"] for d in drugs if d.get("ceiling_cut") is not None]
+    section("Medicare price negotiation", f"{got['count']} selected",
+            "CMS names the brand, so this binds to the asset")
+    tiles = [
+        ("drugs selected", str(got["count"]), "", None, "",
+         ", ".join(sorted({d["brand"] for d in drugs}))[:60]),
+        ("earliest price year", str(got["earliest_ipay"]), "", None, "",
+         "initial price applicability year"),
+        ("MFP per 30-day supply",
+         T.num(got["mfp_30des_low"], 2) if got.get("mfp_30des_low") else None, "",
+         None, "",
+         (f"to {T.num(got['mfp_30des_high'], 2)}"
+          if got.get("mfp_30des_high") != got.get("mfp_30des_low") else "one price")),
+        ("Part D gross spending",
+         T.num((exposure.get("part_d_spending") or 0) / 1e9, 1)
+         if exposure.get("part_d_spending") else None, "bn", None, "",
+         f"{exposure['share']:.1%} of revenue" if exposure.get("share") else
+         (exposure.get("reason") or "")),
+        ("ceiling cut", T.pct(max(cuts) * 100, 0) if cuts else None, "", None, "",
+         "the most a list price could fall" if cuts else "no price on file"),
+    ]
+    st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+    note("Gross Part D spending is what Medicare and its beneficiaries paid at list, "
+         "not what the company booked, so the share of revenue is a scale of the "
+         "franchise CMS has selected rather than revenue at risk. The ceiling cut is "
+         "the most a list price could fall and is not the realised cut: the rebates a "
+         "maximum fair price replaces are confidential, so the true fall is smaller by "
+         "an amount free data cannot show. The two are shown side by side and never "
+         "multiplied, because their product would be a loss estimate built from two "
+         "gross figures.")
 
 
 def _markets_strip(api_base: str) -> None:

@@ -504,6 +504,67 @@ def _diff_fx(conn, run_id) -> int:
     return emitted
 
 
+def _diff_ira(conn, run_id) -> int:
+    """Medicare price negotiation, where a policy fact reaches a named asset exactly.
+
+    CMS publishes the brand, so this is the one policy lane that binds to a company
+    without a guess. Two events, and only two.
+
+    A company appearing for an initial price applicability year it has not been flagged
+    for writes a selection row. A first pass anchors every pair it finds and flags
+    none, or installing the terminal would announce three years of past selections as
+    news.
+
+    A drug CMS has deselected writes a review row and nothing else. It never feeds
+    loe.py: the curated deselection file owns that date, and a date there moves an
+    erosion clock and so moves modelled revenue, which is a change that goes through a
+    person. The file's own update_kind column separates a deselection from the annual
+    inflation rebasing directly, so no prose is parsed to tell them apart.
+    """
+    import ira
+    import market_signals
+
+    held = market_signals.anchors(conn)
+    # Whether this lane has ever run, not whether the table is empty. The state table
+    # is shared with the rate signals, so testing the table meant that once a rate had
+    # anchored, the first IRA pass announced three years of past selections as news.
+    first_run = not any(key.startswith("IRA:") for key in held)
+    emitted = 0
+    got = ira.signals(conn)
+
+    for pick in got["selections"]:
+        if pick["key"] in held:
+            continue
+        market_signals.set_anchor(conn, pick["key"], float(pick["ipay"]),
+                                  str(pick["ipay"]), flagged=not first_run)
+        if first_run:
+            continue
+        _write_change(
+            conn, "policy", f"{pick['ticker']}|{pick['ipay']}", "ira_selection", None,
+            f"{pick['ticker']} CMS selects {len(pick['brands'])} drug(s) for Medicare "
+            f"price negotiation, IPAY {pick['ipay']}: {', '.join(pick['brands'])}",
+            "ira_selected", "high", run_id)
+        emitted += 1
+
+    for drop in got["deselections"]:
+        anchor = held.get(drop["key"])
+        if anchor is not None and anchor["anchor_value"] == float(drop["ndcs"]):
+            continue
+        market_signals.set_anchor(conn, drop["key"], float(drop["ndcs"]),
+                                  str(drop["ndcs"]), flagged=not first_run)
+        if first_run:
+            continue
+        _write_change(
+            conn, "policy", f"{drop['ticker'] or 'unlinked'}|{drop['drug']}",
+            "ira_deselection", None,
+            f"{drop['ticker'] or 'unlinked'} CMS has deselected {drop['drug']} from "
+            f"Medicare price negotiation ({drop['ndcs']} NDCs). Review: a deselection "
+            "date belongs in the curated file before it moves an LOE",
+            "ira_deselected", "high", run_id)
+        emitted += 1
+    return emitted
+
+
 def detect_changes(db_path=None, run_id=None) -> dict:
     conn = db.get_connection(db_path)
     try:
@@ -516,6 +577,7 @@ def detect_changes(db_path=None, run_id=None) -> dict:
             "efficacy_supplements": _diff_supplements(conn, run_id),
             "filing_text_changes": _diff_filing_text(conn, run_id),
             "market_moves": _diff_market(conn, run_id),
+            "ira_moves": _diff_ira(conn, run_id),
         }
         conn.commit()
     finally:

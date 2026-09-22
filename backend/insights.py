@@ -40,6 +40,7 @@ _KIND_SECTIONS = (
     ("filing", "Material events"),
     ("change", "Changes since the last refresh"),
     ("market", "Market rates"),
+    ("policy", "Policy"),
     ("catalyst", "Catalysts inside 60 days"),
     ("loe", "Loss of exclusivity ahead"),
 )
@@ -49,7 +50,7 @@ _KIND_SECTIONS = (
 # sentences are appended verbatim afterwards. It is also what the sources require:
 # FRED's terms restrict feeding its values into an artificial-intelligence process,
 # and the ICE credit index may not be furnished to a third party at all.
-UNMODELLED_KINDS = ("market", "fx")
+UNMODELLED_KINDS = ("market", "fx", "policy")
 
 SYSTEM_PROMPT = """You are a sell-side equity analyst covering large-cap pharma. Write \
 the morning note on one company: what a portfolio manager needs to know before the open, \
@@ -227,14 +228,43 @@ def _macro_text(items: list[dict], ticker: str, db_path=None) -> str:
     get one is to rebuild the book at the old rate: a model paraphrasing a headline
     would be inventing the number.
     """
-    if not any(it.get("kind") == "market" for it in items):
-        return ""
-    try:
-        import market_signals
-        said = market_signals.notes_from(items, ticker, db_path)
-    except Exception:
-        return ""                      # a rate paragraph never fails a note
+    said = []
+    if any(it.get("kind") == "market" for it in items):
+        try:
+            import market_signals
+            said += market_signals.notes_from(items, ticker, db_path)
+        except Exception:
+            pass                       # a rate paragraph never fails a note
+    said += _policy_text(items, ticker, db_path)
     return ("\n\n" + "\n\n".join(said)) if said else ""
+
+
+def _policy_text(items: list[dict], ticker: str, db_path=None) -> list[str]:
+    """The Medicare selection paragraph, where the company is exposed enough to say so.
+
+    Gated on measured exposure rather than written for every selection: a drug CMS
+    names is a fact for the feed whatever its size, and a paragraph in a morning note
+    only where Medicare's gross Part D spending on the company's selected drugs reaches
+    a share of its revenue worth a reader's attention.
+    """
+    years = sorted({int((it.get("entity_key") or "|0").split("|")[-1])
+                    for it in items
+                    if it.get("kind") == "policy"
+                    and it.get("change_type") == "ira_selected"
+                    and (it.get("entity_key") or "").split("|")[-1].isdigit()})
+    if not years:
+        return []
+    try:
+        import db as db_module
+        import ira
+        conn = db_module.get_connection(db_path)
+        try:
+            said = [ira.sentence(conn, ticker, year) for year in years]
+        finally:
+            conn.close()
+    except Exception:
+        return []
+    return [s for s in said if s]
 
 
 def _store(db_path, ticker: str, body: str, model: str, change_ids: list,
