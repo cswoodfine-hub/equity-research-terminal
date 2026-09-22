@@ -2953,8 +2953,12 @@ def _render_forecast_tab(api_base: str, ticker: str):
         peak = max(revenue) if revenue else None
         peak_year = years[revenue.index(peak)] if peak is not None else None
         clause = _short
+        # Wider than the 40 the other captions take, so the date survives the cut.
+        # The whole point of the discount rate naming a vintage is that a reader sees
+        # how old it is without opening anything, and "CAPM from components on rates
+        # to 2026-09-18" is 43 characters.
         wacc_note = ("slider" if "wacc" in moved and varied
-                     else clause(result.get("wacc_basis")))
+                     else clause(result.get("wacc_basis"), 48))
         pos_note = ("slider" if "pos" in moved and varied
                     else clause(result.get("pos_basis")))
         tiles = [("per share", T.num(per_share, 2) if per_share is not None else None,

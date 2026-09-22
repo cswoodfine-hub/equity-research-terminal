@@ -64,6 +64,8 @@ def test_the_seeded_rate_stands_where_nothing_has_been_fetched(tmp_path):
     basis = forecast.wacc(scalars)[1]
     assert "DGS10" not in basis and "BAMLC0A3CAEY" not in basis
     assert basis == "CAPM from components, premium 2026-09-01"
+    # No fetched leg, so no "on rates to" clause to mislead anyone.
+    assert "on rates to" not in basis
 
 
 def test_the_fetched_rate_replaces_the_seeded_one_and_dates_itself(tmp_path):
@@ -206,6 +208,8 @@ def test_the_three_legs_carry_three_different_dates(tmp_path):
     basis = forecast.wacc(scalars)[1]
     assert "risk-free DGS10 2026-09-18" in basis
     assert "premium 2026-09-01" in basis
+    # The freshest fetched date leads, because the UI shows the first clause only.
+    assert basis.split(",")[0] == "CAPM from components on rates to 2026-09-18"
 
 
 def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():

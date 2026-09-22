@@ -350,12 +350,16 @@ def wacc(scalars: dict):
 
 
 def _vintages(scalars: dict) -> str:
-    """", risk-free DGS10 2026-09-18, premium 2026-09-01" for the legs that say so.
+    """" on rates to 2026-09-18, risk-free DGS10 2026-09-18, premium 2026-09-01".
 
-    Empty where no leg carries a date, which is every database with no rates fetched,
-    so the basis string and the evidence grade read off it are unchanged there.
+    The freshest fetched date rides in the first clause, because the UI shows a basis
+    by its first clause and a reader looking at a discount rate wants to know how old
+    it is before anything else. The per-leg detail follows for whoever opens it.
+
+    Empty where no leg carries a date, which is every database with no rates fetched
+    and no dated premium, so the string is unchanged there.
     """
-    said = []
+    said, fetched = [], []
     for key, label in (("risk_free", "risk-free"), ("cost_of_debt", "cost of debt"),
                        ("erp", "premium")):
         when = scalars.get(f"{key}_as_of")
@@ -363,7 +367,12 @@ def _vintages(scalars: dict) -> str:
             continue
         series = scalars.get(f"{key}_series")
         said.append(f"{label} {series} {when}" if series else f"{label} {when}")
-    return (", " + ", ".join(said)) if said else ""
+        if series:
+            fetched.append(when)
+    if not said:
+        return ""
+    head = f" on rates to {max(fetched)}" if fetched else ""
+    return head + ", " + ", ".join(said)
 
 
 def launch_path(peak: float, years_to_peak: int, horizon: int, ramp) -> list[float]:
