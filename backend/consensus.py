@@ -131,6 +131,12 @@ def street_view(db_path, ticker: str):
             "reporting_currency": company["reporting_currency"]}
 
 
+# The currency basis a company guided on, transcribed by hand from its own release.
+# SQLite cannot add a CHECK with ALTER TABLE, so the enumeration is enforced here: a
+# typo in the seed stops the load rather than becoming a fourth silent value.
+FX_BASES = {"cer", "reported", "reported_with_stated_rate_date"}
+
+
 def load_seeds(conn, directory=None) -> dict:
     """data/consensus/*.csv into the table, insert-only, like the assumption seeds.
 
@@ -152,11 +158,16 @@ def load_seeds(conn, directory=None) -> dict:
             if not company or not (row.get("metric") or "").strip():
                 skipped += 1
                 continue
+            basis = (row.get("fx_basis") or "").strip() or None
+            if basis is not None and basis not in FX_BASES:
+                raise ValueError(
+                    f"{path.name}: {ticker} fx_basis {basis!r} is not one of "
+                    f"{sorted(FX_BASES)}")
             cursor = conn.execute(
                 """INSERT OR IGNORE INTO consensus_estimates
                        (company_id, metric, period, value, low, high, currency,
-                        source, as_of, note)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        source, as_of, note, fx_basis)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (company["id"], row["metric"].strip(), (row.get("period") or "").strip(),
                  float(row["value"]) if (row.get("value") or "").strip() else None,
                  float(row["low"]) if (row.get("low") or "").strip() else None,
@@ -164,7 +175,8 @@ def load_seeds(conn, directory=None) -> dict:
                  (row.get("currency") or "").strip() or None,
                  (row.get("source") or "manual").strip(),
                  (row.get("as_of") or "").strip(),
-                 (row.get("note") or "").strip() or None))
+                 (row.get("note") or "").strip() or None,
+                 basis))
             written += cursor.rowcount
     conn.commit()
     return {"written": written, "skipped": skipped}

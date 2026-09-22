@@ -1,0 +1,37 @@
+-- What currency basis a company guided on, because the lens applies the number either way.
+--
+-- fair_value.guidance takes a growth guide and applies it to the prior year's reported
+-- revenue. That is right for a company guiding on a reported basis and wrong for one
+-- guiding at constant exchange rates: Sanofi guiding "around 10% at CER" is not guiding
+-- 10% reported, and the difference is whatever the euro did. The code knew this and did
+-- nothing with it. It grepped the note for "constant" or " cer" and used the answer only
+-- to append "at constant exchange rates" to a caption, while the arithmetic above it
+-- treated both the same. A caption confirming the basis under a number computed on the
+-- wrong one is worse than no caption.
+--
+-- Three values and a null, which are the four cases the twelve seeded releases actually
+-- contain:
+--
+--   cer                             "at CER", "growth vs. prior year in cc". AZN, NVO,
+--                                   NVS, SNY. A growth rate on this basis cannot be
+--                                   applied to reported revenue, so the lens is
+--                                   suppressed rather than captioned.
+--   reported                        the release says so in terms. AMGN "reported USD",
+--                                   GILD "Reported USD".
+--   reported_with_stated_rate_date  reported, and the release names the rates assumed.
+--                                   MRK "at mid-July 2026 exchange rates", BIIB
+--                                   "assuming foreign exchange rates as of July 24,
+--                                   2026 hold for the rest of the year".
+--   null                            the release states no basis, or guides no revenue
+--                                   at all. ABBV, REGN and UTHR guide no revenue; INCY
+--                                   names no currency basis.
+--
+-- Filled by hand in data/consensus/guidance_2026.csv, beside the verbatim sentence
+-- already stored there, and never extracted. The filers state this in varied prose and
+-- routing that through the model path into a field a fair value lens reads is precisely
+-- where a fabricated value would enter. Twelve rows is transcription.
+--
+-- No CHECK constraint: SQLite cannot add one with ALTER TABLE. The enumeration is
+-- enforced in the loader and pinned by a test.
+
+ALTER TABLE consensus_estimates ADD COLUMN fx_basis TEXT;

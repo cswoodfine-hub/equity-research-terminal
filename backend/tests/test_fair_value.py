@@ -9,7 +9,7 @@ import db
 import fair_value as F
 
 
-def _company(tmp_path, close=300.0, guidance=None):
+def _company(tmp_path, close=300.0, guidance=None, fx_basis="reported"):
     tmp_path.mkdir(parents=True, exist_ok=True)
     path = str(tmp_path / "fv.db")
     db.init(path)
@@ -37,9 +37,12 @@ def _company(tmp_path, close=300.0, guidance=None):
     conn.execute("INSERT INTO prices (company_id, as_of, close, interval, source) VALUES (1, '2025-06-30', 250, '1d', 't')")
     conn.execute("INSERT INTO prices (company_id, as_of, close, interval, source) VALUES (1, '2025-12-31', ?, '1d', 't')", (close,))
     for metric, period, value, low, high in (guidance or []):
-        conn.execute("INSERT INTO consensus_estimates (company_id, metric, period, value, low, high, currency, source, as_of, note)"
-                     " VALUES (1, ?, ?, ?, ?, ?, 'USD', 'guidance', '2025-12-01', 'q')",
-                     (metric, period, value, low, high))
+        # A growth guide draws a lens only where the release states a currency basis,
+        # so the default here is the one a lens can be read from.
+        conn.execute("INSERT INTO consensus_estimates (company_id, metric, period, value,"
+                     " low, high, currency, source, as_of, note, fx_basis)"
+                     " VALUES (1, ?, ?, ?, ?, ?, 'USD', 'guidance', '2025-12-01', 'q', ?)",
+                     (metric, period, value, low, high, fx_basis))
     for period, eps in (("FY2025", 20.0), ("FY2026", 24.0)):
         conn.execute("INSERT INTO consensus_estimates (company_id, metric, period, value, currency, source, as_of)"
                      " VALUES (1, 'EPS', ?, ?, 'USD', 'nasdaq', '2025-12-01')", (period, eps))
@@ -62,7 +65,25 @@ def test_growth_guidance_is_applied_to_the_prior_year_and_says_so(tmp_path):
     got = F.guidance(conn, 1, 2026, 3000e6, "USD")
     conn.close()
     assert (got["low"], got["mid"], got["high"]) == pytest.approx((3090, 3120, 3150))
-    assert got["basis"] == "growth of 3% to 5%, applied to FY2025 reported revenue"
+    assert got["basis"] == ("growth of 3% to 5% on a reported basis, applied to "
+                            "FY2025 reported revenue")
+
+
+def test_growth_guidance_on_the_wrong_basis_is_withheld(tmp_path):
+    """A rate guided at constant exchange rates cannot be applied to reported revenue,
+    and a rate with no stated basis cannot be assumed onto one."""
+    cer = _company(tmp_path / "cer", guidance=[("RevenueGrowth", "FY2026", 4.0, 3.0, 5.0)],
+                   fx_basis="cer")
+    conn = db.get_connection(cer)
+    assert "constant exchange rates" in F.guidance(conn, 1, 2026, 3000e6, "USD")["reason"]
+    conn.close()
+
+    unstated = _company(tmp_path / "none",
+                        guidance=[("RevenueGrowth", "FY2026", 4.0, 3.0, 5.0)],
+                        fx_basis=None)
+    conn = db.get_connection(unstated)
+    assert "states no currency basis" in F.guidance(conn, 1, 2026, 3000e6, "USD")["reason"]
+    conn.close()
 
 
 def test_guidance_in_another_currency_is_not_read_against_the_book(tmp_path):

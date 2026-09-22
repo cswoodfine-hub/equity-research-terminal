@@ -62,7 +62,8 @@ def guidance(conn, company_id: int, year: int, prior_revenue: float | None,
     none can be read against the book, {"reason"} says why: no guidance, guidance in
     words, guidance on product sales alone, or a currency the book is not in."""
     row = conn.execute(
-        """SELECT metric, value, low, high, currency, as_of, note FROM consensus_estimates
+        """SELECT metric, value, low, high, currency, as_of, note, fx_basis
+             FROM consensus_estimates
             WHERE company_id = ? AND source = 'guidance' AND period = ?
               AND metric IN ('Revenue', 'RevenueGrowth', 'ProductSales')
             ORDER BY as_of DESC, metric = 'Revenue' DESC LIMIT 1""",
@@ -81,18 +82,34 @@ def guidance(conn, company_id: int, year: int, prior_revenue: float | None,
     if row["metric"] == "RevenueGrowth":
         if prior_revenue is None:
             return {"reason": f"no FY{year - 1} revenue to apply growth guidance to"}
+        # A growth rate guided at constant exchange rates is not a growth rate on
+        # reported revenue, and the difference is whatever the currency did. This used
+        # to grep the note for "constant" and use the answer only to append a caption,
+        # while the arithmetic below treated both the same, so a reader saw a number on
+        # the wrong basis with a line underneath confirming the basis. The lens is
+        # withheld instead. The stated percentage is not converted to a reported one:
+        # that needs a currency mix by geography the book does not carry.
+        basis = row["fx_basis"]
+        if basis == "cer":
+            return {"reason": (f"FY{year} revenue is guided at constant exchange "
+                               "rates, which cannot be applied to reported revenue")}
+        if basis is None:
+            return {"reason": (f"FY{year} revenue guidance states no currency basis, "
+                               "so it cannot be read against reported revenue")}
         scale = prior_revenue / 1e6
-        note = (row["note"] or "").lower()
-        cer = (" at constant exchange rates" if ("constant" in note or " cer" in note)
-               else "")
         stated = f"about {mid:g}%" if low == high else f"{low:g}% to {high:g}%"
+        dated = (" at the exchange rates the release names"
+                 if basis == "reported_with_stated_rate_date" else "")
         return {"mid": scale * (1 + mid / 100), "low": scale * (1 + low / 100),
-                "high": scale * (1 + high / 100), "as_of": row["as_of"], "note": row["note"],
-                "basis": f"growth of {stated}{cer}, applied to FY{year - 1} reported revenue"}
+                "high": scale * (1 + high / 100), "as_of": row["as_of"],
+                "note": row["note"], "fx_basis": basis,
+                "basis": (f"growth of {stated} on a reported basis{dated}, applied to "
+                          f"FY{year - 1} reported revenue")}
     if (row["currency"] or unit or "").upper() != (unit or "").upper():
         return {"reason": f"FY{year} guidance is in {row['currency']}, the book in {unit}"}
     return {"mid": mid / 1e6, "low": low / 1e6, "high": high / 1e6, "as_of": row["as_of"],
-            "note": row["note"], "basis": "revenue as guided"}
+            "note": row["note"], "fx_basis": row["fx_basis"],
+            "basis": "revenue as guided"}
 
 
 def model_revenue(book: B.Book, year: int) -> dict:
