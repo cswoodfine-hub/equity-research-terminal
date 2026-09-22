@@ -1,4 +1,51 @@
-<!-- Design note. Not a build record: nothing here is implemented. -->
+<!-- Build record. All ten builds are implemented, on main from 16b818b to c478cf8. -->
+
+## What was built, and where the plan was wrong
+
+All ten builds are done. The plan below is kept as written, because the reasoning in it
+is what the work was argued from, but eight of its claims did not survive contact with
+the data and the corrections matter more than the plan does:
+
+- **The betas are not stale.** Recomputed against a now-current index, all nineteen
+  came back within 0.01 of the stored value, mean absolute difference 0.004. The
+  "windows as old as 2021-W34" the plan cites is the START of a conventional five-year
+  window. Build 6 reports the measurement and adopts nothing.
+- **AbbVie's debt weight is 0.123, not 0.433.** The most levered covered name is Pfizer
+  at 0.280. Every per-share rate figure now comes from `backend/tools/rate_sensitivity.py`,
+  which reruns the book rather than deriving from an elasticity.
+- **Biogen's guidance basis is not null.** Its own note says "Growth on a reported basis
+  ... assuming foreign exchange rates as of July 24, 2026", which is the stated-rate-date
+  case exactly.
+- **A deselection does not need the Remarks prose.** `negotiated_prices.update_kind`
+  separates Deselect from the annual Inflation rebasing directly.
+- **A full browser User-Agent does not work on the Yahoo endpoint.** Measured: the
+  repo's own string 200 on 15 of 15, no string 429 on 13 of 13, a browser string 200 on
+  only 4 of 16. The 429 is a classifier on the string, not a rate limit that decays.
+- **The BIS lane needs a title gate too**, not just the CMS one. Agency plus term alone
+  carries a Framework for Artificial Intelligence Diffusion into a pharmaceutical
+  tariff lane.
+- **China in-licensing cannot be identified as in-licensing.** A headline does not
+  state direction reliably: Alnylam's agreement for commercialisation in China is
+  Alnylam licensing out. Build 10 counts China-linked business development and refuses
+  to claim the direction.
+- **`ira.exposure` needed a company-level gate that did not exist**, and its output must
+  never be called revenue at risk. It is Medicare gross spending at list against net
+  revenue, which reads 47.7% on Bristol Myers.
+
+Two defects on the revaluation path were found and fixed along the way, neither of them
+in the plan: `breakpoints.Book.price_gap` never charged the rebuilt book for growth
+capital, and the stub carry was frozen at the base cost of equity. Together they turned
+Lilly's discount band from minus 5 and plus 138 a share into minus 59 and plus 75.
+
+One assumption was restated and it is the largest single change in the sequence. The
+equity risk premium moved from an undated 0.05 to the published 4.14% of 1 September
+2026, which raised equity per share by a median 6.44% and moved the book's median gap
+to the close from about -7% to +6.1%. That is one assumption changing, not new evidence
+about any company.
+
+---
+
+
 
 # Markets context: how to go about it
 
