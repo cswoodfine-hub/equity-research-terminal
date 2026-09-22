@@ -86,3 +86,86 @@ def test_a_cache_snapshot_does_not_start_the_ttl(tmp_path):
     assert payload["fetch_kind"] == "cache"
     assert fetcher._last_live_fetch_at() is None
     assert fetcher._within_ttl() is False
+
+
+def _seed(path):
+    db.init(path)
+    conn = db.get_connection(path)
+    for series, as_of, value in (
+            ("DGS10", "2026-09-15", 0.0497), ("DGS10", "2026-09-16", 0.0501),
+            ("DGS10", "2026-09-18", 0.0499),
+            # The indexed series lags by two days, so its newest date is not DGS10's.
+            ("DFII10", "2026-09-16", 0.0268),
+            ("T10YIE", "2026-09-18", 0.0233)):
+        conn.execute("INSERT INTO market_rates (series, as_of, value, source)"
+                     " VALUES (?, ?, ?, 'fred')", (series, as_of, value))
+    conn.commit()
+    conn.close()
+    rates_fred.clear_cache()
+
+
+def test_each_series_is_read_on_its_own_date_not_a_neighbours(tmp_path):
+    """A holiday or the two-day lag on the indexed series drops one series and not the
+    others. Carrying a neighbour's date across would date a rate to a day it was never
+    published on."""
+    path = str(tmp_path / "on.db")
+    _seed(path)
+    got = rates_fred.rates_on(path, "2026-09-17")
+    assert got["DGS10"]["as_of"] == "2026-09-16"
+    assert got["DGS10"]["value"] == pytest.approx(0.0501)
+    assert got["DFII10"]["as_of"] == "2026-09-16"
+    # Published on the 18th, so on the 17th it did not exist yet.
+    assert "T10YIE" not in got
+    assert rates_fred.rates_on(path, "2026-09-17", "DGS10")["value"] == pytest.approx(0.0501)
+
+
+def test_a_date_the_record_does_not_reach_gets_nothing_not_todays_rate(tmp_path):
+    path = str(tmp_path / "on2.db")
+    _seed(path)
+    assert rates_fred.rates_on(path, "2019-01-01") == {}
+    assert rates_fred.rates_on(path, "") == {}
+
+
+def test_history_is_oldest_first_and_leaves_the_gaps_where_they_are(tmp_path):
+    path = str(tmp_path / "h.db")
+    _seed(path)
+    got = rates_fred.history(path, "DGS10")
+    assert [r["as_of"] for r in got] == ["2026-09-15", "2026-09-16", "2026-09-18"]
+    assert [r["as_of"] for r in rates_fred.history(path, "DGS10", "2026-09-16")] == [
+        "2026-09-16", "2026-09-18"]
+    assert rates_fred.history(path, "NOPE") == []
+
+
+def test_the_cache_does_not_outlive_a_write_it_did_not_make(tmp_path):
+    """The reason the key is a stamp over the table and not the day: a refresh landing
+    mid-session must not leave the page quoting one date while a valuation uses
+    another."""
+    path = str(tmp_path / "c.db")
+    _seed(path)
+    assert rates_fred.latest(path, "DGS10")["as_of"] == "2026-09-18"
+
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO market_rates (series, as_of, value, source)"
+                 " VALUES ('DGS10', '2026-09-21', 0.0505, 'fred')")
+    conn.commit()
+    conn.close()
+    assert rates_fred.latest(path, "DGS10")["as_of"] == "2026-09-21"
+
+    # A revision in place keeps its rowid, so the stamp has to see the value itself.
+    conn = db.get_connection(path)
+    conn.execute("UPDATE market_rates SET value = 0.0512"
+                 " WHERE series = 'DGS10' AND as_of = '2026-09-21'")
+    conn.commit()
+    conn.close()
+    assert rates_fred.latest(path, "DGS10")["value"] == pytest.approx(0.0512)
+
+
+def test_a_lent_connection_is_used_and_left_open(tmp_path):
+    path = str(tmp_path / "lend.db")
+    _seed(path)
+    conn = db.get_connection(path)
+    assert rates_fred.latest(path, "DGS10", conn=conn)["as_of"] == "2026-09-18"
+    assert rates_fred.rates_on(path, "2026-09-16", "DGS10", conn=conn)["value"] == pytest.approx(0.0501)
+    assert len(rates_fred.history(path, "DGS10", conn=conn)) == 3
+    conn.execute("SELECT 1")            # still open, so the caller still owns it
+    conn.close()

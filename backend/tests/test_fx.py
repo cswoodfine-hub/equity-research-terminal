@@ -127,3 +127,23 @@ def test_fetcher_normalise_parses_the_payload():
     rows = f.normalise([{"xml": _ECB_XML}])
     assert rows[0]["as_of"] == "2026-07-24"
     assert rows[0]["usd_rates"]["USD"] == pytest.approx(1.0)
+
+
+def test_history_is_oldest_first_and_stops_where_the_record_starts(tmp_path):
+    """The ECB set starts on a real date. Asking for more shows where the line begins
+    rather than making a short series look flat."""
+    path = str(tmp_path / "fxh.db")
+    db.init(path)
+    fx.store(path, "2026-09-18", {"EUR": 1.1720, "USD": 1.0})
+    fx.store(path, "2026-09-21", {"EUR": 1.1490, "USD": 1.0})
+    got = fx.history(path, "EUR")
+    assert [r["as_of"] for r in got] == ["2026-09-18", "2026-09-21"]
+    assert got[-1]["rate"] == pytest.approx(1.1490)
+    assert [r["as_of"] for r in fx.history(path, "EUR", "2026-09-21")] == ["2026-09-21"]
+    assert fx.history(path, "EUR", "2019-01-01") == got
+    assert fx.history(path, "ZZZ") == []
+
+    conn = db.get_connection(path)
+    assert len(fx.history(path, "EUR", conn=conn)) == 2
+    conn.execute("SELECT 1")            # lent, so not closed under the caller
+    conn.close()

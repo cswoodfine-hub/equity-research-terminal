@@ -124,3 +124,27 @@ def to_usd(value, currency, rates: dict) -> float | None:
         return None
     rate = rates.get(currency)
     return value * rate if rate is not None else None
+
+
+def history(db_path, base: str, since: str | None = None, conn=None) -> list[dict]:
+    """[{as_of, rate}] of USD per one unit of ``base``, oldest first.
+
+    The reference set starts on 2026-07-24. A ``since`` before that returns what there
+    is and no more, so a caller drawing a line can see where the record begins instead
+    of reading a short series as a flat one. Weekends and TARGET holidays are absent
+    rather than carried, so two currencies read together must be intersected on date
+    before they are compared.
+    """
+    sql = "SELECT as_of, rate FROM fx_rates WHERE quote = 'USD' AND base = ?"
+    args: list = [base]
+    if since:
+        sql += " AND as_of >= ?"
+        args.append(since[:10])
+    own = conn is None
+    c = db.get_connection(db_path) if own else conn
+    try:
+        rows = c.execute(sql + " ORDER BY as_of", args).fetchall()
+    finally:
+        if own:
+            c.close()
+    return [{"as_of": r["as_of"], "rate": r["rate"]} for r in rows]

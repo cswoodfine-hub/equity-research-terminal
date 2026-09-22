@@ -141,19 +141,117 @@ class RatesFredFetcher(BaseFetcher):
             conn.commit()
         finally:
             conn.close()
+        clear_cache()
         return RefreshResult(SOURCE, written, notes=[f"{written} rate observations"])
 
 
-def latest(db_path=None, series: str | None = None) -> dict:
+# The newest observation of each series, per database, behind a version stamp.
+#
+# ``latest`` was reading the table through a correlated subquery on every call, and a
+# single break-points build for Lilly called it 508 times: 0.61s of a 2.8s build spent
+# re-reading one number. Caching it needs care, because build 3 puts the discount rate
+# on this path, and a cache keyed on the day would let a refresh land mid-session and
+# leave the page quoting one date while the valuation used another.
+#
+# So the key is a stamp over the table itself rather than a clock: row count, highest
+# rowid, newest date and the total of every value. An insert moves the first three and
+# a revision in place, which keeps its rowid, moves the last. Two different tables
+# agreeing on all four is not a case this data can produce. ``upsert`` also clears the
+# cache outright, which covers a refresh in this process; the stamp covers one in
+# another.
+_CACHE: dict = {}
+
+
+class _Borrowed:
+    """Use a caller's connection, or open one and close it again.
+
+    Opening a connection is 88% of the cost of a cached read: 508 reads in one
+    break-points build spend 0.34s opening SQLite and 0.05s asking it anything. A
+    caller that already holds a connection should hand it over rather than pay that.
+    """
+
+    def __init__(self, db_path, conn):
+        self._own = conn is None
+        self.conn = db.get_connection(db_path) if self._own else conn
+
+    def __enter__(self):
+        return self.conn
+
+    def __exit__(self, *exc):
+        if self._own:
+            self.conn.close()
+        return False
+
+
+def _stamp(conn) -> tuple:
+    """A cheap value that changes whenever anything in market_rates changes."""
+    return tuple(conn.execute(
+        "SELECT COUNT(*), MAX(rowid), MAX(as_of), TOTAL(value)"
+        "  FROM market_rates").fetchone())
+
+
+def clear_cache() -> None:
+    """Drop the cached reads. Called on write, and by tests that write behind us."""
+    _CACHE.clear()
+
+
+def latest(db_path=None, series: str | None = None, conn=None) -> dict:
     """{series: {value, as_of, description}} at the most recent observation of each."""
-    conn = db.get_connection(db_path)
-    try:
-        rows = conn.execute(
+    with _Borrowed(db_path, conn) as c:
+        stamp = _stamp(c)
+        hit = _CACHE.get(db_path)
+        if hit and hit[0] == stamp:
+            out = hit[1]
+        else:
+            rows = c.execute(
+                """SELECT series, value, as_of FROM market_rates m
+                    WHERE as_of = (SELECT MAX(as_of) FROM market_rates
+                                    WHERE series = m.series)""").fetchall()
+            out = {r["series"]: {"value": r["value"], "as_of": r["as_of"],
+                                 "description": SERIES.get(r["series"], "")}
+                   for r in rows}
+            _CACHE[db_path] = (stamp, out)
+    return out.get(series, {}) if series else out
+
+
+def rates_on(db_path, on_date: str, series: str | None = None, conn=None) -> dict:
+    """The rates as the market last quoted them on or before ``on_date``.
+
+    ``latest`` answers what the ten-year is now, which is the right question for a
+    valuation struck today and the wrong one for a snapshot struck in March. Each
+    series is read on its own date, because a holiday or the two-day lag on the indexed
+    series drops one and not the others, and carrying a neighbour's date forward would
+    date a number to a day it was never published on.
+
+    Returns {} where the history does not reach back. The table keeps KEEP_DAYS of
+    observations, so a date older than that has no honest answer and is told so rather
+    than quietly given today's rate.
+    """
+    if not on_date:
+        return {}
+    day = on_date[:10]
+    with _Borrowed(db_path, conn) as c:
+        rows = c.execute(
             """SELECT series, value, as_of FROM market_rates m
                 WHERE as_of = (SELECT MAX(as_of) FROM market_rates
-                                WHERE series = m.series)""").fetchall()
-    finally:
-        conn.close()
+                                WHERE series = m.series AND as_of <= ?)""",
+            (day,)).fetchall()
     out = {r["series"]: {"value": r["value"], "as_of": r["as_of"],
                          "description": SERIES.get(r["series"], "")} for r in rows}
     return out.get(series, {}) if series else out
+
+
+def history(db_path, series: str, since: str | None = None, conn=None) -> list[dict]:
+    """[{as_of, value}] for one series, oldest first, from ``since`` if given.
+
+    Days the source suppressed are absent rather than carried, so a caller reading two
+    series together must intersect the dates before it compares them.
+    """
+    sql = "SELECT as_of, value FROM market_rates WHERE series = ?"
+    args: list = [series]
+    if since:
+        sql += " AND as_of >= ?"
+        args.append(since[:10])
+    with _Borrowed(db_path, conn) as c:
+        rows = c.execute(sql + " ORDER BY as_of", args).fetchall()
+    return [{"as_of": r["as_of"], "value": r["value"]} for r in rows]
