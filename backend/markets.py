@@ -4,7 +4,7 @@ Three sources feed the discount rate and the reported top line, and until now ev
 one of them was write-mostly. ``market_rates`` holds four FRED series with one reader,
 ``forecast_view`` asking for expected inflation. ``fx_rates`` holds the ECB set with
 one reader, the universe revenue view. ``benchmark_prices`` holds ten years of the S&P
-500 written once by ``beta`` and never refreshed. This assembles the three into one
+500 and of XLV, refreshed daily by ``fetchers/benchmarks.py``. This assembles the three into one
 payload so a reader can see the level a valuation was struck against, and see which
 day each part of it was published on.
 
@@ -147,10 +147,11 @@ def crosses(db_path=None, days: int = DEFAULT_DAYS, conn=None) -> list[dict]:
 def benchmarks(db_path=None, days: int = DEFAULT_DAYS, conn=None) -> list[dict]:
     """Whatever index closes are stored, newest close and the move over the window.
 
-    ``benchmark_prices`` is filled by ``beta`` as a one-off and is not registered in
-    the refresh, so its newest close can be weeks behind the rates beside it. That is
-    why the date rides on the cell: a stale benchmark should read as stale rather than
-    as today.
+    The date rides on the cell because the calendars differ: the ECB keeps TARGET days
+    and the exchanges keep their own, so a benchmark and a rate beside it are rarely
+    dated the same day. It used to be worse. This table was filled once by ``beta`` and
+    was in no refresh, so its newest close sat weeks behind everything around it;
+    ``fetchers/benchmarks.py`` now refreshes it daily.
     """
     own = conn is None
     c = db.get_connection(db_path) if own else conn

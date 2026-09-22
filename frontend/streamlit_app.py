@@ -3259,6 +3259,45 @@ def _day(iso) -> str:
         return str(iso)[:10]
 
 
+# The span the Prices tab draws, mapped to the window the relative figure is measured
+# over, and only where the two are the same window. Mapping 5Y onto the one-year figure
+# put "-60.2% vs XLV" under a "5Y CHANGE" label, which is a one-year number wearing a
+# five-year heading. A span with no exact match shows nothing.
+_VS_SPANS = {"1M": "1m", "3M": "3m", "1Y": "1y"}
+
+
+def _vs_sector(api_base: str, ticker: str, span: str) -> str:
+    """The move against the sector, folded into the change cell rather than beside it.
+
+    A sixth stat in that strip wraps at the app's narrower width, and the Prices tab is
+    built to fit one screen. It also belongs here: a relative figure qualifies the
+    absolute move it sits next to and reads as noise on its own.
+
+    Absent rather than zero where the benchmark does not cover the window, because a
+    company that listed last year has no one-year relative move and saying nil would
+    be a claim.
+    """
+    want = _VS_SPANS.get((span or "").upper())
+    if not want:
+        return ""
+    try:
+        got = (api_get(api_base, f"/companies/{ticker}/relative")
+               .get("windows") or {}).get(want)
+    except Exception:
+        return ""
+    if not got or got.get("relative_pct") is None:
+        return ""
+    # A company that listed last year has no one-year relative move. The backend
+    # returns what it measured with the dates it used; printing it under the longer
+    # label is the caller's mistake to avoid, so it is avoided here.
+    if not got.get("covers_window"):
+        return ""
+    move = got["relative_pct"] * 100
+    tone = " risk" if move < 0 else ""
+    return (f'<span class="rel{tone}">{"+" if move > 0 else ""}'
+            f'{T.num(move, 1)}% vs XLV</span>')
+
+
 def _markets_strip(api_base: str) -> None:
     """The standing level, one tile per series, each dated to its own publication day.
 
@@ -4395,7 +4434,7 @@ with main:
                     f'<span class="v">{str(chart_rows[-1]["as_of"])}</span></span>'
                     f'<span class="stat"><span class="k">{span} change</span>'
                     f'<span class="v {"risk" if (change or 0) < 0 else ""}">'
-                    f'{T.pct(change)}</span></span>'
+                    f'{T.pct(change)}</span>{_vs_sector(api_base, ticker, span)}</span>'
                     f'<span class="stat"><span class="k">{span} range</span>'
                     f'<span class="v">{T.num(low, 2)} to {T.num(high, 2)}</span></span>'
                     f'<span class="stat"><span class="k">bars</span>'

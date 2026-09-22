@@ -785,6 +785,13 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .stat .v {{ font-size: 1.05rem; font-weight: 600; font-family: var(--font-mono); }}
 .stat .v.none {{ color: var(--muted); font-weight: 400; }}
 .stat .v.risk {{ color: var(--down); }}
+/* The move against the sector, inside the change cell rather than beside it. Smaller
+   and lighter than the figure it qualifies, because it is a reading on that figure and
+   not a second one competing with it. A sixth stat in this strip wraps at the app's
+   narrower width. */
+.stat .rel {{ font-size: 10.5px; font-family: var(--font-mono); color: var(--muted);
+             margin-left: 0.45rem; white-space: nowrap; }}
+.stat .rel.risk {{ color: var(--down); opacity: 0.85; }}
 
 /* The note is the one piece of prose, so it gets the reading face. Sized to sit in a
    column rather than across the page: at 15.5px over the full width it set a measure of

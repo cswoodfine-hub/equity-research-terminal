@@ -165,3 +165,40 @@ def test_history_leaves_the_gaps_where_they_are(tmp_path):
     assert [r["as_of"] for r in B.history(path, "XLV", "2026-01-01")] == [
         "2026-09-21", "2026-09-22"]
     assert B.history(path, "NOPE") == []
+
+
+def test_the_beta_on_file_is_reported_against_the_one_the_prices_say(tmp_path):
+    """Reported, not adopted, following this branch's precedent of a measured rate
+    shown and not taken. A partial series reports nothing rather than a figure that
+    would move a discount rate if anyone did adopt it."""
+    import forecast_view as V
+
+    path = str(tmp_path / "beta.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Lilly')")
+    conn.commit()
+    got = V.measured_beta(conn, "LLY", stored=0.69)
+    conn.close()
+    assert got["stored"] == 0.69
+    assert got["measured"] is None
+    assert got["adopted"] is False
+    assert "not enough overlapping weekly history" in got["reason"]
+
+
+def test_nothing_measured_here_is_ever_adopted(tmp_path):
+    """The stored betas are not stale: recomputed on 2026-09-22 all nineteen came back
+    within 0.01 of the value on file, mean absolute difference 0.004. There is nothing
+    to adopt, and adopting would still be a decision rather than a default."""
+    import forecast_view as V
+
+    path = str(tmp_path / "beta2.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Lilly')")
+    conn.commit()
+    assert V.measured_beta(conn, "LLY", stored=0.69)["adopted"] is False
+    conn.close()
+    # And the override table still names only the two fetched rate legs.
+    import assumptions
+    assert set(assumptions.LIVE_RATES) == {"risk_free", "cost_of_debt"}

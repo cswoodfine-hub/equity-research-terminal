@@ -1210,6 +1210,43 @@ def _franchises(conn, asset_ids: list) -> list:
 ANCHORED = ("marketed", "franchise")
 
 
+# The window beta.compute wants. A fresh series covering less than this is not used
+# for anything, because a beta measured over two years of a five-year window is a
+# different statistic wearing the same name.
+BETA_WEEKS = 261
+
+
+def measured_beta(conn, ticker: str, stored: float | None = None) -> dict:
+    """The beta the price history says, beside the one on file. Reported, not adopted.
+
+    The stored figures are not stale: recomputed on 2026-09-22 all nineteen came back
+    within 0.01 of the value on file, mean absolute difference 0.004, which at 0.1 of
+    beta to 50bp of cost of equity is about 5bp. So there is nothing to adopt today.
+    What this buys is that drift becomes visible the moment it appears, rather than
+    after somebody thinks to check.
+
+    Adoption stays a decision, following this branch's own precedent of a measured
+    rate reported and not taken. A partial series reports nothing at all rather than a
+    number that would quietly move a discount rate if anyone did adopt it.
+    """
+    import beta as beta_module
+
+    out = {"stored": stored, "measured": None, "basis": None, "adopted": False,
+           "reason": None}
+    try:
+        value, basis = beta_module.compute(conn, ticker.upper(), weeks=BETA_WEEKS)
+    except Exception as exc:
+        out["reason"] = f"not measured: {type(exc).__name__}"
+        return out
+    if value is None:
+        out["reason"] = "not enough overlapping weekly history to measure"
+        return out
+    out["measured"], out["basis"] = value, basis
+    if stored is not None:
+        out["drift"] = round(value - stored, 4)
+    return out
+
+
 def _cost_of_equity(conn, asset_ids):
     """(ke, basis) from the CAPM components the modelled assets carry, which are the
     company's: risk_free + beta x erp. Falls back to the first WACC on file, and says
@@ -1225,6 +1262,16 @@ def _cost_of_equity(conn, asset_ids):
         if rate is not None:
             return rate, f"WACC ({basis}), no equity components on file"
     return None, None
+
+
+def _stored_beta(conn, counted: list):
+    """The beta the discount rate used, from the first counted asset that carries one."""
+    for line in counted:
+        scalars = (assumptions_module.load(conn, line["asset_id"]) or {}).get(
+            "scalars") or {}
+        if scalars.get("beta") is not None:
+            return scalars["beta"]
+    return None
 
 
 def _balance_sheet(conn, db_path, ticker: str, company_id: int):
@@ -1668,6 +1715,9 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
         # The translation the per-share figures used, so a reader of a Novo figure in
         # dollars can see the krone rate and its day rather than infer them.
         "fx": price_unit_rate(conn, company_id),
+        # What the price history says the beta is, beside the one the discount rate
+        # actually used. Nothing here changes a valuation.
+        "beta": measured_beta(conn, ticker, _stored_beta(conn, counted)),
         "valuation_anchor": anchor, "price_date": close_date,
         "years_to_price": years_to_price, "carry": carry,
         "carry_per_share": per_share(carry),

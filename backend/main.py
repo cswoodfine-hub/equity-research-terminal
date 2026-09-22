@@ -927,6 +927,13 @@ def price_grid(days: int = Query(default=90)) -> list[dict]:
     return comps_module.price_grid(days=max(5, min(days, 1900)))
 
 
+@app.get("/companies/{ticker}/relative")
+def company_relative(ticker: str) -> dict:
+    """Price move against the sector over each window, on the dates both traded."""
+    return {"ticker": ticker.upper(), "benchmark": comps_module.RELATIVE_BENCHMARK,
+            "windows": comps_module.relative_performance(None, ticker)}
+
+
 @app.get("/markets")
 def markets(days: int = Query(default=markets_module.DEFAULT_DAYS)) -> dict:
     """Rates, FX and benchmark closes, each cell with the day it was published."""

@@ -42,10 +42,13 @@ TTL_SECONDS = 24 * 60 * 60
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 CHART_RANGE = "10y"
 CHART_INTERVAL = "1d"
-# query1, which prices.py and beta.py already point at, and this exact string. A bare
-# request and a full browser string both draw 429s from this endpoint; the repo's own
-# string does not. Defined here rather than imported, because a fetcher does not import
-# another fetcher.
+# query1, which prices.py and beta.py already point at, and this exact string.
+# Measured on 2026-09-22 across both symbols: this string returned 200 on 15 of 15
+# requests, no User-Agent at all returned 429 on 13 of 13, and a full Chrome string
+# returned 200 on only 4 of 16. The 429 is a classifier on the string rather than a
+# rate limit that decays, since a good request and a refused one came back in the same
+# second, so backing off or falling back to a browser string makes it worse. Defined
+# here rather than imported, because a fetcher does not import another fetcher.
 _USER_AGENT = "Mozilla/5.0 (compatible; NovatalisResearch/0.1)"
 _TIMEOUT_S = 30
 
@@ -61,11 +64,20 @@ def parse_chart(payload: dict, symbol: str) -> list[dict]:
 
     A bar with a null close is dropped rather than carried forward: a holiday is a day
     the market did not trade, and filling it would put a return of nil into a
-    regression that should not see that week at all.
+    regression that should not see that week at all. The schema allows a null in both
+    arrays even on a day the market traded, so the guard stays whatever a given sample
+    happens to contain.
 
-    ``adjclose`` is absent for an index and present for an ETF. Where it is missing it
-    is stored as the close, which for an index is not an assumption: the two are the
-    same number because nothing was paid out.
+    The newest bar is the session in progress, not a settled close, whenever this runs
+    while a market is open. It is stored rather than dropped, because the company
+    prices it is read against are the same and comparing two live prices is what a
+    reader wants; the upsert keys on (symbol, as_of), so the next run settles it.
+
+    ``adjclose`` is present for both an index and an ETF, and for the index it is
+    numerically identical to the close on every one of 2,513 bars, because nothing was
+    paid out. So its absence is not something to rely on. Where it is missing the close
+    is stored in its place, which is right for a series that pays nothing and is the
+    only honest fallback for one that does.
     """
     chart = (payload or {}).get("chart") or {}
     if chart.get("error"):

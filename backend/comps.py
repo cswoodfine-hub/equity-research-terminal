@@ -237,6 +237,91 @@ def comps_trend(db_path=None, shown_years: int = 6) -> dict:
     return {"basis": "annual", "labels": labels, "companies": out}
 
 
+# The windows a relative figure is read over, and what to call them. A month, a
+# quarter, a year, because those are the spans a reader already has in their head.
+RELATIVE_WINDOWS = ((30, "1m"), (90, "3m"), (365, "1y"))
+
+# What a pharma book is read against. XLV rather than the S&P: the question a relative
+# figure answers here is whether a company beat its sector, not whether healthcare beat
+# the market.
+RELATIVE_BENCHMARK = "XLV"
+
+
+def relative_performance(db_path=None, ticker: str = "", symbol: str = RELATIVE_BENCHMARK,
+                         windows=RELATIVE_WINDOWS, conn=None) -> dict:
+    """{span: {company_pct, benchmark_pct, relative_pct, first_as_of, last_as_of}}.
+
+    Computed on the dates the two series share, never on each series' own first and
+    last. A company that did not trade on the benchmark's first day would otherwise be
+    measured over a different window from the thing it is being compared with, and the
+    difference would be read as performance.
+
+    The benchmark uses its adjusted close and the company its close, which is the one
+    asymmetry here and it is deliberate: XLV's adjusted close is the sector total
+    return, and a company's close against it understates the company by its own
+    dividend. Stating that is better than comparing a total return with a price return
+    and calling the gap alpha, so the basis says so and the figure is labelled a price
+    move rather than a return.
+
+    A span with fewer than two shared dates returns None. A span the history does not
+    reach all the way back to returns its figure with ``covers_window`` false, so a
+    caller that would otherwise print a one-year label on a two-month measurement can
+    decline to. Never stored: a relative move is a reading, not an event.
+    """
+    own = conn is None
+    c = db.get_connection(db_path) if own else conn
+    try:
+        stock = {r["as_of"]: r["close"] for r in c.execute(
+            """SELECT p.as_of, p.close FROM prices p
+                 JOIN companies co ON co.id = p.company_id
+                WHERE co.ticker = ? AND p.interval = '1d' AND p.close IS NOT NULL""",
+            (ticker.upper(),))}
+        market = {r["as_of"]: r["adjclose"] for r in c.execute(
+            "SELECT as_of, adjclose FROM benchmark_prices"
+            "  WHERE symbol = ? AND adjclose IS NOT NULL", (symbol,))}
+    finally:
+        if own:
+            c.close()
+    shared = sorted(set(stock) & set(market))
+    out: dict = {}
+    for days, span in windows:
+        out[span] = _over(stock, market, shared, days)
+    return out
+
+
+def _over(stock: dict, market: dict, shared: list, days: int) -> dict | None:
+    """One window, on the shared dates inside it. Pure.
+
+    What was actually measured always rides out with the figure: the two dates and the
+    number of points. ``covers_window`` says whether the shared history reaches back to
+    the window's start, because a one-year figure drawn from two months of data is a
+    two-month figure wearing the wrong label. It is reported rather than refused, so a
+    caller can show the honest span or show nothing, and this function never has to
+    guess which the caller wanted.
+    """
+    if len(shared) < 2:
+        return None
+    import datetime as dt
+
+    try:
+        cutoff = (dt.date.fromisoformat(shared[-1])
+                  - dt.timedelta(days=days)).isoformat()
+    except ValueError:
+        return None
+    inside = [d for d in shared if d >= cutoff]
+    if len(inside) < 2:
+        return None
+    first, last = inside[0], inside[-1]
+    if not stock.get(first) or not market.get(first):
+        return None
+    company_pct = stock[last] / stock[first] - 1.0
+    benchmark_pct = market[last] / market[first] - 1.0
+    return {"company_pct": company_pct, "benchmark_pct": benchmark_pct,
+            "relative_pct": company_pct - benchmark_pct,
+            "first_as_of": first, "last_as_of": last, "points": len(inside),
+            "covers_window": shared[0] <= cutoff}
+
+
 def price_grid(db_path=None, days: int = 90, max_points: int = 60) -> list[dict]:
     """Recent daily closes for every company in one payload, for the universe's
     small-multiples grid. Downsampled evenly to ``max_points`` so eighteen panels
