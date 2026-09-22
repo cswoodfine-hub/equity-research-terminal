@@ -400,7 +400,8 @@ def launch_path(peak: float, years_to_peak: int, horizon: int, ramp) -> list[flo
     return out
 
 
-def pos(scalars: dict, phase=None, pos_defaults=None, area=None, by_area=None):
+def pos(scalars: dict, phase=None, pos_defaults=None, area=None, by_area=None,
+        granular=None):
     """(pos, basis). A stated value first, then composite factors, then the phase ramp.
 
     The most explicit statement wins. A launched asset usually states its factors (the
@@ -410,6 +411,11 @@ def pos(scalars: dict, phase=None, pos_defaults=None, area=None, by_area=None):
     asset with neither falls to the published success rate for its own therapeutic area
     and phase, and to the curated phase ramp where its area is not on file. The basis
     says which happened.
+
+    ``granular`` is pos_granular's placement of a big pharma Phase 2 or 3 asset at its
+    own gate. It sits between the analyst's own numbers and the published table
+    because it is that table, read from where the asset stands rather than from its
+    phase's entry, and an asset at the entry gets the table's own figure from it.
     """
     if scalars.get("pos") is not None:
         return scalars["pos"], "stated"
@@ -420,6 +426,8 @@ def pos(scalars: dict, phase=None, pos_defaults=None, area=None, by_area=None):
         for f in factors:
             composite *= 1.0 if f is None else f
         return composite, "composite factors"
+    if granular and granular.get("pos") is not None:
+        return granular["pos"], granular.get("basis")
     # The study's own rate for this area and phase, then its all-indication rate, then
     # the curated ramp. An area the study does not cover reads as all indications.
     if phase and by_area:
@@ -670,7 +678,7 @@ def build(inputs: dict) -> dict:
     ``inputs``: {"scalars": {...}, "indications": [{"name", "scalars", "series"}],
     "loe": {"year", "basis"} | None, "actuals": [{"fiscal_year", "period", "value"}],
     "phase": str | None, "pos_defaults": {...}, "erosion_defaults": {...},
-    "modality": str | None}.
+    "modality": str | None, "pos_granular": {...} | None}.
     """
     scalars = inputs.get("scalars") or {}
     notes: list[str] = []
@@ -1040,7 +1048,8 @@ def build(inputs: dict) -> dict:
     probability, pos_basis = pos(scalars, inputs.get("phase"),
                                  inputs.get("pos_defaults"),
                                  area=inputs.get("therapeutic_area"),
-                                 by_area=inputs.get("pos_by_area"))
+                                 by_area=inputs.get("pos_by_area"),
+                                 granular=inputs.get("pos_granular"))
     if probability is None:
         raise ForecastError(["pos (factors, a stated value, or a phase for the "
                              "curated default)"])
@@ -1074,6 +1083,11 @@ def build(inputs: dict) -> dict:
         "franchise": franchise,
         "wacc": rate, "wacc_basis": rate_basis,
         "pos": probability, "pos_basis": pos_basis,
+        # The gate, band, chain and pivotal design behind a granular figure, for the
+        # reader; None where the figure came from anywhere else.
+        "pos_granular": (inputs.get("pos_granular")
+                         if pos_basis == (inputs.get("pos_granular") or {}).get("basis")
+                         else None),
         # "stated", or "placeholder curve, ..." where the uptake ceiling and midpoint came
         # from data/curve_defaults.csv rather than the asset. None where no curve is built.
         "curve_basis": curve_basis,

@@ -1,0 +1,170 @@
+# Phase transition success rates, cut by the programme attributes the one free citable
+# study publishes them by. BIO / Informa Pharma Intelligence (Biomedtracker) / QLS
+# Advisors, "Clinical Development Success Rates and Contributing Factors 2011-2020",
+# February 2021, 12,728 phase transitions across 9,704 programmes, 1 January 2011 to
+# 30 November 2020. Transcribed from the report's own tables on 2026-09-22:
+# https://go.bio.org/rs/490-EHZ-999/images/ClinicalDevelopmentSuccessRates2011_2020.pdf
+#
+# pos_by_area.csv holds the likelihood of approval from the phase an asset is in. This
+# file holds the transitions that likelihood is the product of, and that is the point of
+# it: an asset that has cleared a gate is no longer at the phase's entry, and the
+# transitions it has left are fewer. Oncology from Phase 3 is 47.7% x 92.0% = 43.9%,
+# which is the figure pos_by_area.csv carries; a Phase 3 that has read out positive has
+# only the 92.0% left. The chain reproduces the LOA exactly, so nothing moves unless
+# evidence moves it.
+#
+# Every rate carries the n the report prints beside it, and a caller refuses a cut whose
+# n is small rather than reading a 100% off three programmes. The report's own caveats
+# are inherited: these are commercial rather than technical probabilities, since the
+# denominator includes programmes stopped for business reasons, and they are
+# all-indication rates rather than lead-indication rates.
+#
+# transition is the gate crossed: p1_to_p2, p2_to_p3, p3_to_nda, nda_to_approval.
+# Each row is one (cut, group, transition). Cuts and where they come from:
+#   area       Figure 2, page 7. The report's 14 disease areas plus All indications.
+#              Named in the report's vocabulary; backend/pos_granular.py maps this
+#              model's areas onto it the way pos_by_area.csv does.
+#   oncology   Figure 7, page 13. Hematologic and Solid are mutually exclusive tumour
+#              types; IO is a drug class that spans both.
+#   prevalence Figure 8b, page 14. Non-oncology only, by the report's construction.
+#              Rare is under 200,000 US patients or 1 in 2,000 in the EU; chronic high
+#              prevalence is over 1 million US patients from the CMS Chronic Conditions
+#              Data Warehouse. A disease between the two is in neither cut.
+#   modality   Figure 10b, page 17.
+#   biomarker  Figure 11, page 18. Patient preselection biomarkers in the trial design,
+#              identified by the report through Trialtrove, 767 of 12,728 transitions.
+#              Not inferred here from a title: a caller applies it only where a person
+#              has recorded that the trial selected patients on one.
+cut,group,transition,pos,n,source
+area,Hematology,p1_to_p2,0.696,92,Figure 2 p7
+area,Hematology,p2_to_p3,0.481,106,Figure 2 p7
+area,Hematology,p3_to_nda,0.768,82,Figure 2 p7
+area,Hematology,nda_to_approval,0.931,72,Figure 2 p7
+area,Metabolic,p1_to_p2,0.618,136,Figure 2 p7
+area,Metabolic,p2_to_p3,0.450,149,Figure 2 p7
+area,Metabolic,p3_to_nda,0.636,66,Figure 2 p7
+area,Metabolic,nda_to_approval,0.875,48,Figure 2 p7
+area,Infectious disease,p1_to_p2,0.578,403,Figure 2 p7
+area,Infectious disease,p2_to_p3,0.384,414,Figure 2 p7
+area,Infectious disease,p3_to_nda,0.640,197,Figure 2 p7
+area,Infectious disease,nda_to_approval,0.929,156,Figure 2 p7
+area,Others,p1_to_p2,0.636,154,Figure 2 p7
+area,Others,p2_to_p3,0.386,228,Figure 2 p7
+area,Others,p3_to_nda,0.600,90,Figure 2 p7
+area,Others,nda_to_approval,0.884,69,Figure 2 p7
+area,Ophthalmology,p1_to_p2,0.716,88,Figure 2 p7
+area,Ophthalmology,p2_to_p3,0.355,200,Figure 2 p7
+area,Ophthalmology,p3_to_nda,0.512,82,Figure 2 p7
+area,Ophthalmology,nda_to_approval,0.911,45,Figure 2 p7
+area,Autoimmune,p1_to_p2,0.552,413,Figure 2 p7
+area,Autoimmune,p2_to_p3,0.314,471,Figure 2 p7
+area,Autoimmune,p3_to_nda,0.653,219,Figure 2 p7
+area,Autoimmune,nda_to_approval,0.941,202,Figure 2 p7
+area,Allergy,p1_to_p2,0.564,55,Figure 2 p7
+area,Allergy,p2_to_p3,0.283,92,Figure 2 p7
+area,Allergy,p3_to_nda,0.647,34,Figure 2 p7
+area,Allergy,nda_to_approval,1.000,20,Figure 2 p7
+area,Gastroenterology,p1_to_p2,0.467,45,Figure 2 p7
+area,Gastroenterology,p2_to_p3,0.342,73,Figure 2 p7
+area,Gastroenterology,p3_to_nda,0.571,35,Figure 2 p7
+area,Gastroenterology,nda_to_approval,0.909,33,Figure 2 p7
+area,All indications,p1_to_p2,0.520,4414,Figure 2 p7
+area,All indications,p2_to_p3,0.289,4933,Figure 2 p7
+area,All indications,p3_to_nda,0.578,1928,Figure 2 p7
+area,All indications,nda_to_approval,0.906,1453,Figure 2 p7
+area,Respiratory,p1_to_p2,0.559,179,Figure 2 p7
+area,Respiratory,p2_to_p3,0.219,215,Figure 2 p7
+area,Respiratory,p3_to_nda,0.645,62,Figure 2 p7
+area,Respiratory,nda_to_approval,0.956,45,Figure 2 p7
+area,Psychiatry,p1_to_p2,0.527,150,Figure 2 p7
+area,Psychiatry,p2_to_p3,0.268,164,Figure 2 p7
+area,Psychiatry,p3_to_nda,0.563,71,Figure 2 p7
+area,Psychiatry,nda_to_approval,0.912,57,Figure 2 p7
+area,Endocrine,p1_to_p2,0.433,319,Figure 2 p7
+area,Endocrine,p2_to_p3,0.266,293,Figure 2 p7
+area,Endocrine,p3_to_nda,0.662,151,Figure 2 p7
+area,Endocrine,nda_to_approval,0.863,124,Figure 2 p7
+area,Neurology,p1_to_p2,0.477,516,Figure 2 p7
+area,Neurology,p2_to_p3,0.268,504,Figure 2 p7
+area,Neurology,p3_to_nda,0.531,226,Figure 2 p7
+area,Neurology,nda_to_approval,0.867,165,Figure 2 p7
+area,Oncology,p1_to_p2,0.488,1628,Figure 2 p7
+area,Oncology,p2_to_p3,0.246,1732,Figure 2 p7
+area,Oncology,p3_to_nda,0.477,495,Figure 2 p7
+area,Oncology,nda_to_approval,0.920,324,Figure 2 p7
+area,Cardiovascular,p1_to_p2,0.500,214,Figure 2 p7
+area,Cardiovascular,p2_to_p3,0.210,252,Figure 2 p7
+area,Cardiovascular,p3_to_nda,0.552,105,Figure 2 p7
+area,Cardiovascular,nda_to_approval,0.825,80,Figure 2 p7
+area,Urology,p1_to_p2,0.409,22,Figure 2 p7
+area,Urology,p2_to_p3,0.150,40,Figure 2 p7
+area,Urology,p3_to_nda,0.692,13,Figure 2 p7
+area,Urology,nda_to_approval,0.846,13,Figure 2 p7
+oncology,Hematologic,p1_to_p2,0.501,425,Figure 7 p13
+oncology,Hematologic,p2_to_p3,0.278,449,Figure 7 p13
+oncology,Hematologic,p3_to_nda,0.600,120,Figure 7 p13
+oncology,Hematologic,nda_to_approval,0.900,100,Figure 7 p13
+oncology,Solid,p1_to_p2,0.489,1145,Figure 7 p13
+oncology,Solid,p2_to_p3,0.234,1261,Figure 7 p13
+oncology,Solid,p3_to_nda,0.429,364,Figure 7 p13
+oncology,Solid,nda_to_approval,0.929,212,Figure 7 p13
+oncology,IO,p1_to_p2,0.640,275,Figure 7 p13
+oncology,IO,p2_to_p3,0.402,244,Figure 7 p13
+oncology,IO,p3_to_nda,0.490,98,Figure 7 p13
+oncology,IO,nda_to_approval,0.984,62,Figure 7 p13
+prevalence,Rare,p1_to_p2,0.674,380,Figure 8b p14
+prevalence,Rare,p2_to_p3,0.446,464,Figure 8b p14
+prevalence,Rare,p3_to_nda,0.604,240,Figure 8b p14
+prevalence,Rare,nda_to_approval,0.936,172,Figure 8b p14
+prevalence,Chronic high prevalence,p1_to_p2,0.460,745,Figure 8b p14
+prevalence,Chronic high prevalence,p2_to_p3,0.231,737,Figure 8b p14
+prevalence,Chronic high prevalence,p3_to_nda,0.595,279,Figure 8b p14
+prevalence,Chronic high prevalence,nda_to_approval,0.926,217,Figure 8b p14
+modality,CAR-T,p1_to_p2,0.442,43,Figure 10b p17
+modality,CAR-T,p2_to_p3,0.588,17,Figure 10b p17
+modality,CAR-T,p3_to_nda,0.667,3,Figure 10b p17
+modality,CAR-T,nda_to_approval,1.000,4,Figure 10b p17
+modality,siRNA/RNAi,p1_to_p2,0.700,40,Figure 10b p17
+modality,siRNA/RNAi,p2_to_p3,0.289,38,Figure 10b p17
+modality,siRNA/RNAi,p3_to_nda,0.667,6,Figure 10b p17
+modality,siRNA/RNAi,nda_to_approval,1.000,3,Figure 10b p17
+modality,Monoclonal antibody,p1_to_p2,0.547,804,Figure 10b p17
+modality,Monoclonal antibody,p2_to_p3,0.341,740,Figure 10b p17
+modality,Monoclonal antibody,p3_to_nda,0.681,310,Figure 10b p17
+modality,Monoclonal antibody,nda_to_approval,0.954,282,Figure 10b p17
+modality,ADCs,p1_to_p2,0.417,103,Figure 10b p17
+modality,ADCs,p2_to_p3,0.415,53,Figure 10b p17
+modality,ADCs,p3_to_nda,0.625,16,Figure 10b p17
+modality,ADCs,nda_to_approval,1.000,12,Figure 10b p17
+modality,Gene therapy,p1_to_p2,0.519,27,Figure 10b p17
+modality,Gene therapy,p2_to_p3,0.386,57,Figure 10b p17
+modality,Gene therapy,p3_to_nda,0.500,10,Figure 10b p17
+modality,Gene therapy,nda_to_approval,1.000,2,Figure 10b p17
+modality,Vaccine,p1_to_p2,0.527,129,Figure 10b p17
+modality,Vaccine,p2_to_p3,0.316,117,Figure 10b p17
+modality,Vaccine,p3_to_nda,0.581,43,Figure 10b p17
+modality,Vaccine,nda_to_approval,1.000,27,Figure 10b p17
+modality,Protein,p1_to_p2,0.516,246,Figure 10b p17
+modality,Protein,p2_to_p3,0.330,288,Figure 10b p17
+modality,Protein,p3_to_nda,0.617,149,Figure 10b p17
+modality,Protein,nda_to_approval,0.897,117,Figure 10b p17
+modality,Peptide,p1_to_p2,0.530,234,Figure 10b p17
+modality,Peptide,p2_to_p3,0.284,218,Figure 10b p17
+modality,Peptide,p3_to_nda,0.600,100,Figure 10b p17
+modality,Peptide,nda_to_approval,0.881,67,Figure 10b p17
+modality,Small molecule,p1_to_p2,0.526,2308,Figure 10b p17
+modality,Small molecule,p2_to_p3,0.280,2896,Figure 10b p17
+modality,Small molecule,p3_to_nda,0.569,1118,Figure 10b p17
+modality,Small molecule,nda_to_approval,0.895,849,Figure 10b p17
+modality,Antisense,p1_to_p2,0.609,69,Figure 10b p17
+modality,Antisense,p2_to_p3,0.200,70,Figure 10b p17
+modality,Antisense,p3_to_nda,0.643,14,Figure 10b p17
+modality,Antisense,nda_to_approval,0.667,9,Figure 10b p17
+biomarker,Preselection biomarkers,p1_to_p2,0.524,414,Figure 11 p18
+biomarker,Preselection biomarkers,p2_to_p3,0.463,149,Figure 11 p18
+biomarker,Preselection biomarkers,p3_to_nda,0.682,129,Figure 11 p18
+biomarker,Preselection biomarkers,nda_to_approval,0.960,75,Figure 11 p18
+biomarker,No biomarkers,p1_to_p2,0.520,4000,Figure 11 p18
+biomarker,No biomarkers,p2_to_p3,0.283,4784,Figure 11 p18
+biomarker,No biomarkers,p3_to_nda,0.571,1799,Figure 11 p18
+biomarker,No biomarkers,nda_to_approval,0.903,1378,Figure 11 p18

@@ -20,6 +20,7 @@ import db
 import evidence
 import forecast
 import product_profile
+import pos_granular
 import product_areas
 import regional_loe
 
@@ -378,6 +379,7 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "  AND period_type = 'FY' AND fiscal_year < ?",
         (dt.date.today().year,)).fetchone()
 
+    therapeutic_area = product_areas.area_for(conn, asset_id) if asset else None
     return {
         "scalars": scalars,
         "indications": list(indications.values()),
@@ -397,8 +399,14 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "pos_defaults": pos_defaults(),
         # The area the asset's own label or trials put it in, and the published success
         # rates for it: an oncology phase 3 asset is not the same bet as a haematology one.
-        "therapeutic_area": (product_areas.area_for(conn, asset_id) if asset else None),
+        "therapeutic_area": therapeutic_area,
         "pos_by_area": pos_by_area(),
+        # A big pharma Phase 2 or 3 asset is placed at its gate rather than at its
+        # phase's entry, with the band its modality and disease say (pos_granular).
+        # None everywhere else, and the book behaves as it did.
+        "pos_granular": pos_granular.for_asset(
+            conn, asset_id, area=therapeutic_area,
+            phase=(phase["phase"] if phase else None), scalars=scalars) if asset else None,
         # The year the product was first approved, so a marketed product with no
         # exclusivity on file can still be given the statutory term from it rather than
         # running flat for ever.
