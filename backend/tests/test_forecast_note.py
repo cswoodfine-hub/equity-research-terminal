@@ -115,3 +115,26 @@ def test_a_yearly_price_still_implies_patients():
     body = " ".join(forecast_note.write(
         _verdict(implied_patients=39201))["body"])
     assert "39,201 patients" in body
+
+
+def test_the_long_run_growth_is_printed_finely_enough_to_move():
+    """It is usually expected inflation off the ten-year breakeven, which moves in
+    single basis points. At no decimals 2.34% and 2.49% both printed as 2%, so a
+    reader watching it move saw it stand still."""
+    assert "2.34%" in "%.2f%%" % (0.0234 * 100)
+    assert forecast_note._growth_whose(
+        {"long_run_basis": "10-year breakeven inflation (FRED T10YIE), 2026-09-21: "
+                           "2.34%, the same rates the discount rate reads"}
+    ) == "the market prices into the ten-year breakeven"
+
+
+def test_a_market_rate_is_not_described_as_the_books_own_assumption():
+    """The sentence used to call whatever this was 'the long-run growth the book
+    assumes for its own products'. That is true only where no series was fetched."""
+    market = forecast_note._growth_whose({"long_run_basis": "FRED T10YIE, 2026-09-21"})
+    book = forecast_note._growth_whose(
+        {"long_run_basis": "the book's revenue-weighted long-run growth"})
+    assert "market" in market and "book" not in market
+    assert book == "the book assumes for its own products"
+    # No basis on file claims neither one.
+    assert forecast_note._growth_whose({}) == "the book is held to"

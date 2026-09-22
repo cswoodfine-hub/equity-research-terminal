@@ -1748,6 +1748,11 @@ def _sotp_bridge(s: dict) -> None:
                         f"revenue of {future.get('book_peak', 0):,.0f}mm from "
                         f"{future['capped_from']}, which cuts "
                         f"{future.get('capped_share', 0):.0%} of what they would sell")
+    # Computed since the franchise was built and rendered nowhere, so the one input
+    # on this page that already moves with the market looked like a fixed assumption.
+    if future.get("long_run_basis") and future.get("long_run_growth") is not None:
+        bits.append(f"long-run growth {future['long_run_growth']:.2%}, "
+                    f"{_short(future['long_run_basis'], 62)}")
     if s.get("balance_sheet_as_of"):
         bits.append(f"balance sheet {s['balance_sheet_as_of']}"
                     + (f", cash {s['cash']:,.0f}mm on hand and no debt line filed"

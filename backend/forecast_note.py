@@ -245,6 +245,22 @@ def _sotp_headline(v: dict) -> str | None:
             + _coverage_clause(v))
 
 
+def _growth_whose(future: dict) -> str:
+    """Who the long-run growth rate belongs to, so the sentence names its source.
+
+    It is the ten-year breakeven from FRED wherever that series has been fetched, the
+    book's own revenue-weighted growth only where it has not. Calling a Treasury
+    breakeven "the growth the book assumes for its own products" credited a market
+    rate to the analyst.
+    """
+    basis = (future.get("long_run_basis") or "").lower()
+    if "t10yie" in basis or "breakeven" in basis:
+        return "the market prices into the ten-year breakeven"
+    if "revenue-weighted" in basis:
+        return "the book assumes for its own products"
+    return "the book is held to"
+
+
 def _sotp_body(v: dict) -> list[str]:
     s = v.get("sotp") or {}
     out = []
@@ -278,10 +294,15 @@ def _sotp_body(v: dict) -> list[str]:
                  f"company's own ratios; the first arrive in "
                  f"{future.get('first_launch_year')}.")
         if (future.get("credited_share") or 1.0) < 1.0:
+            # Two decimals of a percent, not none. This figure is usually expected
+            # inflation off the ten-year breakeven, which moves in single basis
+            # points: 2.34% and 2.49% both printed as "2%", so a reader watching it
+            # move saw it stand still. And it is only the book's own assumption where
+            # no market rate was fetched, so the sentence names whichever it is.
             line += (f" At that rate each generation of launches would buy "
                      f"{future['renewal']:.1f} times itself and compound past the "
-                     f"{future.get('long_run_growth', 0):.0%} long-run growth the book "
-                     f"assumes for its own products, so only "
+                     f"{future.get('long_run_growth', 0):.2%} long-run growth "
+                     f"{_growth_whose(future)}, so only "
                      f"{future['credited_share']:.0%} of the launches' R&D is credited "
                      f"with further launches; all of it is still charged.")
         if s.get("enterprise_book_only") is not None and s.get("close"):
