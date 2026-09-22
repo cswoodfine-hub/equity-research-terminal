@@ -169,3 +169,26 @@ def test_a_lent_connection_is_used_and_left_open(tmp_path):
     assert len(rates_fred.history(path, "DGS10", conn=conn)) == 3
     conn.execute("SELECT 1")            # still open, so the caller still owns it
     conn.close()
+
+
+def test_two_databases_never_share_a_cached_read(tmp_path):
+    """The cache is keyed on the file a connection is open on, not the path a caller
+    named. A caller lending a connection usually has no path to give, so keying on the
+    argument filed every lent read under None and let one database read another's."""
+    one, two = str(tmp_path / "one.db"), str(tmp_path / "two.db")
+    for path, value in ((one, 0.0501), (two, 0.0312)):
+        db.init(path)
+        conn = db.get_connection(path)
+        conn.execute("INSERT INTO market_rates (series, as_of, value, source)"
+                     " VALUES ('DGS10', '2026-09-18', ?, 'fred')", (value,))
+        conn.commit()
+        conn.close()
+    rates_fred.clear_cache()
+
+    # Lent connections, both with no db_path, which is how assumptions.load calls it.
+    a, b = db.get_connection(one), db.get_connection(two)
+    assert rates_fred.latest(None, "DGS10", conn=a)["value"] == pytest.approx(0.0501)
+    assert rates_fred.latest(None, "DGS10", conn=b)["value"] == pytest.approx(0.0312)
+    assert rates_fred.latest(None, "DGS10", conn=a)["value"] == pytest.approx(0.0501)
+    a.close()
+    b.close()
