@@ -928,6 +928,16 @@ def price_grid(days: int = Query(default=90)) -> list[dict]:
     return comps_module.price_grid(days=max(5, min(days, 1900)))
 
 
+@app.get("/companies/{ticker}/china-bd")
+def company_china_bd(ticker: str) -> dict:
+    """China-linked business development from the stored deals. Direction not asserted."""
+    conn = db.get_connection()
+    try:
+        return deals_module.china_linked(conn, ticker)
+    finally:
+        conn.close()
+
+
 @app.get("/policy")
 def policy(days: int = Query(default=365), lane: Optional[str] = None) -> dict:
     """Dated policy context. No modelled number, by construction of the route."""

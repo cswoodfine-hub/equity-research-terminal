@@ -966,3 +966,124 @@ def prune_parties(db_path=None) -> dict:
     finally:
         conn.close()
     return {"dropped": dropped, "fixed": fixed}
+
+
+# --- China-linked business development -------------------------------------------
+# The first pipeline-sourcing question an analyst asks of this universe, and it needs no
+# new source: these headlines are already parsed and stored, including the "acquire
+# China rights" shape the party parsers step over.
+
+_CHINA = re.compile(
+    r"\b(china|chinese|hong kong|shanghai|beijing|suzhou|hangzhou|chengdu)\b", re.I)
+
+# Words that appear in half the company names in this universe and in half the
+# headlines about anybody. Matching on one of them put "US lawmakers reveal policy to
+# curb collaboration with Chinese biotech" on Krystal Biotech.
+_GENERIC_NAME_WORDS = {
+    "biotech", "biotechnology", "pharma", "pharmaceutical", "pharmaceuticals", "bio",
+    "therapeutics", "sciences", "science", "medicines", "laboratories", "labs",
+    "health", "holdings", "group", "inc", "inc.", "corp", "corp.", "co", "co.",
+    "plc", "ltd", "ltd.", "limited", "the", "a/s", "sa", "ag", "nv", "and", "&",
+}
+
+
+def _own_words(name: str) -> list[str]:
+    """The distinctive leading words of a company's name, generic ones removed."""
+    words = re.split(r"[\s,\-]+", (name or "").lower())
+    return [w for w in words if w and w not in _GENERIC_NAME_WORDS][:2]
+
+
+def _one_per_day(rows: list[dict]) -> list[dict]:
+    """One deal per company per day, because a news lane carries a deal once per story.
+
+    Novartis and Argo arrived twice on 2025-09-03, as "Novartis licenses RNA drugs in
+    deal with China-based Argo" and "Novartis signs up to $5.2 billion licensing deal
+    with China's biotech Argo". GSK and Sino Biopharmaceutical arrived twice on
+    2026-05-11, once under the abbreviation SBP Group. The counterparty cannot dedupe
+    them, because it is "RNA" on one of those rows and "China's" on another: both are
+    the party parser stopping early, which is the same weakness that put China in the
+    field in the first place.
+
+    The survivor is the row carrying an announced value, then the one from a filing,
+    then the lowest id. Taking the priced row matters: it is the difference between a
+    deal counted at nothing and one counted at $5.2 billion.
+    """
+    best: dict = {}
+    for row in rows:
+        key = (row["ticker"], row["event_date"])
+        held = best.get(key)
+        if held is None:
+            best[key] = row
+            continue
+        rank = (lambda r: (0 if r.get("headline_usd") else 1,
+                           0 if r.get("announced_value") else 1,
+                           0 if r.get("accession") else 1, r["id"]))
+        if rank(row) < rank(held):
+            best[key] = row
+    return list(best.values())
+
+
+def china_linked(conn, ticker: str | None = None) -> dict:
+    """Deals whose own stored text names a China connection, counted and valued.
+
+    Two gates, both measured against the 1,115 stored rows before being written. A row
+    is kept where its quote or counterparty names China, and then only where the row is
+    genuinely about this company: a filing-sourced row already is, and a news-sourced
+    one has to name the company in the headline. Twenty-one rows mention China and six
+    of them are about somebody else entirely, including two copies of "Amoytop Acquires
+    Skyline" filed under BioMarin and Regenxbio and a Novartis deal filed under
+    Alnylam. A divestiture is dropped, since it is rights going the other way.
+
+    The direction is not asserted, and that is a finding rather than a shortcut. A
+    headline does not reliably state it: Alnylam's "Exclusive Agreement with BeOne
+    Medicines for Commercialization of AMVUTTRA in China" is Alnylam licensing out, and
+    Arrowhead's Visirna row is Arrowhead selling, yet both read as agreements with a
+    Chinese party. So this counts China-linked business development and shows the
+    quote, and anyone wanting the direction reads the sentence the company wrote.
+
+    ``announced_value_total`` is the sum of the parsed figures, and only where every
+    kept row carries one. Where any does not it is None, because a partial sum of
+    announced consideration reads as a total and is not one. Two of the thirteen
+    currently carry a figure, so the universe total is None and says so.
+    """
+    sql = ["""SELECT d.id, c.ticker, c.name, d.deal_type, d.counterparty, d.area,
+                     d.event_date, d.quote, d.announced_value, d.announced_value_source,
+                     d.headline_usd, d.accession, d.article_url, d.source_url
+                FROM deals d JOIN companies c ON c.id = d.company_id"""]
+    args: list = []
+    if ticker:
+        sql.append("WHERE c.ticker = ?")
+        args.append(ticker.upper())
+    rows = [dict(r) for r in conn.execute(" ".join(sql), args)]
+
+    kept, refused = [], []
+    for row in rows:
+        haystack = f"{row['quote'] or ''} {row['counterparty'] or ''}"
+        if not _CHINA.search(haystack):
+            continue
+        if (row["deal_type"] or "") == "divestiture":
+            refused.append({**row, "why": "a divestiture, so rights go the other way"})
+            continue
+        named = any(w in (row["quote"] or "").lower()
+                    for w in _own_words(row["name"]))
+        if not row["accession"] and not named:
+            refused.append({**row,
+                            "why": "the headline does not name this company"})
+            continue
+        kept.append({**row, "evidence": "filing" if row["accession"] else "headline"})
+
+    kept = _one_per_day(kept)
+    kept.sort(key=lambda r: (r["event_date"] or "", r["id"]), reverse=True)
+    # headline_usd is the announced consideration as a number. announced_value is the
+    # phrase the release used, and is often a phrase and nothing more: Novartis and
+    # Argo is stored as "up to $5.2 billion" with no figure parsed from it. The count
+    # of deals stating a figure is the parsed one, because that is what can be summed.
+    values = [r["headline_usd"] for r in kept]
+    every_priced = bool(values) and all(v for v in values)
+    return {"ticker": ticker.upper() if ticker else None,
+            "count": len(kept),
+            "companies": sorted({r["ticker"] for r in kept}),
+            "announced_value_total": sum(values) if every_priced else None,
+            "priced": sum(1 for v in values if v),
+            "deals": kept, "refused": refused,
+            "direction_stated": False}

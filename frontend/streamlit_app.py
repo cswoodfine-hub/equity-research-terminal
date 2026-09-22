@@ -3308,6 +3308,53 @@ _POLICY_LANES = {"bis_pharma": "Section 232 tariffs",
 _POLICY_DAYS = 730
 
 
+def _china_bd(api_base: str, ticker: str) -> None:
+    """China-linked business development, counted and shown, with no direction claimed.
+
+    One cell rather than a section, because the answer is usually a small number and
+    the interesting part is the sentences behind it. The direction is deliberately
+    absent: a headline does not state it reliably, and two of the stored rows read as
+    agreements with a Chinese party while being the company licensing out and selling.
+    """
+    try:
+        got = api_get(api_base, f"/companies/{ticker}/china-bd")
+    except Exception:
+        return
+    if not got.get("count"):
+        return
+    total = got.get("announced_value_total")
+    section("China-linked business development", f"{got['count']} on file",
+            "from the companies' own words, direction not claimed")
+    tiles = [
+        ("deals", str(got["count"]), "", None, "",
+         f"{got['priced']} state a figure" if got["priced"] else
+         "none states a figure"),
+        ("announced value", T.num(total / 1e6, 0) if total else None, "mm", None, "",
+         "summed only where every deal states one"),
+    ]
+    st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+    rows = ""
+    for deal in got["deals"][:6]:
+        rows += (f'<tr><td class="pol-d">{html_escape(deal.get("event_date") or "")}</td>'
+                 f'<td class="pol-l">{html_escape(deal.get("deal_type") or "")}</td>'
+                 f'<td class="pol-k">{html_escape(deal.get("evidence") or "")}</td>'
+                 f'<td class="pol-t">{html_escape((deal.get("quote") or "")[:220])}</td></tr>')
+    st.markdown(f'<table class="pol"><tbody>{rows}</tbody></table>',
+                unsafe_allow_html=True)
+    note("Counted from deals already stored, where the company's own quote or the "
+         "counterparty names China and the row is genuinely this company's: a filing "
+         "already is, and a headline has to name the company. Of twenty-one rows "
+         "mentioning China across the universe, six are about somebody else, including "
+         "two copies of one acquisition filed under BioMarin and Regenxbio. Two "
+         "headlines on one day about one company are one deal, and the priced one "
+         "survives. Which way the rights went is not claimed, because a headline does "
+         "not state it: Alnylam's agreement for commercialisation in China is Alnylam "
+         "licensing out, and Arrowhead's is Arrowhead selling, yet both read as "
+         "agreements with a Chinese party. The value is announced consideration, "
+         "milestones included, and is summed only where every deal on the list states "
+         "one, since a partial sum reads as a total and is not one.")
+
+
 def _policy_rail(api_base: str) -> None:
     """Dated policy documents, and nothing derived from them.
 
@@ -4304,6 +4351,8 @@ with main:
         # Catalysts, exclusivity and filings come from the feed; deals and readouts from
         # their own endpoints. The raw change list, trial status and date wording, stays
         # out of this view: it read as jargon and the events that matter are here.
+        _china_bd(api_base, ticker)
+
         deals_data = api_get(api_base, f"/companies/{ticker}/deals").get("deals") or []
         readouts_data = api_get(api_base, f"/companies/{ticker}/readouts").get("readouts") or []
         catalyst_items = [it for it in feed if it["kind"] == "catalyst"]
