@@ -230,6 +230,46 @@ def rows(conn, asset_id: int, scenario: str = "base") -> list[dict]:
         (asset_id, scenario))]
 
 
+# Which stored CAPM leg each fetched series stands in for. The premium is absent on
+# purpose: it is a published estimate refreshed monthly, not a rate anyone quotes, so
+# it stays a stored row and is never overridden from a market series.
+LIVE_RATES = {"risk_free": "DGS10", "cost_of_debt": "BAMLC0A3CAEY"}
+
+
+def live_rates(conn, scalars: dict) -> dict:
+    """The scalars with the fetched rates in place of the seeded ones, dated.
+
+    Every discount rate in the book was built on a risk-free rate read by hand on one
+    day and written into 382 rows. It aged: the ten-year was 4.66% when the book was
+    built and 5.01% seven weeks later, and nobody refreshed it. The series has been
+    fetched daily the whole time.
+
+    The seed stays the fallback rather than the source, so an empty ``market_rates``
+    still values the book, which is what every test database does. A leg the product
+    does not carry is not given one: a missing row is a gap in the model and filling it
+    from a market series would hide that.
+
+    Each replaced leg leaves its vintage behind under ``<key>_as_of`` and ``<key>_series``
+    so the WACC can say which day it read rather than which day it was written.
+    """
+    from fetchers import rates_fred
+
+    newest = rates_fred.latest(None, conn=conn)
+    if not newest:
+        return scalars
+    out = scalars
+    for key, series in LIVE_RATES.items():
+        found = newest.get(series)
+        if not found or found.get("value") is None or out.get(key) is None:
+            continue
+        if out is scalars:
+            out = dict(scalars)
+        out[key] = found["value"]
+        out[f"{key}_as_of"] = found["as_of"]
+        out[f"{key}_series"] = series
+    return out
+
+
 def load(conn, asset_id: int, scenario: str = "base") -> dict:
     """The engine's input dict for one asset: scalars, indications, LOE, actuals, phase.
 
@@ -267,6 +307,8 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
     # whole book averages. The factor is normalised on the company's own mix, so the
     # blended ratio in the anchor year is unchanged and only its split moves
     # (modality_costs).
+    scalars = live_rates(conn, scalars)
+
     import modality_costs
     if asset and scalars.get("cogs_pct") is not None:
         moved, why = modality_costs.for_asset(conn, asset["owner_company_id"],

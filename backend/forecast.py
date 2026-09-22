@@ -330,7 +330,13 @@ def _price_factor(scalars: dict, year_index: int) -> float:
 
 
 def wacc(scalars: dict):
-    """(wacc, basis). Given directly, or derived CAPM from components."""
+    """(wacc, basis). Given directly, or derived CAPM from components.
+
+    The basis names the vintage of each leg that carries one, because the legs are no
+    longer the same age: the risk-free rate and the cost of debt are the market's on
+    the day they were last fetched, and the premium is a published estimate refreshed
+    monthly. A reader comparing two WACCs has to be able to see that.
+    """
     if scalars.get("wacc") is not None:
         return scalars["wacc"], "stated"
     needed = ("risk_free", "erp", "beta", "cost_of_debt", "debt_weight")
@@ -340,7 +346,24 @@ def wacc(scalars: dict):
     ke = scalars["risk_free"] + scalars["beta"] * scalars["erp"]
     kd = scalars["cost_of_debt"] * (1.0 - tax)
     dw = scalars["debt_weight"]
-    return (1.0 - dw) * ke + dw * kd, "CAPM from components"
+    return (1.0 - dw) * ke + dw * kd, "CAPM from components" + _vintages(scalars)
+
+
+def _vintages(scalars: dict) -> str:
+    """", risk-free DGS10 2026-09-18, premium 2026-09-01" for the legs that say so.
+
+    Empty where no leg carries a date, which is every database with no rates fetched,
+    so the basis string and the evidence grade read off it are unchanged there.
+    """
+    said = []
+    for key, label in (("risk_free", "risk-free"), ("cost_of_debt", "cost of debt"),
+                       ("erp", "premium")):
+        when = scalars.get(f"{key}_as_of")
+        if not when:
+            continue
+        series = scalars.get(f"{key}_series")
+        said.append(f"{label} {series} {when}" if series else f"{label} {when}")
+    return (", " + ", ".join(said)) if said else ""
 
 
 def launch_path(peak: float, years_to_peak: int, horizon: int, ramp) -> list[float]:

@@ -1186,7 +1186,8 @@ def _cost_of_equity(conn, asset_ids):
         needed = ("risk_free", "beta", "erp")
         if all(scalars.get(k) is not None for k in needed):
             return (scalars["risk_free"] + scalars["beta"] * scalars["erp"],
-                    "CAPM: risk-free plus beta times the equity risk premium")
+                    "CAPM: risk-free plus beta times the equity risk premium"
+                    + forecast._vintages(scalars))
         rate, basis = forecast.wacc(scalars)
         if rate is not None:
             return rate, f"WACC ({basis}), no equity components on file"

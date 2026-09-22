@@ -66,9 +66,16 @@ def load(conn, company_id: int, scenario: str = "base") -> list[dict]:
             entry["unsourced"].append(key)
     # Always marketed. The key is accepted in a seed for symmetry with an asset file
     # and ignored otherwise, because a line has no patients to build from.
+    #
+    # The fetched rates replace the seeded ones here for the same reason they do on an
+    # asset: all 58 line rows carry the same CAPM legs, and a line discounting at the
+    # rate somebody typed while the product beside it discounts at the market's would
+    # put two rates inside one sum of the parts.
+    import assumptions as assumptions_module
     for entry in lines.values():
         entry["scalars"]["therapy_mode"] = "marketed"
         entry["scalars"].setdefault("pos", 1.0)
+        entry["scalars"] = assumptions_module.live_rates(conn, entry["scalars"])
     return list(lines.values())
 
 
