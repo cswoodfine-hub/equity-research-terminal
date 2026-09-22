@@ -92,21 +92,31 @@ class RatesFredFetcher(BaseFetcher):
         return rows
 
     def snapshot(self, rows: list[dict]) -> None:
-        latest = {}
+        newest = {}
         for row in rows:
-            if row["as_of"] > latest.get(row["series"], {"as_of": ""})["as_of"]:
-                latest[row["series"]] = row
+            if row["as_of"] > newest.get(row["series"], {"as_of": ""})["as_of"]:
+                newest[row["series"]] = row
         self._snapshot_payload({s: {"as_of": r["as_of"], "value": r["value"]}
-                                for s, r in latest.items()})
+                                for s, r in newest.items()}, "live")
 
     def _snapshot_cache(self) -> None:
         """The rates already stored, when the fetch fails: a valuation still says which
         day it read, and the gap is visible in the snapshot history."""
         self._snapshot_payload({s: {"as_of": r["as_of"], "value": r["value"]}
-                                for s, r in latest(self.db_path).items()})
+                                for s, r in latest(self.db_path).items()}, "cache")
 
-    def _snapshot_payload(self, payload) -> None:
+    def _snapshot_payload(self, series_payload, fetch_kind: str) -> None:
+        """Write the snapshot, saying whether the numbers in it were just fetched.
+
+        ``fetch_kind`` is not decoration. ``BaseFetcher._last_live_fetch_at`` looks for
+        a snapshot whose payload carries ``fetch_kind = 'live'`` and finds the TTL's
+        starting point there, so a fetcher that never writes the key has no last live
+        fetch and ``_within_ttl`` is always false. This one wrote none, and four series
+        were therefore refetched on every run for the life of the fetcher, TTL or no
+        TTL. The series sit under their own key so the flag cannot be read as a series.
+        """
         import json
+        payload = {"series": series_payload, "fetch_kind": fetch_kind}
         conn = db.get_connection(self.db_path)
         try:
             conn.execute(
