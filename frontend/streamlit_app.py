@@ -2410,6 +2410,78 @@ def _drivers_layer(verdict: dict, scenario: str) -> None:
                     unsafe_allow_html=True)
 
 
+_POS_STAGES = {"entering": "Phase 3 entry", "reading_out": "readout due",
+               "positive": "NDA/BLA gate", "mixed": "one Phase 3 negative",
+               "negative": "nil"}
+
+
+def _pos_caption(granular: dict | None) -> str | None:
+    """The PoS tile's caption where the figure was placed at a gate: the gate and the
+    band, which is what a reader wants under a probability before the source."""
+    if not granular:
+        return None
+    stage = _POS_STAGES.get(granular.get("stage") or "", granular.get("stage") or "")
+    low, high = granular.get("low"), granular.get("high")
+    if low is None or high is None or abs(high - low) < 0.005:
+        return stage
+    return f"{stage}, band {low * 100:.0f} to {high * 100:.0f}%"
+
+
+def _pos_layer(granular: dict) -> None:
+    """Where the probability was placed and what it rests on.
+
+    The chain is the published transitions still ahead of the asset, the band is the
+    same chain under every other cut the asset qualifies for, and the design of its
+    largest Phase 3 is shown as fact beside the number: no free source publishes
+    success rates by enrolment or masking, so nothing here multiplies them.
+    """
+    stage = _POS_STAGES.get(granular.get("stage") or "", granular.get("stage") or "")
+    section("Probability of success", basis=f"{stage}, {granular.get('area') or ''}")
+    rows = ""
+    for step in granular.get("chain") or []:
+        rows += (f'<tr><td class="pol-d">{html_escape(step["gate"].replace("_", " "))}</td>'
+                 f'<td class="pol-l">{step["pos"] * 100:.1f}%</td>'
+                 f'<td class="pol-k">n={step["n"]:,}</td>'
+                 f'<td class="pol-t">{html_escape(step.get("source") or "")}</td></tr>')
+    for cut in granular.get("cuts") or []:
+        rows += (f'<tr><td class="pol-d">band</td>'
+                 f'<td class="pol-l">{cut["pos"] * 100:.0f}%</td>'
+                 f'<td class="pol-k">{html_escape(cut.get("group") or "")}</td>'
+                 f'<td class="pol-t">{html_escape(cut.get("how") or "")}</td></tr>')
+    for cut in granular.get("refused") or []:
+        rows += (f'<tr><td class="pol-d">not applied</td><td class="pol-l"></td>'
+                 f'<td class="pol-k">{html_escape(cut.get("group") or cut.get("cut") or "")}'
+                 f'</td><td class="pol-t">{html_escape(cut.get("why") or "")}</td></tr>')
+    if granular.get("stage") == "mixed":
+        rows += ('<tr><td class="pol-d">band</td><td class="pol-l">0%</td>'
+                 '<td class="pol-k">downside</td><td class="pol-t">if the open studies '
+                 'read out the way the first did</td></tr>')
+    if rows:
+        st.markdown(f'<table class="pol"><tbody>{rows}</tbody></table>',
+                    unsafe_allow_html=True)
+    design = granular.get("design") or {}
+    if design.get("nct_id"):
+        facts = [design["nct_id"]]
+        if design.get("enrollment"):
+            facts.append(f"{design['enrollment']:,} enrolled")
+        for key in ("allocation", "masking"):
+            if design.get(key) and design[key].lower() not in ("na", "none"):
+                facts.append(f"{design[key].lower()} {key}" if key == "masking"
+                             else design[key].lower())
+        if design.get("status"):
+            facts.append(design["status"].lower())
+        if design.get("primary_completion"):
+            facts.append(f"primary completion {design['primary_completion']}")
+        st.markdown(f'<div class="byline">largest Phase 3 on the registry: '
+                    f'{html_escape(", ".join(facts))}. Shown, not multiplied: no free '
+                    f'source publishes success rates by design.</div>',
+                    unsafe_allow_html=True)
+    st.markdown(f'<div class="byline">{html_escape(granular.get("evidence") or "")}. '
+                f'Biomarker preselection is the report\'s strongest cut and is applied '
+                f'only where a biomarker_selected row is recorded on the asset by hand, '
+                f'never read off a title.</div>', unsafe_allow_html=True)
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def _export_blob(url: str) -> bytes | None:
     """The xlsx, fetched once a minute rather than on every rerun of the page."""
@@ -2971,7 +3043,8 @@ def _render_forecast_tab(api_base: str, ticker: str):
         wacc_note = ("slider" if "wacc" in moved and varied
                      else clause(result.get("wacc_basis"), 48))
         pos_note = ("slider" if "pos" in moved and varied
-                    else clause(result.get("pos_basis")))
+                    else _pos_caption(result.get("pos_granular"))
+                    or clause(result.get("pos_basis")))
         tiles = [("per share", T.num(per_share, 2) if per_share is not None else None,
                   "", ps_change, tone, "risk-adjusted, this asset only"),
                  ("share of price",
@@ -3027,6 +3100,8 @@ def _render_forecast_tab(api_base: str, ticker: str):
     with panels["Drivers"]:
         if verdict:
             _drivers_layer(verdict, scenario)
+        if result.get("pos_granular"):
+            _pos_layer(result["pos_granular"])
         else:
             state("No verdict", "the API did not return one for this product")
 
