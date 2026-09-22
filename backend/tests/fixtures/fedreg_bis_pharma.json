@@ -1,0 +1,44 @@
+{
+ "count": 3,
+ "results": [
+  {
+   "document_number": "2025-18729",
+   "title": "Notice of Request for Public Comments on Section 232 National Security Investigation of Imports of Personal Protective Equipment, Medical Consumables, and Medical Equipment, Including Devices",
+   "type": "Notice",
+   "subtype": null,
+   "publication_date": "2025-09-26",
+   "effective_on": null,
+   "comments_close_on": "2025-10-17",
+   "docket_ids": [
+    "Docket No. 250924-0160"
+   ],
+   "html_url": "https://www.federalregister.gov/documents/2025/09/26/2025-18729/notice-of-request-for-public-comments-on-section-232-national-security-investigation-of-imports-of"
+  },
+  {
+   "document_number": "2025-06587",
+   "title": "Notice of Request for Public Comments on Section 232 National Security Investigation of Imports of Pharmaceuticals and Pharmaceutical Ingredients",
+   "type": "Notice",
+   "subtype": null,
+   "publication_date": "2025-04-16",
+   "effective_on": null,
+   "comments_close_on": "2025-05-07",
+   "docket_ids": [
+    "Docket No. 250414-0065"
+   ],
+   "html_url": "https://www.federalregister.gov/documents/2025/04/16/2025-06587/notice-of-request-for-public-comments-on-section-232-national-security-investigation-of-imports-of"
+  },
+  {
+   "document_number": "2025-00636",
+   "title": "Framework for Artificial Intelligence Diffusion",
+   "type": "Rule",
+   "subtype": null,
+   "publication_date": "2025-01-15",
+   "effective_on": "2025-01-13",
+   "comments_close_on": null,
+   "docket_ids": [
+    "Docket No. 250107-0007"
+   ],
+   "html_url": "https://www.federalregister.gov/documents/2025/01/15/2025-00636/framework-for-artificial-intelligence-diffusion"
+  }
+ ]
+}

@@ -793,6 +793,23 @@ details.prof-summary.long[open] > summary {{ display: none; }}
              margin-left: 0.45rem; white-space: nowrap; }}
 .stat .rel.risk {{ color: var(--down); opacity: 0.85; }}
 
+/* The policy rail: dated documents, read as a list rather than as figures, so it is
+   set quietly and the only thing that raises its voice is a deadline still open. */
+.pol {{ width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 0.7rem; }}
+.pol td {{ padding: 4px 8px 4px 0; border-bottom: 1px solid var(--rule);
+          vertical-align: top; }}
+.pol-d {{ font-family: var(--font-mono); color: var(--muted); white-space: nowrap; }}
+.pol-l {{ color: var(--muted); white-space: nowrap; text-transform: uppercase;
+         font-size: 9.5px; letter-spacing: 0.06em; }}
+.pol-k {{ font-family: var(--font-mono); color: var(--muted); white-space: nowrap; }}
+.pol-t {{ color: var(--text); }}
+.pol-t a {{ color: var(--text); text-decoration: none; }}
+.pol-t a:hover {{ text-decoration: underline; }}
+.pol-due {{ margin-left: 0.5rem; font-family: var(--font-mono); font-size: 10px;
+           color: var(--flag); white-space: nowrap; }}
+.pol-eff {{ margin-left: 0.5rem; font-family: var(--font-mono); font-size: 10px;
+           color: var(--muted); white-space: nowrap; }}
+
 /* The note is the one piece of prose, so it gets the reading face. Sized to sit in a
    column rather than across the page: at 15.5px over the full width it set a measure of
    around two hundred characters, which is twice what prose is read at, and it was the

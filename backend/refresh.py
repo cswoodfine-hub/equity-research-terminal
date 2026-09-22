@@ -70,6 +70,7 @@ from fetchers.labels_dailymed import LabelsDailyMedFetcher
 from fetchers.ndc_marketing import NdcMarketingFetcher
 from fetchers.negotiated_prices_cms import NegotiatedPricesCmsFetcher
 from fetchers.benchmarks import BenchmarksFetcher
+from fetchers.policy_fedreg import PolicyFedRegFetcher
 from fetchers.rates_fred import RatesFredFetcher
 from fetchers.news_fda import NewsFdaFetcher
 from fetchers.paragraph_iv_fda import ParagraphIvFetcher
@@ -142,6 +143,7 @@ def _universe_fetchers(db_path):
             NewsFdaFetcher(db_path), AdCommFetcher(db_path),
             ParagraphIvFetcher(db_path), DemandCmsFetcher(db_path),
             RatesFredFetcher(db_path), BenchmarksFetcher(db_path),
+            PolicyFedRegFetcher(db_path),
             NegotiatedPricesCmsFetcher(db_path)]
 
 

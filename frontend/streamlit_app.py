@@ -3301,6 +3301,63 @@ def _vs_sector(api_base: str, ticker: str, span: str) -> str:
             f'{T.num(move, 1)}% vs XLV</span>')
 
 
+# How the two lanes read on the page. The key is the lane and the value is what it is
+# about, short enough to sit in a chip beside the date.
+_POLICY_LANES = {"bis_pharma": "Section 232 tariffs",
+                 "cms_ira": "Medicare negotiation"}
+_POLICY_DAYS = 730
+
+
+def _policy_rail(api_base: str) -> None:
+    """Dated policy documents, and nothing derived from them.
+
+    This is the context route, and it is a weaker claim than everything above it on
+    purpose. An item earns a place by carrying a publication date and a document number
+    from a primary source, not by moving a number, because no free source gives the
+    imported share of cost of goods or the terms of a pricing deal. So nothing here is
+    multiplied into a value and the note says so.
+
+    A comment deadline that has not passed is the one thing here a reader can act on,
+    so it leads the row where there is one.
+    """
+    try:
+        got = api_get(api_base, f"/policy?days={_POLICY_DAYS}")
+    except Exception:
+        return
+    items = got.get("items") or []
+    if not items:
+        return
+    today = dt.date.today().isoformat()
+    section("Policy", f"{len(items)} documents", "dated context, nothing modelled")
+    rows = ""
+    for item in items[:10]:
+        lane = _POLICY_LANES.get(item["lane"], item["lane"])
+        when = item.get("comments_close_on")
+        if when and when >= today:
+            flag = f'<span class="pol-due">comments close {_day(when)}</span>'
+        elif item.get("effective_on"):
+            flag = f'<span class="pol-eff">effective {_day(item["effective_on"])}</span>'
+        else:
+            flag = ""
+        title = html_escape(item["title"])
+        link = (f'<a href="{html_escape(item["url"])}" target="_blank">{title}</a>'
+                if item.get("url") else title)
+        rows += (f'<tr><td class="pol-d">{item["published_on"]}</td>'
+                 f'<td class="pol-l">{html_escape(lane)}</td>'
+                 f'<td class="pol-k">{html_escape(item.get("docket_id") or "")}</td>'
+                 f'<td class="pol-t">{link}{flag}</td></tr>')
+    st.markdown(f'<table class="pol"><tbody>{rows}</tbody></table>',
+                unsafe_allow_html=True)
+    note("Two lanes, each gated on what was measured rather than on an agency and a "
+         "search term. Without the gates a Framework for Artificial Intelligence "
+         "Diffusion lands in the pharmaceutical tariff lane, and six recurring agency "
+         "information collection notices land in the drug pricing one carrying real "
+         "comment deadlines. Nothing here is a modelled number and nothing here is "
+         "multiplied into a value: the imported share of cost of goods is not free "
+         "data and the terms of a pricing deal are undisclosed, so an applied figure "
+         "would be invention with a citation attached. Dates are the documents' own.")
+
+
 def _ira_strip(api_base: str, ticker: str) -> None:
     """Medicare price negotiation for this company, where CMS has selected anything.
 
@@ -3998,6 +4055,8 @@ with main:
         # Above the headlines, because it is the standing level the rest is read
         # against rather than another thing that happened this week.
         _markets_strip(api_base)
+
+        _policy_rail(api_base)
 
         leads = api_get(api_base, f"/headlines?engine={urllib.parse.quote(engine or '')}")
         section("Headlines this week", f"{len(leads)} across {_engine_name}" if leads

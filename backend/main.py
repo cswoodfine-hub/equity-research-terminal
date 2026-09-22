@@ -928,6 +928,15 @@ def price_grid(days: int = Query(default=90)) -> list[dict]:
     return comps_module.price_grid(days=max(5, min(days, 1900)))
 
 
+@app.get("/policy")
+def policy(days: int = Query(default=365), lane: Optional[str] = None) -> dict:
+    """Dated policy context. No modelled number, by construction of the route."""
+    from fetchers import policy_fedreg
+    return {"days": days, "lane": lane,
+            "items": policy_fedreg.recent(days=days, lane=lane),
+            "lanes": {k: v["about"] for k, v in policy_fedreg.LANES.items()}}
+
+
 @app.get("/companies/{ticker}/ira")
 def company_ira(ticker: str) -> dict:
     """Medicare price negotiation for one company: what CMS selected, when, at what."""
