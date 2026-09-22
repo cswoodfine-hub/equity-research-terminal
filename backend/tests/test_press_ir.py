@@ -346,3 +346,56 @@ def test_the_snapshot_records_the_newest_item_it_saw(tmp_path):
     # The date is on the snapshot, so the history itself shows when a feed went quiet.
     assert payload["newest_published"] == "2025-05-01"
     assert payload["fetch_kind"] == "live"
+
+
+def _http_error(code, body):
+    import io
+    import urllib.error
+    return urllib.error.HTTPError("https://investors.example.com/rss/pressrelease.aspx",
+                                  code, "Forbidden", None,
+                                  io.BytesIO(body.encode()))
+
+
+def test_a_bot_challenge_is_named_rather_than_reported_as_a_bare_status():
+    """Three IR feeds stopped answering around 2026-09-08 and the run detail said
+    "HTTP Error 403: Forbidden" for each, which does not tell a reader whether the path
+    is dead or the client is blocked."""
+    from fetchers.press_ir import FeedChallenged, _refusal
+
+    body = ('<!DOCTYPE html><html><head><title>Just a moment...</title>'
+            '<script src="https://challenges.cloudflare.com/turnstile"></script>')
+    feed = "https://investors.example.com/rss/pressrelease.aspx"
+    got = _refusal(_http_error(403, body), feed)
+    assert isinstance(got, FeedChallenged)
+    assert feed in str(got)
+    assert "bot challenge" in str(got)
+    # It says what to do, because nothing in this fetcher can fix it.
+    assert "Seed a different ir_rss_url" in str(got)
+
+
+def test_a_plain_refusal_is_left_as_it_is():
+    """A 403 that is genuinely this client being refused is a different fact from a
+    challenge served to every client, and is not relabelled as one."""
+    from fetchers.press_ir import FeedChallenged, _refusal
+
+    got = _refusal(_http_error(403, "<html><body>Forbidden</body></html>"), "u")
+    assert not isinstance(got, FeedChallenged)
+    got = _refusal(_http_error(404, "not found"), "u")
+    assert not isinstance(got, FeedChallenged)
+
+
+def test_a_challenge_served_as_a_503_is_caught_too():
+    from fetchers.press_ir import FeedChallenged, _refusal
+
+    body = "<html><head><title>Just a moment...</title></head></html>"
+    assert isinstance(_refusal(_http_error(503, body), "u"), FeedChallenged)
+
+
+def test_the_agent_still_carries_the_project_name():
+    """It is browser-shaped because the plain urllib agent is refused, and it keeps
+    the project's name on it rather than pretending to be somebody else. Nothing here
+    tries to defeat a challenge."""
+    from fetchers import press_ir
+
+    assert "NovatalisResearch" in press_ir.USER_AGENT
+    assert press_ir.HEADERS["From"] == press_ir.CONTACT

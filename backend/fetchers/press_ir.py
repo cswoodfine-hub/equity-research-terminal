@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
+import urllib.error
 import urllib.request
 
 import db
@@ -51,6 +53,42 @@ USER_AGENT = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.3
 CONTACT = "cswoodfine@icloud.com"
 HEADERS = {"User-Agent": USER_AGENT, "From": CONTACT,
            "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8"}
+
+
+# What a bot-protection interstitial looks like. Cloudflare serves a 403 whose body is
+# an HTML challenge page rather than a refusal, and the distinction matters: a plain 403
+# is a feed saying no to this client, and a challenge is a feed saying no to every
+# client that is not running a browser. The second cannot be fixed by asking more
+# politely, and this does not try: solving a challenge is working around a control the
+# publisher put there on purpose. It is reported so a different URL can be seeded.
+_CHALLENGE = re.compile(
+    r"just a moment|challenges\.cloudflare\.com|cf-chl|__cf_chl|"
+    r"enable javascript and cookies", re.I)
+
+
+class FeedChallenged(RuntimeError):
+    """A feed answered with a bot challenge rather than its contents."""
+
+
+def _refusal(exc, feed: str) -> Exception:
+    """The clearest exception a refused request can be turned into.
+
+    "HTTP Error 403: Forbidden" says nothing a reader can act on. Three IR feeds
+    stopped answering around 2026-09-08 and the run detail reported exactly that
+    string for each, so nobody could tell a dead path from a blocked client without
+    going to look.
+    """
+    body = ""
+    try:
+        body = exc.read().decode("utf-8", "ignore")[:4000]
+    except Exception:
+        pass
+    if exc.code in (403, 503) and _CHALLENGE.search(body):
+        return FeedChallenged(
+            f"{feed} answers a bot challenge rather than the feed, so this client "
+            "cannot read it and no user agent will change that. Seed a different "
+            "ir_rss_url, or take the company's news from its 8-K filings")
+    return exc
 
 
 class PressIrFetcher(BaseFetcher):
@@ -83,8 +121,11 @@ class PressIrFetcher(BaseFetcher):
             # without one has nothing to report rather than something to fix.
             return {"company": dict(company), "xml": None}
         request = urllib.request.Request(feed, headers=HEADERS)
-        with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
-            xml_text = resp.read().decode("utf-8", "ignore")
+        try:
+            with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
+                xml_text = resp.read().decode("utf-8", "ignore")
+        except urllib.error.HTTPError as exc:
+            raise _refusal(exc, feed) from exc
         return {"company": dict(company), "xml": xml_text}
 
     def normalise(self, raw) -> list[dict]:
