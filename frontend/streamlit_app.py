@@ -942,7 +942,8 @@ def _flip_date(value) -> str:
 
 # What the chip says for a feed item. The feed's own kind is a mechanism word; these are
 # what the thing is.
-_FEED_FIGURE = {"catalyst": "Catalyst", "loe": "Exclusivity", "filing": "Filing"}
+_FEED_FIGURE = {"catalyst": "Catalyst", "loe": "Exclusivity", "filing": "Filing",
+                "market": "Rates", "policy": "Policy"}
 
 # Shorter than the universe row's limit, because a catalyst headline is a registry trial
 # title, "Phase 3, A Study of Lebrikizumab in Adult Participants With Moderate to Severe
@@ -3355,46 +3356,273 @@ def _china_bd(api_base: str, ticker: str) -> None:
          "one, since a partial sum reads as a total and is not one.")
 
 
-def _policy_rail(api_base: str) -> None:
-    """Dated policy documents, and nothing derived from them.
+def _universe_overview(api_base, engine, _engine_name, _covered, _all_changes,
+                       universe_feed) -> None:
+    """What moved across coverage: headlines, approvals, the map, what is ahead.
 
-    This is the context route, and it is a weaker claim than everything above it on
-    purpose. An item earns a place by carrying a publication date and a document number
-    from a primary source, not by moving a number, because no free source gives the
-    imported share of cost of goods or the terms of a pricing deal. So nothing here is
-    multiplied into a value and the note says so.
+    The tab's default view, and the one a reader opens the terminal for. The feed
+    is passed in rather than fetched again, because the view switcher above has
+    already read it once to decide what to show.
+    """
+    leads = api_get(api_base, f"/headlines?engine={urllib.parse.quote(engine or '')}")
+    section("Headlines this week", f"{len(leads)} across {_engine_name}" if leads
+            else _engine_name)
+    if not leads:
+        state(f"Nothing material on {_engine_name} in the last week",
+              "A headline is a deal with stated terms, an approval, an FDA notice, a "
+              "senior change or a trial stopping. Quiet is an answer.")
+    else:
+        st.markdown(_leads(leads, 6, 3), unsafe_allow_html=True)
+    # The universe view leads with FDA approvals, the cleanest cross-coverage signal,
+    # drawn on a date axis rather than a jargon-heavy list; the full change feed with
+    # filings, trial moves and risk-factor edits lives on each company's Key insights.
+    # Year to date, read from the approvals themselves rather than from the change
+    # feed, which is bounded by how far back the diff engine looks and so gave a
+    # window that moved with the refresh rather than one a reader chose.
+    #
+    # The year bounds what is fetched; the axis still opens on the first approval in
+    # it. Nothing cleared before 17 March this year, so the tape starts in March, and
+    # a January approval next year will pull it back to January on its own.
+    _ytd = dt.date(dt.date.today().year, 1, 1)
+    approvals = [
+        {"ticker": a["ticker"],
+         "label": a["label"],
+         "date": a["date"],
+         # The application number is what identifies the product on the Portfolio
+         # tab, so it rides along as the click key and a mark opens its fact sheet.
+         "key": (f'{a["ticker"]}|{(a["application_number"] or "").replace(" ", "")}'
+                 if a.get("application_number") and a.get("ticker") else ""),
+         "full": f'{a["label"]} ({a["application_number"] or "no number"})'
+                 f' — {(a["date"] or "")[:10]}'}
+        for a in api_get(api_base, f"/approvals?since={_ytd.isoformat()}")["approvals"]
+        if a["ticker"] in _covered]
+    section(f"FDA approvals across {_engine_name}",
+            f"{len(approvals)} year to date")
+    if not approvals:
+        # An empty tape means two different things, and pointing at the refresh button
+        # for both of them reads as a broken fetcher when it is a quiet cohort. If the
+        # universe has approvals and this engine has none, that is the answer.
+        _elsewhere = sum(1 for it in _all_changes
+                         if it.get("change_type") == "new_approval")
+        state(f"No approvals flagged across {_engine_name}",
+              (f"{_elsewhere} landed elsewhere in the universe over the same window, "
+               "so this is the cohort rather than the source." if _elsewhere else
+               "New approvals are read from openFDA on refresh. Press Refresh all in "
+               "the top bar to pull the sources."))
+    else:
+        approvnav.approvals_nav(
+            CH.approvals_timeline(approvals, 1360, 84, dt.date.today()),
+            muted=TK.MUTED, key="appr_nav")
 
-    A comment deadline that has not passed is the one thing here a reader can act on,
-    so it leads the row where there is one.
+    # The two summary views side by side: where the money is on this engine, and
+    # what is dated on it. Both are read at a glance and neither needs the full
+    # width, so pairing them puts the answer to "how does it look" and the answer to
+    # "what is coming" in one screen instead of two scrolls.
+    #
+    # Three to two, not one to one. They are not the same kind of view and an equal
+    # split served neither: the map is spatial and every pixel of width buys area for
+    # the small companies, while the forward list is text that wraps at any width and
+    # was running half empty down its last two rows.
+    _map_col, _ahead_col = st.columns([3, 2], gap="medium")
+    # The map states the window it colours. Held here so the coverage note
+    # below can name it without a second copy of a number owned by the API.
+    _map_days = MARKETMAP_FALLBACK_DAYS
+    with _map_col:
+        # The group at a glance before the ninety panels that show each shape. Area is
+        # what the engine runs on and colour is the move, read independently: a large box
+        # that is deep red is the thing this view exists to show.
+        mmap = api_get(api_base,
+                       f"/marketmap?engine={urllib.parse.quote(engine or '')}")
+        _map_days = mmap.get("window_days") or _map_days
+        if mmap.get("rows"):
+            unsized = len(mmap.get("unsized") or [])
+            # Short, because the column is half a page wide; the byline below
+            # carries what area and colour mean.
+            section("Map", f"{len(mmap['rows'])} by {mmap['metric']}"
+                    + (f" · {unsized} unsized" if unsized else ""))
+            R.show(treemap.build(mmap["rows"]), css_class="chart-mount")
+            note(f'Area is {html_escape(mmap["label"])}, colour the price move '
+                 f'over {mmap["window_days"]} days, green up and red down, each read '
+                 'on its own: a large box that is deep red is what the view is '
+                 'for. Hover a box for the company and its move. Not market '
+                'capitalisation, which would need shares outstanding against the last '
+                'close, and for a company quoted as an ADR the share count is in ordinary '
+                'shares while the price is per receipt: GSK computes to 223bn against a '
+                'real ninety. A company the metric cannot size is counted above rather '
+                'than drawn at nothing.')
+
+    with _ahead_col:
+        # One forward view. A readout and a panel vote were two sections asking the same
+        # question, what is coming, split only by which table the date came out of. The
+        # answer to both is a date with a company against it, so they read as one list in
+        # the same boxes the headlines use: what happened, then what is about to.
+        soon = api_get(api_base,
+                       f"/lookahead?engine={urllib.parse.quote(engine or '')}")
+        # Firm against derived, because they are not the same kind of date. A PDUFA or a
+        # panel vote is stated; a readout is a registry completion date, which slips.
+        firm = [i for i in soon if i.get("curated")]
+        section("Looking ahead",
+                (f"{len(soon)} in 30 days"
+                 + (f" · {len(firm)} firm" if firm else ""))
+                if soon else "nothing inside 30 days")
+        if not soon:
+            state("Nothing dated inside 30 days",
+                  "Readouts derive from registry completion dates on refresh, panel votes "
+                  "from the Federal Register, and PDUFA dates are read from 8-Ks when a "
+                  "model key is set. Quiet is an answer.")
+        else:
+            # Two across at both widths: the narrow rule is keyed to the page, and
+            # this block is already in half of it, so collapsing again stacked six
+            # boxes into a column taller than the map beside it.
+            st.markdown(_leads(soon[:_AHEAD_SHOWN], 2, 2),
+                        unsafe_allow_html=True)
+
+
+    # A year, where the map above reads a quarter. The two were the same window and
+    # so the same fact drawn twice, once as colour and once as a line: nothing on the
+    # page said anything the other did not. Set a year apart they answer different
+    # questions, and the interesting companies are the ones where the answers differ.
+    # Bayer is up 29% on the quarter and 70% on the year; Merck is up 15% and 64%.
+    section(f"Coverage, {COVERAGE_MONTHS} months",
+            f"{len(_covered)} companies, one scale")
+    panels = [p for p in api_get(api_base, f"/price-grid?days={COVERAGE_DAYS}")
+              if p["ticker"] in _covered]
+    if any(p["closes"] for p in panels):
+        shown = sorted(panels, key=lambda p: p["ticker"])
+        covnav.coverage_nav(
+            CH.small_multiples(
+                [{"label": p["ticker"],
+                  "values": _pct_from_start(p["closes"] or []),
+                  "sub": T.pct(p["change"] * 100) if p["change"] is not None else ""}
+                 for p in shown], 1360, 112, cols=_coverage_columns(len(shown)),
+                link_base="?ticker="),
+            muted=TK.MUTED, key="cov_nav")
+        note(f"Each panel is {COVERAGE_MONTHS} months of closes indexed to its own "
+             "start, all on one scale, so a flat line means flat rather than "
+             f"autoscaled noise. The map above colours the last {_map_days} "
+             "days: a company green there and flat here had a good quarter in a "
+             "dull year, and the reverse is a year that has finished running. "
+             "Click a panel to jump straight to that company's Key insights.")
+    else:
+        state("No price history yet",
+              "Press Refresh all in the top bar to pull daily closes.")
+
+def _markets_view(api_base: str, feed: list) -> None:
+    """The standing level, and any move already flagged against it.
+
+    On its own view rather than above the headlines. It is the level everything else
+    is read against, which made it a reasonable thing to lead with and a poor thing to
+    lead with every day: it changes slowly and the page it sat on answers what moved.
+    """
+    _markets_strip(api_base)
+    moves = [it for it in feed if it.get("kind") == "market"]
+    if moves:
+        section("Flagged moves", f"{len(moves)}",
+                "measured against the level the book last priced at")
+        st.markdown(_leads([_feed_lead(it) for it in moves], 3, 2),
+                    unsafe_allow_html=True)
+    else:
+        section("Flagged moves", "none", "nothing has crossed its bar")
+        state("No rate or currency move is flagged",
+              "A bar is crossed against the level the last flag was written from, not "
+              "against yesterday: the ten-year writes a row at 10bp and a note at "
+              "25bp, the breakeven at 10bp, single-A at 25bp, and a reporting cross "
+              "at 2%. Quiet is an answer.")
+
+
+def _docket(docket: str | None) -> str:
+    """The docket number alone, for the column a ticker would occupy.
+
+    It plays the ticker's part here: the short, fixed-width thing a reader runs an eye
+    down before reading any title. The agencies write it differently, "CMS-4219-N"
+    against "Docket No. 250414-0065", so the prose comes off and the number stays. A
+    row naming two dockets keeps the first and says so with an ellipsis.
+    """
+    text = (docket or "").strip()
+    if not text:
+        return ""
+    text = re.sub(r"^Docket\s+No\.?\s*", "", text, flags=re.I)
+    if " and " in text:
+        text = text.split(" and ")[0].strip() + "…"
+    return text[:18]
+
+
+def _policy_lead(item: dict) -> dict:
+    """One policy document as the same box a headline gets.
+
+    The rail was a four-column table, which read as a database dump next to boxes
+    everywhere else on the page. Nothing about the content wanted its own component:
+    a dated thing with a title, a source and a few fields is what the lead box is.
+
+    The lane goes in the slot a ticker would take, because it plays the same part: the
+    scannable left column a reader reads down before reading any sentence.
+    """
+    title = item.get("title") or ""
+    rows = []
+    if len(title) > _FEED_LEAD_CHARS:
+        rows.append({"label": "Full title", "value": title})
+    if item.get("docket_id"):
+        rows.append({"label": "Docket", "value": item["docket_id"]})
+    if item.get("doc_type"):
+        rows.append({"label": "Document", "value": item["doc_type"]})
+    if item.get("effective_on"):
+        rows.append({"label": "Effective", "value": item["effective_on"]})
+    if item.get("comments_close_on"):
+        rows.append({"label": "Comments close", "value": item["comments_close_on"]})
+    rows.append({"label": "Published", "value": item.get("published_on") or ""})
+    # The chip carries the one thing a reader can act on where there is one, and what
+    # kind of document it is where there is not. Not the lane: these are grouped under
+    # a lane heading, and repeating it put the same three words in the heading, the
+    # chip and the left column of every card.
+    today = dt.date.today().isoformat()
+    due = item.get("comments_close_on")
+    figure = (f"closes {_day(due)}" if due and due >= today
+              else (item.get("doc_type") or "Document"))
+    return {"kind": "policy", "figure": figure,
+            "ticker": _docket(item.get("docket_id")),
+            "headline": (title if len(title) <= _FEED_LEAD_CHARS
+                         else title[:_FEED_LEAD_CHARS - 1].rstrip() + "…"),
+            "date": (item.get("published_on") or "")[:10],
+            "summary": rows, "evidence": "", "url": item.get("url") or ""}
+
+
+def _policy_view(api_base: str) -> None:
+    """The policy documents, on their own view rather than above the headlines.
+
+    It is context and it reads as context: a weaker claim than anything else on the
+    tab, carrying no modelled number. Putting it first said the opposite.
     """
     try:
         got = api_get(api_base, f"/policy?days={_POLICY_DAYS}")
     except Exception:
+        state("Policy is not available",
+              "The API did not answer /policy. Start the backend, or run a refresh to "
+              "fill the lane.")
         return
     items = got.get("items") or []
     if not items:
+        state("No policy documents on file",
+              "Two lanes are fetched: Section 232 tariffs on pharmaceuticals, and "
+              "Medicare drug price negotiation rulemaking. A refresh fills them.")
         return
+
     today = dt.date.today().isoformat()
-    section("Policy", f"{len(items)} documents", "dated context, nothing modelled")
-    rows = ""
-    for item in items[:10]:
-        lane = _POLICY_LANES.get(item["lane"], item["lane"])
-        when = item.get("comments_close_on")
-        if when and when >= today:
-            flag = f'<span class="pol-due">comments close {_day(when)}</span>'
-        elif item.get("effective_on"):
-            flag = f'<span class="pol-eff">effective {_day(item["effective_on"])}</span>'
-        else:
-            flag = ""
-        title = html_escape(item["title"])
-        link = (f'<a href="{html_escape(item["url"])}" target="_blank">{title}</a>'
-                if item.get("url") else title)
-        rows += (f'<tr><td class="pol-d">{item["published_on"]}</td>'
-                 f'<td class="pol-l">{html_escape(lane)}</td>'
-                 f'<td class="pol-k">{html_escape(item.get("docket_id") or "")}</td>'
-                 f'<td class="pol-t">{link}{flag}</td></tr>')
-    st.markdown(f'<table class="pol"><tbody>{rows}</tbody></table>',
-                unsafe_allow_html=True)
+    open_now = [i for i in items
+                if (i.get("comments_close_on") or "") >= today]
+    if open_now:
+        section("Open for comment", f"{len(open_now)}",
+                "a deadline a reader can still act on")
+        st.markdown(_leads([_policy_lead(i) for i in open_now], 3, 2),
+                    unsafe_allow_html=True)
+
+    for lane, about in (got.get("lanes") or {}).items():
+        mine = [i for i in items if i.get("lane") == lane and i not in open_now]
+        if not mine:
+            continue
+        section(_POLICY_LANES.get(lane, lane), f"{len(mine)}", about)
+        st.markdown(_leads([_policy_lead(i) for i in mine], 3, 2),
+                    unsafe_allow_html=True)
+
     note("Two lanes, each gated on what was measured rather than on an agency and a "
          "search term. Without the gates a Framework for Artificial Intelligence "
          "Diffusion lands in the pharmaceutical tariff lane, and six recurring agency "
@@ -4099,159 +4327,28 @@ with main:
         # rather than by when they happened. The feed below answers "what moved" and
         # answers it four hundred times; this answers "what would you be embarrassed not
         # to know", which is a different question and has to be asked first.
-        # Above the headlines, because it is the standing level the rest is read
-        # against rather than another thing that happened this week.
-        _markets_strip(api_base)
+        # Three views under one tab. Markets and policy used to sit above the
+        # headlines, which put the two slowest-moving things on the page first and
+        # pushed what actually moved this week below them. They are still one click
+        # away and they still belong to the universe rather than to a company, so
+        # they are views here rather than tabs of their own.
+        _view = st.segmented_control(
+            "Universe view", ["Overview", "Markets", "Policy"], default="Overview",
+            key="universe_view", label_visibility="collapsed") or "Overview"
 
-        _policy_rail(api_base)
-
-        leads = api_get(api_base, f"/headlines?engine={urllib.parse.quote(engine or '')}")
-        section("Headlines this week", f"{len(leads)} across {_engine_name}" if leads
-                else _engine_name)
-        if not leads:
-            state(f"Nothing material on {_engine_name} in the last week",
-                  "A headline is a deal with stated terms, an approval, an FDA notice, a "
-                  "senior change or a trial stopping. Quiet is an answer.")
-        else:
-            st.markdown(_leads(leads, 6, 3), unsafe_allow_html=True)
         _all_changes = api_get(api_base, "/changes")
         universe_feed = [it for it in _all_changes
-                         if (it.get("ticker") or "") in _covered]
-        # The universe view leads with FDA approvals, the cleanest cross-coverage signal,
-        # drawn on a date axis rather than a jargon-heavy list; the full change feed with
-        # filings, trial moves and risk-factor edits lives on each company's Key insights.
-        # Year to date, read from the approvals themselves rather than from the change
-        # feed, which is bounded by how far back the diff engine looks and so gave a
-        # window that moved with the refresh rather than one a reader chose.
-        #
-        # The year bounds what is fetched; the axis still opens on the first approval in
-        # it. Nothing cleared before 17 March this year, so the tape starts in March, and
-        # a January approval next year will pull it back to January on its own.
-        _ytd = dt.date(dt.date.today().year, 1, 1)
-        approvals = [
-            {"ticker": a["ticker"],
-             "label": a["label"],
-             "date": a["date"],
-             # The application number is what identifies the product on the Portfolio
-             # tab, so it rides along as the click key and a mark opens its fact sheet.
-             "key": (f'{a["ticker"]}|{(a["application_number"] or "").replace(" ", "")}'
-                     if a.get("application_number") and a.get("ticker") else ""),
-             "full": f'{a["label"]} ({a["application_number"] or "no number"})'
-                     f' — {(a["date"] or "")[:10]}'}
-            for a in api_get(api_base, f"/approvals?since={_ytd.isoformat()}")["approvals"]
-            if a["ticker"] in _covered]
-        section(f"FDA approvals across {_engine_name}",
-                f"{len(approvals)} year to date")
-        if not approvals:
-            # An empty tape means two different things, and pointing at the refresh button
-            # for both of them reads as a broken fetcher when it is a quiet cohort. If the
-            # universe has approvals and this engine has none, that is the answer.
-            _elsewhere = sum(1 for it in _all_changes
-                             if it.get("change_type") == "new_approval")
-            state(f"No approvals flagged across {_engine_name}",
-                  (f"{_elsewhere} landed elsewhere in the universe over the same window, "
-                   "so this is the cohort rather than the source." if _elsewhere else
-                   "New approvals are read from openFDA on refresh. Press Refresh all in "
-                   "the top bar to pull the sources."))
+                         if (it.get("ticker") or "") in _covered
+                         or it.get("kind") == "market"]
+
+        if _view == "Markets":
+            _markets_view(api_base, universe_feed)
+        elif _view == "Policy":
+            _policy_view(api_base)
         else:
-            approvnav.approvals_nav(
-                CH.approvals_timeline(approvals, 1360, 84, dt.date.today()),
-                muted=TK.MUTED, key="appr_nav")
+            _universe_overview(api_base, engine, _engine_name, _covered,
+                               _all_changes, universe_feed)
 
-        # The two summary views side by side: where the money is on this engine, and
-        # what is dated on it. Both are read at a glance and neither needs the full
-        # width, so pairing them puts the answer to "how does it look" and the answer to
-        # "what is coming" in one screen instead of two scrolls.
-        #
-        # Three to two, not one to one. They are not the same kind of view and an equal
-        # split served neither: the map is spatial and every pixel of width buys area for
-        # the small companies, while the forward list is text that wraps at any width and
-        # was running half empty down its last two rows.
-        _map_col, _ahead_col = st.columns([3, 2], gap="medium")
-        # The map states the window it colours. Held here so the coverage note
-        # below can name it without a second copy of a number owned by the API.
-        _map_days = MARKETMAP_FALLBACK_DAYS
-        with _map_col:
-            # The group at a glance before the ninety panels that show each shape. Area is
-            # what the engine runs on and colour is the move, read independently: a large box
-            # that is deep red is the thing this view exists to show.
-            mmap = api_get(api_base,
-                           f"/marketmap?engine={urllib.parse.quote(engine or '')}")
-            _map_days = mmap.get("window_days") or _map_days
-            if mmap.get("rows"):
-                unsized = len(mmap.get("unsized") or [])
-                # Short, because the column is half a page wide; the byline below
-                # carries what area and colour mean.
-                section("Map", f"{len(mmap['rows'])} by {mmap['metric']}"
-                        + (f" · {unsized} unsized" if unsized else ""))
-                R.show(treemap.build(mmap["rows"]), css_class="chart-mount")
-                note(f'Area is {html_escape(mmap["label"])}, colour the price move '
-                     f'over {mmap["window_days"]} days, green up and red down, each read '
-                     'on its own: a large box that is deep red is what the view is '
-                     'for. Hover a box for the company and its move. Not market '
-                    'capitalisation, which would need shares outstanding against the last '
-                    'close, and for a company quoted as an ADR the share count is in ordinary '
-                    'shares while the price is per receipt: GSK computes to 223bn against a '
-                    'real ninety. A company the metric cannot size is counted above rather '
-                    'than drawn at nothing.')
-
-        with _ahead_col:
-            # One forward view. A readout and a panel vote were two sections asking the same
-            # question, what is coming, split only by which table the date came out of. The
-            # answer to both is a date with a company against it, so they read as one list in
-            # the same boxes the headlines use: what happened, then what is about to.
-            soon = api_get(api_base,
-                           f"/lookahead?engine={urllib.parse.quote(engine or '')}")
-            # Firm against derived, because they are not the same kind of date. A PDUFA or a
-            # panel vote is stated; a readout is a registry completion date, which slips.
-            firm = [i for i in soon if i.get("curated")]
-            section("Looking ahead",
-                    (f"{len(soon)} in 30 days"
-                     + (f" · {len(firm)} firm" if firm else ""))
-                    if soon else "nothing inside 30 days")
-            if not soon:
-                state("Nothing dated inside 30 days",
-                      "Readouts derive from registry completion dates on refresh, panel votes "
-                      "from the Federal Register, and PDUFA dates are read from 8-Ks when a "
-                      "model key is set. Quiet is an answer.")
-            else:
-                # Two across at both widths: the narrow rule is keyed to the page, and
-                # this block is already in half of it, so collapsing again stacked six
-                # boxes into a column taller than the map beside it.
-                st.markdown(_leads(soon[:_AHEAD_SHOWN], 2, 2),
-                            unsafe_allow_html=True)
-
-
-        # A year, where the map above reads a quarter. The two were the same window and
-        # so the same fact drawn twice, once as colour and once as a line: nothing on the
-        # page said anything the other did not. Set a year apart they answer different
-        # questions, and the interesting companies are the ones where the answers differ.
-        # Bayer is up 29% on the quarter and 70% on the year; Merck is up 15% and 64%.
-        section(f"Coverage, {COVERAGE_MONTHS} months",
-                f"{len(_covered)} companies, one scale")
-        panels = [p for p in api_get(api_base, f"/price-grid?days={COVERAGE_DAYS}")
-                  if p["ticker"] in _covered]
-        if any(p["closes"] for p in panels):
-            shown = sorted(panels, key=lambda p: p["ticker"])
-            covnav.coverage_nav(
-                CH.small_multiples(
-                    [{"label": p["ticker"],
-                      "values": _pct_from_start(p["closes"] or []),
-                      "sub": T.pct(p["change"] * 100) if p["change"] is not None else ""}
-                     for p in shown], 1360, 112, cols=_coverage_columns(len(shown)),
-                    link_base="?ticker="),
-                muted=TK.MUTED, key="cov_nav")
-            note(f"Each panel is {COVERAGE_MONTHS} months of closes indexed to its own "
-                 "start, all on one scale, so a flat line means flat rather than "
-                 f"autoscaled noise. The map above colours the last {_map_days} "
-                 "days: a company green there and flat here had a good quarter in a "
-                 "dull year, and the reverse is a year that has finished running. "
-                 "Click a panel to jump straight to that company's Key insights.")
-        else:
-            state("No price history yet",
-                  "Press Refresh all in the top bar to pull daily closes.")
-
-    # --- Key insights: the feed is the most important view ---------------
     with insights_tab:
         # A briefing opens with where the company stands, then layers on what moved.
         # Built only from diffs it read as empty for most companies: LLY showed zero.
