@@ -2269,7 +2269,9 @@ def _lever_controls(ticker: str, sel: int, result: dict, scalars: dict) -> dict:
             if got != 100:
                 moved["price"] = round(price * got / 100.0, 6)
         with cols[2]:
-            got = st.slider("PoS", 0.20, 1.00, base_pos, 0.025, key=key("pos"))
+            # From nil: a seamless Phase 2/3 oncology asset sits at 11% and an asset
+            # whose Phase 3 failed at 0, and a floor above either throws the page.
+            got = st.slider("PoS", 0.0, 1.00, base_pos, 0.025, key=key("pos"))
         keys.append(key("pos"))
         if abs(got - base_pos) > 1e-9:
             moved["pos"] = got
@@ -2410,9 +2412,20 @@ def _drivers_layer(verdict: dict, scenario: str) -> None:
                     unsafe_allow_html=True)
 
 
-_POS_STAGES = {"entering": "Phase 3 entry", "reading_out": "readout due",
-               "positive": "NDA/BLA gate", "mixed": "one Phase 3 negative",
-               "negative": "nil"}
+_POS_STAGES = {"reading_out": "readout due", "positive": "NDA/BLA gate",
+               "mixed": "one Phase 3 negative", "negative": "nil"}
+_POS_GATES = {"p2_to_p3": "Phase 2 gate", "p3_to_nda": "Phase 3 entry",
+              "nda_to_approval": "NDA/BLA gate"}
+
+
+def _pos_stage(granular: dict) -> str:
+    """The gate in words. An asset entering is named by the first transition still
+    ahead of it, so a seamless Phase 2/3 reads as the Phase 2 gate it stands at."""
+    stage = granular.get("stage") or ""
+    if stage == "entering":
+        chain = granular.get("chain") or []
+        return _POS_GATES.get(chain[0]["gate"] if chain else "", "entry")
+    return _POS_STAGES.get(stage, stage)
 
 
 def _pos_caption(granular: dict | None) -> str | None:
@@ -2420,7 +2433,7 @@ def _pos_caption(granular: dict | None) -> str | None:
     band, which is what a reader wants under a probability before the source."""
     if not granular:
         return None
-    stage = _POS_STAGES.get(granular.get("stage") or "", granular.get("stage") or "")
+    stage = _pos_stage(granular)
     low, high = granular.get("low"), granular.get("high")
     if low is None or high is None or abs(high - low) < 0.005:
         return stage
@@ -2435,7 +2448,7 @@ def _pos_layer(granular: dict) -> None:
     largest Phase 3 is shown as fact beside the number: no free source publishes
     success rates by enrolment or masking, so nothing here multiplies them.
     """
-    stage = _POS_STAGES.get(granular.get("stage") or "", granular.get("stage") or "")
+    stage = _pos_stage(granular)
     section("Probability of success", basis=f"{stage}, {granular.get('area') or ''}")
     rows = ""
     for step in granular.get("chain") or []:
