@@ -66,26 +66,47 @@ _PER_INDICATION = ("prevalence", "eligible_pct", "incidence", "penetration_peak_
 _PER_ASSET = ("discontinuation_pct", "forecast_start_year")
 
 
-def claimants(conn, prevalence: float, scenario: str = "base") -> list[dict]:
-    """Every modelled asset drawing on the same pool, with the inputs it draws with.
+def group_of(conn, indication_id: int) -> str:
+    """The population an indication belongs to. Its own id where it is in no group, so
+    an indication nobody has grouped competes only with itself."""
+    row = conn.execute(
+        """SELECT g.group_key FROM indication_groups g
+             JOIN indications i ON i.name = g.indication_name
+            WHERE i.id = ?""", (indication_id,)).fetchone()
+    return row["group_key"] if row else f"indication:{indication_id}"
 
-    Assets are matched on the prevalence figure rather than the indication name, because
-    the same population is written under several names: obesity, overweight and type 2
-    diabetes all carry the 107,592,242 row on these assets.
+
+def claimants(conn, indication_id: int, scenario: str = "base") -> list[dict]:
+    """Every modelled asset drawing on the same population, with the inputs it draws with.
+
+    Keyed on the asset-indication pair, through ``indication_groups`` so that one
+    population written under several names is one population. It used to match on an
+    identical prevalence figure, which worked by luck: the obesity assets happen to carry
+    the same CDC row to the digit. Two drugs treating one disease from differently
+    sourced prevalence rows would not have pooled, and two treating different diseases
+    whose populations round the same way would.
 
     Reads the rows directly rather than through ``assumptions.load``. That is deliberate
     and load-bearing: load applies the crowding factor this module computes, so going
     through it here would be a cycle, and the ratio has to be derived from what each
     analyst wrote rather than from an already-adjusted number.
     """
+    group = group_of(conn, indication_id)
+    members = [r["id"] for r in conn.execute(
+        """SELECT i.id FROM indication_groups g
+             JOIN indications i ON i.name = g.indication_name
+            WHERE g.group_key = ?""", (group,))]
+    if not members:
+        members = [indication_id]
+    marks = ",".join("?" * len(members))
     rows = conn.execute(
-        """SELECT DISTINCT s.asset_id, s.indication_id, a.generic_name, c.ticker
-             FROM assumptions s
-             JOIN assets a ON a.id = s.asset_id
-             JOIN companies c ON c.id = a.owner_company_id
-            WHERE s.key = 'prevalence' AND s.value = ? AND s.scenario = ?
-              AND s.indication_id IS NOT NULL
-            ORDER BY c.ticker, a.generic_name""", (prevalence, scenario)).fetchall()
+        f"""SELECT DISTINCT s.asset_id, s.indication_id, a.generic_name, c.ticker
+              FROM assumptions s
+              JOIN assets a ON a.id = s.asset_id
+              JOIN companies c ON c.id = a.owner_company_id
+             WHERE s.key = 'prevalence' AND s.scenario = ?
+               AND s.indication_id IN ({marks})
+             ORDER BY c.ticker, a.generic_name""", (scenario, *members)).fetchall()
     out = []
     for row in rows:
         per_ind = {r["key"]: r["value"] for r in conn.execute(
@@ -96,7 +117,7 @@ def claimants(conn, prevalence: float, scenario: str = "base") -> list[dict]:
             "SELECT key, value FROM assumptions WHERE asset_id = ? AND indication_id IS"
             "  NULL AND scenario = ? AND year IS NULL", (row["asset_id"], scenario))}
         got = _inputs(per_ind)
-        if not got or abs(got["prevalence"] - prevalence) > 0.5:
+        if not got:
             continue
         name = conn.execute("SELECT name FROM indications WHERE id = ?",
                             (row["indication_id"],)).fetchone()
@@ -108,8 +129,8 @@ def claimants(conn, prevalence: float, scenario: str = "base") -> list[dict]:
     return out
 
 
-# {(prevalence, scenario): {asset_id: ratio}} for the life of a process. The solve is
-# cheap but it runs once per asset build, and a book-wide valuation builds hundreds.
+# {(group, scenario): {asset_id: ratio}} for the life of a process. The solve is cheap
+# but it runs once per asset build, and a book-wide valuation builds hundreds.
 _CACHE: dict = {}
 
 
@@ -117,14 +138,14 @@ def clear_cache() -> None:
     _CACHE.clear()
 
 
-def ratios(conn, prevalence: float, scenario: str = "base") -> dict:
+def ratios(conn, indication_id: int, scenario: str = "base") -> dict:
     """{asset_id: the share of its own forecast this asset keeps once the pool is
-    counted once}. Empty where nothing shares the pool, so the common case costs one
-    query and changes nothing."""
-    key = (round(float(prevalence), 2), scenario)
+    counted once}. Empty where nothing shares the population, so the common case costs
+    one query and changes nothing."""
+    key = (group_of(conn, indication_id), scenario)
     if key in _CACHE:
         return _CACHE[key]
-    claims = claimants(conn, prevalence, scenario)
+    claims = claimants(conn, indication_id, scenario)
     if len(claims) < 2:
         _CACHE[key] = {}
         return _CACHE[key]

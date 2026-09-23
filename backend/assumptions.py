@@ -312,7 +312,8 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
                 scalars[key] = value
             continue
         entry = indications.setdefault(
-            indication_id, {"name": row["indication"], "scalars": {}, "series": {}})
+            indication_id, {"name": row["indication"], "indication_id": indication_id,
+                            "scalars": {}, "series": {}})
         if year is None:
             entry["scalars"][key] = value
         else:
@@ -392,9 +393,10 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         scalars_here = entry["scalars"]
         prevalence = scalars_here.get("prevalence")
         peak = scalars_here.get("penetration_peak_pct")
-        if prevalence is None or peak is None:
+        if prevalence is None or peak is None or not entry.get("indication_id"):
             continue
-        factor = pool_crowding.ratios(conn, prevalence, scenario).get(asset_id)
+        factor = pool_crowding.ratios(
+            conn, entry["indication_id"], scenario).get(asset_id)
         if factor is None:
             continue
         scalars_here["penetration_peak_pct"] = peak * factor

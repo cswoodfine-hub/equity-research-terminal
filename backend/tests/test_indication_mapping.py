@@ -252,3 +252,76 @@ def test_a_pair_with_no_trial_left_stops_being_asserted(tmp_path):
     conn.execute("DELETE FROM trials")
     conn.commit(); conn.close()
     assert im.build(path)["pairs"] == 0
+
+
+def test_an_override_removes_a_co_morbidity_read_as_an_indication(tmp_path):
+    """Omvoh is an interleukin-23 antibody for ulcerative colitis. It was tagged Obesity
+    because two trials study it alongside tirzepatide in colitis patients whose
+    conditions read "Obesity or Overweight", which is a body-mass eligibility band and
+    not a disease it treats. Every automatic signal tested for this ran at 5% to 30%
+    precision, so the exclusion is recorded as the judgement it is."""
+    db_file = tmp_path / "override.db"
+    db.init(db_file)
+    conn = db.get_connection(db_file)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Lilly')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, is_marketed)"
+                 " VALUES (35, 1, 'Mirikizumab', 1)")
+    conn.execute(
+        """INSERT INTO trials (nct_id, asset_id, phase, conditions, mesh_terms,
+                               overall_status, enrollment)
+           VALUES ('NCT06937086', 35, 'Phase 3',
+                   '["Ulcerative Colitis", "Obesity or Overweight"]',
+                   '{"meshes": [{"id": "D003093", "term": "Colitis, Ulcerative"},
+                                {"id": "D009765", "term": "Obesity"}]}',
+                   'Recruiting', 100)""")
+    conn.commit()
+    conn.close()
+
+    im.build(db_file)
+    conn = db.get_connection(db_file)
+    names = {r[0] for r in conn.execute(
+        """SELECT i.name FROM asset_indications ai JOIN indications i
+             ON i.id = ai.indication_id WHERE ai.asset_id = 35""")}
+    assert "Obesity" in names, "without an override the defect is present"
+    obesity_id = conn.execute(
+        "SELECT id FROM indications WHERE name = 'Obesity'").fetchone()[0]
+    conn.execute("INSERT INTO asset_indication_overrides (asset_id, indication_id,"
+                 " exclude, note) VALUES (35, ?, 1, 'enrolment criterion')", (obesity_id,))
+    conn.commit()
+    conn.close()
+
+    got = im.build(db_file)
+    conn = db.get_connection(db_file)
+    names = {r[0] for r in conn.execute(
+        """SELECT i.name FROM asset_indications ai JOIN indications i
+             ON i.id = ai.indication_id WHERE ai.asset_id = 35""")}
+    conn.close()
+    assert "Obesity" not in names
+    assert "Colitis, Ulcerative" in names, "the real indication must survive"
+    assert got["excluded_by_override"] == 1
+
+
+def test_the_rebuild_releases_a_catalyst_before_deleting_the_row_it_points_at(tmp_path):
+    """catalysts.asset_indication_id references a row the wholesale rebuild deletes.
+    Once filings began carrying that link, the rebuild raised a foreign key error and
+    would have broken every refresh."""
+    db_file = tmp_path / "fk.db"
+    db.init(db_file)
+    conn = db.get_connection(db_file)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Lilly')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, is_marketed)"
+                 " VALUES (7, 1, 'a drug', 0)")
+    conn.execute("INSERT INTO indications (id, name) VALUES (5, 'Colitis, Ulcerative')")
+    conn.execute("INSERT INTO asset_indications (id, asset_id, indication_id, phase,"
+                 " region) VALUES (99, 7, 5, 'Phase 3', 'US')")
+    conn.execute("INSERT INTO catalysts (company_id, asset_id, asset_indication_id,"
+                 " catalyst_type, expected_date, title) VALUES"
+                 " (1, 7, 99, 'PDUFA', '2027-01-01', 'a drug PDUFA, colitis')")
+    conn.commit()
+    conn.close()
+
+    im.build(db_file)          # must not raise
+    conn = db.get_connection(db_file)
+    left = conn.execute("SELECT asset_indication_id FROM catalysts").fetchone()[0]
+    conn.close()
+    assert left is None, "the link is released, and applications.resolve reattaches it"

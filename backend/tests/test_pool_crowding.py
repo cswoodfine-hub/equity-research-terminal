@@ -125,3 +125,72 @@ def test_summary_reports_what_was_claimed_against_what_one_pool_supplies():
 def test_no_claimants_returns_an_empty_answer_rather_than_raising():
     assert PC.solve([])["assets"] == []
     assert PC.summary({"shared": []}) == {}
+
+
+def _pool_db(tmp_path, grouped=True):
+    """Two assets on Obesity and one on Weight Loss, all on one population."""
+    import db as db_module
+    path = str(tmp_path / "group.db")
+    db_module.init(path)
+    conn = db_module.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name, reporting_currency)"
+                 " VALUES (1, 'LLY', 'Eli Lilly', 'USD')")
+    conn.execute("INSERT INTO indications (id, name) VALUES (367, 'Obesity'),"
+                 " (332, 'Weight Loss'), (900, 'Something Else')")
+    if not grouped:
+        conn.execute("DELETE FROM indication_groups")
+    for asset_id, name, ind in ((1, "alpha", 367), (2, "beta", 367), (3, "gamma", 332),
+                                (4, "delta", 900)):
+        conn.execute("INSERT INTO assets (id, owner_company_id, generic_name,"
+                     " is_marketed) VALUES (?, 1, ?, 0)", (asset_id, name))
+        for key, value in (("prevalence", 100e6), ("eligible_pct", 1.0),
+                           ("incidence", 1e6), ("penetration_peak_pct", 0.04),
+                           ("ramp_midpoint_year", 5.0), ("ramp_steepness", 1.0)):
+            conn.execute("INSERT INTO assumptions (asset_id, indication_id, region,"
+                         " scenario, key, value) VALUES (?, ?, 'US', 'base', ?, ?)",
+                         (asset_id, ind, key, value))
+        conn.execute("INSERT INTO assumptions (asset_id, region, scenario, key, value)"
+                     " VALUES (?, 'US', 'base', 'forecast_start_year', 2027)", (asset_id,))
+        conn.execute("INSERT INTO assumptions (asset_id, region, scenario, key, value)"
+                     " VALUES (?, 'US', 'base', 'discontinuation_pct', 0.648)", (asset_id,))
+    conn.commit()
+    return conn
+
+
+def test_one_population_written_under_two_names_is_one_pool(tmp_path):
+    """Seven obesity assets sit on Obesity and Viking's sits on Weight Loss. Keyed on the
+    indication id alone, Viking would get a private copy of the same adults, which is the
+    error the crowding correction exists to remove."""
+    conn = _pool_db(tmp_path)
+    PC.clear_cache()
+    names = {c["name"] for c in PC.claimants(conn, 367)}
+    conn.close()
+    assert names == {"alpha", "beta", "gamma"}, "Weight Loss belongs with Obesity"
+
+
+def test_either_name_reaches_the_same_group(tmp_path):
+    conn = _pool_db(tmp_path)
+    PC.clear_cache()
+    assert PC.group_of(conn, 332) == PC.group_of(conn, 367) == "obesity"
+    assert {c["name"] for c in PC.claimants(conn, 332)} == {"alpha", "beta", "gamma"}
+    conn.close()
+
+
+def test_an_indication_in_no_group_competes_only_with_itself(tmp_path):
+    """The table is deliberately incomplete. Nothing may depend on an indication being
+    in it."""
+    conn = _pool_db(tmp_path)
+    PC.clear_cache()
+    assert PC.group_of(conn, 900) == "indication:900"
+    assert {c["name"] for c in PC.claimants(conn, 900)} == {"delta"}
+    assert PC.ratios(conn, 900) == {}, "one claimant is not a crowd"
+    conn.close()
+
+
+def test_without_the_group_the_two_names_would_not_pool(tmp_path):
+    """The failure the group table prevents, shown rather than asserted."""
+    conn = _pool_db(tmp_path, grouped=False)
+    PC.clear_cache()
+    names = {c["name"] for c in PC.claimants(conn, 367)}
+    conn.close()
+    assert names == {"alpha", "beta"}, "gamma is stranded without the group"

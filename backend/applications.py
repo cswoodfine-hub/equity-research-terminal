@@ -191,14 +191,19 @@ def resolve(conn, today=None) -> dict:
     catalyst that has none. Returns a summary. Writes only the two id columns."""
     today = today or dt.date.today()
     marks = ",".join("?" * len(FILED_KINDS))
+    # Rows with no asset at all, and rows whose indication link was released by the
+    # wholesale rebuild in indication_mapping. The second case is why this runs after
+    # that rebuild in the refresh: the ids it points at are new every time.
     rows = [dict(r) for r in conn.execute(
         f"""SELECT id, company_id, title, description, expected_date, asset_id
               FROM catalysts
-             WHERE catalyst_type IN ({marks}) AND asset_id IS NULL""", FILED_KINDS)]
+             WHERE catalyst_type IN ({marks})
+               AND (asset_id IS NULL OR asset_indication_id IS NULL)""", FILED_KINDS)]
     out = {"seen": len(rows), "asset": 0, "indication": 0, "refused": []}
     for row in rows:
         product, indication = parse_title(row["title"])
-        asset_id, why = match_asset(conn, row["company_id"], product or "")
+        asset_id, why = (row["asset_id"], "already matched") if row["asset_id"] else \
+            match_asset(conn, row["company_id"], product or "")
         if asset_id is None:
             out["refused"].append({"id": row["id"], "title": row["title"], "why": why})
             continue

@@ -253,6 +253,15 @@ def build(db_path=None) -> dict:
             if asset_id not in lead or key > lead[asset_id][0]:
                 lead[asset_id] = (key, mesh_id)
 
+        # Anything pointing at a row about to be deleted has to let go of it first.
+        # catalysts.asset_indication_id is the one such reference, written by
+        # applications.resolve when a filing names the disease it is for. The rebuild is
+        # wholesale, so the ids it points at do not survive it, and a foreign key error
+        # here would break every refresh. The link is re-derived rather than remembered:
+        # applications.resolve runs later in the same refresh and reattaches it against
+        # the new rows.
+        conn.execute("UPDATE catalysts SET asset_indication_id = NULL"
+                     " WHERE asset_indication_id IS NOT NULL")
         conn.execute("DELETE FROM asset_indications")
         written = excluded = 0
         for (asset_id, mesh_id), entry in sorted(pairs.items()):
