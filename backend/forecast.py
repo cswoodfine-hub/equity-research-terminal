@@ -323,7 +323,9 @@ def _price_factor(scalars: dict, year_index: int) -> float:
 
     Absent, the price is flat and nothing changes. This never carries the fall at loss of
     exclusivity, which the erosion module applies to revenue further down: that is a
-    different event with its own evidence, and charging both would count it twice.
+    different event with its own evidence, and charging both would count it twice. The
+    caller freezes the factor at the cliff year for that reason; this function only says
+    what the factor is at a given year index.
     """
     decline = scalars.get("net_price_decline_pct")
     return 1.0 if not decline else (1.0 - decline) ** year_index
@@ -942,6 +944,22 @@ def build(inputs: dict) -> dict:
             erosion_basis = f"curated default ({which}), {default['source']}"
     if loe_year is not None:
         loe_year = int(loe_year)
+    # The price decline stops at the cliff. Past it the erosion curve takes over, and
+    # that curve is fitted to filers' printed United States net revenue lines, which have
+    # already fallen partly on price. Compounding the decline through those years charged
+    # the same fall twice: on these obesity assets about a quarter of everything the
+    # decline removed landed after the LOE year. This function's own docstring said the
+    # two were never charged together; the arithmetic did not agree with it.
+    if scalars.get("net_price_decline_pct") and loe_year is not None:
+        freeze = max(0, min(len(years) - 1, loe_year - years[0]))
+        held = _price_factor(scalars, freeze)
+        for i in range(freeze + 1, len(years)):
+            running = _price_factor(scalars, i)
+            if running:
+                revenue[i] = revenue[i] * held / running
+        notes.append(f"the net price decline stops at the {loe_year} cliff and the "
+                     f"erosion curve carries it from there, since that curve is measured "
+                     f"on net revenue which already fell partly on price")
     # An LOE whose cliff year is already behind the first forecast year is in the base:
     # the reported revenue the forecast grows from was earned after it, and the growth
     # rate read off the filing already carries the decline. Eroding it again compounded

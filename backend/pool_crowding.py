@@ -175,8 +175,8 @@ def solve(claims: list[dict], years: int = 30, first_year: int | None = None,
     # Uncrowded: the engine's own answer, one private pool each.
     uncrowded = {}
     for claim in claims:
-        pool = claim["prevalence"] * claim["eligible_pct"] * claim["multiple"]
-        inc = claim["incidence"] * claim["eligible_pct"] * claim["multiple"]
+        pool = claim["prevalence"] * claim["eligible_pct"]
+        inc = claim["incidence"] * claim["eligible_pct"]
         carry = 1.0 if claim["carryover"] is None else claim["carryover"]
         stop = (claim["stop"] or 0.0) if recycle else 0.0
         remaining, series, treated = pool, [], 0.0
@@ -193,22 +193,26 @@ def solve(claims: list[dict], years: int = 30, first_year: int | None = None,
     # claimant is scaled by the same factor, which says the pool ran out without saying
     # who wins.
     #
-    # Only assets whose pool is the same population may share it. An asset carrying an
-    # ex-US multiple is drawing on a larger one: Pfizer's berobenatide is priced against
-    # 166.4mm where the other seven use the US 107.6mm, and pooling those two
-    # denominators would be an arithmetic error of the same kind this module exists to
-    # correct. The largest group of assets that agree on the pool is the one solved, and
-    # any that disagree are returned as ``unpooled`` rather than quietly folded in.
+    # Only assets whose pool is the same population may share it, and the population is
+    # the domestic one: prevalence times the eligible share, WITHOUT the ex-US multiple.
+    #
+    # That exclusion is load-bearing. The multiple is a filed ex-US to US revenue ratio,
+    # so an asset carrying one sells to the same contested US patients and to others
+    # abroad who are not contested by anybody here. Folding it into the grouping key put
+    # every asset with a multiple in a pool of its own, which dissolved the crowding
+    # correction exactly when an ex-US figure was added: storing a multiple on the seven
+    # would have quietly handed back most of what counting the population once took away.
+    # Crowding is solved on the US pool; the engine applies the ex-US uplift afterwards.
     sizes = {}
     for claim in claims:
-        size = round(claim["prevalence"] * claim["eligible_pct"] * claim["multiple"], 2)
+        size = round(claim["prevalence"] * claim["eligible_pct"], 2)
         sizes.setdefault(size, []).append(claim)
     shared_size = max(sizes, key=lambda k: (len(sizes[k]), -k))
     pooled = sizes[shared_size]
     unpooled = [c for c in claims if c not in pooled]
     lead = pooled[0]
     pool = shared_size
-    inc = lead["incidence"] * lead["eligible_pct"] * lead["multiple"]
+    inc = lead["incidence"] * lead["eligible_pct"]
     carry = 1.0 if lead["carryover"] is None else lead["carryover"]
     claims_in = pooled
     crowded = {c["asset_id"]: [] for c in claims}
@@ -246,8 +250,8 @@ def solve(claims: list[dict], years: int = 30, first_year: int | None = None,
                        "ratio": (max(cp) / max(up)) if (in_pool and max(up)) else 1.0})
     return {"years": calendar, "assets": assets, "shared": shared, "pool": pool,
             "unpooled": [{"name": c["name"], "ticker": c["ticker"],
-                          "pool": round(c["prevalence"] * c["eligible_pct"]
-                                        * c["multiple"], 2)} for c in unpooled],
+                          "pool": round(c["prevalence"] * c["eligible_pct"], 2)}
+                         for c in unpooled],
             "rationed_years": sum(1 for s in shared if s["rationed"])}
 
 

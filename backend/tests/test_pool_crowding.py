@@ -75,17 +75,34 @@ def test_recycling_returns_the_patients_who_stop():
     assert max(a["ratio"] for a in on["assets"]) > max(a["ratio"] for a in off["assets"])
 
 
-def test_assets_on_a_different_denominator_are_not_pooled():
-    """An asset carrying an ex-US multiple draws on a larger population. Pooling two
-    denominators would be the same class of arithmetic error this module corrects."""
+def test_an_ex_us_multiple_does_not_remove_an_asset_from_the_domestic_pool():
+    """The multiple is a filed ex-US to US revenue ratio, so an asset carrying one still
+    sells to the same contested US patients. Grouping on it put every such asset in a
+    pool of its own, which dissolved the crowding correction exactly when an ex-US figure
+    was added: storing one would have handed back most of what counting the population
+    once took away."""
     us = [_claim("us1", 0.04), _claim("us2", 0.04)]
-    ex = _claim("worldwide", 0.04, multiple=1.55)
+    ex = _claim("also sells abroad", 0.04, multiple=1.55)
     got = PC.solve(us + [ex], years=20)
     by_name = {a["name"]: a for a in got["assets"]}
-    assert by_name["worldwide"]["pooled"] is False
-    assert by_name["worldwide"]["ratio"] == pytest.approx(1.0)
-    assert by_name["us1"]["pooled"] is True
-    assert [u["name"] for u in got["unpooled"]] == ["worldwide"]
+    assert got["unpooled"] == []
+    assert all(a["pooled"] for a in got["assets"])
+    assert by_name["also sells abroad"]["ratio"] < 1.0
+    # And it is crowded on the same terms as its US-only rivals, not on a bigger pool.
+    assert by_name["also sells abroad"]["ratio"] == pytest.approx(by_name["us1"]["ratio"])
+
+
+def test_a_genuinely_different_population_is_still_not_pooled():
+    """Prevalence times the eligible share is the population. Two assets treating
+    different diseases, or different slices of one, do not compete for the same people."""
+    shared = [_claim("a", 0.04), _claim("b", 0.04)]
+    other = _claim("other disease", 0.04, prevalence=2e6)
+    narrow = _claim("narrow slice", 0.04, eligible=0.25)
+    got = PC.solve(shared + [other, narrow], years=20)
+    by_name = {a["name"]: a for a in got["assets"]}
+    assert by_name["other disease"]["pooled"] is False
+    assert by_name["narrow slice"]["pooled"] is False
+    assert sorted(u["name"] for u in got["unpooled"]) == ["narrow slice", "other disease"]
 
 
 def test_an_asset_that_has_not_launched_claims_nothing():
