@@ -80,19 +80,11 @@ def _get(url: str) -> str:
 
 
 def exhibit_url(primary_url: str, get=_get) -> str | None:
-    """The EX-99 press-release document in the filing's folder, where a US 8-K keeps the
-    release, or None. Read from the accession index."""
-    base = "/".join(primary_url.split("/")[:-1])
-    try:
-        index = json.loads(get(base + "/index.json"))
-    except Exception:
-        return None
-    for item in index.get("directory", {}).get("item", []):
-        name = item.get("name", "")
-        if re.search(r"ex.?99", name, re.I) and name.lower().endswith(
-                (".htm", ".html", ".txt")):
-            return f"{base}/{name}"
-    return None
+    """The EX-99 press-release document in the filing's folder, or None.
+
+    One implementation, in pdufa, because both readers face the same envelope.
+    """
+    return pdufa.exhibit_url(primary_url, get)
 
 
 def readout_text(filing: dict, get=_get) -> str:

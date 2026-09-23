@@ -166,6 +166,47 @@ def _fetch(url: str) -> str:
         return resp.read().decode("utf-8", "replace")
 
 
+def exhibit_url(primary_url: str, get=None) -> str | None:
+    """The EX-99 press-release document in the filing's folder, or None.
+
+    A filing's primary document is often only a cover sheet. Novo Nordisk's 6-K cover is
+    4,239 characters of address and check boxes and Sanofi's is 1,229, with the
+    announcement itself in an attached exhibit. Reading the cover alone is why a run over
+    585 filings found nineteen worth reading: it was looking at envelopes.
+    """
+    get = get or _fetch
+    base = "/".join(primary_url.split("/")[:-1])
+    try:
+        index = json.loads(get(base + "/index.json"))
+    except Exception:
+        return None
+    for item in index.get("directory", {}).get("item", []):
+        name = item.get("name", "")
+        if re.search(r"ex.?99", name, re.I) and name.lower().endswith(
+                (".htm", ".html", ".txt")):
+            return f"{base}/{name}"
+    return None
+
+
+def filing_text(filing: dict, get=None) -> str:
+    """The text most likely to carry a goal date: the primary document, or the EX-99
+    exhibit where the primary carries no regulatory language.
+
+    Applies to a 6-K as well as an 8-K. Restricting the fallback to domestic filings is
+    what kept every foreign filer's announcement out of reach, and a foreign filer is
+    exactly who files a bare cover.
+    """
+    get = get or _fetch
+    text = strip_html(get(filing["url"]))
+    if REGULATORY_HINT.search(text):
+        return text
+    exhibit = exhibit_url(filing["url"], get)
+    if exhibit:
+        time.sleep(_FETCH_PAUSE_S)
+        return strip_html(get(exhibit))
+    return text
+
+
 def parse_reply(raw: str) -> dict | None:
     """The model's JSON, or None when it is unusable. Never raises."""
     if not raw:
@@ -283,7 +324,7 @@ def extract(db_path=None, limit: int = 25, today=None) -> dict:
             continue
         try:
             time.sleep(_FETCH_PAUSE_S)
-            document = strip_html(_fetch(filing["url"]))
+            document = filing_text(filing)
         except Exception as exc:               # a filing that will not fetch is skipped
             errors.append(f"{filing['ticker']} {filing['accession']}: {exc}")
             continue
