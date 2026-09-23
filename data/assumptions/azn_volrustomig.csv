@@ -3,7 +3,7 @@
 # this book had no oncology launch curve before these four.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AZN,Volrustomig,,US,base,therapy_mode,,,chronic,,"dosing continues until progression",""
-AZN,Volrustomig,,US,base,gross_to_net_pct,,0.5,,share off list,"analyst convention: manufacturer rebates in a competitive class",""
+AZN,Volrustomig,,US,base,gross_to_net_pct,,0.5,,share off list,"convention, measured: on the nine cycle-one IRA drugs that carry a demand row, a gross CMS figure halved lands at a median 96% of CMS's own negotiated net annual price, spread 65% on Imbruvica to 167% on Januvia, so the gross basis and the part-year basis cancel and this is sound for a book and loose for one asset (backend/gross_to_net.py). Manufacturer rebates in a competitive class",
 AZN,Volrustomig,,US,base,cogs_pct,,0.181,,share of revenue,"AZN FY2025, from the filed lines",""
 AZN,Volrustomig,,US,base,sga_pct,,0.349206,,share of revenue,"AZN FY2025, from the filed lines. Restated with selling costs: the SG&A line on file, $19,933mm for FY2025, leaves out the $579mm of selling or distribution costs AZN reports as a line of its own, tagged as DistributionCosts (20-F 0001104659-26-019130, SEC financial statement data sets), so SG&A rises from 33.93% to 34.92% of revenue.",
 AZN,Volrustomig,,US,base,rd_pct,,0.2423,,share of revenue,"AZN FY2025, from the filed lines",""
