@@ -27,7 +27,31 @@ actually set the revenue curve.
    corrected to its own 4.3882%, and consistent grading.~~ Done, 98e6067.
 2. ~~Cagrilintide priced in USD inside a DKK book, carried at a sixth of itself.~~
    Done, 98e6067. Novo +$7.12 a share.
-3. **The CagriSema overlap, opened by the item above and unquantified.** Cagrilintide is
+3. ~~The eight obesity lines each given the whole pool.~~ Done, 0d9c4d4. `pool_crowding`
+   runs the identity once over one shared pool, returns the patients who stop, and
+   refuses to pool two denominators. Cost: VKTX -19.3%, NVO -4.0%, AZN -2.1%, LLY -1.9%,
+   AMGN -1.4%, MRK -0.2%. It also found Merck and AstraZeneca competing on a breast
+   cancer pool.
+12. **The marketed incumbents are not deducted from the pool, which is 6.0% too large.**
+   Measured from filed regional splits: Zepbound 4.06mm US patients, Wegovy 2.36mm,
+   Saxenda 0.01mm, so 6.43mm US adults are already on branded obesity therapy. The
+   pipeline's pool is stated as 107.6mm untreated and should be 101.2mm. Wegovy, Ozempic
+   and Mounjaro are modelled in marketed mode off reported revenue and never touch the
+   pool identity, so nothing deducts them.
+   - **Blocked on a data bug, not on judgement.** The incumbents cannot be linked to the
+     pool automatically today: Wegovy and Zepbound carry no obesity `asset_indications`
+     row at all, while Omvoh, which is mirikizumab, an IL-23 antibody for ulcerative
+     colitis, is tagged Obesity. Fix the tagging first, then the deduction is mechanical.
+   - **The root cause: a co-morbidity in a trial's enrolment criteria becomes an
+     indication.** Omvoh's obesity tag comes from NCT06937086, which studies mirikizumab
+     alongside tirzepatide in ulcerative colitis patients whose conditions are listed as
+     "Ulcerative Colitis" and "Obesity or Overweight". `indication_mapping` maps every
+     condition string, so the second becomes a disease the drug treats. Clazakizumab, an
+     IL-6 for transplant rejection, and a milk polar lipid dairy powder are tagged the
+     same way. **No valuation moves on this today**, because none of the mis-tagged
+     assets is modelled and Omvoh is valued off reported revenue, so it is a data defect
+     that blocks the item above rather than a live error.
+11. **The CagriSema overlap, opened by the currency fix and unquantified.** Cagrilintide is
    now the largest line in Novo's book at 244,230mm DKK, above Ozempic (201,237) and
    Wegovy (195,972), on a peak of 163,213mm against Wegovy's 110,518mm. Its trials are
    CagriSema studies, which contain semaglutide, so a share of that revenue is Novo
