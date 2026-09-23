@@ -13,7 +13,7 @@ TODAY = dt.date(2026, 9, 22)
 
 
 def _seed(tmp_path, trials=(), readouts=(), prevalence=None, unit="patients",
-          name="etentamig", modality=None, phase="Phase 3"):
+          name="XYZ-1234", modality=None, phase="Phase 3"):
     path = str(tmp_path / "pos.db")
     db.init(path)
     conn = db.get_connection(path)
@@ -51,9 +51,13 @@ def _catalyst(conn, title, date, kind="PDUFA", description="FDA accepted it."):
 
 
 def _resolve(conn, **kw):
-    args = dict(area="Oncology", phase="Phase 3", names=["etentamig"], company_id=1,
+    # The default asset qualifies for NO cut: a code number has no readable stem and
+    # "solid tumours" names no sub-type. That isolates whatever a test is actually
+    # about, because a test of the filing stage should not also be a test of the
+    # antibody rate. Tests about the cuts pass a name and a condition of their own.
+    args = dict(area="Oncology", phase="Phase 3", names=["XYZ-1234"], company_id=1,
                 prevalence_us=None, biomarker_selected=False,
-                conditions_text="Multiple Myeloma", today=TODAY)
+                conditions_text="solid tumours", today=TODAY)
     args.update(kw)
     return PG.resolve(conn, 7, **args)
 
@@ -80,7 +84,7 @@ def test_an_asset_at_phase_3_entry_gets_the_tables_own_figure(tmp_path):
 
 def test_a_positive_phase_3_readout_leaves_only_the_approval_step(tmp_path):
     conn = _seed(tmp_path, trials=(("NCT1", "Completed", "2026-03-01", 500, None),),
-                 readouts=(("etentamig", 3, "positive", "2026-06-01"),))
+                 readouts=(("XYZ-1234", 3, "positive", "2026-06-01"),))
     got = _resolve(conn)
     conn.close()
     assert got["pos"] == pytest.approx(0.920)
@@ -89,7 +93,7 @@ def test_a_positive_phase_3_readout_leaves_only_the_approval_step(tmp_path):
 
 def test_a_negative_readout_with_no_open_study_is_nil(tmp_path):
     conn = _seed(tmp_path, trials=(("NCT1", "Completed", "2026-03-01", 500, None),),
-                 readouts=(("etentamig", 3, "negative", "2026-06-01"),))
+                 readouts=(("XYZ-1234", 3, "negative", "2026-06-01"),))
     got = _resolve(conn)
     conn.close()
     assert got["pos"] == 0.0 and got["stage"] == "negative"
@@ -100,7 +104,7 @@ def test_a_negative_readout_with_other_studies_open_keeps_the_gate_and_floors_th
     2030. One trial's answer is not the asset's."""
     conn = _seed(tmp_path, trials=(("NCT1", "Active not recruiting", "2026-03-01", 500, None),
                                    ("NCT2", "Recruiting", "2029-01-01", 900, None)),
-                 readouts=(("etentamig", 3, "negative", "2026-06-01"),))
+                 readouts=(("XYZ-1234", 3, "negative", "2026-06-01"),))
     got = _resolve(conn)
     conn.close()
     assert got["stage"] == "mixed"
@@ -125,8 +129,12 @@ def test_the_band_comes_from_the_cuts_the_asset_qualifies_for(tmp_path):
     got = _resolve(conn, names=["etentamig"], conditions_text="Multiple Myeloma")
     conn.close()
     assert {c["group"] for c in got["cuts"]} == {"Monoclonal antibody", "Hematologic"}
-    assert got["low"] == got["pos"]
+    # The point used to sit on the band's low edge, because it was the area chain and
+    # every cut here is above it. It now sits inside, which is what a band around a
+    # central estimate should look like.
+    assert got["low"] == pytest.approx(0.477 * 0.920, abs=1e-4)
     assert got["high"] == pytest.approx(0.681 * 0.954, abs=1e-4)
+    assert got["low"] < got["pos"] < got["high"]
 
 
 def test_a_thin_cut_is_refused_and_says_why(tmp_path):
@@ -232,7 +240,7 @@ def test_an_accepted_application_leaves_only_the_approval_step(tmp_path):
     import applications
     conn = _seed(tmp_path, trials=(("NCT1", "Active not recruiting", "2026-08-01", 500,
                                     None),))
-    _catalyst(conn, "etentamig PDUFA, Multiple myeloma", "2027-04-01")
+    _catalyst(conn, "XYZ-1234 PDUFA, Multiple myeloma", "2027-04-01")
     applications.resolve(conn, today=TODAY)
     got = _resolve(conn)
     conn.close()
@@ -248,7 +256,7 @@ def test_a_filing_for_a_disease_the_asset_does_not_carry_lifts_nothing(tmp_path)
     the reader sees it, and the probability does not move."""
     import applications
     conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
-    _catalyst(conn, "etentamig PDUFA, IgA Nephropathy", "2027-04-01")
+    _catalyst(conn, "XYZ-1234 PDUFA, IgA Nephropathy", "2027-04-01")
     applications.resolve(conn, today=TODAY)
     got = _resolve(conn)
     conn.close()
@@ -261,8 +269,8 @@ def test_a_filing_for_a_disease_the_asset_does_not_carry_lifts_nothing(tmp_path)
 def test_a_negative_readout_still_beats_an_accepted_application(tmp_path):
     import applications
     conn = _seed(tmp_path, trials=(("NCT1", "Completed", "2026-03-01", 500, None),),
-                 readouts=(("etentamig", 3, "negative", "2026-06-01"),))
-    _catalyst(conn, "etentamig PDUFA, Multiple myeloma", "2027-04-01")
+                 readouts=(("XYZ-1234", 3, "negative", "2026-06-01"),))
+    _catalyst(conn, "XYZ-1234 PDUFA, Multiple myeloma", "2027-04-01")
     applications.resolve(conn, today=TODAY)
     got = _resolve(conn)
     conn.close()
@@ -277,8 +285,8 @@ def test_a_filing_on_a_molecule_the_company_already_markets_lifts_nothing(tmp_pa
     import applications
     conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
     conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, brand_name,"
-                 " is_marketed) VALUES (8, 1, 'etentamig', 'Etenta', 1)")
-    _catalyst(conn, "etentamig PDUFA, Multiple myeloma", "2027-04-01")
+                 " is_marketed) VALUES (8, 1, 'XYZ-1234', 'Etenta', 1)")
+    _catalyst(conn, "XYZ-1234 PDUFA, Multiple myeloma", "2027-04-01")
     resolved = applications.resolve(conn, today=TODAY)
     got = _resolve(conn)
     conn.close()
@@ -297,7 +305,7 @@ def test_the_supplement_guard_catches_a_marketed_sibling_the_matcher_let_through
     conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
     conn.execute("UPDATE assets SET internal_code = 'ABBV-383' WHERE id = 7")
     conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, brand_name,"
-                 " is_marketed) VALUES (8, 1, 'etentamig', 'Etenta', 1)")
+                 " is_marketed) VALUES (8, 1, 'XYZ-1234', 'Etenta', 1)")
     _catalyst(conn, "ABBV-383 PDUFA, Multiple myeloma", "2027-04-01")
     applications.resolve(conn, today=TODAY)
     got = _resolve(conn)
@@ -322,3 +330,67 @@ def test_an_unknown_stage_name_does_not_raise(tmp_path):
         conn.close()
     assert got["pos"] == pytest.approx(0.477 * 0.920, abs=1e-4)
     assert got["basis"].startswith("p3 to nda")
+
+
+def test_the_point_is_the_central_tendency_of_every_rate_the_asset_belongs_to(tmp_path):
+    """An antibody in a haematological cancer belongs to three published populations. The
+    area chain alone made twenty-seven of the fifty-five modelled pipeline assets carry
+    the identical 0.4388, however different their tumour type or modality."""
+    conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
+    got = _resolve(conn, names=["etentamig"], conditions_text="Multiple Myeloma")
+    conn.close()
+    area = 0.477 * 0.920
+    antibody = 0.681 * 0.954
+    heme = 0.600 * 0.900
+    expected = (area * antibody * heme) ** (1 / 3)
+    assert got["pos"] == pytest.approx(expected, abs=1e-4)
+    assert got["pos"] > area, "the cuts must actually move it"
+    assert "central tendency" in got["basis"]
+
+
+def test_the_point_always_falls_inside_its_own_band(tmp_path):
+    """The geometric mean is bounded by the rates it averages, which is the whole reason
+    it is safe: it never asserts a rate outside everything the report publishes."""
+    conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
+    for names, conditions in ((["etentamig"], "Multiple Myeloma"),
+                              (["nemtabrutinib"], "Chronic Lymphocytic Leukemia"),
+                              (["pumitamig"], "PD-L1 positive lung cancer")):
+        got = _resolve(conn, names=names, conditions_text=conditions)
+        assert got["low"] - 1e-9 <= got["pos"] <= got["high"] + 1e-9, names
+    conn.close()
+
+
+def test_an_asset_qualifying_for_no_cut_keeps_the_area_rate(tmp_path):
+    """A compound named by a code number, with no readable stem and no tumour type, has
+    nothing to tell it apart from its area. That is the honest answer rather than a gap."""
+    conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
+    got = _resolve(conn, names=["AZD5335"], conditions_text="solid tumours")
+    conn.close()
+    assert got["cuts"] == []
+    assert got["pos"] == pytest.approx(0.477 * 0.920, abs=1e-4)
+    assert "central tendency" not in got["basis"]
+
+
+def test_a_failed_phase_3_is_not_outweighed_by_the_rate_its_class_usually_achieves(tmp_path):
+    """Volrustomig stopped one Phase 3 for futility with others open. Blending the
+    bispecific antibody rate of 68% pulled its probability UP, from 0.4388 to 0.5340. Its
+    own evidence outranks its class membership."""
+    conn = _seed(tmp_path,
+                 trials=(("NCT1", "Active not recruiting", "2026-03-01", 500, None),
+                         ("NCT2", "Recruiting", "2029-01-01", 900, None)),
+                 name="etentamig",
+                 readouts=(("etentamig", 3, "negative", "2026-06-01"),))
+    got = _resolve(conn, names=["etentamig"], conditions_text="Multiple Myeloma")
+    conn.close()
+    assert got["stage"] == "mixed"
+    assert {c["group"] for c in got["cuts"]}, "it does qualify for cuts"
+    assert got["pos"] == pytest.approx(0.477 * 0.920, abs=1e-4), "no class uplift"
+    assert got["low"] == 0.0, "and the band still floors at nil"
+
+
+def test_the_bispecific_infix_is_read_in_full():
+    """-mig is the WHO infix for a bispecific immunoglobulin. Taking only -tamig and
+    -amig missed volrustomig, rilvegostomig and tobemstomig, all of them bispecifics."""
+    for name in ("volrustomig", "rilvegostomig", "tobemstomig", "surovatamig",
+                 "pumitamig", "etentamig"):
+        assert PG.modality_of(name)[0] == "Monoclonal antibody", name

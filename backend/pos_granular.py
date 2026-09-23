@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import math
 import pathlib
 import re
 
@@ -98,7 +99,11 @@ AREA_TO_REPORT = {
 _STEMS = (
     (re.compile(r"(vedotin|deruxtecan|tecan|adizutecan|samrotecan|tirumotecan|mafodotin|govitecan)$"),
      "ADCs", "an antibody-drug conjugate by its stem"),
-    (re.compile(r"(tamig|amig|xizumab)$"), "Monoclonal antibody",
+    # -mig is the WHO infix for a bispecific or multispecific immunoglobulin. All
+    # seventeen names ending in it across this database are bispecific antibodies, so the
+    # whole infix is taken rather than the two spellings that happened to appear first:
+    # volrustomig, rilvegostomig and tobemstomig were missed by -tamig and -amig alone.
+    (re.compile(r"(mig|xizumab)$"), "Monoclonal antibody",
      "a bispecific antibody by its stem, folded into the report's antibody class"),
     (re.compile(r"(mab)$"), "Monoclonal antibody", "a monoclonal antibody by its stem"),
     (re.compile(r"(siran)$"), "siRNA/RNAi", "an siRNA by its stem"),
@@ -322,7 +327,41 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
             {"cut": "biomarker", "group": "Preselection biomarkers", "pos": v,
              "why": reason, "rows": rows, "how": "recorded on the asset by hand"})
 
+    # The point is the central tendency of every published rate this asset belongs to,
+    # not the area rate alone.
+    #
+    # The area chain was the point for as long as the cuts were only a band, and the
+    # consequence was that twenty-seven of the fifty-five modelled pipeline assets
+    # carried the identical 0.4388, which is Oncology Phase 3 entry. Two drugs were
+    # indistinguishable however different their tumour type, their modality or the
+    # population they treat, while the module had already computed rates for exactly
+    # those attributes and then discarded them.
+    #
+    # WHAT THE GEOMETRIC MEAN CLAIMS, AND WHAT IT DOES NOT. The report's tables are
+    # marginal: it publishes oncology at 47.7% and monoclonal antibodies at 68.1% and
+    # never publishes oncology monoclonal antibodies. Multiplying them, or combining them
+    # as independent likelihood ratios, would assert a joint rate the source does not
+    # carry and would run outside the range of everything it does carry. The geometric
+    # mean asserts something weaker and defensible: this asset belongs to each of these
+    # published populations, and absent a joint table its rate is their central tendency.
+    # It is bounded by the rates themselves, so the point always falls inside the band
+    # that the same cuts produce, which is checked by a test rather than asserted here.
+    #
+    # Weighting by sample size was measured and rejected: it moves the standard deviation
+    # across the book by 0.0005 and adds a second thing to explain.
+    #
+    # An asset qualifying for no cut keeps the area rate, which is the honest answer. It
+    # is also why eleven ties remain: a compound named by a code number with no readable
+    # stem and no tumour type on its trials has nothing to tell them apart with.
     spread = [point] + [c["pos"] for c in cuts]
+    # Not where the asset has read out badly. A drug whose Phase 3 has already failed is
+    # not told anything useful by the rate at which its class usually succeeds, and
+    # volrustomig proved the point: one Phase 3 stopped for futility, and the bispecific
+    # antibody rate of 68.1% pulled its central tendency up from 0.4388 to 0.5340. Its
+    # own evidence outranks its class membership, so a mixed stage keeps the chain and
+    # the band still floors at nil.
+    if cuts and where["stage"] != "mixed":
+        point = math.exp(sum(math.log(v) for v in spread) / len(spread))
     if where["stage"] == "mixed":
         spread.append(0.0)
     # .get rather than a subscript: a stage added later must not raise on an asset.
@@ -337,7 +376,9 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
     basis = (f"{stage_note}{steps} for {label}, BIO/Informa/QLS 2011-2020; "
              f"{where['evidence']}")
     if cuts:
-        basis += "; band from " + ", ".join(f"{c['group']} {c['pos']:.0%}" for c in cuts)
+        basis += ("; taken as the central tendency of that and " +
+                  ", ".join(f"{c['group']} {c['pos']:.0%}" for c in cuts) +
+                  f", giving {point:.1%}")
     return {"pos": round(point, 4), "low": round(min(spread), 4),
             "high": round(max(spread), 4), "stage": where["stage"],
             "evidence": where["evidence"], "area": label,
