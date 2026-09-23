@@ -17,6 +17,7 @@ import pathlib
 import re
 
 import db
+import epidemiology
 import evidence
 import forecast
 import product_profile
@@ -381,6 +382,23 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "  AND period_type = 'FY' AND fiscal_year < ?",
         (dt.date.today().year,)).fetchone()
 
+    # An asset with no pool cannot be built at all, and seventy-nine diseases carrying
+    # two or more unmodelled late-stage assets had no prevalence anywhere in the book.
+    # The disease's own figure fills that gap. The asset's own row still wins where it
+    # has one, because an analyst may have a reason to model a narrower population than
+    # the disease carries; what this removes is the accidental disagreement, where four
+    # assets said multiple myeloma was 36,110 people and a fifth said 36,000.
+    filled = []
+    for entry in indications.values():
+        known = epidemiology.for_indication(entry.get("name") or "")
+        if not known:
+            continue
+        for key in ("prevalence", "incidence"):
+            if entry["scalars"].get(key) is None and known.get(key) is not None:
+                entry["scalars"][key] = known[key]
+                filled.append({"indication": entry.get("name"), "key": key,
+                               "value": known[key], "source": known["source"]})
+
     # Several drugs can be modelled against one population, and the pool identity in
     # forecast.derive_new_patients depletes the pool by this asset's patients alone. Run
     # once per competitor it hands each of them a private copy of the same people: eight
@@ -421,6 +439,8 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "phase": phase["phase"] if phase else None,
         # What each shared-pool indication kept, so the forecast can say so.
         "crowding": crowding,
+        # Pool figures taken from the disease rather than from a row on this asset.
+        "epidemiology": filled,
         "modality": asset["modality"] if asset else None,
         "pos_defaults": pos_defaults(),
         # The area the asset's own label or trials put it in, and the published success
