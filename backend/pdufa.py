@@ -40,7 +40,13 @@ MAX_TOKENS = 1200
 SOURCE = "8-K extraction"
 
 # How far back to look for filings worth reading, and how far ahead a goal date may sit.
-LOOKBACK_DAYS = 400
+#
+# None means everything on file. That is safe only because pdufa_reads remembers every
+# filing already read, so each is fetched once in its life and a daily refresh reads
+# only what arrived that day. Before the ledger this had to be a window, and 400 days
+# was the compromise: long enough to catch a review in progress, short enough that
+# re-reading it daily was merely wasteful rather than absurd.
+LOOKBACK_DAYS = None
 MAX_HORIZON_DAYS = 1100          # a review runs months, not years; three years is a typo
 _TIMEOUT_S = 30
 # EDGAR asks for under 10 requests a second. The gate now admits every untitled 6-K, so
@@ -112,24 +118,28 @@ def strip_html(raw: str) -> str:
     return re.sub(r"\s+", " ", text).strip()[:_MAX_CHARS]
 
 
-def candidates(db_path=None, lookback_days: int = LOOKBACK_DAYS,
-               today=None) -> list[dict]:
-    """Filings recent enough and of a kind that might announce a goal date."""
+def candidates(db_path=None, lookback_days=LOOKBACK_DAYS, today=None) -> list[dict]:
+    """Filings of a kind that might announce a goal date and that have not been read.
+
+    ``lookback_days`` of None is the whole history. Anything already in pdufa_reads is
+    left out whatever the window, so this shrinks to nothing once a sweep has run and
+    grows again only as filings arrive.
+    """
     today = today or dt.date.today()
-    cutoff = (today - dt.timedelta(days=lookback_days)).isoformat()
+    sql = ["""SELECT f.id, f.accession, f.form_type, f.filed_date, f.title, f.url,
+                     c.ticker
+                FROM filings f JOIN companies c ON c.id = f.company_id
+               WHERE f.form_type IN ('8-K', '6-K')
+                 AND f.url IS NOT NULL AND f.url <> ''
+                 AND f.accession NOT IN (SELECT accession FROM pdufa_reads)"""]
+    args: list = []
+    if lookback_days is not None:
+        sql.append("AND f.filed_date >= ?")
+        args.append((today - dt.timedelta(days=int(lookback_days))).isoformat())
+    sql.append("ORDER BY f.filed_date DESC")
     conn = db.get_connection(db_path)
     try:
-        rows = [dict(r) for r in conn.execute(
-            """
-            SELECT f.id, f.accession, f.form_type, f.filed_date, f.title, f.url,
-                   c.ticker
-              FROM filings f JOIN companies c ON c.id = f.company_id
-             WHERE f.form_type IN ('8-K', '6-K') AND f.filed_date >= ?
-               AND f.url IS NOT NULL AND f.url <> ''
-             ORDER BY f.filed_date DESC
-            """,
-            (cutoff,),
-        )]
+        rows = [dict(r) for r in conn.execute(" ".join(sql), args)]
     finally:
         conn.close()
     return [r for r in rows if worth_reading(r["form_type"], r["title"])]
@@ -225,9 +235,10 @@ def _normalise(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
 
 
-def validate(reply: dict | None, document: str, today=None,
-             max_horizon_days: int = MAX_HORIZON_DAYS) -> dict | None:
-    """The extracted row, or None when it fails any check.
+def check(reply: dict | None, document: str, today=None,
+          max_horizon_days: int = MAX_HORIZON_DAYS) -> tuple:
+    """(row, reason). The row is None when any check refuses it, and the reason says
+    which, so a sweep can report what it turned down rather than only what it kept.
 
     This is the part that matters. The model is a reader here, not a source, and every
     check below asks the same question: is this in the document, or did it come from
@@ -235,29 +246,39 @@ def validate(reply: dict | None, document: str, today=None,
     """
     today = today or dt.date.today()
     if not reply or not reply.get("found"):
-        return None
+        return None, "no decision date stated"
     try:
         when = dt.date.fromisoformat(str(reply.get("date") or "")[:10])
     except (ValueError, TypeError):
-        return None
-    if not today <= when <= today + dt.timedelta(days=max_horizon_days):
-        return None            # already passed, or too far out to be a review date
+        return None, "the date did not parse"
+    # A passed date is not a mistake. It is a real acceptance whose review has already
+    # concluded, which is worth counting even though a forward calendar cannot use it.
+    if when < today:
+        return None, "date has passed"
+    if when > today + dt.timedelta(days=max_horizon_days):
+        return None, "date too far out to be a review date"
 
     product = (reply.get("product") or "").strip()
     haystack = _normalise(document)
     if not product or _normalise(product) not in haystack:
-        return None            # a name the filing does not use is a name from elsewhere
+        return None, "the product is not named in the document"
 
     quote = (reply.get("quote") or "").strip()
     # Match on a run of the quote rather than the whole of it, since whitespace and
     # entity handling differ between the document and what the model echoes back.
     needle = _normalise(quote)
     if len(needle) < 25 or needle[:120] not in haystack:
-        return None
+        return None, "the quote is not in the document"
 
     return {"date": when.isoformat(), "product": product,
             "indication": (reply.get("indication") or "").strip() or None,
-            "quote": quote}
+            "quote": quote}, "found"
+
+
+def validate(reply: dict | None, document: str, today=None,
+             max_horizon_days: int = MAX_HORIZON_DAYS) -> dict | None:
+    """The extracted row, or None when it fails any check."""
+    return check(reply, document, today, max_horizon_days)[0]
 
 
 def is_fatal(exc: Exception) -> bool:
@@ -287,6 +308,20 @@ def is_fatal(exc: Exception) -> bool:
                 "http 401", "http 403", "http 429"))
 
 
+def record_read(conn, filing: dict, outcome: str, detail: str | None) -> None:
+    """Note that this filing has been read, so it is never fetched again."""
+    conn.execute(
+        """INSERT INTO pdufa_reads (accession, url, form_type, filed_date, outcome,
+                                    detail)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(accession) DO UPDATE SET
+               outcome = excluded.outcome, detail = excluded.detail,
+               read_at = datetime('now')""",
+        (filing.get("accession"), filing.get("url"), filing.get("form_type"),
+         filing.get("filed_date"), outcome, detail))
+    conn.commit()
+
+
 def _ask(document: str, filing: dict) -> dict | None:
     user = (f"Company: {filing['ticker']}\n"
             f"Filed: {filing['filed_date']} ({filing['form_type']})\n\n"
@@ -309,48 +344,64 @@ def extract(db_path=None, limit: int = 25, today=None) -> dict:
                           "extracted. The calendar carries registry readouts only."}
 
     conn = db.get_connection(db_path)
+    # Two guards, not one. The ledger stops a filing being read twice, and this stops a
+    # filing that produced a catalyst before the ledger existed producing a second one.
+    # Dropping it when the ledger arrived wrote six duplicate rows on the first
+    # full-history sweep, because the filings behind them predated the ledger.
+    already = {r["source_url"] for r in conn.execute(
+        "SELECT source_url FROM catalysts WHERE source_url IS NOT NULL")}
+    read = found = fetched = 0
+    outcomes: dict = {}
+    errors: list[str] = []
+
+    def note(filing, outcome, detail=None):
+        outcomes[outcome] = outcomes.get(outcome, 0) + 1
+        record_read(conn, filing, outcome, detail)
+
     try:
-        seen = {row["source_url"] for row in conn.execute(
-            "SELECT source_url FROM catalysts WHERE source_url IS NOT NULL")}
+        for filing in candidates(db_path, today=today):
+            if read >= limit:
+                break
+            if filing["url"] in already:
+                note(filing, "found", "already written before the ledger existed")
+                continue
+            try:
+                time.sleep(_FETCH_PAUSE_S)
+                document = filing_text(filing)
+                fetched += 1
+            except Exception as exc:           # a filing that will not fetch is skipped
+                errors.append(f"{filing['ticker']} {filing['accession']}: {exc}")
+                continue                       # and is NOT recorded, so it is retried
+            # The cheap check first. Most 8-Ks say nothing about a review, and reading
+            # them with the model would be paying for a no.
+            if not REGULATORY_HINT.search(document):
+                note(filing, "skipped")
+                continue
+            read += 1
+            try:
+                row, why = check(_ask(document, filing), document, today=today)
+            except Exception as exc:
+                errors.append(f"{filing['ticker']} {filing['accession']}: {exc}")
+                if is_fatal(exc):
+                    return {"status": "api unavailable", "read": read, "found": found,
+                            "fetched": fetched, "outcomes": outcomes, "errors": errors,
+                            "detail": f"Stopped after the first call: {exc}. Every "
+                                      "remaining filing would fail the same way."}
+                continue                       # not recorded: a transient error retries
+            if row is None:
+                note(filing, "dropped" if why != "no decision date stated" else "none",
+                     why)
+                continue
+            title = f"{row['product']} PDUFA"
+            if row["indication"]:
+                title += f", {row['indication']}"
+            catalysts.add_catalyst(
+                db_path, filing["ticker"], "PDUFA", row["date"], title,
+                description=row["quote"], is_curated=0, source_url=filing["url"],
+                date_confidence="confirmed")
+            note(filing, "found", row["date"])
+            found += 1
     finally:
         conn.close()
-
-    read = found = 0
-    errors: list[str] = []
-    for filing in candidates(db_path, today=today):
-        if read >= limit:
-            break
-        if filing["url"] in seen:
-            continue
-        try:
-            time.sleep(_FETCH_PAUSE_S)
-            document = filing_text(filing)
-        except Exception as exc:               # a filing that will not fetch is skipped
-            errors.append(f"{filing['ticker']} {filing['accession']}: {exc}")
-            continue
-        # The cheap check first. Most 8-Ks say nothing about a review, and reading them
-        # with the model would be paying for a no.
-        if not REGULATORY_HINT.search(document):
-            continue
-        read += 1
-        try:
-            row = validate(_ask(document, filing), document, today=today)
-        except Exception as exc:
-            errors.append(f"{filing['ticker']} {filing['accession']}: {exc}")
-            if is_fatal(exc):
-                return {"status": "api unavailable", "read": read, "found": found,
-                        "errors": errors,
-                        "detail": f"Stopped after the first call: {exc}. Every "
-                                  "remaining filing would fail the same way."}
-            continue
-        if row is None:
-            continue
-        title = f"{row['product']} PDUFA"
-        if row["indication"]:
-            title += f", {row['indication']}"
-        catalysts.add_catalyst(
-            db_path, filing["ticker"], "PDUFA", row["date"], title,
-            description=row["quote"], is_curated=0, source_url=filing["url"],
-            date_confidence="confirmed")
-        found += 1
-    return {"status": "ok", "read": read, "found": found, "errors": errors}
+    return {"status": "ok", "read": read, "found": found, "fetched": fetched,
+            "outcomes": outcomes, "errors": errors}

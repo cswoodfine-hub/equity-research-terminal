@@ -161,8 +161,14 @@ def test_candidates_are_recent_filings_of_the_right_kind(tmp_path):
     conn.commit()
     conn.close()
 
+    # The default window is the whole history, which the read ledger makes safe: a
+    # filing is fetched once in its life, so age is no longer a reason to skip it.
     found = {c["accession"] for c in pdufa.candidates(db_file, today=TODAY)}
-    assert found == {"0001"}        # right kind, recent, and worth reading
+    assert found == {"0001", "0003"}     # right kind and worth reading, any age
+    # A window is still available where a caller wants one.
+    recent = {c["accession"] for c in pdufa.candidates(db_file, lookback_days=400,
+                                                       today=TODAY)}
+    assert recent == {"0001"}
 
 
 def test_an_extracted_row_is_marked_machine_written(tmp_path):
@@ -211,3 +217,80 @@ def test_a_bad_gemini_key_is_fatal():
     assert pdufa.is_fatal(RuntimeError("groq HTTP 401: Invalid API Key"))
     # A one-off content error is not fatal.
     assert not pdufa.is_fatal(RuntimeError("groq HTTP 500: internal"))
+
+
+def test_a_filing_already_read_is_not_offered_again(tmp_path):
+    """The ledger is what lets the window be the whole history. Without it a sweep
+    would refetch every filing on every refresh to re-derive the same nothing."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    for accession in ("0001", "0002"):
+        conn.execute(
+            "INSERT INTO filings (company_id, form_type, filed_date, accession, title,"
+            " url) VALUES (?, '8-K', '2026-07-01', ?, 'Other events', ?)",
+            (company, accession, f"https://example.com/{accession}.htm"))
+    conn.commit()
+    assert len(pdufa.candidates(db_file, today=TODAY)) == 2
+    pdufa.record_read(conn, {"accession": "0001", "url": "u", "form_type": "8-K",
+                             "filed_date": "2026-07-01"}, "none", None)
+    conn.close()
+    left = {c["accession"] for c in pdufa.candidates(db_file, today=TODAY)}
+    assert left == {"0002"}
+
+
+def test_check_says_which_test_refused_a_date():
+    """A passed date is not a mistake. It is a real acceptance whose review has
+    concluded, and counting those is how the sweep answers whether a filed stage can
+    ever matter."""
+    document = "Zanzalintinib. The FDA set a target action date of March 3, 2027 for it."
+    good = {"found": True, "date": "2027-03-03", "product": "Zanzalintinib",
+            "quote": "The FDA set a target action date of March 3, 2027 for it."}
+    row, why = pdufa.check(good, document, today=TODAY)
+    assert row and why == "found"
+    assert pdufa.check({"found": False}, document, today=TODAY)[1] == \
+        "no decision date stated"
+    assert pdufa.check({**good, "date": "2020-01-01"}, document,
+                       today=TODAY)[1] == "date has passed"
+    assert pdufa.check({**good, "date": "2099-01-01"}, document,
+                       today=TODAY)[1] == "date too far out to be a review date"
+    assert pdufa.check({**good, "product": "Sotorasib"}, document,
+                       today=TODAY)[1] == "the product is not named in the document"
+    assert pdufa.check({**good, "quote": "A sentence the filing never contains at all."},
+                       document, today=TODAY)[1] == "the quote is not in the document"
+    assert pdufa.check({**good, "date": "not a date"}, document,
+                       today=TODAY)[1] == "the date did not parse"
+
+
+def test_a_filing_that_already_produced_a_catalyst_is_never_read_again(tmp_path):
+    """The ledger stops a filing being read twice. This stops a filing that produced a
+    catalyst BEFORE the ledger existed producing a second one. Dropping this guard when
+    the ledger arrived wrote six duplicate rows on the first full-history sweep, because
+    every filing behind them predated the ledger."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    url = "https://example.com/a.htm"
+    conn.execute(
+        "INSERT INTO filings (company_id, form_type, filed_date, accession, title, url)"
+        " VALUES (?, '8-K', '2026-07-01', '0001', 'Other events', ?)", (company, url))
+    conn.commit()
+    conn.close()
+    catalysts.add_catalyst(db_file, "LLY", "PDUFA", "2027-03-14", "Retatrutide PDUFA",
+                           is_curated=0, source_url=url, date_confidence="confirmed")
+
+    before = pdufa.catalysts_count(db_file) if hasattr(pdufa, "catalysts_count") else None
+    got = pdufa.extract(db_file, today=TODAY)
+
+    conn = db.get_connection(db_file)
+    rows = conn.execute("SELECT COUNT(*) FROM catalysts").fetchone()[0]
+    ledger = conn.execute("SELECT outcome, detail FROM pdufa_reads").fetchall()
+    conn.close()
+    assert rows == 1, "the filing must not produce a second catalyst"
+    assert got["fetched"] == 0, "and must not be fetched at all"
+    assert [r["outcome"] for r in ledger] == ["found"]
+    assert "before the ledger" in ledger[0]["detail"]
