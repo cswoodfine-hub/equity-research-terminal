@@ -45,6 +45,7 @@ import diff
 import evidence
 import guidance as guidance_module
 import leadership
+import applications
 import pdufa
 import revenue_earnings
 import revenue_mdna
@@ -386,6 +387,15 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # date that moved this run is already a catalyst by the time changes are computed.
     readouts = catalysts.derive_readouts(db_path)
     goals = pdufa.extract(db_path)
+    # Join what the extractor wrote to an asset and an indication. It writes a ticker and
+    # a title and never an asset id, so without this the probability model cannot see a
+    # filing at all. Runs after every extract, including one that found nothing, because
+    # a row can also arrive by hand.
+    _rc = db.get_connection(db_path)
+    try:
+        goals["resolved"] = applications.resolve(_rc)
+    finally:
+        _rc.close()
     # Management guidance out of the same filings, ledgered so the model spend is
     # bounded to sections not yet read.
     guided = guidance_module.extract(db_path)
@@ -599,6 +609,15 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
     # the acceptance. Without an Anthropic key this reports that it did nothing.
     goals = pdufa.extract(db_path)
+    # Join what the extractor wrote to an asset and an indication. It writes a ticker and
+    # a title and never an asset id, so without this the probability model cannot see a
+    # filing at all. Runs after every extract, including one that found nothing, because
+    # a row can also arrive by hand.
+    _rc = db.get_connection(db_path)
+    try:
+        goals["resolved"] = applications.resolve(_rc)
+    finally:
+        _rc.close()
     # Management guidance out of the same filings, ledgered so the model spend is
     # bounded to sections not yet read.
     guided = guidance_module.extract(db_path)
