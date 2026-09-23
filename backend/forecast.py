@@ -683,6 +683,16 @@ def build(inputs: dict) -> dict:
     scalars = inputs.get("scalars") or {}
     notes: list[str] = []
 
+    # Where other modelled drugs draw on the same population, the pool identity below
+    # would otherwise give this one a private copy of it. What was kept is said aloud,
+    # because a fifth of a forecast is not a rounding.
+    for crowded in inputs.get("crowding") or []:
+        notes.append(
+            f"{crowded['indication']}: other modelled drugs draw on the same pool, so "
+            f"the peak share is {crowded['applied']:.2%} rather than the "
+            f"{crowded['stated']:.2%} stated, which is {crowded['factor']:.0%} of it. "
+            f"One population, counted once")
+
     mode = (scalars.get("therapy_mode") or "").strip()
     franchise = None
     curve_basis = None

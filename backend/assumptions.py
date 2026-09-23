@@ -20,6 +20,7 @@ import db
 import evidence
 import forecast
 import product_profile
+import pool_crowding
 import pos_granular
 import product_areas
 import regional_loe
@@ -379,6 +380,27 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "  AND period_type = 'FY' AND fiscal_year < ?",
         (dt.date.today().year,)).fetchone()
 
+    # Several drugs can be modelled against one population, and the pool identity in
+    # forecast.derive_new_patients depletes the pool by this asset's patients alone. Run
+    # once per competitor it hands each of them a private copy of the same people: eight
+    # obesity assets between them claimed 36% of every obese adult in the United States
+    # in a single year, before the marketed incumbents. The factor below is what this
+    # asset keeps once the population is counted once, and it is applied here rather than
+    # written into a seed so that it recomputes when any competitor's curve moves.
+    crowding = []
+    for entry in indications.values():
+        scalars_here = entry["scalars"]
+        prevalence = scalars_here.get("prevalence")
+        peak = scalars_here.get("penetration_peak_pct")
+        if prevalence is None or peak is None:
+            continue
+        factor = pool_crowding.ratios(conn, prevalence, scenario).get(asset_id)
+        if factor is None:
+            continue
+        scalars_here["penetration_peak_pct"] = peak * factor
+        crowding.append({"indication": entry["name"], "factor": factor,
+                         "stated": peak, "applied": peak * factor})
+
     therapeutic_area = product_areas.area_for(conn, asset_id) if asset else None
     return {
         "scalars": scalars,
@@ -395,6 +417,8 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "actuals": actuals,
         "valuation_year": reported["y"] if reported and reported["y"] else None,
         "phase": phase["phase"] if phase else None,
+        # What each shared-pool indication kept, so the forecast can say so.
+        "crowding": crowding,
         "modality": asset["modality"] if asset else None,
         "pos_defaults": pos_defaults(),
         # The area the asset's own label or trials put it in, and the published success
