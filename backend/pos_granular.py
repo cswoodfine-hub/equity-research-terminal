@@ -21,9 +21,17 @@ computes the chain under each cut the asset qualifies for and reports the spread
 point estimate stays on the area cut, which is the best sampled and the one the model
 has always used; the band is what the asset's other attributes say about it.
 
-It carries the design of the pivotal trial, enrolment, allocation and masking, beside
-the number, as facts a reader weighs. No free source publishes success rates by those,
-so they are shown and never multiplied.
+It reads an accepted application. An asset whose marketing application the FDA has
+accepted has only the approval transition left, and ``applications.filed_for`` supplies
+that fact with the guards that make it safe to act on: the application must be for the
+disease this forecast is built on, it must seek a first approval rather than expand an
+approved label, and the decision date must still be ahead. A filing that fails any of
+those is reported and lifts nothing, which is the honest answer and usually the right
+one.
+
+It carries the design of the largest Phase 3 trial, enrolment, allocation and masking,
+beside the number, as facts a reader weighs. No free source publishes success rates by
+those, so they are shown and never multiplied.
 
 It does not infer a biomarker. The report's strongest cut is patient preselection
 biomarkers, which roughly double the Phase 2 transition, and it identified them by
@@ -45,6 +53,7 @@ import re
 import engines
 import fx
 import productivity
+import applications
 
 DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 TRANSITIONS = DATA_DIR / "pos_transitions.csv"
@@ -146,7 +155,8 @@ def modality_of(name: str | None, stored: str | None = None) -> tuple:
     return None, "no recognised stem"
 
 
-def stage_of(conn, asset_id: int, company_id: int, names: list, today=None) -> dict:
+def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
+             lead_indication_id=None) -> dict:
     """Where the asset stands, from the trials and readouts on file.
 
     A passed primary completion date with no readout is not evidence of success and
@@ -155,7 +165,8 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None) -> d
     NDA/BLA gate, and negative puts it at nil, which is the convention the analyst's
     own hand-typed rows already follow.
     """
-    today = (today or dt.date.today()).isoformat()
+    today_date = today or dt.date.today()
+    today = today_date.isoformat()
     p3 = [dict(r) for r in conn.execute(
         """SELECT nct_id, overall_status, primary_completion_date, enrollment, design,
                   title FROM trials
@@ -184,6 +195,16 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None) -> d
                      if (r["outcome"] or "").lower() == "positive"), None)
     negative = next((r for r in phase3_readouts
                      if (r["outcome"] or "").lower() == "negative"), None)
+
+    # An accepted application outranks a positive readout, because it is the regulator
+    # agreeing the package is reviewable rather than the sponsor reporting a result.
+    # Both land on the same gate, so this only decides which evidence the basis names.
+    filing = applications.filed_for(conn, asset_id, lead_indication_id, today=today_date)
+    if filing and filing.get("lifts") and not negative:
+        return {"stage": "filed", "gate": "nda_to_approval", "pivotal": pivotal,
+                "filing": filing,
+                "evidence": f"application accepted, FDA decision due "
+                            f"{filing['date']}"}
     if positive:
         return {"stage": "positive", "gate": "nda_to_approval", "pivotal": pivotal,
                 "evidence": f"Phase 3 read out positive {cite(positive)}"}
@@ -207,7 +228,7 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None) -> d
         return {"stage": "reading_out", "gate": None, "pivotal": pivotal,
                 "evidence": f"{t['nct_id']} passed primary completion "
                             f"{t['primary_completion_date']} with no readout on file"}
-    return {"stage": "entering", "gate": None, "pivotal": pivotal,
+    return {"stage": "entering", "gate": None, "pivotal": pivotal, "filing": filing,
             "evidence": (f"{pivotal['nct_id']} {(pivotal['overall_status'] or '').lower()}"
                          if pivotal else "no Phase 3 on the registry")}
 
@@ -229,7 +250,8 @@ def _chain(table: dict, cut: str, group: str, gates: tuple, min_n: int = MIN_N) 
 def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
             names: list, company_id: int, prevalence_us: float | None,
             biomarker_selected: bool, conditions_text: str = "",
-            stored_modality: str | None = None, today=None, table=None) -> dict | None:
+            stored_modality: str | None = None, lead_indication_id=None,
+            today=None, table=None) -> dict | None:
     """The probability, its band, and everything it rests on. None where not applicable.
 
     Applies only from Phase 2, Phase 2/3 or Phase 3, and only where the area chain can
@@ -241,11 +263,11 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
     first = FROM_PHASE.get(phase or "")
     if not first or not table:
         return None
-    where = stage_of(conn, asset_id, company_id, names, today)
+    where = stage_of(conn, asset_id, company_id, names, today, lead_indication_id)
     if where["stage"] == "negative":
         return {"pos": 0.0, "low": 0.0, "high": 0.0, "stage": where["stage"],
                 "evidence": where["evidence"], "chain": [], "cuts": [],
-                "design": _design(where["pivotal"]),
+                "design": _design(where["pivotal"]), "filing": where.get("filing"),
                 "basis": f"nil: {where['evidence']}"}
     start = where["gate"] or first
     gates = CHAIN[CHAIN.index(start):]
@@ -303,10 +325,13 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
     spread = [point] + [c["pos"] for c in cuts]
     if where["stage"] == "mixed":
         spread.append(0.0)
-    stage_note = {"positive": "at the NDA/BLA gate: ", "reading_out": "readout due: ",
+    # .get rather than a subscript: a stage added later must not raise on an asset.
+    stage_note = {"positive": "at the NDA/BLA gate: ",
+                  "filed": "filed, at the NDA/BLA gate: ",
+                  "reading_out": "readout due: ",
                   "mixed": "one Phase 3 negative, the rest at their gate: ",
                   "entering": ("seamless Phase 2/3 read at the Phase 2 gate: "
-                               if phase == "Phase 2/3" else "")}[where["stage"]]
+                               if phase == "Phase 2/3" else "")}.get(where["stage"], "")
     steps = " x ".join(f"{gate.replace('_', ' ')} {row['pos']:.1%} (n={row['n']})"
                        for gate, row in used)
     basis = (f"{stage_note}{steps} for {label}, BIO/Informa/QLS 2011-2020; "
@@ -320,7 +345,8 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
                       for g, r in used],
             "cuts": [{k: v for k, v in c.items() if k != "rows"} for c in cuts],
             "refused": [{k: v for k, v in c.items() if k != "rows"} for c in refused],
-            "design": _design(where["pivotal"]), "basis": basis}
+            "design": _design(where["pivotal"]), "filing": where.get("filing"),
+            "basis": basis}
 
 
 def _design(pivotal: dict | None) -> dict | None:
@@ -371,6 +397,15 @@ def for_asset(conn, asset_id: int, *, area: str | None, phase: str | None,
               AND a.scenario = 'base' AND a.year IS NULL AND a.value IS NOT NULL
               AND a.unit = 'patients' 
             ORDER BY ai.is_lead DESC, a.value DESC LIMIT 1""", (asset_id,)).fetchone()
+    # The indication the forecast is built on, by the same rule assumptions.load uses
+    # for the phase. A filing for any other disease must not lift this line.
+    lead = conn.execute(
+        """SELECT id FROM asset_indications WHERE asset_id = ?
+            ORDER BY is_lead DESC,
+                     CASE phase WHEN 'Phase 4' THEN 6 WHEN 'Phase 3' THEN 5
+                                WHEN 'Phase 2/3' THEN 4 WHEN 'Phase 2' THEN 3
+                                WHEN 'Phase 1/2' THEN 2 WHEN 'Phase 1' THEN 1
+                                ELSE 0 END DESC LIMIT 1""", (asset_id,)).fetchone()
     blob = conn.execute(
         "SELECT GROUP_CONCAT(COALESCE(conditions, '') || ' ' || COALESCE(title, ''), ' ')"
         "  FROM trials WHERE asset_id = ?", (asset_id,)).fetchone()[0] or ""
@@ -378,4 +413,5 @@ def for_asset(conn, asset_id: int, *, area: str | None, phase: str | None,
                    company_id=asset["owner_company_id"],
                    prevalence_us=(prevalence["value"] if prevalence else None),
                    biomarker_selected=bool((scalars or {}).get("biomarker_selected")),
-                   conditions_text=blob, stored_modality=asset["modality"], today=today)
+                   conditions_text=blob, stored_modality=asset["modality"],
+                   lead_indication_id=(lead["id"] if lead else None), today=today)

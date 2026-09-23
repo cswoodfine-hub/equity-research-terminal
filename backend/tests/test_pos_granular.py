@@ -42,6 +42,14 @@ def _seed(tmp_path, trials=(), readouts=(), prevalence=None, unit="patients",
     return conn
 
 
+def _catalyst(conn, title, date, kind="PDUFA", description="FDA accepted it."):
+    conn.execute("INSERT INTO catalysts (company_id, catalyst_type, expected_date,"
+                 " title, description, is_curated, source_url, status) VALUES"
+                 " (1, ?, ?, ?, ?, 0, 'https://sec.gov/x', 'pending')",
+                 (kind, date, title, description))
+    conn.commit()
+
+
 def _resolve(conn, **kw):
     args = dict(area="Oncology", phase="Phase 3", names=["etentamig"], company_id=1,
                 prevalence_us=None, biomarker_selected=False,
@@ -216,3 +224,101 @@ def test_the_forecast_takes_it_after_the_analysts_own_numbers_and_before_the_tab
     got, basis = forecast.pos({}, "Phase 3", {}, area="Oncology", by_area=by_area,
                               granular=None)
     assert got == pytest.approx(0.439) and "published likelihood" in basis
+
+
+def test_an_accepted_application_leaves_only_the_approval_step(tmp_path):
+    """The whole point of step one. An asset whose application the FDA has accepted has
+    only the approval transition left, not the Phase 3 chain."""
+    import applications
+    conn = _seed(tmp_path, trials=(("NCT1", "Active not recruiting", "2026-08-01", 500,
+                                    None),))
+    _catalyst(conn, "etentamig PDUFA, Multiple myeloma", "2027-04-01")
+    applications.resolve(conn, today=TODAY)
+    got = _resolve(conn)
+    conn.close()
+    assert got["stage"] == "filed"
+    assert got["pos"] == pytest.approx(0.920)
+    assert got["basis"].startswith("filed, at the NDA/BLA gate")
+    assert "2027-04-01" in got["evidence"]
+    assert got["filing"]["lifts"] is True
+
+
+def test_a_filing_for_a_disease_the_asset_does_not_carry_lifts_nothing(tmp_path):
+    """Povetacicept's case, which is the guard that matters. The filing is reported so
+    the reader sees it, and the probability does not move."""
+    import applications
+    conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
+    _catalyst(conn, "etentamig PDUFA, IgA Nephropathy", "2027-04-01")
+    applications.resolve(conn, today=TODAY)
+    got = _resolve(conn)
+    conn.close()
+    assert got["stage"] == "entering"
+    assert got["pos"] == pytest.approx(0.477 * 0.920, abs=1e-4)
+    assert got["filing"]["lifts"] is False
+    assert "not an indication this asset carries" in got["filing"]["why"]
+
+
+def test_a_negative_readout_still_beats_an_accepted_application(tmp_path):
+    import applications
+    conn = _seed(tmp_path, trials=(("NCT1", "Completed", "2026-03-01", 500, None),),
+                 readouts=(("etentamig", 3, "negative", "2026-06-01"),))
+    _catalyst(conn, "etentamig PDUFA, Multiple myeloma", "2027-04-01")
+    applications.resolve(conn, today=TODAY)
+    got = _resolve(conn)
+    conn.close()
+    assert got["stage"] == "negative" and got["pos"] == 0.0
+
+
+def test_a_filing_on_a_molecule_the_company_already_markets_lifts_nothing(tmp_path):
+    """A supplemental application says nothing about a first approval, and the filers
+    that matter never write the word supplemental. Two guards stand in the way and the
+    ambiguity one fires first, because a marketed sibling carries the same generic name
+    that the filing names. Either way nothing lifts, which is the point."""
+    import applications
+    conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, brand_name,"
+                 " is_marketed) VALUES (8, 1, 'etentamig', 'Etenta', 1)")
+    _catalyst(conn, "etentamig PDUFA, Multiple myeloma", "2027-04-01")
+    resolved = applications.resolve(conn, today=TODAY)
+    got = _resolve(conn)
+    conn.close()
+    assert resolved["asset"] == 0
+    assert "ambiguous" in resolved["refused"][0]["why"]
+    assert got["stage"] == "entering"
+    assert got["pos"] == pytest.approx(0.477 * 0.920, abs=1e-4)
+    assert got["filing"] is None
+
+
+def test_the_supplement_guard_catches_a_marketed_sibling_the_matcher_let_through(tmp_path):
+    """Where the filing names the development code, the matcher resolves it uniquely and
+    the join against a marketed row is the only thing standing between a label expansion
+    and a doubled valuation."""
+    import applications
+    conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
+    conn.execute("UPDATE assets SET internal_code = 'ABBV-383' WHERE id = 7")
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, brand_name,"
+                 " is_marketed) VALUES (8, 1, 'etentamig', 'Etenta', 1)")
+    _catalyst(conn, "ABBV-383 PDUFA, Multiple myeloma", "2027-04-01")
+    applications.resolve(conn, today=TODAY)
+    got = _resolve(conn)
+    conn.close()
+    assert got["stage"] == "entering"
+    assert got["filing"]["lifts"] is False
+    assert "same molecule already marketed" in got["filing"]["why"]
+
+
+def test_an_unknown_stage_name_does_not_raise(tmp_path):
+    """The stage note used to be a bare dict subscript, which would have raised a
+    KeyError on the first asset to reach a stage added later."""
+    conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
+    real = PG.stage_of
+    PG.stage_of = lambda *a, **k: {"stage": "something_new", "gate": None,
+                                   "pivotal": None, "filing": None,
+                                   "evidence": "a stage from the future"}
+    try:
+        got = _resolve(conn)
+    finally:
+        PG.stage_of = real
+        conn.close()
+    assert got["pos"] == pytest.approx(0.477 * 0.920, abs=1e-4)
+    assert got["basis"].startswith("p3 to nda")
