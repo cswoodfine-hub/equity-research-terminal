@@ -2413,7 +2413,7 @@ def _drivers_layer(verdict: dict, scenario: str) -> None:
 
 
 _POS_STAGES = {"reading_out": "readout due", "positive": "NDA/BLA gate",
-               "mixed": "one Phase 3 negative", "negative": "nil"}
+               "filed": "filed", "mixed": "one Phase 3 negative", "negative": "nil"}
 _POS_GATES = {"p2_to_p3": "Phase 2 gate", "p3_to_nda": "Phase 3 entry",
               "nda_to_approval": "NDA/BLA gate"}
 
@@ -2465,6 +2465,14 @@ def _pos_layer(granular: dict) -> None:
         rows += (f'<tr><td class="pol-d">not applied</td><td class="pol-l"></td>'
                  f'<td class="pol-k">{html_escape(cut.get("group") or cut.get("cut") or "")}'
                  f'</td><td class="pol-t">{html_escape(cut.get("why") or "")}</td></tr>')
+    filing = granular.get("filing")
+    if filing:
+        verdict = ("at the approval gate" if filing.get("lifts")
+                   else "not applied")
+        rows += (f'<tr><td class="pol-d">filed</td>'
+                 f'<td class="pol-l">{html_escape(filing.get("date") or "")}</td>'
+                 f'<td class="pol-k">{html_escape(verdict)}</td>'
+                 f'<td class="pol-t">{html_escape(filing.get("why") or "")}</td></tr>')
     if granular.get("stage") == "mixed":
         rows += ('<tr><td class="pol-d">band</td><td class="pol-l">0%</td>'
                  '<td class="pol-k">downside</td><td class="pol-t">if the open studies '
@@ -2488,6 +2496,10 @@ def _pos_layer(granular: dict) -> None:
         st.markdown(f'<div class="byline">largest Phase 3 on the registry: '
                     f'{html_escape(", ".join(facts))}. Shown, not multiplied: no free '
                     f'source publishes success rates by design.</div>',
+                    unsafe_allow_html=True)
+    if filing and filing.get("quote"):
+        st.markdown(f'<div class="byline">The filing, verbatim: '
+                    f'{html_escape(filing["quote"][:400])}</div>',
                     unsafe_allow_html=True)
     st.markdown(f'<div class="byline">{html_escape(granular.get("evidence") or "")}. '
                 f'Biomarker preselection is the report\'s strongest cut and is applied '
