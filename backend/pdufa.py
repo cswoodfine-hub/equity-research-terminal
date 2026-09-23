@@ -29,6 +29,7 @@ import datetime as dt
 import json
 import os
 import re
+import time
 import urllib.request
 
 import catalysts
@@ -42,13 +43,39 @@ SOURCE = "8-K extraction"
 LOOKBACK_DAYS = 400
 MAX_HORIZON_DAYS = 1100          # a review runs months, not years; three years is a typo
 _TIMEOUT_S = 30
+# EDGAR asks for under 10 requests a second. The gate now admits every untitled 6-K, so
+# the fetch loop is several hundred documents on a full run rather than a few dozen, and
+# the polite pause that was optional at that size is not optional at this one.
+_FETCH_PAUSE_S = 0.15
 _MAX_CHARS = 60_000              # an 8-K body is small; this is a guard, not a budget
 
 # Filings worth spending a call on. An 8-K about results of operations never carries a
 # goal date, and reading every filing would be most of them.
+#
+# The title is an SEC item description, which only a domestic 8-K reliably carries. A
+# foreign private issuer files a 6-K whose title is the form name and nothing else, so
+# gating on the title alone discarded every one of them unread: of 429 big pharma 8-K
+# and 6-K filings in a 400 day window only 35 passed, and AstraZeneca, GSK, Novo,
+# Novartis, Sanofi and Regeneron passed none at all. Those are six of the companies whose
+# regulatory news this exists to find, which is why the gate now has three doors.
 WORTH_READING = re.compile(
     r"other event|material agreement|regulation fd|material impairment|"
     r"material definitive", re.I)
+
+# A 6-K cover carrying no item description. Its title says only what form it is, so the
+# title cannot decide anything and the document itself has to be read. The body check in
+# extract() is what actually refuses these, and it costs one fetch rather than a model
+# call.
+UNTITLED_6K = re.compile(r"^\s*(?:\d+\s*[-:]?\s*)?(?:form\s*)?6-?k\s*:?\s*$", re.I)
+
+# Titles that are never a regulatory announcement. Only consulted for an untitled 6-K,
+# never to override a positive signal, so widening the gate cannot lose a filing the
+# narrower one already read.
+NEVER_READING = re.compile(
+    r"total voting rights|transaction in own shares|director/pdmr|holding\(s\) in company|"
+    r"director or officer change|results of operations|annual report|"
+    r"filing of form 20-f|notice of|publication of|block listing|share buy-?back|"
+    r"rule 10b5-1|prospectus|proxy|agm\b|annual general meeting", re.I)
 
 # Words that appear in a filing announcing an acceptance. Checked against the document
 # text before the model is called at all, which is what keeps the call count sane.
@@ -105,7 +132,29 @@ def candidates(db_path=None, lookback_days: int = LOOKBACK_DAYS,
         )]
     finally:
         conn.close()
-    return [r for r in rows if WORTH_READING.search(r["title"] or "")]
+    return [r for r in rows if worth_reading(r["form_type"], r["title"])]
+
+
+def worth_reading(form_type: str | None, title: str | None) -> bool:
+    """Whether a filing is worth fetching. Pure, so the gate can be argued with.
+
+    Three doors, in order. A title that states a regulatory event is taken whatever the
+    form, which is how an all-capitals 6-K cover reading "BEPIROVIRSEN PRIORITY REVIEW
+    US FILING ACCEPTANCE" gets read. A title that is only the form name is taken because
+    it says nothing either way and the body has to settle it. Everything else needs the
+    SEC item description an 8-K carries. A title on the refusal list is taken by none of
+    the three.
+    """
+    text = (title or "").strip()
+    # A positive signal is never overridden by the refusal list. An 8-K titled "Results
+    # of operations, Other events" carries both, and refusing it on the first half is
+    # how a widened gate would quietly lose filings the narrow one already read.
+    if REGULATORY_HINT.search(text) or WORTH_READING.search(text):
+        return True
+    if (form_type or "").upper().replace("-", "") == "6K" and (
+            not text or UNTITLED_6K.match(text)):
+        return not NEVER_READING.search(text)
+    return False
 
 
 def _fetch(url: str) -> str:
@@ -233,6 +282,7 @@ def extract(db_path=None, limit: int = 25, today=None) -> dict:
         if filing["url"] in seen:
             continue
         try:
+            time.sleep(_FETCH_PAUSE_S)
             document = strip_html(_fetch(filing["url"]))
         except Exception as exc:               # a filing that will not fetch is skipped
             errors.append(f"{filing['ticker']} {filing['accession']}: {exc}")
