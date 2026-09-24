@@ -71,3 +71,33 @@ def test_every_price_is_in_the_currency_the_company_reports_in():
         if match and ticker in currency and match.group(1) != currency[ticker]:
             wrong.append((name, row["key"], row["unit"], currency[ticker]))
     assert wrong == [], wrong
+
+
+# --- the deduction a Part B price takes ----------------------------------------------
+_PART_B = re.compile(r"\bPart B\b")
+_PART_D = re.compile(r"\bPart D\b")
+
+
+def test_a_part_b_price_does_not_take_the_part_d_halving():
+    """gross_to_net.py measured halving on Part D, where CMS spending is gross of rebates.
+    Part B pays 106% of average sales price, which is already net, so a Part B figure
+    loses the 6% add-on and no more. Nine seeds halved a Part B price anyway, and a
+    new one priced off Trodelvy nearly joined them, which put its net at half of what
+    the book's other Trodelvy-priced seeds carry for the same comparator."""
+    halved = []
+    rows_by_file: dict = {}
+    for name, row in _rows():
+        rows_by_file.setdefault(name, []).append(row)
+    for name, rows in rows_by_file.items():
+        for price in rows:
+            source = price.get("source") or ""
+            if (price.get("key") != "list_price_per_patient" or not _PART_B.search(source)
+                    or _PART_D.search(source)):
+                continue
+            for row in rows:
+                if (row.get("key") == "gross_to_net_pct"
+                        and row.get("scenario") == price.get("scenario")
+                        and (row.get("indication") or "") == (price.get("indication") or "")
+                        and float(row["value"]) == 0.5):
+                    halved.append((name, price.get("indication") or "", row["value"]))
+    assert halved == [], halved

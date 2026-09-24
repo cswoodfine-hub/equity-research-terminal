@@ -32,9 +32,13 @@ Asset-level:
   spending per beneficiary (`lookup.py demand`), which is gross of rebates. A published
   annual list price beats the convention where one exists and is named.
 - `gross_to_net_pct`: the SHARE TAKEN OFF LIST, not the share kept. The house convention
-  is 0.5 on a CMS per-beneficiary price (measured: halving lands at a median 96% of CMS's
-  own negotiated net prices). A value of 0.7 means net is 30% of list. Check the direction
-  before you write it; three earlier seeds had it inverted.
+  depends on which part of Medicare the anchor comes from (backend/gross_to_net.py):
+  0.5 on a CMS Part D per-beneficiary price (measured: halving lands at a median 96% of
+  CMS's own negotiated net prices), and 0.056604 on a Part B one, because Part B pays 106%
+  of average sales price, which is already net of discounts, so only the 6% add-on comes
+  off (1 - 1/1.06). A published list price (WAC) takes neither; source its discount. A
+  value of 0.7 means net is 30% of list. Check the direction before you write it; three
+  earlier seeds had it inverted, and eight had 0.5 on a Part B anchor.
 - `discontinuation_pct`: share of the treated stock stopping per year. For oncology treated
   to progression, derive from median duration of treatment or PFS in the pivotal or
   comparator trial (1 - exp(-12/median_months) per year is acceptable, say so). One course:
