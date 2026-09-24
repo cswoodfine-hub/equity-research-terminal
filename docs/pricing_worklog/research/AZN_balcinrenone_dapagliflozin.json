@@ -1,0 +1,93 @@
+{
+ "ticker": "AZN",
+ "name": "Balcinrenone/dapagliflozin",
+ "summary": "A once-daily fixed-dose capsule of balcinrenone (AZD9977), AstraZeneca's own mineralocorticoid receptor modulator, with dapagliflozin 10 mg. The lead Phase 3 is BalanceD-HF (NCT06307652): 3,850 patients with symptomatic heart failure of any ejection fraction, eGFR 20 to under 60, NT-proBNP above 300 and a heart failure event in the prior 6 months, randomised to balcinrenone/dapagliflozin 15/10 mg or 40/10 mg against dapagliflozin 10 mg alone; primary completion 2027-04-16. Price anchor: Kerendia (finerenone), the only non-steroidal MR agent on the US market and labelled in heart failure since July 2025, at $4,493 per Medicare Part D beneficiary in 2024. Uptake anchor: Kerendia's own CMS launch, 0.8% of its pool by its third full year, solved through the engine to 0.63% a year; Verquvo, the branded add-on labelled for the same post-event setting, solves to 0.74%. Not refused: balcinrenone is sold only inside the combination, but the combination is a product with its own revenue line; the part of it that displaces branded Farxiga until dapagliflozin's US substance patent lapses (2029-12-16, paediatric extension to 2030-06-16) is flagged, not netted. Heart failure incidence is blank in the book on purpose, so the engine's derived patient mode stays unavailable for this asset until the book carries one.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT06307652 interventions (book trial_interventions): balcinrenone/dapagliflozin 15 mg/10 mg or 40 mg/10 mg capsule once daily against dapagliflozin 10 mg, double-dummy; an event-driven outcomes study of about 38 months (Duke Clinical Research Institute study page, dcri.org/balanced-hf; Saudi FDA trial summary, sfda.gov.sa/en/node/1387762)",
+   "note": "Daily maintenance therapy for a chronic disease"
+  },
+  "list_price_per_patient": {
+   "value": 0.004493,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Kerendia: CMS Medicare Part D 2024, $396,302,773.23 over 88,208 beneficiaries = $4,493 per beneficiary",
+   "note": "Judgement on the comparator. Kerendia is the closest marketed product in mechanism and setting: the only non-steroidal MR agent in the US, approved on 2025-07-14 for heart failure with LVEF 40% or above to cut CV death, HF hospitalisation and urgent HF visits (Bayer US release, bayer.com/en/us/news-stories/fda-approves-kerendia), and labelled in CKD with type 2 diabetes. One brand price, not two: AstraZeneca's existing dapagliflozin combination, Xigduo XR, reads $4,366 per Part D beneficiary in 2024 against Farxiga's $4,168 (1.05x), and every branded heart failure product on file sits close by: Farxiga $4,168, Jardiance $4,496, Verquvo $4,465, Entresto $5,055 (lookup.py demand, Part D 2024). Case for higher: a price at the sum of the two agents, Kerendia plus Farxiga, would be $8,661. Kerendia's per-beneficiary figure is also still rising with its ramp ($1,493, $2,857, $4,239, $4,493 over 2021 to 2024), so a part-year effect remains. Case against the revenue as incremental: BalanceD-HF compares against dapagliflozin, so the patients switch from a dapagliflozin regimen. While Farxiga is branded, part of this revenue is a transfer from Farxiga's line, which the book models separately. The book's Orange Book rows put dapagliflozin's US substance patent 7,919,598 at 2029-12-16, with the paediatric extension to 2030-06-16. After that the combination protects dapagliflozin revenue that would otherwise go generic. Not netted here."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part D per-beneficiary price (backend/gross_to_net.py: halving lands at a median 96% of CMS's own negotiated net prices); Kerendia's rows in the book are Part D",
+   "note": "Direction checked: 0.5 off list, so net is $2,246 per patient-year. Cross-check: the 2026 Medicare negotiated prices for the SGLT2 inhibitors this product sits beside are $178.50 (Farxiga) and $197.00 (Jardiance) per 30-day supply (book negotiated_prices, CMS maximum fair price file), $2,142 and $2,364 a year, which bracket this net"
+  },
+  "discontinuation_pct": {
+   "value": 0.57,
+   "unit": "share of treated stock stopping per year",
+   "source": "Greene SJ et al., 'Contemporary Guideline-Directed Medical Therapy for Heart Failure in the United States: The EMPACE Study', J Am Heart Assoc 2026;15(6):e044785, doi:10.1161/JAHA.125.044785, PMID 41804888 (Optum Market Clarity, 17,210 US patients hospitalised for heart failure, June 2020 to September 2023): 12-month discontinuation after initiation was 57% for mineralocorticoid receptor antagonists and 55% for SGLT2 inhibitors",
+   "note": "Judgement: the MRA rate is taken, not the SGLT2 inhibitor rate, because a patient who stops the MR component for potassium or kidney function stops the combination and returns to dapagliflozin alone. The setting matches BalanceD-HF's entry criterion, a recent heart failure event, and the data are US. Case against: a first-year rate applied to the whole stock every year overstates later-year stopping; 44.2% of steroidal MRA discontinuers restarted within a median 91 days in US claims (Richard EL et al., Pragmat Obs Res 2025;16:27-37, doi:10.2147/POR.S489791, PMID 40034401); and EVOLUTION HF pooled across Japan, Sweden and the US gives lower 12-month rates, 23.5% for dapagliflozin and 42.2% for MRAs (Savarese G et al., JACC Heart Fail 2023;11(1):1-14, doi:10.1016/j.jchf.2022.08.009, PMID 36202739). A single daily capsule may persist better than two pills"
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "NCT06307652 primary completion 2027-04-16, estimated (context file; book trials table); study expected to conclude in June 2027 (Duke Clinical Research Institute, dcri.org/balanced-hf)",
+   "note": "Judgement on the filing and review timeline. No submission date is published (searched). A mid-2027 readout, a filing late in 2027 and a standard 12-month review for a new molecular entity put US approval in late 2028, so 2029 is the first full year. Case against: an event-driven study can run longer than its estimate, and a review that runs into 2029 makes 2030 the first full year"
+  },
+  "exus_multiple": {
+   "value": 1.3189,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Lokelma FY2025 in the book's asset_revenue_regions (AZN 20-F 0001104659-26-019130, annual report table): US $301mm; Emerging Markets $129mm, Europe $129mm, Established ROW $139mm. 397 / 301 = 1.3189",
+   "note": "Judgement on the comparator. Lokelma is AstraZeneca's own branded cardio-renal specialty product, bought by the same cardiologists and nephrologists for the same patients on MR therapy, with no generic in its split. Entresto, the heart-failure-only brand, reads almost the same: Rest of world $4,463mm against US $3,285mm in FY2025 = 1.3586 (book asset_revenue_regions, Novartis 20-F 0001114448-26-000004). Case for higher: Farxiga, the dapagliflozin inside this product, reads 3.8555 (FY2025: US $1,730mm; Emerging Markets $3,324mm, Europe $2,941mm, Established ROW $405mm), because its US line is heavily rebated and its emerging-markets footprint is large. Other AZN seeds set that ratio aside as a legacy footprint, and so does this one"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "AstraZeneca is lead sponsor of NCT06307652, NCT07624305 and NCT07754331 (context file); balcinrenone carries AstraZeneca's own compound code AZD9977 and dapagliflozin is AstraZeneca's Farxiga; the book's asset_economics table holds no partner row for asset 1666",
+   "note": "Wholly owned. No licensor or co-development partner found in the book or in search"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Heart Failure",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (epidemiology.csv: 7,400,000, American Heart Association 2025 statistics update)",
+     "note": "Carried by the book. The file's note says the pool is growing (8.7mm projected by 2030), so a flat figure understates the later years"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book as blank (epidemiology.csv: 'No federal agency publishes a national heart failure incidence count, so incidence is left blank')",
+     "note": "Left null by rule: a pool the book carries is used as is, and the blank is deliberate. Consequence for the caller: forecast.patients_for_indication needs incidence, so the derived patient mode reports itself unavailable for this asset until the book adds a heart failure incidence. A lead for whoever fills the row, not used here: Khera R et al., JAMA Netw Open 2020, doi:10.1001/jamanetworkopen.2020.22190, PMID 33095250, measured 26.5 new cases per 1,000 at-risk Medicare fee-for-service beneficiaries in 2016, a Medicare-only rate rather than a national count"
+    },
+    "eligible_pct": {
+     "value": 0.17152,
+     "unit": "share of the pool",
+     "source": "Two filters from BalanceD-HF's entry criteria (Saudi FDA trial summary, sfda.gov.sa/en/node/1387762). (1) A heart failure event: 26.8% of 16,646 US patients with chronic HFrEF had a worsening event, a heart failure hospitalisation or IV diuretics, within 12 months ('Clinical and Economic Burden of Chronic Heart Failure and Reduced Ejection Fraction Following a Worsening Heart Failure Event', Adv Ther 2020, doi:10.1007/s12325-020-01456-1, PMID 32761552, PMC7444407; IBM MarketScan, accessed by Merck, index year 2016). (2) eGFR under 60: 234,332 of 365,494 heart failure hospitalisations (64%) in GWTG-HF, 2014 to 2019 (Patel RB et al., 'Kidney Function and Outcomes in Patients Hospitalized With Heart Failure', J Am Coll Cardiol 2021;78(4):330-343, doi:10.1016/j.jacc.2021.05.002, PMID 33989713). 0.268 x 0.64 = 0.17152, about 1.27mm of the book's 7.4mm",
+     "note": "The second share is measured among hospitalised patients, so it is already conditional on an event and the two multiply without an independence assumption. No ejection-fraction filter: the trial requires a recent LVEF reading but sets no cut-off. Case for lower: the trial requires the event within 6 months, not 12, and halving the first share gives 0.086. The 64% includes patients below eGFR 20, whom the trial excludes; the paper gives no count below 20, only a lower quartile of 34. The 26.8% comes from under-65 commercially insured HFrEF patients identified from claims, a sicker definition than the book's self-reported 7.4mm. Case for higher: older and HFpEF patients are hospitalised at least as often, and the label may drop the recent-event criterion, as the current US heart failure labels for Farxiga, Jardiance and Kerendia carry none. Verquvo's label does carry one (use following a heart failure hospitalisation or outpatient IV diuretics). Not applied: the trial also excludes current MRA users and requires NT-proBNP above 300 pg/mL, and a label would not restrict either"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0063,
+     "unit": "share of the eligible untreated pool per year at peak",
+     "source": "Solved through the engine (forecast.derive_new_patients and treated_stock, read-only) from Kerendia's CMS Part D launch: 88,208 beneficiaries in 2024, its third full year (lookup.py demand Kerendia), over its CKD-with-type-2-diabetes pool of 11.07mm (the book's epidemiology.csv note on type 2 diabetes: 41% of 27.0mm adults, CDC), is 0.80% of the pool. With this asset's 0.57 discontinuation and Kerendia's fitted curve (k 1.82, midpoint 0.58), the engine needs a peak of 0.0063 to reach 88,208 in year index 2, and it reproduces 18,001 and 55,240 for 2022 and 2023 against actual 25,931 and 63,625. Incidence is left at zero in the solve; adding 41% of the book's type 2 diabetes incidence gives 0.0055",
+     "note": "Judgement: the multiple is 1.0. Kerendia is the incumbent of the same prescribing decision: add a non-steroidal MR agent, with potassium monitoring, against generic spironolactone and eplerenone. Corroboration from the same setting: Verquvo, the branded add-on labelled for heart failure after a worsening event, had 11,127 Part D beneficiaries in 2024, its fourth year (lookup.py demand Verquvo). Over a pool of 7.4mm x 0.5 reduced ejection fraction (the book's epidemiology.csv note) x 26.8% with an event (PMID 32761552), the same solve gives 0.0074. Both numerators are Medicare Part D only, so both understate an all-payer capture. Case for higher, and it is large: SGLT2 inhibitors were used by about 12% of patients in the 12 months after a heart failure hospitalisation over June 2020 to September 2023, the years after their first heart failure label (EMPACE, PMID 41804888: 13% of HFrEF, 12% of HFmrEF and 9% of HFpEF, weighted by the cohort's 73/4/23 split). That needs a peak near 0.10 in the same solve, 16 times this value. Entresto held 795,291 Part D beneficiaries in 2024, 10.7% of the whole 7.4mm. AstraZeneca can also switch patients from its own Farxiga (1.27mm Part D beneficiaries in 2024, all indications) to one capsule, a channel Bayer did not have for Kerendia. Case for lower: finerenone will have been labelled in heart failure for three years by launch, and the MR component faces generic steroidal MRAs"
+    },
+    "ramp_steepness": {
+     "value": 1.82,
+     "unit": "logistic k",
+     "source": "Kerendia's CMS Part D beneficiaries, 1,908 (2021, a part year), 25,931, 63,625, 88,208 (2022 to 2024) (lookup.py demand Kerendia), least-squares logistic fit with 2022, the first full year, as index 0: plateau 94,500, k 1.82, midpoint 0.58 years; fitted 5,044, 24,395, 64,478, 87,871",
+     "note": "Measured on the closest-mechanism launch in the book; no heart failure pipeline seed exists to reuse. Case against: four points, one a part year, pin the plateau poorly, and the series ends before Kerendia's July 2025 heart failure label, so the fit may read as saturation what was a pause. The book's other measured launches are slower: Enhertu k 1.08, midpoint 2.2 (ABBV-1480 and camizestrant seeds) and Zeposia k 1.005, midpoint 2.15 (tulisokibart seed)"
+    },
+    "ramp_midpoint_year": {
+     "value": 0.58,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Kerendia's CMS Part D fit)",
+     "note": "Half of peak penetration in the first full year. The penetration solve above uses this same curve, so the two move together: changing the curve without re-solving the peak breaks the anchor"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

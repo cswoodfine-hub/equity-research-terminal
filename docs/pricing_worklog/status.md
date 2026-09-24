@@ -34,7 +34,7 @@
 | IONS | ION363 | not started |
 | IONS | obudanersen | not started |
 | JNJ | Cetrelimab | refused: a combination partner only; SunRISe-2 stopped for futility |
-| JNJ | Seltorexant | not started |
+| JNJ | Seltorexant | seeded and built |
 | LLY | Brenipatide | seeded and built |
 | LLY | LY3537982 | seeded and built |
 | LLY | Remternetug | seeded and built |
