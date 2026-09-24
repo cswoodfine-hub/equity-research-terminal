@@ -242,3 +242,26 @@ whichever did not write its own. Six aliases were also added, because the lookup
 string match and the registry names one disease several ways: 18 multiple sclerosis assets
 sat on "Relapsing-Remitting" and "Chronic Progressive" while the file filled only "Multiple
 Sclerosis".
+
+**Open, from the Roche build**
+
+17. **Roche's other-costs charge was solved to operating profit, not by the house free-cash
+    rebuild.** `charge_floor.measure` solves every other company's charge so its book
+    reproduces free cash flow restated before interest, at replacement capex and without
+    working-capital build, floored at minus the intangible amortisation inside its cost
+    lines. Worked by hand on Roche's own workbook figures, that rebuild falls well below the
+    floor and binds at it: minus CHF 665mm of amortisation in cost of sales and R&D, -1.08%
+    of sales. Roche reports CHF 1,840mm of other revenue beside sales, so under the treatment
+    Sanofi and Novartis get its ratios would be scaled onto total revenue, and the house
+    margin comes to 29.8% against the 30.0% the operating-profit plug gives. Under 1% of
+    value, so it was recorded rather than rebuilt. Doing it properly needs a window in
+    `interest_addback.WINDOWS`, a row in `data/other_revenues.csv`, a row in
+    `data/amortisation_in_cost_lines.csv`, and the cash-flow lines the modules read written
+    from the workbook's own free-cash bridge. The workbook carries one year only.
+18. **Eight companies whose late-stage assets are now being researched have no cost block
+    at all:** argenx, Moderna, Alnylam, Intellia, Exelixis, Revolution Medicines, Neurocrine
+    and Structure. Four are profitable on their own filed lines and can carry their own
+    ratios with a house charge rebuild; Moderna, Intellia, Revolution and Structure are loss
+    making or pre-revenue and take a scaled comparator's ratios with a comparator charge, as
+    Viking does from Lilly. Each block is built only where one of its assets survives
+    verification.
