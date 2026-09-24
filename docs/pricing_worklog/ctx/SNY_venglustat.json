@@ -1,0 +1,64 @@
+{
+ "ticker": "SNY",
+ "company": "Sanofi",
+ "name": "Venglustat",
+ "inn_or_identity": "",
+ "sort_evidence": "Venglustat is not in the book, met its primary endpoint in the LEAP2MONO Phase 3 in type 3 Gaucher disease, and was accepted by the FDA for priority review on 2026-05-28 (https://www.sanofi.com/en/media-room/press-releases/2026/2026-05-28-05-00-00-3302498), while the Fabry Phase 3s PERIDOT and CARAT missed.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Fabry Disease",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Gaucher Disease",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT02843035",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-10-30",
+   "enrollment": 12,
+   "last_update_posted": "2026-07-10",
+   "lead_sponsor": "Genzyme, a Sanofi Company",
+   "title": "Venglustat in Combination With Cerezyme in Adult Patients With Gaucher Disease Type 3 With Venglustat Monotherapy Extension"
+  },
+  {
+   "nct_id": "NCT05280548",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-05-22",
+   "enrollment": 104,
+   "last_update_posted": "2026-06-24",
+   "lead_sponsor": "Sanofi",
+   "title": "A Study to Evaluate the Effect of Venglustat Tablets on Left Ventricular Mass Index in Male and Female Adult Participants With Fabry Disease"
+  },
+  {
+   "nct_id": "NCT05206773",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2025-12-17",
+   "enrollment": 122,
+   "last_update_posted": "2026-02-04",
+   "lead_sponsor": "Sanofi",
+   "title": "A Study to Evaluate the Effect of Venglustat Tablets on Neuropathic and Abdominal Pain in Male and Female Participants \u226516 Years of Age With"
+  },
+  {
+   "nct_id": "NCT05222906",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2025-10-02",
+   "enrollment": 43,
+   "last_update_posted": "2026-07-13",
+   "lead_sponsor": "Sanofi",
+   "title": "Study to Evaluate the Efficacy and Safety of Venglustat in Adult and Pediatric Patients With Gaucher Disease Type 3"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

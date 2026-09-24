@@ -1,0 +1,109 @@
+{
+ "ticker": "AZN",
+ "company": "AstraZeneca PLC",
+ "name": "Rilvegostomig",
+ "inn_or_identity": "",
+ "sort_evidence": "Rilvegostomig is not in the book in any form and has Phase 3 trials recruiting in the dossier, including NCT06627647 and NCT07221253 (ARTEMIDE-Biliary02).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Carcinoma, Non-Small-Cell Lung",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Biliary Tract Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Endometrial Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06627647",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-11-18",
+   "enrollment": 1160,
+   "last_update_posted": "2026-09-23",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Global Phase III Study of Rilvegostomig or Pembrolizumab Plus Chemotherapy for First-Line Treatment of Locally Advanced or Metastatic Non-"
+  },
+  {
+   "nct_id": "NCT06692738",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-07-01",
+   "enrollment": 1160,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Global Phase III Study of Rilvegostomig or Pembrolizumab Plus Chemotherapy for First-Line Treatment of Locally Advanced or Metastatic Squa"
+  },
+  {
+   "nct_id": "NCT06868277",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-01-17",
+   "enrollment": 830,
+   "last_update_posted": "2026-08-03",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Global Phase III Study of Rilvegostomig or Pembrolizumab Monotherapy for First-Line Treatment of PD-L1-high Metastatic Non-small Cell Lung"
+  },
+  {
+   "nct_id": "NCT07221253",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-07-31",
+   "enrollment": 1100,
+   "last_update_posted": "2026-08-21",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Study of Rilvegostomig or Durvalumab Plus Chemotherapy for First-Line Treatment of Biliary Tract Cancer (ARTEMIDE-Biliary02)"
+  },
+  {
+   "nct_id": "NCT06764875",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-04-27",
+   "enrollment": 840,
+   "last_update_posted": "2026-09-11",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Phase \u2162 Study of Rilvegostomig in Combination With Fluoropyrimidine and Trastuzumab Deruxtecan as the First-line Treatment for HER2-positi"
+  },
+  {
+   "nct_id": "NCT07098338",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-04-06",
+   "enrollment": 278,
+   "last_update_posted": "2026-07-01",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Study of Novel Combinations in Non-Small Cell Lung Cancer (NSCLC)"
+  },
+  {
+   "nct_id": "NCT06996782",
+   "phase": "Phase 1/2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-02-23",
+   "enrollment": 152,
+   "last_update_posted": "2026-07-21",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Platform Study in Non-Small Cell Lung Cancer (NSCLC)"
+  },
+  {
+   "nct_id": "NCT06989112",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-01-19",
+   "enrollment": 600,
+   "last_update_posted": "2026-09-03",
+   "lead_sponsor": "AstraZeneca",
+   "title": "DESTINY-Endometrial01: A Phase III Study of Trastuzumab Deruxtecan Plus Rilvegostomig or Pembrolizumab as First-Line Treatment of HER2-Expre"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

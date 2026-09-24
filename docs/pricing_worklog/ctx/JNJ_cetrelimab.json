@@ -1,0 +1,59 @@
+{
+ "ticker": "JNJ",
+ "company": "Johnson & Johnson",
+ "name": "Cetrelimab",
+ "inn_or_identity": "",
+ "sort_evidence": "Cetrelimab is an unapproved anti-PD-1 J&J uses only as a combination partner; SunRISe-2 (TAR-200 plus cetrelimab, NCT04658862) was discontinued for futility in September 2024 (https://www.jnj.com/media-center/press-releases/johnson-johnson-statement-on-the-sunrise-2-study), and no J&J filing names cetrelimab as a programme of its own.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Urinary Bladder Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Prostatic Neoplasms, Castration-Resistant",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Carcinoma, Non-Small-Cell Lung",
+   "phase": "Phase 1/2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05908734",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-01-31",
+   "enrollment": 71,
+   "last_update_posted": "2026-07-06",
+   "lead_sponsor": "Janssen Research & Development, LLC",
+   "title": "A Study of Combination Therapy With Amivantamab and Cetrelimab in Participants With Metastatic Non-small Cell Lung Cancer"
+  },
+  {
+   "nct_id": "NCT04658862",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-12-30",
+   "enrollment": 518,
+   "last_update_posted": "2026-08-28",
+   "lead_sponsor": "Janssen Research & Development, LLC",
+   "title": "A Study of TAR-200 in Combination With Cetrelimab Versus Concurrent Chemoradiotherapy in Participants With Muscle-invasive Bladder Cancer (M"
+  },
+  {
+   "nct_id": "NCT03431350",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2021-08-31",
+   "enrollment": 136,
+   "last_update_posted": "2026-08-28",
+   "lead_sponsor": "Janssen Research & Development, LLC",
+   "title": "A Study of Niraparib Combination Therapies for the Treatment of Metastatic Castration-Resistant Prostate Cancer"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

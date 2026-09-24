@@ -1,0 +1,39 @@
+{
+ "ticker": "PFE",
+ "company": "Pfizer Inc",
+ "name": "ibuzatrelvir",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 3 NCT06679140 of ibuzatrelvir in non-hospitalised COVID-19 is recruiting; ibuzatrelvir is a separate protease inhibitor from Paxlovid's nirmatrelvir.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "COVID-19",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06679140",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-10-03",
+   "enrollment": 2330,
+   "last_update_posted": "2026-08-14",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn About a Study Medicine Called Ibuzatrelvir in Adult and Adolescent Patients With COVID-19 Who Are Not Hospitalized But Are "
+  },
+  {
+   "nct_id": "NCT07013474",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-09-27",
+   "enrollment": 300,
+   "last_update_posted": "2026-08-25",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn About the Study Medicine Ibuzatrelvir in Adults With COVID-19 Who Are Severely Immunocompromised"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

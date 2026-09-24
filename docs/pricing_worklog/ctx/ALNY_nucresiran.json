@@ -1,0 +1,39 @@
+{
+ "ticker": "ALNY",
+ "company": "Alnylam Pharmaceuticals, Inc.",
+ "name": "Nucresiran",
+ "inn_or_identity": "",
+ "sort_evidence": "Alnylam's 10-Q filed 2026-07-30 describes nucresiran as its next-generation TTR RNAi therapeutic, a different molecule from Amvuttra (vutrisiran), in Phase 3 TRITON-CM NCT07052903 (recruiting).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Amyloidosis",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07052903",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-05-28",
+   "enrollment": 1750,
+   "last_update_posted": "2026-09-16",
+   "lead_sponsor": "Alnylam Pharmaceuticals",
+   "title": "TRITON-CM: A Study to Evaluate Nucresiran in Patients With Transthyretin Amyloidosis With Cardiomyopathy"
+  },
+  {
+   "nct_id": "NCT07223203",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-12-27",
+   "enrollment": 125,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "Alnylam Pharmaceuticals",
+   "title": "TRITON-PN: A Study to Evaluate the Efficacy and Safety of Nucresiran in Patients With Hereditary Transthyretin Amyloidosis With Polyneuropat"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

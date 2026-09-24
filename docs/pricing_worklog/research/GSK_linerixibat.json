@@ -1,0 +1,21 @@
+{
+ "ticker": "GSK",
+ "name": "Linerixibat",
+ "summary": "Linerixibat is an oral ileal bile acid transporter (IBAT) inhibitor for cholestatic pruritus in primary biliary cholangitis. The FDA approved it as Lynavoy on 2026-03-17 and the CHMP gave a positive opinion on 2026-07-23. Alfasigma holds worldwide rights under a licence closed in April 2026; GSK keeps $300mm upfront, $100mm on US approval, $20mm on EU and UK approval, up to $270mm in sales milestones and 'tiered double-digit royalties on net sales worldwide'. The royalty rate is not disclosed, so GSK's share of the asset's economics cannot be sourced and the asset is not seeded.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Lynavoy is a daily oral treatment for chronic cholestatic pruritus in PBC (GSK press release, https://www.gsk.com/en-gb/media/press-releases/gsk-and-alfasigma-announce-agreement/)",
+   "note": "Recorded for completeness. The asset is refused, so no other field was researched"
+  },
+  "economics_share": {
+   "value": null,
+   "unit": "share of asset economics",
+   "source": "GSK press release on the licence (https://www.gsk.com/en-gb/media/press-releases/gsk-and-alfasigma-announce-agreement/); Alfasigma completion notice (https://www.alfasigma.com/news-media/alfasigma-completes-agreement-with-gsk-for-linerixibat/); GSK 6-K filings 0001654954-26-002008 and 0001654954-26-002482",
+   "note": "Null: GSK discloses only 'tiered double-digit royalties on net sales worldwide'. No rate or tier boundary is stated in the press release, the completion notice or the search-visible 6-K text. 'Double-digit' spans 10% to 99%, so any figure would be a guess. The fixed payments ($300mm upfront, $100mm FDA approval, $20mm EU/UK approval, up to $270mm sales milestones) are deal cash, not a share of the asset"
+  }
+ },
+ "indications": [],
+ "refuse": "GSK out-licensed worldwide rights to Alfasigma (closed April 2026) and keeps only milestones and 'tiered double-digit royalties'. The royalty rate is not disclosed in any source found, so economics_share cannot be sourced and the revenue model would attribute a guessed share of Alfasigma's sales to GSK. The known milestone cash ($100mm FDA approval, $20mm EU/UK approval, up to $270mm sales-based) is better booked as deal payments than as a modelled asset."
+}

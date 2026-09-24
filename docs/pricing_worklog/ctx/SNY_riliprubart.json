@@ -1,0 +1,49 @@
+{
+ "ticker": "SNY",
+ "company": "Sanofi",
+ "name": "Riliprubart",
+ "inn_or_identity": "",
+ "sort_evidence": "Riliprubart is not in the book, and Sanofi stopped the MOBILIZE Phase 3 for futility on 2026-06-10 while VITALIZE (NCT06290141, Recruiting, versus IVIg) continues (https://www.sanofi.com/en/media-room/press-releases/2026/2026-06-10-05-00-00-3309444).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Polyradiculoneuropathy, Chronic Inflammatory Demyelinating",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06859099",
+   "phase": "Phase 3",
+   "overall_status": "Enrolling by invitation",
+   "primary_completion_date": "2029-10-03",
+   "enrollment": 300,
+   "last_update_posted": "2026-09-21",
+   "lead_sponsor": "Sanofi",
+   "title": "Long-term Safety and Efficacy Study of Riliprubart in Participants With CIDP"
+  },
+  {
+   "nct_id": "NCT06290141",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-07-09",
+   "enrollment": 160,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Sanofi",
+   "title": "A Study to Test the Efficacy and Safety of Riliprubart Against the Usual Treatment of Intravenous Immunoglobulin (IVIg) in People With Chron"
+  },
+  {
+   "nct_id": "NCT06290128",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-06-10",
+   "enrollment": 109,
+   "last_update_posted": "2026-08-10",
+   "lead_sponsor": "Sanofi",
+   "title": "A Study to Test the Effects and Safety of Riliprubart in People With Chronic Inflammatory Demyelinating Polyneuropathy (CIDP) for Which the "
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

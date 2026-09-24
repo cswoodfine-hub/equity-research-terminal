@@ -1,0 +1,29 @@
+{
+ "ticker": "LNTH",
+ "company": "Lantheus Holdings, Inc.",
+ "name": "[18F]PI-2620",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT05641688 (Phase 3, Recruiting) is Lantheus's histopathology study of PI-2620; Tauklarify, approved 2026-08-13, is a different tau tracer, MK-6240 (florquinitau F 18), so the book holds PI-2620 in no form (https://www.neurologylive.com/view/fda-approves-tau-pet-tracer-mk-6240-alzheimer-diagnostic-workup).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Alzheimer Disease",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05641688",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-06",
+   "enrollment": 200,
+   "last_update_posted": "2026-05-22",
+   "lead_sponsor": "Lantheus Biosciences Ltd.",
+   "title": "[18F]PI-2620 Phase 3 Histopathological Study"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

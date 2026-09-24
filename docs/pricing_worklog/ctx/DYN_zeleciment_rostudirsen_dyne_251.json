@@ -1,0 +1,69 @@
+{
+ "ticker": "DYN",
+ "company": "Dyne Therapeutics, Inc.",
+ "name": "Zeleciment Rostudirsen (DYNE-251)",
+ "inn_or_identity": "",
+ "sort_evidence": "FDA accepted the z-rostudirsen BLA for exon 51 DMD with a PDUFA date of 2027-01-21, so it is not yet approved, and NCT07608432 (Phase 3, Recruiting) is its confirmatory trial (https://investors.dyne-tx.com/news-releases/news-release-details/dyne-therapeutics-announces-us-fda-acceptance-biologics-license).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Muscular Dystrophy, Duchenne",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Muscular Dystrophies",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Genetic Diseases, X-Linked",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Myotonic Dystrophy",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Congenital, Hereditary, and Neonatal Diseases and Abnormalities",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05524883",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2031-09",
+   "enrollment": 86,
+   "last_update_posted": "2026-08-11",
+   "lead_sponsor": "Dyne Therapeutics",
+   "title": "Safety, Tolerability, Pharmacodynamic, Efficacy, and Pharmacokinetic Study of DYNE-251 in Participants With Duchenne Muscular Dystrophy Amen"
+  },
+  {
+   "nct_id": "NCT07608432",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-12",
+   "enrollment": 90,
+   "last_update_posted": "2026-05-27",
+   "lead_sponsor": "Dyne Therapeutics",
+   "title": "Efficacy, Safety, and Tolerability of Zeleciment Rostudirsen (DYNE-251) Administered Intravenously Every 4 Weeks in Ambulatory Participants "
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 1999,
+   "ticker": "DYN",
+   "generic": "zeleciment basivarsen (DYNE-101)",
+   "brand": null,
+   "code": "DYNE-101",
+   "is_marketed": 0,
+   "modelled": false
+  }
+ ]
+}

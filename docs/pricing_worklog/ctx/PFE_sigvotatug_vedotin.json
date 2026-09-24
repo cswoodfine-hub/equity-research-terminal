@@ -1,0 +1,140 @@
+{
+ "ticker": "PFE",
+ "company": "Pfizer Inc",
+ "name": "Sigvotatug Vedotin",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 3 NCT06758401 of sigvotatug vedotin with pembrolizumab in NSCLC is recruiting, and the book holds no other sigvotatug vedotin row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Carcinoma, Non-Small-Cell Lung",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Lung Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Squamous Cell Carcinoma of Head and Neck",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Esophageal Neoplasms",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Ovarian Neoplasms",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Uterine Cervical Neoplasms",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Adenocarcinoma Of Esophagus",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Esophageal Squamous Cell Carcinoma",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Urinary Bladder Neoplasms",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Stomach Neoplasms",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06758401",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-09-05",
+   "enrollment": 714,
+   "last_update_posted": "2026-07-22",
+   "lead_sponsor": "Pfizer",
+   "title": "This is a Study to Learn About How the Combination of the Study Medicines Sigvotatug Vedotin Plus Pembrolizumab Works in People With Non-sma"
+  },
+  {
+   "nct_id": "NCT04389632",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-06-16",
+   "enrollment": 1006,
+   "last_update_posted": "2026-07-06",
+   "lead_sponsor": "Seagen, a wholly owned subsidiary of Pfizer",
+   "title": "A Study of Sigvotatug Vedotin in Advanced Solid Tumors"
+  },
+  {
+   "nct_id": "NCT06012435",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-05-18",
+   "enrollment": 762,
+   "last_update_posted": "2026-07-23",
+   "lead_sponsor": "Seagen, a wholly owned subsidiary of Pfizer",
+   "title": "A Study of SGN-B6A Versus Docetaxel in Previously Treated Non-small Cell Lung Cancer"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 697,
+   "ticker": "PFE",
+   "generic": "Brentuximab Vedotin",
+   "brand": "Adcetris",
+   "code": "BLA125388",
+   "is_marketed": 1,
+   "modelled": true
+  },
+  {
+   "id": 709,
+   "ticker": "PFE",
+   "generic": "Enfortumab Vedotin",
+   "brand": "Padcev",
+   "code": "BLA761137",
+   "is_marketed": 1,
+   "modelled": true
+  },
+  {
+   "id": 1776,
+   "ticker": "AZN",
+   "generic": "Sonesitatug Vedotin",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": true
+  },
+  {
+   "id": 2460,
+   "ticker": "MRK",
+   "generic": "Zilovertamab Vedotin",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": true
+  },
+  {
+   "id": 2824,
+   "ticker": "PFE",
+   "generic": "Disitamab vedotin",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  }
+ ]
+}

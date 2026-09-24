@@ -1,0 +1,39 @@
+{
+ "ticker": "JNJ",
+ "company": "Johnson & Johnson",
+ "name": "Seltorexant",
+ "inn_or_identity": "",
+ "sort_evidence": "Seltorexant, J&J's orexin-2 receptor antagonist, is in Phase 3 for MDD (NCT07573176 and NCT06559306, recruiting) with no FDA or EMA authorisation in the local approvals or EMA tables.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Depressive Disorder, Major",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07573176",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-08-24",
+   "enrollment": 600,
+   "last_update_posted": "2026-08-28",
+   "lead_sponsor": "Janssen Research & Development, LLC",
+   "title": "A Study of Seltorexant as Monotherapy in Adults and Elderly Participants With Major Depressive Disorder"
+  },
+  {
+   "nct_id": "NCT06559306",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-12-30",
+   "enrollment": 752,
+   "last_update_posted": "2026-08-28",
+   "lead_sponsor": "Janssen Research & Development, LLC",
+   "title": "Phase 3 Study of Adjunctive Treatment With Seltorexant in Adult and Elderly Participants With Major Depressive Disorder and Insomnia Symptom"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

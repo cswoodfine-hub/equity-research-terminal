@@ -1,0 +1,29 @@
+{
+ "ticker": "IONS",
+ "company": "Ionis Pharmaceuticals, Inc.",
+ "name": "ION363",
+ "inn_or_identity": "ulefnersen",
+ "sort_evidence": "ION363 is ulefnersen, whose Phase 3 FUSION in FUS-ALS (NCT04768972) met its primary endpoint on 2026-09-22 and is not in the IONS book (https://ir.ionis.com/news-releases/news-release-details/ionis-announces-positive-topline-results-phase-3-fusion-study).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Amyotrophic Lateral Sclerosis",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT04768972",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-06-17",
+   "enrollment": 89,
+   "last_update_posted": "2026-07-21",
+   "lead_sponsor": "Ionis Pharmaceuticals, Inc.",
+   "title": "FUSION: A Study to Evaluate the Efficacy, Safety, Pharmacokinetics and Pharmacodynamics of ION363 in Amyotrophic Lateral Sclerosis Participa"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

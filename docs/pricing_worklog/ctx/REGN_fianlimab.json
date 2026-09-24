@@ -1,0 +1,99 @@
+{
+ "ticker": "REGN",
+ "company": "Regeneron Pharmaceuticals Inc",
+ "name": "Fianlimab",
+ "inn_or_identity": "",
+ "sort_evidence": "Regeneron's 10-Q filed 2026-07-30 (0000872589-26-000025) reports the first-line metastatic melanoma Phase 3 missed but keeps fianlimab (REGN3767, anti-LAG-3) in adjuvant melanoma (NCT05608291, readout Q4 2026), perioperative melanoma and first-line HNSCC, with no approval.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Melanoma",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Carcinoma, Non-Small-Cell Lung",
+   "phase": "Phase 2/3",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Lung Neoplasms",
+   "phase": "Phase 2/3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05800015",
+   "phase": "Phase 2/3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2030-01-16",
+   "enrollment": 160,
+   "last_update_posted": "2026-07-15",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A Trial to Learn How the Combination of Fianlimab With Cemiplimab and Chemotherapy Works Compared With Cemiplimab and Chemotherapy for Treat"
+  },
+  {
+   "nct_id": "NCT05785767",
+   "phase": "Phase 2/3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-09-28",
+   "enrollment": 149,
+   "last_update_posted": "2026-07-02",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A Study to Learn if a Combination of Fianlimab and Cemiplimab Versus Cemiplimab Alone is More Effective for Adult Participants With Advanced"
+  },
+  {
+   "nct_id": "NCT06246916",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-03-22",
+   "enrollment": 560,
+   "last_update_posted": "2026-08-19",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A Study With Combinations of Anti-LAG-3 and Anti-PD-1 Antibodies in Adult Participants With Advanced or Metastatic Melanoma (Harmony Head-to"
+  },
+  {
+   "nct_id": "NCT06161441",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-08-24",
+   "enrollment": 195,
+   "last_update_posted": "2026-08-10",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A Trial to Learn if the Combination of Fianlimab, Cemiplimab, and Chemotherapy is Safe and Works Better Than the Combination of Cemiplimab a"
+  },
+  {
+   "nct_id": "NCT05608291",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-07-27",
+   "enrollment": 1564,
+   "last_update_posted": "2026-07-06",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A Trial to See if the Combination of Fianlimab With Cemiplimab Works Better Than Pembrolizumab for Preventing or Delaying Melanoma From Comi"
+  },
+  {
+   "nct_id": "NCT05352672",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-03-12",
+   "enrollment": 1546,
+   "last_update_posted": "2026-04-22",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "Clinical Study of Fianlimab in Combination With Cemiplimab Versus Pembrolizumab in Adolescent and Adult Patients With Previously Untreated U"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 2893,
+   "ticker": "REGN",
+   "generic": "Fianlimab+cemiplimab",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  }
+ ]
+}

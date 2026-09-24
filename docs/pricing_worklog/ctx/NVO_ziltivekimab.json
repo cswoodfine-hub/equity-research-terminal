@@ -1,0 +1,54 @@
+{
+ "ticker": "NVO",
+ "company": "Novo Nordisk A/S",
+ "name": "Ziltivekimab",
+ "inn_or_identity": "",
+ "sort_evidence": "Novo halted HERMES and ATHENA (NCT06200207) on 2026-09-07 after the ZEUS miss, but ARTEMIS (NCT06118281, 10,000 patients after heart attack) continues to an H1 2027 readout (https://finance.yahoo.com/healthcare/articles/novo-scraps-two-more-heart-114434932.html).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Myocardial Infarction",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Heart Failure",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07301034",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-11-14",
+   "enrollment": 332,
+   "last_update_posted": "2026-03-11",
+   "lead_sponsor": "Novo Nordisk A/S",
+   "title": "A Research Study to Look at the Effect of Ziltivekimab on Plaque in the Blood Vessels of the Heart, Compared to Placebo, in People With a He"
+  },
+  {
+   "nct_id": "NCT06118281",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-01-29",
+   "enrollment": 10000,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "Novo Nordisk A/S",
+   "title": "ARTEMIS - A Research Study to Look at How Ziltivekimab Works Compared to Placebo in People With a Heart Attack"
+  },
+  {
+   "nct_id": "NCT06200207",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-10-01",
+   "enrollment": 680,
+   "last_update_posted": "2026-09-01",
+   "lead_sponsor": "Novo Nordisk A/S",
+   "title": "A Research Study Looking Into How Ziltivekimab Works Compared to Placebo in Participants With Heart Failure and Inflammation"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

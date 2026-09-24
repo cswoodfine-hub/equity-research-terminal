@@ -1,0 +1,49 @@
+{
+ "ticker": "NTLA",
+ "company": "Intellia Therapeutics, Inc.",
+ "name": "Biological NTLA-2002",
+ "inn_or_identity": "lonvoguran ziclumeran",
+ "sort_evidence": "NTLA-2002 is lonvoguran ziclumeran, whose BLA for HAE was accepted with Priority Review and a PDUFA date of 2027-03-10 after Phase 3 HAELO (NCT06634420) (https://ir.intelliatx.com/news-releases/news-release-details/intellia-therapeutics-announces-fda-acceptance-biologics-license).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Angioedemas, Hereditary",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06634420",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-02-10",
+   "enrollment": 80,
+   "last_update_posted": "2026-07-29",
+   "lead_sponsor": "Intellia Therapeutics",
+   "title": "HAELO: A Phase 3 Study to Evaluate NTLA-2002 in Participants With Hereditary Angioedema (HAE)"
+  },
+  {
+   "nct_id": "NCT05120830",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2024-04-04",
+   "enrollment": 37,
+   "last_update_posted": "2026-03-24",
+   "lead_sponsor": "Intellia Therapeutics",
+   "title": "NTLA-2002 in Adults With Hereditary Angioedema (HAE)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 3202,
+   "ticker": "VRTX",
+   "generic": "Biological/Vaccine",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  }
+ ]
+}

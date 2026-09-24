@@ -1,0 +1,44 @@
+{
+ "ticker": "NVO",
+ "company": "Novo Nordisk A/S",
+ "name": "Etavopivat",
+ "inn_or_identity": "",
+ "sort_evidence": "Novo's 20-F filed 2026-02-04 (0000353278-26-000012) lists etavopivat (NN7535), an oral PKR activator, in Phase 3 for sickle cell disease, and NCT06612268 is recruiting with no approval.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Anemia, Sickle Cell",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Thalassemia",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06609226",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-12-30",
+   "enrollment": 480,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "Novo Nordisk A/S",
+   "title": "A Research Study Looking at Long-term Treatment With Etavopivat in People With Sickle Cell Disease or Thalassaemia"
+  },
+  {
+   "nct_id": "NCT06612268",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-08-27",
+   "enrollment": 510,
+   "last_update_posted": "2026-09-17",
+   "lead_sponsor": "Novo Nordisk A/S",
+   "title": "A Study to Evaluate How Well Etavopivat Works in People With Sickle Cell Disease"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

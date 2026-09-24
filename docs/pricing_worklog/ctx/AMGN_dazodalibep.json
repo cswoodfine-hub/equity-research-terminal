@@ -1,0 +1,39 @@
+{
+ "ticker": "AMGN",
+ "company": "Amgen Inc",
+ "name": "Dazodalibep",
+ "inn_or_identity": "",
+ "sort_evidence": "Dazodalibep is a CD40L antagonist fusion protein that met its primary endpoint in Phase 3 OASIZ 301 in Sjogren's disease on 2026-09-22 (NCT06245408) and is not in the AMGN book (https://investors.amgen.com/news-releases/news-release-details/amgen-announces-positive-topline-phase-3-results-dazodalibep).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Sjogren's Syndrome",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06747949",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-12-11",
+   "enrollment": 844,
+   "last_update_posted": "2026-04-28",
+   "lead_sponsor": "Amgen",
+   "title": "A Long-term Extension Study of Dazodalibep in Participants With Sj\u00f6gren's Syndrome (SS)"
+  },
+  {
+   "nct_id": "NCT06245408",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-10-22",
+   "enrollment": 434,
+   "last_update_posted": "2026-01-08",
+   "lead_sponsor": "Amgen",
+   "title": "A Safety and Efficacy Study of Dazodalibep in Participants With Sj\u00f6gren's Syndrome (SS) With Moderate-to-Severe Symptom State"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

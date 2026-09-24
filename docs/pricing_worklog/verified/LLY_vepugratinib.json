@@ -1,0 +1,127 @@
+{
+ "ticker": "LLY",
+ "name": "Vepugratinib",
+ "summary": "Vepugratinib (LY3866288, LOXO-435) is Lilly's oral, isoform-selective FGFR3 inhibitor. The pivotal trial is FORAGER-2 (NCT07218380). It is a randomised, double-blind, placebo-controlled Phase 3 adding vepugratinib to enfortumab vedotin plus pembrolizumab (EV+P) in untreated locally advanced or metastatic urothelial carcinoma with an FGFR3 alteration. The primary endpoint is PFS by blinded central review, and primary completion is 2029-10. Price anchor: Balversa (erdafitinib), the only marketed FGFR inhibitor in urothelial cancer, at $74,345 per CMS Part D beneficiary in 2024. Uptake anchor: EV+P, the regimen vepugratinib is added to, reached 51% of US first-line la/mUC patients in 2024, its first full year (Flatiron, ASCO GU 2026).",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "FORAGER-2 design (NCT07218380; ASCO GU 2026 TPS895, doi:10.1200/JCO.2026.44.7_suppl.TPS895): oral daily vepugratinib added to EV+P, with PFS as the primary endpoint",
+   "note": "Oncology treated to progression, so chronic by the house definition",
+   "verdict": "confirmed",
+   "check": "FORAGER-2 TPS895 (JCO 2026;44(7_suppl):TPS895) and Lilly's trial page: oral vepugratinib or placebo added to EV+P, randomised, double-blind, in untreated la/mUC with an FGFR3 alteration. PFS primary endpoint as stated; treated to progression, so chronic"
+  },
+  "list_price_per_patient": {
+   "value": 0.074345,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Balversa: CMS Medicare Part D 2024, $22,675,187.94 over 305 beneficiaries = $74,345 per beneficiary",
+   "note": "Judgement: house convention. Balversa is the closest marketed comparator: the only approved FGFR inhibitor in urothelial cancer, and oral like vepugratinib. The case against is that it is used later-line as monotherapy, with a median PFS of 5.6 months in THOR (NEJM 2023, doi:10.1056/NEJMoa2308849). A beneficiary's spend therefore covers well under a year of therapy, and this figure understates an annual price. Retail quotes of about $28,000 a month for 8 mg daily (drugs.com, GoodRx) would annualise to roughly $330,000, but that is not a named manufacturer list price, so the convention stands. A reviewer may also argue that a first-line add-on to an IV regimen would be priced below monotherapy. The two effects pull in opposite directions.",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Balversa: Part D 2024 $22,675,187.94 / 305 beneficiaries = $74,345 (2020-2023 ran $59,207 to $65,569). Unit is mm USD per patient-year. Balversa is the only approved FGFR inhibitor in urothelial cancer. The retail quote in the note (about $28,000 a month) was not checked independently and plays no part in the value"
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS per-beneficiary price (halving lands at a median 96% of CMS negotiated net prices)",
+   "note": "Direction checked: 0.5 off list, so net is $37,172 per patient-year",
+   "verdict": "confirmed",
+   "check": "Direction checked: share off list, 0.5 on a CMS Part D per-beneficiary price per the brief's convention. Net = $37,172"
+  },
+  "discontinuation_pct": {
+   "value": 0.4859,
+   "unit": "share of treated stock stopping per year",
+   "source": "EV-302/KEYNOTE-A39, 2.5-year follow-up (Annals of Oncology 2025, PMID 40460988): median PFS 12.5 months (95% CI 10.4-16.6) on EV+P, the backbone and control arm of FORAGER-2",
+   "note": "Constant hazard from a median: 1 - 0.5^(12/12.5) = 0.486, the form the ABBV-1480 seed uses. The brief's 1 - exp(-12/12.5) gives 0.617. That formula treats the median as a mean, so I did not use it. The case against: FORAGER-2 is designed to extend PFS beyond EV+P, and median duration of treatment on an add-on can be shorter than PFS because of toxicity-driven stops. The FGFR3-altered subgroup of EV-302 may also differ from the all-comer median.",
+   "verdict": "confirmed",
+   "check": "PMID 40460988 (Powles et al., Ann Oncol 2025;36:1212, doi:10.1016/j.annonc.2025.05.536) abstract: median PFS by BICR 12.5 mo (95% CI 10.4-16.6) on EV+P. 1 - 0.5^(12/12.5) = 0.4859, recomputed. Same constant-hazard form as the ABBV-1480 seed in the book"
+  },
+  "forecast_start_year": {
+   "value": 2031,
+   "unit": "year",
+   "source": "NCT07218380 primary completion 2029-10 (ClinicalTrials.gov, last update 2026-09-22)",
+   "note": "Launch is clearly later than 2027: readout around late 2029, filing in 2030, and US launch expected around late 2030 on a standard review. 2031 is the first full year on market. Judgement on the review timeline",
+   "verdict": "confirmed",
+   "check": "Context file: NCT07218380 primary completion 2029-10. The ABBV-1480 seed sets the first full year two calendar years after a December 2029 primary completion (2031); the same rule gives 2031 here"
+  },
+  "exus_multiple": {
+   "value": 0.6521,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Verzenio FY2025: $2,259mm outside the US against $3,464mm US (LLY 10-K 0000059478-26-000013; Q4 2025 release, 0000059478-26-000008)",
+   "note": "Judgement on the comparator. Verzenio is Lilly's own mature oral targeted oncology drug and has a clean filed geographic split. Padcev cannot serve: Pfizer books only $38mm outside the US because Astellas sells it there. Balversa's split is not disclosed by J&J. The case against: Verzenio is a breast-cancer drug with long treatment duration, and ex-US access for a first-line FGFR3 add-on to an expensive EV+P regimen may be thinner",
+   "verdict": "confirmed",
+   "check": "Book's asset_revenue_regions for Verzenio (asset 300), SEC financial statement data sets for FY2025: US $3,464,000,000, NonUs $2,259,000,000; 2,259/3,464 = 0.6521. Same comparator and value already carried by the LLY LY3537982 seed"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Lilly oncology pipeline (lillyoncologypipeline.com/molecule/fgfr3-inhibitor/clinical-trial/NCT07218380); Lilly is lead sponsor of NCT07218380, NCT07827612 and NCT05614739",
+   "note": "Loxo@Lilly internal molecule (LOXO-435). No partner found in filings or search",
+   "verdict": "confirmed",
+   "check": "Lilly is lead sponsor of all three trials (context file); Lilly oncology pipeline lists vepugratinib as its own FGFR3 inhibitor (LOXO-435, Loxo@Lilly). No licensor found in search"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Urinary Bladder Neoplasms",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (epidemiology.csv: 763,031, SEER)",
+     "note": "Carried by the book. See untreated_carryover_pct: the book's prevalence is the whole living bladder-cancer population, and this is a line of therapy",
+     "verdict": "confirmed",
+     "check": "lookup.py pool Urinary Bladder Neoplasms: epidemiology.csv carries prevalence 763,031 (SEER), so null is correct"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (epidemiology.csv: 84,530, SEER)",
+     "note": "Carried by the book",
+     "verdict": "confirmed",
+     "check": "lookup.py pool: epidemiology.csv carries incidence 84,530 (SEER), so null is correct"
+    },
+    "eligible_pct": {
+     "value": 0.027446,
+     "unit": "share of the pool",
+     "source": "Two filters. (1) 11,600 US patients a year receive first-line therapy for la/mUC, out of about 22,542 diagnosed with or progressing to la/mUC (systematic review and flow model, J Manag Care Spec Pharm 2021;27(2):240, doi:10.18553/jmcp.2020.20285). (2) A known or likely pathogenic FGFR3 alteration in 281 of 1,416 US mUC patients with hybrid-capture NGS, 20% (Gupta et al., 'Fibroblast Growth Factor Receptor 3 Alteration Status and Outcomes on Immune Checkpoint Inhibitors in Patients With Metastatic Urothelial Carcinoma', JCO Precis Oncol 2025;9:e2500257, doi:10.1200/PO-25-00257, PMID 40956998). 11,600 x 0.20 = 2,320 a year, over the book's 84,530 incidence = 0.0274",
+     "note": "Stated as a share of incidence. The 11,600 dates from a flow model built on an incidence near 81,000, so it is a slightly older base. The case for a lower figure: a nationwide registry finds FGFR3 in about 15% of metastatic cases, and Haas et al. (Eur Urol Open Sci 2025, PMID 40521274) find it in 16 of 113 metastatic tumours (14%); the 20% comes from a Foundation Medicine clinicogenomic cohort, which may over-represent patients sequenced for a reason. The FORAGER-2 abstract itself says 15-20%. The label pool includes upper-tract disease, which FORAGER-2 enrols and which the SEER bladder count excludes. Applied to the book's 763,031 prevalence this gives an opening stock of 20,942, which a first-line pool does not have. See untreated_carryover_pct",
+     "verdict": "corrected",
+     "check": "Value unchanged, source corrected. 11,600 of 22,542 confirmed against the JMCP 2021 review. The 281 of 1,416 (20%) figure is real but is not from PMID 40521274 as cited: that paper (Haas et al.) covers 1,509 patients across all stages and reports 9 of 91 mUCB and 7 of 22 mUTUC. The 281/1,416 is Gupta et al., JCO Precis Oncol 2025 (PMID 40956998), whose abstract confirms 1,416 mUC patients with NGS. Arithmetic 11,600 x 0.20 / 84,530 = 0.027446 recomputed. The incidence near 81,000 underlying the flow model was not checked"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.0,
+     "unit": "share",
+     "source": "forecast.py convention for a line of cancer therapy (a patient not started this year starts another drug and leaves the line)",
+     "note": "A line of therapy: a first-line patient not started on this drug in a year starts another regimen and leaves the line, so none carry over. Needed because the book's pool for this disease has prevalence (763,031) far above incidence. At a stated 0.0 the engine (forecast.py, patients_for_indication) now also sets the opening pool to zero, so each year's eligible patients are that year's diagnoses and the living stock is not counted in year one",
+     "verdict": "confirmed",
+     "check": "forecast.py derive_new_patients: carryover 0.0 means each year's eligible patients are that year's alone; patients_for_indication sets pool = 0 when carryover == 0 and a pool exists. Justified as a first-line setting (FORAGER-2 enrols untreated la/mUC). The researcher's warning that the opening stock is still counted is stale and was removed from the note"
+    },
+    "penetration_peak_pct": {
+     "value": 0.51,
+     "unit": "share of each year's eligible patients",
+     "source": "EV+P took 420 of 821 US first-line aUC patients (51%) in 2024, from 142 of 919 (15%) in 2023 and 0.4% in 2022, and 62% of first-line regimens started in 2025 (Ozay et al., Flatiron Health Research Database, ASCO GU 2026 abstract 692, J Clin Oncol 2026;44(7_suppl):692, doi:10.1200/JCO.2026.44.7_suppl.692; reported by UroToday)",
+     "note": "Judgement: the multiple is 1.0. Vepugratinib is an add-on to EV+P, so its ceiling is the share of FGFR3-altered first-line patients who receive EV+P. The peak is set at EV+P's measured capture. The case for lower: incomplete FGFR3 testing before first-line therapy, added FGFR toxicity (hyperphosphataemia, ocular and nail events) on top of EV's neuropathy and rash, and the fact that a positive PFS result is not guaranteed to change practice. The case for higher: EV+P share was still rising after 2024, reaching 62% of first-line starts in 2025 in the same dataset",
+     "verdict": "confirmed",
+     "check": "Search of ASCO GU 2026 abstract 692 (Ozay et al., Flatiron): 2 of 1,006 (0.2%) in 2020, 0.3% 2021, 0.4% 2022, 142 of 919 (15%) 2023, 420 of 821 (51%) 2024, 62% of 2025 first-line starts. 420/821 = 0.512. Denominator is first-line-treated patients, the same basis as the 11,600 in eligible_pct. Multiple of 1.0 is a labelled judgement. Source line gained the abstract DOI and the 2025 figure"
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "book: Enhertu's CMS Part B launch fit (864, 1,904, 4,841, 7,105, 8,410 beneficiaries 2020-2024), k=1.08, midpoint 2.2 years, as carried by the ABBV-1480 and camizestrant seeds",
+     "note": "Reused measured oncology curve. The book has no pipeline urothelial seed to reuse. EV+P's own first-line uptake (0.4% to 15% to 51% over 2022-2024) was steeper, but it rode an accelerated approval and replaced chemotherapy. An add-on needing a biomarker test is likely slower",
+     "verdict": "confirmed",
+     "check": "lookup.py seed ABBV-1480 and Camizestrant: both carry k=1.08, midpoint 2.2 years, from Enhertu's CMS Part B beneficiaries 864, 1,904, 4,841, 7,105, 8,410 (2020-2024)"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Enhertu fit carried in the book)",
+     "note": "Reused measured curve",
+     "verdict": "confirmed",
+     "check": "lookup.py seed ABBV-1480 and Camizestrant: both carry k=1.08, midpoint 2.2 years, from Enhertu's CMS Part B beneficiaries 864, 1,904, 4,841, 7,105, 8,410 (2020-2024)"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

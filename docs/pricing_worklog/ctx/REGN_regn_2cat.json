@@ -1,0 +1,29 @@
+{
+ "ticker": "REGN",
+ "company": "Regeneron Pharmaceuticals Inc",
+ "name": "REGN-2Cat",
+ "inn_or_identity": "freneslerbart-mevonlerbart (REGN1908-1909)",
+ "sort_evidence": "NCT07675811 tests Fel d 1 monoclonal antibodies, which Regeneron's 10-Q filed 2026-07-30 names freneslerbart-mevonlerbart (REGN1908-1909), a Phase 3 cat allergy therapy with no approval.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Conjunctivitis, Allergic",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07675811",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-05-31",
+   "enrollment": 570,
+   "last_update_posted": "2026-08-12",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A Study to Evaluate the Efficacy and Safety of Fel d 1 Monoclonal Antibodies in Adult and Pediatric Participants With Allergic Conjunctiviti"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

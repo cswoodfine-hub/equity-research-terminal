@@ -1,0 +1,44 @@
+{
+ "ticker": "LLY",
+ "company": "Eli Lilly and Company",
+ "name": "Sofetabart Mipitecan",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 3 NCT07213804 of sofetabart mipitecan in platinum-resistant and platinum-sensitive ovarian cancer is recruiting, and the book holds no other row for this ADC.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Fallopian Tube Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Ovarian Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Neoplasm Metastasis",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Peritoneal Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07213804",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-11",
+   "enrollment": 1630,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Three-Part Phase 3 Study of Sofetabart Mipitecan in Participants With Platinum-Resistant (Part A) and Platinum-Sensitive (Parts B and C) O"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

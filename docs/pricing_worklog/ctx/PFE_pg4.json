@@ -1,0 +1,81 @@
+{
+ "ticker": "PFE",
+ "company": "Pfizer Inc",
+ "name": "PG4",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 3 NCT07794748 and NCT07629440 test a new multivalent pneumococcal conjugate vaccine distinct from Prevnar 20, and the book holds no other row for it.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Pneumococcal Infections",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07629440",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-06-05",
+   "enrollment": 3230,
+   "last_update_posted": "2026-09-08",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn About How a New Pneumococcal Vaccine Works in Infants."
+  },
+  {
+   "nct_id": "NCT07573462",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-12-30",
+   "enrollment": 2400,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn About the Safety of an Expanded Pneumococcal Vaccine in Healthy Infants"
+  },
+  {
+   "nct_id": "NCT07660198",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-12-02",
+   "enrollment": 1200,
+   "last_update_posted": "2026-08-31",
+   "lead_sponsor": "Pfizer",
+   "title": "Study to Learn About Safety, Tolerability, and Immune Response of a Catch-up Pneumococcal Vaccine in Children and Adolescents"
+  },
+  {
+   "nct_id": "NCT07794748",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-06-07",
+   "enrollment": 4670,
+   "last_update_posted": "2026-09-23",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Assess the Safety, Tolerability, and Immunogenicity of 3 Lots of a Multivalent Pneumococcal Conjugate Vaccine Administered to Adu"
+  },
+  {
+   "nct_id": "NCT06524414",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-05-01",
+   "enrollment": 605,
+   "last_update_posted": "2026-09-03",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn About How a New Pneumococcal Vaccine Works in Infants"
+  }
+ ],
+ "aliases": [
+  "PG4 Multivalent Vaccine"
+ ],
+ "related_assets_in_book": [
+  {
+   "id": 2795,
+   "ticker": "PFE",
+   "generic": "Multivalent Group B streptococcus vaccine",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  }
+ ]
+}

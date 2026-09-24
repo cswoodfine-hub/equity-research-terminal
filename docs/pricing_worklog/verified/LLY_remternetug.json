@@ -1,0 +1,119 @@
+{
+ "ticker": "LLY",
+ "name": "Remternetug",
+ "summary": "Remternetug (LY3372993) is Lilly's wholly owned follow-on to Kisunla: an anti-amyloid IgG1 antibody given as a subcutaneous self-injection at home. The pivotal TRAILRUNNER-ALZ 3 (NCT06653153, 1,400 enrolled, primary completion 2029-04) tests 18 months of treatment in people aged 65 to 80 with no or minimal symptoms and a plasma p-tau217 result showing amyloid pathology, on time to progression on the Clinical Dementia Rating. That is a preclinical label, not the symptomatic MCI and mild dementia label Kisunla and Leqembi hold. Price anchor: Kisunla's published list price, $32,000 for 12 months, less the 1.2% gap between its July 2026 Medicare ASP and that list. Uptake anchor: the measured class new-start rate (Leqembi plus Kisunla, 0.954% of their label pool in 2025) at a 0.5x judgement multiple on a preclinical pool of 15.9mm, ramped on the book's Leqembi-fitted curve. Second reader: all fields confirmed; the price/gross-to-net pair is anchored to Kisunla's 2024 list, which has since risen to about $711 a vial, leaving the net unchanged; TRAILRUNNER-ALZ 1 completed in 2026 with no topline found.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT06653153 (clinicaltrials.gov/study/NCT06653153); Alzforum therapeutics page (alzforum.org/therapeutics/remternetug): 18 months of home subcutaneous treatment followed by a blinded observation period",
+   "note": "A fixed course repeated monthly, modelled as the book models trontinemab: chronic with a discontinuation rate that ends the course",
+   "verdict": "confirmed",
+   "check": "NeurologyLive and Alzforum (search): TRAILRUNNER-ALZ 3 gives 18 months (78 weeks) of home subcutaneous treatment, then a blinded observation period, up to 255 weeks in all. Chronic with a course-ending discontinuation matches the trontinemab seed (lookup.py seed Trontinemab: therapy_mode chronic)."
+  },
+  "list_price_per_patient": {
+   "value": 0.032,
+   "unit": "mm USD per patient-year",
+   "source": "Lilly press release on Kisunla's FDA approval, 2024-07-02 (investor.lilly.com/node/51026/pdf): list price $695.65 a vial, $32,000 for 12 months of therapy",
+   "note": "A published annual list price, which the brief puts ahead of the CMS per-beneficiary convention. It is Kisunla's, not remternetug's: Lilly has not priced remternetug. Kisunla is chosen because it is Lilly's own drug against the same target (N3pG amyloid) in the same disease. Judgement: the case against is that a self-injected preventive for asymptomatic people may be priced lower to support wider use, or higher for convenience. The CMS route is not usable here: Kisunla's only CMS year in the book is 2024 at $4,039 a beneficiary, a partial launch year (lookup.py demand Kisunla). The book's other anchor, Leqembi at $27,210 a year from 2025 Part B claims (lookup.py seed Trontinemab), is 15% lower.",
+   "verdict": "confirmed",
+   "check": "Search confirms Lilly's launch announcement of $695.65 a vial and $32,000 for 12 months; 0.032 mm USD per patient-year is the right unit. Kisunla CMS: lookup.py demand Kisunla holds only 2024 (1,299 beneficiaries, $4,039 each), a launch year, so the CMS route is rightly set aside. Leqembi $27,210 matches the trontinemab seed. Caveat: drugs.com and search summaries of pricinginfo.lilly.com now put the vial at about $711 (one source $717.79), so the current annual list is about $32,700 (32,000 x 711/695.65). The value is kept because gross_to_net below is computed against the same 2024 list, so the net price the engine uses (list x (1 - g2n) = about $31,630, the July 2026 ASP basis) is right either way. If this field is ever rebased to the current list, gross_to_net must be rebased with it (to about 0.033)."
+  },
+  "gross_to_net_pct": {
+   "value": 0.0116,
+   "unit": "share off list",
+   "source": "CMS ASP pricing file, July 2026 (copy at bms.wv.gov/media/41338/download): J0175 donanemab-azbt payment limit $4.165 per 2 mg. The limit is 106% of ASP (Social Security Act section 1847A), so ASP = $3.929 per 2 mg = $1.9646/mg. Against list of $695.65 / 350 mg = $1.9876/mg, ASP is 98.84% of list, so 1.16% comes off",
+   "note": "Direction checked: net is 98.8% of list. Judgement, with a strong case against: this is Kisunla's discount in Part B buy-and-bill. A self-injected subcutaneous product is normally excluded from Part B and sold through Part D and commercial pharmacy benefits, where rebates are larger. Also, if Lilly has raised Kisunla's list price since July 2024 the true gap is wider than 1.16%. The house 0.5 is not applied because it is calibrated to CMS gross spend per beneficiary, not a list price",
+   "verdict": "confirmed",
+   "check": "July 2026 ASP file (bms.wv.gov/media/41338) confirms J0175 donanemab-azbt payment limit $4.165 per 2 mg (April 2026: $4.140). 4.165/1.06 = 3.929 per 2 mg = $1.9646/mg; $695.65/350 = $1.9876/mg; 1 - 1.9646/1.9876 = 0.0116. Direction right: share off list, net 98.8% of list. Caveat that the researcher anticipated is real: Kisunla's vial list appears to have risen to about $711 (drugs.com, citing Lilly), against which ASP is 96.7% and 3.3% comes off. The field is kept only as a pair with the 2024 list price above, which gives the correct net. The bigger caveat stands and is not fixable from a source: a self-injected subcutaneous product would likely sit outside Part B buy-and-bill, where rebates are larger, so this probably understates the discount for remternetug."
+  },
+  "discontinuation_pct": {
+   "value": 0.667,
+   "unit": "share of the stock per year",
+   "source": "Reused from the book's trontinemab seed (lookup.py seed Trontinemab: an 18-month course); TRAILRUNNER-ALZ 3 also doses for 18 months (Alzforum; NCT06653153)",
+   "note": "Derived from protocol length, not measured: 12/18 of the stock finishes each year. This ignores early stops for ARIA or other reasons",
+   "verdict": "confirmed",
+   "check": "lookup.py seed Trontinemab: discontinuation 0.667, 'derived from protocol duration... a course of about 18 months'. TRAILRUNNER-ALZ 3 treatment period of 78 weeks confirmed (NeurologyLive, Alzforum). 12/18 = 0.667."
+  },
+  "forecast_start_year": {
+   "value": 2027,
+   "unit": "year",
+   "source": "Brief convention: the first full year after 2026",
+   "note": "Expected launch is later. Primary completion is 2029-04 (NCT06653153). Filing is expected in late 2029 and a standard 12-month BLA review would bring approval in late 2030, so the ramp midpoint is shifted instead of the start year, as the book does for trontinemab. Not modelled: TRAILRUNNER-ALZ 1 (NCT05463731), a Phase 3 in early symptomatic AD with an amyloid-clearance primary endpoint, might give an earlier symptomatic launch. It is not in this asset's context and has no sourced readout. Second reader: TRAILRUNNER-ALZ 1 (NCT05463731) has not been shown to have read out its primary endpoint. Topline was guided for March 2026 (BioSpace, Clinical Trials Arena), and search summaries of the registry give a completion date of 2026-05-12, but no topline announcement was found in searches (including Lilly's Q2 2026 release). The only Phase 3 data found is a CTAD 2025 (December 2025) feasibility analysis of self-injection in a 197-patient addendum cohort (NeurologyLive). A symptomatic filing on TRAILRUNNER-ALZ 1 could therefore come well before the preclinical 2030 launch modelled here; that upside is not captured",
+   "verdict": "confirmed",
+   "check": "Brief convention 2027. TRAILRUNNER-ALZ 3 primary completion 2029-04 and 'planned to run until 2029' (Alzforum). TRAILRUNNER-ALZ 1 status checked by search and added to the note: completed per registry, no topline readout found."
+  },
+  "exus_multiple": {
+   "value": 0.973,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Eisai, Leqembi revenue, fiscal 2025 (April 2025 to March 2026), preliminary release (eisai.com/news/2026/news202624.html; Pharma Japan pj.jiho.jp/article/255307): JPY 88.0bn global, of which JPY 44.6bn US. (88.0 - 44.6) / 44.6 = 0.973",
+   "note": "Judgement: Leqembi is the only anti-amyloid with a filed geographic split. Lilly reports Kisunla inside other revenue with no US and ex-US split (Q2 2026 8-K, 0000059478-26-000077). The case against: Eisai is Japanese, and Japan (JPY 24.4bn) and China (JPY 12.4bn) are overweight in Leqembi's mix. A Lilly product may skew more to the US. Also, no ex-US regulator has taken a view on preclinical treatment",
+   "verdict": "confirmed",
+   "check": "Eisai release news202624 (search): FY2025 Leqembi JPY 88.0bn global, 44.6bn US, 24.4bn Japan, 12.4bn China. (88.0 - 44.6)/44.6 = 0.973. Judgement correctly labelled."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "NCT06653153 lists Eli Lilly and Company as sole sponsor with no collaborator; the book's asset_economics table holds no partner row for remternetug",
+   "note": "Remternetug came from Lilly's own discovery, and no licence was found",
+   "verdict": "confirmed",
+   "check": "Context file lists Eli Lilly and Company as lead sponsor of NCT06653153; Alzforum lists Lilly as sole company; no partner found in searches. clinicaltrials.gov itself was not reachable from this sandbox (proxy 403), so the collaborator list was not read directly."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Alzheimer Disease",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: data/epidemiology.csv, 7,400,000 aged 65+ with Alzheimer's dementia (Alzheimer's Association 2025 Facts and Figures)",
+     "note": "Left null so the book fills it",
+     "verdict": "confirmed",
+     "check": "lookup.py pool 'Alzheimer Disease': epidemiology.csv carries 7,400,000; null is correct."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: data/epidemiology.csv, 910,000 a year",
+     "note": "Left null so the book fills it",
+     "verdict": "confirmed",
+     "check": "lookup.py pool: epidemiology.csv carries 910,000 a year; null is correct."
+    },
+    "eligible_pct": {
+     "value": 2.145,
+     "unit": "share of the pool (a scaling, above 1)",
+     "source": "US residents aged 65+: 61.2mm (Census Bureau Vintage 2024 estimates, census.gov/newsroom/press-releases/2025/older-adults-outnumber-children.html). Less the 7.4mm with Alzheimer's dementia the book carries leaves 53.8mm. Of those, 29.5% are amyloid-positive: 1,323 of 4,486 cognitively unimpaired people aged 65 to 85 screened by amyloid PET for the A4 study (Sperling et al., JAMA Neurology 2020, PubMed 32250387). 53.8mm x 0.295 = 15.87mm; 15.87 / 7.4 = 2.145",
+     "note": "Like the trontinemab seed, this scales the book's dementia pool to an absolute label pool. It is above 1 because the trial population, asymptomatic amyloid-positive people, sits outside the dementia pool. Judgement, and probably an overstatement: 61.2mm includes those over 80 (the trial stops at 80) and people with MCI, whom a no-or-minimal-impairment label would exclude. A4 volunteers may also be enriched for amyloid relative to the population. Brookmeyer and Abdalla (Alzheimer's & Dementia 2018) give 46.7mm Americans with preclinical AD, but that counts people from age 30 and includes neurodegeneration without amyloid, so it was not used. If the engine caps eligible_pct at 1.0, set this field null",
+     "verdict": "confirmed",
+     "check": "Census Vintage 2024 release (census.gov/newsroom/press-releases/2025/older-adults-outnumber-children.html): 65+ rose 3.1% to 61.2 million. PubMed 32250387 (Sperling et al., JAMA Neurol 2020;77:735, doi:10.1001/jamaneurol.2020.0387): 1,323 of 4,486 (29.5%) Abeta+ among clinically normal people aged 65-85 eligible for PET. Trial population confirmed as preclinical: NeurologyLive/Alzforum say ages 65 to 80, no AD symptoms, plasma p-tau217 consistent with amyloid, no or minimal cognitive or functional impairment. Arithmetic: (61.2 - 7.4) x 0.295 = 15.87mm; /7.4 = 2.145. Confirmed as a labelled judgement, and it is probably high, as the note says: the Census figure includes the over-80s (about a quarter of the 65+) and people with MCI, and A4 screenees were volunteers (58% of the Abeta+ carried APOE4, suggesting some enrichment). Restricting to 65-80 would need a Census single-age table not checked here. Note also that A4 was multinational (US, Canada, Australia, Japan)."
+    },
+    "penetration_peak_pct": {
+     "value": 0.00477,
+     "unit": "share of the eligible untreated pool captured per year at peak",
+     "source": "The measured anti-amyloid class rate from the book (lookup.py seed Trontinemab): Leqembi's 2025 Part B new starts were 11,396, and Kisunla's Part B beneficiaries went from 1,299 to 9,993, for 20,956 class new starts in 2025. That is 0.954% of the 2,197,800 symptomatic label pool. A 0.5x multiple gives 0.477%",
+     "note": "The 0.5x is a judgement. No incumbent treats preclinical AD. Asymptomatic people rarely see a clinician who would test them, and at A4's 29.5% positivity each start needs about 3.4 screens. On a 15.87mm pool, 0.477% is about 75,700 new starts a year at peak, 3.6 times the whole class's 2025 starts. The case for a higher rate: home self-injection removes the infusion-chair and PET bottlenecks, and plasma p-tau217 testing is cheap. The case for a lower one: CMS coverage with evidence development and ARIA MRI monitoring still apply to the class, and payers may resist treating people without symptoms",
+     "verdict": "confirmed",
+     "check": "lookup.py seed Trontinemab: class new starts 20,956 in 2025 on a 2,197,800 label pool = 0.954%. 0.5 x 0.009535 = 0.00477. 15.87mm x 0.00477 = 75,700 a year, 3.6x the class's 2025 starts. The 0.5x multiple is a judgement and labelled as one; applied to a pool seven times the symptomatic one it yields absolute starts well above anything the class has achieved, which is the main risk in this seed."
+    },
+    "ramp_steepness": {
+     "value": 1.04,
+     "unit": "logistic k",
+     "source": "Reused from the book's trontinemab seed: fitted to Leqembi's three-point Part B new-start series, 2023 to 2025 (lookup.py seed Trontinemab)",
+     "note": "Reused as measured. The case against: a preclinical market has to build testing pathways first, so it may ramp more slowly than a symptomatic one",
+     "verdict": "confirmed",
+     "check": "lookup.py seed Trontinemab: k 1.0396, fitted to Leqembi's Part B new-start series 2023-2025."
+    },
+    "ramp_midpoint_year": {
+     "value": 5.13,
+     "unit": "years from forecast_start_year",
+     "source": "The Leqembi-fitted midpoint of 2.131 years after launch (lookup.py seed Trontinemab), plus 3 years for a 2030 launch against the 2027 forecast start",
+     "note": "The 2030 launch is inferred, not announced. It assumes primary completion in 2029-04 (NCT06653153), a filing in late 2029 and a standard review. The trontinemab seed uses the same launch-year offset convention",
+     "verdict": "confirmed",
+     "check": "lookup.py seed Trontinemab: midpoint 2.131 years after launch, plus 2 for a 2029 launch against 2027. Here 2.131 + 3 = 5.13 for a 2030 launch, the same convention. The 2030 launch is inferred from the 2029-04 primary completion, as labelled."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

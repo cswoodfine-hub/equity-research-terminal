@@ -1,0 +1,119 @@
+{
+ "ticker": "SNY",
+ "name": "Venglustat",
+ "summary": "Venglustat is Sanofi's oral, brain-penetrant glucosylceramide synthase inhibitor. Only one Phase 3 indication is still live: type 3 Gaucher disease (GD3). LEAP2MONO (NCT05222906), a double-blind, double-dummy trial of once-daily venglustat against IV enzyme replacement in patients aged 12 and over, met both primary endpoints. The FDA accepted the filing for priority review with a PDUFA date of 2026-11-25. Fabry is dead: PERIDOT (NCT05206773) missed its primary endpoint (Sanofi, 2026-02-02) and CARAT (NCT05280548) missed its primary endpoint (Sanofi Q2 2026 press release, 6-K 0001121404-26-000008, 2026-07-30). Only the extensions continue. Price anchor: Cerezyme, the ERT that GD3 patients take today and the LEAP2MONO comparator, at $316,023 per CMS Part B beneficiary in 2024. Uptake anchor: Cerdelga, Sanofi's oral GCS inhibitor switched in from ERT in type 1 Gaucher, which captured a mean 8.2% a year of the Medicare Gaucher patients not yet on it over 2020 to 2024.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "LEAP2MONO design, per Sanofi's press release of 2026-05-28 (https://www.sanofi.com/en/media-room/press-releases/2026/2026-05-28-05-00-00-3302498): once-daily oral venglustat against ERT every two weeks",
+   "note": "Lifelong daily oral therapy for a genetic lysosomal disease",
+   "verdict": "confirmed",
+   "check": "Sanofi PR 2026-05-28 (search) and Q2 2026 6-K: daily oral GCS inhibitor for a lifelong lysosomal disease; LEAP2MONO design 'Randomized, Quadruple, Treatment' in the book trials table"
+  },
+  "list_price_per_patient": {
+   "value": 0.316023,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Cerezyme: CMS Medicare Part B 2024, $44,243,279.06 over 140 beneficiaries = $316,023 per beneficiary",
+   "note": "Judgement: house convention. Cerezyme (imiglucerase) is the therapy GD3 patients are on today and the active comparator in LEAP2MONO, so it is the comparator in the same disease and setting. The case against has three parts. (1) Cerdelga (eliglustat), the same drug class and also an oral Sanofi drug, costs $296,243 per Part D beneficiary in 2024, 6% lower, and an oral GCS inhibitor may be priced off it. It is labelled only for type 1, though. (2) Cerezyme's Part D figure for 2024 is $365,943, and GD3 is dosed at higher weight-based ERT doses than type 1, so a GD3-specific price could be higher. (3) Part B spend is paid at ASP, which already nets out some commercial discounts. No published annual list price for venglustat exists before approval.",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Cerezyme: Part B 2024 $44,243,279.06 / 140 = $316,023 per beneficiary; 0.316023 mm USD per patient-year, unit right. Cerdelga Part D 2024 $296,243 and Cerezyme Part D $365,943 also confirmed as quoted in the note"
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS per-beneficiary price (halving lands at a median 96% of CMS negotiated net prices)",
+   "note": "Direction checked: 0.5 is taken off list, so net is $158,012 per patient-year. Case against: the anchor is a Part B (ASP-based) figure, and ASP is already net of some commercial price concessions. An orphan drug with no therapeutic alternative for the neurological disease also has little rebate pressure. Both argue for a smaller deduction. The convention stands because the book applies it uniformly.",
+   "verdict": "confirmed",
+   "check": "House convention 0.5 on a CMS per-beneficiary price; direction right (net $158,012)"
+  },
+  "discontinuation_pct": {
+   "value": 0.0515,
+   "unit": "share of treated stock stopping per year",
+   "source": "Peterschmitt MJ et al., Orphanet J Rare Dis 2019;14:128 (doi:10.1186/s13023-019-1085-6), pooled eliglustat Phase 2 and Phase 3 trials (ENGAGE, ENCORE, EDGE): 74 of 393 patients actively withdrew over 1,400 patient-years of exposure",
+   "note": "Judgement on the analogue: eliglustat is the only marketed oral GCS inhibitor, and venglustat is in the same class. A constant hazard of 74/1,400 = 0.0529 per patient-year gives 1 - exp(-0.0529) = 5.15% a year. Case against: trial persistence overstates real-world persistence. In an Israeli single-centre cohort switching from ERT to eliglustat, 12 of 29 stopped, at a median of 4 months, mostly for adverse events (J Clin Med 2022;11:6265, PMC9659144). On the other side, 15 of the 74 trial withdrawals were for pregnancy, which is protocol-driven.",
+   "verdict": "confirmed",
+   "check": "PubMed full text PMC6555985 (Peterschmitt et al., Orphanet J Rare Dis 2019;14:128, doi:10.1186/s13023-019-1085-6): 393 patients, 1,400 patient-years, 'Among the 74 patients who actively withdrew'. 1 - exp(-74/1,400) = 0.0515. The pregnancy count of 15 sits in a table not in the text and was not checked"
+  },
+  "forecast_start_year": {
+   "value": 2027,
+   "unit": "year",
+   "source": "Sanofi press release 2026-05-28: FDA priority review, target action date 2026-11-25. LEAP2MONO (NCT05222906) primary completion 2025-10-02",
+   "note": "Approval at the end of November 2026 makes 2027 the first full year. The EU filing is also under review.",
+   "verdict": "confirmed",
+   "check": "PDUFA 2026-11-25 confirmed three ways: Sanofi PR 2026-05-28 (search), Sanofi Q2 2026 press release 6-K 0001121404-26-000008 ('The target action date for the FDA decision is November 25, 2026'), and the H1 2026 report 6-K 0001628280-26-050803. EU and JP filings under review, decisions listed for 2027. LEAP2MONO primary completion 2025-10-02 (actual) in the book trials table"
+  },
+  "exus_multiple": {
+   "value": 0.861,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Sanofi 20-F FY2025 net sales by medicine table (0001628280-26-008403), as carried in data/region_revenue.csv: Cerdelga United States EUR 180mm, Europe EUR 137mm, Rest of the world EUR 18mm, so (137 + 18) / 180 = 0.861",
+   "note": "Judgement: Cerdelga is the same oral drug class, from the same seller, and follows the same reimbursement path. The case against: neuronopathic Gaucher is rare in the West and more common in the East (Goker-Alpan, J Inherit Metab Dis 2024, doi:10.1002/jimd.12749). Cerezyme, the ERT that GD3 patients take, sells EUR 517mm outside the US against EUR 178mm in the US in the same table, a multiple of 2.90. On patient numbers, GD3's ex-US share is probably higher than Cerdelga's; on price, it is probably lower.",
+   "verdict": "confirmed",
+   "check": "data/region_revenue.csv and the 20-F text (0001628280-26-008403): Cerdelga US 180, Europe 137, RoW 18 EUR mm; (137+18)/180 = 0.861. Cerezyme 178 / 232 / 285 gives 2.90, as the note says. The 20-F adds that Cerezyme is approved for GD3 systemic symptoms in most non-US markets but not the US, which supports the note's case that GD3's ex-US base is larger"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Sanofi press releases of 2026-02-02 and 2026-05-28 present venglustat as Sanofi's own (Genzyme origin). ClinicalTrials.gov lists Sanofi or Genzyme as lead sponsor on every trial in the context",
+   "note": "No partner or royalty named in any source found",
+   "verdict": "confirmed",
+   "check": "Sanofi 20-F pipeline table and Q2 2026 6-K list venglustat without a partner or (a)/(c) collaboration flag; lead sponsor Sanofi/Genzyme on all four trials"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Gaucher Disease",
+   "fields": {
+    "prevalence": {
+     "value": 300,
+     "unit": "patients (US, GD3 only)",
+     "source": "National Gaucher Foundation (https://www.gaucherdisease.org/about-gaucher-disease/what-is/): about 6,000 people in the US have Gaucher disease. Orphanet ORPHA:77261 (https://www.orpha.net/en/disease/detail/77261): type 3 is about 5% of Gaucher patients in Western countries. 6,000 x 0.05 = 300",
+     "note": "Judgement: the product of two sources, restricted to type 3 because the label will be GD3. The book carries no Gaucher pool (lookup.py pool gaucher returned nothing), so this is not a duplicate. Case against: the Gaucher Outcome Survey counted 26 type 3 patients among the 969 of 1,002 enrolled with a subtype recorded (2.7%), half of them from the US (Mol Genet Metab Rep 2018;14:73, doi:10.1016/j.ymgmr.2017.10.011, PMC5758841). That share would give about 162. The 'context' indication name is the broad 'Gaucher Disease', but this pool is type 3 only.",
+     "verdict": "confirmed",
+     "check": "The 5% share is stated in PMC5758841: 'An estimated 5% of patients with GD in Europe, North America, and Israel are affected by type 3 disease'. 6,000 x 0.05 = 300. The NGF 6,000 could not be re-read (search budget spent) and stands on the researcher's reading. Corrected the counter-case figure in the note: GOS is 26 of 969 typed patients (2.7%), not 26 of 1,002, so about 162 rather than 156. lookup.py pool 'Gaucher Disease' returns nothing, so no clash with the book"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": null,
+     "note": "No sourced US birth incidence for GD3 was found. It would be a handful a year (a few in a million births, times 5%), which is immaterial next to a prevalent pool of a lifelong disease on existing ERT. Left null rather than guessed.",
+     "verdict": "confirmed",
+     "check": "Null stands: no sourced US GD3 birth incidence found either"
+    },
+    "eligible_pct": {
+     "value": null,
+     "unit": "share of pool",
+     "source": null,
+     "note": "LEAP2MONO enrolled patients aged 12 and over with GD3 (Sanofi, 2026-05-28), and the label is not known until the PDUFA date of 2026-11-25. No sourced age split of US GD3 patients was found, so the share aged 12 and over cannot be stated. If the label follows the trial, every GD3 patient 12 or older is eligible, because neurological involvement defines type 3. Setting 1.0 would overstate the pool by the paediatric share under 12. Second reader: the closest measure found is the Gaucher Outcome Survey's 26 GD3 patients (half US) with median age at entry 17.1 years, IQR 11.3 to 27.2 (PMC5758841), so about three quarters were over 11.3 at entry in 2015. It is international, n = 26, age at registry entry rather than today, and a quartile rather than a share at 12, so it does not give the US share aged 12 and over and is not used.",
+     "verdict": "confirmed",
+     "check": "Null stands. Searched PubMed for a US GD3 age split (ICGG Neurological Outcomes Subregistry, PMID 20084461: onset ages only; NIH EEG cohort, PMID 33183916: no age distribution; GOS, PMC5758841: age-at-entry quartiles only, international). No sourced share of US GD3 patients aged 12 and over found. The book trials table titles LEAP2MONO 'Adult and Pediatric Patients'"
+    },
+    "penetration_peak_pct": {
+     "value": 0.082,
+     "unit": "share of eligible untreated pool captured per year",
+     "source": "lookup.py demand: Cerdelga Part D beneficiaries of 100, 109, 117, 119 and 142 over 2020 to 2024, against Medicare Gaucher patients not on Cerdelga (Cerezyme Part B plus Part D plus Elelyso Part B) of 233, 185, 198, 190 and 191",
+     "note": "Measured, with no multiple applied. Gross adds each year = the net change plus 5.15% of the prior Cerdelga stock (the discontinuation above). Divided by the prior year's non-Cerdelga pool, that gives 6.1%, 7.4%, 4.1% and 15.3%, a mean of 8.2%. Cerdelga is the incumbent oral GCS inhibitor switched in from ERT, which is the move venglustat asks GD3 patients to make. The case against runs both ways. For higher: venglustat would be the first therapy for GD3's neurological disease, where Cerdelga competed with ERTs that already worked in type 1, and LEAP2MONO showed superiority to ERT on the neurological endpoints. For lower: Cerdelga's own Medicare stock share, 142 of 333 (43%), solves at this discontinuation to only 3.8% a year at steady state. VPRIV is absent from the book's CMS table, so the denominator is incomplete. Cerezyme's Part B and Part D beneficiaries may overlap. All of these are type 1 dominated Medicare patients.",
+     "verdict": "confirmed",
+     "check": "Recomputed from lookup.py demand: Cerdelga Part D 100/109/117/119/142; non-Cerdelga pool Cerezyme B+D plus Elelyso B = 233/185/198/190/191; gross adds at 5.15% attrition over prior-year pool = 6.07%, 7.36%, 4.05%, 15.33%, mean 8.20%. Steady-state check 142/333 at 5.15% solves to 3.83%, as noted. Elelyso Part D has no beneficiary count and VPRIV is absent, so the denominator is short, as the note says"
+    },
+    "ramp_steepness": {
+     "value": 1.32,
+     "unit": "logistic k",
+     "source": "reused from the povetacicept and VX-147 seeds: Tarpeyo's own launch, CMS Part D beneficiaries 52, 247, 468 (2022 to 2024) and 680 (2025), fitted by least squares to k=1.32, midpoint 1.7",
+     "note": "Judgement: no Gaucher launch curve is on file. CMS data start in 2020, six years after Cerdelga launched. Tarpeyo is the book's measured curve for the first disease-specific oral therapy in a rare disease whose patients are already under specialist care. That fits GD3 patients seen at metabolic centres. Case against: Tarpeyo is a nine-month course, not lifelong therapy, and IgAN's pool is far larger. Oxbryta's chronic-oral curve in the osivelotor seed (k=0.29) would be much slower.",
+     "verdict": "confirmed",
+     "check": "lookup.py seed Povetacicept: ramp_steepness 1.32 from Tarpeyo Part D 52/247/468/680, least squares, rmse 17. Reuse is a labelled judgement"
+    },
+    "ramp_midpoint_year": {
+     "value": 1.7,
+     "unit": "years from forecast_start_year",
+     "source": "same Tarpeyo fit as ramp_steepness (povetacicept and VX-147 seeds)",
+     "note": "Judgement, as above",
+     "verdict": "confirmed",
+     "check": "lookup.py seed Povetacicept: ramp_midpoint_year 1.7, same fit"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

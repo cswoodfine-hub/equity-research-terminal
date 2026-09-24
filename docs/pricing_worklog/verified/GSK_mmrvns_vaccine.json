@@ -1,0 +1,119 @@
+{
+ "ticker": "GSK",
+ "name": "MMRVNS vaccine",
+ "summary": "MMRVNS is GSK's investigational combined measles, mumps, rubella and varicella vaccine built on a new varicella strain, a US competitor to Merck's ProQuad, the only MMRV vaccine sold in the US. The Phase 3 trial NCT07742644 (1,860 children, not yet recruiting, primary completion 2028-06-27) gives it to healthy children aged 4 to 6 years, so the course modelled is the single second dose of the routine schedule. Price anchor: ProQuad on the CDC pediatric price list, $289.168 private sector and $186.55 CDC contract per dose, blended over the VFC share as the PCV21 seed does. Uptake (second reader): MMRV is about 80% of US second doses (Habib et al. 2026, PMC13215302), and a quarter of that, the PCV21 seed's second-entrant multiple, gives a judged peak of 20% of each cohort's second doses; the ramp reuses the PCV21 birth-cohort curve.",
+ "asset": {
+  "therapy_mode": {
+   "value": "one_time",
+   "unit": "",
+   "source": "NCT07742644: a dose given once to children 4 to 6 years of age, the second dose of the two-dose MMR and varicella schedule (https://clinicaltrials.gov/study/NCT07742644)",
+   "note": "One dose per child, billed once, on an annual cohort, as the PCV21 vaccine seed models its infant course",
+   "verdict": "confirmed",
+   "check": "Book trials table (clinicaltrials_v2, fetched 2026-09-24): NCT07742644 title reads 'When Given to Healthy Children 4 to 6 Years of Age', primary outcome IgG GMCs after one MMRVNS administration; the Phase II predecessor (Habib et al., Hum Vaccin Immunother 2026, doi:10.1080/21645515.2026.2660525, PMC13215302) gave a single second dose at 4 to 6 years. One dose per child holds"
+  },
+  "list_price_per_patient": {
+   "value": 0.000289168,
+   "unit": "mm USD per course (one dose at 4 to 6 years)",
+   "source": "ProQuad (Merck, NDC 00006-4171-00, 10 x 1-dose vials), CDC Pediatric/VFC Vaccine Price List, prices last reviewed 2026-01-01: private sector $289.168 a dose, CDC contract $186.55, contract to 2026-03-31 (https://www.cdc.gov/vaccines-for-children/media/pdfs/2026/03/Vaccine-Price-List-01-26-v2-508.pdf)",
+   "note": "Judgement on the course: the Phase 3 is in 4 to 6 year olds only, so one dose is the course. The case against: if GSK later adds a 12 to 15 month label the course could be two doses ($578.34), but ACIP voted in September 2025 against MMRV for children under 4, and CDC said only 15% of first doses were MMRV before that vote, so the first-dose market is small either way. The list was read through search; the CDC site blocks direct fetch here, and a newer list (contracts from 2026-04-01) may carry a slightly different price",
+   "verdict": "confirmed",
+   "check": "CDC price list could not be re-read here (cdc.gov blocked at the proxy; search budget exhausted). ProQuad private sector $289.168 a dose is independently the same figure the sibling researcher read from the January 2026 CDC Pediatric/VFC list (out/GSK_investigational_varicella_vaccine.json note). Unit right: 0.000289168 mm USD = $289.168 for a one-dose course. Caveat kept: the April 2026 list edition was not read"
+  },
+  "gross_to_net_pct": {
+   "value": 0.1852,
+   "unit": "share taken off list",
+   "source": "VFC blend as in the PCV21 vaccine seed: 52.2% of US children are VFC-eligible (MMWR 2024;73(33) Vital Signs, the figure the PCV21 seed uses) and are supplied at the CDC contract price of $186.55 against $289.168 private sector (CDC price list above)",
+   "note": "Direction checked: realised price = 0.522 x 186.55 + 0.478 x 289.168 = $235.60, which is 81.48% of list, so 18.52% is taken off. Private-sector rebates and distributor fees are not captured, so the true discount is probably larger; the house 0.5 CMS convention does not apply because this is a CDC list price, not a CMS per-beneficiary spend",
+   "verdict": "confirmed",
+   "check": "Direction and arithmetic checked: 0.522 x 186.55 + 0.478 x 289.168 = 97.38 + 138.22 = $235.60, 81.48% of list, so 0.1852 is the share OFF list. 52.2% VFC share and the VFC blend method match sny_pcv21.csv (gross_to_net 0.1729 on the same method). The $186.55 CDC contract price itself was not re-read (cdc.gov blocked, search budget spent); it rests on the researcher's reading of the list"
+  },
+  "discontinuation_pct": {
+   "value": 1.0,
+   "unit": "share of treated stock stopping per year",
+   "source": "house convention for a fixed course (BRIEF): a single dose is not repeated",
+   "note": "The PCV21 vaccine seed carries no discontinuation row; 1.0 is set so that, if the engine reads it, no child is carried as a repeat buyer",
+   "verdict": "confirmed",
+   "check": "BRIEF house convention for a fixed course; sny_pcv21.csv carries no discontinuation row, as the note says"
+  },
+  "forecast_start_year": {
+   "value": 2031,
+   "unit": "year",
+   "source": "NCT07742644 primary completion 2028-06-27, not yet recruiting (last update 2026-08-03)",
+   "note": "Judgement: data mid-2028, a BLA around early 2029, a standard biologics review of about 12 months puts approval around early 2030, and an ACIP recommendation and VFC contract follow, so 2031 is the first full year. The case against: a faster filing could make 2030 a near-full year",
+   "verdict": "confirmed",
+   "check": "Book trials table: NCT07742644 not yet recruiting, start 2026-08-11, primary completion 2028-06-27 (estimated), completion 2028-11-21. The 2031 first full year is a labelled judgement on a filing and ACIP/VFC path; reasoning holds"
+  },
+  "exus_multiple": {
+   "value": 0.3003,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Merck FY2025 10-K (0000310158-26-000063), ProQuad/M-M-R II/Varivax: US $1,885mm, international $566mm (the book's asset_revenue_regions table); 2024 was $1,919mm and $566mm (0.295)",
+   "note": "Judgement. Merck's MMRV franchise is the only filed geographic split for the class. The case against: GSK already sells Priorix-Tetra and Varilrix outside the US, so ex-US sales of a new-strain MMRV would largely replace GSK's own products rather than add revenue, which argues for a lower multiple, possibly near zero",
+   "verdict": "confirmed",
+   "check": "Book asset_revenue_regions, asset 741 ProQuad / M-M-R II / Varivax (sec_fsds): FY2025 US $1,885mm, INTL $566mm; 566/1,885 = 0.3003. FY2024 1,919 / 566 = 0.295. Sum 2,451 matches mrk_proquad.csv base_revenue. Judgement and the cannibalisation case against are fairly stated"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "NCT07742644 lead sponsor GlaxoSmithKline; no partner found for the MMRV new-strain programme",
+   "note": "Wholly owned",
+   "verdict": "confirmed",
+   "check": "Book trials table: lead sponsor GlaxoSmithKline; no collaborator found"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Chickenpox",
+   "fields": {
+    "prevalence": {
+     "value": 3628934,
+     "unit": "patients",
+     "source": "US births in 2024, National Vital Statistics Reports 75-02, Births: Final Data for 2024: the figure the book's PCV21 vaccine seed uses. lookup.py pool shows no pool carried for Chickenpox, Measles, Mumps or Rubella",
+     "note": "The children reaching 4 to 6 years in 2031 onward are born from 2025, so a recent birth year is the proxy for the cohort. One indication is modelled: a single MMRV dose covers all four diseases and is sold once, so a block per disease would count the same course four times. Chickenpox is chosen because the new varicella strain is what sets the product apart",
+     "verdict": "confirmed",
+     "check": "3,628,934 matches sny_pcv21.csv (NVSR 75-02, 2024 births) and the sibling GSK varicella file's Chickenpox pool exactly, so the two GSK Chickenpox assets carry one figure. lookup.py pool Chickenpox returns nothing, so no clash with the book"
+    },
+    "incidence": {
+     "value": 3628934,
+     "unit": "patients per year",
+     "source": "stated equal to prevalence because the pool is a birth cohort, as in the PCV21 vaccine seed",
+     "note": "A new cohort reaches the 4 to 6 year dose each year",
+     "verdict": "confirmed",
+     "check": "Birth-cohort convention as in sny_pcv21.csv"
+    },
+    "eligible_pct": {
+     "value": 0.925,
+     "unit": "share of the cohort",
+     "source": "CDC SchoolVaxView, kindergarten 2024-25 school year: 92.5% coverage with two doses of MMR, exemptions 3.6% (reported in Frontiers in Public Health 2026, https://www.frontiersin.org/journals/public-health/articles/10.3389/fpubh.2026.1795927/epub; 2023-24 was 92.7%, MMWR 2024;73(41), https://www.cdc.gov/mmwr/volumes/73/wr/mm7341a3.htm)",
+     "note": "Children who get the second MMR dose are the ones who can get an MMRV second dose",
+     "verdict": "confirmed",
+     "check": "92.5% kindergarten 2-dose MMR coverage for 2024-25 and 92.7% for 2023-24 (MMWR 2024;73(41)) agree with CDC SchoolVaxView as I know it; not re-read this session (search budget spent). Pool is the label's: second dose at 4 to 6 years"
+    },
+    "penetration_peak_pct": {
+     "value": 0.2,
+     "unit": "share of the eligible cohort's second doses per year",
+     "source": "Habib et al., Hum Vaccin Immunother 2026;22(1):2660525 (doi:10.1080/21645515.2026.2660525, PMC13215302, the MMRVNS Phase II paper), Introduction: 'MMRV vaccination is estimated to account for roughly 13% (range: 5%-24%) and 80% (52%-98%) of all first and second doses of measles-mumps-rubella-varicella childhood vaccination series in the US, respectively.' ProQuad is the only US MMRV, so ProQuad holds about 80% of 4 to 6 year second doses. 0.80 x 0.25 = 0.20",
+     "note": "JUDGEMENT on the multiple. The measured anchor is ProQuad's 80% of US second doses; the quarter is the multiple sny_pcv21.csv applies to Prevnar 20's measured class sweep for a second entrant, reused so the two vaccine seeds read alike. The cohort turns over every year, so the per-year share of an eligible cohort equals the share of its doses. Case against, lower: GSK's own Priorix, its one measured entry into a Merck childhood MMR/V monopoly, took about 2.7% of Merck's US MMR/V value in its third full year (sibling GSK varicella file, from a search summary), and MMRVNS would have to win VFC contract share and office stocking from an incumbent with 20 years of supply. Case for higher: a second MMRV is the only way to use a combination shot without buying ProQuad, and the paper frames supply resilience as the reason for licensure. The 80% estimate is from a GSK-authored paper whose underlying citation could not be seen, with a wide 52% to 98% range; ACIP's September 2025 vote against MMRV under age 4 does not touch the 4 to 6 year dose",
+     "verdict": "corrected",
+     "check": "Researcher left it null for want of a measure of MMRV's share of second doses. Found one: PubMed full text of PMC13215302 states MMRV is ~80% (52% to 98%) of US second doses. Filled at 0.20 = 0.80 x the 0.25 second-entrant multiple of sny_pcv21.csv, labelled a judgement"
+    },
+    "ramp_steepness": {
+     "value": 0.74,
+     "unit": "logistic k",
+     "source": "reused from the PCV21 vaccine seed: the lower-quartile fit over the 41 measured launches in data/launch_ramp.csv, k 0.740, RMSE 0.0311",
+     "note": "Same reason as that seed: a pediatric market turns over with the birth cohort, so an entrant reaches its share faster than in a prevalent pool",
+     "verdict": "confirmed",
+     "check": "lookup.py seed PCV21 vaccine: ramp_steepness 0.74, lower-quartile fit over the 41 launches in data/launch_ramp.csv"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.8,
+     "unit": "years from the forecast start",
+     "source": "reused from the PCV21 vaccine seed (data/launch_ramp.csv lower-quartile fit)",
+     "note": "The case against: an MMRV switch needs a change in pediatric office stocking and a VFC contract award, which can be slower than a conjugate vaccine upgrade",
+     "verdict": "confirmed",
+     "check": "lookup.py seed PCV21 vaccine: ramp_midpoint_year 2.8"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

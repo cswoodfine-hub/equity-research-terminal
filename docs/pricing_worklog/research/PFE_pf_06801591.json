@@ -1,0 +1,93 @@
+{
+ "ticker": "PFE",
+ "name": "PF-06801591",
+ "summary": "Sasanlimab (PF-06801591, proposed brand Zumrad) is Pfizer's subcutaneous anti-PD-1 antibody, dosed every 4 weeks for up to about 2 years with BCG in BCG-naive, high-risk NMIBC. Phase 3 CREST (NCT04165317, n=1,068) met its EFS endpoint (HR about 0.68, 32% risk reduction; Nature Medicine 2025). Pfizer withdrew the US filing in December 2025 and the EU filing on 2026-02-13 'to allow more time for additional data collection and analyses' (PFE 10-K FY2025, 0000078003-26-000026). That 10-K still lists the drug in late-stage development, and no discontinuation is on record, so it is priced, not refused, on a later launch. AstraZeneca's Imfinzi plus BCG won FDA approval in the same setting on 2026-05-28 (POTOMAC). Price anchor: Imfinzi at $56,999 per Medicare Part B beneficiary in 2024. Uptake anchor: adjuvant nivolumab, the PD-1 add-on in curative bladder cancer, reached under 20% of eligible US patients; this is halved for a second entrant.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "CREST (NCT04165317; Nature Medicine 2025, doi:10.1038/s41591-025-03738-z): sasanlimab 300 mg subcutaneously every 4 weeks for up to about 2 years with BCG",
+   "note": "A fixed course of up to 2 years that spans more than one forecast year, so it is modelled as chronic with a measured discontinuation, as the TAR-200 (Inlexzo) seed does for its 24-month course"
+  },
+  "list_price_per_patient": {
+   "value": 0.056999,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Imfinzi: CMS Medicare Part B 2024, $843,071,958 over 14,791 beneficiaries = $56,999 per beneficiary",
+   "note": "Judgement on the comparator. Imfinzi (durvalumab) is the only immunotherapy approved with BCG in BCG-naive high-risk NMIBC (FDA 2026-05-28), which is sasanlimab's exact setting. The 2024 CMS figure predates that approval and mostly reflects lung and biliary use, where a beneficiary's spend covers under a year of therapy, so it understates an annual price. Keytruda, approved in BCG-unresponsive NMIBC, gives $79,464 per Part B beneficiary in 2024 and is the case for a higher price."
+  },
+  "gross_to_net_pct": {
+   "value": 0.0566,
+   "unit": "share taken off list",
+   "source": "Social Security Act section 1847A: Medicare Part B pays 106% of average sales price, and ASP is already net of manufacturer discounts, so net = CMS figure / 1.06, 5.66% below it. This is the convention the book's Part B seeds use (TAR-200 / Gemcitabine Hydrochloride 0.056604; MK-1045 0.0566)",
+   "note": "Judgement: this follows the book's Part B precedent, not the brief's 0.5 default, which was measured on Part D prices. Direction checked: 0.0566 off list, so net is $53,773. The case against: commercial and 340B discounts on PD-1 antibodies can exceed the ASP add-on."
+  },
+  "discontinuation_pct": {
+   "value": 0.3617,
+   "unit": "share of treated stock stopping per year",
+   "source": "CREST (Nature Medicine 2025, doi:10.1038/s41591-025-03738-z): median duration of sasanlimab treatment 80.3 weeks (range 4.0-103.9) in the induction-plus-maintenance arm (84.8 weeks in the induction-only arm)",
+   "note": "Constant hazard from a median: 1 - 0.5^(52/80.3) = 0.362, the same form as the TAR-200 seed (1 - 0.5^(52/41)). The brief's 1 - exp(-12/median) treats the median as a mean and would give 0.476. The case against: the course is capped at about 2 years, so the hazard rises sharply near week 104 rather than staying constant. AEs were the most common reason for stopping (31.8% of the induction-plus-maintenance arm)."
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "PFE 10-K FY2025 (0000078003-26-000026), pipeline footnote (e): 'Pfizer withdrew the sasanlimab filing for patients with high-risk non-muscle invasive bladder cancer in the U.S. in December 2025 and in the EU in February 2026 to allow more time for additional data collection and analyses.' NCT04165317 primary completion 2024-12-02, Active not recruiting, last update 2026-01-22",
+   "note": "Judgement. No resubmission date is public. A resubmission in 2027 on longer CREST follow-up plus a standard review gives a 2028 approval, so 2029 is the first full year. The case for later or never: the EMA's provisional view was that it could not be approved on the data. EMA objected to mid-study design changes, the changed statistical method, an investigator-assessed open-label endpoint, OS that did not support the result, and added toxicity (thepharmaletter.com/biotech-news/pfizer-withdraws-zumrad-ema-filing). Pfizer's Q2 2026 10-Q (0000078003-26-000095) reports only additions to the late-stage list since the 10-K, and neither a removal nor a resubmission of sasanlimab. I could not open the 2026-08-04 pipeline PDF (host blocked), so whether it still lists sasanlimab is unverified."
+  },
+  "exus_multiple": {
+   "value": 0.6804,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Keytruda FY2025: $12,812mm outside the US against $18,829mm US (Merck 10-K product axis, book table asset_revenue_regions, sec_fsds), the ratio the MK-1045 seed also uses",
+   "note": "Judgement. Keytruda is the anti-PD-1 with a clean filed split. The case against is strong: the EU application was withdrawn after CHMP objections and there is no live ex-US filing, so ex-US revenue may lag the US by years or never come. A reviewer could reasonably set this well below 0.68."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "PFE 10-K FY2025 (0000078003-26-000026) late-stage pipeline table: sasanlimab (PF-06801591) carries no collaboration footnote, whereas VLA15 (Valneva) and disitamab vedotin (RemeGen) do; Pfizer is lead sponsor of NCT04165317",
+   "note": "Internal Pfizer molecule"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Non-Muscle Invasive Bladder Neoplasms",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (Gemcitabine Hydrochloride / TAR-200 seed: 25,000, CG Oncology 10-K FY2025, 0001193125-26-079498)",
+     "note": "Carried by the book. Warning: the book's pool for this indication name is the BCG-UNRESPONSIVE high-risk segment, which is not sasanlimab's BCG-naive population. See eligible_pct"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (25,000, same seed)",
+     "note": "Carried by the book"
+    },
+    "eligible_pct": {
+     "value": 1.24,
+     "unit": "share of the pool",
+     "source": "AstraZeneca, Imfinzi US approval release (2026-05-28, astrazeneca.com/media-centre/press-releases/2026/imfinzi-approved-in-us-for-early-bladder-cancer.html): 'In 2024, over 31,000 people in the US were treated for high-risk NMIBC', the BCG-naive curative setting of resection followed by BCG. 31,000 / 25,000 (book pool) = 1.24",
+     "note": "Above 1.0 on purpose, and flagged for the engine owner. The book's pool of 25,000 under this indication name is the BCG-unresponsive segment (TAR-200), a later line. Sasanlimab's label population, BCG-naive high-risk patients starting BCG, is about 31,000 a year, so it only fits as a multiple of that pool. The cleaner fix is to split the indication into BCG-naive and BCG-unresponsive pools. I did not do that because the brief forbids a second figure for one indication name. Also note that 31,000 is patients 'treated' in 2024, not new starts only. The case for a lower figure: some are on maintenance from a prior year, and the book's own CG Oncology figure is an 'up to' ceiling."
+    },
+    "penetration_peak_pct": {
+     "value": 0.095,
+     "unit": "share of each year's eligible patients",
+     "source": "Adjuvant nivolumab, the PD-1 add-on in curative-intent bladder cancer, reached 19% (12/63) of high-risk, nivolumab-eligible patients and 10% of all cystectomy patients in US community oncology practice ('Perioperative Treatment Patterns for Muscle-Invasive Bladder Cancer Patients Undergoing Radical Cystectomy in the Adjuvant Immunotherapy Era', PMC13304048; JCO 2025;43(5_suppl):704)",
+     "note": "Judgement on two counts. (1) The analogue: no PD-1 plus BCG launch has a measured uptake yet, since Imfinzi was approved only in May 2026. The closest measured precedent is a PD-1 added to curative bladder treatment with modest OS support, which is adjuvant nivolumab at about 19% of eligible patients. (2) The multiple is 0.5, because sasanlimab would reach market about 2.5 years behind Imfinzi with the same mechanism and design, the rule the mRNA flu seed applies to a second entrant. 0.19 x 0.5 = 0.095. The case for higher: a subcutaneous every-4-weeks dose suits urology practices better than IV infusion. The case for lower: regulators flagged added immune toxicity and more BCG interruptions."
+    },
+    "ramp_steepness": {
+     "value": 0.5633,
+     "unit": "logistic k",
+     "source": "reused from the TAR-200 (Gemcitabine Hydrochloride) seed for this same indication: Vyvgart's Medicare Part B launch, 1,397 beneficiaries in 2022 to 4,310 in 2024 (CMS)",
+     "note": "Judgement: this reuses the closest modelled competitor's curve, which is itself a labelled analogue, because no bladder-cancer launch has a full Medicare series on file"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.0,
+     "unit": "years from forecast_start_year",
+     "source": "reused from the TAR-200 seed, as above",
+     "note": "Judgement, as for ramp_steepness"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

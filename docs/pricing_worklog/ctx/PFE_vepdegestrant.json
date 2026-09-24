@@ -1,0 +1,101 @@
+{
+ "ticker": "PFE",
+ "company": "Pfizer Inc",
+ "name": "vepdegestrant",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 3 VERITAC-2 NCT05654623 (ARV-471) reached primary completion on 2025-01-31 and neither the dossier nor the EMA list holds a vepdegestrant approval; a 2026 FDA decision was not verified this session.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Breast Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05548127",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-03-24",
+   "enrollment": 37,
+   "last_update_posted": "2026-09-02",
+   "lead_sponsor": "Pfizer",
+   "title": "TACTIVE-U: A Study to Learn About the Study Medicine (Vepdegestrant) When Given With Other Medicines in People With Advanced or Metastatic B"
+  },
+  {
+   "nct_id": "NCT06125522",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-12-31",
+   "enrollment": 11,
+   "last_update_posted": "2026-05-06",
+   "lead_sponsor": "Pfizer",
+   "title": "TACTIVE-U: A Study to Learn About the Study Medicine (Vepdegestrant) When Given With Other Medicines in People With Advanced or Metastatic B"
+  },
+  {
+   "nct_id": "NCT05909397",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-12-30",
+   "enrollment": 59,
+   "last_update_posted": "2026-02-10",
+   "lead_sponsor": "Pfizer",
+   "title": "Vepdegestrant (ARV-471/PF-07850327) + Palbociclib vs Letrozole + Palbociclib in ER(+)/HER2(-) Advanced Breast Cancer"
+  },
+  {
+   "nct_id": "NCT05573555",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-12-30",
+   "enrollment": 20,
+   "last_update_posted": "2026-03-09",
+   "lead_sponsor": "Pfizer",
+   "title": "TACTIVE-U: A Study to Learn About the Study Medicine (Vepdegestrant) When Given With Other Medicines in People With Advanced or Metastatic B"
+  },
+  {
+   "nct_id": "NCT07231991",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-12-04",
+   "enrollment": 24,
+   "last_update_posted": "2026-04-03",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn How the Body Processes the Study Medicine Called Vepdegestrant in People With Loss of Liver Function"
+  },
+  {
+   "nct_id": "NCT06206837",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2025-09-05",
+   "enrollment": 71,
+   "last_update_posted": "2026-02-27",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn About Vepdegestrant When Given With PF-07220060 to People With Advanced or Metastatic Breast Cancer."
+  },
+  {
+   "nct_id": "NCT05654623",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2025-01-31",
+   "enrollment": 624,
+   "last_update_posted": "2026-03-18",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn About a New Medicine Called Vepdegestrant (ARV-471, PF-07850327) in People Who Have Advanced Metastatic Breast Cancer"
+  },
+  {
+   "nct_id": "NCT05463952",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2023-05-04",
+   "enrollment": 6,
+   "last_update_posted": "2024-11-13",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn About the Vepdegestrant (ARV-471, PF-07850327) in People With ER+/HER2- Locally Advanced or Metastatic Breast Cancer (BC)"
+  }
+ ],
+ "aliases": [
+  "ARV-471"
+ ],
+ "related_assets_in_book": []
+}

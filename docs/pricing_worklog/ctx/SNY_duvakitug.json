@@ -1,0 +1,79 @@
+{
+ "ticker": "SNY",
+ "company": "Sanofi",
+ "name": "Duvakitug",
+ "inn_or_identity": "",
+ "sort_evidence": "Duvakitug (anti-TL1A) is not in the book and has four Phase 3 induction and maintenance trials recruiting in Crohn's disease and ulcerative colitis, including NCT07184931 and NCT07184996.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Colitis, Ulcerative",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Crohn Disease",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Hidradenitis",
+   "phase": "Phase 2",
+   "development_status": "Not yet recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07184944",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-08-13",
+   "enrollment": 751,
+   "last_update_posted": "2026-09-23",
+   "lead_sponsor": "Sanofi",
+   "title": "A Maintenance Study to Investigate the Efficacy and Safety of Duvakitug in Participants With Moderately to Severely Active Crohn's Disease"
+  },
+  {
+   "nct_id": "NCT07184931",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-05-14",
+   "enrollment": 980,
+   "last_update_posted": "2026-09-23",
+   "lead_sponsor": "Sanofi",
+   "title": "An Induction Study to Investigate the Efficacy and Safety of Duvakitug in Participants With Moderately to Severely Active Crohn's Disease"
+  },
+  {
+   "nct_id": "NCT07185009",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-09-21",
+   "enrollment": 751,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "Sanofi",
+   "title": "A Maintenance Study to Investigate the Efficacy and Safety of Duvakitug in Participants With Moderately to Severely Active Ulcerative Coliti"
+  },
+  {
+   "nct_id": "NCT07812116",
+   "phase": "Phase 2",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-06-16",
+   "enrollment": 156,
+   "last_update_posted": "2026-09-10",
+   "lead_sponsor": "Sanofi",
+   "title": "A Study to Investigate Efficacy and Safety of Duvakitug in Adult Participants With Moderate to Severe Hidradenitis Suppurativa"
+  },
+  {
+   "nct_id": "NCT07184996",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-05-09",
+   "enrollment": 980,
+   "last_update_posted": "2026-08-20",
+   "lead_sponsor": "Sanofi",
+   "title": "An Induction Study to Investigate the Efficacy and Safety of Duvakitug in Participants With Moderately to Severely Active Ulcerative Colitis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

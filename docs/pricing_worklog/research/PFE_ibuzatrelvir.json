@@ -1,0 +1,93 @@
+{
+ "ticker": "PFE",
+ "name": "ibuzatrelvir",
+ "summary": "Ibuzatrelvir (PF-07817883) is Pfizer's second-generation oral SARS-CoV-2 main protease inhibitor. It is taken alone, with no ritonavir booster, twice daily for five days. The pivotal trial is NCT06679140, a placebo-controlled Phase 3 in 2,330 non-hospitalised adults and adolescents at risk of severe COVID-19; primary completion is 2027-10-03. A second Phase 3 in severely immunocompromised adults (NCT07013474, n=300) completes 2027-09-27. Price anchor: Paxlovid's published commercial list price of $1,390 per five-day course. Uptake anchor: Paxlovid reached 1,666,207 Medicare Part D beneficiaries in 2024, 34% of the 4.95 million COVID-19 outpatient visits by people 65 and over that CDC estimates for 2023-24.",
+ "asset": {
+  "therapy_mode": {
+   "value": "one_time",
+   "unit": "",
+   "source": "NCT06679140 design: ibuzatrelvir or placebo twice daily for five days (Contagion Live, 'Pfizer Launched Phase 3 Trial for Ibuzatrelvir'; ClinicalTrials.gov NCT06679140)",
+   "note": "A single five-day course per infection, the same as Paxlovid. It is repeated only if the patient is reinfected, so a year's treated patients are that year's revenue, as in the mRNA flu vaccine seed."
+  },
+  "list_price_per_patient": {
+   "value": 0.00139,
+   "unit": "mm USD per course",
+   "source": "Paxlovid commercial list price of $1,390 per five-day course, set by Pfizer on 2023-10-18 (CNBC, 'Pfizer to price Covid drug Paxlovid at $1,390 per course', cnbc.com/2023/10/18; NBC News, same date)",
+   "note": "A published list price beats the CMS convention, and the CMS figure is unusable here. lookup.py demand Paxlovid gives $53 per Part D beneficiary in 2024 ($87.7mm over 1,666,207). That reflects government-procured product still dispensed free in 2024, not a price. Judgement: ibuzatrelvir is priced at Paxlovid's course price, the drug it would succeed in Pfizer's own portfolio. The case against: Pfizer could charge more for a ritonavir-free drug with fewer drug interactions. The list price has also not been confirmed as unchanged since 2023."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention (0.5 off a CMS per-beneficiary price, which lands at a median 96% of CMS negotiated net prices)",
+   "note": "Judgement. The convention was measured on CMS per-beneficiary spend and is applied here to a WAC course price, which is also gross of rebates. Direction checked: 0.5 off list, so net is $695 a course. The case for a larger discount: Pfizer said it would fund commercial copays through 2028, and PBMs take rebates off the $1,390 (CNBC 2023-10-18). The case for a smaller one: the FY2025 10-K credits U.S. growth partly to 'higher net price in the U.S. following transition from the U.S. government agreement'. No filed Paxlovid net price per course was found."
+  },
+  "discontinuation_pct": {
+   "value": 1.0,
+   "unit": "share of treated stock stopping per year",
+   "source": "NCT06679140: a fixed five-day course",
+   "note": "Every course ends within the year, so no treated stock carries over. The brief models a fixed course this way (1.0)."
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "NCT06679140 primary completion 2027-10-03, last update 2026-08-14 (ClinicalTrials.gov)",
+   "note": "Judgement on timing. Readout in late 2027, filing in the first half of 2028, and a standard review put US launch in late 2028, so 2029 is the first full year. The case for earlier: a priority review, or an earlier readout if the COVID season speeds event accrual."
+  },
+  "exus_multiple": {
+   "value": 0.2485,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Paxlovid FY2025: $470mm international against $1,891mm U.S. (PFE 10-K FY2025, accession 0000078003-26-000026, MD&A product revenue table)",
+   "note": "Judgement: Paxlovid is the closest comparator and Pfizer's own. The case against: FY2025 US revenue is flattered by favourable prior-period rebate accrual adjustments (same 10-K). H1 2026 gives $71mm international against $136mm US, a ratio of 0.52 (8-K exhibit 0000078003-26-000094). International demand is also driven by lumpy government purchases."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Pfizer is lead sponsor of NCT06679140 and NCT07013474; the compound is Pfizer-discovered (PF-07817883; C&EN, 'Pfizer readies its next-generation COVID-19 antiviral')",
+   "note": "No partner found in filings or search. Caveat for the engine owner: ibuzatrelvir would mostly replace Paxlovid, which Pfizer already sells and which runs to a 2041 LOE (FY2025 10-K patent table). Its revenue is therefore largely cannibalisation of an existing Pfizer line, and it is not all incremental."
+  }
+ },
+ "indications": [
+  {
+   "indication": "COVID-19",
+   "fields": {
+    "prevalence": {
+     "value": 7700000,
+     "unit": "patients",
+     "source": "Koumans EHA et al. (CDC), 'Estimated Burden of COVID-19 Illnesses, Medical Visits, Hospitalizations, and Deaths in the US From October 2022 to September 2024', JAMA Intern Med 2026;186(3):321-330, doi:10.1001/jamainternmed.2025.7179, PMID 41489910: 7.7 million (95% UI 5.5-9.9 million) COVID-19-associated outpatient visits in October 2023 to September 2024",
+     "note": "The book carries no COVID-19 pool (lookup.py pool COVID-19 is empty; not in epidemiology.csv). The pool is outpatient visits rather than the 33.0 million illnesses, because an oral antiviral needs a prescriber encounter. The case against: telehealth and test-to-treat prescriptions may fall outside CDC's outpatient-visit multiplier. The 2022-23 figure was higher (10.0 million), and seasons vary."
+    },
+    "incidence": {
+     "value": 7700000,
+     "unit": "patients per year",
+     "source": "same source as prevalence",
+     "note": "Stated equal to prevalence because the pool is an annual cohort of acute infections, as the mRNA flu vaccine seed does."
+    },
+    "eligible_pct": {
+     "value": 0.643,
+     "unit": "share of the pool",
+     "source": "Koumans et al. 2026 (PMID 41489910): people 65 and older accounted for 64.3% (95% UI 53.1-73.4) of COVID-19 outpatient visits in 2023-24",
+     "note": "Judgement: the Phase 3 enrols people at risk of severe disease, and age 65 or over is the largest risk criterion and the one with a published share. This understates the label, which will also reach high-risk adults under 65 (comorbidities) and adolescents, and NCT07013474 adds the immunocompromised. 7.7mm x 0.643 = 4,951,100 eligible visits."
+    },
+    "penetration_peak_pct": {
+     "value": 0.3365,
+     "unit": "share of each year's eligible patients",
+     "source": "Paxlovid: 1,666,207 Medicare Part D beneficiaries in 2024 (lookup.py demand Paxlovid, CMS Part D 2024), over 4,951,100 COVID-19 outpatient visits by people 65 and over in 2023-24 (Koumans et al. 2026) = 0.3365",
+     "note": "Judgement: the multiple on Paxlovid's measured capture is 1.0. Ibuzatrelvir would inherit Paxlovid's prescriber base and remove its ritonavir interaction barrier. Neither pushes the drug past what Pfizer's franchise already reaches. The measurement has biases in both directions. It understates, because Part D covers only part of the Medicare population and the CMS year (calendar 2024) is offset from the CDC season (Oct 2023 to Sep 2024). It overstates, because Part D includes under-65 disabled beneficiaries. The case for lower: the trial is placebo-controlled with no head-to-head against Paxlovid, and Pfizer may keep selling Paxlovid alongside it."
+    },
+    "ramp_steepness": {
+     "value": 0.575,
+     "unit": "logistic k",
+     "source": "data/launch_ramp.csv: the average path of 41 measured launches, as fitted in the mRNA Seasonal Flu vaccine seed (k 0.575, midpoint 3.6)",
+     "note": "Judgement. Paxlovid's own launch was an emergency-use, government-supplied pandemic launch and cannot be fitted as a commercial analogue. The case for a steeper ramp: Pfizer can switch an existing Paxlovid prescriber base to its own successor faster than an average launch."
+    },
+    "ramp_midpoint_year": {
+     "value": 3.6,
+     "unit": "years from forecast_start_year",
+     "source": "data/launch_ramp.csv average launch, as in the mRNA Seasonal Flu vaccine seed",
+     "note": "Judgement, as for ramp_steepness"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

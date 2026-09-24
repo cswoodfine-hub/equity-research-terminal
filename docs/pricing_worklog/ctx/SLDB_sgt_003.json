@@ -1,0 +1,39 @@
+{
+ "ticker": "SLDB",
+ "company": "Solid Biosciences Inc.",
+ "name": "SGT-003",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT07160634 (IMPACT DUCHENNE, Phase 3, Recruiting) is Solid's registrational trial of this gene therapy, which no other row in the book holds.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Muscular Dystrophy, Duchenne",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07160634",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-01",
+   "enrollment": 80,
+   "last_update_posted": "2026-08-13",
+   "lead_sponsor": "Solid Biosciences Inc.",
+   "title": "A Study of SGT-003 Gene Therapy in Ambulant Males With Duchenne Muscular Dystrophy (IMPACT DUCHENNE)"
+  },
+  {
+   "nct_id": "NCT06138639",
+   "phase": "Phase 1/2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-05-06",
+   "enrollment": 60,
+   "last_update_posted": "2026-07-08",
+   "lead_sponsor": "Solid Biosciences Inc.",
+   "title": "A Study of SGT-003 Gene Therapy in Duchenne Muscular Dystrophy (INSPIRE DUCHENNE)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

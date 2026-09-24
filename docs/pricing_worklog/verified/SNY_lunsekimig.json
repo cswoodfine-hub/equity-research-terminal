@@ -1,0 +1,119 @@
+{
+ "ticker": "SNY",
+ "name": "Lunsekimig",
+ "summary": "Lunsekimig (SAR443765) is Sanofi's wholly owned bispecific nanobody blocking TSLP and IL-13, given subcutaneously. The lead Phase 3 programme is two replicate placebo-controlled studies in COPD with an eosinophilic phenotype (NCT07190209 and NCT07190222, 942 each, primary completion 2029-11-27): exacerbating (2 moderate or 1 severe in the prior year) on triple inhaled therapy, blood eosinophils of 150 cells/uL or more. Asthma is Phase 2 only and is not modelled. Price anchor: Dupixent, Sanofi's own COPD-labelled biologic, at $28,196 per Medicare Part D beneficiary in 2024 (Tezspire, the book's tozorakimab anchor, reads $29,549). Uptake anchor: the tozorakimab seed's COPD peak of 0.02039 and launch curve, which rest on Tezspire's measured share of the asthma biologic class, reused at 1.0x.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT07190209, NCT07190222, and the long-term study NCT07793409 (ClinicalTrials.gov): maintenance add-on to triple inhaled therapy with exacerbation reduction as the aim",
+   "note": "Continuous dosing, as for Dupixent and Nucala in COPD",
+   "verdict": "confirmed",
+   "check": "Book trials table: NCT07190209/NCT07190222 primary outcome annualised rate of moderate-to-severe COPD exacerbations over a 48-week treatment period (sanofi.com/en/clinical-trials/nct07190209); maintenance add-on, chronic."
+  },
+  "list_price_per_patient": {
+   "value": 0.028196,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Dupixent: CMS Part D 2024, 'Dupixent (2 presentations)', $2,491,772,008 over 88,374 beneficiaries = $28,196 per beneficiary",
+   "note": "JUDGEMENT on the comparator. Dupixent is Sanofi's own biologic already labelled in eosinophilic COPD (the same setting), and Sanofi is likely to price a successor near it. Case against: Dupixent's Medicare spend is mostly atopic dermatitis; the book's tozorakimab seed uses Tezspire (TSLP, the same alarmin axis) at $29,549, and Nucala (COPD-labelled since 2025, eosinophils of 150 or more, the same cut-off) reads $35,081 Part D 2024. The range is $28,196 to $35,081; the chosen value is the low end",
+   "verdict": "confirmed",
+   "check": "Re-ran lookup.py demand Dupixent: Part D 2024 'Dupixent (2 presentations)' $2,491,772,008 / 88,374 = $28,196 (0.028196 mm USD). Tezspire Part D 2024 $29,549 and Nucala Part D 2024 $35,081 also match the note. Nucala's US COPD approval 2025-05-22 at eosinophils from 150 cells/uL confirmed (GSK release, gsk.com/en-gb/media/press-releases/nucala-mepolizumab-approved-by-us-fda/). Comparator choice is a judgement at the low end of a $28,196-$35,081 range."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention: halving a CMS per-beneficiary figure lands at a median 96% of CMS's own negotiated net prices (backend/gross_to_net.py; same value in the tozorakimab seed)",
+   "note": "Net is 50% of list",
+   "verdict": "confirmed",
+   "check": "Direction checked: 0.5 share off list, matches house convention and tozorakimab seed row ('share off list')."
+  },
+  "discontinuation_pct": {
+   "value": 0.254,
+   "unit": "share of the stock per year",
+   "source": "reused from the tozorakimab seed, which carries the respiratory biologic rate from the tilrekimig seed: Symons JM et al., J Drugs Dermatol 2025;24(10):996-1002, 55.7% of 4,562 US adults starting dupilumab still persistent at 24 months, 25.4% stopping a year at a constant rate",
+   "note": "JUDGEMENT to reuse. The measurement is Dupixent (Sanofi's own biologic) in atopic dermatitis, not COPD. Case against: older, sicker COPD patients may stop more often, including through death, which would raise the rate",
+   "verdict": "confirmed",
+   "check": "Symons JM et al.: 55.7% persistent at 24 months; 1 - sqrt(0.557) = 0.254. Matches the tozorakimab seed row value 0.254. Reuse from atopic dermatitis is a judgement."
+  },
+  "forecast_start_year": {
+   "value": 2032,
+   "unit": "year",
+   "source": "ClinicalTrials.gov primary completion 2029-11-27 for both NCT07190209 and NCT07190222 (context file)",
+   "note": "JUDGEMENT. No launch date published. Readout early 2030, a BLA by mid-2030 and a standard review put approval around mid-2031, so 2032 is the first full year. Case against: a priority review or early filing could make 2031 the first revenue year",
+   "verdict": "confirmed",
+   "check": "PCD 2029-11-27 for both studies confirmed in context and book trials table (completion 2030-01-22). JUDGEMENT noted by the reader: the tulisokibart/duvakitug lag (PCD to first revenue year ~17 months) would give 2031 as a part-year of revenue; 2032 is the first full year. Either is defensible; kept as written."
+  },
+  "exus_multiple": {
+   "value": 0.3619,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Dupixent, Sanofi FY2025 20-F (0001628280-26-008403), in the book's asset_revenue_regions: US EUR 11,538mm, Europe EUR 1,957mm, rest of world EUR 2,219mm. (1,957 + 2,219) / 11,538 = 0.362",
+   "note": "Sanofi's own respiratory and type 2 biologic, the filer's own figure. Case against: Tezspire's whole-molecule split reads lower, $458mm ex-US booked by AstraZeneca (20-F 0001104659-26-019130) over $1,478mm US booked by Amgen (10-K 0000318154-26-000010) = 0.310 in FY2025, a younger launch whose ex-US uptake may still be building",
+   "verdict": "corrected",
+   "check": "VALUE UNCHANGED (0.3619); NOTE CORRECTED. Value and headline arithmetic hold: book asset_revenue_regions Dupilumab FY2025 US 11,538, Europe 1,957, Rest of world 2,219 (EUR mm, 0001628280-26-008403); 4,176/11,538 = 0.3619. The inconsistency is in the note's case against, corrected here: AZN's 2025 table row 'Tezspire | 458 | ... | 40 | ... | 297 | ... | 121' has 458 as AZN's World total, which is the sum 297 + 121 + 40, not a US figure (AZN books only ex-US; Amgen books US). '(297 + 121 + 40) / 458 US' is therefore 1.0 and meaningless. The like-for-like whole-molecule split is available: AZN ex-US $458mm (20-F 0001104659-26-019130) over Amgen US $1,478mm (10-K 0000318154-26-000010, book asset_revenue_regions) = 0.310, below Dupixent's 0.362."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Sanofi-coded molecule (SAR443765), Sanofi lead sponsor on every listed trial (context file); no partner named in any source found",
+   "note": "Wholly owned",
+   "verdict": "confirmed",
+   "check": "SAR code is Sanofi's; book trials table lists Sanofi as lead sponsor on NCT07190209/NCT07190222; no partner found in the Sanofi 2026-04-07 phase 2 release or searches. 1.0 holds."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Pulmonary Disease, Chronic Obstructive",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: epidemiology.csv, 14,200,000 (CDC BRFSS diagnosed US adults with COPD)",
+     "note": "The book fills it, so no second figure is set",
+     "verdict": "confirmed",
+     "check": "lookup.py pool shows epidemiology.csv carries 14,200,000 (CDC BRFSS) for this indication name; null is correct."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (epidemiology.csv row, incidence blank; the tozorakimab seed sets incidence equal to prevalence)",
+     "note": "The book fills it",
+     "verdict": "confirmed",
+     "check": "epidemiology.csv incidence is blank; the tozorakimab seed carries incidence = prevalence (14,200,000) so the book holds a figure; null is correct per the brief. Caution: tozorakimab's 0.02039 peak was solved with incidence = prevalence (zero carryover); the reuse at 1.0x only reproduces the same rate if the engine fills lunsekimig's incidence the same way."
+    },
+    "eligible_pct": {
+     "value": 0.0704,
+     "unit": "share",
+     "source": "GSK release 2025-05-22 (as cited in the book's tozorakimab eligible_pct): about 70% of US COPD patients inadequately controlled on inhaled triple therapy who continue to exacerbate have eosinophils of 150 cells/uL or more, a group of 'over a million people' (GSK Optum analysis). 1,000,000 / 14,200,000 = 0.0704. Entry criteria from NCT07190209 and NCT07190222: 2 or more moderate or 1 severe exacerbation in the prior year, triple therapy for 12 weeks or more, eosinophils 150 cells/uL or more, asthma excluded",
+     "note": "The GSK subgroup is exactly the Phase 3 entry pool. 'Over a million' is a floor, so the share is a lower bound. Tozorakimab's 0.1006 is the all-eosinophil version of the same figure",
+     "verdict": "confirmed",
+     "check": "GSK release 2025-05-22 (Nucala US approval) confirmed: ~70% of US COPD patients inadequately controlled on triple therapy who continue to exacerbate have eosinophils from 150 cells/uL, 'over a million people'. 1,000,000 / 14,200,000 = 0.0704, consistent with tozorakimab's 0.1006 x 0.70 = 0.0704. Trial titles confirm 'inadequately controlled COPD characterized by an eosinophilic phenotype' (NCT07190209, NCT07190222); the exact 150 cells/uL and exacerbation entry thresholds could not be opened (ClinicalTrials.gov blocked from this environment), so the pool match rests on the researcher's reading of the registry."
+    },
+    "penetration_peak_pct": {
+     "value": 0.02039,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "reused from the tozorakimab seed: Tezspire held 16.94% of the US asthma biologic class in 2024 (13,837 Medicare beneficiaries of 81,661 across Tezspire, Nucala, Fasenra, Xolair; drug_demand), and 11.9% of severe asthma patients are on any biologic (Park et al., J Asthma Allergy 2026;19). 0.119 x 0.1694 = 2.02% of the pool, solved through the curve and 25.4% discontinuation to 0.02039",
+     "note": "JUDGEMENT: 1.0x, the tozorakimab multiple, so the two COPD alarmin assets in the book carry one uptake rate. Case for higher: dual TSLP/IL-13 blockade and a narrower, biomarker-selected pool in which a biologic is the natural next step. Case against: this exact pool already has Dupixent (eosinophils of 300 or more) and Nucala (150 or more), and tozorakimab and Tezspire in COPD may launch first; lunsekimig arrives around 2032 as the fourth or fifth biologic",
+     "verdict": "confirmed",
+     "check": "Matches the tozorakimab seed row exactly (Tezspire 16.94% of class, 13,837/81,661; 11.9% on biologic, Park et al.; 0.119 x 0.1694 = 0.0202; solved to 0.02039). 1.0x reuse is a judgement; applied to a pool 0.70x tozorakimab's."
+    },
+    "ramp_steepness": {
+     "value": 0.53,
+     "unit": "logistic k",
+     "source": "reused from the tozorakimab seed: fitted to the measured average launch in data/launch_ramp.csv (41 launches), k 0.53",
+     "note": "No COPD-specific launch curve on file",
+     "verdict": "confirmed",
+     "check": "Matches the tozorakimab seed row, k 0.53 from data/launch_ramp.csv."
+    },
+    "ramp_midpoint_year": {
+     "value": 1.75,
+     "unit": "years from the forecast start",
+     "source": "reused from the tozorakimab seed: fitted with k 0.53 to the 41 launches in data/launch_ramp.csv, rmse 0.0126",
+     "note": "Book average curve",
+     "verdict": "confirmed",
+     "check": "Matches the tozorakimab seed row, 1.75 years, rmse 0.0126."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

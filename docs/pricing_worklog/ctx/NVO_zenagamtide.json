@@ -1,0 +1,79 @@
+{
+ "ticker": "NVO",
+ "company": "Novo Nordisk A/S",
+ "name": "Zenagamtide",
+ "inn_or_identity": "",
+ "sort_evidence": "Zenagamtide is the INN for Novo's GLP-1/amylin co-agonist amycretin (https://chemxplore.com/news/zenagamtide-phase-2-diabetes-results), in Phase 3 AMAZE and AMBITION trials (NCT07797335 recruiting) with no approval; the NNC0487-0111 row in this batch points here.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Obesity",
+   "phase": "Phase 3",
+   "development_status": "Not yet recruiting"
+  },
+  {
+   "name": "Overweight",
+   "phase": "Phase 3",
+   "development_status": "Not yet recruiting"
+  },
+  {
+   "name": "Diabetes Mellitus, Type 2",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07668401",
+   "phase": "Phase 3",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2029-01-11",
+   "enrollment": 400,
+   "last_update_posted": "2026-08-24",
+   "lead_sponsor": "Novo Nordisk A/S",
+   "title": "AMAZE 13: A Research Study Investigating How Well the Medicine Zenagamtide Helps People in Asia With Excess Body Weight Lose Weight"
+  },
+  {
+   "nct_id": "NCT07668414",
+   "phase": "Phase 3",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-10-10",
+   "enrollment": 650,
+   "last_update_posted": "2026-08-25",
+   "lead_sponsor": "Novo Nordisk A/S",
+   "title": "A Research Study Investigating How Well the Medicine Zenagamtide Helps People With Excess Body Weight Lose Weight Compared to Semaglutide"
+  },
+  {
+   "nct_id": "NCT07797335",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-07-31",
+   "enrollment": 1778,
+   "last_update_posted": "2026-09-01",
+   "lead_sponsor": "Novo Nordisk A/S",
+   "title": "AMBITION 7: A Research Study Investigating How Well Zenagamtide Lowers Blood Sugar and Body Weight Compared to Insulin Glargine in People Wi"
+  },
+  {
+   "nct_id": "NCT07720271",
+   "phase": "Phase 3",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-06-27",
+   "enrollment": 950,
+   "last_update_posted": "2026-08-25",
+   "lead_sponsor": "Novo Nordisk A/S",
+   "title": "AMAZE 9: A Research Study Investigating How Well Zenagamtide Tablets Help People With Excess Body Weight Lose Weight"
+  },
+  {
+   "nct_id": "NCT07815067",
+   "phase": "Phase 1",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-06-12",
+   "enrollment": 320,
+   "last_update_posted": "2026-09-11",
+   "lead_sponsor": "Novo Nordisk A/S",
+   "title": "A Research Study Looking at the Effect of Timing of Meal After Dosing and Water Volume at Dosing on How the Medicine Zenagamtide is Taken up"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

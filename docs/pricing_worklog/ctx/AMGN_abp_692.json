@@ -1,0 +1,29 @@
+{
+ "ticker": "AMGN",
+ "company": "Amgen Inc",
+ "name": "ABP 692",
+ "inn_or_identity": "ocrelizumab biosimilar",
+ "sort_evidence": "ABP 692 is Amgen's proposed biosimilar to Ocrevus (ocrelizumab) in a Phase 3 PK/PD comparison in RRMS (NCT06700343, active not recruiting); the biosimilar itself is unapproved and not in the AMGN book (https://www.pearceip.law/2025/01/13/amgens-ocrelizumab-biosimilar-in-phase-3-trials/).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Multiple Sclerosis, Relapsing-Remitting",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06700343",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-04-19",
+   "enrollment": 152,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Amgen",
+   "title": "Comparison Between ABP 692 and Ocrevus\u00ae (Ocrelizumab)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,54 @@
+{
+ "ticker": "DYN",
+ "company": "Dyne Therapeutics, Inc.",
+ "name": "zeleciment basivarsen (DYNE-101)",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT07486934 (Phase 3, Recruiting) is Dyne's registrational DM1 study of this molecule, and no other row in the book holds it.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Myotonic Dystrophy",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Myotonic Disorders",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05481879",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2029-07",
+   "enrollment": 127,
+   "last_update_posted": "2026-09-23",
+   "lead_sponsor": "Dyne Therapeutics",
+   "title": "Safety, Tolerability, Pharmacodynamic, Efficacy, and Pharmacokinetic Study of DYNE-101 in Participants With Myotonic Dystrophy Type 1"
+  },
+  {
+   "nct_id": "NCT07486934",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-07",
+   "enrollment": 150,
+   "last_update_posted": "2026-09-03",
+   "lead_sponsor": "Dyne Therapeutics",
+   "title": "Efficacy, Safety, and Tolerability of Zeleciment Basivarsen (DYNE-101) in Participants With Myotonic Dystrophy Type 1"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 2002,
+   "ticker": "DYN",
+   "generic": "Zeleciment Rostudirsen (DYNE-251)",
+   "brand": null,
+   "code": "DYNE-251",
+   "is_marketed": 0,
+   "modelled": false
+  }
+ ]
+}

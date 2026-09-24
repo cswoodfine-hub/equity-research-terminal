@@ -1,0 +1,119 @@
+{
+ "ticker": "LLY",
+ "name": "Sofetabart Mipitecan",
+ "summary": "Sofetabart mipitecan (LY4170156) is Lilly's folate receptor alpha ADC: an Fc-silent anti-FRa antibody carrying exatecan on the PSARlink polysarcosine linker Lilly acquired with Mablink Bioscience (2023). The pivotal trial is FRAmework-01 / GOG-3133 (NCT07213804, 1,630 patients, primary completion 2028-11). Part A randomises 530 platinum-resistant patients 1:1 against investigator's-choice chemotherapy or mirvetuximab, at every level of FRa expression. Parts B and C cover platinum-sensitive disease in combination with bevacizumab. FDA granted Breakthrough Therapy designation in PROC, and the phase 1 response rate was 50% in 104 patients. Price anchor: Trodelvy's CMS Part B spend of $82,521 per beneficiary (2024). That is the same anchor the book already uses for AZD5335, a rival FRa ADC in the same disease, because Elahere has no CMS row in the book. Uptake anchor: the ramp reuses the book's Enhertu launch fit. Peak penetration is null: Elahere's revenue-implied patient count exceeds the only sourced PROC pool, so it cannot be solved back. Second reader: all fields confirmed; line-3 platinum-resistant share (40.5%) inside eligible_pct could not be viewed directly (source blocked) and is bounded at 0.155 to 0.247; no sourced Elahere US patient count exists in AbbVie or ImmunoGen filings, so penetration stays null.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT07213804 (FRAmework-01): single-agent ADC dosed every cycle in PROC against chemotherapy or mirvetuximab, which are treated to progression",
+   "note": "Oncology treated to progression, so chronic per house convention.",
+   "verdict": "confirmed",
+   "check": "FRAmework-01 TPS5644 (JCO 2026;44(16_suppl), ascopubs.org/doi/10.1200/JCO.2026.44.16_suppl.TPS5644) and the GOG-3133 press release: Part A is single-agent sofetabart vs investigator's choice chemotherapy or mirvetuximab in PROC, dosed to progression. Chronic is the house convention for oncology treated to progression."
+  },
+  "list_price_per_patient": {
+   "value": 0.082521,
+   "unit": "mm USD per patient-year",
+   "source": "python3 /tmp/claude-0/price/lookup.py demand Trodelvy: Part B 2024, $272,318,588 over 3,300 beneficiaries = $82,521 per beneficiary. The same anchor is on the AZD5335 seed (lookup.py seed AZD5335).",
+   "note": "JUDGEMENT. The closest marketed comparator is Elahere (mirvetuximab), the Part A comparator arm, but the book has no CMS demand row for it (lookup.py demand %lahere% / %oravtan% return nothing), and no published annual list price was found. Trodelvy is used for two reasons: it is a topo-I ADC in a solid tumour, and it keeps this asset on the same price as AZD5335, the book's other FRa ADC in this disease. Case against: Elahere's launch WAC was $6,220 a vial, about $18,660 to $24,800 per 21-day cycle (Managed Healthcare Executive, https://www.managedhealthcareexecutive.com/view/fda-grants-accelerated-approval-of-novel-ovarian-cancer-therapy). Over a real-world median of 8 cycles that is about $174k gross per course, roughly twice this anchor. At this price and gross-to-net, Elahere's $607mm of US 2025 revenue would imply about 14,700 patient-years, which is not plausible. The anchor is therefore probably low for this class.",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Trodelvy: Part B 2024 $272,318,588 / 3,300 beneficiaries = $82,521, so 0.082521 mm USD is right in unit and value. lookup.py seed AZD5335 carries the same 0.082521 on the same Trodelvy anchor, so the two FRa ADCs stay on one price. The book has no Elahere / mirvetuximab row in drug_demand (queried by brand and generic substrings; table ends 2024). No published ANNUAL list price exists: Elahere's WAC is published per vial only ($6,220 at launch per Managed Healthcare Executive; $6,487.15 currently per AbbVie's state WAC disclosure, disclosures.abbvie.com/co/COElahere.pdf), so the convention applies. Judgement stands and the case against is right: at 3 to 4 vials a 21-day cycle Elahere's gross WAC is about $19.5k to $26k a cycle, well above this anchor. The note's 'real-world median of 8 cycles' carries no source; treat the $174k course figure as illustrative only. Minor: 4 x $6,220 is $24,880, not $24,800."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "House convention on a CMS per-beneficiary price (backend/gross_to_net.py; halving lands at a median 96% of CMS negotiated net prices). The AZD5335 seed carries the same value.",
+   "note": "Net is 50% of list. Direction checked: this is the share OFF list. Case against: Part B physician-administered drugs usually carry smaller rebates than Part D drugs.",
+   "verdict": "confirmed",
+   "check": "Direction checked: 0.5 is the share OFF list (net = 50% of list), matching the house convention for a CMS per-beneficiary price and the AZD5335 seed row ('share off list', 0.5)."
+  },
+  "discontinuation_pct": {
+   "value": 0.8818,
+   "unit": "share of treated stock stopping per year",
+   "source": "MIRASOL (Moore et al., NEJM 2023, https://www.nejm.org/doi/full/10.1056/NEJMoa2309169): median PFS with mirvetuximab 5.62 months in FRa-high PROC. Computed as 1 - exp(-12/5.62) = 0.882.",
+   "note": "Uses the comparator arm's PFS, because sofetabart's phase 1 PFS was not found. The AZD5335 seed uses 0.55, which is unsourced ('a median PFS near a year'); this figure is measured. Case against: a 50% response rate (vs 42% for mirvetuximab in MIRASOL) may mean longer duration on drug. PSOC maintenance-style use in Parts B and C would also run longer.",
+   "verdict": "confirmed",
+   "check": "MIRASOL (Moore et al., NEJM 2023, PMID 38055253): median PFS 5.62 months (95% CI 4.34 to 5.95) with mirvetuximab. 1 - exp(-12/5.62) = 1 - exp(-2.135) = 0.8818; arithmetic holds. Brief permits the PFS-based formula. Using the comparator arm is a stated judgement; sofetabart phase 1 reports 73% of responders still on therapy at cutoff (Targeted Oncology, BTD coverage) but no median PFS/DoT was found, so no correction."
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "NCT07213804 primary completion 2028-11 (context file / ClinicalTrials.gov)",
+   "note": "Readout in late 2028, then filing in 2029 and a launch in late 2029 or 2030. Breakthrough designation could bring this forward if Part A reads out first. 2030 is the first full year.",
+   "verdict": "confirmed",
+   "check": "NCT07213804 primary completion 2028-11 per the context file; readout late 2028, file 2029, first full launch year 2030 is consistent with the brief's rule and matches the AZD5335 seed's 2030."
+  },
+  "exus_multiple": {
+   "value": 0.1367,
+   "unit": "ex-US revenue per 1.0 US",
+   "source": "ABBV FY2025 10-K (0001551152-26-000008), Elahere net revenues: United States 607, International 83 (from the book's mirvetuximab base_revenue seed). 83/607 = 0.137.",
+   "note": "Named comparator: Elahere. Case against: EU approval came only in November 2024 and UK pricing was set in September 2025, so this is an early-launch split. A mature split would probably be higher.",
+   "verdict": "confirmed",
+   "check": "lookup.py seed mirvetuximab: base_revenue row cites ABBV FY2025 10-K 0001551152-26-000008, Elahere US 607, International 83. 83/607 = 0.1367; arithmetic holds. Early-launch caveat in the note is fair."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Mablink Bioscience press release, 2023-10-18: agreement to be acquired by Lilly, bringing the PSARlink platform (https://www.biospace.com/mablink-bioscience-enters-an-agreement-to-be-acquired-by-lilly). The Lilly BTD release (https://investor.lilly.com/news-releases/news-release-details/lillys-sofetabart-mipitecan-receives-us-fdas-breakthrough) describes the asset as Lilly's own.",
+   "note": "No co-development or profit-share partner found. Any milestones or royalties owed to Mablink's former holders are undisclosed and not modelled.",
+   "verdict": "confirmed",
+   "check": "GlobeNewswire / BioSpace 2023-10-18: Mablink Bioscience agreed to be acquired by Lilly (outright acquisition, not a licence); Patsnap Synapse records the drug as originated by Mablink. Lilly's BTD release presents it as Lilly's own. No co-development or profit share found."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Ovarian Neoplasms",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book",
+     "note": "lookup.py pool 'Ovarian Neoplasms': R-DXD row, SEER 21,010 new US cases in 2026. epidemiology.csv says to use the combined ovary / fallopian tube / peritoneum pool for the fallopian tube and peritoneal tags.",
+     "verdict": "confirmed",
+     "check": "lookup.py pool 'Ovarian Neoplasms': R-DXD carries 21,010 (SEER 2026) for prevalence and incidence, so null + 'carried by the book' is correct. epidemiology.csv directs the fallopian tube tag to the same combined pool."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book",
+     "note": "As prevalence: 21,010 a year from SEER.",
+     "verdict": "confirmed",
+     "check": "As prevalence: the book carries 21,010 a year."
+    },
+    "eligible_pct": {
+     "value": 0.2086,
+     "unit": "share of the pool",
+     "source": "Value in Health HSD30 / ISPOR 2024 poster 139151, 'Incidence of Platinum-Resistant, Stage III/IV Ovarian Cancer Patients in the US' (https://www.valueinhealthjournal.com/article/S1098-3015(24)01368-8/fulltext). In 2023, 6,224, 4,329 and 2,901 patients were treated in lines 2, 3 and 4, with 14.7%, 40.5% and 59.1% platinum-resistant. That is 915 + 1,753 + 1,714 = 4,382 PROC patients treated in lines 2 to 4. 4,382 / 21,010 = 0.209.",
+     "note": "JUDGEMENT on the arithmetic. This matches Part A's population: PROC after 3 or fewer prior lines, at all FRa levels, so no FRa cut is applied. It assumes the eventual label is not FRa-restricted. Caveats: the counts are line-treatment events, so one patient can appear in both line 3 and line 4. The ISPOR base is 14,768 stage III/IV cases (IARC), not the book's 21,010. One search summary gave the line-3 count as 2,901, so the second reader should confirm the per-line figures. The pool looks low against Elahere revenue (see penetration). The platinum-sensitive Parts B and C are not modelled.",
+     "verdict": "confirmed",
+     "check": "Per-line counts CONFIRMED from two independent search extracts of the ISPOR 2024 poster 139151 / Value Health HSD30: 14,768 stage III/IV cases (IARC, US 2023); 6,224 treated in line 2, 4,329 in line 3, 2,901 in line 4. The researcher's worry that '2,901' is the line-3 count is a search-summariser misattribution: the ordered statement is 6,224 / 4,329 / 2,901 for lines 2 / 3 / 4. PR shares 14.7% (line 2) and 59.1% (line 4) confirmed verbatim. The line-3 share of 40.5% could NOT be independently seen: the poster PDF, ISPOR page and Value in Health page are all blocked by the egress proxy and no search extract quotes it. It lies inside the confirmed 14.7% to 59.1% range; the bound on the result is 3,265 to 5,187 patients, 0.155 to 0.247 of 21,010. Arithmetic with 40.5%: 914.9 + 1,753.2 + 1,714.5 = 4,382.6; / 21,010 = 0.2086, holds. Population fit confirmed: Part A enrols PROC after <=3 prior cytotoxic lines (<=4 if one was mirvetuximab) (GOG-3133 release), irrespective of FRa expression (TPS5644), so lines 2 to 4 with no FRa cut matches the label the trial would support. Remaining caveats, not correctable with a source: per-line counts are treatment events, so the pool may double-count a patient who moves lines within a year (upward bias); PROC in line 5 after mirvetuximab is excluded (downward bias); and Elahere's US revenue implies more treated patients than this pool's FRa-high share, which suggests the ISPOR base undercounts. A reviewer with poster access should confirm 40.5%."
+    },
+    "penetration_peak_pct": {
+     "value": null,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "no reconcilable incumbent measurement",
+     "note": "The incumbent is Elahere, but the book has no CMS beneficiaries row for it and AbbVie discloses no patient count. From revenue: $607mm US (FY2025) divided by about $174k gross per course (WAC $18,660 to $24,800 per cycle times a real-world median of 8 cycles) gives at least 3,490 patient starts a year. That is a lower bound, because net is below WAC. The FRa-high PROC pool on the ISPOR basis is only about 4,382 x 35% = 1,534. The solved share would be above 100%, so the pool and the anchor do not reconcile, and any value here would be a guess. For reference, AZD5335 carries an unsourced 0.30.",
+     "verdict": "confirmed",
+     "check": "Null upheld. Searched for a sourced US Elahere patient count: ImmunoGen Q1 to Q3 2023 results (8-K exhibits, e.g. imgn-20231102xex99d1, Q3 US net sales $105.2mm) report revenue only; no patient count or share found. ImmunoGen filed no FY2023 10-K (acquired by AbbVie 2024-02-12; last 10-K is FY2022, 0001558370-23-002558, pre-dating meaningful sales). AbbVie's 10-K reports Elahere revenue only. The book's drug_demand has no Elahere row, and data.cms.gov / sec.gov are blocked here, so the CMS Part B beneficiary count (HCPCS J9063) could not be pulled. Researcher's reconciliation arithmetic holds: 607 / (0.082521 x 0.5) = 14,712 patient-years at this anchor. Nothing supports a value, so it stays null. Next step: pull Elahere from the CMS Part B Spending by Drug file (2023 and 2024) into drug_demand; that would give a sourced incumbent count to solve against."
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "Book's Enhertu launch fit on the AZD5335 seed: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 give k = 1.08 with a midpoint at 2.2 years (lookup.py demand Enhertu confirms the counts)",
+     "note": "Reused from the closest modelled competitor, AZD5335 (another FRa ADC in PROC). Case against: Enhertu opened a new HER2-low segment, while this asset enters a line where Elahere is already established.",
+     "verdict": "confirmed",
+     "check": "lookup.py demand Enhertu: Part B beneficiaries 864, 1,904, 4,841, 7,105, 8,410 for 2020 to 2024, as cited. lookup.py seed AZD5335 carries k = 1.08, midpoint 2.2 from that fit."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "Same Enhertu fit as ramp_steepness",
+     "note": "Reused from the AZD5335 seed.",
+     "verdict": "confirmed",
+     "check": "Same Enhertu fit on the AZD5335 seed: midpoint 2.2 years."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

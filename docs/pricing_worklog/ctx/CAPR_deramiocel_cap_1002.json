@@ -1,0 +1,54 @@
+{
+ "ticker": "CAPR",
+ "company": "Capricor Therapeutics, Inc.",
+ "name": "Deramiocel (CAP-1002)",
+ "inn_or_identity": "",
+ "sort_evidence": "The deramiocel BLA is still under FDA review, with the PDUFA date extended to 2026-11-22, so it has no approval (https://www.capricor.com/investors/news-events/press-releases/detail/354/capricor-therapeutics-announces-extension-of-pdufa-target).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Muscular Dystrophy, Duchenne",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Muscular Dystrophies",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Muscular Disorders, Atrophic",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Genetic Diseases, X-Linked",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05126758",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2025-06-18",
+   "enrollment": 106,
+   "last_update_posted": "2026-08-28",
+   "lead_sponsor": "Capricor Inc.",
+   "title": "A Study of Deramiocel (CAP-1002) in Ambulatory and Non-Ambulatory Patients With Duchenne Muscular Dystrophy"
+  },
+  {
+   "nct_id": "NCT04428476",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2022-02-16",
+   "enrollment": 13,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Capricor Inc.",
+   "title": "Open-label Extension of the HOPE-2 Trial"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,29 @@
+{
+ "ticker": "GSK",
+ "company": "GSK plc",
+ "name": "Linerixibat",
+ "inn_or_identity": "",
+ "sort_evidence": "The FDA approved linerixibat as Lynavoy on 2026-03-17 and the CHMP gave a positive opinion on 2026-07-23, but GSK licensed worldwide rights to Alfasigma in a deal closed April 2026, so GSK keeps milestones and royalties only and the book holds no Lynavoy row (https://www.alfasigma.com/news-media/alfasigma-completes-agreement-with-gsk-for-linerixibat/).",
+ "approved": "FDA 2026-03-17 (Alfasigma)",
+ "indications": [
+  {
+   "name": "Cholestasis",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT04167358",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-09-30",
+   "enrollment": 242,
+   "last_update_posted": "2026-06-22",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "Linerixibat Long-term Safety, and Tolerability Study"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

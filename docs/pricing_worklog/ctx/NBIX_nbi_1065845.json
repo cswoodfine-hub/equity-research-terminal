@@ -1,0 +1,69 @@
+{
+ "ticker": "NBIX",
+ "company": "Neurocrine Biosciences, Inc.",
+ "name": "NBI-1065845",
+ "inn_or_identity": "osavampator",
+ "sort_evidence": "NBI-1065845 is osavampator (ex TAK-653), an AMPA potentiator in a recruiting Phase 3 adjunctive MDD programme (NCT06786624, NCT06911112, NCT06963021) that the NBIX book does not hold (https://neurocrine.gcs-web.com/news-releases/news-release-details/neurocrine-biosciences-announces-initiation-phase-3).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Depressive Disorder, Major",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06966401",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-05",
+   "enrollment": 850,
+   "last_update_posted": "2026-07-24",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "Long-Term Study to Assess the Safety and Tolerability of NBI-1065845 as an Adjunctive Treatment in Participants With Major Depressive Disord"
+  },
+  {
+   "nct_id": "NCT07196501",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-07",
+   "enrollment": 550,
+   "last_update_posted": "2026-07-24",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "A Study to Evaluate the Maintenance Effect of NBI-1065845 as an Adjunctive Treatment in Participants With Major Depressive Disorder (MDD)"
+  },
+  {
+   "nct_id": "NCT06786624",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-07",
+   "enrollment": 200,
+   "last_update_posted": "2025-10-29",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "Study to Assess the Efficacy and Safety of NBI-1065845 as an Adjunctive Treatment in Participants With Major Depressive Disorder (MDD)"
+  },
+  {
+   "nct_id": "NCT06963021",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-07",
+   "enrollment": 200,
+   "last_update_posted": "2026-08-10",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "NBI-1065845-MDD3026: Study to Assess the Efficacy and Safety of NBI-1065845 as an Adjunctive Treatment in Participants With Major Depressive"
+  },
+  {
+   "nct_id": "NCT06911112",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-07",
+   "enrollment": 200,
+   "last_update_posted": "2026-08-11",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "NBI-1065845-MDD3025: Study to Assess the Efficacy and Safety of NBI-1065845 as an Adjunctive Treatment in Participants With Major Depressive"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

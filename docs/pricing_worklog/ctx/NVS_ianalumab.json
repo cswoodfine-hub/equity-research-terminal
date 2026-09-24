@@ -1,0 +1,129 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "Ianalumab",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 3 NCT05624749 (SIRIUS-SLE 2) is active not recruiting and the drug holds FDA Breakthrough designation (Jan 2026) but no approval (https://www.novartis.com/news/media-releases/novartis-ianalumab-receives-fda-breakthrough-therapy-designation-sjogrens-disease); clearest name of the three ianalumab rows.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Lupus Erythematosus, Systemic",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Lupus Nephritis",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Sjogren's Syndrome",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Scleroderma, Diffuse",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Evans Syndrome",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06711887",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2035-08-01",
+   "enrollment": 348,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Phase III Extension Study of Efficacy and Safety of Ianalumab With or Without Study Treatment Withdrawal in Participants With Lupus Nephriti"
+  },
+  {
+   "nct_id": "NCT05985915",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2033-04-22",
+   "enrollment": 612,
+   "last_update_posted": "2026-08-19",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Randomized, Double-blind 2-arm, Followed by an Open-label 1-arm, NEPTUNUS Extension Study to Assess the Long-term Safety and Efficacy of I"
+  },
+  {
+   "nct_id": "NCT07660172",
+   "phase": "Phase 2",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2033-04-22",
+   "enrollment": 36,
+   "last_update_posted": "2026-06-25",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study of Ianalumab in Addition to Eltrombopag in Pediatric Patients With Primary ITP Who Failed Corticosteroids."
+  },
+  {
+   "nct_id": "NCT07039422",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-08-30",
+   "enrollment": 60,
+   "last_update_posted": "2026-07-17",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Study of Ianalumab in Adults With Primary Immune Thrombocytopenia (ITP) and Warm-antibody Autoimmune Hemolytic Anemia (wAIHA) Who Have Previ"
+  },
+  {
+   "nct_id": "NCT06133972",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-04-08",
+   "enrollment": 550,
+   "last_update_posted": "2026-07-08",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Phase 3 Extension Study to Evaluate Long-term Safety of Ianalumab in Participants With Systemic Lupus Erythematosus (SIRIUS-SLE Extension)."
+  },
+  {
+   "nct_id": "NCT07421167",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-01-18",
+   "enrollment": 164,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study to Assess the Tolerability of Ianalumab (VAY736) With Investigator's Choice Thrombopoietin Receptor Agonist (IC TPO-RA) in Patients "
+  },
+  {
+   "nct_id": "NCT06470048",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-07-30",
+   "enrollment": 200,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Clinical Study to Evaluate Ianalumab in Participants With Diffuse Cutaneous Systemic Sclerosis"
+  },
+  {
+   "nct_id": "NCT05624749",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-04-12",
+   "enrollment": 288,
+   "last_update_posted": "2026-08-21",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Phase 3 Study to Evaluate Ianalumab on Top of Standard-of-care Therapy in Patients With Systemic Lupus Erythematosus (SIRIUS-SLE 2)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 2673,
+   "ticker": "NVS",
+   "generic": "ianalumab s.c. q4w",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  }
+ ]
+}

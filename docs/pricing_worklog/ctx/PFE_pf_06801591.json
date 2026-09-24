@@ -1,0 +1,29 @@
+{
+ "ticker": "PFE",
+ "company": "Pfizer Inc",
+ "name": "PF-06801591",
+ "inn_or_identity": "sasanlimab",
+ "sort_evidence": "Phase 3 CREST (NCT04165317) met its event-free survival endpoint, and Pfizer withdrew the EU application for Zumrad (sasanlimab) on 2026-02-13 after CHMP concerns (https://www.thepharmaletter.com/biotech-news/pfizer-withdraws-zumrad-ema-filing); no discontinuation is on record, so it is not DEAD.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Non-Muscle Invasive Bladder Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT04165317",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2024-12-02",
+   "enrollment": 1068,
+   "last_update_posted": "2026-01-22",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study of Sasanlimab in People With Non-muscle Invasive Bladder Cancer"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

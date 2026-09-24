@@ -1,0 +1,29 @@
+{
+ "ticker": "BAYN",
+ "company": "Bayer AG",
+ "name": "BAY3723113",
+ "inn_or_identity": "aficamten",
+ "sort_evidence": "BAY3723113 is aficamten (Cytokinetics' Myqorzo), in Bayer's Japanese Phase 3 CAMELLIA-HCM (NCT07023341, active not recruiting); Bayer holds only Japan rights, licensed November 2024, and no book row carries aficamten (https://www.drugs.com/history/myqorzo.html).",
+ "approved": "FDA 2025-12-19 (Cytokinetics); EMA 2026-02-12 (Cytokinetics)",
+ "indications": [
+  {
+   "name": "Cardiomyopathy, Hypertrophic",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07023341",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-08-31",
+   "enrollment": 36,
+   "last_update_posted": "2026-06-26",
+   "lead_sponsor": "Bayer",
+   "title": "A Study to Learn More About How Well Aficamten Works in Japanese Participants With Symptomatic Obstructive Hypertrophic Cardiomyopathy"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

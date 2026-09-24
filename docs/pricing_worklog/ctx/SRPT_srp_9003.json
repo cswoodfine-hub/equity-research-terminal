@@ -1,0 +1,39 @@
+{
+ "ticker": "SRPT",
+ "company": "Sarepta Therapeutics, Inc.",
+ "name": "SRP-9003",
+ "inn_or_identity": "bidridistrogene xeboparvovec",
+ "sort_evidence": "SRP-9003 has been on FDA clinical hold since July 2025, yet Sarepta kept it as the one LGMD programme it did not pause and still plans a BLA; NCT06246513 (Phase 3) is Active not recruiting, not suspended (https://www.fiercebiotech.com/biotech/sarepta-ldmd-trials-all-hit-fda-hold-amid-newly-surfaced-safety-concerns).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Muscular Dystrophies, Limb-Girdle",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05876780",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-08-28",
+   "enrollment": 6,
+   "last_update_posted": "2026-02-19",
+   "lead_sponsor": "Sarepta Therapeutics, Inc.",
+   "title": "A Gene Transfer Single Dose Study to Evaluate the Safety, Tolerability and Efficacy of SRP-9003 in Non-Ambulatory and Ambulatory Participant"
+  },
+  {
+   "nct_id": "NCT06246513",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2025-03-04",
+   "enrollment": 17,
+   "last_update_posted": "2026-03-02",
+   "lead_sponsor": "Sarepta Therapeutics, Inc.",
+   "title": "A Trial to Learn More About an Experimental Gene Therapy Called Bidridistrogene Xeboparvovec (SRP-9003) as a Possible Treatment for Limb Gir"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

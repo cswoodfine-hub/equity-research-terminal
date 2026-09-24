@@ -1,0 +1,69 @@
+{
+ "ticker": "NTLA",
+ "company": "Intellia Therapeutics, Inc.",
+ "name": "nexiguran ziclumeran",
+ "inn_or_identity": "",
+ "sort_evidence": "Nexiguran ziclumeran (NTLA-2001) is in the Phase 3 MAGNITUDE-2 ATTRv-PN trial (NCT06672237, recruiting) after FDA lifted the clinical hold on 2026-01-27; it is the clearer-named of two population rows for this molecule (https://ir.intelliatx.com/news-releases/news-release-details/intellia-therapeutics-announces-fda-lift-clinical-hold-magnitude).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Amyloidosis",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Amyloidosis, Hereditary, Transthyretin-Related",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Amyloidosis, Familial",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Heredodegenerative Disorders, Nervous System",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Polyneuropathies",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Amyloid Neuropathies",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Amyloid Neuropathies, Familial",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Peripheral Nervous System Diseases",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Metabolism, Inborn Errors",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06672237",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-07",
+   "enrollment": 60,
+   "last_update_posted": "2026-04-16",
+   "lead_sponsor": "Intellia Therapeutics",
+   "title": "A Phase 3 Study of NTLA-2001 in ATTRv-PN"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

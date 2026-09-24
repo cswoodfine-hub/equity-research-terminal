@@ -1,0 +1,119 @@
+{
+ "ticker": "LLY",
+ "name": "Brenipatide",
+ "summary": "Brenipatide (LY3537031) is Lilly's wholly owned dual GIP/GLP-1 receptor agonist, given as a subcutaneous injection, being developed for psychiatric and addiction disorders. The lead Phase 3 programme is RENEW-MDD-1 (NCT07412756, 1,000 participants, primary completion 2028-02) and RENEW-MDD-2 (NCT07775300, 1,000 participants, primary completion 2028-12): adjunctive brenipatide added to stable standard care versus placebo, with time to relapse of MDD as the primary endpoint. No human efficacy data in depression has been published. Price anchor: Vraylar (cariprazine), the branded adjunctive-MDD comparator the book carries, at $9,662 CMS Part D spend per beneficiary in 2024. Uptake anchor: Auvelity, the newest MDD-only brand with a clean CMS series, which captured 0.14% a year of the untreated Medicare Part D pool diagnosed with depressive disorders (corrected by the second reader from 0.23%, which applied a treated share to an already-diagnosed claims pool) in its second full year.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT07412756 and NCT07775300 (ClinicalTrials.gov): adjunctive treatment, with time to relapse as the primary endpoint, so the use is long-term maintenance",
+   "note": "A relapse-prevention label implies continuous dosing alongside the patient's antidepressant",
+   "verdict": "confirmed",
+   "check": "AdisInsight trial 700390700 and Indiana University listing TX13732 give the RENEW-MDD 1 title: 'Adjunctive Treatment With Brenipatide in Delaying Time to Relapse Compared With Placebo in Adult Participants With Major Depressive Disorder'; primary endpoint time to relapse. Long-term adjunctive use, so chronic"
+  },
+  "list_price_per_patient": {
+   "value": 0.009662,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Vraylar: CMS Part D 2024, $1,135,973,310 spend over 117,573 beneficiaries = $9,662 per beneficiary",
+   "note": "JUDGEMENT on the choice of comparator. Vraylar holds an adjunctive MDD label (approved December 2022), the same setting as the RENEW trials, and the book carries its demand. Caplyta, which holds the same adjunctive-MDD label (November 2025), comes in at $9,940 per beneficiary in 2024 and supports the anchor. The case against it: Vraylar's Medicare spend is mostly schizophrenia and bipolar use, and Lilly may price an incretin at the class level instead: Mounjaro $7,084, Ozempic $6,642 per beneficiary in 2024 (lookup.py demand). That price would be about 27% lower. Rexulti, the most-used adjunctive-MDD brand, is not in the book's demand table",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Vraylar 2024: 1,135,973,310 / 117,573 = $9,661.9, so 0.009662 mm USD per patient-year is right in unit. Vraylar adjunctive MDD approval 16 Dec 2022 confirmed (AbbVie press release, news.abbvie.com). Caplyta 2024 $9,940 per beneficiary confirmed in lookup; its adjunctive MDD approval was 6 Nov 2025 (J&J press release; Healio). Mounjaro $7,084 and Ozempic $6,642 confirmed in lookup. Comparator choice stays a judgement"
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention: halving a CMS per-beneficiary figure lands at a median 96% of CMS's own negotiated net prices (retatrutide seed, backend/gross_to_net.py)",
+   "note": "Net is 50% of list. Cross-check: Vraylar's IPAY 2027 maximum fair price is $770 per 30 days (book negotiated_prices, cms_mfp), which is about $9,370 for a full year. That is well above half the $9,662 part-year CMS figure, so for this comparator the convention may overstate the discount. It is kept because the two bases differ: per-beneficiary spend covers part of a year, and the MFP is a full-year price",
+   "verdict": "confirmed",
+   "check": "Direction checked: 0.5 is the share taken off list, net = 50% of list, matching the house convention in the retatrutide seed. Vraylar IPAY 2027 MFP $770 per 30 days confirmed in the book's negotiated_prices table (cms_mfp, 8 NDCs); 770 x 365/30 = $9,368 a year, so the researcher's caveat that the convention may overstate this comparator's discount holds"
+  },
+  "discontinuation_pct": {
+   "value": 0.648,
+   "unit": "share of the stock per year",
+   "source": "reused from the retatrutide seed: GLP-1 discontinuation at 1 year in adults with overweight or obesity and no type 2 diabetes, 64.8% (JAMA Network Open, Jan 2025, 125,474 adults, US EHR data 2018-2023)",
+   "note": "JUDGEMENT to reuse it. The same incretin class carries the same GI tolerability burden and injection burden. Case against: this is an obesity population, not a depressed population on stable antidepressants, and a relapse-prevention label may keep patients on drug longer. Antidepressant persistence is also poor, so the direction of the error is not clear",
+   "verdict": "confirmed",
+   "check": "JAMA Netw Open 2025;8(1), DOI 10.1001/jamanetworkopen.2024.57349 (PMC11786232): 1-year discontinuation 64.8% (95% CI 64.4-65.2) without type 2 diabetes, 46.5% with, n=125,474. Matches the retatrutide seed row. Reuse in a depressed population is a judgement, as flagged"
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "primary completion dates in the book's trials table: NCT07412756 2028-02, NCT07775300 2028-12 (both estimated)",
+   "note": "JUDGEMENT. A launch after 2027 is clear. The second relapse trial reads out at end-2028, a filing follows in 2029, and a standard review puts a US launch in late 2029 or 2030, so 2030 is the first full year. Case against: an earlier first approval in alcohol use disorder (Phase 3 readout expected mid-2028, per Psychiatric Times) could bring the molecule to market sooner, but MDD use would still need the MDD label",
+   "verdict": "confirmed",
+   "check": "Primary completion dates in the context file: NCT07412756 2028-02, NCT07775300 2028-12 (NCT07775300 on ClinicalTrials.gov is the MDD study). Filing 2029 and first full year 2030 is a reasonable judgement. Not checked: the Psychiatric Times mid-2028 alcohol use disorder readout in the note; it does not drive the value"
+  },
+  "exus_multiple": {
+   "value": 0.3454,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "reused from the retatrutide seed: tirzepatide's filed FY2025 molecule-level split, 9,373mm ex-US against 27,135mm US (LLY 10-K 0000059478-26-000013)",
+   "note": "JUDGEMENT. It uses Lilly's own incretin footprint. Case against: the psychiatric comparators are essentially US-only products (Vraylar, Auvelity), and ex-US payers price adjunctive antidepressants low, so the ratio for this indication could be well below 0.35",
+   "verdict": "confirmed",
+   "check": "Book asset_revenue_regions FY2025 (sec_fsds): Zepbound US 13,484mm / INTL 58mm, Mounjaro US 13,651mm / INTL 9,315mm; 9,373 / 27,135 = 0.3454. Matches the retatrutide seed. Applying an incretin footprint to a psychiatric label is a judgement, as flagged"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Lilly-coded molecule (LY3537031), sponsored by Eli Lilly and Company on every listed trial (context file); no partner is named in any source found",
+   "note": "Wholly owned",
+   "verdict": "confirmed",
+   "check": "Context file lists Eli Lilly and Company as lead sponsor on all 8 trials; LY-coded molecule; no partner found in the search results on RENEW-MDD (GEN, TipRanks, AdisInsight)"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Depressive Disorder, Major",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: epidemiology.csv, 21,414,000 (NIMH/NSDUH, 8.3% of US adults with a past-year major depressive episode)",
+     "note": "The book fills it, so no second figure is set",
+     "verdict": "confirmed",
+     "check": "lookup.py pool 'Depressive Disorder, Major': epidemiology.csv carries 21,414,000. Null is correct"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (epidemiology.csv row, incidence blank)",
+     "note": "The book fills it",
+     "verdict": "confirmed",
+     "check": "epidemiology.csv row has a blank incidence; null with 'carried by the book' is correct"
+    },
+    "eligible_pct": {
+     "value": 0.61,
+     "unit": "share",
+     "source": "NIMH, Major Depression statistics (nimh.nih.gov/health/statistics/major-depression), from NSDUH 2021: 61.0% of US adults with a past-year major depressive episode received treatment",
+     "note": "The label is adjunctive to stable standard care (RENEW-MDD-1 inclusion requires stable MDD standard-of-care medication), so it reaches the treated. This is an upper bound: 'treatment' includes talk therapy alone, and the medication-only share could not be sourced. Exclusions (psychosis, bipolar disorder, eating disorders, type 1 diabetes) are small against the pool",
+     "verdict": "confirmed",
+     "check": "NIMH Major Depression statistics page (NSDUH 2021): 61.0% of US adults 18+ with a past-year MDE received treatment. The label is adjunctive to stable standard care (RENEW-MDD-1 title and design, AdisInsight), so the treated share is the right filter on the survey-based book prevalence. Upper bound as the researcher says; the medication-only split could not be retrieved from the 2021 NSDUH detailed tables in search either"
+    },
+    "penetration_peak_pct": {
+     "value": 0.001417,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "Auvelity, CMS Part D (lookup.py demand Auvelity): 9,268 beneficiaries in 2023, 16,448 in 2024. Pool: 53.1mm Part D enrollees in 2024 (KFF, Key Facts About Medicare Part D Enrollment, Premiums, and Cost Sharing in 2024) x 17.54% of Medicare fee-for-service beneficiaries with depressive disorders in 2022 (CMS Chronic Conditions Warehouse, Medicare chronic condition charts) = 9,313,740, with NO further treated-share factor, because the CCW flag is built from diagnosis claims and so already counts only beneficiaries seen for depression. New patients in 2024 = 16,448 - 9,268 x (1 - 0.648) = 13,186, over 9,313,740 - 9,268 = 9,304,472 = 0.1417%",
+     "note": "JUDGEMENT: a 1.0x multiple on Auvelity. Corrected by the second reader from 0.2325%. The researcher multiplied the CCW diagnosed share by the NSDUH 61.0% treated share. NSDUH's 61% is the share of people with an MDE in a household survey (diagnosed or not) who received treatment; the CCW 17.54% already counts only beneficiaries with a depression diagnosis on a claim, which is itself a health-professional contact. Applying 61% again double-counts the treatment filter and shrinks the Medicare pool 1.64x, inflating the rate 1.64x. The engine divides by prevalence x eligible_pct = the treated US MDE pool, and its Medicare counterpart is the claims-diagnosed pool, not 61% of it. Remaining caveats: CCW 'depressive disorders' is broader than MDD (dysthymia, other depressive disorders), which biases this rate down; the CCW share is fee-for-service only but is applied to all Part D enrollees including MA-PD; 2024 is Auvelity's second full year and not its peak (FY2025 net sales $507.1mm, up 74%, Axsome 8-K 23 Feb 2026); and Auvelity's Medicare rate is applied to an all-payer US pool. Arithmetic unchanged otherwise: the 64.8% stop rate is the asset field",
+     "verdict": "corrected",
+     "check": "Recomputed every step. KFF 2024: 53.1mm Part D enrollees, confirmed. CCW: depressive disorders 17.54% period prevalence in 2022 among beneficiaries with full FFS Part A/B coverage, confirmed (www2.ccwdata.org Medicare chronic condition charts). Auvelity 9,268 and 16,448 confirmed in lookup. Researcher's own arithmetic holds (5,681,381 pool; 13,186 new; 0.2325%), but the pool is wrong: the 0.61 treated share is applied to a population already defined by diagnosis claims. Dropping it gives 13,186 / 9,304,472 = 0.1417%"
+    },
+    "ramp_steepness": {
+     "value": 0.574,
+     "unit": "logistic k",
+     "source": "Auvelity CMS Part D beneficiaries, 9,268 in 2023 to 16,448 in 2024, a step of 1.775x, so k = ln(1.775) = 0.574",
+     "note": "JUDGEMENT. It treats the series as still in its early exponential phase, which understates k if Auvelity had already begun to bend. No MDD competitor is modelled in the book. The incretin curve in the retatrutide seed (k 1.402, from Mounjaro) was rejected: psychiatric launches ramp more slowly, and Auvelity grew 1.77x in its second full year where Mounjaro grew 2.42x",
+     "verdict": "confirmed",
+     "check": "ln(16,448 / 9,268) = ln(1.7747) = 0.5736; lookup confirms both beneficiary counts. Mounjaro 2023 to 2024 step 894,581 / 370,203 = 2.42x confirmed in lookup. The early-exponential reading is a judgement, as flagged"
+    },
+    "ramp_midpoint_year": {
+     "value": 3.0,
+     "unit": "years from the forecast start",
+     "source": "Axsome FY2025 results (8-K, February 2026): Auvelity net sales up 74% in its third full year, with Q4 2025 prescriptions up 42% year on year and 8% quarter on quarter",
+     "note": "JUDGEMENT. Auvelity was still growing fast in year three but slowing (8% quarter on quarter), which puts its half-of-peak point around year 3. Case against: this rests on one launch, and a relapse-prevention adjunct could build more slowly",
+     "verdict": "confirmed",
+     "check": "Axsome Q4/FY2025 results (GlobeNewswire 23 Feb 2026; 8-K exhibit 99.1): Auvelity FY2025 net sales $507.1mm, up 74%, 'third full year of commercial launch'; Q4 2025 about 225,000 prescriptions, up 42% year on year and 8% quarter on quarter. Midpoint 3.0 is a judgement on one launch, as flagged"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

@@ -1,0 +1,44 @@
+{
+ "ticker": "VOR",
+ "company": "Vor Biopharma Inc.",
+ "name": "Telitacicept",
+ "inn_or_identity": "",
+ "sort_evidence": "Telitacicept holds only China NMPA approvals, held by RemeGen, with no FDA or EMA approval; NCT06456580 and NCT07404865 are Vor's recruiting global Phase 3 trials (https://ir.vorbio.com/news-releases/news-release-details/vor-bio-doses-first-patient-global-phase-3-upstream-sjd).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Sjogren's Syndrome",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Myasthenia Gravis",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07404865",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-12",
+   "enrollment": 250,
+   "last_update_posted": "2026-08-27",
+   "lead_sponsor": "Vor Biopharma",
+   "title": "Phase 3 Study of Telitacicept in Active Primary Sj\u00f6gren's Disease"
+  },
+  {
+   "nct_id": "NCT06456580",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-05",
+   "enrollment": 180,
+   "last_update_posted": "2026-06-18",
+   "lead_sponsor": "Vor Biopharma",
+   "title": "A Study of Telitacicept for the Treatment of Generalized Myasthenia Gravis (UPSTREAM MG)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

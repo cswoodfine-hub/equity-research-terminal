@@ -1,0 +1,49 @@
+{
+ "ticker": "INCY",
+ "company": "Incyte Corporation",
+ "name": "INCA33890",
+ "inn_or_identity": "",
+ "sort_evidence": "INCA33890 is a TGFbR2xPD-1 bispecific antibody in a recruiting 700-patient Phase 3 first-line MSS colorectal trial (NCT07284849), not in the INCY book (https://investor.incyte.com/news-releases/news-release-details/incyte-announces-phase-1-results-its-tgfbr2pd-1-bispecific).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Colorectal Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07823322",
+   "phase": "Phase 2",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2029-05-14",
+   "enrollment": 40,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "A Study to Evaluate INCA33890 in the Treatment of Circulating Tumor DNA-Positive Stage II/III Microsatellite Stable Colorectal Cancer After "
+  },
+  {
+   "nct_id": "NCT05836324",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-05-03",
+   "enrollment": 570,
+   "last_update_posted": "2026-07-23",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "A Study to Evaluate the Safety of INCA33890 in Participants With Advanced or Metastatic Solid Tumors"
+  },
+  {
+   "nct_id": "NCT07284849",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-12-29",
+   "enrollment": 700,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "A Study to Evaluate the Efficacy and Safety of Standard-of-Care Chemotherapy and Bevacizumab With or Without INCA33890 in the First-Line Tre"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

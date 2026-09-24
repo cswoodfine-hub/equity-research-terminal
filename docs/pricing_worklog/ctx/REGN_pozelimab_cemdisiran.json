@@ -1,0 +1,29 @@
+{
+ "ticker": "REGN",
+ "company": "Regeneron Pharmaceuticals Inc",
+ "name": "Pozelimab + Cemdisiran",
+ "inn_or_identity": "cemdisiran",
+ "sort_evidence": "Pozelimab is already sold as Veopoz but cemdisiran is an unapproved C5 siRNA with no row of its own in the book; NCT05070858 (NIMBLE) tested both, and Regeneron reported FDA and EMA acceptance of cemdisiran filings in gMG (https://investor.regeneron.com/news-releases/news-release-details/cemdisiran-regulatory-submissions-accepted-review-fda-and-ema).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Myasthenia Gravis",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05070858",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2025-07-08",
+   "enrollment": 288,
+   "last_update_posted": "2026-07-08",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A Study to Test How Safe Pozelimab and Cemdisiran Combination Therapy and Cemdisiran Alone Are and How Well They Work in Adult Patients With"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

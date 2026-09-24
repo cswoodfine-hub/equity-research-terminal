@@ -1,0 +1,94 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "Pelabresib",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 3 NCT07357727 of pelabresib (DAK539) plus ruxolitinib in myelofibrosis is recruiting and the drug has no FDA or EMA approval.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Hematologic Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Primary Myelofibrosis",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07422610",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-06-28",
+   "enrollment": 24,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Pharmacokinetics and Safety Study of Pelabresib in Patients With Advanced Malignancies and Hepatic Impairment"
+  },
+  {
+   "nct_id": "NCT07357727",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-05-17",
+   "enrollment": 460,
+   "last_update_posted": "2026-09-23",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Phase 3 Study of Pelabresib (DAK539) and Ruxolitinib in Myelofibrosis (MF)"
+  },
+  {
+   "nct_id": "NCT07340190",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-03-09",
+   "enrollment": 24,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Drug-drug Interaction Study to Evaluate the Effects of Pelabresib on the Pharmacokinetics of Repaglinide, Midazolam, and Combined Oral Con"
+  },
+  {
+   "nct_id": "NCT06401356",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-06-02",
+   "enrollment": 50,
+   "last_update_posted": "2026-06-11",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "An Extension Study for Patients Previously Enrolled in Studies With Pelabresib"
+  },
+  {
+   "nct_id": "NCT07783503",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-11-13",
+   "enrollment": 30,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Drug-drug Interaction Study to Assess the Effect of Phenytoin and Itraconazole on the Pharmacokinetics of Pelabresib in Healthy Participan"
+  },
+  {
+   "nct_id": "NCT07340138",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-07-23",
+   "enrollment": 3,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Study of Pelabresib add-on to Ruxolitinib in Japanese Adult Patients With Myelofibrosis"
+  },
+  {
+   "nct_id": "NCT04603495",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2023-08-23",
+   "enrollment": 430,
+   "last_update_posted": "2026-07-17",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Phase 3 Study of Pelabresib (CPI-0610) in Myelofibrosis (MF) (MANIFEST-2)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

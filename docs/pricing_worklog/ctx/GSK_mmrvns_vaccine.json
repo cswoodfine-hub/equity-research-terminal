@@ -1,0 +1,54 @@
+{
+ "ticker": "GSK",
+ "company": "GSK plc",
+ "name": "MMRVNS vaccine",
+ "inn_or_identity": "MMRV new strain (MMRVNS) vaccine",
+ "sort_evidence": "NCT07742644 (not yet recruiting) tests an investigational combined measles, mumps, rubella and varicella vaccine built on GSK's unapproved varicella new strain, a combined product the book does not hold, in the way ProQuad sits apart from Varivax.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Chickenpox",
+   "phase": "Phase 3",
+   "development_status": "Not yet recruiting"
+  },
+  {
+   "name": "Measles",
+   "phase": "Phase 3",
+   "development_status": "Not yet recruiting"
+  },
+  {
+   "name": "Mumps",
+   "phase": "Phase 3",
+   "development_status": "Not yet recruiting"
+  },
+  {
+   "name": "Rubella",
+   "phase": "Phase 3",
+   "development_status": "Not yet recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07742644",
+   "phase": "Phase 3",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-06-27",
+   "enrollment": 1860,
+   "last_update_posted": "2026-08-03",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study on the Immune Response and Safety of an Investigational Combined Measles, Mumps, Rubella and Varicella Vaccine, When Given to Health"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 2177,
+   "ticker": "GSK",
+   "generic": "MMRVNS",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  }
+ ]
+}

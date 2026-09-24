@@ -1,0 +1,93 @@
+{
+ "ticker": "SNY",
+ "name": "Tolebrutinib",
+ "summary": "Tolebrutinib is Sanofi's wholly owned oral brain-penetrant BTK inhibitor, approved in the EU as Cenrifki on 2026-06-19 for SPMS without relapses on the HERCULES phase 3 (NCT04411641). In the US the FDA issued a complete response letter in December 2025, stating the risk of severe drug-induced liver injury could not be adequately mitigated by the proposed REMS; PERSEUS in PPMS failed and Sanofi impaired the asset by EUR 1,663mm in 2025. No US path is established: Sanofi's H1 2026 pipeline lists no US registration, its milestone table through 2028 carries no tolebrutinib event, and the only open trial is a long-term safety extension (NCT06372145). Fields are filled for reference on the book's MS precedents (Mayzent price, Kesimpta capture at 0.5x), but the asset is refused for seeding.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "EC approval release, 6-K 0001193125-26-280319 exhibit 99.3; lookup.py seed Fenebrutinib (oral BTK inhibitor, 'taken indefinitely')",
+   "note": "Oral daily disease-modifying therapy"
+  },
+  "list_price_per_patient": {
+   "value": 0.094698,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py seed Fenebrutinib: Mayzent (siponimod), CMS Medicare Part D 2025 Q1-Q4, $76,894,374.15 over 812 beneficiaries = $94,697.51 (the book's 2024 annual row, lookup.py demand Mayzent, gives $89,232)",
+   "note": "Mayzent is the only oral DMT with a US SPMS label and the book's anchor for fenebrutinib in progressive MS. Case against: the frexalimab seed anchors on Ocrevus Part B at $56,845, which would cut this by 40%; a first nrSPMS-specific therapy could also be priced at a premium"
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share off list",
+   "source": "House Part D convention (backend/gross_to_net.py), as applied in the fenebrutinib seed",
+   "note": "Direction checked: net is 50% of the CMS gross figure"
+  },
+  "discontinuation_pct": {
+   "value": 0.371,
+   "unit": "share of the stock per year",
+   "source": "Reused from the fenebrutinib seed: 62.9% twelve-month persistence for oral DMTs, US IQVIA PharMetrics Plus (Mult Scler Relat Disord 2024, PubMed 39388747)",
+   "note": "Judgement, likely understated: the EU label requires strict liver monitoring for DILI (EC approval release), which adds a reason to stop that other oral DMTs lack"
+  },
+  "forecast_start_year": {
+   "value": 2027,
+   "unit": "year",
+   "source": "Brief convention",
+   "note": "No US launch date can be inferred: there is no US resubmission, new US trial or FDA action date on record. See refuse"
+  },
+  "exus_multiple": {
+   "value": null,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "",
+   "note": "Left null. The book's only Sanofi MS split, Aubagio (asset_revenue_regions), is distorted by US generic entry in 2023 and has no pre-generic year in the book. More basically, tolebrutinib's revenue is ex-US only for now, which a multiple of US revenue cannot represent"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Sanofi 20-F FY2025, 0001628280-26-008403: tolebrutinib carries no collaboration footnote in the pipeline tables; the book's asset_economics holds no partner row",
+   "note": "Came with Sanofi's 2020 acquisition of Principia; wholly owned"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Multiple Sclerosis, Chronic Progressive",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: data/epidemiology.csv Multiple Sclerosis, 913,925 US adults (Wallin et al., Neurology 2019); the fenebrutinib seed already scales it for this indication name",
+     "note": "Left null so the book fills it"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: the fenebrutinib seed states it at nil for this indication name, and data/epidemiology.csv carries none",
+     "note": "Left null so two assets do not carry two figures"
+    },
+    "eligible_pct": {
+     "value": 0.067,
+     "unit": "share of the pool",
+     "source": "Guerra et al., Journal of Neurology 2026 (HerMeS, PubMed 41803454, doi.org/10.1007/s00415-026-13716-1): HERCULES-adapted criteria classed 1,603 of 20,306 relapsing-onset patients (7.89%) in the Italian MS Register as nrSPMS. Times the 85% of MS that is not primary progressive (Roche, 2026-02-07, as carried in the fenebrutinib seed): 0.0789 x 0.85 = 0.067, about 61,300 of 913,925",
+     "note": "Judgement: an Italian registry, not a US one, and Sanofi co-authored it. The EU label (SPMS without relapses in the last two years) is close to this definition. Case for higher: neurologist-defined SPMS is under-recorded (4.26% in the same register), and meta-analyses put all SPMS at a larger share of prevalent MS; a US label, if any, could differ"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0263,
+     "unit": "share of the eligible untreated pool captured per year at peak",
+     "source": "The book's measured Kesimpta capture, 5.26% (lookup.py seed Fenebrutinib: 2025 new starts over the 88,474 Medicare MS patients on no DMT), at a 0.5x multiple: 0.0263",
+     "note": "The 0.5x is a judgement, following the frexalimab seed's halving of the Kesimpta anchor. The case for it: a DILI safety risk with mandatory liver monitoring and an FDA rejection on record would slow adoption. The case against: no approved nrSPMS therapy exists, so unmet need could support the full rate"
+    },
+    "ramp_steepness": {
+     "value": 0.63,
+     "unit": "logistic k",
+     "source": "Reused from the fenebrutinib seed: Kesimpta six-point new-start fit 2020-2025, k 0.626",
+     "note": "Reused as measured"
+    },
+    "ramp_midpoint_year": {
+     "value": null,
+     "unit": "years from forecast_start_year",
+     "source": "Fenebrutinib seed: Kesimpta-fitted midpoint 3.078 years after launch",
+     "note": "Left null: the offset from 2027 to a US launch cannot be sourced while no US path exists. Add 3.078 to (first full US year - 2027) once one is announced"
+    }
+   }
+  }
+ ],
+ "refuse": "No US path. The FDA's December 2025 complete response letter found the severe drug-induced liver injury risk could not be adequately mitigated by the proposed REMS (Sanofi release 2025-12-24, sanofi.com/en/media-room/press-releases/2025/2025-12-24-06-00-00-3210238; Pharmacy Times on the redacted CRL). Sanofi then impaired tolebrutinib by EUR 1,663mm (20-F FY2025, 0001628280-26-008403). As of 30 June 2026 its pipeline lists no US registration for tolebrutinib (Sanofi half-year financial report 2026, 6-K 0001628280-26-050803 exhibit 99.2), its milestone table through 2028 carries no tolebrutinib event (Sanofi Q2 2026 results press release, 6-K 0001121404-26-000008), and the only active trial is the long-term safety extension NCT06372145. The asset earns EU revenue only (Cenrifki, launching in Germany in 2026), which the engine's US-plus-multiple structure cannot hold. Sanofi's own nrSPMS successor is frexalimab (FREVIVA, phase 3 data and submission 2028), already in the book under Multiple Sclerosis. Revisit if Sanofi announces a US resubmission or a new US study."
+}

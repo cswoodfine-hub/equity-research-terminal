@@ -1,0 +1,79 @@
+{
+ "ticker": "INCY",
+ "company": "Incyte Corporation",
+ "name": "INCB123667",
+ "inn_or_identity": "",
+ "sort_evidence": "INCB123667 is a selective CDK2 inhibitor in a recruiting Phase 3 in cyclin E1-overexpressing platinum-resistant ovarian cancer (NCT07214779), not in the INCY book; no INN published.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Ovarian Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Renal Insufficiency",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Hepatic Insufficiency",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07797283",
+   "phase": "Phase 3",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2032-05-01",
+   "enrollment": 590,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "Phase 3 Study of INCB123667 Plus Bevacizumab Versus Bevacizumab Alone as First-Line Maintenance Therapy in Ovarian Cancer Overexpressing Cyc"
+  },
+  {
+   "nct_id": "NCT07214779",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-11-15",
+   "enrollment": 466,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "Study to Evaluate INCB123667 Versus Investigator's Choice of Chemotherapy in Participants With Platinum-Resistant Ovarian Cancer With Cyclin"
+  },
+  {
+   "nct_id": "NCT07023627",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-04-27",
+   "enrollment": 160,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "A Study of INCB123667 in Participants With Platinum-Resistant Ovarian Cancer With Cyclin E1 Overexpression"
+  },
+  {
+   "nct_id": "NCT07559474",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-04-13",
+   "enrollment": 16,
+   "last_update_posted": "2026-06-16",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "A Study to Assess the Safety and Pharmacokinetics of INCB123667 When Administered Orally to Adult Participants With Moderate or Severe Hepat"
+  },
+  {
+   "nct_id": "NCT07559396",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-01-04",
+   "enrollment": 16,
+   "last_update_posted": "2026-06-16",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "A Study to Assess the Safety and Pharmacokinetics of INCB123667 When Administered Orally to Adult Participants With Severe Renal Impairment "
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

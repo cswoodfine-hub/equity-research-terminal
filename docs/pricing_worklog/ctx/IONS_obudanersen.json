@@ -1,0 +1,39 @@
+{
+ "ticker": "IONS",
+ "company": "Ionis Pharmaceuticals, Inc.",
+ "name": "obudanersen",
+ "inn_or_identity": "",
+ "sort_evidence": "Obudanersen (ION582) is an antisense oligonucleotide for Angelman syndrome in the recruiting Phase 3 REVEAL (NCT06914609), not in the IONS book.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Angelman Syndrome",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07782827",
+   "phase": "Phase 3",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-05",
+   "enrollment": 30,
+   "last_update_posted": "2026-08-24",
+   "lead_sponsor": "Ionis Pharmaceuticals, Inc.",
+   "title": "CHAMPION: A Study to Evaluate the Efficacy and Safety of Obudanersen (ION582) in Children and Adults With Angelman Syndrome (AS)"
+  },
+  {
+   "nct_id": "NCT06914609",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-08",
+   "enrollment": 158,
+   "last_update_posted": "2026-08-28",
+   "lead_sponsor": "Ionis Pharmaceuticals, Inc.",
+   "title": "REVEAL: A Phase 3 Study of Obudanersen (ION582) in Angelman Syndrome"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

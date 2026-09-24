@@ -1,0 +1,39 @@
+{
+ "ticker": "ARGX",
+ "company": "argenx SE",
+ "name": "Adimanebart IV",
+ "inn_or_identity": "adimanebart",
+ "sort_evidence": "Adimanebart is the INN for ARGX-119, a MuSK agonist antibody with a Phase 3 CMS trial not yet recruiting (NCT07746089); it is the clearer-named of two population rows for this molecule (https://accp1.onlinelibrary.wiley.com/doi/10.1002/jcph.70208).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Myasthenic Syndromes, Congenital",
+   "phase": "Phase 3",
+   "development_status": "Not yet recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07746089",
+   "phase": "Phase 3",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2030-10",
+   "enrollment": 105,
+   "last_update_posted": "2026-08-04",
+   "lead_sponsor": "argenx",
+   "title": "A Study to Assess Efficacy and Safety of Adimanebart in Adult and Pediatric Participants With DOK7-,MUSK-, AGRN-, or LRP4- Congenital Myasth"
+  },
+  {
+   "nct_id": "NCT07673601",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-12",
+   "enrollment": 52,
+   "last_update_posted": "2026-06-29",
+   "lead_sponsor": "argenx",
+   "title": "A Study to Assess the Absolute Bioavailability and How Adimanebart SC Moves Through the Body in Healthy Adult Participants"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

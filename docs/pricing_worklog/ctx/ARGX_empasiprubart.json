@@ -1,0 +1,129 @@
+{
+ "ticker": "ARGX",
+ "company": "argenx SE",
+ "name": "Empasiprubart",
+ "inn_or_identity": "",
+ "sort_evidence": "Empasiprubart (ex ARGX-117), an anti-C2 antibody, is in recruiting Phase 3 CIDP trials (NCT06920004, NCT07091630) with no model in the book; the only other book row, empasiprubart SC AI (id 1605), is unmodelled.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Polyradiculoneuropathy, Chronic Inflammatory Demyelinating",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Myasthenia Gravis",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Guillain-Barre Syndrome",
+   "phase": "Phase 2",
+   "development_status": "Not yet recruiting"
+  },
+  {
+   "name": "Myositis",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Dermatomyositis",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07638566",
+   "phase": "Phase 2/3",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-04",
+   "enrollment": 6,
+   "last_update_posted": "2026-06-10",
+   "lead_sponsor": "argenx",
+   "title": "A Study to Assess the Correct Dose, Safety and Efficacy of Empasiprubart in Adolescent Participants Aged 12 to Less Than 18 Years With Chron"
+  },
+  {
+   "nct_id": "NCT07284420",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-03-07",
+   "enrollment": 70,
+   "last_update_posted": "2026-09-23",
+   "lead_sponsor": "argenx",
+   "title": "ADAPT Forward 1 - ISA1 - a Study to Evaluate Empasiprubart IV as add-on Therapy to Efgartigimod IV in Participants With AChR-Ab Seropositive"
+  },
+  {
+   "nct_id": "NCT07610564",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-02-01",
+   "enrollment": 60,
+   "last_update_posted": "2026-09-23",
+   "lead_sponsor": "argenx",
+   "title": "A Study to Assess the Effect of Empasiprubart on Nerve Morphology by Ultrasound in Adults With Multifocal Motor Neuropathy"
+  },
+  {
+   "nct_id": "NCT07821762",
+   "phase": "Phase 2",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-01",
+   "enrollment": 63,
+   "last_update_posted": "2026-09-16",
+   "lead_sponsor": "argenx",
+   "title": "A Study of Empasiprubart as Add-On Therapy to IVIg in Adult Participants With Guillain-Barr\u00e9 Syndrome"
+  },
+  {
+   "nct_id": "NCT07091630",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-10-07",
+   "enrollment": 160,
+   "last_update_posted": "2026-09-23",
+   "lead_sponsor": "argenx",
+   "title": "A Study to Assess the Efficacy and Safety of Empasiprubart in Adults With CIDP"
+  },
+  {
+   "nct_id": "NCT07673627",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-10",
+   "enrollment": 40,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "argenx",
+   "title": "ADAPT Forward 2 - ISA2 - a Study to Evaluate the Safety, Tolerability and Efficacy of Empasiprubart IV Monotherapy in Participants With AChR"
+  },
+  {
+   "nct_id": "NCT06920004",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-09",
+   "enrollment": 218,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "argenx",
+   "title": "A Study to Assess Efficacy and Safety of Empasiprubart Versus IVIg in Adults With CIDP"
+  },
+  {
+   "nct_id": "NCT06284954",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-11",
+   "enrollment": 3,
+   "last_update_posted": "2025-09-25",
+   "lead_sponsor": "argenx",
+   "title": "A Study to Evaluate Safety and Efficacy of Empasiprubart in Adults With Dermatomyositis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 1605,
+   "ticker": "ARGX",
+   "generic": "empasiprubart SC AI",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  }
+ ]
+}

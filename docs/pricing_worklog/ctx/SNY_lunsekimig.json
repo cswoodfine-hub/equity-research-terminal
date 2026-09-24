@@ -1,0 +1,84 @@
+{
+ "ticker": "SNY",
+ "company": "Sanofi",
+ "name": "Lunsekimig",
+ "inn_or_identity": "",
+ "sort_evidence": "Lunsekimig (SAR443765, a TSLP/IL-13 nanobody) is not in the book and has Phase 3 COPD trials NCT07190209 and NCT07190222 Recruiting.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Pulmonary Disease, Chronic Obstructive",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Asthma",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07793409",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2031-07-23",
+   "enrollment": 1508,
+   "last_update_posted": "2026-09-21",
+   "lead_sponsor": "Sanofi",
+   "title": "A Study to Evaluate the Long-term Safety and Efficacy of Lunsekimig in Adult Participants With Chronic Obstructive Pulmonary Disease (COPD)"
+  },
+  {
+   "nct_id": "NCT06914908",
+   "phase": "Phase 2",
+   "overall_status": "Enrolling by invitation",
+   "primary_completion_date": "2031-01-29",
+   "enrollment": 71,
+   "last_update_posted": "2026-07-02",
+   "lead_sponsor": "Sanofi",
+   "title": "Long-term Safety and Efficacy Evaluation of Lunsekimig in Adult Participants With Chronic Rhinosinusitis With Nasal Polyps (CRSwNP) Who Comp"
+  },
+  {
+   "nct_id": "NCT06609239",
+   "phase": "Phase 2",
+   "overall_status": "Enrolling by invitation",
+   "primary_completion_date": "2031-01-20",
+   "enrollment": 900,
+   "last_update_posted": "2026-09-21",
+   "lead_sponsor": "Sanofi",
+   "title": "Long-term Safety and Efficacy Evaluation of Lunsekimig (SAR443765) in Adult Participants With Asthma"
+  },
+  {
+   "nct_id": "NCT07190222",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-11-27",
+   "enrollment": 942,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "Sanofi",
+   "title": "Efficacy, Safety, and Tolerability Study of Lunsekimig Compared With Placebo in Adult Participants With Inadequately Controlled Chronic Obst"
+  },
+  {
+   "nct_id": "NCT07190209",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-11-27",
+   "enrollment": 942,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Sanofi",
+   "title": "Efficacy, Safety, and Tolerability Study of Lunsekimig Compared With Placebo in Adult Participants With Inadequately Controlled Chronic Obst"
+  },
+  {
+   "nct_id": "NCT06676319",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-06-21",
+   "enrollment": 556,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Sanofi",
+   "title": "Study of Lunsekimig (SAR443765) Compared With Placebo in Adults With High-risk Asthma"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

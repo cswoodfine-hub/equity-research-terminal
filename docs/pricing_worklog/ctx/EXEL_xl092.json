@@ -1,0 +1,54 @@
+{
+ "ticker": "EXEL",
+ "company": "Exelixis, Inc.",
+ "name": "XL092",
+ "inn_or_identity": "zanzalintinib",
+ "sort_evidence": "XL092 is zanzalintinib, a different molecule from Cabometyx; its CRC NDA has a PDUFA date of 2027-03-03, and NCT05425940 and NCT05678673 (Phase 3) are active (https://www.cancernetwork.com/view/fda-extends-review-of-zanzalintinib-combo-in-pretreated-metastatic-crc).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Colorectal Neoplasms",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Carcinoma, Renal Cell",
+   "phase": "Phase 1",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05678673",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-12-15",
+   "enrollment": 317,
+   "last_update_posted": "2026-07-29",
+   "lead_sponsor": "Exelixis",
+   "title": "Study of XL092 + Nivolumab vs Sunitinib in Subjects With Advanced or Metastatic Non-Clear Cell Renal Cell Carcinoma"
+  },
+  {
+   "nct_id": "NCT03845166",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-08-31",
+   "enrollment": 325,
+   "last_update_posted": "2024-11-19",
+   "lead_sponsor": "Exelixis",
+   "title": "A Study of XL092 as Single-Agent and Combination Therapy in Subjects With Solid Tumors"
+  },
+  {
+   "nct_id": "NCT05425940",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-06-16",
+   "enrollment": 901,
+   "last_update_posted": "2026-07-17",
+   "lead_sponsor": "Exelixis",
+   "title": "Study of XL092 + Atezolizumab vs Regorafenib in Participants With Metastatic Colorectal Cancer"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

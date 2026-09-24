@@ -1,0 +1,74 @@
+{
+ "ticker": "NBIX",
+ "company": "Neurocrine Biosciences, Inc.",
+ "name": "NBI-1117568",
+ "inn_or_identity": "direclidine",
+ "sort_evidence": "NBI-1117568 is direclidine, an M4 agonist licensed from Nxera, with four recruiting Phase 3 schizophrenia trials (NCT06963034, NCT07105098, NCT07227818, NCT07114874) and none of it in the NBIX book (https://en.wikipedia.org/wiki/Direclidine).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Schizophrenia",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Mania",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07114874",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2031-12",
+   "enrollment": 600,
+   "last_update_posted": "2026-06-05",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "NBI-1117568-SCZ3032: Long-Term Evaluation of NBI-1117568 in Adults With Schizophrenia"
+  },
+  {
+   "nct_id": "NCT07227818",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-07",
+   "enrollment": 560,
+   "last_update_posted": "2026-06-05",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "Efficacy of NBI-1117568 in Preventing Relapse in Adults With Schizophrenia"
+  },
+  {
+   "nct_id": "NCT07288320",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-02",
+   "enrollment": 150,
+   "last_update_posted": "2026-07-31",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "An Assessment of Efficacy, Safety, and Pharmacokinetics of NBI-1117568 in Adults With Bipolar I Disorder With Current Mania"
+  },
+  {
+   "nct_id": "NCT07105098",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-11",
+   "enrollment": 284,
+   "last_update_posted": "2026-05-15",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "NBI-1117568-SCZ3030: Evaluation of NBI-1117568 in Inpatient Adults With Schizophrenia"
+  },
+  {
+   "nct_id": "NCT06963034",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-10",
+   "enrollment": 284,
+   "last_update_posted": "2026-03-06",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "NBI-1117568-SCZ3029: Evaluation of NBI-1117568 in Inpatient Adults With Schizophrenia"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

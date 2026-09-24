@@ -1,0 +1,49 @@
+{
+ "ticker": "TSHA",
+ "company": "Taysha Gene Therapies, Inc.",
+ "name": "TSHA-102",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT05606614 (REVEAL, Phase 1/2/3, Active not recruiting) is Taysha's pivotal Rett syndrome study, and no other row in the book holds this gene therapy.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Rett Syndrome",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05606614",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2031-06",
+   "enrollment": 17,
+   "last_update_posted": "2026-07-07",
+   "lead_sponsor": "Taysha Gene Therapies, Inc.",
+   "title": "A Phase 1/2/3 Study of TSHA-102 Gene Therapy in Females With Rett Syndrome (REVEAL Pivotal Study)"
+  },
+  {
+   "nct_id": "NCT07480564",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2031-06",
+   "enrollment": 4,
+   "last_update_posted": "2026-08-19",
+   "lead_sponsor": "Taysha Gene Therapies, Inc.",
+   "title": "Safety and Preliminary Efficacy of TSHA-102 Gene Therapy in Pediatric Females Aged >2 to <4 Years With Rett Syndrome"
+  },
+  {
+   "nct_id": "NCT06152237",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-11-02",
+   "enrollment": 6,
+   "last_update_posted": "2025-10-15",
+   "lead_sponsor": "Taysha Gene Therapies, Inc.",
+   "title": "Safety and Efficacy of TSHA-102 in Pediatric Females With Rett Syndrome (REVEAL Pediatric Study)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

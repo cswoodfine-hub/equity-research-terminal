@@ -1,0 +1,64 @@
+{
+ "ticker": "INCY",
+ "company": "Incyte Corporation",
+ "name": "INCA033989",
+ "inn_or_identity": "",
+ "sort_evidence": "INCA033989 is a mutant-CALR antibody in a recruiting Phase 3 against best available therapy in essential thrombocythemia (NCT07623200), not in the INCY book; no INN published (https://investor.incyte.com/news-releases/news-release-details/positive-late-breaking-data-incytes-first-class-mutcalr-targeted).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Thrombocythemia, Essential",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Myeloproliferative Disorders",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07623200",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-06-15",
+   "enrollment": 426,
+   "last_update_posted": "2026-09-14",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "A Phase 3 Study of INCA033989 Versus Best Available Therapy in Participants With Essential Thrombocythemia"
+  },
+  {
+   "nct_id": "NCT06034002",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-10-29",
+   "enrollment": 290,
+   "last_update_posted": "2026-04-17",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "A Study to Evaluate INCA033989 Administered as a Monotherapy or in Combination With Ruxolitinib in Participants With Myeloproliferative Neop"
+  },
+  {
+   "nct_id": "NCT05936359",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-02-29",
+   "enrollment": 160,
+   "last_update_posted": "2026-08-10",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "A Study to Evaluate INCA033989 Administered as a Monotherapy or in Combination With Ruxolitinib in Participants With Myeloproliferative Neop"
+  },
+  {
+   "nct_id": "NCT07448155",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-10-19",
+   "enrollment": 126,
+   "last_update_posted": "2026-07-08",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "A Study to Evaluate the Pharmacokinetics, Safety, and Tolerability of INCA033989 Following Subcutaneous or Intravenous Administration in Hea"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

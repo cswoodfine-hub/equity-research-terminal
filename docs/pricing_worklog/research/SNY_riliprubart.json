@@ -1,0 +1,93 @@
+{
+ "ticker": "SNY",
+ "name": "Riliprubart",
+ "summary": "Riliprubart is Sanofi's wholly owned anti-C1s (classical complement) monoclonal antibody for chronic inflammatory demyelinating polyneuropathy (CIDP). MOBILIZE (NCT06290128, SOC-refractory CIDP) was stopped for futility on 2026-06-10, so only VITALIZE is modelled: NCT06290141, about 160 adults on IVIg maintenance randomised 1:1 to riliprubart or IVIg, primary completion 2027-07-09, with Sanofi guiding phase 3 data and a US/EU submission in 2027. Price anchor: Vyvgart Hytrulo, the only non-immunoglobulin biologic labelled for CIDP, at its 2024 CMS Part B spend per beneficiary ($167,216), less the Part B ASP gap. Uptake anchor: Vyvgart Hytrulo's measured CIDP launch rate (1,316 patients in the 224 days to 2025-01-31, 2.78% of the US CIDP pool a year) at a 1.0 multiple, applied to the IVIg-maintained third of the pool.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT06290141 (clinicaltrials.gov/study/NCT06290141): riliprubart is tested as maintenance therapy against maintenance IVIg, 24 weeks blinded then 24 weeks open label; Neurology 2025 trial-design abstract (doi.org/10.1212/WNL.0000000000208529)",
+   "note": "Maintenance of a chronic autoimmune neuropathy, continued indefinitely like the IVIg it would replace"
+  },
+  "list_price_per_patient": {
+   "value": 0.167216,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand 'Vyvgart Hytrulo': CMS Part B 2024, $150,829,226 over 902 beneficiaries = $167,216",
+   "note": "Judgement on the comparator. Vyvgart Hytrulo (efgartigimod/hyaluronidase) is the only non-immunoglobulin biologic approved for CIDP in the US (June 2024) and the product a new CIDP biologic would be priced against. Case against: (1) CMS 2024 beneficiaries mix gMG and CIDP and include partial-year CIDP starts from a June 2024 launch, so $167,216 understates a full year (Part D 2024 was $191,644, Vyvgart IV Part B 2024 $231,053); (2) VITALIZE's comparator is IVIg itself, which the book carries no CIDP-labelled brand for (only Octagam, labelled for other uses), and chronic IVIg can cost less than an FcRn blocker. Riliprubart's route of administration in phase 3 was not confirmed in this research; Part B is assumed because the trial compares against infused IVIg"
+  },
+  "gross_to_net_pct": {
+   "value": 0.0566,
+   "unit": "share off list",
+   "source": "Social Security Act section 1847A: Medicare Part B pays 106% of ASP, and ASP is net of manufacturer discounts and rebates; 1 - 1/1.06 = 5.66%. Same rule as the book's frexalimab seed (lookup.py seed Frexalimab)",
+   "note": "Direction checked: net is 94.3% of the CMS figure. Case against: if riliprubart is dispensed subcutaneously through Part D and commercial pharmacy benefits, the house 0.5 applies instead; Vyvgart Hytrulo is itself split between Part B (902) and Part D (658) beneficiaries in 2024"
+  },
+  "discontinuation_pct": {
+   "value": 0.27,
+   "unit": "share of the stock per year",
+   "source": "Layton et al., Neurology and Therapy 2023 (PubMed 37171778, doi.org/10.1007/s40120-023-00478-5), MarketScan 2008-2018, 3,975 CIDP IVIg initiators: of the 68% who reached a steady-state maintenance dose, 27% discontinued their index IVIg by year 1 and a further 6% switched immunoglobulin",
+   "note": "Judgement: this is IVIg's measured maintenance persistence, the population VITALIZE enrols, used as the proxy because no persistence figure for a CIDP biologic was found (ADHERE+ reports near-complete rollover and a mean 58 weeks on drug, PubMed 42463457, but no annual stop rate). Case against: adding the 6% who switched gives 0.33; a new mechanism after MOBILIZE's futility in refractory patients may see more early stopping for lack of effect"
+  },
+  "forecast_start_year": {
+   "value": 2027,
+   "unit": "year",
+   "source": "Brief convention: the first full year after 2026",
+   "note": "Expected launch is later. VITALIZE primary completion 2027-07-09 (NCT06290141); Sanofi's milestone table lists 'riliprubart CIDP phase 3 data, regulatory submission (US, EU)' in 2027 (Sanofi Q2 2026 results press release, 6-K 0001121404-26-000008). A late-2027 BLA with a standard 12-month review gives a late-2028 approval and 2029 as the first full year; the ramp midpoint carries that shift"
+  },
+  "exus_multiple": {
+   "value": 0.1747,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "argenx FY2025 results (argenx.com/news/2026/press-release-3245199; 20-F 0001697862-26-000032): Vyvgart franchise product net sales US $3,533.9mm, Japan $206.8mm, China $67.9mm, rest of world $342.6mm; 617.3 / 3,533.9 = 0.1747",
+   "note": "Judgement: the closest marketed CIDP biologic's filed split, though it blends gMG with CIDP and argenx is a younger commercial organisation outside the US than Sanofi. Case for higher: Sanofi's own Dupixent ran 0.36 ex-US per US in 2025 (book asset_revenue_regions: EU 1,957 + ROW 2,219 over US 11,538), and IVIg is rationed in Europe, which could favour a non-plasma product there"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Sanofi half-year financial report 2026, 6-K 0001628280-26-050803 exhibit 99.2: the R&D pipeline appendix lists 'riliprubart C1s mAb IVIg-treated CIDP' with no collaboration footnote (footnotes cover only Regeneron, Teva, ImmuNext, SK bioscience); the book's asset_economics table holds no partner row",
+   "note": "Wholly owned"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Polyradiculoneuropathy, Chronic Inflammatory Demyelinating",
+   "fields": {
+    "prevalence": {
+     "value": 77058,
+     "unit": "patients",
+     "source": "Gable et al., Neuroepidemiology 2026 (PubMed 41525422, doi.org/10.1159/000550418): Inovalon claims, adjusted 2023 prevalence 23.3 per 100,000, an estimated 77,058 people with CIDP in the US",
+     "note": "lookup.py pool returned nothing for CIDP or this indication name, and data/epidemiology.csv has no CIDP row, so this asset carries the pool. Claims-based, and the authors flag possible misclassification of CIDP codes, which would overstate it; older estimates are far lower (roughly 3 to 9 per 100,000). Authors are Roivant/Immunovant-affiliated"
+    },
+    "incidence": {
+     "value": 9238,
+     "unit": "patients per year",
+     "source": "Same source: adjusted 2023 incidence 2.8 per 100,000, about 9,238 new cases",
+     "note": "Same caveat on claims misclassification"
+    },
+    "eligible_pct": {
+     "value": 0.3265,
+     "unit": "share of the pool",
+     "source": "Blein et al., Frontiers in Neurology 2026 (PubMed 41696747, doi.org/10.3389/fneur.2025.1726857), Komodo claims 2016-2020: of 3,409 adults with CIDP, 1,113 were chronic immunoglobulin users (8 or more courses in the year). 1,113 / 3,409 = 32.65%",
+     "note": "Judgement: VITALIZE enrols IVIg-maintained patients only, so the label is assumed to follow that population now that MOBILIZE (refractory) has stopped. Case for higher: all Ig users were 1,803 (52.9%), and an FDA label could read 'CIDP' broadly. Case for lower: the study is argenx-sponsored and chronic use is defined over one year. 77,058 x 0.3265 = 25,159 patients"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0278,
+     "unit": "share of the eligible untreated pool captured per year at peak",
+     "source": "argenx AAN 2025 release (argenx.com/news/2024/argenx-highlights-vyvgart-data-at-aan-2025-setting-new-standard): 1,316 CIDP patients treated with Vyvgart Hytrulo as of 2025-01-31, 224 days after the 2024-06-21 FDA approval. Annualised 1,316 x 365/224 = 2,144 a year, over the 77,058 CIDP pool (Gable 2026) = 2.78%",
+     "note": "1.0 multiple, a judgement. The incumbent's rate is taken over its own label pool (all CIDP) and applied to riliprubart's narrower one, giving about 700 new starts a year at peak. Case for higher: launch-period rates understate peak, and IVIg-maintained patients are the group most actively switched (AAN 2026: 91 of 225 surveyed Hytrulo patients had attempted an IVIg switch). Case for lower: riliprubart would be a second novel mechanism behind an established FcRn blocker, with a failed refractory-population trial on record. CMS beneficiaries were not used because Hytrulo's mix gMG and CIDP"
+    },
+    "ramp_steepness": {
+     "value": 0.63,
+     "unit": "logistic k",
+     "source": "Reused from the book's fenebrutinib seed (lookup.py seed Fenebrutinib): fitted to Kesimpta's six-point measured new-start series 2020-2025, k 0.626",
+     "note": "Judgement: no measured CIDP launch curve exists in the book (Vyvgart Hytrulo has one CMS year). Kesimpta is a specialist-prescribed immunology biologic launched into an established market, the nearest measured analogue. Case against: rare-disease launches through a concentrated neuromuscular prescriber base usually ramp faster"
+    },
+    "ramp_midpoint_year": {
+     "value": 5.08,
+     "unit": "years from forecast_start_year",
+     "source": "Kesimpta-fitted midpoint of 3.078 years after launch (lookup.py seed Fenebrutinib) plus 2 years for a 2029 first full year against the 2027 forecast start",
+     "note": "The 2029 first full year is inferred from VITALIZE primary completion (2027-07-09) and Sanofi's 2027 submission guidance (Sanofi Q2 2026 results press release, 6-K 0001121404-26-000008), assuming a standard review; not announced"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

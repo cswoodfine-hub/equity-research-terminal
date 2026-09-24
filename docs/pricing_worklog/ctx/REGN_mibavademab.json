@@ -1,0 +1,59 @@
+{
+ "ticker": "REGN",
+ "company": "Regeneron Pharmaceuticals Inc",
+ "name": "Mibavademab",
+ "inn_or_identity": "",
+ "sort_evidence": "Regeneron's 10-Q filed 2026-07-30 lists mibavademab (REGN4461), a leptin receptor agonist antibody, and Phase 3 NCT07220785 in generalized lipodystrophy is recruiting with no approval.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Obesity, Morbid",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Lipodystrophy, Congenital Generalized",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Lipodystrophy, Familial Partial",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07220785",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-05-19",
+   "enrollment": 28,
+   "last_update_posted": "2026-09-11",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "Efficacy and Safety of Mibavademab in Adult and Pediatric Patients With Generalized Lipodystrophy"
+  },
+  {
+   "nct_id": "NCT07235917",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-08-20",
+   "enrollment": 34,
+   "last_update_posted": "2026-07-14",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A Study to Investigate Mibavademab in Adult Women With Functional Hypothalamic Amenorrhea"
+  },
+  {
+   "nct_id": "NCT07220772",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-06-18",
+   "enrollment": 4,
+   "last_update_posted": "2026-03-10",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A Study Evaluating Mibavademab Treatment of Obesity Due to Leptin (LEP) Gene Mutations in Children, Adolescents and Adults"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

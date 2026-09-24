@@ -1,0 +1,29 @@
+{
+ "ticker": "LLY",
+ "company": "Eli Lilly and Company",
+ "name": "Remternetug",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 3 NCT06653153 (TRAILRUNNER-ALZ 3) of remternetug in early Alzheimer's disease is active, not recruiting; remternetug is a separate molecule from Kisunla (donanemab).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Alzheimer Disease",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06653153",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2029-04",
+   "enrollment": 1400,
+   "last_update_posted": "2025-11-20",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Remternetug (LY3372993) in Early Alzheimer's Disease (TRAILRUNNER-ALZ 3)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

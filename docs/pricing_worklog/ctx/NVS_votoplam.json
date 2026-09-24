@@ -1,0 +1,39 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "Votoplam",
+ "inn_or_identity": "",
+ "sort_evidence": "HTT splicing modifier (PTC518) licensed from PTC, in Phase 3 NCT07326709 for Huntington disease, recruiting, with no approval and no book row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Huntington Disease",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07326709",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-04-02",
+   "enrollment": 770,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study to Investigate the Efficacy, Safety and Tolerability of Votoplam in Participants With Huntington's Disease"
+  },
+  {
+   "nct_id": "NCT06254482",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2029-07-16",
+   "enrollment": 144,
+   "last_update_posted": "2025-11-21",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "An Extension Study to Evaluate the Long-Term Safety and Efficacy of Votoplam in Participants With Huntington's Disease (HD)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,44 @@
+{
+ "ticker": "GSK",
+ "company": "GSK plc",
+ "name": "Velzatinib",
+ "inn_or_identity": "",
+ "sort_evidence": "Velzatinib (IDRX-42, GSK6042981) is an unapproved KIT inhibitor in phase 3 against imatinib in first-line GIST (NCT07585266, recruiting), and the book holds no row for it (https://adisinsight.springer.com/drugs/800069789).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Gastrointestinal Stromal Tumors",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Gastrointestinal Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07585266",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2032-08-30",
+   "enrollment": 800,
+   "last_update_posted": "2026-08-19",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study to Investigate Velzatinib Compared With Imatinib in Adult Participants With Previously Untreated Metastatic and/or Unresectable Gast"
+  },
+  {
+   "nct_id": "NCT07689201",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-11-29",
+   "enrollment": 24,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study of Velzatinib in Participants With Metastatic and/or Unresectable GIST After Imatinib, Sunitinib, Regorafenib, and Pimitespib"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,29 @@
+{
+ "ticker": "AMGN",
+ "company": "Amgen Inc",
+ "name": "ABP 206",
+ "inn_or_identity": "nivolumab biosimilar",
+ "sort_evidence": "ABP 206 is Amgen's proposed biosimilar to Opdivo (nivolumab) in a Phase 3 comparison in melanoma (NCT06054555, active not recruiting); the biosimilar itself is unapproved and not in the AMGN book (https://www.pearceip.law/2026/02/03/amgen-update-on-biosimilar-pipeline-nivolumab-ocrelizumab-pembrolizumab/).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Melanoma",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06054555",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-01-25",
+   "enrollment": 633,
+   "last_update_posted": "2026-01-12",
+   "lead_sponsor": "Amgen",
+   "title": "A Study to Evaluate ABP 206 Compared With OPDIVO\u00ae (Nivolumab) in Subjects With Unresectable or Metastatic Melanoma"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

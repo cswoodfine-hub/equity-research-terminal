@@ -1,0 +1,150 @@
+{
+ "ticker": "PFE",
+ "company": "Pfizer Inc",
+ "name": "Disitamab vedotin",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 3 NCT05911295 of disitamab vedotin with pembrolizumab in HER2-expressing urothelial cancer is active, not recruiting, and neither the dossier nor the EMA list holds an approval for it.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Carcinoma, Transitional Cell",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Carcinoma, Non-Small-Cell Lung",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Triple Negative Breast Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Ovarian Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Endometrial Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Breast Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Head and Neck Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Stomach Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06157892",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2029-07-28",
+   "enrollment": 54,
+   "last_update_posted": "2026-07-22",
+   "lead_sponsor": "Seagen, a wholly owned subsidiary of Pfizer",
+   "title": "A Study of Disitamab Vedotin With Other Anticancer Drugs in Solid Tumors"
+  },
+  {
+   "nct_id": "NCT06966453",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-10-25",
+   "enrollment": 74,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study of Disitamab Vedotin in Adults With HER2 Expressing Advanced Breast Cancer"
+  },
+  {
+   "nct_id": "NCT05911295",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-01-29",
+   "enrollment": 412,
+   "last_update_posted": "2026-07-22",
+   "lead_sponsor": "Seagen, a wholly owned subsidiary of Pfizer",
+   "title": "Disitamab Vedotin With Pembrolizumab vs Chemotherapy in Previously Untreated Urothelial Cancer Expressing HER2"
+  },
+  {
+   "nct_id": "NCT04879329",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-12-11",
+   "enrollment": 372,
+   "last_update_posted": "2026-07-22",
+   "lead_sponsor": "Seagen, a wholly owned subsidiary of Pfizer",
+   "title": "A Study of Disitamab Vedotin Alone or With Pembrolizumab in Urothelial Cancer That Expresses HER2"
+  },
+  {
+   "nct_id": "NCT06003231",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-03-27",
+   "enrollment": 120,
+   "last_update_posted": "2026-07-22",
+   "lead_sponsor": "Seagen, a wholly owned subsidiary of Pfizer",
+   "title": "A Study of Disitamab Vedotin in Previously Treated Solid Tumors That Express HER2"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 697,
+   "ticker": "PFE",
+   "generic": "Brentuximab Vedotin",
+   "brand": "Adcetris",
+   "code": "BLA125388",
+   "is_marketed": 1,
+   "modelled": true
+  },
+  {
+   "id": 709,
+   "ticker": "PFE",
+   "generic": "Enfortumab Vedotin",
+   "brand": "Padcev",
+   "code": "BLA761137",
+   "is_marketed": 1,
+   "modelled": true
+  },
+  {
+   "id": 1776,
+   "ticker": "AZN",
+   "generic": "Sonesitatug Vedotin",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": true
+  },
+  {
+   "id": 2460,
+   "ticker": "MRK",
+   "generic": "Zilovertamab Vedotin",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": true
+  },
+  {
+   "id": 2843,
+   "ticker": "PFE",
+   "generic": "Sigvotatug Vedotin",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  }
+ ]
+}

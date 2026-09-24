@@ -1,0 +1,93 @@
+{
+ "ticker": "GSK",
+ "name": "Velzatinib",
+ "summary": "Velzatinib (IDRX-42, GSK6042981) is an oral, selective KIT inhibitor for gastrointestinal stromal tumours, acquired with IDRx in February 2025 ($1.0bn upfront plus a $150mm approval milestone). Two Phase 3s: StrateGIST 3 (NCT07218926, about 450 patients, velzatinib vs sunitinib after imatinib, PFS primary, primary completion 2028-05) reads out first, and StrateGIST Frontline (NCT07585266, 800 patients, vs imatinib first line, primary completion 2032-08) comes later. The model is the second-line launch. Price anchor: Qinlock (ripretinib), the most recent KIT inhibitor approved in GIST, at a January 2026 WAC of $46,620 per 30-day bottle, $567,210 a year. Uptake anchor: sunitinib, the standard second-line drug, taken by 50.7% of patients who fail standard-dose imatinib in a real-world multicentre series.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "StrateGIST 3 design (ASCO 2026 TPS11588, doi:10.1200/JCO.2026.44.16_suppl.TPS11588): velzatinib 300 mg once daily, continuous dosing, PFS primary endpoint",
+   "note": "Oral oncology drug taken until progression, so chronic under the house definition"
+  },
+  "list_price_per_patient": {
+   "value": 0.56721,
+   "unit": "mm USD per patient-year",
+   "source": "Deciphera, Information for Colorado Prescribers of Prescription Drugs, v.3 effective 2026-01-01 (https://www.deciphera.com/sites/default/files/2026-01/CO%20Disclosure%20Form%20Final%20v.3%202026.01.01.Q.pdf): Qinlock 50 mg, 90-count bottle, WAC $46,620. Label dose is 150 mg (three tablets) once daily (Qinlock USPI), so one bottle is 30 days: 46,620 x 365/30 = $567,210 a year",
+   "note": "Judgement: this is a published list price, which the brief puts ahead of the CMS convention, but it belongs to the comparator and not to velzatinib. Qinlock is the closest marketed KIT inhibitor in GIST. The book's drug_demand table has no Qinlock, Ayvakit, Gleevec or Sutent rows, and data.cms.gov was unreachable, so no CMS per-beneficiary price could be read. The case against: Qinlock is a fourth-line drug for a very small population, and a second-line drug, or later a first-line one, may launch below it. The generic comparators (sunitinib, imatinib) cost a small fraction of this. Stivarga, the only GIST-labelled drug in drug_demand, is $55,963 per Part D beneficiary (2024), but most of its use is in colorectal cancer, where treatment is short, so it does not show an annual GIST price"
+  },
+  "gross_to_net_pct": {
+   "value": 0.2777,
+   "unit": "share taken off list",
+   "source": "The discount the book already uses on WAC-based prices, reused by name (as the dazukibart and VX-147 seeds use it): Kalydeco's CMS Part D 2024 spend per beneficiary of $273,600 is 72.2% of its $378,786 WAC (vrtx_prices.csv)",
+   "note": "Judgement. The house 0.5 is calibrated to a CMS per-beneficiary price, not to a WAC, so it does not apply here. Direction checked: 27.8% comes off list, so net is $409,700 per patient-year. The case against: this is a cystic fibrosis drug's ratio, not an oncology one. Oral oncology is a protected Part D class with thin rebates, which argues for a smaller discount. 340B and Medicaid statutory rebates argue for a larger one. No GIST-specific measure was found"
+  },
+  "discontinuation_pct": {
+   "value": 0.455,
+   "unit": "share of treated stock stopping per year",
+   "source": "StrateGIST 1 Phase 1b, second-line cohort, ASCO 2026: median PFS 13.7 months (95% CI 8.6-18.4) at 18.4 months' follow-up (OncLive, 'Velzatinib Shows Activity Across Treatment Lines and KIT Mutation Profiles in Advanced GIST'; Targeted Oncology, same meeting)",
+   "note": "Constant hazard from a median: 1 - 0.5^(12/13.7) = 0.455, the form the vepugratinib and ABBV-1480 seeds use. The brief's 1 - exp(-12/13.7) gives 0.584 because it treats the median as a mean. The case against: this is a single-arm cohort of about 49 patients with a wide CI. Sunitinib, the Phase 3 comparator, had a median PFS of 8.3 months in INTRIGUE's second-line population, which gives 0.63. If velzatinib wins the trial, its PFS should sit between the two"
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "StrateGIST 3 (NCT07218926), estimated primary completion 2028-05-30, recruiting since December 2025 (GSK study register trial 300383, https://www.gsk-studyregister.com/trials/300383; ClinicalTrials.gov NCT07218926)",
+   "note": "Judgement on timing, using the book's pipeline convention: first full year two calendar years after the earliest Phase 3 primary completion. Readout in mid-2028, filing late 2028, launch around 2029. The date came through a search summary of the GSK register, which could not be opened directly, so the second reader should confirm it. The first-line trial in the context file (NCT07585266, primary completion 2032-08-30) would give 2034 if it were the launch trial instead"
+  },
+  "exus_multiple": {
+   "value": 0.3285,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "GSK FY2025 annual report Specialty Medicines turnover table (0001654954-26-000892, via the book's asset_revenue_regions): Ojjaara/Omjjara GBP 417mm US, 98mm Europe, 39mm International; (98+39)/417 = 0.3285",
+   "note": "Judgement on the comparator. Ojjaara is GSK's most recent oral targeted oncology launch. Jemperli gives almost the same figure (214/647 = 0.331). Zejula (0.91) reflects an older European base. The case for higher: GIST is treated in Europe and Asia with KIT inhibitors, and Novartis's Gleevec and Tasigna sold more outside the US (Tasigna 618/486 in FY2025). The case for lower: ex-US payers may not fund a premium over generic sunitinib"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "GSK completes acquisition of IDRx, Inc. (GSK press release, February 2025, https://www.gsk.com/en-gb/media/press-releases/gsk-completes-acquisition-of-idrx-inc/): 100% acquired, up to $1.15bn",
+   "note": "GSK owns the asset outright. It still owes success-based milestones and tiered royalties on IDRX-42 to Merck KGaA, Darmstadt (per the same release). The rates are not disclosed and this field does not capture them, so net economics are somewhat below 1.0. The $150mm approval milestone to IDRx holders is also not modelled here"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Gastrointestinal Stromal Tumors",
+   "fields": {
+    "prevalence": {
+     "value": 2381,
+     "unit": "patients",
+     "source": "Set equal to incidence by the book's line-of-therapy convention (forecast.py: a pool stated equal to its own inflow is each year's patients, with carryover 0)",
+     "note": "lookup.py pool returns nothing for GIST, so the book carries no figure and this seed supplies one. This is the second-line line of therapy, not the living GIST population"
+    },
+    "incidence": {
+     "value": 2381,
+     "unit": "patients per year",
+     "source": "Patel N, Benipal B. Incidence of GIST in the United States 2001-2015: a USCS analysis of 50 states. Cureus 2019;11(2):e4120, doi:10.7759/cureus.4120 (PMID 31037234): overall incidence 0.70 per 100,000 a year, applied to the 340,110,988 US residents of July 2024 (Census Vintage 2024)",
+     "note": "The rate is age-adjusted to the 2000 standard and averaged over 2001-2015. It rose about 5% a year over that period (APC 4.44 in males, 5.40 in females), so the current rate is likely higher. The same paper counts 34,257 cases over 15 years, 2,284 a year"
+    },
+    "eligible_pct": {
+     "value": 0.5016,
+     "unit": "share of the pool",
+     "source": "Two sourced parts. (1) 16.8% of staged cases were distant at diagnosis (5,234 of 31,019; Patel & Benipal 2019, as above). (2) 15-year recurrence-free survival after surgery without adjuvant therapy was 59.9%, so 40.1% recur (Joensuu H et al., Lancet Oncol 2012;13:265-74, doi:10.1016/S1470-2045(11)70299-6, 2,560 patients pooled). 0.168 + 0.832 x 0.401 = 0.502 of each year's diagnoses reach advanced disease, and the model treats that as the flow that reaches second line",
+     "note": "Judgement: this assumes every patient with advanced disease eventually fails imatinib and is fit for a second line. The case for lower: adjuvant imatinib now delays or prevents some recurrences, some patients stay on first-line imatinib for many years, some die or decline before second line, and the label may require a KIT mutation (about three quarters of GIST, not sourced here). The case for higher: the incidence rate is out of date"
+    },
+    "penetration_peak_pct": {
+     "value": 0.507,
+     "unit": "share of each year's eligible patients",
+     "source": "Real-world multicentre study of advanced GIST after failure of standard-dose imatinib: 103 of 203 patients (50.7%) switched directly to sunitinib and 100 (49.3%) escalated imatinib (PMC9950928, 'Sunitinib versus imatinib dose escalation after failure of imatinib standard dose in patients with advanced GIST: a real-world multi-center study')",
+     "note": "Judgement: the multiple is 1.0 on sunitinib's measured second-line capture. It assumes that a head-to-head win over sunitinib in StrateGIST 3 takes sunitinib's share. The case against: the series is not US (the paper's setting should be checked), the anchor is the incumbent at maturity rather than a new entrant, and dose escalation, which competes for the same patients, is cheap. The case for higher: a PFS win could also displace dose escalation. The first-line label from StrateGIST Frontline is left out, which is upside"
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "book: Enhertu's CMS Part B launch fit (864, 1,904, 4,841, 7,105, 8,410 beneficiaries 2020-2024), k=1.08, midpoint 2.2 years, carried by the ABBV-1480, ABBV-706, camizestrant and vepugratinib seeds",
+     "note": "Reuses a measured oncology curve. The book has no GIST launch to fit"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Enhertu fit carried in the book)",
+     "note": "Reuses a measured curve"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

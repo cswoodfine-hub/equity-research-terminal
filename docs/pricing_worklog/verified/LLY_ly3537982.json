@@ -1,0 +1,127 @@
+{
+ "ticker": "LLY",
+ "name": "LY3537982",
+ "summary": "Olomorasib (LY3537982) is Lilly's oral, next-generation covalent KRAS G12C inhibitor, taken daily to progression. The pivotal trial is SUNRAY-01 (NCT06119581, n=1,264, primary completion 2027-11): first-line olomorasib plus pembrolizumab versus placebo plus pembrolizumab in PD-L1 of 50% or more (Part A), and olomorasib versus placebo on top of pembrolizumab and platinum-pemetrexed at any PD-L1 (Part B). FDA granted Breakthrough Therapy designation in September 2025 for the PD-L1 of 50% or more setting. The price is Lumakras at $98,285 per 2024 CMS Part D beneficiary, the same anchor the calderasib and divarasib seeds use. Uptake reuses the divarasib seed's measured KRAS G12C class capture (Lumakras plus Krazati CMS beneficiaries) at the same 0.65 multiple, which is a judgement.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT06119581; SUNRAY-01 protocol, Future Oncology 2026, doi:10.1080/14796694.2026.2651961",
+   "note": "oral daily tablet given with pembrolizumab, with or without chemotherapy, until progression or toxicity",
+   "verdict": "confirmed",
+   "check": "SUNRAY-01 protocol paper (Future Oncology 2026, doi:10.1080/14796694.2026.2651961) and ASCO TPS8649 found by search: oral olomorasib with pembrolizumab (Part A) or with pembrolizumab plus pemetrexed and platinum (Part B), continuous in advanced disease. Minor: the protocol paper gives 552 per part (1,104); 1,264 is the ClinicalTrials.gov enrollment in the context file, so the summary's n is the registry's figure."
+  },
+  "list_price_per_patient": {
+   "value": 0.098285,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Lumakras: CMS Part D 2024, $153,620,120.69 over 1,563 beneficiaries = $98,285",
+   "note": "house convention. Lumakras (sotorasib) is the closest marketed comparator: the first approved KRAS G12C inhibitor, in its fourth year on the market. Krazati's 2024 figure is lower at $66,903, but it was only in its second year and its beneficiaries were still ramping. This matches the anchor in the calderasib and divarasib seeds, so all three G12C entrants price the same way. Case against: Lumakras is approved only in second line. A first-line add-on to pembrolizumab could be priced higher, or held lower to keep the regimen affordable.",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Lumakras: Part D 2024 $153,620,120.69 / 1,563 beneficiaries = $98,285.43, so 0.098285 mm USD per patient-year is right in unit and value. Krazati 2024 $66,903 also matches the helper. Same anchor as the calderasib seed (0.098285 USD) and the divarasib seed (CHF-converted from the same $98,285). Convention choice, case against stated."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share off list",
+   "source": "house convention (backend/gross_to_net.py): halving a CMS per-beneficiary gross figure lands at a median 96% of CMS's negotiated net prices across the nine cycle-one IRA drugs",
+   "note": "0.5 is the share taken OFF list, so net is 50% of the $98,285 anchor. This matches the calderasib and divarasib seeds.",
+   "verdict": "confirmed",
+   "check": "Direction checked: 0.5 is share OFF list, net = $49,143. backend/gross_to_net.py exists and states the median 96% of negotiated price across the nine cycle-one drugs; divarasib and calderasib seeds carry 0.5 'share off list'."
+  },
+  "discontinuation_pct": {
+   "value": 0.506,
+   "unit": "share of the treated stock stopping per year",
+   "source": "median PFS 11.8 months (95% CI 7.6 to 18.3) for olomorasib plus pembrolizumab in KRAS G12C NSCLC, LOXO-RAS-20001, J Thorac Oncol 2025 (jto.org/article/S1556-0864(25)02936-3; sciencedirect.com/science/article/pii/S1556086425029363)",
+   "note": "constant hazard fitted to the median, as in the divarasib seed: 1 - 0.5^(12/11.8) = 0.506. The brief's alternative, 1 - exp(-12/11.8), gives 0.638 but treats the median as a mean. As a cross-check, the paper's 12-month PFS rate of 44.8% implies 55.2% have stopped at a year. Case against: that population mixes treatment lines. It is not SUNRAY-01's randomised arm, and Part B adds chemotherapy, which could lengthen PFS; either would lower this rate. The book's advanced-tumour convention is 0.55.",
+   "verdict": "confirmed",
+   "check": "JTO 2025 (jto.org S1556-0864(25)02936-3; ScienceDirect S1556086425029363) found by search: olomorasib + pembrolizumab median PFS 11.8 mo (95% CI 7.6-18.3), 12-month PFS 44.8%. Recomputed 1 - 0.5^(12/11.8) = 0.5058; 1 - exp(-12/11.8) = 0.638. The median-based hazard matches the divarasib seed's method (0.47 from 13.1 mo). Note the brief's stated formula gives 0.638; the researcher's deviation is disclosed and consistent with the book's precedent, and the 12-month PFS cross-check (55.2% progressed) supports ~0.5."
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "NCT06119581 primary completion 2027-11 (context file, last update 2026-09-08)",
+   "note": "book convention: the first full year is two calendar years after the earliest Phase 3 primary completion. That means filing in 2028, launch about late 2028, and 2029 as the first full year. Case against: the Breakthrough Therapy designation could bring an earlier Part A readout and approval, which would make 2028 the first full year.",
+   "verdict": "confirmed",
+   "check": "Context file: NCT06119581 primary completion 2027-11. Book convention (calderasib seed: first full year two calendar years after earliest Phase 3 primary completion) gives 2029. Breakthrough designation for 1L PD-L1>=50% with pembrolizumab confirmed (Lilly release, announced 4 Sept 2025), so the stated upside case holds."
+  },
+  "exus_multiple": {
+   "value": 0.6521,
+   "unit": "x US",
+   "source": "Lilly FY2025 10-K (accession 0000059478-26-000013; sec.gov/Archives/edgar/data/59478/000005947826000013/lly-20251231.htm): Verzenio revenue $3,464mm US and $2,259mm outside the US",
+   "note": "judgement on the choice of comparator. Verzenio is Lilly's largest oral oncology drug, launched globally, so it is the company's own measured ex-US reach for an oral targeted cancer drug. Case against: Lilly has no marketed lung cancer drug of the same kind. Ex-US lung cancer markets also have higher KRAS G12C testing gaps and lower prices, which would argue for a lower multiple. Merck's Keytruda ratio of 0.68 in the calderasib seed is close.",
+   "verdict": "confirmed",
+   "check": "Lilly FY2025 10-K (sec.gov/Archives/edgar/data/59478/000005947826000013/lly-20251231.htm, accession 0000059478-26-000013) per search: Verzenio US $3,464mm, outside US $2,259mm (quarterly figures 657.6+929.0+880.3+997 = 3,463.9 and 501.3+560.3+589.8+608 = 2,259.4 tie). 2,259/3,464 = 0.6521. Comparator choice is a judgement, flagged; Keytruda's 0.680 in the calderasib seed is a close cross-check."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "",
+   "source": "Lilly news releases on the Breakthrough Therapy designations (investor.lilly.com, Sept 2025 and Aug 2026) describe 'Lilly's olomorasib', developed under the LOXO-RAS program after Lilly acquired Loxo Oncology outright",
+   "note": "no licence, co-development or royalty agreement for olomorasib turned up in searches. Merck's role in SUNRAY-01 is supplying pembrolizumab, with no stake in the asset. Case against: an undisclosed royalty cannot be ruled out from public sources.",
+   "verdict": "confirmed",
+   "check": "Lilly releases on both olomorasib Breakthrough designations (NSCLC Sept 2025; previously treated pancreatic) describe it as Lilly's olomorasib; Lilly pipeline page lists it without a partner. Searches for a licence, royalty or co-development found none; Merck's role in SUNRAY-01 is supplying pembrolizumab. Undisclosed royalty cannot be excluded, as stated."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Carcinoma, Non-Small-Cell Lung",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book",
+     "note": "epidemiology.csv carries 192,650 for Carcinoma, Non-Small-Cell Lung (SEER 2025, 85% of 226,650), with prevalence equal to incidence under the book's oncology convention",
+     "verdict": "confirmed",
+     "check": "lookup.py pool: epidemiology.csv carries 192,650 for Carcinoma, Non-Small-Cell Lung with incidence = prevalence; null with 'carried by the book' is correct."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book",
+     "note": "see prevalence",
+     "verdict": "confirmed",
+     "check": "as prevalence: epidemiology.csv carries incidence 192,650."
+    },
+    "eligible_pct": {
+     "value": 0.0556,
+     "unit": "share of the pool",
+     "source": "13.8% of NSCLC carries KRAS G12C (1,443 of 10,444, AACR GENIE; Nassar et al., NEJM 2021, the calderasib and divarasib seeds' figure); 51% distant stage at diagnosis (SEER 21, the calderasib seed); 79% of US stage IV NSCLC without EGFR or ALK alterations start first-line therapy (2,904 of 3,661; Abernethy et al., PLoS One 2017, doi:10.1371/journal.pone.0178420, the ABBV-1480 seed's share)",
+     "note": "0.138 x 0.51 x 0.79 = 0.0556, about 10,700 patients a year. There is no PD-L1 filter because Part B enrols at any PD-L1, unlike the calderasib seed's PD-L1 of 1% or more. Case against: if only Part A succeeds, the label is limited to PD-L1 of 50% or more, roughly a third of G12C patients, and the pool shrinks accordingly.",
+     "verdict": "confirmed",
+     "check": "13.8% (1,443 of 10,444, GENIE v8) confirmed in Nassar et al., NEJM 2021 (doi:10.1056/NEJMc2030638). 79% (2,904 of 3,661 with at least one first-line record) confirmed in Abernethy et al., PLoS One 2017 (PMC5482433). 51% distant: carried by the calderasib seed as SEER 21 2016-2022; the prior SEER release (2015-2021) reads 52% distant, so 51% is consistent. Arithmetic 0.138 x 0.51 x 0.79 = 0.05560, x 192,650 = 10,711 a year. No PD-L1 filter is right given Part B enrols PD-L1 0-100%. Caveats: the 51% is all lung cancer (SCLC skews distant, slight overstatement for NSCLC); Part B's pemetrexed restricts it to non-squamous, which most KRAS G12C disease is; stage IV recurrences after early-stage disease are excluded, which understates the pool. Net: confirmed."
+    },
+    "penetration_peak_pct": {
+     "value": 0.3387,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "lookup.py demand Lumakras and Krazati: CMS Part D beneficiaries of 1,527 + 443 = 1,970 in 2023 and 1,563 + 1,042 = 2,605 in 2024. The divarasib seed solves this to new starts equal to 52.1% of the Medicare-eligible G12C second line (midpoint of 46.2% and 58.0% at 55% and 77.4% discontinuation)",
+     "note": "JUDGEMENT: 0.65 x 52.1% = 0.3387. This reuses the divarasib seed's multiple, so the two first-line G12C entrants the book models carry the same capture. Case against, and it is strong: first line will be split among olomorasib, divarasib (Krascendo 2), adagrasib (KRYSTAL-7) and calderasib, and pembrolizumab plus chemotherapy without a G12C inhibitor remains standard of care. Class capture in first line may also sit below second line, where a G12C inhibitor was the only targeted option. The calderasib seed takes an unmeasured 0.20 for the same setting, and that is a reasonable lower case.",
+     "verdict": "confirmed",
+     "check": "Helper: Lumakras 1,527 and 1,563, Krazati 443 and 1,042 Part D beneficiaries in 2023 and 2024, sums 1,970 and 2,605 correct. Divarasib seed carries 0.3387 = 0.65 x 52.1% (midpoint of 46.2% and 58.0%); 0.65 x 0.521 = 0.33865. JUDGEMENT, properly labelled: the 52.1% was measured as capture of a second-line pool, where a G12C inhibitor was the only targeted option, and is applied here to a first-line pool shared with pembrolizumab-based standard of care and three other G12C entrants. The calderasib seed's 0.20 for the same setting is the lower case; I would weight the case against as the researcher does."
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "the house oncology fit to Enhertu's CMS Part B beneficiaries, 864 to 8,410 over 2020 to 2024, as in the calderasib and divarasib seeds",
+     "note": "reused. No measured first-line G12C launch exists.",
+     "verdict": "confirmed",
+     "check": "Helper: Enhertu Part B beneficiaries 864, 1,904, 4,841, 7,105, 8,410 over 2020-2024 match; calderasib and divarasib seeds carry k=1.08 from that fit. Reuse, not a new measurement."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "same Enhertu fit",
+     "note": "reused",
+     "verdict": "confirmed",
+     "check": "same Enhertu fit, 2.2 years, as carried by calderasib and divarasib seeds."
+    }
+   }
+  }
+ ],
+ "refuse": null,
+ "second_reader": {
+  "verdicts": {
+   "confirmed": 13,
+   "corrected": 0,
+   "withdrawn": 0
+  },
+  "note": "All non-null fields confirmed. Judgements flagged by the researcher (penetration 0.65 multiple, exus comparator, list-price comparator, forecast-year convention) remain judgements. Summary n=1,264 is the registry enrollment; the protocol paper plans 552 per part."
+ }
+}

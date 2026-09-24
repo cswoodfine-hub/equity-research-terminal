@@ -1,0 +1,39 @@
+{
+ "ticker": "AXSM",
+ "company": "Axsome Therapeutics, Inc.",
+ "name": "AXS-14 (Esreboxetine)",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT07398417 (Phase 3, Recruiting) and NCT07637162 (Phase 3, Enrolling by invitation) test esreboxetine in fibromyalgia, and esreboxetine is not one of Axsome's marketed molecules in the book (Auvelity, Sunosi, Symbravo).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Fibromyalgia",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07637162",
+   "phase": "Phase 3",
+   "overall_status": "Enrolling by invitation",
+   "primary_completion_date": "2028-05",
+   "enrollment": 300,
+   "last_update_posted": "2026-09-04",
+   "lead_sponsor": "Axsome Therapeutics, Inc.",
+   "title": "Open-Label Safety Study of AXS-14 in Subjects With Fibromyalgia"
+  },
+  {
+   "nct_id": "NCT07398417",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-03",
+   "enrollment": 620,
+   "last_update_posted": "2026-09-04",
+   "lead_sponsor": "Axsome Therapeutics, Inc.",
+   "title": "Fibromyalgia Response With Esreboxetine Evaluated Using a Randomized Withdrawal Research Design"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

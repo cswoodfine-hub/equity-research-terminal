@@ -1,0 +1,144 @@
+{
+ "ticker": "LLY",
+ "company": "Eli Lilly and Company",
+ "name": "Brenipatide",
+ "inn_or_identity": "",
+ "sort_evidence": "Lilly's Phase 3 NCT07412756 of brenipatide (LY3537031) in major depressive disorder is recruiting, and no marketed or modelled Lilly row carries the molecule.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Depressive Disorder, Major",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Depressive Disorder",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Bipolar Disorder",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Schizophrenia",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Asthma",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Smoking",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Pulmonary Disease, Chronic Obstructive",
+   "phase": "Phase 2",
+   "development_status": "Not yet recruiting"
+  },
+  {
+   "name": "Bronchitis, Chronic",
+   "phase": "Phase 2",
+   "development_status": "Not yet recruiting"
+  },
+  {
+   "name": "Obesity",
+   "phase": "Phase 1",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Overweight",
+   "phase": "Phase 1",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07775300",
+   "phase": "Phase 3",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-12",
+   "enrollment": 1000,
+   "last_update_posted": "2026-08-27",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Brenipatide (LY3537031) in Adult Participants With Major Depressive Disorder"
+  },
+  {
+   "nct_id": "NCT07759245",
+   "phase": "Phase 2",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-05",
+   "enrollment": 606,
+   "last_update_posted": "2026-08-24",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Brenipatide (LY3537031) in Adult Participants With Moderate-to-Severe Chronic Obstructive Pulmonary Disease (COPD)"
+  },
+  {
+   "nct_id": "NCT07219173",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-04",
+   "enrollment": 531,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study to Evaluate Brenipatide Compared With Placebo in Adult Participants With Uncontrolled Moderate to Severe Asthma"
+  },
+  {
+   "nct_id": "NCT07420283",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-03",
+   "enrollment": 465,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Brenipatide in Participants With Opioid Use Disorder"
+  },
+  {
+   "nct_id": "NCT07412756",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-02",
+   "enrollment": 1000,
+   "last_update_posted": "2026-08-06",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Brenipatide in Adult Participants With Major Depressive Disorder"
+  },
+  {
+   "nct_id": "NCT07286175",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-11",
+   "enrollment": 400,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Brenipatide in Adult Participants With Bipolar Disorder (RENEW-Bipolar-1)"
+  },
+  {
+   "nct_id": "NCT07410507",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-11",
+   "enrollment": 450,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Brenipatide in Adult Participants With Schizophrenia"
+  },
+  {
+   "nct_id": "NCT07476118",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-02",
+   "enrollment": 150,
+   "last_update_posted": "2026-07-16",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Brenipatide (LY3537031) in Healthy Participants With Overweight or Obesity"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

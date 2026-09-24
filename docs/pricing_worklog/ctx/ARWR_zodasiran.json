@@ -1,0 +1,39 @@
+{
+ "ticker": "ARWR",
+ "company": "Arrowhead Pharmaceuticals, Inc.",
+ "name": "Zodasiran",
+ "inn_or_identity": "",
+ "sort_evidence": "Zodasiran is an ANGPTL3 siRNA whose Phase 3 YOSEMITE in HoFH (NCT07037771) completed enrolment of 70 patients in July 2026 (https://ir.arrowheadpharma.com/news-releases/news-release-details/arrowhead-pharmaceuticals-completes-enrollment-global-phase-3).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Homozygous Familial Hypercholesterolemia",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07473843",
+   "phase": "Phase 3",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-07",
+   "enrollment": 12,
+   "last_update_posted": "2026-05-29",
+   "lead_sponsor": "Arrowhead Pharmaceuticals",
+   "title": "Study of Zodasiran in Adolescent Participants With Homozygous Familial Hypercholesterolemia"
+  },
+  {
+   "nct_id": "NCT07037771",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-08-20",
+   "enrollment": 70,
+   "last_update_posted": "2026-08-12",
+   "lead_sponsor": "Arrowhead Pharmaceuticals",
+   "title": "A Phase 3 Study of Zodasiran in Adolescent and Adult Subjects With Homozygous Familial Hypercholesterolemia (YOSEMITE)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

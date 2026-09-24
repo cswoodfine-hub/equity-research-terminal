@@ -1,0 +1,29 @@
+{
+ "ticker": "SNY",
+ "company": "Sanofi",
+ "name": "Tolebrutinib",
+ "inn_or_identity": "",
+ "sort_evidence": "Tolebrutinib holds an EU authorisation as Cenrifki (2026-06-19, dossier EMA entry) but the book carries neither Cenrifki nor any tolebrutinib row, and the FDA issued a complete response letter in December 2025 (https://www.sanofi.com/en/media-room/press-releases/2025/2025-12-24-06-00-00-3210238).",
+ "approved": "EMA 2026-06-19",
+ "indications": [
+  {
+   "name": "Multiple Sclerosis, Chronic Progressive",
+   "phase": "Phase 3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06372145",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2029-04-30",
+   "enrollment": 2500,
+   "last_update_posted": "2026-08-17",
+   "lead_sponsor": "Sanofi",
+   "title": "A Study to Investigate Long-term Safety and Tolerability of Tolebrutinib in Participants With Multiple Sclerosis."
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

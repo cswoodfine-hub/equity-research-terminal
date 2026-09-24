@@ -1,0 +1,112 @@
+{
+ "ticker": "GSK",
+ "company": "GSK plc",
+ "name": "Investigational varicella vaccine",
+ "inn_or_identity": "varicella new strain (VNS) vaccine",
+ "sort_evidence": "GSK's pipeline lists an investigational varicella new strain (VNS) vaccine in phase III, run here as NCT06806137 and NCT06693895 (both recruiting), and the book holds no GSK varicella product (https://www.gsk.com/media/40yljs4u/q1-2026-pipeline-assets-and-clinical-trials-report.pdf).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Chickenpox",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06806137",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-12-14",
+   "enrollment": 600,
+   "last_update_posted": "2026-05-29",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study on the Immune Response and Safety of the Second Dose of an Investigational Chickenpox Vaccine When Given to Healthy Children 3 Month"
+  },
+  {
+   "nct_id": "NCT06693895",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-11-23",
+   "enrollment": 750,
+   "last_update_posted": "2026-05-29",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study on the Safety of an Investigational Chickenpox Vaccine, When Given to Healthy Children, 12 to 15 Months of Age"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 335,
+   "ticker": "MRK",
+   "generic": "Varicella Virus Vaccine Live",
+   "brand": "Varivax",
+   "code": "BLA103552",
+   "is_marketed": 1,
+   "modelled": false
+  },
+  {
+   "id": 371,
+   "ticker": "MRK",
+   "generic": "Measles, Mumps, Rubella and Varicella Virus Vaccine Live",
+   "brand": "Proquad",
+   "code": "BLA125108",
+   "is_marketed": 1,
+   "modelled": false
+  },
+  {
+   "id": 2124,
+   "ticker": "GSK",
+   "generic": "Candidate varicella vaccine",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  },
+  {
+   "id": 2151,
+   "ticker": "GSK",
+   "generic": "Investigational varicella vaccine_Lot 1",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  },
+  {
+   "id": 2166,
+   "ticker": "GSK",
+   "generic": "RSVPreF3 OA investigational vaccine",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  },
+  {
+   "id": 2168,
+   "ticker": "GSK",
+   "generic": "Investigational mRNA Seasonal Flu/COVID-19 Combination (Flu/COVm) Vaccine",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  },
+  {
+   "id": 3070,
+   "ticker": "SNY",
+   "generic": "H5 Flu Investigational Medical Product (IMP) 1",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  },
+  {
+   "id": 3100,
+   "ticker": "SNY",
+   "generic": "Investigational hMPV/RSV vaccine",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  }
+ ]
+}

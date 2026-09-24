@@ -1,0 +1,39 @@
+{
+ "ticker": "BMY",
+ "company": "Bristol-Myers Squibb Co",
+ "name": "BMS-986489",
+ "inn_or_identity": "atigotatug (BMS-986012)",
+ "sort_evidence": "NCT06646276 Phase 3 recruiting (TIGOS) tests BMS-986489, an atigotatug plus nivolumab fixed-dose combination in which atigotatug is a new unapproved anti-fucosyl-GM1 antibody with no book row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Small Cell Lung Carcinoma",
+   "phase": "Phase 3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06646276",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-04-06",
+   "enrollment": 530,
+   "last_update_posted": "2026-09-11",
+   "lead_sponsor": "Bristol-Myers Squibb",
+   "title": "A Study to Compare the Efficacy and Safety of BMS-986489 (Atigotatug+ Nivolumab Fixed Dose Combination) in Combination With Carboplatin Plus"
+  },
+  {
+   "nct_id": "NCT06799286",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-05-26",
+   "enrollment": 10,
+   "last_update_posted": "2026-05-13",
+   "lead_sponsor": "Bristol-Myers Squibb",
+   "title": "A Study to Evaluate the Safety, Tolerability, Pharmacokinetics, and Preliminary Efficacy of BMS-986489 in Chinese Participants With Relapsed"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

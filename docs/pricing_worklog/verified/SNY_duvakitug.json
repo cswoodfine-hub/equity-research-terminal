@@ -1,0 +1,172 @@
+{
+ "ticker": "SNY",
+ "name": "Duvakitug",
+ "summary": "Duvakitug (TEV-'574) is an anti-TL1A antibody co-developed with Teva, with IV induction and subcutaneous maintenance in moderately to severely active ulcerative colitis and Crohn's disease. Sanofi leads a four-study Phase 3 programme: UC induction NCT07184996 (primary completion 2028-05) and maintenance NCT07185009 (2028-09), CD induction NCT07184931 (2029-05) and maintenance NCT07184944 (2029-08), after the RELIEVE UCCD Phase 2b met its primary endpoints in both diseases (Sanofi release 2024-12-17). Price anchor: Humira at $57,982 per Medicare Part D beneficiary in 2024, the comparator the book's other anti-TL1A (tulisokibart) uses. Uptake anchor: tulisokibart's seeded peaks (0.05 UC, 0.06 CD, half of what upadacitinib and the IL-23s measurably took) and Zeposia's fitted UC launch curve, reused. Sanofi keeps half: profits and losses in major markets are shared equally with Teva.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT07185009 and NCT07184944 (ClinicalTrials.gov): separate maintenance studies after induction, the same IV-induction, SC-maintenance design as the tulisokibart seed",
+   "note": "Continuous maintenance dosing",
+   "verdict": "confirmed",
+   "check": "Book trials table: NCT07185009 is a maintenance study (primary outcome 'Pivotal Maintenance Sub-Study Cohort 1: clinical remission by mMS') and NCT07184944 is titled a maintenance study; separate induction studies NCT07184996/NCT07184931. Chronic maintenance dosing holds."
+  },
+  "list_price_per_patient": {
+   "value": 0.057982,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Humira: CMS Part D 2024, 'Humira (2 presentations)', $906,310,362 over 15,631 beneficiaries = $57,982 per beneficiary",
+   "note": "JUDGEMENT on the comparator: Humira is the anchor the book's tulisokibart seed uses (self-injected antibody labelled in both UC and CD), kept so the two anti-TL1As price alike. Discrepancy to flag: the tulisokibart seed quotes Humira at $53,401 ($208.9mm over 3,912 beneficiaries), which does not match the book's current demand table; this uses the current table. Case against: Skyrizi, the newest mechanism labelled in both UC and CD with the same IV-induction, SC-maintenance design, reads $66,409 (Part D 2024), 15% higher; Rinvoq reads $47,673. Humira's Medicare spend is mostly rheumatology and dermatology use, and its price now faces biosimilar pressure",
+   "verdict": "confirmed",
+   "check": "Re-ran lookup.py demand Humira: Part D 2024 'Humira (2 presentations)' $906,310,362.16 / 15,631 = $57,982 (0.057982 mm USD). Units right. Also re-ran Skyrizi Part D 2024 $66,409 and Rinvoq $47,673; both match the note. The researcher's flagged discrepancy holds: drug_demand carries no Humira row giving $208.9mm over 3,912 beneficiaries, so the tulisokibart seed's $53,401 is not reproducible from the current table (separate fix for that seed). Comparator choice remains a judgement."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention: halving a CMS per-beneficiary figure lands at a median 96% of CMS's own negotiated net prices (backend/gross_to_net.py; same value in the tulisokibart seed)",
+   "note": "Net is 50% of list. A competitive, heavily rebated IBD class supports a large discount",
+   "verdict": "confirmed",
+   "check": "Direction checked: 0.5 is share OFF list, net = 50% of list; matches house convention and the tulisokibart seed row (lookup.py seed tulisokibart, 'share off list')."
+  },
+  "discontinuation_pct": {
+   "value": 0.275,
+   "unit": "share of the stock per year",
+   "source": "reused from the tulisokibart seed: Dulai PS et al., Crohn's & Colitis 360, 2026 (IQVIA PharMetrics Plus, 6,726 US adults with UC starting an advanced therapy): 38.1% still on first advanced therapy at 36 months, so 27.5% of the stock stops each year",
+   "note": "Same class, same disease. Case against: measured in UC only, and first-line persistence; Crohn's persistence may differ",
+   "verdict": "confirmed",
+   "check": "tulisokibart seed row quotes Dulai PS et al. 38.1% on first advanced therapy at 36 months; 1 - 0.381^(1/3) = 0.275. Arithmetic holds and matches the seed value."
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "ClinicalTrials.gov primary completion dates (context file): UC induction NCT07184996 2028-05-09, UC maintenance NCT07185009 2028-09-21",
+   "note": "JUDGEMENT. No launch date is published by Sanofi or Teva (searched). UC maintenance reads out in late 2028, a BLA follows around the turn of 2029, and a standard 12-month review puts approval around early 2030, so 2030 is the first year of revenue. Case against: any slip in filing or review makes it 2031, and Crohn's (maintenance 2029-08) comes about a year later",
+   "verdict": "confirmed",
+   "check": "Primary completion dates 2028-05-09 (NCT07184996) and 2028-09-21 (NCT07185009) confirmed in the context file and book trials table. 2030 follows the same PCD-to-revenue lag the tulisokibart seed uses (PCD 2026-08 -> revenue 2028). Remains a judgement."
+  },
+  "exus_multiple": {
+   "value": 0.3619,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Dupixent, Sanofi FY2025 20-F (0001628280-26-008403), in the book's asset_revenue_regions: US EUR 11,538mm, Europe EUR 1,957mm, rest of world EUR 2,219mm. (1,957 + 2,219) / 11,538 = 0.362",
+   "note": "JUDGEMENT. Sanofi's own chronic immunology biologic; Sanofi has no IBD product to read a split from. Case against: IBD biologics tend to sell relatively more outside the US than Dupixent (Europe has high IBD prevalence), so this may understate ex-US; AbbVie's Skyrizi reads lower at 0.155 (book's lutikizumab seed). Also, Teva leads commercialisation in Europe, Israel and specified countries, and markets outside the 'major markets' are on a royalty, which economics_share does not capture",
+   "verdict": "confirmed",
+   "check": "book asset_revenue_regions, Dupilumab FY2025: US EUR 11,538mm (sec_fsds and annual report table 0001628280-26-008403), Europe 1,957mm, Rest of the world 2,219mm. (1,957+2,219)/11,538 = 0.3619. Skyrizi comparison also checked: International 2,360 / US 15,202 = 0.155 (AbbVie 0001551152-26-000008). Judgement on comparator stands."
+  },
+  "economics_share": {
+   "value": 0.5,
+   "unit": "share",
+   "source": "Teva FY2025 10-K (0001193125-26-034532) and Sanofi/Teva release 2023-10-04 (sanofi.com/en/media-room/press-releases/2023/2023-10-04-05-00-00-2754288), also described in Sanofi's FY2023 20-F (0001121404-24-000009): 'each company will equally share the remaining development costs globally and net profits and losses in major markets, with other markets subject to a royalty arrangement'. Sanofi paid $500mm upfront with up to $1bn in milestones",
+   "note": "0.5 is exact for the major markets, which carry most of the value. Minor markets run on a royalty (Sanofi receives or pays depending on who leads there), not modelled. Milestone payments to Teva of up to $1bn are not in this field",
+   "verdict": "confirmed",
+   "check": "Sanofi release 2023-10-04 (sanofi.com/en/media-room/press-releases/2023/2023-10-04-05-00-00-2754288) and Teva 8-K EX-99.1 (sec.gov/Archives/edgar/data/818686/000119312523250305/d547410dex991.htm): 'each company will equally share the development costs globally and net profits and losses in major markets, with other markets subject to a royalty arrangement'; $500mm (EUR 469mm) upfront, up to $1bn milestones; Teva leads commercialisation in Europe, Israel and specified other countries, Sanofi in North America, Japan, other Asia and rest of world. 50/50 holds for major markets. Minor wording note: the release says 'development costs', not 'remaining development costs'. The Teva 10-K and Sanofi 20-F accessions quoted were not independently opened; the release and Teva 8-K carry the term."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Colitis, Ulcerative",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: tulisokibart seed, 1,253,000 (Lewis JD et al., Gastroenterology 2023;165:1197-1205)",
+     "note": "The book fills it, so no second figure is set",
+     "verdict": "confirmed",
+     "check": "lookup.py pool 'Colitis, Ulcerative' shows tulisokibart carries 1,253,000 (Lewis JD 2023); null with 'carried by the book' is correct."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: tulisokibart seed, 20,881 (Lewis JD et al., Gastroenterology 2023)",
+     "note": "The book fills it",
+     "verdict": "confirmed",
+     "check": "lookup.py pool shows tulisokibart carries 20,881; null is correct."
+    },
+    "eligible_pct": {
+     "value": 0.136,
+     "unit": "share",
+     "source": "reused from the tulisokibart seed: Xu F et al. (CDC), Journal of Investigative Medicine 2022;70:1771-1776: 13.6% of 52,280 US UC patients were prescribed a biologic in 2019",
+     "note": "The label will be moderately to severely active UC, the pool that reaches advanced therapy; kept equal to tulisokibart so the two TL1As share one pool. Case against: 2019 data understate today's advanced-therapy use, which has grown with JAKs and S1Ps",
+     "verdict": "confirmed",
+     "check": "tulisokibart seed row: Xu F et al. (CDC) J Investig Med 2022, 13.6% of 52,280 UC patients prescribed a biologic in 2019; value matches."
+    },
+    "penetration_peak_pct": {
+     "value": 0.05,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "reused from the tulisokibart seed: set against upadacitinib, which held 12.1% of UC patients on advanced therapy in Q2 2025, its fourth year (Singh S et al., Journal of Crohn's and Colitis 2025, 71 US health systems); the engine needs 0.101 to match that, and 0.05 reaches half",
+     "note": "JUDGEMENT: 0.5x upadacitinib, the multiple the tulisokibart seed chose. Case for higher: Phase 2b placebo-adjusted remission was among the strongest in class (Sanofi 2024-12-17). Case for lower: duvakitug is likely second to market behind tulisokibart (Merck, readout 2026) and competes with Roche's afimkibart in the same class, so one TL1A share may be split three ways",
+     "verdict": "confirmed",
+     "check": "tulisokibart seed row: upadacitinib 12.1% of UC advanced-therapy patients Q2 2025 (Singh S et al., JCC 2025), engine needs 0.101, 0.05 is half. Value and reasoning match; 0.5x multiple is a judgement."
+    },
+    "ramp_steepness": {
+     "value": 1.005,
+     "unit": "logistic k",
+     "source": "reused from the tulisokibart seed: Zeposia CMS Part D beneficiaries 104, 406, 655, 1,034, 1,271 over 2020 to 2024 (lookup.py demand Zeposia), least-squares logistic k 1.005, midpoint 2.15 years",
+     "note": "The only UC-labelled launch on file whose series reaches an inflection",
+     "verdict": "confirmed",
+     "check": "Zeposia Part D beneficiaries re-read via lookup.py demand Zeposia: 104, 406, 655, 1,034, 1,271 (2020-2024), as the seed states; k 1.005 matches the tulisokibart seed."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.15,
+     "unit": "years from the forecast start",
+     "source": "reused from the tulisokibart seed: Zeposia fitted midpoint 2.15 years (as above)",
+     "note": "Zeposia was an oral S1P; an injectable second-in-class TL1A could ramp differently in either direction",
+     "verdict": "confirmed",
+     "check": "Matches the tulisokibart UC seed row, 2.15 years."
+    }
+   }
+  },
+  {
+   "indication": "Crohn Disease",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: tulisokibart seed, 1,011,000 (Lewis JD et al., Gastroenterology 2023)",
+     "note": "The book fills it",
+     "verdict": "confirmed",
+     "check": "lookup.py pool 'Crohn Disease' shows tulisokibart carries 1,011,000; null is correct."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: tulisokibart seed, 13,589 (Lewis JD et al., Gastroenterology 2023)",
+     "note": "The book fills it",
+     "verdict": "confirmed",
+     "check": "lookup.py pool shows tulisokibart carries 13,589; null is correct."
+    },
+    "eligible_pct": {
+     "value": 0.303,
+     "unit": "share",
+     "source": "reused from the tulisokibart seed: Xu F et al. (CDC), Journal of Investigative Medicine 2022: 30.3% of 52,892 US Crohn's patients were prescribed a biologic in 2019",
+     "note": "Kept equal to tulisokibart's",
+     "verdict": "confirmed",
+     "check": "tulisokibart seed row: Xu F et al., 30.3% of 52,892 Crohn's patients prescribed a biologic in 2019; value matches."
+    },
+    "penetration_peak_pct": {
+     "value": 0.06,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "reused from the tulisokibart seed: the IL-23p19 class held 15.0% of Crohn's patients on advanced therapy in Q1 2025, the fourth year after risankizumab's approval (Singh S et al., Journal of Crohn's and Colitis 2025); the engine needs 0.124 to match, and 0.06 reaches half",
+     "note": "JUDGEMENT: 0.5x the IL-23 class, as the tulisokibart seed chose. Same case for and against as UC: strong Phase 2b endoscopic response, but likely second or third TL1A in Crohn's",
+     "verdict": "confirmed",
+     "check": "tulisokibart seed row: IL-23p19 class 15.0% Q1 2025 (Singh S et al.), engine needs 0.124, 0.06 is half. Matches; multiple is a judgement."
+    },
+    "ramp_steepness": {
+     "value": 1.005,
+     "unit": "logistic k",
+     "source": "reused from the tulisokibart seed: Zeposia's fitted curve (lookup.py demand Zeposia)",
+     "note": "No Crohn's-only launch curve on file",
+     "verdict": "confirmed",
+     "check": "Matches the tulisokibart Crohn's seed row (Zeposia fit, k 1.005)."
+    },
+    "ramp_midpoint_year": {
+     "value": 3.15,
+     "unit": "years from the forecast start",
+     "source": "Zeposia's fitted 2.15-year midpoint moved one year later: Crohn's induction NCT07184931 completes 2029-05-14 against UC induction NCT07184996 2028-05-09, and Crohn's maintenance NCT07184944 2029-08-13 against UC maintenance NCT07185009 2028-09-21",
+     "note": "JUDGEMENT: the same shift method as tulisokibart's Crohn's line (which moved two years for its 27-month gap). The engine starts every indication in the same year",
+     "verdict": "confirmed",
+     "check": "PCDs checked: CD induction NCT07184931 2029-05-14 vs UC induction 2028-05-09 (12 months), CD maintenance NCT07184944 2029-08-13 vs UC maintenance 2028-09-21 (~11 months). 2.15 + 1 = 3.15, same method as tulisokibart's +2 years for a 27-month gap. Judgement."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}
