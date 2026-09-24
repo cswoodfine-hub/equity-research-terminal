@@ -242,4 +242,4 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                 assert assumptions.dated(row[isrc]) == "2026-09-01", path.name
                 # The variant is named, so the choice among his five is visible.
                 assert "trailing twelve month" in row[isrc], path.name
-    assert seen == 487        # 473, then seven Roche Phase 3 seeds, Elahere, Moderna's intismeran and five Lilly Phase 3 seeds, all 2026-09-24
+    assert seen == 492        # 473, then seven Roche Phase 3 seeds, Elahere, Moderna's intismeran, five Lilly Phase 3 seeds and five more Phase 3 seeds (Sanofi, Pfizer, GSK), all 2026-09-24
