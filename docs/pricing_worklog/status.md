@@ -48,7 +48,7 @@
 | NTLA | nexiguran ziclumeran | not started |
 | NVO | Etavopivat | seeded and built |
 | NVO | Zenagamtide | seeded and built |
-| NVO | Ziltivekimab | not started |
+| NVO | Ziltivekimab | seeded and built: ARTEMIS only |
 | NVS | Ianalumab | seeded and built |
 | NVS | Pelabresib | seeded and built |
 | NVS | Votoplam | researcher returned nulls; not buildable |

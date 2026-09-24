@@ -1,0 +1,99 @@
+{
+ "ticker": "INCY",
+ "name": "INCA33890",
+ "summary": "INCA33890 is Incyte's TGFbR2xPD-1 bispecific antibody, built on Merus's Biclonics platform under the 2016 Incyte-Merus collaboration. The pivotal trial is INCA033890-303 (NCT07284849): a randomised, quadruple-blind Phase 3 of 700 patients adding INCA33890 or placebo to standard chemotherapy plus bevacizumab in untreated metastatic microsatellite-stable colorectal cancer. It excludes MSI-H/dMMR and BRAF V600E tumours, its primary endpoint is PFS, and primary completion is estimated for 2028-12-29. Price anchor: Keytruda, the PD-1 antibody labelled in first-line MSI-H colorectal cancer, at $79,464 per CMS Part B beneficiary in 2024. This is the price the book's PF-08634404 seed uses for the same first-line MSS colorectal pool. Uptake anchor: nivolumab, the first PD-1 added to first-line chemotherapy in a GI adenocarcinoma (HER2-negative gastric/GEJ), took 34.7% of US Medicare first-line starts over 2021-2024 (Chen et al., JMCP 2026). Incyte pays Merus tiered royalties of 6% to 10% of global net sales.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT07284849 (book trials table, ClinicalTrials.gov last update 2026-09-15): INCA33890 or placebo added to standard-of-care chemotherapy and bevacizumab in first-line metastatic MSS colorectal cancer, randomised, quadruple-blind, primary endpoint PFS; ASCO abstract INCA033890-303 (asco.org/abstracts-presentations/266865)",
+   "note": "An add-on to a first-line regimen given until progression, with PFS as the primary endpoint. That is chronic by the house definition for oncology treated to progression. The registry text I could reach does not state the INCA33890 treatment cap, if there is one"
+  },
+  "list_price_per_patient": {
+   "value": 0.079464,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Keytruda: CMS Medicare Part B 2024, $5,988,521,233 over 75,361 beneficiaries = $79,464 per beneficiary",
+   "note": "Judgement on the comparator, following house convention. Keytruda (pembrolizumab) is the PD-1 antibody labelled in first-line colorectal cancer (MSI-H/dMMR). INCA33890 is a PD-1-based antibody for the same line, and the book's PF-08634404 seed already prices the same first-line MSS colorectal pool on this figure. Case against: a beneficiary's spend covers less than a year of therapy for many patients, so it understates an annual price. A bispecific may be priced above a PD-1 monoclonal. Bevacizumab, the backbone, is not the right anchor: at $1,632 per Part B beneficiary in 2024 (lookup.py demand Avastin), it is a biosimilar-eroded add-on"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part B per-beneficiary price (backend/gross_to_net.py). Part B pays 106% of average sales price, which is already net of discounts, so 1 - 1/1.06 comes off. Keytruda's anchor row is Part B (lookup.py demand Keytruda)",
+   "note": "Direction checked: 5.66% off list, so net is $74,966 per patient-year. The PF-08634404 seed carries 0.0566 on the same anchor"
+  },
+  "discontinuation_pct": {
+   "value": 0.5029,
+   "unit": "share of treated stock stopping per year",
+   "source": "CheckMate 9X8 (Lenz et al., J Immunother Cancer 2024;12(3):e008409, doi:10.1136/jitc-2023-008409, PMID 38485190; NCT03414983): median PFS by BICR of 11.9 months on mFOLFOX6 plus bevacizumab in first-line mCRC. The nivolumab arm had the same median (HR 0.81)",
+   "note": "Constant hazard from a median: 1 - 0.5^(12/11.9) = 0.503. This is the form the PF-08634404 and vepugratinib seeds use, not the brief's 1 - exp(-12/m), which treats the median as a mean. CheckMate 9X8's control arm is the same backbone as INCA033890-303's, and it is the only randomised trial of a PD-1 added to that backbone in this line. Case for higher: real-world first-line chemotherapy plus bevacizumab runs shorter. Bevacizumab-naive US patients had a median rwPFS of 8.6 months (Jin et al., Ther Adv Med Oncol 2023, doi:10.1177/17588359231182386), which gives 0.620. Immune add-ons also add toxicity stops: grade 3-4 treatment-related AEs were 75% vs 48% in CheckMate 9X8. Case for lower: a positive INCA33890 arm would by design extend PFS"
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "NCT07284849 estimated primary completion 2028-12-29, study completion 2029-09-28 (book trials table; context file, last update 2026-09-15)",
+   "note": "Judgement on the review timeline. The book's pipeline seeds put the first full year two calendar years after the primary completion year (the ABBV-1480, telisotuzumab adizutecan and PF-08634404 seeds), which gives 2030. Case against: a completion at the very end of December leaves a readout in early 2029, a BLA around mid-2029 and a standard review to mid-2030. On that timeline 2030 is a partial launch year and 2031 the first full one"
+  },
+  "exus_multiple": {
+   "value": 0.6804,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Keytruda FY2025: $12,812mm outside the US against $18,829mm US (Merck 10-K 0000310158-26-000063; book asset_revenue_regions, sec_fsds). 12,812 / 18,829 = 0.680",
+   "note": "Judgement on the comparator. Keytruda is the price anchor and the PD-1 in this line, and the book's PF-06801591 and MK-1045 seeds use the same split. Incyte has no oncology product with a filed US/ex-US split in the book: Jakafi is US-only, with Novartis selling Jakavi abroad, and Iclusig is ex-US only. Case for lower: Incyte's own ex-US reach is thinner than Merck's. Opzelura, which Incyte sells itself in Europe, ran $130.0mm outside the US against $548.5mm US in FY2025, a ratio of 0.237 (Incyte 10-K 0000879169-26-000010). The engine scales the patient pool by 1 + this multiple, so it acts on volume"
+  },
+  "economics_share": {
+   "value": 0.7702,
+   "unit": "share",
+   "source": "Incyte FY2024 10-K (0001628280-25-004633), Merus collaboration note: 'For each program as to which Merus does not have commercialization or development co-funding rights, Merus is eligible to receive up to $100.0 million in future contingent development and regulatory milestones, and up to $250.0 million in commercialization milestones as well as tiered royalties ranging from 6% to 10% of global net sales'. The same terms appear in Merus's 6-K of 2016-12-21 (0001193125-16-800493, exhibit 99.1). Search of Incyte's Q2 2026 10-Q (0000879169-26-000056) returns INCA33890 described as developed by Incyte using Merus N.V.'s licensed bispecific platform. Incyte company rows (lookup.py seed on Jakafi or Opzelura, INCY FY2025): cogs 7.24%, SG&A 26.77%, R&D 39.88%, other costs 0.0%, which leave a margin of 26.11%. (0.2611 - 0.06) / 0.2611 = 0.7702",
+   "note": "Judgement: the lowest stated royalty tier, 6%. This follows the PF-08634404 seed, which takes the lowest rate its filing states. Case for lower: the tier thresholds are not disclosed, and at the top tier of 10% the share is (0.2611 - 0.10) / 0.2611 = 0.6170. Merus held an option to co-fund one specified programme, and subject to conditions a second, for 35% of development costs and 50% of US profits. I found no disclosure that it exercised that option on INCA33890. Incyte is sole sponsor of all three trials, and its filings describe the molecule as Incyte-developed. If the option had been exercised, US economics would be 0.5. Milestones of up to $350mm are not in this field. The royalty's current holder after any change of Merus's ownership does not change the rate"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Colorectal Neoplasms",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: 158,850 (SEER Cancer Stat Facts, estimated new US colorectal cancers in 2026), via the telisotuzumab adizutecan and PF-08634404 seeds (lookup.py pool Colorectal Neoplasms)",
+     "note": "Carried by the book, so no second figure is set"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: 158,850 (SEER, 2026), via the same seeds",
+     "note": "Carried by the book. Prevalence equals incidence, so the engine already treats the pool as each year's diagnoses"
+    },
+    "eligible_pct": {
+     "value": 0.1738,
+     "unit": "share of the pool",
+     "source": "Reused from the PF-08634404 seed, which covers the same first-line MSS pool. Three filters multiplied. (1) 35.1% metastatic: the telisotuzumab adizutecan seed's SEER derivation. (2) 55.9% receive chemotherapy: 47,026 of 84,161 US patients newly diagnosed with metastatic CRC, NCDB 2006-2011 (Krell et al., Cancer 2015, doi:10.1002/cncr.29253). (3) 88.6% both mismatch-repair proficient and BRAF wild-type: 2,713 of 3,063 first-line trial patients after removing 153 dMMR and 197 pMMR BRAF-mutant tumours (Venderbosch et al., Clin Cancer Res 2014, doi:10.1158/1078-0432.CCR-14-0332). 0.351 x 0.559 x 0.886 = 0.1738, about 27,600 patients a year",
+     "note": "The filters match INCA033890-303's entry criteria. The trial takes stage IV disease not amenable to curative resection with no prior systemic therapy for metastatic disease, and excludes MSI-H/dMMR and BRAF V600E tumours (NCT07284849, as returned by search of the ClinicalTrials.gov record and site listings). Case for lower: the label will be with bevacizumab. RAS wild-type left-sided patients usually receive anti-EGFR therapy instead, and the trial also requires measurable disease and ECOG 0-1. None of these is filtered here, because I found no US share to source for them. The NCDB chemotherapy share dates from 2006-2011"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.0,
+     "unit": "share",
+     "source": "forecast.py convention for a line of cancer therapy",
+     "note": "A first-line patient not started on INCA33890 in a year starts another regimen and leaves the line. The engine already sets this when prevalence equals incidence, as here, so stating it changes nothing today. It protects the line if the book's pool is ever restated as a living prevalence"
+    },
+    "penetration_peak_pct": {
+     "value": 0.347,
+     "unit": "share of each year's eligible patients",
+     "source": "Nivolumab-containing regimens were 34.7% of first-line starts among 2,029 US Medicare fee-for-service patients with HER2-negative advanced gastric/GEJ cancer, 2021-2024. They were 44.2% of 419 in MarketScan, and pembrolizumab-containing regimens were a further 9.9% and 5.3% (Chen et al., J Manag Care Spec Pharm 2026;32(7):807-819, doi:10.18553/jmcp.2026.32.7.807, PMID 42341069)",
+     "note": "Judgement: a multiple of 1.0. Nivolumab is the closest measured case of a PD-1 added to first-line chemotherapy in a GI adenocarcinoma with a broad label. Its Medicare share is measured on the same basis as eligible_pct, the share of first-line treated patients. Case for higher: 34.7% averages 2021-2024, including the launch year, so the steady-state share was above it, and the PD-1 class took 44.6% in Medicare. Case for lower: every PD-1 tried in MSS colorectal cancer has failed so far, CheckMate 9X8 included. INCA33890 must be given with bevacizumab, which excludes anti-EGFR patients. PF-08634404 (PD-1xVEGF, peak 0.20 in this pool in the book) competes for the same first-line MSS patients. Nivolumab's gastric label rested on an overall survival benefit, whereas this trial's primary endpoint is PFS"
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "book: Enhertu's CMS Part B launch fit (864, 1,904, 4,841, 7,105, 8,410 beneficiaries 2020-2024), k=1.08, midpoint 2.2 years, as carried by the PF-08634404, telisotuzumab adizutecan, ABBV-1480 and camizestrant seeds",
+     "note": "Reused measured oncology curve, the one the book's other colorectal seeds carry. No colorectal launch series is on file"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Enhertu fit carried in the book)",
+     "note": "Colorectal is the lead and only Phase 3 indication, so the curve is not shifted. PF-08634404 shifts its colorectal line to 3.2 only because its lung launch comes first"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}
