@@ -153,13 +153,49 @@ every one is a correction.
 **Open, added to the list above**
 
 13. **Roche and Bayer can hold no valuation at all, and Roche has 25 late-stage assets.**
-    Neither files with the SEC, so no fetcher reads their financials: Roche has 101 assets,
+    Neither files with the SEC, so EDGAR has no financials for either: Roche has 101 assets,
     3,915 price rows and zero financial rows, so a beta is derivable and a cost structure
     is not. Trontinemab is the concrete loss. Its research survived verification in full,
     with a price corroborated within 2.7% by an announced list and an uptake anchor
     measured in Leqembi and Kisunla patient-years rather than beneficiary counts, and it
     cannot be seeded because there is no company block to put it on. This is the single
     largest unvaluable block in the book and it is one fetcher, not one asset.
+
+    **Bayer's half is now a route rather than a gap, pending its first live run.** Bayer
+    files XBRL, just not with the SEC: its annual report is filed in the European Single
+    Electronic Format, tagged in the same `ifrs-full` taxonomy Novo, GSK and Sanofi use in
+    their 20-F. The equivalent of EDGAR's company-facts file is filings.xbrl.org, which
+    serves every ESEF report as xBRL-JSON and is keyed by LEI.
+    `fetchers/financials_esef.py` reads it and hands the facts to the same parser EDGAR
+    data goes through (now `companyfacts.py`). Bayer's LEI, 549300J4U55H3WP1XT59, is on
+    the seed and check-digit validated. Built in a session whose network reached neither
+    filings.xbrl.org nor bayer.com, so the converter is tested on genuine Arelle output
+    for a synthetic filer, not on Bayer's own report. Three things to confirm on the
+    first refresh that reaches the index: that it holds Bayer at all (its German coverage
+    could not be checked), that `Revenues`, `NetIncomeLoss` and `CashAndEquivalents`
+    resolve, and that `TotalDebt` does, since Bayer may tag its financial liabilities
+    under a concept of its own rather than `ifrs-full:Borrowings`. A miss is reported
+    either way, never filled. Depth is FY2019 to FY2025 and annual only, because ESEF
+    covers annual reports alone.
+
+    The ADR ratio under it was wrong too. Four BAYRY make one ordinary share, not one
+    (migration 067). It cost nothing while Bayer had no share count, and would have put
+    every per-share figure at four times the price once it did.
+
+    **Financials are necessary for a Bayer valuation, not sufficient.** Run on these rows,
+    `fair_value.company` still refuses, because the sum of the parts is empty. Bayer has
+    56 marketed assets with no product revenue on file, no company lines for Crop Science
+    or Consumer Health, and not one modelled asset. Product sales sit in the management
+    report, which ESEF does not tag, so they are curated rows in
+    `data/product_revenue.csv` read from the annual report, the same route as any other
+    untagged product table. After that come the three unmodelled late-stage assets, which
+    are small. BAY3723113 is aficamten in a 36-patient Japanese Phase 3 (Bayer licensed
+    Japan). BAY 3670549 is a Phase 2 in atrial fibrillation, primary completion 2030.
+    AB-1005 is AskBio's GDNF gene therapy in an 8-patient Japanese Phase 2 in Parkinson's,
+    not yet recruiting.
+
+    Roche is unchanged. Switzerland is outside the EU, so ESEF does not apply and no free
+    XBRL source carries it.
 14. **Amlitelimab and tozorakimab carry a 0.94 probability on one positive readout.**
     `pos_granular` places an asset at its own gate, and a single positive Phase 3 filing
     moves it to the NDA/BLA transition. Amlitelimab's Phase 3 programme has five trials
@@ -176,4 +212,5 @@ every one is a correction.
 
 208 late-stage assets at companies holding five or more still carry nothing, of 397. The
 five largest gaps are NVS 43, GSK 32, ROG 25, LLY 20 and SNY 18. ROG's 25 are blocked on
-item 13 rather than on research.
+item 13 rather than on research. Bayer's three were blocked the same way and now wait on
+its first ESEF refresh and its product revenue.

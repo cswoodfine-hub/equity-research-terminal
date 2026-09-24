@@ -79,7 +79,12 @@ Confirm every endpoint against its live docs before relying on it. The specifics
 - Resolve CIKs once from `https://www.sec.gov/files/company_tickers.json`, the official ticker-to-CIK map. Do not hand-key CIKs.
 - Reported financials: `https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json`, cik zero-padded to 10 digits. Pull us-gaap tags Revenues, NetIncomeLoss, ResearchAndDevelopmentExpense, and IFRS tags for foreign filers.
 - Recent filings: `https://data.sec.gov/submissions/CIK{cik}.json` returns the recent filings list with form types, accession numbers, and dates. Use this for the filings table and 8-K / 6-K monitoring.
-- European filers submit 20-F and 6-K, not 10-K and 8-K. Handle both. Roche and Bayer are not SEC registrants at all; their financials come from IR, not EDGAR (see the seed CSV `is_sec_filer` flag).
+- European filers submit 20-F and 6-K, not 10-K and 8-K. Handle both. Roche and Bayer are not SEC registrants at all (see the seed CSV `is_sec_filer` flag). Bayer's financials come from ESEF, below; Roche's have no free structured source.
+
+### ESEF (financials for an EU filer outside the SEC)
+
+- EU-listed companies file their annual report in the European Single Electronic Format: inline XBRL in the `ifrs-full` taxonomy, the one IFRS 20-F filers use. filings.xbrl.org indexes the reports and serves each as xBRL-JSON: `https://filings.xbrl.org/api/filings?filter[entity.identifier]={LEI}&include=entity`, then each filing's `json_url`.
+- Keyed by LEI, carried on the seed CSV and check-digit validated on load. Annual reports only, from fiscal 2020 (with the 2019 comparative). Facts are converted to the company-facts shape and parsed by `companyfacts.py`, the same parser EDGAR data uses.
 
 ### ClinicalTrials.gov (pipeline)
 
