@@ -382,3 +382,23 @@ those checks would read the registry or the regulator directly.
 
 **Next.** Price only NEW, and begin with the Phase 3 rows. `pipeline_sort.unsorted()` lists
 any row a later trials refresh adds that the file does not cover.
+
+**Book defects closed, 24 September 2026.** `backend/curated_register.py` now applies two
+cited files on every refresh. `data/marketed_additions.csv` adds Elahere (AbbVie, licensed
+under ImmunoGen), Aucatzyl (Autolus) and Zevaskyn (Abeona) as marketed, keyed by licence
+number with the 12-year biologic floor from first licensure, and their filed revenue is in
+`data/product_revenue.csv`. Elahere is seeded on AbbVie's company rows and values at
+$2,753mm risk-adjusted. `data/withdrawn_products.csv` retires Beqvez. Moderna's half of
+intismeran is seeded in `mrna_mrna_4157.csv` at the same price, pool, uptake and
+probability as Merck's half, discounted at Moderna's own rate: $377mm against Merck's
+$484mm, the gap being beta alone. The Merck model already took economics_share 0.5, so it
+needed no change.
+
+Left open, each for a stated reason. Aucatzyl and Zevaskyn are marketed with their revenue
+but not yet seeded: both companies are loss making, so their own cost lines would value any
+product below nothing and a comparator must be chosen, which is a pricing decision.
+Enerzair and Atectura Breezhaler, Mosquirix and Cenrifki are not added: none has revenue
+its company reports, so a marketed row would carry nothing. The Purple Book's marketing
+status was not used to retire products automatically, because the downloadable file lists
+only presentations that changed, and a single discontinued vial (the fixture's Keytruda
+50 mg) would have retired the whole product.
