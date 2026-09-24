@@ -1,0 +1,93 @@
+{
+ "ticker": "REGN",
+ "name": "Mibavademab",
+ "summary": "Mibavademab (REGN4461) is Regeneron's fully human leptin receptor agonist antibody, given as an IV load then weekly subcutaneous doses in Phase 2. The lead Phase 3 is LAGO (NCT07220785), a two-part, randomised, placebo-controlled study in adult and paediatric generalized lipodystrophy (GL), primary endpoint change in HbA1c, 28 patients, primary completion 2028-05-19; the FDA has granted Orphan, Breakthrough and Fast Track designations in GL (REGN 10-Q 0000872589-26-000025). Price anchor: Myalept (metreleptin), the only approved GL therapy, at a list of $929,951 a year (14 vials a month, GoodRx, January 2022), because the book carries no CMS row for it. Uptake anchor: Myalept's US revenue ($20.2mm in Q1 2022, Amryt) converted to about 120 US patients and solved through the engine to a peak of 3.53% of the eligible pool a year, with a multiple of 1.0. Regeneron owns the asset, but Sanofi receives an undisclosed royalty, set here at 11%. Not modelled: the LEP-deficiency obesity Phase 3 (NCT07220772, 4 patients, no sourced US pool) and familial partial lipodystrophy, which appears in the context only through LAGO's MeSH tags and has no Phase 3 of its own.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Phase 2 in GL (NCT04159415), reported at ENDO 2025 as SUN-253 (J Endocr Soc 2025;9(Suppl 1), doi:10.1210/jendso/bvaf149.870, PMC12545117): 'an intravenous loading dose ... followed by weekly subcutaneous administration', with high-dose treatment for up to 52 weeks (median 51 doses)",
+   "note": "Replaces missing leptin signalling in a lifelong disease, like metreleptin. The NIH metreleptin cohort averaged 62.5 months of continuous exposure (Brown RJ et al., Endocrine 2018, PMID 29644599). Chronic by the house definition"
+  },
+  "list_price_per_patient": {
+   "value": 0.929951,
+   "unit": "mm USD per patient-year",
+   "source": "GoodRx Research, '10 Most Expensive Drugs in the US, Period' (goodrx.com/drugs/savings/most-expensive-drugs-in-us): Myalept 'costs $77,496 for a monthly supply', patients 'typically using 14 vials per month', for $929,951 a year, as of January 2022. Read from two separate search results, not opened",
+   "note": "Judgement: parity with Myalept, the only approved therapy for GL and the drug LAGO's patients would otherwise take. The house convention cannot be applied: the book's drug_demand has no Myalept row (lookup.py demand Myalept returns nothing), and data.cms.gov is blocked from this container. The case for higher: the price is four years old. The drugs.com price guide quotes $6,297 per 11.3 mg vial (a cash price, by search result), which at the same 14 vials a month is $1,057,896 a year. The drugs.com most-expensive-drugs article quotes about $6,188 a vial and 18 vials a month, over $1.3mm. The case for lower: the 14 vials are GoodRx's usage assumption, and the dose is weight-based. The NIH cohort's mean dose was 5.0 mg a day (Brown 2018), and children take less. Regeneron's own ultra-rare antibody Evkeeza reads $400,140 per Medicare Part D beneficiary in 2024 (lookup.py demand Evkeeza), but that is a different disease. The penetration below is solved with this same price, so the revenue anchored on Myalept's reported sales barely moves if the price does"
+  },
+  "gross_to_net_pct": {
+   "value": 0.2777,
+   "unit": "share taken off list",
+   "source": "the discount the book already applies to WAC-based prices for specialty orphan medicines, reused by name (dazukibart, VX-147 and velzatinib seeds; vrtx_prices.csv): Kalydeco's CMS Part D 2024 spend per beneficiary of $273,600 against its $378,786 WAC is 72.2% of list",
+   "note": "Judgement: the anchor is a published list price, so neither 0.5 nor 0.056604 applies. No filed gross-to-net for Myalept was found, since Amryt's 20-F cannot be reached from this container. Direction checked: 27.77% comes off, so net is $671,704 per patient-year. The case for lower: an ultra-rare product with one competitor has little rebate pressure. The osivelotor seed's filed Oxbryta deductions were 14.5% of gross (GBT 10-K 0000950170-22-001781). The case for higher: young GL patients are often on Medicaid, which takes a 23.1% minimum rebate plus inflation penalties after years of list increases. The same discount converts Myalept's revenue into patients for penetration_peak_pct, so a different value moves price and implied patients in opposite directions"
+  },
+  "discontinuation_pct": {
+   "value": 0.0427,
+   "unit": "share of treated stock stopping per year",
+   "source": "Brown RJ et al., 'Long-term effectiveness and safety of metreleptin in the treatment of patients with generalized lipodystrophy', Endocrine 2018;60(3):479-489, doi:10.1007/s12020-018-1589-1, PMID 29644599, full text PMC5936645 (NIH studies 991265 and 20010769): 66 GL patients with a mean metreleptin exposure of 62.5 months, 343.75 patient-years. 23 ended participation, 8 of them by 'transfer to another metreleptin treatment program', which means they were still treated. The other 15 left therapy: noncompliance 5, death 3, ineligibility 2, other 2, adverse event 1, lost to follow-up 1, lack of efficacy 1",
+   "note": "Judgement on the analogue: metreleptin works through the same receptor in the same disease. A constant hazard of 15 / 343.75 = 0.0436 per patient-year gives 1 - exp(-0.0436) = 4.27% a year. Leaving out the 2 ineligible patients gives 3.71%. The case for higher: the NIH setting supplied the drug and followed patients closely, which understates real-world stopping. A 20-year case report of two CGL sisters describes adherence falling over time (Front Endocrinol 2026, doi:10.3389/fendo.2026.1815903, PMID 42222073). The case for lower: weekly dosing against daily injections, and no anti-drug antibodies that neutralise endogenous leptin (SUN-253), could improve persistence"
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "NCT07220785 (LAGO): estimated primary completion 2028-05-19, study completion 2028-09-08 (context file and book trials table). REGN 10-Q for Q2 2026 (0000872589-26-000025) marks mibavademab in GL with footnotes (c), (d) and (e): Orphan Drug, Breakthrough Therapy and Fast Track designations",
+   "note": "Judgement on the timeline. No launch date is published. A BLA around the end of 2028 and a priority review (Breakthrough; about eight months from submission) put approval in the second half of 2029, so 2030 is the first full year. The case against: LAGO has a separate paediatric safety and PK part (Part B), which could hold the filing, and any slip makes it 2031. The obesity study NCT07220772 reads out earlier (2027-06-18), but it is not modelled"
+  },
+  "exus_multiple": {
+   "value": 0.8614,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Amryt Pharma Q1 2022 results, by search result and not opened (Form 6-K exhibit 99.1, which I take to be sec.gov/Archives/edgar/data/1783010/000117184322003171/exh_991.htm, filed with the 424B3 of 2022-05-04): metreleptin revenue US $20.2mm, EMEA $15.9mm, other regions $1.5mm, total $37.6mm. (15.9 + 1.5) / 20.2 = 0.8614",
+   "note": "Judgement: the incumbent's own split in the same disease. The case for lower: this is one quarter, and Amryt called its LATAM orders sporadic (Q2 2022 release). Myalepta's EU label also covers partial lipodystrophy in patients aged 12 and over, a group the US GL label excludes, so a GL-only ex-US figure would be smaller. The case for higher: Japan, where metreleptin was approved in 2013 (Brown 2018), is not broken out in these figures and may sit with a licensee outside Amryt's revenue (not checked). Mibavademab's ex-US route is not disclosed. Regeneron licensed Evkeeza outside the US to Ultragenyx, which would put ex-US value on a royalty rather than sales"
+  },
+  "economics_share": {
+   "value": 0.68365,
+   "unit": "share",
+   "source": "Royalty paid to Sanofi. The REGN 10-Q for Q2 2026 (0000872589-26-000025, read in the book's filing_sections) lists 'Mibavademab (f) (REGN4461)', with footnote (f): 'Sanofi is entitled to receive royalties on sales of the product'. No filing found gives the rate. Anchor: Sanofi's 11% royalty on worldwide net sales of Libtayo, the higher of the two royalty rates disclosed between the companies (Regeneron 8-K of 2022-06-01, 0001104659-22-067375, and Regeneron filings, by search result). Regeneron margin from its seeds (lookup.py seed REGN7508): 1 - cogs 0.0 - sga 0.1882 - rd 0.4079 - other 0.056184 = 0.347716. Netted as (0.347716 - 0.11) / 0.347716 = 0.68365",
+   "note": "Judgement, and the weakest field. The anchor and method are the ones the fianlimab researcher used for the same footnote (out/REGN_fianlimab.json, not yet second-read), so the two REGN assets that owe Sanofi a royalty are treated alike. The royalty comes from opt-out terms of the 2007 antibody discovery agreement, not from a buyout of a selling product. It is therefore more likely below 11% than above, and 0.68 more likely understates Regeneron's share. The other disclosed rate between the companies is the 5% Sanofi pays Regeneron on ex-US Praluent until 2032-03-31 (same search), which gives 0.8562. At 3% the share is 0.9137. Not a refusal case: Regeneron is the sole developer and commercialiser (lead sponsor of all three trials), and the royalty is the only partner economics"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Lipodystrophy, Congenital Generalized",
+   "fields": {
+    "prevalence": {
+     "value": 798,
+     "unit": "patients (US, congenital and acquired GL)",
+     "source": "Vantyghem MC et al., 'Lipodystrophy and severe insulin resistance syndrome: Epidemiological data from a French national rare diseases registry', Ann Endocrinol (Paris) 2025;86(4):101730, doi:10.1016/j.ando.2025.101730, PMID 40174859: prevalence of genetically determined GL 1.6 per million. Congenital share of GL: 45 of 66 NIH patients (68.2%; Brown 2018, PMID 29644599). 1.6 / 0.682 = 2.347 per million, applied to the 340,110,988 US residents of July 2024 (Census Vintage 2024, the population the velzatinib and zilovertamab seeds use) = 798",
+     "note": "Judgement: two sources, and a French rate applied to the US. The book carries no pool for this indication (lookup.py pool returns nothing for lipodystrophy), so no duplicate figure is created. The pool is grossed up from congenital to all GL because LAGO enrols 'Generalized Lipodystrophy' and Myalept's label covers congenital and acquired GL. The indication name comes from LAGO's MeSH tag, and a later asset that is congenital-only would need 544 (1.6 per million). Cross-check: Myalept's label study was 32 of 48 congenital, which gives 816. The case for lower: Chiquette E et al. (Diabetes Metab Syndr Obes 2017;10:375, doi:10.2147/DMSO.S130810, PMID 29066925) found 0.23 GL per million in adjudicated US EMR data, 78 people. That is below the 87 to 120 US patients Myalept's own revenue implies, so that source undercounts. Their European literature figure of 0.96 per million gives 327. The case for higher: the French registry doubled its count from 2017 to 2023 as ascertainment improved, and its authors point to continuing underdiagnosis"
+    },
+    "incidence": {
+     "value": 0.0,
+     "unit": "patients per year",
+     "source": "no US incidence of GL was found; congenital GL is put at about 1 in 10 million births (Yordanova SG et al., Endokrynol Pol 2026;77(1):5-10, doi:10.5603/ep.108324, PMID 41841805, a case report and review)",
+     "note": "A closed pool, the convention the VX-147 seed uses: the engine needs a number, and zero adds no patients the evidence does not support. At 1 in 10 million births the inflow is below one US patient a year, which is immaterial next to a prevalent pool of a lifelong disease. Acquired GL starts later in life and has no incidence figure either"
+    },
+    "eligible_pct": {
+     "value": 0.9028,
+     "unit": "share of the pool",
+     "source": "One filter: GL with a metabolic complication. The Phase 2 enrolled only GL patients 'with baseline diabetes ... or hypertriglyceridemia' (SUN-253, doi:10.1210/jendso/bvaf149.870), and Myalept treats 'the complications of leptin deficiency'. Share: Yildirim Simsir I et al., 'Clinical features of generalized lipodystrophy in Turkey: A cohort analysis', Diabetes Obes Metab 2023;25(7):1950-1963, doi:10.1111/dom.15061, PMID 36946378: hypertriglyceridaemia developed in 65 of 72 GL patients, 90.28%, a floor for 'diabetes or hypertriglyceridaemia'",
+     "note": "Judgement: LAGO's own entry criteria could not be read (the Amass quota is exhausted and clinicaltrials.gov is blocked). Its primary endpoint, change in HbA1c (book trials table), suggests an HbA1c threshold for Part A. That would narrow the pool toward the 45 of 72 (62.5%) in the same cohort who had diabetes. The paediatric Part B may not need one. The 90% was measured over a mean 86 months of follow-up, not at one time point, and children develop complications with age (median 14 years to hypertriglyceridaemia in the same cohort). Penetration is solved on this same pool, so this choice mostly nets out of revenue"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0353,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "Solved from Myalept: US metreleptin revenue of $20.2mm in Q1 2022 (Amryt Q1 2022 results, as in exus_multiple), annualised to $80.8mm. At the list price and discount above ($929,951 x 0.7223 = $671,704 net), that is 120 US patients on therapy in 2022, index 7 from Myalept's first full year of 2015 (FDA approval 2014, Brown 2018). Pool 798 x 0.9028 = 720. With this ramp (k 1.32, midpoint 1.7), discontinuation 0.0427, incidence 0 and carryover 1.0, the engine identity (forecast.py derive_new_patients and treated_stock) needs a peak of 0.0353 to hold 120 patients in year 7",
+     "note": "Judgement: a multiple of 1.0 on Myalept's solved rate. At list price with no discount the same revenue is 87 patients, which needs a peak of 0.0248. The case for higher: weekly against daily injections; no cross-reacting neutralising antibodies (SUN-253); Regeneron is already running a switch study from metreleptin (NCT06548100); and Myalept's rate includes years of weak commercialisation under Aegerion before Amryt. The case for lower: mibavademab is second to market against an entrenched REMS product with paediatric and infant use; the engine's pool also holds Myalept patients who may never switch; one quarter annualised is a thin anchor; and US metreleptin revenue may include off-label partial lipodystrophy use, which would overstate GL patients"
+    },
+    "ramp_steepness": {
+     "value": 1.32,
+     "unit": "logistic k",
+     "source": "reused from the VX-147, venglustat and zigakibart seeds (lookup.py seed VX-147): Tarpeyo's CMS Part D beneficiaries of 52, 247, 468 (2022 to 2024) and 680 (2025), a least-squares logistic of k 1.32 with a midpoint at 1.70 years (rmse 17)",
+     "note": "Reused: the book's measured curve for a specialist-prescribed rare-disease launch, and the curve venglustat already carries for an ultra-rare pool. Regeneron's own ultra-rare lipid antibody, Evkeeza, has Medicare beneficiaries (Parts B plus D) of 32, 49 and 90 over 2022 to 2024 (lookup.py demand Evkeeza). That series is still accelerating (steps of 1.53x then 1.84x), so no logistic fits it and it cannot serve. The case against: a switch launch into patients already on a leptin therapy could ramp faster than a first-in-disease launch. Myalept's own uptake was slower. Penetration is solved on this same curve"
+    },
+    "ramp_midpoint_year": {
+     "value": 1.7,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Tarpeyo fit carried by the VX-147 seed)",
+     "note": "Reused measured curve"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

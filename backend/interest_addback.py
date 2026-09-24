@@ -38,6 +38,7 @@ WINDOWS = {
     "VRTX": (2021, 2025),     # "over the five years to 2025", the Alpine note
     "EXEL": (2023, 2025),     # a block built from its own filed lines, 2026-09-24
     "ARGX": (2025, 2025),     # its first full year of profit; 2023 and 2024 were the turn
+    "NBIX": (2023, 2025),     # a block built from its own filed lines, 2026-09-24
 }
 # A charge borrowed from another company follows that company's.
 COMPARATORS = {"VKTX": "LLY"}

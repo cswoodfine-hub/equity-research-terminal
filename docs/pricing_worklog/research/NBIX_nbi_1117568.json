@@ -1,0 +1,93 @@
+{
+ "ticker": "NBIX",
+ "name": "NBI-1117568",
+ "summary": "NBI-1117568 (direclidine) is Neurocrine's oral, once-daily, selective M4 muscarinic agonist for schizophrenia, in-licensed from Nxera (formerly Sosei Heptares) in 2021. It needs no peripheral blocker, unlike Cobenfy. The Phase 2 met its primary endpoint at 20 mg once daily: PANSS total at week 6, p=0.011, effect size 0.61 (NBIX FY2024 10-K, 0000914475-25-000037). Four Phase 3 studies are recruiting: two 284-patient inpatient acute studies with a week-5 PANSS primary endpoint, NCT06963034 (primary completion 2027-10) and NCT07105098 (2027-11); relapse prevention NCT07227818 (2029-07); and long-term safety NCT07114874 (2031-12). Neurocrine guides to topline data in 2027. Price anchor: Cobenfy, the only marketed muscarinic, at its published WAC of $1,887 per 30 days ($22,959 a year), less the 44% Vraylar discount CMS published for 2027. Uptake anchor: Cobenfy's measured 2026 capture, backed out of BMS's filed US sales, is 1.14% of the book's schizophrenia pool a year. Nxera receives a tiered royalty from high single digit to mid-teens (NBIX 8-K, 2021-11-22), netted at 7%.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Book trials table and context file: NCT07227818 'Efficacy of NBI-1117568 in Preventing Relapse in Adults With Schizophrenia' (primary outcome time from randomisation to relapse) and NCT07114874 'Long-Term Evaluation of NBI-1117568 in Adults With Schizophrenia'; once-daily oral dosing (NBIX FY2024 10-K, 0000914475-25-000037)",
+   "note": "A daily oral antipsychotic taken as maintenance, so chronic by the house definition"
+  },
+  "list_price_per_patient": {
+   "value": 0.022959,
+   "unit": "mm USD per patient-year",
+   "source": "Cobenfy WAC $1,887 per 30 days (Bristol Myers Squibb pricing disclosure, bmspricinginformation.com/cobenfy/cobenfy; cobenfy.com FAQs), x 365/30 = $22,959 a year. Launch WAC was $1,850 a month, which BMS put at $22,500 a year (CNBC 2024-09-26; BioPharma Dive; BMS UK pricing statement, bms.com/news-and-media/statements/cobenfy-uk-pricing.html)",
+   "note": "Judgement: a published list price for the comparator, not for direclidine. The brief ranks a named list price above the CMS convention. Cobenfy is the closest marketed comparator: it is the only muscarinic agonist on the market, it treats the same disease, and its label (schizophrenia in adults, BMY FY2025 10-K 0000014272-26-000004) is the one direclidine's acute inpatient programme would produce. The CMS convention cannot be read for Cobenfy: lookup.py demand Cobenfy shows Part D 2024 at $2,359,550 over 961 beneficiaries, $2,455 each, and that is its launch quarter only (US launch October 2024). Case for lower: BMS said Cobenfy is priced 'in line with existing branded oral schizophrenia treatments' (BioPharma Dive, via search), but Vraylar's 2024 list was $1,376 per 30 days (CMS IPAY 2027 fact sheet), 27% below Cobenfy's current WAC. Its CMS Part D figure is $9,662 per beneficiary in 2024 (lookup.py demand Vraylar), and Caplyta's is $9,940. A second entrant to the class may also price at or below the first. Case for higher: a once-daily pill with no trospium may be positioned at parity or at a premium to a twice-daily one"
+  },
+  "gross_to_net_pct": {
+   "value": 0.4404,
+   "unit": "share taken off list",
+   "source": "CMS, Medicare Drug Price Negotiation Program, negotiated prices for initial price applicability year 2027 (cms.gov/files/document/fact-sheet-negotiated-prices-ipay-2027.pdf): Vraylar list price $1,376 per 30-day supply (2024), negotiated price $770, a 44% discount. The $770 is in the book (negotiated_prices, VRAYLAR, mfp_30des 770, effective 2027-01-01, source cms_mfp). 1 - 770/1,376 = 0.4404",
+   "note": "Judgement. A WAC anchor takes neither house convention, so the discount must be sourced, and this is the only published list-to-net discount found for a branded oral antipsychotic in schizophrenia. Direction checked: 44.04% comes off list, so net is $12,848 per patient-year. Case for a smaller discount: CMS negotiated the price for a drug a decade past launch, and gross_to_net.py calls such a price conservative for a fresh launch. Antipsychotics are also a protected Part D class with thin rebates. Case for a larger discount: BMS puts more than 80% of schizophrenia patients on Medicare or Medicaid (BioPharma Dive, via search). Medicaid takes a statutory 23.1% basic rebate plus supplemental and inflation rebates, and from 2025 Part D adds a 10% to 20% manufacturer discount. The book's other WAC discount, 0.2777 from Kalydeco, is not used: its own row calls it a floor that mostly measures fill coverage, and it comes from cystic fibrosis"
+  },
+  "discontinuation_pct": {
+   "value": 0.5936,
+   "unit": "share of treated stock stopping per year",
+   "source": "CATIE (Lieberman JA et al., N Engl J Med 2005;353:1209-1223, doi:10.1056/NEJMoa051688, PMID 16172203): 1,061 of 1,432 US patients with chronic schizophrenia (74%) stopped their oral antipsychotic within 18 months",
+   "note": "Constant hazard: 1 - (1 - 1061/1432)^(12/18) = 0.5936 a year. This is the class's reference measure of all-cause discontinuation, in the label's population, on oral daily antipsychotics. Case for higher: the muscarinic class so far keeps fewer patients. In EMERGENT-4, 34 of the 156 who enrolled in the 52-week xanomeline-trospium extension completed it, 21.8%, so 78.2% stopped (Kaul I et al., Am J Psychiatry 2026;183(3):183-192, doi:10.1176/appi.ajp.20241186, PMID 41634905). Case for lower: EMERGENT-5 reported 51% withdrawal over 52 weeks (a secondary figure, from the review by Ji F et al., Ther Adv Psychopharmacol 2026, doi:10.1177/20451253261478086, PMID 42621264). Direclidine avoids trospium and the twice-daily schedule, which may improve persistence. The same rate is used to back out Cobenfy's new starts in penetration_peak_pct, so the two stay consistent"
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "Primary completion NCT06963034 2027-10 and NCT07105098 2027-11, both estimated (book trials table). Neurocrine expects 'initial topline data ... in 2027' (FY2025 10-K 0000914475-26-000007) and 'Phase 3 readouts for ... direclidine in schizophrenia' in 2027 (Q2 2026 results, 8-K 0000914475-26-000035). Precedent: Karuna submitted the KarXT NDA in September 2023 and the FDA approved Cobenfy on 26 September 2024, a standard 12-month review (Karuna NDA acceptance release, 2023-11-29, via search; BMY FY2024 10-K 0000014272-25-000039). That approval rested on acute placebo-controlled trials plus open-label safety data of up to one year (BMY FY2024 10-K)",
+   "note": "Judgement on the timeline. Topline around the turn of 2028, an NDA about six months later, and a standard review put approval around mid-2029, so 2030 is the first full year. Neither the relapse-prevention study (2029-07) nor the long-term study (2031-12) should gate the filing, since Cobenfy was approved without a relapse-prevention study. The long-term study began in July 2025, so one-year exposures exist by 2028. Case for 2029: the book's usual rule, the second calendar year after primary completion, gives 2029, and a filing early in 2028 would leave most of 2029 on market. Case for 2031: a failure in one acute study would mean running another."
+  },
+  "exus_multiple": {
+   "value": null,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "No filed split supports an ex-US product line. Neurocrine: 'We sell INGREZZA exclusively in the U.S.', and valbenazine abroad is sold by Tanabe Pharma, which retains the rights there (FY2025 10-K 0000914475-26-000007). Cobenfy, the class comparator: FY2025 US $155mm, Non-US nil (BMY FY2025 10-K 0000014272-26-000004, in the book's asset_revenue_regions)",
+   "note": "Left null, and the engine reads null as nil. Neurocrine holds global rights to direclidine (FY2025 10-K) but has never sold a product outside the US, and its pattern is to license ex-US rights for a royalty, which this field cannot express. Case for a value: J&J's schizophrenia-only paliperidone franchise (Invega Sustenna/Xeplion/Trinza/Trevicta) booked $1,085mm outside the US against $2,725mm in the US in FY2025, 0.398 (book asset_revenue_regions, 10-K 0000200406-26-000016). That is a large-cap company with a global sales force. Vraylar reads 0.0025 ($9mm against $3,612mm, AbbVie 0001551152-26-000008) because Gedeon Richter holds Vraylar's ex-US rights"
+  },
+  "economics_share": {
+   "value": 0.685412,
+   "unit": "share",
+   "source": "Neurocrine 8-K of 2021-11-22 (0000914475-21-000062, EX-99.1, sec.gov/Archives/edgar/data/914475/000091447521000062/nbix-20211122exhibit991.htm): Sosei Heptares, now Nxera, receives $100mm upfront and development, regulatory and commercial milestones, and is 'eligible to receive tiered royalties ranging from high single digit to mid-teen percentage on future net sales'. Q2 2026 10-Q (0000914475-26-000037, note 10) and Q1 2026 10-Q (0000914475-26-000026): Nxera 'is entitled to receive royalties on the future net sales of any collaboration product' and up to $2.48bn in further milestones. Neurocrine bears all development, manufacturing and commercialisation costs. Royalties run to the latest of last patent expiry, a set number of years from first sale, and regulatory exclusivity. FY2025 10-K (0000914475-26-000007): 'Direclidine was in-licensed from Nxera ... in 2021, and we retain global rights.' Nxera's retained Japan rights cover M1 agonists only (10-Q), and direclidine is M4-selective. Margin: Neurocrine has no company rows in the book, so it is taken from the FY2025 filed lines in the book's financials table (edgar_companyfacts), the method block.py uses. Revenue $2,860.5mm; cost of revenue $52.1mm (0.018214); SG&A $1,156.2mm (0.404195); R&D $1,015.7mm (0.355078); other_costs_pct not yet derived, taken as 0. Margin = 0.222514. (0.222514 - 0.07) / 0.222514 = 0.685412",
+   "note": "A royalty Neurocrine PAYS, netted as (margin - royalty) / margin, the book's convention. Judgement on the tier: 'high single digit' is taken at its bottom, 7%, exactly as the disitamab vedotin seed nets the same filed wording. Provisional on the margin: re-strike this once Neurocrine's company rows land. A positive other_costs_pct lowers the share; at a margin of 0.20 it would be 0.65. Case lower: a 12% blended royalty gives 0.4607, and the 15% top tier 0.3259. Case higher: Neurocrine's R&D is 35.5% of revenue, and netting against a margin that low makes a 7% royalty cost 31% of the asset. Milestones (up to $2.48bn across all collaboration products) are not netted, as in the book's other royalty seeds. The $35mm Phase 2 milestone and $15mm Phase 3 start milestone are already paid (FY2024 10-K; Q2 2026 10-Q)"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Schizophrenia",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (epidemiology.csv: 1,200,448, NIMH midpoint of 0.25%-0.64% for schizophrenia and related psychotic disorders, applied to US adults)",
+     "note": "Carried by the book. The file calls it its softest row: 674,409 at the low end and 1,726,486 at the high end. It is broader than the label, because it includes related psychotic disorders"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book, but blank there: epidemiology.csv has no schizophrenia incidence, and no other asset in the book carries one",
+     "note": "BLOCKER for the engine. forecast.patients_for_indication needs a non-null incidence, so this indication will not build until one is set. It is left null, following the brief ('set prevalence and incidence to null') and the file's own rule that a blank is not to be filled with a plausible figure. The one US figure found is unusable. Teixeira AL et al., PLoS One 2022;17(9):e0274330 (doi:10.1371/journal.pone.0274330, PMID 36137136) found 1.04 per 1,000 insured adults newly diagnosed with schizophrenia-spectrum disorders in 2020 (Optum claims). On the book's adult base of about 269.8mm that is about 280,000 a year, 23% of the prevalence, so it counts prevalent patients newly seen in claims as new cases. penetration_peak_pct below was solved with no inflow. If an incidence is added, re-solve it: the engine passes incidence x eligible_pct into the untreated pool every year and has no deaths to offset it"
+    },
+    "eligible_pct": {
+     "value": 1.0,
+     "unit": "share of the pool",
+     "source": "Label basis: Cobenfy is 'indicated for the treatment of schizophrenia in adults' (BMY FY2025 10-K 0000014272-26-000004), approved on EMERGENT-2/-3. Those trials enrolled adults aged 18-65 recently hospitalised for worsening psychosis, with PANSS of 80 or more and CGI-S of 4 or more (EMERGENT-2, Kaul I et al., Lancet 2024;403:160-170, doi:10.1016/S0140-6736(23)02190-6, PMID 38104575). Direclidine's Phase 3 acute studies use the same acute inpatient design (NCT06963034, NCT07105098: 'Inpatient Adults With Schizophrenia', PANSS at week 5)",
+     "note": "Judgement. In schizophrenia the Phase 3 entry criteria (acute exacerbation, inpatient, PANSS 80 or more) do not carry into the label: the same design gave Cobenfy an all-adults label. The drug has no biomarker, and no line of therapy is stated. The book's pool is already adults. No filter is applied, for two reasons. The pool's excess over the label (related psychotic disorders, and the untreated) has no sourced share. And penetration_peak_pct is solved from Cobenfy on this same 1.0 basis, so any filter here would scale the solved peak up by the same factor and leave patients almost unchanged. Case for a filter: the label reaches schizophrenia only, and a patient outside care cannot be started"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0114,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "Cobenfy, measured from BMS's filed US net sales: $10mm in FY2024 (launch October 2024), $155mm in FY2025 (10-K 0000014272-26-000004, all US) and $119mm in H1 2026 ($56mm in Q1, $63mm in Q2; 8-Ks 0000014272-26-000008 and -000018; book asset_revenue). Each is divided by the net price on the same basis as this seed: WAC ($1,850 per 30 days in 2024-2025, $1,887 in 2026) x 365/30 x (1 - 0.4404). That gives patient-years on therapy of 794 (2024), 12,306 (2025) and 18,525 (2026, H1 annualised). The engine's stock recursion at the 0.5936 stop rate backs out new starts of 11,983 in 2025 and 13,524 in 2026. The 2026 starts over the book's pool, less the patients already started (1,200,448 - 794 - 11,983 = 1,187,671), give 1.139%",
+     "note": "Judgement: 1.0x Cobenfy's second-full-year capture, used as the peak. Cobenfy's new starts rose only 13% from 2025 to 2026 (11,983 to 13,524) while its revenue grew on the carried stock, so its capture looks near a plateau rather than early on a ramp. A Caplyta-shaped ramp fitted through Cobenfy's 2026 point would imply a peak near 4.5%, but that ramp also predicts new starts rising 2.4x in a year, which Cobenfy did not do. At this peak the engine's US stock settles near 21,500 patients, about $277mm net at peak before royalty and PoS. Case for higher: Cobenfy is still growing (Q2 2026 annualised gives 1.24%). A 0.78 stop rate (EMERGENT-4) gives 1.33%, and a 0.5 discount gives 1.28%. The consensus peak the book carries for Cobenfy, $3.9bn, would need about 300,000 patient-years, some 15% a year. Neurocrine sells Ingrezza to the same psychiatrists, and a once-daily M4 agonist without trospium may tolerate better. Case for lower: direclidine is second into a class that BMS is still struggling to move past 'deeply ingrained D2 prescribing habits' (BMS Q3 2025 results, 8-K 0000014272-25-000147). Cobenfy's adjunctive ARISE study missed (BMY FY2025 10-K). And Cobenfy's 2025 starts include a launch bolus of waiting switchers. The Kalydeco 0.2777 discount would give 0.88%"
+    },
+    "ramp_steepness": {
+     "value": 1.065,
+     "unit": "logistic k",
+     "source": "Least-squares logistic fit to Caplyta's CMS Part D beneficiaries, 3,291, 7,180, 15,541, 21,724 and 27,010 over 2020-2024 (lookup.py demand Caplyta): plateau 30,000, k 1.065, midpoint 2.01 years from 2020. Fitted values 3,156, 7,630, 14,920, 22,248 and 26,783",
+     "note": "Judgement: the only full branded launch series in schizophrenia on file. The book has no modelled schizophrenia seed, and Cobenfy's own series is two points long. Case against: Caplyta's growth after 2021 came mostly from its bipolar-depression label (December 2021; date not re-checked here), not schizophrenia. The book's psychiatry curve, Auvelity in MDD (k 0.574, midpoint 3.0, brenipatide and seltorexant seeds), is slower still. Cobenfy reached near its 2026 capture within its first full year, so this ramp is conservative in the early years"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.01,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Caplyta Part D fit, lookup.py demand Caplyta)",
+     "note": "Measured curve, reused for a new entrant: half of peak by early in the third year (2032)"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

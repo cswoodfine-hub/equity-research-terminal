@@ -42,7 +42,7 @@
 | LLY | Vepugratinib | seeded and built |
 | LNTH | [18F]PI-2620 | not started |
 | MRNA | mRNA-1018-H5 | refused: pandemic stockpile vaccine, no per-patient price |
-| NBIX | NBI-1065845 | not started |
+| NBIX | NBI-1065845 | seeded and built: first Neurocrine cost block |
 | NBIX | NBI-1117568 | not started |
 | NTLA | Biological NTLA-2002 | not started |
 | NTLA | nexiguran ziclumeran | not started |
@@ -61,9 +61,9 @@
 | PFE | Sigvotatug Vedotin | seeded and built |
 | PFE | vepdegestrant | seeded and built: Pfizer's royalty from Rigel |
 | REGN | Fianlimab | refused: Sanofi royalty rate undisclosed |
-| REGN | Mibavademab | not started |
+| REGN | Mibavademab | refused: Sanofi royalty filed without a rate (10-Q footnote f) |
 | REGN | Pozelimab + Cemdisiran | seeded and built: cemdisiran alone, as filed |
-| REGN | REGN-2Cat | not started |
+| REGN | REGN-2Cat | refused: Sanofi royalty filed without a rate (10-Q footnote f) |
 | RGNX | RGX-121-3102 | not started |
 | RVMD | Zoldonrasib | not started |
 | SLDB | SGT-003 | not started |

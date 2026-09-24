@@ -1,0 +1,93 @@
+{
+ "ticker": "REGN",
+ "name": "REGN-2Cat",
+ "summary": "REGN-2Cat is freneslerbart-mevonlerbart (REGN1908-1909), two fully human antibodies that bind Fel d 1, the dominant cat allergen, and stop it reaching IgE; Regeneron holds global rights and Sanofi takes a royalty on sales (REGN 10-Q 0000872589-26-000025, footnote f). A first allergen-challenge Phase 3 in adults with moderate-to-severe cat allergy met its primary endpoint (ocular itch) and key secondaries at day 8 after a single dose (REGN 8-K 0000872589-25-000026; release 2025-09-08), and the second Phase 3, NCT07675811 (570 adults and children with allergic conjunctivitis due to cat allergy, ocular itch primary endpoint), started 2026-07-31 with primary completion 2029-05-31. Price anchor: Xolair, the only marketed antibody against IgE-mediated allergy, at $28,437 per CMS Part D beneficiary in 2024 (a judgement: no antibody is approved in allergic conjunctivitis). Uptake anchor: the measured rate at which US adults with diagnosed allergic rhinitis start allergen immunotherapy shots, 403 of 153,141 over three years (Modi et al., JACI Pract 2023), at a 1.0 multiple and scaled to the diagnosed share of symptomatic people. A search result reports that an earlier natural-exposure Phase 3 in cat owners (NCT04981717) was stopped for futility; not verified here and not priced.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Phase 1b (Orengo et al., Nat Commun 2018), as summarised in Hossenbaccus L et al., Front Allergy 2022;3:828091, doi:10.3389/falgy.2022.828091 (PMID 35386639): a single 600 mg subcutaneous dose of REGN1908-1909 reduced nasal symptoms after cat allergen challenge at day 8 and still to day 85. Regeneron's Phase 3 results: single doses reduced symptoms at day 8 (8-K 0000872589-25-000026, exhibit 99.1)",
+   "note": "A passive antibody wears off, so a person who lives with a cat or cannot avoid cat allergen needs repeat doses, roughly quarterly on the day-85 duration. The dosing interval of the marketed product is not public, and I could not open NCT07675811's arm descriptions (Amass quota exhausted, ClinicalTrials.gov not fetchable). Case against: a patient exposed only occasionally might dose once before a visit, which would behave like a one-time course"
+  },
+  "list_price_per_patient": {
+   "value": 0.028437,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Xolair: CMS Medicare Part D 2024, $313,118,328.76 over 11,011 beneficiaries = $28,437 per beneficiary (Part B 2024: $414,887,260 over 17,605 = $23,566)",
+   "note": "Judgement on the comparator. No antibody or other biologic is approved for allergic conjunctivitis or allergic rhinitis in the US, and the eye drops that are (olopatadine, cetirizine, alcaftadine) are largely generic or over the counter; none is in the book's CMS table. Xolair (omalizumab) is the only marketed antibody that works on the IgE allergy pathway, and its asthma label requires sensitisation to a perennial aeroallergen, of which cat dander is one. Part D rather than Part B because a quarterly subcutaneous antibody is likely to be self-injected, as Dupixent is (judgement). Case against, and it is large: the allergen-specific therapy actually used in this disease is immunotherapy. Odactra, a daily sublingual tablet for mite-induced allergic rhinitis with or without conjunctivitis, is quoted at about $368 to $493 for 30 tablets at retail (drugs.com price guide; GoodRx), about $4,400 to $5,900 a year, and these are retail quotes, not a manufacturer list price. At that level the price would be a sixth of this one. Payers may treat cat allergy as a mild, avoidable condition and hold a biologic to step therapy"
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part D per-beneficiary anchor (backend/gross_to_net.py): halving lands at a median 96% of CMS's own negotiated net prices",
+   "note": "Direction checked: 0.5 off list, so net is $14,218 per patient-year. The anchor is Xolair's Part D figure. Had the Part B figure been used ($23,566), the house deduction would be 0.056604 and net $22,232"
+  },
+  "discontinuation_pct": {
+   "value": 0.3348,
+   "unit": "share of treated stock stopping per year",
+   "source": "Kiel MA et al., 'Real-life compliance and persistence among users of subcutaneous and sublingual allergen immunotherapy', J Allergy Clin Immunol 2013;132(2):353-60, doi:10.1016/j.jaci.2013.03.013 (PMID 23651609): 2,796 Dutch patients starting subcutaneous immunotherapy (SCIT) for allergic rhinitis had a median duration of 1.7 years; 23% reached three years. Constant hazard from the median: 1 - 0.5^(1/1.7) = 0.3348",
+   "note": "Judgement on the analogue: SCIT is the injected, allergen-specific therapy in the same disease, and it is the analogue the penetration is solved on. The three-year figure gives 1 - 0.23^(1/3) = 0.387. Case for lower: a few injections a year with no build-up phase is less burdensome than SCIT; the book's respiratory and dermatology biologics carry 0.254 (dupilumab persistence, tilrekimig and GSK5784283 seeds). Case for higher: symptoms are intermittent, patients can rehome a cat or avoid exposure, and sublingual users in the same study stopped faster (median 0.6 years). The data are Dutch pharmacy records from 1994 to 2009"
+  },
+  "forecast_start_year": {
+   "value": 2031,
+   "unit": "year",
+   "source": "NCT07675811 primary completion 2029-05-31, start 2026-07-31 (context file; book trials table). Regeneron's 10-Q of 2026-07-30 (0000872589-26-000025) lists it as the second Phase 3 study in cat allergy, due to start in the second half of 2026",
+   "note": "Judgement on timing: readout around mid-2029, a BLA late 2029 or early 2030, and a standard review for a new BLA put approval around the turn of 2030 to 2031, so 2031 is the first full year. It is the same two-calendar-years-after-primary-completion rule the vepugratinib (2029-10 to 2031) and duvakitug seeds use. Case against: a slip in enrolment of children or a request for a longer-term safety study would push it to 2032"
+  },
+  "exus_multiple": {
+   "value": 0.3619,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Dupixent FY2025, Sanofi 20-F (0001628280-26-008403), in the book's asset_revenue_regions: US EUR 11,538mm, Europe EUR 1,957mm, rest of world EUR 2,219mm. (1,957 + 2,219) / 11,538 = 0.3619",
+   "note": "Judgement on the comparator: Dupixent is the Regeneron-discovered antibody in type 2 allergic disease with a filed split, and the duvakitug seed uses the same row. Case for higher: Regeneron's Libtayo, which it sells outside the US itself, reads 507.5 / 944.7 = 0.537 (10-K 0000872589-26-000008), and cat allergy is common in Europe. Case for lower: European payers are less likely than US ones to fund a biologic for a condition that allergen avoidance or immunotherapy can manage"
+  },
+  "economics_share": {
+   "value": 0.856204,
+   "unit": "share",
+   "source": "Royalty paid to Sanofi. REGN 10-Q for Q2 2026 (0000872589-26-000025) marks 'Freneslerbart-mevonlerbart (f) (REGN1908-1909)' with footnote (f): 'Sanofi is entitled to receive royalties on sales of the product' (book filing_sections). Rate: Regeneron's FY2013 10-K (0001532176-14-000008), as quoted in two search results and not opened (sec.gov is blocked here): 'Sanofi did not opt-in to the REGN1908-1909 program and Regeneron has sole global rights... Sanofi is entitled to receive a mid-single digit royalty on any future sales'. Regeneron margin from its seeds (lookup.py seed Libtayo): 1 - cogs 0.0 - sga 0.1882 - rd 0.4079 - other 0.056184 = 0.347716. Royalty paid, netted as (0.347716 - 0.05) / 0.347716 = 0.8562",
+   "note": "Judgement: 'mid-single digit' is taken as 5%. At 4% the share is 0.885, at 6% 0.827. One of the two search results attributed the mid-single-digit wording to REGN1193 rather than REGN1908-1909, so the second reader should open the FY2013 10-K. REGN1908-1909 came from the original Sanofi antibody discovery agreement, not the 2015 immuno-oncology one, so the 11% the fianlimab researcher used for an IO antibody does not apply; at 11% the share would be 0.684"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Conjunctivitis, Allergic",
+   "fields": {
+    "prevalence": {
+     "value": 122871681,
+     "unit": "patients",
+     "source": "Singh K, Axelrod S, Bielory L. 'The epidemiology of ocular and nasal allergy in the United States, 1988-1994', J Allergy Clin Immunol 2010;126(4):778-783.e6, doi:10.1016/j.jaci.2010.06.050 (PMID 20920769): of 20,010 NHANES III participants, 1,285 (6.4%) reported ocular symptoms alone and 5,944 (29.7%) ocular and nasal symptoms, 7,229 or 36.13%. Applied to the 340,110,988 US residents of 1 July 2024 (Census, the figure the zilovertamab and velzatinib seeds use): 340,110,988 x 7,229 / 20,010 = 122,871,681",
+     "note": "Judgement. lookup.py pool finds nothing for this indication, so this is the book's first pool for allergic conjunctivitis and covers every allergen, so an asset for another allergen can take it and filter with its own eligible share. The survey is the only US population estimate of ocular allergy I found, it is from 1988 to 1994, and it counts reported symptoms, which will include some non-allergic eye irritation. The abstract's headline is higher, 40% with at least one occurrence in the past 12 months; the component counts are used as the lower figure. Case for lower: symptom self-report overstates allergic disease; in NHANES 2005-2006 only about half of people with rhinitis symptoms were sensitised to any allergen (Salo et al. 2011, PMID 21320720)"
+    },
+    "incidence": {
+     "value": 748091,
+     "unit": "patients per year",
+     "source": "the net growth of the pool, not new diagnoses: the US resident population grew from 331,449,281 (2020 census) to 340,110,988 (1 July 2024), 0.6088% a year over 4.25 years (the rate the VLA15 seed computes), applied to the prevalence: 122,871,681 x 0.006088 = 748,091",
+     "note": "Judgement: the same net-growth convention the ABBV-RGX-314 seed uses for a prevalent pool. No US incidence of allergic conjunctivitis was found. The engine carries untreated patients forward (carryover left at its default), which suits a chronic allergy rather than a line of therapy; at a peak start rate of 0.05% a year the prevalent pool barely depletes, so the result is close to what the tozorakimab convention (incidence stated equal to prevalence) would give"
+    },
+    "eligible_pct": {
+     "value": 0.25,
+     "unit": "share of the pool",
+     "source": "Galvao CES et al., 'Sensitization to cat allergen and its association with respiratory allergies: cross-sectional study', Sao Paulo Med J 2017;135(5):488-490, doi:10.1590/1516-3180.2017.0072170617 (PMID 29116310): of 1,985 patients with confirmed respiratory allergy tested at a Sao Paulo tertiary allergy clinic, 25% of those with conjunctivitis (24% with rhinoconjunctivitis) had a positive cat skin prick test. US bracket: about 12% of the US population aged 6 and over is sensitised to cat (NHANES 2005-2006; Gergen PJ et al., J Allergy Clin Immunol Pract 2018;6(1):101-107, doi:10.1016/j.jaip.2017.05.019, PMID 28694047), so the cat-sensitised share of people with ocular symptoms lies between 0.12 (no link between the two) and 0.12 / 0.3613 = 0.33 (every cat-sensitised person has eye symptoms)",
+     "note": "Judgement. One filter, the label's biomarker: cat sensitisation among people with allergic conjunctivitis. 0.25 sits inside the US bracket, but it is a Brazilian clinic figure. Filters not applied because no source gives their share: symptoms on cat exposure (sensitisation is not clinical allergy), the moderate-to-severe severity the first Phase 3 enrolled (8-K 0000872589-25-000026), and the lower age limit of NCT07675811, which is not public. Each would lower the pool, so 0.25 overstates it. Eligible pool: 30,717,920 US people"
+    },
+    "penetration_peak_pct": {
+     "value": 0.000537,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "Modi S et al., 'Racial and Ethnic Disparities in Allergen Immunotherapy Prescription for Allergic Rhinitis', J Allergy Clin Immunol Pract 2023;11(5):1528-1535, doi:10.1016/j.jaip.2023.01.034 (PMID 36736954; TriNetX, 57 US health systems): 403 of 153,141 non-Hispanic White adults with diagnosed allergic rhinitis and no prior SCIT started SCIT over three years (the reference cohort; Black 160 of 153,141). 403 / 153,141 = 0.263% over three years, 1 - (1 - 0.002632)^(1/3) = 0.0878% a year. Scaled to the diagnosed share of the symptomatic pool: 61.2% of people with current rhinitis symptoms had diagnosed allergies (Salo PM et al., J Allergy Clin Immunol 2011;127(5):1226-35, doi:10.1016/j.jaci.2010.12.1106, PMID 21320720, NHANES 2005-2006). 0.000878 x 0.612 = 0.000537",
+     "note": "Judgement: a multiple of 1.0 on the rate at which the incumbent allergen-specific treatment is started. Immunotherapy shots are the treatment an allergist offers a cat-allergic patient who cannot avoid cats, and the rate is a measured share of eligible untreated patients started per year, which is the field's definition. The diagnosis scaling is there because the pool counts people with symptoms, diagnosed or not, while the TriNetX denominator is diagnosed patients. Case for higher: an antibody dosed a few times a year removes the barriers the paper names (frequent office visits over a three-to-five-year course, anaphylaxis risk), and White patients are the group with the lowest barriers, so they are the fair ceiling for a new therapy. Case for lower: a biologic priced near Xolair will meet prior authorisation that SCIT does not, and the reference cohort is the highest-uptake group; the all-race rate is lower (Black patients started at 0.40x). Through the engine's identity with these inputs, about 23,000 patients a year start worldwide by the tenth year, with about 63,000 on therapy then and about 74,000 by the twentieth"
+    },
+    "ramp_steepness": {
+     "value": 0.53,
+     "unit": "logistic k",
+     "source": "reused from the tozorakimab seed (lookup.py seed Tozorakimab), as the lunsekimig seed also reuses it: fitted to the measured average of the 41 launches in data/launch_ramp.csv, k 0.53",
+     "note": "No allergen-specific antibody has launched, and no allergy immunotherapy is in the book's CMS table, so the book's measured average launch is used rather than a single analogue. Case for faster: Tezspire, the last allergic-airway antibody, fitted k 1.28 (tilrekimig seed). Case for slower: a new treatment category in a disease mostly self-managed with over-the-counter drops needs allergists to adopt it and payers to write a policy"
+    },
+    "ramp_midpoint_year": {
+     "value": 1.75,
+     "unit": "years from forecast_start_year",
+     "source": "reused from the tozorakimab seed: fitted with k 0.53 to the 41 launches in data/launch_ramp.csv, rmse 0.0126",
+     "note": "Same curve as ramp_steepness"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}
