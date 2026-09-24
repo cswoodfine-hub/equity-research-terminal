@@ -1,0 +1,119 @@
+{
+ "ticker": "INCY",
+ "name": "Povorcitinib",
+ "summary": "Povorcitinib (INCB054707) is Incyte's oral, selective JAK1 inhibitor, discovered in house, taken once daily as 45 mg or 75 mg tablets. The pivotal trials are STOP-HS1 (NCT05620823, n=608) and STOP-HS2 (NCT05620836, n=619) in adults with moderate to severe hidradenitis suppurativa: both doses met HiSCR50 at week 12 (40-42% vs 29-30% placebo; Porter et al., Nat Med 2026, PMID 42493571). The FDA accepted the NDA in Q1 2026 with US approval and launch expected in Q1 2027, and the CHMP gave a positive opinion (Povofortay) on 2026-09-17 for anti-TNF-experienced adults. Price anchor: Humira at $57,982 per Medicare Part D beneficiary in 2024, the comparator the book's other HS asset (lutikizumab) uses. Uptake anchor: the lutikizumab HS calibration against secukinumab's measured capture (Pham JP et al., JEADV Clin Pract 2025), at the same half multiple, and Zeposia's fitted launch curve, reused. Prurigo nodularis (STOP-PN1/PN2, primary completion 2026-10) and vitiligo Phase 3s are not modelled: neither is an indication in the context file.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Porter ML et al., 'Povorcitinib for hidradenitis suppurativa: the randomized, double-blind, placebo-controlled STOP-HS1 and STOP-HS2 phase 3 trials', Nat Med 2026;32(8):3071-3081, doi:10.1038/s41591-026-04534-z, PMID 42493571: once-daily oral treatment through week 54; long-term extension NCT06212999 and rollover NCT06855498 continue dosing",
+   "note": "Daily oral tablet for a chronic inflammatory disease, taken continuously",
+   "verdict": "confirmed",
+   "check": "Read Porter ML et al., Nat Med 2026;32(8):3071-3081 (PMID 42493571, doi 10.1038/s41591-026-04534-z, PMC13473019) via PubMed: once-daily oral povorcitinib 45 or 75 mg through week 54, patients then offered the STOP-HS long-term extension; 67%/63% of extension entrants completed week 54. Daily continuous dosing for a chronic disease, so chronic is right."
+  },
+  "list_price_per_patient": {
+   "value": 0.057982,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Humira: CMS Medicare Part D 2024, 'Humira (2 presentations)', $906,310,362.16 over 15,631 beneficiaries = $57,982 per beneficiary",
+   "note": "Judgement on the comparator: house convention, closest marketed comparator in the same disease. Humira was the first product approved in HS and is the anchor the book's lutikizumab HS seed uses, kept so the two HS entrants price alike. Discrepancy to flag: the lutikizumab seed quotes Humira at $53,401 ($208.9mm over 3,912 beneficiaries), which the current drug_demand table does not reproduce (the SNY duvakitug second reader found the same); this uses the current table. Case against: Cosentyx, the second HS approval (2023), reads $56,525 (Part D 2024, 2.5% lower); Rinvoq, the marketed oral JAK1, reads $47,673 (Part D 2024, 18% lower), and oral JAKs in dermatology may be priced below biologics. Humira's Medicare spend is mostly rheumatology use and its brand now faces biosimilars. No Incyte list price exists before launch; a WAC published at the Q1 2027 launch should replace this",
+   "verdict": "confirmed",
+   "check": "Re-ran lookup.py demand Humira: Part D 2024 'Humira (2 presentations)' $906,310,362.16 / 15,631 = $57,982 (0.057982 mm USD per patient-year); unit right. Tested the anchor against oral comparators as asked. Part D 2024 per beneficiary: Rinvoq $47,673 (-17.8%), Cosentyx $56,525 (-2.5%), Xeljanz XR $46,880, Sotyktu $34,513, Cibinqo $31,818 (536 benes), Olumiant $22,011; Jakafi $132,549 (oncology, not comparable); Opzelura $5,531 (topical, not comparable). Published list prices seen by search: Rinvoq WAC $7,090.41 per 30-day supply as of 2026-01-06 (rinvoq.com/cost), $86,267 a year at 365/30; Humira WAC about $7,000-9,000 per 30-day supply of two 40 mg pens (drugs.com, via search), $80,000-90,000 a year at every-other-week dosing. So at list the oral JAK1 sits at parity with Humira, and the 18% Part D gap reflects Rinvoq's fast-growing base of part-year new starters (beneficiaries +36% in 2024) as much as price. No Incyte price or pricing guidance for povorcitinib was found (Q2 2026 results and search). The Nat Med paper confirms every approved moderate-to-severe HS therapy is an injectable (adalimumab, secukinumab, bimekizumab); Rinvoq is not approved in HS, so under the house rule (closest marketed comparator in the same disease) Humira or Cosentyx is the anchor and the two agree within 2.5%. Bimzelx has no Part D 2024 row. Judgement labelled with its case against, inputs confirmed. The lutikizumab seed discrepancy holds: no drug_demand row gives $208.9mm over 3,912 beneficiaries."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part D per-beneficiary price (backend/gross_to_net.py: halving lands at a median 96% of CMS's own negotiated net prices); Humira's anchor row is Part D (lookup.py demand Humira), and the lutikizumab seed carries the same 0.5",
+   "note": "Direction checked: 0.5 is the share off list, so net is $28,991 per patient-year",
+   "verdict": "confirmed",
+   "check": "Anchor is a CMS Part D per-beneficiary figure (lookup.py demand Humira, part 'D'), so the house value is 0.5 share OFF list, not 0.056604. Direction right: net = 0.5 x $57,982 = $28,991 per patient-year, as the note says. Same value as the lutikizumab seed (lookup.py seed Lutikizumab)."
+  },
+  "discontinuation_pct": {
+   "value": 0.52,
+   "unit": "share of treated stock stopping per year",
+   "source": "reused from the lutikizumab seed (lookup.py seed Lutikizumab): Aleshin MA et al., Drugs Real World Outcomes 2026;13(3):451-464 (MarketScan Commercial, Medicare and Multi-State Medicaid; 2,367 adults with HS starting adalimumab 2015-2018): drug survival 48.0% at 12 months, so 52% stop within the first year",
+   "note": "Same disease, measured real-world persistence on an advanced therapy in HS. Case against: it is first-year survival on an injectable TNF blocker, and later-year persistence is usually better, so a constant 52% may overstate stopping; an oral may be easier to stay on. Case the other way: JAK class boxed warnings and acne (17-20% in STOP-HS) may drive stops",
+   "verdict": "confirmed",
+   "check": "Read Aleshin MA et al., Drugs Real World Outcomes 2026;13(3):451-464 (PMID 42525209, doi 10.1007/s40801-026-00564-8) via PubMed: MarketScan Commercial, Medicare and Multi-State Medicaid, 2,367 adults with HS starting adalimumab 2015-2018, drug survival 68.4% at 6 months and 48.0% at 12 months, so 1 - 0.48 = 0.52. Matches the lutikizumab seed row. Cross-check against the pivotal trials (Nat Med 2026): 368/553 (67%) and 349/554 (63%) of extension entrants completed through week 54, so trial stopping was about 35% over 42 weeks, lower than 52%, which supports the note's case that 52% may overstate stopping; real-world persistence is usually below trial persistence. Judgement labelled, inputs confirmed."
+  },
+  "forecast_start_year": {
+   "value": 2027,
+   "unit": "year",
+   "source": "Incyte Form 10-Q for the quarter ended 2026-06-30 (accession 0000879169-26-000056, sec.gov/Archives/edgar/data/0000879169/000087916926000056/incy-20260630.htm): the NDA for moderate to severe HS was accepted by the FDA in Q1 2026, and Incyte anticipates potential approval and launches in late 2026 in the EU and Q1 2027 in the US",
+   "note": "2027 is both the first full year after the current one and the expected US launch year. The 10-Q text was read through search results, not opened directly. The exact PDUFA date is not disclosed in what was found. Case against: a Q1 2027 launch makes 2027 slightly less than a full year, and a complete response letter would delay it",
+   "verdict": "confirmed",
+   "check": "Incyte Q2 2026 results release (2026-07-28, investor.incyte.com; 8-K exhibit 99.1 accession 0000879169-26-000053), read through search: the NDA for moderate to severe HS was accepted by the FDA in Q1 2026, and Incyte anticipates potential approval and launches in late 2026 in the EU and Q1 2027 in the US. The Q2 2026 10-Q the researcher cites (0000879169-26-000056, incy-20260630.htm) appeared in the same search results; its text was not opened. No PDUFA date was found. EU: CHMP positive opinion for Povofortay adopted 2026-09-17 (EMA CHMP 14-17 September 2026 highlights and EPAR page, via search); EC decision pending. US status as of 2026-09-24: under FDA review, no action yet found. 2027 is both the first full year after the current one and the expected US launch year."
+  },
+  "exus_multiple": {
+   "value": 0.237,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Opzelura FY2025, Incyte 10-K (0000879169-26-000010), in the book's asset_revenue (total $678.455mm) and asset_revenue_regions ('$130.0 million of net product revenues for 2025 were from outside of the U.S.'): 130.0 / (678.455 - 130.0) = 0.2370",
+   "note": "Judgement on the comparator. Opzelura is Incyte's own dermatology JAK product, sold directly by Incyte in the US and Europe, and Incyte will sell povorcitinib in Europe itself (CHMP opinion 2026-09-17). Jakafi cannot serve: Novartis sells ruxolitinib outside the US. Case for higher: mature global HS products split further outside the US (book: Cosentyx $2,829mm rest of world against $3,839mm US, 0.737; Humira $1,478mm against $3,062mm, 0.483), and Opzelura's ex-US sales are young (EU vitiligo only, from 2023). Case for lower: the EU label is narrower (anti-TNF-experienced only) and European pricing is below US. Greater China and Southeast Asia are licensed to CMS on a royalty (see economics_share), so this multiple should be read as Europe, Japan and the rest of Incyte's territory",
+   "verdict": "confirmed",
+   "check": "Book check: asset_revenue Opzelura FY2025 $678,455,000 (10-K 0000879169-26-000010); asset_revenue_regions FY2025 'outside of the U.S.' $130,000,000 from the same 10-K, quoting '$130.0 million of net product revenues for 2025 were from outside of the U.S.'. 130.0 / (678.455 - 130.0) = 0.2370. Comparator choice is a labelled judgement with cases both ways; the book's other ratios in the note reproduce (Cosentyx 2,829/3,839 = 0.737, Humira 1,478/3,062 = 0.483). One more for the case for higher: Rinvoq, the marketed oral JAK1, reads 2,364/5,940 = 0.398 (AbbVie FY2025 10-K 0001551152-26-000008 in the book). Note Opzelura is a topical cream, not an oral JAK; it is kept as Incyte's own direct ex-US dermatology footprint."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Incyte and CMS release, 2024-04-01 (investor.incyte.com/news-releases/news-release-details/incyte-and-cms-announce-collaboration-and-license-agreement-0): povorcitinib is 'discovered by Incyte'; CMS licensed development and commercialisation in mainland China, Hong Kong, Macau, Taiwan and eleven Southeast Asian countries, with Incyte receiving an upfront payment, milestones and royalties on net sales there. Incyte is lead sponsor of every trial in the context file",
+   "note": "Incyte keeps the US, Europe, Japan and the rest of the world outright, so 1.0 on the modelled revenue. The CMS-territory royalty Incyte receives is not modelled (upside, small). No royalty payable on povorcitinib was found in search",
+   "verdict": "confirmed",
+   "check": "Search of Incyte's FY2024 10-K (0001628280-25-004633) and the CMS release (BioSpace copy): in March 2024 Incyte licensed povorcitinib to China Medical System's dermatology subsidiary for autoimmune and inflammatory dermatologic diseases (including HS) in mainland China, Hong Kong, Macau, Taiwan and certain Southeast Asian countries; Incyte recognised a $25.0mm upfront and is eligible for milestones and royalties on net sales there. Incyte keeps the US, Europe and Japan, and is lead sponsor of every trial in the context file, so 1.0 on modelled revenue holds. Not verified: the exact count of eleven Southeast Asian countries and the release date of 2024-04-01 (the 10-K says March 2024); neither changes the value."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Hidradenitis Suppurativa",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: lutikizumab seed, 324,820 (Garg A et al., JAMA Dermatol 2017;153(8):760-764, 98 per 100,000 on the 2020 census)",
+     "note": "Carried by the book (lookup.py pool Hidradenitis Suppurativa), so no second figure is set",
+     "verdict": "confirmed",
+     "check": "Null is right: lookup.py pool Hidradenitis shows the book carries prevalence 324,820 on the lutikizumab seed (Garg 2017, 98 per 100,000 on 331,449,281), so no second figure is set."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: lutikizumab seed, 37,785 (Garg A et al., J Am Acad Dermatol 2017;77(1):118-122, 11.4 per 100,000 on the 2020 census)",
+     "note": "Carried by the book",
+     "verdict": "confirmed",
+     "check": "Null is right: lookup.py pool Hidradenitis shows the book carries incidence 37,785 on the lutikizumab seed (Garg 2017, 11.4 per 100,000)."
+    },
+    "eligible_pct": {
+     "value": 0.084,
+     "unit": "share of the pool",
+     "source": "reused from the lutikizumab seed: Garg A, Naik HB et al., Dermatol Ther 2023;13(2):581-594 (MarketScan): 8.4% of commercially and Medicare-insured HS patients were exposed to any biologic in 2018. Label check: the CHMP opinion (EMA, Povofortay, 2026-09-17, ema.europa.eu/en/medicines/human/EPAR/povofortay and the CHMP 14-17 September 2026 highlights) is for active moderate to severe HS in adults who responded inadequately to anti-TNF therapy, or are intolerant or contraindicated",
+     "note": "Judgement: kept equal to lutikizumab so the two HS entrants share one pool, and because the penetration anchor below was solved on this base. One filter: in 2018 adalimumab was the only biologic approved in HS, so 'exposed to a biologic' is close to the EU label's anti-TNF-experienced population. Case for higher: the US NDA is for moderate to severe HS without a stated line restriction, and STOP-HS enrolled patients after inadequate response to at least one conventional systemic therapy including oral antibiotics (about 37% biologic-experienced, as reported in trade coverage of the trials, e.g. HCPLive; not checked against the paper's baseline table). A US label of that breadth reaches well beyond 8.4%, and 2018 exposure predates Cosentyx and Bimzelx. No sourced share of moderate to severe HS was found to replace it",
+     "verdict": "confirmed",
+     "check": "Read Garg A, Naik HB et al., Dermatol Ther (Heidelb) 2023;13(2):581-594 (PMID 36585607, doi 10.1007/s13555-022-00872-1) via PubMed: 'Only 8.4% of CCAE+MDCR patients and 5.8% of Medicaid patients were exposed to any biologic in 2018.' Matches the lutikizumab seed. Label check: the CHMP opinion (2026-09-17) reaches adults refractory or intolerant to anti-TNF therapy, which 2018 biologic exposure approximates. The US Phase 3 gives a wider label: STOP-HS required inadequate response to a prior HS systemic therapy, oral antibiotic or biologic (Nat Med 2026 full text), and prior biologic use was 35-39% at baseline (checked in the paper, which the note said it had not). So 8.4% likely understates the US label's reach, as the note's case for higher says, but no sourced share of moderate-to-severe, systemic-experienced HS was found to replace it, and the penetration calibration was solved on this base. Judgement labelled with its case against, inputs confirmed."
+    },
+    "penetration_peak_pct": {
+     "value": 0.04,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "reused from the lutikizumab seed: set against secukinumab, the last new mechanism to reach HS patients (Pham JP et al., JEADV Clinical Practice 2025, TriNetX to October 2024): secukinumab was the first advanced therapy for 1,745 of 15,689 HS patients exposed to one, 11.1%, about a year after its October 2023 HS approval. Rerun with backend/forecast.py (derive_new_patients, treated_stock) on the book's pool, 0.084 eligible, Zeposia curve and 0.52 discontinuation: 0.04 puts 5.5% of the eligible pool on therapy in year 4; 0.08 would put 10.7% there",
+     "note": "Judgement: 0.5x secukinumab, the multiple the lutikizumab seed chose. Case for higher: povorcitinib is the first oral advanced therapy in HS and reaches market before lutikizumab, with EU and US approvals expected in late 2026 and Q1 2027. Case for lower: a modest placebo-adjusted HiSCR50 effect (10-13 points at week 12: 40-42% against 29-30%, Nat Med 2026, PMID 42493571), the JAK class boxed warning, and a crowded field (Humira biosimilars, Cosentyx, Bimzelx, and upadacitinib in HS Phase 3 as another oral JAK1)",
+     "verdict": "confirmed",
+     "check": "Source checked by search: Pham et al., 'Sequencing of Biologic Therapy in Hidradenitis Suppurativa: A Real-World Analysis of Treatment in Over 15,000 Patients', JEADV Clin Pract 2025, doi 10.1002/jvc2.70083 (TriNetX): 15,689 patients exposed to biologic or small-molecule therapy, secukinumab first-line n = 1,745; 1,745 / 15,689 = 11.1%. Reran backend/forecast.py (s_curve, derive_new_patients, treated_stock) on pool 324,820 x 0.084, incidence 37,785 x 0.084, k 1.005, midpoint 2.15, discontinuation 0.52: peak 0.04 puts 5.5% of the eligible pool on therapy in year 4 (1,501 patients) and 0.08 puts 10.7% (2,932), as stated. The 0.5x multiple is a labelled judgement carried from the lutikizumab seed; the efficacy figures in the case against (40-42% vs 29-30% HiSCR50 at week 12) match the paper."
+    },
+    "ramp_steepness": {
+     "value": 1.005,
+     "unit": "logistic k",
+     "source": "reused from the lutikizumab HS seed: Zeposia's CMS Part D beneficiaries 104, 406, 655, 1,034 and 1,271 over 2020-2024 (lookup.py demand Zeposia), least-squares logistic k=1.005, midpoint 2.15 years",
+     "note": "Reused measured immunology launch curve, the one the book's other HS asset carries. An oral launch into a disease with established biologics could run faster or slower",
+     "verdict": "confirmed",
+     "check": "Re-ran lookup.py demand Zeposia: Part D beneficiaries 104, 406, 655, 1,034, 1,271 for 2020-2024. Refit a least-squares logistic (plateau solved in closed form, grid over k and midpoint): k = 1.005, midpoint 2.15 years, rmse 34 beneficiaries, as the lutikizumab seed states. Reused measured curve, labelled as such."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.15,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Zeposia fit carried in the lutikizumab seed)",
+     "note": "Reused measured curve",
+     "verdict": "confirmed",
+     "check": "Same refit as ramp_steepness: midpoint 2.15 years from the start of the series (k = 1.005, rmse 34)."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

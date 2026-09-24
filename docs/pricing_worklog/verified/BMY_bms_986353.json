@@ -1,0 +1,135 @@
+{
+ "ticker": "BMY",
+ "name": "BMS-986353",
+ "summary": "BMS-986353 is zolacabtagene autoleucel (zola-cel, formerly CC-97540), Bristol Myers Squibb's autologous CD19-directed NEX-T CAR T cell therapy, given as one infusion after fludarabine and cyclophosphamide lymphodepletion. The pivotal trial is Breakfree-SSc (NCT07335562; sponsor Juno Therapeutics, a BMS company): a randomised, open-label Phase 3 against standard of care (tocilizumab, rituximab or nintedanib) in 92 adults with active SSc and ILD of 10% or more on HRCT who have not responded to 6 months or more of an immunomodulator. The primary endpoint is change in FVC (mL). It is not yet recruiting: the estimated start is 2027-02-03 and primary completion 2028-11-14. BMS paused enrolment across the zola-cel programme around 1 September 2026 after transient, reversible inflammatory events (BioPharma Dive, STAT). This is a pause, not a discontinuation, so the asset is not refused. Price anchor: Breyanzi (lisocabtagene maraleucel), BMS's own marketed CD19 CAR T, at $490,898 per CMS Part B beneficiary in 2024, one infusion each. Uptake anchor: in Flatiron data, 25.0% of fit, eligible second-line large B-cell lymphoma patients received CAR T (Perales et al., Blood Adv 2026). That share is taken here as the share of refractory SSc-ILD patients treated before they die. The label pool is small (about 1,334 US patients, eligible share 1.93% of the 69,147 US adults with SSc), so modelled peak product revenue is roughly $18mm a year, US plus ex-US, before BMS's costs. The second indication, autoimmune haemolytic anaemia, is Phase 2 only (NCT07603557) and is not modelled. Second reader: the pause is voluntary, BMS reported \"transient and reversible inflammatory events\" and no deaths and said it intends to resume (BioPharma Dive, Fierce Biotech, BioSpace, confirmed by the companies on 31 August 2026). Novartis, not BMS, put rap-cel on clinical hold after three IEC-HS deaths. The Phase 3 record, updated 2026-09-18 after the pause, is still not yet recruiting with an estimated start of 2027-02-03, so the asset is not refused.",
+ "asset": {
+  "therapy_mode": {
+   "value": "one_time",
+   "unit": "",
+   "source": "NCT07335562 interventions (book trials and trial_interventions tables): BMS-986353 with fludarabine and cyclophosphamide lymphodepletion, a single autologous CAR T infusion, against standard of care",
+   "note": "One infusion, not repeated, so one_time by the brief's definition, as the book's other CAR T seed (AZD0120) is modelled. The brief's alternative for a fixed course, chronic with discontinuation 1.0, gives the same revenue, since the treated stock is then the year's starts. In one_time mode the engine charges cogs_per_patient x patients where a per-course figure is given and the company's cogs_pct x revenue where it is not (forecast.fcff, since commit 6220e24 of 2026-09-24). A cogs_per_patient row is supplied below",
+   "verdict": "corrected",
+   "check": "Note only; value kept. Book trial_interventions for NCT07335562: BMS-986353, fludarabine, cyclophosphamide (lymphodepletion) against tocilizumab, rituximab, nintedanib, so a single CAR T course. AZD0120 seed carries therapy_mode one_time ('a cell therapy, infused once'). The researcher's note said one_time mode ignores cogs_pct and that cost of sales would be zero without a per-course row; commit 6220e24 (17:09 today) changed forecast.fcff so cogs_pct applies when cogs_per_patient is absent. Note rewritten to the current engine."
+  },
+  "list_price_per_patient": {
+   "value": 0.490898,
+   "unit": "mm USD per course (one infusion)",
+   "source": "lookup.py demand Breyanzi: CMS Medicare Part B 2024, $66,271,183.18 over 135 beneficiaries = $490,898 per beneficiary (136.2 dosage units, about one infusion each). 2022: $428,726; 2023: $461,201",
+   "note": "JUDGEMENT on the comparator. No product in SSc is a one-time cell therapy. The marketed comparators in the trial's control arm (tocilizumab, rituximab, nintedanib) are chronic drugs, and an annual price for them would misprice a single infusion. Breyanzi is BMS's own marketed CD19 CAR T, from the same Juno platform and the same modality. The 2024 Part B figures for other CAR Ts put it mid-class: Yescarta $459,206, Abecma $486,972, Carvykti $506,657, Kymriah $508,491 (lookup.py demand). Case against: (1) BMS could price an autoimmune CAR T differently from an oncology one. A lower cell dose and a larger addressable market argue for less; a one-time, potentially drug-free remission against years of biologics argues for more. No autoimmune CAR T is priced yet. (2) Part B carries only outpatient administrations; most CAR T infusions are inpatient (Part A DRG), which this dataset does not hold. (3) Search summaries quote a Breyanzi WAC of $447,230 (2023) and a cost of $501,900 per infusion. Neither was opened, so they are not used",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Breyanzi, Part B only: 2024 $66,271,183.18 / 135 beneficiaries = $490,898 (136.2 dosage units, about one infusion each); 2022 $428,726, 2023 $461,201. 2024 Part B per beneficiary for other CAR Ts: Yescarta $459,206, Abecma $486,972, Carvykti $506,657, Kymriah $508,491, all as the note says. Unit mm USD per course is right for one_time mode. Comparator choice is a labelled judgement with its case against."
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house convention for a CMS Part B anchor (backend/gross_to_net.py): Part B pays 106% of average sales price, and ASP is already net of discounts, so only the add-on comes off: 1 - 1/1.06 = 0.056604",
+   "note": "Direction checked: 5.66% off list, so net is $463,111 per infusion. The anchor is Part B (lookup.py demand Breyanzi returns Part B rows only), so neither the Part D 0.5 nor a WAC discount applies",
+   "verdict": "confirmed",
+   "check": "Anchor is Part B (lookup returns only part B rows for Breyanzi), so the house Part B deduction applies: 1 - 1/1.06 = 0.056604, share OFF list. Net = 0.490898 x (1 - 0.056604) = 0.463111 mm, as stated. Engine net_price() computes list x (1 - gtn), so direction is right."
+  },
+  "discontinuation_pct": {
+   "value": 1.0,
+   "unit": "share of the treated stock stopping per year",
+   "source": "one infusion, not repeated (NCT07335562 design: a single CAR T dose after lymphodepletion)",
+   "note": "Stated so the engine never carries a stock forward, whichever mode reads it. A retreatment after relapse is not modelled",
+   "verdict": "confirmed",
+   "check": "Single infusion per the trial interventions. 1.0 is the brief's fixed-course convention; one_time mode ignores it and chronic mode with 1.0 gives the same revenue."
+  },
+  "cogs_per_patient": {
+   "value": 0.133932,
+   "unit": "mm USD per course",
+   "source": "derived: BMY's FY2025 cost of sales ratio, 28.92% of revenue, as the book's Breyanzi seed carries it (lookup.py seed Breyanzi, 'BMY FY2025, computed from the filed lines'), applied to the $463,111 net price: 0.2892 x 0.463111 = 0.133932. The same method as the VLA15 seed (Pfizer's cogs ratio on its net course price)",
+   "note": "JUDGEMENT. BMS does not disclose cell therapy cost of goods, so the company-wide ratio stands in for it. Since commit 6220e24 (2026-09-24) the engine charges cogs_pct in one_time mode wherever no per-course figure is given, so this row charges exactly what BMY's 28.92% would on the $463,111 net price. It is kept so the cost per course is stated outright and stays fixed if the price is later edited. Case against: autologous manufacturing (apheresis, vector, release testing, logistics) is thought to cost more than a company-wide ratio implies. The book's AZD0120 seed carries $0.14mm, stated as 'near a third of list' and unsourced, close to this figure. NEX-T's shorter manufacturing may cost less. Ignored in chronic mode, where cogs_pct applies",
+   "verdict": "corrected",
+   "check": "Note only; value kept. Inputs confirmed: lookup.py seed Breyanzi cogs_pct 0.2892 'BMY FY2025, computed from the filed lines', also in every data/assumptions/bmy_*.csv; 0.2892 x 0.463111 = 0.133932. Unit is the engine's: forecast.fcff charges cogs_per_patient x patients, patients per course, mm USD (TEMPLATE 'cost of goods per patient, mm USD'), so 0.133932 = $133,932 per course. Method matches pfe_vla15.csv (Pfizer ratio on net course price). The note's reason (one_time ignores cogs_pct, so cost of sales would be zero) no longer holds after commit 6220e24; rewritten. The row is now redundant with cogs_pct but not wrong."
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "NCT07335562 (book trials table, last update 2026-09-18): estimated start 2027-02-03, estimated primary completion 2028-11-14, completion 2030-11-11",
+   "note": "JUDGEMENT. The book's pipeline rule of two calendar years after primary completion gives 2030, as for AZD0120 (primary completion 2028-06 to 2030). That assumes a BLA in the first half of 2029 and approval within 2029 or early 2030. Case for 2031: the study is not yet recruiting, enrolment across the zola-cel programme was paused around 1 September 2026 for safety review (BioPharma Dive; STAT Pharmalot 2026-09-01), a 92-patient CAR T trial in a rare disease may enrol slower than the roughly 9 months the dates imply, and a new cell therapy BLA includes a manufacturing review",
+   "verdict": "confirmed",
+   "check": "Book trials table (clinicaltrials_v2, fetched 2026-09-24): NCT07335562 not yet recruiting, start 2027-02-03, primary completion 2028-11-14 (estimated), completion 2030-11-11, last update 2026-09-18. Book convention (e.g. lly_ly3537982.csv, pfe_tilrekimig.csv, abbv_abbv_706.csv: first full year two calendar years after primary completion) gives 2030, as AZD0120 (PC 2028-06-14 -> 2030). Primary endpoint is FVC change at 12 months (BMS Study Connect listing via search), so ~9 months of enrolment is implied, as the note says. Pause checked: BMS voluntarily paused enrolment across zola-cel autoimmune trials, confirmed 31 Aug 2026, citing transient and reversible inflammatory events, no deaths, intends to resume (BioPharma Dive, Fierce, BioSpace); not a hold or discontinuation, and the registry record updated after it still carries the same dates. Not a refusal; the case for 2031 is stated."
+  },
+  "exus_multiple": {
+   "value": 0.3662,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Breyanzi FY2025: $364mm non-US against $994mm US (BMY 10-K annual report table 0000014272-26-000004, in the book's asset_revenue_regions). 364 / 994 = 0.3662",
+   "note": "JUDGEMENT on the comparator: BMS's own CAR T, with the same modality, centres and reimbursement pathways. Case against: Abecma sold more outside the US than in it in FY2025 ($219mm against $208mm, the same table), so a CAR T's split can swing on competition. Europe has more experience of cellular therapy in SSc (EBMT holds more than 700 SSc transplants; Sieiro Santos, ACR Open Rheumatol 2025, doi:10.1002/acr2.70131), which argues for higher. European HTA pricing of a CAR T in a non-fatal disease argues for lower. The engine applies this multiple to patients at the US price",
+   "verdict": "confirmed",
+   "check": "book asset_revenue_regions FY2025 (0000014272-26-000004): Breyanzi U.S. $994mm, Non-U.S. $364mm; 364/994 = 0.3662. Abecma U.S. $208mm, Non-U.S. $219mm, as the case against says. Labelled judgement."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share of the asset",
+   "source": "NCT07335562 and NCT07603557 lead sponsor: Juno Therapeutics, Inc., a Bristol-Myers Squibb Company (book trials table). Juno came to BMS through Celgene (acquired Juno in 2018; BMS acquired Celgene in 2019)",
+   "note": "JUDGEMENT. No partner or profit share was found for zola-cel. Case against: Juno's CAR T products were built on academic licences whose royalties BMS does not disclose per product. If one applies to zola-cel, this value is a ceiling. Not netted because no rate can be sourced",
+   "verdict": "confirmed",
+   "check": "Book trials table: lead sponsor of NCT07335562 and NCT07603557 is Juno Therapeutics, Inc., a Bristol-Myers Squibb Company. Pause coverage describes zola-cel as BMS's own programme; no partner or profit share found. Undisclosed academic royalties are named as the case against. Labelled judgement."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Scleroderma, Systemic",
+   "fields": {
+    "prevalence": {
+     "value": 69147,
+     "unit": "patients",
+     "source": "Fan Y et al., J Manag Care Spec Pharm 2020;26(12):1539-1547, doi:10.18553/jmcp.2020.20136 (PMID 32996805; Optum Clinformatics, 2011-2016): age- and sex-adjusted SSc prevalence 25.9 per 100,000 adults, applied to the 266,978,268 US residents aged 18 and over (Census SCPRC-EST2024-18+POP, 1 July 2024, the denominator the book's obesity and Lp(a) rows use). 25.9e-5 x 266,978,268 = 69,147",
+     "note": "Not carried by the book: lookup.py pool for 'Scleroderma' and 'Sclerosis, Systemic' returns no row, and epidemiology.csv has no SSc line. This is the first SSc pool, so the next SSc seeds (CABA-201, rapcabtagene autoleucel and others the book lists) should copy it. Two other sources agree: Mayes MD et al., Arthritis Rheum 2003;48:2246-2255 (PMID 12905479; Detroit, verified cases) found 242 per million adults, or 276 with capture-recapture. Case for higher: Li Q et al., Rheumatology 2021;60:1915-1925 (PMID 33155024; MarketScan) find 41.5 per 100,000 with two or more claims and 72.1 with one or more, on a period-prevalence basis",
+     "verdict": "confirmed",
+     "check": "PubMed 32996805 (Fan 2020, doi:10.18553/jmcp.2020.20136) abstract: adjusted SSc prevalence 25.9 per 100,000. Adult denominator 266,978,268 is the one the book's obesity and Lp(a) rows carry. 25.9e-5 x 266,978,268 = 69,147. lookup.py pool 'Scleroderma' and 'Sclerosis, Systemic' return nothing; no SSc row in epidemiology.csv, in the repo er_tool.db, or in any other out/ or verified/ file, so not carried by the book. Mayes (PMID 12905479) 242 and 276 per million and Li (PMID 33155024) 41.5 and 72.1 per 100,000 confirmed as quoted."
+    },
+    "incidence": {
+     "value": 5153,
+     "unit": "patients per year",
+     "source": "Mayes MD et al., Arthritis Rheum 2003;48:2246-2255, doi:10.1002/art.11073 (PMID 12905479): 19.3 new cases per million adults per year (95% CI 12.4-30.2), verified by medical record review. Applied to 266,978,268 adults: 5,153",
+     "note": "JUDGEMENT to take a registry rate over a claims rate. Fan 2020 reports an adjusted claims incidence of 15.1 per 100,000 (about 40,300 a year). Against its own 25.9 prevalence, that implies a mean disease duration under two years, which does not fit Mayes's median survival of about 11 years. Li et al. 2021 attribute inflated claims incidence to database churn under a 365-day washout. Check: 5,153 a year x about 15.9 years mean duration (exponential, median 11) is about 82,000, close to the 69,147 prevalence. Case against: the Mayes data are from 1989-1991 in one metropolitan area",
+     "verdict": "confirmed",
+     "check": "PubMed 12905479 (Mayes 2003, doi:10.1002/art.11073) abstract: 19.3 new cases per million adults per year (95% CI 12.4-30.2), verified by record review; median survival about 11 years. 19.3e-6 x 266,978,268 = 5,153. Fan adjusted incidence 15.1 per 100,000 (-> 40,314/yr) confirmed; Li full text names churn under a 365-day washout. Check 5,153 x 11/ln2 (15.9 yr) = ~81,900. Labelled judgement."
+    },
+    "eligible_pct": {
+     "value": 0.01929,
+     "unit": "share of the pool",
+     "source": "Three filters from the Phase 3 entry criteria (NCT07335562, as the registry lists them via search: 2013 ACR/EULAR SSc, ANA nucleolar and/or anti-Scl-70, ILD of 10% or more on HRCT, active disease, non-response or intolerance despite 6 months or more of at least one immunomodulator, with non-response defined as needing treatment escalation). (1) ILD: adjusted SSc-ILD prevalence 7.3 against SSc 25.9 per 100,000 = 0.2819 (Fan 2020, as above). (2) On immunosuppressive therapy: of 8,252 incident SSc-ILD patients, 1,932 were on IST at baseline and 981 of the 6,320 IST-naive started it in follow-up (median 517 days), so (1,932 + 981) / 8,252 = 0.3530 (Li Q et al., Rheumatology 2021, PMC8023990, Table 4 and results). (3) Non-response by the trial's definition: 57 of 294 SSc-ILD patients on a stable regimen for 180 days or more escalated (dose increase, switch or add) = 0.1939 (Li 2021, Table 4). 0.2819 x 0.3530 x 0.1939 = 0.01929",
+     "note": "JUDGEMENT on filters 2 and 3. About 1,334 US adults (69,147 x 0.01929) and 99 newly eligible a year. Not applied, for lack of a sourced share, which pushes the true figure lower: the autoantibody requirement (anti-Scl-70 or nucleolar ANA, which excludes anticentromere and RNA polymerase III patients), HRCT extent of 10% or more, the listed active-disease features, and exclusions for DLCO 40% or below, oxygen need or PAH on combination therapy. Filter 2 partly stands in for the severity criteria, since untreated claims-coded ILD is mostly mild. Pushing it higher: Li's cohort is newly diagnosed and followed for a median of 17 months, so the share ever treated and ever escalated in the prevalent stock is larger. Filter 3 applies the escalation rate among stable users to everyone on IST, and intolerance also qualifies but is not counted. Note: Li's abstract gives 13.3 for SSc-ILD beside 41.5 for SSc as if one algorithm, but in the full text 13.3 is the specific-ILD-code analysis and the two-claim SSc-ILD figure is 9.8, so Fan's matched pair is used",
+     "verdict": "confirmed",
+     "check": "Entry criteria via search (BMS Study Connect / trial listings for NCT07335562): 2013 ACR/EULAR SSc, nucleolar ANA and/or anti-Scl-70, ILD >=10% on centrally read HRCT, one active-disease feature, non-response or intolerance despite >=6 months of at least one immunomodulator. Filters: (1) Fan adjusted SSc-ILD 7.3 / SSc 25.9 = 0.2819; (2) Li 2021 full text (PMC8023990): 6,320 of 8,252 incident SSc-ILD IST-naive (so 1,932 on IST at baseline, 23.4%), 981/6,320 initiated, (1,932 + 981)/8,252 = 0.3530; (3) Li Table 4: 57/294 escalated after a >=180-day stable regimen = 0.1939. Product 0.01929; 69,147 x 0.01929 = 1,334; 5,153 x 0.01929 = 99. Li's two-claim SSc-ILD prevalence is 9.8 and 13.3 is the specific-code analysis, as the note says. Exclusions (DLCO, oxygen, PAH) not verified but not applied. Labelled judgement."
+    },
+    "untreated_carryover_pct": {
+     "value": 0.938931,
+     "unit": "share of untreated eligible patients still eligible the next year",
+     "source": "Mayes MD et al., Arthritis Rheum 2003 (PMID 12905479): median survival approximately 11 years. Constant hazard: exp(-ln2/11) = 0.9389, so 6.1% of the untreated eligible pool leaves each year",
+     "note": "JUDGEMENT. The pool identity has no death term (forecast.derive_new_patients). At the default of 1.0, every eligible patient would eventually be treated, and with 99 newly eligible a year the pool would grow about 7% a year without limit. At 0.9389 the eligible pool stays near its measured size, and the uptake anchor below can be read as a lifetime share. Case against: refractory SSc-ILD patients die sooner than all SSc (higher exit), and survival has improved since 1989-1991 (lower exit). Lung transplant and lasting response to escalation are other exits, not counted. This is not a line of cancer therapy, so it is not set to 0",
+     "verdict": "confirmed",
+     "check": "Unit and direction match the engine: forecast.derive_new_patients multiplies the unstarted pool by carryover each year, 'the share of the patients not started in a year who are still eligible the next'; 0.9389 kept, 6.1% leaves. Source: Mayes abstract 'Median survival was approximately 11 years'; exp(-ln2/11) = 0.938931. Without it (1.0) the pool grows 99/1,334 = 7.4% a year. Untreated steady state 99 x 0.9389/0.0611 = ~1,530 US, near the measured 1,334. Case against supported: Li 2021 inpatient mortality 21.5 per 1,000 PY in SSc-ILD vs 6.8 in SSc, so the refractory ILD pool likely exits faster. Labelled judgement."
+    },
+    "penetration_peak_pct": {
+     "value": 0.01995,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "Perales MA et al., 'Real-world treatment patterns of patients with large B-cell lymphoma over time and into a post-CAR T approval era', Blood Adv 2026;10(15):5325-5337, doi:10.1182/bloodadvances.2025019064 (PMID 42234934; Flatiron, mostly community practices): 32 of 128 (25.0%) clearly fit patients eligible for second-line CAR T received it in 2022 to April 2024; 65 of 182 (35.7%) fit third-line patients received it in 2018-2021. Solved through the engine's identity so that a patient in the eligible pool has a 25% chance of being treated before leaving it: p / (1 - (1 - p) x 0.938931) = 0.25, so p = 0.25 x (1 - 0.938931) / (1 - 0.25 x 0.938931) = 0.01995",
+     "note": "JUDGEMENT: a multiple of 1.0 on the second-line LBCL share, read as a lifetime share. The second line matches the trial's failure of one prior immunomodulator. The incumbent is CAR T itself, in its only measured setting: referral from community physicians to certified centres, apheresis and lymphodepletion, the same barriers a rheumatology patient meets. No US count of autologous transplants for SSc (the one-time cellular incumbent in this disease) was found. At the third-line 35.7%, p would be 0.0328. Case for lower: the 25% is shared by several CAR Ts, and zola-cel will meet rese-cel (Cabaletta), rapcabtagene autoleucel (Novartis) and bispecific T-cell engagers in SSc. Refractory SSc-ILD is not fatal within months as relapsed LBCL is, and it has chronic alternatives (tocilizumab, rituximab, nintedanib). The LBCL denominator is fit patients only, while this pool is not filtered for fitness. The class-wide autoimmune CAR T pause of September 2026 (IEC-HS after three deaths on Novartis's product) may make referrers cautious. Case for higher: patients are younger, a drug-free remission after one infusion appeals, a refractory patient faces repeated escalation decisions over years, and FDA's removal of the CAR T REMS eases logistics. Modelled peak is about 38 patients a year, US plus ex-US",
+     "verdict": "confirmed",
+     "check": "PMC13449983 (Perales, Blood Adv 2026, doi:10.1182/bloodadvances.2025019064) full text: 32 of 128 (25.0%) clearly fit 2L-eligible patients received 2L CAR T (window 1 Jan 2022 to 30 Apr 2024); 65 of 182 (35.7%) clearly fit 3L (2018-2021); REMS removal and 3-4 months referral to infusion also in the text. Identity p/(1-(1-p)c) = 0.25 at c = 0.938931 gives p = 0.01995; 3L gives 0.0328. Engine run (forecast.patients_for_indication, 2030-2044): peak 38.0 patients/yr, x $463,111 = $17.6mm, matching '~38 patients' and '~$18mm'. Rap-cel hold after three IEC-HS deaths confirmed (Fierce, BioSpace). Labelled judgement with cases both ways."
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "book: Enhertu's CMS Part B launch fit (864, 1,904, 4,841, 7,105, 8,410 beneficiaries 2020-2024), k = 1.08, midpoint 2.2 years, as carried by the MK-1045 and camizestrant seeds (lookup.py seed MK-1045). The book's only other one-time CAR T seed, AZD0120, also uses k = 1.08",
+     "note": "JUDGEMENT to reuse it. No CAR T launch in the book has enough annual points to fit: Breyanzi's Part B series is 28, 65, 135 beneficiaries, and the revenue rows start in 2023 after label expansions",
+     "verdict": "confirmed",
+     "check": "lookup.py seed MK-1045: k 1.08, midpoint 2.2, Enhertu Part B 864, 1,904, 4,841, 7,105, 8,410 (2020-2024), matching lookup.py demand Enhertu. AZD0120 seed k 1.08 confirmed. Breyanzi Part B beneficiaries 28, 65, 135 confirmed. Labelled judgement."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Enhertu fit carried in the book)",
+     "note": "Unshifted. AZD0120 pushes its midpoint to 3.0 without a source. A case for a slower ramp: rheumatologists have no referral pathway to CAR T centres yet, and consultation to infusion takes 3 to 4 months in lymphoma (Perales 2026). This is the only modelled indication, so it sets the start",
+     "verdict": "confirmed",
+     "check": "As ramp_steepness: 2.2 in the MK-1045 seed. AZD0120 carries 3.0, 'Enhertu's fitted midpoint of 2.2 years, pushed out to three', unsourced as the note says. Perales full text: referral to infusion often 3-4 months."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

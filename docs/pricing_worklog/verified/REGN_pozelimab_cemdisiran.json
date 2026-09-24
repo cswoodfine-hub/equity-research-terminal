@@ -1,0 +1,119 @@
+{
+ "ticker": "REGN",
+ "name": "Pozelimab + Cemdisiran",
+ "summary": "Cemdisiran is an Alnylam-discovered siRNA against complement C5, licensed worldwide to Regeneron under the June 2024 amended C5 License Agreement and dosed 600 mg subcutaneously every 12 weeks. The Phase 3 is NIMBLE (NCT05070858; Vu et al., Lancet 2026, PMID 42030965): cemdisiran alone improved MG-ADL by 2.3 points over placebo at week 24 (p=0.0005), numerically ahead of the pozelimab combination (1.7), so Regeneron filed cemdisiran monotherapy; the NDA is under priority review with a November 2026 target date and an EC decision is expected in 2H 2027 (REGN 8-K 0000872589-26-000023). The book's row is named for the combination, but the product modelled here is cemdisiran monotherapy in AChR-positive gMG; the combination's PNH and geographic atrophy studies are not modelled. Price anchor: Ultomiris, the leading C5 inhibitor in gMG, at $330,448 per Medicare Part B beneficiary in 2024. Uptake anchor: Vyvgart's more than 10,000 gMG patients in 2024 (argenx 20-F), solved through the engine and taken at a quarter of its plateau share (judgement). Regeneron pays Alnylam tiered double-digit royalties, so its share is set at the 10% floor (judgement).",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NIMBLE (NCT05070858), Vu T et al., Lancet 2026;407:1712-1725, PMID 42030965, doi:10.1016/S0140-6736(26)00690-2: cemdisiran 600 mg subcutaneously every 12 weeks; Regeneron JPM 2026 presentation, 8-K 0001104659-26-002691: 'Convenient Q3M subcutaneous administration'",
+   "note": "Continuous maintenance dosing every 12 weeks, so chronic",
+   "verdict": "confirmed",
+   "check": "PubMed abstract of PMID 42030965 (Vu et al., Lancet 2026;407:1712-1725, doi:10.1016/S0140-6736(26)00690-2): cemdisiran monotherapy 600 mg every 12 weeks, all arms given subcutaneously, over a 24-week double-blind period with the study still active. Continuous quarterly maintenance, so chronic is right. The filed product is cemdisiran alone: the FDA/EMA acceptance release (investor.regeneron.com, globenewswire 2026-06-22) describes an NDA (an siRNA, not a BLA for pozelimab) for 'cemdisiran' in adults with anti-AChR antibody-positive gMG, and NIMBLE gave -2.3 MG-ADL vs placebo for monotherapy against -1.7 for the combination. Modelling monotherapy under the combination-named row (asset 2923) is correct."
+  },
+  "list_price_per_patient": {
+   "value": 0.330448,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Ultomiris: CMS Medicare Part B 2024, $609,346,340 over 1,844 beneficiaries = $330,448 per beneficiary (Part D 2024 reads $332,291 over 701)",
+   "note": "Judgement on the comparator. Ultomiris is the closest marketed product in the same disease and mechanism: a C5 inhibitor labelled for adults with AChR antibody-positive gMG, the population cemdisiran was filed for. Zilbrysq, the other C5 in gMG and also subcutaneous, has no row in the book's CMS table. Case against: Ultomiris's Medicare spend mixes PNH, aHUS, NMOSD and gMG patients, and a per-beneficiary figure includes partial years. Vyvgart, the gMG volume leader and the anchor of the book's nipocalimab seed, reads $231,053 per Part B beneficiary (30% lower), and Soliris biosimilars (Bkemv is in the book) now compete on C5 price. Case for higher: Soliris reads $352,952 (Part B 2024), and Zilbrysq's US list price is about $1,164 per daily 23 mg syringe (UCB US pricing page, ucb-usa.com/Sustainability/Affordability/ZILBRYSQ-Pricing-Info, as quoted in a search result and not opened), roughly $425,000 a year at WAC. No price for cemdisiran has been published",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Ultomiris: Part B 2024 $609,346,340 / 1,844 beneficiaries = $330,448 (0.330448 mm USD per patient-year, unit right); Part D 2024 $332,291 over 701. Soliris Part B 2024 $352,952 and Vyvgart Part B 2024 $231,053 (30% below) also match. Zilbrysq/zilucoplan has no drug_demand row (checked). Ultomiris is labelled for adult anti-AChR Ab+ gMG, the population in the acceptance release. Part B vs Part D, as asked: I found no source that cemdisiran monotherapy will be self-administered. The only self-administration wording found is for the pozelimab + cemdisiran combination (Q4W) in PNH protocols; the IgAN protocol (NCT03841448) has HCP administration, at home allowed from week 4; one search summary said 'eventual self-administration' but gave no source I could open. The quarterly, HCP-given GalNAc siRNAs in the book are mostly Part B (Amvuttra 2024: 603 Part B vs 409 Part D beneficiaries; Leqvio 48,298 vs 2,681), so a Part B anchor at launch is the better-supported judgement. Case against: if the label or launch is self-injection through specialty pharmacy (Part D), the Ultomiris Part D figure ($332,291) barely changes the gross price, but see gross_to_net. The comparator choice is labelled a judgement with cases for and against, so confirmed."
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house convention for a CMS Part B anchor: Part B pays 106% of average sales price, so only the add-on comes off (1 - 1/1.06); same value as the nipocalimab seed on its Part B Vyvgart anchor",
+   "note": "Direction checked: 0.056604 off list, so net is $311,744 per patient-year. Ultomiris beneficiaries sit mainly in Part B (1,844 against 701 in Part D in 2024). Case against: if cemdisiran, as a quarterly subcutaneous injection, is dispensed through pharmacies and priced off a Part D or WAC basis, a larger discount would apply",
+   "verdict": "confirmed",
+   "check": "Direction checked: share taken off list. 1 - 1/1.06 = 0.056604, the house Part B value, and it matches the nipocalimab seed on its Part B Vyvgart anchor (lookup.py seed nipocalimab). Net = 0.330448 x (1 - 0.056604) = $311,743, as stated. Consistent with the Part B anchor, which I kept (see list_price_per_patient: no source shows self-administration of cemdisiran monotherapy; quarterly HCP-given siRNAs Amvuttra and Leqvio sit mainly in Part B). Sensitivity the reader should know: if cemdisiran launches as a self-injected Part D product, house convention moves to the Part D anchor with 0.5 off, $332,291 x 0.5 = $166,146 net, 47% below the $311,743 used here. The note already names this case against."
+  },
+  "discontinuation_pct": {
+   "value": 0.270399,
+   "unit": "share of the treated stock stopping per year",
+   "source": "Tammam et al., 'Real-world effectiveness and safety of zilucoplan in patients with anti-AChR myasthenia gravis: A retrospective cohort study in France', J Neuromuscul Dis 2026, PMID 41904994, doi:10.1177/22143602261437792: of 48 patients treated in the French early access programme, 3 stopped for lack of efficacy and 4 for adverse events within the six-month programme. 1 - (41/48)^2 = 0.2704 a year",
+   "note": "Judgement: not the book's anti-FcRn figure (0.5, nipocalimab seed), because a C5 inhibitor is continuous maintenance therapy while efgartigimod is often given in cycles with drug holidays; zilucoplan is the closest analogue (subcutaneous C5, recent entrant against FcRn alternatives). Other C5 evidence brackets it: ravulizumab, Italian early access, 3 of 24 stopped over a median 26 weeks (Rossini et al., J Neurol 2025, PMID 40366475), about 0.23 a year; eculizumab, Japan MG registry, 13 of 36 did not continue over a mean 35 months of treatment (Tokuyasu et al., Ann Clin Transl Neurol 2024, PMID 38572524), about 0.14 a year. Case for higher: only 30 of the 48 French patients reached six months, so 7 of 48 understates the six-month hazard, and early-access cohorts are motivated, refractory patients. In NIMBLE no cemdisiran patient stopped for an adverse event over 24 weeks, but trial retention is not real-world persistence",
+   "verdict": "confirmed",
+   "check": "PubMed abstract of PMID 41904994 (Tammam et al., J Neuromuscul Dis 2026, doi:10.1177/22143602261437792): 48 patients treated in the French early access programme, 30 reached six months, 3 stopped for lack of efficacy and adverse events led to discontinuation in 4. 1 - (41/48)^2 = 0.270399, recomputed. Brackets recomputed: Rossini (PMID 40366475) 3 of 24 stopped over a median 26 weeks, 1 - (21/24)^2 = 0.234; Tokuyasu (PMID 38572524) 13 of 36 did not continue over a mean 35 months, 1 - (23/36)^(12/35) = 0.142. NIMBLE abstract: adverse events leading to stopping were 2 on placebo and 1 on pozelimab, none on cemdisiran. The departure from the book's anti-FcRn 0.5 is labelled a judgement with cases both ways, so confirmed."
+  },
+  "forecast_start_year": {
+   "value": 2027,
+   "unit": "year",
+   "source": "REGN Q2 2026 results, 8-K 0000872589-26-000023 (2026-07-30), exhibit 99.1: FDA accepted the cemdisiran NDA for gMG under priority review with a target action date in November 2026 (Priority Review Voucher used); EC decision anticipated in 2H 2027. NIMBLE primary completion 2025-07-08 (actual; context file and book trials table)",
+   "note": "First full year after a November 2026 action date. Case against: a complete response letter or a slow launch start would push the first full year to 2028; ex-US revenue cannot start before 2H 2027",
+   "verdict": "confirmed",
+   "check": "Regeneron acceptance release (investor.regeneron.com, globenewswire 2026-06-22) and trade coverage (Managed Healthcare Executive, NeurologyLive): NDA under priority review after a Priority Review Voucher, target action date November 2026; EMA application accepted. The first full year after that is 2027. The book's trials table has NIMBLE (NCT05070858) primary completion 2025-07-08, actual. The accession 0000872589-26-000023 is Regeneron's Q2 2026 earnings exhibit filed 2026-07-30, per the book's Libtayo seed. I did not see the '2H 2027' EC wording myself."
+  },
+  "exus_multiple": {
+   "value": 0.1747,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Vyvgart, argenx FY2025 20-F (0001697862-26-000032), product net sales by country: United States $3,533.9mm; Japan $206.8mm, China $67.9mm, rest of world $342.6mm. (206.8 + 67.9 + 342.6) / 3,533.9 = 0.1747",
+   "note": "Judgement on the comparator: Vyvgart is the incumbent in the same disease, launched in the same era, with a filed split. Ultomiris's regional split is not in the book, and Regeneron has no gMG product. Case for higher: Regeneron's own Libtayo reads 0.537 (507.5 / 944.7, 10-K 0000872589-26-000008), and argenx's ex-US share was still rising (0.153 in 2024). Case for lower: cemdisiran is filed only in the US and EU so far, with the EC decision not before 2H 2027",
+   "verdict": "confirmed",
+   "check": "argenx FY2025 20-F (sec.gov/Archives/edgar/data/1697862/000169786226000032), by search result: product net sales US $3,533.9mm, Japan $206.8mm, China $67.9mm, rest of world $342.6mm. (206.8 + 67.9 + 342.6) / 3,533.9 = 0.17468, recomputed. The 2024 comparatives in the same result (US 1,895.9, Japan 89.4, China 39.2) match the note. Libtayo 507.5 / 944.7 = 0.537 matches the book's asset_revenue_regions (10-K 0000872589-26-000008). Comparator choice labelled a judgement with cases both ways."
+  },
+  "economics_share": {
+   "value": 0.712409,
+   "unit": "share",
+   "source": "Alnylam 10-Q (0001178670-26-000062, filed 2026-07-30), Regeneron collaboration note: under the June 2024 Amended C5 License Agreement Regeneron holds a worldwide license to cemdisiran as a monotherapy and is 'solely responsible for development, manufacturing and commercialization'; Alnylam 'will receive certain milestone payments upon receipt of regulatory approval for cemdisiran as a monotherapy, and tiered double-digit royalties on net sales'. REGN 10-Q (0000872589-26-000025) footnotes cemdisiran as 'In-licensed from Alnylam'. Regeneron margin from its seeds (lookup.py seed on any REGN asset): 1 - cogs 0.0 - sga 0.1882 - rd 0.4079 - other 0.056184 = 0.347716. Royalty paid, netted as (0.347716 - 0.10) / 0.347716 = 0.7124",
+   "note": "Judgement: the filing gives the royalty only as 'tiered double-digit', so the rate is set at its floor, 10%. Case against, and it is material: the tiers rise with sales; the co-co opt-out royalties in the same collaboration ran 'from low double-digits up to 20%' (same Alnylam 10-Q), and at 15% the share is 0.5686, at 20% 0.4248. Approval milestones owed to Alnylam are not in this field. A combination product would carry 'low double-digit royalties and commercial milestones of up to $325.0 million' instead, but no combination is filed in gMG",
+   "verdict": "confirmed",
+   "check": "Alnylam 10-Q for Q2 2026 (sec.gov/Archives/edgar/data/0001178670/000117867026000062/alny-20260630.htm), by search result: the June 2024 amended C5 License Agreement ended the co-co collaboration and gave Regeneron a worldwide license to cemdisiran as monotherapy; Regeneron is 'solely responsible for development, manufacturing and commercialization'; Alnylam 'will receive certain milestone payments upon receipt of regulatory approval for cemdisiran as a monotherapy, and tiered double-digit royalties on net sales'; the combination terms ('low double-digit royalties and commercial milestones of up to $325.0 million') are unchanged. Wording matches the note. REGN rows (lookup.py seed Libtayo): cogs 0.0, sga 0.1882, rd 0.4079, other 0.056184, so margin 0.347716; (0.347716 - 0.10) / 0.347716 = 0.712409; at 15% 0.5686, at 20% 0.4248, recomputed. The method is the netting RESEARCH_TASK.md sets and the one the PF-08634404 seed uses on the same 'tiered double-digit' wording. The 10% floor is labelled a judgement with its case against. Not seen by me: the co-co 'up to 20%' wording and the REGN 10-Q footnote. Neither sets the value."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Myasthenia Gravis",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: nipocalimab seed, 82,715 US adults living with MG in 2021 (Ye Y et al., Front Neurol 2024;15:1339167, doi:10.3389/fneur.2024.1339167)",
+     "note": "Carried by the book. Ye et al. identify MG from claims with a general MG algorithm, so the figure includes ocular-only MG; eligible_pct filters it",
+     "verdict": "confirmed",
+     "check": "Null is correct. lookup.py pool 'Myasthenia Gravis' shows the book carries prevalence 82,715 (Ye et al., Front Neurol 2024, nipocalimab seed), so this asset must not carry its own figure."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: nipocalimab seed, 82,715, stated equal to prevalence by convention (the pool read as the patients eligible to start each year)",
+     "note": "Carried by the book. Because prevalence equals incidence, the engine sets carryover to 0 and the opening pool to 0, so each year's eligible patients are 82,715 x eligible_pct x (1 + exus_multiple). No untreated_carryover_pct is needed",
+     "verdict": "confirmed",
+     "check": "Null is correct. The book carries incidence 82,715, equal to prevalence (nipocalimab seed). forecast.py patients_for_indication then sets carryover 0 and the opening pool 0, as the note says."
+    },
+    "eligible_pct": {
+     "value": 0.654925,
+     "unit": "share of the pool",
+     "source": "Two filters for the label population, adults with generalised MG who are AChR antibody-positive (the NDA population; NIMBLE also enrolled LRP4-positive patients, Lancet 2026, PMID 42030965). (1) Generalised, not ocular-only: a Mayo Clinic population-based study found 51% of patients presented with ocular onset and 55% of these generalised (as cited in Dresser L et al., J Clin Med 2021;10(11):2235, doi:10.3390/jcm10112235, section 3.1.2, the review the book's nipocalimab seed uses), so 1 - 0.51 x 0.45 = 0.7705 are generalised. (2) AChR antibody-positive within gMG: 'Eighty-five percent of people with gMG are AChR antibody-positive' (AstraZeneca 6-K 0001654954-26-008478, 2026-09-21, Klygefa CHMP release). 0.7705 x 0.85 = 0.6549, or 54,172 US adults",
+     "note": "Cross-check from Dresser alone: AChR antibodies in about 80% of all MG and in over half of ocular MG, so AChR-positive gMG is at most 0.80 - 0.2295 x 0.5 = 0.685 of all MG, consistent. Judgement: no severity filter. NIMBLE required MG-ADL of 6 or more, but the C5 labels in gMG (Ultomiris, Zilbrysq, and Klygefa's CHMP wording 'adults who are anti-AChR antibody-positive') carry no severity threshold. Case against: payers may restrict to more severe or refractory patients. The peak penetration is solved on this same pool, so the choice does not inflate uptake. LRP4-positive patients are left out (Lrp4 antibodies in 2-50% of double-seronegative MG, Dresser 2021). This differs from the nipocalimab seed's 0.87 because that label also covers MuSK-positive patients; that seed applies no ocular filter",
+     "verdict": "confirmed",
+     "check": "Dresser et al., J Clin Med 2021;10(11):2235 full text (PMC8196750, doi:10.3390/jcm10112235), section 3.1.2: 'A recent population-based study conducted by the Mayo Clinic found that 51% of patients presented with ocular onset, and 55% of these developed generalized symptoms'. So 1 - 0.51 x 0.45 = 0.7705 generalised. Section 3.1.1 gives AChR antibodies in about 80% of MG, and ocular MG section 'over half' AChR+, so the cross-check 0.80 - 0.2295 x 0.5 = 0.685 is right. The sentence 'Eighty-five percent of people with gMG are AChR antibody-positive' is AstraZeneca's standard wording: search found it in AZ's 2025 PREVAIL release (astrazeneca.com/media-centre/press-releases/2025/gefurulimab-nanobody-met-phase-iii-endpoints.html). I did not open the Klygefa 6-K itself; a Klygefa search result gave an EU5 figure of 66,000 AChR+ of 82,500 gMG (80%), which would give 0.7705 x 0.80 = 0.616, inside the Dresser bound. 0.7705 x 0.85 = 0.654925 and 82,715 x 0.654925 = 54,172, recomputed. The pool matches the filed label (adults, anti-AChR Ab+ gMG, per the acceptance release). Penetration is solved on the same pool, so the choice between 80% and 85% does not move revenue much."
+    },
+    "penetration_peak_pct": {
+     "value": 0.02915,
+     "unit": "share of each year's eligible patients",
+     "source": "Solved from Vyvgart, the first anti-FcRn in gMG: 'We grew our global commercial footprint in gMG to reach more than 10,000 patients' in 2024 (argenx FY2024 20-F, 0001697862-25-000024). Through the engine with Vyvgart's own inputs: pool 82,715 x 0.6549 = 54,172 US, scaled by Vyvgart's 2024 ex-US multiple 0.1529 ((89.4 + 39.2 + 161.4) / 1,895.9, argenx FY2025 20-F 0001697862-26-000032) to 62,457; the book's Vyvgart curve (k 0.5633, midpoint 2.0, first year 2022) and discontinuation 0.5 (nipocalimab seed) put the 2024 stock at 0.7426 x peak x 62,457, so 10,000 patients gives a Vyvgart peak of 0.2156. Cemdisiran = 0.25 x 0.2156 x (0.2704 / 0.5) = 0.02915",
+     "note": "Judgement: a multiple of 0.25 on Vyvgart's plateau treated share (peak / discontinuation, 43.1% of the AChR-positive gMG pool), which gives cemdisiran a plateau of 10.8%, about 5,800 US patients. The discontinuation ratio converts the stock share into a starts share, since cemdisiran's persistence is set higher than Vyvgart's. Check: the Vyvgart peak implies 13,581 patients in 2025 against argenx's 'more than 19,000 patients across three indications (gMG, CIDP, and ITP)' (FY2025 20-F). This build gives about $1.57bn of revenue in 2034 before the royalty, against GlobalData's forecast of about $1.9bn for pozelimab + cemdisiran in the 7MM by 2034 (Clinical Trials Arena, clinicaltrialsarena.com/analyst-comment/phase-iii-regeneron-pozelimab-cemdisiran-mg/, as summarised in a search result and not opened), which a multiple near 0.30 would match. Case for higher: dosing every 12 weeks is the least frequent in gMG; Regeneron claims the best MG-ADL improvement among C5 inhibitors in Phase 3 (8-K 0001104659-26-002691; cross-trial: 2.3 points against 1.6 for gefurulimab in PREVAIL, AstraZeneca 6-K 0001654954-26-008478). Case for lower: cemdisiran enters as the fourth or fifth C5 option (Soliris and its biosimilars, Ultomiris, Zilbrysq, gefurulimab under US review) behind three anti-FcRns (Vyvgart, Rystiggo, Imaavy), with partial complement inhibition on monotherapy (about 74% on average, against about 99% for the combination, as reported by NeurologyLive and quoted in a search result); 'reach more than 10,000 patients' may count patients ever treated, which would overstate Vyvgart's peak",
+     "verdict": "confirmed",
+     "check": "argenx 2024 annual report / FY2024 20-F (by search): 'grew our global commercial footprint in gMG to reach more than 10,000 patients'. Engine recomputed with forecast.py s_curve and treated_stock: Vyvgart k 0.5633, midpoint 2.0 from 2022 gives a 2024 stock factor 0.2448 x 0.25 + 0.3628 x 0.5 + 0.5 = 0.74259. Pool 82,715 x 0.654925 x 1.15296 = 62,458 (2024 multiple (89.4 + 39.2 + 161.4) / 1,895.9 = 0.15296; US, Japan and China figures seen in the argenx search result). Vyvgart peak 10,000 / (0.74259 x 62,458) = 0.215606. Cemdisiran 0.25 x 0.215606 x (0.270399 / 0.5) = 0.029150. Plateau 0.02915 / 0.2704 = 10.78%, or 5,840 US patients. Vyvgart 2025 implied stock 13,581. Revenue check: 2034 treated stock 5,031 x $311,743 = $1,568mm, as the note says. The 0.25 multiple is labelled a judgement with cases both ways, and the GlobalData figure is flagged as unopened. Confirmed."
+    },
+    "ramp_steepness": {
+     "value": 0.5633,
+     "unit": "logistic k",
+     "source": "reused from the book's nipocalimab seed: fitted to Vyvgart and Vyvgart Hytrulo Medicare beneficiaries across Parts B and D, 1,397 in 2022, 2,561 in 2023, 4,310 in 2024 (lookup.py demand Vyvgart: 879 + 518; 1,653 + 822 + 86; 1,803 + 947 + 902 + 658)",
+     "note": "The closest modelled competitor in the same disease, and the curve the penetration was solved on, so the two stay consistent. Case against: a fifth C5 entrant may ramp more slowly than the first anti-FcRn did",
+     "verdict": "confirmed",
+     "check": "lookup.py seed nipocalimab: k 0.5633. lookup.py demand Vyvgart: 2022 879 + 518 = 1,397; 2023 1,653 + 822 + 86 (Hytrulo D) = 2,561; 2024 1,803 + 947 + 902 + 658 = 4,310. All match the source text. The same curve was used to solve penetration, so the two agree."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.0,
+     "unit": "years from forecast_start_year",
+     "source": "reused from the book's nipocalimab seed: Vyvgart's own, 2,561 of its 4,310 2024 Medicare beneficiaries in 2023 (CMS)",
+     "note": "Reused measured curve, as for ramp_steepness",
+     "verdict": "confirmed",
+     "check": "lookup.py seed nipocalimab: midpoint 2.0, 'Vyvgart's own: 2,561 of its 4,310 2024 beneficiaries in 2023', which matches the CMS rows above."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

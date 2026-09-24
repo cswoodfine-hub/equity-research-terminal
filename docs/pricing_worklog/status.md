@@ -10,9 +10,9 @@
 | ARWR | Zodasiran | not started |
 | AXSM | AXS-14 (Esreboxetine) | not started |
 | AZN | Balcinrenone/dapagliflozin | not started |
-| AZN | Rilvegostomig | not started |
+| AZN | Rilvegostomig | seeded and built |
 | BAYN | BAY3723113 | held: Japan-only; Bayer has no cost block |
-| BMY | BMS-986353 | not started |
+| BMY | BMS-986353 | seeded and built: enrolment paused, not stopped |
 | BMY | BMS-986489 | seeded and built |
 | BMY | Iza-bren | refused: US profit split undisclosed |
 | CAPR | Deramiocel (CAP-1002) | not started |
@@ -30,7 +30,7 @@
 | INCY | INCA033989 | not started |
 | INCY | INCA33890 | not started |
 | INCY | INCB123667 | not started |
-| INCY | Povorcitinib | not started |
+| INCY | Povorcitinib | seeded and built |
 | IONS | ION363 | not started |
 | IONS | obudanersen | not started |
 | JNJ | Cetrelimab | refused: a combination partner only; SunRISe-2 stopped for futility |
@@ -62,7 +62,7 @@
 | PFE | vepdegestrant | seeded and built: Pfizer's royalty from Rigel |
 | REGN | Fianlimab | not started |
 | REGN | Mibavademab | not started |
-| REGN | Pozelimab + Cemdisiran | not started |
+| REGN | Pozelimab + Cemdisiran | seeded and built: cemdisiran alone, as filed |
 | REGN | REGN-2Cat | not started |
 | RGNX | RGX-121-3102 | not started |
 | RVMD | Zoldonrasib | not started |

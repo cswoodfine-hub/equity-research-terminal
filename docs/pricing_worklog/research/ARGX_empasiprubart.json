@@ -1,0 +1,93 @@
+{
+ "ticker": "ARGX",
+ "name": "Empasiprubart",
+ "summary": "Empasiprubart (ex ARGX-117) is argenx's anti-C2 complement antibody. It blocks the classical and lectin pathways and carries NHANCE Fc mutations. Two Phase 3s in CIDP dose it IV, topline guided for 2H 2027 (6-K 0001697862-26-000033). EMVIGORATE (NCT06920004): about 218 adults on stable maintenance IVIg, randomised 1:1 to empasiprubart or continued IVIg, double-dummy, primary completion 2027-09. EMNERGIZE (NCT07091630): about 160 adults, treatment-naive or off prior therapy with residual disability, 2:1 against placebo, IV on days 1 and 8 then every 4 weeks, primary completion 2027-10-07. Price anchor: Vyvgart Hytrulo, argenx's own CIDP-labelled biologic, at its 2024 CMS Part B spend per beneficiary ($167,216), less the Part B ASP add-on. Uptake anchor: Hytrulo's measured CIDP launch rate (2,144 patients a year, the figure the book's riliprubart seed uses), re-expressed over the treated share of the book's CIDP pool, at a 1.0 multiple. Not modelled: the MMN Phase 3 EMPASSION (NCT06742190, topline 4Q 2026) reads out first, but MMN is not among the context file's indications and the book has no MMN indication row.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "EMNERGIZE (NCT07091630): empasiprubart IV on days 1 and 8, then every 4 weeks (rarediseaseadvisor.com/news/global-phase-3-trials-empasiprubart-complement-c2-inhibition-cidp/; neurologylive.com/view/phase-3-emnergize-trial-launches-evaluate-empasiprubart-cidp). EMVIGORATE (NCT06920004): 24-week double-dummy part A against continued IVIg, then 96 weeks of open-label empasiprubart in part B (clinicaltrials.argenx.com/emvigorate; Neurology abstract P1-9.022, doi.org/10.1212/WNL.0000000000213141)",
+   "note": "Maintenance of a chronic autoimmune neuropathy, dosed every 4 weeks and continued. It replaces maintenance IVIg in one trial and is started in active disease in the other"
+  },
+  "list_price_per_patient": {
+   "value": 0.167216,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand 'Vyvgart Hytrulo': CMS Part B 2024, $150,829,226 over 902 beneficiaries = $167,216. The same anchor the book's riliprubart seed uses for CIDP",
+   "note": "Judgement on the comparator. Vyvgart Hytrulo is the only non-immunoglobulin biologic labelled for CIDP in the US, and it is argenx's own, so argenx would price a second CIDP biologic against it. Empasiprubart is an IV infusion every 4 weeks, so it is physician-administered and billed under Part B, which fits a Part B anchor. Case for higher: CMS 2024 beneficiaries mix gMG with partial-year CIDP starts after the June 2024 launch. Vyvgart IV reads $231,053 per Part B beneficiary in 2024, but it is labelled for gMG only in the US. Hytrulo's own Part D reads $191,644. Case for lower: EMVIGORATE's comparator is IVIg itself, and the book carries no CIDP-labelled immunoglobulin brand to price it from (only Octagam, $26,251 per Part B beneficiary across all its uses)"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share off list",
+   "source": "Social Security Act section 1847A: Medicare Part B pays 106% of ASP, and ASP is already net of manufacturer discounts and rebates, so 1 - 1/1.06 = 0.056604 (backend/gross_to_net.py house rule for a Part B anchor; the riliprubart and frexalimab seeds use it)",
+   "note": "Direction checked: net is 94.34% of the CMS figure, $157,751. Part B holds because both CIDP Phase 3s give empasiprubart IV (book trial_interventions: 'Empasiprubart IV' in NCT07091630; EMVIGORATE is IV against IV immunoglobulin). Case against: argenx holds an exclusive ENHANZE licence for C2 and is testing a subcutaneous autoinjector (NCT07612020, book asset 1605). A self-injected product would move to Part D and commercial pharmacy benefits, where the house 0.5 applies"
+  },
+  "discontinuation_pct": {
+   "value": 0.27,
+   "unit": "share of the stock per year",
+   "source": "Reused from the book's riliprubart seed (lookup.py seed Riliprubart), second-read: Anderson-Smits C, ..., Layton JB, Neurology and Therapy 2023 (PubMed 37171778, doi.org/10.1007/s40120-023-00478-5), MarketScan 2008-2018, 3,975 CIDP IVIg initiators. Of the 68% who reached a steady-state maintenance dose, 27% had stopped their index IVIg by year 1",
+   "note": "Judgement: one CIDP persistence figure for the two CIDP assets the book models. It is measured on IVIg maintenance, which fits EMVIGORATE's population. Case for higher: EMNERGIZE starts treatment-naive and active patients, and early non-response drives stopping there. In ADHERE, 108 of 322 (34%) failed to confirm improvement on open-label efgartigimod (Allen JA et al., Lancet Neurol 2024, PubMed 39304241, doi.org/10.1016/S1474-4422(24)00309-0). Adding the 6% who switched immunoglobulin gives 0.33. No persistence figure for a complement inhibitor in CIDP exists yet"
+  },
+  "forecast_start_year": {
+   "value": 2027,
+   "unit": "year",
+   "source": "Brief convention: the first full year after 2026",
+   "note": "Expected launch is later. EMVIGORATE primary completion 2027-09 and EMNERGIZE 2027-10-07 (context file; book trials table). argenx guides 'topline results from registrational EMVIGORATE and EMNERGIZE studies (CIDP) expected in second half of 2027' (H1 2026 results, 6-K 0001697862-26-000033, 2026-07-23). That points to a filing around the turn of 2028. If EMPASSION (MMN, topline 4Q 2026) gets empasiprubart approved first, CIDP would follow as a supplement on a 10-month standard review. Either way approval lands around late 2028, and 2029 is the first full year. The ramp midpoint carries that shift. Inferred, not announced"
+  },
+  "exus_multiple": {
+   "value": 0.1747,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "argenx FY2025 20-F (0001697862-26-000032) and FY2025 results: Vyvgart franchise product net sales US $3,533.9mm, Japan $206.8mm, China $67.9mm, rest of world $342.6mm. 617.3 / 3,533.9 = 0.1747. The same figure the book's riliprubart seed carries",
+   "note": "Judgement: argenx's own filed split for its CIDP and gMG franchise, the closest evidence of how argenx sells outside the US. It blends gMG with CIDP. Cross-check: H1 2026 reads (169 + 17 + 247) / 2,380 = 0.182 (6-K 0001697862-26-000033, note 10, segment reporting). Case for higher: IVIg is rationed in Europe, which could favour a non-plasma CIDP product there. China in the filed split is supply to Zai Lab under the efgartigimod licence, so it understates end-market China"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "argenx FY2025 20-F (0001697862-26-000032), note 29 'Overview of Consolidation Scope': 'Broteio Pharma B.V., the Netherlands, 100%'. The FY2024 20-F (0001697862-25-000024), 'Our Exclusive License with Broteio for empasiprubart', had argenx paying Broteio up to EUR 4.0mm development and EUR 10.0mm commercial milestones and 'tiered royalties on net sales in the low single digits'. The FY2025 20-F drops that licence section and the in-licensed patent wording",
+   "note": "Judgement: with the licensor now a wholly owned subsidiary, the royalty stays inside the group. The FY2025 filing does not say how or when Broteio was acquired, or whether former holders kept a sales-linked earn-out; a search found no announcement. Case against: if the FY2024 terms still ran outside the group, a low-single-digit royalty would be netted as (margin - royalty) / margin. The book cannot compute that, because it holds no argenx cost rows (lookup.py seed on every ARGX asset returns nothing). A Halozyme ENHANZE royalty applies only to a subcutaneous product; both CIDP Phase 3s dose IV"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Polyradiculoneuropathy, Chronic Inflammatory Demyelinating",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: riliprubart seed, 77,058 (Gable et al., Neuroepidemiology 2026, PubMed 41525422, doi.org/10.1159/000550418; lookup.py pool Polyradiculo)",
+     "note": "The book fills it, so no second figure is set for CIDP"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: riliprubart seed, 9,238 (same source)",
+     "note": "The book fills it"
+    },
+    "eligible_pct": {
+     "value": 0.5386,
+     "unit": "share of the pool",
+     "source": "Gable et al., Neuroepidemiology 2026 (PubMed 41525422, PMC12880827, doi.org/10.1159/000550418), Table 2, the same source and year as the book's pool: 41,505 of the 77,058 extrapolated prevalent US CIDP patients received any CIDP treatment in 2023. 41,505 / 77,058 = 53.86%",
+     "note": "Judgement. The two Phase 3s together enrol patients on stable maintenance IVIg (EMVIGORATE) and patients with active disease who are treatment-naive or have stopped prior therapy with residual disability (EMNERGIZE). The likely label is adults with CIDP, as Hytrulo's is. The severity filter these entry criteria impose is not in claims data, since Gable says severity is not reported, so the share treated in the year stands in for disease that needs therapy. Cross-check from another source, not used as the value: argenx's Q2 2026 results deck (6-K 0001697862-26-000033, exhibit 3, slide 13) splits about 42K diagnosed CIDP patients into 12K addressable at launch, 12K 'well-managed' on treatment and 18K not treated, so 24/42 = 57% treated. Filters not applied: adults only (Gable gives age only in a supplementary figure, and paediatric CIDP is a small share); 'typical CIDP and selected variants' (claims cannot tell variants apart). Case for lower: only EMVIGORATE's IVIg-maintained patients, 0.2643 (the riliprubart seed's eligible share). Case for higher: untreated patients with active disease also meet EMNERGIZE's entry"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0517,
+     "unit": "share of the eligible untreated pool captured per year at peak",
+     "source": "The book's measured Vyvgart Hytrulo CIDP launch rate (riliprubart seed, second-read): 1,316 CIDP patients treated as of 2025-01-31, 224 days after the 2024-06-21 FDA approval (argenx AAN 2025 release, argenx.com/news/2024/argenx-highlights-vyvgart-data-at-aan-2025-setting-new-standard). 1,316 x 365/224 = 2,144 a year, over the 41,505 treated patients of the eligible pool = 5.17%",
+     "note": "1.0 multiple on Hytrulo, a judgement. The measured 2,144 a year is the anchor. It is re-expressed over the treated base because the eligible share applies the same active-disease filter to both drugs, whose trial populations match (ADHERE also enrolled naive or deteriorating patients). The riliprubart seed quotes it as 2.78% of the whole pool. Applying that 0.0278 to this narrower pool would give 1,154 starts a year, a 0.54 multiple nobody chose. On the engine convention, which adds filtered incidence to the base, the rate is 4.61%. Case for higher: dosing every 4 weeks, a head-to-head design against IVIg, argenx's CIDP sales force already in place, and a non-FcRn mechanism for the third of patients who fail FcRn (ADHERE stage A, 34% without confirmed improvement). Case for lower: argenx's second CIDP biologic would take patients from its own Hytrulo; IV infusion against self-injection; riliprubart (Sanofi) may compete in the IVIg-maintained segment at the same time. The 1,316 release does not say US only"
+    },
+    "ramp_steepness": {
+     "value": 0.63,
+     "unit": "logistic k",
+     "source": "Reused from the book's riliprubart seed, which takes it from the fenebrutinib seed (lookup.py seed Fenebrutinib): fitted to Kesimpta's six-point measured new-start series 2020-2025, k 0.626",
+     "note": "Judgement: no measured CIDP launch curve exists in the book, since Hytrulo has one CMS year. Keeping the two CIDP assets on one curve means they differ only where the evidence differs. Case against: neuromuscular specialists are a concentrated prescriber base, and argenx already calls on them, which argues for a faster ramp"
+    },
+    "ramp_midpoint_year": {
+     "value": 5.08,
+     "unit": "years from forecast_start_year",
+     "source": "Kesimpta-fitted midpoint of 3.078 years after launch (lookup.py seed Fenebrutinib), plus 2 years for a 2029 first full year against the 2027 forecast start. The same value as the book's riliprubart seed",
+     "note": "The 2029 first full year is inferred from primary completions 2027-09 and 2027-10-07 and argenx's 2H 2027 topline guidance (6-K 0001697862-26-000033), assuming a standard review. It is not announced. Case for earlier: if MMN is approved first, a CIDP supplement launches onto an existing product and argenx's field force"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}
