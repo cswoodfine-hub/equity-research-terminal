@@ -1,0 +1,99 @@
+{
+ "ticker": "LNTH",
+ "name": "[18F]PI-2620",
+ "summary": "[18F]PI-2620 (LNTH-2620), the AC Immune and Life Molecular Imaging tau tracer, is an F-18 tau PET imaging agent Lantheus acquired with Life Molecular Imaging (closed 2025-07-21), licensed from AC Immune on a mid-single-digit to low-teens royalty. The pivotal trial is NCT05641688, a 200-patient Phase 3 end-of-life histopathology study that scores visual reads against tau neurofibrillary tangle pathology at autopsy (NFT score B0 or B1 = negative). It started 2022-12, is recruiting, and has primary completion 2027-06. Price anchor: Tauvid (flortaucipir F 18, HCPCS A9601) at $399.875 per 1 mCi unit as of October 2025, times the 10 mCi label dose, so $3,998.75 a scan and one scan a patient. Uptake anchor: Neuraceq, Lantheus's own third-to-market amyloid PET agent in the same Alzheimer's workup. Its Q2 2026 revenue of $39.6mm annualises to about 42,000 doses, 1.91% of the book's 2.2mm label pool. PI-2620 is set at a quarter of that (judgement). It competes for the same AD scans as Tauvid and as Lantheus's own Tauklarify (MK-6240), approved 2026-08-14 for the same tau NFT claim. In AD, PI-2620 mostly cannibalises Lantheus's own tracer.",
+ "asset": {
+  "therapy_mode": {
+   "value": "one_time",
+   "unit": "",
+   "source": "Tauvid label dosing (370 MBq / 10 mCi single IV bolus before one PET acquisition), as restated in NC Medicaid's A9601 billing guideline (medicaid.ncdhhs.gov/blog/2023/05/31/flortaucipir-f-18-injection-intravenous-use-tauvidtm-hcpcs-code-a9601-flortaucipir-f-18-injection); NCT05641688 design: a single [18F]PI-2620 scan read against autopsy (book trials table)",
+   "note": "One dose, one scan, billed once, so each year's scanned patients are that year's revenue (forecast.py one_time branch). Caller's instruction: one scan per patient. Case against: some patients on anti-amyloid therapy are rescanned for staging or monitoring. The book has no repeat-scan rate to apply, so repeat scans are left out and revenue may be understated"
+  },
+  "list_price_per_patient": {
+   "value": 0.003999,
+   "unit": "mm USD per scan (one scan per patient)",
+   "source": "Tauvid, HCPCS A9601 'Flortaucipir F 18 injection, diagnostic, 1 millicurie': $399.875 per unit as of October 2025 (buyandbill.com/tauvid-a9601/, surfaced by search; the page itself could not be opened from this container). Times the 10 mCi (370 MBq) recommended Tauvid dose (NC Medicaid A9601 billing guideline, medicaid.ncdhhs.gov/blog/2023/05/31/...) = $3,998.75 a scan",
+   "note": "JUDGEMENT on the anchor. Tauvid is the only tau PET agent with a public per-unit payment figure. Tauklarify (approved 2026-08-14) has no HCPCS code or published price yet: Lantheus says it still has to obtain 'coding, coverage and payment, including transitional pass-through payment status' (8-K 0001193125-26-396654). None of the PET agents appear in the book's CMS drug_demand table (lookup.py demand Tauvid, Amyvid, Neuraceq all return nothing), so the house per-beneficiary convention cannot be applied. Cases against: (1) the search summary calls the $399.875 a private-payer reimbursement rate. Its quarterly dating matches the CMS ASP file, but that has not been checked. (2) Under the CY2026 OPPS final rule, hospital outpatient departments pay diagnostic radiopharmaceuticals above the $655-a-day threshold at mean unit cost, not ASP (neuraceq.com/hcp/reimbursement, 2026 guide). (3) The billed units depend on the activity actually assayed at injection, which can be under 10 mCi. (4) A third tau tracer may price below Tauvid, and Lantheus says Medicare pays Neuraceq less than competing amyloid agents (10-Q 0001193125-26-210373)"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house Part B convention (backend/gross_to_net.py): a payment set at 106% of average sales price is already net of discounts, so 1 - 1/1.06 comes off. The trontinemab seed in the book uses the same convention",
+   "note": "JUDGEMENT. The anchor is a payer's per-unit payment, not WAC, and the Part B form is the closest house convention. Net is $3,772.41 a scan. Direction checked: 0.0566 is the share OFF, so net is 94.3% of the anchor. Case for a larger discount: a private payer's rate carries radiopharmacy and facility margin above Lantheus's selling price, and Lantheus reported a lower PYLARIFY net price in 2026 (10-Q 0001193125-26-336795), so the manufacturer's net per dose could be well under this"
+  },
+  "discontinuation_pct": {
+   "value": 1.0,
+   "unit": "share of treated stock stopping per year",
+   "source": "caller's instruction and the one-scan design (NCT05641688)",
+   "note": "Nobody stays on a scan, so all stop. forecast.py ignores discontinuation in one_time mode; the value is stated for completeness"
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "NCT05641688 primary completion 2027-06 (book trials table, last update 2026-05-22). Timeline analogue, Lantheus's MK-6240: topline April 2025, NDA Q3 2025, PDUFA 2026-08-13 (10-K 0001193125-26-073498; 8-K 0000950170-25-103543), approved 2026-08-14 (8-K 0001193125-26-396654)",
+   "note": "JUDGEMENT. On MK-6240's pace (about 4 months topline to NDA, about 12 months review), a 2027-06 primary completion gives an NDA around year-end 2027 and approval around late 2028. HCPCS coding, pass-through status and PET-manufacturing-site approvals follow, so 2029 is the first full year. Case for later: Lantheus's 2026 10-Q and 10-K MD&A discuss MK-6240, NAV-4694 and LNTH-2515 development but never mention LNTH-2620 outside the patent list and the Curium CVR definition. That suggests it is not a priority next to its own newly approved Tauklarify, and a US filing in AD may slip or never happen"
+  },
+  "exus_multiple": {
+   "value": 0.0567,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Lantheus FY2025 revenue by customer location: United States $1,458,881k, rest of world $82,728k (10-K 0001193125-26-073498, Note 3). 82,728 / 1,458,881 = 0.0567",
+   "note": "JUDGEMENT on the comparator. Lantheus's own radiodiagnostic portfolio is the only filed split. No PET tracer has a product-level geographic split: Lilly does not break out Amyvid or Tauvid, and Lantheus reports Neuraceq only in total. Case for higher: Neuraceq sells in Europe through distributors and Life Molecular Imaging was Berlin-based. Rest of world rose from $49.2mm (2024) to $82.7mm (2025) after the acquisition, and 2026 will carry a full year of it. Case for lower: PYLARIFY is US-only; tau PET is rarely reimbursed outside the US; and PI-2620 is approved nowhere. The engine applies this to the patient pool at the US price"
+  },
+  "economics_share": {
+   "value": 0.5784,
+   "unit": "share",
+   "source": "Royalty paid: AC Immune's exclusive 2014 licence to Life Molecular Imaging for its tau PET tracers (amended June 2022) carries up to EUR 160mm of upfront and sales milestones plus 'royalties on sales at a percentage rate ranging from mid-single digits to low-teens' (AC Immune 20-F FY2025, sec.gov/Archives/edgar/data/1651625/000110465926027342/aciu-20251231x20f.htm, as surfaced by search). Lantheus co-owns the LNTH-2620 composition and use patents (expiring 2037) with AC Immune (10-K 0001193125-26-073498, patents section). Margin: Lantheus FY2025 filed lines (10-K 0001193125-26-073498 MD&A) are revenue $1,541,609k, cost of goods $599,657k (38.90%), sales and marketing $178,691k (11.59%), G&A $275,121k (17.85%) and R&D $177,308k (11.50%), leaving 20.16%",
+   "note": "JUDGEMENT on the rate: 8.5%, the midpoint of 'mid-single digits' (about 5%) and 'low-teens' (about 12%). The tier thresholds are not disclosed. Paid-royalty form: (0.2016 - 0.085) / 0.2016 = 0.5784. The range runs from 0.752 at 5% to 0.405 at 12%. Two caveats. (1) The book has no Lantheus cost rows yet (no other_costs_pct), so the margin is the filed operating margin. Once Lantheus is seeded, recompute from its rows. The book's financials table tags SellingGeneralAndAdministrative for Lantheus as $275,121k, which is G&A alone, so a seed built from that tag would leave out the $178,691k sales and marketing line and overstate the margin by 11.6 points. (2) Milestones to AC Immune (up to EUR 160mm in total, some already paid) are not in this field. Lantheus is to be acquired by Curium (merger agreement 2026-08-03, close expected H1 2027, 8-K 0001193125-26-329622). The CVR's 'Global Neurology Diagnostics' milestone counts LNTH-2620 and PI-2620 sales (8-K 0001193125-26-331138)"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Alzheimer Disease",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (data/epidemiology.csv: 7,400,000 aged 65+ with Alzheimer's dementia, Alzheimer's Association 2025 Facts and Figures)",
+     "note": "Carried by the book (lookup.py pool Alzheimer)"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (data/epidemiology.csv: 910,000 new cases a year)",
+     "note": "Carried by the book"
+    },
+    "eligible_pct": {
+     "value": 0.297,
+     "unit": "share of the pool (a scaling to a sourced absolute pool)",
+     "source": "reused from the book's trontinemab seed: 2,200,000 US residents are amyloid-positive with mild cognitive impairment or mild dementia and eligible for lecanemab (Dittrich et al., Neurology 2024), over the 7.4mm the book carries. 2.2 / 7.4 = 0.297 (lookup.py pool Alzheimer)",
+     "note": "JUDGEMENT on the pool. Tau PET in practice is used in the early-AD treatment workup, which is this pool, and the uptake anchor is measured against it. The Phase 3's filter is tau NFT pathology in patients being evaluated for AD (NCT05641688 primary outcome), which is the Tauvid and Tauklarify label wording. Case for a wider pool: that label wording covers every cognitively impaired adult being evaluated for AD, amyloid-negative and moderate-stage patients included, which this pool leaves out. Case for narrower: blood tests (plasma p-tau217) now confirm amyloid for many patients who would otherwise have been scanned"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.8905,
+     "unit": "share of the unscanned pool retained per year",
+     "source": "derived the way the book's remternetug seed derives its 0.8906: the pool (7.4mm) and its inflow (910,000 a year) hold stationary only if exits (death, progression past the label) equal entries, so retention is 7.4 / (7.4 + 0.91) = 0.8905. The eligible_pct scaling cancels",
+     "note": "Without this, forecast.py's default carryover of 1.0 lets every unscanned patient accumulate with no deaths, and the pool grows by about 0.26mm a year. Scanned patients leave the pool through the one_time identity"
+    },
+    "penetration_peak_pct": {
+     "value": 0.004778,
+     "unit": "share of the eligible unscanned pool scanned with PI-2620 per year at peak",
+     "source": "Incumbent: Neuraceq (florbetaben F 18), Lantheus's amyloid PET agent. It was third to market after Amyvid (2012) and Vizamyl (2013; approval years as surfaced by search, medical-technology.nridigital.com, February 2025), in the same AD workup, and exited 2025 as 'the second largest and fastest growing' US amyloid PET agent (8-K 0001193125-26-073439). Neuraceq revenue was $39,616k in Q2 2026 ($75,055k in H1; 10-Q 0001193125-26-336795). Annualised, $158,464k over the $3,772.41 net price per scan above gives 42,006 doses a year, 1.911% of the 2,197,800 label pool. Times 0.25 = 0.4778%",
+     "note": "JUDGEMENT, two stacked 0.5 multiples, 0.25 in all. (a) The tau PET market is set at half of amyloid PET: no therapy label requires tau PET, while amyloid confirmation is required for lecanemab and donanemab. (b) PI-2620 shares Lantheus's tau position with its own Tauklarify, approved first. Neuraceq's capture already reflects a third entrant against two incumbents, so no separate third-to-market cut is applied. The Neuraceq dose count is itself an estimate. Its revenue includes European distributor sales and is divided by Tauvid's price, not Neuraceq's own unpublished one, which Lantheus says Medicare reimburses below competitors. The first effect inflates the dose count and the second deflates it. Cross-check, a floor on workups: the anti-amyloid class started 20,956 new patients in 2025, 0.954% of the same pool (book, trontinemab seed), each needing amyloid confirmation by PET or CSF. No measured count of tau PET scans was found. Lilly does not report Tauvid. Marcum et al. (JAMA Neurol 2025;82:108, doi:10.1001/jamaneurol.2024.4073) report Q1 2024 amyloid PET use from 31 to 613 per 100,000 Medicare beneficiaries with MCI or dementia across contractor regions, but publish no national rate. At steady state this peak scans about 11,400 US patients a year. Case for higher: PI-2620 also binds 4R tau and holds Fast Track in PSP and CBD (LMI release, August 2024), a use Tauvid and MK-6240 serve poorly, but no Phase 3 in those diseases is on file. Case for lower: Lantheus may not launch a second AD tau tracer in the US at all"
+    },
+    "ramp_steepness": {
+     "value": 1.04,
+     "unit": "logistic k",
+     "source": "reused from the book's trontinemab seed: fitted to Leqembi's Part B new-start series 2023 to 2025 (0.0437%, 0.3452%, 0.5185% of the label pool), k 1.0396",
+     "note": "JUDGEMENT on the analogue. The book has no PET-tracer launch curve (no PET agent in drug_demand, and Neuraceq's 2014 launch sat under the coverage-with-evidence NCD until October 2023). The anti-amyloid launch curve measures how fast the AD biomarker-and-treatment workup built. Case for steeper: Lantheus's own PET launch, PYLARIFY, sold $527mm in 2022, $851mm in 2023 and $1,058mm in 2024 (10-K 0001628280-25-007970), with a pass-through payment code behind it. Case for flatter: a third tau tracer, launched behind its owner's own Tauklarify, has no such pull"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.13,
+     "unit": "years from forecast_start_year",
+     "source": "the Leqembi-fitted midpoint of 2.131 years after launch (book, trontinemab seed). The launch year is the forecast start year, 2029, so no offset is added",
+     "note": "Reused measured curve"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

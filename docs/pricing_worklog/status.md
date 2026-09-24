@@ -40,7 +40,7 @@
 | LLY | Remternetug | seeded and built |
 | LLY | Sofetabart Mipitecan | seeded, not built: penetration null (Part B deduction corrected) |
 | LLY | Vepugratinib | seeded and built |
-| LNTH | [18F]PI-2620 | not started |
+| LNTH | [18F]PI-2620 | held: cannibalises Tauklarify, Lantheus's own tau agent (no 4R-tau Phase 3) |
 | MRNA | mRNA-1018-H5 | refused: pandemic stockpile vaccine, no per-patient price |
 | NBIX | NBI-1065845 | seeded and built: first Neurocrine cost block |
 | NBIX | NBI-1117568 | seeded and built: schizophrenia pool held stationary |
