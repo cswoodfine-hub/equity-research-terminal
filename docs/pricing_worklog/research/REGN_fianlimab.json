@@ -1,0 +1,99 @@
+{
+ "ticker": "REGN",
+ "name": "Fianlimab",
+ "summary": "Fianlimab (REGN3767) is Regeneron's anti-LAG-3 antibody, given as its own IV infusion with Libtayo (cemiplimab). The first-line metastatic melanoma Phase 3 against pembrolizumab missed PFS in May 2026, and Phase 2 data in first-line NSCLC did not support a Phase 3. The standalone path left is adjuvant melanoma: NCT05608291 compares fianlimab 1600 mg or 400 mg plus cemiplimab 350 mg every three weeks for a year against pembrolizumab in 1,564 patients with resected stage IIC to IV disease. It passed both interim analyses and continues to a final analysis due in Q4 2026 (REGN 10-Q 0000872589-26-000025). Revenue is separated from cemiplimab by pricing only the LAG-3 half: relatlimab carries 50.0% of Opdualag's Medicare Part B price per unit once nivolumab is taken out at Opdivo's own price per mg. That gives $71,455 per Opdualag beneficiary in 2024. The Libtayo infused alongside is left in neither seed; the book values Libtayo top-down from its FY2025 sales. Uptake anchor: Opdualag's reported share of more than 30% of US first-line metastatic melanoma, halved (judgement). Sanofi takes a royalty on fianlimab at an undisclosed rate. The share is struck at Libtayo's disclosed 11% (judgement).",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT05608291 design (ASCO 2023 TPS9598, doi:10.1200/JCO.2023.41.16_suppl.TPS9598; clinicaltrials.gov/study/NCT05608291): randomised 1:1:1, double-blind; fianlimab 1600 mg + cemiplimab 350 mg, or fianlimab 400 mg + cemiplimab 350 mg, or pembrolizumab, all IV every 3 weeks for one year, in completely resected stage IIC, III or IV melanoma (AJCC v8) with no prior systemic therapy. Primary endpoint RFS",
+   "note": "A fixed one-year adjuvant course, modelled as chronic with every patient stopping within the year (discontinuation 1.0). This is how the book models a fixed course and matches the Intismeran seed in the same setting (lookup.py seed Intismeran). The trial lists fianlimab and cemiplimab as separate interventions (book table trial_interventions), and two fianlimab doses are tested against one cemiplimab dose, so the two are not co-formulated"
+  },
+  "list_price_per_patient": {
+   "value": 0.071455,
+   "unit": "mm USD per patient-year (one adjuvant course)",
+   "source": "lookup.py demand, CMS Medicare Part B 2024. Opdualag: $362,121,215 over 1,964,260 units (HCPCS J9298, 3 mg nivolumab / 1 mg relatlimab) = $184.355 per unit, and 2,535 beneficiaries. Opdivo: $1,933,800,338 over 62,964,187 units (J9299, 1 mg) = $30.713 per mg. The nivolumab in one Opdualag unit is 3 x $30.713 = $92.14, so relatlimab carries 1 - 92.14/184.355 = 50.02% of Opdualag's price. LAG-3 spend = $362.12mm - 1,964,260 x $92.14 = $181.14mm, over 2,535 beneficiaries = $71,455",
+   "note": "Judgement: this is the house convention (closest marketed comparator at CMS spend per beneficiary), applied to the LAG-3 half only. Relatlimab, sold inside Opdualag, is the only marketed LAG-3 antibody. Pricing only its share keeps cemiplimab's revenue out of fianlimab's, as the separation requires. Unit check: Opdualag bills 151 units a claim (a 480/160 mg dose is 160 units) and Opdivo 357 mg a claim (a 240 or 480 mg dose), which fits the HCPCS unit definitions. Cross-check: priced at parity with the PD-1 it joins, as relatlimab is priced against nivolumab, and set against adjuvant Keytruda's $79,464 a Part B beneficiary (the trial's comparator, as on the Intismeran seed), it would be about $79,500. Case against: (1) Opdualag beneficiaries have metastatic disease and average 5.1 claims a calendar year, while a completed adjuvant course is up to 17 three-weekly doses. The figure therefore understates a full course, although in real-world adjuvant anti-PD-1 only 42% finished planned therapy (Holmstroem et al., Eur J Cancer 2024, doi:10.1016/j.ejca.2024.114023). (2) Fianlimab is dosed at 1600 mg every 3 weeks against relatlimab's 160 mg every 4 weeks, and Regeneron may price a two-antibody adjuvant regimen against Keytruda monotherapy rather than at Opdualag's premium"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "House convention on a CMS Part B per-beneficiary anchor: Part B pays average sales price plus 6%, and ASP is already net of discounts, so 1 - 1/1.06 = 0.056604 (backend/gross_to_net.py; same row as the Intismeran seed's Keytruda anchor)",
+   "note": "Direction checked: 5.66% off list, so net is $67,410 per course. Both Opdualag and Opdivo are Part B drugs (lookup.py demand: Part B spend of $362mm and $1,934mm in 2024, against $5mm and $50mm in Part D), so the 0.5 Part D halving does not apply"
+  },
+  "discontinuation_pct": {
+   "value": 1.0,
+   "unit": "share of treated stock stopping per year",
+   "source": "NCT05608291: treatment every 3 weeks for one year (ASCO 2023 TPS9598, doi:10.1200/JCO.2023.41.16_suppl.TPS9598)",
+   "note": "One course per patient: 1.0 with therapy_mode chronic is the book's fixed-course form, as on the Intismeran seed. Recurrence after adjuvant therapy moves a patient to metastatic treatment, where fianlimab has no label after the first-line miss"
+  },
+  "forecast_start_year": {
+   "value": 2028,
+   "unit": "year",
+   "source": "REGN 10-Q for Q2 2026 (0000872589-26-000025, filed 2026-07-30), pipeline table: the adjuvant melanoma Phase 3 'passed both pre-planned interim analyses conducted by Independent Data Monitoring Committee; study will continue to final analysis', results due in the fourth quarter of 2026. NCT05608291 primary completion 2026-07-27 (estimated; book table trials)",
+   "note": "Judgement on timing. The book's rule on the Intismeran seed allows two calendar years from readout to the first full year, so a Q4 2026 readout gives 2028. Case against: fianlimab is a new BLA. If it is filed in the first half of 2027 on a standard 12-month review, approval lands in the first half of 2028, so 2028 is a partial year and 2029 the first full one. Priority review would shorten this"
+  },
+  "exus_multiple": {
+   "value": 0.5372,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Libtayo FY2025: $507.5mm rest of world against $944.7mm US (REGN 10-K 0000872589-26-000008, product revenue table; book asset_revenue_regions for Libtayo). 507.5 / 944.7 = 0.5372",
+   "note": "Judgement on the comparator. Libtayo is the antibody fianlimab is infused with, and Regeneron has sold it worldwide itself since July 2022. This mirrors the Intismeran seed, which takes Keytruda's split for its regimen partner. Case against: Opdualag, the only marketed LAG-3 regimen, sold $140mm outside the US against $1,045mm inside in FY2025 (BMS 10-K 0000014272-26-000004; book asset_revenue_regions), a ratio of 0.134. A LAG-3 add-on in the adjuvant setting may meet the same limited uptake outside the US. Why Opdualag's ex-US share is low was not researched"
+  },
+  "economics_share": {
+   "value": 0.68365,
+   "unit": "share",
+   "source": "Royalty paid to Sanofi. REGN 10-Q for Q2 2026 (0000872589-26-000025) pipeline table marks 'Fianlimab (f) (REGN3767)' with footnote (f): 'Sanofi is entitled to receive royalties on sales of the product'. Regeneron's 10-K describes the 2015 IO Discovery Agreement as giving Sanofi 'a royalty on global sales of REGN3767' (investor.regeneron.com 10-K, by search result). No filing found gives the rate. Anchor: the only royalty rate disclosed between the two companies in the IO collaboration, Sanofi's 11% on worldwide net sales of Libtayo (Regeneron release June 2022 on the A&R IO License and Collaboration Agreement, newsroom.regeneron.com/news-releases/news-release-details/regeneron-strengthens-commitment-oncology-through-purchase). Regeneron margin from its seeds (lookup.py seed Libtayo): 1 - cogs 0.0 - sga 0.1882 - rd 0.4079 - other 0.056184 = 0.347716. Netted as (0.347716 - 0.11) / 0.347716 = 0.68365",
+   "note": "Judgement, and the weakest field. The fianlimab royalty rate is not disclosed. It comes from 2015 opt-out terms for a discovery-stage antibody, while the 11% is what Sanofi took in 2022 for giving up half of an approved, selling product. The fianlimab rate is therefore more likely below 11% than above, and 0.68 more likely understates Regeneron's share than overstates it. The range is material: at 5% the share is 0.856, at 3% 0.914, at 15% 0.569. Left null, the engine would take 1.0, which assumes no royalty. Under the brief's rule on partner economics that cannot be sourced from a filing, a reviewer may prefer to refuse the asset instead"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Melanoma",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: 112,000 new US melanomas of the skin estimated for 2026 (American Cancer Society via SEER), on the Intismeran and mRNA-4157 seeds (lookup.py pool Melanoma)",
+     "note": "carried by the book; one disease keeps one number"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients a year",
+     "source": "carried by the book: 112,000 a year (lookup.py pool Melanoma)",
+     "note": "carried by the book"
+    },
+    "eligible_pct": {
+     "value": 0.1,
+     "unit": "share of the pool",
+     "source": "10% of melanomas are regional stage, spread to regional nodes (SEER 21, 2016 to 2022), the stage III filter the book already applies on the Intismeran seed (lookup.py pool Melanoma). NCT05608291 enrols completely resected stage IIC, III or IV (AJCC v8) with no prior systemic therapy (ASCO 2023 TPS9598)",
+     "note": "A floor, not the whole label. Stage IIC and resected stage IV are in the trial population, but no source found splits IIC from IIB. About 11,000 US patients a year are diagnosed at stage II and about half of them at IIB/IIC (Poklepovic and Luke, Cancer 2020, doi:10.1002/cncr.32585, as on the Intismeran seed), and stage IIB is outside this trial. The resectable share of the 2 to 5% presenting at stage IV is not sourced either. The ceiling is the book's 0.155 for stage IIB to IV. Patients who recur regionally after early-stage disease also qualify and are not in an incidence pool. 0.10 x 112,000 = 11,200 patients a year"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.0,
+     "unit": "share",
+     "source": "forecast.py convention for a line of cancer therapy (as on the vepugratinib and risvutatug seeds). Adjuvant therapy is started once, after resection",
+     "note": "A resected patient who does not start fianlimab in the year of surgery is not treated with it later, so none carry over. The book's pool carries prevalence equal to incidence here, so this changes little, but it is stated so that the living stock is never counted"
+    },
+    "penetration_peak_pct": {
+     "value": 0.15,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "Opdualag (nivolumab + relatlimab), the only LAG-3 plus PD-1 regimen on the market, holds 'over 30%' of US first-line metastatic melanoma about four years after its 2022 launch (BMS Q4 2025 results as relayed by oncofocus.com/post/bms-q4-25-melanoma-highlights; BMS's Q2 2026 call calls it the leading standard of care in first-line melanoma in the US, fool.com transcript 2026-07-30). Taken at half: 0.30 x 0.5 = 0.15",
+     "note": "Judgement on two counts. (1) The anchor is a share of first-line metastatic patients who were treated. Not every resected stage IIC to IV patient takes adjuvant therapy, and I found no US adjuvant receipt rate after 2019 to scale it by. (2) Adjuvant Keytruda is entrenched, and intismeran plus Keytruda (positive RFS at interim, August 2026; book seed at 0.30 of the same pool) would launch into the same patients at about the same time. The LAG-3 class has also failed this setting once already, when BMS's adjuvant trial of Opdualag failed (reported by MedCity News, February 2025, medcitynews.com/2025/02/bristol-myers-squibb-opdualag-cancer-immunotherapy-melanoma-adjuvant-bmy/; the trial's details were not opened), and fianlimab missed against pembrolizumab in first-line disease. Both would weigh on prescribers even if this trial wins. Case for higher: a head-to-head RFS win over pembrolizumab would be the first for a combination in adjuvant melanoma, and Opdualag reached 30% against entrenched PD-1 monotherapy. The source for 'over 30%' is a secondary summary that I could not open (WebFetch blocked), so a reader should confirm it against BMS's own Q4 2025 materials. Peak is about 1,680 US patients a year"
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "Reused from the Intismeran seed, the closest modelled competitor (same pool, same adjuvant setting). That seed carries Enhertu's fitted oncology launch from azn_camizestrant.csv: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024, fitted by k=1.08 with a midpoint of 2.2 years",
+     "note": "Case against: Opdualag's own Part B launch was faster (680 beneficiaries in its partial first year, 2022, then 2,035 in 2023 and 2,535 in 2024; lookup.py demand Opdualag), which points to an earlier midpoint. An adjuvant launch is slower, because patients enter only at resection and oncologists wait for mature RFS and OS data"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year to half of peak",
+     "source": "Reused from the Intismeran seed (Enhertu fit, k=1.08, midpoint 2.2 years), as above",
+     "note": "Same curve as the other adjuvant melanoma entrant in the book, so the two compete on equal timing"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

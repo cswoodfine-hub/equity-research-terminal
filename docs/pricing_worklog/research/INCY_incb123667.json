@@ -1,0 +1,99 @@
+{
+ "ticker": "INCY",
+ "name": "INCB123667",
+ "summary": "INCB123667 is Incyte's oral, selective CDK2 inhibitor, with no INN yet. The lead trial is MAESTRA 2 (NCT07214779, ENGOT-OV95 / GOG-3137): a randomised, open-label Phase 3 of INCB123667 against investigator's choice chemotherapy in about 466 women with platinum-resistant high-grade serous ovarian cancer that overexpresses cyclin E1 (IHC, at least 75% of tumour cells at 1+ or more), after 1 to 4 prior lines. PFS by blinded central review and OS are the primary endpoints, and primary completion is 2028-11. A single-arm Phase 2 (MAESTRA 1, NCT07023627, ORR primary, completion 2027-04) could support an earlier accelerated filing. A first-line maintenance Phase 3 with bevacizumab (MAESTRA 3, NCT07797283, completion 2032-05) is not modelled. Price anchor: Lifyorli (relacorilant), the oral drug FDA approved in March 2026 for platinum-resistant ovarian cancer after 1 to 3 prior lines, at a WAC of $37,900 per 28-day cycle, $494,054 a year. Uptake anchor: none can be solved. Elahere, the only biomarker-selected incumbent, has no CMS row in the book and no patient count in any filing, so peak penetration is null and the ramp reuses the book's Enhertu fit, as the two other platinum-resistant ovarian seeds do.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT07214779 (book trials table: randomised, PFS by BICR primary); MAESTRA 2 trial-in-progress abstract, ASCO 2026 (J Clin Oncol 2026;44(16_suppl):TPS5642, doi:10.1200/JCO.2026.44.16_suppl.TPS5642): oral INCB123667 against investigator's choice chemotherapy, PFS and OS dual primary endpoints. Phase 1 dosing 50 or 100 mg daily (INCB123667 phase 1 (NCT05238922) in platinum-resistant and refractory ovarian cancer, ASCO 2025 abstract 5514 (J Clin Oncol 2025;43(16_suppl):5514, doi:10.1200/JCO.2025.43.16_suppl.5514; reported by Targeted Oncology, https://www.targetedonc.com/view/novel-cdk2-inhibitor-incb123667-shows-promise-in-ovarian-cancer))",
+   "note": "Oral daily dosing until progression, so chronic by the house definition"
+  },
+  "list_price_per_patient": {
+   "value": 0.494054,
+   "unit": "mm USD per patient-year",
+   "source": "Lifyorli (relacorilant, Corcept) WAC of $37,900 per 28-day cycle (Fierce Pharma, https://www.fiercepharma.com/pharma/corcepts-lead-drug-bounces-back-fda-snub-1st-approval-lifyorli-ovarian-cancer). 37,900 x 365/28 = $494,054 a year. FDA approval 2026-03-25, with nab-paclitaxel, for platinum-resistant epithelial ovarian, fallopian tube or primary peritoneal cancer after 1 to 3 prior lines including bevacizumab (Corcept release, https://ir.corcept.com/news-releases/news-release-details/fda-approves-corcepts-selective-glucocorticoid-receptor; OCRA, https://ocrahope.org/news/slug-fda-approves-lifyorli-relacorilant-platinum-resistant-ovarian-cancer/)",
+   "note": "Judgement on the comparator. Lifyorli is the closest marketed comparator in disease, setting and route: an oral drug approved for platinum-resistant ovarian cancer after 1 to 3 prior lines, the patients MAESTRA 2 enrols (1 to 4). It has a named manufacturer list price, which the brief puts ahead of the CMS convention, and it launched too late for a CMS row. The velzatinib seed annualises a per-pack WAC the same way (Qinlock). Case against, three parts. (1) The WAC is for relacorilant alone, dosed around nab-paclitaxel, which is billed on top; a monotherapy could price above or below it. (2) Elahere, the biomarker-selected incumbent, has only a per-vial WAC ($6,487.15, AbbVie Colorado disclosure, as the sofetabart second reader found): 3 to 4 vials a 21-day cycle is about $19,500 to $26,000, or roughly $340,000 to $450,000 a year, so this anchor sits at or above the class. (3) The engine bills a full year's price to every patient in the treated stock, new starts included. At a constant hazard with a 5.3-month median PFS, mean time on drug is about 7.6 months, so WAC per start is about $315,000, while the engine books 494,054 / 0.7918 = about $624,000 per start at list, roughly twice. The CMS convention absorbs this because spend per beneficiary is already a part-year figure. The nearest CMS figure is Zejula, the oral ovarian PARP inhibitor, at $111,182 per Part D beneficiary in 2024 (lookup.py demand Zejula: $224,142,913 over 2,016). It is first-line maintenance, a different setting, and would understate this line by more than this anchor overstates it"
+  },
+  "gross_to_net_pct": {
+   "value": 0.2777,
+   "unit": "share taken off list",
+   "source": "The discount the book already uses on WAC-anchored prices, reused by name (velzatinib, VX-147 and dazukibart seeds): Kalydeco's CMS Part D 2024 spend per beneficiary of $273,600 is 72.2% of its $378,786 WAC (vrtx_prices.csv)",
+   "note": "Judgement. A published WAC takes neither house convention (0.5 is for a Part D per-beneficiary figure, 0.056604 for Part B). Direction checked: 27.77% comes off list, so net is $356,855 per patient-year. Case against: it is a cystic fibrosis drug's ratio and, as the velzatinib second reader noted, mostly measures part-year fills rather than rebates, so it is a floor on the true discount. Oral oncology is a protected Part D class with thin rebates, which argues for less; Medicaid and 340B statutory discounts argue for more. No oncology-specific WAC discount was found"
+  },
+  "discontinuation_pct": {
+   "value": 0.7918,
+   "unit": "share of treated stock stopping per year",
+   "source": "INCB123667 phase 1 (NCT05238922) in platinum-resistant and refractory ovarian cancer, ASCO 2025 abstract 5514 (J Clin Oncol 2025;43(16_suppl):5514, doi:10.1200/JCO.2025.43.16_suppl.5514; reported by Targeted Oncology, https://www.targetedonc.com/view/novel-cdk2-inhibitor-incb123667-shows-promise-in-ovarian-cancer): median PFS 5.3 months across the 50 and 100 mg daily groups (n = 30); ORR 33.3%",
+   "note": "Constant hazard from a median: 1 - 0.5^(12/5.3) = 0.792, the form the vepugratinib and velzatinib seeds use. The brief's 1 - exp(-12/5.3) gives 0.896 because it treats the median as a mean; the sofetabart seed in this disease used that form (0.882 on MIRASOL's 5.62 months). Case for higher: at 100 mg alone (n = 14) median PFS was 4.5 months (0.842) and median duration of response 3.6 months, and time on drug usually runs shorter than PFS. Case for lower: phase 1 patients had a median of 4 prior lines, more than many MAESTRA 2 patients will have, and Lifyorli plus nab-paclitaxel ran a median PFS of 6.5 months in ROSELLA (OCRA, URL under list_price_per_patient). A single-arm phase 1 of 30 patients is a thin base"
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "NCT07214779 primary completion 2028-11-15, estimated (context file; book trials table, last update 2026-09-15)",
+   "note": "Judgement on the timeline: readout around the turn of 2029, filing in 2029 and a US launch late in 2029, so 2030 is the first full year. The sofetabart and AZD5335 seeds in this setting also start in 2030. Case for earlier: in September 2024 Incyte named an accelerated filing on the single-arm Phase 2 as one scenario, pending FDA feedback (ApexOnco, https://www.oncologypipeline.com/apexonco/incyte-goes-pivotal-cdk2). MAESTRA 1 (NCT07023627, 160 patients, ORR by independent review, primary completion 2027-04-27) would then put launch in 2028 and the first full year in 2029, with MAESTRA 2 already enrolling as the confirmatory trial. Case against that path: median duration of response at 100 mg was 3.6 months in phase 1"
+  },
+  "exus_multiple": {
+   "value": 0.1367,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Elahere FY2025: United States $607mm, International $83mm (ABBV FY2025 10-K 0001551152-26-000008, as carried on the book's mirvetuximab base_revenue row, lookup.py seed mirvetuximab). 83 / 607 = 0.137",
+   "note": "Judgement on the comparator. Elahere is the biomarker-selected incumbent in the same line, and the sofetabart seed uses the same split, so the book's platinum-resistant ovarian seeds stay on one basis. Incyte sells its own products in Europe and Japan (Opzelura ran 0.237 in FY2025, 10-K 0000879169-26-000010). Case for higher: Elahere's EU approval came only in November 2024, so this is an early split. Zejula, a mature oral ovarian drug, runs 0.908 (GSK FY2025: US 292, Europe 215, International 50, annual report 0001654954-26-000892, in the book's asset_revenue_regions), though its US use shrank after the 2022 US label restriction. Note that the engine scales the patient pool by this multiple at the US price"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Incyte release, 'Incyte's CDK2 Inhibitor INCB123667 Shows Promising Evidence of Clinical Activity in Patients with Advanced Solid Tumors, Notably Ovarian Cancer' (https://investor.incyte.com/news-releases/news-release-details/incytes-cdk2-inhibitor-incb123667-shows-promising-evidence). Incyte is lead sponsor of all five trials in the context file and of the phase 1 NCT05238922 (book trials table)",
+   "note": "No licensor, co-development partner or royalty on INCB123667 was found in search or in the book. ENGOT and GOG run MAESTRA 2 as cooperative trial groups and carry no disclosed economics"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Ovarian Neoplasms",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book",
+     "note": "lookup.py pool 'Ovarian Neoplasms': the R-DXD row carries 21,010 (SEER Cancer Stat Facts, ovary, 2026 estimate) for prevalence and incidence. Used as is"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book",
+     "note": "As prevalence: 21,010 a year"
+    },
+    "eligible_pct": {
+     "value": 0.1923,
+     "unit": "share of the pool",
+     "source": "Two filters. (1) Platinum-resistant patients treated in lines 2 to 4: 4,382 a year, 0.2086 of the book's 21,010, from ISPOR 2024 poster 139151 / Value in Health HSD30 (https://www.valueinhealthjournal.com/article/S1098-3015(24)01368-8/fulltext): 6,224, 4,329 and 2,901 patients treated in lines 2, 3 and 4 in 2023, of whom 14.7%, 40.5% and 59.1% were platinum-resistant. It is the share the sofetabart seed carries, confirmed by its second reader. (2) Cyclin E1 overexpression in 83 of 90 (92.2%) ovarian cancer patients in the INCB123667 phase 1 (NCT05238922) in platinum-resistant and refractory ovarian cancer, ASCO 2025 abstract 5514 (J Clin Oncol 2025;43(16_suppl):5514, doi:10.1200/JCO.2025.43.16_suppl.5514; reported by Targeted Oncology, https://www.targetedonc.com/view/novel-cdk2-inhibitor-incb123667-shows-promise-in-ovarian-cancer). 0.2086 x 0.922 = 0.1923, about 4,040 women a year",
+     "note": "Judgement on the biomarker share. MAESTRA 2's cutoff is permissive: at least 75% of tumour cells at IHC 1+ or more (TPS5642). No paper reports prevalence at that cutoff; the phase 1 figure is Incyte's own population but may not use the same definition. The phase 1 was enriched for CCNE1 amplification (56.7%, against about 20% expected in a platinum-resistant trial population per Kim et al., NPJ Precis Oncol 2026, doi:10.1038/s41698-026-01519-6). Re-weighting to 20% amplification gives 0.86 if every amplified tumour overexpresses and 0.94 if 90% do, which brackets 0.922. Case for lower: stricter cutoffs find 51% (azenosertib's clinical cutoff) to 59% (H-score 145 or more) in platinum-resistant trial cohorts (Kim et al. 2026); 42% after neoadjuvant chemotherapy and 61% after a PARP inhibitor at H-score 150 or more (Trecourt et al., Br J Cancer 2026;135:427, doi:10.1038/s41416-026-03440-y); and 22.4% of 3,029 tumours at the OTTA cutoff, mostly at diagnosis (Kang et al., Cancer 2023;129:697, doi:10.1002/cncr.34582). At 0.51 the share would be 0.1064. MAESTRA 2 also requires high-grade serous histology, which the ISPOR counts do not filter. High-grade serous is about 70% of all ovarian cancer (Kim et al.) and more of stage III/IV disease, so this overstates by the non-serous share of advanced platinum-resistant disease, for which no sourced figure was found. Case for higher: MAESTRA 2 admits a fourth prior line (line 5), which lines 2 to 4 leave out. The ISPOR counts are treatment events, so one patient can appear in two lines"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.0,
+     "unit": "share",
+     "source": "forecast.py convention for a line of cancer therapy (patients_for_indication)",
+     "note": "A patient not started on this drug in a year starts another regimen and leaves the line. The book's pool has prevalence equal to incidence (21,010), so the engine would infer zero on its own; stated to make it explicit"
+    },
+    "penetration_peak_pct": {
+     "value": null,
+     "unit": "share of each year's eligible patients",
+     "source": "no reconcilable incumbent measurement",
+     "note": "The biomarker-selected incumbent in this line is Elahere. The book has no CMS row for it, and neither AbbVie's nor ImmunoGen's filings report a patient count (the sofetabart second reader searched ImmunoGen's 2023 8-Ks and AbbVie's 10-K). Three searches here for a real-world share of eligible patients treated with Elahere, or for a patient count from ImmunoGen's 2023 calls, found none. Lifyorli launched in March 2026 and has no uptake data yet. EV+P's 51% of first-line urothelial patients (the vepugratinib anchor) is another disease. Left null, so the engine draws its placeholder curve and keeps the asset out of per-share value until a sourced figure exists. Next step: load Elahere (HCPCS J9063) from the CMS Part B Spending by Drug file into drug_demand and solve against the FRa-high share of the ISPOR pool"
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "Book's Enhertu launch fit, as carried by the AZD5335 and sofetabart seeds in this disease: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 (lookup.py demand Enhertu) give k = 1.08 with a midpoint at 2.2 years",
+     "note": "Reused from the closest modelled competitors, the two ADC seeds in platinum-resistant ovarian cancer. Case for slower: a new IHC test is needed before first use, and Elahere and Lifyorli will already hold the line. Case for faster: oral dosing against IV chemotherapy, and a biomarker most patients in this line carry at the trial cutoff"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "Same Enhertu fit as ramp_steepness",
+     "note": "Reused from the AZD5335 and sofetabart seeds"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

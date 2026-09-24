@@ -18,7 +18,7 @@
 | CAPR | Deramiocel (CAP-1002) | not started |
 | DYN | zeleciment basivarsen (DYNE-101) | not started |
 | DYN | Zeleciment Rostudirsen (DYNE-251) | not started |
-| EXEL | XL092 | not started |
+| EXEL | XL092 | seeded and built: first Exelixis cost block |
 | GPCR | Aleniglipron | not started |
 | GSK | GSK5784283 | seeded and built |
 | GSK | Investigational varicella vaccine | seeded and built |

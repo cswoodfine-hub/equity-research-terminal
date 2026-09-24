@@ -1,0 +1,99 @@
+{
+ "ticker": "NVO",
+ "name": "Ziltivekimab",
+ "summary": "Ziltivekimab (NN6018) is Novo Nordisk's wholly owned, once-monthly subcutaneous anti-IL-6 antibody, bought with Corvidia in 2020. ZEUS (ASCVD with CKD and inflammation) missed its MACE endpoint on 31 July 2026 (HR 0.99, 95% CI 0.88-1.11), and Novo stopped HERMES and ATHENA in heart failure for futility on 4-7 September 2026. ARTEMIS (NCT06118281) continues as planned. It is a 10,000-patient, event-driven 3-point MACE trial started within 36-48 hours of an acute MI, with primary completion 2027-01-29 and a readout in H1 2027. It is a Phase 3 outcomes trial that can support a filing by itself, so the asset keeps a standalone path in Myocardial Infarction and is not refused. Heart Failure is not modelled. Price anchor: Repatha, the injectable antibody used for secondary prevention after MI, at $4,266 per Medicare Part D beneficiary in 2024. Uptake anchor: US PCSK9 antibody starts within a year of an MI (0.4% Medicare, 0.7% commercial, 2015-2020), scaled to 2024 by the class's Part D beneficiary growth, about 1.7% of each year's eligible heart attacks.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "ARTEMIS design, NCT06118281 (HRA research summary 4979, https://www.hra.nhs.uk/planning-and-improving-research/application-summaries/research-summaries/4979-artemis-ziltivekimab-vs-placebo-on-cvot-in-patients-with-acute-mi/; UC San Diego trial listing, https://clinicaltrials.ucsd.edu/trial/NCT06118281): a subcutaneous loading dose as early as possible after the invasive procedure and within 36 hours (STEMI) or 48 hours (NSTEMI) of admission, then once monthly, added to standard of care, over a treatment period estimated at up to 2 years. The trial is event-driven",
+   "note": "Monthly maintenance dosing, so chronic. Case against: the trial's own treatment period is about 2 years and the label may follow it. The discontinuation below gives a mean time on drug of about 2 years (1/0.505), close to that period, so a fixed course and a chronic line land in about the same place"
+  },
+  "list_price_per_patient": {
+   "value": 0.004266,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Repatha: 'Repatha (3 presentations)', CMS Medicare Part D 2024, $1,962,120,377 over 459,932 beneficiaries = $4,266 per beneficiary",
+   "note": "Judgement on the comparator. Repatha is the closest marketed comparator in the same setting: a self-injected antibody, dosed every two weeks or monthly, used for secondary prevention after MI, and the largest by Medicare use. Case against: Praluent Pen, whose ODYSSEY OUTCOMES trial enrolled patients after an acute coronary syndrome, reads lower at $3,683 (Part D 2024). Leqvio reads $6,135 on Part B. IL-6 antibodies priced for rheumatology read far higher: Kevzara $27,534 (Part D 2024) and Actemra $26,606 (Part D 2024). Novo would price for a mass cardiovascular population, not a rheumatology one. Per-beneficiary spend covers part-years, so it sits under an annual list price. Discrepancy to flag: the enlicitide seed quotes 'Repatha SureClick' at $4,470 ($1,709,589,708 over 382,461). The current drug_demand table has no such row, only 'Repatha (3 presentations)', which is used here"
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part D per-beneficiary price (backend/gross_to_net.py: halving lands at a median 96% of CMS's own negotiated net prices). The same value the enlicitide, AZD0780, olpasiran and lepodisiran seeds take",
+   "note": "Direction checked: 0.5 off list, so net is $2,133 per patient-year. Repatha is a Part D drug (lookup.py demand shows only Part D rows), so the Part B deduction does not apply"
+  },
+  "discontinuation_pct": {
+   "value": 0.505,
+   "unit": "share of treated stock stopping per year",
+   "source": "PCSK9 antibody discontinuation by 12 months: 55.8% in Medicare and 41.5% in commercial US claims (Navar AM et al., Am J Cardiol 2025;242:1-9, doi:10.1016/j.amjcard.2024.12.029), as carried by the book's AZD0780 seed. Weighted by payer mix of US NSTEMI admissions: Medicare 62.9%, all other payers 37.1% (Vallabhajosyula S et al., Ann Transl Med 2021;9(13):1075, doi:10.21037/atm-20-5193, National Inpatient Sample 2000-2017). 0.629 x 0.558 + 0.371 x 0.415 = 0.505",
+   "note": "Judgement: the same class of drug (a self-injected antibody for secondary prevention) and the same payer weights as penetration_peak_pct. Non-Medicare payers (Medicaid, uninsured, other: 13.0 points of the 37.1) take the commercial rate. Case for higher: a post-MI anti-inflammatory with no lipid number to track may be dropped sooner once the acute phase passes. Case for lower: a monthly dose is less burdensome than Repatha's fortnightly option"
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "NCT06118281 primary completion 2027-01-29 (estimated; context file and book trials table, last update 2026-09-09). Novo expects the ARTEMIS readout in H1 2027 (https://www.statnews.com/2026/09/07/novo-nordisk-heart-studies-inflammation-ziltivekimab/; https://www.clinicaltrialsarena.com/news/novo-nordisk-ziltivekimab-phase-iii-terminations/)",
+   "note": "Judgement on the timeline. A readout in H1 2027, a BLA in the second half of 2027 and a standard review put approval around late 2028, so 2029 is the first full year. That is the same PCD-to-revenue lag the tulisokibart and duvakitug seeds use: about two calendar years. Case against: a priority review would not move the first full year, but any filing slip or an FDA request for more safety data after ZEUS makes it 2030"
+  },
+  "exus_multiple": {
+   "value": 0.8136,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Repatha FY2025: $1,353mm outside the US against $1,663mm US (Amgen 10-K 0000318154-26-000010; book asset_revenue_regions, sec_fsds). 1,353 / 1,663 = 0.8136",
+   "note": "Judgement: the price comparator's own filed split. Novo has no marketed cardiovascular antibody to read a split from. Case for higher: Leqvio reads 623/575 = 1.08 (Novartis 20-F 0001114448-26-000004), and ARTEMIS runs in 24 countries. Case against: ex-US payers restricted PCSK9 antibodies harder than US ones for years, and the engine applies this multiple to patients at the US net price"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Novo Nordisk announcement, June 2020 (https://www.novonordisk.com/content/nncorp/global/en/news-and-media/news-and-ir-materials/news-details.html?id=279; BioWorld 2020-06-11, https://www.bioworld.com/articles/435725-corvidia-therapeutics-is-sold-to-novo-for-21b): Novo acquired all outstanding shares of Corvidia Therapeutics for $725mm upfront and up to $2.1bn in total with regulatory and sales milestones. Novo's FY2025 20-F (0000353278-26-000012) lists Ziltivekimab (NN6018) in its own Phase 3 patent table",
+   "note": "Wholly owned, with no co-development or profit-share partner. The milestones to former Corvidia holders (up to about $1.375bn) are deal cash, not a revenue share, and are not in this field. Ziltivekimab was first developed by MedImmune (AstraZeneca) before Corvidia licensed it. No royalty to AstraZeneca was found in the search results or in the Novo filings the book holds. That is an absence of evidence, not a confirmed nil, so 1.0 is a ceiling. The Novo 6-K for Q2 2020 (0001628280-20-011922) appeared in search but was not opened"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Myocardial Infarction",
+   "fields": {
+    "prevalence": {
+     "value": 805000,
+     "unit": "patients",
+     "source": "CDC Heart Disease Facts (https://www.cdc.gov/heart-disease/data-research/facts-stats/index.html): about 805,000 people in the US have a heart attack every year. lookup.py pool 'Myocardial Infarction' returns nothing, so the book carries no pool for this disease",
+     "note": "Judgement, a convention rather than an epidemiological prevalence. The label will start treatment within 36-48 hours of an acute MI, so the addressable pool is each year's heart attacks. The living post-MI population cannot be started on the drug later under a label written from ARTEMIS. Set equal to incidence, the form forecast.py reads as a pool of the year's own events. With untreated_carryover_pct at 0 the engine zeroes the opening pool anyway, so this value does not move the forecast. Case against: a future asset for chronic post-MI prevention would need the true stock of people with a prior MI. This field would then need replacing. I did not find an AHA prevalence figure in search"
+    },
+    "incidence": {
+     "value": 805000,
+     "unit": "patients per year",
+     "source": "CDC Heart Disease Facts (https://www.cdc.gov/heart-disease/data-research/facts-stats/index.html): 'Every year, about 805,000 people in the United States have a heart attack. Of these, 605,000 are a first heart attack. 200,000 happen to people who have already had a heart attack.' The same page the AZD0780 and enlicitide seeds cite for 605,000 first heart attacks",
+     "note": "First and recurrent heart attacks both count: ARTEMIS takes a prior MI as one of its qualifying risk criteria. About 1 in 5 are silent (same CDC page). eligible_pct removes those"
+    },
+    "eligible_pct": {
+     "value": 0.4762,
+     "unit": "share of the pool",
+     "source": "Two filters. (1) Hospitalised: 6,603,709 US AMI hospitalisations over 2004-2014 in the National Inpatient Sample (Matetic A et al., Am J Cardiol 2020;129:10-18, doi:10.1016/j.amjcard.2020.05.025, PMID 32576369), 600,337 a year, which is 0.7458 of the CDC 805,000. (2) Type 1 MI confirmed by invasive angiography, an ARTEMIS entry criterion: coronary angiography was done in 63.4% (lowest income quartile) to 64.3% (highest) of those hospitalisations (same paper). The midpoint, 0.6385, is used. 0.7458 x 0.6385 = 0.476, about 383,000 patients a year",
+     "note": "Judgement on the midpoint of the angiography range. Two further ARTEMIS criteria are not applied, because no source for their share was found: symptom onset within 12 hours (STEMI) or 24 hours (NSTEMI) before admission, and at least one risk enhancer (prior MI, prior revascularisation, treated diabetes, CKD, prior ischaemic stroke, carotid disease, PAD or multivessel disease). The enhancers are broad, but both filters cut the pool, so 0.476 is an upper bound on them. Case for lower: NIS counts admissions, so transfers between hospitals are counted twice, and AMI admissions have fallen since 2004-2014. Among NSTEMI admissions in 2016-2021 only 42.7% had angiography (Borovac JA et al., Cardiovasc Revasc Med 2025;75:98-104, doi:10.1016/j.carrev.2025.03.006), partly because ICD-10 codes type 2 MI as NSTEMI. Case for higher: a label may read 'adults with acute MI' without the angiography condition"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.0,
+     "unit": "share",
+     "source": "forecast.py convention for a treatment started at an event (the line-of-therapy form): a patient not started this year does not stay eligible the next",
+     "note": "ARTEMIS starts the drug within 36-48 hours of admission, so a heart-attack patient not started at the index event leaves the pool. Stated outright so the engine does not carry each year's untreated patients forward"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0172,
+     "unit": "share of each year's eligible patients",
+     "source": "Incumbent: PCSK9 antibodies, the injectable add-on used for secondary prevention after MI. US starts within 1 year of an MI hospitalisation, July 2015-June 2020: 0.4% in Medicare, 0.4% in Optum CDM, 0.7% in MarketScan (Sloot R et al., Epidemiology 2024;35(4):579-588, doi:10.1097/EDE.0000000000001730, PMID 38629975). Weighted by the NSTEMI payer mix (Medicare 62.9%, other 37.1%; Vallabhajosyula 2021, as in discontinuation_pct): 0.511%. Updated to 2024 by the class's Medicare Part D beneficiaries (lookup.py demand): Repatha 111,259 plus Praluent Pen 52,834 = 164,093 in 2020, and 459,932 plus 92,483 = 552,415 in 2024, a 3.366x rise. 0.511% x 3.366 = 1.72%",
+     "note": "Judgement: the multiple over the updated PCSK9 rate is 1.0. Scaling by beneficiaries treats growth in the class's Medicare stock as growth in post-MI starts. With 50%+ annual discontinuation the stock settles within two to three years, so growth there mostly reflects higher starts. Scaling from 2020, the end of the study window, is conservative. The anchor is measured over all MI admissions, while the pool here is the angiography-confirmed subset, where PCSK9 users (younger, invasively managed) concentrate. Case for higher: ziltivekimab would be started in hospital at the index event with no LDL threshold to meet. A Japanese single-centre protocol lifted PCSK9 starts after AMI from 2.8% to 15.3% (Arai R et al., J Atheroscler Thromb 2025;32(11):1434-1446, doi:10.5551/jat.65731). Case for lower: ZEUS showed no MACE benefit (HR 0.99) despite full IL-6 and hsCRP suppression, and colchicine failed after MI in CLEAR SYNERGY, so cardiologists may doubt an anti-inflammatory even after a positive ARTEMIS. Payers will also meet a biologic in an 800,000-a-year population with the same restrictions they put on PCSK9s"
+    },
+    "ramp_steepness": {
+     "value": 0.657,
+     "unit": "logistic k",
+     "source": "book: Leqvio's CMS uptake fit (Part B beneficiaries 6,779 in 2022, 24,690 in 2023, 48,298 in 2024), k 0.657, midpoint 5 years, as carried by the olpasiran, lepodisiran, enlicitide and AZD0780 seeds",
+     "note": "Reused measured cardiovascular curve, the one the book reads for every cardiovascular prevention launch. Case against: an in-hospital start written into post-MI order sets could ramp faster than an outpatient lipid injectable once guidelines adopt it"
+    },
+    "ramp_midpoint_year": {
+     "value": 5.0,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Leqvio fit carried by the olpasiran, lepodisiran and enlicitide seeds)",
+     "note": "Reused measured curve. forecast_start_year is the first full year on market, as in the enlicitide seed, so the 5-year midpoint needs no shift"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

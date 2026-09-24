@@ -1,0 +1,127 @@
+{
+ "ticker": "EXEL",
+ "name": "XL092",
+ "summary": "XL092 is zanzalintinib, Exelixis's internally discovered oral multitargeted TKI (VEGFR, MET, TAM kinases), a different molecule from cabozantinib. The registrational trial is STELLAR-303 (NCT05425940, 901 patients): zanzalintinib 100 mg daily plus atezolizumab against regorafenib in previously treated non-MSI-H/dMMR metastatic colorectal cancer, which met overall survival in the ITT population (HR 0.80, median 10.9 vs 9.4 months; Lancet 2025). The NDA was accepted in February 2026 and its PDUFA date moved from 3 December 2026 to 3 March 2027. Price anchor: Stivarga, the control arm and the incumbent oral VEGFR TKI in this line, at $55,963 per CMS Part D beneficiary in 2024. Uptake anchor: regorafenib's measured 14.8% of US post-chemotherapy treatment starts in pMMR/non-MSI-H mCRC (Desai et al., Future Oncol 2025). Only colorectal cancer is modelled: the nccRCC Phase 3 (STELLAR-304, NCT05678673) has not read out (primary completion 2026-12), the context lists its indication at Phase 1, and the book carries no renal cell pool.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Hecht JR et al., 'Zanzalintinib plus atezolizumab versus regorafenib in refractory colorectal cancer (STELLAR-303): a randomised, open-label, phase 3 trial', Lancet 2025;406(10517):2360-2370, doi:10.1016/S0140-6736(25)02025-2, PMID 41130252: oral zanzalintinib 100 mg daily plus IV atezolizumab 1200 mg every 3 weeks",
+   "note": "Oncology treated to progression, so chronic by the house definition",
+   "verdict": "confirmed",
+   "check": "PubMed PMID 41130252 (Hecht et al., Lancet 2025;406(10517):2360-2370, doi:10.1016/S0140-6736(25)02025-2) abstract: oral zanzalintinib 100 mg daily plus IV atezolizumab 1200 mg every 3 weeks against oral regorafenib 160 mg days 1-21 of 28; 901 randomised. A daily oral TKI given to progression is chronic by the house definition."
+  },
+  "list_price_per_patient": {
+   "value": 0.055963,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Stivarga: CMS Medicare Part D 2024, $96,423,433.02 over 1,723 beneficiaries = $55,963 per beneficiary",
+   "note": "Judgement on the comparator, house convention. Stivarga (regorafenib) is the STELLAR-303 control arm, the oral VEGFR multikinase inhibitor zanzalintinib replaces in third-line mCRC, and the only drug in this line in the book's demand table (Fruzaqla and Lonsurf are not carried). The engine bills each start as at least one patient-year, so a per-beneficiary spend is the right kind of figure for a short course. The case against: a Stivarga beneficiary's spend reflects regorafenib's short time on drug (median PFS 2.0 months in the STELLAR-303 control arm), while zanzalintinib's is 3.7 months, so this understates spend per zanzalintinib patient. Stivarga's beneficiaries also include GIST and HCC use. Cabometyx, Exelixis's own oral TKI, reads $132,512 per Part D beneficiary in 2024 (lookup.py demand Cabometyx), but that is mostly long-duration first-line RCC, not this setting. Atezolizumab is billed by Roche under Part B and is not Exelixis revenue",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Stivarga: Part D 2024 total_spending $96,423,433.02 over 1,723 beneficiaries = $55,962.5, so 0.055963 mm USD per patient-year is right in unit and value. Regorafenib is the STELLAR-303 control arm (Lancet abstract). lookup.py demand Fruzaqla and Lonsurf return no rows, so Stivarga is the only drug in this line in the demand table. Cabometyx Part D 2024 $1,216,725,023 / 9,182 = $132,512, as the note says. The engine check: forecast.py treated_stock bills stock(t) = stock(t-1)*(1-d) + new(t) at the annual price, so at d=0.8944 each start is billed 1.118 patient-years, about $62.6k gross. That is close to one Stivarga beneficiary's annual spend, so the note's claim that a per-beneficiary figure fits a short course holds. Labelled judgement, case against given, inputs confirmed."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part D per-beneficiary price (backend/gross_to_net.py: halving lands at a median 96% of CMS negotiated net prices)",
+   "note": "Direction checked: 0.5 off list, so net is $27,981 per patient-year. Zanzalintinib is oral, so Part D is the right part. Case against: oncology is a Part D protected class and its brands usually rebate less than the median Part D brand, so 0.5 may overstate the discount",
+   "verdict": "confirmed",
+   "check": "Direction right: 0.5 is the share off list, net $27,981. Anchor is CMS Part D (oral drug), so the house convention is 0.5 (backend/gross_to_net.py PART_D_CONVENTION = 0.5, 'a median 96% of the negotiated price'). Quantified case against: Exelixis's own FY2025 10-K (0000939767-26-000021) shows gross product revenues $3,011.8mm, discounts and allowances $889.0mm, net $2,122.8mm, so 29.5% comes off its gross on Cabometyx/Cometriq. That base is WAC-level gross, not CMS Part D spend, so it does not replace the convention, but it points to a smaller discount than 0.5 for this company."
+  },
+  "discontinuation_pct": {
+   "value": 0.8944,
+   "unit": "share of treated stock stopping per year",
+   "source": "STELLAR-303 ITT: median PFS 3.7 months on zanzalintinib plus atezolizumab against 2.0 months on regorafenib (Exelixis release on the ESMO 2025 presentation, ir.exelixis.com/news-releases/news-release-details/exelixis-announces-detailed-results-phase-3-stellar-303-pivotal; Targeted Oncology, targetedonc.com/view/stellar-303-zanza-atezo-improves-os-in-pretreated-msi-stable-mcrc; full report Hecht JR et al., 'Zanzalintinib plus atezolizumab versus regorafenib in refractory colorectal cancer (STELLAR-303): a randomised, open-label, phase 3 trial', Lancet 2025;406(10517):2360-2370, doi:10.1016/S0140-6736(25)02025-2, PMID 41130252)",
+   "note": "Constant hazard from a median: 1 - 0.5^(12/3.7) = 0.894, the form the telisotuzumab adizutecan seed uses on its 5.3-month median in the same pool. The brief's 1 - exp(-12/3.7) gives 0.961; it treats the median as a mean, so it was not used. Case against: median duration of treatment was not found and can differ from PFS; grade 3 or worse treatment-related adverse events in 60% of patients (Lancet abstract) point to earlier stops, while treatment beyond progression on an immunotherapy combination points to later ones. The PFS figures were read from the release and trade press, not from the paper's full text",
+   "verdict": "confirmed",
+   "check": "Median PFS 3.7 months (zanzalintinib-atezolizumab) vs 2.0 months (regorafenib), ITT, confirmed by search (Exelixis ESMO 2025 release, Targeted Oncology); PFS HR 0.68, not formally tested per the hierarchy. Recomputed 1 - 0.5^(12/3.7) = 0.8944; 1 - exp(-12/3.7) = 0.961. The 0.5^ form is the correct constant hazard from a median and matches the telisotuzumab adizutecan seed (0.7918 on 5.3 months; lookup.py seed). Grade 3 or worse TRAEs 268/446 (60%) vs 161/434 (37%) confirmed in the Lancet abstract. Search for a median duration of exposure found none in the returned text, so PFS stays the basis."
+  },
+  "forecast_start_year": {
+   "value": 2027,
+   "unit": "year",
+   "source": "Exelixis 10-Q for Q2 2026 (0000939767-26-000098): NDA submitted December 2025, accepted February 2026 with a standard review and a PDUFA date of 3 December 2026; extended by three months to 3 March 2027 after a major amendment (cancernetwork.com/view/fda-extends-review-of-zanzalintinib-combo-in-pretreated-metastatic-crc). NCT05425940 primary completion 2026-06-16 (actual, book trials table)",
+   "note": "The brief's default: the first year after the current one, and approval is due inside it. Judgement: approval on 3 March 2027 leaves about ten months of 2027 on market. Case against: 2028 is the first full year, and a complete response letter would push the start later. Exelixis reports pre-launch marketing spend in the same 10-Q",
+   "verdict": "confirmed",
+   "check": "10-Q Q2 2026 (0000939767-26-000098) MD&A in the book's filing_sections: NDA submitted December 2025, accepted February 2026 with standard review and PDUFA 3 December 2026. 8-K 0000939767-26-000108 (filed 2026-09-11): FDA extended review by three months after a major amendment, new PDUFA 3 March 2027. Book trials table: NCT05425940 primary completion 2026-06-16, type actual. Approval inside 2027 fits the brief's 2027 default. Labelled judgement with case against."
+  },
+  "exus_multiple": {
+   "value": null,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Exelixis 10-K FY2025 (0000939767-26-000021): Exelixis retains all global commercial rights to zanzalintinib; cabozantinib is sold outside the US by Ipsen and Takeda and reaches Exelixis as royalties. The book's asset_revenue_regions holds no split for any Exelixis product",
+   "note": "Null: no sourceable ex-US revenue for Exelixis. It has no commercial organisation outside the US, no ex-US filing for zanzalintinib appears in the Q2 2026 10-Q, and no partner is named. A multiple built on Ipsen's Cabometyx sales would describe a partner's revenue, and any future ex-US deal would likely pay Exelixis a royalty rather than product revenue. The engine then models the US alone, which understates value if Exelixis later licenses ex-US rights",
+   "verdict": "confirmed",
+   "check": "Null holds. (1) No ex-US licence exists: the FY2025 10-K and the Q2 2026 10-Q (filed 2026-08-05) both say 'we continue to retain all global commercial and marketing rights to zanzalintinib'. The book's deals table shows only the Merck clinical collaboration (2026-05-19) and Cybrexa (2022) for EXEL. Two web searches (zanzalintinib ex-US licence; zanzalintinib with Ipsen/Takeda) found only the cabozantinib licences (Ipsen outside the US and Japan, Takeda in Japan). No EMA/MAA or Japan filing for zanzalintinib appears in either filing. asset_revenue_regions has 0 rows for any EXEL asset. (2) If a partner later takes ex-US rights for a royalty: forecast.py multiplies the patient pool by 1 + exus_multiple, prices it at the US net price and charges company cost ratios. That models product revenue booked by Exelixis. A partner's-sales multiple would then overstate Exelixis's ex-US revenue by about 1/royalty rate (4-5x at Ipsen-style 22-26% tiers). The engine-consistent entry would be royalty per 1.0 of US revenue. The filed cabozantinib analogue: FY2025 Ipsen royalties $165.9mm + Takeda $13.2mm = $179.1mm against US Cabometyx net $2,113.4mm (10-K) = 0.085. Grossed up by 1/(1 - cost ratios), because a royalty bears no COGS or SG&A, and even then the ex-US patient counts are not real patients. That value depends on a deal that does not exist, so it is not entered. The null gives zero ex-US value to global rights in a 16-country trial, which the note already states."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Exelixis 10-K FY2025 (0000939767-26-000021): zanzalintinib is 'the furthest along of our internally-discovered small molecule product candidates' and 'we continue to retain all global commercial and marketing rights to zanzalintinib' (repeated in the Q2 2026 10-Q, 0000939767-26-000098, and the Exelixis-Merck clinical collaboration release, October 2024, ir.exelixis.com/news-releases/news-release-details/exelixis-and-merck-sign-clinical-development-collaboration)",
+   "note": "No licensor and no royalty payable found. The GSK royalty now held by Royalty Pharma attaches to 'any product containing cabozantinib' only (same 10-K). Roche supplies atezolizumab under a clinical collaboration and books its own atezolizumab sales; nothing in the filings gives Roche a share of zanzalintinib",
+   "verdict": "confirmed",
+   "check": "10-K FY2025 and 10-Q Q2 2026 text in the book: 'The furthest along of our internally-discovered small molecule product candidates is zanzalintinib' and 'we continue to retain all global commercial and marketing rights to zanzalintinib' (the Merck collaboration announced October 2024). Royalty Pharma's royalty attaches to 'any product containing cabozantinib' (10-K). Only other encumbrance found: under the NCI-CTEP CRADA, Exelixis has an option to a worldwide non-exclusive licence to NCI inventions claiming zanzalintinib (10-K), and no royalty is disclosed for it. Under an ex-US royalty deal this stays 1.0: forecast.py applies economics_share to the whole rNPV (owner_rnpv = rnpv * share), so cutting it would also cut the US, which Exelixis would keep in full. The partner's share belongs in how exus_multiple is built, not here."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Colorectal Neoplasms",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: 158,850 (SEER Cancer Stat Facts, 2026 new US cases), telisotuzumab adizutecan and PF-08634404 seeds",
+     "note": "Carried by the book. The pool is the year's own diagnoses (prevalence equals incidence)",
+     "verdict": "confirmed",
+     "check": "lookup.py pool Colorectal Neoplasms: prevalence 158,850 (SEER 2026 new US cases) carried by the telisotuzumab adizutecan and PF-08634404 seeds, so null with 'carried by the book' is right."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: 158,850 (SEER), as above",
+     "note": "Carried by the book",
+     "verdict": "confirmed",
+     "check": "lookup.py pool: incidence 158,850 carried by the same two seeds, so null is right."
+    },
+    "eligible_pct": {
+     "value": 0.066564,
+     "unit": "share of the pool",
+     "source": "Three filters, the first two reused from the telisotuzumab adizutecan seed by name. (1) 35.1% metastatic, that seed's SEER derivation. (2) 4,407 of 22,078 US mCRC patients (19.96%) received a third line after two lines of standard chemotherapy (Nevala-Plagemann et al., J Natl Compr Canc Netw 2023, doi:10.6004/jnccn.2022.7082). (3) STELLAR-303 excluded MSI-H/dMMR tumours: 153 dMMR among 3,063 first-line mCRC trial patients, 5.0% (Venderbosch et al., Clin Cancer Res 2014, doi:10.1158/1078-0432.CCR-14-0332, the PF-08634404 seed's source), leaving 95.0%. 0.351 x 0.1996 x 0.9500 = 0.0666, about 10,570 patients a year",
+     "note": "The sought label is metastatic CRC previously treated with fluoropyrimidine-, oxaliplatin- and irinotecan-based chemotherapy, and an anti-EGFR if RAS wild-type (CancerNetwork on the NDA acceptance), the same third-line population as the regorafenib, trifluridine/tipiracil and fruquintinib labels. Cross-check: Takeda puts US third-line and later mCRC at 14,600 patients (HUTCHMED filing, as returned by search, not opened), which counts fourth-line patients again. Case for a larger pool: dMMR is rarer by third line than in first-line trials, because most dMMR patients now get immunotherapy first and many respond durably. Case for a smaller one: 28.8% of post-chemotherapy pMMR patients get best supportive care only (Desai et al., below), and Nevala-Plagemann counts only those treated",
+     "verdict": "confirmed",
+     "check": "Recomputed 0.351 x (4,407/22,078 = 0.19961) x (1 - 153/3,063 = 0.95005) = 0.066564, about 10,574 patients on 158,850. 0.351 is the telisotuzumab adizutecan seed's SEER derivation (lookup.py pool). Nevala-Plagemann (PMID 36812939, J Natl Compr Canc Netw 2023;21(3):257-264): the abstract gives 22,078 reviewed. Search confirmed 4,407 had at least 3 lines, at least 2 of them standard fluorouracil-based chemotherapy. Venderbosch (PMID 25139339): 153 of 3,063 (5.0%) dMMR, from the abstract. Desai (PMC12218554) also states 95% of mCRC is not MSI-H/dMMR. The sought indication is confirmed in the Q2 2026 results release (8-K 0000939767-26-000096 exhibit): previously treated with fluoropyrimidine-, oxaliplatin- and irinotecan-based chemotherapy and, if RAS wild-type, an anti-EGFR therapy. The release names no MSI filter, so the 0.95 is the trial population, not the label wording. That is a small judgement and the note gives its case."
+    },
+    "untreated_carryover_pct": {
+     "value": 0.0,
+     "unit": "share",
+     "source": "forecast.py convention for a line of cancer therapy (patients_for_indication)",
+     "note": "A third-line patient not started on zanzalintinib starts another regimen and leaves the line. Stated for clarity: the book's pool has prevalence equal to incidence, so the engine would set 0 and no opening pool anyway",
+     "verdict": "confirmed",
+     "check": "forecast.py patients_for_indication: when prevalence equals incidence and no carryover is stated, the engine sets carryover 0 and opening pool 0. Stating 0.0 gives the same result."
+    },
+    "penetration_peak_pct": {
+     "value": 0.148,
+     "unit": "share of each year's eligible patients",
+     "source": "Regorafenib took 30 of 203 (14.8%) pMMR/non-MSI-H mCRC patients who started systemic therapy after all three standard chemotherapies, and trifluridine/tipiracil 25 of 203 (12.3%), US Oncology Network iKnowMed records 2016-2021 with chart review (Desai et al., 'Biomarker testing, treatment patterns and outcomes in previously treated pMMR or non-MSI-H metastatic colorectal cancer patients', Future Oncol 2025;21(16):2027-2037, doi:10.1080/14796694.2025.2504246, PMID 40371599, full text PMC12218554)",
+     "note": "Judgement: 1.0x regorafenib's measured capture, the incumbent zanzalintinib beat head to head on overall survival (HR 0.80). The denominator is treated patients, the same basis as Nevala-Plagemann's third-line count in eligible_pct. Case for higher: the first immunotherapy-based regimen with an OS gain in non-MSI-H mCRC, sold by a company already calling on these oncologists with Cabometyx; a new entrant in this line can grow fast (Fruzaqla in-market sales $290.6mm in 2024 and $366.2mm in 2025, HUTCHMED 20-F FY2025 0001104659-26-023822, as returned by search, not opened); and a drug used in fourth line also reaches patients counted once here. Case for lower: the 2016-2021 data predate trifluridine/tipiracil plus bevacizumab and fruquintinib (both 2023), so the line now splits more ways; grade 3 or worse treatment-related adverse events in 60% vs 37% on regorafenib; the co-primary endpoint in patients without liver metastases missed at the final analysis (HR 0.83, p=0.1185, Q2 2026 10-Q); and IV atezolizumab every 3 weeks adds infusion visits to an otherwise oral line",
+     "verdict": "confirmed",
+     "check": "Desai et al. full text (PMC12218554, doi:10.1080/14796694.2025.2504246): of 292 eligible pMMR/non-MSI-H patients previously treated with all three SoC chemotherapies, 203 (69.5%) received SACT. Of those 203, 30 (14.8%) received regorafenib and 25 (12.3%) TAS-102, and 84 (28.8%) received BSC. Index is first SACT after the three chemotherapies; iKnowMed 2016-2021 with chart review. 30/203 = 0.1478. Labelled 1.0x judgement, case against given. Cross-check on the same denominator eligible_pct uses: Nevala-Plagemann's abstract has 921 patients on regorafenib alone or before TAS-102, which is 20.9% of the 4,407 third-line patients. 1,937 (44.0%) got regorafenib or TAS-102 at third line or later, against 27.1% in Desai. That supports the note's case for higher. It is not a correction, because the 2015-2020 line predates fruquintinib and TAS-102+bevacizumab."
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "book: Enhertu's CMS Part B launch fit (864, 1,904, 4,841, 7,105, 8,410 beneficiaries 2020-2024), k=1.08, midpoint 2.2 years, as carried by the telisotuzumab adizutecan seed in this pool",
+     "note": "Reused measured oncology curve from the closest modelled competitor in the same pool. No colorectal launch curve is in the book (Fruzaqla is not in the demand table). Case against: Exelixis already sells to these oncologists, and an OS-positive late-line drug can ramp faster than a multi-indication ADC",
+     "verdict": "confirmed",
+     "check": "lookup.py seed Telisotuzumab Adizutecan: ramp_steepness 1.08 for Colorectal Neoplasms, from Enhertu's fit. lookup.py demand Enhertu Part B beneficiaries 2020-2024: 864, 1,904, 4,841, 7,105, 8,410, as stated. Recomputed: a logistic of k=1.08 and midpoint 2.2 scaled to 2024 gives about 817, 2,066, 4,287, 6,766, 8,410, a reasonable fit. Reused measured curve, case against given."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Enhertu fit carried by the telisotuzumab adizutecan seed)",
+     "note": "Reused measured curve",
+     "verdict": "confirmed",
+     "check": "Same seed row: ramp_midpoint_year 2.2 for Colorectal Neoplasms (the NSCLC row is 3.2, shifted a year). Matches."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}
