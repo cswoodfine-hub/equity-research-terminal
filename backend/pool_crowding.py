@@ -33,6 +33,7 @@ before it is taken.
 
 from __future__ import annotations
 
+import epidemiology
 import forecast
 
 # Funnel factors the pool identity multiplies through, in the engine's own order.
@@ -99,12 +100,18 @@ def claimants(conn, indication_id: int, scenario: str = "base") -> list[dict]:
     if not members:
         members = [indication_id]
     marks = ",".join("?" * len(members))
+    # A claimant is an asset that draws a share of the pool, which is what a penetration
+    # says. It used to be an asset that STATED the pool, and those are no longer the same
+    # thing: data/epidemiology.csv now carries obesity, non-small-cell lung carcinoma and
+    # IgA nephropathy, and an asset that takes its prevalence from there rather than
+    # writing its own would have been invisible here and claimed an uncrowded share of a
+    # population eight other drugs are already rationed on.
     rows = conn.execute(
         f"""SELECT DISTINCT s.asset_id, s.indication_id, a.generic_name, c.ticker
               FROM assumptions s
               JOIN assets a ON a.id = s.asset_id
               JOIN companies c ON c.id = a.owner_company_id
-             WHERE s.key = 'prevalence' AND s.scenario = ?
+             WHERE s.key = 'penetration_peak_pct' AND s.scenario = ?
                AND s.indication_id IN ({marks})
              ORDER BY c.ticker, a.generic_name""", (scenario, *members)).fetchall()
     out = []
@@ -113,6 +120,15 @@ def claimants(conn, indication_id: int, scenario: str = "base") -> list[dict]:
             "SELECT key, value FROM assumptions WHERE asset_id = ? AND indication_id = ?"
             "   AND scenario = ? AND year IS NULL",
             (row["asset_id"], row["indication_id"], scenario))}
+        # The pool from the disease file where the asset states none, per figure, which is
+        # what assumptions.load does. Its own row still wins, so a deliberate narrower
+        # population is kept.
+        disease = conn.execute("SELECT name FROM indications WHERE id = ?",
+                               (row["indication_id"],)).fetchone()
+        filled = epidemiology.for_indication(disease["name"]) if disease else None
+        for field in ("prevalence", "incidence"):
+            if per_ind.get(field) is None and filled and filled.get(field) is not None:
+                per_ind[field] = filled[field]
         per_asset = {r["key"]: r["value"] for r in conn.execute(
             "SELECT key, value FROM assumptions WHERE asset_id = ? AND indication_id IS"
             "  NULL AND scenario = ? AND year IS NULL", (row["asset_id"], scenario))}

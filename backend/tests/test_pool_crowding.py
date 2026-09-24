@@ -194,3 +194,36 @@ def test_without_the_group_the_two_names_would_not_pool(tmp_path):
     names = {c["name"] for c in PC.claimants(conn, 367)}
     conn.close()
     assert names == {"alpha", "beta"}, "gamma is stranded without the group"
+
+
+def test_an_asset_that_takes_its_pool_from_the_disease_file_is_still_a_claimant(tmp_path):
+    """A claimant is an asset that draws a share, which a penetration says, not one that
+    writes its own prevalence. Obesity now has a row in data/epidemiology.csv, so a new
+    obesity asset need not state 107,592,242, and keyed on a stated prevalence it would
+    have escaped the crowding correction and claimed an uncrowded share of a pool eight
+    other drugs are rationed on."""
+    conn = _pool_db(tmp_path)
+    # Asset beta states no pool of its own; everything else is as before.
+    conn.execute("DELETE FROM assumptions WHERE asset_id = 2"
+                 " AND key IN ('prevalence', 'incidence')")
+    conn.commit()
+    PC.clear_cache()
+    claims = {c["name"]: c for c in PC.claimants(conn, 367)}
+    conn.close()
+    assert set(claims) == {"alpha", "beta", "gamma"}
+    # Filled from the file, which carries the CDC figure every obesity seed already agrees on.
+    assert claims["beta"]["prevalence"] == 107_592_242
+    assert claims["beta"]["incidence"] == 4_478_747
+
+
+def test_an_asset_that_states_a_pool_but_draws_no_share_is_not_a_claimant(tmp_path):
+    """Pelacarsen carries a prevalence and deliberately no penetration, because its trial
+    failed and there is no label for a share to be of. It takes nothing from the pool."""
+    conn = _pool_db(tmp_path)
+    conn.execute("DELETE FROM assumptions WHERE asset_id = 2"
+                 " AND key = 'penetration_peak_pct'")
+    conn.commit()
+    PC.clear_cache()
+    names = {c["name"] for c in PC.claimants(conn, 367)}
+    conn.close()
+    assert names == {"alpha", "gamma"}
