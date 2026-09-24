@@ -1,0 +1,121 @@
+{
+ "ticker": "NVO",
+ "name": "Zenagamtide",
+ "summary": "Zenagamtide (formerly amycretin, NNC0487-0111) is Novo Nordisk's single-molecule GLP-1 and amylin receptor agonist, developed as a once-weekly injection and a once-daily tablet. The obesity Phase 3 programme (AMAZE) began in Q1 2026. The core placebo-controlled trial is AMAZE 1 (NCT07339423): 1,150 patients, 84 weeks, primary completion 2029-06-26. The book has folded NNC0487-0111 into this asset, so its trials table now carries the whole programme here. AMAZE 2, 3, 4, 6, 9 and 12 complete between June and August 2028, all in special populations, a maintenance design or the tablet. In Phase 1b/2a, subcutaneous zenagamtide took 22.0% of body weight off at 20 mg and 24.3% at 60 mg by week 36 (Lancet 2025, PMID 40550231). Price anchor: the incretin median the book uses for every obesity seed, Ozempic at $6,642 per CMS Part D beneficiary in 2024. Uptake anchor: 0.5 times the book's measured Zepbound capture of 4.3882%. That is the multiple the book gives eloralintide, the other follow-on launched into its maker's own obesity franchise.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "AMAZE 1 (NCT07339423) and AMAZE 2 (NCT07533175) are 84-week once-weekly trials (Novo Nordisk Q1 2026 financial report, sec.gov/Archives/edgar/data/353278/000035327826000018/caq12026.htm, read from a search excerpt). AMAZE 1 also measures body weight at week 136 (novonordisk-trials.com NN9490-8021). AMAZE 12 (NCT07503210) tests maintenance of weight loss",
+   "note": "Continuous weight management, like every obesity seed in the book",
+   "verdict": "confirmed",
+   "check": "AMAZE 1 is once-weekly subcutaneous zenagamtide against placebo (novonordisk-trials.com NN9490-8021, search excerpt) with relative body-weight change at week 84 as primary endpoint (Fierce Biotech and Clinical Trials Arena excerpts). The book's trials table titles AMAZE 12 (NCT07503210) 'Helps People With Excess Body Weight Maintain Their Weight Loss', so a maintenance use is under test. Chronic holds. Not independently seen: the week-136 measure and AMAZE 2's 84-week duration; neither changes the value"
+  },
+  "list_price_per_patient": {
+   "value": 0.006642,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Ozempic: CMS Part D 2024, $12,970,296,347 over 1,952,637 beneficiaries = $6,642. It is the median of the three incretins, against Mounjaro at $7,084 and Wegovy at $5,689. It is the price the Cagrilintide, Eloralintide, Enicepatide and Berobenatide seeds share (lookup.py seed)",
+   "note": "JUDGEMENT: the book's shared obesity price, kept so this line competes on equal terms with the other obesity seeds inside the crowding solve. It is in USD as the brief asks. Note that the Cagrilintide seed, Novo's other obesity line, stores the same price converted to DKK (0.04331583 mm DKK at 0.153339 USD per DKK), so the loader needs to convert it the same way. The case against: a published list price exists for the closest comparator. Novo will cut the Wegovy list price (WAC) to $675 a month from 1 January 2027 (Novo release 2026-02-24, prnewswire.com/news-releases/...-302695705.html), which is $8,100 a year. I did not use it because no filing sources the discount off the new WAC. A drug launched around 2031 with better weight loss than semaglutide could also be priced above semaglutide.",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Ozempic, part D, 2024: 12,970,296,347 / 1,952,637 = $6,642.45, so 0.006642 mm USD per patient-year is right in unit. Mounjaro 2024 $7,084 and Wegovy 2024 $5,689 confirmed; median of the three is Ozempic. Same 0.006642 on the Eloralintide seed and the same $6,642.45 behind Enicepatide's CHF figure. Cagrilintide stores 0.04331583 mm DKK; 0.006642 / 0.153339 = 0.043316, as stated, and fx_seed.py converts this USD row to DKK after assembly. Wegovy list price of $675 a month from 1 January 2027 confirmed (Novo release 2026-02-24, prnewswire 302695705; CNBC); 675 x 12 = $8,100. The judgement is labelled and carries its case against"
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part D per-beneficiary price (backend/gross_to_net.py: halving lands at a median 96% of CMS's negotiated net prices). The anchor is Part D (lookup.py demand Ozempic, part 'D'). This is the value every obesity seed in the book carries",
+   "note": "Direction checked: 0.5 is taken off list, so net is $3,321 per patient-year, or $277 a month. Cross-check: CMS's negotiated Medicare price for semaglutide (Ozempic, Rybelsus, Wegovy) from 2027 is $274 per 30-day supply, or $3,288 a year (CMS, reported by Managed Healthcare Executive and BioPharma Dive, November 2025). The convention's net is 101% of that price. Against Novo's new $8,100 WAC, the convention's net implies a 59% discount. No filing states that discount",
+   "verdict": "confirmed",
+   "check": "Anchor is Part D (Ozempic row part 'D'), so 0.5 is the house value; direction right (share off list). backend/gross_to_net.py states the median 96% of negotiated prices. Net 6,642 x 0.5 = $3,321 a year, $276.75 a month. CMS's negotiated semaglutide price from 1 January 2027 is $274 per 30-day supply (Managed Healthcare Executive; BioPharma Dive); 274 x 12 = 3,288 and 3,321 / 3,288 = 1.010, so '101%' holds. Against $8,100 WAC, 1 - 3,321 / 8,100 = 59%, as stated"
+  },
+  "discontinuation_pct": {
+   "value": 0.648,
+   "unit": "share of treated stock stopping per year",
+   "source": "Rodriguez PJ et al., JAMA Netw Open 2025;8(1):e2457349, doi:10.1001/jamanetworkopen.2024.57349, PMID 39888616: one-year discontinuation of 64.8% (95% CI 64.4-65.2%) in adults with overweight or obesity and no type 2 diabetes. The cohort is 125,474 US adults who started liraglutide, semaglutide or tirzepatide in 2018-2023. The book's obesity rate, reused from the Cagrilintide and Eloralintide seeds",
+   "note": "Reused. The case against: this is a first-year rate among new starters, applied here to the whole treated stock. Patients who stay past year one stop less often, so it overstates later-year attrition. The same paper finds 36.3% of those who stop restart within a year, and more weight loss lowers the hazard of stopping by 3.3% per point. Both point to lower attrition for a drug that takes off more weight. Gastrointestinal events, the main side effects in zenagamtide's Phase 2, raise it",
+   "verdict": "confirmed",
+   "check": "PubMed 39888616 (doi:10.1001/jamanetworkopen.2024.57349): 125,474 adults starting liraglutide, semaglutide or tirzepatide 2018-2023; one-year discontinuation without type 2 diabetes 64.8% (95% CI 64.4-65.2%). Reinitiation 36.3% within a year among those who stopped (of 41,792 with a stop weight), each 1% weight loss lowers the stopping hazard 3.3%, and moderate or severe GI events raise it (HR 1.19). Same 0.648 on the Cagrilintide, Eloralintide and Enicepatide seeds (lookup.py seed)"
+  },
+  "forecast_start_year": {
+   "value": 2031,
+   "unit": "year",
+   "source": "Book trials table, asset 2597, which now carries NNC0487-0111's studies too: all 14 Phase 3 trials of the molecule sit on this row. AMAZE 1 (NCT07339423) is the once-weekly subcutaneous trial against placebo in adults with excess weight and no diabetes (HbA1c 6.5% or more excluded), 1,150 enrolled, recruiting since 2026-02-24, body weight at week 84, primary completion 2029-06-26. It is the largest weight-loss trial of the injection and the last to complete; only the heart-failure outcomes trial (NCT07567001, 2029-07-23) is later. The earlier completions are special populations, a maintenance design, the tablet or a head-to-head: AMAZE 12 maintenance (NCT07503210) 2028-06-06, AMAZE 4 and 3 sleep apnoea 2028-06-26 and 2028-07-12, AMAZE 9 tablets (NCT07720271) 2028-06-27, AMAZE 2 type 2 diabetes (NCT07533175) 2028-08-07, AMAZE 6 and NCT07481630 knee osteoarthritis 2028-08-14, NCT07668414 against semaglutide 2028-10-10, AMAZE 8 against semaglutide in type 2 diabetes (NCT07400107) 2028-12-12, AMAZE 13 Asia 2029-01-11, AMAZE 10 Japan 2029-02-05. The interval from final primary completion to submission is the Enicepatide seed's: retatrutide's measured three to five months",
+   "note": "JUDGEMENT. Novo has published no filing or launch date. Its quarterly reports on sec.gov (read from search excerpts) give AMAZE 8 a readout in H1 2029 and the heart-failure trial, HF-POLARIS, H2 2029. Submission around Q4 2029 after AMAZE 1 and approval around late 2030 on a standard review make 2031 the first full year. AMAZE 1 sets the date because it is the general-population trial a first weight-management label rests on, the role REDEFINE 1 played for CagriSema. The case for earlier: Novo could file on the 2028 readouts and add AMAZE 1 later, or use a priority review, either of which brings launch into 2030. The type 2 diabetes programme (AMBITION 7, NCT07797335, 2028-07-31) could also reach market first under a separate label. The case for later: Novo's own last interval was longer than Lilly's. CagriSema's REDEFINE 1 (NCT05567796) completed on 2024-10-30 (book trials table) and Novo filed on 2025-12-18, 13.6 months later, with a decision expected in Q4 2026 (Novo release, prnewswire 302645862). The same interval after 2029-06-26 is a submission around August 2030 and a first full year of 2032",
+   "verdict": "corrected",
+   "check": "Value 2031 kept; source and note rewritten. Rechecked against the folded trials table (19 trials on asset 2597, none left on 2589, which no longer exists): AMAZE 1 primary completion 2029-06-26 confirmed, and AMAZE 12 2028-06-06, AMAZE 9 2028-06-27, AMAZE 2 2028-08-07 as the researcher gave. Every 2028 completion is a special population (type 2 diabetes, sleep apnoea, knee osteoarthritis), the maintenance design, the tablet or a semaglutide comparison, so taking AMAZE 1 rather than the earliest date is right. AMAZE 1's design is confirmed as once-weekly injection against placebo excluding HbA1c 6.5% or more (novonordisk-trials.com NN9490-8021 excerpt), with week-84 weight change (Fierce Biotech excerpt). The arithmetic follows the Enicepatide rule the researcher cites (mid-2028 final completion to 2030 there; mid-2029 to 2031 here). Corrections: the source still said AMAZE 1 was stored under asset 2589, stale after the fold; and the note gave only the case for an earlier launch. Novo's own CagriSema interval, REDEFINE 1 completion 2024-10-30 (book) to NDA 2025-12-18 (Novo release via search), 13.6 months, points to 2032, so the risk runs both ways and 2031 is the middle. A secondary web page seen in search attributes to GlobalData an earliest FDA approval around Q4 2030, consistent with 2031. Book-level inconsistency seen in passing, not changed: AZD6234 and Elecoglipron take a first full year of 2029 from 2028 completions, while Enicepatide takes 2030 from mid-2028"
+  },
+  "exus_multiple": {
+   "value": 0.5506,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Wegovy FY2025 in the book's asset_revenue_regions (asset 137; NVO 20-F 0000353278-26-000012, SEC financial statement data sets). International Operations DKK 28,091mm (EUCAN 15,383, APAC 5,812, Emerging Markets 6,100, China 796) against US DKK 51,015mm: 28,091 / 51,015 = 0.5506. The same value the Cagrilintide seed carries",
+   "note": "JUDGEMENT on the comparator: Novo's own obesity drug, sold through the franchise zenagamtide will launch into. The case against: most European payers do not reimburse obesity drugs, and ex-US use is largely self-pay. The ratio will also move when the US Wegovy price is halved in 2027. Semaglutide as a molecule reads 0.5392 (Cagrilintide seed)",
+   "verdict": "confirmed",
+   "check": "asset_revenue_regions, asset 137 (Wegovy), FY2025, 20-F 0000353278-26-000012: EUCAN 15,383 + APAC 5,812 + Emerging Markets 6,100 + China 796 = 28,091 = the International Operations row; US 51,015. 28,091 / 51,015 = 0.55064. Same 0.5506 on the Cagrilintide seed, whose source also gives semaglutide at 0.5392"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Novo Nordisk is lead sponsor of every zenagamtide and NNC0487-0111 trial in the book's trials table and in the context file. The Phase 1b/2a (Dahl K et al., Lancet 2025;406:149-162, doi:10.1016/S0140-6736(25)01185-7) was funded by Novo Nordisk, and all but two authors are Novo employees",
+   "note": "No licensor, co-developer or royalty found in searches or in the sources above. This is an absence of evidence, so a second reader should check Novo's 20-F licensing note",
+   "verdict": "confirmed",
+   "check": "Novo Nordisk is lead sponsor of all 19 trials on asset 2597 in the book. PubMed 40550231 (Lancet 2025;406:149-162): funded by Novo Nordisk; 10 of 12 authors carry Novo affiliations, the other two Yale and ICON, so 'all but two' holds. PubMed 42532080 (Lancet 2026) confirms zenagamtide is the former amycretin, funded by Novo. Search found no licensor, co-developer or royalty; AdisInsight lists Novo as the developer and one secondary page calls the molecule proprietary to Novo. The 20-F licensing note itself was not read, so this remains absence of evidence"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Obesity",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (epidemiology.csv: 107,592,242, CDC NHANES Aug 2021-Aug 2023, 40.3% of US adults, applied to Census adults 18+)",
+     "note": "Carried by the book. The 'Overweight' indication in the context takes this pool too: epidemiology.csv deliberately carries no separate count for BMI 25-29.9, because no drug is labelled for that band alone",
+     "verdict": "confirmed",
+     "check": "lookup.py pool Obesity: epidemiology.csv carries 107,592,242, the same figure on the Cagrilintide, Eloralintide, Retatrutide, MariTide, AZD6234, Elecoglipron and Berobenatide rows. The Overweight row in epidemiology.csv is blank on purpose and routes to the obesity pool. Null is correct"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (epidemiology.csv: 4,478,747, 28.1 per 1,000 person-years applied to non-obese US adults)",
+     "note": "Carried by the book",
+     "verdict": "confirmed",
+     "check": "epidemiology.csv carries 4,478,747 for Obesity, as do the other obesity seeds. Null is correct"
+    },
+    "eligible_pct": {
+     "value": 1.0,
+     "unit": "share of the pool",
+     "source": "book convention for every obesity seed (Cagrilintide, Eloralintide, Retatrutide, Enicepatide, Berobenatide and others; lookup.py pool Obesity): the incretin label threshold is BMI 30 or more, or 27 or more with a weight-related comorbidity. BMI 30 or more is the pool's own definition, so the two coincide",
+     "note": "JUDGEMENT, not checked against the trial: I could not read AMAZE 1's entry criteria (NCT07339423). The Amass connector was out of quota, ClinicalTrials.gov refused the connection, and search returned only the title ('people with excess body weight'), 1,150 participants and adults 18 and over. The Phase 1b/2a enrolled BMI 27.0-39.9. Narrowing by severity or payer coverage is left to the book's funnel and crowding correction, as for the other obesity seeds. Adults with obesity and type 2 diabetes are inside this pool and are studied in AMAZE 2 (NCT07533175) and AMAZE 8 (NCT07400107)",
+     "verdict": "confirmed",
+     "check": "Every obesity seed carries 1.0 against the BMI 30 or more pool (Cagrilintide, Eloralintide, Enicepatide rows seen). AMAZE 1's BMI threshold was not visible to me either (Amass out of quota; search excerpts gave only an unsuccessful-diet requirement and the HbA1c 6.5% exclusion). Adults with type 2 diabetes are studied separately in AMAZE 2 and AMAZE 8 (book titles), so a label would cover them within the pool. Labelled judgement with its case stated; confirmed"
+    },
+    "penetration_peak_pct": {
+     "value": 0.021941,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "0.5 times the book's measured Zepbound capture of 4.3882% (backend/capture_anchor.py: Lilly Q2 2026 Zepbound revenue of $4,928mm annualised at a net $3,321 is a stock of 5,935,562. Less the 1,435,346 carried from 2025 at 64.8% discontinuation, that leaves 4,500,216 starts over 102,553,384 still untreated. LLY 10-K 0000059478-26-000013 and 8-K exhibit 0000059478-26-000077, as carried by the Enicepatide and Retatrutide seeds). 0.021941 is the value the Eloralintide seed already stores",
+     "note": "JUDGEMENT: 0.5 times the incumbent, the multiple and reasoning of the Eloralintide seed: Phase 2 weight loss that matches tirzepatide's, from a molecule that enters a pool its maker already serves. Zenagamtide took off 22.0% of body weight at 20 mg and 24.3% at 60 mg by week 36 (Lancet 2025, PMID 40550231; small, single-site, with high withdrawal). It launches around 2031, into Novo's own Wegovy and CagriSema franchise. CagriSema is seeded at 0.889 from 2027, so much of zenagamtide's uptake replaces Novo patients rather than adding to them. The case for higher: Novo's built franchise is the reason CagriSema gets 0.889, zenagamtide is one molecule with both a tablet and an injection, and its early weight loss is at least the roughly 23% the Cagrilintide seed's note gives for CagriSema in REDEFINE 1. The case for lower: it may be the tenth or later claimant on this pool, behind retatrutide, orforglipron, CagriSema and MariTide. The crowding solve already cuts every claimant by about a fifth",
+     "verdict": "confirmed",
+     "check": "Recomputed with backend/capture_anchor.measure on the book copy at Zepbound's actual asset id, 139: Q2 2026 $4,928mm x 4 = 19,712 / 0.003321 = 5,935,562 stock; 2025 stock 13,542 / 0.003321 = 4,077,687 x 0.352 = 1,435,346 carried; starts 4,500,216 over 102,553,384 untreated = 4.3882%. 0.5 x 0.043882 = 0.021941, the value the Eloralintide seed stores with the same reasoning. Lancet 2025 weight loss 22.0% (20 mg) and 24.3% (60 mg) at week 36 confirmed (PubMed 40550231). Cagrilintide seed 0.039011 = 0.889 x 0.043882 with a 2027 start, confirmed. Not reproduced: 'the crowding solve cuts every claimant by about a fifth'. Side finding: capture_anchor.py hard-codes ZEPBOUND_ASSET_ID = 13, which is Camzyos in both book.db and backend/er_tool.db, so its default call returns 0.36%, not 4.39%"
+    },
+    "ramp_steepness": {
+     "value": 1.402,
+     "unit": "logistic k",
+     "source": "the book's obesity k: ln(894,581 / 54,202) / 2 = 1.4018, from Mounjaro's CMS Part D beneficiaries 2022 to 2024 (lookup.py demand Mounjaro). Carried by the Cagrilintide, Eloralintide, Retatrutide and Enicepatide seeds",
+     "note": "Reused measured curve, kept identical so the claimants stay comparable inside the crowding solve",
+     "verdict": "confirmed",
+     "check": "lookup.py demand Mounjaro: 54,202 beneficiaries in 2022, 894,581 in 2024; ln(894,581 / 54,202) / 2 = 1.40182. 1.402 on the Cagrilintide, Eloralintide, Enicepatide and Retatrutide seeds"
+    },
+    "ramp_midpoint_year": {
+     "value": 3.0,
+     "unit": "years from forecast_start_year",
+     "source": "the obesity class midpoint carried by the Cagrilintide (Novo), Eloralintide, Retatrutide and Enicepatide seeds. The seeds for companies without an obesity franchise (AZD6234, Elecoglipron, MariTide, Berobenatide) take 4.0",
+     "note": "Reused. 3.0, not 4.0, because Novo launches into its own franchise. The case against: Mounjaro's own series fits a 1.9-year midpoint (Cagrilintide seed note), so 3.0 is already slower than the measured launch",
+     "verdict": "confirmed",
+     "check": "3.0 on the Cagrilintide, Eloralintide, Enicepatide and Retatrutide seeds; 4.0 on AZD6234, Elecoglipron, Berobenatide and Maridebart Cafraglutide (MariTide), as the researcher says. The Cagrilintide seed source gives the 1.9-year midpoint Mounjaro's series fits"
+    }
+   }
+  }
+ ],
+ "refuse": null,
+ "not_modelled": "Diabetes Mellitus, Type 2: it has its own Phase 3 (AMBITION 7, NCT07797335, primary completion 2028-07-31; Novo said at ADA 2026 that it would start a type 2 diabetes Phase 3 programme in H2 2026) and the book carries a pool (27.0mm). It is left out because no incretin seed in the book models type 2 diabetes. Most adults with type 2 diabetes and excess weight are already in the obesity pool, and AMAZE 2 and AMAZE 8 study them under the obesity label, so a second pool would count them twice. Overweight: epidemiology.csv routes it to the obesity pool.",
+ "discrepancy": "The context file lists Obesity as 'Not yet recruiting' and only the trials that name zenagamtide. The book's trials table holds most of the AMAZE programme under NNC0487-0111 (asset 2589): AMAZE 1 (NCT07339423, recruiting since 2026-02-24), AMAZE 2, 3, 4, 6, 8, 10, 12, a knee-osteoarthritis trial (NCT07481630) and a heart-failure outcomes trial (NCT07567001, 5,610 patients). Asset 2589 should be folded into 2597 (asset_merge.py). Lancet 2026 (PMID 42532080) confirms that zenagamtide is the former amycretin. Second reader: resolved; the book has since folded asset 2589 into 2597 (asset_aliases carries NNC0487-0111 against 2597, and all 19 trials sit on 2597)"
+}

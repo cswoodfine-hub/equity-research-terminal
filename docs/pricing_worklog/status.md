@@ -13,7 +13,7 @@
 | AZN | Rilvegostomig | not started |
 | BAYN | BAY3723113 | held: Japan-only; Bayer has no cost block |
 | BMY | BMS-986353 | not started |
-| BMY | BMS-986489 | not started |
+| BMY | BMS-986489 | seeded and built |
 | BMY | Iza-bren | refused: US profit split undisclosed |
 | CAPR | Deramiocel (CAP-1002) | not started |
 | DYN | zeleciment basivarsen (DYNE-101) | not started |
@@ -47,7 +47,7 @@
 | NTLA | Biological NTLA-2002 | not started |
 | NTLA | nexiguran ziclumeran | not started |
 | NVO | Etavopivat | not started |
-| NVO | Zenagamtide | not started |
+| NVO | Zenagamtide | seeded and built |
 | NVO | Ziltivekimab | not started |
 | NVS | Ianalumab | seeded and built |
 | NVS | Pelabresib | seeded and built |
