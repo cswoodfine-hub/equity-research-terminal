@@ -364,7 +364,7 @@ _REFERENCE = (
     # The R&D line with acquired in-process R&D taken out wherever it sits inside it, for
     # every year. A filer that presents it on a line of its own already reports R&D
     # without it; Merck expenses it inside R&D, $11.4bn of its $30.5bn in 2023. Resolved
-    # by financials_edgar.rd_less_expensed_iprd rather than by a ladder of concepts.
+    # by companyfacts.rd_less_expensed_iprd rather than by a ladder of concepts.
     Line("ResearchLessExpensedIprd", "R&D less acquired in-process R&D expensed in it",
          "reference", "duration", role="memo"),
     # Interest paid, where it sits inside operating cash flow. Free cash flow is struck
