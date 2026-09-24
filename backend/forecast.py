@@ -175,6 +175,16 @@ def patients_for_indication(ind: dict, years: list[int], notes: list,
                          f"started in a year does not carry into the next, and the peak "
                          f"penetration of {peak * funnel:.1%} is the share of each year's "
                          f"eligible patients the drug reaches")
+        elif carryover == 0 and pool:
+            # Stated outright for a line of therapy on a pool whose prevalence is the whole
+            # living population (SEER's bladder count is 763,031 against 84,530 new cases).
+            # No carryover means the eligible patients are each year's own, so the living
+            # stock is not an opening pool either: counting it put some ten years of first-
+            # line patients into the first year.
+            pool = 0.0
+            notes.append(f"{ind.get('name', 'indication')}: no carryover stated, so the "
+                         f"pool is each year's eligible diagnoses and the prevalent stock is "
+                         f"not an opening pool")
         derived = derive_new_patients(pool, inc, curve, len(years), capacity,
                                       carryover=1.0 if carryover is None else carryover)
     else:

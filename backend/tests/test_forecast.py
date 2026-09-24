@@ -1362,3 +1362,17 @@ def test_a_horizon_ending_inside_erosion_no_longer_capitalises_the_tail_flat():
     assert eroding["terminal_pv"] < flat["terminal_pv"] * 0.5
     assert any("terminal value follows the loss of exclusivity" in n
                for n in eroding["notes"])
+
+
+def test_a_stated_zero_carryover_opens_with_no_pool():
+    """A line of therapy on a pool whose prevalence is the whole living population: the
+    stock must not become first-year patients."""
+    ind = {"name": "Urinary Bladder Neoplasms", "scalars": {
+        "prevalence": 763031.0, "incidence": 84530.0, "eligible_pct": 0.1,
+        "penetration_peak_pct": 0.5, "ramp_midpoint_year": 2.0, "ramp_steepness": 1.0,
+        "untreated_carryover_pct": 0.0}}
+    notes = []
+    got = F.patients_for_indication(ind, list(range(2027, 2037)), notes)
+    first_year_eligible = 84530.0 * 0.1
+    assert got["derived"][0] <= first_year_eligible
+    assert any("not an opening pool" in n for n in notes)
