@@ -52,3 +52,21 @@ def test_unsorted_is_what_the_file_does_not_cover(tmp_path):
     conn.close()
     assert [r["name"] for r in left] == ["LY3549492"]    # matched case-insensitively
 
+
+
+def test_the_committed_sort_is_well_formed():
+    """Every row names a class from the vocabulary, carries evidence, and appears once."""
+    with P.SORT_CSV.open(newline="", encoding="utf-8") as fh:
+        lines = [line for line in fh if not line.lstrip().startswith("#")]
+    reader = csv.DictReader(lines)
+    assert reader.fieldnames == HEADER
+    rows = list(reader)
+    assert rows, "the sort is empty"
+    keys = [(r["ticker"].upper(), r["name"].lower()) for r in rows]
+    assert len(keys) == len(set(keys)), "a row is sorted twice"
+    for row in rows:
+        assert row["class"] in P.CLASSES, row
+        assert row["confidence"] in ("high", "medium", "low"), row
+        assert row["evidence"].strip(), f"{row['ticker']} {row['name']} carries no evidence"
+        if row["class"] in ("DUPLICATE", "LINE_EXTENSION", "REGIMEN"):
+            assert row["of"].strip(), f"{row['name']} says what it is not, but not what it is"
