@@ -38,7 +38,9 @@ Asset-level:
   of average sales price, which is already net of discounts, so only the 6% add-on comes
   off (1 - 1/1.06). A published list price (WAC) takes neither; source its discount. A
   value of 0.7 means net is 30% of list. Check the direction before you write it; three
-  earlier seeds had it inverted, and eight had 0.5 on a Part B anchor.
+  earlier seeds had it inverted, and eight had 0.5 on a Part B anchor. A biosimilar is
+  paid its own ASP plus 8% of the reference's (SSA 1847A(b)(8)), so its Part B deduction
+  is that add-on over its own price, not 0.056604 (the ABP 692 seed shows the arithmetic).
 - `discontinuation_pct`: share of the treated stock stopping per year. For oncology treated
   to progression, derive from median duration of treatment or PFS in the pivotal or
   comparator trial (1 - exp(-12/median_months) per year is acceptable, say so). One course:
@@ -60,6 +62,10 @@ a second only if it has its own Phase 3 and a sourced pool):
 - `penetration_peak_pct`: share of the eligible untreated pool captured per year at peak.
   Solve it back from what a real incumbent measurably captured (CMS beneficiaries over the
   pool, or reported patients), name the incumbent, and label any multiple a judgement.
+- `untreated_carryover_pct`: the engine has no exit from the untreated pool. A line of cancer
+  therapy takes 0. A chronic disease whose pool would otherwise outgrow its measured
+  prevalence is held stationary, retention = pool / (pool + inflow), as the remternetug and
+  direclidine seeds do, labelled a judgement.
 - `ramp_steepness` (logistic k) and `ramp_midpoint_year` (years from forecast_start_year to
   half of peak): reuse a measured curve from the closest modelled competitor where possible.
 

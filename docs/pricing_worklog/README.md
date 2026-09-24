@@ -54,6 +54,27 @@ downloads from this container), then migrate, fold aliases and load the seeds:
    company reporting in pounds, euros, kroner or francs, then `build.py TICKER:Name` from
    `backend/` to load and build. Raise the seed count in `test_wacc_live_rate.py`.
 
+## Holds, refusals and cost blocks
+
+An asset is refused when its owner's share of the economics cannot be sourced from a filing
+(a royalty filed without a rate: linerixibat, iza-bren, and Regeneron's fianlimab,
+mibavademab and REGN-2Cat, each footnoted "(f) Sanofi is entitled to receive royalties"), or
+when it has no standalone path. It is held when its revenue would mostly come out of the
+owner's own marketed product (ibuzatrelvir and Paxlovid, PG4 and Prevnar 20, nucresiran and
+Amvuttra, PI-2620 and Tauklarify).
+
+A company with no cost block gets one only when one of its assets survives the second read.
+`block.py TICKER` drafts the filed-line rows (FY2025 cost ratios, the aggregate tax rate over
+years with positive pre-tax income, beta from stored weekly prices, TotalDebt and market
+cap); check each against the filings, since a stale or mis-scaled TotalDebt is common (Incyte
+carried a 2018 scale error for years) and a first-profit year's tax line is often a deferred
+tax credit (argenx, Alnylam), which needs a labelled judgement. Add the ticker's window to
+`interest_addback.WINDOWS`, load the rows, and take `charge_floor.measure(conn, TICKER)` as
+the other-costs charge (held at nil where it rebuilds below nil and no amortisation is on
+file). Exelixis, argenx and Neurocrine were built this way; the xl092, empasiprubart and
+nbi_1065845 seeds show the rows and their wording. A loss-making company takes a comparator's
+ratios, as Viking takes Lilly's.
+
 ## What works in this container
 
 WebSearch works; WebFetch is blocked for almost every host, ClinicalTrials.gov included.
