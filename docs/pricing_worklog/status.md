@@ -1,6 +1,6 @@
 | Ticker | Asset | Status |
 |---|---|---|
-| ALNY | Nucresiran | not started |
+| ALNY | Nucresiran | held: cannibalises Amvuttra, Alnylam's own TTR silencer |
 | ALNY | Zilebesiran | not started |
 | AMGN | ABP 206 | not started |
 | AMGN | ABP 692 | not started |

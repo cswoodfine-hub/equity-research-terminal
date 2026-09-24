@@ -1,0 +1,104 @@
+{
+ "ticker": "ALNY",
+ "name": "Nucresiran",
+ "summary": "Nucresiran (ALN-TTRsc04) is Alnylam's next-generation GalNAc siRNA against transthyretin, dosed 300 mg subcutaneously every 6 months, built to succeed its own Amvuttra (vutrisiran, 25 mg every 3 months). Modelled on TRITON-CM (NCT07052903): about 1,750 adults with ATTR-CM randomised 2:1 against placebo, background stabilisers allowed, composite of all-cause death and recurrent CV events, primary completion 2030-05-28; TRITON-PN (NCT07223203, 125 hATTR-PN patients, completion 2027-12-27, vutrisiran reference arm) supports an earlier polyneuropathy launch that is not modelled.\nPrice anchor: Amvuttra at $379,824 per Medicare Part B beneficiary in 2024, less the Part B add-on (net $358,324). Pool: diagnosed US ATTR-CM aged 65 and over, 55,372 living and 25,605 new a year (Alexander et al., JAHA 2026, on Census 2022).\nUptake anchor: Amvuttra's own US ATTR-CM launch, about 5,990 new patients in the year to Q2 2026 read from its filed US sales at this seed's net price, 7.39% a year of the pool, taken at a multiple of 1.0. Ramp: Vabysmo's fitted switch launch, reused.\nCannibalisation: most of this revenue is patients Alnylam would otherwise hold on Amvuttra. The book has no Amvuttra forecast seed, so pipeline seeds do not double count, but ALNY company rows must fade Amvuttra from 2031 rather than grow it to its 2036 patent expiry. Before then a switched patient adds margin, not revenue: no royalty is owed on nucresiran, against Sanofi's 15% to 30% tiers on Amvuttra.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "TRITON-CM design (ClinicalTrials.gov NCT07052903; design abstract, Journal of Cardiac Failure, onlinejcf.com/article/S1071-9164(25)00563-9/abstract): nucresiran 300 mg or placebo subcutaneously once every 6 months, randomised 2:1. Alnylam 10-Q 0001178670-26-000062 (filed 2026-07-30): in Phase 1, twice-annual 300 mg gave mean serum TTR reductions above 90% from day 15, maintained over six months",
+   "note": "Lifelong TTR suppression by maintenance injection, so chronic"
+  },
+  "list_price_per_patient": {
+   "value": 0.379824,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Amvuttra: CMS Medicare Part B 2024, $229,033,878.80 over 603 beneficiaries = $379,824 per beneficiary",
+   "note": "Judgement on the comparator. Amvuttra is the closest marketed product: same company, same mechanism (hepatic TTR silencing by GalNAc siRNA), same setting (subcutaneous injection given by a healthcare professional), labelled for ATTR-CM since 2025-03-20 (book labels table, DailyMed setid 8db0facb-81b6-4006-9239-27dc6409c5d3). The 2024 figure predates the CM label, but the dose and price are the same in both indications. Nucresiran's twice-yearly dose is assumed priced at annual parity with Amvuttra; Alnylam has not said. Case for higher: a beneficiary averages about three of four quarterly doses, so this understates a full treated year. Part D 2024 shows $140,924,647 over 1,192 claims, $118,225 a fill; 596 dosage units is 0.5 a claim, which I read as one 0.5 mL 25 mg syringe per fill, so four fills cost $472,900 a year. Part B shows $4,787.8 per billing unit (47,837.5 units); if the unit is 1 mg (my reading, not checked against the HCPCS file) a 25 mg dose costs $119,695, consistent with the Part D fill. Case for lower: Vyndamax (tafamidis), the incumbent stabiliser, reads $203,290 per Part D beneficiary in 2024 and its compound patent 7214695 expires 2026-12-19 (Orange Book, book exclusivities table), so generic price pressure in ATTR-CM is likely before a 2031 launch; Wainua (eplontersen) reads $226,539 per Part D beneficiary in 2024"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house convention for a CMS Part B anchor (backend/gross_to_net.py): Part B pays 106% of average sales price, which is already net of discounts, so only the add-on comes off, 1 - 1/1.06",
+   "note": "Direction checked: 0.056604 off list, so net is $358,324 per patient-year. Amvuttra's Medicare beneficiaries sit mainly in Part B (603 against 409 in Part D in 2024, lookup.py demand Amvuttra). The Part B dose price and the Part D fill price in the list-price note agree to within 1.3%, which is what a product with a small discount off list would show. Case against, and it is material: if nucresiran were dispensed mainly through specialty pharmacy and read on Amvuttra's Part D figure ($344,559) at the 0.5 Part D convention, net would be $172,280, less than half of this"
+  },
+  "discontinuation_pct": {
+   "value": 0.2072,
+   "unit": "share of treated stock stopping per year",
+   "source": "Bart NK et al., 'Vutrisiran Health Care Resource Utilization, Costs, Discontinuation, and Mortality: A Real-World Claims Analysis', Adv Ther 2026, doi:10.1007/s12325-026-03664-7, PMID 42455256: Optum Clinformatics, 111 US patients starting vutrisiran 2022-2024; within 12 months 13 (12%) died and 13 (12%) discontinued, of whom 3 restarted. (13 + 10) / 111 = 0.2072",
+   "note": "Judgement: the Optum cohort, because Optum captures deaths and in a disease of the old death is the main exit; 70% of the cohort had heart failure. Case for lower: the larger Komodo comparator in the same paper (718 patients) reads (22 died + 142 discontinued - 53 restarted) / 718 = 15.5%, but records only 3% deaths, too few for a population whose ATTR-ACT placebo arm lost 42.9% in 30 months (PMID 30145929); twice-yearly dosing may also improve persistence. Case for higher: the cohort started when vutrisiran was labelled only for polyneuropathy, and older CM patients die faster. The authors include BridgeBio employees (maker of Attruby, a competitor). The same figure is used in the uptake calibration, so price, stock and starts reconcile"
+  },
+  "forecast_start_year": {
+   "value": 2031,
+   "unit": "year",
+   "source": "NCT07052903 primary completion 2030-05-28 (context file; book trials table, last update 2026-09-16). Alnylam 2030 strategy, 8-K 0001628280-26-001755 (2026-01-12): 'Launch best-in-class, next-gen silencer, nucresiran, in polyneuropathy by 2028 and cardiomyopathy by 2030'; restated after enrolment was expanded from 1,250 to about 1,750, 8-K 0001628280-26-028601 (2026-04-30): 'the Company still expects to launch nucresiran ... in ATTR-CM by 2030'",
+   "note": "Judgement. A launch late in 2030 makes 2031 the first full year. The registry's May 2030 completion allows that only with an on-time readout and a fast review of a supplement to the polyneuropathy NDA; on a standard review the first full year is 2032, the book's rule of two calendar years after completion (vepugratinib, ABBV-1480 seeds). Case for earlier revenue: TRITON-PN completes 2027-12-27 and Alnylam guides a polyneuropathy launch by 2028, so nucresiran sells before 2031; that revenue is not modelled because the pool below is ATTR-CM (Amvuttra's US polyneuropathy base was $631mm in 2024)"
+  },
+  "exus_multiple": {
+   "value": 0.3365,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Amvuttra, Alnylam FY2025 10-K (0001628280-26-007497), in the book's asset_revenue_regions: US $1,731.222mm, Europe $405.899mm, rest of world $176.715mm. (405.899 + 176.715) / 1,731.222 = 0.3365",
+   "note": "Judgement on the year: Alnylam's own TTR silencer in the same disease, from the only full year that includes the CM label. The split moves with launch timing: FY2024, polyneuropathy only, read 0.539 ((235.441 + 104.396) / 630.613); H1 2026 reads 0.258 ((232.323 + 157.737) / 1,511.633, 10-Q 0001178670-26-000062) as the US CM launch ran ahead of Europe. Tafamidis, the mature CM incumbent, reads 0.664 (Pfizer FY2025, international $2,546mm over US $3,834mm, 0000078003-26-000026, book asset_revenue_regions). Case for higher: ex-US CM reimbursement for Amvuttra is still being won. Case for lower: ex-US prices sit well below US, and generic tafamidis is likely to reach some markets outside the US first"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Alnylam FY2025 10-K (0001628280-26-007497), MD&A: 'There are no royalties owed on nucresiran, our next-generation investigational RNAi therapeutic, which is currently in development for the treatment of ATTR amyloidosis.' Alnylam is lead sponsor of NCT07052903 and NCT07223203",
+   "note": "Wholly owned and royalty-free. The contrast is the heart of the cannibalisation question. The same 10-K: Sanofi receives tiered royalties on global Amvuttra net sales of 15% to $150mm, 17.5% to $300mm, 20% to $500mm, 25% to $1.5bn and 30% above. Blackstone receives 1% of vutrisiran net sales for ten years from the first ATTR-CM sale (10-Q 0001178670-26-000062). On FY2025 Amvuttra sales of $2,313.8mm the Sanofi tiers come to about $583mm, 25.2% blended, and each further dollar costs 30 cents. A patient moved from Amvuttra to nucresiran at the same price therefore adds about 31% of the revenue to Alnylam's gross profit, and none of the revenue itself, until Amvuttra's substance patents expire (2036-07-28; Orange Book 10208307, 10683501, 11286486 in the book's exclusivities table). The Blackstone royalty ends around 2035. The ATTR-CM orphan exclusivity runs to 2032-03-20 (10-K)"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Amyloidosis",
+   "fields": {
+    "prevalence": {
+     "value": 55372,
+     "unit": "patients",
+     "source": "Alexander KM et al., 'Temporal Trends in Incidence and Prevalence of Transthyretin Amyloid Cardiomyopathy in the United States', J Am Heart Assoc 2026;15(13):e047135, doi:10.1161/JAHA.125.047135, PMID 42333670: prevalence 95.8 per 100,000 (95% CI 89.2-102.4) aged 65 and over in 2022 (Merative MarketScan Medicare). Applied to 57.8mm US residents aged 65 and over at 2022-07-01 (US Census Bureau population estimates, census.gov/newsroom/stories/older-americans-month.html): 95.8e-5 x 57.8mm = 55,372",
+     "note": "Not carried by the book: lookup.py pool Amyloid returns nothing and epidemiology.csv has no amyloidosis row. The pool is diagnosed ATTR-CM, wild-type and hereditary (the paper's algorithm excludes suspected AL), not all amyloidosis. The context file's only indication name is the broad MeSH 'Amyloidosis', which the book also maps to AL assets (etentamig, daratumumab, belantamab); a later AL seed on this name must not read this pool as its own. Under-65 patients are left out (the paper's commercial cohort, mean age 46, reads 11.3 per 100,000 adults in 2023), a case for higher. Case for lower: 62% of the Medicare database's 2021 at-risk population is in the East North Central region, the algorithm is unvalidated and counts atrial fibrillation alone as a cardiac manifestation, and Laires et al. (Open Heart 2025, PMID 41469145) read ATTR-CM at only 41.1 per million people on narrow codes. The study was funded by Novo Nordisk. Diagnosed prevalence rose by an odds ratio of 1.17 a year, so the 2022 count understates the 2031 pool; the uptake below is calibrated on this same pool, so its absolute start rate carries forward"
+    },
+    "incidence": {
+     "value": 25605,
+     "unit": "patients per year",
+     "source": "Alexander KM et al., J Am Heart Assoc 2026, PMID 42333670 (as prevalence): incidence 44.3 per 100,000 person-years (95% CI 39.4-49.2) aged 65 and over in 2021. Applied to the same 57.8mm: 44.3e-5 x 57.8mm = 25,605",
+     "note": "The 2021 rate on the 2022 population, the latest year each series reports. Incidence rose 15% a year (incidence rate ratio 1.15), a case for higher by 2031"
+    },
+    "eligible_pct": {
+     "value": 1.0,
+     "unit": "share of the pool",
+     "source": "Amvuttra's US label (book labels table, DailyMed setid 8db0facb-81b6-4006-9239-27dc6409c5d3): 'the cardiomyopathy of wild-type or hereditary transthyretin-mediated amyloidosis (ATTR-CM) in adults', with no class or stage restriction. TRITON-CM entry (ClinicalTrials.gov NCT07052903): documented ATTR-CM, wild-type or hereditary, with a heart-failure history (a prior HF hospitalisation or diuretic need); excludes NYHA IV, NYHA III with ATTR stage 3, and eGFR below 30; stabilisers allowed",
+     "note": "Judgement: the label is expected to read as Amvuttra's, since HELIOS-B carried similar exclusions and Amvuttra's label has none. It must also be 1.0 for consistency: the peak below is Amvuttra's measured starts over this whole pool. Case for lower: a label restricted to the trial's heart-failure history and stage would exclude NYHA IV and advanced patients, perhaps 10% to 20% of the diagnosed pool (not sourced)"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.6838,
+     "unit": "share",
+     "source": "derived to hold the diagnosed pool at its measured size, the method of the book's remternetug seed: 55,372 / (55,372 + 25,605) = 0.6838 (Alexander et al., JAHA 2026, PMID 42333670)",
+     "note": "Judgement. The engine has no death term; at the default 1.0 the untreated pool would grow by 25,605 a year without limit and every patient would be treated in the end. ATTR-CM kills: 76 of 177 (42.9%) in the ATTR-ACT placebo arm died within 30 months (Maurer MS et al., N Engl J Med 2018;379:1007-1016, doi:10.1056/NEJMoa1805689, PMID 30145929), 20.1% a year, which would set 0.799. The claims data behind the pool imply a 32% annual exit, which includes disenrolment. Stationarity is chosen because it keeps the pool the paper measured. The case against is that diagnosis is growing (prevalence odds ratio 1.17 a year), which argues for 0.799; at 0.799 the engine's revenue in 2047 is about 40% higher ($16.3bn against $11.7bn)"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0739,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "Solved from Amvuttra's own US ATTR-CM launch (approved 2025-03-20), read from its filed US net sales at this seed's net price ($358,324 a patient-year). US Amvuttra sales were $361.346mm in Q2 2025 and $809.079mm in Q2 2026 (10-Q 0001178670-26-000062). Less the pre-CM polyneuropathy run rate, FY2024 US $630.613mm / 4 = $157.653mm a quarter (10-K 0001628280-26-007497), the annualised CM run rates imply 2,274 and 7,272 patients on therapy. Starts over the year = 7,272 - 2,274 + 0.2072 x (2,274 + 7,272) / 2 = 5,987. Over the pool, 55,372 + 25,605 = 80,977, that is 7.39% a year. Cross-check: Q1 to Q2 2026 alone (Q1 US $702.554mm) annualises to 6,140 starts, so the rate held after the pent-up switching Alnylam described in its Q2 2026 release (8-K 0001178670-26-000060)",
+     "note": "Judgement: a multiple of 1.0 on Amvuttra, the drug nucresiran is built to replace. Calibrating on revenue at the seed's own net price means the engine reproduces Amvuttra's revenue whatever Alnylam's true net price is. Because the pool is a 2022 count and diagnosis is growing, read the rate as an absolute start rate. In the engine US starts peak near 5,400 a year (2035), below Amvuttra's measured 5,990 because nucresiran's own patients leave the pool as the curve rises, and settle near 5,200. Engine check with this seed's fields (US plus ex-US, before probability of success, loss of exclusivity and Alnylam's share): $4.0bn in 2033, $9.1bn in 2037, $10.2bn in 2039. CANNIBALISATION: most of these starts are patients Alnylam would otherwise hold on Amvuttra, so this is the TTR franchise's successor, not an addition to an Amvuttra line grown to 2036. The book holds Amvuttra's actual sales (asset_revenue, asset_revenue_regions) but no forecast seed (lookup.py seed Amvuttra and seed vutrisiran return nothing), so the pipeline seeds do not double count; when company-level rows are added for ALNY, Amvuttra must be faded from 2031, or the same ATTR-CM patients are valued twice. Before Amvuttra's substance patents expire in 2036 a switched patient is worth the royalty saving in economics_share's note, about 31% of its revenue, not the revenue itself; after 2036 nucresiran defends the franchise against generic vutrisiran. Case for lower: the calibration year includes pent-up switching from stabilisers, and by 2031 generic tafamidis (compound patent 2026-12-19), acoramidis, eplontersen, a one-time NTLA-2001 edit and fibril depleters compete for the same patients. Case for higher: twice-yearly dosing, TTR knockdown above 90%, and an Amvuttra base Alnylam can switch at launch"
+    },
+    "ramp_steepness": {
+     "value": 1.685,
+     "unit": "logistic k",
+     "source": "reused from the book's MK-8748 seed (lookup.py seed MK-8748): Vabysmo's CMS Part B beneficiaries 37,957, 112,159 and 172,503 over 2022 to 2024 (lookup.py demand Vabysmo confirms them), least-squares logistic k = 1.685, midpoint 0.85 years",
+     "note": "Judgement on the analogue. No ATTR-CM launch has a usable CMS series: Amvuttra's CM label postdates the 2024 data, and tafamidis's Part D beneficiaries (Vyndaqel plus Vyndamax) jump 1.93x in 2024, from 8,249 to 15,946, a break this seed cannot attribute. Vabysmo is a longer-interval successor switched into an established specialist-administered Part B market, which is nucresiran's position against Amvuttra. Amvuttra's own CM launch supports a steep curve: its US start rate reached about 6,000 a year within its first year. Case for slower: frail, elderly patients stable on Amvuttra need a reason to switch"
+    },
+    "ramp_midpoint_year": {
+     "value": 0.85,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness: Vabysmo's fitted midpoint, counted from its 2022 launch year (lookup.py seed MK-8748)",
+     "note": "Nucresiran should already be sold for polyneuropathy from about 2028 (Alnylam guidance, 8-K 0001628280-26-001755), so cardiologists and the field force know it at the CM launch, which supports an early midpoint"
+    }
+   }
+  }
+ ],
+ "refuse": null,
+ "flags_for_the_book": [
+  "Indication name: 'Amyloidosis' (MeSH D000686) is the only name in the context file, but the pool here is ATTR-CM only. AL assets (etentamig, daratumumab, belantamab) are also mapped to this name. If an AL seed is written on it, give ATTR-CM its own indication row first.",
+  "Book data error: asset_revenue holds Q4 2025 Amvuttra at 826,588,000,000 USD and Onpattro at 31,687,000,000 USD (earnings_exhibit, 8-K 0001628280-26-007491). The exhibit reports $826,588 and $31,687 in thousands, so both rows are 1,000x too large.",
+  "Cannibalisation: when ALNY company-level rows are built, fade Amvuttra from 2031 against this seed, not to its 2036 LOE. See penetration_peak_pct and economics_share notes."
+ ]
+}
