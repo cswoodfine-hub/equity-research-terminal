@@ -304,3 +304,81 @@ Sclerosis".
     making or pre-revenue and take a scaled comparator's ratios with a comparator charge, as
     Viking does from Lilly. Each block is built only where one of its assets survives
     verification.
+
+## The late-stage gap sorted, 24 September 2026
+
+Every unmodelled late-stage row is now sorted by what it is, in `data/pipeline_sort.csv`,
+before any of it is priced. Nothing was priced. The population is defined in
+`backend/pipeline_sort.py`: not marketed, no assumptions, an indication at Phase 2, 2/3 or
+3, Roche excluded. That is 345 rows on the 2026-09-24 database. The earlier count of 353
+was taken on a database that was never published and cannot be reproduced; the
+classification of its first 87 was never committed, so the sort was redone from nothing.
+
+| Class | Rows | |
+|---|---|---|
+| NEW | 196 | a medicine the book does not hold in any form |
+| DUPLICATE | 67 | a code, misspelling or second row for something the book carries |
+| LINE_EXTENSION | 41 | a new indication, population, market or formulation of a marketed molecule |
+| DEAD | 19 | discontinued, returned, or failed with no path, each on a company statement or filing |
+| NOT_A_PROGRAMME | 16 | a comparator, background therapy, supportive care or follow-up study |
+| REGIMEN | 6 | a combination of molecules each valued elsewhere |
+
+149 of the 345, 43%, are not new medicines. The earlier sample put it at half. Of the
+196 that are, 75 lead in Phase 3 and 115 in Phase 2. By company the new ones are
+concentrated where the gap always was: Lilly 20, Novartis 20, GSK 13, Pfizer 12, AbbVie 10,
+Sanofi 10. The largest Phase 3 new medicines by enrolment are zilebesiran (11,000),
+ziltivekimab (10,000, though Novo halted two of its trials after ZEUS), PG4 (4,670),
+mRNA-1018 (4,050), balcinrenone with dapagliflozin (3,850) and aleniglipron (3,600).
+
+**How it was sorted.** A dossier per row from the database: names and aliases,
+indications, trials with status, dates and enrolment, other rows sharing the molecule, and
+matching EMA authorisations. Eight classifiers worked from the dossiers, Amass and web
+search to one set of rules, and every row carries a one-sentence sourced reason. On review:
+every approval date a classifier recalled rather than looked up, 24 of them, was checked
+against the FDA's letter or the company's announcement, and all were right except Kymriah's
+EMA date, which now takes the register's 2018-08-23. Every DEAD call rests on a company
+statement, a filing or a registry termination, except gandotinib, which has had no trial
+since 2015 and is marked low confidence because no discontinuation was ever announced.
+Three consistency rules were applied across batches the classifiers had read differently:
+an out-licensed molecule with economics retained is NEW, since `economics_share` can price
+a royalty (naporafenib, linerixibat, zilurgisertib); a marketed fixed-dose product is a
+DUPLICATE of that product, not a regimen of its parts (Trikafta, Alyftrek); and a new
+indication or population is a LINE_EXTENSION, not a DUPLICATE, which moved 23 rows,
+Vyvgart Hytrulo in Graves' disease and myositis and Datroway in new lung and breast
+settings among them.
+
+13 rows are low confidence and want a second reader: four development codes with no
+published identity (LY3457263, LY4005130, PF-08049820, YMI024) and two J&J codes with
+no named target, sasanlimab (positive Phase 3, EU filing withdrawn, no discontinuation on
+record), linerixibat (approved, licensed to Alfasigma), cetrelimab, miransertib,
+ALN-AGT01, the PF-07104091 dose-expansion row, and gandotinib.
+
+**What the sort found that is wrong in the book itself.** These are not pipeline questions
+and nothing here was changed; each is a follow-up.
+
+- Approved products the book does not carry as marketed: Aucatzyl (Autolus), Zevaskyn
+  (Abeona), Elahere (AbbVie), Enerzair and Atectura Breezhaler (Novartis, EU), Mosquirix
+  (GSK), and tolebrutinib, authorised in the EU as Cenrifki on 2026-06-19. Emblaveo is
+  carried under AbbVie while Pfizer holds its EU authorisation.
+- Beqvez is still a marketed Pfizer product in the book. Pfizer discontinued it in all
+  markets in February 2025.
+- Tavneos (avacopan) is not in Amgen's marketed book, and the FDA proposed withdrawing its
+  approval on 2026-04-27.
+- mRNA-4157 is Merck's intismeran autogene, which the book models under Merck. Moderna and
+  Merck share its cost and profit equally, so Moderna's half is unvalued unless the Merck
+  model carries it.
+- The registry lags the companies. REGN7999, JNJ-81201887 and nivisnebart are discontinued
+  in filings or company statements while a trial still reads active or recruiting, so a
+  trial status alone would have called all three alive.
+- Rows outside the population that duplicate ones inside it: a separate unmodelled Lilly
+  "Tersolisib" row, an "Olomorasib test" row, a second pz-cel row, and Roche's "Autogene
+  Cevumeran" row with no indications.
+
+**Sources ran short.** The Amass account reached its monthly usage limit on the first few
+calls and resets on 2026-10-24, and the web search budget ran out for three of the eight
+classifiers, which is why the review above checked by hand what they recalled. With
+clinicaltrials.gov, api.fda.gov and ema.europa.eu reachable from the container, each of
+those checks would read the registry or the regulator directly.
+
+**Next.** Price only NEW, and begin with the Phase 3 rows. `pipeline_sort.unsorted()` lists
+any row a later trials refresh adds that the file does not cover.
