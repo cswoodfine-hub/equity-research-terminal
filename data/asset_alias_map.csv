@@ -38,3 +38,6 @@ PFE,PF-08653944,Berobenatide,"the same compound under its Pfizer code: NCT077929
 PFE,PF-06823859,Dazukibart,"Pfizer's FY2025 10-K (0000078003-26-000026) lists dazukibart (PF-06823859) for dermatomyositis and polymyositis, and the registry files one myositis Phase 3 under each name"
 PFE,PF-07275315,Tilrekimig,"the registry names the eczema Phase 3 drug tilrekimig with other name PF-07275315 (NCT07765888); the COPD Phase 2/3 is filed under the code"
 PFE,PG4 Multivalent Vaccine,PG4,"Pfizer's multivalent pneumococcal conjugate vaccine: the adult lot study labels its arms PG4 lot 1 to 3 (NCT07794748) and the infant studies name the intervention PG4"
+GSK,Ris-Rez,Risvutatug Rezetecan,"GSK's short name for risvutatug rezetecan (HS-20093), used in its 6-K of 2026-09-14. The small cell lung Phase 3 filed under it, so the priced row carried only Phase 1/2 lung studies and would have taken an early-stage probability of success"
+GSK,Mo-Rez,Mocertatug rezetecan,"GSK's short name for mocertatug rezetecan (HS-20089), the B7-H4 antibody-drug conjugate. A row of its own with no studies"
+GSK,IDRX-42,Velzatinib,"velzatinib's development code from IDRx, which GSK acquired in February 2025. The first-line GIST Phase 3 was filed under both names"
