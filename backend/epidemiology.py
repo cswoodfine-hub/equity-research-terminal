@@ -21,6 +21,27 @@ WHAT IT DOES NOT DO. It does not decide who is treatable. Almost none of these c
 the population a drug is sold to: 86.3mm Americans have fatty liver disease and the label
 pool is the 6.7mm with moderate fibrosis. That funnel is ``eligible_pct`` on the asset,
 where an analyst can see and argue with it, and this module deliberately leaves it alone.
+
+THE NAME HAS TO MATCH, WHICH IS WHY ALIASES EXIST. The lookup was exact, and the registry
+names one disease several ways. The book holds three separate multiple sclerosis
+indications: "Multiple Sclerosis" with 19 asset rows, which the file filled, and
+"Multiple Sclerosis, Relapsing-Remitting" with 8 and "Multiple Sclerosis, Chronic
+Progressive" with 10, which it did not. Those 18 assets could not be built for want of a
+population that was already on file under a slightly different string.
+
+An alias is only written where the population really is the same disease and the variant is
+a clinical subtype of it or another name for it, because that is what this file already
+assumes everywhere: it carries the disease and ``eligible_pct`` on the asset narrows it to
+the label. Relapsing multiple sclerosis is a share of the 913,925 who have multiple
+sclerosis, and the share belongs on the asset where it can be argued with.
+
+An alias is NOT written where the variant is a different population, however close the
+names look, and those are left to fail the lookup rather than be filled with a figure that
+is not theirs. Smouldering multiple myeloma is a precursor state and not part of the
+prevalent myeloma count. "Diabetes Mellitus" spans type 1 and type 2 and the file carries
+type 2 alone. "Arthritis" is not rheumatoid arthritis, "Osteoarthritis" is not knee
+osteoarthritis, "Nephritis" is not lupus nephritis, and "Intestinal Neoplasms" is not the
+whole gastrointestinal tract. Nine near-misses were checked and four were refused.
 """
 
 from __future__ import annotations
@@ -31,6 +52,26 @@ import pathlib
 DATA = pathlib.Path(__file__).resolve().parent.parent / "data" / "epidemiology.csv"
 
 _CACHE: dict = {}
+
+# {indication as the registry names it: the disease in the file whose population it shares}.
+# Each one is a clinical subtype of the disease or another name for it, so the file's count
+# is the right pool and the asset's own eligible_pct carries the narrowing. Checked one at a
+# time; see the note above for the four near-misses deliberately left out.
+ALIASES = {
+    # Subtypes of the 913,925 in Wallin's national estimate, which counts relapsing and
+    # progressive forms together. 18 asset rows between them.
+    "Multiple Sclerosis, Relapsing-Remitting": "Multiple Sclerosis",
+    "Multiple Sclerosis, Chronic Progressive": "Multiple Sclerosis",
+    # The file's "Renal Insufficiency" row IS chronic kidney disease: 37mm US adults from
+    # the CDC Chronic Kidney Disease Surveillance System. The same disease, named twice.
+    "Renal Insufficiency, Chronic": "Renal Insufficiency",
+    # The three assets on this row are all MASH programmes: GSK4532990 against HSD17B13,
+    # tirzepatide's MASH line and ALN-PNP against PNPLA3.
+    "Fatty Liver": "Non-alcoholic Fatty Liver Disease",
+    # Reduced and preserved ejection fraction, both inside the 7.4mm with heart failure.
+    "Heart Failure, Systolic": "Heart Failure",
+    "Heart Failure, Diastolic": "Heart Failure",
+}
 
 
 def clear_cache() -> None:
@@ -73,5 +114,25 @@ def load(path=None) -> dict:
 
 
 def for_indication(name: str, path=None) -> dict | None:
-    """One disease's row, or None where the file does not carry it."""
-    return load(path).get((name or "").strip())
+    """One disease's row, or None where the file does not carry it.
+
+    An exact name first, then the curated aliases, so a clinical subtype takes the
+    disease's population and nothing else does. The row that comes back says which name
+    answered, because an analyst reading a pool of 913,925 against an asset in progressive
+    multiple sclerosis needs to know it is the whole disease and that the narrowing is
+    theirs to set.
+    """
+    diseases = load(path)
+    key = (name or "").strip()
+    if key in diseases:
+        return diseases[key]
+    disease = ALIASES.get(key)
+    if disease is None or disease not in diseases:
+        return None
+    row = dict(diseases[disease])
+    row["via"] = disease
+    row["note"] = (
+        f"{key} takes the population of {disease}, of which it is a clinical subtype or "
+        f"another name, so eligible_pct on the asset carries the narrowing. "
+        + (row["note"] or "")).strip()
+    return row

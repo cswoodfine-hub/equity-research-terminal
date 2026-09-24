@@ -88,3 +88,45 @@ def test_no_two_assets_disagree_about_how_many_people_have_a_disease():
             GROUP BY s.indication_id HAVING n > 1""").fetchall()
     conn.close()
     assert rows == [], "; ".join(f"{r['name']}: {r['vals']}" for r in rows)
+
+
+# --- the name has to match, and the registry names one disease several ways -----
+def test_a_clinical_subtype_takes_the_disease_population():
+    """The book holds three multiple sclerosis indications and the file filled one. 18 asset
+    rows on the other two could not be built for want of a population already on file."""
+    progressive = E.for_indication("Multiple Sclerosis, Chronic Progressive")
+    relapsing = E.for_indication("Multiple Sclerosis, Relapsing-Remitting")
+    whole = E.for_indication("Multiple Sclerosis")
+    assert progressive["prevalence"] == whole["prevalence"] == 913925
+    assert relapsing["prevalence"] == 913925
+    assert progressive["via"] == "Multiple Sclerosis"
+    # The row says it is the whole disease, because the narrowing is the analyst's to set.
+    assert "eligible_pct on the asset carries the narrowing" in progressive["note"]
+
+
+def test_the_same_disease_under_another_name_resolves():
+    """The file's "Renal Insufficiency" row is the CDC's chronic kidney disease count."""
+    assert (E.for_indication("Renal Insufficiency, Chronic")["prevalence"]
+            == 37_000_000)
+    assert (E.for_indication("Fatty Liver")["prevalence"] == 86_300_000)
+    assert (E.for_indication("Heart Failure, Systolic")["prevalence"]
+            == E.for_indication("Heart Failure, Diastolic")["prevalence"])
+
+
+def test_a_different_population_is_refused_however_close_the_name():
+    """The expensive mistake is filling an indication with a count that is not its own.
+    Smouldering myeloma is a precursor state outside the prevalent myeloma count, "Diabetes
+    Mellitus" spans both types where the file carries type 2, and "Arthritis" is not
+    rheumatoid arthritis."""
+    for name in ("Smoldering Multiple Myeloma", "Diabetes Mellitus", "Arthritis",
+                 "Osteoarthritis", "Nephritis", "Intestinal Neoplasms",
+                 "Depressive Disorder", "Sclerosis"):
+        assert E.for_indication(name) is None, name
+
+
+def test_every_alias_points_at_a_disease_the_file_carries():
+    """An alias to a row that does not exist fails silently, so it is checked here."""
+    diseases = E.load()
+    for variant, disease in E.ALIASES.items():
+        assert disease in diseases, f"{variant} points at missing {disease}"
+        assert variant not in diseases, f"{variant} is both a row and an alias"
