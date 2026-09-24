@@ -1,0 +1,138 @@
+{
+ "data": [
+  {
+   "type": "filing",
+   "id": "9001",
+   "attributes": {
+    "fxo_id": "TEST00EXEMPLAPHARM68-2024-12-31-ESEF-DE-0",
+    "period_end": "2024-12-31",
+    "country": "DE",
+    "date_added": "2025-03-10 09:00:00",
+    "processed": "2025-03-10 09:14:02",
+    "error_count": 0,
+    "json_url": "/TEST00EXEMPLAPHARM68/2024-12-31/ESEF/DE/0/exa-2024-12-31-de.json",
+    "package_url": "/TEST00EXEMPLAPHARM68/2024-12-31/ESEF/DE/0/exa-2024-12-31-de.zip",
+    "report_url": "/TEST00EXEMPLAPHARM68/2024-12-31/ESEF/DE/0/exa-2024-12-31-de/reports/exa-2024-12-31-de.xhtml",
+    "viewer_url": "/TEST00EXEMPLAPHARM68/2024-12-31/ESEF/DE/0/exa-2024-12-31-de/reports/ixbrlviewer.html"
+   },
+   "relationships": {
+    "entity": {
+     "data": {
+      "type": "entity",
+      "id": "501"
+     }
+    }
+   }
+  },
+  {
+   "type": "filing",
+   "id": "9002",
+   "attributes": {
+    "fxo_id": "TEST00EXEMPLAPHARM68-2024-12-31-ESEF-DE-1",
+    "period_end": "2024-12-31",
+    "country": "DE",
+    "date_added": "2025-03-12 09:00:00",
+    "processed": "2025-03-12 10:01:44",
+    "error_count": 0,
+    "json_url": "/TEST00EXEMPLAPHARM68/2024-12-31/ESEF/DE/1/exa-2024-12-31-en.json",
+    "package_url": "/TEST00EXEMPLAPHARM68/2024-12-31/ESEF/DE/1/exa-2024-12-31-en.zip"
+   },
+   "relationships": {
+    "entity": {
+     "data": {
+      "type": "entity",
+      "id": "501"
+     }
+    }
+   }
+  },
+  {
+   "type": "filing",
+   "id": "8001",
+   "attributes": {
+    "fxo_id": "TEST00EXEMPLAPHARM68-2023-12-31-ESEF-DE-0",
+    "period_end": "2023-12-31",
+    "country": "DE",
+    "date_added": "2024-03-11 08:00:00",
+    "processed": "2024-03-11 08:30:10",
+    "error_count": 0,
+    "json_url": "/TEST00EXEMPLAPHARM68/2023-12-31/ESEF/DE/0/exa-2023-12-31-de.json"
+   },
+   "relationships": {
+    "entity": {
+     "data": {
+      "type": "entity",
+      "id": "501"
+     }
+    }
+   }
+  },
+  {
+   "type": "filing",
+   "id": "7001",
+   "attributes": {
+    "fxo_id": "TEST00EXEMPLAPHARM68-2022-12-31-ESEF-DE-0",
+    "period_end": "2022-12-31",
+    "country": "DE",
+    "date_added": "2023-03-15 08:00:00",
+    "processed": null,
+    "error_count": null,
+    "json_url": null
+   },
+   "relationships": {
+    "entity": {
+     "data": {
+      "type": "entity",
+      "id": "501"
+     }
+    }
+   }
+  },
+  {
+   "type": "filing",
+   "id": "6001",
+   "attributes": {
+    "fxo_id": "529900OTHERENTITY0001-2024-12-31-ESEF-DE-0",
+    "period_end": "2024-12-31",
+    "country": "DE",
+    "date_added": "2025-04-01 08:00:00",
+    "processed": "2025-04-01 08:30:10",
+    "error_count": 0,
+    "json_url": "/529900OTHERENTITY0001/2024-12-31/ESEF/DE/0/other.json"
+   },
+   "relationships": {
+    "entity": {
+     "data": {
+      "type": "entity",
+      "id": "777"
+     }
+    }
+   }
+  }
+ ],
+ "included": [
+  {
+   "type": "entity",
+   "id": "501",
+   "attributes": {
+    "identifier": "TEST00EXEMPLAPHARM68",
+    "name": "Exempla Pharma AG"
+   }
+  },
+  {
+   "type": "entity",
+   "id": "777",
+   "attributes": {
+    "identifier": "529900OTHERENTITY0001",
+    "name": "Other Entity SE"
+   }
+  }
+ ],
+ "links": {
+  "self": "https://filings.xbrl.org/api/filings?filter%5Bentity.identifier%5D=TEST00EXEMPLAPHARM68&include=entity&page%5Bsize%5D=100",
+  "next": null
+ },
+ "meta": {
+  "count": 5
+ }
+}

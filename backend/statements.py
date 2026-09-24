@@ -26,8 +26,10 @@ import datetime as dt
 from dataclasses import dataclass, field
 
 # Forms that carry the periods we present. Annual reports for US and foreign filers,
-# and the interim reports each of them files.
-FORMS = ("10-K", "10-Q", "20-F", "6-K")
+# and the interim reports each of them files. ESEF is an annual financial report in the
+# European Single Electronic Format, the route to a filer the SEC never sees (see
+# fetchers/financials_esef.py).
+FORMS = ("10-K", "10-Q", "20-F", "6-K", "ESEF")
 
 # Period types, as stored in financials.period_type.
 FY = "FY"            # a full reported year

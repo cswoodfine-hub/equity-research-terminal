@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A stub of the ifrs-full namespace: only the concepts this fixture tags, so Arelle can
+     load the report offline. The namespace is the real one; the definitions are minimal. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xbrli="http://www.xbrl.org/2003/instance"
+  xmlns:xbrldt="http://xbrl.org/2005/xbrldt" targetNamespace="https://xbrl.ifrs.org/taxonomy/2024-03-27/ifrs-full" elementFormDefault="qualified">
+  <xs:import namespace="http://www.xbrl.org/2003/instance" schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd"/>
+  <xs:import namespace="http://xbrl.org/2005/xbrldt" schemaLocation="http://www.xbrl.org/2005/xbrldt-2005.xsd"/>
+  <xs:element id="ifrs-full_Revenue" name="Revenue" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="duration" xbrli:balance="credit"/>
+  <xs:element id="ifrs-full_CostOfSales" name="CostOfSales" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="duration" xbrli:balance="debit"/>
+  <xs:element id="ifrs-full_ResearchAndDevelopmentExpense" name="ResearchAndDevelopmentExpense" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="duration" xbrli:balance="debit"/>
+  <xs:element id="ifrs-full_ProfitLoss" name="ProfitLoss" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="duration" xbrli:balance="credit"/>
+  <xs:element id="ifrs-full_DilutedEarningsLossPerShare" name="DilutedEarningsLossPerShare" type="xbrli:decimalItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="duration"/>
+  <xs:element id="ifrs-full_CashAndCashEquivalents" name="CashAndCashEquivalents" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="instant" xbrli:balance="debit"/>
+  <xs:element id="ifrs-full_Borrowings" name="Borrowings" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="instant" xbrli:balance="credit"/>
+  <xs:element id="ifrs-full_Assets" name="Assets" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="instant" xbrli:balance="debit"/>
+  <xs:element id="ifrs-full_Equity" name="Equity" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="instant" xbrli:balance="credit"/>
+  <xs:element id="ifrs-full_Goodwill" name="Goodwill" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="instant" xbrli:balance="debit"/>
+  <xs:element id="ifrs-full_CashFlowsFromUsedInOperatingActivities" name="CashFlowsFromUsedInOperatingActivities" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="duration" xbrli:balance="debit"/>
+  <xs:element id="ifrs-full_DividendsPaidClassifiedAsFinancingActivities" name="DividendsPaidClassifiedAsFinancingActivities" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="duration" xbrli:balance="credit"/>
+  <xs:element id="ifrs-full_NameOfReportingEntityOrOtherMeansOfIdentification" name="NameOfReportingEntityOrOtherMeansOfIdentification" type="xbrli:stringItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="duration"/>
+  <xs:element id="ifrs-full_SegmentsAxis" name="SegmentsAxis" type="xbrli:stringItemType" substitutionGroup="xbrldt:dimensionItem" abstract="true" nillable="true" xbrli:periodType="duration"/>
+</xs:schema>

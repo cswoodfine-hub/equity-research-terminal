@@ -66,6 +66,7 @@ from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.eu_medicines_ema import EuMedicinesFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
+from fetchers.financials_esef import FinancialsEsefFetcher
 from fetchers.fx_ecb import FxEcbFetcher
 from fetchers.labels_dailymed import LabelsDailyMedFetcher
 from fetchers.ndc_marketing import NdcMarketingFetcher
@@ -93,7 +94,8 @@ MAX_WORKERS = int(os.getenv("ER_TOOL_REFRESH_WORKERS", "4"))
 
 def _company_fetchers(company, db_path):
     """Per-company sources: prices, trials, openFDA approvals for everyone; EDGAR
-    financials and filings for SEC filers with a CIK."""
+    financials and filings for SEC filers with a CIK; ESEF financials for a company
+    outside the SEC with an LEI."""
     fetchers = [
         PricesFetcher(company["ticker"], db_path),
         IntradayPricesFetcher(company["ticker"], db_path),
@@ -128,6 +130,11 @@ def _company_fetchers(company, db_path):
         # Runs after the filings fetcher, which populates the 10-K/10-Q rows whose
         # documents this one reads for the risk factors and MD&A text.
         fetchers.append(FilingTextEdgarFetcher(company["ticker"], db_path))
+    elif (company["lei"] or "").strip():
+        # A company the SEC never sees, found by its LEI in the index of ESEF annual
+        # reports. Bayer is the one: without this it has no financials, and a company
+        # with no financials carries no valuation.
+        fetchers.append(FinancialsEsefFetcher(company["ticker"], db_path))
     return fetchers
 
 
@@ -254,7 +261,7 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     conn = db.get_connection(db_path)
     try:
         company = conn.execute(
-            "SELECT ticker, cik, is_sec_filer, ir_rss_url, ir_news_url"
+            "SELECT ticker, cik, lei, is_sec_filer, ir_rss_url, ir_news_url"
             " FROM companies WHERE ticker = ?", (ticker,)
         ).fetchone()
     finally:
@@ -449,7 +456,7 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     conn = db.get_connection(db_path)
     try:
         companies = conn.execute(
-            "SELECT ticker, cik, is_sec_filer, ir_rss_url, ir_news_url"
+            "SELECT ticker, cik, lei, is_sec_filer, ir_rss_url, ir_news_url"
             " FROM companies ORDER BY ticker"
         ).fetchall()
     finally:

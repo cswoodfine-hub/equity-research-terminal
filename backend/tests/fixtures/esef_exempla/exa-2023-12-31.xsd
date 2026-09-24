@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xbrli="http://www.xbrl.org/2003/instance"
+  xmlns:link="http://www.xbrl.org/2003/linkbase" targetNamespace="http://www.example.com/exa/2023-12-31" elementFormDefault="qualified">
+  <xs:import namespace="http://www.xbrl.org/2003/instance" schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd"/>
+  <xs:import namespace="https://xbrl.ifrs.org/taxonomy/2024-03-27/ifrs-full" schemaLocation="ifrs-full-stub.xsd"/>
+  <xs:element id="exa_CoreEbitda" name="CoreEbitda" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" nillable="true" xbrli:periodType="duration" xbrli:balance="credit"/>
+  <xs:element id="exa_PharmaceuticalsMember" name="PharmaceuticalsMember" type="xbrli:stringItemType" substitutionGroup="xbrli:item" abstract="true" nillable="true" xbrli:periodType="duration"/>
+</xs:schema>

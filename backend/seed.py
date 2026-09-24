@@ -4,6 +4,9 @@ Loads ``data/companies_seed.csv`` into ``companies``, then resolves each SEC
 filer's 10-digit CIK from EDGAR's official ticker map and writes it back. Rows
 flagged ``is_sec_filer = 0`` (Roche, Bayer) are skipped and left with a null CIK.
 Any ticker that does not resolve is logged, never guessed.
+
+A company outside the SEC carries an LEI instead, the key its ESEF annual reports are
+indexed by. It is read from the CSV and kept only if its ISO 17442 check digits hold.
 """
 
 from __future__ import annotations
@@ -52,6 +55,16 @@ _TEXT_COLUMNS = (
 _INT_COLUMNS = ("is_foreign_private_issuer", "is_sec_filer")
 
 
+def valid_lei(lei: str | None) -> bool:
+    """True for a 20-character LEI whose check digits hold (ISO 17442, ISO 7064 mod
+    97-10, the scheme an IBAN uses). A mistyped identifier fails it, which matters here
+    because a wrong but well-formed one would read another company's accounts."""
+    lei = (lei or "").strip().upper()
+    if len(lei) != 20 or not lei.isalnum():
+        return False
+    return int("".join(str(int(ch, 36)) for ch in lei)) % 97 == 1
+
+
 def load_companies(db_path: str | Path | None = None) -> int:
     """Upsert every row of the seed CSV into ``companies``. Returns the row count."""
     with open(SEED_CSV, newline="", encoding="utf-8") as fh:
@@ -64,18 +77,25 @@ def load_companies(db_path: str | Path | None = None) -> int:
             for c in _INT_COLUMNS:
                 raw = (row.get(c) or "").strip()
                 values[c] = int(raw) if raw else 0
+            lei = (row.get("lei") or "").strip().upper() or None
+            if lei and not valid_lei(lei):
+                logger.warning("%s: LEI %s fails its check digits; not stored",
+                               values["ticker"], lei)
+                lei = None
+            values["lei"] = lei
             conn.execute(
                 """
                 INSERT INTO companies
                     (ticker, name, primary_exchange, country, reporting_currency,
                      us_adr_ticker, is_foreign_private_issuer, is_sec_filer, ir_rss_url,
                      ir_news_url, ctgov_sponsor, openfda_manufacturer, openfda_sponsor,
-                     orange_book_applicant, purple_book_applicant)
+                     orange_book_applicant, purple_book_applicant, lei)
                 VALUES
                     (:ticker, :name, :primary_exchange, :country, :reporting_currency,
                      :us_adr_ticker, :is_foreign_private_issuer, :is_sec_filer,
                      :ir_rss_url, :ir_news_url, :ctgov_sponsor, :openfda_manufacturer,
-                     :openfda_sponsor, :orange_book_applicant, :purple_book_applicant)
+                     :openfda_sponsor, :orange_book_applicant, :purple_book_applicant,
+                     :lei)
                 ON CONFLICT(ticker) DO UPDATE SET
                     name=excluded.name,
                     primary_exchange=excluded.primary_exchange,
@@ -98,6 +118,7 @@ def load_companies(db_path: str | Path | None = None) -> int:
                                                    companies.orange_book_applicant),
                     purple_book_applicant=COALESCE(excluded.purple_book_applicant,
                                                    companies.purple_book_applicant),
+                    lei=COALESCE(excluded.lei, companies.lei),
                     updated_at=datetime('now')
                 """,
                 values,
