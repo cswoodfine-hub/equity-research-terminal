@@ -81,3 +81,22 @@ WebSearch works; WebFetch is blocked for almost every host, ClinicalTrials.gov i
 The Amass connector ran out of quota in the second session, so trial dates come from the
 context files and the book's trials table. The first session's search allowance ran out at
 200; the second session ran thirteen second readers at five to ten searches each.
+
+## Found on the way, not fixed here
+
+- `backend/capture_anchor.py` hard-codes Zepbound as asset 13. In the current published
+  database asset 13 is Camzyos and Zepbound is 139, so the default measurement returns 0.36%
+  instead of 4.39%; its test passes only because the fixture stores Zepbound as 13. Resolve
+  the asset by ticker and brand.
+- `data/assumptions/azn_baxfendy.csv` (baxdrostat) cites an oncology source for its
+  discontinuation and Enhertu's curve for its ramp, and prices off Leqvio's Part D figure
+  although Leqvio is a Part B product; Baxfendy now has a WAC of $900 per 30 tablets.
+- The osivelotor seed indexes Oxbryta's launch a year late when it solves its peak (2021 is
+  Oxbryta's year one on a 2020 origin); the etavopivat seed carries the corrected 0.0602.
+- The book's Lantheus SG&A line is general and administrative only; it leaves out $179mm of
+  sales and marketing, which a Lantheus cost block must add.
+- The povetacicept and sefaxersen seeds price IgA nephropathy off a CMS figure of $399,499;
+  Voyxact now has a published list of $390,000 (the zigakibart seed uses it).
+- `tests/test_refresh.py::test_refresh_populates_then_skips_within_ttl` fails in this
+  container because a fetcher reaches the network and the run goes partial; it failed before
+  any change in this session.
