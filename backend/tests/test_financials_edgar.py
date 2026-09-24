@@ -300,3 +300,20 @@ def test_working_capital_lines_read_as_their_cash_effect_under_both_taxonomies()
     assert _fy_values(nvo, "ReceivablesCashEffect")["2023"] == -14_210_000_000
     assert _fy_values(nvo, "InventoriesCashEffect")["2025"] == -8_774_000_000
     assert _fy_values(nvo, "PayablesCashEffect")["2023"] == 7_529_000_000
+
+
+def test_a_year_closing_in_the_first_week_of_january_is_the_year_before():
+    """Exelixis's 2024 ended on 3 January 2025 and J&J's 2022 on 1 January 2023. Read off
+    the calendar they took the next year's label, so Exelixis had no 2024 and J&J had two
+    2023s and no 2020. A retail year ending late in January is a different thing and is
+    left alone."""
+    import companyfacts as CF
+    assert CF.fiscal_year("2025-01-03") == 2024
+    assert CF.fiscal_year("2023-01-01") == 2022
+    assert CF.fiscal_year("2023-12-31") == 2023
+    assert CF.fiscal_year("2026-01-31") == 2026
+    rows = CF.financial_rows({"lines": {"Revenues": {"unit": "USD", "periods": {
+        ("2025-01-03", "FY"): {"val": 2168.7}, ("2026-01-02", "FY"): {"val": 2320.1},
+        ("2023-12-29", "FY"): {"val": 1830.2}}}}, "shares": None})
+    assert sorted((r["period_end"], r["fiscal_year"]) for r in rows) == [
+        ("2023-12-29", 2023), ("2025-01-03", 2024), ("2026-01-02", 2025)]

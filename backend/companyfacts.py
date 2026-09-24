@@ -51,6 +51,20 @@ MAX_PERIODS = {statements.FY: MAX_FISCAL_YEARS, statements.Q: 40,
 
 
 # --- pure parsing --------------------------------------------------------
+
+
+def fiscal_year(end: str) -> int:
+    """The fiscal year a period ending on ``end`` closes.
+
+    A 52/53-week year closes on the Saturday or Sunday nearest 31 December, which can land
+    in the first days of January. Read off the calendar, such a year took the next year's
+    label: Exelixis's 2024 ended on 3 January 2025 and was filed as 2025, so it had no 2024,
+    and Johnson & Johnson's 2022 ended on 1 January 2023 beside its 2023 ending on 31
+    December, so it had two 2023s and no 2020. A period ending in the first week of
+    January belongs to the year before it.
+    """
+    year = int(end[:4])
+    return year - 1 if end[5:7] == "01" and int(end[8:10]) <= 7 else year
 def _concept(facts: dict, taxonomy: str, name: str) -> dict | None:
     return (facts.get(taxonomy) or {}).get(name)
 
@@ -202,17 +216,17 @@ def backfill_rd_less_iprd(facts: dict, periods: dict) -> dict:
     """
     us = facts.get("us-gaap") or {}
     fy = statements.FY
-    winner = {int(end[:4]): e for (end, kind), e in periods.items()
+    winner = {fiscal_year(end): e for (end, kind), e in periods.items()
               if kind == fy and e.get("concept") == "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"}
     if not winner or "ResearchAndDevelopmentExpense" not in us:
         return {}
-    plain = {int(end[:4]): e for (end, _), e in
+    plain = {fiscal_year(end): e for (end, _), e in
              _entries_by_period(us["ResearchAndDevelopmentExpense"], fy).items()}
     iprd: dict[int, float] = {}
     for name in _IPRD_CONCEPTS:
         if name in us:
             for (end, _), e in _entries_by_period(us[name], fy).items():
-                iprd.setdefault(int(end[:4]), e["val"])
+                iprd.setdefault(fiscal_year(end), e["val"])
     shared = set(winner) & set(plain) & set(iprd)
     if not shared:
         return {}
@@ -253,15 +267,15 @@ def rd_less_expensed_iprd(facts: dict, periods: dict) -> dict:
         if name in us:
             for (end, _), e in _entries_by_period(us[name], fy).items():
                 if e["val"]:
-                    iprd.setdefault(int(end[:4]), e["val"])
+                    iprd.setdefault(fiscal_year(end), e["val"])
     annual = {key: e for key, e in periods.items() if key[1] == fy}
     if not annual:
         return {}
     excluding = "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"
     if iprd and excluding in us and "ResearchAndDevelopmentExpense" in us:
-        plain = {int(end[:4]): e["val"] for (end, _), e in
+        plain = {fiscal_year(end): e["val"] for (end, _), e in
                  _entries_by_period(us["ResearchAndDevelopmentExpense"], fy).items()}
-        excl = {int(end[:4]): e["val"] for (end, _), e in
+        excl = {fiscal_year(end): e["val"] for (end, _), e in
                 _entries_by_period(us[excluding], fy).items()}
         for year in set(plain) & set(excl) & set(iprd):
             if abs(plain[year] - excl[year]) <= abs(excl[year]) * _AGREEMENT_TOLERANCE:
@@ -282,7 +296,7 @@ def rd_less_expensed_iprd(facts: dict, periods: dict) -> dict:
 def pick_annual_series(facts: dict, candidates):
     """The fiscal-year series, keyed by year. Returns (unit, {year: {'val','end'}})."""
     unit, series = pick_kind_series(facts, candidates, statements.FY)
-    by_year = {int(end[:4]): {"val": e["val"], "end": e["end"]}
+    by_year = {fiscal_year(end): {"val": e["val"], "end": e["end"]}
                for (end, _), e in series.items()}
     return unit, by_year
 
@@ -456,7 +470,7 @@ def parse_statements(payload: dict) -> dict:
 
 def _annual_from(parsed: dict, key: str) -> dict[int, dict]:
     periods = parsed["lines"].get(key, {}).get("periods", {})
-    return {int(end[:4]): {"val": e["val"], "end": e["end"]}
+    return {fiscal_year(end): {"val": e["val"], "end": e["end"]}
             for (end, kind), e in periods.items() if kind == statements.FY}
 
 
@@ -519,7 +533,7 @@ def financial_rows(parsed: dict) -> list[dict]:
                     "unit": entry.get("unit") or line["unit"],
                     "period_end": end,
                     "period_type": period_type,
-                    "fiscal_year": int(end[:4]),
+                    "fiscal_year": fiscal_year(end),
                     # The months covered is a fact about the filing. Which fiscal
                     # quarter that makes it depends on the filer's year end, so the
                     # API works that out where the whole series is in hand.
