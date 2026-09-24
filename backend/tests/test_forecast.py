@@ -449,6 +449,21 @@ def test_a_one_time_therapy_is_untouched_by_any_of_this():
     assert built["revenue"] == [18.0, 36.0, 54.0]
 
 
+def test_a_one_time_product_with_no_per_course_cost_still_pays_for_its_goods():
+    """Five vaccine and one-course seeds carried the company's cogs_pct and no
+    cogs_per_patient, and the build read the missing figure as zero cost of goods. The
+    share applies where no per-course figure is given, and a per-course figure still
+    wins where one is."""
+    rows = F.fcff([100.0, 200.0], [10, 20],
+                  {"cogs_pct": 0.25, "sga_pct": 0.0, "rd_pct": 0.0, "tax_rate": 0.0},
+                  "one_time")
+    assert [r["cogs"] for r in rows] == [25.0, 50.0]
+    rows = F.fcff([100.0, 200.0], [10, 20],
+                  {"cogs_pct": 0.25, "cogs_per_patient": 1.0, "sga_pct": 0.0,
+                   "rd_pct": 0.0, "tax_rate": 0.0}, "one_time")
+    assert [r["cogs"] for r in rows] == [10.0, 20.0]
+
+
 # --- marketed products -----------------------------------------------------
 # Nobody rebuilds the patient funnel for a drug already selling ten billion a year. The
 # reported number is the anchor and growth is the judgement.

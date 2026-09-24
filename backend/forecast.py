@@ -554,9 +554,14 @@ def fcff(revenue: list[float], patients: list[float], scalars: dict,
     invest_rate = growth_investment if invest_rate is None else invest_rate
     rows = []
     previous = opening
+    # A one-time product is costed per course where the seed says what a course costs to
+    # make. Where it does not, the company's cost of sales share still applies: five
+    # vaccine and one-course seeds carried cogs_pct and no per-course cost, and the build
+    # read the missing figure as zero, so they sold at no cost of goods at all.
+    per_course = scalars.get("cogs_per_patient") if mode == "one_time" else None
     for rev, pats in zip(revenue, patients):
-        if mode == "one_time":
-            cogs = (scalars.get("cogs_per_patient") or 0.0) * pats
+        if per_course is not None:
+            cogs = per_course * pats
         else:
             cogs = (scalars.get("cogs_pct") or 0.0) * rev
         ebit = rev - cogs - sga * rev - rd * rev - other * rev
