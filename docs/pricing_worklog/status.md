@@ -9,7 +9,7 @@
 | ARGX | Empasiprubart | not started |
 | ARWR | Zodasiran | not started |
 | AXSM | AXS-14 (Esreboxetine) | not started |
-| AZN | Balcinrenone/dapagliflozin | not started |
+| AZN | Balcinrenone/dapagliflozin | seeded and built: HF incidence from Khera 2020 |
 | AZN | Rilvegostomig | seeded and built |
 | BAYN | BAY3723113 | held: Japan-only; Bayer has no cost block |
 | BMY | BMS-986353 | seeded and built: enrolment paused, not stopped |
@@ -46,7 +46,7 @@
 | NBIX | NBI-1117568 | not started |
 | NTLA | Biological NTLA-2002 | not started |
 | NTLA | nexiguran ziclumeran | not started |
-| NVO | Etavopivat | not started |
+| NVO | Etavopivat | seeded and built |
 | NVO | Zenagamtide | seeded and built |
 | NVO | Ziltivekimab | not started |
 | NVS | Ianalumab | seeded and built |
