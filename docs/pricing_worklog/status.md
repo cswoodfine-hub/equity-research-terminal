@@ -6,7 +6,7 @@
 | AMGN | ABP 692 | not started |
 | AMGN | Dazodalibep | seeded and built |
 | ARGX | Adimanebart IV | not started |
-| ARGX | Empasiprubart | not started |
+| ARGX | Empasiprubart | seeded and built: first argenx cost block |
 | ARWR | Zodasiran | not started |
 | AXSM | AXS-14 (Esreboxetine) | not started |
 | AZN | Balcinrenone/dapagliflozin | seeded and built: HF incidence from Khera 2020 |
@@ -27,7 +27,7 @@
 | GSK | Mocertatug rezetecan | seeded and built |
 | GSK | Risvutatug Rezetecan | seeded and built |
 | GSK | Velzatinib | seeded and built |
-| INCY | INCA033989 | not started |
+| INCY | INCA033989 | seeded and built |
 | INCY | INCA33890 | not started |
 | INCY | INCB123667 | not started |
 | INCY | Povorcitinib | seeded and built |
