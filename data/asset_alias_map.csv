@@ -41,3 +41,4 @@ PFE,PG4 Multivalent Vaccine,PG4,"Pfizer's multivalent pneumococcal conjugate vac
 GSK,Ris-Rez,Risvutatug Rezetecan,"GSK's short name for risvutatug rezetecan (HS-20093), used in its 6-K of 2026-09-14. The small cell lung Phase 3 filed under it, so the priced row carried only Phase 1/2 lung studies and would have taken an early-stage probability of success"
 GSK,Mo-Rez,Mocertatug rezetecan,"GSK's short name for mocertatug rezetecan (HS-20089), the B7-H4 antibody-drug conjugate. A row of its own with no studies"
 GSK,IDRX-42,Velzatinib,"velzatinib's development code from IDRx, which GSK acquired in February 2025. The first-line GIST Phase 3 was filed under both names"
+BMY,BMS-986507,Iza-bren,"izalontamab brengitecan's Bristol code. The registry files the Phase 1/2 studies under the code and the Phase 3s under the short name, so the molecule sat on two rows"
