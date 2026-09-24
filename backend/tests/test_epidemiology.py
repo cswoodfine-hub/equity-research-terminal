@@ -78,16 +78,18 @@ def test_the_disease_figure_fills_a_gap_but_never_overrides_the_asset(tmp_path):
 def test_no_two_assets_disagree_about_how_many_people_have_a_disease():
     """The guard. Four assets said multiple myeloma was 36,110 people and a fifth said
     36,000; two said follicular lymphoma was 13,619 and 13,960. Prevalence is a fact
-    about a disease, so a disagreement is one of them being wrong."""
+    about a disease, so a disagreement is one of them being wrong. Incidence is too: the
+    guard once read prevalence alone, and sickle cell kept 2,000 and 1,971 births a year
+    and hypercholesterolemia 805,000 and 1,135,700 new entrants behind it."""
     conn = db.get_connection()
     rows = conn.execute(
-        """SELECT i.name, COUNT(DISTINCT s.value) n,
+        """SELECT i.name, s.key, COUNT(DISTINCT s.value) n,
                   GROUP_CONCAT(DISTINCT CAST(s.value AS TEXT)) vals
              FROM assumptions s JOIN indications i ON i.id = s.indication_id
-            WHERE s.key = 'prevalence' AND s.scenario = 'base'
-            GROUP BY s.indication_id HAVING n > 1""").fetchall()
+            WHERE s.key IN ('prevalence', 'incidence') AND s.scenario = 'base'
+            GROUP BY s.indication_id, s.key HAVING n > 1""").fetchall()
     conn.close()
-    assert rows == [], "; ".join(f"{r['name']}: {r['vals']}" for r in rows)
+    assert rows == [], "; ".join(f"{r['name']} {r['key']}: {r['vals']}" for r in rows)
 
 
 # --- the name has to match, and the registry names one disease several ways -----
