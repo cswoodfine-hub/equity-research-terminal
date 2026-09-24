@@ -5,7 +5,7 @@
 | AMGN | ABP 206 | not started |
 | AMGN | ABP 692 | seeded and built: Ocrevus biosimilar |
 | AMGN | Dazodalibep | seeded and built |
-| ARGX | Adimanebart IV | not started |
+| ARGX | Adimanebart IV | seeded and built |
 | ARGX | Empasiprubart | seeded and built: first argenx cost block |
 | ARWR | Zodasiran | not started |
 | AXSM | AXS-14 (Esreboxetine) | not started |

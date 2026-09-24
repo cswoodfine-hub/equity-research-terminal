@@ -1,0 +1,93 @@
+{
+ "ticker": "ALNY",
+ "name": "Zilebesiran",
+ "summary": "Zilebesiran is Alnylam's subcutaneous GalNAc-siRNA against liver angiotensinogen, dosed 300 mg every six months and co-developed with Roche. The Phase 3 is ZENITH (NCT07181109), an event-driven cardiovascular outcomes Phase 3 of about 11,000 patients against placebo. It enrols uncontrolled hypertension (office SBP 140-170) on 2-4 antihypertensives including a diuretic, with established CVD or high CV risk. The primary endpoint is time to CV death, MI, stroke or HF event, and primary completion is estimated for 2030-09-23. Price anchor: Baxfendy (baxdrostat), the branded add-on approved in 2026 for hypertension not adequately controlled on other agents, at a WAC of $900 per 30 tablets ($10,950 a year), less the 52.7% by which Entresto's Medicare negotiated price sits below its CMS gross. Uptake anchor: Leqvio, the twice-yearly siRNA in CV prevention, reached 50,979 Medicare beneficiaries in its third full year, 0.44% of the 11.5mm US adults with ASCVD recommended add-on therapy. The engine needs a 0.0177 peak to match that. Alnylam keeps 50% of US profit and receives tiered low double-digit royalties from Roche outside the US (10-Q 0001178670-26-000062).",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "ZENITH design: zilebesiran 300 mg every six months against placebo, open-ended until the event-driven CV outcomes analysis (Alnylam 8-K exhibit 99.1, 2025-10-30, 0001628280-25-047342; clinicaltrials.gov/study/NCT07181109)",
+   "note": "Continuous maintenance dosing, one injection every six months"
+  },
+  "list_price_per_patient": {
+   "value": 0.01095,
+   "unit": "mm USD per patient-year",
+   "source": "Baxfendy (baxdrostat, AstraZeneca) WAC of $900 per 30 tablets, once daily, $30 a day x 365 = $10,950 a year. That is the annual figure ICER's hypertension draft evidence report (2026-08-12, icer.org/assessment/hypertension-2026/) used, as reported by AJMC ('ICER Draft Flags High Cost of New Hypertension Drug Class') and Fierce Pharma. Twelve 30-day fills give $10,800",
+   "note": "Judgement on the comparator. The brief says a published annual list price beats the CMS convention, and Baxfendy is the closest marketed product in the same disease and setting. Its label (DailyMed, in the book's labels table, effective 2026-09-18) covers hypertension in adults not adequately controlled on other agents, and the book's Hypertension pool was drawn for it. It has no CMS demand row yet. Cross-check: Leqvio, the same-modality twice-yearly siRNA, reads $6,135 per CMS Part B beneficiary in 2024 (lookup.py demand Leqvio: $296,288,761 over 48,298). Less the 6% Part B add-on, that is a net $5,788, close to the $5,184 net here. Case for higher: if ZENITH succeeds, zilebesiran carries an outcomes claim that Baxfendy's label says it lacks ('There are no controlled trials demonstrating risk reduction'). Case for lower: ICER found the aldosterone synthase inhibitors far above its value benchmarks at this price, which signals payer resistance to branded antihypertensives against generics. Discrepancy to flag: the book's baxdrostat seed prices Baxfendy off Leqvio's Part D $5,364, but Leqvio's Medicare beneficiaries sit 95% in Part B, and Baxfendy now has its own WAC"
+  },
+  "gross_to_net_pct": {
+   "value": 0.52657,
+   "unit": "share taken off list",
+   "source": "Measured on Entresto, the book's closest cardiovascular oral brand with a CMS negotiated price. CMS Part D 2024 gross: $4,020,321,686 over 364,166,283 tablets = $11.0398 a tablet (lookup.py demand Entresto). The Maximum Fair Price for 2026 is $5.2266 a tablet, NDC 00078-0659 (book negotiated_prices, cms_mfp; $295 per 30-day equivalent supply). 1 - 5.2266 / 11.0398 = 0.5266",
+   "note": "Judgement. A WAC anchor takes neither house convention, so the discount is sourced. Direction checked: 0.527 comes off list, and net is $5,184 a patient-year. Case for a smaller discount: a Maximum Fair Price is negotiated for a drug seven or more years past launch, so it sits below what a new launch realises (backend/gross_to_net.py says so). If zilebesiran is buy-and-bill under Part B, as Leqvio is, only the 6% add-on comes off an ASP that is already net. Case for a larger one: the gross figure is 2024 and the MFP is 2026, so list-price growth in between understates the discount slightly, and primary-care hypertension is a heavily rebated generic-dominated class. The house 0.5 on a CMS Part D figure would give almost the same net"
+  },
+  "discontinuation_pct": {
+   "value": 0.121,
+   "unit": "share of treated stock stopping per year",
+   "source": "Blais JE et al., 'Adherence to PCSK9 Inhibitors in Clinical Practice: Systematic Review and Meta-Analysis of Observational Studies', JACC Adv 2026;5(5):102733, doi:10.1016/j.jacadv.2026.102733, PMID 42000553. Pooled 12-month discontinuation is 12.1% (95% CI 7.4-19.0) across alirocumab, evolocumab and inclisiran; 12-month persistence is 81.8%",
+   "note": "Judgement on the analogue: an injectable CV-prevention agent added to cheap orals, closest to zilebesiran's infrequent dosing. It is the same value the book's olpasiran and lepodisiran seeds carry. Those seeds call it an inclisiran figure, but the pooled studies are mostly alirocumab and evolocumab, and the paper notes limited inclisiran evidence. Case for higher: 1 minus the 81.8% persistence gives 0.182, and the paper finds persistence declining beyond 12 months. Hypertension is asymptomatic, and oral antihypertensive persistence is worse. Case for lower: an HCP-administered injection twice a year needs two visits a year. Discrepancy to flag: the baxdrostat seed's discontinuation source is text about advanced solid tumours"
+  },
+  "forecast_start_year": {
+   "value": 2032,
+   "unit": "year",
+   "source": "NCT07181109 primary completion 2030-09-23, estimated (context file; book trials table, last update 2026-09-18)",
+   "note": "Judgement on the timeline. Topline around late 2030, an NDA in 2031 and a standard review put launch around late 2031 or early 2032, so 2032 is the first full year. This is the same two-calendar-years-after-PCD rule the verified vepugratinib (PCD 2029-10 to 2031) and duvakitug (2028-09 to 2030) seeds use. Case for later: ZENITH is event-driven, so the PCD can slip with the event rate. Alnylam states a launch year for nucresiran ('by 2030', 10-Q 0001178670-26-000062) but none for zilebesiran. No BP-lowering filing ahead of the CVOT has been announced"
+  },
+  "exus_multiple": {
+   "value": 1.0835,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Leqvio FY2025: rest of world $623mm against US $575mm (Novartis annual report table, 0001114448-26-000004, in the book's asset_revenue_regions). 623 / 575 = 1.0835",
+   "note": "Judgement on the comparator. Leqvio is the twice-yearly siRNA in CV prevention, discovered by Alnylam and sold by one large partner worldwide, as zilebesiran will be with Roche outside the US. Case for lower: Repatha reads 1,353 / 1,663 = 0.814 (Amgen FY2025, sec_fsds, book), and Leqvio's ex-US share is lifted by a UK population-level agreement. Case for higher: Entresto reads 4,463 / 3,285 = 1.359 (same Novartis table). Roche books the ex-US sales. Alnylam's share of them is the royalty in economics_share, not this field"
+  },
+  "economics_share": {
+   "value": 0.6215,
+   "unit": "share",
+   "source": "Alnylam 10-Q for the quarter to 2026-06-30 (0001178670-26-000062, filed 2026-07-30), MD&A 'Strategic Collaborations', repeated in the Q1 2026 10-Q (0001628280-26-028605): Roche holds co-exclusive rights to develop worldwide and commercialise in the U.S. and exclusive rights outside the U.S. 'We and Roche will share equally (50/50) profits and losses (including commercialization costs) of zilebesiran in the U.S.' Roche 'will pay us tiered, low double digit royalties based on net sales of zilebesiran on a country-by-country basis outside of the U.S.' Development costs are 40% Alnylam and 60% Roche. Alnylam FY2025 cost lines (10-K 0001628280-26-007497, book financials, edgar_companyfacts): revenue $3,713.9mm, cost of revenue $677.2mm (0.182331), SG&A $1,210.7mm (0.325992), R&D $1,319.8mm (0.355357)",
+   "note": "Judgement, and provisional. A blend weighted by the ex-US multiple: US 0.5 as a 50/50 profit share; ex-US a royalty Alnylam RECEIVES, netted as royalty / margin. The margin is 1 - 0.182331 - 0.325992 - 0.355357 = 0.13632, with other_costs_pct left out because ALNY has no company rows yet (the NBIX osavampator precedent). 'Low double digit' is taken at its 10% floor, as the votoplam seed does, so ex-US is 0.10 / 0.13632 = 0.7336. (0.5 + 1.0835 x 0.7336) / 2.0835 = 0.6215. Recompute once ALNY's company rows land: at a 0.20 margin the share is 0.500, and at the ~30% non-GAAP operating margin Alnylam targets through 2030 (FY2025 10-K MD&A) it is 0.413. At a 12% royalty it is 0.698, and at 15% (ex-US capped at 1.0) 0.760. Not in this field: up to $2.15bn of further Roche milestones receivable; $243mm Alnylam owes Blackstone in 16 quarterly payments on approval, a fixed payment not a royalty (10-Q note 9); and the 40/60 development cost split against a 50/50 US profit split"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Hypertension",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: baxdrostat seed, 14,640,000 ('roughly 122mm US adults have hypertension (American Heart Association 2025 statistics), of whom about 12% are uncontrolled on multiple agents')",
+     "note": "Carried by the book. This is the resistant pool the label reaches; eligible_pct narrows it to ZENITH's entry criteria. The book's 'Cardiovascular Diseases' pool (53.4mm, elevated Lp(a), olpasiran and pelacarsen seeds) is not this label's and is not modelled. ZENITH is one trial, and the CV outcomes it tests are a claim within the hypertension label"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: baxdrostat seed, 1,200,000 ('about 1% of the treated hypertensive population becomes resistant each year')",
+     "note": "Carried by the book. The engine carries every untreated patient forward (carryover 1.0), so the untreated pool grows by the full inflow each year. A stable pool would need about 1,200,000 / 14,640,000 = 8.2% to leave each year (carryover about 0.918). Not set here, because the penetration below is calibrated on the default"
+    },
+    "eligible_pct": {
+     "value": 0.157056,
+     "unit": "share of the pool",
+     "source": "Two filters, each from a named NHANES paper. (1) Office BP at or above 140/90, ZENITH's severity floor (office SBP 140-170): of US adults on antihypertensives, 5.7% take three classes and 2.8% four or more with BP at or above 140/90, against 19.7% with aTRH by the 2018 AHA definition, which counts from 130/80, the basis of the 122mm. 8.5 / 19.7 = 0.4315 (Carey RM et al., Hypertension 2019;73:424-431, doi:10.1161/HYPERTENSIONAHA.118.12191, PMID 30580690). (2) Established CVD: 36.4% of US adults with uncontrolled aTRH (at or above 140/90 on three or more drugs) report a prior MI, heart failure or stroke (Kaczmarski KR et al., BMC Nephrol 2019;20:138, doi:10.1186/s12882-019-1315-0, PMID 31023262). 0.4315 x 0.364 = 0.1571",
+     "note": "Judgement: a sourced floor. ZENITH also enrols patients aged 55 or over at high CV risk (10-year ASCVD risk above 15%) without established CVD (search: ZENITH listing, centerwatch/clinicaltrials.gov), and I found no US share for that arm. The ceiling, if every uncontrolled patient without CVD qualified, is 0.4315. Each 10 points of high-risk share among the 63.6% without CVD adds 0.027. Kaczmarski's CVD definition (MI, HF, stroke) leaves out angina, revascularisation and PAD, which ZENITH counts, and includes HF, which ZENITH does not name, so the two partly offset. Case for higher: on the older 140/90 aTRH definition, 70.1% of aTRH is uncontrolled (Kaczmarski: 5.33 of 7.6mm). ZENITH also admits patients on two drugs, whom the book's resistant pool excludes. Case for lower: ZENITH requires a diuretic (86.8% of aTRH take one, Kaczmarski) and excludes five or more drugs (8.5% of aTRH, Earle WB et al., Hypertension 2026, PMID 41778325) and SBP above 170. Neither is applied, because a label is unlikely to state background therapy. Applied to the book's pool: 2.30mm US patients"
+    },
+    "penetration_peak_pct": {
+     "value": 0.017679,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "Solved in the engine (forecast.derive_new_patients and treated_stock, with the ramp and discontinuation here) to reproduce Leqvio's measured capture at the same age. Leqvio had 50,979 Medicare beneficiaries in 2024, its third full year after approval in December 2021: Part B 48,298 plus Part D 2,681 (lookup.py demand Leqvio). Its pool is the 18.7mm US adults with ASCVD, of whom 61.4% are recommended add-on lipid-lowering therapy = 11.48mm (Alanaeme CJ et al., Am Heart J Plus 2022;21:100201, doi:10.1016/j.ahjo.2022.100201, PMID 37168932). Share 0.444%. The engine reaches it at year index 2 with a peak of 0.01768",
+     "note": "Judgement: the multiple is 1.0, so zilebesiran takes its eligible pool at the pace Leqvio took its own. Cross-check: Leqvio's all-payer US revenue of $575mm in 2025 (index 3), at the Part B net of $5,788 a beneficiary, is about 99,300 patient-years, or 0.865% of the pool. The engine needs 0.01727 to match that, so the two measures agree. The Medicare count can double-count patients in both Parts, and it leaves out non-Medicare patients. Case for higher: zilebesiran would launch with outcomes data, which Leqvio lacked (ORION-4 pending), with twice-yearly dosing aimed at hypertension non-adherence, and with Roche's scale. Case for lower: oral aldosterone synthase inhibitors (Baxfendy launched 2026; lorundrostat) arrive years earlier and cheaper. Hypertension is run in primary care, where in-office injectables are less established than in lipid clinics. ICER's finding on the ASIs signals payer friction. On this peak, the US treated stock reaches about 0.2mm by year 9 and 0.4mm by year 14 (engine run)"
+    },
+    "ramp_steepness": {
+     "value": 0.657,
+     "unit": "logistic k",
+     "source": "Reused from the baxdrostat seed (same pool) and the olpasiran and lepodisiran seeds: Leqvio's CMS Part D beneficiaries 721 (2022) to 2,681 (2024), k = ln(2,681/721)/2 = 0.657 (lookup.py demand Leqvio). Leqvio Part B 2023-2024 growth corroborates it: ln(48,298/24,690) = 0.671",
+     "note": "Judgement: a measured growth rate, not a full logistic fit. My three-point least-squares logistic on Leqvio's Medicare beneficiaries (7,500, 26,530, 50,979) gives k 1.67 with a plateau of 64,700. Leqvio's 59% revenue growth in 2025 ($754mm to $1,198mm, book asset_revenue) contradicts that plateau, so no reliable fit exists yet. Discrepancy to flag: the baxdrostat seed's source text cites Enhertu's fit (k 1.08, midpoint 2.2) against the values 0.657 and 5.0 it actually carries"
+    },
+    "ramp_midpoint_year": {
+     "value": 5.0,
+     "unit": "years from forecast_start_year",
+     "source": "Reused from the baxdrostat, olpasiran and lepodisiran seeds (Leqvio as the analogue: 'Cardiovascular prevention is adopted slowly')",
+     "note": "Judgement, not fitted. Leqvio was still growing 59% in its fourth full year, which is consistent with a midpoint several years out. Penetration_peak_pct is calibrated on this curve, so moving the midpoint means re-solving the peak"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}
