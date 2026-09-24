@@ -7,10 +7,26 @@ the base and once as the maleate salt. So a row with no label of its own borrows
 another row of the same brand or the same ingredient, which is the same product either
 way.
 
-Where no label can be found at all, what the drug's own trials study answers instead, and
-failing that the ingredient name where it names a class: an insulin treats diabetes.
-A product that satisfies none of these is returned as None and shown as unstated, never
-filed under a guess.
+Where no label can be found, the diseases the asset is actually modelled in answer next,
+meaning the ones carrying assumption rows. That is the book's own unit of analysis and it
+is the only signal that says which disease a valuation is about. Only after it come the
+drug's trials, and failing those the ingredient name where it names a class: an insulin
+treats diabetes. A product that satisfies none of these is returned as None and shown as
+unstated, never filed under a guess.
+
+It matters because reading every trial's conditions as one blob puts an asset wherever it
+has run the most studies rather than where it is being valued. Tozorakimab came back as an
+infectious disease on its SARS-CoV-2 trials while the line in the book is chronic
+obstructive pulmonary disease; frexalimab came back as metabolic on a Phase 2 in type 1
+diabetes while the line is multiple sclerosis; REGN7508 came back as oncology on a
+cancer-associated thrombosis trial while the line is atrial fibrillation. Each then drew a
+success rate from the precedent table for the wrong disease, which is the one thing that
+table must not be asked to do.
+
+The modelled indication is used rather than the one flagged lead, because the lead flag is
+set by the indication mapper and does not track what an analyst built: Cagrilintide and
+retatrutide are both flagged lead in cardiovascular disease, on their outcomes trials,
+while the line the book actually carries for each is obesity.
 """
 
 from __future__ import annotations
@@ -51,6 +67,20 @@ def area_for(conn, asset_id: int) -> str | None:
 
     label = _label_for(conn, asset_id)
     area = therapeutic_areas.classify_label(label) if label else therapeutic_areas.OTHER
+    if area == therapeutic_areas.OTHER:
+        # The diseases this asset is modelled in. One name at a time rather than
+        # concatenated, so one disease decides and a second cannot outvote it on word
+        # count, and lead first among them only to break a tie.
+        for indication in conn.execute(
+                "SELECT DISTINCT i.name FROM assumptions s"
+                "  JOIN indications i ON i.id = s.indication_id"
+                "  LEFT JOIN asset_indications ai ON ai.asset_id = s.asset_id"
+                "    AND ai.indication_id = s.indication_id"
+                " WHERE s.asset_id = ? ORDER BY IFNULL(ai.is_lead, 0) DESC, i.name",
+                (asset_id,)):
+            area = therapeutic_areas.classify([indication["name"]])
+            if area != therapeutic_areas.OTHER:
+                break
     if area == therapeutic_areas.OTHER:
         conditions = conn.execute(
             "SELECT GROUP_CONCAT(conditions, ' ') AS blob FROM trials"

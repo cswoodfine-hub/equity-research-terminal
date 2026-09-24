@@ -81,3 +81,64 @@ def test_ignores_an_unknown_asset(tmp_path):
     path, conn = _seed(tmp_path)
     conn.close()
     assert product_areas.areas_for(path, [999, None]) == {999: None}
+
+
+# --- a pipeline asset: the disease it is modelled in, not every trial it has run -------
+def _indication(conn, asset_id, name, *, is_lead=0, phase="Phase 3"):
+    cur = conn.execute("INSERT INTO indications (name) VALUES (?)", (name,))
+    conn.execute("INSERT INTO asset_indications (asset_id, indication_id, phase, is_lead)"
+                 " VALUES (?, ?, ?, ?)", (asset_id, cur.lastrowid, phase, is_lead))
+    conn.commit()
+    return cur.lastrowid
+
+
+def _trial(conn, asset_id, nct, conditions):
+    conn.execute("INSERT INTO trials (nct_id, asset_id, conditions) VALUES (?, ?, ?)",
+                 (nct, asset_id, conditions))
+    conn.commit()
+
+
+def _assumption(conn, asset_id, indication_id, key="penetration_peak_pct", value=0.02):
+    conn.execute("INSERT INTO assumptions (asset_id, indication_id, region, scenario,"
+                 " key, value) VALUES (?, ?, 'US', 'base', ?, ?)",
+                 (asset_id, indication_id, key, value))
+    conn.commit()
+
+
+def test_the_modelled_disease_beats_every_trial_the_asset_has_run(tmp_path):
+    """Tozorakimab's trials are mostly SARS-CoV-2 and the line in the book is chronic
+    obstructive pulmonary disease. Read as one blob of conditions the asset came back as
+    an infectious disease and drew its success rate from the wrong precedent table."""
+    path, conn = _seed(tmp_path)
+    asset_id = _asset(conn, generic="Tozorakimab")
+    copd = _indication(conn, asset_id, "Pulmonary Disease, Chronic Obstructive")
+    _indication(conn, asset_id, "Severe Acute Respiratory Syndrome", is_lead=1)
+    _trial(conn, asset_id, "NCT1", "COVID-19|SARS-CoV-2 Infection|Viral Pneumonia")
+    _trial(conn, asset_id, "NCT2", "COVID-19|Acute Respiratory Distress Syndrome")
+    _assumption(conn, asset_id, copd)
+    conn.close()
+    assert product_areas.areas_for(path, [asset_id]) == {asset_id: "Respiratory"}
+
+
+def test_the_lead_flag_does_not_decide_it(tmp_path):
+    """Retatrutide and cagrilintide are both flagged lead in cardiovascular disease, on
+    their outcomes trials, while the line the book carries for each is obesity. The lead
+    flag is the indication mapper's, not the analyst's."""
+    path, conn = _seed(tmp_path)
+    asset_id = _asset(conn, generic="Retatrutide")
+    _indication(conn, asset_id, "Cardiovascular Diseases", is_lead=1)
+    obesity = _indication(conn, asset_id, "Obesity")
+    _assumption(conn, asset_id, obesity)
+    conn.close()
+    assert product_areas.areas_for(path, [asset_id]) == {asset_id: "Metabolic"}
+
+
+def test_an_asset_modelled_in_nothing_still_falls_back_to_its_trials(tmp_path):
+    """Nothing changes for an asset with no modelled indication: the trials still answer,
+    so the 384 assets this does not apply to behave as they did."""
+    path, conn = _seed(tmp_path)
+    asset_id = _asset(conn, generic="Some Compound")
+    _indication(conn, asset_id, "Pulmonary Disease, Chronic Obstructive", is_lead=1)
+    _trial(conn, asset_id, "NCT9", "Breast Neoplasms|Carcinoma, Ductal")
+    conn.close()
+    assert product_areas.areas_for(path, [asset_id]) == {asset_id: "Oncology"}
