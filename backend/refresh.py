@@ -39,6 +39,7 @@ import brand_split
 import biologic_loe
 import catalysts
 import consensus as consensus_module
+import curated_register
 import db
 import deals
 import diff
@@ -66,6 +67,7 @@ from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.eu_medicines_ema import EuMedicinesFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
+from fetchers.financials_esef import FinancialsEsefFetcher
 from fetchers.financials_ir import WORKBOOKS as IR_WORKBOOKS, FinancialsIrFetcher
 from fetchers.fx_ecb import FxEcbFetcher
 from fetchers.labels_dailymed import LabelsDailyMedFetcher
@@ -94,7 +96,8 @@ MAX_WORKERS = int(os.getenv("ER_TOOL_REFRESH_WORKERS", "4"))
 
 def _company_fetchers(company, db_path):
     """Per-company sources: prices, trials, openFDA approvals for everyone; EDGAR
-    financials and filings for SEC filers with a CIK."""
+    financials and filings for SEC filers with a CIK; for a company outside the SEC, its
+    own workbook where it publishes one (Roche) or its ESEF reports by LEI (Bayer)."""
     fetchers = [
         PricesFetcher(company["ticker"], db_path),
         IntradayPricesFetcher(company["ticker"], db_path),
@@ -135,6 +138,10 @@ def _company_fetchers(company, db_path):
         # that is the route: Roche's investor Finance Information Tool carries a workbook
         # holding the income statement, the balance sheet and per-product regional sales.
         fetchers.append(FinancialsIrFetcher(company["ticker"], db_path))
+    elif (company["lei"] or "").strip():
+        # The other one, Bayer, is found by its LEI in the index of ESEF annual reports:
+        # the EU's inline XBRL, tagged in the same ifrs-full taxonomy a 20-F is.
+        fetchers.append(FinancialsEsefFetcher(company["ticker"], db_path))
     return fetchers
 
 
@@ -261,7 +268,7 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     conn = db.get_connection(db_path)
     try:
         company = conn.execute(
-            "SELECT ticker, cik, is_sec_filer, ir_rss_url, ir_news_url"
+            "SELECT ticker, cik, lei, is_sec_filer, ir_rss_url, ir_news_url"
             " FROM companies WHERE ticker = ?", (ticker,)
         ).fetchone()
     finally:
@@ -336,6 +343,12 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # Again after the merges, so a row that only exists now is grouped too.
     mapped["molecules"] = molecules.assign(db_path)["groups_with_siblings"]
     mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
+    # The analyst's corrections to the marketed register: products licensed under a name
+    # the maps do not know, and products withdrawn from sale. Before the seeds, so a
+    # product added here can be seeded in the same run.
+    _register = curated_register.apply(db_path)
+    mapped["register_added"], mapped["register_retired"] = (_register["added"],
+                                                            _register["retired"])
     # The curated assumption seeds, insert-only: a rebuilt database gets the layer back,
     # and an analyst's live edit is never overwritten by the file it started from.
     conn = db.get_connection(db_path)
@@ -456,7 +469,7 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     conn = db.get_connection(db_path)
     try:
         companies = conn.execute(
-            "SELECT ticker, cik, is_sec_filer, ir_rss_url, ir_news_url"
+            "SELECT ticker, cik, lei, is_sec_filer, ir_rss_url, ir_news_url"
             " FROM companies ORDER BY ticker"
         ).fetchall()
     finally:
@@ -558,6 +571,12 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # Again after the merges, so a row that only exists now is grouped too.
     mapped["molecules"] = molecules.assign(db_path)["groups_with_siblings"]
     mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
+    # The analyst's corrections to the marketed register: products licensed under a name
+    # the maps do not know, and products withdrawn from sale. Before the seeds, so a
+    # product added here can be seeded in the same run.
+    _register = curated_register.apply(db_path)
+    mapped["register_added"], mapped["register_retired"] = (_register["added"],
+                                                            _register["retired"])
     # The curated assumption seeds, insert-only: a rebuilt database gets the layer back,
     # and an analyst's live edit is never overwritten by the file it started from.
     conn = db.get_connection(db_path)

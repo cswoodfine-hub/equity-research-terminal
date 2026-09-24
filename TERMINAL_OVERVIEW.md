@@ -21,7 +21,9 @@ which cannot be bought after the fact.
 Notes on coverage:
 - Most file with the SEC (10-K / 8-K). European names (AZN, GSK, NVO, SNY) file 20-F / 6-K.
 - **Roche (ROG) and Bayer (BAYN) are not SEC registrants at all**, so EDGAR holds no
-  financials for them; the UI says so rather than inventing numbers.
+  financials for them. Bayer's come from its ESEF annual reports instead (filings.xbrl.org,
+  keyed by LEI). Roche, being Swiss, files no ESEF, and its come from the Finance
+  Information Tool workbook it publishes for investors.
 - Loss-of-exclusivity data is **US only** (FDA Orange Book and Purple Book). A product
   protected in the US to 2035 can face a generic in Europe years earlier, and no free
   source publishes those foreign dates.
@@ -96,6 +98,7 @@ Backend and frontend run as two processes:
 |---|---|---|
 | **SEC EDGAR** (companyfacts XBRL) | Reported financials: revenue, net income, R&D | Daily |
 | **SEC EDGAR** (submissions) | Recent filings, 8-K / 6-K material-event monitoring | Daily |
+| **filings.xbrl.org** (ESEF xBRL-JSON) | Reported financials for an EU filer outside the SEC (Bayer), annual only | Daily |
 | **SEC Financial Statement Data Sets** | Per-product revenue (keeps the segment dimension the XBRL API collapses) | Quarterly |
 | **ClinicalTrials.gov v2** | Trials: phase, status, primary completion date, enrolment, conditions | Daily |
 | **openFDA** (drugsfda) | FDA approvals, queried by both manufacturer and sponsor to catch acquired subsidiaries | Daily |

@@ -1,0 +1,7 @@
+# Products the book's fetchers mark marketed that their company has withdrawn from sale.
+# A licence can stay active after the product stops selling, so the registers keep
+# listing it; backend/curated_register.py sets each one back to unmarketed on every
+# refresh, after the fetchers, so the flag cannot drift back. The prior state is
+# snapshotted before the change.
+ticker,brand,internal_code,withdrawn_on,source
+PFE,BEQVEZ,BLA125786,2025-02,"Pfizer discontinued Beqvez (fidanacogene elaparvovec) in all global markets in February 2025, citing weak demand (https://www.cgtlive.com/view/pfizer-jettisons-fda-approved-hemophilia-b-gene-therapy-beqvez)"

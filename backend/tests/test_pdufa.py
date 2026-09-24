@@ -264,11 +264,17 @@ def test_check_says_which_test_refused_a_date():
                        today=TODAY)[1] == "the date did not parse"
 
 
-def test_a_filing_that_already_produced_a_catalyst_is_never_read_again(tmp_path):
+def test_a_filing_that_already_produced_a_catalyst_is_never_read_again(tmp_path,
+                                                                     monkeypatch):
     """The ledger stops a filing being read twice. This stops a filing that produced a
     catalyst BEFORE the ledger existed producing a second one. Dropping this guard when
     the ledger arrived wrote six duplicate rows on the first full-history sweep, because
     every filing behind them predated the ledger."""
+    # extract() returns before reading anything when no model key is configured, so
+    # without one this test exercised the no-key path and never reached the guard. It
+    # passed only where a real key sat in .env. The guard runs before any fetch or model
+    # call, so a placeholder is enough and nothing is sent anywhere.
+    monkeypatch.setenv("GROQ_API_KEY", "placeholder-never-sent")
     db_file = tmp_path / "test.db"
     db.init(db_file)
     seed.load_companies(db_file)
@@ -292,5 +298,6 @@ def test_a_filing_that_already_produced_a_catalyst_is_never_read_again(tmp_path)
     conn.close()
     assert rows == 1, "the filing must not produce a second catalyst"
     assert got["fetched"] == 0, "and must not be fetched at all"
+    assert got["errors"] == []
     assert [r["outcome"] for r in ledger] == ["found"]
     assert "before the ledger" in ledger[0]["detail"]

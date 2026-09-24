@@ -1,0 +1,259 @@
+{
+ "documentInfo": {
+  "documentType": "https://xbrl.org/2021/xbrl-json",
+  "features": {
+   "xbrl:canonicalValues": true
+  },
+  "namespaces": {
+   "exa": "http://www.example.com/exa/2024-12-31",
+   "ifrs-full": "https://xbrl.ifrs.org/taxonomy/2024-03-27/ifrs-full",
+   "iso4217": "http://www.xbrl.org/2003/iso4217",
+   "scheme": "http://standards.iso.org/iso/17442",
+   "xbrl": "https://xbrl.org/2021",
+   "xbrli": "http://www.xbrl.org/2003/instance"
+  },
+  "taxonomy": [
+   "exa-2024-12-31.xsd"
+  ]
+ },
+ "facts": {
+  "f52": {
+   "value": "Exempla Pharma AG",
+   "dimensions": {
+    "concept": "ifrs-full:NameOfReportingEntityOrOtherMeansOfIdentification",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00/2025-01-01T00:00:00"
+   }
+  },
+  "f56": {
+   "value": "46000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Revenue",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00/2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f58": {
+   "value": "47500000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Revenue",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00/2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f62": {
+   "value": "19000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:CostOfSales",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00/2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f64": {
+   "value": "19500000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:CostOfSales",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00/2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f68": {
+   "value": "6000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:ResearchAndDevelopmentExpense",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00/2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f70": {
+   "value": "5800000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:ResearchAndDevelopmentExpense",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00/2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f74": {
+   "value": "-2500000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:ProfitLoss",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00/2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f76": {
+   "value": "-2900000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:ProfitLoss",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00/2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f80": {
+   "value": "-2.55",
+   "decimals": 2,
+   "dimensions": {
+    "concept": "ifrs-full:DilutedEarningsLossPerShare",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00/2025-01-01T00:00:00",
+    "unit": "iso4217:EUR/xbrli:shares"
+   }
+  },
+  "f82": {
+   "value": "-2.95",
+   "decimals": 2,
+   "dimensions": {
+    "concept": "ifrs-full:DilutedEarningsLossPerShare",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00/2024-01-01T00:00:00",
+    "unit": "iso4217:EUR/xbrli:shares"
+   }
+  },
+  "f86": {
+   "value": "9500000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "exa:CoreEbitda",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00/2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f91": {
+   "value": "6000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:CashAndCashEquivalents",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f93": {
+   "value": "3600000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:CashAndCashEquivalents",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f97": {
+   "value": "34000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Borrowings",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f99": {
+   "value": "38000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Borrowings",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f103": {
+   "value": "100000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Assets",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f108": {
+   "value": "30000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Equity",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f113": {
+   "value": null,
+   "dimensions": {
+    "concept": "ifrs-full:Goodwill",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f118": {
+   "value": "6500000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:CashFlowsFromUsedInOperatingActivities",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00/2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f123": {
+   "value": "100000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:DividendsPaidClassifiedAsFinancingActivities",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00/2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f125": {
+   "value": "2400000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:DividendsPaidClassifiedAsFinancingActivities",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00/2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f129": {
+   "value": "46000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Revenue",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00/2025-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f134": {
+   "value": "18000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Revenue",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00/2025-01-01T00:00:00",
+    "ifrs-full:SegmentsAxis": "exa:PharmaceuticalsMember",
+    "unit": "iso4217:EUR"
+   }
+  }
+ }
+}

@@ -46,7 +46,7 @@ def _num(value, decimals=1, dash="—"):
 
 def _company(conn, ticker):
     return conn.execute(
-        "SELECT id, name, is_sec_filer, is_foreign_private_issuer FROM companies"
+        "SELECT id, name, lei, is_sec_filer, is_foreign_private_issuer FROM companies"
         " WHERE ticker = ?", (ticker,)).fetchone()
 
 
@@ -192,7 +192,8 @@ def build(ticker: str, out_dir: Path | None = None, db_path=None) -> Path:
 
     at_risk = asset_revenue.build_revenue_at_risk(db_path, ticker)
     note_html, change_ids = _note_block(ticker, db_path)
-    filer = ("not an SEC filer" if not company["is_sec_filer"]
+    filer = (("ESEF filer" if company["lei"] else "not an SEC filer")
+             if not company["is_sec_filer"]
              else "20-F filer" if company["is_foreign_private_issuer"] else "10-K filer")
     generated = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     share_5y = (f"{_num(at_risk['share_5y'] * 100, 1)}% of tagged revenue"

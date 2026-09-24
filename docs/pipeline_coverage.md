@@ -153,13 +153,50 @@ every one is a correction.
 **Open, added to the list above**
 
 13. **Roche and Bayer can hold no valuation at all, and Roche has 25 late-stage assets.**
-    Neither files with the SEC, so no fetcher reads their financials: Roche has 101 assets,
+    Neither files with the SEC, so EDGAR has no financials for either: Roche has 101 assets,
     3,915 price rows and zero financial rows, so a beta is derivable and a cost structure
     is not. Trontinemab is the concrete loss. Its research survived verification in full,
     with a price corroborated within 2.7% by an announced list and an uptake anchor
     measured in Leqembi and Kisunla patient-years rather than beneficiary counts, and it
     cannot be seeded because there is no company block to put it on. This is the single
     largest unvaluable block in the book and it is one fetcher, not one asset.
+
+    **Bayer's half is now a route rather than a gap, pending its first live run.** Bayer
+    files XBRL, just not with the SEC: its annual report is filed in the European Single
+    Electronic Format, tagged in the same `ifrs-full` taxonomy Novo, GSK and Sanofi use in
+    their 20-F. The equivalent of EDGAR's company-facts file is filings.xbrl.org, which
+    serves every ESEF report as xBRL-JSON and is keyed by LEI.
+    `fetchers/financials_esef.py` reads it and hands the facts to the same parser EDGAR
+    data goes through (now `companyfacts.py`). Bayer's LEI, 549300J4U55H3WP1XT59, is on
+    the seed and check-digit validated. Built in a session whose network reached neither
+    filings.xbrl.org nor bayer.com, so the converter is tested on genuine Arelle output
+    for a synthetic filer, not on Bayer's own report. Three things to confirm on the
+    first refresh that reaches the index: that it holds Bayer at all (its German coverage
+    could not be checked), that `Revenues`, `NetIncomeLoss` and `CashAndEquivalents`
+    resolve, and that `TotalDebt` does, since Bayer may tag its financial liabilities
+    under a concept of its own rather than `ifrs-full:Borrowings`. A miss is reported
+    either way, never filled. Depth is FY2019 to FY2025 and annual only, because ESEF
+    covers annual reports alone.
+
+    The ADR ratio under it was wrong too. Four BAYRY make one ordinary share, not one
+    (migration 067). It cost nothing while Bayer had no share count, and would have put
+    every per-share figure at four times the price once it did.
+
+    **Financials are necessary for a Bayer valuation, not sufficient.** Run on these rows,
+    `fair_value.company` still refuses, because the sum of the parts is empty. Bayer has
+    56 marketed assets with no product revenue on file, no company lines for Crop Science
+    or Consumer Health, and not one modelled asset. Product sales sit in the management
+    report, which ESEF does not tag, so they are curated rows in
+    `data/product_revenue.csv` read from the annual report, the same route as any other
+    untagged product table. After that come the three unmodelled late-stage assets, which
+    are small. BAY3723113 is aficamten in a 36-patient Japanese Phase 3 (Bayer licensed
+    Japan). BAY 3670549 is a Phase 2 in atrial fibrillation, primary completion 2030.
+    AB-1005 is AskBio's GDNF gene therapy in an 8-patient Japanese Phase 2 in Parkinson's,
+    not yet recruiting.
+
+    Roche's half was closed separately and by a different route. Switzerland is outside
+    the EU, so ESEF does not apply, but Roche publishes its own workbook (see "Roche
+    unblocked" below).
 14. **Amlitelimab and tozorakimab carry a 0.94 probability on one positive readout.**
     `pos_granular` places an asset at its own gate, and a single positive Phase 3 filing
     moves it to the NDA/BLA transition. Amlitelimab's Phase 3 programme has five trials
@@ -176,7 +213,8 @@ every one is a correction.
 
 208 late-stage assets at companies holding five or more still carry nothing, of 397. The
 five largest gaps are NVS 43, GSK 32, ROG 25, LLY 20 and SNY 18. ROG's 25 are blocked on
-item 13 rather than on research.
+item 13 rather than on research. Bayer's three were blocked the same way and now wait on
+its first ESEF refresh and its product revenue.
 
 ## Roche unblocked, and half the late-stage gap is not a new medicine, 24 September 2026
 
@@ -208,10 +246,11 @@ against the true 803.0mm. Roche is the only filer in this universe with a materi
 interest. Writing the count under the name the book already reads moves the per-ADR figure
 from $17.84 to $19.11.
 
-**Bayer is still unvaluable and is now the whole of item 13.** It reports under EU rules
-whose electronic format is inline XBRL rather than a workbook, which is a different parser,
-and no equivalent file has been found. It has 3 unmodelled late-stage assets, so the cost of
-leaving it is small.
+**Bayer is now the whole of item 13.** It reports under EU rules whose electronic format is
+inline XBRL rather than a workbook, which is a different parser. The equivalent file is
+filings.xbrl.org's xBRL-JSON, and the route to it is described under item 13. It has 3
+unmodelled late-stage assets, so the cost of leaving its pipeline is small; its marketed
+book is the larger half, as it was for Roche.
 
 **HALF THE LATE-STAGE GAP IS NOT A NEW MEDICINE.** This is the finding that matters most for
 the remaining work, and it inverts the obvious plan. Of the first 87 of 353 non-Roche assets
@@ -265,3 +304,101 @@ Sclerosis".
     making or pre-revenue and take a scaled comparator's ratios with a comparator charge, as
     Viking does from Lilly. Each block is built only where one of its assets survives
     verification.
+
+## The late-stage gap sorted, 24 September 2026
+
+Every unmodelled late-stage row is now sorted by what it is, in `data/pipeline_sort.csv`,
+before any of it is priced. Nothing was priced. The population is defined in
+`backend/pipeline_sort.py`: not marketed, no assumptions, an indication at Phase 2, 2/3 or
+3, Roche excluded. That is 345 rows on the 2026-09-24 database. The earlier count of 353
+was taken on a database that was never published and cannot be reproduced; the
+classification of its first 87 was never committed, so the sort was redone from nothing.
+
+| Class | Rows | |
+|---|---|---|
+| NEW | 196 | a medicine the book does not hold in any form |
+| DUPLICATE | 67 | a code, misspelling or second row for something the book carries |
+| LINE_EXTENSION | 41 | a new indication, population, market or formulation of a marketed molecule |
+| DEAD | 19 | discontinued, returned, or failed with no path, each on a company statement or filing |
+| NOT_A_PROGRAMME | 16 | a comparator, background therapy, supportive care or follow-up study |
+| REGIMEN | 6 | a combination of molecules each valued elsewhere |
+
+149 of the 345, 43%, are not new medicines. The earlier sample put it at half. Of the
+196 that are, 75 lead in Phase 3 and 115 in Phase 2. By company the new ones are
+concentrated where the gap always was: Lilly 20, Novartis 20, GSK 13, Pfizer 12, AbbVie 10,
+Sanofi 10. The largest Phase 3 new medicines by enrolment are zilebesiran (11,000),
+ziltivekimab (10,000, though Novo halted two of its trials after ZEUS), PG4 (4,670),
+mRNA-1018 (4,050), balcinrenone with dapagliflozin (3,850) and aleniglipron (3,600).
+
+**How it was sorted.** A dossier per row from the database: names and aliases,
+indications, trials with status, dates and enrolment, other rows sharing the molecule, and
+matching EMA authorisations. Eight classifiers worked from the dossiers, Amass and web
+search to one set of rules, and every row carries a one-sentence sourced reason. On review:
+every approval date a classifier recalled rather than looked up, 24 of them, was checked
+against the FDA's letter or the company's announcement, and all were right except Kymriah's
+EMA date, which now takes the register's 2018-08-23. Every DEAD call rests on a company
+statement, a filing or a registry termination, except gandotinib, which has had no trial
+since 2015 and is marked low confidence because no discontinuation was ever announced.
+Three consistency rules were applied across batches the classifiers had read differently:
+an out-licensed molecule with economics retained is NEW, since `economics_share` can price
+a royalty (naporafenib, linerixibat, zilurgisertib); a marketed fixed-dose product is a
+DUPLICATE of that product, not a regimen of its parts (Trikafta, Alyftrek); and a new
+indication or population is a LINE_EXTENSION, not a DUPLICATE, which moved 23 rows,
+Vyvgart Hytrulo in Graves' disease and myositis and Datroway in new lung and breast
+settings among them.
+
+13 rows are low confidence and want a second reader: four development codes with no
+published identity (LY3457263, LY4005130, PF-08049820, YMI024) and two J&J codes with
+no named target, sasanlimab (positive Phase 3, EU filing withdrawn, no discontinuation on
+record), linerixibat (approved, licensed to Alfasigma), cetrelimab, miransertib,
+ALN-AGT01, the PF-07104091 dose-expansion row, and gandotinib.
+
+**What the sort found that is wrong in the book itself.** These are not pipeline questions
+and nothing here was changed; each is a follow-up.
+
+- Approved products the book does not carry as marketed: Aucatzyl (Autolus), Zevaskyn
+  (Abeona), Elahere (AbbVie), Enerzair and Atectura Breezhaler (Novartis, EU), Mosquirix
+  (GSK), and tolebrutinib, authorised in the EU as Cenrifki on 2026-06-19. Emblaveo is
+  carried under AbbVie while Pfizer holds its EU authorisation.
+- Beqvez is still a marketed Pfizer product in the book. Pfizer discontinued it in all
+  markets in February 2025.
+- Tavneos (avacopan) is not in Amgen's marketed book, and the FDA proposed withdrawing its
+  approval on 2026-04-27.
+- mRNA-4157 is Merck's intismeran autogene, which the book models under Merck. Moderna and
+  Merck share its cost and profit equally, so Moderna's half is unvalued unless the Merck
+  model carries it.
+- The registry lags the companies. REGN7999, JNJ-81201887 and nivisnebart are discontinued
+  in filings or company statements while a trial still reads active or recruiting, so a
+  trial status alone would have called all three alive.
+- Rows outside the population that duplicate ones inside it: a separate unmodelled Lilly
+  "Tersolisib" row, an "Olomorasib test" row, a second pz-cel row, and Roche's "Autogene
+  Cevumeran" row with no indications.
+
+**Sources ran short.** The Amass account reached its monthly usage limit on the first few
+calls and resets on 2026-10-24, and the web search budget ran out for three of the eight
+classifiers, which is why the review above checked by hand what they recalled. With
+clinicaltrials.gov, api.fda.gov and ema.europa.eu reachable from the container, each of
+those checks would read the registry or the regulator directly.
+
+**Next.** Price only NEW, and begin with the Phase 3 rows. `pipeline_sort.unsorted()` lists
+any row a later trials refresh adds that the file does not cover.
+
+**Book defects closed, 24 September 2026.** `backend/curated_register.py` now applies two
+cited files on every refresh. `data/marketed_additions.csv` adds Elahere (AbbVie, licensed
+under ImmunoGen), Aucatzyl (Autolus) and Zevaskyn (Abeona) as marketed, keyed by licence
+number with the 12-year biologic floor from first licensure, and their filed revenue is in
+`data/product_revenue.csv`. Elahere is seeded on AbbVie's company rows and values at
+$2,753mm risk-adjusted. `data/withdrawn_products.csv` retires Beqvez. Moderna's half of
+intismeran is seeded in `mrna_mrna_4157.csv` at the same price, pool, uptake and
+probability as Merck's half, discounted at Moderna's own rate: $377mm against Merck's
+$484mm, the gap being beta alone. The Merck model already took economics_share 0.5, so it
+needed no change.
+
+Left open, each for a stated reason. Aucatzyl and Zevaskyn are marketed with their revenue
+but not yet seeded: both companies are loss making, so their own cost lines would value any
+product below nothing and a comparator must be chosen, which is a pricing decision.
+Enerzair and Atectura Breezhaler, Mosquirix and Cenrifki are not added: none has revenue
+its company reports, so a marketed row would carry nothing. The Purple Book's marketing
+status was not used to retire products automatically, because the downloadable file lists
+only presentations that changed, and a single discontinued vial (the fixture's Keytruda
+50 mg) would have retired the whole product.

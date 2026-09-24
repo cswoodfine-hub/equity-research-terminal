@@ -26,8 +26,10 @@ import datetime as dt
 from dataclasses import dataclass, field
 
 # Forms that carry the periods we present. Annual reports for US and foreign filers,
-# and the interim reports each of them files.
-FORMS = ("10-K", "10-Q", "20-F", "6-K")
+# and the interim reports each of them files. ESEF is an annual financial report in the
+# European Single Electronic Format, the route to a filer the SEC never sees (see
+# fetchers/financials_esef.py).
+FORMS = ("10-K", "10-Q", "20-F", "6-K", "ESEF")
 
 # Period types, as stored in financials.period_type.
 FY = "FY"            # a full reported year
@@ -364,7 +366,7 @@ _REFERENCE = (
     # The R&D line with acquired in-process R&D taken out wherever it sits inside it, for
     # every year. A filer that presents it on a line of its own already reports R&D
     # without it; Merck expenses it inside R&D, $11.4bn of its $30.5bn in 2023. Resolved
-    # by financials_edgar.rd_less_expensed_iprd rather than by a ladder of concepts.
+    # by companyfacts.rd_less_expensed_iprd rather than by a ladder of concepts.
     Line("ResearchLessExpensedIprd", "R&D less acquired in-process R&D expensed in it",
          "reference", "duration", role="memo"),
     # Interest paid, where it sits inside operating cash flow. Free cash flow is struck

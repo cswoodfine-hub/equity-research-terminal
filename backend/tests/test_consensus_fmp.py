@@ -110,7 +110,7 @@ def test_without_a_key_the_fetcher_reports_rather_than_writes(tmp_path):
 def test_the_registry_runs_this_fetcher_only_where_a_key_exists(tmp_path, monkeypatch):
     path = _seed(tmp_path)
     company = {"ticker": "VRTX", "ir_rss_url": None, "ir_news_url": None,
-               "is_sec_filer": 0, "cik": None}
+               "is_sec_filer": 0, "cik": None, "lei": None}
 
     monkeypatch.setenv("FMP_API_KEY", "")
     assert not [f for f in refresh._company_fetchers(company, path)

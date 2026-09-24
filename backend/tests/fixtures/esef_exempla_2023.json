@@ -1,0 +1,140 @@
+{
+ "documentInfo": {
+  "documentType": "https://xbrl.org/2021/xbrl-json",
+  "features": {
+   "xbrl:canonicalValues": true
+  },
+  "namespaces": {
+   "ifrs-full": "https://xbrl.ifrs.org/taxonomy/2024-03-27/ifrs-full",
+   "iso4217": "http://www.xbrl.org/2003/iso4217",
+   "scheme": "http://standards.iso.org/iso/17442",
+   "xbrl": "https://xbrl.org/2021",
+   "xbrli": "http://www.xbrl.org/2003/instance"
+  },
+  "taxonomy": [
+   "exa-2023-12-31.xsd"
+  ]
+ },
+ "facts": {
+  "f45": {
+   "value": "47600000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Revenue",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00/2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f47": {
+   "value": "50700000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Revenue",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f51": {
+   "value": "5800000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:ResearchAndDevelopmentExpense",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00/2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f53": {
+   "value": "6200000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:ResearchAndDevelopmentExpense",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f57": {
+   "value": "-2900000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:ProfitLoss",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00/2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f59": {
+   "value": "4100000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:ProfitLoss",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f63": {
+   "value": "-2.95",
+   "decimals": 2,
+   "dimensions": {
+    "concept": "ifrs-full:DilutedEarningsLossPerShare",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00/2024-01-01T00:00:00",
+    "unit": "iso4217:EUR/xbrli:shares"
+   }
+  },
+  "f65": {
+   "value": "4.17",
+   "decimals": 2,
+   "dimensions": {
+    "concept": "ifrs-full:DilutedEarningsLossPerShare",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "iso4217:EUR/xbrli:shares"
+   }
+  },
+  "f69": {
+   "value": "3600000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:CashAndCashEquivalents",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f71": {
+   "value": "4700000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:CashAndCashEquivalents",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f75": {
+   "value": "38000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Borrowings",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2024-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "f77": {
+   "value": "40000000000.0",
+   "decimals": -6,
+   "dimensions": {
+    "concept": "ifrs-full:Borrowings",
+    "entity": "scheme:TEST00EXEMPLAPHARM68",
+    "period": "2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  }
+ }
+}
