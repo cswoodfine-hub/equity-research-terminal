@@ -60,7 +60,7 @@
 | PFE | PG4 | held: cannibalises Prevnar 20 |
 | PFE | Sigvotatug Vedotin | seeded and built |
 | PFE | vepdegestrant | seeded and built: Pfizer's royalty from Rigel |
-| REGN | Fianlimab | not started |
+| REGN | Fianlimab | refused: Sanofi royalty rate undisclosed |
 | REGN | Mibavademab | not started |
 | REGN | Pozelimab + Cemdisiran | seeded and built: cemdisiran alone, as filed |
 | REGN | REGN-2Cat | not started |
