@@ -207,3 +207,48 @@ def test_upsert_is_idempotent(tmp_path):
                 WHERE a.brand_name='Ocrevus'""").fetchone()[0] == 1
     finally:
         conn.close()
+
+
+def test_the_share_count_is_written_under_the_name_the_book_reads(tmp_path):
+    """forecast_view._diluted_shares looks for WeightedAverageDilutedShares and otherwise
+    falls back to group net income over earnings per share. For Roche that fallback is wrong
+    by the non-controlling interest, 13,799 / 16.04 = 860.3mm against the true 803.0mm,
+    because the per-share figure is struck on the 12,880mm attributable to shareholders.
+    Roche is the only filer in this universe with a material minority."""
+    path = _seeded(tmp_path)
+    fetcher = FinancialsIrFetcher("ROG", path)
+    fetcher.upsert(fetcher.normalise([{"bytes": _BOOK.read_bytes()}]))
+    conn = db.get_connection(path)
+    try:
+        row = conn.execute(
+            """SELECT f.value FROM financials f JOIN companies c ON c.id = f.company_id
+                WHERE c.ticker='ROG' AND f.metric='WeightedAverageDilutedShares'
+                  AND f.fiscal_year=2025""").fetchone()
+        assert round(row["value"] / 1e6, 1) == 803.0
+        # The fallback would have given 860.3mm, so the wrong branch is visibly different.
+        assert round(13_799_000_000 / 16.04 / 1e6, 1) == 860.3
+        # The reader takes this branch rather than the fallback, which is the whole point.
+        # It then divides by the depositary ratio and the franc rate, neither of which this
+        # temporary database carries, so the divisor itself is checked against the live book.
+        company = conn.execute("SELECT id FROM companies WHERE ticker='ROG'").fetchone()
+        assert conn.execute(
+            """SELECT COUNT(*) FROM financials f JOIN companies c ON c.id = f.company_id
+                WHERE c.ticker='ROG' AND f.metric='WeightedAverageDilutedShares'"""
+        ).fetchone()[0] >= 1
+    finally:
+        conn.close()
+
+
+def test_the_published_growth_rate_is_read_from_the_second_year_block():
+    """The workbook carries only the current year, so there is no prior-year figure to
+    derive growth from. Roche publishes the rate beside the money, at a second occurrence of
+    the same year header."""
+    sheets = _sheets()
+    assert roche.growth_year_columns(sheets["products"][1]) == {2025: 13, 2026: 17}
+    growth = {r["product"]: r["growth"] for r in roche.parse_product_growth(sheets["products"])
+              if r["fiscal_year"] == 2025}
+    assert growth["Ocrevus"] == 0.04
+    assert growth["Phesgo"] == 0.40
+    assert growth["Herceptin"] == -0.26
+    # Itovebi launched in October 2024, so Roche publishes no rate for it and none is made up.
+    assert "Itovebi" not in growth

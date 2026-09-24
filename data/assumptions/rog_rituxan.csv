@@ -1,0 +1,23 @@
+# Rituxan (ROG): a marketed Roche product, anchored on the global sales Roche
+# publishes itself. Roche does not file with the SEC, so every figure here comes from
+# its investor Finance Information Tool workbook rather than from EDGAR, and the cost
+# ratios are the group's FY2025 lines (backend/roche.py, backend/fetchers/financials_ir.py).
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+ROG,Rituxan,,US,base,therapy_mode,,,marketed,,approved and selling,
+ROG,Rituxan,,US,base,base_revenue,,1251.0,,mm CHF,"ROG FY2025 reported global sales of Rituxan, CHF 1,251mm, from Roche Finance Information Tool, group financial data workbook, FY2025, sheet ""P Sales Regions CHF"". The 26 named products on that sheet sum to CHF 47,669mm, the Pharmaceuticals Division's 2025 sales, exactly",in francs because the engine models a company in its reporting currency and converts at the end
+ROG,Rituxan,,US,base,revenue_growth_pct,,-0.09,,"annual, near term","Roche's own published 2025 growth rate for Rituxan in reported francs, -9%, from the growth block of the same sheet","a published rate rather than a subtraction, because the workbook carries only the current year and so holds no prior-year figure to derive one from"
+ROG,Rituxan,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,
+ROG,Rituxan,,US,base,growth_fade_years,,5,,years,measured from 53 drugs that grew 10% to 25% a year: the median faded to flat over five years,
+ROG,Rituxan,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+ROG,Rituxan,,US,base,forecast_years,,20,,years,the house horizon,
+ROG,Rituxan,,US,base,pos,,1.0,,,approved and selling,
+ROG,Rituxan,,US,base,cogs_pct,,0.27058,,share of revenue,"ROG FY2025 from Roche Finance Information Tool, group financial data workbook, FY2025: cost of sales CHF 16,645mm on sales of 61,516mm. The sheet's own six components sum to it exactly","Roche does not file with the SEC, so this comes from the workbook it publishes for investors rather than from EDGAR"
+ROG,Rituxan,,US,base,rd_pct,,0.217049,,share of revenue,"ROG FY2025: research and development CHF 13,352mm on sales of 61,516mm","the IFRS charge, not the CHF 12,832mm core figure below it in the sheet, which adds back amortisation and impairment"
+ROG,Rituxan,,US,base,sga_pct,,0.246456,,share of revenue,"ROG FY2025: selling, general and administration CHF 15,161mm on sales of 61,516mm, its four components summing to it exactly",
+ROG,Rituxan,,US,base,other_costs_pct,,-0.03443,,share of revenue,"solved so the charges reconcile to the filed operating profit of CHF 18,476mm. It is negative because Roche books other revenue of 1,840mm and other operating income of 278mm above the line, and those two sum to exactly the 2,118mm this credits back","the same convention AstraZeneca and GSK carry, both also negative"
+ROG,Rituxan,,US,base,tax_rate,,0.187003,,effective rate,"ROG FY2025: income taxes of CHF 3,174mm on profit before taxes of 16,973mm","a single year rather than a five-year aggregate, because the workbook carries only the current year"
+ROG,Rituxan,,US,base,risk_free,,0.0501,,,"10-year Treasury constant maturity (FRED DGS10), 2026-09-16: 5.01%. Read live (fetchers/rates_fred.py)",
+ROG,Rituxan,,US,base,erp,,0.0414,,,"Damodaran implied US equity risk premium, 2026-09-01: 4.14% on the trailing twelve month cash yield variant",
+ROG,Rituxan,,US,base,beta,,0.64,,,"computed from 261 weekly returns vs S&P 500, 2021-W38 to 2026-W39, Blume-adjusted (0.46 raw)","measured on the RHHBY ADR against the S&P 500, which is the only Roche price series on file. A beta measured on the SIX-listed ordinary share against a Swiss index would not be the same number"
+ROG,Rituxan,,US,base,cost_of_debt,,0.056,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-09-16: 5.60%. Refreshed with the data",
+ROG,Rituxan,,US,base,debt_weight,,0.098037,,,"filed long-term debt of CHF 31,636mm at 2025-12-31 from the workbook's balance sheet, over debt plus a market capitalisation of CHF 291.1bn: 802,992,519 diluted shares at 0.125 ordinary per ADR, so 6,423,940,150 ADRs at the RHHBY close of $55.06 on 2026-09-23, converted at CHF/USD 1.215229","ROCHE HAS TWO SHARE CLASSES AND THIS PRICES BOTH OFF ONE. The count is derived from Roche's own published per-share figure, which is struck on bearer shares and non-voting equity securities together, while RHHBY is an ADR over the non-voting security alone. The two trade close but not equal, so this market capitalisation is approximate. It moves the weight and not the cost ratios"

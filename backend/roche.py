@@ -320,6 +320,58 @@ def parse_products(rows: list[list]) -> list[dict]:
     return out
 
 
+def growth_year_columns(header: list) -> dict:
+    """{year: column index} for the SECOND block on a sales sheet, the growth rates.
+
+    The sheet puts money under 2025 at column 4 and the CHF growth rate for the same year
+    under 2025 again at column 13. The workbook only ever carries the current year and the
+    part-year after it, so a prior-year figure to compute growth from does not exist in it:
+    the published rate is the only route, and it is a published figure rather than a
+    derived one, which is better evidence than a subtraction would be.
+    """
+    seen: dict[int, list[int]] = {}
+    for index, value in enumerate(header):
+        year = None
+        if isinstance(value, int) and 1990 <= value <= 2100:
+            year = value
+        elif isinstance(value, str):
+            text = value.strip()
+            if re.fullmatch(r"\d{4}", text) and 1990 <= int(text) <= 2100:
+                year = int(text)
+        if year is not None:
+            seen.setdefault(year, []).append(index)
+    return {year: columns[1] for year, columns in seen.items() if len(columns) > 1}
+
+
+def parse_product_growth(rows: list[list]) -> list[dict]:
+    """Each product's published annual growth rate in reported francs.
+
+    Same two-block shape as the sales, and the same stop: only the year-to-date block is a
+    year. A rate of exactly zero is kept, because a product that did not grow is a fact and
+    dropping it would leave the seed to guess.
+    """
+    years = growth_year_columns(rows[1] if len(rows) > 1 else [])
+    out, product, started = [], None, False
+    for row in rows:
+        label = _label(row)
+        if label.lower().startswith("pharma products"):
+            continue
+        if not label:
+            if started:
+                break
+            continue
+        if label.lower().startswith("thereof"):
+            continue                       # a region's growth is not asked for here
+        product = label
+        for year, column in sorted(years.items()):
+            value = _number(row[column]) if column < len(row) else None
+            if value is None:
+                continue
+            started = True
+            out.append({"product": product, "fiscal_year": year, "growth": value})
+    return out
+
+
 def division_sales(rows: list[list], division: str = "Pharmaceuticals Division") -> dict:
     """{year: sales} for a division, from the group sales sheet, in units of francs."""
     years = sales_year_columns(rows[1] if len(rows) > 1 else [])
