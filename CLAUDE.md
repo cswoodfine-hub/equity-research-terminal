@@ -79,7 +79,7 @@ Confirm every endpoint against its live docs before relying on it. The specifics
 - Resolve CIKs once from `https://www.sec.gov/files/company_tickers.json`, the official ticker-to-CIK map. Do not hand-key CIKs.
 - Reported financials: `https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json`, cik zero-padded to 10 digits. Pull us-gaap tags Revenues, NetIncomeLoss, ResearchAndDevelopmentExpense, and IFRS tags for foreign filers.
 - Recent filings: `https://data.sec.gov/submissions/CIK{cik}.json` returns the recent filings list with form types, accession numbers, and dates. Use this for the filings table and 8-K / 6-K monitoring.
-- European filers submit 20-F and 6-K, not 10-K and 8-K. Handle both. Roche and Bayer are not SEC registrants at all (see the seed CSV `is_sec_filer` flag). Bayer's financials come from ESEF, below; Roche's have no free structured source.
+- European filers submit 20-F and 6-K, not 10-K and 8-K. Handle both. Roche and Bayer are not SEC registrants at all (see the seed CSV `is_sec_filer` flag). Bayer's financials come from ESEF, below; Roche's from the Finance Information Tool workbook it publishes (`fetchers/financials_ir.py`).
 
 ### ESEF (financials for an EU filer outside the SEC)
 

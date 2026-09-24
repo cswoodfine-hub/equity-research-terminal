@@ -22,8 +22,8 @@ Notes on coverage:
 - Most file with the SEC (10-K / 8-K). European names (AZN, GSK, NVO, SNY) file 20-F / 6-K.
 - **Roche (ROG) and Bayer (BAYN) are not SEC registrants at all**, so EDGAR holds no
   financials for them. Bayer's come from its ESEF annual reports instead (filings.xbrl.org,
-  keyed by LEI). Roche, being Swiss, files no ESEF either, and the UI says so rather than
-  inventing numbers.
+  keyed by LEI). Roche, being Swiss, files no ESEF, and its come from the Finance
+  Information Tool workbook it publishes for investors.
 - Loss-of-exclusivity data is **US only** (FDA Orange Book and Purple Book). A product
   protected in the US to 2035 can face a generic in Europe years earlier, and no free
   source publishes those foreign dates.

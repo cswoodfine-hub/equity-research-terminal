@@ -1,0 +1,106 @@
+{
+ "linerixibat": {
+  "results": [
+   {
+    "application_number": "NDA220295",
+    "sponsor_name": "INTERCEPT",
+    "products": [
+     {
+      "brand_name": "LYNAVOY"
+     }
+    ],
+    "submissions": [
+     {
+      "submission_status": "AP",
+      "submission_status_date": "20260317"
+     }
+    ]
+   }
+  ]
+ },
+ "eltrombopag": {
+  "results": [
+   {
+    "application_number": "ANDA216281",
+    "sponsor_name": "ZYDUS PHARMS",
+    "products": [
+     {
+      "brand_name": "ELTROMBOPAG OLAMINE"
+     },
+     {
+      "brand_name": "ELTROMBOPAG OLAMINE"
+     },
+     {
+      "brand_name": "ELTROMBOPAG OLAMINE"
+     }
+    ],
+    "submissions": [
+     {
+      "submission_status": "AP",
+      "submission_status_date": "20260114"
+     }
+    ]
+   }
+  ]
+ },
+ "encorafenib": {
+  "results": [
+   {
+    "application_number": "NDA210496",
+    "sponsor_name": "ARRAY BIOPHARMA INC",
+    "products": [
+     {
+      "brand_name": "BRAFTOVI"
+     },
+     {
+      "brand_name": "BRAFTOVI"
+     }
+    ],
+    "submissions": [
+     {
+      "submission_status": "AP",
+      "submission_status_date": "20200408"
+     },
+     {
+      "submission_status": "AP",
+      "submission_status_date": "20260224"
+     },
+     {
+      "submission_status": "AP",
+      "submission_status_date": "20241220"
+     },
+     {
+      "submission_status": "AP",
+      "submission_status_date": "20231013"
+     }
+    ]
+   }
+  ]
+ },
+ "ritlecitinib": {
+  "results": [
+   {
+    "application_number": "NDA215830",
+    "sponsor_name": "PFIZER",
+    "products": [
+     {
+      "brand_name": "LITFULO"
+     }
+    ],
+    "submissions": [
+     {
+      "submission_status": "AP",
+      "submission_status_date": "20260630"
+     },
+     {
+      "submission_status": "AP",
+      "submission_status_date": "20230623"
+     }
+    ]
+   }
+  ]
+ },
+ "fenebrutinib": {
+  "results": []
+ }
+}

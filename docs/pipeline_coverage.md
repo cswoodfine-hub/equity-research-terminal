@@ -194,8 +194,9 @@ every one is a correction.
     AB-1005 is AskBio's GDNF gene therapy in an 8-patient Japanese Phase 2 in Parkinson's,
     not yet recruiting.
 
-    Roche is unchanged. Switzerland is outside the EU, so ESEF does not apply and no free
-    XBRL source carries it.
+    Roche's half was closed separately and by a different route. Switzerland is outside
+    the EU, so ESEF does not apply, but Roche publishes its own workbook (see "Roche
+    unblocked" below).
 14. **Amlitelimab and tozorakimab carry a 0.94 probability on one positive readout.**
     `pos_granular` places an asset at its own gate, and a single positive Phase 3 filing
     moves it to the NDA/BLA transition. Amlitelimab's Phase 3 programme has five trials
@@ -214,3 +215,92 @@ every one is a correction.
 five largest gaps are NVS 43, GSK 32, ROG 25, LLY 20 and SNY 18. ROG's 25 are blocked on
 item 13 rather than on research. Bayer's three were blocked the same way and now wait on
 its first ESEF refresh and its product revenue.
+
+## Roche unblocked, and half the late-stage gap is not a new medicine, 24 September 2026
+
+**Item 13 is closed.** Roche publishes its own group financial data as a workbook for
+investors to model from, free and without a login, at the Finance Information Tool. It
+holds the IFRS income statement, the consolidated balance sheet and per-product sales split
+by region, and `backend/roche.py` with `backend/fetchers/financials_ir.py` now reads it.
+Roche has 34 group metrics, 23 product revenue rows and 92 regional rows where it had none.
+
+**22 marketed Roche lines now build, worth CHF 101,022mm risk-adjusted, $19.11 an ADR
+against an RHHBY close of $55.06.** That is 35% of the price, the right shape for a company
+whose diagnostics division and pipeline are still unmodelled. The pipeline was always the
+smaller half of the Roche loss: 46 marketed assets earning CHF 47.7bn a year were carried at
+nil.
+
+The parser refuses rather than guesses. Every subtotal in the sheet is the sum of the lines
+above it and the 26 named products sum to the Pharmaceuticals Division's 47,669 exactly, so
+nothing is written for a statement that does not tie. Three traps in the sheet each have a
+test: a label is not unique, so reading the wrong "Amortisation of intangible assets" takes
+core R&D for the IFRS charge; a year appears twice in the header, once over francs and once
+over growth percentages, so the last match reads group sales as 1; and the product sheet
+repeats all 26 products below with quarterly figures, so reading both blocks double counted
+the division by 25%.
+
+**A defect only Roche could have found.** `forecast_view._diluted_shares` falls back to group
+net income over earnings per share where no share count is stored, and Roche's per-share
+figure is struck on earnings attributable to shareholders, so the fallback gave 860.3mm
+against the true 803.0mm. Roche is the only filer in this universe with a material minority
+interest. Writing the count under the name the book already reads moves the per-ADR figure
+from $17.84 to $19.11.
+
+**Bayer is now the whole of item 13.** It reports under EU rules whose electronic format is
+inline XBRL rather than a workbook, which is a different parser. The equivalent file is
+filings.xbrl.org's xBRL-JSON, and the route to it is described under item 13. It has 3
+unmodelled late-stage assets, so the cost of leaving its pipeline is small; its marketed
+book is the larger half, as it was for Roche.
+
+**HALF THE LATE-STAGE GAP IS NOT A NEW MEDICINE.** This is the finding that matters most for
+the remaining work, and it inverts the obvious plan. Of the first 87 of 353 non-Roche assets
+classified: 42 NEW, 29 DUPLICATE, 6 LINE_EXTENSION, 8 DEAD, 2 REGIMEN. Researching a price
+and an uptake curve for all 353 would have valued Leqvio, Arexvy, Shingrix, Gardasil 9,
+Cabometyx, Cobenfy, Nurtec and Vyvgart Hytrulo a second time, under a development code or a
+formulation name, and added revenue the book already holds. Of the 42 genuinely new, 6 are
+material.
+
+`backend/stale_pipeline.py` makes the check standing rather than manual. An asset stays at
+`is_marketed = 0` until `approvals_openfda` matches it, and that fetcher matches on the
+company's own sponsor name, so an approval under a licensee, an acquired subsidiary or a
+generic applicant is invisible. Of the 133 unmodelled late-stage assets whose name is shaped
+like an ingredient, 15 already carry an FDA approval: mirvetuximab twice under ImmunoGen,
+cabozantinib under Exelixis, encorafenib under Array, avelumab under EMD Serono, ravulizumab
+under Alexion, ocrelizumab under Genentech, ritlecitinib under Pfizer's own name, linerixibat
+under Intercept, and eltrombopag and decitabine as generics. It reports and changes nothing,
+because whose value it is cannot be read off an approval record: Zydus' eltrombopag is a loss
+of exclusivity for Novartis' Promacta, not an approval Novartis won.
+
+**Three disease pools consolidated, one deliberately not.** Obesity, the largest cluster in
+the book, had no row in `data/epidemiology.csv`: seven assets each carried 107,592,242 and all
+seven agreed, so there was copying to stop rather than drift to repair. Non-small-cell lung
+carcinoma was the same across eight assets and IgA nephropathy across one. Breast Neoplasms
+is left alone because four assets use it for the metastatic HR-positive pool while an
+adjuvant asset needs the early-stage one, so a single row would hand the wrong pool to
+whichever did not write its own. Six aliases were also added, because the lookup was an exact
+string match and the registry names one disease several ways: 18 multiple sclerosis assets
+sat on "Relapsing-Remitting" and "Chronic Progressive" while the file filled only "Multiple
+Sclerosis".
+
+**Open, from the Roche build**
+
+17. **Roche's other-costs charge was solved to operating profit, not by the house free-cash
+    rebuild.** `charge_floor.measure` solves every other company's charge so its book
+    reproduces free cash flow restated before interest, at replacement capex and without
+    working-capital build, floored at minus the intangible amortisation inside its cost
+    lines. Worked by hand on Roche's own workbook figures, that rebuild falls well below the
+    floor and binds at it: minus CHF 665mm of amortisation in cost of sales and R&D, -1.08%
+    of sales. Roche reports CHF 1,840mm of other revenue beside sales, so under the treatment
+    Sanofi and Novartis get its ratios would be scaled onto total revenue, and the house
+    margin comes to 29.8% against the 30.0% the operating-profit plug gives. Under 1% of
+    value, so it was recorded rather than rebuilt. Doing it properly needs a window in
+    `interest_addback.WINDOWS`, a row in `data/other_revenues.csv`, a row in
+    `data/amortisation_in_cost_lines.csv`, and the cash-flow lines the modules read written
+    from the workbook's own free-cash bridge. The workbook carries one year only.
+18. **Eight companies whose late-stage assets are now being researched have no cost block
+    at all:** argenx, Moderna, Alnylam, Intellia, Exelixis, Revolution Medicines, Neurocrine
+    and Structure. Four are profitable on their own filed lines and can carry their own
+    ratios with a house charge rebuild; Moderna, Intellia, Revolution and Structure are loss
+    making or pre-revenue and take a scaled comparator's ratios with a comparator charge, as
+    Viking does from Lilly. Each block is built only where one of its assets survives
+    verification.
