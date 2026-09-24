@@ -66,6 +66,7 @@ from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.eu_medicines_ema import EuMedicinesFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
+from fetchers.financials_ir import WORKBOOKS as IR_WORKBOOKS, FinancialsIrFetcher
 from fetchers.fx_ecb import FxEcbFetcher
 from fetchers.labels_dailymed import LabelsDailyMedFetcher
 from fetchers.ndc_marketing import NdcMarketingFetcher
@@ -128,6 +129,12 @@ def _company_fetchers(company, db_path):
         # Runs after the filings fetcher, which populates the 10-K/10-Q rows whose
         # documents this one reads for the risk factors and MD&A text.
         fetchers.append(FilingTextEdgarFetcher(company["ticker"], db_path))
+    elif company["ticker"] in IR_WORKBOOKS:
+        # A company with no CIK cannot be reached through EDGAR at all, and two in this
+        # universe have none. Where one publishes a machine-readable statement of its own,
+        # that is the route: Roche's investor Finance Information Tool carries a workbook
+        # holding the income statement, the balance sheet and per-product regional sales.
+        fetchers.append(FinancialsIrFetcher(company["ticker"], db_path))
     return fetchers
 
 
