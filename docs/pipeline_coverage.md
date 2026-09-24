@@ -177,3 +177,68 @@ every one is a correction.
 208 late-stage assets at companies holding five or more still carry nothing, of 397. The
 five largest gaps are NVS 43, GSK 32, ROG 25, LLY 20 and SNY 18. ROG's 25 are blocked on
 item 13 rather than on research.
+
+## Roche unblocked, and half the late-stage gap is not a new medicine, 24 September 2026
+
+**Item 13 is closed.** Roche publishes its own group financial data as a workbook for
+investors to model from, free and without a login, at the Finance Information Tool. It
+holds the IFRS income statement, the consolidated balance sheet and per-product sales split
+by region, and `backend/roche.py` with `backend/fetchers/financials_ir.py` now reads it.
+Roche has 34 group metrics, 23 product revenue rows and 92 regional rows where it had none.
+
+**22 marketed Roche lines now build, worth CHF 101,022mm risk-adjusted, $19.11 an ADR
+against an RHHBY close of $55.06.** That is 35% of the price, the right shape for a company
+whose diagnostics division and pipeline are still unmodelled. The pipeline was always the
+smaller half of the Roche loss: 46 marketed assets earning CHF 47.7bn a year were carried at
+nil.
+
+The parser refuses rather than guesses. Every subtotal in the sheet is the sum of the lines
+above it and the 26 named products sum to the Pharmaceuticals Division's 47,669 exactly, so
+nothing is written for a statement that does not tie. Three traps in the sheet each have a
+test: a label is not unique, so reading the wrong "Amortisation of intangible assets" takes
+core R&D for the IFRS charge; a year appears twice in the header, once over francs and once
+over growth percentages, so the last match reads group sales as 1; and the product sheet
+repeats all 26 products below with quarterly figures, so reading both blocks double counted
+the division by 25%.
+
+**A defect only Roche could have found.** `forecast_view._diluted_shares` falls back to group
+net income over earnings per share where no share count is stored, and Roche's per-share
+figure is struck on earnings attributable to shareholders, so the fallback gave 860.3mm
+against the true 803.0mm. Roche is the only filer in this universe with a material minority
+interest. Writing the count under the name the book already reads moves the per-ADR figure
+from $17.84 to $19.11.
+
+**Bayer is still unvaluable and is now the whole of item 13.** It reports under EU rules
+whose electronic format is inline XBRL rather than a workbook, which is a different parser,
+and no equivalent file has been found. It has 3 unmodelled late-stage assets, so the cost of
+leaving it is small.
+
+**HALF THE LATE-STAGE GAP IS NOT A NEW MEDICINE.** This is the finding that matters most for
+the remaining work, and it inverts the obvious plan. Of the first 87 of 353 non-Roche assets
+classified: 42 NEW, 29 DUPLICATE, 6 LINE_EXTENSION, 8 DEAD, 2 REGIMEN. Researching a price
+and an uptake curve for all 353 would have valued Leqvio, Arexvy, Shingrix, Gardasil 9,
+Cabometyx, Cobenfy, Nurtec and Vyvgart Hytrulo a second time, under a development code or a
+formulation name, and added revenue the book already holds. Of the 42 genuinely new, 6 are
+material.
+
+`backend/stale_pipeline.py` makes the check standing rather than manual. An asset stays at
+`is_marketed = 0` until `approvals_openfda` matches it, and that fetcher matches on the
+company's own sponsor name, so an approval under a licensee, an acquired subsidiary or a
+generic applicant is invisible. Of the 133 unmodelled late-stage assets whose name is shaped
+like an ingredient, 15 already carry an FDA approval: mirvetuximab twice under ImmunoGen,
+cabozantinib under Exelixis, encorafenib under Array, avelumab under EMD Serono, ravulizumab
+under Alexion, ocrelizumab under Genentech, ritlecitinib under Pfizer's own name, linerixibat
+under Intercept, and eltrombopag and decitabine as generics. It reports and changes nothing,
+because whose value it is cannot be read off an approval record: Zydus' eltrombopag is a loss
+of exclusivity for Novartis' Promacta, not an approval Novartis won.
+
+**Three disease pools consolidated, one deliberately not.** Obesity, the largest cluster in
+the book, had no row in `data/epidemiology.csv`: seven assets each carried 107,592,242 and all
+seven agreed, so there was copying to stop rather than drift to repair. Non-small-cell lung
+carcinoma was the same across eight assets and IgA nephropathy across one. Breast Neoplasms
+is left alone because four assets use it for the metastatic HR-positive pool while an
+adjuvant asset needs the early-stage one, so a single row would hand the wrong pool to
+whichever did not write its own. Six aliases were also added, because the lookup was an exact
+string match and the registry names one disease several ways: 18 multiple sclerosis assets
+sat on "Relapsing-Remitting" and "Chronic Progressive" while the file filled only "Multiple
+Sclerosis".
