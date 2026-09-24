@@ -39,8 +39,11 @@ Asset-level:
   off (1 - 1/1.06). A published list price (WAC) takes neither; source its discount. A
   value of 0.7 means net is 30% of list. Check the direction before you write it; three
   earlier seeds had it inverted, and eight had 0.5 on a Part B anchor. A biosimilar is
-  paid its own ASP plus 8% of the reference's (SSA 1847A(b)(8)), so its Part B deduction
-  is that add-on over its own price, not 0.056604 (the ABP 692 seed shows the arithmetic).
+  paid its own ASP plus an add-on of the reference's ASP (SSA 1847A(b)(8): 6%, or 8% for
+  five years for one first paid by 2027-12-31). Its net is the reference's Part B figure
+  / 1.06 x the biosimilar-to-reference ASP ratio whichever way the list is written: a list
+  struck on an ASP ratio takes 0.056604 (the ABP 206 seed); one struck on an allowed-amount
+  ratio takes add-on / (ratio + add-on) (the ABP 692 seed). Never take the add-on twice.
 - `discontinuation_pct`: share of the treated stock stopping per year. For oncology treated
   to progression, derive from median duration of treatment or PFS in the pivotal or
   comparator trial (1 - exp(-12/median_months) per year is acceptable, say so). One course:

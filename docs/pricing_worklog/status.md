@@ -2,7 +2,7 @@
 |---|---|---|
 | ALNY | Nucresiran | held: cannibalises Amvuttra, Alnylam's own TTR silencer |
 | ALNY | Zilebesiran | not started |
-| AMGN | ABP 206 | not started |
+| AMGN | ABP 206 | seeded and built: Opdivo biosimilar |
 | AMGN | ABP 692 | seeded and built: Ocrevus biosimilar |
 | AMGN | Dazodalibep | seeded and built |
 | ARGX | Adimanebart IV | seeded and built |
