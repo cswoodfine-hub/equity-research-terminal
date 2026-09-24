@@ -1,0 +1,93 @@
+{
+ "ticker": "ARGX",
+ "name": "Adimanebart IV",
+ "summary": "Adimanebart (ARGX-119) is argenx's humanised agonist antibody to MuSK, meant to mature and stabilise the neuromuscular junction. The pivotal trial is CoMetS (NCT07746089): Phase 3, randomised, quadruple-blind and placebo-controlled, IV adimanebart in 105 adults and children with DOK7-, MUSK-, AGRN- or LRP4-CMS. The primary endpoint is change in 6MWT at week 24, start 2026-09, primary completion 2030-10. It follows a positive Phase 1b in DOK7-CMS (argenx release 2025-06-30). Price anchor: no drug is approved in CMS, so Vyvgart IV, argenx's own IV antibody at the same synapse, at $231,053 per CMS Part B beneficiary in 2024, less the Part B add-on. Uptake anchor: Vyvgart's solved gMG start rate (0.2156, the book's second-read pozelimab seed) at a 1.0 multiple, applied to a UK-measured genetically confirmed CMS prevalence of 6.5 per million with DOK7 at 19% of cases. The asset is small: unrisked worldwide peak revenue comes to about $60mm around 2040 on these inputs. argenx owes NYU Langone and LUMC low-single-digit royalties.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT07746089 (book trials table: randomised, quadruple-blind, treatment; primary outcome 'Change from baseline at week 24 in 6MWT distance'); argenx release 2025-06-30 (argenx.com/news/2025/press-release-3107132) describes the Phase 3 as placebo-controlled 'with an Open-Label Extension'; a subcutaneous formulation is in a Phase 1 bioavailability study (NCT07673601, context file)",
+   "note": "CMS is a lifelong genetic disorder. A receptor agonist works only while exposure lasts, so dosing continues as maintenance, and the open-label extension and the SC formulation in development both point that way. The dosing interval is not public"
+  },
+  "list_price_per_patient": {
+   "value": 0.231053,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Vyvgart: CMS Medicare Part B 2024, $416,589,120.90 over 1,803 beneficiaries = $231,053 per beneficiary. The same anchor the book's nipocalimab seed uses",
+   "note": "Judgement on the comparator. No drug is approved in CMS: argenx says there are no approved treatments for DOK7-CMS (release 2025-06-30), and amifampridine failed its Phase 3 in CMS (practicalneurology.com, 'Treatment for Congenital Myasthenic Syndromes Fails to Meet Primary Endpoint in Phase 3 Clinical Trial'). Vyvgart IV is argenx's own IV antibody for a disease of the same synapse, and neuromuscular specialists prescribe both. Both are physician-infused and billed under Part B, which fits a Part B anchor. Case for higher: CMS is ultra-rare, about 2,200 US patients against 82,715 with MG (the book's pool), and ultra-orphan neuromuscular drugs sell for more. Evrysdi, in SMA, where adimanebart is also in Phase 2, reads $328,087 per Part D beneficiary in 2024; Ultomiris reads $330,448 per Part B beneficiary; Vyvgart itself reads $254,275 per Part D beneficiary (all lookup.py demand). Case for lower: 124 of 442 UK patients are children (Rossini 2025), and weight-based dosing would use less drug per child"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house convention for a CMS Part B anchor (backend/gross_to_net.py): Part B pays 106% of average sales price, and ASP is already net of discounts, so only the add-on comes off: 1 - 1/1.06. The nipocalimab and pozelimab seeds use the same value on Part B anchors",
+   "note": "Direction checked: 5.66% off list, so net is $217,975 per patient-year. Part B holds because CoMetS doses adimanebart IV. Case against: if the SC formulation in Phase 1 (NCT07673601) were the commercial product, it would move to pharmacy benefit, where the house 0.5 applies. The population is also young (median age 29 in the UK cohort), so Medicaid and commercial rebates, which sit outside ASP, would weigh more than in gMG"
+  },
+  "discontinuation_pct": {
+   "value": 0.270399,
+   "unit": "share of the treated stock stopping per year",
+   "source": "reused from the book's pozelimab + cemdisiran seed (second-read, confirmed): Tammam et al., J Neuromuscul Dis 2026, PMID 41904994, doi:10.1177/22143602261437792. Of 48 gMG patients in the French zilucoplan early-access programme, 3 stopped for lack of efficacy and 4 for adverse events within six months: 1 - (41/48)^2 = 0.2704 a year",
+   "note": "Judgement: no persistence data exist for any CMS therapy, since none is approved. The book's gMG figure counts only stops for non-response and adverse events, the reasons that would apply in a genetic disease with no remission. Case for lower: CMS does not remit and has no approved alternative, so a responder has no reason to stop. The pozelimab second read bracketed gMG persistence down to 0.142. Case for higher: IV infusion burden in children, and the book's nipocalimab seed uses 0.5 for real-world anti-FcRn persistence. That gMG figure includes stopping in remission, which CMS lacks"
+  },
+  "forecast_start_year": {
+   "value": 2032,
+   "unit": "year",
+   "source": "NCT07746089 primary completion 2030-10, start 2026-09 (context file; book trials table)",
+   "note": "Judgement on the review timeline. Readout around the end of 2030 and a BLA in 2031. Orphan status would allow a priority review, putting approval around late 2031, so 2032 is the first full year. This is the same PCD-to-first-full-year gap the vepugratinib seed uses (PCD 2029-10 to 2031). Not announced by argenx. Case for later: a standard review, or a 105-patient trial across four genotypes enrolling slowly"
+  },
+  "exus_multiple": {
+   "value": 0.1747,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Vyvgart franchise, argenx FY2025 20-F (0001697862-26-000032): product net sales US $3,533.9mm; Japan $206.8mm, China $67.9mm, rest of world $342.6mm. (206.8 + 67.9 + 342.6) / 3,533.9 = 0.1747. The value the book's riliprubart and pozelimab seeds carry (second-read confirmed in the pozelimab seed)",
+   "note": "Judgement: argenx's own filed split for its neuromuscular franchise, the closest evidence of how argenx sells outside the US. Case for higher: CMS diagnosis is well organised in Europe (the UK Oxford national service, the French 23-centre network in Theuriet 2024), and the DOK7 c.1124_1127dup founder variant is European. Ultra-orphan drugs often sell relatively more outside the US than gMG drugs do. Case for lower: 'China' in the filed split is supply to Zai Lab, not end-market sales"
+  },
+  "economics_share": {
+   "value": null,
+   "unit": "share",
+   "source": "argenx FY2024 20-F (0001697862-25-000024), 'Our Exclusive Licenses with NYU Langone Health and LUMC for ARGX-119': 'Under the NYU and LUMC Agreements, as amended, we are obligated to make milestone payments upon the occurrence of certain development milestones, commercialization milestones and pay tiered royalties on net sales in the low single digits.' argenx FY2025 20-F (0001697862-26-000032), patents: 'With regard to the adimanebart product candidate, we in-licensed patent families from/with New York University Langone Health ... and additional patent families from/with the Leiden University Medical Centre' (both read from the book's filing_sections)",
+   "note": "Left null. argenx owns and develops the asset outright, but it pays a royalty, which the house rule nets as (margin - royalty) / margin. That cannot be computed on two counts. The rate is disclosed only as 'tiered ... low single digits'. The book holds no argenx cost rows (lookup.py seed on every ARGX asset returns none). Bounds, for when the cost rows exist: on argenx FY2025 filed lines in the book's financials table (revenue $4,151.3mm, cost of revenue $450.7mm, SG&A $1,367.1mm, R&D $1,364.1mm), margin before any other-costs row is 0.2335. That gives 0.9572 at a 1% royalty and 0.8715 at 3%. On the pozelimab seed's precedent of taking the floor of a stated range, the floor here is 1%. There is no co-commercialisation partner, so the share is not a refusal case. Any Halozyme ENHANZE royalty would apply to an SC product only; CoMetS doses IV"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Myasthenic Syndromes, Congenital",
+   "fields": {
+    "prevalence": {
+     "value": 2222,
+     "unit": "patients",
+     "source": "Rossini E et al., 'Prevalence and Geographical Distribution of Patients With Congenital Myasthenic Syndromes in the United Kingdom', Muscle Nerve 2025, PMID 41251564, PMC12690014, doi:10.1002/mus.70063. There were 442 living, genetically confirmed patients on 2023-12-31, a prevalence of 6.5 per million (95% CI 5.9-7.2). Applied to the US resident population of 341,784,857 on 2025-07-01 (Census Bureau Vintage 2025, census.gov/data/tables/time-series/demo/popest/2020s-national-total.html): 6.5 x 341.78 = 2,222",
+     "note": "Judgement: a UK rate transferred to the US, since no US prevalence study was found. lookup.py pool returns nothing for this indication, so the book carries no competing figure. A genetically confirmed count fits a label that requires a genotype. Case for higher: the same study finds 8.8 per million in regions with a specialised neuromuscular service against 5.9 elsewhere, and reads that as underdiagnosis. Case for lower: argenx puts CMS at about 5 per million (release 2025-06-30, via search, page not opened), Turkey measures 4.49 (PMID 41059415), Belgium 3.19 (PMID 38964204) and Austria 3.1. Prevalence and incidence differ here, so the engine keeps its default carryover of 1.0. That is right for a lifelong genetic disease: an untreated patient stays eligible"
+    },
+    "incidence": {
+     "value": 215,
+     "unit": "patients per year",
+     "source": "Inan et al., 'Epidemiological study of congenital myasthenic syndromes based on national electronic health database of Turkiye', North Clin Istanb 2025, PMID 41059415, PMC12497907, doi:10.14744/nci.2025.08455: '0.63' new cases per million in 2023 (406 patients with at least three ICD-10 G70.2 entries, 2015-2024). 0.63 x 341.78 = 215 US a year",
+     "note": "Judgement: the only national CMS incidence figure found, applied to the US population. It counts new coded diagnoses, which is the inflow to a diagnosed pool, rather than births. Case for lower: the same registry reports 0.28 to 0.59 per million over 2016 to 2023, so 2023 is the high point. The diagnoses are coded, not genetically confirmed. Turkey's consanguinity raises recessive disease rates. Case for higher: UK underdiagnosis (above) and argenx's natural-history study (NCT06078553) and awareness work may speed genetic diagnosis once a therapy exists. The engine filters it by eligible_pct, about 41 US DOK7 diagnoses a year"
+    },
+    "eligible_pct": {
+     "value": 0.19,
+     "unit": "share of the pool",
+     "source": "Rossini et al., Muscle Nerve 2025 (PMID 41251564, PMC12690014), the same cohort as the prevalence: of 442 UK patients, mutations in the AChR/CHRNE group, DOK7 and RAPSN were most common, at 37%, 19% and 16%. The full-text sentence italicises the gene names; the abstract names 'CHRNE deficiency, DOK7, RAPSN' in that order. Cross-checks: DOK7 was 44 of 235 (18.7%) in the French adult cohort (Theuriet et al., Brain 2024, PMID 38696726, doi:10.1093/brain/awae124). UK 6.5 x 0.19 = 1.24 DOK7 patients per million, against argenx's 1.2 per million (release 2025-06-30, via search)",
+     "note": "Judgement, and a floor on the label. The label population is CoMetS's four genotypes. DOK7 is the only one the UK text quantifies. MUSK, AGRN and LRP4 are left out: Engel et al. (Lancet Neurol 2015, PMID 25792100, PMC4520251) count six reports of MUSK-CMS, three of agrin deficiency and one LRP4 patient. The French cohort's heat map, which by its methods includes only genotypes with at least four patients, carries MUSK and AGRN, so each is at least 1.7% of French adults. Case for higher: adding those two gives about 0.22, and argenx's own figure for DOK7 is about 24% of CMS (release 2025-06-30, via search). Case for lower: a 6MWT primary endpoint implies ambulatory patients. If the label or payers follow the entry criteria, non-ambulatory and ventilated patients may be excluded; at last visit 36.3% of French DOK7 adults used a wheelchair (Theuriet 2024). The age floor of CoMetS could not be read, since ClinicalTrials.gov is blocked here and the Amass quota is exhausted"
+    },
+    "penetration_peak_pct": {
+     "value": 0.215606,
+     "unit": "share of the eligible untreated pool starting per year at peak",
+     "source": "Vyvgart's solved gMG start rate, from the book's pozelimab + cemdisiran seed (second-read, confirmed). argenx reached 'more than 10,000 patients' in gMG in 2024 (FY2024 20-F, 0001697862-25-000024). Through the engine with Vyvgart's own inputs (pool 82,715 x 0.6549 x 1.153, curve k 0.5633 and midpoint 2.0 from 2022, discontinuation 0.5), the 2024 stock is 0.7426 x peak x 62,458. The peak that gives 10,000 is 0.2156",
+     "note": "Judgement: a 1.0 multiple on the start rate of argenx's own neuromuscular launch, reaching the same specialists. No drug has launched in CMS to measure against. The start rate is kept rather than Vyvgart's stock share, because persistence is set separately. Scaling to Vyvgart's stock share at this discontinuation would give 0.2156 x 0.2704/0.5 = 0.1166, the case for lower. Other points for lower: a genotype is needed first, IV infusions for children, and DOK7 patients already respond to off-label salbutamol or ephedrine (Engel 2015). Case for higher: this would be the first and only approved CMS therapy, in a small, concentrated, specialist-managed population already identified through argenx's natural-history study. On these inputs about 235 US patients are on therapy at the 2040 plateau, 56% of the 422 US eligible"
+    },
+    "ramp_steepness": {
+     "value": 0.5633,
+     "unit": "logistic k",
+     "source": "reused from the book's nipocalimab and pozelimab seeds (second-read confirmed in the latter): fitted to Vyvgart and Vyvgart Hytrulo Medicare beneficiaries across Parts B and D, 1,397 in 2022, 2,561 in 2023, 4,310 in 2024 (lookup.py demand Vyvgart)",
+     "note": "Judgement: argenx's own neuromuscular launch curve, kept identical to the curve that solved the peak so that the two agree. The book has no ultra-rare genetic launch curve. Case for faster: a few hundred patients at a few specialist centres can be reached quickly"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.0,
+     "unit": "years from forecast_start_year",
+     "source": "reused from the book's nipocalimab seed: Vyvgart had 2,561 of its 4,310 2024 Medicare beneficiaries in 2023, its second year (lookup.py demand Vyvgart)",
+     "note": "Same curve as ramp_steepness. forecast_start_year 2032 is already the first full year after the expected approval, so no extra shift is added"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

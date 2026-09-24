@@ -1,0 +1,105 @@
+{
+ "ticker": "AMGN",
+ "name": "ABP 206",
+ "summary": "ABP 206 is Amgen's proposed biosimilar to Opdivo (IV nivolumab). The comparative Phase 3 is NCT06054555: randomised, double-blind, 633 patients with untreated unresectable or metastatic melanoma, objective response by week 49, primary completion 2028-01-25. Amgen has already filed the BLA, and BMS and Ono sued on 2026-09-08 over seven patents. US entry is gated by Opdivo's 2028 loss of exclusivity, so 2029 is the first full year. Price anchor: Opdivo's CMS Part B 2024 figure of $71,752 per beneficiary, times 0.878. That is the biosimilar-to-reference ASP ratio that Amgen's own oncology biosimilars Mvasi and Kanjinti held in their first full year (2020). Their measured ASP erosion of 23% a year after that is carried as a net price decline. Uptake anchor: Amgen's first-mover share in Medicare, with Kanjinti at 39.6% of trastuzumab claims in December 2020 (Health Affairs 2023) and Mvasi at about 39% of bevacizumab in 2021. The ramp is fitted to bevacizumab biosimilar share in Medicare Part B (31.9% in 2020, 57.5% in 2021, 61.3% in 2023; JCO OP 2026). The pool is Opdivo's own IV-treated US patients across all its labelled indications, not a disease. It is expressed against the book's melanoma figure only because the indication name must be Melanoma.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Opdivo USPI (DailyMed setid f570b9c4-6846-4de2-abfa-4d0a4ae4e394, version 68, Aug 2026): 240 mg every 2 weeks or 480 mg every 4 weeks, given until disease progression or unacceptable toxicity (adjuvant use up to 1 year). A biosimilar takes the reference product's dosing. NCT06054555 (book trials table) is a comparative study in unresectable or metastatic melanoma with objective response by week 49 as its primary outcome",
+   "note": "Oncology treated to progression, so chronic by the house definition"
+  },
+  "list_price_per_patient": {
+   "value": 0.062987,
+   "unit": "mm USD per patient-year",
+   "source": "Opdivo: lookup.py demand Opdivo, CMS Part B 2024: $1,933,800,338 over 26,951 beneficiaries = $71,752 per beneficiary. Discount: lookup.py demand, Part B spending per dosage unit in 2020, the first full year after Amgen launched both products in July 2019 (Amgen release 'MVASI and KANJINTI now available in the United States', investors.amgen.com). Mvasi $62.43 against Avastin $70.86, and Kanjinti $81.55 against Herceptin $91.78. These are converted to ASP by the Part B payment rule: the reference product is paid at ASP + 6%, and a biosimilar at its own ASP + 6% of the reference's ASP (Social Security Act 1847A(b)(8)). Reference ASP is 66.85 and 86.59; biosimilar ASP is 62.43 - 0.06 x 66.85 = 58.42 and 81.55 - 0.06 x 86.59 = 76.35. ASP ratios are 0.8739 (Mvasi) and 0.8818 (Kanjinti), mean 0.8778. $71,752 x 0.8778 = $62,987",
+   "note": "Judgement on construction: this asks for Opdivo's Part B figure less a biosimilar discount. The discount (12.2% off in the first full year) is the one Amgen's own IV oncology biosimilars took, measured in Medicare. The value is Opdivo's Medicare allowed amount per beneficiary scaled by the net-to-net (ASP) ratio. The house Part B deduction in gross_to_net_pct then lands the net price on the biosimilar's ASP, $59,422. It is not ABP 206's own Medicare allowed amount, which would carry an add-on of 6% of the reference's ASP. Check: Horn et al. (JCO Oncol Pract 2023;19(4):e476, doi:10.1200/OP.22.00639, PMID 36638330) find the first trastuzumab biosimilar priced 15% below the originator in 2019, its partial launch year. The allowed-amount ratios without the ASP conversion are 0.881 and 0.8885, a list of $63,486. The case against: Opdivo's per-beneficiary figure has risen every year ($62,577 in 2020 to $71,752 in 2024) and no inflation to the 2029 launch is applied. A beneficiary's spend covers about 0.37 of a year's labelled dose (see discontinuation_pct), so this is a price per patient treated in a year, not per full year on drug. The price erosion after launch is carried separately in net_price_decline_pct"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part B anchor (backend/gross_to_net.py): Part B pays 106% of ASP, so 1 - 1/1.06 comes off. Opdivo's beneficiaries sit in Part B (lookup.py demand Opdivo: Part B 26,951 beneficiaries against Part D 690 in 2024)",
+   "note": "Direction checked: 0.0566 is the share off list, so net is 94.3% of list, $59,422 per patient-year, which equals Opdivo's ASP-basis per-beneficiary figure ($67,691) x 0.8778. Medicaid rebates and 340B discounts sit outside ASP and are not deducted, which is the case for a larger deduction"
+  },
+  "net_price_decline_pct": {
+   "value": 0.2308,
+   "unit": "annual share of net price lost, nominal as measured",
+   "source": "lookup.py demand, Part B spending per dosage unit converted to ASP as in list_price_per_patient. The biosimilar add-on is 6% of reference ASP to September 2022 and 8% from October 2022 for a qualifying biosimilar (Inflation Reduction Act s.11403); 2022 is taken at 6.5%. Mvasi ASP $58.42 (2020), $47.11, $30.30, $23.37, $20.45 (2024): 1 - (20.45/58.42)^(1/4) = 23.1% a year. Kanjinti $76.35 (2020) to $12.24 (2024): 36.7% a year",
+   "note": "Judgement on which comparator. This field is not in the brief's list, but the engine reads it (forecast._price_factor), and a biosimilar's defining economics is its price erosion after launch: Mvasi's ASP fell to 30% of Avastin's by 2024 and Kanjinti's to 17% of Herceptin's. Leaving it null would hold the launch price flat for the whole horizon, the most aggressive reading. Mvasi's rate is taken rather than the 29.9% mean of the two, because the engine compounds one constant rate across the horizon and declines slow after year four. Pfizer's filgrastim biosimilar Nivestym, in the book, fell 32% per unit (allowed basis) in its third full year (2021) and 11 to 14% a year in its fourth to sixth (2022-2024). Mvasi also held its Medicare volume (12,306 beneficiaries in 2020, 13,212 in 2024), where Kanjinti's fell from 7,550 to 3,365 against the four other trastuzumab biosimilars marketed by 2022 (Horn et al.). The case for faster: Kanjinti's 36.7%, and a crowded first wave of PD-1 biosimilars. The case for slower: Kim et al. (JCO Oncol Pract 2026, doi:10.1200/OP-26-00259) put the bevacizumab biosimilar mean allowed amount at $69.70 (2019) and $33.36 (2023), 16.8% a year on the allowed basis. The engine freezes this at the LOE year it assumes for an unlaunched biologic (launch plus 12)"
+  },
+  "discontinuation_pct": {
+   "value": 0.6256,
+   "unit": "share of the treated stock stopping per year",
+   "source": "lookup.py demand Opdivo, CMS Part B 2024: 62,964,187 dosage units over 26,951 beneficiaries = 2,336 mg per beneficiary. HCPCS J9299 is 'injection, nivolumab, 1 mg' (AAPC; SEER CanMED). A full labelled year is 6,240 mg (240 mg x 26 or 480 mg x 13; Opdivo USPI), so a beneficiary averages 0.3744 of a year on drug, and 1 - 0.3744 = 0.6256. The ratio is stable across 2020-2024 (0.392, 0.382, 0.382, 0.378, 0.374)",
+   "note": "Judgement on method. The pool is Opdivo's own patients across every indication, so this is measured on them rather than taken from one melanoma trial's median. Under a constant hazard, the share of a year's treated patients (beneficiaries) still on drug into the next year equals the patient-years per beneficiary, 0.374. The engine's stock (S = S x (1-d) + new) is then the count of beneficiaries that the per-beneficiary price is quoted on. The implied hazard is 1.67 a year, a median time on drug of 5.0 months. The brief's median form, 1 - 0.5^(12/5.0), gives 0.812; the difference is that it counts the stock at a point in time rather than across a year. eligible_pct is built from this value (new starts = beneficiaries x 0.6256), so changing one without the other moves the steady-state patient count. The case against: dose holds, weight-based doses and the 1 mg/kg nivolumab induction with ipilimumab lower mg per patient-year and overstate stopping; fixed one-year adjuvant use understates it"
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "BMS FY2025 10-K (0000014272-26-000004), Estimated Minimum Market Exclusivity table: Opdivo US 2028, EU 2030, Japan 2031 (data/disclosed_loe.csv, disclosed_loe_regions.csv). Amgen has submitted the BLA, with a decision expected 'by the end of the year' and Amgen 'confident that ABP 206 will be in the first wave of Opdivo biosimilars' (Fierce Pharma, 'BMS, Ono take Amgen to task as FDA's Opdivo biosimilar decision looms', Sept 2026). BMS and Ono filed a BPCIA suit in D. Del. on 2026-09-08 asserting seven patents, including US 8,008,449 on nivolumab's sequence (Big Molecule Watch 2026-09-18; Goodwin). The 12-year reference product exclusivity ends 2026-12-22 (Purple Book, book exclusivities table)",
+   "note": "Judgement. Launch is clearly later than 2027: patents gate entry to 2028, the month is not disclosed, and 2029 is the first full year on market. NCT06054555's primary completion (2028-01-25) does not gate launch later than that, since the BLA is already filed; a PK-similarity Phase 3 in resected melanoma (256 patients) was reported complete in October 2025 (Insider Monkey / Yahoo Finance, 'Amgen Completes Phase 3 Trial for ABP 206 Opdivo Biosimilar Candidate'; not in the book's trials table). The case for later: the six method patents in suit (dosing regimens, combination with ipilimumab, PD-L1 selection) could delay entry or force label carve-outs. Orphan exclusivity on one Opdivo indication runs to 2031-04-13 (Purple Book). The case for earlier: none, since BMS dates exclusivity to 2028"
+  },
+  "exus_multiple": {
+   "value": 0.3455,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "MVASI FY2025: ROW $198mm against US $573mm (Amgen FY2025 10-K 0000318154-26-000010, product sales table; Q4 2025 8-K 0000318154-26-000003). 198 / 573 = 0.3455",
+   "note": "Judgement on the comparator: Amgen's own IV oncology biosimilar with a filed US/ROW split (Kanjinti is reported only inside 'other products'). The case for higher: MVASI's ratio was 0.566 in 2023 ($289mm / $511mm) and 0.619 in 2024 ($278mm / $449mm), 0.499 pooled over three years. The case for lower: Opdivo's exclusivity runs to 2030 in the EU and 2031 in Japan (BMS 10-K), two to three years after the US, and the engine applies the multiple from year one. MVASI's ROW sales also fell 29% in 2025 under tender pricing"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Amgen FY2025 10-K (0000318154-26-000010) pipeline: 'ABP 206, a biosimilar candidate to OPDIVO' listed as Amgen's own with no collaborator named (collaborations are named in the same table, e.g. TEZSPIRE with AstraZeneca). Amgen is lead sponsor of NCT06054555, and the BMS/Ono BPCIA suit names Amgen alone",
+   "note": "No partner found in filings or search. Legal costs of the patent suit are not in this field"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Melanoma",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: 112,000 (intismeran autogene / mRNA-4157 seeds, 'new US melanomas of the skin estimated for 2026, American Cancer Society via SEER')",
+     "note": "Carried by the book, so no second figure is set. The pool is not melanoma patients: see eligible_pct"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: 112,000 (same seeds and source)",
+     "note": "Carried by the book"
+    },
+    "eligible_pct": {
+     "value": 0.3904,
+     "unit": "share of the book's melanoma incidence",
+     "source": "Opdivo's new IV patient starts per year in the US: 43,723, over the book's 112,000 = 0.3904. Built from (1) BMS FY2025 10-K (0000014272-26-000004): Opdivo US revenue $5,350mm in 2024, over Opdivo's 2024 Part B figure on an ASP basis ($71,752 / 1.06 = $67,691; lookup.py demand), giving 79,036 US patients treated in the year. Medicare fee-for-service is 26,951 of these, 34%. (2) The IV share of US nivolumab revenue in H1 2026: Opdivo $2,575mm against Opdivo Qvantig (subcutaneous, which a biosimilar of the IV product cannot substitute) $337mm, so 88.4% (BMS Q2 2026 10-Q 0000014272-26-000020). 79,036 x 0.884 = 69,889. (3) New starts are beneficiaries x discontinuation_pct: 69,889 x 0.6256 = 43,723",
+     "note": "The pool is Opdivo's own treated patients, not a disease. A biosimilar takes the reference product's patients across every labelled indication it is extrapolated to (lung, kidney, bladder, gastro-oesophageal, liver, melanoma and others), not the melanoma population its similarity trial enrolled. Melanoma is used only because the indication name must be one from the context. The share is a scaling of the book's melanoma incidence to Opdivo's IV new starts, not a melanoma eligibility filter, and the Phase 3's entry criteria do not apply. With untreated_carryover_pct 0, the engine's steady-state treated stock at 39% penetration is 0.39 x 69,889 = 27,257 US patients, before the ex-US multiple. The case for higher: BMS's net revenue per patient sits below ASP because of Medicaid rebates and 340B, so 79,036 understates patients. The case for lower: Qvantig's share was still rising in 2026 (12.7% of US nivolumab revenue in Q2 2026, $206mm against $1,417mm) and BMS will convert more before 2028. Opdualag (nivolumab with relatlimab) is a separate product and is excluded"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.0,
+     "unit": "share",
+     "source": "forecast.py convention for a flow pool (patients_for_indication): each year's eligible patients are that year's new Opdivo IV starts",
+     "note": "A patient who starts on reference Opdivo or another biosimilar in a year is not available to ABP 206 as a new start the next year. The book's pool has prevalence equal to incidence, so the engine would already set this to 0; it is stated so the result does not change if the book's melanoma prevalence is ever set to the living population. The engine cannot model switching of patients already on treatment, which the real oncology biosimilar launches did; see ramp_steepness"
+    },
+    "penetration_peak_pct": {
+     "value": 0.39,
+     "unit": "share of each year's eligible patients",
+     "source": "Kanjinti, Amgen's first-to-market trastuzumab biosimilar, held 39.6% of Medicare trastuzumab claims by December 2020, against Herceptin's 45.3% (Chen et al., 'Cancer Drug Trastuzumab And Its Biosimilars Compete On Price For Market Share', Health Aff 2023;42(6):779-784, doi:10.1377/hlthaff.2022.01448, PMID 37276475, Medicare claims 2019-2020). Cross-check on Mvasi: bevacizumab biosimilars held 57.5% of Medicare Part B in 2021 (Kim et al., JCO Oncol Pract 2026, doi:10.1200/OP-26-00259, PMID 42413074). Mvasi had 15,239 of the 22,574 Medicare beneficiaries on the only two bevacizumab biosimilars then marketed (Zirabev 7,335; lookup.py demand), 67.5%, and 0.575 x 0.675 = 38.8%",
+     "note": "Judgement: multiple of 1.0 on Amgen's own measured first-mover share of the molecule in Medicare, from two products that agree at 39%. This is ABP 206's share, not the whole biosimilar class, which reached 61.3% of bevacizumab in Medicare Part B by 2023 (Kim et al.). It assumes ABP 206 is in the first wave, which Amgen states (Fierce Pharma, Sept 2026). The case for lower: a first mover's share erodes as later entrants undercut. Kanjinti's Medicare beneficiaries fell from 7,550 (2021) to 3,365 (2024), and Mvasi's share of biosimilar beneficiaries fell to at most 51% by 2023 as Alymsys and Vegzelma entered. The engine holds this share flat. Patent carve-outs, BMS contracting and the move to Qvantig all push the same way. The case for higher: Amgen reported Mvasi at 44% of US bevacizumab in Q3 2020 across all payers (Center for Biosimilars), and commercial payers can mandate biosimilars"
+    },
+    "ramp_steepness": {
+     "value": 2.64,
+     "unit": "logistic k",
+     "source": "Fitted to bevacizumab biosimilar share of Medicare Part B, Kim et al. (JCO Oncol Pract 2026, doi:10.1200/OP-26-00259): 0.5% in 2019 (launch in July), 31.9% in 2020, 57.5% in 2021, 61.3% in 2023. Normalised to the 61.3% plateau, the first full year (2020) is at 0.520 and the second at 0.938 of peak. logit(0.938) - logit(0.520) = 2.717 - 0.082 = 2.64",
+     "note": "Judgement: a measured class curve for an IV oncology biosimilar in Medicare, used because the book has no modelled biosimilar. The branded-launch curves it carries (Enhertu, k 1.08) are too slow for buy-and-bill substitution. It is the steepest k in the book. Amgen's own products peaked as fast or faster: Medicare beneficiaries went from 12,306 to 15,239 for Mvasi and 6,950 to 7,550 for Kanjinti between the first and second full years (lookup.py demand). The engine applies the curve to new starts only, while the observed share included switching patients already on the reference. The modelled stock therefore lags the observed ramp in years one and two, which understates early revenue. The case for slower: Horn et al. (doi:10.1200/OP.22.00639) show trastuzumab biosimilars at 7% of Medicare in their first year and 32% in their second, and litigation could stage entry"
+    },
+    "ramp_midpoint_year": {
+     "value": -0.03,
+     "unit": "years from forecast_start_year",
+     "source": "Same fit: midpoint = -logit(0.520) / k = -0.082 / 2.64 = -0.03, so half of peak is reached in the first full year (2029), as the bevacizumab biosimilars did in 2020",
+     "note": "Effectively zero. A small negative midpoint is allowed by the engine; the book's seeds already carry -0.2"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

@@ -43,7 +43,7 @@
 | LNTH | [18F]PI-2620 | not started |
 | MRNA | mRNA-1018-H5 | refused: pandemic stockpile vaccine, no per-patient price |
 | NBIX | NBI-1065845 | seeded and built: first Neurocrine cost block |
-| NBIX | NBI-1117568 | not started |
+| NBIX | NBI-1117568 | seeded and built: schizophrenia pool held stationary |
 | NTLA | Biological NTLA-2002 | not started |
 | NTLA | nexiguran ziclumeran | not started |
 | NVO | Etavopivat | seeded and built |

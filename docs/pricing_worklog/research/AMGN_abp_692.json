@@ -1,0 +1,93 @@
+{
+ "ticker": "AMGN",
+ "name": "ABP 692",
+ "summary": "ABP 692 is Amgen's own proposed biosimilar to Ocrevus (ocrelizumab), an anti-CD20 antibody infused twice a year. The Phase 3 is NCT06700343: a randomised, double-blind PK/PD similarity study against US and EU Ocrevus in 152 patients with relapsing-remitting MS. Its primary endpoint is AUC to day 15, and primary completion is estimated for 2027-04-19. Price anchor: Ocrevus at $56,845 per CMS Part B beneficiary in 2024, times 0.520, which is what Medicare paid per 10 mg unit of Amgen's Riabni against Rituxan in 2024. That gives $29,557 a year, or $25,266 net once the biosimilar add-on is taken off. Uptake anchor: rituximab biosimilars took 60% of Medicare Part B rituximab claims in 2022 (Qian, AJMC 2024). Amgen is given a third of that class share, one of three developers with a comparative trial running. The reach is the ocrelizumab-treated 9.2% of the book's 913,925 MS pool. US launch follows the 12-year exclusivity ending 2029-03-28 (Purple Book), so 2030 is the first full year.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Ocrevus label dosing (BLA 125877): 600 mg IV every 6 months after a split first dose. The book's frexalimab price row notes that Ocrevus maintenance is two infusions a year. A biosimilar carries the reference's dosing",
+   "note": "A disease-modifying therapy given indefinitely"
+  },
+  "list_price_per_patient": {
+   "value": 0.029557,
+   "unit": "mm USD per patient-year",
+   "source": "Two book rows. (1) lookup.py demand Ocrevus: CMS Part B 2024, $668,719,044 over 11,764 beneficiaries = $56,845 per beneficiary, the figure the book's frexalimab seed also uses. (2) The per-unit price discount of Amgen's own marketed anti-CD20 biosimilar (lookup.py demand Riabni / Rituxan). In CMS Part B 2024, Riabni (Q5123, 10 mg units) was $92,447,260 over 2,331,225 units = $39.656 per unit. Rituxan (J9312, 10 mg units) was $436,980,635 over 5,729,505 units = $76.268. The ratio is 0.5200. $56,845 x 0.5200 = $29,557",
+   "note": "Judgement on the discount comparator and year. Riabni is the closest analogue in the book. It is Amgen's own biosimilar, and like ABP 692 it copies an infused anti-CD20 antibody paid under Part B. The seeds suggested for Pavblu, Wezlana and Bkemv are empty in this book, and none of the three has a Part B row in drug_demand. 2024 is Riabni's fourth full year. Its ratio to Rituxan fell from 0.899 (2021) to 0.655 (2022), 0.561 (2023) and 0.520 (2024), so a flat price at the year-4 level understates the early years. It overstates the late years: Ruxience, the first-wave rituximab biosimilar, was down to 0.264 of Rituxan per unit by 2024. The same test on Amgen's other Part B biosimilars in 2024, per 10 mg unit, gives a range. Avsola against J1745 infliximab is 0.730. Mvasi against Avastin is 0.36, but Avastin's Part B units include intravitreal eye use, so that ratio is not clean. Kanjinti against Herceptin is 0.23. Published erosion points the same way. Qian (AJMC 2024, PMID 39745502) finds the rituximab biosimilars' Part B spending per dosage unit fell 15% to 26% in 2022 alone. Kim et al. (JCO Oncol Pract 2026, PMID 42413074) put bevacizumab biosimilars 52.2% below the originator per administration by 2023. The Ocrevus per-beneficiary figure is 89% of a full patient-year (its beneficiaries take 1.78 infusions against a maintenance two). This follows the house per-beneficiary convention; the frexalimab seed makes the same point"
+  },
+  "gross_to_net_pct": {
+   "value": 0.145151,
+   "unit": "share taken off list",
+   "source": "SSA section 1847A(b)(8), as amended by IRA section 11403 (CMS, 'Frequently Asked Questions: Inflation Reduction Act', cms.gov/files/document/biosimilar-faqs.pdf). Medicare pays a qualifying biosimilar its own ASP plus 8% of the REFERENCE product's ASP, not 6% of its own. So the Riabni-derived figure carries an add-on of 8% of Rituxan's ASP. Rituxan's ASP is $76.268 / 1.06 = $71.951 per unit, and 8% of it is $5.756. $5.756 / $39.656 = 0.1452 off the Part B figure",
+   "note": "Judgement: this departs from the house 0.056604 for a Part B anchor, on the same principle (take the Part B figure back to ASP, which is already net of discounts). A biosimilar's add-on is set on the reference's ASP, and at about half the reference's price that add-on is a larger share of its own payment. Direction checked: 0.1452 off list, so net is $29,557 x 0.8548 = $25,266 per patient-year. That is 47.1% of Ocrevus's ASP of $53,627. The case against: the house 0.056604 would give a net of $27,884, 10% higher. The 8% add-on runs only for biosimilars first paid by 2027-12-31. A 2029 launch reverts to 6% of the reference ASP, which changes the Part B payment (the list) but not the ASP (the net)"
+  },
+  "discontinuation_pct": {
+   "value": 0.134,
+   "unit": "share of the treated stock stopping per year",
+   "source": "Pardo G et al., Neurology and Therapy 2022;11:337-351 (PMID 35020156, doi:10.1007/s40120-021-00319-3). IBM MarketScan Commercial and Medicare Supplemental, 524 ocrelizumab initiators: 75% persistent at 24 months (no switch and no gap of 60 days or more). 1 - 0.75^(1/2) = 0.134 a year",
+   "note": "The biosimilar's patients are ocrelizumab patients, so ocrelizumab's own persistence applies, not the 28.6% ofatumumab figure the frexalimab seed uses. The case for lower: Engmann et al., JMCP 2021 (PMID 33624535, doi:10.18553/jmcp.2021.20413) find 8% of ocrelizumab starters in PharMetrics Plus stop within 12 months and 17% within 18 months (11.7% a year). The case for higher: both studies are Genentech-funded. A biosimilar also loses some patients back to the reference: in oncology, 1.2% switched from a biosimilar to the reference within 12 months (Liu et al., JAMA Oncol 2026, PMID 42658505)"
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "Purple Book in the book (exclusivities table, Ocrevus asset 563): reference product exclusivity (12 years) expires 2029-03-28, and FDA cannot make a biosimilar licence effective before then. BR&R, 'The Early Outlook for Ocrelizumab Biosimilars', 2025-10-21 (biosimilarsrr.com/2025/10/21/the-early-outlook-for-ocrelizumab-biosimilars/): Ocrevus was first approved on 28 March 2017, exclusivity runs through March 2029, and the primary US patent expires after October 2028. NCT06700343 primary completion 2027-04-19, estimated (book trials table)",
+   "note": "Judgement on timing. A PK/PD readout in 2027 leaves time to file and be approved before the exclusivity date, so launch is expected in 2029 and 2030 is the first full year. The curve starts in 2030, so any revenue from Q2 to Q4 2029 is left out. The case against: Ocrevus Zunovo (subcutaneous, approved 2024-09-13) holds its own exclusivity to 2036-09-13 (Purple Book, book row). Roche can move patients onto it before 2029, and an IV biosimilar cannot substitute for it. Roche's remaining patents are not checked here, and BPCIA litigation could delay entry"
+  },
+  "exus_multiple": {
+   "value": 0.3455,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "MVASI FY2025, Amgen 10-K 0000318154-26-000010 (book filing_sections, product sales table): ROW $198mm against US $573mm. 198 / 573 = 0.3455",
+   "note": "Judgement on the comparator. Mvasi is Amgen's longest-selling infused antibody biosimilar with a split it reports separately. Riabni, Avsola and Kanjinti are reported only inside 'Other'. The case for higher: Ocrevus's own FY2025 split is (CHF 1,451mm Europe + 685mm International) / 4,874mm US = 0.438 (Roche Finance Information Tool, sheet 'P Sales Regions CHF'), and Mvasi's 2023 to 2025 average is 765 / 1,533 = 0.499. The case for lower: Celltrion and Sandoz are stronger in European tenders, and Pavblu reads 0.013 (9 / 691)"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Amgen 10-K FY2025 (0000318154-26-000010) lists 'ABP 692 Investigational biosimilar to OCREVUS (ocrelizumab)' among its Phase 3 programmes and names no collaborator. The same pipeline section names partners elsewhere (TEZSPIRE with AstraZeneca). The Q2 2026 results release (8-K 0000318154-26-000124) reports the ABP 692 study has completed enrolment, again with no partner. Amgen is lead sponsor of NCT06700343",
+   "note": "Wholly owned"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Multiple Sclerosis, Relapsing-Remitting",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: data/epidemiology.csv 'Multiple Sclerosis', 913,925 US adults (Wallin MT et al., Neurology 2019). backend/epidemiology.py aliases 'Multiple Sclerosis, Relapsing-Remitting' to it",
+     "note": "Carried by the book. The count covers relapsing and progressive forms together. That matches a biosimilar, which by extrapolation takes every Ocrevus indication, PPMS included"
+    },
+    "incidence": {
+     "value": 0.0,
+     "unit": "patients per year",
+     "source": "the book's own MS convention: the frexalimab ('Multiple Sclerosis') and fenebrutinib ('Multiple Sclerosis, Chronic Progressive') seeds state 0.0 because no national US incidence sits beside Wallin's prevalence, and the epidemiology.csv row has none",
+     "note": "Stated rather than null because a blank incidence leaves the engine's derived mode unavailable. This matches the other MS seeds, so it adds no second figure. Its effect: new ocrelizumab starts after launch are not in the pool, so the biosimilar's stock decays once the pool is drawn down. See penetration_peak_pct"
+    },
+    "eligible_pct": {
+     "value": 0.09225,
+     "unit": "share of the pool",
+     "source": "The reference's own treated share. Ocrevus had 11,764 CMS Part B and 3,085 Part D beneficiaries in 2024 (lookup.py demand Ocrevus), 14,849 in all. That is against the 78,050 CMS 2024 disease-modifying-therapy beneficiaries the frexalimab seed sums across the Part B and D files, so 19.02%. Times the 48.49% of Medicare MS patients on any disease-modifying therapy (Li J, Hutton GJ, Aparasu RR, Multiple Sclerosis Journal 2025, as carried by the frexalimab seed): 9.225%. Applied to 913,925, that is 84,312 US patients on Ocrevus",
+     "note": "How the reference's treated share is applied: a biosimilar reaches only patients who would otherwise get ocrelizumab, so the pool is Ocrevus's patients, and penetration is the rate at which they move to ABP 692. Cross-check: Roche's FY2025 US Ocrevus sales of CHF 4,874mm (Roche Finance Information Tool) at USD 1.2152 per CHF is $5,923mm. Divided by a full-year ASP of $65,185 (1,200 mg at $54.32 per mg, from CMS Part B 2024 $668.7mm over 11.61mm 1-mg units, divided by 1.06), that is about 90,900 patient-years, or 9.9% of the pool. The two agree within 8%. Judgement: the Medicare treated share stands in for all payers. Younger, commercially insured patients may be more often on high-efficacy therapy, which argues for higher. Part B and D beneficiaries may overlap, and migration to Ocrevus Zunovo before 2029 would shrink the IV pool; both argue for lower. pool_crowding.py puts this asset in the MS group with the new-brand seeds. Its patients are Ocrevus's, not the untreated pool's"
+    },
+    "penetration_peak_pct": {
+     "value": 0.078,
+     "unit": "share of the eligible pool not yet on ABP 692, captured per year",
+     "source": "Measured class uptake: rituximab biosimilars rose to 60% of all rituximab claims paid by Medicare Part B in 2022, four calendar years after the first US entry (Qian J, Am J Manag Care 2024;30(12):e359-e363, PMID 39745502, doi:10.37765/ajmc.2024.89644). Book path around that anchor: Part B reference claims (Rituxan + Rituxan Hycela, lookup.py demand) were 197,044 in 2020, 123,181, 91,689, 79,640 and 74,662 in 2024. Holding the total at the 229,222 that Qian's 60% implies for 2022 gives biosimilar shares of 14.0%, 46.3%, 60.0%, 65.3% and 67.4%. Amgen's slice is a third of that: 4.7%, 15.4%, 20.0%, 21.8%, 22.5%. The engine's own identity (incidence 0, 13.4% discontinuation, logistic ramp) was least-squares fitted to those five years. It gives a peak of 0.078, with RMSE 1.9 points, and an engine path of 6.8%, 13.2%, 18.1%, 21.9%, 24.6% of the pool",
+     "note": "Judgements, three. (1) One third: three developers run comparative trials against Ocrevus. They are Amgen (NCT06700343), Sandoz (CYB704, NCT06847724; Pearce IP 2025-08-07) and Celltrion (CT-P53, Phase 3; Pearce IP 2023-05-15). Teva/Polpharma and Samsung Bioepis (added January 2026; Pearce IP 2026-01-14) are earlier, and Biocad is Russia-only. Entry order decides the slice. In rituximab, Amgen's third-to-market Riabni held about 5% of biosimilar Part B claims in 2022 (6,988 of the 137,534 implied by Qian), against 49% for Ruxience and about 46% for Truxima by residual. That is the case for lower. The case for higher is Amgen's April 2027 readout, which may put it in the first wave. (2) The class path assumes total rituximab Part B claims held flat from 2020 to 2024, and that Qian's 'all rituximab products' includes Rituxan Hycela. A subcutaneous reference that an IV biosimilar cannot replace is the Zunovo analogue. (3) After year 5 the engine keeps capturing, to a 28.9% share of the pool in year 9, above the measured plateau of 22.5%. Meanwhile the zero-incidence pool leaves out new ocrelizumab starts, so the stock falls to 25% by year 15. These two errors pull in opposite directions. Cross-check: Liu et al. (JAMA Oncol 2026, PMID 42658505) find the reference biologics' Medicare Part B market share fell 31.5% a year after biosimilar entry across bevacizumab, rituximab and trastuzumab. That is a 67.9% biosimilar share by year 3, in line with the path above"
+    },
+    "ramp_steepness": {
+     "value": 5.6,
+     "unit": "logistic k",
+     "source": "same least-squares fit as penetration_peak_pct: the engine's identity against Amgen's one-third slice of the rituximab biosimilar Part B share path, 2020 to 2024",
+     "note": "The fit puts year-one capture at 88% of peak, so a biosimilar's uptake is close to a step. It behaves like a formulary switch at loss of exclusivity, not a brand launch. The error surface is flat along this ridge: k 9.7 with midpoint -0.2 fits the same. A ramp forced to start at half-peak (midpoint 0) needs a peak of 0.086 and fits worse (RMSE 2.3 points). The book's MS brand curve (Kesimpta, k 0.735, midpoint 3.62) would badly understate a biosimilar's first three years"
+    },
+    "ramp_midpoint_year": {
+     "value": -0.35,
+     "unit": "years from forecast_start_year",
+     "source": "same fit as ramp_steepness",
+     "note": "Negative because the measured uptake is already near its peak rate in the first full year: Truxima entered in November 2019 and the path starts in 2020. The engine takes a midpoint of 100 or below as an offset, so a negative value is valid"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}
