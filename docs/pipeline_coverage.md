@@ -105,3 +105,75 @@ Six of the twelve are closed. The remaining order, with the reason for each posi
    can go: fix the data the registry already publishes and build the comparability gate.
    The score itself waits for readouts that have not happened.
 5. **Only then add assets**, starting outside metabolic, and run a duplicate pass first.
+
+## What the price and uptake pass added, 24 September 2026
+
+Eleven seeds written, ten of which build, for $13,963mm of risk-adjusted value the book
+was not carrying. SNY +5,660, AZN +3,230, GSK +2,692, BMY +882, NVS +766, REGN +733.
+
+Four assets were researched to the same depth and deliberately not seeded, which is the
+more important half of the result. Ziltivekimab: ZEUS missed at a hazard ratio of 0.99
+(0.88 to 1.11). Pelacarsen: Lp(a)HORIZON missed in 8,323 patients and Novartis has stated
+no filing intent, so it carries a price and no uptake curve and the engine refuses to
+build it. Astegolimab: ARNASA missed and Roche has stated no submission, so a launch curve
+has nothing to be measured from. Giredestrant: no pool, because SEER publishes no free
+complete prevalence by hormone-receptor status.
+
+Three things the pass found that were larger than the fourteen assets it was about.
+
+**The price basis was right and is now measured rather than asserted.** Almost every
+pipeline asset is priced off a comparator's CMS spending per Medicare beneficiary, cut by
+a gross-to-net share, and both halves of that are wrong in opposite directions: CMS
+spending is gross of rebates, while spending per beneficiary is not a year of therapy,
+because the denominator is everyone who filled the drug at any point in the year. Coverage
+measured against each drug's own schedule runs from 48% of a year on Verzenio and Xtandi
+to 124% on Leqvio. Against CMS's own Maximum Fair Prices for the nine cycle-one IRA drugs
+that carry a demand row, the convention lands at a median 96% of a real negotiated net
+annual price, so the two errors cancel (`backend/gross_to_net.py`). The spread is 65% on
+Imbruvica to 167% on Januvia, so it is sound for a book and loose for one asset. Three
+verifiers independently recommended annualising every price, which would have put the book
+50% above CMS's own negotiated prices. It was not done.
+
+**A drug CMS names only by its container had no demand series at all.** There is no
+"Repatha" row in the CMS Part D file, only Sureclick, Syringe and Pushtronex, so the whole
+molecule was dropped for Repatha, Dupixent, Praluent, Kesimpta and Taltz and half of it
+for Fasenra and Adbry. Repatha has 459,932 Medicare beneficiaries and $1,962mm of 2024
+Part D spending and carried nothing. 83 rows recovered, 15 assets that had no series now
+have one, 97 existing 2024 rows corrected, and underneath it a silent defect where any
+asset CMS listed twice carried whichever row the payload happened to end with: Cellcept
+Part B held 24 beneficiaries against the molecule's 42,875.
+
+**An asset drew its success rate from the wrong disease.** The therapeutic area that picks
+the precedent transition rate was resolved by classifying every trial an asset had ever
+run as one blob, so tozorakimab was an infectious disease on its SARS-CoV-2 trials while
+the line in the book is COPD, and REGN7508 was oncology on a cancer-associated thrombosis
+trial while the line is atrial fibrillation. Nine of 393 modelled assets change area and
+every one is a correction.
+
+**Open, added to the list above**
+
+13. **Roche and Bayer can hold no valuation at all, and Roche has 25 late-stage assets.**
+    Neither files with the SEC, so no fetcher reads their financials: Roche has 101 assets,
+    3,915 price rows and zero financial rows, so a beta is derivable and a cost structure
+    is not. Trontinemab is the concrete loss. Its research survived verification in full,
+    with a price corroborated within 2.7% by an announced list and an uptake anchor
+    measured in Leqembi and Kisunla patient-years rather than beneficiary counts, and it
+    cannot be seeded because there is no company block to put it on. This is the single
+    largest unvaluable block in the book and it is one fetcher, not one asset.
+14. **Amlitelimab and tozorakimab carry a 0.94 probability on one positive readout.**
+    `pos_granular` places an asset at its own gate, and a single positive Phase 3 filing
+    moves it to the NDA/BLA transition. Amlitelimab's Phase 3 programme has five trials
+    reading out into 2026, so one positive result is not the whole programme at the filing
+    gate. The behaviour is consistent across the book and is not obviously right.
+15. **`data/assumptions/vk2735.csv` has a 14-column row** where every other row has 12,
+    on `economics_share`. Pre-existing and tolerated by the loader, which reads by index.
+16. **The Part D gross-to-net convention is loose per asset by design.** 65% to 167% of a
+    negotiated price across nine drugs. An asset whose comparator has a published annual
+    list price should use it: admilparant, AZD0780 and efimosfermin now do, and the rest
+    of the book does not.
+
+**The gap that remains**
+
+208 late-stage assets at companies holding five or more still carry nothing, of 397. The
+five largest gaps are NVS 43, GSK 32, ROG 25, LLY 20 and SNY 18. ROG's 25 are blocked on
+item 13 rather than on research.
