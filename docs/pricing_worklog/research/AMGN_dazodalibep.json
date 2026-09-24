@@ -1,0 +1,93 @@
+{
+ "ticker": "AMGN",
+ "name": "Dazodalibep",
+ "summary": "Dazodalibep (VIB4920, formerly MEDI4920) is an intravenous CD40L-antagonist fusion protein that Amgen gained with Horizon, which bought it with Viela Bio. Registrational trial: OASIZ 301 (NCT06104124), placebo-controlled in Sjogren's disease with ESSDAI of 5 or more. It met its week-48 ESSDAI primary endpoint (Amgen release 2026-09-22), but no effect size was disclosed. The companion OASIZ 303 study in high symptom burden with low systemic activity (NCT06245408) completes in Q4 2026, and the filing appears to wait for it. Price anchor: Benlysta IV (belimumab), an infused B-cell-pathway biologic used in the same rheumatology clinics, at $34,064 per CMS Part B beneficiary in 2024. Uptake anchor: the book's Sjogren's first-entrant capture (ianalumab, 0.1771, from belimumab's share of moderate to severe SLE), scaled by anifrolumab's measured share relative to belimumab as the IV follower in lupus (18% vs 62% of biologic-treated SLE patients, Q3 2024).",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "OASIZ 301 (NCT06104124): dazodalibep dose 1, dose 2 or placebo by IV infusion, primary endpoint at week 48 (Clinical Trials Arena, 'First of Amgen's Phase III Sjogren's disease trials succeeds', clinicaltrialsarena.com/news/first-of-amgens-phase-iii-sjogrens-disease-trials-succeeds/). Long-term extension NCT06747949 (844 enrolled, primary completion 2029-12-11, book trials table)",
+   "note": "Continuous maintenance dosing in a chronic autoimmune disease. The Phase 3 dosing interval was not found in a source I could read, so no interval is claimed"
+  },
+  "list_price_per_patient": {
+   "value": 0.034064,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Benlysta: CMS Medicare Part B 2024 (IV Benlysta), $125,525,138.60 over 3,685 beneficiaries = $34,064 per beneficiary",
+   "note": "Judgement: house convention on the closest marketed comparator in route and setting. No drug is approved for Sjogren's (ianalumab is under priority review with no approval or WAC found, search 2026-09). Benlysta is the price anchor of the book's other Sjogren's asset (ianalumab, which uses Part D SC Benlysta at $37,182 because it is subcutaneous). Dazodalibep is an IV infusion given in the clinic, so the Part B IV series is its setting. Cross-check: Saphnelo, the other IV rheumatology biologic, reads $34,410 per Part B beneficiary in 2024, 1% higher. Case against: per-beneficiary spend understates a full year because starters and stoppers fill only part of one, and a first-in-class drug in a disease with no approved therapy may be priced above an older lupus biologic. Also note that the house Part B convention gives dazodalibep a net price ($32,136) well above ianalumab's ($18,591 from a Part D anchor), which is a property of the conventions, not a finding"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part B per-beneficiary price (backend/gross_to_net.py): Part B pays 106% of ASP, already net of discounts, so only the add-on comes off, 1 - 1/1.06",
+   "note": "Direction checked: 0.056604 comes off list, so net is $32,136 per patient-year. Part B confirmed from lookup.py demand (Benlysta IV rows are part 'B')"
+  },
+  "discontinuation_pct": {
+   "value": 0.4554,
+   "unit": "share of treated stock stopping per year",
+   "source": "Bell CF et al., Lupus Science & Medicine 2020;7(1):e000357 (MarketScan, US patients starting IV belimumab 2011-2015): 26.2% discontinued within six months; at a constant rate 1-(1-0.262)^2 = 45.5% a year. Carried by the book's ianalumab and dazukibart seeds",
+   "note": "Reused from the book. It is measured on IV belimumab, which matches dazodalibep's route and clinic-infusion setting better than it matches ianalumab. Case against: SLE persistence may not carry over to Sjogren's, and a drug with a large effect on ESSDAI could persist better. OASIZ 301's effect size is not yet public"
+  },
+  "forecast_start_year": {
+   "value": 2028,
+   "unit": "year",
+   "source": "Amgen release 2026-09-22 (https://investors.amgen.com/news-releases/news-release-details/amgen-announces-positive-topline-phase-3-results-dazodalibep): OASIZ 301 met its primary endpoint, and OASIZ 303 is expected to complete in Q4 2026. NCT06245408 primary completion is 2026-10-22 (context file; book trials table). Amgen gave no filing timeline, and Benzinga (2026-09) reports that the filing waits for the second trial (benzinga.com/analyst-stock-ratings/analyst-color/26/09/61930224/amgen-hits-primary-endpoint-in-sjogrens-trial-but-approval-filing-awaits-another-trial-data)",
+   "note": "Judgement. Book rule (dazukibart and vepugratinib seeds): the first full year is two calendar years after the earliest Phase 3 primary completion. That is OASIZ 301 in 2026 (topline September 2026), so 2028. In practice: OASIZ 303 reads out around late 2026, the BLA follows in H1 2027 and a standard 12-month review ends in H1 2028. Case for 2029: approval in mid-2028 would make 2028 a part year. Case for earlier: a priority review, which ianalumab received, would bring approval to late 2027"
+  },
+  "exus_multiple": {
+   "value": 0.2111,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "GSK FY2025 annual report, Specialty Medicines turnover (0001654954-26-000892, via the book's asset_revenue_regions): Benlysta GBP 1,464mm US, 134mm Europe, 175mm International. (134+175)/1,464 = 0.2111",
+   "note": "Judgement on the comparator: the price anchor's own filed split, the same one the book's ianalumab seed uses, so the two Sjogren's assets agree. Cross-check on Amgen's own filed split (FY2025 10-K 0000318154-26-000010, book asset_revenue_regions): Otezla $426mm international against $1,839mm US is 0.232. Case for lower: Tepezza, the Horizon rare-disease biologic, is 0.082 ($145mm vs $1,758mm) while its ex-US launch is young. European HTA resisted modest ESSDAI effects in lupus, as it did with Benlysta"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Amgen is the sole lead sponsor of NCT06245408 and NCT06747949 (book trials table). Amgen's FY2025 10-K (0000318154-26-000010) lists dazodalibep as its own Phase 3 programme, with Amgen polypeptide patents estimated to expire in 2034 (US) and 2032 (Europe). Provenance: Viela Bio bought VIB4920 from MedImmune in a February 2018 asset purchase (Viela S-1 and 10-K, sec.gov/Archives/edgar/data/1734517/). Horizon acquired Viela in 2021 (BioPharma Dive, biopharmadive.com/news/horizon-acquires-astrazeneca-spinout-viela-bio/594265/). Amgen acquired Horizon (Rule 2.7 announcement 2022-12-12, book deals table)",
+   "note": "Wholly owned, no co-development or profit share. Case against: Viela's filings disclose milestone payments owed to MedImmune (AstraZeneca). The royalties they show are low single-digit cell-line sublicence royalties on inebilizumab and VIB7734. No royalty on VIB4920 net sales appeared in three searches, but the redacted agreement text means an undisclosed royalty to AstraZeneca cannot be ruled out. If one were found at rate r, the value would be (0.3998 - r)/0.3998 on Amgen's book margin (1 - cogs 0.3275 - sga 0.1918 - rd 0.1979 - other_costs -0.117004)"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Sjogren's Syndrome",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: ianalumab seed, 350,314 (Maciel G et al., Arthritis Care Res 2017, PMID 27998024, 10.3 per 10,000 applied to 340,110,988 US residents)",
+     "note": "Carried by the book (lookup.py pool Sjogren's), so no second figure is set"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: ianalumab seed, 20,067 (Maciel G et al., Mayo Clin Proc 2017, PMID 28389066, 5.9 per 100,000)",
+     "note": "Carried by the book"
+    },
+    "eligible_pct": {
+     "value": 0.2,
+     "unit": "share of the pool",
+     "source": "Rosas J et al., Rheumatol Int 2019;39(6):991-9, PMID 30891620 (SJOGRENSER, 437 patients): ESSDAI moderate (5-13) 15% plus high (14 or more) 5% = 20% with ESSDAI of 5 or more. OASIZ 301 enrolled ESSDAI of 5 or more (Amgen release 2026-09-22 via Pharmacally and Rheumatology Live, 'moderate-to-severe systemic disease activity (ESSDAI >= 5)'). Same value as the book's ianalumab seed",
+     "note": "Judgement that the label follows OASIZ 301 entry. Kept equal to ianalumab's so the two share one pool. Case for higher: OASIZ 303 (NCT06245408) enrols high symptom burden with low systemic activity (ESSDAI under 5). If it succeeds and the filing covers both, the label reaches into the 80% with ESSDAI under 5. The share of those with high ESSPRI was not sourced, so it is not added. Case for lower: seropositivity or other entry filters in OASIZ 301 were not confirmed and are not applied"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0514,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "0.1771 x 0.2903 = 0.0514. The 0.1771 is the book's verified Sjogren's first-entrant capture (ianalumab seed): belimumab held 28% of US moderate to severe SLE in 2022 (Spherix via Healio 2024-04-25), and with 45.54% annual discontinuation that needs 17.71% of the untreated pool to start each year. The 0.2903 is anifrolumab, the IV every-4-week follower in lupus, measured against belimumab: 18% vs 62% of US SLE patients on biologics in Q3 2024 (Spherix survey of 100 rheumatologists, Healio 2024-12-30, healio.com/news/rheumatology/20241230/uptake-of-benlysta-saphnelo-signal-exciting-time-for-lupologists)",
+     "note": "Judgement: dazodalibep is modelled as the second targeted entrant in Sjogren's behind ianalumab (filed Q1 2026, priority review), as Saphnelo was the IV follower behind Benlysta. The multiple is taken from the measured follower-to-incumbent ratio. Case for higher: Saphnelo was still climbing (3% of moderate to severe SLE in 2022, 8% in 2023, Healio 2024-04-25). In Medicare Part B alone it had 1,877 beneficiaries against Benlysta's 3,685 in 2024 (0.509, lookup.py demand). Dazodalibep would follow the leader by one to two years, not ten. And a positive OASIZ 303 could widen the label. Case for lower: IV clinic infusion against ianalumab's monthly self-injection. Other programmes are in Sjogren's Phase 3s (nipocalimab, telitacicept, efgartigimod, per the ianalumab seed). OASIZ 301's effect size is undisclosed. Measured against the Medicare B plus D totals the ratio is 0.241 (2,294 vs 9,516)"
+    },
+    "ramp_steepness": {
+     "value": 1.005,
+     "unit": "logistic k",
+     "source": "book: Zeposia's CMS Part D launch fit (104, 406, 655, 1,034, 1,271 beneficiaries 2020-2024), k=1.005, midpoint 2.15 years, the immunology curve the ianalumab, dazukibart and tulisokibart seeds carry",
+     "note": "Reused measured immunology curve, the same one as the book's other Sjogren's asset. Saphnelo's Part B series (775, 1,372, 1,877 over 2022-2024) is the nearer IV analog, but three points are too few to fit a logistic"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.15,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Zeposia fit carried in the book)",
+     "note": "Reused measured curve"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

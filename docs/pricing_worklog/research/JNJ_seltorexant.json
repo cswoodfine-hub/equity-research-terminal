@@ -1,0 +1,93 @@
+{
+ "ticker": "JNJ",
+ "name": "Seltorexant",
+ "summary": "Seltorexant (JNJ-42847922, MIN-202) is J&J's oral, once-daily selective orexin-2 receptor antagonist, developed as an add-on to an SSRI or SNRI in adults with major depressive disorder with insomnia symptoms who responded inadequately to the antidepressant. The Phase 3 record is mixed: MDD3001 (NCT04533529) met all primary and secondary endpoints (J&J, 2024-05-29), MDD3002 (NCT04532749) was stopped at an interim analysis on the data monitoring committee's advice, and MDD3005 (NCT04513912) missed its primary endpoint against quetiapine XR (response 57.4% vs 53.4% at 26 weeks, J&J, 2025-09-22). The filing now rests on NCT06559306 (adjunctive, 752 participants, primary completion 2026-12-30), with a monotherapy Phase 3, NCT07573176 (600 participants, 2028-08), behind it. Price anchor: Caplyta, J&J's own adjunctive-MDD brand, at $9,940 per CMS Part D beneficiary in 2024. Uptake anchor: Auvelity's measured Medicare capture of 0.1417% a year and its launch curve, the book's MDD seed values (brenipatide). J&J pays a mid-single-digit royalty on worldwide sales, now held by Royalty Pharma.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT06559306 (book trials table): daily adjunctive seltorexant added to an ongoing SSRI/SNRI, MADRS change at Day 43; MDD3001 (NCT04533529) carried a long-term safety extension, and NCT03321526 dosed for 24 weeks (Pinter et al., Int J Neuropsychopharmacol 2026;29(4), doi:10.1093/ijnp/pyag009, PMID 41795948)",
+   "note": "An add-on taken daily with the patient's antidepressant for as long as the episode and its maintenance last, so chronic by the house definition"
+  },
+  "list_price_per_patient": {
+   "value": 0.00994,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Caplyta: CMS Medicare Part D 2024, $268,479,293.41 over 27,010 beneficiaries = $9,940 per beneficiary",
+   "note": "Judgement on the comparator. Seltorexant's setting is the adjunctive-MDD slot that atypical antipsychotics hold, and J&J ran it head to head against quetiapine XR in that slot (NCT04513912, NCT03321526). Caplyta is J&J's own brand in that slot, with an adjunctive-MDD label from 6 November 2025 (J&J release; the date was checked by the second reader of the LLY brenipatide seed). Cross-check: Vraylar, the book's anchor for brenipatide in the same disease, reads $9,662 (lookup.py demand Vraylar, Part D 2024), 3% lower. The case against: Caplyta's 2024 Medicare spend is schizophrenia and bipolar depression use, before its MDD label. Per-beneficiary spend covers part of a year, so it understates an annual price. The orexin class sells for far less: Belsomra reads $1,948 per beneficiary (Part D 2024), and Auvelity, the newest MDD-only brand, $4,686. Payers may also put generic quetiapine and aripiprazole first. No list price for seltorexant has been published, since it is not approved"
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part D per-beneficiary price (backend/gross_to_net.py: halving lands at a median 96% of CMS's own negotiated net prices); the Caplyta anchor is Part D (lookup.py demand Caplyta, part D)",
+   "note": "Direction checked: 0.5 is the share taken off list, so net is $4,970 per patient-year"
+  },
+  "discontinuation_pct": {
+   "value": 0.6848,
+   "unit": "share of treated stock stopping per year",
+   "source": "NCT03321526, seltorexant vs quetiapine XR as add-on to an SSRI/SNRI, 24-week double-blind phase: all-cause study-drug discontinuation 41.2% on seltorexant vs 47.1% on quetiapine XR (Pinter et al., Int J Neuropsychopharmacol 2026;29(4), doi:10.1093/ijnp/pyag009, PMID 41795948)",
+   "note": "Constant hazard: 1 - (1 - 0.412)^(365.25/168) = 0.685 a year. This is the asset's own measured stop rate, in the label's setting. It replaces the book's other MDD value (brenipatide, 0.648), which comes from GLP-1 use in obesity. The case for lower: the study was exploratory and flexibly dosed at 20 or 40 mg, the 40 mg dose did not work, and stops for lack of efficacy may fall at the 20 mg label dose. The case for higher: trial retention usually beats real-world persistence on antidepressants and add-ons"
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "NCT06559306 primary completion 2026-12-30, estimated (context file and book trials table); NCT07573176 primary completion 2028-08-24",
+   "note": "Judgement on the timeline. MDD3001 is one positive placebo-controlled study. MDD3002 was stopped at interim and MDD3005 missed against quetiapine XR, so the filing waits on NCT06559306. On a readout in early 2027, J&J files in 2027 and a standard 12-month review for a new molecular entity puts US approval in 2028, so 2029 is the first full year. The case against: if NCT06559306 fails, the monotherapy study (primary completion 2028-08) is the next chance, which pushes launch to 2030 or 2031. No J&J filing date was found in search"
+  },
+  "exus_multiple": {
+   "value": 0.1414,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Spravato FY2025: $210mm international against $1,485mm US (J&J FY2025 10-K 0000200406-26-000016, in the book's asset_revenue_regions for esketamine, sec_fsds)",
+   "note": "Judgement on the comparator. Spravato is J&J's own depression brand with a filed geographic split. Caplyta, its adjunctive-MDD brand, books nothing outside the US (book: FY2025 NonUs $0 against US $700mm). The case for higher: an oral pill is easier to launch ex-US than an in-clinic nasal spray under a REMS, and seltorexant's Phase 3 programme enrolled globally. The case for lower: ex-US payers price adjunctive antidepressants low"
+  },
+  "economics_share": {
+   "value": 0.8719,
+   "unit": "share",
+   "source": "Minerva Neurosciences 8-K, June 2020 (sec.gov/Archives/edgar/data/1598646/000119312520185290/d947910dex991.htm): after Minerva opted out of the Janssen co-development agreement on 30 June 2020, it is 'eligible to collect a royalty on worldwide sales of seltorexant in all indications in the mid-single digits'. Later Minerva 10-Ks (e.g. FY2020, sec.gov/Archives/edgar/data/1598646/000156459021011340) say 'in certain indications'. Royalty Pharma bought the royalty on 19 January 2021 for $60mm upfront and up to $95mm in milestones, which Royalty Pharma pays, not J&J. J&J cost ratios from lookup.py seed Esketamine Hydrochloride: cogs 0.259683, sga 0.198379, rd 0.195808, other_costs -0.044065, so margin = 0.390195",
+   "note": "Judgement on the rate. A royalty J&J PAYS, netted as (margin - royalty) / margin = (0.390195 - 0.05) / 0.390195 = 0.8719, at 5%, the middle of 'mid-single digits'. At 4% it is 0.8975 and at 6% 0.8462. No filing gives the exact rate. The case against: the later wording 'certain indications' leaves open whether a monotherapy label pays the royalty. The adjunctive MDD use modelled here was inside the original co-development scope, so it should pay it"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Depressive Disorder, Major",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (epidemiology.csv: 21,414,000, NIMH from NSDUH, 8.3% of US adults with a past-year major depressive episode)",
+     "note": "Carried by the book. Incidence equals prevalence there, so forecast.py (patients_for_indication) reads the pool as each year's own and sets carryover to zero without an untreated_carryover_pct row"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (epidemiology.csv: 21,414,000, an annual count)",
+     "note": "Carried by the book"
+    },
+    "eligible_pct": {
+     "value": 0.19398,
+     "unit": "share of the pool",
+     "source": "Three filters, applied to the NSDUH past-year MDE pool. (1) Treated: 61.0% of US adults with a past-year MDE received treatment (NIMH, nimh.nih.gov/health/statistics/major-depression, NSDUH 2021), the book's brenipatide value. (2) Inadequate response to an SSRI: 47% responded (50% or more QIDS-SR reduction) to citalopram in STAR*D level 1 among 2,876 US outpatients, so 53% did not (Trivedi et al., Am J Psychiatry 2006;163:28-40, doi:10.1176/appi.ajp.163.1.28, PMID 16390886). (3) Insomnia symptoms: 'approximately 60 percent of MDD patients on standard-of-care oral antidepressants experience residual insomnia symptoms' (J&J MDD3001 release, 2024-05-29, jnj.com/media-center/press-releases/johnson-johnson-pivotal-study-of-seltorexant-shows-statistically-significant-and-clinically-meaningful-improvement-in-depressive-symptoms-and-sleep-disturbance-outcomes). 0.61 x 0.53 x 0.60 = 0.19398",
+     "note": "Judgement: the filters are taken as independent. The label population follows the Phase 3 entry criteria: MDD with insomnia symptoms and an inadequate response to an ongoing SSRI/SNRI (NCT04533529 and NCT06559306 titles; NCT03321526 enrolled inadequate response to 1-3 SSRIs/SNRIs). The case for higher: insomnia is more common in non-responders than the 60% across all treated patients. STAR*D found some insomnia symptom in 84.7% of 3,743 outpatients at baseline, of any severity (Sunderajan et al., CNS Spectr 2010;15(6):394-404, doi:10.1017/s1092852900029266, PMID 20625372). A monotherapy label (NCT07573176) would also drop filter (2). The case for lower: the 60% is J&J's own figure, not a paper, and the trials require moderate-to-severe insomnia. 'Treated' also includes talk therapy alone, while the label needs an ongoing SSRI/SNRI. Filters (2) and (3) cut deeper into the one MDD pool the book carries, so the seltorexant and brenipatide labels overlap only in part"
+    },
+    "penetration_peak_pct": {
+     "value": 0.001417,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "Auvelity, as measured in the book's brenipatide seed (second-reader corrected): 16,448 Part D beneficiaries in 2024 and 9,268 in 2023 (lookup.py demand Auvelity). New patients in 2024 = 16,448 - 9,268 x (1 - 0.648) = 13,186, over a Medicare pool of 53.1mm Part D enrollees (KFF 2024) x 17.54% with depressive disorders (CMS Chronic Conditions Warehouse, 2022) = 9,313,740, less 9,268 = 0.1417%",
+     "note": "Judgement: a 1.0x multiple on Auvelity, the newest oral MDD brand with a clean CMS series. It applies the rate Auvelity took of its own label pool (all diagnosed MDD) to seltorexant's narrower label pool. At peak that is 21,414,000 x 0.19398 x 0.001417 = about 5,900 new patients a year. The case for higher: if seltorexant won as many patients as Auvelity in absolute terms, the rate on its narrower pool would be 0.001417 / (0.53 x 0.60) = 0.0045. A label defined by insomnia also gives prescribers a clear patient type, and J&J sells Spravato and Caplyta to the same prescribers. 2024 was also Auvelity's second full year, not its peak. The case for lower: a mixed Phase 3 record, a failed head-to-head against generic quetiapine XR, and near-free generic sleep aids (trazodone, mirtazapine) already used for insomnia in depression. The Auvelity Medicare-diagnosed pool is broader than MDD (it includes dysthymia and other depressive disorders), and the rate is applied to an all-payer US pool"
+    },
+    "ramp_steepness": {
+     "value": 0.574,
+     "unit": "logistic k",
+     "source": "reused from the brenipatide seed (lookup.py seed Brenipatide): Auvelity CMS Part D beneficiaries rose from 9,268 in 2023 to 16,448 in 2024, a step of 1.775x, so k = ln(1.775) = 0.574",
+     "note": "Reused measured MDD curve, the only one the book carries. Judgement: it reads one yearly step as early exponential growth. An oral adjunct for an existing prescriber base is the same kind of launch as Auvelity"
+    },
+    "ramp_midpoint_year": {
+     "value": 3.0,
+     "unit": "years from forecast_start_year",
+     "source": "reused from the brenipatide seed: Axsome FY2025 results (8-K, February 2026), Auvelity net sales up 74% in its third full year, Q4 2025 prescriptions up 42% year on year and 8% quarter on quarter",
+     "note": "Reused measured curve. Judgement carried from the seed: the half-of-peak point comes around year 3, and it rests on one launch"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

@@ -1,0 +1,93 @@
+{
+ "ticker": "NVO",
+ "name": "Etavopivat",
+ "summary": "Etavopivat (NN7535, formerly FT-4202) is an oral once-daily pyruvate kinase R (PKR) activator. Novo got it with Forma Therapeutics, a deal that closed on 2022-10-14. The registrational trial is HIBISCUS 2 (NCT06612268): 510 patients aged 12 and over with any SCD genotype, Hb 5.0 to 10.0 g/dL and 2 to 15 VOCs in the prior year, randomised and quadruple-blind against placebo. The primary endpoint is adjudicated VOCs with a medical contact, and primary completion is estimated for 2027-08-27. The Phase 2 part of HIBISCUS cut the annualised VOC rate to 1.07 (200 mg) and 1.06 (400 mg), against 1.97 on placebo (ITT, n=60; Blood 2024;144(Suppl 1):179). Price anchor: Adakveo (crizanlizumab), the marketed SCD drug labelled to reduce VOCs, at $62,060 per CMS Part B beneficiary in 2024. Uptake anchor: Oxbryta's measured capture, reused from the book's osivelotor seed (4.6% of people with SCD had a fill in 2021; Newman TV et al., JAMA Netw Open 2023). Thalassaemia is not modelled. Its only Phase 3 is the long-term extension NCT06609226, which is non-randomised with a safety primary endpoint, so no registrational thalassaemia trial exists.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT06612268 (book trials table, registry update 2026-09-17): randomised, quadruple-blind; HIBISCUS 2 trial-in-progress (Blood 2025;146(Suppl 1):2976, ashpublications.org/blood/article/146/Supplement%201/2976/551416): 52-week double-blind period then a 52-week open-label extension; HIBISCUS Phase 2 dosed 200 mg or 400 mg orally once daily (Blood 2024;144(Suppl 1):179)",
+   "note": "Daily oral dosing for as long as it works, like the osivelotor seed. The long-term extension NCT06609226 (480 patients, primary completion 2030-12-30) exists to keep patients on it"
+  },
+  "list_price_per_patient": {
+   "value": 0.06206,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Adakveo: CMS Medicare Part B 2024, $26,003,300.29 over 419 beneficiaries = $62,060 per beneficiary",
+   "note": "Judgement on the comparator. Adakveo is the one marketed branded SCD drug labelled to reduce the frequency of VOCs, and a VOC reduction is HIBISCUS 2's primary endpoint. It is in the book's demand table. Part B is its main channel (419 beneficiaries against 85 in Part D, where the figure is $58,308). The case against it: Adakveo is a monthly IV antibody, while etavopivat is a daily oral that will sit in Part D. Its confirmatory Phase 3 (STAND) was negative (Chang M et al., Br J Haematol 2025;207:1070, PMID 40741658). A beneficiary's spend also covers less than a full year on weight-based dosing. Cross-check: the book's osivelotor seed prices Oxbryta, the withdrawn oral SCD drug, at $66,631 per Part D beneficiary in 2023. That is 7% higher, and on the seed's 14.5% discount it nets to $57,000 against $58,548 here. That Oxbryta row does not appear in this copy of drug_demand (lookup.py demand Oxbryta returns nothing), so it could not be re-read. The case for a much higher price: mitapivat, the first PKR activator, carries a reported WAC of about $425,000 a year as Aqvesme in thalassaemia (Fintool News and Xtalks via search, not opened). Its SCD sNDA has a PDUFA date of 2026-11-01 (Agios release, investor.agios.com). If Agios prices SCD near that level, the class would sit far above this anchor. SCD's large, mostly Medicaid population argues against an orphan-level price"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part B anchor (backend/gross_to_net.py): Part B pays 106% of ASP, which is already net of discounts, so only the 6% add-on comes off: 1 - 1/1.06 = 0.056604",
+   "note": "Direction checked: 0.056604 is the share OFF list, so net is 94.3% of list, $58,548 per patient-year. The anchor is Part B (lookup.py demand Adakveo, part 'B'), so 0.5 does not apply. The case against: an oral in Part D and Medicaid would face best-price and Medicaid rebates of its own. Medicaid covers much of the SCD population, so the realised discount on a Part D launch price would be larger"
+  },
+  "discontinuation_pct": {
+   "value": 0.67,
+   "unit": "share of treated stock stopping per year",
+   "source": "reused from the osivelotor seed (lookup.py seed Osivelotor): Sun X et al., Blood 2024;144(Suppl 1):7669 (US Medicaid claims, 1,080 patients starting voxelotor from December 2019 to December 2021): 67% discontinued over follow-up, and 55% were still persistent at three months",
+   "note": "Judgement: reused. It is the book's only measured persistence for a daily oral SCD drug in the same patients, and Adakveo has none on file. The case against: the follow-up is not exactly one year, so reading 67% as an annual rate is approximate. Voxelotor's persistence was also hurt by GI tolerability and the modest benefit patients perceived. Etavopivat's HIBISCUS Phase 2 kept patients to 52 weeks, and its time to first VOC was 33.6 weeks against 16.9 on placebo (Blood 2024;144(Suppl 1):179), which could support better persistence"
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "NCT06612268 estimated primary completion 2027-08-27 (context file and book trials table, registry update 2026-09-17)",
+   "note": "Judgement on the review timeline. The book's pipeline seeds put the first full year two calendar years after the earliest primary completion: osivelotor 2030-12 gives 2032, and vepugratinib 2029-10 gives 2031. Here that is 2029. The path is a readout in late 2027, filing in the first half of 2028, and approval in late 2028 or early 2029 on a standard review. The case against: the 52-week double-blind period means any enrolment slip moves the whole date, and 2029 would then be a partial year. The long-term extension NCT06609226 (2030-12-30) is not needed for filing"
+  },
+  "exus_multiple": {
+   "value": 0.0524,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "reused from the osivelotor seed (lookup.py seed Osivelotor): Oxbryta, $10mm international against $191mm US in FY2024 (Pfizer Q4 2024 earnings 8-K exhibit 99, 0000078003-25-000017)",
+   "note": "Judgement on the comparator. It is the only filed geographic split for an oral SCD drug in the book. Adakveo's split is not in the book, and Novo's own rare blood products (haemophilia) sell mostly outside the US in a different disease. The case for higher: Novo runs HIBISCUS 2 globally, and SCD is common in Europe (France, UK), Brazil and the Middle East. Oxbryta's FY2024 was also a withdrawal year (September 2024), with an EU launch only from 2022. The case for lower: Adakveo lost its EU conditional authorisation in 2023, and payers outside the US have resisted paying for SCD disease-modifiers"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Novo Nordisk completed its acquisition of Forma Therapeutics on 2022-10-14 at $20 a share, about $1.1bn, and Forma became a wholly owned subsidiary (Novo Nordisk release, novonordisk.com news id=132653; Goodwin, goodwinlaw.com/en/news-and-events/news/2022/10/10_14-novo-nordisk-completes-forma-therapeutics). Novo's 20-F filed 2026-02-04 (0000353278-26-000012) lists etavopivat (NN7535) as its own Phase 3 asset. Novo Nordisk A/S is lead sponsor of NCT06612268 and NCT06609226",
+   "note": "Forma's chemists discovered FT-4202 through structure-based lead optimisation (sicklecellanemianews.com/ft-4202). No licensor, partner or royalty was found in search. Forma's own 10-K could not be opened (EDGAR full-text search is blocked from this container), so a small royalty to a third party cannot be ruled out"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Anemia, Sickle Cell",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (lookup.py pool 'Anemia, Sickle Cell'): 100,000 (CDC), on both the osivelotor and Casgevy seeds",
+     "note": "Carried by the book, so no second figure is set"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: 1,971 a year on the osivelotor seed (Therrell BL Jr et al., Semin Perinatol 2015;39(3):238-251)",
+     "note": "Carried by the book. The book already holds two incidence figures for this disease: 1,971 (osivelotor) and 2,000 (Casgevy, 'CDC ... ~2000 US births a year'). That is a separate fix for the book, not for this asset"
+    },
+    "eligible_pct": {
+     "value": 0.0733,
+     "unit": "share of the pool",
+     "source": "Three entry filters from HIBISCUS 2 (NCT06612268; Blood 2025;146(Suppl 1):2976): age 12 or over, 2 to 15 VOCs in the prior year, and Hb 5.0 to 10.0 g/dL in any genotype. (1) and (2) Age and VOCs: Shah N et al., J Health Econ Outcomes Res 2019;6(3):106-117, doi:10.36469/9667, PMC7299444 (Medicaid Analytic eXtract, 20,909 SCD patients), Table 3 frequency of VOC in one year. 1,828 of 8,521 adults (21.45%) and 1,582 of 12,388 children (12.77%) had 2 to 15 VOCs. Table 1: 40.75% of the cohort are 18 or over and 16.94% are 12 to 17. So 0.4075 x 0.2145 + 0.1694 x 0.1277 = 10.91%. (3) Hb 10.0 or below: Chang M et al., Br J Haematol 2025;207(3):1070-1075, doi:10.1111/bjh.20263 (GRNDaD registry, 38 US sites): 2,130 of 3,169 active patients (67.2%) have HbSS or HbS-beta-zero. 10.91% x 67.2% = 7.33%",
+     "note": "Judgement on filter (3). No paper found gives the share of SCD patients with Hb at or below 10 g/dL, so the HbSS/HbS-beta-zero share stands in for it. Those genotypes carry the more severe haemolytic anaemia, while HbSC is milder (Nagel RL et al., Blood Rev 2003;17:167, PMID 12818227). The case either way: some HbSS patients on hydroxyurea sit above 10 g/dL, and some HbSC patients sit below. The case for higher overall: Shah counts only VOCs with an inpatient stay, while HIBISCUS 2 counts any medical contact, and Shah notes that adding outpatient VOCs raises VOC prevalence from about 30% to 50%. The children's VOC rate is also the all-children rate (ages 0 to 17) applied to ages 12 to 17, as in the osivelotor seed, which understates adolescents. Steps (1) and (2) repeat the osivelotor seed's method, widened from 2-10 to 2-15 VOCs (the seed's 1,671 and 1,552 at 2-10 were re-read from the same table). Filter (3) replaces its genotype filter"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0506,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "reused from the osivelotor seed (lookup.py seed Osivelotor): Newman TV et al., JAMA Netw Open 2023;6(11):e2344546 (Optum Clinformatics): 131 of 2,880 people with SCD (4.6%) had at least one voxelotor fill in 2021, its third calendar year after approval. A peak of 0.0506 puts 4.6% of the eligible pool on drug in year index 2",
+     "note": "Judgement: a multiple of 1.0 on Oxbryta, the last oral disease-modifier launched in SCD. Re-solved with the engine's identity (forecast.py derive_new_patients and treated_stock) on this curve (k 0.29, midpoint -0.2), discontinuation 0.67 and ex-US 0.0524. The treated stock over the eligible pool runs 2.65%, 3.88% and 4.60% in years 0 to 2 at a peak of 0.0506. The ratio does not depend on eligible_pct, so the seed's value carries over unchanged at 0.0733. The case for lower: mitapivat will be first in the PKR class (PDUFA 2026-11-01), and osivelotor follows. Oxbryta's withdrawal has made prescribers wary of Hb-raising agents. The 4.6% was also measured in commercial and Medicare Advantage patients, while most SCD patients are on Medicaid. The case for higher: 4.6% was measured over all people with SCD, but this pool is those with frequent crises, the most likely takers. GRNDaD found voxelotor use at comprehensive centres three times what claims data show (PMID 40741658)"
+    },
+    "ramp_steepness": {
+     "value": 0.29,
+     "unit": "logistic k",
+     "source": "reused from the osivelotor seed: Oxbryta's CMS Part D beneficiaries 1,090, 1,247, 1,385 and 1,521 over 2020 to 2023, least-squares logistic k 0.29, midpoint -0.2 years, rmse 2.5",
+     "note": "Judgement: reused as the book's only measured launch curve for an oral SCD drug. The Oxbryta series is not in this copy of drug_demand, so it is taken as the seed states it. Adakveo's own Part B beneficiaries (379, 559, 563, 503, 419 over 2020 to 2024; lookup.py demand Adakveo) show the same shape: early uptake, then a plateau by year two. The case against: Oxbryta launched into pent-up demand with no oral disease-modifier on the market, while etavopivat will need patients to switch from mitapivat or hydroxyurea"
+    },
+    "ramp_midpoint_year": {
+     "value": -0.2,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Oxbryta fit carried by the osivelotor seed)",
+     "note": "Judgement: reused. A negative midpoint means half of peak by the first full year, the measured shape of SCD launches. The case against: a third-to-market oral is unlikely to find the same pent-up demand"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

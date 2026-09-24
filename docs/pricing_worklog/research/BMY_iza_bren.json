@@ -1,0 +1,21 @@
+{
+ "ticker": "BMY",
+ "name": "Iza-bren",
+ "summary": "Iza-bren (izalontamab brengitecan, BL-B01D1, BMS-986507) is SystImmune's EGFRxHER3 bispecific ADC with a topoisomerase-1 inhibitor payload, co-developed with BMS since a December 2023 collaboration ($800mm upfront in 2024 and $250mm in 2025, both in the acquired IPRD table of 10-K 0000014272-26-000004 in the book; up to $7.6bn of contingent milestones per the 10-K Note 3 text returned by search). US Phase 2/3 and Phase 3 trials: IZABRIGHT-Breast01 (NCT06926868, first-line TNBC ineligible for anti-PD-(L)1, primary completion 2028-03-13), IZABRIGHT-Lung01 (NCT07100080, EGFR-mutated NSCLC after an EGFR TKI, versus platinum-pemetrexed, 2028-12-15) and IZABRIGHT-Lung02 (NCT07680790, first-line with osimertinib, 2031-12-30). The asset is refused: in the US, which carries most of the value, BMS and SystImmune 'share in the profits and losses' at a ratio no filing or release found discloses, and outside the US and China BMS pays SystImmune a tiered royalty at an undisclosed rate, so economics_share cannot be sourced. For a reseed once the split is public: Rybrevant, an EGFR bispecific labelled with platinum-pemetrexed after osimertinib, reads $83,500 per CMS Part B beneficiary in 2024 (lookup.py demand Rybrevant; $70,056,728 over 839), and the book's sacituzumab tirumotecan seed carries the post-TKI EGFR-mutated funnel (eligible 0.0508 of 192,650). Book defect: assets 1880 'Iza-bren' and 1889 'BMS-986507' are the same molecule (NCT07680790 and NCT07100080 titles name 'Izalontamab Brengitecan (BMS-986507)') and should be merged or aliased.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "ClinicalTrials.gov titles in the book's trials table: NCT07100080 (versus platinum-pemetrexed) and NCT06926868 (versus chemotherapy), PFS primary endpoint on NCT06926868 and NCT07680790",
+   "note": "Oncology treated to progression, so chronic by the house definition. Recorded for completeness; the asset is refused, so no other pricing or uptake field was researched"
+  },
+  "economics_share": {
+   "value": null,
+   "unit": "share of asset economics",
+   "source": "BMS FY2024 and FY2025 10-K, Note 3 Alliances (0000014272-25-000039, 0000014272-26-000004), as returned by search: 'The parties will jointly develop and commercialize BL-B01D1 in the U.S. and share in the profits and losses ... BMS will be responsible for the development and commercialization in the rest of the world, where SystImmune will receive a royalty on net sales', and in Mainland China 'BMS will receive a royalty on net sales'. BMS/SystImmune release 2023-12-11 (news.bms.com/news/details/2023/SystImmune-and-Bristol-Myers-Squibb-Announce-a-Global-Strategic-Collaboration-Agreement-for-the-Development-and-Commercialization-of-BL-B01D1/default.aspx; businesswire.com/news/home/20231210000508/en): 'share certain global development expenses and profits and losses in the United States' and 'SystImmune will receive a tiered royalty on net sales' outside the US and Mainland China",
+   "note": "Null. Three searches aimed at the ratio (the 10-K Note 3 wording, 'equally'/'50/50'/'50%', and Biokin's Chinese announcement and HKEX prospectus coverage) found no percentage for the US profit and loss share and no royalty rate for either direction. A 50/50 split is common for such co-commercialisation deals but is not stated anywhere found, so writing 0.5 would be a guess; the linerixibat refusal set the same standard for an undisclosed royalty. I did not open the 10-K itself (sec.gov is blocked from this container); a reader who can should check Note 3 of 0000014272-26-000004 and Biokin's H-share prospectus for a stated split before reseeding"
+  }
+ },
+ "indications": [],
+ "refuse": "Partner economics cannot be sourced from a filing. BMS shares US profits and losses on iza-bren with SystImmune (Sichuan Biokin) at an undisclosed ratio, pays SystImmune an undisclosed tiered royalty outside the US and Mainland China, and receives an undisclosed royalty in China (BMS 10-K Note 3; 2023-12-11 release). The US share carries most of the value, so any economics_share would be a guess. Upfront and milestone cash ($800mm in 2024, $250mm in 2025) is booked as acquired IPRD, not a modelled asset. Reseed when a filing or prospectus states the split."
+}

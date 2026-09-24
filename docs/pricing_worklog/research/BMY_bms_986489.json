@@ -1,0 +1,99 @@
+{
+ "ticker": "BMY",
+ "name": "BMS-986489",
+ "summary": "BMS-986489 is Bristol's fixed-dose combination of atigotatug (BMS-986012), a fully human anti-fucosyl-GM1 antibody, with nivolumab. The pivotal trial is TIGOS (NCT06646276): a randomised, double-blind Phase 3 of BMS-986489 plus carboplatin and etoposide against atezolizumab plus carboplatin and etoposide as first-line therapy for extensive-stage SCLC, about 530 patients, ECOG 0-1, no biomarker selection, OS primary, estimated primary completion 2028-04-06 (Paz-Ares et al., Clin Lung Cancer 2026, doi:10.1016/j.cllc.2026.01.009). Price anchor: Tecentriq, the TIGOS control and the atezolizumab that 89.5% of US first-line chemoimmunotherapy patients receive, at $66,497 per CMS Part B beneficiary in 2024. Uptake anchor: anti-PD-L1 went from 7% of US first-line ES-SCLC regimens in 2018 to 68% in 2019 and about 80% by 2021 (Shaw et al., Oncologist 2024, Flatiron), atezolizumab-based in 89.5% of cases (Le et al., Clin Lung Cancer 2026, Komodo), and the peak takes half of that as a judgement. Bristol owns both antibodies, but Ono is paid a royalty on the nivolumab component of Bristol's nivolumab combination products, and that royalty is netted here.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "TIGOS design (Paz-Ares et al., Clin Lung Cancer 2026;27(2):140-145, doi:10.1016/j.cllc.2026.01.009, PMID 41759251): BMS-986489 or atezolizumab with carboplatin plus etoposide 'until progression, toxicity, or withdrawal'",
+   "note": "Oncology treated to progression, so chronic by the house definition. Four cycles of chemotherapy induction, then the FDC continues alone as maintenance, as atezolizumab does in IMpower133"
+  },
+  "list_price_per_patient": {
+   "value": 0.066497,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Tecentriq: CMS Medicare Part B 2024, $677,665,952 over 10,191 beneficiaries = $66,497 per beneficiary",
+   "note": "Judgement on the comparator, house convention. Tecentriq is the closest marketed comparator in the same disease and setting. It is the TIGOS control arm, and atezolizumab-based regimens were 89.5% of 2,788 US first-line ES-SCLC chemoimmunotherapy patients in Komodo claims, 2018-2023 (Le et al., Clin Lung Cancer 2026, doi:10.1016/j.cllc.2026.02.004, PMID 41904053). Imfinzi, the other first-line ES-SCLC PD-L1, reads $56,999 (Part B 2024). The case for higher: BMS-986489 is two antibodies in one vial, and Bristol's own nivolumab FDC, Opdualag (nivolumab plus relatlimab), reads $142,849 per Part B beneficiary in 2024, 1.99x Opdivo's $71,752. Pricing BMS-986489 like Opdualag would roughly double this value. The case for lower: first-line ES-SCLC patients stay on therapy for about five months (IMpower133 median PFS 5.2 months), so an SCLC beneficiary's spend is well under a year of therapy. Tecentriq's per-beneficiary figure mixes in longer adjuvant NSCLC and HCC courses. Under the house convention this figure is a per-beneficiary spend, not an annual list price"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part B per-beneficiary price (backend/gross_to_net.py): Part B pays 106% of ASP, which is already net of discounts, so 1 - 1/1.06 comes off",
+   "note": "Direction checked: 0.056604 is the share OFF list, so net is 94.34% of list, or $62,733 per patient-year. The anchor is Part B, confirmed with lookup.py demand Tecentriq, where Part B carries 10,191 beneficiaries against 410 in Part D"
+  },
+  "discontinuation_pct": {
+   "value": 0.798,
+   "unit": "share of treated stock stopping per year",
+   "source": "IMpower133 (Horn et al., N Engl J Med 2018;379:2220-2229, doi:10.1056/NEJMoa1809064, PMID 30280641): median PFS 5.2 months on atezolizumab plus carboplatin and etoposide, the regimen TIGOS uses as its control",
+   "note": "Constant hazard from a median: 1 - 0.5^(12/5.2) = 0.798, the same form the verified vepugratinib and ABBV-1480 seeds use. The brief's 1 - exp(-12/5.2) gives 0.9005; that formula treats the median as a mean, so it is not used. The case for higher: real-world PFS from first-line chemoimmunotherapy is 4.2 months (Le et al., Clin Lung Cancer 2026, Komodo), which gives 0.862, and in Flatiron only 61% of patients go on to anti-PD-L1 maintenance (Shaw et al., Oncologist 2024). The case for lower: TIGOS is designed to beat the control arm, so the FDC arm's PFS may run longer"
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "NCT06646276 estimated primary completion 2028-04-06 (context file; book trials table, last update 2026-09-11)",
+   "note": "Judgement on the review timeline. TIGOS is event-driven on OS: a readout around mid-2028, a BLA late in 2028 and approval around late 2029 on a standard review make 2030 the first full year. This follows the book's rule of two calendar years after primary completion (ABBV-706: September 2030 to 2032; vepugratinib: October 2029 to 2031). The case against: an OS trial can run past its estimated date, and any slip in events, filing or review makes it 2031"
+  },
+  "exus_multiple": {
+   "value": 0.7021,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Opdivo FY2025: $4,145mm non-US against $5,904mm US (BMS 10-K 0000014272-26-000004, product revenue table; book asset_revenue_regions, asset 566). 4,145 / 5,904 = 0.702",
+   "note": "Judgement on the comparator. Opdivo is Bristol's own nivolumab, sold in the same lung indications, with a filed split. The figure already excludes Japan, South Korea and Taiwan, where Ono books Opdivo, so it matches what Bristol would book for an FDC. The case against: Opdualag, Bristol's other nivolumab FDC, reads only 0.134 ($140mm / $1,045mm), because its ex-US launches came later and reimbursement is thinner. Ex-US payers may also balk at a two-antibody premium in a disease with an OS near one year"
+  },
+  "economics_share": {
+   "value": 0.8787,
+   "unit": "share",
+   "source": "Bristol owns both antibodies and is lead sponsor of NCT06646276 and NCT06799286. Atigotatug carries the Medarex-style alias MDX-1110 (MedChemExpress atigotatug listing), and Bristol acquired Medarex outright in 2009 (news.bms.com/news/details/2009/Bristol-Myers-Squibb-Completes-Acquisition-of-Medarex-Inc/default.aspx). No licensor or royalty on atigotatug was found. Nivolumab: Bristol's 10-K alliance note on Ono says Ono receives royalties of 4% of net sales in North America and 15% in all territories except Japan, South Korea and Taiwan, and 'will receive royalties on the nivolumab component of Opdivo Qvantig and Opdualag consistent with the terms previously stated for Opdivo' (BMS 10-K filings, e.g. FY2021 0000014272-22-000051 and FY2025 0000014272-26-000004, located by web search. Not opened directly: sec.gov is blocked from this container)",
+   "note": "JUDGEMENT on two inputs. (1) BMS-986489 is not named in the filing, so the Ono royalty is applied to it by analogy with Opdualag, the other nivolumab FDC. (2) The royalty base, 'the nivolumab component', is not disclosed. It is set at 0.502 of net sales, which is Opdivo's 2024 Part B spend per beneficiary ($71,752) over Opdualag's ($142,849) (lookup.py demand). Arithmetic: the blended royalty is (4% x 1.0 US + 15% x 0.7021 ex-US) / 1.7021 = 8.5374% of total revenue. Times 0.5023 for the nivolumab component, that is 4.2883%. BMY's margin is 1 - 0.2892 cogs - 0.1508 SG&A - 0.2065 R&D - 0 other = 0.3535 (lookup.py seed Mavacamten). (0.3535 - 0.04288) / 0.3535 = 0.8787. Bounds: 0.7585 if the royalty fell on the whole FDC's sales, 1.0 if none applied. The case for 1.0: the royalty term is not disclosed, and nivolumab's US composition patent lapses around 2028, before launch, so the royalty may have ended. The case for lower: Ono shares profits and costs on combination products in Japan, South Korea and Taiwan (not modelled, since exus_multiple excludes those markets). The Merck patent-settlement royalty on Opdivo (2.5% through 2026) ends before launch and is not applied"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Small Cell Lung Carcinoma",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (lookup.py pool Small Cell Lung Carcinoma: ABBV-706 seed, 226,650 new US lung cancers in 2025, SEER)",
+     "note": "Carried by the book. The pool is all new lung cancers, and eligible_pct narrows it to first-line ES-SCLC"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (ABBV-706 seed: 226,650, stated equal to prevalence: 'diagnosed and treated each year rather than accumulated')",
+     "note": "Carried by the book"
+    },
+    "eligible_pct": {
+     "value": 0.036293,
+     "unit": "share of the pool",
+     "source": "Three filters. (1) SCLC was 11.8% of new US lung cancers in 2019, and (2) 70.9% of SCLC was extensive-stage at diagnosis over 2000-2019 (Wells et al., JTO Clin Res Rep 2025;6(4):100799, doi:10.1016/j.jtocrr.2025.100799, PMID 40104389, SEER 17). These are the book's own two filters from the ABBV-706 seed, reused. (3) 43.4% of newly diagnosed ES-SCLC patients received antineoplastic therapy: 6,838 of 15,763 in SEER-Medicare, 2001-2013 (Shah et al., JCO Oncol Pract 2020;16(7):e610-e621, doi:10.1200/JOP.19.00559, PMID 32074011). 0.118 x 0.709 x 0.4338 = 0.036293, about 8,226 first-line patients a year on the book's 226,650",
+     "note": "Judgement on filter (3). The label is first-line ES-SCLC with carboplatin and etoposide. TIGOS selects on no biomarker (fucosyl-GM1 is expressed on up to 90% of SCLC cells) and enrols ECOG 0-1, which is not expected to reach a label, so only line and stage filter. The case for higher: the 43.4% is Medicare patients aged 65 and over from 2001-2013, and it was falling to 36.6% by 2013. Younger patients are treated more often. In Flatiron's oncology-clinic population, 82% of 9,952 SCLC patients received at least one line (Shaw et al., Oncologist 2024, PMID 39349396), but patients who never see an oncologist are missing from that base. The case for keeping it: a population-based Canadian cohort found 46.5% of 1,941 ES-SCLC patients got chemotherapy (Real-World Treatment Patterns, Clinical Outcomes, and Health Care Resource Utilization in ES-SCLC in Canada, PMC8395392, located by web search and not opened), close to the SEER-Medicare figure. Book inconsistency to flag: the ABBV-706 seed applies its 13.4% third-line share to all ES-SCLC, not to treated ES-SCLC. That gives 2,540 third-line patients, 31% of the 8,226 here where its own source implies 13.4%"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.0,
+     "unit": "share",
+     "source": "forecast.py patients_for_indication: a pool stated equal to its incidence is the year's own diagnoses, and a line of cancer therapy carries no untreated patients forward",
+     "note": "Stated for clarity. The engine already infers 0 here because the book's pool has prevalence equal to incidence (226,650). A first-line patient not started on this drug starts atezolizumab or durvalumab chemoimmunotherapy and leaves the line"
+    },
+    "penetration_peak_pct": {
+     "value": 0.358,
+     "unit": "share of each year's eligible patients",
+     "source": "Incumbent capture: EP plus anti-PD-L1 (atezolizumab or durvalumab) went from 7% of US first-line ES-SCLC regimens in 2018 to 68% in 2019 and about 80% by 2021 (Shaw et al., Oncologist 2024;29(12):1079-1089, doi:10.1093/oncolo/oyae234, PMID 39349396, Flatiron, 4,593 patients). Atezolizumab-based regimens were 89.5% of 2,788 first-line chemoimmunotherapy patients and durvalumab-based 10.5% (Le et al., Clin Lung Cancer 2026;27(4):41-46.e3, PMID 41904053, Komodo claims 2018-2023). Tecentriq therefore holds about 0.80 x 0.895 = 0.716 of first-line regimens",
+     "note": "JUDGEMENT: the multiple is 0.5x Tecentriq's measured capture, so 0.5 x 0.716 = 0.358, about 2,945 US patients a year at peak. The measure matches the engine's basis: with carryover 0, the peak is the share of each year's first-line patients started on the drug. The case for higher: TIGOS tests the FDC head to head against the atezolizumab regimen on OS, and chemo-PD-L1 displaced EP from 7% to 68% in a single year after IMpower133. The randomised Phase 2 reported median OS of 15.6 against 11.4 months, HR 0.71 (per search results on the TIGOS design paper; not in its PubMed abstract, so unverified). The case for lower: that Phase 2 HR's CI crossed 1 (0.44-1.16). Durvalumab, a second entrant with no head-to-head edge, took only 10.5% of chemoimmunotherapy patients. By 2030 first line will be contested by Bristol's own pumitamig (BNT327 Phase 2/3 NCT06712316, a 50/50 profit share with BioNTech, so the two partly cannibalise one another), Pfizer's PF-08634404 (NCT07226999), and tarlatamab and lurbinectedin moving into first-line maintenance"
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "book: Enhertu's CMS Part B launch fit (864, 1,904, 4,841, 7,105, 8,410 beneficiaries 2020-2024), k=1.08, midpoint 2.2 years, as carried by the ABBV-706 seed, the book's only other SCLC line, and by the camizestrant and ABBV-1480 seeds",
+     "note": "Reused measured oncology curve from the closest modelled competitor in this indication. The case for steeper: in this same setting, chemo-PD-L1 went from 7% to 68% of first-line regimens in its first year (Shaw et al. 2024). A logistic fitted to those points would have k near 4, because every first-line patient is new each year and there is no stock to convert. The Enhertu fit is kept because that step rode a first-in-class OS benefit over chemotherapy alone with no IO rival, where BMS-986489 has to displace an entrenched PD-L1 against several newer entrants"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Enhertu fit carried in the book by the ABBV-706 seed)",
+     "note": "Reused measured curve. See ramp_steepness for the case for a faster ramp"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

@@ -1,0 +1,93 @@
+{
+ "ticker": "AZN",
+ "name": "Rilvegostomig",
+ "summary": "Rilvegostomig (AZD2936) is AstraZeneca's monovalent PD-1/TIGIT bispecific IgG1 antibody, built on TIGIT antibodies licensed from Compugen in 2018. The lead programme is first-line NSCLC, three head-to-head Phase 3s against pembrolizumab with overall survival as the primary endpoint: ARTEMIDE-Lung04 (NCT06868277, monotherapy, PD-L1 high, 830 patients, primary completion 2030-01), ARTEMIDE-Lung02 (NCT06692738, squamous, with chemotherapy, 2030-07) and ARTEMIDE-Lung03 (NCT06627647, non-squamous, with chemotherapy, 2030-11), the two chemotherapy trials enrolling PD-L1 TC 1% or more. Price anchor: Keytruda, the comparator arm of all three, at $79,464 per CMS Part B beneficiary in 2024, the anchor the ABBV-1480 and PF-08634404 seeds use. Uptake anchor: pembrolizumab regimens made up at least 64.4% of US stage IV first-line therapy in 2015 to 2021 (Chen et al., Innov Pharm 2025), halved as a judgement. AstraZeneca pays Compugen tiered royalties of up to mid-single digits, netted in economics_share. Biliary tract and endometrial Phase 3s are not modelled: the book carries no biliary pool, and the lead indication is lung.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "ARTEMIDE-Lung02 (J Thorac Oncol 2025 abstract P3.18.35, jto.org/article/S1556-0864(25)02100-8/abstract) and ARTEMIDE-Lung03 (J Clin Oncol 2025;43(16_suppl):TPS8653, doi:10.1200/JCO.2025.43.16_suppl.TPS8653): rilvegostomig with platinum doublet every three weeks for 4 cycles, then rilvegostomig every three weeks (with pemetrexed maintenance in non-squamous); overall survival primary (book trials table for NCT06627647, NCT06692738, NCT06868277)",
+   "note": "Oncology treated to progression, so chronic by the house definition. Whether rilvegostomig is capped at a fixed number of cycles, as pembrolizumab is at 35, was not confirmed; the discontinuation rate is the controlling input either way"
+  },
+  "list_price_per_patient": {
+   "value": 0.079464,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Keytruda: CMS Medicare Part B 2024, $5,988,521,233 over 75,361 beneficiaries = $79,464 per beneficiary",
+   "note": "Judgement: house convention. Pembrolizumab is the comparator arm of ARTEMIDE-Lung02, -Lung03 and -Lung04 and is the PD-1 antibody rilvegostomig would replace; the ABBV-1480 and PF-08634404 seeds carry the same anchor. The case for lower: AstraZeneca's own Imfinzi reads $56,999 (Part B 2024), the anchor the volrustomig seed uses, and Merck expects US biosimilar competition to Keytruda from December 2028 and loss of European exclusivity in 2031 (Merck FY2025 10-K 0000310158-26-000063, risk factors, in the book's filing_sections), which would pull the reference price down before a 2032 first full year. The case for higher: a per-beneficiary figure covers less than a full year of therapy for many patients (adjuvant courses, deaths, stops), so it understates an annual price, and a new bispecific winning on overall survival could launch at a premium"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house convention for a CMS Part B anchor (backend/gross_to_net.py): Part B pays 106% of average sales price, which is already net of manufacturer discounts and rebates (Social Security Act section 1847A), so only the 6% add-on comes off: 1 - 1/1.06. The volrustomig seed carries the same value on its Part B anchor",
+   "note": "Direction checked: 0.056604 off list, so net is 0.079464 x 0.943396 = $74,966 per patient-year. Keytruda's beneficiaries sit in Part B (75,361 in 2024 against 1,906 in Part D), so the 0.5 Part D convention does not apply. The case against: ASP excludes Medicaid and 340B discounts, so the true net sits somewhat below this"
+  },
+  "discontinuation_pct": {
+   "value": 0.6114,
+   "unit": "share of treated stock stopping per year",
+   "source": "KEYNOTE-189 (Gandhi et al., N Engl J Med 2018;378:2078, doi:10.1056/NEJMoa1801005, PMID 29658856): median PFS 8.8 months (95% CI 7.6 to 9.2) on pembrolizumab plus pemetrexed-platinum in untreated metastatic non-squamous NSCLC, the control regimen of ARTEMIDE-Lung03 (NCT06627647), the largest of the three lung trials at 1,160 patients",
+   "note": "Constant hazard from a median: 1 - 0.5^(12/8.8) = 0.611, the form the ABBV-1480, PF-08634404 and sigvotatug vedotin seeds use (the brief's 1 - exp(-12/8.8) gives 0.744 but treats the median as a mean). Judgement on which control arm: non-squamous is about 75% of known histology in the Chen et al. cohort (67.9% against 22.5%). The other two trials' control arms give 0.727 (KEYNOTE-407, squamous, median PFS 6.4 months, Paz-Ares et al., N Engl J Med 2018;379:2040, doi:10.1056/NEJMoa1810865) and 0.554 (KEYNOTE-024, PD-L1 50% or more, 10.3 months, doi:10.1056/NEJMoa1606774, the sigvotatug vedotin seed's source). The case for lower: the trials are designed to extend survival over pembrolizumab, and patients who respond stay on longer than the median implies; KEYNOTE-189's five-year update (Garassino et al., J Clin Oncol 2023;41:1992, doi:10.1200/JCO.22.01989) shows 57 of 410 completing all 35 cycles"
+  },
+  "forecast_start_year": {
+   "value": 2032,
+   "unit": "year",
+   "source": "book trials table (ClinicalTrials.gov): ARTEMIDE-Lung04 NCT06868277 primary completion 2030-01-17 (estimated), ARTEMIDE-Lung02 NCT06692738 2030-07-01, ARTEMIDE-Lung03 NCT06627647 2030-11-18; AstraZeneca Q1 2026 clinical trials appendix (astrazeneca.com/content/dam/az/PDF/2026/eq1/Q1-2026-results-clinical-trials-appendix.pdf) lists lung data as 2027+",
+   "note": "Judgement: the book's convention of the first full year two calendar years after primary completion (the ABBV-1480 and PF-08634404 seeds), applied to Lung04, the first rilvegostomig-alone lung trial to complete: readout in 2030, filing in 2030 and approval around 2031. The chemotherapy trials that carry most of the pool complete later in 2030, so their labels would follow about a year after. The case for earlier: TROPION-Lung10 (NCT06357533), Datroway plus rilvegostomig against pembrolizumab in TROP2-positive, PD-L1-high non-squamous NSCLC, completes 2029-12-28, which the same convention would put at 2031, but it is a combination in a biomarker subset. Other indications complete earlier (adjuvant biliary NCT06109779 2029-01-02, DESTINY-Endometrial01 NCT06989112 2029-01-19) and are not modelled here"
+  },
+  "exus_multiple": {
+   "value": 0.7278,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Imfinzi FY2025 in the book's asset_revenue_regions (AstraZeneca 20-F 0001104659-26-019130, annual report table): US $3,509mm; Europe $1,239mm, Established ROW $675mm, Emerging Markets $640mm. (1,239 + 675 + 640) / 3,509 = 0.7278",
+   "note": "Judgement on the comparator: Imfinzi is AstraZeneca's own checkpoint antibody, sold worldwide by AstraZeneca, so its split reflects the company's IO footprint. The case against: Keytruda, the drug rilvegostomig would displace, reads 0.680 (Merck FY2025, $12,812mm non-US over $18,829mm US, book asset_revenue_regions), and Tagrisso, AstraZeneca's lung franchise, reads far higher because of Emerging Markets; a premium-priced bispecific may see slower ex-US reimbursement"
+  },
+  "economics_share": {
+   "value": 0.818,
+   "unit": "share",
+   "source": "Compugen 6-K, 17 December 2025 (SEC accession 0001178913-25-004077, exhibit 99.1) and Compugen FY2025 20-F (0001178913-26-000663): under the March 2018 licence, AstraZeneca develops bispecifics from Compugen's TIGIT antibodies including COM902; on 16 December 2025 AstraZeneca bought part of the royalty for $65mm upfront plus $25mm added to the BLA-acceptance milestone, and Compugen 'remain[s] eligible for tiered royalties of up to mid-single digits on future sales' and up to $195mm in regulatory and commercial milestones. AstraZeneca cost rows from lookup.py seed Camizestrant or Volrustomig: cogs 0.181, SG&A 0.349206, R&D 0.2423, other costs -0.047173, so margin = 1 - 0.181 - 0.349206 - 0.2423 + 0.047173 = 0.274667",
+   "note": "Judgement on the rate: a royalty AstraZeneca pays, netted as (margin - royalty) / margin = (0.274667 - 0.05) / 0.274667 = 0.8180, reading 'up to mid-single digits' as 5% on the top tier where a large product's sales mostly fall. The exact tiers are not disclosed. At 4% the share is 0.8544, at 6% 0.7816. The case for a higher share: the royalty is tiered and 'up to', so early and lower-tier sales pay less. Milestones of up to $195mm to Compugen are not in this field. No other partner: AstraZeneca is lead sponsor of every rilvegostomig trial in the book"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Carcinoma, Non-Small-Cell Lung",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (epidemiology.csv: 192,650, SEER: 226,650 new US lung cancers in 2025, about 85% non-small cell)",
+     "note": "Carried by the book. Prevalence equals incidence on purpose, so the engine sets carryover to zero itself (backend/forecast.py) and no untreated_carryover_pct is stated"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (epidemiology.csv: 192,650)",
+     "note": "Carried by the book"
+    },
+    "eligible_pct": {
+     "value": 0.2758,
+     "unit": "share of the pool",
+     "source": "Four filters multiplied, each already in the book: 55% advanced or metastatic at presentation (the volrustomig seed); 81.6% without an alteration carrying a first-line targeted therapy (Wang et al., J Natl Compr Canc Netw 2026, doi:10.6004/jnccn.2025.7131, the PF-08634404 seed's share); 79% starting first-line therapy, 2,904 of 3,661 US stage IV patients without EGFR or ALK alterations (Abernethy et al., PLoS One 2017, doi:10.1371/journal.pone.0178420, the ABBV-1480 seed's share); and 77.8% with PD-L1 of 1% or more, about 3,770 of 4,848 first-line-treated US patients with a quantified result (Leapman et al., JAMA Netw Open 2020;3(6):e207205, doi:10.1001/jamanetworkopen.2020.7205, PMID 32511721, the PF-08046054 seed's share). 0.55 x 0.816 x 0.79 x 0.778 = 0.2758, about 53,100 patients a year",
+     "note": "The label union of the three lung trials: Lung02 and Lung03 enrol squamous and non-squamous first-line metastatic NSCLC with PD-L1 TC 1% or more (J Thorac Oncol 2025 P3.18.35; J Clin Oncol 2025 TPS8653), and Lung04 enrols PD-L1 high, a subset of that. PD-L1-negative patients (about 22%) are outside every trial. The case against: the driver filter is applied to squamous tumours too, where actionable alterations are rare, which slightly understates; the 55% counts only advanced disease at presentation and misses recurrence after early-stage treatment, which also understates; and PD-L1 status and driver status are not independent, which cuts the other way"
+    },
+    "penetration_peak_pct": {
+     "value": 0.322,
+     "unit": "share of each year's eligible patients",
+     "source": "Pembrolizumab, the incumbent: in 8,811 US patients with advanced NSCLC starting treatment 2015 to 2021, the five most common first-line regimens in stage IV, 64.4% of all first-line therapy, were all pembrolizumab alone or with platinum chemotherapy (Chen et al., Innov Pharm 2025;16(3), doi:10.24926/iip.v16i3.6702, PMID 42256417, the paper the ABBV-1480 seed uses for histology). 0.644 x 0.5 = 0.322",
+     "note": "Judgement: half the incumbent's measured share, the multiple the verified sigvotatug vedotin seed takes. Rilvegostomig is a like-for-like swap for pembrolizumab in the same regimens, so pembrolizumab's share is its ceiling if it wins on overall survival. The case for higher: 64.4% is a floor, since it counts only the top five regimens, includes driver-positive patients treated with targeted drugs, and averages in 2015 and 2016 before first-line approval; Leapman et al. found 83.5% of PD-L1-high first-line patients received an ICI by 2016 to 2018. The case for lower: the slot will be crowded by 2032, with PD-1/VEGF bispecifics (ivonescimab, PF-08634404, ABBV-1480), AstraZeneca's own volrustomig in PD-L1 below 50%, and pembrolizumab biosimilars from December 2028 (Merck FY2025 10-K 0000310158-26-000063), which make the incumbent cheap just as rilvegostomig launches; and the anti-TIGIT mechanism has no approved precedent, so even an overall survival win may meet caution. The book's other first-line lung seeds (volrustomig, PF-08634404, ABBV-1480) carry 0.2 without a measured anchor"
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "book: Enhertu's CMS Part B launch fit (864, 1,904, 4,841, 7,105, 8,410 beneficiaries 2020 to 2024), k = 1.08, midpoint 2.2 years, as carried by the volrustomig, PF-08634404, ABBV-1480 and sigvotatug vedotin seeds",
+     "note": "Reused measured oncology curve, so the first-line lung seeds ramp alike"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Enhertu fit carried in the book)",
+     "note": "Reused. The case for later: the chemotherapy-combination labels, most of the pool, likely follow the Lung04 monotherapy label by about a year, which a shift of up to one year would reflect"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

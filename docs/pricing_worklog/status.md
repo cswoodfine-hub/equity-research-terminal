@@ -4,7 +4,7 @@
 | ALNY | Zilebesiran | not started |
 | AMGN | ABP 206 | not started |
 | AMGN | ABP 692 | not started |
-| AMGN | Dazodalibep | not started |
+| AMGN | Dazodalibep | seeded and built |
 | ARGX | Adimanebart IV | not started |
 | ARGX | Empasiprubart | not started |
 | ARWR | Zodasiran | not started |
@@ -14,7 +14,7 @@
 | BAYN | BAY3723113 | held: Japan-only; Bayer has no cost block |
 | BMY | BMS-986353 | not started |
 | BMY | BMS-986489 | not started |
-| BMY | Iza-bren | not started |
+| BMY | Iza-bren | refused: US profit split undisclosed |
 | CAPR | Deramiocel (CAP-1002) | not started |
 | DYN | zeleciment basivarsen (DYNE-101) | not started |
 | DYN | Zeleciment Rostudirsen (DYNE-251) | not started |
