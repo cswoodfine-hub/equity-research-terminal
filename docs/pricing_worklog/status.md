@@ -28,7 +28,7 @@
 | GSK | Risvutatug Rezetecan | seeded and built |
 | GSK | Velzatinib | seeded and built |
 | INCY | INCA033989 | seeded and built |
-| INCY | INCA33890 | not started |
+| INCY | INCA33890 | seeded and built |
 | INCY | INCB123667 | seeded, on the placeholder curve: penetration null, shown but not counted per share |
 | INCY | Povorcitinib | seeded and built |
 | IONS | ION363 | not started |
