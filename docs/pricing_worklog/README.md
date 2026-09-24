@@ -97,6 +97,9 @@ context files and the book's trials table. The first session's search allowance 
   sales and marketing, which a Lantheus cost block must add.
 - The povetacicept and sefaxersen seeds price IgA nephropathy off a CMS figure of $399,499;
   Voyxact now has a published list of $390,000 (the zigakibart seed uses it).
+- Catalysts attached to the wrong asset: Structure's ACCOMPLISH readouts (catalysts 1142, 1143)
+  point to a GSK asset (2076), Lilly's Foundayo catalyst 811 is a Merck HPV trial, and the
+  telitacicept gMG readout points to Xofluza. The catalyst-to-asset link needs a check.
 - `tests/test_refresh.py::test_refresh_populates_then_skips_within_ttl` fails in this
   container because a fetcher reaches the network and the run goes partial; it failed before
   any change in this session.
