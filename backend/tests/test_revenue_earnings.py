@@ -552,3 +552,39 @@ def test_the_quarter_first_and_the_year_to_date_after_it_still_heads():
             "Nucala\n610\n22\n23\n1,094\n16\n18\n")
     found = _by_period(text, ["Nucala"])
     assert found == {"Q2": {"Nucala": pytest.approx(610e6)}}
+
+
+def test_a_product_row_larger_than_its_company_is_refused(tmp_path):
+    """Alnylam's Q4 2025 exhibit was read at millions where it prints thousands, and
+    Amvuttra went in at $826,588mm for a quarter of a $2,314mm year. Q4 has no quarterly
+    total to check against, so the annual revenue is the ceiling where none is on file."""
+    import db
+
+    path = tmp_path / "t.db"
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'BIIB', 'Biogen')")
+    for i, brand in enumerate(BRANDS, start=1):
+        conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name)"
+                     " VALUES (?, 1, ?, ?)", (i, brand, brand.lower()))
+    # A company that sold $150mm in its last year cannot sell Tysabri's $450.8mm in a quarter.
+    conn.execute("INSERT INTO financials (company_id, period_end, period_type, metric, value,"
+                 "                        unit, fiscal_year) VALUES"
+                 " (1, '2025-12-31', 'FY', 'Revenues', 150e6, 'USD', 2025)")
+    conn.execute(
+        "INSERT INTO filing_sections (company_id, accession, form_type, filed_date,"
+        "                             section, char_count, text)"
+        " VALUES (1, 'acc', '8-K', '2026-07-29', 'exhibit', ?, ?)", (len(BIIB), BIIB))
+    conn.commit()
+    conn.close()
+
+    out = RE.extract(path)
+    assert out["over_ceiling"] > 0
+    conn = db.get_connection(path)
+    stored = {r["brand_name"]: r["value"] for r in conn.execute(
+        "SELECT a.brand_name, ar.value FROM asset_revenue ar JOIN assets a"
+        "  ON a.id = ar.asset_id WHERE ar.period = 'Q2'")}
+    conn.close()
+    assert "Tysabri" not in stored
+    assert stored["Empaveli"] == pytest.approx(30.4e6)
+    assert max(stored.values()) <= RE.ANNUAL_CEILING * 150e6

@@ -528,6 +528,24 @@ def _quarter_revenue(conn, company_id: int, period_end: str):
     return (row["value"], row["unit"]) if row else (None, None)
 
 
+# A product cannot sell more in any period than its company sells in a year. Where no
+# quarterly total is on file to check a row against, the latest annual revenue is the
+# ceiling, doubled to allow a year's growth past the last one filed. It is loose, and it
+# is meant to be: it does not catch a row misread four times over, which the quarter's
+# own total does, but it catches the thousandfold one. Alnylam's Q4 2025 exhibit was read
+# at millions where it prints thousands, and Amvuttra went into the book at $826,588mm for
+# the quarter against $2,314mm for the year, because Q4 has no quarterly total to fail.
+ANNUAL_CEILING = 2.0
+
+
+def _annual_revenue(conn, company_id: int):
+    """The company's latest full-year revenue, the fallback ceiling for a product row."""
+    row = conn.execute(
+        "SELECT value FROM financials WHERE company_id = ? AND metric = 'Revenues'"
+        "  AND period_type = 'FY' ORDER BY period_end DESC LIMIT 1", (company_id,)).fetchone()
+    return row["value"] if row else None
+
+
 def extract(db_path=None) -> dict:
     """Read every stored earnings exhibit and record the product revenue it states.
 
@@ -537,7 +555,7 @@ def extract(db_path=None) -> dict:
     import db
 
     conn = db.get_connection(db_path)
-    written, skipped_no_period = 0, 0
+    written, skipped_no_period, over_ceiling = 0, 0, 0
     try:
         for company in conn.execute(
                 "SELECT id, ticker, reporting_currency FROM companies"):
@@ -575,6 +593,7 @@ def extract(db_path=None) -> dict:
                 """, (company["id"],))}
             if not brands:
                 continue
+            annual = _annual_revenue(conn, company["id"])
             for section in sections:
                 if not tables(section["text"]):
                     skipped_no_period += 1
@@ -584,6 +603,9 @@ def extract(db_path=None) -> dict:
                     for brand, value in read_table(
                             body, list(brands), total).items():
                         asset_id = brands[brand]
+                        if total is None and annual and value > ANNUAL_CEILING * annual:
+                            over_ceiling += 1
+                            continue
                         if conn.execute(
                                 "SELECT 1 FROM asset_revenue WHERE asset_id = ?"
                                 "  AND fiscal_year = ? AND period = ?",
@@ -605,4 +627,5 @@ def extract(db_path=None) -> dict:
         conn.commit()
     finally:
         conn.close()
-    return {"written": written, "skipped_no_period": skipped_no_period}
+    return {"written": written, "skipped_no_period": skipped_no_period,
+            "over_ceiling": over_ceiling}
