@@ -4091,7 +4091,9 @@ exclusivities = api_get(api_base, f"/companies/{ticker}/exclusivities")["assets"
 # are quoted in, which for an ADR is not the one the accounts are reported in: GSK
 # quoted in USD reports in GBP, and the two sat side by side reading as a contradiction.
 if not company.get("is_sec_filer"):
-    filer = "not an SEC filer"
+    # Bayer files its annual report in the European Single Electronic Format, which is
+    # where its financials come from. Roche files neither.
+    filer = "ESEF filer" if company.get("lei") else "not an SEC filer"
 elif company.get("is_foreign_private_issuer"):
     filer = "20-F filer"
 else:
@@ -4904,9 +4906,11 @@ with main:
             _pre_revenue_blocks(api_base, ticker, left, right)
         else:
             state(f"{ticker} does not file with the SEC",
-                  "Roche and Bayer are not SEC registrants, so EDGAR holds no company "
-                  "facts for them. Their financials come from investor relations, "
-                  "which this build does not read.")
+                  "EDGAR holds no company facts for a company the SEC does not "
+                  "register, and no ESEF annual report is on file for it either. Roche "
+                  "is the case: a Swiss filer outside both, whose financials are "
+                  "published only on its investor relations site, which this build "
+                  "does not read.")
 
         # The reported period, then the year it is guiding to. Consensus belongs here
         # rather than on the forecast tab: this is where the reported number it is being
