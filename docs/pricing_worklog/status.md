@@ -29,7 +29,7 @@
 | GSK | Velzatinib | seeded and built |
 | INCY | INCA033989 | seeded and built |
 | INCY | INCA33890 | not started |
-| INCY | INCB123667 | seeded, not built: penetration null (no measurable anchor) |
+| INCY | INCB123667 | seeded, on the placeholder curve: penetration null, shown but not counted per share |
 | INCY | Povorcitinib | seeded and built |
 | IONS | ION363 | not started |
 | IONS | obudanersen | not started |
