@@ -1,0 +1,99 @@
+{
+ "ticker": "IONS",
+ "name": "ION363",
+ "summary": "ION363 (ulefnersen, formerly jacifusen) is an intrathecal antisense oligonucleotide against FUS for ALS caused by FUS mutations. The Phase 3 FUSION (NCT04768972, 89 enrolled, primary completion 2026-06-17 actual) met its joint-rank primary endpoint of function and survival at Day 505, p=0.0005 (Ionis release 2026-09-22). Otsuka has held exclusive worldwide rights since November 2024. Ionis keeps milestones and tiered royalties at an undisclosed rate, so the asset is refused. The fields below are kept for a rebuild. Price anchor: Qalsody (tofersen), at $108,202 per CMS Part B beneficiary in 2024. Pool: the US ALS Registry prevalence, restricted to FUS carriers (0.43%) from two meta-analyses. Uptake is not researched.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Shneider et al., Lancet 2025;405:2075-2086 (PMID 40414239, doi:10.1016/S0140-6736(25)00513-6): jacifusen (ulefnersen) given as serial intrathecal injections for 2.8-33.9 months, with the last participants on 120 mg monthly; FUSION (NCT04768972) runs a blinded Part 1 to Day 505 and then an open-label phase (book trials table)",
+   "note": "Repeated intrathecal dosing that continues indefinitely, the same pattern as Qalsody (maintenance every 28 days), so chronic"
+  },
+  "list_price_per_patient": {
+   "value": 0.108202,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Qalsody: CMS Medicare Part B 2024, $5,842,932.61 over 54 beneficiaries = $108,202 per beneficiary",
+   "note": "Judgement, per the house convention: the anchor is Qalsody, the only approved intrathecal ASO for a genetic form of ALS. Part B is used because it holds 54 of Qalsody's Medicare beneficiaries, against 11 in Part D ($99,927 each in 2024). The case against: this understates an annual price. Qalsody's Part B claims average 394 / 54 = 7.3 administrations per beneficiary. The label's maintenance dose is 100 mg every 28 days (13 a year) after three loading doses at 14-day intervals (Qalsody PI, DailyMed setid 81356b45-1cb7-4eef-88ea-e44cc18b47c5). At the 2024 Part B allowed amount of $149.03 per mg ($5,842,932.61 over 39,207 units), a full maintenance year is about $193,736. No named Biogen annual list price was sourced. Otsuka, not Ionis, will set ulefnersen's price"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "house convention for a CMS Part B per-beneficiary anchor (backend/gross_to_net.py): Part B pays 106% of ASP, so 1 - 1/1.06 comes off",
+   "note": "Direction checked: 5.66% off list, so net is $102,077 per patient-year. Qalsody's Medicare beneficiaries sit mainly in Part B (lookup.py demand Qalsody: 54 Part B, 11 Part D in 2024)"
+  },
+  "discontinuation_pct": {
+   "value": null,
+   "unit": "share of treated stock stopping per year",
+   "source": "not researched: the asset is refused on partner economics",
+   "note": "For a rebuild: no measured persistence for an intrathecal ALS ASO is in the book. The Lancet 2025 case series (12 participants, 2 deaths) is too small to use. The FUSION survival data, once published, or Qalsody's VALOR extension are the candidates"
+  },
+  "forecast_start_year": {
+   "value": 2028,
+   "unit": "year",
+   "source": "NCT04768972 primary completion 2026-06-17 (actual; book trials table); topline 2026-09-22, with Otsuka and Ionis to seek 'expedited regulatory submission pathways' (Ionis release, ir.ionis.com/news-releases/news-release-details/ionis-announces-positive-topline-results-phase-3-fusion-study); FDA Fast Track and Orphan Drug designation (Ionis 10-Q 0000874015-26-000251)",
+   "note": "Judgement. A filing around early 2027 and an 8-month priority review put approval in late 2027, so 2028 is the first full year. The case against: Qalsody took 18 months from its VALOR topline (October 2021) to accelerated approval (April 2023). The same lag here gives approval around March 2028, and 2029 as the first full year"
+  },
+  "exus_multiple": {
+   "value": 1.887,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Qalsody FY2025 in the book's asset_revenue_regions: $56.8mm outside the US against $30.1mm US (Biogen 10-K 0000875045-26-000013). 56.8 / 30.1 = 1.887",
+   "note": "Judgement on the comparator: same disease, same modality, and a filed split. The case against: FY2025 was Qalsody's first full year after EU approval, and the ratio moved from 0.550 in FY2024 (11.5 / 20.9). Spinraza, the mature intrathecal ASO, reads 1.473 (921.3 / 625.5, same 10-K). The engine also scales the pool by 1 + this multiple, so the world pool is 2.89x the US. The case for keeping it high: FUS is a larger share of sporadic ALS in Asian cohorts (0.9% against 0.3% in Europeans, Zou 2017), and Otsuka holds rights worldwide"
+  },
+  "economics_share": {
+   "value": null,
+   "unit": "share",
+   "source": "Otsuka release 2024-11-22 (otsuka.co.jp/en/company/newsreleases/2024/20241122_1.html): exclusive global licence, $10mm upfront, regulatory and sales milestones, 'Ionis is also eligible to earn royalties'. Ionis 10-Q 0000874015-26-000251: 'we entered into an agreement with Otsuka to commercialize ulefnersen ... worldwide'. Ionis 10-K FY2025 0000874015-26-000115 risk factors: relying on 'Otsuka for development and funding of ulefnersen'",
+   "note": "Cannot be sourced. The royalty rate is not disclosed in any filing, release or search result found. By contrast, Ionis states tiers for zilganersen (up to mid-20%, same 10-Q) and for donidalorsen in Europe. The book also has no Ionis cost rows, so the royalty / margin conversion could not be struck even with a rate. Left null, the engine would assume 1.0, which the filings contradict"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Amyotrophic Lateral Sclerosis",
+   "fields": {
+    "prevalence": {
+     "value": 32893,
+     "unit": "patients",
+     "source": "Mehta P et al., Amyotroph Lateral Scler Frontotemporal Degener 2025;26(3-4):290-295 (PMID 39749668, doi:10.1080/21678421.2024.2447919): 32,893 estimated US ALS cases in 2022 (National ALS Registry, capture-recapture)",
+     "note": "The book carries no ALS pool (lookup.py pool Amyotrophic returns nothing, and none is in epidemiology.csv), so this sets it. All ALS, not FUS only: eligible_pct restricts it. The same paper projects 36,308 cases by 2030"
+    },
+    "incidence": {
+     "value": 4799,
+     "unit": "patients per year",
+     "source": "Registry incidence of 1.44 per 100,000 for 2012-2019 (Amyotroph Lateral Scler Frontotemporal Degener 2025;26(7-8):758-766, PMID 40450587, doi:10.1080/21678421.2025.2506448), times 333,287,557 US residents on 1 July 2022 (US Census Bureau, Vintage 2022) = 4,799",
+     "note": "Derived. The rate is age-adjusted and the Registry's incidence is not capture-recapture adjusted, while the prevalence is. It therefore likely understates new cases: the prevalence study put missing cases at 27% in 2018 (PMID 37602649)"
+    },
+    "eligible_pct": {
+     "value": 0.004275,
+     "unit": "share of the pool",
+     "source": "Two filters. (1) FUS mutations in European-population ALS: 2.8% of familial and 0.3% of sporadic cases (Zou ZY et al., J Neurol Neurosurg Psychiatry 2017;88:540-549, 111-study meta-analysis, PMID 28057713, doi:10.1136/jnnp-2016-315018). (2) The familial share is 5.1% in prospective population registries (Byrne S et al., J Neurol Neurosurg Psychiatry 2011;82:623-627, PMID 21047878, doi:10.1136/jnnp.2010.224501). 0.051 x 0.028 + 0.949 x 0.003 = 0.004275",
+     "note": "The label population is FUS mutation carriers. FUSION enrols juvenile and adult FUS-ALS (Ionis 10-Q 0000874015-26-000251). No other entry filter is applied. Gives about 141 prevalent US patients and 21 new ones a year. The case for higher: FUS is 0.9% of sporadic ALS in Asian cohorts (Zou 2017) and 1.7% of a Taiwanese cohort (PMID 42268433), and the US population is not all of European ancestry. The case for lower: FUS-ALS progresses fast, so its share of the prevalent pool may sit below its share of new cases. Only genotyped patients can be treated, and that funnel is left to the uptake anchor"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.8727,
+     "unit": "share",
+     "source": "derived to hold the pool at its measured size, the method the remternetug and NBI-1117568 seeds use: 32,893 / (32,893 + 4,799) = 0.8727",
+     "note": "Needed because ALS is fatal: at the engine default of 1.0, an untreated patient stays eligible for ever. The case for lower: FUS-ALS runs faster than ALS as a whole, and juvenile P525L cases have died within 1-2 years of onset (PMID 32720527, 42295687). The prevalence and incidence mismatch above also inflates this value"
+    },
+    "penetration_peak_pct": {
+     "value": null,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "not researched: the asset is refused on partner economics",
+     "note": "For a rebuild: solve back from Qalsody's US patients. The data are its US revenue ($5.8mm, $20.9mm and $30.1mm in 2023-2025) or its 54 Part B plus 11 Part D Medicare beneficiaries in 2024, over a sourced SOD1 share of the same Registry pool"
+    },
+    "ramp_steepness": {
+     "value": null,
+     "unit": "logistic k",
+     "source": "not researched: the asset is refused on partner economics",
+     "note": "The book has no measured launch curve for a rare neuromuscular intrathecal drug. The nearest carried is Vyvgart's Medicare fit (k 0.5633, the nipocalimab seed). ulefnersen may launch faster because an expanded-access cohort exists"
+    },
+    "ramp_midpoint_year": {
+     "value": null,
+     "unit": "years from forecast_start_year",
+     "source": "not researched: the asset is refused on partner economics",
+     "note": "As ramp_steepness"
+    }
+   }
+  }
+ ],
+ "refuse": "Partner economics cannot be sourced from a filing. Otsuka holds exclusive worldwide rights to ulefnersen: it files, makes and sells the drug, and has reimbursed Phase 3 costs since 2025 (Otsuka release 2024-11-22; Ionis 10-Q 0000874015-26-000251). Ionis receives a $10mm upfront, regulatory and sales milestones, and tiered royalties at a rate no filing, release or search found discloses. The book also carries no Ionis cost rows to convert a royalty into an economics_share. Any share would be a guess, and left null the engine would credit Ionis with all of Otsuka's sales. The context file lists Ionis as lead sponsor and names no partner; that is a discrepancy to fix. Reseed once a filing states the royalty tiers. The fields above were kept for that rebuild; they have not had a second read"
+}

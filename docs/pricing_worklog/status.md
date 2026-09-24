@@ -31,7 +31,7 @@
 | INCY | INCA33890 | seeded and built |
 | INCY | INCB123667 | seeded, on the placeholder curve: penetration null, shown but not counted per share |
 | INCY | Povorcitinib | seeded and built |
-| IONS | ION363 | not started |
+| IONS | ION363 | refused: Otsuka holds worldwide rights; Ionis royalty rate undisclosed |
 | IONS | obudanersen | not started |
 | JNJ | Cetrelimab | refused: a combination partner only; SunRISe-2 stopped for futility |
 | JNJ | Seltorexant | seeded and built |
