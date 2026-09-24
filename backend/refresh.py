@@ -39,6 +39,7 @@ import brand_split
 import biologic_loe
 import catalysts
 import consensus as consensus_module
+import curated_register
 import db
 import deals
 import diff
@@ -342,6 +343,12 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # Again after the merges, so a row that only exists now is grouped too.
     mapped["molecules"] = molecules.assign(db_path)["groups_with_siblings"]
     mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
+    # The analyst's corrections to the marketed register: products licensed under a name
+    # the maps do not know, and products withdrawn from sale. Before the seeds, so a
+    # product added here can be seeded in the same run.
+    _register = curated_register.apply(db_path)
+    mapped["register_added"], mapped["register_retired"] = (_register["added"],
+                                                            _register["retired"])
     # The curated assumption seeds, insert-only: a rebuilt database gets the layer back,
     # and an analyst's live edit is never overwritten by the file it started from.
     conn = db.get_connection(db_path)
@@ -564,6 +571,12 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # Again after the merges, so a row that only exists now is grouped too.
     mapped["molecules"] = molecules.assign(db_path)["groups_with_siblings"]
     mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
+    # The analyst's corrections to the marketed register: products licensed under a name
+    # the maps do not know, and products withdrawn from sale. Before the seeds, so a
+    # product added here can be seeded in the same run.
+    _register = curated_register.apply(db_path)
+    mapped["register_added"], mapped["register_retired"] = (_register["added"],
+                                                            _register["retired"])
     # The curated assumption seeds, insert-only: a rebuilt database gets the layer back,
     # and an analyst's live edit is never overwritten by the file it started from.
     conn = db.get_connection(db_path)

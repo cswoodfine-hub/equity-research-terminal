@@ -1,0 +1,14 @@
+# Products approved and selling whose approval the fetchers cannot attach to the company
+# that sells them, because the licence sits under another applicant's name: an acquired
+# company (ImmunoGen for AbbVie's Elahere) or a small filer whose applicant string the
+# openFDA and Purple Book maps do not carry. backend/curated_register.py marks each one
+# marketed on every refresh, keyed by its licence number so a fetcher's own row for the
+# same licence joins it rather than duplicating it, and writes the statutory 12-year
+# biologic floor from first licensure where no exclusivity is on file.
+#
+# Every licence number and date is from the FDA's approval letter or the filer's own
+# filing, cited in source.
+ticker,brand,generic,internal_code,modality,licensed_on,source
+ABBV,Elahere,mirvetuximab soravtansine-gynx,BLA761310,biologic,2022-11-14,"FDA approval letter BLA 761310 (https://www.accessdata.fda.gov/drugsatfda_docs/appletter/2022/761310Orig1s000ltr.pdf); AbbVie reports Elahere net revenues of $690mm for FY2025 (10-K 0001551152-26-000008)"
+AUTL,Aucatzyl,obecabtagene autoleucel,BLA125813,cell therapy,2024-11-08,"FDA approval letter of November 8, 2024, STN 125813 (https://www.fda.gov/media/183464/download); Autolus reports net product revenue of $74.3mm for FY2025 (10-K 0001730463-26-000038)"
+ABEO,Zevaskyn,prademagene zamikeracel,BLA125807,gene therapy,2025-04-28,"FDA approval letter of April 28, 2025, STN 125807 (https://www.fda.gov/media/186513/download); Abeona reports ZEVASKYN product revenue of $2.4mm for FY2025 (10-K 0001493152-26-010413)"
