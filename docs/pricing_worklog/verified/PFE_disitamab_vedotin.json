@@ -1,0 +1,119 @@
+{
+ "ticker": "PFE",
+ "name": "Disitamab vedotin",
+ "summary": "Disitamab vedotin (RC48) is a HER2-directed ADC with an MMAE payload. It was licensed from RemeGen in 2021 by Seagen, now Pfizer, for every market outside RemeGen's Asian territory, with tiered high-single-digit to mid-teens royalties. The pivotal trial is SGNDV-001 (NCT05911295, 412 patients, primary completion 2027-01-29): DV with pembrolizumab against platinum chemotherapy in untreated HER2-expressing (IHC 1+ or higher) la/mUC. In RemeGen's Chinese analogue, RC48-C016 (NEJM), DV with toripalimab doubled median PFS to 13.1 months from 6.5. The price anchor is Padcev, the 1L la/mUC incumbent, at its CMS Part B figure of $109,818 per beneficiary. Uptake is anchored on EV+P's measured 51% of US 1L starts in 2024, halved as a judgement for a follower regimen restricted to HER2. Pfizer booked a $1.6bn impairment on DV in 2025 on updated long-range forecasts. Second reader: gross-to-net moved to the Part B convention (0.0566), economics_share re-derived as the book nets royalties (0.695), and eligible_pct rebuilt on first-line-treated patients and the trial sponsor's HER2 range (0.0823). A search summary claiming Pfizer had stopped DV in bladder cancer did not hold against the filings: the FY2025 10-K (filed 2026-02-26) still lists DV for 1st line HER2 (IHC 1+ or higher) metastatic urothelial cancer in late-stage development, the Q2 2026 8-K (0000078003-26-000094) books no further DV impairment, and NCT05911295 is active, not recruiting.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT05911295: DV plus pembrolizumab given in cycles until progression or unacceptable toxicity, against a fixed course of platinum chemotherapy",
+   "note": "Oncology treated to progression is chronic by house convention.",
+   "verdict": "confirmed",
+   "check": "SGNDV-001 design paper (Powles et al., Future Oncol 2025;21(21):2705, doi:10.1080/14796694.2025.2535280, PMID 40728126, PMC full text): arm A gets disitamab vedotin every 2 weeks and pembrolizumab 400 mg every 6 weeks 'until disease progression, intolerable toxicity, or withdrawal from the trial', pembrolizumab capped at 18 infusions (about 2 years); arm B chemotherapy up to 6 cycles. Treated to progression, so chronic by house convention"
+  },
+  "list_price_per_patient": {
+   "value": 0.109818,
+   "unit": "mm USD per patient-year",
+   "source": "python3 /tmp/claude-0/price/lookup.py demand Padcev: Part B 2024, $641,224,462 over 5,839 beneficiaries = $109,818 per beneficiary",
+   "note": "House convention: Padcev (enfortumab vedotin) is the closest marketed comparator. It is an MMAE ADC, and with pembrolizumab it is the 1L la/mUC standard DV+P would compete against. Case against: CMS per-beneficiary spend is a part-year figure. Padcev's 2024 Part B units (18,152,640 of 0.25 mg over 5,839 beneficiaries) are about 777 mg a beneficiary, roughly four 21-day cycles, so a full treated year costs several times this. The house gross-to-net on a Part B price takes off only the 6% ASP add-on (see gross_to_net_pct), so this part-year understatement is not offset; the book accepts that on every Part B-priced seed. A second case against: Enhertu, the marketed HER2 ADC, runs $69,140 per Part B beneficiary in 2024 (lookup.py demand Enhertu), 37% below Padcev. No published annual list price for DV exists, since it is not approved in the US.",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Padcev: Part B 2024 $641,224,461.70 over 5,839 beneficiaries = $109,817.5, so 0.109818 mm USD per patient-year. Units 18,152,640 x 0.25 mg / 5,839 = 777 mg a beneficiary, as the note says. Comparator choice (the 1L la/mUC MMAE ADC incumbent) holds. Value confirmed; one sentence of the note was false and is replaced: backend/gross_to_net.py says its 0.5 halving is measured on Part D and 'says nothing about Part B', so it does not offset Padcev's part-year Part B basis. Enhertu's 2024 Part B $581,465,185 / 8,410 = $69,140 added as a case against"
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "Social Security Act section 1847A: Medicare Part B pays 106% of average sales price, and ASP is already net of manufacturer discounts and rebates, so the manufacturer's price is the CMS Part B figure divided by 1.06, 5.66% below it. backend/gross_to_net.py: the 0.5 convention is measured on Part D drugs and 'says nothing about Part B, where ... the deduction there is the 6% add-on and is derived from the statute rather than assumed'. The book carries 0.056604 on the AZD5335 seed the researcher cited, and on Part B-priced ADC seeds such as zilovertamab vedotin, PF-08046054 and sacituzumab tirumotecan",
+   "note": "Net is 94.34% of list: 0.109818 x (1 - 0.056604) = 0.103602 mm USD. Direction checked: share OFF list. The price is Padcev's Part B spending per beneficiary, so the Part B convention applies, not the Part D halving. Case against: a Part B per-beneficiary figure is part-year (Padcev's 777 mg a beneficiary is about four cycles), and nothing here offsets that, so revenue per treated patient-year is likely understated; ASP also leaves out 340B and Medicaid prices, which would push net lower",
+   "verdict": "corrected",
+   "check": "0.5 -> 0.056604. The researcher's basis does not hold: backend/gross_to_net.py's docstring limits the 0.5 halving to Part D and names the Part B deduction as the 6% ASP add-on (1 - 1/1.06 = 0.056604). The claim that 'the AZD5335 seed carries the same value' is now false: lookup.py seed AZD5335 reads 0.056604 (Social Security Act 1847A); it read 0.5 at my first lookup and changed in the book during this check. 20 other book seeds priced on Part B carry 0.0566"
+  },
+  "discontinuation_pct": {
+   "value": 0.6,
+   "unit": "share of the treated stock stopping per year",
+   "source": "RC48-C016, NEJM 2025 (doi:10.1056/NEJMoa2511648; https://www.nejm.org/doi/abs/10.1056/NEJMoa2511648): median PFS 13.1 months with DV plus toripalimab against 6.5 with chemotherapy, 484 patients with untreated HER2-expressing la/mUC. 1 - exp(-12/13.1) = 0.600 a year",
+   "note": "Derived with the brief's accepted exponential conversion from median PFS. SGNDV-001 has not read out, so the closest pivotal is RemeGen's same-design Chinese trial, with toripalimab rather than pembrolizumab. Case against: median time on treatment usually falls short of PFS, which would mean faster discontinuation, and the population and PD-1 partner differ from SGNDV-001.",
+   "verdict": "confirmed",
+   "check": "NEJM abstract (Sheng et al., N Engl J Med 2025;393:2324, doi:10.1056/NEJMoa2511648, PMID 41124210): RC48-C016, 484 randomized, previously untreated HER2-expressing (IHC 1+ to 3+) la/mUC, median PFS 13.1 vs 6.5 months (HR 0.36), dual primary PFS and OS. 1 - exp(-12/13.1) = 0.5999, recomputed. This is the conversion the brief allows and the note says so. For the record, the median-exact constant-hazard form 1 - 0.5^(12/13.1) = 0.470, which is the form the vepugratinib and ABBV-1480 seeds use; the gap is the brief's allowance, not an error"
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "NCT05911295: primary completion 2027-01-29, active and not recruiting (ctx trials list). Dual primary endpoints PFS and OS (Future Oncology 2025, doi:10.1080/14796694.2025.2535280).",
+   "note": "JUDGEMENT on timing. An event-driven readout in H1 2027 and a BLA in 2027 under an 8-month priority review gives approval around H1 2028, so 2029 is the first full year. Case for 2028: an early readout and a fast review. Case for later: the OS dual primary may need more follow-up.",
+   "verdict": "confirmed",
+   "check": "Book trial snapshot from ClinicalTrials.gov (captured 2026-07-18) and catalyst row 472: NCT05911295 Phase 3, active not recruiting, primary completion 2027-01-29; ctx enrollment 412 against about 400 planned (Future Oncol 2025 design paper). Dual primary PFS (BICR) and OS confirmed in that paper (PMID 40728126). Amass TrialCore was at its usage limit, so the registry record was not re-read directly. 2029 follows the brief's rule for a launch clearly after 2027; judgement labelled with cases either way"
+  },
+  "exus_multiple": {
+   "value": 0.521,
+   "unit": "x US",
+   "source": "Pfizer FY2025 10-K (0000078003-26-000026), product revenue table held in the book's asset_revenue_regions: Ibrance US $2,710mm, international $1,412mm; 1412/2710 = 0.521",
+   "note": "JUDGEMENT on the comparator. Padcev's own split ($1,902mm US, $38mm international) cannot be used, because Astellas books Padcev outside the Americas. Ibrance is Pfizer's largest solid-tumour product that Pfizer sells itself worldwide. Case against: Ibrance's international figure includes China and other Asian markets, which fall in RemeGen's territory for DV, so this overstates DV's ex-US reach. Lorbrena (international $616mm against US $407mm) shows how much the ratio varies by product.",
+   "verdict": "confirmed",
+   "check": "asset_revenue_regions (FY2025 10-K 0000078003-26-000026): Ibrance US $2,710mm, Int'l $1,412mm, 1412/2710 = 0.5210; Lorbrena $616mm / $407mm = 1.514; Padcev US $1,902mm, Int'l $38mm. The 10-K pipeline footnote confirms Astellas holds Padcev rights outside North and South America, so Padcev's split is unusable. The same Ibrance 0.521 is on the PF-07220060, PF-07248144 and ponsegromab seeds. Comparator is a labelled judgement with the China-territory case against"
+  },
+  "economics_share": {
+   "value": 0.694985,
+   "unit": "share of the asset",
+   "source": "Seagen FY2021 10-K (https://www.sec.gov/Archives/edgar/data/1060736/000106073622000016/sgen-20211231.htm) and 8-K (0001193125-21-278354): $200mm upfront for exclusive rights outside RemeGen's territory (Asia excluding Japan and Singapore), up to $195mm of development and $2.2bn of regulatory and commercial milestones, and 'a tiered, high single digit to mid-teen percentage royalty based on net sales of disitamab vedotin in Seagen's territory'. Pfizer FY2025 10-K (0000078003-26-000026) footnote (d): 'Disitamab vedotin is being developed in collaboration with RemeGen Co., Ltd.' Netted as the book nets every royalty: the lowest stated tier over Pfizer's pre-tax margin from its company rows (cost of sales 25.67%, SG&A 22.04%, R&D 16.68%, other costs 12.6603%), a 22.9497% margin. (0.229497 - 0.07) / 0.229497 = 0.6950",
+   "note": "JUDGEMENT on the tier: 'high single digit' taken at its bottom, 7%, as the litifilimab seed takes 'mid-single-digit' at 4% and the PF-08634404, VLA15 and ralinepag seeds take their lowest stated tier. The engine applies economics_share to the rNPV (forecast.py: owner_rnpv = rnpv x share), not to revenue, so a royalty on sales takes its share of the margin: every cost in the build scales with revenue. Milestones are not netted, as in the other royalty seeds. Case lower: a 12% blended royalty gives 0.4771 and the 15% top tier 0.3464. Case higher: Pfizer's cost of sales already carries an average royalty burden, so netting this one on top double-counts part of it. The PF-08634404 and VLA15 seeds were struck on an earlier 21.09% margin, which would give 0.6681 here",
+   "verdict": "corrected",
+   "check": "0.88 -> 0.694985. Filed terms confirmed by search of the Seagen 10-K/8-K ($200mm upfront, $195mm development and $2.2bn regulatory/commercial milestones, high single digit to mid-teen tiered royalty, RemeGen territory Asia excluding Japan and Singapore) and the FY2025 10-K collaboration footnote read in the book's filing_sections. The researcher's 0.88 treated the field as a share of revenue kept; forecast.py multiplies rNPV by it, and the book's royalty seeds convert the royalty through the pre-tax margin. Margin recomputed from the current PFE rows: 1 - (0.2567 + 0.2204 + 0.1668 + 0.126603) = 0.229497"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Carcinoma, Transitional Cell",
+   "fields": {
+    "prevalence": {
+     "value": 84530,
+     "unit": "patients",
+     "source": "SEER Cancer Stat Facts: Bladder Cancer, estimated new US cases for the year, the figure data/epidemiology.csv carries for 'Urinary Bladder Neoplasms' (84,530)",
+     "note": "Oncology convention: the pool is the year's diagnoses (prevalence = incidence), so the engine uses no carryover. lookup.py pool returns no row for 'Carcinoma, Transitional Cell'. The book's only related figure is 'Urinary Bladder Neoplasms', and this uses that same incidence, so no second figure is introduced for bladder cancer. Case against: urothelial carcinoma includes upper-tract tumours, which are not in the bladder count, so the pool is slightly understated.",
+     "verdict": "confirmed",
+     "check": "lookup.py pool Transitional returns nothing, so the book carries no pool under this name. lookup.py pool Bladder: epidemiology.csv 'Urinary Bladder Neoplasms' incidence 84,530 (SEER); the same figure the vepugratinib seed divides by, so no second bladder figure enters the book. Prevalence equal to incidence triggers forecast.py's line-of-therapy path (carryover 0, pool is each year's diagnoses)"
+    },
+    "incidence": {
+     "value": 84530,
+     "unit": "patients per year",
+     "source": "As prevalence: SEER bladder cancer new cases, as held in data/epidemiology.csv",
+     "note": "Set equal to prevalence per the cancer-pool convention the engine reads (backend/forecast.py).",
+     "verdict": "confirmed",
+     "check": "84,530 = epidemiology.csv incidence for Urinary Bladder Neoplasms; equal to prevalence, which forecast.py reads as a yearly-diagnosis pool with no carryover"
+    },
+    "eligible_pct": {
+     "value": 0.082338,
+     "unit": "share of the pool",
+     "source": "Two filters. (1) About 22,542 US patients a year are diagnosed with or progress to la/mUC, of whom 11,600 receive first-line therapy (Hepp et al., 'Epidemiology and treatment patterns for locally advanced or metastatic urothelial carcinoma: a systematic literature review and gap analysis', J Manag Care Spec Pharm 2021;27(2):240, doi:10.18553/jmcp.2020.20285, PMID 33355035); the figure the vepugratinib seed carries. (2) HER2 IHC 1+ or higher, the SGNDV-001 entry criterion: 'In UC, approximately 60% to 80% of patients have tumors that demonstrate HER2 expression' (Powles et al., SGNDV-001 design paper, Future Oncol 2025;21(21):2705, doi:10.1080/14796694.2025.2535280, PMID 40728126), taken at 60%. 11,600 x 0.60 = 6,960 a year, over the book's 84,530 = 0.08234",
+     "note": "JUDGEMENT on the HER2 share: the bottom of the trial sponsor's own range; its midpoint, 70%, gives 0.0961. The base is first-line-treated patients, the same denominator as the Flatiron share in penetration_peak_pct, so the two multiply on one basis. Case against, lower: SGNDV-001 enrols only patients eligible for platinum chemotherapy, so a label that follows the trial would leave out platinum-ineligible patients. Case against, higher: the JMCP flow model predates EV+P, which may have raised the share of la/mUC patients who get first-line therapy. Upper-tract tumours sit in neither the 84,530 nor, necessarily, the 11,600",
+     "verdict": "corrected",
+     "check": "0.0894 -> 0.082338. The HER2 split cited (IHC 0/1+/2+/3+ of 39.5/23.5/31.9/5.0%) is not in the cited paper: Lei et al., J Natl Cancer Cent 2023 (PMID 39035731, PMC11256704, full text read) reports 104/137 (75.9%) IHC 0 or 1+, 17.5% IHC 2+ and 6.6% IHC 3+, and never separates 1+, so IHC 1+ or higher cannot be read from it. The la/mUC base (Bharmal et al., Value in Health 2017;20(9), 3.8 per 100,000, 12,494) exists as an abstract but its figure could not be seen (journal and ISPOR pages blocked; searches show only its 25.7 per 100,000 and 83,662 crude UC incidence), and it counts la/mUC patients whether treated or not, while the penetration share is of treated patients. Replaced with JMCP's 11,600 first-line-treated (confirmed by search of the paper) and the SGNDV-001 paper's 60-80% (read in PMC full text). 11,600 x 0.60 / 84,530 = 0.082338 recomputed"
+    },
+    "penetration_peak_pct": {
+     "value": 0.255,
+     "unit": "share of each year's eligible patients starting",
+     "source": "Incumbent: enfortumab vedotin plus pembrolizumab (Padcev plus Keytruda). Flatiron Health, ASCO GU 2026, 'Real-world use and effectiveness of first-line EV+P in advanced urothelial carcinoma in the US' (https://www.urotoday.com/conference-highlights/asco-gu-2026/asco-gu-2026-bladder-cancer/166997-asco-gu-2026-real-world-use-and-effectiveness-of-first-line-enfortumab-vedotin-with-pembrolizumab-in-patients-with-advanced-urothelial-carcinoma-in-the-us.html): 420 of 821 1L patients (51%) received EV+P in 2024, against 15% in 2023. 0.51 x 0.5 = 0.255",
+     "note": "JUDGEMENT: half of what the incumbent measurably captured. On an incidence pool this field is the share of each year's eligible starts. SGNDV-001 compares against chemotherapy, not EV+P, and EV+P is already the standard in HER2-expressing patients, so DV must take share from Pfizer's own Padcev rather than from chemotherapy. Case against, lower: no head-to-head against EV+P, and Pfizer impaired DV by $1.6bn in 2025 and $200mm in 2024 on 'updated long-range commercial forecasts' and 'emerging competition' (FY2025 10-K 0000078003-26-000026), which signals modest expectations. Case higher: fewer grade 3 or worse toxicities than chemotherapy and no EV neuropathy or skin toxicity. EV+P reached 62% of first-line starts in 2025 in the same series, so the incumbent's share is still rising. The eligible pool is now first-line-treated patients, the same denominator as this share.",
+     "verdict": "confirmed",
+     "check": "Search confirmed the Flatiron ASCO GU 2026 analysis (UroToday report; the vepugratinib seed cites Ozay et al., abstract 692, doi:10.1200/JCO.2026.44.7_suppl.692): 420 of 821 (51%) first-line patients got EV+P in 2024, 142 of 919 (15%) in 2023, 0.4% in 2022, 62% of 2025 first-line treatments. 420/821 = 0.5116; 0.51 x 0.5 = 0.255, recomputed. Impairments read in the book's filing_sections: FY2025 10-K (0000078003-26-000026) $1.6bn for disitamab vedotin in 2025 on 'changes in development plans and updated long-range commercial forecasts', and $200mm in 2024 'reflecting emerging competition'. The halving is a labelled judgement with cases both ways"
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "lookup.py seed AZD5335: Enhertu's CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 (lookup.py demand Enhertu confirms them) fitted to k = 1.08 with a midpoint at 2.2 years",
+     "note": "Reused from the book's HER2 ADC launch fit, the closest measured analogue for a HER2 ADC. EV+P's own 1L uptake, 0.4% in 2022, 15% in 2023 and 51% in 2024, is faster, but two points are too few to fit. Case against: a follower in a line with an established ADC standard may ramp more slowly than Enhertu, which opened a new segment.",
+     "verdict": "confirmed",
+     "check": "lookup.py seed AZD5335: ramp_steepness 1.08 and ramp_midpoint_year 2.2 on its Carcinoma, Ovarian Epithelial rows, from Enhertu's Part B fit; lookup.py demand Enhertu reproduces 864, 1,904, 4,841, 7,105 and 8,410 beneficiaries for 2020 to 2024. The same curve is on the vepugratinib seed for 1L la/mUC. Reuse is labelled with its case against"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "Same Enhertu fit as ramp_steepness (lookup.py seed AZD5335)",
+     "note": "Reused.",
+     "verdict": "confirmed",
+     "check": "lookup.py seed AZD5335: ramp_steepness 1.08 and ramp_midpoint_year 2.2 on its Carcinoma, Ovarian Epithelial rows, from Enhertu's Part B fit; lookup.py demand Enhertu reproduces 864, 1,904, 4,841, 7,105 and 8,410 beneficiaries for 2020 to 2024. The same curve is on the vepugratinib seed for 1L la/mUC. Reuse is labelled with its case against"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

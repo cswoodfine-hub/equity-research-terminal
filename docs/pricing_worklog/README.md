@@ -24,12 +24,39 @@ Progress per asset is in `status.md`.
 The scripts and brief use fixed paths under `/tmp/claude-0/price`. Recreate that layout:
 
     mkdir -p /tmp/claude-0/price/out
-    cp -r docs/pricing_worklog/{BRIEF.md,lookup.py,assemble.py,index.json,ctx,verified} /tmp/claude-0/price/
+    cp -r docs/pricing_worklog/{BRIEF.md,*_TASK.md,*.py,index.json,ctx,verified} /tmp/claude-0/price/
     cp docs/pricing_worklog/research/*.json /tmp/claude-0/price/out/
-    cp backend/er_tool.db /tmp/claude-0/price/book.db     # read-only copy for lookup.py
 
-## Why it stopped
+The book has to be the current one. `data/er_tool.db.gz` is a July copy that lacks the
+assumptions table and most pipeline rows, so take the published refresh instead (the
+`data-latest` release asset; `github.com/<repo>/releases/download/data-latest/er_tool.db.gz`
+downloads from this container), then migrate, fold aliases and load the seeds:
 
-The second reader needs to open sources. This session's web search allowance ran out
-(200 of 200) and the container's network reaches GitHub and PyPI only, so the 13 researched
-files in `research/` wait on a second reader and 46 assets have not been researched.
+    gunzip -c er_tool.db.gz > backend/er_tool.db
+    cd backend && python3 -c "import db, curated_register, programme_alias, asset_merge, \
+        indication_mapping, assumptions; db.init(); p=str(db.DB_PATH); curated_register.apply(p); \
+        c=db.get_connection(); programme_alias.load_curated(c); c.commit(); c.close(); \
+        asset_merge.merge(p); indication_mapping.build(p); c=db.get_connection(); \
+        assumptions.load_seeds(c); c.commit()"
+    cp er_tool.db /tmp/claude-0/price/book.db     # read-only copy for lookup.py
+
+## The loop
+
+1. Researcher: an agent told to follow `RESEARCH_TASK.md` with `{F}` set to the context
+   file name. Second reader: `SECOND_READER_TASK.md`, same substitution.
+2. `show.py verified/<file>.json` prints every field with its verdict in one line.
+3. Before assembling, check what the engine needs that a reader may not have added: a line
+   of cancer therapy on a pool whose prevalence is above its incidence needs
+   `untreated_carryover_pct` 0; a royalty is struck on the owner's margin, because the
+   engine applies `economics_share` to rNPV; an approved product states `pos` 1.0. Add
+   such a field to the verified file with verdict "added at assembly".
+4. `assemble.py verified/<file>.json`, then `fx_seed.py data/assumptions/<seed>.csv` for a
+   company reporting in pounds, euros, kroner or francs, then `build.py TICKER:Name` from
+   `backend/` to load and build. Raise the seed count in `test_wacc_live_rate.py`.
+
+## What works in this container
+
+WebSearch works; WebFetch is blocked for almost every host, ClinicalTrials.gov included.
+The Amass connector ran out of quota in the second session, so trial dates come from the
+context files and the book's trials table. The first session's search allowance ran out at
+200; the second session ran thirteen second readers at five to ten searches each.

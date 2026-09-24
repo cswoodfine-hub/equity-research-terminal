@@ -20,28 +20,28 @@
 | DYN | Zeleciment Rostudirsen (DYNE-251) | not started |
 | EXEL | XL092 | not started |
 | GPCR | Aleniglipron | not started |
-| GSK | GSK5784283 | researched, awaiting second reader |
-| GSK | Investigational varicella vaccine | researched, awaiting second reader |
+| GSK | GSK5784283 | seeded and built |
+| GSK | Investigational varicella vaccine | seeded and built |
 | GSK | Linerixibat | refused: royalty rate undisclosed |
 | GSK | MMRVNS vaccine | seeded and built |
-| GSK | Mocertatug rezetecan | researched, awaiting second reader |
-| GSK | Risvutatug Rezetecan | researched, awaiting second reader |
-| GSK | Velzatinib | researched, awaiting second reader |
+| GSK | Mocertatug rezetecan | seeded and built |
+| GSK | Risvutatug Rezetecan | seeded and built |
+| GSK | Velzatinib | seeded and built |
 | INCY | INCA033989 | not started |
 | INCY | INCA33890 | not started |
 | INCY | INCB123667 | not started |
 | INCY | Povorcitinib | not started |
 | IONS | ION363 | not started |
 | IONS | obudanersen | not started |
-| JNJ | Cetrelimab | not started |
+| JNJ | Cetrelimab | refused: a combination partner only; SunRISe-2 stopped for futility |
 | JNJ | Seltorexant | not started |
 | LLY | Brenipatide | seeded and built |
 | LLY | LY3537982 | seeded and built |
 | LLY | Remternetug | seeded and built |
-| LLY | Sofetabart Mipitecan | seeded, not built: penetration null |
+| LLY | Sofetabart Mipitecan | seeded, not built: penetration null (Part B deduction corrected) |
 | LLY | Vepugratinib | seeded and built |
 | LNTH | [18F]PI-2620 | not started |
-| MRNA | mRNA-1018-H5 | not started |
+| MRNA | mRNA-1018-H5 | refused: pandemic stockpile vaccine, no per-patient price |
 | NBIX | NBI-1065845 | not started |
 | NBIX | NBI-1117568 | not started |
 | NTLA | Biological NTLA-2002 | not started |
@@ -49,17 +49,17 @@
 | NVO | Etavopivat | not started |
 | NVO | Zenagamtide | not started |
 | NVO | Ziltivekimab | not started |
-| NVS | Ianalumab | researched, awaiting second reader |
-| NVS | Pelabresib | researched, awaiting second reader |
+| NVS | Ianalumab | seeded and built |
+| NVS | Pelabresib | seeded and built |
 | NVS | Votoplam | researcher returned nulls; not buildable |
-| NVS | Zigakibart | researched, awaiting second reader |
-| PFE | Disitamab vedotin | researched, awaiting second reader |
+| NVS | Zigakibart | seeded and built |
+| PFE | Disitamab vedotin | seeded and built |
 | PFE | ibuzatrelvir | held: cannibalises Paxlovid |
-| PFE | PF-06801591 | researched, awaiting second reader |
+| PFE | PF-06801591 | seeded and built |
 | PFE | PF-07220060 | seeded and built |
 | PFE | PG4 | held: cannibalises Prevnar 20 |
-| PFE | Sigvotatug Vedotin | researched, awaiting second reader |
-| PFE | vepdegestrant | researched, awaiting second reader |
+| PFE | Sigvotatug Vedotin | seeded and built |
+| PFE | vepdegestrant | seeded and built: Pfizer's royalty from Rigel |
 | REGN | Fianlimab | not started |
 | REGN | Mibavademab | not started |
 | REGN | Pozelimab + Cemdisiran | not started |
@@ -69,9 +69,9 @@
 | SLDB | SGT-003 | not started |
 | SNY | Duvakitug | seeded and built |
 | SNY | Lunsekimig | seeded and built |
-| SNY | Riliprubart | researched, awaiting second reader |
+| SNY | Riliprubart | seeded and built |
 | SNY | Tolebrutinib | refused: no US path |
-| SNY | Venglustat | seeded, not built: eligible_pct null |
+| SNY | Venglustat | seeded, not built: eligible_pct null (Part B deduction corrected) |
 | SRPT | SRP-9003 | not started |
 | TSHA | TSHA-102 | not started |
 | VOR | Telitacicept | not started |

@@ -1,0 +1,127 @@
+{
+ "ticker": "GSK",
+ "name": "Risvutatug Rezetecan",
+ "summary": "Risvutatug rezetecan (Ris-Rez, GSK5764227, HS-20093) is a B7-H3 ADC carrying a topoisomerase I payload, licensed from Hansoh in 2023 for the world outside Greater China. The lead pivotal trial is EMBOLD SCLC-301 (NCT07099898, 420 patients, OS primary endpoint) in relapsed ES-SCLC. It completes 2027-11-05, and GSK expects pivotal data in 2027 (6-K 0001654954-26-008321). The asset has FDA Breakthrough designation. Hansoh's China phase 3 ARTEMIS-008 beat topotecan: OS 18.5 vs 10.3 months (HR 0.46), PFS 7.2 vs 3.0 months. The context file lists this trial under 'Lung Neoplasms' at Phase 1/2, but the book's trials table carries it as Phase 3 under asset id 2095 ('Ris-Rez'), so Lung Neoplasms is modelled as the lead. Price anchor: Trodelvy's CMS Part B figure of $82,521 per beneficiary, the house ADC convention, net $77,850 after the Part B 6% add-on comes off (gross_to_net corrected by the second reader from 0.5 to 0.056604). Uptake anchor: lurbinectedin's measured 26.5% of US second-line ES-SCLC (Sankar et al. 2025, Flatiron). The ramp is the book's Enhertu fit. Second reader: the context file does not list NCT07099898 at all; its 'Lung Neoplasms' row is Phase 1/2 from the ivonescimab combination NCT07602855, and the SCLC Phase 3 sits on book asset 2095 'Ris-Rez', a duplicate of this molecule (asset 2119; the 6-K names it 'risvutatug rezetecan (Ris-Rez)'). Merge or alias the two before building, or the engine will risk-adjust this Lung Neoplasms block at Phase 1/2. The book's Lung Neoplasms prevalence (661,853) is not equal to its incidence (229,410), so the build must also set untreated_carryover_pct = 0 for this indication (backend/forecast.py) or the living stock opens as a pool.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "GSK 6-K 2026-09-14 (0001654954-26-008321): ARTEMIS-008 doses Ris-Rez at 8.0 mg/kg every three weeks, against topotecan",
+   "note": "Oncology treated to progression, so chronic per house convention.",
+   "verdict": "confirmed",
+   "check": "Read the 6-K text in the book (0001654954-26-008321, filed 2026-09-14, filing_sections): 'Patients were randomised 1:1 to receive Ris-Rez 8.0 mg/kg every three weeks or topotecan 1.2 mg/m2 on days 1-5 of each 21-day cycle'. Repeated three-weekly infusion in relapsed SCLC is oncology treated to progression, so chronic per the brief; matches the I-DXd, ABBV-706 and sac-TMT seeds (all chronic)."
+  },
+  "list_price_per_patient": {
+   "value": 0.082521,
+   "unit": "mm USD per patient-year",
+   "source": "python3 /tmp/claude-0/price/lookup.py demand Trodelvy: Part B 2024, $272,318,588 over 3,300 beneficiaries = $82,521 per beneficiary. This is the house anchor for a non-DXd topo-I ADC in a solid tumour (seeds for AZD5335, puxitatug, sonesitatug and sac-TMT).",
+   "note": "JUDGEMENT. The marketed second-line SCLC comparators (Imdelltra, Zepzelca, topotecan) have no usable CMS row in the book: Imdelltra has only a 2024 Part D row with no beneficiary count, and the other two return nothing. The direct B7-H3 rival, I-DXd, is priced in the book at Enhertu's $69,140 because it shares Enhertu's DXd platform, which Ris-Rez does not. Case against: Imdelltra's annual WAC is reported at $391,500 ($31,500 for the first cycle, then $30,000 a cycle), per a search result attributed to Prime Therapeutics 'Oncology Insights' (https://www.primetherapeutics.com/oncology-insights-transformative-treatment-for-small-cell-lung-cancer). That is a full-year on-drug price, not per treated patient, and the second reader should confirm the source. On that basis this anchor is low.",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Trodelvy: Part B 2024 total_spending $272,318,588.4 over 3,300 beneficiaries = $82,521, so 0.082521 mm USD per patient-year is right in unit and value. Same anchor carried by the ABBV-706 (SCLC ADC), sac-TMT, AZD5335, puxitatug and sonesitatug seeds (lookup.py seed). I-DXd seed carries Enhertu $69,140 (0.06914), as the note says. Same-setting comparators: lookup.py demand returns nothing for Zepzelca, Hycamtin or topotecan, and Imdelltra has one 2024 Part D row ($483,436, 26 claims, beneficiaries null), as stated. Case against confirmed by WebSearch (Prime Therapeutics, 'Oncology Insights: Transformative treatment for small cell lung cancer'): Imdelltra WAC $31,500 first cycle, $30,000 thereafter, $391,500 a year; median therapy duration 5.5 months in DeLLphi-301, about $179,000 per treated patient. Labelled JUDGEMENT with its case against and confirmed inputs, so confirmed. Flag: the brief says a published annual list price beats the convention; Imdelltra's is published and in the same disease and setting but a different modality, and using it would lift the price roughly 4.7x. The anchor is kept for consistency with the ABBV-706 SCLC seed and is conservative."
+  },
+  "gross_to_net_pct": {
+   "value": 0.056604,
+   "unit": "share taken off list",
+   "source": "backend/gross_to_net.py (house convention per the brief): Part B pays 106% of average sales price, which is already net of manufacturer discounts, so only the 6% add-on comes off, 1 - 1/1.06 = 0.056604 (Social Security Act section 1847A). The anchor is Trodelvy's CMS Part B 2024 figure, so the Part B rule applies. Same basis as the I-DXd, sac-TMT and ABBV-706 seeds (0.0566).",
+   "note": "Net is 94.3% of list: $82,521 / 1.06 = $77,850 per patient-year. Direction checked: this is the share OFF list. The 0.5 house convention applies only to a CMS Part D anchor. Case against: Part B ASP nets out rebates only on average across a class; a new entrant in a line with three novel agents may concede more than ASP captures, and the CMS per-beneficiary denominator is part-year.",
+   "verdict": "corrected",
+   "check": "Researcher wrote 0.5 (net 50% of list) on a Part B anchor. The brief (updated) and backend/gross_to_net.py docstring both say the Part D halving convention does not apply to Part B, where the deduction is the 6% add-on, 1 - 1/1.06 = 0.056604. lookup.py demand Trodelvy confirms the $82,521 figure is Part B (part 'B', 2024). The researcher's own case against named this. Corrected 0.5 -> 0.056604; net price moves from $41,261 to $77,850 per patient-year."
+  },
+  "discontinuation_pct": {
+   "value": 0.685,
+   "unit": "share of treated stock stopping per year",
+   "source": "ARTEMIS-008 (WCLC 2026; CancerNetwork, https://www.cancernetwork.com/view/risvutatug-rezetecan-improves-overall-survival-in-relapsed-sclc-trial): median PFS 7.2 months on Ris-Rez vs 3.0 on topotecan. At a constant hazard, 1 - 0.5^(12/7.2) = 0.685.",
+   "note": "The median-correct constant-hazard form is used, as on the I-DXd seed (0.817, from I-DXd's 4.9 months). The brief's 1 - exp(-12/7.2) gives 0.811. Case against: the trial was run in China and included limited-stage relapse, so the ex-China ES-SCLC population in EMBOLD SCLC-301 may progress sooner.",
+   "verdict": "confirmed",
+   "check": "Median PFS confirmed in the GSK 6-K in the book (0001654954-26-008321): 'Median progression-free survival as assessed by an independent review committee (IRC) was 7.2 months versus 3.0 months (HR 0.33; 95% CI: 0.25-0.42)'. I did not open the CancerNetwork page; the 6-K carries the same figures. Recomputed: 1 - 0.5^(12/7.2) = 0.6850; brief form 1 - exp(-12/7.2) = 0.8111, both as stated. I-DXd seed 0.8169 from 4.9 months confirmed (lookup.py seed Ifinatamab). The 6-K also confirms ARTEMIS-008 enrolled 'limited- or extensive-stage SCLC' in China, so the case against is accurate."
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "NCT07099898 (EMBOLD SCLC-301) primary completion 2027-11-05 (book trials table); GSK 6-K 0001654954-26-008321: 'pivotal data expected next year'; FDA Breakthrough Therapy designation in relapsed or refractory ES-SCLC (same 6-K, reference 1)",
+   "note": "Data in late 2027, filing in early 2028, a priority review, and launch in late 2028, so 2029 is the first full year. mCRPC (NCT07802704, EMBOLD Prostate-302) completes in December 2029 and is not modelled.",
+   "verdict": "confirmed",
+   "check": "Book trials table: NCT07099898 'A Study of GSK5764227 in Participants With Relapsed Small Cell Lung Cancer (SCLC)', Phase 3, Recruiting, primary completion 2027-11-05 (estimated), 420 enrolled, OS primary, Ris-Rez vs topotecan (trial_interventions). 6-K 0001654954-26-008321: 'phase III EMBOLD SCLC-301 trial in relapsed extensive-stage SCLC, with pivotal data expected next year' and 'Breakthrough Therapy Designation in the US ... for relapsed or refractory ES-SCLC'. Data late 2027, filing early 2028, priority review, launch late 2028 gives 2029 as the first full year; a reasoned judgement on confirmed inputs. mCRPC NCT07802704 primary completion 2029-12-19 confirmed in the book."
+  },
+  "exus_multiple": {
+   "value": 0.3308,
+   "unit": "ex-US revenue per 1.0 US",
+   "source": "GSK FY2025 annual report (0001654954-26-000892), Jemperli: US 647, EU 159, ROW 55 (book asset_revenue_regions). (159 + 55) / 647 = 0.331.",
+   "note": "JUDGEMENT. GSK sells no lung cancer medicine, so its infused oncology launch, Jemperli, is the named comparator. Case against: the I-DXd seed uses Keytruda's 0.680. Japan and the EU carry sizeable SCLC markets, and Ris-Rez has orphan designations in the US, Japan and the EU, so the ex-US share could be higher.",
+   "verdict": "confirmed",
+   "check": "Book asset_revenue_regions, Jemperli FY2025 (annual report table 0001654954-26-000892): US 647, Europe 159, International 55 (GBP mm; total 861). (159 + 55) / 647 = 0.3308. Currency cancels in the ratio. I-DXd seed uses Keytruda 0.6804 (lookup.py seed), as the case against says. Labelled JUDGEMENT with case against; inputs confirmed."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "GSK press release, 20 December 2023, 'GSK enters exclusive license agreement with Hansoh for HS-20093' (https://www.gsk.com/en-gb/media/press-releases/gsk-enters-exclusive-license-agreement-with-hansoh-for-hs-20093/): $185mm upfront, up to $1.525bn in success-based milestones, and tiered royalties on net sales outside mainland China, Hong Kong, Macau and Taiwan. GSK 6-K 0001654954-26-008321 confirms that GSK holds the exclusive ex-Greater China rights and names Hansoh as licensor.",
+   "note": "Licence: Hansoh, exclusive, ex-Greater China, and GSK books all sales. No profit split exists. The royalty rates are undisclosed in the release and in the GSK filings the book holds, so no deduction is modelled. Case against: tiered royalties would cut the effective share below 1.0 by their rate, and milestones of up to $1.525bn are not modelled.",
+   "verdict": "confirmed",
+   "check": "WebSearch: GSK press release 'GSK enters exclusive license agreement with Hansoh for HS-20093' (gsk.com; also Davis Polk, BioSpace): $185mm upfront, up to $1.525bn success-based milestones, tiered royalties on net sales outside mainland China, Hong Kong, Macau and Taiwan; exclusive worldwide rights ex those territories. The search results date the announcement 20 December 2023, not October 2023; source date fixed, value unchanged. 6-K 0001654954-26-008321: 'GSK holds exclusive rights to develop and commercialise Ris-Rez outside mainland China, Hong Kong, Macau and Taiwan' and names Hansoh as licensor. No profit split, so 1.0; royalties unmodelled matches the sac-TMT seed (1.0 with tiered royalties to Kelun)."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Lung Neoplasms",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book",
+     "note": "epidemiology.csv 'Lung Neoplasms': prevalence 661,853 (people living with lung cancer), incidence 229,410 (SEER). WARNING: unlike the book's oncology convention, the prevalence in this row is not the year's diagnoses. eligible_pct below is built on the 229,410 incidence. If the engine applies it to the 661,853 prevalence, the pool triples. The ABBV-706 seed prices SCLC under the separate 'Small Cell Lung Carcinoma' name, on 226,650.",
+     "verdict": "confirmed",
+     "check": "lookup.py pool 'Lung Neoplasms': epidemiology.csv row 'Lung Neoplasms', prevalence 661,853, incidence 229,410 (SEER), so null with 'carried by the book' is right per the brief. Engine consequence confirmed in backend/forecast.py (patients_for_indication): carryover is forced to zero only when prevalence equals incidence; here it does not, so the engine opens a pool of 661,853 x 0.0323 x 1.3308 = 28,450 and carries untreated patients forward at 1.0. Build action: set untreated_carryover_pct = 0 for this indication, which the engine supports and which zeros the opening pool, so the 26.5% peak applies to each year's 9,861 eligible (US and ex-US) diagnoses."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book",
+     "note": "229,410 a year (epidemiology.csv, SEER).",
+     "verdict": "confirmed",
+     "check": "epidemiology.csv line 33: 'Lung Neoplasms', incidence 229,410, source SEER Cancer Stat Facts: Lung and Bronchus Cancer. Carried by the book, so null is right."
+    },
+    "eligible_pct": {
+     "value": 0.0323,
+     "unit": "share of the pool",
+     "source": "Three filters multiplied. 11.8% of new US lung cancers were SCLC in 2019, and 70.9% of SCLC was extensive-stage at diagnosis (Wells et al., JTO Clin Res Rep 2025, doi:10.1016/j.jtocrr.2025.100799, as on the ABBV-706 seed). 38.6% of 2,573 US ES-SCLC patients given first-line platinum received a second line (Sankar et al., Adv Ther 2025, doi:10.1007/s12325-025-03408-z, Flatiron, PMID 41222788). 0.118 x 0.709 x 0.386 = 0.0323, about 7,400 patients a year on 229,410.",
+     "note": "EMBOLD SCLC-301 enrols relapsed ES-SCLC, which is second line or later. The ABBV-706 seed uses the same paper's 13.4% (third line). Case against: relapsed limited-stage patients are excluded, and 229,410 is a 2026 figure where the SCLC share is from 2019.",
+     "verdict": "confirmed",
+     "check": "Wells et al. (PubMed 40104389, PMC full text, doi:10.1016/j.jtocrr.2025.100799): 'The proportional incidence of SCLC relative to all lung cancers decreased from 14.5% in 2000 to 11.8% in 2019' and 'At diagnosis, 70.9% of patients had ES-SCLC'. Sankar et al. (PubMed 41222788, doi:10.1007/s12325-025-03408-z): 'Of 2573 patients ... 992 (38.6%), 344 (13.4%) ... received >= 1, >= 2 ... subsequent treatment lines'. Label check: WebSearch (HRA and Veeva trial summaries of NCT07099898) gives eligibility as ES-SCLC after one prior platinum-based regimen with or without immunotherapy, comparator topotecan, so the second-line filter (38.6%) is the right one, not ABBV-706's third-line 13.4%. Recomputed: 0.118 x 0.709 x 0.386 = 0.03229; x 229,410 = 7,408 a year."
+    },
+    "penetration_peak_pct": {
+     "value": 0.265,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "Sankar et al. 2025 (doi:10.1007/s12325-025-03408-z, PubMed 41222788): lurbinectedin-containing regimens (Zepzelca) were the most common second-line treatment, 26.5% of second-line regimens among the 992 US ES-SCLC patients who received a second line after first-line platinum, 2018 to 2023.",
+     "note": "JUDGEMENT that Ris-Rez reaches the share the leading second-line incumbent measurably holds. Case against: tarlatamab (Imdelltra, OS benefit in DeLLphi-304) and I-DXd (the B7-H3 DXd ADC, PDUFA 2026-10-10 per the Merck 10-Q on the I-DXd seed) will both be in the line before Ris-Rez launches, splitting it three ways. The I-DXd seed carries 0.25 unsourced in prostate. Case for: an OS HR of 0.46 against topotecan is stronger than lurbinectedin's single-arm basis.",
+     "verdict": "confirmed",
+     "check": "Sankar abstract: 'the most common second-line treatments were lurbinectedin-containing regimens (26.5%)'. The denominator is patients given a second line, which is the eligible pool built above (38.6% filter), so the share maps onto eligible_pct consistently; the researcher's wording 'of US ES-SCLC patients' was loose and is tightened in the source, value unchanged. Labelled JUDGEMENT with a case against (tarlatamab, I-DXd PDUFA 2026-10-10 per the I-DXd seed's Merck 10-Q; I-DXd seed carries 0.25 on 'a share of the pool above', confirmed). At 7,408 US eligible a year, peak is about 1,963 US new patients a year, provided untreated_carryover_pct = 0 is set (see prevalence)."
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "Book's Enhertu launch fit: CMS Part B beneficiaries of 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024 (lookup.py demand Enhertu; on the I-DXd, sac-TMT and AZD5335 seeds)",
+     "note": "Reused from the closest modelled competitor, I-DXd (a B7-H3 ADC). Case against: Ris-Rez would be the third novel agent in second-line SCLC, which argues for a slower ramp.",
+     "verdict": "confirmed",
+     "check": "lookup.py demand Enhertu: Part B beneficiaries 864, 1,904, 4,841, 7,105, 8,410 over 2020-2024, as stated. k = 1.08, midpoint 2.2 carried on the AZD5335, puxitatug, sonesitatug, sac-TMT, ABBV-706 and I-DXd seeds. Refit check: with k 1.08 and midpoint 2.2 the best plateau (9,900) gives 842, 2,127, 4,417, 6,965, 8,660, a fair fit; an unconstrained least-squares fit lands at k 1.31, midpoint 1.9, so the reused curve is slightly slow rather than fast. Reuse per the brief."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "Same Enhertu fit as ramp_steepness",
+     "note": "Not shifted, because the SCLC launch is the asset's first.",
+     "verdict": "confirmed",
+     "check": "Same Enhertu fit, midpoint 2.2 years from forecast_start_year (half of peak in 2031). I-DXd seed shifts it to 4.2 for prostate because that is a later indication; SCLC is this molecule's first launch, so the unshifted 2.2 is consistent (ABBV-706 SCLC seed also 2.2)."
+    },
+    "untreated_carryover_pct": {
+     "value": 0.0,
+     "unit": "share",
+     "source": "forecast.py convention for a line of cancer therapy: a patient not started on this drug in a year starts another and leaves the line (the vepugratinib and PF-07220060 seeds state the same)",
+     "note": "Stated because the book's pool for this indication carries a prevalence above its incidence, so the engine would otherwise carry every untreated patient forward and treat each of them in the end. With 0 the living stock is not an opening pool and each year's eligible patients are that year's alone",
+     "verdict": "added at assembly",
+     "check": "added by the assembler after the second read; engine branch read in forecast.patients_for_indication"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

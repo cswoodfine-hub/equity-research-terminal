@@ -1,0 +1,119 @@
+{
+ "ticker": "PFE",
+ "name": "Sigvotatug Vedotin",
+ "summary": "Sigvotatug vedotin (SGN-B6A) is a Seagen-originated integrin beta-6 directed vedotin ADC, wholly owned by Pfizer. Its second-line Phase 3 SigVie-002 (Be6A Lung-01, NCT06012435, versus docetaxel) missed its overall survival primary endpoint on 22 June 2026, so the modelled path is the remaining Phase 3, SigVie-003 (NCT06758401): sigvotatug vedotin plus pembrolizumab against pembrolizumab alone in first-line NSCLC with PD-L1 TPS of 50% or more, 714 patients, dual primary PFS and OS, primary completion 2028-09. Price anchor: Padcev, Pfizer's own vedotin ADC from the same Seagen platform, at $109,818 per CMS Part B beneficiary in 2024 (the PF-08046054 seed's anchor). Uptake anchor: enfortumab vedotin plus pembrolizumab, a vedotin ADC plus pembrolizumab in first line, reached 51% of US first-line la/mUC patients in its first full year, halved here as a judgement.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "SigVie-003 design (Reck et al., Future Oncol 2025, doi:10.1080/14796694.2025.2596228; NCT06758401): sigvotatug vedotin plus pembrolizumab against pembrolizumab, with PFS and OS as dual primary endpoints",
+   "note": "Oncology treated to progression, so chronic by the house definition",
+   "verdict": "confirmed",
+   "check": "Read the SigVie-003 design paper in full (Reck et al., Future Oncol 2025;21(30):3891, doi:10.1080/14796694.2025.2596228, PMID 41388832, PMC12758262): SV 1.8 mg/kg adjusted ideal body weight on days 1, 15 and 29 of a 42-day cycle plus pembrolizumab 400 mg every 6 weeks, versus pembrolizumab alone; pembrolizumab capped at 18 cycles but SV may continue, treatment until progression or toxicity; dual primary PFS (BICR) and OS, about 714 patients. Treated to progression, so chronic by the house definition."
+  },
+  "list_price_per_patient": {
+   "value": 0.109818,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Padcev: CMS Medicare Part B 2024, $641,224,462 over 5,839 beneficiaries = $109,818 per beneficiary",
+   "note": "Judgement: house convention, and the same anchor the PF-08046054 seed uses. Padcev is enfortumab vedotin, Pfizer's own vedotin ADC from the Seagen platform, given with pembrolizumab in first line, which matches this regimen. No Datroway or other lung ADC CMS row is on file. The case against: Padcev's figure is in urothelial cancer, not lung, and an add-on to pembrolizumab in a PD-L1-high population that already does well on pembrolizumab alone may be priced lower. The price covers sigvotatug vedotin only, not the pembrolizumab backbone",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Padcev: Part B 2024 total_spending $641,224,461.7 over 5,839 beneficiaries = $109,817.5, so 0.109818 mm USD per patient-year is right in unit and value; the same anchor the PF-08046054 seed carries (lookup.py seed PF-08046054). Padcev is gross of nothing much: it is a Part B figure, see gross_to_net_pct. One loose statement in the note: Enhertu is on file (Part B 2024, $581,465,185 over 8,410 beneficiaries = $69,140) and carries a HER2-mutant NSCLC indication, so 'no other lung ADC CMS row is on file' is not strictly true; Padcev stays the closer regimen analogue (vedotin ADC given with pembrolizumab). Datroway has no demand row (lookup.py demand Datroway returns nothing). Labelled judgement with its case against; inputs confirmed."
+  },
+  "gross_to_net_pct": {
+   "value": 0.0566,
+   "unit": "share taken off list",
+   "source": "Social Security Act section 1847A: Medicare Part B pays 106% of average sales price, and ASP is net of manufacturer volume, prompt-pay and cash discounts, chargebacks and rebates (1847A(c)(3); CMS Part B drug payment guidance), so the manufacturer's net is the CMS figure divided by 1.06, 5.66% below it. The book's own statement of the convention is backend/gross_to_net.py (Part B 'deduction there is the 6% add-on'), and the PF-08046054, ABBV-1480, PF-08634404 and sacituzumab tirumotecan seeds carry 0.0566 on Part B anchors",
+   "note": "Direction checked: 0.0566 off list, so net is 0.109818 x 0.9434 = $103,602 per patient-year. The 0.5 convention was measured on nine Part D drugs against their IRA negotiated prices and does not apply to a Part B price, which is already net. The case against: ASP excludes Medicaid section 1927 rebates and 340B ceiling prices, both material in oncology infusion, so the true net sits somewhat below this; and Part B spending per beneficiary is below a full year of therapy, which the 0.5 convention partly offset and this one does not",
+   "verdict": "corrected",
+   "check": "Researcher wrote 0.5 citing the house convention on a CMS per-beneficiary price. The anchor is Padcev's Part B figure. backend/gross_to_net.py (read) says the 0.5 convention was measured on the nine cycle-one IRA drugs, all Part D, and 'says nothing about Part B, where the convention is not this one: Part B pays 106% of average sales price, which is already net of manufacturer discounts, so the deduction there is the 6% add-on'. The PF-08046054 seed, priced off the identical Padcev $109,818, carries 0.0566, as do ABBV-1480 and PF-08634404 on Keytruda Part B; two assets on one anchor must not carry different gross-to-net. WebSearch confirmed section 1847A: payment at 106% of ASP, ASP net of volume, prompt-pay and cash discounts, chargebacks and rebates, excluding Medicaid rebates. 1 - 1/1.06 = 0.0566. 0.5 -> 0.0566; net per patient-year $54,909 -> $103,602."
+  },
+  "discontinuation_pct": {
+   "value": 0.5541,
+   "unit": "share of treated stock stopping per year",
+   "source": "KEYNOTE-024 (Reck et al., N Engl J Med 2016, doi:10.1056/NEJMoa1606774): median PFS 10.3 months on pembrolizumab alone in untreated advanced NSCLC with PD-L1 TPS of 50% or more, the control arm and population of SigVie-003",
+   "note": "Constant hazard from a median: 1 - 0.5^(12/10.3) = 0.554, the form the ABBV-1480 and PF-08046054 seeds use (the brief's 1 - exp(-12/10.3) gives 0.688 but treats the median as a mean). The case against: no first-line median for the combination has been published; the combination is designed to extend PFS, which would lower this, while vedotin toxicity (neuropathy) can end the ADC before progression, which would raise it. The only published median for the molecule is 3.6 months in previously treated NSCLC (Peters et al., J Clin Oncol 2026, doi:10.1200/JCO-25-02016), a later line and not this setting",
+   "verdict": "confirmed",
+   "check": "KEYNOTE-024 (Reck et al., NEJM 2016;375:1823, doi:10.1056/NEJMoa1606774, PMID 27718847) abstract: median PFS 10.3 months (95% CI 6.7 to not reached) on pembrolizumab in untreated advanced NSCLC, PD-L1 >=50%, no EGFR/ALK, the SigVie-003 control arm and population. 1 - 0.5^(12/10.3) = 0.5541, right; the 0.5^ form is what the PF-08046054 and ABBV-1480 seeds use. Labelled judgement with its case against. Two cautions the reader should know: the SigVie-003 design paper (read in full) cites the KEYNOTE-024 five-year update at a median PFS of 7.7 months, which would give 1 - 0.5^(12/7.7) = 0.661, so 10.3 is the early, immature median; against that, the combination is meant to extend PFS and SV may continue after pembrolizumab's 18-cycle cap, so the two roughly offset and 0.554 stands. The note's 3.6 months for Peters et al. (JCO 2026, doi:10.1200/JCO-25-02016, PMID 42008777, confirmed as the 117-patient SV phase 1 in aNSCLC) was not in the abstract I read; the design paper gives 3.5 months for the same cohort. ASCO 2026 abstract 8522 (doi:10.1200/JCO.2026.44.16_suppl.8522) reports updated SV plus pembrolizumab phase 1 results in treatment-naive NSCLC; I could not read whether it gives a median PFS, so the note's 'no first-line median published' is unverified. Neither feeds the value."
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "NCT06758401 (SigVie-003) primary completion 2028-09-05 (ClinicalTrials.gov, last update 2026-07-22)",
+   "note": "Launch is clearly later than 2027. A readout in late 2028, a filing in 2029 and a launch in late 2029 make 2030 the first full year, the book's convention of two calendar years after primary completion (the PF-08046054 seed). Judgement on the review timeline. The earlier Phase 3, SigVie-002 (NCT06012435), missed its OS primary endpoint in the overall population (Pfizer press release, 22 June 2026, pfizer.com/news/press-release/press-release-detail/pfizer-announces-topline-phase-3-results-sigvotatug-vedotin), so it provides no earlier launch; Pfizer cited a stronger trend after one prior line but no filing was announced",
+   "verdict": "confirmed",
+   "check": "book trials table (ClinicalTrials.gov v2 fetch, 2026-09-24): NCT06758401 recruiting, 714, lead sponsor Pfizer, primary completion 2028-09-05 (estimated), last update 2026-07-22; the book catalyst row carries the same date. Two calendar years after primary completion = 2030, the convention the PF-08046054 seed states. SigVie-002 miss confirmed: Pfizer 8-K 0000078003-26-000094 (Q2 2026 release) and 10-Q 0000078003-26-000095 say it did not meet its OS primary endpoint versus docetaxel, with a stronger OS and PFS trend after one prior line (two-thirds of patients), and the 10-Q records a $3.8bn IPR&D impairment for the second-line programme; WebSearch found the Pfizer release at the URL cited, dated 22 June 2026. No filing announced, so no earlier launch. Amass was out of quota; the book's ClinicalTrials.gov row was used instead."
+  },
+  "exus_multiple": {
+   "value": 1.5135,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Lorbrena FY2025: $616mm International against $407mm U.S. (Pfizer 10-K 0000078003-26-000026, product revenue table; book asset_revenue_regions)",
+   "note": "Judgement on the comparator, reused from the PF-08046054 seed: Lorbrena is Pfizer's own NSCLC medicine sold worldwide by Pfizer. Padcev cannot serve ($38mm international, because Astellas books it outside the US). The case against: Lorbrena is an oral targeted drug with strong ex-US uptake in ALK-positive disease, more common in Asia; a costly first-line ADC add-on may see thinner ex-US reimbursement, and Keytruda's own split is 0.68",
+   "verdict": "confirmed",
+   "check": "book asset_revenue_regions (annual report table, 10-K 0000078003-26-000026): Lorbrena FY2025 U.S. $407mm, Int'l $616mm; 616/407 = 1.5135. Padcev FY2025 U.S. $1,902mm, Int'l $38mm confirmed, so Padcev cannot serve. Keytruda FY2025 (MRK 10-K 0000310158-26-000063) $12,812mm non-US over $18,829mm US = 0.680, as the note says. Same value and comparator as the PF-08046054 and PF-08634404 seeds. Labelled judgement with its case against; inputs confirmed."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "ClinicalTrials.gov NCT06012435 and NCT04389632 lead sponsor 'Seagen, a wholly owned subsidiary of Pfizer'; NCT06758401 lead sponsor Pfizer",
+   "note": "Seagen-discovered molecule (SGN-B6A) acquired with Seagen in December 2023. No licence, partner or royalty on it was found in searches. I did not open Pfizer's 10-K pipeline table for a collaboration footnote on this asset, so a reviewer should confirm there",
+   "verdict": "confirmed",
+   "check": "The open item in the note is closed: the FY2025 10-K (0000078003-26-000026, text in the book's filing_sections) lists 'sigvotatug vedotin (PF-08046047): 2nd line+ metastatic NSCLC; 1st line metastatic NSCLC (tumor proportion score high)' among new drug candidates in late-stage development with no footnote letter, where partnered entries carry one (disitamab vedotin (d), sasanlimab (e), VLA15 (c)); the same 10-K names sigvotatug vedotin a significant component of acquired IPR&D, and the Q2 2026 10-Q impaired $3.8bn of it, consistent with a wholly owned Seagen asset. Sponsors confirmed in the book trials table: NCT06012435 'Seagen, a wholly owned subsidiary of Pfizer', NCT06758401 Pfizer."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Carcinoma, Non-Small-Cell Lung",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (epidemiology.csv: 192,650, SEER, prevalence equal to incidence by the oncology convention)",
+     "note": "Carried by the book",
+     "verdict": "confirmed",
+     "check": "lookup.py pool Non-Small-Cell: epidemiology.csv 'Carcinoma, Non-Small-Cell Lung' prevalence 192,650 (SEER 226,650 x 85%), incidence equal by the oncology convention, carried identically by eight seeds. Null is right."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (epidemiology.csv: 192,650)",
+     "note": "Carried by the book",
+     "verdict": "confirmed",
+     "check": "epidemiology.csv carries incidence 192,650 for 'Carcinoma, Non-Small-Cell Lung'. Null is right; the indication name matches the context file exactly."
+    },
+    "eligible_pct": {
+     "value": 0.1163,
+     "unit": "share of the pool",
+     "source": "four filters multiplied: 55% advanced or metastatic at presentation (the volrustomig seed); 81.6% without an alteration carrying a first-line targeted therapy (Wang et al., J Natl Compr Canc Netw 2026, doi:10.6004/jnccn.2025.7131, the PF-08634404 seed's share); 79% starting first-line therapy, 2,904 of 3,661 (Abernethy et al., PLoS One 2017, doi:10.1371/journal.pone.0178420, the ABBV-1480 seed's share); and 32.8% with PD-L1 TPS of 50% or more, 1,245 of 3,799 22C3 tests among US patients with metastatic NSCLC (Velcheti et al., PLoS One 2018, doi:10.1371/journal.pone.0206370, Table 2). 0.55 x 0.816 x 0.79 x 0.328 = 0.1163, about 22,400 patients a year",
+     "note": "SigVie-003 enrols first-line locally advanced or metastatic NSCLC with TPS of 50% or more, both histologies. The case against: PD-L1-high and driver-positive status are not independent (driver-positive tumours are less often PD-L1 high), so multiplying slightly understates; and the 32.8% is per test, not per patient",
+     "verdict": "confirmed",
+     "check": "Recomputed: 0.55 x 0.816 x 0.79 x 0.328 = 0.116293, x 192,650 = 22,404 a year. 55%: the volrustomig seed's share, carried by ABBV-1480, PF-08046054, PF-08634404. 81.6%: the PF-08634404 seed row (Wang et al., JNCCN 2026). 79%: 2,904/3,661 = 79.3%, the ABBV-1480 and PF-08046054 seed rows (Abernethy et al., PLoS One 2017). 32.8%: Velcheti et al., PLoS One 2018 (doi:10.1371/journal.pone.0206370, PMC6224125), read Table 2 in full: 22C3 tests >=50% = 1,245 of 3,799 (32.8%), among US Flatiron patients with metastatic or recurrent NSCLC; per test, not per patient, as the note says. Label match checked against the design paper's eligibility: untreated stage IIIB/IIIC unresectable or stage IV NSCLC, TPS >=50% by local test, nonsquamous patients must test negative for actionable alterations, both histologies (stratified). The filters match. Unstated case against: the 55% counts only advanced disease at presentation, while SigVie-003 also admits recurrence after early-stage treatment (>6 to 9 months after adjuvant therapy), so the pool is understated on that account too; that is the book-wide NSCLC convention and is left as is."
+    },
+    "penetration_peak_pct": {
+     "value": 0.255,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "EV+P, enfortumab vedotin plus pembrolizumab, reached 51% of US first-line la/mUC patients in 2024, its first full year (Flatiron, ASCO GU 2026, as recorded in the book's vepugratinib seed)",
+     "note": "Judgement: half of the measured incumbent. EV+P is the closest measured analogue, a Pfizer vedotin ADC added to pembrolizumab in first line, but it replaced platinum chemotherapy after doubling overall survival; sigvotatug vedotin would be added to an already effective pembrolizumab monotherapy, its monotherapy Phase 3 missed OS, and first-line PD-L1-high NSCLC is contested by chemo-immunotherapy and PD-1xVEGF bispecifics. The halving is not measured. The case for higher: if SigVie-003 hits both PFS and OS, an add-on to pembrolizumab is an easy switch, as EV+P showed. The case for lower: the PF-08046054 seed takes 0.25 against docetaxel in second line, where the displaced therapy is weaker",
+     "verdict": "confirmed",
+     "check": "lookup.py seed vepugratinib: EV+P took 420 of 821 US first-line aUC patients (51%) in 2024 (Ozay et al., Flatiron, ASCO GU 2026 abstract 692, doi:10.1200/JCO.2026.44.7_suppl.692), confirmed by that asset's second reader. EV+P was approved December 2023, so 2024 is its first full year. 0.51 x 0.5 = 0.255. The denominator is first-line-treated patients, the same basis as this pool, which includes the 79% first-line-treated filter. The halving is a labelled judgement with the case for higher and lower; EV+P reached 62% of 2025 first-line starts, which the reader may weigh as a further case for higher."
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "Enhertu's launch fitted in the camizestrant seed: CMS Part B beneficiaries 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024",
+     "note": "Reused from the closest modelled ADC curve, as the PF-08046054 and sacituzumab tirumotecan seeds do",
+     "verdict": "confirmed",
+     "check": "lookup.py seed camizestrant: k=1.08, midpoint 2.2, from Enhertu's Part B launch. lookup.py demand Enhertu Part B beneficiaries 2020-2024: 864, 1,904, 4,841, 7,105, 8,410, matching the source. A logistic of k=1.08, midpoint 2.2 gives 0.097, 0.246, 0.51, 0.805 of its year-4 value against actual 0.103, 0.226, 0.576, 0.845: a fair fit. PF-08046054 carries the same curve."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "Enhertu's launch fitted in the camizestrant seed (k=1.08, midpoint 2.2 years)",
+     "note": "Reused; forecast_start_year already carries the 2030 launch, so no shift",
+     "verdict": "confirmed",
+     "check": "Same Enhertu fit (camizestrant, PF-08046054, ABBV-1480 seeds): midpoint 2.2 years. forecast_start_year already carries the 2030 launch, so no shift is needed."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

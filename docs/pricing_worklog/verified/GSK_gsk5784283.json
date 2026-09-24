@@ -1,0 +1,172 @@
+{
+ "ticker": "GSK",
+ "name": "GSK5784283",
+ "summary": "GSK5784283 (felcorekibart; formerly AIO-001 and Hengrui's SHR-1905) is a long-acting anti-TSLP monoclonal antibody. GSK got it when it bought Aiolos Bio (completed 14 February 2024; $1bn upfront plus up to $400mm in milestones). GSK holds the rights outside Greater China and owes Hengrui milestones and tiered royalties. Phase 3 PERSIST programme: asthma NCT07780643 and NCT07782996 (primary completion 2029-02-15 and 2029-05-04), COPD NCT07780669 and NCT07780656 (2029-07-20, eosinophilic phenotype, on triple or dual therapy), CRSwNP NCT07782957 and NCT07782970 (2029-03-06). The price anchor is Tezspire (tezepelumab), the only marketed anti-TSLP, at $29,549 per CMS Part D beneficiary in 2024. The uptake anchor is Tezspire's measured capture of the US asthma biologic class, taken at half for a second-in-class entrant, the multiple the book uses for tilrekimig.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT07780643, NCT07780669 (ClinicalTrials.gov): add-on maintenance antibody vs placebo on top of standard care, exacerbation endpoints",
+   "note": "A maintenance biologic in asthma and COPD, continued while it works. The dosing interval is not published, so it is not claimed here",
+   "verdict": "confirmed",
+   "check": "Book trials table: NCT07780643 (PERSIST ASTHMA-1) and NCT07780669 (PERSIST COPD-1) are randomised, quadruple-blind, placebo-controlled add-on studies (interventions GSK5784283, placebo, standard of care), primary outcomes the annualised rate of clinically significant asthma exacerbations and of moderate or severe COPD exacerbations. A maintenance antibody: chronic. Search coverage (Yahoo Finance, 'GSK Bets on Long-Acting Biologics') describes the programme as designed for twice-yearly dosing on the Phase 2 NAZARE pharmacology; the registry regimen could not be opened, so the note's refusal to claim an interval stands, and chronic holds at any interval (Exdensur, twice-yearly, is chronic)."
+  },
+  "list_price_per_patient": {
+   "value": 0.029549,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Tezspire: CMS Part D 2024, $183,765,288 over 6,219 beneficiaries = $29,549 per beneficiary. Part B 2024 agrees at $28,676 ($218,453,021 over 7,618)",
+   "note": "JUDGEMENT on the comparator. Tezspire is the only marketed drug with this mechanism, in the same diseases and route, and the book already prices tozorakimab off the same row, so the two stay consistent. In GBP, the currency the book's other GSK seeds use: $29,549 at GBP/USD 1.327632 (the rate gsk_efimosfermin_alfa.csv and gsk_mrna_seasonal_flu.csv use) is GBP 22,257 (0.022257 mm GBP). The case against: (1) a per-beneficiary figure covers part of a year, so it understates a full year. tezspire.com states a list price of $4,587.41 per 210 mg syringe (seen through search, not opened), about $59,636 a year at 13 doses. (2) If felcorekibart is dosed less often, GSK may price it at Exdensur (depemokimab), its own twice-yearly asthma biologic. Its US WAC was not found; drugs.com shows a cash price of about $25,405 a dose. (3) Nucala runs $35,081 per Part D beneficiary in 2024 (lookup.py demand)",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Tezspire: Part D 2024 $183,765,287.62 / 6,219 = $29,549; Part B 2024 $218,453,020.90 / 7,618 = $28,676; Nucala Part D 2024 $317,907,428 / 9,062 = $35,081. All reproduce. lookup.py seed tozorakimab carries 0.029549 on the same row. Unit mm USD per patient-year, as the brief asks. GBP: 29,549 / 1.327632 = 22,257 (ECB rate of 2026-09-23 in data/history/fx_rates.ndjson, the one the GSK flu and efimosfermin seeds use). The book's GSK seeds are written in mm GBP because the engine models GSK in its reporting currency (companies.reporting_currency = GBP), so the seed row must carry 0.022257 mm GBP, as the SNY seeds carry EUR. Case against checked by search: tezspire.com/cost-affordability lists $4,587.41 per 210 mg syringe ($4,908.93 per pen); 13 x 4,587.41 = $59,636. Part D ran 41,254 claims over 6,219 beneficiaries, 6.6 fills each, so the per-beneficiary figure is about half a year of four-weekly dosing; that is how the house convention is calibrated, and it pairs with a penetration anchor also counted in beneficiaries. Judgement labelled with its case against."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention: halving a CMS per-beneficiary figure lands at a median 96% of CMS's own negotiated net prices (backend/gross_to_net.py); the same row tozorakimab carries on the same Tezspire anchor",
+   "note": "Net is 50% of list, about $14,775 a patient-year. The case against: the tilrekimig seed measures 26% off for Dupixent (ICER AD report 2021, SSR Health). On that figure, net would be $21,866",
+   "verdict": "confirmed",
+   "check": "Direction right: 0.5 is the share off list, so net = 29,549 x 0.5 = $14,775, as the note says. House convention, and the tozorakimab seed carries 0.5 on the same Tezspire anchor (lookup.py seed). Case against checked: lookup.py seed tilrekimig carries 0.26 (ICER AD Final Evidence Report 2021, Table 4.6, SSR Health); 29,549 x 0.74 = $21,866, as the note says."
+  },
+  "discontinuation_pct": {
+   "value": 0.2537,
+   "unit": "share of the treated stock stopping per year",
+   "source": "reused from the tilrekimig seed (pfe_tilrekimig.csv): Symons JM et al., J Drugs Dermatol 2025;24(10):996-1002, 55.7% of dupilumab starters persistent at 24 months, a constant 25.4% stopping a year. Tozorakimab carries 0.254 for respiratory biologics on the same basis",
+   "note": "JUDGEMENT to reuse it. It is the book's respiratory-biologic rate, but it was measured in atopic dermatitis, not asthma. A longer dosing interval could lower it; no persistence data exist for this asset",
+   "verdict": "confirmed",
+   "check": "PubMed PMID 41037533 (Symons JM et al., J Drugs Dermatol 2025;24(10):996-1002, doi 10.36849/JDD.8931): 4,562 adults starting dupilumab, persistence 73.2% at 12 months and 55.7% at 24 months. 1 - sqrt(0.557) = 0.2537. lookup.py seed: tilrekimig 0.2537, tozorakimab 0.254. The 12-month figure alone (26.8% stopping) is close. Reuse from atopic dermatitis in asthma and COPD is labelled a judgement with its case against."
+  },
+  "forecast_start_year": {
+   "value": 2031,
+   "unit": "year",
+   "source": "earliest Phase 3 primary completion is NCT07780643 (asthma), 2029-02-15; CRSwNP 2029-03-06, second asthma trial 2029-05-04, COPD 2029-07-20 (trials in context file)",
+   "note": "Filing in the second half of 2029 and a standard BLA review put launch in the second half of 2030, so 2031 is the first full year. That follows the book's pipeline rule of two calendar years after primary completion, as tilrekimig does. The case against: the programme is recruiting or not yet recruiting, and any enrolment slip moves this back",
+   "verdict": "confirmed",
+   "check": "Book trials table: NCT07780643 primary completion 2029-02-15 (estimated), NCT07782957 and NCT07782970 2029-03-06, NCT07782996 2029-05-04, NCT07780669 and NCT07780656 2029-07-20; all Phase 3 studies start August to September 2026. The two-calendar-year rule matches tilrekimig (primary completion 2028-03-10, start 2030; lookup.py seed). 2031 holds. forecast.py starts the DCF years at forecast_start_year, so curve index 0 is 2031."
+  },
+  "exus_multiple": {
+   "value": 0.9308,
+   "unit": "x US",
+   "source": "GSK's own respiratory biologic Nucala, FY2025: GBP 521mm Europe plus GBP 447mm International against GBP 1,040mm US (asset_revenue_regions, annual report table 0001654954-26-000892) = 968 / 1,040",
+   "note": "JUDGEMENT on the comparator. Nucala is GSK's own respiratory biologic, sold through the ex-US footprint felcorekibart would use, and a mature ratio suits a product modelled into the 2040s. Felcorekibart excludes Greater China, where Hengrui keeps the rights, while Nucala's International includes China, so the multiple leans slightly high. The case against: the same-mechanism incumbent runs far lower. Tezspire's FY2025 ex-US, booked by AstraZeneca, was $458mm (Europe 297, Established ROW 121, Emerging Markets 40; annual report 0001104659-26-019130) against the US $1,478mm Amgen books (10-K 0000318154-26-000010, asset_revenue), 0.31. Fasenra FY2025 was (482 + 187 + 117) / 1,195 = 0.66 (AstraZeneca, same report). A newer launch's ex-US share lags, so 0.93 is the top of a 0.31 to 0.93 range",
+   "verdict": "corrected",
+   "check": "VALUE UNCHANGED (0.9308); NOTE CORRECTED. asset_revenue_regions Nucala FY2025 (annual report table 0001654954-26-000892): US GBP 1,040mm, Europe 521mm, International 447mm (total 2,008); 968 / 1,040 = 0.9308. The note's claim that Tezspire's ratio cannot be computed does not hold: the book carries Amgen's Tezspire US sales, $1,478mm in FY2025 (asset 745, Amgen 10-K 0000318154-26-000010; Amgen books US sales and AstraZeneca books ex-US), so (297 + 121 + 40) / 1,478 = 0.31. Fasenra FY2025 in the book: (482 + 187 + 117) / 1,195 = 0.66. Value kept as a labelled judgement (GSK's own respiratory biologic). The note is rewritten to carry the in-class case against."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share of the asset",
+   "source": "GSK press release 'GSK completes acquisition of Aiolos Bio' (14 February 2024, https://www.gsk.com/en-gb/media/press-releases/gsk-completes-acquisition-of-aiolos-bio/) and 6-K 0001654954-24-000339: GSK owns the asset and holds the rights outside Greater China, and is responsible for success-based milestones and tiered royalties owed to Jiangsu Hengrui",
+   "note": "JUDGEMENT. GSK books all ex-China sales, so revenue share is 1.0. The case against: the tiered royalty to Hengrui is not disclosed. It is a real cost this row does not net, so the value is a ceiling. Up to $400mm of regulatory milestones to Aiolos holders, and further Hengrui milestones, sit outside these rows",
+   "verdict": "confirmed",
+   "check": "Search result, gsk.com 'GSK completes acquisition of Aiolos Bio': completed 14 February 2024, $1bn upfront and up to $400mm in success-based regulatory milestones; GSK is responsible for success-based milestones and tiered royalties owed to Jiangsu Hengrui; AIO-001 was licensed to Aiolos for rights outside Greater China. All as the note states. The 6-K accession was not reopened. The royalty rate is undisclosed, so 1.0 is a ceiling, labelled a judgement with its case against."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Asthma",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book",
+     "note": "lookup.py pool Asthma: 23,004,000 US adults with current asthma (CDC NHIS 2023), on the tilrekimig seed",
+     "verdict": "confirmed",
+     "check": "lookup.py pool Asthma and the backend er_tool.db hold one value, tilrekimig's 23,004,000 (CDC NHIS 2023). epidemiology.csv has no Asthma row, so assemble.py copies the tilrekimig figure. Null is right. Caveat: PERSIST ASTHMA enrols ages 12 to 80, and the carried pool is adults only."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book",
+     "note": "lookup.py pool Asthma: 906,458 a year (Winer RA et al., J Asthma 2012), on the tilrekimig seed",
+     "verdict": "confirmed",
+     "check": "lookup.py pool Asthma and er_tool.db hold one value, tilrekimig's 906,458 (Winer RA et al., J Asthma 2012, 3.8 per 1,000 at-risk adults). assemble.py copies it. Null is right. Prevalence differs from incidence, so the engine runs carryover 1.0, the basis the peak below is solved on."
+    },
+    "eligible_pct": {
+     "value": 0.028,
+     "unit": "share of the pool",
+     "source": "Akenroye A, McCormack M, Keet C. J Allergy Clin Immunol 2020;145(4):1295-1297: 2.8% of adults with current asthma eligible for at least one asthma biologic (the book's asthma row, lookup.py pool)",
+     "note": "JUDGEMENT. PERSIST ASTHMA (NCT07780643, NCT07782996) enrols ages 12 to 80 on medium or high dose ICS for 3 months or more with an exacerbation in the prior year, as add-on therapy, with no eosinophil threshold visible, and Tezspire's label has no biomarker limit. 2.8% is kept because it matches the tilrekimig asthma row, so the two TSLP-axis assets draw on one pool, and because the penetration anchor (Park et al., 11.9% on a biologic) was measured in a type 2 population with eosinophils of 150 cells/uL or more, close to the biomarker-gated 2.8%. The case against: a label without a biomarker limit reaches Akenroye's whole severe share, 3.1% of people with current asthma, of whom 85% make up the 2.8%, about 11% more patients. The Phase 3's entry from medium-dose ICS is wider still, and the carried pool leaves out adolescents aged 12 to 17",
+     "verdict": "corrected",
+     "check": "VALUE UNCHANGED (0.028); NOTE CORRECTED. PMC full text of Akenroye 2020 (PMID 31866437, doi 10.1016/j.jaci.2019.12.009): 'About 2.8% of participants with asthma and 85% of those with severe asthma were eligible for at least 1 biologic'; 3.1% met the severe asthma criteria; 702,000 US people. So 0.028 is right as quoted and matches the tilrekimig row. The note's rationale did not hold as written. A label with no biomarker limit reaches the severe share (3.1%), whereas 2.8% is the subset meeting the 2019 biologics' eosinophil and IgE criteria. PERSIST ASTHMA entry from a search summary of the NCT07780643 record: ages 12 to 80, medium or high dose ICS for 3 months or more, 1 or more exacerbations in 12 months, no eosinophil threshold visible. The value is kept as a labelled judgement, since it matches the type 2 penetration anchor. The penetration solve is a share, so it does not move with eligible_pct. The note is rewritten with the case against."
+    },
+    "penetration_peak_pct": {
+     "value": 0.00708,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "Tezspire's measured class capture: 13,837 Medicare Part B plus D beneficiaries in 2024, 16.94% of the 81,661 across Tezspire, Nucala, Fasenra and Xolair (drug_demand; figures as the tozorakimab and tilrekimig seeds cite them). Park J et al., J Asthma Allergy 2026;19:1-12: 11.9% of type 2 severe asthma patients on a biologic. Half of 16.94% x 11.9% = 1.008% of the eligible pool on therapy",
+     "note": "JUDGEMENT: the 0.5 multiple. It is solved back through the engine's own identity (forecast.derive_new_patients and treated_stock) on the book's asthma pool, this curve and 25.37% discontinuation, so the stock reaches 1.008% of the eligible pool in the third year (index 2). 2024 was Tezspire's third full year. The multiple is the one tilrekimig uses: a second TSLP arrives in 2031 against Tezspire, Exdensur and a crowded class. The case against: a less frequent dose could win more than half the incumbent's pace (at 1.0x the peak would be about 0.0142). Verekitug (Upstream Bio, TSLP receptor, every 12 weeks, Phase 2 VALIANT) is a further in-class entrant",
+     "verdict": "confirmed",
+     "check": "drug_demand 2024, Part B plus D beneficiaries: Tezspire 7,618 + 6,219 = 13,837; Nucala 8,671 + 9,062 = 17,733; Fasenra 9,899 + 11,576 = 21,475; Xolair 17,605 + 11,011 = 28,616; total 81,661; 13,837 / 81,661 = 16.94%. PubMed PMID 42046660 (Park J et al., J Asthma Allergy vol 19, 2026, doi 10.2147/JAA.S580937): 11.9% of 2,827 type 2 severe asthma patients on a biologic (GINA 4 5.2%, GINA 5 19.6%). 0.5 x 0.1694 x 0.119 = 1.0082%. Re-solved with forecast.derive_new_patients (carryover 1.0) and treated_stock on pool 23,004,000 x 0.028 with inflow 906,458 x 0.028, k 1.28, midpoint 0.96, discontinuation 0.2537: the exact peak is 0.007083, and 0.00708 puts the stock at 1.0078% of the eligible pool at index 2 (2033). At 1.0x the peak is 0.01422, which matches the note's 'about 0.0142'. Index 2 is Tezspire's third full year (2024, after the December 2021 approval), consistent with the curve fit. The ex-US multiple scales pool and inflow alike, so the share is unaffected. The 0.5 multiple is labelled a judgement with its case against, and matches tilrekimig's."
+    },
+    "ramp_steepness": {
+     "value": 1.28,
+     "unit": "logistic k",
+     "source": "Tezspire's own launch fitted by the tilrekimig seed: CMS Part B plus D beneficiaries 3,962, 8,973 and 13,837 over 2022 to 2024, logistic k 1.28 with midpoint 0.96 years",
+     "note": "reused from the closest modelled competitor curve, the same mechanism in the same disease",
+     "verdict": "confirmed",
+     "check": "lookup.py seed tilrekimig: Tezspire launch fit, k 1.28 and midpoint 0.96, on 3,962, 8,973 and 13,837 beneficiaries. These reproduce from drug_demand as 2,432 + 1,530, 5,522 + 3,451 and 7,618 + 6,219. Recomputed: at k 1.28 and m 0.96 the logistic gives f(1)/f(0) = 2.265 and f(2)/f(1) = 1.542, against observed 8,973/3,962 = 2.265 and 13,837/8,973 = 1.542. It is the same mechanism in the same disease."
+    },
+    "ramp_midpoint_year": {
+     "value": 0.96,
+     "unit": "years from forecast_start_year",
+     "source": "Tezspire's launch fit (tilrekimig seed), unshifted",
+     "note": "Unshifted because asthma is this asset's lead indication and sets the 2031 start. Tilrekimig shifts it by one year only because its asthma line is later than its lead",
+     "verdict": "confirmed",
+     "check": "The fit's midpoint is 0.96. Tilrekimig carries 1.96 only because of the one-year shift its own source states. Asthma's primary completion, 2029-02-15, is this asset's earliest and sets the 2031 start, so no shift is needed."
+    }
+   }
+  },
+  {
+   "indication": "Pulmonary Disease, Chronic Obstructive",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book",
+     "note": "epidemiology.csv: 14.2mm US adults with diagnosed COPD (CDC BRFSS)",
+     "verdict": "confirmed",
+     "check": "epidemiology.csv carries 14,200,000 (CDC BRFSS) for this exact indication name (lookup.py pool), and assemble.py leaves prevalence to the book. Null is right."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book",
+     "note": "epidemiology.csv carries no COPD incidence. The only book row is tozorakimab's, set equal to prevalence (carryover zero). The peak below is solved on that treatment, and it moves less than 1% if carryover is instead 1.0 with no inflow (0.00779 against 0.00775)",
+     "verdict": "confirmed",
+     "check": "epidemiology.csv incidence is blank. er_tool.db holds one distinct incidence for this indication, 14,200,000 (tozorakimab, lunsekimig), which assemble.py copies. The engine then sees prevalence equal to incidence and sets carryover 0 with an opening pool of 0 (forecast.patients_for_indication), the basis the peak is solved on. The note's alternative checks out: carryover 1.0 with no inflow re-solves to 0.007788 against 0.007756."
+    },
+    "eligible_pct": {
+     "value": 0.0704,
+     "unit": "share of the pool",
+     "source": "GSK release 2025-05-22 (Nucala COPD approval), cited in the book's COPD eligible row: over a million US COPD patients uncontrolled on inhaled triple therapy who keep exacerbating have blood eosinophils of 150 cells/uL or above. 1,000,000 / 14,200,000 = 0.0704",
+     "note": "JUDGEMENT on the threshold. PERSIST COPD-1 (NCT07780669, via AdisInsight and the trial record) enrols an eosinophilic phenotype with elevated blood eosinophils, frequent exacerbations and triple (or dual if ICS is inappropriate) therapy, so the book's all-eosinophil 0.1006 (tozorakimab) is too wide. The exact eosinophil cut-off was not visible. If it is 300 cells/uL, as in Dupixent's COPD label, the pool is smaller",
+     "verdict": "confirmed",
+     "check": "1,000,000 / 14,200,000 = 0.07042. The GSK release of 2025-05-22 (Nucala COPD approval; 'over a million' US COPD patients uncontrolled on triple therapy who keep exacerbating, with eosinophils of 150 or more) was confirmed by search this session by the lunsekimig second reader (verified/SNY_lunsekimig.json). It matches the book's rows: lunsekimig 0.0704, and tozorakimab 0.1006 x 0.70 = 0.0704. PERSIST COPD-1 entry, from a search summary of the NCT07780669 record: ages 40 to 80, current or former smokers, moderate to very severe COPD, frequent exacerbations, elevated CAT score, an eosinophilic phenotype with elevated blood eosinophils (threshold not visible), on triple therapy or dual if ICS is inappropriate. The threshold judgement is labelled with its case against (300 cells/uL). The dual-therapy allowance makes the trial slightly wider than the triple-only million."
+    },
+    "penetration_peak_pct": {
+     "value": 0.00775,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "the same anchor as asthma: half of Tezspire's measured capture, 0.5 x 16.94% x 11.9% = 1.008% on therapy by the third year, which is how tozorakimab takes Tezspire into COPD (at 1.0x)",
+     "note": "JUDGEMENT: the 0.5 multiple and an asthma analogue in COPD. Solved through forecast.derive_new_patients and treated_stock on 14.2mm x 0.0704, carryover zero, the curve below and 25.37% discontinuation. Tezspire has no COPD label. The COPD incumbents Dupixent (2024) and Nucala (May 2025) launched too recently for a measured curve. Tozorakimab reads 2.02% at 1.0x with a slower curve",
+     "verdict": "confirmed",
+     "check": "Same 1.0082% target as asthma, arithmetic as checked there. Re-solved with the engine functions on an opening pool of 0 and an inflow of 14,200,000 x 0.0704 = 999,680 a year (carryover 0), k 1.28, midpoint 0.96 and discontinuation 0.2537. The exact peak is 0.007756, and 0.00775 gives 1.0074% at index 2, within rounding. Tozorakimab's 2.02% at 1.0x is confirmed in lookup.py seed. Tezspire has no COPD label. The asthma analogue and the 0.5 multiple are labelled judgements."
+    },
+    "ramp_steepness": {
+     "value": 1.28,
+     "unit": "logistic k",
+     "source": "Tezspire's launch fit (tilrekimig seed), reused",
+     "note": "JUDGEMENT to apply an asthma launch curve to COPD. Tozorakimab uses the book's average launch (k 0.53, midpoint 1.75), which is slower",
+     "verdict": "confirmed",
+     "check": "Tezspire fit as checked under asthma. Tozorakimab's slower average launch (k 0.53, midpoint 1.75, data/launch_ramp.csv) is confirmed in lookup.py seed and stated as the case against. Applying an asthma curve to COPD is labelled a judgement."
+    },
+    "ramp_midpoint_year": {
+     "value": 0.96,
+     "unit": "years from forecast_start_year",
+     "source": "Tezspire's launch fit (tilrekimig seed)",
+     "note": "COPD completes 2029-07-20, five months after the asthma lead, so it is assumed to file with it and is not shifted. If it is filed as a later supplement, add about a year",
+     "verdict": "confirmed",
+     "check": "Primary completion 2029-07-20 (NCT07780669, NCT07780656; book trials table) falls in the same calendar year as the asthma lead (2029-02-15). Under the book's two-calendar-year rule, COPD's own first full year is also 2031, so no shift holds. The later-supplement risk is stated."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

@@ -1,0 +1,119 @@
+{
+ "ticker": "NVS",
+ "name": "Pelabresib",
+ "summary": "Pelabresib (DAK539, ex-CPI-0610) is an oral BET inhibitor that Novartis gained with MorphoSys (EUR 2.7bn, 2024). It is given with ruxolitinib to JAK inhibitor-naive myelofibrosis patients. MANIFEST-2 (NCT04603495) met its primary endpoint: SVR35 of 65.9% against 35.2% at week 24 (Nat Med 2025, PMID 40065169). It showed an imbalance in progression to AML, so Novartis is running a new Phase 3 before a US, Japan or Canada filing (ApexOnco, citing Novartis). That trial is MANIFEST-3 (NCT07357727, 460 patients, recruiting, primary completion 2028-05-17). An EU filing on the 96-week MANIFEST-2 data is planned. Novartis still pursues the asset, so it is not refused. Price anchor: Jakafi, the ruxolitinib backbone, at $132,549 per CMS Part D beneficiary in 2024. Uptake anchor: Ojjaara, the last JAK inhibitor to enter MF, took 12.6% of 2024 Medicare Part D beneficiaries on Jakafi, Ojjaara and Inrebic in its first full year.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "MANIFEST-2 design (PMID 40065169, doi:10.1038/s41591-025-03572-3): pelabresib 125 mg once daily, 14 days on and 7 off, with ruxolitinib, given continuously; about half of patients were still on assigned treatment at a median 115.9 weeks (ASH 2025, Blood 146 suppl 1:910)",
+   "note": "Taken continuously until it stops working or is not tolerated",
+   "verdict": "confirmed",
+   "check": "Nat Med full text (PMC12092244, PMID 40065169): pelabresib 125 mg once daily for 14 days then a 7-day break, 21-day cycles, dose range 50-175 mg, no fixed stop; patients continue until discontinuation. ASH 2025 abstract 910 coverage (bjh.be summary): at a median follow-up of about 115 weeks, 48.6% of the pelabresib arm and 48.1% of the placebo arm were still on double-blind treatment. Chronic is right."
+  },
+  "list_price_per_patient": {
+   "value": 0.132549,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Jakafi: CMS Medicare Part D 2024, $2,082,741,189 over 15,713 beneficiaries = $132,549 per beneficiary (the price bomedemstat's seed carries)",
+   "note": "Judgement: house convention. Ruxolitinib is the backbone pelabresib is added to and the comparator in both Phase 3s, and it is the closest marketed drug in the same disease and setting. Case for a higher price: Ojjaara is $147,536 per 2024 Part D beneficiary, and Inrebic is $137,003. Case against: pelabresib is an add-on, so payers see a combined cost of about $265k a year and may push back. Jakafi's per-beneficiary figure also mixes in PV and GvHD use. No published list price for pelabresib exists",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Jakafi 2024 Part D: $2,082,741,189.3 / 15,713 beneficiaries = $132,549 = 0.132549 mm USD per patient-year; unit right. Same figure the bomedemstat seed carries. Alternatives in the note also match the book: Ojjaara 2024 $147,536, Inrebic 2024 $137,003. Ruxolitinib is the backbone and comparator in MANIFEST-2 (Nat Med). Labelled judgement with case against; inputs confirmed."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS per-beneficiary price (halving lands at a median 96% of CMS negotiated net prices; backend/gross_to_net.py)",
+   "note": "Direction checked: 0.5 off list, so net is $66,275 per patient-year",
+   "verdict": "confirmed",
+   "check": "backend/gross_to_net.py carries PART_D_CONVENTION = 0.5 and the 'median 96% of the negotiated price' measurement. Direction right: 0.5 off list, net = 0.5 x $132,549 = $66,275."
+  },
+  "discontinuation_pct": {
+   "value": 0.2668,
+   "unit": "share of treated stock stopping per year",
+   "source": "MANIFEST-2 96-week analysis (ASH 2025, Blood 2025;146 suppl 1:910, 'Durable efficacy and long-term safety with pelabresib plus ruxolitinib...'): 56.5% of the pelabresib-ruxolitinib arm completed 96 weeks of assigned treatment",
+   "note": "Constant hazard: 1 - 0.565^(52.18/96) = 0.267 per year. Case for higher: stops for adverse events were 21.0% on the combination against 13.4% on ruxolitinib alone, and trial retention usually beats real-world retention. Case for lower: the placebo arm completed at a similar 59.3%, so most stopping is disease-driven rather than drug-driven",
+   "verdict": "confirmed",
+   "check": "MANIFEST-2 96-week data (Blood 2025;146 suppl 1:910, via Targeted Oncology/BJH coverage): 56.5% (121/214) of the pelabresib arm and 59.3% (128/216) of placebo completed 96 weeks of assigned treatment as of 2 March 2025 (last patient enrolled 2 March 2023, so all had 96 weeks' opportunity). Stops for AEs 21.0% vs 13.4% confirmed. Recomputed 1 - 0.565^(52.18/96) = 0.2668. Cross-check: 48.6% still on treatment at median ~115 weeks gives 1 - 0.486^(52.18/115) = 0.279, close."
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "NCT07357727 (MANIFEST-3) primary completion 2028-05-17 (ClinicalTrials.gov, last update 2026-09-23). The US filing waits on it (ApexOnco 'Novartis perseveres with pelabresib', oncologypipeline.com/apexonco/novartis-perseveres-pelabresib, citing Novartis's JP Morgan presentation)",
+   "note": "Book convention: the first full year is two calendar years after the gating Phase 3's primary completion. Novartis gives no US timeline. An EU filing on the 96-week MANIFEST-2 data could start ex-US sales earlier, which this start year does not capture. Judgement on the review timeline",
+   "verdict": "confirmed",
+   "check": "Context file (ClinicalTrials.gov, last update 2026-09-23): NCT07357727 Phase 3, 460 patients, recruiting, primary completion 2028-05-17. ApexOnco 'Novartis perseveres with pelabresib': EU filing in 2026 on 96-week MANIFEST-2 data; new Phase 3 MANIFEST-3 to support registration in the US, Japan and Canada. Book convention (bomedemstat seed: PCD 2027-07-30 -> 2029) is two calendar years after the gating primary completion: 2028 + 2 = 2030. Amass TrialCore was unavailable (usage limit), so the date rests on the context file."
+  },
+  "exus_multiple": {
+   "value": 0.6823,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Same molecule and disease: Jakavi ex-US net sales of $2,110mm (Novartis 20-F FY2025, 0001114448-26-000004) against Jakafi US revenue of $3,092.5mm (Incyte FY2025 10-K, 0000879169-26-000010, the base_revenue the book's ruxolitinib seed carries)",
+   "note": "Judgement on the comparator. The strength is that Novartis sells ruxolitinib ex-US, so this is Novartis's own ex-US reach for the backbone. Case against: Jakafi and Jakavi both include PV and GvHD, and an add-on with an AML safety question may get narrower ex-US reimbursement",
+   "verdict": "confirmed",
+   "check": "book asset_revenue_regions: Jakavi (Novartis) FY2025 Rest of world $2,110mm from 20-F 0001114448-26-000004; asset_revenue Jakafi (Incyte) FY2025 $3,092.515mm from 10-K 0000879169-26-000010, and the ruxolitinib seed base_revenue 3092.5. 2,110 / 3,092.5 = 0.6823. Labelled judgement with case against."
+  },
+  "economics_share": {
+   "value": 0.97,
+   "unit": "share",
+   "source": "Royalty Pharma 8-K, June 2021 (0001193125-21-179284, ex. 99.1): Royalty Pharma acquired 3% of future net sales of Constellation's clinical-stage assets, pelabresib and CPI-0209, as part of its $2.025bn funding of MorphoSys's Constellation purchase. Novartis owns MorphoSys outright after the 2024 acquisition",
+   "note": "1 - 0.03. No co-commercialisation partner found",
+   "verdict": "confirmed",
+   "check": "Royalty Pharma 8-K exhibit 99.1 (sec.gov .../000119312521179284/d131786dex991.htm, matching accession 0001193125-21-179284) and the June 2021 press release: Royalty Pharma bought 3% of future net sales of Constellation's clinical-stage assets, pelabresib and CPI-0209, within $2.025bn of funding. 1 - 0.03 = 0.97. Also seen: Constellation's 10-K discloses an LLS agreement owing up to $25mm in lump sums on licensing, change of control or approval; that is a capped fixed payment, not a share of sales, so it does not change the share."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Primary Myelofibrosis",
+   "fields": {
+    "prevalence": {
+     "value": 5233,
+     "unit": "patients",
+     "source": "Set equal to incidence under the book's line-of-therapy convention (epidemiology.csv, multiple myeloma row). The label reaches JAK inhibitor-naive patients, so the addressable pool is those starting a first JAK inhibitor, not all living MF patients",
+     "note": "Judgement. The whole-disease prevalence is 21,133 (6.3 per 100,000, Optum Research Database standardised to the 2023 US population; Blood 2025;146 suppl 1:5576, 'Incidence, prevalence, and clinical outcomes of myelofibrosis with and without cytopenia in the United States'). Most of those patients are already on a JAK inhibitor and so not JAK inhibitor-naive. Case against: a JAK inhibitor is often started years after diagnosis, so some prevalent untreated patients are still eligible and this pool understates year one. pool lookup returned nothing for this disease, so the book carries no figure to conflict with",
+     "verdict": "confirmed",
+     "check": "epidemiology.csv Multiple Myeloma and NSCLC rows state the book's oncology convention that prevalence equals incidence for a line of therapy; lookup.py pool for 'myelofibrosis' and 'Hematologic Neoplasms' returns nothing, so no conflicting figure. Value equals the incidence below. Labelled judgement with case against (prevalent JAK-naive patients understated)."
+    },
+    "incidence": {
+     "value": 5233,
+     "unit": "patients per year",
+     "source": "Same Optum study (Blood 2025;146 suppl 1:5576): US MF incidence 1.56 per 100,000 person-years in 2023, against prevalence of 6.3 per 100,000 = 21,133 patients. 21,133 x 1.56 / 6.3 = 5,233",
+     "note": "Covers primary, post-PV and post-ET MF, all of which MANIFEST-2 and MANIFEST-3 enrol. SEER counts primary MF alone at 0.5 per 100,000 adults (Singhal et al., SEER 2000-2021, PMID 42147177), which would be about 1,335. That count leaves out secondary MF, which the label reaches",
+     "verdict": "confirmed",
+     "check": "Blood 2025;146 suppl 1:5576 (Optum Research Database): 2023 US MF incidence 1.56 per 100,000, prevalence 6.3 per 100,000; confirmed via search of the ASH/ScienceDirect listing. The 21,133 count itself was not seen; it implies a 335.4mm population. 1.56 per 100,000 on 334.9mm to 336.8mm (2023 US population, Census vintages) gives 5,225 to 5,254, so 5,233 sits inside that range. SEER primary MF 0.5 per 100,000 confirmed in PMID 42147177 (Singhal et al.). Covers primary and secondary MF, which MANIFEST-2 enrols (Nat Med methods)."
+    },
+    "eligible_pct": {
+     "value": 0.75,
+     "unit": "share of the pool",
+     "source": "Platelets at or above 100 x 10^9/L, the MANIFEST-2 entry criterion (PMID 40065169). 'Up to 25% of patients with myelofibrosis have platelet counts below 100,000 at presentation' (Yilmaz and Verstovsek, Expert Rev Hematol 2022, PMID 35316110, doi:10.1080/17474086.2022.2057296)",
+     "note": "Judgement: applies only the platelet filter. Case for lower: the label will likely also need DIPSS Int-1 or higher, a spleen of at least 450 cm3 and measurable symptoms. No source gives that combined share, so the figure overstates the pool. MANIFEST-3's own criteria are not confirmed; these are MANIFEST-2's",
+     "verdict": "confirmed",
+     "check": "Nat Med methods (PMC12092244): platelets >= 100 x 10^9/L required, with DIPSS >= Int-1, spleen >= 450 cm3, symptoms, JAK-naive, not a transplant candidate. PMID 35316110 abstract: 'Up to 25% of patients with myelofibrosis have platelet counts below 100,000 at presentation', so >= 75% pass; applied to an incidence pool, 'at presentation' is the right timing. Labelled judgement that overstates the pool; the note says so. A Jakafi-style label ('intermediate or high risk') would cut further, but no source for that share was seen (the Cervantes 2009 IPSS abstract, PMID 18988864, gives no distribution), so no replacement. The same Optum abstract puts 70% (1,074/1,532) cytopenic at diagnosis, but its definition was not seen, so it cannot replace the platelet share."
+    },
+    "penetration_peak_pct": {
+     "value": 0.126,
+     "unit": "share of each year's eligible patients",
+     "source": "lookup.py demand: in 2024, Ojjaara's first full year, it had 2,316 Medicare Part D beneficiaries, against Jakafi's 15,713 and Inrebic's 328. 2,316 / 18,357 = 12.6%",
+     "note": "Judgement: a multiple of 1.0 on the last MF entrant's share of Medicare JAK inhibitor users. Case for higher: Jakafi's count includes PV and GvHD, so Ojjaara's share of MF alone is larger. Pelabresib is also added to the first-line backbone rather than competing with it. Case for lower: a stock share is not a new-start share, the AML imbalance needs MANIFEST-3 to resolve it, and the MANIFEST-2 symptom endpoints missed significance",
+     "verdict": "confirmed",
+     "check": "lookup.py demand 2024 Part D beneficiaries: Ojjaara 2,316, Jakafi 15,713, Inrebic 328. 2,316 / 18,357 = 0.1262. Ojjaara 2023 = 486 (approved late 2023), so 2024 is its first full year. Labelled judgement with case against. Two unstated caveats: Vonjo (pacritinib), also MF-labelled, has no demand row in the book and is missing from the denominator (would lower the share), while Jakafi's count includes PV and GvHD (raises it)."
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "book: Enhertu's CMS Part B launch fit (864, 1,904, 4,841, 7,105, 8,410 beneficiaries 2020-2024), k=1.08, midpoint 2.2 years, as carried by the bomedemstat seed in MPNs",
+     "note": "Reused measured oncology curve. Ojjaara has only two Part D points (486 in 2023, 2,316 in 2024), too few to fit",
+     "verdict": "confirmed",
+     "check": "lookup.py seed bomedemstat carries k=1.08, midpoint 2.2 from Enhertu; lookup.py demand Enhertu Part B beneficiaries 2020-2024 are 864, 1,904, 4,841, 7,105, 8,410 as stated. Ojjaara has only 2023-2024 Part D points (486, 2,316)."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Enhertu fit carried in the book, reused by bomedemstat)",
+     "note": "Reused measured curve",
+     "verdict": "confirmed",
+     "check": "As ramp_steepness: bomedemstat seed carries midpoint 2.2 years from the same Enhertu fit."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

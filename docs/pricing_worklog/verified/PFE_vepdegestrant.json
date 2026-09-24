@@ -1,0 +1,135 @@
+{
+ "ticker": "PFE",
+ "name": "vepdegestrant",
+ "summary": "Vepdegestrant (ARV-471, Veppanu) is an oral PROTAC estrogen receptor degrader co-developed by Arvinas and Pfizer. The FDA approved it on 1 May 2026 for ER-positive, HER2-negative, ESR1-mutated advanced or metastatic breast cancer after endocrine therapy, on VERITAC-2 (NCT05654623): median PFS 5.0 versus 2.1 months against fulvestrant in the 270 ESR1-mutated patients, HR 0.58 (Campone et al., N Engl J Med 2025). In May 2026 Arvinas and Pfizer licensed exclusive global rights to Rigel, which launched it in August 2026, so Pfizer now holds half of a mid-teens to mid-20s royalty, not the product's sales. Price anchor: Rigel's published list price of $29,400 per 30-day supply. Uptake anchor: Truqap's first full year, 2,247 Part D beneficiaries in 2024 in the analogous biomarker-selected second-line pool.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Veppanu label (accessdata.fda.gov/drugsatfda_docs/label/2026/219835Orig1s000lbl.pdf): 200 mg orally once daily until progression",
+   "note": "Oncology treated to progression, so chronic by the house definition",
+   "verdict": "confirmed",
+   "check": "FDA approval notice (fda.gov, 1 May 2026, via search) and Rigel's availability release (prnewswire 302850316 / nasdaq, via search): 200 mg orally once daily. Campone et al., N Engl J Med 2025;393:556-568 (PMID 40454645, doi:10.1056/NEJMoa2505725): 200 mg every day of each 28-day cycle. Continuous oncology dosing, so chronic by the house definition. The label PDF URL itself (219835Orig1s000lbl.pdf) was not opened; the NDA number is not independently confirmed"
+  },
+  "list_price_per_patient": {
+   "value": 0.3577,
+   "unit": "mm USD per patient-year",
+   "source": "Rigel press release, 11 August 2026, announcing availability of Veppanu (via stocktitan.net/news/RIGL/rigel-announces-availability-of-veppanutm-vepdegestrant-for-patients-6tdsxvwtdw59.html): $29,400 per 30-day supply at 200 mg daily. $29,400 x 365/30 = $357,700",
+   "note": "A named manufacturer list price, which the brief ranks above the CMS convention. No CMS row exists for Veppanu (launched 2026) or for Orserdu, the closest marketed comparator. Cross-check: Truqap $81,962 and Piqray $93,256 per 2024 Part D beneficiary (lookup.py demand), which are part-year gross spends and not annual prices. The case against: an annualised list price with a price-specific gross-to-net sits on a different basis from most seeds, which use the CMS convention",
+   "verdict": "confirmed",
+   "check": "Rigel release announcing availability of VEPPANU (rigel.com press release 445, prnewswire 302850316, stocktitan, via search): '$29,400 per 30-day supply', 200 mg once daily, US and Puerto Rico. 29,400 x 365/30 = 357,700, so 0.3577 mm USD per patient-year; unit and scale right. A named manufacturer list price outranks the CMS convention per the brief. lookup.py demand Orserdu and Veppanu return no rows, as stated. Cross-checks reproduce: Truqap Part D 2024 $184,169,026 / 2,247 = $81,962; Piqray $109,761,432 / 1,177 = $93,255 (note says $93,256, a $1 rounding slip). Release day: the Pharmaletter dates the announcement 13 August 2026; the 11 August day in the source was not pinned, which does not affect the figure"
+  },
+  "gross_to_net_pct": {
+   "value": 0.23,
+   "unit": "share taken off list",
+   "source": "Selected drugs, therapeutic alternatives, and price benchmarks for IPAY 2027 Medicare drug price negotiation (PMC12467749): estimated rebates of 4% to 23% off list for the oral oncology drugs enzalutamide, pomalidomide, palbociclib and acalabrutinib",
+   "note": "Judgement: the top of that range. The house 0.5 is calibrated on CMS per-beneficiary spend, which bundles part-year use with rebates, and does not apply to an annualised WAC. The top of the range is taken because the IRA Part D redesign adds a 10% to 20% manufacturer discount from 2025, and oral oncology patients reach the catastrophic phase quickly. Direction checked: 0.23 off list, so net is about $275,400 per patient-year. The case against: I read the range from a search summary and not the full text; Rigel does not disclose a gross-to-net share for its products, so this is not measured on this drug",
+   "verdict": "confirmed",
+   "check": "Direction right: 0.23 is the share OFF list, net = 357,700 x 0.77 = $275,429 per patient-year. Source: PMC12467749 ('Selected drugs, therapeutic alternatives, and price benchmarks for IPAY 2027 Medicare drug price negotiation', J Manag Care Spec Pharm 2025, doi:10.18553/jmcp.2025.25199, PMID 40938639). PubMed returned the abstract only (no full text), which does not carry the range; a search summary of the PMC page states 'estimated rebates of 4% to 23% off list price' for enzalutamide, pomalidomide, palbociclib and acalabrutinib, so the input holds on the same basis the researcher disclosed. Labelled judgement (top of range) with a case against. Reader caveats, all pointing to a larger share off list: the IPAY estimates rest on pre-2025 Part D data and so exclude the 2025 manufacturer discount programme; they are Medicare-only and exclude Medicaid's statutory rebate and 340B; and the note's claim that Rigel discloses no gross-to-net is doubtful, since a search summary says Rigel's FY2025 10-K (0001034842-26-000015) reconciles gross to net product sales (chargebacks, discounts, government rebates, returns). I could not open it (sec.gov blocked in this container), so no measured Rigel figure replaces 0.23"
+  },
+  "discontinuation_pct": {
+   "value": 0.8105,
+   "unit": "share of treated stock stopping per year",
+   "source": "VERITAC-2 (Campone et al., N Engl J Med 2025; ASCO 2025): median PFS 5.0 months (95% CI 3.7-7.4) on vepdegestrant in the 270 ESR1-mutated patients, the labelled population",
+   "note": "Constant hazard from a median: 1 - 0.5^(12/5.0) = 0.811, the form the ABBV-1480 seed uses (the brief's 1 - exp(-12/5) gives 0.909). The case against: median PFS is short and long-tail responders stay on longer than a constant hazard implies; median duration of treatment was not found",
+   "verdict": "confirmed",
+   "check": "Campone et al., N Engl J Med 2025 (PMID 40454645): among the 270 ESR1-mutated patients, median PFS 5.0 months (95% CI 3.7-7.4) on vepdegestrant vs 2.1 on fulvestrant (HR 0.58, 95% CI 0.43-0.78; the summary's 0.57 is corrected to the published 0.58). 1 - 0.5^(12/5.0) = 0.8105, reproduced. The median-based constant-hazard form is the one the ABBV-1480 (0.5^(12/11.1)) and PF-07248144 (0.5^(12/10.7)) seeds use (lookup.py seed); 1 - exp(-12/5) = 0.909 would be the brief's looser form. Median duration of treatment not found by me either"
+  },
+  "forecast_start_year": {
+   "value": 2027,
+   "unit": "year",
+   "source": "FDA approval 1 May 2026 (fda.gov, 'FDA approves vepdegestrant for ER-positive, HER2-negative, ESR1-mutated advanced or metastatic breast cancer'); US launch by Rigel 11 August 2026 (Rigel press release)",
+   "note": "Already marketed, so 2027 is the first full year. VERITAC-2 primary completion was 2025-01-31. The context file's note that an FDA decision was not verified is superseded: the FDA has acted",
+   "verdict": "confirmed",
+   "check": "FDA approval on 1 May 2026 confirmed (fda.gov notice 'FDA approves vepdegestrant for ER-positive, HER2-negative, ESR1-mutated advanced or metastatic breast cancer', via search; Guardant360 CDx as companion diagnostic). US availability announced by Rigel in August 2026 (the day is 11 or 13 August; not pinned). Marketed in 2026, so 2027 is the first full year. VERITAC-2 primary completion 2025-01-31 is from the context file; Amass TrialCore was over its usage limit and could not re-check it"
+  },
+  "exus_multiple": {
+   "value": 0.521,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Ibrance FY2025: $1,412mm International against $2,710mm U.S. (Pfizer 10-K 0000078003-26-000026, product revenue table; book asset_revenue_regions)",
+   "note": "Judgement on the comparator: Pfizer's own oral drug in the same disease, and the royalty is payable on worldwide net sales. The case against, and it is strong: Rigel is a US-focused company, no ex-US approval of vepdegestrant was found, and ex-US sales depend on Rigel filing or sublicensing abroad, so the realised multiple could be far lower, near zero in the forecast's early years",
+   "verdict": "confirmed",
+   "check": "Book asset_revenue_regions, Ibrance FY2025: INTL $1,412,000,000 and US $2,710,000,000 (0000078003-26-000026); 1,412/2,710 = 0.5210, reproduced; the PF-07248144 seed carries the same 0.521. Royalty base is worldwide: Arvinas Q2 2026 10-Q (0001628280-26-052554, via search) describes tiered mid-teens to mid-20s royalties on worldwide VEPPANU sales. Labelled judgement with a strong case against, so confirmed under the rule, but it is the weakest field: a search result (everyone.org) says there was no EMA marketing application as of May 2026, the licensee is US-focused, and the engine multiplies both pool and incidence by 1.521 from 2027, which books ex-US patients at the US net price before any ex-US filing. The caller may prefer a lag or a lower multiple"
+  },
+  "economics_share": {
+   "value": 0.326802,
+   "unit": "share of the asset's rNPV",
+   "source": "Arvinas 8-K of 11 May 2026 (sec.gov/Archives/edgar/data/1655759/000162828026033874, exhibit 'arvn_veppanuxoutlicensex.htm'): Rigel takes exclusive global development, manufacturing and commercialisation rights; Arvinas and Pfizer receive $70mm upfront, $15mm on transition, up to $320mm in milestones and tiered royalties on net sales in the mid-teens to mid-20s, all split evenly between them. Before this, the July 2021 collaboration split worldwide costs and profits 50/50 (Arvinas FY2025 10-K 0001628280-26-011226). Netted as the book nets a royalty (the PF-08634404, VLA15 and disitamab vedotin seeds): the engine multiplies rNPV by this share and charges Pfizer's company cost rows on the whole revenue (cost of sales 25.67%, SG&A 22.04%, R&D 16.68%, other costs 12.6603%, a 22.9497% pre-tax margin), so a royalty received of 7.5% of sales is 0.075 / 0.229497 = 0.3268 of the modelled margin",
+   "note": "Judgement on the tier: half of a mid-teens royalty, 0.5 x 15% = 7.5% of sales, the lowest tier because early sales sit in it; the top tier (0.5 x 25%) gives 0.5447. A royalty carries none of the costs the build charges, which is why the share is struck on the margin rather than on revenue. The side effect: the company revenue roll-up multiplies revenue by the same share, so it shows 32.7% of Veppanu's sales where Pfizer books 7.5%. Milestones ($160mm to Pfizer at most) are not captured. Recompute if Pfizer's cost rows change",
+   "verdict": "corrected at assembly",
+   "check": "Terms confirmed from the Arvinas and Rigel releases of 12 May 2026 and the Arvinas 8-K (accession 0001628280-26-033874, exhibit arvn_veppanuxoutlicensex.htm, both surfaced by search): exclusive global development, manufacturing and commercialisation rights to Rigel; $70mm upfront plus $15mm on transition; up to $320mm in development, regulatory and commercial milestones; tiered royalties on net sales from mid-teens to mid-20s; all payments distributed evenly between Arvinas and Pfizer. HSR cleared 11 June 2026 (Arvinas Q2 10-Q). 0.5 x 0.15 = 0.075 (top tier 0.5 x 0.25 = 0.125), reproduced. Labelled judgement on the tier. The researcher's caveats stand: Pfizer's cost ratios will be applied to royalty income, and the $35mm upfront, $7.5mm transition payment and up to $160mm of milestones due to Pfizer are not captured | Assembler: 0.075 -> 0.326802. The second reader confirmed the terms; the value was restated from a share of revenue into the rNPV share the engine applies (forecast_view.asset_forecast: owner_rnpv = rnpv x share), the way the book's royalty-paying seeds are struck"
+  },
+  "pos": {
+   "value": 1.0,
+   "unit": "",
+   "source": "FDA approval 1 May 2026, Veppanu (vepdegestrant), NDA 219835, ESR1-mutated ER-positive HER2-negative advanced breast cancer",
+   "note": "stated, because no development phase applies: the product is approved and sold, by Rigel",
+   "verdict": "added at assembly",
+   "check": "approval confirmed by the second reader (forecast_start_year check); stated the way the book's marketed seeds state it"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Breast Neoplasms",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (160,000 US women living with metastatic HR-positive HER2-negative breast cancer, on the camizestrant, patritumab deruxtecan, sacituzumab tirumotecan and PF-07248144 seeds)",
+     "note": "Carried by the book",
+     "verdict": "confirmed",
+     "check": "Null is right: lookup.py pool 'Breast Neoplasms' shows the book already carries 160,000 on the camizestrant, patritumab deruxtecan, sacituzumab tirumotecan, PF-07248144 and PF-07220060 seeds, so the book fills it"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (65,000 a year, the camizestrant seed's inflow)",
+     "note": "Carried by the book",
+     "verdict": "confirmed",
+     "check": "Null is right: the book carries 65,000 a year for Breast Neoplasms on the same five seeds (camizestrant's inflow), per lookup.py pool"
+    },
+    "eligible_pct": {
+     "value": 0.0973,
+     "unit": "share of the pool",
+     "source": "three shares multiplied. 47.9% of patients starting first-line therapy for HR-positive HER2-negative metastatic breast cancer went on to a second line (Goyal et al., Breast Cancer Res Treat 2023, doi:10.1007/s10549-022-06845-4, the PF-07248144 seed's share); 46.9% of second-line patients took neither chemotherapy (31.6%) nor a CDK4/6 inhibitor again (21.5%) (Mahtani et al., Breast 2026, doi:10.1016/j.breast.2026.104732, the PF-07248144 seed's share); and 43.3% ESR1-mutated, 270 of 624 enrolled in VERITAC-2 after a CDK4/6 inhibitor with endocrine therapy. 0.479 x 0.469 x 0.433 = 0.0973, about 15,600 of the pool and 6,300 a year",
+     "note": "The label is ESR1-mutated ER+/HER2- advanced disease progressing after at least one endocrine line. The case against: the ESR1 share is a trial enrolment share, not a population testing rate, and the label does not bar use after a CDK4/6 rechallenge, which the 46.9% excludes",
+     "verdict": "confirmed",
+     "check": "Each share checked at source. Goyal et al., Breast Cancer Res Treat 2023;198:159-166 (PMID 36609900) abstract: of 3,244 women, '47.9% (n = 1581) initiated second-line therapy' (1,581/3,244 computes to 48.7%; the paper's stated 47.9% is used, as the PF-07248144 seed does). Mahtani et al., Breast 2026;86:104732 (PMID 41719678) abstract: in 767 second-line patients 31.6% chemotherapy-based and 21.5% CDK4/6i + ET, leaving 46.9%. Campone et al. NEJM 2025: 270 ESR1-mutated of 624 randomised = 0.4327. 0.479 x 0.469 x 0.433 = 0.09727; x 160,000 = 15,564 and x 65,000 = 6,323, reproduced. Matches the FDA label (ESR1-mutated ER+/HER2- advanced disease progressing after at least one endocrine line, FDA-authorised test). Caveats disclosed: trial enrolment share, not a testing rate; Goyal is a SEER-Medicare 65+ cohort; 3L+ use and CDK4/6 rechallenge are left out"
+    },
+    "penetration_peak_pct": {
+     "value": 0.153,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "Truqap, CMS Part D 2024, its first full year: 2,247 beneficiaries (lookup.py demand Truqap), over its own pool built the same way: 160,000 x 0.479 x 0.469 x 0.408 (PIK3CA, AKT1 or PTEN altered, 289 of 708 in CAPItello-291, Turner et al., N Engl J Med 2023, doi:10.1056/NEJMoa2214131) = 14,665. 2,247 / 14,665 = 0.153",
+     "note": "Solved from a measured incumbent in the analogous biomarker-selected second-line endocrine setting; no multiple applied. The case for higher: the count is Medicare only, so it understates Truqap's total capture. The case for lower: vepdegestrant is the third oral ER agent for ESR1-mutated disease after Orserdu (2023) and Lilly's Inluriyo, with camizestrant coming; it needs ECG monitoring for QT prolongation; and Rigel has a far smaller oncology salesforce than AstraZeneca",
+     "verdict": "confirmed",
+     "check": "lookup.py demand Truqap: Part D 2024 2,247 beneficiaries (2023: 56, so 2024 is the first full year). Turner et al., N Engl J Med 2023 (PMID 37256976) abstract: 289 of 708 (40.8%) AKT pathway altered. Pool 160,000 x 0.479 x 0.469 x 0.408 = 14,665; 2,247/14,665 = 0.1532, reproduced. Incumbent named, no multiple, cases both ways given. Reader notes on the method, not the sourcing: (1) the denominator is the prevalent pool alone, the default 'untreated' convention of backend/capture_anchor.py, while forecast.derive_new_patients applies penetration to pool plus incidence; on that basis the same capture is 2,247/(14,665 + 5,958) = 0.109. (2) A first-full-year count set as the peak sits against a curve that reaches only 8.5% of peak in year 0 and 45% by year 2. (3) With prevalence (160,000) not equal to incidence (65,000) the engine defaults to full carryover, so the untreated pool is drawn down until new starts converge on the whole eligible inflow; a simple re-run of these fields (no crowding, no price erosion) plateaus near 11,800 treated patients and about $3.2bn of global net sales, so this share sets the pace more than the size. The caller may want untreated_carryover_pct = 0 for a line of therapy"
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "Enhertu's launch fitted in the camizestrant seed: CMS Part B beneficiaries 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024",
+     "note": "Reused from the closest modelled breast-cancer seed (camizestrant). Truqap has only one full year on file, too few to fit",
+     "verdict": "confirmed",
+     "check": "lookup.py seed camizestrant: ramp_steepness 1.08 from Enhertu's fitted launch; lookup.py demand Enhertu Part B beneficiaries 864, 1,904, 4,841, 7,105, 8,410 for 2020-2024, reproduced. Same curve on the PF-07248144 seed. A logistic at k=1.08, midpoint 2.2 and a 9,500 ceiling gives 808, 2,041, 4,239, 6,683, 8,311, close to the observed series; my unconstrained least-squares fit gives k about 1.3, midpoint 1.9, so the book's curve is slightly slower than the best fit. Reuse is what the brief asks for"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "Enhertu's launch fitted in the camizestrant seed (k=1.08, midpoint 2.2 years)",
+     "note": "Reused. The launch in August 2026 falls before the 2027 forecast start, which argues for a slightly earlier midpoint; left unchanged",
+     "verdict": "confirmed",
+     "check": "lookup.py seed camizestrant: ramp_midpoint_year 2.2 years from the forecast start, the same Enhertu fit (see ramp_steepness). Enhertu's year 0 (2020) was its first full year after a December 2019 approval, which matches vepdegestrant's 2027 after an August 2026 launch. The researcher's point that the pre-2027 launch argues for a slightly earlier midpoint is fair and left as a labelled judgement"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.0,
+     "unit": "share",
+     "source": "forecast.py convention for a line of cancer therapy: a patient not started on this drug in a year starts another and leaves the line (the vepugratinib and PF-07220060 seeds state the same)",
+     "note": "Stated because the book's pool for this indication carries a prevalence above its incidence, so the engine would otherwise carry every untreated patient forward and treat each of them in the end. With 0 the living stock is not an opening pool and each year's eligible patients are that year's alone",
+     "verdict": "added at assembly",
+     "check": "added by the assembler after the second read; engine branch read in forecast.patients_for_indication"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

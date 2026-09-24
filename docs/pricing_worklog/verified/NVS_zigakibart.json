@@ -1,0 +1,119 @@
+{
+ "ticker": "NVS",
+ "name": "Zigakibart",
+ "summary": "Zigakibart (FUB523, formerly BION-1301) is a humanised IgG4 anti-APRIL antibody given by subcutaneous injection. Novartis got it with Chinook Therapeutics, which it bought outright in August 2023. The pivotal trial is BEYOND (NCT05852938): a Phase 3, placebo-controlled study of 600 mg every two weeks for 104 weeks, with proteinuria (UPCR) at week 40 as the primary endpoint; 383 enrolled, primary completion 2027-08-10 (estimated). Novartis expects the readout in H1 2027 and a submission in 2027 (6-K 0001114448-26-000012). The price anchor is Voyxact (sibeprenlimab), the approved anti-APRIL antibody, at its published list of $390,000 a year with 25% off list (ICER's $292,500 net). Uptake is anchored on Filspari's measured capture, halved as a judgement for at least the fourth APRIL-blocking agent to market (after Voyxact, Trutakna and povetacicept). The curve is Tarpeyo's fitted launch.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT05852938 (BEYOND): 600 mg zigakibart subcutaneously every 2 weeks for 104 weeks, followed by the open-label extension NCT06858319; Novartis 20-F 0001114448-26-000004 pipeline table: 'Anti-APRIL monoclonal antibody, IgA nephropathy, Subcutaneous injection'",
+   "note": "A maintenance antibody in a chronic disease, like the other B-cell agents the book models in IgAN.",
+   "verdict": "confirmed",
+   "check": "BEYOND design seen in the IgAN Foundation study page and the WCN24-1837 abstract (Kidney Int Rep 2024): 600 mg zigakibart or placebo subcutaneously every two weeks for 104 weeks. The 20-F pipeline table in the book (filing_sections, 0001114448-26-000004) reads 'FUB523 zigakibart Anti-APRIL monoclonal antibody IgA nephropathy ... Subcutaneous injection 2023 2027/III'. The OLE NCT06858319 is in the book's trials table. Chronic is right."
+  },
+  "list_price_per_patient": {
+   "value": 0.39,
+   "unit": "mm USD per patient-year",
+   "source": "Voyxact (sibeprenlimab, Otsuka, FDA accelerated approval 25 November 2025) at its published annual list of $390,000: pharmaphorum, 'Otsuka's Voyxact faces rival as FDA okays Vera IgAN drug' (https://pharmaphorum.com/news/otsukas-voyxact-faces-rival-fda-okays-vera-igan-drug). Cross-check: ICER's IgAN evidence report press release (icer.org) gives Voyxact an estimated annual net price of $292,500, which is exactly 75% of $390,000.",
+   "note": "Voyxact is the closest marketed comparator: the same target (APRIL), the same disease and the same route. The brief ranks a named published annual list above the CMS convention, so $390,000 replaces the $399,499 read off CMS Medicare Quarterly Part D, Q1 2026 ($4,640,341 over 151 claims, $30,730.73 a claim, x13). That CMS figure sits 2.4% above the $30,000-a-dose list, as Part D gross cost does, because it carries pharmacy dispensing. The price is per patient-year, not per dose, so zigakibart's every-two-weeks schedule does not double it; that Novartis prices to the class is a judgement. Case against: Trutakna (atacicept, Vera), approved 7 July 2026, launched at $425,000 a year (same pharmaphorum article), so the class price is not settled at Voyxact's; Novartis could also price below both as a later entrant. Book follow-up: the povetacicept and sefaxersen seeds still carry $399,499, and the sefaxersen seed calls it the 'published US list', which it is not.",
+   "verdict": "corrected",
+   "check": "Recomputed the researcher's figure: 4,640,341 / 151 = 30,730.74 a claim, x13 = 399,499.6, so 0.399499 matched its source (book seed, povetacicept). But a published annual list exists: $390,000 (pharmaphorum, via search), and ICER's $292,500 net is 0.75 x $390,000 exactly, which ties the list to the 25% discount the researcher uses. Per the brief a named published list beats the CMS convention, and the updated brief says a CMS Part D anchor takes 0.5 off while a WAC takes a sourced discount: 0.25 off $399,499 mixed the two bases (net $299,624 against ICER's $292,500). Corrected 0.399499 -> 0.39."
+  },
+  "gross_to_net_pct": {
+   "value": 0.25,
+   "unit": "share taken off list",
+   "source": "ICER, B-Cell Directed Therapies for IgA Nephropathy, Evidence Report, 9 February 2026, Table E2.3: IPD Analytics forecasts a 25% discount from WAC for sibeprenlimab (as carried on the povetacicept and sefaxersen seeds)",
+   "note": "Net is 75% of list. Direction checked: this is the share OFF list. The anchor is now Voyxact's published list (WAC) of $390,000, so per the brief neither house convention (0.5 on a CMS Part D per-beneficiary price, 0.056604 on Part B) applies and the discount is sourced: ICER's net of $292,500 on the $390,000 list is 25% off. Keeping the value keeps the three IgAN B-cell assets consistent. Case against: IPD Analytics' 25% is a forecast for a first entrant; a fourth APRIL-blocking entrant may need deeper rebates to win formulary position.",
+   "verdict": "confirmed",
+   "check": "ICER press release on the IgAN evidence report (icer.org, seen via search): Voyxact estimated annual net price $292,500. Published list $390,000 (pharmaphorum). 1 - 292,500/390,000 = 0.250. Direction right (share off list). The Table E2.3 / IPD Analytics wording itself was not opened (ICER PDF not fetchable), but the arithmetic from the two figures seen confirms 25%. With the list corrected to the WAC, 0.25 is the brief's sourced WAC discount; on the researcher's CMS Part D anchor the updated brief would have required 0.5."
+  },
+  "discontinuation_pct": {
+   "value": 0.275,
+   "unit": "share of the treated stock stopping per year",
+   "source": "lookup.py seed Povetacicept (carried on the sefaxersen seed too): Dulai PS et al., Crohn's & Colitis 360, 2026 (IQVIA PharMetrics Plus, 6,726 US adults with ulcerative colitis starting an advanced therapy): 38.1% still on their first advanced therapy at 36 months, which is 27.5% of the stock stopping a year",
+   "note": "Reused from the closest modelled competitors, because no US persistence series exists for an IgAN B-cell therapy yet. Case against: the source is persistence on a biologic in ulcerative colitis, not IgAN, and an every-two-weeks injection may persist worse than every four weeks.",
+   "verdict": "confirmed",
+   "check": "Read Dulai PS et al., Crohn's Colitis 360 2026;8(2):otag035, doi 10.1093/crocol/otag035, PMID 42222352, full text via PubMed Central: 6,726 US adults, IQVIA PharMetrics Plus; Table 2 gives 38.1% remaining on index advanced therapy at 36 months for the 2019-2020 index cohort (36.1%, 37.6%, 40.0% for earlier cohorts). 1 - 0.381^(1/3) = 0.2750. The earlier cohorts give 0.263 to 0.288. Reuse confirmed on the povetacicept and sefaxersen seeds (lookup.py seed). The ulcerative colitis analogue is labelled as such, with its case against."
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "Novartis Q2 2026 6-K exhibit (0001114448-26-000012, filed 2026-07-21): 'Zigakibart is currently being evaluated in the Phase III BEYOND study in adults with IgAN, with readout anticipated in H1 2027'. The pipeline table gives FUB523 IgAN a first planned submission of 2027 in Phase 3.",
+   "note": "JUDGEMENT on timing. The sefaxersen seed measured Fabhalta going from its positive IgAN interim to accelerated approval in 10.2 months. On that pace, a mid-2027 readout gives approval around Q2 2028, so 2029 is the first full year. Case for 2028: a readout early in H1 2027 plus a priority review would put most of 2028 on the market. The extension NCT06858319 has a primary completion of 2031-06-25, but it is not the registration trial. BEYOND's own primary completion is 2027-08-10 (estimated; ClinicalTrials.gov v2 as held in the book's trials table, 383 enrolled, active not recruiting), which fits a week-40 proteinuria readout in H1 2027 for an accelerated filing and the 104-week data after it.",
+   "verdict": "confirmed",
+   "check": "Read the 6-K exhibit 0001114448-26-000012 (filed 2026-07-21) in the book's filing_sections: 'Zigakibart is currently being evaluated in the Phase III BEYOND study in adults with IgAN, with readout anticipated in H1 2027', and exhibit_2's pipeline table 'FUB523 (zigakibart) IgA nephropathy 2027 3'. The sefaxersen seed carries the Fabhalta 10.2-month interim-to-approval pace. Mid-2027 readout + ~10 months = about Q2 2028, so 2029 is the first full year; the 2028 case is stated. Added BEYOND's primary completion (2027-08-10) to the note, as the brief asks."
+  },
+  "exus_multiple": {
+   "value": 0.5931,
+   "unit": "x US",
+   "source": "Novartis FY2025 annual report product table (0001114448-26-000004), held in the book's asset_revenue_regions: Fabhalta US $317mm, rest of world $188mm, total $505mm; 188/317 = 0.593",
+   "note": "JUDGEMENT on the comparator. Fabhalta is Novartis's own renal-franchise product that carries IgAN, and its split is filed. Case against: Fabhalta's ex-US sales are mostly PNH. Ex-US IgAN reimbursement for a B-cell agent is untested, and China, a large IgAN market, prices low. The ratio may therefore overstate ex-US IgAN revenue.",
+   "verdict": "confirmed",
+   "check": "Book asset_revenue_regions, asset 20 (Fabhalta), FY2025 from the annual report table 0001114448-26-000004: US 317,000,000, rest of world 188,000,000. 188/317 = 0.5931. Judgement labelled with its case against (ex-US Fabhalta is mostly PNH). The engine (backend/forecast.py) applies it to the pool, so it scales patients, not price."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share of the asset",
+   "source": "Novartis FY2025 20-F (0001114448-26-000004), Note 2: Novartis acquired all outstanding shares of Chinook Therapeutics, closing 11 August 2023, for $3.2bn cash plus up to $0.3bn of milestone payments to Chinook shareholders. The subsidiary list shows Chinook Therapeutics, Inc. held at 100%.",
+   "note": "Wholly owned, and no partner revenue share is disclosed. The contingent consideration is a milestone payment, not a revenue share. No third-party royalty on zigakibart was found in the filings the book holds, which is an absence of evidence, not a confirmed nil.",
+   "verdict": "confirmed",
+   "check": "Read the 20-F 0001114448-26-000004 text in the book's filing_sections: Novartis agreed to acquire all outstanding shares of Chinook Therapeutics, closing 11 August 2023, USD 3.2bn cash plus up to USD 0.3bn of milestones to Chinook shareholders; the subsidiary list shows Chinook Therapeutics, Inc. and Chinook Therapeutics U.S., Inc. at 100%. No revenue share found. The absence of a third-party royalty is stated as absence of evidence."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Glomerulonephritis, IGA",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book",
+     "note": "lookup.py pool IgA: 198,887 from DeCongelio M et al., Clin Nephrol 2025, on the povetacicept seed and in epidemiology.csv. It is left null so two assets never carry two figures for one disease.",
+     "verdict": "confirmed",
+     "check": "Null is correct. lookup.py pool IgA: epidemiology.csv and the povetacicept seed carry 198,887 (DeCongelio 2025) for 'Glomerulonephritis, IGA'."
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book",
+     "note": "lookup.py pool IgA: 6,973 a year (DeCongelio 2025), carried in epidemiology.csv.",
+     "verdict": "confirmed",
+     "check": "Null is correct. lookup.py pool IgA: 6,973 a year (DeCongelio 2025) is carried in epidemiology.csv and on the povetacicept seed."
+    },
+    "eligible_pct": {
+     "value": 0.6851,
+     "unit": "share of the pool",
+     "source": "lookup.py pool IgA (povetacicept and sefaxersen seeds): Caster DJ et al., Kidney Int Rep 2023;8:1792-1800, doi:10.1016/j.ekir.2023.06.016. 80.6% of 4,375 US adults with biopsy-proven IgAN are in CKD stages 1 to 4, and 85.0% have proteinuria of 1 g a day or more; 0.806 x 0.850 = 0.685",
+     "note": "Carried so the three IgAN B-cell assets share one label pool. BEYOND enrols adults with biopsy-proven IgAN, total urine protein of 1.0 g a day or more and UPCR of 0.7 g/g or more, eGFR of 30 or more, on maximally tolerated RAS blockade (WCN24-1837 abstract; IgAN Foundation study page), so the 1 g a day filter matches the trial. The CKD 1 to 4 filter keeps stage 4 (eGFR 15 to 29), which BEYOND does not enrol; Voyxact's label ('adults with primary IgAN at risk for disease progression') carries no eGFR floor, which is why the book keeps it. Case against: were the label to follow BEYOND's eGFR 30 floor, Caster's 42% at CKD 4 or 5 leaves 58% in stages 1 to 3, and 0.58 x 0.850 = 0.493.",
+     "verdict": "confirmed",
+     "check": "Read Caster DJ et al., Kidney Int Rep 2023;8(9):1792-1800, doi 10.1016/j.ekir.2023.06.016, PMID 37705898, full text via PubMed Central: 4,375 US adults with biopsy-proven IgAN; 'Proteinuria values >=1 g/d were observed in 85.0% (1937/2280)' confirmed. The 80.6% in CKD stages 1 to 4 is not in the main text (which gives 74.6% at stage 3 or more and 42% at stage 4 or 5 among 3,828 with creatinine); it is carried from the povetacicept seed, which cites Caster and ICER's budget impact, and is consistent with those figures (stage 5 would be 19.4%). 0.806 x 0.850 = 0.6851. BEYOND's entry threshold (>=1.0 g/day and UPCR >=0.7 g/g) matches the proteinuria filter, answering the researcher's open question."
+    },
+    "penetration_peak_pct": {
+     "value": 0.0081,
+     "unit": "share of the eligible untreated pool captured per year",
+     "source": "lookup.py seed Sefaxersen / Povetacicept: Filspari's $322.0mm of FY2025 US net sales (Travere 8-K exhibit 99.1, 0001438533-26-000013), at its CMS Part D 2025 price of $157,276 a year, is at least 2,047 patients, 1.50% of the 136,257 eligible. The povetacicept seed solved that to a peak of 0.0162 on this pool, curve and discontinuation.",
+     "note": "JUDGEMENT: half of Filspari's solved capture, the same multiple the sefaxersen seed applies. Filspari is the incumbent actually measured. Zigakibart would be at least the fourth APRIL-blocking agent to market, after Voyxact (approved 25 November 2025), Trutakna (atacicept, Vera, FDA accelerated approval 7 July 2026) and povetacicept (PDUFA 30 November 2026), and it doses every two weeks against Voyxact's and povetacicept's every four weeks. Case against: Novartis sells Fabhalta and Vanrafia into the same nephrologists, which argues for more than half. A class already three deep before zigakibart files argues for less.",
+     "verdict": "confirmed",
+     "check": "Filspari FY2025 US net sales $322.0mm confirmed (Travere Q4/FY2025 results, 8-K exhibit 99.1 in accession 0001438533-26-000013, seen via search). $12,926.81 x 365/30 = $157,276 a year (the CMS 2025 claim cost is carried from the book seed; Filspari is not in this book copy's drug_demand table). 322.0/0.157276 = 2,047 patients; 198,887 x 0.6851 = 136,257; 2,047/136,257 = 1.503%. Re-ran the engine (backend/forecast.py derive_new_patients and treated_stock, k 1.32, midpoint 1.7, discontinuation 0.275): 0.0162 gives a year-3 stock of 2,051 (1.505%), so the povetacicept solve holds; 0.0081 = 0.5 x 0.0162, a US stock of 1,028 in year 3 and about 4,895 at peak before the ex-US multiple. Value kept as a labelled judgement. Note amended: atacicept is no longer 'also coming'; Trutakna received FDA accelerated approval on 7 July 2026 (Vera 8-K and HCPLive, seen via search), so zigakibart is at least fourth, not third."
+    },
+    "ramp_steepness": {
+     "value": 1.32,
+     "unit": "logistic k",
+     "source": "lookup.py seed Povetacicept: Tarpeyo's CMS Part D beneficiaries of 52, 247, 468 and 680 over 2022 to 2025, fitted by least squares to k = 1.32 with a midpoint at 1.70 years (rmse 17)",
+     "note": "Reused from the closest modelled competitors, povetacicept and sefaxersen. Tarpeyo is the only IgAN-specific launch with a measured Part D series. Case against: Tarpeyo was a first-in-disease oral course, while a later-entrant injectable with an established class may ramp faster, since prescribers are already familiar, or slower, since it has to win share.",
+     "verdict": "confirmed",
+     "check": "Refit a three-parameter logistic (free ceiling, t=0 at 2022) to Tarpeyo's 52, 247, 468, 680: least squares gives k 1.36, midpoint 1.67, rmse 16.5; k 1.32 with midpoint 1.70 gives rmse 16.6, the same fit on a flat surface (the sefaxersen seed's refit got 1.292/1.74). Reuse confirmed on the povetacicept seed (lookup.py seed). The Tarpeyo beneficiary counts are carried from that seed's CMS citation; Tarpeyo is not in this book copy's drug_demand table, so they were not re-read from CMS."
+    },
+    "ramp_midpoint_year": {
+     "value": 1.7,
+     "unit": "years from forecast_start_year",
+     "source": "Same Tarpeyo fit as ramp_steepness (lookup.py seed Povetacicept)",
+     "note": "Reused. See ramp_steepness.",
+     "verdict": "confirmed",
+     "check": "Same refit as ramp_steepness: midpoint 1.67 to 1.74 across fits, 1.70 carried on the povetacicept and sefaxersen seeds. Units are years from forecast_start_year, as the engine reads a value under 100 as an offset."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

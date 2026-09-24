@@ -1,0 +1,119 @@
+{
+ "ticker": "GSK",
+ "name": "Investigational varicella vaccine",
+ "summary": "GSK's varicella new strain (VNS) vaccine is a live attenuated chickenpox vaccine for the routine two-dose childhood schedule. It is in Phase 3 against Merck's Varivax, which with ProQuad is the only varicella-containing vaccine sold in the US; GSK's Varilrix is not US-licensed. The Phase 3 trials in the context file are NCT06693895 (safety, 750 children aged 12 to 15 months, primary completion 2026-11-23) and NCT06806137 (second dose 3 months after the first, 600 children, 2026-12-14). The price anchor is Varivax on the CDC Pediatric/VFC list of January 2026, $192.115 private a dose, $384.23 for two doses; the net price blends in the pediatric VFC contract price of $151.446, 11.05% off list (second reader). The uptake anchor is GSK's own Priorix, which entered Merck's US MMR monopoly in 2022: US sales of Priorix, Priorix Tetra and Varilrix were GBP 60mm in FY2025, 4.05% of the US MMR, MMRV and varicella revenue pool (second reader; the 2.7% first given used FY2024 GSK sales). The Chickenpox birth-cohort pool is now carried by the book.",
+ "asset": {
+  "therapy_mode": {
+   "value": "one_time",
+   "unit": "",
+   "source": "ACIP routine schedule: two varicella doses, at 12 to 15 months and 4 to 6 years. NCT06806137 tests a second dose after a first at 12 to 15 months",
+   "note": "One course per child on an annual birth cohort, billed once. The book models its pediatric vaccines this way (sny_pcv21.csv, gsk_mrna_seasonal_flu.csv). The second dose falls about three years after the first, so the engine books it early",
+   "verdict": "confirmed",
+   "check": "ACIP two-dose schedule (first dose 12 to 15 months, second at 4 to 6 years) confirmed in Habib et al., Hum Vaccin Immunother 2026 (doi:10.1080/21645515.2026.2660525, PubMed full text PMC13215302). Book trials table (clinicaltrials_v2, fetched 2026-09-24): NCT06806137 tests a second dose 3 months after a first at 12 to 15 months. lookup.py seed: sny_pcv21 and the GSK MMRVNS seed both carry therapy_mode one_time with discontinuation 1.0, so the shape matches the book's pediatric vaccines"
+  },
+  "list_price_per_patient": {
+   "value": 0.00038423,
+   "unit": "mm USD per two-dose course",
+   "source": "Varivax (Merck, NDC 00006-4827-00, 10 x 1-dose vials), CDC Pediatric/VFC Vaccine Price List, prices last reviewed January 1, 2026 (https://www.cdc.gov/vaccines-for-children/media/pdfs/2026/03/Vaccine-Price-List-01-26-v2-508.pdf; also https://www.cdc.gov/vaccines-for-children/media/pdfs/2026/01/Pediatric-VFC-Vaccine-Price-List-01-26-26.pdf): private sector $192.115 a dose, pediatric contract to 3/31/2026. Two doses = $384.23",
+   "note": "JUDGEMENT on the course. The comparator is Varivax, the standalone varicella vaccine this asset is tested against (NCT06806137 compares two VNS doses with two Varivax doses). The April 2026 list (contract to 3/31/2027) reads $191.365 private, per a search summary; the PDF itself was not opened. In GBP, the currency of the book's GSK seeds: $384.23 at 1.327632 = GBP 289.41 (0.00028941 mm GBP). CMS has no usable figure: Proquad Part D 2024 is 38 beneficiaries at $258 (lookup.py demand), and Varivax has no row. The case against, quantified by the second reader: MMRV is about 13% of US first doses and 80% of second doses (Habib et al., Hum Vaccin Immunother 2026, doi:10.1080/21645515.2026.2660525), and GSK has no US MMRV, so a monovalent varicella vaccine sees about 0.87 + 0.20 = 1.07 doses per vaccinated child, $205.56, not two doses at $384.23. The book's MMRVNS seed separately models GSK's share of second doses",
+   "verdict": "confirmed",
+   "check": "Private $192.115 for Varivax NDC 00006-4827-00 returned by three search summaries of the CDC January 2026 lists (the PDFs are blocked at the proxy). Source text amended: the 6/30/2026 contract end the researcher gave belongs to the Adult list row; the pediatric contract ends 3/31/2026 (search summary), consistent with ProQuad's pediatric contract end in the MMRVNS seed. Private price is the same on both lists, so the value holds. 2 x 192.115 = 384.23, 0.00038423 mm USD, unit right for a one-time course (as sny_pcv21 prices a course). The two-dose course is a labelled judgement with its case against; Habib et al. (PubMed full text) confirms MMRV takes ~80% of US second doses, added to the note"
+  },
+  "gross_to_net_pct": {
+   "value": 0.1105,
+   "unit": "share taken off list",
+   "source": "Vaccines for Children blend, the method sny_pcv21.csv and the GSK MMRVNS seed use: 52.2% of US children VFC-eligible (the book's carried figure) are supplied at the CDC pediatric contract price for Varivax (NDC 00006-4827-00) of $151.446 against $192.115 private, CDC Pediatric/VFC Vaccine Price List, prices last reviewed January 1, 2026, contract to 3/31/2026 (https://www.cdc.gov/vaccines-for-children/media/pdfs/2026/03/Vaccine-Price-List-01-26-v2-508.pdf, read through search summaries). 0.522 x 151.446 + 0.478 x 192.115 = $170.89, 88.95% of list, so 11.05% comes off",
+   "note": "JUDGEMENT on the list edition and the VFC share. The $115.067 first used here is Varivax's CDC price on the Adult Vaccine Price List (contract to 6/30/2026), not the pediatric VFC contract, per a search summary; VFC children are supplied under the pediatric contract. The pediatric pair is consistent with ProQuad's $186.55 against $289.168 on the same list, contract to 3/31/2026, which the MMRVNS seed uses. The 52.2% VFC share is carried from sny_pcv21.csv, whose MMWR 2024;73(33) citation could not be matched: the VFC Vital Signs report (MMWR 2024;73(31):682-685, doi:10.15585/mmwr.mm7331a2) says about 54% of children aged 18 or under were VFC-eligible in 2023 and VFC buys about half of childhood vaccines; at 0.54 the discount is 11.4%. The case against: the April 2026 list (contract to 3/31/2027), per an unconfirmed search summary, reads $158.98 CDC against $191.365 private, which would make it 8.8% off. The VFC share counts eligible children, not doses drawn. Not a CMS anchor, so neither the Part D 0.5 nor the Part B 0.056604 convention applies; this is a published list price with a sourced discount",
+   "verdict": "corrected",
+   "check": "Researcher's arithmetic held (0.522 x 115.067 + 0.478 x 192.115 = 151.90, 20.93% off) but its CDC input did not: searching the lists, Varivax NDC 00006-4827-00 reads CDC $151.446 / private $192.115 on the Pediatric/VFC list (contract to 3/31/2026, two summaries, one with the NDC), and the $115.067 / 6/30/2026 row is on the Adult Vaccine Price List (third summary). Recomputed on the pediatric price: 170.886 / 192.115 = 0.8895, 0.1105 off. Direction checked: share off list. Old 0.2093 -> 0.1105. PubMed full text of MMWR 2024;73(31) gives ~54% eligible, not 52.2%; 0.522 kept for book consistency (0.54 gives 0.1143)"
+  },
+  "discontinuation_pct": {
+   "value": 1.0,
+   "unit": "share of the treated stock stopping per year",
+   "source": "one course, not repeated: routine varicella vaccination has no booster after the two doses (ACIP schedule)",
+   "note": "No patient is billed a second year. Stated so the engine never carries a stock forward, whichever mode reads it",
+   "verdict": "confirmed",
+   "check": "Two-dose routine schedule with no booster (Habib et al. 2026 introduction, ACIP); both book pediatric vaccine seeds carry a one-time course; 1.0 matches the brief's fixed-course convention"
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "Phase 3 primary completions 2026-11-23 (NCT06693895) and 2026-12-14 (NCT06806137); the lot-consistency study NCT06740630 against Varivax completes 2026-12-25 (ClinicalTrials.gov, via search)",
+   "note": "JUDGEMENT. A BLA filed during 2027 and a standard review put approval in 2028. An ACIP vote and a CDC contract are needed before VFC volume, so 2029 is the first full year, later than the 2027 default. No filing date is published. The case against: an early-2027 filing could make 2028 a full year",
+   "verdict": "confirmed",
+   "check": "Book trials table (clinicaltrials_v2, fetched 2026-09-24): NCT06693895 primary completion 2026-11-23 (estimated), 750; NCT06806137 2026-12-14 (estimated), completion 2027-05-03, 600; NCT06740630 2026-12-25 (estimated), 1,840, primary outcome is lot-to-lot consistency of 3 VNS lots (a Varivax arm is not visible in the book record); a further Phase 3, NCT06855160 (co-administration with MMR, intramuscular, 911), completes 2026-09-10. A search found no stated filing or launch date. 2029 is a labelled judgement (2027 BLA, 2028 approval, then ACIP and CDC contract) with its case against; it holds"
+  },
+  "exus_multiple": {
+   "value": 0.3003,
+   "unit": "x US",
+   "source": "Merck ProQuad / M-M-R II / Varivax, FY2025: $566mm outside the US against $1,885mm in the US (asset_revenue_regions, sec_fsds, Merck 10-K 0000310158-26-000063)",
+   "note": "JUDGEMENT, and possibly too high. It is the comparator's split, but ex-US GSK already sells Varilrix and Priorix-Tetra: Priorix, Priorix Tetra and Varilrix sold GBP 134mm in Europe and GBP 231mm International in FY2025 (GSK FY2025 results, 6-K 0001654954-26-000892, vaccines turnover table), so a new strain would largely replace its own product there. Incremental ex-US revenue could be near zero",
+   "verdict": "confirmed",
+   "check": "Book asset_revenue_regions, asset 741 ProQuad / M-M-R II / Varivax (sec_fsds, 10-K 0000310158-26-000063): FY2025 US $1,885mm, NonUs $566mm; 566 / 1,885 = 0.3003 (FY2024 566 / 1,919 = 0.295). Same figure as the verified MMRVNS seed. Note corrected, value unchanged: the GBP 122mm Europe and 162mm International first given are FY2024 (they sum with US 39 to the FY2024 total of 323 in data/company_lines/gsk.csv); FY2025 is 134 and 231 (repo fixture backend/tests/fixtures/gsk_6k_day_first_headings.txt, 'Vaccines turnover - year ended 31 December 2025', total 425 matching gsk.csv)"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share of the asset",
+   "source": "GSK Q1 2026 pipeline report (https://www.gsk.com/media/40yljs4u/q1-2026-pipeline-assets-and-clinical-trials-report.pdf) lists it as a GSK asset. GlaxoSmithKline is sole lead sponsor on both Phase 3 records",
+   "note": "No partner or royalty was found",
+   "verdict": "confirmed",
+   "check": "Book trials table: lead sponsor GlaxoSmithKline on NCT06693895, NCT06806137, NCT06740630 and NCT06855160; no asset_economics row for assets 2083, 2124 or 2151; a search on the VNS programme found no partner"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Chickenpox",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "children (annual birth cohort)",
+     "source": "carried by the book: lookup.py pool Chickenpox returns prevalence 3,628,934 (US births in 2024, NVSR 75-02) from the GSK MMRVNS vaccine seed",
+     "note": "Set null so two assets do not carry two rows for one disease; the book's figure is the same 3,628,934 first proposed here",
+     "verdict": "corrected",
+     "check": "lookup.py pool Chickenpox now returns prevalence 3,628,934 and incidence 3,628,934 under 'MMRVNS vaccine' (asset 2099, indication 243); the brief requires null and 'carried by the book'. Old 3628934 -> null. Figure itself matches sny_pcv21 (NVSR 75-02)"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "children per year",
+     "source": "carried by the book: lookup.py pool Chickenpox returns incidence 3,628,934 from the GSK MMRVNS vaccine seed, stated equal to prevalence for a birth cohort",
+     "note": "The engine's carryover-zero shape, as for PCV21; the book fills it",
+     "verdict": "corrected",
+     "check": "Same lookup as prevalence: Chickenpox incidence 3,628,934 already carried. Old 3628934 -> null"
+    },
+    "eligible_pct": {
+     "value": 0.9,
+     "unit": "share of the cohort",
+     "source": "MMWR 2026;75(11):146-155 (doi:10.15585/mmwr.mm7511a2), Vaccination Coverage by Age 24 Months Among Children Born in 2021 and 2022 (NIS-Child 2022-2024), Table 1: 90.0% (95% CI 89.3 to 90.7) received at least one varicella dose",
+     "note": "One-dose coverage by 24 months. Two-dose completion comes later and is lower, so pricing every eligible child at two doses leans high",
+     "verdict": "confirmed",
+     "check": "PubMed full text PMC13020856, Table 1: VAR (>=1 dose) 90.0% for 2021-2022 births (90.4% for 2019-2020); it counts MMRV recipients too. The pool is the label's: the Phase 3s dose children at 12 to 15 months, so first-dose reach is the right share. The book's MMRVNS seed carries 0.925 (kindergarten two-dose MMR) for Chickenpox, but that asset's label is the 4 to 6 year second dose, so the two differ legitimately"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0405,
+     "unit": "share of the eligible cohort's courses per year",
+     "source": "GSK's own Priorix, the one measured entry into a Merck childhood MMR/V monopoly: US sales of Priorix, Priorix Tetra and Varilrix of GBP 60mm in FY2025 (GSK FY2025 results, 6-K 0001654954-26-000892, vaccines turnover table for the year ended 31 December 2025: total 425, US 60, Europe 134, International 231), $79.66mm at 1.327632 (book fx_rates GBP/USD, 2026-09-23), against Merck's US ProQuad / M-M-R II / Varivax of $1,885mm in FY2025 (asset_revenue_regions). 79.66 / (1,885 + 79.66) = 4.05%",
+     "note": "JUDGEMENT, at a 1.0 multiple and taken as the plateau. Value share of the whole MMR/V pool stands in for course share. The case for more: Priorix competes only with M-M-R II, so its share of that segment is higher; 2025 was its third full year after its 2022 US approval, and US sales rose 54% on FY2024's GBP 39mm. Solved through the curve below as still ramping (s-curve at index 2 is 35.6% of peak), the peak would be 0.114. The case for less: Q4 2025 US sales were GBP 12mm, down 8% on Q4 2024, an annualised GBP 48mm or 3.3% share, which suggests the 2025 measles-year outbreak lifted the earlier quarters; and ProQuad takes about 80% of US second doses (Habib et al. 2026), so a monovalent varicella vaccine competes mainly for first doses",
+     "verdict": "corrected",
+     "check": "The researcher's GBP 39mm is Priorix/Priorix Tetra/Varilrix US sales for FY2024, not FY2025: the FY2025 table (repo fixture gsk_6k_day_first_headings.txt, total 425 matching data/company_lines/gsk.csv from 6-K 0001654954-26-000892) shows US 60, +54% AER, and 60 / 1.54 = 39; its Europe 122 and International 162 likewise sum with 39 to the FY2024 total of 323. Pairing FY2025 with FY2025: 60 x 1.327632 = 79.66; 79.66 / 1,964.66 = 0.0405. Old 0.0267 -> 0.0405. FX 1.327632 confirmed in book fx_rates (2026-09-23). Merck $1,885mm confirmed in asset_revenue_regions. The H1 2025 GBP 33mm claim could not be checked and was replaced with the filed Q4 2025 figure (US 12, (8)% AER)"
+    },
+    "ramp_steepness": {
+     "value": 0.74,
+     "unit": "logistic k",
+     "source": "reused from sny_pcv21.csv: the lower-quartile fit over the 41 measured launches in data/launch_ramp.csv, taken for a pediatric birth-cohort market",
+     "note": "No CMS series exists for a pediatric vaccine, and Priorix's US revenue has only three full years on file",
+     "verdict": "confirmed",
+     "check": "lookup.py seed PCV21 vaccine: ramp_steepness 0.74, lower-quartile fit over the 41 launches in data/launch_ramp.csv; the MMRVNS seed reuses the same"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.8,
+     "unit": "years from forecast_start_year",
+     "source": "reused from sny_pcv21.csv, fitted with the steepness above",
+     "note": "Half the peak by late 2031, which lets an ACIP recommendation and the CDC contract cycle take effect",
+     "verdict": "confirmed",
+     "check": "lookup.py seed PCV21 vaccine: ramp_midpoint_year 2.8 with k 0.74. Recomputed: 1/(1+exp(-0.74 x (2 - 2.8))) = 0.356, as the penetration note uses"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

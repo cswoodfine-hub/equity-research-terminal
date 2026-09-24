@@ -1,0 +1,119 @@
+{
+ "ticker": "NVS",
+ "name": "Ianalumab",
+ "summary": "Ianalumab (VAY736) is a subcutaneous anti-BAFF-receptor antibody that depletes B cells. The lead indication is Sjogren's disease: both Phase 3s, NEPTUNUS-1 and NEPTUNUS-2, met their ESSDAI primary endpoints (ACR 2025). FDA gave it Breakthrough Therapy designation in January 2026, and Novartis scheduled global submissions for Q1 2026. SLE (SIRIUS-SLE 2, primary completion 2027-04), lupus nephritis and ITP follow. Price anchor: Benlysta (belimumab, BAFF) subcutaneous at $37,182 per CMS Part D beneficiary in 2024. Uptake anchor: Benlysta reached 28% of US patients with moderate to severe SLE in 2022, 11 years after launch, and with its measured 45.5% annual discontinuation that implies capturing 17.7% of untreated eligible patients a year.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NEPTUNUS Phase 3 program: ianalumab 300 mg subcutaneous monthly (the book's related asset row is 'ianalumab s.c. q4w'); open-label extension NCT05985915",
+   "note": "Continuous maintenance dosing",
+   "verdict": "confirmed",
+   "check": "ACR 2025 NEPTUNUS abstract as reported by CCJM (ccjm.org/page/acr-2025/Ianalumab-sjogrens) and Rheumatology Live: ianalumab 300 mg subcutaneous monthly in both Phase 3s, 275 and 504 randomised. The book's trials table holds the open-label extension NCT05985915 (612 enrolled, primary completion 2033-04-22). Continuous monthly maintenance dosing, so chronic is right."
+  },
+  "list_price_per_patient": {
+   "value": 0.037182,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Benlysta: CMS Medicare Part D 2024 (Benlysta*), $216,806,703.67 over 5,831 beneficiaries = $37,182 per beneficiary",
+   "note": "Judgement: house convention. Benlysta is the closest marketed comparator. It is the only approved BAFF-pathway drug, used in the same rheumatology practices, and its subcutaneous form is self-injected like ianalumab. No drug is approved for Sjogren's itself. Part B IV Benlysta was $34,064 per beneficiary in 2024. The case against: a first-in-disease drug with Breakthrough status may be priced above an older biologic. And per-beneficiary spend understates a full year, because starters and stoppers fill only part of it",
+   "verdict": "confirmed",
+   "check": "lookup.py demand Benlysta: Part D 2024 'Benlysta*' $216,806,703.67 over 5,831 beneficiaries = $37,181.74, so 0.037182 mm USD per patient-year is right. Part B 2024 is $125,525,138.6 over 3,685 = $34,064, as the note says. No US approval or WAC exists yet: no approval in the book's approvals table, PubMed reviews from July to September 2026 still describe Sjögren's as having no approved disease-modifying therapy, and a search for an ianalumab FDA approval found only the January 2026 Breakthrough designation. The house convention therefore applies. Benlysta as comparator is a labelled judgement with its case against stated."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS per-beneficiary price (halving lands at a median 96% of CMS negotiated net prices; gross_to_net.py)",
+   "note": "Direction checked: 0.5 comes off list, so net is $18,591 per patient-year",
+   "verdict": "confirmed",
+   "check": "Direction checked: 0.5 is the share taken off list, which is the house convention on a CMS per-beneficiary price. Net = 37,182 x (1 - 0.5) = $18,591 per patient-year, matching the note."
+  },
+  "discontinuation_pct": {
+   "value": 0.4554,
+   "unit": "share of treated stock stopping per year",
+   "source": "Bell CF et al., Lupus Science & Medicine 2020;7(1):e000357 (MarketScan, 1,879 US patients starting IV belimumab 2011-2015): 26.2% discontinued within six months; at a constant rate that is 1-(1-0.262)^2 = 45.5% a year. The dazukibart seed already carries this figure",
+   "note": "Reuses the book's measured belimumab persistence, since belimumab is the same mechanism class in rheumatology. The case against: in NEPTUNUS ianalumab showed adverse events similar to placebo, and monthly subcutaneous dosing may persist better than IV infusion. Its modest effect on ESSDAI (about 1 to 1.3 points over placebo) may push the other way",
+   "verdict": "confirmed",
+   "check": "Bell CF et al., Lupus Sci Med 2020 (PMC7174061, found by WebSearch): MarketScan commercial claims for patients starting IV belimumab from March 2011 to December 2015, 26.2% discontinued in the 6-month post-index period. Recomputed: 1 - (1 - 0.262)^2 = 1 - 0.544644 = 0.455356, so 0.4554. lookup.py seed dazukibart carries the same 0.4554 from the same paper. I did not see the 1,879 cohort size myself; the dazukibart seed states it. The case against is stated. The ESSDAI effect it cites is confirmed: LS mean difference vs placebo -1.3 in NEPTUNUS-1 and -1.0 in NEPTUNUS-2 (search summary of the ACR 2025 reports)."
+  },
+  "forecast_start_year": {
+   "value": 2027,
+   "unit": "year",
+   "source": "Novartis Q1 2026 6-K, accession 0001114448-26-000010, filed 2026-04-28 (https://www.sec.gov/Archives/edgar/data/1114448/000111444826000010/a260428-6k.htm; exhibit text in the book's filing_sections): 'FDA granted Breakthrough Therapy designation and priority review to ianalumab for the treatment of Sjögren's disease ... Regulatory submissions were completed for ianalumab in the US, Europe, China and Japan'. Its pipeline table lists Sjögren's submissions in Q1 2026 for US, EU and JP, and the Q2 2026 6-K (0001114448-26-000012, 2026-07-21) repeats that. Breakthrough designation 16 January 2026 (https://www.novartis.com/news/media-releases/novartis-ianalumab-receives-fda-breakthrough-therapy-designation-sjogrens-disease)",
+   "note": "The BLA was submitted in Q1 2026 under priority review, which is a 6-month review after the 60-day filing period, about 8 months from submission. That puts the FDA action in about Q3 to Q4 2026 and makes 2027 the first full year on the market. No approval had been found by 2026-09-24. SLE (NCT05624749, primary completion 2027-04-12) would launch later; Novartis moved its SLE submission forward to 2027 (Q2 2026 6-K)",
+   "verdict": "confirmed",
+   "check": "Value 2027 holds. Note and source amended: the researcher wrote that priority review was 'not confirmed in a primary filing' and assumed a standard 10 to 12 month review. The book's copy of the Q1 2026 6-K (0001114448-26-000010) states that FDA granted priority review and that submissions were completed in the US, EU, China and Japan. The Q4 2025 6-K (0001114448-26-000007, 2026-02-04) confirms the January 2026 Breakthrough designation and the plan to submit from early 2026. The researcher's exhibit filename a260428-99_1.htm could not be opened (sec.gov is blocked), so the source now cites the accession and the filing URL the book holds."
+  },
+  "exus_multiple": {
+   "value": 0.2111,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "GSK FY2025 annual report Specialty Medicines turnover (0001654954-26-000892, via the book's asset_revenue_regions): Benlysta GBP 1,464mm US, 134mm Europe, 175mm International; (134+175)/1464 = 0.2111",
+   "note": "Judgement on the comparator: the same drug as the price anchor, and the one filed split for a BAFF-pathway rheumatology biologic. The case for higher: Novartis sells more outside the US than GSK. Its own monthly subcutaneous B-cell antibody Kesimpta was $1,483mm international against $2,943mm US in FY2025 (0.504, 0001114448-26-000004). A mechanism with modest effect sizes may meet European HTA resistance, as Benlysta did, which supports the lower figure",
+   "verdict": "confirmed",
+   "check": "Book asset_revenue_regions for Belimumab (asset 450), FY2025, source 0001654954-26-000892: US GBP 1,464mm, Europe 134mm, International 175mm. Recomputed: (134 + 175) / 1,464 = 309 / 1,464 = 0.21107. The Kesimpta alternative is confirmed from the same table (0001114448-26-000004): 1,483 / 2,943 = 0.5039. The comparator choice is a labelled judgement with its case against."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Novartis Pharmaceuticals is the sole lead sponsor on every ianalumab trial in the context (NCT05624749, NCT05985915, NCT06133972, NCT06711887 and others)",
+   "note": "The antibody came from MorphoSys's HuCAL library, which carried a royalty to MorphoSys. Novartis acquired MorphoSys in 2024, so that royalty is now internal. No outside partner was found",
+   "verdict": "confirmed",
+   "check": "The book's trials table lists Novartis as sponsor on every ianalumab record. MorphoSys filings, as summarised by WebSearch, entitle MorphoSys to milestones and 'mid-single to low-double-digit royalties' on ianalumab net sales, and the book's deals table holds 'Novartis acquires MorphoSys for EUR 2.7 billion' (2024-02-06), so that royalty is now inside the group. The 2021 Royalty Pharma purchase from MorphoSys (Tremfya, otilimab, gantenerumab, 3% of pelabresib and CPI-0209) does not include ianalumab. Two searches found no Royalty Pharma or other third-party interest in ianalumab. The Novartis 20-F and 6-K text in the book names no partner. The case against is the usual one: an undisclosed third-party royalty cannot be ruled out."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Sjogren's Syndrome",
+   "fields": {
+    "prevalence": {
+     "value": 350314,
+     "unit": "patients",
+     "source": "Maciel G et al., Arthritis Care Res 2017;69(10):1612-16, doi:10.1002/acr.23173 (PMID 27998024): age- and sex-adjusted prevalence of physician-diagnosed primary Sjogren's of 10.3 per 10,000 inhabitants (Olmsted County, 1 January 2015), applied to the 340,110,988 US residents of July 2024 (Census Vintage 2024)",
+     "note": "lookup.py pool returns nothing for Sjogren's, so this seed supplies the book's figure. It counts physician diagnosis. By classification criteria the same study finds 2.2 per 10,000, so the diagnosed pool is 4.7x the criteria-confirmed one. NEPTUNUS enrolled patients meeting ACR/EULAR 2016 criteria, which argues for a smaller label pool. Claims studies give much higher figures (196-259 per 100,000 diagnosed, ACR abstract 2019-2023), so this is at the conservative end of the diagnosed range",
+     "verdict": "confirmed",
+     "check": "PubMed 27998024 (doi:10.1002/acr.23173) abstract: the age- and sex-adjusted prevalence of physician-diagnosed primary SS is 10.3 per 10,000, and 2.2 per 10,000 by classification criteria. 75% were anti-SSA positive, and 10.3/2.2 = 4.7x. Recomputed: 0.00103 x 340,110,988 = 350,314. The Census figure 340,110,988 matches what the book already uses (mrk_zilovertamab_vedotin.csv, pfe_vla15.csv). lookup.py pool for Sjogren returns nothing, from assumptions or epidemiology.csv, so this seed supplies the pool. Dazodalibep (AMGN) and telitacicept (VOR) carry the same indication in their context files, have not been researched yet, and must reuse this figure. I did not check the claims-study range in the note."
+    },
+    "incidence": {
+     "value": 20067,
+     "unit": "patients per year",
+     "source": "Maciel G et al., Mayo Clin Proc 2017;92(5):734-43, doi:10.1016/j.mayocp.2017.01.020 (PMID 28389066): average age- and sex-adjusted annual incidence 2006-2015 of 5.9 per 100,000, applied to 340,110,988 US residents",
+     "note": "Same population and same physician-diagnosed definition as the prevalence",
+     "verdict": "confirmed",
+     "check": "PubMed 28389066 (doi:10.1016/j.mayocp.2017.01.020) abstract: average age- and sex-adjusted annual incidence 2006-2015 of 5.9 per 100,000 (95% CI 4.4-7.4), physician-diagnosed, Olmsted County. Recomputed: 5.9e-5 x 340,110,988 = 20,066.5, so 20,067. Same definition and population as the prevalence."
+    },
+    "eligible_pct": {
+     "value": 0.2,
+     "unit": "share of the pool",
+     "source": "Rosas J et al., Rheumatol Int 2019;39(6):991-9, doi:10.1007/s00296-019-04285-w (PMID 30891620), SJOGRENSER registry, 437 patients: ESSDAI moderate (5-13) in 15% and high (14 or more) in 5%, so 20% have ESSDAI of 5 or more, the systemic-activity threshold the NEPTUNUS trials enrolled on",
+     "note": "Judgement that the label will follow trial entry (active systemic disease). The case for lower: the registry itself says its cohort has less activity than other European cohorts, and NEPTUNUS also required seropositivity (about 75% anti-SSA positive in Maciel 2017), which is not applied here. The case for higher: a prospective longitudinal cohort reports 59% with ESSDAI under 5, so 41% at 5 or more (PMC11759214, search summary, not opened), and a label may be broader than trial entry",
+     "verdict": "confirmed",
+     "check": "PubMed 30891620 (doi:10.1007/s00296-019-04285-w) abstract, SJOGRENSER, 437 patients meeting 2002 AECG criteria: ESSDAI 0 in 31%, low 49%, moderate (5-13) 15%, high (14 or more) 5%, so ESSDAI of 5 or more = 20%. Trial entry is confirmed from the ACR 2025 reports (CCJM, via search): adults meeting ACR/EULAR 2016 criteria with ESSDAI of 5 or more across 8 pre-selected domains. The 8-domain restriction is stricter than a total ESSDAI of 5 or more, which adds to the case for lower. The abstract itself says 80% of the cohort had low or zero activity, unlike other European cohorts. This is a labelled judgement, with its case for and against, on confirmed inputs. The PMC11759214 figure in the note is unverified, as the researcher flagged."
+    },
+    "penetration_peak_pct": {
+     "value": 0.1771,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "Anchor: 28% of US patients with moderate to severe SLE were on belimumab in 2022, 37% in 2023 (Spherix real-world audit, reported by Healio 2024-04-25, 'Biologic use in moderate to severe lupus rose 45% since 2021', https://www.healio.com/news/rheumatology/20240425/exciting-time-biologic-use-in-moderate-to-severe-lupus-rose-45-since-2021). Solved at steady state: holding 28% on therapy against 45.54% annual discontinuation needs 0.4554 x 0.28 = 12.75% of the pool starting each year, which is 12.75/72 = 17.71% of the 72% untreated",
+     "note": "Judgement: the multiple is 1.0. Belimumab was the first targeted therapy in SLE, as ianalumab would be in Sjogren's, and 2022 is its 11th year. The case for lower: ianalumab's effect over placebo is small, and competitors (dazodalibep, nipocalimab, telitacicept, efgartigimod) have Sjogren's Phase 3s running. The case for higher: the 2023 figure is 37%. Run through the engine (forecast.py, carryover 1, Zeposia curve), the stock reaches 26% of the eligible pool in year 5 and 30% in year 7, then drifts to 18% by year 15, because the engine drops stoppers from the pool. The healio figures came from a search summary, so the second reader should confirm them",
+     "verdict": "confirmed",
+     "check": "Healio 2024-04-25 (Spherix chart audit of 1,102 moderately to severely active SLE patients from 297 rheumatologists, 31 March to 5 May 2023), via WebSearch: 37% on belimumab in 2023, up from 28% in 2022 and 21% in 2021. Recomputed: 0.4554 x 0.28 = 0.12751 starts a year, and 0.12751 / 0.72 = 0.17710, so 0.1771. The steady-state algebra (d x S = p x (1 - S)) is right. Caveat for the case for higher: belimumab's stock was still rising in 2022 (21% to 28% to 37%), so starts then exceeded stops and the steady-state solve understates that year's start rate. The multiple of 1.0 is labelled a judgement. I did not re-run the engine outputs in the note (26%, 30%, 18%)."
+    },
+    "ramp_steepness": {
+     "value": 1.005,
+     "unit": "logistic k",
+     "source": "book: Zeposia's CMS Part D launch fit (104, 406, 655, 1,034, 1,271 beneficiaries 2020-2024), k=1.005, midpoint 2.15 years, the immunology curve the dazukibart, lutikizumab and tulisokibart seeds carry",
+     "note": "Reuses a measured immunology curve. Saphnelo's own Part B ramp (775, 1,372, 1,877 in 2022-2024) is a nearer mechanism analog, but three points are too few to fit a logistic",
+     "verdict": "confirmed",
+     "check": "lookup.py demand Zeposia: Part D beneficiaries 104, 406, 655, 1,034 and 1,271 for 2020-2024. Refitted a least-squares logistic with free ceiling and t=0 at 2020: k = 1.005-1.01, midpoint 2.14-2.15, rmse 34, max residual 54, which matches the dazukibart seed row (k 1.005, midpoint 2.15). The Saphnelo Part B series 775, 1,372, 1,877 is also confirmed."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.15,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (Zeposia fit carried in the book)",
+     "note": "Reuses a measured curve",
+     "verdict": "confirmed",
+     "check": "Same refit as ramp_steepness: midpoint 2.14-2.15 years from the first year, the value the dazukibart seed carries (lookup.py seed dazukibart)."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}
