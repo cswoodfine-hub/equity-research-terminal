@@ -73,5 +73,5 @@
 | SNY | Tolebrutinib | refused: no US path |
 | SNY | Venglustat | seeded, not built: eligible_pct null (Part B deduction corrected) |
 | SRPT | SRP-9003 | seeded and built: LGMD2E/R4, about 8 patients a year; still on clinical hold pending ENDEAVOR Cohort 8 sirolimus data (Q1 2027); Sarepta block borrowed from Alnylam (its FY2025 lines are a loss) |
-| TSHA | TSHA-102 | not started |
+| TSHA | TSHA-102 | seeded and built: Rett, 5,940 diagnosed females (US claims); priced off Itvisma; Abeona royalty netted at 7% on Alnylam's margin; Taysha block borrowed from Alnylam |
 | VOR | Telitacicept | seeded and built: Vor block borrowed from argenx; Sjogren's carryover withdrawn to match ianalumab and dazodalibep |
