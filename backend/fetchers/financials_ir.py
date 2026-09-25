@@ -18,10 +18,11 @@ writes nothing for a statement that does not tie. A financial row that is wrong 
 than one that is missing, because the missing one is visible in the view and the wrong one
 is not. What failed comes back in ``notes`` so a refresh says so rather than going quiet.
 
-ONE FETCHER, A REGISTRY OF ONE. Bayer is in the same position and is not here, because its
-equivalent file has not been found: it reports under EU rules whose electronic format is
-inline XBRL rather than a workbook, and that is a different parser. The shape is ready for
-it; the source is not.
+ONE FETCHER, ONE READER PER COMPANY. Bayer is in the same position and publishes the same
+kind of file: every table of its annual report as one workbook, read by ``bayer.py``. The
+ESEF route built for it first cannot reach it, because the index it reads carries no German
+filer. Each reader gives the addresses to try and turns a loaded workbook into records and
+notes; this fetcher downloads, dispatches and writes.
 """
 
 from __future__ import annotations
@@ -30,6 +31,9 @@ import io
 import json
 import urllib.request
 
+import urllib.error
+
+import bayer
 import db
 import roche
 from fetchers.base import BaseFetcher, RefreshResult
@@ -39,19 +43,13 @@ TTL_SECONDS = 24 * 60 * 60          # the workbook moves with the results calend
 _USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
 _TIMEOUT_S = 120
 
-# What each company publishes, and the sheets to read it from. A company absent here has
+# What each company publishes, and the module that reads it. A company absent here has
 # no machine-readable statement on file and the fetcher does not run for it.
 WORKBOOKS = {
-    "ROG": {
-        "url": roche.SOURCE_URL,
-        "currency": roche.CURRENCY,
-        "income": roche.INCOME_SHEET,
-        "balance": roche.BALANCE_SHEET,
-        "products": roche.PRODUCT_SHEET,
-        "sales": "Group Sales CHF",
-        "division": "Pharmaceuticals Division",
-        "note": "Roche Finance Information Tool, group financial data workbook",
-    },
+    "ROG": {"reader": roche, "note": roche.NOTE, "products": roche.PRODUCT_SHEET,
+            "aliases": {}},
+    "BAYN": {"reader": bayer, "note": bayer.NOTE, "products": bayer.PRODUCT_SHEET,
+             "aliases": bayer.PRODUCT_ALIASES},
 }
 
 # Roche's own region names, mapped to the codes the rest of the book uses. "International"
@@ -82,58 +80,34 @@ class FinancialsIrFetcher(BaseFetcher):
         return self.ticker
 
     def fetch(self) -> list[dict]:
-        """The workbook, as the sheets this reads. One request."""
-        request = urllib.request.Request(self.spec["url"],
-                                        headers={"User-Agent": _USER_AGENT})
-        with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as response:
-            payload = response.read()
-        return [{"bytes": payload}]
+        """The workbook, from the first address the reader offers that answers.
+
+        Bayer's report has a new address every year and is published in March, so the
+        newest address can be a 404 for months before it exists. That is a fall back, not a
+        failure; any other error is.
+        """
+        last_error = None
+        for url in self.spec["reader"].source_urls():
+            request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+            try:
+                with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as response:
+                    return [{"bytes": response.read(), "url": url}]
+            except urllib.error.HTTPError as exc:
+                if exc.code != 404:
+                    raise
+                last_error = exc
+                self._notes.append(f"{url} is not published yet, so the one before it "
+                                   f"was read")
+        raise last_error or RuntimeError(f"no workbook address for {self.ticker}")
 
     def normalise(self, raw) -> list[dict]:
         import openpyxl
         if not raw or not raw[0].get("bytes"):
             return []
         book = openpyxl.load_workbook(io.BytesIO(raw[0]["bytes"]), data_only=True)
-        spec = self.spec
-        income = roche.cells(book[spec["income"]])
-        balance = roche.cells(book[spec["balance"]])
-        products = roche.cells(book[spec["products"]])
-        sales = roche.cells(book[spec["sales"]])
-
-        problems = roche.reconcile(income)
-        if problems:
-            self._notes.extend(problems)
-            self._notes.append("the income statement did not tie, so no statement row was "
-                               "written: check the sheet's labels against roche.py")
-            statement = []
-        else:
-            statement = ([{**r, "kind": "income"} for r in roche.parse_income(income)]
-                         + [{**r, "kind": "balance"} for r in roche.parse_balance(balance)])
-            shares = roche.shares_from(roche.parse_income(income))
-            for year, count in shares.items():
-                # The metric name the rest of the book reads. forecast_view._diluted_shares
-                # looks for WeightedAverageDilutedShares first and otherwise falls back to
-                # group net income over earnings per share, which for Roche is wrong by the
-                # non-controlling interest: 13,799 / 16.04 is 860.3mm against the true
-                # 803.0mm, because the per-share figure is struck on the 12,880mm
-                # attributable to shareholders. Roche is the only filer in this universe
-                # with a material minority, so writing the count under the name the reader
-                # already uses is what keeps that fallback off it.
-                statement.append({
-                    "kind": "income", "metric": "WeightedAverageDilutedShares",
-                    "fiscal_year": year, "value": count, "unit": "shares",
-                    "label": "earnings attributable to shareholders over diluted "
-                             "earnings per share"})
-
-        product_rows = roche.parse_products(products)
-        division = roche.division_sales(sales, spec["division"])
-        product_problems = roche.reconcile_products(product_rows, division)
-        if product_problems:
-            self._notes.extend(product_problems)
-            self._notes.append("the per-product sales did not sum to the division, so no "
-                               "product revenue was written")
-            product_rows = []
-        return statement + [{**r, "kind": "product"} for r in product_rows]
+        records, notes = self.spec["reader"].read_book(book)
+        self._notes.extend(notes)
+        return records
 
     def snapshot(self, rows: list[dict]) -> None:
         kinds: dict[str, int] = {}
@@ -178,10 +152,16 @@ class FinancialsIrFetcher(BaseFetcher):
         return out
 
     def _match(self, product: str, brands: dict):
-        """The asset a Roche product name belongs to, or None."""
+        """The asset a product line belongs to, or None.
+
+        A line naming several brands, "Kovaltry/Jivi" or "Mirena/Kyleena/Jaydess", is the
+        company's own figure for the family and goes to the first brand the book carries.
+        It is not split, because the company does not split it.
+        """
         name = product.strip().lower()
         if name in _RESIDUAL:
             return None
+        name = self.spec["aliases"].get(name, name)
         if name in brands:
             return brands[name]
         for part in name.split("/"):
@@ -202,7 +182,7 @@ class FinancialsIrFetcher(BaseFetcher):
             brands = self._asset_ids(conn)
             missing = set()
             for row in rows:
-                if row["kind"] in ("income", "balance"):
+                if row["kind"] in ("income", "balance", "cashflow"):
                     period_end = row.get("period_end") or f'{row["fiscal_year"]}-12-31'
                     # A balance sheet line is a stock on one day, stored as an instant the
                     # way EDGAR's are. Written as a year, it was invisible to every reader
