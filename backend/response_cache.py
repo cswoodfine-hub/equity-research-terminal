@@ -19,8 +19,9 @@ analyst who saves an assumption reads the new forecast on the very next call, ne
 one from before the edit. A read that writes (a note generated on request) is never
 cached, and nor are the health and freshness checks, which exist to be live.
 
-Off when ``ER_TOOL_CACHE=0``, which the test suite sets, since tests rewrite modules and
-databases between calls in ways no stamp can see.
+Off when ``ER_TOOL_RESPONSE_CACHE=0``, which the test suite sets, since tests rewrite
+modules and databases between calls in ways no stamp can see. Not ``ER_TOOL_CACHE``:
+that names the directory the SEC revenue fetcher downloads into.
 """
 
 from __future__ import annotations
@@ -56,7 +57,7 @@ _data_stamp: list = [0.0, None]
 
 
 def enabled() -> bool:
-    return os.getenv("ER_TOOL_CACHE", "1") != "0"
+    return os.getenv("ER_TOOL_RESPONSE_CACHE", "1") != "0"
 
 
 def cacheable(path: str, query: str) -> bool:

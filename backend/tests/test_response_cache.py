@@ -17,7 +17,7 @@ def client(tmp_path, monkeypatch):
     data = tmp_path / "data"
     data.mkdir()
     (data / "seed.csv").write_text("a,b\n")
-    monkeypatch.setenv("ER_TOOL_CACHE", "1")
+    monkeypatch.setenv("ER_TOOL_RESPONSE_CACHE", "1")
     monkeypatch.setattr(db, "DB_PATH", database)
     monkeypatch.setattr(RC, "DATA_DIR", data)
     monkeypatch.setattr(RC, "DATA_STAMP_TTL_S", 0.0)
@@ -117,7 +117,7 @@ def test_the_query_is_part_of_the_key(client):
 
 def test_off_when_the_environment_says_so(client, monkeypatch):
     c, calls, _revalidated, _db, _data = client
-    monkeypatch.setenv("ER_TOOL_CACHE", "0")
+    monkeypatch.setenv("ER_TOOL_RESPONSE_CACHE", "0")
     c.get("/value")
     c.get("/value")
     assert calls["n"] == 2

@@ -5,7 +5,7 @@ import sqlite3
 
 # Tests rewrite modules and databases between two reads in ways no stamp can see, so the
 # API's response cache is off for the suite; its own tests switch it back on.
-os.environ.setdefault("ER_TOOL_CACHE", "0")
+os.environ.setdefault("ER_TOOL_RESPONSE_CACHE", "0")
 
 import pytest
 
