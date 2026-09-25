@@ -135,8 +135,9 @@ context files and the book's trials table. The first session's search allowance 
 - Obudanersen prices off Spinraza's 2020 Part D spend per beneficiary, the only year with a
   count (17). Spinraza is billed mainly under Part B, which the book does not carry; a Part B
   anchor would put net near 1.9 times this seed's.
-- Zoldonrasib keeps the engine's 12-year LOE default (2043): Revolution's 10-K gives only a
-  2031 to 2045 range across the tri-complex portfolio, with no date for the molecule.
+- Zoldonrasib (2043), AXS-14 (2042) and zodasiran (2041) take the engine's 12-year LOE default
+  because no molecule patent date is filed; each seed's forecast_start_year note says so
+  (migration 077). No date is invented.
 - AXS-14 prices off Savella's 2024 Part D figure, a brand-only price before generic milnacipran
   launched in March 2026. The house method implies about $298mm of Savella sales against about
   $103mm reported nationally, so the fibromyalgia peak may be high by up to 2.9 times.
