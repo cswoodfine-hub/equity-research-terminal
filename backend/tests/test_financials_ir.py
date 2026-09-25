@@ -252,3 +252,30 @@ def test_the_published_growth_rate_is_read_from_the_second_year_block():
     assert growth["Herceptin"] == -0.26
     # Itovebi launched in October 2024, so Roche publishes no rate for it and none is made up.
     assert "Itovebi" not in growth
+
+
+def test_a_balance_sheet_line_is_stored_as_an_instant(tmp_path):
+    """Every reader of a balance sheet asks for an instant, as EDGAR's rows are stored. This
+    route once wrote them as years, so Roche's debt and cash were on file and invisible: net
+    debt read as missing and the sum of the parts stopped at enterprise value."""
+    import cashflow
+    path = _seeded(tmp_path)
+    fetcher = FinancialsIrFetcher("ROG", path)
+    fetcher.upsert(fetcher.normalise([{"bytes": _BOOK.read_bytes()}]))
+    conn = db.get_connection(path)
+    try:
+        rows = {r["metric"]: r for r in conn.execute(
+            """SELECT f.metric, f.period_type, f.fiscal_period, f.value
+                 FROM financials f JOIN companies c ON c.id = f.company_id
+                WHERE c.ticker='ROG' AND f.period_end='2025-12-31'
+                  AND f.metric IN ('TotalDebt', 'CashAndEquivalents',
+                                   'ShortTermInvestments', 'Revenues')""")}
+    finally:
+        conn.close()
+    for metric in ("TotalDebt", "CashAndEquivalents", "ShortTermInvestments"):
+        assert rows[metric]["period_type"] == "instant" and rows[metric]["fiscal_period"] is None
+    assert rows["Revenues"]["period_type"] == "FY"            # a flow stays a year
+    built = cashflow.build_cashflow(path, "ROG")
+    assert built["net_debt"] == (rows["TotalDebt"]["value"] - rows["CashAndEquivalents"]["value"]
+                                 - rows["ShortTermInvestments"]["value"])
+    assert round(built["net_debt"] / 1e6) == 16_160

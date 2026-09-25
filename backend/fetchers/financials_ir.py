@@ -204,18 +204,24 @@ class FinancialsIrFetcher(BaseFetcher):
             for row in rows:
                 if row["kind"] in ("income", "balance"):
                     period_end = row.get("period_end") or f'{row["fiscal_year"]}-12-31'
+                    # A balance sheet line is a stock on one day, stored as an instant the
+                    # way EDGAR's are. Written as a year, it was invisible to every reader
+                    # of a balance sheet: Roche carried debt and cash that net debt, the
+                    # statements view and the equity bridge could not see.
+                    instant = row["kind"] == "balance"
                     conn.execute(
                         """
                         INSERT INTO financials
                             (company_id, period_end, period_type, metric, value, unit,
                              fiscal_year, fiscal_period, source)
-                        VALUES (?, ?, 'FY', ?, ?, ?, ?, 'FY', ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(company_id, metric, period_end, period_type)
                           DO UPDATE SET value=excluded.value, unit=excluded.unit,
                             fiscal_year=excluded.fiscal_year, source=excluded.source
                         """,
-                        (company["id"], period_end, row["metric"], row["value"],
-                         row["unit"], row["fiscal_year"], SOURCE))
+                        (company["id"], period_end, "instant" if instant else "FY",
+                         row["metric"], row["value"], row["unit"], row["fiscal_year"],
+                         None if instant else "FY", SOURCE))
                     written += 1
                     continue
                 asset_id = self._match(row["product"], brands)
