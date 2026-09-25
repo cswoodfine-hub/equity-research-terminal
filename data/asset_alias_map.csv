@@ -50,3 +50,6 @@ NVS,ianalumab s.c. q4w,Ianalumab,"ianalumab by its dose and route, not a program
 NVS,VAY736,Ianalumab,"ianalumab's development code: NEPTUNUS-2 (NCT05349214) and NCT07621809 sat on this row"
 NVS,Del-desiran (AOC 1001),AOC 1001 (del-desiran),"delpacibart etedesiran written the other way round; HARBOR sits on both rows"
 LLY,LY3537031,Brenipatide,"brenipatide's code: the alcohol use disorder studies file under LY3537031"
+AZN,AZD2936,Rilvegostomig,"rilvegostomig's development code: the Phase 1/2 NCT04995523 sat on this row"
+LLY,Olomorasib,LY3537982,"olomorasib under its INN: SUNRAY-02 (NCT06890598) and the colorectal Phase 2 sat on this row while SUNRAY-01, the first-line study the model rests on, sat on the code row"
+LLY,Olomorasib test,LY3537982,"the same compound named for a test arm, not a programme of its own"
