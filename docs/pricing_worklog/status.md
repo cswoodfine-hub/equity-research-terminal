@@ -15,9 +15,9 @@
 | BMY | BMS-986353 | seeded and built: enrolment paused, not stopped |
 | BMY | BMS-986489 | seeded and built |
 | BMY | Iza-bren | refused: US profit split undisclosed |
-| CAPR | Deramiocel (CAP-1002) | not started |
+| CAPR | Deramiocel (CAP-1002) | seeded and built: Capricor block borrowed from Alnylam; NS's 30% share netted of Capricor's cost of goods; PDUFA 2026-11-22 after a 3-9 advisory vote |
 | DYN | zeleciment basivarsen (DYNE-101) | not started |
-| DYN | Zeleciment Rostudirsen (DYNE-251) | not started |
+| DYN | Zeleciment Rostudirsen (DYNE-251) | seeded and built: Dyne block borrowed from Alnylam; open: no carryover set, 0.78% discontinuation lets the treated stock reach about 82% of the exon 51 pool, and the ~650 already on Exondys are not netted |
 | EXEL | XL092 | seeded and built: first Exelixis cost block |
 | GPCR | Aleniglipron | seeded and built: Structure cost block borrowed from Lilly, LOE 2041 from the 10-K patent range |
 | GSK | GSK5784283 | seeded and built |
@@ -44,7 +44,7 @@
 | MRNA | mRNA-1018-H5 | refused: pandemic stockpile vaccine, no per-patient price |
 | NBIX | NBI-1065845 | seeded and built: first Neurocrine cost block |
 | NBIX | NBI-1117568 | seeded and built: schizophrenia pool held stationary |
-| NTLA | Biological NTLA-2002 | not started |
+| NTLA | Biological NTLA-2002 | seeded and built: Intellia block borrowed from Alnylam; Caribou royalty netted at 1% |
 | NTLA | nexiguran ziclumeran | not started |
 | NVO | Etavopivat | seeded and built |
 | NVO | Zenagamtide | seeded and built |
@@ -74,4 +74,4 @@
 | SNY | Venglustat | seeded, not built: eligible_pct null (Part B deduction corrected) |
 | SRPT | SRP-9003 | not started |
 | TSHA | TSHA-102 | not started |
-| VOR | Telitacicept | not started |
+| VOR | Telitacicept | seeded and built: Vor block borrowed from argenx; Sjogren's carryover withdrawn to match ianalumab and dazodalibep |

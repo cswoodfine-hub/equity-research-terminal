@@ -76,7 +76,11 @@ nbi_1065845 seeds show the rows and their wording. A loss-making company takes a
 ratios, as Viking takes Lilly's: `comparator_block.py SEED TICKER COMPARATOR DEBT_WEIGHT
 "DEBT_SOURCE" "WHY"` writes the comparator's modal cost rows, the company's own beta and the
 stated debt weight into an assembled seed. Register the pair in
-`interest_addback.COMPARATORS`. Structure (aleniglipron) borrows Lilly's.
+`interest_addback.COMPARATORS`. Structure (aleniglipron) borrows Lilly's; Dyne, Capricor and
+Intellia borrow Alnylam's, the book's rare-disease genetic medicine company with its own filed
+lines; Vor borrows argenx's, the gMG incumbent telitacicept is priced against. A share netted
+over a borrowed margin (Vor's royalty, Intellia's, Capricor's revenue share) says so and is
+recomputed when the company files a cost of sales.
 
 ## What works in this container
 
@@ -103,6 +107,15 @@ context files and the book's trials table. The first session's search allowance 
 - Catalysts attached to the wrong asset: Structure's ACCOMPLISH readouts (catalysts 1142, 1143)
   point to a GSK asset (2076), Lilly's Foundayo catalyst 811 is a Merck HPV trial, and the
   telitacicept gMG readout points to Xofluza. The catalyst-to-asset link needs a check.
+- Vor carries $653.9mm of warrant liabilities (the RemeGen and PIPE warrants) against a
+  $1.15bn market capitalisation. They are not debt, but a per-share value on basic shares
+  outstanding overstates what each share gets once they are exercised.
+- Sjogren's carryover: telitacicept, ianalumab and dazodalibep share one pool (ESSDAI 5 or
+  more, eligible 0.2) and all run at the engine's default of 1.0. The telitacicept reader
+  withdrew a 0.9458 that would have applied to that seed alone; any change belongs to all three.
+- Duchenne: deramiocel and DYNE-251 share one pool (11,952 and 367) and set no carryover.
+  DYNE-251's 0.78% discontinuation lets its treated stock reach about 82% of the exon 51 pool
+  by 2039, and the ~650 patients already on Exondys are not netted from it.
 - `tests/test_refresh.py::test_refresh_populates_then_skips_within_ttl` fails in this
   container because a fetcher reaches the network and the run goes partial; it failed before
   any change in this session.

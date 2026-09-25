@@ -42,7 +42,8 @@ WINDOWS = {
     "ALNY": (2025, 2025),     # its first year of profit; 2023 and 2024 were the turn
 }
 # A charge borrowed from another company follows that company's.
-COMPARATORS = {"VKTX": "LLY", "GPCR": "LLY"}
+COMPARATORS = {"VKTX": "LLY", "GPCR": "LLY", "DYN": "ALNY", "CAPR": "ALNY", "NTLA": "ALNY",
+               "VOR": "ARGX"}
 MARKER = "before interest"
 
 
