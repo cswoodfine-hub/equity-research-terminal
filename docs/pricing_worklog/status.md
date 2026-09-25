@@ -110,7 +110,7 @@
 | BAYN | AB-1005 | not started |
 | BAYN | BAY 3670549 | not started |
 | BIIB | Felzartamab | not started |
-| BMRN | BMN 333 | not started |
+| BMRN | BMN 333 | held: a long-acting vosoritide tested head to head against Voxzogo, so it would mostly switch BioMarin's own patients before Voxzogo's 2035 patent |
 | BMRN | BMN 351 | not started |
 | BMY | Arlocabtagene Autoleucel | not started |
 | BMY | BMS-986435 | not started |
