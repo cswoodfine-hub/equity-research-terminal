@@ -55,6 +55,25 @@ def test_when_the_pool_runs_out_every_claimant_is_cut_by_the_same_factor():
     assert big / small == pytest.approx(0.80 / 0.40, rel=1e-6)
 
 
+def test_a_pool_of_the_years_own_diagnoses_carries_nothing_over():
+    """Prevalence stated equal to incidence is the engine's annual-cohort pool: nothing
+    carries into the next year and there is no opening stock. Two claimants whose shares
+    never exceed a year's diagnoses then crowd each other not at all, as the engine,
+    which never lets that pool run short, would have them. Read as carrying over, the
+    pair was cut by 5% and 7%."""
+    cohort = dict(prevalence=14.2e6, incidence=14.2e6, eligible=0.070423,
+                  midpoint=1.75, steepness=0.53, stop=0.2537)
+    got = PC.solve([_claim("felcorekibart", 0.0193, start=2031, **cohort),
+                    _claim("lunsekimig", 0.01544, start=2032, **cohort)], years=25)
+    for asset in got["assets"]:
+        assert asset["ratio"] == pytest.approx(1.0)
+    # A stated carryover still wins over the convention, as it does in the engine.
+    stated = PC.solve([_claim("a", 0.30, carryover=1.0, **dict(cohort, midpoint=1.0)),
+                       _claim("b", 0.30, carryover=1.0, **dict(cohort, midpoint=1.0))],
+                      years=25)
+    assert min(a["ratio"] for a in stated["assets"]) < 1.0
+
+
 def test_a_later_entrant_finds_the_pool_already_drawn_down():
     early = _claim("early", 0.05, start=2027)
     late = _claim("late", 0.05, start=2035)
