@@ -516,3 +516,27 @@ so each modelled row now reads its own Phase 3 (zigakibart had sat without BEYON
     Crinetics) has no indication or revenue rows; the trials table is stale on NCT07414784,
     NCT06104124 and NCT06411288; pipeline_sort.csv cites NCT06245408 for OASIZ 301, which is
     NCT06104124.
+
+**Reconciling the parallel pricing branches (decided 2026-09-25: main's seeds stand).**
+Two unmerged branches price the same assets: `claude/youthful-curie-bux19h` (58 commits)
+and `claude/loving-franklin-hyt6rr` (5). The seeds on main were each re-run by an
+adversarial verifier on the 2025 CMS files, converted to the reporting currency and folded
+onto one row per molecule, so they stand. Before either branch merges, it must drop these
+files rather than resolve them by hand, or a drug is modelled twice:
+
+- Same name, which git will flag: `amgn_dazodalibep`, `azn_rilvegostomig`,
+  `gsk_mocertatug_rezetecan`, `jnj_seltorexant`, `lly_ly3537982`,
+  `lly_sofetabart_mipitecan`, `nvo_zenagamtide`, `nvs_ianalumab`, `nvs_zigakibart`,
+  `sny_duvakitug`, `sny_lunsekimig`.
+- Different name for the same drug, which git will NOT flag and the loader would mix key
+  by key, since it never overwrites a key already written: `gsk_gsk5784283` (main's
+  `gsk_felcorekibart`), `pfe_pf_07220060` (main's `pfe_atirmociclib`; the PF-07220060 row is
+  folded away, so the file would also load nothing) and `gsk_risvutatug_rezetecan` (main's
+  `gsk_ris_rez`; the same).
+- For review rather than a conflict: `lly_brenipatide`. Main holds no brenipatide seed,
+  because its verifier found the eligible share and the multiple unsourced.
+
+The values differ materially, which is why the rule matters: ianalumab's penetration is
+0.0784 on main and 0.1771 on the branch, seltorexant's 0.0062 and 0.0014, felcorekibart's
+asthma 0.0219 and 0.0071, and zenagamtide is priced on 2025 CMS on main and 2024 on the
+branch.
