@@ -66,7 +66,7 @@
 | REGN | REGN-2Cat | refused: Sanofi royalty filed without a rate (10-Q footnote f) |
 | RGNX | RGX-121-3102 | refused: Nippon Shinyaku pays a "double-digit" royalty with no rate filed, and the IND went on clinical hold on 2026-08-24 with no resubmission planned |
 | RVMD | Zoldonrasib | seeded and built: first-line G12D NSCLC; Revolution block borrowed from Exelixis; Royalty Pharma royalty and daraxonrasib hold apply only in pancreatic, not modelled |
-| SLDB | SGT-003 | not started |
+| SLDB | SGT-003 | seeded and built: Duchenne on the shared pool, ambulatory age 4+, 0.1323 eligible; Elevidys price less 0.214; two academic royalties netted at 1% each on Alnylam's margin; Solid block borrowed from Alnylam |
 | SNY | Duvakitug | seeded and built |
 | SNY | Lunsekimig | seeded and built |
 | SNY | Riliprubart | seeded and built |

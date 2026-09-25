@@ -79,7 +79,7 @@ nbi_1065845 seeds show the rows and their wording. A loss-making company takes a
 ratios, as Viking takes Lilly's: `comparator_block.py SEED TICKER COMPARATOR DEBT_WEIGHT
 "DEBT_SOURCE" "WHY"` writes the comparator's modal cost rows, the company's own beta and the
 stated debt weight into an assembled seed. Register the pair in
-`interest_addback.COMPARATORS`. Structure (aleniglipron) borrows Lilly's; Dyne, Capricor and
+`interest_addback.COMPARATORS`. Structure (aleniglipron) borrows Lilly's; Dyne, Capricor, Solid and
 Intellia borrow Alnylam's, the book's rare-disease genetic medicine company with its own filed
 lines; Vor borrows argenx's, the gMG incumbent telitacicept is priced against; Revolution Medicines
 borrows Exelixis's; Ionis, whose own filed lines are a loss, borrows Alnylam's; Axsome, likewise, borrows Neurocrine's; Arrowhead, whose FY2025 revenue is mostly licence
@@ -118,7 +118,10 @@ context files and the book's trials table. The first session's search allowance 
 - Sjogren's carryover: telitacicept, ianalumab and dazodalibep share one pool (ESSDAI 5 or
   more, eligible 0.2) and all run at the engine's default of 1.0. The telitacicept reader
   withdrew a 0.9458 that would have applied to that seed alone; any change belongs to all three.
-- Duchenne: deramiocel and DYNE-251 share one pool (11,952 and 367) and set no carryover.
+- Duchenne: deramiocel, DYNE-251 and SGT-003 share one pool (11,952 and 367); the first two
+  set no carryover. Their Sarepta discounts differ by design and by rounding: DYNE-251 takes
+  FY2023's 0.1849 (the PMO-heavy year), deramiocel FY2025's 0.2125 before the prior-year
+  adjustment, SGT-003 and SRP-9003 FY2025's 0.2140 with it.
   DYNE-251's 0.78% discontinuation lets its treated stock reach about 82% of the exon 51 pool
   by 2039, and the ~650 patients already on Exondys are not netted from it.
 - Obudanersen prices off Spinraza's 2020 Part D spend per beneficiary, the only year with a
