@@ -4550,8 +4550,6 @@ with main:
         # Catalysts, exclusivity and filings come from the feed; deals and readouts from
         # their own endpoints. The raw change list, trial status and date wording, stays
         # out of this view: it read as jargon and the events that matter are here.
-        _china_bd(api_base, ticker)
-
         deals_data = api_get(api_base, f"/companies/{ticker}/deals").get("deals") or []
         readouts_data = api_get(api_base, f"/companies/{ticker}/readouts").get("readouts") or []
         catalyst_items = [it for it in feed if it["kind"] == "catalyst"]
@@ -4692,6 +4690,11 @@ with main:
                         "and are the reason the snapshots are kept. The full history is "
                         "on the company's own News and Pipeline tabs.")
                     + "</div>", unsafe_allow_html=True)
+
+        # Last on the tab, below the note and both lists. It is a count over the deals
+        # already shown under What happened, read one way, so it follows everything that
+        # is about this company today rather than standing in front of it.
+        _china_bd(api_base, ticker)
 
     # --- Prices ----------------------------------------------------------
     with prices_tab:
