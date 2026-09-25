@@ -38,3 +38,5 @@ PFE,PF-08653944,Berobenatide,"the same compound under its Pfizer code: NCT077929
 PFE,PF-06823859,Dazukibart,"Pfizer's FY2025 10-K (0000078003-26-000026) lists dazukibart (PF-06823859) for dermatomyositis and polymyositis, and the registry files one myositis Phase 3 under each name"
 PFE,PF-07275315,Tilrekimig,"the registry names the eczema Phase 3 drug tilrekimig with other name PF-07275315 (NCT07765888); the COPD Phase 2/3 is filed under the code"
 PFE,PG4 Multivalent Vaccine,PG4,"Pfizer's multivalent pneumococcal conjugate vaccine: the adult lot study labels its arms PG4 lot 1 to 3 (NCT07794748) and the infant studies name the intervention PG4"
+NVO,NNC0487-0111,Zenagamtide,"amycretin under its development code: the registry doses AMAZE 1 and 2 as NNC0487-0111 (NCT07339423, NCT07533175) and Novo's Q1 2026 6-K (0000353278-26-000018) calls them once-weekly subcutaneous zenagamtide, so the Phase 3 programme sat on a second row"
+NVS,BION-1301,zigakibart,"zigakibart's development code from Chinook: the BEYOND Phase 3 (NCT05852938) is titled A Study of Zigakibart in Adults With IgA Nephropathy and sat on this row, so the modelled asset read no Phase 3"
