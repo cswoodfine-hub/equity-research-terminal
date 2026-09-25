@@ -640,10 +640,13 @@ def export_xlsx(conn, asset_id: int, scenario: str, result: dict | None) -> byte
     if result:
         out = book.create_sheet("Forecast")
         out.append(("year",) + tuple(result["years"]))
+        # A marketed or launch product is built from revenue, not patients, so its patient
+        # row is blank cells rather than zeros, and never a crash on the first one.
         out.append(("new patients",) + tuple(
-            round(v, 1) for v in result["patients"]["total"]))
+            round(v, 1) if v is not None else None
+            for v in (result.get("patients") or {}).get("total") or []))
         out.append(("revenue, mm",) + tuple(
-            round(v, 1) for v in result["revenue_after_loe"]))
+            round(v, 1) if v is not None else None for v in result["revenue_after_loe"]))
         out.append(())
         for label, key in (("wacc", "wacc"), ("pos", "pos"), ("npv, mm", "npv"),
                            ("rnpv, mm", "rnpv")):
