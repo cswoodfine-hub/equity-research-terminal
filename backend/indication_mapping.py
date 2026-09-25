@@ -70,6 +70,11 @@ TOO_BROAD = frozenset(x.lower() for x in (
     "Endocrine System Diseases", "Respiratory Tract Diseases", "Inflammation",
 ))
 
+# Indications the registry has no descriptor for, kept so a seed can name them. The registry
+# files ATTR cardiomyopathy and AL amyloidosis under one descriptor, Amyloidosis (D000686),
+# and a pool written there is the pool of both (migration 076). {name: therapeutic_area}.
+CURATED = {"Transthyretin Amyloid Cardiomyopathy": "cardiometabolic"}
+
 _PHASE_ORDER = ("Early Phase 1", "Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3",
                 "Phase 3", "Phase 4")
 _PHASE_RANK = {p: i for i, p in enumerate(_PHASE_ORDER)}
@@ -239,6 +244,9 @@ def build(db_path=None) -> dict:
                  FROM completed_trials WHERE asset_id IS NOT NULL""")]
         pairs = pairs_from_trials(rows)
         indication_ids = _upsert_indications(conn, pairs)
+        for name, area in CURATED.items():
+            conn.execute("INSERT OR IGNORE INTO indications (name, therapeutic_area)"
+                         " VALUES (?, ?)", (name, area))
         overrides = {(r["asset_id"], r["indication_id"]): dict(r) for r in
                      conn.execute("SELECT * FROM asset_indication_overrides")}
         seen = {(r["asset_id"], r["indication_id"]): r["first_seen_phase"]

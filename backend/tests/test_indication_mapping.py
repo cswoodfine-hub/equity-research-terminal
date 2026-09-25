@@ -325,3 +325,17 @@ def test_the_rebuild_releases_a_catalyst_before_deleting_the_row_it_points_at(tm
     left = conn.execute("SELECT asset_indication_id FROM catalysts").fetchone()[0]
     conn.close()
     assert left is None, "the link is released, and applications.resolve reattaches it"
+
+
+def test_a_curated_indication_exists_after_every_build(tmp_path):
+    """A seed names an indication and the loader skips a row whose name is not in the
+    table. The registry has no descriptor for ATTR cardiomyopathy, so the build keeps it,
+    or a database built from nothing would drop nex-z's pool without a word."""
+    path = _seed(tmp_path)
+    im.build(path)
+    im.build(path)
+    conn = db.get_connection(path)
+    names = [r[0] for r in conn.execute(
+        "SELECT name FROM indications WHERE name = 'Transthyretin Amyloid Cardiomyopathy'")]
+    conn.close()
+    assert names == ["Transthyretin Amyloid Cardiomyopathy"]

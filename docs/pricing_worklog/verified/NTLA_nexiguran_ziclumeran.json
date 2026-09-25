@@ -70,7 +70,7 @@
  },
  "indications": [
   {
-   "indication": "Amyloidosis",
+   "indication": "Transthyretin Amyloid Cardiomyopathy",
    "fields": {
     "prevalence": {
      "value": 55372,
@@ -128,7 +128,8 @@
      "verdict": "confirmed",
      "check": "2.2 + 1.0 = 3.2. s_curve(0) / peak = 1 / (1 + exp(1.08 x 3.2)) = 0.0306, matching the stated 3.1%. At the corrected peak (0.0293) the engine puts about 85 CM patients worldwide into 2030, not about 110."
     }
-   }
+   },
+   "renamed": "from 'Amyloidosis' on review 2026-09-25 (migration 076): the registry's Amyloidosis also holds AL amyloidosis"
   },
   {
    "indication": "Amyloid Neuropathies, Familial",

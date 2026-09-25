@@ -38,6 +38,24 @@ def test_the_check_covers_the_key_that_was_misplaced():
     assert "exus_multiple" in pool_crowding._PER_INDICATION
 
 
+# Registry descriptors that file two different diseases under one name. A pool written on
+# one of them becomes the pool of both: the nex-z seed put the ATTR cardiomyopathy pool on
+# "Amyloidosis", which the registry also uses for AL amyloidosis, and assembly copies the
+# pool another asset carries for the same indication. Each gets a specific indication
+# instead (migration 076).
+MIXED_INDICATIONS = {
+    "Amyloidosis": "AL takes 'Immunoglobulin Light-chain Amyloidosis', ATTR cardiomyopathy "
+                   "'Transthyretin Amyloid Cardiomyopathy'",
+}
+
+
+def test_no_seed_writes_a_pool_on_an_indication_that_mixes_diseases():
+    written = [(name, row["indication"], row["key"]) for name, row in _rows()
+               if row.get("indication") in MIXED_INDICATIONS
+               and row.get("key") in ("prevalence", "incidence", "eligible_pct")]
+    assert written == [], written
+
+
 # --- the currency a seed's money is written in -------------------------------------
 import re
 

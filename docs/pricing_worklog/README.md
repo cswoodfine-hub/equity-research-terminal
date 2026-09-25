@@ -140,10 +140,10 @@ context files and the book's trials table. The first session's search allowance 
 - AXS-14 prices off Savella's 2024 Part D figure, a brand-only price before generic milnacipran
   launched in March 2026. The house method implies about $298mm of Savella sales against about
   $103mm reported nationally, so the fibromyalgia peak may be high by up to 2.9 times.
-- The book's indication "Amyloidosis" (id 64) holds both AL amyloidosis (daratumumab,
-  belantamab, etentamig, JNJ-79635322) and ATTR (vutrisiran, nucresiran, nex-z). The nex-z seed
-  gives it the ATTR-CM pool (Alexander: 55,372 and 25,605), so an AL seed on that indication
-  would inherit the wrong pool. The indication needs splitting before one is written.
+- Resolved: the registry's "Amyloidosis" holds both AL and ATTR. Migration 076 moved nex-z's
+  ATTR cardiomyopathy pool to a curated "Transthyretin Amyloid Cardiomyopathy"; an AL seed
+  takes "Immunoglobulin Light-chain Amyloidosis", and test_seed_shape refuses a pool on the
+  mixed name.
 - `tests/test_refresh.py::test_refresh_populates_then_skips_within_ttl` fails in this
   container because a fetcher reaches the network and the run goes partial; it failed before
   any change in this session.
