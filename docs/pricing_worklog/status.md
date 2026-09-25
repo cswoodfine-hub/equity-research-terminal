@@ -19,7 +19,7 @@
 | DYN | zeleciment basivarsen (DYNE-101) | not started |
 | DYN | Zeleciment Rostudirsen (DYNE-251) | not started |
 | EXEL | XL092 | seeded and built: first Exelixis cost block |
-| GPCR | Aleniglipron | not started |
+| GPCR | Aleniglipron | seeded and built: Structure cost block borrowed from Lilly, LOE 2041 from the 10-K patent range |
 | GSK | GSK5784283 | seeded and built |
 | GSK | Investigational varicella vaccine | seeded and built |
 | GSK | Linerixibat | refused: royalty rate undisclosed |

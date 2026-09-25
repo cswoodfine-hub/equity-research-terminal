@@ -73,7 +73,10 @@ tax credit (argenx, Alnylam), which needs a labelled judgement. Add the ticker's
 the other-costs charge (held at nil where it rebuilds below nil and no amortisation is on
 file). Exelixis, argenx and Neurocrine were built this way; the xl092, empasiprubart and
 nbi_1065845 seeds show the rows and their wording. A loss-making company takes a comparator's
-ratios, as Viking takes Lilly's.
+ratios, as Viking takes Lilly's: `comparator_block.py SEED TICKER COMPARATOR DEBT_WEIGHT
+"DEBT_SOURCE" "WHY"` writes the comparator's modal cost rows, the company's own beta and the
+stated debt weight into an assembled seed. Register the pair in
+`interest_addback.COMPARATORS`. Structure (aleniglipron) borrows Lilly's.
 
 ## What works in this container
 
