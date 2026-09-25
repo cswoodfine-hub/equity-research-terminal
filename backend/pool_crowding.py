@@ -56,14 +56,15 @@ def _inputs(scalars: dict) -> dict | None:
             "midpoint": scalars["ramp_midpoint_year"],
             "steepness": scalars["ramp_steepness"], "funnel": funnel,
             "multiple": multiple,
-            "carryover": scalars.get("untreated_carryover_pct")}
+            "carryover": scalars.get("untreated_carryover_pct"),
+            "already": scalars.get("already_treated_patients") or 0.0}
 
 
 # Everything the pool identity needs, and where the engine reads each from. Pool factors
 # are per indication; the rest are asset-level scalars.
 _PER_INDICATION = ("prevalence", "eligible_pct", "incidence", "penetration_peak_pct",
                    "ramp_midpoint_year", "ramp_steepness", "untreated_carryover_pct",
-                   "exus_multiple") + _FUNNEL
+                   "exus_multiple", "already_treated_patients") + _FUNNEL
 _PER_ASSET = ("discontinuation_pct", "forecast_start_year")
 
 
@@ -212,7 +213,8 @@ def solve(claims: list[dict], years: int = 30, first_year: int | None = None,
     # Uncrowded: the engine's own answer, one private pool each.
     uncrowded = {}
     for claim in claims:
-        pool = claim["prevalence"] * claim["eligible_pct"]
+        # Patients already on another drug are out of the opening pool, as in the engine.
+        pool = max(0.0, claim["prevalence"] * claim["eligible_pct"] - claim.get("already", 0.0))
         inc = claim["incidence"] * claim["eligible_pct"]
         carry = 1.0 if claim["carryover"] is None else claim["carryover"]
         stop = (claim["stop"] or 0.0) if recycle else 0.0
@@ -248,7 +250,9 @@ def solve(claims: list[dict], years: int = 30, first_year: int | None = None,
     pooled = sizes[shared_size]
     unpooled = [c for c in claims if c not in pooled]
     lead = pooled[0]
-    pool = shared_size
+    # The incumbent's patients are the same patients whoever is counting them, so the
+    # shared pool loses the largest count any member states, not their sum.
+    pool = max(0.0, shared_size - max(c.get("already", 0.0) for c in pooled))
     inc = lead["incidence"] * lead["eligible_pct"]
     carry = 1.0 if lead["carryover"] is None else lead["carryover"]
     claims_in = pooled

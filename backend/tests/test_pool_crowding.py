@@ -227,3 +227,17 @@ def test_an_asset_that_states_a_pool_but_draws_no_share_is_not_a_claimant(tmp_pa
     names = {c["name"] for c in PC.claimants(conn, 367)}
     conn.close()
     assert names == {"alpha", "gamma"}
+
+
+def test_patients_already_on_an_incumbent_are_out_of_both_runs():
+    """The uncrowded run is the engine's own answer, so it nets the incumbent's patients
+    as the engine does; the shared run nets them once, whoever states them."""
+    alone = _claim("a", 0.04, prevalence=10_000, incidence=100)
+    netted = dict(_claim("a", 0.04, prevalence=10_000, incidence=100), already=4_000)
+    whole = PC.solve([alone], years=10)["assets"][0]["uncrowded"]
+    less = PC.solve([netted], years=10)["assets"][0]["uncrowded"]
+    assert less[0] == pytest.approx(whole[0] * (6_000 + 100) / (10_000 + 100))
+    pair = [netted, dict(_claim("b", 0.04, prevalence=10_000, incidence=100), already=4_000)]
+    got = PC.solve(pair, years=10)
+    assert got["shared"][0]["pool"] == pytest.approx(6_000 + 100)
+

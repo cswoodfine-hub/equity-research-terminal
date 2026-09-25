@@ -319,6 +319,37 @@ def test_a_stated_carryover_outranks_the_inflow_rule():
     assert not any("does not carry into the next" in n for n in notes)
 
 
+def _exon51(**extra):
+    return {"name": "DMD exon 51",
+            "scalars": {"prevalence": 11952, "incidence": 367, "eligible_pct": 0.13,
+                        "penetration_peak_pct": 0.1, "ramp_midpoint_year": -1.0,
+                        "ramp_steepness": 4.0, **extra},
+            "series": {}}
+
+
+def test_patients_already_on_another_drug_are_out_of_the_opening_pool():
+    """A second entrant draws on the untreated remainder. Without this DYNE-251 replayed
+    Exondys's launch into all 1,554 exon 51 boys and its stock built to 82% of the pool,
+    though some 650 of them were already infusing Exondys."""
+    years = list(range(2027, 2045))
+    whole = F.patients_for_indication(_exon51(), years, [])["derived"]
+    notes = []
+    netted = F.patients_for_indication(_exon51(already_treated_patients=659), years,
+                                       notes)["derived"]
+    pool, inflow = 11952 * 0.13, 367 * 0.13
+    assert netted[0] == pytest.approx(whole[0] * (pool - 659 + inflow) / (pool + inflow))
+    assert sum(netted) < sum(whole)
+    assert any("already on another therapy" in n for n in notes)
+
+
+def test_more_patients_already_treated_than_exist_leaves_an_empty_pool_not_a_negative_one():
+    got = F.patients_for_indication(_exon51(already_treated_patients=1e6),
+                                    list(range(2027, 2035)), [])["derived"]
+    # Only the inflow is left to start.
+    assert got[0] == pytest.approx(F.s_curve(0, 0.1, -1.0, 4.0) * 367 * 0.13)
+    assert min(got) >= 0.0
+
+
 # --- the what-if levers (forecast_view.whatif) -------------------------------
 
 def test_whatif_levers(tmp_path):

@@ -154,6 +154,19 @@ def patients_for_indication(ind: dict, years: list[int], notes: list,
                        "accepts_pct"):
             if scalars.get(factor) is not None:
                 funnel *= scalars[factor]
+        # Patients already on another drug for the same label are not in the untreated
+        # pool this one draws on. Without this a second entrant replays the incumbent's
+        # launch as though the incumbent were absent: DYNE-251's stock built to 82% of the
+        # exon 51 pool while some 650 of those boys were already infusing Exondys. The
+        # count is US patients, scaled abroad by the same multiple as the pool.
+        already = scalars.get("already_treated_patients")
+        if already:
+            taken = min(pool, already * multiple)
+            pool -= taken
+            notes.append(f"{ind.get('name', 'indication')}: {already:,.0f} US patients "
+                         f"already on another therapy are out of the opening pool "
+                         f"({taken:,.0f} with the ex-US multiple), so the drug starts on "
+                         f"the untreated remainder of {pool:,.0f}")
         mid = midpoint - years[0] if midpoint > 100 else midpoint  # year or offset
         curve = lambda i: s_curve(i, peak * funnel, mid, steepness)
         capacity = None

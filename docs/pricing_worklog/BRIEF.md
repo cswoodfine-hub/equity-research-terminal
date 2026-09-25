@@ -69,6 +69,12 @@ a second only if it has its own Phase 3 and a sourced pool):
   therapy takes 0. A chronic disease whose pool would otherwise outgrow its measured
   prevalence is held stationary, retention = pool / (pool + inflow), as the remternetug and
   direclidine seeds do, labelled a judgement.
+- `already_treated_patients`: US patients already on a marketed drug for the same label when
+  this one launches, from the incumbent's filed sales over its net price. The engine takes
+  them out of the opening pool, so a second entrant draws on the untreated remainder instead
+  of replaying the incumbent's launch into the whole pool. With it set, take the
+  incumbent's measured capture as measured; do not shade it with a multiple for the
+  incumbent's presence (DYNE-251 and zodasiran).
 - `ramp_steepness` (logistic k) and `ramp_midpoint_year` (years from forecast_start_year to
   half of peak): reuse a measured curve from the closest modelled competitor where possible.
 

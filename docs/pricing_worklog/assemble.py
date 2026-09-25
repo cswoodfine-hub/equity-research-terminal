@@ -57,7 +57,8 @@ def main(paths):
                         "source": f.get("source") or "", "note": f.get("note") or ""})
         PER_IND = ("prevalence", "eligible_pct", "incidence", "penetration_peak_pct", "ramp_midpoint_year",
                    "ramp_steepness", "untreated_carryover_pct", "exus_multiple",
-                   "diagnosed_pct", "referred_pct", "payer_approved_pct", "accepts_pct")
+                   "diagnosed_pct", "referred_pct", "payer_approved_pct", "accepts_pct",
+                   "already_treated_patients")
         blocks = v.get("indications") or []
         for key, f in v["asset"].items():
             if key in PER_IND:
