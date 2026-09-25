@@ -123,3 +123,10 @@ def test_the_real_file_reads_and_every_row_names_a_month(tmp_path, monkeypatch):
     for found in rows.values():
         assert len(found["stated"]) == 7 and found["date"].endswith(("-31", "-30", "-28"))
         assert found["basis"].startswith("CMS deselection")
+
+
+def test_every_brand_in_the_real_file_is_one_the_book_holds(book, monkeypatch):
+    """A brand spelled differently from the book's reaches no asset and dates nothing."""
+    monkeypatch.undo()
+    assert len(loe.cms_deselections(book)) == len(_listed()), (
+        "a brand in the curated CMS file matches no asset in the book")
