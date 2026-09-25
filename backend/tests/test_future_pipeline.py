@@ -171,7 +171,9 @@ def test_a_52_week_year_is_matched_to_the_year_it_falls_in():
     assert FP._fiscal_year_of("2025-06-30") == 2025
 
 
-def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(monkeypatch):
+def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(tmp_path,
+                                                                      monkeypatch):
+    import db
     import forecast_view as V
     seen = {}
 
@@ -186,7 +188,9 @@ def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(monkeyp
     drug = {"asset_id": 1, "pnl_share": [row], "dcf_years": [2026], "wacc": 0.08}
     medtech = {"line": "MedTech", "buys_launches": False, "pnl_share": [dict(row, rd=40.0)],
                "dcf_years": [2026], "wacc": 0.08}
-    V._future_pipeline(None, [drug, medtech], "2025-12-31", "JNJ")
+    path = str(tmp_path / "fp.db")
+    db.init(path)
+    V._future_pipeline(path, [drug, medtech], "2025-12-31", "JNJ")
     assert seen["book_rd"] == {2026: 15.0}
 
 

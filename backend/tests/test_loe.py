@@ -201,11 +201,27 @@ def test_no_substance_patent_yields_nothing_rather_than_a_guess():
         None, None)
 
 
-def test_the_approvals_view_carries_the_use_patent_tail():
+def test_the_approvals_view_carries_the_use_patent_tail(tmp_path, monkeypatch):
     """The endpoint reads use_max after popping it; with a real use patent on file
     that ordering raised KeyError and took the whole Portfolio tab down."""
+    import db
     import main
+    path = tmp_path / "approvals.db"
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Eli Lilly')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Trulicity', 1)")
+    conn.execute("INSERT INTO approvals (asset_id, region, agency, approval_date,"
+                 " application_number) VALUES (1, 'US', 'FDA', '2014-09-18', 'BLA125469')")
+    conn.execute("INSERT INTO exclusivities (asset_id, region, protection_type,"
+                 " identifier, expiry_date, patent_kind, source) VALUES"
+                 " (1, 'US', 'patent', '1', '2027-01-01', 'substance', 't'),"
+                 " (1, 'US', 'patent', '2', '2041-06-01', 'use', 't')")
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr(db, "DB_PATH", path)
     rows = main.company_approvals("LLY")["approvals"]
-    assert rows, "Lilly should have approvals on file"
-    assert all("use_patent_year" in r for r in rows)
-    assert all("use_max" not in r for r in rows)
+    assert len(rows) == 1
+    assert rows[0]["use_patent_year"] == 2041
+    assert "use_max" not in rows[0]

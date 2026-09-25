@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+
 import pytest
 
 import db
@@ -90,13 +92,34 @@ def test_a_brand_no_company_in_the_book_holds_is_skipped(tmp_path, monkeypatch):
     assert set(loe.cms_deselections(conn)) == {10}
 
 
+def _listed():
+    """The committed file's rows, read the way cms_deselections reads them."""
+    with loe.CMS_DESELECTIONS.open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(
+            [line for line in handle if not line.lstrip().startswith("#")]))
+
+
 def test_the_real_file_reads_and_every_row_names_a_month(tmp_path, monkeypatch):
-    """The committed file parses, and each determination is a month CMS published."""
+    """The committed file parses, and each determination is a month CMS published.
+    The database holds the file's own brands, so every row has an asset to land on."""
     monkeypatch.undo()
-    conn = db.get_connection()
+    listed = _listed()
+    assert listed, "the curated CMS deselection file has no rows"
+    path = str(tmp_path / "real.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    tickers = sorted({r["ticker"].strip().upper() for r in listed})
+    for company_id, ticker in enumerate(tickers, 1):
+        conn.execute("INSERT INTO companies (id, ticker, name) VALUES (?, ?, ?)",
+                     (company_id, ticker, ticker))
+    for row in listed:
+        owner = tickers.index(row["ticker"].strip().upper()) + 1
+        conn.execute("INSERT INTO assets (owner_company_id, brand_name, is_marketed)"
+                     " VALUES (?, ?, 1)", (owner, row["brand"].strip()))
+    conn.commit()
     rows = loe.cms_deselections(conn)
     conn.close()
-    assert rows, "the curated CMS deselection file matched no asset"
+    assert len(rows) == len(listed), "a row in the curated CMS file did not parse"
     for found in rows.values():
         assert len(found["stated"]) == 7 and found["date"].endswith(("-31", "-30", "-28"))
         assert found["basis"].startswith("CMS deselection")

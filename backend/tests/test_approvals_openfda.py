@@ -29,13 +29,14 @@ def test_parse_drugsfda_nda_and_bla():
 
 
 # --- the two queries are unioned and deduped -----------------------------
-def test_the_fetch_unions_sponsor_and_manufacturer():
+def test_the_fetch_unions_sponsor_and_manufacturer(tmp_path):
     """openFDA files an approval under the entity holding it, which for an acquired
     product is the company that was bought. The parent surfaces those by sponsor, and
     the two result sets are merged on application number."""
     from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 
-    fetcher = ApprovalsOpenFdaFetcher("BMY")
+    fetcher = ApprovalsOpenFdaFetcher(
+        "BMY", _company(tmp_path, "BMY", "Bristol-Myers Squibb Company"))
     calls = []
 
     def fake_run(query):
@@ -53,10 +54,11 @@ def test_the_fetch_unions_sponsor_and_manufacturer():
     assert {r["application_number"] for r in merged} == {"NDA202155", "BLA125527"}
 
 
-def test_an_application_from_both_queries_is_not_doubled():
+def test_an_application_from_both_queries_is_not_doubled(tmp_path):
     from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 
-    fetcher = ApprovalsOpenFdaFetcher("BMY")
+    fetcher = ApprovalsOpenFdaFetcher(
+        "BMY", _company(tmp_path, "BMY", "Bristol-Myers Squibb Company"))
     fetcher._run = lambda query: [{"application_number": "NDA202155"}]
     merged = fetcher.fetch()["results"]
 
