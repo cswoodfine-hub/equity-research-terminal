@@ -45,7 +45,7 @@
 | NBIX | NBI-1065845 | seeded and built: first Neurocrine cost block |
 | NBIX | NBI-1117568 | seeded and built: schizophrenia pool held stationary |
 | NTLA | Biological NTLA-2002 | seeded and built: Intellia block borrowed from Alnylam; Caribou royalty netted at 1% |
-| NTLA | nexiguran ziclumeran | not started |
+| NTLA | nexiguran ziclumeran | seeded and built: ATTR-CM and ATTRv-PN after the holds lifted in early 2026; Intellia keeps 75% less the Caribou royalty, 0.695; penetration corrected for Amvuttra's 3.17 of 4 doses; NTLA-2001 folded in as its alias |
 | NVO | Etavopivat | seeded and built |
 | NVO | Zenagamtide | seeded and built |
 | NVO | Ziltivekimab | seeded and built: ARTEMIS only |

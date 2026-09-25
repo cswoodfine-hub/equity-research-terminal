@@ -44,3 +44,4 @@ GSK,IDRX-42,Velzatinib,"velzatinib's development code from IDRx, which GSK acqui
 BMY,BMS-986507,Iza-bren,"izalontamab brengitecan's Bristol code. The registry files the Phase 1/2 studies under the code and the Phase 3s under the short name, so the molecule sat on two rows"
 NVO,NNC0487-0111,Zenagamtide,"amycretin's development code, now zenagamtide. The registry files AMAZE 1 to 12 under the code and AMAZE 13 and AMBITION 7 under the INN, so the programme sat on two rows"
 GPCR,GSBR-1290,Aleniglipron,"aleniglipron's development code. A row of its own with no studies, beside the compound that carries the Phase 3s"
+NTLA,NTLA-2001,nexiguran ziclumeran,"nex-z's development code. A row of its own with the same ATTR studies, beside the compound the Phase 3s are filed under; seeding both would count one molecule twice"

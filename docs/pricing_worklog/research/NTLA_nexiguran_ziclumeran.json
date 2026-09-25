@@ -1,0 +1,152 @@
+{
+ "ticker": "NTLA",
+ "name": "nexiguran ziclumeran",
+ "summary": "Nexiguran ziclumeran (nex-z, NTLA-2001) is Intellia's in vivo CRISPR/Cas9 edit of TTR in the liver, a single 55 mg IV infusion, co-developed with Regeneron (Intellia leads; Regeneron takes about 25% of worldwide costs and profits). Two Phase 3s run under amended protocols after the FDA hold of 2025-10-29 (a Grade 4 liver injury, then a death on 2025-11-05) was lifted for MAGNITUDE-2 (ATTRv-PN, NCT06672237, about 50 to 60 patients, mNIS+7 at month 18) in January 2026 and for MAGNITUDE (ATTR-CM, NCT06128629, about 1,200 patients, CV death and events) in March 2026; enrolment resumed in Q2 2026, MAGNITUDE-2 completes enrolment in H2 2026, and in August 2026 the worst liver elevations were traced to one HLA allele. Price anchor: Casgevy's $2.2mm per course, as the sister seed lonvo-z takes it, with Zolgensma's measured 36% off list; the $1.408mm net is 81% of the expected lifetime net cost of Amvuttra. Uptake anchor: Amvuttra's measured US start rates (7.39% a year of the ATTR-CM pool in its CM launch, 14.37% of the hATTR-PN pool in 2024), taken at half. PN is the first full year (2030); CM follows a year later. Peak product revenue about $5.3bn (2038, US $3.9bn), before Intellia's 0.695 share and probability of success.",
+ "asset": {
+  "therapy_mode": {
+   "value": "one_time",
+   "unit": "",
+   "source": "Intellia 10-Q for Q2 2026 (0001193125-26-337952, filed 2026-08-06), MD&A: MAGNITUDE 'Patients are randomized 2:1 nex-z:placebo, with a single 55 mg infusion of nex-z administered'; MAGNITUDE-2 'Patients will be randomized 1:1 to receive a single 55 mg infusion of nex-z or placebo'; nex-z offers 'a deep, consistent and potentially lifelong reduction in TTR protein after a one-time treatment'",
+   "note": "One infusion, not repeated, billed once, so each year's treated patients are that year's revenue. Same mode as the sister asset lonvo-z (verified NTLA_biological_ntla_2002.json) and the book's Casgevy seed. Re-dosing is not modelled"
+  },
+  "list_price_per_patient": {
+   "value": 2.2,
+   "unit": "mm USD per course (one infusion)",
+   "source": "lookup.py seed Exagamglogene autotemcel: list_price_per_patient 2.2 mm USD, 'Vertex, Dec 2023 launch price' (Casgevy, the only marketed CRISPR/Cas9 therapy), the anchor the verified lonvo-z seed uses. Cross-check against the chronic incumbents, lookup.py demand, CMS 2024 per beneficiary: Amvuttra Part B $379,824 ($229,033,878.80 / 603); Amvuttra Part D $118,225 a fill ($140,924,646.88 / 1,192 claims), $472,900 at four quarterly fills; Vyndamax Part D $203,290; Wainua Part D $226,539. Time on chronic therapy: in Optum, 13 of 111 vutrisiran starters died and 10 stopped for good within 12 months, 20.72% a year (Bart NK et al., Adv Ther 2026, doi:10.1007/s12325-026-03664-7, PMID 42455256), a mean of 4.83 years",
+   "note": "JUDGEMENT on the anchor, kept consistent with lonvo-z (same company, same LNP-delivered Cas9 modality). Intellia has set no price and suspended nex-z milestone guidance during the hold (8-K 0001193125-25-269479); no management pricing comment was found (searched). $2.2mm is 5.8 years of Amvuttra's Part B spend per beneficiary, 4.7 years at four Part D fills, and 10.8 years of Vyndamax. At the Amvuttra net the book uses ($358,324, Part B less the 6% add-on) and a 4.83-year mean time on therapy, a patient's expected lifetime net cost on Amvuttra is $1.73mm; nex-z's $1.408mm net (below) is 81% of that, so the one-time price sits at rough parity with chronic silencing. Case for lower: ATTR-CM patients are old (mean age 77.9 among narrow-definition incident ATTR-CM cases in Laires 2025, PMID 41469145) and mostly Medicare, a $2.2mm upfront Part B claim carries a large budget impact, the liver-safety signal may weaken the value case, and generic tafamidis meglumine may arrive after compound patent 7214695 expires on 2026-12-19 (book exclusivities table; a further Vyndamax substance patent, 9770441, runs to 2035-08-31). Case for higher: hATTR-PN patients are younger (mean age 67.4 in Laires's PN-only cohort) with more years of chronic therapy to replace"
+  },
+  "gross_to_net_pct": {
+   "value": 0.36,
+   "unit": "share taken off list",
+   "source": "Zolgensma (onasemnogene abeparvovec, one-time IV gene therapy): CMS reimbursement had fallen to $1.36mm per claim by 2022 against a $2.125mm list, 'nearly a 40% discount' (BioSpace, 'Who's Paying for Million-Dollar Gene Therapies?', biospace.com/who-s-paying-for-million-dollar-gene-therapies; read from the search summary by the lonvo-z researcher and second reader). 1 - 1.36/2.125 = 0.36. Same value and source as the verified lonvo-z seed",
+   "note": "JUDGEMENT on the comparator, kept consistent with lonvo-z. The anchor is a list price, so neither house Medicare convention applies. Direction checked: 0.36 is the share off list, net $1.408mm per course. Case for lower (less off list): ATTR patients are mostly Medicare, and an infused product billed under Part B is paid at ASP plus 6%; ASP excludes Medicaid rebates, so a Medicare-heavy product may be discounted less than Zolgensma, whose SMA infants carry a large Medicaid share. The book's Casgevy seed assumes about 18%. Case for higher: payers facing a Medicare-scale budget may demand outcomes-based or annuity contracts"
+  },
+  "discontinuation_pct": {
+   "value": 1.0,
+   "unit": "share of the treated stock stopping per year",
+   "source": "one infusion, not repeated (Intellia 10-Q for Q2 2026 (0001193125-26-337952, filed 2026-08-06), MD&A)",
+   "note": "Set so the engine never carries a treated stock forward in either mode; one_time mode ignores it. Same as lonvo-z"
+  },
+  "cogs_per_patient": {
+   "value": null,
+   "unit": "mm USD per course",
+   "source": "none found: Intellia has no product revenue and discloses no cost of goods for nex-z (10-K FY2025 0001193125-26-076550; 10-Qs 0001193125-26-215740 and 0001193125-26-337952 in the book's filing_sections)",
+   "note": "Left null, as for lonvo-z. With it null in one_time mode the engine charges cogs_pct x revenue, and the NTLA company rows now in data/assumptions/ntla_biological_ntla_2002.csv carry cogs_pct 0.1823 borrowed from ALNY. The book's Casgevy 0.75 is an ex vivo estimate and does not transfer to an LNP-delivered mRNA and guide RNA"
+  },
+  "forecast_start_year": {
+   "value": 2030,
+   "unit": "year",
+   "source": "MAGNITUDE-2: 47 patients enrolled when the hold began (Q3 2025 release, 8-K 0001193125-25-269479, which also 'suspended its milestone guidance for nex-z'); hold lifted January 2026 (8-K 0001193125-26-023387); 'We remain on track to complete patient enrollment in MAGNITUDE-2 in the second half of 2026', with primary endpoints 'mNIS+7 at month 18 and serum TTR at day 29' (Intellia 10-Q for Q2 2026 (0001193125-26-337952, filed 2026-08-06), MD&A). MAGNITUDE: more than 650 of about 1,200 enrolled at the hold (8-K 0001193125-25-269479); hold lifted March 2026 (8-K 0001193125-26-084309); registry primary completion 2027-12, estimated (book trials table, last update 2026-03-27)",
+   "note": "JUDGEMENT. First full year for ATTRv-PN: enrolment completes in H2 2026, so the last patient reaches month 18 in 2028 at the earliest, topline follows in 2028, a BLA around the turn of 2029, and approval in 2029 on a standard or priority review. 2030 is the first full year. The pre-hold goal of a BLA 'by 2028' (Intellia's MAGNITUDE-2 releases of 2025, read from search summaries) was suspended in November 2025 and not restated in 2026. DISCREPANCY: the registry's MAGNITUDE-2 primary completion of 2027-07 (context file; last update 2026-04-16) cannot hold against an 18-month endpoint on enrolment that completes in H2 2026. ATTR-CM is placed a year later (ramp_midpoint_year of its block is offset by 1.0): the registry's 2027-12 is stale for the same reason, the trial lost about six months to the hold with fewer than 550 patients still to enrol, and the CV-outcomes readout is event-driven, so a readout around 2029 and a supplemental approval in 2030 make 2031 its first full year. Case for later: HLA engagement with the FDA could force a further amendment, and comparable ATTR-CM outcome trials ran 30 to 36 months. Case for earlier: the book's two-calendar-years-after-completion rule on the registry dates would give 2029 for both"
+  },
+  "exus_multiple": {
+   "value": 0.3365,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Amvuttra, Alnylam FY2025 10-K (0001628280-26-007497), book asset_revenue_regions: US $1,731.222mm, Europe $405.899mm, rest of world $176.715mm. (405.899 + 176.715) / 1,731.222 = 0.3365. The same figure the ALNY nucresiran seed takes",
+   "note": "JUDGEMENT on the comparator: the TTR silencer in the same two diseases, launched worldwide by a US biotech that built its own ex-US business. Regeneron's co/co is worldwide, with Intellia as lead party. Case for lower: Intellia has no ex-US commercial presence, the lonvo-z seed takes Orladeyo's 0.1173 for that reason, and European HTA bodies have been slow to pay $2mm-plus one-time prices. Case for higher: ex-US hATTR-PN is a larger share of the disease (Amvuttra's PN-only FY2024 split read 0.539, (235.441 + 104.396) / 630.613), and tafamidis reads 0.664 (Pfizer FY2025)"
+  },
+  "economics_share": {
+   "value": 0.694974,
+   "unit": "share of the asset",
+   "source": "Intellia 10-Q for Q2 2026 (0001193125-26-337952, filed 2026-08-06), MD&A: 'Nex-z is the subject of a co-development and co-promotion (\"Co/Co\") agreement (the \"ATTR Co/Co\") with Regeneron, for which we are the clinical and commercial lead party and Regeneron is the participating party. Regeneron shares in approximately 25% of worldwide development costs and commercial profits for the ATTR program and has an option to enter into a co-promotion agreement for the U.S. commercialization.' Same wording in the Q1 2026 10-Q (0001193125-26-215740). Royalty: Intellia 10-K FY2024 (0000950170-25-029007), Regeneron collaboration note: 'the Company's existing low- to mid-single-digit royalty obligations under a license agreement with Caribou'; the 2026 10-Qs say Intellia may pay royalties on product sales using technology 'sublicensed from third parties, including Caribou'. Margin from the NTLA company rows in data/assumptions/ntla_biological_ntla_2002.csv: 1 - 0.1823 (cogs) - 0.326 (sga) - 0.3554 (rd) - 0 (other) = 0.1363",
+   "note": "0.75 x (0.1363 - 0.01) / 0.1363 = 0.75 x 0.926632 = 0.694974. Intellia keeps 75% of the co/co's profits; the Caribou royalty is read at the bottom of 'low- to mid-single-digit', 1% of net sales (the lonvo-z seed's reading), and netted by the house rule for a royalty paid, (margin - royalty) / margin. JUDGEMENT that the royalty is a shared programme cost, so Intellia bears 75% of it; the filings do not say. If Intellia bears it alone, the share is 0.75 - 0.01 / 0.1363 = 0.676632. At the top of the range (say 5%), 0.75 x (0.1363 - 0.05) / 0.1363 = 0.4750, so the royalty rate matters on a margin this thin. Regeneron's co-promotion option does not change the split"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Amyloidosis",
+   "fields": {
+    "prevalence": {
+     "value": 55372,
+     "unit": "patients",
+     "source": "Alexander KM et al., 'Temporal Trends in Incidence and Prevalence of Transthyretin Amyloid Cardiomyopathy in the United States', J Am Heart Assoc 2026;15(13):e047135, doi:10.1161/JAHA.125.047135, PMID 42333670 (abstract confirmed on PubMed): ATTR-CM prevalence 95.8 per 100,000 (95% CI 89.2-102.4) aged 65 and over in 2022 (Merative MarketScan Medicare). x 57.8mm US residents aged 65 and over in 2022 (US Census Bureau, census.gov/newsroom/stories/older-americans-month.html) = 55,372",
+     "note": "This block is ATTR-CM (MAGNITUDE, NCT06128629). lookup.py pool (Amyloid, Transthyretin, ATTR, Cardiomyopath) and epidemiology.csv return nothing, so the book does not yet carry it. The figure is IDENTICAL to the one the ALNY nucresiran seed (out/ALNY_nucresiran.json) carries for the same indication name, so one disease keeps one number; if that seed's second read changes it, this must follow. 'Amyloidosis' is the broad MeSH name the book also maps to AL assets (etentamig, daratumumab, belantamab); they must not read this pool. Diagnosed, wild-type and hereditary, 65 and over. It includes mixed CM-and-PN patients, about 3,349 on Laires's narrow rate (9.8 per million x 341.78mm), who also sit in the PN block below"
+    },
+    "incidence": {
+     "value": 25605,
+     "unit": "patients per year",
+     "source": "Alexander KM et al., J Am Heart Assoc 2026, PMID 42333670: incidence 44.3 per 100,000 person-years (95% CI 39.4-49.2) aged 65 and over in 2021, x 57.8mm = 25,605. Identical to the ALNY nucresiran seed",
+     "note": "Kept identical to nucresiran for the same reason as prevalence"
+    },
+    "eligible_pct": {
+     "value": 0.88,
+     "unit": "share of the pool",
+     "source": "HLA filter: Intellia's genomic analysis of more than 600 trial samples found 'the highest observed liver transaminase elevations were in patients carrying one specific human leukocyte antigen (HLA) allele' (Intellia 10-Q for Q2 2026 (0001193125-26-337952, filed 2026-08-06), MD&A); the allele is HLA-C*05:01, carried by about 12% of the samples analysed, and each of the five highest elevations was in a carrier (Q2 2026 call, via BioSpace 'Intellia finds genetic suspect for liver safety signals with ATTR gene therapy' and Yahoo Finance's Q2 2026 call summary; read from search summaries). 1 - 0.12 = 0.88. Otherwise the label is expected to read as Amvuttra's: 'the cardiomyopathy of wild-type or hereditary transthyretin-mediated amyloidosis (ATTR-CM) in adults' (book labels table, setid 8db0facb-81b6-4006-9239-27dc6409c5d3)",
+     "note": "JUDGEMENT that carriers fall outside the label or decline, the abacavir precedent (the Ziagen label contraindicates use in HLA-B*5701 carriers). The filings say only that genotyping results will go to investigators and patients while Intellia engages the FDA. Case for higher: the FDA may require monitoring only, giving 1.0; most carriers had no severe elevation. Case for lower: the amended MAGNITUDE protocol also excludes 'certain liver abnormalities', recent cardiovascular instability and ejection fraction below 25% (8-K 0001193125-26-084309, EX-99.2, via search summary), none of them quantified here; the 12% is a trial-sample share, not a US population frequency"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.6838,
+     "unit": "share of untreated eligible patients still eligible the next year",
+     "source": "stationary pool, the remternetug method: 55,372 / (55,372 + 25,605) = 0.6838. Same value as the ALNY nucresiran seed on this pool",
+     "note": "JUDGEMENT. ATTR-CM kills: 12% of vutrisiran starters died within 12 months in Optum (PMID 42455256). Without an exit the untreated pool would grow by 25,605 a year without limit. Case for higher: diagnosis is rising (Alexander 2026 reports rising prevalence), so the pool may grow"
+    },
+    "penetration_peak_pct": {
+     "value": 0.037,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "Incumbent: Amvuttra's US ATTR-CM launch (label 2025-03-20). US Amvuttra sales $361.346mm in Q2 2025 and $809.079mm in Q2 2026 (Alnylam 10-Q 0001178670-26-000062, book filing_sections); less the pre-CM PN run rate, FY2024 US $630.613mm / 4 = $157.653mm a quarter (book asset_revenue_regions, 10-K 0001628280-26-007497); annualised at $358,324 a patient-year (Part B $379,824 / 1.06), 2,274 and 7,272 on therapy. Starts over the year = 7,272 - 2,274 + 0.2072 x (2,274 + 7,272) / 2 = 5,987; over the pool 55,372 + 25,605 = 80,977, 7.39% a year (the ALNY nucresiran calibration, recomputed). x 0.5 = 0.037",
+     "note": "JUDGEMENT: a multiple of 0.5 on Amvuttra, not the 1.0 lonvo-z took on Orladeyo. Against nex-z: one death and a genotype-linked liver signal in an elderly population, a permanent edit where a chronic drug can be stopped, HLA genotyping and early liver monitoring before and after dosing, and a crowded field by 2031 (tafamidis possibly generic, acoramidis, vutrisiran, eplontersen, nucresiran, fibril depleters). For it: one infusion replaces lifelong dosing, and TTR fell 87% at 36 months in Phase 1 CM (10-Q). Case for higher: 1.0 gives about 2x the patients. Case for lower: the book's Casgevy seed peaks at 0.011. Amvuttra's calibration year includes pent-up switching from stabilisers. Engine check (this block, eligible 0.88, ex-US 1.3365, carryover 0.6838, k 1.08, midpoint 3.2): about 2,450 US and 3,300 total starts a year from 2036, $4.6bn a year at $1.408mm"
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "book: Enhertu's CMS Part B launch fit (864, 1,904, 4,841, 7,105, 8,410 beneficiaries 2020-2024; lookup.py demand Enhertu), k 1.08, midpoint 2.2, as carried by the MK-1045 seed (lookup.py seed MK-1045) and reused by the verified lonvo-z seed and the book's one-time CAR T seeds",
+     "note": "JUDGEMENT to reuse the lonvo-z curve, so Intellia's two one-time edits ramp alike. The nucresiran seed's steeper Vabysmo curve (k 1.685, midpoint 0.85) fits a successor switched into an established specialist market; nex-z needs infusion sites, HLA genotyping and post-dose liver monitoring set up first"
+    },
+    "ramp_midpoint_year": {
+     "value": 3.2,
+     "unit": "years from forecast_start_year",
+     "source": "Enhertu fit's 2.2 years (as ramp_steepness) plus 1.0 year because ATTR-CM launches a year after ATTRv-PN (forecast_start_year note)",
+     "note": "JUDGEMENT on the offset. The logistic leaks 3.1% of peak into 2030, before a CM approval (about 110 patients in the engine), a small overstatement"
+    }
+   }
+  },
+  {
+   "indication": "Amyloid Neuropathies, Familial",
+   "fields": {
+    "prevalence": {
+     "value": 5161,
+     "unit": "patients",
+     "source": "Laires PA et al., 'Prevalence and incidence of amyloid transthyretin amyloidosis in the USA: insights from claims databases and electronic health records', Open Heart 2025, doi:10.1136/openhrt-2025-003781, PMID 41469145 (full text, PMC12766817): 2022 ATTR-PN prevalence 15.1 per million on the narrow definition (Clarivate Real-World Data, adults, census-adjusted). x 341,784,857 US residents on 2025-07-01 (Census Bureau Vintage 2025, the base the book's other seeds use) = 5,161",
+     "note": "This block is hATTRv-PN (MAGNITUDE-2, NCT06672237). Not carried by the book (lookup.py pool Amyloid, Polyneuropath return nothing; epidemiology.csv has no row). The ATTR-PN cohort includes the mixed phenotype (PN-only 6.0 plus mixed 9.8 per million), which overlaps the CM block by about 3,349 patients; PN-only alone (2,051) would sit below the roughly 2,300 US patients the 2024 PN market already treated (Amvuttra US $630.6mm at $358,324 is 1,760 patient-years, plus Onpattro $74.8mm and Wainua $85mm), so the wider cohort is used. Laires does not split variant from wild-type; the narrow definition is the conservative one (broad reads 47.3 per million). The eplontersen seed's 'roughly 12,000 diagnosed' US patients is unsourced and not used"
+    },
+    "incidence": {
+     "value": 1196,
+     "unit": "patients per year",
+     "source": "Laires PA et al., Open Heart 2025, PMID 41469145: 2022 ATTR-PN incidence 3.5 per million, narrow definition, x 341,784,857 = 1,196",
+     "note": "New coded diagnoses, the inflow to a diagnosed pool. The paper reports PN incidence broadly flat over 2019-2022"
+    },
+    "eligible_pct": {
+     "value": 0.88,
+     "unit": "share of the pool",
+     "source": "as the Amyloidosis block: HLA-C*05:01 carriers about 12% of more than 600 trial samples (Intellia 10-Q for Q2 2026 (0001193125-26-337952, filed 2026-08-06), MD&A; call details via search summaries). Label otherwise expected to read as Amvuttra's PN indication, 'the polyneuropathy of hereditary transthyretin-mediated amyloidosis in adults' (book labels table, setid 8db0facb-81b6-4006-9239-27dc6409c5d3), with no stage restriction",
+     "note": "JUDGEMENT, as the CM block. Case for lower: the label is hereditary only and Laires does not split variant from wild-type; mixed-phenotype patients coded with neuropathy may be wild-type or V142I carriers whose neuropathy has another cause (41% of 82 V142I carriers at Penn had PN, 13% possibly or probably from amyloid; PMID 42048769)"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.8119,
+     "unit": "share of untreated eligible patients still eligible the next year",
+     "source": "stationary pool: 5,161 / (5,161 + 1,196) = 0.8119 (Laires 2025, PMID 41469145)",
+     "note": "JUDGEMENT, the remternetug method. Case for higher: Laires reports ATTR-PN prevalence rose 15% to 23% over 2019-2022, so the pool may be growing rather than stationary"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0719,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "Incumbent: Amvuttra's US hATTR-PN launch (June 2022), before its CM label. US sales $411.169mm in FY2023 and $630.613mm in FY2024 (book asset_revenue_regions, 10-K 0001628280-26-007497); at $358,324 a patient-year, 1,147 and 1,760 on therapy. Starts in 2024 = 1,760 - 1,147 + 0.2072 x (1,147 + 1,760) / 2 = 914; over the pool 5,161 + 1,196 = 6,357, 14.37% a year. x 0.5 = 0.0719",
+     "note": "JUDGEMENT: the same 0.5 multiple as the CM block, for the same reasons. The 2024 starts include switches from Onpattro (its US sales fell from $97.7mm to $74.8mm) and off-label cardiac use (70% of Optum vutrisiran starters had heart failure; PMID 42455256). Engine check (eligible 0.88, ex-US 1.3365, carryover 0.8119, k 1.08, midpoint 2.2): starts peak near 460 a year worldwide (about 340 US) in 2035"
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "as the Amyloidosis block: Enhertu fit carried by the MK-1045 seed and reused by lonvo-z",
+     "note": "JUDGEMENT to reuse it"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "Enhertu fit (lookup.py seed MK-1045)",
+     "note": "Unshifted: ATTRv-PN is the first launch and sets forecast_start_year"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}
