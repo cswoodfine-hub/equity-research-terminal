@@ -43,7 +43,9 @@ evidence and a row carrying both should say so.
 
 from __future__ import annotations
 
-ZEPBOUND_ASSET_ID = 13
+# Zepbound, by filer and brand. Asset ids are assigned at build time and move between
+# rebuilds: a constant 13 read Camzyos in the published database and measured 0.36%.
+ZEPBOUND = ("LLY", "Zepbound")
 
 # The accessions the revenue is read from. Named in the basis string so a row built on
 # this grades as arithmetic on filings, which is what it is, rather than as nothing.
@@ -69,17 +71,31 @@ def net_price(conn, asset_id: int) -> float | None:
     return listed * share
 
 
-def _revenue(conn, annualise: str) -> dict:
+def zepbound_id(conn) -> int | None:
+    """Zepbound's asset id in this database, or None where it is not held.
+
+    Matched on brand alone, never generic: Mounjaro is tirzepatide too, and its diabetes
+    revenue is not a count of obese patients.
+    """
+    ticker, brand = ZEPBOUND
+    row = conn.execute(
+        """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+            WHERE c.ticker = ? AND LOWER(TRIM(a.brand_name)) = LOWER(?)
+            ORDER BY a.is_marketed DESC, a.id LIMIT 1""", (ticker, brand)).fetchone()
+    return row["id"] if row else None
+
+
+def _revenue(conn, zepbound: int, annualise: str) -> dict:
     """{year: revenue} in the same money unit as the price, with the latest year's pace
     annualised. Returns whole currency units divided down to millions."""
     out: dict = {}
     for row in conn.execute(
             "SELECT fiscal_year, period, value FROM asset_revenue"
-            " WHERE asset_id = ? AND period = 'FY'", (ZEPBOUND_ASSET_ID,)):
+            " WHERE asset_id = ? AND period = 'FY'", (zepbound,)):
         out[row["fiscal_year"]] = row["value"] / 1e6
     quarters = {r["period"]: r["value"] / 1e6 for r in conn.execute(
         "SELECT period, value FROM asset_revenue WHERE asset_id = ? AND fiscal_year = ?",
-        (ZEPBOUND_ASSET_ID, LAST_YEAR))}
+        (zepbound, LAST_YEAR))}
     if annualise == "quarter" and "Q2" in quarters:
         out[LAST_YEAR] = quarters["Q2"] * 4
     elif annualise == "half":
@@ -96,8 +112,12 @@ def measure(conn, asset_id: int, *, annualise: str = "quarter", pool: str = "unt
     ``asset_id`` is the asset whose price, pool and discontinuation rows define the
     measurement. Every obesity asset in this book carries the same ones, so the answer
     is the same whichever is passed; taking it from a row rather than a constant is what
-    keeps the anchor and the forecast on one set of inputs.
+    keeps the anchor and the forecast on one set of inputs. Zepbound's revenue is found
+    by name, and a database without it has no anchor.
     """
+    zepbound = zepbound_id(conn)
+    if zepbound is None:
+        return None
     price = net_price(conn, asset_id)
     if not price:
         return None
@@ -110,7 +130,7 @@ def measure(conn, asset_id: int, *, annualise: str = "quarter", pool: str = "unt
     if stop is None or not prevalence:
         return None
 
-    revenue = _revenue(conn, annualise)
+    revenue = _revenue(conn, zepbound, annualise)
     if not all(revenue.get(y) for y in range(FIRST_YEAR, LAST_YEAR + 1)):
         return None
 
