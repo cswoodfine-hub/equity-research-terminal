@@ -18,7 +18,7 @@
 | BMY | BMS-986489 | seeded and built |
 | BMY | Iza-bren | refused: US profit split undisclosed |
 | CAPR | Deramiocel (CAP-1002) | seeded and built: Capricor block borrowed from Alnylam; NS's 30% share netted of Capricor's cost of goods; PDUFA 2026-11-22 after a 3-9 advisory vote |
-| DYN | zeleciment basivarsen (DYNE-101) | seeded and built: DM1, priced off Skyclarys; ACHIEVE is registrational, HARMONIA confirmatory; new DM1 incidence 3,076 (Deenen 2024); open: the reused step ramp puts 98% of the peak rate in the 2028 launch year |
+| DYN | zeleciment basivarsen (DYNE-101) | seeded and built: DM1, priced off Skyclarys; ACHIEVE is registrational, HARMONIA confirmatory; new DM1 incidence 3,076 (Deenen 2024); launch curve moved to Vyvgart's measured one (k 0.5633, midpoint 2.0) on review |
 | DYN | Zeleciment Rostudirsen (DYNE-251) | seeded and built: Dyne block borrowed from Alnylam; open: no carryover set, 0.78% discontinuation lets the treated stock reach about 82% of the exon 51 pool, and the ~650 already on Exondys are not netted |
 | EXEL | XL092 | seeded and built: first Exelixis cost block |
 | GPCR | Aleniglipron | seeded and built: Structure cost block borrowed from Lilly, LOE 2041 from the 10-K patent range |
