@@ -8,7 +8,7 @@
 | ARGX | Adimanebart IV | seeded and built |
 | ARGX | Empasiprubart | seeded and built: first argenx cost block |
 | ARWR | Zodasiran | not started |
-| AXSM | AXS-14 (Esreboxetine) | not started |
+| AXSM | AXS-14 (Esreboxetine) | seeded and built: Axsome block borrowed from Neurocrine; Pfizer royalty netted at 4%; fibromyalgia incidence corrected from a myalgia code; open: Savella's sales suggest the peak may be high |
 | AZN | Balcinrenone/dapagliflozin | seeded and built: HF incidence from Khera 2020 |
 | AZN | Rilvegostomig | seeded and built |
 | BAYN | BAY3723113 | held: Japan-only; Bayer has no cost block |
@@ -64,7 +64,7 @@
 | REGN | Mibavademab | refused: Sanofi royalty filed without a rate (10-Q footnote f) |
 | REGN | Pozelimab + Cemdisiran | seeded and built: cemdisiran alone, as filed |
 | REGN | REGN-2Cat | refused: Sanofi royalty filed without a rate (10-Q footnote f) |
-| RGNX | RGX-121-3102 | not started |
+| RGNX | RGX-121-3102 | refused: Nippon Shinyaku pays a "double-digit" royalty with no rate filed, and the IND went on clinical hold on 2026-08-24 with no resubmission planned |
 | RVMD | Zoldonrasib | seeded and built: first-line G12D NSCLC; Revolution block borrowed from Exelixis; Royalty Pharma royalty and daraxonrasib hold apply only in pancreatic, not modelled |
 | SLDB | SGT-003 | not started |
 | SNY | Duvakitug | seeded and built |

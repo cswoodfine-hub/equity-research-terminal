@@ -58,7 +58,8 @@ downloads from this container), then migrate, fold aliases and load the seeds:
 
 An asset is refused when its owner's share of the economics cannot be sourced from a filing
 (a royalty filed without a rate: linerixibat, iza-bren, and Regeneron's fianlimab,
-mibavademab and REGN-2Cat, each footnoted "(f) Sanofi is entitled to receive royalties"), or
+mibavademab and REGN-2Cat, each footnoted "(f) Sanofi is entitled to receive royalties"; RGX-121,
+where REGENXBIO's royalty from Nippon Shinyaku is only "double-digit"), or
 when it has no standalone path. It is held when its revenue would mostly come out of the
 owner's own marketed product (ibuzatrelvir and Paxlovid, PG4 and Prevnar 20, nucresiran and
 Amvuttra, PI-2620 and Tauklarify).
@@ -79,7 +80,7 @@ stated debt weight into an assembled seed. Register the pair in
 `interest_addback.COMPARATORS`. Structure (aleniglipron) borrows Lilly's; Dyne, Capricor and
 Intellia borrow Alnylam's, the book's rare-disease genetic medicine company with its own filed
 lines; Vor borrows argenx's, the gMG incumbent telitacicept is priced against; Revolution Medicines
-borrows Exelixis's; Ionis, whose own filed lines are a loss, borrows Alnylam's. A share netted
+borrows Exelixis's; Ionis, whose own filed lines are a loss, borrows Alnylam's; Axsome, likewise, borrows Neurocrine's. A share netted
 over a borrowed margin (Vor's royalty, Intellia's, Capricor's revenue share) says so and is
 recomputed when the company files a cost of sales.
 
@@ -122,6 +123,9 @@ context files and the book's trials table. The first session's search allowance 
   anchor would put net near 1.9 times this seed's.
 - Zoldonrasib keeps the engine's 12-year LOE default (2043): Revolution's 10-K gives only a
   2031 to 2045 range across the tri-complex portfolio, with no date for the molecule.
+- AXS-14 prices off Savella's 2024 Part D figure, a brand-only price before generic milnacipran
+  launched in March 2026. The house method implies about $298mm of Savella sales against about
+  $103mm reported nationally, so the fibromyalgia peak may be high by up to 2.9 times.
 - `tests/test_refresh.py::test_refresh_populates_then_skips_within_ttl` fails in this
   container because a fetcher reaches the network and the run goes partial; it failed before
   any change in this session.
