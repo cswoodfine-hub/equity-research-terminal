@@ -5706,10 +5706,22 @@ with main:
                     _pf = dict(zip(_pf_names, st.tabs(_pf_names)))
 
                     with _pf["Revenue mix"]:
-                        # Revenue mix leads: what the company earns today, by product, before the
-                        # cliff charts say what is at risk. The mix is the base the rest is read
-                        # against, so it comes first.
+                        # The layer leads the tab: what the company earns, by product, before
+                        # the cliff charts say what is at risk.
                         if mix_drivers:
+                            # The build first, the ring under it. The build says where the
+                            # revenue goes, the same products as bands out to the horizon
+                            # with the reported line over them; the ring says where one year
+                            # of it comes from. It is the forecast tab's chart, drawn here
+                            # because this is the tab about the book that produces it.
+                            try:
+                                _bv = api_get(api_base,
+                                              f"/companies/{ticker}/forecast-verdict")
+                            except (urllib.error.URLError, OSError):
+                                _bv = None
+                            if _bv and _bv.get("ok"):
+                                _revenue_build(_bv)
+
                             section("Revenue mix", f"FY{mix_year}")
                             ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
 
@@ -5804,19 +5816,6 @@ with main:
                                 centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
                                 value_fmt=lambda v: T.num(v / 1e9, 2)),
                                 css_class="chart-mount mix-donut")
-                            # The build under the ring. The mix says where a year of revenue
-                            # comes from; this says where it goes, the same products as bands
-                            # out to the horizon with the reported line over them. It is the
-                            # forecast tab's chart, drawn here because this is the tab about
-                            # the book that produces it.
-                            try:
-                                _bv = api_get(api_base,
-                                              f"/companies/{ticker}/forecast-verdict")
-                            except (urllib.error.URLError, OSError):
-                                _bv = None
-                            if _bv and _bv.get("ok"):
-                                _revenue_build(_bv)
-
                             if named_lines:
                                 note("The grey wedges are revenue the company reports as a "
                                      "line rather than a product: "
