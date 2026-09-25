@@ -17,7 +17,7 @@ both globally and split by region, half-yearly and by full year. That last sheet
 than what most SEC filers disclose, which give a handful of named products and a residual.
 
 This is the pure half: a loaded workbook in, records out. The download and the database
-write live in ``fetchers/financials_roche.py``.
+write live in ``fetchers/financials_ir.py``.
 
 THE SHEET IS A HUMAN DOCUMENT AND IS READ AS ONE. Three things about it decide this parser.
 
@@ -464,3 +464,56 @@ def shares_from(records: list[dict]) -> dict:
            if r["metric"] == EPS_METRIC and r["value"]}
     return {year: attributable[year] / eps[year] for year in sorted(attributable)
             if year in eps}
+
+
+# --- the whole book ------------------------------------------------------------
+SALES_SHEET = "Group Sales CHF"
+DIVISION = "Pharmaceuticals Division"
+NOTE = "Roche Finance Information Tool, group financial data workbook"
+
+
+def source_urls(today=None) -> list[str]:
+    """The workbook's address. Roche keeps one address and replaces the file behind it."""
+    return [SOURCE_URL]
+
+
+def read_book(book) -> tuple[list[dict], list[str]]:
+    """Every record this workbook gives the book, and what failed. A statement that does
+    not tie writes nothing, and products that do not sum to the division write nothing."""
+    income = cells(book[INCOME_SHEET])
+    balance = cells(book[BALANCE_SHEET])
+    products = cells(book[PRODUCT_SHEET])
+    sales = cells(book[SALES_SHEET])
+    notes: list[str] = []
+
+    problems = reconcile(income)
+    if problems:
+        notes.extend(problems)
+        notes.append("the income statement did not tie, so no statement row was "
+                     "written: check the sheet's labels against roche.py")
+        statement = []
+    else:
+        statement = ([{**r, "kind": "income"} for r in parse_income(income)]
+                     + [{**r, "kind": "balance"} for r in parse_balance(balance)])
+        for year, count in shares_from(parse_income(income)).items():
+            # The metric name the rest of the book reads. forecast_view._diluted_shares
+            # looks for WeightedAverageDilutedShares first and otherwise falls back to
+            # group net income over earnings per share, which for Roche is wrong by the
+            # non-controlling interest: 13,799 / 16.04 is 860.3mm against the true
+            # 803.0mm, because the per-share figure is struck on the 12,880mm
+            # attributable to shareholders. Writing the count under the name the reader
+            # already uses is what keeps that fallback off it.
+            statement.append({
+                "kind": "income", "metric": "WeightedAverageDilutedShares",
+                "fiscal_year": year, "value": count, "unit": "shares",
+                "label": "earnings attributable to shareholders over diluted "
+                         "earnings per share"})
+
+    product_rows = parse_products(products)
+    product_problems = reconcile_products(product_rows, division_sales(sales, DIVISION))
+    if product_problems:
+        notes.extend(product_problems)
+        notes.append("the per-product sales did not sum to the division, so no "
+                     "product revenue was written")
+        product_rows = []
+    return statement + [{**r, "kind": "product"} for r in product_rows], notes

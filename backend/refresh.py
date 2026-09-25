@@ -97,7 +97,7 @@ MAX_WORKERS = int(os.getenv("ER_TOOL_REFRESH_WORKERS", "4"))
 def _company_fetchers(company, db_path):
     """Per-company sources: prices, trials, openFDA approvals for everyone; EDGAR
     financials and filings for SEC filers with a CIK; for a company outside the SEC, its
-    own workbook where it publishes one (Roche) or its ESEF reports by LEI (Bayer)."""
+    own workbook where it publishes one (Roche, Bayer) or else its ESEF reports by LEI."""
     fetchers = [
         PricesFetcher(company["ticker"], db_path),
         IntradayPricesFetcher(company["ticker"], db_path),
@@ -134,13 +134,15 @@ def _company_fetchers(company, db_path):
         fetchers.append(FilingTextEdgarFetcher(company["ticker"], db_path))
     elif company["ticker"] in IR_WORKBOOKS:
         # A company with no CIK cannot be reached through EDGAR at all, and two in this
-        # universe have none. Where one publishes a machine-readable statement of its own,
+        # universe have none. Both publish a machine-readable statement of their own, and
         # that is the route: Roche's investor Finance Information Tool carries a workbook
-        # holding the income statement, the balance sheet and per-product regional sales.
+        # of group financial data, and Bayer's online annual report carries every table in
+        # it as one workbook.
         fetchers.append(FinancialsIrFetcher(company["ticker"], db_path))
     elif (company["lei"] or "").strip():
-        # The other one, Bayer, is found by its LEI in the index of ESEF annual reports:
-        # the EU's inline XBRL, tagged in the same ifrs-full taxonomy a 20-F is.
+        # An EU filer with no workbook would be found by its LEI in the index of ESEF
+        # annual reports. Bayer was meant to be, but the index held no German filer at all
+        # on 2026-09-25, so it reads its workbook above instead.
         fetchers.append(FinancialsEsefFetcher(company["ticker"], db_path))
     return fetchers
 

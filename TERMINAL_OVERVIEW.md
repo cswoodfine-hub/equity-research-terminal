@@ -21,9 +21,9 @@ which cannot be bought after the fact.
 Notes on coverage:
 - Most file with the SEC (10-K / 8-K). European names (AZN, GSK, NVO, SNY) file 20-F / 6-K.
 - **Roche (ROG) and Bayer (BAYN) are not SEC registrants at all**, so EDGAR holds no
-  financials for them. Bayer's come from its ESEF annual reports instead (filings.xbrl.org,
-  keyed by LEI). Roche, being Swiss, files no ESEF, and its come from the Finance
-  Information Tool workbook it publishes for investors.
+  financials for them. Each publishes a workbook of its own and that is the route:
+  Roche's Finance Information Tool, and every table of Bayer's online annual report. The
+  ESEF index (filings.xbrl.org) was built for Bayer and carries no German filer.
 - Loss-of-exclusivity data is **US only** (FDA Orange Book and Purple Book). A product
   protected in the US to 2035 can face a generic in Europe years earlier, and no free
   source publishes those foreign dates.
@@ -98,7 +98,8 @@ Backend and frontend run as two processes:
 |---|---|---|
 | **SEC EDGAR** (companyfacts XBRL) | Reported financials: revenue, net income, R&D | Daily |
 | **SEC EDGAR** (submissions) | Recent filings, 8-K / 6-K material-event monitoring | Daily |
-| **filings.xbrl.org** (ESEF xBRL-JSON) | Reported financials for an EU filer outside the SEC (Bayer), annual only | Daily |
+| **Company workbooks** (Roche Finance Information Tool, Bayer annual report tables) | Reported financials and per-product sales for the two filers outside the SEC, annual | Daily |
+| **filings.xbrl.org** (ESEF xBRL-JSON) | Reported financials for an EU filer outside the SEC that publishes no workbook; it carries no German filer | Daily |
 | **SEC Financial Statement Data Sets** | Per-product revenue (keeps the segment dimension the XBRL API collapses) | Quarterly |
 | **ClinicalTrials.gov v2** | Trials: phase, status, primary completion date, enrolment, conditions | Daily |
 | **openFDA** (drugsfda) | FDA approvals, queried by both manufacturer and sponsor to catch acquired subsidiaries | Daily |
@@ -274,7 +275,8 @@ the fixture.
   exclusivity.
 - Prices come from yfinance, which is unofficial and can rate-limit; failures are reported
   softly rather than crashing.
-- Roche and Bayer have no SEC financials in the app (they are not SEC registrants).
+- Roche and Bayer have no SEC financials (they are not SEC registrants). Theirs come from
+  their own workbooks, which carry annual figures only: two years for Bayer, one for Roche.
 - Trial-to-asset mapping is imperfect; an override table (`trial_asset_map`) exists for
   misses.
 - The generated note runs on a small free model by default, so it can add mild editorial
