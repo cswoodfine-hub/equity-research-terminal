@@ -1,0 +1,33 @@
+# Programmes a company has stopped. backend/discontinued.py retires each one on every
+# refresh: the asset, its trials and its snapshots stay, and the pipeline views, the
+# late-stage coverage count and the valuation skip it. Keyed by ticker and the asset's name,
+# the key an assumption seed and data/pipeline_sort.csv use, since asset ids are rebuilt
+# with the database.
+#
+# A row needs a company statement, a filing or a registry termination saying the programme
+# stopped. A trial status alone is not enough, because the registry lags the companies:
+# REGN7999 and nivisnebart were stopped while a trial still read recruiting. Nor is silence:
+# gandotinib has had no trial since 2015 but no discontinuation was ever announced, so it
+# is not here. stopped_on is the date the source gives for the stop or the statement, day
+# or month, and blank where it gives neither.
+#
+# Seeded from the DEAD rows of the late-stage sort, whose evidence each row carries.
+ticker,name,stopped_on,basis
+ABBV,Navitoclax,,"AbbVie disclosed in its Q1 2024 10-Q that it discontinued the Phase 3 TRANSFORM-2 study (NCT04468984) after TRANSFORM-1 data and regulator feedback, and no myelofibrosis filing followed (https://www.sec.gov/Archives/edgar/data/1551152/000155115224000020/abbv-20240331.htm)."
+BNTX,RO7198457 intravenous (IV),2026-08-28,"BioNTech's 6-K filed 2026-08-28 (0001776985-26-000061) terminated NCT04486378, the only trial on this row (adjuvant ctDNA-positive CRC); the molecule continues in adjuvant PDAC and the book also holds it as Roche's Autogene Cevumeran row."
+GILD,Zimberelimab,,"Gilead and Arcus discontinued Phase 3 STAR-221 and Phase 2 EDGE-Gastric after the interim overall survival analysis, and STAR-121 also stopped for futility (https://www.gilead.com/company/company-statements/2025/gilead-provides-update-on-phase-3-star-221-study); zimberelimab has no programme of its own left."
+GSK,BLU-5937,2026-07-17,"BLU-5937 is camlipixant, and GSK ended its development in refractory chronic cough on 2026-07-17 after CALM-2 missed its primary endpoint, which covers this row's only trial NCT07650084, while the IBS work sits under the Camlipixant row (https://www.gsk.com/en-gb/media/press-releases/gsk-provides-an-update-on-calm-1-and-calm-2-phase-iii-trials/)."
+GSK,Cobolimab,,"GSK discontinued cobolimab at its Q3 2025 results after the phase 3 COSTAR Lung trial (NCT04655976) missed overall survival, and the EMA holds a notice ending its paediatric plan, so the dossier's paediatric NCT06521567 is a closing study (https://www.oncologypipeline.com/apexonco/gsks-trio-cancer-discontinuations)."
+GSK,GSK4527226,2026-04-29,"Alector and GSK stopped the phase 2 PROGRESS-AD trial of nivisnebart (AL101/GSK4527226) on 2026-04-29 after an interim futility analysis, and the extension NCT07105709 still reads recruiting only because its record was last updated 2026-02-02 (https://investors.alector.com/news-releases/news-release-details/alector-discontinue-phase-2-progress-ad-trial-nivisnebart)."
+JNJ,JNJ-81201887,,A J&J spokesperson said the JNJ-1887 geographic atrophy programme will be discontinued after the Phase 2b PARASOL topline (https://www.fiercebiotech.com/biotech/jj-axes-eye-disease-gene-therapy-after-key-phase-2b-readout); the only open trial is extension study NCT06635148.
+MRK,Pembrolizumab/Vibostolimab Co-Formulation,,Merck discontinued KeyVibe-008 (NCT05224141) after overall survival met futility criteria at interim analysis (https://www.merck.com/news/merck-provides-update-on-phase-3-keyvibe-008-trial-evaluating-an-investigational-fixed-dose-combination-of-vibostolimab-and-pembrolizumab-in-patients-with-extensive-stage-small-cell-lung-cancer/).
+NVS,CFZ533,,"Novartis said it stopped work on iscalimab (CFZ533) on benefit/risk grounds after its Sjogren's data (https://www.fiercebiotech.com/biotech/novartis-gives-anti-cd40-antibody-treat-sjogrens-due-benefitrisk-profile), and the only trial left, NCT03827798, passed primary completion on 2024-12-04."
+NVS,JDQ443,,"Novartis halted opnurasib (JDQ443) across all studies including Phase 3 KontRASt-02 NCT05132075, which closed at 95 patients, with only a rollover study left (https://firstwordpharma.com/story/5862178)."
+PFE,PF-06838435/ fidanacogene elaparvovec,2025-02,"Pfizer discontinued Beqvez (fidanacogene elaparvovec) in all markets in February 2025 on weak demand (https://www.cgtlive.com/view/pfizer-jettisons-fda-approved-hemophilia-b-gene-therapy-beqvez), and the EMA lists it as withdrawn; FDA approval letter 2024-04-25 (https://www.fda.gov/media/178139/download)."
+PFE,PF-06939926,2024-07,Phase 3 CIFFREO (NCT04281485) missed its primary endpoint in June 2024 and Pfizer discontinued fordadistrogene movaparvovec the following month (https://www.cgtlive.com/view/pfizer-development-dmd-gene-therapy-fordadistrogene-movaparvovec).
+PFE,PF-07055480 (giroctocogene fitelparovec): Recombinant AAV2/6 Human Factor VIII Gene Therapy,,"Pfizer ceased development of giroctocogene fitelparvovec, declined to file the BLA and MAA, and terminated the Sangamo licence, returning all rights (https://investor.sangamo.com/news-releases/news-release-details/sangamo-therapeutics-regain-full-rights-hemophilia-gene-therapy)."
+RCKT,RP-L102,2025-07,"Rocket stopped investing in RP-L102 in July 2025, withdrew the EU MAA, and withdrew the FDA BLA on 2025-10-03 as part of its pivot to cardiovascular programmes (https://www.pharmaceutical-technology.com/news/rocket-ditches-blood-disorder-gene-therapy-in-ongoing-pipeline-pivot/)."
+REGN,REGN7999,2026-07-30,"Regeneron's 10-Q filed 2026-07-30 (0000872589-26-000025) states it has discontinued further clinical development of REGN7999, the TMPRSS6 antibody studied in beta-thalassemia iron overload (NCT06421636)."
+SNY,balinatunfib,,"Sanofi discontinued balinatunfib at its Q2 2026 results after interim Phase 2 analyses in Crohn's disease and ulcerative colitis missed internal efficacy expectations, following an earlier miss in psoriasis (https://pharmaphorum.com/news/sanofi-drops-two-more-programmes-rd-clear-out)."
+SNY,SAR441566,,"SAR441566 is balinatunfib, and Sanofi discontinued the programme at its Q2 2026 results after interim analyses of the Crohn's (NCT06637631) and ulcerative colitis (NCT06867094) Phase 2 studies missed internal efficacy expectations (https://pharmaphorum.com/news/sanofi-drops-two-more-programmes-rd-clear-out)."
+SNY,SAR443122,,"SAR443122 is eclitasertib, which Sanofi dropped in ulcerative colitis (NCT05588843), its last indication, at its full-year 2025 results after ending cutaneous lupus in 2023 (https://www.fiercebiotech.com/biotech/sanofi-keeps-mum-future-denali-pact-after-scrapping-final-ripk1-inhibitor)."

@@ -15,6 +15,7 @@ import asset_revenue
 import assumptions as assumptions_module
 import company_lines
 import db
+import discontinued
 import forecast
 import other_claims
 import loe_link
@@ -690,6 +691,7 @@ def company_rollup(db_path, ticker: str):
         # One reported line modelled under two assets is counted twice below. Named
         # rather than dropped, since which of the two is the copy is the analyst's call.
         shared = asset_revenue.shared_lines(conn, company["id"])
+        stopped = discontinued.retired(conn)
     finally:
         conn.close()
 
@@ -698,6 +700,14 @@ def company_rollup(db_path, ticker: str):
     rnpv_total = 0.0
     for asset_id in dict.fromkeys(owned + partnered):
         state = asset_forecast(db_path, ticker, asset_id)
+        # A programme its company has stopped is worth nothing whatever its rows say, and
+        # is named with the reason rather than valued (backend/discontinued.py).
+        if asset_id in stopped:
+            when = stopped[asset_id]["stopped_on"] or "date not stated"
+            refused.append({"asset_id": asset_id, "name": (state or {}).get("name"),
+                            "missing": [f"programme discontinued ({when}): "
+                                        f"{stopped[asset_id]['basis']}"]})
+            continue
         if not state or not state.get("ok"):
             if state:
                 refused.append({"asset_id": asset_id, "name": state.get("name"),

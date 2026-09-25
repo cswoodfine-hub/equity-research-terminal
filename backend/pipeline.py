@@ -43,6 +43,14 @@ def is_follow_up(title: str | None) -> bool:
     return bool(title and _FOLLOW_UP_RE.search(title))
 
 
+# A programme its company has stopped is not in development, whatever the registry still
+# says about its trials (backend/discontinued.py). A trial mapped to no asset is kept, so
+# the unattributed tally is unchanged.
+_LIVE = """
+               AND (t.asset_id IS NULL
+                    OR t.asset_id NOT IN (SELECT asset_id FROM retired_programmes))"""
+
+
 def build_pipeline(db_path=None) -> list[dict]:
     """Compounds in development per company and phase, for the cross-company grid.
 
@@ -84,7 +92,7 @@ def build_pipeline(db_path=None) -> list[dict]:
             SELECT t.sponsor_company_id AS cid, t.asset_id, t.phase
               FROM trials t LEFT JOIN assets a ON a.id = t.asset_id
              WHERE t.phase IN ({_PLACEHOLDERS}) AND t.sponsor_company_id IS NOT NULL
-               AND COALESCE(a.is_marketed, 0) = 0
+               AND COALESCE(a.is_marketed, 0) = 0{_LIVE}
             """,
             PHASES,
         ):
@@ -111,7 +119,7 @@ def build_pipeline(db_path=None) -> list[dict]:
             SELECT t.sponsor_company_id AS cid, t.title
               FROM trials t LEFT JOIN assets a ON a.id = t.asset_id
              WHERE t.phase IN ({_PLACEHOLDERS}) AND t.phase != ?
-               AND COALESCE(a.is_marketed, 0) = 0
+               AND COALESCE(a.is_marketed, 0) = 0{_LIVE}
             """,
             (*PHASES, POST_APPROVAL),
         ):
@@ -163,6 +171,7 @@ def programmes(db_path, ticker: str) -> list[dict] | None:
                    t.primary_completion_date AS due, t.enrollment, t.conditions
               FROM assets a JOIN trials t ON t.asset_id = a.id
              WHERE a.owner_company_id = ? AND a.is_marketed = 0
+               AND a.id NOT IN (SELECT asset_id FROM retired_programmes)
              ORDER BY (t.primary_completion_date IS NULL), t.primary_completion_date
             """, (company["id"],)).fetchall()
 

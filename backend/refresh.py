@@ -40,6 +40,7 @@ import biologic_loe
 import catalysts
 import consensus as consensus_module
 import curated_register
+import discontinued
 import db
 import deals
 import diff
@@ -351,6 +352,9 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     _register = curated_register.apply(db_path)
     mapped["register_added"], mapped["register_retired"] = (_register["added"],
                                                             _register["retired"])
+    # Programmes the company has stopped, retired after the merges so a retirement
+    # lands on the row that survives them. Rebuilt from the file every run.
+    mapped["programmes_retired"] = discontinued.apply(db_path)["retired"]
     # The curated assumption seeds, insert-only: a rebuilt database gets the layer back,
     # and an analyst's live edit is never overwritten by the file it started from.
     conn = db.get_connection(db_path)
@@ -579,6 +583,9 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     _register = curated_register.apply(db_path)
     mapped["register_added"], mapped["register_retired"] = (_register["added"],
                                                             _register["retired"])
+    # Programmes the company has stopped, retired after the merges so a retirement
+    # lands on the row that survives them. Rebuilt from the file every run.
+    mapped["programmes_retired"] = discontinued.apply(db_path)["retired"]
     # The curated assumption seeds, insert-only: a rebuilt database gets the layer back,
     # and an analyst's live edit is never overwritten by the file it started from.
     conn = db.get_connection(db_path)
