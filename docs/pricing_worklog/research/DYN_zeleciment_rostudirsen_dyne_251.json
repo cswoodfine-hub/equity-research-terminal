@@ -1,0 +1,93 @@
+{
+ "ticker": "DYN",
+ "name": "Zeleciment Rostudirsen (DYNE-251)",
+ "summary": "Z-rostudirsen (DYNE-251) is Dyne's Fab-conjugated PMO that skips exon 51 of the dystrophin gene, dosed IV at 20 mg/kg every four weeks. The BLA, built on the registrational expansion cohort of the Phase 1/2 DELIVER trial (NCT05524883, dystrophin at 6 months), seeks accelerated approval for DMD amenable to exon 51 skipping; FDA granted Priority Review with a PDUFA date of 2027-01-21, and FORZETTO (NCT07608432, ambulatory ages 4 to 18, rise-from-floor velocity at week 73, primary completion 2030-12) is the confirmatory Phase 3. Price anchor: Exondys 51 (eteplirsen), the marketed exon 51 skipper, at its $16/mg WAC, $748,800 a year for ICER's 30 kg reference patient, less Sarepta's filed 18.5% gross-to-net; the book holds no CMS rows for Exondys. Pool: the book's DMD figures (11,952 prevalent, 367 a year) restricted to the 13% amenable to exon 51 skipping. Uptake anchor: Exondys's own revenue, converted to US patient-equivalents at this net price, reached 42% of the exon 51 pool in its fifth year (2021); the engine needs a 0.0953 annual capture on a step-shaped ramp to match that.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Dyne 10-Q for Q2 2026 (0001193125-26-323639, MD&A): FORZETTO randomises to 20 mg/kg z-rostudirsen or placebo every four weeks (Q4W) IV; Dyne JPM 2026 deck (8-K 0001193125-26-009782, EX-99): registrational dose 20 mg/kg Q4W",
+   "note": "Continuous dosing every four weeks, not a single course"
+  },
+  "list_price_per_patient": {
+   "value": 0.7488,
+   "unit": "mm USD per patient-year",
+   "source": "ICER, 'Deflazacort, Eteplirsen, and Golodirsen for Duchenne Muscular Dystrophy' (2019; icer.org/assessment/duchenne-muscular-dystrophy-2019/ and the modeling analysis plan, icer.org/wp-content/uploads/2020/10/ICER_DMD_Modeling_Analysis_Plan_040919.pdf): eteplirsen WAC $16 per mg, $748,800 a year for a 30 kg patient at the label dose of 30 mg/kg weekly (16 x 30 x 30 x 52 = 748,800). Vial prices at launch: $1,600 per 100 mg (2 mL) and $8,000 per 500 mg (10 mL) (BioPharma Dive, 'Sarepta names that price', biopharmadive.com/news/sarepta-price-eteplirsen-dmd/426636/)",
+   "note": "JUDGEMENT on the comparator and the reference weight. The caller asked for Exondys via lookup.py demand, but the book holds no drug_demand row for Exondys 51, Vyondys 53, Amondys 45 or Elevidys (checked by brand name and by asset_id 107), data.cms.gov is blocked from this container (403), and two searches did not surface its CMS Part B figure. A published WAC beats the CMS convention in any case. Exondys is the only marketed exon 51 skipper and z-rostudirsen seeks the same label, so it is priced at parity. Case for higher: price is weight-based and EVOLVE's commercial eteplirsen patients averaged 14.0 years of age, heavier than 30 kg (at 45 kg the same WAC gives $1,123,200); the $16/mg WAC dates from 2019 and later increases were not checked; Dyne may ask a premium for monthly rather than weekly infusions and higher dystrophin. Case for lower: DELIVER enrolled ages 4 to 16 and a 20 kg boy costs $499,200; Sarepta's own launch statement put the average near $300,000 a year (BioPharma Dive, as above); payers may resist a second accelerated approval in the same exon."
+  },
+  "gross_to_net_pct": {
+   "value": 0.1849,
+   "unit": "share taken off list",
+   "source": "Sarepta FY2024 10-K (0000950170-25-029973), Note 7 reserves table: FY2023 provision for chargebacks, rebates, prompt pay and other accruals $258,646k, prior-year adjustments -$4,567k, net product revenue $1,144,876k. Gross = 1,144,876 + 258,646 - 4,567 = 1,398,955; 258,646 / 1,398,955 = 0.1849",
+   "note": "Direction checked: share off list, so net is $610,358 a patient-year. Anchor is a WAC, so neither house convention applies; the discount is Sarepta's own filed one. FY2023 is used because PMOs were 82.5% of product revenue that year ($944.5mm of $1,144.9mm). FY2024 gives 0.1842 (same table); FY2025 gives 0.2140 (FY2025 10-K 0001193125-26-084144), lifted by PHS chargebacks after Elevidys lost its pediatric designation. Case against: the figure blends in Elevidys; a new entrant may concede larger rebates to win formulary position against Exondys."
+  },
+  "discontinuation_pct": {
+   "value": 0.0078,
+   "unit": "share of the treated stock stopping per year",
+   "source": "EVOLVE, Phase 4 US observational study of commercial PMOs (Tian C et al., J Comp Eff Res 2026;15(5):e250108, doi:10.57264/cer-2025-0108, PMID 41961051; NCT06606340): 120 of 126 eteplirsen patients (95.2%) continued treatment over a mean 6.2 years on therapy; 34 of 37 who lost ambulation stayed on eteplirsen. 1 - (120/126)^(1/6.2) = 0.0078",
+   "note": "Constant hazard from the continuation share. JUDGEMENT that it transfers: EVOLVE is Sarepta-sponsored and enrolled patients already on therapy, so it is a survivor cohort and a floor; deaths (DMD life expectancy near 30 years) and switches to Elevidys are not in it. Case for higher: Exondys's revenue flattened after 2021 (US PMO revenue $797.9mm 2023, $816.9mm 2024, $800.4mm 2025, with Vyondys and Amondys growing inside it), and the engine only reproduces that plateau with 15-20% a year; at 0.0078 the treated stock keeps accumulating. Case for lower: none measured"
+  },
+  "forecast_start_year": {
+   "value": 2027,
+   "unit": "year",
+   "source": "Dyne 8-K 2026-07-20 (0001193125-26-308343): BLA accepted with Priority Review, PDUFA target action date 2027-01-21, 'potential U.S. launch of z-rostudirsen in the first quarter of 2027'; repeated in the Q2 2026 release (8-K 0001193125-26-323940)",
+   "note": "The first full year after the current one, and the launch year. The confirmatory FORZETTO primary completion (2030-12) does not gate accelerated approval. The ramp below allows for 2027 being a launch year"
+  },
+  "exus_multiple": {
+   "value": 0.2064,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Sarepta FY2025 10-K (0001193125-26-084144), Note 7: PMO Products net revenue United States $800,382k, Rest of World $165,183k in 2025; 165,183 / 800,382 = 0.2064",
+   "note": "JUDGEMENT on the comparator: the PMOs (Exondys, Vyondys, Amondys) are the only filed geographic split for exon-skipping drugs. The ratio was 0.184 in 2024 and 2023 and 0.129 in 2022 (FY2024 10-K 0000950170-25-029973). Sarepta's ex-US sales come through distributors in South America, Europe and the Middle East without an EU approval: the book's EMA register lists Exondys (eteplirsen, EMEA/H/C/004355) as Refused, and golodirsen and casimersen are absent. Case for higher: Dyne says it 'continues to pursue approval pathways outside of the U.S.' (8-K 0001193125-26-323940) and puts the EU DMD population at about 16,000 against 12,000 in the US (8-K 0001193125-26-009782); an EU approval would lift this. Case for lower: Dyne has no ex-US commercial partner or infrastructure on file"
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Dyne FY2025 10-K (0001193125-26-084178, patents section): Dyne owns its DMD patent estate (29 issued US patents, expiring 2039 and 2042); the only in-licence, from the University of Mons, covers oligonucleotides for the FSHD programme; the December 2025 Avidity cross-licence is 'royalty-free, fully paid up, non-exclusive'",
+   "note": "No partner, royalty or profit share on z-rostudirsen found in the 10-K, the Q2 2026 10-Q (0001193125-26-323639) or the 2026 8-Ks"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Muscular Dystrophy, Duchenne",
+   "fields": {
+    "prevalence": {
+     "value": 11952,
+     "unit": "patients",
+     "source": "carried by the book: the deramiocel (CAPR) seed's figure, /tmp/claude-0/price/out/CAPR_deramiocel_cap_1002.json: Crisafulli S et al., Orphanet J Rare Dis 2020;15:141 (PMID 32503598, doi:10.1186/s13023-020-01430-8), 7.1 per 100,000 males, applied to 168.34mm US males (Census Bureau Vintage 2024)",
+     "note": "Carried by the book: the same figure as the deramiocel seed so one disease keeps one number, written out rather than null so it does not depend on the order seeds load. Independent check agrees: Dyne's JPM 2026 deck puts US DMD at about 12,000 (8-K 0001193125-26-009782), 0.4% away. Any correction should be settled for both assets together"
+    },
+    "incidence": {
+     "value": 367,
+     "unit": "patients per year",
+     "source": "carried by the book: the deramiocel (CAPR) seed's figure: Crisafulli 2020 birth prevalence 19.8 per 100,000 live male births x 1,854,394 US male births in 2024 (3,628,934 births, NVSR Births: Final Data for 2024)",
+     "note": "Carried by the book, same figure as the deramiocel seed. The engine passes it through eligible_pct: 367 x 0.13 = 48 exon 51-amenable boys a year"
+    },
+    "eligible_pct": {
+     "value": 0.13,
+     "unit": "share of the pool",
+     "source": "Aartsma-Rus A et al., 'Theoretic applicability of antisense-mediated exon skipping for Duchenne muscular dystrophy mutations', Hum Mutat 2009;30:293-9 (PMID 19156838, doi:10.1002/humu.20918), Leiden DMD mutation database: 'Exon 51 skipping ... would be applicable to the largest group (13%) of all DMD patients'. Dyne cites the same 13% (8-K 0001193125-26-009782). BLA population: 'individuals with ... DMD amenable to exon 51 skipping' (8-K 0001193125-26-308343)",
+     "note": "How the pool is restricted: the book's all-DMD prevalence and incidence are multiplied by the 13% whose mutation is amenable to exon 51 skipping, 11,952 x 0.13 = 1,554 US patients plus 48 a year. That is the only filter. No age or ambulatory filter is applied, because the BLA asks for the whole exon 51-amenable population (Exondys's label has neither restriction) and DELIVER enrolled both ambulant and non-ambulant boys aged 4 to 16 (8-K 0001193125-26-009782). JUDGEMENT that the label follows the BLA. Case for lower: FDA could restrict an accelerated approval to DELIVER's ages or to ambulatory patients (FORZETTO is ambulatory only, ages 4 to 18), and only genetically confirmed patients are addressable. The 13% comes from a 2009 database; the TREAT-NMD database (Bladen CL et al., Hum Mutat 2015, PMID 25604253) reports exon-skipping applicability overall, not by exon, in its abstract"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0953,
+     "unit": "share of the eligible untreated pool captured per year",
+     "source": "Exondys 51 net revenue $154.6mm 2017 (Sarepta FY2017 results release, investorrelations.sarepta.com), $380.7mm 2019, $422.0mm 2020, $454.4mm 2021 (Sarepta FY2021 10-K, sec.gov/Archives/edgar/data/873303/000095017022002517/srpt-20211231.htm). Converted to US patient-equivalents at this seed's net price ($610,358): x 0.8854 US share (PMO US $747.1mm of $843.8mm in 2022, FY2024 10-K 0000950170-25-029973) / 0.6104 = 224 (2017), 552 (2019), 612 (2020), 659 (2021). Over the US exon 51 pool of 1,554, Exondys held 14% in its first full year and 42% in its fifth (2021). The engine (pool 1,554, inflow 48 a year, discontinuation 0.0078, ramp below) needs 0.0953 to reach 659 in year five",
+     "note": "Solved back from the incumbent, as a revenue-parity figure: patient-equivalents at the model's own price, so the model reproduces Exondys's revenue at the same age of launch whatever the true average weight. JUDGEMENT: the multiple over Exondys is 1.0. The 2018 figure was not confirmed ($295-305mm guidance only) and is left out; the US share for 2017 to 2021 is the 2022 PMO share, a judgement. Case for higher: monthly rather than weekly infusions and higher dystrophin expression; Exondys's roughly 650 US patient-equivalents are already genotyped and infusing, so switching is quick. Case for lower: Exondys stays on the market, Elevidys competes for ambulatory patients aged 4 and over, and the engine keeps accumulating past year five (49% of the pool by year six, 78% by year eleven) while Exondys's revenue flattened after 2021, so the long tail is likely overstated (see discontinuation_pct)"
+    },
+    "ramp_steepness": {
+     "value": 4.0,
+     "unit": "logistic k",
+     "source": "Least-squares fit (log errors) of the engine's curve to the four Exondys patient-equivalent points above (224, 552, 612, 659 in years 0, 2, 3, 4 from 2017), with discontinuation 0.0078",
+     "note": "Measured from the closest comparator; the book has no modelled DMD seed to reuse. The fit is a step: Exondys reached its full capture rate in its first full year, and any k of 4 or more with a midpoint of -1 or earlier fits alike (a free fit settles at k 4.0, midpoint -2.0, peak 0.12, but overshoots 2021 by 20%). At k 4.0 and midpoint -1.0 the curve gives 98% of peak in year 0. Case against: 2027 is Dyne's launch year (approval 2027-01-21), while 2017 was Exondys's first full year after a September 2016 approval; at this peak the curve undershoots Exondys's early years (150 against 224 in year 0, 423 against 552 in year 2), which partly offsets that"
+    },
+    "ramp_midpoint_year": {
+     "value": -1.0,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness (fit to Exondys 51's revenue-implied US patients)",
+     "note": "A negative midpoint puts the inflection before the first forecast year, which is what a step-shaped launch looks like on this curve. JUDGEMENT to hold -1.0 rather than the free fit's -2.0; the two are near-identical in year 0 (98% against 99.97% of peak). A midpoint of 0.0 would need a peak of 0.1047 to match 2021 and fits the early years four times worse"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

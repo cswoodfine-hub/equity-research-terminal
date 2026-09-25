@@ -39,6 +39,7 @@ WINDOWS = {
     "EXEL": (2023, 2025),     # a block built from its own filed lines, 2026-09-24
     "ARGX": (2025, 2025),     # its first full year of profit; 2023 and 2024 were the turn
     "NBIX": (2023, 2025),     # a block built from its own filed lines, 2026-09-24
+    "ALNY": (2025, 2025),     # its first year of profit; 2023 and 2024 were the turn
 }
 # A charge borrowed from another company follows that company's.
 COMPARATORS = {"VKTX": "LLY"}

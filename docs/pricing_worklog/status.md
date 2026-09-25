@@ -1,7 +1,7 @@
 | Ticker | Asset | Status |
 |---|---|---|
 | ALNY | Nucresiran | held: cannibalises Amvuttra, Alnylam's own TTR silencer |
-| ALNY | Zilebesiran | not started |
+| ALNY | Zilebesiran | seeded and built: first Alnylam cost block |
 | AMGN | ABP 206 | seeded and built: Opdivo biosimilar |
 | AMGN | ABP 692 | seeded and built: Ocrevus biosimilar |
 | AMGN | Dazodalibep | seeded and built |

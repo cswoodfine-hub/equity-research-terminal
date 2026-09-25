@@ -1,0 +1,160 @@
+{
+ "ticker": "VOR",
+ "name": "Telitacicept",
+ "summary": "Telitacicept is RemeGen's dual-target fusion protein that inhibits BAFF (also called BLyS) and APRIL (Vor's description), given 240 mg subcutaneously once a week. Vor Bio holds exclusive rights outside Greater China under a June 2025 licence and pays RemeGen tiered royalties from high single digit to mid-teen percentages (FY2025 10-K 0001193125-26-130451, Note 10). Registrational trials: UPSTREAM MG (NCT06456580; 180 AChR- or MuSK-positive gMG adults; MG-ADL at week 24; topline 1H 2027) and UPSTREAM SjD (NCT07404865; 250 adults with ESSDAI of 5 or more; ESSDAI at week 48; primary completion 2028-12). China has approved it for gMG, SLE, RA and Sjogren's, and conditionally for IgAN. Price anchor: Vyvgart Hytrulo, the self-injected gMG incumbent, at $191,644 per CMS Part D beneficiary in 2024. The engine carries one price for both indications. Uptake anchors: a quarter of Vyvgart's solved plateau share in gMG, the multiple the book's cemdisiran seed uses, and the book's Sjogren's follower share (dazodalibep, 0.0514). Vor's share is 0.70: a 7% royalty struck on argenx's margin, because Vor has no cost rows in the book.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Vor 8-K 0001193125-26-009961 (2026-01-12), exhibit 99.1 (January 2026 presentation, in the book's filing_sections): UPSTREAM MG randomises 1:1 to 'Telitacicept (240mg QW)' or placebo for a 24-week double-blind period, then a 48-week open-label extension on 240 mg QW. UPSTREAM SjD gives telitacicept 'subcutaneously with a pre-filled syringe' against placebo, with ESSDAI change at week 48 as the primary endpoint (Vor release 2026-03-30, ir.vorbio.com/news-releases/news-release-details/vor-bio-doses-first-patient-global-phase-3-upstream-sjd; GlobeNewswire copy)",
+   "note": "Continuous weekly subcutaneous maintenance in two chronic autoimmune diseases, so chronic. The SjD dose in the global trial was not found. RemeGen's China SjD Phase 3 tested 160 mg and 80 mg (8-K 0001193125-26-261661, exhibit 99.2)"
+  },
+  "list_price_per_patient": {
+   "value": 0.191644,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Vyvgart: 'Vyvgart Hytrulo' CMS Medicare Part D 2024, $126,101,724.87 over 658 beneficiaries = $191,644 per beneficiary",
+   "note": "JUDGEMENT on the comparator and on the indication that sets the price. The engine carries one price per asset. gMG is the lead indication: it reads out first (1H 2027 against 2028-12 for SjD), and Vor calls it 'The Beachhead Indication' (8-K 0001193125-26-009961, exhibit 99.1). Telitacicept is a weekly self-injected pre-filled syringe, so it would be dispensed through pharmacies under Part D. Vyvgart Hytrulo is the gMG incumbent in that setting (86 Part D beneficiaries in 2023 and 658 in 2024). The case against, and it is material: (1) The price also applies to Sjogren's, where no drug is approved and the book prices ianalumab at Benlysta's Part D $37,182, 81% lower. In this seed's own engine run, Sjogren's supplies about half of the plateau revenue at the gMG price. Payers may not accept that price for Sjogren's, and a price set for Sjogren's would cut revenue by about four fifths. (2) Per-beneficiary spend in a product's second year includes partial years, so this understates an annual price. Vyvgart IV reads $254,275 in Part D and $231,053 in Part B (the nipocalimab seed's anchor); Vyvgart Hytrulo reads $167,216 in Part B. (3) A late entrant in a crowded class may price below the incumbent to win formulary position. Zilbrysq and Rystiggo, the other self-administered gMG products, have no rows in the book's CMS table. No US price for telitacicept has been published"
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part D per-beneficiary price: halving lands at a median 96% of CMS's own negotiated net prices (backend/gross_to_net.py)",
+   "note": "Direction checked: 0.5 comes off list, so net is $95,822 per patient-year. The anchor row is Part D (lookup.py demand Vyvgart Hytrulo, part 'D'), so the Part B deduction does not apply"
+  },
+  "discontinuation_pct": {
+   "value": 0.4554,
+   "unit": "share of the treated stock stopping per year",
+   "source": "Bell CF et al., Lupus Science & Medicine 2020;7(1):e000357, doi:10.1136/lupus-2019-000357 (MarketScan, 1,879 US patients starting belimumab 2011-2015): 26.2% discontinued within six months; at a constant rate 1 - (1 - 0.262)^2 = 0.4554 a year. The book's ianalumab and dazodalibep seeds carry this figure for Sjogren's",
+   "note": "JUDGEMENT: one value serves both indications. Belimumab is the closest mechanism (it blocks BLyS, one of telitacicept's two targets), and this figure is what the book's two other Sjogren's seeds use. In gMG the book holds two other figures: 0.5 for the anti-FcRns (nipocalimab seed, real-world efgartigimod persistence) and 0.2704 for a continuous C5 inhibitor (cemdisiran seed, zilucoplan French early access, PMID 41904994). 0.4554 sits between them. The case for lower: telitacicept is continuous weekly therapy, not the cycled dosing that drives anti-FcRn stops, so gMG persistence may be nearer the C5 figure. The case for higher: Bell measured IV belimumab in lupus, and injection-site reactions were 17% on telitacicept against 2% on placebo in the pooled safety set (8-K 0001193125-26-009961, exhibit 99.1)"
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "Vor 10-Q for Q2 2026 (0001193125-26-343607, filed 2026-08-11, MD&A in the book's filing_sections): UPSTREAM MG 'Topline data from the trial is anticipated in the first half of 2027'. NCT06456580 primary completion 2027-05, estimated, 180 enrolled (book trials table). NCT07404865 (SjD) primary completion 2028-12, estimated, 250 enrolled",
+   "note": "JUDGEMENT. Vor gives no BLA date in the filings read. With a BLA in 2H 2027 and a standard 12-month review for a new biologic, approval falls in 2H 2028, so 2029 is the first full year. That matches the book rule of two calendar years after the earliest Phase 3 primary completion (dazodalibep and dazukibart seeds). Sjogren's follows about 19 months later; see that block's ramp_midpoint_year. Case for 2030: a first BLA from a sponsor that has never launched a product, with technology transfer under the licence (10-K 0001193125-26-130451, Note 10) and a pre-licence inspection of the manufacturing site to clear. Vor's cash runs 'into early 2029' (10-Q), so a slip would also need financing"
+  },
+  "economics_share": {
+   "value": 0.700214,
+   "unit": "share",
+   "source": "Vor FY2025 10-K (0001193125-26-130451, filed 2026-03-30), Note 10 'Significant Agreements', Telitacicept License Agreement of 25 June 2025 (book filing_sections): exclusive licence to develop and commercialise telitacicept outside Greater China (mainland China, Hong Kong, Macau and Taiwan). Vor 'is responsible for all development, regulatory and commercialization activities and costs in the licensed territory'. Consideration: $45.0mm cash upfront plus a warrant over 16,000,000 shares valued at $177.4mm. RemeGen 'is eligible to receive up to $330.0 million in regulatory milestone payments and up to $3.775 billion in sales milestone payments' and 'tiered royalties on net sales of the Licensed Products in the licensed territory, ranging from high single digit to mid-teen percentages of net sales, subject to customary reductions'. Netted as the book nets a royalty the company pays: (margin - royalty) / margin. Margin from argenx's FY2025 cost rows in the book (lookup.py seed empasiprubart: cogs 0.1086, sga 0.3293, rd 0.3286, other_costs 0.0), 1 - 0.7665 = 0.2335. (0.2335 - 0.07) / 0.2335 = 0.7002",
+   "note": "JUDGEMENT twice, and PROVISIONAL. (1) Tier: 'high single digit' is taken at its bottom, 7%. The book's disitamab vedotin seed does the same with RemeGen's identical wording to Seagen, and the litifilimab, VLA15 and ralinepag seeds take their lowest tier too. (2) Margin: Vor is pre-revenue and has no company-level rows in the book, so no margin of its own exists. argenx is the proxy: a single-franchise autoimmune biotech selling the gMG incumbent, with filed FY2025 cost lines. Recompute with the same formula once VOR rows are built. Case against: the tiers rise with sales, and this seed's engine run peaks near $1.4bn of product revenue, so the blended rate is likely above the floor. At 10% the share is 0.5717, at 12% 0.4861 and at the 15% top 0.3576. The up to $3.775bn of sales milestones and $330mm of regulatory milestones are not netted here, as in the book's other royalty seeds. They are large against this build's revenue, and the note records them. RemeGen also takes a single-digit share of sublicence proceeds if Vor sublicenses before a specified development event (same note)"
+  }
+ },
+ "indications": [
+  {
+   "indication": "Myasthenia Gravis",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: nipocalimab seed, 82,715 US adults living with MG in 2021 (Ye Y et al., Front Neurol 2024;15:1339167, doi:10.3389/fneur.2024.1339167); lookup.py pool Myasthenia",
+     "note": "Carried by the book, so no second figure is set. Vor's own estimate of '90k US diagnosed patients with Myasthenia Gravis' (8-K 0001193125-26-009961, exhibit 99.1, 'Vor metanalysis and estimates') is not used"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: nipocalimab seed, 82,715, stated equal to prevalence by convention (the pool read as the patients eligible to start each year)",
+     "note": "Carried by the book. Because prevalence equals incidence, forecast.py sets carryover and the opening pool to 0, so each year's eligible patients are 82,715 x eligible_pct x (1 + exus_multiple)"
+    },
+    "eligible_pct": {
+     "value": 0.701155,
+     "unit": "share of the pool",
+     "source": "Label population taken from UPSTREAM MG entry: adults with generalised MG, seropositive for anti-AChR or anti-MuSK antibodies (NeurologyLive, 'Telitacicept Moves Forward in Global Phase 3 Study for Generalized Myasthenia Gravis', neurologylive.com; clinicaltrials.gov/study/NCT06456580, as returned by search). Three filters, all from Dresser L et al., J Clin Med 2021;10(11):2235, doi:10.3390/jcm10112235 (PMC8196750, read in full) except the second. (1) Generalised, not ocular-only: 'A recent population-based study conducted by the Mayo Clinic found that 51% of patients presented with ocular onset, and 55% of these developed generalized symptoms' (section 3.1.2), so 1 - 0.51 x 0.45 = 0.7705. (2) AChR-positive within gMG: 'Eighty-five percent of people with gMG are AChR antibody-positive' (AstraZeneca 6-K 0001654954-26-008478, as the book's cemdisiran seed carries it). (3) MuSK-positive within the AChR-negative 15%: 'Antibodies against MuSK are found in approximately 7-10% of all MG patients and up to 40% of patients with generalized MG who are seronegative for AChR Abs' (section 3.2.1), so 0.15 x 0.40 = 0.06. 0.7705 x (0.85 + 0.06) = 0.701155, or 57,996 US adults",
+     "note": "JUDGEMENT that the label follows UPSTREAM MG entry. The MuSK filter uses Dresser's upper bound ('up to 40%'). The cross-check from Dresser's all-MG figure: 0.654925 + 0.07 = 0.7249 if every MuSK patient is generalised, so 0.7012 sits inside the range. No severity filter: Vyvgart's and the C5 labels carry none. Case for lower: 0.654925 (the cemdisiran seed's AChR-only pool) if the label is AChR-only or payers restrict to refractory patients. Double-seronegative and Lrp4-positive patients are left out, as the trial excludes them. This differs from the nipocalimab seed's 0.87, which applies no ocular filter"
+    },
+    "penetration_peak_pct": {
+     "value": 0.049094,
+     "unit": "share of each year's eligible patients",
+     "source": "Solved from Vyvgart, as the book's cemdisiran seed solves it: 'We grew our global commercial footprint in gMG to reach more than 10,000 patients' in 2024 (argenx FY2024 20-F, 0001697862-25-000024). Engine with Vyvgart's inputs: pool 82,715 x 0.654925 x (1 + 0.1529) = 62,457, where 0.1529 = (89,389 + 39,177 + 161,398) / 1,895,919 is argenx's 2024 ex-US over US (FY2025 20-F 0001697862-26-000032, Note 16). The book's Vyvgart curve (k 0.5633, midpoint 2.0, first year 2022) and discontinuation 0.5 give a 2024 stock of 0.74259 x peak x 62,457 (forecast.py s_curve and treated_stock, recomputed), so 10,000 patients means a Vyvgart peak of 0.215610. Telitacicept = 0.25 x 0.215610 x (0.4554 / 0.5) = 0.049094",
+     "note": "JUDGEMENT: 0.25 of Vyvgart's plateau treated share, the multiple the book's cemdisiran seed takes for its late gMG entrant. The discontinuation ratio turns a share of patients on therapy into a share of starts. The plateau is 0.049094 / 0.4554 = 10.78% of the eligible pool, about 6,250 US patients. Case for higher: on Vor's cross-trial chart, telitacicept's China Phase 3 (240 mg, RemeGen-sponsored) shows the largest placebo-adjusted MG-ADL change at week 24 across efgartigimod, nipocalimab, rozanolixizumab, ravulizumab, eculizumab, zilucoplan and inebilizumab. Its BAFF/APRIL mechanism is one that none of the gMG products on Vor's competitor list uses (FcRn, C5, CD19; 10-K 0001193125-26-130451). The deck also claims continuous self-injection and 'No Burdensome Vaccination Requirements' (8-K 0001193125-26-009961, exhibit 99.1; the comparisons are cross-trial, not head-to-head). Case for lower: it would reach the US around 2029, behind three anti-FcRns (Vyvgart, Rystiggo, Imaavy), the C5s (Soliris and its biosimilars, Ultomiris, Zilbrysq, with cemdisiran and gefurulimab under review) and Uplizna (Vor 10-K competitor list; cemdisiran seed). It needs weekly injections, the global Phase 3 has not read out, China effect sizes may not carry to a global population, and Vor has never launched a product. 'More than 10,000 patients' may count patients ever treated, which would overstate Vyvgart's peak"
+    },
+    "untreated_carryover_pct": {
+     "value": null,
+     "unit": "share of the untreated pool retained per year",
+     "source": "not needed: forecast.py patients_for_indication sets carryover 0 and the opening pool 0 when prevalence equals incidence, as the book's MG pool does",
+     "note": "Left null on purpose. The pool is read as each year's eligible patients"
+    },
+    "ramp_steepness": {
+     "value": 0.5633,
+     "unit": "logistic k",
+     "source": "reused from the book's nipocalimab and cemdisiran seeds: fitted to Vyvgart and Vyvgart Hytrulo Medicare beneficiaries across Parts B and D, 1,397 in 2022, 2,561 in 2023, 4,310 in 2024 (lookup.py demand Vyvgart)",
+     "note": "The measured launch in the same disease, and the curve the peak was solved on, so the two stay consistent. Case against: a late entrant with a new mechanism may ramp more slowly than the first anti-FcRn did"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.0,
+     "unit": "years from forecast_start_year",
+     "source": "reused from the book's nipocalimab and cemdisiran seeds: Vyvgart had 2,561 of its 4,310 2024 Medicare beneficiaries in 2023 (CMS)",
+     "note": "Reused measured curve, as for ramp_steepness"
+    },
+    "exus_multiple": {
+     "value": 0.15548,
+     "unit": "ex-US revenue per 1.0 of US",
+     "source": "argenx FY2025 20-F (0001697862-26-000032), Note 16 Segment Reporting, Vyvgart product net sales: United States $3,533,939k, Japan $206,835k, China $67,920k, rest of world $342,622k (as returned by search; the same figures the book's verified cemdisiran seed uses). China is excluded because Vor's territory excludes Greater China: (206,835 + 342,622) / 3,533,939 = 0.1555",
+     "note": "JUDGEMENT on the comparator: the gMG incumbent, with a filed country split. Case for higher: argenx's ex-China share is still rising (0.1323 in 2024 on the same basis), and UPSTREAM MG recruits in Japan and Europe to support approvals there (Vor 10-Q). Case for lower: Vor has no commercial organisation outside the US, and argenx's rest of world may include Taiwan or Hong Kong, which sit outside Vor's territory"
+    }
+   }
+  },
+  {
+   "indication": "Sjogren's Syndrome",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book: ianalumab seed, 350,314 (Maciel G et al., Arthritis Care Res 2017;69(10):1612-16, PMID 27998024, 10.3 per 10,000 applied to 340,110,988 US residents); lookup.py pool Sjogren",
+     "note": "Carried by the book, so no second figure is set"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book: ianalumab seed, 20,067 (Maciel G et al., Mayo Clin Proc 2017;92(5):734-43, PMID 28389066, 5.9 per 100,000)",
+     "note": "Carried by the book"
+    },
+    "eligible_pct": {
+     "value": 0.2,
+     "unit": "share of the pool",
+     "source": "the book's Sjogren's eligible share (ianalumab and dazodalibep seeds): Rosas J et al., Rheumatol Int 2019;39(6):991-9, PMID 30891620 (SJOGRENSER, 437 patients), ESSDAI moderate (5-13) 15% plus high (14 or more) 5% = 20% with ESSDAI of 5 or more. UPSTREAM SjD enrols adults meeting the 2016 ACR/EULAR criteria 'and have active disease as defined by an ESSDAI score >=5' (Vor release 2026-03-30, ir.vorbio.com and GlobeNewswire, as returned by search)",
+     "note": "JUDGEMENT that the label follows trial entry. Kept equal to the other two Sjogren's seeds, so all three share one eligible pool. Case for higher: Vor targets '~100,000 addressable patient US opportunity' ('Vor metanalysis and estimates', 8-K 0001193125-26-009961, exhibit 99.1) against this pool's 70,063, and SJOGRENSER reported low or no activity in 80% of patients, which is lower activity than other European cohorts show (dazodalibep seed check)"
+    },
+    "penetration_peak_pct": {
+     "value": 0.0514,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "reused from the book's dazodalibep seed: 0.1771 x 0.2903 = 0.0514. The 0.1771 is the book's Sjogren's first-entrant capture (ianalumab seed: belimumab held 28% of US moderate to severe SLE in 2022, Spherix via Healio 2024-04-25, which at 45.54% discontinuation needs 17.71% of the untreated pool to start each year). The 0.2903 is anifrolumab, the follower in lupus, against belimumab: 18% vs 62% of US SLE patients on biologics in Q3 2024 (Spherix, Healio 2024-12-30)",
+     "note": "JUDGEMENT: telitacicept is modelled as a follower behind ianalumab (filed Q1 2026 under priority review, ianalumab seed), with the same measured follower ratio as dazodalibep. Its discontinuation equals theirs (0.4554), so no conversion is needed. Case for lower: it would be the third entrant, behind ianalumab and dazodalibep (OASIZ 301 positive 2026-09-22), with nipocalimab and efgartigimod Sjogren's programmes also running (dazodalibep seed). It would also sell at the gMG-anchored price, five times the Benlysta price that measured this uptake. Case for higher: in RemeGen's China Phase 3, ESSDAI fell 4.4 points on 160 mg and 3.0 on 80 mg against 0.6 on placebo at week 24, p<0.0001 (8-K 0001193125-26-009961, exhibit 99.1). The same deck calls this the largest placebo-adjusted ESSDAI reduction across Phase 2 and 3 datasets, at 4.3 points, cross-trial and not head-to-head. Vor calls it the only therapy with significant gains in both ESSDAI and ESSPRI (8-K 0001193125-26-261661, exhibit 99.2, the NMPA approval release). Unlike dazodalibep's IV infusion, it is self-injected"
+    },
+    "untreated_carryover_pct": {
+     "value": 0.945821,
+     "unit": "share of the untreated pool retained per year",
+     "source": "derived to hold the book's Sjogren's pool at its measured size, the method the remternetug and NBI-1117568 seeds use: the pool (350,314 x eligible_pct) and its inflow (20,067 x eligible_pct) are stationary only if exits equal entries, which sets retention at 350,314 / (350,314 + 20,067) = 0.9458 (the eligible share and the ex-US scale cancel)",
+     "note": "JUDGEMENT, as the brief asks for a chronic pool. At the engine default of 1.0 nobody leaves the untreated pool, so it would grow by 5.7% a year. The implied mean stay of about 17.5 years (350,314 / 20,067) fits a chronic disease diagnosed in mid-life. Case against: the book's ianalumab and dazodalibep seeds state no carryover and run at 1.0, so the three Sjogren's assets model the same pool differently until they are aligned (flagged)"
+    },
+    "ramp_steepness": {
+     "value": 1.005,
+     "unit": "logistic k",
+     "source": "reused from the book's ianalumab and dazodalibep seeds: Zeposia's CMS Part D launch fit (104, 406, 655, 1,034, 1,271 beneficiaries 2020-2024), k 1.005, midpoint 2.15 years",
+     "note": "The immunology curve the book's other Sjogren's seeds carry"
+    },
+    "ramp_midpoint_year": {
+     "value": 3.73,
+     "unit": "years from forecast_start_year",
+     "source": "Zeposia's fitted 2.15-year midpoint moved 1.58 years later: UPSTREAM SjD (NCT07404865) primary completion 2028-12 against UPSTREAM MG (NCT06456580) 2027-05, a 19-month gap (book trials table). 2.15 + 19/12 = 3.73",
+     "note": "JUDGEMENT: the same shift method as the duvakitug and tulisokibart seeds' Crohn's lines, because the engine starts every indication in forecast_start_year. The curve puts 2.3% of the SjD peak in 2029, before a likely 2030 approval, which is small. Case against: a supplemental BLA may take longer than the primary completion gap implies"
+    },
+    "exus_multiple": {
+     "value": 0.2111,
+     "unit": "ex-US revenue per 1.0 of US",
+     "source": "GSK FY2025 annual report, Specialty Medicines turnover (0001654954-26-000892, in the book's asset_revenue_regions): Benlysta GBP 1,464mm US, 134mm Europe, 175mm International. (134 + 175) / 1,464 = 0.2111",
+     "note": "JUDGEMENT: kept equal to the ianalumab and dazodalibep seeds so the Sjogren's assets agree. Case for lower: GSK's International region includes China, which is outside Vor's territory, and the filed split does not let it be removed"
+    }
+   }
+  }
+ ],
+ "refuse": null,
+ "flags_for_the_book": [
+  "VOR has no company-level rows. assemble.py will report every company key missing, and economics_share is struck on argenx's margin (0.2335) as a proxy. Build VOR rows, or choose a proxy on purpose, then recompute (margin - 0.07) / margin.",
+  "Sjogren's pool: the ianalumab and dazodalibep seeds carry no untreated_carryover_pct, so their untreated pools grow 5.7% a year at the 1.0 default. This seed states 0.9458. Align the three.",
+  "asset_indications marks Sjogren's Syndrome as the lead (is_lead = 1) for asset 3180. Myasthenia Gravis reads out first (1H 2027 against 2028-12), and Vor calls it the beachhead indication.",
+  "Book data error: catalysts row 934 (UPSTREAM MG readout 2027-05, NCT06456580, company VOR) points to asset_id 58, which is Roche's Xofluza. It should point to 3180, telitacicept.",
+  "LOE: Vor's FY2025 10-K patents section says the composition-of-matter family outside China 'is expected to expire in 2028'. Exclusivity therefore rests on the 12-year biologic exclusivity from approval and on the formulation (2040) and indication (2042) families, all pending or partly granted. The engine's default from launch applies.",
+  "Price: one list price serves both indications. At the gMG anchor, Sjogren's supplies about half of plateau revenue in this build (about $0.77bn of $1.43bn, US plus ex-US, before royalty, probability of success and LOE). A Sjogren's price anchor ($37,182) would cut that block by 81%."
+ ]
+}
