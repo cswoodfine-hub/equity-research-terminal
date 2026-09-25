@@ -402,3 +402,46 @@ its company reports, so a marketed row would carry nothing. The Purple Book's ma
 status was not used to retire products automatically, because the downloadable file lists
 only presentations that changed, and a single discontinued vial (the fixture's Keytruda
 50 mg) would have retired the whole product.
+
+## Bayer's financials read, and Roche's net debt found, 25 September 2026
+
+**The ESEF route could not have worked.** Its first live run found filings.xbrl.org
+holding no German filer at all: none for country DE, against 1,179 French and 2,204 Danish
+filings. Bayer's LEI resolves at GLEIF to Bayer Aktiengesellschaft and the index answers
+with nothing, because German reports are lodged with the Unternehmensregister, which does
+not pass them on. The parser and the LEI were right; the index never covered Germany.
+
+**Bayer publishes a workbook, as Roche does.** Its online annual report carries every table
+as one free file, and `backend/bayer.py` reads the income statement, financial position and
+cash flows, the pharmaceuticals division, the fifteen best-selling products and the stated
+share count. Everything with a total above it is checked against that total. First refresh:
+92 rows, nothing refused. Revenue EUR 45,575mm, EBIT -1,077mm after 9,179mm of other
+operating expense, net debt 30,908mm, 982.42mm shares.
+
+Six of the fifteen products match no asset, EUR 7,233mm of 15,185mm, and are reported, not
+attached. Eylea (3,110) and Xarelto (2,344) are Bayer's sales outside the US of molecules
+the book carries only under Regeneron and J&J, so each needs a Bayer row of its own in the
+marketed register. Adalat, Aspirin Cardio, Glucobay and the CT injectors are not in the
+register at all. Three lines are families Bayer does not split (Mirena with Kyleena and
+Jaydess, YAZ with Yasmin, Kovaltry with Jivi) and go whole to the first brand the book
+carries.
+
+**Bayer still has no fair value.** No Bayer product is modelled, so the sum of the parts is
+the balance sheet alone and the fair value lenses refuse. The next step is seeding its
+marketed lines. Two questions come first: whether Eylea and Xarelto ex-US are Bayer rows in
+the register, and what cost ratios a pharmaceutical line carries in a group that is 60% crop
+science and consumer health. The group's own lines would price a medicine on a
+conglomerate's margins and on EUR 9.2bn of litigation charges.
+
+**A defect in the Roche build, found through Bayer.** The workbook route stored balance
+sheet lines as fiscal years, while every reader of a balance sheet asks for an instant.
+Roche's debt and cash were on file and invisible, so its net debt read as missing and the
+sum of the parts stopped at enterprise value. Nothing wrong was shown; the equity figure
+was absent. Fixed and migrated: Roche's net debt is CHF 16,160mm and its equity $29.97 an
+ADR against $54.80.
+
+**Equity from the balance sheet alone.** With nothing modelled, the bridge still reports
+equity as net cash, which is a meaningless value for fifteen companies (Bayer, BioMarin,
+Sarepta and twelve small companies among them). The company section in the UI returns before
+showing it and the fair value lenses refuse, so it does not reach a reader today. It would if
+either guard moved.
