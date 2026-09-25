@@ -1,0 +1,29 @@
+{
+ "ticker": "ARWR",
+ "company": "Arrowhead Pharmaceuticals, Inc.",
+ "name": "ARO-RAGE",
+ "inn_or_identity": "",
+ "sort_evidence": "ARO-RAGE is an inhaled RAGE-targeting siRNA in a recruiting Phase 2 allergen-challenge asthma study (NCT07241546), not in the book.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Asthma",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07241546",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-12",
+   "enrollment": 36,
+   "last_update_posted": "2026-06-23",
+   "lead_sponsor": "Arrowhead Pharmaceuticals",
+   "title": "Study of Inhaled ARO-RAGE in Allergen-induced Mild Asthma"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

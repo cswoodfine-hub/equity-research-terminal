@@ -1,0 +1,29 @@
+{
+ "ticker": "REGN",
+ "company": "Regeneron Pharmaceuticals Inc",
+ "name": "Trevogrumab-Part A",
+ "inn_or_identity": "",
+ "sort_evidence": "The row is the Part A trevogrumab arm of NCT06299098 (COURAGE, with semaglutide), and Regeneron's 10-Q filed 2026-07-30 lists trevogrumab (REGN1033), an unapproved anti-myostatin antibody, in obesity with more Phase 2 data due in H2 2026.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Obesity",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06299098",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-06-16",
+   "enrollment": 1005,
+   "last_update_posted": "2026-09-01",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A Study to Test if Trevogrumab or Trevogrumab With Garetosmab When Taken With Semaglutide is Safe and How Well They Work in Adult Patients With Obesity for Weight Loss, Fat Loss, and Lean Mass Preservation"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

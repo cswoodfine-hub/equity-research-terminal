@@ -1,0 +1,94 @@
+{
+ "ticker": "CABA",
+ "company": "Cabaletta Bio, Inc.",
+ "name": "CABA-201",
+ "inn_or_identity": "",
+ "sort_evidence": "CABA-201 is rese-cel (resecabtagene autoleucel); four trials are recruiting (NCT06154252, NCT06328777, NCT06121297, NCT06359041), and Cabaletta plans a myositis BLA in 2H27 (https://www.cabalettabio.com/news-media/press-releases/detail/128/cabaletta-bio-announces-2027-rese-cel-bla-submission).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Dermatomyositis",
+   "phase": "Phase 2/3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Lung Diseases, Interstitial",
+   "phase": "Phase 2/3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Myositis",
+   "phase": "Phase 2/3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Scleroderma, Diffuse",
+   "phase": "Phase 2/3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Scleroderma, Systemic",
+   "phase": "Phase 2/3",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Lupus Erythematosus, Systemic",
+   "phase": "Phase 1/2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Lupus Nephritis",
+   "phase": "Phase 1/2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Myasthenia Gravis",
+   "phase": "Phase 1/2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06154252",
+   "phase": "Phase 2/3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-07",
+   "enrollment": 74,
+   "last_update_posted": "2026-09-17",
+   "lead_sponsor": "Cabaletta Bio",
+   "title": "RESET-Myositis: An Open-Label Study to Evaluate the Safety and Efficacy of CABA-201 in Subjects With Active Idiopathic Inflammatory Myopathy or Juvenile Idiopathic Inflammatory Myopathy"
+  },
+  {
+   "nct_id": "NCT06328777",
+   "phase": "Phase 2/3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-07",
+   "enrollment": 37,
+   "last_update_posted": "2026-08-17",
+   "lead_sponsor": "Cabaletta Bio",
+   "title": "RESET-SSc: An Open-Label Study to Evaluate the Safety and Efficacy of CABA-201, a CD19-CAR T Cell Therapy, in Subjects With Systemic Sclerosis"
+  },
+  {
+   "nct_id": "NCT06359041",
+   "phase": "Phase 1/2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-09",
+   "enrollment": 24,
+   "last_update_posted": "2026-08-13",
+   "lead_sponsor": "Cabaletta Bio",
+   "title": "RESET-MG: A Study to Evaluate the Safety and Efficacy of CABA-201 in Participants With Generalized Myasthenia Gravis"
+  },
+  {
+   "nct_id": "NCT06121297",
+   "phase": "Phase 1/2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-12",
+   "enrollment": 28,
+   "last_update_posted": "2026-08-26",
+   "lead_sponsor": "Cabaletta Bio",
+   "title": "RESET-SLE: A Phase 1/2 Open-Label Study to Evaluate the Safety and Efficacy of CABA-201 in Subjects With Active Systemic Lupus Erythematosus"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

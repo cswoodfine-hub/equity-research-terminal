@@ -1,0 +1,54 @@
+{
+ "ticker": "GSK",
+ "company": "GSK plc",
+ "name": "GSK3862995B",
+ "inn_or_identity": "",
+ "sort_evidence": "GSK3862995B is an anti-IL-33 monoclonal antibody with no INN found, in phase 2 for bronchiectasis (NCT07201051, recruiting), and matches no product in the book (https://clinicaltrials.gov/study/NCT07201051).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Bronchiectasis",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Pulmonary Disease, Chronic Obstructive",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07201051",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-05-04",
+   "enrollment": 363,
+   "last_update_posted": "2026-08-12",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study to Assess the Effectiveness and Safety of GSK3862995B in Adults With Bronchiectasis"
+  },
+  {
+   "nct_id": "NCT06154837",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-12-17",
+   "enrollment": 127,
+   "last_update_posted": "2026-05-29",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study for GSK3862995B in Healthy Participants and Participants With Chronic Obstructive Pulmonary Disease"
+  },
+  {
+   "nct_id": "NCT07789899",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-09-07",
+   "enrollment": 24,
+   "last_update_posted": "2026-09-01",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study to Evaluate Pharmacokinetics, Safety, and Tolerability of Two GSK3862995B Formulations in Healthy Participants"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,44 @@
+{
+ "ticker": "BNTX",
+ "company": "BioNTech SE",
+ "name": "BNT327",
+ "inn_or_identity": "",
+ "sort_evidence": "BioNTech's 6-K filed 2026-08-04 (0001776985-26-000054) names pumitamig (BNT327/BMS986545), a PD-L1xVEGF-A bispecific partnered with BMS, in seven pivotal trials, with no approval and no other row in the book.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Small Cell Lung Carcinoma",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Triple Negative Breast Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06449209",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-06",
+   "enrollment": 110,
+   "last_update_posted": "2026-09-14",
+   "lead_sponsor": "BioNTech SE",
+   "title": "Safety, Preliminary Effectiveness of BNT327, an Investigational Therapy for Patients With Small-cell Lung Cancer in Combination With Chemotherapy"
+  },
+  {
+   "nct_id": "NCT06449222",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-08",
+   "enrollment": 83,
+   "last_update_posted": "2026-06-30",
+   "lead_sponsor": "BioNTech SE",
+   "title": "Safety and Preliminary Effectiveness of BNT327, an Investigational Therapy for Breast Cancer, When Given in Combination With Chemotherapy"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

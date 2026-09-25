@@ -1,0 +1,39 @@
+{
+ "ticker": "LLY",
+ "company": "Eli Lilly and Company",
+ "name": "LY3537021",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 2 NCT07169851 in chemotherapy-induced nausea and vomiting is recruiting; an ASCO 2026 abstract describes LY3537021 as a GIPR monoagonist (https://ascopubs.org/doi/10.1200/JCO.2026.44.2_suppl.TPS855).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Drug-Related Side Effects and Adverse Reactions",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Nausea",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Vomiting",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07169851",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-12",
+   "enrollment": 204,
+   "last_update_posted": "2026-09-04",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study to Evaluate LY3537021 for the Treatment of Nausea and Vomiting Caused by Chemotherapy in Adults With Cancer"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

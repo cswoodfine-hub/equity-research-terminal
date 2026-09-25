@@ -1,0 +1,79 @@
+{
+ "ticker": "BIIB",
+ "company": "Biogen Inc",
+ "name": "Felzartamab",
+ "inn_or_identity": "",
+ "sort_evidence": "Felzartamab is an anti-CD38 antibody in recruiting Phase 3 trials in IgA nephropathy (NCT06935357) and primary membranous nephropathy (NCT06962800), not in the BIIB book.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Graves Disease",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06685757",
+   "phase": "Phase 3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-12-01",
+   "enrollment": 132,
+   "last_update_posted": "2026-06-05",
+   "lead_sponsor": "Biogen",
+   "title": "A Study to Learn More About the Effects and Safety of Felzartamab Infusions in Adults With Kidney Transplants Who Have Antibody-Mediated Rejection (AMR)"
+  },
+  {
+   "nct_id": "NCT06935357",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-05-31",
+   "enrollment": 454,
+   "last_update_posted": "2026-09-16",
+   "lead_sponsor": "Biogen",
+   "title": "A Study to Learn About the Effects of Felzartamab Infusions on Adults With Immunoglobulin A Nephropathy (IgAN)"
+  },
+  {
+   "nct_id": "NCT06962800",
+   "phase": "Phase 3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-01-28",
+   "enrollment": 180,
+   "last_update_posted": "2026-08-26",
+   "lead_sponsor": "Biogen",
+   "title": "A Study to Learn More About the Effects and Safety of Felzartamab Infusions in Adults With Primary Membranous Nephropathy (PMN)"
+  },
+  {
+   "nct_id": "NCT07444489",
+   "phase": "Phase 3",
+   "overall_status": "Enrolling by invitation",
+   "primary_completion_date": "2031-05-28",
+   "enrollment": 201,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "Biogen",
+   "title": "A Study to Learn More About the Long-Term Safety and Effects of Felzartamab Infusions in Adults With Kidney Transplants Who Have Antibody-Mediated Rejection (AMR) or Microvascular Inflammation (MVI) (TRANSCEND/TRANSPIRE LTE)"
+  },
+  {
+   "nct_id": "NCT07722546",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-01-31",
+   "enrollment": 60,
+   "last_update_posted": "2026-09-04",
+   "lead_sponsor": "Biogen",
+   "title": "A Study to Learn About The Effects of Felzartamab on Thyroid Function and Its Safety in Adults With Graves' Disease Ages 18 to 75 Years Old"
+  },
+  {
+   "nct_id": "NCT07219043",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-02-10",
+   "enrollment": 81,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "Biogen",
+   "title": "A Study to Learn About the Effects of Felzartamab Infusions in Adults With Kidney Transplants Who Have Late Isolated Microvascular Inflammation"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

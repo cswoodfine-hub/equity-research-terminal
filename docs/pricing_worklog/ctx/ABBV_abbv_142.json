@@ -1,0 +1,29 @@
+{
+ "ticker": "ABBV",
+ "company": "AbbVie Inc",
+ "name": "ABBV-142",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT07230288 Phase 2 recruiting tests oral ABBV-142 in idiopathic pulmonary fibrosis; no book row shares the code and the mechanism is not public (https://clinicaltrials.gov/study/NCT07230288).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Idiopathic Pulmonary Fibrosis",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07230288",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-09",
+   "enrollment": 165,
+   "last_update_posted": "2026-09-03",
+   "lead_sponsor": "AbbVie",
+   "title": "Study of ABBV-142 to Assess Adverse Events and Change in Disease Activity in Adult Participants With Idiopathic Pulmonary Fibrosis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,29 @@
+{
+ "ticker": "AZN",
+ "company": "AstraZeneca PLC",
+ "name": "AZD1163",
+ "inn_or_identity": "",
+ "sort_evidence": "AZD1163 is a first-in-class anti-PAD2/4 bispecific antibody with no INN and no row in the book (https://pubmed.ncbi.nlm.nih.gov/41982149/), in the Phase 2 LaunchPAD-RA trial NCT07276581 (Recruiting).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Arthritis, Rheumatoid",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07276581",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-11-12",
+   "enrollment": 320,
+   "last_update_posted": "2026-06-24",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Study to Investigate Efficacy and Safety of AZD1163 in Participants With Rheumatoid Arthritis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

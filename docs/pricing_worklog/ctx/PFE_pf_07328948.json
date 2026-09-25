@@ -1,0 +1,54 @@
+{
+ "ticker": "PFE",
+ "company": "Pfizer Inc",
+ "name": "PF-07328948",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 2 BRANCH-HF NCT06991257 in heart failure is recruiting; PF-07328948 is a first-in-class BDK inhibitor (https://pubmed.ncbi.nlm.nih.gov/39560668/).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Heart Failure",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Renal Insufficiency",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06991257",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-11-16",
+   "enrollment": 620,
+   "last_update_posted": "2026-05-27",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn About the Study Medicine Called PF-07328948 in Adults With Heart Failure (BRANCH-HF)"
+  },
+  {
+   "nct_id": "NCT07269301",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-02-23",
+   "enrollment": 26,
+   "last_update_posted": "2026-07-23",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn How the Body Processes the Study Medicine PF-07328948 in People With and Without Reduced Liver Function"
+  },
+  {
+   "nct_id": "NCT07315360",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-03-13",
+   "enrollment": 28,
+   "last_update_posted": "2026-05-12",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn How the Body Processes the Study Medicine PF-07328948 in People With Reduced Kidney Function"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

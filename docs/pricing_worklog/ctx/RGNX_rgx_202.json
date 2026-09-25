@@ -1,0 +1,29 @@
+{
+ "ticker": "RGNX",
+ "company": "REGENXBIO Inc.",
+ "name": "RGX-202",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT05693142 (Phase 2/3, Active not recruiting) finished confirmatory dosing, and REGENXBIO plans an accelerated approval BLA in Q3 2026 (https://ir.regenxbio.com/news-releases/news-release-details/regenxbio-completes-dosing-confirmatory-study-rgx-202-marking/).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Muscular Dystrophy, Duchenne",
+   "phase": "Phase 2/3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05693142",
+   "phase": "Phase 2/3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-09",
+   "enrollment": 65,
+   "last_update_posted": "2026-07-21",
+   "lead_sponsor": "REGENXBIO Inc.",
+   "title": "AFFINITY DUCHENNE: RGX-202 Gene Therapy in Participants With Duchenne Muscular Dystrophy (DMD)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

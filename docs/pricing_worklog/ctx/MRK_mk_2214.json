@@ -1,0 +1,29 @@
+{
+ "ticker": "MRK",
+ "company": "Merck & Co Inc",
+ "name": "MK-2214",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT07033494 Phase 2 recruiting tests MK-2214, an anti-pS413 tau antibody with FDA Fast Track and no book row (https://www.alzforum.org/therapeutics/mk-2214).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Alzheimer Disease",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07033494",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-04-30",
+   "enrollment": 340,
+   "last_update_posted": "2026-08-26",
+   "lead_sponsor": "Merck Sharp & Dohme LLC",
+   "title": "A Clinical Study of MK-2214 in People With Early Alzheimer's Disease (MK-2214-004)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

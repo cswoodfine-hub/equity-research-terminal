@@ -1,0 +1,29 @@
+{
+ "ticker": "LLY",
+ "company": "Eli Lilly and Company",
+ "name": "LY3457263",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 2 NCT06897475 of LY3457263 against placebo on top of semaglutide or tirzepatide is recruiting; the trial record and the HRA summary give no INN or mechanism for the code.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Diabetes Mellitus, Type 2",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06897475",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-05",
+   "enrollment": 200,
+   "last_update_posted": "2026-09-14",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of LY3457263 Compared With Placebo in Participants With Type 2 Diabetes on a Stable Dose of Semaglutide or Tirzepatide"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

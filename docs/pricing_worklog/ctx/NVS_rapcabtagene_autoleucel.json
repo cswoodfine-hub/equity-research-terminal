@@ -1,0 +1,186 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "Rapcabtagene autoleucel",
+ "inn_or_identity": "",
+ "sort_evidence": "Novartis CD19 CAR-T (YTB323) with Phase 2 trials such as NCT06581198 in SLE and lupus nephritis active not recruiting; the book matches are other companies' CAR-Ts, not this molecule.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Anti-Neutrophil Cytoplasmic Antibody-Associated Vasculitis",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Lupus Erythematosus, Systemic",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Lupus Nephritis",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Scleroderma, Diffuse",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Vasculitis",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Arthritis, Rheumatoid",
+   "phase": "Phase 1/2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Leukemia, Lymphocytic, Chronic, B-Cell",
+   "phase": "Phase 1/2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Lymphoma, Large B-Cell, Diffuse",
+   "phase": "Phase 1/2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Multiple Sclerosis",
+   "phase": "Phase 1/2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Multiple Sclerosis, Chronic Progressive",
+   "phase": "Phase 1/2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Precursor Cell Lymphoblastic Leukemia-Lymphoma",
+   "phase": "Phase 1/2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06581198",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-02-14",
+   "enrollment": 179,
+   "last_update_posted": "2026-09-02",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study of Rapcabtagene Autoleucel in Active, Refractory Systemic Lupus Erythematosus (SLE) or Lupus Nephritis (LN) Patients (AUTOGRAPH - SLE/LN)"
+  },
+  {
+   "nct_id": "NCT06655896",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-11-30",
+   "enrollment": 96,
+   "last_update_posted": "2026-09-02",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Phase 2 Study Evaluating Rapcabtagene Autoleucel in Participants With Diffuse Cutaneous Systemic Sclerosis"
+  },
+  {
+   "nct_id": "NCT06665256",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2029-03-09",
+   "enrollment": 21,
+   "last_update_posted": "2026-06-23",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Phase 2 Study of Rapcabtagene Autoleucel in Myositis"
+  },
+  {
+   "nct_id": "NCT06868290",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2029-06-07",
+   "enrollment": 126,
+   "last_update_posted": "2026-09-04",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Phase 2 Study Evaluating Rapcabtagene Autoleucel in Participants With Severe Active GPA or MPA"
+  },
+  {
+   "nct_id": "NCT03960840",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-06-30",
+   "enrollment": 217,
+   "last_update_posted": "2026-06-04",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Phase I/II Study of Rapcabtagene Autoleucel in CLL, 3L+ DLBCL, r/r ALL and 1L HR LBCL"
+  },
+  {
+   "nct_id": "NCT07048197",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-11-01",
+   "enrollment": 27,
+   "last_update_posted": "2026-09-04",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study to Assess Safety, Cellular Kinetics and Exploratory Efficacy of Rapcabtagene Autoleucel in Rheumatoid Arthritis and Sjogren's Disease"
+  },
+  {
+   "nct_id": "NCT06675864",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2030-06-14",
+   "enrollment": 28,
+   "last_update_posted": "2026-09-04",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Open-label, Multi-center, Phase I/II Study to Assess Safety, Disease Progression and Cellular Kinetics Following YTB323 Administration in Participants With Non-active Progressive Multiple Sclerosis (PMS)"
+  },
+  {
+   "nct_id": "NCT06617793",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2030-08-07",
+   "enrollment": 28,
+   "last_update_posted": "2026-09-02",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "An Open-label Study to Assess the Safety, Efficacy, and Cellular Kinetics of YTB323 in Relapsing Multiple Sclerosis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 406,
+   "ticker": "GILD",
+   "generic": "Brexucabtagene Autoleucel",
+   "brand": "Tecartus",
+   "code": "BLA125703",
+   "is_marketed": 1,
+   "modelled": true
+  },
+  {
+   "id": 414,
+   "ticker": "JNJ",
+   "generic": "ciltacabtagene autoleucel",
+   "brand": "Carvykti",
+   "code": "BLA125746",
+   "is_marketed": 1,
+   "modelled": true
+  },
+  {
+   "id": 1884,
+   "ticker": "BMY",
+   "generic": "Arlocabtagene Autoleucel",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  },
+  {
+   "id": 3289,
+   "ticker": "AUTL",
+   "generic": "obecabtagene autoleucel",
+   "brand": "Aucatzyl",
+   "code": "BLA125813",
+   "is_marketed": 1,
+   "modelled": false
+  }
+ ]
+}

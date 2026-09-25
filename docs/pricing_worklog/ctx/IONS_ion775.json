@@ -1,0 +1,29 @@
+{
+ "ticker": "IONS",
+ "company": "Ionis Pharmaceuticals, Inc.",
+ "name": "ION775",
+ "inn_or_identity": "",
+ "sort_evidence": "ION775 is a GalNAc siRNA against APOC3, a different molecule from olezarsen (Tryngolza), in a recruiting Phase 2 (NCT07604974) (https://pubmed.ncbi.nlm.nih.gov/42660799/).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Hypertriglyceridemia",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07604974",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-09",
+   "enrollment": 72,
+   "last_update_posted": "2026-09-03",
+   "lead_sponsor": "Ionis Pharmaceuticals, Inc.",
+   "title": "A Study to Assess the Safety, Tolerability and Efficacy of ION775"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

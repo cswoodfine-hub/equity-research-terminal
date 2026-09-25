@@ -1,0 +1,29 @@
+{
+ "ticker": "MRK",
+ "company": "Merck & Co Inc",
+ "name": "Miransertib",
+ "inn_or_identity": "",
+ "sort_evidence": "The only active trial, NCT04980872 (MK-7075-006), is a rollover safety study for PROS and Proteus patients already on miransertib; no discontinuation statement was found and no book row holds it.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Proteus Infections",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT04980872",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2030-02-07",
+   "enrollment": 60,
+   "last_update_posted": "2025-02-07",
+   "lead_sponsor": "Merck Sharp & Dohme LLC",
+   "title": "A Study of the Safety and Tolerability in Participants With PIK3CA-related Overgrowth Spectrum or Proteus Syndrome Who Are Being Treated With Miransertib (MK-7075) in Other Studies (MK-7075-006)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

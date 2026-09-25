@@ -1,0 +1,39 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "DDY391",
+ "inn_or_identity": "",
+ "sort_evidence": "VAV1 molecular glue degrader MRT-6160 licensed from Monte Rosa, in Phase 2 NCT07801495 (psoriatic arthritis) and NCT07737743 (Sjogren's), both recruiting (https://www.clinicaltrialvanguard.com/news/novartis-pays-50m-milestone-as-mrt-6160-enters-phase-2-for-sjogrens-disease/).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Arthritis, Psoriatic",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07801495",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-12-13",
+   "enrollment": 220,
+   "last_update_posted": "2026-09-17",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study to Assess the Efficacy, Safety and Tolerability of DDY391 in Participants With Moderate to Severe Psoriatic Arthritis"
+  },
+  {
+   "nct_id": "NCT07737743",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-02-19",
+   "enrollment": 344,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Phase 2a/b Study to Assess the Efficacy, Safety and Tolerability of DDY391 in Participants With Sjögren's Disease"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

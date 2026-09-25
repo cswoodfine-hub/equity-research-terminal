@@ -1,0 +1,29 @@
+{
+ "ticker": "RCKT",
+ "company": "Rocket Pharmaceuticals, Inc.",
+ "name": "RP-A501",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT06092034 (Phase 2, Recruiting) is still active after FDA lifted the 2025 clinical hold, and Rocket reported safe dosing of three patients under the modified protocol in August 2026 (https://ir.rocketpharma.com/news-releases/news-release-details/rocket-pharmaceuticals-announces-positive-clinical-safety-update).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Glycogen Storage Disease Type IIb",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06092034",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-04",
+   "enrollment": 14,
+   "last_update_posted": "2026-05-04",
+   "lead_sponsor": "Rocket Pharmaceuticals Inc.",
+   "title": "A Gene Therapy Study of RP-A501 in Male Patients With Danon Disease"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

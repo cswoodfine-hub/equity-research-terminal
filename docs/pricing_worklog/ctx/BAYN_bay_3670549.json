@@ -1,0 +1,29 @@
+{
+ "ticker": "BAYN",
+ "company": "Bayer AG",
+ "name": "BAY 3670549",
+ "inn_or_identity": "",
+ "sort_evidence": "BAY 3670549 is a GIRK4 inhibitor for pharmacological cardioversion of atrial fibrillation in a recruiting Phase 2 (NCT07625215) (https://www.biospace.com/press-releases/bayer-initiates-phase-ii-study-of-investigational-girk4-inhibitor-in-patients-with-atrial-fibrillation).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Atrial Fibrillation",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07625215",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-05-16",
+   "enrollment": 360,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "Bayer",
+   "title": "A Study to Test How Well BAY 3670549 Works and How Safe it is in Patients With Atrial Fibrillation"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

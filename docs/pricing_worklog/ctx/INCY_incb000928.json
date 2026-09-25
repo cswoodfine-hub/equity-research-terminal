@@ -1,0 +1,44 @@
+{
+ "ticker": "INCY",
+ "company": "Incyte Corporation",
+ "name": "INCB000928",
+ "inn_or_identity": "",
+ "sort_evidence": "INCB000928 is zilurgisertib, whose FOP trial NCT05090891 is recruiting and whose NDA has a PDUFA date of 2026-09-26, but Incyte licensed worldwide rights to Mirum in April 2026 for royalties, so value to INCY is royalty-only (https://www.sec.gov/Archives/edgar/data/1759425/000175942526000036/mirm-20260506xexx991.htm).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Myositis Ossificans",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Anemia",
+   "phase": "Phase 1/2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05090891",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-07-30",
+   "enrollment": 98,
+   "last_update_posted": "2026-05-22",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "To Assess the Efficacy, Safety, and Tolerability of INCB000928 in Participants With Fibrodysplasia Ossificans Progressiva"
+  },
+  {
+   "nct_id": "NCT04455841",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2025-04-01",
+   "enrollment": 84,
+   "last_update_posted": "2026-05-14",
+   "lead_sponsor": "Incyte Corporation",
+   "title": "INCB000928 Administered as a Monotherapy or in Combination With Ruxolitinib in Participants With Anemia Due to Myeloproliferative Disorders"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

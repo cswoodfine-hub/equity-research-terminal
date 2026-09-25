@@ -1,0 +1,54 @@
+{
+ "ticker": "AZN",
+ "company": "AstraZeneca PLC",
+ "name": "AZD4144",
+ "inn_or_identity": "",
+ "sort_evidence": "AZD4144 is berzanoflast, an oral NLRP3 inhibitor not in the book (https://adisinsight.springer.com/drugs/800076157), with Phase 2 NCT07215702 in sepsis-associated acute kidney injury Recruiting.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Acute Kidney Injury",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Sepsis",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07215702",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-02-11",
+   "enrollment": 124,
+   "last_update_posted": "2026-09-02",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Study to Investigate the Efficacy, Safety, and Tolerability of AZD4144in Participants With Sepsis-associated Acute Kidney Injury."
+  },
+  {
+   "nct_id": "NCT07685600",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-10-29",
+   "enrollment": 32,
+   "last_update_posted": "2026-08-24",
+   "lead_sponsor": "AstraZeneca",
+   "title": "Investigating the Effect of Itraconazole on the Pharmacokinetics of AZD4144 in Healthy Participants"
+  },
+  {
+   "nct_id": "NCT07783308",
+   "phase": "Phase 1",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2027-05-28",
+   "enrollment": 30,
+   "last_update_posted": "2026-08-24",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Phase I Study to Investigate the Effect of Hepatic Impairment on the Pharmacokinetics, Safety, and Tolerability of AZD4144"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

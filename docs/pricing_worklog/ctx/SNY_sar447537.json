@@ -1,0 +1,34 @@
+{
+ "ticker": "SNY",
+ "company": "Sanofi",
+ "name": "SAR447537",
+ "inn_or_identity": "",
+ "sort_evidence": "SAR447537 is efdoralprin alfa (INBRX-101), a recombinant AAT-Fc fusion not in the book that met all primary and key secondary endpoints in the ElevAATe Phase 2 (https://www.sanofi.com/en/media-room/press-releases/2025/2025-10-22-05-00-00-3170787), and extension NCT05897424 is Active not recruiting.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Emphysema",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "alpha 1-Antitrypsin Deficiency",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05897424",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-06-30",
+   "enrollment": 185,
+   "last_update_posted": "2026-04-13",
+   "lead_sponsor": "Sanofi",
+   "title": "Long-term, Open-label Study of SAR447537 (INBRX-101) in Adults With Alpha-1 Antitrypsin Deficiency Emphysema"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

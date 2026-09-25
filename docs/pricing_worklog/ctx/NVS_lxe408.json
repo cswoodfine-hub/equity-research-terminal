@@ -1,0 +1,29 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "LXE408",
+ "inn_or_identity": "",
+ "sort_evidence": "Novartis kinetoplastid proteasome inhibitor in Phase 2 NCT06632600 for chronic Chagas disease, recruiting, with no approval and no book row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Chagas Disease",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06632600",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-07-22",
+   "enrollment": 130,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study of Efficacy, Safety, Tolerability of LXE408 in Participants With Chronic Chagas Disease."
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

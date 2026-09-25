@@ -1,4 +1,4 @@
-# Pricing a Phase 3 asset for the equity research terminal
+# Pricing a Phase 3 or Phase 2 asset for the equity research terminal
 
 You research ONE pipeline asset and return the asset-level inputs its revenue model needs.
 The engine builds: new patients per year from a pool, a logistic launch curve, a net price,
@@ -71,6 +71,25 @@ a second only if it has its own Phase 3 and a sourced pool):
   direclidine seeds do, labelled a judgement.
 - `ramp_steepness` (logistic k) and `ramp_midpoint_year` (years from forecast_start_year to
   half of peak): reuse a measured curve from the closest modelled competitor where possible.
+
+## At Phase 2
+
+The same fields and rules, with four differences:
+- Model the indication the company says it will take into Phase 3, or failing that the one
+  its largest Phase 2 is in. A second block only with its own Phase 2 and a sourced pool.
+- `forecast_start_year`: from the company's filed plan where one exists (a Phase 3 start, a
+  filing date). Otherwise the Phase 2's primary completion year plus five: a year to start
+  Phase 3, three to its primary completion, and the Phase 3 rule's two calendar years after
+  that. Label it a judgement and give the case for earlier (breakthrough designation,
+  accelerated approval on a Phase 2) or later.
+- Uptake: a Phase 2 asset has not shown whether it will lead or trail its class. Take the
+  multiple over the incumbent's measured capture at 0.5 unless the Phase 2 data or the
+  class position say otherwise, and say which.
+- Refuse early, before any price work, when the mechanism or the intended indication is not
+  public (nothing to price: "undisclosed"), when the company holds only an option on
+  someone else's programme, or when the Phase 2 has been stopped or its data were negative
+  and the company has said it will not go on. Hold, with the reason, an asset that would
+  mostly take its revenue from the owner's own marketed product.
 
 ## Output
 

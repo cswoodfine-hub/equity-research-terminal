@@ -1,0 +1,49 @@
+{
+ "ticker": "LLY",
+ "company": "Eli Lilly and Company",
+ "name": "MORF-057",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 2 NCT06226883 of MORF-057 in Crohn's disease is recruiting under Morphic, a wholly owned Lilly subsidiary; the LY4268989 row in this batch is the same molecule and points here.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Colitis, Ulcerative",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Crohn Disease",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Inflammatory Bowel Diseases",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05611671",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2024-11-28",
+   "enrollment": 280,
+   "last_update_posted": "2025-12-15",
+   "lead_sponsor": "Morphic Therapeutic, Inc. (A Wholly Owned Subsidiary of Eli Lilly and Company)",
+   "title": "A Study to Evaluate MORF-057 in Adults With Moderately to Severely Active UC"
+  },
+  {
+   "nct_id": "NCT06226883",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-09",
+   "enrollment": 385,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Morphic Therapeutic, Inc. (A Wholly Owned Subsidiary of Eli Lilly and Company)",
+   "title": "A Phase 2 Study to Evaluate MORF-057 in Adults With Moderately to Severely Active Crohn's Disease"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

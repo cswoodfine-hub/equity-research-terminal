@@ -1,0 +1,29 @@
+{
+ "ticker": "MRK",
+ "company": "Merck & Co Inc",
+ "name": "MK-8690",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT07463183 Phase 2 recruiting tests subcutaneous MK-8690 in ulcerative colitis; no book row matches the code and the molecule is not public (https://clinicaltrials.gov/study/NCT07463183).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Colitis, Ulcerative",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07463183",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-10-28",
+   "enrollment": 100,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "Merck Sharp & Dohme LLC",
+   "title": "A Study to Evaluate Efficacy and Safety of MK-8690 in Participants With Moderately to Severely Active Ulcerative Colitis (MK-8690-002)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

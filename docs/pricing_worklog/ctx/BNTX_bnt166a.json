@@ -1,0 +1,34 @@
+{
+ "ticker": "BNTX",
+ "company": "BioNTech SE",
+ "name": "BNT166a",
+ "inn_or_identity": "",
+ "sort_evidence": "BioNTech's 6-K filed 2026-08-04 lists BNT166 as its CEPI-funded mRNA mpox vaccine at Phase 2, and NCT07379580 is recruiting with no approval.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Mpox, Monkeypox",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Smallpox",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07379580",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-06",
+   "enrollment": 310,
+   "last_update_posted": "2026-08-11",
+   "lead_sponsor": "BioNTech SE",
+   "title": "A Randomized Clinical Trial Investigating the Safety, Reactogenicity, and Immunogenicity After Immunization With an mRNA-based Mpox Vaccine Candidate in Africa"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

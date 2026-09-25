@@ -1,0 +1,29 @@
+{
+ "ticker": "GILD",
+ "company": "Gilead Sciences Inc",
+ "name": "emvistegrast",
+ "inn_or_identity": "",
+ "sort_evidence": "Emvistegrast (GS-1427) is Gilead's oral alpha4beta7 integrin inhibitor; Phase 2 NCT06290934 in ulcerative colitis passed primary completion on 2026-03-04 and is active not recruiting, and no readout or discontinuation was found.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Colitis, Ulcerative",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06290934",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-03-04",
+   "enrollment": 228,
+   "last_update_posted": "2026-04-09",
+   "lead_sponsor": "Gilead Sciences",
+   "title": "Study of GS-1427 in Participants With Moderately to Severely Active Ulcerative Colitis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

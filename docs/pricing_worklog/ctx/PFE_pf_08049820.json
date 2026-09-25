@@ -1,0 +1,44 @@
+{
+ "ticker": "PFE",
+ "company": "Pfizer Inc",
+ "name": "PF-08049820",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 2 NCT07216027 of PF-08049820 in eczema is recruiting; Synapse and the trial records describe an oral compound with no INN or mechanism, so identity rests on the code.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Dermatitis, Atopic",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Eczema",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07216027",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-02-02",
+   "enrollment": 165,
+   "last_update_posted": "2026-09-04",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn About Study Medicine Called PF-08049820 in People With Eczema"
+  },
+  {
+   "nct_id": "NCT07597928",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-09-03",
+   "enrollment": 24,
+   "last_update_posted": "2026-06-15",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn How Different Forms of the Study Medicine Called PF-08049820 Are Absorbed and Eliminated in Healthy Adults"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

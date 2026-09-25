@@ -1,0 +1,29 @@
+{
+ "ticker": "LLY",
+ "company": "Eli Lilly and Company",
+ "name": "LY4395089",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 2 NCT07483099 of LY4395089 with mirikizumab in Crohn's disease is recruiting; press coverage describes it as an oral FXR agonist with no INN (https://www.tipranks.com/news/company-announcements/eli-lilly-targets-crohns-disease-with-new-combo-trial-that-could-extend-its-ibd-franchise).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Crohn Disease",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07483099",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-06",
+   "enrollment": 60,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of LY4395089 and Mirikizumab (LY3074828) Given Together and Mirikizumab (Alone) in Adults With Crohn's Disease"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,44 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "PKN605",
+ "inn_or_identity": "",
+ "sort_evidence": "Oral HDAC6 inhibitor in Phase 2 NCT07217067 for atrial fibrillation, recruiting, with no approval and no book row (https://www.novartis.com/clinicaltrials/study/nct07217067).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Atrial Fibrillation",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Renal Insufficiency",
+   "phase": "Phase 1",
+   "development_status": "Not yet recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07217067",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-09-09",
+   "enrollment": 165,
+   "last_update_posted": "2026-07-31",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study to Investigate the Efficacy, Safety, Tolerability and Pharmacokinetics of PKN605 in Participants With Atrial Fibrillation"
+  },
+  {
+   "nct_id": "NCT07797322",
+   "phase": "Phase 1",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2027-02-18",
+   "enrollment": 40,
+   "last_update_posted": "2026-09-01",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study to Investigate the Pharmacokinetics and Safety of PKN605 in Participants With Moderate and Severe Renal Impairment Compared to Matched Control Subjects With Normal Renal Function"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

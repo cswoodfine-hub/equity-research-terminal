@@ -1,0 +1,29 @@
+{
+ "ticker": "BMY",
+ "company": "Bristol-Myers Squibb Co",
+ "name": "Imzokitug",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT07680764 Phase 2 recruiting is a BMS-sponsored study of imzokitug with pumitamig and chemotherapy in NSCLC; no book row shares the name and the dossier has no approval or EMA match (external identity lookup not run).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Carcinoma, Non-Small-Cell Lung",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07680764",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-09-15",
+   "enrollment": 160,
+   "last_update_posted": "2026-09-16",
+   "lead_sponsor": "Bristol-Myers Squibb",
+   "title": "A Study To Assess the Safety, Tolerability, and Efficacy of Imzokitug in Combination With Pumitamig and Platinum-Doublet Chemotherapy (PDCT) Versus Pumitamig and PDCT as First-line Treatment for Participants With Locally Advanced or Metastatic Non-Small Cell Lung Cancer (NSCLC)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

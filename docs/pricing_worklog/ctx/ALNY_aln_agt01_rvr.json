@@ -1,0 +1,29 @@
+{
+ "ticker": "ALNY",
+ "company": "Alnylam Pharmaceuticals, Inc.",
+ "name": "ALN-AGT01 RVR",
+ "inn_or_identity": "",
+ "sort_evidence": "ALN-AGT01 RVR is a REVERSIR oligonucleotide built to reverse zilebesiran's angiotensinogen silencing (PubMed 38690653), tested only in zilebesiran-pretreated patients in NCT07553442, so its value is tied to zilebesiran.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Hypertension",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07553442",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-04-01",
+   "enrollment": 93,
+   "last_update_posted": "2026-09-14",
+   "lead_sponsor": "Alnylam Pharmaceuticals",
+   "title": "A Study to Evaluate ALN-AGT01 RVR in Adult Patients With Mild to Moderate Hypertension Pretreated With Zilebesiran"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

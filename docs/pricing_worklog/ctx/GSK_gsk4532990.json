@@ -1,0 +1,49 @@
+{
+ "ticker": "GSK",
+ "company": "GSK plc",
+ "name": "GSK4532990",
+ "inn_or_identity": "",
+ "sort_evidence": "GSK4532990 is ARO-HSD, the HSD17B13 siRNA licensed from Arrowhead in 2021 with no INN found, in phase 2 for alcohol-related liver disease (NCT06613698, recruiting) and MASH (NCT05583344), and the book holds no row for it (https://en.wikipedia.org/wiki/ARO-HSD).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Fatty Liver",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Liver Diseases, Alcoholic",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Non-alcoholic Fatty Liver Disease",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05583344",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-01-31",
+   "enrollment": 284,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "Phase 2b Study of GSK4532990 in Adults With NASH"
+  },
+  {
+   "nct_id": "NCT06613698",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-11-26",
+   "enrollment": 393,
+   "last_update_posted": "2026-08-03",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study to Investigate the Safety and Efficacy of GSK4532990 Compared With Placebo in Adult Participants Aged 18 to 70 Years With Alcohol-related Liver Disease"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

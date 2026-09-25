@@ -1,0 +1,29 @@
+{
+ "ticker": "ABBV",
+ "company": "AbbVie Inc",
+ "name": "MEDI0618",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT06602479 Phase 2 recruiting, sponsored by AbbVie, tests MEDI0618, an anti-PAR2 antibody that originated at AstraZeneca and has no book row (https://synapse.patsnap.com/drug/30ef7f91d8da41eda8f0e67117cb25ff).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Migraine Disorders",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06602479",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-12-18",
+   "enrollment": 488,
+   "last_update_posted": "2026-05-19",
+   "lead_sponsor": "AbbVie",
+   "title": "A Study to Investigate the Safety and Efficacy of MEDI0618 Compared to Placebo in Adult Participants With Episodic Migraine"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

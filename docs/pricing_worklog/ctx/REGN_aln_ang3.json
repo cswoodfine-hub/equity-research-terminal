@@ -1,0 +1,39 @@
+{
+ "ticker": "REGN",
+ "company": "Regeneron Pharmaceuticals Inc",
+ "name": "ALN-ANG3",
+ "inn_or_identity": "",
+ "sort_evidence": "Regeneron's 10-Q filed 2026-07-30 lists ALN-ANG3 as an Alnylam-partnered RNAi therapeutic targeting ANGPTL3 in diabetic kidney disease, in Phase 2 NCT07271186 (recruiting).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Diabetic Nephropathies",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07271186",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-10-13",
+   "enrollment": 195,
+   "last_update_posted": "2026-09-11",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "Study to Assess the Effects of ALN-ANG3 in Adult Participants With Diabetic Kidney Disease"
+  },
+  {
+   "nct_id": "NCT06452771",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-12-04",
+   "enrollment": 59,
+   "last_update_posted": "2026-02-20",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A First In Human (FIH) Study to Learn if Different Doses of ALN-ANG3 Are Safe and Well Tolerated in Healthy Adults"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,29 @@
+{
+ "ticker": "ARCT",
+ "company": "Arcturus Therapeutics Holdings Inc.",
+ "name": "ARCT-810",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT06488313 (Phase 2, Recruiting) is Arcturus's own mRNA study in OTC deficiency, and Arcturus's Q2 2026 release says dosing is complete with an End-of-Phase 2 meeting in preparation (https://ir.arcturusrx.com/news-releases/news-release-details/arcturus-therapeutics-announces-second-quarter-2026-financial).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Ornithine Carbamoyltransferase Deficiency Disease",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06488313",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-06-01",
+   "enrollment": 9,
+   "last_update_posted": "2025-03-17",
+   "lead_sponsor": "Arcturus Therapeutics, Inc.",
+   "title": "A Study to Evaluate the Pharmacodynamics and Safety of ARCT-810 in Participants With OTCD"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

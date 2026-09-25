@@ -1,7 +1,9 @@
 # Phase 3 pricing worklog
 
-Working state of the pricing step for the 75 Phase 3 assets the sort marked NEW
-(`data/pipeline_sort.csv`), saved so a later session can continue it. Nothing here is read
+Working state of the pricing step for the assets the sort marked NEW
+(`data/pipeline_sort.csv`), saved so a later session can continue it: the 75 at Phase 3,
+all now seeded, held or refused, then the 121 at Phase 2 and 2/3, whose context files
+`ctx.py` built from the book and the sort on 2026-09-25. Nothing here is read
 by the app. A seed enters the book only after a second reader has reopened every source,
 and only then is it assembled into `data/assumptions/`.
 
@@ -9,6 +11,10 @@ Progress per asset is in `status.md`.
 
 ## Method
 
+0. `ctx.py` writes a context file per NEW asset at the phases asked (default Phase 2 and
+   2/3): its indications and phases, its trials, the sort's evidence, and any row in the book
+   whose name shares a word with it. The brief's "At Phase 2" section sets how the
+   researcher treats an asset that has not reached Phase 3.
 1. A researcher agent reads `BRIEF.md` and the asset's context file in `ctx/`, and writes
    `research/<TICKER>_<slug>.json`: price, gross to net, uptake, pool, each with a source.
 2. A second agent, following the "second reader" section of the brief, reopens every source

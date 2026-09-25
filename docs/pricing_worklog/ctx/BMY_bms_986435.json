@@ -1,0 +1,39 @@
+{
+ "ticker": "BMY",
+ "company": "Bristol-Myers Squibb Co",
+ "name": "BMS-986435",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT06122779 Phase 2 active not recruiting tests BMS-986435/MYK-224, a next-generation cardiac myosin inhibitor with INN delocamten (https://en.wikipedia.org/wiki/Delocamten) that is a different molecule from Camzyos (mavacamten).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Heart Failure",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06122779",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-12-14",
+   "enrollment": 227,
+   "last_update_posted": "2026-07-30",
+   "lead_sponsor": "Bristol-Myers Squibb",
+   "title": "Study to Evaluate Safety, Tolerability and Drug Levels of BMS-986435/MYK-224 in Participants With Heart Failure With Preserved Ejection Fraction (HFpEF)"
+  },
+  {
+   "nct_id": "NCT07226817",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-12-17",
+   "enrollment": 240,
+   "last_update_posted": "2026-08-12",
+   "lead_sponsor": "Bristol-Myers Squibb",
+   "title": "A Study to Assess the Relative Bioavailability of BMS-986435 and Food Effect on the BMS-986435 in Healthy Adult Participants"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,29 @@
+{
+ "ticker": "AZN",
+ "company": "AstraZeneca PLC",
+ "name": "AZD8965 low dose",
+ "inn_or_identity": "",
+ "sort_evidence": "The name is the low-dose arm of AZD8965, an oral arginase inhibitor in the Phase 2b ARGiNAUT trial NCT07652658 (Recruiting) in IPF, and the book holds no other AZD8965 row, so this row is the only carrier of the molecule.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Idiopathic Pulmonary Fibrosis",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07652658",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-09-14",
+   "enrollment": 359,
+   "last_update_posted": "2026-09-21",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Phase IIb Study to Evaluate AZD8965 in Participants With IPF."
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

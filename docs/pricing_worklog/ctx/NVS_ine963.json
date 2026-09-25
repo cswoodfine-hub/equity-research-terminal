@@ -1,0 +1,34 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "INE963",
+ "inn_or_identity": "",
+ "sort_evidence": "Novartis antimalarial in the Phase 2 platform NCT05750628, listed as recruiting (last update 2025-07-30), with no approval and no book row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Malaria",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Malaria, Falciparum",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05750628",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-06-09",
+   "enrollment": 327,
+   "last_update_posted": "2025-07-30",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Platform Study to Evaluate the Efficacy and Safety of Anti-malarial Agents in Patients With Uncomplicated Plasmodium Falciparum Malaria"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

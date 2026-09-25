@@ -1,0 +1,29 @@
+{
+ "ticker": "NBIX",
+ "company": "Neurocrine Biosciences, Inc.",
+ "name": "NBI-1065890",
+ "inn_or_identity": "",
+ "sort_evidence": "NBI-1065890 is a next-generation VMAT2 inhibitor distinct from valbenazine, in a recruiting Phase 2 tardive dyskinesia trial (NCT07365462); no INN is published (https://www.neurologylive.com/view/vmat2-inhibitor-nbi-1065890-phase-2-study-tardive-dyskinesia).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Tardive Dyskinesia",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07365462",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-02",
+   "enrollment": 100,
+   "last_update_posted": "2026-06-23",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "Efficacy, Safety, and Tolerability of NBI-1065890 Versus Placebo in Adults With Tardive Dyskinesia"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

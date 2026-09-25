@@ -1,0 +1,54 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "JSB462",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT06991556 (Phase 2, active not recruiting) names the drug as JSB462 (luxdegalutamide), an AR degrader with no approval and no other row in the book.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Prostatic Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Prostatic Neoplasms, Castration-Resistant",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07047118",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-07-16",
+   "enrollment": 138,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study of JSB462 (Luxdegalutamide) Plus Lutetium (177Lu) Vipivotide Tetraxetan in Patients With Metastatic Castration Resistant Prostate Cancer (mCRPC)"
+  },
+  {
+   "nct_id": "NCT06991556",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2032-02-13",
+   "enrollment": 168,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "An Open-label Study of JSB462 (Luxdegalutamide) in Combination With Abiraterone in Adult Male Patients With Metastatic Hormone-sensitive Prostate Cancer (mHSPC)"
+  },
+  {
+   "nct_id": "NCT07174063",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-01-29",
+   "enrollment": 6,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Phase I Study of JSB462 (Luxdegalutamide) in Japanese Patients With Metastatic Prostate Cancer"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

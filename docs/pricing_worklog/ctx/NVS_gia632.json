@@ -1,0 +1,59 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "GIA632",
+ "inn_or_identity": "",
+ "sort_evidence": "Novartis anti-IL-15 antibody in Phase 2 with NCT07220577 (atopic dermatitis) active not recruiting and NCT07431177 (vitiligo) recruiting; no book row shares the molecule (https://synapse.patsnap.com/drug/c8d1ecce743e4276ab93e08c60cee822).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Dermatitis, Atopic",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Lichen Planus",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Vitiligo",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07220577",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-05-17",
+   "enrollment": 34,
+   "last_update_posted": "2026-05-14",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Phase 2a Study to Assess the Efficacy,Safety and Tolerability of GIA632 in Adult Participants With Moderate to Severe Atopic Dermatitis"
+  },
+  {
+   "nct_id": "NCT07431177",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-06-06",
+   "enrollment": 210,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Phase IIb Dose-ranging Study to Assess the Efficacy and Safety of GIA632 in Participants With Non-segmental Vitiligo"
+  },
+  {
+   "nct_id": "NCT07775924",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-11-22",
+   "enrollment": 259,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study to Assess the Efficacy and Safety of GIA632 Across a Range of Doses in Participants With Moderate to Severe Cutaneous Lichen Planus"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

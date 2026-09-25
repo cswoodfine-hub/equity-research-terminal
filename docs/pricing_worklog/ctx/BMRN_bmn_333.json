@@ -1,0 +1,29 @@
+{
+ "ticker": "BMRN",
+ "company": "BioMarin Pharmaceutical Inc.",
+ "name": "BMN 333",
+ "inn_or_identity": "",
+ "sort_evidence": "BMN 333 is a long-acting CNP analogue distinct from vosoritide, in a recruiting Phase 2/3 head-to-head against vosoritide in achondroplasia (NCT07441876).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Achondroplasia",
+   "phase": "Phase 2/3",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07441876",
+   "phase": "Phase 2/3",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-06",
+   "enrollment": 160,
+   "last_update_posted": "2026-08-21",
+   "lead_sponsor": "BioMarin Pharmaceutical",
+   "title": "Study to Evaluate the Efficacy and Safety of BMN 333 Versus Vosoritide in Children With Achondroplasia"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

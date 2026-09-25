@@ -1,0 +1,29 @@
+{
+ "ticker": "MRNA",
+ "company": "Moderna, Inc.",
+ "name": "mRNA-1647",
+ "inn_or_identity": "",
+ "sort_evidence": "mRNA-1647 failed its congenital CMV Phase 3 and that programme was discontinued, but Moderna stated it continues the Phase 2 in haematopoietic cell transplant recipients (NCT05683457, active not recruiting) (https://www.modernatx.com/media-center/all-media/blogs/phase-3-cmv-vaccine-readout-reflections).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Cytomegalovirus Infections",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05683457",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-03-06",
+   "enrollment": 84,
+   "last_update_posted": "2026-08-10",
+   "lead_sponsor": "ModernaTX, Inc.",
+   "title": "A Study to Evaluate the Efficacy, Safety, and Immunogenicity of mRNA-1647 Cytomegalovirus (CMV) Vaccine in Allogenic Hematopoietic Cell Transplantation (HCT) Participants."
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

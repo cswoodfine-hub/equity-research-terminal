@@ -1,0 +1,34 @@
+{
+ "ticker": "LLY",
+ "company": "Eli Lilly and Company",
+ "name": "Eltrekibart",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 2 NCT06598943 of eltrekibart with mirikizumab in ulcerative colitis is recruiting, and the book holds no eltrekibart row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Colitis",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Colitis, Ulcerative",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06598943",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-12",
+   "enrollment": 143,
+   "last_update_posted": "2026-07-30",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Eltrekibart and Mirikizumab in Adult Patients With Moderately to Severely Active Ulcerative Colitis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

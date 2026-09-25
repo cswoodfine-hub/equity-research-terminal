@@ -1,0 +1,49 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "QCZ484",
+ "inn_or_identity": "",
+ "sort_evidence": "Angiotensinogen siRNA licensed from Argo Biopharma as BW-00163, in Phase 2 NCT06857955 (active not recruiting) and NCT07543120 (recruiting) with no book row (https://www.argobiopharma.com/news/111.html).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Hypertension",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06857955",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-01-29",
+   "enrollment": 396,
+   "last_update_posted": "2026-09-04",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study to Identify an Optimal Dose of QCZ484 in Mild to Moderate Hypertensive Patients"
+  },
+  {
+   "nct_id": "NCT07610278",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-04-28",
+   "enrollment": 120,
+   "last_update_posted": "2026-07-30",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study to Evaluate the Pharmacodynamics of a Combination of QCZ484 and Inclisiran in Participants With Hypertension and Concomitant Hypercholesterolemia"
+  },
+  {
+   "nct_id": "NCT07543120",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2031-05-31",
+   "enrollment": 323,
+   "last_update_posted": "2026-07-30",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "An Open-label Extension Safety and Efficacy Study of QCZ484 in Hypertensive Patients."
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

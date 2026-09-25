@@ -1,0 +1,69 @@
+{
+ "ticker": "REGN",
+ "company": "Regeneron Pharmaceuticals Inc",
+ "name": "Ubamatamab",
+ "inn_or_identity": "",
+ "sort_evidence": "Regeneron's 10-Q filed 2026-07-30 lists ubamatamab (REGN4018), a MUC16xCD3 bispecific, in ovarian cancer and NSCLC, with Phase 2 NCT06787612 and NCT07154290 recruiting and no approval.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Carcinoma, Non-Small-Cell Lung",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Fallopian Tube Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Lung Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Ovarian Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Endometrial Neoplasms",
+   "phase": "Phase 1/2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06787612",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-06-30",
+   "enrollment": 297,
+   "last_update_posted": "2026-09-14",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "Investigation of Ubamatamab Combination Therapy in Adult Participants With Platinum-Resistant Ovarian Cancer"
+  },
+  {
+   "nct_id": "NCT07154290",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-06-10",
+   "enrollment": 300,
+   "last_update_posted": "2026-09-11",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "A Study to Investigate Ubamatamab With and Without Marlotamig (REGN7075) in Adult Participants With Advanced/Metastatic Non-Small Cell Lung Cancer (NSCLC)"
+  },
+  {
+   "nct_id": "NCT03564340",
+   "phase": "Phase 1/2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-05-10",
+   "enrollment": 890,
+   "last_update_posted": "2026-09-11",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "Study of REGN4018 (Ubamatamab) Administered Alone or in Combination With Cemiplimab in Adult Patients With Recurrent Ovarian Cancer or Other Recurrent Mucin-16 Expressing (MUC16+) Cancers"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

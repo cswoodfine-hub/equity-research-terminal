@@ -1,0 +1,44 @@
+{
+ "ticker": "JNJ",
+ "company": "Johnson & Johnson",
+ "name": "JNJ-95597528",
+ "inn_or_identity": "",
+ "sort_evidence": "J&J code with no INN or target found in the dossier, local filings or web search; it is in Phase 2b atopic dermatitis NCT07230860 (active not recruiting) and Phase 2 asthma NCT07746687 (not yet recruiting), and no book row or EMA entry matches it.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Asthma",
+   "phase": "Phase 2",
+   "development_status": "Not yet recruiting"
+  },
+  {
+   "name": "Dermatitis, Atopic",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07230860",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-11-19",
+   "enrollment": 189,
+   "last_update_posted": "2026-08-28",
+   "lead_sponsor": "Janssen Research & Development, LLC",
+   "title": "A Study of JNJ-95597528 in Participants With Moderate to Severe Atopic Dermatitis"
+  },
+  {
+   "nct_id": "NCT07746687",
+   "phase": "Phase 2",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2029-09-11",
+   "enrollment": 440,
+   "last_update_posted": "2026-08-31",
+   "lead_sponsor": "Janssen Research & Development, LLC",
+   "title": "A Study of JNJ-95597528 in Participants With Inadequately Controlled Moderate to Severe Asthma"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

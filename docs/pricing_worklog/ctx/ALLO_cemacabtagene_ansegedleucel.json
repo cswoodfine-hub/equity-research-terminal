@@ -1,0 +1,29 @@
+{
+ "ticker": "ALLO",
+ "company": "Allogene Therapeutics, Inc.",
+ "name": "cemacabtagene ansegedleucel",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT06500273 (ALPHA3, Phase 2, Recruiting) passed its interim futility analysis in April 2026 with 58.3% MRD clearance against 16.7% for observation (https://ir.allogene.com/news-releases/news-release-details/allogene-therapeutics-reports-interim-futility-analysis-pivotal).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Lymphoma, Large B-Cell, Diffuse",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06500273",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-12",
+   "enrollment": 250,
+   "last_update_posted": "2026-08-31",
+   "lead_sponsor": "Allogene Therapeutics",
+   "title": "Consolidation of First-Line MRD+ Remission With Cema-cel in Patients With LBCL"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

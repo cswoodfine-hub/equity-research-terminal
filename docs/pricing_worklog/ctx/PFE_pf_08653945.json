@@ -1,0 +1,64 @@
+{
+ "ticker": "PFE",
+ "company": "Pfizer Inc",
+ "name": "PF-08653945",
+ "inn_or_identity": "",
+ "sort_evidence": "PF-08653945 is MET-233i, the monthly amylin analog from Metsera, a different molecule from modelled berobenatide (PF-08653944); Phase 2 NCT07575932 is active, not recruiting (https://pryzm.ozmosi.com/product/34424).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Body Weight",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Nutrition Disorders",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Nutritional and Metabolic Diseases",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Obesity",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Overnutrition",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Overweight",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07575932",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-08-04",
+   "enrollment": 940,
+   "last_update_posted": "2026-09-14",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study of PF-08653945 and PF-08653944 in Adults With Overweight or Obesity"
+  },
+  {
+   "nct_id": "NCT07725809",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-01-13",
+   "enrollment": 57,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "Pfizer",
+   "title": "A Study to Learn How the Study Medicine Called PF-08653945 is Taken up Into the Blood in Adults With Overweight or Obesity"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

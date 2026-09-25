@@ -1,0 +1,29 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "GXV813",
+ "inn_or_identity": "",
+ "sort_evidence": "Oral muscarinic M4 agonist (EX-A8078) in Phase 2 NCT07467993 for schizophrenia, recruiting, with no approval and no book row (https://en.wikipedia.org/wiki/GXV-813).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Schizophrenia",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07467993",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-07-29",
+   "enrollment": 142,
+   "last_update_posted": "2026-07-29",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Study to Assess the Safety, Tolerability, and Treatment Response of GXV813 in Hospitalized Adults With Schizophrenia"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,29 @@
+{
+ "ticker": "SNY",
+ "company": "Sanofi",
+ "name": "SAR448851",
+ "inn_or_identity": "",
+ "sort_evidence": "SAR448851 is the oral TREM2 agonist VG-3927 acquired with Vigil Neuroscience, has no INN and no row in the book, and is in Phase 2 TREMHANCE NCT07688213 (Recruiting) (https://www.alzforum.org/therapeutics/sar448851).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Alzheimer Disease",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07688213",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-07-31",
+   "enrollment": 160,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Sanofi",
+   "title": "A Study to Investigate the Safety and Effectiveness of SAR448851 in Participants With Early Alzheimer's Disease"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

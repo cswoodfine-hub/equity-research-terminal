@@ -1,0 +1,49 @@
+{
+ "ticker": "GILD",
+ "company": "Gilead Sciences Inc",
+ "name": "Denikitug",
+ "inn_or_identity": "",
+ "sort_evidence": "Denikitug (GS-1811) is an unapproved Gilead antibody in Phase 2 gastric/GEJ and colorectal trials NCT07546812 and NCT07527858 (recruiting).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Adenocarcinoma Of Esophagus",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07527858",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-12",
+   "enrollment": 170,
+   "last_update_posted": "2026-07-28",
+   "lead_sponsor": "Gilead Sciences",
+   "title": "Study of Denikitug (GS-1811) Given Alone or With Nivolumab or With Chemotherapy in Adults With Advanced Colorectal Cancer"
+  },
+  {
+   "nct_id": "NCT07546812",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2030-01",
+   "enrollment": 120,
+   "last_update_posted": "2026-09-21",
+   "lead_sponsor": "Gilead Sciences",
+   "title": "Study of Denikitug (GS-1811) Given Alone or With Nivolumab or Chemotherapy in Adults With Metastatic Gastric, Gastroesophageal Junction (GEJ), and Esophageal Adenocarcinomas"
+  },
+  {
+   "nct_id": "NCT05007782",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-12",
+   "enrollment": 304,
+   "last_update_posted": "2026-09-17",
+   "lead_sponsor": "Gilead Sciences",
+   "title": "Study of Denikitug (GS-1811) Given Alone or With Zimberelimab in Adults With Advanced Solid Tumors"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

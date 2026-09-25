@@ -1,0 +1,44 @@
+{
+ "ticker": "ABBV",
+ "company": "AbbVie Inc",
+ "name": "Icalcaprant",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT06696755 and NCT07276997 Phase 2 recruiting test icalcaprant, an unapproved kappa opioid antagonist from Cerevel with no book row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Bipolar Disorder",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Depressive Disorder, Major",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07276997",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-09",
+   "enrollment": 195,
+   "last_update_posted": "2026-06-15",
+   "lead_sponsor": "AbbVie",
+   "title": "A Study to Assess Change in Disease Activity and Adverse Events of Oral Icalcaprant in Adult Participants With Major Depressive Disorder"
+  },
+  {
+   "nct_id": "NCT06696755",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-11",
+   "enrollment": 195,
+   "last_update_posted": "2026-08-14",
+   "lead_sponsor": "AbbVie",
+   "title": "A Study to Assess Adverse Events and Change in Disease Activity of Oral Icalcaprant in Adult Participants With Bipolar I or II Disorder"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,29 @@
+{
+ "ticker": "AZN",
+ "company": "AstraZeneca PLC",
+ "name": "AZD6793",
+ "inn_or_identity": "",
+ "sort_evidence": "AZD6793 is an oral IRAK4 inhibitor with no INN and no row in the book (ATS 2025 abstract, https://doi.org/10.1164/ajrccm.2025.211.Abstracts.A3037), in the Phase 2b COPD trial NCT07082738 (Recruiting).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Pulmonary Disease, Chronic Obstructive",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07082738",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-11-05",
+   "enrollment": 987,
+   "last_update_posted": "2026-09-09",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Study to Investigate the Effect of AZD6793 in Participants With Moderate to Very Severe Chronic Obstructive Pulmonary Disease"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

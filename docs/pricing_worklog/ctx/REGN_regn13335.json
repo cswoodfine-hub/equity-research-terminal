@@ -1,0 +1,34 @@
+{
+ "ticker": "REGN",
+ "company": "Regeneron Pharmaceuticals Inc",
+ "name": "REGN13335",
+ "inn_or_identity": "",
+ "sort_evidence": "Regeneron's 10-Q filed 2026-07-30 (0000872589-26-000025) lists REGN13335 as an antagonist antibody to PDGF-B in PAH, in Phase 2 NCT07318597 (recruiting), with no EMA entry and no FDA approval in the local tables.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Hypertension, Pulmonary",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Pulmonary Arterial Hypertension",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07318597",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-02-27",
+   "enrollment": 99,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "Regeneron Pharmaceuticals",
+   "title": "Study of REGN13335 in Adult Participants With Pulmonary Arterial Hypertension (PAH)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

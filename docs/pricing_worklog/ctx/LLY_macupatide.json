@@ -1,0 +1,59 @@
+{
+ "ticker": "LLY",
+ "company": "Eli Lilly and Company",
+ "name": "Macupatide",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 2 NCT07589608 and NCT07215559 of macupatide (LY3532226) alone or with eloralintide are recruiting, and the book holds no macupatide row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Diabetes Mellitus, Type 2",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Obesity",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Overweight",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07215559",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-03",
+   "enrollment": 200,
+   "last_update_posted": "2026-09-08",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Macupatide (LY3532226) and Eloralintide (LY3841136), Alone or in Combination, in Adults With Obesity or Overweight and With Type 2 Diabetes"
+  },
+  {
+   "nct_id": "NCT07589608",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-09",
+   "enrollment": 400,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study to Investigate Weight Management With Macupatide and Eloralintide, Alone or in Combination, in Adult Participants With Obesity or Overweight"
+  },
+  {
+   "nct_id": "NCT07765511",
+   "phase": "Phase 1",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2027-06",
+   "enrollment": 60,
+   "last_update_posted": "2026-08-14",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Macupatide (LY3532226) in Participants With Obesity or Overweight Without Type 2 Diabetes"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

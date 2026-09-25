@@ -1,0 +1,54 @@
+{
+ "ticker": "LLY",
+ "company": "Eli Lilly and Company",
+ "name": "Clazakizumab",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 2 NCT07783802 of clazakizumab (LY5724886) in adults with elevated hsCRP is recruiting, and the book holds no clazakizumab row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Atherosclerosis",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Cardiovascular Diseases",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Diabetes Mellitus, Type 2",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Hypertension",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Obesity",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Renal Insufficiency, Chronic",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07783802",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-05",
+   "enrollment": 120,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Clazakizumab (LY5724886) in Adults With Elevated hsCRP and at Increased Risk for Cardiovascular Event"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

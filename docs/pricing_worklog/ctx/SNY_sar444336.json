@@ -1,0 +1,29 @@
+{
+ "ticker": "SNY",
+ "company": "Sanofi",
+ "name": "SAR444336",
+ "inn_or_identity": "",
+ "sort_evidence": "SAR444336 is a non-beta IL-2 Synthorin with no INN and no row in the book, in Phase 2 NCT07156175 (Recruiting) in microscopic colitis (https://www.sanofi.com/en/clinical-trials/nct07156175).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Colitis, Microscopic",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07156175",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-04-08",
+   "enrollment": 54,
+   "last_update_posted": "2026-09-23",
+   "lead_sponsor": "Sanofi",
+   "title": "A Study to Investigate the Efficacy and Safety of SAR444336 in Adults With Microscopic Colitis in Clinical Remission"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

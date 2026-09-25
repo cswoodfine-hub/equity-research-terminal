@@ -1,0 +1,39 @@
+{
+ "ticker": "ABBV",
+ "company": "AbbVie Inc",
+ "name": "Emraclidine",
+ "inn_or_identity": "",
+ "sort_evidence": "EMPOWER-1 and -2 failed in Nov 2024 and AbbVie took a $3.5B impairment, but NCT07145918 Phase 2 and NCT07219030 Phase 1 are recruiting, so an active programme remains (https://news.abbvie.com/2024-11-11-AbbVie-Provides-Update-on-Phase-2-Results-for-Emraclidine-in-Schizophrenia).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Schizophrenia",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07145918",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-02",
+   "enrollment": 268,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "AbbVie",
+   "title": "A Study to Assess Adverse Events, Change in Disease Activity, and How Oral Emraclidine Moves Through the Body in Adult Participants With Schizophrenia"
+  },
+  {
+   "nct_id": "NCT07219030",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-12",
+   "enrollment": 52,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "AbbVie",
+   "title": "A Study to Assess the Adverse Events and How Oral Emraclidine Moves Through the Body of Healthy Elderly Adult Participants"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,29 @@
+{
+ "ticker": "SNY",
+ "company": "Sanofi",
+ "name": "SAR445399",
+ "inn_or_identity": "",
+ "sort_evidence": "SAR445399 is an IL-1R3 (IL1RAP) antagonist with no INN and no row in the book (https://synapse.patsnap.com/drug/327ba97f5cb44c96b535ee4ea0c3ec77), in Phase 2 NCT07225569 (Recruiting) in hidradenitis suppurativa.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Hidradenitis Suppurativa",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07225569",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-09-22",
+   "enrollment": 144,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Sanofi",
+   "title": "A Study to Investigate Efficacy and Safety With SAR445399 in Adult Participants With Moderate to Severe Hidradenitis Suppurativa"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,34 @@
+{
+ "ticker": "AZN",
+ "company": "AstraZeneca PLC",
+ "name": "Oleclumab",
+ "inn_or_identity": "",
+ "sort_evidence": "Oleclumab (anti-CD73) is not in the book, NCT06606847 is Active not recruiting, and the AstraZeneca H1 2026 clinical trials appendix of 27 July 2026 still lists PACIFIC-9 (Imfinzi plus oleclumab) with data due H2 2026 (https://www.astrazeneca.com/content/dam/az/PDF/2026/h1q2/H1-and-Q2-2026-results-clinical-trials-appendix.pdf).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Carcinoma, Non-Small-Cell Lung",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Lung Neoplasms",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06606847",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-05-04",
+   "enrollment": 30,
+   "last_update_posted": "2026-05-15",
+   "lead_sponsor": "AstraZeneca",
+   "title": "A Study to Investigate the Effects of Durvalumab With Oleclumab Following Chemoradiation in Participants With Locally Advanced Unresectable Non-Small Cell Lung Cancer (LADOGA)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

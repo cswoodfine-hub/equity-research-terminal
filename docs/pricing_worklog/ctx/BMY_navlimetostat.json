@@ -1,0 +1,59 @@
+{
+ "ticker": "BMY",
+ "company": "Bristol-Myers Squibb Co",
+ "name": "Navlimetostat",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT07076121 Phase 2/3 active not recruiting names navlimetostat (BMS-986504) as a BMS investigational PRMT5 agent; no book row or approval holds it, and it is chosen over the BMS-986504 row in this population.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Pancreatic Neoplasms",
+   "phase": "Phase 2/3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07076121",
+   "phase": "Phase 2/3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2029-05-03",
+   "enrollment": 470,
+   "last_update_posted": "2026-06-03",
+   "lead_sponsor": "Bristol-Myers Squibb",
+   "title": "A Study Comparing Navlimetostat (BMS-986504) in Combination With Nab-paclitaxel and Gemcitabine Versus Placebo in Combination With Nab-paclitaxel and Gemcitabine in Participants With Untreated Metastatic Pancreatic Ductal Adenocarcinoma With Homozygous MTAP Deletion (MountainTAP-30)"
+  },
+  {
+   "nct_id": "NCT07544628",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-08-31",
+   "enrollment": 64,
+   "last_update_posted": "2026-06-24",
+   "lead_sponsor": "Bristol-Myers Squibb",
+   "title": "A Phase 1 Study of Navlimetostat Tablet Formulations"
+  },
+  {
+   "nct_id": "NCT07777133",
+   "phase": "Phase 1",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2026-12-05",
+   "enrollment": 6,
+   "last_update_posted": "2026-08-20",
+   "lead_sponsor": "Bristol-Myers Squibb",
+   "title": "A Study to Evaluate the Metabolism, the Routes and Extent of Elimination, and Drug Levels of [14C]Navlimetostat (BMS-986504) in Healthy Female Participants"
+  },
+  {
+   "nct_id": "NCT07800897",
+   "phase": "Phase 1",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2027-03-25",
+   "enrollment": 80,
+   "last_update_posted": "2026-09-02",
+   "lead_sponsor": "Bristol-Myers Squibb",
+   "title": "A Study of Navlimetostat (BMS-986504) Drug Interactions and Food Effect in Healthy Participants"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

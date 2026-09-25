@@ -1,0 +1,29 @@
+{
+ "ticker": "GSK",
+ "company": "GSK plc",
+ "name": "Camlipixant",
+ "inn_or_identity": "",
+ "sort_evidence": "GSK stopped camlipixant in refractory chronic cough on 2026-07-17 but kept the phase IIb BALANCE trial in IBS-D (NCT07519395, recruiting), and the book holds no camlipixant row (https://www.gsk.com/en-gb/media/press-releases/gsk-provides-an-update-on-calm-1-and-calm-2-phase-iii-trials/).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Irritable Bowel Syndrome",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07519395",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-03-09",
+   "enrollment": 420,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study to Investigate Abdominal Symptoms With Camlipixant Compared With Placebo in Adults With Irritable Bowel Syndrome - Diarrhea (IBS-D) and Irritable Bowel Syndrome - Mixed (IBS-M)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

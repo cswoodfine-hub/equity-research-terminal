@@ -1,0 +1,29 @@
+{
+ "ticker": "JNJ",
+ "company": "Johnson & Johnson",
+ "name": "JNJ-88545223",
+ "inn_or_identity": "",
+ "sort_evidence": "J&J code with no INN or target found in the dossier, local filings or web search; its only trial is Phase 2b psoriatic arthritis NCT07321873 (recruiting), and no book row or EMA entry matches it.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Arthritis, Psoriatic",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07321873",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-06-28",
+   "enrollment": 240,
+   "last_update_posted": "2026-08-28",
+   "lead_sponsor": "Janssen Research & Development, LLC",
+   "title": "A Study to Evaluate the Efficacy and Safety of JNJ-88545223 for the Treatment of Participants With Active Psoriatic Arthritis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,29 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "Arumakimig",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT07748624 (Phase 2, not yet recruiting) names the drug Arumakimig (MAS825), an IL-1 beta and IL-18 antibody with no approval; clearest name of the two rows for this molecule.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "VEXAS syndrome",
+   "phase": "Phase 2",
+   "development_status": "Not yet recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07748624",
+   "phase": "Phase 2",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-12-26",
+   "enrollment": 120,
+   "last_update_posted": "2026-08-06",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A 52-Week Study Evaluating the Efficacy and Safety of Arumakimig (MAS825) in Participants With VEXAS Followed by Open-Label Extension (OLE) Period"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,44 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "VHB937",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 2 NCT07094516 in early Alzheimer disease is recruiting and NCT06643481 in ALS is active not recruiting; no approval and no book row shares the molecule.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Alzheimer Disease",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Amyotrophic Lateral Sclerosis",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06643481",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-06-23",
+   "enrollment": 251,
+   "last_update_posted": "2026-07-07",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Clinical Trial to Learn About the Effects of VHB937 in People With Amyotrophic Lateral Sclerosis (ALS)"
+  },
+  {
+   "nct_id": "NCT07094516",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-09-14",
+   "enrollment": 407,
+   "last_update_posted": "2026-06-26",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Clinical Trial to Learn About the Effects of VHB937 in People With Early Alzheimer's Disease"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

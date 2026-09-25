@@ -1,0 +1,29 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "EYU688",
+ "inn_or_identity": "",
+ "sort_evidence": "Novartis dengue antiviral in Phase 2 NCT06006559, recruiting, with no approval and no book row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Dengue",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06006559",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-07-22",
+   "enrollment": 108,
+   "last_update_posted": "2026-09-15",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "A Study to Assess the Efficacy, Safety and Pharmacokinetics of EYU688 in Patients With Dengue Fever"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

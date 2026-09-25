@@ -1,0 +1,39 @@
+{
+ "ticker": "BMRN",
+ "company": "BioMarin Pharmaceutical Inc.",
+ "name": "BMN 351",
+ "inn_or_identity": "",
+ "sort_evidence": "BMN 351 is an exon-51 oligonucleotide for Duchenne with Phase 1/2 NCT06280209 active and extension NCT07573631 enrolling, and BioMarin's Q2 2026 report guides a year-end 2026 update (https://www.biomarin.com/news/press-releases/biomarin-reports-second-quarter-2026-financial-and-operating-results/).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Muscular Dystrophy, Duchenne",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07573631",
+   "phase": "Phase 2",
+   "overall_status": "Enrolling by invitation",
+   "primary_completion_date": "2031-12",
+   "enrollment": 18,
+   "last_update_posted": "2026-07-24",
+   "lead_sponsor": "BioMarin Pharmaceutical",
+   "title": "An Open-Label Extension Study to Evaluate the Long-term Safety and Efficacy of BMN 351 in Participants With Duchenne Muscular Dystrophy"
+  },
+  {
+   "nct_id": "NCT06280209",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-04-14",
+   "enrollment": 18,
+   "last_update_posted": "2026-06-25",
+   "lead_sponsor": "BioMarin Pharmaceutical",
+   "title": "A Phase 1/2 Study to Assess the Safety, Tolerability, Pharmacokinetics, and Pharmacodynamics of BMN 351 in Participants With Duchenne Muscular Dystrophy"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

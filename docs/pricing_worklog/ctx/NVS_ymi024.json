@@ -1,0 +1,29 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "YMI024",
+ "inn_or_identity": "",
+ "sort_evidence": "Only NCT07830719 (Phase 2 dose-finding in stable coronary artery disease with elevated hsCRP, not yet recruiting) was found; Amass DrugCore and web search gave no molecule, mechanism or INN for the code.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Coronary Artery Disease",
+   "phase": "Phase 2",
+   "development_status": "Not yet recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07830719",
+   "phase": "Phase 2",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2027-09-16",
+   "enrollment": 180,
+   "last_update_posted": "2026-09-21",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Dose-finding Study of YMI024 to Assess Efficacy, Safety, and Tolerability in Adults With Stable Coronary Artery Disease and Elevated hsCRP"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

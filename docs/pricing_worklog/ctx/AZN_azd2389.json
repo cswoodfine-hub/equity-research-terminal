@@ -1,0 +1,29 @@
+{
+ "ticker": "AZN",
+ "company": "AstraZeneca PLC",
+ "name": "AZD2389",
+ "inn_or_identity": "",
+ "sort_evidence": "AZD2389 is an oral FAP inhibitor for liver fibrosis with no INN and no row in the book (https://drughunter.com/molecule/azd2389), in Phase 2 NCT07610837 (Recruiting).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Liver Cirrhosis",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07610837",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-07-07",
+   "enrollment": 104,
+   "last_update_posted": "2026-09-01",
+   "lead_sponsor": "AstraZeneca",
+   "title": "Study of AZD2389 Safety, Tolerability, and Pharmacodynamics in Adults With Steatotic Liver Disease and Advanced Fibrosis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

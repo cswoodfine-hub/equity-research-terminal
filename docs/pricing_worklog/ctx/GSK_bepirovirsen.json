@@ -1,0 +1,64 @@
+{
+ "ticker": "GSK",
+ "company": "GSK plc",
+ "name": "Bepirovirsen",
+ "inn_or_identity": "",
+ "sort_evidence": "The FDA accepted the bepirovirsen NDA for chronic hepatitis B with priority review and a PDUFA date of 2026-10-26, so it is unapproved, and the book holds no row for it (https://www.gsk.com/en-gb/media/press-releases/bepirovirsen-accepted-for-priority-review-and-granted-breakthrough-therapy-designation-by-the-us-fda/).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Hepatitis B",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Hepatitis B, Chronic",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06497504",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-04-22",
+   "enrollment": 153,
+   "last_update_posted": "2026-07-08",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "Study of Bepirovirsen in Participants Living With Human Immunodeficiency Virus and Chronic Hepatitis B Virus Infection (B-Focus)"
+  },
+  {
+   "nct_id": "NCT06537414",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-05-31",
+   "enrollment": 283,
+   "last_update_posted": "2026-07-07",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study of Sequential Therapy With Daplusiran/Tomligisiran (DAP/TOM) Followed by Bepirovirsen in Participants Living With Chronic Hepatitis B (CHB)"
+  },
+  {
+   "nct_id": "NCT04954859",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2029-01-24",
+   "enrollment": 360,
+   "last_update_posted": "2026-06-24",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "Long-term Follow-up Study to Evaluate Durability of Treatment Response in Previous Bepirovirsen Study Participants (B-Sure)"
+  },
+  {
+   "nct_id": "NCT07168356",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-03-03",
+   "enrollment": 32,
+   "last_update_posted": "2026-05-22",
+   "lead_sponsor": "GlaxoSmithKline",
+   "title": "A Study to Evaluate Blood Levels of Bepirovirsen in Adult Participants With Severe or Moderate Kidney Disease"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

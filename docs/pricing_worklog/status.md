@@ -1,3 +1,5 @@
+## Phase 3
+
 | Ticker | Asset | Status |
 |---|---|---|
 | ALNY | Nucresiran | held: cannibalises Amvuttra, Alnylam's own TTR silencer |
@@ -75,3 +77,129 @@
 | SRPT | SRP-9003 | seeded and built: LGMD2E/R4, about 8 patients a year; still on clinical hold pending ENDEAVOR Cohort 8 sirolimus data (Q1 2027); Sarepta block borrowed from Alnylam (its FY2025 lines are a loss) |
 | TSHA | TSHA-102 | seeded and built: Rett, 5,940 diagnosed females (US claims); priced off Itvisma; Abeona royalty netted at 7% on Alnylam's margin; Taysha block borrowed from Alnylam |
 | VOR | Telitacicept | seeded and built: Vor block borrowed from argenx; Sjogren's carryover withdrawn to match ianalumab and dazodalibep |
+
+## Phase 2 and 2/3
+
+| Ticker | Asset | Status |
+|---|---|---|
+| ABBV | ABBV-142 | not started |
+| ABBV | ABBV-295 | not started |
+| ABBV | ABBV-932 | not started |
+| ABBV | AGN-151607-DP | not started |
+| ABBV | Budigalimab | not started |
+| ABBV | Emraclidine | not started |
+| ABBV | Icalcaprant | not started |
+| ABBV | IMGN151 | not started |
+| ABBV | Livmoniplimab | not started |
+| ABBV | MEDI0618 | not started |
+| ALLO | cemacabtagene ansegedleucel | not started |
+| ALNY | ALN-4324 | not started |
+| ALNY | ALN-6400 | not started |
+| ALNY | ALN-AGT01 RVR | not started |
+| ALNY | Mivelsiran | not started |
+| ARCT | ARCT-032 | not started |
+| ARCT | ARCT-810 | not started |
+| ARWR | ARO-RAGE | not started |
+| AZN | AZD1163 | not started |
+| AZN | AZD2389 | not started |
+| AZN | AZD4144 | not started |
+| AZN | AZD6793 | not started |
+| AZN | AZD7798 | not started |
+| AZN | AZD8965 low dose | not started |
+| AZN | Oleclumab | not started |
+| BAYN | AB-1005 | not started |
+| BAYN | BAY 3670549 | not started |
+| BIIB | Felzartamab | not started |
+| BMRN | BMN 333 | not started |
+| BMRN | BMN 351 | not started |
+| BMY | Arlocabtagene Autoleucel | not started |
+| BMY | BMS-986435 | not started |
+| BMY | BMS-986446 | not started |
+| BMY | BMS-986511 | not started |
+| BMY | Imzokitug | not started |
+| BMY | Navlimetostat | not started |
+| BNTX | BNT113 | not started |
+| BNTX | BNT166a | not started |
+| BNTX | BNT327 | not started |
+| CABA | CABA-201 | not started |
+| FATE | FT819 | not started |
+| GILD | Denikitug | not started |
+| GILD | emvistegrast | not started |
+| GILD | Tilpisertib Fosmecarbil | not started |
+| GSK | Bepirovirsen | not started |
+| GSK | Camlipixant | not started |
+| GSK | GSK3772701 | not started |
+| GSK | GSK3862995B | not started |
+| GSK | GSK4532990 | not started |
+| GSK | Low dose of iNTS-TCV | not started |
+| INCY | INCB000928 | not started |
+| IONS | ION775 | not started |
+| JNJ | JNJ-101556143 | not started |
+| JNJ | JNJ-88545223 | not started |
+| JNJ | JNJ-95597528 | not started |
+| KYTX | KYV-101 | not started |
+| LLY | Bimagrumab | not started |
+| LLY | Clazakizumab | not started |
+| LLY | Eltrekibart | not started |
+| LLY | LY3016859 ISA | not started |
+| LLY | LY3305677 | not started |
+| LLY | LY3457263 | not started |
+| LLY | LY3537021 | not started |
+| LLY | LY3938577 | not started |
+| LLY | LY4005130 | not started |
+| LLY | LY4065967 | not started |
+| LLY | LY4395089 | not started |
+| LLY | LY4515100 via SAD | not started |
+| LLY | Macupatide | not started |
+| LLY | MORF-057 | not started |
+| LLY | Solbinsiran | not started |
+| MRK | Frespaciguat | not started |
+| MRK | Miransertib | not started |
+| MRK | MK-2214 | not started |
+| MRK | MK-8690 | not started |
+| MRNA | mRNA-1195 | not started |
+| MRNA | mRNA-1647 | not started |
+| MRNA | mRNA-1982 | not started |
+| NBIX | NBI-1065890 | not started |
+| NBIX | NBI-1117567 | not started |
+| NBIX | NBI-1117570 | not started |
+| NVO | CDR132L | not started |
+| NVO | NNC0662-0419 | not started |
+| NVO | UBT251 | not started |
+| NVS | Arumakimig | not started |
+| NVS | DDY391 | not started |
+| NVS | EYU688 | not started |
+| NVS | GHZ339 | not started |
+| NVS | GIA632 | not started |
+| NVS | GXV813 | not started |
+| NVS | INE963 | not started |
+| NVS | JSB462 | not started |
+| NVS | KAE609 | not started |
+| NVS | LXE408 | not started |
+| NVS | LXH254 | not started |
+| NVS | PKN605 | not started |
+| NVS | QCZ484 | not started |
+| NVS | Rapcabtagene autoleucel | not started |
+| NVS | VHB937 | not started |
+| NVS | YMI024 | not started |
+| PEPG | PGN-EDODM1 | not started |
+| PFE | PF-07104091 monotherapy dose expansion (SCLC) | not started |
+| PFE | PF-07328948 | not started |
+| PFE | PF-07868489 | not started |
+| PFE | PF-08049820 | not started |
+| PFE | PF-08653945 | not started |
+| RCKT | RP-A501 | not started |
+| REGN | ALN-ANG3 | not started |
+| REGN | Olatorepatide | not started |
+| REGN | REGN13335 | not started |
+| REGN | Trevogrumab-Part A | not started |
+| REGN | Ubamatamab | not started |
+| RGNX | RGX-202 | not started |
+| SNY | Brivekimig | not started |
+| SNY | SAR444336 | not started |
+| SNY | SAR445399 | not started |
+| SNY | SAR447537 | not started |
+| SNY | SAR448851 | not started |
+| VRTX | VX-407 | not started |
+| VRTX | VX-670 | not started |
+| WVE | WVE-N531 | not started |

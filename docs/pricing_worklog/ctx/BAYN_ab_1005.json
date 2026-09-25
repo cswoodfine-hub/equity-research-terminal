@@ -1,0 +1,29 @@
+{
+ "ticker": "BAYN",
+ "company": "Bayer AG",
+ "name": "AB-1005",
+ "inn_or_identity": "",
+ "sort_evidence": "AB-1005 is AskBio's AAV2-GDNF gene therapy for Parkinson's disease in the Phase 2 REGENERATE-PD programme, with Japanese Phase 2 NCT07566429 not yet recruiting (https://www.bayer.com/media/en-us/first-participants-randomized-in-askbio-phase-ii-gene-therapy-trial-for-parkinsons-disease/).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Parkinson Disease",
+   "phase": "Phase 2",
+   "development_status": "Not yet recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07566429",
+   "phase": "Phase 2",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2029-06-15",
+   "enrollment": 8,
+   "last_update_posted": "2026-07-29",
+   "lead_sponsor": "Bayer",
+   "title": "A Study of AB-1005 Gene Therapy in Japanese Adults With Moderate Parkinson's Disease (J-REGENERATE-PD)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,29 @@
+{
+ "ticker": "NBIX",
+ "company": "Neurocrine Biosciences, Inc.",
+ "name": "NBI-1117567",
+ "inn_or_identity": "",
+ "sort_evidence": "NBI-1117567 is an M1-preferring muscarinic agonist whose Phase 2 Alzheimer's cognition IND was accepted in August 2026, with NCT07832383 not yet recruiting (https://www.globenewswire.com/news-release/2026/08/26/3351102/0/en/nxera-pharma-s-partner-neurocrine-biosciences-receives-ind-acceptance-from-the-fda-for-phase-2-study-of-nbi-1117567-for-alzheimer-s-cognition.html).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Alzheimer Disease",
+   "phase": "Phase 2",
+   "development_status": "Not yet recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07832383",
+   "phase": "Phase 2",
+   "overall_status": "Not yet recruiting",
+   "primary_completion_date": "2028-05",
+   "enrollment": 135,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Neurocrine Biosciences",
+   "title": "Evaluation of NBI-1117567 in Participants With Mild to Moderate Alzheimer's Disease (AD) Taking a Background Acetylcholinesterase Inhibitor"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

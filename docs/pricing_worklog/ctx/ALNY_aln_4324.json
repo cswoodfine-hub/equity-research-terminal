@@ -1,0 +1,39 @@
+{
+ "ticker": "ALNY",
+ "company": "Alnylam Pharmaceuticals, Inc.",
+ "name": "ALN-4324",
+ "inn_or_identity": "",
+ "sort_evidence": "Alnylam's 8-K filed 2026-02-12 (0001628280-26-007491) reports a Phase 2 start for ALN-4324, an RNAi therapeutic targeting GRB14 for type 2 diabetes (NCT07465224, recruiting).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Diabetes Mellitus, Type 2",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07465224",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-05-28",
+   "enrollment": 24,
+   "last_update_posted": "2026-09-16",
+   "lead_sponsor": "Alnylam Pharmaceuticals",
+   "title": "A Study to Evaluate ALN-4324 on Insulin Sensitivity in Adults With Type 2 Diabetes Mellitus"
+  },
+  {
+   "nct_id": "NCT06845202",
+   "phase": "Phase 1/2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-08-31",
+   "enrollment": 105,
+   "last_update_posted": "2026-09-16",
+   "lead_sponsor": "Alnylam Pharmaceuticals",
+   "title": "A Study to Evaluate ALN-4324 in Overweight to Obese Healthy Volunteers and in Overweight to Obese Patients With T2DM"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

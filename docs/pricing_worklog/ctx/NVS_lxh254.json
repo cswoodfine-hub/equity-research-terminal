@@ -1,0 +1,29 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "LXH254",
+ "inn_or_identity": "",
+ "sort_evidence": "Novartis granted Erasca an exclusive worldwide licence to naporafenib (LXH254) in December 2022 and keeps a royalty, so the value to Novartis is a royalty stream rather than a programme it runs; Erasca's SEACRAFT-2 is the live Phase 3 (https://investors.erasca.com).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Melanoma",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT04417621",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-02-02",
+   "enrollment": 134,
+   "last_update_posted": "2026-03-12",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Study of Efficacy and Safety of LXH254 Combinations in Patients With Previously Treated Unresectable or Metastatic Melanoma"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

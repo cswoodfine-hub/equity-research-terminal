@@ -1,0 +1,84 @@
+{
+ "ticker": "FATE",
+ "company": "Fate Therapeutics, Inc.",
+ "name": "FT819",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT07570862 (Phase 2 lupus nephritis, Recruiting) and NCT06308978 (Phase 1, Recruiting) are Fate's active trials of this iPSC-derived CAR-T, which no other row in the book holds.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Lupus Erythematosus, Systemic",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Lupus Nephritis",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Anti-Neutrophil Cytoplasmic Antibody-Associated Vasculitis",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Leukemia, Lymphocytic, Chronic, B-Cell",
+   "phase": "Phase 1",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Lymphoma, B-Cell",
+   "phase": "Phase 1",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Myositis",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Precursor B-Cell Lymphoblastic Leukemia-Lymphoma",
+   "phase": "Phase 1",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Scleroderma, Systemic",
+   "phase": "Phase 1",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07570862",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2029-07-01",
+   "enrollment": 53,
+   "last_update_posted": "2026-09-14",
+   "lead_sponsor": "Fate Therapeutics",
+   "title": "A Phase 2, Open-Label, Single-Arm Trial of FT819 in Participants With Lupus Nephritis"
+  },
+  {
+   "nct_id": "NCT04629729",
+   "phase": "Phase 1",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2025-06-18",
+   "enrollment": 54,
+   "last_update_posted": "2026-03-19",
+   "lead_sponsor": "Fate Therapeutics",
+   "title": "FT819 in Subjects With B-cell Malignancies"
+  },
+  {
+   "nct_id": "NCT06308978",
+   "phase": "Phase 1",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-09-30",
+   "enrollment": 244,
+   "last_update_posted": "2026-05-22",
+   "lead_sponsor": "Fate Therapeutics",
+   "title": "A Phase 1 Study of FT819 in B-cell Mediated Autoimmune Disease"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

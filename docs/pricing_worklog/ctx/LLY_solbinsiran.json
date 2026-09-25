@@ -1,0 +1,29 @@
+{
+ "ticker": "LLY",
+ "company": "Eli Lilly and Company",
+ "name": "Solbinsiran",
+ "inn_or_identity": "",
+ "sort_evidence": "Phase 2 NCT07269210 of solbinsiran (LY3561774) in severe hypertriglyceridemia is recruiting, and the book holds no solbinsiran row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Hypertriglyceridemia",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07269210",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-03",
+   "enrollment": 60,
+   "last_update_posted": "2026-09-22",
+   "lead_sponsor": "Eli Lilly and Company",
+   "title": "A Study of Solbinsiran (LY3561774) in Participants With Severe Hypertriglyceridemia"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

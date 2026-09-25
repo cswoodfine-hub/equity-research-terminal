@@ -1,0 +1,29 @@
+{
+ "ticker": "ARCT",
+ "company": "Arcturus Therapeutics Holdings Inc.",
+ "name": "ARCT-032",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT06747858 (Phase 2, Recruiting) tests Arcturus's inhaled CFTR mRNA, and the company expects a Phase 3 decision in Q4 2026 (https://ir.arcturusrx.com/news-releases/news-release-details/arcturus-therapeutics-announces-second-quarter-2026-financial).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Cystic Fibrosis",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06747858",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2027-06",
+   "enrollment": 33,
+   "last_update_posted": "2026-05-08",
+   "lead_sponsor": "Arcturus Therapeutics, Inc.",
+   "title": "Safety, Tolerability and Efficacy Study of ARCT-032 in People With Cystic Fibrosis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

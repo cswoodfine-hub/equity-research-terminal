@@ -1,0 +1,39 @@
+{
+ "ticker": "AZN",
+ "company": "AstraZeneca PLC",
+ "name": "AZD7798",
+ "inn_or_identity": "",
+ "sort_evidence": "AZD7798 is an anti-CCR9 depleting monoclonal antibody with no INN and no row in the book (ECCO 2025 abstract P0506, https://academic.oup.com/ecco-jcc/article/19/Supplement_1/i1047/7967561); its Phase 2 trials NCT06450197 and NCT06681324 are Active not recruiting.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Crohn Disease",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06450197",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-04-30",
+   "enrollment": 120,
+   "last_update_posted": "2026-09-18",
+   "lead_sponsor": "AstraZeneca",
+   "title": "Phase IIa Study Evaluating AZD7798 in Crohn's Disease"
+  },
+  {
+   "nct_id": "NCT06681324",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-08-10",
+   "enrollment": 24,
+   "last_update_posted": "2026-08-27",
+   "lead_sponsor": "AstraZeneca",
+   "title": "Study Evaluating AZD7798 for Treatment in Crohn's Disease Patients With an Ileostomy"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

@@ -1,0 +1,34 @@
+{
+ "ticker": "BNTX",
+ "company": "BioNTech SE",
+ "name": "BNT113",
+ "inn_or_identity": "",
+ "sort_evidence": "BioNTech's 6-K filed 2026-08-04 lists BNT113, an mRNA cancer immunotherapy, in the AHEAD-MERIT trial for first-line HPV16+ head and neck cancer (NCT04534205, Phase 2/3, active not recruiting).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Head and Neck Neoplasms",
+   "phase": "Phase 2/3",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Squamous Cell Carcinoma of Head and Neck",
+   "phase": "Phase 2/3",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT04534205",
+   "phase": "Phase 2/3",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-08",
+   "enrollment": 358,
+   "last_update_posted": "2026-09-21",
+   "lead_sponsor": "BioNTech SE",
+   "title": "A Clinical Trial Investigating the Safety, Tolerability, and Therapeutic Effects of BNT113 in Combination With Pembrolizumab Versus Pembrolizumab Alone for Patients With a Form of Head and Neck Cancer Positive for Human Papilloma Virus 16 and Expressing the Protein PD-L1"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

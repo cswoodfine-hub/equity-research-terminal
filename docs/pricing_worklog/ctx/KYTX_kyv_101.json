@@ -1,0 +1,34 @@
+{
+ "ticker": "KYTX",
+ "company": "Kyverna Therapeutics, Inc.",
+ "name": "KYV-101",
+ "inn_or_identity": "",
+ "sort_evidence": "KYV-101 is miv-cel (mivocabtagene autoleucel), whose stiff person syndrome BLA was only starting a rolling submission in 2026, so it is unapproved; NCT06384976 (Phase 2, Active not recruiting) covers MS (https://ir.kyvernatx.com/news-releases/news-release-details/kyverna-therapeutics-announces-initiation-rolling-sps-bla).",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Multiple Sclerosis",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Multiple Sclerosis, Chronic Progressive",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06384976",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2027-04",
+   "enrollment": 120,
+   "last_update_posted": "2025-01-13",
+   "lead_sponsor": "Kyverna Therapeutics",
+   "title": "KYSA-7: A Study of Anti-CD19 CAR T-Cell Therapy, in Subjects With Refractory Primary and Secondary Progressive Multiple Sclerosis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

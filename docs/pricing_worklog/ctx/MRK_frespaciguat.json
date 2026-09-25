@@ -1,0 +1,34 @@
+{
+ "ticker": "MRK",
+ "company": "Merck & Co Inc",
+ "name": "Frespaciguat",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT05612035 Phase 2 (INSIGNIA-PH-COPD) is active not recruiting for inhaled frespaciguat; no discontinuation statement was found and no book row or approval holds it.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Hypertension, Pulmonary",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  },
+  {
+   "name": "Pulmonary Disease, Chronic Obstructive",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT05612035",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2026-04-09",
+   "enrollment": 129,
+   "last_update_posted": "2026-05-01",
+   "lead_sponsor": "Merck Sharp & Dohme LLC",
+   "title": "Frespaciguat (MK-5475) INSIGNIA-PH-COPD: A Study of the Efficacy and Safety of Frespaciguat (an Inhaled sGC Stimulator) in Adults With PH-COPD"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

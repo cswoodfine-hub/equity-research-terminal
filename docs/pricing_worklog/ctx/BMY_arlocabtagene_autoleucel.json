@@ -1,0 +1,66 @@
+{
+ "ticker": "BMY",
+ "company": "Bristol-Myers Squibb Co",
+ "name": "Arlocabtagene Autoleucel",
+ "inn_or_identity": "",
+ "sort_evidence": "NCT06297226 Phase 2 recruiting tests arlocabtagene autoleucel (BMS-986393), a GPRC5D CAR T; the related book rows (Carvykti, Tecartus) are different molecules, and this INN row is chosen over the BMS-986393 row.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Multiple Myeloma",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06297226",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2026-07-31",
+   "enrollment": 230,
+   "last_update_posted": "2026-09-14",
+   "lead_sponsor": "Juno Therapeutics, Inc., a Bristol-Myers Squibb Company",
+   "title": "Study of Arlocabtagene Autoleucel (BMS-986393) a GPRC5D-directed CAR T Cell Therapy in Adult Participants With Relapsed or Refractory Multiple Myeloma"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": [
+  {
+   "id": 406,
+   "ticker": "GILD",
+   "generic": "Brexucabtagene Autoleucel",
+   "brand": "Tecartus",
+   "code": "BLA125703",
+   "is_marketed": 1,
+   "modelled": true
+  },
+  {
+   "id": 414,
+   "ticker": "JNJ",
+   "generic": "ciltacabtagene autoleucel",
+   "brand": "Carvykti",
+   "code": "BLA125746",
+   "is_marketed": 1,
+   "modelled": true
+  },
+  {
+   "id": 2680,
+   "ticker": "NVS",
+   "generic": "Rapcabtagene autoleucel",
+   "brand": null,
+   "code": null,
+   "is_marketed": 0,
+   "modelled": false
+  },
+  {
+   "id": 3289,
+   "ticker": "AUTL",
+   "generic": "obecabtagene autoleucel",
+   "brand": "Aucatzyl",
+   "code": "BLA125813",
+   "is_marketed": 1,
+   "modelled": false
+  }
+ ]
+}

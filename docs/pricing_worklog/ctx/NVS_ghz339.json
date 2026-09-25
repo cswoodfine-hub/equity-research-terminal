@@ -1,0 +1,34 @@
+{
+ "ticker": "NVS",
+ "company": "Novartis AG",
+ "name": "GHZ339",
+ "inn_or_identity": "",
+ "sort_evidence": "First compound in the Novartis atopic dermatitis platform NCT06947993 (Phase 2, recruiting), listed as an IL-13 and IL-18 inhibitor with no INN (https://synapse.patsnap.com/drug/cea0a5ec84bd4ed3a54bfc4b9449ad30); no book row matches.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Dermatitis",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  },
+  {
+   "name": "Dermatitis, Atopic",
+   "phase": "Phase 2",
+   "development_status": "Recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT06947993",
+   "phase": "Phase 2",
+   "overall_status": "Recruiting",
+   "primary_completion_date": "2028-11-27",
+   "enrollment": 224,
+   "last_update_posted": "2026-08-19",
+   "lead_sponsor": "Novartis Pharmaceuticals",
+   "title": "Platform Study to Evaluate the Efficacy and Safety of Investigational Compound(s) in Patients With Moderate to Severe Atopic Dermatitis"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}

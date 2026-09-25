@@ -1,0 +1,29 @@
+{
+ "ticker": "MRNA",
+ "company": "Moderna, Inc.",
+ "name": "mRNA-1982",
+ "inn_or_identity": "",
+ "sort_evidence": "mRNA-1982 is a monovalent Lyme disease vaccine in a Phase 2 of 366 adults (NCT07561294, active not recruiting), not in the MRNA book.",
+ "approved": "",
+ "indications": [
+  {
+   "name": "Lyme Disease",
+   "phase": "Phase 2",
+   "development_status": "Active not recruiting"
+  }
+ ],
+ "trials": [
+  {
+   "nct_id": "NCT07561294",
+   "phase": "Phase 2",
+   "overall_status": "Active not recruiting",
+   "primary_completion_date": "2028-11-09",
+   "enrollment": 366,
+   "last_update_posted": "2026-08-03",
+   "lead_sponsor": "ModernaTX, Inc.",
+   "title": "A Study to Evaluate the Safety, Reactogenicity, and Immunogenicity of mRNA-1982 to Prevent Lyme Disease in Healthy Participants (18 to 70 Years of Age)"
+  }
+ ],
+ "aliases": [],
+ "related_assets_in_book": []
+}
