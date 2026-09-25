@@ -460,6 +460,12 @@ def stacked_columns(x_labels: Sequence[str], series: Sequence[dict],
     ref_vals = (reference or {}).get("values") or []
     dom = _domain(totals + [v for v in ref_vals if v is not None], zero=True)
     hid = _uid("hatch")
+    # Every k-th column carries its year and its total where the columns are narrower than
+    # a label. Thirty years in half a page ran the years together into one string and
+    # stacked the totals on top of each other; each band still carries its value on hover.
+    widest = max([len(str(lab)) * 5.8 for lab in x_labels]
+                 + [len(value_fmt(t)) * 5.2 for t in totals if t] + [1])
+    every = max(1, math.ceil((widest + 6) / slot))
 
     # The legend wraps. Laid out first, because the plot starts under it and a legend
     # of nine bands needs two rows at this width, not one row running off the edge.
@@ -502,10 +508,12 @@ def stacked_columns(x_labels: Sequence[str], series: Sequence[dict],
                        + f'><title>{_esc(label)} {_esc(s["name"])} '
                          f'{_esc(value_fmt(v))}</title></rect>')
             run += v
-        if run:
+        shown = i % every == 0
+        if run and shown:
             out.append(_text(cx, y(run) - 4, value_fmt(run), 8.5, TK.MUTED, "middle",
                              MONO))
-        out.append(_text(cx, floor + 15, label, 9.5, TK.MUTED, "middle", MONO))
+        if shown:
+            out.append(_text(cx, floor + 15, label, 9.5, TK.MUTED, "middle", MONO))
     if reference:
         xs = lambda i: pad_l + slot * i + slot / 2
         _polyline_runs(out, ref_vals, xs, y, reference["colour"], 1.8)

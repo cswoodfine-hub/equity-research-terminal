@@ -1779,8 +1779,11 @@ def _sotp_bridge(s: dict) -> None:
     for missing in s.get("missing") or []:
         bits.append(missing)
     if bits:
-        st.markdown(f'<div class="byline">{html_escape(" · ".join(bits))}</div>',
-                    unsafe_allow_html=True)
+        # Folded, one per line. Run together under the chart they were a wall of small
+        # print the eye skipped, and each is a separate fact about how the bars were made.
+        with st.expander("How the sum is built"):
+            st.markdown('<div class="byline">' + "<br>".join(html_escape(b) for b in bits)
+                        + "</div>", unsafe_allow_html=True)
 
 
 def _revenue_split(s: dict) -> None:
@@ -1904,6 +1907,7 @@ def _fair_value_range(api_base: str, ticker: str) -> None:
     R.show(CH.football_field(rows, 760, 36 + 30 * len(rows), marker=close,
                              value_fmt=money, label_width=300), css_class="chart-mount")
     split = fv.get("revenue_split") or {}
+    guidance_text = None
     if split.get("ok") and split.get("matched_equity") is not None:
         g, m = split["guidance"], split["modelled"]
         unmodelled = split.get("unmodelled_prior_year") or 0.0
@@ -1918,11 +1922,15 @@ def _fair_value_range(api_base: str, ticker: str) -> None:
                 f"{split['explained_by_revenue']:+,.2f} of the {gap:+,.2f} gap to the price, "
                 f"and {split['left_for_conventions']:+,.2f} is left for how long growth "
                 "lasts, costs, discounting and what the book does not carry.")
-        st.markdown(f'<div class="byline">{html_escape(text)}</div>', unsafe_allow_html=True)
+        guidance_text = text
     elif split.get("reason"):
-        st.markdown(f'<div class="byline">{html_escape("revenue against guidance: " + split["reason"])}</div>',
-                    unsafe_allow_html=True)
+        guidance_text = "revenue against guidance: " + split["reason"]
     with st.expander("How each lens is built"):
+        # The guidance reading explains the gap between the lenses and the price, so it
+        # opens with them rather than floating under the chart on its own.
+        if guidance_text:
+            st.markdown(f'<div class="byline">{html_escape(guidance_text)}</div>',
+                        unsafe_allow_html=True)
         body = "".join(
             f'<tr><td class="rs-k">{html_escape(l["lens"])}</td>'
             f'<td class="rs-v">{html_escape(money(l["low"]))}</td>'
@@ -1949,8 +1957,11 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
     basis = ("what the price needs, each alone" if b.get("direction") == "up"
              else "how far each can fall before the price, each alone")
     section("What breaks it", basis=basis)
-    for sentence in (b.get("sentence") or {}).get("body") or []:
-        st.markdown(f'<div class="byline">{html_escape(sentence)}</div>',
+    # The lead sentence is the answer and stays. The ones after it restate the table's
+    # evidence column and the risks table below, so they fold with the caption.
+    sentences = (b.get("sentence") or {}).get("body") or []
+    if sentences:
+        st.markdown(f'<div class="byline">{html_escape(sentences[0])}</div>',
                     unsafe_allow_html=True)
     body = ""
     for l in levers:
@@ -1970,18 +1981,16 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
                 '<th>model</th><th>break</th><th>move</th><th>evidence</th></tr></thead>'
                 f'<tbody>{body}</tbody></table>', unsafe_allow_html=True)
     held = " and ".join(b.get("held") or [])
-    caption = (f"value {b['equity_per_share']:,.2f} against a close of {b['close']:,.2f}, "
-               f"a gap of {gap:+,.2f} a share; each row moves one assumption alone and "
-               f"holds {held}")
-    st.markdown(f'<div class="byline">{html_escape(caption)}</div>',
-                unsafe_allow_html=True)
+    folded = [f"value {b['equity_per_share']:,.2f} against a close of {b['close']:,.2f}, "
+              f"a gap of {gap:+,.2f} a share; each row moves one assumption alone and "
+              f"holds {held}"] + list(sentences[1:])
     uncapped = next((l for l in levers if l.get("key") == "fade_shift_uncapped"
                      and l.get("shown")), None)
     if uncapped:
         peaks = "; ".join(f'{p["product"]} {p["model"]:,.0f}mm to {p["break"]:,.0f}mm'
                           for p in uncapped["shown"])
-        st.markdown(f'<div class="byline">{html_escape("uncapped growth fade at the break, peak revenue: " + peaks)}</div>',
-                    unsafe_allow_html=True)
+        folded.append("uncapped growth fade at the break, peak revenue: " + peaks)
+    note("<br>".join(html_escape(line) for line in folded))
     groups = b.get("groups") or []
     if not groups:
         return
@@ -2005,9 +2014,8 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
     st.markdown('<table class="rs"><thead><tr><th>group</th><th>kind</th><th>members, $ a '
                 'share</th><th>exposure</th><th>value if all fail</th><th>also held by</th>'
                 f'</tr></thead><tbody>{rows}</tbody></table>', unsafe_allow_html=True)
-    st.markdown('<div class="byline">a mechanism group\'s pipeline members failed together '
-                'is a stress, not a probability; a payer group or franchise is exposure '
-                'only</div>', unsafe_allow_html=True)
+    note("a mechanism group's pipeline members failed together is a stress, not a "
+         "probability; a payer group or franchise is exposure only")
 
 
 def _book(api_base: str, ticker: str, selected):
