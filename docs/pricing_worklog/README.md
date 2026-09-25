@@ -78,7 +78,8 @@ ratios, as Viking takes Lilly's: `comparator_block.py SEED TICKER COMPARATOR DEB
 stated debt weight into an assembled seed. Register the pair in
 `interest_addback.COMPARATORS`. Structure (aleniglipron) borrows Lilly's; Dyne, Capricor and
 Intellia borrow Alnylam's, the book's rare-disease genetic medicine company with its own filed
-lines; Vor borrows argenx's, the gMG incumbent telitacicept is priced against. A share netted
+lines; Vor borrows argenx's, the gMG incumbent telitacicept is priced against; Revolution Medicines
+borrows Exelixis's; Ionis, whose own filed lines are a loss, borrows Alnylam's. A share netted
 over a borrowed margin (Vor's royalty, Intellia's, Capricor's revenue share) says so and is
 recomputed when the company files a cost of sales.
 
@@ -116,6 +117,11 @@ context files and the book's trials table. The first session's search allowance 
 - Duchenne: deramiocel and DYNE-251 share one pool (11,952 and 367) and set no carryover.
   DYNE-251's 0.78% discontinuation lets its treated stock reach about 82% of the exon 51 pool
   by 2039, and the ~650 patients already on Exondys are not netted from it.
+- Obudanersen prices off Spinraza's 2020 Part D spend per beneficiary, the only year with a
+  count (17). Spinraza is billed mainly under Part B, which the book does not carry; a Part B
+  anchor would put net near 1.9 times this seed's.
+- Zoldonrasib keeps the engine's 12-year LOE default (2043): Revolution's 10-K gives only a
+  2031 to 2045 range across the tri-complex portfolio, with no date for the molecule.
 - `tests/test_refresh.py::test_refresh_populates_then_skips_within_ttl` fails in this
   container because a fetcher reaches the network and the run goes partial; it failed before
   any change in this session.

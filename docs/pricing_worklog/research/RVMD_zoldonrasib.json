@@ -1,0 +1,99 @@
+{
+ "ticker": "RVMD",
+ "name": "Zoldonrasib",
+ "summary": "Zoldonrasib (RMC-9805) is Revolution Medicines' oral, covalent RAS(ON) G12D-selective tri-complex inhibitor, taken daily to progression. The modelled Phase 3 is RASolve 308 (NCT07777822, n=430, primary completion 2029-10): zoldonrasib or placebo added to pembrolizumab, pemetrexed and platinum in first-line metastatic non-squamous RAS G12D NSCLC, a design twin of SUNRAY-01 Part B in the olomorasib (LY3537982) seed. The pancreatic Phase 3s (RASolute 305, NCT07621718, primary completion 2028-12-30; RASolute 309, NCT07805954, 2029-03) read out first and address a larger population, but are not modelled: the book carries no pancreatic pool, and the Royalty Pharma royalty reaches zoldonrasib wherever its label sits inside a daraxonrasib one, which first-line PDAC would once RASolute 303 succeeds. Price: Lumakras at $98,285 per 2024 CMS Part D beneficiary, the anchor all three G12C seeds use; RVMD's own RASONQUE (daraxonrasib) WAC of $39,800 per 30 days is the case against. Uptake: the G12C seeds' 0.3387, 0.65 times the measured Lumakras plus Krazati class capture, a judgement. Ex-US: Lumakras's own filed split, 0.72.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "NCT07777822 (book trials table: randomised, double-blind, PFS primary endpoint); oral once-daily dosing at 1200 mg in the Phase 1 (AACR news release, April 2026 (aacr.org/about-the-aacr/newsroom/news-releases/investigational-krason-inhibitor-zoldonrasib-showed-effective-and-durable-responses-in-patients-with-advanced-g12d-mutated-lung-cancer/)); RVMD 10-Q for Q2 2026 (0001193125-26-335104): 'oral RAS(ON) G12D-selective tri-complex inhibitor'",
+   "note": "Oral daily tablet added to pembrolizumab plus pemetrexed-platinum in advanced disease, taken until progression, so chronic by the house definition"
+  },
+  "list_price_per_patient": {
+   "value": 0.098285,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Lumakras: CMS Part D 2024, $153,620,120.69 over 1,563 beneficiaries = $98,285",
+   "note": "Judgement: house convention and the anchor of the LY3537982, calderasib and divarasib seeds, as the brief for this asset asked. Lumakras (sotorasib) is the first approved KRAS allele-selective inhibitor in NSCLC and oral like zoldonrasib; no G12D-directed drug is marketed. Case against, and it is strong: RVMD priced its first RAS(ON) inhibitor, RASONQUE (daraxonrasib, approved 2026-08-26 in previously treated metastatic PDAC), at a WAC of $39,800 per 30-day supply (RVMD 8-K 0001193125-26-366931), about $484,000 a year at WAC. That is a list price before rebates on a full-year basis and in another disease, so it is not like-for-like with a CMS per-beneficiary figure, which already carries part-year use; but if payers read zoldonrasib's price off RASONQUE rather than Lumakras, this anchor is several times too low. Krazati's 2024 figure is lower at $66,903 (second launch year). A first-line add-on to pembrolizumab-chemotherapy could be priced either way."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part D per-beneficiary price (backend/gross_to_net.py: halving lands at a median 96% of CMS's negotiated net prices across the cycle-one IRA drugs); Lumakras sits in Part D (lookup.py demand Lumakras)",
+   "note": "Direction checked: 0.5 is the share OFF list, so net is $49,143 a patient-year. Zoldonrasib is oral and would sit in Part D. Same value as the three G12C seeds. If the RASONQUE WAC were used as the anchor instead, 0.5 would not apply and a sourced WAC discount would be needed"
+  },
+  "discontinuation_pct": {
+   "value": 0.5273,
+   "unit": "share of the treated stock stopping per year",
+   "source": "median PFS 11.1 months (95% CI 5.3 to not estimable) in 27 patients with previously treated KRAS G12D NSCLC at the 1200 mg daily Phase 2 dose, confirmed ORR 52% (AACR news release, April 2026 (aacr.org/about-the-aacr/newsroom/news-releases/investigational-krason-inhibitor-zoldonrasib-showed-effective-and-durable-responses-in-patients-with-advanced-g12d-mutated-lung-cancer/); also Cancer Discovery news, doi:10.1158/2159-8290.CD-NW2026-0040)",
+   "note": "Constant hazard fitted to the median, as the divarasib seed does with its own monotherapy PFS and the LY3537982 seed with its own: 1 - 0.5^(12/11.1) = 0.527. The brief's 1 - exp(-12/11.1) gives 0.661 but treats the median as a mean. Case against: n=27 with a wide interval, second-line monotherapy rather than the RASolve 308 regimen; adding zoldonrasib to the first-line KEYNOTE-189 backbone (PFS HR 0.50 for pembrolizumab over chemotherapy alone, Garassino et al., JCO 2023, doi:10.1200/JCO.22.01989) aims to lengthen PFS, which would lower this rate. The first-line combination data (RVMD 8-K 0001193125-26-335039) have 3.4 months of follow-up and no PFS. The book's advanced-tumour convention, 0.55 (calderasib seed), sits close."
+  },
+  "forecast_start_year": {
+   "value": 2031,
+   "unit": "year",
+   "source": "NCT07777822 primary completion 2029-10, estimated (context file; book trials table, last update 2026-08-20)",
+   "note": "Judgement on timing. Book convention (calderasib and LY3537982 seeds): first full year two calendar years after the Phase 3 primary completion, so readout late 2029, filing 2030, launch late 2030, 2031 the first full year. The asset's earliest Phase 3 primary completion is RASolute 305 in pancreatic cancer (2028-12-30), which would give 2030 if that indication were modelled; NSCLC revenue cannot start before its own readout. Case for earlier: FDA Breakthrough Therapy designation in December 2025 (RVMD FY2025 10-K 0001193125-26-071563; press coverage dates it January 2026) for previously treated KRAS G12D NSCLC, with a Phase 2 monotherapy expansion still following patients (10-Q Q2 2026). An accelerated second-line approval would come earlier, but in a different line and pool, and RVMD has stated no such filing."
+  },
+  "exus_multiple": {
+   "value": 0.7204,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Amgen FY2025 10-K (0000318154-26-000010) MD&A product sales table: LUMAKRAS U.S. $211mm, LUMYKRAS ROW $152mm (FY2024 $214mm and $136mm); the Q4 2025 release (8-K 0000318154-26-000003) ties: U.S. 211, ROW 152, total 363. 152 / 211 = 0.7204",
+   "note": "Judgement on the comparator. Lumakras is the direct analogue: an oral KRAS allele-selective NSCLC drug with a filed geographic split. RVMD has no marketed product with a full year of sales. Case against: RVMD has no ex-US commercial organisation yet (it only began an EMA phased review of daraxonrasib, Q2 2026 release), so ex-US launch timing or a partner's cut is unknown; Lumakras's ratio is lifted by a US label held to second line after the CodeBreaK 200 complete response letter; FY2024 read 0.636. Krazati reads 0.068 (13/192, BMS FY2025 10-K 0000014272-26-000004, book asset_revenue_regions), the low case, because its ex-US rights and launches lag. The LY3537982 seed's Verzenio 0.6521 and the calderasib seed's Keytruda 0.680 sit close to this value."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "RVMD 10-Q for Q2 2026 (0001193125-26-335104), Note 8, and FY2025 10-K (0001193125-26-071563), Note 10: Royalty Pharma's revenue participation right covers RMC-9805 (zoldonrasib) Products only 'if an RMC-9805 Product is approved for the same indication or subset of the same indication for which an RMC-6236 Product is approved'. RASONQUE (daraxonrasib) approval, 2026-08-26, 'for the treatment of adult patients with metastatic pancreatic adenocarcinoma who have received at least one prior systemic therapy or who are not candidates for multiagent systemic therapy' (RVMD 8-K 0001193125-26-366931)",
+   "note": "Wholly owned: zoldonrasib comes from RVMD's own RAS(ON) discovery pipeline, and the filings name no licensor or co-development partner; the Summit (ivonescimab) and Tango collaborations are clinical combination studies with no stated economics on zoldonrasib. Daraxonrasib's only approval is in pancreatic cancer and its NSCLC Phase 3 (RASolve 301) is in previously treated disease, so a first-line G12D NSCLC label does not sit inside a daraxonrasib indication today and the royalty does not attach. Case against: if daraxonrasib later wins a first-line NSCLC label (RVMD is testing it with PD-(L)1/VEGF bispecifics), the royalty attaches at 4.55% of annual net sales up to $2.0bn, 2.50% from $2.0bn to $4.0bn and 1.00% from $4.0bn to $8.0bn after the two tranches drawn, rising to 7.80%, 4.55% and 2.40% if tranches 3 to 5 are drawn, with an upward adjustment in 2030 to 2041 on the first tier if sales fall short. RVMD has no cost rows in the book, so the netting (margin - royalty) / margin cannot be computed yet."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Carcinoma, Non-Small-Cell Lung",
+   "fields": {
+    "prevalence": {
+     "value": null,
+     "unit": "patients",
+     "source": "carried by the book (epidemiology.csv: 192,650, SEER 2025, 85% of 226,650 lung cancers)",
+     "note": "Carried by the book, prevalence equal to incidence under its oncology convention; the same pool the three G12C seeds use"
+    },
+    "incidence": {
+     "value": null,
+     "unit": "patients per year",
+     "source": "carried by the book (epidemiology.csv: 192,650)",
+     "note": "Carried by the book"
+    },
+    "eligible_pct": {
+     "value": 0.016121,
+     "unit": "share of the pool",
+     "source": "Three filters. (1) KRAS G12D in 684 of 17,095 NSCLC specimens, 4.00% (Judd et al., 'Characterization of KRAS Mutation Subtypes in Non-small Cell Lung Cancer', Mol Cancer Ther 2021;20(12):2577-2584, doi:10.1158/1535-7163.MCT-21-0201, PMID 34518295, Table 1; Caris, the paper the calderasib seed already cites for PD-L1). (2) 51% distant stage at diagnosis (SEER 21, the calderasib and LY3537982 seeds). (3) 79% of US stage IV NSCLC without EGFR or ALK alterations start first-line therapy (2,904 of 3,661; Abernethy et al., PLoS One 2017, doi:10.1371/journal.pone.0178420, the LY3537982 and ABBV-1480 seeds' share). 0.04001 x 0.51 x 0.79 = 0.016121, about 3,106 patients a year on 192,650",
+     "note": "No PD-L1 filter: the first-line Phase 1 cohort enrolled at every PD-L1 level (TPS <1% in 39%, 1-49% in 39%, 50% or more in 16%; RVMD Q2 2026 release, 8-K 0001193125-26-335039) and the pembrolizumab-pemetrexed-platinum backbone is labelled regardless of PD-L1, as in the LY3537982 seed. The Amass connector was out of quota, so RASolve 308's eligibility text was not read; the registry title restricts to metastatic non-squamous RAS G12D. Case for higher: Judd's G12C share (1,882 of 17,095, 11.0%) sits below the 13.8% GENIE figure the G12C seeds use, so this Caris cohort may understate allele shares against GENIE; and the trial's 'RAS G12D' includes NRAS and HRAS G12D, which Judd does not count. Case for lower: the 4.0% includes squamous tumours the trial excludes (KRAS is mutated in 4.4% of squamous against 37.2% of adenocarcinoma, so the effect is small), and the 51% is all lung cancer, where SCLC skews distant. Stage IV recurrences after early-stage disease are left out, which understates the pool."
+    },
+    "untreated_carryover_pct": {
+     "value": 0.0,
+     "unit": "share",
+     "source": "brief and forecast.py convention for a line of cancer therapy",
+     "note": "First-line therapy: a patient not started on zoldonrasib in a year starts another regimen and leaves the line, so none carry over"
+    },
+    "penetration_peak_pct": {
+     "value": 0.3387,
+     "unit": "share of the eligible untreated pool per year",
+     "source": "reused from the LY3537982 and divarasib seeds: lookup.py demand Lumakras and Krazati give CMS Part D beneficiaries of 1,527 + 443 = 1,970 in 2023 and 1,563 + 1,042 = 2,605 in 2024; the divarasib seed solves this to new starts equal to 52.1% of the Medicare-eligible G12C second line (midpoint of 46.2% and 58.0% at 55% and 77.4% discontinuation)",
+     "note": "JUDGEMENT: 0.65 x 52.1% = 0.3387, the multiple the first-line G12C seeds use, kept so the book's first-line KRAS allele-selective add-ons carry one capture, as the brief for this asset asked. Case for higher: the 0.65 reflects a first line split among four G12C entrants; RASolve 308 is the only first-line G12D NSCLC Phase 3 in the book's trials table, no RAS-targeted therapy is approved for G12D NSCLC (ILCN/WCLC and ASCO Post coverage, 2026; daraxonrasib's approval is in pancreatic cancer), and RVMD says it is prioritising a mutant-selective approach in first-line NSCLC (10-Q Q2 2026). At 1.0x the value is 0.521. The nearest rivals are later or elsewhere: GenFleet's GFH375 (Verastem's VS-7375) in a Phase 3 against docetaxel in previously treated disease, and Astellas's setidegrasib entering Phase 3 in lung cancer. Case for lower: the 52.1% was measured in second line, where a G12C inhibitor was the only targeted option, and is applied to a first line where pembrolizumab-chemotherapy alone stays standard; RVMD's own daraxonrasib also covers G12D; the calderasib seed's 0.20 is the lower case."
+    },
+    "ramp_steepness": {
+     "value": 1.08,
+     "unit": "logistic k",
+     "source": "the house oncology fit to Enhertu's CMS Part B beneficiaries, 864, 1,904, 4,841, 7,105 and 8,410 over 2020 to 2024, as carried by the LY3537982, divarasib and calderasib seeds (lookup.py seed)",
+     "note": "Reused, as in all three G12C seeds. No measured first-line KRAS allele-selective launch exists"
+    },
+    "ramp_midpoint_year": {
+     "value": 2.2,
+     "unit": "years from forecast_start_year",
+     "source": "same Enhertu fit (k=1.08, midpoint 2.2 years)",
+     "note": "Reused"
+    }
+   }
+  }
+ ],
+ "refuse": null
+}

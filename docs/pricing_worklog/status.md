@@ -32,7 +32,7 @@
 | INCY | INCB123667 | seeded, on the placeholder curve: penetration null, shown but not counted per share |
 | INCY | Povorcitinib | seeded and built |
 | IONS | ION363 | refused: Otsuka holds worldwide rights; Ionis royalty rate undisclosed |
-| IONS | obudanersen | not started |
+| IONS | obudanersen | seeded and built: Ionis block borrowed from Alnylam (its own lines are a loss); LOE 2040 from the 10-K; open: Spinraza's Part D figure rests on 17 beneficiaries |
 | JNJ | Cetrelimab | refused: a combination partner only; SunRISe-2 stopped for futility |
 | JNJ | Seltorexant | seeded and built |
 | LLY | Brenipatide | seeded and built |
@@ -65,7 +65,7 @@
 | REGN | Pozelimab + Cemdisiran | seeded and built: cemdisiran alone, as filed |
 | REGN | REGN-2Cat | refused: Sanofi royalty filed without a rate (10-Q footnote f) |
 | RGNX | RGX-121-3102 | not started |
-| RVMD | Zoldonrasib | not started |
+| RVMD | Zoldonrasib | seeded and built: first-line G12D NSCLC; Revolution block borrowed from Exelixis; Royalty Pharma royalty and daraxonrasib hold apply only in pancreatic, not modelled |
 | SLDB | SGT-003 | not started |
 | SNY | Duvakitug | seeded and built |
 | SNY | Lunsekimig | seeded and built |

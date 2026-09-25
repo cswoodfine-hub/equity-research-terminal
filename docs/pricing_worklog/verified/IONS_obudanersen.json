@@ -1,0 +1,127 @@
+{
+ "ticker": "IONS",
+ "name": "obudanersen",
+ "summary": "Obudanersen (ION582) is Ionis' intrathecal antisense oligonucleotide against the UBE3A antisense transcript, meant to switch on the silent paternal UBE3A copy in Angelman syndrome. Ionis owns it outright: Biogen declined its option under the 2018 collaboration. The registrational trial is REVEAL (NCT06914609). It is randomised 2:1, double-blind and placebo-controlled, with quarterly doses of 40 or 80 mg. The first cohort is 136 children aged 2 to under 18 with a UBE3A deletion or mutation, and the primary endpoint is Bayley-4 expressive communication. Primary completion is 2027-08, with topline in the second half of 2027. Price anchor: Spinraza, the Ionis-discovered intrathecal ASO for a paediatric genetic neurological disease, at $330,719 per CMS Part D beneficiary. Uptake anchor: Daybue, the first drug for Rett syndrome, solved through the engine from its 987 US patients in Q2 2025.",
+ "asset": {
+  "therapy_mode": {
+   "value": "chronic",
+   "unit": "",
+   "source": "Ionis release 'First patient dosed in pivotal Phase 3 REVEAL clinical study of ION582 in Angelman syndrome' (ir.ionis.com/news-releases/news-release-details/first-patient-dosed-pivotal-phase-3-reveal-clinical-study-ion582): participants randomised 2:1 to obudanersen or placebo, receiving quarterly doses of 40 mg or 80 mg",
+   "note": "Repeated intrathecal dosing. An ASO's knockdown wears off, so dosing continues indefinitely, the Spinraza pattern (maintenance every 4 months). Chronic",
+   "verdict": "confirmed",
+   "check": "Ionis Q2 2026 10-Q (0000874015-26-000251, MD&A in the book's filing_sections) describes HALOS as 'multiple ascending doses of obudanersen administered intrathecally' with 12- and 18-month long-term extension data, so dosing repeats. An ASO given intrathecally on a schedule is chronic under the brief's definition. I did not see the 'first patient dosed' release with the quarterly 40/80 mg wording myself; the classification holds on the 10-Q alone."
+  },
+  "list_price_per_patient": {
+   "value": 0.330719,
+   "unit": "mm USD per patient-year",
+   "source": "lookup.py demand Spinraza: CMS Medicare Part D 2020, $5,622,217.40 over 17 beneficiaries = $330,719 per beneficiary. This is the only Spinraza year with a beneficiary count; 2021-2024 are suppressed (under 11)",
+   "note": "Judgement on the comparator, as asked. Angelman syndrome has no marketed disease-modifying drug. Spinraza was chosen over Qalsody for four reasons: (1) SMA is also a paediatric-onset genetic neurological disease of similar rarity, treated in the same child-neurology centres. (2) Spinraza is also an Ionis-discovered intrathecal ASO. (3) Its maintenance dose comes every 4 months, against quarterly for obudanersen and every 28 days for Qalsody. (4) Qalsody's $108,202 per Part B beneficiary (2024) covers only 7.3 administrations of a monthly adult ALS drug, so it prices a partial year of a different disease. Four checks support the level. Spinraza's Part D cost per claim, one vial and one dose, was flat at $140,555 in 2020 and $141,108 in 2024, so the 2020 figure is not stale. The NY Medicaid DUR board (July 2020, health.ny.gov/health_care/medicaid/program/dur/meetings/2020/07/mdc_initiative.pdf, via search) gives a WAC of $382,500 for a maintenance year. Evrysdi, the oral SMA drug, reads $328,087 per Part D beneficiary in 2024 over 471 beneficiaries (lookup.py demand Evrysdi), within 1%. The case against: Spinraza is physician-administered and billed mainly under Part B (HCPCS J2326). The book carries no Spinraza Part B rows, so this is a 17-beneficiary minority channel. The figure also covers 2.35 doses per beneficiary, against 3 in a maintenance year, so it understates a full year: at the 2024 per-claim cost a maintenance year is about $423,000. Ionis sets its own price, and obudanersen's four doses a year could support a price above Spinraza's",
+   "verdict": "confirmed",
+   "check": "Book (lookup.py demand Spinraza; also checked book.db and the full release copy of the db directly): Spinraza has Part D rows only, 2020-2024, and no Part B rows anywhere. 2020: $5,622,217.40 / 17 beneficiaries = $330,718.67 -> 0.330719, 40 claims (2.35 per beneficiary). 2021-2024: 19, 18, 22, 24 claims with beneficiaries suppressed (<11), so 2020 is the latest year that gives a per-beneficiary figure. The latest year held, 2024, gives $3,386,584.56 / 24 = $141,108 per claim and only a floor of $338,658 per beneficiary (at most 10). Unrepresentative channel: Spinraza is physician-administered and billed under Part B as HCPCS J2326 (CMS billing articles A58578/A58579 in search results), and Part D carries only 17-24 claims a year. The Part B spend per beneficiary was not seen: data.cms.gov is blocked by the proxy, and three searches (Part B dashboard, per-beneficiary figure, J2326 ASP payment limit) gave no figure. So the Part B rule cannot be applied with a seen figure, and the Part D anchor stands as a labelled judgement. Level cross-checks hold: per-claim cost is flat 2020-2024 ($140,555 -> $141,108), and Evrysdi 2024 Part D is $154,528,771.76 / 471 = $328,087, 0.8% below. Qalsody 2024 Part B is $5,842,932.61 / 54 = $108,202, over 394 claims = 7.3 per beneficiary, as stated. A search snippet (carecostestimate.com cheat sheet) gave Spinraza WAC as about $125K per dose, consistent with 3 x maintenance about $375K. The NY Medicaid $382,500 was not seen by me."
+  },
+  "gross_to_net_pct": {
+   "value": 0.5,
+   "unit": "share taken off list",
+   "source": "house convention on a CMS Part D per-beneficiary anchor (backend/gross_to_net.py): halving lands at a median 96% of CMS's own negotiated net prices",
+   "note": "Direction checked: 0.5 comes off list, so net is $165,360 per patient-year. Spinraza's only rows in the book are Part D (lookup.py demand Spinraza), so the Part D convention applies, not the Part B 0.056604. The case against: the 0.5 is measured on retail Part D drugs, and an orphan drug with no competitor in its disease is rebated less. The case for keeping it: Angelman patients rely heavily on Medicaid, which takes a statutory rebate of at least 23.1% plus inflation penalties. No product-level discount for Spinraza or an Angelman drug was found",
+   "verdict": "confirmed",
+   "check": "Direction checked: 0.5 is the share off list, so net = 0.330719 x 0.5 = 0.165360 mm USD. Under the brief, 0.5 applies to a CMS Part D per-beneficiary anchor, and this anchor is a Part D figure (book: Spinraza rows are Part D only). The Part B rule (0.056604 off a Part B figure) needs a Part B figure, and none was seen (book has none, data.cms.gov blocked, three searches failed). So this is kept. The flag is that it is the largest open risk in this seed. Spinraza's real Medicare channel is Part B, where payment is ASP-based and discounts are thin, and obudanersen, also intrathecal and clinic-given, would be billed the same way. The 0.5 was measured on retail Part D brands. A Part B figure at the Part D level would give net about 0.312 (0.330719 x 0.943396), about 1.9x this. So the price here is at the low end, and the note's own case against says so. A coherent retail-channel alternative gives the same net: Evrysdi 2024 Part D, $328,087 over 471 beneficiaries, halves to $164,044."
+  },
+  "discontinuation_pct": {
+   "value": 0.469,
+   "unit": "share of treated stock stopping per year",
+   "source": "Gauthier-Loiselle M et al., 'Nusinersen for Spinal Muscular Atrophy in the United States: Findings From a Retrospective Claims Database Analysis', Adv Ther 2021;38(12):5809-5828 (PMID 34713391, doi:10.1007/s12325-021-01938-w): 12-month persistence of 55.2%, 42.4% and 54.6% in SMA types 1, 2 and 3 (23, 41 and 260 patients who completed loading). Weighted: (23 x 0.552 + 41 x 0.424 + 260 x 0.546) / 324 = 0.531, so 1 - 0.531 = 0.469",
+   "note": "Judgement: first-year persistence on Spinraza is applied as a constant annual rate. It is the same modality with the same lumbar-puncture burden, and the book has no measured persistence for an intrathecal paediatric drug. The case for lower: the study was funded by Novartis Gene Therapies, Zolgensma's maker. Zolgensma was approved inside the window (May 2019), so some stops were switches, and Angelman has no alternative therapy to switch to. Claims gaps also overstate stops: a Biogen study found 80.5-93.9% of doses given on time (Youn B et al., Adv Ther 2023, PMID 36645543). The case for higher: children with Angelman often need sedation for a lumbar puncture. The closest disease analogue is close to this value: Daybue, in Rett, had 45.1% of 1,175 initiators non-persistent (PMID 42287113)",
+   "verdict": "confirmed",
+   "check": "PubMed 34713391 (Gauthier-Loiselle 2021, Adv Ther 38(12):5809-28, doi:10.1007/s12325-021-01938-w) abstract: 23/41/260 patients with SMA type 1/2/3 who completed loading, 12-month persistence 55.2%/42.4%/54.6%; authors include Novartis Gene Therapies staff, as the note says. Recomputed: (23x0.552 + 41x0.424 + 260x0.546)/324 = 172.04/324 = 0.53099; 1 - 0.53099 = 0.46901 -> 0.469. Cross-checks seen: PubMed 36645543 (Youn 2023, Biogen) 93.9% EHR / 80.5% claims doses on time; PubMed 42287113 (Rashid 2026) 45.1% of 1,175 trofinetide initiators non-persistent. Applying first-year persistence as a constant annual rate is a labelled judgement with its case for and against."
+  },
+  "forecast_start_year": {
+   "value": 2029,
+   "unit": "year",
+   "source": "NCT06914609 (REVEAL) primary completion 2027-08, estimated (book trials table, ClinicalTrials.gov last update 2026-08-28); 'Topline data from the REVEAL study is expected in the second half of 2027' (Ionis release 2026-07-06, businesswire.com/news/home/20260706516467); FDA Breakthrough Therapy designation (Ionis release 2025-09-09, ir.ionis.com/news-releases/news-release-details/ionis-receives-us-fda-breakthrough-therapy-designation-ion582)",
+   "note": "Judgement. Topline in late 2027 and an NDA in the first half of 2028 put approval in late 2028 on an 8-month priority review, which Breakthrough designation makes likely. 2029 is then the first full year. The case against: a standard review or a filing that waits for the adult cohort (enrolment to complete Q3 2026) makes it 2030. CHAMPION (NCT07782827, 30 participants, primary completion 2028-05) is a second, smaller Phase 3 that could also be wanted for the filing",
+   "verdict": "confirmed",
+   "check": "Book trials table: NCT06914609 primary completion 2027-08 (estimated), completion 2030-04, enrollment 158, start 2025-06-10, last update 2026-08-28; NCT07782827 primary completion 2028-05, 30 enrolled, not yet recruiting. Topline in 2H 2027 is confirmed by the Ionis release of 2026-07-06 (Business Wire 20260706516467, via search) and Ionis Q2 2026 results 8-K (0001140361-26-029960: 'data anticipated in the second half of 2027'). Breakthrough designation confirmed in the Q3 2025 results 8-K (0001140361-25-039650). Ionis' own precedent supports the timing: zilganersen data presented Oct 2025, NDA Q1 2026, priority review, FDA approval announced 2026-09-03 (8-K 0001140361-26-035657). That is about 11 months from data to approval, which puts obudanersen at about Q3-Q4 2028 and 2029 as the first full year. Minor: the Q2 2026 10-Q says REVEAL completed enrollment in July 2026, while the note says the adult cohort was still to complete in Q3 2026. Both fit Q3 2026."
+  },
+  "exus_multiple": {
+   "value": 1.4729,
+   "unit": "ex-US revenue per 1.0 of US",
+   "source": "Spinraza FY2025 in the book's asset_revenue_regions: $921.3mm outside the US against $625.5mm US (Biogen 10-K 0000875045-26-000013). 921.3 / 625.5 = 1.4729",
+   "note": "Judgement on the comparator: the price anchor, the same modality, a paediatric genetic neurological disease, and a mature filed split (FY2024: 947.5 / 625.7 = 1.514). The case against, which is strong: Ionis has no commercial organisation outside the US, and Biogen's global footprint earned Spinraza's split. If Ionis partners ex-US rights, as it did donidalorsen in Europe with Otsuka, it earns a royalty rather than this revenue. The engine also scales the pool by 1 + this multiple, a world pool 2.47x the US. Qalsody reads 1.887 in its second year",
+   "verdict": "confirmed",
+   "check": "Book asset_revenue_regions, Spinraza (asset 103), 10-K 0000875045-26-000013: FY2025 NonUs 921.3 / US 625.5 = 1.47290; FY2024 947.5 / 625.7 = 1.5143; FY2023 1,130.7 / 610.5 = 1.852. Arithmetic holds. The comparator judgement is labelled. One more point for the case against: Ionis licensed ex-US commercialisation of its own intrathecal rare-neurology ASO zilganersen to Recordati (Q2 2026 10-Q and 8-K). If obudanersen follows that pattern, Ionis would earn a royalty on ex-US sales, not the revenue, and this multiple would overstate."
+  },
+  "economics_share": {
+   "value": 1.0,
+   "unit": "share",
+   "source": "Ionis release 'Ionis announces positive topline results from Phase 1/2a trial of ION582 for Angelman syndrome' (ir.ionis.com/news-releases/news-release-details/ionis-announces-positive-topline-results-phase-12a-trial-ion582): Biogen elected not to exercise its option to license ION582 under the 2018 collaboration, and Ionis 'will independently advance ION582'. Ionis FY2025 10-K (0000874015-26-000115) describes obudanersen as wholly owned (as quoted in search results; the page was not opened). Ionis is lead sponsor of NCT06914609 and NCT07782827 (book trials table)",
+   "note": "Wholly owned. No licensee or profit share was found. The case against: no source found states whether the 2018 Biogen agreement leaves Biogen any royalty on a programme it declined. Whether any of Ionis' royalty monetisation deals (for example Royalty Pharma, 2023) cover obudanersen was not checked",
+   "verdict": "confirmed",
+   "check": "Biogen's decline is confirmed. Search surfaced the Ionis release on HALOS topline (ir.ionis.com, prnewswire, May 2024): Biogen elected not to exercise its option to license ION582, and Ionis will independently advance it. Ownership is confirmed from a filing I read myself: the Ionis Q2 2026 10-Q (0000874015-26-000251) lists obudanersen under 'Our Innovative Late-Stage Pipeline of Ionis-Owned Investigational Medicines', with no licensee. The zilganersen entry in the same section names its Recordati ex-US licence, and obudanersen's names none. Royalties: the 10-Q's Note 10 limits the Royalty Pharma sale to SPINRAZA and pelacarsen royalties. The 2018 Biogen neurology collaboration text describes only what happens when Biogen exercises an option. No book filing (10-Ks FY2024/FY2025, 10-Qs Q1/Q2 2026, eight 8-Ks from Oct 2025 to Sep 2026) mentions a royalty, milestone or licence owed by Ionis on obudanersen. The 8-Ks of 2026-09-04 and 2026-09-23 concern zilganersen, pelacarsen and sefaxersen. No royalty owed is found, so there is no ground to refuse. Residual: third-party in-licence royalties are not disclosed product by product."
+  }
+ },
+ "indications": [
+  {
+   "indication": "Angelman Syndrome",
+   "fields": {
+    "prevalence": {
+     "value": 13837,
+     "unit": "patients",
+     "source": "Birth incidence 1:24,580 (95% CI 1:23,727-1:25,433), genetically verified cases in the Danish national population (Mertz LGB et al., 'Angelman syndrome in Denmark. Birth incidence, genetic findings, and age at diagnosis', Am J Med Genet A 2013;161A(9):2197-2203, PMID 23913711, doi:10.1002/ajmg.a.36058) x US resident population of 340,110,988 on 1 July 2024 (US Census Bureau, Vintage 2024) = 13,837",
+     "note": "The book carries no Angelman pool (lookup.py pool Angelman returns nothing, and none is in epidemiology.csv), so this sets it. Judgement: a birth incidence times the living population assumes survival near that of the general population and a stable incidence across cohorts. The case for higher: the commonly quoted 1 in 12,000 to 20,000 gives 17,000 to 28,000. The case for lower: many older adults with Angelman were never diagnosed, and Estonia measured a point prevalence of 1:56,112 in children (PMID 16906556). The Danish rate counts diagnosed, genetically verified cases, so it sits near a diagnosed pool, which is the uptake anchor's basis. The Census figure was not re-checked by search in this session",
+     "verdict": "confirmed",
+     "check": "PubMed 23913711 (Mertz 2013, doi:10.1002/ajmg.a.36058) abstract: 51 genetically verified AS, birth incidence 1:24,580 (95% CI 1:23,727-1:25,433). 340,110,988 is the Census Vintage 2024 figure the book already uses (mrk_zilovertamab_vedotin, nvs_ianalumab, argx_adimanebart_iv seeds). 340,110,988 / 24,580 = 13,836.9 -> 13,837. lookup.py pool Angelman returns nothing, and epidemiology.csv has no Angelman row, so this seed sets the pool. Estonia 1:56,112 point prevalence in children confirmed (PubMed 16906556). One sentence in the note is wrong: Daybue's anchor pool (7,500, the midpoint of 6,000-9,000) is Acadia's estimated total Rett population, not a diagnosed pool. Search results gave a diagnosed Rett population of about 4,500 alongside it. This birth-rate-times-all-ages pool is also an estimated total, since it includes older adults never diagnosed. So the pairing used for penetration is total with total, which is consistent. The value holds."
+    },
+    "incidence": {
+     "value": 146,
+     "unit": "patients per year",
+     "source": "3,596,017 US births in 2023 (NCHS, 'Births: Final Data for 2023', National Vital Statistics Reports 74(1), March 2025, PMID 40961109) / 24,580 (Mertz 2013, as above) = 146.3",
+     "note": "The same Danish birth incidence as the prevalence, so the two are consistent. Most cases are diagnosed at 21 to 46 months (Mertz 2013), so an affected birth enters the treatable pool with a lag the engine does not model",
+     "verdict": "confirmed",
+     "check": "PubMed 40961109 (NCHS Births: Final Data for 2023, doi:10.15620/cdc/175204): 3,596,017 US births in 2023. / 24,580 = 146.30 -> 146. Same rate as the prevalence, so consistent."
+    },
+    "eligible_pct": {
+     "value": 0.784314,
+     "unit": "share of the pool",
+     "source": "REVEAL entry criterion: genetic confirmation of a UBE3A deletion or UBE3A mutation (Ionis release 2026-07-06, as above). Share of Angelman with those genotypes: 36 deletions + 4 UBE3A mutations of 51 genetically verified patients = 0.7843 (Mertz 2013, PMID 23913711, the same population as the pool; the others were 5 paternal UPD and 6 other)",
+     "note": "The label population is assumed to follow REVEAL's genotype criterion. No age filter is applied. REVEAL enrols ages 2 to 50, but under-2s are rarely diagnosed and a label may not cap age, as Spinraza's does not. That is a judgement. The case for lower: a label restricted to ages 2-50 excludes older adults. The case for higher: the mechanism, unsilencing the paternal UBE3A, also applies to UPD and imprinting-defect patients, who carry an intact paternal copy, and a later label could add them. The Danish sample is small (51)",
+     "verdict": "confirmed",
+     "check": "Genotype matches the Phase 3. REVEAL's pivotal Cohort 1 is 136 participants aged 2 to <18 'with genetic confirmation of either a UBE3A deletion or UBE3A mutation', and adult Cohort 2 is 18 to <=50 (Ionis release 2026-07-06, via search). Mertz 2013 abstract: 36 deletions + 4 UBE3A mutations of 51 = 40/51 = 0.784314; the rest are 5 pUPD and 6 others. Age: the pool is all ages, and no age filter is applied. That is a labelled judgement: the Phase 3 enrols ages 2-50, and Daybue's label (2+) has no upper cap. Two gaps are small or stated. Under-2s are about 2.1% of the pool (2 x 3,596,017 births / 340,110,988) and would sit below a 2+ label. The larger risk is a label confined to the pivotal paediatric cohort, since under-18s are 21.5% of the population (73,132,720 of 340,110,988 in the book's Census figures). The adult cohort in REVEAL argues against that."
+    },
+    "untreated_carryover_pct": {
+     "value": 0.989538,
+     "unit": "share",
+     "source": "derived to hold the pool at its measured size, the method the remternetug and NBI-1117568 seeds use: 13,837 / (13,837 + 146.3) = 0.9895",
+     "note": "Judgement. Angelman is lifelong, so at the default of 1.0 the untreated pool would grow each year by the births. The case for 1.0: life expectancy is near-normal, and diagnosis of adults is still catching up, so the diagnosed pool may grow",
+     "verdict": "confirmed",
+     "check": "13,837 / (13,837 + 146.3) = 0.989537 -> 0.989538, the brief's stationary-pool method (retention = pool / (pool + inflow)); the ratio is unchanged when both are scaled by eligible_pct (10,852.6 / (10,852.6 + 114.7)). Labelled judgement for a lifelong disease."
+    },
+    "penetration_peak_pct": {
+     "value": 0.1856,
+     "unit": "share of the untreated eligible pool per year",
+     "source": "Solved from Daybue (trofinetide), the first drug approved for Rett syndrome (March 2023), a paediatric genetic neurodevelopmental disorder. It reached 987 unique US patients receiving a shipment in Q2 2025 and 954 in Q1 2025 (Acadia Q2 2025 results release, acadia.com/en-us/media/news-releases/acadia-pharmaceuticals-reports-second-quarter-2025-financial). Through the engine's own functions (backend/forecast.py derive_new_patients and treated_stock) with Daybue's inputs: US pool 7,500, the midpoint of Acadia's 6,000 to 9,000 US Rett patients (as reported by Fierce Pharma, fiercepharma.com/pharma/acadia-seeks-chmp-re-examination-rett-syndrome-med-daybue-following-eu-rejection); the book's Vyvgart curve (k 0.5633, midpoint 2.0) with 2023 as year 0; and discontinuation 0.451 (45.1% of 1,175 initiators non-persistent, Rashid N et al., J Med Econ 2026;29(1):1715-1727, PMID 42287113, doi:10.1080/13696998.2026.2682668). A stock of 987 in 2025 gives a peak of 0.1856 (0.1523 at 9,000, 0.2379 at 6,000)",
+     "note": "Judgement: the multiple over Daybue is 1.0. Cross-check: 290 of 1,820 US adults with Rett in claims (15.9%) started trofinetide in its first year (Rashid N et al., Front Neurol 2026, PMID 42577214, doi:10.3389/fneur.2026.1856312). The case for lower: a lumbar puncture every quarter, often under sedation in Angelman, is a larger barrier than an oral solution. The pool here counts adults never genetically confirmed, and Ionis is a first-time rare-disease launcher. The case for higher: Daybue's GI intolerance held it back, and Angelman families are organised and trial-ready (FAST, ASF). A communication benefit shown on Bayley-4 would be the first disease-modifying result. Solved with the modeled pool at 1.0 carryover and no Rett incidence, a small simplification over 3 years",
+     "verdict": "confirmed",
+     "check": "Recomputed with backend/forecast.py derive_new_patients, s_curve and treated_stock: pool 7,500, incidence 0, carryover 1.0, k 0.5633, midpoint 2.0, 2023 as year 0, discontinuation 0.451. Stock of 987 in 2025 needs a peak of 0.1856 (stock 341/669/987). At 9,000 it is 0.1523 and at 6,000 it is 0.2379, as stated. Inputs seen: 987 US patients receiving a shipment in Q2 2025 (Acadia Q2 2025 release, via search); 6,000-9,000 US Rett (search); 45.1% of 1,175 non-persistent (PubMed 42287113); 290 of 1,820 adults treated, 15.9% (PubMed 42577214). Book holds no Rett or Angelman pool. Sensitivities: the Q1 2025 count of 954 (not seen by me) gives 0.1788; the 0.469 discontinuation gives 0.1888; a diagnosed Rett denominator of about 4,500 would give 0.3319, but that pairing would need a diagnosed Angelman pool too. The multiple of 1.0 over Daybue is a labelled judgement. Through the Angelman inputs the US treated stock peaks at about 2,160 of about 10,850 eligible, around year 6."
+    },
+    "ramp_steepness": {
+     "value": 0.5633,
+     "unit": "logistic k",
+     "source": "book: Vyvgart and Vyvgart Hytrulo Medicare beneficiaries across Parts B and D, 1,397 in 2022, 2,561 in 2023, 4,310 in 2024 (lookup.py demand Vyvgart), k 0.5633, as carried by the nipocalimab, pozelimab + cemdisiran and adimanebart seeds",
+     "note": "Reused measured curve for a rare-neurology specialty launch. It is also the curve penetration_peak_pct was solved on, so the two are consistent. Daybue's own quarterly patient series would be the closer fit, but it was not sourced beyond Q1-Q2 2025",
+     "verdict": "confirmed",
+     "check": "Book: lookup.py seed nipocalimab carries ramp_steepness 0.5633 (Myasthenia Gravis) from Vyvgart uptake. lookup.py demand Vyvgart sums Parts B+D to 879+518 = 1,397 (2022), 1,653+822+86 = 2,561 (2023), and 1,803+947+902+658 = 4,310 (2024), as stated. It is the curve penetration was solved on, so the two are consistent."
+    },
+    "ramp_midpoint_year": {
+     "value": 2.0,
+     "unit": "years from forecast_start_year",
+     "source": "as ramp_steepness: Vyvgart's own, 2,561 of its 4,310 2024 Medicare beneficiaries in 2023 (nipocalimab seed)",
+     "note": "Reused measured curve",
+     "verdict": "confirmed",
+     "check": "Book: nipocalimab seed ramp_midpoint_year 2.0, 'Vyvgart's own: 2,561 of its 4,310 2024 beneficiaries in 2023'; the beneficiary sums are recomputed as above."
+    }
+   }
+  }
+ ],
+ "refuse": null
+}
