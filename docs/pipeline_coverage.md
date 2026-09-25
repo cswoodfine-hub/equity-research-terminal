@@ -506,10 +506,12 @@ so each modelled row now reads its own Phase 3 (zigakibart had sat without BEYON
     split already open, now with its mechanism named.
 20. **Tilrekimig applies gross-to-net 0.26** to a CMS per-beneficiary figure, against the
     calibrated 0.5 every other Part D row carries.
-21. **Obesity is priced on two bases.** The nine incumbents carry 2024 CMS figures and the
-    three new entrants 2025. Standalone revenue agrees within 1%, but crowding rations
-    patients and the 2025 rows claim about 26% fewer per dollar. Rebase the class together.
-    Retatrutide and eloralintide also carry a 6.54% price decline against the class's 5%.
+21. **Closed 2026-09-25: obesity now prices on one basis.** The nine incumbents moved from
+    the 2024 incretin median ($6,642.45, anchor 4.3882%) to 2025 ($8,839.13, anchor 3.2576%)
+    with every multiple unchanged; berobenatide, solved to Metsera's filed forecast, held its
+    revenue. Every obesity line rose about 6%, the entrants included, because the pool is no
+    longer claimed a third too heavily. Retatrutide's and eloralintide's 6.54% price decline
+    stays: it is Lilly's own filed US figure on its own assets.
 22. **Tulisokibart is priced on Humira 2024 and duvakitug on Skyrizi 2025**, 1.83x apart in
     the same two IBD pools. One IBD basis is needed.
 23. **Book hygiene.** LLY 8 and 1552 are both selpercatinib; Palsonify (VRTX, from
