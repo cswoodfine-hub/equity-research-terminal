@@ -482,7 +482,7 @@ PF-08653945 (only a combination with berobenatide), HLD-0915 (Phase 1/2 only), d
 eligible share and multiple are not yet sourced. Amlitelimab, seeded on 24 September, is
 retired: Sanofi discontinued it in atopic dermatitis on 30 July.
 
-Twenty duplicate rows were folded into their modelled twins through the curated alias map,
+Twelve duplicate rows were folded into their modelled twins through the curated alias map,
 so each modelled row now reads its own Phase 3 (zigakibart had sat without BEYOND).
 
 **Engine defects the verifiers found, fixed today**
