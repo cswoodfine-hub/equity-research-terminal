@@ -25,6 +25,8 @@ returned say how many, so the gap stays visible rather than reading as full cove
 
 from __future__ import annotations
 
+import csv
+import pathlib
 import re
 
 import assets_util
@@ -239,6 +241,33 @@ def match_intervention(intervention_norm: str, names: list[tuple[str, int]]) -> 
     return None
 
 
+# Names no rule can reject, because each is a real substance: another company's medicine
+# as a comparator, conditioning chemotherapy, a challenge agent, a propellant, a follow-up
+# study. Kept by hand with a cited reason, per sponsor, since the same name can be a
+# programme at one company and a comparator at another.
+NOT_A_PROGRAMME_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                       / "data" / "not_a_programme.csv")
+
+
+def curated_not_programmes(conn, path=None) -> set[tuple[int, str]]:
+    """(company id, canonical key) for every name ``data/not_a_programme.csv`` lists."""
+    source = pathlib.Path(path) if path else NOT_A_PROGRAMME_CSV
+    if not source.exists():
+        return set()
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(
+            line for line in handle if not line.lstrip().startswith("#")))
+    companies = {r["ticker"]: r["id"] for r in conn.execute(
+        "SELECT ticker, id FROM companies")}
+    out = set()
+    for row in rows:
+        company_id = companies.get((row.get("ticker") or "").strip().upper())
+        key = canonical(row.get("name") or "")
+        if company_id is not None and key:
+            out.add((company_id, key))
+    return out
+
+
 def derive_pipeline_assets(db_path=None) -> dict:
     """Create an unmarketed asset for each compound a company is trialling but does not
     yet sell, so the pipeline is a set of programmes rather than a list of loose studies.
@@ -273,6 +302,8 @@ def derive_pipeline_assets(db_path=None) -> dict:
         for row in conn.execute("SELECT internal_code FROM asset_aliases"):
             marketed |= aliases(row[0])
 
+        not_programmes = curated_not_programmes(conn)
+
         rows = conn.execute(
             """
             SELECT i.name, t.sponsor_company_id AS company_id, t.nct_id
@@ -289,7 +320,8 @@ def derive_pipeline_assets(db_path=None) -> dict:
         for row in rows:
             key = canonical(row["name"])
             if (not key or NOT_A_COMPOUND.search(normalise(row["name"]))
-                    or REGIMEN_WORDS.search(key)):
+                    or REGIMEN_WORDS.search(key)
+                    or (row["company_id"], key) in not_programmes):
                 continue                       # study design, not a compound
             entry = groups.setdefault(key, {"names": set(), "sponsors": set(),
                                             "trials": set()})
@@ -461,7 +493,8 @@ def prune_arms(db_path=None, dry_run: bool = False) -> dict:
     try:
         loose = conn.execute(
             """
-            SELECT a.id, a.owner_company_id,
+            SELECT a.id, a.owner_company_id, a.brand_name, a.generic_name,
+                   a.internal_code,
                    COALESCE(a.brand_name, a.generic_name, a.internal_code) AS name
               FROM assets a
              WHERE NOT EXISTS (SELECT 1 FROM approvals x WHERE x.asset_id = a.id)
@@ -480,12 +513,19 @@ def prune_arms(db_path=None, dry_run: bool = False) -> dict:
                 if key:
                     keys.setdefault((row["owner_company_id"], key), row["id"])
 
+        not_programmes = curated_not_programmes(conn)
         for row in loose:
             name = row["name"] or ""
             key = canonical(name)
-            rejected = (not key or NOT_A_COMPOUND.search(normalise(name))
+            # A curated name is removed outright and never folded into a sibling: its
+            # trials are some other drug's studies, and the next mapping finds that drug.
+            listed = any((row["owner_company_id"], canonical(spelling)) in not_programmes
+                         for spelling in (row["brand_name"], row["generic_name"],
+                                          row["internal_code"]) if spelling)
+            rejected = (listed or not key or NOT_A_COMPOUND.search(normalise(name))
                         or REGIMEN_WORDS.search(key))
-            target = keys.get((row["owner_company_id"], key)) if key else None
+            target = (keys.get((row["owner_company_id"], key))
+                      if key and not listed else None)
             if target == row["id"]:
                 target = None
             if not rejected and target is None:

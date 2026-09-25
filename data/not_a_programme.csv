@@ -1,0 +1,37 @@
+# Names a trial lists as an intervention that are not a drug programme: a comparator, a
+# background regimen, conditioning chemotherapy, a challenge agent, a propellant, a
+# procedure or a follow-up study. backend/trial_mapping.py never derives a programme from
+# one for the sponsor named here, and prune_arms removes a row already derived, whose
+# trials keep their records and go to the study drug on the next mapping. Keyed by ticker
+# and name, matched on the canonical spelling the module uses everywhere else.
+#
+# A name a rule already catches (placebo, saline, standard of care) does not belong here.
+# These are the ones no rule could: "Ravulizumab" is a real medicine, Alexion's, sitting in
+# a Regeneron trial as a comparator.
+#
+# Seeded from the NOT_A_PROGRAMME rows of the late-stage sort, whose evidence each row
+# carries. The sort's two olaparib arm labels are not here: they are AstraZeneca's own
+# drug, so asset_alias_map.csv folds them into Lynparza instead. The Gilead and GSK rows
+# beyond the sort's are the other comparators in the same two trials, cited from the
+# registry: removing one name from a trial exposes the next, so a trial's comparators
+# are listed together.
+ticker,name,basis
+ABBV,Lubricating Eye Drops,NCT06365853 uses lubricating eye drops as supportive care to mitigate ocular toxicity during mirvetuximab soravtansine treatment.
+AUTL,AUTO CAR T cell therapy,"NCT03628612 (Enrolling by invitation, completion 2043) is Autolus's long-term safety follow-up of patients already treated in earlier gene-modified T cell studies, so no product is dosed and the row is not one programme."
+AZN,Taxane,"Taxane is the chemotherapy comparator in NCT04784715 (DESTINY-Breast09, T-DXd with or without pertuzumab versus taxane, trastuzumab and pertuzumab), not an AstraZeneca product."
+BMY,CAPOX,"CAPOX is the background chemotherapy in NCT07221149 and NCT07221357, where the investigational agent is pumitamig."
+GILD,ATV,"ATV is atazanavir, Bristol-Myers Squibb's Reyataz, used as the cobicistat-boosted backbone arm in Gilead's pediatric HIV study NCT02016924, where Gilead's own products are cobicistat and F/TAF."
+GILD,BR,"BR is the background regimen of approved NRTIs in NCT02016924 (Study of Cobicistat-Boosted Atazanavir, Cobicistat-Boosted Darunavir and Emtricitabine/Tenofovir Alafenamide in Children With HIV, ClinicalTrials.gov), not a Gilead product."
+GILD,DRV,"DRV is darunavir, Janssen's Prezista, given boosted with Gilead's cobicistat as a backbone arm in NCT02016924 (ClinicalTrials.gov), where Gilead's own products are cobicistat and F/TAF."
+GILD,LPV/r,"LPV/r is lopinavir/ritonavir, AbbVie's Kaletra, one of the third agents given alongside in NCT02016924 (ClinicalTrials.gov), not a Gilead product."
+GILD,Third Unboosted Drug,"The registry's own description of this NCT02016924 intervention is ATV, DRV and LPV/r as an unspecified third agent (ClinicalTrials.gov), so it names no compound."
+GSK,HFA-134a,"HFA-134a is the propellant in the current Ventolin MDI and the comparator in NCT07645248 (A Study to Compare Safety of 4 Weeks Exposure to Propellants HFA-152a and HFA-134a, ClinicalTrials.gov), not a medicine."
+GSK,HFA-152a,"HFA-152a is the low-carbon propellant for the reformulated Ventolin MDI and NCT07645248 (not yet recruiting) tests propellant exposure against HFA-134a, not a medicine; the reformulated product is already in the book as Salbutamol HFA-152a (https://www.gsk.com/en-gb/media/press-releases/gsk-announces-positive-pivotal-phase-iii-data-for-next-generation-low-carbon-version-of-ventolin-salbutamol-metered-dose-inhaler/)."
+KYTX,Standard lymphodepletion regimen,"In NCT06193889 (KYSA-6) this row is the standard conditioning chemotherapy given before Kyverna's CAR-T infusion, a background therapy and not a product under development."
+NVS,Cryptosporidium parvum oocysts (ABO809),"The oocysts are the challenge inoculum in NCT07249463, which tests EDI048 in a Cryptosporidium infection model in healthy adults, not a product in development."
+NVS,decitabine,"Decitabine appears only as the hypomethylating partner in NCT05201066, a rollover study for patients from prior sabatolimab (MBG453) trials; it is a third-party generic, not a Novartis programme; approval date: https://www.drugs.com/history/dacogen.html"
+NVS,Octreotide LAR,"The only active trial, NCT06784752, tests [177Lu]Lu-DOTA-TATE (Lutathera) in GEP-NET, so octreotide LAR is the comparator or background arm, not a programme."
+REGN,Ravulizumab,"Ravulizumab is Alexion's Ultomiris (EMA 2019-07-02), listed with eculizumab as a comparator or prior-therapy arm in NCT05133531, a trial of Regeneron's pozelimab plus cemdisiran in PNH; approval date: https://www.drugs.com/history/ultomiris.html"
+RVMD,Liposomal irinotecan,"In NCT06625320, the Phase 3 study of daraxonrasib in previously treated pancreatic cancer, liposomal irinotecan is part of the standard chemotherapy comparator; it is Ipsen's Onivyde (Amass RegulatoryCore, FDA NDA 207793), not a Revolution Medicines product; approval date: https://www.accessdata.fda.gov/drugsatfda_docs/appletter/2015/207793Orig1s000ltr.pdf"
+SNY,Blood draw for the laboratory assessment,"A blood draw is a procedure inside NCT02065011, the long-term follow-up of SAR421869 in Usher syndrome type 1B, not a product."
+SNY,Long term follow up in all patients who received SAR422459 in previous study TDU13583,"The row describes long-term follow-up of patients dosed in an earlier study (NCT01736592), not a product, and Sanofi returned SAR422459 to Oxford Biomedica in 2020 (https://www.fiercebiotech.com/biotech/after-11-years-sanofi-kicks-backs-rights-to-unwanted-gene-therapies-to-oxford-biomedica)."
