@@ -446,6 +446,103 @@ Sarepta and twelve small companies among them). The company section in the UI re
 showing it and the fair value lenses refuse, so it does not reach a reader today. It would if
 either guard moved.
 
+## Big pharma late stage priced, 25 September 2026
+
+The user narrowed the late-stage work to the eighteen big pharma companies. Twenty-eight
+audited assets were researched in twelve groups, each by a researcher and an adversarial
+verifier who re-ran every CMS query, reopened every filing and re-derived every solve.
+Seventeen are seeded, eight are refused on stated grounds, and three (rilvegostomig,
+olomorasib, iza-bren) await their verifier.
+
+| Seeded | Company | Pool | Peak revenue, before PoS |
+|---|---|---|---|
+| zenagamtide | NVO | obesity | DKK 77.0bn, 2038 |
+| olatorepatide | REGN | obesity | $7.6bn, 2039 |
+| ABBV-295 | ABBV | obesity | $5.1bn, 2041 |
+| efimosfermin (corrected) | GSK | MASH | GBP 2.9bn, 2042 |
+| APG777 | ABBV | atopic dermatitis | $1.7bn, 2042 |
+| GSK5784283 | GSK | asthma and COPD | GBP 1.7bn, 2043 |
+| zigakibart | NVS | IgA nephropathy | $1.4bn, 2041 |
+| atirmociclib | PFE | first-line breast | $1.3bn, 2043 |
+| atumelnant | VRTX | classic CAH | $1.2bn, 2041 |
+| duvakitug | SNY (half, Teva) | UC and Crohn's | EUR 0.9bn, 2042 |
+| lunsekimig | SNY | COPD | EUR 0.7bn, 2044 |
+| mocertatug rezetecan | GSK | ovarian, endometrial | GBP 0.4bn, 2042 |
+| odronextamab | REGN | first-line DLBCL and FL | $0.3bn, 2042 |
+| sofetabart mipitecan | LLY | ovarian | $0.3bn, 2042 |
+| Ris-Rez | GSK | small cell lung | GBP 0.2bn, 2041 |
+| dazodalibep, ianalumab | AMGN, NVS | Sjogren's | $0.13bn each |
+| seltorexant | JNJ | adjunctive MDD | $0.13bn, 2033 |
+
+Refused: rapcabtagene (its only lupus trial paused after three deaths), pacibekitug (no
+Phase 3; ziltivekimab's ZEUS read-across), bepirovirsen (no comparator for a functional-cure
+course; waits on GSK's US price at the 26 October PDUFA), PG4 (a Prevnar 20 replacement),
+PF-08653945 (only a combination with berobenatide), HLD-0915 (Phase 1/2 only), del-desiran
+(HARBOR missed on 8 September), and brenipatide, whose refusal was refuted but whose
+eligible share and multiple are not yet sourced. Amlitelimab, seeded on 24 September, is
+retired: Sanofi discontinued it in atopic dermatitis on 30 July.
+
+Twelve duplicate rows were folded into their modelled twins through the curated alias map,
+so each modelled row now reads its own Phase 3 (zigakibart had sat without BEYOND).
+
+**Engine defects the verifiers found, fixed today**
+
+- `pool_crowding` read a missing carryover as 1.0 with an opening stock, where the engine
+  reads prevalence equal to incidence as carryover 0 and no stock. Eight claims move to no
+  cut, oral treprostinil the largest at $57.88 to $63.75 a UTHR share, and Merck's and
+  Moderna's halves of one drug stop crowding each other.
+- `capture_anchor` took gross-to-net the wrong way round (harmless at 0.5) and divided
+  dollar revenue by a kroner price (Cagrilintide 0.646% instead of 4.39%).
+- Two of this book's ramps read data/launch_ramp.csv as a penetration curve rather than
+  the stock it measures: efimosfermin (also started three years early) and NXT007, CHF
+  770mm to 990mm.
+
+**Open, each found by a verifier and not yet changed**
+
+19. **The four existing Breast Neoplasms claimants carry no carryover row** (camizestrant,
+    PF-07248144, patritumab deruxtecan, sacituzumab tirumotecan). Their pool, 160,000 against
+    65,000, is not the automatic annual cohort, so starts converge on every eligible patient
+    whatever the peak. Atirmociclib carries the explicit 0. This is the Breast Neoplasms
+    split already open, now with its mechanism named.
+20. **Tilrekimig applies gross-to-net 0.26** to a CMS per-beneficiary figure, against the
+    calibrated 0.5 every other Part D row carries.
+21. **Closed 2026-09-25: obesity now prices on one basis.** The nine incumbents moved from
+    the 2024 incretin median ($6,642.45, anchor 4.3882%) to 2025 ($8,839.13, anchor 3.2576%)
+    with every multiple unchanged; berobenatide, solved to Metsera's filed forecast, held its
+    revenue. Every obesity line rose about 6%, the entrants included, because the pool is no
+    longer claimed a third too heavily. Retatrutide's and eloralintide's 6.54% price decline
+    stays: it is Lilly's own filed US figure on its own assets.
+22. **Tulisokibart is priced on Humira 2024 and duvakitug on Skyrizi 2025**, 1.83x apart in
+    the same two IBD pools. One IBD basis is needed.
+23. **Book hygiene.** LLY 8 and 1552 are both selpercatinib; Palsonify (VRTX, from
+    Crinetics) has no indication or revenue rows; the trials table is stale on NCT07414784,
+    NCT06104124 and NCT06411288; pipeline_sort.csv cites NCT06245408 for OASIZ 301, which is
+    NCT06104124.
+
+**Reconciling the parallel pricing branches (decided 2026-09-25: main's seeds stand).**
+Two unmerged branches price the same assets: `claude/youthful-curie-bux19h` (58 commits)
+and `claude/loving-franklin-hyt6rr` (5). The seeds on main were each re-run by an
+adversarial verifier on the 2025 CMS files, converted to the reporting currency and folded
+onto one row per molecule, so they stand. Before either branch merges, it must drop these
+files rather than resolve them by hand, or a drug is modelled twice:
+
+- Same name, which git will flag: `amgn_dazodalibep`, `azn_rilvegostomig`,
+  `gsk_mocertatug_rezetecan`, `jnj_seltorexant`, `lly_ly3537982`,
+  `lly_sofetabart_mipitecan`, `nvo_zenagamtide`, `nvs_ianalumab`, `nvs_zigakibart`,
+  `sny_duvakitug`, `sny_lunsekimig`.
+- Different name for the same drug, which git will NOT flag and the loader would mix key
+  by key, since it never overwrites a key already written: `gsk_gsk5784283` (main's
+  `gsk_felcorekibart`), `pfe_pf_07220060` (main's `pfe_atirmociclib`; the PF-07220060 row is
+  folded away, so the file would also load nothing) and `gsk_risvutatug_rezetecan` (main's
+  `gsk_ris_rez`; the same).
+- For review rather than a conflict: `lly_brenipatide`. Main holds no brenipatide seed,
+  because its verifier found the eligible share and the multiple unsourced.
+
+The values differ materially, which is why the rule matters: ianalumab's penetration is
+0.0784 on main and 0.1771 on the branch, seltorexant's 0.0062 and 0.0014, felcorekibart's
+asthma 0.0219 and 0.0071, and zenagamtide is priced on 2025 CMS on main and 2024 on the
+branch.
+
 ## The rows that are not new medicines, acted on, 25 September 2026
 
 The sort said what each late-stage row is. This pass acts on every class but NEW, and prices

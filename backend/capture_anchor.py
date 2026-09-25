@@ -56,19 +56,40 @@ FIRST_YEAR, LAST_YEAR = 2024, 2026
 
 
 def net_price(conn, asset_id: int) -> float | None:
-    """The net cost of a patient-year, in the price unit the seeds carry (millions).
+    """The net cost of a patient-year, in the price unit the seeds carry (millions of the
+    owner's reporting currency).
 
-    List price times the gross-to-net share, read from the asset's own rows so the
-    anchor and the forecast that consumes it cannot drift apart.
+    Read from the asset's own rows through forecast.net_price, so the anchor and the
+    forecast that consumes it cannot drift apart. It once multiplied list by the
+    gross-to-net share where the engine multiplies by one less it: the same number while
+    every obesity seed sat at 0.5, and inverted the moment one moved off it.
     """
+    import forecast
     rows = {r["key"]: r["value"] for r in conn.execute(
         "SELECT key, value FROM assumptions WHERE asset_id = ? AND scenario = 'base'"
-        "   AND year IS NULL AND key IN ('list_price_per_patient', 'gross_to_net_pct')",
+        "   AND year IS NULL AND indication_id IS NULL AND key IN"
+        "   ('list_price_per_patient', 'gross_to_net_pct', 'net_price_per_patient')",
         (asset_id,))}
-    listed, share = rows.get("list_price_per_patient"), rows.get("gross_to_net_pct")
-    if listed is None or share is None:
-        return None
-    return listed * share
+    return forecast.net_price(rows)
+
+
+def usd_per_unit(conn, asset_id: int) -> float | None:
+    """What one unit of the asset's price currency is worth in dollars, 1.0 for a dollar
+    filer, None where the rate is not on file.
+
+    Zepbound's revenue is in dollars and a Novo seed's price is in kroner. Dividing one by
+    the other read 0.65% for Cagrilintide against the 4.39% the book carries.
+    """
+    row = conn.execute(
+        "SELECT c.reporting_currency FROM assets a JOIN companies c"
+        "  ON c.id = a.owner_company_id WHERE a.id = ?", (asset_id,)).fetchone()
+    currency = ((row["reporting_currency"] if row else None) or "USD").upper()
+    if currency == "USD":
+        return 1.0
+    rate = conn.execute(
+        "SELECT rate FROM fx_rates WHERE base = ? AND quote = 'USD'"
+        " ORDER BY as_of DESC LIMIT 1", (currency,)).fetchone()
+    return rate["rate"] if rate else None
 
 
 def zepbound_id(conn) -> int | None:
@@ -118,9 +139,11 @@ def measure(conn, asset_id: int, *, annualise: str = "quarter", pool: str = "unt
     zepbound = zepbound_id(conn)
     if zepbound is None:
         return None
-    price = net_price(conn, asset_id)
-    if not price:
+    local = net_price(conn, asset_id)
+    rate = usd_per_unit(conn, asset_id)
+    if not local or not rate:
         return None
+    price = local * rate        # dollars, the unit Zepbound's revenue is in
     facts = {r["key"]: r["value"] for r in conn.execute(
         "SELECT key, value FROM assumptions WHERE asset_id = ? AND scenario = 'base'"
         "   AND key IN ('discontinuation_pct', 'prevalence', 'incidence')", (asset_id,))}

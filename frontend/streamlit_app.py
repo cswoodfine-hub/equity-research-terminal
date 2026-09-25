@@ -1159,13 +1159,15 @@ def _street_block(api_base: str, ticker: str) -> None:
     covered = view.get("mine_lines") or []
     section("The year ahead", basis="guidance vs street vs mine")
     quotes = []
+    # Every period's figures in one row, read left to right in time. A strip per period
+    # stacked them into a column, one tile deep, when a company has only street figures.
+    tiles = []
     for row in rows:
         metric, period = row["metric"], row["period"]
         name = "" if metric == "Revenue" else (
             " growth" if metric == "RevenueGrowth" else
             " price target" if metric == "PriceTarget" else
             " product sales" if metric == "ProductSales" else " EPS")
-        tiles = []
         for label, entry in (("guidance", row.get("guidance")),
                              ("street", row.get("street"))):
             if not entry or entry.get("value") is None:
@@ -1194,8 +1196,8 @@ def _street_block(api_base: str, ticker: str) -> None:
                           " down" if delta else "",
                           ", ".join(covered) if len(covered) < 3
                           else f"{len(covered)} assets modelled"))
-        if tiles:
-            st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+    if tiles:
+        st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
     if quotes:
         # The sentence the figure was read out of, so a guidance number can always be
         # argued with rather than taken on trust.
@@ -1787,8 +1789,11 @@ def _sotp_bridge(s: dict) -> None:
     for missing in s.get("missing") or []:
         bits.append(missing)
     if bits:
-        st.markdown(f'<div class="byline">{html_escape(" · ".join(bits))}</div>',
-                    unsafe_allow_html=True)
+        # Folded, one per line. Run together under the chart they were a wall of small
+        # print the eye skipped, and each is a separate fact about how the bars were made.
+        with st.expander("How the sum is built"):
+            st.markdown('<div class="byline">' + "<br>".join(html_escape(b) for b in bits)
+                        + "</div>", unsafe_allow_html=True)
 
 
 def _revenue_split(s: dict) -> None:
@@ -1912,6 +1917,7 @@ def _fair_value_range(api_base: str, ticker: str) -> None:
     R.show(CH.football_field(rows, 760, 36 + 30 * len(rows), marker=close,
                              value_fmt=money, label_width=300), css_class="chart-mount")
     split = fv.get("revenue_split") or {}
+    guidance_text = None
     if split.get("ok") and split.get("matched_equity") is not None:
         g, m = split["guidance"], split["modelled"]
         unmodelled = split.get("unmodelled_prior_year") or 0.0
@@ -1926,11 +1932,15 @@ def _fair_value_range(api_base: str, ticker: str) -> None:
                 f"{split['explained_by_revenue']:+,.2f} of the {gap:+,.2f} gap to the price, "
                 f"and {split['left_for_conventions']:+,.2f} is left for how long growth "
                 "lasts, costs, discounting and what the book does not carry.")
-        st.markdown(f'<div class="byline">{html_escape(text)}</div>', unsafe_allow_html=True)
+        guidance_text = text
     elif split.get("reason"):
-        st.markdown(f'<div class="byline">{html_escape("revenue against guidance: " + split["reason"])}</div>',
-                    unsafe_allow_html=True)
+        guidance_text = "revenue against guidance: " + split["reason"]
     with st.expander("How each lens is built"):
+        # The guidance reading explains the gap between the lenses and the price, so it
+        # opens with them rather than floating under the chart on its own.
+        if guidance_text:
+            st.markdown(f'<div class="byline">{html_escape(guidance_text)}</div>',
+                        unsafe_allow_html=True)
         body = "".join(
             f'<tr><td class="rs-k">{html_escape(l["lens"])}</td>'
             f'<td class="rs-v">{html_escape(money(l["low"]))}</td>'
@@ -1957,8 +1967,11 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
     basis = ("what the price needs, each alone" if b.get("direction") == "up"
              else "how far each can fall before the price, each alone")
     section("What breaks it", basis=basis)
-    for sentence in (b.get("sentence") or {}).get("body") or []:
-        st.markdown(f'<div class="byline">{html_escape(sentence)}</div>',
+    # The lead sentence is the answer and stays. The ones after it restate the table's
+    # evidence column and the risks table below, so they fold with the caption.
+    sentences = (b.get("sentence") or {}).get("body") or []
+    if sentences:
+        st.markdown(f'<div class="byline">{html_escape(sentences[0])}</div>',
                     unsafe_allow_html=True)
     body = ""
     for l in levers:
@@ -1978,18 +1991,16 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
                 '<th>model</th><th>break</th><th>move</th><th>evidence</th></tr></thead>'
                 f'<tbody>{body}</tbody></table>', unsafe_allow_html=True)
     held = " and ".join(b.get("held") or [])
-    caption = (f"value {b['equity_per_share']:,.2f} against a close of {b['close']:,.2f}, "
-               f"a gap of {gap:+,.2f} a share; each row moves one assumption alone and "
-               f"holds {held}")
-    st.markdown(f'<div class="byline">{html_escape(caption)}</div>',
-                unsafe_allow_html=True)
+    folded = [f"value {b['equity_per_share']:,.2f} against a close of {b['close']:,.2f}, "
+              f"a gap of {gap:+,.2f} a share; each row moves one assumption alone and "
+              f"holds {held}"] + list(sentences[1:])
     uncapped = next((l for l in levers if l.get("key") == "fade_shift_uncapped"
                      and l.get("shown")), None)
     if uncapped:
         peaks = "; ".join(f'{p["product"]} {p["model"]:,.0f}mm to {p["break"]:,.0f}mm'
                           for p in uncapped["shown"])
-        st.markdown(f'<div class="byline">{html_escape("uncapped growth fade at the break, peak revenue: " + peaks)}</div>',
-                    unsafe_allow_html=True)
+        folded.append("uncapped growth fade at the break, peak revenue: " + peaks)
+    note("<br>".join(html_escape(line) for line in folded))
     groups = b.get("groups") or []
     if not groups:
         return
@@ -2013,9 +2024,8 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
     st.markdown('<table class="rs"><thead><tr><th>group</th><th>kind</th><th>members, $ a '
                 'share</th><th>exposure</th><th>value if all fail</th><th>also held by</th>'
                 f'</tr></thead><tbody>{rows}</tbody></table>', unsafe_allow_html=True)
-    st.markdown('<div class="byline">a mechanism group\'s pipeline members failed together '
-                'is a stress, not a probability; a payer group or franchise is exposure '
-                'only</div>', unsafe_allow_html=True)
+    note("a mechanism group's pipeline members failed together is a stress, not a "
+         "probability; a payer group or franchise is exposure only")
 
 
 def _book(api_base: str, ticker: str, selected):
@@ -4565,8 +4575,6 @@ with main:
         # Catalysts, exclusivity and filings come from the feed; deals and readouts from
         # their own endpoints. The raw change list, trial status and date wording, stays
         # out of this view: it read as jargon and the events that matter are here.
-        _china_bd(api_base, ticker)
-
         deals_data = api_get(api_base, f"/companies/{ticker}/deals").get("deals") or []
         readouts_data = api_get(api_base, f"/companies/{ticker}/readouts").get("readouts") or []
         catalyst_items = [it for it in feed if it["kind"] == "catalyst"]
@@ -4707,6 +4715,11 @@ with main:
                         "and are the reason the snapshots are kept. The full history is "
                         "on the company's own News and Pipeline tabs.")
                     + "</div>", unsafe_allow_html=True)
+
+        # Last on the tab, below the note and both lists. It is a count over the deals
+        # already shown under What happened, read one way, so it follows everything that
+        # is about this company today rather than standing in front of it.
+        _china_bd(api_base, ticker)
 
     # --- Prices ----------------------------------------------------------
     with prices_tab:
@@ -4922,8 +4935,8 @@ with main:
         else:
             state(f"{ticker} does not file with the SEC",
                   "EDGAR holds no company facts for a company the SEC does not "
-                  "register. Roche's come from the workbook it publishes and Bayer's "
-                  "from its ESEF annual reports, and neither has loaded yet.")
+                  "register. Roche and Bayer each publish a workbook of their own, "
+                  f"which the refresh reads, and {ticker}'s has not loaded yet.")
 
         # The reported period, then the year it is guiding to. Consensus belongs here
         # rather than on the forecast tab: this is where the reported number it is being
@@ -5721,10 +5734,22 @@ with main:
                         _pf = dict(zip(_pf_names, st.tabs(_pf_names)))
 
                         with _pf["Revenue mix"]:
-                            # Revenue mix leads: what the company earns today, by product, before the
-                            # cliff charts say what is at risk. The mix is the base the rest is read
-                            # against, so it comes first.
+                            # The layer leads the tab: what the company earns, by product, before
+                            # the cliff charts say what is at risk.
                             if mix_drivers:
+                                # The build first, the ring under it. The build says where the
+                                # revenue goes, the same products as bands out to the horizon
+                                # with the reported line over them; the ring says where one year
+                                # of it comes from. It is the forecast tab's chart, drawn here
+                                # because this is the tab about the book that produces it.
+                                try:
+                                    _bv = api_get(api_base,
+                                                  f"/companies/{ticker}/forecast-verdict")
+                                except (urllib.error.URLError, OSError):
+                                    _bv = None
+                                if _bv and _bv.get("ok"):
+                                    _revenue_build(_bv)
+
                                 section("Revenue mix", f"FY{mix_year}")
                                 ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
 
@@ -5819,19 +5844,6 @@ with main:
                                     centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
                                     value_fmt=lambda v: T.num(v / 1e9, 2)),
                                     css_class="chart-mount mix-donut")
-                                # The build under the ring. The mix says where a year of revenue
-                                # comes from; this says where it goes, the same products as bands
-                                # out to the horizon with the reported line over them. It is the
-                                # forecast tab's chart, drawn here because this is the tab about
-                                # the book that produces it.
-                                try:
-                                    _bv = api_get(api_base,
-                                                  f"/companies/{ticker}/forecast-verdict")
-                                except (urllib.error.URLError, OSError):
-                                    _bv = None
-                                if _bv and _bv.get("ok"):
-                                    _revenue_build(_bv)
-
                                 if named_lines:
                                     note("The grey wedges are revenue the company reports as a "
                                          "line rather than a product: "

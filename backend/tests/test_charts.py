@@ -462,6 +462,20 @@ def test_stacked_columns_legend_wraps_instead_of_overflowing():
     assert second_row                     # and the overflow went to a second row
 
 
+def test_stacked_columns_thin_their_labels_when_the_columns_are_narrow():
+    """Thirty years in half a page ran the years into one string and piled the totals on
+    each other. A narrow chart labels every k-th column; a wide one labels them all."""
+    years = [str(y) for y in range(2022, 2052)]
+    series = [{"name": "A", "values": [81_894.0] * len(years), "colour": "#4C9A7A"}]
+    narrow = charts.stacked_columns(years, series, 760, 292)
+    drawn = [y for y in years if f">{y}<" in narrow]
+    assert 1 < len(drawn) < len(years)
+    assert ">2022<" in narrow                              # the first year always shows
+    assert "2051 A 81,894" in narrow                       # an unlabelled year keeps its hover
+    wide = charts.stacked_columns(years[:6], series, 760, 292)
+    assert all(f">{y}<" in wide for y in years[:6])
+
+
 def test_waterfall_reference_is_a_dashed_rule_inside_the_domain():
     steps = [{"label": "a", "value": 10.0, "kind": "start"},
              {"label": "b", "value": 5.0, "kind": "step"},

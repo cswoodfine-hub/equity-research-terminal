@@ -242,4 +242,5 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                 assert assumptions.dated(row[isrc]) == "2026-09-01", path.name
                 # The variant is named, so the choice among his five is visible.
                 assert "trailing twelve month" in row[isrc], path.name
-    assert seen == 482        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24
+    assert seen == 500        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24,
+                              # then nineteen big pharma late-stage seeds less amlitelimab, retired, 2026-09-25

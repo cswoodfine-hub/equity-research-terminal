@@ -161,3 +161,30 @@ def test_a_row_carrying_both_the_anchor_and_a_multiple_grades_as_the_judgement(t
             "an analyst's judgement of its competitive position: half")
     conn.close()
     assert evidence.grade(text) == "judgement"
+
+
+def test_the_net_price_takes_the_gross_to_net_share_off_as_the_engine_does(tmp_path):
+    """net = list x (1 - gross_to_net). At 0.5 the two readings agree, which is how the
+    inversion hid; at 0.25 the anchor must see 75% of list, as forecast.net_price does."""
+    conn = _seed(tmp_path, BOOK, price=0.008, gtn=0.25)
+    assert CA.net_price(conn, 20) == pytest.approx(0.006)
+
+
+def test_a_price_in_kroner_is_measured_in_dollars(tmp_path):
+    """Zepbound's revenue is in dollars. A Novo seed's price is in kroner, and dividing one
+    by the other put the anchor at a seventh of its value."""
+    usd = CA.measure(_seed(tmp_path, BOOK), 20)["rate"]
+    path = tmp_path / "dkk"
+    path.mkdir()
+    conn = _seed(path, BOOK, price=0.006642 / 0.1526432660923538)
+    conn.execute("INSERT INTO companies (id, ticker, name, reporting_currency)"
+                 " VALUES (3, 'NVO', 'Novo Nordisk', 'DKK')")
+    conn.execute("UPDATE assets SET owner_company_id = 3 WHERE id = 20")
+    conn.execute("INSERT INTO fx_rates (base, quote, rate, as_of) VALUES"
+                 " ('DKK', 'USD', 0.1526432660923538, '2026-09-23')")
+    conn.commit()
+    assert CA.measure(conn, 20)["rate"] == pytest.approx(usd)
+    # No rate on file is a refusal, not a measurement in the wrong unit.
+    conn.execute("DELETE FROM fx_rates")
+    conn.commit()
+    assert CA.measure(conn, 20) is None

@@ -59,6 +59,23 @@ def _inputs(scalars: dict) -> dict | None:
             "carryover": scalars.get("untreated_carryover_pct")}
 
 
+def _pool_rule(claim: dict) -> tuple[float, float]:
+    """(carryover, opening pool) for a claimant, by the rule forecast.py applies.
+
+    A seed can state its carryover. Where it does not, a pool stated equal to its own
+    inflow is the year's diagnoses, how every cancer line and the COPD rows are written,
+    so nothing carries into the next year and there is no opening stock on top of the
+    first year's diagnoses. Reading a missing carryover as 1.0 here, where the engine
+    reads it as 0, crowded felcorekibart and lunsekimig by 5% and 7% on a pool the engine
+    never lets run short.
+    """
+    carry = claim.get("carryover")
+    prevalence, incidence = claim["prevalence"], claim["incidence"]
+    if carry is None and prevalence and abs(prevalence - incidence) < 0.5:
+        return 0.0, 0.0
+    return (1.0 if carry is None else carry), prevalence
+
+
 # Everything the pool identity needs, and where the engine reads each from. Pool factors
 # are per indication; the rest are asset-level scalars.
 _PER_INDICATION = ("prevalence", "eligible_pct", "incidence", "penetration_peak_pct",
@@ -212,9 +229,9 @@ def solve(claims: list[dict], years: int = 30, first_year: int | None = None,
     # Uncrowded: the engine's own answer, one private pool each.
     uncrowded = {}
     for claim in claims:
-        pool = claim["prevalence"] * claim["eligible_pct"]
+        carry, opening = _pool_rule(claim)
+        pool = opening * claim["eligible_pct"]
         inc = claim["incidence"] * claim["eligible_pct"]
-        carry = 1.0 if claim["carryover"] is None else claim["carryover"]
         stop = (claim["stop"] or 0.0) if recycle else 0.0
         remaining, series, treated = pool, [], 0.0
         for year in calendar:
@@ -248,9 +265,9 @@ def solve(claims: list[dict], years: int = 30, first_year: int | None = None,
     pooled = sizes[shared_size]
     unpooled = [c for c in claims if c not in pooled]
     lead = pooled[0]
-    pool = shared_size
+    carry, opening = _pool_rule(lead)
+    pool = opening * lead["eligible_pct"]
     inc = lead["incidence"] * lead["eligible_pct"]
-    carry = 1.0 if lead["carryover"] is None else lead["carryover"]
     claims_in = pooled
     crowded = {c["asset_id"]: [] for c in claims}
     stops = {c["asset_id"]: ((c["stop"] or 0.0) if recycle else 0.0) for c in claims}
