@@ -1149,13 +1149,15 @@ def _street_block(api_base: str, ticker: str) -> None:
     covered = view.get("mine_lines") or []
     section("The year ahead", basis="guidance vs street vs mine")
     quotes = []
+    # Every period's figures in one row, read left to right in time. A strip per period
+    # stacked them into a column, one tile deep, when a company has only street figures.
+    tiles = []
     for row in rows:
         metric, period = row["metric"], row["period"]
         name = "" if metric == "Revenue" else (
             " growth" if metric == "RevenueGrowth" else
             " price target" if metric == "PriceTarget" else
             " product sales" if metric == "ProductSales" else " EPS")
-        tiles = []
         for label, entry in (("guidance", row.get("guidance")),
                              ("street", row.get("street"))):
             if not entry or entry.get("value") is None:
@@ -1184,8 +1186,8 @@ def _street_block(api_base: str, ticker: str) -> None:
                           " down" if delta else "",
                           ", ".join(covered) if len(covered) < 3
                           else f"{len(covered)} assets modelled"))
-        if tiles:
-            st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+    if tiles:
+        st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
     if quotes:
         # The sentence the figure was read out of, so a guidance number can always be
         # argued with rather than taken on trust.
