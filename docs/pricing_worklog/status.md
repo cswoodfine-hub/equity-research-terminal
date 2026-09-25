@@ -7,7 +7,7 @@
 | AMGN | Dazodalibep | seeded and built |
 | ARGX | Adimanebart IV | seeded and built |
 | ARGX | Empasiprubart | seeded and built: first argenx cost block |
-| ARWR | Zodasiran | not started |
+| ARWR | Zodasiran | seeded and built: HoFH, 1 in 300,000; Arrowhead block borrowed from Alnylam; open: the treated stock reaches about two thirds of the pool and patients already on Evkeeza are not netted |
 | AXSM | AXS-14 (Esreboxetine) | seeded and built: Axsome block borrowed from Neurocrine; Pfizer royalty netted at 4%; fibromyalgia incidence corrected from a myalgia code; open: Savella's sales suggest the peak may be high |
 | AZN | Balcinrenone/dapagliflozin | seeded and built: HF incidence from Khera 2020 |
 | AZN | Rilvegostomig | seeded and built |

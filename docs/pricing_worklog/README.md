@@ -80,7 +80,8 @@ stated debt weight into an assembled seed. Register the pair in
 `interest_addback.COMPARATORS`. Structure (aleniglipron) borrows Lilly's; Dyne, Capricor and
 Intellia borrow Alnylam's, the book's rare-disease genetic medicine company with its own filed
 lines; Vor borrows argenx's, the gMG incumbent telitacicept is priced against; Revolution Medicines
-borrows Exelixis's; Ionis, whose own filed lines are a loss, borrows Alnylam's; Axsome, likewise, borrows Neurocrine's. A share netted
+borrows Exelixis's; Ionis, whose own filed lines are a loss, borrows Alnylam's; Axsome, likewise, borrows Neurocrine's; Arrowhead, whose FY2025 revenue is mostly licence
+income, borrows Alnylam's. A share netted
 over a borrowed margin (Vor's royalty, Intellia's, Capricor's revenue share) says so and is
 recomputed when the company files a cost of sales.
 

@@ -43,7 +43,8 @@ WINDOWS = {
 }
 # A charge borrowed from another company follows that company's.
 COMPARATORS = {"VKTX": "LLY", "GPCR": "LLY", "DYN": "ALNY", "CAPR": "ALNY", "NTLA": "ALNY",
-               "VOR": "ARGX", "RVMD": "EXEL", "IONS": "ALNY", "AXSM": "NBIX"}
+               "VOR": "ARGX", "RVMD": "EXEL", "IONS": "ALNY", "AXSM": "NBIX",
+               "ARWR": "ALNY"}
 MARKER = "before interest"
 
 
