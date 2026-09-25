@@ -1,7 +1,7 @@
 # Telitacicept (VOR).
 # Telitacicept is RemeGen's dual-target fusion protein that inhibits BAFF (also called BLyS) and APRIL (Vor's description), given 240 mg subcutaneously once a week. Vor Bio holds exclusive rights outside Greater China under a June 2025 licence and pays RemeGen tiered royalties from high single digit to mid-teen percentages (FY2025 10-K 0001193125-26-130451, Note 10). Registrational trials: UPSTREAM MG (NCT06456580; 180 AChR- or MuSK-positive gMG adults; MG-ADL at week 24; topline 1H 2027) and UPSTREAM SjD (NCT07404865; 250 adults with ESSDAI of 5 or more; ESSDAI at week 48; primary completion 2028-12). China has approved it for gMG, SLE, RA and Sjogren's, and conditionally for IgAN. Price anchor: Vyvgart Hytrulo, the self-injected gMG incumbent, at $191,644 per CMS Part D beneficiary in 2024. The engine carries one price for both indications. Uptake anchors: a quarter of Vyvgart's solved plateau share in gMG, the multiple the book's cemdisiran seed uses, and the book's Sjogren's follower share (dazodalibep, 0.0514). Vor's share is 0.70: a 7% royalty struck on argenx's margin, because Vor has no cost rows in the book.
 #
-# Researched and then checked by a second reader who reopened every source, 2026-09-24.
+# Researched and then checked by a second reader who reopened every source, 2026-09-25.
 # Company-level rows: own beta and debt; cost lines borrowed from ARGX, the comparator, as Viking's are from Lilly's.
 #
 # Seeds are insert-only. Edit a number in the terminal, not here.

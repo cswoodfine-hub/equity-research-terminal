@@ -1,7 +1,7 @@
 # obudanersen (IONS).
 # Obudanersen (ION582) is Ionis' intrathecal antisense oligonucleotide against the UBE3A antisense transcript, meant to switch on the silent paternal UBE3A copy in Angelman syndrome. Ionis owns it outright: Biogen declined its option under the 2018 collaboration. The registrational trial is REVEAL (NCT06914609). It is randomised 2:1, double-blind and placebo-controlled, with quarterly doses of 40 or 80 mg. The first cohort is 136 children aged 2 to under 18 with a UBE3A deletion or mutation, and the primary endpoint is Bayley-4 expressive communication. Primary completion is 2027-08, with topline in the second half of 2027. Price anchor: Spinraza, the Ionis-discovered intrathecal ASO for a paediatric genetic neurological disease, at $330,719 per CMS Part D beneficiary. Uptake anchor: Daybue, the first drug for Rett syndrome, solved through the engine from its 987 US patients in Q2 2025.
 #
-# Researched and then checked by a second reader who reopened every source, 2026-09-24.
+# Researched and then checked by a second reader who reopened every source, 2026-09-25.
 # Company-level rows: own beta and debt; cost lines borrowed from ALNY, the comparator, as Viking's are from Lilly's.
 #
 # Seeds are insert-only. Edit a number in the terminal, not here.

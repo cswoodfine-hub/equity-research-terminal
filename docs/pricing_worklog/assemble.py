@@ -1,5 +1,5 @@
 """Verified research JSON -> data/assumptions seed. Usage: assemble.py <verified json> [...]"""
-import csv, glob, io, json, re, sys, pathlib
+import csv, datetime, glob, io, json, re, sys, pathlib
 REPO = pathlib.Path("/home/user/equity-research-terminal")
 COMPANY_KEYS = ("beta", "cogs_pct", "cost_of_debt", "debt_weight", "erp", "other_costs_pct",
                 "rd_pct", "risk_free", "sga_pct", "tax_rate")
@@ -77,7 +77,7 @@ def main(paths):
         dest = REPO / "data/assumptions" / f"{t.lower()}_{slug}.csv"
         summ = [("# " + line).rstrip() for line in (v.get("summary") or "").splitlines() if line.strip()]
         head = [f"# {name} ({t}).", *summ, "#",
-                f"# Researched and then checked by a second reader who reopened every source, 2026-09-24.",
+                f"# Researched and then checked by a second reader who reopened every source, {datetime.datetime.fromtimestamp(pathlib.Path(sys.argv[1]).stat().st_mtime, datetime.timezone.utc):%Y-%m-%d}.",
                 f"# Company-level rows copied from {template}." if template else "# No company-level rows on file for this company.",
                 "#", "# Seeds are insert-only. Edit a number in the terminal, not here."]
         buf = io.StringIO(); w = csv.DictWriter(buf, fieldnames=HEADER, lineterminator="\n", extrasaction="ignore")

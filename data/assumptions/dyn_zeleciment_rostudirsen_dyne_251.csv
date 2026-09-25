@@ -1,7 +1,7 @@
 # Zeleciment Rostudirsen (DYNE-251) (DYN).
 # Z-rostudirsen (DYNE-251) is Dyne's Fab-conjugated PMO that skips exon 51 of the dystrophin gene, dosed IV at 20 mg/kg every four weeks. The BLA, built on the registrational expansion cohort of the Phase 1/2 DELIVER trial (NCT05524883, dystrophin at 6 months), seeks accelerated approval for DMD amenable to exon 51 skipping; FDA granted Priority Review with a PDUFA date of 2027-01-21, and FORZETTO (NCT07608432, ambulatory ages 4 to 18, rise-from-floor velocity at week 73, primary completion 2030-12) is the confirmatory Phase 3. Price anchor: Exondys 51 (eteplirsen), the marketed exon 51 skipper, at its $16/mg WAC, $748,800 a year for ICER's 30 kg reference patient, less Sarepta's filed 18.5% gross-to-net; the book holds no CMS rows for Exondys. Pool: the book's DMD figures (11,952 prevalent, 367 a year) restricted to the 13% amenable to exon 51 skipping. Uptake anchor: Exondys's own revenue, converted to US patient-equivalents at this net price, reached 42% of the exon 51 pool in its fifth year (2021); the engine needs a 0.0953 annual capture on a step-shaped ramp to match that.
 #
-# Researched and then checked by a second reader who reopened every source, 2026-09-24.
+# Researched and then checked by a second reader who reopened every source, 2026-09-25.
 # Company-level rows: own beta and debt; cost lines borrowed from ALNY, the comparator, as Viking's are from Lilly's.
 #
 # Seeds are insert-only. Edit a number in the terminal, not here.
