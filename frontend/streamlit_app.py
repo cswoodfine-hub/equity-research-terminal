@@ -4912,8 +4912,8 @@ with main:
         else:
             state(f"{ticker} does not file with the SEC",
                   "EDGAR holds no company facts for a company the SEC does not "
-                  "register. Roche's come from the workbook it publishes and Bayer's "
-                  "from its ESEF annual reports, and neither has loaded yet.")
+                  "register. Roche and Bayer each publish a workbook of their own, "
+                  f"which the refresh reads, and {ticker}'s has not loaded yet.")
 
         # The reported period, then the year it is guiding to. Consensus belongs here
         # rather than on the forecast tab: this is where the reported number it is being
