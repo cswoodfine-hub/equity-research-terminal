@@ -72,6 +72,6 @@
 | SNY | Riliprubart | seeded and built |
 | SNY | Tolebrutinib | refused: no US path |
 | SNY | Venglustat | seeded, not built: eligible_pct null (Part B deduction corrected) |
-| SRPT | SRP-9003 | not started |
+| SRPT | SRP-9003 | seeded and built: LGMD2E/R4, about 8 patients a year; still on clinical hold pending ENDEAVOR Cohort 8 sirolimus data (Q1 2027); Sarepta block borrowed from Alnylam (its FY2025 lines are a loss) |
 | TSHA | TSHA-102 | not started |
 | VOR | Telitacicept | seeded and built: Vor block borrowed from argenx; Sjogren's carryover withdrawn to match ianalumab and dazodalibep |
