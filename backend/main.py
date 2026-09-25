@@ -54,6 +54,7 @@ import therapeutic_areas
 import pipeline as pipeline_module
 import product_profile as product_profile_module
 import refresh as refresh_module
+import response_cache
 import regulatory as regulatory_module
 import screen as screen_module
 import slippage as slippage_module
@@ -69,6 +70,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Pharma equity research terminal", version="0.2.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def serve_reads_from_cache(request, call_next):
+    """Reads are served from their last computation until the book changes, and the slow
+    ones are computed ahead of the page (backend/response_cache.py)."""
+    response_cache.start_warming(str(request.base_url))
+    return await response_cache.handle(request, call_next)
 
 
 @app.get("/health")
