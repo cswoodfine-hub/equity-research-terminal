@@ -445,3 +445,59 @@ equity as net cash, which is a meaningless value for fifteen companies (Bayer, B
 Sarepta and twelve small companies among them). The company section in the UI returns before
 showing it and the fair value lenses refuse, so it does not reach a reader today. It would if
 either guard moved.
+
+## The rows that are not new medicines, acted on, 25 September 2026
+
+The sort said what each late-stage row is. This pass acts on every class but NEW, and prices
+nothing. On a copy of the 2026-09-25 book run through three refresh cycles, no company's or
+asset's valuation moves.
+
+| Class | Rows acted on | What happens now |
+|---|---|---|
+| DUPLICATE and REGIMEN | 64 | Named in `data/asset_alias_map.csv` against the row the book carries, the product named first in the sort's own "of" (for a regimen, the component the sponsor owns). The merge folds each one and its trials move onto the product. |
+| LINE_EXTENSION | 27 | The same, against the row that carries the product's revenue or model, so 9vHPV folds into Gardasil / Gardasil 9 rather than the bare Gardasil 9 row. |
+| DEAD | 18 | Retired through `data/discontinued_programmes.csv` and `backend/discontinued.py`: kept with its trials, snapshotted, and skipped by the pipeline grid, the programme list, the coverage population and the valuation. |
+| NOT_A_PROGRAMME | 19 | Listed in `data/not_a_programme.csv`. `trial_mapping` never derives a programme from the name for that sponsor, and `prune_arms` removes a row already derived. |
+
+**The late-stage population falls from 366 rows to 250**: 190 NEW, 51 unsorted, and nine left
+open on purpose. Big pharma coverage at Phase 2 and later is now 73 valued of 283 (26%),
+against 72 of 382 before, and Phase 3 is 69 of 142 (49%) against 68 of 198. The valued count
+barely moved. What moved is the denominator, which no longer counts one medicine several
+times or counts a stopped programme as live.
+
+**Left open, each for a stated reason**
+
+- Two duplicates cross companies and a merge never does: Moderna's mRNA-4157 is Merck's
+  intismeran, and Pfizer's ATM-AVI is Emblaveo, carried under AbbVie.
+- Seven line extensions have no parent in the book to fold into: Mosquirix, Lagevrio,
+  Atectura and Enerzair Breezhaler, Ordspono, Armour Thyroid, and Emblaveo under Pfizer.
+- Gandotinib stays live. It has had no trial since 2015, but no discontinuation was ever
+  announced, and silence is not a filing.
+- The folds bring survivors into the population unsorted: BNT323, GSK5764227, Atirmociclib,
+  and from released trials EDI048 and spartalizumab.
+
+**No line extension is valued yet, and most should not be.** A marketed product runs on its
+reported revenue and one growth rate, so the engine has no slot for a risked new indication.
+Five of the 17 modelled parents (Cobenfy, Ebglyss, Scemblix, Leqvio, Fabhalta) grow to a
+published peak, and a consensus peak already carries the label expansions, so pricing the
+extension would count it twice. The other twelve run on last year's reported growth, and
+their extensions are mostly paediatric, device or formulation studies. The material one is
+Pluvicto's PSMAddition in hormone-sensitive prostate cancer. Datroway is the larger gap: a
+marketed product with revenue on file and no model, so neither it nor its new lung and breast
+settings carries any value.
+
+**Found on the way**
+
+- The refresh merges before it applies the curated register, so a product the register adds
+  absorbs its pipeline twin only on the next refresh: Elahere and a mirvetuximab row,
+  Aucatzyl and obe-cel.
+- The trials fetcher keeps DRUG, BIOLOGICAL, GENETIC and COMBINATION_PRODUCT interventions,
+  and the registry files radioligands as RADIATION. The Lutathera study NCT06784752 therefore
+  lists only octreotide LAR in the book, and once that row went it mapped to Sandostatin, the
+  comparator.
+- Releasing a trial from one comparator exposes its next intervention to derivation. A
+  Gilead paediatric HIV study produced a darunavir row as soon as its atazanavir row went, so
+  a trial's comparators are listed together.
+- `prune_arms` nulls any `asset_id` column it reads as nullable, and SQLite reads an INTEGER
+  PRIMARY KEY as nullable, where NULL assigns a fresh row id. `retired_programmes` keys the
+  asset in its own NOT NULL UNIQUE column for that reason.
