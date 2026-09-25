@@ -58,6 +58,14 @@
    "note": "Wholly owned. No licensee or profit share was found. The case against: no source found states whether the 2018 Biogen agreement leaves Biogen any royalty on a programme it declined. Whether any of Ionis' royalty monetisation deals (for example Royalty Pharma, 2023) cover obudanersen was not checked",
    "verdict": "confirmed",
    "check": "Biogen's decline is confirmed. Search surfaced the Ionis release on HALOS topline (ir.ionis.com, prnewswire, May 2024): Biogen elected not to exercise its option to license ION582, and Ionis will independently advance it. Ownership is confirmed from a filing I read myself: the Ionis Q2 2026 10-Q (0000874015-26-000251) lists obudanersen under 'Our Innovative Late-Stage Pipeline of Ionis-Owned Investigational Medicines', with no licensee. The zilganersen entry in the same section names its Recordati ex-US licence, and obudanersen's names none. Royalties: the 10-Q's Note 10 limits the Royalty Pharma sale to SPINRAZA and pelacarsen royalties. The 2018 Biogen neurology collaboration text describes only what happens when Biogen exercises an option. No book filing (10-Ks FY2024/FY2025, 10-Qs Q1/Q2 2026, eight 8-Ks from Oct 2025 to Sep 2026) mentions a royalty, milestone or licence owed by Ionis on obudanersen. The 8-Ks of 2026-09-04 and 2026-09-23 concern zilganersen, pelacarsen and sefaxersen. No royalty owed is found, so there is no ground to refuse. Residual: third-party in-licence royalties are not disclosed product by product."
+  },
+  "loe_year": {
+   "value": 2040,
+   "unit": "year",
+   "source": "Ionis's 10-K for FY2025 (0000874015-26-000115), patents section: 'We believe obudanersen is protected from generic competition in the U.S. and Europe until at least 2040', with a table of key issued patents",
+   "note": "the company's own statement of the date a generic can enter, which the molecule patent sets; 'at least' makes 2040 a floor, and a term extension could add years inside the 14-year cap from approval. It replaces the engine's 12-year biologic default (2041), which has no basis for an oligonucleotide approved under an NDA",
+   "verdict": "added at assembly",
+   "check": "the company's stated generic-entry date, read from the 10-K patents section in the book at assembly"
   }
  },
  "indications": [

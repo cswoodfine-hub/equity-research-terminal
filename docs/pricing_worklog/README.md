@@ -52,7 +52,9 @@ downloads from this container), then migrate, fold aliases and load the seeds:
    such a field to the verified file with verdict "added at assembly".
 4. `assemble.py verified/<file>.json`, then `fx_seed.py data/assumptions/<seed>.csv` for a
    company reporting in pounds, euros, kroner or francs, then `build.py TICKER:Name` from
-   `backend/` to load and build. Raise the seed count in `test_wacc_live_rate.py`.
+   `backend/` to load and build. Raise the seed count in `test_wacc_live_rate.py`. When the
+   company already has a seed, assembly copies its block ("Company-level rows copied from");
+   run `comparator_block.py` only when it reports the company keys missing, or the rows double.
 
 ## Holds, refusals and cost blocks
 

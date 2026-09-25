@@ -58,6 +58,14 @@
    "note": "No partner, licensor or royalty on aleniglipron was found in the filings or in a September 2026 search. The Genentech licence does not encumber aleniglipron. The 10-Q does say Structure 'will be required to build a marketing and sales organization' or partner. A partner would lower this value and raise the uptake rung, both at once",
    "verdict": "confirmed",
    "check": "10-K 0001104659-26-020562 patents section (book filing_sections): 'Gasherbrum Bio, Inc. (\"Gasherbrum\") is the sole owner of 24 patent families' directed to aleniglipron, 'expected to expire between 2041 and 2045'. 10-Q 0001104659-26-092057 (notes held in the book's risk_factors section): Note 9 covers only the Lhotse (LPA1) and Aconcagua collaborations with Schrodinger. Note 7, the GNE Agreement of December 2025, is a non-exclusive out-licence: $100.0mm upfront received January 2026 and low single-digit royalties to Structure. The licence covers 'a class of oral GLP-1 receptor agonists that is different from aleniglipron'. The risk factors name CT-996 as the licensed molecule. Both ACCOMPLISH trials list Gasherbrum as lead sponsor (book trials table and context). A September 2026 search found no partnership, licence or acquisition covering aleniglipron."
+  },
+  "loe_year": {
+   "value": 2041,
+   "unit": "year",
+   "source": "Structure's 10-K for FY2025 (0001104659-26-020562), patents section: Gasherbrum Bio owns 24 patent families 'directed to our lead product candidate aleniglipron and its analogs, solid forms and methods of treating conditions associated with GLP-1R activity', 'expected to expire between 2041 and 2045, without accounting for potentially available patent term adjustments or extensions'",
+   "note": "the molecule patent sets the LOE, and the filing does not say which family claims the compound. 2041 is the earliest date in the range, the one a compound family filed first would carry; the solid-form and method families run later and can be designed around or carved out. A term extension could add years inside the 14-year cap from approval, so 2041 is a floor. It replaces the engine's 12-year biologic default (2042), which has no basis for a small molecule",
+   "verdict": "added at assembly",
+   "check": "the molecule's LOE, read from the 10-K patents section in the book at assembly; the engine's default was the 12-year biologic term"
   }
  },
  "indications": [
