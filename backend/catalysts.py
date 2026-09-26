@@ -248,6 +248,13 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
     Idempotent. The trial's registry URL is the identity of the row, so a re-run updates
     the date in place rather than adding a second copy. A row the analyst has accepted
     (is_curated=1) is left alone; their judgement outranks the derivation.
+
+    The asset and the company are the trial's, on every run and not only the first. A
+    row that kept the asset it was derived with outlived that asset's id: the daily job
+    rebuilds from exported history, assets are not exported, and the refresh numbers
+    them afresh, so a Roche readout stayed on id 504 after 504 had become Lilly's
+    Humatrope. Curated rows are still not touched; any whose asset belongs to another
+    company is listed under ``curated_mismatched`` for a person to look at.
     """
     conn = db.get_connection(db_path)
     try:
@@ -276,12 +283,12 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
         rows = list(rows) + _lead_phase_readouts(conn, within_days,
                                                  {r["nct_id"] for r in rows})
 
-        added = updated = 0
+        added = updated = reassigned = 0
         for row in rows:
             url = CTGOV_URL.format(nct_id=row["nct_id"])
             existing = conn.execute(
-                "SELECT id, expected_date, title, is_curated FROM catalysts"
-                " WHERE source_url = ?",
+                "SELECT id, company_id, asset_id, expected_date, title, is_curated"
+                "  FROM catalysts WHERE source_url = ?",
                 (url,),
             ).fetchone()
             title = _readout_title(row["phase"], row["brand_name"], row["title"])
@@ -298,15 +305,22 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
                      _date_confidence(row["due"]), title, row["nct_id"], url),
                 )
                 added += 1
-            elif not existing["is_curated"] and (
-                    existing["expected_date"] != row["due"]
+                continue
+            moved = (existing["asset_id"] != row["asset_id"]
+                     or existing["company_id"] != row["company_id"])
+            if not existing["is_curated"] and (
+                    moved
+                    or existing["expected_date"] != row["due"]
                     or existing["title"] != title):
                 conn.execute(
-                    "UPDATE catalysts SET expected_date = ?, date_confidence = ?,"
-                    " title = ?, updated_at = datetime('now') WHERE id = ?",
-                    (row["due"], _date_confidence(row["due"]), title, existing["id"]),
+                    "UPDATE catalysts SET company_id = ?, asset_id = ?,"
+                    " expected_date = ?, date_confidence = ?, title = ?,"
+                    " updated_at = datetime('now') WHERE id = ?",
+                    (row["company_id"], row["asset_id"], row["due"],
+                     _date_confidence(row["due"]), title, existing["id"]),
                 )
                 updated += 1
+                reassigned += int(moved)
 
         # A trial that left the window, stopped, or read out should not linger as a
         # pending catalyst. Only derived rows are withdrawn; curated ones are the
@@ -321,7 +335,29 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
         for catalyst_id in stale:
             conn.execute("DELETE FROM catalysts WHERE id = ?", (catalyst_id,))
         conn.commit()
-        return {"added": added, "updated": updated, "withdrawn": len(stale),
-                "total": len(rows)}
+        return {"added": added, "updated": updated, "reassigned": reassigned,
+                "withdrawn": len(stale), "total": len(rows),
+                "curated_mismatched": curated_owner_mismatches(conn)}
     finally:
         conn.close()
+
+
+def curated_owner_mismatches(conn) -> list:
+    """Curated catalysts whose asset belongs to a company other than the catalyst's.
+
+    Reported, never repaired. The row is the analyst's, and some are right as entered: a
+    partner's asset can carry this company's catalyst. The rest carry an asset id from
+    before a rebuild renumbered the assets, and only a person can say which is which.
+    """
+    return [dict(r) for r in conn.execute(
+        """
+        SELECT k.id, c.ticker, k.title, k.asset_id,
+               owner.ticker AS asset_owner,
+               COALESCE(a.brand_name, a.generic_name) AS asset_name
+          FROM catalysts k
+          JOIN assets a ON a.id = k.asset_id
+          JOIN companies c ON c.id = k.company_id
+          JOIN companies owner ON owner.id = a.owner_company_id
+         WHERE k.is_curated = 1 AND a.owner_company_id <> k.company_id
+         ORDER BY k.id
+        """)]
