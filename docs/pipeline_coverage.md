@@ -655,8 +655,9 @@ their fixed payments (Ionis milestones, the Mirati CVR), since the engine has no
 **Coverage.** Big pharma assets whose highest phase is Phase 3: 113 valued of 130 (87%),
 against 86 before this pass. Phase 2/3 and 3 together: 119 of 138. Phase 2 and later: 123
 of 258 (48%), against 93. The 19 late-stage rows left unvalued are Roche's six (researched
-separately), six line extensions with no parent to fold into (Armour Thyroid, Lagevrio,
-Atectura, Enerzair, the erdafitinib intravesical system, Ocrevus subcutaneous), the six
+separately), six line extensions (Armour Thyroid, Lagevrio, Atectura and Enerzair, which have
+no parent in the book, and the erdafitinib intravesical system and Ocrevus subcutaneous,
+which fold into Balversa and Ocrevus on 26 September), the six
 refusals above plus tolebrutinib (approved in the EU as Cenrifki, no sales yet), and
 arlocabtagene autoleucel, a Bristol CAR-T that arrived through a fold and has not been
 researched.
