@@ -598,3 +598,79 @@ settings carries any value.
 - `prune_arms` nulls any `asset_id` column it reads as nullable, and SQLite reads an INTEGER
   PRIMARY KEY as nullable, where NULL assigns a fresh row id. `retired_programmes` keys the
   asset in its own NOT NULL UNIQUE column for that reason.
+
+## The unmodelled big pharma Phase 3s audited and priced, 26 September 2026
+
+The 68 big pharma rows the sort left NEW or unsorted at Phase 3 were audited for identity,
+ownership and status before any of them was priced. The audit ran against a branch that had
+forked before main's seed commits, so 11 of its 47 NEW verdicts were already priced on main
+(dazodalibep, rilvegostomig, seltorexant, felcorekibart, mocertatug rezetecan, Ris-Rez,
+sofetabart mipitecan, ianalumab, zigakibart, atirmociclib, lunsekimig), and six more rows
+turned out to be main's seeds or folds under another verdict. Main was merged in first, and
+main's verified seeds stand.
+
+| Outcome | Rows | Action |
+|---|---|---|
+| NEW, priced on main already | 11 | None |
+| NEW, priced nowhere | 13 | Researched and verified: 11 seeded, 2 refused (REGN-2Cat, Sanofi's royalty unfiled; REGN5713, its confirmatory Phase 3 terminated) |
+| NEW, seeded unverified on `claude/youthful-curie-bux19h` | 19 | Verified to main's rules under the branch's filenames |
+| NEW, refused | 4 | Iza-bren (no filed split with SystImmune) and del-desiran (HARBOR missed), both main's refusals; BAY3723113 (Bayer holds Japan only, and has no company block); livmoniplimab, retired below |
+| Main's seed or fold already covers it | 6 | Olomorasib's two rows, del-desiran's twin, atumelnant, duvakitug, zenagamtide |
+| Duplicate, approved or line extension | 8 | Folded through `data/asset_alias_map.csv`: MRTX849 into Krazati, BMS-986165 into Sotyktu, MK-1406 into CD388, DCR-PHXC into Rivfloza, TQJ230 into pelacarsen, subcutaneous pembrolizumab into Keytruda Qlex, PG4 into the Prevnar family, MMRVNS into the varicella new seed |
+| Stopped or licensed away | 3 | Retired with livmoniplimab (AbbVie's July 2026 pipeline lists it discontinued): itepekimab (Sanofi Q2 2026), linerixibat (to Alfasigma) and vepdegestrant (to Rigel) |
+| Not a programme | 3 | Cetrelimab (a backbone beside TAR-200), avelumab (Merck KGaA's, in a continued-access study) and ABBV-444 (an OTC eye drop already on sale) |
+| Left open | 1 | Tolebrutinib, approved in the EU as Cenrifki with no sales reported yet |
+
+Every one of the 19 branch seeds needed correcting. The common faults were the 2024 CMS
+basis, forecast_start_year set to next year with the launch left to the ramp, and
+launch_ramp.csv read as a penetration curve. Two were wrong in ways that moved the value.
+Etavopivat was keyed 'Etavopivat' against the book's 'Etavopivat A', so it loaded nothing,
+and its uptake applied a share of all sickle cell patients to a pool 15 times smaller. ABP
+206 wrote an explicit zero carryover on a line-of-therapy pool, which doubled its first year. Before that
+branch merges it must drop these 19 files; git will flag each, since the names match.
+
+**Value added, per share, with every seed built on the same copy of the book**
+
+| Company | Without | With | Change | Largest addition |
+|---|---|---|---|---|
+| REGN | $1,003.07 | $1,029.12 | +$26.05 | pozelimab with cemdisiran, gMG, NDA accepted: $19.18 |
+| LLY | $482.64 | $490.23 | +$7.59 | remternetug, preclinical Alzheimer's: $4.35 |
+| AMGN | $376.46 | $381.86 | +$5.40 | ABP 206, the Opdivo biosimilar, filed: $3.01 |
+| NVS | $173.98 | $175.27 | +$1.29 | AOC 1020 (del-brax), FSHD: $1.11 |
+| BIIB | $243.55 | $244.65 | +$1.10 | salanersen, SMA: $2.25 |
+| SNY | $65.90 | $66.15 | +$0.26 | riliprubart, CIDP: $0.10 |
+| BMY | $98.36 | $98.56 | +$0.20 | BMS-986489, SCLC: $0.16 |
+| PFE | $26.30 | $26.41 | +$0.11 | sigvotatug vedotin, NSCLC: $0.24 |
+| GSK | $65.54 | $65.64 | +$0.10 | velzatinib and the varicella vaccine: $0.07 each |
+| NVO | $49.76 | $49.82 | +$0.06 | etavopivat, sickle cell: $0.06 |
+| AZN | $175.53 | $175.58 | +$0.05 | balcinrenone with dapagliflozin |
+| JNJ | $197.49 | $197.52 | +$0.03 | ITI-1284, generalised anxiety disorder |
+
+Remternetug is the weakest large number. Its $7.7bn peak rests on a stated 0.5x judgement
+multiple of the symptomatic class's start rate applied to 15.8mm amyloid-positive people aged
+55 to 80, about 3.6 times the class's 2025 starts, and Kisunla's own preclinical trial
+(TRAILBLAZER-ALZ 3) targets the same people. Salanersen and navlimetostat are valued before
+their fixed payments (Ionis milestones, the Mirati CVR), since the engine has no key for one.
+
+**Coverage.** Big pharma assets whose highest phase is Phase 3: 113 valued of 130 (87%),
+against 86 before this pass. Phase 2/3 and 3 together: 119 of 138. Phase 2 and later: 123
+of 258 (48%), against 93. The 19 late-stage rows left unvalued are Roche's six (researched
+separately), six line extensions with no parent to fold into (Armour Thyroid, Lagevrio,
+Atectura, Enerzair, the erdafitinib intravesical system, Ocrevus subcutaneous), the six
+refusals above plus tolebrutinib (approved in the EU as Cenrifki, no sales yet), and
+arlocabtagene autoleucel, a Bristol CAR-T that arrived through a fold and has not been
+researched.
+
+**Found on the way**
+
+- Taking a row out of derivation releases its trials to their next intervention. Removing
+  cetrelimab made J&J's amivantamab combination study derive an Amivantamab row, which then
+  took MARIPOSA and the other amivantamab trials off Rybrevant; Pfizer's avelumab
+  continued-access study derived lorlatinib (misspelled Lorlatanib) and talazoparib rows; and
+  ABBV-444's trial derived its comparator. Each now folds into its product or is listed as not
+  a programme. On a copy of the book run through three refresh cycles, exactly the 23 intended
+  rows leave the pipeline, nothing new appears, and the only value that moves is Merck's,
+  $161.58 to $161.88 a share, as CD388 takes up the ANCHOR Phase 3 that sat on MK-1406.
+- Five further duplicate rows found by the researchers fold too: BIIB115 into salanersen,
+  ORX750 into cleminorexton, BIVV020 into riliprubart, REGN4461 into mibavademab, and a tablet
+  process arm into ibuzatrelvir.
