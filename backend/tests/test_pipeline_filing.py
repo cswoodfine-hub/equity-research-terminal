@@ -4,6 +4,9 @@ The extraction tests run against Dyne's own sentences, taken verbatim from the 1
 2026-07-29, because a parser written against invented prose passes on invented prose.
 """
 
+import pytest
+
+import asset_merge
 import db
 import pipeline_filing as pf
 
@@ -143,12 +146,11 @@ def test_a_stage_word_alone_is_not_a_programme():
 
 # --- writing it down -------------------------------------------------------------------
 
-def _company(tmp_path, text, ticker="DYN"):
+def _company(tmp_path, text, ticker="DYN", name="Dyne Therapeutics"):
     path = str(tmp_path / "p.db")
     db.init(path)
     conn = db.get_connection(path)
-    conn.execute("INSERT INTO companies (ticker, name) VALUES (?, 'Dyne Therapeutics')",
-                 (ticker,))
+    conn.execute("INSERT INTO companies (ticker, name) VALUES (?, ?)", (ticker, name))
     cid = conn.execute("SELECT id FROM companies").fetchone()[0]
     conn.execute(
         "INSERT INTO filing_sections (company_id, accession, form_type, filed_date,"
@@ -226,6 +228,80 @@ def test_prune_drops_a_programme_that_has_since_acquired_a_trial(tmp_path):
     codes = {r["code"] for r in conn.execute("SELECT code FROM filing_programmes")}
     conn.close()
     assert "DYNE-302" not in codes
+
+
+# Verbatim from Biogen's 10-Q filed 2026-07-29, item 2. BIIB115 is salanersen, and nothing
+# on salanersen's own row says so: the join is an alias.
+BIOGEN = """
+In December 2021 we exercised our option with Ionis and obtained a worldwide, exclusive,
+royalty-bearing license to develop and commercialize salanersen (BIIB115), an
+investigational ASO in development for SMA.
+SALANERSEN (BIIB115) • In March 2026 we presented additional results from the Phase 1b
+study of salanersen, an ASO given once a year for the treatment of SMA.
+"""
+
+
+def _salanersen(tmp_path):
+    """Biogen with salanersen on file by name and BIIB115 recorded as its alias."""
+    path, conn, cid = _company(tmp_path, BIOGEN, ticker="BIIB", name="Biogen Inc.")
+    survivor = conn.execute("INSERT INTO assets (owner_company_id, generic_name,"
+                            "  is_marketed) VALUES (?, 'Salanersen', 0)", (cid,)).lastrowid
+    conn.execute("INSERT INTO asset_aliases (internal_code, asset_id, note)"
+                 " VALUES ('BIIB115', ?, 'curated: development code of salanersen')",
+                 (survivor,))
+    conn.commit()
+    return path, conn, cid, survivor
+
+
+def _state(path):
+    conn = db.get_connection(path)
+    try:
+        assets = [r[0] for r in conn.execute("SELECT generic_name FROM assets ORDER BY id")]
+        codes = [r[0] for r in conn.execute("SELECT code FROM filing_programmes")]
+    finally:
+        conn.close()
+    return assets, codes
+
+
+def test_a_code_held_under_another_name_is_not_a_second_asset(tmp_path):
+    """The run that made BIIB115 a programme of its own after the merge had folded it into
+    salanersen. The filing does read BIIB115 as Biogen's; the alias says Biogen already
+    has it, under the name the drug goes by."""
+    assert "BIIB115" in _by_code(BIOGEN, "Biogen Inc.", corroboration="")
+    path, conn, cid, survivor = _salanersen(tmp_path)
+    conn.close()
+
+    assert pf.build(path)["created"] == 0
+    assert _state(path) == (["Salanersen"], [])
+
+
+@pytest.mark.parametrize("trials", [0, 1])
+def test_the_next_refresh_does_not_write_a_folded_code_again(tmp_path, trials):
+    """The churn, one refresh after the bug: the merge folds the BIIB115 row the filing
+    pass wrote and carries its programme row onto salanersen. Prune and build then have
+    to leave it folded. With a trial on salanersen the old prune dropped the programme
+    row and build wrote the empty BIIB115 back; without one the row stayed, and the
+    pipeline listed one drug twice."""
+    path, conn, cid, survivor = _salanersen(tmp_path)
+    for n in range(trials):
+        conn.execute("INSERT INTO trials (nct_id, asset_id, title, phase)"
+                     " VALUES (?, ?, 'A study', 'Phase 3')", (f"NCT{n}", survivor))
+    duplicate = conn.execute(
+        "INSERT INTO assets (owner_company_id, generic_name, internal_code, is_marketed,"
+        "  notes) VALUES (?, 'BIIB115', 'BIIB115', 0,"
+        "  'named in the 10-Q filed 2026-07-29, no trial on file')", (cid,)).lastrowid
+    conn.execute("INSERT INTO filing_programmes (company_id, asset_id, code, accession,"
+                 "  form_type, filed_date) VALUES (?, ?, 'BIIB115', '0001-26-1', '10-Q',"
+                 "  '2026-07-29')", (cid, duplicate))
+    conn.commit()
+    conn.close()
+
+    assert asset_merge.merge(path)["by_alias"] == 1
+    for _ in range(2):
+        pf.prune(path)
+        assert pf.build(path)["created"] == 0
+        assert asset_merge.merge(path)["merged"] == 0
+        assert _state(path) == (["Salanersen"], [])
 
 
 def test_no_filing_text_is_no_programmes(tmp_path):

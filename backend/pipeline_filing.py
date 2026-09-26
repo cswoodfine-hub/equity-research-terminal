@@ -20,8 +20,9 @@ sentence, "we are developing DYNE-302", because a filing names other companies' 
 too: Merck's discussion mentions TERN-701 and Solid's mentions Entrada's ENTR-601. A
 sentence that names another organisation is not ownership evidence, whoever it mentions.
 
-It never overwrites a trial. A code the company already holds an asset for is skipped, so
-this can only add what the registry does not have.
+It never overwrites a trial. A code the company already holds an asset for, on the row
+itself or as an alias of it, is skipped, so this can only add what the registry does not
+have.
 
 The evidence sentence is stored with every row, because a reader who does not believe
 "DYNE-302, FSHD, IND cleared" needs the sentence that said so and the filing it came from.
@@ -220,14 +221,36 @@ def programmes(text: str, company_name: str = "", corroboration: str = "") -> li
     return sorted(found.values(), key=lambda r: r["code"])
 
 
+def aliased_codes(conn, company_id: int) -> set:
+    """Every development code recorded as another name of one of the company's assets.
+
+    A code and the name a drug goes by rarely share a letter: Biogen's BIIB115 is
+    salanersen, Regeneron's REGN4461 is mibavademab. Where the filings or an analyst have
+    joined the two, the join sits in ``asset_aliases`` and nowhere on the asset's own row.
+    Read from the row alone, BIIB115 looked unowned and was written as a programme of its
+    own on every refresh, after the merge that folds it into salanersen had already run.
+    So the next refresh folded it and wrote it again, and an empty duplicate sat in the
+    table between the two.
+    """
+    out = set()
+    for (name,) in conn.execute(
+            "SELECT al.internal_code FROM asset_aliases al"
+            "  JOIN assets a ON a.id = al.asset_id WHERE a.owner_company_id = ?",
+            (company_id,)):
+        out |= asset_merge.development_codes(name)
+    return out
+
+
 def owned_codes(conn, company_id: int) -> set:
     """Every development code the company holds an asset for from some other source.
 
     Rows this module wrote are deliberately excluded, so a programme it already knows is
     re-read rather than frozen at the stage it was first seen at. DYNE-302 was preclinical
     for two years and IND-cleared in July; the row has to be able to follow that.
+
+    A code the company holds under another name counts as held: see ``aliased_codes``.
     """
-    out = set()
+    out = aliased_codes(conn, company_id)
     for row in conn.execute(
             "SELECT generic_name, brand_name, internal_code FROM assets"
             "  WHERE owner_company_id = ? AND id NOT IN"
@@ -320,7 +343,8 @@ def build(db_path=None) -> dict:
 
 
 def prune(db_path=None) -> dict:
-    """Drop a filing-derived programme that has since been bound to a trial elsewhere.
+    """Drop a filing-derived programme that has since been bound to a trial elsewhere, or
+    whose code the company turns out to hold under another name.
 
     Nothing here should compete with the registry. Once a study names the compound the
     trial mapper owns it, and this row would be the second copy.
@@ -333,6 +357,17 @@ def prune(db_path=None) -> dict:
                 "  JOIN trials t ON t.asset_id = p.asset_id").fetchall():
             conn.execute("DELETE FROM filing_programmes WHERE id = ?", (row["id"],))
             dropped += 1
+        # The merge leaves a programme row here when it folds the asset into the product
+        # the code is an alias of. Kept, the pipeline would list BIIB115 from the filing
+        # beside salanersen from the registry: one drug twice.
+        held: dict = {}
+        for row in conn.execute(
+                "SELECT id, company_id, code FROM filing_programmes").fetchall():
+            if row["company_id"] not in held:
+                held[row["company_id"]] = aliased_codes(conn, row["company_id"])
+            if row["code"] in held[row["company_id"]]:
+                conn.execute("DELETE FROM filing_programmes WHERE id = ?", (row["id"],))
+                dropped += 1
         conn.commit()
     finally:
         conn.close()
