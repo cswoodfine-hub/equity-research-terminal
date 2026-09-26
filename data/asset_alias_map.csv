@@ -37,7 +37,7 @@ PFE,MET097,Berobenatide,"Metsera's GLP-1 agonist: the registry names the VESPER-
 PFE,PF-08653944,Berobenatide,"the same compound under its Pfizer code: NCT07792954 names the intervention berobenatide with other name PF-08653944"
 PFE,PF-06823859,Dazukibart,"Pfizer's FY2025 10-K (0000078003-26-000026) lists dazukibart (PF-06823859) for dermatomyositis and polymyositis, and the registry files one myositis Phase 3 under each name"
 PFE,PF-07275315,Tilrekimig,"the registry names the eczema Phase 3 drug tilrekimig with other name PF-07275315 (NCT07765888); the COPD Phase 2/3 is filed under the code"
-PFE,PG4 Multivalent Vaccine,PG4,"Pfizer's multivalent pneumococcal conjugate vaccine: the adult lot study labels its arms PG4 lot 1 to 3 (NCT07794748) and the infant studies name the intervention PG4"
+PFE,PG4 Multivalent Vaccine,Prevnar / Prevenar family,"Pfizer's multivalent pneumococcal conjugate vaccine: the adult lot study labels its arms PG4 lot 1 to 3 (NCT07794748) and the infant studies name the intervention PG4"
 #
 # Folded from the late-stage sort (data/pipeline_sort.csv, backend/pipeline_sort.py). Each row
 # below is a DUPLICATE or a REGIMEN there, or an arm label of the company's own product,
@@ -73,7 +73,7 @@ GSK,HZ/su vaccine,Shingrix,"pipeline_sort DUPLICATE: HZ/su is GSK1437173A, the h
 GSK,IDRX-42,Velzatinib,"pipeline_sort DUPLICATE: IDRX-42 (GSK6042981) is velzatinib, the KIT inhibitor from the IDRx acquisition, per the StrateGIST 3 abstract for this row's NCT07218926 (https://ascopubs.org/doi/10.1200/JCO.2026.44.16_suppl.TPS11588), and the Velzatinib row in this population is marked NEW."
 GSK,Investigational varicella vaccine_Lot 1,Investigational varicella vaccine,"pipeline_sort DUPLICATE: The _Lot 1 suffix names a manufacturing-lot arm of the investigational chickenpox vaccine in NCT06740630 (recruiting), part of the VNS phase III programme held under the Investigational varicella vaccine row, which is marked NEW."
 GSK,MMB,Ojjaara,"pipeline_sort DUPLICATE: MMB is the standard abbreviation of momelotinib, sold as Ojjaara, and NCT03441113 is an extended-access study in myelofibrosis, the approved use."
-GSK,MMRVNS,MMRVNS vaccine,"pipeline_sort DUPLICATE: NCT07406360 tests the same investigational combined measles, mumps, rubella and varicella new strain vaccine as the MMRVNS vaccine row in this population, which is marked NEW."
+GSK,MMRVNS,Investigational varicella vaccine,"pipeline_sort DUPLICATE: NCT07406360 tests the same investigational combined measles, mumps, rubella and varicella new strain vaccine as the MMRVNS vaccine row in this population, which is marked NEW."
 GSK,MenABCWY vaccine,PENMENVY,"pipeline_sort DUPLICATE: MenABCWY is the development name of Penmenvy, approved by the FDA on 2025-02-14 (https://www.gsk.com/en-gb/media/press-releases/penmenvy-gsk-s-5-in-1-meningococcal-vaccine-approved-by-us-fda-to-help-protect-against-menabcwy/), and NCT05087056 is a dosing-schedule study of the same vaccine."
 GSK,RSVPreF3 OA investigational vaccine,Arexvy,"pipeline_sort DUPLICATE: RSVPreF3 OA is the development name of Arexvy, and NCT04732871 (active not recruiting) is its revaccination and persistence study in adults 60 and over; approval date: https://www.aha.org/news/headline/2023-05-03-fda-approves-first-rsv-vaccine-adults-60-and-older"
 IOVA,Lifileucel plus Pembrolizumab,Amtagvi,"pipeline_sort REGIMEN: NCT05727904 (Phase 3, Recruiting) tests lifileucel plus pembrolizumab against pembrolizumab alone, and both parts are already in the book: Amtagvi as an IOVA marketed product and Keytruda as a modelled MRK product; approval date: https://www.fda.gov/drugs/resources-information-approved-drugs/fda-grants-accelerated-approval-lifileucel-unresectable-or-metastatic-melanoma"
@@ -148,3 +148,26 @@ NVS,Del-desiran (AOC 1001),AOC 1001 (del-desiran),"delpacibart etedesiran writte
 AZN,AZD2936,Rilvegostomig,"rilvegostomig's development code: the Phase 1/2 NCT04995523 sat on this row"
 LLY,Olomorasib,LY3537982,"olomorasib under its INN: SUNRAY-02 (NCT06890598) and the colorectal Phase 2 sat on this row while SUNRAY-01, the first-line study the model rests on, sat on the code row"
 LLY,Olomorasib test,LY3537982,"the same compound named for a test arm, not a programme of its own"
+#
+# Folded by the audit of the unmodelled big pharma Phase 3s, 25 September 2026. Each row is
+# a development code or formulation of a product the book already carries, or a line
+# extension of one, found while checking identity before pricing. Pricing any of them would
+# have counted the product twice. The note is the audit's evidence.
+BMY,MRTX849,Krazati,"adagrasib's development code: NCT04685135 lists MRTX849 with other names adagrasib and KRAZATI, and Krazati is NDA216340 (FDA 2022-12-12); both Phase 3s on the row are confirmatory trials of its accelerated approvals"
+BMY,Adagrasib oral dose of 400 mg twice daily tablets,Krazati,"adagrasib named by its dose, not a programme of its own"
+BMY,BMS-986165,Sotyktu,"deucravacitinib's development code: NCT04036435 lists BMS-986165 with other name deucravacitinib, the ingredient of Sotyktu (NDA214958, FDA 2022-09-09); its lupus upside belongs in the Sotyktu model"
+MRK,MK-1406,CD388 Injection,"CD388 under its Merck code: the registry lists MK-1406 with other name CD388 and Merck's FY2025 10-K calls it MK-1406 (formerly CD388), so the ANCHOR Phase 3 (NCT07159763) moves onto the priced row"
+MRK,Pembrolizumab (+) Berahyaluronidase alfa,Keytruda Qlex,"MK-3475A, subcutaneous pembrolizumab with berahyaluronidase alfa, is Keytruda Qlex (BLA761467, FDA 2025-09-19); NCT06698042 supports the marketed product"
+NVO,DCR-PHXC,Rivfloza,"nedosiran's Dicerna code: PHYOX3 (NCT04042402) and PHYOX7 (NCT04580420) list nedosiran as its other name, and Rivfloza is nedosiran sodium (NDA 215842, FDA 2023-09-29)"
+NVS,TQJ230,Pelacarsen,"pelacarsen's code: NCT04023552 is titled Lipoprotein (a) Lowering With Pelacarsen (TQJ230), and Novartis' Q2 2026 pipeline lists TQJ230 (pelacarsen)"
+GSK,MMRVNS vaccine,Investigational varicella vaccine,"line extension: GSK4406371 is a measles, mumps, rubella and varicella vaccine whose varicella antigen is the varicella new seed, GSK4178116; a child takes the varicella dose as MMR plus V or as MMRV, so pricing both would count the same doses twice"
+PFE,PG4,Prevnar / Prevenar family,"line extension: PG4 is PF-07872412, a 25-valent pneumococcal conjugate carrying Prevnar 20's serotypes plus five, and every Phase 3 runs against Prevnar 20 (NCT07573462, NCT07629440, NCT07660198, NCT07794748); the family is held flat with no erosion, an assumption only a successor like this sustains"
+PFE,PG4 vaccine in Buffer 1 with low dose PA-001,Prevnar / Prevenar family,"PG4 in another formulation (Phase 1 NCT07086677, protocol C4931020), not a programme of its own"
+JNJ,Amivantamab,Rybrevant / Lazcluze,"amivantamab is Rybrevant's ingredient; once cetrelimab stopped being derived, its combination study NCT05908734 derived an Amivantamab row that then took MARIPOSA (NCT04487080) and the other amivantamab trials off Rybrevant"
+PFE,Lorlatanib,Lorbrena,"lorlatinib misspelled in Pfizer's avelumab continued-access study (NCT05059522), which also doses lorlatinib; Lorbrena is lorlatinib"
+PFE,Talazoparib,Talzenna,"talazoparib, Talzenna's ingredient, named in Pfizer's avelumab continued-access study (NCT05059522)"
+BIIB,BIIB115,Salanersen,"salanersen's Biogen code: Biogen's Q2 2026 10-Q (0000875045-26-000075) names salanersen (BIIB115), and the code row holds only the Phase 1 NCT05575011"
+LLY,ORX750,cleminorexton,"cleminorexton's Centessa code: SAPPHIRE (NCT07598708) is protocol ORX750-004, and Lilly's Q2 2026 10-Q lists ORX750 as the IPR&D it bought with Centessa on 2026-06-24"
+SNY,BIVV020 (SAR445088),Riliprubart,"riliprubart's codes: NCT06290141 lists riliprubart with other name SAR445088, the code NCT05156710 files as BIVV020 (SAR445088)"
+REGN,REGN4461,Mibavademab,"mibavademab's code: NCT06548100 lists mibavademab with other name REGN4461"
+PFE,Ibuzatrelvir co-process API film coated tablet,ibuzatrelvir,"ibuzatrelvir in a new tablet process, a Phase 1 bioavailability arm (NCT07552779), not a programme of its own"
