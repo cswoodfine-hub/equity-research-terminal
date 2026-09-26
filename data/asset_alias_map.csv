@@ -171,3 +171,7 @@ LLY,ORX750,cleminorexton,"cleminorexton's Centessa code: SAPPHIRE (NCT07598708) 
 SNY,BIVV020 (SAR445088),Riliprubart,"riliprubart's codes: NCT06290141 lists riliprubart with other name SAR445088, the code NCT05156710 files as BIVV020 (SAR445088)"
 REGN,REGN4461,Mibavademab,"mibavademab's code: NCT06548100 lists mibavademab with other name REGN4461"
 PFE,Ibuzatrelvir co-process API film coated tablet,ibuzatrelvir,"ibuzatrelvir in a new tablet process, a Phase 1 bioavailability arm (NCT07552779), not a programme of its own"
+ROG,Alectnib,Alecensa,"alectinib misspelled: ALINA (NCT03456076) names the drug Alectnib with other name RO5424802, alectinib's Roche code, and its adjuvant indication is already on Alecensa's label"
+ROG,Ocrelizumab Co-formulated With rHuPH20,Ocrevus,"line extension: NCT07503340 lists ocrelizumab co-formulated with rHuPH20 with other names RO4964913 and Ocrevus, the subcutaneous form sold as Ocrevus Zunovo"
+ROG,Ocrelizumab Test Formulation,Ocrevus,"a bioequivalence arm between two subcutaneous ocrelizumab formulations (NCT07074886), not a programme of its own"
+JNJ,Erdafitinib Intravesical Delivery System,Balversa,"line extension: TAR-210 is erdafitinib in an intravesical device (NCT06319820 lists TAR-210 with other name JNJ-42756493, erdafitinib's code), in bladder cancer settings Balversa's label does not cover"
