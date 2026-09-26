@@ -12,6 +12,8 @@ import datetime as dt
 
 import catalysts
 import db
+import forecast_view
+import history
 
 LLY, ROG = 1, 10
 
@@ -46,6 +48,66 @@ def _one(path, sql, *args):
         return conn.execute(sql, args).fetchone()
     finally:
         conn.close()
+
+
+def test_a_readout_follows_its_trial_through_a_rebuild(tmp_path):
+    due = (dt.date.today() + dt.timedelta(days=120)).isoformat()
+
+    # Yesterday's database: Tecentriq drew the first number.
+    src = tmp_path / "src.db"
+    db.init(src)
+    conn = db.get_connection(src)
+    _companies(conn)
+    tecentriq = _asset(conn, ROG, "Tecentriq")
+    _asset(conn, LLY, "Humatrope")
+    _trial(conn, "NCT05645692", tecentriq, due)
+    conn.commit()
+    conn.close()
+    catalysts.derive_readouts(src)
+    # And an analyst's row on the same numbering, which a rebuild must not rewrite.
+    conn = db.get_connection(src)
+    conn.execute("INSERT INTO catalysts (id, company_id, asset_id, catalyst_type,"
+                 " expected_date, title, is_curated, status) VALUES (900, ?, ?,"
+                 " 'PDUFA', ?, 'Tecentriq filing', 1, 'pending')", (ROG, tecentriq, due))
+    conn.commit()
+    conn.close()
+    out = tmp_path / "history"
+    history.export(src, out)
+
+    # Today's: rebuilt from the export, then refreshed. Humatrope drew the first number
+    # this time, so the id the export carries is now Lilly's.
+    dest = tmp_path / "dest.db"
+    history.rebuild(dest, out)
+    derived = _one(dest, "SELECT asset_id FROM catalysts WHERE is_curated = 0")
+    assert derived["asset_id"] is None             # released, not left on a stranger
+    assert _one(dest, "SELECT asset_id FROM catalysts WHERE id = 900")[0] == tecentriq
+
+    conn = db.get_connection(dest)
+    _companies(conn)
+    humatrope = _asset(conn, LLY, "Humatrope")
+    tecentriq_now = _asset(conn, ROG, "Tecentriq")
+    assert humatrope == tecentriq                  # the number has changed hands
+    _trial(conn, "NCT05645692", tecentriq_now, due)
+    conn.commit()
+    conn.close()
+    result = catalysts.derive_readouts(dest)
+
+    row = _one(dest, "SELECT company_id, asset_id, title FROM catalysts"
+                     " WHERE description = 'NCT05645692'")
+    assert (row["company_id"], row["asset_id"]) == (ROG, tecentriq_now)
+    assert row["title"] == "Phase 3, Tecentriq"
+    assert result["reassigned"] == 1
+
+    # The curated row is left as the analyst entered it, and reported.
+    assert _one(dest, "SELECT asset_id FROM catalysts WHERE id = 900")[0] == humatrope
+    assert [(m["id"], m["ticker"], m["asset_owner"])
+            for m in result["curated_mismatched"]] == [(900, "ROG", "LLY")]
+    assert _one(dest, FOREIGN)[0] == 1             # the curated one, and only it
+
+    # Lilly's stakes carry no Roche readout.
+    stakes = forecast_view.catalyst_stakes(dest, "LLY")
+    listed = stakes["priced"] + stakes["unpriced"]
+    assert "NCT05645692" not in {r["description"] for r in listed}
 
 
 def test_a_derived_row_already_on_the_wrong_asset_is_repointed(tmp_path):

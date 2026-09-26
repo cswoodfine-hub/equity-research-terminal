@@ -35,6 +35,24 @@ HISTORY_TABLES = [
 DEFAULT_DIR = Path(__file__).resolve().parent.parent / "data" / "history"
 
 
+def _release_assets(table: str, record: dict) -> dict:
+    """Drop the asset links a derived catalyst carries into a rebuilt database.
+
+    Catalysts are the one exported table that points at assets, and assets are not
+    exported. The refresh after a rebuild numbers them afresh, so a restored id names
+    whichever product draws that number next: on the 2026-09-25 run 573 readouts sat on
+    another company's asset, a Roche Tecentriq study on Lilly's Humatrope among them. So
+    a derived row's link is released. The refresh that follows re-derives it where it
+    can (the trial's asset for a readout, the title's product for a filing), and where
+    it cannot the null says the link is unknown, which a wrong id did not. A curated row
+    is the analyst's and is loaded as written; the refresh reports any whose asset turns
+    out to belong to another company.
+    """
+    if table == "catalysts" and record.get("is_curated") == 0:
+        record = {**record, "asset_id": None, "asset_indication_id": None}
+    return record
+
+
 def _columns(conn, table: str) -> list[str]:
     return [r["name"] for r in conn.execute(f"PRAGMA table_info({table})")]
 
@@ -81,7 +99,9 @@ def rebuild(db_path=None, in_dir: Path | None = None,
     replaces the one with its id, so rebuilding twice is a no-op.
 
     Foreign keys are off for the load because the export is already consistent and
-    the current-state tables it points at are repopulated by the next refresh.
+    the current-state tables it points at are repopulated by the next refresh. A
+    repopulated table gets new ids, so a derived catalyst's asset link is not restored
+    (see ``_release_assets``).
     """
     in_dir = Path(in_dir) if in_dir else DEFAULT_DIR
     tables = tables or HISTORY_TABLES
@@ -102,8 +122,8 @@ def rebuild(db_path=None, in_dir: Path | None = None,
                     line = line.strip()
                     if not line:
                         continue
-                    record = {k: v for k, v in json.loads(line).items()
-                              if k in columns}
+                    record = _release_assets(table, {
+                        k: v for k, v in json.loads(line).items() if k in columns})
                     cols = ", ".join(record)
                     marks = ", ".join("?" for _ in record)
                     conn.execute(
