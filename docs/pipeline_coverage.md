@@ -675,3 +675,91 @@ researched.
 - Five further duplicate rows found by the researchers fold too: BIIB115 into salanersen,
   ORX750 into cleminorexton, BIVV020 into riliprubart, REGN4461 into mibavademab, and a tablet
   process arm into ibuzatrelvir.
+
+## The rest of big pharma's Phase 2 and later audited and priced, 28 September 2026
+
+Every big pharma row still unvalued at Phase 2, 2/3 or 3 after the Phase 3 pass, 116 in all,
+was audited for identity, ownership and status, then each surviving new medicine was
+researched and re-derived by an independent verifier from its cited sources.
+
+| Outcome | Rows | Action |
+|---|---|---|
+| NEW, seeded and verified | 86 | 68 accepted as written, 18 corrected by the verifier; bretisilocin makes 87, below |
+| NEW, rejected by the verifier | 1 | QCZ484: the book's hypertension pool carries an unsourced incidence |
+| NEW, held back | 1 | Trevogrumab, below |
+| NEW, refused at research | 8 | Confirmed by each verifier, below |
+| Duplicate | 6 | Folded through `data/asset_alias_map.csv`: GM-2505 into bretisilocin, ADVM-022 into Ixo-vec, RO7046015 into prasinezumab, SPK-9001 into the retired Beqvez row, two GSK vaccine arms into their programmes; RO7247669 folds into tobemstomig with it |
+| Stopped | 10 | Retired: domvanalimab, miransertib, LXH254 (naporafenib), ipatasertib, tominersen, tiragolumab, tobemstomig, amlitelimab, LY3016859 (fepixnebart), LY3541860 |
+| Licensed away | 1 | Afimetoran, to Beeline in July 2025 |
+| Approved | 2 | Bepirovirsen (Hibsago, Japan, US PDUFA 26 October 2026) and mazdutide (Innovent's, China); neither priced as a Phase 2 asset |
+| Not a programme | 1 | Budigalimab, a PD-1 backbone beside other molecules |
+
+The refusals: GSK3772701 and the iNTS-TCV vaccine are alliances with no filed split;
+JNJ-89495120 (PIPE-307) missed both readouts; emugrobart (RO7204239) was stopped by Chugai on
+28 September 2026 and is retired; INE963 is filed by Novartis only as a combination under
+cipargamin; LY3537021 has no citable count of patients starting highly emetogenic
+chemotherapy; LXE408 has no US market; and the PF-07104091 SCLC arm is one cohort of a
+first-in-human study, not a programme.
+
+Iza-bren, refused twice before for want of a filed split, is priced now. Biokin's reply to
+its exchange's inquiry states its US profit share is slightly below half, so Bristol's share
+of 0.5 is conservative.
+
+Trevogrumab is held back, not seeded. The book's obesity convention would carry it at 2/9 of
+the Zepbound capture anchor and value it at $11.72 a Regeneron share, but it is an add-on to
+semaglutide that gave no added weight loss in COURAGE (-9.9% and -11.1% against -10.6% on
+semaglutide alone). Its benefit is lean mass, and no free source sizes that market. The
+verified file is kept outside the repo until a lean-mass basis can be cited.
+
+Bretisilocin was priced last. It was not on the candidate list because its only Phase 2,
+GM-2505's study in MDD, sat on the duplicate row until the fold above moved it across. AbbVie
+bought it outright with Gilgamesh ($906mm upfront, FY2025 10-K), and the seed prices it on
+Spravato: $1.2bn US peak in 2042, $0.13 a share.
+
+**Value added, per share, with every seed built on the same copy of the book**
+
+Pipeline is the change in modelled pipeline value; total adds the engine's future-pipeline
+lens, which is sized from the modelled book and so moves with it.
+
+| Company | Without | With | Total | Pipeline | Largest addition |
+|---|---|---|---|---|---|
+| VRTX | $502.90 | $509.26 | +$6.36 | +$3.62 | VX-670, myotonic dystrophy type 1: $2.76 |
+| ROG | $29.77 | $33.53 | +$3.76 | +$1.64 | giredestrant, two US filings accepted: $1.08 |
+| NVO | $49.52 | $51.84 | +$2.32 | +$0.59 | UBT251, obesity: $0.67 |
+| NVS | $173.80 | $175.48 | +$1.68 | +$0.66 | GHZ339: $0.17 |
+| AZN | $173.64 | $174.89 | +$1.25 | -$0.18 | AZD2389: $0.12 |
+| BMY | $97.57 | $98.28 | +$0.71 | +$0.50 | arlocabtagene autoleucel: $0.24 |
+| MRK | $160.02 | $160.47 | +$0.45 | +$0.00 | MK-2214: $0.10 |
+| JNJ | $195.39 | $195.83 | +$0.44 | +$0.16 | JNJ-95597528: $0.10 |
+| REGN | $1,021.34 | $1,021.76 | +$0.42 | +$1.51 | REGN13335, PAH: $2.24 |
+| ABBV | $208.65 | $209.39 | +$0.74 | +$0.24 | bretisilocin, MDD: $0.13 |
+| GSK | $65.08 | $65.46 | +$0.38 | +$0.08 | GSK3862995B: $0.07 |
+| SNY | $65.17 | $65.52 | +$0.34 | +$0.13 | SAR448851: $0.05 |
+| PFE | $26.12 | $26.43 | +$0.31 | +$0.20 | PF-08653945, obesity: $0.21 |
+| BIIB | $242.35 | $242.64 | +$0.30 | +$0.20 | felzartamab: $0.20 |
+| GILD | $128.50 | $128.78 | +$0.28 | +$0.09 | emvistegrast: $0.03 |
+| LLY | $485.13 | $485.11 | -$0.02 | -$0.41 | nisotirostide (LY3457263), obesity: $1.00 |
+
+Seven of the new assets are obesity claimants (nisotirostide, macupatide, the Novo triple,
+UBT251, PF-08653945, petrelintide and CT-996), so the engine crowds the pool across them and
+the existing claimants give some value back: retatrutide falls $2.40, cagrilintide $0.47 and
+olatorepatide $1.09. That is why Lilly nets slightly negative and AstraZeneca's pipeline
+line falls. Most Phase 2 seeds are worth cents a share, as a probability near 0.15 to 0.25
+implies.
+
+**Coverage.** Big pharma assets whose highest phase is Phase 3: 117 valued of 125 (94%).
+Phase 2/3 and 3 together: 123 of 133. Phase 2 and later: 209 of 238 (88%), against 122 before
+this pass. What stays unvalued at Phase 2 and later is the refusals and approvals above,
+QCZ484 and trevogrumab, the Phase 3 refusals from 26 September (BAY3723113, REGN-2Cat,
+REGN5713, del-desiran) with tolebrutinib, Bayer's two Phase 2s, gandotinib (sorted dead
+but never announced stopped), the line extensions with no parent in the book, and EDI048 and
+spartalizumab, released from trials by earlier folds.
+
+**Found on the way**
+
+- The book's hypertension pool in `azn_baxfendy.csv` carries an incidence of 1.2mm a year
+  with no study behind it, and a prevalence about 42% above Carey 2019's count of
+  treatment-resistant patients. QCZ484 was rejected on it, and a re-sourcing task is open.
+- The book's trial table still shows NCT06220669 (LY3541860) as active while the registry
+  terminated it on 23 September 2026, and GM-2505's Phase 2a as recruiting when it completed
+  in July. The next refresh corrects both.
