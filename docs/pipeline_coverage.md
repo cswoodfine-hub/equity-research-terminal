@@ -714,7 +714,7 @@ verified file is kept outside the repo until a lean-mass basis can be cited.
 Bretisilocin was priced last. It was not on the candidate list because its only Phase 2,
 GM-2505's study in MDD, sat on the duplicate row until the fold above moved it across. AbbVie
 bought it outright with Gilgamesh ($906mm upfront, FY2025 10-K), and the seed prices it on
-Spravato: $1.2bn US peak in 2042, $0.13 a share.
+Spravato: $1.2bn US peak in 2042, $1.37bn with ex-US at Spravato's filed split, $0.15 a share.
 
 **Value added, per share, with every seed built on the same copy of the book**
 
@@ -732,7 +732,7 @@ lens, which is sized from the modelled book and so moves with it.
 | MRK | $160.02 | $160.47 | +$0.45 | +$0.00 | MK-2214: $0.10 |
 | JNJ | $195.39 | $195.83 | +$0.44 | +$0.16 | JNJ-95597528: $0.10 |
 | REGN | $1,021.34 | $1,021.76 | +$0.42 | +$1.51 | REGN13335, PAH: $2.24 |
-| ABBV | $208.65 | $209.39 | +$0.74 | +$0.24 | bretisilocin, MDD: $0.13 |
+| ABBV | $208.65 | $209.44 | +$0.79 | +$0.26 | bretisilocin, MDD: $0.15 |
 | GSK | $65.08 | $65.46 | +$0.38 | +$0.08 | GSK3862995B: $0.07 |
 | SNY | $65.17 | $65.52 | +$0.34 | +$0.13 | SAR448851: $0.05 |
 | PFE | $26.12 | $26.43 | +$0.31 | +$0.20 | PF-08653945, obesity: $0.21 |
