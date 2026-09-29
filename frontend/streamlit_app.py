@@ -1816,14 +1816,121 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
     # A switch, not a third level of tabs: this sits inside the Comps tab's own views,
     # and tabs inside tabs inside tabs read as three navigations at once.
     view = st.segmented_control(
-        "View", ["Candidates", "Efficacy", "Safety"], default="Candidates",
-        key=f"land_view_{pick}", label_visibility="collapsed") or "Candidates"
-    if view == "Candidates":
+        "View", ["Overview", "Candidates", "Efficacy", "Safety"], default="Overview",
+        key=f"land_view_{pick}", label_visibility="collapsed") or "Overview"
+    if view == "Overview":
+        _landscape_overview(api_base, pick, ticker)
+    elif view == "Candidates":
         _landscape_candidates(cands)
     elif view == "Efficacy":
         _landscape_efficacy(land.get("endpoints") or [], cands, pick)
     else:
         _landscape_safety(land.get("safety") or [])
+
+
+def _get_long(api_base: str, path: str, timeout: int = 240):
+    with urllib.request.urlopen(api_base.rstrip("/") + path, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _cap(text: str) -> str:
+    return text[:1].upper() + text[1:] if text else text
+
+
+def _how(text: str) -> None:
+    """A reading instruction, shown rather than folded: the overview is read fast, and a
+    note behind a toggle is one nobody opens."""
+    st.markdown(f'<div class="how-read">{html_escape(text)}</div>', unsafe_allow_html=True)
+
+
+def _verdict_card(card: dict, lead: bool = False) -> str:
+    detail = (f'<div class="vc-detail">{html_escape(card["detail"])}</div>'
+              if card.get("detail") else "")
+    return (f'<div class="vc{" vc-lead" if lead else ""} vc-{html_escape(card["kind"])}">'
+            f'<div class="vc-title">{html_escape(card["title"])}</div>'
+            f'<div class="vc-head">{html_escape(card["headline"])}</div>{detail}'
+            f'<div class="vc-mean"><span>What this means</span>'
+            f'{html_escape(card["meaning"])}</div></div>')
+
+
+def _landscape_overview(api_base: str, pick: int, ticker: str) -> None:
+    """The landscape read for you: a verdict in plain words with what each part means,
+    one benefit-against-tolerability chart, and each drug's best result ranked."""
+    chosen = st.session_state.get(f"land_ep_ov_{pick}")
+    try:
+        ov = _get_long(api_base, f"/indications/{pick}/overview"
+                       + (f"?endpoint={urllib.parse.quote(chosen)}" if chosen else ""))
+    except (urllib.error.URLError, OSError) as exc:
+        state("The overview did not load", str(exc), error=True)
+        return
+    cards = ov.get("cards") or []
+    if not cards:
+        state("Not enough to read yet", "no candidate here has posted results or a model")
+        return
+    st.markdown(_verdict_card(cards[0], lead=True), unsafe_allow_html=True)
+    rest = cards[1:]
+    if rest:
+        st.markdown('<div class="vc-grid">' + "".join(_verdict_card(c) for c in rest)
+                    + "</div>", unsafe_allow_html=True)
+
+    endpoint = ov.get("endpoint")
+    options = ov.get("endpoints") or []
+    if not endpoint or not options:
+        return
+    keys = [e["key"] for e in options]
+    by_key = {e["key"]: e for e in options}
+    section("Benefit against tolerability", basis="one point per drug, its best result")
+    st.selectbox(
+        "Measure", keys, index=keys.index(endpoint["key"]) if endpoint["key"] in keys else 0,
+        key=f"land_ep_ov_{pick}", label_visibility="collapsed",
+        format_func=lambda k: (f'{_short(_cap(by_key[k].get("measure") or by_key[k]["title"]), 90)}'
+                               f' · {by_key[k]["unit"] or "no unit"} · {by_key[k]["drugs"]} drugs'))
+    better = {-1: "lower is better here", 1: "higher is better here"}.get(
+        endpoint.get("direction"), "direction unclear: ranked by size of effect")
+    _how(f'Measure: {endpoint["measure"]}, in {endpoint["units"]}. {better[:1].upper()}'
+         f'{better[1:]}, read from the way most drugs moved it against their comparators.')
+    left, right = st.columns([1.25, 1], gap="medium")
+    points = ov.get("points") or []
+    with left:
+        chart = CH.benefit_risk(
+            [{"name": p["name"], "ticker": p["ticker"], "x": p["benefit"],
+              "y": (-p["dropout_excess"] * 100 if p.get("dropout_excess") is not None
+                    else None),
+              "group": p.get("mechanism"),
+              "tip": (f'{p["name"]} ({p["ticker"]}): {p["benefit"]:+.1f} '
+                      f'{endpoint["units"]} against comparator'
+                      + (f', {p["dropout_excess"] * 100:+.1f} points more stopping for side '
+                         f'effects than control' if p.get("dropout_excess") is not None else "")
+                      + (f', {p["arm"]}' if p.get("arm") else "")
+                      + (f', {p["nct_id"]}' if p.get("nct_id") else ""))}
+             for p in points],
+            720, 470, x_label=f'benefit against comparator, {endpoint["units"]}',
+            highlight=ticker)
+        if chart:
+            R.show(chart, css_class="chart-mount stretch")
+        _how("How to read it: further right is a bigger effect than the comparator; higher "
+             "up is fewer people stopping for side effects than on control. Top right is "
+             "where a drug wants to be. A square on the strip below has no tolerability "
+             "figure posted. Hover a point for its trial.")
+    with right:
+        ranked = ov.get("ranked") or []
+        section("Best result per drug", len(ranked), "filled: the drug · open: comparator")
+        rows = [{"label": _short(f'{r["name"]} · {r["weeks"]:.0f} wk' if r.get("weeks")
+                                 else r["name"], 34)
+                 + (f' · n={r["n"]}' if r.get("n") else "")
+                 + (" ·!" if r.get("flags") else ""),
+                 "value": r["value"], "reference": r["placebo"], "group": r["asset_id"]}
+                for r in ranked]
+        chart = CH.against_reference(rows, 520, label_width=190,
+                                     value_fmt=lambda v: f"{v:,.1f}")
+        if chart:
+            R.show(chart, css_class="chart-mount stretch")
+        flagged = [r for r in ranked if r.get("flags")]
+        if flagged:
+            _how("Marked ·! read with care: " + "; ".join(
+                f'{r["name"]} {", ".join(r["flags"])}' for r in flagged))
+        _how("Each drug's best dose on this measure, best first. The figure at the right is "
+             "its difference from its own trial's comparator.")
 
 
 def _stage_chip(stage: str) -> str:

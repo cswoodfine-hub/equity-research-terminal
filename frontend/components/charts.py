@@ -639,6 +639,118 @@ def dumbbell(rows: Sequence[dict], width: int = 900, height: int = 400,
 
 
 
+# Mechanism colours, all from the tokens. Red is left out: on this chart it would read as
+# a warning about a drug rather than as a name for its mechanism.
+BR_PALETTE = (TK.UP, TK.FLAG, TK.PURPLE_BOOK, TK.ORANGE_BOOK, TK.TEXT, TK.MUTED)
+
+
+def benefit_risk(points: Sequence[dict], width: int = 760, height: int = 440,
+                 x_label: str = "benefit against comparator",
+                 highlight: str | None = None) -> str:
+    """One point per drug: benefit across, tolerability up, so top right is best.
+
+    Each point: {name, ticker, x, y (or None), group, tip}. x is the benefit over the
+    comparator in the measure's own units, oriented so right is always better; y is the
+    tolerability gap in percentage points, oriented so up means fewer people stopping for
+    side effects than on control. A drug with no tolerability figure sits on a strip under
+    the plot rather than being guessed onto it. Colour marks the ``group`` (mechanism),
+    with a legend; the quadrants are named in words, so colour is never the only signal.
+    """
+    usable = [p for p in points if p.get("x") is not None]
+    if not usable:
+        return ""
+    groups = []
+    for p in usable:
+        g = p.get("group") or "mechanism not known"
+        if g not in groups:
+            groups.append(g)
+    shown = groups[:len(BR_PALETTE) - 1]
+    colour = {g: BR_PALETTE[i] for i, g in enumerate(shown)}
+    other = TK.MUTED
+
+    pad_l, pad_r, pad_t = 54, 24, 22
+    legend_h = 18 * ((min(len(groups), len(shown) + 1) + 1) // 2) + 8
+    strip_h = 34 if any(p.get("y") is None for p in usable) else 0
+    plot_b = height - 40 - strip_h - legend_h
+    xs = [p["x"] for p in usable] + [0.0]
+    ys = [p["y"] for p in usable if p.get("y") is not None] + [0.0]
+    xd = _domain(xs, pad=0.12)
+    yd = _domain(ys, pad=0.18)
+    x = _scale(xd, (pad_l, width - pad_r))
+    y = _scale((yd[1], yd[0]), (pad_t, plot_b))
+    out = [_svg_open(width, height, "benefit against tolerability, one point per drug")]
+    # Quadrant names, faint, in the corners.
+    for tx, ty, anchor, text in (
+            (width - pad_r - 4, pad_t + 12, "end", "more benefit, easier to tolerate"),
+            (width - pad_r - 4, plot_b - 6, "end", "more benefit, harder to tolerate"),
+            (pad_l + 4, pad_t + 12, "start", "less benefit, easier to tolerate"),
+            (pad_l + 4, plot_b - 6, "start", "less benefit, harder to tolerate")):
+        out.append(_text(tx, ty, text, 9.5, TK.MUTED, anchor))
+    # Zero lines: no difference from the comparator, the same dropouts as control.
+    out.append(f'<line x1="{x(0):.1f}" y1="{pad_t}" x2="{x(0):.1f}" y2="{plot_b}"'
+               f' stroke="{TK.RULE_STRONG}" stroke-dasharray="3 3"/>')
+    if yd[0] <= 0 <= yd[1]:
+        out.append(f'<line x1="{pad_l}" y1="{y(0):.1f}" x2="{width - pad_r}" y2="{y(0):.1f}"'
+                   f' stroke="{TK.RULE_STRONG}" stroke-dasharray="3 3"/>')
+    out.append(f'<rect x="{pad_l}" y="{pad_t}" width="{width - pad_l - pad_r}"'
+               f' height="{plot_b - pad_t}" fill="none" stroke="{TK.RULE}"/>')
+    out.append(_text((pad_l + width - pad_r) / 2, plot_b + 26, x_label + "  →  better",
+                     10, TK.MUTED, "middle"))
+    out.append(f'<text x="14" y="{(pad_t + plot_b) / 2:.1f}" font-size="10" fill="{TK.MUTED}"'
+               f' text-anchor="middle" transform="rotate(-90 14 {(pad_t + plot_b) / 2:.1f})">'
+               f'easier to tolerate  →</text>')
+    for v in (xd[0], (xd[0] + xd[1]) / 2, xd[1]):
+        out.append(_text(x(v), plot_b + 12, _fmt(v, 1), 9, TK.MUTED, "middle", MONO))
+    placed: list = []
+    def put(label, px_, py_):
+        w = len(label) * 6.2
+        for dy in (0, -12, 12, -24, 24):
+            for side in (1, -1):
+                lx = px_ + 7 if side == 1 else px_ - 7 - w
+                box = (lx, py_ + dy - 9, lx + w, py_ + dy + 3)
+                if all(box[2] < b[0] or box[0] > b[2] or box[3] < b[1] or box[1] > b[3]
+                       for b in placed):
+                    placed.append(box)
+                    return lx, py_ + dy
+        return px_ + 7, py_
+    strip_y = plot_b + 44
+    if strip_h:
+        out.append(_text(pad_l, strip_y - 12, "no tolerability figure posted:", 9,
+                         TK.MUTED, "start"))
+    for p in sorted(usable, key=lambda p: -(p["x"])):
+        fill = colour.get(p.get("group") or "mechanism not known", other)
+        px_ = x(p["x"])
+        py_ = y(p["y"]) if p.get("y") is not None else strip_y
+        tip = f"<title>{_esc(p.get('tip') or p['name'])}</title>"
+        mine = highlight and p.get("ticker") == highlight
+        r = 5.5 if mine else 4.5
+        if p.get("y") is None:
+            out.append(f'<rect x="{px_ - 3.5:.1f}" y="{py_ - 3.5:.1f}" width="7" height="7"'
+                       f' fill="none" stroke="{fill}" stroke-width="1.6">{tip}</rect>')
+        else:
+            out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r}" fill="{fill}"'
+                       f' stroke="{TK.GROUND}" stroke-width="1">{tip}</circle>')
+        lx, ly = put(p["name"], px_, py_)
+        out.append(_text(lx, ly + 3, p["name"], 10, TK.FLAG if mine else TK.TEXT, "start",
+                         weight="700" if mine else "400"))
+    # Legend, two columns.
+    ly0 = height - legend_h + 6
+    items = [(g, colour[g]) for g in shown] + (
+        [("other mechanisms", other)] if len(groups) > len(shown) else [])
+    for i, (g, c) in enumerate(items):
+        lx = pad_l + (i % 2) * (width - pad_l) / 2
+        ly = ly0 + (i // 2) * 18
+        out.append(f'<circle cx="{lx + 4:.1f}" cy="{ly:.1f}" r="4" fill="{c}"/>')
+        out.append(_text(lx + 12, ly + 3.5, _short_label(g, 58), 9.5, TK.TEXT, "start"))
+    out.append("</svg>")
+    return "".join(out)
+
+
+def _short_label(text: str, limit: int) -> str:
+    text = text or ""
+    return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"
+
+
 def against_reference(rows: Sequence[dict], width: int = 900, height: int = None,
                       value_fmt: Callable[[float], str] = None,
                       delta_fmt: Callable[[float], str] = None,

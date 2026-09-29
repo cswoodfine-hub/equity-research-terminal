@@ -843,6 +843,31 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .land td .sub {{ display: block; color: var(--muted); font-size: 10.5px; margin-top: 1px; }}
 .land tbody tr:hover td {{ background: var(--panel); }}
 
+/* The landscape's verdict: a lead card with the bottom line, then one card a finding.
+   Each says the finding, the numbers behind it and what it means, in that order, so a
+   reader can stop at the first line. */
+.vc {{ border: 1px solid var(--rule-strong); background: var(--panel); padding: 12px 14px;
+      margin: 0 0 10px; }}
+.vc-lead {{ border-left: 3px solid var(--up); padding: 14px 16px; margin-bottom: 12px; }}
+.vc-lead .vc-head {{ font-family: var(--font-prose); font-size: 18px; font-weight: 500;
+                    line-height: 1.4; }}
+.vc-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+           gap: 10px; margin-bottom: 8px; }}
+.vc-grid .vc {{ margin: 0; }}
+.vc-title {{ font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--muted); margin-bottom: 4px; }}
+.vc-head {{ font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.35; }}
+.vc-detail {{ font-size: 12.5px; line-height: 1.5; color: var(--text); margin-top: 6px; }}
+.vc-mean {{ font-family: var(--font-prose); font-size: 13px; line-height: 1.45;
+           color: var(--text); opacity: 0.8; margin-top: 8px; padding-top: 7px;
+           border-top: 1px solid var(--rule); }}
+.vc-mean span {{ display: block; font-family: var(--font-ui); font-size: 9.5px;
+                letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+                margin-bottom: 2px; opacity: 1; }}
+.vc-warnings {{ border-left: 3px solid var(--flag); }}
+.how-read {{ font-size: 12px; line-height: 1.5; color: var(--muted); max-width: 90ch;
+            margin: 0.1rem 0 0.5rem; }}
+
 /* The note is the one piece of prose, so it gets the reading face. Sized to sit in a
    column rather than across the page: at 15.5px over the full width it set a measure of
    around two hundred characters, which is twice what prose is read at, and it was the
