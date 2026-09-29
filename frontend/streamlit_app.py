@@ -1653,7 +1653,7 @@ def _revenue_build(v: dict) -> None:
         series.append({"name": s["line"][:18], "colour": TK.MUTED,
                        "values": [by_year.get(y) for y in years]})
     ref_by_year = dict(history)
-    section("Revenue build", basis="mm · reported over modelled")
+    section("Revenue build", basis=f"{_mm()} · reported over modelled")
     R.show(CH.stacked_columns(
         labels, series, 760, 292, value_fmt=lambda x: f"{x:,.0f}",
         reference={"name": "reported", "colour": TK.TEXT,
@@ -1672,6 +1672,40 @@ def _book_top(api_base: str, ticker: str):
     if not modelled:
         return None
     return max(modelled, key=lambda m: m["per_share"])["asset_id"]
+
+
+# The book's reporting currency, set where the whole-company verdict is read and used by
+# every figure under it. Per-share figures are translated to dollars; revenue, rNPV and
+# the P&L stay in the filer's own currency, and a bare "mm" read Novo's 199,762mm krone
+# rNPV for Ozempic as dollars. The P&L said "mm USD" for every filer.
+_BOOK_UNIT = {"currency": "USD"}
+
+
+def _mm() -> str:
+    cur = _BOOK_UNIT["currency"]
+    return "mm" if cur == "USD" else f"mm {cur}"
+
+
+def _rating_tile(api_base: str, ticker: str, up) -> tuple:
+    """The rating Key insights shows, with the twelve-month move beside it.
+
+    "Against the price" alone read +12% as a call, while the rating is the return above
+    the cost of equity, where a fairly priced share is a hold. Both tabs now say the same
+    thing, from the same cached fair value.
+    """
+    try:
+        rated = (api_get(api_base, f"/companies/{ticker}/fair-value") or {}).get("rating") or {}
+    except (urllib.error.URLError, OSError):
+        rated = {}
+    call = rated.get("rating") if rated.get("ok") else None
+    move = f"{up:+.0%}" if up is not None else ""
+    if not call:
+        return ("against the price", move or "—", "", None, "",
+                "12-month value over the close")
+    tone = " up" if call in ("Strong buy", "Buy") else " down" if call == "Sell" else ""
+    return ("rating", call, "", move, tone,
+            f"model range {T.num(rated.get('low_today'), 0)} to "
+            f"{T.num(rated.get('high_today'), 0)}")
 
 
 def _sotp_bridge(s: dict) -> None:
@@ -1715,6 +1749,12 @@ def _sotp_bridge(s: dict) -> None:
     if s.get("net_cash_per_share") is not None:
         steps.append({"label": "net cash" if s["net_cash_per_share"] >= 0 else "net debt",
                       "value": s["net_cash_per_share"], "kind": "step"})
+        # Pensions, minorities, deal instalments owed and stakes held at equity. The
+        # equity figure counts them, so a bridge without them ended above the headline:
+        # AstraZeneca's bars summed to 175.93 against the 175.38 printed over them.
+        if s.get("other_claims_per_share"):
+            steps.append({"label": "other claims", "value": s["other_claims_per_share"],
+                          "kind": "step"})
         steps.append({"label": "equity", "kind": "end"})
     else:
         steps.append({"label": "net cash", "value": None, "kind": "null"})
@@ -1756,7 +1796,9 @@ def _sotp_bridge(s: dict) -> None:
                         f"({min(history)}-{max(history)}) buys the launches before then, "
                         f"less {future.get('named_overlap') or 0:,.0f}mm of revenue from "
                         "launches the book names")
-        if future.get("capped_from"):
+        # A cap that binds in some year but trims less than half a percent overall read
+        # as "which cuts 0% of what they would sell": a fact about nothing.
+        if future.get("capped_from") and (future.get("capped_share") or 0) >= 0.005:
             bits.append(f"launches held to the book's {future.get('book_peak_year')} "
                         f"revenue of {future.get('book_peak', 0):,.0f}mm from "
                         f"{future['capped_from']}, which cuts "
@@ -1807,7 +1849,7 @@ def _revenue_split(s: dict) -> None:
     last = s.get("last_reported")
     if not path:
         return
-    section("Revenue by year", basis="mm · the modelled book")
+    section("Revenue by year", basis=f"{_mm()} · the modelled book")
     years = ([f"FY{last['fiscal_year']}A"] if last else []) + [f"FY{r['year']}E" for r in path]
     has_lines = any(r.get("lines") for r in path)
     has_pipe = any(r.get("pipeline") for r in path)
@@ -2048,11 +2090,22 @@ def _book(api_base: str, ticker: str, selected):
         return None, None
     if not v.get("ok") or not (v.get("per_share") or v.get("streams")
                                or v.get("placeholders")):
+        # Without this the tab opened straight on an empty assumptions grid for
+        # whichever asset sorts first (Bayer's acetaminophen), with nothing to say the
+        # company has no model yet rather than the page having failed.
+        if v.get("ok") or v.get("modelled") is not None:
+            section(f"{ticker} · the whole company")
+            state(f"No model for {ticker} yet",
+                  "No asset carries assumptions, so there is no sum of the parts, "
+                  "twelve-month value or rating. Pick an asset below and enter or import "
+                  "its assumptions to start one.")
         return v, None
     note_body = v.get("note") or {}
     coverage = v.get("coverage") or {}
     modelled = v.get("modelled") or []
     counted = [m for m in modelled if m.get("counted", True)]
+    _BOOK_UNIT["currency"] = (((v.get("sotp") or {}).get("fx") or {}).get("currency")
+                              or "USD")
 
     section(f"{ticker} · the whole company",
             basis=f"{len(counted)} counted of {len(modelled)} drawn")
@@ -2068,8 +2121,7 @@ def _book(api_base: str, ticker: str, selected):
                   "rolled at the cost of equity, less dividends"),
                  ("share price", T.num(v.get("close"), 2), "", None, "",
                   f"close {v.get('close_date') or ''}"),
-                 ("against the price", f"{up:+.0%}" if up is not None else "—", "",
-                  None, "", "12-month value over the close")]
+                 _rating_tile(api_base, ticker, up)]
     elif sotp.get("enterprise_per_share") is not None:
         # The balance sheet could not be added: the sum stops at enterprise value and
         # the cash on hand is shown beside it rather than folded in.
@@ -2346,7 +2398,7 @@ def _revenue_path(name: str, result: dict, varied, base_slim, actuals: list,
     if varied and "loe_year" in moved and result.get("loe_year") in all_years:
         markers.append({"index": all_years.index(result["loe_year"]),
                         "label": f"base {result['loe_year']}", "colour": TK.MUTED})
-    section(f"{name} revenue", basis=f"mm · {scenario}" + (" · varied" if varied else ""))
+    section(f"{name} revenue", basis=f"{_mm()} · {scenario}" + (" · varied" if varied else ""))
     R.show(CH.line_chart(series, labels, 780, 236, y_fmt=lambda v: f"{v:,.0f}",
                          y_span=revenue_span, markers=markers, points=points,
                          shade=shade, zero=True), css_class="chart-mount stretch")
@@ -2375,7 +2427,7 @@ def _value_bridge(shown: dict, verdict: dict, varied: bool) -> None:
         steps += [{"label": f"partner {1 - share:.0%}", "value": -shown["partner_rnpv"],
                    "kind": "step"},
                   {"label": "owner", "kind": "end"}]
-    section("Where the value sits", basis="mm" + (" · varied" if varied else ""))
+    section("Where the value sits", basis=_mm() + (" · varied" if varied else ""))
     R.show(CH.waterfall(steps, 470, 236, value_fmt=lambda x: f"{x:,.0f}"),
            css_class="chart-mount stretch")
     shares = verdict.get("diluted_shares")
@@ -2403,7 +2455,7 @@ def _drivers_layer(verdict: dict, scenario: str) -> None:
     levers = verdict.get("levers") or []
     with left:
         if levers:
-            section("What it rests on", basis="rNPV swing, mm")
+            section("What it rests on", basis=f"rNPV swing, {_mm()}")
             rows = [{"label": f"{l['lever']}, "
                               f"{'±2y' if l.get('step', '').startswith('two') else '±20%'}",
                      "low": l["down"], "high": l["up"]} for l in levers]
@@ -2607,8 +2659,8 @@ def _curve_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
             years, 560, 200, y_fmt=lambda v: f"{v:,.0f}"), css_class="chart-mount")
         peak_year = shaped["years"][revenue.index(max(revenue))] if revenue else None
         st.markdown(metric_tiles([
-            ("rNPV", T.num(shaped["rnpv"]), "mm", None, "", "risk-adjusted"),
-            ("peak revenue", T.num(max(revenue) if revenue else None), "mm", None, "",
+            ("rNPV", T.num(shaped["rnpv"]), _mm(), None, "", "risk-adjusted"),
+            ("peak revenue", T.num(max(revenue) if revenue else None), _mm(), None, "",
              f"in {peak_year}" if peak_year else ""),
             ("peak treated", T.num(max(treated) if treated else None), "patients",
              None, "", "on therapy at the top"),
@@ -2828,7 +2880,7 @@ def _pnl_section(result: dict, varied) -> None:
     years = result.get("years") or []
     if not rows or not years:
         return
-    section("P&L", basis="mm USD" + (" · varied" if varied else "")
+    section("P&L", basis=f"mm {_BOOK_UNIT['currency']}" + (" · varied" if varied else "")
             + " · company ratios applied to this revenue")
     last = rows[-1]
     first = rows[0]
@@ -2840,7 +2892,7 @@ def _pnl_section(result: dict, varied) -> None:
         ("R&D charged", T.pct(first["rd"] / first["revenue"] * 100, 1)
          if first.get("revenue") else "—", "", None, "",
          "the company ratio, on this product's revenue"),
-        ("cumulative FCFF", T.num(sum(r["fcff"] for r in rows)), "mm", None, "",
+        ("cumulative FCFF", T.num(sum(r["fcff"] for r in rows)), _mm(), None, "",
          "undiscounted, before PoS"),
     ], one_row=True), unsafe_allow_html=True)
     table = pd.DataFrame([{
@@ -2911,13 +2963,13 @@ def _share_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
             years, 560, 200, y_fmt=lambda v: f"{v:,.0f}%"), css_class="chart-mount")
         peak = max(shaped["revenue"]) if shaped["revenue"] else None
         st.markdown(metric_tiles([
-            ("rNPV", T.num(shaped["rnpv"]), "mm", None, "", "risk-adjusted"),
+            ("rNPV", T.num(shaped["rnpv"]), _mm(), None, "", "risk-adjusted"),
             ("share by " + years[-1], T.num(share[-1] * 100 if share else None), "%",
              None, "", f"against a {plateau_pct:.0f}% plateau"),
-            ("peak revenue", T.num(peak), "mm", None, "",
+            ("peak revenue", T.num(peak), _mm(), None, "",
              f"in {shaped['years'][shaped['revenue'].index(peak)]}" if peak else ""),
             ("first year", T.num(shaped["revenue"][0] if shaped["revenue"] else None),
-             "mm", None, "", "guided, so it does not move"),
+             _mm(), None, "", "guided, so it does not move"),
         ], one_row=True), unsafe_allow_html=True)
 
 
@@ -3076,7 +3128,7 @@ def _render_forecast_tab(api_base: str, ticker: str):
                         unsafe_allow_html=True)
         if varied:
             delta = shown["rnpv"] - result["rnpv"]
-            change = f"{delta:+,.0f}mm vs base"
+            change = f"{delta:+,.0f}{_mm()} vs base"
             tone = " up" if delta >= 0 else " down"
             ps_change = (f"{per_share - per_share_base:+,.2f} vs base"
                          if per_share is not None else None)
@@ -3100,12 +3152,12 @@ def _render_forecast_tab(api_base: str, ticker: str):
                  ("share of price",
                   T.pct(per_share / close * 100, 1) if (per_share and close) else None,
                   "", None, "", f"of ${close:,.2f}" if close else "no price on file"),
-                 ("rNPV", T.num(shown["rnpv"]), "mm", change, tone,
-                  f"base {T.num(result['rnpv'])}mm" if varied
+                 ("rNPV", T.num(shown["rnpv"]), _mm(), change, tone,
+                  f"base {T.num(result['rnpv'])}{_mm()}" if varied
                   else f"owner {share:.0%} of economics" if share is not None
-                  else f"NPV {T.num(shown['npv'])}mm before PoS"
+                  else f"NPV {T.num(shown['npv'])}{_mm()} before PoS"
                   if shown["pos"] < 1.0 - 1e-9 else "risk-adjusted"),
-                 ("peak revenue", T.num(peak), "mm", None, "",
+                 ("peak revenue", T.num(peak), _mm(), None, "",
                   f"in {peak_year}" if peak_year else ""),
                  ("WACC", f"{shown['wacc'] * 100:.2f}", "%", None, "", wacc_note),
                  ("PoS", f"{shown['pos'] * 100:.0f}", "%", None, "", pos_note)]
@@ -3150,10 +3202,13 @@ def _render_forecast_tab(api_base: str, ticker: str):
     with panels["Drivers"]:
         if verdict:
             _drivers_layer(verdict, scenario)
-        if result.get("pos_granular"):
-            _pos_layer(result["pos_granular"])
         else:
             state("No verdict", "the API did not return one for this product")
+        # The granular success rate is its own layer, and a marketed product has none,
+        # which is not a missing verdict: the else once hung off this test and printed
+        # "No verdict" under every approved product's drivers.
+        if result.get("pos_granular"):
+            _pos_layer(result["pos_granular"])
 
     if has_uptake:
         with panels["Uptake"]:
