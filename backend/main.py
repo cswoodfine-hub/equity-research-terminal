@@ -47,6 +47,7 @@ import engines as engines_module
 import headlines as headlines_module
 import marketmap as marketmap_module
 import labels as labels_module
+import landscape as landscape_module
 import fx as fx_module
 import loe as loe_module
 import product_areas
@@ -625,6 +626,24 @@ def company_breakpoints(ticker: str) -> dict:
     out = breakpoints.company(None, ticker)
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    return out
+
+
+@app.get("/indications")
+def indications_list(limit: int = 250) -> list:
+    """The indications a landscape can be drawn for, most contested first: every one
+    with a big pharma candidate that is marketed or in Phase 2 and later."""
+    return landscape_module.indications(None, limit=limit)
+
+
+@app.get("/indications/{indication_id}/landscape")
+def indication_landscape(indication_id: int) -> dict:
+    """Every big pharma candidate for one indication, whatever its modality: what it is,
+    what its trials posted against placebo, its safety record and what the model says it
+    is worth, with the patient pool the modelled ones share."""
+    out = landscape_module.landscape(None, indication_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown indication {indication_id}")
     return out
 
 
