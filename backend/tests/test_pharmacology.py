@@ -111,3 +111,10 @@ def test_two_molecules_for_one_name_is_not_a_match(tmp_path, monkeypatch):
     monkeypatch.setattr(P, "_POLITE_SLEEP_S", 0)
     fetcher = P.PharmacologyFetcher("LLY", path)
     assert fetcher._molecule("ambiguous") is None
+
+
+def test_a_generic_name_joined_by_semicolons_is_a_combination():
+    asset = {"generic_name": "Ethinyl Estradiol; Norethindrone Acetate",
+             "active_ingredients": None}
+    assert P.ingredient_names(asset) == ["Ethinyl Estradiol", "Norethindrone Acetate"]
+    assert all(";" not in n for n in P.names_for(asset))

@@ -70,7 +70,9 @@ def get_json(url: str, params: dict | None = None) -> dict:
         with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as response:
             return json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        if exc.code == 404:        # openFDA answers "no match" with a 404
+        # openFDA answers "no match" with a 404, and ChEMBL refuses a name it cannot
+        # parse with a 400. Neither is the source being down.
+        if exc.code in (400, 404):
             return {}
         raise
 
@@ -139,7 +141,7 @@ def names_for(asset: dict) -> list[str]:
     names = []
     for name in ingredients + [asset.get("generic_name"), asset.get("internal_code"),
                                asset.get("brand_name")]:
-        if not name or not name.strip():
+        if not name or not name.strip() or ";" in name:
             continue
         name = name.strip()
         # An application number is how openFDA filed the product, not a drug name.
@@ -159,13 +161,19 @@ def _without_salt(name: str) -> str | None:
 
 
 def ingredient_names(asset: dict) -> list[str]:
-    """The ingredients of a combination, each to be resolved on its own. One entry for a
-    single-ingredient product."""
+    """The ingredients of a combination, each to be resolved on its own. Empty for a
+    single-ingredient product. A generic name that joins its ingredients with a
+    semicolon ("Ethinyl Estradiol; Norethindrone Acetate") is a combination too."""
     raw = asset.get("active_ingredients")
     try:
         items = [i for i in json.loads(raw) if isinstance(i, str)] if raw else []
     except (TypeError, ValueError):
         items = []
+    if len(items) <= 1:
+        for name in (asset.get("generic_name"), *(items or [])):
+            parts = [p.strip() for p in (name or "").split(";") if p.strip()]
+            if len(parts) > 1:
+                return parts
     return items if len(items) > 1 else []
 
 
