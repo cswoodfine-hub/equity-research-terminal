@@ -4511,9 +4511,28 @@ with main:
         recent = _move(bars) if bars else _move(points[-SPARK_SESSIONS:])
         high = sum(1 for it in feed if it["significance"] == "high")
 
+        # The twelve-month value and the rating it carries, read off the same fair value
+        # the Forecast tab ranges. Cached with it, so the tab pays nothing extra for it.
+        try:
+            rated = (api_get(api_base, f"/companies/{ticker}/fair-value") or {}).get("rating") or {}
+        except Exception:
+            rated = {}
+        fwd = rated.get("forward_12m") if rated.get("ok") else None
+        call = rated.get("rating") if rated.get("ok") else None
+        call_cls = ("up" if call in ("Strong buy", "Buy")
+                    else "down" if call == "Sell" else "" if call else "none")
+
         cells = [
             ("last close", T.num(prices["latest"]["close"], 2) if points else "—",
              "" if points else "none", prices.get("currency") or ""),
+            ("12m value", T.num(fwd, 2) if fwd is not None else "—",
+             ("" if fwd is not None else "none"),
+             (f"{T.pct(rated['upside_12m'] * 100)} · "
+              f"{T.num(rated['forward_low'], 0)} to {T.num(rated['forward_high'], 0)}"
+              if fwd is not None and rated.get("forward_low") is not None else
+              (rated.get("reason") or "no sum of the parts"))),
+            ("rating", call or "—", call_cls,
+             "against model range" if call else (rated.get("reason") or "none")),
             # The headline move matches the sparkline beneath it; the long run is the
             # context under it rather than a second number competing with it.
             (f'{len(intraday.get("sessions") or []) or SPARK_SESSIONS} day', T.pct(recent),

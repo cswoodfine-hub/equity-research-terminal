@@ -761,7 +761,9 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 /* A qualifier the number cannot be read without, and nothing else. */
 .tiles .n {{ display: block; margin-top: 4px; font-size: 10.5px; color: var(--muted); }}
 
-.pos {{ display: flex; gap: 2rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
+/* Eight cells since the twelve-month value and rating joined the position: a column gap
+   of 1.25rem keeps them on one row at full width, where 2rem wrapped the last. */
+.pos {{ display: flex; gap: 0.6rem 1.25rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
 .pos .k {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
           color: var(--muted); display: block; }}
 .pos .v {{ font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em;
