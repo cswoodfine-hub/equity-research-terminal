@@ -610,7 +610,9 @@ def _clean_generic(name: str | None) -> str | None:
     text = " ".join(words) or name.strip()
     text = _BIOLOGIC_SUFFIX.sub("", _PREFIX.sub("", text))
     if text.isupper() or text.istitle():
-        text = text.lower()
+        # A development code keeps its capitals: UBT251, not Ubt251.
+        text = " ".join(w.upper() if any(ch.isdigit() for ch in w) else w.lower()
+                        for w in text.split())
     return text[:1].upper() + text[1:]
 
 
@@ -630,7 +632,8 @@ def compound_name(cand: dict, pharm: dict) -> str:
 
 
 def compound_groups(cands: dict, pharm: dict) -> list[list[int]]:
-    """A company's assets that are one compound, by the book's molecule or by ChEMBL's."""
+    """A company's assets that are one compound: the book's molecule, ChEMBL's, or the
+    compound name, since ChEMBL files a salt (osimertinib mesylate) apart from its parent."""
     parent = {a: a for a in cands}
 
     def find(a):
@@ -652,6 +655,9 @@ def compound_groups(cands: dict, pharm: dict) -> list[list[int]]:
                          if x.get("ref")})
         if chembl:
             keys.append(("chembl", tuple(chembl)))
+        name = compound_name(c, ph).lower()
+        if name != "unnamed":
+            keys.append(("name", name))
         for k in keys:
             key = (c.get("ticker"), k)
             if key in seen:

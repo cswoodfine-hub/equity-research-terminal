@@ -187,3 +187,16 @@ def test_a_generic_name_is_cleaned_to_the_compound():
     assert L._clean_generic("Osimertinib Mesylate") == "Osimertinib"
     assert L._clean_generic("Fam-Trastuzumab Deruxtecan-Nxki") == "Trastuzumab deruxtecan"
     assert L._clean_generic("Cemiplimab-Rwlc") == "Cemiplimab"
+    assert L._clean_generic("UBT251") == "UBT251"            # a code keeps its capitals
+    assert L._clean_generic("Mk-0616") == "MK-0616"
+
+
+def test_a_salt_and_its_parent_are_one_compound():
+    """ChEMBL files osimertinib mesylate apart from osimertinib; the trial code arm is the drug."""
+    cands = {315: {"ticker": "AZN", "generic": "Osimertinib Mesylate", "brand": "Tagrisso"},
+             6531: {"ticker": "AZN", "generic": "AZD9291 80 mg/40 mg"},
+             7: {"ticker": "LLY", "generic": "Osimertinib"}}
+    pharm = {315: {"molecule": [{"value": "OSIMERTINIB MESYLATE", "ref": "CHEMBL3545063"}]},
+             6531: {"molecule": [{"value": "OSIMERTINIB", "ref": "CHEMBL3353410"}]}}
+    groups = sorted(sorted(g) for g in L.compound_groups(cands, pharm))
+    assert groups == [[7], [315, 6531]]            # another company's copy stays its own
