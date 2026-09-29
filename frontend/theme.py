@@ -811,6 +811,24 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .pol-t a:hover {{ text-decoration: underline; }}
 
 
+/* The indication landscape: one row per candidate or per arm, many columns, read
+   across. Mono for the figures so a column of rates lines up. */
+.land-wrap {{ overflow-x: auto; }}
+.land {{ width: 100%; min-width: 880px; border-collapse: collapse; font-size: 11.5px; margin: 0.2rem 0 0.6rem; }}
+.land th {{ text-align: left; font-weight: 500; font-size: 9.5px; letter-spacing: 0.06em;
+           text-transform: uppercase; color: var(--muted); padding: 3px 8px 5px 0;
+           border-bottom: 1px solid var(--rule-strong); white-space: nowrap; }}
+.land td {{ padding: 4px 8px 4px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }}
+.land td.n {{ font-family: var(--font-mono); text-align: right; white-space: nowrap; }}
+.land td.m {{ color: var(--muted); }}
+.land td.w {{ color: var(--flag); font-size: 10.5px; }}
+.land tr.grp td {{ border-top: 1px solid var(--rule-strong); }}
+.land a {{ color: var(--text); text-decoration: none; }}
+.land a:hover {{ text-decoration: underline; }}
+.land .tag {{ font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase;
+             color: var(--muted); border: 1px solid var(--rule-strong); padding: 0 4px;
+             margin-right: 3px; white-space: nowrap; }}
+
 /* The note is the one piece of prose, so it gets the reading face. Sized to sit in a
    column rather than across the page: at 15.5px over the full width it set a measure of
    around two hundred characters, which is twice what prose is read at, and it was the

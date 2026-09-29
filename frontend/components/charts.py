@@ -633,6 +633,67 @@ def dumbbell(rows: Sequence[dict], width: int = 900, height: int = 400,
 
 
 
+def against_reference(rows: Sequence[dict], width: int = 900, height: int = None,
+                      value_fmt: Callable[[float], str] = None,
+                      delta_fmt: Callable[[float], str] = None,
+                      label_width: int = 230, ref_label: str = "placebo",
+                      drug_colour: str = None) -> str:
+    """Each row a drug's value beside its own reference, on one shared axis.
+
+    Each row: {label, value, reference?, group?}. The reference (a placebo arm, or a
+    placebo rate) is an open circle and the value a filled one; the difference is printed
+    at the right. Neither direction is coloured good or bad: a fall is the goal for body
+    weight and a harm for bone density, and the chart does not know which it is showing.
+    Rows sharing a ``group`` are banded together, so one trial's arms read as one block.
+    """
+    value_fmt = value_fmt or (lambda v: _fmt(v, 1))
+    delta_fmt = delta_fmt or (lambda v: ("+" if v > 0 else MINUS if v < 0 else "")
+                              + _fmt(abs(v), 1))
+    usable = [r for r in rows if r.get("value") is not None]
+    if not usable:
+        return ""
+    colour = drug_colour or TK.UP
+    row_h = 20
+    pad_t, pad_r = 26, 84
+    height = height or int(pad_t + row_h * len(usable) + 12)
+    values = [r["value"] for r in usable] + [r["reference"] for r in usable
+                                             if r.get("reference") is not None]
+    dom = _domain(values, zero=True, pad=0.06)
+    x = _scale(dom, (label_width, width - pad_r))
+    out = [_svg_open(width, height, "values against a reference")]
+    for frac in (0.0, 0.5, 1.0):
+        gx = dom[0] + (dom[1] - dom[0]) * frac
+        out.append(f'<line x1="{x(gx):.1f}" y1="{pad_t - 6}" x2="{x(gx):.1f}"'
+                   f' y2="{height - 6}" stroke="{TK.RULE}"/>')
+        out.append(_text(x(gx), pad_t - 12, value_fmt(gx), 9, TK.MUTED, "middle", MONO))
+    if dom[0] < 0 < dom[1]:
+        out.append(f'<line x1="{x(0):.1f}" y1="{pad_t - 6}" x2="{x(0):.1f}"'
+                   f' y2="{height - 6}" stroke="{TK.MUTED}" stroke-dasharray="2 3"/>')
+    last_group = object()
+    for i, r in enumerate(usable):
+        cy = pad_t + row_h * i + row_h / 2
+        if r.get("group") != last_group and i:
+            out.append(f'<line x1="8" y1="{cy - row_h / 2:.1f}" x2="{width - 8}"'
+                       f' y2="{cy - row_h / 2:.1f}" stroke="{TK.RULE}"/>')
+        last_group = r.get("group")
+        out.append(_text(label_width - 10, cy + 3.5, r["label"], 10, TK.TEXT, "end"))
+        xv = x(r["value"])
+        if r.get("reference") is not None:
+            xr = x(r["reference"])
+            out.append(f'<line x1="{xr:.1f}" y1="{cy:.1f}" x2="{xv:.1f}" y2="{cy:.1f}"'
+                       f' stroke="{TK.MUTED}" stroke-width="1.5"/>')
+            out.append(f'<circle cx="{xr:.1f}" cy="{cy:.1f}" r="3.4" fill="{TK.GROUND}"'
+                       f' stroke="{TK.MUTED}" stroke-width="1.4"><title>{_esc(ref_label)}'
+                       f' {_esc(value_fmt(r["reference"]))}</title></circle>')
+            out.append(_text(width - pad_r + 10, cy + 3.5,
+                             delta_fmt(r["value"] - r["reference"]), 9.5, TK.TEXT,
+                             "start", MONO, "600"))
+        out.append(f'<circle cx="{xv:.1f}" cy="{cy:.1f}" r="3.8" fill="{colour}">'
+                   f'<title>{_esc(r["label"])} {_esc(value_fmt(r["value"]))}</title></circle>')
+    out.append("</svg>")
+    return "".join(out)
+
+
 def tornado(rows: Sequence[dict], width: int = 520, height: int = 160,
             centre: float = 0.0, value_fmt: Callable[[float], str] = None,
             label_width: int = 150) -> str:

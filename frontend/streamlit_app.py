@@ -1686,6 +1686,302 @@ def _mm() -> str:
     return "mm" if cur == "USD" else f"mm {cur}"
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def _landscape_index(api_base: str):
+    try:
+        return api_get(api_base, "/indications")
+    except (urllib.error.URLError, OSError):
+        return None
+
+
+def _pct(value, digits: int = 1) -> str:
+    return "·" if value is None else f"{value * 100:.{digits}f}%"
+
+
+def _land_num(value, digits: int = 1) -> str:
+    return "·" if value is None else f"{value:,.{digits}f}"
+
+
+def _indication_landscape(api_base: str, ticker: str) -> None:
+    """Every big pharma candidate for one indication, whatever its modality or mechanism,
+    compared on what it is, what its trials posted and what the model says it is worth.
+
+    Opens on the most contested indication the company is in. Three views of the same
+    candidates: the candidates themselves (stage, science, value, share of the pool), the
+    efficacy their trials posted against placebo, and their safety record against placebo
+    in the same trials.
+    """
+    section("Indication landscape",
+            basis="every big pharma candidate for one disease, whatever its mechanism")
+    index = _landscape_index(api_base)
+    if not index:
+        state("No landscape yet", "the API returned no indications with a big pharma "
+              "candidate marketed or in Phase 2 and later")
+        return
+    by_id = {i["id"]: i for i in index}
+    mine = [i["id"] for i in index if ticker in (i.get("tickers") or [])]
+    options = mine + [i["id"] for i in index if i["id"] not in mine]
+    pick = st.selectbox(
+        "Indication", options, index=0, key=f"land_pick_{ticker}",
+        format_func=lambda i: (f'{by_id[i]["name"]} · {by_id[i]["companies"]} companies '
+                               f'in development'
+                               + (f" · {ticker} in it" if i in mine else "")),
+        label_visibility="collapsed")
+    with st.spinner("Reading every candidate's trials and safety record"):
+        try:
+            # Longer than the page's usual 30 seconds: a landscape whose companies have
+            # no cached verdict yet builds their books the first time it is opened.
+            with urllib.request.urlopen(
+                    api_base.rstrip("/") + f"/indications/{pick}/landscape",
+                    timeout=240) as resp:
+                land = json.loads(resp.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError) as exc:
+            state("The landscape did not load", str(exc), error=True)
+            return
+    cands = land.get("candidates") or []
+    if not cands:
+        state("No candidates", "nothing big pharma holds is linked to this indication")
+        return
+    cov = land.get("coverage") or {}
+    pool = land.get("pool") or {}
+    cells = [
+        ("candidates", str(cov.get("candidates", len(cands))), "",
+         f'{len(land.get("companies") or [])} companies'),
+        ("marketed", str(sum(1 for c in cands if c["stage"] == "Marketed")), "",
+         f'{sum(1 for c in cands if c["is_marketed"] and c["stage"] != "Marketed")} more '
+         f'sold elsewhere, trialled here'),
+        ("phase 3", str(sum(1 for c in cands if c["stage"] in ("Phase 3", "Phase 2/3"))),
+         "", f'{sum(1 for c in cands if c["stage"] == "Phase 2")} in Phase 2'),
+        ("mechanism known", f'{cov.get("with_mechanism", 0)}', "",
+         "ChEMBL and the FDA label"),
+        ("modelled", f'{cov.get("with_model", 0)}', "", "valued in the book"),
+        ("trials posted", f'{cov.get("trials_with_results", 0)}', "",
+         f'of {cov.get("trials", 0)} linked'),
+    ]
+    if pool.get("pool"):
+        cells.append(("shared pool", f'{pool["pool"] / 1e6:,.1f}mm', "",
+                      f'{pool.get("claimants")} claimants'
+                      + (f' · {_pct(pool.get("uncrowded_share"), 0)} claimed, '
+                         f'{_pct(pool.get("crowded_share"), 0)} after crowding'
+                         if pool.get("uncrowded_share") is not None else "")))
+    st.markdown('<div class="pos">' + "".join(
+        f'<span><span class="k">{html_escape(k)}</span><span class="v {cls}">{html_escape(v)}'
+        f'</span><span class="sub">{html_escape(sub)}</span></span>'
+        for k, v, cls, sub in cells) + "</div>", unsafe_allow_html=True)
+    members = (land.get("indication") or {}).get("members") or []
+    if len(members) > 1:
+        note("One population under several names, read together: " + ", ".join(members))
+
+    tab_c, tab_e, tab_s = st.tabs(["Candidates", "Efficacy", "Safety"])
+    with tab_c:
+        _landscape_candidates(cands)
+    with tab_e:
+        _landscape_efficacy(land.get("endpoints") or [], cands, pick)
+    with tab_s:
+        _landscape_safety(land.get("safety") or [])
+
+
+def _landscape_candidates(cands: list) -> None:
+    head = ("company", "drug", "stage", "modality", "mechanism · target", "route",
+            "a share", "PoS", "peak", "pool kept", "trials", "linked by", "boxed warning")
+    rows = ""
+    for c in cands:
+        mech = "; ".join(m["value"] for m in c["mechanisms"][:3]) or (
+            "; ".join(c["classes"][:2]) or "no free data")
+        # A target already named in the mechanism ("PD-1 inhibitor" over "PD-1") says it
+        # twice; only a target the mechanism does not spell out is added.
+        targets = ", ".join(t for t in c["targets"][:3]
+                            if t.lower() not in mech.lower())
+        model = c.get("model") or {}
+        cur = model.get("currency") or ""
+        peak = (f'{model["peak_revenue"]:,.0f}mm {cur if cur != "USD" else ""}'
+                f' {model.get("peak_year") or ""}'.strip()) if model.get("peak_revenue") else "·"
+        pooled = c.get("pool") or {}
+        kept = _pct(pooled.get("ratio"), 0) if pooled.get("pooled") else "·"
+        stage = c["stage"] + (" (elsewhere)" if c.get("phase_elsewhere") else "")
+        modality = c.get("modality") or ", ".join(c.get("molecule_type") or []) or "·"
+        boxed = c.get("boxed_warning") or ""
+        rows += (
+            f'<tr><td class="m">{html_escape(c["ticker"])}</td>'
+            f'<td>{html_escape(c["name"] or "")}'
+            + (f'<br><span class="m">{html_escape(c["generic"])}</span>'
+               if c.get("generic") and c["generic"] != c["name"] else "") + '</td>'
+            f'<td>{html_escape(stage)}</td><td class="m">{html_escape(modality)}</td>'
+            f'<td>{html_escape(mech)}'
+            + (f'<br><span class="m">{html_escape(targets)}</span>' if targets else "")
+            + f'</td><td class="m">{html_escape(", ".join(c["route"]).lower() or "·")}</td>'
+            f'<td class="n">{_land_num(model.get("per_share"), 2)}</td>'
+            f'<td class="n">{_pct(model.get("pos"), 0) if model else "·"}</td>'
+            f'<td class="n">{html_escape(peak)}</td><td class="n">{kept}</td>'
+            f'<td class="n">{c["with_results"]}/{len(c["trials"])}</td>'
+            f'<td>{"".join(f"<span class=tag>{html_escape(x)}</span>" for x in c["linked_by"])}</td>'
+            f'<td class="w" title="{html_escape(boxed)}">{html_escape(_short(boxed, 70)) if boxed else ""}</td></tr>')
+    st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>{"".join(f"<th>{h}</th>" for h in head)}'
+                f'</tr></thead><tbody>{rows}</tbody></table></div>', unsafe_allow_html=True)
+    note("A share is the drug's modelled value per share of its own company, so it ranks a "
+         "drug inside its company, not across companies. Pool kept is the share of its own "
+         "forecast a drug keeps once the patients every claimant draws on are counted once. "
+         "Trials: studies with posted results over studies linked to the indication.")
+
+    # The same candidates by what they act on, which is the axis modality hides.
+    by_mech: dict = {}
+    for c in cands:
+        keys = [m["value"] for m in c["mechanisms"]] or c["classes"][:1] or ["not in ChEMBL"]
+        for k in keys[:2]:
+            by_mech.setdefault(k, []).append(c)
+    section("Mechanisms in play", len(by_mech))
+    mrows = ""
+    for mech, members in sorted(by_mech.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        who = ", ".join(f'{m["name"]} ({m["ticker"]}, {m["stage"]})' for m in members)
+        mrows += (f'<tr><td>{html_escape(mech)}</td><td class="n">{len(members)}</td>'
+                  f'<td class="m">{html_escape(who)}</td></tr>')
+    st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr><th>mechanism</th><th>drugs</th><th>who</th>'
+                f'</tr></thead><tbody>{mrows}</tbody></table></div>', unsafe_allow_html=True)
+
+
+def _landscape_efficacy(groups: list, cands: list, pick: int) -> None:
+    if not groups:
+        state("No posted results", "none of these candidates' trials on this indication "
+              "has results posted to ClinicalTrials.gov yet")
+    else:
+        def label(i):
+            g = groups[i]
+            return (f'{_short(g["title"], 80)} · {g["unit"] or "no unit"} · '
+                    f'{g["n_assets"]} drug{"s" if g["n_assets"] != 1 else ""}, '
+                    f'{len(g["rows"])} arms')
+        gi = st.selectbox("Endpoint", list(range(len(groups))), format_func=label,
+                          key=f"land_ep_{pick}", label_visibility="collapsed")
+        g = groups[gi]
+        rows = [r for r in g["rows"] if r["value"] is not None]
+        chart_rows = [{"label": _short(f'{r["name"]} · {r["arm"]}'
+                                       + (f' · {r["category"]}' if r.get("category") else ""),
+                                       52)
+                       + (f' · w{r["weeks"]:.0f}' if r.get("weeks") else ""),
+                       "value": r["value"], "reference": r["placebo"],
+                       "group": r["nct_id"]} for r in rows[:40]]
+        chart = CH.against_reference(chart_rows, 900, value_fmt=lambda v: f"{v:,.1f}")
+        if chart:
+            R.show(chart, css_class="chart-mount stretch")
+        note("Filled: the arm. Open: the same trial's comparator, placebo where there is "
+             "one, else the arm the sponsor calls the control, else the other of two arms. "
+             "The figure at the right is the arm less its comparator. Rows between rules "
+             "are one trial.")
+        head = ("drug", "trial", "wk", "arm", "n", "value", "comparator", "difference",
+                "sponsor's estimate", "p")
+        body = ""
+        last = None
+        for r in rows:
+            cls = ' class="grp"' if last is not None and r["nct_id"] != last else ""
+            last = r["nct_id"]
+            est = (f'{r["estimate"]:,.2f}' + (f' ({r["ci"][0]:,.2f} to {r["ci"][1]:,.2f})'
+                                              if r.get("ci") else "")
+                   if r.get("estimate") is not None else "·")
+            spread = f' ± {r["spread"]:,.2f}' if r.get("spread") is not None else ""
+            body += (f'<tr{cls}><td>{html_escape(r["name"])} <span class="m">'
+                     f'{html_escape(r["ticker"])}</span></td>'
+                     f'<td><a href="https://clinicaltrials.gov/study/{r["nct_id"]}" '
+                     f'target="_blank">{r["nct_id"]}</a> <span class="m">'
+                     f'{html_escape(r["phase"] or "")}</span></td>'
+                     f'<td class="n">{_land_num(r.get("weeks"), 0)}</td>'
+                     f'<td>{html_escape(_short(r["arm"] or "", 48))}'
+                     + ('' if r["arm_is_drug"] else ' <span class="tag">other arm</span>')
+                     + f'</td><td class="n">{r["n"] or "·"}</td>'
+                     f'<td class="n">{_land_num(r["value"], 2)}{html_escape(spread)}</td>'
+                     f'<td class="n">{_land_num(r["placebo"], 2)}'
+                     + (f' <span class="tag">{html_escape(r["reference_kind"])}</span>'
+                        if r.get("reference_kind") and r["reference_kind"] != "placebo" else "")
+                     + '</td>'
+                     f'<td class="n">{_land_num(r["delta"], 2)}</td>'
+                     f'<td class="n">{html_escape(est)}</td>'
+                     f'<td class="n">{html_escape(r["p_value"] or "·")}</td></tr>')
+        st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>{"".join(f"<th>{h}</th>" for h in head)}'
+                    f'</tr></thead><tbody>{body}</tbody></table></div>', unsafe_allow_html=True)
+        note(f'{g["title"]} ({g["unit"] or "no unit"}, {g["param_type"] or "measure"}). '
+             "Trials differ in population, duration and background therapy, so read a "
+             "difference against its own placebo before reading it against another trial's. "
+             "An arm tagged other arm names none of the drug's names: an active comparator "
+             "or an arm the sponsor labelled by letter.")
+    quotes = [(c, q) for c in cands for q in (c.get("readouts") or [])]
+    if quotes:
+        section("Readouts from the press", len(quotes), "the sentence each was read from")
+        qrows = "".join(
+            f'<tr><td class="pol-d">{html_escape((q.get("date") or "")[:10])}</td>'
+            f'<td class="pol-l">{html_escape(c["name"])}</td>'
+            f'<td class="pol-k">{html_escape(q.get("outcome") or "")}</td>'
+            f'<td class="pol-t">'
+            + (f'<a href="{html_escape(q["url"])}" target="_blank">' if q.get("url") else "")
+            + html_escape(_short(q.get("quote") or "", 260))
+            + ("</a>" if q.get("url") else "") + "</td></tr>"
+            for c, q in quotes)
+        st.markdown(f'<table class="pol"><tbody>{qrows}</tbody></table>',
+                    unsafe_allow_html=True)
+
+
+def _landscape_safety(rows: list) -> None:
+    rated = [r for r in rows if r.get("trials")]
+    if not rated:
+        state("No posted safety data", "none of these candidates' trials on this "
+              "indication has adverse events posted to ClinicalTrials.gov yet")
+    else:
+        left, right = st.columns(2, gap="medium")
+        for col, key, title in ((left, "serious", "Serious adverse events"),
+                                (right, "withdrawn", "Withdrawn for an adverse event")):
+            with col:
+                section(title, basis="% · control open")
+                pts = [{"label": _short(f'{r["name"]} ({r["ticker"]})', 30),
+                        "value": r[f"{key}_rate"] * 100,
+                        "reference": (r[f"placebo_{key}_rate"] * 100
+                                      if r.get(f"placebo_{key}_rate") is not None else None),
+                        "group": r["asset_id"]}
+                       for r in rated if r.get(f"{key}_rate") is not None]
+                chart = CH.against_reference(pts, 520, label_width=170,
+                                             value_fmt=lambda v: f"{v:.0f}%",
+                                             delta_fmt=lambda v: f"{v:+.1f} pts")
+                if chart:
+                    R.show(chart, css_class="chart-mount stretch")
+                else:
+                    note("no rate posted")
+        head = ("drug", "trials", "control", "participants", "serious AE", "control",
+                "withdrawn for AE", "control", "deaths", "control", "commonest events",
+                "boxed warning")
+        body = ""
+        for r in rated:
+            events = "; ".join(
+                f'{e["term"]} {_pct(e["rate"], 0)}'
+                + (f' ({_pct(e["placebo_rate"], 0)})' if e.get("placebo_rate") is not None else "")
+                for e in r.get("top_events") or [])
+            boxed = r.get("boxed_warning") or ""
+            body += (f'<tr><td>{html_escape(r["name"])} <span class="m">'
+                     f'{html_escape(r["ticker"])}</span></td>'
+                     f'<td class="n">{r["trials"]}</td>'
+                     f'<td class="m">{html_escape(r.get("control_kind") or "none")}</td>'
+                     f'<td class="n">{r.get("participants") or "·"} / '
+                     f'{r.get("placebo_participants") or "·"}</td>'
+                     f'<td class="n">{_pct(r.get("serious_rate"))}</td>'
+                     f'<td class="n">{_pct(r.get("placebo_serious_rate"))}</td>'
+                     f'<td class="n">{_pct(r.get("withdrawn_rate"))}</td>'
+                     f'<td class="n">{_pct(r.get("placebo_withdrawn_rate"))}</td>'
+                     f'<td class="n">{_pct(r.get("deaths_rate"), 2)}</td>'
+                     f'<td class="n">{_pct(r.get("placebo_deaths_rate"), 2)}</td>'
+                     f'<td class="m">{html_escape(events)}</td>'
+                     f'<td class="w" title="{html_escape(boxed)}">'
+                     f'{html_escape(_short(boxed, 60)) if boxed else ""}</td></tr>')
+        st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>{"".join(f"<th>{h}</th>" for h in head)}'
+                    f'</tr></thead><tbody>{body}</tbody></table></div>', unsafe_allow_html=True)
+        note("Drug arms pooled across the drug's trials on this indication, against the "
+             "control arms of the same trials: placebo, the arm the sponsor calls the "
+             "control, or the other of two arms. A trial with no control adds to the drug "
+             "side only. Participants: drug arms / control arms. The commonest events are "
+             "the drug's rate with the control's in brackets.")
+    warned = [r for r in rows if not r.get("trials") and r.get("boxed_warning")]
+    if warned:
+        section("Boxed warnings without posted trial safety", len(warned))
+        st.markdown('<table class="pol"><tbody>' + "".join(
+            f'<tr><td class="pol-l">{html_escape(r["name"])}</td>'
+            f'<td class="pol-t">{html_escape(_short(r["boxed_warning"], 300))}</td></tr>'
+            for r in warned) + "</tbody></table>", unsafe_allow_html=True)
+
+
 def _rating_tile(api_base: str, ticker: str, up) -> tuple:
     """The rating Key insights shows, with the twelve-month move beside it.
 
@@ -5109,6 +5405,11 @@ with main:
                     unsafe_allow_html=True)
         _peers = set(tickers)
         _peer_rows = lambda rows: [r for r in rows if r.get("ticker") in _peers]
+
+        # Drugs compared across companies on one disease, before companies are compared
+        # with each other. Big pharma only, which is where its sources are fetched.
+        if _engine == "pharma":
+            _indication_landscape(api_base, ticker)
 
         # --- R&D productivity, before the valuation comps ---------------------
         # Every frame this tab draws is built first, in one place. The charts
