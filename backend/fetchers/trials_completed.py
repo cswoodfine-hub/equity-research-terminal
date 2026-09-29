@@ -193,14 +193,13 @@ class TrialsCompletedFetcher(BaseFetcher):
         conn = db.get_connection(self.db_path)
         try:
             names = trial_mapping._asset_names(conn, company_id)
+            combinations = trial_mapping._combination_products(conn, company_id)
         finally:
             conn.close()
         for row in rows:
             row["sponsor_company_id"] = company_id
-            row["asset_id"] = next(
-                (a for a in (trial_mapping.match_intervention(
-                    trial_mapping.normalise(name), names)
-                    for name in row["interventions"]) if a), None)
+            row["asset_id"] = trial_mapping.first_match(
+                row["interventions"], names, combinations)
         return rows
 
     def snapshot(self, rows: list[dict]) -> None:
