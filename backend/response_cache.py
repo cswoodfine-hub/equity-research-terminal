@@ -107,6 +107,22 @@ def _store(key: str, entry: dict) -> None:
             _entries.popitem(last=False)
 
 
+def cached_json(path: str, query: str = ""):
+    """The last response stored for a read, parsed, or None. Stale entries count: this is
+    for a view that assembles many companies' reads at once (the indication landscape)
+    and would otherwise recompute every one of them cold, which is what the page itself
+    would be served anyway."""
+    import json
+    with _lock:
+        entry = _entries.get(f"{path}?{query}")
+    if entry is None:
+        return None
+    try:
+        return json.loads(entry["body"])
+    except (TypeError, ValueError):
+        return None
+
+
 def _serve(entry: dict, state: str) -> Response:
     return Response(content=entry["body"], status_code=200, media_type=entry["media_type"],
                     headers={"x-cache": state})
@@ -180,7 +196,8 @@ async def handle(request, call_next):
 # --- warming ------------------------------------------------------------------------
 # The reads a company page makes that cost more than a moment, in the form the page asks
 # for them, so a warmed entry is the one the page hits.
-GLOBAL_READS = ("/screen", "/productivity/scorecard", "/pipeline", "/price-grid?days=90")
+GLOBAL_READS = ("/screen", "/productivity/scorecard", "/pipeline", "/price-grid?days=90",
+                "/indications")
 COMPANY_READS = ("/companies/{t}/forecast-verdict", "/companies/{t}/fair-value",
                  "/companies/{t}/breakpoints", "/companies/{t}/forecast")
 WARM_EVERY_S = 30.0

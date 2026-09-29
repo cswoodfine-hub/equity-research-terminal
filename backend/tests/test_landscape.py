@@ -88,6 +88,8 @@ def _book(tmp_path):
                      " affected, at_risk) VALUES ('NCT1', 'Nausea', 0, ?, ?, ?)",
                      (gid, aff, risk))
     conn.execute("INSERT INTO trial_result_fetches (nct_id, has_results) VALUES ('NCT1', 1)")
+    conn.execute("INSERT INTO labels (asset_id, setid, indications_text) VALUES (1, 's1',"
+                 " 'ZEPBOUND is indicated to reduce excess body weight in adults with obesity')")
     conn.execute("INSERT INTO asset_pharmacology (asset_id, kind, value, detail, source)"
                  " VALUES (1, 'mechanism', 'Glucagon-like peptide 1 receptor agonist',"
                  " 'AGONIST', 'chembl')")
@@ -100,7 +102,7 @@ def _book(tmp_path):
 def land(tmp_path, monkeypatch):
     path = _book(tmp_path)
     monkeypatch.setattr(L, "_big_pharma_ids", lambda conn: {1, 2})
-    monkeypatch.setattr(L, "_model_lines", lambda db_path, tickers: {})
+    monkeypatch.setattr(L, "_model_lines", lambda db_path, tickers, verdict_for=None: {})
     return L.landscape(path, 1)
 
 
@@ -130,3 +132,25 @@ def test_safety_pools_the_drug_arms_against_placebo_in_the_same_trials(land):
     assert nausea["term"] == "Nausea"
     assert nausea["rate"] == pytest.approx(195 / 630)
     assert nausea["placebo_rate"] == pytest.approx(61 / 643)
+
+
+def test_a_marketed_drug_is_marketed_here_only_where_its_label_names_the_disease(tmp_path, monkeypatch):
+    path = _book(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("UPDATE labels SET indications_text = 'indicated for type 2 diabetes'")
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr(L, "_big_pharma_ids", lambda conn: {1, 2})
+    monkeypatch.setattr(L, "_model_lines", lambda db_path, tickers, verdict_for=None: {})
+    zep = next(c for c in L.landscape(path, 1)["candidates"] if c["name"] == "Zepbound")
+    assert zep["stage"] == "Marketed · Phase 3 here" and not zep["on_label"]
+
+
+def test_the_comparator_is_placebo_else_the_control_else_the_other_of_two_arms():
+    arm = lambda t: {"group_title": t, "group_description": ""}
+    assert L.comparator([arm("Pembrolizumab"), arm("Placebo")], ["pembrolizumab"])[1] == "placebo"
+    assert L.comparator([arm("Durvalumab"), arm("Sub-study A: SoC")], ["durvalumab"])[1] == "control"
+    ref, kind = L.comparator([arm("Pembrolizumab 2 mg/kg"), arm("Docetaxel 75 mg/m^2")],
+                             ["pembrolizumab"])
+    assert kind == "comparator" and ref["group_title"].startswith("Docetaxel")
+    assert L.comparator([arm("Arm A"), arm("Arm B"), arm("Arm C")], ["x"]) == (None, None)

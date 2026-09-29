@@ -641,7 +641,9 @@ def indication_landscape(indication_id: int) -> dict:
     """Every big pharma candidate for one indication, whatever its modality: what it is,
     what its trials posted against placebo, its safety record and what the model says it
     is worth, with the patient pool the modelled ones share."""
-    out = landscape_module.landscape(None, indication_id)
+    out = landscape_module.landscape(
+        None, indication_id,
+        verdict_for=lambda t: response_cache.cached_json(f"/companies/{t}/forecast-verdict"))
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown indication {indication_id}")
     return out

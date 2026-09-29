@@ -60,6 +60,10 @@ _SYNONYMS = {"cancer": "neoplasm", "cancers": "neoplasm", "carcinoma": "neoplasm
              "tumors": "neoplasm", "tumour": "neoplasm", "tumours": "neoplasm",
              "mellitus": None}
 _PLACEBO = re.compile(r"\b(placebo|vehicle|sham|dummy)\b", re.I)
+# An arm the sponsor names as the control, which in oncology is rarely a placebo.
+_CONTROL = re.compile(r"\b(standard of care|soc|control|best supportive care|"
+                      r"investigator'?s choice|physician'?s choice|observation|"
+                      r"chemotherapy alone|usual care)\b", re.I)
 _VERDICT_TTL_S = 15 * 60
 _verdicts: dict = {}
 _big: dict = {}
@@ -95,6 +99,29 @@ def is_placebo(title: str | None, names=()) -> bool:
     text = (title or "").lower()
     return bool(_PLACEBO.search(text)) and not any(
         n.lower() in text for n in names if len(n) >= 4)
+
+
+def comparator(arms: list[dict], names) -> tuple[dict | None, str | None]:
+    """The arm a drug's arm is read against, and what kind it is.
+
+    A placebo arm where there is one. Otherwise an arm the sponsor names as the control
+    (standard of care, investigator's choice), which is how an oncology trial is built.
+    Otherwise, in a two-arm trial where one arm names the drug and the other does not,
+    the other one: Keytruda against docetaxel. None where the trial gives no way to tell.
+    """
+    placebo = next((a for a in arms if is_placebo(a["group_title"], names)), None)
+    if placebo:
+        return placebo, "placebo"
+    named = lambda a: any(n.lower() in f'{a["group_title"] or ""} {a.get("group_description") or ""}'.lower()
+                          for n in names if len(n) >= 4)
+    control = next((a for a in arms if _CONTROL.search(a["group_title"] or "")
+                    and not named(a)), None)
+    if control:
+        return control, "control"
+    others = [a for a in arms if not named(a)]
+    if len(arms) == 2 and len(others) == 1:
+        return others[0], "comparator"
+    return None, None
 
 
 def weeks_of(*texts) -> float | None:
@@ -168,18 +195,21 @@ def indications(db_path=None, limit: int = 250) -> list[dict]:
             f"""SELECT i.id, i.name, i.therapeutic_area,
                        COUNT(DISTINCT a.id) AS assets,
                        COUNT(DISTINCT a.owner_company_id) AS companies,
+                       GROUP_CONCAT(DISTINCT c.ticker) AS tickers,
                        MAX(CASE ai.phase WHEN 'Phase 3' THEN 3 WHEN 'Phase 2/3' THEN 2
                                          WHEN 'Phase 2' THEN 1 ELSE 0 END) AS top
                   FROM asset_indications ai
                   JOIN assets a ON a.id = ai.asset_id
                   JOIN indications i ON i.id = ai.indication_id
+                  JOIN companies c ON c.id = a.owner_company_id
                  WHERE a.owner_company_id IN ({marks})
                    AND a.id NOT IN (SELECT asset_id FROM retired_programmes)
                    AND (a.is_marketed = 1 OR ai.phase IN ('Phase 2','Phase 2/3','Phase 3'))
                  GROUP BY i.id
                  ORDER BY companies DESC, assets DESC, i.name
                  LIMIT ?""", (*big, limit)).fetchall()
-        return [dict(r) for r in rows if IM.is_indication(r["name"])]
+        return [{**dict(r), "tickers": sorted((r["tickers"] or "").split(","))}
+                for r in rows if IM.is_indication(r["name"])]
     finally:
         conn.close()
 
@@ -285,6 +315,21 @@ def candidates(conn, members: list[dict]) -> dict:
             if v.get("is_marketed") or v["phase_here"] in LATE or "model" in v["linked_by"]}
 
 
+def on_label(conn, ids: list[int], names: list[str]) -> set:
+    """The marketed products whose own label's indications name the disease."""
+    if not ids:
+        return set()
+    wanted = [w for w in (_words(n) for n in names) if w]
+    out = set()
+    for r in conn.execute(
+            f"SELECT asset_id, indications_text FROM labels WHERE asset_id IN"
+            f" ({','.join('?' * len(ids))}) AND indications_text IS NOT NULL", ids):
+        text = _words(r["indications_text"])
+        if any(len(w & text) / len(w) >= CONDITION_MATCH for w in wanted):
+            out.add(r["asset_id"])
+    return out
+
+
 def _pharmacology(conn, ids: list[int]) -> dict:
     out: dict = defaultdict(lambda: defaultdict(list))
     if not ids:
@@ -298,15 +343,20 @@ def _pharmacology(conn, ids: list[int]) -> dict:
     return out
 
 
-def _model_lines(db_path, tickers: set) -> dict:
-    """{asset_id: the book's modelled line}, from each company's verdict, cached."""
+def _model_lines(db_path, tickers: set, verdict_for=None) -> dict:
+    """{asset_id: the book's modelled line}, from each company's verdict.
+
+    ``verdict_for(ticker)`` hands back a verdict already computed (the API passes its
+    response cache), so a landscape across thirteen companies does not rebuild thirteen
+    books cold: 27 seconds for lung cancer against under one."""
     out = {}
     now = time.time()
     for t in tickers:
         hit = _verdicts.get(t)
         if not hit or hit[0] < now - _VERDICT_TTL_S:
+            v = verdict_for(t) if verdict_for else None
             try:
-                v = forecast_view.company_verdict(db_path, t) or {}
+                v = v or forecast_view.company_verdict(db_path, t) or {}
             except Exception:
                 v = {}
             hit = (now, {m["asset_id"]: m for m in v.get("modelled") or []},
@@ -400,7 +450,7 @@ def endpoints(cands: dict, outcomes: dict, analyses: dict) -> list[dict]:
         for r in rows:
             by_cat[r["category"]].append(r)
         for cat, arms in by_cat.items():
-            placebo = next((a for a in arms if is_placebo(a["group_title"], c["_names"])), None)
+            placebo, kind = comparator(arms, c["_names"])
             for arm in arms:
                 if placebo is not None and arm is placebo:
                     continue
@@ -420,6 +470,8 @@ def endpoints(cands: dict, outcomes: dict, analyses: dict) -> list[dict]:
                     "value_text": arm["value_text"], "spread": arm["spread"],
                     "dispersion": first["dispersion_type"],
                     "placebo": placebo["value"] if placebo else None,
+                    "reference_kind": kind if placebo else None,
+                    "reference_arm": placebo["group_title"] if placebo else None,
                     "placebo_n": placebo["n_analysed"] if placebo else None,
                     "delta": delta,
                     "p_value": stat["p_value"] if stat else None,
@@ -451,18 +503,22 @@ def safety(cands: dict, safety_rows: dict, events: dict, pharm: dict) -> list[di
         placebo = {k: [0, 0] for k in drug}
         drug_groups, placebo_groups = defaultdict(set), defaultdict(set)
         trials = 0
+        kinds: set = set()
         for nct in c["trials"]:
             rows = safety_rows.get(nct) or []
             if not rows:
                 continue
             trials += 1
+            rows = [r for r in rows
+                    if (r["group_title"] or "").strip().lower() != "total"]
             named = [r for r in rows if _arm_is_drug(r["group_title"], "", c["_names"])]
+            ref, kind = comparator(rows, c["_names"])
+            if ref is not None:
+                kinds.add(kind)
             for r in rows:
-                if r["group_title"] and r["group_title"].strip().lower() == "total":
-                    continue
-                if is_placebo(r["group_title"], c["_names"]):
+                if ref is not None and r is ref:
                     bucket, gset = placebo, placebo_groups
-                elif (named and r in named) or (not named):
+                elif (named and r in named) or (not named and r is not ref):
                     bucket, gset = drug, drug_groups
                 else:
                     continue            # an active comparator's arm is not this drug
@@ -498,6 +554,9 @@ def safety(cands: dict, safety_rows: dict, events: dict, pharm: dict) -> list[di
         p = pharm.get(aid) or {}
         out.append({
             "asset_id": aid, "name": c["name"], "ticker": c["ticker"], "trials": trials,
+            # What the control arms were: placebo, a named control, or the other arm.
+            "control_kind": (next(iter(kinds)) if len(kinds) == 1 else
+                             "mixed" if kinds else None),
             "participants": drug["serious"][1] or drug["any"][1],
             "placebo_participants": placebo["serious"][1] or placebo["any"][1],
             **{f"{k}_rate": _rate(*drug[k]) for k in drug},
@@ -534,7 +593,7 @@ def _readout_quotes(conn, cands: dict) -> dict:
 
 
 # --- the view ------------------------------------------------------------------------
-def landscape(db_path, indication_id: int) -> dict | None:
+def landscape(db_path, indication_id: int, verdict_for=None) -> dict | None:
     conn = db.get_connection(db_path)
     try:
         members = _members(conn, indication_id)
@@ -551,9 +610,11 @@ def landscape(db_path, indication_id: int) -> dict | None:
             f" ({','.join('?' * len(ncts)) or 'NULL'})", ncts)} if ncts else set()
         outcomes, analyses, safety_rows, events = _results(conn, sorted(have))
         quotes = _readout_quotes(conn, cands)
+        labelled = on_label(conn, [a for a, c in cands.items() if c.get("is_marketed")],
+                            [m["name"] for m in members])
     finally:
         conn.close()
-    lines = _model_lines(db_path, {c["ticker"] for c in cands.values()})
+    lines = _model_lines(db_path, {c["ticker"] for c in cands.values()}, verdict_for)
 
     rows = []
     for aid, c in cands.items():
@@ -565,7 +626,15 @@ def landscape(db_path, indication_id: int) -> dict | None:
         rows.append({
             "asset_id": aid, "name": c["name"], "generic": c.get("generic"),
             "ticker": c["ticker"], "company": c["company"],
-            "stage": "Marketed" if c["is_marketed"] else (c["phase_here"] or "not staged"),
+            # A marketed product reached by its trials is on sale for something, not
+            # necessarily for this: Verzenio was trialled in lung cancer and is sold for
+            # breast. Its own label says which, and where the label does not name the
+            # disease the stage says what it reached here beside the fact it sells.
+            "stage": ("Marketed" if c["is_marketed"] and (
+                          aid in labelled or not c["phase_here"])
+                      else f'Marketed · {c["phase_here"]} here' if c["is_marketed"]
+                      else (c["phase_here"] or "not staged")),
+            "on_label": aid in labelled,
             "phase_here": c["phase_here"], "is_marketed": c["is_marketed"],
             "phase_elsewhere": bool(c.get("phase_elsewhere")),
             "linked_by": c["linked_by"], "modality": c.get("modality"),
@@ -590,7 +659,8 @@ def landscape(db_path, indication_id: int) -> dict | None:
             "readouts": quotes.get(aid, []),
         })
     rank = {"Marketed": 9}
-    rows.sort(key=lambda r: (-(rank.get(r["stage"]) or _PHASE_RANK.get(r["stage"], -1)),
+    rows.sort(key=lambda r: (-(rank.get(r["stage"]) or (8 if r["is_marketed"] else
+                                                         _PHASE_RANK.get(r["stage"], -1))),
                              -((r["model"] or {}).get("per_share") or 0), r["name"] or ""))
     return {
         "ok": True,
