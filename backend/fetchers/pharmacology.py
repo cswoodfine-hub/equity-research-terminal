@@ -217,10 +217,16 @@ class PharmacologyFetcher(BaseFetcher):
                   FROM assets a JOIN companies c ON c.id = a.owner_company_id
                  WHERE c.ticker = ?
                    AND a.id NOT IN (SELECT asset_id FROM retired_programmes)
-                   AND (a.is_marketed = 1 OR EXISTS (
-                        SELECT 1 FROM asset_indications ai WHERE ai.asset_id = a.id
-                           AND ai.phase IN ({",".join("?" * len(LATE))})))""",
-            (self.ticker, *LATE))]
+                   AND (a.is_marketed = 1
+                        OR EXISTS (SELECT 1 FROM asset_indications ai WHERE ai.asset_id = a.id
+                                      AND ai.phase IN ({",".join("?" * len(LATE))}))
+                        -- An asset the landscape reaches through its trials alone:
+                        -- 'AZD9291 80 mg/40 mg' has no pipeline row, only a Phase 3.
+                        OR EXISTS (SELECT 1 FROM trials t WHERE t.asset_id = a.id
+                                      AND t.phase IN ({",".join("?" * len(LATE))}))
+                        OR EXISTS (SELECT 1 FROM completed_trials t WHERE t.asset_id = a.id
+                                      AND t.phase IN ({",".join("?" * len(LATE))})))""",
+            (self.ticker, *LATE, *LATE, *LATE))]
 
     # --- lookups ------------------------------------------------------------------
     def _molecule(self, name: str) -> dict | None:
