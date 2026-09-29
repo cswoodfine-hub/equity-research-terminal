@@ -138,3 +138,25 @@ def test_a_market_rate_is_not_described_as_the_books_own_assumption():
     assert book == "the book assumes for its own products"
     # No basis on file claims neither one.
     assert forecast_note._growth_whose({}) == "the book is held to"
+
+
+def test_the_company_headline_names_every_step_so_its_parts_add_up():
+    """AstraZeneca's sentence named marketed, pipeline, launches and net debt, which sum
+    to $169.57, under an equity figure of $175.38: the growth capital, the carry to the
+    close and the other claims were left out. And "net debt $-15.28" read as a negative
+    debt, when the word already carries the sign."""
+    s = {"close": 166.15, "equity_per_share": 175.38, "forward_12m": 185.34,
+         "upside": 0.1155,
+         "marketed": {"n": 32, "per_share": 90.40},
+         "pipeline": {"n": 22, "per_share": 12.49},
+         "future": {"per_share": 81.96},
+         "growth_investment": {"per_share": -3.63},
+         "carry_per_share": 9.97, "net_cash_per_share": -15.28,
+         "other_claims_per_share": -0.55}
+    line = forecast_note._sotp_headline({"ticker": "AZN", "sotp": s, "coverage": {}})
+    assert "net debt $15.28" in line and "$-" not in line
+    assert "growth capital $3.63 off" in line
+    assert "$9.97 carried to the close" in line
+    assert "other claims $0.55 off" in line
+    # The named parts now reconcile to the headline, to the rounding of the inputs.
+    assert abs(90.40 + 12.49 + 81.96 - 3.63 + 9.97 - 15.28 - 0.55 - 175.38) < 0.05

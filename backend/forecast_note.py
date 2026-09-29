@@ -238,9 +238,24 @@ def _sotp_headline(v: dict) -> str | None:
     future = s.get("future") or {}
     if future.get("per_share") is not None:
         parts.append(f"future launches {_per_share(future['per_share'])}")
+    # Every step the bridge draws, so the parts named add up to the figure they
+    # explain: without these three, AstraZeneca's parts summed to $169.57 under a
+    # sentence that said $175.38.
+    growth = (s.get("growth_investment") or {}).get("per_share")
+    if growth:
+        parts.append(f"growth capital {_per_share(abs(growth))} off")
+    if s.get("carry_per_share"):
+        parts.append(f"{_per_share(abs(s['carry_per_share']))} "
+                     f"{'carried' if s['carry_per_share'] > 0 else 'lost'} to the close")
     if s.get("net_cash_per_share") is not None:
+        # The word carries the sign, so the figure does not: "net debt $-15.28" read
+        # as a negative debt.
         word = "net cash" if s["net_cash_per_share"] >= 0 else "net debt"
-        parts.append(f"{word} {_per_share(s['net_cash_per_share'])}")
+        parts.append(f"{word} {_per_share(abs(s['net_cash_per_share']))}")
+    claims = s.get("other_claims_per_share")
+    if claims:
+        parts.append(f"other claims {_per_share(abs(claims))} "
+                     f"{'off' if claims < 0 else 'on'}")
     return (lead + (": " + ", ".join(parts) if parts else "") + "."
             + _coverage_clause(v))
 
