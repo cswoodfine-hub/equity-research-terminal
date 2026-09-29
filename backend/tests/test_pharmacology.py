@@ -136,3 +136,26 @@ def test_each_molecule_of_a_combination_is_its_own_row():
     rows = P.PharmacologyFetcher("X").normalise(raw)
     assert {r["value"] for r in rows if r["kind"] == "molecule"} == {"CANAGLIFLOZIN",
                                                                       "METFORMIN"}
+
+
+def test_a_drug_whose_lookup_failed_keeps_what_it_had(tmp_path, monkeypatch):
+    path = _book(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO asset_pharmacology (asset_id, kind, value, source)"
+                 " VALUES (2, 'mechanism', 'kept from the last run', 'chembl')")
+    conn.commit()
+    conn.close()
+
+    def flaky(url, params=None):
+        name = ((params or {}).get("molecule_synonyms__molecule_synonym__iexact") or "")
+        if name.lower().startswith("ly9999999"):
+            raise RuntimeError("HTTP Error 500")
+        return _fake_get(url, params)
+    monkeypatch.setattr(P, "get_json", flaky)
+    monkeypatch.setattr(P, "_POLITE_SLEEP_S", 0)
+    P.PharmacologyFetcher("LLY", path).run()
+    conn = db.get_connection(path)
+    kept = [r[0] for r in conn.execute("SELECT value FROM asset_pharmacology WHERE asset_id = 2")]
+    fresh = conn.execute("SELECT COUNT(*) FROM asset_pharmacology WHERE asset_id = 1").fetchone()[0]
+    conn.close()
+    assert kept == ["kept from the last run"] and fresh > 0

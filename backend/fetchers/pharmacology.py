@@ -61,20 +61,32 @@ _SALTS = {
 }
 
 
+SERVER_RETRIES = 3
+_RETRY_PAUSE_S = 2.0
+
+
 def get_json(url: str, params: dict | None = None) -> dict:
-    """GET a JSON document. Module level so a test can stand a fixture in for it."""
+    """GET a JSON document. Module level so a test can stand a fixture in for it.
+
+    A server error is tried again after a pause: ChEMBL answered 500 to dozens of
+    ordinary lookups across one run on 2026-09-29 and answered them the next minute."""
     full = url + ("?" + urllib.parse.urlencode(params) if params else "")
     request = urllib.request.Request(full, headers={"User-Agent": _USER_AGENT,
                                                     "Accept": "application/json"})
-    try:
-        with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        # openFDA answers "no match" with a 404, and ChEMBL refuses a name it cannot
-        # parse with a 400. Neither is the source being down.
-        if exc.code in (400, 404):
-            return {}
-        raise
+    for attempt in range(SERVER_RETRIES):
+        try:
+            with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            # openFDA answers "no match" with a 404, and ChEMBL refuses a name it cannot
+            # parse with a 400. Neither is the source being down.
+            if exc.code in (400, 404):
+                return {}
+            if exc.code >= 500 and attempt + 1 < SERVER_RETRIES:
+                time.sleep(_RETRY_PAUSE_S * (attempt + 1))
+                continue
+            raise
+    return {}
 
 
 # --- pure parsers -----------------------------------------------------------------
@@ -276,7 +288,7 @@ class PharmacologyFetcher(BaseFetcher):
             assets = self._assets(conn)
         finally:
             conn.close()
-        out, errors = [], []
+        out, errors, failed = [], [], []
         for asset in assets:
             try:
                 molecules = self._resolve(asset)
@@ -298,7 +310,9 @@ class PharmacologyFetcher(BaseFetcher):
                             "mechanisms": mechanisms, "label": label})
             except Exception as exc:     # one drug's lookup failing is not the run's
                 errors.append(f"{asset.get('generic_name') or asset.get('brand_name')}: {exc}")
-        return {"assets": out, "errors": errors[:20], "asked": len(assets)}
+                failed.append(asset["id"])
+        return {"assets": out, "errors": errors[:20], "asked": len(assets),
+                "answered": [a["asset_id"] for a in out], "failed": failed}
 
     def normalise(self, raw) -> list[dict]:
         rows = []
@@ -345,7 +359,8 @@ class PharmacologyFetcher(BaseFetcher):
                                  "source_url": url})
         self._summary = {"asked": raw.get("asked", 0),
                          "resolved": sum(1 for a in raw.get("assets") or [] if a["molecules"]),
-                         "errors": raw.get("errors") or []}
+                         "errors": raw.get("errors") or [],
+                         "answered": raw.get("answered")}
         return rows
 
     def snapshot(self, rows: list[dict]) -> None:
@@ -384,12 +399,18 @@ class PharmacologyFetcher(BaseFetcher):
         summary = getattr(self, "_summary", {})
         conn = db.get_connection(self.db_path)
         try:
-            ids = [r[0] for r in conn.execute(
-                "SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id"
-                " WHERE c.ticker = ?", (self.ticker,))]
-            if ids and (rows or summary.get("asked")):
+            # Only the drugs this run actually answered for are replaced. A drug whose
+            # lookup failed keeps what it had: replacing the company wholesale cost AbbVie
+            # 203 rows on a run where ChEMBL answered 500 to a few dozen of its drugs.
+            ids = summary.get("answered")
+            if ids is None:
+                ids = [r[0] for r in conn.execute(
+                    "SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id"
+                    " WHERE c.ticker = ?", (self.ticker,))]
+            for start in range(0, len(ids), 500):
+                chunk = ids[start:start + 500]
                 conn.execute(f"DELETE FROM asset_pharmacology WHERE asset_id IN "
-                             f"({','.join('?' * len(ids))})", ids)
+                             f"({','.join('?' * len(chunk))})", chunk)
             for r in rows:
                 conn.execute(
                     "INSERT OR IGNORE INTO asset_pharmacology"

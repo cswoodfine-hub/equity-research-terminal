@@ -609,7 +609,9 @@ def _clean_generic(name: str | None) -> str | None:
     words = [w for w in name.strip().split() if w.lower().strip(",") not in _SALTS]
     text = " ".join(words) or name.strip()
     text = _BIOLOGIC_SUFFIX.sub("", _PREFIX.sub("", text))
-    return text[:1].upper() + text[1:].lower() if text.isupper() or text.istitle() else text
+    if text.isupper() or text.istitle():
+        text = text.lower()
+    return text[:1].upper() + text[1:]
 
 
 def compound_name(cand: dict, pharm: dict) -> str:
