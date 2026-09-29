@@ -84,6 +84,8 @@ from fetchers.press_page import PressPageFetcher
 from fetchers.prices import (FiveMinuteBarsFetcher, HourlyBarsFetcher,
                              IntradayPricesFetcher, PricesFetcher)
 from fetchers.product_revenue_sec import ProductRevenueFetcher
+from fetchers.pharmacology import PharmacologyFetcher
+from fetchers.trial_results import TrialResultsFetcher
 from fetchers.trials_completed import TrialsCompletedFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 
@@ -93,6 +95,23 @@ DEFAULT_TICKER = "LLY"
 # company, so this also caps concurrent requests per host: 4 workers keeps EDGAR well
 # under its 10 requests/second limit.
 MAX_WORKERS = int(os.getenv("ER_TOOL_REFRESH_WORKERS", "4"))
+
+
+def _big_pharma(company, db_path) -> bool:
+    """Whether the company is read on the big pharma engine, by the same rule the
+    universe split uses. False where it cannot be told, so an unplaced company does not
+    run the heavier sources."""
+    try:
+        import pos_granular
+        conn = db.get_connection(db_path)
+        try:
+            row = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                               (company["ticker"],)).fetchone()
+            return bool(row) and pos_granular.big_pharma(conn, row["id"])
+        finally:
+            conn.close()
+    except Exception:
+        return False
 
 
 def _company_fetchers(company, db_path):
@@ -127,6 +146,13 @@ def _company_fetchers(company, db_path):
         fetchers.append(ConsensusFmpFetcher(company["ticker"], db_path))
     # The keyless street feed: annual EPS and the price target, for every listed company.
     fetchers.append(ConsensusNasdaqFetcher(company["ticker"], db_path))
+    # What each drug is and what its trials posted, for the indication landscape. Big
+    # pharma only for now, which is where the landscape is read: the results fetch alone
+    # is some 4,800 studies there. Both run after the trial fetchers above, whose asset
+    # mapping they read.
+    if _big_pharma(company, db_path):
+        fetchers.append(PharmacologyFetcher(company["ticker"], db_path))
+        fetchers.append(TrialResultsFetcher(company["ticker"], db_path))
     if company["is_sec_filer"] and company["cik"]:
         fetchers.append(FinancialsEdgarFetcher(company["ticker"], db_path))
         fetchers.append(FilingsEdgarFetcher(company["ticker"], db_path))
