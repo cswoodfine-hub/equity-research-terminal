@@ -291,12 +291,14 @@ def candidates(conn, members: list[dict]) -> dict:
     am = ",".join("?" * len(found))
     for r in conn.execute(
             f"""SELECT a.id, a.generic_name, a.brand_name, a.internal_code, a.active_ingredients,
-                       a.modality, a.is_marketed, c.ticker, c.name AS company
+                       a.modality, a.is_marketed, a.molecule_id, c.ticker, c.name AS company
                   FROM assets a JOIN companies c ON c.id = a.owner_company_id
                  WHERE a.id IN ({am})""", tuple(found)):
         c = found[r["id"]]
         c.update({"name": r["brand_name"] or r["generic_name"] or r["internal_code"],
-                  "generic": r["generic_name"], "ticker": r["ticker"],
+                  "generic": r["generic_name"], "brand": r["brand_name"],
+                  "code": r["internal_code"], "molecule_id": r["molecule_id"],
+                  "ticker": r["ticker"],
                   "company": r["company"], "is_marketed": bool(r["is_marketed"]),
                   "modality": r["modality"], "_names": _names(dict(r))})
     # Where nothing on this indication stages the asset (a seed alone links it), its
@@ -592,6 +594,130 @@ def _readout_quotes(conn, cands: dict) -> dict:
     return out
 
 
+# --- compounds, not brands ------------------------------------------------------------
+_BIOLOGIC_SUFFIX = re.compile(r"-[a-z]{4}$", re.I)       # FDA's four-letter suffix: -nxki
+_PREFIX = re.compile(r"^(fam|ado)-", re.I)
+
+
+def _clean_generic(name: str | None) -> str | None:
+    """A generic name as the compound's name: no salt word, no biologic suffix, no
+    'fam-' prefix. 'Osimertinib Mesylate' is osimertinib; 'Fam-Trastuzumab
+    Deruxtecan-Nxki' is trastuzumab deruxtecan."""
+    if not name or not name.strip():
+        return None
+    from fetchers.pharmacology import _SALTS
+    words = [w for w in name.strip().split() if w.lower().strip(",") not in _SALTS]
+    text = " ".join(words) or name.strip()
+    text = _BIOLOGIC_SUFFIX.sub("", _PREFIX.sub("", text))
+    return text[:1].upper() + text[1:].lower() if text.isupper() or text.istitle() else text
+
+
+def compound_name(cand: dict, pharm: dict) -> str:
+    """The name of what the drug is: ChEMBL's name for the molecule where it resolved,
+    else the generic name cleaned, else the code the company uses, else the brand."""
+    rows = (pharm or {}).get("molecule") or [
+        {"value": x["detail"]} for x in (pharm or {}).get("molecule_type", []) if x.get("detail")]
+    chembl = [_clean_generic(x["value"]) for x in rows if x.get("value")]
+    if chembl:
+        return " + ".join(dict.fromkeys(n for n in chembl if n))
+    code = cand.get("code") or ""
+    if re.fullmatch(r"(NDA|BLA|ANDA)\s*\d+", code, re.I):
+        code = ""
+    return (_clean_generic(cand.get("generic")) or code or cand.get("brand")
+            or cand.get("name") or "unnamed")
+
+
+def compound_groups(cands: dict, pharm: dict) -> list[list[int]]:
+    """A company's assets that are one compound, by the book's molecule or by ChEMBL's."""
+    parent = {a: a for a in cands}
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    def join(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    seen: dict = {}
+    for aid, c in cands.items():
+        keys = [("mol", c.get("molecule_id"))] if c.get("molecule_id") else []
+        ph = pharm.get(aid) or {}
+        chembl = sorted({x["ref"] for x in (ph.get("molecule") or ph.get("molecule_type", []))
+                         if x.get("ref")})
+        if chembl:
+            keys.append(("chembl", tuple(chembl)))
+        for k in keys:
+            key = (c.get("ticker"), k)
+            if key in seen:
+                join(seen[key], aid)
+            else:
+                seen[key] = aid
+    out: dict = {}
+    for aid in cands:
+        out.setdefault(find(aid), []).append(aid)
+    return list(out.values())
+
+
+def _merge(ids: list[int], cands: dict, pharm: dict, lines: dict, pool: dict,
+           quotes: dict, labelled: set) -> dict:
+    """One compound from its brands: trials and links pooled, the furthest stage, the
+    model's values summed across brands, the pharmacology unioned."""
+    members = [cands[a] for a in ids]
+    rep = min(ids, key=lambda a: (not cands[a].get("is_marketed"), a))
+    base = dict(cands[rep])
+    trials: dict = {}
+    names, linked = [], []
+    for c in members:
+        trials.update(c["trials"])
+        names += c.get("_names") or []
+        linked += [x for x in c["linked_by"] if x not in linked]
+    best_phase = max((c["phase_here"] for c in members if c["phase_here"]),
+                     key=lambda p: _PHASE_RANK.get(p, -1), default=None)
+    p: dict = {}
+    for a in ids:
+        for kind, items in (pharm.get(a) or {}).items():
+            have = {x["value"] for x in p.get(kind, [])}
+            p.setdefault(kind, []).extend(x for x in items if x["value"] not in have)
+    base.update({"trials": trials, "_names": list(dict.fromkeys(names)),
+                 "linked_by": linked, "phase_here": best_phase,
+                 "is_marketed": any(c.get("is_marketed") for c in members),
+                 "phase_elsewhere": all(c.get("phase_elsewhere") for c in members),
+                 "modality": next((c.get("modality") for c in members if c.get("modality")),
+                                  None)})
+    base["name"] = compound_name(base, p)
+    brands = sorted({c["brand"] for c in members if c.get("brand")
+                     and c["brand"].lower() != base["name"].lower()})
+    model_lines = [lines[a] for a in ids if lines.get(a)]
+    line = None
+    if model_lines:
+        years = [y for ln in model_lines
+                 for y, v in zip(ln.get("years") or [], ln.get("revenue_share") or [])
+                 if v and v > 0]
+        values = [ln.get("per_share") for ln in model_lines if ln.get("per_share") is not None]
+        peaks = [ln.get("peak_revenue") for ln in model_lines if ln.get("peak_revenue")]
+        line = {"per_share": sum(values) if values else None,
+                "pos": max((ln.get("pos") for ln in model_lines if ln.get("pos") is not None),
+                           default=None),
+                "peak_revenue": sum(peaks) if peaks else None,
+                "peak_year": max((ln.get("peak_year") for ln in model_lines
+                                  if ln.get("peak_year")), default=None),
+                "first_year": min(years) if years else None,
+                "counted": any(ln.get("counted", True) for ln in model_lines),
+                "currency": model_lines[0].get("currency"),
+                "brands_modelled": len(model_lines)}
+    pooled = [(pool.get("assets") or {}).get(a) for a in ids]
+    pooled = [x for x in pooled if x]
+    return {"_cand": base, "_pharm": p, "_line": line, "asset_ids": sorted(ids),
+            "brands": brands, "on_label": any(a in labelled for a in ids),
+            "pool": max(pooled, key=lambda x: x.get("peak_uncrowded") or 0) if pooled else None,
+            "readouts": sorted((q for a in ids for q in quotes.get(a, [])),
+                               key=lambda q: q.get("date") or "", reverse=True)[:3]}
+
+
 # --- the view ------------------------------------------------------------------------
 def landscape(db_path, indication_id: int, verdict_for=None) -> dict | None:
     conn = db.get_connection(db_path)
@@ -616,25 +742,37 @@ def landscape(db_path, indication_id: int, verdict_for=None) -> dict | None:
         conn.close()
     lines = _model_lines(db_path, {c["ticker"] for c in cands.values()}, verdict_for)
 
+    # One row a compound, not a brand. Zepbound and Mounjaro are one drug, tirzepatide,
+    # sold under two names for two labels; comparing them as rivals, or naming the
+    # compound by whichever brand a trial happened to be filed under, misreads the
+    # landscape. A company's assets are one compound where the book's molecule grouping
+    # or the ChEMBL molecule says so (Rybelsus, filed with no generic name, is
+    # semaglutide by ChEMBL); two companies' versions of one molecule stay apart, since
+    # a biosimilar is a rival.
+    groups = compound_groups(cands, pharm)
+    merged: dict = {}
+    for members_ids in groups:
+        rep = min(members_ids, key=lambda a: (not cands[a].get("is_marketed"), a))
+        merged[rep] = _merge(members_ids, cands, pharm, lines, pool, quotes, labelled)
+    cands_by_rep = {rep: m["_cand"] for rep, m in merged.items()}
+    pharm_by_rep = {rep: m["_pharm"] for rep, m in merged.items()}
+
     rows = []
-    for aid, c in cands.items():
-        p = pharm.get(aid) or {}
-        line = lines.get(aid) or {}
-        years = [y for y, v in zip(line.get("years") or [], line.get("revenue_share") or [])
-                 if v and v > 0]
-        pooled = (pool.get("assets") or {}).get(aid)
+    for rep, m in merged.items():
+        c, p, line = m["_cand"], m["_pharm"], m["_line"]
         rows.append({
-            "asset_id": aid, "name": c["name"], "generic": c.get("generic"),
+            "asset_id": rep, "asset_ids": m["asset_ids"], "name": c["name"],
+            "brands": m["brands"], "generic": None,
             "ticker": c["ticker"], "company": c["company"],
             # A marketed product reached by its trials is on sale for something, not
             # necessarily for this: Verzenio was trialled in lung cancer and is sold for
             # breast. Its own label says which, and where the label does not name the
             # disease the stage says what it reached here beside the fact it sells.
             "stage": ("Marketed" if c["is_marketed"] and (
-                          aid in labelled or not c["phase_here"])
+                          m["on_label"] or not c["phase_here"])
                       else f'Marketed · {c["phase_here"]} here' if c["is_marketed"]
                       else (c["phase_here"] or "not staged")),
-            "on_label": aid in labelled,
+            "on_label": m["on_label"],
             "phase_here": c["phase_here"], "is_marketed": c["is_marketed"],
             "phase_elsewhere": bool(c.get("phase_elsewhere")),
             "linked_by": c["linked_by"], "modality": c.get("modality"),
@@ -649,14 +787,9 @@ def landscape(db_path, indication_id: int, verdict_for=None) -> dict | None:
             "trials": sorted(c["trials"].values(), key=lambda t: t["completion"] or "",
                              reverse=True),
             "with_results": sum(1 for n in c["trials"] if n in have),
-            "model": ({"per_share": line.get("per_share"), "pos": line.get("pos"),
-                       "peak_revenue": line.get("peak_revenue"),
-                       "peak_year": line.get("peak_year"),
-                       "first_year": years[0] if years else None,
-                       "counted": line.get("counted", True),
-                       "currency": line.get("currency")} if line else None),
-            "pool": pooled,
-            "readouts": quotes.get(aid, []),
+            "model": line,
+            "pool": m["pool"],
+            "readouts": m["readouts"],
         })
     rank = {"Marketed": 9}
     rows.sort(key=lambda r: (-(rank.get(r["stage"]) or (8 if r["is_marketed"] else
@@ -669,8 +802,8 @@ def landscape(db_path, indication_id: int, verdict_for=None) -> dict | None:
         "candidates": rows,
         "companies": sorted({r["ticker"] for r in rows}),
         "pool": {k: v for k, v in pool.items() if k != "assets"} if pool else None,
-        "endpoints": endpoints(cands, outcomes, analyses),
-        "safety": safety(cands, safety_rows, events, pharm),
+        "endpoints": endpoints(cands_by_rep, outcomes, analyses),
+        "safety": safety(cands_by_rep, safety_rows, events, pharm_by_rep),
         "coverage": {
             "candidates": len(rows),
             "with_mechanism": sum(1 for r in rows if r["mechanisms"]),

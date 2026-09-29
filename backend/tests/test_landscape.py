@@ -108,11 +108,12 @@ def land(tmp_path, monkeypatch):
 
 def test_the_landscape_takes_the_incumbent_by_its_trial_and_the_rival_by_its_pipeline(land):
     names = {c["name"]: c for c in land["candidates"]}
-    assert set(names) == {"Zepbound", "Cagrilintide"}          # not baricitinib
-    assert names["Zepbound"]["linked_by"] == ["trial"]
-    assert names["Zepbound"]["stage"] == "Marketed"
+    assert set(names) == {"Tirzepatide", "Cagrilintide"}       # not baricitinib
+    assert names["Tirzepatide"]["brands"] == ["Zepbound"]      # the compound, its brand
+    assert names["Tirzepatide"]["linked_by"] == ["trial"]
+    assert names["Tirzepatide"]["stage"] == "Marketed"
     assert names["Cagrilintide"]["stage"] == "Phase 3"
-    assert names["Zepbound"]["mechanisms"][0]["value"].startswith("Glucagon-like")
+    assert names["Tirzepatide"]["mechanisms"][0]["value"].startswith("Glucagon-like")
 
 
 def test_each_arm_reads_against_the_placebo_of_its_own_trial(land):
@@ -124,7 +125,7 @@ def test_each_arm_reads_against_the_placebo_of_its_own_trial(land):
 
 
 def test_safety_pools_the_drug_arms_against_placebo_in_the_same_trials(land):
-    s = next(x for x in land["safety"] if x["name"] == "Zepbound")
+    s = next(x for x in land["safety"] if x["name"] == "Tirzepatide")
     assert s["serious_rate"] == pytest.approx(40 / 630)
     assert s["placebo_serious_rate"] == pytest.approx(44 / 643)
     assert s["withdrawn_rate"] == pytest.approx(39 / 630)
@@ -142,7 +143,7 @@ def test_a_marketed_drug_is_marketed_here_only_where_its_label_names_the_disease
     conn.close()
     monkeypatch.setattr(L, "_big_pharma_ids", lambda conn: {1, 2})
     monkeypatch.setattr(L, "_model_lines", lambda db_path, tickers, verdict_for=None: {})
-    zep = next(c for c in L.landscape(path, 1)["candidates"] if c["name"] == "Zepbound")
+    zep = next(c for c in L.landscape(path, 1)["candidates"] if c["name"] == "Tirzepatide")
     assert zep["stage"] == "Marketed · Phase 3 here" and not zep["on_label"]
 
 
@@ -154,3 +155,35 @@ def test_the_comparator_is_placebo_else_the_control_else_the_other_of_two_arms()
                              ["pembrolizumab"])
     assert kind == "comparator" and ref["group_title"].startswith("Docetaxel")
     assert L.comparator([arm("Arm A"), arm("Arm B"), arm("Arm C")], ["x"]) == (None, None)
+
+
+def test_two_brands_of_one_molecule_are_one_compound(tmp_path, monkeypatch):
+    """Mounjaro and Zepbound are both tirzepatide: one row, both brands, both trials."""
+    path = _book(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("UPDATE assets SET molecule_id = 1 WHERE id = 1")
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, brand_name,"
+                 " is_marketed, molecule_id) VALUES (4, 1, 'Tirzepatide', 'Mounjaro', 1, 1)")
+    conn.execute("INSERT INTO completed_trials (nct_id, sponsor_company_id, asset_id, title,"
+                 " phase, conditions) VALUES ('NCT4', 1, 4, 'SURMOUNT-2', 'Phase 3', ?)",
+                 (json.dumps(["Obesity"]),))
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr(L, "_big_pharma_ids", lambda conn: {1, 2})
+    monkeypatch.setattr(L, "_model_lines", lambda db_path, tickers, verdict_for=None: {
+        1: {"per_share": 71.77, "pos": 1.0, "peak_revenue": 30000, "peak_year": 2031,
+            "years": [2026], "revenue_share": [1.0], "currency": "USD"},
+        4: {"per_share": 146.87, "pos": 1.0, "peak_revenue": 72000, "peak_year": 2028,
+            "years": [2026], "revenue_share": [1.0], "currency": "USD"}})
+    land = L.landscape(path, 1)
+    tirz = [c for c in land["candidates"] if c["name"] == "Tirzepatide"]
+    assert len(tirz) == 1
+    assert tirz[0]["brands"] == ["Mounjaro", "Zepbound"]
+    assert {t["nct_id"] for t in tirz[0]["trials"]} == {"NCT1", "NCT4"}
+    assert tirz[0]["model"]["per_share"] == pytest.approx(71.77 + 146.87)
+
+
+def test_a_generic_name_is_cleaned_to_the_compound():
+    assert L._clean_generic("Osimertinib Mesylate") == "Osimertinib"
+    assert L._clean_generic("Fam-Trastuzumab Deruxtecan-Nxki") == "Trastuzumab deruxtecan"
+    assert L._clean_generic("Cemiplimab-Rwlc") == "Cemiplimab"

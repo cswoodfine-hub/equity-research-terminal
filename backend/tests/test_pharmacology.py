@@ -118,3 +118,21 @@ def test_a_generic_name_joined_by_semicolons_is_a_combination():
              "active_ingredients": None}
     assert P.ingredient_names(asset) == ["Ethinyl Estradiol", "Norethindrone Acetate"]
     assert all(";" not in n for n in P.names_for(asset))
+
+
+def test_a_code_with_its_dose_is_looked_up_by_the_code_too():
+    names = P.names_for({"generic_name": "AZD9291 80 mg/40 mg"})
+    assert names[:2] == ["AZD9291", "AZD9291 80 mg/40 mg"]
+    assert "LY4515100" in P.names_for({"generic_name": "LY4515100 via SAD"})
+
+
+def test_each_molecule_of_a_combination_is_its_own_row():
+    raw = {"asked": 1, "assets": [{"asset_id": 1, "label": None, "mechanisms": [],
+                                   "molecules": [
+                                       {"chembl_id": "C1", "name": "CANAGLIFLOZIN",
+                                        "molecule_type": "Small molecule"},
+                                       {"chembl_id": "C2", "name": "METFORMIN",
+                                        "molecule_type": "Small molecule"}]}]}
+    rows = P.PharmacologyFetcher("X").normalise(raw)
+    assert {r["value"] for r in rows if r["kind"] == "molecule"} == {"CANAGLIFLOZIN",
+                                                                      "METFORMIN"}

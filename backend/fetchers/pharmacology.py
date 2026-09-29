@@ -144,6 +144,11 @@ def names_for(asset: dict) -> list[str]:
         if not name or not name.strip() or ";" in name:
             continue
         name = name.strip()
+        # A code named with its dose or its study part ("AZD9291 80 mg/40 mg",
+        # "LY4515100 via SAD", "TOUR006 - 20 MG") is looked up by the code alone too.
+        code = re.match(r"^([A-Z]{2,6}-?\d{3,}[A-Z]?)\b(?=\s)", name)
+        if code and code.group(1) != name:
+            names.append(code.group(1))
         # An application number is how openFDA filed the product, not a drug name.
         if re.fullmatch(r"(NDA|BLA|ANDA)\s*\d+", name, re.I):
             continue
@@ -300,11 +305,18 @@ class PharmacologyFetcher(BaseFetcher):
         for a in raw.get("assets") or []:
             aid = a["asset_id"]
             for m in a["molecules"]:
+                url = f"https://www.ebi.ac.uk/chembl/compound_report_card/{m['chembl_id']}/"
+                # The molecule itself, one row each: a combination of two small molecules
+                # kept only its first under a key on (asset, kind, value) when the row's
+                # value was the type, which is how Invokamet lost its metformin.
+                rows.append({"asset_id": aid, "kind": "molecule",
+                             "value": m.get("name") or m["chembl_id"],
+                             "detail": m.get("molecule_type"), "ref": m["chembl_id"],
+                             "source": "chembl", "source_url": url})
                 rows.append({"asset_id": aid, "kind": "molecule_type",
                              "value": m.get("molecule_type") or "unknown",
                              "detail": m.get("name"), "ref": m["chembl_id"],
-                             "source": "chembl",
-                             "source_url": f"https://www.ebi.ac.uk/chembl/compound_report_card/{m['chembl_id']}/"})
+                             "source": "chembl", "source_url": url})
             for x in a["mechanisms"]:
                 url = f"https://www.ebi.ac.uk/chembl/compound_report_card/{x['molecule']}/"
                 rows.append({"asset_id": aid, "kind": "mechanism", "value": x["mechanism"],

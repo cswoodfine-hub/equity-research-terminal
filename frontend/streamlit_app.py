@@ -1944,7 +1944,7 @@ def _landscape_candidates(cands: list) -> None:
     """One row a drug, eight columns in reading order: which drug, how far along, what it
     is, how it is given, what it is worth, its share of the pool, its evidence and any
     boxed warning. Thirteen equal columns made every row a wall of the same weight."""
-    head = ("drug", "stage", "what it is", "given", "value a share", "pool kept",
+    head = ("compound", "stage", "what it is", "given", "value a share", "pool kept",
             "evidence", "")
     rows = ""
     for c in cands:
@@ -1973,9 +1973,8 @@ def _landscape_candidates(cands: list) -> None:
         rows += (
             f'<tr><td>{html_escape(c["name"] or "")} '
             f'<span class="m">{html_escape(c["ticker"])}</span>'
-            + (f'<span class="sub">{html_escape(c["generic"])}</span>'
-               if c.get("generic") and c["generic"].lower() != (c["name"] or "").lower()
-               else "") + '</td>'
+            + (f'<span class="sub">sold as {html_escape(", ".join(c["brands"]))}</span>'
+               if c.get("brands") else "") + '</td>'
             f'<td>{_stage_chip(stage)}</td>'
             f'<td>{html_escape(mech)}'
             + (f'<span class="sub">{html_escape(targets)}</span>' if targets else "")
