@@ -537,7 +537,7 @@ def _blend(low: str, high: str, t: float) -> str:
 
 def heatmap_grid(row_labels: Sequence[str], col_labels: Sequence[str],
                  cells: dict, width: int = 980, height: int = 460,
-                 flag_note: str = "uncurated") -> str:
+                 flag_note: str = "uncurated", highlight: str | None = None) -> str:
     """Universe grid. cells[(row, col)] = {count, weight 0..1, flagged bool}.
 
     A missing cell stays ground with no figure: absence of data is not a zero.
@@ -554,8 +554,14 @@ def heatmap_grid(row_labels: Sequence[str], col_labels: Sequence[str],
                          "middle", MONO))
     for i, row in enumerate(row_labels):
         cy = pad_t + ch * i
-        out.append(_text(pad_l - 8, cy + ch / 2 + 3.5, row, 10, TK.TEXT, "end", MONO,
-                         "600"))
+        # The open company's row is marked, so it can be found among eighteen.
+        mine = highlight is not None and row == highlight
+        if mine:
+            out.append(f'<rect x="2" y="{cy + 1:.1f}" width="{width - 4:.1f}"'
+                       f' height="{ch - 2:.1f}" fill="none" stroke="{TK.FLAG}"'
+                       f' stroke-width="1.4"/>')
+        out.append(_text(pad_l - 8, cy + ch / 2 + 3.5, row, 10,
+                         TK.FLAG if mine else TK.TEXT, "end", MONO, "700" if mine else "600"))
         for j, col in enumerate(col_labels):
             cx = pad_l + cw * j
             cell = cells.get((row, col))

@@ -825,9 +825,23 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .land tr.grp td {{ border-top: 1px solid var(--rule-strong); }}
 .land a {{ color: var(--text); text-decoration: none; }}
 .land a:hover {{ text-decoration: underline; }}
-.land .tag {{ font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase;
-             color: var(--muted); border: 1px solid var(--rule-strong); padding: 0 4px;
-             margin-right: 3px; white-space: nowrap; }}
+.land .tag {{ display: inline-block; font-size: 9.5px; letter-spacing: 0.05em;
+             text-transform: uppercase; color: var(--muted);
+             border: 1px solid var(--rule-strong); padding: 0 4px; margin: 0 4px 2px 0;
+             white-space: nowrap; }}
+.land .tag.warn {{ color: var(--flag); border-color: var(--flag); cursor: help; }}
+/* A stage reads as a chip in its phase colour, so the column scans by colour and the
+   word is still there for anyone who does not read the colour. */
+.land .stage {{ display: inline-block; padding: 1px 6px; font-size: 10.5px;
+               white-space: nowrap; color: var(--ground); font-weight: 600; }}
+.land .stage.s-mkt {{ background: var(--phase-approved); }}
+.land .stage.s-mkt-here {{ background: transparent; color: var(--text);
+                          border: 1px solid var(--phase-approved); font-weight: 500; }}
+.land .stage.s-p3 {{ background: var(--phase-3); }}
+.land .stage.s-p2 {{ background: var(--phase-2); }}
+.land .stage.s-p1 {{ background: var(--phase-1); color: var(--text); }}
+.land td .sub {{ display: block; color: var(--muted); font-size: 10.5px; margin-top: 1px; }}
+.land tbody tr:hover td {{ background: var(--panel); }}
 
 /* The note is the one piece of prose, so it gets the reading face. Sized to sit in a
    column rather than across the page: at 15.5px over the full width it set a measure of
@@ -1002,14 +1016,16 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 /* The cohort charts below take the height. A scatter of eighteen companies and a matrix
    of eighteen rows are the two that reward size; the pair at the top is a list beside a
    two-line chart, and neither needs as much. */
-[data-baseweb="tab-panel"]:has(.comps-anchor) svg {{
-  max-height: clamp(260px, calc(60vh - 100px), 420px); width: 100%; max-width: 100%;
-}}
-/* The trend chart is two lines over a decade and reads fine short, so it keeps the top
-   row down to the height of the measure list beside it. */
-[data-baseweb="tab-panel"]:has(.comps-anchor) .comps-pair svg {{
-  max-height: clamp(150px, calc(28vh - 40px), 210px);
-}}
+/* No height cap any more. Each chart now has a view of its own, and a cap on height
+   with the width at 100% shrank a wide chart's width to keep its aspect, and its text
+   with it: the trend chart's axis labels came out at four pixels, and a forty-arm
+   efficacy chart would have been squeezed to a quarter of its size. */
+[data-baseweb="tab-panel"]:has(.comps-anchor) svg {{ max-width: 100%; }}
+
+/* The question a view answers, above it. Prose face, one step up from a note, so it
+   reads as the view's opening line rather than a caption. */
+.view-intro {{ font-family: var(--font-prose); font-size: 14px; line-height: 1.45;
+              color: var(--text); opacity: 0.86; max-width: 88ch; margin: 0.2rem 0 0.7rem; }}
 
 /* Head to head: one company each side, the measure between them, so the eye runs down
    the middle and compares across it. The winning side is marked in the up colour and

@@ -1686,6 +1686,48 @@ def _mm() -> str:
     return "mm" if cur == "USD" else f"mm {cur}"
 
 
+def _intro(text: str) -> None:
+    """The question a view answers, in one line above it."""
+    st.markdown(f'<div class="view-intro">{html_escape(text)}</div>',
+                unsafe_allow_html=True)
+
+
+# The screen's headings, each with what it measures on hover. The abbreviations they
+# replaced ("Cur", "Rev/late trial", "Unpriced 5y", "Cat 12m", "TTM px") could not be
+# read without the code.
+_SCREEN_COLUMNS = {
+    "Ticker": st.column_config.Column("Ticker", pinned=True, width="small"),
+    "90d": st.column_config.LineChartColumn(
+        "90 days", width="small", help="Daily closes over the last 90 days."),
+    "Currency": st.column_config.Column(
+        "Currency", width="small",
+        help="The currency the company files in. Revenue is converted to dollars; "
+             "the ratios are as filed."),
+    "Revenue $bn": st.column_config.Column(
+        help="Last full fiscal year's revenue, converted to US dollars at the latest "
+             "ECB reference rate."),
+    "Growth %": st.column_config.Column(help="Revenue growth over the prior fiscal year."),
+    "Net margin %": st.column_config.Column(help="Net income over revenue, last fiscal year."),
+    "R&D % sales": st.column_config.Column(help="R&D expense over revenue, last fiscal year."),
+    "Late-stage trials": st.column_config.Column(
+        help="Lead-sponsored Phase 3 and Phase 2/3 trials on file."),
+    "Revenue per late trial $bn": st.column_config.Column(
+        help="Revenue over late-stage trials: how much of today's business each "
+             "late-stage trial stands against."),
+    "Revenue losing exclusivity 5y %": st.column_config.Column(
+        help="Share of revenue from products whose exclusivity ends in the next five years."),
+    "Unpriced exclusivity losses 5y": st.column_config.Column(
+        help="Products losing exclusivity in the next five years whose revenue is not on "
+             "file, so the share beside it cannot count them."),
+    "Catalysts 12m": st.column_config.Column(
+        help="Pending catalysts (readouts, PDUFA dates) in the next twelve months."),
+    "Share price 12m %": st.column_config.Column(
+        help="Share price change over the trailing twelve months."),
+    "Market cap $bn": st.column_config.Column(help="Market capitalisation, US dollars."),
+    "P/E": st.column_config.Column(help="Share price over trailing earnings per share."),
+}
+
+
 @st.cache_data(ttl=600, show_spinner=False)
 def _landscape_index(api_base: str):
     try:
@@ -1711,8 +1753,7 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
     efficacy their trials posted against placebo, and their safety record against placebo
     in the same trials.
     """
-    section("Indication landscape",
-            basis="every big pharma candidate for one disease, whatever its mechanism")
+    section("Indication landscape")
     index = _landscape_index(api_base)
     if not index:
         state("No landscape yet", "the API returned no indications with a big pharma "
@@ -1772,56 +1813,81 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
     if len(members) > 1:
         note("One population under several names, read together: " + ", ".join(members))
 
-    tab_c, tab_e, tab_s = st.tabs(["Candidates", "Efficacy", "Safety"])
-    with tab_c:
+    # A switch, not a third level of tabs: this sits inside the Comps tab's own views,
+    # and tabs inside tabs inside tabs read as three navigations at once.
+    view = st.segmented_control(
+        "View", ["Candidates", "Efficacy", "Safety"], default="Candidates",
+        key=f"land_view_{pick}", label_visibility="collapsed") or "Candidates"
+    if view == "Candidates":
         _landscape_candidates(cands)
-    with tab_e:
+    elif view == "Efficacy":
         _landscape_efficacy(land.get("endpoints") or [], cands, pick)
-    with tab_s:
+    else:
         _landscape_safety(land.get("safety") or [])
 
 
+def _stage_chip(stage: str) -> str:
+    cls = ("s-mkt" if stage == "Marketed" else "s-mkt-here" if stage.startswith("Marketed")
+           else "s-p3" if stage in ("Phase 3", "Phase 2/3") or stage.startswith("Phase 3")
+           else "s-p2" if stage.startswith("Phase 2") else "s-p1")
+    return f'<span class="stage {cls}">{html_escape(stage)}</span>'
+
+
 def _landscape_candidates(cands: list) -> None:
-    head = ("company", "drug", "stage", "modality", "mechanism · target", "route",
-            "a share", "PoS", "peak", "pool kept", "trials", "linked by", "boxed warning")
+    """One row a drug, eight columns in reading order: which drug, how far along, what it
+    is, how it is given, what it is worth, its share of the pool, its evidence and any
+    boxed warning. Thirteen equal columns made every row a wall of the same weight."""
+    head = ("drug", "stage", "what it is", "given", "value a share", "pool kept",
+            "evidence", "")
     rows = ""
     for c in cands:
-        mech = "; ".join(m["value"] for m in c["mechanisms"][:3]) or (
-            "; ".join(c["classes"][:2]) or "no free data")
+        mech = "; ".join(m["value"] for m in c["mechanisms"][:2]) or (
+            "; ".join(c["classes"][:2]) or "mechanism: no free data")
         # A target already named in the mechanism ("PD-1 inhibitor" over "PD-1") says it
         # twice; only a target the mechanism does not spell out is added.
-        targets = ", ".join(t for t in c["targets"][:3]
-                            if t.lower() not in mech.lower())
+        targets = ", ".join(t for t in c["targets"][:3] if t.lower() not in mech.lower())
         model = c.get("model") or {}
         cur = model.get("currency") or ""
-        peak = (f'{model["peak_revenue"]:,.0f}mm {cur if cur != "USD" else ""}'
-                f' {model.get("peak_year") or ""}'.strip()) if model.get("peak_revenue") else "·"
+        value = (f'{model["per_share"]:,.2f}' if model.get("per_share") is not None else "·")
+        value_sub = " · ".join(x for x in (
+            f'PoS {_pct(model.get("pos"), 0)}' if model.get("pos") is not None else "",
+            (f'peak {model["peak_revenue"]:,.0f}mm{" " + cur if cur and cur != "USD" else ""}'
+             f' {model.get("peak_year") or ""}').strip() if model.get("peak_revenue") else "")
+            if x)
         pooled = c.get("pool") or {}
         kept = _pct(pooled.get("ratio"), 0) if pooled.get("pooled") else "·"
         stage = c["stage"] + (" (elsewhere)" if c.get("phase_elsewhere") else "")
-        modality = c.get("modality") or ", ".join(c.get("molecule_type") or []) or "·"
+        modality = c.get("modality") or ", ".join(c.get("molecule_type") or []) or ""
+        route = ", ".join(c["route"]).lower()
         boxed = c.get("boxed_warning") or ""
+        how = " ".join(f'<span class="tag">{html_escape(x)}</span>' for x in c["linked_by"])
+        warn = (f'<span class="tag warn" title="{html_escape(boxed)}">boxed warning</span>'
+                if boxed else "")
         rows += (
-            f'<tr><td class="m">{html_escape(c["ticker"])}</td>'
-            f'<td>{html_escape(c["name"] or "")}'
-            + (f'<br><span class="m">{html_escape(c["generic"])}</span>'
-               if c.get("generic") and c["generic"] != c["name"] else "") + '</td>'
-            f'<td>{html_escape(stage)}</td><td class="m">{html_escape(modality)}</td>'
+            f'<tr><td>{html_escape(c["name"] or "")} '
+            f'<span class="m">{html_escape(c["ticker"])}</span>'
+            + (f'<span class="sub">{html_escape(c["generic"])}</span>'
+               if c.get("generic") and c["generic"].lower() != (c["name"] or "").lower()
+               else "") + '</td>'
+            f'<td>{_stage_chip(stage)}</td>'
             f'<td>{html_escape(mech)}'
-            + (f'<br><span class="m">{html_escape(targets)}</span>' if targets else "")
-            + f'</td><td class="m">{html_escape(", ".join(c["route"]).lower() or "·")}</td>'
-            f'<td class="n">{_land_num(model.get("per_share"), 2)}</td>'
-            f'<td class="n">{_pct(model.get("pos"), 0) if model else "·"}</td>'
-            f'<td class="n">{html_escape(peak)}</td><td class="n">{kept}</td>'
-            f'<td class="n">{c["with_results"]}/{len(c["trials"])}</td>'
-            f'<td>{"".join(f"<span class=tag>{html_escape(x)}</span>" for x in c["linked_by"])}</td>'
-            f'<td class="w" title="{html_escape(boxed)}">{html_escape(_short(boxed, 70)) if boxed else ""}</td></tr>')
-    st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>{"".join(f"<th>{h}</th>" for h in head)}'
+            + (f'<span class="sub">{html_escape(targets)}</span>' if targets else "")
+            + f'</td><td class="m">{html_escape(modality)}'
+            + (f'<span class="sub">{html_escape(route)}</span>' if route else "") + '</td>'
+            f'<td class="n">{value}'
+            + (f'<span class="sub">{html_escape(value_sub)}</span>' if value_sub else "")
+            + f'</td><td class="n">{kept}</td>'
+            f'<td class="n">{c["with_results"]}/{len(c["trials"])} posted'
+            f'<span class="sub">{how}</span></td>'
+            f'<td>{warn}</td></tr>')
+    st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>'
+                f'{"".join(f"<th>{h}</th>" for h in head)}'
                 f'</tr></thead><tbody>{rows}</tbody></table></div>', unsafe_allow_html=True)
-    note("A share is the drug's modelled value per share of its own company, so it ranks a "
-         "drug inside its company, not across companies. Pool kept is the share of its own "
-         "forecast a drug keeps once the patients every claimant draws on are counted once. "
-         "Trials: studies with posted results over studies linked to the indication.")
+    note("Value a share is the drug's modelled value per share of its own company, so it "
+         "ranks a drug within its company, not across companies. Pool kept is the share of "
+         "its own forecast a drug keeps once the patients every claimant draws on are "
+         "counted once. Evidence: trials with posted results over trials linked here, and "
+         "how the drug was linked. Hover a boxed warning to read it.")
 
     # The same candidates by what they act on, which is the axis modality hides.
     by_mech: dict = {}
@@ -1941,32 +2007,37 @@ def _landscape_safety(rows: list) -> None:
                     R.show(chart, css_class="chart-mount stretch")
                 else:
                     note("no rate posted")
-        head = ("drug", "trials", "control", "participants", "serious AE", "control",
-                "withdrawn for AE", "control", "deaths", "control", "commonest events",
-                "boxed warning")
+        def _vs(r, key, digits=1):
+            mine, ctrl = r.get(f"{key}_rate"), r.get(f"placebo_{key}_rate")
+            if mine is None:
+                return "·"
+            return (f'{_pct(mine, digits)}<span class="sub">vs {_pct(ctrl, digits)}</span>'
+                    if ctrl is not None else _pct(mine, digits))
+
+        head = ("drug", "trials", "participants", "serious AE", "withdrawn for AE",
+                "deaths", "commonest events, drug vs control", "")
         body = ""
         for r in rated:
-            events = "; ".join(
-                f'{e["term"]} {_pct(e["rate"], 0)}'
-                + (f' ({_pct(e["placebo_rate"], 0)})' if e.get("placebo_rate") is not None else "")
-                for e in r.get("top_events") or [])
+            events = "<br>".join(
+                f'{html_escape(e["term"])} {_pct(e["rate"], 0)}'
+                + (f' <span class="m">vs {_pct(e["placebo_rate"], 0)}</span>'
+                   if e.get("placebo_rate") is not None else "")
+                for e in (r.get("top_events") or [])[:4])
             boxed = r.get("boxed_warning") or ""
+            warn = (f'<span class="tag warn" title="{html_escape(boxed)}">boxed warning</span>'
+                    if boxed else "")
             body += (f'<tr><td>{html_escape(r["name"])} <span class="m">'
                      f'{html_escape(r["ticker"])}</span></td>'
-                     f'<td class="n">{r["trials"]}</td>'
-                     f'<td class="m">{html_escape(r.get("control_kind") or "none")}</td>'
-                     f'<td class="n">{r.get("participants") or "·"} / '
-                     f'{r.get("placebo_participants") or "·"}</td>'
-                     f'<td class="n">{_pct(r.get("serious_rate"))}</td>'
-                     f'<td class="n">{_pct(r.get("placebo_serious_rate"))}</td>'
-                     f'<td class="n">{_pct(r.get("withdrawn_rate"))}</td>'
-                     f'<td class="n">{_pct(r.get("placebo_withdrawn_rate"))}</td>'
-                     f'<td class="n">{_pct(r.get("deaths_rate"), 2)}</td>'
-                     f'<td class="n">{_pct(r.get("placebo_deaths_rate"), 2)}</td>'
-                     f'<td class="m">{html_escape(events)}</td>'
-                     f'<td class="w" title="{html_escape(boxed)}">'
-                     f'{html_escape(_short(boxed, 60)) if boxed else ""}</td></tr>')
-        st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>{"".join(f"<th>{h}</th>" for h in head)}'
+                     f'<td class="n">{r["trials"]}<span class="sub">'
+                     f'{html_escape(r.get("control_kind") or "no control")}</span></td>'
+                     f'<td class="n">{r.get("participants") or "·"}<span class="sub">'
+                     f'vs {r.get("placebo_participants") or "·"}</span></td>'
+                     f'<td class="n">{_vs(r, "serious")}</td>'
+                     f'<td class="n">{_vs(r, "withdrawn")}</td>'
+                     f'<td class="n">{_vs(r, "deaths", 2)}</td>'
+                     f'<td>{events}</td><td>{warn}</td></tr>')
+        st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>'
+                    f'{"".join(f"<th>{h}</th>" for h in head)}'
                     f'</tr></thead><tbody>{body}</tbody></table></div>', unsafe_allow_html=True)
         note("Drug arms pooled across the drug's trials on this indication, against the "
              "control arms of the same trials: placebo, the arm the sponsor calls the "
@@ -5406,10 +5477,20 @@ with main:
         _peers = set(tickers)
         _peer_rows = lambda rows: [r for r in rows if r.get("ticker") in _peers]
 
-        # Drugs compared across companies on one disease, before companies are compared
-        # with each other. Big pharma only, which is where its sources are fetched.
-        if _engine == "pharma":
-            _indication_landscape(api_base, ticker)
+        # Four questions, four views, rather than one scroll eleven thousand pixels deep:
+        # which drugs compete for a disease, how two companies compare, where every
+        # pipeline stands, and the whole cohort on every measure. Each view opens with the
+        # question it answers, so a reader knows what they are looking at before reading it.
+        _views = (["Indications"] if _engine == "pharma" else []) + [
+            "Head to head", "Pipelines", "Screen"]
+        _vt = dict(zip(_views, st.tabs(_views)))
+        if "Indications" in _vt:
+            with _vt["Indications"]:
+                _intro("Every drug the big pharma companies hold for one disease, whatever "
+                       "its modality or mechanism: what it is, what its trials posted "
+                       "against their comparators, its safety record, and what the model "
+                       "says it is worth.")
+                _indication_landscape(api_base, ticker)
 
         # --- R&D productivity, before the valuation comps ---------------------
         # Every frame this tab draws is built first, in one place. The charts
@@ -5447,31 +5528,38 @@ with main:
         screen_table = pd.DataFrame([{
             "Ticker": row["Ticker"],
             "90d": spark_rows.get(row["Ticker"]) or None,
-            "Cur": row["Cur"],
+            "Currency": row["Cur"],
             # The converted figure, not the filed one: a column that ranks companies
             # cannot hold kroner beside dollars. Cur still names what was filed.
-            "Revenue, $bn": _sc(row["Ticker"], "revenue", 1e-9),
-            "Growth, %": row["Growth"],
-            "Margin, %": row["Net margin"],
-            "R&D, %": row["R&D"],
-            "Late trials": _sc(row["Ticker"], "late_trials"),
-            "Rev/late trial, $bn": _sc(row["Ticker"], "revenue_per_late_trial", 1e-9),
-            "LOE 5y, %": _sc(row["Ticker"], "loe_share_5y", 100),
-            "Unpriced 5y": _sc(row["Ticker"], "loe_unpriced_5y"),
-            "Cat 12m": _sc(row["Ticker"], "catalysts_12m"),
-            "TTM px, %": _sc(row["Ticker"], "ttm_price_change", 100),
-            "Mkt cap, $bn": row["Mkt cap"],
+            "Revenue $bn": _sc(row["Ticker"], "revenue", 1e-9),
+            "Growth %": row["Growth"],
+            "Net margin %": row["Net margin"],
+            "R&D % sales": row["R&D"],
+            "Late-stage trials": _sc(row["Ticker"], "late_trials"),
+            "Revenue per late trial $bn": _sc(row["Ticker"], "revenue_per_late_trial", 1e-9),
+            "Revenue losing exclusivity 5y %": _sc(row["Ticker"], "loe_share_5y", 100),
+            "Unpriced exclusivity losses 5y": _sc(row["Ticker"], "loe_unpriced_5y"),
+            "Catalysts 12m": _sc(row["Ticker"], "catalysts_12m"),
+            "Share price 12m %": _sc(row["Ticker"], "ttm_price_change", 100),
+            "Market cap $bn": row["Mkt cap"],
             "P/E": row["P/E"]} for _, row in display.iterrows()])
         numeric_cols = [c for c in screen_table.columns
-                        if c not in ("Ticker", "Cur", "90d")]
-        int_cols = ("Late trials", "Unpriced 5y", "Cat 12m")
+                        if c not in ("Ticker", "Currency", "90d")]
+        # Coerced so a missing figure is NaN and prints as a dash: an object column
+        # holding None printed the word "None" for AstraZeneca's market cap.
+        for _c in numeric_cols:
+            screen_table[_c] = pd.to_numeric(screen_table[_c], errors="coerce")
+        int_cols = ("Late-stage trials", "Unpriced exclusivity losses 5y", "Catalysts 12m")
         formats = {c: (lambda v, ic=(c in int_cols):
                        T.num(v, 0 if ic else 1)) for c in numeric_cols}
         styled = (screen_table.style
                   .format(formats, na_rep="—", subset=numeric_cols)
                   .map(lambda v: f"color:{T.P.oxblood}"
                        if isinstance(v, (int, float)) and not pd.isna(v) and v < 0
-                       else "", subset=numeric_cols))
+                       else "", subset=numeric_cols)
+                  # The open company's row, so a reader finds themselves in the cohort.
+                  .apply(lambda r: [f"background-color:{TK.PANEL};font-weight:600"
+                                    if r["Ticker"] == ticker else "" for _ in r], axis=1))
         rows = _peer_rows(api_get(api_base, "/pipeline"))
         unattributed = sum(r.get("unattributed", 0) for r in rows)
 
@@ -5484,134 +5572,143 @@ with main:
         # Growth against margin is gone. Both its axes are in the head to head, in the
         # trend chart and in the grid at the foot of the tab, so it was the same two
         # numbers a fourth time, taking room the others needed to be legible.
-        _pair_col, _time_col = st.columns([1, 1.35], gap="medium")
+        with _vt["Head to head"]:
+            _intro("Two companies side by side on the same measures, the better one "
+                   "marked on each, and how the pair got here over the years.")
+            _pair_col, _time_col = st.columns([1, 1.35], gap="medium")
 
-        with _pair_col:
-            # Head to head. The charts below place every company at once, which answers
-            # "who is where" and never "how do these two compare", and that second question
-            # is the one an analyst actually asks out loud. Two picks, one line per measure,
-            # the better side marked. Better is stated per measure rather than assumed:
-            # more revenue is better, a nearer patent cliff is not.
-            _h2h = {r["ticker"]: r for r in comps}
-            for r in _peer_rows(api_get(api_base, "/screen")):
-                _h2h.setdefault(r["ticker"], {}).update(
-                    {k: v for k, v in r.items() if k not in ("ticker", "name")})
-            _order = sorted(_h2h, key=lambda t: -(_h2h[t].get("revenue") or 0))
-            if len(_order) >= 2:
-                section("Head to head", "pick two")
-                _pa, _pb = st.columns(2, gap="medium")
-                with _pa:
-                    _a = st.selectbox("A", _order, index=_order.index(ticker)
-                                      if ticker in _order else 0,
-                                      key=f"h2h_a_{engine}", label_visibility="collapsed")
-                with _pb:
-                    _rest = [t for t in _order if t != _a]
-                    _b = st.selectbox("B", _rest, index=0, key=f"h2h_b_{engine}",
-                                      label_visibility="collapsed")
-                st.markdown(_head_to_head(_h2h.get(_a) or {}, _h2h.get(_b) or {}, _a, _b),
-                            unsafe_allow_html=True)
-                note("Every figure is the one the tables below carry, put side by side. The "
-                     "marked side is the better of the two on that measure only, and better "
-                     "is stated per measure: more revenue and a higher margin are better, a "
-                     "nearer loss of exclusivity is not. A measure missing for either "
-                     "company is left unmarked rather than assumed to be worse.")
+            with _pair_col:
+                # Head to head. The charts below place every company at once, which answers
+                # "who is where" and never "how do these two compare", and that second question
+                # is the one an analyst actually asks out loud. Two picks, one line per measure,
+                # the better side marked. Better is stated per measure rather than assumed:
+                # more revenue is better, a nearer patent cliff is not.
+                _h2h = {r["ticker"]: r for r in comps}
+                for r in _peer_rows(api_get(api_base, "/screen")):
+                    _h2h.setdefault(r["ticker"], {}).update(
+                        {k: v for k, v in r.items() if k not in ("ticker", "name")})
+                _order = sorted(_h2h, key=lambda t: -(_h2h[t].get("revenue") or 0))
+                if len(_order) >= 2:
+                    section("Head to head", "pick two")
+                    _pa, _pb = st.columns(2, gap="medium")
+                    with _pa:
+                        _a = st.selectbox("A", _order, index=_order.index(ticker)
+                                          if ticker in _order else 0,
+                                          key=f"h2h_a_{engine}", label_visibility="collapsed")
+                    with _pb:
+                        _rest = [t for t in _order if t != _a]
+                        _b = st.selectbox("B", _rest, index=0, key=f"h2h_b_{engine}",
+                                          label_visibility="collapsed")
+                    st.markdown(_head_to_head(_h2h.get(_a) or {}, _h2h.get(_b) or {}, _a, _b),
+                                unsafe_allow_html=True)
+                    note("Every figure is the one the tables below carry, put side by side. The "
+                         "marked side is the better of the two on that measure only, and better "
+                         "is stated per measure: more revenue and a higher margin are better, a "
+                         "nearer loss of exclusivity is not. A measure missing for either "
+                         "company is left unmarked rather than assumed to be worse.")
 
 
 
-        with _time_col:
-            if ct_labels and ct_by:
-                # Driven by the two picked beside it rather than by its own company
-                # control: one selection, one comparison, and the pills that used to
-                # duplicate it are gone.
-                section("Compare over time", f"{_a} against {_b}")
-                # Pills, not a radio and a dropdown: every company is one click away and the
-                # selection is readable without opening anything. A dropdown hid which
-                # companies were on the chart behind a closed control.
-                metric_label = st.pills(
-                    "Metric", ["Revenue growth", "Net margin"],
-                    default="Revenue growth", key="comps_metric",
-                    label_visibility="collapsed") or "Revenue growth"
-                metric_key = ("revenue_growth" if metric_label == "Revenue growth"
-                              else "net_margin")
-                # The two chosen for the head to head, in the order they were chosen.
-                picked = [t for t in (_a, _b) if t in ct_by]
-                palette = [TK.UP, TK.ORANGE_BOOK, TK.PURPLE_BOOK, TK.DOWN, TK.FLAG, TK.MUTED]
-                series = [{"name": tk,
-                           "values": [v * 100 if v is not None else None
-                                      for v in ct_by[tk][metric_key]],
-                           "colour": palette[i % len(palette)]}
-                          for i, tk in enumerate(picked)]
-                if series:
-                    R.show(CH.line_chart(series, ct_labels, 1040, 300,
-                                         y_fmt=lambda v: f"{v:.0f}%"),
-                           css_class="chart-mount stretch comps-pair")
+            with _time_col:
+                if ct_labels and ct_by:
+                    # Driven by the two picked beside it rather than by its own company
+                    # control: one selection, one comparison, and the pills that used to
+                    # duplicate it are gone.
+                    section("Compare over time", f"{_a} against {_b}")
+                    # Pills, not a radio and a dropdown: every company is one click away and the
+                    # selection is readable without opening anything. A dropdown hid which
+                    # companies were on the chart behind a closed control.
+                    metric_label = st.pills(
+                        "Metric", ["Revenue growth", "Net margin"],
+                        default="Revenue growth", key="comps_metric",
+                        label_visibility="collapsed") or "Revenue growth"
+                    metric_key = ("revenue_growth" if metric_label == "Revenue growth"
+                                  else "net_margin")
+                    # The two chosen for the head to head, in the order they were chosen.
+                    picked = [t for t in (_a, _b) if t in ct_by]
+                    palette = [TK.UP, TK.ORANGE_BOOK, TK.PURPLE_BOOK, TK.DOWN, TK.FLAG, TK.MUTED]
+                    series = [{"name": tk,
+                               "values": [v * 100 if v is not None else None
+                                          for v in ct_by[tk][metric_key]],
+                               "colour": palette[i % len(palette)]}
+                              for i, tk in enumerate(picked)]
+                    if series:
+                        R.show(CH.line_chart(series, ct_labels, 720, 320,
+                                             y_fmt=lambda v: f"{v:.0f}%"),
+                               css_class="chart-mount stretch comps-pair")
+                    else:
+                        state("No history for these two",
+                              "Neither company has enough reported years to draw a line. "
+                              "Pick another pair beside this.")
+
+
+        with _vt["Pipelines"]:
+            _intro("Every company at once: where each sits on research productivity "
+                   "against commercial performance, and how many compounds each has "
+                   "in each phase of development.")
+            # Everyone at once: where each company sits on research against commercial, and
+            # the shape of every pipeline in one matrix.
+            _score_col, _phase_col = st.columns(2, gap="medium")
+            with _score_col:
+                if placed:
+                    section("R&D against commercial performance", f"{len(placed)} placed")
+                    st.markdown(scorecard_chart.build(placed, highlight=ticker), unsafe_allow_html=True)
+                    note(f"Right of the dashed line, R&D output above the cohort's; above "
+                         f"it, commercial performance above the cohort's. Green is ahead on "
+                         f"both, {ticker} is ringed, and a triangle on the edge sits beyond "
+                         f"the plotted range. Hover a point for its scores.")
+
+
+                # The R&D productivity table is gone and its captions with it: a fourteen
+                # column grid and two hundred words of caveat were the tallest thing on a
+                # tab whose subject is comparison, and every figure in it is a ratio the
+
+            with _phase_col:
+                # charts below already draw. This tab is read as charts.
+                section("Compounds in development by phase",
+                        "lead sponsored" + (f" · {unattributed} trials unattributed"
+                                            if unattributed else ""))
+                # No total column: it counts every phase, and carrying an all-phases figure
+                # beside development-only columns is the disagreement this view just lost.
+                grid = pd.DataFrame([{"Ticker": r["ticker"], **r["compounds"]} for r in rows])
+                if grid[DISPLAY_PHASES].to_numpy().sum() == 0:
+                    state("No compounds mapped",
+                          "Press Refresh all in the top bar to pull trials from "
+                          "ClinicalTrials.gov and bind each to the compound it studies.")
                 else:
-                    state("No history for these two",
-                          "Neither company has enough reported years to draw a line. "
-                          "Pick another pair beside this.")
-
-
-        # Everyone at once: where each company sits on research against commercial, and
-        # the shape of every pipeline in one matrix.
-        _score_col, _phase_col = st.columns(2, gap="medium")
-        with _score_col:
-            if placed:
-                section("R&D against commercial performance", f"{len(placed)} placed")
-                st.markdown(scorecard_chart.build(placed), unsafe_allow_html=True)
-
-
-            # The R&D productivity table is gone and its captions with it: a fourteen
-            # column grid and two hundred words of caveat were the tallest thing on a
-            # tab whose subject is comparison, and every figure in it is a ratio the
-
-        with _phase_col:
-            # charts below already draw. This tab is read as charts.
-            section("Compounds in development by phase",
-                    "lead sponsored" + (f" · {unattributed} trials unattributed"
-                                        if unattributed else ""))
-            # No total column: it counts every phase, and carrying an all-phases figure
-            # beside development-only columns is the disagreement this view just lost.
-            grid = pd.DataFrame([{"Ticker": r["ticker"], **r["compounds"]} for r in rows])
-            if grid[DISPLAY_PHASES].to_numpy().sum() == 0:
-                state("No compounds mapped",
-                      "Press Refresh all on the Comps tab to pull trials from "
-                      "ClinicalTrials.gov and bind each to the compound it studies.")
-            else:
-                charted = [p for p in PIPELINE_PHASES if p not in POST_APPROVAL]
-                long = grid.melt(id_vars="Ticker", value_vars=charted,
-                                 var_name="Phase", value_name="Compounds")
-                long["Phase"] = long["Phase"].replace(PHASE_MERGE)
-                long = long.groupby(["Ticker", "Phase"], as_index=False)["Compounds"].sum()
-                # The count is printed in the cell, so colour is a second reading of the
-                # same number, never the only one. Sqrt weight keeps the largest pipeline
-                # from flattening everyone else into one tone.
-                peak = max(int(long["Compounds"].max()), 1)
-                cells = {(row.Ticker, row.Phase): {
-                            "count": int(row.Compounds),
-                            "weight": (row.Compounds / peak) ** 0.5}
-                         for row in long.itertuples() if row.Compounds}
-                # Eighteen rows of three: the matrix wants height, and its width was
-                # making it render short in a half-page column.
-                R.show(CH.heatmap_grid(list(grid["Ticker"]), DISPLAY_PHASES, cells,
-                                       700, 600))
+                    charted = [p for p in PIPELINE_PHASES if p not in POST_APPROVAL]
+                    long = grid.melt(id_vars="Ticker", value_vars=charted,
+                                     var_name="Phase", value_name="Compounds")
+                    long["Phase"] = long["Phase"].replace(PHASE_MERGE)
+                    long = long.groupby(["Ticker", "Phase"], as_index=False)["Compounds"].sum()
+                    # The count is printed in the cell, so colour is a second reading of the
+                    # same number, never the only one. Sqrt weight keeps the largest pipeline
+                    # from flattening everyone else into one tone.
+                    peak = max(int(long["Compounds"].max()), 1)
+                    cells = {(row.Ticker, row.Phase): {
+                                "count": int(row.Compounds),
+                                "weight": (row.Compounds / peak) ** 0.5}
+                             for row in long.itertuples() if row.Compounds}
+                    # Eighteen rows of three: the matrix wants height, and its width was
+                    # making it render short in a half-page column.
+                    R.show(CH.heatmap_grid(list(grid["Ticker"]), DISPLAY_PHASES, cells,
+                                           700, 600, highlight=ticker))
 
 
 
-        section("Comparables",
-                f'{len(_peers)} in {_ENGINE_LABELS.get(engine, "coverage").lower()}')
-        if st.button("Refresh all", key="refresh_all"):
-            run_refresh(api_base, "/refresh?scope=all", "all_run",
-                        "Refreshing the universe")
-            st.rerun()
-
-        # Multi-company comparison: pick a metric and the companies, one coloured line
-        # each over the fiscal years. Both ratios are currency-internal, so filers who
-        # report in different currencies still compare.
-        # A fixed height: seventeen companies at fourteen columns is a reference
-        # grid, not a view, and it was the last thing keeping this tab off one page.
-        st.dataframe(styled, width="stretch", hide_index=True, height=300,
-                     column_config={"90d": st.column_config.LineChartColumn(
-                         "90d", width="small")})
+        with _vt["Screen"]:
+            _intro("The whole cohort on every measure, one row per company. Hover a column "
+                   "heading for what it measures; click a heading to sort by it. "
+                   f"{ticker} is marked.")
+            section("Comparables",
+                    f'{len(_peers)} in {_ENGINE_LABELS.get(engine, "coverage").lower()}')
+            # A universe refresh lived here as a second "Refresh all" beside the one in
+            # the top bar, under a heading about comparing companies. It is the top bar's.
+            # Every row shown: at eighteen rows the grid is the view, and a 300 pixel
+            # window onto it hid half the cohort behind a scroll inside a scroll.
+            st.dataframe(styled, width="stretch", hide_index=True,
+                         height=38 + 35 * max(len(screen_table), 1),
+                         column_config=_SCREEN_COLUMNS)
 
         # A matrix of every company against every phase, so it belongs with the
         # other cross-sectional views rather than in a tab that is otherwise one
@@ -5663,7 +5760,7 @@ with main:
         phase_pick: list = []
         if not every:
             state(f"No trials on file for {ticker}",
-                  "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
+                  "Press Refresh all in the top bar to pull ClinicalTrials.gov, "
                   "or pick another company in the sidebar.")
         else:
             # A compound is placed once per area, at the furthest phase it has reached
@@ -6003,7 +6100,7 @@ with main:
                     state(f"No approvals on file for {ticker}",
                           "openFDA files an approval under the legal entity that holds the "
                           "application, which for an acquired product is the company that was "
-                          "bought. Press Refresh all on the Comps tab to pull it again.")
+                          "bought. Press Refresh all in the top bar to pull it again.")
                 else:
                     today = dt.date.today()
 

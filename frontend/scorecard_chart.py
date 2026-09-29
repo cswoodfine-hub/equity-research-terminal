@@ -35,8 +35,23 @@ CHAR_WIDTH = 6.4         # enough to reserve space without measuring text
 MARGIN_FRACTION = 0.18
 
 
+def _robust(values) -> tuple:
+    """The range the bulk of the cohort spans: three interquartile ranges past the middle
+    half, never wider than the data. Lilly's commercial score sat so far out that the
+    other sixteen companies shared a sixth of the plot and their labels collided."""
+    ordered = sorted(values)
+    n = len(ordered)
+    if n < 5:
+        return min(values), max(values)
+    q1, q3 = ordered[n // 4], ordered[(3 * n) // 4]
+    iqr = q3 - q1
+    if iqr < 1e-9:
+        return min(values), max(values)
+    return max(min(values), q1 - 3 * iqr), min(max(values), q3 + 3 * iqr)
+
+
 def _bounds(values, fallback=1.0):
-    low, high = min(values), max(values)
+    low, high = _robust(values)
     if high - low < 1e-9:
         low, high = low - fallback, high + fallback
     span = (high - low) * MARGIN_FRACTION
@@ -79,8 +94,12 @@ def _place_labels(points: list) -> list:
     return points
 
 
-def build(rows: list) -> str:
-    """The scatter as an SVG string. Empty string when there is nothing to plot."""
+def build(rows: list, highlight: str | None = None) -> str:
+    """The scatter as an SVG string. Empty string when there is nothing to plot.
+
+    ``highlight`` rings one company, the one the page is open on, so a reader finds
+    themselves in the cohort. A company beyond the plotted range sits on its edge as a
+    triangle pointing outward, its true scores in the hover text."""
     if not rows:
         return ""
 
@@ -92,15 +111,19 @@ def build(rows: list) -> str:
     plot_h = HEIGHT - PAD_TOP - PAD_BOTTOM
 
     def px(value):
+        value = min(max(value, x_low), x_high)
         return PAD_LEFT + (value - x_low) / (x_high - x_low) * plot_w
 
     def py(value):
+        value = min(max(value, y_low), y_high)
         return PAD_TOP + (y_high - value) / (y_high - y_low) * plot_h
 
     points = _place_labels([
         {"ticker": r["ticker"], "x": r["rd_score"], "y": r["commercial_score"],
          "px": px(r["rd_score"]), "py": py(r["commercial_score"]),
-         "quadrant": r["quadrant"]}
+         "quadrant": r["quadrant"],
+         "off": not (x_low <= r["rd_score"] <= x_high
+                     and y_low <= r["commercial_score"] <= y_high)}
         for r in rows])
 
     zero_x, zero_y = px(0), py(0)
@@ -144,13 +167,26 @@ def build(rows: list) -> str:
         # data colour. Everything else is ink: the position is the message and a colour
         # per quadrant would say the same thing twice.
         fill = TK.UP if point["quadrant"] == "Both" else TK.TEXT
-        parts.append(
-            f'<circle cx="{point["px"]:.1f}" cy="{point["py"]:.1f}" r="{DOT}" '
-            f'fill="{fill}"/>')
+        tip = (f'<title>{point["ticker"]}: R&amp;D score {point["x"]:+.2f}, commercial '
+               f'score {point["y"]:+.2f}'
+               + (", off the plotted range" if point["off"] else "") + "</title>")
+        cx, cy = point["px"], point["py"]
+        if point["off"]:
+            s = DOT + 1.5
+            parts.append(f'<polygon points="{cx:.1f},{cy - s:.1f} {cx + s:.1f},{cy + s:.1f} '
+                         f'{cx - s:.1f},{cy + s:.1f}" fill="{fill}">{tip}</polygon>')
+        else:
+            parts.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{DOT}" '
+                         f'fill="{fill}">{tip}</circle>')
+        mine = point["ticker"] == highlight
+        if mine:
+            parts.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{DOT + 5}" fill="none" '
+                         f'stroke="{TK.FLAG}" stroke-width="1.6"/>')
         parts.append(
             f'<text x="{point["lx"]:.1f}" y="{point["ly"]:.1f}" '
             f'text-anchor="{point["anchor"]}" font-family="{TK.FONT_MONO}" '
-            f'font-size="11" fill="{fill}">{point["ticker"]}</text>')
+            f'font-size="{12 if mine else 11}" font-weight="{700 if mine else 400}" '
+            f'fill="{TK.FLAG if mine else fill}">{point["ticker"]}</text>')
 
     parts.append("</svg>")
     return "".join(parts)
