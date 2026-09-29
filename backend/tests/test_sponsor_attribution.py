@@ -130,3 +130,20 @@ def test_a_study_is_refiled_under_the_company_that_leads_it(tmp_path, monkeypatc
     conn.close()
     assert owner == pfe
 
+
+def test_the_sweep_reports_studies_led_by_another_company(tmp_path):
+    path, pfe = _seed(tmp_path)
+    conn = db.get_connection(path)
+    lly = conn.execute("SELECT id FROM companies WHERE ticker = 'LLY'").fetchone()[0]
+    for nct_id, cid, lead in (("NCT00567255", pfe, "Orexigen Therapeutics, Inc"),
+                              ("NCT02528253", lly, "Pfizer"),
+                              ("NCT9900001", pfe, "Pfizer"),
+                              ("NCT9900003", pfe, "Biohaven Pharmaceuticals, Inc."),
+                              ("NCT9900005", lly, "Eli Lilly and Company")):
+        conn.execute("INSERT INTO completed_trials (nct_id, sponsor_company_id,"
+                     " lead_sponsor) VALUES (?, ?, ?)", (nct_id, cid, lead))
+    conn.commit()
+    conn.close()
+    found = {(r["ticker"], r["nct_id"])
+             for r in sponsor_attribution.misfiled(path)}
+    assert found == {("PFE", "NCT00567255"), ("LLY", "NCT02528253")}
