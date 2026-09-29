@@ -1,0 +1,36 @@
+{
+ "meta": {
+  "note": "trimmed to the fields parse_label reads"
+ },
+ "results": [
+  {
+   "set_id": "0818426a-53eb-4db7-9609-bbae1e7a3964",
+   "boxed_warning": [
+    "WARNING: RISK OF THYROID C-CELL TUMORS In both male and female rats, tirzepatide causes dose-dependent and treatment-duration-dependent thyroid C-cell tumors at clinically relevant exposures. It is unknown whether MOUNJARO causes thyroid C-cell tumors, including medullary thyroid carcinoma (MTC), in humans as human relevance of tirzepatide-induced rodent thyroid C-cell tumors has not been determined [see Warnings and Precautions ( 5.1 ) and Nonclinical Toxicology ( 13.1 )]. MOUNJARO is contraindicated in patients with a personal or family history of MTC or in patients with Multiple Endocrine Neoplasia syndrome type 2 (MEN 2) [see Contraindications ( 4 )] . Counsel patients regarding the potential risk for MTC with the use of MOUNJARO and inform them of symptoms of thyroid tumors (e.g., a mass in the neck, dysphagia, dyspnea, persistent hoarseness). Routine monitoring of serum calcitonin or using thyroid ultrasound is of uncertain value for early detection of MTC in patients treated with MOUNJARO [see Contraindications ( 4 ) and Warnings and Precautions ( 5.1 )]. WARNING: RISK OF THYROID C-CELL TUMORS See full prescribing information for complete boxed warning. Tirzepatide causes thyroid C-cell tumors in rats. It is unknown whether MOUNJARO causes thyroid C-cell tumors, including medullary thyroid carcinoma (MTC), in humans as the human relevance of tirzepatide-induced rodent thyroid C-cell tumors has not been determined ( 5.1 , 13.1 ). MOUNJARO is contraindicated in patients with a personal or family history of MTC or in patients with Multiple Endocrine Neoplasia syndrome type 2 (MEN 2). Counsel patients regarding the potential risk of MTC and symptoms of thyroid tumors ( 4 , 5.1 )."
+   ],
+   "effective_time": "20260729",
+   "openfda": {
+    "generic_name": [
+     "TIRZEPATIDE"
+    ],
+    "brand_name": [
+     "MOUNJARO"
+    ],
+    "pharm_class_moa": [
+     "G-Protein-linked Receptor Interactions [MoA]",
+     "Glucagon-like Peptide-1 (GLP-1) Agonists [MoA]"
+    ],
+    "pharm_class_epc": [
+     "Glucose-dependent Insulinotropic Polypeptide Receptor Agonist [EPC]",
+     "GLP-1 Receptor Agonist [EPC]"
+    ],
+    "route": [
+     "SUBCUTANEOUS"
+    ],
+    "manufacturer_name": [
+     "A-S Medication Solutions"
+    ]
+   }
+  }
+ ]
+}
