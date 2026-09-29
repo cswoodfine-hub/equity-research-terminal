@@ -48,6 +48,7 @@ import headlines as headlines_module
 import marketmap as marketmap_module
 import labels as labels_module
 import landscape as landscape_module
+import landscape_overview
 import fx as fx_module
 import loe as loe_module
 import product_areas
@@ -647,6 +648,18 @@ def indication_landscape(indication_id: int) -> dict:
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown indication {indication_id}")
     return out
+
+
+@app.get("/indications/{indication_id}/overview")
+def indication_overview(indication_id: int, endpoint: Optional[str] = None) -> dict:
+    """The landscape read for you: each drug's best result on one measure, its cost in
+    people stopping for side effects, and a verdict in plain words."""
+    land = landscape_module.landscape(
+        None, indication_id,
+        verdict_for=lambda t: response_cache.cached_json(f"/companies/{t}/forecast-verdict"))
+    if land is None:
+        raise HTTPException(status_code=404, detail=f"unknown indication {indication_id}")
+    return {"indication": land["indication"], **landscape_overview.overview(land, endpoint)}
 
 
 @app.get("/companies/{ticker}/fair-value")
