@@ -829,6 +829,19 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .land td.w {{ color: var(--flag); font-size: 10.5px; }}
 .land tr.grp td {{ border-top: 1px solid var(--rule-strong); }}
 .land a {{ color: var(--text); text-decoration: none; }}
+/* The clinical scorecard: a score out of 100 as its figure and a bar, the open company's
+   rows marked. */
+.land.sc-table {{ min-width: 0; }}
+.land.sc-table td {{ vertical-align: middle; }}
+.land .sc {{ display: inline-block; width: 44px; height: 4px; margin-right: 6px;
+  background: var(--rule); vertical-align: middle; }}
+.land .sc i {{ display: block; height: 100%; background: var(--muted); }}
+.land .sc.sc-f i {{ background: var(--up); }}
+.land tr.sc-mine td:first-child {{ box-shadow: inset 2px 0 0 var(--up); }}
+.land tr.sc-mine td {{ background: var(--panel); }}
+.sc-why {{ font-size: 11.5px; line-height: 1.5; color: var(--text); margin: 0.35rem 0;
+  padding-left: 8px; border-left: 2px solid var(--rule-strong); max-width: 110ch; }}
+.sc-why .m {{ color: var(--muted); }}
 .land a:hover {{ text-decoration: underline; }}
 .land .tag {{ display: inline-block; font-size: 9.5px; letter-spacing: 0.05em;
              text-transform: uppercase; color: var(--muted);

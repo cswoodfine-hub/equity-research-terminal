@@ -746,6 +746,147 @@ def benefit_risk(points: Sequence[dict], width: int = 760, height: int = 440,
     return "".join(out)
 
 
+def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
+              highlight: str | None = None, max_labels: int = 10) -> str:
+    """Every scored drug on two axes from 0 to 100: efficacy across, safety and
+    tolerability up, so top right is where a drug wants to be.
+
+    Each point: {name, ticker, x, y, evidence (0 to 100, or None), stage, boxed, rank,
+    tip}. Bubble size is the weight of evidence, so a position resting on one small trial
+    looks small. The focal company's drugs (``highlight`` ticker) are drawn in the accent
+    and always labelled; peers are muted and labelled best first, as far as there is
+    room. Stage is the fill: solid for a marketed drug, half for Phase 3, hollow earlier,
+    so colour is never the only signal. An amber ring marks an FDA boxed warning.
+    """
+    usable = [p for p in points if p.get("x") is not None and p.get("y") is not None]
+    if not usable:
+        return ""
+    pad_l, pad_r, pad_t, pad_b = 46, 18, 16, 58
+    plot_r, plot_b = width - pad_r, height - pad_b
+    # The scales run a little past 0 and 100, so a bubble at either end is drawn whole.
+    x = _scale((-6.0, 106.0), (pad_l, plot_r))
+    y = _scale((106.0, -6.0), (pad_t, plot_b))
+    out = [_svg_open(width, height, "efficacy score against safety and tolerability score, "
+                                    "one bubble per drug, sized by weight of evidence")]
+    # The better half on each axis, tinted once where both meet.
+    out.append(f'<rect x="{x(50):.1f}" y="{y(100):.1f}" width="{x(100) - x(50):.1f}"'
+               f' height="{y(50) - y(100):.1f}" fill="{TK.PANEL}"/>')
+    for v in (0, 25, 50, 75, 100):
+        strong = v == 50
+        out.append(f'<line x1="{x(v):.1f}" y1="{y(100):.1f}" x2="{x(v):.1f}" y2="{y(0):.1f}"'
+                   f' stroke="{TK.RULE_STRONG if strong else TK.RULE}"'
+                   + (' stroke-dasharray="3 3"' if strong else "") + "/>")
+        out.append(f'<line x1="{x(0):.1f}" y1="{y(v):.1f}" x2="{x(100):.1f}" y2="{y(v):.1f}"'
+                   f' stroke="{TK.RULE_STRONG if strong else TK.RULE}"'
+                   + (' stroke-dasharray="3 3"' if strong else "") + "/>")
+        if v not in (0, 100):
+            out.append(_text(x(v), plot_b + 13, str(v), 9, TK.MUTED, "middle", MONO))
+        out.append(_text(pad_l - 6, y(v) + 3, str(v), 9, TK.MUTED, "end", MONO))
+    for tx, ty, anchor_, text in (
+            (x(100), y(100) - 5, "end", "stronger and safer"),
+            (x(100), y(0) + 11, "end", "stronger, harder to tolerate"),
+            (x(0), y(100) - 5, "start", "weaker, easier to tolerate"),
+            (x(0), y(0) + 11, "start", "weaker and harder to tolerate")):
+        out.append(_text(tx, ty, text, 9.5, TK.MUTED, anchor_))
+    out.append(_text(x(0), plot_b + 13, "0", 9, TK.MUTED, "middle", MONO))
+    out.append(_text(x(100), plot_b + 13, "100", 9, TK.MUTED, "middle", MONO))
+    out.append(_text((pad_l + plot_r) / 2, plot_b + 28, "efficacy score  →  better", 10,
+                     TK.MUTED, "middle"))
+    mid_y = (pad_t + plot_b) / 2
+    out.append(f'<text x="12" y="{mid_y:.1f}" font-size="10" fill="{TK.MUTED}"'
+               f' text-anchor="middle" font-family="{UI}"'
+               f' transform="rotate(-90 12 {mid_y:.1f})">safety and tolerability score  →'
+               f'  better</text>')
+
+    def radius(p):
+        ev = p.get("evidence")
+        return 4.0 + 10.0 * ((ev if ev is not None else 0.0) / 100.0)
+
+    def mine(p):
+        return bool(highlight) and p.get("ticker") == highlight
+
+    placed: list = []
+
+    def put(label, px_, py_, r):
+        w = len(label) * 5.9
+        for dy in (0, -12, 12, -24, 24, -36, 36):
+            for side in (1, -1):
+                lx = px_ + r + 4 if side == 1 else px_ - r - 4 - w
+                if lx < pad_l or lx + w > plot_r:
+                    continue
+                box = (lx, py_ + dy - 9, lx + w, py_ + dy + 3)
+                if all(box[2] < b[0] or box[0] > b[2] or box[3] < b[1] or box[1] > b[3]
+                       for b in placed):
+                    placed.append(box)
+                    return lx, py_ + dy
+        return None
+
+    # Large bubbles first, so a small one is never hidden under a large one; the focal
+    # company last, on top.
+    order = sorted(usable, key=lambda p: (mine(p), -radius(p)))
+    for p in order:
+        px_, py_, r = x(p["x"]), y(p["y"]), radius(p)
+        colour = TK.UP if mine(p) else TK.MUTED
+        stage = p.get("stage") or ""
+        if stage == "Marketed":
+            fill, opacity = colour, "0.9"
+        elif "Phase 3" in stage or "Phase 2/3" in stage or stage.startswith("Marketed"):
+            fill, opacity = colour, "0.45"
+        else:
+            fill, opacity = "none", "1"
+        tip = f"<title>{_esc(p.get('tip') or p['name'])}</title>"
+        if p.get("boxed"):
+            out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r + 3:.1f}" fill="none"'
+                       f' stroke="{TK.FLAG}" stroke-width="1" stroke-dasharray="2 2"/>')
+        out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r:.1f}" fill="{fill}"'
+                   f' fill-opacity="{opacity}" stroke="{colour}" stroke-width="1.4">{tip}'
+                   f'</circle>')
+        placed.append((px_ - r, py_ - r, px_ + r, py_ + r))
+    # Labels: the focal company's drugs always, then peers best first while room lasts.
+    ranked = sorted(usable, key=lambda p: (not mine(p), p.get("rank") or 999))
+    peers_labelled = 0
+    for p in ranked:
+        if not mine(p):
+            if peers_labelled >= max_labels:
+                continue
+        spot = put(p["name"], x(p["x"]), y(p["y"]), radius(p))
+        if spot is None:
+            if not mine(p):
+                continue
+            spot = (min(x(p["x"]) + radius(p) + 4, plot_r - len(p["name"]) * 5.9), y(p["y"]))
+        if not mine(p):
+            peers_labelled += 1
+        out.append(_text(spot[0], spot[1] + 3, p["name"], 10,
+                         TK.TEXT if mine(p) else TK.MUTED, "start",
+                         weight="700" if mine(p) else "400"))
+    # Key, one line.
+    ky = height - 10
+    kx = pad_l
+    for label, draw in (
+            ("marketed", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="{TK.MUTED}"'
+                                    f' fill-opacity="0.9" stroke="{TK.MUTED}"/>'),
+            ("Phase 3", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="{TK.MUTED}"'
+                                   f' fill-opacity="0.45" stroke="{TK.MUTED}"/>'),
+            ("Phase 2", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="none"'
+                                   f' stroke="{TK.MUTED}" stroke-width="1.4"/>'),
+            ("boxed warning", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="5" fill="none"'
+                                         f' stroke="{TK.FLAG}" stroke-dasharray="2 2"/>'),
+            ("bigger: more evidence", lambda cx: f'<circle cx="{cx - 3}" cy="{ky - 2}" r="2.5"'
+                                                 f' fill="none" stroke="{TK.MUTED}"/>'
+                                                 f'<circle cx="{cx + 5}" cy="{ky - 4}" r="5"'
+                                                 f' fill="none" stroke="{TK.MUTED}"/>')):
+        out.append(draw(kx + 5))
+        lead = 22 if label.startswith("bigger") else 14
+        out.append(_text(kx + lead, ky, label, 9.5, TK.MUTED, "start"))
+        kx += lead + len(label) * 5.4 + 16
+    if highlight:
+        out.append(f'<circle cx="{kx + 5}" cy="{ky - 3}" r="4" fill="{TK.UP}"'
+                   f' stroke="{TK.UP}"/>')
+        out.append(_text(kx + 14, ky, highlight, 9.5, TK.TEXT, "start", weight="700"))
+    out.append("</svg>")
+    return "".join(out)
+
+
 def _short_label(text: str, limit: int) -> str:
     text = text or ""
     return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"

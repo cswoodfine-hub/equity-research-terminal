@@ -1967,6 +1967,124 @@ def _verdict_card(card: dict, lead: bool = False) -> str:
             f'{html_escape(card["meaning"])}</div></div>')
 
 
+def _score_cell(value, focal: bool = False) -> str:
+    """A score out of 100 as its figure and a bar, or the null dash."""
+    if value is None:
+        return '<td class="n m">—</td>'
+    return (f'<td class="n"><span class="sc{" sc-f" if focal else ""}">'
+            f'<i style="width:{max(0.0, min(100.0, value)):.0f}%"></i></span>{value:.0f}</td>')
+
+
+def _landscape_scorecard(sc: dict, ticker: str) -> None:
+    """The primary figure of an indication: every drug with a posted clinical record as
+    one bubble, efficacy across and safety up, the open company's drugs in the accent,
+    then the ranking the chart is drawn from and the drugs that cannot be scored yet."""
+    assets = sc.get("assets") or []
+    placed = [a for a in assets if a.get("placed")]
+    rest = [a for a in assets if not a.get("placed")]
+    if not placed:
+        state("No drug can be scored here yet",
+              "A score needs a posted result against a comparator and a safety figure "
+              "against a control, and no candidate in this indication has both.")
+        return
+    mine = [a for a in placed if a["ticker"] == ticker]
+    section("Clinical scorecard", f"{len(placed)} of {len(assets)} scored",
+            basis="efficacy × safety × weight of evidence · posted results only")
+    left, right = st.columns([1.2, 1], gap="medium")
+
+    def tip(a):
+        e, s_, v = a["efficacy"], a["safety"], a["evidence"]
+        head = (f'{a["name"]} ({a["ticker"]}), {a["stage"]}. Overall {a["overall"]:.0f}: '
+                f'efficacy {e["score"]:.0f}, safety {s_["score"]:.0f}, evidence '
+                + (f'{v["score"]:.0f}' if v.get("score") is not None else "not stated") + ".")
+        return " ".join([head] + e["lines"][:3] + s_["lines"][:3])
+
+    with left:
+        chart = CH.score_map(
+            [{"name": a["name"], "ticker": a["ticker"], "x": a["efficacy"]["score"],
+              "y": a["safety"]["score"], "evidence": a["evidence"].get("score"),
+              "stage": a["stage"], "boxed": a["boxed"], "rank": a.get("rank"),
+              "tip": tip(a)} for a in placed],
+            760, 500, highlight=ticker)
+        if chart:
+            R.show(chart, css_class="chart-mount stretch")
+        _how("How to read it: further right is stronger evidence of efficacy against a "
+             "comparator; higher up is a cleaner safety and tolerability record against "
+             "control. Top right is where a drug wants to be. A bigger bubble rests on more "
+             f"patients. {ticker} is in green; hover a bubble for what its scores rest on.")
+    with right:
+        rows = ""
+        for a in placed:
+            focal = a["ticker"] == ticker
+            name = (f'<b>{html_escape(a["name"])}</b>' if focal else html_escape(a["name"]))
+            rows += (f'<tr class="{"sc-mine" if focal else ""}">'
+                     f'<td class="n m">{a["rank"]}</td>'
+                     f'<td>{name} <span class="m">{html_escape(a["ticker"])}</span></td>'
+                     f'<td>{_stage_chip(a["stage"])}</td>'
+                     + _score_cell(a["overall"], focal) + _score_cell(a["efficacy"]["score"], focal)
+                     + _score_cell(a["safety"]["score"], focal)
+                     + _score_cell(a["evidence"].get("score"), focal) + "</tr>")
+        st.markdown(
+            '<div class="land-wrap"><table class="land sc-table"><thead><tr>'
+            '<th></th><th>compound</th><th>stage</th><th>overall</th><th>efficacy</th>'
+            '<th>safety</th><th>evidence</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div>', unsafe_allow_html=True)
+        if mine:
+            best = mine[0]
+            _how(f'{ticker}: {best["name"]} ranks {best["rank"]} of {len(placed)} scored drugs'
+                 + (f', with {len(mine) - 1} more of its drugs scored' if len(mine) > 1 else "")
+                 + ".")
+        else:
+            _how(f"{ticker} has no drug with a posted record to score in this indication yet.")
+
+    # What each of the open company's scores rests on, in words, then the rest on demand.
+    shown = mine or placed[:1]
+    lines = "".join(
+        f'<div class="sc-why"><b>{html_escape(a["name"])}</b> '
+        f'<span class="m">{html_escape(a["ticker"])} · overall {a["overall"]:.0f}</span><br>'
+        + " ".join(html_escape(x) for x in a["efficacy"]["lines"] + a["safety"]["lines"])
+        + "</div>" for a in shown[:4])
+    st.markdown(lines, unsafe_allow_html=True)
+    with st.expander("What every score rests on", expanded=False):
+        st.markdown("".join(
+            f'<div class="sc-why"><b>{a["rank"]}. {html_escape(a["name"])}</b> '
+            f'<span class="m">{html_escape(a["ticker"])} · overall {a["overall"]:.0f}</span><br>'
+            + " ".join(html_escape(x) for x in a["efficacy"]["lines"] + a["safety"]["lines"])
+            + "</div>" for a in placed), unsafe_allow_html=True)
+    method = sc.get("method") or {}
+    _how("How it is scored, each from 0 to 100. Efficacy: " + _decap(method.get("efficacy"))
+         + " Safety: " + _decap(method.get("safety")) + " Evidence: "
+         + _decap(method.get("evidence")) + " Overall: " + _decap(method.get("overall")) + " "
+         + (method.get("caveat") or ""))
+
+    if rest:
+        by_reason: dict = {}
+        for a in rest:
+            by_reason.setdefault(a.get("why_not") or "not scored", []).append(a)
+        parts = []
+        for reason, group in by_reason.items():
+            own = [a for a in group if a["ticker"] == ticker]
+            others = [a for a in group if a["ticker"] != ticker]
+            text = f"{_cap(reason)} ({len(group)})"
+            if own:
+                text += ": " + ", ".join(f'{a["name"]} ({a["stage"]})' for a in own)
+                if others:
+                    text += (f'; and {len(others)} from '
+                             f'{len({a["ticker"] for a in others})} other '
+                             f'{"company" if len({a["ticker"] for a in others}) == 1 else "companies"}')
+            elif others:
+                named = ", ".join(a["name"] for a in others[:5])
+                text += f": {named}" + (f" and {len(others) - 5} more" if len(others) > 5 else "")
+            parts.append(text + ".")
+        _how("Not on the chart, because a score is never guessed: " + " ".join(parts)
+             + " The Candidates view lists them all with stage and modelled value.")
+
+
+def _decap(text) -> str:
+    text = text or ""
+    return text[:1].lower() + text[1:] if text else text
+
+
 def _landscape_overview(api_base: str, pick: int, ticker: str) -> None:
     """The landscape read for you: a verdict in plain words with what each part means,
     one benefit-against-tolerability chart, and each drug's best result ranked."""
@@ -1981,6 +2099,8 @@ def _landscape_overview(api_base: str, pick: int, ticker: str) -> None:
     if not cards:
         state("Not enough to read yet", "no candidate here has posted results or a model")
         return
+    if ov.get("scorecard"):
+        _landscape_scorecard(ov["scorecard"], ticker)
     st.markdown(_verdict_card(cards[0], lead=True), unsafe_allow_html=True)
     rest = cards[1:]
     if rest:
