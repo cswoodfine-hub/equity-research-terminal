@@ -52,6 +52,7 @@ import marketmap as marketmap_module
 import labels as labels_module
 import landscape as landscape_module
 import landscape_overview
+import landscape_score
 import fx as fx_module
 import loe as loe_module
 import product_areas
@@ -685,7 +686,8 @@ def indication_overview(indication_id: int, endpoint: Optional[str] = None) -> d
         verdict_for=lambda t: response_cache.cached_json(f"/companies/{t}/forecast-verdict"))
     if land is None:
         raise HTTPException(status_code=404, detail=f"unknown indication {indication_id}")
-    return {"indication": land["indication"], **landscape_overview.overview(land, endpoint)}
+    return {"indication": land["indication"], **landscape_overview.overview(land, endpoint),
+            "scorecard": landscape_score.scorecard(land)}
 
 
 @app.get("/companies/{ticker}/fair-value")
