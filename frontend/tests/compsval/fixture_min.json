@@ -1,0 +1,1696 @@
+{
+ "schema": 1,
+ "generated_at": "2026-09-29T22:40:11Z",
+ "complete": true,
+ "incomplete_reason": null,
+ "as_of": {
+  "price_date": "2026-09-28",
+  "price_trading_days_old": 0,
+  "fx_date": "2026-09-28",
+  "consensus_history_starts": "2026-09-17",
+  "run": {
+   "id": 123,
+   "started_at": "2026-09-29T05:07:26Z",
+   "finished_at": "2026-09-29T09:35:41Z",
+   "status": "partial",
+   "failed_sources": [
+    {
+     "source": "consensus_nasdaq",
+     "ticker": "STOK",
+     "message": "The read operation timed out"
+    }
+   ],
+   "other_failures": [
+    "approvals",
+    "ndc_marketing",
+    "paragraph_iv",
+    "press_ir",
+    "press_page"
+   ]
+  }
+ },
+ "fx": {
+  "as_of": "2026-09-28",
+  "source": "ECB reference rates",
+  "usd_per_unit": {
+   "USD": 1,
+   "EUR": 1.1378,
+   "GBP": 1.326339,
+   "CHF": 1.20224,
+   "DKK": 0.15221
+  }
+ },
+ "universe": {
+  "n": 6,
+  "engines": {
+   "pharma": 5,
+   "biotech": 0,
+   "cellgene": 1
+  },
+  "engine_labels": {
+   "pharma": "Big pharma",
+   "biotech": "Biotech",
+   "cellgene": "Cell and gene"
+  },
+  "absent_subsectors": [
+   "Medtech",
+   "Healthcare services"
+  ]
+ },
+ "basis_text": {
+  "standardised": "{cur} at the ECB reference rate of 28 Sep 2026; per-share figures in USD per US-listed share; fiscal years as filed",
+  "as_reported": "Each company's filing currency and standard, fiscal years as filed. Market cap and enterprise value are the USD market figures translated at the ECB rate of 28 Sep 2026; per-share figures stay in USD",
+  "adjusted": "Operating income and EBITDA excluding tagged amortisation of intangibles and acquired IPR&D. Nothing is added back where operating income is derived",
+  "street": "Nasdaq consensus, adjusted, per US-listed share, USD"
+ },
+ "companies": [
+  {
+   "ticker": "AZN",
+   "name": "AstraZeneca PLC",
+   "engine": "pharma",
+   "stage": "commercial",
+   "country": "GB",
+   "region": "Europe",
+   "listing": {
+    "home_exchange": "London",
+    "us_line": "AZN",
+    "adr_ratio": 1,
+    "otc": false
+   },
+   "filer": {
+    "kind": "20-F filer",
+    "annual_form": "20-F",
+    "standard": "IFRS",
+    "standard_source": "company record",
+    "is_sec_filer": true,
+    "is_fpi_flag": true
+   },
+   "reporting_currency": "USD",
+   "row_currency": "USD",
+   "fiscal_year_end_month": 12,
+   "themes": [],
+   "areas": {
+    "Oncology": 58,
+    "Renal and hepatic": 10,
+    "Metabolic": 8,
+    "Cardiovascular": 6,
+    "Respiratory": 6
+   },
+   "market": {
+    "price": 166.15,
+    "price_currency": "USD",
+    "price_as_of": "2026-09-28",
+    "prev_close": 166.58,
+    "change_1d": -0.002581,
+    "quote_fetched_at": "2026-09-29T05:46:07Z",
+    "ttm_change": 0.126288,
+    "range_52w": {
+     "low": 147.38,
+     "high": 212.71
+    },
+    "spark_90d": [
+     164.56,
+     166.58,
+     166.15
+    ],
+    "shares_cover_m": null,
+    "shares_cover_as_of": null,
+    "shares_diluted_m": 1564.679,
+    "shares_basis": "FY2025 weighted average diluted",
+    "market_cap_usd_m": 259971.4,
+    "market_cap_basis": "diluted_weighted",
+    "market_cap_basis_text": "FY2025 weighted diluted shares, per US-listed share",
+    "market_cap_shares_m": 1564.6789046042732,
+    "market_cap_alt_usd_m": null,
+    "market_cap_disagreement": null,
+    "beta": 0.56,
+    "beta_basis": "computed from 261 weekly returns vs S&P 500, 2021-W39 to 2026-W40, Blume-adjusted (0.33 raw)",
+    "vol_1y": 0.284471
+   },
+   "ev": {
+    "net_debt_usd_m": 23903,
+    "total_debt_usd_m": 29622,
+    "cash_usd_m": 5719,
+    "cash_lines": [
+     "CashAndEquivalents",
+     "ShortTermInvestments"
+    ],
+    "balance_sheet_as_of": "2025-12-31",
+    "debt_as_of": "2025-12-31",
+    "debt_basis": "filed",
+    "ev_usd_m": 283874.4,
+    "other_claims_usd_m": -855,
+    "other_claims_lines": [
+     {
+      "label": "equity-method investments",
+      "value_usd_m": 302,
+      "as_of": "2025-12-31",
+      "basis": "filed"
+     },
+     {
+      "label": "noncontrolling interests",
+      "value_usd_m": -52,
+      "as_of": "2025-12-31",
+      "basis": "filed"
+     },
+     {
+      "label": "pension and post-employment deficit",
+      "value_usd_m": -1105,
+      "as_of": "2025-12-31",
+      "basis": "filed"
+     }
+    ]
+   },
+   "periods": {
+    "FY0": {
+     "label": "FY2025",
+     "period_end": "2025-12-31",
+     "unit": "USD",
+     "revenue_usd_m": 58739,
+     "gross_profit_usd_m": 48106,
+     "gross_basis": "GrossProfit",
+     "operating_income_usd_m": 13743,
+     "operating_income_basis": "reported",
+     "da_usd_m": 5086,
+     "ebitda_usd_m": 18829,
+     "amortisation_usd_m": 4207,
+     "acquired_iprd_usd_m": null,
+     "net_income_usd_m": 10233,
+     "net_income_basis": "as filed",
+     "fcf_usd_m": 11765,
+     "rd_usd_m": 14232,
+     "rd_ex_iprd_usd_m": 14232,
+     "tax_rate": 0.174891,
+     "equity_usd_m": 48719,
+     "equity_as_of": "2025-12-31",
+     "equity_basis": "as filed",
+     "eps_diluted_rc": 6.54
+    },
+    "FYm1": {
+     "label": "FY2024",
+     "period_end": "2024-12-31",
+     "revenue_usd_m": 54073,
+     "operating_income_usd_m": 10003,
+     "da_usd_m": 4722,
+     "ebitda_usd_m": 14725,
+     "amortisation_usd_m": 3923,
+     "acquired_iprd_usd_m": null,
+     "net_income_usd_m": 7041,
+     "eps_diluted_rc": 4.5
+    },
+    "FYm3": {
+     "label": "FY2022",
+     "revenue_usd_m": 44351
+    },
+    "LTM": null,
+    "FY1": {
+     "label": "FY2026",
+     "eps": 9.37,
+     "eps_low": 5.18,
+     "eps_high": 10.34,
+     "eps_n": 6,
+     "as_of": "2026-09-23",
+     "guidance": {
+      "value_usd_m": null,
+      "low_usd_m": null,
+      "high_usd_m": null,
+      "growth": null,
+      "growth_low": null,
+      "growth_high": null,
+      "metric_scope": "total",
+      "fx_basis": "cer",
+      "text": "AstraZeneca reconfirms Total Revenue and Core EPS guidance for FY 2026 at CER, based on the average foreign exchange rates through 2025. Total Revenue is expected to increase by a mid-to-high single-digit percentage (accession 0001104659-26-086846, ...)",
+      "as_of": "2026-07-27"
+     }
+    },
+    "FY2": {
+     "label": "FY2027",
+     "eps": 10.55,
+     "eps_low": 5.75,
+     "eps_high": 11.8,
+     "eps_n": 7,
+     "as_of": "2026-09-23"
+    },
+    "FY3": {
+     "label": "FY2028",
+     "eps": 12.09,
+     "eps_low": 11.52,
+     "eps_high": 12.41,
+     "eps_n": 3,
+     "as_of": "2026-09-20"
+    },
+    "NTM": {
+     "eps": 10.24611,
+     "weight_fy1": 0.257534,
+     "sign_change": false,
+     "basis_text": "FY2026 and FY2027 consensus EPS weighted by the days of each in the twelve months from 2026-09-28"
+    }
+   },
+   "growth": {
+    "revenue_fy": 0.086291,
+    "revenue_cagr3": 0.098182,
+    "ebitda_fy": 0.27871,
+    "ebitda_fy_adjusted": 0.27871,
+    "eps_fy_gaap": 0.453333,
+    "eps_street_fy2": 0.125934,
+    "eps_street_cagr": 0.135909,
+    "revenue_guided_fy1": null,
+    "bases": {
+     "revenue_fy": [
+      58739,
+      54073
+     ],
+     "revenue_cagr3": [
+      58739,
+      44351
+     ],
+     "ebitda_fy": [
+      18829,
+      14725
+     ],
+     "eps_fy_gaap": [
+      6.54,
+      4.5
+     ],
+     "eps_street_fy2": [
+      9.37,
+      10.55
+     ],
+     "eps_street_cagr": [
+      9.37,
+      12.09
+     ]
+    }
+   },
+   "street": {
+    "price_target": {
+     "value": 211.066,
+     "low": 155.015,
+     "high": 267.633,
+     "as_of": "2026-09-29",
+     "ratings": {
+      "buy": 14,
+      "hold": 2,
+      "sell": 0
+     }
+    },
+    "consensus_checked_at": "2026-09-29T05:47:36Z",
+    "eps_first": {
+     "FY1": {
+      "value": 9.16,
+      "as_of": "2026-09-17"
+     },
+     "FY2": {
+      "value": 10.44,
+      "as_of": "2026-09-17"
+     }
+    }
+   },
+   "risk": {
+    "runway_months": null,
+    "runway_basis": "last full year",
+    "burn_flattered": false,
+    "cash_out": null,
+    "est_dispersion": 0.550694,
+    "pt_dispersion": 0.533578
+   },
+   "healthcare": {
+    "lead_phase": "Marketed",
+    "major_products": 15,
+    "top_product_share": 0.14757,
+    "trial_concentration": 0.057471,
+    "active_mapped_trials": 174,
+    "late_trials": 56,
+    "catalysts_12m": 36,
+    "loe_share_5y": 0.26199,
+    "loe_unpriced_5y": 8,
+    "revenue_per_late_trial_usd_m": 1048.911
+   },
+   "model": {
+    "state": "modelled",
+    "fair_value_per_share": 175.381,
+    "rating": "Buy",
+    "range_today": [
+     149.97,
+     208.878
+    ],
+    "forward_12m": 185.337,
+    "upside_12m": 0.115479,
+    "pipeline_rnpv_usd_m": 19547.97,
+    "pipeline_per_share": 12.493,
+    "pipeline_per_share_unrisked": 24.077,
+    "pipeline_assets": 22,
+    "price_date": "2026-09-28"
+   },
+   "flags": [
+    {
+     "code": "stale_balance_sheet",
+     "field": "ev",
+     "severity": "amber",
+     "params": {
+      "as_of": "2025-12-31",
+      "days": 272
+     }
+    },
+    {
+     "code": "estimate_range_wide",
+     "field": "periods.FY1",
+     "severity": "amber",
+     "params": {
+      "low": 5.18,
+      "high": 10.34,
+      "mean": 9.37,
+      "n": 6
+     }
+    },
+    {
+     "code": "market_cap_diluted_route",
+     "field": "market.market_cap_usd_m",
+     "severity": "info",
+     "params": {}
+    },
+    {
+     "code": "ifrs_filer",
+     "field": "filer",
+     "severity": "info",
+     "params": {}
+    },
+    {
+     "code": "includes_minorities",
+     "field": "periods.FY0.net_income_usd_m",
+     "severity": "amber",
+     "params": {
+      "line": "net income"
+     }
+    },
+    {
+     "code": "includes_minorities",
+     "field": "periods.FY0.equity_usd_m",
+     "severity": "amber",
+     "params": {
+      "line": "equity"
+     }
+    }
+   ],
+   "na": {
+    "periods.LTM": "no_ltm_20f",
+    "periods.FY0.acquired_iprd_usd_m": "not_tagged",
+    "periods.FYm1.acquired_iprd_usd_m": "not_tagged",
+    "periods.FY1.guidance": "guidance_in_words",
+    "growth.revenue_guided_fy1": "guidance_in_words",
+    "market.shares_cover_m": "no_shares",
+    "market.shares_cover_as_of": "no_shares",
+    "market.market_cap_alt_usd_m": "no_shares",
+    "market.market_cap_disagreement": "no_shares",
+    "risk.runway_months": "not_burning",
+    "risk.cash_out": "not_burning"
+   },
+   "lineage": {
+    "price_as_of": "2026-09-28",
+    "quote_fetched_at": "2026-09-29T05:46:07Z",
+    "consensus_checked_at": "2026-09-29T05:47:36Z",
+    "balance_sheet_as_of": "2025-12-31",
+    "fy_period_end": "2025-12-31",
+    "financials_source": "edgar_companyfacts",
+    "fx_as_of": "2026-09-28"
+   },
+   "history": {
+    "labels": [
+     "FY20",
+     "FY21",
+     "FY22",
+     "FY23",
+     "FY24",
+     "FY25"
+    ],
+    "revenue_growth": [
+     0.091576,
+     0.405756,
+     0.185317,
+     0.032919,
+     0.18035,
+     0.086291
+    ],
+    "net_margin": [
+     0.11812,
+     0.003073,
+     0.074249,
+     0.130122,
+     0.130213,
+     0.174211
+    ]
+   },
+   "screen_extras": {
+    "net_margin": 0.174211,
+    "rd_pct": 0.242292
+   },
+   "detail": {
+    "spark": {
+     "closes": [
+      148.26,
+      170.62,
+      168.37
+     ],
+     "change": 0.13564
+    },
+    "relative": {
+     "1m": {
+      "company_pct": 0.024795,
+      "relative_pct": 0.01673,
+      "covers_window": true
+     },
+     "3m": {
+      "company_pct": -0.123774,
+      "relative_pct": -0.20732,
+      "covers_window": true
+     },
+     "1y": {
+      "company_pct": 0.120666,
+      "relative_pct": -0.160583,
+      "covers_window": true
+     }
+    },
+    "earnings": {
+     "unit": "USD",
+     "fy": [
+      {
+       "fy": 2024,
+       "revenue_usd_m": 54073,
+       "net_income_usd_m": 7041,
+       "eps_rc": 4.5
+      },
+      {
+       "fy": 2025,
+       "revenue_usd_m": 58739,
+       "net_income_usd_m": 10233,
+       "eps_rc": 6.54
+      }
+     ],
+     "quarters": [
+      {
+       "label": "Q2-25",
+       "period_end": "2025-06-30",
+       "revenue_usd_m": 14457,
+       "eps_rc": 1.57,
+       "derived": false
+      }
+     ]
+    },
+    "results": {
+     "period_end": "2025-06-30",
+     "revenue_usd_m": 14457,
+     "yoy": 0.117406,
+     "eps_rc": 1.57
+    },
+    "revisions": [
+     {
+      "metric": "EPS",
+      "period": "FY2026",
+      "value": 9.37,
+      "first_value": 9.16,
+      "first_as_of": "2026-09-17",
+      "as_of": "2026-09-23",
+      "revisions": 2,
+      "n": 6,
+      "low": 5.18,
+      "high": 10.34
+     },
+     {
+      "metric": "EPS",
+      "period": "FY2027",
+      "value": 10.55,
+      "first_value": 10.44,
+      "first_as_of": "2026-09-17",
+      "as_of": "2026-09-23",
+      "revisions": 2,
+      "n": 7,
+      "low": 5.75,
+      "high": 11.8
+     },
+     {
+      "metric": "PriceTarget",
+      "period": "12M",
+      "value": 211.066,
+      "first_value": 213.026,
+      "first_as_of": "2026-09-17",
+      "as_of": "2026-09-29",
+      "revisions": 9,
+      "n": null,
+      "low": 155.015,
+      "high": 267.633
+     }
+    ],
+    "catalysts": [
+     {
+      "type": "data readout",
+      "expected_date": "2026-09-30",
+      "date_confidence": "estimated",
+      "title": "Phase 3, Imfinzi",
+      "is_curated": false,
+      "source_url": "https://clinicaltrials.gov/study/NCT05557838"
+     }
+    ],
+    "pipeline": {
+     "compounds": {
+      "Phase 1": 27,
+      "Phase 1/2": 28,
+      "Phase 2": 12,
+      "Phase 2/3": 0,
+      "Phase 3": 23,
+      "Phase 4": 2
+     },
+     "unattributed": 1
+    },
+    "products": {
+     "fiscal_year": 2025,
+     "rows": [
+      {
+       "name": "Farxiga",
+       "value_usd_m": 8400,
+       "share": 0.1476
+      }
+     ],
+     "unattributed_usd_m": null
+    },
+    "filings": [
+     {
+      "form": "6-K",
+      "filed_date": "2026-09-23",
+      "title": "TRIXEO APPROVED IN EU FOR ASTHMA",
+      "url": "https://www.sec.gov/Archives/edgar/data/901832/000165495426008520/a8652v.htm"
+     }
+    ],
+    "notes": {
+     "system": {
+      "generated_at": "2026-09-22T19:50:51Z",
+      "model": "gemini-flash-latest",
+      "excerpt": "Commercial execution remains robust, evidenced by FY2025 revenue reaching 58.7B USD, up 9% year-on-year"
+     }
+    },
+    "lineage": {
+     "sources": {
+      "prices": {
+       "live": "2026-09-29T05:46:07Z",
+       "error": "2026-09-19T09:13:42Z"
+      },
+      "consensus_nasdaq": {
+       "live": "2026-09-29T05:47:36Z",
+       "error": "2026-09-19T09:32:15Z"
+      }
+     },
+     "financials": {
+      "latest_period_end": "2025-12-31",
+      "sources": [
+       "edgar_companyfacts"
+      ]
+     },
+     "fx_as_of": "2026-09-28",
+     "refresh_run": {
+      "id": 123,
+      "finished_at": "2026-09-29T09:35:41Z",
+      "status": "partial"
+     }
+    }
+   },
+   "error": null
+  },
+  {
+   "ticker": "CRSP",
+   "name": "CRISPR Therapeutics AG",
+   "engine": "cellgene",
+   "stage": "clinical",
+   "country": "US",
+   "region": "US",
+   "listing": {
+    "home_exchange": "Nasdaq",
+    "us_line": null,
+    "adr_ratio": null,
+    "otc": false
+   },
+   "filer": {
+    "kind": "10-K filer",
+    "annual_form": "10-K",
+    "standard": "US GAAP",
+    "standard_source": "form",
+    "is_sec_filer": true,
+    "is_fpi_flag": false
+   },
+   "themes": [
+    "CAR-T",
+    "Cell therapy",
+    "Gene editing",
+    "Gene therapy",
+    "RNA",
+    "mRNA"
+   ],
+   "market": {
+    "price": 54.09,
+    "price_as_of": "2026-09-28",
+    "change_1d": -0.002582,
+    "shares_cover_m": 96.693,
+    "shares_cover_as_of": "2026-07-31",
+    "market_cap_usd_m": 5230.1,
+    "market_cap_basis": "shares_outstanding",
+    "market_cap_basis_text": "Shares outstanding at the 2026-07-31 cover date",
+    "market_cap_shares_m": 96.69254945461269,
+    "market_cap_alt_usd_m": 4864,
+    "market_cap_disagreement": 0.075,
+    "shares_diluted_m": 89.925,
+    "beta": 1.26,
+    "vol_1y": 0.596504
+   },
+   "ev": {
+    "net_debt_usd_m": -1778.154,
+    "total_debt_usd_m": 586.198,
+    "cash_usd_m": 2364.352,
+    "cash_lines": [
+     "CashAndEquivalents",
+     "ShortTermInvestments",
+     "MarketableSecuritiesNoncurrent"
+    ],
+    "balance_sheet_as_of": "2026-06-30",
+    "debt_basis": "filed",
+    "ev_usd_m": 3451.9460000000004,
+    "other_claims_usd_m": null,
+    "other_claims_lines": []
+   },
+   "periods": {
+    "FY0": {
+     "label": "FY2025",
+     "revenue_usd_m": 3.51,
+     "operating_income_usd_m": -664.571,
+     "ebitda_usd_m": -645.092,
+     "net_income_usd_m": -581.599,
+     "fcf_usd_m": -345.928,
+     "equity_usd_m": 1746.551,
+     "gross_profit_usd_m": null
+    },
+    "FYm1": {
+     "label": "FY2024",
+     "revenue_usd_m": 37.314,
+     "operating_income_usd_m": -466.566,
+     "net_income_usd_m": -366.252
+    },
+    "LTM": {
+     "label": "LTM Jun-26",
+     "period_end": "2026-06-30",
+     "revenue_usd_m": 13.392
+    },
+    "FY1": {
+     "label": "FY2026",
+     "eps": -4.47,
+     "eps_low": -5.63,
+     "eps_high": -3.39,
+     "eps_n": 11,
+     "as_of": "2026-09-29"
+    },
+    "FY2": {
+     "label": "FY2027",
+     "eps": -3.61,
+     "eps_low": -5.4,
+     "eps_high": -1.18,
+     "eps_n": 11,
+     "as_of": "2026-09-29"
+    },
+    "NTM": {
+     "eps": -3.831479,
+     "weight_fy1": 0.257534
+    }
+   },
+   "growth": {
+    "revenue_fy": -0.905934,
+    "revenue_cagr3": 0.430925,
+    "ebitda_fy": null,
+    "eps_street_fy2": null,
+    "bases": {
+     "revenue_fy": [
+      3.51,
+      37.314
+     ]
+    }
+   },
+   "street": {
+    "price_target": {
+     "value": 73.58,
+     "low": 45,
+     "high": 110,
+     "as_of": "2026-09-19",
+     "ratings": {
+      "buy": 8,
+      "hold": 5,
+      "sell": 0
+     }
+    }
+   },
+   "risk": {
+    "runway_months": 76.77,
+    "runway_basis": "trailing twelve months to 2026-06-30",
+    "burn_flattered": false,
+    "cash_out": "2033-02-17",
+    "est_dispersion": 0.501119
+   },
+   "healthcare": {
+    "lead_phase": "Phase 1/2",
+    "major_products": null,
+    "loe_share_5y": null,
+    "trial_concentration": 0.666667,
+    "active_mapped_trials": 6,
+    "late_trials": 0,
+    "catalysts_12m": 0
+   },
+   "model": {
+    "state": "not_modelled",
+    "fair_value_per_share": null,
+    "pipeline_rnpv_usd_m": null
+   },
+   "flags": [
+    {
+     "code": "estimate_range_wide",
+     "field": "periods.FY1",
+     "severity": "amber",
+     "params": {
+      "low": -5.63,
+      "high": -3.39,
+      "mean": -4.47,
+      "n": 11
+     }
+    }
+   ],
+   "na": {
+    "periods.FY0.gross_profit_usd_m": "not_filed",
+    "growth.ebitda_fy": "non_positive_base",
+    "growth.eps_street_fy2": "non_positive_base",
+    "healthcare.major_products": "no_product_revenue",
+    "healthcare.loe_share_5y": "no_product_revenue",
+    "model.fair_value_per_share": "not_modelled",
+    "model.pipeline_rnpv_usd_m": "not_modelled",
+    "ev.other_claims_usd_m": "none_on_file"
+   },
+   "error": null
+  },
+  {
+   "ticker": "SYNA",
+   "name": "Synthetic pharma peer A (test record)",
+   "engine": "pharma",
+   "stage": "commercial",
+   "country": "US",
+   "region": "US",
+   "listing": {
+    "home_exchange": "NYSE",
+    "us_line": null,
+    "adr_ratio": null,
+    "otc": false
+   },
+   "filer": {
+    "kind": "10-K filer",
+    "annual_form": "10-K",
+    "standard": "US GAAP",
+    "standard_source": "form",
+    "is_sec_filer": true,
+    "is_fpi_flag": false
+   },
+   "reporting_currency": "USD",
+   "row_currency": "USD",
+   "fiscal_year_end_month": 12,
+   "themes": [],
+   "areas": {
+    "Oncology": 20,
+    "Metabolic": 10
+   },
+   "market": {
+    "price": 50,
+    "price_currency": "USD",
+    "price_as_of": "2026-09-28",
+    "change_1d": 0.004,
+    "ttm_change": 0.05,
+    "shares_diluted_m": 1200,
+    "market_cap_usd_m": 60000,
+    "market_cap_basis": "diluted_weighted",
+    "market_cap_basis_text": "FY2025 weighted diluted shares, per US-listed share",
+    "market_cap_shares_m": 1200,
+    "beta": 0.6,
+    "vol_1y": 0.25,
+    "spark_90d": [
+     49,
+     50
+    ]
+   },
+   "ev": {
+    "net_debt_usd_m": 5000,
+    "total_debt_usd_m": 9000,
+    "cash_usd_m": 4000,
+    "balance_sheet_as_of": "2026-06-30",
+    "ev_usd_m": 65000,
+    "other_claims_usd_m": null,
+    "other_claims_lines": []
+   },
+   "periods": {
+    "FY0": {
+     "label": "FY2025",
+     "period_end": "2025-12-31",
+     "unit": "USD",
+     "revenue_usd_m": 20000,
+     "gross_profit_usd_m": 15000,
+     "operating_income_usd_m": 5000,
+     "operating_income_basis": "reported",
+     "da_usd_m": 1500,
+     "ebitda_usd_m": 6500,
+     "amortisation_usd_m": null,
+     "acquired_iprd_usd_m": null,
+     "net_income_usd_m": 3600,
+     "net_income_basis": "as filed",
+     "fcf_usd_m": 4200,
+     "rd_usd_m": 4000,
+     "rd_ex_iprd_usd_m": 4000,
+     "tax_rate": 0.18,
+     "equity_usd_m": 25000,
+     "equity_as_of": "2026-06-30",
+     "equity_basis": "as filed",
+     "eps_diluted_rc": 3
+    },
+    "FYm1": {
+     "label": "FY2024",
+     "revenue_usd_m": 19230.76923076923,
+     "ebitda_usd_m": 6190.47619047619
+    },
+    "FYm3": {
+     "label": "FY2022",
+     "revenue_usd_m": 16666.666666666668
+    },
+    "LTM": {
+     "label": "LTM Jun-26",
+     "period_end": "2026-06-30",
+     "revenue_usd_m": 20500,
+     "net_income_usd_m": 3600
+    },
+    "FY1": {
+     "label": "FY2026",
+     "eps": 4,
+     "eps_low": 3.8,
+     "eps_high": 4.2,
+     "eps_n": 12,
+     "as_of": "2026-09-23"
+    },
+    "FY2": {
+     "label": "FY2027",
+     "eps": 4.4,
+     "eps_n": 11,
+     "as_of": "2026-09-23"
+    },
+    "FY3": {
+     "label": "FY2028",
+     "eps": 4.9,
+     "eps_n": 6,
+     "as_of": "2026-09-23"
+    },
+    "NTM": {
+     "eps": 4.296986400000001,
+     "weight_fy1": 0.257534,
+     "sign_change": false
+    }
+   },
+   "growth": {
+    "revenue_fy": 0.04,
+    "revenue_cagr3": 0.0627,
+    "ebitda_fy": 0.05,
+    "ebitda_fy_adjusted": 0.05,
+    "eps_fy_gaap": 0.08,
+    "eps_street_fy2": 0.10000000000000009,
+    "eps_street_cagr": 0.10679718105893277,
+    "bases": {
+     "revenue_fy": [
+      20000,
+      19230.76923076923
+     ],
+     "revenue_cagr3": [
+      20000,
+      16666.666666666668
+     ],
+     "ebitda_fy": [
+      6500,
+      6190.47619047619
+     ],
+     "eps_fy_gaap": [
+      2,
+      1.85
+     ],
+     "eps_street_fy2": [
+      4,
+      4.4
+     ],
+     "eps_street_cagr": [
+      4,
+      4.9
+     ]
+    }
+   },
+   "street": {
+    "price_target": {
+     "value": 55.00000000000001,
+     "low": 45,
+     "high": 65,
+     "as_of": "2026-09-29",
+     "ratings": {
+      "buy": 10,
+      "hold": 5,
+      "sell": 1
+     }
+    },
+    "consensus_checked_at": "2026-09-29T05:47:36Z"
+   },
+   "risk": {
+    "runway_months": null,
+    "est_dispersion": 0.1,
+    "pt_dispersion": 0.3
+   },
+   "healthcare": {
+    "lead_phase": "Marketed",
+    "major_products": 4,
+    "top_product_share": 0.3,
+    "trial_concentration": 0.1,
+    "active_mapped_trials": 60,
+    "late_trials": 20,
+    "catalysts_12m": 10,
+    "loe_share_5y": 0.2,
+    "loe_unpriced_5y": 2,
+    "revenue_per_late_trial_usd_m": 1000
+   },
+   "model": {
+    "state": "not_modelled",
+    "fair_value_per_share": null,
+    "pipeline_rnpv_usd_m": null,
+    "pipeline_per_share": null
+   },
+   "flags": [],
+   "na": {
+    "model.fair_value_per_share": "not_modelled",
+    "model.pipeline_rnpv_usd_m": "not_modelled",
+    "model.pipeline_per_share": "not_modelled",
+    "risk.runway_months": "not_burning"
+   },
+   "lineage": {
+    "price_as_of": "2026-09-28",
+    "balance_sheet_as_of": "2026-06-30",
+    "fy_period_end": "2025-12-31",
+    "fx_as_of": "2026-09-28"
+   },
+   "history": {
+    "labels": [
+     "FY24",
+     "FY25"
+    ],
+    "revenue_growth": [
+     0.03,
+     0.04
+    ],
+    "net_margin": [
+     0.15,
+     0.18
+    ]
+   },
+   "screen_extras": {
+    "net_margin": 0.18,
+    "rd_pct": 0.2
+   },
+   "detail": {},
+   "error": null
+  },
+  {
+   "ticker": "SYNB",
+   "name": "Synthetic pharma peer B (test record)",
+   "engine": "pharma",
+   "stage": "commercial",
+   "country": "US",
+   "region": "US",
+   "listing": {
+    "home_exchange": "NYSE",
+    "us_line": null,
+    "adr_ratio": null,
+    "otc": false
+   },
+   "filer": {
+    "kind": "10-K filer",
+    "annual_form": "10-K",
+    "standard": "US GAAP",
+    "standard_source": "form",
+    "is_sec_filer": true,
+    "is_fpi_flag": false
+   },
+   "reporting_currency": "USD",
+   "row_currency": "USD",
+   "fiscal_year_end_month": 12,
+   "themes": [],
+   "areas": {
+    "Oncology": 20,
+    "Metabolic": 10
+   },
+   "market": {
+    "price": 80,
+    "price_currency": "USD",
+    "price_as_of": "2026-09-28",
+    "change_1d": -0.01,
+    "ttm_change": 0.05,
+    "shares_diluted_m": 1500,
+    "market_cap_usd_m": 120000,
+    "market_cap_basis": "diluted_weighted",
+    "market_cap_basis_text": "FY2025 weighted diluted shares, per US-listed share",
+    "market_cap_shares_m": 1500,
+    "beta": 0.6,
+    "vol_1y": 0.25,
+    "spark_90d": [
+     78.4,
+     80
+    ]
+   },
+   "ev": {
+    "net_debt_usd_m": 15000,
+    "total_debt_usd_m": 21000,
+    "cash_usd_m": 6000,
+    "balance_sheet_as_of": "2026-06-30",
+    "ev_usd_m": 135000,
+    "other_claims_usd_m": null,
+    "other_claims_lines": []
+   },
+   "periods": {
+    "FY0": {
+     "label": "FY2025",
+     "period_end": "2025-12-31",
+     "unit": "USD",
+     "revenue_usd_m": 40000,
+     "gross_profit_usd_m": 30000,
+     "operating_income_usd_m": 11000,
+     "operating_income_basis": "reported",
+     "da_usd_m": 2500,
+     "ebitda_usd_m": 13500,
+     "amortisation_usd_m": null,
+     "acquired_iprd_usd_m": null,
+     "net_income_usd_m": 8000,
+     "net_income_basis": "as filed",
+     "fcf_usd_m": 9000,
+     "rd_usd_m": 8000,
+     "rd_ex_iprd_usd_m": 8000,
+     "tax_rate": 0.18,
+     "equity_usd_m": 50000,
+     "equity_as_of": "2026-06-30",
+     "equity_basis": "as filed",
+     "eps_diluted_rc": 5.333333333333333
+    },
+    "FYm1": {
+     "label": "FY2024",
+     "revenue_usd_m": 37735.84905660377,
+     "ebitda_usd_m": 12857.142857142857
+    },
+    "FYm3": {
+     "label": "FY2022",
+     "revenue_usd_m": 33333.333333333336
+    },
+    "LTM": null,
+    "FY1": {
+     "label": "FY2026",
+     "eps": 5.4,
+     "eps_low": 5.13,
+     "eps_high": 5.670000000000001,
+     "eps_n": 12,
+     "as_of": "2026-09-23"
+    },
+    "FY2": {
+     "label": "FY2027",
+     "eps": 5.9,
+     "eps_n": 11,
+     "as_of": "2026-09-23"
+    },
+    "FY3": {
+     "label": "FY2028",
+     "eps": 6.4,
+     "eps_n": 6,
+     "as_of": "2026-09-23"
+    },
+    "NTM": {
+     "eps": 5.7712330000000005,
+     "weight_fy1": 0.257534,
+     "sign_change": false
+    }
+   },
+   "growth": {
+    "revenue_fy": 0.06,
+    "revenue_cagr3": 0.0627,
+    "ebitda_fy": 0.05,
+    "ebitda_fy_adjusted": 0.05,
+    "eps_fy_gaap": 0.08,
+    "eps_street_fy2": 0.09259259259259256,
+    "eps_street_cagr": 0.08866210790363471,
+    "bases": {
+     "revenue_fy": [
+      40000,
+      37735.84905660377
+     ],
+     "revenue_cagr3": [
+      40000,
+      33333.333333333336
+     ],
+     "ebitda_fy": [
+      13500,
+      12857.142857142857
+     ],
+     "eps_fy_gaap": [
+      2,
+      1.85
+     ],
+     "eps_street_fy2": [
+      5.4,
+      5.9
+     ],
+     "eps_street_cagr": [
+      5.4,
+      6.4
+     ]
+    }
+   },
+   "street": {
+    "price_target": {
+     "value": 88,
+     "low": 72,
+     "high": 104,
+     "as_of": "2026-09-29",
+     "ratings": {
+      "buy": 10,
+      "hold": 5,
+      "sell": 1
+     }
+    },
+    "consensus_checked_at": "2026-09-29T05:47:36Z"
+   },
+   "risk": {
+    "runway_months": null,
+    "est_dispersion": 0.1,
+    "pt_dispersion": 0.3
+   },
+   "healthcare": {
+    "lead_phase": "Marketed",
+    "major_products": 4,
+    "top_product_share": 0.3,
+    "trial_concentration": 0.1,
+    "active_mapped_trials": 60,
+    "late_trials": 30,
+    "catalysts_12m": 10,
+    "loe_share_5y": 0.3,
+    "loe_unpriced_5y": 2,
+    "revenue_per_late_trial_usd_m": 1333.3333333333333
+   },
+   "model": {
+    "state": "not_modelled",
+    "fair_value_per_share": null,
+    "pipeline_rnpv_usd_m": null,
+    "pipeline_per_share": null
+   },
+   "flags": [],
+   "na": {
+    "model.fair_value_per_share": "not_modelled",
+    "model.pipeline_rnpv_usd_m": "not_modelled",
+    "model.pipeline_per_share": "not_modelled",
+    "risk.runway_months": "not_burning",
+    "periods.LTM": "no_ltm"
+   },
+   "lineage": {
+    "price_as_of": "2026-09-28",
+    "balance_sheet_as_of": "2026-06-30",
+    "fy_period_end": "2025-12-31",
+    "fx_as_of": "2026-09-28"
+   },
+   "history": {
+    "labels": [
+     "FY24",
+     "FY25"
+    ],
+    "revenue_growth": [
+     0.03,
+     0.06
+    ],
+    "net_margin": [
+     0.15,
+     0.2
+    ]
+   },
+   "screen_extras": {
+    "net_margin": 0.2,
+    "rd_pct": 0.2
+   },
+   "detail": {},
+   "error": null
+  },
+  {
+   "ticker": "SYNC",
+   "name": "Synthetic pharma peer C (test record)",
+   "engine": "pharma",
+   "stage": "commercial",
+   "country": "US",
+   "region": "US",
+   "listing": {
+    "home_exchange": "NYSE",
+    "us_line": null,
+    "adr_ratio": null,
+    "otc": false
+   },
+   "filer": {
+    "kind": "10-K filer",
+    "annual_form": "10-K",
+    "standard": "US GAAP",
+    "standard_source": "form",
+    "is_sec_filer": true,
+    "is_fpi_flag": false
+   },
+   "reporting_currency": "USD",
+   "row_currency": "USD",
+   "fiscal_year_end_month": 12,
+   "themes": [],
+   "areas": {
+    "Oncology": 20,
+    "Metabolic": 10
+   },
+   "market": {
+    "price": 120,
+    "price_currency": "USD",
+    "price_as_of": "2026-09-28",
+    "change_1d": 0.002,
+    "ttm_change": 0.05,
+    "shares_diluted_m": 1600,
+    "market_cap_usd_m": 192000,
+    "market_cap_basis": "diluted_weighted",
+    "market_cap_basis_text": "FY2025 weighted diluted shares, per US-listed share",
+    "market_cap_shares_m": 1600,
+    "beta": 0.6,
+    "vol_1y": 0.25,
+    "spark_90d": [
+     117.6,
+     120
+    ]
+   },
+   "ev": {
+    "net_debt_usd_m": 30000,
+    "total_debt_usd_m": 39000,
+    "cash_usd_m": 9000,
+    "balance_sheet_as_of": "2026-06-30",
+    "ev_usd_m": 222000,
+    "other_claims_usd_m": null,
+    "other_claims_lines": []
+   },
+   "periods": {
+    "FY0": {
+     "label": "FY2025",
+     "period_end": "2025-12-31",
+     "unit": "USD",
+     "revenue_usd_m": 60000,
+     "gross_profit_usd_m": 45000,
+     "operating_income_usd_m": 17000,
+     "operating_income_basis": "reported",
+     "da_usd_m": 4000,
+     "ebitda_usd_m": 21000,
+     "amortisation_usd_m": null,
+     "acquired_iprd_usd_m": null,
+     "net_income_usd_m": 12000,
+     "net_income_basis": "as filed",
+     "fcf_usd_m": 13000,
+     "rd_usd_m": 12000,
+     "rd_ex_iprd_usd_m": 12000,
+     "tax_rate": 0.18,
+     "equity_usd_m": 60000,
+     "equity_as_of": "2026-06-30",
+     "equity_basis": "as filed",
+     "eps_diluted_rc": 7.5
+    },
+    "FYm1": {
+     "label": "FY2024",
+     "revenue_usd_m": 55555.555555555555,
+     "ebitda_usd_m": 20000
+    },
+    "FYm3": {
+     "label": "FY2022",
+     "revenue_usd_m": 50000
+    },
+    "LTM": null,
+    "FY1": {
+     "label": "FY2026",
+     "eps": 6.8,
+     "eps_low": 6.46,
+     "eps_high": 7.14,
+     "eps_n": 12,
+     "as_of": "2026-09-23"
+    },
+    "FY2": {
+     "label": "FY2027",
+     "eps": 7.3,
+     "eps_n": 11,
+     "as_of": "2026-09-23"
+    },
+    "FY3": {
+     "label": "FY2028",
+     "eps": 8,
+     "eps_n": 6,
+     "as_of": "2026-09-23"
+    },
+    "NTM": {
+     "eps": 7.171233000000001,
+     "weight_fy1": 0.257534,
+     "sign_change": false
+    }
+   },
+   "growth": {
+    "revenue_fy": 0.08,
+    "revenue_cagr3": 0.0627,
+    "ebitda_fy": 0.05,
+    "ebitda_fy_adjusted": 0.05,
+    "eps_fy_gaap": 0.08,
+    "eps_street_fy2": 0.07352941176470584,
+    "eps_street_cagr": 0.08465228909328082,
+    "bases": {
+     "revenue_fy": [
+      60000,
+      55555.555555555555
+     ],
+     "revenue_cagr3": [
+      60000,
+      50000
+     ],
+     "ebitda_fy": [
+      21000,
+      20000
+     ],
+     "eps_fy_gaap": [
+      2,
+      1.85
+     ],
+     "eps_street_fy2": [
+      6.8,
+      7.3
+     ],
+     "eps_street_cagr": [
+      6.8,
+      8
+     ]
+    }
+   },
+   "street": {
+    "price_target": {
+     "value": 132,
+     "low": 108,
+     "high": 156,
+     "as_of": "2026-09-29",
+     "ratings": {
+      "buy": 10,
+      "hold": 5,
+      "sell": 1
+     }
+    },
+    "consensus_checked_at": "2026-09-29T05:47:36Z"
+   },
+   "risk": {
+    "runway_months": null,
+    "est_dispersion": 0.1,
+    "pt_dispersion": 0.3
+   },
+   "healthcare": {
+    "lead_phase": "Marketed",
+    "major_products": 4,
+    "top_product_share": 0.3,
+    "trial_concentration": 0.1,
+    "active_mapped_trials": 60,
+    "late_trials": 40,
+    "catalysts_12m": 10,
+    "loe_share_5y": 0.15,
+    "loe_unpriced_5y": 2,
+    "revenue_per_late_trial_usd_m": 1500
+   },
+   "model": {
+    "state": "not_modelled",
+    "fair_value_per_share": null,
+    "pipeline_rnpv_usd_m": null,
+    "pipeline_per_share": null
+   },
+   "flags": [],
+   "na": {
+    "model.fair_value_per_share": "not_modelled",
+    "model.pipeline_rnpv_usd_m": "not_modelled",
+    "model.pipeline_per_share": "not_modelled",
+    "risk.runway_months": "not_burning",
+    "periods.LTM": "no_ltm"
+   },
+   "lineage": {
+    "price_as_of": "2026-09-28",
+    "balance_sheet_as_of": "2026-06-30",
+    "fy_period_end": "2025-12-31",
+    "fx_as_of": "2026-09-28"
+   },
+   "history": {
+    "labels": [
+     "FY24",
+     "FY25"
+    ],
+    "revenue_growth": [
+     0.03,
+     0.08
+    ],
+    "net_margin": [
+     0.15,
+     0.2
+    ]
+   },
+   "screen_extras": {
+    "net_margin": 0.2,
+    "rd_pct": 0.2
+   },
+   "detail": {},
+   "error": null
+  },
+  {
+   "ticker": "SYND",
+   "name": "Synthetic pharma peer D (test record)",
+   "engine": "pharma",
+   "stage": "commercial",
+   "country": "US",
+   "region": "US",
+   "listing": {
+    "home_exchange": "NYSE",
+    "us_line": null,
+    "adr_ratio": null,
+    "otc": false
+   },
+   "filer": {
+    "kind": "10-K filer",
+    "annual_form": "10-K",
+    "standard": "US GAAP",
+    "standard_source": "form",
+    "is_sec_filer": true,
+    "is_fpi_flag": false
+   },
+   "reporting_currency": "USD",
+   "row_currency": "USD",
+   "fiscal_year_end_month": 12,
+   "themes": [],
+   "areas": {
+    "Oncology": 20,
+    "Metabolic": 10
+   },
+   "market": {
+    "price": 200,
+    "price_currency": "USD",
+    "price_as_of": "2026-09-28",
+    "change_1d": 0,
+    "ttm_change": 0.05,
+    "shares_diluted_m": 1000,
+    "market_cap_usd_m": 200000,
+    "market_cap_basis": "diluted_weighted",
+    "market_cap_basis_text": "FY2025 weighted diluted shares, per US-listed share",
+    "market_cap_shares_m": 1000,
+    "beta": 0.6,
+    "vol_1y": 0.25,
+    "spark_90d": [
+     196,
+     200
+    ]
+   },
+   "ev": {
+    "net_debt_usd_m": 20000,
+    "total_debt_usd_m": 25000,
+    "cash_usd_m": 5000,
+    "balance_sheet_as_of": "2026-06-30",
+    "ev_usd_m": 220000,
+    "other_claims_usd_m": null,
+    "other_claims_lines": []
+   },
+   "periods": {
+    "FY0": {
+     "label": "FY2025",
+     "period_end": "2025-12-31",
+     "unit": "USD",
+     "revenue_usd_m": 45000,
+     "gross_profit_usd_m": 33750,
+     "operating_income_usd_m": 18000,
+     "operating_income_basis": "derived",
+     "da_usd_m": 2000,
+     "ebitda_usd_m": 20000,
+     "amortisation_usd_m": null,
+     "acquired_iprd_usd_m": null,
+     "net_income_usd_m": 10500,
+     "net_income_basis": "as filed",
+     "fcf_usd_m": 11000,
+     "rd_usd_m": 9000,
+     "rd_ex_iprd_usd_m": 9000,
+     "tax_rate": 0.18,
+     "equity_usd_m": 30000,
+     "equity_as_of": "2026-06-30",
+     "equity_basis": "as filed",
+     "eps_diluted_rc": 10.5
+    },
+    "FYm1": {
+     "label": "FY2024",
+     "revenue_usd_m": 36000,
+     "ebitda_usd_m": 19047.619047619046
+    },
+    "FYm3": {
+     "label": "FY2022",
+     "revenue_usd_m": 37500
+    },
+    "LTM": null,
+    "FY1": {
+     "label": "FY2026",
+     "eps": 9,
+     "eps_low": 8.549999999999999,
+     "eps_high": 9.450000000000001,
+     "eps_n": 12,
+     "as_of": "2026-09-23"
+    },
+    "FY2": {
+     "label": "FY2027",
+     "eps": 10.5,
+     "eps_n": 11,
+     "as_of": "2026-09-23"
+    },
+    "FY3": {
+     "label": "FY2028",
+     "eps": 12,
+     "eps_n": 6,
+     "as_of": "2026-09-23"
+    },
+    "NTM": {
+     "eps": 10.113699,
+     "weight_fy1": 0.257534,
+     "sign_change": false
+    }
+   },
+   "growth": {
+    "revenue_fy": 0.25,
+    "revenue_cagr3": 0.0627,
+    "ebitda_fy": 0.05,
+    "ebitda_fy_adjusted": 0.05,
+    "eps_fy_gaap": 0.08,
+    "eps_street_fy2": 0.16666666666666674,
+    "eps_street_cagr": 0.15470053837925146,
+    "bases": {
+     "revenue_fy": [
+      45000,
+      36000
+     ],
+     "revenue_cagr3": [
+      45000,
+      37500
+     ],
+     "ebitda_fy": [
+      20000,
+      19047.619047619046
+     ],
+     "eps_fy_gaap": [
+      2,
+      1.85
+     ],
+     "eps_street_fy2": [
+      9,
+      10.5
+     ],
+     "eps_street_cagr": [
+      9,
+      12
+     ]
+    }
+   },
+   "street": {
+    "price_target": {
+     "value": 220.00000000000003,
+     "low": 180,
+     "high": 260,
+     "as_of": "2026-09-29",
+     "ratings": {
+      "buy": 10,
+      "hold": 5,
+      "sell": 1
+     }
+    },
+    "consensus_checked_at": "2026-09-29T05:47:36Z"
+   },
+   "risk": {
+    "runway_months": null,
+    "est_dispersion": 0.1,
+    "pt_dispersion": 0.3
+   },
+   "healthcare": {
+    "lead_phase": "Marketed",
+    "major_products": 4,
+    "top_product_share": 0.3,
+    "trial_concentration": 0.1,
+    "active_mapped_trials": 60,
+    "late_trials": 25,
+    "catalysts_12m": 10,
+    "loe_share_5y": 0.1,
+    "loe_unpriced_5y": 2,
+    "revenue_per_late_trial_usd_m": 1800
+   },
+   "model": {
+    "state": "not_modelled",
+    "fair_value_per_share": null,
+    "pipeline_rnpv_usd_m": null,
+    "pipeline_per_share": null
+   },
+   "flags": [
+    {
+     "code": "derived_operating_income",
+     "field": "periods.FY0.operating_income_usd_m",
+     "severity": "amber",
+     "params": {}
+    }
+   ],
+   "na": {
+    "model.fair_value_per_share": "not_modelled",
+    "model.pipeline_rnpv_usd_m": "not_modelled",
+    "model.pipeline_per_share": "not_modelled",
+    "risk.runway_months": "not_burning",
+    "periods.LTM": "no_ltm"
+   },
+   "lineage": {
+    "price_as_of": "2026-09-28",
+    "balance_sheet_as_of": "2026-06-30",
+    "fy_period_end": "2025-12-31",
+    "fx_as_of": "2026-09-28"
+   },
+   "history": {
+    "labels": [
+     "FY24",
+     "FY25"
+    ],
+    "revenue_growth": [
+     0.03,
+     0.25
+    ],
+    "net_margin": [
+     0.15,
+     0.23333333333333334
+    ]
+   },
+   "screen_extras": {
+    "net_margin": 0.23333333333333334,
+    "rd_pct": 0.2
+   },
+   "detail": {},
+   "error": null
+  }
+ ],
+ "errors": []
+}

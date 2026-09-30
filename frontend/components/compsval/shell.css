@@ -1,0 +1,629 @@
+/* compsval shell stylesheet. Owner: E. Prefix .sh- only: the header band (context bar,
+   conclusion banner, KPI strip, scope line), the layout of #main and its slots, and the
+   overlays (palette, help, selector, "Why?", menus, toast). Shared primitives (.u-) come
+   from research.css; every colour is a var() of a token or of a derived property there.
+   Sizes on the type scale and the band heights of 1.3 are calc(<px> * var(--ts)), so the
+   text-size setting scales the whole frame. */
+
+/* ------------------------------------------------------------------------------------ */
+/* Header band (1.5): panel ground, 16 px gutter, one rule under the scope line          */
+/* ------------------------------------------------------------------------------------ */
+
+/* Nothing paints before the tokens arrive with the first render message: without them the
+   frame would flash unstyled text. */
+html:not([data-tokens]) #app { visibility: hidden; }
+
+.sh-short { display: none; }
+
+/* Context bar: identity left, controls right, 8 px gaps, 40 px (36 short). */
+.sh-ctx {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  min-width: 0;
+  height: calc(40px * var(--ts));
+  padding: 0 var(--gutter);
+  overflow: hidden;
+  background: var(--panel);
+}
+[data-height="short"] .sh-ctx { height: calc(36px * var(--ts)); }
+.sh-ctx-id, .sh-ctx-ctl {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex: none;
+  width: max-content;
+  min-width: 0;
+}
+/* Narrow: an identity row and a controls row, 36 px each; the steps run per row. */
+[data-layout="narrow"] .sh-ctx {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  height: auto;
+  gap: 0;
+}
+[data-layout="narrow"] .sh-ctx-id, [data-layout="narrow"] .sh-ctx-ctl { height: calc(36px * var(--ts)); }
+
+.sh-company {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: var(--ctl-h);
+  padding: 0 6px 0 8px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--ground);
+  color: var(--text);
+  font-size: calc(14px * var(--ts));
+  line-height: 1;
+  transition: background-color var(--motion) linear;
+}
+.sh-company .u-ticker { font-size: calc(14px * var(--ts)); }
+.sh-company:hover { background: var(--rule); }
+.sh-company[aria-expanded="true"] { border-color: var(--active); background: var(--active-wash); }
+.sh-company.is-static { cursor: default; background: transparent; }
+.sh-caret {
+  font-family: var(--font-ui);
+  font-size: calc(10px * var(--ts));
+  color: var(--muted);
+}
+.sh-name {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(15px * var(--ts));
+  line-height: calc(20px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+}
+.sh-listing, .sh-reporting {
+  font-family: var(--font-ui);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sh-idchip { flex: none; }
+
+.sh-peerset { gap: 4px; max-width: 300px; }
+.sh-peerset-k { color: var(--muted); font-weight: 500; }
+.sh-peerset .sh-full, .sh-peerset .sh-short {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.sh-peerset .sh-short { display: none; max-width: 136px; }
+.sh-period-btn, .sh-cur { gap: 6px; }
+.sh-period-seg > button { min-width: calc(36px * var(--ts)); }
+.sh-asof { gap: 4px; font-family: var(--font-mono); font-size: calc(11px * var(--ts)); }
+.sh-asof-mark { font-weight: 700; }
+.sh-icon { display: block; }
+.sh-help-btn { width: calc(30px * var(--ts)); gap: 3px; padding: 0 4px; }
+/* The key state (7.1): filled active while the frame has focus, a hollow muted ring
+   otherwise. The button's accessible name says the same. */
+.sh-keydot {
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--muted);
+  border-radius: 50%;
+  background: transparent;
+}
+.sh-help-btn.is-keys .sh-keydot { border-color: var(--active); background: var(--active); }
+.sh-failchip { border-color: var(--down); color: var(--text); }
+.sh-failchip .sh-warn-mark { color: var(--down); }
+
+/* Collapse steps of 1.5, applied as .sh-c1 to .sh-c8 on the bar. */
+.sh-earn-toggle, .sh-period-btn, .sh-more { display: none; }
+.sh-c1 .sh-listing { display: none; }
+.sh-c2 .sh-reporting .sh-full { display: none; }
+.sh-c2 .sh-reporting .sh-short { display: inline; }
+.sh-c3 .sh-earn-seg { display: none; }
+.sh-c3 .sh-earn-toggle { display: inline-flex; }
+.sh-c4 .sh-asof .sh-full { display: none; }
+.sh-c4 .sh-asof .sh-short { display: inline; }
+.sh-c5 .sh-name { max-width: 120px; }
+.sh-c6 .sh-reload, .sh-c6 .sh-export { display: none; }
+.sh-c6 .sh-more { display: inline-flex; }
+.sh-c7 .sh-period-seg { display: none; }
+.sh-c7 .sh-period-btn { display: inline-flex; }
+.sh-c8 .sh-peerset .sh-full { display: none; }
+.sh-c8 .sh-peerset .sh-short { display: inline-block; }
+
+/* Conclusion banner: ground inside the panel band, 3 px bar, 16 px below (8 short). */
+.sh-banner-row {
+  padding: 0 var(--gutter) var(--sp-16);
+  background: var(--panel);
+}
+[data-height="short"] .sh-banner-row { padding-bottom: var(--sp-8); }
+.sh-banner {
+  display: grid;
+  grid-template-columns: calc(112px * var(--ts)) minmax(0, 1fr);
+  column-gap: var(--sp-16);
+  padding: var(--sp-12) var(--sp-16);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--active);
+  background: var(--ground);
+}
+.sh-banner[data-bar="flag"] { border-left-color: var(--flag); }
+.sh-banner[data-bar="down"] { border-left-color: var(--down); }
+[data-height="short"] .sh-banner { padding: var(--sp-8) var(--sp-16); }
+.sh-token { display: flex; flex-direction: column; min-width: 0; }
+.sh-token-val { display: flex; align-items: baseline; gap: 6px; }
+.sh-token-glyph { font-size: 0.66em; line-height: 1; }
+.sh-token-cap {
+  margin-top: 2px;
+  font-family: var(--font-ui);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  color: var(--muted);
+}
+.sh-concl { min-width: 0; }
+/* The token and the mono figures of the headline never raise their line: the band heights
+   of 1.3 count whole lines. */
+.sh-token-val { height: calc(28px * var(--ts)); }
+[data-height="short"] .sh-token-val { height: calc(22px * var(--ts)); }
+.sh-headline .u-num { font-size: 0.94em; line-height: 1; letter-spacing: -0.04em; }
+/* A readable measure on a wide frame: the headline and its support stop at 1,200 px, so
+   two sentences of support stay two short lines rather than one line 1,700 px long. */
+.sh-headline, .sh-support { max-width: calc(1200px * var(--ts)); }
+.sh-support { margin-top: var(--sp-4); }
+.sh-banner .sh-short { display: none; }
+[data-height="short"] .sh-banner .sh-full { display: none; }
+[data-height="short"] .sh-banner .sh-short { display: inline; }
+[data-height="short"] .sh-support {
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sh-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4) var(--sp-12);
+  min-height: calc(20px * var(--ts));
+  margin-top: var(--sp-8);
+}
+[data-height="short"] .sh-meta { margin-top: var(--sp-4); }
+.sh-syslabel {
+  font-family: var(--font-ui);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sh-conf { gap: 6px; }
+.sh-conf-bar { display: inline-flex; align-items: center; gap: 2px; }
+.sh-conf-seg { width: 4px; height: 10px; background: var(--rule-strong); }
+.sh-conf-seg.on { background: var(--text); }
+.sh-bchip { cursor: default; }
+/* Meta line 20 px (1.5): its buttons are no taller than the line. */
+.sh-banner-action, .sh-why-btn { height: calc(20px * var(--ts)); padding: 0 10px; }
+.sh-look { font-size: calc(12.5px * var(--ts)); line-height: calc(16px * var(--ts)); }
+.sh-why-btn { margin-left: auto; }
+/* The universe-level stale-price state, one compact line under the banner (section 8). */
+.sh-universe {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-8);
+  margin-top: var(--sp-8);
+  padding: 3px var(--sp-12);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.sh-universe .u-state-title, .sh-universe .u-state-detail {
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+}
+.sh-universe .u-state-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* KPI strip: six cells, 68 px (44 short); cell 5 is one and a half shares wide. */
+.sh-kpi-row { padding: 0 var(--gutter); background: var(--panel); }
+/* A grid rather than the primitive's flex row, so cell 5 is exactly one and a half shares
+   whatever the cell padding. */
+.sh-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 2fr)) minmax(0, 3fr) minmax(0, 2fr);
+  height: calc(68px * var(--ts));
+}
+[data-height="short"] .sh-kpis { height: calc(44px * var(--ts)); }
+[data-layout="narrow"] .sh-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); height: auto; }
+.sh-kpis .u-kpi {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 var(--sp-12);
+}
+[data-layout="narrow"] .sh-kpis .u-kpi { min-height: calc(44px * var(--ts)); }
+.sh-kpi:focus-visible { outline-offset: -2px; }
+.sh-kpi .u-kpi-row { min-height: calc(22px * var(--ts)); }
+[data-height="short"] .sh-kpi .u-kpi-row { min-height: calc(20px * var(--ts)); }
+/* line-height 1: a smaller glyph on the value's 22 px line would push the line box out and
+   the cell past the strip's height. */
+.sh-kpi-glyph { margin-right: 4px; font-size: 0.72em; line-height: 1; }
+.sh-kpi-unit { height: calc(16px * var(--ts)); padding: 0 4px; font-family: var(--font-mono); font-size: calc(10px * var(--ts)); }
+.sh-kpi-strip { display: inline-flex; flex: none; align-items: center; }
+
+/* Scope line: 28 px (24 short); items 1 to 3 stay, 4 to 6 may move into "+n". */
+.sh-scope-row {
+  padding: 0 var(--gutter);
+  border-bottom: 1px solid var(--rule);
+  background: var(--panel);
+}
+.sh-scope {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+  height: calc(28px * var(--ts));
+  overflow: hidden;
+}
+[data-height="short"] .sh-scope { height: calc(24px * var(--ts)); }
+.sh-scope > * { flex: none; }
+.sh-counts { font-size: calc(12.5px * var(--ts)); line-height: calc(16px * var(--ts)); }
+.sh-scope-label {
+  font-family: var(--font-ui);
+  font-size: calc(12px * var(--ts));
+  color: var(--muted);
+}
+.sh-scope-chip .u-chip-label, .sh-scope-warn .u-chip-label { max-width: 260px; }
+.sh-warn-mark { font-family: var(--font-mono); font-weight: 700; }
+.sh-scope-fixed { display: flex; align-items: center; gap: var(--sp-8); margin-left: auto; padding-left: var(--sp-8); }
+.sh-scope-btn { height: calc(20px * var(--ts)); padding: 0 8px; font-size: calc(12px * var(--ts)); }
+
+/* ------------------------------------------------------------------------------------ */
+/* #main: the analysis band and the lower sections (1.3, 1.6)                          */
+/* ------------------------------------------------------------------------------------ */
+
+.sh-frame-state { display: grid; gap: var(--sp-12); max-width: 960px; }
+.sh-skel { display: block; border-top: 1px solid var(--rule); }
+
+.sh-analysis {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-8);
+  align-items: start;
+}
+/* Ultrawide: table, rail (capped at 600), side panel column of 440 only while one is open. */
+[data-layout="ultrawide"] .sh-analysis {
+  gap: var(--sp-16);
+  grid-template-columns: minmax(1100px, 2fr) minmax(420px, min(600px, calc((100% - 16px) / 3)));
+}
+[data-layout="ultrawide"][data-detail] .sh-analysis {
+  grid-template-columns: minmax(1100px, 2fr) minmax(420px, min(600px, calc((100% - 472px) / 3))) 440px;
+}
+/* Wide: table and rail; an open side panel docks into the rail column. */
+[data-layout="wide"] .sh-analysis {
+  gap: var(--sp-16);
+  grid-template-columns: minmax(960px, 2fr) minmax(420px, min(600px, calc((100% - 16px) / 3)));
+}
+.sh-slot { min-width: 0; }
+.sh-mount { min-width: 0; }
+.sh-fail { margin: 0 0 var(--sp-8); }
+
+/* The side panel and the methodology drawer place themselves (.pn-detail per layout,
+   .u-drawer.pn-method); their slots are plain boxes. Only when a panel failed to mount does
+   the slot take the panel's place, so its failure state shows where the panel would. */
+.sh-detail { position: relative; }
+[data-layout="ultrawide"] .sh-detail, [data-layout="wide"] .sh-detail { position: sticky; top: 0; }
+/* Laptop and narrow: the panel is a fixed drawer or overlay, so its slot leaves the grid
+   and opening it adds no row and no gap under the table. */
+[data-layout="laptop"] .sh-detail, [data-layout="narrow"] .sh-detail { position: absolute; }
+/* The methodology slot is a direct child of #app: fixed and zero-size, so it never takes a
+   grid row; the drawer inside it is fixed to the frame. */
+.sh-method { position: fixed; z-index: 35; top: 0; left: 0; width: 0; height: 0; }
+.sh-slot-failed.sh-detail, .sh-slot-failed.sh-method { padding: var(--sp-12); background: var(--panel); }
+[data-layout="laptop"] .sh-slot-failed.sh-detail, [data-layout="narrow"] .sh-slot-failed.sh-detail,
+.sh-slot-failed.sh-method {
+  position: fixed;
+  z-index: 30;
+  top: var(--band-h);
+  right: 0;
+  bottom: 0;
+  left: auto;
+  width: min(var(--drawer-w), 100%);
+  height: auto;
+  overflow: auto;
+  border-left: 1px solid var(--rule-strong);
+}
+.sh-slot-failed.sh-method { width: min(520px, 100%); }
+[data-layout="narrow"] .sh-slot-failed.sh-detail, [data-layout="narrow"] .sh-slot-failed.sh-method { width: 100%; border-left: 0; }
+
+/* Lower sections: bridge full width, drivers and risks beside notes, then peers (wide and
+   ultrawide); all four stacked (laptop); one tab strip (narrow). */
+.sh-lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--section-gap);
+  align-items: start;
+  margin-top: var(--section-gap);
+}
+[data-layout="wide"] .sh-lower, [data-layout="ultrawide"] .sh-lower {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+[data-layout="wide"] .sh-sec[data-sec="bridge"], [data-layout="wide"] .sh-sec[data-sec="peers"],
+[data-layout="ultrawide"] .sh-sec[data-sec="bridge"], [data-layout="ultrawide"] .sh-sec[data-sec="peers"] {
+  grid-column: 1 / -1;
+}
+.sh-sec { min-width: 0; }
+.sh-sec:focus-visible { outline-offset: 2px; }
+.sh-bridge-body {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--sp-16);
+  align-items: start;
+}
+[data-layout="narrow"] .sh-bridge-body { grid-template-columns: minmax(0, 1fr); }
+.sh-lowertabs {
+  display: flex;
+  margin-top: var(--section-gap);
+  border-bottom: 1px solid var(--rule);
+}
+.sh-ltab {
+  height: var(--ctl-h);
+  padding: 0 var(--sp-12);
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: calc(12.5px * var(--ts));
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sh-ltab:hover { color: var(--text); }
+.sh-ltab[aria-selected="true"] { border-bottom-color: var(--active); color: var(--text); }
+[data-layout="narrow"] .sh-lower { margin-top: var(--sp-12); }
+[data-layout="narrow"] .sh-sec:not(.is-active) { display: none; }
+
+/* ------------------------------------------------------------------------------------ */
+/* Overlays                                                                              */
+/* ------------------------------------------------------------------------------------ */
+
+/* A zero-size fixed layer: its children are fixed to the frame and out of the grid. */
+.sh-layer {
+  position: fixed;
+  z-index: 60;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+.sh-descs { display: none; }
+.sh-scrim {
+  position: fixed;
+  z-index: 44;
+  inset: 0;
+  background: color-mix(in oklab, var(--ground) 62%, transparent);
+}
+
+/* "Why?" popover: 440 px, anchored under its button, overlays the page. */
+.sh-why { position: fixed; z-index: 42; }
+.sh-why-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+.sh-why-head .u-pop-title { margin: 0; }
+.sh-why-close { width: calc(22px * var(--ts)); height: calc(22px * var(--ts)); }
+.sh-why-label {
+  margin: var(--sp-4) 0 var(--sp-12);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  color: var(--muted);
+}
+.sh-why-gtitle {
+  margin: 0 0 var(--sp-4);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+}
+.sh-why-list { display: grid; gap: var(--sp-4); }
+.sh-why-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--sp-8); }
+.sh-why-item.is-muted, .sh-why-item.is-muted .sh-why-link { color: var(--muted); }
+.sh-why-pts { min-width: 22px; color: var(--muted); font-size: calc(11px * var(--ts)); }
+.sh-why-link {
+  display: inline;
+  white-space: normal;
+  text-align: left;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: 400;
+}
+.sh-why-model { height: calc(16px * var(--ts)); }
+
+/* Company selector: a popover listbox under the ticker button. */
+.sh-sel {
+  position: fixed;
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--panel);
+}
+.sh-sel-input { margin: var(--sp-8); width: auto; }
+.sh-sel-list { overflow: auto; padding-bottom: var(--sp-4); }
+.sh-sel-head {
+  padding: var(--sp-8) var(--sp-12) var(--sp-4);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  font-weight: 600;
+  color: var(--muted);
+}
+.sh-sel-opt {
+  display: grid;
+  grid-template-columns: 12px calc(52px * var(--ts)) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-8);
+  height: calc(28px * var(--ts));
+  padding: 0 var(--sp-12) 0 var(--sp-8);
+  cursor: pointer;
+}
+.sh-sel-opt:hover { background: var(--rule); }
+.sh-sel-opt.is-active { background: var(--active-wash); box-shadow: inset 2px 0 0 var(--active); }
+.sh-sel-opt.is-active .u-chip { color: var(--text); }
+.sh-sel-check { color: var(--active); font-family: var(--font-mono); }
+.sh-sel-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.sh-sel-empty { padding: var(--sp-12); color: var(--muted); }
+.sh-sel-foot, .sh-pal-foot {
+  margin: 0;
+  padding: 6px var(--sp-12);
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  color: var(--muted);
+}
+
+/* Command palette (7.3): a modal dialog, at most 12 rows visible. */
+.sh-pal {
+  position: fixed;
+  z-index: 45;
+  top: max(24px, 8vh);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100vh - 2 * max(24px, 8vh));
+  margin: 0 auto;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--panel);
+}
+.sh-pal-input {
+  width: 100%;
+  height: calc(36px * var(--ts));
+  padding: 0 var(--sp-12);
+  border: 0;
+  border-bottom: 1px solid var(--rule-strong);
+  font-size: calc(14px * var(--ts));
+}
+.sh-pal-list {
+  min-height: 0;
+  max-height: calc(12 * 30px * var(--ts));
+  overflow: auto;
+  margin: 0;
+  padding: var(--sp-4) 0;
+}
+.sh-pal-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto calc(64px * var(--ts));
+  align-items: center;
+  gap: var(--sp-12);
+  height: calc(30px * var(--ts));
+  padding: 0 var(--sp-12);
+  cursor: pointer;
+}
+.sh-pal-item.is-active { background: var(--active-wash); box-shadow: inset 2px 0 0 var(--active); }
+.sh-pal-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.sh-pal-group {
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ts));
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sh-pal-key { justify-self: end; }
+/* muted fails AA on the active wash (9.6), so the active row turns every text to text. */
+.sh-pal-item.is-active .sh-pal-group, .sh-pal-item.is-active .u-kbd { color: var(--text); }
+.sh-pal-empty { padding: var(--sp-12); color: var(--muted); }
+
+/* Shortcut help (7.2): the single-key toggle first. */
+.sh-help {
+  position: fixed;
+  z-index: 45;
+  top: max(24px, 6vh);
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  width: min(780px, calc(100vw - 32px));
+  max-height: calc(100vh - 2 * max(24px, 6vh));
+  margin: 0 auto;
+  padding: var(--sp-16);
+  overflow: auto;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--panel);
+}
+.sh-help-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-12); }
+.sh-help-head .u-section-title { margin: 0; }
+.sh-help-toggle {
+  display: grid;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-12);
+  padding: var(--sp-12);
+  border: 1px solid var(--rule);
+}
+.sh-help-note {
+  margin: 0 0 var(--sp-8);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  color: var(--muted);
+}
+.sh-help-toggle .sh-help-note { margin: 0; }
+.sh-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  justify-self: start;
+  height: var(--ctl-h);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: calc(13px * var(--ts));
+  font-weight: 600;
+}
+.sh-switch-track {
+  position: relative;
+  width: 28px;
+  height: 14px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--ground);
+}
+.sh-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 8px;
+  background: var(--muted);
+}
+.sh-switch[aria-checked="true"] .sh-switch-track { border-color: var(--active); background: var(--active-wash); }
+.sh-switch[aria-checked="true"] .sh-switch-thumb { left: 14px; background: var(--active); }
+.sh-switch-state { font-family: var(--font-mono); font-size: calc(11px * var(--ts)); font-weight: 400; color: var(--muted); }
+.sh-help-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--sp-16) var(--sp-24);
+  margin-bottom: var(--sp-12);
+}
+.sh-help-gtitle {
+  margin: 0 0 var(--sp-4);
+  font-size: calc(13px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+}
+.sh-help-list { margin: 0; }
+.sh-help-row {
+  display: grid;
+  grid-template-columns: calc(140px * var(--ts)) minmax(0, 1fr);
+  gap: var(--sp-8);
+  padding: 3px 0;
+  border-bottom: 1px solid var(--rule-faint);
+}
+.sh-help-row dt { white-space: nowrap; }
+.sh-help-row dd { margin: 0; color: var(--text); }
+.sh-help-row.is-off dd { color: var(--muted); }
+.sh-help-or, .sh-help-scope { font-size: calc(11px * var(--ts)); color: var(--muted); }
+
+/* Toast: the undo button carries its key. */
+.sh-toast-undo { height: calc(22px * var(--ts)); gap: 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-company, .sh-ltab { transition: none; }
+}

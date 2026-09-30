@@ -1,0 +1,541 @@
+/* compsval table stylesheet. Owner: C. Prefix .tb- only (comparable companies table and its toolbar).
+   Spec: docs/design/comps-valuation.md section 4, with 9.2 to 9.6 for type, spacing, markers and
+   contrast. Every colour is a token or a derived property of research.css; no colour literals.
+   Frozen column offsets and the table width are written by table.js into <style class="tb-fzstyle">
+   as #tb-grid .tb-fz-{i} { left } rules, so the cells carry no inline geometry. */
+
+/* ------------------------------------------------------------------------------------ */
+/* Section and toolbar                                                                   */
+/* ------------------------------------------------------------------------------------ */
+
+.tb {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+
+/* One 32 px line of controls outside the table box (1.6). It wraps only at narrow. */
+.tb-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-height: calc(32px * var(--ts));
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.tb[data-layout="narrow"] .tb-bar { flex-wrap: wrap; overflow: visible; row-gap: var(--sp-4); }
+.tb-bar .u-btn { flex: 0 0 auto; font-weight: 500; gap: 4px; }
+.tb-bl { color: var(--muted); font-weight: 500; }
+.tb-bv { color: var(--text); font-weight: 600; }
+.tb-caret {
+  margin-left: 2px;
+  color: var(--muted);
+  font-size: calc(9px * var(--ts));
+}
+.tb-bar .u-kbd { margin-left: 4px; }
+.tb-bar .u-btn[aria-pressed="true"] .tb-bl { color: var(--text); }
+.tb-end { margin-left: auto; display: inline-flex; }
+.tb-hid { height: var(--ctl-h); gap: 4px; }
+
+/* ------------------------------------------------------------------------------------ */
+/* Table box (1.2): its own scroll for frozen columns; no overscroll-behavior, so the     */
+/* wheel carries on into #main at either end.                                            */
+/* ------------------------------------------------------------------------------------ */
+
+.tb-box {
+  position: relative;
+  min-width: 0;
+  max-height: var(--main-h);
+  overflow: auto;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+.tb-skel { padding: 0; }
+.tb-secerr { padding: var(--sp-12); }
+
+/* ------------------------------------------------------------------------------------ */
+/* Grid                                                                                  */
+/* ------------------------------------------------------------------------------------ */
+
+.tb-grid {
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  font-family: var(--font-ui);
+  font-size: calc(13px * var(--ts));
+  line-height: calc(18px * var(--ts));
+  color: var(--text);
+}
+/* The active cell carries the focus ring (7.4); the grid element itself draws none. */
+.tb-grid:focus, .tb-grid:focus-visible { outline: none; }
+
+.tb-grid th, .tb-grid td {
+  box-sizing: border-box;
+  height: var(--row-h);
+  padding: 0 var(--cell-px);
+  border-bottom: 1px solid var(--rule);
+  background-color: var(--panel);
+  color: var(--text);
+  font-weight: 400;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tb-grid tbody td, .tb-grid tbody th { position: relative; }
+
+/* Figures: right-aligned Plex Mono, tabular lining figures, fixed decimals from core.js. */
+.tb-grid .num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.tb-in { position: relative; z-index: 1; }
+.tb-v { white-space: nowrap; }
+.tb-grid .u-marker.tb-lc { text-transform: none; }
+.tb-fill { padding: 0; border-bottom-color: var(--rule); }
+.tb-grid col.tb-fillc { width: auto; }
+
+/* Group starts: a faint rule down the column so the categories read as blocks. */
+.tb-grid .tb-gs { box-shadow: inset 1px 0 0 var(--rule-strong); }
+
+/* ----- frozen block ----- */
+.tb-grid .tb-fz { position: sticky; z-index: 2; }
+.tb-grid .tb-fzlast { box-shadow: inset -1px 0 0 var(--rule-strong); }
+
+/* ----- sticky header: group row, then column row (4.1) ----- */
+.tb-grid thead th {
+  position: sticky;
+  z-index: 5;
+  background-color: var(--panel);
+}
+.tb-grid thead th.tb-fz { z-index: 7; }
+.tb-grid .tb-grp th {
+  top: 0;
+  height: var(--group-h);
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-ui);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  font-weight: 600;
+  color: var(--muted);
+}
+.tb-grid .tb-hrow th {
+  top: var(--group-h);
+  height: var(--head-h);
+  padding-top: 3px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--rule-strong);
+  cursor: pointer;
+}
+.tb-grid .tb-hrow th.tb-hx { cursor: default; text-align: center; padding: 0; }
+.tb-hglyph { color: var(--muted); font-family: var(--font-mono); font-size: calc(10px * var(--ts)); }
+.tb-hin {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  pointer-events: none;
+}
+.tb-h.num .tb-hin { align-items: flex-end; }
+.tb-hl, .tb-hu {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-hlab {
+  font-family: var(--font-ui-narrow);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+}
+.tb-hu {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  font-weight: 400;
+  color: var(--muted);
+}
+.tb-h.tb-primary .tb-hlab { text-decoration: underline; text-decoration-color: var(--active); text-underline-offset: 3px; }
+.tb-hsort {
+  margin-left: 3px;
+  color: var(--active);
+  font-family: var(--font-mono);
+  font-size: calc(9px * var(--ts));
+}
+.tb-hfilt {
+  margin-left: 4px;
+  padding: 0 3px;
+  border: 1px solid var(--active);
+  border-radius: var(--radius-small);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--ts));
+  line-height: calc(13px * var(--ts));
+  font-weight: 600;
+}
+/* Column menu button: shown on hover and on the active header cell. It sits at the left
+   of a right-aligned figure header and at the right of a text header. */
+.tb-hmenu {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion) linear;
+}
+.tb-h.num .tb-hmenu { right: auto; left: 2px; }
+.tb-h:hover .tb-hmenu, .tb-h.tb-active .tb-hmenu, .tb-hmenu:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.tb-hmenu:hover { background: var(--rule-strong); }
+/* Resize handle: the header's right edge, 6 px (4.8). */
+.tb-rs {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+  transition: background-color var(--motion) linear;
+}
+.tb-rs:hover, .tb-rs.is-drag { background: var(--active); }
+
+/* ----- rows ----- */
+.tb-grid tbody tr.tb-r:hover > * { background-color: var(--rule-faint); }
+
+/* Focal row (4.7): active wash, a 2 px active bar at the left edge, text colour throughout. */
+.tb-grid tr.tb-focal > td, .tb-grid tr.tb-focal > th,
+.tb-grid tbody tr.tb-focal:hover > * { background-color: var(--active-wash); color: var(--text); }
+.tb-grid tr.tb-focal > .tb-exp { box-shadow: inset 2px 0 0 var(--active); }
+.tb-grid tr.tb-focal .tb-tk .u-ticker { font-weight: 700; }
+.tb-grid tr.tb-focal .tb-co { font-weight: 600; }
+/* Pinned focal row: sticky under the column header. */
+.tb-grid tr.tb-stick > td, .tb-grid tr.tb-stick > th {
+  position: sticky;
+  top: calc(var(--group-h) + var(--head-h));
+  z-index: 3;
+  border-bottom-color: var(--rule-strong);
+}
+.tb-grid tr.tb-stick > .tb-fz { z-index: 4; }
+
+/* The row whose side panel is open: a 2 px active bar at the right edge of the frozen block. */
+.tb-grid tr.tb-sel > .tb-fzlast { box-shadow: inset -2px 0 0 var(--active); }
+
+/* Excluded row: figures stay, in muted; the inclusion cell is hatched (4.7). */
+.tb-grid tr.tb-excl .tb-v,
+.tb-grid tr.tb-excl .tb-coname,
+.tb-grid tr.tb-excl .u-ticker { color: var(--muted); }
+.tb-grid td.u-hatch, .tb-grid td.tb-hatch { background-image: var(--hatch); }
+.tb-grid tr.tb-err .tb-coname { color: var(--muted); }
+
+/* Frozen base cells. */
+.tb-grid .tb-exp, .tb-grid .tb-incl { padding: 0; text-align: center; }
+.tb-xbtn, .tb-ibtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: calc(var(--row-h) - 1px);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: calc(12px * var(--ts));
+  line-height: 1;
+}
+.tb-xbtn:hover, .tb-ibtn:hover { color: var(--text); background-color: var(--rule); }
+.tb-incl.is-in .tb-ibtn { color: var(--text); font-size: calc(9px * var(--ts)); }
+.tb-incl.is-out .tb-ibtn { color: var(--text); font-size: calc(10px * var(--ts)); }
+.tb-incl.is-outlier .tb-ibtn { color: var(--text); }
+.tb-incl.is-err .tb-ibtn { color: var(--down); cursor: default; }
+.tb-grid tr.tb-focal .tb-xbtn { color: var(--text); }
+
+.tb-grid .tb-rel { padding: 0 6px; }
+.tb-fit {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+  vertical-align: middle;
+}
+.tb-fit i { display: block; width: 3px; height: 10px; background: var(--rule-strong); }
+.tb-fit[data-n="1"] i:nth-child(1),
+.tb-fit[data-n="2"] i:nth-child(-n+2),
+.tb-fit[data-n="3"] i { background: var(--text); }
+.tb-plus {
+  margin-left: 4px;
+  color: var(--active);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  vertical-align: middle;
+}
+.tb-grid .tb-co { font-weight: 400; }
+.tb-grid .tb-tk .u-ticker { font-size: calc(12.5px * var(--ts)); }
+.tb-grid .tb-tk .u-marker { width: auto; margin-left: 3px; }
+
+/* ----- cells: nulls, markers, chips, sparklines ----- */
+.tb-grid .u-chip { height: calc(16px * var(--ts)); font-size: calc(11.5px * var(--ts)); }
+.tb-spark { display: inline-block; vertical-align: middle; overflow: visible; }
+.tb-spark polyline {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.tb-grid tr.tb-focal .tb-spark polyline { stroke: var(--text); }
+
+/* ----- conditional format (4.9): bars behind the printed number, glyphs beside it ----- */
+.tb-cfbar {
+  position: absolute;
+  top: 24%;
+  bottom: 24%;
+  z-index: 0;
+  background: var(--cf-bar);
+  pointer-events: none;
+}
+.tb-cfbar.pct { left: 0; width: calc(var(--f) * 100%); }
+.tb-cfbar.prem[data-side="right"] { left: 50%; width: calc(var(--f) * 50%); }
+.tb-cfbar.prem[data-side="left"] { right: 50%; width: calc(var(--f) * 50%); }
+.tb-cftick {
+  position: absolute;
+  left: 50%;
+  top: 16%;
+  bottom: 16%;
+  z-index: 0;
+  width: 1px;
+  background: var(--muted);
+  pointer-events: none;
+}
+/* Muted fails AA over a bar (9.6), so every mark in a barred cell turns to text. */
+.tb-grid td.tb-hasbar .u-marker:not(.amber),
+.tb-grid td.tb-hasbar .u-null,
+.tb-grid td.tb-hasbar .u-nm { color: var(--text); }
+.tb-pre {
+  margin-right: 4px;
+  font-family: var(--font-mono);
+  font-size: calc(9px * var(--ts));
+  vertical-align: 1px;
+}
+.tb-oglyph { color: var(--muted); }
+.tb-oglyph.extreme { color: var(--flag); }
+.tb-grid tbody tr.tb-r > td.tb-upwash { background-color: var(--up-wash); }
+.tb-grid tbody tr.tb-r > td.tb-downwash { background-color: var(--down-wash); }
+.tb-grid tbody tr.tb-r > td.tb-flagwash { background-color: var(--flag-wash); }
+
+/* ----- active cell (7.4): 2 px active ring inset, while the grid holds focus ----- */
+.tb-grid.is-focused .tb-active {
+  outline: 2px solid var(--active);
+  outline-offset: -2px;
+}
+
+/* ----- expanded row (4.1): 88 px, content pinned to the visible box ----- */
+.tb-grid tr.tb-sub > td {
+  height: calc(88px * var(--ts));
+  padding: 0;
+  overflow: visible;
+  white-space: normal;
+  background-color: var(--panel);
+  border-bottom: 1px solid var(--rule-strong);
+  cursor: default;
+}
+.tb-subin {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  width: var(--box-w, 100%);
+  display: grid;
+  grid-template-columns: max-content minmax(220px, 620px) max-content;
+  justify-content: start;
+  column-gap: var(--sp-32);
+  align-items: start;
+  padding: var(--sp-8) var(--sp-12);
+  box-shadow: inset 2px 0 0 var(--rule-strong);
+}
+.tb[data-layout="narrow"] .tb-subin { grid-template-columns: minmax(0, 1fr); row-gap: var(--sp-8); }
+.tb-sub-h { margin: 0 0 4px; display: flex; align-items: baseline; gap: 6px; font-size: calc(12px * var(--ts)); }
+.tb-sub-score { font-family: var(--font-mono); font-weight: 600; color: var(--text); }
+.tb-sub-meta {
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  color: var(--muted);
+}
+.tb-comps {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  column-gap: var(--sp-16);
+  row-gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tb-comp {
+  display: grid;
+  grid-template-columns: calc(118px * var(--ts)) 60px calc(34px * var(--ts));
+  align-items: center;
+  column-gap: 6px;
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+}
+.tb-comp.is-miss { grid-template-columns: calc(118px * var(--ts)) calc(94px * var(--ts) + 6px); }
+.tb-comp-l { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-comp-bar { display: block; height: 4px; background: var(--rule-strong); }
+.tb-comp-bar i { display: block; height: 100%; background: var(--text); }
+.tb-comp-v { font-family: var(--font-mono); font-variant-numeric: tabular-nums lining-nums; text-align: right; }
+.tb-comp-miss { color: var(--muted); font-size: calc(11px * var(--ts)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-sub-reason {
+  margin: 0 0 4px;
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-note-row { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; }
+.tb-note-row .u-label { flex: 0 0 auto; }
+.tb-note { flex: 1 1 120px; min-width: 0; height: calc(24px * var(--ts)); }
+.tb-note-hint { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb[data-layout="narrow"] .tb-note-row { flex-wrap: wrap; }
+.tb-sub-act { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.tb[data-layout="narrow"] .tb-sub-act { flex-direction: row; }
+.tb-sub-src { min-width: 0; }
+
+/* ----- body notes: no peers, filters hide every row ----- */
+.tb-grid .tb-emptyc { height: auto; padding: 0; white-space: normal; }
+.tb-emptyin {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  width: var(--box-w, 100%);
+  padding: var(--sp-12);
+}
+
+/* ----- summary rows (4.6): separated, sticky at the bottom ----- */
+.tb-grid tfoot th, .tb-grid tfoot td {
+  position: sticky;
+  z-index: 3;
+  height: var(--row-h-sum);
+  border-bottom: 0;
+  border-top: 1px solid var(--rule);
+  background-color: var(--panel);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.tb-grid tfoot .tb-fz { z-index: 4; }
+.tb-grid tfoot tr.tb-s-first > * { border-top: 2px solid var(--rule-strong); }
+.tb-grid tfoot .tb-slab {
+  font-family: var(--font-ui);
+  font-size: calc(12px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+}
+.tb-slab-in { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); min-width: 0; }
+.tb-slab-t { flex: 0 0 auto; max-width: 72%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-sexp {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(11.5px * var(--ts));
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Popovers owned by the table: filter, layout name, column finder, fallback menu.       */
+/* Positioned fixed inside the frame by table.js.                                        */
+/* ------------------------------------------------------------------------------------ */
+
+.tb-pop {
+  position: fixed;
+  z-index: 55;
+  display: grid;
+  gap: var(--sp-8);
+  width: 300px;
+  max-width: calc(100vw - 2 * var(--gutter));
+}
+.tb-pop .u-pop-title { margin: 0; }
+.tb-pop-field { display: grid; gap: 4px; }
+.tb-pop-field[hidden] { display: none; }
+.tb-pop-field .u-input { width: 100%; }
+.tb-pop-note {
+  margin: 0;
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  color: var(--muted);
+}
+.tb-pop-err {
+  margin: 0;
+  padding-left: 6px;
+  border-left: 2px solid var(--down);
+  font-size: calc(12px * var(--ts));
+  color: var(--text);
+}
+.tb-pop-act { display: flex; justify-content: flex-end; gap: var(--sp-8); }
+
+.tb-finder { width: 380px; }
+.tb-find-list {
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+.tb-find-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  padding: 5px var(--sp-8);
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+.tb-find-list li:hover { background: var(--rule); }
+.tb-find-list li[aria-selected="true"] {
+  background: var(--active-wash);
+  box-shadow: inset 2px 0 0 var(--active);
+}
+.tb-find-l { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-find-m {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ts));
+  color: var(--muted);
+}
+.tb-find-list li[aria-selected="true"] .tb-find-m { color: var(--text); }
+.tb-find-none { cursor: default; color: var(--muted); }
+
+.tb-fmenu-pop { width: auto; min-width: 200px; padding: var(--sp-4) 0; }
+.tb-fmenu { margin: 0; padding: 0; list-style: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tb-hmenu, .tb-rs { transition: none; }
+}

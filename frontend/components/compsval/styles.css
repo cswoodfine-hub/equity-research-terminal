@@ -1,0 +1,197 @@
+/* compsval base stylesheet. Owner: E. Element-level rules for the frame only: reset,
+   type scale, spacing and density, number conventions, focus and motion.
+   Shared .u- primitives and the derived properties (--flag-wash, --cf-bar, --ts, --row-h,
+   --sp-*, ...) live in frontend/assets/research.css, which shell.js writes into
+   <style id="research-css"> ahead of this file. Owner rules live in their own sheets:
+   shell.css (.sh-, E), table.css (.tb-, C), charts.css (.ch-, D), panels.css (.pn-, D).
+   Every colour is a var() of a token installed at runtime; no colour literals. */
+
+/* ------------------------------------------------------------------------------------ */
+/* Reset                                                                                 */
+/* ------------------------------------------------------------------------------------ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  height: 100%;
+  color-scheme: dark;                 /* native selects, scrollbars and pickers in dark */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* The frame fits the viewport and scrolls inside #main (spec 1.2), so the page itself
+   never scrolls, in either direction. */
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 18px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+h1, h2, h3, h4, h5, h6, p, ul, ol, dl, dd, figure, blockquote, fieldset, legend {
+  margin: 0;
+  padding: 0;
+}
+ul, ol { list-style: none; }
+fieldset { border: 0; min-width: 0; }
+
+button, input, select, textarea {
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: inherit;
+}
+button:disabled { cursor: not-allowed; }
+/* Number inputs carry their own step controls elsewhere; the spinners only clutter. */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+a { color: var(--active); text-decoration: none; }
+a:hover { text-decoration: underline; }
+abbr[title] { text-decoration: none; }
+img, svg { max-width: none; }
+table { border-collapse: separate; border-spacing: 0; }
+th { font-weight: 600; text-align: left; }
+
+/* Hidden means hidden, whatever display a class sets. */
+[hidden] { display: none !important; }
+
+::selection { background: var(--active-wash); color: var(--text); }
+
+* { scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--rule-strong);
+  border: 2px solid var(--ground);
+  border-radius: var(--radius-small);
+}
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* ------------------------------------------------------------------------------------ */
+/* Frame skeleton (1.2) and spacing (9.3)                                                */
+/* ------------------------------------------------------------------------------------ */
+
+/* #app: context bar, banner, KPI strip, scope line, then #main. shell.js sets
+   data-layout, data-height, data-density and --ts here, so the density and type
+   variables of research.css resolve against this element. */
+#app {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto auto auto 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: calc(13px * var(--ts));
+  line-height: calc(18px * var(--ts));
+  font-weight: 400;
+}
+
+/* The one page-level scroll container. No overscroll-behavior on it or on anything in
+   it, so a wheel that reaches the end of the table box carries on here (1.2). */
+#main {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: var(--sp-16) var(--gutter) var(--section-gap);
+  background: var(--ground);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Type scale defaults (9.2). Classes in research.css set the named roles; these are     */
+/* the element defaults they build on.                                                   */
+/* ------------------------------------------------------------------------------------ */
+
+/* Section titles: Archivo 15 / 20, 600, sentence case. */
+h2 {
+  font-size: calc(15px * var(--ts));
+  line-height: calc(20px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+}
+h3 {
+  font-size: calc(13px * var(--ts));
+  line-height: calc(18px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+}
+small {
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+}
+/* Figures, timestamps and key names: IBM Plex Mono, tabular lining figures. */
+code, kbd, samp, time, data, output {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+/* Chart text: metadata role (Plex Mono 11 / 14, muted) unless a .ch- rule says more. */
+svg text {
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ts));
+  font-variant-numeric: tabular-nums lining-nums;
+  fill: var(--muted);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Numbers and markers (9.4)                                                             */
+/* ------------------------------------------------------------------------------------ */
+
+/* Figures are right-aligned in Plex Mono with fixed decimals per column, U+2212 for a
+   minus and units in headers. core.js formats; these rules only place. A cell or element
+   marked data-num gets the figure treatment; markers go in .u-marker (research.css). */
+[data-num] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Focus (7.4)                                                                           */
+/* ------------------------------------------------------------------------------------ */
+
+/* Visible focus everywhere: 2 px active, offset 1 px; inset 2 px inside table cells.
+   Never removed. */
+:focus-visible {
+  outline: 2px solid var(--active);
+  outline-offset: 1px;
+}
+td:focus-visible, th:focus-visible,
+[role="gridcell"]:focus-visible, [role="columnheader"]:focus-visible,
+[role="rowheader"]:focus-visible {
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Motion (9.7)                                                                          */
+/* ------------------------------------------------------------------------------------ */
+
+/* Nothing over 120 ms, only opacity and background, and none at all when the reader
+   asks for reduced motion. Scrolling jumps rather than glides. */
+html, #main { scroll-behavior: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

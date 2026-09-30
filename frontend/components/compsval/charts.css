@@ -1,0 +1,380 @@
+/* compsval charts stylesheet. Owner: D. Prefix .ch- only (dot plot, scatter, bridge chart,
+   KPI 5 position strip, side panel minis). Spec sections 5.1 to 5.4 and 9.1 to 9.7.
+   Every colour is a var() of a token; no literal. Chart marks are neutral (muted, text,
+   rule tones); active marks the focal company and focus only; flag marks analyst input;
+   clinical marks clinical stage only when the analyst asks for it. */
+
+/* ------------------------------------------------------------------------------------ */
+/* Frame: rail cards (wide, ultrawide) and the two-tab strip (laptop, narrow)            */
+/* ------------------------------------------------------------------------------------ */
+
+.ch-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  min-width: 0;
+}
+.ch-root[data-layout="laptop"], .ch-root[data-layout="narrow"] { gap: 0; }
+
+.ch-card {
+  position: relative;
+  min-width: 0;
+  padding: var(--card-pad);
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+.ch-card.ch-in-strip {
+  padding: var(--sp-8) var(--card-pad) var(--card-pad);
+  border-top: 0;
+}
+
+/* Header row of a card: title, switcher, tags, actions. 28 px (5.1). */
+.ch-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  min-height: calc(28px * var(--ts));
+  margin-bottom: var(--sp-4);
+}
+.ch-title {
+  margin: 0 var(--sp-4) 0 0;
+  font-family: var(--font-ui);
+  font-size: calc(15px * var(--ts));
+  line-height: calc(20px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.ch-unit { white-space: nowrap; }
+.ch-spacer { flex: 1 1 auto; }
+
+/* Metric switcher: a segmented list. Disabled metrics are dimmed, never hidden; their
+   reason sits in the tooltip. */
+.ch-switch { flex-wrap: nowrap; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+.ch-switch > button.ch-dim,
+.ch-switch > button[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ch-switch > button.ch-dim:hover { background: var(--panel); color: var(--muted); }
+.ch-switch-menu { max-width: calc(200px * var(--ts)); overflow: hidden; text-overflow: ellipsis; }
+.ch-use { height: calc(22px * var(--ts)); }
+.ch-primary-menu { height: calc(22px * var(--ts)); width: calc(22px * var(--ts)); }
+
+/* Laptop and narrow: the strip header with its tabs and the collapse chevron. */
+.ch-strip-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+  min-height: calc(28px * var(--ts));
+  padding: 1px var(--card-pad);
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+.ch-tabs { display: inline-flex; align-items: stretch; height: calc(24px * var(--ts)); }
+.ch-tab {
+  position: relative;
+  margin-left: -1px;
+  padding: 0 var(--sp-12);
+  border: 1px solid var(--rule-strong);
+  background: var(--panel);
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: calc(12.5px * var(--ts));
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--motion) linear;
+}
+.ch-tab:first-child { margin-left: 0; border-radius: var(--radius-small) 0 0 var(--radius-small); }
+.ch-tab:last-child { border-radius: 0 var(--radius-small) var(--radius-small) 0; }
+.ch-tab:hover { background: var(--rule-strong); color: var(--text); }
+.ch-tab[aria-selected="true"] {
+  z-index: 1;
+  border-color: var(--active);
+  background: var(--active-wash);
+  color: var(--text);
+}
+.ch-tab:focus-visible { z-index: 2; outline: 2px solid var(--active); outline-offset: 1px; }
+.ch-collapse { height: calc(22px * var(--ts)); width: calc(22px * var(--ts)); font-family: var(--font-mono); }
+.ch-strip-panel { min-width: 0; }
+
+/* ------------------------------------------------------------------------------------ */
+/* Plots: one tab stop each, with a visible focus ring                                   */
+/* ------------------------------------------------------------------------------------ */
+
+.ch-plot {
+  position: relative;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  outline: none;
+}
+.ch-plot:focus-visible,
+.ch-plot:focus {
+  outline: 2px solid var(--active);
+  outline-offset: 1px;
+}
+.ch-plot:focus:not(:focus-visible) { outline: none; }
+.ch-svg { display: block; overflow: visible; max-width: 100%; }
+
+/* Subtitle under the header (low confidence, 5.1). */
+.ch-sub {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  margin: 0 0 var(--sp-4);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  color: var(--text);
+}
+.ch-notplotted {
+  margin-top: var(--sp-4);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ts));
+}
+.ch-desc { display: none; }
+
+/* ------------------------------------------------------------------------------------ */
+/* Shared SVG pieces                                                                     */
+/* ------------------------------------------------------------------------------------ */
+
+.ch-axis-line { stroke: var(--rule-strong); stroke-width: 1; shape-rendering: crispEdges; }
+.ch-tick { stroke: var(--rule-strong); stroke-width: 1; shape-rendering: crispEdges; }
+.ch-grid-line { stroke: var(--rule); stroke-width: 1; shape-rendering: crispEdges; }
+.ch-zero { stroke: var(--muted); stroke-width: 1; shape-rendering: crispEdges; }
+svg text.ch-tick-lbl {
+  font-size: calc(11px * var(--ts));
+  fill: var(--muted);
+}
+svg text.ch-lbl {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--ts));
+  fill: var(--muted);
+}
+svg text.ch-glyph { font-size: calc(11px * var(--ts)); fill: var(--text); }
+.ch-ring {
+  fill: none;
+  stroke: var(--active);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* 5.1 Peer position dot plot                                                            */
+/* ------------------------------------------------------------------------------------ */
+
+.ch-iqr { fill: var(--rule-strong); }
+.ch-median { stroke: var(--text); stroke-width: 1; shape-rendering: crispEdges; }
+svg text.ch-lbl-median { fill: var(--text); }
+svg text.ch-lane-lbl {
+  font-family: var(--font-ui);
+  font-size: calc(12px * var(--ts));
+  font-weight: 500;
+  fill: var(--muted);
+}
+.ch-lane-sep { stroke: var(--rule); stroke-width: 1; shape-rendering: crispEdges; }
+
+/* Peers r 4 muted; excluded peers a dashed outline with no fill, at full opacity
+   (a faded mark would fail 3:1, 9.6); focal r 7 active with a 1.5 px text stroke. */
+.ch-pt { fill: var(--muted); stroke: none; cursor: pointer; }
+.ch-pt-excl {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 1.5;
+}
+.ch-pt-focal { fill: var(--active); stroke: var(--text); stroke-width: 1.5; }
+.ch-pt:hover { stroke: var(--text); stroke-width: 1; }
+.ch-pt-focal:hover { stroke-width: 1.5; }
+svg text.ch-lbl-focal {
+  font-family: var(--font-mono);
+  font-size: calc(12px * var(--ts));
+  font-weight: 700;
+  fill: var(--text);
+}
+svg .ch-lbl-value { fill: var(--text); font-size: calc(11px * var(--ts)); font-weight: 400; }
+
+/* Analyst target range: a dashed 1.5 px flag bracket below the axis. */
+.ch-target {
+  fill: none;
+  stroke: var(--flag);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+svg text.ch-lbl-target { fill: var(--flag); }
+
+/* ------------------------------------------------------------------------------------ */
+/* 5.2 Valuation against fundamentals scatter                                            */
+/* ------------------------------------------------------------------------------------ */
+
+.ch-sc-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8) var(--sp-12);
+  margin-bottom: var(--sp-8);
+}
+.ch-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.ch-select { max-width: calc(180px * var(--ts)); height: calc(24px * var(--ts)); }
+.ch-colour-group { display: inline-flex; align-items: center; gap: var(--sp-4); }
+.ch-colour { height: calc(24px * var(--ts)); }
+.ch-sc-controls .u-btn { height: calc(24px * var(--ts)); }
+
+.ch-band { fill: var(--rule); stroke: none; }
+svg text.ch-band-lbl { fill: var(--muted); }
+.ch-trend {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+}
+svg text.ch-trend-lbl { fill: var(--text); }
+.ch-median-x {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  shape-rendering: crispEdges;
+}
+svg text.ch-side { font-size: calc(10px * var(--ts)); }
+svg text.ch-region-lbl { fill: var(--muted); }
+
+/* Subsector by shape only, in neutral tones. Commercial filled muted, clinical hollow with
+   a 1.5 px muted stroke, excluded a dashed 1 px outline, focal active with a 2 px text
+   ring outside the mark. */
+.ch-mk { fill: var(--muted); stroke: none; cursor: pointer; }
+.ch-mk-hollow { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.ch-mk-excl {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+}
+.ch-mk-clinical { stroke: var(--clinical); }
+.ch-mk-hollow.ch-mk-clinical { fill: none; }
+.ch-mk-focal { fill: var(--active); stroke: none; }
+.ch-mk-ring { fill: none; stroke: var(--text); stroke-width: 2; pointer-events: none; }
+.ch-mk:hover { stroke: var(--text); stroke-width: 1; }
+.ch-mk-hollow:hover, .ch-mk-excl:hover { stroke: var(--text); }
+svg text.ch-hover-lbl { fill: var(--text); }
+
+.ch-sc-interp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4) var(--sp-8);
+  margin: var(--sp-8) 0 0;
+  font-size: calc(13px * var(--ts));
+  line-height: calc(18px * var(--ts));
+  color: var(--text);
+}
+.ch-region { flex: 0 0 auto; }
+
+.ch-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4) var(--sp-12);
+  margin: var(--sp-8) 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-ui);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  color: var(--muted);
+}
+.ch-legend li { display: inline-flex; align-items: center; gap: var(--sp-4); white-space: nowrap; }
+.ch-legend-icon { flex: 0 0 auto; overflow: visible; }
+.ch-legend-icon .ch-mk { cursor: default; }
+.ch-legend-icon .ch-mk-ring { stroke-width: 1.5; }
+
+/* ------------------------------------------------------------------------------------ */
+/* 5.3 Valuation bridge chart                                                            */
+/* ------------------------------------------------------------------------------------ */
+
+.ch-br { display: flex; flex-direction: column; gap: var(--sp-12); min-width: 0; }
+.ch-br-block { min-width: 0; }
+svg text.ch-br-lbl {
+  font-family: var(--font-ui);
+  font-size: calc(12px * var(--ts));
+  font-weight: 500;
+  fill: var(--muted);
+}
+/* Totals in text at 60 %, steps in muted. Values print at the bar ends in text. */
+.ch-br-total { fill: var(--text); fill-opacity: 0.6; }
+.ch-br-step { fill: var(--muted); }
+svg text.ch-br-val { fill: var(--text); font-size: calc(11px * var(--ts)); }
+.ch-br-conn { stroke: var(--rule-strong); stroke-width: 1; stroke-dasharray: 2 2; }
+.ch-br-iqr { fill: var(--cf-bar); }
+.ch-price { stroke: var(--text); stroke-width: 1; shape-rendering: crispEdges; }
+.ch-street { stroke: var(--muted); stroke-width: 2; }
+.ch-model { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.ch-implied { fill: var(--active); stroke: var(--text); stroke-width: 1; }
+svg text.ch-lbl-implied {
+  font-size: calc(11px * var(--ts));
+  font-weight: 600;
+  fill: var(--text);
+}
+.ch-br-note {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  margin: 0;
+  font-size: calc(13px * var(--ts));
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* KPI 5 position strip, 120 x 20                                                        */
+/* ------------------------------------------------------------------------------------ */
+
+.ch-strip { display: inline-block; flex: 0 0 auto; vertical-align: middle; overflow: visible; }
+.ch-strip-base { stroke: var(--rule); stroke-width: 1; shape-rendering: crispEdges; }
+.ch-strip-iqr { fill: var(--rule-strong); }
+.ch-strip-median { stroke: var(--text); stroke-width: 1; shape-rendering: crispEdges; }
+.ch-strip-focal { fill: var(--active); stroke: var(--text); stroke-width: 1; }
+svg text.ch-strip-edge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--active);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* 5.4 Side panel minis                                                                  */
+/* ------------------------------------------------------------------------------------ */
+
+.ch-mini { display: block; overflow: visible; max-width: 100%; }
+.ch-spark-line { fill: none; stroke: var(--text); stroke-width: 1; stroke-linejoin: round; }
+.ch-spark-dot { fill: var(--text); }
+.ch-bar { fill: var(--muted); }
+.ch-bar-neg { fill: var(--muted); }
+.ch-bar-derived { stroke: var(--muted); stroke-width: 1; }
+.ch-hatch-bg { fill: var(--panel); }
+.ch-hatch-line { stroke: var(--muted); stroke-width: 1.5; }
+svg text.ch-mini-lbl { font-size: calc(10px * var(--ts)); fill: var(--muted); }
+.ch-mini-zero { stroke: var(--rule-strong); stroke-width: 1; shape-rendering: crispEdges; }
+.ch-line { fill: none; stroke: var(--text); stroke-width: 1.25; stroke-linejoin: round; }
+.ch-line-focal { stroke: var(--active); stroke-dasharray: 4 3; }
+
+/* Phase ramp, preclinical to phase 3 and approved; never the filed step (its value is the
+   flag colour, kept for uncertainty). */
+.ch-ph-pre { fill: var(--phase-preclinical); }
+.ch-ph-1 { fill: var(--phase-1); }
+.ch-ph-2 { fill: var(--phase-2); }
+.ch-ph-3 { fill: var(--phase-3); }
+.ch-ph-approved { fill: var(--phase-approved); }
+svg text.ch-phase-lbl { font-family: var(--font-ui); font-size: calc(11px * var(--ts)); }
+
+/* ------------------------------------------------------------------------------------ */
+/* Motion (9.7)                                                                          */
+/* ------------------------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-tab { transition: none; }
+}
