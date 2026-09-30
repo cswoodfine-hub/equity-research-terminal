@@ -27,6 +27,7 @@ import company_lines as company_lines_module
 import catalysts as catalysts_module
 import cashflow as cashflow_module
 import comps as comps_module
+import comps_context as comps_context_module
 import comps_valuation as comps_valuation_module
 import db
 import deals as deals_module
@@ -321,6 +322,19 @@ def comps_valuation_view():
     not multiples, each null with its reason (backend/comps_valuation.py). A body built
     before the model reads are warm is marked incomplete and is never cached."""
     payload = comps_valuation_module.build()
+    headers = {} if payload["complete"] else {response_cache.SKIP: "1"}
+    return JSONResponse(payload, headers=headers)
+
+
+@app.get("/companies/{ticker}/comps-context")
+def company_comps_context(ticker: str):
+    """What stands behind one company's valuation in the Comps tab: its dated catalysts of
+    the next 12 months and the competition in its most valuable indications
+    (backend/comps_context.py). The verdict is read from the response cache only, so a
+    body built before it is warm is marked incomplete and is never cached."""
+    payload = comps_context_module.build(ticker)
+    if payload is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     headers = {} if payload["complete"] else {response_cache.SKIP: "1"}
     return JSONResponse(payload, headers=headers)
 
