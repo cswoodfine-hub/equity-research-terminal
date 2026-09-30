@@ -747,21 +747,29 @@ def benefit_risk(points: Sequence[dict], width: int = 760, height: int = 440,
 
 
 def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
-              highlight: str | None = None, max_labels: int = 10) -> str:
+              highlight: str | None = None, max_labels: int = 10,
+              x_caption: str = "efficacy score") -> str:
     """Every scored drug on two axes from 0 to 100: efficacy across, safety and
     tolerability up, so top right is where a drug wants to be.
 
     Each point: {name, ticker, x, y, evidence (0 to 100, or None), stage, boxed, rank,
-    tip}. Bubble size is the weight of evidence, so a position resting on one small trial
-    looks small. The focal company's drugs (``highlight`` ticker) are drawn in the accent
-    and always labelled; peers are muted and labelled best first, as far as there is
-    room. Stage is the fill: solid for a marketed drug, half for Phase 3, hollow earlier,
-    so colour is never the only signal. An amber ring marks an FDA boxed warning.
+    tip, nosize}. Bubble size is the weight of evidence, so a position resting on one
+    small trial looks small, and each bubble carries its rank in the table, so the two
+    read together without a label. The focal company's drugs (``highlight`` ticker) are
+    drawn in the accent with a gap ringed round each, so two that overlap stay two. The
+    top five by rank are labelled first, then the focal company's drugs, then peers best
+    first as far as there is room; a label that cannot sit beside its bubble is drawn in
+    free space with a thin leader line to it, or left off. Stage is the fill: solid for a
+    marketed drug, half for Phase 3, hollow earlier, so colour is never the only signal.
+    An amber ring marks an FDA boxed warning; a dotted outline and a dagger mark a drug
+    whose size of effect could not be compared with its peers (``nosize``).
     """
     usable = [p for p in points if p.get("x") is not None and p.get("y") is not None]
     if not usable:
         return ""
-    pad_l, pad_r, pad_t, pad_b = 46, 18, 16, 58
+    # The corner captions sit in the margins, above the plot and on the axis title's row,
+    # so a drug scored 0 or 100 never lands on one.
+    pad_l, pad_r, pad_t, pad_b = 46, 18, 24, 58
     plot_r, plot_b = width - pad_r, height - pad_b
     # The scales run a little past 0 and 100, so a bubble at either end is drawn whole.
     x = _scale((-6.0, 106.0), (pad_l, plot_r))
@@ -782,15 +790,19 @@ def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
         if v not in (0, 100):
             out.append(_text(x(v), plot_b + 13, str(v), 9, TK.MUTED, "middle", MONO))
         out.append(_text(pad_l - 6, y(v) + 3, str(v), 9, TK.MUTED, "end", MONO))
+    placed: list = []
     for tx, ty, anchor_, text in (
-            (x(100), y(100) - 5, "end", "stronger and safer"),
-            (x(100), y(0) + 11, "end", "stronger, harder to tolerate"),
-            (x(0), y(100) - 5, "start", "weaker, easier to tolerate"),
-            (x(0), y(0) + 11, "start", "weaker and harder to tolerate")):
+            (x(100), pad_t - 8, "end", "stronger and safer"),
+            (x(100), plot_b + 28, "end", "stronger, harder to tolerate"),
+            (x(0), pad_t - 8, "start", "weaker, easier to tolerate"),
+            (x(0), plot_b + 28, "start", "weaker and harder to tolerate")):
         out.append(_text(tx, ty, text, 9.5, TK.MUTED, anchor_))
+        w = len(text) * 5.4
+        left_ = tx - w if anchor_ == "end" else tx
+        placed.append((left_, ty - 9, left_ + w, ty + 3))
     out.append(_text(x(0), plot_b + 13, "0", 9, TK.MUTED, "middle", MONO))
     out.append(_text(x(100), plot_b + 13, "100", 9, TK.MUTED, "middle", MONO))
-    out.append(_text((pad_l + plot_r) / 2, plot_b + 28, "efficacy score  →  better", 10,
+    out.append(_text((pad_l + plot_r) / 2, plot_b + 28, f"{x_caption}  →  better", 10,
                      TK.MUTED, "middle"))
     mid_y = (pad_t + plot_b) / 2
     out.append(f'<text x="12" y="{mid_y:.1f}" font-size="10" fill="{TK.MUTED}"'
@@ -800,25 +812,33 @@ def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
 
     def radius(p):
         ev = p.get("evidence")
-        return 4.0 + 10.0 * ((ev if ev is not None else 0.0) / 100.0)
+        return 6.0 + 9.0 * ((ev if ev is not None else 0.0) / 100.0)
 
     def mine(p):
         return bool(highlight) and p.get("ticker") == highlight
 
-    placed: list = []
+    def free(box):
+        return all(box[2] < b[0] or box[0] > b[2] or box[3] < b[1] or box[1] > b[3]
+                   for b in placed)
 
     def put(label, px_, py_, r):
+        """Where a label goes: beside its bubble where there is room, else further out in
+        free space; (x, y, far) or None. The text is drawn on a baseline 3 below the spot,
+        so its glyphs run from about 5 above the spot to 6 below; the box is that, plus a
+        pixel."""
         w = len(label) * 5.9
-        for dy in (0, -12, 12, -24, 24, -36, 36):
-            for side in (1, -1):
-                lx = px_ + r + 4 if side == 1 else px_ - r - 4 - w
-                if lx < pad_l or lx + w > plot_r:
-                    continue
-                box = (lx, py_ + dy - 9, lx + w, py_ + dy + 3)
-                if all(box[2] < b[0] or box[0] > b[2] or box[3] < b[1] or box[1] > b[3]
-                       for b in placed):
-                    placed.append(box)
-                    return lx, py_ + dy
+        for gap, dys in ((4, (0,)), (4, (-12, 12)), (14, (-18, 18, -30, 30, 0)),
+                         (30, (-24, 24, -42, 42, 0, -60, 60))):
+            for dy in dys:
+                for side in (1, -1):
+                    lx = px_ + r + gap if side == 1 else px_ - r - gap - w
+                    if lx < pad_l or lx + w > plot_r or py_ + dy - 6 < pad_t \
+                            or py_ + dy + 7 > plot_b:
+                        continue
+                    box = (lx, py_ + dy - 6, lx + w, py_ + dy + 7)
+                    if free(box):
+                        placed.append(box)
+                        return lx, py_ + dy, (gap > 4 or abs(dy) > r)
         return None
 
     # Large bubbles first, so a small one is never hidden under a large one; the focal
@@ -838,43 +858,72 @@ def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
         if p.get("boxed"):
             out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r + 3:.1f}" fill="none"'
                        f' stroke="{TK.FLAG}" stroke-width="1" stroke-dasharray="2 2"/>')
+        if mine(p):
+            out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r + 1.6:.1f}" fill="none"'
+                       f' stroke="{TK.GROUND}" stroke-width="2.4"/>')
+        dots = ' stroke-dasharray="1.5 2"' if p.get("nosize") else ""
         out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r:.1f}" fill="{fill}"'
-                   f' fill-opacity="{opacity}" stroke="{colour}" stroke-width="1.4">{tip}'
-                   f'</circle>')
+                   f' fill-opacity="{opacity}" stroke="{colour}" stroke-width="1.4"{dots}>'
+                   f'{tip}</circle>')
+        if p.get("rank") is not None:
+            ink = TK.GROUND if opacity == "0.9" else TK.TEXT
+            out.append(f'<text x="{px_:.1f}" y="{py_ + 3:.1f}" font-size="8"'
+                       f' fill="{ink}" text-anchor="middle" font-family="{MONO}"'
+                       f' font-weight="{"700" if mine(p) else "400"}"'
+                       f' pointer-events="none">{int(p["rank"])}</text>')
         placed.append((px_ - r, py_ - r, px_ + r, py_ + r))
-    # Labels: the focal company's drugs always, then peers best first while room lasts.
-    ranked = sorted(usable, key=lambda p: (not mine(p), p.get("rank") or 999))
+    # Labels: the top five by rank, then the focal company's drugs, then peers best first
+    # while room lasts.
+    ranked = sorted(usable, key=lambda p: ((p.get("rank") or 999) > 5, not mine(p),
+                                           p.get("rank") or 999))
     peers_labelled = 0
     for p in ranked:
-        if not mine(p):
-            if peers_labelled >= max_labels:
-                continue
-        spot = put(p["name"], x(p["x"]), y(p["y"]), radius(p))
+        top = (p.get("rank") or 999) <= 5
+        if not mine(p) and not top and peers_labelled >= max_labels:
+            continue
+        # A label clears the boxed-warning ring as well as the bubble.
+        reach = radius(p) + (3 if p.get("boxed") else 0)
+        name = p["name"] + (" †" if p.get("nosize") else "")
+        px_, py_ = x(p["x"]), y(p["y"])
+        spot = put(name, px_, py_, reach)
         if spot is None:
-            if not mine(p):
-                continue
-            spot = (min(x(p["x"]) + radius(p) + 4, plot_r - len(p["name"]) * 5.9), y(p["y"]))
-        if not mine(p):
+            continue
+        if not mine(p) and not top:
             peers_labelled += 1
-        out.append(_text(spot[0], spot[1] + 3, p["name"], 10,
+        lx, ly, far = spot
+        if far:
+            # A thin leader from the bubble's edge to the label's near end.
+            tx_ = lx if lx > px_ else lx + len(name) * 5.9
+            dx, dy = tx_ - px_, ly - py_
+            dist = math.hypot(dx, dy) or 1.0
+            out.append(f'<line x1="{px_ + dx / dist * reach:.1f}"'
+                       f' y1="{py_ + dy / dist * reach:.1f}" x2="{tx_:.1f}" y2="{ly:.1f}"'
+                       f' stroke="{TK.MUTED}" stroke-width="0.6"/>')
+        out.append(_text(lx, ly + 3, name, 10,
                          TK.TEXT if mine(p) else TK.MUTED, "start",
                          weight="700" if mine(p) else "400"))
     # Key, one line.
     ky = height - 10
     kx = pad_l
-    for label, draw in (
-            ("marketed", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="{TK.MUTED}"'
-                                    f' fill-opacity="0.9" stroke="{TK.MUTED}"/>'),
-            ("Phase 3", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="{TK.MUTED}"'
-                                   f' fill-opacity="0.45" stroke="{TK.MUTED}"/>'),
-            ("Phase 2", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="none"'
-                                   f' stroke="{TK.MUTED}" stroke-width="1.4"/>'),
-            ("boxed warning", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="5" fill="none"'
-                                         f' stroke="{TK.FLAG}" stroke-dasharray="2 2"/>'),
-            ("bigger: more evidence", lambda cx: f'<circle cx="{cx - 3}" cy="{ky - 2}" r="2.5"'
-                                                 f' fill="none" stroke="{TK.MUTED}"/>'
-                                                 f'<circle cx="{cx + 5}" cy="{ky - 4}" r="5"'
-                                                 f' fill="none" stroke="{TK.MUTED}"/>')):
+    keys = [
+        ("marketed", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="{TK.MUTED}"'
+                                f' fill-opacity="0.9" stroke="{TK.MUTED}"/>'),
+        ("Phase 3", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="{TK.MUTED}"'
+                               f' fill-opacity="0.45" stroke="{TK.MUTED}"/>'),
+        ("Phase 2", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="none"'
+                               f' stroke="{TK.MUTED}" stroke-width="1.4"/>'),
+        ("boxed warning", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="5" fill="none"'
+                                     f' stroke="{TK.FLAG}" stroke-dasharray="2 2"/>'),
+        ("bigger: more evidence", lambda cx: f'<circle cx="{cx - 3}" cy="{ky - 2}" r="2.5"'
+                                             f' fill="none" stroke="{TK.MUTED}"/>'
+                                             f'<circle cx="{cx + 5}" cy="{ky - 4}" r="5"'
+                                             f' fill="none" stroke="{TK.MUTED}"/>')]
+    if any(p.get("nosize") for p in usable):
+        keys.append(("† size not compared", lambda cx: f'<circle cx="{cx}" cy="{ky - 3}" r="4"'
+                                                        f' fill="none" stroke="{TK.MUTED}"'
+                                                        f' stroke-width="1.4"'
+                                                        f' stroke-dasharray="1.5 2"/>'))
+    for label, draw in keys:
         out.append(draw(kx + 5))
         lead = 22 if label.startswith("bigger") else 14
         out.append(_text(kx + lead, ky, label, 9.5, TK.MUTED, "start"))

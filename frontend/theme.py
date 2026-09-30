@@ -842,6 +842,30 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .sc-why {{ font-size: 11.5px; line-height: 1.5; color: var(--text); margin: 0.35rem 0;
   padding-left: 8px; border-left: 2px solid var(--rule-strong); max-width: 110ch; }}
 .sc-why .m {{ color: var(--muted); }}
+/* The notes under a drug's lines, on demand: the same words, a step quieter. */
+.sc-why .sc-notes {{ color: var(--muted); margin-top: 0.2rem; }}
+/* The rank range: narrow, muted, never wrapped. The dagger is a caveat, so it is amber,
+   and it sits in a slot every cell of its column has, so the figures still line up. */
+.land.sc-table .sc-rng {{ width: 1%; white-space: nowrap; color: var(--muted); }}
+.land.sc-table th.sc-rng {{ cursor: help; }}
+.sc-dg {{ display: inline-block; width: 0.8em; text-align: left; color: var(--flag);
+  padding-left: 1px; }}
+.how-read.sc-foot {{ margin-top: -0.2rem; }}
+/* How it is scored: a labelled line a part, then the terms in plain words. */
+.how-read.sc-how {{ margin: 0.5rem 0 1rem; }}
+.how-read.sc-how > div + div {{ margin-top: 0.3rem; }}
+.how-read.sc-how .k {{ color: var(--text); }}
+.how-read.sc-how .sc-terms {{ margin-top: 0.5rem; padding-top: 0.4rem;
+  border-top: 1px solid var(--rule); }}
+.how-read.sc-how .sc-terms > div + div {{ margin-top: 0.15rem; }}
+/* A narrow screen stacks the chart over the table: side by side the chart's text shrinks
+   past reading and the table is cut off. Scoped to the scorecard's own keyed container,
+   which holds no other columns. */
+@media (max-width: 1439px) {{
+  .st-key-sc_map [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; }}
+  .st-key-sc_map [data-testid="stColumn"] {{ flex: 1 1 100% !important;
+    width: 100% !important; min-width: 100% !important; }}
+}}
 .land a:hover {{ text-decoration: underline; }}
 .land .tag {{ display: inline-block; font-size: 9.5px; letter-spacing: 0.05em;
              text-transform: uppercase; color: var(--muted);

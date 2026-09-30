@@ -1967,12 +1967,155 @@ def _verdict_card(card: dict, lead: bool = False) -> str:
             f'{html_escape(card["meaning"])}</div></div>')
 
 
-def _score_cell(value, focal: bool = False) -> str:
-    """A score out of 100 as its figure and a bar, or the null dash."""
+def _score_cell(value, focal: bool = False, mark: str | None = None) -> str:
+    """A score out of 100 as its figure and a bar, or the null dash.
+
+    ``mark`` is a slot after the figure: None for no slot, "" for an empty one and "†"
+    for the dagger of a drug scored on strength and wins alone. Every cell of a column
+    that carries a dagger gets the slot, so the figures still line up."""
     if value is None:
         return '<td class="n m">—</td>'
+    slot = "" if mark is None else f'<span class="sc-dg">{html_escape(mark)}</span>'
     return (f'<td class="n"><span class="sc{" sc-f" if focal else ""}">'
-            f'<i style="width:{max(0.0, min(100.0, value)):.0f}%"></i></span>{value:.0f}</td>')
+            f'<i style="width:{max(0.0, min(100.0, value)):.0f}%"></i></span>{value:.0f}'
+            f'{slot}</td>')
+
+
+def _score_range(a: dict, table: bool = False) -> str:
+    """Where a drug's rank falls in 95 of 100 redraws, as "2 to 3". Where it never moved,
+    the table shows the rank itself ("1") and the words nothing; blank where the drug is
+    not placed."""
+    rr = a.get("rank_range")
+    if not rr:
+        return ""
+    if rr[0] == rr[1]:
+        return str(rr[0]) if table else ""
+    return f"{rr[0]} to {rr[1]}"
+
+
+def _score_tip(a: dict) -> str:
+    """The tooltip of a bubble: its scores and rank with the range the rank could sit
+    in, then the lines printed under the chart."""
+    e, s_, v = a["efficacy"], a["safety"], a["evidence"]
+    span = _score_range(a)
+    head = (f'{a["name"]} ({a["ticker"]}), {a["stage"]}. Overall {a["overall"]:.0f}, '
+            f'rank {a["rank"]}' + (f" (could sit {span})" if span else "")
+            + f': efficacy {e["score"]:.0f}, safety {s_["score"]:.0f}, evidence '
+            + (f'{v["score"]:.0f}' if v.get("score") is not None else "not stated") + ".")
+    care = [s_["read_with_care"]] if s_.get("read_with_care") else []
+    return " ".join([head] + (e.get("lines") or [])[:3] + (s_.get("lines") or [])[:1] + care)
+
+
+def _score_why(a: dict, numbered: bool = False, notes: bool = False) -> str:
+    """One drug's words: its name, then the lines printed under the chart, then, on
+    demand, the notes that say what else each score rests on."""
+    span = _score_range(a)
+    meta = (f'{a["ticker"]} · overall {a["overall"]:.0f}'
+            + (f" · rank could sit {span}" if span else ""))
+    lead = f'{a["rank"]}. ' if numbered else ""
+    lines = (a["efficacy"].get("lines") or []) + (a["safety"].get("lines") or [])
+    body = " ".join(html_escape(x) for x in lines)
+    more = ((a["efficacy"].get("notes") or []) + (a["safety"].get("notes") or [])
+            if notes else [])
+    tail = (f'<div class="sc-notes">{" ".join(html_escape(x) for x in more)}</div>'
+            if more else "")
+    return (f'<div class="sc-why"><b>{lead}{html_escape(a["name"])}</b> '
+            f'<span class="m">{html_escape(meta)}</span><br>{body}{tail}</div>')
+
+
+def _score_rows(placed: list, ticker: str) -> str:
+    """The ranked table: rank, the range it could sit in, the drug, its stage and its
+    four scores, the open company's rows marked and a dagger on any efficacy figure
+    that rests on strength and wins alone."""
+    dagger = any(a["efficacy"].get("size_basis") == "not comparable" for a in placed)
+    rows = ""
+    for a in placed:
+        focal = a["ticker"] == ticker
+        name = (f'<b>{html_escape(a["name"])}</b>' if focal else html_escape(a["name"]))
+        mark = (("†" if a["efficacy"].get("size_basis") == "not comparable" else "")
+                if dagger else None)
+        rows += (f'<tr class="{"sc-mine" if focal else ""}">'
+                 f'<td class="n m">{a["rank"]}</td>'
+                 f'<td class="n m sc-rng">{html_escape(_score_range(a, table=True))}</td>'
+                 f'<td>{name} <span class="m">{html_escape(a["ticker"])}</span></td>'
+                 f'<td>{_stage_chip(a["stage"])}</td>'
+                 + _score_cell(a["overall"], focal)
+                 + _score_cell(a["efficacy"]["score"], focal, mark)
+                 + _score_cell(a["safety"]["score"], focal)
+                 + _score_cell(a["evidence"].get("score"), focal) + "</tr>")
+    return ('<div class="land-wrap"><table class="land sc-table"><thead><tr>'
+            '<th></th><th class="sc-rng" title="Where the rank falls in 95 of 100 redraws of '
+            'every trial result within its margin of error">range</th><th>compound</th>'
+            '<th>stage</th><th>overall</th><th>efficacy</th><th>safety</th>'
+            f'<th>evidence</th></tr></thead><tbody>{rows}</tbody></table></div>')
+
+
+def _score_footnote(placed: list) -> str:
+    """The one muted line under the table that says what a score was computed without:
+    the dagger's meaning wherever a dagger shows, or, where no drug in the indication
+    could be compared on size, that every efficacy score is strength and wins alone."""
+    basis = [a["efficacy"].get("size_basis") for a in placed]
+    if "not comparable" in basis:
+        return ('<span class="sc-dg">†</span> Size of effect not compared: no peer was tested '
+                'against the same control on the same measure in trials of about the same '
+                'length, so its size counts at 50, what the average drug scores against its '
+                'peers.')
+    if "ranked" not in basis:
+        return ("No drug here is compared with its peers on size of effect: no measure has "
+                "three or more drugs tested against one control across enough trials to "
+                "measure the spread between trials, so every efficacy score is strength "
+                "and wins alone.")
+    return ""
+
+
+# The terms on screen an analyst might otherwise look up, each in plain words and then
+# the method's usual name, so it can be checked elsewhere.
+_SCORE_TERMS = (
+    ("z-score", "a result divided by its standard error, how far it would vary from one "
+                "trial to the next. 1.96 is the usual bar for a real effect (p = 0.05); "
+                "3.29 is the bar at p = 0.001 and scores full strength."),
+    ("Allowing for the number each trial tested", "the more endpoints a trial tests, the "
+                                                  "higher the bar each must clear, so testing "
+                                                  "more cannot buy wins (a false discovery "
+                                                  "rate correction, within each trial)."),
+    ("Averaged across trials, larger trials counting more", "each trial weighted by its "
+                                                            "precision, with room for trials "
+                                                            "that disagree (a random-effects "
+                                                            "meta-analysis)."),
+    ("On that basis", "an indirect comparison: each drug against the control both were "
+                      "tested on, not a trial of the two against each other."),
+    ("Moved toward the class average", "a result pulled part of the way toward the average "
+                                       "of its mechanism class, a less certain result "
+                                       "further (shrinkage). Only where four or more drugs "
+                                       "of one class share a measure and a control."),
+    ("Moved toward the average of the drugs here", "strength and wins from one or two "
+                                                   "trials pulled part of the way toward the "
+                                                   "average of every drug in the indication, "
+                                                   "so a single trial cannot carry a drug to "
+                                                   "the top (shrinkage)."),
+    ("95% interval", "a range built this way holds the true figure 95 times in 100."),
+    ("Hazard ratio", "the rate of death or progression on the drug over the rate on the "
+                     "comparator, below 1 favouring the drug: 0.72 is a 28% lower rate."),
+    ("Points", "percentage points, a difference between two percentages, such as the "
+               "drug's rate less the control's."),
+)
+
+
+def _score_method(method: dict) -> str:
+    """How it is scored, one labelled line a part, the range after the overall, then
+    the caveat and the terms in plain words."""
+    parts = [("Efficacy", method.get("efficacy")), ("Safety", method.get("safety")),
+             ("Evidence", method.get("evidence")),
+             ("Overall", " ".join(t for t in (method.get("overall"),
+                                              method.get("uncertainty")) if t))]
+    body = "".join(f'<div><span class="k">{k}:</span> {html_escape(_decap(v))}</div>'
+                   for k, v in parts if v)
+    caveat = (f'<div>{html_escape(method["caveat"])}</div>' if method.get("caveat") else "")
+    terms = "".join(f'<div><span class="k">{html_escape(k)}:</span> {html_escape(v)}</div>'
+                    for k, v in _SCORE_TERMS)
+    return (f'<div class="how-read sc-how"><div>How it is scored, each from 0 to 100.</div>'
+            f'{body}{caveat}<div class="sc-terms"><div>The terms in plain words.</div>'
+            f'{terms}</div></div>')
 
 
 def _landscape_scorecard(sc: dict, ticker: str) -> None:
@@ -1989,73 +2132,50 @@ def _landscape_scorecard(sc: dict, ticker: str) -> None:
         return
     mine = [a for a in placed if a["ticker"] == ticker]
     section("Clinical scorecard", f"{len(placed)} of {len(assets)} scored",
-            basis="efficacy × safety × weight of evidence · posted results only")
-    left, right = st.columns([1.2, 1], gap="medium")
-
-    def tip(a):
-        e, s_, v = a["efficacy"], a["safety"], a["evidence"]
-        head = (f'{a["name"]} ({a["ticker"]}), {a["stage"]}. Overall {a["overall"]:.0f}: '
-                f'efficacy {e["score"]:.0f}, safety {s_["score"]:.0f}, evidence '
-                + (f'{v["score"]:.0f}' if v.get("score") is not None else "not stated") + ".")
-        return " ".join([head] + e["lines"][:3] + s_["lines"][:3])
-
+            basis="efficacy, safety and weight of evidence, averaged · posted results only")
+    # Keyed so the theme can stack the chart over the table on a narrow screen, where side
+    # by side the chart's text shrinks past reading and the table is cut off.
+    with st.container(key="sc_map"):
+        left, right = st.columns([1.2, 1], gap="medium")
     with left:
         chart = CH.score_map(
             [{"name": a["name"], "ticker": a["ticker"], "x": a["efficacy"]["score"],
               "y": a["safety"]["score"], "evidence": a["evidence"].get("score"),
               "stage": a["stage"], "boxed": a["boxed"], "rank": a.get("rank"),
-              "tip": tip(a)} for a in placed],
-            760, 500, highlight=ticker)
+              "nosize": a["efficacy"].get("size_basis") == "not comparable",
+              "tip": _score_tip(a)} for a in placed],
+            760, 500, highlight=ticker,
+            x_caption=("efficacy score" if any(a["efficacy"].get("size_basis") == "ranked"
+                                               for a in placed)
+                       else "efficacy score (strength and wins, no size)"))
         if chart:
             R.show(chart, css_class="chart-mount stretch")
         _how("How to read it: further right is stronger evidence of efficacy against a "
              "comparator; higher up is a cleaner safety and tolerability record against "
              "control. Top right is where a drug wants to be. A bigger bubble rests on more "
-             f"patients. {ticker} is in green; hover a bubble for what its scores rest on.")
+             f"patients, and its number is its rank in the table. {ticker} is in green; hover "
+             "a bubble for what its scores rest on. The chart shows scores, not "
+             "measurements, so it draws no error bars: the range beside each rank in the "
+             "table is how far the rank moves when every trial's result is varied within "
+             "its margin of error. Figures here average a drug's trials; the cards below "
+             "quote its single best result, so the two can differ.")
     with right:
-        rows = ""
-        for a in placed:
-            focal = a["ticker"] == ticker
-            name = (f'<b>{html_escape(a["name"])}</b>' if focal else html_escape(a["name"]))
-            rows += (f'<tr class="{"sc-mine" if focal else ""}">'
-                     f'<td class="n m">{a["rank"]}</td>'
-                     f'<td>{name} <span class="m">{html_escape(a["ticker"])}</span></td>'
-                     f'<td>{_stage_chip(a["stage"])}</td>'
-                     + _score_cell(a["overall"], focal) + _score_cell(a["efficacy"]["score"], focal)
-                     + _score_cell(a["safety"]["score"], focal)
-                     + _score_cell(a["evidence"].get("score"), focal) + "</tr>")
-        st.markdown(
-            '<div class="land-wrap"><table class="land sc-table"><thead><tr>'
-            '<th></th><th>compound</th><th>stage</th><th>overall</th><th>efficacy</th>'
-            '<th>safety</th><th>evidence</th></tr></thead>'
-            f'<tbody>{rows}</tbody></table></div>', unsafe_allow_html=True)
+        st.markdown(_score_rows(placed, ticker), unsafe_allow_html=True)
+        foot = _score_footnote(placed)
+        if foot:
+            st.markdown(f'<div class="how-read sc-foot">{foot}</div>', unsafe_allow_html=True)
         if mine:
-            best = mine[0]
-            _how(f'{ticker}: {best["name"]} ranks {best["rank"]} of {len(placed)} scored drugs'
-                 + (f', with {len(mine) - 1} more of its drugs scored' if len(mine) > 1 else "")
-                 + ".")
+            _how(" ".join(a["rank_line"] for a in mine[:4] if a.get("rank_line"))
+                 + (f" {len(mine) - 4} more of its drugs are scored." if len(mine) > 4 else ""))
         else:
             _how(f"{ticker} has no drug with a posted record to score in this indication yet.")
 
     # What each of the open company's scores rests on, in words, then the rest on demand.
     shown = mine or placed[:1]
-    lines = "".join(
-        f'<div class="sc-why"><b>{html_escape(a["name"])}</b> '
-        f'<span class="m">{html_escape(a["ticker"])} · overall {a["overall"]:.0f}</span><br>'
-        + " ".join(html_escape(x) for x in a["efficacy"]["lines"] + a["safety"]["lines"])
-        + "</div>" for a in shown[:4])
-    st.markdown(lines, unsafe_allow_html=True)
+    st.markdown("".join(_score_why(a) for a in shown[:4]), unsafe_allow_html=True)
     with st.expander("What every score rests on", expanded=False):
-        st.markdown("".join(
-            f'<div class="sc-why"><b>{a["rank"]}. {html_escape(a["name"])}</b> '
-            f'<span class="m">{html_escape(a["ticker"])} · overall {a["overall"]:.0f}</span><br>'
-            + " ".join(html_escape(x) for x in a["efficacy"]["lines"] + a["safety"]["lines"])
-            + "</div>" for a in placed), unsafe_allow_html=True)
-    method = sc.get("method") or {}
-    _how("How it is scored, each from 0 to 100. Efficacy: " + _decap(method.get("efficacy"))
-         + " Safety: " + _decap(method.get("safety")) + " Evidence: "
-         + _decap(method.get("evidence")) + " Overall: " + _decap(method.get("overall")) + " "
-         + (method.get("caveat") or ""))
+        st.markdown("".join(_score_why(a, numbered=True, notes=True) for a in placed),
+                    unsafe_allow_html=True)
 
     if rest:
         by_reason: dict = {}
@@ -2076,8 +2196,10 @@ def _landscape_scorecard(sc: dict, ticker: str) -> None:
                 named = ", ".join(a["name"] for a in others[:5])
                 text += f": {named}" + (f" and {len(others) - 5} more" if len(others) > 5 else "")
             parts.append(text + ".")
-        _how("Not on the chart, because a score is never guessed: " + " ".join(parts)
+        _how("Not on the chart, because a score is never guessed. " + " ".join(parts)
              + " The Candidates view lists them all with stage and modelled value.")
+    # How it is scored comes last: what was found, then who is missing, then the method.
+    st.markdown(_score_method(sc.get("method") or {}), unsafe_allow_html=True)
 
 
 def _decap(text) -> str:
