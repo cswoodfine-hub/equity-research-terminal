@@ -3,7 +3,10 @@
  *
  * Contract: docs/design/comps-valuation.md, section 4 (structure, column catalogue, formats,
  * markers, presets, summary rows, row behaviour, sorting, filtering, resizing, hiding, pinning,
- * conditional format modes), 7.1 to 7.5 (keys, focus, tooltips) and 11.1:
+ * conditional format modes), 7.1 to 7.5 (keys, focus, tooltips), 11.1, and revision 3 (12.7): a
+ * toolbar of three controls (column preset, find column, one "View" menu) plus the hidden-columns
+ * chip, and flag markers only where core.js says a flag bears on the printed value (`cell.marks`)
+ * or costs confidence in the conclusion (`row.tickerFlags`):
  *
  *   mountTable(root, ctx) -> {update(view), focusCell(ticker, colId), scrollToColumn(colId),
  *                             getViewport(), destroy()}
@@ -27,8 +30,8 @@
 
 import {
   COLUMNS, COLUMN_BY_ID, COLUMN_GROUPS, FROZEN_MAX_SHARE, PRESET_FOOTNOTE, CF_MODES, CF_MODE_LABEL,
-  DENSITIES, TEXT_SIZES, SYSTEM_SUBGROUPS, RELEVANCE_COMPONENTS, STORAGE_LINE, STATE_COPY, NULL_GLYPH,
-  canPin, compareCells, commandHint, COMMAND_BY_ID, normKey, presetColumns, fmtNumber,
+  DENSITIES, TEXT_SIZES, SYSTEM_SUBGROUPS, RELEVANCE_COMPONENTS, STATE_COPY, NULL_GLYPH,
+  canPin, compareCells, commandHint, COMMAND_BY_ID, keyLabel, normKey, presetColumns, fmtNumber,
 } from "./core.js";
 
 // ---------------------------------------------------------------------------------------------
@@ -65,18 +68,28 @@ const EXCLUDED_TEXT = "Excluded from statistics. Still shown. X includes it agai
 const PRIMARY_KEEP = "The primary metric stays visible. Change the primary in the dot plot.";
 const PIN_REFUSED = "Pinned columns would cover more than 40% of the table. Unpin one first.";
 const FILTER_NOTE = "Filters hide rows. Statistics still use every included peer.";
-const CF_SHORT = {off: "off", premium: "premium to median", percentile: "percentile rank", trend: "operating trend",
-  quality: "data quality", outliers: "outliers"};
+const SAVED_HERE = "Saved in this browser only.";
+const CF_CAUTION = "A low multiple is never marked as good: a discount can reflect weaker growth, patent exposure or clinical risk.";
+const RESET_NOOP = "Columns, widths and sort are already the preset's.";
+const FLAGS_ELSEWHERE = "Enter or a click opens the details, where every data flag of the company is listed.";
+/** The View menu's own height (12.7); the shared menu stops at 60vh. */
+export const VIEW_MENU_CLASS = "tb-viewmenu";
+/** Toolbar controls, left to right (12.7). The hidden chip shows only while columns are hidden. */
+export const TOOLBAR_KEYS = ["preset", "find", "view", "hidden"];
+/** Group heads of the View menu, in order (12.7). */
+export const VIEW_GROUPS = [
+  {id: "stats", label: "Statistics over"},
+  {id: "outliers", label: "Outliers in statistics"},
+  {id: "cf", label: "Conditional format"},
+  {id: "density", label: "Density"},
+  {id: "text", label: "Text size"},
+  {id: "rows", label: "Rows"},
+  {id: "layouts", label: "Layouts"},
+];
 const SOURCE_WORDS = {system: "System set", analyst: "Added by you", saved: "Saved peer set"};
 const POOL_WORDS = {A: "pool A, same subsector and stage", B: "pool B, same subsector, other stage",
   C: "pool C, adjacent subsector"};
 const LEVEL_BARS = {high: 3, medium: 2, low: 1};
-const SECTIONS = [
-  {id: "bridge", label: "Valuation bridge", sel: ["#sec-bridge", "[data-section='bridge']", ".pn-bridge", ".pn-br", ".ch-br"]},
-  {id: "obs", label: "Drivers and risks", sel: ["#sec-obs", "[data-section='obs']", ".pn-obs"]},
-  {id: "peers", label: "Peer selection", sel: ["#sec-peers", "[data-section='peers']", ".pn-peers"]},
-  {id: "notes", label: "Notes and sources", sel: ["#sec-notes", "[data-section='notes']", ".pn-notes"]},
-];
 const FOCUS_SEND_MS = 200;
 const BOX_MIN_H = 180;   // header, focal row, one peer row and two summary rows
 const BOX_PAD = 8;       // room under the box while it rests below the top of #main
@@ -220,21 +233,62 @@ export function placeFocal(rows, sort, pinned) {
 }
 
 /**
- * `markerFor(cell, col, cfMode)`: the 12 px marker slot after a number (4.4, 4.9).
+ * `cellMarked(cell)` (12.7): whether a flag bears on the value this cell prints. core.js lists
+ * those codes in `cell.marks` and computes `amber` and `red` from them; `cell.flags` is the wider
+ * list the logic reads and never draws a marker. A cell with no `marks` is never marked, whatever
+ * else it carries.
+ */
+export function cellMarked(cell) {
+  return !!cell && Array.isArray(cell.marks) && cell.marks.length > 0 && !!(cell.amber || cell.red);
+}
+
+/**
+ * `tickerMarked(row)` (12.7): the `!` after a ticker shows only while `row.tickerFlags` is not
+ * empty, that is for a flag that cost a confidence point, a failed source or a failed calculation.
+ * Every other flag of the company is listed in the detail panel.
+ */
+export function tickerMarked(row) {
+  return !!row && Array.isArray(row.tickerFlags) && row.tickerFlags.length > 0;
+}
+
+/** The marker span after a ticker, or "" (12.7). */
+export function tickerMarkHtml(row) {
+  return tickerMarked(row) ? `<span class="u-marker amber" aria-hidden="true">!</span>` : "";
+}
+
+/**
+ * `tickerTip(row)`: the ticker cell's tooltip. Its lines are the flags that mark the ticker
+ * (`row.tickerLines`) and nothing else; a failed calculation leads with the row's own message.
+ */
+export function tickerTip(row) {
+  if (!row) return null;
+  const marked = tickerMarked(row);
+  let lines = marked ? (row.tickerLines || []).slice() : [];
+  if (row.error) {
+    if (marked && row.tickerFlags[0] === "calc_failed") lines = lines.slice(1);
+    lines.unshift(row.error);
+  }
+  lines.push(FLAGS_ELSEWHERE);
+  return {title: row.ticker, body: row.name || null, lines};
+}
+
+/**
+ * `markerFor(cell, col, cfMode)`: the 12 px marker slot after a number (4.4, 4.9, 12.7).
  * Returns `{text, tone}` with tone "amber", "muted" or "". Order: a per-cell basis fallback
  * (amber tag, the only amber tag), in data-quality mode a derived cell ("d"), a model cell ("M"),
- * in data-quality mode any tag letter, then "!" for an amber flag with no tag to show.
+ * in data-quality mode any tag letter, then "!" for a marking flag with no tag to show. Only
+ * `cell.marks` draws the "!" and the "d": a flag that merely touches the cell does not.
  */
 export function markerFor(cell, col, cfMode = "off") {
   const none = {text: "", tone: ""};
   if (!cell || !col || !col.numeric) return none;
-  const flags = cell.flags || [];
-  const flagged = !!(cell.amber || cell.red);
+  const marks = Array.isArray(cell.marks) ? cell.marks : [];
+  const flagged = cellMarked(cell);
   if (cell.status === "err") return none;
-  if (cell.status !== "ok") return cell.amber ? {text: "!", tone: "amber"} : none;
+  if (cell.status !== "ok") return flagged && cell.amber ? {text: "!", tone: "amber"} : none;
   if (cell.tagDiffers && cell.tag) return {text: cell.tag, tone: "amber"};
   const quality = cfMode === "quality";
-  if (quality && (flags.includes("derived_operating_income") || flags.includes("derived_no_addback"))) {
+  if (quality && (marks.includes("derived_operating_income") || marks.includes("derived_no_addback"))) {
     return {text: "d", tone: flagged ? "amber" : "muted"};
   }
   if (cell.tag === "M") return {text: "M", tone: "muted"};
@@ -279,6 +333,15 @@ export function sourceText(row) {
   return row.source === "system" && row.pool && POOL_WORDS[row.pool] ? `${base}, ${POOL_WORDS[row.pool]}` : base;
 }
 
+/**
+ * The flag lines a cell's tooltip shows (12.7): core.js writes `flagLines` from `marks` alone, so
+ * these are the marking flags, plus the ECB translation line a reported-currency market value
+ * carries. A cell with neither marks nor that line has none.
+ */
+export function markLines(cell) {
+  return cell && Array.isArray(cell.flagLines) ? cell.flagLines : [];
+}
+
 /** Hover and focus tooltip of a data cell, or null when the cell has nothing beyond its value. */
 export function cellTip(cell, col, row) {
   if (!cell || !col) return null;
@@ -286,7 +349,7 @@ export function cellTip(cell, col, row) {
   const body = cellReasonText(cell) || null;
   if (cell.tagDiffers) lines.push(periodText(cell, col));
   if (cell.quote) lines.push(cell.quote);
-  for (const l of cell.flagLines || []) lines.push(l);
+  for (const l of markLines(cell)) lines.push(l);
   const cf = cell.cf;
   if (cf && cf.tooltip) lines.push(cf.tooltip.endsWith(".") ? cf.tooltip : cf.tooltip + ".");
   if (cf && cf.kind === "outlier") {
@@ -309,7 +372,7 @@ export function describeCell(cell, col, row, cfMode = "off") {
   const mk = markerFor(cell, col, cfMode);
   if (mk.text === "M") parts.push("Model output.");
   if (cell && cell.quote) parts.push(cell.quote);
-  for (const l of (cell && cell.flagLines) || []) parts.push(l);
+  for (const l of markLines(cell)) parts.push(l);
   if (cell && cell.cf && cell.cf.tooltip) parts.push(cell.cf.tooltip.endsWith(".") ? cell.cf.tooltip : cell.cf.tooltip + ".");
   if (row && row.excluded) parts.push(EXCLUDED_TEXT);
   if (col.tooltip) parts.push(col.tooltip);
@@ -369,13 +432,6 @@ export function sortSteps(current, colId, want) {
   const i = seq.indexOf(cur), j = seq.indexOf(want || null);
   if (i < 0 || j < 0) return 0;
   return (j - i + 3) % 3;
-}
-
-/** How many CYCLE_DENSITY actions reach `want` from `current`. */
-export function densitySteps(current, want) {
-  const i = DENSITIES.indexOf(current), j = DENSITIES.indexOf(want);
-  if (i < 0 || j < 0) return 0;
-  return (j - i + DENSITIES.length) % DENSITIES.length;
 }
 
 /**
@@ -464,6 +520,174 @@ export function findColumns(query, columns = COLUMNS, inTable = new Set(), limit
   scored.sort((a, b) => (b.score - a.score) || (a.i - b.i));
   return scored.slice(0, limit).map(({c}) => ({id: c.id, label: c.label, group: GROUP_LABEL[c.group] || "",
     unit: c.unit ? String(c.unit).replace("{cur} ", "") : "", inTable: inTable.has(c.id)}));
+}
+
+/**
+ * `toolbarModel(T, st, opts)` (12.7): the toolbar's controls, left to right, and nothing else:
+ * the column preset, the column finder, the one "View" menu, then the hidden-columns chip while
+ * columns are hidden. Each control is `{key, kind, label, value, kbd, count}`; `kind` is "menu",
+ * "dialog" or "chip". `opts.findKey` is the finder's key hint ("" when single keys are off).
+ */
+export function toolbarModel(T, st = {}, opts = {}) {
+  const t = T || {};
+  const badge = t.viewBadge || {count: 0, lines: [], label: "View"};
+  const hidden = Array.isArray(t.hidden) ? t.hidden : [];
+  const out = [
+    {key: "preset", kind: "menu", label: "Columns:", value: t.presetLabel || t.preset || "", kbd: "", count: 0},
+    {key: "find", kind: "dialog", label: "", value: "Find column", kbd: opts.findKey || "", count: 0},
+    {key: "view", kind: "menu", label: "", value: badge.label || "View", kbd: "", count: badge.count || 0},
+  ];
+  if (hidden.length) out.push({key: "hidden", kind: "chip", label: "", value: `${hidden.length} hidden`, kbd: "", count: hidden.length});
+  return out;
+}
+
+/** The toolbar's markup for `toolbarModel` (12.7). Every control carries `data-tb` and `data-key`. */
+export function toolbarHtml(model) {
+  let h = "";
+  for (const c of model || []) {
+    const caret = `<span class="tb-caret" aria-hidden="true">▾</span>`;
+    const k = esc(c.key);
+    if (c.kind === "chip") {
+      h += `<button type="button" class="u-chip tb-hid" data-tb="${k}" data-key="tb:${k}" aria-haspopup="menu"><span class="u-chip-label">${esc(c.value)}</span>${caret}</button>`;
+      continue;
+    }
+    const lab = c.label ? `<span class="tb-bl">${esc(c.label)}</span> ` : "";
+    const kbd = c.kbd ? `<kbd class="u-kbd">${esc(c.kbd)}</kbd>` : "";
+    const on = c.key === "view" && c.count > 0 ? " tb-on" : "";
+    h += `<button type="button" class="u-btn tb-b${on}" data-tb="${k}" data-key="tb:${k}" aria-haspopup="${c.kind === "dialog" ? "dialog" : "menu"}">`
+      + `${lab}<span class="tb-bv">${esc(c.value)}</span>${kbd}${c.kind === "menu" ? caret : ""}</button>`;
+  }
+  return h;
+}
+
+/**
+ * `toolbarTips(T, st, opts)`: the tooltip of each toolbar control, keyed like `toolbarModel`.
+ * The View tooltip lists the settings away from their defaults (`viewBadge.lines`, 12.7).
+ * opts: {keys: boolean (single keys on), storageOk: boolean}.
+ */
+export function toolbarTips(T, st = {}, opts = {}) {
+  const t = T || {};
+  const on = opts.keys !== false;
+  const badge = t.viewBadge || {count: 0, lines: []};
+  const hidden = Array.isArray(t.hidden) ? t.hidden : [];
+  const tips = new Map();
+  tips.set("preset", {title: "Column presets", body: "A preset sets the columns after the frozen block. The frozen company columns stay in every preset.",
+    lines: [on ? "Keys 1 to 7 pick the presets in menu order." : "", PRESET_FOOTNOTE].filter(Boolean)});
+  tips.set("find", {title: "Find a column", body: "Search metrics and their definitions. Enter shows the column and focuses the focal company's cell.", lines: []});
+  const lines = (badge.lines || []).map((l) => (/[.!?]$/.test(l) ? l : `${l}.`));
+  if (t.cfMode && t.cfMode !== "off") lines.push(CF_CAUTION);
+  if (on) lines.push("U switches outliers, V the format, D the density. + and - change the text size.");
+  tips.set("view", {title: "View",
+    body: badge.count ? `${badge.count} ${badge.count === 1 ? "setting" : "settings"} away from the default.`
+      : "Statistics group, outliers, conditional format, density, text size, summary rows and saved layouts. Every setting is at its default.",
+    lines});
+  if (hidden.length) {
+    tips.set("hidden", {title: `${hidden.length} hidden ${hidden.length === 1 ? "column" : "columns"}`,
+      body: hidden.map((id) => (COLUMN_BY_ID[id] ? COLUMN_BY_ID[id].label : id)).join(", "), lines: []});
+  }
+  return tips;
+}
+
+const cap = (w) => `${String(w).charAt(0).toUpperCase()}${String(w).slice(1)}`;
+const low = (w) => `${String(w).charAt(0).toLowerCase()}${String(w).slice(1)}`;
+
+/**
+ * `viewMenuModel(view, st, opts)` (12.7): the items of the one "View" menu, in order. Seven
+ * groups, each under a `{kind: "head", label}` item, then a closing `{kind: "note"}`:
+ * Statistics over, Outliers in statistics, Conditional format, Density, Text size, Rows, Layouts.
+ *
+ * A selectable item is `{id, group, label, checked?, shortcut?, disabled?, reason?, actions?, run?,
+ * stamp?, say?}`. `checked` is a boolean for a radio or a check and absent for a plain action.
+ * `actions` are core.js actions to dispatch in order (`stamp` adds `now`); `run` names what the
+ * mount does itself: "saveLayout", "resetLayout", "pinFocal", "summaryExpanded". `say` is the
+ * announcement. A `shortcut` sits on the item its key would pick now: `u` on the other outlier
+ * setting, `v` and `d` on the next mode in their cycles, `+` and `-` on the neighbouring sizes.
+ *
+ * opts: {layout, focalPinned, storageOk, keys (single keys on)}.
+ */
+export function viewMenuModel(view, st = {}, opts = {}) {
+  const T = (view && view.table) || {};
+  const layout = normLayout(opts.layout);
+  const keys = opts.keys !== false;
+  const key = (k) => (keys ? k : null);
+  const items = [];
+  const head = (id) => items.push({kind: "head", id: `head:${id}`, group: id, label: VIEW_GROUPS.find((g) => g.id === id).label});
+
+  // Statistics over
+  head("stats");
+  const groups = (view && view.peers && Array.isArray(view.peers.subgroups)) ? view.peers.subgroups
+    : SYSTEM_SUBGROUPS.map((name) => ({name, system: true, tickers: null}));
+  const cur = st.statsGroup && st.statsGroup !== "all" ? st.statsGroup : "all";
+  items.push({id: "stats:all", group: "stats", label: "All included peers", checked: cur === "all",
+    actions: [{type: "SET_STATS_GROUP", group: "all"}], say: "Statistics over all included peers"});
+  for (const g of groups) {
+    const n = Array.isArray(g.tickers) ? g.tickers.length : null;
+    items.push({id: `stats:${g.name}`, group: "stats", label: n == null ? g.name : `${g.name}, ${n}`, checked: cur === g.name,
+      disabled: n === 0, reason: n === 0 ? "No peer in the set falls in this group." : null,
+      actions: [{type: "SET_STATS_GROUP", group: g.name}], say: `Statistics over ${g.name}`});
+  }
+
+  // Outliers in statistics
+  head("outliers");
+  const outEx = st.outliers === "exclude";
+  items.push({id: "outliers:include", group: "outliers", label: "Included", checked: !outEx, shortcut: outEx ? key("u") : null,
+    actions: [{type: "SET_OUTLIERS", mode: "include"}], say: "Statistics include outliers"});
+  items.push({id: "outliers:exclude", group: "outliers", label: "Excluded", checked: outEx, shortcut: outEx ? null : key("u"),
+    actions: [{type: "SET_OUTLIERS", mode: "exclude"}], say: "Statistics exclude outliers, column by column"});
+
+  // Conditional format
+  head("cf");
+  const cf = CF_MODES.includes(T.cfMode) ? T.cfMode : (CF_MODES.includes(st.cfMode) ? st.cfMode : "off");
+  const cfNext = CF_MODES[(CF_MODES.indexOf(cf) + 1) % CF_MODES.length];
+  for (const m of CF_MODES) {
+    items.push({id: `cf:${m}`, group: "cf", label: CF_MODE_LABEL[m] || m, checked: cf === m, shortcut: m === cfNext ? key("v") : null,
+      actions: [{type: "SET_CF_MODE", mode: m}], say: `Format: ${low(CF_MODE_LABEL[m] || m)}`});
+  }
+
+  // Density
+  head("density");
+  const den = DENSITIES.includes(T.density) ? T.density : (DENSITIES.includes(st.density) ? st.density : "default");
+  const denNext = DENSITIES[(DENSITIES.indexOf(den) + 1) % DENSITIES.length];
+  for (const d of DENSITIES) {
+    items.push({id: `density:${d}`, group: "density", label: `${cap(d)} rows`, checked: den === d, shortcut: d === denNext ? key("d") : null,
+      actions: [{type: "SET_DENSITY", density: d}], say: `${cap(d)} rows`});
+  }
+
+  // Text size
+  head("text");
+  const size = isNum(T.textSize) ? T.textSize : (isNum(st.textSize) ? st.textSize : TEXT_SIZES[0]);
+  for (const s of TEXT_SIZES) {
+    items.push({id: `text:${s}`, group: "text", label: `Text ${s} px`, checked: size === s,
+      shortcut: s === size + 1 ? key("+") : (s === size - 1 ? key("-") : null),
+      actions: [{type: "SET_TEXT_SIZE", size: s}], say: `Text ${s} pixels`});
+  }
+
+  // Rows
+  head("rows");
+  const sumOn = st.summaryRows !== false;
+  items.push({id: "rows:summary", group: "rows", label: "Summary rows", checked: sumOn,
+    actions: [{type: "TOGGLE_SUMMARY_ROWS"}], say: sumOn ? "Summary rows hidden; the n row stays" : "Summary rows shown"});
+  if (autoPinsPrimary(layout)) {
+    const ex = !!((st.summaryExpanded || {})[layout]);
+    items.push({id: "rows:expanded", group: "rows", label: "Mean and quartiles in the summary", checked: ex,
+      disabled: !sumOn, reason: sumOn ? null : "Summary rows are off.", run: "summaryExpanded"});
+  }
+  const pinned = opts.focalPinned !== false;
+  items.push({id: "rows:pinfocal", group: "rows", label: "Pin the focal row", checked: pinned, run: "pinFocal",
+    say: pinned ? "Focal row takes its sorted place" : "Focal row pinned first"});
+
+  // Layouts
+  head("layouts");
+  const names = Object.keys(st.layouts || {}).sort((a, b) => a.localeCompare(b));
+  items.push({id: "layouts:save", group: "layouts", label: "Save layout", run: "saveLayout"});
+  for (const n of names) {
+    items.push({id: `layouts:load:${n}`, group: "layouts", label: `Load ${n}`, actions: [{type: "LOAD_LAYOUT", name: n}], say: `Loaded layout ${n}`});
+    items.push({id: `layouts:delete:${n}`, group: "layouts", label: `Delete ${n}`, actions: [{type: "DELETE_LAYOUT", name: n}], stamp: true,
+      say: `Deleted layout ${n}. Undo with ${opts.isMac ? "Command" : "Control"} Z.`});
+  }
+  items.push({id: "layouts:reset", group: "layouts", label: "Reset columns, widths and sort", shortcut: key("shift+r"), run: "resetLayout"});
+  items.push({kind: "note", id: "note", group: "layouts", label: opts.storageOk === false ? STATE_COPY.storage_unavailable.detail : SAVED_HERE, disabled: true});
+  return items;
 }
 
 function inclState(row, outliersMode) {
@@ -574,9 +798,26 @@ export function mountTable(root, ctx = {}) {
     if (typeof ctx.openDetail === "function") ctx.openDetail(ticker);
     else dispatch({type: "OPEN_DETAIL", ticker});
   }
-  function openMenu(anchor, items) {
-    if (ctx.menu && typeof ctx.menu.open === "function") { ctx.menu.open(anchor, items); return; }
-    fallbackMenu(anchor, items);
+  function openMenu(anchor, items, opts) {
+    if (ctx.menu && typeof ctx.menu.open === "function") {
+      ctx.menu.open(anchor, items, opts);
+      if (opts && opts.cls) tagMenu(opts.cls);
+      return;
+    }
+    fallbackMenu(anchor, items, opts);
+  }
+  /**
+   * Give the shared menu just opened a class of this sheet (the View menu's own max height,
+   * 12.7), then keep its foot inside the frame: the shell placed it at the shared height.
+   */
+  function tagMenu(cls) {
+    const all = doc.querySelectorAll(".u-menu[role='menu']");
+    const el = all.length ? all[all.length - 1] : null;
+    if (!el || (pop && pop.el.contains(el))) return;
+    el.classList.add(cls);
+    const vh = win.innerHeight || 0;
+    const r = el.getBoundingClientRect();
+    if (vh && r.bottom > vh - 8) el.style.top = `${Math.max(8, Math.round(vh - 8 - r.height))}px`;
   }
   function colView(id) { return L.cols.find((c) => c.id === id) || null; }
   function rowView(t) { return rowsShown.find((r) => r.ticker === t) || null; }
@@ -768,10 +1009,8 @@ export function mountTable(root, ctx = {}) {
       case "company":
         return `<th role="rowheader" scope="row" id="${id}" class="tb-c tb-co${fz}" data-col="company"><span class="tb-in tb-coname">${esc(r.name)}</span></th>`;
       case "ticker": {
-        const tc = (r.cells && r.cells.ticker) || {};
-        const flagged = tc.amber || tc.red || (r.amberFlags || []).length > 0;
-        const mark = flagged ? `<span class="u-marker amber" aria-hidden="true">!</span>` : "";
-        return `<td role="gridcell" id="${id}" class="tb-c tb-tk${fz}" data-col="ticker"><span class="tb-in"><span class="u-ticker">${T}</span>${mark}</span></td>`;
+        // 12.7: the marker follows `row.tickerFlags` alone, never every amber flag on the row.
+        return `<td role="gridcell" id="${id}" class="tb-c tb-tk${fz}" data-col="ticker"><span class="tb-in"><span class="u-ticker">${T}</span>${tickerMarkHtml(r)}</span></td>`;
       }
       default:
         return dataCellHtml(r, c, id, fz + gs, info);
@@ -820,7 +1059,7 @@ export function mountTable(root, ctx = {}) {
         }
       }
       const val = cell.status === "ok"
-        ? `<span class="tb-v${cell.amber || cell.red ? " u-flagged" : ""}">${esc(cell.text)}</span>` : nullSpan(cell);
+        ? `<span class="tb-v${cellMarked(cell) ? " u-flagged" : ""}">${esc(cell.text)}</span>` : nullSpan(cell);
       const mk = markerFor(cell, c, info.cfMode);
       const cur = info.rep && MONEY_FMTS.has(c.fmt) ? `<span class="u-cur-slot">${esc(cell.unit || "")}</span>` : "";
       inner = `${pre}${val}${cur}<span class="u-marker${mk.tone === "amber" ? " amber" : ""}${mk.text === "d" ? " tb-lc" : ""}" aria-hidden="true">${esc(mk.text)}</span>`;
@@ -922,46 +1161,11 @@ export function mountTable(root, ctx = {}) {
     fzStyle.textContent = css;
   }
 
-  // ----- toolbar -----
+  // ----- toolbar (12.7): Columns, Find column, View, and the hidden chip while columns are hidden -----
   function renderBar(T, st) {
-    barTips = new Map();
-    const k = (id) => { const x = hint(id); return x ? `${x}` : ""; };
-    const presetLabel = T.presetLabel || T.preset;
-    const statsName = st.statsGroup && st.statsGroup !== "all" ? st.statsGroup : "all peers";
-    const outEx = st.outliers === "exclude";
-    const cf = T.cfMode || "off";
-    const hidden = T.hidden || [];
     const on = keysOn();
-    let h = "";
-    h += btn("preset", `<span class="tb-bl">Columns:</span> <span class="tb-bv">${esc(presetLabel)}</span>`, true);
-    barTips.set("preset", {title: "Column presets", body: "A preset sets the columns after the frozen block. The frozen company columns stay in every preset.",
-      lines: [on ? "Keys 1 to 7 pick the presets in menu order." : "", PRESET_FOOTNOTE].filter(Boolean)});
-    h += btn("layouts", `<span class="tb-bv">Layouts</span>`, true);
-    barTips.set("layouts", {title: "Saved layouts", body: "Save the preset, columns, widths, pins, format mode, density, text size and summary rows under a name.",
-      lines: [storageOk() ? "Saved in this browser only." : STATE_COPY.storage_unavailable.detail]});
-    h += btn("stats", `<span class="tb-bl">Statistics:</span> <span class="tb-bv">${esc(statsName)}</span>`, true);
-    barTips.set("stats", {title: "Statistics group", body: "The included peers that the summary rows, medians and percentiles use.", lines: [FILTER_NOTE]});
-    h += `<button type="button" class="u-btn tb-b" data-tb="outliers" data-key="tb:outliers" aria-pressed="${outEx ? "true" : "false"}"><span class="tb-bl">Outliers:</span> <span class="tb-bv">${outEx ? "excluded" : "included"}</span></button>`;
-    barTips.set("outliers", {title: "Outliers in statistics", body: outEx
-      ? "Statistics leave out values beyond 1.5 interquartile ranges from the quartiles, column by column."
-      : "Statistics include every included peer's value, outliers too.", lines: on ? [`${k("outliers.toggle")} switches.`] : []});
-    h += btn("cf", `<span class="tb-bl">Format:</span> <span class="tb-bv">${esc(CF_SHORT[cf] || cf)}</span>`, true);
-    barTips.set("cf", {title: "Conditional format", body: "Marks cells against the peer median, the percentiles, the operating trend, data quality or outliers. A low multiple is never marked as good: a discount can reflect weaker growth, patent exposure or clinical risk.",
-      lines: on ? [`${k("cf.next")} cycles the modes.`] : []});
-    h += btn("display", `<span class="tb-bv">Display</span>`, true);
-    barTips.set("display", {title: "Display", body: "Row density, text size, summary rows and the focal row pin.",
-      lines: on ? [`${k("density.next")} cycles density. + and - change the text size.`] : []});
-    const fk = k("columns.find");
-    h += `<button type="button" class="u-btn tb-b" data-tb="find" data-key="tb:find" aria-haspopup="dialog"><span class="tb-bv">Find column</span>${fk ? `<kbd class="u-kbd">${esc(fk)}</kbd>` : ""}</button>`;
-    barTips.set("find", {title: "Find a column", body: "Search metrics and their definitions. Enter shows the column and focuses the focal company's cell."});
-    if (hidden.length) {
-      h += `<button type="button" class="u-chip tb-hid" data-tb="hidden" data-key="tb:hidden" aria-haspopup="menu"><span class="u-chip-label">${hidden.length} hidden</span><span class="tb-caret" aria-hidden="true">▾</span></button>`;
-      barTips.set("hidden", {title: `${hidden.length} hidden ${hidden.length === 1 ? "column" : "columns"}`,
-        body: hidden.map((id) => (COLUMN_BY_ID[id] ? COLUMN_BY_ID[id].label : id)).join(", ")});
-    }
-    h += `<span class="tb-end">${btn("below", `<span class="tb-bv">Below the table</span>`, true)}</span>`;
-    barTips.set("below", {title: "Below the table", body: "Jump to the valuation bridge, drivers and risks, peer selection, or notes and sources."});
-    rebuildKeep(bar, h);
+    barTips = toolbarTips(T, st, {keys: on, storageOk: storageOk()});
+    rebuildKeep(bar, toolbarHtml(toolbarModel(T, st, {findKey: hint("columns.find")})));
     // Descriptions for screen readers: the same text as each tooltip.
     let d = "";
     for (const [key, t] of barTips) d += `<span id="tb-d-${key}">${esc([t.title, t.body].concat(t.lines || []).filter(Boolean).join(". ").replace(/\.\./g, "."))}</span>`;
@@ -970,10 +1174,6 @@ export function mountTable(root, ctx = {}) {
       const key = el.getAttribute("data-tb");
       if (barTips.has(key)) el.setAttribute("aria-describedby", `tb-d-${key}`);
     }
-  }
-
-  function btn(key, label, menu) {
-    return `<button type="button" class="u-btn tb-b" data-tb="${key}" data-key="tb:${key}"${menu ? " aria-haspopup=\"menu\"" : ""}>${label}${menu ? `<span class="tb-caret" aria-hidden="true">▾</span>` : ""}</button>`;
   }
 
   /** Replace a container's HTML, keeping focus and an input's typed text by `data-key`. */
@@ -1215,11 +1415,7 @@ export function mountTable(root, ctx = {}) {
         }
         return {title: row.name, body: null, lines};
       }
-      case "ticker": {
-        const lines = (row.flagLines || []).slice();
-        if (row.error) lines.unshift(row.error);
-        return {title: row.ticker, body: row.name, lines};
-      }
+      case "ticker": return tickerTip(row);
       default: {
         const cell = row.cells ? row.cells[col.id] : null;
         return cellTip(cell, col, row);
@@ -1549,10 +1745,9 @@ export function mountTable(root, ctx = {}) {
     const ok = storageOk();
     const h = `<p class="u-pop-title" id="tb-lay-t">Save layout</p>`
       + `<label class="tb-pop-field"><span class="u-label">Name</span><input type="text" class="u-input tb-lay-in" maxlength="40" autocomplete="off"></label>`
-      + `<p class="tb-pop-note">${esc(ok ? "Saved in this browser only." : STATE_COPY.storage_unavailable.detail)}</p><p class="tb-pop-err" role="alert" hidden></p>`
+      + `<p class="tb-pop-note">${esc(ok ? SAVED_HERE : STATE_COPY.storage_unavailable.detail)}</p><p class="tb-pop-err" role="alert" hidden></p>`
       + `<div class="tb-pop-act"><button type="button" class="u-btn primary" data-pa="save">Save</button><button type="button" class="u-btn" data-pa="cancel">Cancel</button></div>`;
-    const back = bar.querySelector("[data-tb='layouts']");
-    const el = openPop(anchor, h, {labelledby: "tb-lay-t", returnTo: back,
+    const el = openPop(anchor, h, {labelledby: "tb-lay-t", returnTo: bar.querySelector("[data-tb='view']"),
       onKey: (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); save(); } }});
     const input = el.querySelector(".tb-lay-in");
     const err = el.querySelector(".tb-pop-err");
@@ -1561,7 +1756,7 @@ export function mountTable(root, ctx = {}) {
       if (!name) { err.hidden = false; err.textContent = "Enter a name for the layout."; input.focus(); return; }
       dispatch({type: "SAVE_LAYOUT", name, now: now()});
       closePop(true);
-      announce(`Saved layout ${name}. ${ok ? "Saved in this browser only." : STATE_COPY.storage_unavailable.detail}`);
+      announce(`Saved layout ${name}. ${ok ? SAVED_HERE : STATE_COPY.storage_unavailable.detail}`);
     }
     el.addEventListener("click", (e) => {
       const b = e.target.closest("[data-pa]");
@@ -1570,17 +1765,19 @@ export function mountTable(root, ctx = {}) {
     });
   }
 
-  function fallbackMenu(anchor, items) {
-    let h = `<ul class="tb-fmenu" role="menu">`;
+  function fallbackMenu(anchor, items, opts = {}) {
+    let h = `<ul class="tb-fmenu" role="menu"${opts.label ? ` aria-label="${esc(opts.label)}"` : ""}>`;
     items.forEach((it, i) => {
       if (it.kind === "note") { h += `<li class="u-menu-note" role="none">${esc(it.label)}</li>`; return; }
+      if (it.kind === "head") { h += `<li class="u-menu-head" role="presentation">${esc(it.label)}</li>`; return; }
+      if (it.kind === "sep") { h += `<li class="u-menu-sep" role="separator"></li>`; return; }
       h += `<li role="none"><button type="button" role="menuitem${it.checked != null ? "checkbox" : ""}" class="u-menu-item" data-i="${i}"`
         + `${it.checked != null ? ` aria-checked="${it.checked ? "true" : "false"}"` : ""}${it.disabled ? " aria-disabled=\"true\"" : ""}${it.reason ? ` title="${esc(it.reason)}"` : ""}>`
         + `<span class="u-menu-check" aria-hidden="true">${it.checked ? "✓" : ""}</span><span class="u-menu-label">${esc(it.label)}</span>`
-        + `<span class="u-menu-key">${it.shortcut ? `<kbd class="u-kbd">${esc(it.shortcut)}</kbd>` : ""}</span></button></li>`;
+        + `<span class="u-menu-key">${it.shortcut ? `<kbd class="u-kbd">${esc(keyLabel(it.shortcut, isMac))}</kbd>` : ""}</span></button></li>`;
     });
     h += `</ul>`;
-    const el = openPop(anchor, h, {cls: "tb-fmenu-pop", focus: ".u-menu-item:not([aria-disabled='true'])",
+    const el = openPop(anchor, h, {cls: `tb-fmenu-pop${opts.cls ? " " + opts.cls : ""}`, focus: ".u-menu-item:not([aria-disabled='true'])",
       onKey: (e) => {
         const btns = [...el.querySelectorAll(".u-menu-item")];
         const i = btns.indexOf(doc.activeElement);
@@ -1669,65 +1866,31 @@ export function mountTable(root, ctx = {}) {
     openMenu(anchor, items);
   }
 
-  function layoutsMenu(anchor) {
-    const st = getState();
-    const names = Object.keys(st.layouts || {}).sort((a, b) => a.localeCompare(b));
-    const items = [{id: "save", label: "Save layout", onSelect: () => openLayoutSave(anchor)}];
-    for (const n of names) items.push({id: `load:${n}`, label: `Load ${n}`, onSelect: () => { dispatch({type: "LOAD_LAYOUT", name: n}); announce(`Loaded layout ${n}`); }});
-    for (const n of names) items.push({id: `del:${n}`, label: `Delete ${n}`, onSelect: () => { dispatch({type: "DELETE_LAYOUT", name: n, now: now()}); announce(`Deleted layout ${n}. Undo with ${isMac ? "Command" : "Control"} Z.`); }});
-    items.push({id: "reset", label: (COMMAND_BY_ID["layout.reset"] || {}).label || "Reset columns, widths and sort for this preset", shortcut: keysOn() ? "shift+r" : null,
-      onSelect: () => { dispatch({type: "RESET_LAYOUT", now: now()}); announce("Reset the column layout"); }});
-    items.push({id: "note", kind: "note", label: storageOk() ? (names.length ? "Saved in this browser only." : "No saved layouts yet. Saved in this browser only.") : STATE_COPY.storage_unavailable.detail, disabled: true});
-    openMenu(anchor, items);
+  /** The one "View" menu (12.7): every setting the old Layouts, Statistics, Outliers, Format and Display buttons held. */
+  function viewMenu(anchor) {
+    const model = viewMenuModel(view, getState(), {layout: layoutName, focalPinned, storageOk: storageOk(), keys: keysOn(), isMac});
+    const items = model.map((it) => (it.kind ? it : {...it, onSelect: () => runViewItem(it)}));
+    openMenu(anchor, items, {label: "View", cls: VIEW_MENU_CLASS});
   }
 
-  function statsMenu(anchor) {
-    const st = getState();
-    const groups = (view.peers && Array.isArray(view.peers.subgroups)) ? view.peers.subgroups
-      : SYSTEM_SUBGROUPS.map((name) => ({name, system: true, tickers: null}));
-    const set = (g) => { dispatch({type: "SET_STATS_GROUP", group: g}); announce(g === "all" ? "Statistics over all included peers" : `Statistics over ${g}`); };
-    const items = [{id: "all", label: "All included peers", checked: !st.statsGroup || st.statsGroup === "all", onSelect: () => set("all")}];
-    for (const g of groups) {
-      const n = Array.isArray(g.tickers) ? g.tickers.length : null;
-      items.push({id: `g:${g.name}`, label: n == null ? g.name : `${g.name}, ${n}`, checked: st.statsGroup === g.name,
-        disabled: n === 0, reason: n === 0 ? "No peer in the set falls in this group." : null, onSelect: () => set(g.name)});
+  function runViewItem(it) {
+    switch (it.run) {
+      case "saveLayout": openLayoutSave(bar.querySelector("[data-tb='view']") || bar); return;
+      case "summaryExpanded": toggleSummaryExpanded(); return;
+      case "pinFocal":
+        focalPinned = !focalPinned;
+        render();
+        break;
+      case "resetLayout": {
+        const before = getState();
+        dispatch({type: "RESET_LAYOUT", now: now()});
+        announce(getState() === before ? RESET_NOOP : "Reset the column layout");
+        return;
+      }
+      default: break;
     }
-    items.push({id: "note", kind: "note", label: FILTER_NOTE, disabled: true});
-    openMenu(anchor, items);
-  }
-
-  function cfMenu(anchor) {
-    const T = view.table;
-    const items = CF_MODES.map((m) => ({id: m, label: CF_MODE_LABEL[m] || m, checked: T.cfMode === m,
-      onSelect: () => { dispatch({type: "SET_CF_MODE", mode: m}); announce(`Format: ${CF_MODE_LABEL[m] || m}`); }}));
-    items.push({id: "note", kind: "note", label: "Marks sit behind the printed numbers. A discount is not marked as good.", disabled: true});
-    openMenu(anchor, items);
-  }
-
-  function displayMenu(anchor) {
-    const st = getState();
-    const T = view.table;
-    const items = [];
-    for (const d of DENSITIES) {
-      items.push({id: `d:${d}`, label: `${d.charAt(0).toUpperCase()}${d.slice(1)} rows`, checked: T.density === d,
-        onSelect: () => { const n = densitySteps(T.density, d); for (let i = 0; i < n; i++) dispatch({type: "CYCLE_DENSITY"}); announce(`${d} rows`); }});
-    }
-    for (const s of TEXT_SIZES) {
-      items.push({id: `t:${s}`, label: `Text ${s} px`, checked: T.textSize === s,
-        onSelect: () => { dispatch({type: "SET_TEXT_SIZE", size: s}); announce(`Text ${s} pixels`); }});
-    }
-    items.push({id: "sum", label: "Summary rows", checked: st.summaryRows !== false,
-      onSelect: () => { dispatch({type: "TOGGLE_SUMMARY_ROWS"}); announce(st.summaryRows !== false ? "Summary rows hidden; the n row stays" : "Summary rows shown"); }});
-    if (autoPinsPrimary(layoutName)) {
-      items.push({id: "sumx", label: "Mean and quartiles in the summary", checked: !!((st.summaryExpanded || {})[layoutName]),
-        disabled: st.summaryRows === false, reason: st.summaryRows === false ? "Summary rows are off." : null, onSelect: toggleSummaryExpanded});
-    }
-    items.push({id: "pinfocal", label: "Pin the focal row", checked: focalPinned, onSelect: () => {
-      focalPinned = !focalPinned;
-      render();
-      announce(focalPinned ? "Focal row pinned first" : "Focal row takes its sorted place");
-    }});
-    openMenu(anchor, items);
+    for (const a of it.actions || []) dispatch(it.stamp ? {...a, now: now()} : a);
+    if (it.say) announce(it.say);
   }
 
   function hiddenMenu(anchor) {
@@ -1735,26 +1898,6 @@ export function mountTable(root, ctx = {}) {
     const items = (T.hidden || []).map((id) => ({id, label: `Show ${COLUMN_BY_ID[id] ? COLUMN_BY_ID[id].label : id}`,
       onSelect: () => { dispatch({type: "SHOW_COLUMN", colId: id}); announce(`Showing ${COLUMN_BY_ID[id] ? COLUMN_BY_ID[id].label : id}`); }}));
     openMenu(anchor, items);
-  }
-
-  function belowMenu(anchor) {
-    openMenu(anchor, SECTIONS.map((s) => ({id: s.id, label: s.label, onSelect: () => jumpTo(s)})));
-  }
-
-  function jumpTo(s) {
-    if (typeof ctx.scrollToSection === "function") { ctx.scrollToSection(s.id, true); return; }
-    if (layoutName === "narrow") dispatch({type: "SET_LOWER_TAB", tab: s.id});
-    const go = () => {
-      let el = null;
-      for (const q of s.sel) { el = doc.querySelector(q); if (el) break; }
-      const main = doc.getElementById("main");
-      if (!el) { announce(`${s.label} is not on the page yet`); return; }
-      if (main && main.contains(el)) main.scrollTop += el.getBoundingClientRect().top - main.getBoundingClientRect().top;
-      if (!el.hasAttribute("tabindex") && !/^(A|BUTTON|INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) el.setAttribute("tabindex", "-1");
-      el.focus({preventScroll: true});
-      announce(`Showing ${s.label.toLowerCase()}`);
-    };
-    if (win.requestAnimationFrame) win.requestAnimationFrame(go); else go();
   }
 
   // ------------------------------------------------------------------------------------------
@@ -1981,19 +2124,9 @@ export function mountTable(root, ctx = {}) {
     const key = b.getAttribute("data-tb");
     switch (key) {
       case "preset": presetMenu(b); break;
-      case "layouts": layoutsMenu(b); break;
-      case "stats": statsMenu(b); break;
-      case "outliers": {
-        const ex = getState().outliers === "exclude";
-        dispatch({type: "SET_OUTLIERS", mode: ex ? "include" : "exclude"});
-        announce(ex ? "Statistics include outliers" : "Statistics exclude outliers, column by column");
-        break;
-      }
-      case "cf": cfMenu(b); break;
-      case "display": displayMenu(b); break;
       case "find": dispatch({type: "OPEN_OVERLAY", overlay: "columnfinder"}); if (!finderOpen && !(getState().ui && getState().ui.overlay === "columnfinder")) openFinder(); break;
+      case "view": viewMenu(b); break;
       case "hidden": hiddenMenu(b); break;
-      case "below": belowMenu(b); break;
       default: break;
     }
   }

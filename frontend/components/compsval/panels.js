@@ -291,7 +291,9 @@ function buildBridgeInputs(root, view, ctx) {
     reset.setAttribute("aria-disabled", "true");
     bindTip(ctx, reset, "Every input is sourced or calculated already.");
   }
-  root.appendChild(sectionHead("Valuation bridge", titleId, reset));
+  const bridgeMode = !!ctx && (typeof ctx.mode === "function" ? ctx.mode() : ctx.mode) === "bridge";
+  if (bridgeMode) root.appendChild(h("div", {class: "pn-head pn-br-head", id: titleId}, reset));
+  else root.appendChild(sectionHead("Valuation bridge", titleId, reset));
   const descHost = hiddenHost(root);
   if (!b) { root.appendChild(sectionError(view, "bridge", "Valuation bridge")); return; }
   root.appendChild(h("p", {class: "u-meta pn-br-key"},
@@ -512,12 +514,31 @@ function valueText(step) {
 // ---------------------------------------------------------------------------------------------
 
 const OBS_VISIBLE = 5;
+const INSIGHT_VISIBLE = 5;
+
+/** Follow an insight link: a table column, a tab of the page, or one indication's landscape. */
+function followLink(ctx, view, link) {
+  if (!link) return;
+  if (ctx && typeof ctx.openLink === "function") { ctx.openLink(link); return; }
+  if (link.kind === "column") { goToColumn(ctx, ctx && typeof ctx.getView === "function" ? ctx.getView() || view : view, link.colId); return; }
+  if (link.kind === "tab" && ctx && typeof ctx.clickParentTab === "function") { ctx.clickParentTab(link.tab); return; }
+  if (link.kind === "indication" && ctx && typeof ctx.send === "function") {
+    ctx.send({action: "indication", indication_id: link.indicationId, ticker: view.focal ? view.focal.ticker : null});
+  }
+}
+function insightChips(list) {
+  return (list || []).map((c) => {
+    const el = chip(c.text, c.tone || "neutral", {class: `pn-obs-chip pn-obs-chip-${c.id}`});
+    if (c.tooltip) el.__tipText = c.tooltip;
+    return el;
+  });
+}
 
 export function mountObservations(root, ctx) {
   return createMount(root, ctx, "pn-obs", {
     name: "Drivers and risks",
-    local: () => ({more: {premium: false, discount: false}}),
-    sig: (v, local) => [v.observations, v.focal && v.focal.ticker, v.sectionErrors && v.sectionErrors.observations, local.more,
+    local: () => ({more: {premium: false, discount: false, catalysts: false, competition: false}}),
+    sig: (v, local) => [v.insight, v.focal && v.focal.ticker, v.sectionErrors && v.sectionErrors.insight, local.more,
       v.table && (v.table.columns || []).map((c) => c.id)],
     build: (root, view, local, api) => buildObservations(root, view, ctx, local, api),
   });
@@ -526,52 +547,188 @@ export function mountObservations(root, ctx) {
 function buildObservations(root, view, ctx, local, api) {
   const titleId = uid("pnobs");
   root.appendChild(sectionHead("Drivers and risks", titleId, chip("Observations, not conclusions", "neutral", {class: "pn-obs-tag"})));
-  const o = view.observations;
-  if (!o) { root.appendChild(sectionError(view, "observations", "Drivers and risks")); return; }
+  const I = view.insight;
+  if (!I) { root.appendChild(sectionError(view, "insight", "Drivers and risks")); return; }
   const descHost = hiddenHost(root);
-  const cols = h("div", {class: "pn-obs-cols"});
-  root.appendChild(cols);
+  const T = view.focal ? view.focal.ticker : "the focal company";
+
+  // Row 1: what the comparison supports on each side.
+  const sides = h("div", {class: "pn-obs-sides"});
+  root.appendChild(sides);
   const side = (id, title, glyph, tone, items) => {
     const listId = uid("pnobsl");
     const box = h("section", {class: `pn-obs-side pn-obs-${id}`, "aria-labelledby": listId},
       h("h3", {class: "pn-sub-title", id: listId}, h("span", {class: `u-dir ${tone} pn-obs-glyph`, "aria-hidden": "true", text: glyph}), title));
-    cols.appendChild(box);
+    sides.appendChild(box);
     if (!items.length) {
-      box.appendChild(h("p", {class: "pn-empty", text: "No observation passes the quartile tests."}));
+      box.appendChild(h("p", {class: "pn-empty", text: "No observation passes the tests."}));
       return;
     }
-    const shown = local.more[id] ? items : items.slice(0, OBS_VISIBLE);
+    // Metric items fold after five; an item drawn from a catalyst or a pool always shows.
+    const metric = items.filter((it) => it.kind === "metric"), other = items.filter((it) => it.kind !== "metric");
+    const shown = (local.more[id] ? metric : metric.slice(0, OBS_VISIBLE)).concat(other);
     const ul = h("ul", {class: "pn-obs-list"});
     box.appendChild(ul);
     for (const it of shown) {
-      const c = COLUMN_BY_ID[it.colId];
-      const colLabel = c ? c.label : it.colId;
       const link = h("button", {type: "button", class: "u-chip pn-obs-link", "data-key": `obs-${it.id}`},
-        h("span", {class: "u-chip-label", text: colLabel}), h("span", {"aria-hidden": "true", text: "→"}));
-      link.setAttribute("aria-label", `${colLabel}: show in the table`);
-      link.addEventListener("click", () => goToColumn(ctx, ctx && typeof ctx.getView === "function" ? ctx.getView() || view : view, it.colId));
-      bindTip(ctx, link, `Show ${lcfirst(colLabel)} in the table, at ${view.focal ? view.focal.ticker : "the focal company"}'s cell.`, descHost);
+        h("span", {class: "u-chip-label", text: it.linkLabel}), h("span", {"aria-hidden": "true", text: "→"}));
+      link.setAttribute("aria-label", `${it.linkLabel}: open`);
+      link.addEventListener("click", () => followLink(ctx, view, it.link));
+      const where = it.link && it.link.kind === "column" ? `Show ${lcfirst(it.linkLabel)} in the table, at ${T}'s cell.`
+        : it.link && it.link.kind === "tab" ? `Open the ${it.link.tab} tab.`
+          : it.link && it.link.kind === "indication" ? `Open Comps, Indications on ${lcfirst(it.link.name || "this indication")}.` : "";
+      if (where) bindTip(ctx, link, where, descHost);
       const chips = h("div", {class: "pn-obs-chips"}, link);
-      if (it.provenance === "M") chips.appendChild(chip("Model output", "neutral", {class: "pn-obs-model"}));
-      ul.appendChild(h("li", {class: "pn-obs-item", "data-severity": it.severity || "info"},
+      for (const c of insightChips(it.chips)) { chips.appendChild(c); if (c.__tipText) bindTip(ctx, c, c.__tipText, descHost); }
+      ul.appendChild(h("li", {class: `pn-obs-item pn-obs-kind-${it.kind}`, "data-severity": it.severity || "info"},
         h("span", {class: `u-dir ${tone} pn-obs-glyph`, "aria-hidden": "true", text: glyph}),
-        h("div", {class: "pn-obs-body"}, h("p", {class: "pn-obs-text"}, h("span", {class: "u-sr", text: id === "premium" ? "Premium driver: " : "Discount driver: "}), it.long), chips)));
+        h("div", {class: "pn-obs-body"}, h("p", {class: "pn-obs-text"},
+          h("span", {class: "u-sr", text: id === "premium" ? "Premium driver: " : "Discount driver: "}), it.text), chips)));
     }
-    if (items.length > OBS_VISIBLE) {
-      const n = items.length - OBS_VISIBLE;
+    if (metric.length > OBS_VISIBLE) {
+      const n = metric.length - OBS_VISIBLE;
       box.appendChild(linkBtn(local.more[id] ? "Show fewer" : `Show ${n} more`, {"data-key": `obs-more-${id}`, "aria-expanded": String(!!local.more[id])}, () => {
         local.more[id] = !local.more[id];
         api.rerender();
       }));
     }
   };
-  side("premium", "Potential premium drivers", UP, "up", o.premium || []);
-  side("discount", "Potential discount drivers", DOWN, "down", o.discount || []);
-  const na = (o.notAssessed || []).concat((o.suppressed || []).map((x) => x.text).filter(Boolean));
+  const V = I.valuation || {premium: [], discount: [], notAssessed: []};
+  side("premium", "Potential premium drivers", UP, "up", V.premium || []);
+  side("discount", "Potential discount drivers", DOWN, "down", V.discount || []);
+
+  // Row 2: the evidence for the company itself, catalysts and competition.
+  const evidence = h("div", {class: "pn-obs-evidence"});
+  root.appendChild(evidence);
+  if (I.state === "pending" || I.state === "error") {
+    const msg = I.message || {severity: I.state === "error" ? "amber" : "info",
+      title: I.state === "error" ? "Catalysts and competition did not load" : `Loading catalysts and competition for ${T}`,
+      detail: I.state === "error" ? "Reload with the reload button." : "They arrive with the page once the company changes."};
+    const block = stateBlock(msg);
+    block.classList.add("pn-obs-pending");
+    if (I.state === "pending") block.setAttribute("aria-busy", "true");
+    evidence.classList.add("is-state");
+    evidence.appendChild(block);
+  } else {
+    evidence.appendChild(buildCatalysts(I.catalysts, view, ctx, local, api, descHost));
+    evidence.appendChild(buildCompetition(I.competition, view, ctx, local, api, descHost));
+  }
+
+  const na = (V.notAssessed || []);
   if (na.length) {
     root.appendChild(h("div", {class: "pn-obs-na"}, h("h3", {class: "u-sr", text: "Not assessed"}),
       h("ul", {}, na.map((t) => h("li", {text: t})))));
   }
+}
+
+/** The heading row of an evidence group: title, count, an info button with the note, its link. */
+function groupHead(G, id, view, ctx, descHost) {
+  const titleId = uid(`pn${id}`);
+  const head = h("div", {class: "pn-ev-head"},
+    h("h3", {class: "pn-sub-title pn-ev-title", id: titleId, text: G.title}),
+    G.countText ? h("span", {class: "u-meta pn-ev-count", text: G.countText}) : null);
+  if (G.note) {
+    const info = h("button", {type: "button", class: "u-btn icon pn-ev-info", "data-key": `${id}-info`, "aria-label": `About ${lcfirst(G.title)}`, text: "i"});
+    bindTip(ctx, info, {title: G.title, body: G.note}, descHost);
+    head.appendChild(info);
+  }
+  if (G.link && G.linkLabel) {
+    const open = h("button", {type: "button", class: "u-btn link pn-ev-open", "data-key": `${id}-open`},
+      h("span", {text: G.linkLabel}), h("span", {"aria-hidden": "true", text: " →"}));
+    open.addEventListener("click", () => followLink(ctx, view, G.link));
+    head.appendChild(open);
+  }
+  return {head, titleId};
+}
+function groupState(G) {
+  const msg = G.empty || {severity: "info", title: G.title, detail: "Nothing to show."};
+  const block = stateBlock(msg);
+  block.classList.add("pn-ev-state");
+  return block;
+}
+function moreRow(id, total, local, api) {
+  if (total <= INSIGHT_VISIBLE) return null;
+  const open = !!local.more[id];
+  return linkBtn(open ? "Show fewer" : `Show ${total - INSIGHT_VISIBLE} more`, {"data-key": `${id}-more`, "aria-expanded": String(open), cls: "pn-ev-more"}, () => {
+    local.more[id] = !open;
+    api.rerender();
+  });
+}
+
+function buildCatalysts(G, view, ctx, local, api, descHost) {
+  const C = G || {state: "empty", title: "Catalysts ahead", rows: []};
+  const {head, titleId} = groupHead(C, "cat", view, ctx, descHost);
+  const box = h("section", {class: "pn-ev pn-obs-catalysts", "aria-labelledby": titleId}, head);
+  if (C.state !== "ok" || !(C.rows || []).length) { box.appendChild(groupState(C)); return box; }
+  const rows = local.more.catalysts ? C.rows : C.rows.slice(0, INSIGHT_VISIBLE);
+  const list = h("ul", {class: "pn-ev-rows pn-cat-rows"});
+  box.appendChild(list);
+  for (const r of rows) {
+    const date = h("span", {class: "pn-cat-date u-num"}, r.dateShort, r.estimated ? h("span", {class: "pn-cat-est", text: " est."}) : null);
+    const label = h("span", {class: "pn-cat-label"},
+      h("span", {class: "pn-cat-name", text: r.label}),
+      r.indicationText ? h("span", {class: "pn-cat-ind", text: ` · ${r.indicationText}`}) : null,
+      r.moreText ? h("span", {class: "pn-cat-more", text: ` · ${r.moreText}`}) : null);
+    const model = r.modelText
+      ? h("span", {class: "pn-cat-model u-num"}, r.modelText, h("span", {class: "u-marker pn-m", "aria-hidden": "true", text: "M"}))
+      : h("span", {class: "pn-cat-model u-null", text: NULL_GLYPH});
+    const open = h("button", {type: "button", class: "pn-ev-row pn-cat-row", "data-key": r.id}, date, label, model);
+    open.setAttribute("aria-label", `${r.label}, ${r.dateText}${r.indicationText ? `, ${r.indicationText}` : ""}. ${r.modelText ? `${r.modelText}, model output.` : r.naText || "No modelled value."} Two-sided. Open the Catalysts tab`);
+    open.addEventListener("click", () => followLink(ctx, view, r.link));
+    bindTip(ctx, open, {title: r.label, lines: (r.tooltip || []).concat(r.modelText ? ["Two-sided: the outcome can raise or lower the value."] : [r.naText].filter(Boolean))});
+    const li = h("li", {class: "pn-ev-li"}, open);
+    if (r.sourceUrl) {
+      const src = h("a", {class: "u-btn icon pn-cat-src", href: r.sourceUrl, target: "_blank", rel: "noopener noreferrer",
+        "data-key": `${r.id}-src`, "aria-label": `Source for ${r.label}, opens in a new tab`, text: "↗"});
+      li.appendChild(src);
+    }
+    list.appendChild(li);
+  }
+  const more = moreRow("catalysts", C.rows.length, local, api);
+  if (more) box.appendChild(more);
+  return box;
+}
+
+function buildCompetition(G, view, ctx, local, api, descHost) {
+  const C = G || {state: "empty", title: "Competition by indication", rows: []};
+  const {head, titleId} = groupHead(C, "comp", view, ctx, descHost);
+  const box = h("section", {class: "pn-ev pn-obs-competition", "aria-labelledby": titleId}, head);
+  if (C.state !== "ok" || !(C.rows || []).length) { box.appendChild(groupState(C)); return box; }
+  if (C.lead) box.appendChild(h("p", {class: "u-meta pn-ev-lead", text: C.lead}));
+  const cols = C.columns || ["Indication", "Value, $ a share · of price", "Own / rivals", "Pool claimed → supplied", "Share"];
+  box.appendChild(h("div", {class: "pn-comp-grid pn-comp-cols", "aria-hidden": "true"}, cols.map((c, i) => h("span", {class: i ? "num" : "", text: c}))));
+  const rows = local.more.competition ? C.rows : C.rows.slice(0, INSIGHT_VISIBLE);
+  const list = h("ul", {class: "pn-ev-rows pn-comp-rows"});
+  box.appendChild(list);
+  const cellOr = (text, na, cls) => (text
+    ? h("span", {class: `${cls} u-num num`, text})
+    : h("span", {class: `${cls} u-null num`, text: NULL_GLYPH}));
+  for (const r of rows) {
+    const sideGlyphs = r.side === "both" ? [UP, DOWN] : r.side === "premium" ? [UP] : r.side === "discount" ? [DOWN] : [];
+    const name = h("span", {class: "pn-comp-name"},
+      sideGlyphs.map((g) => h("span", {class: `u-dir ${g === UP ? "up" : "down"} pn-comp-side`, "aria-hidden": "true", text: g})),
+      h("span", {class: "pn-comp-text", text: r.name}));
+    const rv = r.rivals || {n: 0};
+    const total = Math.max(1, rv.n || 0);
+    const seg = (n, cls) => (n ? h("i", {class: `pn-comp-seg ${cls}`, style: `flex-grow:${n}`}) : null);
+    const counts = h("span", {class: "pn-comp-counts num"},
+      h("span", {class: "u-num", text: `${(r.own && r.own.n) || 0} / ${rv.n || 0}`}),
+      h("span", {class: "pn-comp-bar", "aria-hidden": "true", "data-total": String(total)},
+        seg(rv.marketed, "marketed"), seg(rv.phase3, "p3"), seg(rv.phase2, "p2"), seg(rv.other, "other")));
+    const open = h("button", {type: "button", class: "pn-ev-row pn-comp-grid pn-comp-row", "data-key": r.id},
+      name, cellOr(r.valueText, r.valueNa, "pn-comp-value"), counts, cellOr(r.poolText, r.poolNa, "pn-comp-pool"), cellOr(r.shareText, r.shareNa, "pn-comp-share"));
+    const spoken = [r.name, r.valueText ? `modelled value ${r.valueText.replace(" · ", ", ")} of price` : r.valueNa, r.ownText, r.rivalsText,
+      r.poolText ? `pool claimed then supplied ${r.poolText.replace(" → ", " then ")}` : r.poolNa,
+      r.shareText ? `share ${r.shareText}` : null].filter(Boolean).join(". ");
+    open.setAttribute("aria-label", `${spoken}. Open this indication's landscape`);
+    open.addEventListener("click", () => followLink(ctx, view, r.link));
+    const lines = [r.ownText, r.rivalsText].concat(r.poolNa && !r.poolText ? [r.poolNa] : []).concat(r.tooltip || []).filter(Boolean);
+    bindTip(ctx, open, {title: r.name, lines});
+    list.appendChild(h("li", {class: "pn-ev-li"}, open));
+  }
+  const more = moreRow("competition", C.rows.length, local, api);
+  if (more) box.appendChild(more);
+  return box;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -608,7 +765,11 @@ export function sortPeerRows(rows, sort) {
 }
 
 export function mountPeerPanel(root, ctx) {
-  const m = createMount(root, ctx, "pn-peers", {
+  // 12.6: a drawer on the right, drawn only while it is open. The table behind stays live, so
+  // excluding a peer here shows in the statistics at once.
+  let wasOpen = false;
+  let opener = null;
+  const m = createMount(root, ctx, "pn-peers-root", {
     name: "Peer selection",
     local: () => ({selected: new Set(), sort: null, active: {r: 1, c: 0}, query: "", saveName: "", subName: "",
       renaming: null, cohortsOpen: false}),
@@ -617,9 +778,44 @@ export function mountPeerPanel(root, ctx) {
       return [v.peers, v.focal && v.focal.ticker, v.primary && [v.primary.colId, v.primary.label], v.sectionErrors && v.sectionErrors.peers,
         [...local.selected], local.sort, local.renaming, st.cohorts];
     },
-    build: (root, view, local, api) => buildPeers(root, view, ctx, local, api),
-    after: (root, view, local) => applyRoving(root, local),
+    build: (root, view, local, api) => {
+      if (!(view.peers && view.peers.open)) return;
+      const titleId = uid("pnpeerd");
+      const drawer = h("aside", {class: "u-drawer pn-peers-drawer", role: "dialog", "aria-modal": "false", "aria-labelledby": titleId});
+      drawer.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); e.stopPropagation(); close(); }
+      });
+      const closeBtn = h("button", {type: "button", class: "u-btn icon pn-close", "data-key": "peers-close", "aria-label": "Close edit peers", text: "\u2715"});
+      closeBtn.addEventListener("click", close);
+      drawer.appendChild(h("div", {class: "pn-drawer-head"},
+        h("h2", {class: "u-section-title pn-peers-title", id: titleId, tabindex: "-1", "data-key": "peers-title", text: view.peers.title || "Edit peers"}),
+        closeBtn));
+      const body = h("div", {class: "pn-peers pn-peers-body", "data-scroll-key": "peers-body"});
+      drawer.appendChild(body);
+      root.appendChild(drawer);
+      buildPeers(body, view, ctx, local, api);
+    },
+    after: (root, view, local) => {
+      const open = !!(view.peers && view.peers.open);
+      const doc = root.ownerDocument;
+      if (open) {
+        applyRoving(root, local);
+        if (!wasOpen) {
+          opener = captureOpener(doc, root) || opener;
+          const target = view.peers.search ? root.querySelector('[data-key="peer-search"]') : root.querySelector(".pn-peers-title");
+          if (target) { try { target.focus({preventScroll: true}); } catch (e) { target.focus(); } }
+        }
+      } else if (wasOpen) {
+        returnFocus(doc, opener);
+        opener = null;
+      }
+      wasOpen = open;
+    },
   });
+  function close() {
+    if (ctx && typeof ctx.closePeers === "function") ctx.closePeers();
+    else dispatch(ctx, {type: "CLOSE_PEERS"});
+  }
   m.focusSearch = () => {
     const el = root.querySelector('[data-key="peer-search"]');
     if (el) { el.focus(); if (el.scrollIntoView) el.scrollIntoView({block: "nearest"}); }
@@ -632,13 +828,12 @@ function buildPeers(root, view, ctx, local, api) {
   const T = view.focal ? view.focal.ticker : "";
   const titleId = uid("pnpeer");
   if (!P) {
-    root.appendChild(sectionHead("Peer selection", titleId));
     root.appendChild(sectionError(view, "peers", "Peer selection"));
     return;
   }
   const descHost = hiddenHost(root);
   const setChip = chip((P.setLabel && P.setLabel.full) || "", "neutral", {class: "pn-setchip"});
-  root.appendChild(sectionHead("Peer selection", titleId,
+  root.appendChild(h("div", {class: "pn-head pn-peers-head", id: titleId},
     chip(`${P.n} ${P.n === 1 ? "peer" : "peers"}`, "neutral"), chip(`${P.k} in statistics`, "neutral"), setChip));
   // Prune the selection to rows still in the set.
   const inSet = new Set((P.rows || []).map((r) => r.ticker));
@@ -1222,13 +1417,15 @@ export function mountNotesSources(root, ctx) {
   });
 }
 
-function buildNotes(root, view, ctx) {
+function buildNotes(root, view, ctx, inDrawer = false) {
   const L = view.lineage || {};
   const F = L.focal || {};
   const T = view.focal ? view.focal.ticker : "";
   const titleId = uid("pnnotes");
-  root.appendChild(sectionHead("Notes and data sources", titleId,
-    btn("Open methodology", {"data-key": "open-method", cls: "pn-open-method"}, () => openMethod(ctx, "stats"))));
+  if (!inDrawer) {
+    root.appendChild(sectionHead("Notes and data sources", titleId,
+      btn("Open methodology", {"data-key": "open-method", cls: "pn-open-method"}, () => openMethod(ctx, "stats"))));
+  }
   const descHost = hiddenHost(root);
   const dl = h("table", {class: "pn-sources"}, h("caption", {class: "u-sr", text: "Data sources and timestamps"}));
   const tb = h("tbody");
@@ -1347,7 +1544,8 @@ export function mountMethod(root, ctx) {
   let lastAnchor = null;
   const m = createMount(root, ctx, "pn-method-root", {
     name: "Methodology",
-    sig: (v) => [v.method, v.conclusion && v.conclusion.confidence, v.primary && v.primary.reasonText],
+    sig: (v) => [v.method, v.conclusion && v.conclusion.confidence, v.primary && v.primary.reasonText,
+      v.method && v.method.open ? [v.lineage, stateOf(ctx).notes] : null],
     build: (root, view) => {
       const open = view.method && view.method.open;
       if (!open) return;
@@ -1371,7 +1569,7 @@ export function mountMethod(root, ctx) {
       }
       if (open !== lastAnchor) {
         lastAnchor = open;
-        const ids = ((view.method && view.method.sections) || []).map((s) => s.id);
+        const ids = ["sources"].concat(((view.method && view.method.sections) || []).map((s) => s.id));
         const tgt = methodTarget(open, ids);
         const el = tgt.colId ? drawer.querySelector(`[data-def="${tgt.colId}"]`) : drawer.querySelector(`[data-sec="${tgt.section}"]`);
         const title = drawer.querySelector(".pn-method-title");
@@ -1406,7 +1604,8 @@ function buildMethod(root, view, ctx, close) {
     h("h2", {class: "u-section-title pn-method-title", id: titleId, tabindex: "-1", "data-key": "method-title", text: "Methodology"}), closeBtn));
   const nav = h("nav", {class: "pn-method-nav", "aria-label": "Methodology sections"});
   const body = h("div", {class: "pn-method-body", "data-scroll-key": "method-body"});
-  for (const s of M.sections || []) {
+  const sections = [{id: "sources", title: "Sources", body: []}].concat((M.sections || []).filter((x) => x.id !== "sources"));
+  for (const s of sections) {
     const b = h("button", {type: "button", class: "u-chip pn-method-link", "data-key": `method-nav-${s.id}`, text: s.title});
     b.addEventListener("click", () => {
       const el = body.querySelector(`[data-sec="${s.id}"]`);
@@ -1416,6 +1615,7 @@ function buildMethod(root, view, ctx, close) {
     const sec = h("section", {class: "pn-method-sec", "data-sec": s.id, id: `pn-method-${s.id}`},
       h("h3", {class: "pn-sub-title", tabindex: "-1", text: s.title}));
     for (const p of s.body || []) if (p) sec.appendChild(h("p", {class: "pn-method-p", text: p}));
+    if (s.id === "sources") { const box = h("div", {class: "pn-notes pn-method-sources"}); buildNotes(box, view, ctx, true); sec.appendChild(box); }
     if (s.id === "confidence") sec.appendChild(confidencePoints(view));
     if (s.id === "definitions") sec.appendChild(definitionsList(s.items || []));
     body.appendChild(sec);

@@ -654,7 +654,8 @@ export function mountCharts(root, ctx) {
   }) : null;
   if (ro) ro.observe(root);
 
-  function stripMode(layout) { return layout === "laptop" || layout === "narrow"; }
+  // Revision 3 (12.1): the two-tab strip is the chart area at every width; the rail is gone.
+  function stripMode() { return true; }
 
   function render(force = false) {
     if (destroyed || !view) return;
@@ -734,7 +735,7 @@ export function mountCharts(root, ctx) {
     } else {
       const card = h("div", {class: "ch-card ch-sc ch-in-strip"});
       panel.appendChild(card);
-      fillScatter(card, layout === "narrow" ? SCATTER.narrow : SCATTER.laptop);
+      fillScatter(card, layout === "narrow" ? SCATTER.narrow : layout === "laptop" ? 260 : SCATTER.height);
     }
   }
 

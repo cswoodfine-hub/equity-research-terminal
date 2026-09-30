@@ -441,7 +441,8 @@ test("sortPeerRows sorts by a column and keeps ties stable by ticker", () => {
   const desc = sortPeerRows(rows, {key: "relevance", dir: "desc"});
   for (let i = 1; i < desc.length; i++) assert.ok(desc[i - 1].relevance.score >= desc[i].relevance.score);
   const asc = sortPeerRows(rows, {key: "relevance", dir: "asc"});
-  assert.equal(asc[0].ticker, desc[desc.length - 1].ticker);
+  // Ties break by ticker in both directions, so the ends agree on the score, not the ticker.
+  assert.equal(asc[0].relevance.score, desc[desc.length - 1].relevance.score);
   const byT = sortPeerRows(rows, {key: "ticker", dir: "asc"});
   assert.deepEqual(byT.map((r) => r.ticker), rows.map((r) => r.ticker).slice().sort());
   assert.deepEqual(sortPeerRows(rows, null).map((r) => r.ticker), rows.map((r) => r.ticker));

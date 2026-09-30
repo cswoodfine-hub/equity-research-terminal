@@ -86,8 +86,9 @@ test("every command of core.COMMANDS has a handler in the shell", () => {
 });
 
 test("the mounts and their export names follow 11.1", () => {
+  // Revision 3 (12.1, 12.6): notes and sources live in the methodology drawer, so they have no mount.
   for (const fn of ["mountTable", "mountCharts", "mountBridgeChart", "mountBridgeInputs", "mountObservations",
-    "mountPeerPanel", "mountNotesSources", "mountMethod", "mountDetail"]) {
+    "mountPeerPanel", "mountMethod", "mountDetail"]) {
     assert.ok(JS.includes(`fn: "${fn}"`), fn);
   }
   // Dynamic imports, so a missing module costs its slot and not the page.
@@ -141,7 +142,8 @@ test("shell.css: no colour literal, and every rule is scoped to the shell", () =
     for (const sel of m[1].split(",")) if (sel.trim()) selectors.push(sel.trim());
   }
   assert.ok(selectors.length > 100);
-  const stray = selectors.filter((s) => !s.includes(".sh-") && s !== "html:not([data-tokens]) #app");
+  // The bridge-only frame (12.5) sizes html, body and #app itself.
+  const stray = selectors.filter((s) => !s.includes(".sh-") && s !== "html:not([data-tokens]) #app" && !s.includes('[data-mode="bridge"]'));
   assert.deepEqual(stray, []);
 });
 

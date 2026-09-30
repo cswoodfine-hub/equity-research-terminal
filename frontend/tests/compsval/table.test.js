@@ -12,7 +12,7 @@ import * as table from "../../components/compsval/table.js";
 const {
   BASE_IDS, LAYOUT_WIDTHS, MAX_PINS, AUTO_WIDTH_MAX, AUTO_WIDTH_PRIMARY_MAX, layoutColumns, headerWidth, groupRuns,
   visibleSummaryIds, placeFocal, markerFor, cellReasonText, periodText, cellTip, describeCell, relevanceLines,
-  sourceText, unitLineText, filterShort, parseFilterValue, sortSteps, densitySteps, moveActive, cellDomId,
+  sourceText, unitLineText, filterShort, parseFilterValue, sortSteps, moveActive, cellDomId,
   sparkPoints, findColumns, esc, autoPinsPrimary, normLayout, boxHeightFor,
 } = table;
 
@@ -196,24 +196,26 @@ test("placeFocal keeps the focal first while pinned and sorts it in when unpinne
 
 // ----- 4.4 markers and 4.9 data quality -----------------------------------------------------
 
-test("markerFor follows the marker rules of 4.4 and 4.9", () => {
+test("markerFor follows the marker rules of 4.4, 4.9 and 12.7", () => {
   const col = {numeric: true};
-  const ok = (o) => ({status: "ok", v: 1, flags: [], tag: null, tagDiffers: false, amber: false, red: false, ...o});
+  const ok = (o) => ({status: "ok", v: 1, flags: [], marks: [], tag: null, tagDiffers: false, amber: false, red: false, ...o});
   assert.deepEqual(markerFor(ok({}), col), {text: "", tone: ""});
   assert.deepEqual(markerFor(ok({tag: "E"}), col), {text: "", tone: ""}, "tag letters stay in the header by default");
   assert.deepEqual(markerFor(ok({tag: "A", tagDiffers: true}), col), {text: "A", tone: "amber"});
   assert.deepEqual(markerFor(ok({tag: "M"}), col), {text: "M", tone: "muted"});
-  assert.deepEqual(markerFor(ok({amber: true}), col), {text: "!", tone: "amber"});
-  assert.deepEqual(markerFor(ok({tag: "M", amber: true}), col), {text: "M", tone: "muted"}, "! only when no tag shows");
+  // 12.7: only a flag that bears on the printed value (cell.marks) draws the "!".
+  assert.deepEqual(markerFor(ok({amber: true, flags: ["stale_balance_sheet"]}), col), {text: "", tone: ""}, "a flag that only touches the cell draws nothing");
+  assert.deepEqual(markerFor(ok({amber: true, marks: ["stale_balance_sheet"]}), col), {text: "!", tone: "amber"});
+  assert.deepEqual(markerFor(ok({tag: "M", amber: true, marks: ["x"]}), col), {text: "M", tone: "muted"}, "! only when no tag shows");
   assert.deepEqual(markerFor(ok({tag: "E"}), col, "quality"), {text: "E", tone: "muted"});
   assert.deepEqual(markerFor(ok({tag: "A", tagDiffers: true}), col, "quality"), {text: "A", tone: "amber"});
-  assert.deepEqual(markerFor(ok({tag: "A", amber: true, flags: ["derived_operating_income"]}), col, "quality"), {text: "d", tone: "amber"});
-  assert.deepEqual(markerFor(ok({tag: "A", amber: true, flags: ["derived_operating_income"]}), col), {text: "!", tone: "amber"});
-  assert.deepEqual(markerFor({status: "nm", amber: true, flags: []}, col), {text: "!", tone: "amber"});
-  assert.deepEqual(markerFor({status: "na", flags: []}, col), {text: "", tone: ""});
-  assert.deepEqual(markerFor({status: "err", red: true, flags: ["calc_failed"]}, col), {text: "", tone: ""});
-  assert.deepEqual(markerFor(ok({amber: true}), {numeric: false}), {text: "", tone: ""});
+  assert.deepEqual(markerFor(ok({tag: "A", amber: true, marks: ["derived_operating_income"]}), col, "quality"), {text: "d", tone: "amber"});
+  assert.deepEqual(markerFor(ok({tag: "A", amber: true, marks: ["derived_operating_income"]}), col), {text: "!", tone: "amber"});
+  assert.deepEqual(markerFor({status: "nm", amber: true, flags: [], marks: ["x"]}, col), {text: "!", tone: "amber"});
+  assert.deepEqual(markerFor({status: "nm", amber: true, flags: ["x"], marks: []}, col), {text: "", tone: ""});
+  assert.deepEqual(markerFor(ok({amber: true, marks: ["x"]}), {numeric: false}), {text: "", tone: ""});
 });
+
 
 test("cell reason, period and tooltip copy", () => {
   assert.equal(cellReasonText({status: "na", reason: "No share count on file."}), "No value. No share count on file.");
@@ -297,13 +299,6 @@ test("sortSteps counts SORT actions along desc, asc, none", () => {
     for (let i = 0; i < n; i++) st = core.reduce(st, {type: "SORT", colId: "market_cap"}, PAYLOAD);
     assert.equal(st.sort ? st.sort.dir : null, want);
   }
-});
-
-test("densitySteps counts CYCLE_DENSITY actions", () => {
-  assert.equal(densitySteps("default", "comfortable"), 1);
-  assert.equal(densitySteps("default", "compact"), 2);
-  assert.equal(densitySteps("compact", "compact"), 0);
-  assert.equal(densitySteps("odd", "compact"), 0);
 });
 
 test("filter text and number parsing", () => {

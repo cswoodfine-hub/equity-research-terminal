@@ -285,25 +285,29 @@ html:not([data-tokens]) #app { visibility: hidden; }
 .sh-frame-state { display: grid; gap: var(--sp-12); max-width: 960px; }
 .sh-skel { display: block; border-top: 1px solid var(--rule); }
 
-.sh-analysis {
+/* Revision 3 (12.1): one order at every width. Drivers and risks, the chart strip, the table,
+   the one-line footer. */
+.sh-stack {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-8);
   align-items: start;
 }
-/* Ultrawide: table, rail (capped at 600), side panel column of 440 only while one is open. */
-[data-layout="ultrawide"] .sh-analysis {
-  gap: var(--sp-16);
-  grid-template-columns: minmax(1100px, 2fr) minmax(420px, min(600px, calc((100% - 16px) / 3)));
+.sh-obs:focus-visible, .sh-charts:focus-visible, .sh-table:focus-visible { outline-offset: 2px; }
+.sh-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-height: calc(28px * var(--ts));
+  padding: 0 var(--sp-4);
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
 }
-[data-layout="ultrawide"][data-detail] .sh-analysis {
-  grid-template-columns: minmax(1100px, 2fr) minmax(420px, min(600px, calc((100% - 472px) / 3))) 440px;
-}
-/* Wide: table and rail; an open side panel docks into the rail column. */
-[data-layout="wide"] .sh-analysis {
-  gap: var(--sp-16);
-  grid-template-columns: minmax(960px, 2fr) minmax(420px, min(600px, calc((100% - 16px) / 3)));
-}
+.sh-foot-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-foot.flag .sh-foot-text { color: var(--text); }
+.sh-foot-btn { flex: 0 0 auto; white-space: nowrap; }
 .sh-slot { min-width: 0; }
 .sh-mount { min-width: 0; }
 .sh-fail { margin: 0 0 var(--sp-8); }
@@ -311,16 +315,14 @@ html:not([data-tokens]) #app { visibility: hidden; }
 /* The side panel and the methodology drawer place themselves (.pn-detail per layout,
    .u-drawer.pn-method); their slots are plain boxes. Only when a panel failed to mount does
    the slot take the panel's place, so its failure state shows where the panel would. */
-.sh-detail { position: relative; }
-[data-layout="ultrawide"] .sh-detail, [data-layout="wide"] .sh-detail { position: sticky; top: 0; }
-/* Laptop and narrow: the panel is a fixed drawer or overlay, so its slot leaves the grid
-   and opening it adds no row and no gap under the table. */
-[data-layout="laptop"] .sh-detail, [data-layout="narrow"] .sh-detail { position: absolute; }
+/* The three right-side surfaces are direct children of #app: fixed and zero-size, so none
+   takes a grid row; the panel inside each is fixed to the frame from --band-h down. */
+.sh-detail, .sh-peers { position: fixed; z-index: 30; top: 0; left: 0; width: 0; height: 0; }
 /* The methodology slot is a direct child of #app: fixed and zero-size, so it never takes a
    grid row; the drawer inside it is fixed to the frame. */
 .sh-method { position: fixed; z-index: 35; top: 0; left: 0; width: 0; height: 0; }
-.sh-slot-failed.sh-detail, .sh-slot-failed.sh-method { padding: var(--sp-12); background: var(--panel); }
-[data-layout="laptop"] .sh-slot-failed.sh-detail, [data-layout="narrow"] .sh-slot-failed.sh-detail,
+.sh-slot-failed.sh-detail, .sh-slot-failed.sh-peers, .sh-slot-failed.sh-method { padding: var(--sp-12); background: var(--panel); }
+.sh-slot-failed.sh-detail, .sh-slot-failed.sh-peers,
 .sh-slot-failed.sh-method {
   position: fixed;
   z-index: 30;
@@ -336,50 +338,31 @@ html:not([data-tokens]) #app { visibility: hidden; }
 .sh-slot-failed.sh-method { width: min(520px, 100%); }
 [data-layout="narrow"] .sh-slot-failed.sh-detail, [data-layout="narrow"] .sh-slot-failed.sh-method { width: 100%; border-left: 0; }
 
-/* Lower sections: bridge full width, drivers and risks beside notes, then peers (wide and
-   ultrawide); all four stacked (laptop); one tab strip (narrow). */
-.sh-lower {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--section-gap);
-  align-items: start;
-  margin-top: var(--section-gap);
+/* Bridge-only mode (12.5): an ordinary block in the Forecast tab's flow, as tall as its content. */
+html[data-mode="bridge"], html[data-mode="bridge"] body { height: auto; min-height: 0; overflow: visible; background: transparent; }
+#app[data-mode="bridge"] { display: block; height: auto; min-height: 0; overflow: visible; padding: 0; background: transparent; }
+.sh-bridge-line {
+  margin: 0 0 var(--sp-12);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: calc(13px * var(--ts));
+  line-height: calc(18px * var(--ts));
 }
-[data-layout="wide"] .sh-lower, [data-layout="ultrawide"] .sh-lower {
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-}
-[data-layout="wide"] .sh-sec[data-sec="bridge"], [data-layout="wide"] .sh-sec[data-sec="peers"],
-[data-layout="ultrawide"] .sh-sec[data-sec="bridge"], [data-layout="ultrawide"] .sh-sec[data-sec="peers"] {
-  grid-column: 1 / -1;
-}
-.sh-sec { min-width: 0; }
-.sh-sec:focus-visible { outline-offset: 2px; }
 .sh-bridge-body {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-  gap: var(--sp-16);
+  grid-template-columns: minmax(420px, 1fr) minmax(360px, 1.1fr);
+  gap: var(--sp-24);
   align-items: start;
 }
-[data-layout="narrow"] .sh-bridge-body { grid-template-columns: minmax(0, 1fr); }
-.sh-lowertabs {
-  display: flex;
-  margin-top: var(--section-gap);
-  border-bottom: 1px solid var(--rule);
-}
-.sh-ltab {
-  height: var(--ctl-h);
-  padding: 0 var(--sp-12);
-  border-bottom: 2px solid transparent;
-  color: var(--muted);
-  font-family: var(--font-ui);
-  font-size: calc(12.5px * var(--ts));
-  font-weight: 600;
-  white-space: nowrap;
-}
-.sh-ltab:hover { color: var(--text); }
-.sh-ltab[aria-selected="true"] { border-bottom-color: var(--active); color: var(--text); }
-[data-layout="narrow"] .sh-lower { margin-top: var(--sp-12); }
-[data-layout="narrow"] .sh-sec:not(.is-active) { display: none; }
+@media (max-width: 899px) { .sh-bridge-body { grid-template-columns: minmax(0, 1fr); } }
+.sh-bridge-close { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-12); margin: var(--sp-12) 0 0; }
+
+/* Basis chip (12.6) and the linked key figure (12.5). */
+.sh-basis { max-width: calc(172px * var(--ts)); }
+.sh-basis .sh-basis-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-basis.is-set { border-color: var(--active); }
+.sh-kpi.is-link { cursor: pointer; }
+.sh-kpi.is-link:hover { background: var(--active-wash); }
 
 /* ------------------------------------------------------------------------------------ */
 /* Overlays                                                                              */

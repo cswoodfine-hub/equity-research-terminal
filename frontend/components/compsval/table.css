@@ -15,7 +15,9 @@
   min-width: 0;
 }
 
-/* One 32 px line of controls outside the table box (1.6). It wraps only at narrow. */
+/* One 32 px line of controls outside the table box (1.6, 12.7): the column preset, the column
+   finder, the View menu, and the hidden-columns chip while columns are hidden. It wraps only at
+   narrow. */
 .tb-bar {
   display: flex;
   align-items: center;
@@ -35,9 +37,14 @@
   font-size: calc(9px * var(--ts));
 }
 .tb-bar .u-kbd { margin-left: 4px; }
-.tb-bar .u-btn[aria-pressed="true"] .tb-bl { color: var(--text); }
-.tb-end { margin-left: auto; display: inline-flex; }
+/* View with a setting away from its default: the count reads in the active colour. */
+.tb-bar .tb-on .tb-bv { color: var(--active); }
 .tb-hid { height: var(--ctl-h); gap: 4px; }
+/* The View menu holds seven groups (12.7): its own height and scroll, past the shared 60vh. */
+.u-menu.tb-viewmenu, .tb-fmenu-pop.tb-viewmenu {
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+}
 
 /* ------------------------------------------------------------------------------------ */
 /* Table box (1.2): its own scroll for frozen columns; no overscroll-behavior, so the     */

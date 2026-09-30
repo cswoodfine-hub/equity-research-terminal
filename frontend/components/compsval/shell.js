@@ -49,10 +49,9 @@ const BREAK = {ultrawide: 2200, wide: 1700, laptop: 1100};
 const STEP_ROW = {1: "id", 2: "id", 3: "ctl", 4: "ctl", 5: "id", 6: "ctl", 7: "ctl", 8: "ctl"};
 const STEPS = [1, 2, 3, 4, 5, 6, 7, 8];
 const SECTIONS = {
-  bridge: {label: "valuation bridge", tab: "Bridge", title: "Valuation bridge"},
-  obs: {label: "drivers and risks", tab: "Drivers and risks", title: "Drivers and risks"},
-  peers: {label: "peer selection", tab: "Peers", title: "Peer selection"},
-  notes: {label: "notes and data sources", tab: "Notes and sources", title: "Notes and data sources"},
+  obs: {label: "drivers and risks", slot: "obs"},
+  charts: {label: "peer position", slot: "charts"},
+  table: {label: "comparable companies", slot: "table"},
 };
 const CURRENCY_ITEMS = [["USD", "Standardised, USD"], ["EUR", "Standardised, EUR"], ["GBP", "Standardised, GBP"],
   ["CHF", "Standardised, CHF"], ["DKK", "Standardised, DKK"], ["REPORTED", "As reported, filing currency"]];
@@ -62,18 +61,21 @@ const KEYS_OFF_TEXT = "Keyboard shortcuts, click the view to use keys";
 const SINGLE_KEY_NOTE = "Turn off single keys if they clash with a screen reader or speech input.";
 const SAVED_HERE = "Saved in this browser only.";
 
-// Mounts of 11.1: module, export, slot and the section name used in a failure state.
-const MOUNTS = [
-  {id: "table", mod: "table", fn: "mountTable", slot: "table", section: "Comparable companies table"},
-  {id: "charts", mod: "charts", fn: "mountCharts", slot: "charts", section: "Peer position and valuation against fundamentals"},
-  {id: "bridgeInputs", mod: "panels", fn: "mountBridgeInputs", slot: "bridgeInputs", section: "Valuation bridge inputs"},
-  {id: "bridgeChart", mod: "charts", fn: "mountBridgeChart", slot: "bridgeChart", section: "Valuation bridge chart"},
+// Mounts (11.1, revised by 12.1): module, export, slot and the section name used in a failure
+// state. The bridge leaves the Comps view; the Forecast tab draws it in bridge mode (12.5).
+const FULL_MOUNTS = [
   {id: "obs", mod: "panels", fn: "mountObservations", slot: "obs", section: "Drivers and risks"},
+  {id: "charts", mod: "charts", fn: "mountCharts", slot: "charts", section: "Peer position and valuation against fundamentals"},
+  {id: "table", mod: "table", fn: "mountTable", slot: "table", section: "Comparable companies table"},
   {id: "peers", mod: "panels", fn: "mountPeerPanel", slot: "peers", section: "Peer selection"},
-  {id: "notes", mod: "panels", fn: "mountNotesSources", slot: "notes", section: "Notes and data sources"},
   {id: "method", mod: "panels", fn: "mountMethod", slot: "method", section: "Methodology"},
   {id: "detail", mod: "panels", fn: "mountDetail", slot: "detail", section: "Side panel"},
 ];
+const BRIDGE_MOUNTS = [
+  {id: "bridgeInputs", mod: "panels", fn: "mountBridgeInputs", slot: "bridgeInputs", section: "Peer-multiple value inputs"},
+  {id: "bridgeChart", mod: "charts", fn: "mountBridgeChart", slot: "bridgeChart", section: "Peer-multiple value chart"},
+];
+let MOUNTS = FULL_MOUNTS;
 const MODULE_FILES = {table: "./table.js", charts: "./charts.js", panels: "./panels.js"};
 
 // ---------------------------------------------------------------------------------------------
@@ -365,6 +367,10 @@ const store = {
 // ---------------------------------------------------------------------------------------------
 
 let args = null;               // last render args
+let mode = "full";             // "full" (Comps) or "bridge" (Forecast tab, 12.5)
+let builtMode = null;          // the mode the skeleton was built for
+const contexts = new Map();    // focal context by ticker (12.3), at most 12
+const contextDigests = new Map();
 let payload = null;
 let lastDigest;
 let lastArgsFocal;
@@ -393,10 +399,10 @@ let waitingForMods = false;
 const mounted = {};            // mount id -> {api, root, failed, missing, failedAt}
 
 // DOM
-let app = null, ctxEl, bannerRow, kpiRow, scopeRow, mainEl, frameStateEl, analysisEl, lowerTabsEl, lowerEl;
+let app = null, ctxEl, bannerRow, kpiRow, scopeRow, mainEl, frameStateEl, analysisEl, footEl;
+let bridgeLineEl = null, bridgeBodyEl = null, bridgeCloseEl = null;
 let layer, tipEl, toastEl, liveEl, descHost;
 const slots = {};
-const secEls = {};
 const sigs = {};
 let scopeParts = null;
 
@@ -430,12 +436,12 @@ function dispatch(action) {
 function getView() {
   if (!payload || !state) return null;
   if (viewDirty || !view) {
-    try { view = core.deriveView(payload, state); } catch (e) {
+    try { view = core.deriveView(payload, state, {context: contexts.get(state.focal) || null, mode}); } catch (e) {
       console.error("compsval deriveView", e);
       view = {schema: core.SCHEMA, error: core.stateMsg("calc_failed_section", {section: "The comparison", message: errText(e)}),
         focal: null, ctx: null, header: null, conclusion: null, kpis: [], primary: null, scope: null, table: null,
         dotplot: null, scatter: null, bridge: null, observations: null, peers: null, method: null, detail: null,
-        states: [], lineage: null, undo: null, sectionErrors: {}};
+        states: [], lineage: null, undo: null, sectionErrors: {}, mode, insight: null, footer: null, bridgeLine: null};
     }
     viewDirty = false;
   }
@@ -470,9 +476,20 @@ function persistSoon() {
   clearTimeout(persistTimer);
   persistTimer = setTimeout(persistNow, 200);
 }
+let lastWrote = null;
 function persistNow() {
   clearTimeout(persistTimer);
   if (!state) return;
+  if (mode === "bridge") {
+    // Never the whole state: a bridge left open must not put back a peer set that Comps has
+    // since changed (12.5).
+    try {
+      const merged = core.mergeBridge(window.localStorage.getItem(core.STORAGE_KEY), state.focal, (state.bridge || {})[state.focal]);
+      lastWrote = JSON.stringify(merged);
+      window.localStorage.setItem(core.STORAGE_KEY, lastWrote);
+    } catch (e) { /* storage is a convenience */ }
+    return;
+  }
   try {
     const p = core.persistable(state);
     let table = null;
@@ -480,6 +497,7 @@ function persistNow() {
     if (t && typeof t.getViewport === "function") {
       try { const vp = t.getViewport(); if (vp) table = {scrollTop: Math.round(vp.scrollTop || 0), scrollLeft: Math.round(vp.scrollLeft || 0)}; } catch (e) { table = null; }
     }
+    lastWrote = JSON.stringify(p.local);
     store.write(p.local, {...p.session, scroll: {main: mainEl ? Math.round(mainEl.scrollTop) : 0}, table});
   } catch (e) { /* storage is a convenience */ }
 }
@@ -496,6 +514,24 @@ function initState(a) {
     state = core.defaultState(payload, {focal: a.focal, engine: a.engine, live: a.live !== false}, null, null);
   }
   viewDirty = true;
+}
+
+/** Keep the focal context Python sent (12.3): by ticker, newest last, at most 12. */
+function takeContext(a) {
+  const c = a && a.context;
+  if (!c || typeof c !== "object" || !c.ticker) return;
+  const d = a.context_digest == null ? null : String(a.context_digest);
+  if (contexts.has(c.ticker) && d !== null && contextDigests.get(c.ticker) === d) return;
+  contexts.delete(c.ticker);
+  contexts.set(c.ticker, c);
+  contextDigests.set(c.ticker, d);
+  while (contexts.size > 12) {
+    const k = contexts.keys().next().value;
+    contexts.delete(k);
+    contextDigests.delete(k);
+  }
+  viewDirty = true;
+  viewVersion += 1;
 }
 
 function focalRecord() {
@@ -516,7 +552,10 @@ function onRenderArgs(a) {
   installSharedCss(args.shared_css);
   copyFontFaces();
   bindParentResize();
-  if (!app) buildSkeleton();
+  mode = args.mode === "bridge" ? "bridge" : "full";
+  MOUNTS = mode === "bridge" ? BRIDGE_MOUNTS : FULL_MOUNTS;
+  if (!app || builtMode !== mode) buildSkeleton();
+  takeContext(args);
   if (!modsDone) {
     renderLoading();
     if (!waitingForMods) {
@@ -566,6 +605,7 @@ if (HAS_DOM) {
 let lastFrameH = 0;
 /** Fit the frame to the visible viewport; the frame scrolls inside itself. */
 export function fitFrame() {
+  if (mode === "bridge") { fitBridge(); return; }
   if (!window.innerWidth) return;                         // a hidden tab: wait for a resize
   const fallback = Number(args && args.height) || FALLBACK_H;
   let hgt = fallback;
@@ -629,44 +669,20 @@ function updateHeightMode() {
 function buildSkeleton() {
   app = document.getElementById("app");
   if (!app) { app = h("div", {id: "app"}); document.body.appendChild(app); }
+  // A rebuild for the other mode starts clean: the mounts of the old skeleton go with it.
+  for (const id of Object.keys(mounted)) {
+    const r = mounted[id];
+    if (r && r.api && typeof r.api.destroy === "function") { try { r.api.destroy(); } catch (e) { /* ignore */ } }
+    delete mounted[id];
+  }
+  for (const k of Object.keys(sigs)) delete sigs[k];
+  for (const k of Object.keys(slots)) delete slots[k];
   app.textContent = "";
+  builtMode = mode;
+  app.setAttribute("data-mode", mode);
+  document.documentElement.setAttribute("data-mode", mode);
   app.setAttribute("data-layout", layout);
   app.setAttribute("data-height", heightMode);
-
-  ctxEl = h("div", {class: "sh-ctx", role: "group", "aria-label": "Company, peer set and basis"});
-  bannerRow = h("div", {class: "sh-banner-row"});
-  kpiRow = h("div", {class: "sh-kpi-row"});
-  scopeRow = h("div", {class: "sh-scope-row"});
-  mainEl = h("main", {id: "main", "aria-label": "Comparable companies"});
-
-  frameStateEl = h("div", {class: "sh-frame-state", hidden: true});
-  analysisEl = h("div", {class: "sh-analysis"});
-  slots.charts = h("div", {class: "sh-slot sh-charts", role: "region", "aria-label": "Peer position and valuation against fundamentals"});
-  slots.table = h("div", {class: "sh-slot sh-table"});
-  slots.detail = h("aside", {class: "sh-slot sh-detail", "aria-label": "Company details", hidden: true});
-  analysisEl.append(slots.table, slots.charts, slots.detail);
-
-  lowerTabsEl = h("div", {class: "sh-lowertabs", role: "tablist", "aria-label": "Lower sections"});
-  lowerEl = h("div", {class: "sh-lower"});
-  for (const id of Object.keys(SECTIONS)) {
-    // Every panel renders its own section title (panels.js), so the wrapper only names the
-    // region for assistive technology.
-    const sec = h("section", {class: "sh-sec", id: `sh-sec-${id}`, tabindex: "-1", "data-sec": id, "data-section": id,
-      role: "region", "aria-label": SECTIONS[id].title});
-    if (id === "bridge") {
-      slots.bridgeInputs = h("div", {class: "sh-slot sh-bridge-inputs"});
-      slots.bridgeChart = h("div", {class: "sh-slot sh-bridge-chart"});
-      sec.append(h("div", {class: "sh-bridge-body"}, slots.bridgeInputs, slots.bridgeChart));
-    } else {
-      slots[id] = h("div", {class: `sh-slot sh-${id}`});
-      sec.append(slots[id]);
-    }
-    secEls[id] = sec;
-    lowerEl.append(sec);
-  }
-  mainEl.append(frameStateEl, analysisEl, lowerTabsEl, lowerEl);
-
-  slots.method = h("div", {class: "sh-slot sh-method", hidden: true});
 
   layer = h("div", {class: "sh-layer"});
   tipEl = h("div", {class: "u-tip sh-tip", role: "tooltip", id: "sh-tip", hidden: true});
@@ -674,11 +690,46 @@ function buildSkeleton() {
   liveEl = h("div", {class: "u-live", "aria-live": "polite", role: "status"});
   descHost = h("div", {class: "sh-descs", hidden: true});
   layer.append(tipEl, toastEl, liveEl, descHost);
+  frameStateEl = h("div", {class: "sh-frame-state", hidden: true});
 
-  app.append(ctxEl, bannerRow, kpiRow, scopeRow, mainEl, slots.method, layer);
+  if (mode === "bridge") {
+    // 12.5: one context line, the inputs and the chart, one closing line. Nothing else.
+    bridgeLineEl = h("p", {class: "sh-bridge-line"});
+    slots.bridgeInputs = h("div", {class: "sh-slot sh-bridge-inputs"});
+    slots.bridgeChart = h("div", {class: "sh-slot sh-bridge-chart"});
+    bridgeBodyEl = h("div", {class: "sh-bridge-body"}, slots.bridgeInputs, slots.bridgeChart);
+    bridgeCloseEl = h("p", {class: "sh-bridge-close"});
+    app.append(bridgeLineEl, frameStateEl, bridgeBodyEl, bridgeCloseEl, layer);
+    wireTips();
+    wireBridge();
+    return;
+  }
 
+  ctxEl = h("div", {class: "sh-ctx", role: "group", "aria-label": "Company, peer set and basis"});
+  bannerRow = h("div", {class: "sh-banner-row"});
+  kpiRow = h("div", {class: "sh-kpi-row"});
+  scopeRow = h("div", {class: "sh-scope-row"});
+  mainEl = h("main", {id: "main", "aria-label": "Comparable companies"});
+
+  // #main, one order at every width (12.1): drivers and risks, the chart strip, the table, the
+  // one-line footer.
+  analysisEl = h("div", {class: "sh-stack"});
+  slots.obs = h("section", {class: "sh-slot sh-obs", id: "sh-sec-obs", tabindex: "-1", role: "region", "aria-label": "Drivers and risks"});
+  slots.charts = h("div", {class: "sh-slot sh-charts", id: "sh-sec-charts", tabindex: "-1", role: "region", "aria-label": "Peer position and valuation against fundamentals"});
+  slots.table = h("div", {class: "sh-slot sh-table", id: "sh-sec-table", tabindex: "-1"});
+  footEl = h("div", {class: "sh-foot"});
+  analysisEl.append(slots.obs, slots.charts, slots.table, footEl);
+  mainEl.append(frameStateEl, analysisEl);
+
+  // Right-side surfaces, one open at a time: the company panel, the peer drawer, methodology.
+  slots.detail = h("aside", {class: "sh-slot sh-detail", "aria-label": "Company details", hidden: true});
+  slots.peers = h("div", {class: "sh-slot sh-peers", hidden: true});
+  slots.method = h("div", {class: "sh-slot sh-method", hidden: true});
+
+  app.append(ctxEl, bannerRow, kpiRow, scopeRow, mainEl, slots.detail, slots.peers, slots.method, layer);
+
+  wireTips();
   wireGlobal();
-  arrange();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -704,6 +755,7 @@ function applyAppAttrs() {
     app.setAttribute("data-text-size", String(ts));
     app.style.setProperty("--ts", String(ts / 13));
     app.toggleAttribute("data-detail", !!(state.ui && state.ui.detail));
+    app.toggleAttribute("data-peers", !!(state.ui && state.ui.peers));
     app.setAttribute("data-single-keys", state.singleKeys === false ? "off" : "on");
   }
 }
@@ -713,8 +765,9 @@ function render() {
   if (rendering) { rerender = true; return; }
   rendering = true;
   try {
-    if (!app) buildSkeleton();
+    if (!app || builtMode !== mode) buildSkeleton();
     applyAppAttrs();
+    if (mode === "bridge") { renderBridge(); return; }
     if (!payload || !state || !modsDone) { renderLoading(); return; }
     const v = getView();
     const err = v ? v.error : null;
@@ -784,8 +837,8 @@ function focusFirstIn(root) {
 function showFatal(e) {
   try {
     frameStateEl.hidden = false;
-    analysisEl.hidden = true;
-    lowerEl.hidden = true;
+    if (analysisEl) analysisEl.hidden = true;
+    if (bridgeBodyEl && mode === "bridge") bridgeBodyEl.hidden = true;
     frameStateEl.textContent = "";
     frameStateEl.append(stateBlock(core.stateMsg("calc_failed_section", {section: "The view", message: errText(e)})));
   } catch (e2) { /* nothing more to do */ }
@@ -795,6 +848,7 @@ function showFatal(e) {
 
 function renderLoading() {
   if (!app) return;
+  if (mode === "bridge") { renderBridge(); return; }
   const T = (args && args.focal) || "";
   const msg = core.stateMsg("loading", {T: T || "the focal company"});
   if (sigs.loading !== T) {
@@ -809,8 +863,6 @@ function renderLoading() {
   kpiRow.hidden = true;
   scopeRow.hidden = true;
   analysisEl.hidden = true;
-  lowerEl.hidden = true;
-  lowerTabsEl.hidden = true;
   frameStateEl.hidden = false;
   frameStateEl.setAttribute("aria-busy", "true");
   frameStateEl.textContent = "";
@@ -1177,32 +1229,22 @@ function renderCtx(v) {
       lines: [`Next period${hintOf("basis.next")}`]}, descs);
     ctl.append(pbtn);
 
-    // Data state and currency (never hidden). The label's first word is the data state.
-    const cur = h("button", {type: "button", class: "u-btn sh-cur", "data-key": "currency", "aria-haspopup": "menu",
-      "aria-expanded": "false", "aria-label": `${C ? C.currencyLabel : ""}. Change the currency`},
-    h("span", {text: C ? C.currencyLabel : ""}), h("span", {class: "sh-caret", "aria-hidden": "true", text: "▾"}));
-    cur.addEventListener("click", () => toggleMenu(cur, () => CURRENCY_ITEMS.map(([id, label], i) => ({id, label,
-      checked: state.currency === id, onSelect: () => setCurrency(id)})).slice(0, 5)
-      .concat([{kind: "sep"}, {id: "REPORTED", label: CURRENCY_ITEMS[5][1], checked: state.currency === "REPORTED",
-        onSelect: () => setCurrency("REPORTED")}]), {label: "Data state and currency"}));
-    tip(cur, {title: C ? C.currencyLabel : "", body: C ? C.basisText : null, lines: [`Next currency${hintOf("currency.next")}`]}, descs);
-    ctl.append(cur);
-
-    // Earnings: segmented, or the "Ex amort." toggle at step 3.
-    const adj = state.earnings === "adjusted";
-    const eseg = h("div", {class: "u-seg sh-earn-seg", role: "group", "aria-label": "Earnings basis"});
-    for (const [id, label] of [["reported", "GAAP/IFRS"], ["adjusted", "Ex amort. and IPR&D"]]) {
-      const btn = h("button", {type: "button", "data-key": `earn-${id}`, "aria-pressed": String(state.earnings === id), text: label});
-      btn.addEventListener("click", () => setEarnings(id));
-      tip(btn, {title: label, body: id === "adjusted" ? (C && C.earningsTooltip) : "Operating income, EBITDA and earnings as filed under GAAP or IFRS."}, descs);
-      eseg.append(btn);
-    }
-    ctl.append(eseg);
-    const etog = h("button", {type: "button", class: "u-btn sh-earn-toggle", "data-key": "earn-toggle", "aria-pressed": String(adj),
-      "aria-label": "Ex amortisation and IPR&D"}, "Ex amort.");
-    etog.addEventListener("click", () => setEarnings(adj ? "reported" : "adjusted"));
-    tip(etog, {title: adj ? "Ex amort. and IPR&D" : "GAAP/IFRS", body: C && C.earningsTooltip, lines: [`Switch${hintOf("earnings.toggle")}`]}, descs);
-    ctl.append(etog);
+    // Basis (12.6): currency, data state and earnings in one menu; the chip names what is not default.
+    const B = H.basis || {text: "Basis", nonDefault: false, tooltip: C ? C.basisText : null};
+    const basisBtn = h("button", {type: "button", class: `u-btn sh-basis${B.nonDefault ? " is-set" : ""}`, "data-key": "basis", "aria-haspopup": "menu",
+      "aria-expanded": "false", "aria-label": `${B.text}. Change currency, data state or earnings basis`},
+    h("span", {class: "sh-basis-text", text: B.text}), h("span", {class: "sh-caret", "aria-hidden": "true", text: "▾"}));
+    basisBtn.addEventListener("click", () => toggleMenu(basisBtn, () => {
+      const items = [{kind: "head", label: "Currency and data state"}];
+      for (const [id, label] of CURRENCY_ITEMS) items.push({id, label, checked: state.currency === id, onSelect: () => setCurrency(id)});
+      items.push({kind: "sep"}, {kind: "head", label: "Earnings"},
+        {id: "reported", label: "GAAP/IFRS", checked: state.earnings !== "adjusted", onSelect: () => setEarnings("reported")},
+        {id: "adjusted", label: "Ex amort. and IPR&D", checked: state.earnings === "adjusted", onSelect: () => setEarnings("adjusted")});
+      if (B.nonDefault) items.push({kind: "sep"}, {id: "reset", label: "Reset to USD and GAAP/IFRS", onSelect: () => { setCurrency("USD"); setEarnings("reported"); }});
+      return items;
+    }, {label: "Basis"}));
+    tip(basisBtn, {title: B.text, body: B.tooltip, lines: [`Next currency${hintOf("currency.next")}`, `Switch earnings${hintOf("earnings.toggle")}`]}, descs);
+    ctl.append(basisBtn);
 
     // Data as of.
     const flag = H.dataAsOf.tone === "flag";
@@ -1273,7 +1315,7 @@ function peerSetItems() {
   }
   items.push({kind: "sep"},
     {id: "save", label: "Save current set", onSelect: () => runCommand("peers.save")},
-    {id: "edit", label: "Edit peers", onSelect: () => scrollToSection("peers")},
+    {id: "edit", label: "Edit peers", onSelect: () => openPeers()},
     {kind: "note", label: store.ok ? SAVED_HERE : core.STATE_COPY.storage_unavailable.detail});
   return items;
 }
@@ -1460,7 +1502,7 @@ function followLookNext() {
     announce(said);
     return;
   }
-  scrollToSection("peers");
+  openPeers();
 }
 
 // "Why?" popover (1.5).
@@ -1583,6 +1625,13 @@ function renderKpis(v) {
         h("span", {class: "u-kpi-period", text: k.period || ""}),
         h("span", {class: "u-kpi-compare", text: k.compare || ""}));
       tip(cell, {title: k.label, body: k.tooltip, lines: isPos && k.strip && k.strip.description ? [k.strip.description] : null}, descs);
+      if (k.link) {
+        cell.classList.add("is-link");
+        cell.setAttribute("role", "button");
+        cell.setAttribute("aria-label", `${aria} Open the ${k.link.kind === "tab" ? k.link.tab + " tab" : "evidence"}.`);
+        cell.addEventListener("click", () => openLink(k.link));
+        cell.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); openLink(k.link); } });
+      }
       strip.append(cell);
     }
     kpiRow.append(strip, descs);
@@ -1619,7 +1668,7 @@ function renderScope(v) {
     if (!S) { line.append(sectionFailBlock("scope", "Scope line")); return; }
     // 1. Counts.
     const counts = h("button", {type: "button", class: "u-btn link sh-counts", "data-key": "scope-counts", text: S.counts.text});
-    counts.addEventListener("click", () => scrollToSection("peers"));
+    counts.addEventListener("click", () => openPeers());
     tip(counts, "Open peer selection.", descs);
     line.append(counts);
     const items = S.items || [];
@@ -1672,7 +1721,7 @@ function renderScope(v) {
     line.append(more);
     // 7. Fixed actions.
     const edit = h("button", {type: "button", class: "u-btn sh-scope-btn", "data-key": "scope-edit", text: "Edit peers"});
-    edit.addEventListener("click", () => scrollToSection("peers"));
+    edit.addEventListener("click", () => openPeers());
     const nf = (state.filters || []).length;
     const reset = h("button", {type: "button", class: "u-btn sh-scope-btn", "data-key": "scope-reset", "aria-disabled": nf ? null : "true",
       text: "Reset filters"});
@@ -1736,35 +1785,12 @@ function fitScope() {
 // #main: layout, slots and mounts
 // ---------------------------------------------------------------------------------------------
 
-function arrange() {
-  if (!analysisEl || arranged === layout) return;
-  arranged = layout;
-  const ae = document.activeElement;
-  const order = layout === "laptop" || layout === "narrow" ? [slots.charts, slots.table, slots.detail]
-    : layout === "wide" ? [slots.table, slots.detail, slots.charts] : [slots.table, slots.charts, slots.detail];
-  moveAround(analysisEl, order, slots.table);
-  const low = layout === "wide" || layout === "ultrawide" ? ["bridge", "obs", "notes", "peers"] : ["bridge", "obs", "peers", "notes"];
-  moveAround(lowerEl, low.map((id) => secEls[id]), secEls.peers);
-  if (ae && ae !== document.body && ae.isConnected && document.activeElement !== ae) focusEl(ae);
-}
-/** Put children in order without ever moving `pinned`: a box that is taken out of the
- * document loses its scroll offsets, and the table and the peer grid must keep theirs. */
-function moveAround(parent, order, pinned) {
-  if (order.every((el, i) => parent.children[i] === el)) return;
-  if (pinned.parentNode !== parent) parent.appendChild(pinned);
-  const k = order.indexOf(pinned);
-  for (let i = 0; i < k; i++) parent.insertBefore(order[i], pinned);
-  for (let i = k + 1; i < order.length; i++) parent.appendChild(order[i]);
-}
-
 function renderMain(v) {
   const err = v ? v.error : null;
   frameStateEl.removeAttribute("aria-busy");
   frameStateEl.hidden = !err;
   analysisEl.hidden = !!err;
-  lowerEl.hidden = !!err;
   if (err) {
-    lowerTabsEl.hidden = true;
     const sig = sigOf("err", err);
     if (sigs.frameErr !== sig) {
       sigs.frameErr = sig;
@@ -1776,49 +1802,130 @@ function renderMain(v) {
   sigs.frameErr = null;
   sigs.loading = null;
   frameStateEl.textContent = "";
-  arrange();
-  const detailOpen = !!state.ui.detail;
-  slots.detail.hidden = !detailOpen;
-  slots.charts.hidden = layout === "wide" && detailOpen;
+  slots.detail.hidden = !state.ui.detail;
+  slots.peers.hidden = !state.ui.peers;
   slots.method.hidden = !state.ui.method;
-  renderLowerTabs();
+  renderFooter(v);
   ensureMounts();
   updateMounts(v);
 }
 
-function renderLowerTabs() {
-  const narrow = layout === "narrow";
-  lowerTabsEl.hidden = !narrow;
-  const tab = (state.ui && state.ui.lowerTab) || "bridge";
-  for (const id of Object.keys(secEls)) {
-    secEls[id].classList.toggle("is-active", id === tab);
-    secEls[id].setAttribute("role", narrow ? "tabpanel" : "region");
-    if (narrow) secEls[id].setAttribute("aria-labelledby", `sh-ltab-${id}`);
-    else secEls[id].removeAttribute("aria-labelledby");
-  }
-  if (!narrow) return;
-  const sig = sigOf("ltabs", tab);
-  if (sig === sigs.ltabs && lowerTabsEl.children.length) return;
-  sigs.ltabs = sig;
-  rebuild(lowerTabsEl, () => {
-    const ids = Object.keys(SECTIONS);
-    ids.forEach((id, i) => {
-      const sel = id === tab;
-      const b = h("button", {type: "button", role: "tab", class: "sh-ltab", id: `sh-ltab-${id}`, "data-key": `ltab-${id}`,
-        "aria-selected": String(sel), "aria-controls": `sh-sec-${id}`, tabindex: sel ? "0" : "-1", text: SECTIONS[id].tab});
-      b.addEventListener("click", () => dispatch({type: "SET_LOWER_TAB", tab: id}));
-      b.addEventListener("keydown", (e) => {
-        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Home" && e.key !== "End") return;
-        e.preventDefault();
-        e.stopPropagation();
-        const j = e.key === "Home" ? 0 : e.key === "End" ? ids.length - 1 : (i + (e.key === "ArrowRight" ? 1 : ids.length - 1)) % ids.length;
-        dispatch({type: "SET_LOWER_TAB", tab: ids[j]});
-        flush();
-        focusEl(lowerTabsEl.querySelector(`[data-key="ltab-${ids[j]}"]`));
-      });
-      lowerTabsEl.append(b);
-    });
+/** The one-line footer (12.6): what the figures rest on, and the way into sources and method. */
+function renderFooter(v) {
+  const F = v && v.footer;
+  const sig = sigOf("foot", F);
+  if (sig === sigs.foot) return;
+  sigs.foot = sig;
+  rebuild(footEl, () => {
+    if (!F) return;
+    const flag = F.tone === "flag";
+    footEl.classList.toggle("flag", flag);
+    const b = h("button", {type: "button", class: "u-btn link sh-foot-btn", "data-key": "foot-sources", text: F.buttonLabel || "Sources and method"});
+    b.addEventListener("click", () => openMethod(F.anchor || "sources"));
+    footEl.append(flag ? h("span", {class: "u-marker amber", "aria-hidden": "true", text: "!"}) : null,
+      h("span", {class: "sh-foot-text", text: F.text || ""}), b);
+    tip(footEl.querySelector(".sh-foot-text"), F.text || "");
   });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Bridge-only mode (12.5): the Forecast tab's "Value implied by peer multiples"
+// ---------------------------------------------------------------------------------------------
+
+function renderBridge() {
+  if (!app || !bridgeLineEl) return;
+  if (!payload || !state || !modsDone) {
+    bridgeBodyEl.hidden = true;
+    bridgeLineEl.textContent = "";
+    frameStateEl.hidden = false;
+    frameStateEl.setAttribute("aria-busy", "true");
+    if (sigs.bridgeLoading !== 1) {
+      sigs.bridgeLoading = 1;
+      frameStateEl.textContent = "";
+      frameStateEl.append(stateBlock(core.stateMsg("loading", {T: (args && args.focal) || "the focal company"})));
+    }
+    fitBridge();
+    return;
+  }
+  sigs.bridgeLoading = 0;
+  frameStateEl.removeAttribute("aria-busy");
+  const v = getView();
+  const err = v ? v.error : null;
+  frameStateEl.hidden = !err;
+  bridgeBodyEl.hidden = !!err;
+  if (err) {
+    frameStateEl.textContent = "";
+    frameStateEl.append(stateBlock(err));
+    bridgeLineEl.textContent = "";
+  } else {
+    const L = v.bridgeLine || {};
+    if (bridgeLineEl.textContent !== (L.text || "")) bridgeLineEl.textContent = L.text || "";
+    const sig = sigOf("bclose", L.linkLabel, L.storageLine);
+    if (sig !== sigs.bclose) {
+      sigs.bclose = sig;
+      bridgeCloseEl.textContent = "";
+      const b = h("button", {type: "button", class: "u-btn sh-bridge-back", "data-key": "bridge-back", text: L.linkLabel || "Change peers or metric in Comps"});
+      b.addEventListener("click", () => clickParentTab("Comps"));
+      bridgeCloseEl.append(b, h("span", {class: "u-meta", text: L.storageLine || "Peer set and inputs are saved in this browser only."}));
+    }
+    ensureMounts();
+    updateMounts(v);
+  }
+  nextFrame(() => { fitBridge(); takeGoto(); });
+}
+
+let lastBridgeH = 0;
+/** The bridge is a block in the Forecast tab's flow: the frame is as tall as its content. */
+function fitBridge() {
+  if (!app || !window.innerWidth) return;
+  const hgt = Math.max(200, Math.ceil(app.getBoundingClientRect().height) + 4);
+  if (Math.abs(hgt - lastBridgeH) < 2) return;
+  lastBridgeH = hgt;
+  Streamlit.setFrameHeight(hgt);
+}
+/** Comps asked for the bridge (the "Implied value" key figure): bring this frame into view. */
+function takeGoto() {
+  try {
+    const raw = window.sessionStorage.getItem(core.GOTO_KEY);
+    if (!raw) return;
+    const g = JSON.parse(raw);
+    if (!g || g.target !== "bridge" || !(Date.now() - g.at < 5000) || !window.innerWidth) return;
+    window.sessionStorage.removeItem(core.GOTO_KEY);
+    if (window.frameElement) window.frameElement.scrollIntoView({block: "center"});
+  } catch (e) { /* no storage or no parent access */ }
+}
+let bridgeWired = false;
+function wireBridge() {
+  if (typeof ResizeObserver === "function") { const ro = new ResizeObserver(() => fitBridge()); ro.observe(app); }
+  if (bridgeWired) return;
+  bridgeWired = true;
+  document.addEventListener("keydown", onKeyDown);
+  window.addEventListener("pagehide", persistNow);
+  window.addEventListener("resize", () => { if (mode === "bridge") nextFrame(() => { scheduleRender(); fitBridge(); takeGoto(); }); });
+  wireStorageSync();
+}
+/** Both frames share one storage key (12.5): adopt what the other frame stored. */
+let storageWired = false;
+function wireStorageSync() {
+  if (storageWired) return;
+  storageWired = true;
+  const adopt = () => {
+    if (!state || !payload) return;
+    let local = null, session = null;
+    try {
+      const raw = window.localStorage.getItem(core.STORAGE_KEY);
+      if (raw && raw !== lastWrote) local = JSON.parse(raw);
+    } catch (e) { local = null; }
+    try { session = store.readSession(); } catch (e) { session = null; }
+    if (local || session) dispatch({type: "ADOPT_PERSISTED", local, session});
+  };
+  window.addEventListener("storage", (e) => {
+    if (e.key === core.GOTO_KEY) { if (mode === "bridge") takeGoto(); return; }
+    if (e.key !== core.STORAGE_KEY && e.key !== core.SESSION_KEY) return;
+    if (e.key === core.STORAGE_KEY && e.newValue === lastWrote) return;
+    adopt();
+  });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { adopt(); if (mode === "bridge") takeGoto(); } });
 }
 
 function api(id) {
@@ -1888,14 +1995,16 @@ function revealInMain(el, pad = 8) {
   if (r.top < mr.top || r.top > mr.bottom - 60) { mainEl.scrollTop += r.top - mr.top - pad; updateHeightMode(); }
 }
 function scrollToSection(id, focus = true) {
-  const sec = secEls[id];
-  if (!sec) return;
-  if (layout === "narrow" && state.ui.lowerTab !== id) { dispatch({type: "SET_LOWER_TAB", tab: id}); flush(); }
+  if (id === "peers") { openPeers(); return; }
+  if (id === "notes" || id === "sources") { openMethod("sources"); return; }
+  const meta = SECTIONS[id];
+  const sec = meta ? slots[meta.slot] : null;
+  if (!sec || !mainEl) return;
   const mr = mainEl.getBoundingClientRect(), r = sec.getBoundingClientRect();
   mainEl.scrollTop += r.top - mr.top - 8;
   updateHeightMode();
   if (focus) focusEl(sec);
-  announce(`Showing ${SECTIONS[id].label}.`);
+  announce(`Showing ${meta.label}.`);
 }
 function tableFocus(ticker, colId) {
   const t = api("table");
@@ -1921,14 +2030,40 @@ function goToColumn(colId, ticker, said) {
   announce(inTable ? (said || `Showing ${label}.`) : `Added ${label} to a custom column set.`);
 }
 function revealCharts(tab) {
-  if (layout === "laptop" || layout === "narrow") {
-    dispatch({type: "SET_CHART_STRIP", layout, value: "open"});
-    dispatch({type: layout === "narrow" ? "SET_NARROW_TAB" : "SET_LAPTOP_TAB", tab});
-  } else if (layout === "wide" && state.ui.detail) {
-    dispatch({type: "CLOSE_DETAIL"});
-  }
+  // The strip is the chart area at every width (12.1).
+  const l = layout === "narrow" ? "narrow" : layout;
+  dispatch({type: "SET_CHART_STRIP", layout: l, value: "open"});
+  dispatch({type: layout === "narrow" ? "SET_NARROW_TAB" : "SET_LAPTOP_TAB", tab});
   flush();
   revealInMain(slots.charts);
+}
+function openPeers(opts = {}) {
+  if (mode === "bridge" || !state) return;
+  dispatch({type: "OPEN_PEERS", search: !!opts.search});
+}
+function closePeers() {
+  if (!state || !state.ui.peers) return;
+  dispatch({type: "CLOSE_PEERS"});
+}
+/** Follow a link of the view (12.9): a table column, a tab of the page, or one indication. */
+function openLink(link) {
+  if (!link || mode === "bridge") return;
+  if (link.kind === "column") { goToColumn(link.colId); return; }
+  if (link.kind === "tab") {
+    if (link.tab === "Forecast") { openForecastBridge(); return; }
+    if (!clickParentTab(link.tab)) announce(`The ${link.tab} tab could not be opened from here.`);
+    return;
+  }
+  if (link.kind === "indication") {
+    // Python selects the indication, then the Indications view opens on it.
+    send({action: "indication", indication_id: link.indicationId, ticker: state.focal});
+    clickParentTab("Indications");
+    announce(`Opening ${link.name || "the indication"} in Comps, Indications.`);
+  }
+}
+function openForecastBridge() {
+  try { window.sessionStorage.setItem(core.GOTO_KEY, JSON.stringify({target: "bridge", at: Date.now()})); } catch (e) { /* no storage */ }
+  if (!clickParentTab("Forecast")) announce("The Forecast tab could not be opened from here.");
 }
 function openDetail(ticker) {
   if (!ticker) return;
@@ -2378,7 +2513,7 @@ function buildHelp() {
     grid.append(h("section", {class: "sh-help-group"}, h("h3", {class: "sh-help-gtitle", text: g.name === "Grid" ? "Table grid" : g.name}), dl));
   }
   helpEl.append(grid);
-  helpEl.append(h("p", {class: "sh-help-note", text: "The palette also runs: go to any column or section, add, remove or open a company, make it focal, load or save peer sets and layouts, copy the summary, reset the bridge and show the methodology."}));
+  helpEl.append(h("p", {class: "sh-help-note", text: "The palette also runs: go to any column or section, add, remove or open a company, make it focal, load or save peer sets and layouts, copy the summary, open the Catalysts and Forecast tabs and show the methodology."}));
 }
 
 function positionAnchored() {
@@ -2454,7 +2589,10 @@ function runCommand(id, opts = {}) {
     }
     case "layout.save": openPalette("", {kind: "layout"}); break;
     case "summary.copy": copySummary(); break;
-    case "bridge.reset": dispatch({type: "RESET_BRIDGE"}); announce("Bridge inputs reset to sourced values."); break;
+    case "peers.edit": openPeers(); break;
+    case "sources.open": openMethod("sources"); break;
+    case "forecast.open": openForecastBridge(); break;
+    case "catalysts.open": openLink({kind: "tab", tab: "Catalysts"}); break;
     case "primary.reset": dispatch({type: "SET_PRIMARY", colId: null}); announceAfter(() => "Primary metric reset."); break;
     case "method.open": openMethod(opts.anchor || null); break;
     case "singlekeys.toggle": dispatch({type: "SET_SINGLE_KEYS", on: state.singleKeys === false});
@@ -2479,15 +2617,8 @@ function openColumnFinder() {
   openPalette("Go to column ");
 }
 function openPeerPicker() {
-  const p = api("peers");
-  if (p && typeof p.openPicker === "function") { p.openPicker(); return; }
-  if (p && typeof p.focusSearch === "function") {
-    scrollToSection("peers", false);
-    p.focusSearch();
-    announce("Search all companies to add a peer.");
-    return;
-  }
-  openPalette("Add peer ");
+  openPeers({search: true});
+  announce("Search all companies to add a peer.");
 }
 
 function focusedCell() {
@@ -2550,6 +2681,7 @@ function escChain(e) {
   if (state.ui.overlay) { closeOverlay(true); return true; }
   if (state.ui.why) { toggleWhy(false); return true; }
   if (state.ui.method) { closeMethod(); return true; }
+  if (state.ui.peers) { closePeers(); return true; }
   if (state.ui.detail) { closeDetail(); return true; }
   if (t && isTextTarget(t)) { t.blur(); return true; }
   if (state.ui.focus) { dispatch({type: "FOCUS_CELL", row: null}); return true; }
@@ -2558,6 +2690,11 @@ function escChain(e) {
 
 function onKeyDown(e) {
   if (!state || !payload || e.defaultPrevented || e.isComposing) return;
+  if (mode === "bridge") {
+    // No palette, help or single keys on the Forecast tab: Esc closes a tooltip or a menu.
+    if (e.key === "Escape") { if (tipState.anchor && !tipEl.hidden) { hideTip(); e.preventDefault(); } else if (menuState) { closeMenu(true); e.preventDefault(); } }
+    return;
+  }
   const key = core.normKey(e, IS_MAC);
   const t = e.target;
   if (key === "esc") { if (escChain(e)) e.preventDefault(); return; }
@@ -2667,6 +2804,10 @@ const ctx = {
   closeDetail,
   openMethod,
   closeMethod,
+  openPeers,
+  closePeers,
+  openLink,
+  openForecastBridge,
   announce,
   tooltip: {
     show: (anchor, content) => showTip(anchor, content, false),
@@ -2690,23 +2831,18 @@ Object.defineProperty(ctx, "storageOk", {get: () => store.ok, enumerable: true})
 // The table's scroll offsets from the session, so a page reload keeps its position.
 Object.defineProperty(ctx, "initialViewport", {get: () => (sessionRaw && sessionRaw.table) || null, enumerable: true});
 Object.defineProperty(ctx, "layout", {get: () => layout, enumerable: true});
+Object.defineProperty(ctx, "mode", {get: () => mode, enumerable: true});
 Object.defineProperty(ctx, "height", {get: () => heightMode, enumerable: true});
 
 // ---------------------------------------------------------------------------------------------
 // Global listeners
 // ---------------------------------------------------------------------------------------------
 
-let wired = false;
-let resizeRaf = 0, scrollRaf = 0, scrollSaveTimer = 0;
-function wireGlobal() {
-  if (wired) return;
-  wired = true;
-  document.addEventListener("keydown", onKeyDown);
-  window.addEventListener("resize", () => { if (!resizeRaf) resizeRaf = nextFrame(onResize); });
-  window.addEventListener("focus", updateKeyState);
-  window.addEventListener("blur", updateKeyState);
-  document.addEventListener("focusin", updateKeyState);
-
+let tipsWired = false;
+/** The shared tooltip and the outside-click rules: wired once, in either mode. */
+function wireTips() {
+  if (tipsWired) return;
+  tipsWired = true;
   // Tooltips: delegated hover (300 ms) and immediate keyboard focus.
   document.addEventListener("mouseover", (e) => {
     if (tipEl.contains(e.target)) { clearTimeout(tipState.hideTimer); return; }
@@ -2761,14 +2897,26 @@ function wireGlobal() {
     else if (tipEl && tipState.anchor && pa === tipState.anchor && !tipState.byFocus) hideTip();
     if (menuState && !menuState.el.contains(t) && !(menuState.anchor && menuState.anchor.contains(t))) closeMenu(false);
     if (state && state.ui.why && whyEl && !whyEl.contains(t)) {
-      const b = bannerRow.querySelector('[data-key="why"]');
+      const b = bannerRow ? bannerRow.querySelector('[data-key="why"]') : null;
       if (!(b && b.contains(t))) toggleWhy(false, false);
     }
     if (state && state.ui.overlay === "selector" && selEl && !selEl.contains(t)) {
-      const b = ctxEl.querySelector('[data-key="company"]');
+      const b = ctxEl ? ctxEl.querySelector('[data-key="company"]') : null;
       if (!(b && b.contains(t))) closeOverlay(false);
     }
   }, true);
+}
+
+let wired = false;
+let resizeRaf = 0, scrollRaf = 0, scrollSaveTimer = 0;
+function wireGlobal() {
+  if (wired) return;
+  wired = true;
+  document.addEventListener("keydown", onKeyDown);
+  window.addEventListener("resize", () => { if (!resizeRaf) resizeRaf = nextFrame(onResize); });
+  window.addEventListener("focus", updateKeyState);
+  window.addEventListener("blur", updateKeyState);
+  document.addEventListener("focusin", updateKeyState);
 
   // The toast pauses while it is hovered or focused.
   toastEl.addEventListener("mouseenter", () => clearTimeout(toastTimer));
@@ -2806,6 +2954,7 @@ function wireGlobal() {
     }
   } catch (e) { /* no font loading API */ }
   window.addEventListener("pagehide", persistNow);
+  wireStorageSync();
 }
 
 function onResize() {
@@ -2831,7 +2980,7 @@ function onResize() {
 // ---------------------------------------------------------------------------------------------
 
 if (HAS_DOM) {
-  buildSkeleton();
-  renderLoading();
+  // The skeleton is built on the first render message: it names the mode (12.5), and the
+  // tokens arrive with it, so nothing could paint before it anyway.
   Streamlit.componentReady();
 }
