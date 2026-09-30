@@ -760,3 +760,13 @@ def test_a_terms_figure_that_is_the_company_s_own_revenue_is_refused(tmp_path):
     assert deals.is_own_revenue(conn, 1, 10_900_000_000) is False
     assert deals.is_own_revenue(conn, 1, None) is False
     conn.close()
+
+
+def test_a_short_first_word_does_not_name_the_company():
+    """Novo Holdings is the foundation's investment arm, not Novo Nordisk."""
+    assert not deals.names_buyer("Novo Holdings completes", "Novo Nordisk A/S", "NVO")
+    assert deals.names_buyer("Novo Nordisk to", "Novo Nordisk A/S", "NVO")
+    assert deals.names_buyer("Lilly to", "Eli Lilly and Company", "LLY")
+    assert deals.names_buyer("Maryland Firm Scores Early Exit as Eli Lilly and Company",
+                             "Eli Lilly and Company", "LLY")
+    assert not deals.names_buyer("Double play: Thermo", "Sanofi", "SNY")
