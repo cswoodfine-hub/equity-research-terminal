@@ -122,14 +122,25 @@ def _instances(app) -> list:
             if n.proto.component_name == COMPONENT]
 
 
-def _strict_args(app) -> dict:
-    nodes = _instances(app)
-    assert len(nodes) == 1, f"{len(nodes)} {COMPONENT} instances"
-
+def _args_by_mode(app) -> dict:
+    """Every comps frame's args by mode, parsed strictly. Revision 3 of the design draws two:
+    the full view on the Comps tab and the bridge alone on the Forecast tab."""
     def fail(constant):
         pytest.fail(f"non-JSON {constant} in the comps args")
 
-    return json.loads(nodes[0].proto.json_args, parse_constant=fail)
+    out: dict = {}
+    for node in _instances(app):
+        args = json.loads(node.proto.json_args, parse_constant=fail)
+        mode = args.get("mode") or "full"
+        assert mode not in out, f"two {mode} frames"
+        out[mode] = args
+    return out
+
+
+def _strict_args(app) -> dict:
+    by_mode = _args_by_mode(app)
+    assert "full" in by_mode, f"no full comps frame among {sorted(by_mode)}"
+    return by_mode["full"]
 
 
 # --- 1. The sub-tabs ----------------------------------------------------------
@@ -301,3 +312,24 @@ def test_the_wrapper_passes_the_contract_args(monkeypatch):
     assert captured["key"] == "compsval" and captured["default"] is None
     assert captured["tab_index"] == 0
     assert captured["digest"] == compsval._digest(captured["payload"])
+
+
+# --- Revision 3: the bridge on the Forecast tab, the focal context ------------------
+
+
+@needs_api
+def test_the_forecast_tab_draws_the_bridge_alone(pharma_app):
+    by_mode = _args_by_mode(pharma_app)
+    assert set(by_mode) == {"full", "bridge"}
+    bridge = by_mode["bridge"]
+    assert bridge["focal"] == by_mode["full"]["focal"]
+    assert bridge["context"] is None                      # the bridge reads no catalysts
+    assert all("detail" not in c for c in bridge["payload"]["companies"])
+
+
+@needs_api
+def test_the_full_view_carries_the_focal_context(pharma_app):
+    args = _strict_args(pharma_app)
+    context = args["context"]
+    assert context and context["ticker"] == args["focal"]
+    assert "error" in context or {"catalysts", "competition"} <= set(context)

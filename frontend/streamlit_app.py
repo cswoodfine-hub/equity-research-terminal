@@ -14,6 +14,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import html
+import importlib
 import json
 import re
 import os
@@ -42,6 +43,14 @@ from components import prodcards
 from components import drawchart
 from components import render as R
 from components import tokens as TK
+
+# A running server re-reads this script on a save, but not a module the script imports
+# when the checkout sits under a dot-directory, as a worktree does: Streamlit's watcher
+# skips those. So the script can be newer than the wrapper held in memory, and would
+# call it with arguments it does not take. A wrapper behind the revision this script
+# is written against is reloaded once, here.
+if getattr(compsval, "REVISION", 0) < 3:
+    compsval = importlib.reload(compsval)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
 DEFAULT_API = os.getenv("ER_API_BASE", "http://localhost:8000")
@@ -245,8 +254,10 @@ def run_refresh(base: str, path: str, key: str, spinner: str):
             st.session_state[key] = api_post(base, path)
             st.session_state["last_run"] = st.session_state[key]
             api_get.clear()
-            # The comps valuation payload has its own minute of cache; a refresh is new data.
+            # The comps valuation payload and the focal context have their own minute of
+            # cache; a refresh is new data.
             _comps_valuation_payload.clear()
+            _comps_context.clear()
         except (urllib.error.URLError, OSError) as exc:
             st.session_state["refresh_error"] = str(exc)
 
@@ -1676,27 +1687,84 @@ def _comps_valuation_payload(api_base: str) -> dict:
         return json.loads(resp.read().decode("utf-8"))
 
 
+# The focal company's own evidence for Drivers and risks: its dated catalysts of the next
+# twelve months and the competition in its most valuable indications. One company per
+# read, the same minute of cache and the same direct read as the payload, so the view's
+# Reload button is a real read of both.
+@st.cache_data(ttl=60, show_spinner=False)
+def _comps_context(api_base: str, ticker: str) -> dict:
+    with urllib.request.urlopen(
+            api_base.rstrip("/")
+            + f"/companies/{urllib.parse.quote(ticker)}/comps-context",
+            timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _compsval_action(kinds: tuple, seen_key: str):
+    """The valuation view's last action when it is one of ``kinds`` and its nonce is
+    not the one recorded under ``seen_key``; otherwise None.
+
+    The component's value persists in session state after the click, so the nonce, not
+    the value, says whether an action is new.
+    """
+    value = st.session_state.get("compsval")
+    if (isinstance(value, dict) and value.get("action") in kinds
+            and value.get("nonce") is not None
+            and value.get("nonce") != st.session_state.get(seen_key)):
+        return value
+    return None
+
+
 def _compsval_focus():
     """The ticker the valuation view last asked to make focal, while that request is
     still unapplied; otherwise None.
 
-    The view posts ``{"action": "focus", "ticker", "nonce"}``. Its value persists in
-    session state after the click, so the nonce, not the value, says whether it is new:
-    the pre-selectbox hook records each nonce it applies, and a rerun caused by anything
-    else does not send the page back to a company the analyst has since moved off.
+    The view posts ``{"action": "focus", "ticker", "nonce"}``. The pre-selectbox hook
+    records each nonce it applies, and a rerun caused by anything else does not send
+    the page back to a company the analyst has since moved off.
+
+    An ``indication`` action names its company too. The frame sends one value at a
+    time, so a link followed straight after a focal change made inside the frame
+    arrives without the focus action that change would have sent. The page therefore
+    moves to the link's company first, and the landscape's picker is set after.
     """
-    value = st.session_state.get("compsval")
-    if (isinstance(value, dict) and value.get("action") == "focus"
-            and value.get("nonce") is not None
-            and value.get("nonce") != st.session_state.get("_compsval_nonce")):
-        return str(value.get("ticker") or "").strip().upper()
-    return None
+    value = _compsval_action(("focus", "indication"), "_compsval_nonce")
+    if value is None:
+        return None
+    return str(value.get("ticker") or "").strip().upper()
+
+
+def _compsval_indication():
+    """The indication id a Drivers and risks row last asked the landscape to open,
+    while that request is still unapplied; otherwise None.
+
+    The view posts ``{"action": "indication", "indication_id", "ticker", "nonce"}``
+    and clicks the Indications tab itself. The picker there is a selectbox, and a
+    widget's key can be written only before the widget is created, so the landscape
+    reads this ahead of its picker and records the nonce whether or not it knew the id.
+    """
+    value = _compsval_action(("indication",), "_compsval_ind_nonce")
+    if value is None:
+        return None
+    wanted = value.get("indication_id")
+    if isinstance(wanted, bool) or not isinstance(wanted, (int, float)):
+        return None
+    return int(wanted) if float(wanted).is_integer() else None
+
+
+def _compsval_indication_done() -> None:
+    """Record the pending indication action as handled, so it is applied once, or
+    dropped once where there is no landscape to apply it to."""
+    if _compsval_action(("indication",), "_compsval_ind_nonce") is not None:
+        st.session_state["_compsval_ind_nonce"] = st.session_state["compsval"].get("nonce")
 
 
 # A fragment: the frame recomputes every peer set, basis, preset and bridge input itself,
-# so Python hears only two actions and neither should redraw the other tabs. A reload
-# reruns this fragment alone. A new focal company reruns the page, because the top bar
-# and every other tab follow it; the hook before the company selector applies it.
+# so Python hears only three actions and none should redraw the other tabs for nothing.
+# A reload reruns this fragment alone. A new focal company reruns the page, because the
+# top bar and every other tab follow it; the hook before the company selector applies
+# it. A link to an indication reruns the page too, because the landscape's picker sits
+# outside this fragment and is set before it is drawn.
 @st.fragment
 def _comps_valuation_view(api_base: str, ticker: str, engine: str, live: bool):
     """The valuation view: one component over the whole universe, the focal company
@@ -1708,22 +1776,60 @@ def _comps_valuation_view(api_base: str, ticker: str, engine: str, live: bool):
               f"The API did not answer on /comps/valuation: {html_escape(str(exc))}. "
               "Check it is running, then open this tab again.", error=True)
         return
+    # The context is evidence beside the valuation, not the valuation: when its read
+    # fails the view still opens, and the two groups it feeds say what went wrong.
+    try:
+        context = _comps_context(api_base, ticker)
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        context = {"ticker": ticker, "error": str(exc)}
     picked = compsval.comps_valuation(payload, focal=ticker, engine=engine,
-                                      tokens=COMPS_TOKENS, live=live, key="compsval")
+                                      tokens=COMPS_TOKENS, live=live, context=context,
+                                      mode="full", key="compsval")
     if not (isinstance(picked, dict) and picked.get("nonce") is not None
             and picked.get("nonce") != st.session_state.get("_compsval_seen")):
         return
     st.session_state["_compsval_seen"] = picked.get("nonce")
+    # The hook before the company selector records the nonce of a focus or indication
+    # action it has applied, which it can only do in a full run. A nonce it has not
+    # recorded means this is the fragment's own rerun, so the page reruns for the hook.
+    hooked = picked.get("nonce") == st.session_state.get("_compsval_nonce")
     if picked.get("action") == "focus":
-        # Already applied by the hook when this is a full run; otherwise the page reruns
-        # so the hook can apply it before the company selector.
         wanted = str(picked.get("ticker") or "").strip().upper()
-        if (wanted and wanted != ticker
-                and picked.get("nonce") != st.session_state.get("_compsval_nonce")):
+        if wanted and wanted != ticker and not hooked:
+            st.rerun()
+    elif picked.get("action") == "indication":
+        if not hooked:
             st.rerun()
     elif picked.get("action") == "reload":
         _comps_valuation_payload.clear()
+        _comps_context.clear()
         _rerun_here()
+
+
+def _peer_value_section(api_base: str, ticker: str) -> None:
+    """The value the peer set's multiple implies for the company, on the Forecast tab.
+
+    One more lens on the same question the fair value range asks, so it sits under that
+    range. It is the Comps valuation component in its bridge mode: the peer set, the
+    metric and the bridge inputs are the ones chosen in Comps, read from the browser
+    storage the two frames share, and nothing comes back to Python from it. Drawn for
+    every company, modelled or not, because a peer multiple needs no product model.
+    """
+    section("Value implied by peer multiples",
+            basis="peer set and metric from Comps · $ a share")
+    try:
+        payload = _comps_valuation_payload(api_base)
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        state("Peer multiples unavailable",
+              f"The API did not answer on /comps/valuation: {html_escape(str(exc))}.",
+              error=True)
+        return
+    # Live as the Comps view is: the time machine's state is read where the page set
+    # it, which a rerun of the Forecast fragment alone does not repeat.
+    compsval.comps_valuation(payload, focal=ticker,
+                             engine=st.session_state.get("engine") or "",
+                             tokens=COMPS_TOKENS, live=not globals().get("asof_state"),
+                             mode="bridge")
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -1752,6 +1858,11 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
     in the same trials.
     """
     section("Indication landscape")
+    # A competition row in the valuation view links here with its indication. Read now
+    # and marked handled now, so a link this view cannot follow is dropped once rather
+    # than applied to whichever company is opened next.
+    linked = _compsval_indication()
+    _compsval_indication_done()
     index = _landscape_index(api_base)
     if not index:
         state("No landscape yet", "the API returned no indications with a big pharma "
@@ -1760,8 +1871,13 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
     by_id = {i["id"]: i for i in index}
     mine = [i["id"] for i in index if ticker in (i.get("tickers") or [])]
     options = mine + [i["id"] for i in index if i["id"] not in mine]
+    # Written before the picker is created, the only moment a widget's key can be. No
+    # index is passed: the first option is the default, and a default beside a session
+    # value draws a warning.
+    if linked in options:
+        st.session_state[f"land_pick_{ticker}"] = linked
     pick = st.selectbox(
-        "Indication", options, index=0, key=f"land_pick_{ticker}",
+        "Indication", options, key=f"land_pick_{ticker}",
         format_func=lambda i: (f'{by_id[i]["name"]} · {by_id[i]["companies"]} companies '
                                f'in development'
                                + (f" · {ticker} in it" if i in mine else "")),
@@ -2570,6 +2686,8 @@ def _book(api_base: str, ticker: str, selected):
                   "No asset carries assumptions, so there is no sum of the parts, "
                   "twelve-month value or rating. Pick an asset below and enter or import "
                   "its assumptions to start one.")
+            # A peer multiple needs no product model, so this lens stands alone here.
+            _peer_value_section(api_base, ticker)
         return v, None
     note_body = v.get("note") or {}
     coverage = v.get("coverage") or {}
@@ -2636,6 +2754,8 @@ def _book(api_base: str, ticker: str, selected):
             _revenue_split(sotp)
 
     _fair_value_range(api_base, ticker)
+    # One more lens, under the ones it joins: what the peer set's multiple implies.
+    _peer_value_section(api_base, ticker)
     # Under the range and above what breaks it: a selection is a fact about the book
     # rather than a lever on it, and nothing here multiplies into a value.
     _ira_strip(api_base, ticker)
@@ -3475,6 +3595,7 @@ def _render_forecast_tab(api_base: str, ticker: str):
         state("No forecastable products",
               "a forecast starts from a marketed product or an assumption seed under "
               "data/assumptions/")
+        _peer_value_section(api_base, ticker)
         return
     labels = {aid: name + ("" if n else "  (start one)") for aid, name, n in options}
     ordered = sorted(options, key=lambda o: (o[2] == 0, o[1]))
@@ -5616,6 +5737,10 @@ with main:
                        "against their comparators, its safety record, and what the model "
                        "says it is worth.")
                 _indication_landscape(api_base, ticker)
+        else:
+            # No landscape on this engine: a link to one is marked handled, so it is not
+            # applied later to a company it was never about.
+            _compsval_indication_done()
 
         # --- R&D productivity and the phase matrix ----------------------------
         # Every frame the Pipelines view draws is fetched first, in one place, and the
