@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 import env  # noqa: F401  loads the .env from the repo root, before any module reads it
@@ -26,6 +27,7 @@ import company_lines as company_lines_module
 import catalysts as catalysts_module
 import cashflow as cashflow_module
 import comps as comps_module
+import comps_valuation as comps_valuation_module
 import db
 import deals as deals_module
 import demand as demand_module
@@ -311,6 +313,16 @@ def comps_trend() -> dict:
     """Per-company revenue growth and net margin over the last few fiscal years, on one
     shared set of year labels, for the multi-company comparison chart."""
     return comps_module.comps_trend()
+
+
+@app.get("/comps/valuation")
+def comps_valuation_view():
+    """Every company's valuation record for the Comps tab's Valuation view: components,
+    not multiples, each null with its reason (backend/comps_valuation.py). A body built
+    before the model reads are warm is marked incomplete and is never cached."""
+    payload = comps_valuation_module.build()
+    headers = {} if payload["complete"] else {response_cache.SKIP: "1"}
+    return JSONResponse(payload, headers=headers)
 
 
 @app.get("/pipeline")

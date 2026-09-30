@@ -39,6 +39,9 @@ import db
 
 DATA_DIR = db.BACKEND_DIR.parent / "data"
 BYPASS = "x-cache-bypass"
+# A route sets this on a body it knows to be incomplete (built before the reads it embeds
+# were warm), so the body is served once and never stored as a hit.
+SKIP = "x-cache-skip"
 # Reads that must be live, or that write. Matched as prefixes or substrings of the path.
 NEVER_PATHS = ("/health", "/runs/latest", "/as-of")
 NEVER_SUFFIXES = ("/note", "/intraday", "/tearsheet")
@@ -180,6 +183,9 @@ async def handle(request, call_next):
             _revalidate(str(request.url), key)
             return _serve(entry, "stale")
     response = await call_next(request)
+    # Checked before the body is read: an incomplete body is handed on untouched.
+    if response.headers.get(SKIP) == "1":
+        return response
     if response.status_code != 200 or not (response.media_type or response.headers.get(
             "content-type", "")).startswith("application/json"):
         return response
@@ -200,6 +206,9 @@ GLOBAL_READS = ("/screen", "/productivity/scorecard", "/pipeline", "/price-grid?
                 "/indications")
 COMPANY_READS = ("/companies/{t}/forecast-verdict", "/companies/{t}/fair-value",
                  "/companies/{t}/breakpoints", "/companies/{t}/forecast")
+# Global reads that embed the company reads above through ``cached_json``, so they are
+# warmed after every one of them. Warmed first, they would be built from missing entries.
+LATE_GLOBAL_READS = ("/comps/valuation",)
 WARM_EVERY_S = 30.0
 _warm_started = threading.Event()
 
@@ -227,6 +236,7 @@ def warm_forever(base: str) -> None:
                 urls = [base + p for p in GLOBAL_READS]
                 for ticker in _tickers():
                     urls += [base + p.format(t=ticker) for p in COMPANY_READS]
+                urls += [base + p for p in LATE_GLOBAL_READS]
                 for url in urls:
                     try:
                         _fetch(url)
