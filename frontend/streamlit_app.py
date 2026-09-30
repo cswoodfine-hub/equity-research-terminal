@@ -66,14 +66,14 @@ LANDING_TOKENS = {
     "orange-book": TK.ORANGE_BOOK, "purple-book": TK.PURPLE_BOOK,
     "font-ui": TK.FONT_UI, "font-mono": TK.FONT_MONO, "font-prose": TK.FONT_PROSE,
 }
-# The Comps valuation view is the same kind of iframe, with more of the palette: the
-# active colour and its wash for focus and the focal row, the faint rule, the narrow
-# face for dense headers, the phase ramp, and the spacing and radii. "phase-filed" is
-# left out on purpose: its value is the flag colour, which this view keeps for
-# uncertainty alone. Built only from tokens.py, so there is still one source of truth.
+# The Comps valuation view is the same kind of iframe, with more of the palette: the faint
+# rule, the narrow face, the phase ramp and the spacing base. It has no colour of its own:
+# selection and focus are derived from these tokens in research.css, as on every other tab.
+# "phase-filed" is left out on purpose: its value is the flag colour, which this view keeps
+# for uncertainty alone. Built only from tokens.py, so there is still one source of truth.
 COMPS_TOKENS = {
     **LANDING_TOKENS,
-    "rule-faint": TK.RULE_FAINT, "active": TK.ACTIVE, "active-wash": TK.ACTIVE_WASH,
+    "rule-faint": TK.RULE_FAINT,
     "font-ui-narrow": TK.FONT_UI_NARROW,
     "phase-preclinical": TK.PHASE_RAMP["preclinical"],
     "phase-1": TK.PHASE_RAMP["Phase 1"], "phase-2": TK.PHASE_RAMP["Phase 2"],

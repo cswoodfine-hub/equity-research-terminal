@@ -183,9 +183,12 @@ def test_one_component_with_strict_json_args(pharma_app):
 
 
 @needs_api
-def test_the_tokens_carry_the_active_colour_and_not_the_filed_phase(pharma_app):
+def test_the_tokens_are_the_terminals_palette_and_not_the_filed_phase(pharma_app):
     tokens = _strict_args(pharma_app)["tokens"]
-    assert "active" in tokens and "active-wash" in tokens
+    # Selection and focus are derived from the palette in research.css, so the view wears
+    # the colours of every other tab and carries no colour of its own.
+    assert "active" not in tokens and "active-wash" not in tokens
+    assert "up" in tokens and "text" in tokens
     assert "phase-filed" not in tokens
     for name in ("ground", "panel", "rule-faint", "font-ui-narrow", "phase-approved"):
         assert name in tokens

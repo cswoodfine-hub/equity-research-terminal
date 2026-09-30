@@ -172,7 +172,7 @@ svg text {
 /* Visible focus everywhere: 2 px active, offset 1 px; inset 2 px inside table cells.
    Never removed. */
 :focus-visible {
-  outline: 2px solid var(--active);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 td:focus-visible, th:focus-visible,

@@ -97,7 +97,7 @@
   background: var(--active-wash);
   color: var(--text);
 }
-.ch-tab:focus-visible { z-index: 2; outline: 2px solid var(--active); outline-offset: 1px; }
+.ch-tab:focus-visible { z-index: 2; outline: 2px solid var(--focus); outline-offset: 1px; }
 .ch-collapse { height: calc(22px * var(--ts)); width: calc(22px * var(--ts)); font-family: var(--font-mono); }
 .ch-strip-panel { min-width: 0; }
 
@@ -114,7 +114,7 @@
 }
 .ch-plot:focus-visible,
 .ch-plot:focus {
-  outline: 2px solid var(--active);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 .ch-plot:focus:not(:focus-visible) { outline: none; }

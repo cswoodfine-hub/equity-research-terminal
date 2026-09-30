@@ -22,6 +22,12 @@
   /* Colour roles derived from the tokens. The computed values sit in the contrast
      table of spec 9.6. */
   --clinical: var(--purple-book);                                     /* clinical and pipeline only */
+  /* Selection and focus follow the rest of the terminal: the tab underline and a chosen pill
+     are --up, the focus outline is --text. No colour of their own. Always paired with a
+     border, weight or glyph, since --up also reads as a positive delta. */
+  --active: var(--up);
+  --active-wash: color-mix(in oklab, var(--panel) 86%, var(--up));    /* focal row, chosen control */
+  --focus: var(--text);
   --flag-wash: color-mix(in oklab, var(--panel) 88%, var(--flag));    /* flagged cell, warning block */
   --up-wash: color-mix(in oklab, var(--ground) 84%, var(--up));       /* operating trend, above 0 */
   --down-wash: color-mix(in oklab, var(--ground) 84%, var(--down));   /* operating trend, below 0; error block */
@@ -470,10 +476,10 @@ select.u-input { padding-right: 20px; cursor: pointer; }
 .u-btn:focus-visible, .u-chip:focus-visible, .u-chip-x:focus-visible,
 .u-seg > :focus-visible, .u-input:focus-visible, .u-kpi:focus-visible,
 .u-menu-item:focus-visible, .u-focus {
-  outline: 2px solid var(--active);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
-.u-focus-inset, .u-focus.u-focus-inset { outline: 2px solid var(--active); outline-offset: -2px; }
+.u-focus-inset, .u-focus.u-focus-inset { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 /* ------------------------------------------------------------------------------------ */
 /* State blocks (9.5, section 8)                                                         */

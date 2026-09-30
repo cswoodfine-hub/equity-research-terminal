@@ -415,8 +415,8 @@
   color: var(--text);
 }
 .pn-grid th.num, .pn-grid td.num { text-align: right; }
-.pn-grid td:focus, .pn-grid th:focus { outline: 2px solid var(--active); outline-offset: -2px; }
-.pn-grid td:focus:not(:focus-visible), .pn-grid th:focus:not(:focus-visible) { outline: 2px solid var(--active); }
+.pn-grid td:focus, .pn-grid th:focus { outline: 2px solid var(--focus); outline-offset: -2px; }
+.pn-grid td:focus:not(:focus-visible), .pn-grid th:focus:not(:focus-visible) { outline: 2px solid var(--focus); }
 .pn-grid tbody tr:hover td { background: var(--panel); }
 .pn-grid tr.is-selected td { background: var(--active-wash); color: var(--text); }
 .pn-grid tr.is-selected .u-meta, .pn-grid tr.is-selected .u-null { color: var(--text); }
@@ -584,7 +584,7 @@
 }
 .pn-def.is-target { border-left-color: var(--active); background: var(--active-wash); }
 .pn-def.is-target dd { color: var(--text); }
-.pn-def:focus { outline: 2px solid var(--active); outline-offset: -2px; }
+.pn-def:focus { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 /* ------------------------------------------------------------------------------------ */
 /* 6.4 Detail side panel                                                                 */
@@ -656,7 +656,7 @@
   font-weight: 500;
   color: var(--text);
 }
-.pn-d-title:focus { outline: 2px solid var(--active); outline-offset: 1px; }
+.pn-d-title:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
 .pn-d-row1 .pn-close { align-self: center; }
 .pn-d-chips { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-8); }
 .pn-d-reason { margin: var(--sp-4) 0 0; }

@@ -356,7 +356,7 @@
 
 /* ----- active cell (7.4): 2 px active ring inset, while the grid holds focus ----- */
 .tb-grid.is-focused .tb-active {
-  outline: 2px solid var(--active);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 

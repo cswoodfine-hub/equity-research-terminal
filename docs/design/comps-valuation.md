@@ -4203,6 +4203,13 @@ catalysts and 3 of LLY's 33 have no indication on file.
 
 ### 12.13 As built: where the code departs from 12.1 to 12.6
 
+- **Colour (supersedes 9.1's `ACTIVE`).** The view carries no colour of its own. The user asked
+  for the Comps tab to match the rest of the terminal, so the blue `ACTIVE` token and its wash
+  are gone from `tokens.py` and `tokens.css`. `research.css` derives `--active: var(--up)` (the
+  terminal's tab underline and chosen pill), `--active-wash` as `--up` mixed 14 % into the panel,
+  and `--focus: var(--text)` (the terminal's focus outline). `--up` also reads as a positive
+  delta, so selection is always paired with a border, weight or glyph.
+
 - **Narrow layout.** The two evidence groups stack under the side lists at every width; there is
   no "Catalysts ahead | Competition" tab strip, and `ui.insightTab` is unused. One scroll reads the
   whole section, and the 800 px pane shows both groups without a control to find.

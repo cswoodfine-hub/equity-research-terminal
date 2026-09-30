@@ -34,7 +34,6 @@ PAIRS = [
     ("phase-3", tokens.PHASE_RAMP["Phase 3"]),
     ("phase-filed", tokens.PHASE_RAMP["filed"]),
     ("phase-approved", tokens.PHASE_RAMP["approved"]),
-    ("active", tokens.ACTIVE), ("active-wash", tokens.ACTIVE_WASH),
     ("rule-faint", tokens.RULE_FAINT),
 ]
 
