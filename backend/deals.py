@@ -362,7 +362,7 @@ NOT_OUR_DEAL = re.compile(
 
 # The verbs that state a deal in a headline, with the type each implies. Ordered longest
 # first so "agrees to acquire" is read before "acquire". The news fetcher reads deals with
-# them, and they sit here beside the rule that reads who is doing the deal.
+# them and ``prune_parties`` finds the same verb again in a stored headline.
 DEAL_VERBS = (
     (r"completes? (?:the )?acquisition of", "acquisition"),
     (r"agrees? to acquire", "acquisition"),
@@ -450,6 +450,15 @@ def names_buyer(clause: str, name: str, ticker: str | None = None) -> bool:
             return True
     return bool(ticker) and bool(re.search(rf"\b{re.escape(ticker)}\b", clause))
 
+
+def headline_buyer_named(headline: str, name: str, ticker: str | None = None):
+    """Whether a stored headline names the company as the party doing its deal, or None
+    where no deal verb can be found in it to say who that is."""
+    for verb, _kind in DEAL_VERBS:
+        match = re.search(rf"(?i:\b{verb})\s+[A-Z]", headline or "")
+        if match:
+            return names_buyer(headline[:match.start()], name, ticker)
+    return None
 
 
 # --- what counts as a counterparty ------------------------------------------------------
@@ -1029,10 +1038,12 @@ def prune_parties(db_path=None) -> dict:
     dropped = fixed = 0
     try:
         for row in conn.execute(
-                "SELECT id, counterparty, quote, event_date_source, accession"
-                "  FROM deals WHERE counterparty IS NOT NULL"
-                "  AND deal_type IN ('acquisition', 'licensing', 'collaboration',"
-                "                    'divestiture')").fetchall():
+                "SELECT d.id, d.counterparty, d.quote, d.event_date_source, d.accession,"
+                "       d.is_curated, c.name AS company, c.ticker"
+                "  FROM deals d LEFT JOIN companies c ON c.id = d.company_id"
+                " WHERE d.counterparty IS NOT NULL"
+                "  AND d.deal_type IN ('acquisition', 'licensing', 'collaboration',"
+                "                      'divestiture')").fetchall():
             tidy = unspace(row["counterparty"].strip())
             # For a news-sourced row the quote is the headline, so the rule that stops a
             # roundup or an award being read as a deal also clears the rows written
@@ -1046,7 +1057,16 @@ def prune_parties(db_path=None) -> dict:
             # genuinely has subsidiaries.
             holder = bool(re.search(re.escape(tidy) + r"\W+" + _HOLDER_PHRASE.pattern,
                                     quote, re.I)) if from_news else False
-            if not is_party(tidy) or holder or (
+            # A headline whose deal is done by someone else: "Azurity acquires Covis
+            # Pharma" on AstraZeneca's page. Only a row the news route wrote, not a
+            # filing's row that a headline redated, since a filing's quote is prose
+            # ("the Company entered into"); only where the headline has a deal verb to
+            # say who is doing it; and never an analyst's row.
+            someone_else = (not row["accession"] and not row["is_curated"]
+                            and row["company"]
+                            and headline_buyer_named(quote, row["company"],
+                                                     row["ticker"]) is False)
+            if not is_party(tidy) or holder or someone_else or (
                     from_news and NOT_OUR_DEAL.search(quote)):
                 conn.execute("DELETE FROM deals WHERE id = ?", (row["id"],))
                 dropped += 1
