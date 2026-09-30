@@ -1,7 +1,9 @@
 # Comps tab: valuation view, design specification
 
-Status: agreed architecture, revision 2 after the design review, ready to build. First draft
-2026-09-29, revision 2026-09-30. Book used for every figure quoted: the 2026-09-29 22:33 backup
+Status: agreed architecture, revision 3, ready to build. First draft 2026-09-29, revision 2 after
+the design review 2026-09-30, revision 3 (section 12) 2026-09-30: a simpler page, the bridge on the
+Forecast tab, catalysts and competition in Drivers and risks. Where section 12 and an earlier
+section disagree, section 12 holds. Book used for every figure quoted: the 2026-09-29 22:33 backup
 of the live book (prices to the 2026-09-28 close, refresh run 123, status partial). Appendix A
 records the review points resolved differently from the reviewer's proposal, the review figures
 corrected against the book, and what the check found beyond the review.
@@ -19,6 +21,8 @@ the side panel report (`scratchpad/understand_detail.md`) and the design review'
 ## 0. Decisions and what moves where
 
 ### 0.1 Fixed decisions
+
+> Revision 3: decision 3 now counts three Python actions (12.9), and the bridge is drawn on the Forecast tab by the same component (12.5).
 
 1. One bidirectional Streamlit custom component at `frontend/components/compsval/`, split into
    `index.html`, `styles.css`, `core.js`, `table.js`, `charts.js`, `panels.js`, `shell.js`, plus
@@ -78,6 +82,8 @@ Nothing the removed sub-tabs showed is lost. Column ids are defined in section 4
 ## 1. Component hierarchy and layouts
 
 ### 1.1 Tree
+
+> Revision 3: the `#main` part of this tree is replaced by 12.1. The header band and the overlays stand.
 
 Owners: **A** backend and wiring, **B** `core.js`, **C** `table.js`, **D** `charts.js` and
 `panels.js`, **E** `shell.js`, `index.html`, the base of `styles.css` and the shared
@@ -165,6 +171,8 @@ or notes.
 
 ### 1.3 Breakpoints and height modes
 
+> Revision 3: the layout table below is replaced by 12.1 (one arrangement, the charts in a strip at every width, the side panel a drawer). The height modes stand.
+
 Breakpoints read the frame's own `innerWidth` (the Streamlit main column with `no-rail`, about
 60 px narrower than the screen). `shell.js` sets `data-layout` on `#app` to `ultrawide`, `wide`,
 `laptop` or `narrow`, and `data-height` to `tall` or `short`.
@@ -211,6 +219,8 @@ company). At 16 px that is two lines down to a 1,000 px frame and at most three 
   from the open engine only when a shared link names no engine (`engine == ""`).
 
 ### 1.5 Header band contents (`shell.js`)
+
+> Revision 3: the data state and currency select and the earnings control become one Basis menu (12.6); KPI 6 links to the Forecast tab (12.5); "Edit peers" opens a drawer (12.6).
 
 The header band has a `panel` background, a 1 px `rule` bottom border and a 16 px side gutter.
 The conclusion banner sits inside it on `ground`, so the conclusion is the darkest, most
@@ -339,6 +349,8 @@ When the line overflows, items are moved from the end of 6 back through 4 into a
 button placed before the fixed actions. The menu lists each moved item with its own action.
 
 ### 1.6 Layout drawings
+
+> Revision 3: `#main` in these drawings is replaced by 12.1. The header band stands.
 
 Heights and widths in CSS pixels of the frame. `shell.js` implements these; integration checks
 the running app against them with screenshots at 1440 × 810 and 1920 × 1080 (11.2).
@@ -992,6 +1004,8 @@ verdict `modelled` lists. Analyst notes are not in the payload; they live in `lo
 
 ### 2.8 Caching, cost and the model block
 
+> Revision 3: `COMPANY_READS` gains the comps-context read, built the same cache-only way (12.2).
+
 - `comps_valuation.build(db_path=None, today=None) -> dict`. `today` defaults to
   `dt.date.today()`; tests pass a fixed date. One connection, one pass per global helper
   (`engines.home`, `engines._lead_stage`, `screen.build_screen`, `comps.price_grid` twice,
@@ -1207,6 +1221,8 @@ the dot plot never rewrites the conclusion.
 
 ### 3.6 Peer relevance and the default set
 
+> Revision 3: step 2 of `defaultPeers` is replaced by 12.8 (a cohort of 20 or fewer is taken whole).
+
 `relevance(focal, peer) -> {score, level, components, missing}`. Each component is 0 to 1; a
 component whose input is null for either company is dropped and the weights renormalise over the
 rest. `score = round(100 × Σ w·s / Σ w)`. `level`: high at 70 and over, medium 50 to 69, low
@@ -1344,6 +1360,8 @@ debt and claims exceed the implied enterprise value."`. The other-claims toggle 
 and `description` (5.3).
 
 ### 3.10 Drivers and risks
+
+> Revision 3: these rules stand and feed `view.insight.valuation`, which adds items from catalysts and competition (12.3).
 
 `observations(focal, rows, ctx) -> {premium: Obs[], discount: Obs[], notAssessed: string[]}`,
 `Obs = {id, side, colId, value, median, pct, strength, severity, provenance, short, tag, long}`.
@@ -1581,6 +1599,8 @@ in section 8.
 
 ### 3.14 Commands and keys
 
+> Revision 3: commands added, changed and removed in 12.10.
+
 `COMMANDS: {id, label, key, group, when, singleKey}[]` is the single list behind the help
 overlay, the command palette and the key handler (section 7). `singleKey` is true for a binding
 with no modifier outside a focused grid or chart.
@@ -1609,6 +1629,8 @@ other subsequence 1, ties by list order. Hint text for a single-key command is s
 palette and the tooltips only while `singleKeys` is true.
 
 ### 3.15 State, reducer and view
+
+> Revision 3: additions and removals in 12.10. `deriveView` takes a third argument.
 
 ```js
 export function defaultState(payload, {focal, engine}, persisted, session) -> State
@@ -1761,6 +1783,8 @@ lines.
 ## 4. The table
 
 ### 4.1 Structure
+
+> Revision 3: the `!` after a ticker follows `tickerFlags`, not every amber flag on the row (12.7).
 
 A native `<table role="grid">` with `border-collapse: separate`, one sticky group-header row,
 one sticky column-header row, the focal row pinned as the first body row (sticky under the
@@ -1926,6 +1950,8 @@ shifts alignment.
 
 ### 4.4 Markers in cells
 
+> Revision 3: a marker shows only where a flag bears on the cell's value (`flagMarks`, 12.7).
+
 - Per-cell basis fallback: the tag letter (A, E, G) in the marker slot in **amber** when
   `tagDiffers` (an LTM column showing FY0 for this company); tooltip names the period. This is
   the only per-cell amber tag.
@@ -1950,6 +1976,8 @@ shifts alignment.
   currencies. Statistics need one currency: pick USD, EUR, GBP, CHF or DKK."
 
 ### 4.5 Presets
+
+> Revision 3: each built-in preset holds nine columns (12.7), and "Layouts" sits in the toolbar's View menu.
 
 Presets change only the non-frozen columns. Keys `1` to `7` select them in this order.
 
@@ -2034,6 +2062,8 @@ frozen columns and names the group: "Median, 14 peers" or "Median, US subgroup".
   Custom when needed), scrolls to it and focuses the focal cell.
 
 ### 4.9 Conditional format modes
+
+> Revision 3: the mode is chosen in the toolbar's View menu (12.7).
 
 Toolbar select, `v` cycles, default Off. The focal row treatment applies in every mode. Colour is
 never the only signal.
@@ -2153,6 +2183,8 @@ focused point.
 
 ### 5.3 Valuation bridge
 
+> Revision 3: the bridge is no longer a section of Comps. The same inputs and chart render on the Forecast tab in bridge mode (12.5).
+
 Two columns inside the full-width section (stacked in `narrow`): inputs table on the left
 (`panels.js`), chart on the right (`charts.js`).
 
@@ -2212,6 +2244,8 @@ line, last point dot), `barMini(series, {width, height, derivedIndex[]})` (deriv
 
 ### 6.1 Drivers and risks (`panels.js`, `mountObservations`)
 
+> Revision 3: replaced by 12.4.
+
 Section title "Drivers and risks" with the chip "Observations, not conclusions". Two columns:
 "Potential premium drivers" (`▲` in `up`) and "Potential discount drivers" (`▼` in `down`). Each
 item: glyph, the `long` sentence (13 px), and a link chip with the column label; an M item also
@@ -2223,6 +2257,8 @@ added, and the live region says "Added {column} to a custom column set." Up to 5
 under a hairline in muted text. In `narrow` the columns stack.
 
 ### 6.2 Peer selection (`mountPeerPanel`)
+
+> Revision 3: the same content, in a drawer (12.6).
 
 Title "Peer selection" with chips "{n} peers", "{k} in statistics", and the set label.
 
@@ -2254,6 +2290,8 @@ Title "Peer selection" with chips "{n} peers", "{k} in statistics", and the set 
 
 ### 6.3 Notes and data sources (`mountNotesSources`) and the methodology drawer (`mountMethod`)
 
+> Revision 3: notes and data sources become the footer and the first section of the methodology drawer (12.6).
+
 Notes and data sources, in `#main`:
 
 - Data sources and timestamps: prices (close date, fetch time), consensus (first record 17 Sep
@@ -2283,6 +2321,8 @@ opened it. Sections, each with an anchor:
 - "Definitions": every column's tooltip, grouped as in the table.
 
 ### 6.4 Detail side panel (`mountDetail`)
+
+> Revision 3: a right drawer at every width above `narrow` (12.1), with a "Data flags" list (12.7).
 
 Opens on a click of the company or ticker cell, a double click on a row, `Enter` or `o` on a row,
 a dot or scatter point click, or a palette command, with no rerun. The table keeps its scroll
@@ -2351,6 +2391,8 @@ the handler calls `preventDefault()` only for keys it consumes.
 
 ### 7.2 Shortcuts
 
+> Revision 3: `a` opens the peer drawer at its search box, and the `esc` order gains the drawer (12.6).
+
 | Key | Command id | Action | Single key |
 |---|---|---|---|
 | `mod+k` | `palette.open` | Command palette | no |
@@ -2393,6 +2435,8 @@ normalised key is bound twice; `core.test.js` checks it.
 
 ### 7.3 Command palette
 
+> Revision 3: entries changed in 12.10.
+
 Opened by `mod+k` or `/`. An input and a list (at most 12 visible) of `COMMANDS` plus generated
 entries: "Go to column {label}" for every column, "Go to section {name}" for the bridge, drivers
 and risks, peers and notes, "Add peer {ticker} {name}", "Remove peer {ticker}", "Open {ticker}",
@@ -2404,6 +2448,8 @@ runs, Esc closes and returns focus to where it was. `role="dialog"` with `aria-m
 list `role="listbox"`, `aria-activedescendant` on the input.
 
 ### 7.4 Focus order and style
+
+> Revision 3: the order after the scope line is replaced by 12.1.
 
 Tab order follows the visual order of the active layout. In every layout it starts: context bar
 (company, peer set, period, data state and currency, earnings, data as of, reload, export or `⋯`,
@@ -2425,6 +2471,8 @@ Visible focus everywhere: `outline: 2px solid var(--active)` with `outline-offse
 (`-2px` inside table cells). Never removed.
 
 ### 7.5 Mouse, tooltips and the Python round trip
+
+> Revision 3: a third action, `indication`, and the link rules are in 12.9.
 
 - Rows: 4.7. `incl` click toggles exclusion. Header click sorts; header `▾` opens its menu.
 - Tooltips, one shared element positioned inside the frame:
@@ -2455,6 +2503,8 @@ Visible focus everywhere: `outline: 2px solid var(--active)` with `outline-offse
 ---
 
 ## 8. State catalogue
+
+> Revision 3: the states of the two evidence groups and their copy are in 12.3.
 
 `where` names the surface; the copy is exact. Title and detail render in a `.u-state` block
 (2 px left bar in the severity colour, title 13 px 600, detail 13 px) unless the surface is a
@@ -2751,6 +2801,8 @@ contains the file's text; `compsval.__init__` passes the same text as `shared_cs
 
 ## 10. Tests
 
+> Revision 3: the tests each owner adds are in 12.11.
+
 ### 10.1 Backend: `backend/tests/test_comps_valuation.py`
 
 Never the real book. Fixture `valuation_db(tmp_path, monkeypatch)`: `db.init(tmp)`,
@@ -3003,6 +3055,8 @@ AppTest, skipped when the API is down, calling `_patch_button_group_serialisatio
 
 ### 11.1 Ownership
 
+> Revision 3: ownership for the revision is in 12.11, and the `ctx` additions in 12.10.
+
 | File | Owner | Notes |
 |---|---|---|
 | `backend/comps_valuation.py` | A | builder, section 2; `COVER_COUNT_EXCEPTIONS`, `VIEW_SOURCES`, `_spark` |
@@ -3068,6 +3122,1099 @@ section.
      shortcuts off; no horizontal page scroll outside the table; the table position kept when the
      side panel opens and closes; the wheel reaches the lower sections from over the table.
    - A JS edit needs a browser reload; a Streamlit rerun does not reload the iframe.
+
+---
+
+## 12. Revision 3: simplification
+
+Status: agreed 2026-09-30, ready to build. It serves two requests made after the first build:
+"I want to simplify it a bit i rlly like the drivers and risk section, i feel like the valuation
+bridge bit shld be in the forecaasts tab", and "maybe linking the catalysts as well to the drivers
+and risks bit and also indication competition and share of pool etc". The lead's decisions R3.1
+to R3.7 (`scratchpad/comps_brief_followup.md`) are turned into contracts here. **Where this
+section and sections 0 to 11 disagree, this section holds.** Superseded passages carry a one-line
+pointer to the subsection that replaces them.
+
+Figures quoted: the 2026-09-29 22:33 backup, with `today = 2026-09-29` (prices to the 2026-09-28
+close). The context examples were produced by a reference prototype, not the implementation:
+`scratchpad/arch3/ref_comps_context.py`, whose full outputs are `scratchpad/arch3/context_AZN.json`,
+`context_LLY.json`, `context_NVO.json`, `context_AMGN.json`, `context_VRTX.json`,
+`context_VKTX.json`, `context_BAYN.json` and `context_CRSP.json`. The peer set and flag counts
+come from `core.js` run on a payload built from the same backup (`scratchpad/arch3/bk_val.json`,
+`sim.mjs`, `sim2.mjs`). `scratchpad/` is the session scratchpad,
+`/private/tmp/claude-501/-Users-charleswoodfine-Documents-WORK-Projects-ER-Tool--claude-worktrees-reverent-borg-5f3beb/6d18b4ba-ea38-4b11-8d77-43ead66a9954/scratchpad`.
+
+### 12.0 What changes
+
+| Decision | Change | Where |
+|---|---|---|
+| R3.1 | `#main` holds four things in one order at every width: Drivers and risks, the chart strip, the table, a one-line footer. The chart rail, the lower sections and the lower tab strip go. | 12.1 |
+| R3.2 | Drivers and risks gains two evidence groups, "Catalysts ahead" and "Competition by indication", fed by a new per-company endpoint. | 12.2, 12.3, 12.4 |
+| R3.3 | The valuation bridge leaves Comps. The Forecast tab draws it with the same component in `mode="bridge"`. KPI 6 stays and links there. | 12.5 |
+| R3.4 | Peer selection is a drawer. Notes and data sources become the footer plus a first section of the methodology drawer. | 12.6 |
+| R3.5 | One "Basis" menu replaces the data state and currency select and the earnings control. | 12.6 |
+| R3.6 | Table toolbar: three controls. Presets hold nine columns. A `!` shows only where a flag bears on the value. | 12.7 |
+| R3.7 | A cohort of 20 or fewer other companies is the default peer set, whole. | 12.8 |
+
+New constants in `core.js`:
+
+```js
+export const CATALYST_MIN_PCT = 0.05;        // stake, or an unapproved asset's modelled value, as a share of price
+export const POOL_KEEP_MAX = 0.90;           // a company keeping at most this share of its own forecasts is rationed
+export const POOL_LEAD_MIN_SHARE = 0.25;     // largest share of the modelled starts, and at least this
+export const POOL_LEAD_MIN_COMPANIES = 3;
+export const COMPETITION_MIN_PCT = 0.02;     // the company's modelled value in the indication, share of price
+export const INSIGHT_ROWS = 5;               // rows an evidence group shows before "Show {n} more"
+export const WHOLE_COHORT_MAX = 20;          // R3.7
+export const MAX_PRESET_COLUMNS = 9;         // R3.6
+export const REGULATORY_KINDS = ["PDUFA", "regulatory decision", "AdCom", "EMA decision"];
+export const LATE_PHASES = ["Phase 3", "Phase 2/3"];
+export const CONTEXT_SCHEMA = 1;
+export const GOTO_KEY = "er.compsval.goto";  // sessionStorage, 12.5
+```
+
+`LINT_ALLOW` gains `PoS`, `PDUFA`, `EMA` and `Catalysts`.
+
+### 12.1 Page structure and layout (R3.1)
+
+**Tree.** Replaces the `#main` part of 1.1.
+
+```
+#app                                                    shell.js
+  header band (unchanged: context bar, banner, KPI strip, scope line)
+  #main (the one page-level scroll container), children in this order at every width
+    .sh-obs      Drivers and risks                      panels.js  mountObservations
+    .sh-charts   chart strip: Position | Valuation and growth      charts.js  mountCharts
+    .sh-table    toolbar and table box                  table.js   mountTable
+    .sh-foot     Sources and method, one line           shell.js
+  right-side surfaces, fixed inside the frame from --band-h to the bottom, one open at a time
+    .sh-detail   company side panel, 440 px             panels.js  mountDetail
+    .sh-peers    peer drawer                            panels.js  mountPeerPanel
+    .sh-method   methodology drawer, 520 px             panels.js  mountMethod
+  overlays (unchanged)
+```
+
+Gone from `#main`: `.sh-lower`, `.sh-lowertabs`, the bridge section and its two slots, the peer
+section, the notes section, the chart rail of `wide` and the three-column grid of `ultrawide`.
+`MOUNTS` in full mode is `table`, `charts`, `obs`, `peers`, `method`, `detail`. Gaps in `#main`:
+8 px between blocks, 16 px side gutter.
+
+`layoutFor(width)` keeps its four values. `ultrawide` arranges exactly as `wide`; only the table
+widths of 4.1 still differ.
+
+| Layout | Frame width | Drivers and risks | Chart strip | Table | Right-side surfaces |
+|---|---|---|---|---|---|
+| `wide`, `ultrawide` | 1700 px and over | Two rows, column gap 16, row gap 12. Row 1, `grid-template-columns: 1fr 1fr`: premium drivers, discount drivers. Row 2, `minmax(0, 0.85fr) minmax(0, 1.15fr)`: Catalysts ahead, Competition by indication. | Strip at every width (no rail). Header 28 px with the two tabs "Position" (default) and "Valuation and growth", the metric switcher, the "Primary" tag and the collapse chevron. Position: 120 px for one lane, plus 56 per extra cohort lane. Valuation and growth: 320 px. | Full width. Toolbar 32, table box `max-height: var(--main-h)`. All five summary rows. | Drawers: detail 440, peers `min(760px, 100% − 56px)`, method 520. |
+| `laptop` | 1100 to 1699 px | The same two rows. | The same strip. Valuation and growth: 260 px. | Full width. Median and n rows by default (4.6). | The same widths. |
+| `narrow` | under 1100 px, including the 800 px pane | One column: premium drivers, then discount drivers (side by side while the frame is 720 px or wider, stacked below that), then a two-tab strip "Catalysts ahead" and "Competition" (28 px) showing one group. | The same strip, 220 px. | Frozen columns and horizontal scroll (4.1). | Full-width overlays over `#main`. |
+
+The tab state of the chart strip is `ui.narrowTab` at `narrow` and `ui.laptopTab` at every other
+layout; `chartStrip[layout]` keeps the collapse state. `charts.js` drops `buildRail`.
+
+**Heights of Drivers and risks** (`.pn-obs`, no inner scroll, no max-height):
+
+| Part | Height, px |
+|---|---|
+| Title row: "Drivers and risks", the chip "Observations, not conclusions" | 32 |
+| A side list: heading 24, then one item per observation. An item is one line (36) when its sentence fits, two lines (54) otherwise | 24 + 36 to 54 per item |
+| Row gap | 12 |
+| An evidence group: heading row 22 (title, count, column labels), 5 rows of 28, a link row 24 | 186 |
+| Padding below | 12 |
+
+At most five metric-linked items show per side, then "Show {n} more" (24 px); items drawn from
+catalysts and competition always show (12.3).
+
+**First screen at 1440 × 810** (frame about 1380 × 585, `laptop`, `short`: band 194, `#main`
+391). Each column of row 1 is 666 px, so most sentences take two lines. AZN on this book has two
+metric-linked premium items, plus the model's pipeline value once the model reads are warm, and
+three discount items (two metric-linked and the obesity pool, 12.3): row 1 is 24 + 3 × 54 = 186.
+The section is 32 + 186 + 12 + 186 + 12 = 428 px. The first screen therefore shows the
+conclusion, the six key figures, the Drivers and risks title, both side lists whole, and the
+heading and first four rows of both evidence groups. The chart strip starts 45 px below the
+fold; the table starts at 428 + 8 + 148 + 8 = 592 px.
+
+**1920 × 1080** (frame about 1860 × 735, `wide`, `tall`: band 254, `#main` 481). The columns of
+row 1 are 906 px, sentences take one line: row 1 is 24 + 3 × 36 = 132, the section 374 px. The first
+screen shows all of Drivers and risks and the chart strip's header and first 71 px.
+
+**800 px pane** (`narrow`): band about 296 (two context rows 72, banner up to 104, gap 8, KPI
+grid 88, scope line 24). With the 560 px floor `#main` has at least 264 px: the title, both side
+headings and the first two items of each side.
+
+The toolbar's "Below the table" menu goes (nothing is below the table but the footer). The
+palette's "Go to section" entries become "Drivers and risks", "Peer position" and "Comparable
+companies"; `scrollToSection` takes `"obs" | "charts" | "table"`. "Open drivers and risks" in the
+"Why?" popover scrolls `#main` to the top and focuses the section title.
+
+Tab order (replaces the table of 7.4) after the scope line, every layout: Drivers and risks
+links (premium, discount, catalyst rows, competition rows, their "Show more" and tab links) →
+chart strip tabs and collapse → switcher and dot plot, or scatter controls and scatter → table
+toolbar → table → footer button → the open right-side surface.
+
+### 12.2 Focal context endpoint: `GET /companies/{ticker}/comps-context`
+
+Built by a new module, `backend/comps_context.py`. One company per call: the dated catalysts of
+the next 12 months and the competition in the company's most valuable indications. The 2.1
+conventions apply (strict JSON, decimals for shares, USD per US-listed share, ISO dates, every
+null with a reason, Python 3.9).
+
+```python
+def build(ticker, db_path=None, today=None, verdict_for=None, stakes_for=None)   # -> dict or None
+```
+
+`None` for an unknown ticker (the route answers 404). `verdict_for(ticker)` and
+`stakes_for(ticker)` default to `response_cache.cached_json("/companies/{t}/forecast-verdict")`
+and `response_cache.cached_json("/companies/{t}/catalysts/stakes")`; tests inject them.
+
+#### Top level (AZN, real values)
+
+```json
+{
+  "schema": 1,
+  "ticker": "AZN",
+  "generated_at": "2026-09-29T22:41:07Z",
+  "today": "2026-09-29",
+  "window": {"from": "2026-09-29", "to": "2027-09-29"},
+  "complete": true,
+  "incomplete_reason": null,
+  "price": {"close": 166.149994, "as_of": "2026-09-28"},
+  "model": {"state": "modelled", "assets": 54},
+  "catalysts": {
+    "total": 36, "sent": 36,
+    "counts": {"with_asset": 36, "with_indication": 28, "with_stake": 0, "with_asset_value": 27, "curated": 0},
+    "items": []
+  },
+  "competition": {
+    "covered": true, "reason": null, "ranked_by": "model_value",
+    "total": 58, "valued": 19,
+    "indications": []
+  }
+}
+```
+
+LLY on the same book: price 1184.78, 34 modelled assets, 33 catalysts (30 with an indication,
+29 with an asset value, none with a stake), 74 indication groups of which 22 carry value.
+
+- `price`: the latest `prices.close` with `interval = '1d'` dated on or before `today`, the rule
+  behind `market.price` of 2.3. Null with no price (`na` reason `no_price` on every share of
+  price).
+- `model.state`: `"modelled"` (the cached verdict is ok and has lines), `"not_modelled"` (no
+  asset the company owns or partners carries assumptions), `"not_computed"` (a book exists and
+  the verdict is not in the response cache) or `"failed"` (the verdict is not ok). `assets` is
+  the count of verdict `modelled` lines with a `per_share`.
+- `complete` is false, with `incomplete_reason: "model_not_computed"`, only for `"not_computed"`.
+  The route then answers with `x-cache-skip: 1`, exactly as `/comps/valuation` does.
+
+#### Catalysts
+
+Rows of `catalysts` with `company_id` the company, `status = 'pending'` and
+`today ≤ expected_date ≤ today + 365 days`, compared as strings, ordered by `expected_date, id`.
+This is the rule of `screen._catalysts_12m` with `today` injected, so `catalysts.total` equals
+the table's `catalysts_12m` column on the same day. At most 60 are sent (`sent`).
+
+```json
+{
+  "id": 1109,
+  "date": "2027-06-04", "date_precision": "day", "date_confidence": "estimated",
+  "kind": "data readout", "regulatory": false, "phase": "Phase 3",
+  "asset": {"id": 1744, "name": "Elecoglipron", "is_marketed": false},
+  "indication": {"id": 367, "name": "Obesity"},
+  "title": "Phase 3, A Study to Investigate the Efficacy and Safety of Elecoglipron in Asian Participants With Obesity or Overweight With or Without Type 2 Diabetes Mellitus",
+  "nct_id": "NCT07775404",
+  "source_url": "https://clinicaltrials.gov/study/NCT07775404",
+  "is_curated": false,
+  "stake": null,
+  "asset_value": {"per_share": 4.727080, "pct_of_price": 0.028451, "pos": 0.5537, "counted": true},
+  "na": {"stake": "no_outcome_legs"}
+}
+```
+
+| Field | Rule |
+|---|---|
+| `date`, `date_confidence` | `expected_date` and `date_confidence` as stored (`estimated`, `month`, `confirmed`, `stated`; the schema also allows `quarter` and `half`). |
+| `date_precision` | `"quarter"` or `"half"` when the confidence says so; else `"month"` for a `YYYY-MM` date, `"day"` for a full date. |
+| `kind`, `regulatory` | `catalyst_type` as stored; `regulatory` is true for PDUFA, regulatory decision, AdCom and EMA decision. |
+| `nct_id` | The first `NCT` followed by eight digits in `source_url`, else null. |
+| `asset` | `catalysts.asset_id`, else the `asset_id` of the `trials` row for `nct_id`. Name is `COALESCE(brand_name, generic_name, internal_code)`. Null with `na.asset = "no_asset"`. |
+| `phase` | The trial row's `phase`, else the leading "Phase n" of the title, else null. |
+| `indication` | The indication of `asset_indication_id` when set; else the first descriptor of `indication_mapping.indications_for(conditions, parse_browse(mesh_terms))` for the trial that has an `indications` row by `mesh_id`. Null with `na.indication = "no_indication_link"`. |
+| `stake` | Only from the `priced` list of `/companies/{t}/catalysts/stakes`, matched on catalyst id: `{per_share, pct_of_price, pos_now, pos_success, pos_failure, economics_share}`, `pct_of_price = abs(per_share) / price.close`. Nothing is derived for the rest: null with `na.stake` one of `no_asset`, `no_price`, `not_modelled` (the asset has no modelled line), `no_outcome_legs` (no `pos_success` and `pos_failure` rows), `not_in_stakes` (the asset has both legs, and the catalyst row carries no asset id, so the stake engine does not read it). |
+| `asset_value` | The verdict's modelled line for the asset: `{per_share, pct_of_price, pos, counted}`. It is the risk-adjusted value of the whole asset, all indications, and is not a stake. Null with `na.asset_value` `no_asset`, `no_price` or `not_modelled` (`model_not_computed` while the verdict is missing). |
+
+The shape of `stake`, with the one priced catalyst the book holds (CRSP, Casgevy, Phase 3 readout
+estimated 2027-11-14, which falls outside the window today, so no company has a stake inside 12
+months on this book):
+
+```json
+"stake": {"per_share": 4.204132, "pct_of_price": 0.077725, "pos_now": 0.8075,
+          "pos_success": 0.95, "pos_failure": 0.4, "economics_share": 0.4}
+```
+
+LLY's first item: `{"id": 7, "date": "2026-10", "date_precision": "month", "date_confidence":
+"month", "kind": "data readout", "phase": "Phase 3", "asset": {"id": 1492, "name":
+"Retatrutide", "is_marketed": false}, "indication": {"id": 1, "name": "Diabetes Mellitus, Type
+2"}, "stake": null, "asset_value": {"per_share": 33.777736, "pct_of_price": 0.028510, "pos":
+0.875, "counted": true}, "na": {"stake": "no_outcome_legs"}}`. VKTX's VK2735 readout (estimated
+2027-07-01) carries `asset_value` 24.090413 a share, 0.729349 of a 33.03 price, PoS 0.557. CRSP
+has no catalyst in the window (`total: 0`).
+
+#### Competition
+
+Covered only where the landscape and the pool model reach: the company's id is in
+`landscape._big_pharma_ids(conn)` (the pharma engine, 18 companies, VRTX among them). Otherwise
+
+```json
+"competition": {"covered": false, "reason": "not_big_pharma", "ranked_by": null,
+                "total": 0, "valued": 0, "indications": []}
+```
+
+`reason` is `"no_indications"` for a big pharma company that appears in no entry of
+`landscape.indications()`.
+
+Steps for a covered company:
+
+1. **The company's indications.** Entries of `landscape.indications(db_path)` whose `tickers`
+   hold the company, grouped by `pool_crowding.group_of`, so one population written under
+   several names is one row ("Obesity" stands for Obesity, Overweight, Weight Loss and Obesity,
+   Morbid). The row's indication is the group's most contested entry (companies, then assets,
+   then lowest id); its `members` are `landscape._members`. `total` counts groups.
+2. **Value attribution.** The model values assets, not asset-indication pairs. A modelled
+   asset is a verdict `modelled` line with a `per_share` and `counted` true (all of AZN's 54 and
+   LLY's 34 are). Its `per_share` counts in every group the model sizes it in (an `assumptions` row with
+   that `indication_id`); an asset the model sizes nowhere (a marketed product valued off
+   reported revenue) counts in its lead indication: the `asset_indications` row with
+   `is_lead = 1` of the asset, else of its `molecule_id`. An asset with neither counts nowhere.
+   AZN: 35 of 54 lines land in a listed group, $70.71 of $102.89 a share. LLY: 31 of 34,
+   $341.73 of $347.18.
+3. **Ranking.** Groups by attributed value, largest first (`ranked_by: "model_value"`); ties by
+   companies, assets, name. `valued` counts groups with value. With no modelled line
+   (`not_modelled`, `not_computed`), `ranked_by` is `"contest"`: the landscape's own order, and
+   every `value` is null with its reason. The first five groups are returned.
+4. **Detail for the five.** `landscape.candidates`, `_pharmacology`, `on_label` and
+   `compound_groups`, so one compound is one row and the counts are the landscape's own:
+   `own.n + rivals.n` equals `coverage.candidates` of `GET /indications/{id}/landscape`. Stage
+   buckets follow the landscape's stage text: `marketed` (marketed and on label here, or with no
+   phase here), `phase3` (Phase 3 and Phase 2/3, including a drug sold for something else and
+   trialled here), `phase2`, `other`.
+5. **Pool.** `landscape._pool(conn, members)` and `pool_crowding.claimants`. Shares are stated
+   only where a standing pool is shared:
+
+   | Condition | Result |
+   |---|---|
+   | no claimant draws on the population | `pool: null`, `na.pool = "no_pool"` |
+   | fewer than two pooled claimants | `crowding: null`, `na.crowding = "single_claimant"` |
+   | pool size 0 (the model sizes the disease by each year's new patients, as for every cancer line) | `na.crowding = "flow_pool"` |
+   | `uncrowded_share` over 1 (the claims exceed the stated population) | `na.crowding = "claims_exceed_pool"` |
+   | `uncrowded_share` under 0.01 | `na.crowding = "share_under_1pct"` |
+   | otherwise | `crowding = {uncrowded_share, crowded_share, kept, peak_year}`, `kept = crowded_share / uncrowded_share` |
+
+   `company_pool` is stated with `crowding` when the company has a pooled claimant (else
+   `na.company_pool = "no_claimant"`). Over pooled claimants only, each at its own peak year:
+   `keeps` = the company's crowded peak starts over its uncrowded peak starts; `share_of_claims`
+   = the company's crowded peak starts over all pooled claimants' (the shares of all companies
+   sum to 1); `share_of_pool` = the company's crowded peak starts over `pool.patients`; `rank`
+   among `of_companies` by `share_of_claims`; `leader`. Claimants are assets with a patient-based
+   model, so marketed products valued off reported revenue are not in the pool figures.
+
+AZN, row 4, in full:
+
+```json
+{
+  "indication": {"id": 367, "name": "Obesity",
+                 "members": ["Obesity", "Overweight", "Weight Loss", "Obesity, Morbid"]},
+  "value": {"per_share": 8.522363, "pct_of_price": 0.051293, "assets": 2},
+  "own": {"n": 3, "by_stage": {"marketed": 0, "phase3": 2, "phase2": 1, "other": 0},
+          "candidates": [
+            {"name": "Elecoglipron", "stage": "phase3", "phase_here": "Phase 3", "is_marketed": false,
+             "asset_ids": [1744], "per_share": 4.727080, "attributed": true},
+            {"name": "AZD6234", "stage": "phase3", "phase_here": "Phase 3", "is_marketed": false,
+             "asset_ids": [1733], "per_share": 3.795283, "attributed": true},
+            {"name": "Pramlintide", "stage": "phase2", "phase_here": "Phase 2", "is_marketed": true,
+             "asset_ids": [524], "per_share": null, "attributed": false}],
+          "more": 0},
+  "rivals": {"n": 29, "companies": 8, "by_stage": {"marketed": 4, "phase3": 12, "phase2": 13, "other": 0}},
+  "pool": {"patients": 107592242.0, "claimants": 19, "pooled_claimants": 19, "companies": 9},
+  "crowding": {"uncrowded_share": 0.577292, "crowded_share": 0.420267, "kept": 0.727997, "peak_year": 2054},
+  "company_pool": {"claimants": 2, "keeps": 0.726830, "share_of_claims": 0.119065, "share_of_pool": 0.050039,
+                   "rank": 4, "of_companies": 9, "leader": {"ticker": "NVO", "share_of_claims": 0.257987}},
+  "na": {}
+}
+```
+
+`own.candidates` holds at most five, by attributed value then stage then name; `more` counts the
+rest. A candidate's `per_share` sums its compound's attributed assets and is null, with
+`attributed: false`, when none is attributed here.
+
+The five rows, AZN and LLY:
+
+| Company | Indication (id) | Value, $ a share | Of price | Own: marketed / Phase 3 / Phase 2 / other | Rivals (companies): same split | Pool | Company in the pool |
+|---|---|---|---|---|---|---|---|
+| AZN | Carcinoma, Non-Small-Cell Lung (20) | 21.33 | 12.8% | 13: 6 / 6 / 1 / 0 | 78 (14): 26 / 34 / 18 / 0 | 15 claimants, `flow_pool` | null |
+| AZN | Breast Neoplasms (371) | 14.32 | 8.6% | 11: 8 / 2 / 0 / 1 | 60 (13): 21 / 21 / 16 / 2 | 48,000 patients, `claims_exceed_pool` | null |
+| AZN | Asthma (75) | 9.84 | 5.9% | 10: 6 / 0 / 3 / 1 | 22 (8): 7 / 8 / 4 / 3 | 644,112 patients, 2 claimants, 4.7% claimed, 4.6% supplied, 2052 | `no_claimant` |
+| AZN | Obesity (367) | 8.52 | 5.1% | 3: 0 / 2 / 1 / 0 | 29 (8): 4 / 12 / 13 / 0 | 107.6m patients, 19 claimants from 9 companies, 57.7% claimed, 42.0% supplied, 2054 | 2 claimants keep 72.7%; 11.9% of claims, 4th of 9; leader NVO 25.8% |
+| AZN | Pulmonary Disease, Chronic Obstructive (122) | 6.83 | 4.1% | 9: 4 / 3 / 1 / 1 | 22 (8): 6 / 7 / 3 / 6 | 7 claimants, `flow_pool` | null |
+| LLY | Obesity (367) | 294.31 | 24.8% | 9: 2 / 3 / 4 / 0 | 23 (8): 2 / 11 / 10 / 0 | as above | 4 claimants keep 73.3%; 23.2% of claims, 2nd of 9; leader NVO 25.8% |
+| LLY | Breast Neoplasms (371) | 14.83 | 1.3% | 3: 2 / 1 / 0 / 0 | 68 (13): 27 / 22 / 16 / 3 | `claims_exceed_pool` | null |
+| LLY | Alzheimer Disease (36) | 7.41 | 0.6% | 2: 1 / 1 / 0 / 0 | 16 (9): 1 / 4 / 11 / 0 | 2.2m patients, 8 claimants (7 pooled, 5 companies), 17.7% claimed, 16.8% supplied, 2057 | `no_claimant` |
+| LLY | Arthritis, Juvenile (43) | 6.66 | 0.6% | 2: 0 / 2 / 0 / 0 | 15 (8): 9 / 6 / 0 / 0 | `no_pool` | null |
+| LLY | Leukemia, Lymphocytic, Chronic, B-Cell (2) | 5.14 | 0.4% | 1: 1 / 0 / 0 / 0 | 9 (6): 2 / 4 / 2 / 1 | `single_claimant` | null |
+
+The book's lead flags decide two of these rows and are shown as the book holds them: Mounjaro's
+lead indication is Obesity, so tirzepatide's $218.63 (both brands) sits in LLY's obesity row, and
+Taltz's is Arthritis, Juvenile. A company with no model (BAYN) is ranked by contest: Heart
+Failure first, every `value` null with `na.value = "not_modelled"`.
+
+Reason codes of this payload, worded by `core.CONTEXT_NA_TEXT` (12.3): `no_asset`, `no_price`,
+`not_modelled`, `model_not_computed`, `no_outcome_legs`, `not_in_stakes`, `no_indication_link`,
+`no_attributed_asset`, `no_pool`, `single_claimant`, `flow_pool`, `claims_exceed_pool`,
+`share_under_1pct`, `no_claimant`, `not_big_pharma`, `no_indications`.
+
+#### Performance and cache
+
+| Path | Budget | Measured (reference prototype, backup book) |
+|---|---|---|
+| Response cache hit | under 20 ms | not measured here (a stored body) |
+| Built with the group memo warm | under 300 ms | AZN 9 ms, LLY 8 to 24 ms, VRTX 4 ms |
+| Built cold | under 3 s | AZN 1.6 to 2.0 s, VRTX 1.0 s, LLY 0.6 s after AZN, CRSP under 10 ms |
+| Body | under 60 KB | AZN 29.7 KB, LLY 26.9 KB, CRSP 0.6 KB |
+
+What keeps it there:
+
+- **No cold book.** The verdict comes only from `response_cache.cached_json`, as the model block
+  of 2.8 does. The module never calls `forecast_view.company_verdict`,
+  `landscape.landscape` or `landscape._model_lines`: the first costs 2.4 s for AZN alone and
+  the landscape's own path costs 27 s for lung cancer's thirteen companies. Only the focal
+  company's verdict is needed, because rivals are counted, not valued.
+- **Stakes.** `cached_json` of the stakes read when present. Otherwise
+  `forecast_view.catalyst_stakes` is called only when an in-window catalyst of the company
+  names an asset carrying both `pos_success` and `pos_failure` (one SQL check; true for no big
+  pharma company on this book), since that is the only case in which it prices anything.
+- **Group memo.** The trial scan inside `landscape.candidates` is the cost: 0.17 to 0.55 s a
+  group. Step 4 and step 5 are memoised per group in a module dict keyed
+  `(response_cache.stamp(), group_key)`, at most 256 entries, cleared when the stamp moves,
+  written under a lock.
+  Obesity, lung and breast are shared by most of the 18, so warming them all costs far less than
+  18 cold builds.
+- **Ranking is cheap.** Steps 1 to 3 are one call to `landscape.indications` (5 ms once
+  `_big_pharma_ids` is memoised, 0.13 s before), two queries and one `_members` query a group:
+  under 40 ms for AZN's 58 groups.
+- **Registration.** `response_cache.COMPANY_READS` gains `"/companies/{t}/comps-context"` as its
+  **last** entry, so each company's verdict is warm before its context is built. The route sets
+  `x-cache-skip: 1` on an incomplete body. Nothing else in the cache changes.
+
+Route in `main.py`: `@app.get("/companies/{ticker}/comps-context")`, 404 for an unknown ticker,
+`JSONResponse` with the skip header when `complete` is false.
+
+### 12.3 The `context` arg and `view.insight`
+
+**Python to frame.** The wrapper gains `context` and `mode` (12.5, 12.9). In full mode Python
+reads `GET /companies/{ticker}/comps-context` for the app-wide company and passes the body; when
+the read fails it passes `{"ticker": T, "error": "{message}"}`. The frame also receives
+`context_digest` (twelve hex characters, as for the payload).
+
+**Frame.** `shell.js` keeps the contexts it has received in a `Map` keyed by ticker (at most 12,
+oldest dropped) and calls `core.deriveView(payload, state, {context, mode})` with the entry for
+`state.focal`, or null. The view is rebuilt when the digest changes. A focal change made inside
+the frame re-renders at once from client data: the conclusion, the key figures, the table and
+the metric-linked observations are for the new company, the two evidence groups show the pending
+state (or the cached context of a company seen before), and the context of the previous company
+is never shown. The round trip of 7.5 then delivers the new one.
+
+`insight.state`: `"pending"` when the context is null or `context.ticker !== state.focal`;
+`"error"` when it carries `error` or `context.schema !== CONTEXT_SCHEMA`; else `"ok"`.
+
+```ts
+view.insight = {
+  ticker: string, state: "ok" | "pending" | "error", message: StateMsg | null,
+  valuation: {premium: InsightItem[], discount: InsightItem[], notAssessed: string[]},
+  catalysts: {state: "ok" | "empty" | "pending" | "error",
+              title: "Catalysts ahead", countText: string,      // "36 in 12 months, 24 assets"
+              rows: CatalystRow[], note: string, empty: StateMsg | null,
+              link: Link, linkLabel: "Open the Catalysts tab"},
+  competition: {state: "ok" | "empty" | "not_covered" | "pending" | "error",
+                title: "Competition by indication", countText: string,   // "5 of 19 valued indications"
+                rows: CompetitionRow[], note: string, empty: StateMsg | null,
+                link: Link | null, linkLabel: "Open Comps, Indications"}
+}
+InsightItem = {id: string, kind: "metric" | "catalyst" | "competition", side: "premium" | "discount",
+               text: string, tag: string, strength: number, severity: "info" | "amber" | "red",
+               provenance: "C" | "M", twoSided: boolean, chips: Chip[], link: Link, linkLabel: string}
+Link = {kind: "column", colId: string}
+     | {kind: "tab", tab: "Catalysts" | "Forecast"}
+     | {kind: "indication", indicationId: number, name: string}
+CatalystRow = {id: string,                       // "cat-{catalyst id of the event shown}"
+               assetId: number | null, tier: 0 | 1 | 2 | 3 | 4,
+               dateIso: string, dateShort: string, dateText: string, estimated: boolean,
+               label: string, indicationText: string | null, moreText: string | null,
+               modelText: string | null, modelKind: "stake" | "asset_value" | null, naText: string | null,
+               side: "discount" | null, chips: Chip[], link: Link, sourceUrl: string | null,
+               tooltip: string[]}
+CompetitionRow = {id: string,                    // "ind-{indication id}"
+                  indicationId: number, name: string, storedName: string,
+                  valueText: string | null, valueNa: string | null,     // "$8.52 · 5.1%"
+                  own: StageCounts, rivals: StageCounts & {companies: number},
+                  ownText: string, rivalsText: string,
+                  poolText: string | null, poolNa: string | null,       // "58% → 42%"
+                  shareText: string | null, shareNa: string | null,     // "12%, 4th of 9"
+                  side: "premium" | "discount" | "both" | null,
+                  provenance: "M" | "S", link: Link, tooltip: string[]}
+StageCounts = {n: number, marketed: number, phase3: number, phase2: number, other: number}
+```
+
+`view.observations` (3.10) is unchanged and still feeds the banner's support, "Look next" and
+"Why?". `view.insight.valuation` is what the panel draws: the 3.10 observations as `InsightItem`
+(`kind: "metric"`, `text` = `long`, `link = {kind: "column", colId}`, `linkLabel` = the column
+label, chip "Model output" for provenance M), followed by the items the context supports. Items
+from catalysts and competition never enter `support`, `supportShort` or `lookNext`.
+`view.insight` is null in bridge mode.
+
+**Order in a side list.** Metric items by strength, at most five shown; then the catalyst item;
+then competition items in row order. Context items are always shown.
+
+#### Rules that put a context fact on a side
+
+A fact takes a side only under one of four rules. Everything else is evidence in its group with
+no side. A catalyst is two-sided and says so.
+
+| id | Side | Fires when | `tag` |
+|---|---|---|---|
+| `catalyst_stake` | discount, `twoSided` | the largest `stake.pct_of_price` among the items is `CATALYST_MIN_PCT` or more | "binary catalyst in 12 months (model)" |
+| `catalyst_value` | discount, `twoSided` | `catalyst_stake` did not fire; among items that are regulatory or a readout in a late phase, on an asset that is not marketed and whose `asset_value.counted` is true, the largest `asset_value.pct_of_price` is `CATALYST_MIN_PCT` or more. The asset's earliest such event is the one named | "pipeline value on one event (model)" |
+| `pool_rationed:{indicationId}` | discount | the row has `crowding` and `company_pool`, `company_pool.keeps ≤ POOL_KEEP_MAX` and `value.pct_of_price ≥ COMPETITION_MIN_PCT` | "shared patient pool (model)" |
+| `pool_lead:{indicationId}` | premium | the row has `crowding` and `company_pool`, `rank === 1`, `of_companies ≥ POOL_LEAD_MIN_COMPANIES`, `share_of_claims ≥ POOL_LEAD_MIN_SHARE` and `value.pct_of_price ≥ COMPETITION_MIN_PCT` | "largest share of a shared pool (model)" |
+
+All four carry provenance M, severity `amber` on the discount side and `info` on the premium
+side, and strength 50. One row can yield both pool items (`side: "both"` on the row). When a
+catalyst rule fires, the 3.10 observation `binary_catalysts` is left out of
+`insight.valuation.discount` (it stays in `view.observations`): the specific statement replaces
+the count.
+
+Sentences (`text`). Share of price with one decimal, pool shares as whole percents, money as
+`$` and two decimals, patients as "107.6m" from a million, "644k" from a thousand.
+
+| id | Template | Real instance |
+|---|---|---|
+| `catalyst_stake` | "{pct} of the price, {ps} a share, separates success from failure at the {asset} {event} due {date}. The outcome can move the value either way. Model output." | none inside 12 months on this book. CRSP's Casgevy readout would read "7.8% of the price, $4.20 a share, separates success from failure at the Casgevy Phase 3 readout due around 14 Nov 2027. …" were it in the window |
+| `catalyst_value` | "{pct} of the price, {ps} a share, is the risk-adjusted value the model carries for {asset}, whose {event} is due {date}. The outcome can move it either way. Model output." | VKTX: "72.9% of the price, $24.09 a share, is the risk-adjusted value the model carries for VK2735, whose Phase 3 readout is due around 1 Jul 2027. The outcome can move it either way. Model output." AMGN fires at 5.4% (Maridebart Cafraglutide, around 21 Jan 2027). AZN (Elecoglipron, 2.8%) and LLY (Retatrutide, 2.9%) do not |
+| `pool_rationed` | "{keeps} of their own forecast is what {T}'s {k} modelled {indication} {candidate \| candidates} keep once {n} modelled drugs share one pool of {patients} patients. Model output." | AZN: "73% of their own forecast is what AZN's 2 modelled obesity candidates keep once 19 modelled drugs share one pool of 107.6m patients. Model output." LLY: the same with "LLY's 4" |
+| `pool_lead` | "{share} of the patients the modelled drugs start in {indication} go to {T}'s {k} {candidate \| candidates}, the largest share of {c} companies. Model output." | NVO: "26% of the patients the modelled drugs start in obesity go to NVO's 4 candidates, the largest share of 9 companies. Model output." LLY holds 23%, second, so it does not fire |
+
+Links, one per item. Metric items: the table column (`{kind: "column", colId}`). Catalyst
+items and catalyst rows: the Catalysts tab (`{kind: "tab", tab: "Catalysts"}`, `linkLabel`
+"Catalysts tab"). Pool items and competition rows: Comps, Indications with the indication
+selected (`{kind: "indication", indicationId, name}`, `linkLabel` "{indication title},
+landscape"). The Forecast tab is reached from KPI 6, the palette command `forecast.open` and the
+side panel's "Open in Forecast tab" (12.5). Chips: "Model output" on all four context rules;
+"Two-sided" on the two catalyst items.
+
+`indicationTitle(name)`: the stored MeSH name with its comma-separated parts reversed, lower
+case, first letter capital ("Carcinoma, Non-Small-Cell Lung" → "Non-small-cell lung carcinoma",
+"Pulmonary Disease, Chronic Obstructive" → "Chronic obstructive pulmonary disease").
+`indicationProse(name)` is the same without the capital ("obesity"). The stored name is in the
+row tooltip.
+
+#### Catalysts ahead: rows
+
+One row per asset (events with no asset are their own rows). A row shows its asset's
+best-ranked event; `moreText` counts the rest ("and 3 more for this asset").
+
+| Tier | An event is in it when | Order inside |
+|---|---|---|
+| 0 | it has a `stake` | `stake.pct_of_price` descending |
+| 1 | it is regulatory | date |
+| 2 | a late-phase readout on an asset that is not marketed and has an `asset_value` | `asset_value.pct_of_price` descending |
+| 3 | any other late-phase readout | date |
+| 4 | the rest | date |
+
+Rows sort by tier, then the order inside, then catalyst id. The panel shows `INSIGHT_ROWS`, then
+"Show {n} more". `countText`: "{total} in 12 months, {rows} assets".
+
+| Field | Text |
+|---|---|
+| `label` | "{asset}: {event}". Event: "{phase} readout" for a data readout with a phase, "data readout" without; "PDUFA date"; "advisory committee"; "regulatory decision"; "EMA decision"; otherwise the stored type in lower case. No asset: the title cut at 60 characters. |
+| `dateShort` | "4 Jun 2027" for a day, "Oct 2026" for a month, "Q4 2026", "H1 2027". `estimated` is true unless the confidence is `confirmed` or `stated`; the cell then adds a muted "est." |
+| `dateText` (prose) | "on 1 Feb 2027" (confirmed or stated), "around 4 Jun 2027" (any other day), "in Oct 2026", "in Q4 2026", "in H1 2027" |
+| `indicationText` | `indicationTitle` of the indication, or null |
+| `modelText` | stake: "at stake $4.20 a share, 7.8% of price". Asset value of an asset that is not marketed: "$4.73 a share, 2.8% of price, PoS 55%". Otherwise null |
+| `naText` | for a marketed asset: "Marketed product. The model states no value for this readout." Otherwise `CONTEXT_NA_TEXT[na.stake]` |
+| `chips` | "Two-sided" (neutral) on every row; "Model output" when `modelText` is set; "Derived, estimated date" (flag tone) when not curated and estimated; "Curated" (neutral) when curated |
+| `link` | `{kind: "tab", tab: "Catalysts"}` |
+| `tooltip` | the full title; "Source: {nct_id or the URL's host}"; for an estimated date "The date is the trial's estimated primary completion." |
+
+AZN's first five rows: Elecoglipron: Phase 3 readout, 4 Jun 2027 est., Obesity, "$4.73 a share,
+2.8% of price, PoS 55%"; AZD0780: Phase 3 readout, 4 Jan 2027 est., no indication, "$0.87 a
+share, 0.5% of price, PoS 56%", and 1 more; Balcinrenone/dapagliflozin: Phase 3 readout, 16 Apr
+2027 est., Heart failure; Imfinzi: Phase 3 readout, 30 Sep 2026 est., Hepatocellular carcinoma,
+marketed, and 3 more; Datroway: Phase 3 readout, 30 Sep 2026 est., Non-small-cell lung
+carcinoma, and 2 more. `countText`: "36 in 12 months, 24 assets". LLY: "33 in 12 months, 16
+assets", first row Retatrutide: Phase 3 readout, Oct 2026, Type 2 diabetes mellitus, "$33.78 a
+share, 2.9% of price, PoS 88%", and 3 more.
+
+`note`: "Dates marked est. come from trial records. A catalyst is two-sided: it can raise or
+lower the value. Value figures are model output."
+
+#### Competition by indication: rows
+
+One row per returned indication, in payload order.
+
+| Field | Text | AZN, obesity |
+|---|---|---|
+| `name` | `indicationTitle` | "Obesity" |
+| `valueText` | "${per_share} · {pct}", the company's attributed modelled value a share and its share of price; null with `valueNa` | "$8.52 · 5.1%" |
+| `ownText` | "{n} own: {marketed} marketed, {phase3} Phase 3, {phase2} Phase 2, {other} earlier", zero parts left out | "3 own: 2 Phase 3, 1 Phase 2" |
+| `rivalsText` | "{n} rivals from {companies} companies: …" in the same form | "29 rivals from 8 companies: 4 marketed, 12 Phase 3, 13 Phase 2" |
+| `poolText` | "{uncrowded} → {crowded}": the pool claimed when each drug is modelled alone, then what one pool supplies. Null with `poolNa` = the reason | "58% → 42%" |
+| `shareText` | "{share_of_claims}, {rank ordinal} of {of_companies}". Null with `shareNa` | "12%, 4th of 9" |
+| `tooltip` | the stored name and members; "{n} modelled drugs from {c} companies claim {u} of {patients} patients at the {year} peak. Counted once, the pool supplies {c}."; "{T}'s {k} keep {keeps} of their own forecasts and {share_of_pool} of the pool."; the own candidates with stage and value | |
+| `link` | `{kind: "indication", indicationId, name}` | id 367 |
+| `provenance` | M when a value, pool or share text is set, else S | M |
+
+`countText`: "{rows} of {valued} valued indications" ("5 of 19 valued indications" for AZN, "5 of
+22" for LLY); ranked by contest: "{rows} of {total} indications, by contest". Column headings:
+"Indication", "{T} value, $ a share · of price", "Own / rivals", "Pool claimed → supplied",
+"{T} share". The `link` of the group is the first row's. `note`: "Rivals are big pharma
+candidates that are marketed or in Phase 2 or later. Value counts each modelled asset in the
+indication the model sizes it in, else in its lead indication. Pool figures are model output and
+leave out marketed products valued off reported revenue."
+
+#### States and copy
+
+`core.CONTEXT_NA_TEXT`:
+
+| Code | Copy |
+|---|---|
+| `no_asset` | "The event names no asset on file." |
+| `no_price` | "No share price on file." |
+| `not_modelled` | "No modelled value for this asset." |
+| `model_not_computed` | "The model value has not been computed yet. Reload in a minute." |
+| `no_outcome_legs` | "The model holds no success and failure probabilities for this asset, so no value at stake is stated." |
+| `not_in_stakes` | "The catalyst record names no asset, so no value at stake is stated." |
+| `no_indication_link` | "No indication on file for this event." |
+| `no_attributed_asset` | "No modelled asset is counted in this indication." |
+| `no_pool` | "No modelled drug draws on a sized patient pool here." |
+| `single_claimant` | "One modelled drug draws on this pool, so nothing is shared." |
+| `flow_pool` | "The model sizes this disease by each year's new patients, so there is no standing pool to share." |
+| `claims_exceed_pool` | "The modelled claims exceed the stated population, so no share of the pool is stated." |
+| `share_under_1pct` | "The modelled drugs together claim under 1% of the pool." |
+| `no_claimant` | "{T} has no modelled drug in the shared pool." |
+
+State catalogue additions (section 8 form; `where` is the two evidence groups unless stated):
+
+| State | Trigger | Copy |
+|---|---|---|
+| Context pending | `insight.state === "pending"` | "Loading catalysts and competition for {T}" / "They arrive with the page once the company changes." Severity info, skeleton rows under it |
+| Context error | `insight.state === "error"` | "Catalysts and competition did not load" / "The API did not answer /companies/{T}/comps-context ({error}). Reload with the reload button." Severity amber. A schema mismatch uses the section 8 copy "This view is out of date" |
+| No catalysts | `catalysts.total === 0` (CRSP) | "No dated catalysts in the next 12 months" / "No pending catalyst for {T} is dated between {from} and {to}. The Catalysts tab lists later events." |
+| Competition not covered | `competition.covered === false`, `not_big_pharma` (CRSP, VKTX) | "Competition by indication is not covered for {T}" / "The indication landscape and the pool model cover the {n} big pharma companies. {T} is read on the {engine label} engine, so no rival counts or pool shares are stated." `{n}` is `payload.universe.engines.pharma` |
+| No indications | `no_indications` | "No indication to compare for {T}" / "No {T} candidate that is marketed or in Phase 2 or later is linked to an indication in the landscape." |
+| Ranked by contest | `ranked_by === "contest"` (BAYN) | line above the rows: "No modelled value for {T}, so indications are ordered by how many companies contest them." |
+| Model not computed | `complete === false` | line above both groups: `CONTEXT_NA_TEXT.model_not_computed` |
+
+### 12.4 Drivers and risks panel (`mountObservations`)
+
+Replaces 6.1. Signature unchanged: `mountObservations(root, ctx) -> {update(view), destroy()}`.
+It draws `view.insight`; with `view.insight` null it draws the section error state.
+
+- Title row: "Drivers and risks", the chip "Observations, not conclusions".
+- `.pn-obs-sides` and `.pn-obs-evidence`: the two rows of 12.1 (`.pn-obs-premium`,
+  `.pn-obs-discount`; `.pn-obs-catalysts`, `.pn-obs-competition`). At `narrow` the two groups sit under one tab
+  strip (`ui.insightTab`, action `SET_INSIGHT_TAB {tab: "catalysts" | "competition"}`).
+- Side lists: headings "Potential premium drivers" (`▲` in `up`) and "Potential discount drivers"
+  (`▼` in `down`). An item is a three-column grid: glyph, sentence (13/18), link chip at the
+  right (`linkLabel` and `→`, accessible name "{linkLabel}: open"). Chips "Model output" and
+  "Two-sided" follow the sentence. Empty side: "No observation passes the tests." The
+  `notAssessed` lines stay under a hairline, muted, below the grid.
+- Catalysts group: heading row (title, `countText`, and at the right the link button
+  `linkLabel`). Rows are a grid `88px minmax(0, 1fr) 196px 20px`: `dateShort` (mono, "est."
+  muted), `label` with `indicationText` after a middle dot in muted text and `moreText`, the
+  model cell (mono, right aligned, `M` marker, or a muted `—` whose tooltip is `naText`), and a
+  source button `↗` that opens `sourceUrl` in a new tab. The row is a button: click or Enter
+  runs `ctx.openLink(row.link)`.
+- Competition group: heading row with the five column headings of 12.3. Rows are a grid
+  `minmax(120px, 1fr) 112px 100px 92px 92px`: name; `valueText`; "{own.n} / {rivals.n}" over a
+  four-segment bar of the rivals by stage (marketed, Phase 3, Phase 2, earlier), with `ownText`
+  and `rivalsText` as the cell's tooltip and accessible text; `poolText`; `shareText`. Text
+  cells cut with an ellipsis; the row tooltip carries the full text. A null cell is the `—` glyph with its
+  reason in the tooltip. A row whose `side` is set carries `▲`, `▼` or both before the name. The
+  row is a button running `ctx.openLink(row.link)`.
+- Both groups: `INSIGHT_ROWS` rows, then a link row "Show {n} more" (expands in place), and the
+  `note` as the group's tooltip on an info button. State blocks of 12.3 replace the rows.
+- Every link goes through `ctx.openLink(link)` (12.9). Nothing in the panel words a fact: all
+  strings come from `view.insight`.
+
+### 12.5 Bridge-only mode and the Forecast tab (R3.3)
+
+**Wrapper.**
+
+```python
+def comps_valuation(payload, *, focal, engine, tokens, live,
+                    context=None, mode="full", height=None, key=None)
+```
+
+`mode` is `"full"` or `"bridge"` (anything else raises `ValueError`). Defaults: `key`
+`"compsval"` and `height` 900 in full mode, `"compsval_bridge"` and 360 in bridge mode. In
+bridge mode the wrapper drops the `detail` record of every company before the digest (545 KB
+against 926 KB on the live payload) and sends `context=None`. Args sent: `payload`, `digest`,
+`focal`, `engine`, `tokens`, `live`, `shared_css`, `height`, `mode`, `context`,
+`context_digest`. The bridge frame never calls `setComponentValue`.
+
+**What the shell renders** with `mode === "bridge"` (`#app[data-mode="bridge"]`):
+
+1. One context line, `view.bridgeLine = {text, linkLabel}`: "{T} against {set full}: peer {stat
+   word} {metric label} of {M}, {k} of {n} peers with a value." AZN: "AZN against Big pharma,
+   commercial, 17: peer median P/E (NTM) of 15.4×, 14 of 17 peers with a value." With the bridge
+   disabled the line is "{T} against {set full}." and the reason of section 8 shows as a
+   `.u-state` block in place of the chart.
+2. The bridge chart (`mountBridgeChart`) and the inputs (`mountBridgeInputs`), the 5.3 content
+   unchanged, in `.sh-bridge-body`: inputs `minmax(420px, 1fr)`, chart `minmax(360px, 1.1fr)`,
+   gap 24; one column when the frame is under 900 px wide. `mountBridgeInputs` leaves out its
+   own section title when `ctx.mode === "bridge"` (Streamlit draws the heading).
+3. One closing line: the button "Change peers or metric in Comps" (`clickParentTab("Comps")`),
+   then "Peer set and inputs are saved in this browser only."
+
+Nothing else is built: no context bar, banner, KPI strip, scope line, table, charts, drivers,
+drawers, palette, help or single-key handler. The shared tooltip, menu and live region stay.
+`ctx` is the same object; `openDetail`, `openPeers` and `openMethod` are no-ops.
+
+**Frame sizing.** The bridge is an ordinary block in the Forecast tab's flow, not fitted to the
+viewport. `html, body { height: auto }`, `#app { display: block }`, no scroll container.
+`fitFrame` is not used. A `ResizeObserver` on `#app` calls
+`Streamlit.setFrameHeight(bridgeFrameHeight(contentHeight))` =
+`max(200, ceil(contentHeight))`, only when it moves by 2 px or more. The first height is the
+`height` arg.
+
+**Storage.** Both frames are same-origin and use the same `STORAGE_KEY` and `SESSION_KEY`, so
+the bridge reads the peer set, exclusions, period, basis and bridge inputs chosen in Comps.
+
+- Each frame listens for `storage` events on either key, and re-reads on `visibilitychange`
+  to visible. It then dispatches `ADOPT_PERSISTED {local, session}`: the reducer replaces every
+  persisted slice with `migrateState(local)` and the focal's exclusions from `session`, and keeps
+  `focal`, `engine`, `live` and `ui`. A frame ignores an event whose `newValue` is what it last
+  wrote.
+- The bridge frame writes only bridge inputs: `mergeBridge(storedLocal, focal, inputs)` reads
+  the stored blob, replaces `bridge[focal]` and writes it back. It never writes its whole state,
+  so a bridge frame left open cannot put back a peer set that Comps has since changed.
+
+**Comps side.** KPI 6 keeps its label, value and compare line. Its tooltip becomes "From the
+peer-multiple bridge on the Forecast tab, with its inputs. Click to open it. Per-share figures
+are in USD, the quote currency." The cell is a button with `kpis[5].link = {kind: "tab", tab:
+"Forecast"}`: `ctx.openForecastBridge()` writes `sessionStorage[GOTO_KEY] = JSON.stringify({target:
+"bridge", at: Date.now()})` and clicks the parent's "Forecast" tab. The bridge frame, on that
+`storage` event (or on finding a flag under 5 s old when it renders), removes the flag and,
+once its `innerWidth` is over 0, calls `window.frameElement.scrollIntoView({block: "center"})`
+inside try/catch. The `bridge.reset` command leaves `COMMANDS`; "Reset to sourced" in the inputs
+does that job.
+
+**Placement on the Forecast tab.** A new helper in `streamlit_app.py`:
+
+```python
+def _peer_value_section(api_base: str, ticker: str) -> None:
+    section("Value implied by peer multiples", basis="peer set and metric from Comps · $ a share")
+    # payload from _comps_valuation_payload(api_base); on failure:
+    # state("Peer multiples unavailable", "The API did not answer on /comps/valuation: {error}.", error=True)
+    compsval.comps_valuation(payload, focal=ticker, engine=st.session_state.get("engine") or "",
+                             tokens=COMPS_TOKENS, live=<as the Comps view>, mode="bridge")
+```
+
+It is called exactly once per render of the tab:
+
+1. in `_book`, directly after `_fair_value_range(api_base, ticker)` and before `_ira_strip`: the
+   peer-multiple value sits under the lenses it is one more of;
+2. in `_book`'s early return for a company with no model, after the "No model for {ticker} yet"
+   state and before `return v, None`;
+3. in `_render_forecast_tab`'s `if not options:` branch, after the "No forecastable products"
+   state and before `return`.
+
+So every company has it, modelled or not. It is not drawn when the forecast or verdict read
+itself failed.
+
+### 12.6 Peer drawer, footer and the Basis menu (R3.4, R3.5)
+
+**Peer drawer.** `mountPeerPanel(root, ctx)` keeps its signature and its content (6.2: warnings,
+relevance table, candidates, saved sets, subgroups, cohort comparison, outliers, restore). It now
+mounts in `.sh-peers` and renders nothing while `view.peers.open` is false.
+
+- `aside.u-drawer.pn-peers`, `role="dialog"`, `aria-modal="false"`, labelled by its title "Edit
+  peers", with the set label chip and a close button `✕` in its header.
+- Width `min(760px, 100% − 56px)`; `narrow`: full width. Fixed from `--band-h` to the bottom of
+  the frame, its body scrolls. The relevance table scrolls sideways inside its own box.
+- State `ui.peers: boolean`. Actions `OPEN_PEERS {search?: boolean}` and `CLOSE_PEERS`.
+  `ctx.openPeers({search})`, `ctx.closePeers()`.
+- Focus: on open it moves to the title (`tabindex="-1"`), or to the search box when opened with
+  `search: true`. Esc or close returns focus to the control that opened it (the pattern of
+  `mountMethod`). Focus is not trapped; the table behind stays live, so excluding a peer in the
+  drawer shows at once.
+- Opened by: "Edit peers" and the counts item in the scope line; "Edit peers" in the peer set
+  control's menu; `a` (`peer.add`, with `search: true`); the palette command `peers.edit`; the
+  banner chips "Weak peer set" and "Mixed business models"; a "Look next" whose target is
+  `peers`; the state action "Restore system peers" does not open it.
+- One right-side surface at a time: `OPEN_PEERS` clears `ui.detail` and `ui.method`;
+  `OPEN_DETAIL` and `OPEN_METHOD` clear `ui.peers`; `OPEN_METHOD` clears `ui.detail` and
+  `OPEN_DETAIL` clears `ui.method`. Esc closes, in order: palette, help, menu, "Why?", selector,
+  methodology drawer, peer drawer, side panel.
+
+**Footer** (`.sh-foot`, shell, 28 px, 12/16 `muted`, one line, ellipsis). `view.footer = {text,
+tone: "neutral" | "flag", buttonLabel: "Sources and method"}`. `text`: "Prices close {date} ·
+consensus checked {date} · FX ECB {date} · refresh run {id}, {status} · saved in this browser
+only", for example "Prices close 28 Sep 2026 · consensus checked 23 Sep 2026 · FX ECB 28 Sep
+2026 · refresh run 123, partial · saved in this browser only". `tone` is `flag`, with `!`
+before the text, under the rule that turns the "Data as of" chip amber (1.5). The button opens
+the methodology drawer at the anchor `sources`.
+
+**Methodology drawer.** Its first section is now "Sources" (anchor `sources`): the sources and
+timestamps table, the analyst notes list and the storage line that `mountNotesSources` drew.
+`mountNotesSources` is no longer mounted; `panels.js` keeps its builder as the body of that
+section. The other sections of 6.3 follow unchanged.
+
+**Basis menu.** The context bar's controls are, left to right: peer set, period, **Basis**,
+"Data as of", reload, export, help. The data state and currency select and the earnings control
+go.
+
+- `view.header.basis = {text, nonDefault: boolean, tooltip}`. `text` is "Basis" when the
+  currency is USD and earnings are GAAP/IFRS. Otherwise it names each choice that is not the
+  default, comma separated: "Basis: EUR", "Basis: as reported", "Basis: ex amort.", "Basis: EUR,
+  ex amort.". A chip that is not default has an `active` border. Width 64 px at the default, up
+  to 172. `tooltip` is the basis text of 2.2 for the choices in force.
+- The menu (shared menu, `kind: "head"` groups): "Currency and data state" with the six radio
+  items of 1.5 ("Standardised, USD" to "As reported, filing currency"); "Earnings" with
+  "GAAP/IFRS" and "Ex amort. and IPR&D"; when not default, "Reset to USD and GAAP/IFRS"; a note
+  line with `basis_text.street` on forward bases.
+- `y` and `g` keep working and announce the change. The collapse steps of 1.5 lose step 3; the
+  Basis chip is never hidden. `view.ctx.dataState` and the rule of 1.5 for it are unchanged.
+
+### 12.7 Table toolbar, presets and flag markers (R3.6)
+
+**Toolbar** (32 px), left to right, nothing else:
+
+1. "Columns: {preset} ▾": the preset menu of 4.5, keys `1` to `7`.
+2. "Find column" with its `f` hint.
+3. "View ▾": one shared menu, with `view.table.viewBadge = {count, lines}`. The button reads
+   "View", or "View · {count}" when `count` is over 0; `lines` go in its tooltip.
+4. The "{n} hidden ▾" chip, only while columns are hidden.
+
+The View menu, in this order, each group under a `kind: "head"` item (`max-height: min(70vh,
+560px)`, own scroll):
+
+| Group | Items | Counts towards the badge when |
+|---|---|---|
+| "Statistics over" | "All included peers"; each subgroup with its count (radio) | not all peers ("Statistics over {group}") |
+| "Outliers in statistics" | "Included", "Excluded" (radio, `u`) | excluded ("Outliers excluded") |
+| "Conditional format" | the six modes of 4.9 (radio, `v`) | not off ("Format: {mode}") |
+| "Density" | "Compact rows", "Default rows", "Comfortable rows" (radio, `d`) | not default |
+| "Text size" | "Text 13 px", "Text 14 px", "Text 15 px" (radio, `+` and `-`) | not 13 |
+| "Rows" | "Summary rows" (check); "Mean and quartiles in the summary" (check, `laptop` and `narrow`); "Pin the focal row" (check) | summary rows off |
+| "Layouts" | "Save layout"; "Load {name}" and "Delete {name}" per saved layout; "Reset columns, widths and sort" (`shift+r`) | never |
+
+Closing note: "Saved in this browser only." The "Layouts", "Statistics", "Outliers", "Format",
+"Display" and "Below the table" buttons go; every action they held is in this menu, the palette
+and its key.
+
+**Presets.** Each built-in preset holds exactly `MAX_PRESET_COLUMNS` columns after the frozen
+block. The primary column is still inserted when the preset lacks it (4.1), and every dropped
+column stays reachable through Custom, the column finder and a Drivers and risks link.
+
+| # | id | Columns kept | Dropped from 4.5 |
+|---|---|---|---|
+| 1 | `core` | `market_cap`, `ev`, `pe`, `ev_ebitda`, `ev_revenue`, `fcf_yield`, `price_to_book`, `pt_upside`, `revenue_growth` | `price_to_sales`, `peg` |
+| 2 | `growth` | `revenue`, `revenue_growth`, `revenue_cagr3`, `ebitda_growth`, `eps_growth`, `gross_margin`, `operating_margin`, `net_margin`, `roic` | `ebitda_margin` |
+| 3 | `balance` | `market_cap`, `net_debt`, `net_debt_ebitda`, `cash_to_mcap`, `runway_months`, `beta`, `vol_1y`, `est_dispersion`, `n_estimates` | `ttm_price_change` |
+| 4 | `pharma` | `market_cap`, `pe`, `ev_ebitda`, `revenue_growth`, `operating_margin`, `loe_share_5y`, `rd_pct`, `late_trials`, `pipeline_ps` | `major_products`, `loe_unpriced_5y`, `revenue_per_late_trial` |
+| 5 | `biotech` | `market_cap`, `ev_revenue`, `price_to_sales`, `mcap_to_cash`, `revenue_growth`, `runway_months`, `lead_phase`, `catalysts_12m`, `pt_upside` | `ev`, `gross_margin`, `operating_margin`, `late_trials` |
+| 6 | `cellgene` | `market_cap`, `mcap_to_cash`, `runway_months`, `lead_phase`, `trial_concentration`, `late_trials`, `catalysts_12m`, `vol_1y`, `pt_upside` | `ev`, `beta` |
+| 7 | `custom` | the analyst's list, uncapped | |
+
+**Flag markers.** Two questions are now separate. `flagTouches` (3.4, unchanged) still says
+which cells a flag reaches for the logic: the observation skip rule, the confidence points and
+the n.m. rules read `cell.flags` as before. A new `flagMarks(flag, colId, key, rec)` says where
+the flag bears on the printed value, and only that draws a marker.
+
+- `Cell` gains `marks: string[]` (codes with `flagMarks` true). `cell.amber` and `cell.red` are
+  computed from `marks`, and `cell.flagLines` holds the lines of `marks` only. So the `!`, the
+  dotted underline and the cell tooltip appear only where the flag bears on that cell.
+- `RowView` gains `tickerFlags: string[]` and `tickerLines: string[]`; `amberFlags` and the old
+  row `flagLines` go. The `!` after a ticker shows only when `tickerFlags` is not empty.
+- `DetailView` gains `flags: {code, severity, text, cells: string[]}[]`: every flag of the
+  company with the column labels it marks. The side panel lists them under "Data flags", above
+  "Data lineage". This is where everything else lives.
+
+| Code | Cell marker on (`flagMarks`) | Was (`flagTouches`) | Ticker marker |
+|---|---|---|---|
+| `stale_price` | `price` | the same | no |
+| `stale_consensus` | forward `pe`, `peg`, forward `eps_growth`, `eps_cagr`, `est_dispersion`, `n_estimates` | the same | costing |
+| `stale_balance_sheet` | `ev`, `net_debt`, `price_to_book`, `cash_to_mcap`, `mcap_to_cash`, `roic` | the same | costing |
+| `stale_fiscal_year` | none: it is a property of the row, shown in the detail panel | every FY0 cell | costing |
+| `fiscal_year_end` | none, the same reason | every FY0, FY1 and FY2 cell | costing |
+| `source_failed` | none | none | always |
+| `fx_converted`, `ifrs_filer`, `non_sec_filer`, `market_cap_diluted_route`, `cover_count_exception`, `no_tagged_addbacks` | none (info; the market cap tooltip still names its route) | info | no |
+| `currency_mismatch` | `revenue`, `net_debt`, `ev`, `revenue_per_late_trial`, `ev_per_late_trial` | the same | costing |
+| `includes_minorities` | `pe` on FY0 and LTM, `net_margin`; or `price_to_book`, `roic` for the equity line | the same | costing |
+| `stale_shares`, `market_cap_disagreement` | `market_cap` only | eleven market-cap dependants and `pe` on FY0 and LTM | costing |
+| `derived_operating_income`, `derived_no_addback` | `operating_margin`, `ebitda_margin`, `ev_ebitda`, `net_debt_ebitda`, `roic` | the same | peer rule below |
+| `no_consensus` | none: the forward cells read `—` with the reason | none | no |
+| `thin_estimates` | FY3: `peg`, `eps_cagr`; FY2: forward `eps_growth`, `pe` on FY2; FY1: `pe` on FY1 | the same | costing |
+| `estimate_range_wide` | `est_dispersion` only | also forward `pe` | costing, under the 3.11 condition (fewer than 5 estimates, or a range over 1.0) |
+| `eps_sign_change` | none: the cells read n.m. with the reason | forward `pe`, `peg` | no |
+| `guidance_fx_unstated` | `revenue_growth` and `ev_revenue` on FY1 | the same | costing |
+| `burn_flattered` | `runway_months` | the same | no |
+| `calc_failed` | every cell reads `—`; the row shows the red `✕` | the same | always (the `✕`, as now) |
+
+A flag "costs confidence in the conclusion" when it took a point in `conclusion.confidence.points`
+(3.11). So `tickerFlags` is:
+
+- focal row: the codes `costingFlags` returns (amber flags reaching the focal's primary cell,
+  marked "costing" above);
+- peer row: `derived_operating_income` or `derived_no_addback` on the peer's primary cell while
+  the derived-share penalty of 3.11 is in force; nothing else a peer carries costs a point;
+- any row: `source_failed` for a `VIEW_SOURCES` source, and `calc_failed`.
+
+Measured on the backup with the whole-cohort sets of 12.8 (18 rows each). AZN's view (pharma
+preset, 216 numeric cells): 16 ticker markers become none, and 16 amber cells become 13, which
+are the twelve EV/EBITDA and operating margin cells on derived operating income and one market
+cap cell on a stale share count. CRSP's view (180 cells): 15 ticker markers become one (TSHA, a
+failed consensus fetch), and 33 amber cells become 11, all in the market cap column where the
+two share-count routes disagree.
+
+### 12.8 Default peer set (R3.7)
+
+Step 2 of `defaultPeers` (3.6) becomes:
+
+> Pool A: same engine and same stage, ranked by score descending, then market cap, then ticker.
+> When pool A holds `WHOLE_COHORT_MAX` (20) companies or fewer, all of it is the set: no
+> relevance floor and no cap. Otherwise keep scores of `MIN_DEFAULT_RELEVANCE` or more, at most
+> `MAX_DEFAULT_PEERS` (15).
+
+Steps 3 to 6 are unchanged: a cohort under five is still padded from pools B and C and still
+warns. `defaultPeers` also returns `whole: boolean`. The reason of a whole-cohort member under
+the floor reads "Same subsector and stage, relevance {s}, under the usual floor of 40". The
+peer set control's tooltip gains "Every {engine label} company at the {stage} stage. A cohort of
+more than 20 is cut to the 15 most relevant." The weak-set and mixed-model states are unchanged
+and still count appropriate peers at 40 or more.
+
+Cohort sizes on this book, focal included: big pharma commercial 18, cell and gene clinical 18,
+biotech commercial 14, biotech clinical 12, cell and gene commercial 8. Every cohort has 17 or
+fewer other companies, so every one of the 70 companies now gets its whole cohort and the
+15-company cut is dormant until a cohort holds more than 20 other companies.
+
+| Focal | Before | After | Primary statistic | Premium | Implied value | Confidence |
+|---|---|---|---|---|---|---|
+| AZN | 15 (no BAYN at 64, no LLY at 59) | 17 | P/E NTM median 15.34× of 13 values → 15.36× of 14 (BAYN has no consensus) | +5.7% → +5.6% | $157.17 → $157.37 | high, unchanged |
+| VRTX | 15 (no BAYN at 53, no LLY at 61) | 17 | 15.34× of 13 → 15.36× of 14 | +92.5% → +92.2% | $274.16 → $274.52 | high, unchanged |
+| CRSP | 15 (no CRBU at 59, no KRRO at 58) | 17 | market cap / cash median 2.11× of 15 → 2.07× of 17 | +4.6% → +7.0% | $51.71 → $50.54 | medium → high |
+
+The set label reads "Big pharma, commercial, 17" and the headline "the median of 14 big pharma
+peers, 15.4×", which is the figure 1.6 and A.2 already quote. Stored `peerEdits` still apply on
+top of the new system set; an `added` ticker that is now in the system set is dropped as a
+duplicate.
+
+### 12.9 Links and the Python round trips
+
+`ctx.openLink(link) -> boolean` in `shell.js` is the one way a Drivers and risks item, a KPI or
+a palette entry leaves the view.
+
+| Link | What the frame does | Python |
+|---|---|---|
+| `{kind: "column", colId}` | `goToColumn(colId)`: scrolls `#main` to the table, shows the column (`SHOW_COLUMN` when the preset lacks it), focuses the focal cell, announces "Showing {column}" | none |
+| `{kind: "tab", tab: "Catalysts"}` | clicks the parent's `button[data-baseweb="tab"]` whose label is "Catalysts" (`clickParentTab`, as `covnav` does). When the frame's focal differs from the `focal` arg it first sends the focus action of 7.5 | none beyond the focus action |
+| `{kind: "tab", tab: "Forecast"}` | `openForecastBridge()` (12.5): the session flag, then the tab click | none |
+| `{kind: "indication", indicationId, name}` | sends `{action: "indication", indication_id, ticker, nonce}` with `setComponentValue`, then clicks the parent's "Indications" tab. When that tab is absent (`clickParentTab` false: the company is not read on the big pharma engine) it announces "The Indications view opens for big pharma companies." and returns false | sets the landscape's picker |
+
+Python hears three actions, the only ones: `focus` and `reload` (7.5), and `indication`.
+
+- **Catalysts and Forecast** need no session state: the tabs exist for every engine and show
+  the app-wide company, which is the focal company.
+- **Indications.** The landscape's picker is the selectbox `key=f"land_pick_{ticker}"`, whose
+  options are indication ids. A widget's key can be written only before the widget is created,
+  so the write happens in a full run, ahead of the picker, as the focus hook does:
+  - `_compsval_indication() -> int | None`: reads `st.session_state.get("compsval")`; when it is
+    an `indication` action whose nonce is not `st.session_state["_compsval_ind_nonce"]`, returns
+    the id.
+  - In `_indication_landscape`, after `options` is built and before `st.selectbox`: when the id
+    is in `options`, `st.session_state[f"land_pick_{ticker}"] = id`; the nonce is recorded
+    either way, so an unknown id is dropped once. The `index=0` argument of the selectbox goes
+    (it is the default, and a default beside a session value draws a warning).
+  - In the `_comps_valuation_view` fragment: a new `indication` action calls `st.rerun()` (app
+    scope), so the hook runs. The tab is already showing because the frame clicked it.
+  - The action carries `ticker`, the frame's focal company. The frame sends one value at a
+    time, so a link followed straight after a focal change made in the frame cannot send the
+    focus action as well: `_compsval_focus()` therefore also returns the ticker of an unapplied
+    `indication` action, and the page moves to that company before the picker is set.
+- **Reload** clears `_comps_valuation_payload` and `_comps_context`.
+- `_comps_context(api_base, ticker)`: `@st.cache_data(ttl=60, show_spinner=False)`, a direct
+  read like the payload's, timeout 30 s. The fragment catches the failure and passes the error
+  context of 12.3.
+
+### 12.10 State, actions, commands and `View`: the diff
+
+| Item | Change |
+|---|---|
+| `deriveView` | `deriveView(payload, state, extra = {})`, `extra = {context, mode}`. In bridge mode it builds `focal`, `ctx`, `bridge`, `bridgeLine`, `error` and leaves the rest null |
+| `State.ui` | adds `peers: boolean` and `insightTab: "catalysts" \| "competition"`; drops `lowerTab`. `laptopTab` now serves `laptop`, `wide` and `ultrawide` |
+| Actions added | `OPEN_PEERS {search?}`, `CLOSE_PEERS`, `SET_INSIGHT_TAB {tab}`, `ADOPT_PERSISTED {local, session}` |
+| Actions removed | `SET_LOWER_TAB` |
+| Reducer | the one-surface rule of 12.6 |
+| `COMMANDS` added (palette only) | `peers.edit` "Edit peers", `sources.open` "Sources and method", `forecast.open` "Open the peer-multiple value on the Forecast tab", `catalysts.open` "Open the Catalysts tab" |
+| `COMMANDS` changed | `peer.add` (`a`) opens the peer drawer at its search box |
+| `COMMANDS` removed | `bridge.reset` |
+| Palette entries | "Go to section" for the three sections of 12.1; "Open Comps, Indications: {name}" per competition row. "Reset bridge" and the old section entries go |
+| `View` added | `insight` (12.3), `footer` (12.6), `bridgeLine` (12.5), `header.basis` (12.6), `table.viewBadge` (12.7), `peers.open`, `kpis[5].link`, `Cell.marks`, `RowView.tickerFlags` and `tickerLines`, `DetailView.flags`, `mode` |
+| `View` removed | `RowView.amberFlags`, the row-level `flagLines` |
+| Persisted state | version stays 1. No migration: new `ui` keys are session-only, preset ids are unchanged |
+| `ctx` added | `openPeers(opts)`, `closePeers()`, `openLink(link)`, `openForecastBridge()`, `mode` |
+| `PRESETS`, `defaultPeers`, `flagMarks`, `CONTEXT_NA_TEXT`, `indicationTitle`, `indicationProse`, `mergeBridge` | as 12.7, 12.8, 12.3, 12.5 |
+
+### 12.11 File ownership and tests for this revision
+
+Nobody edits another owner's files. Stub against this section where a dependency has not landed:
+the context examples under `scratchpad/arch3/` have the exact shape of 12.2.
+
+| Owner | Files | Builds |
+|---|---|---|
+| backend | `backend/comps_context.py`, the route in `backend/main.py`, `backend/response_cache.py`, `backend/tests/test_comps_context.py` | 12.2 |
+| core | `frontend/components/compsval/core.js`, `frontend/tests/compsval/core.test.js`, `frontend/tests/compsval/fixture_*.json` (adds `fixture_context.json`: the AZN, LLY, NVO, VKTX, CRSP and BAYN bodies keyed by ticker, taken from `scratchpad/arch3/context_*.json` and regenerated from the endpoint once it answers) | 12.0 constants, 12.3, 12.7 presets and flag rules, 12.8, 12.10 |
+| table | `table.js`, `table.css`, `frontend/tests/compsval/table.test.js` | 12.7 toolbar, View menu, markers |
+| charts_panels | `charts.js`, `panels.js`, `charts.css`, `panels.css`, `frontend/tests/compsval/charts.test.js` | 12.1 strip at every width, 12.4, 12.5 mounts in bridge mode, 12.6 peer drawer and the Sources section |
+| shell | `shell.js`, `shell.css`, `styles.css`, `index.html`, `frontend/tests/compsval/shell.test.js` | 12.1 layout, 12.5 bridge mode and storage, 12.6 footer and Basis, 12.9 `openLink`, the context map |
+| wiring | `frontend/streamlit_app.py`, `frontend/components/compsval/__init__.py`, `backend/tests/test_comps_tab_ui.py` | 12.5 wrapper and placement, 12.9 |
+
+Tests each owner adds. The existing suites stay green: `pytest tests/
+--ignore=tests/test_refresh.py` and `node --test "frontend/tests/compsval/*.test.js"`.
+
+**backend, `test_comps_context.py`** (logic tests build their own database; book guards take the
+`book` fixture and are skipped without it):
+
+1. Unknown ticker: `build` returns None; the route answers 404.
+2. Window: rows dated `today` and `today + 365` are in, `today − 1` and `today + 366` are out,
+   a `YYYY-MM` date inside the window is in; `total` equals the `screen._catalysts_12m` count on
+   the same database when `today` is the real date.
+3. Each field rule of 12.2: `date_precision`, `regulatory`, `nct_id`, the asset and phase from
+   the trial row when `catalysts.asset_id` is null, the indication by `asset_indication_id` and
+   by trial MeSH, and an `na` entry for every null.
+4. Stake: an injected priced row gives `stake` with `pct_of_price = abs(per_share) / close`;
+   without it each of `no_asset`, `not_modelled`, `no_outcome_legs` and `not_in_stakes` is
+   produced by its own case.
+5. Never cold: with `verdict_for` returning None for a company with a book, `model.state` is
+   `"not_computed"`, `complete` is false, and `forecast_view.company_verdict`,
+   `landscape.landscape` and `landscape._model_lines` (patched to raise) are not called.
+6. Not covered: a company outside the pharma engine gives `covered: false`, `not_big_pharma`,
+   and `landscape.candidates` is not called.
+7. Attribution: an asset with a model indication counts there; one without counts in its lead
+   indication, its own then its molecule's; one with neither counts nowhere; rows rank by
+   value; with no model `ranked_by` is `"contest"`.
+8. Counts: `own.n + rivals.n` equals `len(landscape.landscape(...)["candidates"])` for the
+   fixture indication, and the stage buckets follow the landscape's stage text.
+9. Pool: each reason of the table in 12.2; `keeps`, `share_of_claims` (summing to 1 over
+   companies), `share_of_pool` and `rank` on a two-company fixture.
+10. Strict JSON (`json.dumps(allow_nan=False)`), and the module imports under Python 3.9.
+11. Memo: a second build under the same stamp does not call `landscape.candidates`.
+12. Route and cache: the skip header on an incomplete body; `COMPANY_READS[-1]` is the
+    comps-context path.
+13. Book guards: AZN and LLY are covered with five rows each and the obesity row has
+    `0 < crowded_share ≤ uncrowded_share ≤ 1` and `0 < keeps ≤ 1`; CRSP is not covered; a second
+    build of AZN takes under 300 ms.
+
+**core, `core.test.js`:**
+
+1. `defaultPeers`: a cohort of 17 is returned whole with `whole: true` (AZN includes LLY and
+   BAYN); a synthetic cohort of 25 is cut to the 15 most relevant at or above the floor; a cohort of 3 still pads.
+2. `PRESETS`: every built-in preset has exactly nine columns, and the lists equal 12.7.
+3. `flagMarks`: one assertion per row of the table in 12.7. `cell.amber` follows `marks`.
+   `stale_shares` marks `market_cap` and not `ev_revenue`. On the fixture AZN view no row has
+   `tickerFlags`; a focal with a costing flag on its primary cell has it; a peer with derived
+   operating income has it only while the derived-share penalty is in force.
+4. `insight.state`: pending for a null context and for another ticker's; error for an `error`
+   context and for a wrong schema; ok otherwise. The pending view still has the metric items.
+5. Side rules on `fixture_context.json`: AZN discount holds `pool_rationed:367` with the exact
+   sentence of 12.3 and no catalyst item; LLY the same and no `pool_lead`; NVO premium holds
+   `pool_lead:367`; VKTX discount holds `catalyst_value` with the exact sentence and not
+   `binary_catalysts`, while `view.observations.discount` still has it; a synthetic stake of 5%
+   yields `catalyst_stake`, and one of 4.9% does not.
+6. Catalyst rows: one row per asset, the tier order, AZN's first five labels as in 12.3, the
+   three date forms, `modelText` null with the marketed `naText` for Imfinzi.
+7. Competition rows: AZN obesity's `valueText`, `ownText`, `rivalsText`, `poolText`,
+   `shareText`; each pool reason as `poolNa`; CRSP's group is `not_covered` and BAYN's carries
+   the contest line, each with the copy of 12.3.
+8. `indicationTitle` and `indicationProse` on the five AZN names.
+9. Copy: every new string (side sentences, row texts, `CONTEXT_NA_TEXT`, state copy, footer,
+   Basis chip, bridge line) passes `lintCopy`: no banned word, no em dash, sentence case.
+10. Reducer: `OPEN_PEERS`, `OPEN_DETAIL` and `OPEN_METHOD` leave exactly one surface open;
+    `ADOPT_PERSISTED` replaces the persisted slices and keeps `focal` and `ui`; `mergeBridge`
+    changes only `bridge[focal]`.
+11. `header.basis.text` for the four cases; `table.viewBadge`; `footer.text` and its tone;
+    `bridgeLine.text` for AZN; `kpis[5].link`; `COMMANDS` has the four new ids, lacks
+    `bridge.reset`, and no key is bound twice.
+12. Bridge mode: `deriveView(payload, state, {mode: "bridge"})` returns `bridge` and
+    `bridgeLine` and a null `insight` and `table`.
+
+**table, `table.test.js`:** the toolbar holds exactly "Columns", "Find column" and "View" (and
+the hidden chip only with hidden columns); no "Below the table"; the View menu's groups, order
+and items, with the right item checked; the badge text; a `!` renders only for a cell with
+`marks`, and after a ticker only with `tickerFlags`; the cell tooltip lists only the marking
+flags.
+
+**charts_panels, `charts.test.js`:** the strip renders at `wide` with the two tabs and a 320 px
+scatter; `mountObservations` draws the four blocks, five rows and "Show {n} more", the pending,
+error, empty and not covered blocks with the exact copy, and calls `ctx.openLink` with the row's
+link; at `narrow` one group shows under the tab strip; `mountPeerPanel` renders nothing when
+closed and a `role="dialog"` titled "Edit peers" when open, focusing the search box for
+`search: true`; the methodology drawer's first section is "Sources"; `mountBridgeInputs` leaves
+out its title when `ctx.mode === "bridge"`.
+
+**shell, `shell.test.js`:** the block order of `#main` for each layout; `bridgeFrameHeight`;
+the pure `contextFor(map, ticker)` and its 12-entry bound; `basisChip`; `openLink` against a
+fake parent for the four link kinds, including the absent Indications tab; `mergeBridge` round
+trip through a fake storage; the Esc order with the peer drawer in it.
+
+**wiring, `test_comps_tab_ui.py`:** two component instances, `compsval` (mode `"full"`, a
+`context` whose `ticker` is the focal, 70 companies with `detail`) and `compsval_bridge` (mode
+`"bridge"`, `context` None, no `detail`); the Forecast tab carries the heading "Value implied by
+peer multiples" for a modelled company and for one with no model; an `indication` action sets
+`land_pick_{ticker}` once, and an unknown id or a repeated nonce changes nothing; a failed
+context read gives the error context, not an exception; the wrapper rejects an unknown mode and
+passes `mode`, `context` and `context_digest`.
+
+**Integration** (shell leads), on the live app at 1440 × 810 and 1920 × 1080: the first-screen
+claims of 12.1; AZN's obesity row opens Comps, Indications on Obesity; a catalyst row opens the
+Catalysts tab; KPI 6 opens the Forecast tab at the bridge; a peer excluded in Comps changes the
+bridge on the Forecast tab without a reload; the peer drawer opens from all five entry points
+and returns focus; a company picked inside the frame shows the pending groups, then its own.
+
+### 12.12 Decisions changed or sharpened from R3.1 to R3.7
+
+| Decision | What this section does instead, and why |
+|---|---|
+| R3.2, "the value at stake where the model has one" | The book prices one catalyst in all (Casgevy, 2027-11-14), outside every holder's 12-month window, because only one asset carries both outcome legs. Nothing is derived for the rest. So a row also shows the model's risk-adjusted value of an unapproved asset, labelled as that and never as a stake, and the side rule has two forms (`catalyst_stake`, `catalyst_value`) at one 5% threshold. On this book that fires for AMGN, NVO, UTHR and VKTX and not for AZN or LLY. |
+| R3.2, "most valuable indications" | The model values assets, not asset-indication pairs, so value is attributed by a stated rule: the indication the model sizes the asset in, else the book's lead indication. Counting an asset in every indication it touches ranked Lilly's fatty liver trial at $146 a share. |
+| R3.2, "share of the modelled pool" | Stated as the company's share of the modelled claims among pooled claimants, and only for a standing pool with between 1% and 100% claimed. Cancer lines are sized by yearly new patients and have no pool to share, so their rows say so rather than show 0%. |
+| R3.2, direction | Two pool rules and two catalyst rules take a side; rival counts by stage never do. A count of big pharma rivals cannot show that a field is empty, since biotech rivals are outside the landscape. |
+| R3.1 | The charts are a strip at every width, and the side panel a drawer at every width: the fixed order leaves no rail to dock into. `wide` and `laptop` share one arrangement. |
+| R3.3 | The bridge is drawn on the Forecast tab for every company, including those with no model, and KPI 6 scrolls to it. |
+| R3.4 | Notes and data sources become the first section of the methodology drawer, not a drawer of their own: one drawer fewer. |
+| R3.6, "about nine" | Exactly nine. The ticker marker is tied to the confidence points, so a peer's flag marks its ticker only when it feeds a penalty. |
+| R3.7 | No relevance floor inside a whole cohort. Every cohort in the universe is under the limit today, so the 15-company cut is dormant. |
+| 7.5 | Python now hears three actions, not two: `indication` joins `focus` and `reload`. |
+
+Known limits, left as they are: a catalyst row with no asset id is not read by the stake engine
+even when its trial maps to an asset with both legs (`not_in_stakes`, two VRTX Casgevy events);
+the lead indication is the book's flag, right or wrong (Mounjaro, Taltz); 8 of AZN's 36
+catalysts and 3 of LLY's 33 have no indication on file.
+
+---
+
+### 12.13 As built: where the code departs from 12.1 to 12.6
+
+- **Narrow layout.** The two evidence groups stack under the side lists at every width; there is
+  no "Catalysts ahead | Competition" tab strip, and `ui.insightTab` is unused. One scroll reads the
+  whole section, and the 800 px pane shows both groups without a control to find.
+- **Skeleton.** `shell.js` builds its skeleton on the first render message rather than at load,
+  because that message names the mode. Nothing could paint before it anyway: the tokens arrive
+  with it.
+- **Detail panel.** The company panel is a fixed right-side drawer at every layout, as the peer
+  and methodology drawers are; the docked rail column of `wide` went with the chart rail.
+- **Sources.** `panels.js` prepends the "Sources" section to the methodology drawer itself
+  (core's `view.method.sections` does not list it); `mountNotesSources` stays exported and is not
+  mounted.
+- **Bridge frame height.** The frame takes the height of `#app` plus 4 px, floored at 200.
 
 ---
 
