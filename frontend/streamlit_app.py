@@ -37,6 +37,7 @@ from components import approvnav
 from components import covnav
 from components import enginepick
 from components import clicklist
+from components import compsval
 from components import prodcards
 from components import drawchart
 from components import render as R
@@ -55,6 +56,21 @@ LANDING_TOKENS = {
     "up": TK.UP, "down": TK.DOWN, "flag": TK.FLAG,
     "orange-book": TK.ORANGE_BOOK, "purple-book": TK.PURPLE_BOOK,
     "font-ui": TK.FONT_UI, "font-mono": TK.FONT_MONO, "font-prose": TK.FONT_PROSE,
+}
+# The Comps valuation view is the same kind of iframe, with more of the palette: the
+# active colour and its wash for focus and the focal row, the faint rule, the narrow
+# face for dense headers, the phase ramp, and the spacing and radii. "phase-filed" is
+# left out on purpose: its value is the flag colour, which this view keeps for
+# uncertainty alone. Built only from tokens.py, so there is still one source of truth.
+COMPS_TOKENS = {
+    **LANDING_TOKENS,
+    "rule-faint": TK.RULE_FAINT, "active": TK.ACTIVE, "active-wash": TK.ACTIVE_WASH,
+    "font-ui-narrow": TK.FONT_UI_NARROW,
+    "phase-preclinical": TK.PHASE_RAMP["preclinical"],
+    "phase-1": TK.PHASE_RAMP["Phase 1"], "phase-2": TK.PHASE_RAMP["Phase 2"],
+    "phase-3": TK.PHASE_RAMP["Phase 3"], "phase-approved": TK.PHASE_RAMP["approved"],
+    "space": f"{TK.SPACE}px", "radius": f"{TK.RADIUS}px",
+    "radius-small": f"{TK.RADIUS_SMALL}px",
 }
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
 # How long a headline runs before it is cut, chosen to hold the box to two lines at the
@@ -229,6 +245,8 @@ def run_refresh(base: str, path: str, key: str, spinner: str):
             st.session_state[key] = api_post(base, path)
             st.session_state["last_run"] = st.session_state[key]
             api_get.clear()
+            # The comps valuation payload has its own minute of cache; a refresh is new data.
+            _comps_valuation_payload.clear()
         except (urllib.error.URLError, OSError) as exc:
             st.session_state["refresh_error"] = str(exc)
 
@@ -851,53 +869,6 @@ _LOE_LAPSED_AFTER_YEARS = 14
 # One screen of lifecycle studies. The rest are on the company's own Pipeline and
 # Catalysts tabs, and the section count states the true total.
 _POST_APPROVAL_SHOWN = 30
-
-
-# The measures a head to head is argued on, and which direction is better on each.
-# Stated rather than inferred: more revenue is better, a nearer patent cliff is not, and
-# a valuation multiple is not a scoreboard at all, so it is shown and left unmarked.
-#   (key, label, formatter, higher_is_better or None for "no better side")
-_H2H_ROWS = (
-    ("revenue", "Revenue", lambda v: f"{T.num(v / 1e9, 1)}bn", True),
-    ("revenue_growth", "Revenue growth", lambda v: T.pct(v * 100, 1), True),
-    ("net_margin", "Net margin", lambda v: T.pct(v * 100, 1), True),
-    ("rd_pct", "R&D, share of sales", lambda v: T.pct(v * 100, 1), None),
-    ("market_cap", "Market cap", lambda v: f"{T.num(v / 1e9, 0)}bn", None),
-    ("pe", "P/E", lambda v: T.num(v, 1), None),
-    ("ev_sales", "EV / sales", lambda v: T.num(v, 1), None),
-    ("late_trials", "Late-stage trials", lambda v: str(int(v)), True),
-    ("catalysts_12m", "Catalysts, 12m", lambda v: str(int(v)), True),
-    ("loe_share_5y", "Revenue off patent, 5y", lambda v: T.pct(v * 100, 1), False),
-    ("ttm_price_change", "Price, 12m", lambda v: T.pct(v * 100, 1), True),
-)
-
-
-def _head_to_head(a: dict, b: dict, ta: str, tb: str) -> str:
-    """Two companies as one column of measures, the better side marked on each.
-
-    A measure either company is missing is printed as a dash on that side and marked on
-    neither: an absent figure is not a worse one, and the free sources leave plenty of
-    them absent.
-    """
-    rows = []
-    for key, label, fmt, higher in _H2H_ROWS:
-        va, vb = a.get(key), b.get(key)
-        wa = wb = ""
-        if higher is not None and isinstance(va, (int, float)) \
-                and isinstance(vb, (int, float)) and va != vb:
-            better_is_a = (va > vb) if higher else (va < vb)
-            wa, wb = ("win", "") if better_is_a else ("", "win")
-        rows.append(
-            f'<div class="h2h-r">'
-            f'<span class="h2h-v {wa}">{fmt(va) if isinstance(va, (int, float)) else "—"}</span>'
-            f'<span class="h2h-k">{html_escape(label)}</span>'
-            f'<span class="h2h-v {wb}">{fmt(vb) if isinstance(vb, (int, float)) else "—"}</span>'
-            f'</div>')
-    return (f'<div class="h2h"><div class="h2h-r h2h-head">'
-            f'<span class="h2h-v">{html_escape(ta)}</span>'
-            f'<span class="h2h-k">{html_escape(str(a.get("fiscal_year") or ""))}</span>'
-            f'<span class="h2h-v">{html_escape(tb)}</span></div>'
-            + "".join(rows) + "</div>")
 
 
 def _post_approval_row(study) -> str:
@@ -1692,40 +1663,67 @@ def _intro(text: str) -> None:
                 unsafe_allow_html=True)
 
 
-# The screen's headings, each with what it measures on hover. The abbreviations they
-# replaced ("Cur", "Rev/late trial", "Unpriced 5y", "Cat 12m", "TTM px") could not be
-# read without the code.
-_SCREEN_COLUMNS = {
-    "Ticker": st.column_config.Column("Ticker", pinned=True, width="small"),
-    "90d": st.column_config.LineChartColumn(
-        "90 days", width="small", help="Daily closes over the last 90 days."),
-    "Currency": st.column_config.Column(
-        "Currency", width="small",
-        help="The currency the company files in. Revenue is converted to dollars; "
-             "the ratios are as filed."),
-    "Revenue $bn": st.column_config.Column(
-        help="Last full fiscal year's revenue, converted to US dollars at the latest "
-             "ECB reference rate."),
-    "Growth %": st.column_config.Column(help="Revenue growth over the prior fiscal year."),
-    "Net margin %": st.column_config.Column(help="Net income over revenue, last fiscal year."),
-    "R&D % sales": st.column_config.Column(help="R&D expense over revenue, last fiscal year."),
-    "Late-stage trials": st.column_config.Column(
-        help="Lead-sponsored Phase 3 and Phase 2/3 trials on file."),
-    "Revenue per late trial $bn": st.column_config.Column(
-        help="Revenue over late-stage trials: how much of today's business each "
-             "late-stage trial stands against."),
-    "Revenue losing exclusivity 5y %": st.column_config.Column(
-        help="Share of revenue from products whose exclusivity ends in the next five years."),
-    "Unpriced exclusivity losses 5y": st.column_config.Column(
-        help="Products losing exclusivity in the next five years whose revenue is not on "
-             "file, so the share beside it cannot count them."),
-    "Catalysts 12m": st.column_config.Column(
-        help="Pending catalysts (readouts, PDUFA dates) in the next twelve months."),
-    "Share price 12m %": st.column_config.Column(
-        help="Share price change over the trailing twelve months."),
-    "Market cap $bn": st.column_config.Column(help="Market capitalisation, US dollars."),
-    "P/E": st.column_config.Column(help="Share price over trailing earnings per share."),
-}
+# --- Comps valuation -----------------------------------------------------
+# The whole universe in one read. The view chooses its own peers from all 70 companies,
+# so a peer from another engine can be added in the frame without a rerun. A minute of
+# cache keeps a rerun of the page from rebuilding the payload; the view's Reload button
+# clears it. Read directly rather than through api_get, so that a reload is a real read
+# of the API rather than a second cache handing back the same body.
+@st.cache_data(ttl=60, show_spinner=False)
+def _comps_valuation_payload(api_base: str) -> dict:
+    with urllib.request.urlopen(api_base.rstrip("/") + "/comps/valuation",
+                                timeout=60) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _compsval_focus():
+    """The ticker the valuation view last asked to make focal, while that request is
+    still unapplied; otherwise None.
+
+    The view posts ``{"action": "focus", "ticker", "nonce"}``. Its value persists in
+    session state after the click, so the nonce, not the value, says whether it is new:
+    the pre-selectbox hook records each nonce it applies, and a rerun caused by anything
+    else does not send the page back to a company the analyst has since moved off.
+    """
+    value = st.session_state.get("compsval")
+    if (isinstance(value, dict) and value.get("action") == "focus"
+            and value.get("nonce") is not None
+            and value.get("nonce") != st.session_state.get("_compsval_nonce")):
+        return str(value.get("ticker") or "").strip().upper()
+    return None
+
+
+# A fragment: the frame recomputes every peer set, basis, preset and bridge input itself,
+# so Python hears only two actions and neither should redraw the other tabs. A reload
+# reruns this fragment alone. A new focal company reruns the page, because the top bar
+# and every other tab follow it; the hook before the company selector applies it.
+@st.fragment
+def _comps_valuation_view(api_base: str, ticker: str, engine: str, live: bool):
+    """The valuation view: one component over the whole universe, the focal company
+    being the one the top bar has open."""
+    try:
+        payload = _comps_valuation_payload(api_base)
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        state("Valuation unavailable",
+              f"The API did not answer on /comps/valuation: {html_escape(str(exc))}. "
+              "Check it is running, then open this tab again.", error=True)
+        return
+    picked = compsval.comps_valuation(payload, focal=ticker, engine=engine,
+                                      tokens=COMPS_TOKENS, live=live, key="compsval")
+    if not (isinstance(picked, dict) and picked.get("nonce") is not None
+            and picked.get("nonce") != st.session_state.get("_compsval_seen")):
+        return
+    st.session_state["_compsval_seen"] = picked.get("nonce")
+    if picked.get("action") == "focus":
+        # Already applied by the hook when this is a full run; otherwise the page reruns
+        # so the hook can apply it before the company selector.
+        wanted = str(picked.get("ticker") or "").strip().upper()
+        if (wanted and wanted != ticker
+                and picked.get("nonce") != st.session_state.get("_compsval_nonce")):
+            st.rerun()
+    elif picked.get("action") == "reload":
+        _comps_valuation_payload.clear()
+        _rerun_here()
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -4538,6 +4536,17 @@ if not engine and _shared:
     engine = next((c.get("engine") for c in companies
                    if c["ticker"] == _shared and c.get("engine") in ENGINES), "")
 
+# The Comps valuation view can make any company in the universe focal, since a peer may
+# come from another engine. The picker below lists only the open engine's companies, so a
+# focal company from another engine opens its own engine first, the way a shared link
+# does, and the hook before the picker then selects it.
+_cv_focus = _compsval_focus()
+if engine and _cv_focus:
+    _cv_home = next((c.get("engine") for c in companies if c["ticker"] == _cv_focus), None)
+    if _cv_home in ENGINES and _cv_home != engine:
+        engine = _cv_home
+        st.query_params["engine"] = _cv_home
+
 st.session_state["engine"] = engine or st.session_state.get("engine") or "pharma"
 # An engine narrows the picker to the companies it covers. Search is the escape hatch and
 # still reaches everything, so narrowing costs nothing that cannot be undone. The home
@@ -4577,6 +4586,15 @@ if (isinstance(_cov, dict) and _cov.get("ticker") in tickers
         and _cov.get("nonce") != st.session_state.get("_cov_nonce")):
     st.session_state["company_pick"] = _cov["ticker"]
     st.session_state["_cov_nonce"] = _cov.get("nonce")
+
+# The same for the Comps valuation view: a new focal company picked inside it (its
+# company selector, "Make focal" or the palette) is applied here, before the selector
+# reads its key. The nonce is recorded either way, so an unknown ticker is dropped once
+# rather than retried on every rerun.
+if _cv_focus is not None:
+    if _cv_focus in tickers:
+        st.session_state["company_pick"] = _cv_focus
+    st.session_state["_compsval_nonce"] = (st.session_state.get("compsval") or {}).get("nonce")
 
 # A click on the approvals timeline names a company and an application number. The
 # company is applied here, before the selector reads its key; the application number is
@@ -4652,7 +4670,7 @@ elif company.get("is_foreign_private_issuer"):
 else:
     filer = "10-K filer"
 quote = prices.get("currency")
-meta = " · ".join(x for x in [company.get("exchange"), filer,
+meta = " · ".join(x for x in [company.get("primary_exchange"), filer,
                               f"quoted in {quote}" if quote else None] if x)
 with bar[1]:
     st.markdown(
@@ -5569,27 +5587,28 @@ with main:
 
     # --- Comps -----------------------------------------------------------
     with comps_tab:
-        # Comparables means comparable. Every table, chart and screen on this tab is cut
-        # to the open engine's own cohort: ranking Lilly's net margin against a
-        # clinical-stage biotech with no revenue is not a comparison, and a scatter that
-        # mixes the two puts eighteen large caps in one corner and the rest on the axis.
-        # The engine's ticker list is already resolved above for the picker, so this
-        # needs no second request.
         # Two markers: one lets the theme size this tab's charts against the screen, the
         # other drops the horizon rail. The rail is one company's forward calendar and
         # this tab is every company at once, so its width belongs to the comparison.
         st.markdown('<span class="comps-anchor"></span><span class="no-rail"></span>',
                     unsafe_allow_html=True)
+        # The Indications and Pipelines views stay cut to the open engine's own cohort:
+        # ranking Lilly's pipeline against a clinical-stage biotech with no revenue is not
+        # a comparison. The engine's ticker list is already resolved above for the picker,
+        # so this needs no second request. The valuation view takes the whole universe
+        # and chooses its own peers, so a peer from another engine can be added in it.
         _peers = set(tickers)
         _peer_rows = lambda rows: [r for r in rows if r.get("ticker") in _peers]
 
-        # Four questions, four views, rather than one scroll eleven thousand pixels deep:
-        # which drugs compete for a disease, how two companies compare, where every
-        # pipeline stands, and the whole cohort on every measure. Each view opens with the
-        # question it answers, so a reader knows what they are looking at before reading it.
-        _views = (["Indications"] if _engine == "pharma" else []) + [
-            "Head to head", "Pipelines", "Screen"]
-        _vt = dict(zip(_views, st.tabs(_views)))
+        # Three questions, three views. Valuation opens first because it is the one an
+        # analyst comes to the tab for: what the company is worth against its peers. The
+        # head to head and the screen it replaces are folded into its table and its side
+        # panel, measure for measure. The two cohort views keep their own tabs.
+        _views = ["Valuation"] + (["Indications"] if _engine == "pharma" else []) + [
+            "Pipelines"]
+        _vt = dict(zip(_views, st.tabs(_views, default="Valuation")))
+        with _vt["Valuation"]:
+            _comps_valuation_view(api_base, ticker, engine, not asof_state)
         if "Indications" in _vt:
             with _vt["Indications"]:
                 _intro("Every drug the big pharma companies hold for one disease, whatever "
@@ -5598,155 +5617,13 @@ with main:
                        "says it is worth.")
                 _indication_landscape(api_base, ticker)
 
-        # --- R&D productivity, before the valuation comps ---------------------
-        # Every frame this tab draws is built first, in one place. The charts
-        # below then sit wherever the layout wants them: while the fetching was
-        # interleaved with the drawing, moving a chart moved its data with it and
-        # the phase grid lost the variable the comparables block defined.
+        # --- R&D productivity and the phase matrix ----------------------------
+        # Every frame the Pipelines view draws is fetched first, in one place, and the
+        # charts below then sit wherever the layout wants them.
         board = api_get(api_base, "/productivity/scorecard")
         placed = _peer_rows(board["placed"])
-        ct = api_get(api_base, "/comps/trend")
-        ct_labels = ct.get("labels") or []
-        ct_by = {c["ticker"]: c for c in ct.get("companies") or []
-                 if c["ticker"] in _peers}
-        comps = _peer_rows(api_get(api_base, "/comps"))
-        screen_rows = {r["ticker"]: r for r in _peer_rows(api_get(api_base, "/screen"))}
-        spark_rows = {p["ticker"]: p["closes"] for p in
-                      _peer_rows(api_get(api_base, "/price-grid?days=90"))}
-        # The scatter and heatmap below keep reading this clean-named frame.
-        display = pd.DataFrame([{
-            "Ticker": c["ticker"], "Name": c["name"], "FY": c["fiscal_year"],
-            "Cur": c["currency"],
-            "Revenue": c["revenue"] / 1e9 if c["revenue"] else None,
-            "Growth": c["revenue_growth"] * 100 if c["revenue_growth"] is not None else None,
-            "Net margin": c["net_margin"] * 100 if c["net_margin"] is not None else None,
-            "R&D": c["rd_pct"] * 100 if c["rd_pct"] is not None else None,
-            "Mkt cap": c["market_cap"] / 1e9 if c["market_cap"] else None,
-            "P/E": c["pe"], "EV/Sales": c["ev_sales"]} for c in comps])
-
-        # The screen: comparables plus the derived analyst columns, one row per
-        # company, an inline 90-day sparkline per row. Any column missing an
-        # input is a dash, never a computed placeholder.
-        def _sc(tk, field, scale=1.0):
-            value = (screen_rows.get(tk) or {}).get(field)
-            return value * scale if value is not None else None
-
-        screen_table = pd.DataFrame([{
-            "Ticker": row["Ticker"],
-            "90d": spark_rows.get(row["Ticker"]) or None,
-            "Currency": row["Cur"],
-            # The converted figure, not the filed one: a column that ranks companies
-            # cannot hold kroner beside dollars. Cur still names what was filed.
-            "Revenue $bn": _sc(row["Ticker"], "revenue", 1e-9),
-            "Growth %": row["Growth"],
-            "Net margin %": row["Net margin"],
-            "R&D % sales": row["R&D"],
-            "Late-stage trials": _sc(row["Ticker"], "late_trials"),
-            "Revenue per late trial $bn": _sc(row["Ticker"], "revenue_per_late_trial", 1e-9),
-            "Revenue losing exclusivity 5y %": _sc(row["Ticker"], "loe_share_5y", 100),
-            "Unpriced exclusivity losses 5y": _sc(row["Ticker"], "loe_unpriced_5y"),
-            "Catalysts 12m": _sc(row["Ticker"], "catalysts_12m"),
-            "Share price 12m %": _sc(row["Ticker"], "ttm_price_change", 100),
-            "Market cap $bn": row["Mkt cap"],
-            "P/E": row["P/E"]} for _, row in display.iterrows()])
-        numeric_cols = [c for c in screen_table.columns
-                        if c not in ("Ticker", "Currency", "90d")]
-        # Coerced so a missing figure is NaN and prints as a dash: an object column
-        # holding None printed the word "None" for AstraZeneca's market cap.
-        for _c in numeric_cols:
-            screen_table[_c] = pd.to_numeric(screen_table[_c], errors="coerce")
-        int_cols = ("Late-stage trials", "Unpriced exclusivity losses 5y", "Catalysts 12m")
-        formats = {c: (lambda v, ic=(c in int_cols):
-                       T.num(v, 0 if ic else 1)) for c in numeric_cols}
-        styled = (screen_table.style
-                  .format(formats, na_rep="—", subset=numeric_cols)
-                  .map(lambda v: f"color:{T.P.oxblood}"
-                       if isinstance(v, (int, float)) and not pd.isna(v) and v < 0
-                       else "", subset=numeric_cols)
-                  # The open company's row, so a reader finds themselves in the cohort.
-                  .apply(lambda r: [f"background-color:{TK.PANEL};font-weight:600"
-                                    if r["Ticker"] == ticker else "" for _ in r], axis=1))
         rows = _peer_rows(api_get(api_base, "/pipeline"))
         unattributed = sum(r.get("unattributed", 0) for r in rows)
-
-        # Two questions, two rows. The top row is about the pair a reader picked: the
-        # measures side by side, and those same two companies drawn over time beside
-        # them, so the trend chart answers "and how did they get here" rather than being
-        # a second control asking who to plot. The row below is about everyone, which is
-        # where a scatter and a matrix belong.
-        #
-        # Growth against margin is gone. Both its axes are in the head to head, in the
-        # trend chart and in the grid at the foot of the tab, so it was the same two
-        # numbers a fourth time, taking room the others needed to be legible.
-        with _vt["Head to head"]:
-            _intro("Two companies side by side on the same measures, the better one "
-                   "marked on each, and how the pair got here over the years.")
-            _pair_col, _time_col = st.columns([1, 1.35], gap="medium")
-
-            with _pair_col:
-                # Head to head. The charts below place every company at once, which answers
-                # "who is where" and never "how do these two compare", and that second question
-                # is the one an analyst actually asks out loud. Two picks, one line per measure,
-                # the better side marked. Better is stated per measure rather than assumed:
-                # more revenue is better, a nearer patent cliff is not.
-                _h2h = {r["ticker"]: r for r in comps}
-                for r in _peer_rows(api_get(api_base, "/screen")):
-                    _h2h.setdefault(r["ticker"], {}).update(
-                        {k: v for k, v in r.items() if k not in ("ticker", "name")})
-                _order = sorted(_h2h, key=lambda t: -(_h2h[t].get("revenue") or 0))
-                if len(_order) >= 2:
-                    section("Head to head", "pick two")
-                    _pa, _pb = st.columns(2, gap="medium")
-                    with _pa:
-                        _a = st.selectbox("A", _order, index=_order.index(ticker)
-                                          if ticker in _order else 0,
-                                          key=f"h2h_a_{engine}", label_visibility="collapsed")
-                    with _pb:
-                        _rest = [t for t in _order if t != _a]
-                        _b = st.selectbox("B", _rest, index=0, key=f"h2h_b_{engine}",
-                                          label_visibility="collapsed")
-                    st.markdown(_head_to_head(_h2h.get(_a) or {}, _h2h.get(_b) or {}, _a, _b),
-                                unsafe_allow_html=True)
-                    note("Every figure is the one the tables below carry, put side by side. The "
-                         "marked side is the better of the two on that measure only, and better "
-                         "is stated per measure: more revenue and a higher margin are better, a "
-                         "nearer loss of exclusivity is not. A measure missing for either "
-                         "company is left unmarked rather than assumed to be worse.")
-
-
-
-            with _time_col:
-                if ct_labels and ct_by:
-                    # Driven by the two picked beside it rather than by its own company
-                    # control: one selection, one comparison, and the pills that used to
-                    # duplicate it are gone.
-                    section("Compare over time", f"{_a} against {_b}")
-                    # Pills, not a radio and a dropdown: every company is one click away and the
-                    # selection is readable without opening anything. A dropdown hid which
-                    # companies were on the chart behind a closed control.
-                    metric_label = st.pills(
-                        "Metric", ["Revenue growth", "Net margin"],
-                        default="Revenue growth", key="comps_metric",
-                        label_visibility="collapsed") or "Revenue growth"
-                    metric_key = ("revenue_growth" if metric_label == "Revenue growth"
-                                  else "net_margin")
-                    # The two chosen for the head to head, in the order they were chosen.
-                    picked = [t for t in (_a, _b) if t in ct_by]
-                    palette = [TK.UP, TK.ORANGE_BOOK, TK.PURPLE_BOOK, TK.DOWN, TK.FLAG, TK.MUTED]
-                    series = [{"name": tk,
-                               "values": [v * 100 if v is not None else None
-                                          for v in ct_by[tk][metric_key]],
-                               "colour": palette[i % len(palette)]}
-                              for i, tk in enumerate(picked)]
-                    if series:
-                        R.show(CH.line_chart(series, ct_labels, 720, 320,
-                                             y_fmt=lambda v: f"{v:.0f}%"),
-                               css_class="chart-mount stretch comps-pair")
-                    else:
-                        state("No history for these two",
-                              "Neither company has enough reported years to draw a line. "
-                              "Pick another pair beside this.")
-
 
         with _vt["Pipelines"]:
             _intro("Every company at once: where each sits on research productivity "
@@ -5802,24 +5679,6 @@ with main:
 
 
 
-        with _vt["Screen"]:
-            _intro("The whole cohort on every measure, one row per company. Hover a column "
-                   "heading for what it measures; click a heading to sort by it. "
-                   f"{ticker} is marked.")
-            section("Comparables",
-                    f'{len(_peers)} in {_ENGINE_LABELS.get(engine, "coverage").lower()}')
-            # A universe refresh lived here as a second "Refresh all" beside the one in
-            # the top bar, under a heading about comparing companies. It is the top bar's.
-            # Every row shown: at eighteen rows the grid is the view, and a 300 pixel
-            # window onto it hid half the cohort behind a scroll inside a scroll.
-            st.dataframe(styled, width="stretch", hide_index=True,
-                         height=38 + 35 * max(len(screen_table), 1),
-                         column_config=_SCREEN_COLUMNS)
-
-        # A matrix of every company against every phase, so it belongs with the
-        # other cross-sectional views rather than in a tab that is otherwise one
-        # company at a time.
-        rows = _peer_rows(api_get(api_base, "/pipeline"))
     with pipeline_tab:
         # --- Therapeutic areas: click a band to reveal its trials ---
         # Development trials drive the bars and the "in development" count. Two kinds of
