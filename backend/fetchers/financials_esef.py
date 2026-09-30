@@ -46,6 +46,7 @@ import urllib.request
 
 import companyfacts
 import db
+import statements
 from fetchers.base import BaseFetcher, RefreshResult
 
 # The same snapshot series EDGAR writes, so a company's financial history is one series
@@ -72,6 +73,22 @@ _IFRS_NAMESPACE = re.compile(r"^https?://xbrl\.ifrs\.org/taxonomy/\d{4}-\d{2}-\d
 # The aspects every fact has. Anything else is a dimension, so the fact is a breakdown.
 _CORE_ASPECTS = {"concept", "entity", "period", "unit", "language"}
 _STAMP = re.compile(r"^(\d{4}-\d{2}-\d{2})(?:T(\d{2}):(\d{2}):(\d{2}))?")
+
+
+def _revenue_taxonomy(parsed: dict) -> str | None:
+    """The taxonomy that supplied the latest annual revenue fact, "us-gaap" or
+    "ifrs-full", or None when no revenue line was read.
+
+    Recorded in the snapshot so a reader can name the accounting standard from the facts
+    themselves. The foreign-issuer flag cannot: three 20-F filers carry it as 0.
+    """
+    periods = ((parsed.get("lines") or {}).get("Revenues") or {}).get("periods") or {}
+    keys = [key for key in periods if key[1] == statements.FY] or list(periods)
+    if not keys:
+        return None
+    concept = periods[max(keys)].get("concept")
+    line = statements.LINES_BY_KEY["Revenues"]
+    return next((taxonomy for taxonomy, name in line.candidates if name == concept), None)
 
 
 class NotIndexed(LookupError):
@@ -345,6 +362,7 @@ class FinancialsEsefFetcher(BaseFetcher):
                 "cash": self._parsed["cash"],
                 "total_debt": self._parsed["total_debt"],
                 "reports": self._reports,
+                "taxonomy": _revenue_taxonomy(self._statements),
                 "source": ESEF_SOURCE,
                 "fetch_kind": "live",
             })
