@@ -119,6 +119,10 @@ def _font_faces() -> str:
 
 _FONT_FACE_CSS = _font_faces()
 _TOKENS_CSS = (_ASSETS / "tokens.css").read_text()
+# The shared primitives of the research tabs (.u- classes and the derived colour roles).
+# Injected after the tokens it reads; the Comps valuation component receives the same
+# text as its shared_css arg, so both surfaces draw from one file.
+_RESEARCH_CSS = (_ASSETS / "research.css").read_text()
 
 
 def css() -> str:
@@ -131,6 +135,7 @@ def css() -> str:
 <style>
 {_FONT_FACE_CSS}
 {tokens_root}
+{_RESEARCH_CSS}
 
 /* Legacy variable names, aliased onto the tokens so existing rules keep reading. */
 :root {{
@@ -1052,22 +1057,6 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .view-intro {{ font-family: var(--font-prose); font-size: 14px; line-height: 1.45;
               color: var(--text); opacity: 0.86; max-width: 88ch; margin: 0.2rem 0 0.7rem; }}
 
-/* Head to head: one company each side, the measure between them, so the eye runs down
-   the middle and compares across it. The winning side is marked in the up colour and
-   carries the mono weight; nothing is coloured red, because the other company losing a
-   measure is not a warning about it. */
-.h2h {{ margin: 0.2rem 0 0.3rem; }}
-.h2h-r {{ display: grid; grid-template-columns: 1fr 10.5rem 1fr; align-items: baseline;
-         gap: 0.5rem; padding: 0.1rem 0; border-bottom: 1px solid var(--rule); }}
-.h2h-r:last-child {{ border-bottom: none; }}
-.h2h-head {{ border-bottom: 1px solid var(--rule-strong); padding-bottom: 0.35rem; }}
-.h2h-head .h2h-v {{ font-size: 1rem; font-weight: 700; color: var(--text); }}
-.h2h-k {{ text-align: center; font-size: 10px; letter-spacing: 0.06em;
-         text-transform: uppercase; color: var(--muted); }}
-.h2h-v {{ font-family: var(--font-mono); font-size: 13px; color: var(--muted); }}
-.h2h-r > .h2h-v:first-child {{ text-align: right; }}
-.h2h-v.win {{ color: var(--up); font-weight: 600; }}
-
 /* Catalyst calendar. */
 .cal {{
   display: grid; grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
@@ -1211,18 +1200,6 @@ section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
 
 /* Radios and pills follow the same quiet square language. */
 .stRadio [role="radiogroup"] label, .stPills [data-baseweb] {{ border-radius: var(--radius); }}
-
-/* The comps selectors are a filter, not the subject, so they read smaller and quieter
-   than the pills that carry a pipeline's phases. Keyed to those two controls so the
-   heavier pills elsewhere are untouched. */
-.st-key-comps_metric button, .st-key-comps_pick button {{
-  font-size: 10.5px !important; padding: 1px 8px !important;
-  min-height: 22px !important; border-color: var(--rule) !important;
-}}
-.st-key-comps_metric button p, .st-key-comps_pick button p {{
-  font-size: 10.5px !important; line-height: 1.3 !important;
-}}
-.st-key-comps_metric, .st-key-comps_pick {{ margin-bottom: 2px; }}
 
 /* The area and phase pills sit under the therapeutic area chart, which draws to the
    edge of its container. Without a gap the first row of chips met the last bar. */

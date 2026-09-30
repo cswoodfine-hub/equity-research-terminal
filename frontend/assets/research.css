@@ -1,0 +1,782 @@
+/* Shared primitives for the research tabs (design spec 9.8). Owner: E.
+   Read by theme.py, which injects it into the Streamlit page after tokens.css, and by
+   components/compsval, which receives it as the shared_css arg and writes it into
+   <style id="research-css"> ahead of its own stylesheets.
+
+   Rules for this file:
+   - It reads only the custom properties of tokens.css, plus those defined in the first
+     :root block below. No colour literal of any kind: every colour is a token or a
+     color-mix() of tokens.
+   - It holds no element selectors, so injecting it into the Streamlit page changes
+     nothing that does not opt in with a .u- class.
+   - Sizes that belong to the type scale or to row heights are written as
+     calc(<px> * var(--ts)), so the text-size setting (13, 14, 15) scales the whole view.
+     --ts is resolved where the class is used, so an element that sets --ts on itself
+     (the compsval #app) scales everything inside it. */
+
+/* ------------------------------------------------------------------------------------ */
+/* Derived properties (9.1), spacing and density defaults (9.3)                          */
+/* ------------------------------------------------------------------------------------ */
+
+:root {
+  /* Colour roles derived from the tokens. The computed values sit in the contrast
+     table of spec 9.6. */
+  --clinical: var(--purple-book);                                     /* clinical and pipeline only */
+  --flag-wash: color-mix(in oklab, var(--panel) 88%, var(--flag));    /* flagged cell, warning block */
+  --up-wash: color-mix(in oklab, var(--ground) 84%, var(--up));       /* operating trend, above 0 */
+  --down-wash: color-mix(in oklab, var(--ground) 84%, var(--down));   /* operating trend, below 0; error block */
+  --cf-bar: color-mix(in oklab, var(--ground) 65%, var(--active));    /* in-cell bars, behind text only */
+  --hatch: repeating-linear-gradient(135deg, var(--rule) 0 1px, transparent 1px 5px);
+
+  /* Text size factor: 1 at 13 px, 14/13 at 14 px, 15/13 at 15 px. The component sets it on
+     #app; the Streamlit tabs keep 1. */
+  --ts: 1;
+
+  /* Spacing steps, in multiples of --space (8 px) and a half step. */
+  --sp-4: calc(var(--space) * 0.5);
+  --sp-8: var(--space);
+  --sp-12: calc(var(--space) * 1.5);
+  --sp-16: calc(var(--space) * 2);
+  --sp-24: calc(var(--space) * 3);
+  --sp-32: calc(var(--space) * 4);
+  --gutter: calc(var(--space) * 2);          /* frame side gutter, 16 px */
+  --section-gap: calc(var(--space) * 3);     /* between sections, 24 px */
+  --title-gap: var(--space);                 /* section title to content, 8 px */
+  --card-pad: calc(var(--space) * 1.5);      /* card padding, 12 px */
+
+  /* Density, default step (9.3). Redeclared below wherever density or text size is set,
+     so the rows follow the element's own --ts. */
+  --row-h: calc(30px * var(--ts));           /* body row */
+  --row-h-sum: calc(26px * var(--ts));       /* summary row */
+  --cell-px: 8px;                            /* cell padding, left and right */
+  --group-h: calc(22px * var(--ts));         /* column group header row */
+  --head-h: calc(40px * var(--ts));          /* column header row */
+
+  /* Control and chip heights (9.5). */
+  --ctl-h: calc(26px * var(--ts));           /* buttons, inputs, segmented controls */
+  --chip-h: calc(18px * var(--ts));
+
+  /* Frame measures published by the component's shell. Defaults here keep the drawer
+     usable on a page that sets neither. */
+  --band-h: 0px;
+  --main-h: 100vh;
+  --drawer-w: 440px;
+
+  /* Motion ceiling (9.7). */
+  --motion: 100ms;
+}
+
+/* Density and text size. Put data-density (compact, default, comfortable) on the element
+   that carries --ts; the variables are recomputed there. Attribute rules with a value
+   come later in the file, so they win over the plain [data-density] rule. */
+:where([data-density], .u-scale) {
+  --row-h: calc(30px * var(--ts));
+  --row-h-sum: calc(26px * var(--ts));
+  --cell-px: 8px;
+  --group-h: calc(22px * var(--ts));
+  --head-h: calc(40px * var(--ts));
+  --ctl-h: calc(26px * var(--ts));
+  --chip-h: calc(18px * var(--ts));
+}
+[data-density="compact"] {
+  --row-h: calc(26px * var(--ts));
+  --row-h-sum: calc(24px * var(--ts));
+  --cell-px: 6px;
+}
+[data-density="comfortable"] {
+  --row-h: calc(36px * var(--ts));
+  --row-h-sum: calc(30px * var(--ts));
+  --cell-px: 10px;
+}
+/* An attribute alternative to writing --ts inline. */
+[data-text-size="13"] { --ts: 1; }
+[data-text-size="14"] { --ts: calc(14 / 13); }
+[data-text-size="15"] { --ts: calc(15 / 13); }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion: 0ms; }
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Type scale (9.2)                                                                      */
+/* ------------------------------------------------------------------------------------ */
+
+/* The premium token of a conclusion banner. Never coloured up or down. */
+.u-token {
+  font-family: var(--font-mono);
+  font-size: calc(24px * var(--ts));
+  line-height: calc(28px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+}
+.u-headline {
+  font-family: var(--font-ui);
+  font-size: calc(21px * var(--ts));
+  line-height: calc(28px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+/* Figures inside a headline or support line are set in Plex Mono. */
+.u-headline .u-num, .u-support .u-num { font-weight: inherit; }
+.u-support {
+  font-family: var(--font-ui);
+  font-size: calc(14px * var(--ts));
+  line-height: calc(20px * var(--ts));
+  font-weight: 400;
+  color: var(--text);
+  margin: 0;
+}
+.u-kpi-value {
+  font-family: var(--font-mono);
+  font-size: calc(17px * var(--ts));
+  line-height: calc(22px * var(--ts));
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+}
+[data-height="short"] .u-token {
+  font-size: calc(18px * var(--ts));
+  line-height: calc(22px * var(--ts));
+}
+[data-height="short"] .u-headline {
+  font-size: calc(16px * var(--ts));
+  line-height: calc(22px * var(--ts));
+}
+[data-height="short"] .u-support {
+  font-size: calc(13px * var(--ts));
+  line-height: calc(18px * var(--ts));
+}
+[data-height="short"] .u-kpi-value {
+  font-size: calc(15px * var(--ts));
+  line-height: calc(20px * var(--ts));
+}
+.u-section-title {
+  font-family: var(--font-ui);
+  font-size: calc(15px * var(--ts));
+  line-height: calc(20px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 var(--title-gap);
+}
+/* KPI, form and chip labels. */
+.u-label {
+  font-family: var(--font-ui);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  font-weight: 500;
+  color: var(--muted);
+}
+/* Metadata, units, timestamps, period lines. */
+.u-meta {
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  font-weight: 400;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+/* Any figure. Right alignment belongs to the cell that holds it. */
+.u-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+}
+.u-right { text-align: right; }
+/* Uppercase only for tickers and marker letters. */
+.u-ticker {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.u-group-head {
+  font-family: var(--font-ui);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  font-weight: 600;
+  color: var(--muted);
+}
+.u-col-head {
+  font-family: var(--font-ui-narrow);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Numbers and markers (9.4, 4.4)                                                        */
+/* ------------------------------------------------------------------------------------ */
+
+/* Tag letters A (reported), E (street estimate), G (guidance), M (model), and the flag
+   mark. The marker is a fixed 12 px slot after the number, so an empty slot keeps the
+   decimal points in line. Muted by default; amber only for a per-cell fallback or flag. */
+.u-marker {
+  display: inline-block;
+  width: calc(12px * var(--ts));
+  margin-left: 2px;
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--ts));
+  line-height: calc(12px * var(--ts));
+  font-weight: 600;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--muted);
+  vertical-align: baseline;
+}
+.u-marker.amber, .u-marker.flag { color: var(--flag); }
+/* On the focal row wash and on a flag wash, muted fails AA, so markers turn to text. */
+.u-on-wash .u-marker:not(.amber):not(.flag) { color: var(--text); }
+/* The reserved slot for the currency code in filing-currency mode. */
+.u-cur-slot {
+  display: inline-block;
+  width: calc(28px * var(--ts));
+  margin-left: 4px;
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--ts));
+  color: var(--muted);
+  text-align: left;
+}
+/* A flagged value: dotted amber underline under the number, the reason in its tooltip. */
+.u-flagged {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--flag);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+/* No value (U+2014), not meaningful, no burn. Never a zero. */
+.u-null, .u-nm { color: var(--muted); font-family: var(--font-mono); }
+.u-noburn {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ts));
+}
+.u-on-wash .u-null, .u-on-wash .u-nm, .u-on-wash .u-noburn { color: var(--text); }
+/* Direction glyphs. up and down are graphic colours only: the figure beside them stays
+   in text with a true minus. .u-dir alone is the neutral text-coloured arrow used for a
+   premium or discount. */
+.u-dir { color: var(--text); font-family: var(--font-mono); }
+.u-dir.up { color: var(--up); }
+.u-dir.down { color: var(--down); }
+.u-dir.flag { color: var(--flag); }
+.u-dir.active { color: var(--active); }
+/* Hatch for excluded cells and loading skeletons. */
+.u-hatch { background-image: var(--hatch); }
+.u-skeleton {
+  display: block;
+  height: var(--row-h);
+  background-image: var(--hatch);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Chips (9.5)                                                                           */
+/* ------------------------------------------------------------------------------------ */
+
+/* Neutral by default. Tones: active, flag, down, up, clinical, analyst, basis.
+   The down and up tones draw their own down or up triangle (U+25BC, U+25B2) before the
+   label, in the tone colour with the label in text, so a direction is never carried by
+   the border colour alone: do not write the glyph into the label as well. A label that
+   may overflow goes in .u-chip-label, which takes the ellipsis. */
+.u-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: var(--chip-h);
+  padding: 0 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  font-weight: 500;
+  white-space: nowrap;
+  vertical-align: middle;
+  max-width: 100%;
+  overflow: hidden;
+}
+.u-chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.u-chip, a.u-chip, .u-chip[role="button"], .u-chip[tabindex] {
+  cursor: pointer;
+  transition: background-color var(--motion) linear;
+}
+button.u-chip:hover, a.u-chip:hover, .u-chip[role="button"]:hover {
+  background: var(--rule);
+}
+.u-chip.active { border-color: var(--active); color: var(--active); }
+.u-chip.flag { border-color: var(--flag); color: var(--flag); }
+.u-chip.down { border-color: var(--down); color: var(--text); }
+.u-chip.up { border-color: var(--up); color: var(--text); }
+.u-chip.down::before { content: "\25BC"; content: "\25BC" / ""; color: var(--down); font-size: 0.8em; }
+.u-chip.up::before { content: "\25B2"; content: "\25B2" / ""; color: var(--up); font-size: 0.8em; }
+.u-chip.clinical {
+  border-left: 2px solid var(--clinical);
+  color: var(--text);
+}
+.u-chip.analyst { border-color: var(--flag); color: var(--text); }
+.u-chip.basis {
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--ts));
+  font-weight: 600;
+  padding: 0 4px;
+}
+/* Remove button inside a chip, the cross after "Excluded: PFE". */
+.u-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  margin: 0 -2px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.u-chip-x:hover { color: var(--text); background: var(--rule-strong); }
+.u-chip.flag .u-chip-x, .u-chip.active .u-chip-x { color: inherit; }
+
+/* ------------------------------------------------------------------------------------ */
+/* Buttons, segmented controls, inputs (9.5)                                             */
+/* ------------------------------------------------------------------------------------ */
+
+.u-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: var(--ctl-h);
+  padding: 0 10px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: calc(12.5px * var(--ts));
+  line-height: 1;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--motion) linear, opacity var(--motion) linear;
+}
+.u-btn:hover { background: var(--rule-strong); }
+.u-btn.primary { border-color: var(--active); }
+/* Square icon button: reload, export, help, close. */
+.u-btn.icon { width: var(--ctl-h); padding: 0; }
+/* Text-only link-style action, for "Look next" and "Open methodology". */
+.u-btn.link {
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--active);
+  font-weight: 500;
+}
+.u-btn.link:hover { background: transparent; text-decoration: underline; }
+.u-btn:disabled, .u-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.u-btn:disabled:hover, .u-btn[aria-disabled="true"]:hover { background: var(--panel); }
+.u-btn[aria-pressed="true"], .u-btn[aria-expanded="true"] {
+  border-color: var(--active);
+  background: var(--active-wash);
+}
+
+/* Joined buttons; the selected one carries aria-pressed="true". */
+.u-seg {
+  display: inline-flex;
+  align-items: stretch;
+  height: var(--ctl-h);
+}
+.u-seg > button, .u-seg > .u-seg-item {
+  position: relative;
+  box-sizing: border-box;
+  height: 100%;
+  margin: 0 0 0 -1px;
+  padding: 0 8px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+  background: var(--panel);
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: calc(12.5px * var(--ts));
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--motion) linear;
+}
+.u-seg > :first-child { margin-left: 0; border-radius: var(--radius-small) 0 0 var(--radius-small); }
+.u-seg > :last-child { border-radius: 0 var(--radius-small) var(--radius-small) 0; }
+.u-seg > :hover { background: var(--rule-strong); color: var(--text); }
+.u-seg > [aria-pressed="true"], .u-seg > [aria-checked="true"] {
+  z-index: 1;
+  border-color: var(--active);
+  background: var(--active-wash);
+  color: var(--text);
+}
+.u-seg > :focus-visible { z-index: 2; }
+.u-seg > :disabled { opacity: 0.5; cursor: not-allowed; }
+
+.u-input {
+  box-sizing: border-box;
+  height: var(--ctl-h);
+  padding: 0 8px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: calc(13px * var(--ts));
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.u-input.num { font-family: var(--font-mono); text-align: right; }
+.u-input::placeholder { color: var(--muted); opacity: 1; }
+textarea.u-input {
+  height: auto;
+  min-height: calc(3 * var(--ctl-h));
+  padding: 6px 8px;
+  line-height: calc(18px * var(--ts));
+  resize: vertical;
+}
+select.u-input { padding-right: 20px; cursor: pointer; }
+/* An analyst-edited input: dashed amber bottom border, with the "Analyst" chip beside it. */
+.u-input.analyst {
+  border-bottom-style: dashed;
+  border-bottom-color: var(--flag);
+}
+.u-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ------------------------------------------------------------------------------------ */
+/* Focus (7.4, 9.5)                                                                      */
+/* ------------------------------------------------------------------------------------ */
+
+/* 2 px active ring, offset 1 px; inset 2 px inside table cells. Never removed. .u-focus
+   draws it on demand, for an element whose focus is managed in script (the active cell
+   of a grid named by aria-activedescendant, a chart point). */
+.u-btn:focus-visible, .u-chip:focus-visible, .u-chip-x:focus-visible,
+.u-seg > :focus-visible, .u-input:focus-visible, .u-kpi:focus-visible,
+.u-menu-item:focus-visible, .u-focus {
+  outline: 2px solid var(--active);
+  outline-offset: 1px;
+}
+.u-focus-inset, .u-focus.u-focus-inset { outline: 2px solid var(--active); outline-offset: -2px; }
+
+/* ------------------------------------------------------------------------------------ */
+/* State blocks (9.5, section 8)                                                         */
+/* ------------------------------------------------------------------------------------ */
+
+/* Info (muted bar), amber (flag bar and wash), red (down bar and wash). On a wash every
+   line is text colour, because muted fails AA there. */
+.u-state {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: var(--sp-12);
+  row-gap: 2px;
+  align-items: start;
+  padding: var(--sp-8) var(--sp-12);
+  border-left: 2px solid var(--muted);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+.u-state-title {
+  grid-column: 1;
+  font-size: calc(13px * var(--ts));
+  line-height: calc(18px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+.u-state-detail {
+  grid-column: 1;
+  font-size: calc(13px * var(--ts));
+  line-height: calc(18px * var(--ts));
+  font-weight: 400;
+  color: var(--muted);
+  margin: 0;
+}
+.u-state-action { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.u-state.amber, .u-state.flag { border-left-color: var(--flag); background: var(--flag-wash); }
+.u-state.red, .u-state.down { border-left-color: var(--down); background: var(--down-wash); }
+.u-state.amber .u-state-detail, .u-state.flag .u-state-detail,
+.u-state.red .u-state-detail, .u-state.down .u-state-detail { color: var(--text); }
+
+/* ------------------------------------------------------------------------------------ */
+/* Overlays: popover, drawer, menu, tooltip, toast (9.5, 7.5)                            */
+/* ------------------------------------------------------------------------------------ */
+
+/* Anchored below its button, overlays the page, never pushes the layout. */
+.u-pop {
+  position: absolute;
+  z-index: 40;
+  box-sizing: border-box;
+  max-height: 50vh;
+  overflow: auto;
+  padding: var(--sp-12);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: calc(13px * var(--ts));
+  line-height: calc(18px * var(--ts));
+}
+.u-pop-title {
+  margin: 0 0 var(--sp-8);
+  font-size: calc(13px * var(--ts));
+  font-weight: 600;
+  color: var(--text);
+}
+.u-pop-group + .u-pop-group {
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-8);
+  border-top: 1px solid var(--rule);
+}
+
+/* Full height below the header band, from the right edge. */
+.u-drawer {
+  position: fixed;
+  z-index: 30;
+  top: var(--band-h);
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  width: min(var(--drawer-w), 100%);
+  overflow: auto;
+  padding: var(--sp-12) var(--sp-16);
+  border-left: 1px solid var(--rule-strong);
+  background: var(--panel);
+  color: var(--text);
+}
+
+/* Shared menu. Items: .u-menu-item with an optional check, label and key hint.
+   Disabled items keep aria-disabled and show their reason as a tooltip. */
+.u-menu {
+  position: fixed;
+  z-index: 50;
+  box-sizing: border-box;
+  min-width: 180px;
+  max-width: 360px;
+  max-height: 60vh;
+  overflow: auto;
+  margin: 0;
+  padding: var(--sp-4) 0;
+  list-style: none;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: calc(13px * var(--ts));
+}
+.u-menu-item {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  column-gap: var(--sp-8);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--ctl-h);
+  padding: 0 var(--sp-12) 0 var(--sp-8);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--motion) linear;
+}
+.u-menu-item:hover, .u-menu-item.is-active, .u-menu-item[aria-selected="true"] {
+  background: var(--active-wash);
+}
+.u-menu-item[aria-disabled="true"], .u-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.u-menu-item[aria-disabled="true"]:hover, .u-menu-item:disabled:hover { background: transparent; }
+.u-menu-check { grid-column: 1; color: var(--active); font-family: var(--font-mono); }
+.u-menu-label { grid-column: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u-menu-key { grid-column: 3; }
+.u-menu-head {
+  padding: var(--sp-8) var(--sp-12) var(--sp-4);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  font-weight: 600;
+  color: var(--muted);
+}
+.u-menu-sep { height: 1px; margin: var(--sp-4) 0; background: var(--rule); }
+.u-menu-note {
+  padding: var(--sp-8) var(--sp-12);
+  border-top: 1px solid var(--rule);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  color: var(--muted);
+}
+
+/* Key hint, for menus, the palette and the help overlay. */
+.u-kbd {
+  display: inline-block;
+  min-width: 16px;
+  padding: 0 4px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* One shared tooltip. It takes pointer events, so its text can be selected and its links
+   followed while the pointer is over it (WCAG 1.4.13). */
+.u-tip {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  max-width: 360px;
+  padding: var(--sp-8) 10px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  font-weight: 400;
+  pointer-events: auto;
+  overflow-wrap: break-word;
+}
+.u-tip[hidden] { display: none; }
+.u-tip-title { margin: 0 0 2px; font-weight: 600; color: var(--text); }
+.u-tip-body { margin: 0; color: var(--text); }
+.u-tip-lines {
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-4) 0 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  color: var(--muted);
+}
+.u-tip-lines .flag { color: var(--flag); }
+.u-tip a { color: var(--active); }
+
+/* Undo toast: bottom left inside the frame. */
+.u-toast {
+  position: fixed;
+  z-index: 70;
+  left: var(--gutter);
+  bottom: var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  box-sizing: border-box;
+  max-width: min(480px, calc(100% - 2 * var(--gutter)));
+  padding: var(--sp-8) var(--sp-8) var(--sp-8) var(--sp-12);
+  border: 1px solid var(--rule-strong);
+  border-left: 2px solid var(--active);
+  border-radius: var(--radius-small);
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: calc(13px * var(--ts));
+  line-height: calc(18px * var(--ts));
+  transition: opacity var(--motion) linear;
+}
+.u-toast[hidden] { display: none; }
+
+/* ------------------------------------------------------------------------------------ */
+/* KPI strip (1.5, 9.8)                                                                  */
+/* ------------------------------------------------------------------------------------ */
+
+/* Cells share the width equally; .u-kpi.primary takes one and a half shares and a 2 px
+   active top border. Each cell: .u-kpi-label, .u-kpi-value, .u-kpi-period, .u-kpi-compare.
+   Short mode keeps the label and the value. */
+.u-kpi-strip {
+  display: flex;
+  align-items: stretch;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  background: var(--panel);
+}
+.u-kpi {
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 6px var(--sp-12) 6px;
+  border-left: 1px solid var(--rule);
+  border-top: 2px solid transparent;
+  background: var(--panel);
+  cursor: default;
+}
+.u-kpi:first-child { border-left: 0; }
+.u-kpi.primary { flex-grow: 1.5; border-top-color: var(--active); }
+.u-kpi.primary .u-kpi-value { font-weight: 600; }
+.u-kpi-label {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.u-kpi-row { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; }
+.u-kpi-period, .u-kpi-compare {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.u-kpi-period { color: var(--muted); }
+.u-kpi-compare { color: var(--text); }
+[data-height="short"] .u-kpi-period, [data-height="short"] .u-kpi-compare { display: none; }
+[data-height="short"] .u-kpi { padding-top: 4px; padding-bottom: 4px; }
+[data-layout="narrow"] .u-kpi-strip { flex-wrap: wrap; }
+[data-layout="narrow"] .u-kpi { flex: 1 1 33%; border-top: 1px solid var(--rule); }
+[data-layout="narrow"] .u-kpi.primary { border-top: 2px solid var(--active); }
+
+/* ------------------------------------------------------------------------------------ */
+/* Screen reader text and the live region                                               */
+/* ------------------------------------------------------------------------------------ */
+
+.u-sr, .u-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-btn, .u-chip, .u-seg > *, .u-menu-item, .u-toast { transition: none; }
+}
