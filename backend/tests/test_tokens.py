@@ -34,12 +34,26 @@ PAIRS = [
     ("phase-3", tokens.PHASE_RAMP["Phase 3"]),
     ("phase-filed", tokens.PHASE_RAMP["filed"]),
     ("phase-approved", tokens.PHASE_RAMP["approved"]),
+    ("active", tokens.ACTIVE), ("active-wash", tokens.ACTIVE_WASH),
+    ("rule-faint", tokens.RULE_FAINT),
 ]
 
 
 def test_css_and_python_tokens_agree():
     for name, python_value in PAIRS:
         assert CSS.get(name, "").strip().upper() == python_value.upper(), name
+
+
+def test_every_python_colour_has_a_css_twin():
+    """The pairs above are listed by hand, which let RULE_FAINT sit in tokens.py with no
+    CSS twin while the suite stayed green. Every top-level hex constant is checked here,
+    so a new colour cannot be added to one file only."""
+    consts = {n: v for n, v in vars(tokens).items()
+              if n.isupper() and isinstance(v, str) and v.startswith("#")}
+    assert consts
+    for name, value in consts.items():
+        css_name = name.lower().replace("_", "-")
+        assert CSS.get(css_name, "").strip().upper() == value.upper(), name
 
 
 def test_spacing_and_radius_agree():

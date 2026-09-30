@@ -17,6 +17,12 @@ UP = "#4C9A7A"            # positive delta, and the measured-series colour
 DOWN = "#C4553B"          # negative delta
 FLAG = "#D9B26B"          # material change, needs review, uncurated
 
+# Active state: focus rings, the focal row, the active control, neutral emphasis. Interaction
+# only, never data direction. Always paired with a border, weight or glyph.
+ACTIVE = "#62A8D4"
+# ACTIVE mixed 14 % into PANEL (Oklab): the focal row and active cell background. Derived.
+ACTIVE_WASH = "#1D2F37"
+
 # One step lighter than RULE, for hairlines that carry structure (section rules,
 # axis domains). Derived, not a seventh palette value.
 RULE_STRONG = "#2E4249"
