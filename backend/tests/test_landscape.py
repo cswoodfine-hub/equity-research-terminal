@@ -124,6 +124,41 @@ def test_each_arm_reads_against_the_placebo_of_its_own_trial(land):
     assert row["p_value"] == "<0.001" and row["weeks"] == 72
 
 
+def test_each_row_carries_what_the_scorecard_tests_it_with(land):
+    row = land["endpoints"][0]["rows"][0]
+    assert (row["outcome_index"], row["outcome_type"], row["category_index"]) == (0, "PRIMARY", 0)
+    assert row["param"] == "LEAST_SQUARES_MEAN"
+    assert row["arm_names_drug"] and not row["arm_is_control"]
+    assert row["reference_is_drug"] is False and row["head_to_head"] is None
+    assert row["analyses"] == [{"method": None, "param_type": None, "param_value": -18.5,
+                                "ci_pct": None, "ci_lower": None, "ci_upper": None,
+                                "p_value": "<0.001"}]
+    for key in ("lower", "upper", "reference_spread", "reference_lower", "reference_upper"):
+        assert key in row
+
+
+def test_whose_arm_it_is_is_read_from_the_titles():
+    names = ["Sitagliptin"]
+    assert L._is_control_arm("Placebo", names)
+    assert L._is_control_arm("Standard of care", names)
+    assert not L._is_control_arm("Sitagliptin 100 mg + Placebo", names)
+    # A comparator arm that holds the drug, by a filed name or a component of a combination.
+    assert L._title_names("Placebo + Sitagliptin", L._names_of({"_names": names, "name": "X"}))
+    assert L._title_names("Liraglutide 1.8 mg", L._names_of(
+        {"_names": ["Xultophy"], "name": "Insulin degludec + Liraglutide"}))
+    assert not L._title_names("Insulin Glargine", ["Insulin icodec"])
+
+
+def test_safety_keeps_each_trial_as_a_stratum(land):
+    s = next(x for x in land["safety"] if x["name"] == "Tirzepatide")
+    assert s["strata"] == [{
+        "nct_id": "NCT1", "phase": "Phase 3", "kind": "placebo", "arms": 1,
+        "control_title": "Placebo", "control_is_drug": False,
+        "control": {"serious": [44, 643], "withdrawn": [17, 643], "deaths": [0, 643]},
+        "arm_rows": [{"title": "Tirzepatide 15 mg", "is_control": False,
+                      "serious": [40, 630], "withdrawn": [39, 630], "deaths": [0, 630]}]}]
+
+
 def test_safety_pools_the_drug_arms_against_placebo_in_the_same_trials(land):
     s = next(x for x in land["safety"] if x["name"] == "Tirzepatide")
     assert s["serious_rate"] == pytest.approx(40 / 630)
@@ -200,3 +235,97 @@ def test_a_salt_and_its_parent_are_one_compound():
              6531: {"molecule": [{"value": "OSIMERTINIB", "ref": "CHEMBL3353410"}]}}
     groups = sorted(sorted(g) for g in L.compound_groups(cands, pharm))
     assert groups == [[7], [315, 6531]]            # another company's copy stays its own
+
+
+# --- whose arm it is: the review round ------------------------------------------------------
+def _arm(title, desc=""):
+    return {"group_title": title, "group_description": desc}
+
+
+def test_a_salt_or_a_suffix_does_not_hide_the_drug():
+    osi = L.drug_identity({"name": "Osimertinib", "_names": ["Tagrisso", "Osimertinib Mesylate"]})
+    ref, kind = L.comparator([_arm("Osimertinib 80mg"), _arm("Chemotherapy")], osi)
+    assert kind == "comparator" and ref["group_title"] == "Chemotherapy"
+    cemi = L.drug_identity({"name": "Cemiplimab", "_names": ["Libtayo", "Cemiplimab-Rwlc"]})
+    assert L.comparator([_arm("Cemiplimab 350 mg"), _arm("Platinum Doublet")], cemi)[1] == (
+        "comparator")
+    # "Pramlintide + Placebo" is the drug with a dummy, never a control arm.
+    pram = L.drug_identity({"name": "Pramlintide", "_names": ["Symlin", "Pramlintide Acetate"]})
+    assert not L.is_placebo("Pramlintide + Placebo", pram)
+    assert not L._is_control_arm("Pramlintide + Placebo", pram)
+
+
+def test_a_biosimilar_is_not_read_as_its_reference_product():
+    cands = {1: {"name": "Bevacizumab", "_names": ["Mvasi", "Bevacizumab-Awwb"]},
+             2: {"name": "Bevacizumab", "_names": ["Avastin", "Bevacizumab"]}}
+    ids = L.identities(cands)
+    assert ids[1]["plain"] == [] and not L.names_drug("Bevacizumab 15 mg/kg", ids[1])
+    alone = L.drug_identity(cands[1])
+    assert alone["plain"] == ["Bevacizumab"]
+    # Where the reference product is not a candidate, a code on the other arm says so.
+    assert L.comparator([_arm("Bevacizumab"), _arm("ABP 215")], alone) == (None, None)
+
+
+def test_an_extension_arm_is_not_a_third_arm_and_the_one_unnamed_arm_is_the_comparator():
+    nivo = ["Opdivo", "Nivolumab"]
+    ref, kind = L.comparator([_arm("Nivolumab"), _arm("Docetaxel"),
+                              _arm("Extension Phase of Docetaxel Arm: Nivolumab")], nivo)
+    assert ref["group_title"] == "Docetaxel" and kind == "comparator"
+    ref, _ = L.comparator([_arm("Tirzepatide 5 mg"), _arm("Tirzepatide 10 mg"),
+                           _arm("Tirzepatide 15 mg"), _arm("Semaglutide 1 mg")],
+                          ["Mounjaro", "Tirzepatide"])
+    assert ref["group_title"] == "Semaglutide 1 mg"
+    assert L.comparator([_arm("Arm A"), _arm("Arm B"), _arm("Arm C")], ["x"]) == (None, None)
+
+
+def test_a_combination_is_named_only_by_every_component_or_its_own_name():
+    xul = L.drug_identity({"name": "Insulin degludec + Liraglutide",
+                           "_names": ["Xultophy 100/3.6", "Insulin Degludec", "Liraglutide"]})
+    assert not L.names_drug("Insulin degludec 100 U/mL", xul)
+    assert not L.names_drug("IDeg OD", xul)
+    assert L.names_drug("Insulin degludec/liraglutide", xul)
+    assert L.names_drug("Xultophy 100/3.6", xul)
+    assert L.mentions_drug("Liraglutide 1.8 mg", xul)       # a part: never a clean control
+
+
+def test_a_description_names_the_drug_only_as_the_arms_own_treatment():
+    ixe, bari = L.drug_identity(["Ixekizumab"]), L.drug_identity(["Baricitinib"])
+    assert not L._described("Etanercept 50 mg twice weekly. Placebo for ixekizumab given as "
+                            "2 SC injections", ixe)
+    assert not L._described("Adalimumab 40 mg and baricitinib placebo orally. Non-responders "
+                            "were rescued with baricitinib 4 mg", bari)
+    assert not L._described("Rovalpituzumab tesirine IV. Dexamethasone coadministered orally",
+                            L.drug_identity(["Dexamethasone"]))
+    assert L._described("Dapagliflozin 10 mg once daily", L.drug_identity(["Dapagliflozin"]))
+
+
+def test_an_arm_that_adds_another_candidate_is_not_the_drugs_alone():
+    ids = L.identities({1: {"name": "Nivolumab", "_names": ["Opdivo", "Nivolumab"]},
+                        2: {"name": "Ipilimumab", "_names": ["Yervoy", "Ipilimumab"]},
+                        3: {"name": "Pemetrexed", "_names": ["Alimta", "Pemetrexed"]},
+                        4: {"name": "Pembrolizumab", "_names": ["Keytruda", "Pembrolizumab"]}})
+    assert L.claimed_by_other("Nivolumab 1 mg/kg + Ipilimumab 3 mg/kg", "Placebo", 1, ids)
+    assert not L.claimed_by_other("Nivolumab 240 mg", "Placebo", 1, ids)
+    # A backbone both arms share claims nothing.
+    assert not L.claimed_by_other("Pembrolizumab + Pemetrexed", "Placebo + Pemetrexed", 4, ids)
+    # Another candidate's own arm in a trial of this drug is that candidate's.
+    assert L.claimed_by_other("Ipilimumab 10 mg/kg", "Placebo", 1, ids)
+
+
+def test_small_cell_lung_cancer_is_not_non_small_cell():
+    assert not L.condition_matches("Small Cell Lung Cancer", "Carcinoma, Non-Small-Cell Lung")
+    assert not L.condition_matches("Extensive-stage Small-cell Lung Cancer",
+                                   "Carcinoma, Non-Small-Cell Lung")
+    assert L.condition_matches("Non-small Cell Lung Cancer", "Carcinoma, Non-Small-Cell Lung")
+
+
+def test_the_safety_stratum_leaves_out_an_arm_that_adds_another_candidate():
+    cand = {"asset_id": 1, "name": "Nivolumab", "_names": ["Opdivo", "Nivolumab"]}
+    ids = L.identities({1: cand, 2: {"name": "Ipilimumab", "_names": ["Yervoy", "Ipilimumab"]}})
+    row = lambda t, s: {"group_title": t, "serious_affected": s, "serious_at_risk": 100,
+                        "deaths_affected": 0, "deaths_at_risk": 100, "withdrawn_ae": 1,
+                        "other_at_risk": 100}
+    rows = [row("Nivolumab 240 mg", 30), row("Nivolumab 1 mg/kg + Ipilimumab 3 mg/kg", 70),
+            row("Placebo", 20)]
+    st = L._stratum("N1", "Phase 3", rows, rows[2], "placebo", cand, ids)
+    assert [a["title"] for a in st["arm_rows"]] == ["Nivolumab 240 mg"]

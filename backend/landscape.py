@@ -89,16 +89,131 @@ def condition_matches(condition: str, indication: str) -> bool:
     nums_i, nums_c = IM._numbers(ind), IM._numbers(cond)
     if nums_i and nums_c and not (nums_i & nums_c):
         return False            # Type 1 is not Type 2
+    if ("non" in ind) != ("non" in cond):
+        return False            # small cell is not non-small cell, Hodgkin not non-Hodgkin
     return len(ind & cond) / len(ind) >= CONDITION_MATCH
 
 
 def is_placebo(title: str | None, names=()) -> bool:
-    """A placebo, vehicle or sham arm. One that also names the drug is the drug given
-    with a matching dummy (a double-dummy design), so it is the drug's arm, not placebo;
-    "Placebo + Metformin" is still placebo, on background therapy."""
+    """A placebo, vehicle or sham arm. One that also names the drug, or any part of it,
+    is the drug given with a matching dummy (a double-dummy design), so it is the drug's
+    arm, not placebo; "Placebo + Metformin" is still placebo, on background therapy.
+    ``names`` is a list of names or a ``drug_identity``."""
     text = (title or "").lower()
-    return bool(_PLACEBO.search(text)) and not any(
-        n.lower() in text for n in names if len(n) >= 4)
+    return bool(_PLACEBO.search(text)) and not mentions_drug(text, drug_identity(names))
+
+
+# --- whose arm it is ------------------------------------------------------------------
+# An arm the drug's own trial runs after, or beside, its randomised comparison: a
+# crossover, an extension or an open-label phase ("Extension Phase of Docetaxel Arm:
+# Nivolumab"). It is never the comparator, and never counted as a third arm.
+_SWITCH_ARM = re.compile(r"switch|cross[- ]?over|extension|open[- ]label|\bole\b|\blte\b|"
+                         r"long[- ]term|follow[- ]up|rollover", re.I)
+# A development code in an arm's title (ABP 215, PF-06439535): in a trial of a biologic
+# whose plain name is on another arm, the sign of a biosimilar's comparison with its
+# reference product.
+_DEV_CODE = re.compile(r"\b[A-Z]{1,5}[- ]?\d{2,}[A-Z]?\b")
+# A drug named in an arm's description in one of these settings is not the arm's drug: a
+# placebo for it, a premedication given with the arm's own drug, background therapy, or
+# what a non-responder is moved on to ("Placebo for ixekizumab", "Dexamethasone
+# coadministered", "rescued with baricitinib").
+_DESC_BEFORE = re.compile(r"\b(placebo|dummy|matching|matched|premedicat\w*|co-?administ\w*|"
+                          r"background|rescue\w*|switch\w*|cross\w*|in addition to|"
+                          r"on top of|stable dose)\W+(\w+\W+){0,3}$", re.I)
+_DESC_AFTER = re.compile(r"^\W*(\w+\W+){0,1}\b(placebo|dummy|matching|co-?administ\w*|"
+                         r"premedicat\w*)", re.I)
+
+
+def _salt_free(name: str) -> str:
+    from fetchers.pharmacology import _SALTS
+    words = name.split()
+    kept = [w for w in words if w.lower().strip(",") not in _SALTS]
+    return " ".join(kept) if kept else name
+
+
+def drug_identity(cand) -> dict:
+    """The names an arm is read against, in three kinds.
+
+    ``whole``: any one of them names the drug. Its filed names (brand, generic, code,
+    active ingredient) and its compound name, each also without a salt word, so
+    "Osimertinib 80 mg" names osimertinib mesylate.
+    ``plain``: a biologic's name without its FDA suffix ("Cemiplimab" for
+    cemiplimab-rwlc). A biosimilar shares it with its reference product, so it is used
+    only where no other candidate holds it as a whole name (``endpoints`` and ``safety``
+    strike it there) and never in a trial with a development code on another arm.
+    ``parts``: a combination's components ("Insulin degludec + Liraglutide"), which name
+    it only all together; a filed name that is one component alone is not a whole name.
+
+    ``cand`` may be a list of names (each read as whole), a candidate, or an identity."""
+    if isinstance(cand, dict) and "whole" in cand:
+        return cand
+    if not isinstance(cand, dict):
+        names = [n for n in (cand or []) if n]
+        whole = list(dict.fromkeys([*names, *(_salt_free(n) for n in names)]))
+        plain = [p for p in dict.fromkeys(_BIOLOGIC_SUFFIX.sub("", _PREFIX.sub("", n))
+                                          for n in whole) if p not in whole]
+        return {"whole": whole, "plain": plain, "parts": []}
+    filed = [n for n in (cand.get("_names") or []) if n]
+    comps = [p.strip() for p in (cand.get("name") or "").split(" + ") if p.strip()]
+    if len(comps) >= 2:
+        low = {c.lower() for c in comps}
+        whole = [n for n in filed if _salt_free(n).lower() not in low
+                 and _clean_generic(n).lower() not in low]
+        parts = [list(dict.fromkeys([c, *(n for n in filed if _clean_generic(n).lower()
+                                          == c.lower())]))
+                 for c in comps]
+        return {"whole": list(dict.fromkeys(whole)), "plain": [], "parts": parts}
+    base = drug_identity(filed)
+    known = {n.lower() for n in base["whole"] + base["plain"]}
+    # The compound name is the generic cleaned, so for a biologic it is the plain name.
+    base["whole"] += [c for c in comps if c.lower() not in known]
+    return base
+
+
+def _found(text: str, names) -> list[str]:
+    """The names (four letters or more) a lower-cased text holds, as written."""
+    return [n for n in names if n and len(n) >= 4 and n.lower() in text]
+
+
+def names_drug(text: str | None, ident: dict, plain: bool = True) -> list[str]:
+    """The drug's names a text holds where together they name the drug: one whole name,
+    one plain name, or every part of a combination. Empty where they do not."""
+    t = (text or "").lower()
+    got = _found(t, ident["whole"]) + (_found(t, ident["plain"]) if plain else [])
+    if ident["parts"]:
+        hits = [_found(t, alts) for alts in ident["parts"]]
+        if all(hits):
+            got += [h for hs in hits for h in hs]
+    return got
+
+
+def mentions_drug(text: str | None, ident: dict) -> bool:
+    """Whether a text names the drug or any part of it: such an arm is never a clean
+    control or placebo."""
+    t = (text or "").lower()
+    return bool(names_drug(t, ident) or any(_found(t, alts) for alts in ident["parts"]))
+
+
+def _described(desc: str | None, ident: dict) -> bool:
+    """Whether an arm's description names the drug as the arm's own treatment: at least
+    one mention not in a placebo, premedication, background or rescue setting."""
+    text = (desc or "").lower()
+    for name in names_drug(text, ident):
+        start = 0
+        n = name.lower()
+        while True:
+            i = text.find(n, start)
+            if i < 0:
+                break
+            if not (_DESC_BEFORE.search(text[max(0, i - 60):i])
+                    or _DESC_AFTER.search(text[i + len(n):i + len(n) + 30])):
+                return True
+            start = i + len(n)
+    return False
+
+
+def _core_arms(arms: list[dict]) -> list[dict]:
+    return [a for a in arms if not _SWITCH_ARM.search(a["group_title"] or "")]
 
 
 def comparator(arms: list[dict], names) -> tuple[dict | None, str | None]:
@@ -106,20 +221,34 @@ def comparator(arms: list[dict], names) -> tuple[dict | None, str | None]:
 
     A placebo arm where there is one. Otherwise an arm the sponsor names as the control
     (standard of care, investigator's choice), which is how an oncology trial is built.
-    Otherwise, in a two-arm trial where one arm names the drug and the other does not,
-    the other one: Keytruda against docetaxel. None where the trial gives no way to tell.
-    """
-    placebo = next((a for a in arms if is_placebo(a["group_title"], names)), None)
+    Otherwise, where exactly one of the trial's randomised arms does not name the drug
+    and at least one does, that one: Keytruda against docetaxel, three doses of
+    tirzepatide against semaglutide. An extension, crossover or open-label arm is not
+    counted. None where the trial gives no way to tell, or where the drug is named only
+    by a biologic's plain name and another arm carries a development code (a biosimilar
+    against its reference product). ``names`` is a list of names or a
+    ``drug_identity``."""
+    ident = drug_identity(names)
+    placebo = next((a for a in arms if is_placebo(a["group_title"], ident)), None)
     if placebo:
         return placebo, "placebo"
-    named = lambda a: any(n.lower() in f'{a["group_title"] or ""} {a.get("group_description") or ""}'.lower()
-                          for n in names if len(n) >= 4)
+
+    def named(a):
+        return (mentions_drug(a["group_title"], ident)
+                or _described(a.get("group_description"), ident))
     control = next((a for a in arms if _CONTROL.search(a["group_title"] or "")
                     and not named(a)), None)
     if control:
         return control, "control"
-    others = [a for a in arms if not named(a)]
-    if len(arms) == 2 and len(others) == 1:
+    core = _core_arms(arms)
+    others = [a for a in core if not named(a)]
+    if len(others) == 1 and len(core) >= 2:
+        strong = {**ident, "plain": []}
+        by_plain = not any(names_drug(a["group_title"], strong)
+                           or _described(a.get("group_description"), strong)
+                           for a in core if a is not others[0])
+        if by_plain and _DEV_CODE.search(others[0]["group_title"] or ""):
+            return None, None
         return others[0], "comparator"
     return None, None
 
@@ -433,10 +562,95 @@ def _analysis_for(analyses: list, arm: str, placebo: str | None) -> dict | None:
     return None
 
 
+_ANALYSIS_KEYS = ("method", "param_type", "param_value", "ci_pct", "ci_lower", "ci_upper",
+                  "p_value")
+
+
+def _pair_analyses(analyses: list, arm: str, ref: str | None) -> list[dict]:
+    """Every analysis row that compares exactly this arm with its comparator arm, in the
+    registry's order, with the fields the scorecard reads: the method, the estimate and
+    its type, its interval and level, and the p-value."""
+    if ref is None:
+        return []
+    out = []
+    for a in analyses:
+        try:
+            groups = set(json.loads(a["group_ids"] or "[]"))
+        except (TypeError, ValueError):
+            continue
+        if arm in groups and ref in groups and len(groups) == 2:
+            out.append({k: a.get(k) for k in _ANALYSIS_KEYS})
+    return out
+
+
+def _names_of(cand: dict) -> list[str]:
+    """The names an arm title is read against: the drug's filed names, its compound name
+    and each component of a combination ("Insulin degludec + Liraglutide")."""
+    parts = [p.strip() for p in (cand.get("name") or "").split(" + ")]
+    return list(dict.fromkeys([*(cand.get("_names") or []), *[p for p in parts if p]]))
+
+
+def _title_names(title: str | None, names) -> bool:
+    """Whether a title holds one of these names in full (four letters or more)."""
+    text = (title or "").lower()
+    return any(n.lower() in text for n in names if n and len(n) >= 4)
+
+
+def _is_control_arm(title: str | None, names) -> bool:
+    """An arm that is itself a placebo or a named control, which is never the drug's arm
+    whatever its description mentions. ``names`` is a list of names or a
+    ``drug_identity``."""
+    ident = drug_identity(names)
+    return bool(is_placebo(title, ident)
+                or (_CONTROL.search(title or "") and not mentions_drug(title, ident)))
+
+
+def identities(cands: dict) -> dict:
+    """{asset_id: drug_identity} for every candidate, a biologic's plain name struck where
+    another candidate holds it as a whole name: "Bevacizumab" is Avastin's, not a
+    biosimilar's."""
+    out = {aid: drug_identity(c) for aid, c in cands.items()}
+    whole = defaultdict(set)
+    for aid, ident in out.items():
+        for n in ident["whole"]:
+            whole[n.lower()].add(aid)
+    for aid, ident in out.items():
+        ident["plain"] = [p for p in ident["plain"] if not (whole.get(p.lower(), set()) - {aid})]
+    return out
+
+
+def claimed_by_other(title: str | None, ref_title: str | None, aid, idents: dict) -> bool:
+    """Whether an arm's title names another candidate that the drug's own names do not
+    cover and the control arm does not name: the arm is that drug's, or a combination
+    with it ("Nivolumab + Ipilimumab" is not nivolumab alone; "Liraglutide 1.8 mg" in a
+    semaglutide trial is liraglutide's). A backbone both arms share ("Pembrolizumab +
+    Pemetrexed" against "Placebo + Pemetrexed") claims nothing."""
+    text = (title or "").lower()
+    mine = [n.lower() for n in names_drug(text, idents[aid])]
+    for o, ident in idents.items():
+        if o == aid:
+            continue
+        theirs = names_drug(text, ident)
+        if not theirs or all(any(t.lower() in m for m in mine) for t in theirs):
+            continue
+        if not names_drug(ref_title, ident):
+            return True
+    return False
+
+
 def endpoints(cands: dict, outcomes: dict, analyses: dict) -> list[dict]:
     """Every primary endpoint of every candidate's trials, per arm, against placebo,
-    grouped by measure. Groups more than one drug shares come first."""
+    grouped by measure. Groups more than one drug shares come first.
+
+    Beside the figures a view shows, each row carries what the clinical scorecard needs to
+    test it (landscape_score): which result and category it is, the arm's and the
+    comparator's own spread or interval, every analysis row the sponsor posted for the
+    pair, and whose arm it is: whether the arm names the drug or is itself a control,
+    whether the comparator arm holds the drug too, and the other candidate a head-to-head
+    comparator arm names."""
     trial_owner = {nct: aid for aid, c in cands.items() for nct in c["trials"]}
+    idents = identities(cands)
+    own_names = {aid: [c.get("name") or ""] for aid, c in cands.items()}
     groups: dict = {}
     for (nct, index), rows in outcomes.items():
         aid = trial_owner.get(nct)
@@ -451,8 +665,10 @@ def endpoints(cands: dict, outcomes: dict, analyses: dict) -> list[dict]:
         by_cat = defaultdict(list)
         for r in rows:
             by_cat[r["category"]].append(r)
-        for cat, arms in by_cat.items():
-            placebo, kind = comparator(arms, c["_names"])
+        for cat_index, (cat, arms) in enumerate(by_cat.items()):
+            ident = idents[aid]
+            placebo, kind = comparator(arms, ident)
+            ref_title = placebo["group_title"] if placebo else None
             for arm in arms:
                 if placebo is not None and arm is placebo:
                     continue
@@ -462,6 +678,15 @@ def endpoints(cands: dict, outcomes: dict, analyses: dict) -> list[dict]:
                          else None)
                 stat = _analysis_for(analyses.get((nct, index), []), arm["group_id"],
                                      placebo["group_id"] if placebo else None)
+                pair = _pair_analyses(analyses.get((nct, index), []), arm["group_id"],
+                                      placebo["group_id"] if placebo else None)
+                # The other candidate a head-to-head comparator arm names and this arm
+                # does not: a trial of one drug against another, not an add-on to a
+                # shared backbone. Never through placebo.
+                h2h = (next((o for o in cands if o != aid
+                             and _title_names(ref_title, own_names[o])
+                             and not _title_names(arm["group_title"], own_names[o])), None)
+                       if placebo is not None and kind != "placebo" else None)
                 g["rows"].append({
                     "asset_id": aid, "name": c["name"], "ticker": c["ticker"],
                     "nct_id": nct, "phase": c["trials"][nct]["phase"],
@@ -479,7 +704,27 @@ def endpoints(cands: dict, outcomes: dict, analyses: dict) -> list[dict]:
                     "p_value": stat["p_value"] if stat else None,
                     "estimate": stat["param_value"] if stat else None,
                     "ci": ([stat["ci_lower"], stat["ci_upper"]]
-                           if stat and stat["ci_lower"] is not None else None)})
+                           if stat and stat["ci_lower"] is not None else None),
+                    # What the scorecard reads to test the row (landscape_score).
+                    "outcome_index": index, "outcome_type": first["outcome_type"],
+                    "category_index": cat_index, "param": first["param_type"],
+                    "lower": arm["lower"], "upper": arm["upper"],
+                    "reference_spread": placebo["spread"] if placebo else None,
+                    "reference_lower": placebo["lower"] if placebo else None,
+                    "reference_upper": placebo["upper"] if placebo else None,
+                    "arm_is_control": _is_control_arm(arm["group_title"], ident),
+                    # The drug's arm by its title, or by its description where that names
+                    # it as the arm's treatment and not as a placebo, premedication or
+                    # rescue; never an arm whose title names another candidate the
+                    # control lacks.
+                    "arm_names_drug": bool(
+                        (names_drug(arm["group_title"], ident)
+                         or _described(arm["group_description"], ident))
+                        and not claimed_by_other(arm["group_title"], ref_title, aid, idents)),
+                    "reference_is_drug": bool(placebo is not None
+                                              and mentions_drug(ref_title, ident)),
+                    "head_to_head": h2h,
+                    "analyses": pair})
                 g["assets"].add(aid)
     out = []
     for g in groups.values():
@@ -495,17 +740,62 @@ def _rate(affected, at_risk):
     return (affected / at_risk) if (affected is not None and at_risk) else None
 
 
+def _stratum(nct: str, phase, rows: list[dict], ref, kind, cand: dict,
+             idents: dict | None = None) -> dict:
+    """One trial's safety counts for the drug, kept per arm, and its control arm's, so the
+    clinical scorecard can average the drug against its control trial by trial.
+
+    Each count is [people with the event, people at risk]. A safety arm has a title and
+    no description, so the drug's arms are those whose title names it (a filed name, its
+    compound name or either without its salt word: "Sitagliptin 100 mg" is sitagliptin
+    phosphate); where none does, every arm that is not the control. An arm whose title
+    names another candidate the control arm lacks is never the drug's ("Nivolumab +
+    Ipilimumab"). The scorer applies the period and switch rules to ``arm_rows``."""
+    idents = idents or {cand["asset_id"]: drug_identity(cand)}
+    ident = idents[cand["asset_id"]]
+    ref_title = ref["group_title"] if ref is not None else None
+    eligible = [r for r in rows if r is not ref
+                and not claimed_by_other(r["group_title"], ref_title, cand["asset_id"], idents)]
+    named = [r for r in eligible if names_drug(r["group_title"], ident)]
+    control = {k: [0, 0] for k in ("serious", "withdrawn", "deaths")}
+    arm_rows = []
+    for r in rows:
+        if ref is not None and r is ref:
+            one = control
+        elif any(r is x for x in (named or eligible)):
+            one = {"title": r["group_title"], "is_control": _is_control_arm(r["group_title"], ident),
+                   "serious": [0, 0], "withdrawn": [0, 0], "deaths": [0, 0]}
+            arm_rows.append(one)
+        else:
+            continue
+        at_risk = r["serious_at_risk"] or r["other_at_risk"]
+        for key, aff, risk in (("serious", r["serious_affected"], r["serious_at_risk"]),
+                               ("deaths", r["deaths_affected"], r["deaths_at_risk"]),
+                               ("withdrawn", r["withdrawn_ae"], at_risk)):
+            if aff is not None and risk:
+                one[key] = [one[key][0] + aff, one[key][1] + risk]
+    return {"nct_id": nct, "phase": phase, "kind": kind if ref is not None else None,
+            "arms": len(arm_rows),
+            "control_title": ref["group_title"] if ref is not None else None,
+            "control_is_drug": bool(ref is not None and mentions_drug(ref_title, ident)),
+            "control": control if ref is not None else None,
+            "arm_rows": arm_rows}
+
+
 def safety(cands: dict, safety_rows: dict, events: dict, pharm: dict) -> list[dict]:
     """Per candidate, its arms and the placebo arms of the same trials pooled: serious
     adverse events, withdrawals for adverse events and deaths over the number at risk, and
-    the commonest events with the placebo rate beside each."""
+    the commonest events with the placebo rate beside each. ``strata`` keeps the same
+    counts trial by trial, for the clinical scorecard."""
     out = []
+    idents = identities(cands)
     for aid, c in cands.items():
         drug = {"serious": [0, 0], "withdrawn": [0, 0], "deaths": [0, 0], "any": [0, 0]}
         placebo = {k: [0, 0] for k in drug}
         drug_groups, placebo_groups = defaultdict(set), defaultdict(set)
         trials = 0
         kinds: set = set()
+        strata = []
         for nct in c["trials"]:
             rows = safety_rows.get(nct) or []
             if not rows:
@@ -513,8 +803,10 @@ def safety(cands: dict, safety_rows: dict, events: dict, pharm: dict) -> list[di
             trials += 1
             rows = [r for r in rows
                     if (r["group_title"] or "").strip().lower() != "total"]
-            named = [r for r in rows if _arm_is_drug(r["group_title"], "", c["_names"])]
-            ref, kind = comparator(rows, c["_names"])
+            named = [r for r in rows if names_drug(r["group_title"], idents[aid])]
+            ref, kind = comparator(rows, idents[aid])
+            strata.append(_stratum(nct, c["trials"][nct].get("phase"), rows, ref, kind,
+                                   {**c, "asset_id": aid}, idents))
             if ref is not None:
                 kinds.add(kind)
             for r in rows:
@@ -567,7 +859,8 @@ def safety(cands: dict, safety_rows: dict, events: dict, pharm: dict) -> list[di
                             "organ_system": t["organ_system"],
                             "rate": _rate(*t["drug"]), "placebo_rate": _rate(*t["placebo"])}
                            for t in top],
-            "boxed_warning": (p.get("boxed_warning") or [{}])[0].get("value")})
+            "boxed_warning": (p.get("boxed_warning") or [{}])[0].get("value"),
+            "strata": strata})
     out.sort(key=lambda s: (-(s.get("trials") or 0), s["name"] or ""))
     return out
 
