@@ -1,0 +1,40 @@
+{
+ "schema": 1,
+ "ticker": "CRSP",
+ "generated_at": "2026-10-01T07:40:00Z",
+ "today": "2026-10-01",
+ "window": {
+  "from": "2026-10-01",
+  "to": "2027-10-01"
+ },
+ "complete": true,
+ "incomplete_reason": null,
+ "price": {
+  "close": 55.31999969482422,
+  "as_of": "2026-09-30"
+ },
+ "model": {
+  "state": "modelled",
+  "assets": 1
+ },
+ "catalysts": {
+  "total": 0,
+  "sent": 0,
+  "counts": {
+   "with_asset": 0,
+   "with_indication": 0,
+   "with_stake": 0,
+   "with_asset_value": 0,
+   "curated": 0
+  },
+  "items": []
+ },
+ "competition": {
+  "covered": false,
+  "reason": "not_big_pharma",
+  "ranked_by": null,
+  "total": 0,
+  "valued": 0,
+  "indications": []
+ }
+}

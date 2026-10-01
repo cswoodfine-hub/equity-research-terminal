@@ -1,0 +1,1619 @@
+{
+ "schema": 1,
+ "ticker": "AZN",
+ "generated_at": "2026-10-01T07:37:48Z",
+ "today": "2026-10-01",
+ "window": {
+  "from": "2026-10-01",
+  "to": "2027-10-01"
+ },
+ "complete": true,
+ "incomplete_reason": null,
+ "price": {
+  "close": 161.47000122070312,
+  "as_of": "2026-09-30"
+ },
+ "model": {
+  "state": "modelled",
+  "assets": 54
+ },
+ "catalysts": {
+  "total": 35,
+  "sent": 35,
+  "counts": {
+   "with_asset": 35,
+   "with_indication": 26,
+   "with_stake": 0,
+   "with_asset_value": 25,
+   "curated": 0
+  },
+  "items": [
+   {
+    "id": 242,
+    "date": "2026-10-27",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 2",
+    "asset": {
+     "id": 1762,
+     "name": "Volrustomig",
+     "is_marketed": false
+    },
+    "indication": {
+     "id": 80,
+     "name": "Carcinoma, Hepatocellular"
+    },
+    "title": "Phase 2, Study of Novel Immunomodulators as Monotherapy and in Combination With Anticancer Agents in Participants With Advanced Hepatobiliary Cancer",
+    "nct_id": "NCT05775159",
+    "source_url": "https://clinicaltrials.gov/study/NCT05775159",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 0.2793514192078318,
+     "pct_of_price": 0.0017300515086143093,
+     "pos": 0.4388,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 63,
+    "date": "2026-10-31",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 321,
+     "name": "Truqap",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 371,
+     "name": "Breast Neoplasms"
+    },
+    "title": "Phase 3, Truqap",
+    "nct_id": "NCT06635447",
+    "source_url": "https://clinicaltrials.gov/study/NCT06635447",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 2.368510610856332,
+     "pct_of_price": 0.01466842505078677,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 747,
+    "date": "2026-11-02",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 523,
+     "name": "Saphnelo",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 139,
+     "name": "Lupus Erythematosus, Cutaneous"
+    },
+    "title": "Phase 3, Saphnelo",
+    "nct_id": "NCT06015737",
+    "source_url": "https://clinicaltrials.gov/study/NCT06015737",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 2.126990802431528,
+     "pct_of_price": 0.013172668522645757,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 767,
+    "date": "2026-11-11",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 893,
+     "name": "Enhertu",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 371,
+     "name": "Breast Neoplasms"
+    },
+    "title": "Phase 3, Enhertu",
+    "nct_id": "NCT04784715",
+    "source_url": "https://clinicaltrials.gov/study/NCT04784715",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 6.193589590149545,
+     "pct_of_price": 0.03835752488590075,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 241,
+    "date": "2026-11-17",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 2",
+    "asset": {
+     "id": 1910,
+     "name": "Sonesitatug vedotin",
+     "is_marketed": false
+    },
+    "indication": {
+     "id": 386,
+     "name": "Biliary Tract Neoplasms"
+    },
+    "title": "Phase 2, AZD0901 in Participants With Advanced Solid Tumours Expressing Claudin18.2",
+    "nct_id": "NCT06219941",
+    "source_url": "https://clinicaltrials.gov/study/NCT06219941",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 0.13239259892772537,
+     "pct_of_price": 0.0008199207154694098,
+     "pos": 0.92,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 245,
+    "date": "2026-12-10",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 2",
+    "asset": {
+     "id": 212,
+     "name": "Baxfendy",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 402,
+     "name": "Hypertension"
+    },
+    "title": "Phase 2, Baxfendy",
+    "nct_id": "NCT07222917",
+    "source_url": "https://clinicaltrials.gov/study/NCT07222917",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 0.949204970460923,
+     "pct_of_price": 0.005878522098748949,
+     "pos": 0.456,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 1187,
+    "date": "2026-12-23",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 428,
+     "name": "Fasenra",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 75,
+     "name": "Asthma"
+    },
+    "title": "Phase 3, Fasenra",
+    "nct_id": "NCT05692180",
+    "source_url": "https://clinicaltrials.gov/study/NCT05692180",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 1.8575036530485083,
+     "pct_of_price": 0.011503707431757581,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 60,
+    "date": "2026-12-31",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 427,
+     "name": "Imfinzi",
+     "is_marketed": true
+    },
+    "indication": null,
+    "title": "Phase 3, Imfinzi",
+    "nct_id": "NCT05303532",
+    "source_url": "https://clinicaltrials.gov/study/NCT05303532",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 8.958626550954628,
+     "pct_of_price": 0.055481677607159045,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "indication": "no_indication_link",
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 61,
+    "date": "2027-01-04",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 1766,
+     "name": "AZD0780",
+     "is_marketed": false
+    },
+    "indication": null,
+    "title": "Phase 3, A Phase III Study to Assess the Effect of AZD0780 on LDL-C in Patients With HeFH",
+    "nct_id": "NCT07000136",
+    "source_url": "https://clinicaltrials.gov/study/NCT07000136",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 0.858269632919237,
+     "pct_of_price": 0.00531535038354352,
+     "pos": 0.5565,
+     "counted": true
+    },
+    "na": {
+     "indication": "no_indication_link",
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 54,
+    "date": "2027-01-06",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 523,
+     "name": "Saphnelo",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 441,
+     "name": "Scleroderma, Systemic"
+    },
+    "title": "Phase 3, Saphnelo",
+    "nct_id": "NCT05925803",
+    "source_url": "https://clinicaltrials.gov/study/NCT05925803",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 2.126990802431528,
+     "pct_of_price": 0.013172668522645757,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 59,
+    "date": "2027-01-11",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 1766,
+     "name": "AZD0780",
+     "is_marketed": false
+    },
+    "indication": {
+     "id": 379,
+     "name": "Cardiovascular Diseases"
+    },
+    "title": "Phase 3, A Phase III Study to Assess the Effect of AZD0780 on LDL-C in Patients With Clinical ASCVD or at Risk for a First ASCVD Event",
+    "nct_id": "NCT07000123",
+    "source_url": "https://clinicaltrials.gov/study/NCT07000123",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 0.858269632919237,
+     "pct_of_price": 0.00531535038354352,
+     "pos": 0.5565,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 743,
+    "date": "2027-01-13",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 892,
+     "name": "Tezspire",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 349,
+     "name": "Rhinosinusitis"
+    },
+    "title": "Phase 3, Tezspire",
+    "nct_id": "NCT06706817",
+    "source_url": "https://clinicaltrials.gov/study/NCT06706817",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 2.553654741093623,
+     "pct_of_price": 0.015815041319057116,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 50,
+    "date": "2027-02-18",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 1791,
+     "name": "Zibotentan/Dapagliflozin",
+     "is_marketed": false
+    },
+    "indication": null,
+    "title": "Phase 3, Study to Investigate Efficacy, Safety, and Tolerability of Zibotentan/Dapagliflozin Compared to Dapagliflozin in Participants With Chronic Kidney Disease and High Proteinuria (ZENITH High Proteinuria)",
+    "nct_id": "NCT06087835",
+    "source_url": "https://clinicaltrials.gov/study/NCT06087835",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": null,
+    "na": {
+     "indication": "no_indication_link",
+     "stake": "not_modelled",
+     "asset_value": "not_modelled"
+    }
+   },
+   {
+    "id": 48,
+    "date": "2027-02-22",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 315,
+     "name": "Tagrisso",
+     "is_marketed": true
+    },
+    "indication": null,
+    "title": "Phase 3, Tagrisso",
+    "nct_id": "NCT05629234",
+    "source_url": "https://clinicaltrials.gov/study/NCT05629234",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 10.32990450322532,
+     "pct_of_price": 0.06397414024358634,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "indication": "no_indication_link",
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 47,
+    "date": "2027-02-23",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 523,
+     "name": "Saphnelo",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 120,
+     "name": "Lupus Nephritis"
+    },
+    "title": "Phase 3, Saphnelo",
+    "nct_id": "NCT05138133",
+    "source_url": "https://clinicaltrials.gov/study/NCT05138133",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 2.126990802431528,
+     "pct_of_price": 0.013172668522645757,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 246,
+    "date": "2027-03-23",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 2",
+    "asset": {
+     "id": 893,
+     "name": "Enhertu",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 388,
+     "name": "Pancreatic Neoplasms"
+    },
+    "title": "Phase 2, Enhertu",
+    "nct_id": "NCT04482309",
+    "source_url": "https://clinicaltrials.gov/study/NCT04482309",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 6.193589590149545,
+     "pct_of_price": 0.03835752488590075,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 53,
+    "date": "2027-04-06",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 67,
+     "name": "Lynparza",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 380,
+     "name": "Ovarian Neoplasms"
+    },
+    "title": "Phase 3, Lynparza",
+    "nct_id": "NCT04421963",
+    "source_url": "https://clinicaltrials.gov/study/NCT04421963",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 2.4344869501581696,
+     "pct_of_price": 0.015077023173057535,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 49,
+    "date": "2027-04-16",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 1925,
+     "name": "Balcinrenone/dapagliflozin",
+     "is_marketed": false
+    },
+    "indication": {
+     "id": 11,
+     "name": "Heart Failure"
+    },
+    "title": "Phase 3, Study to Evaluate the Effect of Balcinrenone/Dapagliflozin in Patients With Heart Failure and Impaired Kidney Function",
+    "nct_id": "NCT06307652",
+    "source_url": "https://clinicaltrials.gov/study/NCT06307652",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 0.04576421124683069,
+     "pct_of_price": 0.0002834223750594916,
+     "pos": 0.4816,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 55,
+    "date": "2027-04-20",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 6657,
+     "name": "Etcamah",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 371,
+     "name": "Breast Neoplasms"
+    },
+    "title": "Phase 3, Etcamah",
+    "nct_id": "NCT05774951",
+    "source_url": "https://clinicaltrials.gov/study/NCT05774951",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 3.2523346157376736,
+     "pct_of_price": 0.020142036236763652,
+     "pos": 0.439,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 243,
+    "date": "2027-04-20",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 2",
+    "asset": {
+     "id": 1827,
+     "name": "AZD5148",
+     "is_marketed": false
+    },
+    "indication": null,
+    "title": "Phase 2, Prevention of Recurrent C. Difficile Infection Study With AZD5148 Monoclonal Antibody",
+    "nct_id": "NCT07285213",
+    "source_url": "https://clinicaltrials.gov/study/NCT07285213",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": null,
+    "na": {
+     "indication": "no_indication_link",
+     "stake": "not_modelled",
+     "asset_value": "not_modelled"
+    }
+   },
+   {
+    "id": 248,
+    "date": "2027-05-04",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 2",
+    "asset": {
+     "id": 2941,
+     "name": "Capecitabine",
+     "is_marketed": false
+    },
+    "indication": null,
+    "title": "Phase 2, Ph1b/2 Study of the Safety and Efficacy of T-DXd Combinations in Advanced HER2-expressing Gastric Cancer (DESTINY-Gastric03)",
+    "nct_id": "NCT04379596",
+    "source_url": "https://clinicaltrials.gov/study/NCT04379596",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": null,
+    "na": {
+     "indication": "no_indication_link",
+     "stake": "not_modelled",
+     "asset_value": "not_modelled"
+    }
+   },
+   {
+    "id": 58,
+    "date": "2027-05-28",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 1866,
+     "name": "Laroprovstat/Rosuvastatin 1",
+     "is_marketed": false
+    },
+    "indication": null,
+    "title": "Phase 3, A Phase III Study to Assess the Effect of FDC Laroprovstat/Rosuvastatin Compared With Rosuvastatin on LDL-C in Patients With Hypercholesterolaemia",
+    "nct_id": "NCT07619118",
+    "source_url": "https://clinicaltrials.gov/study/NCT07619118",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": null,
+    "na": {
+     "indication": "no_indication_link",
+     "stake": "not_modelled",
+     "asset_value": "not_modelled"
+    }
+   },
+   {
+    "id": 1109,
+    "date": "2027-06-04",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 1744,
+     "name": "Elecoglipron",
+     "is_marketed": false
+    },
+    "indication": {
+     "id": 367,
+     "name": "Obesity"
+    },
+    "title": "Phase 3, A Study to Investigate the Efficacy and Safety of Elecoglipron in Asian Participants With Obesity or Overweight With or Without Type 2 Diabetes Mellitus",
+    "nct_id": "NCT07775404",
+    "source_url": "https://clinicaltrials.gov/study/NCT07775404",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 4.677054128454415,
+     "pct_of_price": 0.028965467846015842,
+     "pos": 0.5537,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 240,
+    "date": "2027-06-07",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 2",
+    "asset": {
+     "id": 1740,
+     "name": "Tozorakimab",
+     "is_marketed": false
+    },
+    "indication": {
+     "id": 75,
+     "name": "Asthma"
+    },
+    "title": "Phase 2, Dose Range Finding Study to Assess Efficacy and Safety of Tozorakimab in Adults With Uncontrolled Asthma on Medium-to-High Dose Inhaled Corticosteroids",
+    "nct_id": "NCT06932263",
+    "source_url": "https://clinicaltrials.gov/study/NCT06932263",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 1.1332880059969572,
+     "pct_of_price": 0.007018566900534902,
+     "pos": 0.955,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 744,
+    "date": "2027-06-25",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 38,
+     "name": "Bevespi Aerosphere",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 75,
+     "name": "Asthma"
+    },
+    "title": "Phase 3, Tezspire",
+    "nct_id": "NCT06473779",
+    "source_url": "https://clinicaltrials.gov/study/NCT06473779",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": null,
+    "na": {
+     "stake": "not_modelled",
+     "asset_value": "not_modelled"
+    }
+   },
+   {
+    "id": 52,
+    "date": "2027-06-30",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 427,
+     "name": "Imfinzi",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 100,
+     "name": "Esophageal Squamous Cell Carcinoma"
+    },
+    "title": "Phase 3, Imfinzi",
+    "nct_id": "NCT04550260",
+    "source_url": "https://clinicaltrials.gov/study/NCT04550260",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 8.958626550954628,
+     "pct_of_price": 0.055481677607159045,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 57,
+    "date": "2027-07-15",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 50,
+     "name": "Calquence",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 2,
+     "name": "Leukemia, Lymphocytic, Chronic, B-Cell"
+    },
+    "title": "Phase 3, Calquence",
+    "nct_id": "NCT05057494",
+    "source_url": "https://clinicaltrials.gov/study/NCT05057494",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 5.5517809201066965,
+     "pct_of_price": 0.03438273907311314,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 331,
+    "date": "2027-07-28",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 883,
+     "name": "Datroway",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 371,
+     "name": "Breast Neoplasms"
+    },
+    "title": "Phase 3, Datroway",
+    "nct_id": "NCT06103864",
+    "source_url": "https://clinicaltrials.gov/study/NCT06103864",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": null,
+    "na": {
+     "stake": "not_modelled",
+     "asset_value": "not_modelled"
+    }
+   },
+   {
+    "id": 502,
+    "date": "2027-07-30",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 2",
+    "asset": {
+     "id": 1762,
+     "name": "Volrustomig",
+     "is_marketed": false
+    },
+    "indication": {
+     "id": 20,
+     "name": "Carcinoma, Non-Small-Cell Lung"
+    },
+    "title": "Phase 2, Volrustomig Priming Regimens Exploratory Phase II Platform Study",
+    "nct_id": "NCT06448754",
+    "source_url": "https://clinicaltrials.gov/study/NCT06448754",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 0.2793514192078318,
+     "pct_of_price": 0.0017300515086143093,
+     "pos": 0.4388,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 514,
+    "date": "2027-07-30",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 1845,
+     "name": "Laroprovstat",
+     "is_marketed": false
+    },
+    "indication": null,
+    "title": "Phase 3, A Phase III Study to Assess the Effect of FDC Laroprovstat/Rosuvastatin Compared With Laroprovstat, Rosuvastatin and Placebo on LDL-C in LLT-naïve Patients.",
+    "nct_id": "NCT07619131",
+    "source_url": "https://clinicaltrials.gov/study/NCT07619131",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": null,
+    "na": {
+     "indication": "no_indication_link",
+     "stake": "not_modelled",
+     "asset_value": "not_modelled"
+    }
+   },
+   {
+    "id": 506,
+    "date": "2027-08-02",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 315,
+     "name": "Tagrisso",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 20,
+     "name": "Carcinoma, Non-Small-Cell Lung"
+    },
+    "title": "Phase 3, Tagrisso",
+    "nct_id": "NCT05120349",
+    "source_url": "https://clinicaltrials.gov/study/NCT05120349",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 10.32990450322532,
+     "pct_of_price": 0.06397414024358634,
+     "pos": 1.0,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 515,
+    "date": "2027-08-13",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 212,
+     "name": "Baxfendy",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 135,
+     "name": "Hyperaldosteronism"
+    },
+    "title": "Phase 3, Baxfendy",
+    "nct_id": "NCT07007793",
+    "source_url": "https://clinicaltrials.gov/study/NCT07007793",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": {
+     "per_share": 0.949204970460923,
+     "pct_of_price": 0.005878522098748949,
+     "pos": 0.456,
+     "counted": true
+    },
+    "na": {
+     "stake": "no_outcome_legs"
+    }
+   },
+   {
+    "id": 516,
+    "date": "2027-09-20",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 883,
+     "name": "Datroway",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 371,
+     "name": "Breast Neoplasms"
+    },
+    "title": "Phase 3, Datroway",
+    "nct_id": "NCT05629585",
+    "source_url": "https://clinicaltrials.gov/study/NCT05629585",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": null,
+    "na": {
+     "stake": "not_modelled",
+     "asset_value": "not_modelled"
+    }
+   },
+   {
+    "id": 511,
+    "date": "2027-09-30",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 3",
+    "asset": {
+     "id": 1729,
+     "name": "Saruparib",
+     "is_marketed": false
+    },
+    "indication": null,
+    "title": "Phase 3, Saruparib (AZD5305) vs Placebo in Men With Metastatic Castration-Sensitive Prostate Cancer Receiving Physician's Choice New Hormonal Agents",
+    "nct_id": "NCT06120491",
+    "source_url": "https://clinicaltrials.gov/study/NCT06120491",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": null,
+    "na": {
+     "indication": "no_indication_link",
+     "stake": "not_modelled",
+     "asset_value": "not_modelled"
+    }
+   },
+   {
+    "id": 508,
+    "date": "2027-10-01",
+    "date_precision": "day",
+    "date_confidence": "estimated",
+    "kind": "data readout",
+    "regulatory": false,
+    "phase": "Phase 2",
+    "asset": {
+     "id": 883,
+     "name": "Datroway",
+     "is_marketed": true
+    },
+    "indication": {
+     "id": 15,
+     "name": "Endometrial Neoplasms"
+    },
+    "title": "Phase 2, Datroway",
+    "nct_id": "NCT05489211",
+    "source_url": "https://clinicaltrials.gov/study/NCT05489211",
+    "is_curated": false,
+    "stake": null,
+    "asset_value": null,
+    "na": {
+     "stake": "not_modelled",
+     "asset_value": "not_modelled"
+    }
+   }
+  ]
+ },
+ "competition": {
+  "covered": true,
+  "reason": null,
+  "ranked_by": "model_value",
+  "total": 58,
+  "valued": 19,
+  "indications": [
+   {
+    "indication": {
+     "id": 20,
+     "name": "Carcinoma, Non-Small-Cell Lung",
+     "members": [
+      "Carcinoma, Non-Small-Cell Lung"
+     ]
+    },
+    "value": {
+     "per_share": 21.235312074917154,
+     "pct_of_price": 0.13151242902322116,
+     "assets": 8
+    },
+    "own": {
+     "n": 12,
+     "by_stage": {
+      "marketed": 5,
+      "phase3": 6,
+      "phase2": 1,
+      "other": 0
+     },
+     "candidates": [
+      {
+       "name": "Osimertinib",
+       "stage": "marketed",
+       "phase_here": "Phase 4",
+       "is_marketed": true,
+       "asset_ids": [
+        315,
+        6531
+       ],
+       "per_share": 10.32990450322532,
+       "attributed": true
+      },
+      {
+       "name": "Durvalumab",
+       "stage": "marketed",
+       "phase_here": "Phase 4",
+       "is_marketed": true,
+       "asset_ids": [
+        427
+       ],
+       "per_share": 8.958626550954628,
+       "attributed": true
+      },
+      {
+       "name": "Selumetinib",
+       "stage": "phase3",
+       "phase_here": "Phase 3",
+       "is_marketed": true,
+       "asset_ids": [
+        62,
+        1792
+       ],
+       "per_share": 0.8373323931913699,
+       "attributed": true
+      },
+      {
+       "name": "Rilvegostomig",
+       "stage": "phase3",
+       "phase_here": "Phase 3",
+       "is_marketed": false,
+       "asset_ids": [
+        1725
+       ],
+       "per_share": 0.6784879270641153,
+       "attributed": true
+      },
+      {
+       "name": "Volrustomig",
+       "stage": "phase3",
+       "phase_here": "Phase 3",
+       "is_marketed": false,
+       "asset_ids": [
+        1762
+       ],
+       "per_share": 0.2793514192078318,
+       "attributed": true
+      }
+     ],
+     "more": 7
+    },
+    "rivals": {
+     "n": 68,
+     "companies": 14,
+     "by_stage": {
+      "marketed": 25,
+      "phase3": 29,
+      "phase2": 14,
+      "other": 0
+     }
+    },
+    "pool": {
+     "patients": 0.0,
+     "claimants": 15,
+     "pooled_claimants": 3,
+     "companies": 3
+    },
+    "crowding": null,
+    "company_pool": null,
+    "na": {
+     "crowding": "flow_pool"
+    }
+   },
+   {
+    "indication": {
+     "id": 371,
+     "name": "Breast Neoplasms",
+     "members": [
+      "Breast Neoplasms"
+     ]
+    },
+    "value": {
+     "per_share": 14.24892176690172,
+     "pct_of_price": 0.08824500934650871,
+     "assets": 4
+    },
+    "own": {
+     "n": 11,
+     "by_stage": {
+      "marketed": 8,
+      "phase3": 2,
+      "phase2": 0,
+      "other": 1
+     },
+     "candidates": [
+      {
+       "name": "Trastuzumab deruxtecan",
+       "stage": "marketed",
+       "phase_here": "Phase 4",
+       "is_marketed": true,
+       "asset_ids": [
+        893
+       ],
+       "per_share": 6.193589590149545,
+       "attributed": true
+      },
+      {
+       "name": "Camizestrant",
+       "stage": "marketed",
+       "phase_here": "Phase 3",
+       "is_marketed": true,
+       "asset_ids": [
+        6657
+       ],
+       "per_share": 3.2523346157376736,
+       "attributed": true
+      },
+      {
+       "name": "Olaparib",
+       "stage": "marketed",
+       "phase_here": "Phase 4",
+       "is_marketed": true,
+       "asset_ids": [
+        67,
+        1805
+       ],
+       "per_share": 2.4344869501581696,
+       "attributed": true
+      },
+      {
+       "name": "Capivasertib",
+       "stage": "marketed",
+       "phase_here": "Phase 3",
+       "is_marketed": true,
+       "asset_ids": [
+        321
+       ],
+       "per_share": 2.368510610856332,
+       "attributed": true
+      },
+      {
+       "name": "Anastrozole",
+       "stage": "marketed",
+       "phase_here": "Phase 4",
+       "is_marketed": true,
+       "asset_ids": [
+        975
+       ],
+       "per_share": null,
+       "attributed": false
+      }
+     ],
+     "more": 6
+    },
+    "rivals": {
+     "n": 59,
+     "companies": 13,
+     "by_stage": {
+      "marketed": 21,
+      "phase3": 20,
+      "phase2": 16,
+      "other": 2
+     }
+    },
+    "pool": {
+     "patients": 48000.0,
+     "claimants": 5,
+     "pooled_claimants": 2,
+     "companies": 1
+    },
+    "crowding": null,
+    "company_pool": null,
+    "na": {
+     "crowding": "claims_exceed_pool"
+    }
+   },
+   {
+    "indication": {
+     "id": 75,
+     "name": "Asthma",
+     "members": [
+      "Asthma"
+     ]
+    },
+    "value": {
+     "per_share": 9.749507166108266,
+     "pct_of_price": 0.06037968100825293,
+     "assets": 3
+    },
+    "own": {
+     "n": 10,
+     "by_stage": {
+      "marketed": 6,
+      "phase3": 0,
+      "phase2": 3,
+      "other": 1
+     },
+     "candidates": [
+      {
+       "name": "Budesonide + Formoterol",
+       "stage": "marketed",
+       "phase_here": "Phase 4",
+       "is_marketed": true,
+       "asset_ids": [
+        40,
+        522
+       ],
+       "per_share": 7.08691951317843,
+       "attributed": true
+      },
+      {
+       "name": "Benralizumab",
+       "stage": "marketed",
+       "phase_here": "Phase 4",
+       "is_marketed": true,
+       "asset_ids": [
+        428
+       ],
+       "per_share": 1.8575036530485083,
+       "attributed": true
+      },
+      {
+       "name": "Albuterol + Budesonide",
+       "stage": "marketed",
+       "phase_here": "Phase 3",
+       "is_marketed": true,
+       "asset_ids": [
+        37
+       ],
+       "per_share": 0.8050839998813274,
+       "attributed": true
+      },
+      {
+       "name": "Breztri",
+       "stage": "marketed",
+       "phase_here": "Phase 3",
+       "is_marketed": true,
+       "asset_ids": [
+        6974
+       ],
+       "per_share": null,
+       "attributed": false
+      },
+      {
+       "name": "Ciclesonide",
+       "stage": "marketed",
+       "phase_here": "Phase 4",
+       "is_marketed": true,
+       "asset_ids": [
+        2974,
+        2976
+       ],
+       "per_share": null,
+       "attributed": false
+      }
+     ],
+     "more": 5
+    },
+    "rivals": {
+     "n": 22,
+     "companies": 8,
+     "by_stage": {
+      "marketed": 7,
+      "phase3": 8,
+      "phase2": 4,
+      "other": 3
+     }
+    },
+    "pool": {
+     "patients": 644112.0,
+     "claimants": 2,
+     "pooled_claimants": 2,
+     "companies": 2
+    },
+    "crowding": {
+     "uncrowded_share": 0.04718013557738512,
+     "crowded_share": 0.04599082934004367,
+     "kept": 0.9747922251009487,
+     "peak_year": 2052
+    },
+    "company_pool": null,
+    "na": {
+     "company_pool": "no_claimant"
+    }
+   },
+   {
+    "indication": {
+     "id": 367,
+     "name": "Obesity",
+     "members": [
+      "Obesity",
+      "Overweight",
+      "Weight Loss",
+      "Obesity, Morbid"
+     ]
+    },
+    "value": {
+     "per_share": 8.43206600615686,
+     "pct_of_price": 0.05222063505549618,
+     "assets": 2
+    },
+    "own": {
+     "n": 3,
+     "by_stage": {
+      "marketed": 0,
+      "phase3": 2,
+      "phase2": 1,
+      "other": 0
+     },
+     "candidates": [
+      {
+       "name": "Elecoglipron",
+       "stage": "phase3",
+       "phase_here": "Phase 3",
+       "is_marketed": false,
+       "asset_ids": [
+        1744
+       ],
+       "per_share": 4.677054128454415,
+       "attributed": true
+      },
+      {
+       "name": "AZD6234",
+       "stage": "phase3",
+       "phase_here": "Phase 3",
+       "is_marketed": false,
+       "asset_ids": [
+        1733
+       ],
+       "per_share": 3.755011877702445,
+       "attributed": true
+      },
+      {
+       "name": "Pramlintide",
+       "stage": "phase2",
+       "phase_here": "Phase 2",
+       "is_marketed": true,
+       "asset_ids": [
+        524
+       ],
+       "per_share": null,
+       "attributed": false
+      }
+     ],
+     "more": 0
+    },
+    "rivals": {
+     "n": 29,
+     "companies": 8,
+     "by_stage": {
+      "marketed": 4,
+      "phase3": 12,
+      "phase2": 13,
+      "other": 0
+     }
+    },
+    "pool": {
+     "patients": 107592242.0,
+     "claimants": 19,
+     "pooled_claimants": 19,
+     "companies": 9
+    },
+    "crowding": {
+     "uncrowded_share": 0.5772915334879825,
+     "crowded_share": 0.4202667732141636,
+     "kept": 0.7279974654658821,
+     "peak_year": 2054
+    },
+    "company_pool": {
+     "claimants": 2,
+     "keeps": 0.7268304759743599,
+     "share_of_claims": 0.11906476266381158,
+     "share_of_pool": 0.05003896360823032,
+     "rank": 4,
+     "of_companies": 9,
+     "leader": {
+      "ticker": "NVO",
+      "share_of_claims": 0.2579870540464475
+     }
+    },
+    "na": {}
+   },
+   {
+    "indication": {
+     "id": 122,
+     "name": "Pulmonary Disease, Chronic Obstructive",
+     "members": [
+      "Pulmonary Disease, Chronic Obstructive"
+     ]
+    },
+    "value": {
+     "per_share": 6.790795437507133,
+     "pct_of_price": 0.0420560809201037,
+     "assets": 4
+    },
+    "own": {
+     "n": 9,
+     "by_stage": {
+      "marketed": 4,
+      "phase3": 3,
+      "phase2": 1,
+      "other": 1
+     },
+     "candidates": [
+      {
+       "name": "Breztri",
+       "stage": "marketed",
+       "phase_here": "Phase 4",
+       "is_marketed": true,
+       "asset_ids": [
+        6974
+       ],
+       "per_share": 3.023847963363178,
+       "attributed": true
+      },
+      {
+       "name": "Tezepelumab",
+       "stage": "phase3",
+       "phase_here": "Phase 3",
+       "is_marketed": true,
+       "asset_ids": [
+        892
+       ],
+       "per_share": 2.553654741093623,
+       "attributed": true
+      },
+      {
+       "name": "Tozorakimab",
+       "stage": "phase3",
+       "phase_here": "Phase 3",
+       "is_marketed": false,
+       "asset_ids": [
+        1740
+       ],
+       "per_share": 1.1332880059969572,
+       "attributed": true
+      },
+      {
+       "name": "AZD6793",
+       "stage": "phase2",
+       "phase_here": "Phase 2",
+       "is_marketed": false,
+       "asset_ids": [
+        1789
+       ],
+       "per_share": 0.08000472705337491,
+       "attributed": true
+      },
+      {
+       "name": "Aclidinium + Formoterol",
+       "stage": "marketed",
+       "phase_here": "Phase 4",
+       "is_marketed": true,
+       "asset_ids": [
+        2978
+       ],
+       "per_share": null,
+       "attributed": false
+      }
+     ],
+     "more": 4
+    },
+    "rivals": {
+     "n": 22,
+     "companies": 8,
+     "by_stage": {
+      "marketed": 6,
+      "phase3": 7,
+      "phase2": 3,
+      "other": 6
+     }
+    },
+    "pool": {
+     "patients": 0.0,
+     "claimants": 7,
+     "pooled_claimants": 4,
+     "companies": 3
+    },
+    "crowding": null,
+    "company_pool": null,
+    "na": {
+     "crowding": "flow_pool"
+    }
+   }
+  ]
+ }
+}
