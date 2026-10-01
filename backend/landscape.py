@@ -693,6 +693,8 @@ def endpoints(cands: dict, outcomes: dict, analyses: dict) -> list[dict]:
                     "weeks": weeks_of(first["title"], first["time_frame"]),
                     "time_frame": first["time_frame"], "category": cat,
                     "arm": arm["group_title"], "arm_is_drug": mine,
+                    # Read by the scorecard's regimen columns (dose, frequency), never scored.
+                    "arm_description": arm["group_description"],
                     "n": arm["n_analysed"], "value": arm["value"],
                     "value_text": arm["value_text"], "spread": arm["spread"],
                     "dispersion": first["dispersion_type"],

@@ -988,6 +988,145 @@ def stratum_counts(stratum: dict) -> dict | None:
 
 
 # --- the scorecard -----------------------------------------------------------------------------
+# ---- the regimen columns: how the drug was given in the trials that scored it -------------
+# Read from the drug's own arm titles and descriptions as posted, never scored. A column the
+# arms do not state stays null, so the table prints the null dash rather than a guess.
+_DOSE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)\s*(mg/kg|mg/m2|mg/m\^2|mg|mcg|µg|ug|g|iu|units?)\b",
+                   re.I)
+_FREQUENCIES = (
+    ("twice daily", re.compile(r"\btwice (a |per )?day\b|\btwice daily\b|\bbid\b|\bb\.i\.d\b", re.I)),
+    ("three times daily", re.compile(r"\bthree times (a |per )?day\b|\btid\b", re.I)),
+    ("daily", re.compile(r"\bonce (a |per )?day\b|\bonce daily\b|\bdaily\b|\bqd\b|\bq\.d\b|\bod\b", re.I)),
+    ("weekly", re.compile(r"\bonce (a |per )?week(ly)?\b|\bweekly\b|\bqw\b|\bq1w\b|\bevery week\b", re.I)),
+    ("every 2 wk", re.compile(r"\bq2w\b|\bevery (2|two) weeks\b|\bbiweekly\b|\bevery other week\b", re.I)),
+    ("every 3 wk", re.compile(r"\bq3w\b|\bevery (3|three) weeks\b", re.I)),
+    ("every 4 wk", re.compile(r"\bq4w\b|\bevery (4|four) weeks\b", re.I)),
+    ("monthly", re.compile(r"\bmonthly\b|\bonce (a |per )?month\b|\bevery month\b", re.I)),
+    ("every 8 wk", re.compile(r"\bq8w\b|\bevery (8|eight) weeks\b", re.I)),
+)
+_ROUTES = {"ORAL": "oral", "SUBCUTANEOUS": "SC", "INTRAVENOUS": "IV",
+           "INTRAMUSCULAR": "IM", "RESPIRATORY (INHALATION)": "inhaled",
+           "INHALATION": "inhaled", "TOPICAL": "topical", "OPHTHALMIC": "eye",
+           "INTRAVITREAL": "eye injection", "NASAL": "nasal", "TRANSDERMAL": "skin patch"}
+_ROUTE_WORDS = (("oral", re.compile(r"\btablets?\b|\bcapsules?\b|\boral(ly)?\b|\bp\.?o\.?\b", re.I)),
+                ("SC", re.compile(r"\bsubcutaneous(ly)?\b|\bs\.?c\.?\b|\bpen\b", re.I)),
+                ("IV", re.compile(r"\bintravenous(ly)?\b|\bi\.?v\.?\b|\binfusion\b", re.I)),
+                ("inhaled", re.compile(r"\binhal(ed|ation|er)\b", re.I)))
+
+
+def _fmt_dose(value: float) -> str:
+    return f"{value:g}"
+
+
+def _near_names(text: str, names: list[str], width: int = 70) -> str:
+    """The stretch of a description that follows a mention of the drug, where its own dose
+    and schedule are written; a description also names the comparator's."""
+    low = (text or "").lower()
+    out = []
+    for n in names:
+        n = (n or "").lower().strip()
+        if len(n) < 3:
+            continue
+        start = 0
+        while True:
+            i = low.find(n, start)
+            if i < 0:
+                break
+            out.append(text[i:i + len(n) + width])
+            start = i + len(n)
+    return " ".join(out)
+
+
+def _doses_in(texts) -> dict:
+    doses: dict = {}
+    for t in texts:
+        for value, unit in _DOSE.findall(t or ""):
+            u = unit.lower().replace("µg", "mcg").replace("ug", "mcg").replace("mg/m^2", "mg/m2")
+            u = "units" if u in ("unit", "iu") else u
+            doses.setdefault(u, set()).add(float(value))
+    return doses
+
+
+def _schedule_in(texts) -> Counter:
+    seen = Counter()
+    for t in texts:
+        for label, pattern in _FREQUENCIES:
+            if pattern.search(t or ""):
+                seen[label] += 1
+                break
+    return seen
+
+
+def regimen(rows: list[dict], cand: dict, weeks=None, participants=None) -> dict:
+    """How the drug was given in its posted trials: the doses its own arms name, the
+    form, the dosing frequency and the trial length, each from the posted text or null
+    with the reason. ``rows`` are the drug's endpoint rows; ``weeks`` is the span of the
+    trials its lead measure averages, used ahead of the rows' own time points."""
+    own = [r for r in rows if r.get("arm_names_drug") or r.get("arm_is_drug")]
+    names = [cand.get("name"), cand.get("generic")] + list(cand.get("brands") or [])
+    titles = list(dict.fromkeys(r.get("arm") or "" for r in own))
+    near = list(dict.fromkeys(_near_names(r.get("arm_description") or "", names) for r in own))
+    # Dose: what the arm titles name, else what the descriptions write next to the drug's
+    # name, in the unit most of them use.
+    doses = _doses_in(titles) or _doses_in(near)
+    dose = None
+    if doses:
+        unit = max(doses, key=lambda u: len(doses[u]))
+        vals = sorted(doses[unit])
+        dose = (f"{_fmt_dose(vals[0])} {unit}" if len(vals) == 1
+                else f"{_fmt_dose(vals[0])}\u2013{_fmt_dose(vals[-1])} {unit}")
+    # Frequency: the schedule the titles name most often, else the descriptions'.
+    seen = _schedule_in(titles) or _schedule_in(near)
+    frequency = seen.most_common(1)[0][0] if seen else None
+    # Form: what the arm titles say, else the words right after the drug's name in the
+    # descriptions, else the label's routes (a compound's label can carry a form its trials
+    # here never used, so it comes last).
+    def _words(texts):
+        c = Counter(label for t in texts for label, pat in _ROUTE_WORDS if pat.search(t))
+        return [w for w, _ in c.most_common(2)]
+    labelled = [_ROUTES.get(str(x).upper(), str(x).lower()) for x in (cand.get("route") or [])]
+    close = [_near_names(r.get("arm_description") or "", names, width=40) for r in own]
+    labelled = list(dict.fromkeys(r for r in labelled if r))
+    by_title, by_text = _words(titles), _words(close)[:1]
+    if by_title:
+        # A title names a form only where it is not the usual one ("oral semaglutide"), so
+        # the label's forms stand beside it.
+        routes, form_source = list(dict.fromkeys(by_title + labelled))[:2], "arm titles and label"
+    elif by_text:
+        routes, form_source = by_text, "arm descriptions"
+    else:
+        routes, form_source = labelled[:2], "label"
+    form = " or ".join(routes) if routes else None
+    duration_span = None
+    # Trial length: the lead measure's span, else the primary endpoints' time points (four
+    # weeks to ten years: a baseline or a decade of follow-up is not a trial's length).
+    span = sorted(w for w in (weeks or []) if w)
+    if not span:
+        span = sorted({round(r["weeks"]) for r in own
+                       if r.get("weeks") and 4 <= r["weeks"] <= 520
+                       and (r.get("outcome_type") or "").upper() == "PRIMARY"})
+    duration = None
+    if span:
+        lo, hi = span[0], span[-1]
+        duration_span = f"{lo:.0f} to {hi:.0f} weeks"
+        if round(lo) == round(hi):
+            duration = f"{lo:.0f} wk"
+        elif hi <= 3 * lo:
+            duration = f"{lo:.0f}\u2013{hi:.0f} wk"
+        else:
+            # A wide spread reads as its middle; the full span is on hover.
+            duration = f"~{statistics.median(span):.0f} wk"
+    return {
+        "participants": participants, "dose": dose, "form": form, "frequency": frequency,
+        "duration": duration, "duration_span": duration_span,
+        "form_source": form_source if form else None,
+        "why": {"dose": None if dose else "no dose named for the drug in its arms",
+                "form": None if form else "no route in the arms or on the label",
+                "frequency": None if frequency else "no schedule named for the drug in its arms",
+                "duration": None if duration else "no primary time point posted"},
+    }
+
+
 def scorecard(land: dict, draws: int = DRAWS, seed: int = SEED) -> dict:
     """One record per candidate: its efficacy, safety and evidence scores with what each
     rests on, its overall rank and the range of it, or the reason it has none."""
@@ -1216,6 +1355,11 @@ def _build(land: dict, draws: int = DRAWS, seed: int = SEED) -> dict:
     efficacy = {aid: _efficacy(aid, by_asset.get(aid, []), unscored.get(aid, Counter()),
                                pooled, ranked_any, strength) for aid in cands}
     assets = []
+    # Each drug's endpoint rows, for the regimen columns.
+    asset_rows = defaultdict(list)
+    for g in land.get("endpoints") or []:
+        for r in g.get("rows") or []:
+            asset_rows[r["asset_id"]].append(r)
     for aid, c in cands.items():
         s_ = safe.get(aid) or {}
         rec = {"asset_id": aid, "name": c.get("name"), "ticker": c.get("ticker"),
@@ -1261,6 +1405,10 @@ def _build(land: dict, draws: int = DRAWS, seed: int = SEED) -> dict:
                 "no efficacy endpoint that can be tested against a comparator")
         else:
             rec["why_not"] = "no controlled trial with safety counts"
+        lead = next((p for p in (rec["efficacy"].get("pooled") or []) if p.get("lead")), None)
+        rec["regimen"] = regimen(asset_rows.get(aid, []), c,
+                                 weeks=(lead or {}).get("weeks"),
+                                 participants=rec["evidence"].get("participants"))
         assets.append(rec)
 
     placed = sorted((a for a in assets if a["placed"]), key=lambda a: -a["overall"])

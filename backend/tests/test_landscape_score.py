@@ -1013,3 +1013,26 @@ def test_44_a_boxed_warning_reads_as_a_clause():
     assert S._boxed_text("HEPATOTOXICITY Hepatotoxicity may be severe, and in some cases, "
                          "fatal", ["Tukysa"]) == "Hepatotoxicity may be severe, and in some cases, fatal"
     assert S._boxed_text("Severe hypoglycemia symlin", ["Symlin"]) == "Severe hypoglycemia"
+
+
+def test_the_regimen_is_read_from_the_drugs_own_arms_and_never_guessed():
+    """How a drug was given, for the table beside the chart: doses its arm titles name, the
+    schedule, the form and the trial length; a column the arms do not state is null."""
+    rows = [
+        {"arm": "Tirzepatide 5 mg", "arm_description": "Tirzepatide administered SC once weekly",
+         "arm_names_drug": True, "weeks": 72.0, "outcome_type": "PRIMARY"},
+        {"arm": "Tirzepatide 15 mg", "arm_description": "Tirzepatide 15 mg once weekly; placebo "
+         "orally daily", "arm_names_drug": True, "weeks": 72.0, "outcome_type": "PRIMARY"},
+        {"arm": "Placebo", "arm_description": "Placebo 2 mg daily", "arm_names_drug": False,
+         "arm_is_drug": False, "weeks": 72.0, "outcome_type": "PRIMARY"},
+    ]
+    cand = {"name": "Tirzepatide", "generic": "Tirzepatide", "route": ["SUBCUTANEOUS"]}
+    reg = S.regimen(rows, cand, weeks=None, participants=2539)
+    assert reg["dose"] == "5\u201315 mg"                  # never the placebo arm's 2 mg
+    assert reg["frequency"] == "weekly"                   # never the placebo's "daily"
+    assert reg["form"] == "SC"
+    assert reg["duration"] == "72 wk"
+    assert reg["participants"] == 2539
+    bare = S.regimen([{"arm": "Drug X", "arm_names_drug": True}], {"name": "Drug X"})
+    assert (bare["dose"], bare["frequency"], bare["form"], bare["duration"]) == (None,) * 4
+    assert all(bare["why"][k] for k in ("dose", "frequency", "form", "duration"))
