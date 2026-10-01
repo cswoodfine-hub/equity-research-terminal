@@ -1207,17 +1207,26 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .fc-id span.hot {{ color: var(--text); }}
 .fc-id span.warn {{ color: var(--flag); border-color: var(--flag); }}
 /* Revenue by year, split: a small table in the tab's own mono, not a dataframe. */
-.rs {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 0.3rem; }}
-.rs th {{ font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.06em;
-         text-transform: uppercase; color: var(--muted); text-align: right;
-         padding: 2px 6px 4px; border-bottom: 1px solid var(--rule-strong);
-         font-weight: 600; }}
-.rs td {{ padding: 3px 6px; border-bottom: 1px solid var(--rule); }}
-.rs .rs-k {{ color: var(--muted); }}
+.rs {{ width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 0.4rem;
+  font-variant-numeric: tabular-nums; }}
+.rs thead th {{ font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em;
+  font-weight: 600; color: var(--muted); text-align: right; padding: 6px 10px;
+  background: var(--panel); border-bottom: 1px solid var(--rule-strong); }}
+.rs thead th:first-child {{ text-align: left; }}
+.rs td {{ padding: 6px 10px; border-bottom: 1px solid var(--rule); }}
+.rs tbody tr:hover td {{ background: var(--panel); }}
+.rs .rs-k {{ color: var(--muted); white-space: nowrap; }}
 .rs .rs-v {{ font-family: var(--font-mono); text-align: right; color: var(--text); }}
 .rs .rs-v.none {{ color: var(--rule-strong); }}
-.rs .rs-total td {{ color: var(--text); font-weight: 600; border-top: 1px solid var(--rule-strong); }}
+.rs .rs-v.up {{ color: var(--up); }}
+.rs .rs-v.down {{ color: var(--down); }}
+.rs .rs-total td {{ color: var(--text); font-weight: 700; border-top: 1px solid var(--rule-strong);
+  background: var(--panel); }}
 .rs .rs-total .rs-k {{ color: var(--text); }}
+.rs .rs-growth td {{ border-bottom: 1px solid var(--rule-strong); }}
+.rs .rs-ref td {{ color: var(--muted); font-size: 11px; }}
+.rs .rs-ref .rs-v {{ color: var(--muted); }}
+.call-lead.fc-summary {{ font-size: 14px; margin-bottom: 0.4rem; }}
 /* The reset sits on the sliders' baseline rather than on their labels'. */
 .fc-reset {{ height: 1.55rem; }}
 

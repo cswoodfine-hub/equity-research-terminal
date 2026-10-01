@@ -1444,7 +1444,7 @@ CURVE_KEYS = ("penetration_peak_pct", "ramp_midpoint_year")
 # page reload (the clicklist component returns the id to Python).
 
 _BOOK_TOP = 12
-_BUILD_TOP = 7
+_BUILD_TOP = 14
 _BOOK_TOKENS = {"panel": TK.PANEL, "panel-hi": TK.RULE, "rule": TK.RULE,
                 "rule-strong": TK.RULE_STRONG, "muted": TK.MUTED, "text": TK.TEXT,
                 "up": TK.UP, "down": TK.DOWN, "flag": TK.FLAG,
@@ -1582,6 +1582,15 @@ def _value_book(v: dict, ticker: str, selected):
     return None
 
 
+def _mix_hex(a: str, b: str, t: float) -> str:
+    """Token colour ``a`` moved a share ``t`` of the way to token colour ``b``: a derived
+    shade, never a new colour."""
+    a, b = a.lstrip("#"), b.lstrip("#")
+    ca = [int(a[i:i + 2], 16) for i in (0, 2, 4)]
+    cb = [int(b[i:i + 2], 16) for i in (0, 2, 4)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(ca, cb))
+
+
 def _revenue_build(v: dict) -> None:
     """History running into forecast, stacked by what produces it.
 
@@ -1590,10 +1599,11 @@ def _revenue_build(v: dict) -> None:
     hatched so it is seen and not believed, and the reported figures sit over the top
     as the line the bands have to meet.
 
-    Seven bands are named and the rest are one. A build of forty-three named bands was
-    a legend of forty-three names over a chart nobody could read; the seven largest by
-    value are what the eye can hold, and the remainder is drawn as a single grey band
-    so the total is still the total.
+    Fourteen bands are named and the rest are one. A build of forty-three named bands was
+    a legend of forty-three names over a chart nobody could read; drawn across the whole
+    page, the fourteen largest by value hold, each in its own colour, and the remainder is
+    one grey band so the total is still the total. Revenue lines no asset carries are
+    each a shade of grey of their own, so a line is never mistaken for a product.
 
     What has no path is not drawn as one. Revenue with neither a product row nor a line
     is stated as a figure beside the chart, because a flat band for it would be a
@@ -1613,14 +1623,18 @@ def _revenue_build(v: dict) -> None:
     years = hist_years + forecast_years
     labels = [str(y) for y in years]
 
-    palette = [TK.UP, TK.PURPLE_BOOK, TK.ORANGE_BOOK, TK.FLAG, TK.DOWN,
-               TK.PHASE_RAMP["Phase 2"], TK.PHASE_RAMP["Phase 3"]]
+    base = [TK.UP, TK.PURPLE_BOOK, TK.ORANGE_BOOK, TK.FLAG, TK.DOWN,
+            TK.PHASE_RAMP["Phase 2"], TK.PHASE_RAMP["Phase 3"]]
+    # Seven token colours, then the same seven lightened toward the text colour: fourteen
+    # products each told apart, with no colour from outside the palette.
+    palette = base + [_mix_hex(c, TK.TEXT, 0.45) for c in base]
+    greys = [_mix_hex(TK.MUTED, TK.GROUND, f) for f in (0.0, 0.25, 0.45, 0.6, 0.15, 0.35)]
     ranked = sorted(modelled, key=lambda m: -(m.get("rnpv_share") or 0))
     head, rest = ranked[:_BUILD_TOP], ranked[_BUILD_TOP:]
     series = []
     for i, m in enumerate(head):
         by_year = dict(zip(m.get("years") or [], m.get("revenue_share") or []))
-        series.append({"name": m["name"][:18], "colour": palette[i % len(palette)],
+        series.append({"name": m["name"][:22], "colour": palette[i % len(palette)],
                        "hatched": not m.get("counted", True),
                        "values": [by_year.get(y) for y in years]})
     if rest:
@@ -1628,16 +1642,16 @@ def _revenue_build(v: dict) -> None:
         for m in rest:
             for y, value in zip(m.get("years") or [], m.get("revenue_share") or []):
                 other[y] = other.get(y, 0.0) + (value or 0.0)
-        series.append({"name": f"{len(rest)} others", "colour": TK.RULE_STRONG,
+        series.append({"name": f"{len(rest)} smaller products", "colour": TK.RULE_STRONG,
                        "values": [other.get(y) for y in years]})
-    for s in streams:
+    for j, s in enumerate(streams):
         by_year = dict(zip(s.get("years") or [], s.get("revenue") or []))
-        series.append({"name": s["line"][:18], "colour": TK.MUTED,
+        series.append({"name": s["line"][:24], "colour": greys[j % len(greys)],
                        "values": [by_year.get(y) for y in years]})
     ref_by_year = dict(history)
     section("Revenue build", basis=f"{_mm()} · reported over modelled")
     R.show(CH.stacked_columns(
-        labels, series, 760, 292, value_fmt=lambda x: f"{x:,.0f}",
+        labels, series, 1500, 420, value_fmt=lambda x: f"{x:,.0f}",
         reference={"name": "reported", "colour": TK.TEXT,
                    "values": [ref_by_year.get(y) for y in years]}),
         css_class="chart-mount stretch")
@@ -2681,12 +2695,15 @@ def _revenue_split(s: dict) -> None:
         if value is None:
             return '<td class="rs-v none">·</td>'
         if pct:
-            return f'<td class="rs-v">{value:+.1%}</td>'
+            tone = " up" if value > 0 else " down" if value < 0 else ""
+            return f'<td class="rs-v{tone}">{value:+.1%}</td>'
         return f'<td class="rs-v">{value:,.0f}</td>'
     head = "".join(f"<th>{html_escape(y)}</th>" for y in years)
     body = ""
     for label, values in rows:
-        cls = ' class="rs-total"' if label.startswith("total") else ""
+        cls = (' class="rs-total"' if label.startswith("total")
+               else ' class="rs-growth"' if label == "growth"
+               else ' class="rs-ref"' if label.startswith("reported") else "")
         body += (f'<tr{cls}><td class="rs-k">{html_escape(label)}</td>'
                  + "".join(cell(v, pct=(label == "growth")) for v in values) + "</tr>")
     st.markdown(f'<table class="rs"><thead><tr><th></th>{head}</tr></thead>'
@@ -2902,7 +2919,7 @@ def _book(api_base: str, ticker: str, selected):
                   "its assumptions to start one.")
             # A peer multiple needs no product model, so this lens stands alone here.
             _peer_value_section(api_base, ticker)
-        return v, None
+        return v, None, None
     note_body = v.get("note") or {}
     coverage = v.get("coverage") or {}
     modelled = v.get("modelled") or []
@@ -2912,8 +2929,6 @@ def _book(api_base: str, ticker: str, selected):
 
     section(f"{ticker} · the whole company",
             basis=f"{len(counted)} counted of {len(modelled)} drawn")
-    st.markdown(f'<div class="call-lead">{html_escape(note_body.get("headline") or "")}'
-                '</div>', unsafe_allow_html=True)
     sotp = v.get("sotp") or {}
     if sotp.get("equity_per_share") is not None:
         up = sotp.get("upside")
@@ -2958,29 +2973,33 @@ def _book(api_base: str, ticker: str, selected):
     if nxt.get("expected_date"):
         tiles.append(("next catalyst", nxt["expected_date"], "", None, "",
                       (nxt.get("title") or nxt.get("catalyst_type") or "")[:34]))
+    # The figures first, across the page; then the value on the left (the sum of the
+    # parts over the range of lenses) and the forecast on the right (the summary over
+    # the revenue by year); then the revenue build across the page; then each asset,
+    # the list beside the one picked; and the further reads at the foot.
     st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
-
-    if sotp.get("marketed", {}).get("per_share") is not None:
-        bridge_col, split_col = st.columns([1.35, 1], gap="medium")
-        with bridge_col:
+    value_col, forecast_col = st.columns(2, gap="medium")
+    with value_col:
+        if sotp.get("marketed", {}).get("per_share") is not None:
             _sotp_bridge(sotp)
-        with split_col:
+        _fair_value_range(api_base, ticker)
+    with forecast_col:
+        section("Forecast summary", basis="the model's read of the book")
+        st.markdown(f'<div class="call-lead fc-summary">'
+                    f'{html_escape(note_body.get("headline") or "")}</div>',
+                    unsafe_allow_html=True)
+        if sotp.get("marketed", {}).get("per_share") is not None:
             _revenue_split(sotp)
+    _revenue_build(v)
 
-    _fair_value_range(api_base, ticker)
-    # One more lens, under the ones it joins: what the peer set's multiple implies.
-    _peer_value_section(api_base, ticker)
-    # Under the range and above what breaks it: a selection is a fact about the book
-    # rather than a lever on it, and nothing here multiplies into a value.
-    _ira_strip(api_base, ticker)
-    _what_breaks_it(api_base, ticker)
-
-    left, right = st.columns([1, 1.5], gap="medium")
-    with left:
+    list_col, bench_col = st.columns([1, 1.5], gap="medium")
+    with list_col:
         section("Value by asset", basis="$ a share · click one")
         clicked = _value_book(v, ticker, selected)
-    with right:
-        _revenue_build(v)
+    with bench_col:
+        bench = st.container()
+    # The picked asset's levers and layers run the full width under the pair.
+    below = st.container()
     bits = list(note_body.get("body") or [])
     if coverage.get("untagged_revenue"):
         bits.append(f"{coverage['untagged_revenue'] / 1e6:,.0f}mm of "
@@ -2996,7 +3015,12 @@ def _book(api_base: str, ticker: str, selected):
                     "per-share figure.")
     if bits:
         note(" ".join(bits))
-    return v, clicked
+    # The further reads, at the foot: what the price needs, the risks that move together,
+    # the value a peer multiple implies, and the Medicare selections.
+    _what_breaks_it(api_base, ticker)
+    _peer_value_section(api_base, ticker)
+    _ira_strip(api_base, ticker)
+    return v, clicked, {"bench": bench, "below": below}
 
 
 # --- the workbench ----------------------------------------------------------------
@@ -3825,238 +3849,244 @@ def _render_forecast_tab(api_base: str, ticker: str):
 
     # The book. A click on a row is a request to read that product: the picker's
     # value is set before the picker reads its key, and the page reruns onto it.
-    _company, clicked = _book(api_base, ticker, selected)
+    _company, clicked, slots = _book(api_base, ticker, selected)
     if clicked is not None and clicked in ids and clicked != selected:
         st.session_state[pick_key] = clicked
         _rerun_here()
+    bench = (slots or {}).get("bench") or st.container()
+    below = (slots or {}).get("below") or st.container()
 
-    st.markdown('<div class="fc-bench"></div>', unsafe_allow_html=True)
-    pick_col, scenario_col, id_col = st.columns([1.35, 0.8, 2.6], gap="small")
-    with pick_col:
-        sel = st.selectbox("Product", ids, format_func=lambda aid: labels[aid],
-                           key=pick_key, label_visibility="collapsed")
-    with scenario_col:
-        scenario = st.segmented_control(
-            "Scenario", ["base", "bear", "bull"], default="base",
-            key=f"fc_scenario_{ticker}_{sel}", label_visibility="collapsed") or "base"
+    with bench:
+        st.markdown('<div class="fc-bench"></div>', unsafe_allow_html=True)
+        # Beside the asset list the bench is half the page, so the scenario control gets
+        # room for its three choices on one line.
+        pick_col, scenario_col, id_col = st.columns([1.2, 1.05, 2.2], gap="small")
+        with pick_col:
+            sel = st.selectbox("Product", ids, format_func=lambda aid: labels[aid],
+                               key=pick_key, label_visibility="collapsed")
+        with scenario_col:
+            scenario = st.segmented_control(
+                "Scenario", ["base", "bear", "bull"], default="base",
+                key=f"fc_scenario_{ticker}_{sel}", label_visibility="collapsed") or "base"
 
-    try:
-        data = api_get(api_base,
-                       f"/companies/{ticker}/forecast/{sel}?scenario={scenario}")
-    except (urllib.error.URLError, OSError) as exc:
-        state("Forecast unavailable", str(exc), error=True)
-        return
-
-    if not data.get("ok"):
-        missing = ", ".join(data.get("missing") or [])
-        drew = _curve_shaper(api_base, ticker, sel, scenario,
-                             data.get("missing") or [])
-        if not drew:
-            state("No forecast yet", f"missing: {missing}")
-            template = data.get("template") or []
-            if template:
-                note("required keys: " + "; ".join(
-                    f"{row['key']} ({row['hint']})" for row in template))
-        _forecast_editor(api_base, ticker, sel, scenario,
-                         data.get("assumptions") or [])
-        _forecast_import(api_base, ticker, sel, scenario,
-                         data.get("assumptions") or [])
-        return
-
-    result = data["result"]
-    years = result["years"]
-    x_labels = [str(y) for y in years]
-    unsourced = data.get("unsourced") or []
-    scalars = data.get("scalars") or {}
-    try:
-        verdict = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/verdict"
-                                    f"?scenario={scenario}")
-    except (urllib.error.URLError, OSError):
-        verdict = {}
-    if not verdict.get("ok"):
-        verdict = {}
-    with id_col:
-        st.markdown(_identity(data, result), unsafe_allow_html=True)
-
-    # The figures and the charts are filled after the levers are read, because a moved
-    # lever is what they show. Containers hold their place above the slider row.
-    head_slot = st.container()
-    charts_slot = st.container()
-    section("Levers", basis="same engine · base stays as the grey line")
-    moved = _lever_controls(ticker, sel, result, scalars)
-    varied = base_slim = None
-    if moved:
-        query = "&".join(f"{k}={v}" for k, v in moved.items())
         try:
-            wi = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/whatif"
-                                   f"?scenario={scenario}&{query}")
+            data = api_get(api_base,
+                           f"/companies/{ticker}/forecast/{sel}?scenario={scenario}")
         except (urllib.error.URLError, OSError) as exc:
-            wi = None
-            st.error(f"variation failed: {exc}")
-        if wi and wi.get("ok"):
-            varied, base_slim = wi["varied"], wi["base"]
-    volume_scale = moved.get("volume", 1.0) if varied else 1.0
+            state("Forecast unavailable", str(exc), error=True)
+            return
 
-    # One frame for the whole scenario family where one exists, so switching bear to
-    # bull moves the line rather than the scale.
-    span_values = list(result["revenue_after_loe"])
-    if verdict.get("has_range"):
-        for scenario_name in ("base", "bear", "bull"):
-            if scenario_name == scenario:
-                continue
-            try:
-                other = api_get(api_base, f"/companies/{ticker}/forecast/{sel}"
-                                          f"?scenario={scenario_name}")
-            except (urllib.error.URLError, OSError):
-                continue
-            if other.get("ok"):
-                span_values += other["result"]["revenue_after_loe"]
-    revenue_span = (min(span_values), max(span_values)) if span_values else None
-    _pat = [v for v in (list(result["patients"]["total"] or [])
-                        + list(result["patients"].get("treated") or []))
-            if v is not None]
-    patients_span = (min(_pat), max(_pat)) if _pat else None
-    placeholder = (result.get("curve_basis") or "").startswith("placeholder")
+        if not data.get("ok"):
+            missing = ", ".join(data.get("missing") or [])
+            drew = _curve_shaper(api_base, ticker, sel, scenario,
+                                 data.get("missing") or [])
+            if not drew:
+                state("No forecast yet", f"missing: {missing}")
+                template = data.get("template") or []
+                if template:
+                    note("required keys: " + "; ".join(
+                        f"{row['key']} ({row['hint']})" for row in template))
+            _forecast_editor(api_base, ticker, sel, scenario,
+                             data.get("assumptions") or [])
+            _forecast_import(api_base, ticker, sel, scenario,
+                             data.get("assumptions") or [])
+            return
 
-    shown = varied or result
-    share = result.get("economics_share")
-    shares = verdict.get("diluted_shares")
-    close = verdict.get("close")
-    owner_now = shown["owner_rnpv"] if share is not None else shown["rnpv"]
-    owner_base = result["owner_rnpv"] if share is not None else result["rnpv"]
-    per_share = (owner_now * 1e6 / shares) if shares else None
-    per_share_base = (owner_base * 1e6 / shares) if shares else None
-
-    with head_slot:
-        headline = (verdict.get("note") or {}).get("headline")
-        if headline:
-            st.markdown(f'<div class="call-lead">{html_escape(headline)}</div>',
-                        unsafe_allow_html=True)
-        if varied:
-            delta = shown["rnpv"] - result["rnpv"]
-            change = f"{delta:+,.0f}{_mm()} vs base"
-            tone = " up" if delta >= 0 else " down"
-            ps_change = (f"{per_share - per_share_base:+,.2f} vs base"
-                         if per_share is not None else None)
-        else:
-            change, tone, ps_change = None, "", None
-        revenue = shown["revenue"] if varied else result["revenue_after_loe"]
-        peak = max(revenue) if revenue else None
-        peak_year = years[revenue.index(peak)] if peak is not None else None
-        clause = _short
-        # Wider than the 40 the other captions take, so the date survives the cut.
-        # The whole point of the discount rate naming a vintage is that a reader sees
-        # how old it is without opening anything, and "CAPM from components on rates
-        # to 2026-09-18" is 43 characters.
-        wacc_note = ("slider" if "wacc" in moved and varied
-                     else clause(result.get("wacc_basis"), 48))
-        pos_note = ("slider" if "pos" in moved and varied
-                    else _pos_caption(result.get("pos_granular"))
-                    or clause(result.get("pos_basis")))
-        tiles = [("per share", T.num(per_share, 2) if per_share is not None else None,
-                  "", ps_change, tone, "risk-adjusted, this asset only"),
-                 ("share of price",
-                  T.pct(per_share / close * 100, 1) if (per_share and close) else None,
-                  "", None, "", f"of ${close:,.2f}" if close else "no price on file"),
-                 ("rNPV", T.num(shown["rnpv"]), _mm(), change, tone,
-                  f"base {T.num(result['rnpv'])}{_mm()}" if varied
-                  else f"owner {share:.0%} of economics" if share is not None
-                  else f"NPV {T.num(shown['npv'])}{_mm()} before PoS"
-                  if shown["pos"] < 1.0 - 1e-9 else "risk-adjusted"),
-                 ("peak revenue", T.num(peak), _mm(), None, "",
-                  f"in {peak_year}" if peak_year else ""),
-                 ("WACC", f"{shown['wacc'] * 100:.2f}", "%", None, "", wacc_note),
-                 ("PoS", f"{shown['pos'] * 100:.0f}", "%", None, "", pos_note)]
-        loe_shown = shown.get("loe_year") if varied else result.get("loe_year")
-        # "none" rather than a dash: the tiles read a dash as data that is missing,
-        # and an asset with no exclusivity on file is a fact, not a gap in a source.
-        tiles.append(("LOE", str(loe_shown) if loe_shown
-                      else "past" if result.get("loe_in_base") else "none", "", None, "",
-                      "slider" if "loe_year" in moved and varied
-                      else clause(result.get("loe_basis")) if loe_shown
-                      else "date not on file" if result.get("loe_in_base")
-                      else "no exclusivity on file"))
-        st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
-        if unsourced:
-            st.markdown(f'<div class="byline">unsourced assumptions: '
-                        f'{html_escape(", ".join(unsourced))}</div>',
-                        unsafe_allow_html=True)
-        if placeholder:
-            state("Drawn on a placeholder curve, and not counted",
-                  "the uptake ceiling and midpoint are the shaper's probe values. This "
-                  "asset is left out of the company per-share figure until real values "
-                  "are committed, under Uptake below.")
-
-    with charts_slot:
-        path_col, bridge_col = st.columns([1.6, 1], gap="medium")
-        with path_col:
-            _revenue_path(data["name"], result, varied, base_slim,
-                          data.get("actuals") or [], moved, scenario, revenue_span)
-        with bridge_col:
-            _value_bridge(shown, verdict, bool(varied))
-
-    # Everything under the levers is a layer, not a step. Each answers a question the
-    # figures above provoke, and only one is asked at a time, so they share one screen.
-    st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
-    has_uptake = (patients_span is not None or placeholder
-                  or result.get("mode") == "franchise")
-    n_rows = len(data.get("assumptions") or [])
-    layer_names = ["Drivers"] + (["Uptake"] if has_uptake else []) + [
-        "P&L", "Sensitivity", f"Assumptions · {n_rows}"]
-    panels = dict(zip(layer_names, st.tabs(layer_names)))
-
-    with panels["Drivers"]:
-        if verdict:
-            _drivers_layer(verdict, scenario)
-        else:
-            state("No verdict", "the API did not return one for this product")
-        # The granular success rate is its own layer, and a marketed product has none,
-        # which is not a missing verdict: the else once hung off this test and printed
-        # "No verdict" under every approved product's drivers.
-        if result.get("pos_granular"):
-            _pos_layer(result["pos_granular"])
-
-    if has_uptake:
-        with panels["Uptake"]:
-            if patients_span is None:
-                note("no patient curve: this product is anchored on revenue rather than "
-                     "built from patients, so the funnel is not rebuilt for it.")
-            else:
-                _render_patient_chart(result, years, x_labels, volume_scale,
-                                      patients_span)
-            if placeholder:
-                _curve_shaper(api_base, ticker, sel, scenario, [])
-            if result.get("mode") == "franchise":
-                _share_shaper(api_base, ticker, sel, scenario, result)
-
-    with panels["P&L"]:
-        _pnl_section(result, varied)
-
-    with panels["Sensitivity"]:
-        anchored = result.get("mode") in ("marketed", "franchise")
-        preset = st.segmented_control(
-            "Grid", ["price", "loe"], default="price",
-            format_func=lambda p: ("WACC x growth" if anchored else "WACC x net price")
-            if p == "price" else "LOE year x year-one erosion",
-            key=f"fc_grid_{ticker}_{sel}") or "price"
+        result = data["result"]
+        years = result["years"]
+        x_labels = [str(y) for y in years]
+        unsourced = data.get("unsourced") or []
+        scalars = data.get("scalars") or {}
         try:
-            grid = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/sensitivity"
-                                     f"?scenario={scenario}&preset={preset}")
+            verdict = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/verdict"
+                                        f"?scenario={scenario}")
         except (urllib.error.URLError, OSError):
-            grid = None
-        _sensitivity_grid(grid, result.get("rnpv"))
+            verdict = {}
+        if not verdict.get("ok"):
+            verdict = {}
+        with id_col:
+            st.markdown(_identity(data, result), unsafe_allow_html=True)
 
-    with panels[layer_names[-1]]:
-        _forecast_editor(api_base, ticker, sel, scenario,
-                         data.get("assumptions") or [])
-        blob = _export_blob(api_base.rstrip("/") + f"/companies/{ticker}/forecast/{sel}"
-                            f"/export.xlsx?scenario={scenario}")
-        if blob:
-            st.download_button("Export to Excel", data=blob,
-                               file_name=f"{data['name'].lower()}_forecast.xlsx",
-                               key=f"fc_dl_{ticker}_{sel}")
-        _forecast_import(api_base, ticker, sel, scenario,
-                         data.get("assumptions") or [])
+        # The figures and the charts are filled after the levers are read, because a moved
+        # lever is what they show. Containers hold their place above the slider row.
+        head_slot = st.container()
+        charts_slot = st.container()
+    with below:
+        section("Levers", basis="same engine · base stays as the grey line")
+        moved = _lever_controls(ticker, sel, result, scalars)
+        varied = base_slim = None
+        if moved:
+            query = "&".join(f"{k}={v}" for k, v in moved.items())
+            try:
+                wi = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/whatif"
+                                       f"?scenario={scenario}&{query}")
+            except (urllib.error.URLError, OSError) as exc:
+                wi = None
+                st.error(f"variation failed: {exc}")
+            if wi and wi.get("ok"):
+                varied, base_slim = wi["varied"], wi["base"]
+        volume_scale = moved.get("volume", 1.0) if varied else 1.0
+
+        # One frame for the whole scenario family where one exists, so switching bear to
+        # bull moves the line rather than the scale.
+        span_values = list(result["revenue_after_loe"])
+        if verdict.get("has_range"):
+            for scenario_name in ("base", "bear", "bull"):
+                if scenario_name == scenario:
+                    continue
+                try:
+                    other = api_get(api_base, f"/companies/{ticker}/forecast/{sel}"
+                                              f"?scenario={scenario_name}")
+                except (urllib.error.URLError, OSError):
+                    continue
+                if other.get("ok"):
+                    span_values += other["result"]["revenue_after_loe"]
+        revenue_span = (min(span_values), max(span_values)) if span_values else None
+        _pat = [v for v in (list(result["patients"]["total"] or [])
+                            + list(result["patients"].get("treated") or []))
+                if v is not None]
+        patients_span = (min(_pat), max(_pat)) if _pat else None
+        placeholder = (result.get("curve_basis") or "").startswith("placeholder")
+
+        shown = varied or result
+        share = result.get("economics_share")
+        shares = verdict.get("diluted_shares")
+        close = verdict.get("close")
+        owner_now = shown["owner_rnpv"] if share is not None else shown["rnpv"]
+        owner_base = result["owner_rnpv"] if share is not None else result["rnpv"]
+        per_share = (owner_now * 1e6 / shares) if shares else None
+        per_share_base = (owner_base * 1e6 / shares) if shares else None
+
+        with head_slot:
+            headline = (verdict.get("note") or {}).get("headline")
+            if headline:
+                st.markdown(f'<div class="call-lead">{html_escape(headline)}</div>',
+                            unsafe_allow_html=True)
+            if varied:
+                delta = shown["rnpv"] - result["rnpv"]
+                change = f"{delta:+,.0f}{_mm()} vs base"
+                tone = " up" if delta >= 0 else " down"
+                ps_change = (f"{per_share - per_share_base:+,.2f} vs base"
+                             if per_share is not None else None)
+            else:
+                change, tone, ps_change = None, "", None
+            revenue = shown["revenue"] if varied else result["revenue_after_loe"]
+            peak = max(revenue) if revenue else None
+            peak_year = years[revenue.index(peak)] if peak is not None else None
+            clause = _short
+            # Wider than the 40 the other captions take, so the date survives the cut.
+            # The whole point of the discount rate naming a vintage is that a reader sees
+            # how old it is without opening anything, and "CAPM from components on rates
+            # to 2026-09-18" is 43 characters.
+            wacc_note = ("slider" if "wacc" in moved and varied
+                         else clause(result.get("wacc_basis"), 48))
+            pos_note = ("slider" if "pos" in moved and varied
+                        else _pos_caption(result.get("pos_granular"))
+                        or clause(result.get("pos_basis")))
+            tiles = [("per share", T.num(per_share, 2) if per_share is not None else None,
+                      "", ps_change, tone, "risk-adjusted, this asset only"),
+                     ("share of price",
+                      T.pct(per_share / close * 100, 1) if (per_share and close) else None,
+                      "", None, "", f"of ${close:,.2f}" if close else "no price on file"),
+                     ("rNPV", T.num(shown["rnpv"]), _mm(), change, tone,
+                      f"base {T.num(result['rnpv'])}{_mm()}" if varied
+                      else f"owner {share:.0%} of economics" if share is not None
+                      else f"NPV {T.num(shown['npv'])}{_mm()} before PoS"
+                      if shown["pos"] < 1.0 - 1e-9 else "risk-adjusted"),
+                     ("peak revenue", T.num(peak), _mm(), None, "",
+                      f"in {peak_year}" if peak_year else ""),
+                     ("WACC", f"{shown['wacc'] * 100:.2f}", "%", None, "", wacc_note),
+                     ("PoS", f"{shown['pos'] * 100:.0f}", "%", None, "", pos_note)]
+            loe_shown = shown.get("loe_year") if varied else result.get("loe_year")
+            # "none" rather than a dash: the tiles read a dash as data that is missing,
+            # and an asset with no exclusivity on file is a fact, not a gap in a source.
+            tiles.append(("LOE", str(loe_shown) if loe_shown
+                          else "past" if result.get("loe_in_base") else "none", "", None, "",
+                          "slider" if "loe_year" in moved and varied
+                          else clause(result.get("loe_basis")) if loe_shown
+                          else "date not on file" if result.get("loe_in_base")
+                          else "no exclusivity on file"))
+            st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+            if unsourced:
+                st.markdown(f'<div class="byline">unsourced assumptions: '
+                            f'{html_escape(", ".join(unsourced))}</div>',
+                            unsafe_allow_html=True)
+            if placeholder:
+                state("Drawn on a placeholder curve, and not counted",
+                      "the uptake ceiling and midpoint are the shaper's probe values. This "
+                      "asset is left out of the company per-share figure until real values "
+                      "are committed, under Uptake below.")
+
+        with charts_slot:
+            path_col, bridge_col = st.columns([1.6, 1], gap="medium")
+            with path_col:
+                _revenue_path(data["name"], result, varied, base_slim,
+                              data.get("actuals") or [], moved, scenario, revenue_span)
+            with bridge_col:
+                _value_bridge(shown, verdict, bool(varied))
+
+        # Everything under the levers is a layer, not a step. Each answers a question the
+        # figures above provoke, and only one is asked at a time, so they share one screen.
+        st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
+        has_uptake = (patients_span is not None or placeholder
+                      or result.get("mode") == "franchise")
+        n_rows = len(data.get("assumptions") or [])
+        layer_names = ["Drivers"] + (["Uptake"] if has_uptake else []) + [
+            "P&L", "Sensitivity", f"Assumptions · {n_rows}"]
+        panels = dict(zip(layer_names, st.tabs(layer_names)))
+
+        with panels["Drivers"]:
+            if verdict:
+                _drivers_layer(verdict, scenario)
+            else:
+                state("No verdict", "the API did not return one for this product")
+            # The granular success rate is its own layer, and a marketed product has none,
+            # which is not a missing verdict: the else once hung off this test and printed
+            # "No verdict" under every approved product's drivers.
+            if result.get("pos_granular"):
+                _pos_layer(result["pos_granular"])
+
+        if has_uptake:
+            with panels["Uptake"]:
+                if patients_span is None:
+                    note("no patient curve: this product is anchored on revenue rather than "
+                         "built from patients, so the funnel is not rebuilt for it.")
+                else:
+                    _render_patient_chart(result, years, x_labels, volume_scale,
+                                          patients_span)
+                if placeholder:
+                    _curve_shaper(api_base, ticker, sel, scenario, [])
+                if result.get("mode") == "franchise":
+                    _share_shaper(api_base, ticker, sel, scenario, result)
+
+        with panels["P&L"]:
+            _pnl_section(result, varied)
+
+        with panels["Sensitivity"]:
+            anchored = result.get("mode") in ("marketed", "franchise")
+            preset = st.segmented_control(
+                "Grid", ["price", "loe"], default="price",
+                format_func=lambda p: ("WACC x growth" if anchored else "WACC x net price")
+                if p == "price" else "LOE year x year-one erosion",
+                key=f"fc_grid_{ticker}_{sel}") or "price"
+            try:
+                grid = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/sensitivity"
+                                         f"?scenario={scenario}&preset={preset}")
+            except (urllib.error.URLError, OSError):
+                grid = None
+            _sensitivity_grid(grid, result.get("rnpv"))
+
+        with panels[layer_names[-1]]:
+            _forecast_editor(api_base, ticker, sel, scenario,
+                             data.get("assumptions") or [])
+            blob = _export_blob(api_base.rstrip("/") + f"/companies/{ticker}/forecast/{sel}"
+                                f"/export.xlsx?scenario={scenario}")
+            if blob:
+                st.download_button("Export to Excel", data=blob,
+                                   file_name=f"{data['name'].lower()}_forecast.xlsx",
+                                   key=f"fc_dl_{ticker}_{sel}")
+            _forecast_import(api_base, ticker, sel, scenario,
+                             data.get("assumptions") or [])
 
 
 def _sensitivity_grid(grid, base_rnpv=None) -> None:
