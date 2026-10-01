@@ -1125,9 +1125,11 @@ def test_the_sum_of_the_parts_adds_up_and_rolls_forward(tmp_path):
     # The written company call leads with the whole.
     import forecast_note
     note = forecast_note.write_company(v)
-    assert note["headline"].startswith("On the model TST's equity is worth $")
-    assert "1 marketed product" in note["headline"] and "after probability" in note["headline"]
-    assert "net cash $2.00" in note["headline"]
+    assert note["headline"].startswith("On the model, TST's equity is worth $")
+    assert ("The single product already on the market supplies 84% of that value and "
+            "net cash 8%.") in note["headline"]
+    assert ("The single candidate in development adds $0.81 once weighted by its chance "
+            "of approval.") in note["headline"]
     body = " ".join(note["body"])
     assert "risk-adjusted value" in body and "cost of equity" in body
 
@@ -1149,8 +1151,8 @@ def test_the_sum_names_what_it_cannot_do(tmp_path):
     assert any("no debt line filed" in m for m in s["missing"])
     import forecast_note
     line = forecast_note.write_company(V.company_verdict(path, "TST"))["headline"]
-    assert line.startswith("On the model TST's business is worth $")
-    assert "enterprise value" in line and "cash on hand" in line
+    assert line.startswith("On the model, TST's enterprise value is $")
+    assert "a share of cash; no debt figure is on file." in line
 
 
 def test_a_launch_window_runs_through_its_loe_and_the_erosion_after_it():
@@ -1241,7 +1243,7 @@ def test_future_launches_enter_the_sum_from_the_books_own_rd(tmp_path, monkeypat
     assert not any(m.startswith("future pipeline") for m in s["missing"])
     import forecast_note
     note = forecast_note.write_company(V.company_verdict(path, "TST"))
-    assert "future launches $" in note["headline"]
+    assert "aunches beyond the modelled pipeline" in note["headline"]
     body = " ".join(note["body"])
     assert "at 0.40 of annual revenue" in body
     assert "TST earns 0.50 on 6 launches" in body and "50% weight" in body

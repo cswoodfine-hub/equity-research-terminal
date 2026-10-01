@@ -15,6 +15,8 @@ model's output; what to do about it is not this file's business and not this pro
 
 from __future__ import annotations
 
+import re
+
 # A share of NPV that comes from the terminal value rather than the forecast horizon.
 # Past this, the answer is mostly about what happens after the model stops looking.
 TERMINAL_HEAVY = 0.35
@@ -159,31 +161,57 @@ def write(v: dict) -> dict:
 THIN_COVERAGE = 0.25
 
 
+def _plain_name(name: str) -> str:
+    """A product's name without the form in brackets: "Tryngolza (Autoinjector)" reads
+    as "Tryngolza" in a sentence."""
+    return re.sub(r"\s*\([^)]*\)\s*$", "", str(name))
+
+
 def _coverage_clause(v: dict) -> str:
     """How much of the business the figure in front of it actually covers.
 
-    Never optional. A model over a fraction of the revenue will always look small
-    against a market capitalisation, and reading that as "the market is wrong" rather
-    than "the model is thin" is the easiest mistake this page could invite. So no
-    headline states a per-share number without this behind it.
+    Never left out where there is anything to say. A model over a fraction of the
+    revenue will always look small against a market capitalisation, and reading that as
+    "the market is wrong" rather than "the model is thin" is the easiest mistake this
+    page could invite. Moderna had no product rows, so coverage could not be measured
+    and its "91% below the share price" went out with nothing behind it.
     """
     coverage = v.get("coverage") or {}
+    s = v.get("sotp") or {}
     if coverage.get("share") is None:
+        last = s.get("last_reported") or {}
+        if not (s.get("marketed") or {}).get("n") and last.get("value"):
+            return (f" No product on the market is modelled, so the figure leaves out "
+                    f"what {v['ticker']} sells today: {_mm(last['value'])} of "
+                    f"FY{last['fiscal_year']} revenue.")
         return ""
+    basis = "reported" if coverage.get("basis") == "reported total" else "tagged"
+    year = f"FY{coverage['fiscal_year']} {basis} revenue"
     counted = [m for m in v.get("modelled") or [] if m.get("counted", True)]
     streams = v.get("streams") or []
-    parts = [f"{len(counted)} asset{'s' if len(counted) != 1 else ''}"]
+    if not counted and not streams:
+        # Only the company's own rows are on file, and not every row is a product
+        # (Wave's is a collaboration category), so this names a line, not a product.
+        first = (coverage.get("unmodelled") or [None])[0]
+        denominator = coverage.get("reported_revenue") or coverage.get("tagged_revenue")
+        if first and first.get("revenue") and denominator:
+            return (f" The largest revenue line on file is {_plain_name(first['name'])}, "
+                    f"{first['revenue'] / denominator:.0%} of {year}.")
+        return ""
+    holds = f"The model's {_count(len(counted), 'asset')}"
     if streams:
-        parts.append(f"{len(streams)} revenue line{'s' if len(streams) != 1 else ''} "
-                     f"no asset carries")
-    clause = (f" That is {' and '.join(parts)} out of a book: the model covers "
-              f"{coverage['share']:.1%} of FY{coverage['fiscal_year']} "
-              f"{'reported' if coverage.get('basis') == 'reported total' else 'tagged'}"
-              f" revenue")
-    # "X alone is Y% of what it does not" has to be a share of what is uncovered, not
-    # of the whole. The row carries its share of total revenue, which is the same thing
-    # only when coverage is thin: on a company covering 97%, Datroway's 0.1% of revenue
-    # printed as "0% of what it does not", which is both wrong and says nothing.
+        holds += f" and {_count(len(streams), 'revenue line')}"
+    one = len(counted) == 1 and not streams
+    # Glaxo's 99.976% printed as "100.0%" in the same sentence that named what the model
+    # leaves out: what rounds to the whole is "all of", and nothing short of it prints
+    # as 100.0%. Otherwise rounded as the tile above it is, so the two agree.
+    share = coverage["share"]
+    covered = "all of" if share >= 0.9995 else f"{min(share, 0.999):.1%} of"
+    clause = f" {holds} {'covers' if one else 'cover'} {covered} {year}"
+    # "X alone is Y% of what it leaves out" has to be a share of what is uncovered, not
+    # of the whole: on a company covering 97%, Datroway's 0.1% of revenue printed as "0%
+    # of what it does not". And only where the gap is worth naming: a share of a gap
+    # under 1% of revenue says nothing.
     biggest = (coverage.get("unmodelled") or [None])[0]
     # From the absolutes, not by dividing one ratio by another: the covered share and
     # the row's share are measured against the same denominator, and taking their
@@ -191,73 +219,212 @@ def _coverage_clause(v: dict) -> str:
     denominator = coverage.get("reported_revenue") or coverage.get("tagged_revenue")
     uncovered = (denominator - (coverage.get("modelled_revenue") or 0.0)
                  - (coverage.get("stream_revenue") or 0.0)) if denominator else None
-    if biggest and biggest.get("revenue") and uncovered and uncovered > 0:
+    if (biggest and biggest.get("revenue") and uncovered and uncovered > 0
+            and uncovered / denominator >= 0.01):
         of_the_gap = biggest["revenue"] / uncovered
         if of_the_gap >= 0.05:
-            clause += (f", and {biggest['name']} alone is {of_the_gap:.0%} of what "
-                       f"it does not")
+            clause += (f"; {_plain_name(biggest['name'])} alone is {of_the_gap:.0%} of "
+                       f"what it leaves out")
     return clause + "."
 
 
+_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven",
+          8: "eight", 9: "nine"}
+
+
+def _count(n: int, noun: str) -> str:
+    """"one asset", "two revenue lines", "32 assets": small counts read as words."""
+    return f"{_WORDS.get(n, n)} {noun}{'' if n == 1 else 's'}"
+
+
+def _money(value: float) -> str:
+    """A per-share figure with its sign in front: "-$8.93", not "$-8.93", and a penny
+    stock's fraction of a cent in four places rather than rounded to $0.00."""
+    places = 4 if 0 < abs(value) < 0.01 else 2
+    return f"{'-' if value < 0 else ''}${abs(value):,.{places}f}"
+
+
+def _against(value: float, close: float) -> str:
+    """Where a value sits against the price, in words: "7% above", "in line with", or "a
+    small fraction of" where the percentage would read as 100% below."""
+    gap = value / close - 1.0
+    if round(gap, 2) == 0:
+        return "in line with"
+    if value >= 0 and gap < -0.95:
+        return "a small fraction of"
+    return f"{abs(gap):.0%} {'above' if gap > 0 else 'below'}"
+
+
+_FRACTIONS = ((0.25, "a quarter"), (1 / 3, "a third"), (0.5, "half"), (2 / 3, "two-thirds"),
+              (0.75, "three-quarters"))
+
+
+def _share_words(share: float) -> str:
+    """A share as a reader would say it: "about half" within two and a half points of
+    it, the percentage otherwise. Five points let 45% read as "about half" for Merck
+    and "45%" for Novo on the same page."""
+    near, words = min(_FRACTIONS, key=lambda f: abs(f[0] - share))
+    return f"about {words}" if abs(near - share) <= 0.025 else f"{share:.0%}"
+
+
+def _verb(single: bool, value: float, add: str = "add", off: str = "take off") -> str:
+    word = add if value >= 0 else off
+    if not single:
+        return word
+    head, _, rest = word.partition(" ")
+    return f"{head}s" + (f" {rest}" if rest else "")
+
+
+def _join(clauses: list[str]) -> str:
+    if len(clauses) == 1:
+        return clauses[0]
+    if len(clauses) == 2:
+        return f"{clauses[0]}, and {clauses[1]}"
+    return ", ".join(clauses[:-1]) + ", and " + clauses[-1]
+
+
+def _sentence(text: str) -> str:
+    return text[0].upper() + text[1:] + "."
+
+
 def _sotp_headline(v: dict) -> str | None:
-    """The company in one sentence: what the parts add up to per share, today and in
-    twelve months, against the price. None where a part is missing."""
+    """The company in a short paragraph an analyst would write: what it is worth a share
+    against the price, where that value comes from, what the balance sheet does to it,
+    and how much of the company the model covers. None where a part is missing.
+
+    It says where the value comes from in shares ("about half", "most of the rest")
+    rather than reading the bridge out item by item: the first rewrite still carried
+    eleven to fourteen figures in a hundred words, which is the list the user asked to
+    get away from, and the waterfall beside it already draws every step. The small steps
+    (the investment growth needs, the roll forward to today, other claims) are left to
+    the waterfall unless one is material, and then it is named with its figure.
+    """
     s = v.get("sotp") or {}
-    if not s.get("close"):
+    close = s.get("close")
+    if not close:
         return None
-    if s.get("equity_per_share") is None:
-        # The sum stops at enterprise value where the balance sheet cannot be added.
-        ev_today = s.get("enterprise_today_per_share", s.get("enterprise_per_share"))
-        if ev_today is None:
-            return None
-        lead = (f"On the model {v['ticker']}'s business is worth "
-                f"{_per_share(ev_today)} a share of enterprise value "
-                f"against a {_per_share(s['close'])} share price")
-        if s.get("cash_per_share") is not None:
-            lead += (f", before {_per_share(s['cash_per_share'])} a share of cash on "
-                     f"hand that no debt line is filed against")
-    else:
-        lead = (f"On the model {v['ticker']}'s equity is worth "
-                f"{_per_share(s['equity_per_share'])} a share today")
-        if s.get("forward_12m") is not None:
-            lead += f" and {_per_share(s['forward_12m'])} in twelve months"
-        lead += f" against a {_per_share(s['close'])} share price"
-        if s.get("upside") is not None:
-            lead += f", {s['upside']:+.0%} on the twelve-month figure"
-    parts = []
+    ticker = v["ticker"]
+    equity = s.get("equity_per_share")
+    whole = (equity if equity is not None
+             else s.get("enterprise_today_per_share", s.get("enterprise_per_share")))
+    if whole is None:
+        return None
+
+    # Where the value comes from: (value, who, how it is valued, one thing or many).
     m, p, lines = s.get("marketed") or {}, s.get("pipeline") or {}, s.get("lines") or {}
-    if m.get("n"):
-        parts.append(f"{m['n']} marketed product{'s' if m['n'] != 1 else ''} "
-                     f"{_per_share(m['per_share'])}")
-    if p.get("n"):
-        parts.append(f"{p['n']} unapproved asset{'s' if p['n'] != 1 else ''} "
-                     f"{_per_share(p['per_share'])} after probability")
-    if lines.get("n"):
-        parts.append(f"{lines['n']} line{'s' if lines['n'] != 1 else ''} no asset "
-                     f"carries {_per_share(lines['per_share'])}")
     future = s.get("future") or {}
+    parts = []
+    if m.get("n") and m.get("per_share") is not None:
+        who = ("the single product" if m["n"] == 1
+               else f"the {_count(m['n'], 'product')}")
+        parts.append((m["per_share"], f"{who} already on the market", "", m["n"] == 1))
     if future.get("per_share") is not None:
-        parts.append(f"future launches {_per_share(future['per_share'])}")
-    # Every step the bridge draws, so the parts named add up to the figure they
-    # explain: without these three, AstraZeneca's parts summed to $169.57 under a
-    # sentence that said $175.38.
+        # The launches R&D already spent will buy, beyond the ones the book names: the
+        # modelled pipeline, not the company's whole one, which on Incyte is not modelled.
+        parts.append((future["per_share"], "launches beyond the modelled pipeline",
+                      ", valued on what past R&D spending has bought", False))
+    if p.get("n") and p.get("per_share") is not None:
+        who = ("the single candidate" if p["n"] == 1
+               else f"the {_count(p['n'], 'candidate')}")
+        parts.append((p["per_share"], f"{who} in development",
+                      " once weighted by its chance of approval" if p["n"] == 1
+                      else " once each is weighted by its chance of approval", p["n"] == 1))
+    if lines.get("n") and lines.get("per_share") is not None:
+        # Revenue the book carries as a line because no product model holds it, which is
+        # not to say no product earns it: Abbvie's lines are named products.
+        parts.append((lines["per_share"], "revenue modelled as lines rather than products",
+                      "", True))
+    modelled = bool(parts)
+    net = s.get("net_cash_per_share")
+    # Cash a company holds is part of what its equity is worth, and on a small biotech it
+    # is often most of it: Crispr's product and launches were $11.31 of a $31.92 value
+    # and its net cash $19.77, so naming the product "the largest part" misled.
+    if equity is not None and net is not None and net > 0 and modelled:
+        parts.append((net, "net cash", "", True))
+    parts.sort(key=lambda x: -x[0])
+
+    if not modelled:
+        out = [f"Nothing is modelled for {ticker} yet, so there is no value to set against "
+               f"the {_money(close)} share price."]
+        if net is not None:
+            out.append(f"The balance sheet holds {_money(abs(net))} a share of "
+                       f"{'net cash' if net >= 0 else 'net debt'}.")
+        elif s.get("cash_per_share") is not None:
+            # The gap is in the data, not the company: Alnylam carries convertible notes
+            # that no debt row on file records.
+            out.append(f"Cash on file comes to {_money(s['cash_per_share'])} a share; no "
+                       f"debt figure is on file, so net cash is not stated.")
+        return " ".join(out) + _coverage_clause(v)
+
+    if equity is not None:
+        if equity < 0:
+            lead = (f"On the model, {ticker}'s equity is worth less than nothing, "
+                    f"{_money(equity)} a share, against the {_money(close)} share price")
+        else:
+            lead = (f"On the model, {ticker}'s equity is worth {_money(equity)} a share, "
+                    f"{_against(equity, close)} the {_money(close)} share price")
+        if s.get("forward_12m") is not None and equity >= 0:
+            lead += (f", and {_money(s['forward_12m'])} in twelve months, "
+                     f"{_against(s['forward_12m'], close)} it")
+        out = [lead + "."]
+    else:
+        out = [f"On the model, {ticker}'s enterprise value is {_money(whole)} a share, "
+               f"{_against(whole, close)} the {_money(close)} share price."]
+
+    # The largest source, and the second where it is most of what is left, as shares.
+    value, who, how, single = parts[0]
+    share = value / whole if whole > 0 else None
+    used = 1
+    if share is not None and 0.2 <= share <= 0.95:
+        words = _share_words(share)
+        if words.startswith("about"):
+            line = f"{words.capitalize()} of that value comes from {who}{how}"
+        else:
+            line = f"{who} {'supplies' if single else 'supply'} {words} of that value{how}"
+        if len(parts) > 1 and parts[1][0] > 0:
+            value2, who2, how2, _ = parts[1]
+            rest = whole - value
+            ratio = value2 / rest if rest > 0 else None
+            # Where the second part is more than is left, which happens when the balance
+            # sheet takes a lot off, two shares would add past the whole ("56% ... and
+            # about half" on Bristol), so it is given in dollars.
+            words2 = ("most of the rest" if ratio is not None and 0.6 <= ratio <= 1.0
+                      else _share_words(value2 / whole) if ratio is not None and ratio < 0.6
+                      else f"another {_money(value2)} a share")
+            line += "," if how else ""
+            line += (f" and {words2} from {who2}{how2}" if words.startswith("about")
+                     else f" and {who2} {words2}{how2}")
+            used = 2
+        out.append(_sentence(line))
+    else:
+        out.append(f"The largest part is {who}, at {_money(value)} a share{how}.")
+
+    # What is left of the sum, the balance sheet, and any small step that is not small.
+    clauses = [f"{w} {_verb(one, val)} {_money(abs(val))}{h}"
+               for val, w, h, one in parts[used:]]
+    if net is not None and net < 0:
+        clauses.append(f"net debt takes off {_money(abs(net))} a share")
+    material = []
     growth = (s.get("growth_investment") or {}).get("per_share")
     if growth:
-        parts.append(f"growth capital {_per_share(abs(growth))} off")
+        material.append((-abs(growth), "investment in plant and working capital for growth"))
     if s.get("carry_per_share"):
-        parts.append(f"{_per_share(abs(s['carry_per_share']))} "
-                     f"{'carried' if s['carry_per_share'] > 0 else 'lost'} to the close")
-    if s.get("net_cash_per_share") is not None:
-        # The word carries the sign, so the figure does not: "net debt $-15.28" read
-        # as a negative debt.
-        word = "net cash" if s["net_cash_per_share"] >= 0 else "net debt"
-        parts.append(f"{word} {_per_share(abs(s['net_cash_per_share']))}")
-    claims = s.get("other_claims_per_share")
-    if claims:
-        parts.append(f"other claims {_per_share(abs(claims))} "
-                     f"{'off' if claims < 0 else 'on'}")
-    return (lead + (": " + ", ".join(parts) if parts else "") + "."
-            + _coverage_clause(v))
+        material.append((s["carry_per_share"], "rolling the value forward to today"))
+    if s.get("other_claims_per_share"):
+        material.append((s["other_claims_per_share"], "other claims on the equity"))
+    for val, what in material:
+        if abs(val) > 0.1 * abs(whole):
+            clauses.append(f"{what} {_verb(not what.startswith('other'), val)} "
+                           f"{_money(abs(val))}")
+    while clauses:
+        out.append(_sentence(_join(clauses[:3])))
+        clauses = clauses[3:]
+    if not p.get("n") and future.get("per_share") is not None:
+        out.append("No candidate in development is modelled yet.")
+    if equity is None and s.get("cash_per_share") is not None:
+        out.append(f"That is before {_money(s['cash_per_share'])} a share of cash; no debt "
+                   f"figure is on file.")
+    return " ".join(out) + _coverage_clause(v)
 
 
 def _growth_whose(future: dict) -> str:
