@@ -2581,7 +2581,7 @@ def _sotp_bridge(s: dict) -> None:
             steps.append({"label": "dividend", "value": -s["dps"], "kind": "step"})
         steps.append({"label": "12m", "kind": "end"})
     section("Sum of the parts", basis="$ a share · read against the price")
-    R.show(CH.waterfall(steps, 700, 250, value_fmt=lambda x: f"{x:,.2f}",
+    R.show(CH.waterfall(steps, 920, 220, value_fmt=lambda x: f"{x:,.2f}",
                         reference=({"label": "price", "value": s["close"]}
                                    if s.get("close") else None)),
            css_class="chart-mount stretch")
@@ -2774,8 +2774,9 @@ def _fair_value_range(api_base: str, ticker: str) -> None:
     section("Fair value range", basis="$ a share · each lens a range, the price dashed")
     rows = [{"label": l["lens"], "low": l["low"], "high": l["high"], "mid": l.get("mid"),
              "emphasis": l["key"].startswith("sotp")} for l in fv["lenses"]]
-    R.show(CH.football_field(rows, 760, 36 + 30 * len(rows), marker=close,
-                             value_fmt=money, label_width=300), css_class="chart-mount")
+    R.show(CH.football_field(rows, 920, 36 + 26 * len(rows), marker=close,
+                             value_fmt=money, label_width=300),
+           css_class="chart-mount stretch")
     split = fv.get("revenue_split") or {}
     guidance_text = None
     if split.get("ok") and split.get("matched_equity") is not None:
@@ -2976,9 +2977,10 @@ def _book(api_base: str, ticker: str, selected):
     # The figures first, across the page; then the value on the left (the sum of the
     # parts over the range of lenses) and the forecast on the right (the summary over
     # the revenue by year); then the revenue build across the page; then each asset,
-    # the list beside the one picked; and the further reads at the foot.
+    # the list beside the one picked; and the further reads at the foot. The value
+    # takes the wider share because its two charts carry the most to read.
     st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
-    value_col, forecast_col = st.columns(2, gap="medium")
+    value_col, forecast_col = st.columns([1.5, 1], gap="medium")
     with value_col:
         if sotp.get("marketed", {}).get("per_share") is not None:
             _sotp_bridge(sotp)
@@ -3817,7 +3819,7 @@ def _render_forecast_tab(api_base: str, ticker: str):
     reading it and choosing from it are one act. Everything deeper is a layer under
     the workbench, answering a question the figures above provoke.
     """
-    st.markdown('<span class="no-rail"></span>', unsafe_allow_html=True)
+    st.markdown('<span class="no-rail fc-anchor"></span>', unsafe_allow_html=True)
     try:
         overview = api_get(api_base, f"/companies/{ticker}/forecast")
     except (urllib.error.URLError, OSError) as exc:

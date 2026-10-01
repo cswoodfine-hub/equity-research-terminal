@@ -1226,7 +1226,17 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .rs .rs-growth td {{ border-bottom: 1px solid var(--rule-strong); }}
 .rs .rs-ref td {{ color: var(--muted); font-size: 11px; }}
 .rs .rs-ref .rs-v {{ color: var(--muted); }}
-.call-lead.fc-summary {{ font-size: 14px; margin-bottom: 0.4rem; }}
+.call-lead.fc-summary {{ font-size: 14px; margin-bottom: 0.4rem; max-width: none; }}
+/* The Forecast tab opens on its figures. The marker that hides the rail takes no line
+   of its own, the tab's body drops the air the scenario pills would otherwise give it,
+   and the first section sits straight under the tabs. */
+[data-baseweb="tab-panel"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stLayoutWrapper"]:has(.fc-anchor) {{ margin-top: 0; margin-bottom: 0; }}
+[data-baseweb="tab-panel"] [data-testid="stElementContainer"]:has(.fc-anchor) {{
+  display: none;
+}}
+[data-baseweb="tab-panel"] [data-testid="stElementContainer"]:has(.fc-anchor)
+  + [data-testid="stElementContainer"] {{ margin-top: 0; }}
 /* The reset sits on the sliders' baseline rather than on their labels'. */
 .fc-reset {{ height: 1.55rem; }}
 
