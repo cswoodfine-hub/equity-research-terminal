@@ -2581,7 +2581,7 @@ def _sotp_bridge(s: dict) -> None:
             steps.append({"label": "dividend", "value": -s["dps"], "kind": "step"})
         steps.append({"label": "12m", "kind": "end"})
     section("Sum of the parts", basis="$ a share · read against the price")
-    R.show(CH.waterfall(steps, 920, 220, value_fmt=lambda x: f"{x:,.2f}",
+    R.show(CH.waterfall(steps, 800, 210, value_fmt=lambda x: f"{x:,.2f}",
                         reference=({"label": "price", "value": s["close"]}
                                    if s.get("close") else None)),
            css_class="chart-mount stretch")
@@ -2666,7 +2666,11 @@ def _revenue_bars(path, last, base, growth, has_lines, has_pipe) -> str:
     """
     actual = _mix_hex(TK.TEXT, TK.GROUND, 0.4)
     lines_c = _mix_hex(TK.MUTED, TK.GROUND, 0.5)
-    pipe_c = TK.PHASE_RAMP["Phase 3"]
+    # Purple, the pipeline's colour in the value list on this tab: the Phase 3 green it
+    # had read as part of the marketed bar under it. What PoS takes off is the same purple
+    # hatched over a dim ground of it, so a thin cap stays apart from the risked segment.
+    pipe_c = TK.PURPLE_BOOK
+    cut_c = _mix_hex(pipe_c, TK.GROUND, 0.65)
     cols = []
     if last:
         cols.append({"year": f"FY{last['fiscal_year']}A", "growth": None, "total": base,
@@ -2699,8 +2703,9 @@ def _revenue_bars(path, last, base, growth, has_lines, has_pipe) -> str:
         for i, (name, v, colour, hatch) in enumerate(reversed(segs)):
             label = (f'<span class="rb-v">{c["total"]:,.0f}</span>'
                      if i == 0 and c["total"] is not None else "")
+            ground = f";--c2:{cut_c}" if hatch else ""
             parts.append(f'<div class="rb-seg{hatch}" style="flex:{share(v)} 1 0;'
-                         f'--c:{colour}" title="{html_escape(c["year"])} '
+                         f'--c:{colour}{ground}" title="{html_escape(c["year"])} '
                          f'{html_escape(name)}: {v:,.0f}">{label}</div>')
         g = c["growth"]
         tone = "" if g is None else " up" if g > 0 else " down" if g < 0 else ""
@@ -2720,8 +2725,9 @@ def _revenue_bars(path, last, base, growth, has_lines, has_pipe) -> str:
         keys += [("pipeline, after PoS", pipe_c, ""), ("taken off by PoS", pipe_c, " hatch")]
     if last:
         keys.append(("the book, reported", actual, ""))
-    legend = "".join(f'<span><i class="rb-sw{h}" style="--c:{col}"></i>{html_escape(n)}'
-                     "</span>" for n, col, h in keys)
+    legend = "".join(f'<span><i class="rb-sw{h}" style="--c:{col}'
+                     + (f";--c2:{cut_c}" if h else "")
+                     + f'"></i>{html_escape(n)}</span>' for n, col, h in keys)
     if company:
         legend += (f'<span><i class="rb-sw dash"></i>whole company, '
                    f'FY{last["fiscal_year"]} {company:,.0f}</span>')
@@ -2784,15 +2790,17 @@ def _revenue_split(s: dict) -> None:
                  + "".join(cell(v, pct=(label == "growth")) for v in values) + "</tr>")
     st.markdown(_revenue_bars(path, last, base, growth, has_lines, has_pipe),
                 unsafe_allow_html=True)
+    # What has no forecast qualifies the bars, so it sits under them and the half ends
+    # on its fold, level with the value half's.
+    if s.get("not_valued"):
+        st.markdown('<div class="byline rb-foot">no forecast, so not in any of these: '
+                    + html_escape(", ".join(f"{n['name']} {n['revenue']:,.0f}mm"
+                                            for n in s["not_valued"])) + "</div>",
+                    unsafe_allow_html=True)
     # The bars carry the totals and the growth; the split to the unit sits under them.
     with st.expander("The figures"):
         st.markdown(f'<table class="rs"><thead><tr><th></th>{head}</tr></thead>'
                     f'<tbody>{body}</tbody></table>', unsafe_allow_html=True)
-    if s.get("not_valued"):
-        st.markdown('<div class="byline">no forecast, so not in any of these: '
-                    + html_escape(", ".join(f"{n['name']} {n['revenue']:,.0f}mm"
-                                            for n in s["not_valued"])) + "</div>",
-                    unsafe_allow_html=True)
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -2854,8 +2862,8 @@ def _fair_value_range(api_base: str, ticker: str) -> None:
     section("Fair value range", basis="$ a share · each lens a range, the price dashed")
     rows = [{"label": l["lens"], "low": l["low"], "high": l["high"], "mid": l.get("mid"),
              "emphasis": l["key"].startswith("sotp")} for l in fv["lenses"]]
-    R.show(CH.football_field(rows, 920, 36 + 26 * len(rows), marker=close,
-                             value_fmt=money, label_width=300),
+    R.show(CH.football_field(rows, 800, 32 + 24 * len(rows), marker=close,
+                             value_fmt=money, label_width=270),
            css_class="chart-mount stretch")
     split = fv.get("revenue_split") or {}
     guidance_text = None
@@ -3058,16 +3066,17 @@ def _book(api_base: str, ticker: str, selected):
     # parts over the range of lenses) and the forecast on the right (the summary over
     # the revenue by year); then the revenue build across the page; then each asset,
     # the list beside the one picked; and the further reads at the foot. The value
-    # takes the wider share because its two charts carry the most to read, and the
-    # theme stretches the revenue table so both halves end on one line.
+    # keeps the wider share for its charts' step labels, but less than it had: the
+    # forecast half holds the densest text. Whichever half is shorter gives way above
+    # its second section, so both end on one line.
     st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
-    value_col, forecast_col = st.columns([1.5, 1], gap="medium")
+    value_col, forecast_col = st.columns([1.3, 1], gap="medium")
     with value_col:
         if sotp.get("marketed", {}).get("per_share") is not None:
             _sotp_bridge(sotp)
         _fair_value_range(api_base, ticker)
     with forecast_col:
-        section("Forecast summary", basis="the model's read of the book")
+        section("Forecast summary")
         st.markdown(f'<div class="call-lead fc-summary">'
                     f'{html_escape(note_body.get("headline") or "")}</div>',
                     unsafe_allow_html=True)

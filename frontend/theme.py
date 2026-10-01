@@ -1226,7 +1226,7 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .rs .rs-growth td {{ border-bottom: 1px solid var(--rule-strong); }}
 .rs .rs-ref td {{ color: var(--muted); font-size: 11px; }}
 .rs .rs-ref .rs-v {{ color: var(--muted); }}
-.call-lead.fc-summary {{ font-size: 14px; margin-bottom: 0.4rem; max-width: none; }}
+.call-lead.fc-summary {{ font-size: 14px; margin-bottom: 0; max-width: none; }}
 /* The Forecast tab opens on its figures. The marker that hides the rail takes no line
    of its own, the tab's body drops the air the scenario pills would otherwise give it,
    and the first section sits straight under the tabs. */
@@ -1253,19 +1253,52 @@ details.prof-summary.long[open] > summary {{ display: none; }}
   [data-testid="stElementContainer"]:has(.rbar) div:has(.rbar) {{
   flex: 1 1 auto; display: flex; flex-direction: column;
 }}
+/* The value and the forecast are two halves of one row: a gutter twice the page margin,
+   so their section rules read as two lines and not one with a break in it, and the row
+   clears the build under it by the air its own sections take. The direct child chain
+   keeps this to the row: the page-level split holds its tabs as stTabs, not an element
+   container. */
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) {{ gap: 32px; margin-bottom: 0.5rem; }}
+/* Whichever half is shorter gives way above its second section, so the two end on one
+   line however long the summary runs: the forecast half grows its bars first, the value
+   half takes the air above the lens chart. Each section in the row gets back the space
+   the tab's no-rail rule had cut to half a rem. */
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stColumn"] {{
+  display: flex; flex-direction: column; }}
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stColumn"]
+  > [data-testid="stVerticalBlock"] {{ flex: 1 1 auto; }}
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stColumn"]
+  > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.sec) {{
+  margin-top: 1rem; }}
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stColumn"]
+  > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.sec)
+  ~ [data-testid="stElementContainer"]:has(.sec) {{ margin-top: auto; padding-top: 1rem; }}
+/* A chart's fold sits close under it, not on it: the markdown pull had left the
+   waterfall's axis labels 3px off the box. */
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stColumn"]
+  [data-testid="stMarkdownContainer"]:has(> .chart-mount) {{ margin-bottom: -0.5rem; }}
 /* Revenue by year as stacked columns. Heights are flex shares of the tallest stack, so
    the plot can be any height and the bars stay in proportion. */
 .rbar {{ display: flex; flex-direction: column; flex: 1 1 auto; margin-top: 0.4rem; }}
-/* Streamlit pulls a markdown block up by a rem to eat a paragraph's margin; the chart has
-   none, so the pull would sink its axis into whatever follows. */
-[data-testid="stMarkdownContainer"]:has(> .rbar) {{ margin-bottom: 0; }}
+/* Streamlit pulls a markdown block up by a rem to eat a paragraph's margin. The chart, the
+   summary and the note under the bars have none, so the pull would sink each into
+   whatever follows. */
+[data-testid="stMarkdownContainer"]:has(> .rbar),
+[data-testid="stMarkdownContainer"]:has(> .fc-summary),
+[data-testid="stMarkdownContainer"]:has(> .rb-foot) {{ margin-bottom: 0; }}
 .rb-legend {{ display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 10.5px;
   color: var(--muted); margin-bottom: 0.3rem; }}
 .rb-legend span {{ display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }}
 .rb-sw {{ display: inline-block; width: 10px; height: 10px; background: var(--c); }}
 .rb-sw.hatch, .rb-seg.hatch {{
-  background: repeating-linear-gradient(135deg, var(--c) 0 1.5px, transparent 1.5px 5px);
-  box-shadow: inset 0 0 0 1px var(--c);
+  background: repeating-linear-gradient(135deg, var(--c) 0 1.5px, transparent 1.5px 5px),
+              var(--c2, transparent);
 }}
 .rb-sw.dash {{ height: 0; background: none; border-top: 1px dashed var(--text); }}
 .rb-plot {{ position: relative; flex: 1 1 auto; min-height: 200px; display: flex;
@@ -1273,7 +1306,11 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .rb-col {{ flex: 1 1 0; display: flex; flex-direction: column; min-width: 0; }}
 .rb-stack {{ flex: 1 1 auto; display: flex; flex-direction: column; width: 58%;
   max-width: 64px; margin: 0 auto; }}
-.rb-seg {{ position: relative; min-height: 0; background: var(--c); }}
+/* A segment that is not zero is never drawn thinner than 2px, as the football field does
+   for a range: thinner, it paints as nothing and states a zero. The shares in the markup
+   stay exact, the overstatement is at most 2px, and the hover title and The figures carry
+   the value. */
+.rb-seg {{ position: relative; min-height: 2px; background: var(--c); }}
 .rb-v {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
   padding: 0 3px 2px; font-family: var(--font-mono); font-size: 11px; color: var(--text);
   background: var(--ground); white-space: nowrap; font-variant-numeric: tabular-nums;

@@ -20,13 +20,18 @@ APP = FRONTEND / "streamlit_app.py"
 HELPERS = ("_revenue_bars", "_mix_hex")
 
 
-@pytest.fixture(scope="module")
-def bars():
+def _tokens():
     sys.path.insert(0, str(FRONTEND))
     try:
         from components import tokens as TK
     finally:
         sys.path.remove(str(FRONTEND))
+    return TK
+
+
+@pytest.fixture(scope="module")
+def bars():
+    TK = _tokens()
     tree = ast.parse(APP.read_text(), feature_version=(3, 9))
     keep = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in HELPERS]
     assert {n.name for n in keep} == set(HELPERS)
@@ -56,6 +61,13 @@ def test_each_year_stacks_to_its_share_of_the_tallest_and_the_haircut_sits_on_to
     assert _shares(cols[1]) == pytest.approx([0.0, 200 / 9 * 10, 100 / 9 * 10, 600 / 9 * 10],
                                              abs=0.01)
     assert 'class="rb-seg hatch"' in cols[1] and "taken off by PoS: 200" in cols[1]
+    # The risked pipeline is purple, as in the value list, so it never reads as marketed
+    # green; what PoS takes off is the same purple hatched over a dim ground of it, which
+    # is what keeps a two-pixel cap apart from the segment under it.
+    TK = _tokens()
+    assert f'--c:{TK.PURPLE_BOOK}" title="FY2026E pipeline, after PoS: 100"' in cols[1]
+    assert f"--c:{TK.PURPLE_BOOK};--c2:#" in cols[1]
+    assert f'--c:{TK.UP}" title="FY2026E marketed: 600"' in cols[1]
     # The label is the risked total, on the top segment only.
     assert cols[1].count("rb-v") == 1 and ">700</span>" in cols[1]
 
