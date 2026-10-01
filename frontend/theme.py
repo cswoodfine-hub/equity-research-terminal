@@ -1237,6 +1237,57 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 }}
 [data-baseweb="tab-panel"] [data-testid="stElementContainer"]:has(.fc-anchor)
   + [data-testid="stElementContainer"] {{ margin-top: 0; }}
+/* The value and the forecast end on one line. The columns already share a height, so
+   the forecast half fills its own and the revenue bars take up the slack. */
+[data-testid="stColumn"]:has(> [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) {{ display: flex; flex-direction: column; }}
+[data-testid="stColumn"]:has(> [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stVerticalBlock"] {{
+  flex: 1 1 auto;
+}}
+[data-testid="stColumn"]:has(> [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary)
+  > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.rbar),
+[data-testid="stColumn"]:has(> [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary)
+  [data-testid="stElementContainer"]:has(.rbar) div:has(.rbar) {{
+  flex: 1 1 auto; display: flex; flex-direction: column;
+}}
+/* Revenue by year as stacked columns. Heights are flex shares of the tallest stack, so
+   the plot can be any height and the bars stay in proportion. */
+.rbar {{ display: flex; flex-direction: column; flex: 1 1 auto; margin-top: 0.4rem; }}
+/* Streamlit pulls a markdown block up by a rem to eat a paragraph's margin; the chart has
+   none, so the pull would sink its axis into whatever follows. */
+[data-testid="stMarkdownContainer"]:has(> .rbar) {{ margin-bottom: 0; }}
+.rb-legend {{ display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 10.5px;
+  color: var(--muted); margin-bottom: 0.3rem; }}
+.rb-legend span {{ display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }}
+.rb-sw {{ display: inline-block; width: 10px; height: 10px; background: var(--c); }}
+.rb-sw.hatch, .rb-seg.hatch {{
+  background: repeating-linear-gradient(135deg, var(--c) 0 1.5px, transparent 1.5px 5px);
+  box-shadow: inset 0 0 0 1px var(--c);
+}}
+.rb-sw.dash {{ height: 0; background: none; border-top: 1px dashed var(--text); }}
+.rb-plot {{ position: relative; flex: 1 1 auto; min-height: 200px; display: flex;
+  padding-top: 20px; }}
+.rb-col {{ flex: 1 1 0; display: flex; flex-direction: column; min-width: 0; }}
+.rb-stack {{ flex: 1 1 auto; display: flex; flex-direction: column; width: 58%;
+  max-width: 64px; margin: 0 auto; }}
+.rb-seg {{ position: relative; min-height: 0; background: var(--c); }}
+.rb-v {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  padding: 0 3px 2px; font-family: var(--font-mono); font-size: 11px; color: var(--text);
+  background: var(--ground); white-space: nowrap; font-variant-numeric: tabular-nums;
+  z-index: 2; }}
+.rb-x {{ height: 40px; display: flex; flex-direction: column; align-items: center;
+  padding-top: 5px; font-family: var(--font-mono); font-size: 10px; line-height: 15px;
+  color: var(--muted);
+  letter-spacing: 0.04em; border-top: 1px solid var(--rule-strong); }}
+.rb-g {{ font-size: 10.5px; line-height: 15px; margin-top: 2px; }}
+.rb-g.up {{ color: var(--up); }}
+.rb-g.down {{ color: var(--down); }}
+.rb-ref {{ position: absolute; left: 0; right: 0; top: 20px; bottom: 40px; display: flex;
+  flex-direction: column; pointer-events: none; z-index: 1; }}
+.rb-line {{ height: 0; border-top: 1px dashed var(--text); opacity: 0.7; }}
 /* The reset sits on the sliders' baseline rather than on their labels'. */
 .fc-reset {{ height: 1.55rem; }}
 

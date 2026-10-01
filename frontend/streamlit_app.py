@@ -2653,6 +2653,82 @@ def _sotp_bridge(s: dict) -> None:
                         + "</div>", unsafe_allow_html=True)
 
 
+def _revenue_bars(path, last, base, growth, has_lines, has_pipe) -> str:
+    """Revenue by year as stacked columns, in HTML so the plot can fill its column.
+
+    Each forecast year stacks what is sold, the lines no asset carries and the pipeline
+    after its probability, with what the probability takes off hatched on top, so the
+    risked total and the haircut read on one bar. The reported year is one grey bar:
+    the book's own revenue, with the whole company's drawn as a dashed line across the
+    plot. Heights are flex shares of the tallest stack rather than pixels, which is
+    what lets the plot stretch to meet the value column beside it. A null is a gap,
+    never a zero.
+    """
+    actual = _mix_hex(TK.TEXT, TK.GROUND, 0.4)
+    lines_c = _mix_hex(TK.MUTED, TK.GROUND, 0.5)
+    pipe_c = TK.PHASE_RAMP["Phase 3"]
+    cols = []
+    if last:
+        cols.append({"year": f"FY{last['fiscal_year']}A", "growth": None, "total": base,
+                     "segs": [("the book, reported", base, actual, "")]})
+    for r, g in zip(path, growth):
+        pipe, risked = r.get("pipeline"), r.get("pipeline_risked")
+        haircut = (pipe - risked) if pipe is not None and risked is not None else None
+        segs = [("marketed", r.get("marketed"), TK.UP, "")]
+        if has_lines:
+            segs.append(("lines", r.get("lines"), lines_c, ""))
+        if has_pipe:
+            segs += [("pipeline, after PoS", risked, pipe_c, ""),
+                     ("taken off by PoS", haircut, pipe_c, " hatch")]
+        cols.append({"year": f"FY{r['year']}E", "growth": g,
+                     "total": r.get("total_risked"), "segs": segs})
+    company = last.get("value") if last else None
+    stacks = [sum(v for _n, v, _c, _h in c["segs"] if v and v > 0) for c in cols]
+    top = max(stacks + [company or 0.0, 0.0])
+    if top <= 0:
+        return ""
+
+    def share(v):
+        # Flex shares out of a thousand: a sum under one would leave the column unfilled.
+        return f"{max(v, 0.0) / top * 1000:.3f}"
+
+    out = []
+    for c, height in zip(cols, stacks):
+        segs = [(n, v, col, h) for n, v, col, h in c["segs"] if v and v > 0]
+        parts = [f'<div style="flex:{share(top - height)} 1 0"></div>']
+        for i, (name, v, colour, hatch) in enumerate(reversed(segs)):
+            label = (f'<span class="rb-v">{c["total"]:,.0f}</span>'
+                     if i == 0 and c["total"] is not None else "")
+            parts.append(f'<div class="rb-seg{hatch}" style="flex:{share(v)} 1 0;'
+                         f'--c:{colour}" title="{html_escape(c["year"])} '
+                         f'{html_escape(name)}: {v:,.0f}">{label}</div>')
+        g = c["growth"]
+        tone = "" if g is None else " up" if g > 0 else " down" if g < 0 else ""
+        out.append(f'<div class="rb-col"><div class="rb-stack">{"".join(parts)}</div>'
+                   f'<div class="rb-x"><span>{html_escape(c["year"])}</span>'
+                   f'<span class="rb-g{tone}">{"" if g is None else f"{g:+.1%}"}</span>'
+                   "</div></div>")
+    ref = ""
+    if company:
+        ref = (f'<div class="rb-ref"><div style="flex:{share(top - company)} 1 0"></div>'
+               f'<div class="rb-line"></div><div style="flex:{share(company)} 1 0"></div>'
+               "</div>")
+    keys = [("marketed", TK.UP, "")]
+    if has_lines:
+        keys.append(("lines", lines_c, ""))
+    if has_pipe:
+        keys += [("pipeline, after PoS", pipe_c, ""), ("taken off by PoS", pipe_c, " hatch")]
+    if last:
+        keys.append(("the book, reported", actual, ""))
+    legend = "".join(f'<span><i class="rb-sw{h}" style="--c:{col}"></i>{html_escape(n)}'
+                     "</span>" for n, col, h in keys)
+    if company:
+        legend += (f'<span><i class="rb-sw dash"></i>whole company, '
+                   f'FY{last["fiscal_year"]} {company:,.0f}</span>')
+    return (f'<div class="rbar"><div class="rb-legend">{legend}</div>'
+            f'<div class="rb-plot">{ref}{"".join(out)}</div></div>')
+
+
 def _revenue_split(s: dict) -> None:
     """Revenue by year, marketed against pipeline, beside the last year reported.
 
@@ -2706,8 +2782,12 @@ def _revenue_split(s: dict) -> None:
                else ' class="rs-ref"' if label.startswith("reported") else "")
         body += (f'<tr{cls}><td class="rs-k">{html_escape(label)}</td>'
                  + "".join(cell(v, pct=(label == "growth")) for v in values) + "</tr>")
-    st.markdown(f'<table class="rs"><thead><tr><th></th>{head}</tr></thead>'
-                f'<tbody>{body}</tbody></table>', unsafe_allow_html=True)
+    st.markdown(_revenue_bars(path, last, base, growth, has_lines, has_pipe),
+                unsafe_allow_html=True)
+    # The bars carry the totals and the growth; the split to the unit sits under them.
+    with st.expander("The figures"):
+        st.markdown(f'<table class="rs"><thead><tr><th></th>{head}</tr></thead>'
+                    f'<tbody>{body}</tbody></table>', unsafe_allow_html=True)
     if s.get("not_valued"):
         st.markdown('<div class="byline">no forecast, so not in any of these: '
                     + html_escape(", ".join(f"{n['name']} {n['revenue']:,.0f}mm"
@@ -2978,7 +3058,8 @@ def _book(api_base: str, ticker: str, selected):
     # parts over the range of lenses) and the forecast on the right (the summary over
     # the revenue by year); then the revenue build across the page; then each asset,
     # the list beside the one picked; and the further reads at the foot. The value
-    # takes the wider share because its two charts carry the most to read.
+    # takes the wider share because its two charts carry the most to read, and the
+    # theme stretches the revenue table so both halves end on one line.
     st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
     value_col, forecast_col = st.columns([1.5, 1], gap="medium")
     with value_col:
