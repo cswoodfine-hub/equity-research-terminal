@@ -1225,7 +1225,11 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
     belongs here whose size is unknown" without inventing the size. ``reference`` is
     {label, value, colour?}, a dashed rule across the plot: the share price a
     per-share bridge is read against, which the bars have to be compared with and
-    which is not one of them.
+    which is not one of them. It is drawn under the bars and their figures, and each
+    figure sits on a patch of the ground, so the rule never strikes through a value:
+    on Amgen it ran through the dividend's minus sign and -9.45 read as 9.45. With
+    no label the rule is drawn alone and the caller names the price in the section
+    chip, because a label at the right end sits on the last bar.
     """
     value_fmt = value_fmt or (lambda v: _fmt(v, 1))
     pad_l, top, bottom = 52, 16, 34
@@ -1251,6 +1255,20 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
     zero_y = y(0)
     out.append(f'<line x1="{pad_l - 4}" y1="{zero_y:.1f}" x2="{width - 8}"'
                f' y2="{zero_y:.1f}" stroke="{TK.RULE_STRONG}"/>')
+    if reference and reference.get("value") is not None:
+        ry = y(reference["value"])
+        colour = reference.get("colour") or TK.FLAG
+        out.append(f'<line x1="{pad_l - 4}" y1="{ry:.1f}" x2="{width - 8}"'
+                   f' y2="{ry:.1f}" stroke="{colour}" stroke-width="1"'
+                   ' stroke-dasharray="4,3" class="reference"/>')
+    def figure(cx: float, base: float, text: str, colour: str, weight: str = "") -> str:
+        # A patch of the ground the width of the figure, in the mono face's 0.6em
+        # advance, so a rule behind it stops at its edges rather than between digits.
+        w = len(text) * 5.4 + 4
+        return (f'<rect class="figure-ground" x="{cx - w / 2:.1f}" y="{base - 8.5:.1f}"'
+                f' width="{w:.1f}" height="11" fill="{TK.GROUND}"/>'
+                + _text(cx, base, text, 9, colour, "middle", MONO, weight))
+
     running = 0.0
     prev_edge = None
     for i, s in enumerate(steps):
@@ -1265,8 +1283,7 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
             out.append(f'<rect x="{cx - bar_w / 2:.1f}" y="{y0:.1f}"'
                        f' width="{bar_w:.1f}" height="{max(y1 - y0, 1):.1f}"'
                        f' fill="{TK.PANEL}" stroke="{TK.RULE_STRONG}"/>')
-            out.append(_text(cx, y0 - 5, value_fmt(level or 0.0), 9, TK.TEXT,
-                             "middle", MONO, "600"))
+            out.append(figure(cx, y0 - 5, value_fmt(level or 0.0), TK.TEXT, "600"))
             edge = y(level or 0.0)
         elif v is None:
             out.append(f'<rect x="{cx - bar_w / 2:.1f}"'
@@ -1283,7 +1300,7 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
             out.append(f'<rect x="{cx - bar_w / 2:.1f}" y="{y0:.1f}"'
                        f' width="{bar_w:.1f}" height="{max(y1 - y0, 1.2):.1f}"'
                        f' fill="{colour}"/>')
-            out.append(_text(cx, y0 - 5, value_fmt(v), 9, colour, "middle", MONO))
+            out.append(figure(cx, y0 - 5, value_fmt(v), colour))
             edge = y(running)
         if prev_edge is not None:
             out.append(f'<line x1="{cx - slot / 2 + bar_w * 0.19:.1f}"'
@@ -1291,16 +1308,22 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
                        f' y2="{prev_edge:.1f}" stroke="{TK.MUTED}"'
                        f' stroke-width="0.8" stroke-dasharray="2,2"/>')
         prev_edge = edge
-        out.append(_text(cx, height - 10, s["label"], 9, TK.MUTED, "middle", UI))
-    if reference and reference.get("value") is not None:
-        ry = y(reference["value"])
-        colour = reference.get("colour") or TK.FLAG
-        out.append(f'<line x1="{pad_l - 4}" y1="{ry:.1f}" x2="{width - 8}"'
-                   f' y2="{ry:.1f}" stroke="{colour}" stroke-width="1"'
-                   ' stroke-dasharray="4,3" class="reference"/>')
-        out.append(_text(width - 8, ry - 4, f"{reference.get('label') or ''} "
-                         f"{value_fmt(reference['value'])}".strip(), 9, colour, "end",
-                         MONO, "600"))
+        label = str(s["label"])
+        # A label wider than its slot takes two lines: at fourteen steps "growth
+        # capital" ran into "launches" and "FY25 EV" as one phrase.
+        if len(label) * 4.9 > slot - 6 and " " in label:
+            first, _, second = label.rpartition(" ")
+            out.append(f'<text x="{cx:.1f}" font-size="9" fill="{TK.MUTED}"'
+                       f' text-anchor="middle" font-family="{UI}">'
+                       f'<tspan x="{cx:.1f}" y="{height - 19}">{_esc(first)}</tspan>'
+                       f'<tspan x="{cx:.1f}" y="{height - 9}">{_esc(second)}</tspan>'
+                       "</text>")
+        else:
+            out.append(_text(cx, height - 10, label, 9, TK.MUTED, "middle", UI))
+    if reference and reference.get("value") is not None and reference.get("label"):
+        out.append(_text(width - 8, y(reference["value"]) - 4,
+                         f"{reference['label']} {value_fmt(reference['value'])}", 9,
+                         reference.get("colour") or TK.FLAG, "end", MONO, "600"))
     out.append("</svg>")
     return "".join(out)
 

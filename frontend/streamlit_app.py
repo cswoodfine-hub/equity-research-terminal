@@ -2580,9 +2580,13 @@ def _sotp_bridge(s: dict) -> None:
         if s.get("dps"):
             steps.append({"label": "dividend", "value": -s["dps"], "kind": "step"})
         steps.append({"label": "12m", "kind": "end"})
-    section("Sum of the parts", basis="$ a share · read against the price")
+    # The price is named in the chip, not at the end of its rule, where it sat on the
+    # twelve-month bar.
+    section("Sum of the parts",
+            basis=(f"$ a share · the price dashed, {s['close']:,.2f}" if s.get("close")
+                   else "$ a share"))
     R.show(CH.waterfall(steps, 800, 210, value_fmt=lambda x: f"{x:,.2f}",
-                        reference=({"label": "price", "value": s["close"]}
+                        reference=({"label": None, "value": s["close"]}
                                    if s.get("close") else None)),
            css_class="chart-mount stretch")
     bits = []
