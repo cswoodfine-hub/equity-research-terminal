@@ -48,6 +48,7 @@ from __future__ import annotations
 import datetime as dt
 
 import approval_dates
+import asset_revenue
 import db
 import franchises
 import fx
@@ -173,17 +174,10 @@ def portfolio_freshness(conn, company_id: int, rates, today=None,
     franchise_map = franchises.load()
     total = dated = fresh = non_product = inferred = curated = 0.0
     drugs = identified = 0
-    for row in conn.execute(
-        """
-        SELECT ar.asset_id, ar.value, ar.unit,
-               COALESCE(a.brand_name, a.generic_name) AS name
-          FROM asset_revenue ar
-          JOIN assets a ON a.id = ar.asset_id
-         WHERE a.owner_company_id = ? AND ar.fiscal_year = ? AND ar.value IS NOT NULL
-           -- The year, not the quarters inside it: summing both counts the same sales
-           -- twice and reads as a company half again its size.
-           AND ar.period = 'FY'
-        """, (company_id, year)):
+    # The year, not the quarters inside it: summing both counts the same sales twice and
+    # reads as a company half again its size. And a line filed twice (Vertex's Trikafta on
+    # two asset ids) counts once, which asset_revenue.fy_product_rows sees to.
+    for row in asset_revenue.fy_product_rows(conn, company_id, year):
         value = _usd(row["value"], row["unit"], rates)
         if value is None:
             continue

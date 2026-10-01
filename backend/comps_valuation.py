@@ -167,6 +167,16 @@ def _iso_date(value) -> str | None:
     return day.isoformat() if day else None
 
 
+def _catalyst_date(value) -> str | None:
+    """A catalyst's date as ISO: the day where the source gives one, else "YYYY-MM" for a
+    month-precision date, never a day the source did not state."""
+    text = str(value or "").strip()
+    m = re.fullmatch(r"(\d{4})-(\d{2})", text)
+    if m:
+        return text if 1 <= int(m.group(2)) <= 12 else None
+    return _iso_date(value)
+
+
 def _iso_ts(value) -> str | None:
     """A stored ``datetime('now')`` stamp as ISO 8601 UTC with a Z."""
     if not value:
@@ -429,17 +439,23 @@ class _Universe:
                                "title": r["title"], "url": r["url"]})
 
     def _catalysts(self):
+        """The next five pending catalysts a company. The registry gives about a quarter of
+        readouts as a month and no day ("2026-11"); those keep their month as "YYYY-MM",
+        which the panel prints "Nov 2026", where a day parse would leave a dash. A month
+        still running is ahead, not past."""
         self.catalysts: dict = {}
         for r in self.conn.execute(
                 """SELECT company_id, catalyst_type, expected_date, date_confidence, title,
                           is_curated, source_url FROM catalysts
                     WHERE status = 'pending' AND expected_date IS NOT NULL
-                      AND substr(expected_date, 1, 10) >= ?
-                    ORDER BY expected_date, id""", (self.today.isoformat(),)):
+                      AND (substr(expected_date, 1, 10) >= ?
+                           OR (length(expected_date) = 7 AND expected_date >= ?))
+                    ORDER BY expected_date, id""",
+                (self.today.isoformat(), self.today.isoformat()[:7])):
             listed = self.catalysts.setdefault(r["company_id"], [])
             if len(listed) < 5:
                 listed.append({"type": r["catalyst_type"],
-                               "expected_date": _iso_date(r["expected_date"]),
+                               "expected_date": _catalyst_date(r["expected_date"]),
                                "date_confidence": r["date_confidence"], "title": r["title"],
                                "is_curated": bool(r["is_curated"]),
                                "source_url": r["source_url"]})

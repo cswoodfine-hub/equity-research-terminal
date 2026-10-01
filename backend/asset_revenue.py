@@ -292,6 +292,38 @@ def delete_revenue(db_path, revenue_id: int) -> bool:
         conn.close()
 
 
+def fy_product_rows(conn, company_id: int, fiscal_year: int) -> list[dict]:
+    """One fiscal year's revenue rows for the company's owned assets, largest first, with
+    an exact duplicate counted once.
+
+    Two rows of the same value in the same unit and year are one line filed twice:
+    Vertex's Trikafta sits on two asset ids at $10.31bn each, and summing both put its
+    product revenue a sixth above its reported revenue and halved Trikafta's share of it.
+    Only the full year is read (period FY), never the quarters inside it. Each row:
+    ``{asset_id, name, value, unit, source}``, name being the brand or else the generic.
+    """
+    rows = conn.execute(
+        """
+        SELECT r.asset_id, COALESCE(a.brand_name, a.generic_name) AS name,
+               r.value, r.unit, r.source
+          FROM asset_revenue r JOIN assets a ON a.id = r.asset_id
+         WHERE a.owner_company_id = ? AND r.fiscal_year = ? AND r.period = 'FY'
+           AND r.value IS NOT NULL
+         ORDER BY r.value DESC, r.asset_id
+        """,
+        (company_id, fiscal_year),
+    ).fetchall()
+    kept: list[dict] = []
+    for row in rows:
+        value = row["value"]
+        if any(k["unit"] == row["unit"]
+               and abs(k["value"] - value) < 1e-6 * max(1.0, abs(value)) for k in kept):
+            continue
+        kept.append({"asset_id": row["asset_id"], "name": row["name"], "value": value,
+                     "unit": row["unit"], "source": row["source"]})
+    return kept
+
+
 def _latest_revenue(conn, company_id: int) -> dict:
     """{asset_id: {'value','unit','fiscal_year'}} taking each product's latest year."""
     rows = conn.execute(

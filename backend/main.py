@@ -29,6 +29,7 @@ import cashflow as cashflow_module
 import comps as comps_module
 import comps_context as comps_context_module
 import comps_valuation as comps_valuation_module
+import company_score as company_score_module
 import db
 import deals as deals_module
 import demand as demand_module
@@ -320,10 +321,14 @@ def comps_trend() -> dict:
 @app.get("/comps/valuation")
 def comps_valuation_view():
     """Every company's valuation record for the Comps tab's Valuation view: components,
-    not multiples, each null with its reason (backend/comps_valuation.py). A body built
-    before the model reads are warm is marked incomplete and is never cached."""
+    not multiples, each null with its reason (backend/comps_valuation.py), and the company
+    scorecard built from them (backend/company_score.py) under ``scorecard``. A body built
+    before the model reads are warm, or whose scorecard failed, is marked incomplete and is
+    never cached."""
     payload = comps_valuation_module.build()
-    headers = {} if payload["complete"] else {response_cache.SKIP: "1"}
+    payload["scorecard"] = company_score_module.build(payload)
+    ok = payload["complete"] and not payload["scorecard"].get("error")
+    headers = {} if ok else {response_cache.SKIP: "1"}
     return JSONResponse(payload, headers=headers)
 
 

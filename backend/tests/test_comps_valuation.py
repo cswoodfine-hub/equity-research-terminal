@@ -543,6 +543,36 @@ def test_failed_sources_of_the_latest_run(out):
     assert not _codes(_by(out)["LLY"], "source_failed")
 
 
+def test_a_month_only_catalyst_keeps_its_month(valuation_db, tmp_path):
+    """The registry gives about a quarter of readouts as a month and no day ("2026-11").
+    The panel's Key catalysts printed "·" for them while Catalysts and Key insights print
+    "Nov 2026": the date was parsed as a day and came back null. A month still running is
+    ahead, so a "2026-09" readout on 29 Sep is listed; "2026-08" is past."""
+    import sqlite3
+    path = tmp_path / "catalysts.db"
+    shutil.copy(valuation_db, path)
+    conn = sqlite3.connect(path)
+    try:
+        cid = _cid(conn, "LLY")
+        conn.executemany(
+            """INSERT INTO catalysts (company_id, catalyst_type, expected_date,
+                   date_confidence, title, is_curated, status)
+               VALUES (?, 'data readout', ?, ?, ?, 0, 'pending')""",
+            [(cid, "2026-11", "month", "Phase 3, a month only"),
+             (cid, "2026-09", "month", "Phase 3, this month"),
+             (cid, "2026-08", "month", "Phase 3, last month"),
+             (cid, "2026-12-15", "estimated", "Phase 3, a day"),
+             (cid, "2026-09-28", "estimated", "Phase 3, yesterday")])
+        conn.commit()
+    finally:
+        conn.close()
+    rows = _by(cv.build(path, today=TODAY))["LLY"]["detail"]["catalysts"]
+    assert [(r["expected_date"], r["date_confidence"]) for r in rows] == [
+        ("2026-09", "month"), ("2026-11", "month"), ("2026-12-15", "estimated")]
+    assert cv._catalyst_date("2026-13") is None and cv._catalyst_date(None) is None
+    assert cv._catalyst_date("2027-01-10 00:00:00") == "2027-01-10"
+
+
 def test_other_claims(out):
     lly, crsp = _by(out)["LLY"], _by(out)["CRSP"]
     assert lly["ev"]["other_claims_usd_m"] == pytest.approx(-1500.0)

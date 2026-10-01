@@ -61,6 +61,11 @@ _COMMENTARY = re.compile(
     r"|\bweighs?\b|\bmulls?\b|\btalks\b|\bnears?\b|\bbid for\b|\banalysis\b|\bopinion\b"
     r"|\bstock market today\b|\bhere'?s a look\b|\bspree\b", re.I)
 
+# Public names for readers outside the fetcher (company_score's deal gate), so they do not
+# reach into its private ones.
+DEAL_VERBS = _DEAL_VERBS
+COMMENTARY = _COMMENTARY
+
 # "up to $3.8 billion", "$2.25B", "$950 million".
 _VALUE = re.compile(
     r"(up to\s+)?\$\s?([\d,]+(?:\.\d+)?)\s*(billion|bn|b\b|million|mn|m\b)", re.I)
