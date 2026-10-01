@@ -848,6 +848,14 @@ details.prof-summary.long[open] > summary {{ display: none; }}
    and it sits in a slot every cell of its column has, so the figures still line up. */
 .land.sc-table .sc-rng {{ width: 1%; white-space: nowrap; color: var(--muted); }}
 .land.sc-table th.sc-rng {{ cursor: help; }}
+/* The scorecard table beside its chart: rank and range in one cell, how each drug was
+   given in muted narrow columns after the scores, nothing wrapping. */
+.land.sc-table td.sc-rk {{ white-space: nowrap; }}
+.land.sc-table td:nth-child(2) {{ white-space: nowrap; }}
+.land.sc-table td.sc-rk .sc-rng {{ font-size: 10px; }}
+.land.sc-table td.sc-txt, .land.sc-table th.sc-reg {{ white-space: nowrap; }}
+.land.sc-table td.sc-txt {{ font-size: 11px; color: var(--muted); }}
+.land.sc-table th[title] {{ cursor: help; }}
 .sc-dg {{ display: inline-block; width: 0.8em; text-align: left; color: var(--flag);
   padding-left: 1px; }}
 .how-read.sc-foot {{ margin-top: -0.2rem; }}

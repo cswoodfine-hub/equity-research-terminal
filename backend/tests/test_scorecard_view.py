@@ -20,7 +20,8 @@ from tests.test_landscape_score import BANNED, _general
 
 APP = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "streamlit_app.py"
 HELPERS = ("_score_cell", "_score_range", "_score_tip", "_score_why", "_score_rows",
-           "_score_footnote", "_score_method", "_stage_chip", "_decap", "_SCORE_TERMS")
+           "_score_method", "_stage_chip", "_stage_short", "_STAGE_SHORT", "_plain_cell",
+           "_decap", "_SCORE_TERMS")
 
 
 @pytest.fixture(scope="module")
@@ -54,35 +55,33 @@ def _text(markup: str) -> str:
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", markup)))
 
 
-def test_the_range_sits_after_the_rank_and_shows_the_rank_where_it_never_moved(view):
+def test_the_table_reads_rank_and_range_then_the_scores_then_how_the_drug_was_given(view):
     placed = [_asset("Alpha", "AAA", 1, 1, 1), _asset("Beta", "BBB", 2, 2, 3)]
+    placed[0]["regimen"] = {"participants": 4952, "dose": "5\u201315 mg", "form": "SC",
+                            "frequency": "weekly", "duration": "72 wk", "why": {}}
+    placed[1]["regimen"] = {"participants": None, "dose": None, "form": "oral",
+                            "frequency": None, "duration": None,
+                            "why": {"dose": "no dose named for the drug in its arms"}}
     table = view["_score_rows"](placed, "AAA")
     head = re.findall(r"<th[^>]*>([^<]*)</th>", table)
-    assert head[:3] == ["", "range", "compound"]
-    cells = re.findall(r'<td class="n m sc-rng">([^<]*)</td>', table)
-    assert cells == ["1", "2 to 3"]
+    assert head == ["#", "compound", "stage", "overall", "efficacy", "safety", "evidence",
+                    "n", "dose", "form", "frequency", "weeks"]
+    ranks = [_text(c).strip() for c in re.findall(r'<td class="n m sc-rk">(.*?)</td>', table)]
+    assert ranks == ["1", "2 2\u20133"]
     assert 'class="sc-mine"' in table and "<b>Alpha</b>" in table
-    assert "†" not in table and "sc-dg" not in table
+    first = _text(table.split("</tr>")[1])
+    for cell in ("4,952", "5\u201315 mg", "SC", "weekly", "72 wk"):
+        assert cell in first
+    # A column the arms do not state is the null dash, its reason on hover, never a guess.
+    assert 'title="no dose named for the drug in its arms">—</td>' in table
+    assert "†" not in table
 
 
-def test_a_drug_on_strength_and_wins_alone_carries_a_dagger_and_the_line_that_explains_it(view):
+def test_a_drug_on_strength_and_wins_alone_carries_a_dagger_with_its_meaning_on_hover(view):
     placed = [_asset("Alpha", "AAA", 1, 1, 2), _asset("Beta", "BBB", 2, 1, 3, "not comparable")]
     table = view["_score_rows"](placed, "AAA")
-    slots = re.findall(r'<span class="sc-dg">([^<]*)</span>', table)
-    assert slots == ["", "†"]                   # every efficacy cell has the slot
-    foot = _text(view["_score_footnote"](placed))
-    assert foot.strip() == ("† Size of effect not compared: no peer was tested against the "
-                            "same control on the same measure in trials of about the same "
-                            "length, so its size counts at 50, what the average drug scores "
-                            "against its peers.")
-    assert view["_score_footnote"]([_asset("Alpha", "AAA", 1, 1, 1)]) == ""
-
-
-def test_an_indication_with_no_size_says_every_efficacy_score_is_strength_and_wins(view):
-    placed = [_asset("Alpha", "AAA", 1, 1, 2, None), _asset("Beta", "BBB", 2, 1, 2, None)]
-    foot = view["_score_footnote"](placed)
-    assert "every efficacy score is strength and wins alone" in foot
-    assert "sc-dg" not in view["_score_rows"](placed, "AAA")
+    assert table.count("†") == 1
+    assert "Size of effect not compared" in table      # the dagger's title, not a line of text
 
 
 def test_the_tooltip_head_carries_the_rank_and_where_it_could_sit(view):
@@ -118,13 +117,12 @@ def test_the_method_text_carries_the_range_after_overall_and_glosses_its_terms(v
 def test_every_string_the_view_adds_is_in_house_style(view):
     sc = S.scorecard(_general())
     placed = [a for a in sc["assets"] if a["placed"]]
-    pieces = [view["_score_method"](sc["method"]), view["_score_rows"](placed, "AAA"),
-              view["_score_footnote"](placed)]
+    pieces = [view["_score_method"](sc["method"]), view["_score_rows"](placed, "AAA")]
     pieces += [view["_score_tip"](a) + view["_score_why"](a, True, True) for a in placed]
     for markup in pieces:
-        words = _text(markup)
+        words = _text(re.sub(r"<td[^>]*>—</td>", "", markup))
         assert not any(b in words.lower() for b in BANNED), words
-        assert "—" not in words.replace("<td class=\"n m\">—</td>", ""), words
+        assert "—" not in words, words
     for k, v in view["_SCORE_TERMS"]:
         assert v.endswith(".") and "—" not in k + v
         assert not any(b in (k + v).lower() for b in BANNED)

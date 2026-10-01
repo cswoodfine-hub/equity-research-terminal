@@ -1995,14 +1995,14 @@ def _how(text: str) -> None:
     st.markdown(f'<div class="how-read">{html_escape(text)}</div>', unsafe_allow_html=True)
 
 
-def _verdict_card(card: dict, lead: bool = False) -> str:
+def _verdict_card(card: dict, lead: bool = False, meaning: bool = True) -> str:
     detail = (f'<div class="vc-detail">{html_escape(card["detail"])}</div>'
               if card.get("detail") else "")
+    mean = (f'<div class="vc-mean"><span>What this means</span>'
+            f'{html_escape(card["meaning"])}</div>' if meaning and card.get("meaning") else "")
     return (f'<div class="vc{" vc-lead" if lead else ""} vc-{html_escape(card["kind"])}">'
             f'<div class="vc-title">{html_escape(card["title"])}</div>'
-            f'<div class="vc-head">{html_escape(card["headline"])}</div>{detail}'
-            f'<div class="vc-mean"><span>What this means</span>'
-            f'{html_escape(card["meaning"])}</div></div>')
+            f'<div class="vc-head">{html_escape(card["headline"])}</div>{detail}{mean}</div>')
 
 
 def _score_cell(value, focal: bool = False, mark: str | None = None) -> str:
@@ -2061,49 +2061,74 @@ def _score_why(a: dict, numbered: bool = False, notes: bool = False) -> str:
             f'<span class="m">{html_escape(meta)}</span><br>{body}{tail}</div>')
 
 
+_STAGE_SHORT = (("Marketed", "marketed"), ("Phase 3", "Phase 3"), ("Phase 2/3", "Phase 2/3"),
+                ("Phase 2", "Phase 2"), ("Phase 1", "Phase 1"))
+
+
+def _stage_short(stage: str) -> str:
+    """The stage in one word or two: a marketed drug trialled here is still marketed."""
+    for key, short in _STAGE_SHORT:
+        if (stage or "").startswith(key):
+            return short
+    return stage or ""
+
+
+def _plain_cell(value, why: str | None = None, num: bool = False, tip: str | None = None) -> str:
+    """A text cell, or the null dash with the reason on hover."""
+    if value in (None, ""):
+        why_tip = f' title="{html_escape(why)}"' if why else ""
+        return f'<td class="{"n " if num else ""}m"{why_tip}>—</td>'
+    hover = f' title="{html_escape(tip)}"' if tip else ""
+    return f'<td class="{"n" if num else "sc-txt"}"{hover}>{html_escape(str(value))}</td>'
+
+
 def _score_rows(placed: list, ticker: str) -> str:
-    """The ranked table: rank, the range it could sit in, the drug, its stage and its
-    four scores, the open company's rows marked and a dagger on any efficacy figure
-    that rests on strength and wins alone."""
-    dagger = any(a["efficacy"].get("size_basis") == "not comparable" for a in placed)
+    """The ranked table: rank and the range it could sit in, the drug, its stage, its four
+    scores, then how it was given in the trials that scored it (people treated, dose,
+    form, frequency, trial length). The open company's rows are marked; a dagger on an
+    efficacy figure that rests on strength and wins alone carries its meaning on hover."""
+    dagger_tip = ("Size of effect not compared: no peer was tested against the same control "
+                  "on the same measure in trials of about the same length, so its size "
+                  "counts at 50.")
     rows = ""
     for a in placed:
         focal = a["ticker"] == ticker
         name = (f'<b>{html_escape(a["name"])}</b>' if focal else html_escape(a["name"]))
-        mark = (("†" if a["efficacy"].get("size_basis") == "not comparable" else "")
-                if dagger else None)
+        rr = a.get("rank_range") or []
+        span = (f"{rr[0]}\u2013{rr[1]}" if len(rr) == 2 and rr[0] != rr[1] else "")
+        rank = f'{a["rank"]}' + (f'<span class="m sc-rng"> {html_escape(span)}</span>' if span else "")
+        e = a["efficacy"].get("score")
+        dag = a["efficacy"].get("size_basis") == "not comparable"
+        eff = ("<td class=\"n m\">—</td>" if e is None else
+               f'<td class="n"{f" title={chr(34)}{html_escape(dagger_tip)}{chr(34)}" if dag else ""}>'
+               f'{e:.0f}{"<span class=sc-dg>†</span>" if dag else ""}</td>')
+        num = lambda v: "<td class=\"n m\">—</td>" if v is None else f'<td class="n">{v:.0f}</td>'
+        reg = a.get("regimen") or {}
+        why = reg.get("why") or {}
+        n = reg.get("participants")
         rows += (f'<tr class="{"sc-mine" if focal else ""}">'
-                 f'<td class="n m">{a["rank"]}</td>'
-                 f'<td class="n m sc-rng">{html_escape(_score_range(a, table=True))}</td>'
+                 f'<td class="n m sc-rk">{rank}</td>'
                  f'<td>{name} <span class="m">{html_escape(a["ticker"])}</span></td>'
-                 f'<td>{_stage_chip(a["stage"])}</td>'
-                 + _score_cell(a["overall"], focal)
-                 + _score_cell(a["efficacy"]["score"], focal, mark)
-                 + _score_cell(a["safety"]["score"], focal)
-                 + _score_cell(a["evidence"].get("score"), focal) + "</tr>")
+                 f'<td class="m sc-txt">{html_escape(_stage_short(a["stage"]))}</td>'
+                 + _score_cell(a["overall"], focal) + eff
+                 + num(a["safety"].get("score")) + num(a["evidence"].get("score"))
+                 + _plain_cell(f"{n:,}" if n else None, "no participants posted", num=True)
+                 + _plain_cell(reg.get("dose"), why.get("dose"))
+                 + _plain_cell(reg.get("form"), why.get("form"))
+                 + _plain_cell(reg.get("frequency"), why.get("frequency"))
+                 + _plain_cell(reg.get("duration"), why.get("duration"),
+                               tip=reg.get("duration_span")) + "</tr>")
+    head = ("<th title=\"Rank, then where it falls in 95 of 100 redraws of every trial result "
+            "within its margin of error\">#</th><th>compound</th><th>stage</th>"
+            "<th>overall</th><th>efficacy</th><th>safety</th><th>evidence</th>"
+            "<th class=\"sc-reg\" title=\"People treated in its controlled trials\">n</th>"
+            "<th class=\"sc-reg\" title=\"Doses its own arms name\">dose</th>"
+            "<th class=\"sc-reg\" title=\"How it was given in these trials\">form</th>"
+            "<th class=\"sc-reg\" title=\"Dosing schedule its arms name\">frequency</th>"
+            "<th class=\"sc-reg\" title=\"Time point of the primary endpoints: treatment length in a "
+            "fixed-length trial, follow-up in a survival trial\">weeks</th>")
     return ('<div class="land-wrap"><table class="land sc-table"><thead><tr>'
-            '<th></th><th class="sc-rng" title="Where the rank falls in 95 of 100 redraws of '
-            'every trial result within its margin of error">range</th><th>compound</th>'
-            '<th>stage</th><th>overall</th><th>efficacy</th><th>safety</th>'
-            f'<th>evidence</th></tr></thead><tbody>{rows}</tbody></table></div>')
-
-
-def _score_footnote(placed: list) -> str:
-    """The one muted line under the table that says what a score was computed without:
-    the dagger's meaning wherever a dagger shows, or, where no drug in the indication
-    could be compared on size, that every efficacy score is strength and wins alone."""
-    basis = [a["efficacy"].get("size_basis") for a in placed]
-    if "not comparable" in basis:
-        return ('<span class="sc-dg">†</span> Size of effect not compared: no peer was tested '
-                'against the same control on the same measure in trials of about the same '
-                'length, so its size counts at 50, what the average drug scores against its '
-                'peers.')
-    if "ranked" not in basis:
-        return ("No drug here is compared with its peers on size of effect: no measure has "
-                "three or more drugs tested against one control across enough trials to "
-                "measure the spread between trials, so every efficacy score is strength "
-                "and wins alone.")
-    return ""
+            f'{head}</tr></thead><tbody>{rows}</tbody></table></div>')
 
 
 # The terms on screen an analyst might otherwise look up, each in plain words and then
@@ -2157,9 +2182,9 @@ def _score_method(method: dict) -> str:
 
 
 def _landscape_scorecard(sc: dict, ticker: str) -> None:
-    """The primary figure of an indication: every drug with a posted clinical record as
-    one bubble, efficacy across and safety up, the open company's drugs in the accent,
-    then the ranking the chart is drawn from and the drugs that cannot be scored yet."""
+    """The primary figure of an indication, laid out as Comps > Companies: the clinical
+    scorecard on the left, the ranked table on the right. What each score rests on, how it
+    is scored and who is not on the chart are a click away, never printed under it."""
     assets = sc.get("assets") or []
     placed = [a for a in assets if a.get("placed")]
     rest = [a for a in assets if not a.get("placed")]
@@ -2168,13 +2193,11 @@ def _landscape_scorecard(sc: dict, ticker: str) -> None:
               "A score needs a posted result against a comparator and a safety figure "
               "against a control, and no candidate in this indication has both.")
         return
-    mine = [a for a in placed if a["ticker"] == ticker]
     section("Clinical scorecard", f"{len(placed)} of {len(assets)} scored",
             basis="efficacy, safety and weight of evidence, averaged · posted results only")
-    # Keyed so the theme can stack the chart over the table on a narrow screen, where side
-    # by side the chart's text shrinks past reading and the table is cut off.
+    # Keyed so the theme can stack the chart over the table on a narrow screen.
     with st.container(key="sc_map"):
-        left, right = st.columns([1.2, 1], gap="medium")
+        left, right = st.columns([1, 1.15], gap="medium")
     with left:
         chart = CH.score_map(
             [{"name": a["name"], "ticker": a["ticker"], "x": a["efficacy"]["score"],
@@ -2188,56 +2211,26 @@ def _landscape_scorecard(sc: dict, ticker: str) -> None:
                        else "efficacy score (strength and wins, no size)"))
         if chart:
             R.show(chart, css_class="chart-mount stretch")
-        _how("How to read it: further right is stronger evidence of efficacy against a "
-             "comparator; higher up is a cleaner safety and tolerability record against "
-             "control. Top right is where a drug wants to be. A bigger bubble rests on more "
-             f"patients, and its number is its rank in the table. {ticker} is in green; hover "
-             "a bubble for what its scores rest on. The chart shows scores, not "
-             "measurements, so it draws no error bars: the range beside each rank in the "
-             "table is how far the rank moves when every trial's result is varied within "
-             "its margin of error. Figures here average a drug's trials; the cards below "
-             "quote its single best result, so the two can differ.")
     with right:
         st.markdown(_score_rows(placed, ticker), unsafe_allow_html=True)
-        foot = _score_footnote(placed)
-        if foot:
-            st.markdown(f'<div class="how-read sc-foot">{foot}</div>', unsafe_allow_html=True)
-        if mine:
-            _how(" ".join(a["rank_line"] for a in mine[:4] if a.get("rank_line"))
-                 + (f" {len(mine) - 4} more of its drugs are scored." if len(mine) > 4 else ""))
-        else:
-            _how(f"{ticker} has no drug with a posted record to score in this indication yet.")
 
-    # What each of the open company's scores rests on, in words, then the rest on demand.
-    shown = mine or placed[:1]
-    st.markdown("".join(_score_why(a) for a in shown[:4]), unsafe_allow_html=True)
     with st.expander("What every score rests on", expanded=False):
         st.markdown("".join(_score_why(a, numbered=True, notes=True) for a in placed),
                     unsafe_allow_html=True)
-
-    if rest:
-        by_reason: dict = {}
-        for a in rest:
-            by_reason.setdefault(a.get("why_not") or "not scored", []).append(a)
-        parts = []
-        for reason, group in by_reason.items():
-            own = [a for a in group if a["ticker"] == ticker]
-            others = [a for a in group if a["ticker"] != ticker]
-            text = f"{_cap(reason)} ({len(group)})"
-            if own:
-                text += ": " + ", ".join(f'{a["name"]} ({a["stage"]})' for a in own)
-                if others:
-                    text += (f'; and {len(others)} from '
-                             f'{len({a["ticker"] for a in others})} other '
-                             f'{"company" if len({a["ticker"] for a in others}) == 1 else "companies"}')
-            elif others:
-                named = ", ".join(a["name"] for a in others[:5])
-                text += f": {named}" + (f" and {len(others) - 5} more" if len(others) > 5 else "")
-            parts.append(text + ".")
-        _how("Not on the chart, because a score is never guessed. " + " ".join(parts)
-             + " The Candidates view lists them all with stage and modelled value.")
-    # How it is scored comes last: what was found, then who is missing, then the method.
-    st.markdown(_score_method(sc.get("method") or {}), unsafe_allow_html=True)
+    with st.expander("How it is scored", expanded=False):
+        if rest:
+            by_reason: dict = {}
+            for a in rest:
+                by_reason.setdefault(a.get("why_not") or "not scored", []).append(a)
+            parts = []
+            for reason, group in by_reason.items():
+                names = ", ".join(f'{a["name"]} ({a["ticker"]})' for a in group[:8])
+                more = f" and {len(group) - 8} more" if len(group) > 8 else ""
+                parts.append(f"{_cap(reason)} ({len(group)}): {names}{more}.")
+            st.markdown('<div class="how-read">Not on the chart, because a score is never '
+                        f'guessed. {html_escape(" ".join(parts))}</div>',
+                        unsafe_allow_html=True)
+        st.markdown(_score_method(sc.get("method") or {}), unsafe_allow_html=True)
 
 
 def _decap(text) -> str:
@@ -2246,85 +2239,26 @@ def _decap(text) -> str:
 
 
 def _landscape_overview(api_base: str, pick: int, ticker: str) -> None:
-    """The landscape read for you: a verdict in plain words with what each part means,
-    one benefit-against-tolerability chart, and each drug's best result ranked."""
-    chosen = st.session_state.get(f"land_ep_ov_{pick}")
+    """The landscape read for you: the clinical scorecard beside its ranked table, then the
+    verdict cards, each its headline and its evidence."""
     try:
-        ov = _get_long(api_base, f"/indications/{pick}/overview"
-                       + (f"?endpoint={urllib.parse.quote(chosen)}" if chosen else ""))
+        ov = _get_long(api_base, f"/indications/{pick}/overview")
     except (urllib.error.URLError, OSError) as exc:
         state("The overview did not load", str(exc), error=True)
         return
     cards = ov.get("cards") or []
-    if not cards:
-        state("Not enough to read yet", "no candidate here has posted results or a model")
-        return
     if ov.get("scorecard"):
         _landscape_scorecard(ov["scorecard"], ticker)
-    st.markdown(_verdict_card(cards[0], lead=True), unsafe_allow_html=True)
+    if not cards:
+        if not ov.get("scorecard"):
+            state("Not enough to read yet", "no candidate here has posted results or a model")
+        return
+    st.markdown(_verdict_card(cards[0], lead=True, meaning=False), unsafe_allow_html=True)
     rest = cards[1:]
     if rest:
-        st.markdown('<div class="vc-grid">' + "".join(_verdict_card(c) for c in rest)
+        st.markdown('<div class="vc-grid">' + "".join(_verdict_card(c, meaning=False)
+                                                       for c in rest)
                     + "</div>", unsafe_allow_html=True)
-
-    endpoint = ov.get("endpoint")
-    options = ov.get("endpoints") or []
-    if not endpoint or not options:
-        return
-    keys = [e["key"] for e in options]
-    by_key = {e["key"]: e for e in options}
-    section("Benefit against tolerability", basis="one point per drug, its best result")
-    st.selectbox(
-        "Measure", keys, index=keys.index(endpoint["key"]) if endpoint["key"] in keys else 0,
-        key=f"land_ep_ov_{pick}", label_visibility="collapsed",
-        format_func=lambda k: (f'{_short(_cap(by_key[k].get("measure") or by_key[k]["title"]), 90)}'
-                               f' · {by_key[k]["unit"] or "no unit"} · {by_key[k]["drugs"]} drugs'))
-    better = {-1: "lower is better here", 1: "higher is better here"}.get(
-        endpoint.get("direction"), "direction unclear: ranked by size of effect")
-    _how(f'Measure: {endpoint["measure"]}, in {endpoint["units"]}. {better[:1].upper()}'
-         f'{better[1:]}, read from the way most drugs moved it against their comparators.')
-    left, right = st.columns([1.25, 1], gap="medium")
-    points = ov.get("points") or []
-    with left:
-        chart = CH.benefit_risk(
-            [{"name": p["name"], "ticker": p["ticker"], "x": p["benefit"],
-              "y": (-p["dropout_excess"] * 100 if p.get("dropout_excess") is not None
-                    else None),
-              "group": p.get("mechanism"),
-              "tip": (f'{p["name"]} ({p["ticker"]}): {p["benefit"]:+.1f} '
-                      f'{endpoint["units"]} against comparator'
-                      + (f', {p["dropout_excess"] * 100:+.1f} points more stopping for side '
-                         f'effects than control' if p.get("dropout_excess") is not None else "")
-                      + (f', {p["arm"]}' if p.get("arm") else "")
-                      + (f', {p["nct_id"]}' if p.get("nct_id") else ""))}
-             for p in points],
-            720, 470, x_label=f'benefit against comparator, {endpoint["units"]}',
-            highlight=ticker)
-        if chart:
-            R.show(chart, css_class="chart-mount stretch")
-        _how("How to read it: further right is a bigger effect than the comparator; higher "
-             "up is fewer people stopping for side effects than on control. Top right is "
-             "where a drug wants to be. A square on the strip below has no tolerability "
-             "figure posted. Hover a point for its trial.")
-    with right:
-        ranked = ov.get("ranked") or []
-        section("Best result per drug", len(ranked), "filled: the drug · open: comparator")
-        rows = [{"label": _short(f'{r["name"]} · {r["weeks"]:.0f} wk' if r.get("weeks")
-                                 else r["name"], 34)
-                 + (f' · n={r["n"]}' if r.get("n") else "")
-                 + (" ·!" if r.get("flags") else ""),
-                 "value": r["value"], "reference": r["placebo"], "group": r["asset_id"]}
-                for r in ranked]
-        chart = CH.against_reference(rows, 520, label_width=190,
-                                     value_fmt=lambda v: f"{v:,.1f}")
-        if chart:
-            R.show(chart, css_class="chart-mount stretch")
-        flagged = [r for r in ranked if r.get("flags")]
-        if flagged:
-            _how("Marked ·! read with care: " + "; ".join(
-                f'{r["name"]} {", ".join(r["flags"])}' for r in flagged))
-        _how("Each drug's best dose on this measure, best first. The figure at the right is "
-             "its difference from its own trial's comparator.")
 
 
 def _stage_chip(stage: str) -> str:
