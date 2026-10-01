@@ -159,12 +159,24 @@ html, body, [class*="css"], .stApp {{
   font-feature-settings: "tnum" 1, "lnum" 1;
 }}
 
-header[data-testid="stHeader"] {{ background: transparent !important; }}
-[data-testid="stToolbar"] {{ right: 0.6rem; }}
+/* Streamlit's header takes no height: its two controls (the sidebar's >> and the menu)
+   float in the top corners, the Deploy button goes, and the top bar starts at the top of
+   the page with room left at each end for those controls. */
+header[data-testid="stHeader"] {{
+  background: transparent !important; height: 0 !important; min-height: 0 !important;
+  overflow: visible; pointer-events: none;
+}}
+header[data-testid="stHeader"] * {{ pointer-events: auto; }}
+[data-testid="stAppDeployButton"] {{ display: none !important; }}
+/* Both controls sit level with the top bar, in the room its padding leaves them. */
+[data-testid="stToolbar"] {{ position: fixed !important; top: 22px !important; right: 6px !important;
+  bottom: auto !important; left: auto !important; height: auto !important; width: auto !important; }}
+[data-testid="stExpandSidebarButton"] {{ position: fixed !important; top: 26px !important;
+  left: 6px !important; z-index: 130; }}
 
 /* Density: an instrument, not a landing page. 8px base scale. */
 [data-testid="stMainBlockContainer"], .block-container {{
-  padding: 1.75rem 16px 0.6rem !important; max-width: 100% !important;
+  padding: 0.3rem 16px 0.6rem !important; max-width: 100% !important;
 }}
 [data-testid="stVerticalBlock"] {{ gap: 8px; }}
 [data-testid="stHorizontalBlock"] {{ gap: 16px; }}
@@ -181,10 +193,10 @@ h3 {{ font-size: 0.9rem; }}
 /* Sticky so the ticker, refresh state and search survive any scroll. Sits under
    Streamlit's transparent 48px header. */
 [data-testid="stHorizontalBlock"]:has(.topbar-anchor) {{
-  position: sticky; top: 2.8rem; z-index: 120;
+  position: sticky; top: 0; z-index: 120;
   background: var(--ground);
   border-bottom: 1px solid var(--rule-strong);
-  padding: 4px 0 8px;
+  padding: 4px 40px 6px 34px;
   align-items: center !important;
 }}
 .topbar-name {{ display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }}
@@ -1162,6 +1174,8 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 
 /* Tabs as a plain text strip. */
 .stTabs [data-baseweb="tab-list"] {{ gap: 1.1rem; border-bottom: 1px solid var(--rule-strong); }}
+/* A tab's content starts close under its strip, so the page's content gets the height. */
+.stTabs [data-baseweb="tab-panel"] {{ padding-top: 6px; }}
 .stTabs [data-baseweb="tab"] {{
   height: auto; padding: 0.3rem 0; background: transparent;
   font-size: 12px; font-weight: 500; letter-spacing: 0.01em; color: var(--muted);
