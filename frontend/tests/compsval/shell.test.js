@@ -85,16 +85,52 @@ test("every command of core.COMMANDS has a handler in the shell", () => {
   assert.equal(core.PRESETS.length, 7);
 });
 
-test("the mounts and their export names follow 11.1", () => {
+test("the mounts and their export names follow 11.1 and revision 4", () => {
   // Revision 3 (12.1, 12.6): notes and sources live in the methodology drawer, so they have no mount.
-  for (const fn of ["mountTable", "mountCharts", "mountBridgeChart", "mountBridgeInputs", "mountObservations",
+  // Revision 4 (company-scorecard.md 5.2): the scorecard and Compare mount; Drivers and risks does not.
+  for (const fn of ["mountTable", "mountCharts", "mountBridgeChart", "mountBridgeInputs", "mountScorecard", "mountCompare",
     "mountPeerPanel", "mountMethod", "mountDetail"]) {
     assert.ok(JS.includes(`fn: "${fn}"`), fn);
   }
+  assert.ok(!JS.includes('fn: "mountObservations"'), "Drivers and risks is not mounted");
   // Dynamic imports, so a missing module costs its slot and not the page.
-  assert.ok(!/^import .* from "\.\/(table|charts|panels)\.js"/m.test(JS), "table, charts and panels are not static imports");
-  for (const f of ["./table.js", "./charts.js", "./panels.js"]) assert.ok(JS.includes(`"${f}"`), f);
+  assert.ok(!/^import .* from "\.\/(table|charts|panels|scorecard)\.js"/m.test(JS), "the mounted modules are not static imports");
+  for (const f of ["./table.js", "./charts.js", "./panels.js", "./scorecard.js"]) assert.ok(JS.includes(`"${f}"`), f);
   assert.ok(JS.includes('core.stateMsg("calc_failed_section"'), "a failed mount shows the calculation-failure state");
+});
+
+test("revision 4: the Scorecard view mounts four slots, the Table view six", () => {
+  assert.deepEqual(shell.slotsFor("scorecard"), ["scorecard", "compare", "detail", "method"]);
+  assert.deepEqual(shell.slotsFor("table"), ["scope", "table", "charts", "detail", "peers", "method"]);
+  assert.equal(shell.slotsFor("scorecard").length, 4);
+  assert.equal(shell.slotsFor("table").length, 6);
+  assert.deepEqual(shell.slotsFor("nonsense"), shell.slotsFor("scorecard"), "an unknown view is the scorecard");
+  // Every mounted slot of either view has a mount; the scope line is the shell's own row.
+  const mounts = Array.from(JS.matchAll(/slot: "([a-zA-Z]+)"/g)).map((m) => m[1]);
+  for (const v of ["scorecard", "table"]) {
+    for (const slot of shell.slotsFor(v)) if (slot !== "scope") assert.ok(mounts.includes(slot), `${v}: ${slot}`);
+  }
+});
+
+test("revision 4: the peer control, period buttons and Basis menu are the Table view's alone", () => {
+  const rc = JS.slice(JS.indexOf("function renderCtx(v) {"), JS.indexOf("function helpButton(descs) {"));
+  assert.ok(rc.includes("if (!scoreView) ctl.append(ps);"), "the peer set control is hidden in the Scorecard view");
+  assert.ok(rc.includes("if (!scoreView) ctl.append(seg);"), "the period buttons are hidden in the Scorecard view");
+  assert.ok(rc.includes("if (!scoreView) ctl.append(pbtn);"), "the period menu is hidden in the Scorecard view");
+  assert.ok(rc.includes("if (!scoreView) ctl.append(basisBtn, viewSeg);"), "the Basis menu is hidden in the Scorecard view");
+  assert.ok(rc.includes('"data-key": "compare"'), "the Compare button sits in the context bar");
+  // The scope line shows in the Table view only. The banner, "Why?" and the KPI strip are gone
+  // with their rows (build step 6).
+  const r = JS.slice(JS.indexOf("function render() {"), JS.indexOf("function postRender() {"));
+  assert.ok(r.includes('scopeRow.hidden = !!err || currentView() !== "table";'));
+  for (const gone of ["bannerRow", "kpiRow", "function renderBanner", "function renderKpis", "function renderWhy",
+    "function toggleWhy", "function copySummary", "function takeContext", "function openForecastBridge", "takeGoto"]) {
+    assert.ok(!JS.includes(gone), gone);
+  }
+  // Commands that act on the table open the Table view first.
+  assert.ok(JS.includes("if (TABLE_COMMANDS.has(id) || /^preset\\.\\d$/.test(id)) ensureTableView();"));
+  // The chart Python drew reaches the scorecard through ctx.chart, swapped on a new digest.
+  assert.ok(JS.includes('defineProperty(ctx, "chart"') && JS.includes("args.chart_digest"));
 });
 
 test("ctx carries every member 11.1 lists", () => {
@@ -125,9 +161,8 @@ test("house style: no em dash and no banned word in the shell's source", () => {
   const lower = JS.toLowerCase();
   for (const w of core.BANNED_WORDS) assert.ok(!new RegExp(`\\b${w}\\b`).test(lower), w);
   // The fixed labels pass the label lint (sentence case).
-  for (const label of ["Edit peers", "Reset filters", "Why?", "Save current set", "CSV of this view", "Copy as TSV",
-    "Copy summary", "Keyboard shortcuts", "Single-key shortcuts", "Why this summary", "Reload the comps",
-    "System-generated summary", "Peer set"]) {
+  for (const label of ["Edit peers", "Reset filters", "Save current set", "CSV of this view", "Copy as TSV",
+    "Keyboard shortcuts", "Single-key shortcuts", "Reload the comps", "Peer set"]) {
     assert.ok(JS.includes(label), label);
     assert.deepEqual(core.lintCopy(label, "label"), [], label);
   }
@@ -186,6 +221,6 @@ test("an overlay opens in the same task, so type-ahead lands in its input (7.2)"
 });
 
 test("a wheel over the pinned band scrolls #main (1.2)", () => {
-  assert.match(JS, /for \(const el of \[ctxEl, bannerRow, kpiRow, scopeRow\]\) \{\s*el\.addEventListener\("wheel"/);
+  assert.match(JS, /for \(const el of \[ctxEl, scopeRow\]\) \{\s*el\.addEventListener\("wheel"/);
   assert.ok(JS.includes("{passive: true}"));
 });

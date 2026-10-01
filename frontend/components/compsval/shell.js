@@ -5,9 +5,9 @@
  * shim, installTokens, installSharedCss, copyFontFaces, fitFrame and the --band-h / --main-h
  * observer (1.2), the storage wrapper (try/catch, core.migrateState), state and dispatch over
  * core.reduce, the layout with its breakpoints and height modes (1.3, 1.6), the header band
- * (1.5: context bar with its collapse steps, conclusion banner with the premium token and the
- * "Why?" popover, the KPI strip, the scope line with its overflow menu), the company selector,
- * the command palette, the shortcut help with the single-key toggle, the keyboard (7.1 to 7.4),
+ * (1.5: context bar with its collapse steps, the scope line with its overflow menu), the
+ * company selector, the command palette, the shortcut help with the single-key toggle, the
+ * keyboard (7.1 to 7.4),
  * the shared tooltip, menu, undo toast and live region, CSV and clipboard actions, and the
  * shell's share of the state catalogue (8).
  *
@@ -24,6 +24,15 @@
  *   runCommand and isMac.
  * - ctx.tooltip.describe(anchor, content) registers the anchor's tooltip: it gets hover and
  *   keyboard-focus behaviour from the shared tooltip and an aria-describedby to a hidden copy.
+ *
+ * Revision 4 (docs/design/company-scorecard.md 1.4, 5.2, 6.2 to 6.4): two views behind a switch
+ * in the context bar. Scorecard (the default) mounts the scorecard, Compare, the company panel
+ * and the methodology drawer; Table mounts the scope line, the comparables table, the folded
+ * position chart, the company panel, the peer drawer and the methodology drawer. The conclusion
+ * banner, "Why?", the KPI strip, Drivers and risks and the focal context that fed it left with
+ * build step 6, their code with them. The chart of the
+ * Scorecard view arrives as an SVG string (`chart_svg`, with `chart_digest`) that Python drew;
+ * ctx.chart hands it to scorecard.js, which shows it and binds its bubbles.
  */
 
 import * as core from "./core.js";
@@ -49,7 +58,6 @@ const BREAK = {ultrawide: 2200, wide: 1700, laptop: 1100};
 const STEP_ROW = {1: "id", 2: "id", 3: "ctl", 4: "ctl", 5: "id", 6: "ctl", 7: "ctl", 8: "ctl"};
 const STEPS = [1, 2, 3, 4, 5, 6, 7, 8];
 const SECTIONS = {
-  obs: {label: "drivers and risks", slot: "obs"},
   charts: {label: "peer position", slot: "charts"},
   table: {label: "comparable companies", slot: "table"},
 };
@@ -64,8 +72,9 @@ const SAVED_HERE = "Saved in this browser only.";
 // Mounts (11.1, revised by 12.1): module, export, slot and the section name used in a failure
 // state. The bridge leaves the Comps view; the Forecast tab draws it in bridge mode (12.5).
 const FULL_MOUNTS = [
-  {id: "obs", mod: "panels", fn: "mountObservations", slot: "obs", section: "Drivers and risks"},
-  {id: "charts", mod: "charts", fn: "mountCharts", slot: "charts", section: "Peer position and valuation against fundamentals"},
+  {id: "scorecard", mod: "scorecard", fn: "mountScorecard", slot: "scorecard", section: "Company scorecard"},
+  {id: "compare", mod: "scorecard", fn: "mountCompare", slot: "compare", section: "Compare"},
+  {id: "charts", mod: "charts", fn: "mountCharts", slot: "charts", section: "Peer position"},
   {id: "table", mod: "table", fn: "mountTable", slot: "table", section: "Comparable companies table"},
   {id: "peers", mod: "panels", fn: "mountPeerPanel", slot: "peers", section: "Peer selection"},
   {id: "method", mod: "panels", fn: "mountMethod", slot: "method", section: "Methodology"},
@@ -76,7 +85,19 @@ const BRIDGE_MOUNTS = [
   {id: "bridgeChart", mod: "charts", fn: "mountBridgeChart", slot: "bridgeChart", section: "Peer-multiple value chart"},
 ];
 let MOUNTS = FULL_MOUNTS;
-const MODULE_FILES = {table: "./table.js", charts: "./charts.js", panels: "./panels.js"};
+const MODULE_FILES = {table: "./table.js", charts: "./charts.js", panels: "./panels.js", scorecard: "./scorecard.js"};
+/** Revision 4 (5.2): the slots each view shows. The Scorecard view mounts four, the Table view
+ * six (its scope line is the shell's own row). */
+export const VIEW_SLOTS = {
+  scorecard: ["scorecard", "compare", "detail", "method"],
+  table: ["scope", "table", "charts", "detail", "peers", "method"],
+};
+export function slotsFor(view) { return (VIEW_SLOTS[view] || VIEW_SLOTS.scorecard).slice(); }
+/** Commands that act on the Table view: run from the Scorecard view, they open it first. */
+const TABLE_COMMANDS = new Set(["metric.open", "columns.find", "peer.add", "export.csv", "export.tsv", "filters.reset",
+  "layout.reset", "outliers.toggle", "cf.next", "density.next", "text.bigger", "text.smaller", "peers.save",
+  "peers.restore", "peers.addAdjacent", "layout.save", "peers.edit", "primary.reset", "basis.next", "basis.prev",
+  "currency.next", "earnings.toggle"]);
 
 // ---------------------------------------------------------------------------------------------
 // Streamlit protocol shim (UI report 1.3; the covnav and prodcards pattern)
@@ -127,7 +148,6 @@ function lcfirst(s) {
   return s.charAt(0).toLowerCase() + s.slice(1);
 }
 function signed(n) { return n > 0 ? `+${n}` : n < 0 ? `\u2212${Math.abs(n)}` : "0"; }
-function arrowWords(s) { return String(s || "").replace(/▲/g, "up").replace(/▼/g, "down"); }
 function sigOf(...parts) {
   try { return JSON.stringify(parts, (k, v) => (k === "record" || k === "analysis" || k === "detail" ? undefined : v)); }
   catch (e) { return String(Math.random()); }
@@ -257,20 +277,6 @@ function rebuild(el, build) {
     if (n && isVisible(n)) focusEl(n);
   }
 }
-/** Figures of a headline in Plex Mono (9.2). */
-const FIG_RE = /(?<![\w.])[\u2212+-]?\$?\d[\d,]*(?:\.\d+)?(?:×|%|bn\b|m\b)?/g;
-function withFigures(text) {
-  const s = String(text || "");
-  const out = [];
-  let last = 0;
-  for (const m of s.matchAll(FIG_RE)) {
-    if (m.index > last) out.push(s.slice(last, m.index));
-    out.push(h("span", {class: "u-num", text: m[0]}));
-    last = m.index + m[0].length;
-  }
-  if (last < s.length) out.push(s.slice(last));
-  return out;
-}
 
 // ---------------------------------------------------------------------------------------------
 // Tokens, the shared stylesheet and fonts
@@ -367,10 +373,9 @@ const store = {
 // ---------------------------------------------------------------------------------------------
 
 let args = null;               // last render args
+let chart = {svg: "", digest: ""};   // revision 4: the company map Python drew
 let mode = "full";             // "full" (Comps) or "bridge" (Forecast tab, 12.5)
 let builtMode = null;          // the mode the skeleton was built for
-const contexts = new Map();    // focal context by ticker (12.3), at most 12
-const contextDigests = new Map();
 let payload = null;
 let lastDigest;
 let lastArgsFocal;
@@ -388,7 +393,7 @@ let arranged = null;
 const ctxSteps = new Set();
 let keyActive = false;
 
-const mods = {table: null, charts: null, panels: null};
+const mods = {table: null, charts: null, panels: null, scorecard: null};
 const modErr = {};
 let modsDone = false;
 const modsReady = (HAS_DOM ? Promise.all(Object.keys(MODULE_FILES).map((k) =>
@@ -399,7 +404,7 @@ let waitingForMods = false;
 const mounted = {};            // mount id -> {api, root, failed, missing, failedAt}
 
 // DOM
-let app = null, ctxEl, bannerRow, kpiRow, scopeRow, mainEl, frameStateEl, analysisEl, footEl;
+let app = null, ctxEl, scopeRow, mainEl, frameStateEl, analysisEl, footEl;
 let bridgeLineEl = null, bridgeBodyEl = null, bridgeCloseEl = null;
 let layer, tipEl, toastEl, liveEl, descHost;
 const slots = {};
@@ -407,8 +412,8 @@ const sigs = {};
 let scopeParts = null;
 
 let rafId = 0, rendering = false, rerender = false;
-const pending = {detailFocus: false, methodFocus: false, whyFocus: false, overlayFocus: null, restore: []};
-let detailReturn = null, methodReturn = null, overlayReturn = null, whyReturn = null;
+const pending = {detailFocus: false, methodFocus: false, overlayFocus: null, restore: []};
+let detailReturn = null, methodReturn = null, overlayReturn = null;
 
 // ---------------------------------------------------------------------------------------------
 // State, dispatch and the view
@@ -436,12 +441,12 @@ function dispatch(action) {
 function getView() {
   if (!payload || !state) return null;
   if (viewDirty || !view) {
-    try { view = core.deriveView(payload, state, {context: contexts.get(state.focal) || null, mode}); } catch (e) {
+    try { view = core.deriveView(payload, state, {mode}); } catch (e) {
       console.error("compsval deriveView", e);
       view = {schema: core.SCHEMA, error: core.stateMsg("calc_failed_section", {section: "The comparison", message: errText(e)}),
-        focal: null, ctx: null, header: null, conclusion: null, kpis: [], primary: null, scope: null, table: null,
-        dotplot: null, scatter: null, bridge: null, observations: null, peers: null, method: null, detail: null,
-        states: [], lineage: null, undo: null, sectionErrors: {}, mode, insight: null, footer: null, bridgeLine: null};
+        focal: null, ctx: null, header: null, primary: null, scope: null, table: null,
+        dotplot: null, bridge: null, peers: null, method: null, detail: null,
+        states: [], lineage: null, undo: null, sectionErrors: {}, mode, footer: null, bridgeLine: null};
     }
     viewDirty = false;
   }
@@ -516,24 +521,6 @@ function initState(a) {
   viewDirty = true;
 }
 
-/** Keep the focal context Python sent (12.3): by ticker, newest last, at most 12. */
-function takeContext(a) {
-  const c = a && a.context;
-  if (!c || typeof c !== "object" || !c.ticker) return;
-  const d = a.context_digest == null ? null : String(a.context_digest);
-  if (contexts.has(c.ticker) && d !== null && contextDigests.get(c.ticker) === d) return;
-  contexts.delete(c.ticker);
-  contexts.set(c.ticker, c);
-  contextDigests.set(c.ticker, d);
-  while (contexts.size > 12) {
-    const k = contexts.keys().next().value;
-    contexts.delete(k);
-    contextDigests.delete(k);
-  }
-  viewDirty = true;
-  viewVersion += 1;
-}
-
 function focalRecord() {
   return payload && Array.isArray(payload.companies) ? payload.companies.find((c) => c.ticker === (state && state.focal)) : null;
 }
@@ -555,7 +542,10 @@ function onRenderArgs(a) {
   mode = args.mode === "bridge" ? "bridge" : "full";
   MOUNTS = mode === "bridge" ? BRIDGE_MOUNTS : FULL_MOUNTS;
   if (!app || builtMode !== mode) buildSkeleton();
-  takeContext(args);
+  if (mode === "full" && typeof args.chart_svg === "string") {
+    const d = args.chart_digest == null ? String(args.chart_svg.length) : String(args.chart_digest);
+    if (d !== chart.digest) chart = {svg: args.chart_svg, digest: d};
+  }
   if (!modsDone) {
     renderLoading();
     if (!waitingForMods) {
@@ -706,19 +696,18 @@ function buildSkeleton() {
   }
 
   ctxEl = h("div", {class: "sh-ctx", role: "group", "aria-label": "Company, peer set and basis"});
-  bannerRow = h("div", {class: "sh-banner-row"});
-  kpiRow = h("div", {class: "sh-kpi-row"});
   scopeRow = h("div", {class: "sh-scope-row"});
-  mainEl = h("main", {id: "main", "aria-label": "Comparable companies"});
+  mainEl = h("main", {id: "main", class: "sh-main", "aria-label": "Comparable companies"});
 
-  // #main, one order at every width (12.1): drivers and risks, the chart strip, the table, the
-  // one-line footer.
+  // #main (revision 4): the Scorecard view's chart and ranked table with Compare laid over them,
+  // or the Table view's folded chart strip, the table and the one-line footer.
   analysisEl = h("div", {class: "sh-stack"});
-  slots.obs = h("section", {class: "sh-slot sh-obs", id: "sh-sec-obs", tabindex: "-1", role: "region", "aria-label": "Drivers and risks"});
-  slots.charts = h("div", {class: "sh-slot sh-charts", id: "sh-sec-charts", tabindex: "-1", role: "region", "aria-label": "Peer position and valuation against fundamentals"});
+  slots.scorecard = h("section", {class: "sh-slot sh-scorecard", id: "sh-sec-scorecard", tabindex: "-1", role: "region", "aria-label": "Company scorecard"});
+  slots.compare = h("div", {class: "sh-slot sh-compare"});
+  slots.charts = h("div", {class: "sh-slot sh-charts", id: "sh-sec-charts", tabindex: "-1", role: "region", "aria-label": "Peer position"});
   slots.table = h("div", {class: "sh-slot sh-table", id: "sh-sec-table", tabindex: "-1"});
   footEl = h("div", {class: "sh-foot"});
-  analysisEl.append(slots.obs, slots.charts, slots.table, footEl);
+  analysisEl.append(slots.scorecard, slots.compare, slots.charts, slots.table, footEl);
   mainEl.append(frameStateEl, analysisEl);
 
   // Right-side surfaces, one open at a time: the company panel, the peer drawer, methodology.
@@ -726,7 +715,7 @@ function buildSkeleton() {
   slots.peers = h("div", {class: "sh-slot sh-peers", hidden: true});
   slots.method = h("div", {class: "sh-slot sh-method", hidden: true});
 
-  app.append(ctxEl, bannerRow, kpiRow, scopeRow, mainEl, slots.detail, slots.peers, slots.method, layer);
+  app.append(ctxEl, scopeRow, mainEl, slots.detail, slots.peers, slots.method, layer);
 
   wireTips();
   wireGlobal();
@@ -756,6 +745,8 @@ function applyAppAttrs() {
     app.style.setProperty("--ts", String(ts / 13));
     app.toggleAttribute("data-detail", !!(state.ui && state.ui.detail));
     app.toggleAttribute("data-peers", !!(state.ui && state.ui.peers));
+    app.setAttribute("data-view", currentView());
+    app.toggleAttribute("data-compare", !!(state.ui && state.ui.compareOpen));
     app.setAttribute("data-single-keys", state.singleKeys === false ? "off" : "on");
   }
 }
@@ -771,13 +762,11 @@ function render() {
     if (!payload || !state || !modsDone) { renderLoading(); return; }
     const v = getView();
     const err = v ? v.error : null;
-    bannerRow.hidden = !!err;
-    kpiRow.hidden = !!err;
-    scopeRow.hidden = !!err;
+    // Revision 4: the scope line is the Table view's.
+    scopeRow.hidden = !!err || currentView() !== "table";
     renderCtx(v);
-    if (!err) { renderBanner(v); renderKpis(v); renderScope(v); }
+    if (!err && currentView() === "table") renderScope(v);
     renderMain(v);
-    renderWhy(v);
     renderSelector(v);
     renderPalette(v);
     renderHelp(v);
@@ -859,8 +848,6 @@ function renderLoading() {
       T ? h("span", {class: "sh-company is-static"}, h("span", {class: "u-ticker", text: T})) : null),
     h("div", {class: "sh-ctx-ctl"}));
   }
-  bannerRow.hidden = true;
-  kpiRow.hidden = true;
   scopeRow.hidden = true;
   analysisEl.hidden = true;
   frameStateEl.hidden = false;
@@ -1144,8 +1131,11 @@ function hintOf(id) {
 
 function renderCtx(v) {
   const H = v && v.header, C = v && v.ctx;
+  const S = v && v.scorecard;
+  const scoreView = currentView() === "scorecard";
   const sig = sigOf("ctx", H, C, state.basis, state.currency, state.earnings, state.activeSet,
-    state.singleKeys, v && v.error, store.ok, (payload.companies || []).length);
+    state.singleKeys, v && v.error, store.ok, (payload.companies || []).length, currentView(),
+    S && [S.state, S.contextText, S.compareLabel, S.compareEnabled, S.compareTip], !!state.ui.compareOpen);
   if (sig === sigs.ctx) return;
   sigs.ctx = sig;
   sigs.loading = null;
@@ -1184,21 +1174,52 @@ function renderCtx(v) {
     const nameEl = h("span", {class: "sh-name", text: H.name});
     tip(nameEl, H.name);
     idg.append(nameEl);
-    for (const c of [H.subsectorChip, H.stageChip, H.typeChip]) {
+    // Revision 4 (1.4): the Scorecard view's bar is the company, its cohort and the actions on
+    // the scorecard; listing, reporting and the valuation type chip belong to the Table view.
+    for (const c of [H.subsectorChip, H.stageChip, scoreView ? null : H.typeChip]) {
       if (!c) continue;
       const el = chipEl(c, {class: `sh-idchip sh-chip-${c.id}`});
       if (c.tooltip) { el.append(h("span", {class: "u-sr", text: `. ${c.tooltip}`})); tip(el, {title: c.text, body: c.tooltip}); }
       idg.append(el);
     }
-    idg.append(h("span", {class: "sh-listing", text: H.listingText}));
-    const rep = h("span", {class: "sh-reporting"},
-      h("span", {class: "sh-full", text: H.reportingText}), h("span", {class: "sh-short", text: H.reportingShort}));
-    if (H.reportingTooltip) tip(rep, {title: H.reportingText, body: H.reportingTooltip});
-    idg.append(rep);
+    if (!scoreView) {
+      idg.append(h("span", {class: "sh-listing", text: H.listingText}));
+      const rep = h("span", {class: "sh-reporting"},
+        h("span", {class: "sh-full", text: H.reportingText}), h("span", {class: "sh-short", text: H.reportingShort}));
+      if (H.reportingTooltip) tip(rep, {title: H.reportingText, body: H.reportingTooltip});
+      idg.append(rep);
+    }
     if (H.liveChip) {
       const lc = chipEl(H.liveChip, {class: "sh-live", focusable: true, key: "live"});
       tip(lc, {title: H.liveChip.text, body: H.liveChip.tooltip}, descs);
       idg.append(lc);
+    }
+    if (scoreView && S && S.state === "ok" && S.contextText) idg.append(h("span", {class: "sh-cohort", text: S.contextText}));
+
+    // The view switch (1.4): Scorecard opens first; Table is the comparables table.
+    const viewSeg = h("div", {class: "u-seg sh-view-seg", role: "group", "aria-label": "View"});
+    for (const id of core.VIEWS) {
+      const label = core.SCORECARD_COPY.views[id];
+      const b = h("button", {type: "button", "data-key": `view-${id}`, "aria-pressed": String(currentView() === id), text: label});
+      b.addEventListener("click", () => setView(id));
+      tip(b, id === "table" ? "The comparable companies table, with its peer set, periods and basis." : "The cohort on one chart, with the ranked table beside it.", descs);
+      viewSeg.append(b);
+    }
+
+    if (scoreView) {
+      ctl.append(viewSeg);
+      // Compare (4.2): enabled from two ticks; the open company is ticked when the view opens.
+      const enabled = !!(S && S.state === "ok" && S.compareEnabled);
+      const cmp = h("button", {type: "button", class: `u-btn sh-compare-btn${state.ui.compareOpen ? " is-set" : ""}`, "data-key": "compare",
+        "aria-pressed": String(!!state.ui.compareOpen), "aria-disabled": enabled ? null : "true",
+        text: S ? S.compareLabel : core.SCORECARD_COPY.compare.replace("{k}", "0")});
+      cmp.addEventListener("click", () => {
+        if (state.ui.compareOpen) { closeCompare(); return; }
+        if (!enabled) { announce(`${core.SCORECARD_COPY.compareTip}.`); return; }
+        openCompare();
+      });
+      tip(cmp, () => (enabled ? (state.ui.compareOpen ? "Close Compare" : "The ticked companies side by side") : core.SCORECARD_COPY.compareTip), descs);
+      ctl.append(cmp);
     }
 
     // Peer set (never hidden; step 8 gives the short form).
@@ -1209,7 +1230,7 @@ function renderCtx(v) {
     h("span", {class: "sh-caret", "aria-hidden": "true", text: "▾"}));
     ps.addEventListener("click", () => toggleMenu(ps, peerSetItems, {label: "Peer set"}));
     tip(ps, {title: `Peers: ${H.peerSet.full}`, body: "The companies the statistics compare against. Saved sets live in this browser only."}, descs);
-    ctl.append(ps);
+    if (!scoreView) ctl.append(ps);
 
     // Period: segmented, or "NTM ▾" at step 7.
     const seg = h("div", {class: "u-seg sh-period-seg", role: "group", "aria-label": "Period basis"});
@@ -1219,7 +1240,7 @@ function renderCtx(v) {
       tip(btn, {title: b, body: C && C.basisTooltips ? C.basisTooltips[b] : null}, descs);
       seg.append(btn);
     }
-    ctl.append(seg);
+    if (!scoreView) ctl.append(seg);
     const pbtn = h("button", {type: "button", class: "u-btn sh-period-btn", "data-key": "basis-menu", "aria-haspopup": "menu",
       "aria-expanded": "false", "aria-label": `Period basis ${state.basis}. Change the period`},
     h("span", {text: state.basis}), h("span", {class: "sh-caret", "aria-hidden": "true", text: "▾"}));
@@ -1227,7 +1248,7 @@ function renderCtx(v) {
       checked: state.basis === b, onSelect: () => setBasis(b)})), {label: "Period basis"}));
     tip(pbtn, {title: `Period ${state.basis}`, body: C && C.basisTooltips ? C.basisTooltips[state.basis] : null,
       lines: [`Next period${hintOf("basis.next")}`]}, descs);
-    ctl.append(pbtn);
+    if (!scoreView) ctl.append(pbtn);
 
     // Basis (12.6): currency, data state and earnings in one menu; the chip names what is not default.
     const B = H.basis || {text: "Basis", nonDefault: false, tooltip: C ? C.basisText : null};
@@ -1244,7 +1265,7 @@ function renderCtx(v) {
       return items;
     }, {label: "Basis"}));
     tip(basisBtn, {title: B.text, body: B.tooltip, lines: [`Next currency${hintOf("currency.next")}`, `Switch earnings${hintOf("earnings.toggle")}`]}, descs);
-    ctl.append(basisBtn);
+    if (!scoreView) ctl.append(basisBtn, viewSeg);
 
     // Data as of.
     const flag = H.dataAsOf.tone === "flag";
@@ -1266,12 +1287,13 @@ function renderCtx(v) {
     const exp = h("button", {type: "button", class: "u-btn icon sh-export", "data-key": "export", "aria-label": "Export",
       "aria-haspopup": "menu", "aria-expanded": "false"}, svgIcon("export"));
     exp.addEventListener("click", () => toggleMenu(exp, exportItems, {label: "Export", alignRight: true}));
-    tip(exp, "Export this view as CSV, or copy it as TSV or as a summary.", descs);
+    tip(exp, "Export this view as CSV, or copy it as TSV.", descs);
     const more = h("button", {type: "button", class: "u-btn icon sh-more", "data-key": "more", "aria-label": "Reload and export",
       "aria-haspopup": "menu", "aria-expanded": "false", text: "⋯"});
     more.addEventListener("click", () => toggleMenu(more, () => [{id: "reload", label: "Reload the comps", onSelect: doReload}, {kind: "sep"}]
       .concat(exportItems()), {label: "Reload and export", alignRight: true}));
-    ctl.append(reload, exp, more);
+    if (scoreView) ctl.append(reload);
+    else ctl.append(reload, exp, more);
 
     ctl.append(helpButton(descs));
   });
@@ -1323,7 +1345,6 @@ function exportItems() {
   return [
     {id: "csv", label: "CSV of this view", shortcut: shortcutOf("export.csv"), onSelect: () => runCommand("export.csv")},
     {id: "tsv", label: "Copy as TSV", shortcut: shortcutOf("export.tsv"), onSelect: () => runCommand("export.tsv")},
-    {id: "summary", label: "Copy summary", onSelect: () => runCommand("summary.copy")},
   ];
 }
 function shortcutOf(id) {
@@ -1389,266 +1410,9 @@ function setEarnings(id) {
   dispatch({type: "SET_EARNINGS", earnings: id});
   announceAfter(() => `Earnings ${id === "adjusted" ? "ex amortisation and IPR&D" : "GAAP/IFRS"}.`);
 }
-/** Announce a change together with the new headline, so a screen reader hears the result. */
+/** Announce a change once the view has it. */
 function announceAfter(fn) {
-  const v = getView();
-  const hl = v && v.conclusion ? ` ${v.conclusion.headline}` : "";
-  announce(`${fn()}${hl}`);
-}
-
-// ---------------------------------------------------------------------------------------------
-// Conclusion banner (1.5, 3.11)
-// ---------------------------------------------------------------------------------------------
-
-function renderBanner(v) {
-  const c = v.conclusion;
-  const uni = (v.states || []).find((s) => s.id === "stale_price_universe");
-  const sig = sigOf("banner", c, uni, !!state.ui.why, state.singleKeys, v.sectionErrors && v.sectionErrors.conclusion);
-  if (sig === sigs.banner) return;
-  sigs.banner = sig;
-  rebuild(bannerRow, () => {
-    const descs = h("div", {class: "sh-descs", hidden: true});
-    if (!c) { bannerRow.append(sectionFailBlock("conclusion", "Conclusion"), descs); return; }
-    const banner = h("div", {class: "sh-banner", "data-bar": c.bar || "active", role: "region", "aria-label": "Valuation conclusion"});
-    // Column 1: the premium token, always in text colour.
-    const tok = c.token || {text: NULL, caption: "no premium stated", dir: null};
-    const glyph = tok.dir === "up" ? "▲" : tok.dir === "down" ? "▼" : "";
-    banner.append(h("div", {class: "sh-token"},
-      h("div", {class: "u-token sh-token-val"}, glyph ? h("span", {class: "sh-token-glyph", "aria-hidden": "true", text: glyph}) : null,
-        h("span", {text: tok.text})),
-      h("div", {class: "sh-token-cap", text: tok.caption || ""})));
-    // Column 2: headline, support, meta line.
-    const concl = h("div", {class: "sh-concl"});
-    concl.append(h("p", {class: "u-headline sh-headline"}, withFigures(c.headline)));
-    const notes = (c.notes || []).filter(Boolean);
-    const fullSupport = [c.support].concat(notes).filter(Boolean).join(" ");
-    if (fullSupport || c.supportShort) {
-      concl.append(h("p", {class: "u-support sh-support"},
-        h("span", {class: "sh-full", text: fullSupport}),
-        h("span", {class: "sh-short", text: c.supportShort || fullSupport})));
-    }
-    const meta = h("div", {class: "sh-meta"});
-    const lab = h("span", {class: "sh-syslabel"},
-      h("span", {class: "sh-full", "aria-hidden": "true", text: "System-generated summary"}),
-      h("span", {class: "sh-short", "aria-hidden": "true", text: c.labelShort || core.SYSTEM_LABEL_SHORT}),
-      h("span", {class: "u-sr", text: c.label || core.SYSTEM_LABEL}));
-    tip(lab, c.label || core.SYSTEM_LABEL);
-    meta.append(lab);
-    const conf = c.confidence;
-    if (conf && conf.level) {
-      const filled = conf.level === "high" ? 3 : conf.level === "medium" ? 2 : 1;
-      const b = h("button", {type: "button", class: "u-chip sh-conf", "data-key": "conf", "data-level": conf.level,
-        "aria-label": `Confidence: ${conf.level}. Open the methodology at confidence`},
-      h("span", {class: "u-chip-label", text: `Confidence: ${conf.level}`}),
-      h("span", {class: "sh-conf-bar", "aria-hidden": "true"}, [0, 1, 2].map((i) => h("span", {class: `sh-conf-seg${i < filled ? " on" : ""}`}))));
-      b.addEventListener("click", () => openMethod("confidence"));
-      const lines = Array.isArray(conf.points) && conf.points.length
-        ? conf.points.map((p) => `${signed(p.points)} ${stripStop(p.text)}`) : (conf.reasons || []).map(stripStop);
-      tip(b, {title: `Confidence: ${conf.level}`, body: "Points for the peer values and against weak comparisons. Opens the methodology.", lines}, descs);
-      meta.append(b);
-    }
-    for (const ch of c.chips || []) {
-      const el = chipEl(ch, {focusable: true, key: `bchip-${ch.id || ch.text}`, class: "sh-bchip"});
-      tip(el, {title: ch.text, body: ch.tooltip}, descs);
-      meta.append(el);
-    }
-    if (c.action && c.action.command) {
-      meta.append(h("button", {type: "button", class: "u-btn sh-banner-action", "data-key": "baction",
-        onclick: () => runCommand(c.action.command)}, c.action.label));
-    }
-    if (c.lookNext && c.lookNext.text) {
-      const ln = h("button", {type: "button", class: "u-btn link sh-look", "data-key": "look"},
-        h("span", {text: `Look next: ${afterColon(c.lookNext.text)}`}), h("span", {"aria-hidden": "true", text: " →"}));
-      ln.addEventListener("click", followLookNext);
-      meta.append(ln);
-    }
-    const why = h("button", {type: "button", class: "u-btn sh-why-btn", "data-key": "why", "aria-haspopup": "dialog",
-      "aria-expanded": String(!!state.ui.why), "aria-controls": "sh-why"}, "Why?");
-    why.addEventListener("click", () => toggleWhy());
-    const wk = hintOf("why.toggle");
-    if (wk) tip(why, `Why this summary${wk}`, descs);
-    meta.append(why);
-    concl.append(meta);
-    banner.append(concl);
-    bannerRow.append(banner);
-    if (uni) {
-      const u = h("div", {class: "u-state amber sh-universe", role: "status"},
-        h("span", {class: "u-state-title", text: uni.title}), h("span", {class: "u-state-detail", text: uni.detail}));
-      tip(u, {title: uni.title, body: uni.detail});
-      bannerRow.append(u);
-    }
-    bannerRow.append(descs);
-  });
-}
-
-function followLookNext() {
-  const v = getView();
-  const ln = v && v.conclusion && v.conclusion.lookNext;
-  if (!ln) return;
-  const t = ln.target || {};
-  const said = `Showing ${ln.text}.`;
-  if (t.kind === "cell" && t.colId) { goToColumn(t.colId, t.ticker || state.focal, said); return; }
-  if (t.kind === "dotplot") {
-    revealCharts("position");
-    const c = api("charts");
-    if (c) { if (t.ticker && typeof c.focusPoint === "function") c.focusPoint(t.ticker); else if (typeof c.focusDotPlot === "function") c.focusDotPlot(); }
-    announce(said);
-    return;
-  }
-  if (t.kind === "scatter") {
-    revealCharts("scatter");
-    const c = api("charts");
-    if (c && typeof c.focusScatter === "function") c.focusScatter();
-    announce(said);
-    return;
-  }
-  openPeers();
-}
-
-// "Why?" popover (1.5).
-let whyEl = null;
-function toggleWhy(force, restore = true) {
-  const open = force === undefined ? !state.ui.why : !!force;
-  if (open === !!state.ui.why) return;
-  if (open) {
-    if (state.ui.overlay) closeOverlay(false);
-    closeMenu(false);
-    whyReturn = document.activeElement;
-    pending.whyFocus = true;
-  }
-  dispatch({type: "TOGGLE_WHY"});
-  flush();
-  if (!open) {
-    if (restore) {
-      const b = bannerRow.querySelector('[data-key="why"]');
-      focusEl(b && isVisible(b) ? b : twinOf(whyReturn));
-    }
-    whyReturn = null;
-  }
-}
-function renderWhy(v) {
-  const c = v && !v.error ? v.conclusion : null;
-  const open = !!(state.ui.why && c && c.why);
-  if (!open) {
-    if (whyEl) { whyEl.remove(); whyEl = null; sigs.why = null; }
-    return;
-  }
-  if (!whyEl) {
-    whyEl = h("div", {class: "u-pop sh-why", id: "sh-why", role: "dialog", "aria-labelledby": "sh-why-title"});
-    layer.append(whyEl);
-  }
-  const sig = sigOf(c.why, c.label);
-  if (sig !== sigs.why) {
-    sigs.why = sig;
-    rebuild(whyEl, () => {
-      whyEl.append(h("div", {class: "sh-why-head"},
-        h("h2", {class: "u-pop-title", id: "sh-why-title", tabindex: "-1", text: "Why this summary"}),
-        h("button", {type: "button", class: "u-btn icon sh-why-close", "data-key": "why-close", "aria-label": "Close why this summary",
-          text: "✕", onclick: () => toggleWhy(false)})));
-      whyEl.append(h("p", {class: "sh-why-label", text: c.label || core.SYSTEM_LABEL}));
-      for (const g of c.why.groups || []) {
-        if (!g || !(g.items || []).length) continue;
-        const grp = h("div", {class: "u-pop-group"}, h("h3", {class: "sh-why-gtitle", text: g.title}));
-        const ul = h("ul", {class: "sh-why-list"});
-        for (const it of g.items) {
-          const li = h("li", {class: `sh-why-item${it.suppressed ? " is-muted" : ""}`});
-          if (typeof it.points === "number") li.append(h("span", {class: "u-num sh-why-pts", text: signed(it.points)}));
-          // A model figure is labelled once, by its chip: the sentence's own closing
-          // "Model output." would say it twice.
-          const model = it.provenance === "M" || it.label === "Model output";
-          const text = model ? String(it.text || "").replace(/\s*Model output\.?\s*$/, "") : it.text;
-          if (it.colId) {
-            li.append(h("button", {type: "button", class: "u-btn link sh-why-link", "data-key": `why-${g.title}-${it.colId}`,
-              onclick: () => { toggleWhy(false, false); goToColumn(it.colId); }}, text));
-          } else {
-            li.append(h("span", {class: "sh-why-text", text}));
-          }
-          if (model) li.append(h("span", {class: "u-chip sh-why-model", text: "Model output"}));
-          ul.append(li);
-        }
-        grp.append(ul);
-        whyEl.append(grp);
-      }
-      whyEl.append(h("div", {class: "u-pop-group"},
-        h("button", {type: "button", class: "u-btn link", "data-key": "why-obs",
-          onclick: () => { toggleWhy(false, false); scrollToSection("obs"); }}, c.why.link || "Open drivers and risks")));
-    });
-  }
-  positionWhy();
-  if (pending.whyFocus) {
-    pending.whyFocus = false;
-    focusEl(whyEl.querySelector("#sh-why-title"));
-  }
-}
-/** Text that follows "Look next: " reads on in lower case, unless it opens with a ticker or
- * another all-capital word. */
-function afterColon(text) {
-  const s = String(text || "");
-  return /^[A-Z][a-z]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
-}
-function positionWhy() {
-  if (!whyEl) return;
-  const b = bannerRow.querySelector('[data-key="why"]');
-  const width = layout === "narrow" ? Math.max(240, window.innerWidth - 32) : 440;
-  whyEl.style.width = `${width}px`;
-  if (!b || !isVisible(b)) { whyEl.style.top = "16px"; whyEl.style.left = "16px"; return; }
-  placeNear(whyEl, b, {gap: 4, alignRight: true});
-}
-
-// ---------------------------------------------------------------------------------------------
-// KPI strip (1.5)
-// ---------------------------------------------------------------------------------------------
-
-function renderKpis(v) {
-  const sig = sigOf("kpis", v.kpis, !!(mods.charts && mods.charts.positionStrip), v.sectionErrors && v.sectionErrors.kpis);
-  if (sig === sigs.kpis) return;
-  sigs.kpis = sig;
-  rebuild(kpiRow, () => {
-    const descs = h("div", {class: "sh-descs", hidden: true});
-    if (!v.kpis || !v.kpis.length) { kpiRow.append(sectionFailBlock("kpis", "Key metrics"), descs); return; }
-    const strip = h("div", {class: "u-kpi-strip sh-kpis", role: "group", "aria-label": "Key metrics"});
-    for (const k of v.kpis) {
-      const isPos = k.id === "position";
-      const glyph = k.valueDir === "up" ? "▲" : k.valueDir === "down" ? "▼" : "";
-      const spoken = k.value === core.NULL_GLYPH ? "no value" : k.value;
-      const aria = [`${k.label}: ${glyph ? (glyph === "▲" ? "up " : "down ") : ""}${spoken}${k.unit && spoken !== "no value" ? " " + k.unit : ""}${k.flag === "amber" ? ", flagged" : ""}`,
-        k.period, arrowWords(k.compare), isPos && k.strip ? k.strip.description : null].filter(Boolean).map(stripStop).join(". ") + ".";
-      const cell = h("div", {class: `u-kpi sh-kpi${isPos ? " primary" : ""}`, tabindex: "0", role: "group",
-        "data-key": `kpi-${k.id}`, "data-kpi": k.id, "aria-label": aria});
-      const valueEl = h("span", {class: "u-kpi-value"},
-        glyph ? h("span", {class: "u-dir sh-kpi-glyph", "aria-hidden": "true", text: glyph}) : null, k.value);
-      const row = h("div", {class: "u-kpi-row"}, valueEl,
-        k.flag === "amber" ? h("span", {class: "u-marker amber", "aria-hidden": "true", text: "!"}) : null,
-        k.unit ? h("span", {class: "u-chip sh-kpi-unit", text: k.unit}) : null,
-        isPos ? stripEl(k.strip) : null);
-      cell.append(h("span", {class: "u-kpi-label", text: k.label}), row,
-        h("span", {class: "u-kpi-period", text: k.period || ""}),
-        h("span", {class: "u-kpi-compare", text: k.compare || ""}));
-      tip(cell, {title: k.label, body: k.tooltip, lines: isPos && k.strip && k.strip.description ? [k.strip.description] : null}, descs);
-      if (k.link) {
-        cell.classList.add("is-link");
-        cell.setAttribute("role", "button");
-        cell.setAttribute("aria-label", `${aria} Open the ${k.link.kind === "tab" ? k.link.tab + " tab" : "evidence"}.`);
-        cell.addEventListener("click", () => openLink(k.link));
-        cell.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); openLink(k.link); } });
-      }
-      strip.append(cell);
-    }
-    kpiRow.append(strip, descs);
-  });
-}
-function stripEl(strip) {
-  const fn = mods.charts && mods.charts.positionStrip;
-  if (!strip || typeof fn !== "function") return null;
-  try {
-    const svg = fn(strip, {width: 120, height: 20});
-    if (!svg) return null;
-    svg.setAttribute("aria-hidden", "true");
-    return h("span", {class: "sh-kpi-strip"}, svg);
-  } catch (e) {
-    console.error("compsval positionStrip", e);
-    return null;
-  }
+  announce(fn());
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1802,12 +1566,64 @@ function renderMain(v) {
   sigs.frameErr = null;
   sigs.loading = null;
   frameStateEl.textContent = "";
+  const shown = new Set(slotsFor(currentView()));
   slots.detail.hidden = !state.ui.detail;
-  slots.peers.hidden = !state.ui.peers;
+  slots.peers.hidden = !state.ui.peers || !shown.has("peers");
   slots.method.hidden = !state.ui.method;
-  renderFooter(v);
+  for (const id of ["scorecard", "compare", "charts", "table"]) slots[id].hidden = !shown.has(id);
+  slots.compare.hidden = !shown.has("compare") || !(state.ui && state.ui.compareOpen);
+  footEl.hidden = currentView() !== "table";
+  if (!footEl.hidden) renderFooter(v);
   ensureMounts();
   updateMounts(v);
+}
+
+/** The open view of revision 4: "scorecard" (default) or "table"; the bridge has neither. */
+function currentView() {
+  const v = state && state.ui ? state.ui.view : null;
+  return core.VIEWS.includes(v) ? v : "scorecard";
+}
+/** The mounts the open view shows (5.2). The bridge mounts its own two. */
+function viewMounts() {
+  if (mode === "bridge") return MOUNTS;
+  const want = new Set(slotsFor(currentView()));
+  return MOUNTS.filter((m) => want.has(m.slot));
+}
+function setView(value) {
+  if (!state || !core.VIEWS.includes(value) || currentView() === value) return;
+  dispatch({type: "SET_VIEW", value});
+  announce(value === "table" ? "Table view: the comparable companies." : "Scorecard view: the cohort on one chart.");
+}
+/** Open the Table view at once, for a command that acts on the table or its charts. */
+function ensureTableView() {
+  if (mode === "bridge" || !state || currentView() === "table") return;
+  dispatch({type: "SET_VIEW", value: "table"});
+  flush();
+}
+/** Tick or untick a company for Compare; a fourth is refused and said so (8.1). */
+function toggleCompare(ticker) {
+  if (!state || !ticker) return false;
+  const cur = (state.ui && state.ui.compare) || [];
+  if (!cur.includes(ticker) && cur.length >= core.COMPARE_MAX) {
+    const t = core.SCORECARD_COPY.compareFull;
+    announce(t);
+    showToast(t);
+    return false;
+  }
+  dispatch({type: "TOGGLE_COMPARE", ticker});
+  const now = (state.ui && state.ui.compare) || [];
+  announce(`${ticker} ${now.includes(ticker) ? "ticked" : "unticked"} for Compare, ${now.length} of ${core.COMPARE_MAX}.`);
+  return true;
+}
+function openCompare() {
+  if (!state) return;
+  if (((state.ui && state.ui.compare) || []).length < 2) { announce(core.SCORECARD_COPY.compareTip + "."); return; }
+  dispatch({type: "OPEN_COMPARE"});
+}
+function closeCompare() {
+  if (!state || !(state.ui && state.ui.compareOpen)) return;
+  dispatch({type: "CLOSE_COMPARE"});
+  flush();
 }
 
 /** The one-line footer (12.6): what the figures rest on, and the way into sources and method. */
@@ -1871,7 +1687,7 @@ function renderBridge() {
     ensureMounts();
     updateMounts(v);
   }
-  nextFrame(() => { fitBridge(); takeGoto(); });
+  nextFrame(fitBridge);
 }
 
 let lastBridgeH = 0;
@@ -1883,17 +1699,6 @@ function fitBridge() {
   lastBridgeH = hgt;
   Streamlit.setFrameHeight(hgt);
 }
-/** Comps asked for the bridge (the "Implied value" key figure): bring this frame into view. */
-function takeGoto() {
-  try {
-    const raw = window.sessionStorage.getItem(core.GOTO_KEY);
-    if (!raw) return;
-    const g = JSON.parse(raw);
-    if (!g || g.target !== "bridge" || !(Date.now() - g.at < 5000) || !window.innerWidth) return;
-    window.sessionStorage.removeItem(core.GOTO_KEY);
-    if (window.frameElement) window.frameElement.scrollIntoView({block: "center"});
-  } catch (e) { /* no storage or no parent access */ }
-}
 let bridgeWired = false;
 function wireBridge() {
   if (typeof ResizeObserver === "function") { const ro = new ResizeObserver(() => fitBridge()); ro.observe(app); }
@@ -1901,7 +1706,7 @@ function wireBridge() {
   bridgeWired = true;
   document.addEventListener("keydown", onKeyDown);
   window.addEventListener("pagehide", persistNow);
-  window.addEventListener("resize", () => { if (mode === "bridge") nextFrame(() => { scheduleRender(); fitBridge(); takeGoto(); }); });
+  window.addEventListener("resize", () => { if (mode === "bridge") nextFrame(() => { scheduleRender(); fitBridge(); }); });
   wireStorageSync();
 }
 /** Both frames share one storage key (12.5): adopt what the other frame stored. */
@@ -1920,12 +1725,11 @@ function wireStorageSync() {
     if (local || session) dispatch({type: "ADOPT_PERSISTED", local, session});
   };
   window.addEventListener("storage", (e) => {
-    if (e.key === core.GOTO_KEY) { if (mode === "bridge") takeGoto(); return; }
     if (e.key !== core.STORAGE_KEY && e.key !== core.SESSION_KEY) return;
     if (e.key === core.STORAGE_KEY && e.newValue === lastWrote) return;
     adopt();
   });
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { adopt(); if (mode === "bridge") takeGoto(); } });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) adopt(); });
 }
 
 function api(id) {
@@ -1933,7 +1737,19 @@ function api(id) {
   return r && !r.failed ? r.api : null;
 }
 function ensureMounts() {
-  for (const m of MOUNTS) {
+  // A view's mounts leave with it (revision 4), so a hidden table never lays itself out at
+  // zero width; the slot is emptied and the mount rebuilt when its view opens again.
+  if (mode === "full") {
+    const keep = new Set(viewMounts().map((m) => m.id));
+    for (const m of MOUNTS) {
+      if (keep.has(m.id) || !mounted[m.id]) continue;
+      const r = mounted[m.id];
+      if (r.api && typeof r.api.destroy === "function") { try { r.api.destroy(); } catch (e) { /* ignore */ } }
+      delete mounted[m.id];
+      if (slots[m.slot]) { slots[m.slot].textContent = ""; slots[m.slot].classList.remove("sh-slot-failed"); }
+    }
+  }
+  for (const m of viewMounts()) {
     const r = mounted[m.id];
     if (r && !r.failed) continue;
     if (r && r.missing) continue;                         // a missing module will not appear before a reload
@@ -1974,7 +1790,7 @@ function failSlot(m, message, missing) {
   mounted[m.id] = {api: null, root: null, failed: true, missing: !!missing, failedAt: viewVersion};
 }
 function updateMounts(v) {
-  for (const m of MOUNTS) {
+  for (const m of viewMounts()) {
     const r = mounted[m.id];
     if (!r || r.failed || !r.api || typeof r.api.update !== "function") continue;
     try { r.api.update(v); } catch (e) {
@@ -1997,6 +1813,7 @@ function revealInMain(el, pad = 8) {
 function scrollToSection(id, focus = true) {
   if (id === "peers") { openPeers(); return; }
   if (id === "notes" || id === "sources") { openMethod("sources"); return; }
+  if (SECTIONS[id]) ensureTableView();
   const meta = SECTIONS[id];
   const sec = meta ? slots[meta.slot] : null;
   if (!sec || !mainEl) return;
@@ -2015,6 +1832,7 @@ function tableFocus(ticker, colId) {
   return false;
 }
 function goToColumn(colId, ticker, said) {
+  ensureTableView();
   const v = getView();
   if (!v || !colId) return;
   const T = ticker || state.focal;
@@ -2029,41 +1847,22 @@ function goToColumn(colId, ticker, said) {
   tableFocus(T, colId);
   announce(inTable ? (said || `Showing ${label}.`) : `Added ${label} to a custom column set.`);
 }
-function revealCharts(tab) {
+function revealCharts() {
+  ensureTableView();
   // The strip is the chart area at every width (12.1).
   const l = layout === "narrow" ? "narrow" : layout;
   dispatch({type: "SET_CHART_STRIP", layout: l, value: "open"});
-  dispatch({type: layout === "narrow" ? "SET_NARROW_TAB" : "SET_LAPTOP_TAB", tab});
   flush();
   revealInMain(slots.charts);
 }
 function openPeers(opts = {}) {
   if (mode === "bridge" || !state) return;
+  ensureTableView();
   dispatch({type: "OPEN_PEERS", search: !!opts.search});
 }
 function closePeers() {
   if (!state || !state.ui.peers) return;
   dispatch({type: "CLOSE_PEERS"});
-}
-/** Follow a link of the view (12.9): a table column, a tab of the page, or one indication. */
-function openLink(link) {
-  if (!link || mode === "bridge") return;
-  if (link.kind === "column") { goToColumn(link.colId); return; }
-  if (link.kind === "tab") {
-    if (link.tab === "Forecast") { openForecastBridge(); return; }
-    if (!clickParentTab(link.tab)) announce(`The ${link.tab} tab could not be opened from here.`);
-    return;
-  }
-  if (link.kind === "indication") {
-    // Python selects the indication, then the Indications view opens on it.
-    send({action: "indication", indication_id: link.indicationId, ticker: state.focal});
-    clickParentTab("Indications");
-    announce(`Opening ${link.name || "the indication"} in Comps, Indications.`);
-  }
-}
-function openForecastBridge() {
-  try { window.sessionStorage.setItem(core.GOTO_KEY, JSON.stringify({target: "bridge", at: Date.now()})); } catch (e) { /* no storage */ }
-  if (!clickParentTab("Forecast")) announce("The Forecast tab could not be opened from here.");
 }
 function openDetail(ticker) {
   if (!ticker) return;
@@ -2116,7 +1915,6 @@ function openOverlay(kind, init) {
   if (!state) return;
   closeMenu(false);
   hideTip();
-  if (state.ui.why) toggleWhy(false, false);
   if (state.ui.overlay === kind) return;
   if (!state.ui.overlay) {
     const ae = document.activeElement;
@@ -2513,12 +2311,11 @@ function buildHelp() {
     grid.append(h("section", {class: "sh-help-group"}, h("h3", {class: "sh-help-gtitle", text: g.name === "Grid" ? "Table grid" : g.name}), dl));
   }
   helpEl.append(grid);
-  helpEl.append(h("p", {class: "sh-help-note", text: "The palette also runs: go to any column or section, add, remove or open a company, make it focal, load or save peer sets and layouts, copy the summary, open the Catalysts and Forecast tabs and show the methodology."}));
+  helpEl.append(h("p", {class: "sh-help-note", text: "The palette also runs: go to any column or section, add, remove or open a company, make it focal, load or save peer sets and layouts and show the methodology."}));
 }
 
 function positionAnchored() {
   if (tipState.anchor && !tipEl.hidden && tipState.anchor.isConnected) placeNear(tipEl, tipState.anchor, {gap: 6});
-  if (whyEl) positionWhy();
   if (selEl) positionSelector();
   if (menuState && menuState.anchor && menuState.anchor.isConnected) placeNear(menuState.el, menuState.anchor, {gap: 2});
 }
@@ -2529,6 +2326,7 @@ function positionAnchored() {
 
 function runCommand(id, opts = {}) {
   if (!state) return;
+  if (TABLE_COMMANDS.has(id) || /^preset\.\d$/.test(id)) ensureTableView();
   const m = /^preset\.(\d)$/.exec(id);
   if (m) {
     const p = core.PRESETS[Number(m[1]) - 1];
@@ -2568,7 +2366,6 @@ function runCommand(id, opts = {}) {
     case "outliers.toggle": dispatch({type: "TOGGLE_OUTLIERS"});
       announceAfter(() => (state.outliers === "exclude" ? "Statistics without outliers." : "Statistics with outliers.")); break;
     case "cf.next": dispatch({type: "CYCLE_CF_MODE", dir: 1}); announce(`Conditional format: ${lcfirst(core.CF_MODE_LABEL[state.cfMode] || state.cfMode)}.`); break;
-    case "why.toggle": toggleWhy(); break;
     case "density.next": dispatch({type: "CYCLE_DENSITY"}); announce(`Row density: ${state.density}.`); break;
     case "text.bigger": dispatch({type: "SET_TEXT_SIZE", delta: 1}); announce(`Text size ${state.textSize}.`); break;
     case "text.smaller": dispatch({type: "SET_TEXT_SIZE", delta: -1}); announce(`Text size ${state.textSize}.`); break;
@@ -2588,23 +2385,23 @@ function runCommand(id, opts = {}) {
       break;
     }
     case "layout.save": openPalette("", {kind: "layout"}); break;
-    case "summary.copy": copySummary(); break;
     case "peers.edit": openPeers(); break;
     case "sources.open": openMethod("sources"); break;
-    case "forecast.open": openForecastBridge(); break;
-    case "catalysts.open": openLink({kind: "tab", tab: "Catalysts"}); break;
     case "primary.reset": dispatch({type: "SET_PRIMARY", colId: null}); announceAfter(() => "Primary metric reset."); break;
     case "method.open": openMethod(opts.anchor || null); break;
     case "singlekeys.toggle": dispatch({type: "SET_SINGLE_KEYS", on: state.singleKeys === false});
       announce(`Single-key shortcuts ${state.singleKeys !== false ? "on" : "off"}.`); break;
     case "reload": doReload(); break;
     case "focus": setFocal(opts.ticker); break;
+    case "view.scorecard": setView("scorecard"); break;
+    case "view.table": setView("table"); break;
+    case "compare.open": openCompare(); break;
     default: break;
   }
 }
 
 function focusMetricSwitcher() {
-  revealCharts("position");
+  revealCharts();
   const c = api("charts");
   if (!c) { announce("The peer position chart is not available."); return; }
   if (typeof c.focusSwitcher === "function") c.focusSwitcher();
@@ -2679,10 +2476,10 @@ function escChain(e) {
   if (tipState.anchor && !tipEl.hidden) { hideTip(); return true; }
   if (menuState) { closeMenu(true); return true; }
   if (state.ui.overlay) { closeOverlay(true); return true; }
-  if (state.ui.why) { toggleWhy(false); return true; }
   if (state.ui.method) { closeMethod(); return true; }
   if (state.ui.peers) { closePeers(); return true; }
   if (state.ui.detail) { closeDetail(); return true; }
+  if (state.ui.compareOpen) { closeCompare(); return true; }
   if (t && isTextTarget(t)) { t.blur(); return true; }
   if (state.ui.focus) { dispatch({type: "FOCUS_CELL", row: null}); return true; }
   return false;
@@ -2739,13 +2536,6 @@ function copyTSV() {
   try { text = core.toTSV(v); } catch (e) { text = ""; }
   if (!text) { showToast("Nothing to copy: the table did not compute."); return; }
   copyText(text, "the table as TSV");
-}
-function copySummary() {
-  const v = getView();
-  let text = "";
-  try { text = core.summaryText(v); } catch (e) { text = ""; }
-  if (!text) { showToast("Nothing to copy: the summary did not compute."); return; }
-  copyText(text, "the summary");
 }
 async function copyText(text, what) {
   let ok = false;
@@ -2806,8 +2596,6 @@ const ctx = {
   closeMethod,
   openPeers,
   closePeers,
-  openLink,
-  openForecastBridge,
   announce,
   tooltip: {
     show: (anchor, content) => showTip(anchor, content, false),
@@ -2824,6 +2612,10 @@ const ctx = {
   scrollToSection: (id, focus) => scrollToSection(id, focus !== false),
   runCommand: (id, opts) => runCommand(id, opts || {}),
   setFocal,
+  setView,
+  toggleCompare,
+  openCompare,
+  closeCompare,
   flush,
   isMac: IS_MAC,
 };
@@ -2833,6 +2625,8 @@ Object.defineProperty(ctx, "initialViewport", {get: () => (sessionRaw && session
 Object.defineProperty(ctx, "layout", {get: () => layout, enumerable: true});
 Object.defineProperty(ctx, "mode", {get: () => mode, enumerable: true});
 Object.defineProperty(ctx, "height", {get: () => heightMode, enumerable: true});
+// Revision 4: the company map Python drew, {svg, digest}; scorecard.js swaps it on a new digest.
+Object.defineProperty(ctx, "chart", {get: () => chart, enumerable: true});
 
 // ---------------------------------------------------------------------------------------------
 // Global listeners
@@ -2896,10 +2690,6 @@ function wireTips() {
     if (tipEl && !tipEl.contains(t) && tipState.anchor && !tipState.anchor.contains(t)) hideTip();
     else if (tipEl && tipState.anchor && pa === tipState.anchor && !tipState.byFocus) hideTip();
     if (menuState && !menuState.el.contains(t) && !(menuState.anchor && menuState.anchor.contains(t))) closeMenu(false);
-    if (state && state.ui.why && whyEl && !whyEl.contains(t)) {
-      const b = bannerRow ? bannerRow.querySelector('[data-key="why"]') : null;
-      if (!(b && b.contains(t))) toggleWhy(false, false);
-    }
     if (state && state.ui.overlay === "selector" && selEl && !selEl.contains(t)) {
       const b = ctxEl ? ctxEl.querySelector('[data-key="company"]') : null;
       if (!(b && b.contains(t))) closeOverlay(false);
@@ -2934,7 +2724,7 @@ function wireGlobal() {
 
   // A wheel over the pinned band scrolls #main: the band never scrolls itself, so the lower
   // sections stay in reach wherever the pointer rests.
-  for (const el of [ctxEl, bannerRow, kpiRow, scopeRow]) {
+  for (const el of [ctxEl, scopeRow]) {
     el.addEventListener("wheel", (e) => {
       if (e.ctrlKey || !e.deltaY) return;
       const unit = e.deltaMode === 1 ? 18 : e.deltaMode === 2 ? mainEl.clientHeight : 1;
@@ -2944,7 +2734,7 @@ function wireGlobal() {
 
   if (typeof ResizeObserver === "function") {
     const ro = new ResizeObserver(() => { measureBand(); });
-    for (const el of [ctxEl, bannerRow, kpiRow, scopeRow, mainEl]) ro.observe(el);
+    for (const el of [ctxEl, scopeRow, mainEl]) ro.observe(el);
     const ctxRo = new ResizeObserver(() => { fitCtx(); fitScope(); });
     ctxRo.observe(ctxEl);
   }

@@ -1,6 +1,6 @@
-/* compsval shell stylesheet. Owner: E. Prefix .sh- only: the header band (context bar,
-   conclusion banner, KPI strip, scope line), the layout of #main and its slots, and the
-   overlays (palette, help, selector, "Why?", menus, toast). Shared primitives (.u-) come
+/* compsval shell stylesheet. Owner: E. Prefix .sh- only: the header band (context bar, scope
+   line), the layout of #main and its slots, and the overlays (palette, help, selector, menus,
+   toast). The conclusion banner, "Why?" and the KPI strip left with revision 4. Shared primitives (.u-) come
    from research.css; every colour is a var() of a token or of a derived property there.
    Sizes on the type scale and the band heights of 1.3 are calc(<px> * var(--ts)), so the
    text-size setting scales the whole frame. */
@@ -136,121 +136,6 @@ html:not([data-tokens]) #app { visibility: hidden; }
 .sh-c8 .sh-peerset .sh-full { display: none; }
 .sh-c8 .sh-peerset .sh-short { display: inline-block; }
 
-/* Conclusion banner: ground inside the panel band, 3 px bar, 16 px below (8 short). */
-.sh-banner-row {
-  padding: 0 var(--gutter) var(--sp-16);
-  background: var(--panel);
-}
-[data-height="short"] .sh-banner-row { padding-bottom: var(--sp-8); }
-.sh-banner {
-  display: grid;
-  grid-template-columns: calc(112px * var(--ts)) minmax(0, 1fr);
-  column-gap: var(--sp-16);
-  padding: var(--sp-12) var(--sp-16);
-  border: 1px solid var(--rule);
-  border-left: 3px solid var(--active);
-  background: var(--ground);
-}
-.sh-banner[data-bar="flag"] { border-left-color: var(--flag); }
-.sh-banner[data-bar="down"] { border-left-color: var(--down); }
-[data-height="short"] .sh-banner { padding: var(--sp-8) var(--sp-16); }
-.sh-token { display: flex; flex-direction: column; min-width: 0; }
-.sh-token-val { display: flex; align-items: baseline; gap: 6px; }
-.sh-token-glyph { font-size: 0.66em; line-height: 1; }
-.sh-token-cap {
-  margin-top: 2px;
-  font-family: var(--font-ui);
-  font-size: calc(11px * var(--ts));
-  line-height: calc(14px * var(--ts));
-  color: var(--muted);
-}
-.sh-concl { min-width: 0; }
-/* The token and the mono figures of the headline never raise their line: the band heights
-   of 1.3 count whole lines. */
-.sh-token-val { height: calc(28px * var(--ts)); }
-[data-height="short"] .sh-token-val { height: calc(22px * var(--ts)); }
-.sh-headline .u-num { font-size: 0.94em; line-height: 1; letter-spacing: -0.04em; }
-/* A readable measure on a wide frame: the headline and its support stop at 1,200 px, so
-   two sentences of support stay two short lines rather than one line 1,700 px long. */
-.sh-headline, .sh-support { max-width: calc(1200px * var(--ts)); }
-.sh-support { margin-top: var(--sp-4); }
-.sh-banner .sh-short { display: none; }
-[data-height="short"] .sh-banner .sh-full { display: none; }
-[data-height="short"] .sh-banner .sh-short { display: inline; }
-[data-height="short"] .sh-support {
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sh-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-4) var(--sp-12);
-  min-height: calc(20px * var(--ts));
-  margin-top: var(--sp-8);
-}
-[data-height="short"] .sh-meta { margin-top: var(--sp-4); }
-.sh-syslabel {
-  font-family: var(--font-ui);
-  font-size: calc(11px * var(--ts));
-  line-height: calc(14px * var(--ts));
-  color: var(--muted);
-  white-space: nowrap;
-}
-.sh-conf { gap: 6px; }
-.sh-conf-bar { display: inline-flex; align-items: center; gap: 2px; }
-.sh-conf-seg { width: 4px; height: 10px; background: var(--rule-strong); }
-.sh-conf-seg.on { background: var(--text); }
-.sh-bchip { cursor: default; }
-/* Meta line 20 px (1.5): its buttons are no taller than the line. */
-.sh-banner-action, .sh-why-btn { height: calc(20px * var(--ts)); padding: 0 10px; }
-.sh-look { font-size: calc(12.5px * var(--ts)); line-height: calc(16px * var(--ts)); }
-.sh-why-btn { margin-left: auto; }
-/* The universe-level stale-price state, one compact line under the banner (section 8). */
-.sh-universe {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-8);
-  margin-top: var(--sp-8);
-  padding: 3px var(--sp-12);
-  overflow: hidden;
-  white-space: nowrap;
-}
-.sh-universe .u-state-title, .sh-universe .u-state-detail {
-  font-size: calc(12px * var(--ts));
-  line-height: calc(16px * var(--ts));
-}
-.sh-universe .u-state-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-
-/* KPI strip: six cells, 68 px (44 short); cell 5 is one and a half shares wide. */
-.sh-kpi-row { padding: 0 var(--gutter); background: var(--panel); }
-/* A grid rather than the primitive's flex row, so cell 5 is exactly one and a half shares
-   whatever the cell padding. */
-.sh-kpis {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 2fr)) minmax(0, 3fr) minmax(0, 2fr);
-  height: calc(68px * var(--ts));
-}
-[data-height="short"] .sh-kpis { height: calc(44px * var(--ts)); }
-[data-layout="narrow"] .sh-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); height: auto; }
-.sh-kpis .u-kpi {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 0 var(--sp-12);
-}
-[data-layout="narrow"] .sh-kpis .u-kpi { min-height: calc(44px * var(--ts)); }
-.sh-kpi:focus-visible { outline-offset: -2px; }
-.sh-kpi .u-kpi-row { min-height: calc(22px * var(--ts)); }
-[data-height="short"] .sh-kpi .u-kpi-row { min-height: calc(20px * var(--ts)); }
-/* line-height 1: a smaller glyph on the value's 22 px line would push the line box out and
-   the cell past the strip's height. */
-.sh-kpi-glyph { margin-right: 4px; font-size: 0.72em; line-height: 1; }
-.sh-kpi-unit { height: calc(16px * var(--ts)); padding: 0 4px; font-family: var(--font-mono); font-size: calc(10px * var(--ts)); }
-.sh-kpi-strip { display: inline-flex; flex: none; align-items: center; }
-
 /* Scope line: 28 px (24 short); items 1 to 3 stay, 4 to 6 may move into "+n". */
 .sh-scope-row {
   padding: 0 var(--gutter);
@@ -285,15 +170,15 @@ html:not([data-tokens]) #app { visibility: hidden; }
 .sh-frame-state { display: grid; gap: var(--sp-12); max-width: 960px; }
 .sh-skel { display: block; border-top: 1px solid var(--rule); }
 
-/* Revision 3 (12.1): one order at every width. Drivers and risks, the chart strip, the table,
-   the one-line footer. */
+/* Revision 3 (12.1): one order at every width. The chart strip, the table, the one-line
+   footer. */
 .sh-stack {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-8);
   align-items: start;
 }
-.sh-obs:focus-visible, .sh-charts:focus-visible, .sh-table:focus-visible { outline-offset: 2px; }
+.sh-charts:focus-visible, .sh-table:focus-visible { outline-offset: 2px; }
 .sh-foot {
   display: flex;
   align-items: center;
@@ -310,6 +195,24 @@ html:not([data-tokens]) #app { visibility: hidden; }
 .sh-foot-btn { flex: 0 0 auto; white-space: nowrap; }
 .sh-slot { min-width: 0; }
 .sh-mount { min-width: 0; }
+
+/* Revision 4 (company-scorecard.md 1.4, 4.2): the Scorecard view, and Compare laid over it. */
+.sh-stack { position: relative; }
+/* #main takes the last, flexible row of #app whichever band rows are drawn above it. */
+.sh-main { grid-row: -2 / -1; }
+.sh-compare { position: absolute; inset: 0; z-index: 20; min-width: 0; }
+.sh-cohort {
+  font-family: var(--font-ui);
+  font-size: calc(13px * var(--ts));
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sh-view-seg button { padding: 0 10px; }
+.sh-compare-btn { white-space: nowrap; }
+.sh-compare-btn[aria-disabled="true"] { color: var(--muted); cursor: default; }
+.sh-compare-btn.is-set { border-color: var(--active); }
+/* The Scorecard view has no export menu, so reload stays at every collapse step. */
+#app[data-view="scorecard"] .sh-c6 .sh-reload { display: inline-flex; }
 .sh-fail { margin: 0 0 var(--sp-8); }
 
 /* The side panel and the methodology drawer place themselves (.pn-detail per layout,
@@ -357,12 +260,10 @@ html[data-mode="bridge"], html[data-mode="bridge"] body { height: auto; min-heig
 @media (max-width: 899px) { .sh-bridge-body { grid-template-columns: minmax(0, 1fr); } }
 .sh-bridge-close { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-12); margin: var(--sp-12) 0 0; }
 
-/* Basis chip (12.6) and the linked key figure (12.5). */
+/* Basis chip (12.6). */
 .sh-basis { max-width: calc(172px * var(--ts)); }
 .sh-basis .sh-basis-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sh-basis.is-set { border-color: var(--active); }
-.sh-kpi.is-link { cursor: pointer; }
-.sh-kpi.is-link:hover { background: var(--active-wash); }
 
 /* ------------------------------------------------------------------------------------ */
 /* Overlays                                                                              */
@@ -384,38 +285,6 @@ html[data-mode="bridge"], html[data-mode="bridge"] body { height: auto; min-heig
   inset: 0;
   background: color-mix(in oklab, var(--ground) 62%, transparent);
 }
-
-/* "Why?" popover: 440 px, anchored under its button, overlays the page. */
-.sh-why { position: fixed; z-index: 42; }
-.sh-why-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
-.sh-why-head .u-pop-title { margin: 0; }
-.sh-why-close { width: calc(22px * var(--ts)); height: calc(22px * var(--ts)); }
-.sh-why-label {
-  margin: var(--sp-4) 0 var(--sp-12);
-  font-size: calc(11px * var(--ts));
-  line-height: calc(14px * var(--ts));
-  color: var(--muted);
-}
-.sh-why-gtitle {
-  margin: 0 0 var(--sp-4);
-  font-size: calc(12px * var(--ts));
-  line-height: calc(16px * var(--ts));
-  font-weight: 600;
-  color: var(--text);
-}
-.sh-why-list { display: grid; gap: var(--sp-4); }
-.sh-why-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--sp-8); }
-.sh-why-item.is-muted, .sh-why-item.is-muted .sh-why-link { color: var(--muted); }
-.sh-why-pts { min-width: 22px; color: var(--muted); font-size: calc(11px * var(--ts)); }
-.sh-why-link {
-  display: inline;
-  white-space: normal;
-  text-align: left;
-  font-size: inherit;
-  line-height: inherit;
-  font-weight: 400;
-}
-.sh-why-model { height: calc(16px * var(--ts)); }
 
 /* Company selector: a popover listbox under the ticker button. */
 .sh-sel {

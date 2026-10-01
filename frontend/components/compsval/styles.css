@@ -143,8 +143,10 @@ code, kbd, samp, time, data, output {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums lining-nums;
 }
-/* Chart text: metadata role (Plex Mono 11 / 14, muted) unless a .ch- rule says more. */
-svg text {
+/* Chart text: metadata role (Plex Mono 11 / 14, muted) unless a .ch- rule says more. The
+   company map (.sc-svg) is drawn in Python with its own type and colours as attributes, which
+   a CSS rule would override, so it is left out. */
+svg:not(.sc-svg) text {
   font-family: var(--font-mono);
   font-size: calc(11px * var(--ts));
   font-variant-numeric: tabular-nums lining-nums;

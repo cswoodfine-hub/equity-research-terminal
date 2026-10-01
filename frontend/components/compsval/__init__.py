@@ -1,19 +1,20 @@
-"""A bidirectional Streamlit component: the Comps tab's valuation view.
+"""A bidirectional Streamlit component: the Comps tab's Companies view.
 
-One iframe holds the whole workspace: the context bar, the conclusion banner, the KPI
-strip, drivers and risks, the two charts and the comparable-company table, with the
-company panel, the peer drawer and the methodology drawer at its right. The payload of
-``GET /comps/valuation`` arrives once, whole, and every change of peer set, basis,
-currency, preset, filter, exclusion or bridge input is recomputed by ``core.js`` inside
-the frame. Python hears three things only (design spec 7.5 and 12.9): a change of focal
-company, ``{"action": "focus", "ticker", "nonce"}``, a reload, ``{"action": "reload",
-"nonce"}``, and a link to one indication of the landscape, ``{"action": "indication",
-"indication_id", "ticker", "nonce"}``. The nonce makes a repeat of the same action a
-fresh value.
+One iframe holds the whole workspace (design company-scorecard.md, revision 4 of the
+frame). The Scorecard view opens first: the company map of the open company's cohort,
+drawn in Python by ``charts.company_map`` and passed in as ``chart_svg``, beside the ranked
+table of ``payload.scorecard``, with the company panel on a click and Compare for up to
+three companies when asked for. The Table view is the comparable-company table, its scope
+line, the folded position chart and the peer drawer, one click away. The payload of ``GET
+/comps/valuation`` arrives once, whole, and every change of peer set, basis, currency,
+preset, filter, exclusion or bridge input is recomputed by ``core.js`` inside the frame.
+Python hears two things only (spec 6.4): a change of focal company, ``{"action": "focus",
+"ticker", "nonce"}``, and a reload, ``{"action": "reload", "nonce"}``. The nonce makes a
+repeat of the same action a fresh value.
 
-The same component draws the valuation bridge on the Forecast tab (spec 12.5):
-``mode="bridge"`` is that one section and nothing else, under its own key, reading the
-peer set and metric chosen in Comps from the browser storage both frames share. A
+The same component draws the valuation bridge on the Forecast tab (comps-valuation.md
+12.5): ``mode="bridge"`` is that one section and nothing else, under its own key, reading
+the peer set and metric chosen in Comps from the browser storage both frames share. A
 bridge frame sends nothing back.
 
 Three rules the wrapper keeps:
@@ -22,9 +23,8 @@ Three rules the wrapper keeps:
   out as a bare ``NaN`` and the frame's ``JSON.parse`` would throw. ``_jsonable`` turns
   a non-finite float into None and a numpy scalar into a Python one, and a
   ``json.dumps(allow_nan=False)`` pass fails loud if anything slipped through.
-- A digest of the payload and one of the focal context, so the frame can skip its
-  rebuild when a render message was re-sent only because the frame's width or height
-  moved.
+- A digest of the payload and one of the chart, so the frame can skip a rebuild when a
+  render message was re-sent only because the frame's width or height moved.
 - A fixed key per mode, so a new focal company or a reload does not remount the iframe:
   sort, scroll and open panels survive the rerun. ``tab_index=0`` lets a keyboard user
   Tab in.
@@ -80,7 +80,7 @@ def _digest(clean: dict) -> str:
 # a running server does not re-import a module that sits under a dot-directory, as a
 # worktree does, so a script newer than the wrapper in memory reloads the wrapper rather
 # than call it with arguments it does not take.
-REVISION = 3
+REVISION = 4
 
 MODES = ("full", "bridge")
 # Per mode: the component key and the first frame height. The full view is fitted to
@@ -90,13 +90,13 @@ _DEFAULTS = {"full": ("compsval", 900), "bridge": ("compsval_bridge", 360)}
 
 
 def _without_detail(clean: dict) -> dict:
-    """The payload with every company's ``detail`` record left out. The bridge reads a
-    peer multiple and the focal company's per-share inputs, never the side panel's
-    record, and that record is two fifths of the payload."""
-    companies = clean.get("companies")
+    """The payload with every company's ``detail`` record and the scorecard left out. The
+    bridge reads a peer multiple and the focal company's per-share inputs, never the side
+    panel's record (two fifths of the payload) or the scores."""
+    out = {k: v for k, v in clean.items() if k != "scorecard"}
+    companies = out.get("companies")
     if not isinstance(companies, list):
-        return clean
-    out = dict(clean)
+        return out
     out["companies"] = [
         {k: v for k, v in record.items() if k != "detail"}
         if isinstance(record, dict) else record
@@ -104,9 +104,15 @@ def _without_detail(clean: dict) -> dict:
     return out
 
 
+def _svg_digest(svg: str) -> str:
+    """Twelve hex characters of the chart's markup, so the frame swaps the drawing only
+    when it changed."""
+    return hashlib.sha1(svg.encode("utf-8")).hexdigest()[:12]
+
+
 def comps_valuation(payload: dict, *, focal: str, engine: str, tokens: dict, live: bool,
-                    context=None, mode: str = "full", height=None, key=None):
-    """Render the valuation view, or its bridge alone, and return the frame's last
+                    mode: str = "full", height=None, key=None, chart_svg=None):
+    """Render the Companies view, or the bridge alone, and return the frame's last
     action.
 
     ``payload`` is the ``GET /comps/valuation`` body, all 70 companies. ``focal`` is the
@@ -115,16 +121,17 @@ def comps_valuation(payload: dict, *, focal: str, engine: str, tokens: dict, liv
     properties, and ``live`` False while the time machine is set, which the view does
     not follow and says so.
 
-    ``context`` is the ``GET /companies/{ticker}/comps-context`` body for the focal
-    company, or ``{"ticker", "error"}`` when that read failed; None leaves the two
-    evidence groups of Drivers and risks pending. ``mode`` is ``"full"`` or
-    ``"bridge"``. The bridge takes no context and no ``detail`` records. ``height`` is
-    the first frame height, used for the loading skeleton and as the fallback when the
-    frame cannot measure the page; ``key`` and ``height`` default per mode.
+    Revision 4 sends no focal context: the frame draws no catalyst or competition
+    evidence (Drivers and risks moved to the Catalysts tab, in Python). ``chart_svg`` is
+    the company map of the focal company's cohort (``charts.company_map``), or "" when the
+    focal company has no cohort chart; the frame shows it and binds its bubbles, and never
+    rebuilds it. ``mode`` is ``"full"`` or ``"bridge"``. The bridge takes no chart, no
+    scorecard and no ``detail`` records. ``height`` is the first frame height,
+    used for the loading skeleton and as the fallback when the frame cannot measure the
+    page; ``key`` and ``height`` default per mode.
 
     Returns ``{"action": "focus", "ticker", "nonce"}``, ``{"action": "reload",
-    "nonce"}``, ``{"action": "indication", "indication_id", "ticker", "nonce"}``, or
-    None before the first action. A bridge frame never sets a value.
+    "nonce"}``, or None before the first action. A bridge frame never sets a value.
     """
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}, not {mode!r}")
@@ -132,13 +139,13 @@ def comps_valuation(payload: dict, *, focal: str, engine: str, tokens: dict, liv
     clean = _jsonable(payload or {})
     if mode == "bridge":
         clean = _without_detail(clean)
-        context = None
     digest = _digest(clean)
-    clean_context = None if context is None else _jsonable(context)
-    context_digest = "" if clean_context is None else _digest(clean_context)
+    chart = {}
+    if mode == "full":
+        svg = chart_svg if isinstance(chart_svg, str) else ""
+        chart = {"chart_svg": svg, "chart_digest": _svg_digest(svg)}
     return _component(payload=clean, digest=digest, focal=focal or "",
                       engine=engine or "", tokens=_jsonable(dict(tokens or {})),
                       live=bool(live), shared_css=SHARED_CSS,
                       height=int(default_height if height is None else height),
-                      mode=mode, context=clean_context, context_digest=context_digest,
-                      key=key or default_key, default=None, tab_index=0)
+                      mode=mode, key=key or default_key, default=None, tab_index=0, **chart)

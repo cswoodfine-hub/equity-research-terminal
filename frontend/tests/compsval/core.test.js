@@ -9,20 +9,22 @@ import {fileURLToPath} from "node:url";
 import * as core from "../../components/compsval/core.js";
 
 const {
-  quantile, median, mean, summarize, percentileRank, quartileSide, premium, isInLine, fences, outlierClass, ols,
+  quantile, median, mean, summarize, percentileRank, premium, fences, outlierClass,
   multipleDirection, cell, companyType, isPreRevenue, primaryMetric, relevance, defaultPeers, mixedModels,
-  peerStats, bridge, scatterModel, dotplotModel, observations, deriveView, defaultState, reduce, persistable,
+  peerStats, bridge, dotplotModel, defaultState, reduce, persistable,
   migrateState, toCSV, toTSV, compareCells, normKey, handleKey, KEYMAP, COMMANDS, lintCopy, NA_TEXT, STATE_COPY,
   flagText, COLUMNS, FLAG_SEVERITY, UNDO_MS, PREMIUM_METRICS, peerSetTickers, metricAvailability,
 } = core;
+
+// Revision 4 (company-scorecard.md 5.2): the tests of the comparables table run on the Table view.
+// The conclusion banner, the KPI strip, Drivers and risks and the scatter left the frame, and
+// their tests with them (build step 6).
+const deriveView = (p, s, extra = {}) => core.deriveView(p, s && s.ui ? {...s, ui: {...s.ui, view: "table"}} : s, extra);
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIX = JSON.parse(fs.readFileSync(path.join(HERE, "fixture_min.json"), "utf8"));
 const PAYLOAD_PATH = path.join(HERE, "fixture_payload.json");
 const PAYLOAD = fs.existsSync(PAYLOAD_PATH) ? JSON.parse(fs.readFileSync(PAYLOAD_PATH, "utf8")) : null;
-// Focal contexts of GET /companies/{ticker}/comps-context (section 12.2), keyed by ticker: the
-// reference bodies for AZN, LLY, NVO, VKTX, CRSP, BAYN, AMGN and VRTX on the 2026-09-29 book.
-const CONTEXTS = JSON.parse(fs.readFileSync(path.join(HERE, "fixture_context.json"), "utf8"));
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const byT = (p, t) => p.companies.find((c) => c.ticker === t);
@@ -116,25 +118,6 @@ test("2 percentileRank mid-rank with ties; premium both directions and nulls", (
   assert.equal(multipleDirection("fcf_yield"), "richer_down");
 });
 
-// 3 ---------------------------------------------------------------------------------------------
-test("3 quartileSide agrees with the p75 row, not the mid-rank percentile", () => {
-  const peers = [1, 2, 3, 4, 5, 6, 7, 8];
-  assert.equal(quantile(peers, 0.75), 6.25);
-  assert.equal(percentileRank(6.1, peers), 75);
-  assert.notEqual(quartileSide(6.1, peers), "top");
-  assert.equal(quartileSide(6.25, peers), "top");
-  assert.equal(quartileSide(1, peers), "bottom");
-  assert.equal(quartileSide(9, [1, 2, 3, 4]), null);
-});
-
-// 4 ---------------------------------------------------------------------------------------------
-test("4 isInLine rounds to whole percents", () => {
-  assert.equal(isInLine(0.044), true);
-  assert.equal(isInLine(0.045), false);
-  assert.equal(isInLine(-0.049), false);
-  assert.equal(isInLine(null), false);
-});
-
 // 5 ---------------------------------------------------------------------------------------------
 test("5 fences and outlierClass", () => {
   assert.equal(fences([1, 2, 3, 4]), null);
@@ -144,17 +127,6 @@ test("5 fences and outlierClass", () => {
   assert.equal(outlierClass(quantile(v, 0.75) + 3.1 * iqr, v), "extreme");
   assert.equal(outlierClass(quantile(v, 0.75) + 2 * iqr, v), "mild");
   assert.equal(outlierClass(3, v), null);
-});
-
-// 6 ---------------------------------------------------------------------------------------------
-test("6 ols recovers an exact line and needs 5 points", () => {
-  const pts = [0, 1, 2, 3, 4].map((x) => ({x, y: 2 + 3 * x}));
-  const fit = ols(pts);
-  assert.ok(Math.abs(fit.slope - 3) < 1e-12 && Math.abs(fit.intercept - 2) < 1e-12);
-  assert.equal(fit.r2, 1);
-  assert.equal(fit.n, 5);
-  assert.equal(ols(pts.slice(0, 4)), null);
-  assert.equal(ols([1, 1, 1, 1, 1].map((x, i) => ({x, y: i}))), null);
 });
 
 // 7 ---------------------------------------------------------------------------------------------
@@ -423,7 +395,8 @@ test("17 defaultPeers: whole cohort, cut, pools, reasons and warnings (12.8)", (
     const v = view(PAYLOAD, "AZN");
     assert.equal(v.header.peerSet.full, "Big pharma, commercial, 17");
     assert.equal(v.header.peerSet.tooltip, "Every big pharma company at the commercial stage. A cohort of more than 20 is cut to the 15 most relevant.");
-    assert.match(v.conclusion.headline, /the median of 14 big pharma peers, 15\.4×\.$/);
+    const pe = (id) => v.table.summary.find((s) => s.id === id).cells.pe;
+    assert.deepEqual([pe("median").text, pe("n").text], ["15.4", "14"]);
     // Stored edits still apply on top, and an added ticker now in the system set is a duplicate.
     const st = {...defaultState(PAYLOAD, {focal: "AZN", engine: "pharma"}), peerEdits: {AZN: {added: ["LLY", "CRSP"], removed: ["PFE"], notes: {}}}};
     const info = peerSetTickers(PAYLOAD, st);
@@ -462,7 +435,7 @@ test("19 peerStats: focal, exclusions, outliers; filters never change it", () =>
   const a = deriveView(p, st), b = deriveView(p, withF);
   assert.equal(b.table.rows.length < a.table.rows.length, true);
   assert.deepEqual(b.table.summary.find((s) => s.id === "median").cells.pe, a.table.summary.find((s) => s.id === "median").cells.pe);
-  assert.equal(b.conclusion.headline, a.conclusion.headline);
+  assert.deepEqual(b.primary, a.primary);
 });
 
 // 20 --------------------------------------------------------------------------------------------
@@ -527,28 +500,6 @@ test("20 bridge: self-consistency, the AZN example, EV path, claims, shares, gua
   assert.match(nb.reason, /^No bridge for PEG\./);
 });
 
-// 21 --------------------------------------------------------------------------------------------
-test("21 scatterModel regions, median fallback, direction words, disabled", () => {
-  const xs = [0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35];
-  const peers = xs.map((x, i) => rec(`S${i}`, {g: x, pe: 10 + 50 * x}));
-  const focalAt = (x, rel) => rec("F", {g: x, pe: (10 + 50 * x) * (1 + rel)});
-  const reg = (x, rel) => scatterModel(focalAt(x, rel), rowsOf(peers), "revenue_growth", "pe", ctx()).region.id;
-  assert.equal(reg(0.3, 0.3), "above_better");
-  assert.equal(reg(0.05, 0.3), "above_worse");
-  assert.equal(reg(0.3, -0.3), "below_better");
-  assert.equal(reg(0.05, -0.3), "below_worse");
-  assert.equal(reg(0.2, 0.05), "near");
-  const neg = [0.0, 0.05, 0.1, 0.15, 0.2, 0.25].map((x, i) => rec(`N${i}`, {g: x, pe: 20 - 50 * x}));
-  const fm = scatterModel(rec("F", {g: 0.6, pe: 12}), rowsOf(neg), "revenue_growth", "pe", ctx());
-  assert.equal(fm.reference, "median");
-  assert.match(fm.interpretation, /the peer trend gives no usable value/);
-  const loePeers = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6].map((l, i) => rec(`L${i}`, {pe: 10 + 10 * l, hc: {loe_share_5y: l}}));
-  const lf = scatterModel(rec("F", {pe: 30, hc: {loe_share_5y: 0.05}}), rowsOf(loePeers), "loe_share_5y", "pe", ctx());
-  assert.match(lf.region.label, /better than median/);
-  const few = scatterModel(focalAt(0.2, 0.1), rowsOf(peers.slice(0, 2)), "revenue_growth", "pe", ctx());
-  assert.match(few.disabledReason, /^Only 2 peers have both revenue growth and P\/E; at least 3 are needed\.$/);
-});
-
 // 22 --------------------------------------------------------------------------------------------
 test("22 dot plot: domain, not plotted counts, clamped extreme with a label", () => {
   const peers = pharmaPeers([10, 11, 12, 13, 14, 100]);
@@ -568,154 +519,7 @@ test("22 dot plot: domain, not plotted counts, clamped extreme with a label", ()
   assert.ok(pts.some((p) => p.isFocal));
 });
 
-// 23 --------------------------------------------------------------------------------------------
-test("23 observations: quartile rules, severity, suppression, own copy", () => {
-  const four = [0.01, 0.02, 0.03, 0.04].map((g, i) => rec(`O${i}`, {g}));
-  const focal = rec("F", {g: 0.2});
-  assert.ok(!observations(focal, rowsOf(four), ctx()).premium.some((o) => o.id === "growth_top"));
-  const five = four.concat([rec("O4", {g: 0.05})]);
-  assert.ok(observations(focal, rowsOf(five), ctx()).premium.some((o) => o.id === "growth_top"));
-  const eight = [1, 2, 3, 4, 5, 6, 7, 8].map((g, i) => rec(`Q${i}`, {g: g / 100}));
-  const at61 = observations(rec("F", {g: 0.061}), rowsOf(eight), ctx());
-  assert.ok(!at61.premium.some((o) => o.id === "growth_top"));
-  const clin = rec("CL", {stage: "clinical", rev: null, runway: 10});
-  const rs = observations(clin, rowsOf(five), ctx()).discount.find((o) => o.id === "runway_short");
-  assert.equal(rs.severity, "red");
-  const margins = [0.1, 0.12, 0.14, 0.16, 0.18].map((m, i) => rec(`M${i}`, {op: 10000 * m}));
-  const lly = rec("LLY_LIKE", {op: 4560, derived: true,
-    flags: [{code: "derived_operating_income", field: "periods.FY0.operating_income_usd_m", severity: "amber", params: {}}]});
-  const lo = observations(lly, rowsOf(margins), ctx());
-  assert.ok(!lo.premium.some((o) => o.id === "margin_top"));
-  assert.ok(lo.suppressed.some((s) => s.id === "margin_top"));
-  const thin = observations(rec("TH", {n1: 2}), rowsOf(five), ctx()).discount.find((o) => o.id === "estimates_thin");
-  assert.equal(thin.long, "Only 2 analysts cover FY1 EPS.");
-  const disp = [0.1, 0.12, 0.14, 0.16, 0.18].map((d, i) => rec(`D${i}`, {disp: d}));
-  const wide = observations(rec("W", {disp: 0.4}), rowsOf(disp), ctx()).discount.find((o) => o.id === "estimates_wide");
-  assert.match(wide.long, /^Analyst EPS estimates span 40% of the mean, wider than most peers \(median 14%\)\.$/);
-  assert.equal(observations(focal, rowsOf(five), ctx()).notAssessed.length, 2);
-});
-
-// 24 --------------------------------------------------------------------------------------------
 const view = (p, focal, patch = {}) => deriveView(p, {...defaultState(p, {focal, engine: ""}), ...patch});
-test("24 conclusion templates", () => {
-  const ok = view(payloadOf([AZN()].concat(pharmaPeers([12, 14, 15.36, 16, 18]))), "AZN");
-  assert.equal(ok.header.peerSet.full, "Big pharma, commercial, 5");
-  assert.equal(ok.conclusion.state, "ok");
-  assert.equal(ok.conclusion.headline, "AZN trades at 16.2× P/E (NTM), a 6% premium to the median of 5 big pharma peers, 15.4×.");
-  assert.deepEqual(ok.conclusion.token, {text: "+6%", caption: "premium to median", dir: "up"});
-  assert.match(ok.conclusion.support, /^Alongside the premium, AZN has /);
-  assert.ok(!/associated with/.test(ok.conclusion.support));
-  assert.equal(ok.conclusion.label, "System-generated summary from the table below. It states associations, not causes.");
-  assert.equal(ok.conclusion.labelShort, "System-generated");
-  assert.ok(!("tone" in ok.conclusion.token));
-
-  const inl = view(payloadOf([AZN()].concat(pharmaPeers([14, 15, 16, 17, 18]))), "AZN");
-  assert.equal(inl.conclusion.headline, "AZN trades at 16.2× P/E (NTM), in line with the median of 5 big pharma peers, 16.0× (+1%).");
-  assert.equal(inl.conclusion.token.caption, "in line with median");
-  assert.equal(inl.conclusion.token.dir, null);
-
-  const fcfPeers = [6000, 8000, 10000, 12000, 14000].map((fcf, i) => rec(`FY${i}`, {pe: 15, fcf}));
-  const fcf = view(payloadOf([AZN()].concat(fcfPeers)), "AZN", {primaryOverride: {pharma: "fcf_yield"}});
-  assert.equal(fcf.conclusion.headline, "AZN's FCF yield of 4.5% (FY2025) sits against a median of 5.0% for 5 big pharma peers: a 10% premium on this measure.");
-
-  const low = view(payloadOf([AZN()].concat(pharmaPeers([12, 14, 16], {nd: null, rev: 50}))), "AZN");
-  assert.equal(low.conclusion.state, "low_confidence");
-  assert.equal(low.conclusion.headline, "AZN trades at 16.2× P/E (NTM). Only 3 peers have a value, so no premium or discount is stated.");
-  assert.ok(!/%/.test(low.conclusion.headline));
-  assert.equal(low.conclusion.bar, "flag");
-  assert.ok(low.conclusion.chips.some((c) => c.text === "Low confidence"));
-
-  const few = view(payloadOf([AZN()].concat([rec("K1", {rev: 50, nd: null, pe: 20}), rec("K2", {rev: 50, nd: null, e1: -1, e2: -1})])), "AZN");
-  assert.equal(few.conclusion.state, "too_few");
-  assert.equal(few.conclusion.headline, "AZN trades at 16.2× P/E (NTM). One peer has a value, so there is no comparison.");
-  assert.equal(few.conclusion.support, "Widen the set to adjacent subsectors, or add peers with A.");
-
-  const nocash = rec("NC", {engine: "cellgene", stage: "clinical", rev: null, cash: null, e1: -1, e2: -1,
-    patch: (r) => { r.ev.cash_usd_m = null; r.na = {"ev.cash_usd_m": "no_cash"}; }});
-  const clinPeers = [1.5, 1.9, 2.07, 2.5, 3.0].map((m, i) => rec(`CG${i}`, {engine: "cellgene", stage: "clinical", rev: null, cash: 2000, mcap: 2000 * m, e1: -2, e2: -1.5, phase: "Phase 2", runway: 20 + 5 * i}));
-  const nm = view(payloadOf([nocash].concat(clinPeers)), "NC");
-  assert.equal(nm.conclusion.state, "no_multiple");
-  assert.equal(nm.conclusion.headline, "No valuation multiple has both a value for NC and 2 or more peer values.");
-
-  const p = payloadOf([AZN()].concat(pharmaPeers([12, 14, 15.36, 16, 18])));
-  let st = defaultState(p, {focal: "AZN", engine: ""});
-  for (const t of ["SP1", "SP2", "SP3", "SP4", "SP5"]) st = reduce(st, {type: "REMOVE_PEER", ticker: t, now: 0}, p);
-  const none = deriveView(p, st);
-  assert.equal(none.conclusion.state, "no_peers");
-  assert.equal(none.conclusion.headline, "No peers are selected, so there is no comparison.");
-
-  const clin = view(payloadOf([CRSP()].concat(clinPeers)), "CRSP");
-  assert.equal(clin.conclusion.headline, "CRSP trades at 2.2× market cap to cash (30 Jun 2026), a 7% premium to the median of 5 clinical cell and gene peers, 2.1×.");
-  assert.match(clin.conclusion.support, /^Enterprise value is \$3\.5bn, and cash runway is 77 months on trailing burn\./);
-
-  // Tested association: revenue growth and P/E rise together across these peers.
-  const assocPeers = [0.0, 0.02, 0.04, 0.06, 0.08].map((g, i) => rec(`AS${i}`, {g, pe: 10 + 40 * g}));
-  const assoc = view(payloadOf([AZN()].concat(assocPeers)), "AZN", {scatter: {x: "revenue_growth", y: "pe", size: "market_cap", trend: true, colorBy: "none", logY: false}});
-  assert.match(assoc.conclusion.support, /^The premium is associated with revenue growth in the top quartile of peers/);
-  assert.match(assoc.conclusion.supportShort, /^Associated with revenue growth top quartile \(R² 1\.00\)$/);
-
-  // A model observation never enters the support.
-  const modelPeers = pharmaPeers([12, 14, 15.36, 16, 18]).map((r) => { r.model = {state: "modelled", pipeline_rnpv_usd_m: 100}; return r; });
-  const mv = view(payloadOf([AZN()].concat(modelPeers)), "AZN");
-  assert.ok(mv.observations.premium.some((o) => o.id === "pipeline_value"));
-  assert.ok(!/modelled pipeline/i.test(mv.conclusion.support));
-  assert.ok(!/model/i.test(mv.conclusion.supportShort));
-
-  // Every headline and short support within the limits, for every fixture company.
-  const all = [FIX].concat(PAYLOAD ? [PAYLOAD] : []);
-  for (const pl of all) {
-    for (const c of pl.companies) {
-      const v = view(pl, c.ticker);
-      assert.equal(v.error, null, c.ticker);
-      assert.ok(v.conclusion.headline.length <= 160, `${c.ticker}: ${v.conclusion.headline}`);
-      assert.ok(v.conclusion.supportShort.length <= 90, `${c.ticker}: ${v.conclusion.supportShort}`);
-      assert.ok(v.conclusion.lookNext.text.length <= 60, `${c.ticker}: ${v.conclusion.lookNext.text}`);
-      assert.deepEqual(v.sectionErrors, {}, c.ticker);
-    }
-  }
-});
-
-// 25 --------------------------------------------------------------------------------------------
-test("25 confidence: AZN high on the live payload, penalties elsewhere, bar colour", {skip: !PAYLOAD}, () => {
-  const azn = view(PAYLOAD, "AZN");
-  assert.equal(azn.primary.colId, "pe");
-  assert.equal(azn.conclusion.confidence.score, 2);
-  assert.equal(azn.conclusion.confidence.level, "high");
-  assert.ok(!azn.conclusion.confidence.reasons.some((r) => /IFRS|estimate/i.test(r)));
-  assert.equal(azn.conclusion.bar, "active");
-  const gild = view(PAYLOAD, "GILD");
-  assert.equal(gild.primary.colId, "ev_ebitda");
-  assert.ok(gild.conclusion.confidence.reasons.some((r) => /Peers mix IFRS and US GAAP filers, and EV\/EBITDA uses filed figures/.test(r)));
-  assert.ok(gild.conclusion.confidence.reasons.some((r) => /peer EBITDA figures are derived and may be overstated/.test(r)));
-  assert.equal(gild.conclusion.bar, "flag");
-});
-test("25b confidence: a padded set costs the appropriate-peer point and turns the bar amber", () => {
-  const bf = rec("BF", {engine: "biotech", pe: 20});
-  const poolA = [18, 20, 22].map((pe, i) => rec(`BA${i}`, {engine: "biotech", pe}));
-  const poolB = [0, 1].map((i) => rec(`BB${i}`, {engine: "biotech", stage: "clinical", rev: null, price: 1, shares: 5, g: null, e1: -1, e2: -1}));
-  const v = view(payloadOf([bf, ...poolA, ...poolB]), "BF");
-  assert.equal(v.analysis.def.warning, "padded");
-  assert.ok(v.conclusion.chips.some((c) => c.text === "Weak peer set"));
-  assert.ok(v.conclusion.confidence.reasons.includes("Only 3 of 5 peers score 40 or more on relevance"));
-  assert.equal(v.conclusion.bar, "flag");
-  assert.ok(v.peers.weak && /added below relevance 40/.test(v.peers.weak.title));
-});
-
-// 26 --------------------------------------------------------------------------------------------
-test("26 lookNext: a costing flag on the primary cell first, else the strongest observation", () => {
-  const a = AZN();
-  a.flags.find((f) => f.code === "estimate_range_wide").params.n = 3;
-  a.periods.FY1.eps_n = 3;
-  const v = view(payloadOf([a].concat(pharmaPeers([12, 14, 15.36, 16, 18]))), "AZN");
-  assert.equal(v.conclusion.lookNext.text, "Check AZN's P/E data: wide estimate range");
-  assert.deepEqual(v.conclusion.lookNext.target, {kind: "cell", colId: "pe", ticker: "AZN"});
-  const w = view(payloadOf([AZN()].concat(pharmaPeers([12, 14, 15.36, 16, 18]))), "AZN");
-  const strongest = w.observations.premium.concat(w.observations.discount).filter((o) => o.provenance !== "M")
-    .sort((x, y) => y.strength - x.strength)[0];
-  assert.equal(w.conclusion.lookNext.text, strongest.tag);
-  assert.ok(w.conclusion.lookNext.text.length <= 60);
-});
-
 // 27 --------------------------------------------------------------------------------------------
 test("27 house style over every generated and catalogued string", () => {
   const names = [];
@@ -736,19 +540,9 @@ test("27 house style over every generated and catalogued string", () => {
   for (const c of COMMANDS) check(c.label, "label", `command ${c.id}`);
   const views = [view(FIX, "AZN"), view(FIX, "CRSP")].concat(PAYLOAD ? ["AZN", "LLY", "GILD", "CRSP", "VRTX", "PFE", "BNTX", "KRYS", "ARWR"].map((t) => view(PAYLOAD, t)) : []);
   for (const v of views) {
-    const c = v.conclusion;
-    check(c.headline, "sentence", "headline"); check(c.support, "sentence", "support");
-    check(c.supportShort, "label", "supportShort"); check(c.label, "sentence", "label"); check(c.labelShort, "label", "labelShort");
-    check(c.lookNext.text, "label", "lookNext");
-    for (const ch of c.chips) { check(ch.text, "label", "chip"); check(ch.tooltip, "sentence", "chip tooltip"); }
-    for (const g of c.why.groups) { check(g.title, "label", "why title"); for (const it of g.items) check(it.text, "sentence", "why item"); }
-    for (const o of v.observations.premium.concat(v.observations.discount)) {
-      check(o.long, "sentence", `obs ${o.id}`); check(o.short, "sentence", `obs short ${o.id}`); check(o.tag, "label", `obs tag ${o.id}`);
-    }
-    for (const t of v.observations.notAssessed) check(t, "sentence", "not assessed");
-    for (const k of v.kpis) { check(k.label, "label", `kpi ${k.id}`); check(k.tooltip, "sentence", `kpi tooltip ${k.id}`); check(k.period, "label", `kpi period ${k.id}`); }
+    check(v.primary.reasonText, "sentence", "primary");
     for (const s of v.states) { check(s.title, "label", `state ${s.id}`); check(s.detail, "sentence", `state ${s.id}`); }
-    check(v.scatter.interpretation, "sentence", "scatter"); check(v.dotplot.description, "sentence", "dotplot");
+    check(v.dotplot.description, "sentence", "dotplot");
     check(v.bridge.description, "sentence", "bridge");
     for (const it of v.scope.items) check(it.text, "label", "scope");
     for (const sec of v.method.sections) { check(sec.title, "label", "method"); for (const b of sec.body) check(b, "sentence", "method body"); }
@@ -778,11 +572,11 @@ test("28 reduce: identity on no-ops, sorting, exclusions per focal, undo", () =>
     {type: "DELETE_LAYOUT", name: "none"}, {type: "LOAD_LAYOUT", name: "none"}, {type: "LOAD_SET", name: "none"},
     {type: "DELETE_SUBGROUP", name: "none"}, {type: "SET_OUTLIERS", mode: s0.outliers}, {type: "SET_CF_MODE", mode: s0.cfMode},
     {type: "SET_SINGLE_KEYS", on: true}, {type: "SET_COHORTS", ids: []}, {type: "SET_STATS_GROUP", group: "all"},
-    {type: "SET_LOWER_TAB", tab: "obs"}, {type: "SET_INSIGHT_TAB", tab: "catalysts"}, {type: "SET_INSIGHT_TAB", tab: "bridge"},
-    {type: "CLOSE_PEERS"}, {type: "ADOPT_PERSISTED", local: null, session: null},
-    {type: "SET_NARROW_TAB", tab: "position"}, {type: "SET_LAPTOP_TAB", tab: "position"},
+    {type: "SET_LOWER_TAB", tab: "obs"}, {type: "CLOSE_PEERS"}, {type: "ADOPT_PERSISTED", local: null, session: null},
     {type: "HIDE_COLUMN", colId: "country"}, {type: "ADD_PEER", ticker: "AZN"}, {type: "NOT_AN_ACTION"},
-    {type: "SET_SCATTER"}, {type: "SET_TEXT_SIZE", delta: -1}, {type: "SORT", colId: "nope"}, {type: "RESIZE_COLUMN", colId: "nope", width: 90},
+    // Revision 4: the actions of the scatter, "Why?" and Drivers and risks are gone.
+    {type: "SET_SCATTER", trend: false}, {type: "TOGGLE_WHY"}, {type: "SET_INSIGHT_TAB", tab: "competition"},
+    {type: "SET_NARROW_TAB", tab: "position"}, {type: "SET_LAPTOP_TAB", tab: "position"}, {type: "SET_TEXT_SIZE", delta: -1}, {type: "SORT", colId: "nope"}, {type: "RESIZE_COLUMN", colId: "nope", width: 90},
     {type: "SET_CHART_STRIP", layout: "laptop", value: "bad"}, {type: "SET_NOTE", ticker: "AZN", text: ""},
     {type: "SET_PEER_NOTE", ticker: "PFE", text: ""}, {type: "SET_BRIDGE", patch: {}}, {type: "MOVE_COLUMN", colId: "nope", dir: 1},
   ];
@@ -793,15 +587,15 @@ test("28 reduce: identity on no-ops, sorting, exclusions per focal, undo", () =>
     {type: "PIN_COLUMN", colId: "pe"}, {type: "RESIZE_COLUMN", colId: "pe", width: 100}, {type: "SORT", colId: "pe"},
     {type: "SET_FILTER", filter: {colId: "pe", op: ">=", value: 10}}, {type: "TOGGLE_EXCLUDE", ticker: "PFE"},
     {type: "SET_OUTLIERS", mode: "exclude"}, {type: "SET_PRIMARY", colId: "ev_ebitda"}, {type: "SET_DOT_METRIC", colId: "ev"},
-    {type: "SET_SCATTER", trend: false}, {type: "SET_CF_MODE", mode: "premium"}, {type: "CYCLE_DENSITY"},
+    {type: "SET_CF_MODE", mode: "premium"}, {type: "CYCLE_DENSITY"},
     {type: "SET_TEXT_SIZE", delta: 1}, {type: "TOGGLE_SUMMARY_ROWS"}, {type: "TOGGLE_SUMMARY_EXPANDED", layout: "laptop"},
     {type: "SET_CHART_STRIP", layout: "laptop", value: "collapsed"}, {type: "SAVE_LAYOUT", name: "Mine", now: 0},
     {type: "SAVE_SET", name: "Obesity", now: 0}, {type: "SET_SUBGROUP", name: "Big", tickers: ["PFE"]},
     {type: "SET_STATS_GROUP", group: "US"}, {type: "SET_COHORTS", ids: ["system"]}, {type: "SET_PEER_NOTE", ticker: "PFE", text: "x"},
     {type: "SET_NOTE", ticker: "AZN", text: "note", now: 0}, {type: "SET_BRIDGE", patch: {stat: "mean"}},
     {type: "SET_SINGLE_KEYS", on: false}, {type: "OPEN_DETAIL", ticker: "PFE"}, {type: "FOCUS_CELL", row: "AZN", col: "pe"},
-    {type: "TOGGLE_ROW_EXPANDED", ticker: "PFE"}, {type: "TOGGLE_WHY"}, {type: "OPEN_METHOD", anchor: "confidence"},
-    {type: "SET_INSIGHT_TAB", tab: "competition"}, {type: "OPEN_PEERS"}, {type: "OPEN_PEERS", search: true},
+    {type: "TOGGLE_ROW_EXPANDED", ticker: "PFE"}, {type: "OPEN_METHOD", anchor: "stats"},
+    {type: "OPEN_PEERS"}, {type: "OPEN_PEERS", search: true},
     {type: "OPEN_OVERLAY", overlay: "palette"}, {type: "SHOW_COLUMN", colId: "country"},
     {type: "HIDE_COLUMN", colId: "pe"},
   ];
@@ -973,9 +767,8 @@ test("payload: deriveView for AZN, LLY, GILD, CRSP, VRTX and PFE", {skip: !PAYLO
     const v = view(PAYLOAD, t);
     assert.equal(v.error, null, t);
     assert.deepEqual(v.sectionErrors, {}, t);
-    assert.equal(v.kpis.length, 6, t);
     assert.ok(v.table.rows.length >= 2, t);
-    assert.ok(v.conclusion.headline.startsWith(t), t);
+    assert.equal(v.focal.ticker, t);
   }
 });
 
@@ -995,10 +788,7 @@ test("palette extras are generated, searchable and in house style", () => {
 // Revision 3 (docs/design/comps-valuation.md, section 12). Numbers follow the list in 12.11.
 // =============================================================================================
 
-const {flagMarks, flagTouches, indicationTitle, indicationProse, mergeBridge, CONTEXT_NA_TEXT, PRESETS} = core;
-const viewCtx = (p, focal, context, patch = {}) => deriveView(p, {...defaultState(p, {focal, engine: ""}), ...patch}, {context});
-const ctxOf = (t) => clone(CONTEXTS[t]);
-const itemIds = (list) => list.map((i) => i.id);
+const {flagMarks, flagTouches, mergeBridge, PRESETS} = core;
 
 // R3.2 -----------------------------------------------------------------------------------------
 test("R3.2 presets: nine columns each, the lists of 12.7", () => {
@@ -1141,7 +931,6 @@ test("R3.3b ticker markers follow the confidence points; the rest lives in the d
   a.flags.find((f) => f.code === "estimate_range_wide").params.n = 3;
   a.periods.FY1.eps_n = 3;
   const costing = view(payloadOf([a].concat(pharmaPeers([12, 14, 15.36, 16, 18]))), "AZN");
-  assert.ok(costing.conclusion.confidence.points.some((p) => p.points === -1 && /FY1 EPS estimates run/.test(p.text)));
   assert.deepEqual(costing.table.rows[0].tickerFlags, ["estimate_range_wide"]);
   assert.equal(costing.table.rows[0].tickerLines.length, 1);
   assert.ok(costing.table.rows[0].cells.ticker.amber);
@@ -1153,12 +942,10 @@ test("R3.3b ticker markers follow the confidence points; the rest lives in the d
   const peers = (nDerived) => [0, 1, 2, 3, 4].map((i) => rec(`P${i}`, {ebitda: 2500 + 200 * i, ...(i < nDerived ? {derived: true, flags: dflag} : {})}));
   const two = view(payloadOf([focal, ...peers(2)]), "F0");
   assert.equal(two.primary.colId, "ev_ebitda");
-  assert.ok(two.conclusion.confidence.reasons.some((r) => /2 of 5 peer EBITDA figures are derived/.test(r)));
   const flagged = two.table.rows.filter((r) => r.tickerFlags.length).map((r) => r.ticker).sort();
   assert.deepEqual(flagged, ["P0", "P1"]);
   assert.deepEqual(two.table.rows.find((r) => r.ticker === "P0").tickerFlags, ["derived_operating_income"]);
   const one = view(payloadOf([focal, ...peers(1)]), "F0");
-  assert.ok(!one.conclusion.confidence.reasons.some((r) => /derived/.test(r)));
   assert.deepEqual(one.table.rows.filter((r) => r.tickerFlags.length), []);
   assert.ok(one.table.rows.find((r) => r.ticker === "P0").cells.ev_ebitda.amber);   // the cell marker stays
   // Any row: a failed view source and a failed calculation.
@@ -1175,456 +962,12 @@ test("R3.3b ticker markers follow the confidence points; the rest lives in the d
   assert.ok(row("BR").cells.ticker.red);
 });
 
-// R3.4 -----------------------------------------------------------------------------------------
-test("R3.4 insight.state: pending, error, ok; the pending view keeps the metric items", {skip: !PAYLOAD}, () => {
-  const none = viewCtx(PAYLOAD, "AZN", null);
-  assert.equal(none.insight.state, "pending");
-  assert.equal(none.insight.ticker, "AZN");
-  assert.equal(none.insight.message.title, "Loading catalysts and competition for AZN");
-  assert.equal(none.insight.message.detail, "They arrive with the page once the company changes.");
-  assert.equal(none.insight.message.severity, "info");
-  assert.deepEqual([none.insight.catalysts.state, none.insight.competition.state], ["pending", "pending"]);
-  assert.deepEqual([none.insight.catalysts.rows, none.insight.competition.rows], [[], []]);
-  assert.equal(none.insight.catalysts.empty, none.insight.message);
-  // The metric-linked observations are client data and show at once.
-  assert.deepEqual(itemIds(none.insight.valuation.premium), itemIds(none.observations.premium));
-  assert.deepEqual(itemIds(none.insight.valuation.discount), itemIds(none.observations.discount));
-  assert.ok(none.insight.valuation.premium.length > 0);
-  for (const it of none.insight.valuation.premium.concat(none.insight.valuation.discount)) {
-    assert.equal(it.kind, "metric");
-    assert.equal(it.link.kind, "column");
-    assert.equal(it.linkLabel, core.COLUMN_BY_ID[it.link.colId].label);
-    assert.deepEqual(it.chips.map((c) => c.text), it.provenance === "M" ? ["Model output"] : []);
-  }
-  assert.deepEqual(none.insight.valuation.notAssessed.slice(0, 2), none.observations.notAssessed);
-  // Another company's context is never shown.
-  const other = viewCtx(PAYLOAD, "AZN", ctxOf("LLY"));
-  assert.equal(other.insight.state, "pending");
-  assert.deepEqual(other.insight.competition.rows, []);
-  assert.deepEqual(deriveView(PAYLOAD, defaultState(PAYLOAD, {focal: "AZN"})).insight.state, "pending");
-  // Error context, and a schema this view does not read.
-  const err = viewCtx(PAYLOAD, "AZN", {ticker: "AZN", error: "HTTP 500"});
-  assert.equal(err.insight.state, "error");
-  assert.equal(err.insight.message.title, "Catalysts and competition did not load");
-  assert.equal(err.insight.message.detail, "The API did not answer /companies/AZN/comps-context (HTTP 500). Reload with the reload button.");
-  assert.equal(err.insight.message.severity, "amber");
-  assert.deepEqual([err.insight.catalysts.state, err.insight.competition.state], ["error", "error"]);
-  const old = viewCtx(PAYLOAD, "AZN", {...ctxOf("AZN"), schema: 2});
-  assert.equal(old.insight.state, "error");
-  assert.equal(old.insight.message.title, "This view is out of date");
-  assert.match(old.insight.message.detail, /reads data schema 1 and the API sent 2/);
-  // A good context.
-  const ok = viewCtx(PAYLOAD, "AZN", ctxOf("AZN"));
-  assert.deepEqual([ok.insight.state, ok.insight.message, ok.insight.notice], ["ok", null, null]);
-  assert.deepEqual([ok.insight.catalysts.state, ok.insight.competition.state], ["ok", "ok"]);
-  assert.deepEqual(ok.sectionErrors, {});
-  // The model not yet computed: one line above both groups.
-  const cold = viewCtx(PAYLOAD, "AZN", {...ctxOf("AZN"), complete: false, incomplete_reason: "model_not_computed"});
-  assert.equal(cold.insight.notice, "The model value has not been computed yet. Reload in a minute.");
-  // The banner never reads the context: support, the short support and "Look next" are the same.
-  for (const k of ["headline", "support", "supportShort"]) assert.equal(ok.conclusion[k], none.conclusion[k], k);
-  assert.deepEqual(ok.conclusion.lookNext, none.conclusion.lookNext);
-  assert.deepEqual(ok.observations, none.observations);
-});
-
-// R3.5 -----------------------------------------------------------------------------------------
-test("R3.5 side rules: the four context rules, their thresholds and exact sentences", {skip: !PAYLOAD}, () => {
-  const azn = viewCtx(PAYLOAD, "AZN", ctxOf("AZN")).insight;
-  const rationed = azn.valuation.discount.find((i) => i.id === "pool_rationed:367");
-  assert.equal(rationed.text, "73% of their own forecast is what AZN's 2 modelled obesity candidates keep once 19 modelled drugs share one pool of 107.6m patients. Model output.");
-  assert.deepEqual([rationed.kind, rationed.side, rationed.tag, rationed.strength, rationed.severity, rationed.provenance, rationed.twoSided],
-    ["competition", "discount", "shared patient pool (model)", 50, "amber", "M", false]);
-  assert.deepEqual(rationed.link, {kind: "indication", indicationId: 367, name: "Obesity"});
-  assert.equal(rationed.linkLabel, "Obesity, landscape");
-  assert.deepEqual(rationed.chips.map((c) => c.text), ["Model output"]);
-  assert.ok(!azn.valuation.discount.concat(azn.valuation.premium).some((i) => i.kind === "catalyst"));   // Elecoglipron is 2.8% of price
-  assert.ok(!azn.valuation.premium.some((i) => i.kind === "competition"));
-  // Order in a side list: metric items by strength, then the catalyst item, then competition items.
-  const kinds = azn.valuation.discount.map((i) => i.kind);
-  assert.deepEqual(kinds, kinds.slice().sort((a, b) => ["metric", "catalyst", "competition"].indexOf(a) - ["metric", "catalyst", "competition"].indexOf(b)));
-  const metric = azn.valuation.discount.filter((i) => i.kind === "metric").map((i) => i.strength);
-  assert.deepEqual(metric, metric.slice().sort((a, b) => b - a));
-
-  const lly = viewCtx(PAYLOAD, "LLY", ctxOf("LLY")).insight;
-  assert.equal(lly.valuation.discount.find((i) => i.id === "pool_rationed:367").text,
-    "73% of their own forecast is what LLY's 4 modelled obesity candidates keep once 19 modelled drugs share one pool of 107.6m patients. Model output.");
-  assert.ok(!itemIds(lly.valuation.premium).some((id) => id.startsWith("pool_lead")));   // 23%, second of nine
-  assert.ok(!lly.valuation.discount.some((i) => i.kind === "catalyst"));                  // Retatrutide is 2.9% of price
-
-  const nvo = viewCtx(PAYLOAD, "NVO", ctxOf("NVO")).insight;
-  const lead = nvo.valuation.premium.find((i) => i.id === "pool_lead:367");
-  assert.equal(lead.text, "26% of the patients the modelled drugs start in obesity go to NVO's 4 candidates, the largest share of 9 companies. Model output.");
-  assert.deepEqual([lead.side, lead.tag, lead.severity, lead.provenance], ["premium", "largest share of a shared pool (model)", "info", "M"]);
-  assert.ok(itemIds(nvo.valuation.discount).includes("pool_rationed:367"));
-  assert.equal(nvo.competition.rows[0].side, "both");
-
-  const vk = viewCtx(PAYLOAD, "VKTX", ctxOf("VKTX"));
-  const cv = vk.insight.valuation.discount.find((i) => i.id === "catalyst_value");
-  assert.equal(cv.text, "72.9% of the price, $24.09 a share, is the risk-adjusted value the model carries for VK2735, whose Phase 3 readout is due around 1 Jul 2027. The outcome can move it either way. Model output.");
-  assert.deepEqual([cv.kind, cv.side, cv.twoSided, cv.tag, cv.severity, cv.provenance, cv.strength],
-    ["catalyst", "discount", true, "pipeline value on one event (model)", "amber", "M", 50]);
-  assert.deepEqual(cv.link, {kind: "tab", tab: "Catalysts"});
-  assert.equal(cv.linkLabel, "Catalysts tab");
-  assert.deepEqual(cv.chips.map((c) => c.text), ["Model output", "Two-sided"]);
-  assert.deepEqual(Object.keys(cv).sort(), Object.keys(rationed).sort());   // one item shape
-  // The specific statement replaces the count in the panel; the banner's observations keep it.
-  assert.ok(itemIds(vk.observations.discount).includes("binary_catalysts"));
-  assert.ok(!itemIds(vk.insight.valuation.discount).includes("binary_catalysts"));
-  assert.ok(itemIds(viewCtx(PAYLOAD, "VKTX", null).insight.valuation.discount).includes("binary_catalysts"));
-  assert.equal(vk.insight.catalysts.rows[0].side, "discount");
-
-  const amgn = viewCtx(PAYLOAD, "AMGN", ctxOf("AMGN")).insight;
-  assert.equal(amgn.valuation.discount.find((i) => i.id === "catalyst_value").text,
-    "5.4% of the price, $22.67 a share, is the risk-adjusted value the model carries for Maridebart Cafraglutide, whose Phase 3 readout is due around 21 Jan 2027. The outcome can move it either way. Model output.");
-  assert.equal(amgn.valuation.discount.find((i) => i.id === "pool_rationed:367").text,
-    "73% of its own forecast is what AMGN's 1 modelled obesity candidate keeps once 19 modelled drugs share one pool of 107.6m patients. Model output.");
-
-  // A stake is the stronger statement: 5% fires, 4.9% does not, and it replaces the value rule.
-  const staked = (pct) => {
-    const c = ctxOf("VKTX");
-    c.catalysts.items = [{...c.catalysts.items[0], id: 900, date: "2027-11-14", asset: {id: 371, name: "Casgevy", is_marketed: true},
-      asset_value: null, stake: {per_share: -4.204132, pct_of_price: pct, pos_now: 0.8075, pos_success: 0.95, pos_failure: 0.4, economics_share: 0.4},
-      na: {}}];
-    c.catalysts.total = 1;
-    return viewCtx(PAYLOAD, "VKTX", c).insight;
-  };
-  const s5 = staked(0.05);
-  const cs = s5.valuation.discount.find((i) => i.id === "catalyst_stake");
-  assert.equal(cs.text, "5.0% of the price, $4.20 a share, separates success from failure at the Casgevy Phase 3 readout due around 14 Nov 2027. The outcome can move the value either way. Model output.");
-  assert.deepEqual([cs.tag, cs.twoSided, cs.side], ["binary catalyst in 12 months (model)", true, "discount"]);
-  assert.ok(!itemIds(s5.valuation.discount).includes("catalyst_value") && !itemIds(s5.valuation.discount).includes("binary_catalysts"));
-  assert.equal(s5.catalysts.rows[0].modelText, "at stake $4.20 a share, 5.0% of price");
-  assert.deepEqual([s5.catalysts.rows[0].tier, s5.catalysts.rows[0].modelKind, s5.catalysts.rows[0].naText], [0, "stake", null]);
-  const s49 = staked(0.049);
-  assert.ok(!s49.valuation.discount.some((i) => i.kind === "catalyst"));
-  assert.ok(itemIds(s49.valuation.discount).includes("binary_catalysts"));
-  const both = ctxOf("VKTX");
-  both.catalysts.items[1] = {...both.catalysts.items[1], stake: {per_share: 3.3, pct_of_price: 0.1}};
-  assert.deepEqual(itemIds(viewCtx(PAYLOAD, "VKTX", both).insight.valuation.discount).filter((id) => id.startsWith("catalyst")), ["catalyst_stake"]);
-
-  // The value rule reads only a regulatory event or a late-phase readout on an unapproved, counted asset.
-  const vary = (patch) => {
-    const c = ctxOf("VKTX");
-    c.catalysts.items = c.catalysts.items.map((it) => ({...it, ...patch(it)}));
-    return itemIds(viewCtx(PAYLOAD, "VKTX", c).insight.valuation.discount);
-  };
-  assert.ok(!vary(() => ({phase: "Phase 2"})).includes("catalyst_value"));
-  assert.ok(!vary((it) => ({asset: {...it.asset, is_marketed: true}})).includes("catalyst_value"));
-  assert.ok(!vary((it) => ({asset_value: {...it.asset_value, counted: false}})).includes("catalyst_value"));
-  assert.ok(!vary((it) => ({asset_value: {...it.asset_value, pct_of_price: 0.0499}})).includes("catalyst_value"));
-  assert.ok(vary(() => ({phase: "Phase 2/3"})).includes("catalyst_value"));
-  assert.ok(vary(() => ({phase: null, kind: "PDUFA", regulatory: true})).includes("catalyst_value"));
-
-  // Pool rules at their thresholds.
-  const pool = (patch) => {
-    const c = ctxOf("NVO");
-    patch(c.competition.indications[0]);
-    const i = viewCtx(PAYLOAD, "NVO", c).insight;
-    return itemIds(i.valuation.premium.concat(i.valuation.discount)).filter((id) => id.startsWith("pool_"));
-  };
-  assert.deepEqual(pool(() => {}), ["pool_lead:367", "pool_rationed:367"]);
-  assert.deepEqual(pool((r) => { r.company_pool.keeps = 0.9; }), ["pool_lead:367", "pool_rationed:367"]);
-  assert.deepEqual(pool((r) => { r.company_pool.keeps = 0.901; }), ["pool_lead:367"]);
-  assert.deepEqual(pool((r) => { r.company_pool.share_of_claims = 0.249; }), ["pool_rationed:367"]);
-  assert.deepEqual(pool((r) => { r.company_pool.rank = 2; }), ["pool_rationed:367"]);
-  assert.deepEqual(pool((r) => { r.company_pool.of_companies = 2; }), ["pool_rationed:367"]);
-  assert.deepEqual(pool((r) => { r.value.pct_of_price = 0.0199; }), []);
-  assert.deepEqual(pool((r) => { r.value.pct_of_price = 0.02; }), ["pool_lead:367", "pool_rationed:367"]);
-  assert.deepEqual(pool((r) => { r.crowding = null; r.company_pool = null; r.na = {crowding: "flow_pool"}; }), []);
-  // Rival counts never take a side.
-  for (const t of ["AZN", "LLY", "NVO", "AMGN", "VRTX"]) {
-    const i = viewCtx(PAYLOAD, t, ctxOf(t)).insight;
-    for (const r of i.competition.rows) if (!r.shareText) assert.equal(r.side, null, `${t} ${r.name}`);
-  }
-});
-
-// R3.6 -----------------------------------------------------------------------------------------
-test("R3.6 catalyst rows: one per asset, the tier order, dates and model cells", {skip: !PAYLOAD}, () => {
-  const c = viewCtx(PAYLOAD, "AZN", ctxOf("AZN")).insight.catalysts;
-  assert.equal(c.title, "Catalysts ahead");
-  assert.equal(c.countText, "36 in 12 months, 24 assets");
-  assert.equal(c.rows.length, 24);
-  assert.deepEqual(c.link, {kind: "tab", tab: "Catalysts"});
-  assert.equal(c.linkLabel, "Open the Catalysts tab");
-  assert.equal(c.note, "Dates marked est. come from trial records. A catalyst is two-sided: it can raise or lower the value. Value figures are model output.");
-  const assets = c.rows.map((r) => r.assetId);
-  assert.equal(new Set(assets).size, assets.length);
-  assert.deepEqual(c.rows.slice(0, 5).map((r) => r.label), ["Elecoglipron: Phase 3 readout", "AZD0780: Phase 3 readout",
-    "Balcinrenone/dapagliflozin: Phase 3 readout", "Imfinzi: Phase 3 readout", "Datroway: Phase 3 readout"]);
-  assert.deepEqual(c.rows.slice(0, 5).map((r) => r.dateShort), ["4 Jun 2027", "4 Jan 2027", "16 Apr 2027", "30 Sep 2026", "30 Sep 2026"]);
-  assert.deepEqual(c.rows.slice(0, 5).map((r) => r.indicationText), ["Obesity", null, "Heart failure", "Hepatocellular carcinoma", "Non-small-cell lung carcinoma"]);
-  assert.deepEqual(c.rows.slice(0, 5).map((r) => r.moreText), [null, "and 1 more for this asset", null, "and 3 more for this asset", "and 2 more for this asset"]);
-  assert.deepEqual(c.rows.slice(0, 5).map((r) => r.tier), [2, 2, 2, 3, 3]);
-  const tiers = c.rows.map((r) => r.tier);
-  assert.deepEqual(tiers, tiers.slice().sort((a, b) => a - b));
-  const [elec, azd, , imfinzi] = c.rows;
-  assert.deepEqual([elec.id, elec.assetId, elec.dateIso, elec.estimated, elec.dateText], ["cat-1109", 1744, "2027-06-04", true, "around 4 Jun 2027"]);
-  assert.equal(elec.modelText, "$4.73 a share, 2.8% of price, PoS 55%");
-  assert.equal(elec.modelKind, "asset_value");
-  assert.equal(elec.naText, CONTEXT_NA_TEXT.no_outcome_legs);
-  assert.deepEqual(elec.chips.map((x) => x.text), ["Two-sided", "Model output", "Derived, estimated date"]);
-  assert.equal(elec.chips[2].tone, "flag");
-  assert.equal(elec.sourceUrl, "https://clinicaltrials.gov/study/NCT07775404");
-  assert.deepEqual(elec.tooltip.slice(1), ["Source: NCT07775404", "The date is the trial's estimated primary completion."]);
-  assert.match(elec.tooltip[0], /^Phase 3, A Study to Investigate the Efficacy and Safety of Elecoglipron/);
-  assert.deepEqual(elec.link, {kind: "tab", tab: "Catalysts"});
-  assert.equal(elec.side, null);
-  assert.equal(azd.modelText, "$0.87 a share, 0.5% of price, PoS 56%");
-  assert.equal(azd.indicationNa, CONTEXT_NA_TEXT.no_indication_link);
-  // A marketed product: the model states no value for the readout.
-  assert.deepEqual([imfinzi.modelText, imfinzi.modelKind], [null, null]);
-  assert.equal(imfinzi.naText, "Marketed product. The model states no value for this readout.");
-  assert.deepEqual(imfinzi.chips.map((x) => x.text), ["Two-sided", "Derived, estimated date"]);
-  // Inside tier 2 the order is the share of price, largest first.
-  const t2 = c.rows.filter((r) => r.tier === 2).map((r) => Number(/([\d.]+)% of price/.exec(r.modelText.replace("under ", ""))[1]));
-  assert.deepEqual(t2, t2.slice().sort((a, b) => b - a));
-  assert.equal(c.rows[2].modelText, "$0.05 a share, under 0.1% of price, PoS 48%");
-
-  // LLY: month dates.
-  const l = viewCtx(PAYLOAD, "LLY", ctxOf("LLY")).insight.catalysts;
-  assert.equal(l.countText, "33 in 12 months, 16 assets");
-  const ret = l.rows[0];
-  assert.deepEqual([ret.label, ret.dateShort, ret.dateText, ret.estimated, ret.indicationText, ret.modelText, ret.moreText],
-    ["Retatrutide: Phase 3 readout", "Oct 2026", "in Oct 2026", true, "Type 2 diabetes mellitus", "$33.78 a share, 2.9% of price, PoS 88%", "and 3 more for this asset"]);
-
-  // The date forms, the event words and the tier of each kind.
-  const base = ctxOf("VKTX").catalysts.items[0];
-  const one = (patch) => {
-    const x = ctxOf("VKTX");
-    x.catalysts.items = [{...base, ...patch}];
-    x.catalysts.total = 1;
-    return viewCtx(PAYLOAD, "VKTX", x).insight.catalysts.rows[0];
-  };
-  const pdufa = one({id: 1, date: "2027-02-01", date_confidence: "confirmed", kind: "PDUFA", regulatory: true, phase: null, is_curated: true});
-  assert.deepEqual([pdufa.label, pdufa.dateShort, pdufa.dateText, pdufa.estimated, pdufa.tier], ["VK2735: PDUFA date", "1 Feb 2027", "on 1 Feb 2027", false, 1]);
-  assert.deepEqual(pdufa.chips.map((x) => x.text), ["Two-sided", "Model output", "Curated"]);
-  assert.ok(!pdufa.tooltip.includes("The date is the trial's estimated primary completion."));
-  const stated = one({date_confidence: "stated", kind: "regulatory decision", regulatory: true});
-  assert.deepEqual([stated.label, stated.dateText, stated.estimated], ["VK2735: regulatory decision", "on 1 Jul 2027", false]);
-  const q = one({date: "2026-10", date_precision: "quarter", date_confidence: "quarter"});
-  assert.deepEqual([q.dateShort, q.dateText, q.estimated], ["Q4 2026", "in Q4 2026", true]);
-  const h = one({date: "2027-03", date_precision: "half", date_confidence: "half"});
-  assert.deepEqual([h.dateShort, h.dateText], ["H1 2027", "in H1 2027"]);
-  assert.equal(one({date: "2027-09-30", date_precision: "half", date_confidence: "half"}).dateShort, "H2 2027");
-  assert.equal(one({kind: "AdCom", regulatory: true}).label, "VK2735: advisory committee");
-  assert.equal(one({kind: "EMA decision", regulatory: true}).label, "VK2735: EMA decision");
-  assert.equal(one({phase: null}).label, "VK2735: data readout");
-  assert.equal(one({kind: "Investor day", regulatory: false}).label, "VK2735: investor day");
-  assert.equal(one({phase: "Phase 2"}).tier, 4);
-  assert.equal(one({asset_value: null, na: {stake: "not_modelled", asset_value: "not_modelled"}}).tier, 3);
-  assert.equal(one({asset_value: null, na: {stake: "not_modelled", asset_value: "not_modelled"}}).naText, CONTEXT_NA_TEXT.not_modelled);
-  // No asset: the title, cut at 60 characters, and a row of its own.
-  const orphan = one({asset: null, asset_value: null, title: "Phase 3, a study with a very long title that runs well past the sixty character cut", na: {asset: "no_asset", stake: "no_asset"}});
-  assert.ok(orphan.label.length <= 60 && orphan.label.endsWith("…"));
-  assert.deepEqual([orphan.assetId, orphan.naText], [null, CONTEXT_NA_TEXT.no_asset]);
-  // Regulatory events rank ahead of any readout without a stake.
-  const mixed = ctxOf("VKTX");
-  mixed.catalysts.items.push({...base, id: 999, date: "2027-09-01", kind: "PDUFA", regulatory: true, date_confidence: "confirmed",
-    asset: {id: 77, name: "Other", is_marketed: false}, asset_value: null, na: {stake: "not_modelled", asset_value: "not_modelled"}});
-  mixed.catalysts.total = 3;
-  const mr = viewCtx(PAYLOAD, "VKTX", mixed).insight.catalysts;
-  assert.deepEqual(mr.rows.map((r) => [r.label, r.tier]), [["Other: PDUFA date", 1], ["VK2735: Phase 3 readout", 2]]);
-  assert.equal(mr.countText, "3 in 12 months, 2 assets");
-
-  // No catalysts: the empty state with the window.
-  const crsp = viewCtx(PAYLOAD, "CRSP", ctxOf("CRSP")).insight.catalysts;
-  assert.equal(crsp.state, "empty");
-  assert.deepEqual(crsp.rows, []);
-  assert.equal(crsp.empty.title, "No dated catalysts in the next 12 months");
-  assert.equal(crsp.empty.detail, "No pending catalyst for CRSP is dated between 29 Sep 2026 and 29 Sep 2027. The Catalysts tab lists later events.");
-});
-
-// R3.7 -----------------------------------------------------------------------------------------
-test("R3.7 competition rows: value, counts, pool, share, reasons and the uncovered states", {skip: !PAYLOAD}, () => {
-  const g = viewCtx(PAYLOAD, "AZN", ctxOf("AZN")).insight.competition;
-  assert.equal(g.title, "Competition by indication");
-  assert.equal(g.countText, "5 of 19 valued indications");
-  assert.deepEqual(g.columns, ["Indication", "AZN value, $ a share · of price", "Own / rivals", "Pool claimed → supplied", "AZN share"]);
-  assert.equal(g.linkLabel, "Open Comps, Indications");
-  assert.deepEqual(g.link, g.rows[0].link);
-  assert.equal(g.lead, null);
-  assert.equal(g.note, "Rivals are big pharma candidates that are marketed or in Phase 2 or later. Value counts each modelled asset in the indication the model sizes it in, else in its lead indication. Pool figures are model output and leave out marketed products valued off reported revenue.");
-  assert.deepEqual(g.rows.map((r) => r.name), ["Non-small-cell lung carcinoma", "Breast neoplasms", "Asthma", "Obesity", "Chronic obstructive pulmonary disease"]);
-  assert.deepEqual(g.rows.map((r) => r.valueText), ["$21.33 · 12.8%", "$14.32 · 8.6%", "$9.84 · 5.9%", "$8.52 · 5.1%", "$6.83 · 4.1%"]);
-  const ob = g.rows[3];
-  assert.deepEqual([ob.id, ob.indicationId, ob.name, ob.storedName], ["ind-367", 367, "Obesity", "Obesity"]);
-  assert.equal(ob.valueText, "$8.52 · 5.1%");
-  assert.equal(ob.ownText, "3 own: 2 Phase 3, 1 Phase 2");
-  assert.equal(ob.rivalsText, "29 rivals from 8 companies: 4 marketed, 12 Phase 3, 13 Phase 2");
-  assert.equal(ob.poolText, "58% → 42%");
-  assert.equal(ob.shareText, "12%, 4th of 9");
-  assert.deepEqual([ob.valueNa, ob.poolNa, ob.shareNa], [null, null, null]);
-  assert.deepEqual(ob.own, {n: 3, marketed: 0, phase3: 2, phase2: 1, other: 0});
-  assert.deepEqual(ob.rivals, {n: 29, marketed: 4, phase3: 12, phase2: 13, other: 0, companies: 8});
-  assert.deepEqual([ob.side, ob.provenance], ["discount", "M"]);
-  assert.deepEqual(ob.link, {kind: "indication", indicationId: 367, name: "Obesity"});
-  assert.deepEqual(ob.tooltip, ["Stored as Obesity.",
-    "One population under 4 names: Obesity; Overweight; Weight Loss; Obesity, Morbid.",
-    "19 modelled drugs from 9 companies claim 58% of 107.6m patients at the 2054 peak. Counted once, the pool supplies 42%.",
-    "AZN's 2 keep 73% of their own forecasts and 5% of the pool.",
-    "Elecoglipron: Phase 3, $4.73 a share.", "AZD6234: Phase 3, $3.80 a share.", "Pramlintide: Phase 2, no modelled value counted here."]);
-  // Each pool reason is worded, and a share is stated only for a standing pool that is shared.
-  assert.deepEqual([g.rows[0].poolText, g.rows[0].poolNa, g.rows[0].shareText, g.rows[0].shareNa], [null, CONTEXT_NA_TEXT.flow_pool, null, CONTEXT_NA_TEXT.flow_pool]);
-  assert.equal(g.rows[1].poolNa, CONTEXT_NA_TEXT.claims_exceed_pool);
-  assert.deepEqual([g.rows[2].poolText, g.rows[2].shareText, g.rows[2].shareNa], ["5% → 5%", null, "AZN has no modelled drug in the shared pool."]);
-  assert.equal(g.rows[0].storedName, "Carcinoma, Non-Small-Cell Lung");
-  assert.equal(g.rows[0].ownText, "13 own: 6 marketed, 6 Phase 3, 1 Phase 2");
-  assert.equal(g.rows[1].rivalsText, "60 rivals from 13 companies: 21 marketed, 21 Phase 3, 16 Phase 2, 2 earlier");
-  const l = viewCtx(PAYLOAD, "LLY", ctxOf("LLY")).insight.competition;
-  assert.equal(l.countText, "5 of 22 valued indications");
-  assert.deepEqual([l.rows[0].valueText, l.rows[0].shareText], ["$294.31 · 24.8%", "23%, 2nd of 9"]);
-  assert.equal(l.rows[3].poolNa, CONTEXT_NA_TEXT.no_pool);
-  assert.equal(l.rows[4].poolNa, CONTEXT_NA_TEXT.single_claimant);
-  assert.equal(l.rows[4].name, "B-cell chronic lymphocytic leukemia");
-  const tiny = ctxOf("AZN");
-  tiny.competition.indications[3].crowding = null;
-  tiny.competition.indications[3].company_pool = null;
-  tiny.competition.indications[3].na = {crowding: "share_under_1pct"};
-  assert.equal(viewCtx(PAYLOAD, "AZN", tiny).insight.competition.rows[3].poolNa, CONTEXT_NA_TEXT.share_under_1pct);
-  const vr = viewCtx(PAYLOAD, "VRTX", ctxOf("VRTX")).insight.competition;
-  assert.equal(vr.rows[2].rivalsText, "0 rivals");
-  assert.equal(vr.rows[3].rivalsText, "5 rivals from 4 companies: 4 Phase 3, 1 earlier");
-
-  // Not covered: outside the big pharma engine.
-  const crsp = viewCtx(PAYLOAD, "CRSP", ctxOf("CRSP")).insight;
-  assert.deepEqual([crsp.state, crsp.competition.state, crsp.competition.link], ["ok", "not_covered", null]);
-  assert.deepEqual(crsp.competition.rows, []);
-  assert.equal(crsp.competition.empty.title, "Competition by indication is not covered for CRSP");
-  assert.equal(crsp.competition.empty.detail, "The indication landscape and the pool model cover the 18 big pharma companies. CRSP is read on the Cell and gene engine, so no rival counts or pool shares are stated.");
-  assert.deepEqual(crsp.valuation.premium.concat(crsp.valuation.discount).filter((i) => i.kind !== "metric"), []);
-  // No model: ranked by contest, every value null with its reason.
-  const bayn = viewCtx(PAYLOAD, "BAYN", ctxOf("BAYN")).insight.competition;
-  assert.equal(bayn.state, "ok");
-  assert.equal(bayn.countText, "5 of 7 indications, by contest");
-  assert.equal(bayn.lead, "No modelled value for BAYN, so indications are ordered by how many companies contest them.");
-  assert.equal(bayn.rows[0].name, "Heart failure");
-  for (const r of bayn.rows) assert.deepEqual([r.valueText, r.valueNa, r.side], [null, "No forecast model for this company.", null], r.name);
-  assert.deepEqual([bayn.rows[0].provenance, bayn.rows[1].provenance, bayn.rows[1].poolText], ["S", "M", "20% → 18%"]);
-  // A modelled company whose values are still being computed is not called unmodelled.
-  const cold = ctxOf("AZN");
-  cold.complete = false; cold.model = {state: "not_computed", assets: 0}; cold.competition.ranked_by = "contest";
-  for (const r of cold.competition.indications) { r.value = {per_share: null, pct_of_price: null, assets: 0}; r.na = {...r.na, value: "model_not_computed"}; }
-  const cv = viewCtx(PAYLOAD, "AZN", cold).insight;
-  assert.equal(cv.competition.lead, "Model values are not computed yet, so indications are ordered by how many companies contest them.");
-  assert.equal(cv.competition.rows[0].valueNa, CONTEXT_NA_TEXT.model_not_computed);
-  assert.equal(cv.notice, CONTEXT_NA_TEXT.model_not_computed);
-  assert.ok(!cv.valuation.discount.some((i) => i.kind === "competition"));   // no value, so no pool item
-  // A big pharma company in no landscape entry.
-  const empty = ctxOf("BAYN");
-  empty.competition = {covered: false, reason: "no_indications", ranked_by: null, total: 0, valued: 0, indications: []};
-  const e = viewCtx(PAYLOAD, "BAYN", empty).insight.competition;
-  assert.deepEqual([e.state, e.empty.title, e.empty.detail], ["empty", "No indication to compare for BAYN",
-    "No BAYN candidate that is marketed or in Phase 2 or later is linked to an indication in the landscape."]);
-  // A value with no price on file keeps the money and says nothing of the share.
-  const np = ctxOf("AZN");
-  np.competition.indications[3].value.pct_of_price = null;
-  const npv = viewCtx(PAYLOAD, "AZN", np).insight;
-  assert.equal(npv.competition.rows[3].valueText, "$8.52");
-  assert.ok(!itemIds(npv.valuation.discount).includes("pool_rationed:367"));
-});
-
-// R3.8 -----------------------------------------------------------------------------------------
-test("R3.8 indicationTitle and indicationProse", () => {
-  const cases = [["Carcinoma, Non-Small-Cell Lung", "Non-small-cell lung carcinoma"], ["Breast Neoplasms", "Breast neoplasms"],
-    ["Asthma", "Asthma"], ["Obesity", "Obesity"], ["Pulmonary Disease, Chronic Obstructive", "Chronic obstructive pulmonary disease"],
-    ["Diabetes Mellitus, Type 2", "Type 2 diabetes mellitus"], ["Arthritis, Juvenile", "Juvenile arthritis"],
-    ["Leukemia, Lymphocytic, Chronic, B-Cell", "B-cell chronic lymphocytic leukemia"], ["beta-Thalassemia", "Beta-thalassemia"]];
-  for (const [stored, title] of cases) assert.equal(indicationTitle(stored), title, stored);
-  assert.equal(indicationProse("Obesity"), "obesity");
-  assert.equal(indicationProse("Pulmonary Disease, Chronic Obstructive"), "chronic obstructive pulmonary disease");
-  assert.equal(indicationProse("Carcinoma, Non-Small-Cell Lung"), "non-small-cell lung carcinoma");
-  // Acronyms, single letters and proper names keep their capitals in prose.
-  assert.equal(indicationProse("Alzheimer Disease"), "Alzheimer disease");
-  assert.equal(indicationProse("Lymphoma, Non-Hodgkin"), "non-Hodgkin lymphoma");
-  assert.equal(indicationProse("HIV Infections"), "HIV infections");
-  assert.equal(indicationProse("Hepatitis B, Chronic"), "chronic hepatitis B");
-  assert.equal(indicationProse("Sjogren's Syndrome"), "Sjogren's syndrome");
-  assert.equal(indicationTitle(""), "");
-  assert.equal(indicationTitle(null), "");
-  assert.equal(core.fmtPatients(107592242), "107.6m");
-  assert.equal(core.fmtPatients(644112), "644k");
-  assert.equal(core.fmtPatients(2197800), "2.2m");
-  assert.equal(core.fmtPatients(812), "812");
-  assert.equal(core.fmtPatients(null), "—");
-});
-
-// R3.9 -----------------------------------------------------------------------------------------
-test("R3.9 house style over every revision 3 string", {skip: !PAYLOAD}, () => {
-  const names = PAYLOAD.companies.flatMap((c) => [c.ticker, c.name]);
-  const bad = [];
-  const check = (s, kind, where, extra = []) => {
-    if (s == null) return;
-    const i = lintCopy(s, kind, names.concat(extra));
-    if (i.length) bad.push(`${where}: ${i.join(", ")}: ${s}`);
-  };
-  for (const [k, t] of Object.entries(CONTEXT_NA_TEXT)) check(t, "sentence", `CONTEXT_NA_TEXT.${k}`);
-  assert.deepEqual(Object.keys(CONTEXT_NA_TEXT), ["no_asset", "no_price", "not_modelled", "model_not_computed", "no_outcome_legs", "not_in_stakes",
-    "no_indication_link", "no_attributed_asset", "no_pool", "single_claimant", "flow_pool", "claims_exceed_pool", "share_under_1pct", "no_claimant"]);
-  for (const [k, t] of Object.entries(core.INSIGHT_COPY)) check(t, /Title|Link|Heading|Tag$/.test(k) ? "label" : "sentence", `INSIGHT_COPY.${k}`);
-  for (const c of COMMANDS) check(c.label, "label", `command ${c.id}`);
-  const lintView = (v, t) => {
-    const I = v.insight;
-    const assetNames = ((CONTEXTS[t] || {}).catalysts || {items: []}).items.map((it) => it.asset && it.asset.name).filter(Boolean);
-    if (I.message) { check(I.message.title, "label", `${t} message`); check(I.message.detail, "sentence", `${t} message`); }
-    check(I.notice, "sentence", `${t} notice`);
-    for (const it of I.valuation.premium.concat(I.valuation.discount)) {
-      check(it.text, "sentence", `${t} item ${it.id}`); check(it.tag, "label", `${t} tag ${it.id}`);
-      check(it.linkLabel, "label", `${t} linkLabel ${it.id}`);
-      for (const ch of it.chips) { check(ch.text, "label", "chip"); check(ch.tooltip, "sentence", "chip tooltip"); }
-    }
-    for (const s of I.valuation.notAssessed) check(s, "sentence", `${t} not assessed`);
-    for (const k of ["premiumHeading", "discountHeading"]) check(I.valuation[k], "label", k);
-    check(I.valuation.emptyText, "sentence", "empty side");
-    for (const g of [I.catalysts, I.competition]) {
-      check(g.title, "label", `${t} title`); check(g.countText, "label", `${t} count`); check(g.note, "sentence", `${t} note`);
-      check(g.linkLabel, "label", `${t} group link`);
-      if (g.empty) { check(g.empty.title, "label", `${t} empty`); check(g.empty.detail, "sentence", `${t} empty`); }
-    }
-    check(I.competition.lead, "sentence", `${t} lead`);
-    for (const h of I.competition.columns) check(h, "label", `${t} column heading`);
-    for (const r of I.catalysts.rows) {
-      check(r.label, "sentence", `${t} row label`); check(r.dateShort, "label", "date"); check(r.dateText, "sentence", "date");
-      check(r.indicationText, "sentence", "indication"); check(r.moreText, "sentence", "more"); check(r.modelText, "label", "model", assetNames);
-      check(r.naText, "sentence", "na"); check(r.indicationNa, "sentence", "na");
-      for (const ch of r.chips) { check(ch.text, "label", "chip"); check(ch.tooltip, "sentence", "chip tooltip"); }
-      for (const s of r.tooltip) check(s, "sentence", "row tooltip");
-    }
-    for (const r of I.competition.rows) {
-      check(r.name, "sentence", `${t} name`);
-      for (const k of ["valueText", "ownText", "rivalsText", "poolText", "shareText"]) check(r[k], "label", `${t} ${k}`);
-      for (const k of ["valueNa", "poolNa", "shareNa"]) check(r[k], "sentence", `${t} ${k}`);
-      for (const s of r.tooltip) check(s, "sentence", "row tooltip");
-    }
-    check(v.footer.text, "sentence", `${t} footer`); check(v.footer.buttonLabel, "label", "footer button");
-    check(v.header.basis.text, "label", `${t} basis`); check(v.header.basis.tooltip, "sentence", `${t} basis tooltip`);
-    check(v.header.peerSet.tooltip, "sentence", `${t} peer set tooltip`);
-    check(v.bridgeLine.text, "sentence", `${t} bridge line`); check(v.bridgeLine.linkLabel, "label", "bridge link");
-    check(v.bridgeLine.storageLine, "sentence", "bridge storage line");
-    check(v.kpis[5].tooltip, "sentence", `${t} kpi 6`);
-    check(v.peers.title, "label", "peer drawer title");
-    for (const s of v.table.viewBadge.lines) check(s, "label", `${t} view badge`);
-    check(v.table.viewBadge.label, "label", "view badge label");
-    for (const r of v.table.rows) for (const s of r.tickerLines) check(s, "sentence", "ticker line");
-    for (const s of v.states) { check(s.title, "label", `${t} state ${s.id}`); check(s.detail, "sentence", `${t} state ${s.id}`); }
-    for (const e of core.paletteExtras(v, v.analysis.state)) check(e.label, "label", `palette ${e.id}`, I.competition.rows.map((r) => r.name));
-  };
-  for (const t of Object.keys(CONTEXTS)) lintView(viewCtx(PAYLOAD, t, ctxOf(t)), t);
-  lintView(viewCtx(PAYLOAD, "AZN", null), "AZN pending");
-  lintView(viewCtx(PAYLOAD, "AZN", {ticker: "AZN", error: "HTTP 500"}), "AZN error");
-  lintView(viewCtx(PAYLOAD, "AZN", {...ctxOf("AZN"), complete: false}), "AZN cold");
-  lintView(viewCtx(PAYLOAD, "AZN", ctxOf("AZN"), {currency: "EUR", earnings: "adjusted", cfMode: "percentile", density: "compact", textSize: 14,
-    summaryRows: false, outliers: "exclude", statsGroup: "US"}), "AZN settings");
-  lintView(viewCtx(PAYLOAD, "AZN", ctxOf("AZN"), {currency: "REPORTED"}), "AZN reported");
-  assert.deepEqual(bad, []);
-  // The exact sentences of 12.3, and the words of the specification's own lint list.
-  for (const s of ["PoS 55%", "PDUFA date", "EMA decision", "Open the Catalysts tab", "Catalysts tab"]) assert.deepEqual(lintCopy(s, "label"), [], s);
-});
-
 // R3.10 ----------------------------------------------------------------------------------------
-test("R3.10 reducer: one right-side surface, the insight tab, ADOPT_PERSISTED and mergeBridge", () => {
+test("R3.10 reducer: one right-side surface, ADOPT_PERSISTED and mergeBridge", () => {
   const p = PAYLOAD || FIX;
   const s0 = defaultState(p, {focal: "AZN", engine: "pharma"});
-  assert.deepEqual([s0.ui.peers, s0.ui.peersSearch, s0.ui.insightTab, "lowerTab" in s0.ui], [false, false, "catalysts", false]);
+  assert.deepEqual([s0.ui.peers, s0.ui.peersSearch, "lowerTab" in s0.ui, "insightTab" in s0.ui, "why" in s0.ui],
+    [false, false, false, false, false]);
   const surfaces = (s) => [s.ui.detail, s.ui.peers, s.ui.method];
   const peer = peerSetTickers(p, s0).tickers[0];
   let s = reduce(s0, {type: "OPEN_DETAIL", ticker: peer}, p);
@@ -1648,14 +991,13 @@ test("R3.10 reducer: one right-side surface, the insight tab, ADOPT_PERSISTED an
   const open = deriveView(p, reduce(s0, {type: "OPEN_PEERS", search: true}, p));
   assert.deepEqual([open.peers.open, open.peers.search, open.peers.title], [true, true, "Edit peers"]);
   assert.deepEqual([view(p, "AZN").peers.open, view(p, "AZN").peers.search], [false, false]);
-  assert.equal(reduce(s0, {type: "SET_INSIGHT_TAB", tab: "competition"}, p).ui.insightTab, "competition");
 
   // ADOPT_PERSISTED: what another frame stored replaces the persisted slices; focal, engine, live and ui stay.
   const theirs = reduce(reduce(reduce(reduce(defaultState(p, {focal: peer, engine: "pharma"}),
     {type: "SET_BASIS", basis: "FY0"}, p), {type: "SET_BRIDGE", patch: {stat: "mean"}}, p),
     {type: "SET_PRESET", preset: "growth"}, p), {type: "REMOVE_PEER", ticker: "AZN", now: 0}, p);
   const stored = persistable({...theirs, excludedByFocal: {AZN: [peer]}});
-  const mine = reduce(reduce(s0, {type: "OPEN_PEERS"}, p), {type: "TOGGLE_WHY"}, p);
+  const mine = reduce(reduce(s0, {type: "OPEN_PEERS"}, p), {type: "OPEN_OVERLAY", overlay: "palette"}, p);
   const adopted = reduce(mine, {type: "ADOPT_PERSISTED", local: stored.local, session: stored.session}, p);
   assert.deepEqual([adopted.focal, adopted.engine, adopted.live], ["AZN", "pharma", true]);
   assert.equal(adopted.ui, mine.ui);
@@ -1688,7 +1030,7 @@ test("R3.10 reducer: one right-side surface, the insight tab, ADOPT_PERSISTED an
 });
 
 // R3.11 ----------------------------------------------------------------------------------------
-test("R3.11 basis chip, view badge, footer, bridge line, KPI 6 link and the command list", () => {
+test("R3.11 basis chip, view badge, footer, bridge line and the command list", () => {
   const p = PAYLOAD || FIX;
   const basis = (patch) => view(p, "AZN", patch).header.basis;
   assert.deepEqual([basis({}).text, basis({}).nonDefault], ["Basis", false]);
@@ -1728,9 +1070,6 @@ test("R3.11 basis chip, view badge, footer, bridge line, KPI 6 link and the comm
   bare.as_of.run = null;
   assert.match(view(bare, "AZN").footer.text, / · no consensus check on file · FX ECB 28 Sep 2026 · no refresh run on file · /);
 
-  assert.deepEqual(v.kpis.map((k) => k.link), [null, null, null, null, null, {kind: "tab", tab: "Forecast"}]);
-  assert.equal(v.kpis[5].id, "implied");
-  assert.equal(v.kpis[5].tooltip, "From the peer-multiple bridge on the Forecast tab, with its inputs. Click to open it. Per-share figures are in USD, the quote currency.");
   if (PAYLOAD) {
     assert.equal(v.bridgeLine.text, "AZN against Big pharma, commercial, 17: peer median P/E (NTM) of 15.4×, 14 of 17 peers with a value.");
     assert.equal(v.bridgeLine.linkLabel, "Change peers or metric in Comps");
@@ -1745,37 +1084,32 @@ test("R3.11 basis chip, view badge, footer, bridge line, KPI 6 link and the comm
   }
 
   const ids = COMMANDS.map((c) => c.id);
-  for (const id of ["peers.edit", "sources.open", "forecast.open", "catalysts.open"]) {
+  for (const id of ["peers.edit", "sources.open"]) {
     assert.ok(ids.includes(id), id);
     assert.deepEqual(core.COMMAND_BY_ID[id].keys, [], id);
   }
-  assert.deepEqual(["peers.edit", "sources.open", "forecast.open", "catalysts.open"].map((id) => core.COMMAND_BY_ID[id].label),
-    ["Edit peers", "Sources and method", "Open the peer-multiple value on the Forecast tab", "Open the Catalysts tab"]);
+  assert.deepEqual(["peers.edit", "sources.open"].map((id) => core.COMMAND_BY_ID[id].label),
+    ["Edit peers", "Sources and method"]);
+  // Revision 4 (company-scorecard.md 5.2): the palette commands catalysts.open and forecast.open
+  // left with Drivers and risks and the KPI strip, "Why?" with the banner, and "Copy summary"
+  // with the conclusion it copied.
+  for (const id of ["catalysts.open", "forecast.open", "why.toggle", "summary.copy"]) assert.ok(!ids.includes(id), id);
   assert.ok(!ids.includes("bridge.reset"));
   assert.equal(new Set(ids).size, ids.length);
   assert.equal(KEYMAP.a, "peer.add");
   const keys = COMMANDS.flatMap((c) => c.keys);
   assert.equal(new Set(keys).size, keys.length);
 
-  // Palette: the three sections of 12.1 and one entry per competition row.
+  // Palette: the two sections of 12.1, and no link out of the frame (the competition rows left
+  // with Drivers and risks).
   const extras = core.paletteExtras(v, v.analysis.state);
   assert.deepEqual(extras.filter((e) => e.group === "Sections" && e.target).map((e) => [e.label, e.target.id]),
-    [["Go to section drivers and risks", "obs"], ["Go to section peer position", "charts"], ["Go to section comparable companies", "table"]]);
+    [["Go to section peer position", "charts"], ["Go to section comparable companies", "table"]]);
   assert.ok(!extras.some((e) => /bridge/i.test(e.label)));
-  if (PAYLOAD) {
-    const vc = viewCtx(PAYLOAD, "AZN", ctxOf("AZN"));
-    const ind = core.paletteExtras(vc, vc.analysis.state).filter((e) => e.link);
-    assert.deepEqual(ind.map((e) => e.label), ["Open Comps, Indications: Non-small-cell lung carcinoma", "Open Comps, Indications: Breast neoplasms",
-      "Open Comps, Indications: Asthma", "Open Comps, Indications: Obesity", "Open Comps, Indications: Chronic obstructive pulmonary disease"]);
-    assert.deepEqual(ind[3].link, {kind: "indication", indicationId: 367, name: "Obesity"});
-    assert.equal(core.matchCommands("indications obesity", COMMANDS, ind)[0].label, "Open Comps, Indications: Obesity");
-  }
-  // The constants of 12.0.
-  assert.deepEqual([core.CATALYST_MIN_PCT, core.POOL_KEEP_MAX, core.POOL_LEAD_MIN_SHARE, core.POOL_LEAD_MIN_COMPANIES, core.COMPETITION_MIN_PCT,
-    core.INSIGHT_ROWS, core.WHOLE_COHORT_MAX, core.MAX_PRESET_COLUMNS, core.CONTEXT_SCHEMA, core.GOTO_KEY],
-    [0.05, 0.90, 0.25, 3, 0.02, 5, 20, 9, 1, "er.compsval.goto"]);
-  assert.deepEqual(core.REGULATORY_KINDS, ["PDUFA", "regulatory decision", "AdCom", "EMA decision"]);
-  assert.deepEqual(core.LATE_PHASES, ["Phase 3", "Phase 2/3"]);
+  assert.ok(!extras.some((e) => e.link));
+  // The constants of 12.0 that stay.
+  assert.deepEqual([core.WHOLE_COHORT_MAX, core.MAX_PRESET_COLUMNS], [20, 9]);
+  for (const k of ["CATALYST_MIN_PCT", "INSIGHT_ROWS", "CONTEXT_SCHEMA", "GOTO_KEY", "REGULATORY_KINDS"]) assert.ok(!(k in core), k);
   for (const w of ["PoS", "PDUFA", "EMA", "Catalysts"]) assert.ok(core.LINT_ALLOW.includes(w), w);
 });
 
@@ -1789,20 +1123,18 @@ test("R3.12 bridge mode: the bridge and its line, nothing else", () => {
   assert.equal(b.error, null);
   assert.deepEqual(b.sectionErrors, {});
   assert.ok(b.bridge && b.bridgeLine && b.focal && b.ctx && b.primary);
-  for (const k of ["insight", "table", "header", "conclusion", "scope", "dotplot", "scatter", "observations", "peers", "method", "detail", "lineage", "footer"]) {
+  for (const k of ["table", "header", "scope", "dotplot", "peers", "method", "detail", "lineage", "footer"]) {
     assert.equal(b[k], null, k);
   }
-  assert.deepEqual(b.kpis, []);
   // The same peer set and inputs give the same bridge in both frames.
   assert.deepEqual(b.bridge, full.bridge);
   assert.deepEqual(b.bridgeLine, full.bridgeLine);
   assert.deepEqual(b.primary.candidates, full.primary.candidates);
-  // The bridge frame reads a payload with no detail records, and the context is not read.
+  // The bridge frame reads a payload with no detail records.
   const lean = clone(p);
   for (const c of lean.companies) delete c.detail;
-  const bl = deriveView(lean, state, {mode: "bridge", context: CONTEXTS.AZN});
+  const bl = deriveView(lean, state, {mode: "bridge"});
   assert.deepEqual(bl.bridge, full.bridge);
-  assert.equal(bl.insight, null);
   // Inputs chosen in Comps reach it through the shared state.
   const edited = reduce(reduce(state, {type: "SET_BRIDGE", patch: {stat: "p75"}}, p), {type: "TOGGLE_EXCLUDE", ticker: peerSetTickers(p, state).tickers[0]}, p);
   const be = deriveView(p, edited, {mode: "bridge"});
@@ -1821,14 +1153,12 @@ test("R3.12 bridge mode: the bridge and its line, nothing else", () => {
   assert.equal(deriveView(p, state, {mode: "other"}).mode, "full");
 });
 
-// The whole fixture universe derives with its context, or without one, and never crashes.
-test("R3 payload: every company derives in both modes; the reference contexts give their insight", {skip: !PAYLOAD}, () => {
+// The whole fixture universe derives in both modes and never crashes.
+test("R3 payload: every company derives in both modes", {skip: !PAYLOAD}, () => {
   for (const c of PAYLOAD.companies) {
-    const v = viewCtx(PAYLOAD, c.ticker, CONTEXTS[c.ticker] ? ctxOf(c.ticker) : null);
+    const v = view(PAYLOAD, c.ticker);
     assert.equal(v.error, null, c.ticker);
     assert.deepEqual(v.sectionErrors, {}, c.ticker);
-    assert.equal(v.insight.state, CONTEXTS[c.ticker] ? "ok" : "pending", c.ticker);
-    assert.equal(v.kpis.length, 6, c.ticker);
     assert.ok(v.table.columns.filter((x) => !x.frozen).length <= core.MAX_PRESET_COLUMNS + 1, c.ticker);
     for (const r of v.table.rows) assert.ok(Array.isArray(r.tickerFlags), c.ticker);
     const b = deriveView(PAYLOAD, defaultState(PAYLOAD, {focal: c.ticker, engine: ""}), {mode: "bridge"});
@@ -1840,4 +1170,284 @@ test("R3 payload: every company derives in both modes; the reference contexts gi
   for (const c of PAYLOAD.companies.filter((x) => x.engine === "pharma")) {
     assert.equal(view(PAYLOAD, c.ticker).peers.n, 17, c.ticker);
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Revision 4: the company scorecard (docs/design/company-scorecard.md 5.2, 6.3, 7.2). The frame
+// fixture payload with the scorecard block E1's builder wrote for the 2026-10-01 book.
+// ---------------------------------------------------------------------------------------------
+
+const SCORECARD_PATH = path.join(HERE, "../../../backend/tests/fixtures/company_score/sample_scorecard.json");
+const SCORECARD = fs.existsSync(SCORECARD_PATH) ? JSON.parse(fs.readFileSync(SCORECARD_PATH, "utf8")) : null;
+const SCP = PAYLOAD && SCORECARD ? {...PAYLOAD, scorecard: SCORECARD} : null;
+const scState = (focal, actions = [], p = SCP) => {
+  let st = defaultState(p, {focal, engine: ""}, null, null);
+  for (const a of actions) st = reduce(st, a, p);
+  return st;
+};
+const scView = (focal, actions = [], p = SCP) => core.deriveView(p, scState(focal, actions, p));
+
+test("R4.1 buildScorecard: the cohort's rows in rank order, shaded cells, titles and the context line", {skip: !SCP}, () => {
+  const v = scView("AZN");
+  assert.deepEqual(v.sectionErrors, {});
+  const S = v.scorecard;
+  assert.equal(S.state, "ok");
+  assert.equal(S.contextText, "Scored against 18 big pharma");
+  assert.deepEqual(S.cohort, {id: "big_pharma", label: "Big pharma", noun: "big pharma", n: 18});
+  assert.deepEqual(S.columns.map((c) => c.header), ["grow", "prof", "bal.", "pipe", "dur.", "value"]);
+  assert.equal(S.columns[0].title, "Growth: revenue growth; revenue growth, 3-year CAGR");
+  assert.deepEqual(S.rows.map((r) => r.ticker), SCORECARD.cohorts.big_pharma.ranked);
+  const azn = S.rows.find((r) => r.ticker === "AZN");
+  assert.deepEqual([azn.rank, azn.rangeText, azn.score, azn.focal, azn.picked, azn.ranked], [7, "2–11", 58, true, true, true]);
+  const cell = (r, id) => r.cells.find((c) => c.id === id);
+  // 3.2 and 8.3: UP above 50, DOWN below, opacity 0.85 x |s - 50| / 50, the number on hover only.
+  assert.deepEqual(pick(cell(azn, "growth"), ["fill", "alpha", "title"]),
+    {fill: "up", alpha: 0.459, title: "Growth 77, on 2 of 2 measures; cohort median 48"});
+  assert.deepEqual(pick(cell(azn, "profitability"), ["fill", "alpha"]), {fill: "down", alpha: 0.323});
+  assert.equal(cell(azn, "value").title, "Value 46, on 2 of 3 measures; cohort median 49");
+  for (const r of S.rows) for (const c of r.cells) {
+    if (c.missing) { assert.equal(c.text, "·"); assert.equal(c.fill, null); continue; }
+    assert.equal(c.fill, c.score > 50 ? "up" : c.score < 50 ? "down" : null, `${r.ticker} ${c.id}`);
+    assert.ok(Math.abs(c.alpha - 0.85 * Math.abs(c.score - 50) / 50) < 1e-3, `${r.ticker} ${c.id}`);
+  }
+  // ROG has no growth pillar: a dot, no fill, and the reason in its title.
+  const rog = cell(S.rows.find((r) => r.ticker === "ROG"), "growth");
+  assert.equal(rog.missing, true);
+  assert.match(rog.title, /^Growth: /);
+  // Nothing under the chart for big pharma; the how-to-read line is the server's copy.
+  assert.equal(S.notRankedText, null);
+  assert.equal(S.notOnChartText, null);
+  assert.equal(S.howToRead, SCORECARD.method.text.how_to_read);
+  assert.equal(S.compareLabel, "Compare 1");
+  assert.equal(S.compareEnabled, false);
+  assert.equal(S.compareTip, "Tick two or three companies");
+});
+
+function pick(o, keys) { return Object.fromEntries(keys.map((k) => [k, o[k]])); }
+
+test("R4.2 the commercial cohort names the company not ranked and those not on the chart", {skip: !SCP}, () => {
+  const S = scView("BNTX").scorecard;
+  assert.equal(S.state, "ok");
+  assert.equal(S.contextText, SCORECARD.cohorts.commercial.context_text);
+  assert.deepEqual(S.columns.map((c) => c.header), ["grow", "prof", "bal.", "pipe", "value"]);
+  assert.equal(S.notRankedText, "Not ranked: ADAPY (2 of 4 pillars, a score needs 3).");
+  assert.equal(S.notOnChartText, `Not on the chart: ${SCORECARD.cohorts.commercial.not_on_chart.map((x) => x.ticker).join(", ")} (no value measure on file).`);
+  const last = S.rows[S.rows.length - 1];
+  assert.deepEqual([last.ticker, last.rank, last.ranked, last.reason], ["ADAPY", null, false, "2 of 4 pillars, a score needs 3"]);
+  // A clinical company reads its own two pillars and value.
+  assert.deepEqual(scView("CRSP").scorecard.columns.map((c) => c.header), ["pipe", "fund", "value"]);
+});
+
+test("R4.3 a scorecard that failed or is absent is one state, and the Table view still works", {skip: !SCP}, () => {
+  const failed = scView("AZN", [], {...PAYLOAD, scorecard: {schema: 2, error: "TypeError: boom", cohorts: {}, companies: {}}});
+  assert.equal(failed.scorecard.state, "error");
+  assert.equal(failed.scorecard.errorText, "The scorecard did not load: TypeError: boom. The Table view still works.");
+  assert.ok(failed.table && failed.table.rows.length > 0);
+  assert.equal(scView("AZN", [], PAYLOAD).scorecard.errorText,
+    "The scorecard did not load: no scorecard in the payload. The Table view still works.");
+});
+
+test("R4.4 Compare picks: the focal ticked once, a fourth refused, two needed to open", {skip: !SCP}, () => {
+  let st = scState("AZN");
+  assert.deepEqual(st.ui.compare, ["AZN"]);
+  assert.equal(st.ui.view, "scorecard");
+  assert.equal(reduce(st, {type: "OPEN_COMPARE"}, SCP), st, "one pick cannot open Compare");
+  st = reduce(st, {type: "TOGGLE_COMPARE", ticker: "LLY"}, SCP);
+  st = reduce(st, {type: "TOGGLE_COMPARE", ticker: "PFE"}, SCP);
+  assert.deepEqual(st.ui.compare, ["AZN", "LLY", "PFE"]);
+  assert.equal(reduce(st, {type: "TOGGLE_COMPARE", ticker: "VRTX"}, SCP), st, "a fourth is refused");
+  assert.equal(reduce(st, {type: "TOGGLE_COMPARE", ticker: "NOPE"}, SCP), st, "an unknown ticker is ignored");
+  st = reduce(st, {type: "OPEN_COMPARE"}, SCP);
+  assert.equal(st.ui.compareOpen, true);
+  // Unticking below two closes the sheet; the picks stay for the session.
+  let s2 = reduce(st, {type: "TOGGLE_COMPARE", ticker: "LLY"}, SCP);
+  s2 = reduce(s2, {type: "TOGGLE_COMPARE", ticker: "PFE"}, SCP);
+  assert.deepEqual([s2.ui.compare, s2.ui.compareOpen], [["AZN"], false]);
+  assert.equal(reduce(st, {type: "CLOSE_COMPARE"}, SCP).ui.compareOpen, false);
+  // A new focal company is ticked once, while there is room; unticked, it is not ticked again.
+  let s3 = reduce(scState("AZN"), {type: "SET_FOCAL", ticker: "LLY"}, SCP);
+  assert.deepEqual(s3.ui.compare, ["AZN", "LLY"]);
+  s3 = reduce(s3, {type: "TOGGLE_COMPARE", ticker: "LLY"}, SCP);
+  s3 = reduce(s3, {type: "SET_FOCAL", ticker: "AZN"}, SCP);
+  s3 = reduce(s3, {type: "SET_FOCAL", ticker: "LLY"}, SCP);
+  assert.deepEqual(s3.ui.compare, ["AZN"]);
+  // The switch: the Table view closes Compare and the Scorecard view the peer drawer.
+  const tv = reduce(st, {type: "SET_VIEW", value: "table"}, SCP);
+  assert.deepEqual([tv.ui.view, tv.ui.compareOpen], ["table", false]);
+  assert.equal(reduce(tv, {type: "SET_VIEW", value: "nonsense"}, SCP), tv);
+  const withPeers = reduce(tv, {type: "OPEN_PEERS"}, SCP);
+  assert.equal(reduce(withPeers, {type: "SET_VIEW", value: "scorecard"}, SCP).ui.peers, false);
+  // Only the view is kept in the browser; the picks are not.
+  const p = persistable(tv);
+  assert.equal(p.local.view, "table");
+  assert.ok(!("compare" in p.local) && !JSON.stringify(p.session).includes("compare"));
+  assert.equal(migrateState({version: 1, view: "table"}).view, "table");
+  assert.equal(migrateState({version: 1, view: "chart"}).view, "scorecard");
+  assert.equal(defaultState(SCP, {focal: "AZN"}, {version: 1, view: "table"}, null).ui.view, "table");
+});
+
+test("R4.5 buildCompare: groups in order, folded until opened, the best marked by direction", {skip: !SCP}, () => {
+  const acts = [{type: "TOGGLE_COMPARE", ticker: "PFE"}, {type: "TOGGLE_COMPARE", ticker: "LLY"}, {type: "OPEN_COMPARE"}];
+  const v = scView("AZN", acts);
+  const C = v.compare;
+  assert.ok(C);
+  // The open company first, then by rank: LLY 5th, PFE 13th.
+  assert.deepEqual(C.columns.map((c) => c.ticker), ["AZN", "LLY", "PFE"]);
+  assert.equal(C.mixed, false);
+  assert.equal(C.mixedText, null);
+  assert.deepEqual(C.groups.map((g) => g.id), ["company", "score", "growth", "profitability", "balance_sheet", "pipeline",
+    "durability", "value", "momentum", "positives", "negatives", "deals", "data"]);
+  const g = (id) => C.groups.find((x) => x.id === id);
+  for (const id of ["growth", "profitability", "balance_sheet", "pipeline", "durability", "value", "momentum", "data"]) {
+    assert.equal(g(id).open, false, id);
+    assert.equal(g(id).toggle, true, id);
+  }
+  for (const id of ["company", "score", "positives", "negatives", "deals"]) assert.equal(g(id).open, true, id);
+  // Company score: higher is better, LLY 63 is best.
+  const sc = g("score").rows[0];
+  assert.deepEqual(sc.cells.map((c) => [c.text, c.sub, c.best]),
+    [["58", "7th of 18, range 2–11", false], ["63", "5th of 18, range 1–12", true], ["40", "13th of 18, range 4–17", false]]);
+  // Metric rows by their own direction: revenue growth higher (LLY), net debt to OCF lower (AZN).
+  const row = (gid, mid) => g(gid).rows.find((r) => r.metric === mid);
+  assert.deepEqual(row("growth", "rev_growth").cells.map((c) => c.best), [false, true, false]);
+  assert.deepEqual(row("balance_sheet", "nd_ocf").cells.map((c) => c.best), [true, false, false]);
+  assert.equal(row("growth", "rev_growth").cells[0].sub, "FY2025, 4th best of 17");
+  // A figure the data flags is a dot with its reason, never marked.
+  const op = row("profitability", "op_margin").cells;
+  assert.equal(op[1].text, "·");
+  assert.equal(op[1].reason, SCORECARD.method.reasons.derived_operating_income);
+  // Opening a group shows its measures; its first row is the pillar score, shaded.
+  const opened = scView("AZN", acts.concat([{type: "TOGGLE_COMPARE_ROW", pillar: "growth"}])).compare;
+  assert.equal(opened.groups.find((x) => x.id === "growth").open, true);
+  const pillarRow = g("growth").rows[0];
+  assert.equal(pillarRow.kind, "pillar");
+  assert.deepEqual(pillarRow.cells.map((c) => c.text), ["77", "100", "3"]);
+  assert.deepEqual(pillarRow.cells.map((c) => c.best), [false, true, false]);
+  assert.equal(pillarRow.cells[0].fill, "up");
+  // Positives and negatives: the first three of each, as the scorecard words them.
+  assert.deepEqual(g("positives").rows[0].cells[0].lines, SCORECARD.companies.AZN.positives.slice(0, 3).map((x) => x.text));
+  assert.equal(g("deals").rows[0].cells[0].text, `${SCORECARD.companies.AZN.facts.deals.n} deals on file, newest Sep 2026`);
+  // No Compare unless asked for.
+  assert.equal(scView("AZN", acts.slice(0, 2)).compare, null);
+});
+
+test("R4.6 buildCompare marks ties, nothing with one value, and no score row across cohorts", {skip: !SCP}, () => {
+  const sc = JSON.parse(JSON.stringify(SCORECARD));
+  // A tie on revenue growth, and only one company with a cash flow margin.
+  sc.companies.LLY.pillars.growth.metrics.find((m) => m.id === "rev_growth").value = sc.companies.PFE.pillars.growth.metrics.find((m) => m.id === "rev_growth").value = 0.5;
+  for (const t of ["LLY", "PFE"]) {
+    const m = sc.companies[t].pillars.profitability.metrics.find((x) => x.id === "fcf_margin");
+    Object.assign(m, {value: null, text: null, score: null, place: null, reason: "not_filed"});
+  }
+  const p = {...PAYLOAD, scorecard: sc};
+  const acts = [{type: "TOGGLE_COMPARE", ticker: "PFE"}, {type: "TOGGLE_COMPARE", ticker: "LLY"}, {type: "OPEN_COMPARE"}];
+  const C = scView("AZN", acts, p).compare;
+  const row = (gid, mid) => C.groups.find((x) => x.id === gid).rows.find((r) => r.metric === mid);
+  assert.deepEqual(row("growth", "rev_growth").cells.map((c) => c.best), [false, true, true]);
+  assert.deepEqual(row("profitability", "fcf_margin").cells.map((c) => c.best), [false, false, false]);
+  // Across cohorts: the score rows are not marked, the mixed line shows, and a measure outside a
+  // cohort's list says so.
+  const M = scView("AZN", [{type: "TOGGLE_COMPARE", ticker: "CRSP"}, {type: "TOGGLE_COMPARE", ticker: "BNTX"}, {type: "OPEN_COMPARE"}]).compare;
+  assert.equal(M.mixed, true);
+  assert.equal(M.mixedText, "Scored against different peers. Compare the measures, not the scores.");
+  const score = M.groups.find((x) => x.id === "score").rows[0];
+  assert.equal(score.marked, false);
+  assert.ok(score.cells.every((c) => !c.best));
+  assert.ok(M.groups.find((x) => x.id === "growth").rows[0].cells.every((c) => !c.best));
+  const crsp = M.columns.findIndex((c) => c.ticker === "CRSP");
+  const gcell = M.groups.find((x) => x.id === "growth").rows.find((r) => r.metric === "rev_growth").cells[crsp];
+  assert.equal(gcell.reason, "not scored for clinical-stage biotechs");
+  assert.ok(M.groups.some((x) => x.id === "funding"), "the union of the cohorts' pillars");
+});
+
+test("R4.7 the panel's scorecard blocks: score line, lines, pillars, deals and weights", {skip: !SCP}, () => {
+  const d = scView("AZN", [{type: "OPEN_DETAIL", ticker: "AZN"}]).detail;
+  assert.ok(!("against" in d), "Against {focal} is gone");
+  const S = d.scorecard;
+  assert.equal(S.state, "ok");
+  assert.equal(S.scoreLine, "58 · 7th of 18 big pharma · 2nd to 11th in 90 of 100 weightings");
+  assert.equal(S.sentence, SCORECARD.companies.AZN.sentence);
+  assert.equal(S.weightsText, "Equal weights. Under 90 of 100 random weightings the rank stays between 2nd and 11th.");
+  assert.deepEqual(S.positives.map((x) => [x.text, x.pillarLabel]), SCORECARD.companies.AZN.positives.map((x) => [x.text,
+    SCORECARD.method.pillars[x.pillar].label]));
+  assert.deepEqual(S.business.map((p) => p.id), ["growth", "profitability", "balance_sheet", "pipeline", "durability"]);
+  assert.deepEqual(S.price.map((p) => p.id), ["value", "momentum"]);
+  assert.equal(S.price[0].onText, "on 2 of 3 measures");
+  const dur = S.business.find((p) => p.id === "durability");
+  assert.equal(dur.note, "4.6 years of exclusivity left");
+  assert.equal(S.loeYearsText, "4.6 years of exclusivity left");
+  assert.deepEqual(S.exclusivityRows.map((x) => x.text), ["Lynparza exclusivity ends 8 Sep 2027", "Koselugo exclusivity ends 13 Mar 2028"]);
+  assert.equal(S.exclusivityRows[0].lead, "5.6% of FY2025 revenue");
+  const ev = S.price[0].metrics.find((m) => m.id === "ev_sales");
+  assert.equal(ev.line, "4.7× EV to sales, median 4.8×");
+  const eps = S.business[0].metrics.find((m) => m.id === "eps_cagr");
+  assert.equal(eps.scored, false);
+  // Deals: facts, newest first, at most eight, with the chip; the firepower line.
+  assert.equal(S.deals.countText, SCORECARD.companies.AZN.facts.deals.count_text);
+  assert.equal(S.deals.chip, "From headlines and filings, not reviewed");
+  assert.ok(S.deals.rows.length <= 8);
+  const dates = S.deals.rows.map((x) => x.date);
+  assert.deepEqual(dates, dates.slice().sort().reverse());
+  assert.equal(S.deals.rows[0].quote, SCORECARD.companies.AZN.facts.deals.rows[0].quote, "a quote is verbatim");
+  assert.equal(S.firepowerText, "Could fund about $19.8bn of deals before net debt reaches three times operating cash flow.");
+  // CRSP: the clinical facts and its one positive, no negative.
+  const c = scView("CRSP", [{type: "OPEN_DETAIL", ticker: "CRSP"}]).detail.scorecard;
+  assert.equal(c.leadPhaseText, "Lead asset in Phase 1/2");
+  assert.equal(c.partnerText, "Shares Casgevy, VRTX's marketed drug");
+  assert.equal(c.negatives.length, 0);
+  assert.equal(c.noNegative, "No measure in the cohort's bottom quarter.");
+  // The panel of a company outside the focal cohort reads its own cohort.
+  const other = scView("AZN", [{type: "OPEN_DETAIL", ticker: "CRSP"}]).detail.scorecard;
+  assert.equal(other.cohortNoun, "clinical-stage biotechs");
+});
+
+test("R4.8 full mode derives no conclusion, KPI strip, observations, insight or scatter", {skip: !SCP}, () => {
+  const v = scView("AZN");
+  for (const k of ["conclusion", "kpis", "observations", "insight", "scatter"]) assert.ok(!(k in v), k);
+  for (const k of ["conclusion", "observations", "buildKpis", "scatterModel", "summaryText", "INSIGHT_COPY"]) assert.ok(!(k in core), k);
+  assert.ok(v.table && v.dotplot && v.header && v.scorecard);
+  assert.equal(v.uiView, "scorecard");
+  // The Scorecard view's methodology drawer says how the scorecard is scored, and only that.
+  const m = scView("AZN", [{type: "OPEN_METHOD", anchor: "scorecard"}]).method;
+  assert.deepEqual(m.sections.map((s) => s.id), ["scorecard"]);
+  assert.equal(m.sections[0].title, "How it is scored, each from 0 to 100");
+  assert.ok(m.sections[0].body.some((b) => b.startsWith("Cohort: Big pharma, 18 companies")));
+  const t = scView("AZN", [{type: "SET_VIEW", value: "table"}, {type: "OPEN_METHOD"}]).method;
+  assert.ok(t.sections.some((s) => s.id === "stats") && t.sections.some((s) => s.id === "scorecard"));
+  // Every company of the fixture derives with the scorecard and no section error.
+  for (const c of PAYLOAD.companies) {
+    const x = scView(c.ticker, [{type: "OPEN_DETAIL", ticker: c.ticker}]);
+    assert.deepEqual(x.sectionErrors, {}, c.ticker);
+    assert.equal(x.scorecard.state, "ok", c.ticker);
+    assert.equal(x.detail.scorecard.state, "ok", c.ticker);
+  }
+});
+
+test("R4.9 house style over the scorecard's fixed copy and every line the frame prints", {skip: !SCP}, () => {
+  const bad = [];
+  const check = (s, kind, where) => { if (!s) return; const i = lintCopy(s, kind, ["ADAPY", "XLV", "CAGR", "FY0", "EV", "P/E"]); if (i.length) bad.push(`${where}: ${i.join(", ")}: ${s}`); };
+  const C = core.SCORECARD_COPY;
+  for (const [k, v] of Object.entries(C)) {
+    if (typeof v === "string") check(v.replace(/\{\w+\}/g, "X"), /^(views|headings|table)$/.test(k) ? "label" : "sentence", k);
+    else for (const [k2, v2] of Object.entries(v)) check(v2, "label", `${k}.${k2}`);
+  }
+  for (const t of ["AZN", "LLY", "CRSP", "BNTX", "QURE"]) {
+    const acts = [{type: "OPEN_DETAIL", ticker: t}, {type: "TOGGLE_COMPARE", ticker: "PFE"}, {type: "TOGGLE_COMPARE", ticker: "CRSP"}, {type: "OPEN_COMPARE"}];
+    const v = scView(t, acts);
+    const S = v.scorecard;
+    for (const x of [S.contextText, S.notRankedText, S.notOnChartText, S.howToRead]) check(x, "sentence", `${t} scorecard`);
+    for (const r of S.rows) for (const c of r.cells) check(c.title, "sentence", `${t} cell`);
+    const D = v.detail.scorecard;
+    for (const x of [D.scoreLine, D.sentence, D.weightsText, D.firepowerText, D.leadPhaseText, D.partnerText, D.deals.countText,
+      D.marketCapAltText, D.loeYearsText, D.productCoverageText]) check(x, "sentence", `${t} detail`);
+    for (const p of D.business.concat(D.price)) {
+      check(p.reasonText, "sentence", `${t} ${p.id}`);
+      for (const m of p.metrics) for (const x of [m.reasonText, m.notScoredText, m.line]) check(x, "sentence", `${t} ${m.id}`);
+    }
+    // Deal quotes are headlines verbatim and are not linted (2.10).
+    if (v.compare) for (const g of v.compare.groups) for (const r of g.rows) for (const c of r.cells) {
+      for (const x of [c.sub, c.reason].concat(c.lines || [])) check(x, "sentence", `${t} compare ${r.id}`);
+    }
+  }
+  assert.deepEqual(bad, []);
 });

@@ -5,6 +5,17 @@
  * presets of 4.5 exported as data, as revised by section 12 (revision 3: the simplified page,
  * Drivers and risks fed by the focal context, the bridge-only mode, the whole-cohort peer set).
  * Where section 12 and sections 0 to 11 disagree, section 12 holds.
+ *
+ * Revision 4 (docs/design/company-scorecard.md 5.2, 6.3): the full view opens on the company
+ * scorecard. `view.scorecard` (the ranked table of the focal company's cohort, shaded cells, the
+ * lines under the chart), `view.compare` (null unless Compare is open) and
+ * `view.detail.scorecard` (the panel's score, lines, pillars, deals and weights) arrange
+ * `payload.scorecard` as the server built it; nothing is scored here. `state.ui` gains `view`
+ * ("scorecard" | "table", the one ui key persisted), `compare`, `comparePrimed`, `compareOpen`
+ * and `compareRowsOpen`; actions SET_VIEW, TOGGLE_COMPARE, OPEN_COMPARE, CLOSE_COMPARE and
+ * TOGGLE_COMPARE_ROW. The conclusion banner, the KPI strip, Drivers and risks (observations and
+ * the focal context's evidence), the valuation-against-growth scatter and the panel's "Against"
+ * rows of revision 3 are gone, with their code (company-scorecard.md 5.2, build step 6).
  * Pure ES module: no DOM, no window, no storage, no Date.now().
  * Callers pass time (`now`) in actions. `null` means absent and is never coerced to 0.
  *
@@ -12,18 +23,15 @@
  * between closest ranks, R type 7 (numpy's default, Excel PERCENTILE.INC):
  * h = (n - 1) p, lo = floor(h), x[lo] + (h - lo)(x[lo + 1] - x[lo]); n = 1 returns the value.
  * `percentileRank` is the mid-rank percent over the peer values, focal excluded:
- * (below + 0.5 equal) / n x 100. It is reported as a number only and never decides a quartile;
- * `quartileSide` compares against the same p25 and p75 the summary rows show.
+ * (below + 0.5 equal) / n x 100. It is reported as a number only and never decides a quartile.
  *
  * ---------------------------------------------------------------------------------------------
  * View (3.15): what every renderer consumes. Renderers never read the payload directly except
  * `payload.companies[i].detail`, which reaches them as `view.detail.detail`.
  *
- * `deriveView(payload, state, {context, mode})` (12.10). `context` is the focal company's
- * comps-context body (12.2), `{ticker, error}` when the read failed, or null while it is on its way.
- * `mode` is "full" (default) or "bridge". In bridge mode the view carries `mode`, `error`, `focal`,
- * `ctx`, `primary`, `bridge`, `bridgeLine`, the bridge's own `states` and `analysis`; every other
- * section is null (`kpis` and `states` stay arrays).
+ * `deriveView(payload, state, {mode})` (12.10). `mode` is "full" (default) or "bridge". In bridge
+ * mode the view carries `mode`, `error`, `focal`, `ctx`, `primary`, `bridge`, `bridgeLine`, the
+ * bridge's own `states` and `analysis`; every other section is null (`states` stays an array).
  *
  * @typedef {Object} View
  * @property {1} schema
@@ -42,8 +50,6 @@
  *   `basis` (12.6): "Basis", or "Basis: EUR, ex amort." naming each choice that is not the default.
  *   `peerSet.tooltip` (12.8): what the system set is ("Every big pharma company at the commercial
  *   stage. ..."); "" for a saved or edited set.
- * @property {Conclusion} conclusion           3.11
- * @property {Kpi[]} kpis                      exactly 6; kpis[5].link opens the Forecast tab (12.5)
  * @property {{colId:string|null,label:string,basisLabel:string,basis:string|null,state:string,
  *            reasonText:string,fallbackFrom:string|null,
  *            candidates:{colId:string,label:string,enabled:boolean,premium:boolean,
@@ -54,14 +60,10 @@
  *                   colId?:string,action?:Object}[]}} scope
  * @property {TableView} table
  * @property {DotplotView} dotplot
- * @property {ScatterView} scatter
  * @property {Bridge} bridge                   3.9
  * @property {{text:string,linkLabel:string,storageLine:string}} bridgeLine   12.5, the context line
  *   of the bridge-only frame: "AZN against Big pharma, commercial, 17: peer median P/E (NTM) of
  *   15.4×, 14 of 17 peers with a value."; "{T} against {set}." while the bridge is disabled
- * @property {{premium:Obs[],discount:Obs[],notAssessed:string[],suppressed:Object[]}} observations
- *   3.10, unchanged: it feeds the banner's support, "Look next" and "Why?"
- * @property {Insight|null} insight            12.3: what the Drivers and risks panel draws
  * @property {{text:string,tone:"neutral"|"flag",buttonLabel:string,anchor:"sources"}} footer   12.6;
  *   the `!` of the flag tone is the renderer's
  * @property {{rows:PeerRow[],candidates:PeerRow[],savedSets:Object[],subgroups:Object[],
@@ -75,87 +77,17 @@
  * @property {Object} lineage
  * @property {{label:string}|null} undo
  * @property {Object<string,StateMsg>} sectionErrors  section id -> red StateMsg; that section is null
- * @property {Object} analysis                 internal: read by conclusion(), confidence() and
- *                                             paletteExtras(); renderers should not rely on it
+ * @property {Object} analysis                 internal: read by paletteExtras(); renderers should
+ *                                             not rely on it
  *
  * Helpers for renderers beside the View: paletteExtras(view, state) (7.3 generated entries),
  * matchCommands, handleKey, normKey, COMMANDS, KEYMAP, canPin(state, colId, {layout, boxWidth}),
- * toCSV, toTSV, csvFilename, summaryText, flagText, fmt* formatters, COLUMNS, PRESETS, and for
- * revision 3 flagMarks, mergeBridge, indicationTitle, indicationProse, fmtPatients,
- * CONTEXT_NA_TEXT, INSIGHT_COPY and the constants of 12.0.
+ * toCSV, toTSV, csvFilename, flagText, fmt* formatters, COLUMNS, PRESETS, and for revision 3
+ * flagMarks, mergeBridge and the constants of 12.0.
  *
- * State (12.10): `ui` holds `peers: boolean`, `peersSearch: boolean` and
- * `insightTab: "catalysts"|"competition"`; `ui.lowerTab` is gone and `ui.laptopTab` serves
- * laptop, wide and ultrawide. Actions added: OPEN_PEERS {search?}, CLOSE_PEERS,
- * SET_INSIGHT_TAB {tab}, ADOPT_PERSISTED {local, session}. SET_LOWER_TAB is gone. One right-side
- * surface is open at a time: OPEN_DETAIL, OPEN_PEERS and OPEN_METHOD each close the other two.
- *
- * @typedef {Object} Insight   (12.3)
- * @property {string} ticker
- * @property {"ok"|"pending"|"error"} state   pending: no context yet, or another company's;
- *   error: the context carries `error`, or its schema is not CONTEXT_SCHEMA
- * @property {StateMsg|null} message          the pending or error block
- * @property {string|null} notice             line above both groups while the model is not computed
- * @property {{premium:InsightItem[],discount:InsightItem[],notAssessed:string[],
- *            premiumHeading:string,discountHeading:string,emptyText:string,maxMetric:number}} valuation
- *   a side lists its metric items by strength (the panel shows `maxMetric`, then "Show {n} more"),
- *   then the catalyst item, then the competition items in row order; those always show
- * @property {{state:"ok"|"empty"|"pending"|"error",title:string,countText:string,rows:CatalystRow[],
- *            note:string,empty:StateMsg|null,link:Link,linkLabel:string}} catalysts
- * @property {{state:"ok"|"empty"|"not_covered"|"pending"|"error",title:string,countText:string,
- *            rows:CompetitionRow[],note:string,empty:StateMsg|null,lead:string|null,
- *            link:Link|null,linkLabel:string,columns:string[]}} competition
- *   `empty` is the state block that replaces the rows whenever `state` is not "ok"; `lead` is the
- *   line above the rows when they are ordered by contest; `columns` are the five headings
- *
- * @typedef {{id:string,kind:"metric"|"catalyst"|"competition",side:"premium"|"discount",text:string,
- *   tag:string,strength:number,severity:"info"|"amber"|"red",provenance:"C"|"M",twoSided:boolean,
- *   chips:Chip[],link:Link,linkLabel:string}} InsightItem
- *   ids: a 3.10 rule id, "catalyst_stake", "catalyst_value", "pool_rationed:{indicationId}",
- *   "pool_lead:{indicationId}"
- * @typedef {{kind:"column",colId:string}|{kind:"tab",tab:"Catalysts"|"Forecast"}|
- *   {kind:"indication",indicationId:number,name:string}} Link
- * @typedef {{id:string,assetId:number|null,tier:0|1|2|3|4,dateIso:string,dateShort:string,
- *   dateText:string,estimated:boolean,label:string,indicationText:string|null,
- *   indicationNa:string|null,moreText:string|null,modelText:string|null,
- *   modelKind:"stake"|"asset_value"|null,naText:string|null,side:"discount"|null,chips:Chip[],
- *   link:Link,sourceUrl:string|null,tooltip:string[]}} CatalystRow    id is "cat-{catalyst id}"
- * @typedef {{id:string,indicationId:number,name:string,storedName:string,valueText:string|null,
- *   valueNa:string|null,own:StageCounts,rivals:StageCounts&{companies:number},ownText:string,
- *   rivalsText:string,poolText:string|null,poolNa:string|null,shareText:string|null,
- *   shareNa:string|null,side:"premium"|"discount"|"both"|null,provenance:"M"|"S",link:Link,
- *   tooltip:string[]}} CompetitionRow    id is "ind-{indication id}"
- * @typedef {{n:number,marketed:number,phase3:number,phase2:number,other:number}} StageCounts
- *
- * @typedef {Object} Conclusion
- * @property {"ok"|"low_confidence"|"too_few"|"no_multiple"|"no_peers"|"error"} state
- * @property {string} headline                 at most MAX_HEADLINE_CHARS
- * @property {string} support                  at most two sentences
- * @property {string} supportShort             at most MAX_SUPPORT_SHORT_CHARS
- * @property {{text:string,caption:string,dir:"up"|"down"|null}} token   always text colour
- * @property {string} label
- * @property {string} labelShort
- * @property {{level:"high"|"medium"|"low"|null,score:number|null,reasons:string[],
- *            points:{text:string,points:number}[]}} confidence
- * @property {"active"|"flag"|"down"} bar
- * @property {Chip[]} chips
- * @property {{text:string,target:{kind:"cell"|"dotplot"|"scatter"|"peers",colId:string|null,
- *            ticker:string|null}}} lookNext
- * @property {{groups:{title:string,items:{text:string,colId:string|null,provenance:string}[]}[]}} why
- * @property {string|null} metric   prose label, e.g. "P/E"
- * @property {number|null} value  @property {number|null} median  @property {number|null} premium
- * @property {number|null} pct    @property {number} n
- * @property {string[]} notes      banner support notes, e.g. missing estimates
- * @property {{label:string,command:string}|null} action
- *
- * @typedef {{id:string,label:string,value:string,v:number|null,valueDir:"up"|"down"|null,
- *   unit:string|null,period:string,provenance:"sourced"|"calc."|"model",compare:string,
- *   compareDir:"up"|"down"|null,tooltip:string,flag:"amber"|null,strip:PositionStrip|null,
- *   link:Link|null}} Kpi
- *   `period` ends with the provenance word; `compare` already carries its arrow glyph.
- *
- * @typedef {{domain:[number,number],p25:number|null,median:number|null,p75:number|null,
- *   focal:number|null,clamped:"lo"|"hi"|null,description:string}} PositionStrip
+ * State (12.10): `ui` holds `peers: boolean` and `peersSearch: boolean`. Actions added:
+ * OPEN_PEERS {search?}, CLOSE_PEERS, ADOPT_PERSISTED {local, session}. One right-side surface is
+ * open at a time: OPEN_DETAIL, OPEN_PEERS and OPEN_METHOD each close the other two.
  *
  * @typedef {Object} TableView
  * @property {ColView[]} columns   starts with the five frozen base columns exp, incl, rel,
@@ -231,28 +163,11 @@
  *   outlier:null|"mild"|"extreme",clamped:"lo"|"hi"|null,label:string|null,pct:number|null,
  *   hover:string,announce:string}} DotPoint   x is v clamped to the extent; label set when clamped
  *
- * @typedef {Object} ScatterView  (3.8 scatterModel output plus the controls)
- * @property {Object[]} points  {ticker,x,y,px,py,r,size,isFocal,excluded,inStats,engine,stage,shape,
- *   hollow,clampedX,clampedY,showLabel,xText,yText,announce}; px/py clamped to the extent, r in px
- * @property {{slope:number,intercept:number,r2:number,n:number}|null} trend
- * @property {"trend"|"median"|null} reference @property {number|null} rel
- * @property {{id:string,label:string}|null} region
- * @property {string} interpretation  @property {string} description
- * @property {{x:[number,number],y:[number,number]}|null} domain
- * @property {string|null} disabledReason
- * @property {string} x @property {string} y @property {string} size @property {string} colorBy
- * @property {boolean} logY @property {boolean} trendOn @property {boolean} logYOffered
- * @property {{id:string,label:string,x:number,y:number}[]} regions  data coordinates
- * @property {number|null} medianX @property {number|null} medianY
- * @property {{id:string,label:string}[]} xOptions @property {{id:string,label:string}[]} yOptions
- * @property {StateMsg|null} disabledState  the .u-state block to show instead of the chart
- *
  * @typedef {Object} DetailView
  * @property {string} ticker @property {string} name @property {boolean} isFocal
  * @property {Object} record @property {Object|null} detail   (2.7 detail record, verbatim)
  * @property {boolean} inPeers @property {boolean} excluded @property {Object|null} relevance
  * @property {string|null} source @property {string|null} reason
- * @property {{id:string,label:string,peer:string,focal:string,better:"peer"|"focal"|null}[]} against
  * @property {Object} overTime  {labels, series: {revenue_growth: {peer, focal}, net_margin: {...}}}
  * @property {{text:string,updated:string}|null} note
  * @property {Chip[]} chips
@@ -272,7 +187,6 @@ export const CURRENCIES = ["USD", "EUR", "GBP", "CHF", "DKK", "REPORTED"];
 export const MIN_PEERS = 5;                 // fewer valid values: low confidence
 export const MAX_DEFAULT_PEERS = 15;
 export const MIN_DEFAULT_RELEVANCE = 40;    // also the floor for an "appropriate" peer
-export const MIN_MEDIAN_RELEVANCE = 50;     // confidence penalty under this
 export const MIN_REVENUE_USD_M = 100;       // revenue multiples, margins and R&D share below this are n.m.
 export const MIN_GROWTH_BASE_USD_M = 10;    // revenue growth and CAGR n.m. when either end is below this
 export const MIN_EBITDA_GROWTH_BASE_USD_M = 10;  // EBITDA growth n.m. when abs(base) is below this
@@ -281,15 +195,10 @@ export const MAX_ABS_GROWTH = 5.0;          // abs(growth) over 500 % is n.m., e
 export const MAX_REVENUE_MULTIPLE = 100;    // EV/Revenue and market cap / revenue over 100x are n.m.
 export const MIN_MARGIN = -1.0;             // margins below -100 % are n.m.
 export const MIN_EPS_FOR_DISPERSION = 0.10; // abs(mean EPS) below USD 0.10: dispersion n.m.
-export const IN_LINE_PCT = 5;               // in line when the premium rounds to under 5 whole percent
-export const NEAR_TREND_BAND = 0.10;        // abs(relative residual) under 10 %: near trend
-export const MIN_SCATTER_PEERS = 3;         // fewer peers with both values: no scatter
 export const TUKEY_K = 1.5, TUKEY_EXTREME_K = 3.0;
-export const MAX_DISPERSION_RATIO = 0.6;    // iqr / median above this costs a confidence point
 export const MAX_DERIVED_SHARE = 0.25;      // share of peer values on derived operating income
 export const WIDE_RANGE_MIN_ESTIMATES = 5;  // estimate_range_wide counts for confidence under this n
 export const WIDE_RANGE_MAX = 1.0;          // ... or above this dispersion
-export const MAX_HEADLINE_CHARS = 160, MAX_SUPPORT_SHORT_CHARS = 90, MAX_LOOK_NEXT_CHARS = 60;
 export const SHORT_FRAME_PX = 720, COLLAPSE_AT_PX = 120, EXPAND_BELOW_PX = 40;
 export const FROZEN_MAX_SHARE = 0.40;       // frozen columns may cover at most this share of the table box
 export const UNDO_MS = 5000;
@@ -309,18 +218,8 @@ export const METRIC_CANDIDATES = ["pe", "ev_ebitda", "ev_revenue", "price_to_sal
 export const NULL_GLYPH = "—";
 
 // Revision 3 (section 12.0).
-export const CATALYST_MIN_PCT = 0.05;        // stake, or an unapproved asset's modelled value, as a share of price
-export const POOL_KEEP_MAX = 0.90;           // a company keeping at most this share of its own forecasts is rationed
-export const POOL_LEAD_MIN_SHARE = 0.25;     // largest share of the modelled starts, and at least this
-export const POOL_LEAD_MIN_COMPANIES = 3;
-export const COMPETITION_MIN_PCT = 0.02;     // the company's modelled value in the indication, share of price
-export const INSIGHT_ROWS = 5;               // rows an evidence group shows before "Show {n} more"; also the metric items a side shows
 export const WHOLE_COHORT_MAX = 20;          // R3.7: a cohort of this many other companies or fewer is the default set, whole
 export const MAX_PRESET_COLUMNS = 9;         // R3.6: columns a built-in preset holds after the frozen block
-export const REGULATORY_KINDS = ["PDUFA", "regulatory decision", "AdCom", "EMA decision"];
-export const LATE_PHASES = ["Phase 3", "Phase 2/3"];
-export const CONTEXT_SCHEMA = 1;
-export const GOTO_KEY = "er.compsval.goto";  // sessionStorage, 12.5
 export const MODES = ["full", "bridge"];
 
 const NULL = NULL_GLYPH;
@@ -374,22 +273,11 @@ function fill(tpl, params) {
 function uniq(arr) { return Array.from(new Set(arr)); }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function plural(n, one, many) { return n === 1 ? one : many; }
-/** "a" or "an" before a whole number read aloud: an 8, an 11, an 18, an 80. */
-function article(n) {
-  const s = String(Math.round(Math.abs(n)));
-  return s.startsWith("8") || s === "11" || s === "18" || /^1[18]\d{3}$/.test(s) ? "an" : "a";
-}
 function wholePct(p) { return Math.round(Math.abs(p) * 100 + 1e-9); }
 function signedWholePct(p) {
   const w = wholePct(p);
   if (w === 0) return "0%";
   return (p > 0 ? "+" : MINUS) + w + "%";
-}
-function cutAt(s, max) {
-  if (!s || s.length <= max) return s;
-  const cut = s.slice(0, max - 1);
-  const sp = cut.lastIndexOf(" ");
-  return (sp > max * 0.5 ? cut.slice(0, sp) : cut).replace(/[,;:\s]+$/, "") + ELLIPSIS;
 }
 function shallowEqualArr(a, b) {
   if (a === b) return true;
@@ -443,26 +331,12 @@ export function percentileRank(value, values) {
   return (below + 0.5 * equal) / x.length * 100;
 }
 
-export function quartileSide(value, values) {
-  if (!isNum(value)) return null;
-  const x = finite(values);
-  if (x.length < MIN_PEERS) return null;
-  if (value >= quantile(x, 0.75)) return "top";
-  if (value <= quantile(x, 0.25)) return "bottom";
-  return null;
-}
-
 export function premium(value, reference, direction) {
   if (!direction || !isNum(value) || !isNum(reference)) return null;
   if (value <= 0 || reference <= 0) return null;
   if (direction === "richer_up") return value / reference - 1;
   if (direction === "richer_down") return reference / value - 1;
   return null;
-}
-
-export function isInLine(p) {
-  if (!isNum(p)) return false;
-  return Math.round(Math.abs(p) * 100 + 1e-9) < IN_LINE_PCT;
 }
 
 export function fences(values, k = TUKEY_K) {
@@ -479,23 +353,6 @@ export function outlierClass(value, values) {
   if (value < f3.lo || value > f3.hi) return "extreme";
   if (value < f1.lo || value > f1.hi) return "mild";
   return null;
-}
-
-export function ols(points) {
-  const pts = (points || []).map((p) => (Array.isArray(p) ? {x: p[0], y: p[1]} : p))
-    .filter((p) => p && isNum(p.x) && isNum(p.y));
-  const n = pts.length;
-  if (n < 5) return null;
-  const mx = pts.reduce((s, p) => s + p.x, 0) / n;
-  const my = pts.reduce((s, p) => s + p.y, 0) / n;
-  let sxx = 0, sxy = 0, syy = 0;
-  for (const p of pts) { sxx += (p.x - mx) ** 2; sxy += (p.x - mx) * (p.y - my); syy += (p.y - my) ** 2; }
-  if (sxx === 0) return null;
-  const slope = sxy / sxx, intercept = my - slope * mx;
-  let ssres = 0;
-  for (const p of pts) ssres += (p.y - (intercept + slope * p.x)) ** 2;
-  const r2 = syy === 0 ? 0 : 1 - ssres / syy;
-  return {slope, intercept, r2, n};
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -752,7 +609,7 @@ export const STATE_COPY = {
   api_error: {severity: "red", where: ["frame"], title: "Comps did not load", detail: "The API at {api_base} did not answer /comps/valuation ({error}). Start the API, then reload the page."},
   schema: {severity: "red", where: ["frame"], title: "This view is out of date", detail: "It reads data schema {expected} and the API sent {got}. Reload the page to load the matching view."},
   focal_missing: {severity: "red", where: ["frame"], title: "No record for {T}", detail: "The payload has no company {T}. Pick another company."},
-  no_peers: {severity: "amber", where: ["banner", "dotplot", "scatter", "table"], title: "No peers selected", detail: "Add a peer with A or from the peer panel, or restore the system set.", action: {label: "Restore system peers", command: "peers.restore"}},
+  no_peers: {severity: "amber", where: ["dotplot", "table"], title: "No peers selected", detail: "Add a peer with A or from the peer panel, or restore the system set.", action: {label: "Restore system peers", command: "peers.restore"}},
   low_confidence: {severity: "amber", where: ["banner", "kpi5", "dotplot", "summary"], title: "Low confidence", detail: "Only {k} peers have a {metric}. A median of fewer than 5 is not a reliable reference, so no premium or discount is stated."},
   too_few: {severity: "amber", where: ["banner", "kpi5", "dotplot"], title: "No comparison for {T}", detail: "{T} has a {metric} of {v}, but {who} a value. Widen the set to adjacent subsectors, or add peers with A.", action: {label: "Add adjacent-subsector peers", command: "peers.addAdjacent"}},
   default_short: {severity: "amber", where: ["banner", "peers"], title: "Only {n} companies qualify as peers", detail: "{T}'s subsector and stage, with adjacent subsectors, hold {n} companies with data. Add peers with A."},
@@ -791,7 +648,6 @@ export const STATE_COPY = {
   derived_no_addback: {severity: "amber", where: ["cells"], title: "No add-back on derived", detail: DERIVED_NO_ADDBACK_TEXT},
   guidance: {severity: "amber", where: ["cells"], title: "Guidance scope or currency", detail: "The guidance names no currency basis, so it is taken as reported."},
   wide_range: {severity: "amber", where: ["cells"], title: "Wide estimate range", detail: "FY1 EPS estimates run from {low} to {high} around a mean of {mean}. The range may mix GAAP and adjusted estimates."},
-  scatter_disabled: {severity: "info", where: ["scatter"], title: "No valuation against growth chart", detail: "{detail}"},
   calc_failed_company: {severity: "red", where: ["row"], title: "Calculation failed", detail: "Calculation failed for {T}: {message}. Other rows are unaffected."},
   calc_failed_section: {severity: "red", where: ["section"], title: "This section could not be computed", detail: "{section} failed: {message}. The rest of the view is unaffected."},
   model_not_computed: {severity: "info", where: ["cells", "notes"], title: "Model not computed", detail: NA_TEXT.model_not_computed},
@@ -805,13 +661,6 @@ export const STATE_COPY = {
   negative_equity: {severity: "amber", where: ["bridge"], title: "Negative implied equity", detail: "Implied equity is negative: net debt and claims exceed the implied enterprise value."},
   undo: {severity: "info", where: ["toast"], title: "Undo available", detail: "{label}. Undo"},
   single_keys_off: {severity: "info", where: ["help"], title: "Single-key shortcuts off", detail: "Single-key shortcuts are off. Use the palette (Cmd K or Ctrl K) or turn them on here."},
-  // Revision 3 (12.3): the two evidence groups of Drivers and risks.
-  context_pending: {severity: "info", where: ["catalysts", "competition"], title: "Loading catalysts and competition for {T}", detail: "They arrive with the page once the company changes."},
-  context_error: {severity: "amber", where: ["catalysts", "competition"], title: "Catalysts and competition did not load", detail: "The API did not answer /companies/{T}/comps-context ({error}). Reload with the reload button."},
-  no_catalysts: {severity: "info", where: ["catalysts"], title: "No dated catalysts in the next 12 months", detail: "No pending catalyst for {T} is dated between {from} and {to}. The Catalysts tab lists later events."},
-  competition_not_covered: {severity: "info", where: ["competition"], title: "Competition by indication is not covered for {T}", detail: "The indication landscape and the pool model cover the {n} big pharma companies. {T} is read on the {engine} engine, so no rival counts or pool shares are stated."},
-  no_indications: {severity: "info", where: ["competition"], title: "No indication to compare for {T}", detail: "No {T} candidate that is marketed or in Phase 2 or later is linked to an indication in the landscape."},
-  ranked_by_contest: {severity: "info", where: ["competition"], title: "Ordered by contest", detail: "No modelled value for {T}, so indications are ordered by how many companies contest them."},
   absent_subsectors: {severity: "info", where: ["presets"], title: "Absent subsectors", detail: "No medtech or healthcare services companies are in the 70-company universe, so those presets are not offered. Cell and gene therapy takes their place."},
 };
 
@@ -830,13 +679,7 @@ export function stateMsg(id, params = {}, extra = {}) {
 }
 
 export const PRESET_FOOTNOTE = STATE_COPY.absent_subsectors.detail;
-export const SYSTEM_LABEL = "System-generated summary from the table below. It states associations, not causes.";
-export const SYSTEM_LABEL_SHORT = "System-generated";
 export const STORAGE_LINE = "Peer sets, layouts, table settings and notes are saved in this browser only. Another browser or port starts empty.";
-export const NOT_ASSESSED = [
-  "Recurring revenue share: no comparable free data.",
-  "Reimbursement exposure: no comparable free measure. IRA Part D gross spending exists but is not revenue at risk.",
-];
 
 // ---------------------------------------------------------------------------------------------
 // 4.2 Column catalogue and 4.5 presets (data)
@@ -2152,178 +1995,6 @@ export function dotplotModel(focal, rows, colId, ctx, opts = {}) {
   return {...base, scale: log ? "log" : "linear", domain, extent: ext, lanes, description: desc};
 }
 
-/** KPI 5 position strip: the peer IQR, the median and the focal on the dot plot's domain rule. */
-export function positionStrip(focal, rows, colId, ctx) {
-  const dp = dotplotModel(focal, rows, colId, ctx, {});
-  const lane = dp.lanes[0];
-  const fp = lane ? lane.points.find((p) => p.isFocal) : null;
-  if (!dp.domain || !lane) return null;
-  const pct = fp ? fp.pct : null;
-  const inside = fp && isNum(lane.p25) && isNum(lane.p75)
-    ? (fp.v < lane.p25 ? "below" : fp.v > lane.p75 ? "above" : "inside") : null;
-  const fmt = (v) => proseValue(colId, v, ctx, focal);
-  const description = fp && inside
-    ? `${focal.ticker} at the ${ordinal(Math.round(pct))} percentile, ${inside} the interquartile range of ${fmt(lane.p25)} to ${fmt(lane.p75)}.`
-    : `${focal.ticker} has no position on this metric.`;
-  return {domain: dp.domain, scale: dp.scale, p25: lane.p25, median: lane.median, p75: lane.p75,
-    focal: fp ? fp.x : null, clamped: fp ? fp.clamped : null, description};
-}
-
-// ---------------------------------------------------------------------------------------------
-// 3.8 Scatter regression and regions
-// ---------------------------------------------------------------------------------------------
-
-export const SCATTER_X_OPTIONS = ["revenue_growth", "eps_growth", "ebitda_growth", "revenue_cagr3",
-  "operating_margin", "ebitda_margin", "roic", "loe_share_5y", "late_trials"];
-export const SCATTER_Y_OPTIONS = ["pe", "ev_ebitda", "ev_revenue", "price_to_sales", "price_to_book",
-  "fcf_yield", "peg", "mcap_to_cash", "pt_upside", "ev_per_late_trial", "pipeline_to_ev"];
-export const LOG_Y_COLS = ["ev_revenue", "price_to_sales", "mcap_to_cash", "pe", "price_to_book"];
-export function defaultScatterX(yCol) {
-  if (yCol === "pe") return "eps_growth";
-  if (yCol === "ev_revenue" || yCol === "price_to_sales") return "revenue_growth";
-  if (yCol === "ev_ebitda") return "ebitda_growth";
-  return "revenue_growth";
-}
-const SHAPES = {pharma: "circle", biotech: "square", cellgene: "triangle"};
-
-export function scatterModel(focal, rows, xCol, yCol, ctx, opts = {}) {
-  const o = {...((ctx && ctx.stats) || {}), ...opts};
-  const T = focal.ticker;
-  const xl = proseLabel(xCol), yl = proseLabel(yCol);
-  const group = o.group ? new Set(o.group) : null;
-  const out = {points: [], trend: null, reference: null, rel: null, region: null, interpretation: "",
-    description: "", domain: null, disabledReason: null, regions: [], medianX: null, medianY: null, n: 0,
-    xLabel: xl, yLabel: yl};
-  const fx = cell(focal, xCol, ctx), fy = cell(focal, yCol, ctx);
-  const R = (rows || []).map(asRow).filter((r) => r && !r.isFocal && r.inSet !== false);
-  const pts = [];
-  for (const r of R) {
-    const cx = cell(r.record, xCol, ctx), cy = cell(r.record, yCol, ctx);
-    if (cx.status === "ok" && cy.status === "ok" && isNum(cx.v) && isNum(cy.v)) {
-      pts.push({ticker: r.ticker, record: r.record, x: cx.v, y: cy.v, xText: cx.text, yText: cy.text,
-        excluded: !!r.excluded, inStats: !r.excluded && (!group || group.has(r.ticker))});
-    }
-  }
-  let fit = pts.filter((p) => p.inStats);
-  if ((o.outliers || "include") === "exclude" && fit.length >= 5) {
-    const fxs = fences(fit.map((p) => p.x)), fys = fences(fit.map((p) => p.y));
-    fit = fit.filter((p) => (!fxs || (p.x >= fxs.lo && p.x <= fxs.hi)) && (!fys || (p.y >= fys.lo && p.y <= fys.hi)));
-  }
-  out.n = fit.length;
-  if (fx.status !== "ok" || fy.status !== "ok") {
-    const bad = fx.status !== "ok" ? fx : fy;
-    out.disabledReason = `${T} has no ${fx.status !== "ok" ? xl : yl} value (${bad.brief}).`;
-    return out;
-  }
-  if (fit.length < MIN_SCATTER_PEERS) {
-    out.disabledReason = fit.length === 0 ? `No peer has both ${xl} and ${yl}; at least 3 are needed.`
-      : `Only ${fit.length} ${plural(fit.length, "peer has", "peers have")} both ${xl} and ${yl}; at least 3 are needed.`;
-    return out;
-  }
-  const medX = median(fit.map((p) => p.x)), medY = median(fit.map((p) => p.y));
-  out.medianX = medX; out.medianY = medY;
-  const trend = ols(fit.map((p) => ({x: p.x, y: p.y})));
-  out.trend = trend;
-  const xf = fx.v, yf = fy.v;
-  let reference, rel = null, medianReason = null;
-  if (trend) {
-    const yhat = trend.intercept + trend.slope * xf;
-    if (yhat <= 0 || (isNum(medY) && yhat < 0.1 * medY)) {
-      reference = "median"; medianReason = `the peer trend gives no usable value at ${T}'s ${xl}`;
-    } else { reference = "trend"; rel = (yf - yhat) / yhat; }
-  } else {
-    reference = "median"; medianReason = "too few peers with both values to fit a trend";
-  }
-  if (reference === "median") rel = isNum(medY) && medY > 0 ? yf / medY - 1 : null;
-  out.reference = reference; out.rel = rel;
-  const dir = (COLUMN_BY_ID[xCol] || {}).dir || "n";
-  const neutral = dir === "n";
-  const better = dir === "-" ? xf < medX : xf > medX;
-  const refWord = reference === "trend" ? "trend" : "peer median";
-  const sideWord = neutral ? (better ? "above median" : "at or below median") : (better ? "better than median" : "at or worse than median");
-  if (rel !== null) {
-    if (Math.abs(rel) < NEAR_TREND_BAND) out.region = {id: "near", label: reference === "trend" ? "Near the peer trend" : "Near the peer median"};
-    else if (rel >= NEAR_TREND_BAND) out.region = {id: better ? "above_better" : "above_worse", label: `Above ${refWord}, ${xl} ${sideWord}`};
-    else out.region = {id: better ? "below_better" : "below_worse", label: `Below ${refWord}, ${xl} ${sideWord}`};
-  }
-  const classify = (xv0, yv0) => {
-    let ref = "median", r = null;
-    if (trend) {
-      const yh = trend.intercept + trend.slope * xv0;
-      if (!(yh <= 0 || (isNum(medY) && yh < 0.1 * medY))) { ref = "trend"; r = (yv0 - yh) / yh; }
-    }
-    if (ref === "median") r = isNum(medY) && medY > 0 ? yv0 / medY - 1 : null;
-    const b = dir === "-" ? xv0 < medX : xv0 > medX;
-    const rw = ref === "trend" ? "trend" : "peer median";
-    const sw = neutral ? (b ? "above median" : "at or below median") : (b ? "better than median" : "at or worse than median");
-    if (r === null) return null;
-    if (Math.abs(r) < NEAR_TREND_BAND) return {id: "near", label: ref === "trend" ? "Near the peer trend" : "Near the peer median"};
-    return {id: `${r > 0 ? "above" : "below"}_${b ? "better" : "worse"}`, label: `${r > 0 ? "Above" : "Below"} ${rw}, ${xl} ${sw}`};
-  };
-  const xv = proseValue(xCol, xf, ctx, focal);
-  const pctTxt = rel === null ? NULL : wholePct(rel);
-  const r2t = trend ? fmtNumber(trend.r2, 2) : null;
-  if (reference === "median") {
-    out.interpretation = rel === null ? `${T} cannot be placed against the peer median of ${yl}; ${medianReason}.`
-      : `${T} sits ${pctTxt}% ${rel >= 0 ? "above" : "below"} the peer median of ${yl}; ${medianReason}.`;
-  } else if (out.region && out.region.id === "near") {
-    out.interpretation = `${T} sits close to the peer trend for its ${xl} of ${xv}.`;
-  } else {
-    const cmp = neutral ? (better ? "above the peer median" : "at or below the peer median") : (better ? "better than the peer median" : "worse than the peer median");
-    out.interpretation = `${T} sits ${pctTxt}% ${rel > 0 ? "above" : "below"} the peer trend for its ${xl} of ${xv}, with ${xl} ${cmp}.`;
-  }
-  if (trend && trend.r2 < 0.10) out.interpretation += ` The peer trend is weak (R² ${r2t}), so distance from it says little.`;
-  out.description = trend
-    ? `${ucfirst(yl)} against ${xl} for ${fit.length} peers. Trend R² ${r2t}. ${T}: ${out.region ? out.region.label : "not placed"}.`
-    : `${ucfirst(yl)} against ${xl} for ${fit.length} peers. Too few for a trend. ${T}: ${pctTxt}% ${rel !== null && rel >= 0 ? "above" : "below"} the peer median.`;
-  // Points, domain, sizes and labels.
-  const sizeCol = o.size === "ev" ? "ev.ev_usd_m" : (o.size === "none" ? null : "market.market_cap_usd_m");
-  const all = pts.map((p) => ({...p, isFocal: false})).concat([{ticker: T, record: focal, x: xf, y: yf, xText: fx.text,
-    yText: fy.text, excluded: false, inStats: false, isFocal: true}]);
-  const peerX = pts.map((p) => p.x), peerY = pts.map((p) => p.y);
-  const f3x = peerX.length >= 5 ? fences(peerX, TUKEY_EXTREME_K) : null;
-  const f3y = peerY.length >= 5 ? fences(peerY, TUKEY_EXTREME_K) : null;
-  const inX = all.map((p) => p.x).filter((v) => !f3x || (v >= f3x.lo && v <= f3x.hi));
-  const inY = all.map((p) => p.y).filter((v) => !f3y || (v >= f3y.lo && v <= f3y.hi));
-  const ex = inX.length ? [Math.min(...inX), Math.max(...inX)] : [Math.min(...all.map((p) => p.x)), Math.max(...all.map((p) => p.x))];
-  const ey = inY.length ? [Math.min(...inY), Math.max(...inY)] : [Math.min(...all.map((p) => p.y)), Math.max(...all.map((p) => p.y))];
-  const logY = !!o.logY && LOG_Y_COLS.includes(yCol) && ey[0] > 0;
-  out.logY = logY;
-  out.domain = {x: padDomain(ex[0], ex[1], false), y: padDomain(ey[0], ey[1], logY)};
-  out.extent = {x: ex, y: ey};
-  const sizes = all.map((p) => (sizeCol ? numAt(p.record, sizeCol) : null));
-  const maxSize = Math.max(0, ...sizes.filter((s) => isNum(s) && s > 0));
-  const largest = all.map((p, i) => ({t: p.ticker, s: sizes[i] || 0})).sort((a, b) => b.s - a.s).slice(0, 5).map((a) => a.t);
-  out.points = all.map((p, i) => {
-    const s = sizes[i];
-    const cxr = p.x < ex[0] ? "lo" : p.x > ex[1] ? "hi" : null;
-    const cyr = p.y < ey[0] ? "lo" : p.y > ey[1] ? "hi" : null;
-    const extreme = !!(cxr || cyr);
-    return {ticker: p.ticker, x: p.x, y: p.y, px: clamp(p.x, ex[0], ex[1]), py: clamp(p.y, ey[0], ey[1]),
-      size: isNum(s) ? s : null, r: isNum(s) && s > 0 && maxSize > 0 ? 4 + 14 * Math.sqrt(s / maxSize) : 4,
-      isFocal: p.isFocal, excluded: p.excluded, inStats: p.inStats, engine: p.record && p.record.engine,
-      stage: p.record && p.record.stage, shape: SHAPES[p.record && p.record.engine] || "circle",
-      hollow: p.record && p.record.stage === "clinical", clampedX: cxr, clampedY: cyr,
-      showLabel: p.isFocal || extreme || (sizeCol ? largest.includes(p.ticker) : false),
-      xText: p.xText, yText: p.yText,
-      announce: (() => {
-        const reg = p.isFocal ? out.region : classify(p.x, p.y);
-        return `${p.ticker}: ${xl} ${proseValue(xCol, p.x, ctx, p.record)}, ${yl} ${proseValue(yCol, p.y, ctx, p.record)}${reg ? `, ${lcfirst(reg.label)}` : ""}`;
-      })()};
-  });
-  if (trend && reference === "trend" && out.domain.x && out.domain.y) {
-    const [x0, x1] = out.domain.x, [y0, y1] = out.domain.y;
-    const halves = [{id: "left", x: (x0 + medX) / 2}, {id: "right", x: (medX + x1) / 2}];
-    for (const hf of halves) {
-      const yh = trend.intercept + trend.slope * hf.x;
-      if (!(yh > 0)) continue;
-      out.regions.push({id: `above_${hf.id}`, label: "Above trend", x: hf.x, y: (yh * (1 + NEAR_TREND_BAND) + y1) / 2});
-      out.regions.push({id: `below_${hf.id}`, label: "Below trend", x: hf.x, y: (yh * (1 - NEAR_TREND_BAND) + y0) / 2});
-    }
-  }
-  return out;
-}
-
 // ---------------------------------------------------------------------------------------------
 // 3.9 Valuation bridge
 // ---------------------------------------------------------------------------------------------
@@ -2563,172 +2234,7 @@ export function bridge(focal, rows, inputs = {}, ctx = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 3.10 Drivers and risks
-// ---------------------------------------------------------------------------------------------
-
-const OBS_SKIP_FLAGS = ["derived_operating_income", "derived_no_addback", "includes_minorities", "thin_estimates", "estimate_range_wide"];
-const withMedian = (m, a, b) => (m && m !== NULL ? a : b);
-
-const OBS_RULES = [
-  {id: "growth_top", side: "premium", col: "revenue_growth", q: "top", tag: "revenue growth top quartile",
-   long: (v, m) => `Revenue growth of ${v} is in the top quartile of peers (median ${m}).`,
-   short: (v, m) => `revenue growth in the top quartile of peers (${v} against a median of ${m})`},
-  {id: "eps_growth_top", side: "premium", col: "eps_growth", q: "top", forward: true, tag: "EPS growth top quartile",
-   long: (v, m) => `Street EPS growth of ${v} is in the top quartile of peers (median ${m}).`,
-   short: (v, m) => `street EPS growth in the top quartile of peers (${v} against a median of ${m})`},
-  {id: "margin_top", side: "premium", col: "operating_margin", q: "top", tag: "operating margin top quartile",
-   long: (v, m) => `Operating margin of ${v} is in the top quartile of peers (median ${m}).`,
-   short: (v, m) => `an operating margin in the top quartile of peers (${v} against a median of ${m})`},
-  {id: "roic_top", side: "premium", col: "roic", q: "top", tag: "ROIC top quartile",
-   long: (v, m) => `Return on invested capital of ${v} is in the top quartile of peers (median ${m}).`,
-   short: (v, m) => `a return on invested capital in the top quartile of peers (${v} against a median of ${m})`},
-  {id: "pipeline_depth", side: "premium", col: "late_trials", q: "top", tag: "late-stage trials top quartile",
-   long: (v, m) => `${v} late-stage ${v === "1" ? "trial" : "trials"} against a peer median of ${m}.`,
-   short: (v, m) => `${v} late-stage ${v === "1" ? "trial" : "trials"} against a peer median of ${m}`},
-  {id: "pipeline_value", side: "premium", col: "pipeline_to_ev", q: "top", prov: "M", tag: "pipeline value top quartile (model)",
-   long: (v, m) => `Modelled pipeline value is ${v} of enterprise value against a peer median of ${m}. Model output.`,
-   short: (v, m) => `modelled pipeline value of ${v} of enterprise value against a peer median of ${m}`},
-  {id: "leverage_low", side: "premium", col: "net_debt_ebitda", q: "bottom", netCash: true, tag: "leverage bottom quartile",
-   long: (v, m) => `Net debt of ${v} EBITDA against a peer median of ${m}.`,
-   short: (v, m) => `net debt of ${v} EBITDA against a peer median of ${m}`},
-  {id: "loe_low", side: "premium", col: "loe_share_5y", q: "bottom", tag: "patent exposure bottom quartile",
-   long: (v, m) => `${v} of product revenue loses US exclusivity within five years, against a peer median of ${m}.`,
-   short: (v, m) => `${v} of product revenue losing US exclusivity within five years against a peer median of ${m}`},
-  {id: "visibility", side: "premium", col: "est_dispersion", q: "bottom", minEstimates: 5, own: ["estimate_range_wide"], tag: "narrow estimate range",
-   long: (v, m) => `Analyst EPS estimates span ${v} of the mean, narrower than most peers (median ${m}).`,
-   short: (v, m) => `a narrower analyst EPS estimate range than most peers (${v} of the mean against a median of ${m})`},
-  {id: "runway_long", side: "premium", col: "runway_months", q: "top", preScale: true, minValue: 36, tag: "runway top quartile",
-   long: (v, m) => `Cash runway of ${v} months against a peer median of ${m}.`,
-   short: (v, m) => `a cash runway of ${v} months against a peer median of ${m}`},
-  {id: "loss_making", side: "discount", col: "operating_margin", abs: true, tag: "operating loss",
-   long: (v, m, x) => `Operating loss in ${x.period}: operating margin of ${v}.`,
-   short: (v, m, x) => `an operating loss in ${x.period} (operating margin ${v})`},
-  {id: "runway_short", side: "discount", col: "runway_months", abs: true, tag: "runway under 24 months",
-   long: (v) => `Cash runway of ${v} months on trailing burn.`,
-   short: (v) => `a cash runway of ${v} months on trailing burn`},
-  {id: "product_concentration", side: "discount", col: "top_product_share", abs: true, tag: "one product over half of sales",
-   long: (v) => `${v} of product revenue comes from one product.`,
-   short: (v) => `${v} of product revenue from one product`},
-  {id: "trial_concentration", side: "discount", col: "trial_concentration", abs: true, tag: "trials concentrated on one asset",
-   long: (v) => `${v} of active trials study one asset.`,
-   short: (v) => `${v} of active trials studying one asset`},
-  {id: "binary_catalysts", side: "discount", col: "catalysts_12m", abs: true, tag: "binary catalysts in 12 months",
-   long: (v) => `${v} clinical ${v === "1" ? "catalyst" : "catalysts"} due within 12 months, with little or no product revenue beside them. Dates are mostly estimated.`,
-   short: (v) => `${v} clinical ${v === "1" ? "catalyst" : "catalysts"} due within 12 months`},
-  {id: "patent_cliff", side: "discount", col: "loe_share_5y", abs: true, q: "top", tag: "patent exposure top quartile",
-   long: (v, m) => withMedian(m, `${v} of product revenue loses US exclusivity within five years (peer median ${m}).`, `${v} of product revenue loses US exclusivity within five years.`),
-   short: (v, m) => withMedian(m, `${v} of product revenue losing US exclusivity within five years (peer median ${m})`, `${v} of product revenue losing US exclusivity within five years`)},
-  {id: "leverage_high", side: "discount", col: "net_debt_ebitda", abs: true, q: "top", tag: "leverage top quartile",
-   long: (v, m) => withMedian(m, `Net debt of ${v} EBITDA against a peer median of ${m}.`, `Net debt of ${v} EBITDA.`),
-   short: (v, m) => withMedian(m, `net debt of ${v} EBITDA against a peer median of ${m}`, `net debt of ${v} EBITDA`)},
-  {id: "estimates_wide", side: "discount", col: "est_dispersion", q: "top", own: ["estimate_range_wide"], tag: "wide estimate range",
-   long: (v, m) => `Analyst EPS estimates span ${v} of the mean, wider than most peers (median ${m}).`,
-   short: (v, m) => `a wider analyst EPS estimate range than most peers (${v} of the mean against a median of ${m})`},
-  {id: "estimates_thin", side: "discount", col: "n_estimates", abs: true, own: ["thin_estimates"], tag: "thin analyst coverage",
-   long: (v) => `Only ${v} ${v === "1" ? "analyst covers" : "analysts cover"} FY1 EPS.`,
-   short: (v) => `only ${v} ${v === "1" ? "analyst" : "analysts"} covering FY1 EPS`},
-  {id: "growth_bottom", side: "discount", col: "revenue_growth", q: "bottom", tag: "revenue growth bottom quartile",
-   long: (v, m) => `Revenue growth of ${v} is in the bottom quartile of peers (median ${m}).`,
-   short: (v, m) => `revenue growth in the bottom quartile of peers (${v} against a median of ${m})`},
-  {id: "margin_bottom", side: "discount", col: "operating_margin", q: "bottom", tag: "operating margin bottom quartile",
-   long: (v, m) => `Operating margin of ${v} is in the bottom quartile of peers (median ${m}).`,
-   short: (v, m) => `an operating margin in the bottom quartile of peers (${v} against a median of ${m})`},
-];
-export const OBSERVATION_RULES = OBS_RULES.map((r) => ({id: r.id, side: r.side, colId: r.col, tag: r.tag}));
-
-function obsValueText(colId, v, ctx, rec) {
-  if (colId === "runway_months" || colId === "late_trials" || colId === "catalysts_12m" || colId === "n_estimates") {
-    return fmtNumber(v, 0);
-  }
-  return proseValue(colId, v, ctx, rec);
-}
-
-export function observations(focal, rows, ctx, opts = {}) {
-  const o = {...((ctx && ctx.stats) || {}), ...opts};
-  const type = companyType(focal);
-  const preScale = type === "clinical" || type === "sub_scale";
-  const statsCache = {};
-  const st = (colId) => (statsCache[colId] = statsCache[colId] || peerStats(rows, colId, ctx, o));
-  const premiumList = [], discountList = [], suppressed = [];
-  const fired = new Set();
-  const forwardEps = ["NTM", "FY1", "FY2"].includes(resolveBasis("eps_growth", ctx.basis));
-  for (const rule of OBS_RULES) {
-    const fc = cell(focal, rule.col, ctx);
-    if (rule.id === "loss_making") {
-      if (type !== "loss_making") continue;
-    } else if (fc.status !== "ok" || !isNum(fc.v)) continue;
-    if (rule.forward && !forwardEps) continue;
-    const skip = (fc.flags || []).filter((f) => OBS_SKIP_FLAGS.includes(f) && !(rule.own || []).includes(f));
-    if (skip.length) {
-      suppressed.push({id: rule.id, colId: rule.col, flags: skip,
-        text: `${COLUMN_BY_ID[rule.col].label} not assessed: ${flagText(skip[0], focal).text}`});
-      continue;
-    }
-    const s = st(rule.col);
-    const vals = s.values;
-    // A focal value equal to the peer median sits in no quartile worth stating (all peers at 0 trials).
-    const side = isNum(s.median) && fc.v === s.median ? null : quartileSide(fc.v, vals);
-    const pct = percentileRank(fc.v, vals);
-    const qStrength = isNum(pct) ? Math.abs(pct - 50) : 0;
-    let fire = false, strength = 0, severity = rule.side === "discount" ? "amber" : "info";
-    const v = fc.v;
-    switch (rule.id) {
-      case "leverage_low":
-        if (side === "bottom") { fire = true; strength = qStrength; }
-        else if (v < 0 && isNum(s.median) && s.median > 0) { fire = true; strength = 50; }
-        break;
-      case "visibility":
-        fire = side === "bottom" && (numAt(focal, "periods.FY1.eps_n") ?? 0) >= 5; strength = qStrength; break;
-      case "runway_long":
-        fire = preScale && v >= 36 && side === "top"; strength = qStrength; break;
-      case "loss_making":
-        fire = true; strength = 50; break;
-      case "runway_short":
-        fire = v < 24; strength = 50; if (v < 12) severity = "red"; break;
-      case "product_concentration":
-        fire = v >= 0.50; strength = 50; break;
-      case "trial_concentration":
-        fire = v >= 0.50 && (numAt(focal, "healthcare.active_mapped_trials") ?? 0) >= 3; strength = 50; break;
-      case "binary_catalysts":
-        fire = preScale && v >= 1; strength = 50; break;
-      case "patent_cliff":
-        if (v >= 0.30) { fire = true; strength = 50; }
-        if (side === "top") { fire = true; strength = Math.max(strength, qStrength); }
-        break;
-      case "leverage_high":
-        if (v > 0 && v >= 3.0) { fire = true; strength = 50; }
-        if (v > 0 && side === "top") { fire = true; strength = Math.max(strength, qStrength); }
-        break;
-      case "estimates_thin":
-        fire = v < 3; strength = 50; break;
-      case "margin_bottom":
-        fire = side === "bottom" && focal.stage === "commercial" && !fired.has("loss_making"); strength = qStrength; break;
-      default:
-        fire = rule.q ? side === rule.q : false; strength = qStrength;
-    }
-    if (!fire) continue;
-    fired.add(rule.id);
-    const vt = rule.id === "loss_making" && fc.status !== "ok"
-      ? fmtMoneyProse(numAt(focal, "periods.FY0.operating_income_usd_m"), displayCurrency(focal, ctx), ctx.fx)
-      : obsValueText(rule.col, v, ctx, focal);
-    const mt = isNum(s.median) ? obsValueText(rule.col, s.median, ctx, focal) : null;
-    const x = {period: get(focal, "periods.FY0.label") || "the last fiscal year"};
-    let long = rule.long(vt, mt, x), short = rule.short(vt, mt, x);
-    if (rule.id === "loss_making" && fc.status !== "ok") {
-      long = `Operating loss in ${x.period}: operating income of ${vt}.`;
-      short = `an operating loss in ${x.period} (operating income ${vt})`;
-    }
-    const obs = {id: rule.id, side: rule.side, colId: rule.col, value: isNum(v) ? v : null, median: s.median,
-      pct, strength, severity, provenance: rule.prov || "C", short, tag: rule.tag, long};
-    (rule.side === "premium" ? premiumList : discountList).push(obs);
-  }
-  const bySt = (a, b) => b.strength - a.strength;
-  premiumList.sort(bySt); discountList.sort(bySt);
-  return {premium: premiumList, discount: discountList, notAssessed: NOT_ASSESSED.slice(), suppressed};
-}
-
-// ---------------------------------------------------------------------------------------------
-// 3.11 Conclusion banner and confidence
+// 3.11 The flags that cost a confidence point (they mark the focal ticker, 12.7)
 // ---------------------------------------------------------------------------------------------
 
 function conclusionState(A) {
@@ -2754,283 +2260,6 @@ function costingFlags(A) {
     }
     return true;
   });
-}
-
-export function confidence(view) {
-  const A = view && view.analysis;
-  if (!A) return {level: null, score: null, reasons: [], points: []};
-  const state = conclusionState(A);
-  if (["too_few", "no_multiple", "no_peers", "error"].includes(state)) return {level: null, score: null, reasons: [], points: []};
-  const P = A.primary;
-  const st = A.pStats;
-  const pts = [];
-  const k = st.n;
-  pts.push({text: `${k} ${plural(k, "peer has", "peers have")} a value`, points: k >= 8 ? 2 : k >= MIN_PEERS ? 1 : 0});
-  if (A.appropriate < 5) {
-    pts.push({text: `Only ${A.appropriate} of ${A.included.length} peers score 40 or more on relevance`, points: -1});
-  }
-  if (isNum(A.medianRelevance) && A.medianRelevance < MIN_MEDIAN_RELEVANCE) {
-    pts.push({text: `The median peer relevance is ${Math.round(A.medianRelevance)} of 100`, points: -1});
-  }
-  if (A.mixed) pts.push({text: `Peers mix ${A.mixed.focalType} and ${A.mixed.otherType} companies`, points: -1});
-  if (usesFiledFigures(P.colId, P.basis) && A.standards.ifrs > 0 && A.standards.gaap > 0) {
-    pts.push({text: `Peers mix IFRS and US GAAP filers, and ${proseLabel(P.colId)} uses filed figures`, points: -1});
-  }
-  const peerCells = st.tickers.map((t) => cell(A.byTicker[t], P.colId, A.ctx));
-  const fyInLtm = peerCells.filter((c) => c.tagDiffers).length;
-  if (fyInLtm > 0) pts.push({text: `${fyInLtm} peer values are fiscal-year figures in an LTM column`, points: -1});
-  const derived = peerCells.filter((c) => c.flags.includes("derived_operating_income")).length;
-  if (k > 0 && derived / k > MAX_DERIVED_SHARE) {
-    pts.push({text: `${derived} of ${k} peer EBITDA figures are derived and may be overstated`, points: -1});
-  }
-  const costing = costingFlags(A);
-  if (costing.length) pts.push({text: stripStop(flagText(costing[0], A.focal).text), points: -1});
-  if (isNum(st.iqr) && isNum(st.median) && st.median > 0 && st.iqr / st.median > MAX_DISPERSION_RATIO) {
-    pts.push({text: `Peer values are widely spread (interquartile range ${Math.round(st.iqr / st.median * 100)}% of the median)`, points: -1});
-  }
-  const extreme = (A.state.outliers || "include") === "include" ? st.outliers.extreme.length : 0;
-  if (extreme) pts.push({text: `${extreme} extreme ${plural(extreme, "outlier", "outliers")} in the statistics`, points: -1});
-  const score = pts.reduce((s, p) => s + p.points, 0);
-  let level = score >= 2 ? "high" : score === 1 ? "medium" : "low";
-  if (state === "low_confidence") level = "low";
-  return {level, score, reasons: pts.map((p) => p.text), points: pts};
-}
-
-function testedAssociation(A, dir, first) {
-  const sc = A.scatter;
-  if (!first || !sc || !sc.trend || sc.trend.r2 < 0.10 || sc.disabledReason) return null;
-  if (sc.x !== first.colId || sc.y !== A.primary.colId) return null;
-  const xv = cell(A.focal, sc.x, A.ctx).v;
-  if (!isNum(xv) || !isNum(sc.medianX) || xv === sc.medianX) return null;
-  let premiumSide = (sc.trend.slope > 0) === (xv > sc.medianX);
-  if (multipleDirection(A.primary.colId) === "richer_down") premiumSide = !premiumSide;
-  if ((dir === "premium") !== premiumSide) return null;
-  const r2 = fmtNumber(sc.trend.r2, 2);
-  return {
-    sentence: `The ${dir} is associated with ${first.short}: across these peers, ${proseLabel(sc.x)} and ${proseLabel(A.primary.colId)} ${sc.trend.slope > 0 ? "rise" : "fall"} together (R² ${r2}).`,
-    short: `Associated with ${first.tag} (R² ${r2})`,
-  };
-}
-
-function lookNextFor(A, state) {
-  const T = A.T, P = A.primary;
-  if (P.colId && ["ok", "low_confidence", "too_few"].includes(state)) {
-    const fc = cell(A.focal, P.colId, A.ctx);
-    const costing = costingFlags(A);
-    if (fc.red || costing.length) {
-      const chip = lcfirst(fc.red ? "Calculation failed" : flagText(costing[0], A.focal).chip);
-      let t = `Check ${T}'s ${proseLabel(P.colId)} data: ${chip}`;
-      if (t.length > MAX_LOOK_NEXT_CHARS) t = `Check ${T}'s ${proseLabel(P.colId)} data`;
-      return {text: cutAt(t, MAX_LOOK_NEXT_CHARS), target: {kind: "cell", colId: P.colId, ticker: T}};
-    }
-  }
-  const obs = A.obs.premium.concat(A.obs.discount).filter((o) => o.provenance !== "M").sort((a, b) => b.strength - a.strength);
-  if (obs.length) return {text: cutAt(obs[0].tag, MAX_LOOK_NEXT_CHARS), target: {kind: "cell", colId: obs[0].colId, ticker: T}};
-  if (P.colId && (A.state.outliers || "include") === "include" && A.pStats && A.pStats.outliers.extreme.length) {
-    const t = A.pStats.outliers.extreme[0];
-    return {text: cutAt(`${t}, an extreme ${proseLabel(P.colId)} value`, MAX_LOOK_NEXT_CHARS), target: {kind: "dotplot", colId: P.colId, ticker: t}};
-  }
-  if (A.scatter && A.scatter.trend && A.scatter.trend.r2 < 0.10 && !A.scatter.disabledReason) {
-    return {text: "Valuation against growth: weak trend", target: {kind: "scatter", colId: A.scatter.y || null, ticker: null}};
-  }
-  return {text: `The peer set: ${A.setRows.length} peers`, target: {kind: "peers", colId: null, ticker: null}};
-}
-
-function weakTooltip(A) {
-  if (A.defaultWarning === "too_few") {
-    return stateMsg("default_short", {n: A.def.tickers.length, T: A.T}).detail;
-  }
-  if (A.defaultWarning === "padded") {
-    const low = A.def.tickers.filter((t) => A.def.pools[t] !== "A" && A.def.scores[t] < MIN_DEFAULT_RELEVANCE).length;
-    const m = stateMsg("padded", {k: low, n: A.def.tickers.length});
-    return `${m.title}. ${m.detail}`;
-  }
-  return `Only ${A.appropriate} of ${A.included.length} peers score 40 or more on relevance. The median rests on less comparable companies.`;
-}
-
-export function conclusion(view) {
-  const A = view.analysis;
-  const T = A.T, P = A.primary, ctx = A.ctx, focal = A.focal;
-  const state = conclusionState(A);
-  const conf = confidence(view);
-  const noun = A.label.noun;
-  const cur = displayCurrency(focal, ctx);
-  const mp = (usd) => fmtMoneyProse(usd, cur, ctx.fx);
-  const out = {state, headline: "", support: "", supportShort: "", token: {text: NULL, caption: "no premium stated", dir: null},
-    label: SYSTEM_LABEL, labelShort: SYSTEM_LABEL_SHORT, confidence: conf, bar: "active", chips: [], lookNext: null,
-    why: {groups: []}, metric: P.colId ? proseLabel(P.colId) : null, value: null, median: null, premium: null,
-    pct: null, n: A.pStats ? A.pStats.n : 0, notes: [], action: null};
-  const nonM = (l) => l.filter((o) => o.provenance !== "M");
-  const prem = nonM(A.obs.premium), disc = nonM(A.obs.discount);
-  const bySt = (a, b) => b.strength - a.strength;
-  const peerCells = A.pStats ? A.pStats.tickers.map((t) => cell(A.byTicker[t], P.colId, ctx)) : [];
-  const fmt = (v) => proseValue(P.colId, v, ctx, focal);
-
-  if (state === "error") {
-    out.headline = "The summary could not be computed.";
-    out.support = `${stripStop(String(focal.error))}. The table below is unaffected.`;
-    out.supportShort = "The summary could not be computed";
-  } else if (state === "no_peers") {
-    out.headline = "No peers are selected, so there is no comparison.";
-    out.support = "Add a peer with A or from the peer panel, or restore the system set.";
-    out.supportShort = "No peers selected";
-    out.action = {label: "Restore system peers", command: "peers.restore"};
-  } else if (state === "no_multiple") {
-    out.headline = `No valuation multiple has both a value for ${T} and 2 or more peer values.`;
-    const first = P.firstCandidate;
-    const fc = first ? cell(focal, first, ctx) : null;
-    const mcUsd = numAt(focal, "market.market_cap_usd_m");
-    const mcPeers = A.statsRows.map((r) => numAt(r.record, "market.market_cap_usd_m"));
-    const pct = percentileRank(mcUsd, mcPeers);
-    const cash = numAt(focal, "ev.cash_usd_m");
-    const run = numAt(focal, "risk.runway_months");
-    let s = first ? `${metricLabel(first, ctx.basis, ctx)}: ${fc.reason} ` : "";
-    s += `Market cap is ${mp(mcUsd)}${pct !== null ? `, the ${ordinal(Math.round(pct))} percentile of peers` : ""}`;
-    if (isNum(cash) && isNum(mcUsd) && mcUsd > 0) s += `; cash covers ${fmtPctProse(cash / mcUsd, 0)} of it`;
-    if (isNum(run)) s += `; cash runway is ${Math.round(run)} months on trailing burn`;
-    out.support = s + ".";
-    out.supportShort = `Market cap ${mp(mcUsd)}${pct !== null ? `, ${ordinal(Math.round(pct))} percentile` : ""}`;
-  } else if (state === "too_few") {
-    out.headline = P.reasonText;
-    out.support = "Widen the set to adjacent subsectors, or add peers with A.";
-    out.supportShort = "Too few peer values for a comparison";
-    out.action = {label: "Add adjacent-subsector peers", command: "peers.addAdjacent"};
-    out.value = cell(focal, P.colId, ctx).v;
-  } else {
-    const parts = headlineParts(focal, P.colId, ctx, peerCells);
-    const st = A.pStats;
-    const k = st.n;
-    out.value = parts.cell.v; out.median = st.median; out.pct = A.pct; out.n = k;
-    if (state === "low_confidence") {
-      out.headline = `${T} trades at ${parts.v} ${parts.metric} (${parts.period}). Only ${k} peers have a value, so no premium or discount is stated.`;
-      out.support = `The ${k} peer values run from ${fmt(st.min)} to ${fmt(st.max)}. A median of fewer than 5 is not a reliable reference.`;
-      out.supportShort = `Only ${k} peer values`;
-    } else if (!isNum(A.premium)) {
-      // A zero or negative focal value (a nil free cash flow) gives no ratio against the median.
-      out.headline = `${T} trades at ${parts.v} ${parts.metric} (${parts.period}); the median of ${k} ${noun} is ${fmt(st.median)}.`;
-      out.support = `No premium or discount is stated: ${lcfirst(proseLabel(P.colId))} at or below zero has no ratio to the median.`;
-      out.supportShort = "No premium or discount stated";
-    } else {
-      const p = A.premium;
-      out.premium = p;
-      const inLine = isInLine(p);
-      const dir = isNum(p) && p >= 0 ? "premium" : "discount";
-      const m = fmt(st.median);
-      const build = (nn) => {
-        if (P.colId === "fcf_yield") {
-          return inLine
-            ? `${T}'s FCF yield of ${parts.v} (${parts.period}) sits against a median of ${m} for ${k} ${nn}: in line on this measure (${signedWholePct(p)}).`
-            : `${T}'s FCF yield of ${parts.v} (${parts.period}) sits against a median of ${m} for ${k} ${nn}: ${article(wholePct(p))} ${wholePct(p)}% ${dir} on this measure.`;
-        }
-        return inLine
-          ? `${T} trades at ${parts.v} ${parts.metric} (${parts.period}), in line with the median of ${k} ${nn}, ${m} (${signedWholePct(p)}).`
-          : `${T} trades at ${parts.v} ${parts.metric} (${parts.period}), ${article(wholePct(p))} ${wholePct(p)}% ${dir} to the median of ${k} ${nn}, ${m}.`;
-      };
-      out.headline = build(noun);
-      if (out.headline.length > MAX_HEADLINE_CHARS) out.headline = build("peers");
-      out.token = inLine ? {text: signedWholePct(p), caption: "in line with median", dir: null}
-        : {text: signedWholePct(p), caption: `${dir} to median`, dir: dir === "premium" ? "up" : "down"};
-      const same = dir === "premium" ? prem : disc;
-      const other = dir === "premium" ? disc : prem;
-      if (A.type === "clinical" || A.type === "sub_scale") {
-        const ev = numAt(focal, "ev.ev_usd_m");
-        const run = numAt(focal, "risk.runway_months");
-        const r = isNum(run) ? Math.round(run) : null;
-        let s1;
-        if (ev !== null) s1 = `Enterprise value is ${mp(ev)}${r !== null ? `, and cash runway is ${r} months on trailing burn` : ""}.`;
-        else {
-          const code = naCode(focal, "ev.ev_usd_m");
-          const why = code === "no_debt_line" ? "no debt line on file" : lcfirst(stripStop(NA_TEXT[code] || NA_TEXT.no_free_data));
-          s1 = `Enterprise value is not computed (${why})${r !== null ? `; cash runway is ${r} months on trailing burn` : ""}.`;
-        }
-        const sentences = [s1];
-        if (!inLine && same.length) sentences.push(`Alongside the ${dir}, ${T} has ${same[0].short}.`);
-        else if (inLine) {
-          const all = prem.concat(disc).sort(bySt);
-          if (all.length) sentences.push(`Measures furthest from peers: ${all[0].short}.`);
-        }
-        out.support = sentences.join(" ");
-        out.supportShort = ev !== null ? `EV ${mp(ev)}${r !== null ? `; runway ${r} months` : ""}` : `EV not computed${r !== null ? `; runway ${r} months` : ""}`;
-      } else if (inLine) {
-        const all = prem.concat(disc).sort(bySt);
-        out.support = all.length ? `Measures furthest from peers: ${all[0].short}${all[1] ? `; ${all[1].short}` : ""}.`
-          : "Its measures sit mostly within the peer interquartile range.";
-        out.supportShort = all.length ? `Furthest from peers: ${all[0].tag}` : "Measures mostly within the peer range";
-      } else if (same.length) {
-        const assoc = testedAssociation(A, dir, same[0]);
-        const s1 = assoc ? assoc.sentence : `Alongside the ${dir}, ${T} has ${same[0].short}${same[1] ? ` and ${same[1].short}` : ""}.`;
-        const sentences = [s1];
-        if (other.length) sentences.push(`On the other side, it has ${other[0].short}.`);
-        out.support = sentences.join(" ");
-        if (assoc) out.supportShort = assoc.short;
-        else {
-          out.supportShort = `Alongside: ${same[0].tag}`;
-          if (same[1] && (`${out.supportShort}; ${same[1].tag}`).length <= MAX_SUPPORT_SHORT_CHARS) out.supportShort += `; ${same[1].tag}`;
-        }
-      } else {
-        out.support = `No measure in this table sits in the direction of the ${dir}. It may reflect factors outside the free data, such as deal expectations, litigation or pricing.`;
-        out.supportShort = "No measure here sits in its direction";
-      }
-    }
-  }
-  out.headline = cutAt(out.headline, MAX_HEADLINE_CHARS);
-  out.supportShort = cutAt(out.supportShort, MAX_SUPPORT_SHORT_CHARS);
-  if ((focal.flags || []).some((f) => f && f.code === "no_consensus")) {
-    out.notes.push(`No consensus estimates for ${T}, so the comparison uses reported ${get(focal, "periods.FY0.label") || "FY0"} figures.`);
-  }
-  // Chips and bar.
-  if (A.weakChip) out.chips.push({id: "weak", text: "Weak peer set", tone: "flag", tooltip: weakTooltip(A)});
-  if (A.mixed) {
-    const m = stateMsg("mixed_models", {k: A.mixed.k, n: A.mixed.n, other: A.mixed.otherType, T, focalType: A.mixed.focalType});
-    out.chips.push({id: "mixed", text: "Mixed business models", tone: "flag", tooltip: m.detail});
-  }
-  if (state === "low_confidence") {
-    out.chips.push({id: "low", text: "Low confidence", tone: "flag", tooltip: lowConfidenceText(A.pStats.n, P.colId)});
-  }
-  if (state === "error") out.bar = "down";
-  else if (conf.level === "low" || state === "low_confidence" || state === "too_few" || A.weakChip) out.bar = "flag";
-  else out.bar = "active";
-  out.lookNext = lookNextFor(A, state);
-  out.why = whyGroups(A, conf, state);
-  return out;
-}
-
-function whyGroups(A, conf, state) {
-  const P = A.primary, ctx = A.ctx, focal = A.focal;
-  const groups = [];
-  groups.push({title: "Primary metric", items: [{text: P.reasonText, colId: P.colId, provenance: "C"}]});
-  const confItems = conf.points.map((p) => ({text: p.text + ".", colId: null, provenance: "C", points: p.points}));
-  if (conf.level === null && state !== "error") confItems.push({text: P.reasonText, colId: P.colId, provenance: "C"});
-  if (A.weakChip) confItems.push({text: weakTooltip(A), colId: null, provenance: "C"});
-  groups.push({title: "Confidence", items: confItems});
-  const obs = A.obs.premium.concat(A.obs.discount);
-  const obsItems = obs.map((o) => ({text: o.long, colId: o.colId, provenance: o.provenance, label: o.provenance === "M" ? "Model output" : null, side: o.side}));
-  for (const s of A.obs.suppressed || []) obsItems.push({text: s.text, colId: s.colId, provenance: "C", suppressed: true});
-  if (obsItems.length) groups.push({title: "Observations", items: obsItems});
-  const outl = [];
-  if (P.colId && A.pStats && (state === "ok" || state === "low_confidence")) {
-    if (A.pStats.outliers.extreme.length) {
-      outl.push({text: `${A.pStats.outliers.extreme.join(", ")}: ${STATE_COPY.extreme_outliers.detail}`, colId: P.colId, provenance: "C"});
-    }
-    if ((A.state.outliers || "include") === "include" && (A.pStats.outliers.mild.length || A.pStats.outliers.extreme.length)) {
-      const ex = peerStats(A.statsRows, P.colId, ctx, {outliers: "exclude", group: A.group});
-      const fv = cell(focal, P.colId, ctx).v;
-      if (isNum(ex.median) && isNum(A.pStats.median) && A.pStats.median !== 0 && Math.abs(ex.median / A.pStats.median - 1) > 0.05) {
-        const p2 = premium(fv, ex.median, multipleDirection(P.colId));
-        if (isNum(p2)) {
-          outl.push({text: `Without outliers the median is ${proseValue(P.colId, ex.median, ctx, focal)} and the ${p2 >= 0 ? "premium" : "discount"} is ${wholePct(p2)}%.`, colId: P.colId, provenance: "C"});
-        }
-      }
-    }
-  }
-  if (outl.length) groups.push({title: "Outliers", items: outl});
-  const bases = [];
-  if (A.standards.ifrs > 0 && A.standards.gaap > 0) {
-    bases.push({text: stateMsg("mixed_standards", {i: A.standards.ifrs, g: A.standards.gaap}).detail, colId: null, provenance: "C"});
-  }
-  if (["NTM", "FY1", "FY2"].includes(ctx.basis)) bases.push({text: STATE_COPY.street_vs_reported.detail, colId: null, provenance: "C"});
-  if (bases.length) groups.push({title: "Bases", items: bases});
-  return {groups, link: "Open drivers and risks"};
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -3126,7 +2355,6 @@ export const COMMANDS = [
   cmd("outliers.toggle", "Statistics with or without outliers", ["u"], "Peers"),
   cmd("cf.next", "Next conditional format mode", ["v"], "Table"),
   cmd("sort.focused", "Sort by the focused column", ["s"], "Table", "grid"),
-  cmd("why.toggle", "Why this summary: open or close", ["w"], "General"),
   cmd("density.next", "Next row density", ["d"], "Table"),
   cmd("text.bigger", "Larger text", ["+"], "Table"),
   cmd("text.smaller", "Smaller text", ["-"], "Table"),
@@ -3145,14 +2373,15 @@ export const COMMANDS = [
   cmd("peers.restore", "Restore system peers", [], "Peers"),
   cmd("peers.addAdjacent", "Add adjacent-subsector peers", [], "Peers"),
   cmd("layout.save", "Save layout", [], "Table"),
-  cmd("summary.copy", "Copy summary", [], "Export"),
   cmd("primary.reset", "Reset primary", [], "Charts"),
   cmd("method.open", "Show methodology", [], "General"),
   // Revision 3 (12.10). `peer.add` (a) now opens the peer drawer at its search box.
   cmd("peers.edit", "Edit peers", [], "Peers"),
   cmd("sources.open", "Sources and method", [], "General"),
-  cmd("forecast.open", "Open the peer-multiple value on the Forecast tab", [], "General"),
-  cmd("catalysts.open", "Open the Catalysts tab", [], "General"),
+  // Revision 4 (company-scorecard.md 5.2): the view switch and Compare.
+  cmd("view.scorecard", "Show the scorecard", [], "General"),
+  cmd("view.table", "Show the comparables table", [], "General"),
+  cmd("compare.open", "Compare the ticked companies", [], "General"),
   cmd("singlekeys.toggle", "Turn single-key shortcuts on or off", [], "General"),
   cmd("reload", "Reload the comps", [], "General"),
 ];
@@ -3280,7 +2509,6 @@ export const DENSITIES = ["compact", "default", "comfortable"];
 export const TEXT_SIZES = [13, 14, 15];
 export const SYSTEM_SUBGROUPS = ["US", "Europe", "IFRS filers", "US GAAP filers", "Commercial", "Clinical"];
 const FILTER_OPS = [">=", "<=", "has", "text"];
-const DEFAULT_SCATTER = {x: null, y: null, size: "market_cap", trend: true, colorBy: "none", logY: false};
 const MAX_PINS = {ultrawide: 2, wide: 2, laptop: 1, narrow: 0};
 
 function pick(obj, keys) { const o = {}; for (const k of keys) if (obj && obj[k] !== undefined) o[k] = obj[k]; return o; }
@@ -3297,7 +2525,8 @@ function defaultTableSettings(engine) {
 function defaultPersisted() {
   return {version: 1, byEngine: {}, basis: "NTM", currency: "USD", earnings: "reported", peerEdits: {},
     activeSet: "system", savedSets: {}, subgroups: {}, statsGroup: "all", outliers: "include",
-    primaryOverride: {}, scatter: {...DEFAULT_SCATTER}, layouts: {}, singleKeys: true, bridge: {}, notes: {}, cohorts: []};
+    primaryOverride: {}, layouts: {}, singleKeys: true, bridge: {}, notes: {}, cohorts: [],
+    view: "scorecard"};
 }
 
 function cleanCols(arr) { return Array.isArray(arr) ? uniq(arr.filter((c) => typeof c === "string" && COLUMN_BY_ID[c])) : []; }
@@ -3390,17 +2619,6 @@ export function migrateState(raw, tickers = null) {
   if (raw.primaryOverride && typeof raw.primaryOverride === "object") {
     for (const [e, v] of Object.entries(raw.primaryOverride)) d.primaryOverride[e] = PREMIUM_METRICS.includes(v) ? v : null;
   }
-  if (raw.scatter && typeof raw.scatter === "object") {
-    const s = raw.scatter;
-    d.scatter = {
-      x: SCATTER_X_OPTIONS.includes(s.x) ? s.x : null,
-      y: SCATTER_Y_OPTIONS.includes(s.y) ? s.y : null,
-      size: ["market_cap", "ev", "none"].includes(s.size) ? s.size : "market_cap",
-      trend: typeof s.trend === "boolean" ? s.trend : true,
-      colorBy: s.colorBy === "stage" ? "stage" : "none",
-      logY: typeof s.logY === "boolean" ? s.logY : false,
-    };
-  }
   if (raw.layouts && typeof raw.layouts === "object") {
     for (const [name, l] of Object.entries(raw.layouts)) {
       if (!name || !l || typeof l !== "object") continue;
@@ -3418,6 +2636,8 @@ export function migrateState(raw, tickers = null) {
     }
   }
   if (Array.isArray(raw.cohorts)) d.cohorts = raw.cohorts.filter((c) => typeof c === "string").slice(0, 3);
+  // Revision 4 (company-scorecard.md 6.3): the Scorecard or Table view, the one ui key kept.
+  if (VIEWS.includes(raw.view)) d.view = raw.view;
   return d;
 }
 
@@ -3446,12 +2666,15 @@ export function defaultState(payload, args = {}, persisted = null, session = nul
     peerEdits: P.peerEdits, activeSet: P.activeSet, savedSets: P.savedSets, subgroups: P.subgroups,
     statsGroup: P.statsGroup, excluded: excludedByFocal[focal] || [], excludedByFocal,
     outliers: P.outliers, primaryOverride: P.primaryOverride, dotMetric,
-    scatter: P.scatter, layouts: P.layouts, singleKeys: P.singleKeys, bridge: P.bridge, notes: P.notes,
+    layouts: P.layouts, singleKeys: P.singleKeys, bridge: P.bridge, notes: P.notes,
     cohorts: P.cohorts, byEngine,
-    ui: {detail: known(sess.detail) ? sess.detail : null, why: false, method: null, focus: null,
+    ui: {detail: known(sess.detail) ? sess.detail : null, method: null, focus: null,
          expanded: Array.isArray(sess.expanded) ? sess.expanded.filter(known) : [],
-         peers: false, peersSearch: false, insightTab: "catalysts",
-         narrowTab: "position", laptopTab: "position", overlay: null, undo: null},
+         peers: false, peersSearch: false, overlay: null, undo: null,
+         // Revision 4 (6.3): the view, and Compare's picks for this session only. The focal
+         // company is ticked once, when the view first opens for it.
+         view: VIEWS.includes(P.view) ? P.view : "scorecard",
+         compare: focal ? [focal] : [], comparePrimed: focal ? [focal] : [], compareOpen: false, compareRowsOpen: []},
   };
 }
 
@@ -3466,8 +2689,8 @@ export function persistable(state) {
   const local = {version: 1, byEngine, basis: state.basis, currency: state.currency, earnings: state.earnings,
     peerEdits: state.peerEdits, activeSet: state.activeSet, savedSets: state.savedSets, subgroups: state.subgroups,
     statsGroup: state.statsGroup, outliers: state.outliers, primaryOverride: state.primaryOverride,
-    scatter: state.scatter, layouts: state.layouts, singleKeys: state.singleKeys, bridge: state.bridge,
-    notes: state.notes, cohorts: state.cohorts};
+    layouts: state.layouts, singleKeys: state.singleKeys, bridge: state.bridge,
+    notes: state.notes, cohorts: state.cohorts, view: state.ui && VIEWS.includes(state.ui.view) ? state.ui.view : "scorecard"};
   const excluded = {...(state.excludedByFocal || {}), [state.focal]: state.excluded || []};
   return {local, session: {excluded, detail: state.ui ? state.ui.detail : null, expanded: state.ui ? state.ui.expanded : []}};
 }
@@ -3561,7 +2784,7 @@ function adoptPersisted(state, a, payload) {
     const table = {...defaultTableSettings(state.engine), ...(byEngine[state.engine] || {})};
     next = {...next, ...table, basis: P.basis, currency: P.currency, earnings: P.earnings, peerEdits: P.peerEdits,
       activeSet: P.activeSet, savedSets: P.savedSets, subgroups: P.subgroups, statsGroup: P.statsGroup,
-      outliers: P.outliers, primaryOverride: P.primaryOverride, dotMetric, scatter: P.scatter, layouts: P.layouts,
+      outliers: P.outliers, primaryOverride: P.primaryOverride, dotMetric, layouts: P.layouts,
       singleKeys: P.singleKeys, bridge: P.bridge, notes: P.notes, cohorts: P.cohorts, byEngine};
   }
   if (a.session && typeof a.session === "object") {
@@ -3606,8 +2829,13 @@ export function reduce(state, action, payload = null) {
       const excludedByFocal = {...(state.excludedByFocal || {}), [state.focal]: state.excluded || []};
       const subgroupsNew = (state.subgroups || {})[t] || {};
       const statsGroup = state.statsGroup === "all" || SYSTEM_SUBGROUPS.includes(state.statsGroup) || subgroupsNew[state.statsGroup] ? state.statsGroup : "all";
+      const ui0 = state.ui || {};
+      const primed = Array.isArray(ui0.comparePrimed) ? ui0.comparePrimed : [];
+      let compare = Array.isArray(ui0.compare) ? ui0.compare : [];
+      if (!primed.includes(t) && !compare.includes(t) && compare.length < COMPARE_MAX) compare = compare.concat([t]);
       let next = {...state, focal: t, excludedByFocal, excluded: excludedByFocal[t] || [], statsGroup,
-        ui: {...state.ui, detail: state.ui.detail === t ? null : state.ui.detail, why: false, focus: null, expanded: [], overlay: null, undo: null}};
+        ui: {...ui0, detail: ui0.detail === t ? null : ui0.detail, focus: null, expanded: [], overlay: null, undo: null,
+          compare, comparePrimed: primed.includes(t) ? primed : primed.concat([t])}};
       const eng = rec && rec.engine;
       if (eng && eng !== state.engine) next = switchEngine(next, eng);
       return next;
@@ -3756,17 +2984,6 @@ export function reduce(state, action, payload = null) {
       if (((state.dotMetric || {})[state.engine] ?? null) === v) return state;
       return {...state, dotMetric: {...(state.dotMetric || {}), [state.engine]: v}};
     }
-    case "SET_SCATTER": {
-      const s = {...state.scatter};
-      if (a.x !== undefined && (a.x === null || SCATTER_X_OPTIONS.includes(a.x))) s.x = a.x;
-      if (a.y !== undefined && (a.y === null || SCATTER_Y_OPTIONS.includes(a.y))) s.y = a.y;
-      if (["market_cap", "ev", "none"].includes(a.size)) s.size = a.size;
-      if (typeof a.trend === "boolean") s.trend = a.trend;
-      if (a.colorBy === "none" || a.colorBy === "stage") s.colorBy = a.colorBy;
-      if (typeof a.logY === "boolean") s.logY = a.logY;
-      for (const k of Object.keys(s)) if (s[k] !== state.scatter[k]) return {...state, scatter: s};
-      return state;
-    }
     case "SET_CF_MODE": return CF_MODES.includes(a.mode) ? patch(state, {cfMode: a.mode}) : state;
     case "CYCLE_CF_MODE": return patch(state, {cfMode: nextIn(CF_MODES, state.cfMode, a.dir)});
     case "CYCLE_DENSITY": return patch(state, {density: nextIn(DENSITIES, state.density, 1)});
@@ -3885,15 +3102,42 @@ export function reduce(state, action, payload = null) {
       const ex = state.ui.expanded || [];
       return patchUi(state, {expanded: ex.includes(a.ticker) ? ex.filter((t) => t !== a.ticker) : ex.concat([a.ticker])});
     }
-    case "TOGGLE_WHY": return patchUi(state, {why: !state.ui.why});
     case "OPEN_METHOD": return patchUi(state, {method: a.anchor || "stats", detail: null, peers: false, peersSearch: false});
     case "OPEN_PEERS": return patchUi(state, {peers: true, peersSearch: !!a.search, detail: null, method: null});
     case "CLOSE_PEERS": return patchUi(state, {peers: false, peersSearch: false});
-    case "SET_INSIGHT_TAB": return a.tab === "catalysts" || a.tab === "competition" ? patchUi(state, {insightTab: a.tab}) : state;
+    // Revision 4 (company-scorecard.md 6.3): the view switch and Compare.
+    case "SET_VIEW": {
+      if (!VIEWS.includes(a.value) || (state.ui || {}).view === a.value) return state;
+      // The peer drawer belongs to the Table view; Compare to the Scorecard view.
+      return patchUi(state, {view: a.value, peers: a.value === "table" ? (state.ui || {}).peers : false,
+        peersSearch: a.value === "table" ? (state.ui || {}).peersSearch : false,
+        compareOpen: a.value === "scorecard" ? !!(state.ui || {}).compareOpen : false});
+    }
+    case "TOGGLE_COMPARE": {
+      const t = a.ticker;
+      if (!t || !has(t)) return state;
+      const cur = Array.isArray((state.ui || {}).compare) ? state.ui.compare : [];
+      if (cur.includes(t)) {
+        const compare = cur.filter((x) => x !== t);
+        return patchUi(state, {compare, compareOpen: compare.length >= 2 ? !!state.ui.compareOpen : false});
+      }
+      if (cur.length >= COMPARE_MAX) return state;          // refused: the shell says why
+      return patchUi(state, {compare: cur.concat([t])});
+    }
+    case "OPEN_COMPARE": {
+      const cur = Array.isArray((state.ui || {}).compare) ? state.ui.compare : [];
+      if (cur.length < 2) return state;
+      return patchUi(state, {compareOpen: true, view: "scorecard", peers: false, peersSearch: false});
+    }
+    case "CLOSE_COMPARE": return patchUi(state, {compareOpen: false});
+    case "TOGGLE_COMPARE_ROW": {
+      const id = a.pillar;
+      if (typeof id !== "string" || !id) return state;
+      const open = Array.isArray((state.ui || {}).compareRowsOpen) ? state.ui.compareRowsOpen : [];
+      return patchUi(state, {compareRowsOpen: open.includes(id) ? open.filter((x) => x !== id) : open.concat([id])});
+    }
     case "ADOPT_PERSISTED": return adoptPersisted(state, a, payload);
     case "CLOSE_METHOD": return patchUi(state, {method: null});
-    case "SET_NARROW_TAB": return a.tab === "position" || a.tab === "scatter" ? patchUi(state, {narrowTab: a.tab}) : state;
-    case "SET_LAPTOP_TAB": return a.tab === "position" || a.tab === "scatter" ? patchUi(state, {laptopTab: a.tab}) : state;
     case "OPEN_OVERLAY": return patchUi(state, {overlay: a.overlay || null});
     case "CLOSE_OVERLAY": return patchUi(state, {overlay: null});
     case "UNDO": {
@@ -3921,7 +3165,6 @@ const BASIS_NAMES = {NTM: "NTM", FY1: "FY1", FY2: "FY2", FY0: "FY0", LTM: "LTM"}
 const SUMMARY_IDS = ["mean", "median", "p25", "p75", "n"];
 const SUMMARY_LABEL = {mean: "Mean", median: "Median", p25: "25th percentile", p75: "75th percentile", n: "Peers with a value"};
 const MIXED_CURRENCY_TEXT = "Mixed currencies. Statistics need one currency: pick USD, EUR, GBP, CHF or DKK.";
-const KPI5_TOOLTIP = "The primary multiple over the peer median, less one. For FCF yield, the peer median over the yield, less one. A premium or discount is not a verdict; see drivers and risks.";
 
 /** Header unit text of a column: "×", "%", "USD bn", "bn, filing currency", "count". */
 function unitText(c, ctx = {}) {
@@ -3962,7 +3205,7 @@ function subgroupMembers(name, setRows, state) {
   return {tickers: setRows.filter(pickFn).map((r) => r.ticker), leftOut};
 }
 
-function analyse(payload, state, byTicker, focal, opts = {}) {
+function analyse(payload, state, byTicker, focal) {
   const companies = payload.companies || [];
   const engineLabels = {...DEFAULT_ENGINE_LABELS, ...(get(payload, "universe.engine_labels") || {})};
   const fy0Label = get(focal, "periods.FY0.label") || null;
@@ -4017,19 +3260,11 @@ function analyse(payload, state, byTicker, focal, opts = {}) {
   const ok = focalCell && focalCell.status === "ok" && pStats;
   const prem = ok ? premium(focalCell.v, pStats.median, multipleDirection(primary.colId)) : null;
   const pct = ok ? percentileRank(focalCell.v, pStats.values) : null;
-  // The bridge-only frame (12.5) draws no observations and no scatter, so they are not computed.
-  const lean = !!(opts && opts.lean);
-  const obs = lean ? {premium: [], discount: [], notAssessed: [], suppressed: []} : observations(focal, setRows, ctx);
   let dotCol = (state.dotMetric || {})[state.engine] || null;
   if (!dotCol || !METRIC_CANDIDATES.includes(dotCol)) {
     dotCol = primary.colId;
     if (!dotCol) dotCol = ["cash_to_mcap", "runway_months", "market_cap"].find((c) => cell(focal, c, ctx).status === "ok") || "market_cap";
   }
-  const sy = (state.scatter && state.scatter.y) || (primary.colId && SCATTER_Y_OPTIONS.includes(primary.colId) ? primary.colId
-    : (SCATTER_Y_OPTIONS.includes(dotCol) ? dotCol : "mcap_to_cash"));
-  const sx = (state.scatter && state.scatter.x) || defaultScatterX(sy);
-  const scatter = lean ? null
-    : {...scatterModel(focal, setRows, sx, sy, ctx, {size: get(state, "scatter.size") || "market_cap", logY: !!get(state, "scatter.logY")}), x: sx, y: sy};
   const saved = (state.bridge || {})[state.focal] || {};
   let bcol = saved.colId || null;
   if (!bcol) {
@@ -4045,35 +3280,38 @@ function analyse(payload, state, byTicker, focal, opts = {}) {
   return {payload, state, ctx, focal, T: focal.ticker, type: companyType(focal), preRevenue: isPreRevenue(focal),
     byTicker, companies, info, def, setRows, focalRow, included, statsRows, group, groupName, groupLeftOut: gm ? gm.leftOut : [],
     appropriate, medianRelevance, weak, defaultWarning, weakChip: weak || !!defaultWarning, mixed, standards,
-    primary, pStats, focalCell, premium: prem, pct, obs, dotCol, scatter, bridge: br, label, engineLabels,
+    primary, pStats, focalCell, premium: prem, pct, dotCol, bridge: br, label, engineLabels,
     setKind: kind, poolsUsed};
 }
 
 function emptyView() {
-  return {schema: SCHEMA, error: null, focal: null, ctx: null, header: null, conclusion: null, kpis: [], primary: null,
-    scope: null, table: null, dotplot: null, scatter: null, bridge: null, observations: null, peers: null,
+  return {schema: SCHEMA, error: null, focal: null, ctx: null, header: null, primary: null,
+    scope: null, table: null, dotplot: null, bridge: null, peers: null,
     method: null, detail: null, states: [], lineage: null, undo: null, sectionErrors: {}, analysis: null,
-    mode: "full", insight: null, footer: null, bridgeLine: null};
+    mode: "full", footer: null, bridgeLine: null, scorecard: null, compare: null, uiView: "scorecard"};
 }
 
-const SECTION_NAMES = {header: "Context bar", primary: "Primary metric", conclusion: "Conclusion", kpis: "Key metrics",
-  scope: "Scope line", table: "Comparable companies table", dotplot: "Peer position", scatter: "Valuation against fundamentals",
-  bridge: "Valuation bridge", observations: "Drivers and risks", peers: "Peer selection", method: "Methodology",
-  detail: "Side panel", states: "States", lineage: "Data sources", insight: "Drivers and risks", footer: "Sources line",
-  bridgeLine: "Peer-multiple value"};
+const SECTION_NAMES = {header: "Context bar", primary: "Primary metric",
+  scope: "Scope line", table: "Comparable companies table", dotplot: "Peer position",
+  bridge: "Valuation bridge", peers: "Peer selection", method: "Methodology",
+  detail: "Side panel", states: "States", lineage: "Data sources", footer: "Sources line",
+  bridgeLine: "Peer-multiple value", scorecard: "Company scorecard", compare: "Compare"};
 
 /**
- * `deriveView(payload, state, extra = {})`, `extra = {context, mode}` (12.10).
- * `context` is the focal company's comps-context body (12.2), an error context
- * `{ticker, error}`, or null while it is on its way. `mode` is "full" or "bridge": the
- * bridge-only frame of the Forecast tab gets `focal`, `ctx`, `primary`, `bridge`, `bridgeLine`,
- * the bridge's own `states` and `error`; every other section stays null.
+ * `deriveView(payload, state, extra = {})`, `extra = {mode}` (12.10, and company-scorecard.md
+ * 5.2 and 6.3). `mode` is "full" or "bridge": the bridge-only frame of the Forecast tab gets
+ * `focal`, `ctx`, `primary`, `bridge`, `bridgeLine`, the bridge's own `states` and `error`;
+ * every other section stays null.
+ *
+ * Revision 4: the full frame derives `scorecard` and `compare`. The conclusion banner, the KPI
+ * strip, Drivers and risks and the valuation-against-growth scatter of revision 3 are gone
+ * (Drivers and risks is drawn on the Catalysts tab, in Python), and their code with them.
  */
 export function deriveView(payload, state, extra = {}) {
   const view = emptyView();
   const mode = extra && extra.mode === "bridge" ? "bridge" : "full";
-  const context = extra && extra.context != null ? extra.context : null;
   view.mode = mode;
+  view.uiView = state && state.ui && VIEWS.includes(state.ui.view) ? state.ui.view : "scorecard";
   if (!payload || payload.schema !== SCHEMA) {
     view.error = stateMsg("schema", {expected: SCHEMA, got: payload && payload.schema != null ? payload.schema : "none"});
     return view;
@@ -4087,7 +3325,7 @@ export function deriveView(payload, state, extra = {}) {
   }
   let A;
   try {
-    A = analyse(payload, state, byTicker, focal, {lean: mode === "bridge"});
+    A = analyse(payload, state, byTicker, focal);
   } catch (e) {
     view.error = stateMsg("calc_failed_section", {section: "The comparison", message: stripStop(String(e && e.message || e))});
     view.error.where = ["frame"];
@@ -4097,7 +3335,7 @@ export function deriveView(payload, state, extra = {}) {
   view.focal = {ticker: focal.ticker, name: focal.name || focal.ticker, type: A.type, preRevenue: A.preRevenue, record: focal};
   const section = (id, fn) => {
     try { view[id] = fn(); } catch (e) {
-      view[id] = id === "kpis" || id === "states" ? [] : null;
+      view[id] = id === "states" ? [] : null;
       view.sectionErrors[id] = stateMsg("calc_failed_section", {section: SECTION_NAMES[id] || id, message: stripStop(String(e && e.message || e))}, {where: [id]});
     }
   };
@@ -4112,18 +3350,15 @@ export function deriveView(payload, state, extra = {}) {
   }
   section("header", () => buildHeader(A));
   section("primary", () => buildPrimary(A));
-  section("conclusion", () => conclusion(view));
-  section("kpis", () => buildKpis(A, view));
   section("scope", () => buildScope(A));
   section("table", () => buildTable(A));
   section("dotplot", () => buildDotplot(A));
-  section("scatter", () => buildScatter(A));
   section("bridge", () => A.bridge);
   section("bridgeLine", () => buildBridgeLine(A));
-  section("observations", () => A.obs);
-  section("insight", () => buildInsight(A, context));
+  section("scorecard", () => buildScorecard(A));
+  section("compare", () => buildCompare(A));
   section("peers", () => buildPeers(A));
-  section("method", () => buildMethod(A, view));
+  section("method", () => buildMethod(A));
   section("detail", () => buildDetail(A));
   section("lineage", () => buildLineage(A));
   section("footer", () => buildFooter(A));
@@ -4264,136 +3499,6 @@ function buildPrimary(A) {
     reasonText: P.reasonText, fallbackFrom: P.fallbackFrom || null, override: !!P.override, k: P.k, n: P.n,
     candidates: METRIC_CANDIDATES.map((c) => ({colId: c, label: COLUMN_BY_ID[c].label, positionOnly: !PREMIUM_METRICS.includes(c),
       ...metricAvailability(A.focal, A.statsRows, c, ctx)}))};
-}
-
-function kpiMultiple(colId, v) {
-  const c = COLUMN_BY_ID[colId];
-  if (!isNum(v)) return NULL;
-  if (c && (c.fmt === "mult1" || c.fmt === "mult2")) return fmtNumber(v, Math.abs(v) < 10 ? 2 : 1);
-  return fmtCell({status: "ok", v}, c);
-}
-function arrowPct(p, suffix, d = 1) {
-  if (!isNum(p)) return {text: "", dir: null};
-  const dir = p > 0 ? "up" : p < 0 ? "down" : null;
-  const g = p > 0 ? UP_GLYPH : p < 0 ? DOWN_GLYPH : "";
-  return {text: `${g ? g + " " : ""}${fmtNumber(Math.abs(p) * 100, d)}% ${suffix}`, dir};
-}
-
-function buildKpis(A, view) {
-  const {focal, ctx, T, primary: P, pStats} = A;
-  const cur = displayCurrency(focal, ctx);
-  const rate = rateFor(cur, ctx);
-  const disp = (u) => (isNum(u) && rate !== null ? u / rate : null);
-  const usdChip = cur !== "USD" ? "USD" : null;
-  const kpis = [];
-  // 1. Share price.
-  const price = numAt(focal, "market.price");
-  const chg = arrowPct(numAt(focal, "market.change_1d"), "on the day", 2);
-  const stale = (focal.flags || []).find((f) => f && f.code === "stale_price");
-  kpis.push({id: "price", label: "Share price, USD", value: isNum(price) ? fmtNumber(price, 2) : NULL, v: price, valueDir: null,
-    unit: usdChip, period: `Close ${fmtDateShort(get(focal, "market.price_as_of"))}${MID}sourced`, provenance: "sourced",
-    compare: chg.text, compareDir: chg.dir,
-    tooltip: "Last close of the US-listed line, unadjusted. Per-share figures are in USD, the quote currency, whatever the display currency." + (stale ? " " + flagText(stale, focal).text : ""),
-    flag: stale ? "amber" : null, strip: null});
-  // 2. Market cap.
-  const mc = numAt(focal, "market.market_cap_usd_m");
-  const basisTxt = get(focal, "market.market_cap_basis") === "shares_outstanding"
-    ? `Cover shares ${fmtDateShort(get(focal, "market.shares_cover_as_of"))}${MID}calc.` : `Diluted shares${MID}calc.`;
-  const setMcs = [focal].concat(A.included.map((r) => r.record)).map((r) => numAt(r, "market.market_cap_usd_m")).filter(isNum);
-  const rank = isNum(mc) ? setMcs.filter((v) => v > mc).length + 1 : null;
-  const mcCell = cell(focal, "market_cap", ctx);
-  kpis.push({id: "market_cap", label: `Market cap, ${unitText(COLUMN_BY_ID.market_cap, ctx)}`, value: mcCell.text, v: mcCell.v, valueDir: null,
-    unit: null, period: basisTxt, provenance: "calc.",
-    compare: rank ? `${ordinal(rank)} largest of ${setMcs.length} in the set` : "",
-    compareDir: null, tooltip: `${COLUMN_BY_ID.market_cap.tooltip} ${get(focal, "market.market_cap_basis_text") || ""}`.trim(),
-    flag: mcCell.amber ? "amber" : null, strip: null});
-  // 3. EV.
-  const evCell = cell(focal, "ev", ctx);
-  const nd = numAt(focal, "ev.net_debt_usd_m");
-  if (evCell.status === "ok") {
-    const ndd = disp(nd);
-    kpis.push({id: "ev", label: `EV, ${unitText(COLUMN_BY_ID.ev, ctx)}`, value: evCell.text, v: evCell.v, valueDir: null, unit: null,
-      period: `Balance sheet ${fmtDate(get(focal, "ev.balance_sheet_as_of"))}${MID}calc.`, provenance: "calc.",
-      compare: isNum(ndd) ? (ndd >= 0 ? `Net debt ${fmtNumber(ndd / 1000, 1)}` : `Net cash ${fmtNumber(-ndd / 1000, 1)}`) : "",
-      compareDir: null, tooltip: COLUMN_BY_ID.ev.tooltip, flag: evCell.amber ? "amber" : null, strip: null});
-  } else {
-    kpis.push({id: "ev", label: `EV, ${unitText(COLUMN_BY_ID.ev, ctx)}`, value: NULL, v: null, valueDir: null, unit: null,
-      period: "No debt line on file", provenance: "calc.", compare: "", compareDir: null,
-      tooltip: evCell.reason || NA_TEXT.no_debt_line, flag: null, strip: null});
-  }
-  const state = view.conclusion ? view.conclusion.state : P.state;
-  const fmtStat = (colId, v) => kpiMultiple(colId, v);
-  if (state === "no_multiple" || !P.colId) {
-    const c1 = cell(focal, "cash_to_mcap", ctx);
-    const s1 = peerStats(A.setRows, "cash_to_mcap", ctx);
-    kpis.push({id: "primary", label: "Cash / market cap, %", value: c1.text, v: c1.v, valueDir: null, unit: null,
-      period: `Balance sheet ${fmtDate(get(focal, "ev.balance_sheet_as_of"))}${MID}calc.`, provenance: "calc.",
-      compare: s1.n ? `Median ${fmtCell({status: "ok", v: s1.median}, "cash_to_mcap")}, n ${s1.n}` : "No peer value",
-      compareDir: null, tooltip: COLUMN_BY_ID.cash_to_mcap.tooltip, flag: null, strip: null});
-    const c2 = cell(focal, "runway_months", ctx);
-    const s2 = peerStats(A.setRows, "runway_months", ctx);
-    kpis.push({id: "position", label: "Cash runway, months", value: c2.text, v: c2.v, valueDir: null, unit: null,
-      period: get(focal, "risk.runway_basis") || "Trailing burn", provenance: "calc.",
-      compare: s2.n ? `Median ${fmtNumber(s2.median, 0)}` : "No peer value", compareDir: null,
-      tooltip: COLUMN_BY_ID.runway_months.tooltip + (c2.status !== "ok" ? ` ${c2.reason}` : ""), flag: null,
-      strip: positionStrip(focal, A.setRows, "runway_months", ctx)});
-  } else {
-    const c = COLUMN_BY_ID[P.colId];
-    const fc = cell(focal, P.colId, ctx);
-    const spot = c.bases[0] === "-";
-    const bsd = get(focal, P.colId === "price_to_book" ? "periods.FY0.equity_as_of" : "ev.balance_sheet_as_of") || get(focal, "ev.balance_sheet_as_of");
-    const per = spot ? `Balance sheet ${fmtDate(bsd)}${MID}calc.` : `${basisChipText(P.colId, ctx.basis, ctx, true)}${MID}calc.`;
-    kpis.push({id: "primary", label: `${c.label}, ${unitText(c, ctx)}`, value: fc.status === "ok" ? kpiMultiple(P.colId, fc.v) : fc.text,
-      v: fc.v, valueDir: null, unit: null, period: per, provenance: "calc.",
-      compare: pStats && pStats.n ? `Median ${fmtStat(P.colId, pStats.median)}, n ${pStats.n}` : "No peer value",
-      compareDir: null, tooltip: `${c.tooltip} ${P.reasonText}`, flag: fc.amber ? "amber" : null, strip: null});
-    // 5. Against peer median.
-    const strip = positionStrip(focal, A.setRows, P.colId, ctx);
-    const pctTxt = isNum(A.pct) ? `${ordinal(Math.round(A.pct))} percentile` : "";
-    if (state === "ok" && isNum(A.premium)) {
-      const p = A.premium;
-      const inLine = isInLine(p);
-      kpis.push({id: "position", label: "Against peer median", value: `${fmtNumber(p * 100, 1, {signed: true})}%`, v: p,
-        valueDir: p > 0 ? "up" : p < 0 ? "down" : null, unit: null,
-        period: inLine ? "In line, within 5%" : (p >= 0 ? "Premium" : "Discount"), provenance: "calc.",
-        compare: pctTxt, compareDir: null, tooltip: KPI5_TOOLTIP, flag: null, strip});
-    } else if (state === "low_confidence") {
-      const p = premium(fc.v, pStats ? pStats.median : null, multipleDirection(P.colId));
-      kpis.push({id: "position", label: "Against peer median", value: isNum(p) ? `${fmtNumber(p * 100, 1, {signed: true})}%` : NULL, v: p,
-        valueDir: isNum(p) ? (p > 0 ? "up" : p < 0 ? "down" : null) : null, unit: null,
-        period: `Not stated: ${pStats ? pStats.n : 0} peers`, provenance: "calc.", compare: pctTxt, compareDir: null,
-        tooltip: `${KPI5_TOOLTIP} ${lowConfidenceText(pStats ? pStats.n : 0, P.colId)}`, flag: "amber", strip});
-    } else {
-      kpis.push({id: "position", label: "Against peer median", value: NULL, v: null, valueDir: null, unit: null,
-        period: "Not stated", provenance: "calc.", compare: pctTxt, compareDir: null, tooltip: KPI5_TOOLTIP, flag: null, strip});
-    }
-  }
-  // 6. Implied value, else the street target.
-  const br = A.bridge;
-  if (state !== "no_multiple" && br && br.enabled && isNum(br.V)) {
-    const up = arrowPct(br.upside, "against price", 1);
-    const statTxt = isNum(br.inputs.multipleOverride) ? "Analyst" : (br.stat === "pct" ? `${ordinal(br.pct)} percentile` : STAT_LABEL[br.stat] || "Median");
-    kpis.push({id: "implied", label: "Implied value, USD", value: fmtNumber(br.V, 2), v: br.V, valueDir: null, unit: usdChip,
-      period: `${statTxt} ${lcfirst(br.metricLabel)} ${TIMES} ${br.operatingShort}${MID}calc.`, provenance: "calc.",
-      compare: up.text, compareDir: up.dir,
-      tooltip: "From the peer-multiple bridge on the Forecast tab, with its inputs. Click to open it. Per-share figures are in USD, the quote currency.",
-      flag: null, strip: null});
-  } else {
-    const t = br ? br.streetTarget : null;
-    if (t) {
-      const up = arrowPct(t.upside, "against price", 1);
-      kpis.push({id: "implied", label: "Street target, USD", value: fmtNumber(t.value, 2), v: t.value, valueDir: null, unit: usdChip,
-        period: `12M${t.analysts ? `, ${t.analysts} analysts` : ""}${MID}sourced`, provenance: "sourced", compare: up.text, compareDir: up.dir,
-        tooltip: "Upside to the 12-month consensus price target from Nasdaq, per US-listed share." + (br && br.reason ? ` The bridge is off: ${br.reason}` : ""),
-        flag: null, strip: null});
-    } else {
-      kpis.push({id: "implied", label: "Street target, USD", value: NULL, v: null, valueDir: null, unit: usdChip,
-        period: "No street target on file", provenance: "sourced", compare: "", compareDir: null,
-        tooltip: br && br.reason ? br.reason : NA_TEXT.no_consensus, flag: null, strip: null});
-    }
-  }
-  // KPI 6 opens the peer-multiple value on the Forecast tab (12.5); the other cells have no link.
-  return kpis.map((k, i) => ({...k, link: i === 5 ? LINK_FORECAST : null}));
 }
 
 function filterText(f) {
@@ -4646,19 +3751,6 @@ function buildDotplot(A) {
     notPlottedText: dp.notPlotted.nm || dp.notPlotted.na ? `Not plotted: ${dp.notPlotted.nm} not meaningful, ${dp.notPlotted.na} with no value` : ""};
 }
 
-function buildScatter(A) {
-  const s = A.scatter;
-  const st = A.state.scatter || DEFAULT_SCATTER;
-  return {...s, size: st.size || "market_cap", colorBy: st.colorBy || "none", logY: !!s.logY, trendOn: st.trend !== false,
-    logYOffered: LOG_Y_COLS.includes(s.y),
-    xOptions: SCATTER_X_OPTIONS.map((id) => ({id, label: COLUMN_BY_ID[id].label})),
-    yOptions: SCATTER_Y_OPTIONS.map((id) => ({id, label: COLUMN_BY_ID[id].label})),
-    legend: ["Circle: big pharma", "Square: biotech", "Triangle: cell and gene", "Hollow = clinical", `Ring = ${A.T}`, "Dashed = excluded"],
-    disabledState: !A.setRows.length ? stateMsg("no_peers", {}, {where: ["scatter"]})
-      : s.disabledReason ? {id: "scatter_disabled", severity: "info", where: ["scatter"],
-        title: STATE_COPY.scatter_disabled.title, detail: s.disabledReason, action: null} : null};
-}
-
 function componentPercents(rel) {
   const o = {};
   for (const k of Object.keys(RELEVANCE_WEIGHTS)) o[k] = rel && isNum(rel.components[k]) ? Math.round(rel.components[k] * 100) : null;
@@ -4718,8 +3810,7 @@ function buildPeers(A) {
     open: !!(state.ui && state.ui.peers), search: !!(state.ui && state.ui.peers && state.ui.peersSearch), title: "Edit peers"};
 }
 
-function buildMethod(A, view) {
-  const conf = view.conclusion ? view.conclusion.confidence : {reasons: []};
+function buildMethod(A) {
   const bt = A.payload.basis_text || {};
   const sections = [
     {id: "stats", title: "Peer statistics", body: [
@@ -4732,9 +3823,6 @@ function buildMethod(A, view) {
       "Clinical-stage and sub-scale companies: market cap / cash, the one scale-free valuation measure every company in the universe has.",
       "The first candidate with a value for the focal company and 5 or more peer values is primary. With 2 to 4 peer values no premium or discount is stated.",
       A.primary.reasonText]},
-    {id: "confidence", title: "Confidence", body: conf.reasons.map((r) => r + ".").concat([
-      "Points: 8 or more peer values add 2, 5 to 7 add 1. One point is lost each for fewer than 5 peers scoring 40 or more on relevance, a median relevance under 50, mixed business models, mixed standards on a metric that uses filed figures, fiscal-year figures in an LTM column, more than a quarter of peer values on derived operating income, an amber flag on the focal company's own value, an interquartile range over 60% of the median and an extreme outlier.",
-      "High at 2 or more, medium at 1, low at 0 or below."])},
     {id: "relevance", title: "Relevance", body: [
       "Subsector 25%, business model 20%, scale 20%, profitability or clinical stage 15%, growth 15%, geography 5%. A component with no data for either company is dropped and the weights renormalise.",
       "An appropriate peer scores 40 or more. A set with fewer than 5 appropriate peers is weak."]},
@@ -4751,22 +3839,16 @@ function buildMethod(A, view) {
     {id: "definitions", title: "Definitions", body: [],
       items: COLUMNS.map((c) => ({colId: c.id, group: (COLUMN_GROUPS.find((g) => g.id === c.group) || {}).label, label: c.label, text: c.tooltip}))},
   ];
-  return {sections, open: A.state.ui ? A.state.ui.method : null};
+  // Revision 4 (8.6): the Scorecard view's drawer says how the scorecard is scored, and only that.
+  const sc = scorecardOf(A);
+  const rec = sc && sc.companies ? sc.companies[A.T] : null;
+  const cohort = rec && sc.cohorts ? sc.cohorts[rec.cohort] : null;
+  const lines = cohort && Array.isArray(cohort.method_text) ? cohort.method_text : (get(sc, "method.text.method") || []);
+  const scoreSec = lines.length ? {id: "scorecard", title: stripStop(lines[0]), body: lines.slice(1)} : null;
+  const view_ = A.state.ui && A.state.ui.view === "table" ? "table" : "scorecard";
+  return {sections: view_ === "scorecard" ? (scoreSec ? [scoreSec] : []) : sections.concat(scoreSec ? [scoreSec] : []),
+    open: A.state.ui ? A.state.ui.method : null};
 }
-
-const AGAINST_ROWS = [
-  {id: "revenue", label: "Revenue", better: "+"},
-  {id: "revenue_growth", label: "Revenue growth", better: "+"},
-  {id: "net_margin", label: "Net margin", better: "+"},
-  {id: "rd_pct", label: "R&D share of revenue", better: null},
-  {id: "market_cap", label: "Market cap", better: null},
-  {id: "pe", label: "P/E FY0", better: null, basis: "FY0"},
-  {id: "ev_revenue", label: "EV/Revenue FY0", better: null, basis: "FY0"},
-  {id: "late_trials", label: "Late-stage trials", better: "+"},
-  {id: "catalysts_12m", label: "Catalysts in 12 months", better: null},
-  {id: "loe_share_5y", label: "Losing exclusivity 5y", better: "-"},
-  {id: "ttm_price_change", label: "Share price, 12 months", better: null},
-];
 
 function buildDetail(A) {
   const t = A.state.ui && A.state.ui.detail;
@@ -4777,17 +3859,6 @@ function buildDetail(A) {
   const isFocal = t === focal.ticker;
   const row = A.setRows.find((r) => r.ticker === t);
   const fy0ctx = {...ctx, basis: "FY0", cache: new Map()};
-  const against = isFocal ? [] : AGAINST_ROWS.map((d) => {
-    const c = d.basis ? fy0ctx : {...ctx, basis: "FY0", cache: fy0ctx.cache};
-    const pc = cell(rec, d.id, c), fc = cell(focal, d.id, c);
-    let better = null;
-    if (d.better && pc.status === "ok" && fc.status === "ok" && isNum(pc.v) && isNum(fc.v) && pc.v !== fc.v) {
-      better = (d.better === "+" ? pc.v > fc.v : pc.v < fc.v) ? "peer" : "focal";
-    }
-    const unit = unitText(COLUMN_BY_ID[d.id], ctx);
-    return {id: d.id, label: unit ? `${d.label}, ${unit}` : d.label, peer: pc.text, focal: fc.text, better,
-      peerReason: pc.status !== "ok" ? pc.reason : null, focalReason: fc.status !== "ok" ? fc.reason : null};
-  });
   const hist = (r) => r.history || {};
   const rel = row ? row.relevance : (isFocal ? null : relevance(focal, rec));
   const cur = displayCurrency(rec, ctx);
@@ -4797,7 +3868,9 @@ function buildDetail(A) {
   return {ticker: t, name: rec.name || t, isFocal, record: rec, detail: rec.detail && Object.keys(rec.detail).length ? rec.detail : null,
     inPeers: !!row, excluded: row ? row.excluded : false, relevance: rel, flags: detailFlags(A, rec),
     relevanceText: rel ? `${rel.score} of 100` : null, source: row ? row.source : null, reason: row ? row.reason : null,
-    chips, against, focalTicker: focal.ticker,
+    chips, focalTicker: focal.ticker, scorecard: scorecardDetail(A, t),
+    view: A.state.ui && VIEWS.includes(A.state.ui.view) ? A.state.ui.view : "scorecard",
+    picked: !!(A.state.ui && Array.isArray(A.state.ui.compare) && A.state.ui.compare.includes(t)),
     overTime: {labels: hist(rec).labels || hist(focal).labels || [],
       series: {revenue_growth: {peer: hist(rec).revenue_growth || [], focal: hist(focal).revenue_growth || []},
                net_margin: {peer: hist(rec).net_margin || [], focal: hist(focal).net_margin || []}}},
@@ -4825,8 +3898,7 @@ function buildLineage(A) {
 function buildStates(A, view) {
   const out = [];
   const {payload, focal, T, state} = A;
-  const c = view.conclusion;
-  const cs = c ? c.state : A.primary.state;
+  const cs = A.primary.state;
   const as = payload.as_of || {};
   if (isNum(as.price_trading_days_old) && as.price_trading_days_old >= 1) {
     out.push(stateMsg("stale_price_universe", {date: fmtDate(as.price_date), n: as.price_trading_days_old}));
@@ -4890,12 +3962,6 @@ function buildStates(A, view) {
     out.push({id: br.reasonId || "bridge_disabled", severity: "info", where: ["bridge"], title: "No bridge", detail: br.reason, action: null});
   }
   if (br && br.negativeEquity) out.push(stateMsg("negative_equity", {}));
-  const ins = view.insight;
-  if (ins) {
-    if (ins.message) out.push(ins.message);
-    else for (const g of [ins.catalysts, ins.competition]) if (g && g.empty) out.push(g.empty);
-    if (ins.competition && ins.competition.lead) out.push(stateMsg("ranked_by_contest", {T}));
-  }
   if (view.undo) out.push(stateMsg("undo", {label: view.undo.label}));
   if (state.singleKeys === false) out.push(stateMsg("single_keys_off", {}));
   out.push(stateMsg("absent_subsectors", {}));
@@ -4903,435 +3969,411 @@ function buildStates(A, view) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 12.3 Drivers and risks: view.insight, built from the focal context
-// (GET /companies/{ticker}/comps-context, 12.2). Every string the panel draws is worded here.
+// Company scorecard (docs/design/company-scorecard.md; revision 4 of this frame, 5.2 and 6.3):
+// the Scorecard view, Compare and the company panel's scorecard blocks. Everything here is
+// arranged from `payload.scorecard` as the server built it: no score is computed in the browser,
+// so Python and the frame print the same numbers and the same sentences (decision 2).
 // ---------------------------------------------------------------------------------------------
 
-/** Reason codes of the context payload (12.2), worded. `{T}` is the focal ticker. */
-export const CONTEXT_NA_TEXT = {
-  no_asset: "The event names no asset on file.",
-  no_price: "No share price on file.",
-  not_modelled: "No modelled value for this asset.",
-  model_not_computed: "The model value has not been computed yet. Reload in a minute.",
-  no_outcome_legs: "The model holds no success and failure probabilities for this asset, so no value at stake is stated.",
-  not_in_stakes: "The catalyst record names no asset, so no value at stake is stated.",
-  no_indication_link: "No indication on file for this event.",
-  no_attributed_asset: "No modelled asset is counted in this indication.",
-  no_pool: "No modelled drug draws on a sized patient pool here.",
-  single_claimant: "One modelled drug draws on this pool, so nothing is shared.",
-  flow_pool: "The model sizes this disease by each year's new patients, so there is no standing pool to share.",
-  claims_exceed_pool: "The modelled claims exceed the stated population, so no share of the pool is stated.",
-  share_under_1pct: "The modelled drugs together claim under 1% of the pool.",
-  no_claimant: "{T} has no modelled drug in the shared pool.",
+export const VIEWS = ["scorecard", "table"];
+export const COMPARE_MAX = 3;
+const SC_DOT = "·";
+const EN_DASH = "–";
+const BUSINESS_ORDER = ["growth", "profitability", "balance_sheet", "pipeline", "durability", "funding"];
+const PRICE_PILLARS = ["value", "momentum"];
+/** Fixed copy of section 8.1 for the frame's own words; every generated line is the server's. */
+export const SCORECARD_COPY = {
+  views: {scorecard: "Scorecard", table: "Table"},
+  compare: "Compare {k}",
+  compareTip: "Tick two or three companies",
+  compareFull: "Compare takes up to three. Untick one first.",
+  compareTitle: "Compare",
+  close: "Close",
+  failed: "The scorecard did not load: {error}. The Table view still works.",
+  noRecord: "the scorecard holds no record for {T}",
+  howToRead: "How to read it: right is a stronger business than its cohort, up is lower multiples. The number is the rank in the table. Click a company for its facts; tick up to three to compare.",
+  howToReadShort: "How to read it",
+  methodLink: "How it is scored",
+  notRanked: "Not ranked: {list}.",
+  notOnChart: "Not on the chart: {list}.",
+  noChart: "No chart: {T} has no company score and value score to place.",
+  cellTitle: "{pillar} {s}, on {k} of {K} measures; cohort median {m}",
+  scoreLine: "{S} · {rank} of {n} {noun} · {range} in 90 of 100 weightings",
+  weights: "Equal weights. Under 90 of 100 random weightings the rank stays between {lo} and {hi}.",
+  weightsOne: "Equal weights. Under 90 of 100 random weightings the rank stays {lo}.",
+  priceRule: "Price, not in the score",
+  partial: "on {k} of {K} measures",
+  mixed: "Scored against different peers. Compare the measures, not the scores.",
+  outside: "not scored for {noun}",
+  headings: {score: "Score", positives: "Positives", negatives: "Negatives", pillars: "Pillars",
+    deals: "Business development", weights: "Weights"},
+  noPositive: "No measure in the cohort's top quarter.",
+  noNegative: "No measure in the cohort's bottom quarter.",
+  none: "None",
+  noDeal: "No deal on file in 24 months.",
+  dealsNewest: "{n} on file, newest {month}",
+  otherMetrics: "Not scored for {noun}",
+  exclusivity: "Exclusivity losses in 24 months",
+  noExclusivity: "No exclusivity loss in 24 months.",
+  marketCapAlt: "Market cap {primary} on the latest cover count; {alt} on the FY0 weighted diluted count",
+  table: {rank: "#", range: "range", company: "co.", score: "score", rankTitle: "Rank in the cohort",
+    rangeTitle: "Where the rank falls in 90 of 100 random weightings of the pillars and their measures",
+    scoreTitle: "Company score, 0 to 100: the average of the business pillars"},
 };
-const CONTEXT_NA_FALLBACK = "The model states no figure here.";
-function contextNa(code, T) {
+
+function scorecardOf(A) {
+  const sc = A && A.payload ? A.payload.scorecard : null;
+  return sc && typeof sc === "object" ? sc : null;
+}
+function pillarMeta(sc, id) {
+  const m = (get(sc, "method.pillars") || {})[id];
+  return m || {label: ucfirst(String(id || "").replace(/_/g, " ")), column: String(id || ""), kind: PRICE_PILLARS.includes(id) ? "price" : "business"};
+}
+function metricMeta(sc, id) {
+  const m = (get(sc, "method.metrics") || {})[id];
+  return m || {label: ucfirst(String(id || "").replace(/_/g, " ")), better: "higher", unit: null};
+}
+/** The text of a reason code (8.4), its placeholders filled from `params`; the code itself, made
+ * readable, when the payload carries no text for it. */
+export function scoreReason(sc, code, params = {}) {
   if (!code) return null;
-  return fill(CONTEXT_NA_TEXT[code] || CONTEXT_NA_FALLBACK, {T});
+  const t = (get(sc, "method.reasons") || {})[code];
+  return t ? fill(t, params) : ucfirst(String(code).replace(/_/g, " "));
 }
+function metricReasonText(sc, m) {
+  if (!m || !m.reason) return null;
+  if (m.reason_text && !/\{\w+\}/.test(m.reason_text)) return m.reason_text;
+  return scoreReason(sc, m.reason);
+}
+function pillarReasonText(sc, p, rec) {
+  if (!p || !p.reason) return null;
+  if (p.reason_text && !/\{\w+\}/.test(p.reason_text)) return p.reason_text;
+  // A pillar's own text may keep a placeholder its metric filled ("covers {c}% of revenue").
+  const m = (p.metrics || []).find((x) => x && x.reason === p.reason && x.reason_text && !/\{\w+\}/.test(x.reason_text));
+  if (m) return m.reason_text;
+  if (p.reason === "too_few_pillars" && rec && rec.reason_text) return rec.reason_text;
+  return scoreReason(sc, p.reason);
+}
+/** Table shading of 3.2 and 8.3: UP above 50, DOWN below, opacity 0.85 × |s − 50| / 50. */
+export function shadeOf(score) {
+  if (!isNum(score)) return {fill: null, alpha: 0};
+  const d = score - 50;
+  return {fill: d > 0 ? "up" : d < 0 ? "down" : null, alpha: Math.round(0.85 * Math.abs(d) / 50 * 1000) / 1000};
+}
+function rangeTextOf(rec) {
+  const r = rec && rec.rank_range;
+  if (Array.isArray(r) && isNum(r[0]) && isNum(r[1])) return r[0] === r[1] ? String(r[0]) : `${r[0]}${EN_DASH}${r[1]}`;
+  return rec && rec.range_text ? rec.range_text : null;
+}
+function cohortPillars(cohort) { return Array.isArray(cohort && cohort.pillars) ? cohort.pillars.filter((p) => p && p.id) : []; }
+function businessIds(sc, cohort) { return cohortPillars(cohort).map((p) => p.id).filter((id) => pillarMeta(sc, id).kind === "business"); }
+function placeText(m) { return m && m.place ? (isNum(m.n) ? `${m.place} of ${m.n}` : m.place) : null; }
+function monthYear(iso) {
+  const m = /^(\d{4})-(\d{2})/.exec(String(iso || ""));
+  return m ? `${MONTHS[Number(m[2]) - 1]} ${m[1]}` : null;
+}
+function cohortNotScored(cohort, metricId) { return ((cohort && cohort.not_scored) || []).find((x) => x && x.metric === metricId) || null; }
 
-export const INSIGHT_COPY = {
-  catalystsTitle: "Catalysts ahead",
-  catalystsLink: "Open the Catalysts tab",
-  catalystsNote: "Dates marked est. come from trial records. A catalyst is two-sided: it can raise or lower the value. Value figures are model output.",
-  competitionTitle: "Competition by indication",
-  competitionLink: "Open Comps, Indications",
-  competitionNote: "Rivals are big pharma candidates that are marketed or in Phase 2 or later. Value counts each modelled asset in the indication the model sizes it in, else in its lead indication. Pool figures are model output and leave out marketed products valued off reported revenue.",
-  marketedNoValue: "Marketed product. The model states no value for this {event}.",
-  estimatedDate: "The date is the trial's estimated primary completion.",
-  indicationsAbsent: "The Indications view opens for big pharma companies.",
-  contestWhileComputing: "Model values are not computed yet, so indications are ordered by how many companies contest them.",
-  premiumHeading: "Potential premium drivers",
-  discountHeading: "Potential discount drivers",
-  emptySide: "No observation passes the tests.",
-  sectionTag: "Observations, not conclusions",
-};
-
-const CHIP_MODEL = {id: "model", text: "Model output", tone: "neutral",
-  tooltip: "From the terminal's forecast model, not from a filing or a market price."};
-const CHIP_TWO_SIDED = {id: "two_sided", text: "Two-sided", tone: "neutral",
-  tooltip: "The outcome can raise or lower the value."};
-const CHIP_DERIVED_DATE = {id: "derived_date", text: "Derived, estimated date", tone: "flag",
-  tooltip: "Derived from a trial record. The date is an estimate, not a company statement."};
-const CHIP_CURATED = {id: "curated", text: "Curated", tone: "neutral", tooltip: "Entered and checked by hand."};
-const LINK_CATALYSTS = {kind: "tab", tab: "Catalysts"};
-const LINK_FORECAST = {kind: "tab", tab: "Forecast"};
-
-// Proper names MeSH descriptors carry. They keep their capital when a name is put in prose.
-const INDICATION_EPONYMS = new Set(["alzheimer", "parkinson", "crohn", "hodgkin", "huntington", "duchenne",
-  "cushing", "sjogren", "behcet", "castleman", "waldenstrom", "fabry", "gaucher", "pompe", "kawasaki", "graves",
-  "paget", "raynaud", "tourette", "wilms", "ewing", "kaposi", "burkitt", "merkel", "barrett", "dravet", "rett",
-  "angelman", "marfan", "niemann", "hirschsprung", "addison", "meniere", "guillain", "barre", "lennox", "gastaut",
-  "prader", "willi", "friedreich", "charcot", "marie", "stargardt", "leber", "hashimoto", "takayasu", "bowen"]);
-function indicationWord(word) {
-  return word.split("-").map((part) => {
-    const bare = part.replace(/['’]s$/, "").replace(/[^A-Za-z0-9]/g, "");
-    if (!bare) return part;
-    if (/^[A-Z0-9]+$/.test(bare)) return part;                        // HIV, IGA, the B of B-Cell, a number
-    if (/^[A-Z]/.test(bare) && INDICATION_EPONYMS.has(bare.toLowerCase())) return part;
-    return part.toLowerCase();
-  }).join("-");
+/** Columns of the ranked table: the cohort's business pillars in its order, then value. */
+function scorecardColumns(sc, cohort) {
+  const list = cohortPillars(cohort);
+  const cols = list.filter((p) => pillarMeta(sc, p.id).kind === "business").concat(list.filter((p) => p.id === "value"));
+  return cols.map((p) => {
+    const meta = pillarMeta(sc, p.id);
+    const measures = (p.metrics || []).map((m) => lcfirst(metricMeta(sc, m).label));
+    return {id: p.id, header: meta.column || p.id, label: meta.label,
+      title: measures.length ? `${meta.label}: ${measures.join("; ")}` : meta.label};
+  });
 }
-/**
- * `indicationProse(name)`: the stored MeSH name with its comma-separated parts reversed, in lower
- * case ("Pulmonary Disease, Chronic Obstructive" -> "chronic obstructive pulmonary disease").
- * Acronyms, single letters and proper names keep their capitals ("B-cell", "HIV", "Alzheimer").
- */
-export function indicationProse(name) {
-  const parts = String(name == null ? "" : name).split(",").map((p) => p.trim()).filter(Boolean);
-  return parts.reverse().join(" ").split(/\s+/).filter(Boolean).map(indicationWord).join(" ");
-}
-/** `indicationTitle(name)`: `indicationProse` with a capital first letter. */
-export function indicationTitle(name) { return ucfirst(indicationProse(name)); }
-
-function usdShare(v) { return isNum(v) ? "$" + fmtNumber(v, 2) : NULL; }
-function pct1(v) { return isNum(v) ? fmtNumber(v * 100, 1) + "%" : NULL; }
-/** A share of price in a row: one decimal, and "under 0.1%" rather than a zero for a small positive share. */
-function pctRow(v) { return isNum(v) && v > 0 && v < 0.0005 ? "under 0.1%" : pct1(v); }
-function pct0(v) { return isNum(v) ? wholePct(v) + "%" : NULL; }
-/** Patients in prose: "107.6m" from a million, "644k" from a thousand, the whole number below. */
-export function fmtPatients(v) {
-  if (!isNum(v)) return NULL;
-  const a = Math.abs(v);
-  if (a >= 999950) return fmtNumber(v / 1e6, 1) + "m";
-  if (a >= 1000) return fmtNumber(v / 1000, 0) + "k";
-  return fmtNumber(v, 0);
-}
-
-function isRegulatory(it) { return it.regulatory === true || REGULATORY_KINDS.includes(it.kind); }
-function isReadout(it) { return /readout/i.test(String(it.kind || "")); }
-function isLateReadout(it) { return isReadout(it) && LATE_PHASES.includes(it.phase); }
-function catalystEvent(it) {
-  const k = String(it.kind || "").toLowerCase();
-  if (k === "data readout") return it.phase ? `${it.phase} readout` : "data readout";
-  if (k === "pdufa") return "PDUFA date";
-  if (k === "adcom") return "advisory committee";
-  if (k === "regulatory decision") return "regulatory decision";
-  if (k === "ema decision") return "EMA decision";
-  return k || "event";
-}
-function catalystDate(it) {
-  const iso = typeof it.date === "string" ? it.date : "";
-  const conf = it.date_confidence;
-  const estimated = !(conf === "confirmed" || conf === "stated");
-  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(iso);
-  if (!m) return {dateIso: iso, dateShort: NULL, dateText: "on a date not on file", estimated};
-  const y = Number(m[1]), mo = Number(m[2]), d = m[3] ? Number(m[3]) : null;
-  let prec = it.date_precision || (d ? "day" : "month");
-  if (prec === "day" && !d) prec = "month";
-  const mon = MONTHS[mo - 1] || "";
-  if (prec === "quarter") { const s = `Q${Math.ceil(mo / 3)} ${y}`; return {dateIso: iso, dateShort: s, dateText: `in ${s}`, estimated}; }
-  if (prec === "half") { const s = `H${mo <= 6 ? 1 : 2} ${y}`; return {dateIso: iso, dateShort: s, dateText: `in ${s}`, estimated}; }
-  if (prec === "month") { const s = `${mon} ${y}`; return {dateIso: iso, dateShort: s, dateText: `in ${s}`, estimated}; }
-  const s = `${d} ${mon} ${y}`;
-  return {dateIso: iso, dateShort: s, dateText: `${estimated ? "around" : "on"} ${s}`, estimated};
-}
-function catalystTier(it) {
-  if (it.stake && isNum(it.stake.pct_of_price)) return 0;
-  if (isRegulatory(it)) return 1;
-  if (isLateReadout(it)) {
-    return it.asset && !it.asset.is_marketed && it.asset_value && isNum(it.asset_value.pct_of_price) ? 2 : 3;
+function scorecardCell(sc, rec, col, cohort) {
+  const p = rec && rec.pillars ? rec.pillars[col.id] : null;
+  const s = p ? p.score : null;
+  if (!isNum(s)) {
+    const why = pillarReasonText(sc, p, rec) || scoreReason(sc, "no_free_data");
+    return {id: col.id, fill: null, alpha: 0, score: null, text: SC_DOT, missing: true, title: `${col.label}: ${why}`};
   }
-  return 4;
-}
-function byDateThenId(a, b) {
-  const da = String(a.date || ""), db = String(b.date || "");
-  if (da !== db) return da < db ? -1 : 1;
-  return (Number(a.id) || 0) - (Number(b.id) || 0);
-}
-/** Tier, then the order inside the tier (12.3), then date, then catalyst id. */
-function compareCatalysts(a, b) {
-  const ta = catalystTier(a), tb = catalystTier(b);
-  if (ta !== tb) return ta - tb;
-  if (ta === 0 && a.stake.pct_of_price !== b.stake.pct_of_price) return b.stake.pct_of_price - a.stake.pct_of_price;
-  if (ta === 2 && a.asset_value.pct_of_price !== b.asset_value.pct_of_price) return b.asset_value.pct_of_price - a.asset_value.pct_of_price;
-  return byDateThenId(a, b);
-}
-function sourceHost(url) {
-  const m = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]+)/i.exec(String(url || ""));
-  return m ? m[1].replace(/^www\./, "") : null;
-}
-
-/** The one catalyst item a side list can carry (12.3): `catalyst_stake`, else `catalyst_value`. */
-function catalystSideItem(items) {
-  const sorted = items.slice().sort(byDateThenId);
-  let best = null;
-  for (const it of sorted) {
-    if (it.stake && isNum(it.stake.pct_of_price) && (!best || it.stake.pct_of_price > best.stake.pct_of_price)) best = it;
-  }
-  const base = {kind: "catalyst", side: "discount", strength: 50, severity: "amber", provenance: "M", twoSided: true,
-    chips: [CHIP_MODEL, CHIP_TWO_SIDED], link: LINK_CATALYSTS, linkLabel: "Catalysts tab"};
-  if (best && best.stake.pct_of_price >= CATALYST_MIN_PCT) {
-    const d = catalystDate(best);
-    const name = best.asset && best.asset.name ? best.asset.name : "the asset";
-    return {...base, id: "catalyst_stake", tag: "binary catalyst in 12 months (model)",
-      text: `${pct1(best.stake.pct_of_price)} of the price, ${usdShare(Math.abs(best.stake.per_share))} a share, separates success from failure at the ${name} ${catalystEvent(best)} due ${d.dateText}. The outcome can move the value either way. Model output.`,
-      catalystId: best.id, assetId: best.asset ? best.asset.id : null};
-  }
-  const elig = sorted.filter((it) => (isRegulatory(it) || isLateReadout(it)) && it.asset && !it.asset.is_marketed &&
-    it.asset_value && it.asset_value.counted === true && isNum(it.asset_value.pct_of_price));
-  let top = null;
-  for (const it of elig) if (!top || it.asset_value.pct_of_price > top.asset_value.pct_of_price) top = it;
-  if (!top || top.asset_value.pct_of_price < CATALYST_MIN_PCT) return null;
-  // The asset's earliest such event is the one named: `elig` is in date order.
-  const first = elig.find((it) => it.asset.id === top.asset.id) || top;
-  const d = catalystDate(first);
-  return {...base, id: "catalyst_value", tag: "pipeline value on one event (model)",
-    text: `${pct1(first.asset_value.pct_of_price)} of the price, ${usdShare(first.asset_value.per_share)} a share, is the risk-adjusted value the model carries for ${first.asset.name}, whose ${catalystEvent(first)} is due ${d.dateText}. The outcome can move it either way. Model output.`,
-    catalystId: first.id, assetId: first.asset.id};
-}
-
-function catalystRows(items, T, sideItem) {
-  const sorted = items.slice().sort(compareCatalysts);
-  const groups = new Map();
-  for (const it of sorted) {
-    const key = it.asset && it.asset.id != null ? `a${it.asset.id}` : `e${it.id}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(it);
-  }
-  const rows = [];
-  for (const list of groups.values()) {
-    const it = list[0];
-    const d = catalystDate(it);
-    const event = catalystEvent(it);
-    const na = it.na || {};
-    const marketed = !!(it.asset && it.asset.is_marketed);
-    let modelText = null, modelKind = null, naText = null;
-    if (it.stake && isNum(it.stake.per_share)) {
-      modelKind = "stake";
-      modelText = `at stake ${usdShare(Math.abs(it.stake.per_share))} a share` +
-        (isNum(it.stake.pct_of_price) ? `, ${pctRow(it.stake.pct_of_price)} of price` : "");
-    } else if (it.asset && !marketed && it.asset_value && isNum(it.asset_value.per_share)) {
-      modelKind = "asset_value";
-      modelText = `${usdShare(it.asset_value.per_share)} a share` +
-        (isNum(it.asset_value.pct_of_price) ? `, ${pctRow(it.asset_value.pct_of_price)} of price` : "") +
-        (isNum(it.asset_value.pos) ? `, PoS ${pct0(it.asset_value.pos)}` : "");
-      naText = contextNa(na.stake, T);
-    } else if (marketed) {
-      naText = fill(INSIGHT_COPY.marketedNoValue, {event: isReadout(it) ? "readout" : "event"});
-    } else {
-      naText = contextNa(na.stake, T) || contextNa(na.asset_value, T) || contextNa(na.asset, T) || CONTEXT_NA_FALLBACK;
-    }
-    const chips = [CHIP_TWO_SIDED];
-    if (modelText) chips.push(CHIP_MODEL);
-    if (it.is_curated) chips.push(CHIP_CURATED);
-    else if (d.estimated) chips.push(CHIP_DERIVED_DATE);
-    const tooltip = [];
-    if (it.title) tooltip.push(String(it.title));
-    const src = it.nct_id || sourceHost(it.source_url);
-    if (src) tooltip.push(`Source: ${src}`);
-    if (d.estimated && !it.is_curated && it.nct_id) tooltip.push(INSIGHT_COPY.estimatedDate);
-    const name = it.asset && it.asset.name ? it.asset.name : null;
-    rows.push({id: `cat-${it.id}`, assetId: it.asset && it.asset.id != null ? it.asset.id : null, tier: catalystTier(it),
-      dateIso: d.dateIso, dateShort: d.dateShort, dateText: d.dateText, estimated: d.estimated,
-      label: name ? `${name}: ${event}` : cutAt(String(it.title || event), 60),
-      indicationText: it.indication && it.indication.name ? indicationTitle(it.indication.name) : null,
-      indicationNa: it.indication && it.indication.name ? null : contextNa(na.indication || "no_indication_link", T),
-      moreText: list.length > 1 ? `and ${list.length - 1} more for this asset` : null,
-      modelText, modelKind, naText,
-      side: sideItem && ((sideItem.assetId != null && it.asset && it.asset.id === sideItem.assetId) || sideItem.catalystId === it.id) ? "discount" : null,
-      chips, link: LINK_CATALYSTS, sourceUrl: it.source_url || null, tooltip});
-  }
-  return rows;
-}
-
-const STAGE_PARTS = [["marketed", "marketed"], ["phase3", "Phase 3"], ["phase2", "Phase 2"], ["other", "earlier"]];
-function stageCounts(block) {
-  const b = (block && block.by_stage) || {};
-  const n0 = (k) => (isNum(b[k]) ? b[k] : 0);
-  return {n: block && isNum(block.n) ? block.n : 0, marketed: n0("marketed"), phase3: n0("phase3"), phase2: n0("phase2"), other: n0("other")};
-}
-function stageText(c) {
-  return STAGE_PARTS.filter(([k]) => c[k] > 0).map(([k, w]) => `${c[k]} ${w}`).join(", ");
-}
-
-function competitionRow(r, T) {
-  const ind = r.indication || {};
-  const stored = String(ind.name || "");
-  const title = indicationTitle(stored);
-  const prose = indicationProse(stored);
-  const na = r.na || {};
-  const value = r.value || {};
-  const own = stageCounts(r.own);
-  const rivals = {...stageCounts(r.rivals), companies: r.rivals && isNum(r.rivals.companies) ? r.rivals.companies : 0};
-  const hasValue = isNum(value.per_share) && value.per_share !== 0;
-  const valueText = hasValue ? usdShare(value.per_share) + (isNum(value.pct_of_price) ? `${MID}${pctRow(value.pct_of_price)}` : "") : null;
-  // An indication's value is the company's, so "not modelled" is worded for the company here.
-  const valueNa = hasValue ? null : (na.value === "not_modelled" ? NA_TEXT.not_modelled : contextNa(na.value || "no_attributed_asset", T));
-  const ownParts = stageText(own), rivalParts = stageText(rivals);
-  const ownText = `${own.n} own${ownParts ? `: ${ownParts}` : ""}`;
-  const rivalsText = `${rivals.n} ${plural(rivals.n, "rival", "rivals")}` +
-    (rivals.n > 0 ? ` from ${rivals.companies} ${plural(rivals.companies, "company", "companies")}` : "") +
-    (rivalParts ? `: ${rivalParts}` : "");
-  const pool = r.pool || null, crowd = r.crowding || null;
-  const cp = crowd && r.company_pool ? r.company_pool : null;
-  const poolReason = contextNa(na.pool, T) || contextNa(na.crowding, T);
-  const poolText = crowd && isNum(crowd.uncrowded_share) && isNum(crowd.crowded_share)
-    ? `${pct0(crowd.uncrowded_share)} → ${pct0(crowd.crowded_share)}` : null;
-  const poolNa = poolText ? null : (poolReason || CONTEXT_NA_FALLBACK);
-  const shareText = cp && isNum(cp.share_of_claims) && isNum(cp.rank) && isNum(cp.of_companies)
-    ? `${pct0(cp.share_of_claims)}, ${ordinal(cp.rank)} of ${cp.of_companies}` : null;
-  const shareNa = shareText ? null : (contextNa(na.company_pool, T) || poolReason || CONTEXT_NA_FALLBACK);
-  const link = {kind: "indication", indicationId: ind.id, name: title};
-  const pctOk = isNum(value.pct_of_price) && value.pct_of_price >= COMPETITION_MIN_PCT;
-  const items = [];
-  if (cp && pool && pctOk) {
-    const k = isNum(cp.claimants) ? cp.claimants : 0;
-    const base = {kind: "competition", strength: 50, provenance: "M", twoSided: false, chips: [CHIP_MODEL], link,
-      linkLabel: `${title}, landscape`};
-    const n = isNum(pool.pooled_claimants) ? pool.pooled_claimants : pool.claimants;
-    if (k >= 1 && isNum(n) && isNum(pool.patients) && isNum(cp.keeps) && cp.keeps <= POOL_KEEP_MAX) {
-      const lead = k === 1
-        ? `${pct0(cp.keeps)} of its own forecast is what ${T}'s 1 modelled ${prose} candidate keeps`
-        : `${pct0(cp.keeps)} of their own forecast is what ${T}'s ${k} modelled ${prose} candidates keep`;
-      items.push({...base, id: `pool_rationed:${ind.id}`, side: "discount", severity: "amber", tag: "shared patient pool (model)",
-        text: `${lead} once ${n} modelled drugs share one pool of ${fmtPatients(pool.patients)} patients. Model output.`});
-    }
-    if (k >= 1 && cp.rank === 1 && isNum(cp.of_companies) && cp.of_companies >= POOL_LEAD_MIN_COMPANIES &&
-        isNum(cp.share_of_claims) && cp.share_of_claims >= POOL_LEAD_MIN_SHARE) {
-      items.push({...base, id: `pool_lead:${ind.id}`, side: "premium", severity: "info", tag: "largest share of a shared pool (model)",
-        text: `${pct0(cp.share_of_claims)} of the patients the modelled drugs start in ${prose} go to ${T}'s ${k} ${plural(k, "candidate", "candidates")}, the largest share of ${cp.of_companies} companies. Model output.`});
-    }
-  }
-  const sides = items.map((i) => i.side);
-  const side = sides.includes("premium") && sides.includes("discount") ? "both" : (sides[0] || null);
-  const members = Array.isArray(ind.members) ? ind.members.filter(Boolean) : [];
-  const tooltip = [`Stored as ${stored}.`];
-  if (members.length > 1) tooltip.push(`One population under ${members.length} names: ${members.join("; ")}.`);
-  if (crowd && pool && poolText) {
-    const n = isNum(pool.pooled_claimants) ? pool.pooled_claimants : pool.claimants;
-    const from = isNum(pool.companies) ? ` from ${pool.companies} ${plural(pool.companies, "company", "companies")}` : "";
-    const peak = crowd.peak_year != null ? ` at the ${crowd.peak_year} peak` : "";
-    if (isNum(n) && isNum(pool.patients)) {
-      tooltip.push(`${n} modelled ${plural(n, "drug", "drugs")}${from} ${plural(n, "claims", "claim")} ${pct0(crowd.uncrowded_share)} of ${fmtPatients(pool.patients)} patients${peak}. Counted once, the pool supplies ${pct0(crowd.crowded_share)}.`);
-    }
-  }
-  if (cp && isNum(cp.keeps) && isNum(cp.claimants)) {
-    const k = cp.claimants;
-    tooltip.push(`${T}'s ${k} ${plural(k, "keeps", "keep")} ${pct0(cp.keeps)} of ${plural(k, "its own forecast", "their own forecasts")}` +
-      (isNum(cp.share_of_pool) ? ` and ${pct0(cp.share_of_pool)} of the pool.` : "."));
-  }
-  const cands = (r.own && Array.isArray(r.own.candidates)) ? r.own.candidates : [];
-  const stageWord = (s) => (STAGE_PARTS.find(([k]) => k === s) || [null, "stage not on file"])[1];
-  for (const c of cands) {
-    tooltip.push(`${c.name}: ${stageWord(c.stage)}, ${isNum(c.per_share) ? `${usdShare(c.per_share)} a share` : "no modelled value counted here"}.`);
-  }
-  if (r.own && isNum(r.own.more) && r.own.more > 0) tooltip.push(`And ${r.own.more} more own ${plural(r.own.more, "candidate", "candidates")}.`);
-  const row = {id: `ind-${ind.id}`, indicationId: ind.id, name: title, storedName: stored, valueText, valueNa,
-    own, rivals, ownText, rivalsText, poolText, poolNa, shareText, shareNa, side,
-    provenance: valueText || poolText || shareText ? "M" : "S", link, tooltip};
-  return {row, items};
+  const sh = shadeOf(s);
+  const med = get(cohort, `medians.${col.id}`);
+  return {id: col.id, fill: sh.fill, alpha: sh.alpha, score: s, text: String(s), missing: false,
+    title: fill(SCORECARD_COPY.cellTitle, {pillar: col.label, s, k: p.k ?? NULL, K: p.of ?? NULL, m: isNum(med) ? med : SC_DOT})};
 }
 
 /**
- * `insightFor(A, context)` -> view.insight (12.3). `A` is the analysis of deriveView. The
- * metric-linked observations always show; the two evidence groups follow the context's state.
+ * `view.scorecard` (6.3): the ranked table of the focal company's cohort with shaded pillar
+ * cells, the lines under the chart and the Compare button's state. `state: "error"` when the
+ * payload has no scorecard, it failed, or it holds no record for the focal company.
  */
-function buildInsight(A, context) {
-  const T = A.T;
-  const obs = A.obs || {premium: [], discount: [], notAssessed: [], suppressed: []};
-  const metricItem = (o) => ({id: o.id, kind: "metric", side: o.side, text: o.long, tag: o.tag, strength: o.strength,
-    severity: o.severity, provenance: o.provenance, twoSided: false, chips: o.provenance === "M" ? [CHIP_MODEL] : [],
-    link: {kind: "column", colId: o.colId}, linkLabel: (COLUMN_BY_ID[o.colId] || {}).label || o.colId});
-  const notAssessed = (obs.notAssessed || []).concat((obs.suppressed || []).map((s) => s.text).filter(Boolean));
-  const out = {ticker: T, state: "ok", message: null, notice: null,
-    valuation: {premium: obs.premium.map(metricItem), discount: obs.discount.map(metricItem), notAssessed,
-      premiumHeading: INSIGHT_COPY.premiumHeading, discountHeading: INSIGHT_COPY.discountHeading,
-      emptyText: INSIGHT_COPY.emptySide, maxMetric: INSIGHT_ROWS},
-    catalysts: {state: "pending", title: INSIGHT_COPY.catalystsTitle, countText: "", rows: [], note: INSIGHT_COPY.catalystsNote,
-      empty: null, link: LINK_CATALYSTS, linkLabel: INSIGHT_COPY.catalystsLink},
-    competition: {state: "pending", title: INSIGHT_COPY.competitionTitle, countText: "", rows: [], note: INSIGHT_COPY.competitionNote,
-      empty: null, lead: null, link: null, linkLabel: INSIGHT_COPY.competitionLink,
-      columns: ["Indication", `${T} value, $ a share${MID}of price`, "Own / rivals", "Pool claimed → supplied", `${T} share`]}};
-  const blockBoth = (state, msg) => {
-    out.state = state; out.message = msg;
-    out.catalysts.state = state; out.catalysts.empty = msg;
-    out.competition.state = state; out.competition.empty = msg;
-    return out;
+function buildScorecard(A) {
+  const sc = scorecardOf(A);
+  const ui = (A.state && A.state.ui) || {};
+  const compare = Array.isArray(ui.compare) ? ui.compare : [];
+  const base = {state: "error", errorText: null, cohort: null, contextText: "", columns: [], rows: [],
+    notRankedText: null, notOnChartText: null, howToRead: SCORECARD_COPY.howToRead, methodLink: SCORECARD_COPY.methodLink,
+    compareLabel: fill(SCORECARD_COPY.compare, {k: compare.length}), compareEnabled: compare.length >= 2,
+    compareTip: compare.length >= 2 ? "" : SCORECARD_COPY.compareTip, compareCount: compare.length, chart: false};
+  const fail = (error) => ({...base, errorText: fill(SCORECARD_COPY.failed, {error: stripStop(String(error))})});
+  if (!sc) return fail("no scorecard in the payload");
+  if (sc.error) return fail(sc.error);
+  const companies = sc.companies && typeof sc.companies === "object" ? sc.companies : {};
+  const rec = companies[A.T];
+  if (!rec) return fail(fill(SCORECARD_COPY.noRecord, {T: A.T}));
+  const cohort = (sc.cohorts || {})[rec.cohort];
+  if (!cohort) return fail(fill(SCORECARD_COPY.noRecord, {T: A.T}));
+  const columns = scorecardColumns(sc, cohort);
+  const rowOf = (t, ranked, reason) => {
+    const r = companies[t] || {};
+    const rr = A.byTicker[t];
+    return {ticker: t, name: r.name || (rr && rr.name) || t, rank: ranked && isNum(r.rank) ? r.rank : null,
+      rangeText: ranked ? rangeTextOf(r) : null, score: isNum(r.score) ? r.score : null,
+      cells: columns.map((c) => scorecardCell(sc, r, c, cohort)), focal: t === A.T, picked: compare.includes(t),
+      open: ui.detail === t, ranked, reason: reason || null,
+      rowTitle: ranked ? `${t} ${r.name || ""}`.trim() : `${t}: not ranked, ${reason || r.reason_text || ""}`.replace(/, $/, "")};
   };
-  if (!context || typeof context !== "object" || context.ticker !== T) {
-    return blockBoth("pending", stateMsg("context_pending", {T}));
-  }
-  if (context.error != null) {
-    return blockBoth("error", stateMsg("context_error", {T, error: stripStop(String(context.error)) || "no answer"}));
-  }
-  if (context.schema !== CONTEXT_SCHEMA) {
-    return blockBoth("error", stateMsg("schema", {expected: CONTEXT_SCHEMA, got: context.schema != null ? context.schema : "none"},
-      {where: ["catalysts", "competition"], severity: "amber"}));
-  }
-  if (context.complete === false) out.notice = CONTEXT_NA_TEXT.model_not_computed;
-
-  // Catalysts ahead.
-  const cat = context.catalysts;
-  let sideItem = null;
-  if (!cat || !Array.isArray(cat.items)) {
-    out.catalysts.state = "error";
-    out.catalysts.empty = stateMsg("context_error", {T, error: "the answer carries no catalysts"}, {where: ["catalysts"]});
-  } else {
-    const items = cat.items.filter((it) => it && typeof it === "object");
-    const total = isNum(cat.total) ? cat.total : items.length;
-    if (total > 0 && !items.length) {
-      out.catalysts.state = "error";
-      out.catalysts.empty = stateMsg("context_error", {T, error: "the answer counts catalysts and carries none"}, {where: ["catalysts"]});
-    } else if (total === 0) {
-      out.catalysts.state = "empty";
-      const w = context.window || {};
-      out.catalysts.empty = stateMsg("no_catalysts", {T, from: fmtDate(w.from), to: fmtDate(w.to)});
-      out.catalysts.countText = "0 in 12 months";
-    } else {
-      sideItem = catalystSideItem(items);
-      out.catalysts.rows = catalystRows(items, T, sideItem);
-      out.catalysts.state = "ok";
-      const n = out.catalysts.rows.length;
-      out.catalysts.countText = `${total} in 12 months, ${n} ${plural(n, "asset", "assets")}`;
+  const rows = (cohort.ranked || []).filter((t) => companies[t]).map((t) => rowOf(t, true, null))
+    .concat((cohort.not_ranked || []).filter((x) => x && companies[x.ticker]).map((x) => rowOf(x.ticker, false, x.reason)));
+  const nr = (cohort.not_ranked || []).filter((x) => x && x.ticker);
+  const noc = (cohort.not_on_chart || []).filter((x) => x && x.ticker);
+  let notOnChartText = null;
+  if (noc.length) {
+    const byReason = new Map();
+    for (const x of noc) {
+      const k = x.reason || "no value measure on file";
+      if (!byReason.has(k)) byReason.set(k, []);
+      byReason.get(k).push(x.ticker);
     }
+    notOnChartText = fill(SCORECARD_COPY.notOnChart, {list: [...byReason].map(([why, ts]) => `${ts.join(", ")} (${why})`).join("; ")});
   }
+  const noun = cohort.noun || String(cohort.label || "").toLowerCase();
+  return {...base, state: "ok", errorText: null,
+    cohort: {id: rec.cohort, label: cohort.label || rec.cohort, noun, n: isNum(cohort.n) ? cohort.n : rows.length},
+    contextText: cohort.context_text || `Scored against ${isNum(cohort.n) ? cohort.n : rows.length} ${noun}`,
+    columns, rows,
+    notRankedText: nr.length ? fill(SCORECARD_COPY.notRanked, {list: nr.map((x) => `${x.ticker} (${x.reason || "too few pillars"})`).join(", ")}) : null,
+    notOnChartText,
+    focalCharted: !!rec.chart, noChartText: rec.chart ? null : fill(SCORECARD_COPY.noChart, {T: A.T}),
+    howToRead: get(sc, "method.text.how_to_read") || SCORECARD_COPY.howToRead,
+    methodLines: Array.isArray(cohort.method_text) ? cohort.method_text.slice() : (get(sc, "method.text.method") || []).slice(),
+    chart: true};
+}
 
-  // Competition by indication.
-  const comp = context.competition;
-  const poolItems = [];
-  if (!comp || typeof comp !== "object") {
-    out.competition.state = "error";
-    out.competition.empty = stateMsg("context_error", {T, error: "the answer carries no competition"}, {where: ["competition"]});
-  } else if (comp.covered === false && comp.reason !== "no_indications") {
-    out.competition.state = "not_covered";
-    const n = numAt(A.payload, "universe.engines.pharma") || A.companies.filter((c) => c.engine === "pharma").length || null;
-    const engine = A.engineLabels[A.focal.engine] || A.focal.engine || "another";
-    const m = stateMsg("competition_not_covered", {T, n, engine});
-    if (!n) m.detail = m.detail.replace("the {n} big pharma", "the big pharma");
-    if (comp.reason && comp.reason !== "not_big_pharma") m.detail = `The API gives the reason as ${String(comp.reason).replace(/_/g, " ")}.`;
-    out.competition.empty = m;
-  } else if (comp.covered === false || !Array.isArray(comp.indications) || !comp.indications.length) {
-    out.competition.state = "empty";
-    out.competition.empty = stateMsg("no_indications", {T});
-  } else {
-    out.competition.state = "ok";
-    for (const r of comp.indications) {
-      if (!r || !r.indication) continue;
-      const built = competitionRow(r, T);
-      out.competition.rows.push(built.row);
-      poolItems.push(...built.items);
-    }
-    const n = out.competition.rows.length;
-    if (comp.ranked_by === "contest") {
-      out.competition.countText = `${n} of ${isNum(comp.total) ? comp.total : n} indications, by contest`;
-      // A company with a model whose values are still being computed is not "without a modelled value".
-      const waiting = context.complete === false || (context.model && context.model.state === "not_computed");
-      out.competition.lead = waiting ? INSIGHT_COPY.contestWhileComputing : fill(STATE_COPY.ranked_by_contest.detail, {T});
-    } else {
-      out.competition.countText = `${n} of ${isNum(comp.valued) ? comp.valued : n} valued indications`;
-    }
-    out.competition.link = out.competition.rows.length ? out.competition.rows[0].link : null;
+function compareCohortLabel(sc, rec) {
+  const c = rec ? (sc.cohorts || {})[rec.cohort] : null;
+  return c ? (c.label || rec.cohort) : "";
+}
+function metricCompareCell(sc, rec, pid, mid, cohort) {
+  const noun = cohort ? (cohort.noun || String(cohort.label || "").toLowerCase()) : "";
+  const p = rec && rec.pillars ? rec.pillars[pid] : null;
+  let m = p ? (p.metrics || []).find((x) => x && x.id === mid) : null;
+  let outsideList = false;
+  if (!m) {
+    m = (get(rec, "facts.other_metrics") || []).find((x) => x && x.id === mid && (!x.pillar || x.pillar === pid)) || null;
+    outsideList = true;
   }
+  if (!m) return {text: SC_DOT, sub: null, v: null, best: false, outside: true, reason: fill(SCORECARD_COPY.outside, {noun})};
+  const meta = metricMeta(sc, mid);
+  const hasText = m.text != null && m.text !== "";
+  if (!hasText) return {text: SC_DOT, sub: null, v: null, best: false, outside: false, reason: metricReasonText(sc, m) || scoreReason(sc, "no_free_data")};
+  let v = isNum(m.value) ? m.value : null;
+  if (v === null && mid === "runway" && isNum(m.score)) v = meta.better === "lower" ? -Infinity : Infinity;  // not burning cash
+  const ns = cohortNotScored(cohort, mid);
+  const sub = outsideList ? fill(SCORECARD_COPY.outside, {noun})
+    : m.scored === false ? (ns ? ns.text : scoreReason(sc, "not_scored_in_cohort", {k: NULL, n: NULL}))
+      : [m.period, placeText(m)].filter(Boolean).join(", ");
+  return {text: m.text, sub: sub || null, v, best: false, outside: false, reason: null};
+}
+function markBest(cells, better) {
+  const vals = cells.filter((c) => c && (isNum(c.v) || c.v === Infinity || c.v === -Infinity)).map((c) => c.v);
+  if (vals.length < 2) return cells;
+  const best = better === "lower" ? Math.min(...vals) : Math.max(...vals);
+  for (const c of cells) if (c && c.v === best) c.best = true;
+  return cells;
+}
 
-  // Side lists: metric items by strength, then the catalyst item, then competition items in row order.
-  if (sideItem) {
-    out.valuation.discount = out.valuation.discount.filter((i) => i.id !== "binary_catalysts");
-    const {catalystId, assetId, ...item} = sideItem;
-    out.valuation.discount.push(item);
+/**
+ * `view.compare` (6.3): null unless Compare is open with two or three picks. One column a pick,
+ * the focal company first if picked, then by rank; groups of 4.2 in order, the pillar, value,
+ * momentum and data groups folded until opened. Score rows are marked only within one cohort;
+ * metric rows by their own direction; nothing is marked with fewer than two values.
+ */
+function buildCompare(A) {
+  const ui = (A.state && A.state.ui) || {};
+  if (!ui.compareOpen) return null;
+  const sc = scorecardOf(A);
+  if (!sc || sc.error || !sc.companies) return null;
+  const picks = uniq((ui.compare || []).filter((t) => sc.companies[t]));
+  if (picks.length < 2) return null;
+  const order = picks.slice().sort((a, b) => {
+    if (a === A.T) return -1;
+    if (b === A.T) return 1;
+    const ra = sc.companies[a].rank, rb = sc.companies[b].rank;
+    if (isNum(ra) && isNum(rb) && ra !== rb) return ra - rb;
+    if (isNum(ra) !== isNum(rb)) return isNum(ra) ? -1 : 1;
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
+  const recs = order.map((t) => sc.companies[t]);
+  const cohorts = recs.map((r) => (sc.cohorts || {})[r.cohort] || null);
+  const mixed = new Set(recs.map((r) => r.cohort)).size > 1;
+  const opened = new Set(ui.compareRowsOpen || []);
+  const columns = order.map((t, i) => ({ticker: t, name: recs[i].name || (A.byTicker[t] && A.byTicker[t].name) || t,
+    cohortLabel: compareCohortLabel(sc, recs[i]), cohort: recs[i].cohort, focal: t === A.T}));
+  const groups = [];
+  // Company.
+  groups.push({id: "company", label: "Company", open: true, toggle: false, rows: [{id: "company", kind: "company", label: "Company",
+    cells: order.map((t, i) => {
+      const mc = numAt(A.byTicker[t], "market.market_cap_usd_m");
+      return {text: t, sub: recs[i].name || t, chip: columns[i].cohortLabel,
+        extra: mc !== null ? `${fmtMoneyProse(mc)} market cap` : `${SC_DOT} market cap not on file`, best: false};
+    })}]});
+  // Company score.
+  const scoreCells = recs.map((r) => (isNum(r.score)
+    ? {text: String(r.score), sub: `${ordinal(r.rank)} of ${r.ranked_of}${rangeTextOf(r) ? `, range ${rangeTextOf(r)}` : ""}`, v: r.score, best: false, reason: null}
+    : {text: SC_DOT, sub: null, v: null, best: false, reason: r.reason_text || scoreReason(sc, r.reason)}));
+  groups.push({id: "score", label: "Company score", open: true, toggle: false, rows: [{id: "score", kind: "score", label: "Company score",
+    marked: !mixed, cells: mixed ? scoreCells : markBest(scoreCells, "higher")}]});
+  // Business pillars, then value and momentum.
+  const pillarIds = [];
+  for (const c of cohorts) for (const id of businessIds(sc, c)) if (!pillarIds.includes(id)) pillarIds.push(id);
+  pillarIds.sort((a, b) => {
+    const ia = BUSINESS_ORDER.indexOf(a), ib = BUSINESS_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+  for (const pid of pillarIds.concat(PRICE_PILLARS)) {
+    const meta = pillarMeta(sc, pid);
+    const inList = cohorts.map((c) => cohortPillars(c).some((p) => p.id === pid));
+    const pcells = recs.map((r, i) => {
+      const noun = cohorts[i] ? (cohorts[i].noun || "") : "";
+      if (!inList[i]) return {text: SC_DOT, sub: null, v: null, best: false, outside: true, reason: fill(SCORECARD_COPY.outside, {noun})};
+      const p = r.pillars ? r.pillars[pid] : null;
+      if (!p || !isNum(p.score)) return {text: SC_DOT, sub: null, v: null, best: false, reason: pillarReasonText(sc, p, r) || scoreReason(sc, "no_free_data")};
+      const sh = shadeOf(p.score);
+      const partial = isNum(p.k) && isNum(p.of) && p.k < p.of ? fill(SCORECARD_COPY.partial, {k: p.k, K: p.of}) : null;
+      return {text: String(p.score), sub: partial, v: p.score, best: false, fill: sh.fill, alpha: sh.alpha, reason: null};
+    });
+    const mids = [];
+    recs.forEach((r, i) => {
+      const listed = (cohortPillars(cohorts[i]).find((p) => p.id === pid) || {}).metrics || [];
+      for (const m of listed) if (!mids.includes(m)) mids.push(m);
+    });
+    recs.forEach((r) => {
+      const p = r.pillars ? r.pillars[pid] : null;
+      for (const m of (p && p.metrics) || []) if (m && m.id && !mids.includes(m.id)) mids.push(m.id);
+    });
+    const rows = [{id: pid, kind: "pillar", label: meta.label, marked: !mixed, cells: mixed ? pcells : markBest(pcells, "higher")}];
+    for (const mid of mids) {
+      const mm = metricMeta(sc, mid);
+      rows.push({id: `${pid}.${mid}`, metric: mid, kind: "metric", label: mm.label, marked: true,
+        cells: markBest(recs.map((r, i) => metricCompareCell(sc, r, pid, mid, cohorts[i])), mm.better)});
+    }
+    groups.push({id: pid, label: meta.label, open: opened.has(pid), toggle: rows.length > 1, price: meta.kind === "price", rows});
   }
-  for (const i of poolItems) (i.side === "premium" ? out.valuation.premium : out.valuation.discount).push(i);
-  return out;
+  // Positives, negatives, business development.
+  const lines = (key, empty) => recs.map((r) => {
+    const ls = (r[key] || []).slice(0, 3).map((x) => x.text).filter(Boolean);
+    return {lines: ls, text: ls.length ? null : empty, sources: (r[key] || []).slice(0, 3).map((x) => x.source || null), best: false};
+  });
+  groups.push({id: "positives", label: "Positives", open: true, toggle: false, rows: [{id: "positives", kind: "lines", label: "Positives", cells: lines("positives", SCORECARD_COPY.none)}]});
+  groups.push({id: "negatives", label: "Negatives", open: true, toggle: false, rows: [{id: "negatives", kind: "lines", label: "Negatives", cells: lines("negatives", SCORECARD_COPY.none)}]});
+  groups.push({id: "deals", label: "Business development", open: true, toggle: false, rows: [{id: "deals", kind: "text", label: "Business development",
+    cells: recs.map((r) => {
+      const d = get(r, "facts.deals") || {};
+      const n = isNum(d.n) ? d.n : (d.rows || []).length;
+      const newest = (d.rows || []).map((x) => x && x.date).filter(Boolean).sort().slice(-1)[0];
+      const text = n > 0 ? fill(SCORECARD_COPY.dealsNewest, {n: `${n} ${plural(n, "deal", "deals")}`, month: monthYear(newest) || SC_DOT}) : SCORECARD_COPY.noDeal;
+      return {text, sub: get(r, "facts.firepower_text") || null, best: false};
+    })}]});
+  // Data, folded.
+  const flagNames = (t) => {
+    const rec = A.byTicker[t];
+    const fl = ((rec && rec.flags) || []).filter((f) => f && sevOf(f) !== "info");
+    const names = uniq(fl.map((f) => ucfirst(String(f.code || "").replace(/_/g, " "))));
+    return names.length ? names.join(", ") : "none";
+  };
+  groups.push({id: "data", label: "Data", open: opened.has("data"), toggle: true, rows: [
+    {id: "data.pillars", kind: "text", label: "Pillars scored", cells: recs.map((r) => ({text: isNum(r.pillars_scored) ? `${r.pillars_scored} of ${r.pillars_of}` : SC_DOT}))},
+    {id: "data.flags", kind: "text", label: "Amber flags", cells: order.map((t) => ({text: flagNames(t)}))},
+    {id: "data.price", kind: "text", label: "Price date", cells: order.map((t) => ({text: fmtDate(get(A.byTicker[t], "market.price_as_of"))}))},
+    {id: "data.fy0", kind: "text", label: "FY0", cells: order.map((t) => ({text: get(A.byTicker[t], "periods.FY0.label") || SC_DOT}))},
+    {id: "data.balance", kind: "text", label: "Balance sheet", cells: order.map((t) => ({text: fmtDate(get(A.byTicker[t], "ev.balance_sheet_as_of") || get(A.byTicker[t], "lineage.balance_sheet_as_of"))}))},
+  ]});
+  // Every row of a folded group but its first is hidden; the first of a pillar group is its score.
+  return {title: SCORECARD_COPY.compareTitle, closeLabel: SCORECARD_COPY.close, columns, mixed,
+    mixedText: mixed ? SCORECARD_COPY.mixed : null, groups};
+}
+
+/** The company panel's scorecard blocks (4.1, 6.3 `view.detail.scorecard`). */
+function scorecardDetail(A, t) {
+  const sc = scorecardOf(A);
+  if (!sc) return {state: "error", errorText: fill(SCORECARD_COPY.failed, {error: "no scorecard in the payload"})};
+  if (sc.error) return {state: "error", errorText: fill(SCORECARD_COPY.failed, {error: stripStop(String(sc.error))})};
+  const r = (sc.companies || {})[t];
+  if (!r) return {state: "error", errorText: ucfirst(fill(SCORECARD_COPY.noRecord, {T: t})) + "."};
+  const cohort = (sc.cohorts || {})[r.cohort] || {};
+  const noun = cohort.noun || String(cohort.label || "").toLowerCase();
+  const range = Array.isArray(r.rank_range) && isNum(r.rank_range[0]) ? r.rank_range : null;
+  const rangeWords = range ? (range[0] === range[1] ? ordinal(range[0]) : `${ordinal(range[0])} to ${ordinal(range[1])}`) : null;
+  const scoreLine = !isNum(r.score) ? null : rangeWords
+    ? fill(SCORECARD_COPY.scoreLine, {S: r.score, rank: ordinal(r.rank), n: r.ranked_of, noun, range: rangeWords})
+    : `${r.score} · ${ordinal(r.rank)} of ${r.ranked_of} ${noun}`;
+  const pillarLabel = (id) => pillarMeta(sc, id).label;
+  const lineOf = (x) => ({text: x.text, pillar: x.pillar, pillarLabel: pillarLabel(x.pillar), source: x.source || null});
+  const rec = A.byTicker[t] || {};
+  const metricsOf = (pid, p) => (p.metrics || []).map((m) => {
+    const ns = cohortNotScored(cohort, m.id);
+    const med = (cohort.metric_median_text || {})[m.id];
+    return {id: m.id, label: metricMeta(sc, m.id).label, text: m.text != null && m.text !== "" ? m.text : null,
+      period: m.period || null, placeText: placeText(m), scored: m.scored !== false,
+      notScoredText: m.scored === false ? (ns ? ns.text : scoreReason(sc, "not_scored_in_cohort", {k: NULL, n: NULL})) : null,
+      reasonText: m.text != null && m.text !== "" ? null : metricReasonText(sc, m),
+      medianText: pid === "value" && med ? `median ${med}` : null,
+      line: pid === "value" && m.text && med ? `${m.text} ${lcfirst(metricMeta(sc, m.id).label).replace(/, FY0$/, "")}, median ${med}` : null};
+  });
+  const list = cohortPillars(cohort);
+  const pillars = list.map((cp) => {
+    const p = (r.pillars || {})[cp.id] || {metrics: []};
+    const meta = pillarMeta(sc, cp.id);
+    return {id: cp.id, label: meta.label, kind: meta.kind, score: isNum(p.score) ? p.score : null,
+      median: isNum(p.median) ? p.median : get(cohort, `medians.${cp.id}`) ?? null,
+      onText: isNum(p.k) && isNum(p.of) && p.k < p.of ? fill(SCORECARD_COPY.partial, {k: p.k, K: p.of}) : null,
+      reasonText: isNum(p.score) ? null : (pillarReasonText(sc, p, r) || scoreReason(sc, "no_free_data")),
+      note: p.note || null, metrics: metricsOf(cp.id, p)};
+  });
+  const business = pillars.filter((p) => p.kind === "business");
+  const price = PRICE_PILLARS.map((id) => pillars.find((p) => p.id === id)).filter(Boolean);
+  const facts = r.facts || {};
+  const other = (facts.other_metrics || []).map((m) => ({id: m.id, pillar: m.pillar || null, label: metricMeta(sc, m.id).label,
+    text: m.text != null && m.text !== "" ? m.text : null, period: m.period || null, placeText: placeText(m), scored: false,
+    reasonText: m.text != null && m.text !== "" ? null : metricReasonText(sc, m), notScoredText: null, medianText: null, line: null}));
+  const deals = facts.deals || {};
+  const dealRows = (deals.rows || []).slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || ""))).slice(0, 8)
+    .map((d) => ({date: d.date || null, dateText: fmtDate(d.date), type: d.type || null, typeText: d.type ? ucfirst(d.type) : "",
+      route: d.route || null, routeText: d.route === "filing" ? "filing" : d.route === "news" ? "news" : (d.route || ""),
+      quote: d.quote || "", url: d.url || null}));
+  const n = isNum(deals.n) ? deals.n : dealRows.length;
+  const dis = (rec.flags || []).find((f) => f && f.code === "market_cap_disagreement");
+  const pr = dis && dis.params ? dis.params : null;
+  const fy0 = get(rec, "periods.FY0.label") || "FY0";
+  const marketCapAltText = pr && isNum(pr.primary) && isNum(pr.alt)
+    ? fill(SCORECARD_COPY.marketCapAlt, {primary: fmtMoneyProse(pr.primary), alt: fmtMoneyProse(pr.alt)}).replace("FY0", fy0) + "." : null;
+  const exclusivityRows = (r.exclusivity_losses || []).map((x) => ({asset: x.asset || "",
+    lead: x.share_text ? `${x.share_text} of ${x.fy || fy0} revenue` : SC_DOT,
+    text: `${x.asset || "An asset"} exclusivity ends ${x.date_text || fmtDate(x.date)}`, basis: x.basis || null}));
+  const weightsText = range ? (range[0] === range[1] ? fill(SCORECARD_COPY.weightsOne, {lo: ordinal(range[0])})
+    : fill(SCORECARD_COPY.weights, {lo: ordinal(range[0]), hi: ordinal(range[1])})) : null;
+  return {state: "ok", errorText: null, cohort: r.cohort, cohortLabel: cohort.label || r.cohort || "", cohortNoun: noun,
+    score: isNum(r.score) ? r.score : null, scoreLine, sentence: r.sentence || null,
+    positives: (r.positives || []).map(lineOf), negatives: (r.negatives || []).map(lineOf),
+    noPositive: SCORECARD_COPY.noPositive, noNegative: SCORECARD_COPY.noNegative,
+    business, price, priceRule: SCORECARD_COPY.priceRule,
+    otherMetrics: other.length ? {label: fill(SCORECARD_COPY.otherMetrics, {noun}), metrics: other} : null,
+    loeYearsText: facts.loe_years_text || null, productCoverageText: facts.product_coverage_text || null,
+    exclusivityHeading: SCORECARD_COPY.exclusivity, exclusivityRows,
+    noExclusivityText: SCORECARD_COPY.noExclusivity, marketCapAltText,
+    deals: {countText: deals.count_text || (n > 0 ? `${n} ${plural(n, "deal", "deals")} on file in 24 months` : SCORECARD_COPY.noDeal),
+      n, rows: dealRows, chip: deals.chip || "From headlines and filings, not reviewed"},
+    firepowerText: facts.firepower_text || null,
+    leadPhaseText: facts.lead_phase && facts.lead_phase.text ? facts.lead_phase.text : null,
+    partnerText: facts.partner_on && facts.partner_on.text ? facts.partner_on.text : null,
+    weightsText, headings: SCORECARD_COPY.headings};
 }
 
 /** Footer line (12.6): one line of dates and the run, amber under the "Data as of" rule. */
@@ -5471,9 +4513,9 @@ function detailFlags(A, rec) {
 /**
  * `paletteExtras(view, state)`: the generated palette entries of 7.3, for
  * `matchCommands(query, COMMANDS, paletteExtras(view, state))`. Each entry is
- * {id, label, group, key: null, command?: string, action?: object, target?: object, link?: Link}: run
- * `command` like a COMMANDS id, dispatch `action`, scroll to `target` (a column, or one of the
- * sections "obs", "charts" and "table"), or follow `link` with `ctx.openLink` (12.9).
+ * {id, label, group, key: null, command?: string, action?: object, target?: object}: run `command`
+ * like a COMMANDS id, dispatch `action`, or scroll to `target` (a column, or one of the sections
+ * "charts" and "table").
  */
 export function paletteExtras(view, state) {
   const out = [];
@@ -5484,12 +4526,8 @@ export function paletteExtras(view, state) {
     out.push({id: `col:${c.id}`, label: `Go to column ${lcfirst(c.label)}`, group: "Columns", key: null,
       action: {type: "SHOW_COLUMN", colId: c.id}, target: {kind: "column", colId: c.id}});
   }
-  for (const [id, name] of [["obs", "drivers and risks"], ["charts", "peer position"], ["table", "comparable companies"]]) {
+  for (const [id, name] of [["charts", "peer position"], ["table", "comparable companies"]]) {
     out.push({id: `section:${id}`, label: `Go to section ${name}`, group: "Sections", key: null, target: {kind: "section", id}});
-  }
-  const compRows = (view.insight && view.insight.competition && view.insight.competition.rows) || [];
-  for (const r of compRows) {
-    out.push({id: `indication:${r.indicationId}`, label: `${INSIGHT_COPY.competitionLink}: ${r.name}`, group: "Sections", key: null, link: r.link});
   }
   for (const c of A.companies) {
     if (c.ticker === A.T) continue;
@@ -5516,7 +4554,7 @@ export function paletteExtras(view, state) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Export: CSV, TSV and the plain-text summary
+// Export: CSV and TSV
 // ---------------------------------------------------------------------------------------------
 
 function csvEscape(s) {
@@ -5594,18 +4632,4 @@ export function csvFilename(view) {
   const basis = view && view.ctx ? view.ctx.basis : "";
   const d = isoToCompact(view && view.lineage ? (view.lineage.generatedAt || view.lineage.priceDate) : "");
   return `comps_${T}_${basis}_${d}.csv`;
-}
-
-export function summaryText(view) {
-  if (!view || !view.conclusion) return "";
-  const c = view.conclusion;
-  const lines = [c.headline, c.support, c.label];
-  if (c.confidence && c.confidence.level) lines.push(`Confidence: ${c.confidence.level}`);
-  for (const k of view.kpis || []) {
-    lines.push(`${k.label}: ${k.value}${k.unit ? " " + k.unit : ""} (${k.period})${k.compare ? "; " + k.compare : ""}`);
-  }
-  if (view.bridge && view.bridge.description) lines.push(`Bridge: ${view.bridge.description}`);
-  if (view.header) lines.push(`Peers: ${view.header.peerSet.full}`);
-  if (view.ctx) lines.push(`Basis: ${view.ctx.basisLabel}, ${view.ctx.currencyLabel}, ${view.ctx.earningsLabel}`);
-  return lines.filter(Boolean).join("\n");
 }

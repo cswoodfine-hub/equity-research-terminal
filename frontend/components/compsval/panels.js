@@ -1,12 +1,12 @@
 /**
  * panels.js: the panels of the Comps valuation view. Owner D.
  *
- * Contract: docs/design/comps-valuation.md section 6 (6.1 drivers and risks, 6.2 peer selection,
- * 6.3 notes and data sources and the methodology drawer, 6.4 detail side panel) and the bridge
- * inputs table of 5.3. Exports of 11.1, each `(root, ctx) -> {update(view), destroy()}`:
+ * Contract: docs/design/comps-valuation.md section 6 (6.2 peer selection, 6.3 notes and data
+ * sources and the methodology drawer, 6.4 detail side panel) and the bridge inputs table of 5.3.
+ * Drivers and risks (6.1) left the frame in revision 4 (company-scorecard.md 5.2): it is drawn
+ * on the Catalysts tab, in Python. Exports of 11.1, each `(root, ctx) -> {update(view), destroy()}`:
  *
  *   mountBridgeInputs   .pn-br      valuation bridge inputs (analyst inputs distinct from sourced)
- *   mountObservations   .pn-obs     drivers and risks, each linked to its column
  *   mountPeerPanel      .pn-peers   relevance grid, candidates, saved sets, subgroups, cohorts
  *   mountNotesSources   .pn-notes   sources and timestamps, analyst notes, storage notice
  *   mountMethod         .pn-method  methodology drawer (renders only while state.ui.method is set)
@@ -19,7 +19,7 @@
  */
 
 import {
-  h, chip, stateBlock, bindTip, uid, rebuildKeepingFocus, sig, goToColumn, lcfirst,
+  h, chip, stateBlock, bindTip, uid, rebuildKeepingFocus, sig, lcfirst,
   sparkline, barMini, lineMini, phaseBars,
 } from "./charts.js";
 import {
@@ -507,228 +507,6 @@ function valueText(step) {
   if (!step) return h("span", {class: "u-null", text: NULL_GLYPH});
   const unit = step.unit && step.unit !== "%" ? step.unit : "";
   return [h("span", {class: `u-num pn-br-num${isNum(step.value) ? "" : " u-null"}`, text: step.text}), unit ? h("span", {class: "pn-unit", text: unit}) : null];
-}
-
-// ---------------------------------------------------------------------------------------------
-// 6.1 Drivers and risks (mountObservations)
-// ---------------------------------------------------------------------------------------------
-
-const OBS_VISIBLE = 5;
-const INSIGHT_VISIBLE = 5;
-
-/** Follow an insight link: a table column, a tab of the page, or one indication's landscape. */
-function followLink(ctx, view, link) {
-  if (!link) return;
-  if (ctx && typeof ctx.openLink === "function") { ctx.openLink(link); return; }
-  if (link.kind === "column") { goToColumn(ctx, ctx && typeof ctx.getView === "function" ? ctx.getView() || view : view, link.colId); return; }
-  if (link.kind === "tab" && ctx && typeof ctx.clickParentTab === "function") { ctx.clickParentTab(link.tab); return; }
-  if (link.kind === "indication" && ctx && typeof ctx.send === "function") {
-    ctx.send({action: "indication", indication_id: link.indicationId, ticker: view.focal ? view.focal.ticker : null});
-  }
-}
-function insightChips(list) {
-  return (list || []).map((c) => {
-    const el = chip(c.text, c.tone || "neutral", {class: `pn-obs-chip pn-obs-chip-${c.id}`});
-    if (c.tooltip) el.__tipText = c.tooltip;
-    return el;
-  });
-}
-
-export function mountObservations(root, ctx) {
-  return createMount(root, ctx, "pn-obs", {
-    name: "Drivers and risks",
-    local: () => ({more: {premium: false, discount: false, catalysts: false, competition: false}}),
-    sig: (v, local) => [v.insight, v.focal && v.focal.ticker, v.sectionErrors && v.sectionErrors.insight, local.more,
-      v.table && (v.table.columns || []).map((c) => c.id)],
-    build: (root, view, local, api) => buildObservations(root, view, ctx, local, api),
-  });
-}
-
-function buildObservations(root, view, ctx, local, api) {
-  const titleId = uid("pnobs");
-  root.appendChild(sectionHead("Drivers and risks", titleId, chip("Observations, not conclusions", "neutral", {class: "pn-obs-tag"})));
-  const I = view.insight;
-  if (!I) { root.appendChild(sectionError(view, "insight", "Drivers and risks")); return; }
-  const descHost = hiddenHost(root);
-  const T = view.focal ? view.focal.ticker : "the focal company";
-
-  // Row 1: what the comparison supports on each side.
-  const sides = h("div", {class: "pn-obs-sides"});
-  root.appendChild(sides);
-  const side = (id, title, glyph, tone, items) => {
-    const listId = uid("pnobsl");
-    const box = h("section", {class: `pn-obs-side pn-obs-${id}`, "aria-labelledby": listId},
-      h("h3", {class: "pn-sub-title", id: listId}, h("span", {class: `u-dir ${tone} pn-obs-glyph`, "aria-hidden": "true", text: glyph}), title));
-    sides.appendChild(box);
-    if (!items.length) {
-      box.appendChild(h("p", {class: "pn-empty", text: "No observation passes the tests."}));
-      return;
-    }
-    // Metric items fold after five; an item drawn from a catalyst or a pool always shows.
-    const metric = items.filter((it) => it.kind === "metric"), other = items.filter((it) => it.kind !== "metric");
-    const shown = (local.more[id] ? metric : metric.slice(0, OBS_VISIBLE)).concat(other);
-    const ul = h("ul", {class: "pn-obs-list"});
-    box.appendChild(ul);
-    for (const it of shown) {
-      const link = h("button", {type: "button", class: "u-chip pn-obs-link", "data-key": `obs-${it.id}`},
-        h("span", {class: "u-chip-label", text: it.linkLabel}), h("span", {"aria-hidden": "true", text: "→"}));
-      link.setAttribute("aria-label", `${it.linkLabel}: open`);
-      link.addEventListener("click", () => followLink(ctx, view, it.link));
-      const where = it.link && it.link.kind === "column" ? `Show ${lcfirst(it.linkLabel)} in the table, at ${T}'s cell.`
-        : it.link && it.link.kind === "tab" ? `Open the ${it.link.tab} tab.`
-          : it.link && it.link.kind === "indication" ? `Open Comps, Indications on ${lcfirst(it.link.name || "this indication")}.` : "";
-      if (where) bindTip(ctx, link, where, descHost);
-      const chips = h("div", {class: "pn-obs-chips"}, link);
-      for (const c of insightChips(it.chips)) { chips.appendChild(c); if (c.__tipText) bindTip(ctx, c, c.__tipText, descHost); }
-      ul.appendChild(h("li", {class: `pn-obs-item pn-obs-kind-${it.kind}`, "data-severity": it.severity || "info"},
-        h("span", {class: `u-dir ${tone} pn-obs-glyph`, "aria-hidden": "true", text: glyph}),
-        h("div", {class: "pn-obs-body"}, h("p", {class: "pn-obs-text"},
-          h("span", {class: "u-sr", text: id === "premium" ? "Premium driver: " : "Discount driver: "}), it.text), chips)));
-    }
-    if (metric.length > OBS_VISIBLE) {
-      const n = metric.length - OBS_VISIBLE;
-      box.appendChild(linkBtn(local.more[id] ? "Show fewer" : `Show ${n} more`, {"data-key": `obs-more-${id}`, "aria-expanded": String(!!local.more[id])}, () => {
-        local.more[id] = !local.more[id];
-        api.rerender();
-      }));
-    }
-  };
-  const V = I.valuation || {premium: [], discount: [], notAssessed: []};
-  side("premium", "Potential premium drivers", UP, "up", V.premium || []);
-  side("discount", "Potential discount drivers", DOWN, "down", V.discount || []);
-
-  // Row 2: the evidence for the company itself, catalysts and competition.
-  const evidence = h("div", {class: "pn-obs-evidence"});
-  root.appendChild(evidence);
-  if (I.state === "pending" || I.state === "error") {
-    const msg = I.message || {severity: I.state === "error" ? "amber" : "info",
-      title: I.state === "error" ? "Catalysts and competition did not load" : `Loading catalysts and competition for ${T}`,
-      detail: I.state === "error" ? "Reload with the reload button." : "They arrive with the page once the company changes."};
-    const block = stateBlock(msg);
-    block.classList.add("pn-obs-pending");
-    if (I.state === "pending") block.setAttribute("aria-busy", "true");
-    evidence.classList.add("is-state");
-    evidence.appendChild(block);
-  } else {
-    evidence.appendChild(buildCatalysts(I.catalysts, view, ctx, local, api, descHost));
-    evidence.appendChild(buildCompetition(I.competition, view, ctx, local, api, descHost));
-  }
-
-  const na = (V.notAssessed || []);
-  if (na.length) {
-    root.appendChild(h("div", {class: "pn-obs-na"}, h("h3", {class: "u-sr", text: "Not assessed"}),
-      h("ul", {}, na.map((t) => h("li", {text: t})))));
-  }
-}
-
-/** The heading row of an evidence group: title, count, an info button with the note, its link. */
-function groupHead(G, id, view, ctx, descHost) {
-  const titleId = uid(`pn${id}`);
-  const head = h("div", {class: "pn-ev-head"},
-    h("h3", {class: "pn-sub-title pn-ev-title", id: titleId, text: G.title}),
-    G.countText ? h("span", {class: "u-meta pn-ev-count", text: G.countText}) : null);
-  if (G.note) {
-    const info = h("button", {type: "button", class: "u-btn icon pn-ev-info", "data-key": `${id}-info`, "aria-label": `About ${lcfirst(G.title)}`, text: "i"});
-    bindTip(ctx, info, {title: G.title, body: G.note}, descHost);
-    head.appendChild(info);
-  }
-  if (G.link && G.linkLabel) {
-    const open = h("button", {type: "button", class: "u-btn link pn-ev-open", "data-key": `${id}-open`},
-      h("span", {text: G.linkLabel}), h("span", {"aria-hidden": "true", text: " →"}));
-    open.addEventListener("click", () => followLink(ctx, view, G.link));
-    head.appendChild(open);
-  }
-  return {head, titleId};
-}
-function groupState(G) {
-  const msg = G.empty || {severity: "info", title: G.title, detail: "Nothing to show."};
-  const block = stateBlock(msg);
-  block.classList.add("pn-ev-state");
-  return block;
-}
-function moreRow(id, total, local, api) {
-  if (total <= INSIGHT_VISIBLE) return null;
-  const open = !!local.more[id];
-  return linkBtn(open ? "Show fewer" : `Show ${total - INSIGHT_VISIBLE} more`, {"data-key": `${id}-more`, "aria-expanded": String(open), cls: "pn-ev-more"}, () => {
-    local.more[id] = !open;
-    api.rerender();
-  });
-}
-
-function buildCatalysts(G, view, ctx, local, api, descHost) {
-  const C = G || {state: "empty", title: "Catalysts ahead", rows: []};
-  const {head, titleId} = groupHead(C, "cat", view, ctx, descHost);
-  const box = h("section", {class: "pn-ev pn-obs-catalysts", "aria-labelledby": titleId}, head);
-  if (C.state !== "ok" || !(C.rows || []).length) { box.appendChild(groupState(C)); return box; }
-  const rows = local.more.catalysts ? C.rows : C.rows.slice(0, INSIGHT_VISIBLE);
-  const list = h("ul", {class: "pn-ev-rows pn-cat-rows"});
-  box.appendChild(list);
-  for (const r of rows) {
-    const date = h("span", {class: "pn-cat-date u-num"}, r.dateShort, r.estimated ? h("span", {class: "pn-cat-est", text: " est."}) : null);
-    const label = h("span", {class: "pn-cat-label"},
-      h("span", {class: "pn-cat-name", text: r.label}),
-      r.indicationText ? h("span", {class: "pn-cat-ind", text: ` · ${r.indicationText}`}) : null,
-      r.moreText ? h("span", {class: "pn-cat-more", text: ` · ${r.moreText}`}) : null);
-    const model = r.modelText
-      ? h("span", {class: "pn-cat-model u-num"}, r.modelText, h("span", {class: "u-marker pn-m", "aria-hidden": "true", text: "M"}))
-      : h("span", {class: "pn-cat-model u-null", text: NULL_GLYPH});
-    const open = h("button", {type: "button", class: "pn-ev-row pn-cat-row", "data-key": r.id}, date, label, model);
-    open.setAttribute("aria-label", `${r.label}, ${r.dateText}${r.indicationText ? `, ${r.indicationText}` : ""}. ${r.modelText ? `${r.modelText}, model output.` : r.naText || "No modelled value."} Two-sided. Open the Catalysts tab`);
-    open.addEventListener("click", () => followLink(ctx, view, r.link));
-    bindTip(ctx, open, {title: r.label, lines: (r.tooltip || []).concat(r.modelText ? ["Two-sided: the outcome can raise or lower the value."] : [r.naText].filter(Boolean))});
-    const li = h("li", {class: "pn-ev-li"}, open);
-    if (r.sourceUrl) {
-      const src = h("a", {class: "u-btn icon pn-cat-src", href: r.sourceUrl, target: "_blank", rel: "noopener noreferrer",
-        "data-key": `${r.id}-src`, "aria-label": `Source for ${r.label}, opens in a new tab`, text: "↗"});
-      li.appendChild(src);
-    }
-    list.appendChild(li);
-  }
-  const more = moreRow("catalysts", C.rows.length, local, api);
-  if (more) box.appendChild(more);
-  return box;
-}
-
-function buildCompetition(G, view, ctx, local, api, descHost) {
-  const C = G || {state: "empty", title: "Competition by indication", rows: []};
-  const {head, titleId} = groupHead(C, "comp", view, ctx, descHost);
-  const box = h("section", {class: "pn-ev pn-obs-competition", "aria-labelledby": titleId}, head);
-  if (C.state !== "ok" || !(C.rows || []).length) { box.appendChild(groupState(C)); return box; }
-  if (C.lead) box.appendChild(h("p", {class: "u-meta pn-ev-lead", text: C.lead}));
-  const cols = C.columns || ["Indication", "Value, $ a share · of price", "Own / rivals", "Pool claimed → supplied", "Share"];
-  box.appendChild(h("div", {class: "pn-comp-grid pn-comp-cols", "aria-hidden": "true"}, cols.map((c, i) => h("span", {class: i ? "num" : "", text: c}))));
-  const rows = local.more.competition ? C.rows : C.rows.slice(0, INSIGHT_VISIBLE);
-  const list = h("ul", {class: "pn-ev-rows pn-comp-rows"});
-  box.appendChild(list);
-  const cellOr = (text, na, cls) => (text
-    ? h("span", {class: `${cls} u-num num`, text})
-    : h("span", {class: `${cls} u-null num`, text: NULL_GLYPH}));
-  for (const r of rows) {
-    const sideGlyphs = r.side === "both" ? [UP, DOWN] : r.side === "premium" ? [UP] : r.side === "discount" ? [DOWN] : [];
-    const name = h("span", {class: "pn-comp-name"},
-      sideGlyphs.map((g) => h("span", {class: `u-dir ${g === UP ? "up" : "down"} pn-comp-side`, "aria-hidden": "true", text: g})),
-      h("span", {class: "pn-comp-text", text: r.name}));
-    const rv = r.rivals || {n: 0};
-    const total = Math.max(1, rv.n || 0);
-    const seg = (n, cls) => (n ? h("i", {class: `pn-comp-seg ${cls}`, style: `flex-grow:${n}`}) : null);
-    const counts = h("span", {class: "pn-comp-counts num"},
-      h("span", {class: "u-num", text: `${(r.own && r.own.n) || 0} / ${rv.n || 0}`}),
-      h("span", {class: "pn-comp-bar", "aria-hidden": "true", "data-total": String(total)},
-        seg(rv.marketed, "marketed"), seg(rv.phase3, "p3"), seg(rv.phase2, "p2"), seg(rv.other, "other")));
-    const open = h("button", {type: "button", class: "pn-ev-row pn-comp-grid pn-comp-row", "data-key": r.id},
-      name, cellOr(r.valueText, r.valueNa, "pn-comp-value"), counts, cellOr(r.poolText, r.poolNa, "pn-comp-pool"), cellOr(r.shareText, r.shareNa, "pn-comp-share"));
-    const spoken = [r.name, r.valueText ? `modelled value ${r.valueText.replace(" · ", ", ")} of price` : r.valueNa, r.ownText, r.rivalsText,
-      r.poolText ? `pool claimed then supplied ${r.poolText.replace(" → ", " then ")}` : r.poolNa,
-      r.shareText ? `share ${r.shareText}` : null].filter(Boolean).join(". ");
-    open.setAttribute("aria-label", `${spoken}. Open this indication's landscape`);
-    open.addEventListener("click", () => followLink(ctx, view, r.link));
-    const lines = [r.ownText, r.rivalsText].concat(r.poolNa && !r.poolText ? [r.poolNa] : []).concat(r.tooltip || []).filter(Boolean);
-    bindTip(ctx, open, {title: r.name, lines});
-    list.appendChild(h("li", {class: "pn-ev-li"}, open));
-  }
-  const more = moreRow("competition", C.rows.length, local, api);
-  if (more) box.appendChild(more);
-  return box;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1526,7 +1304,7 @@ const METHOD_ALIASES = {statistics: "stats", "peer-statistics": "stats", notmean
   "not-meaningful": "nm", definition: "definitions", defs: "definitions"};
 
 /**
- * Where an anchor points in the drawer: a section id ("confidence"), an alias, or a column
+ * Where an anchor points in the drawer: a section id ("stats"), an alias, or a column
  * ("pe", "def:pe", "definition:pe", "col:pe") whose definition row is the target.
  */
 export function methodTarget(anchor, sectionIds = []) {
@@ -1544,7 +1322,7 @@ export function mountMethod(root, ctx) {
   let lastAnchor = null;
   const m = createMount(root, ctx, "pn-method-root", {
     name: "Methodology",
-    sig: (v) => [v.method, v.conclusion && v.conclusion.confidence, v.primary && v.primary.reasonText,
+    sig: (v) => [v.method, v.primary && v.primary.reasonText,
       v.method && v.method.open ? [v.lineage, stateOf(ctx).notes] : null],
     build: (root, view) => {
       const open = view.method && view.method.open;
@@ -1616,7 +1394,6 @@ function buildMethod(root, view, ctx, close) {
       h("h3", {class: "pn-sub-title", tabindex: "-1", text: s.title}));
     for (const p of s.body || []) if (p) sec.appendChild(h("p", {class: "pn-method-p", text: p}));
     if (s.id === "sources") { const box = h("div", {class: "pn-notes pn-method-sources"}); buildNotes(box, view, ctx, true); sec.appendChild(box); }
-    if (s.id === "confidence") sec.appendChild(confidencePoints(view));
     if (s.id === "definitions") sec.appendChild(definitionsList(s.items || []));
     body.appendChild(sec);
   }
@@ -1624,17 +1401,6 @@ function buildMethod(root, view, ctx, close) {
   drawer.appendChild(body);
   root.appendChild(drawer);
   void ctx;
-}
-
-function confidencePoints(view) {
-  const c = view.conclusion && view.conclusion.confidence;
-  if (!c || !(c.points || []).length) return h("p", {class: "u-meta", text: "No confidence is stated for this view's state."});
-  const t = h("table", {class: "pn-points"}, h("caption", {class: "u-meta pn-points-cap",
-    text: `This view: ${c.level ? `${c.level}, ` : ""}score ${isNum(c.score) ? fmtNumber(c.score, 0, {signed: true}) : NULL_GLYPH}`}));
-  const tb = h("tbody");
-  for (const p of c.points) tb.appendChild(h("tr", {}, h("td", {text: p.text}), h("td", {class: "num u-num", text: fmtNumber(p.points, 0, {signed: true})})));
-  t.appendChild(tb);
-  return t;
 }
 
 function definitionsList(items) {
@@ -1662,12 +1428,13 @@ export function mountDetail(root, ctx) {
   let lastTicker = null;
   const m = createMount(root, ctx, "pn-detail-root", {
     name: "Company details",
-    local: () => ({overTime: "revenue_growth"}),
+    local: () => ({overTime: "revenue_growth", openPillars: new Set()}),
     sig: (v, local) => {
       const st = stateOf(ctx);
       const d = v.detail;
-      return [d, d ? (st.notes || {})[d.ticker] : null, local.overTime, v.focal && v.focal.ticker, v.ctx && v.ctx.currency,
-        v.table && (v.table.rows || []).map((r) => r.ticker)];
+      return [d, d ? (st.notes || {})[d.ticker] : null, local.overTime, [...local.openPillars], v.focal && v.focal.ticker,
+        v.ctx && v.ctx.currency, v.table && (v.table.rows || []).map((r) => r.ticker),
+        v.scorecard && (v.scorecard.rows || []).map((r) => r.ticker)];
     },
     build: (root, view, local, api) => {
       const d = view.detail;
@@ -1719,7 +1486,9 @@ function buildDetail(root, view, ctx, local, api, close) {
   panel.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); return; }
     if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !isTyping(e.target) && !e.altKey && !e.metaKey && !e.ctrlKey) {
-      const order = ((view.table && view.table.rows) || []).map((r) => r.ticker);
+      // The order the open view lists: the ranked table in the Scorecard view, else the table.
+      const order = ((d.view !== "table" && view.scorecard && view.scorecard.state === "ok" ? view.scorecard.rows
+        : view.table && view.table.rows) || []).map((r) => r.ticker);
       const i = order.indexOf(T);
       if (i < 0 || !order.length) return;
       const j = e.key === "ArrowUp" ? i - 1 : i + 1;
@@ -1740,13 +1509,18 @@ function buildDetail(root, view, ctx, local, api, close) {
       h("h2", {class: "pn-d-title", id: titleId, tabindex: "-1", "data-key": "detail-title", text: d.name || T}),
       closeBtn));
   const chipsRow = h("div", {class: "pn-d-chips"});
-  for (const c of d.chips || []) {
+  const SC = d.scorecard && d.scorecard.state === "ok" ? d.scorecard : null;
+  const tableView = d.view === "table";
+  // Revision 4 (company-scorecard.md 4.1): the cohort the company is scored against, then its stage.
+  const headChips = (d.chips || []).map((c) => (SC && c.id === "subsector"
+    ? {...c, text: SC.cohortLabel, tooltip: `Scored against the ${SC.cohortNoun} cohort, the same for every reader.`} : c));
+  for (const c of headChips) {
     const el = chip(c.text, c.tone || "neutral", {tabindex: c.tooltip ? "0" : null});
     if (c.tooltip) bindTip(ctx, el, c.tooltip, descHost);
     chipsRow.appendChild(el);
   }
   if (d.isFocal) chipsRow.appendChild(chip("Focal company", "active"));
-  else if (d.relevance) {
+  else if (d.relevance && tableView) {
     const rc = chip(`Relevance ${d.relevance.score} of 100`, "neutral", {tabindex: "0"});
     const lines = COMPONENT_ORDER.map((k) => {
       const v = d.relevance.components ? d.relevance.components[k] : null;
@@ -1755,23 +1529,33 @@ function buildDetail(root, view, ctx, local, api, close) {
     bindTip(ctx, rc, {title: `Relevance ${d.relevance.score} of 100, ${d.relevance.level}`, body: d.reason || "", lines}, descHost);
     chipsRow.appendChild(rc);
   }
-  if (d.source) chipsRow.appendChild(chip(`Source: ${d.source === "saved" ? "saved set" : d.source}`, "neutral"));
-  if (!d.isFocal && !d.inPeers) chipsRow.appendChild(chip("Not in the peer set", "neutral"));
-  if (d.excluded) chipsRow.appendChild(chip("Excluded from statistics", "neutral"));
+  if (tableView) {
+    if (d.source) chipsRow.appendChild(chip(`Source: ${d.source === "saved" ? "saved set" : d.source}`, "neutral"));
+    if (!d.isFocal && !d.inPeers) chipsRow.appendChild(chip("Not in the peer set", "neutral"));
+    if (d.excluded) chipsRow.appendChild(chip("Excluded from statistics", "neutral"));
+  }
   head.appendChild(chipsRow);
-  if (d.reason && !d.isFocal) head.appendChild(h("p", {class: "u-meta pn-d-reason", text: d.reason}));
+  if (d.reason && !d.isFocal && tableView) head.appendChild(h("p", {class: "u-meta pn-d-reason", text: d.reason}));
   const acts = h("div", {class: "pn-d-actions", role: "group", "aria-label": `Actions on ${T}`});
   const A = d.actions || {};
   if (A.makeFocal) acts.appendChild(btn("Make focal", {"data-key": "d-focal", cls: "primary"}, () => { makeFocal(ctx, T); announce(ctx, `${T} is now the focal company.`); }));
-  if (A.exclude) acts.appendChild(btn(A.excludeLabel || "Exclude from statistics", {"data-key": "d-exclude"}, () => {
+  {
+    const cmp = btn("Compare", {"data-key": "d-compare", "aria-pressed": String(!!d.picked), cls: d.picked ? "is-set" : ""}, () => {
+      if (ctx && typeof ctx.toggleCompare === "function") ctx.toggleCompare(T);
+      else dispatch(ctx, {type: "TOGGLE_COMPARE", ticker: T});
+    });
+    bindTip(ctx, cmp, d.picked ? `Untick ${T} for Compare` : `Tick ${T} for Compare, up to three`, descHost);
+    acts.appendChild(cmp);
+  }
+  if (A.exclude && tableView) acts.appendChild(btn(A.excludeLabel || "Exclude from statistics", {"data-key": "d-exclude"}, () => {
     dispatch(ctx, {type: "TOGGLE_EXCLUDE", ticker: T});
     announce(ctx, d.excluded ? `${T} included in statistics.` : `${T} excluded from statistics. Still shown.`);
   }));
-  if (!d.isFocal) acts.appendChild(btn(A.peerLabel || (d.inPeers ? "Remove from peers" : "Add to peers"), {"data-key": "d-peer"}, () => {
+  if (!d.isFocal && tableView) acts.appendChild(btn(A.peerLabel || (d.inPeers ? "Remove from peers" : "Add to peers"), {"data-key": "d-peer"}, () => {
     if (d.inPeers) { dispatch(ctx, {type: "REMOVE_PEER", ticker: T, now: nowMs()}); announce(ctx, `Removed ${T} from peers.`); }
     else { dispatch(ctx, {type: "ADD_PEER", ticker: T}); announce(ctx, `Added ${T} to peers.`); }
   }));
-  acts.appendChild(btn(A.openForecast || "Open in Forecast tab", {"data-key": "d-forecast"}, () => {
+  acts.appendChild(btn("Open in Forecast", {"data-key": "d-forecast"}, () => {
     if (T !== F) makeFocal(ctx, T);
     if (ctx && typeof ctx.clickParentTab === "function") ctx.clickParentTab("Forecast");
   }));
@@ -1782,69 +1566,10 @@ function buildDetail(root, view, ctx, local, api, close) {
   panel.appendChild(body);
   const noRecord = (what) => h("p", {class: "pn-empty", text: `No ${what} in this payload for ${T}.`});
 
-  // 2. Price.
-  {
-    const s = sub("Price");
-    const closes = D && D.spark ? D.spark.closes : null;
-    const width = Math.max(240, Math.min(420, (root.clientWidth || 440) - 40));
-    if (closes && closes.length > 1) {
-      s.appendChild(sparkline(closes, {width, height: 44, label: `${T} weekly closes over one year, ${signedPct(D.spark.change)}`}));
-    } else {
-      const sp = (R.market && R.market.spark_90d) || [];
-      if (sp.length > 1) s.appendChild(sparkline(sp, {width, height: 44, label: `${T} daily closes over 90 days`}));
-      else s.appendChild(h("p", {class: "pn-empty", text: NA_TEXT.no_prices}));
-    }
-    const mk = R.market || {};
-    const rng = d.range52w;
-    s.appendChild(h("p", {class: "pn-d-line"},
-      h("span", {class: "u-num", text: isNum(d.price) ? `${fmtNumber(d.price, 2)} USD` : NULL_GLYPH}),
-      h("span", {class: "u-meta", text: ` close ${fmtDate(mk.price_as_of)}`}),
-      rng ? h("span", {class: "u-meta", text: ` · 52-week range ${fmtNumber(rng.low, 2)} to ${fmtNumber(rng.high, 2)}`}) : null));
-    const rel = D && D.relative;
-    if (rel) {
-      const t = h("table", {class: "pn-mini-table"}, h("thead", {}, h("tr", {},
-        h("th", {scope: "col", text: "Window"}), h("th", {scope: "col", class: "num", text: T}), h("th", {scope: "col", class: "num", text: "Against XLV"}))));
-      const tb = h("tbody");
-      for (const w of ["1m", "3m", "1y"]) {
-        const x = rel[w];
-        if (!x) continue;
-        const covers = x.covers_window !== false;
-        tb.appendChild(h("tr", {}, h("th", {scope: "row", text: w}),
-          covers ? h("td", {class: "num u-num", text: arrowPct(x.company_pct)}) : h("td", {class: "num u-meta", colspan: "2", text: "listed for less than this window"}),
-          covers ? h("td", {class: "num u-num", text: signedPct(x.relative_pct)}) : null));
-      }
-      t.appendChild(tb);
-      s.appendChild(t);
-    } else if (isNum(mk.ttm_change)) {
-      s.appendChild(h("p", {class: "pn-d-line u-meta", text: `12 months: ${arrowPct(mk.ttm_change)}`}));
-    }
-    body.appendChild(s);
-  }
-
-  // 3. Against the focal company.
-  if (!d.isFocal && (d.against || []).length) {
-    const s = sub(`Against ${F}`);
-    const t = h("table", {class: "pn-mini-table pn-against"}, h("caption", {class: "u-sr",
-      text: `${T} against ${F}. An up triangle marks the better side where one side is better by the measure's direction.`}));
-    t.appendChild(h("thead", {}, h("tr", {}, h("th", {scope: "col", text: "Measure"}), h("th", {scope: "col", class: "num", text: T}),
-      h("th", {scope: "col", class: "num", text: F}))));
-    const tb = h("tbody");
-    for (const a of d.against) {
-      const cell = (text, better, reason) => {
-        const td = h("td", {class: "num"}, better ? h("span", {class: "pn-better", "aria-hidden": "true", text: `${UP} `}) : null,
-          h("span", {class: text === NULL_GLYPH || text === "n.m." ? "u-null" : "u-num", text}),
-          better ? h("span", {class: "u-sr", text: " (better)"}) : null);
-        if (reason) bindTip(ctx, td, reason);
-        return td;
-      };
-      tb.appendChild(h("tr", {}, h("th", {scope: "row", text: a.label}),
-        cell(a.peer, a.better === "peer", a.peerReason), cell(a.focal, a.better === "focal", a.focalReason)));
-    }
-    t.appendChild(tb);
-    s.appendChild(t);
-    s.appendChild(h("p", {class: "u-meta", text: "Better is marked for revenue, revenue growth, net margin and late-stage trials (higher) and losing exclusivity (lower) only."}));
-    body.appendChild(s);
-  }
+  // 2 to 6. The scorecard blocks (4.1): score, positives and negatives, pillars, business
+  // development, weights. The price moves into the momentum row; "Against" and the system note
+  // are gone (Compare and Key insights hold them).
+  scorecardBlocks(body, d, view, ctx, local, api, descHost, root, R, D);
 
   // 4. Over time.
   {
@@ -1964,16 +1689,28 @@ function buildDetail(root, view, ctx, local, api, close) {
     body.appendChild(s);
   }
 
-  // 8. Key catalysts.
+  // 8. Key catalysts: one row per asset and month; a month the registry gives without a day
+  // prints as the month.
   {
     const s = sub("Key catalysts");
-    const cs = ((D && D.catalysts) || []).slice(0, 5);
+    const seen = new Set();
+    const cs = ((D && D.catalysts) || []).filter((c) => {
+      const k = `${c.title || ""}|${String(c.expected_date || "").slice(0, 7)}|${c.date_confidence || ""}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }).slice(0, 5);
     if (cs.length) {
       const ul = h("ul", {class: "pn-list"});
       for (const c of cs) {
         const derived = c.is_curated === false;
+        const dateEl = h("span", {class: "u-num pn-cat-date", text: catalystDate(c)});
+        if (!c.expected_date && c.date_confidence === "month") {
+          dateEl.setAttribute("tabindex", "0");
+          bindTip(ctx, dateEl, "The registry gives a month and no day, and this record does not carry the month.", descHost);
+        }
         const li = h("li", {class: "pn-cat"},
-          h("span", {class: "u-num pn-cat-date", text: fmtDate(c.expected_date)}),
+          dateEl,
           h("div", {class: "pn-cat-body"},
             h("span", {class: "pn-cat-title", text: c.title || NULL_GLYPH}),
             h("div", {class: "pn-cat-meta"},
@@ -2048,12 +1785,7 @@ function buildDetail(root, view, ctx, local, api, close) {
     s.appendChild(storageOk(ctx)
       ? h("p", {class: "u-meta", text: `${SAVED_HERE}${note && note.updated ? ` Last saved ${dateTime(note.updated)}.` : ""}`})
       : storageNote(ctx));
-    const sys = D && D.notes && D.notes.system;
-    if (sys && sys.excerpt) {
-      s.appendChild(h("p", {class: "u-label pn-sys-lbl", text: `System-generated note, ${sys.model || "model not recorded"}, ${fmtDate(sys.generated_at)}`}));
-      const ex = String(sys.excerpt).trim();
-      s.appendChild(h("blockquote", {class: "pn-sys-note", text: /[.!?"”)]$/.test(ex) ? ex : `${ex}…`}));
-    } else s.appendChild(h("p", {class: "pn-empty", text: "No system note for this company."}));
+    // Revision 4: the system note lives on Key insights, folded; the panel keeps the reader's own.
     body.appendChild(s);
   }
 
@@ -2103,11 +1835,264 @@ function buildDetail(root, view, ctx, local, api, close) {
     kv("Financials", `${fmtDate((lin && lin.financials && lin.financials.latest_period_end) || L.fy_period_end)}${((lin && lin.financials && lin.financials.sources) || [L.financials_source]).filter(Boolean).length
       ? `, ${((lin && lin.financials && lin.financials.sources) || [L.financials_source]).filter(Boolean).map((x) => x.replace(/_/g, " ")).join(", ")}` : ""}`);
     kv("Balance sheet", fmtDate(L.balance_sheet_as_of || (R.ev && R.ev.balance_sheet_as_of)));
+    kv("Price", fmtDate(R.market && R.market.price_as_of));
+    kv("FY0", (R.periods && R.periods.FY0 && R.periods.FY0.label) || NULL_GLYPH);
     kv("FX", `ECB ${fmtDate((lin && lin.fx_as_of) || L.fx_as_of)}`);
     const run = (lin && lin.refresh_run) || (view.lineage && view.lineage.run);
     kv("Refresh run", run ? `${run.id}, ${run.status}, finished ${dateTime(run.finished_at)}` : NULL_GLYPH);
     s.appendChild(dl);
+    // Every amber or red flag by name, its text on hover (4.1).
+    const flags = (d.flags || []).filter((f) => f && f.severity !== "info");
+    if (flags.length) {
+      const ul = h("ul", {class: "pn-list pn-flag-list"});
+      for (const f of flags) {
+        const li = h("li", {class: "pn-flag-item", tabindex: "0"},
+          h("span", {class: `u-marker ${f.severity === "red" ? "red" : "amber"}`, "aria-hidden": "true", text: "!"}),
+          h("span", {text: flagName(f.code)}));
+        bindTip(ctx, li, f.text || flagName(f.code), descHost);
+        ul.appendChild(li);
+      }
+      s.appendChild(h("p", {class: "u-label", text: "Flags"}));
+      s.appendChild(ul);
+    }
     body.appendChild(s);
   }
   void money;
+}
+
+function flagName(code) { const t = String(code || "").replace(/_/g, " "); return t ? t.charAt(0).toUpperCase() + t.slice(1) : NULL_GLYPH; }
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** A catalyst's date: "12 Nov 2026", "Nov 2026" for a month-only date, "·" when the record has
+ * no date at all. */
+export function catalystDate(c) {
+  const iso = c && c.expected_date ? String(c.expected_date) : "";
+  if (/^\d{4}-\d{2}-\d{2}/.test(iso)) return fmtDate(iso);
+  const m = /^(\d{4})-(\d{2})$/.exec(iso);
+  if (m) return `${MONTHS_SHORT[Number(m[2]) - 1]} ${m[1]}`;
+  return "·";
+}
+
+// ---------------------------------------------------------------------------------------------
+// Revision 4: the company panel's scorecard blocks (company-scorecard.md 4.1)
+// ---------------------------------------------------------------------------------------------
+
+/** Bar tone of 8.3: UP at 75 or more, DOWN at 25 or less, muted between. */
+export function pillarTone(score) {
+  if (!isNum(score)) return "none";
+  return score >= 75 ? "up" : score <= 25 ? "down" : "mid";
+}
+
+function pillarBar(p) {
+  const bar = h("span", {class: `pn-pbar ${pillarTone(p.score)}`, "aria-hidden": "true"});
+  if (isNum(p.score)) bar.appendChild(h("span", {class: "pn-pbar-fill", style: {width: `${Math.max(0, Math.min(100, p.score))}%`}}));
+  if (isNum(p.median)) bar.appendChild(h("span", {class: "pn-pbar-med", style: {left: `${Math.max(0, Math.min(100, p.median))}%`}}));
+  return bar;
+}
+
+/** A measure's period as the line reads it: "in FY2025", "FY2022 to FY2025", "over 1 year",
+ * "on the next 12 months". */
+export function periodWords(p) {
+  const t = String(p || "");
+  if (/^FY\d{4}$/.test(t)) return `in ${t}`;
+  if (/^\d+ (year|years|month|months)$/.test(t)) return `over ${t}`;
+  if (/^next /.test(t)) return `on the ${t}`;
+  return t;
+}
+
+function metricList(metrics, ctx, descHost) {
+  const ul = h("ul", {class: "pn-metrics"});
+  for (const m of metrics) {
+    const val = m.text ? `${m.text}${m.period ? ` ${periodWords(m.period)}` : ""}` : "·";
+    const right = m.text
+      ? (m.notScoredText || [m.placeText, m.medianText].filter(Boolean).join(", "))
+      : (m.reasonText || "");
+    ul.appendChild(h("li", {class: `pn-metric${m.text ? "" : " is-gap"}${m.scored === false ? " is-unscored" : ""}`},
+      h("span", {class: "pn-metric-label", text: m.label}),
+      h("span", {class: "pn-metric-val u-num", text: val}),
+      h("span", {class: "pn-metric-place", text: right})));
+  }
+  void ctx; void descHost;
+  return ul;
+}
+
+function pillarRow(p, S, ctx, local, api, descHost, extra) {
+  const open = local.openPillars.has(p.id);
+  const wrap = h("div", {class: `pn-pillar${open ? " is-open" : ""}`, "data-pillar": p.id});
+  const bodyId = `pn-pb-${p.id}`;
+  const row = h("button", {type: "button", class: "pn-pillar-row", "data-key": `pillar-${p.id}`, "aria-expanded": String(open), "aria-controls": bodyId},
+    h("span", {class: "pn-pillar-name", text: p.label}),
+    isNum(p.score) ? pillarBar(p) : h("span", {class: "pn-pillar-reason", text: p.reasonText || "No free data"}),
+    h("span", {class: "pn-pillar-score u-num", text: isNum(p.score) ? String(p.score) : "·"}),
+    h("span", {class: "pn-pillar-on", text: p.onText || ""}));
+  row.addEventListener("click", () => {
+    if (local.openPillars.has(p.id)) local.openPillars.delete(p.id); else local.openPillars.add(p.id);
+    api.rerender();
+  });
+  // The row already prints the score; the median tick's value is in its label, not a tooltip
+  // that would cover the measures it opens.
+  if (isNum(p.median)) row.setAttribute("aria-label", `${p.label} ${isNum(p.score) ? p.score : "not scored"}; cohort median ${p.median}${p.onText ? `, ${p.onText}` : ""}. ${open ? "Hide" : "Show"} its measures`);
+  wrap.appendChild(row);
+  if (p.note) wrap.appendChild(h("p", {class: "pn-pillar-note", text: p.note}));
+  if (open) {
+    const body = h("div", {class: "pn-pillar-body", id: bodyId});
+    body.appendChild(metricList(p.metrics || [], ctx, descHost));
+    if (extra) extra(body);
+    wrap.appendChild(body);
+  }
+  return wrap;
+}
+
+function scorecardBlocks(body, d, view, ctx, local, api, descHost, root, R, D) {
+  const S = d.scorecard;
+  const T = d.ticker;
+  if (!S || S.state !== "ok") {
+    const s = sub("Score");
+    s.appendChild(h("p", {class: "pn-empty", text: (S && S.errorText) || "The scorecard did not load."}));
+    body.appendChild(s);
+    return;
+  }
+  const H = S.headings || {};
+  // Score.
+  {
+    const s = h("section", {class: "pn-sub pn-score"});
+    if (S.scoreLine) s.appendChild(h("p", {class: "pn-score-line", text: S.scoreLine}));
+    if (S.sentence) s.appendChild(h("p", {class: "pn-sentence", text: S.sentence}));
+    body.appendChild(s);
+  }
+  // Positives and negatives, every line, each with its pillar.
+  {
+    const s = h("section", {class: "pn-sub pn-pn"});
+    const list = (title, items, sign, emptyText) => {
+      const box = h("div", {class: "pn-pn-col"}, h("h3", {class: "pn-sub-title", text: title}));
+      if (!items.length) { box.appendChild(h("p", {class: "pn-empty", text: emptyText})); return box; }
+      const ul = h("ul", {class: "pn-lines"});
+      for (const it of items) {
+        const li = h("li", {class: `pn-line ${sign === "+" ? "is-pos" : "is-neg"}`},
+          h("span", {class: "pn-line-sign", "aria-hidden": "true", text: sign === "+" ? "+" : "−"}),
+          h("span", {class: "pn-line-text", text: it.text}),
+          chip(it.pillarLabel, "neutral", {class: "pn-line-chip"}));
+        if (it.source) { li.setAttribute("tabindex", "0"); bindTip(ctx, li, `Source: ${it.source}`, descHost); }
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+      return box;
+    };
+    s.appendChild(list(H.positives || "Positives", S.positives || [], "+", S.noPositive));
+    s.appendChild(list(H.negatives || "Negatives", S.negatives || [], "-", S.noNegative));
+    body.appendChild(s);
+  }
+  // Pillars, then the price ones under their rule.
+  {
+    const s = sub(H.pillars || "Pillars");
+    s.classList.add("pn-pillars");
+    const durability = (b) => {
+      if (S.loeYearsText) b.appendChild(h("p", {class: "pn-d-line", text: S.loeYearsText}));
+      if (S.productCoverageText) b.appendChild(h("p", {class: "pn-d-line u-meta", text: S.productCoverageText}));
+      exclusivity(b);
+    };
+    const exclusivity = (b) => {
+      b.appendChild(h("p", {class: "u-label", text: S.exclusivityHeading}));
+      if (!(S.exclusivityRows || []).length) { b.appendChild(h("p", {class: "pn-empty", text: S.noExclusivityText})); return; }
+      const ul = h("ul", {class: "pn-list pn-excl"});
+      for (const x of S.exclusivityRows) {
+        const li = h("li", {class: "pn-excl-row"}, h("span", {class: "u-num pn-excl-lead", text: x.lead}), h("span", {text: x.text}));
+        if (x.basis) { li.setAttribute("tabindex", "0"); bindTip(ctx, li, `Basis: ${x.basis}`, descHost); }
+        ul.appendChild(li);
+      }
+      b.appendChild(ul);
+    };
+    const value = (b) => { if (S.marketCapAltText) b.appendChild(h("p", {class: "pn-d-line u-meta", text: S.marketCapAltText})); };
+    const momentum = (b) => priceBlock(b, d, view, ctx, root, R, D);
+    const extras = {durability, value, momentum};
+    for (const p of S.business || []) s.appendChild(pillarRow(p, S, ctx, local, api, descHost, extras[p.id]));
+    if (S.otherMetrics) {
+      const open = local.openPillars.has("_other");
+      const row = h("button", {type: "button", class: "pn-pillar-row pn-other-row", "data-key": "pillar-_other", "aria-expanded": String(open)},
+        h("span", {class: "pn-pillar-name", text: S.otherMetrics.label}));
+      row.addEventListener("click", () => { if (open) local.openPillars.delete("_other"); else local.openPillars.add("_other"); api.rerender(); });
+      const w = h("div", {class: `pn-pillar${open ? " is-open" : ""}`}, row);
+      if (open) {
+        const b = h("div", {class: "pn-pillar-body"}, metricList(S.otherMetrics.metrics, ctx, descHost));
+        if (!(S.business || []).some((p) => p.id === "durability")) exclusivity(b);
+        w.appendChild(b);
+      }
+      s.appendChild(w);
+    } else if (!(S.business || []).some((p) => p.id === "durability") && (S.exclusivityRows || []).length) {
+      exclusivity(s);
+    }
+    s.appendChild(h("p", {class: "pn-price-rule", text: S.priceRule}));
+    for (const p of S.price || []) s.appendChild(pillarRow(p, S, ctx, local, api, descHost, extras[p.id]));
+    body.appendChild(s);
+  }
+  // Business development: facts, not scored.
+  {
+    const s = sub(H.deals || "Business development");
+    const head = h("div", {class: "pn-deals-head"}, h("p", {class: "pn-d-line", text: S.deals.countText}));
+    if (S.deals.rows.length) head.appendChild(chip(S.deals.chip, "flag", {class: "pn-deals-chip"}));
+    s.appendChild(head);
+    if (S.deals.rows.length) {
+      const ul = h("ul", {class: "pn-list pn-deals"});
+      for (const x of S.deals.rows) {
+        ul.appendChild(h("li", {class: "pn-deal"},
+          h("span", {class: "u-num pn-cat-date", text: x.dateText}),
+          h("div", {class: "pn-cat-body"},
+            h("span", {class: "pn-deal-quote", text: x.quote}),
+            h("div", {class: "pn-cat-meta"},
+              x.typeText ? h("span", {class: "u-meta", text: x.typeText}) : null,
+              x.routeText ? h("span", {class: "u-meta", text: x.routeText}) : null,
+              x.url ? h("a", {href: x.url, target: "_blank", rel: "noopener noreferrer", class: "pn-src-link", text: "Source",
+                "aria-label": `Source for the ${x.dateText} deal, opens a new tab`}) : null))));
+      }
+      s.appendChild(ul);
+    }
+    for (const t of [S.firepowerText, S.leadPhaseText, S.partnerText]) if (t) s.appendChild(h("p", {class: "pn-d-line", text: t}));
+    body.appendChild(s);
+  }
+  // Weights.
+  if (S.weightsText) {
+    const s = sub(H.weights || "Weights");
+    s.appendChild(h("p", {class: "u-meta pn-weights", text: S.weightsText}));
+    body.appendChild(s);
+  }
+  void T;
+}
+
+/** The price section of revision 3, now inside the momentum row (4.1): closes, the 52-week
+ * range and the moves against XLV. */
+function priceBlock(s, d, view, ctx, root, R, D) {
+  const T = d.ticker;
+  const closes = D && D.spark ? D.spark.closes : null;
+  const width = Math.max(240, Math.min(420, (root.clientWidth || 440) - 40));
+  if (closes && closes.length > 1) {
+    s.appendChild(sparkline(closes, {width, height: 44, label: `${T} weekly closes over one year, ${signedPct(D.spark.change)}`}));
+  } else {
+    const sp = (R.market && R.market.spark_90d) || [];
+    if (sp.length > 1) s.appendChild(sparkline(sp, {width, height: 44, label: `${T} daily closes over 90 days`}));
+    else s.appendChild(h("p", {class: "pn-empty", text: NA_TEXT.no_prices}));
+  }
+  const mk = R.market || {};
+  const rng = d.range52w;
+  s.appendChild(h("p", {class: "pn-d-line"},
+    h("span", {class: "u-num", text: isNum(d.price) ? `${fmtNumber(d.price, 2)} USD` : NULL_GLYPH}),
+    h("span", {class: "u-meta", text: ` close ${fmtDate(mk.price_as_of)}`}),
+    rng ? h("span", {class: "u-meta", text: ` · 52-week range ${fmtNumber(rng.low, 2)} to ${fmtNumber(rng.high, 2)}`}) : null));
+  const rel = D && D.relative;
+  if (rel) {
+    const t = h("table", {class: "pn-mini-table"}, h("thead", {}, h("tr", {},
+      h("th", {scope: "col", text: "Window"}), h("th", {scope: "col", class: "num", text: T}), h("th", {scope: "col", class: "num", text: "Against XLV"}))));
+    const tb = h("tbody");
+    for (const w of ["1m", "3m", "1y"]) {
+      const x = rel[w];
+      if (!x) continue;
+      const covers = x.covers_window !== false;
+      tb.appendChild(h("tr", {}, h("th", {scope: "row", text: w}),
+        covers ? h("td", {class: "num u-num", text: arrowPct(x.company_pct)}) : h("td", {class: "num u-meta", colspan: "2", text: "listed for less than this window"}),
+        covers ? h("td", {class: "num u-num", text: signedPct(x.relative_pct)}) : null));
+    }
+    t.appendChild(tb);
+    s.appendChild(t);
+  } else if (isNum(mk.ttm_change)) {
+    s.appendChild(h("p", {class: "pn-d-line u-meta", text: `12 months: ${arrowPct(mk.ttm_change)}`}));
+  }
+  void view; void ctx;
 }

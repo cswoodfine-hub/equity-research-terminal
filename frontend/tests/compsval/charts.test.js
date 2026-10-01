@@ -8,13 +8,13 @@ import fs from "node:fs";
 
 import * as core from "../../components/compsval/core.js";
 import {
-  DOT, STRIP, linearScale, logScale, makeScale, niceStep, decimalsOf, niceTicks, logTicks, ticksFor,
-  paddedDomain, fmtValue, tickFormatter, textWidth, stackPoints, placeLabels, boxesOverlap, boxNearPoint,
-  pickLabelSlot, dotGeometry, scatterGeometry, trendSamples, trendBand, medianSideLabels, waterfallRows,
-  bridgeStripValues, stripGeometry, shapePath, lcfirst, sig,
+  DOT, linearScale, logScale, makeScale, niceStep, decimalsOf, niceTicks, logTicks, ticksFor,
+  paddedDomain, fmtValue, tickFormatter, textWidth, stackPoints, placeLabels, dotGeometry, waterfallRows,
+  bridgeStripValues, lcfirst, sig,
 } from "../../components/compsval/charts.js";
 import {
   parseNumberInput, inputText, bridgeMetricOptions, sortPeerRows, searchCompanies, methodTarget, historyValues,
+  catalystDate,
 } from "../../components/compsval/panels.js";
 
 const PAYLOAD = JSON.parse(fs.readFileSync(new URL("./fixture_payload.json", import.meta.url), "utf8"));
@@ -24,7 +24,8 @@ function viewFor(ticker, actions = []) {
   const rec = PAYLOAD.companies.find((c) => c.ticker === ticker);
   let st = core.defaultState(PAYLOAD, {focal: ticker, engine: rec.engine}, null, null);
   for (const a of actions) st = core.reduce(st, a, PAYLOAD);
-  return core.deriveView(PAYLOAD, st);
+  // The Table view, where the dot plot, the bridge and the method drawer's sections live.
+  return core.deriveView(PAYLOAD, {...st, ui: {...st.ui, view: "table"}});
 }
 
 // ------------------------------------------------------------------------------------------
@@ -213,35 +214,6 @@ test("placeLabels moves an overlapping label to the next row and drops what does
   assert.equal(s[1].x1, 300);
 });
 
-test("boxesOverlap and boxNearPoint", () => {
-  const a = {x0: 0, x1: 10, y0: 0, y1: 10};
-  assert.equal(boxesOverlap(a, {x0: 5, x1: 15, y0: 5, y1: 15}), true);
-  assert.equal(boxesOverlap(a, {x0: 11, x1: 20, y0: 0, y1: 10}), false);
-  assert.equal(boxesOverlap(a, {x0: 11, x1: 20, y0: 0, y1: 10}, 2), true);
-  assert.equal(boxNearPoint(a, {x: 30, y: 5, r: 4}, 8), false);
-  assert.equal(boxNearPoint(a, {x: 20, y: 5, r: 4}, 8), true);
-  assert.equal(boxNearPoint(a, {x: 5, y: 5, r: 1}, 8), true);
-});
-
-test("pickLabelSlot prefers top right, avoids placed labels and stays in bounds", () => {
-  const bounds = {x0: 0, x1: 200, y0: 0, y1: 200};
-  const s1 = pickLabelSlot({x: 100, y: 100, r: 5}, 30, 12, [], bounds);
-  assert.equal(s1.anchor, "start");
-  assert.ok(s1.box.x0 > 100 && s1.box.y1 <= 100);
-  // Top right taken: top left next.
-  const s2 = pickLabelSlot({x: 100, y: 100, r: 5}, 30, 12, [s1.box], bounds);
-  assert.equal(s2.anchor, "end");
-  assert.ok(!boxesOverlap(s1.box, s2.box, 1));
-  // At the right edge the right-hand slots leave the plot.
-  const s3 = pickLabelSlot({x: 195, y: 100, r: 3}, 30, 12, [], bounds);
-  assert.equal(s3.anchor, "end");
-  // Nowhere free: null, unless forced, then clamped inside the bounds.
-  const tiny = {x0: 0, x1: 20, y0: 0, y1: 20};
-  assert.equal(pickLabelSlot({x: 10, y: 10, r: 5}, 30, 12, [], tiny), null);
-  const f = pickLabelSlot({x: 10, y: 10, r: 5}, 30, 12, [], {x0: 0, x1: 100, y0: 0, y1: 20}, true);
-  assert.ok(f.box.x0 >= 0 && f.box.x1 <= 100);
-});
-
 // ------------------------------------------------------------------------------------------
 // Chart frames on the real view
 // ------------------------------------------------------------------------------------------
@@ -280,46 +252,6 @@ test("dotGeometry uses a log scale for market cap", () => {
   assert.equal(g.scale.kind, "log");
 });
 
-test("scatterGeometry puts the y minimum at the bottom and keeps the axes' margins", () => {
-  const v = viewFor("AZN");
-  const sc = v.scatter;
-  assert.ok(sc.domain && sc.domain.x && sc.domain.y);
-  const g = scatterGeometry(sc, 560, 320);
-  assert.equal(g.x0, 44);
-  assert.equal(g.y1, 320 - 28);
-  assert.ok(close(g.sy(sc.domain.y[0]), g.y1));
-  assert.ok(close(g.sy(sc.domain.y[1]), g.y0));
-  assert.ok(close(g.sx(sc.domain.x[0]), g.x0));
-  for (const p of sc.points) {
-    const x = g.sx(p.px), y = g.sy(p.py);
-    assert.ok(x >= g.x0 - 1e-6 && x <= g.x1 + 1e-6 && y >= g.y0 - 1e-6 && y <= g.y1 + 1e-6, p.ticker);
-  }
-  const lg = scatterGeometry({...sc, logY: true}, 560, 320);
-  assert.equal(lg.sy.kind, "log");
-});
-
-test("trendSamples and trendBand follow the OLS line with a ±10 % band, positive values only", () => {
-  const trend = {slope: 2, intercept: 10, r2: 0.5, n: 8};
-  const s = trendSamples(trend, 0, 1, 4);
-  assert.equal(s.length, 5);
-  assert.ok(close(s[0].y, 10) && close(s[4].y, 12));
-  const b = trendBand(trend, 0, 1, 4);
-  assert.ok(close(b.upper[0].y, 11) && close(b.lower[0].y, 9));
-  assert.equal(b.upper.length, 5);
-  const neg = trendBand({slope: -20, intercept: 5}, 0, 1, 4);
-  assert.ok(neg.upper.every((p) => p.y > 0));
-  assert.ok(neg.upper.length < 5);
-  assert.deepEqual(trendSamples(null, 0, 1), []);
-});
-
-test("medianSideLabels read better and worse by the x column's direction", () => {
-  assert.deepEqual(medianSideLabels("revenue_growth", "revenue growth"),
-    {left: "revenue growth worse than median", right: "better than median"});
-  assert.deepEqual(medianSideLabels("loe_share_5y", "losing exclusivity 5y"),
-    {left: "losing exclusivity 5y better than median", right: "worse than median"});
-  assert.deepEqual(medianSideLabels("rd_pct", "R&D / revenue"), {left: "R&D / revenue below median", right: "above median"});
-});
-
 test("waterfallRows: implied EV from 0, net debt as a floating step, claims when on, equity from 0", () => {
   const rows = waterfallRows({EVi: 289300, ND: 23903, OC: -855, Eq: 289300 - 23903 - 855});
   assert.deepEqual(rows.map((r) => r.id), ["ev", "net_debt", "other_claims", "equity"]);
@@ -356,43 +288,6 @@ test("bridgeStripValues collects the per-share marks and nothing missing", () =>
   assert.deepEqual(bridgeStripValues(null), []);
 });
 
-test("stripGeometry places the IQR, median and focal inside the 120 px strip, with an edge mark when clamped", () => {
-  const g = stripGeometry({domain: [0, 20], p25: 5, median: 10, p75: 15, focal: 12, clamped: null});
-  assert.equal(g.x0, 6);
-  assert.equal(g.x1, STRIP.width - 6);
-  assert.ok(g.p25 < g.median && g.median < g.focal && g.focal < g.p75);
-  assert.equal(g.clamped, null);
-  const hi = stripGeometry({domain: [0, 20], p25: 5, median: 10, p75: 15, focal: 40, clamped: null});
-  assert.equal(hi.clamped, "hi");
-  assert.equal(hi.focal, hi.x1);
-  const lo = stripGeometry({domain: [0, 20], p25: 5, median: 10, p75: 15, focal: 1, clamped: "lo"});
-  assert.equal(lo.clamped, "lo");
-  assert.equal(stripGeometry(null), null);
-  const none = stripGeometry({domain: [0, 20], p25: null, median: null, p75: null, focal: null});
-  assert.equal(none.focal, null);
-});
-
-test("KPI 5's position strip from the view fits the strip", () => {
-  for (const t of ["AZN", "CRSP", "GILD"]) {
-    const v = viewFor(t);
-    const k5 = v.kpis[4];
-    if (!k5.strip) continue;
-    const g = stripGeometry(k5.strip);
-    assert.ok(g.focal === null || (g.focal >= g.x0 && g.focal <= g.x1), t);
-    assert.ok(typeof k5.strip.description === "string" && k5.strip.description.length > 0);
-  }
-});
-
-test("shapePath: circle, square and triangle of equal area", () => {
-  const c = shapePath("circle", 10, 10, 4);
-  const sq = shapePath("square", 10, 10, 4);
-  const tr = shapePath("triangle", 10, 10, 4);
-  for (const p of [c, sq, tr]) assert.match(p, /^M[\d.-]+,[\d.-]+/);
-  const side = Number(/h([\d.]+)/.exec(sq)[1]);
-  assert.ok(Math.abs(side * side - Math.PI * 16) < 0.5);
-  assert.notEqual(c, sq);
-});
-
 test("sig ignores the record and analysis objects", () => {
   assert.equal(sig({a: 1, record: {x: 1}}), sig({a: 1, record: {x: 2}}));
   assert.notEqual(sig({a: 1}), sig({a: 2}));
@@ -401,6 +296,22 @@ test("sig ignores the record and analysis objects", () => {
 // ------------------------------------------------------------------------------------------
 // panels.js pure helpers
 // ------------------------------------------------------------------------------------------
+
+test("catalystDate prints a month-only date as its month (company-scorecard.md 4.1)", () => {
+  // The payload keeps "YYYY-MM" for a month the registry gives without a day, so the panel
+  // reads "Nov 2026" as Catalysts and Key insights do, never a dash.
+  assert.equal(catalystDate({expected_date: "2026-11", date_confidence: "month"}), "Nov 2026");
+  assert.equal(catalystDate({expected_date: null, date_confidence: "month"}), "·");
+  assert.match(catalystDate({expected_date: "2026-12-15"}), /2026/);
+});
+
+test("the panel title's focus ring is for the keyboard only", () => {
+  // Focus moves to the title when the panel opens; on a mouse open the ring drew a box.
+  const css = fs.readFileSync(new URL("../../components/compsval/panels.css", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(css, /\.pn-d-title:focus-visible\s*\{[^}]*outline:\s*2px solid/);
+  assert.match(css, /\.pn-d-title:focus\s*\{\s*outline:\s*none;?\s*\}/);
+});
 
 test("parseNumberInput reads analyst input without guessing", () => {
   assert.equal(parseNumberInput("1,234.5"), 1234.5);
@@ -462,7 +373,7 @@ test("searchCompanies ranks a ticker prefix over a name match", () => {
 
 test("methodTarget resolves sections, aliases and column definitions", () => {
   const ids = viewFor("AZN").method.sections.map((s) => s.id);
-  assert.deepEqual(methodTarget("confidence", ids), {section: "confidence", colId: null});
+  assert.deepEqual(methodTarget("outliers", ids), {section: "outliers", colId: null});
   assert.deepEqual(methodTarget("pe", ids), {section: "definitions", colId: "pe"});
   assert.deepEqual(methodTarget("def:ev_ebitda", ids), {section: "definitions", colId: "ev_ebitda"});
   assert.deepEqual(methodTarget("statistics", ids), {section: "stats", colId: null});

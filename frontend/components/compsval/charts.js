@@ -1,13 +1,13 @@
 /**
  * charts.js: the SVG charts of the Comps valuation view. Owner D.
  *
- * Contract: docs/design/comps-valuation.md section 5 (5.1 dot plot, 5.2 scatter, 5.3 bridge
- * chart, 5.4 side panel minis) and KPI 5's position strip (1.5). Exports of 11.1:
+ * Contract: docs/design/comps-valuation.md section 5 (5.1 dot plot, 5.3 bridge chart, 5.4 side
+ * panel minis). The valuation-against-growth scatter (5.2) and KPI 5's position strip left with
+ * revision 4 (company-scorecard.md 5.2). Exports of 11.1:
  *
- *   mountCharts(root, ctx) -> {update(view), focusDotPlot(), focusScatter(), focusPoint(ticker),
- *                              destroy()}   (plus focusSwitcher() for the `m` key)
+ *   mountCharts(root, ctx) -> {update(view), focusDotPlot(), focusPoint(ticker), destroy()}
+ *                              (plus focusSwitcher() for the `m` key)
  *   mountBridgeChart(root, ctx) -> {update(view), destroy()}
- *   positionStrip(strip, opts) -> SVGElement
  *   sparkline, barMini, lineMini, phaseBars -> SVGElement
  *
  * Every chart reads its geometry from `view` (core.deriveView), uses tokens only (classes in
@@ -18,7 +18,7 @@
  */
 
 import {
-  COLUMN_BY_ID, NULL_GLYPH, NEAR_TREND_BAND, fmtCell, fmtNumber, fmtDate, metricLabel,
+  COLUMN_BY_ID, NULL_GLYPH, fmtCell, fmtNumber, fmtDate, metricLabel,
 } from "./core.js";
 
 // ---------------------------------------------------------------------------------------------
@@ -27,9 +27,6 @@ import {
 
 export const DOT = {laneH: 56, laneLabelW: 112, axisH: 24, headerH: 28, pad: 12, top: 6, targetH: 22,
   peerR: 4, focalR: 7, stackGap: 8, stackRows: [0, -6, 6]};
-export const SCATTER = {height: 320, laptop: 236, narrow: 220, padL: 44, padB: 28, padT: 10, padR: 18,
-  minR: 4, spanR: 14};
-export const STRIP = {width: 120, height: 20};
 const LABEL_PX = 10.5;
 const FOCAL_LABEL_PX = 12;
 const TICK_PX = 11;
@@ -249,50 +246,6 @@ export function placeLabels(items, opts = {}) {
   });
 }
 
-export function boxesOverlap(a, b, gap = 0) {
-  return !(a.x1 + gap <= b.x0 || b.x1 + gap <= a.x0 || a.y1 + gap <= b.y0 || b.y1 + gap <= a.y0);
-}
-
-/** True when `box` comes within `gap` px of the edge of the circle `{x, y, r}`. */
-export function boxNearPoint(box, pt, gap = 8) {
-  const dx = Math.max(box.x0 - pt.x, 0, pt.x - box.x1);
-  const dy = Math.max(box.y0 - pt.y, 0, pt.y - box.y1);
-  return Math.hypot(dx, dy) - (pt.r || 0) < gap;
-}
-
-/**
- * `pickLabelSlot(pt, w, h, placed, bounds, force)`: a label box beside a mark of radius r:
- * top right, top left, bottom right, bottom left, the first inside `bounds` and clear of every
- * box in `placed`. `force` returns the first slot clamped inside the bounds when none is clear.
- * Returns `{x, y, anchor, box}` (x, y the text anchor and baseline) or null.
- */
-export function pickLabelSlot(pt, w, h, placed, bounds, force = false) {
-  const r = pt.r || 0, d = 3;
-  const cands = [
-    {dx: r + d, top: true, anchor: "start"}, {dx: -(r + d), top: true, anchor: "end"},
-    {dx: r + d, top: false, anchor: "start"}, {dx: -(r + d), top: false, anchor: "end"},
-  ];
-  const mk = (c) => {
-    const x = pt.x + c.dx;
-    const y = c.top ? pt.y - r - 2 : pt.y + r + h;
-    const x0 = c.anchor === "end" ? x - w : x;
-    return {x, y, anchor: c.anchor, box: {x0, x1: x0 + w, y0: y - h + 2, y1: y + 2}};
-  };
-  for (const c of cands) {
-    const s = mk(c);
-    const b = s.box;
-    if (b.x0 < bounds.x0 || b.x1 > bounds.x1 || b.y0 < bounds.y0 || b.y1 > bounds.y1) continue;
-    if ((placed || []).some((p) => boxesOverlap(p, b, 1))) continue;
-    return s;
-  }
-  if (!force) return null;
-  const s = mk(cands[0]);
-  const shiftX = Math.min(0, bounds.x1 - s.box.x1) + Math.max(0, bounds.x0 - s.box.x0);
-  const shiftY = Math.max(0, bounds.y0 - s.box.y0) + Math.min(0, bounds.y1 - s.box.y1);
-  return {x: s.x + shiftX, y: s.y + shiftY, anchor: s.anchor,
-    box: {x0: s.box.x0 + shiftX, x1: s.box.x1 + shiftX, y0: s.box.y0 + shiftY, y1: s.box.y1 + shiftY}};
-}
-
 // ---------------------------------------------------------------------------------------------
 // Pure chart geometry
 // ---------------------------------------------------------------------------------------------
@@ -312,43 +265,6 @@ export function dotGeometry(dp, width) {
   const axisY = DOT.top + n * DOT.laneH;
   const height = axisY + DOT.axisH + (dp && dp.target ? DOT.targetH : 0);
   return {labelW, x0, x1, scale, laneTop, laneY, axisY, height, multi, width};
-}
-
-/** Scatter frame: plot box and the two scales. */
-export function scatterGeometry(sc, width, height) {
-  const x0 = SCATTER.padL, x1 = Math.max(SCATTER.padL + 40, width - SCATTER.padR);
-  const y0 = SCATTER.padT, y1 = Math.max(SCATTER.padT + 40, height - SCATTER.padB);
-  const dx = sc && sc.domain && sc.domain.x ? sc.domain.x : [0, 1];
-  const dy = sc && sc.domain && sc.domain.y ? sc.domain.y : [0, 1];
-  const sx = linearScale(dx, [x0, x1]);
-  const sy = makeScale(sc && sc.logY ? "log" : "linear", dy, [y1, y0]);
-  return {x0, x1, y0, y1, sx, sy, width, height};
-}
-
-/** Samples of the OLS trend between xa and xb: [{x, y}]. */
-export function trendSamples(trend, xa, xb, n = 24) {
-  if (!trend || !isNum(xa) || !isNum(xb)) return [];
-  const out = [];
-  for (let i = 0; i <= n; i++) {
-    const x = xa + ((xb - xa) * i) / n;
-    out.push({x, y: trend.intercept + trend.slope * x});
-  }
-  return out;
-}
-
-/** The ±NEAR_TREND_BAND band around the trend, as upper and lower sample lists (y > 0 only). */
-export function trendBand(trend, xa, xb, n = 24, band = NEAR_TREND_BAND) {
-  const s = trendSamples(trend, xa, xb, n).filter((p) => p.y > 0);
-  return {upper: s.map((p) => ({x: p.x, y: p.y * (1 + band)})), lower: s.map((p) => ({x: p.x, y: p.y * (1 - band)}))};
-}
-
-/** Labels either side of the median-x line (5.2), by the x column's direction. */
-export function medianSideLabels(xCol, xShort) {
-  const dir = (COLUMN_BY_ID[xCol] || {}).dir || "n";
-  const xs = String(xShort || "");
-  if (dir === "+") return {left: `${xs} worse than median`, right: "better than median"};
-  if (dir === "-") return {left: `${xs} better than median`, right: "worse than median"};
-  return {left: `${xs} below median`, right: "above median"};
 }
 
 /**
@@ -380,18 +296,6 @@ export function bridgeStripValues(b) {
   if (b.streetTarget && isNum(b.streetTarget.value)) v.push(b.streetTarget.value);
   if (b.modelFairValue && isNum(b.modelFairValue.value)) v.push(b.modelFairValue.value);
   return v.filter(isNum);
-}
-
-/** Position strip x positions (KPI 5): band, median tick and focal marker for `width` px. */
-export function stripGeometry(strip, width = STRIP.width) {
-  if (!strip || !strip.domain) return null;
-  const pad = 6;
-  const sc = makeScale(strip.scale === "log" ? "log" : "linear", strip.domain, [pad, width - pad]);
-  const at = (v) => (isNum(v) ? clamp(sc(v), pad, width - pad) : null);
-  const clampedSide = strip.clamped || (isNum(strip.focal) && sc(strip.focal) < pad ? "lo"
-    : isNum(strip.focal) && sc(strip.focal) > width - pad ? "hi" : null);
-  return {p25: at(strip.p25), p75: at(strip.p75), median: at(strip.median), focal: at(strip.focal),
-    clamped: clampedSide, x0: pad, x1: width - pad};
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -604,19 +508,6 @@ export function sig(...parts) {
 // Mark builders
 // ---------------------------------------------------------------------------------------------
 
-/** Shape path of equal area to a circle of radius r: circle, square or triangle. */
-export function shapePath(shape, x, y, r) {
-  if (shape === "square") {
-    const a = r * Math.sqrt(Math.PI) / 2;
-    return `M${r1(x - a)},${r1(y - a)}h${r1(2 * a)}v${r1(2 * a)}h${r1(-2 * a)}Z`;
-  }
-  if (shape === "triangle") {
-    const side = r * Math.sqrt(4 * Math.PI / Math.sqrt(3));
-    const ht = side * Math.sqrt(3) / 2;
-    return `M${r1(x)},${r1(y - (2 * ht) / 3)}L${r1(x + side / 2)},${r1(y + ht / 3)}L${r1(x - side / 2)},${r1(y + ht / 3)}Z`;
-  }
-  return `M${r1(x - r)},${r1(y)}a${r1(r)},${r1(r)} 0 1,0 ${r1(2 * r)},0a${r1(r)},${r1(r)} 0 1,0 ${r1(-2 * r)},0Z`;
-}
 function diamondPath(x, y, d) {
   return `M${r1(x)},${r1(y - d)}L${r1(x + d)},${r1(y)}L${r1(x)},${r1(y + d)}L${r1(x - d)},${r1(y)}Z`;
 }
@@ -635,7 +526,7 @@ function svgRoot(width, height, titleText, descText, cls) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// mountCharts: dot plot (5.1) and scatter (5.2), rail or two-tab strip by layout (1.3)
+// mountCharts: the dot plot (5.1) in a folding strip (1.3)
 // ---------------------------------------------------------------------------------------------
 
 export function mountCharts(root, ctx) {
@@ -644,8 +535,8 @@ export function mountCharts(root, ctx) {
   let view = null;
   let lastSig = null;
   let lastWidth = 0;
-  const ui = {dotActive: null, dotLane: 0, scActive: null, scHover: null};
-  const els = {dotPlot: null, scPlot: null, switcher: null, tabs: []};
+  const ui = {dotActive: null, dotLane: 0};
+  const els = {dotPlot: null, switcher: null, tabs: []};
   let destroyed = false;
 
   const ro = typeof ResizeObserver === "function" ? new ResizeObserver(() => {
@@ -654,69 +545,38 @@ export function mountCharts(root, ctx) {
   }) : null;
   if (ro) ro.observe(root);
 
-  // Revision 3 (12.1): the two-tab strip is the chart area at every width; the rail is gone.
-  function stripMode() { return true; }
-
   function render(force = false) {
     if (destroyed || !view) return;
     const layout = layoutOf(ctx, root);
     const st = stateOf(ctx) || {};
-    const tabKey = layout === "narrow" ? "narrowTab" : "laptopTab";
-    const tab = (st.ui && st.ui[tabKey]) || "position";
-    const stripState = ((st.chartStrip || {})[layout]) || "open";
-    const signature = sig(layout, tab, stripState, root.clientWidth, view.dotplot, view.scatter, view.primary,
-      view.sectionErrors && [view.sectionErrors.dotplot, view.sectionErrors.scatter], ui);
+    // Revision 4 (company-scorecard.md 5.2): the strip is the Position chart alone, folded until
+    // opened.
+    const stripState = ((st.chartStrip || {})[layout]) || "collapsed";
+    const signature = sig(layout, stripState, root.clientWidth, view.dotplot, view.primary,
+      view.sectionErrors && view.sectionErrors.dotplot, ui);
     if (!force && signature === lastSig) return;
     lastSig = signature;
     lastWidth = root.clientWidth;
     rebuildKeepingFocus(root, () => {
       root.textContent = "";
       root.setAttribute("data-layout", layout);
-      if (stripMode(layout)) buildStrip(layout, tab, stripState);
-      else buildRail();
+      buildStrip(layout, stripState);
     });
   }
 
-  // ----- rail (wide, ultrawide) -----
-  function buildRail() {
-    const dotCard = h("section", {class: "ch-card ch-dot", "aria-label": "Peer position"});
-    root.appendChild(dotCard);
-    const head = h("div", {class: "ch-head"}, h("h3", {class: "ch-title", text: "Peer position"}));
-    dotCard.appendChild(head);
-    dotHeaderItems(head, false);
-    fillDot(dotCard);
-    const scCard = h("section", {class: "ch-card ch-sc", "aria-label": "Valuation against fundamentals"});
-    root.appendChild(scCard);
-    scCard.appendChild(h("div", {class: "ch-head"}, h("h3", {class: "ch-title", text: "Valuation against fundamentals"})));
-    fillScatter(scCard, SCATTER.height);
-  }
-
-  // ----- strip (laptop, narrow) -----
-  function buildStrip(layout, tab, stripState) {
+  // ----- strip, every width -----
+  function buildStrip(layout, stripState) {
     const collapsed = stripState === "collapsed";
     const head = h("div", {class: "ch-strip-head"});
     root.appendChild(head);
     const list = h("div", {class: "ch-tabs", role: "tablist", "aria-label": "Charts"});
     head.appendChild(list);
     const panelId = uid("chp");
-    const tabs = [{id: "position", label: "Position"}, {id: "scatter", label: "Valuation and growth"}];
-    els.tabs = tabs.map((t, i) => {
-      const sel = t.id === tab;
-      const b = h("button", {type: "button", role: "tab", class: "ch-tab", id: `${panelId}-t${i}`, "data-key": `tab-${t.id}`,
-        "aria-selected": String(sel), "aria-controls": panelId, tabindex: sel ? "0" : "-1", text: t.label});
-      b.addEventListener("click", () => setTab(layout, t.id));
-      b.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-          e.preventDefault(); e.stopPropagation();
-          const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
-          setTab(layout, next.id);
-          requestAnimationFrame(() => { const nb = root.querySelector(`[data-key="tab-${next.id}"]`); if (nb) nb.focus(); });
-        }
-      });
-      list.appendChild(b);
-      return b;
-    });
-    if (tab === "position" && !collapsed) dotHeaderItems(head, true);
+    const tab = h("button", {type: "button", role: "tab", class: "ch-tab", id: `${panelId}-t0`, "data-key": "tab-position",
+      "aria-selected": "true", "aria-controls": panelId, tabindex: "0", text: "Position"});
+    list.appendChild(tab);
+    els.tabs = [tab];
+    if (!collapsed) dotHeaderItems(head, true);
     const spacer = h("span", {class: "ch-spacer"});
     head.appendChild(spacer);
     const col = h("button", {type: "button", class: "u-btn icon ch-collapse", "data-key": "collapse",
@@ -725,23 +585,12 @@ export function mountCharts(root, ctx) {
     col.addEventListener("click", () => dispatch(ctx, {type: "SET_CHART_STRIP", layout, value: collapsed ? "open" : "collapsed"}));
     head.appendChild(col);
     const panel = h("div", {class: "ch-strip-panel", role: "tabpanel", id: panelId,
-      "aria-labelledby": `${panelId}-t${tab === "position" ? 0 : 1}`, hidden: collapsed});
+      "aria-labelledby": `${panelId}-t0`, hidden: collapsed});
     root.appendChild(panel);
     if (collapsed) return;
-    if (tab === "position") {
-      const card = h("div", {class: "ch-card ch-dot ch-in-strip"});
-      panel.appendChild(card);
-      fillDot(card);
-    } else {
-      const card = h("div", {class: "ch-card ch-sc ch-in-strip"});
-      panel.appendChild(card);
-      fillScatter(card, layout === "narrow" ? SCATTER.narrow : layout === "laptop" ? 260 : SCATTER.height);
-    }
-  }
-
-  function setTab(layout, id) {
-    dispatch(ctx, {type: layout === "narrow" ? "SET_NARROW_TAB" : "SET_LAPTOP_TAB", tab: id});
-    render(true);
+    const card = h("div", {class: "ch-card ch-dot ch-in-strip"});
+    panel.appendChild(card);
+    fillDot(card);
   }
 
   // ----- dot plot header: switcher, tag, lane chip, "Use as primary" -----
@@ -998,254 +847,6 @@ export function mountCharts(root, ctx) {
     render(true);
   }
 
-  // ----- scatter -----
-  function fillScatter(card, height) {
-    const sc = view.scatter;
-    if (!sc) {
-      const err = view.sectionErrors && view.sectionErrors.scatter;
-      card.appendChild(stateBlock(err || {severity: "red", title: "This section could not be computed", detail: "Valuation against fundamentals failed."}));
-      return;
-    }
-    card.appendChild(scatterControls(sc));
-    if (sc.disabledState || !sc.domain || !sc.domain.x || !sc.domain.y) {
-      card.appendChild(stateBlock(sc.disabledState || {severity: "info", title: "No valuation against growth chart", detail: sc.disabledReason || ""},
-        (a) => runAction(a)));
-      return;
-    }
-    const wrap = h("div", {class: "ch-plot ch-sc-plot", tabindex: "0", role: "group", "data-key": "sc-plot",
-      "aria-roledescription": "scatter plot"});
-    card.appendChild(wrap);
-    els.scPlot = wrap;
-    const width = Math.max(260, wrap.clientWidth || card.clientWidth - 2 * DOT.pad || root.clientWidth - 26 || 520);
-    const {svg, nav} = drawScatter(sc, width, height);
-    wrap.setAttribute("aria-labelledby", svg.__descId);
-    wrap.appendChild(svg);
-    wrap.__nav = nav;
-    wrap.addEventListener("keydown", (e) => scKey(e, wrap));
-    wrap.addEventListener("blur", () => { if (ctx && ctx.tooltip && ctx.tooltip.hide) ctx.tooltip.hide(); });
-    const interp = h("p", {class: "ch-sc-interp"}, sc.interpretation || "");
-    if (sc.region) interp.appendChild(chip(sc.region.label, "neutral", {class: "ch-region"}));
-    card.appendChild(interp);
-    card.appendChild(scatterLegend(sc));
-  }
-
-  function scatterControls(sc) {
-    const bar = h("div", {class: "ch-sc-controls"});
-    const sel = (key, labelText, options, value, onChange) => {
-      const id = uid("chs");
-      const el = h("select", {class: "u-input ch-select", id, "data-key": key},
-        options.map((o) => h("option", {value: o.id, selected: o.id === value, text: o.label})));
-      el.addEventListener("change", () => onChange(el.value));
-      return h("label", {class: "ch-field", for: id}, h("span", {class: "u-label", text: labelText}), el);
-    };
-    bar.appendChild(sel("sc-x", "X", sc.xOptions || [], sc.x, (v) => dispatch(ctx, {type: "SET_SCATTER", x: v})));
-    bar.appendChild(sel("sc-y", "Y", sc.yOptions || [], sc.y, (v) => dispatch(ctx, {type: "SET_SCATTER", y: v})));
-    bar.appendChild(sel("sc-size", "Size", [{id: "market_cap", label: "Market cap"}, {id: "ev", label: "EV"}, {id: "none", label: "None"}],
-      sc.size || "market_cap", (v) => dispatch(ctx, {type: "SET_SCATTER", size: v})));
-    const colourLbl = uid("chl");
-    const colour = h("div", {class: "u-seg ch-colour", role: "group", "aria-labelledby": colourLbl});
-    for (const o of [{id: "none", label: "None"}, {id: "stage", label: "Stage"}]) {
-      const b = h("button", {type: "button", "data-key": `sc-colour-${o.id}`, "aria-pressed": String((sc.colorBy || "none") === o.id), text: o.label});
-      b.addEventListener("click", () => dispatch(ctx, {type: "SET_SCATTER", colorBy: o.id}));
-      colour.appendChild(b);
-    }
-    bar.appendChild(h("span", {class: "ch-colour-group"}, h("span", {class: "u-label", id: colourLbl, text: "Colour"}), colour));
-    const trend = h("button", {type: "button", class: "u-btn", "data-key": "sc-trend", "aria-pressed": String(sc.trendOn !== false), text: "Trend line"});
-    trend.addEventListener("click", () => dispatch(ctx, {type: "SET_SCATTER", trend: !(sc.trendOn !== false)}));
-    bar.appendChild(trend);
-    if (sc.logYOffered) {
-      const lg = h("button", {type: "button", class: "u-btn", "data-key": "sc-log", "aria-pressed": String(!!sc.logY), text: "Log scale"});
-      lg.addEventListener("click", () => dispatch(ctx, {type: "SET_SCATTER", logY: !sc.logY}));
-      bar.appendChild(lg);
-    }
-    return bar;
-  }
-
-  function drawScatter(sc, width, height) {
-    const g = scatterGeometry(sc, width, height);
-    const svg = svgRoot(width, height, `${sc.yLabel || ""} against ${sc.xLabel || ""}`, sc.description, "ch-sc-svg");
-    const clipId = uid("chclip");
-    const defs = s("defs", {}, s("clipPath", {id: clipId}, s("rect", {x: g.x0, y: g.y0, width: r1(g.x1 - g.x0), height: r1(g.y1 - g.y0)})));
-    svg.appendChild(defs);
-    const plotBounds = {x0: g.x0, x1: g.x1, y0: g.y0, y1: g.y1};
-    // Grid and axes.
-    const yt = ticksFor(g.sy, Math.max(3, Math.round((g.y1 - g.y0) / 56)));
-    const xt = ticksFor(g.sx, Math.max(3, Math.round((g.x1 - g.x0) / 90)));
-    const yf = tickFormatter(sc.y, yt, g.sy.kind), xf = tickFormatter(sc.x, xt, "linear");
-    const grid = s("g", {class: "ch-grid"});
-    for (const t of yt) {
-      const y = g.sy(t);
-      grid.appendChild(s("line", {x1: g.x0, x2: g.x1, y1: r1(y), y2: r1(y), class: "ch-grid-line"}));
-      grid.appendChild(label(g.x0 - 6, y + 4, yf(t), "ch-tick-lbl", "end"));
-    }
-    grid.appendChild(s("line", {x1: g.x0, x2: g.x1, y1: g.y1, y2: g.y1, class: "ch-axis-line"}));
-    const xItems = xt.map((t) => ({x: g.sx(t), w: textWidth(xf(t), TICK_PX), anchor: "middle"}));
-    const xp = placeLabels(xItems, {rows: 1, gap: 8, min: g.x0 - 20, max: width});
-    xt.forEach((t, i) => {
-      const x = g.sx(t);
-      grid.appendChild(s("line", {x1: r1(x), x2: r1(x), y1: g.y1, y2: g.y1 + 4, class: "ch-tick"}));
-      if (!xp[i].dropped) grid.appendChild(label(x, g.y1 + 14, xf(t), "ch-tick-lbl", "middle"));
-    });
-    svg.appendChild(grid);
-    const plot = s("g", {"clip-path": `url(#${clipId})`});
-    svg.appendChild(plot);
-    // Median x line and its side labels.
-    if (isNum(sc.medianX)) {
-      const mx = g.sx(sc.medianX);
-      if (mx >= g.x0 && mx <= g.x1) {
-        plot.appendChild(s("line", {x1: r1(mx), x2: r1(mx), y1: g.y0, y2: g.y1, class: "ch-median-x"}));
-        const side = medianSideLabels(sc.x, lcfirst(sc.xLabel || ""));
-        const ly = g.y1 + 25;
-        const lw = textWidth(side.left, 10), rw = textWidth(side.right, 10);
-        if (mx - 6 - lw >= 0) svg.appendChild(label(mx - 6, ly, side.left, "ch-lbl ch-side", "end"));
-        if (mx + 6 + rw <= width) svg.appendChild(label(mx + 6, ly, side.right, "ch-lbl ch-side", "start"));
-      }
-    }
-    // Trend and near-trend band.
-    const fitPts = (sc.points || []).filter((p) => !p.isFocal && p.inStats);
-    const showTrend = sc.trendOn !== false && sc.trend;
-    const placedBoxes = [];
-    if (showTrend && fitPts.length) {
-      const xa = Math.min(...fitPts.map((p) => p.px)), xb = Math.max(...fitPts.map((p) => p.px));
-      const band = trendBand(sc.trend, xa, xb);
-      if (band.upper.length > 1) {
-        const pts = band.upper.concat(band.lower.slice().reverse()).map((p) => `${r1(g.sx(p.x))},${r1(g.sy(p.y))}`);
-        plot.appendChild(s("polygon", {points: pts.join(" "), class: "ch-band"}));
-        const end = band.upper[band.upper.length - 1];
-        const ex = g.sx(end.x), ey = g.sy(end.y);
-        const txt = "Near trend";
-        const lx = Math.min(ex, g.x1 - 2);
-        const box = {x0: lx - textWidth(txt), x1: lx, y0: ey - 12, y1: ey};
-        if (box.y0 >= g.y0 && box.x0 >= g.x0) { plot.appendChild(label(lx, ey - 3, txt, "ch-lbl ch-band-lbl", "end")); placedBoxes.push(box); }
-      }
-      const line = trendSamples(sc.trend, xa, xb).filter((p) => g.sy.kind !== "log" || p.y > 0)
-        .map((p) => `${r1(g.sx(p.x))},${r1(g.sy(p.y))}`);
-      if (line.length > 1) plot.appendChild(s("polyline", {points: line.join(" "), class: "ch-trend"}));
-      const tl = `Peer trend, R² ${fmtNumber(sc.trend.r2, 2)}, n ${sc.trend.n}`;
-      svg.appendChild(label(g.x0 + 4, g.y0 + 11, tl, "ch-lbl ch-trend-lbl", "start"));
-      placedBoxes.push({x0: g.x0 + 4, x1: g.x0 + 4 + textWidth(tl), y0: g.y0, y1: g.y0 + 14});
-    }
-    // Points.
-    const pts = (sc.points || []).map((p) => ({...p, sxp: g.sx(p.px), syp: g.sy(p.py)}));
-    const colourStage = sc.colorBy === "stage";
-    const order = pts.map((p, i) => i).sort((a, b) => {
-      const pa = pts[a], pb = pts[b];
-      if (pa.isFocal !== pb.isFocal) return pa.isFocal ? 1 : -1;
-      return (pb.r || 0) - (pa.r || 0);
-    });
-    const marks = s("g", {class: "ch-marks"});
-    svg.appendChild(marks);
-    for (const i of order) {
-      const p = pts[i];
-      const cls = ["ch-mk"];
-      if (p.isFocal) cls.push("ch-mk-focal");
-      else if (p.excluded) cls.push("ch-mk-excl");
-      else if (p.hollow) cls.push("ch-mk-hollow");
-      if (colourStage && p.stage === "clinical" && !p.isFocal) cls.push("ch-mk-clinical");
-      const mark = s("path", {d: shapePath(p.shape, p.sxp, p.syp, p.r), class: cls.join(" "), "data-ticker": p.ticker});
-      mark.addEventListener("click", () => openDetail(ctx, p.ticker));
-      hoverTip(ctx, mark, () => p.announce);
-      mark.addEventListener("mouseenter", () => {
-        if (!p.showLabel && ui.scHover !== p.ticker) { ui.scHover = p.ticker; showHoverLabel(marks, p, g); }
-      });
-      mark.addEventListener("mouseleave", () => {
-        ui.scHover = null;
-        const old = marks.querySelector(".ch-hover-lbl");
-        if (old) old.remove();
-      });
-      marks.appendChild(mark);
-      if (p.isFocal) marks.appendChild(s("path", {d: shapePath(p.shape, p.sxp, p.syp, p.r + 3), class: "ch-mk-ring"}));
-      if (ui.scActive === p.ticker) marks.appendChild(s("path", {d: shapePath(p.shape, p.sxp, p.syp, p.r + (p.isFocal ? 6 : 3)), class: "ch-ring"}));
-      const glyphs = [];
-      if (p.clampedX) glyphs.push({t: p.clampedX === "lo" ? GLYPH.lo : GLYPH.hi, dx: p.clampedX === "lo" ? -(p.r + 7) : p.r + 7, dy: 4});
-      if (p.clampedY) glyphs.push({t: p.clampedY === "lo" ? GLYPH.down : GLYPH.up, dx: 0, dy: p.clampedY === "lo" ? p.r + 11 : -(p.r + 3)});
-      for (const gl of glyphs) marks.appendChild(label(p.sxp + gl.dx, p.syp + gl.dy, gl.t, "ch-lbl ch-glyph", "middle"));
-    }
-    // Labels: focal first, then clamped and the five largest, then the active point.
-    const labelled = pts.filter((p) => p.showLabel || ui.scActive === p.ticker)
-      .sort((a, b) => (b.isFocal - a.isFocal) || ((ui.scActive === b.ticker) - (ui.scActive === a.ticker)) || (b.r - a.r));
-    for (const p of labelled) {
-      const isF = p.isFocal;
-      const txt = (p.clampedX || p.clampedY) && !isF ? `${p.ticker} ${p.yText}` : p.ticker;
-      const px = isF ? FOCAL_LABEL_PX : LABEL_PX;
-      const slot = pickLabelSlot({x: p.sxp, y: p.syp, r: p.r + (isF ? 3 : 0)}, textWidth(txt, px), px + 2, placedBoxes,
-        {x0: 0, x1: width, y0: 0, y1: g.y1}, isF || ui.scActive === p.ticker);
-      if (!slot) continue;
-      placedBoxes.push(slot.box);
-      marks.appendChild(label(slot.x, slot.y, txt, isF ? "ch-lbl-focal" : "ch-lbl", slot.anchor));
-    }
-    // Region labels, only where they sit clear of every point and inside the plot.
-    if (showTrend && sc.reference === "trend") {
-      for (const reg of sc.regions || []) {
-        const x = g.sx(reg.x), y = g.sy(reg.y);
-        const w = textWidth(reg.label, LABEL_PX);
-        const box = {x0: x - w / 2, x1: x + w / 2, y0: y - 10, y1: y + 2};
-        if (box.x0 < g.x0 || box.x1 > g.x1 || box.y0 < g.y0 || box.y1 > g.y1) continue;
-        if (pts.some((p) => boxNearPoint(box, {x: p.sxp, y: p.syp, r: p.r}, 8))) continue;
-        if (placedBoxes.some((b) => boxesOverlap(b, box, 2))) continue;
-        placedBoxes.push(box);
-        plot.appendChild(label(x, y, reg.label, "ch-lbl ch-region-lbl", "middle"));
-      }
-    }
-    const nav = pts.slice().sort((a, b) => a.px - b.px || a.py - b.py || a.ticker.localeCompare(b.ticker))
-      .map((p) => ({ticker: p.ticker, announce: p.announce}));
-    return {svg, nav};
-  }
-
-  function showHoverLabel(marks, p, g) {
-    const old = marks.querySelector(".ch-hover-lbl");
-    if (old) old.remove();
-    const slot = pickLabelSlot({x: p.sxp, y: p.syp, r: p.r}, textWidth(p.ticker), LABEL_PX + 2, [],
-      {x0: 0, x1: g.width, y0: 0, y1: g.y1}, true);
-    if (slot) marks.appendChild(label(slot.x, slot.y, p.ticker, "ch-lbl ch-hover-lbl", slot.anchor));
-  }
-
-  function scKey(e, wrap) {
-    const nav = wrap.__nav || [];
-    if (!nav.length) return;
-    let idx = nav.findIndex((p) => p.ticker === ui.scActive);
-    const k = e.key;
-    if (k === "Escape") {
-      if (ui.scActive) { e.preventDefault(); e.stopPropagation(); ui.scActive = null; render(true); }
-      else wrap.blur();
-      return;
-    }
-    if (k === "ArrowRight") idx = idx < 0 ? 0 : Math.min(nav.length - 1, idx + 1);
-    else if (k === "ArrowLeft") idx = idx < 0 ? nav.length - 1 : Math.max(0, idx - 1);
-    else if (k === "Home") idx = 0;
-    else if (k === "End") idx = nav.length - 1;
-    else if (k === "Enter" && idx >= 0) { e.preventDefault(); e.stopPropagation(); openDetail(ctx, nav[idx].ticker); return; }
-    else return;
-    e.preventDefault();
-    e.stopPropagation();
-    ui.scActive = nav[idx].ticker;
-    announce(ctx, nav[idx].announce);
-    render(true);
-  }
-
-  function scatterLegend(sc) {
-    const T = view.focal ? view.focal.ticker : "";
-    // Texts from core (sc.legend, in this order) when it sends them; the spec's words otherwise.
-    const words = Array.isArray(sc.legend) && sc.legend.length === 6 ? sc.legend
-      : ["Circle: big pharma", "Square: biotech", "Triangle: cell and gene", "Hollow = clinical", `Ring = ${T}`, "Dashed = excluded"];
-    const items = [
-      {shape: "circle", cls: "ch-mk", text: words[0]},
-      {shape: "square", cls: "ch-mk", text: words[1]},
-      {shape: "triangle", cls: "ch-mk", text: words[2]},
-      {shape: "circle", cls: `ch-mk ch-mk-hollow${sc.colorBy === "stage" ? " ch-mk-clinical" : ""}`, text: words[3]},
-      {shape: "circle", cls: "ch-mk ch-mk-focal", ring: true, text: words[4]},
-      {shape: "circle", cls: "ch-mk ch-mk-excl", text: words[5]},
-    ];
-    const ul = h("ul", {class: "ch-legend", "aria-label": "Legend"});
-    for (const it of items) {
-      const icon = s("svg", {width: 14, height: 14, viewBox: "0 0 14 14", "aria-hidden": "true", focusable: "false", class: "ch-legend-icon"},
-        s("path", {d: shapePath(it.shape, 7, 7, 4.2), class: it.cls}));
-      if (it.ring) icon.appendChild(s("path", {d: shapePath("circle", 7, 7, 6.2), class: "ch-mk-ring"}));
-      ul.appendChild(h("li", {}, icon, h("span", {text: it.text})));
-    }
-    return ul;
-  }
-
   function runAction(a) {
     if (!a) return;
     if (a.command === "peers.restore") dispatch(ctx, {type: "RESTORE_SYSTEM", now: Date.now()});
@@ -1259,13 +860,10 @@ export function mountCharts(root, ctx) {
     return host;
   }
 
-  function ensureStripOpen(tab) {
+  function ensureStripOpen() {
     const layout = layoutOf(ctx, root);
-    if (!stripMode(layout)) return;
     const st = stateOf(ctx) || {};
-    const key = layout === "narrow" ? "narrowTab" : "laptopTab";
-    if (((st.chartStrip || {})[layout]) === "collapsed") dispatch(ctx, {type: "SET_CHART_STRIP", layout, value: "open"});
-    if ((st.ui && st.ui[key]) !== tab) dispatch(ctx, {type: layout === "narrow" ? "SET_NARROW_TAB" : "SET_LAPTOP_TAB", tab});
+    if (((st.chartStrip || {})[layout] || "collapsed") === "collapsed") dispatch(ctx, {type: "SET_CHART_STRIP", layout, value: "open"});
     render(true);
   }
   function focusLater(getEl) {
@@ -1276,28 +874,22 @@ export function mountCharts(root, ctx) {
 
   return {
     update(v) { view = v; render(false); },
-    focusDotPlot() { ensureStripOpen("position"); focusLater(() => root.querySelector('[data-key="dot-plot"]')); },
+    focusDotPlot() { ensureStripOpen(); focusLater(() => root.querySelector('[data-key="dot-plot"]')); },
     focusSwitcher() {
-      ensureStripOpen("position");
+      ensureStripOpen();
       focusLater(() => root.querySelector('.ch-switch [aria-pressed="true"]') || root.querySelector('[data-key="switcher"]')
         || root.querySelector(".ch-switch button"));
     },
-    focusScatter() { ensureStripOpen("scatter"); focusLater(() => root.querySelector('[data-key="sc-plot"]')); },
     focusPoint(ticker) {
       const dp = view && view.dotplot;
       const inDot = dp && (dp.lanes || []).some((l) => (l.points || []).some((p) => p.ticker === ticker));
-      if (inDot) {
-        const li = Math.max(0, (dp.lanes || []).findIndex((l) => (l.points || []).some((p) => p.ticker === ticker)));
-        ui.dotActive = ticker; ui.dotLane = li;
-        ensureStripOpen("position");
-        focusLater(() => root.querySelector('[data-key="dot-plot"]'));
-        const pt = dp.lanes[li].points.find((p) => p.ticker === ticker);
-        if (pt) announce(ctx, pt.announce);
-      } else {
-        ui.scActive = ticker;
-        ensureStripOpen("scatter");
-        focusLater(() => root.querySelector('[data-key="sc-plot"]'));
-      }
+      if (!inDot) return;
+      const li = Math.max(0, (dp.lanes || []).findIndex((l) => (l.points || []).some((p) => p.ticker === ticker)));
+      ui.dotActive = ticker; ui.dotLane = li;
+      ensureStripOpen();
+      focusLater(() => root.querySelector('[data-key="dot-plot"]'));
+      const pt = dp.lanes[li].points.find((p) => p.ticker === ticker);
+      if (pt) announce(ctx, pt.announce);
     },
     destroy() { destroyed = true; if (ro) ro.disconnect(); root.textContent = ""; root.classList.remove("ch-root"); },
   };
@@ -1437,41 +1029,6 @@ export function mountBridgeChart(root, ctx) {
     update(v) { view = v; render(false); },
     destroy() { destroyed = true; if (ro) ro.disconnect(); root.textContent = ""; root.classList.remove("ch-br"); },
   };
-}
-
-// ---------------------------------------------------------------------------------------------
-// positionStrip (KPI 5): 120 x 20, IQR band, median tick, focal diamond
-// ---------------------------------------------------------------------------------------------
-
-/**
- * `positionStrip(strip, opts)` -> SVGElement. `strip` is a View PositionStrip
- * ({domain, scale, p25, median, p75, focal, clamped, description}); opts {width, height}.
- * Returns an empty labelled SVG when the strip is null, so the KPI cell keeps its layout.
- */
-export function positionStrip(strip, opts = {}) {
-  const width = opts.width || STRIP.width, height = opts.height || STRIP.height;
-  const desc = strip && strip.description ? strip.description : "No position on this metric.";
-  const svg = s("svg", {class: "ch-strip", width, height, viewBox: `0 0 ${width} ${height}`, role: "img",
-    "aria-label": desc, focusable: "false"});
-  svg.appendChild(s("title", {}, desc));
-  const g = stripGeometry(strip, width);
-  if (!g) return svg;
-  const cy = height / 2;
-  svg.appendChild(s("line", {x1: g.x0, x2: g.x1, y1: cy, y2: cy, class: "ch-strip-base"}));
-  if (isNum(g.p25) && isNum(g.p75)) {
-    svg.appendChild(s("rect", {x: r1(Math.min(g.p25, g.p75)), y: cy - 4, width: r1(Math.max(1, Math.abs(g.p75 - g.p25))), height: 8, class: "ch-strip-iqr"}));
-  }
-  if (isNum(g.median)) svg.appendChild(s("line", {x1: r1(g.median), x2: r1(g.median), y1: cy - 6, y2: cy + 6, class: "ch-strip-median"}));
-  if (isNum(g.focal)) {
-    if (g.clamped) {
-      const x = g.clamped === "lo" ? 1 : width - 1;
-      svg.appendChild(s("text", {x, y: cy + 4, class: "ch-strip-edge", "text-anchor": g.clamped === "lo" ? "start" : "end"},
-        g.clamped === "lo" ? GLYPH.lo : GLYPH.hi));
-    } else {
-      svg.appendChild(s("path", {d: diamondPath(g.focal, cy, 3.5), class: "ch-strip-focal"}));
-    }
-  }
-  return svg;
 }
 
 // ---------------------------------------------------------------------------------------------

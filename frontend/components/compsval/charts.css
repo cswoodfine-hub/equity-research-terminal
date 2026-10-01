@@ -1,11 +1,12 @@
-/* compsval charts stylesheet. Owner: D. Prefix .ch- only (dot plot, scatter, bridge chart,
-   KPI 5 position strip, side panel minis). Spec sections 5.1 to 5.4 and 9.1 to 9.7.
+/* compsval charts stylesheet. Owner: D. Prefix .ch- only (dot plot, bridge chart, side panel
+   minis). Spec sections 5.1, 5.3, 5.4 and 9.1 to 9.7; the scatter (5.2) and KPI 5's position
+   strip left with revision 4 (company-scorecard.md 5.2).
    Every colour is a var() of a token; no literal. Chart marks are neutral (muted, text,
    rule tones); active marks the focal company and focus only; flag marks analyst input;
    clinical marks clinical stage only when the analyst asks for it. */
 
 /* ------------------------------------------------------------------------------------ */
-/* Frame: rail cards (wide, ultrawide) and the two-tab strip (laptop, narrow)            */
+/* Frame: the folding strip that holds the dot plot, at every width                       */
 /* ------------------------------------------------------------------------------------ */
 
 .ch-root {
@@ -29,23 +30,6 @@
 }
 
 /* Header row of a card: title, switcher, tags, actions. 28 px (5.1). */
-.ch-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-8);
-  min-height: calc(28px * var(--ts));
-  margin-bottom: var(--sp-4);
-}
-.ch-title {
-  margin: 0 var(--sp-4) 0 0;
-  font-family: var(--font-ui);
-  font-size: calc(15px * var(--ts));
-  line-height: calc(20px * var(--ts));
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-}
 .ch-unit { white-space: nowrap; }
 .ch-spacer { flex: 1 1 auto; }
 
@@ -207,94 +191,6 @@ svg .ch-lbl-value { fill: var(--text); font-size: calc(11px * var(--ts)); font-w
 svg text.ch-lbl-target { fill: var(--flag); }
 
 /* ------------------------------------------------------------------------------------ */
-/* 5.2 Valuation against fundamentals scatter                                            */
-/* ------------------------------------------------------------------------------------ */
-
-.ch-sc-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-8) var(--sp-12);
-  margin-bottom: var(--sp-8);
-}
-.ch-field {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-4);
-  min-width: 0;
-}
-.ch-select { max-width: calc(180px * var(--ts)); height: calc(24px * var(--ts)); }
-.ch-colour-group { display: inline-flex; align-items: center; gap: var(--sp-4); }
-.ch-colour { height: calc(24px * var(--ts)); }
-.ch-sc-controls .u-btn { height: calc(24px * var(--ts)); }
-
-.ch-band { fill: var(--rule); stroke: none; }
-svg text.ch-band-lbl { fill: var(--muted); }
-.ch-trend {
-  fill: none;
-  stroke: var(--text);
-  stroke-width: 1;
-  stroke-dasharray: 5 4;
-}
-svg text.ch-trend-lbl { fill: var(--text); }
-.ch-median-x {
-  stroke: var(--rule-strong);
-  stroke-width: 1;
-  stroke-dasharray: 3 3;
-  shape-rendering: crispEdges;
-}
-svg text.ch-side { font-size: calc(10px * var(--ts)); }
-svg text.ch-region-lbl { fill: var(--muted); }
-
-/* Subsector by shape only, in neutral tones. Commercial filled muted, clinical hollow with
-   a 1.5 px muted stroke, excluded a dashed 1 px outline, focal active with a 2 px text
-   ring outside the mark. */
-.ch-mk { fill: var(--muted); stroke: none; cursor: pointer; }
-.ch-mk-hollow { fill: none; stroke: var(--muted); stroke-width: 1.5; }
-.ch-mk-excl {
-  fill: none;
-  stroke: var(--muted);
-  stroke-width: 1;
-  stroke-dasharray: 3 2;
-}
-.ch-mk-clinical { stroke: var(--clinical); }
-.ch-mk-hollow.ch-mk-clinical { fill: none; }
-.ch-mk-focal { fill: var(--active); stroke: none; }
-.ch-mk-ring { fill: none; stroke: var(--text); stroke-width: 2; pointer-events: none; }
-.ch-mk:hover { stroke: var(--text); stroke-width: 1; }
-.ch-mk-hollow:hover, .ch-mk-excl:hover { stroke: var(--text); }
-svg text.ch-hover-lbl { fill: var(--text); }
-
-.ch-sc-interp {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-4) var(--sp-8);
-  margin: var(--sp-8) 0 0;
-  font-size: calc(13px * var(--ts));
-  line-height: calc(18px * var(--ts));
-  color: var(--text);
-}
-.ch-region { flex: 0 0 auto; }
-
-.ch-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-4) var(--sp-12);
-  margin: var(--sp-8) 0 0;
-  padding: 0;
-  list-style: none;
-  font-family: var(--font-ui);
-  font-size: calc(11px * var(--ts));
-  line-height: calc(14px * var(--ts));
-  color: var(--muted);
-}
-.ch-legend li { display: inline-flex; align-items: center; gap: var(--sp-4); white-space: nowrap; }
-.ch-legend-icon { flex: 0 0 auto; overflow: visible; }
-.ch-legend-icon .ch-mk { cursor: default; }
-.ch-legend-icon .ch-mk-ring { stroke-width: 1.5; }
-
-/* ------------------------------------------------------------------------------------ */
 /* 5.3 Valuation bridge chart                                                            */
 /* ------------------------------------------------------------------------------------ */
 
@@ -328,21 +224,6 @@ svg text.ch-lbl-implied {
   margin: 0;
   font-size: calc(13px * var(--ts));
   color: var(--text);
-}
-
-/* ------------------------------------------------------------------------------------ */
-/* KPI 5 position strip, 120 x 20                                                        */
-/* ------------------------------------------------------------------------------------ */
-
-.ch-strip { display: inline-block; flex: 0 0 auto; vertical-align: middle; overflow: visible; }
-.ch-strip-base { stroke: var(--rule); stroke-width: 1; shape-rendering: crispEdges; }
-.ch-strip-iqr { fill: var(--rule-strong); }
-.ch-strip-median { stroke: var(--text); stroke-width: 1; shape-rendering: crispEdges; }
-.ch-strip-focal { fill: var(--active); stroke: var(--text); stroke-width: 1; }
-svg text.ch-strip-edge {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  fill: var(--active);
 }
 
 /* ------------------------------------------------------------------------------------ */
