@@ -49,7 +49,7 @@ from components import tokens as TK
 # skips those. So the script can be newer than the wrapper held in memory, and would
 # call it with arguments it does not take. A wrapper behind the revision this script
 # is written against is reloaded once, here.
-if getattr(compsval, "REVISION", 0) < 3:
+if getattr(compsval, "REVISION", 0) < 4:
     compsval = importlib.reload(compsval)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
@@ -1721,84 +1721,130 @@ def _compsval_focus():
 
     The view posts ``{"action": "focus", "ticker", "nonce"}``. The pre-selectbox hook
     records each nonce it applies, and a rerun caused by anything else does not send
-    the page back to a company the analyst has since moved off.
-
-    An ``indication`` action names its company too. The frame sends one value at a
-    time, so a link followed straight after a focal change made inside the frame
-    arrives without the focus action that change would have sent. The page therefore
-    moves to the link's company first, and the landscape's picker is set after.
+    the page back to a company the analyst has since moved off. (Revision 4 of the frame
+    sends no ``indication`` action: the competition rows that linked to a landscape left
+    with Drivers and risks, design company-scorecard.md 6.4.)
     """
-    value = _compsval_action(("focus", "indication"), "_compsval_nonce")
+    value = _compsval_action(("focus",), "_compsval_nonce")
     if value is None:
         return None
     return str(value.get("ticker") or "").strip().upper()
 
 
-def _compsval_indication():
-    """The indication id a Drivers and risks row last asked the landscape to open,
-    while that request is still unapplied; otherwise None.
+def _cm_ordinal(n: int) -> str:
+    """1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st."""
+    tail = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{tail}"
 
-    The view posts ``{"action": "indication", "indication_id", "ticker", "nonce"}``
-    and clicks the Indications tab itself. The picker there is a selectbox, and a
-    widget's key can be written only before the widget is created, so the landscape
-    reads this ahead of its picker and records the nonce whether or not it knew the id.
+
+def _company_map_points(scorecard: dict, ticker: str, records=None) -> list:
+    """The bubbles of the company map (design company-scorecard.md 3.1, 8.1) for the
+    open company's cohort, read from the scorecard as it came: one per company with a
+    company score and a value score, nothing computed here.
+
+    ``records`` are the payload's company records, read for each price date: a bubble's
+    tooltip names its price date when it is not the cohort's latest. An open company
+    with no cohort, or a scorecard that failed, gives no points.
     """
-    value = _compsval_action(("indication",), "_compsval_ind_nonce")
-    if value is None:
-        return None
-    wanted = value.get("indication_id")
-    if isinstance(wanted, bool) or not isinstance(wanted, (int, float)):
-        return None
-    return int(wanted) if float(wanted).is_integer() else None
-
-
-def _compsval_indication_done() -> None:
-    """Record the pending indication action as handled, so it is applied once, or
-    dropped once where there is no landscape to apply it to."""
-    if _compsval_action(("indication",), "_compsval_ind_nonce") is not None:
-        st.session_state["_compsval_ind_nonce"] = st.session_state["compsval"].get("nonce")
+    sc = scorecard if isinstance(scorecard, dict) else {}
+    companies = sc.get("companies") or {}
+    own = companies.get(ticker) or {}
+    cohort_id = own.get("cohort")
+    cohort = (sc.get("cohorts") or {}).get(cohort_id) or {}
+    if sc.get("error") or not cohort_id or not cohort:
+        return []
+    meta = (sc.get("method") or {}).get("pillars") or {}
+    business = [p.get("id") for p in cohort.get("pillars") or []
+                if (meta.get(p.get("id")) or {}).get("kind") == "business"]
+    price_of = {}
+    for rec in records or []:
+        if isinstance(rec, dict):
+            price_of[rec.get("ticker")] = ((rec.get("market") or {}).get("price_as_of"))
+    members = [t for t, r in companies.items() if (r or {}).get("cohort") == cohort_id]
+    dates = [price_of.get(t) for t in members if price_of.get(t)]
+    latest = max(dates) if dates else None
+    n = cohort.get("n") or len(members)
+    points = []
+    for t in members:
+        r = companies[t]
+        chart = r.get("chart")
+        if not chart or r.get("rank") is None:
+            continue
+        lo, hi = (r.get("rank_range") or [None, None])[:2]
+        rank_text = f"{_cm_ordinal(int(r['rank']))} of {r.get('ranked_of') or n}"
+        range_text = r.get("range_text") or (f"{lo}–{hi}" if lo is not None else "")
+        pillars = r.get("pillars") or {}
+        parts = []
+        for pid in business:
+            s = (pillars.get(pid) or {}).get("score")
+            if s is None:
+                continue
+            label = (meta.get(pid) or {}).get("label") or pid
+            parts.append(f"{label if not parts else label.lower()} {s}")
+        tip = (f"{t} {r.get('name') or t}. Company score {r.get('score')}, {rank_text}"
+               + (f", range {range_text}" if range_text else "") + "."
+               + (f" Value {r.get('value')}." if r.get("value") is not None else ""))
+        if parts:
+            tip += " " + ", ".join(parts)
+            k, k_of = r.get("pillars_scored"), r.get("pillars_of")
+            tip += (f" (on {k} of {k_of} pillars)." if k is not None and k_of and k < k_of
+                    else ".")
+        when = price_of.get(t)
+        if when and latest and when != latest:
+            try:
+                when_text = dt.date.fromisoformat(str(when)[:10]).strftime("%-d %b %Y")
+            except ValueError:
+                when_text = str(when)
+            tip += f" Price of {when_text}."
+        aria = (f"{t}, rank {r['rank']}"
+                + (f", range {lo} to {hi}" if lo is not None else "")
+                + f", company score {r.get('score')}"
+                + (f", value {r.get('value')}" if r.get("value") is not None else ""))
+        points.append({"ticker": t, "x": chart.get("x"), "y": chart.get("y"),
+                       "size": chart.get("size"), "complete": bool(chart.get("complete")),
+                       "rank": r["rank"], "tip": tip, "aria": aria})
+    return points
 
 
 # A fragment: the frame recomputes every peer set, basis, preset and bridge input itself,
-# so Python hears only three actions and none should redraw the other tabs for nothing.
-# A reload reruns this fragment alone. A new focal company reruns the page, because the
-# top bar and every other tab follow it; the hook before the company selector applies
-# it. A link to an indication reruns the page too, because the landscape's picker sits
-# outside this fragment and is set before it is drawn.
+# so Python hears only two actions and none should redraw the other tabs for nothing. A
+# reload reruns this fragment alone. A new focal company reruns the page, because the
+# top bar and every other tab follow it; the hook before the company selector applies it.
 @st.fragment
 def _comps_valuation_view(api_base: str, ticker: str, engine: str, live: bool):
-    """The valuation view: one component over the whole universe, the focal company
-    being the one the top bar has open."""
+    """The Companies view: one component over the whole universe, the focal company
+    being the one the top bar has open. It opens on the company map of the focal
+    company's cohort, drawn here and handed to the frame, which binds its bubbles."""
     try:
         payload = _comps_valuation_payload(api_base)
     except (urllib.error.URLError, OSError, ValueError) as exc:
-        state("Valuation unavailable",
+        state("Companies unavailable",
               f"The API did not answer on /comps/valuation: {html_escape(str(exc))}. "
               "Check it is running, then open this tab again.", error=True)
         return
-    # The context is evidence beside the valuation, not the valuation: when its read
-    # fails the view still opens, and the two groups it feeds say what went wrong.
+    # The chart is drawn in Python, the look of the clinical scorecard, and the frame only
+    # shows it. A drawing that fails leaves the frame its table and its panel.
     try:
-        context = _comps_context(api_base, ticker)
-    except (urllib.error.URLError, OSError, ValueError) as exc:
-        context = {"ticker": ticker, "error": str(exc)}
+        chart_svg = CH.company_map(
+            _company_map_points(payload.get("scorecard"), ticker, payload.get("companies")),
+            760, 480, open_ticker=ticker)
+    except Exception as exc:  # the scorecard's shape is the API's; the view still opens
+        print(f"company map failed for {ticker}: {exc!r}", flush=True)
+        chart_svg = ""
     picked = compsval.comps_valuation(payload, focal=ticker, engine=engine,
-                                      tokens=COMPS_TOKENS, live=live, context=context,
-                                      mode="full", key="compsval")
+                                      tokens=COMPS_TOKENS, live=live,
+                                      mode="full", key="compsval", chart_svg=chart_svg)
     if not (isinstance(picked, dict) and picked.get("nonce") is not None
             and picked.get("nonce") != st.session_state.get("_compsval_seen")):
         return
     st.session_state["_compsval_seen"] = picked.get("nonce")
-    # The hook before the company selector records the nonce of a focus or indication
-    # action it has applied, which it can only do in a full run. A nonce it has not
-    # recorded means this is the fragment's own rerun, so the page reruns for the hook.
+    # The hook before the company selector records the nonce of a focus action it has
+    # applied, which it can only do in a full run. A nonce it has not recorded means this
+    # is the fragment's own rerun, so the page reruns for the hook.
     hooked = picked.get("nonce") == st.session_state.get("_compsval_nonce")
     if picked.get("action") == "focus":
         wanted = str(picked.get("ticker") or "").strip().upper()
         if wanted and wanted != ticker and not hooked:
-            st.rerun()
-    elif picked.get("action") == "indication":
-        if not hooked:
             st.rerun()
     elif picked.get("action") == "reload":
         _comps_valuation_payload.clear()
@@ -1858,11 +1904,6 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
     in the same trials.
     """
     section("Indication landscape")
-    # A competition row in the valuation view links here with its indication. Read now
-    # and marked handled now, so a link this view cannot follow is dropped once rather
-    # than applied to whichever company is opened next.
-    linked = _compsval_indication()
-    _compsval_indication_done()
     index = _landscape_index(api_base)
     if not index:
         state("No landscape yet", "the API returned no indications with a big pharma "
@@ -1871,11 +1912,8 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
     by_id = {i["id"]: i for i in index}
     mine = [i["id"] for i in index if ticker in (i.get("tickers") or [])]
     options = mine + [i["id"] for i in index if i["id"] not in mine]
-    # Written before the picker is created, the only moment a widget's key can be. No
-    # index is passed: the first option is the default, and a default beside a session
+    # No index is passed: the first option is the default, and a default beside a session
     # value draws a warning.
-    if linked in options:
-        st.session_state[f"land_pick_{ticker}"] = linked
     pick = st.selectbox(
         "Indication", options, key=f"land_pick_{ticker}",
         format_func=lambda i: (f'{by_id[i]["name"]} · {by_id[i]["companies"]} companies '
@@ -4330,6 +4368,9 @@ def _china_bd(api_base: str, ticker: str) -> None:
     the interesting part is the sentences behind it. The direction is deliberately
     absent: a headline does not state it reliably, and two of the stored rows read as
     agreements with a Chinese party while being the company licensing out and selling.
+
+    Folded, like the morning note above it: open, it put about 90 words of verbatim
+    headlines on Key insights' first screen for PFE at 1440 x 810, over 8.7's budget.
     """
     try:
         got = api_get(api_base, f"/companies/{ticker}/china-bd")
@@ -4337,9 +4378,16 @@ def _china_bd(api_base: str, ticker: str) -> None:
         return
     if not got.get("count"):
         return
+    with st.expander(f"China-linked business development · {got['count']} on file",
+                     expanded=False):
+        _china_bd_body(got)
+
+
+def _china_bd_body(got: dict) -> None:
+    """The deals behind ``_china_bd``'s fold: the two tiles, the rows, the method."""
     total = got.get("announced_value_total")
-    section("China-linked business development", f"{got['count']} on file",
-            "from the companies' own words, direction not claimed")
+    st.markdown('<div class="byline">From the companies\' own words, direction not '
+                'claimed.</div>', unsafe_allow_html=True)
     tiles = [
         ("deals", str(got["count"]), "", None, "",
          f"{got['priced']} state a figure" if got["priced"] else
@@ -4368,6 +4416,472 @@ def _china_bd(api_base: str, ticker: str) -> None:
          "agreements with a Chinese party. The value is announced consideration, "
          "milestones included, and is summed only where every deal on the list states "
          "one, since a partial sum reads as a total and is not one.")
+
+
+# --- Key insights: the company on one page (company-scorecard.md 1.3 and 5.3) -------
+# Every number on the tab is a scorecard object, a figure the strip has always read, or a
+# catalyst or change row, and each is said once: the strip holds what the bars and the
+# lines do not, the sentence names pillars without their numbers, and Next is the head
+# of the Catalysts list rather than a second ranking. The builders below are pure string
+# functions, so the tab's tests run them on the sample scorecard without the API.
+_KI_LEFT_TO_NEWS = ("revenue_restatement", "rate_move")
+# Dated ahead rather than changed: the strip and Next hold them.
+_KI_AHEAD_KINDS = ("catalyst", "loe")
+_KI_CHANGE_DAYS = 30
+# Three, like Next. Five (the spec's count) put every block on the screen at 1440 x 810
+# and the tab at 232 words for AZN and 241 for LLY against a budget of 220
+# (company-scorecard.md 8.7); News has every row.
+_KI_CHANGES_SHOWN = 3
+_KI_NEXT_SHOWN = 3
+_KI_LINES_SHOWN = 3
+# 8.7: the sentence and the lines shown are at most this many words. Up to three of each
+# side are shown; past the budget the longer side gives up its last line (LLY read 79 and
+# PFE 80, ABBV 95). The company panel on Comps holds them all.
+_KI_PROSE_WORDS = 75
+# A headline is cut at a word to about this length, the whole of it on hover. A diff row
+# ("slips 2027-05-14 -> 2028-01-10") is kept whole, since its meaning is in its tail.
+_KI_HEADLINE_CHARS = 56
+_KI_SEPARATOR = "Price, not in the score"
+_KI_EMPTY = "·"
+_KI_MINUS = "−"
+_KI_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
+              "Nov", "Dec")
+_KI_FAILED = "The scorecard did not load: {error}."
+_KI_NO_LINES = "No business measure in the top or bottom quarter of the cohort."
+_KI_NO_NEXT = "No event dated in the next 12 months."
+_KI_NO_CHANGES = "Nothing rated high in 30 days."
+
+
+def _ki_attr(text) -> str:
+    """A value for a double-quoted HTML attribute."""
+    return html.escape(str(text or ""), quote=True)
+
+
+def _ki_signed_pct(fraction, decimals: int = 1) -> str:
+    """"+13.2%" or "−1.7%" from a fraction; "" when there is none."""
+    if fraction is None or fraction != fraction:
+        return ""
+    pct = abs(fraction) * 100
+    text = f"{pct:,.{decimals}f}%"
+    if round(pct, decimals) == 0:
+        return text
+    return ("+" if fraction > 0 else _KI_MINUS) + text
+
+
+def _ki_month(iso) -> str:
+    """"Sep 2027" from "2027-09-08"; "" when it is not a date."""
+    m = re.match(r"^(\d{4})-(\d{2})", str(iso or ""))
+    if not m or not 1 <= int(m.group(2)) <= 12:
+        return ""
+    return f"{_KI_MONTHS[int(m.group(2)) - 1]} {m.group(1)}"
+
+
+def _ki_day(iso) -> str:
+    """"22 Sep 2026" from "2026-09-22 19:50:51"; the month alone without a day."""
+    m = re.match(r"^(\d{4})-(\d{2})(?:-(\d{2}))?", str(iso or ""))
+    if not m or not 1 <= int(m.group(2)) <= 12:
+        return ""
+    month = f"{_KI_MONTHS[int(m.group(2)) - 1]} {m.group(1)}"
+    return f"{int(m.group(3))} {month}" if m.group(3) else month
+
+
+def _ki_product(name) -> str:
+    """A product's name with anything in brackets dropped, as the lines print it."""
+    return re.sub(r"\s*\([^)]*\)", "", str(name or "")).strip()
+
+
+def _ki_strip_cells(close_text, day_move, rating, company, problem=None) -> list:
+    """The strip's four cells, in order: (key, value, sub, class, hover).
+
+    Last close and the day move; the model's upside with its rating and twelve-month
+    value; the multiple against peers, the value pillar's first measure the company has;
+    the next exclusivity loss, the first row of the scorecard's 24-month list. The value
+    is always a figure or "·", so a cell never opens on words."""
+    cells = []
+    if close_text:
+        sub = f"{_ki_signed_pct(day_move)} on the day" if day_move is not None else ""
+        cells.append(("last close", close_text, sub, "", ""))
+    else:
+        cells.append(("last close", _KI_EMPTY, "no price on file", "none", ""))
+
+    rated = rating if isinstance(rating, dict) else {}
+    upside = rated.get("upside_12m") if rated.get("ok") else None
+    if upside is not None:
+        fwd = rated.get("forward_12m")
+        sub = ", ".join(part for part in (
+            rated.get("rating"),
+            f"{fwd:,.2f} in 12 months" if fwd is not None else None) if part)
+        cls = "up" if upside > 0 else "down" if upside < 0 else ""
+        cells.append(("model", _ki_signed_pct(upside), sub, cls, ""))
+    else:
+        cells.append(("model", _KI_EMPTY, "not modelled", "none", rated.get("reason") or ""))
+
+    if not isinstance(company, dict):
+        why = "scorecard did not load" if problem else "not scored"
+        cells.append(("multiple", _KI_EMPTY, why, "none", ""))
+        cells.append(("next exclusivity loss", _KI_EMPTY, why, "none", ""))
+        return cells
+
+    multiple = (company.get("facts") or {}).get("multiple")
+    if isinstance(multiple, dict) and multiple.get("text"):
+        sub = ", ".join(part for part in (
+            multiple.get("label"),
+            f"median {multiple['median_text']}" if multiple.get("median_text") else None)
+            if part)
+        cells.append(("multiple", multiple["text"], sub, "", ""))
+    else:
+        cells.append(("multiple", _KI_EMPTY, "no multiple on file", "none", ""))
+
+    losses = [r for r in company.get("exclusivity_losses") or []
+              if isinstance(r, dict) and _ki_month(r.get("date"))]
+    if losses:
+        first = losses[0]
+        name = _ki_product(first.get("asset"))
+        share = first.get("share_text")
+        if not share and first.get("share_of_revenue") is not None:
+            share = f"{first['share_of_revenue'] * 100:.1f}%"
+        of = f"of {first['fy']} revenue" if first.get("fy") else "of revenue"
+        sub = ", ".join(part for part in (f"{share} {of}" if share else None, name) if part)
+        tip = " · ".join(part for part in (
+            f"{name} exclusivity ends {first.get('date_text') or _ki_day(first.get('date'))}",
+            first.get("basis")) if part)
+        cells.append(("next exclusivity loss", _ki_month(first["date"]), sub, "", tip))
+    else:
+        cells.append(("next exclusivity loss", _KI_EMPTY, "none in 24 months", "none", ""))
+    return cells
+
+
+def _ki_strip_html(cells) -> str:
+    """The strip as one row of cells, value before sub. Keeps the page's .pos class, which
+    the screenshot driver waits for."""
+    out = []
+    for key, value, sub, cls, tip in cells:
+        hover = tip or sub
+        title = f' title="{_ki_attr(hover)}"' if hover else ""
+        out.append(f'<span class="ki-cell"{title}><span class="k">{html_escape(key)}</span>'
+                   f'<span class="v {cls}">{html_escape(value)}</span>'
+                   f'<span class="sub">{html_escape(sub)}</span></span>')
+    return '<div class="pos ki-strip">' + "".join(out) + "</div>"
+
+
+def _ki_pillar_rows(company: dict, cohort: dict, method: dict) -> list:
+    """Rows for ``charts.pillar_bars``: the business pillars in the cohort's order, the
+    separator, then value and momentum. A pillar with no score carries its reason."""
+    meta = (method or {}).get("pillars") or {}
+    reasons = (method or {}).get("reasons") or {}
+    pillars = company.get("pillars") or {}
+    order = [p.get("id") for p in (cohort or {}).get("pillars") or [] if isinstance(p, dict)]
+    order = [pid for pid in order if pid in pillars] or list(pillars)
+    medians = (cohort or {}).get("medians") or {}
+
+    def row(pid):
+        p = pillars.get(pid) or {}
+        reason = None
+        if p.get("score") is None:
+            reason = (p.get("reason_text") or reasons.get(p.get("reason"))
+                      or p.get("reason") or "no score")
+        return {"id": pid, "label": (meta.get(pid) or {}).get("label") or pid,
+                "score": p.get("score"),
+                "median": p.get("median") if p.get("median") is not None
+                else medians.get(pid),
+                "note": p.get("note"), "reason": reason}
+
+    business = [row(pid) for pid in order if (meta.get(pid) or {}).get("kind") != "price"]
+    price = [row(pid) for pid in order if (meta.get(pid) or {}).get("kind") == "price"]
+    return business + ([{"separator": _KI_SEPARATOR}] if business and price else []) + price
+
+
+def _ki_words(text) -> int:
+    """Words as 8.7 counts them: a figure is one word, a lone glyph none."""
+    return len([w for w in str(text or "").split() if re.search(r"[A-Za-z0-9]", w)])
+
+
+def _ki_lines_pick(company: dict, shown: int = _KI_LINES_SHOWN,
+                   budget: int = _KI_PROSE_WORDS) -> tuple:
+    """(positives, negatives) Key insights prints: the first ``shown`` of each, then, while
+    the sentence and the lines run past ``budget`` words, the longer side gives up its last
+    line (on a tie the weaker of the two last lines goes). Two lines always stay, so the
+    block never empties for words."""
+    def usable(side):
+        return [ln for ln in (company.get(side) or [])
+                if isinstance(ln, dict) and ln.get("text")][:shown]
+
+    pos, neg = usable("positives"), usable("negatives")
+    used = _ki_words(company.get("sentence")) + sum(_ki_words(ln["text"]) for ln in pos + neg)
+    while used > budget and len(pos) + len(neg) > 2:
+        if len(pos) != len(neg):
+            side = pos if len(pos) > len(neg) else neg
+        else:
+            side = (pos if (pos[-1].get("strength") or 0) < (neg[-1].get("strength") or 0)
+                    else neg)
+        used -= _ki_words(side.pop()["text"])
+    return pos, neg
+
+
+def _ki_lines_html(company: dict, shown: int = _KI_LINES_SHOWN) -> str:
+    """Up to three positives, then up to three negatives (``_ki_lines_pick``), one line
+    each, the source on hover."""
+    pos, neg = _ki_lines_pick(company, shown)
+    lines = [("+", "up", ln) for ln in pos] + [(_KI_MINUS, "down", ln) for ln in neg]
+    if not lines:
+        return f'<div class="ki-empty">{html_escape(_KI_NO_LINES)}</div>'
+    out = []
+    for glyph, cls, ln in lines:
+        title = f' title="{_ki_attr(ln["source"])}"' if ln.get("source") else ""
+        out.append(f'<div class="ki-line {cls}"{title}><span class="ki-g {cls}">{glyph}</span>'
+                   f'<span class="ki-t">{html_escape(ln["text"])}</span></div>')
+    return '<div class="ki-lines">' + "".join(out) + "</div>"
+
+
+def _ki_next_basis(total: int, basis_text: str) -> str:
+    """"3 of 25 assets in 12 months, Catalysts has them all"; ``basis_text`` is
+    ``drivers.drivers_basis(total)``."""
+    return f"{min(_KI_NEXT_SHOWN, total)} of {basis_text}, Catalysts has them all"
+
+
+def _ki_next_html(rows: list) -> str:
+    """The first rows of the Catalysts list: the lead (a value a share, or the month),
+    then the asset, the event and the indication. A row with a registry page links to it."""
+    if not rows:
+        return f'<div class="ki-empty">{html_escape(_KI_NO_NEXT)}</div>'
+    out = []
+    for r in rows:
+        tip = r.get("title") or ""
+        if r.get("model") and r.get("pct_of_price") is not None:
+            tip = (f"Model output: {r.get('asset')}'s value a share, "
+                   f"{r['pct_of_price'] * 100:.1f}% of the price. " + tip).strip()
+        title = f' title="{_ki_attr(tip)}"' if tip else ""
+        src = r.get("source")
+        if isinstance(src, str) and src.startswith(("https://", "http://")):
+            head = (f'<a class="ki-ev" href="{_ki_attr(src)}" target="_blank" '
+                    f'rel="noopener noreferrer"{title}>')
+            tail = "</a>"
+        else:
+            head, tail = f'<div class="ki-ev"{title}>', "</div>"
+        lead_cls = "ki-lead ki-val" if r.get("model") else "ki-lead"
+        out.append(f'{head}<span class="{lead_cls}">{html_escape(r.get("lead") or "")}</span>'
+                   f'<span class="ki-t">{html_escape(r.get("text") or "")}</span>{tail}')
+    return '<div class="ki-next">' + "".join(out) + "</div>"
+
+
+def _ki_changes(feed, ticker: str, today) -> list:
+    """The company's changes rated high in the last 30 days, newest first. Restatements
+    and rate moves are left to News, and what is dated ahead (catalysts, exclusivity) is
+    Next's and the strip's."""
+    since = (today - dt.timedelta(days=_KI_CHANGE_DAYS)).isoformat()
+    until = today.isoformat()
+    rows = [it for it in feed or [] if isinstance(it, dict)
+            and it.get("significance") == "high"
+            and it.get("kind") not in _KI_AHEAD_KINDS
+            and it.get("change_type") not in _KI_LEFT_TO_NEWS
+            and (it.get("ticker") or "") == ticker
+            and since <= str(it.get("date") or "")[:10] <= until]
+    rows.sort(key=lambda it: (str(it.get("date") or "")[:10],
+                              str(it.get("detected_at") or it.get("date") or "")),
+              reverse=True)
+    return rows
+
+
+def _ki_headline(item, ticker: str) -> str:
+    """The change's headline without the leading ticker, which the page already names."""
+    text = re.sub(r"\s+", " ", str(item.get("headline") or "")).strip()
+    if ticker and text.startswith(ticker + " "):
+        text = text[len(ticker) + 1:]
+    return text[:1].upper() + text[1:]
+
+
+def _ki_change_row(item, ticker: str) -> str:
+    """The feed's own row markup, as the drawing has it: the date and the headline, the
+    ticker taken off it and the headline held to one line. The severity and the reason
+    columns go to the hover, with the whole headline: every row here is high and the
+    section's basis says so, and the reason repeats the headline ("efficacy supplement"
+    beside "Efficacy supplement: Truqap approved"), so on the line each said a thing twice."""
+    full = _ki_headline(item, ticker)
+    short = full
+    if len(full) > _KI_HEADLINE_CHARS and " -> " not in full:
+        cut = full[:_KI_HEADLINE_CHARS - 1]
+        # At a word where there is one in the last third, so no word is left half shown.
+        space = cut.rfind(" ")
+        if space > _KI_HEADLINE_CHARS * 2 // 3:
+            cut = cut[:space]
+        short = cut.rstrip(" ,;:") + "…"
+    markup = change_row(dict(item, headline=short, reason=""))
+    markup = re.sub(r'<span class="why">[^<]*</span><span class="s [a-z]+">[^<]*</span>', "",
+                    markup, count=1)
+    hover = " · ".join(part for part in (full, item.get("reason")) if part)
+    return markup.replace('class="fitem', f'title="{_ki_attr(hover)}" class="fitem', 1)
+
+
+def _ki_changes_basis(total: int) -> str:
+    """"5 of 10 high in 30 days, News has them all"."""
+    return (f"{min(_KI_CHANGES_SHOWN, total)} of {total} high in {_KI_CHANGE_DAYS} days, "
+            "News has them all")
+
+
+def _ki_note_label(written) -> str:
+    """"Morning note · gemini-flash-latest · 22 Sep 2026", the expander's label."""
+    written = written if isinstance(written, dict) else {}
+    if not written.get("body"):
+        return "Morning note · none yet"
+    layer = "rules layer" if written.get("model") == "rules" else written.get("model")
+    return " · ".join(part for part in ("Morning note", layer,
+                                        _ki_day(written.get("generated_at"))) if part)
+
+
+def _key_insights_tab(api_base: str, ticker: str, feed: list, prices: dict) -> None:
+    """Key insights, the company on one page (company-scorecard.md 1.3): the strip, the
+    one sentence, the pillar bars beside the positives and negatives, Next beside What
+    changed, the morning note folded.
+
+    It adds no read the page does not already make: the scorecard rides in the Comps
+    payload, cached for the minute the Comps tab reads it through, and the focal
+    company's comps-context is the one the Catalysts tab ranks."""
+    import drivers as DRV
+    if getattr(DRV, "REVISION", 0) < 3:
+        DRV = importlib.reload(DRV)
+
+    problem = None
+    try:
+        payload = _comps_valuation_payload(api_base) or {}
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        payload, problem = {}, str(exc).rstrip(".")
+    record = next((c for c in payload.get("companies") or []
+                   if isinstance(c, dict) and c.get("ticker") == ticker), None)
+    board = payload.get("scorecard")
+    company, cohort = None, {}
+    if problem is None:
+        if not isinstance(board, dict):
+            problem = "no scorecard in the answer"
+        elif board.get("error"):
+            problem = str(board["error"]).rstrip(".")
+        else:
+            company = (board.get("companies") or {}).get(ticker)
+            if not isinstance(company, dict):
+                company, problem = None, f"no record for {ticker}"
+            else:
+                cohort = (board.get("cohorts") or {}).get(company.get("cohort")) or {}
+    method = (board or {}).get("method") or {} if isinstance(board, dict) else {}
+
+    # 1. The strip, with Generate and Tearsheet at its right as before.
+    points = prices.get("points") or []
+    latest = prices.get("latest") or {}
+    close_text = (T.num(latest["close"], 2)
+                  if points and latest.get("close") is not None else None)
+    day_move = ((record or {}).get("market") or {}).get("change_1d")
+    try:
+        rated = (api_get(api_base, f"/companies/{ticker}/fair-value") or {}).get("rating") or {}
+    except Exception:
+        rated = {}
+    strip_col, btn_col = st.columns([6, 0.75])
+    with strip_col:
+        st.markdown(_ki_strip_html(_ki_strip_cells(close_text, day_move, rated, company,
+                                                   problem)),
+                    unsafe_allow_html=True)
+    with btn_col:
+        regenerate = st.button("Generate", key="gen_note", width="stretch")
+        write_sheet = st.button("Tearsheet", key="gen_sheet", width="stretch")
+    if write_sheet:
+        with st.spinner(f"Writing the {ticker} tearsheet"):
+            st.session_state["tearsheet"] = api_post(
+                api_base, f"/companies/{ticker}/tearsheet")
+    made = st.session_state.get("tearsheet")
+    if made and made.get("ticker") == ticker:
+        st.markdown(
+            f'<div class="byline">Tearsheet written to '
+            f'<span class="mono">exports/{html_escape(made["filename"])}</span>. '
+            'Open it and print to A4, or save as PDF.</div>',
+            unsafe_allow_html=True)
+
+    # 2 to 4. The sentence, the bars, the positives and negatives: one state when the
+    # scorecard is not there.
+    if company is None:
+        st.markdown(f'<div class="ki-sentence ki-muted">'
+                    f'{html_escape(_KI_FAILED.format(error=problem))}</div>',
+                    unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="ki-sentence">{html_escape(company.get("sentence") or "")}'
+                    '</div>', unsafe_allow_html=True)
+        score_col, lines_col = st.columns([1.15, 1], gap="medium")
+        with score_col:
+            # No "against {n} {noun}" chip: the sentence right above names the cohort
+            # ("7th of 18 big pharma"), and the chip said it again (8.7's budget at 1440).
+            section("Company score")
+            against = (f" against {cohort.get('n')} {cohort.get('noun')}"
+                       if cohort.get("n") and cohort.get("noun") else "")
+            # 720 fills the column at 1440 and nearly at 1600, at the chart's own type
+            # size; narrower, it scales down.
+            R.show(CH.pillar_bars(_ki_pillar_rows(company, cohort, method), width=720,
+                                  label=f"{ticker} pillar scores{against}, the cohort "
+                                        "median as a tick"),
+                   css_class="ki-bars")
+        with lines_col:
+            section("Positives and negatives")
+            st.markdown(_ki_lines_html(company), unsafe_allow_html=True)
+
+    # 5 and 6. Next, the head of the Catalysts list, beside What changed.
+    try:
+        context = _comps_context(api_base, ticker)
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        context = {"ticker": ticker, "error": str(exc)}
+    events = DRV.rank_events(context)
+    changes = _ki_changes(feed, ticker, dt.date.today())
+    next_col, changed_col = st.columns([1.15, 1], gap="medium")
+    with next_col:
+        section("Next", basis=_ki_next_basis(len(events), DRV.drivers_basis(len(events)))
+                if events else "")
+        problem_ctx = DRV.context_error(context)
+        if not events and problem_ctx is not None:
+            st.markdown(f'<div class="ki-empty">'
+                        f'{html_escape(DRV.CONTEXT_FAILED.format(T=ticker, error=problem_ctx))}'
+                        '</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(_ki_next_html(events[:_KI_NEXT_SHOWN]), unsafe_allow_html=True)
+    with changed_col:
+        section("What changed", basis=_ki_changes_basis(len(changes)) if changes else "")
+        if changes:
+            st.markdown('<div class="feed ki-changes">'
+                        + "".join(_ki_change_row(it, ticker)
+                                  for it in changes[:_KI_CHANGES_SHOWN])
+                        + "</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="ki-empty">{html_escape(_KI_NO_CHANGES)}</div>',
+                        unsafe_allow_html=True)
+
+    # 7. The morning note, folded. Generate opens it on the run that wrote it. A read that
+    # fails says so inside the fold rather than taking the tab down with it.
+    load_error = None
+    try:
+        if regenerate:
+            with st.spinner(f"Writing the {ticker} note"):
+                st.session_state["note"] = api_get(
+                    api_base, f"/companies/{ticker}/note?refresh=true")
+        elif (st.session_state.get("note") or {}).get("ticker") != ticker:
+            st.session_state["note"] = api_get(api_base, f"/companies/{ticker}/note")
+        written = st.session_state.get("note") or {}
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        written, load_error = {}, str(exc).rstrip(".")
+    label = "Morning note · did not load" if load_error else _ki_note_label(written)
+    with st.expander(label, expanded=bool(regenerate)):
+        if load_error:
+            state("The note did not load", f"{html_escape(load_error)}. Press Generate to "
+                  "try again.", error=True)
+        elif not written.get("body"):
+            state(f"No note for {ticker} yet",
+                  "Press Generate. Without an Anthropic key the note is the rules "
+                  "layer, which lists the flagged items grouped by kind.")
+        else:
+            st.markdown(note_html(written["body"]), unsafe_allow_html=True)
+            layer = ("rules layer, no Anthropic key set"
+                     if written.get("model") == "rules" else written.get("model") or "")
+            st.markdown(
+                f'<div class="byline">{html_escape(layer)} · '
+                f'{html_escape((written.get("generated_at") or "")[:16])} · '
+                'the feed as it stood then</div>', unsafe_allow_html=True)
+        if written.get("error"):
+            state("The note fell back to the rules layer", written["error"], error=True)
+
+    # 8. Last, as before.
+    _china_bd(api_base, ticker)
 
 
 def _universe_overview(api_base, engine, _engine_name, _covered, _all_changes,
@@ -5148,6 +5662,198 @@ def _cat_phase_study(title: str) -> tuple[str, str]:
     return "", text
 
 
+# --- Catalysts: Drivers and risks ------------------------------------------------------
+# Scoped to the two lists and carried with their markup. A list is one grid, so every
+# lead in it takes the width of the longest and the texts start on one line; a row is
+# display: contents, so it can be a link to its registry page without breaking the grid.
+# Each block pads its foot by the rem Streamlit's markdown pulls back up, so a fold drawn
+# under a list never sits on its last row.
+_DR_CSS = """<style>
+.dr-wrap { padding-bottom: 1rem; }
+/* At stake, drawn under this section on the same tab: a columns block is not an element
+   container, so the section rule's spacing missed it and the met and missed buttons sat
+   5 px over the rule. Each row centres its buttons on its two lines. */
+.st-key-cat_stakes { margin-top: 0.55rem; }
+.st-key-cat_stakes .stButton button { min-height: 28px; padding: 0.1rem 0.5rem; }
+.dr-h { display: flex; align-items: baseline; gap: 0.6rem; margin: 0.75rem 0 0.45rem; }
+.dr-h .k { font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
+           text-transform: uppercase; color: var(--text); }
+.dr-h .b { font-size: 11px; color: var(--muted); }
+.dr-list { display: grid; grid-template-columns: max-content minmax(0, 1fr);
+           column-gap: 0.9rem; row-gap: 0.34rem; align-items: baseline; }
+.dr-row { display: contents; color: inherit; text-decoration: none; }
+.dr-lead { font-family: var(--font-mono); font-size: 11.5px; color: var(--text);
+           white-space: nowrap; }
+.dr-lead.date { color: var(--muted); }
+.dr-m { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+        color: var(--muted); margin-left: 4px; cursor: help; }
+.dr-text { font-size: 12.5px; line-height: 1.4; color: var(--text); min-width: 0; }
+a.dr-row:hover .dr-text { color: var(--up); }
+.dr-note { font-size: 11px; color: var(--muted); margin-top: 0.45rem; }
+.dr-empty { font-size: 12px; color: var(--muted); }
+</style>"""
+
+
+def _dr_href(row: dict):
+    """The registry page a row opens: the event's own source, or the trial a slip names.
+    Only a web address is linked, never another scheme a stored value might carry."""
+    url = row.get("source") or (f"https://clinicaltrials.gov/study/{row['nct_id']}"
+                                if row.get("nct_id") else None)
+    return url if isinstance(url, str) and url.startswith(("https://", "http://")) else None
+
+
+def _dr_tip(kind: str, row: dict) -> str:
+    """The hover text behind a row: what the number is and where it comes from. Words a
+    reader can ask for, so they cost nothing on the screen."""
+    if kind == "driver":
+        if row.get("model") and row.get("value_kind") == "stake":
+            return (f"Model output: the swing between the met and missed cases, a share, "
+                    f"{(row.get('pct_of_price') or 0):.1%} of the price. "
+                    + (row.get("title") or ""))
+        if row.get("model"):
+            return (f"Model output: {row['asset']}'s risk-adjusted value a share, "
+                    f"{(row.get('pct_of_price') or 0):.1%} of the price. "
+                    + (row.get("title") or ""))
+        return row.get("title") or ""
+    if row.get("kind") == "exclusivity":
+        # The row's own share text, so the hover never reads a tenth off the lead.
+        share = row.get("share_text") or (f"{row['share_of_revenue']:.1%}"
+                                          if row.get("share_of_revenue") is not None else None)
+        return " · ".join(x for x in (
+            f"{share} of the latest year's revenue" if share else None,
+            row.get("basis")) if x)
+    if row.get("kind") == "slip":
+        return (f"Primary completion moved from {row.get('old')} to {row.get('new')}, "
+                f"seen {row.get('detected')}")
+    if row.get("kind") == "pool":
+        kept = str(row.get("lead") or "").replace(" kept", "")
+        ind = str(row.get("indication") or "")
+        if ind[1:2].islower():           # "Obesity" mid-sentence, but "HIV infections" kept
+            ind = ind[:1].lower() + ind[1:]
+        return (f"Model output: with {row.get('pool_drugs')} drugs sharing the {ind} pool, "
+                f"the company's forecast keeps {kept} of the patients it would reach alone.")
+    return ""
+
+
+def _dr_attr(text) -> str:
+    """A value for a double-quoted attribute. Not ``html.escape``: by the time the
+    Catalysts tab draws, the page's own code has bound ``html`` to a list of markup."""
+    return html_escape(str(text or "")).replace('"', "&quot;")
+
+
+def _dr_list(rows: list, kind: str) -> str:
+    """One list as markup: the lead (a number, else the month), then the row's text."""
+    out = []
+    for r in rows:
+        dated = kind == "driver" and not r.get("model")
+        marker = ""
+        if kind == "driver" and r.get("model"):
+            marker = '<span class="dr-m" title="Model output">M</span>'
+        tip = _dr_tip(kind, r)
+        href = _dr_href(r)
+        attrs = f' title="{_dr_attr(tip)}"' if tip else ""
+        if href:
+            tag, attrs = "a", (f' href="{_dr_attr(href)}" target="_blank"'
+                               f' rel="noopener"{attrs}')
+        else:
+            tag = "div"
+        out.append(
+            f'<{tag} class="dr-row" data-kind="{_dr_attr(r.get("kind") or kind)}"'
+            f'{attrs}><span class="dr-lead{" date" if dated else ""}">'
+            f'{html_escape(r["lead"])}{marker}</span>'
+            f'<span class="dr-text">{html_escape(r["text"])}</span></{tag}>')
+    return f'<div class="dr-list {kind}">{"".join(out)}</div>'
+
+
+def _drivers_and_risks(api_base: str, ticker: str, feed_rows=None) -> None:
+    """Drivers and risks, the first section of the Catalysts tab (company-scorecard.md 1.5
+    and 5.4): Drivers, the events of the next 12 months, value-bearing first, beside Risks,
+    the exclusivity losses of the next 24 months, readouts that slipped and crowded
+    patient pools.
+
+    It reads only what the page already holds for the minute: the scorecard inside the
+    Comps payload for the exclusivity losses, the focal company's comps-context for the
+    events and the pools, and the change feed for the slips. ``drivers.section`` ranks
+    and words every row, the same function Key insights takes its Next from, so the two
+    tabs cannot disagree about what comes first."""
+    import drivers as DRV
+    if getattr(DRV, "REVISION", 0) < 3:
+        DRV = importlib.reload(DRV)
+
+    company, today, board_problem = None, None, None
+    try:
+        board = (_comps_valuation_payload(api_base) or {}).get("scorecard")
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        board, board_problem = None, str(exc)
+    if isinstance(board, dict) and not board.get("error"):
+        company = (board.get("companies") or {}).get(ticker)
+        today = board.get("today")
+    elif board_problem is None:
+        board_problem = (str(board.get("error")) if isinstance(board, dict)
+                         else "no scorecard in the answer")
+    try:
+        context = _comps_context(api_base, ticker)
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        context = {"error": str(exc)}
+
+    part = DRV.section(ticker, context, company, feed_rows or [], today)
+    drivers_part, risks_part = part["drivers"], part["risks"]
+    notes = []
+    if part["state"] == "ok" and part.get("message"):
+        notes.append(part["message"])
+    if isinstance(context, dict) and context.get("complete") is False:
+        # The API answers before the model's values are warm and says so. The ranking
+        # then has no value to lead with, so the reader is told rather than shown a list
+        # that will reorder in a minute. Key insights reads the same answer.
+        notes.append("Model values are still being computed. Reload in a minute.")
+    if board_problem:
+        notes.append(f"The scorecard did not load: {board_problem.rstrip('.')}. "
+                     "Exclusivity losses are left out.")
+
+    def _notes_html(skip=None) -> str:
+        return "".join(f'<div class="dr-note">{html_escape(n)}</div>'
+                       for n in notes if n != skip)
+
+    section(html_escape(part["title"]), basis=part["basis"])
+    if part["state"] != "ok":
+        st.markdown(_DR_CSS + '<div class="dr-wrap"><div class="dr-empty">'
+                    f'{html_escape(part["message"])}</div>{_notes_html(part["message"])}'
+                    "</div>", unsafe_allow_html=True)
+        return
+
+    # A list with no row is not drawn and the other takes the width (1.5).
+    shown = [k for k, rows in (("drivers", drivers_part["rows"]),
+                               ("risks", risks_part["rows"])) if rows]
+    slots = (dict(zip(shown, st.columns([1.25, 1], gap="large")))
+             if len(shown) == 2 else {shown[0]: st.container()})
+    if "drivers" in slots:
+        with slots["drivers"]:
+            st.markdown(
+                _DR_CSS + '<div class="dr-wrap"><div class="dr-h"><span class="k">'
+                f'{html_escape(drivers_part["title"])}</span><span class="b">'
+                f'{html_escape(drivers_part["basis"])}</span></div>'
+                + _dr_list(drivers_part["shown"], "driver") + "</div>",
+                unsafe_allow_html=True)
+            if drivers_part["more"]:
+                with st.expander(drivers_part["more_label"], expanded=False):
+                    st.markdown(_dr_list(drivers_part["more"], "driver"),
+                                unsafe_allow_html=True)
+    if "risks" in slots:
+        with slots["risks"]:
+            st.markdown(
+                _DR_CSS + '<div class="dr-wrap"><div class="dr-h"><span class="k">'
+                f'{html_escape(risks_part["title"])}</span></div>'
+                + _dr_list(risks_part["rows"], "risk") + "</div>",
+                unsafe_allow_html=True)
+            # The exclusivity losses left out for slips and pools, as Drivers folds its rest.
+            if risks_part.get("more"):
+                with st.expander(risks_part["more_label"], expanded=False):
+                    st.markdown(_dr_list(risks_part["more"], "risk"),
+                                unsafe_allow_html=True)
+    if notes:
+        st.markdown(f'<div class="dr-wrap">{_notes_html()}</div>', unsafe_allow_html=True)
+
+
 def _catalyst_spine_item(cat) -> dict:
     """A catalyst row for the spine, built from the fuller catalyst list rather than the
     60-day feed, so the horizon shows every upcoming readout out to two years, not only
@@ -5386,268 +6092,11 @@ with main:
                                _all_changes, universe_feed)
 
     with insights_tab:
-        # A briefing opens with where the company stands, then layers on what moved.
-        # Built only from diffs it read as empty for most companies: LLY showed zero.
-        pipeline_rows = api_get(api_base, "/pipeline")
-        mine = next((r for r in pipeline_rows if r["ticker"] == ticker), {})
-        phases = mine.get("phases") or {}
-        # Counted the same way the Pipeline tab counts, so the two tabs cannot disagree.
-        # Phase 4 is work on approved products, so it is not development; long-term
-        # follow-up and extension studies carry a development phase but are lifecycle
-        # work, counted from the title by /pipeline and subtracted here too.
-        in_development = (sum(count for phase, count in phases.items()
-                              if phase not in POST_APPROVAL)
-                          - (mine.get("follow_up") or 0))
-        late = sum(phases.get(p, 0) for p in ("Phase 3", "Phase 2/3"))
-
-        def _next(kind):
-            dates = sorted((it["date"] or "")[:10] for it in feed
-                           if it["kind"] == kind and it["date"])
-            return dates[0] if dates else None
-
-        points = prices.get("points") or []
-
-        def _move(series):
-            if len(series) < 2 or not series[0]["close"]:
-                return None
-            return (series[-1]["close"] - series[0]["close"]) / series[0]["close"] * 100
-
-        intraday = api_get(api_base, f"/companies/{ticker}/intraday")
-        bars = intraday.get("points") or []
-        change = _move(points)   # whole stored history
-        # From the intraday bars, so the headline number and the sparkline beneath it
-        # describe the same window rather than two nearly-equal ones.
-        recent = _move(bars) if bars else _move(points[-SPARK_SESSIONS:])
-        high = sum(1 for it in feed if it["significance"] == "high")
-
-        # The twelve-month value and the rating it carries, read off the same fair value
-        # the Forecast tab ranges. Cached with it, so the tab pays nothing extra for it.
-        try:
-            rated = (api_get(api_base, f"/companies/{ticker}/fair-value") or {}).get("rating") or {}
-        except Exception:
-            rated = {}
-        fwd = rated.get("forward_12m") if rated.get("ok") else None
-        call = rated.get("rating") if rated.get("ok") else None
-        call_cls = ("up" if call in ("Strong buy", "Buy")
-                    else "down" if call == "Sell" else "" if call else "none")
-
-        cells = [
-            ("last close", T.num(prices["latest"]["close"], 2) if points else "—",
-             "" if points else "none", prices.get("currency") or ""),
-            ("12m value", T.num(fwd, 2) if fwd is not None else "—",
-             ("" if fwd is not None else "none"),
-             (f"{T.pct(rated['upside_12m'] * 100)} · "
-              f"{T.num(rated['forward_low'], 0)} to {T.num(rated['forward_high'], 0)}"
-              if fwd is not None and rated.get("forward_low") is not None else
-              (rated.get("reason") or "no sum of the parts"))),
-            ("rating", call or "—", call_cls,
-             "against model range" if call else (rated.get("reason") or "none")),
-            # The headline move matches the sparkline beneath it; the long run is the
-            # context under it rather than a second number competing with it.
-            (f'{len(intraday.get("sessions") or []) or SPARK_SESSIONS} day', T.pct(recent),
-             "up" if (recent or 0) >= 0 else "down",
-             f"5y {T.pct(change)}" if change is not None else ""),
-            ("in development", str(in_development) if mine else "—",
-             "" if mine else "none", f"{late} in late phase" if mine else ""),
-            ("next catalyst", _next("catalyst") or "none", "" if _next("catalyst") else "none",
-             "readouts and PDUFA"),
-            ("next loe", _next("loe") or "none", "" if _next("loe") else "none",
-             "inside 24 months"),
-            ("flagged", str(len(feed)), "down" if high else "", f"{high} high" if high else "nothing high"),
-        ]
-        # The position strip and the two note actions share the top row: the strip fills
-        # the width, and Generate and Tearsheet stack small on the right at the same level.
-        strip_col, btn_col = st.columns([6, 0.75])
-        with strip_col:
-            st.markdown(
-                '<div class="pos">' + "".join(
-                    f'<span><span class="k">{k}</span>'
-                    f'<span class="v {cls}">{v}</span>'
-                    f'<span class="sub">{sub}</span></span>' for k, v, cls, sub in cells)
-                + "</div>", unsafe_allow_html=True)
-        with btn_col:
-            regenerate = st.button("Generate", key="gen_note", width="stretch")
-            write_sheet = st.button("Tearsheet", key="gen_sheet", width="stretch")
-
-        # Fifteen minute bars over the last five sessions, spanning the column above the
-        # note. A briefing wants the shape of the week, which daily closes cannot show:
-        # five points is a zigzag, not a market. Bars are butted together in order, never
-        # on a time axis that would draw a flat line through overnight hours that never
-        # traded; the session marks say where each trading day begins.
-        if bars:
-            closes = [b["close"] for b in bars]
-            session_starts = [i for i, b in enumerate(bars)
-                              if i and b["as_of"][:10] != bars[i - 1]["as_of"][:10]]
-            # Shallow on purpose. This is the shape of the week rather than a chart to
-            # read a level off, the Prices tab has the real one, and every pixel it takes
-            # comes out of the boxes below it on a tab that has to fit one screen.
-            R.show(CH.sparkline(closes, 832, 54, label_last=True, marks=session_starts),
-                   css_class="chart-mount stretch")
-
-        if write_sheet:
-            with st.spinner(f"Writing the {ticker} tearsheet"):
-                st.session_state["tearsheet"] = api_post(
-                    api_base, f"/companies/{ticker}/tearsheet")
-        made = st.session_state.get("tearsheet")
-        if made and made.get("ticker") == ticker:
-            st.markdown(
-                f'<div class="byline">Tearsheet written to '
-                f'<span class="mono">exports/{html_escape(made["filename"])}</span>. '
-                'Open it and print to A4, or save as PDF.</div>',
-                unsafe_allow_html=True)
-
-        # --- What happened, as headline boxes ----------------------------
-        # The same object the universe tab uses, for the same reason: a deal, a readout
-        # and a catalyst are three things that happened to one company, and holding each
-        # of them in its own list shape made them read as three unrelated features.
-        # Catalysts, exclusivity and filings come from the feed; deals and readouts from
-        # their own endpoints. The raw change list, trial status and date wording, stays
-        # out of this view: it read as jargon and the events that matter are here.
-        deals_data = api_get(api_base, f"/companies/{ticker}/deals").get("deals") or []
-        readouts_data = api_get(api_base, f"/companies/{ticker}/readouts").get("readouts") or []
-        catalyst_items = [it for it in feed if it["kind"] == "catalyst"]
-        loe_items = [it for it in feed if it["kind"] == "loe"]
-        filing_items = [it for it in feed if it["kind"] == "filing"]
-
-        # What happened: things with a result, newest first. Ordered by date rather than
-        # by kind on purpose. Grouped by kind, GSK's six readouts filled the row and its
-        # six deals never appeared at all, which is the opposite of what a row headed
-        # "what happened" should do. A date sort mixes them and answers the question.
-        happened = sorted(
-            [_readout_lead(r, ticker) for r in readouts_data]
-            + [_deal_lead(d, ticker) for d in deals_data]
-            + [_feed_lead(it) for it in filing_items],
-            key=lambda box: box["date"] or "", reverse=True)
-        # What is coming: things with a date in front of them, soonest first, so the row
-        # is cut at the far end rather than the near one.
-        ahead = sorted([_feed_lead(it) for it in catalyst_items + loe_items],
-                       key=lambda box: box["date"] or "9999-99-99")
-
-        if not (happened or ahead):
-            section("Nothing flagged")
-            state(f"Nothing coming up for {ticker}",
-                  "The position above is current either way. Catalysts, deals, readouts "
-                  "and exclusivity fill in as refreshes run; a refresh from the Prices "
-                  "tab pulls the latest.")
-        else:
-            size = deal_size(deals_data)
-            # A literal separator, not an entity: section() escapes the basis chip, so
-            # "&middot;" would print as itself.
-            basis = " · ".join(
-                part for part in (f"{len(readouts_data)} readouts" if readouts_data else "",
-                                  f"{len(deals_data)} deals" if deals_data else "",
-                                  size or "") if part)
-            section("What happened", len(happened) or None, basis)
-            if happened:
-                st.markdown(_leads(happened[:_INSIGHT_SHOWN], 6, 3),
-                            unsafe_allow_html=True)
-                note("Readouts are Phase 2 and 3 topline results classified from the "
-                     "press releases, each carrying the sentence it was read from. Deal "
-                     "values are announced consideration including milestones, not cash "
-                     "paid, so they are not the acquisitions line on the financials tab. "
-                     "Filings are material 8-K items beyond the deals themselves.")
-            else:
-                state(f"Nothing has landed for {ticker} in the window",
-                      "The dated items beside this are still ahead of it.")
-
-        # The note on one side, both lists stacked on the other, in equal halves.
-        #
-        # The note is read at its own length and never scrolls, so the layout's job is to
-        # put enough beside it to reach the same depth. One list could not do that: a note
-        # runs 850 to 1500 characters, which is 270 to 460 pixels of prose, while Vertex
-        # has a single dated item to put next to it and Biogen four. Both lists together
-        # always have the material, because a company quiet on one is busy on the other.
-        #
-        # Equal halves rather than three to two because the note sets its own measure at
-        # 68 characters and stops: given three fifths of the page it left a strip of empty
-        # column, and given two fifths it would have run half as wide and twice as deep.
-        _note_col, _side_col = st.columns(2, gap="medium")
-
-        with _note_col:
-            section("Morning note")
-            if regenerate:
-                with st.spinner(f"Writing the {ticker} note"):
-                    st.session_state["note"] = api_get(
-                        api_base, f"/companies/{ticker}/note?refresh=true")
-            elif st.session_state.get("note", {}).get("ticker") != ticker:
-                st.session_state["note"] = api_get(api_base, f"/companies/{ticker}/note")
-
-            # Not "note": this module runs top to bottom, so a name bound here shadows
-            # the note() helper for every tab below it, and the financials tab calls it.
-            written = st.session_state.get("note") or {}
-            if not written.get("body"):
-                state(f"No note for {ticker} yet",
-                      "Press Generate. Without an Anthropic key the note is the rules "
-                      "layer, which lists the flagged items grouped by kind.")
-            else:
-                st.markdown(note_html(written["body"], fit=True),
-                            unsafe_allow_html=True)
-                layer = ("rules layer, no Anthropic key set"
-                         if written.get("model") == "rules"
-                         else written.get("model") or "")
-                # One line, not two. It sits directly under the note and the note is what
-                # sets the height of this half of the tab, so a second line of provenance
-                # costs a line of the thing it is describing. The Generate button above
-                # already says how to rebuild it.
-                st.markdown(
-                    f'<div class="byline">{html_escape(layer)} · '
-                    f'{html_escape((written.get("generated_at") or "")[:16])} · '
-                    'the feed as it stood then</div>', unsafe_allow_html=True)
-            if written.get("error"):
-                state("The note fell back to the rules layer", written["error"],
-                      error=True)
-
-        # Both lists in the other half, dated first. What is coming has a claim on the eye
-        # that what already happened does not, and the changes underneath are the band
-        # that gives way: it is the one place on the tab where a reader is scanning rather
-        # than reading, so it takes whatever depth the note leaves and scrolls past that.
-        with _side_col:
-            section("Dated ahead", len(ahead) or None,
-                    "catalysts and exclusivity" if ahead else "")
-            if ahead:
-                st.markdown(_leads(ahead[:_INSIGHT_AHEAD], 2, 2), unsafe_allow_html=True)
-                note("Catalysts are readouts and PDUFA dates inside 60 days. Exclusivity "
-                     "is a molecule losing protection inside 24 months, from the Orange "
-                     "and Purple Books.")
-            else:
-                state(f"Nothing dated ahead for {ticker}",
-                      "No catalyst inside 60 days and no exclusivity loss inside 24 "
-                      "months.")
-
-            # The snapshot diff itself, which is the thing this app is for. The strip
-            # above counts 36 flagged items for GSK and the two bands account for 11 of
-            # them: the other 25 are approvals, trial completion dates moving and
-            # risk-factor sections being rewritten, every one a change to the case rather
-            # than an event with a press release.
-            changed = sorted(
-                (it for it in feed if it["kind"] == "change"),
-                key=lambda it: (_SEVERITY_RANK.get(it.get("significance"), 3),
-                                _flip_date(it.get("date"))))
-            if changed:
-                high = sum(1 for it in changed if it.get("significance") == "high")
-                section("What changed", len(changed),
-                        f"{high} high" if high else "since the last refresh")
-                # The list and its notes line go out as one element, so the notes stay
-                # under the last row rather than at the foot of the column. Streamlit
-                # gives each markdown call its own flex child, and this list is the one
-                # that shrinks: separated, the notes line sat wherever the shrinking left
-                # it, two hundred pixels below the list on a quiet company.
-                st.markdown(
-                    '<div class="changes-block"><div class="feed changes">'
-                    + "".join(change_row(it) for it in changed[:_CHANGES_SHOWN])
-                    + "</div>"
-                    + note_markup(
-                        "Every line is a difference between the last two snapshots of "
-                        "the same entity, not a headline. A trial completion date moving "
-                        "and a risk factor section being rewritten have no press release "
-                        "and are the reason the snapshots are kept. The full history is "
-                        "on the company's own News and Pipeline tabs.")
-                    + "</div>", unsafe_allow_html=True)
-
-        # Last on the tab, below the note and both lists. It is a count over the deals
-        # already shown under What happened, read one way, so it follows everything that
-        # is about this company today rather than standing in front of it.
-        _china_bd(api_base, ticker)
+        # The company on one page (company-scorecard.md 1.3): where it stands against its
+        # cohort and what changed. The sparkline, What happened and Dated ahead are gone:
+        # Prices owns the price, deals and readouts reach What changed through the feed,
+        # and Next is the head of the Catalysts list.
+        _key_insights_tab(api_base, ticker, feed, prices)
 
     # --- Prices ----------------------------------------------------------
     with prices_tab:
@@ -5958,19 +6407,20 @@ with main:
         # The Indications and Pipelines views stay cut to the open engine's own cohort:
         # ranking Lilly's pipeline against a clinical-stage biotech with no revenue is not
         # a comparison. The engine's ticker list is already resolved above for the picker,
-        # so this needs no second request. The valuation view takes the whole universe
-        # and chooses its own peers, so a peer from another engine can be added in it.
+        # so this needs no second request. The Companies view takes the whole universe:
+        # its scorecard ranks each fixed cohort, and its Table view chooses its own peers,
+        # so a peer from another engine can be added in it.
         _peers = set(tickers)
         _peer_rows = lambda rows: [r for r in rows if r.get("ticker") in _peers]
 
-        # Three questions, three views. Valuation opens first because it is the one an
-        # analyst comes to the tab for: what the company is worth against its peers. The
-        # head to head and the screen it replaces are folded into its table and its side
-        # panel, measure for measure. The two cohort views keep their own tabs.
-        _views = ["Valuation"] + (["Indications"] if _engine == "pharma" else []) + [
+        # Three questions, three views. Companies opens first because it is the one an
+        # analyst comes to the tab for: how the company compares with its peers, as one
+        # chart of its cohort with the ranked table beside it, and the comparables table
+        # one click away. The two cohort views keep their own tabs.
+        _views = ["Companies"] + (["Indications"] if _engine == "pharma" else []) + [
             "Pipelines"]
-        _vt = dict(zip(_views, st.tabs(_views, default="Valuation")))
-        with _vt["Valuation"]:
+        _vt = dict(zip(_views, st.tabs(_views, default="Companies")))
+        with _vt["Companies"]:
             _comps_valuation_view(api_base, ticker, engine, not asof_state)
         if "Indications" in _vt:
             with _vt["Indications"]:
@@ -5979,10 +6429,6 @@ with main:
                        "against their comparators, its safety record, and what the model "
                        "says it is worth.")
                 _indication_landscape(api_base, ticker)
-        else:
-            # No landscape on this engine: a link to one is marked handled, so it is not
-            # applied later to a company it was never about.
-            _compsval_indication_done()
 
         # --- R&D productivity and the phase matrix ----------------------------
         # Every frame the Pipelines view draws is fetched first, in one place, and the
@@ -6899,18 +7345,26 @@ with main:
 
         # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
+        # What could move the company next, as one list (company-scorecard.md 1.5): the
+        # events of the next twelve months, value-bearing first, beside what could cost
+        # it. The Comps view used to carry this; the comparison with peers stays there.
+        _drivers_and_risks(api_base, ticker, feed)
+
         # What each event is worth before when it lands: the modelled swing between the
         # success and failure legs, at this company's share of the economics, ranked by
-        # size rather than by date. A catalyst is priced only where the analyst has put
-        # both legs on file; the rest say which two keys would price them.
+        # size rather than by date. Drawn only when a catalyst is priced. The unpriced
+        # lines named two database keys and no number, six to a screen for big pharma,
+        # and every one of those events is in Drivers or the calendar already.
         try:
             stakes = api_get(api_base, f"/companies/{ticker}/catalysts/stakes")
         except (urllib.error.URLError, OSError):
             stakes = None
-        if stakes and (stakes.get("priced") or stakes.get("unpriced")):
+        if stakes and stakes.get("priced"):
             section("At stake", basis="rNPV swing, ranked by size")
+            # Keyed for the spacing in _DR_CSS: clear of the rule, buttons centred.
+            stake_box = st.container(key="cat_stakes")
             for row in stakes["priced"]:
-                info_col, act_col = st.columns([5, 1])
+                info_col, act_col = stake_box.columns([6, 1], vertical_alignment="center")
                 with info_col:
                     per_share = (f" · {row['per_share']:+,.2f}/sh"
                                  if row.get("per_share") is not None else "")
@@ -6929,15 +7383,17 @@ with main:
                     # arms; the second, on the same outcome, commits.
                     armed_key = f"cat_arm_{ticker}_{row['id']}"
                     armed = st.session_state.get(armed_key)
-                    met_col, miss_col = st.columns(2)
+                    met_col, miss_col = st.columns(2, gap="small")
                     clicked = None
                     with met_col:
                         label = "sure?" if armed == "met" else "met"
-                        if st.button(label, key=f"cat_met_{ticker}_{row['id']}"):
+                        if st.button(label, key=f"cat_met_{ticker}_{row['id']}",
+                                     width="stretch"):
                             clicked = "met"
                     with miss_col:
                         label = "sure?" if armed == "missed" else "missed"
-                        if st.button(label, key=f"cat_miss_{ticker}_{row['id']}"):
+                        if st.button(label, key=f"cat_miss_{ticker}_{row['id']}",
+                                     width="stretch"):
                             clicked = "missed"
                     if clicked:
                         if armed == clicked:
@@ -6954,53 +7410,49 @@ with main:
                         else:
                             st.session_state[armed_key] = clicked
                             st.rerun()
-            for row in stakes["unpriced"][:6]:
-                st.markdown(
-                    f'<div class="byline">{html_escape(row["asset_name"])} '
-                    f'{row["expected_date"]} · '
-                    f'{html_escape(calendar_view._shorten(row["title"], 64))} · '
-                    f'unpriced: add {html_escape(", ".join(row["missing"]))} on the '
-                    "Forecast tab</div>", unsafe_allow_html=True)
-            if len(stakes["unpriced"]) > 6:
-                note(f'{len(stakes["unpriced"]) - 6} more unpriced catalysts sit in '
-                     "the calendar below")
 
-        # Derived only, and for the selected company alone. Readouts come from Phase 3
-        # primary completion dates on every refresh, so the calendar is rebuilt rather
-        # than maintained. The add form is gone: a date typed in once goes stale
-        # silently and nothing tells you.
-        section(f"Catalyst calendar for {ticker}", "derived on refresh")
+        # Derived only, and for the selected company alone, rebuilt on every refresh
+        # rather than maintained. Folded: open, it shows the Drivers' events a second
+        # time by month, and a grid of registry titles was most of the tab's words. The
+        # rows sit under the grid in the same fold, since a fold cannot hold another.
         # One window, so no control. Two years is the span a readout calendar is read
         # over, and a shorter one hid the far half of what is already known.
+        if getattr(calendar_view, "REVISION", 0) < 2:
+            importlib.reload(calendar_view)
         window = CALENDAR_MONTHS
-        calendar = api_get(
-            api_base,
-            f"/catalysts?within_days={window * 31}"
-            f"&ticker={urllib.parse.quote(ticker)}")
-        if not calendar:
-            state(f"Nothing dated for {ticker} in the next {window} months",
-                  "Readouts are derived from Phase 3 primary completion dates on every "
-                  "refresh, so this fills once trials are fetched. PDUFA dates are read "
-                  "out of the 8-K that announces the acceptance, which needs "
-                  "ANTHROPIC_API_KEY set; without it that half stays empty.")
-        else:
-            st.markdown(calendar_view.render(calendar, months=window),
-                        unsafe_allow_html=True)
-            st.markdown(f'<div class="byline">{calendar_view.caption(calendar, window)}'
-                        ' A readout date is an estimate and moves, so a refresh updates '
-                        'it in place and withdraws the row if the trial stops. A PDUFA '
-                        'date is only written when the date, the product name and a '
-                        'verbatim quote all appear in the filing.</div>',
-                        unsafe_allow_html=True)
-
-            with st.expander("The rows behind the calendar"):
+        try:
+            calendar = api_get(
+                api_base,
+                f"/catalysts?within_days={window * 31}"
+                f"&ticker={urllib.parse.quote(ticker)}") or []
+            calendar_problem = None
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            calendar, calendar_problem = [], str(exc)
+        in_grid = calendar_view.within(calendar, window)
+        with st.expander(calendar_view.expander_label(calendar, window), expanded=False):
+            if calendar_problem:
+                state("The calendar did not load", html_escape(calendar_problem),
+                      error=True)
+            elif not in_grid:
+                state(f"Nothing dated for {ticker} in the next {window} months",
+                      calendar_view.SOURCES)
+            else:
+                st.markdown(calendar_view.render(calendar, months=window),
+                            unsafe_allow_html=True)
+                # Padded by the rem Streamlit's markdown pulls back, or the rows under
+                # the caption sit on its last line.
+                st.markdown(f'<div class="byline" style="padding-bottom: 1rem">'
+                            f'{calendar_view.caption(calendar, window)}</div>',
+                            unsafe_allow_html=True)
+                # The link shows the trial's id: the pattern needs a group, or the cell
+                # prints the pattern itself.
                 st.dataframe(pd.DataFrame([{
                     "Date": c["expected_date"], "Type": c["catalyst_type"],
                     "Precision": c["date_confidence"], "Title": c["title"],
-                    "Evidence": c["source_url"] or "—"} for c in calendar]),
+                    "Evidence": c["source_url"] or None} for c in in_grid]),
                     width="stretch", hide_index=True,
                     column_config={"Evidence": st.column_config.LinkColumn(
-                        "Evidence", display_text=r"NCT\w+")})
+                        "Evidence", display_text=r"(NCT\d{8})")})
 
     # --- Labels ----------------------------------------------------------
     # --- News ------------------------------------------------------------

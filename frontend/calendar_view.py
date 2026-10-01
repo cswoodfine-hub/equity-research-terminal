@@ -22,6 +22,13 @@ MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 DEFAULT_MONTHS = 12
 MAX_TITLE = 58
+# Bumped when the copy changes. A running server does not re-import a module that sits
+# under a dot-directory, as a worktree does, so the page reloads one behind this.
+REVISION = 2
+# Where the rows come from, the last sentence of the caption and of the empty state.
+SOURCES = ("Readouts come from the primary completion dates of Phase 1/2, Phase 2 and "
+           "Phase 3 trials, regulatory dates from filings announcing an FDA acceptance, "
+           "and both are rebuilt on every refresh.")
 
 
 def _month_key(value: str) -> str:
@@ -139,8 +146,18 @@ def render(catalysts, months: int = DEFAULT_MONTHS, today=None) -> str:
     return f'<div class="cal">{"".join(cells)}</div>'
 
 
+def expander_label(catalysts, months: int = DEFAULT_MONTHS, today=None) -> str:
+    """"Calendar, 24 months · 72 dated events": the fold the grid sits in, counting what
+    the grid draws rather than what was fetched."""
+    n = len(within(catalysts, months, today))
+    return f"Calendar, {months} months · {n} dated {'event' if n == 1 else 'events'}"
+
+
 def caption(catalysts, months: int = DEFAULT_MONTHS, today=None) -> str:
-    """One line on what is in the grid and how precisely it is dated."""
+    """One line on what is in the grid and how precisely it is dated (company-scorecard.md
+    8.5). It used to say every row came from a Phase 3 date, while the grid also held
+    Phase 2 and Phase 1/2 readouts: the derivation takes a large Phase 2 study, and a
+    company's own lead phase when it has nothing at Phase 3."""
     catalysts = within(catalysts, months, today)
     if not catalysts:
         return ""
@@ -149,5 +166,4 @@ def caption(catalysts, months: int = DEFAULT_MONTHS, today=None) -> str:
     if month_only:
         text += (f"{month_only} carry a month and no day, which is all the registry "
                  "gives, so they sit in the month rather than on a date in it. ")
-    return text + ("Every row is derived on refresh, from a Phase 3 primary completion "
-                   "date or from an 8-K announcing an FDA acceptance.")
+    return text + SOURCES

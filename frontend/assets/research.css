@@ -786,3 +786,91 @@ select.u-input { padding-right: 20px; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .u-btn, .u-chip, .u-seg > *, .u-menu-item, .u-toast { transition: none; }
 }
+
+/* ------------------------------------------------------------------------------------ */
+/* Key insights: the company on one page (company-scorecard.md 1.3). Owner: E3.          */
+/* Every rule opts in with a .ki- class, so nothing else on the page or in the frame     */
+/* changes.                                                                              */
+/* ------------------------------------------------------------------------------------ */
+
+/* The strip: four cells of equal width, key over value over sub. The value comes before
+   the sub in the markup and never wraps, so a clipped sub never hides the number. Two
+   classes, so it wins over the page's .pos flex row whatever the order of the sheets. */
+.pos.ki-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 var(--sp-24);
+  padding: 2px 0 var(--sp-4);
+}
+.ki-strip .ki-cell { min-width: 0; }
+.ki-strip .k, .ki-strip .v, .ki-strip .sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ki-strip .v { display: block; line-height: 1.3; }
+.ki-strip .v.none { font-family: var(--font-mono); }
+
+/* The one sentence: the score, the rank and its range, then the strongest and weakest. */
+.ki-sentence {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text);
+  margin: 2px 0 0;
+}
+.ki-sentence.ki-muted { color: var(--muted); font-size: 13px; }
+
+/* The pillar bars, left aligned in their column at their own size. */
+.ki-bars { margin: 2px 0 0; }
+.ki-bars svg { display: block; max-width: 100%; height: auto; }
+
+/* Positives and negatives, Next: one line each, a glyph or a lead in a fixed column. */
+.ki-lines, .ki-next, .feed.ki-changes { margin: 0 0 var(--sp-8); }
+.ki-line, .ki-ev {
+  display: grid;
+  gap: 0 var(--sp-8);
+  align-items: baseline;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 12.5px;
+  line-height: 1.38;
+  color: var(--text);
+  text-decoration: none;
+}
+.ki-line:last-child, .ki-ev:last-child { border-bottom: 0; }
+.ki-line { grid-template-columns: 12px minmax(0, 1fr); }
+.ki-line .ki-g { font-family: var(--font-mono); font-weight: 700; text-align: center; }
+.ki-line .ki-g.up { color: var(--up); }
+.ki-line .ki-g.down { color: var(--down); }
+.ki-ev { grid-template-columns: calc(98px * var(--ts)) minmax(0, 1fr); }
+.ki-ev .ki-lead {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.ki-ev .ki-lead.ki-val { color: var(--text); font-weight: 600; }
+/* A row with a registry page reads as itself, not as a link: the page's markdown links are
+   coloured and underlined, so the row resets both with more weight than they carry. */
+.ki-next a.ki-ev, .ki-next a.ki-ev:visited {
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+.ki-next a.ki-ev:hover { background: var(--panel); }
+.ki-next a.ki-ev:hover .ki-t { color: var(--up); }
+
+/* A list with nothing in it: one muted line, no box. */
+.ki-empty { font-size: 12px; color: var(--muted); padding: 4px 0 var(--sp-12); }
+
+/* What changed: the feed's own rows, the date and the headline, held to one line each.
+   The severity and the reason are on hover: every row is high, and the reason repeats
+   the headline. */
+.ki-changes .fitem { padding: 0.28rem 0; grid-template-columns: 84px minmax(0, 1fr); }
+.ki-changes .fitem .t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
