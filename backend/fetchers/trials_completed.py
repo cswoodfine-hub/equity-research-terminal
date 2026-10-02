@@ -24,6 +24,7 @@ import acquired_sponsors
 import company_names
 import ctgov
 import db
+import sponsor_attribution
 import trial_mapping
 from fetchers.base import BaseFetcher, RefreshResult
 
@@ -80,10 +81,15 @@ def parse_studies(payload: dict) -> list[dict]:
             # worth opening, and the link goes to the rest.
             "primary_outcome": outcomes[0].get("measure") if outcomes else None,
             "interventions": interventions,
-            "lead_sponsor": ((section.get("sponsorCollaboratorsModule") or {})
-                             .get("leadSponsor") or {}).get("name"),
+            "lead_sponsor": _lead_sponsor(study),
         })
     return rows
+
+
+def _lead_sponsor(study: dict) -> str | None:
+    """The lead sponsor the registry states for a study, or None."""
+    return (((study.get("protocolSection") or {}).get("sponsorCollaboratorsModule")
+             or {}).get("leadSponsor") or {}).get("name")
 
 
 def _phase(phases) -> str | None:
@@ -123,21 +129,29 @@ class TrialsCompletedFetcher(BaseFetcher):
         own = company_names.source_name(
             self.ticker, "ctgov_sponsor",
             ctgov.SPONSOR_LEAD.get(self.ticker, company["name"]), self.db_path)
+        own = own if isinstance(own, list) else [own]
+        # Every study is tested against the lead sponsor the registry states, the
+        # company's own included. The own-name query was once taken on trust, and it
+        # returns partners' studies: Pfizer's search brought back Orexigen's
+        # naltrexone/bupropion trials, and Lilly's brought back Pfizer's tanezumab.
+        own_names = sponsor_attribution.own_names(self.ticker, self.db_path)
+        self._sponsor_names = own_names + acquired
         errors = []
-        for index, sponsor in enumerate([own] + acquired):
+        for index, sponsor in enumerate(own + acquired):
+            is_own = index < len(own)
             try:
-                studies.extend(self._studies_for(sponsor,
-                                                 acquired if index else None))
+                studies.extend(self._studies_for(
+                    sponsor, own_names if is_own else acquired))
             except Exception as exc:
-                if not index:
+                if is_own:
                     raise          # the company's own sponsor failing is a real failure
                 errors.append(f"{sponsor}: {exc}")
         return {"studies": studies, "company_id": company["id"],
                 "sponsor_errors": errors}
 
     def _studies_for(self, sponsor: str, verify_against) -> list:
-        """One sponsor's completed studies, verified against the registry's own lead
-        sponsor name when the sponsor is a company this one acquired."""
+        """One sponsor's completed studies, kept only where the registry's own lead
+        sponsor names one of ``verify_against``."""
         studies, token = [], None
         for _page in range(MAX_PAGES):
             params = {
@@ -160,10 +174,8 @@ class TrialsCompletedFetcher(BaseFetcher):
                 headers={"User-Agent": _USER_AGENT})
             with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-            found = payload.get("studies") or []
-            if verify_against is not None:
-                found = [s for s in found
-                         if acquired_sponsors.sponsored_by(s, verify_against)]
+            found = [s for s in payload.get("studies") or []
+                     if ctgov.lead_names(_lead_sponsor(s), verify_against)]
             studies.extend(found)
             token = payload.get("nextPageToken")
             if not token:
@@ -181,14 +193,13 @@ class TrialsCompletedFetcher(BaseFetcher):
         conn = db.get_connection(self.db_path)
         try:
             names = trial_mapping._asset_names(conn, company_id)
+            combinations = trial_mapping._combination_products(conn, company_id)
         finally:
             conn.close()
         for row in rows:
             row["sponsor_company_id"] = company_id
-            row["asset_id"] = next(
-                (a for a in (trial_mapping.match_intervention(
-                    trial_mapping.normalise(name), names)
-                    for name in row["interventions"]) if a), None)
+            row["asset_id"] = trial_mapping.first_match(
+                row["interventions"], names, combinations)
         return rows
 
     def snapshot(self, rows: list[dict]) -> None:
@@ -245,6 +256,7 @@ class TrialsCompletedFetcher(BaseFetcher):
                          fetched_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                     ON CONFLICT(nct_id) DO UPDATE SET
+                        sponsor_company_id = excluded.sponsor_company_id,
                         asset_id = excluded.asset_id, title = excluded.title,
                         phase = excluded.phase, conditions = excluded.conditions,
                         completion_date = excluded.completion_date,
@@ -269,10 +281,41 @@ class TrialsCompletedFetcher(BaseFetcher):
                         "INSERT OR IGNORE INTO trial_interventions"
                         "  (nct_id, name, norm, kind) VALUES (?, ?, ?, 'DRUG')",
                         (row["nct_id"], name, trial_mapping.normalise(name)))
+            misfiled = self._drop_misfiled(conn, rows)
             conn.commit()
         finally:
             conn.close()
         mapped = sum(1 for r in rows if r["asset_id"])
         notes = ([f"{len(rows) - mapped} completed studies name no product on file"]
                  if len(rows) > mapped else [])
+        if misfiled:
+            notes.append(f"{misfiled} studies led by another company taken off "
+                         f"{self.ticker}")
         return RefreshResult(self.source, len(rows), [], False, 0, notes=notes)
+
+    def _drop_misfiled(self, conn, rows) -> int:
+        """Take off this company the studies on file whose lead sponsor names another.
+
+        Verifying what is fetched stops a new mistake; this clears the old ones, which
+        nothing else would, since a study this fetch no longer returns is never written
+        again. Only rows with a stated lead sponsor are judged, by the same names the
+        fetch verified against, and only after a live fetch has supplied those names.
+        A study that belongs to another company in the universe is refiled under it by
+        that company's own fetch.
+        """
+        names = getattr(self, "_sponsor_names", None)
+        if not names or not rows:
+            return 0
+        company_id = rows[0]["sponsor_company_id"]
+        stale = [r["nct_id"] for r in conn.execute(
+            "SELECT nct_id, lead_sponsor FROM completed_trials"
+            " WHERE sponsor_company_id = ? AND lead_sponsor IS NOT NULL", (company_id,))
+            if not ctgov.lead_names(r["lead_sponsor"], names)]
+        for nct_id in stale:
+            conn.execute("DELETE FROM completed_trials WHERE nct_id = ?", (nct_id,))
+            # The drug names go with it, unless the pipeline table still holds the study.
+            conn.execute(
+                "DELETE FROM trial_interventions WHERE nct_id = ?"
+                "   AND NOT EXISTS (SELECT 1 FROM trials t WHERE t.nct_id = ?)",
+                (nct_id, nct_id))
+        return len(stale)

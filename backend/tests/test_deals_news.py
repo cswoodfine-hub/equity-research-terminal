@@ -5,6 +5,8 @@ all. A headline parser earns its keep by what it refuses: the commentary cases m
 more than the deal cases, since a false deal is worse than a missed one.
 """
 
+from pathlib import Path
+
 import db
 from fetchers.deals_news import (DealsNewsFetcher, parse_area, parse_deal,
                                  parse_feed, parse_value)
@@ -395,3 +397,63 @@ def test_a_cache_snapshot_leaves_the_ttl_unstarted(tmp_path):
     assert payload["fetch_kind"] == "cache"
     assert fetcher._last_live_fetch_at() is None
     assert fetcher._within_ttl() is False
+
+
+# --- a deal done by someone else --------------------------------------------------------
+# The search returns every headline that mentions the company, including deals between two
+# other parties. Each of these was filed as the searched company's own acquisition.
+
+AZN_FEED = Path(__file__).parent / "fixtures" / "google_news_azn_deals.xml"
+
+
+def test_a_third_partys_acquisition_is_not_the_companys():
+    for headline, name, ticker in (
+            ("Azurity acquires Covis Pharma from existing investors", "AstraZeneca PLC",
+             "AZN"),
+            ("Deal of the Year: Gilead Buys Kite Pharma", "Vertex Pharmaceuticals Inc",
+             "VRTX"),
+            ("Roche to Buy U.S. Cancer-Drug Maker Ignyta for $1.7 Billion", "Bayer AG",
+             "BAYN"),
+            ("Novo Holdings completes acquisition of Catalent", "Novo Nordisk A/S",
+             "NVO"),
+            ("Double play: Thermo acquires Solventum filtration business and Sanofi "
+             "facility", "Sanofi", "SNY"),
+            ("JB Chemicals & Pharmaceuticals Ltd acquires Azmarda brand from Novartis",
+             "Novartis AG", "NVS")):
+        names = {name, ticker, name.split()[0]}
+        assert parse_deal(headline, names, buyer=(name, ticker)) is None, headline
+
+
+def test_the_company_named_as_buyer_still_counts():
+    for headline, name, ticker, party in (
+            ("Lilly to acquire Orna Therapeutics to advance cell therapies",
+             "Eli Lilly and Company", "LLY", "Orna Therapeutics"),
+            ("Flush with cash, Pfizer buys Global Blood Therapeutics in $5.4 billion deal",
+             "Pfizer Inc", "PFE", None),
+            ("Bristol-Myers to buy Celgene for $74 billion", "Bristol-Myers Squibb Co",
+             "BMY", "Celgene"),
+            ("Merck Animal Health to Acquire TARGAN", "Merck & Co Inc", "MRK", "TARGAN"),
+            ("Novo Nordisk to acquire Akero Therapeutics", "Novo Nordisk A/S", "NVO",
+             "Akero Therapeutics"),
+            ("J&J to acquire Alpha Bio", "Johnson & Johnson", "JNJ", "Alpha Bio"),
+            ("Pfizer, Arvinas ink licensing deal with Rigel", "Pfizer Inc", "PFE",
+             "Rigel")):
+        names = {name, ticker, name.split()[0]}
+        deal = parse_deal(headline, names, buyer=(name, ticker))
+        assert deal, headline
+        # "Global" is read as a publisher's descriptor, so that party is not asserted.
+        assert party is None or deal["counterparty"] == party, headline
+
+
+def test_the_feed_keeps_only_the_companys_own_deals(tmp_path):
+    path = str(tmp_path / "azn.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name) VALUES ('AZN', 'AstraZeneca PLC')")
+    cid = conn.execute("SELECT id FROM companies").fetchone()["id"]
+    conn.commit()
+    conn.close()
+    rows = DealsNewsFetcher(path).normalise(
+        {"companies": [{"id": cid, "ticker": "AZN", "name": "AstraZeneca PLC"}],
+         "feeds": {"AZN": AZN_FEED.read_text()}, "errors": []})
+    assert sorted(r["counterparty"] for r in rows) == ["EsoBiotec", "Neogene Therapeutics"]

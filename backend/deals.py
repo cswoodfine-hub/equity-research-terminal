@@ -360,6 +360,107 @@ NOT_OUR_DEAL = re.compile(
     r"\bheadquarters\b|\bcampus\b|\breal estate\b|\blease\b", re.I)
 
 
+# The verbs that state a deal in a headline, with the type each implies. Ordered longest
+# first so "agrees to acquire" is read before "acquire". The news fetcher reads deals with
+# them and ``prune_parties`` finds the same verb again in a stored headline.
+DEAL_VERBS = (
+    (r"completes? (?:the )?acquisition of", "acquisition"),
+    (r"agrees? to acquire", "acquisition"),
+    (r"to acquire", "acquisition"),
+    (r"acquires?", "acquisition"),
+    (r"buys?", "acquisition"),
+    (r"snaps? up", "acquisition"),
+    (r"licen[sc]es?(?: rights)?(?: to| from)?", "licensing"),
+    (r"licensing (?:deal|agreement|pact) with", "licensing"),
+    (r"partners? with", "collaboration"),
+    (r"collaborat(?:es?|ion) with", "collaboration"),
+    (r"teams? up with", "collaboration"),
+    (r"signs? (?:a )?(?:deal|agreement|pact) with", "collaboration"),
+)
+
+
+# --- who is doing the deal --------------------------------------------------------------
+
+# A news search for a company returns every headline that mentions it, and a headline
+# names a deal between two other parties as plainly as one of its own. "Azurity acquires
+# Covis Pharma" came back on AstraZeneca's search, "Deal of the Year: Gilead Buys Kite
+# Pharma" on Vertex's, "Roche to Buy Ignyta" on Bayer's and "Novo Holdings completes
+# acquisition of Catalent" on Novo Nordisk's, and each was filed as that company's
+# acquisition. So a headline counts only when the clause leading into its verb names the
+# company as the one doing the deal.
+
+# Words that say what kind of company a name is rather than which one. Dropped before the
+# name is looked for, so "Gilead Sciences Inc" is found as "Gilead" and "Merck & Co" as
+# "Merck".
+_COMPANY_FORM = {
+    "inc", "incorporated", "corp", "corporation", "co", "company", "and", "plc", "ag",
+    "se", "sa", "nv", "bv", "ltd", "limited", "llc", "holding", "holdings", "group",
+    "pharmaceuticals", "pharmaceutical", "pharma", "therapeutics", "sciences",
+    "biosciences", "biotechnology", "biotherapeutics", "biopharma", "biotech", "bio",
+    "medicine", "medicines",
+}
+
+# Where a headline's clauses break. The buyer is named in the clause the verb sits in,
+# so "Double play: Thermo acquires Solventum filtration business and Sanofi facility"
+# is Thermo's deal. A comma is not a break: "Biogen Bolsters Late-Stage Pipeline,
+# Expands Immunology Portfolio with Agreement to Acquire" and "Pfizer, Arvinas ink
+# licensing deal with Rigel" both name the buyer before one.
+_CLAUSE_BREAK = re.compile(r"[:;|]|\s[-\u2013\u2014]\s")
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", (text or "").lower())
+
+
+def buyer_aliases(name: str) -> set[str]:
+    """Every way a headline names the company as a party.
+
+    Its full name, its name without the words that only say what kind of company it is,
+    and each distinctive word of that, which is how a headline says "Lilly" for Eli Lilly
+    and Company and "Bristol-Myers" for Bristol-Myers Squibb. A word under five letters
+    is only taken as the whole name, so "Novo" alone does not name Novo Nordisk and
+    "Novo Holdings", a different company, is not read as it. A name with an ampersand
+    also answers to its initials: J&J.
+    """
+    words = _words(name)
+    core = [w for w in words if w not in _COMPANY_FORM and len(w) > 1]
+    aliases = {" ".join(words), " ".join(core)}
+    aliases |= {w for w in core if len(w) >= 5}
+    if "&" in (name or ""):
+        initials = [p.strip()[:1].lower() for p in name.split("&") if p.strip()]
+        if len(initials) > 1:
+            aliases.add("&".join(initials))
+    return {a for a in aliases if a}
+
+
+def names_buyer(clause: str, name: str, ticker: str | None = None) -> bool:
+    """Whether the words leading into a deal verb name this company as the one doing it.
+
+    Only the last clause is read, the one the verb belongs to. The ticker counts in
+    capitals only, as a headline writes it, since a short ticker in lower case is a word.
+    """
+    clause = _CLAUSE_BREAK.split(clause or "")[-1]
+    padded = f" {' '.join(_words(clause))} "
+    squeezed = re.sub(r"\s+", "", clause.lower())
+    for alias in buyer_aliases(name):
+        if "&" in alias:
+            if re.search(rf"(?<![a-z]){re.escape(alias)}(?![a-z])", squeezed):
+                return True
+        elif f" {alias} " in padded:
+            return True
+    return bool(ticker) and bool(re.search(rf"\b{re.escape(ticker)}\b", clause))
+
+
+def headline_buyer_named(headline: str, name: str, ticker: str | None = None):
+    """Whether a stored headline names the company as the party doing its deal, or None
+    where no deal verb can be found in it to say who that is."""
+    for verb, _kind in DEAL_VERBS:
+        match = re.search(rf"(?i:\b{verb})\s+[A-Z]", headline or "")
+        if match:
+            return names_buyer(headline[:match.start()], name, ticker)
+    return None
+
+
 # --- what counts as a counterparty ------------------------------------------------------
 
 # A deal has two parties. Everything below was captured as one and is not, every case
@@ -937,10 +1038,12 @@ def prune_parties(db_path=None) -> dict:
     dropped = fixed = 0
     try:
         for row in conn.execute(
-                "SELECT id, counterparty, quote, event_date_source, accession"
-                "  FROM deals WHERE counterparty IS NOT NULL"
-                "  AND deal_type IN ('acquisition', 'licensing', 'collaboration',"
-                "                    'divestiture')").fetchall():
+                "SELECT d.id, d.counterparty, d.quote, d.event_date_source, d.accession,"
+                "       d.is_curated, c.name AS company, c.ticker"
+                "  FROM deals d LEFT JOIN companies c ON c.id = d.company_id"
+                " WHERE d.counterparty IS NOT NULL"
+                "  AND d.deal_type IN ('acquisition', 'licensing', 'collaboration',"
+                "                      'divestiture')").fetchall():
             tidy = unspace(row["counterparty"].strip())
             # For a news-sourced row the quote is the headline, so the rule that stops a
             # roundup or an award being read as a deal also clears the rows written
@@ -954,7 +1057,16 @@ def prune_parties(db_path=None) -> dict:
             # genuinely has subsidiaries.
             holder = bool(re.search(re.escape(tidy) + r"\W+" + _HOLDER_PHRASE.pattern,
                                     quote, re.I)) if from_news else False
-            if not is_party(tidy) or holder or (
+            # A headline whose deal is done by someone else: "Azurity acquires Covis
+            # Pharma" on AstraZeneca's page. Only a row the news route wrote, not a
+            # filing's row that a headline redated, since a filing's quote is prose
+            # ("the Company entered into"); only where the headline has a deal verb to
+            # say who is doing it; and never an analyst's row.
+            someone_else = (not row["accession"] and not row["is_curated"]
+                            and row["company"]
+                            and headline_buyer_named(quote, row["company"],
+                                                     row["ticker"]) is False)
+            if not is_party(tidy) or holder or someone_else or (
                     from_news and NOT_OUR_DEAL.search(quote)):
                 conn.execute("DELETE FROM deals WHERE id = ?", (row["id"],))
                 dropped += 1

@@ -37,22 +37,9 @@ _TIMEOUT_S = 30
 _USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
 FEED = "https://news.google.com/rss/search"
 
-# The verbs that state a deal, with the type each implies. Ordered longest first so
-# "agrees to acquire" is read before "acquire".
-_DEAL_VERBS = (
-    (r"completes? (?:the )?acquisition of", "acquisition"),
-    (r"agrees? to acquire", "acquisition"),
-    (r"to acquire", "acquisition"),
-    (r"acquires?", "acquisition"),
-    (r"buys?", "acquisition"),
-    (r"snaps? up", "acquisition"),
-    (r"licen[sc]es?(?: rights)?(?: to| from)?", "licensing"),
-    (r"licensing (?:deal|agreement|pact) with", "licensing"),
-    (r"partners? with", "collaboration"),
-    (r"collaborat(?:es?|ion) with", "collaboration"),
-    (r"teams? up with", "collaboration"),
-    (r"signs? (?:a )?(?:deal|agreement|pact) with", "collaboration"),
-)
+# The verbs that state a deal, with the type each implies. They live beside the rule that
+# reads who is doing the deal, since the prune pass finds them in stored headlines too.
+_DEAL_VERBS = deals.DEAL_VERBS
 
 # A headline that asks a question or muses about the sector is commentary, not an
 # announcement: "Why other Big Pharmas could follow Lilly into psychedelics".
@@ -223,13 +210,18 @@ def _clean_name(raw: str) -> str | None:
     return name if len(name) >= 3 else None
 
 
-def parse_deal(headline: str, company_names) -> dict | None:
+def parse_deal(headline: str, company_names, buyer=None) -> dict | None:
     """{deal_type, counterparty, announced_value} from a headline, or None when it states no deal.
 
     The counterparty is the party that is not the company being searched for, which is
     why the company's own names are passed in: "Eli Lilly acquires Ajax Therapeutics"
     and "Ajax Therapeutics acquired by Eli Lilly" name the same two parties either way
     round, and only one of them is the counterparty.
+
+    ``buyer`` is the company's (name, ticker). Given, the words leading into the verb have
+    to name it as the one doing the deal, since the search returns every headline that
+    mentions the company: "Azurity acquires Covis Pharma" is Azurity's deal, whatever
+    feed it arrived on.
     """
     text = _clean_title(headline)
     if not text or _COMMENTARY.search(text) or deals.NOT_OUR_DEAL.search(text):
@@ -258,6 +250,8 @@ def parse_deal(headline: str, company_names) -> dict | None:
         # A headline naming the searched company after the verb is the passive voice
         # ("X acquired by Lilly"), which names no counterparty this way round.
         if any(n.lower() in counterparty.lower() for n in company_names):
+            return None
+        if buyer and not deals.names_buyer(text[:match.start()], *buyer):
             return None
         return {"deal_type": deal_type, "counterparty": counterparty,
                 "announced_value": parse_value(text), "area": parse_area(text),
@@ -432,7 +426,8 @@ class DealsNewsFetcher(BaseFetcher):
             except ET.ParseError:
                 continue
             for item in items:
-                deal = parse_deal(item["title"], names)
+                deal = parse_deal(item["title"], names,
+                                  buyer=(company["name"], ticker))
                 if not deal:
                     talk = parse_reported(item["title"], names)
                     if talk:

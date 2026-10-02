@@ -25,6 +25,7 @@ returned say how many, so the gap stays visible rather than reading as full cove
 
 from __future__ import annotations
 
+import json
 import re
 
 import assets_util
@@ -173,6 +174,88 @@ def aliases(raw: str) -> set[str]:
     return {a for a in out if a}
 
 
+# What joins two compounds in one intervention name: "Naltrexone SR 32 mg/bupropion SR
+# 360 mg/day", "Oxycodone and Naltrexone". A slash between two numbers is a strength, not
+# a join, since "320/14.4/9.6 ug" is one inhaler's dose.
+COMBINATION_JOIN = re.compile(
+    r"\s*(?:\+|&|;|\bplus\b|\band\b|\bwith\b|(?<!\d)/|/(?!\d))\s*", re.IGNORECASE)
+
+# Words left beside a compound once its dose is gone, which say how often or how fast it
+# is given: the "day" of "360 mg/day", the "SR" of "Naltrexone SR".
+SCHEDULE_WORDS = {
+    "day", "days", "daily", "d", "week", "weekly", "wk", "month", "monthly", "hour",
+    "hours", "h", "hr", "once", "twice", "per", "bid", "tid", "qid", "qd", "qw", "qod",
+    "sr", "er", "xr", "cr", "la", "xl", "dr", "ir",
+}
+
+
+def components(raw: str) -> list[str]:
+    """The compounds an intervention combines, each reduced to its molecule, or an empty
+    list when it names one compound or none.
+
+    The normalised name cannot answer this, since normalising turns the slash that joins
+    two drugs into the same space that separates a drug from its dose. So the raw name is
+    split first, and a piece that is only a schedule, a strength or a placebo is dropped.
+    """
+    text = re.sub(r"\([^)]*\)", " ", raw or "")
+    parts = []
+    for piece in COMBINATION_JOIN.split(text):
+        if not piece.strip() or NOT_A_COMPOUND.search(normalise(piece)):
+            continue
+        key = " ".join(w for w in canonical(piece).split()
+                       if w not in SCHEDULE_WORDS and re.search(r"[a-z]", w))
+        if key:
+            parts.append(key)
+    parts = list(dict.fromkeys(parts))
+    return parts if len(parts) > 1 else []
+
+
+def _combination_products(conn, company_id: int) -> dict[int, set[str]]:
+    """asset_id -> the molecules it holds, for each of one company's products that holds
+    more than one.
+
+    The ingredient list is drugsfda's, where the approvals fetch stored one. A generic
+    name is not read for it: "Tetanus Toxoid, Reduced Diphtheria Toxoid and Acellular
+    Pertussis Vaccine" is one vaccine, not three products. A single-agent product is
+    absent, since its generic name binds a study of that molecule given alongside
+    anything.
+    """
+    out: dict[int, set[str]] = {}
+    for row in conn.execute(
+            "SELECT id, active_ingredients FROM assets"
+            " WHERE owner_company_id = ?", (company_id,)):
+        try:
+            listed = json.loads(row["active_ingredients"] or "[]")
+        except (TypeError, ValueError):
+            listed = []
+        held = {canonical(str(i)) for i in listed if i} - {""}
+        if len(held) > 1:
+            out[row["id"]] = held
+    return out
+
+
+def _holds(asset_id: int, matched: str, parts, names, combinations) -> bool:
+    """Whether a match on one ingredient's name stands when the intervention combines
+    compounds.
+
+    Troxyca ER is oxycodone with naltrexone, filed under naltrexone. "Naltrexone SR 32
+    mg/bupropion SR 360 mg/day" is Contrave, a different combination sharing one molecule
+    with it, and the shared molecule named the product. Where the name that matched is
+    one ingredient of a combination product, every compound in the intervention now has
+    to be one the product holds, by an ingredient or by one of its own names.
+
+    Nothing else is tested. A product holding one molecule is not, so "Durvalumab +
+    Tremelimumab" still binds to Imfinzi. Nor is a match on a name that is the product's
+    own rather than one ingredient's, a brand, a code or "E/C/F/TAF", since that names
+    the product whatever else the arm lists.
+    """
+    held = combinations.get(asset_id) if combinations else None
+    if not parts or not held or canonical(matched) not in held:
+        return True
+    known = held | {n for n, a in names if a == asset_id}
+    return all(any(f" {k} " in f" {p} " for k in known) for p in parts)
+
+
 def _asset_names(conn, company_id: int) -> list[tuple[str, int]]:
     """(normalised name, asset_id) for every name one company's assets are known by,
     longest first so the most specific match is tried before a shorter, vaguer one."""
@@ -218,25 +301,57 @@ def _asset_names(conn, company_id: int) -> list[tuple[str, int]]:
     return names
 
 
-def match_intervention(intervention_norm: str, names: list[tuple[str, int]]) -> int | None:
+def match_intervention(intervention_norm: str, names: list[tuple[str, int]],
+                       parts=(), combinations=None) -> int | None:
     """The asset an intervention names, or None.
 
     An exact match wins outright. Otherwise the longest asset name that appears in the
     intervention as a whole word takes it, so "Tirzepatide 5 mg" and "LY3437943 injection"
-    both bind while "insulin" does not sweep up a whole portfolio. Pure, so the rule is
-    testable without a database.
+    both bind while "insulin" does not sweep up a whole portfolio. Where the intervention
+    combines compounds (``parts``, from ``components``) a combination product is only
+    named when it holds them all (``_holds``). Pure, so the rule is testable without a
+    database.
     """
     if not intervention_norm:
         return None
     for norm, asset_id in names:
-        if norm == intervention_norm:
+        if norm == intervention_norm and _holds(asset_id, norm, parts, names,
+                                                     combinations):
             return asset_id
     for norm, asset_id in names:
         if len(norm) < MIN_SUBSTRING_LEN:
             continue
-        if re.search(rf"(?:^|\s){re.escape(norm)}(?:\s|$)", intervention_norm):
+        if re.search(rf"(?:^|\s){re.escape(norm)}(?:\s|$)", intervention_norm) \
+                and _holds(asset_id, norm, parts, names, combinations):
             return asset_id
     return None
+
+
+def match_name(raw: str, names, combinations=None) -> int | None:
+    """``match_intervention`` on a raw intervention name, which is what carries the join
+    between the compounds of a combination."""
+    return match_intervention(normalise(raw), names, components(raw), combinations)
+
+
+def first_match(raw_names, names, combinations=None) -> int | None:
+    """The asset the first of a study's interventions to name one names, or None."""
+    return next((a for a in (match_name(r, names, combinations) for r in raw_names)
+                 if a), None)
+
+
+def _refuted(current, raw_names, names, combinations) -> bool:
+    """Whether a study bound to a combination product named it only through a different
+    combination that shares one of its molecules, so the binding does not stand.
+
+    Only such a binding is undone. One made by the analyst, by a brand split or by any
+    name this test does not reach is left as it is.
+    """
+    if current is None or current not in (combinations or {}):
+        return False
+    own = [(n, a) for n, a in names if a == current]
+    hits = [r for r in raw_names if match_intervention(normalise(r), own) == current]
+    return bool(hits) and not any(
+        match_name(r, own, combinations) == current for r in hits)
 
 
 def derive_pipeline_assets(db_path=None) -> dict:
@@ -346,6 +461,29 @@ def prune_orphan_pipeline_assets(db_path=None) -> dict:
         conn.close()
 
 
+def _studies(conn, table: str) -> list:
+    """Every sponsored study in one table with its binding and its drugs' raw names.
+
+    Raw names rather than the stored normalised ones, since only the raw name still says
+    which words are two compounds joined and which are one compound and its dose.
+    """
+    studies: dict = {}
+    for row in conn.execute(
+            f"""
+            SELECT t.nct_id, t.sponsor_company_id AS cid, t.asset_id, i.name
+              FROM {table} t
+              JOIN trial_interventions i ON i.nct_id = t.nct_id
+             WHERE t.sponsor_company_id IS NOT NULL
+             ORDER BY t.nct_id, i.id
+            """):
+        entry = studies.setdefault(row["nct_id"], {
+            "nct_id": row["nct_id"], "cid": row["cid"], "asset_id": row["asset_id"],
+            "names": []})
+        if row["name"]:
+            entry["names"].append(row["name"])
+    return list(studies.values())
+
+
 def map_trials(db_path=None) -> dict:
     """Bind every unmapped trial to an asset where its intervention names one.
 
@@ -363,54 +501,47 @@ def map_trials(db_path=None) -> dict:
             conn.execute("UPDATE trials SET asset_id = ? WHERE nct_id = ?",
                          (asset_id, nct_id))
 
-        rows = conn.execute(
-            """
-            SELECT t.nct_id, t.sponsor_company_id AS cid,
-                   GROUP_CONCAT(i.norm, '||') AS norms
-              FROM trials t
-              JOIN trial_interventions i ON i.nct_id = t.nct_id
-             WHERE t.sponsor_company_id IS NOT NULL
-             GROUP BY t.nct_id
-            """).fetchall()
+        names_by_company: dict[int, tuple] = {}
 
-        names_by_company: dict[int, list] = {}
-        matched = 0
-        for row in rows:
+        def known(cid):
+            if cid not in names_by_company:
+                names_by_company[cid] = (_asset_names(conn, cid),
+                                         _combination_products(conn, cid))
+            return names_by_company[cid]
+
+        matched = unbound = 0
+        for row in _studies(conn, "trials"):
             if row["nct_id"] in overrides:
                 continue                      # the analyst has already answered this one
-            cid = row["cid"]
-            if cid not in names_by_company:
-                names_by_company[cid] = _asset_names(conn, cid)
-            names = names_by_company[cid]
-            asset_id = next(
-                (a for a in (match_intervention(n, names)
-                             for n in (row["norms"] or "").split("||")) if a), None)
+            names, combinations = known(row["cid"])
+            asset_id = first_match(row["names"], names, combinations)
             if asset_id is not None:
                 conn.execute("UPDATE trials SET asset_id = ? WHERE nct_id = ?",
                              (asset_id, row["nct_id"]))
                 matched += 1
+            elif _refuted(row["asset_id"], row["names"], names, combinations):
+                conn.execute("UPDATE trials SET asset_id = NULL WHERE nct_id = ?",
+                             (row["nct_id"],))
+                unbound += 1
         conn.commit()
 
         # Completed studies are bound by the same rule and from the same stored names,
         # so an improvement to the cleaner reaches a product's record as well as its
-        # pipeline without anything being fetched again.
-        completed = conn.execute(
-            """
-            SELECT ct.nct_id, ct.sponsor_company_id AS cid,
-                   GROUP_CONCAT(i.norm, '||') AS norms
-              FROM completed_trials ct
-              JOIN trial_interventions i ON i.nct_id = ct.nct_id
-             WHERE ct.sponsor_company_id IS NOT NULL AND ct.asset_id IS NULL
-             GROUP BY ct.nct_id
-            """).fetchall()
+        # pipeline without anything being fetched again. A bound study is looked at again
+        # only to undo a binding the combination rule refutes.
         completed_matched = 0
-        for row in completed:
-            cid = row["cid"]
-            if cid not in names_by_company:
-                names_by_company[cid] = _asset_names(conn, cid)
-            asset_id = next(
-                (a for a in (match_intervention(n, names_by_company[cid])
-                             for n in (row["norms"] or "").split("||")) if a), None)
+        for row in _studies(conn, "completed_trials"):
+            names, combinations = known(row["cid"])
+            if row["asset_id"] is not None:
+                if not _refuted(row["asset_id"], row["names"], names, combinations):
+                    continue
+                asset_id = first_match(row["names"], names, combinations)
+                conn.execute("UPDATE completed_trials SET asset_id = ? WHERE nct_id = ?",
+                             (asset_id, row["nct_id"]))
+                unbound += asset_id is None
+                completed_matched += asset_id is not None
+                continue
+            asset_id = first_match(row["names"], names, combinations)
             if asset_id is not None:
                 conn.execute("UPDATE completed_trials SET asset_id = ? WHERE nct_id = ?",
                              (asset_id, row["nct_id"]))
@@ -427,6 +558,7 @@ def map_trials(db_path=None) -> dict:
     finally:
         conn.close()
     return {"matched": matched, "completed_matched": completed_matched,
+            "combination_unbound": unbound,
             "mapped": mapped, "total": total,
             "unmapped": total - mapped, "curated": len(overrides),
             "no_interventions": no_interventions}
