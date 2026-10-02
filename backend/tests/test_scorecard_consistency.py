@@ -154,8 +154,8 @@ def _builders() -> dict:
         if name.startswith(("_ki_", "_KI_", "_dr_", "_DR_")) or name in SHARED:
             keep.append(node)
             names.add(name)
-    for needed in SHARED + ("_ki_strip_cells", "_ki_lines_html", "_ki_next_html",
-                            "_ki_pillar_rows", "_dr_list"):
+    for needed in SHARED + ("_ki_columns", "_ki_figures", "_ki_track_items", "_ki_metric",
+                            "_dr_list"):
         assert needed in names, f"{needed} is not in streamlit_app.py"
     space = {"html": html, "re": re, "dt": dt}
     exec(compile(ast.Module(body=keep, type_ignores=[]), str(APP), "exec"), space)
@@ -188,31 +188,6 @@ def _unesc(s: str) -> str:
     return html.unescape(s)
 
 
-def _strip_cells(markup: str) -> list:
-    out = []
-    for m in re.finditer(r'<span class="ki-cell"[^>]*>(.*?)</span></span>', markup):
-        cell = m.group(1) + "</span>"
-        k = re.search(r'<span class="k">(.*?)</span>', cell)
-        v = re.search(r'<span class="v[^"]*">(.*?)</span>', cell)
-        s = re.search(r'<span class="sub">(.*?)</span>', cell)
-        out.append({"key": _unesc(k.group(1)), "value": _unesc(v.group(1)),
-                    "sub": _unesc(s.group(1)), "title": _unesc(
-                        (re.search(r'title="([^"]*)"', m.group(0)) or [None, ""])[1])})
-    return out
-
-
-def _lines(markup: str) -> list:
-    """(glyph, text) of the positives and negatives block."""
-    return [(_unesc(g), _unesc(t)) for g, t in re.findall(
-        r'<span class="ki-g [a-z]+">([^<]*)</span><span class="ki-t">([^<]*)</span>', markup)]
-
-
-def _next_rows(markup: str) -> list:
-    """(lead, text) of the Next block."""
-    return [(_unesc(a), _unesc(b)) for a, b in re.findall(
-        r'<span class="ki-lead[^"]*">([^<]*)</span><span class="ki-t">([^<]*)</span>', markup)]
-
-
 DR_ROW = re.compile(
     r'<(a|div) class="dr-row" data-kind="([a-z]+)"[^>]*>'
     r'<span class="dr-lead( date)?">(.*?)(<span class="dr-m"[^>]*>M</span>)?</span>'
@@ -222,16 +197,6 @@ DR_ROW = re.compile(
 def _dr_rows(markup: str) -> list:
     """(kind, lead, text) of every Drivers or Risks row, in the order drawn."""
     return [(m.group(2), _unesc(m.group(4)), _unesc(m.group(6))) for m in DR_ROW.finditer(markup)]
-
-
-def _bars(markup: str) -> dict:
-    """pillar id -> the number its bar prints, from charts.pillar_bars."""
-    out = {}
-    for pid, body in re.findall(r'<g class="pb-row" data-pillar="([a-z_]+)">(.*?)</g>', markup,
-                                re.S):
-        num = re.search(r'class="pb-num">([^<]*)<', body)
-        out[pid] = int(num.group(1)) if num else None
-    return out
 
 
 # --- what the payload says each surface prints -------------------------------------------------
@@ -352,38 +317,31 @@ def _check_frame(v: dict, sc: dict, focal: str, picks) -> None:
 
 def _ki_from_builders(view: dict, sc: dict, ticker: str) -> dict:
     """What Key insights prints for ``ticker`` from the scorecard block, through the tab's
-    own builders (the renderer only arranges their output)."""
+    own builders (the renderer only arranges their output): every measure in the cohort
+    band, and the multiple in the call's last cell."""
     rec = sc["companies"][ticker]
-    cohort = sc["cohorts"][rec["cohort"]]
-    cells = _strip_cells(view["_ki_strip_html"](view["_ki_strip_cells"]("1.00", 0.0, {}, rec)))
-    rows = view["_ki_pillar_rows"](rec, cohort, sc["method"])
-    return {"cells": cells, "lines": _lines(view["_ki_lines_html"](rec)),
-            "bars": {r["id"]: r["score"] for r in rows if "id" in r}}
+    cols = view["_ki_columns"](sc, ticker, {}, {})
+    measures = {r["id"]: (r["text"], r["place_text"]) for c in cols for r in c["rows"]
+                if r.get("value") is not None}
+    multiple = (rec.get("facts") or {}).get("multiple")
+    cell = view["_ki_figures"]({}, {"source": None}, None, None, multiple, None)[3]
+    return {"measures": measures, "multiple": cell[0], "multiple_key": cell[1]}
 
 
-def _check_key_insights(ki: dict, sc: dict, ticker: str, sentence_markup: str = None) -> None:
+def _check_key_insights(ki: dict, sc: dict, ticker: str) -> None:
+    """Every measure is the scorecard's own text and place; the multiple its own figure."""
     rec = sc["companies"][ticker]
-    if sentence_markup is not None:
-        assert html.escape(rec["sentence"], quote=False) in sentence_markup
-    # Up to three of each side, the head of each list, fewer where the sentence and the
-    # lines would pass 8.7's 75 words (``_ki_lines_pick``).
-    plus = [t for g, t in ki["lines"] if g == "+"]
-    minus = [t for g, t in ki["lines"] if g == "−"]
-    assert ki["lines"] == [("+", t) for t in plus] + [("−", t) for t in minus]
-    assert plus == [x["text"] for x in rec["positives"][:len(plus)]] and len(plus) <= 3
-    assert minus == [x["text"] for x in rec["negatives"][:len(minus)]] and len(minus) <= 3
-    assert len(ki["lines"]) >= min(2, len(rec["positives"][:3] + rec["negatives"][:3]))
-    for pid in _cohort_ids(sc, rec):
-        assert ki["bars"].get(pid) == rec["pillars"][pid]["score"], pid
-    cells = ki["cells"]
-    assert [c["key"] for c in cells] == ["last close", "model", "multiple",
-                                         "next exclusivity loss"]
+    by_id = {m["id"]: m for p in (rec.get("pillars") or {}).values()
+             for m in (p.get("metrics") or [])}
+    for mid, (text, place) in ki["measures"].items():
+        assert text == by_id[mid]["text"], mid
+        assert place == f"{by_id[mid]['place']} of {by_id[mid]['n']}", mid
     multiple = (rec.get("facts") or {}).get("multiple")
     if multiple:
-        assert cells[2]["value"] == multiple["text"]
-        assert cells[2]["sub"] == f"{multiple['label']}, median {multiple['median_text']}"
+        assert ki["multiple"] == multiple["text"]
+        assert ki["multiple_key"] == f"{multiple['label']} · median {multiple['median_text']}"
     else:
-        assert (cells[2]["value"], cells[2]["sub"]) == (DOT, "no multiple on file")
+        assert ki["multiple"] == DOT
 
 
 def _sentence_numbers(sc: dict, ticker: str) -> None:
@@ -408,82 +366,56 @@ def test_the_frame_table_panel_and_compare_print_the_scorecard(frame, board, tic
 
 @needs_node
 @pytest.mark.parametrize("ticker", TICKERS)
-def test_key_insights_and_the_frame_print_the_same_numbers_and_lines(view, frame, board,
-                                                                     ticker):
+def test_key_insights_and_the_frame_print_the_same_numbers(view, frame, board, ticker):
+    """Key insights' cohort band and the company panel print each measure as the same
+    text, and the call's multiple is the panel's value measure against the same median."""
     rec = board["companies"][ticker]
     ki = _ki_from_builders(view, board, ticker)
     _check_key_insights(ki, board, ticker)
     v = frame[ticker]
-    # The lines: Key insights' are the head of the panel's lists (all of them there) and of
-    # Compare's cells, up to three of each.
-    plus = [t for g, t in ki["lines"] if g == "+"]
-    minus = [t for g, t in ki["lines"] if g == "−"]
-    assert plus == v["detail"]["positives"][:len(plus)]
-    assert minus == v["detail"]["negatives"][:len(minus)]
-    groups = {g["id"]: g for g in v["compare"]["groups"]}
-    col = v["compare"]["columns"].index(ticker)
-    assert groups["positives"]["rows"][0]["cells"][col]["lines"] == v["detail"]["positives"][:3]
-    # The bars: the panel's pillar scores, the table's shaded cells and Compare's cells.
-    panel = {p["id"]: p["score"] for p in v["detail"]["pillars"]}
-    assert ki["bars"] == panel
-    row = next(r for r in v["scorecard"]["rows"] if r["ticker"] == ticker)
-    assert {c["id"]: c["score"] for c in row["cells"]} == {
-        k: panel[k] for k in panel if k != "momentum"}
-    for pid, score in panel.items():
-        assert groups[pid]["rows"][0]["cells"][col]["text"] == (DOT if score is None
-                                                                 else str(score))
-    # The multiple: the strip's cell is the panel's value measure, against the same median.
+    panel = {m["id"]: m for p in v["detail"]["pillars"] for m in (p.get("metrics") or [])}
+    for mid, (text, _place) in ki["measures"].items():
+        if mid in panel:
+            assert panel[mid]["text"] == text, mid
     multiple = (rec.get("facts") or {}).get("multiple")
     if multiple:
         value = next(p for p in v["detail"]["pillars"] if p["id"] == "value")
         m = next(x for x in value["metrics"] if x["id"] == multiple["metric"])
-        assert m["text"] == ki["cells"][2]["value"]
+        assert m["text"] == ki["multiple"]
         assert m["medianText"] == f"median {multiple['median_text']}"
 
 
+def _dated(rows):
+    return [r for r in rows if re.match(r"^\d{4}(-\d{2}){0,2}$", str(r.get("date") or ""))]
+
+
 @pytest.mark.parametrize("ticker", ["AZN", "LLY", "CRSP"])
-def test_next_is_the_first_three_drivers(view, board, ticker):
-    """Key insights' Next and the Catalysts list, drawn from the same saved context: the same
-    leads, the same words, in the same order."""
+def test_the_track_leads_with_the_head_of_the_catalysts_list(view, board, ticker):
+    """Key insights' track and the Catalysts list, drawn from the same saved context: the
+    track labels the first four dated drivers, in the list's order."""
     ctx = json.loads((DRIVERS / f"ctx_{ticker}.json").read_text())
     feed = json.loads((DRIVERS / f"feed_{ticker}.json").read_text())
     part = D.section(ticker, ctx, board["companies"].get(ticker), feed, board["today"])
-    drawn = [(lead, text) for kind, lead, text in
-             _dr_rows(view["_dr_list"](part["drivers"]["shown"], "driver"))]
     events = D.rank_events(ctx)
-    nxt = _next_rows(view["_ki_next_html"](events[:view["_KI_NEXT_SHOWN"]]))
-    assert nxt == drawn[:3]
-    assert view["_KI_NEXT_SHOWN"] == 3
-    if not events:
-        assert nxt == [] and drawn == []
-    else:
-        assert view["_ki_next_basis"](len(events), D.drivers_basis(len(events))).endswith(
-            part["drivers"]["basis"] + ", Catalysts has them all")
+    items, _ = view["_ki_track_items"](events, [], dt.date.fromisoformat(board["today"]))
+    labelled = [it["label"] for it in items if it["kind"] != "minor"]
+    assert labelled == [e["asset"] for e in _dated(events)][:4]
+    shown = [r["asset"] for r in _dated(part["drivers"]["shown"])]
+    assert labelled[:len(shown)] == shown[:len(labelled)]
 
 
-def test_the_strips_exclusivity_cell_is_the_first_exclusivity_risk(view, board):
-    """For every company: the strip's next exclusivity loss and the first exclusivity row of
-    Risks name the same product, month and share of revenue, or both say there is none."""
+def test_the_tracks_losses_are_the_risk_lists_exclusivity_rows(view, board):
+    """For every company: the losses under the track and the exclusivity rows of Risks
+    name the same products in the same order."""
     today = board["today"]
     checked = 0
     for ticker, rec in board["companies"].items():
-        cell = view["_ki_strip_cells"]("1.00", 0.0, {}, rec)[3]
-        risks = [r for r in D.risks(rec, None, [], today) if r["kind"] == "exclusivity"]
-        if not risks:
-            assert cell[1:3] == (DOT, "none in 24 months"), ticker
-            continue
-        first = risks[0]
-        assert cell[1] == D.month_text(first["date"]), ticker
-        share = first["lead"].replace(" of revenue", "")
-        assert cell[2].startswith(f"{share} of "), (ticker, cell[2], first["lead"])
-        assert cell[2].endswith(", " + first["asset"]), (ticker, cell[2], first["asset"])
-        # The row cuts a long name at a word to stay under 15 words (1.5): JNJ's
-        # "Prezista / Prezcobix / Rezolsta / Symtuza" prints "Prezista / Prezcobix /
-        # Rezolsta /…". The strip's sub is one clamped line and keeps it whole.
-        name = first["text"].split(" exclusivity ends ")[0]
-        assert name == first["asset"] or (
-            name.endswith("…") and first["asset"].startswith(name[:-1])), (ticker, name)
-        checked += 1
+        risks = D.risks(rec, None, [], today)
+        items, _ = view["_ki_track_items"]([], risks, dt.date.fromisoformat(today))
+        losses = [it["label"] for it in items if it["kind"] == "loss"]
+        want = [f"{r['asset']} LOE" for r in risks if r["kind"] == "exclusivity"][:4]
+        assert losses == want, ticker
+        checked += bool(losses)
     assert checked >= 10, "too few companies with an exclusivity loss to mean anything"
 
 
@@ -634,44 +566,41 @@ def test_live_every_surface_prints_the_payloads_scorecard(page):
                 f"{rec['score']}" + (f", value {rec['value']}" if rec.get("value") is not None
                                      else ""))
         assert f'aria-label="{aria}"' in page["args"]["chart_svg"], aria
-    # Key insights: the strip, the sentence, the bars and the lines.
+    # Key insights: every measure in its cohort band, as the scorecard prints it.
     body = "\n".join(page["ki"])
-    strip = next(m for m in page["ki"] if "ki-strip" in m)
-    bars = next(m for m in page["ki"] if 'class="pb-row"' in m)
-    lines = next(m for m in page["ki"] if 'class="ki-lines"' in m or 'class="ki-empty"' in m
-                 and "quarter of the cohort" in m)
-    ki = {"cells": _strip_cells(strip), "lines": _lines(lines), "bars": _bars(bars)}
-    _check_key_insights(ki, sc, ticker, sentence_markup=body)
-    assert ki["bars"] == {p["id"]: p["score"] for p in page["frame"]["detail"]["pillars"]}
+    view = _builders()
+    for col in view["_ki_columns"](sc, ticker, {}, {}):
+        for r in col["rows"]:
+            if r.get("value") is not None:
+                assert f"<b>{html.escape(r['text'], quote=False)}</b>" in body, r["id"]
+    if rec.get("rank") is not None:
+        assert f"of {rec['ranked_of']} · score {rec['score']}" in body
 
 
 @live
-def test_live_next_is_the_first_three_drivers_on_catalysts(page):
-    nxt_block = next((m for m in page["ki"] if 'class="ki-next"' in m), "")
-    nxt = _next_rows(nxt_block)
-    drawn = [(lead, text) for kind, lead, text in _dr_rows("".join(page["cat"]))
+def test_live_the_tracks_drivers_are_on_the_catalysts_list(page):
+    body = "\n".join(page["ki"])
+    track = next((m for m in page["ki"] if "ki-track" in m), "")
+    drawn = [text.split(" · ")[0] for kind, lead, text in _dr_rows("".join(page["cat"]))
              if kind == "driver"]
-    assert len(nxt) == min(3, len(drawn))
-    assert nxt == drawn[:3]
+    labels = re.findall(r'font-size="10"[^>]*font-weight="600"[^>]*>([^<]*)</text>', track)
+    drivers_drawn = [html.unescape(x) for x in labels if not x.endswith(" LOE")
+                     and not x.startswith("NCT")]
+    for name in drivers_drawn:
+        assert name.split(" → ")[0] in drawn, name
     if not drawn:
-        assert "No event dated in the next 12 months." in "".join(page["ki"])
+        assert "ki-track" not in body or not drivers_drawn
 
 
 @live
-def test_live_the_strips_exclusivity_cell_is_the_first_risk(page):
-    strip = next(m for m in page["ki"] if "ki-strip" in m)
-    cell = _strip_cells(strip)[3]
+def test_live_the_tracks_first_loss_is_the_first_exclusivity_risk(page):
     risks = [(lead, text) for kind, lead, text in _dr_rows("".join(page["cat"]))
              if kind == "exclusivity"]
+    track = next((m for m in page["ki"] if "ki-track" in m), "")
     rec = page["sc"]["companies"][page["ticker"]]
     if not risks:
-        assert (cell["value"], cell["sub"]) == (DOT, "none in 24 months")
+        assert " LOE<" not in track
         assert not rec.get("exclusivity_losses")
         return
-    lead, text = risks[0]
     first = rec["exclusivity_losses"][0]
-    assert lead == f"{first['share_text']} of revenue"
-    assert cell["sub"] == f"{first['share_text']} of {first['fy']} revenue, {first['asset']}"
-    assert text.startswith(f"{first['asset']} exclusivity ends ")
-    assert text.endswith(first["date_text"])
-    assert cell["value"] == D.month_text(first["date"])
+    assert f">{html.escape(first['asset'], quote=False)} LOE<" in track

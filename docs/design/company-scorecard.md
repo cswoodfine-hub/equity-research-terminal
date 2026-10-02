@@ -112,7 +112,7 @@ Appendix C. The ones that changed the design:
 
 | Tab | The question | First screen | No longer on it |
 |---|---|---|---|
-| Key insights | Where does this company stand, and what changed? | A strip of four figures (last close, model, multiple against peers, next exclusivity loss), one sentence, the pillar bars, up to three positives and three negatives, Next (the first three rows of the Catalysts list), the five newest high changes | the five-session sparkline, What happened, Dated ahead, the cells "12m value", "rating", "in development", "next loe" as a bare date, "N day", "flagged"; the morning note folds |
+| Key insights | What is the call, where does it come from, and how does the business compare? | The call beside the price, the twelve-month bridge beside what it rests on, a 24-month track of drivers and risks, three columns against the cohort, What changed (see `key-insights.md`) | the strip, the sentence, the pillar bars, positives and negatives, Next; the morning note folds |
 | Comps > Companies | How does it compare with its peers? | One chart of the cohort, the ranked table with shaded pillar cells beside it, one line on how to read it | the conclusion banner, "Why?", the KPI strip, Drivers and risks, the chart strip, the comparables table (one click away under Table) |
 | Catalysts | What could move it next? | Drivers and risks: Drivers (events in 12 months, value-bearing first) beside Risks (exclusivity losses in 24 months, slipped readouts, crowded pools); At stake when a catalyst is priced | the calendar grid (folded under "Calendar, 24 months"), the six "unpriced" lines, Competition by indication (on Comps > Indications, where the comparison lives) |
 
@@ -124,126 +124,42 @@ it stays, and section 9 lists it for a later decision.)
 
 | Fact | Its home | Shown elsewhere, as the same object | Said nowhere else |
 |---|---|---|---|
-| Company score, pillar scores, rank and range | Comps > Companies | Key insights sentence and bars; the company panel; Compare | |
-| Positives and negatives | the scorecard (`scorecard.companies[T].positives`) | Key insights (up to three of each, within 75 words with the sentence), the company panel (all), Compare (first three) | Drivers and risks no longer states metric observations |
-| The one sentence | the scorecard (`sentence`) | Key insights row 2; the company panel header | |
-| The multiple against peers | the value pillar (`facts.multiple`) | Key insights strip cell "multiple"; the panel's Value row | the conclusion banner and KPI strip are gone |
+| Company score, pillar scores, rank and range | Comps > Companies | Key insights cohort band chip (rank, score, range); the company panel; Compare | |
+| Positives and negatives | the scorecard (`scorecard.companies[T].positives`) | the company panel (all), Compare (first three); Key insights shows the measures behind them as dot strips | Drivers and risks no longer states metric observations |
+| The one sentence | the scorecard (`sentence`) | the company panel header | |
+| The multiple against peers | the value pillar (`facts.multiple`) | Key insights call cell (the multiple and its median); the panel's Value row | the conclusion banner and KPI strip are gone |
 | Value implied by peer multiples | Forecast, the bridge | | |
-| Model fair value and rating | Forecast | Key insights strip cell "model" (same figures, labelled Model); panel Model values | |
-| Events ahead | Catalysts, Drivers (12 months, one row per asset, ranked) | Key insights Next (the first three rows, the same list); panel Key catalysts; the folded calendar (24 months, by month) | |
-| Exclusivity losses | Catalysts, Risks (24 months, share of revenue); Portfolio (the cliff) | Key insights strip "next exclusivity loss" (the first exclusivity row of Risks); the durability bar's note (years left) | |
+| Model fair value and rating | Forecast | Key insights call (the same figures) and its bridge; panel Model values | |
+| Events ahead | Catalysts, Drivers (12 months, one row per asset, ranked) | Key insights track (the first four dated rows, the same list, above its axis); panel Key catalysts; the folded calendar (24 months, by month) | |
+| Exclusivity losses | Catalysts, Risks (24 months, share of revenue); Portfolio (the cliff) | Key insights track (the dated rows of Risks, below its axis); the durability measure (years left) | |
 | Deals and firepower | the company panel, Business development block (facts, not scored) | Compare, one row; Key insights What changed when a deal is new | not in the table, the chart or the score |
 | Competition by indication | Comps > Indications | Catalysts Risks, one line per crowded pool | |
-| Price | Prices | Key insights strip "last close"; the company panel | the Comps KPI strip is gone |
+| Price | Prices | Key insights call (the close and the year beside the price line); the company panel | the Comps KPI strip is gone |
 | The morning note | Key insights, folded | | the panel's "System-generated note" excerpt is gone |
-| Snapshot changes | News (all) | Key insights What changed (five, high, no restatements) | the strip's "flagged" count is gone |
+| Snapshot changes | News (all) | Key insights What changed (three, high, no restatements, no slip the track draws) | the strip's "flagged" count is gone |
 
-### 1.3 Key insights: the company on one page
+### 1.3 Key insights: the highlights of every tab
 
-Blocks, in order. Every number on the tab is a scorecard object, a figure the strip has always
-read, or a catalyst or change row. Nothing is said twice: the strip holds what the bars and lines
-do not, the sentence names pillars without their numbers (the bars carry those), and Next is the
-head of the Catalysts list rather than a second ranking.
+Superseded on 2 Oct 2026 by revision 3, specified in full in `docs/design/key-insights.md`.
+The strip, the one sentence, the pillar bars, the positives and negatives and Next are gone
+from the tab. In their place, four bands:
 
-| # | Block | Content | Source | Words, AZN |
-|---|---|---|---|---|
-| 1 | Strip | four cells (below); Generate and Tearsheet at the right as today | as listed per cell | 26 |
-| 2 | The sentence | `scorecard.companies[T].sentence`, Archivo 15 px, TEXT | scorecard | 18 |
-| 3 | Company score | section head "Company score", basis "against {n} {cohort noun}"; `charts.pillar_bars`: the business pillars, a gap with the muted label "Price, not in the score", then value and momentum; the cohort median as a tick on each bar; durability carries the note "{y} years of exclusivity left" | scorecard pillars and cohort medians | 33 |
-| 4 | Positives and negatives | section head "Positives and negatives"; up to three positives, then up to three negatives, one line each, "+" in UP or "−" in DOWN before each; where the sentence and the lines would pass 75 words (8.7) the longer side gives up its last line, never below two lines | scorecard lists | 55 |
-| 5 | Next | section head "Next", basis "3 of {k} assets in 12 months, Catalysts has them all"; three lines, the value a share first where the event decides an unapproved asset's value, else the month: "$4.68  Elecoglipron · Phase 3 readout · obesity · est. Jun 2027", "est. Oct 2026  Truqap · Phase 3 readout · breast neoplasms" | `drivers.rank_events(context)[:3]`, the Catalysts list (section 5.4) | 30 |
-| 6 | What changed | section head "What changed", basis "5 of {h} high in 30 days, News has them all"; five lines, newest first, the existing `change_row` markup without the leading ticker; rows of change type `revenue_restatement` and `rate_move` are left to News | the feed already read for the page, significance high | 62 |
-| 7 | Morning note | an expander, folded: "Morning note · {layer} · {date}", the note and its byline inside, Generate beside it as today | `/companies/{t}/note` | 0 on the first screen |
-| 8 | China-linked business development | last, in a folded expander "China-linked business development · {n} on file" (open, its rows put PFE over the budget at 1440) | `_china_bd` | 0 |
+1. **The call** (the model's twelve-month value, its rating and range, the close, the year
+   against XLV, the street and the multiple) beside **the price** with the model and street
+   in a gutter.
+2. **Where the twelve-month value comes from** (the sum of the parts as a bridge that must
+   reconcile to the rating's figure) beside **what it rests on** (the largest parts) and the
+   two levers that alone would take it to the price.
+3. **Drivers, risks and catalysts** on one 24-month track: the head of the Catalysts
+   Drivers list above the axis, the dated rows of Risks below it.
+4. **Against the cohort** in three columns (financials, pipeline, marketed products; funding,
+   pipeline and lead asset for a clinical-stage company), each a figure, a picture and the
+   scorecard's own measures as dot strips against every peer.
 
-The strip, four cells, each `key / value / sub`, value first so a clipped sub never hides the
-number:
-
-| key | value | sub | Source |
-|---|---|---|---|
-| last close | 161.47 | −1.7% on the day | `prices` as today; the day move is `market.change_1d` of the company's `/comps/valuation` record |
-| model | +19.5% | Buy, 193.03 in 12 months | `/fair-value` upside, rating and value as today; "·" and "not modelled" when not ok |
-| multiple | 4.7× | EV to sales, median 4.8× | `scorecard.companies[T].facts.multiple`: the first of the value pillar's measures the company has, in list order, with the cohort median; "·" and "no multiple on file" |
-| next exclusivity loss | Sep 2027 | 5.6% of FY2025 revenue, Lynparza | the first row of `scorecard.companies[T].exclusivity_losses` (24 months); "·" and "none in 24 months" |
-
-AZN's P/E on the next 12 months is not shown because its FY1 estimates span 55% of their mean
-(`estimate_range_wide`); EV to sales is the next measure in the list. LLY's cell reads "26.2×,
-P/E NTM, median 15.1×".
-
-**Drawing, AZN at 1600 x 1000.** The top bar and tab strip end at about y = 148; the tab content
-is 1568 px wide.
-
-```
-y 150 ┌──────────────────────────────────────────────────────────────────────────────────────────┬───────────┐
-      │ LAST CLOSE           MODEL                      MULTIPLE                  NEXT EXCLUSIVITY LOSS │ Generate  │
-      │ 161.47               +19.5%                     4.7×                      Sep 2027             │ Tearsheet │
-      │ −1.7% on the day     Buy, 193.03 in 12 months   EV to sales, median 4.8×  5.6% of FY2025       │           │
-      │                                                                           revenue, Lynparza    │           │
-y 218 ├──────────────────────────────────────────────────────────────────────────────────────────┴───────────┤
-      │ AZN scores 58, 7th of 18 big pharma, range 2–11. Strongest on growth and pipeline, weakest on            │
-      │ profitability.                                                                                          │
-y 272 ├─ COMPANY SCORE  against 18 big pharma ────────────┬─ POSITIVES AND NEGATIVES ───────────────────────────┤
-      │ Growth          ███████████████▍  |          77   │ + 23 late-stage compounds, 2nd best of 18 big pharma │
-      │ Profitability   ██████▏    |                 31   │ + 8.6% revenue growth in FY2025, 4th best of 17 big  │
-      │ Balance sheet   ██████████▉|                 55   │   pharma                                             │
-      │ Pipeline        █████████████                65   │ − 23.4% operating margin in FY2025, 3rd worst of 12  │
-      │ Durability      ████████████▌  4.6 years of       │   big pharma                                         │
-      │                 exclusivity left             62   │ − 7% of FY2025 product revenue from drugs approved   │
-      │ ─ ─ Price, not in the score ─ ─                   │   since 2021, 4th worst of 17 big pharma             │
-      │ Value           █████████|                   46   │                                                      │
-      │ Momentum        █▊        |                   9   │                                                      │
-y 530 ├─ NEXT  3 of 25 assets in 12 months ───────────────┼─ WHAT CHANGED  5 of 10 high in 30 days ─────────────┤
-      │ $4.68          Elecoglipron · Phase 3 readout ·    │ 28 Sep  AstraZeneca announces strategic equity      │
-      │                obesity · est. Jun 2027             │         investment and clinical collaboration ...   │
-      │ est. Oct 2026  Truqap · Phase 3 readout · breast   │ 25 Sep  Trial NCT06455449: primary completion slips │
-      │ est. Nov 2026  Saphnelo · Phase 3 readout · lupus  │         2027-05-14 -> 2028-01-10                    │
-      │                                                    │ 23 Sep  Truqap approved 2026-09-16                  │
-      │                                                    │ 23 Sep  Tagrisso approved 2026-09-14                │
-      │                                                    │ 23 Sep  Trixeo approved in the EU, asthma           │
-y 770 ├────────────────────────────────────────────────────┴─────────────────────────────────────────────────────┤
-      │ ▸ Morning note · gemini-flash-latest · 22 Sep 2026                                                         │
-y 810 │ (China-linked business development, when present)                                                         │
-```
-
-Columns: 1.15 to 1 for blocks 3 and 4, the same split for 5 and 6. The bars are 300 px long at
-this width; the tick on each bar is the cohort median. About 240 words on the first screen
-(section 8.7). Streamlit cannot switch tabs from a Python link, so the tab carries
-no "open in" links: each section's basis names the tab that holds the rest.
-
-**Drawing, AZN at 1440 x 810.** The tab content is 1408 px wide and about 660 px tall.
-
-```
-y 150 ┌ LAST CLOSE        MODEL                     MULTIPLE                 NEXT EXCLUSIVITY LOSS  ┬ Generate ┐
-      │ 161.47            +19.5%                    4.7×                     Sep 2027               │ Tearsheet│
-      │ −1.7% on the day  Buy, 193.03 in 12 months  EV to sales, median 4.8× 5.6% of FY2025 rev…    │          │
-y 214 ├ AZN scores 58, 7th of 18 big pharma, range 2–11. Strongest on growth and pipeline, weakest on ┘
-      │ profitability.
-y 262 ├─ COMPANY SCORE ─────────────────────────────┬─ POSITIVES AND NEGATIVES ───────────────────────┤
-      │ seven bars, 24 px each, gap before price    │ four lines, wrapping to two at this width        │
-y 500 ├─ NEXT ──────────────────────────────────────┼─ WHAT CHANGED ──────────────────────────────────┤
-      │ three lines                                 │ five lines, the last cut at the fold             │
-y 810 └─────────────────────────────────────────────┴──────────────────────────────────────────────────┘
-```
-
-At this size each strip sub is cut to one line (the CSS clamps it), and since every value comes
-first the number always shows. Blocks 1 to 6 fit except the last line of What changed. About 190
-words on the first screen.
-
-**A clinical-stage company (CRSP).** Block 3 draws pipeline and funding, then value and momentum.
-Block 4 prints the one positive it has; its pipeline lines are silenced because it shares a
-marketed drug (section 2.12, rule 6). The multiple cell reads "2.3×, market cap to cash, median
-2.1×". Next reads "No event dated in the next 12 months." (comps-context has none for CRSP; section
-9, partnered catalysts). The exclusivity cell reads "·" and "none in 24 months".
-
-**States.** No scorecard in the payload (the API's builder failed): blocks 2 to 4 are one state,
-"The scorecard did not load: {error}.", and the strip's first two cells, Next and What changed draw
-as usual. A company with no company score (ADAPY today): the sentence reads "ADAPY is not scored:
-2 of 4 pillars have data, and a score needs 3." and the bars draw the pillars that exist.
-
-What leaves the tab, and where it went: the sparkline (Prices owns price); What happened (deals to
-the company panel and What changed, readouts to What changed); Dated ahead (Next, and Catalysts in
-full); "12m value" and "rating" (one "model" cell); "in development" (the pipeline pillar's
-panel); the five-year move (Prices); the "flagged" cell (What changed's basis).
+What changed and the folded note sit at the foot. The scorecard's numbers reach the tab
+unchanged: every measure prints the scorecard's text and place, so Key insights and Comps
+cannot disagree. Its sentence and its positives and negatives live in the Comps company
+panel.
 
 ### 1.4 Comps > Companies: the company against its peers
 

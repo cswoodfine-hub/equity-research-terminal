@@ -64,12 +64,11 @@ BUDGET_TICKERS = ("AZN", "LLY", "PFE", "VRTX", "CRSP")
 
 # 8.7, the measurable parts.
 SENTENCE_MAX_WORDS = 30
-KI_PROSE_MAX_WORDS = 75
+KI_COHORT_MAX_WORDS = 90
 # 3.3 and 8.7 hold the how-to-read line to 36 words, the count of the line 8.1 prints
 # verbatim (revision 2 said 34, a miscount, corrected). A longer line fails.
 COMPS_PROSE_MAX_WORDS = 36
 RISK_ROW_MAX_WORDS = 14            # "under 15 words"
-KI_LINES_SHOWN = 3
 
 
 def words(text: str) -> int:
@@ -144,7 +143,7 @@ def _app_constants() -> dict:
 @pytest.fixture(scope="module")
 def app_copy():
     found = _app_constants()
-    assert "_KI_SEPARATOR" in found and "_KI_NO_NEXT" in found
+    assert "_KI_NO_CHANGES" in found and "_KI_NOT_MODELLED" in found
     return found
 
 
@@ -327,8 +326,6 @@ def test_the_frames_fixed_copy_is_section_8_1s(spec_labels, frame_copy, where, k
 
 
 def test_the_tab_constants_are_section_8_1s(spec_labels, app_copy):
-    assert app_copy["_KI_SEPARATOR"] == spec_labels["Key insights bars separator"]
-    assert app_copy["_KI_NO_NEXT"] == spec_labels["Next, empty"]
     assert app_copy["_KI_NO_CHANGES"] == spec_labels["What changed, empty"]
     assert _norm(D.EMPTY) == _norm(spec_labels["Drivers and risks, empty"])
     assert spec_labels["Catalysts section"] == (
@@ -453,34 +450,35 @@ def test_every_line_leads_with_its_number_and_names_its_place(board):
 # =============================================================================================
 # 3. The word budgets of 8.7 that can be measured here.
 # =============================================================================================
-def _ki_pick():
-    """Key insights' own choice of lines, ``_ki_lines_pick``, lifted out of the script with
-    the constants and the word count it reads."""
+def _ki_view():
+    """Key insights' pure builders, lifted out of the script with their constants."""
     tree = ast.parse(APP.read_text(), feature_version=(3, 9))
     keep = [node for node in tree.body
-            if (isinstance(node, ast.FunctionDef)
-                and node.name in ("_ki_words", "_ki_lines_pick"))
+            if (isinstance(node, ast.FunctionDef) and node.name.startswith("_ki_"))
             or (isinstance(node, ast.Assign) and len(node.targets) == 1
                 and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id in ("_KI_LINES_SHOWN", "_KI_PROSE_WORDS"))]
-    space = {"re": re}
+                and node.targets[0].id.startswith("_KI_"))
+            or (isinstance(node, ast.FunctionDef) and node.name in ("html_escape",
+                                                                     "change_row"))]
+    space = {"re": re, "html": __import__("html"), "dt": dt}
     exec(compile(ast.Module(body=keep, type_ignores=[]), str(APP), "exec"), space)
-    assert space["_KI_PROSE_WORDS"] == KI_PROSE_MAX_WORDS
-    assert space["_KI_LINES_SHOWN"] == KI_LINES_SHOWN
-    return space["_ki_lines_pick"]
+    return space
+
+
+def _plain(markup: str) -> str:
+    import html as _h
+    return re.sub(r"\s+", " ", _h.unescape(re.sub(r"<[^>]+>", " ", markup))).strip()
 
 
 @pytest.mark.parametrize("ticker", BUDGET_TICKERS)
-def test_key_insights_prose_is_within_its_budget(board, ticker):
-    """8.7: Key insights' prose, the sentence and the lines it shows, is at most 75 words.
-    Key insights shows up to three positives and three negatives, fewer past the budget."""
-    rec = board["companies"][ticker]
-    pos, neg = _ki_pick()(rec)
-    shown = pos + neg
-    prose = words(rec["sentence"]) + sum(words(x["text"]) for x in shown)
-    assert prose <= KI_PROSE_MAX_WORDS, (ticker, prose, [rec["sentence"]] + [
-        x["text"] for x in shown])
-    assert len(shown) >= min(2, len(rec["positives"][:3] + rec["negatives"][:3]))
+def test_key_insights_cohort_band_is_within_its_budget(board, ticker):
+    """key-insights.md 8: the cohort band's words, three columns of a figure line and the
+    measures behind them, about 85 for the whole band. The pictures carry no prose."""
+    view = _ki_view()
+    cols = view["_ki_columns"](board, ticker, {}, {})
+    text = " ".join(_plain(view["_ki_column_html"](c, "", ["" for _ in c["rows"]]))
+                    for c in cols)
+    assert words(text) <= KI_COHORT_MAX_WORDS, (ticker, words(text), text)
 
 
 def test_the_comps_prose_is_within_its_budget(board, frame_copy, spec_labels):

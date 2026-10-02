@@ -4492,24 +4492,32 @@ _KI_CHANGE_DAYS = 30
 # and the tab at 232 words for AZN and 241 for LLY against a budget of 220
 # (company-scorecard.md 8.7); News has every row.
 _KI_CHANGES_SHOWN = 3
-_KI_NEXT_SHOWN = 3
-_KI_LINES_SHOWN = 3
-# 8.7: the sentence and the lines shown are at most this many words. Up to three of each
-# side are shown; past the budget the longer side gives up its last line (LLY read 79 and
-# PFE 80, ABBV 95). The company panel on Comps holds them all.
-_KI_PROSE_WORDS = 75
 # A headline is cut at a word to about this length, the whole of it on hover. A diff row
 # ("slips 2027-05-14 -> 2028-01-10") is kept whole, since its meaning is in its tail.
 _KI_HEADLINE_CHARS = 56
-_KI_SEPARATOR = "Price, not in the score"
 _KI_EMPTY = "·"
 _KI_MINUS = "−"
 _KI_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
               "Nov", "Dec")
 _KI_FAILED = "The scorecard did not load: {error}."
-_KI_NO_LINES = "No business measure in the top or bottom quarter of the cohort."
-_KI_NO_NEXT = "No event dated in the next 12 months."
 _KI_NO_CHANGES = "Nothing rated high in 30 days."
+# Revision 3 (docs/design/key-insights.md): the highlights of every tab, in four bands.
+_KI_RESTS_SHOWN = 5
+_KI_BREAKS_SHOWN = 2
+_KI_TRACK_LABELLED = 4
+_KI_RISKS_LABELLED = 4
+_KI_TRACK_MONTHS = 24
+_KI_NOT_MODELLED = ("Nothing is modelled for {T} yet, so there is no 12-month value. "
+                    "Forecast starts one.")
+_KI_NO_BRIDGE = "The bridge does not add up here; Forecast has it in full."
+_KI_NO_ASSET = "No modelled asset is counted yet."
+_KI_SHORT = {"op_margin": "Operating margin", "pretax_margin": "Pre-tax margin",
+             "fcf_margin": "FCF margin", "nd_ocf": "Net debt / cash flow",
+             "net_cash_rev": "Net cash / revenue", "runway": "Cash runway",
+             "late_per_rev": "Late-stage per $10bn", "fresh_share": "New-launch revenue",
+             "top_product": "Top product share", "trial_conc": "Trial concentration",
+             "share_change": "Share count change", "late_compounds": "Late-stage compounds",
+             "mid_late_compounds": "Phase 2 or later", "loe_years": "Exclusivity left"}
 
 
 def _ki_attr(text) -> str:
@@ -4550,184 +4558,810 @@ def _ki_product(name) -> str:
     return re.sub(r"\s*\([^)]*\)", "", str(name or "")).strip()
 
 
-def _ki_strip_cells(close_text, day_move, rating, company, problem=None) -> list:
-    """The strip's four cells, in order: (key, value, sub, class, hover).
-
-    Last close and the day move; the model's upside with its rating and twelve-month
-    value; the multiple against peers, the value pillar's first measure the company has;
-    the next exclusivity loss, the first row of the scorecard's 24-month list. The value
-    is always a figure or "·", so a cell never opens on words."""
-    cells = []
-    if close_text:
-        sub = f"{_ki_signed_pct(day_move)} on the day" if day_move is not None else ""
-        cells.append(("last close", close_text, sub, "", ""))
-    else:
-        cells.append(("last close", _KI_EMPTY, "no price on file", "none", ""))
-
-    rated = rating if isinstance(rating, dict) else {}
-    upside = rated.get("upside_12m") if rated.get("ok") else None
-    if upside is not None:
-        fwd = rated.get("forward_12m")
-        sub = ", ".join(part for part in (
-            rated.get("rating"),
-            f"{fwd:,.2f} in 12 months" if fwd is not None else None) if part)
-        cls = "up" if upside > 0 else "down" if upside < 0 else ""
-        cells.append(("model", _ki_signed_pct(upside), sub, cls, ""))
-    else:
-        cells.append(("model", _KI_EMPTY, "not modelled", "none", rated.get("reason") or ""))
-
-    if not isinstance(company, dict):
-        why = "scorecard did not load" if problem else "not scored"
-        cells.append(("multiple", _KI_EMPTY, why, "none", ""))
-        cells.append(("next exclusivity loss", _KI_EMPTY, why, "none", ""))
-        return cells
-
-    multiple = (company.get("facts") or {}).get("multiple")
-    if isinstance(multiple, dict) and multiple.get("text"):
-        sub = ", ".join(part for part in (
-            multiple.get("label"),
-            f"median {multiple['median_text']}" if multiple.get("median_text") else None)
-            if part)
-        cells.append(("multiple", multiple["text"], sub, "", ""))
-    else:
-        cells.append(("multiple", _KI_EMPTY, "no multiple on file", "none", ""))
-
-    losses = [r for r in company.get("exclusivity_losses") or []
-              if isinstance(r, dict) and _ki_month(r.get("date"))]
-    if losses:
-        first = losses[0]
-        name = _ki_product(first.get("asset"))
-        share = first.get("share_text")
-        if not share and first.get("share_of_revenue") is not None:
-            share = f"{first['share_of_revenue'] * 100:.1f}%"
-        of = f"of {first['fy']} revenue" if first.get("fy") else "of revenue"
-        sub = ", ".join(part for part in (f"{share} {of}" if share else None, name) if part)
-        tip = " · ".join(part for part in (
-            f"{name} exclusivity ends {first.get('date_text') or _ki_day(first.get('date'))}",
-            first.get("basis")) if part)
-        cells.append(("next exclusivity loss", _ki_month(first["date"]), sub, "", tip))
-    else:
-        cells.append(("next exclusivity loss", _KI_EMPTY, "none in 24 months", "none", ""))
-    return cells
-
-
-def _ki_strip_html(cells) -> str:
-    """The strip as one row of cells, value before sub. Keeps the page's .pos class, which
-    the screenshot driver waits for."""
-    out = []
-    for key, value, sub, cls, tip in cells:
-        hover = tip or sub
-        title = f' title="{_ki_attr(hover)}"' if hover else ""
-        out.append(f'<span class="ki-cell"{title}><span class="k">{html_escape(key)}</span>'
-                   f'<span class="v {cls}">{html_escape(value)}</span>'
-                   f'<span class="sub">{html_escape(sub)}</span></span>')
-    return '<div class="pos ki-strip">' + "".join(out) + "</div>"
-
-
-def _ki_pillar_rows(company: dict, cohort: dict, method: dict) -> list:
-    """Rows for ``charts.pillar_bars``: the business pillars in the cohort's order, the
-    separator, then value and momentum. A pillar with no score carries its reason."""
-    meta = (method or {}).get("pillars") or {}
-    reasons = (method or {}).get("reasons") or {}
-    pillars = company.get("pillars") or {}
-    order = [p.get("id") for p in (cohort or {}).get("pillars") or [] if isinstance(p, dict)]
-    order = [pid for pid in order if pid in pillars] or list(pillars)
-    medians = (cohort or {}).get("medians") or {}
-
-    def row(pid):
-        p = pillars.get(pid) or {}
-        reason = None
-        if p.get("score") is None:
-            reason = (p.get("reason_text") or reasons.get(p.get("reason"))
-                      or p.get("reason") or "no score")
-        return {"id": pid, "label": (meta.get(pid) or {}).get("label") or pid,
-                "score": p.get("score"),
-                "median": p.get("median") if p.get("median") is not None
-                else medians.get(pid),
-                "note": p.get("note"), "reason": reason}
-
-    business = [row(pid) for pid in order if (meta.get(pid) or {}).get("kind") != "price"]
-    price = [row(pid) for pid in order if (meta.get(pid) or {}).get("kind") == "price"]
-    return business + ([{"separator": _KI_SEPARATOR}] if business and price else []) + price
-
-
 def _ki_words(text) -> int:
-    """Words as 8.7 counts them: a figure is one word, a lone glyph none."""
+    """Words as the budget counts them: a figure is one word, a lone glyph none."""
     return len([w for w in str(text or "").split() if re.search(r"[A-Za-z0-9]", w)])
 
 
-def _ki_lines_pick(company: dict, shown: int = _KI_LINES_SHOWN,
-                   budget: int = _KI_PROSE_WORDS) -> tuple:
-    """(positives, negatives) Key insights prints: the first ``shown`` of each, then, while
-    the sentence and the lines run past ``budget`` words, the longer side gives up its last
-    line (on a tie the weaker of the two last lines goes). Two lines always stay, so the
-    block never empties for words."""
-    def usable(side):
-        return [ln for ln in (company.get(side) or [])
-                if isinstance(ln, dict) and ln.get("text")][:shown]
-
-    pos, neg = usable("positives"), usable("negatives")
-    used = _ki_words(company.get("sentence")) + sum(_ki_words(ln["text"]) for ln in pos + neg)
-    while used > budget and len(pos) + len(neg) > 2:
-        if len(pos) != len(neg):
-            side = pos if len(pos) > len(neg) else neg
-        else:
-            side = (pos if (pos[-1].get("strength") or 0) < (neg[-1].get("strength") or 0)
-                    else neg)
-        used -= _ki_words(side.pop()["text"])
-    return pos, neg
+def _ki_money(v, decimals: int = 2) -> str:
+    """"1,149.85", "−19.44", "·" for None."""
+    if v is None or v != v:
+        return _KI_EMPTY
+    text = f"{abs(v):,.{decimals}f}"
+    return (_KI_MINUS + text) if v < 0 and round(abs(v), decimals) else text
 
 
-def _ki_lines_html(company: dict, shown: int = _KI_LINES_SHOWN) -> str:
-    """Up to three positives, then up to three negatives (``_ki_lines_pick``), one line
-    each, the source on hover."""
-    pos, neg = _ki_lines_pick(company, shown)
-    lines = [("+", "up", ln) for ln in pos] + [(_KI_MINUS, "down", ln) for ln in neg]
-    if not lines:
-        return f'<div class="ki-empty">{html_escape(_KI_NO_LINES)}</div>'
-    out = []
-    for glyph, cls, ln in lines:
-        title = f' title="{_ki_attr(ln["source"])}"' if ln.get("source") else ""
-        out.append(f'<div class="ki-line {cls}"{title}><span class="ki-g {cls}">{glyph}</span>'
-                   f'<span class="ki-t">{html_escape(ln["text"])}</span></div>')
-    return '<div class="ki-lines">' + "".join(out) + "</div>"
+def _ki_ord(n) -> str:
+    n = int(n)
+    if 10 <= n % 100 <= 20:
+        return f"{n}th"
+    return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }"
 
 
-def _ki_next_basis(total: int, basis_text: str) -> str:
-    """"3 of 25 assets in 12 months, Catalysts has them all"; ``basis_text`` is
-    ``drivers.drivers_basis(total)``."""
-    return f"{min(_KI_NEXT_SHOWN, total)} of {basis_text}, Catalysts has them all"
+def _ki_tone(x) -> str:
+    return "" if x is None else "up" if x > 0 else "down" if x < 0 else ""
 
 
-def _ki_next_html(rows: list) -> str:
-    """The first rows of the Catalysts list: the lead (a value a share, or the month),
-    then the asset, the event and the indication. A row with a registry page links to it."""
+def _ki_year_series(points: list, days: int = 365) -> dict:
+    """The last ``days`` of daily closes and what the call reads off them: the close,
+    the day's move, the move over the year (only on a full year of prices) and the range."""
+    rows = [(str(p.get("as_of") or "")[:10], p.get("close")) for p in points or []
+            if isinstance(p, dict) and p.get("close") is not None]
+    rows = [r for r in rows if re.match(r"^\d{4}-\d{2}-\d{2}$", r[0])]
+    rows.sort()
     if not rows:
-        return f'<div class="ki-empty">{html_escape(_KI_NO_NEXT)}</div>'
+        return {"closes": [], "dates": [], "close": None, "as_of": None, "day_move": None,
+                "year_move": None, "low": None, "high": None}
+    last = dt.date.fromisoformat(rows[-1][0])
+    since = (last - dt.timedelta(days=days)).isoformat()
+    year = [r for r in rows if r[0] >= since]
+    closes = [c for _, c in year]
+    day_move = rows[-1][1] / rows[-2][1] - 1 if len(rows) > 1 and rows[-2][1] else None
+    first = dt.date.fromisoformat(year[0][0])
+    year_move = (closes[-1] / closes[0] - 1
+                 if (last - first).days >= 358 and closes[0] else None)
+    return {"closes": closes, "dates": [d for d, _ in year], "close": closes[-1],
+            "as_of": rows[-1][0], "day_move": day_move, "year_move": year_move,
+            "low": min(closes), "high": max(closes)}
+
+
+def _ki_range_fmt(v, close) -> str:
+    """A range end: whole figures at a price of 100 or more, two places below it."""
+    if v is None:
+        return _KI_EMPTY
+    return f"{v:,.0f}" if close is not None and close >= 100 else f"{v:,.2f}"
+
+
+def _ki_call(rated: dict, fv_reason, series: dict, street: dict = None) -> dict:
+    """The lead of the page: the model's twelve-month value with its rating, else the
+    street's target, else a dot with the reason. The move is against the close."""
+    rated = rated if isinstance(rated, dict) else {}
+    close = series.get("close") if isinstance(series, dict) else None
+    target = (street or {}).get("value") if isinstance(street, dict) else None
+    if rated.get("ok") and rated.get("forward_12m") is not None:
+        fwd = rated["forward_12m"]
+        word = rated.get("rating") or _KI_EMPTY
+        tone = {"Strong buy": "up", "Buy": "up", "Sell": "down", "Strong sell": "down"}.get(
+            word, "neutral")
+        move = rated.get("upside_12m")
+        if move is None and close:
+            move = fwd / close - 1
+        sub = f"against {_ki_money(close)}" if close is not None else ""
+        if rated.get("forward_low") is not None and rated.get("forward_high") is not None:
+            sub += (f" · {_ki_range_fmt(rated['forward_low'], close)} to "
+                    f"{_ki_range_fmt(rated['forward_high'], close)} in 12 months")
+        coe, dps = rated.get("cost_of_equity"), rated.get("dps")
+        tip = "rolled a year"
+        if coe is not None:
+            tip += f" at the {coe:.1%} cost of equity"
+        if dps:
+            tip += f", less the {_ki_money(dps)} dividend"
+        return {"source": "model", "key": "12-month value · model", "word": word,
+                "word_tone": tone, "word_tip": rated.get("basis") or rated.get("reason") or "",
+                "value": _ki_money(fwd), "tip": tip, "move": _ki_signed_pct(move),
+                "move_tone": _ki_tone(move), "sub": sub.strip(" ·"), "note": ""}
+    reason = (rated.get("reason") or fv_reason or "no sum of the parts on file")
+    if target is not None:
+        move = target / close - 1 if close else None
+        return {"source": "street", "key": "12-month street target", "word": "",
+                "word_tone": "neutral", "word_tip": "", "value": _ki_money(target),
+                "tip": "the street's mean price target", "move": _ki_signed_pct(move),
+                "move_tone": _ki_tone(move),
+                "sub": f"against {_ki_money(close)}" if close is not None else "",
+                "note": "not rated", "note_tip": reason}
+    return {"source": None, "key": "12-month value", "word": "", "word_tone": "neutral",
+            "word_tip": "", "value": "", "tip": f"{reason}; no consensus on file",
+            "move": "", "move_tone": "", "sub": "Not modelled, and no consensus on file.",
+            "note": ""}
+
+
+def _ki_call_failed(error) -> dict:
+    """The call when the rating could not be read: a dot that says so, never the street."""
+    return {"source": None, "key": "12-month value", "word": "", "word_tone": "neutral",
+            "word_tip": "", "value": "", "tip": str(error or ""), "move": "",
+            "move_tone": "", "sub": "The rating did not load; reload in a minute.", "note": ""}
+
+
+def _ki_figures(series: dict, call: dict, momentum: dict = None, street: dict = None,
+                multiple: dict = None, multiple_place: dict = None) -> list:
+    """The four cells under the call: (value, key, tone, tip). Close and the day; the
+    year and how it ran against the sector; the street; the multiple against peers."""
+    series = series if isinstance(series, dict) else {}
+    out = []
+    close = series.get("close")
+    if close is None:
+        out.append((_KI_EMPTY, "close · no price on file", "none", "no price on file"))
+    else:
+        day = series.get("day_move")
+        key = "close" + (f" · {_ki_signed_pct(day)} today" if day is not None else "")
+        out.append((_ki_money(close), key, "", f"as of {series.get('as_of') or ''}".strip()))
+    year = series.get("year_move")
+    mom = momentum if isinstance(momentum, dict) else {}
+    if year is None:
+        out.append((_KI_EMPTY, "1 year · under a year of prices", "none",
+                    "less than a year of prices on file"))
+    else:
+        key = "1 year" + (f" · {mom['text']} vs XLV" if mom.get("text") else "")
+        tip = (f"{mom['place']} of {mom['n']} against XLV" if mom.get("place") and mom.get("n")
+               else _ki_reason(mom))
+        out.append((_ki_signed_pct(year), key, _ki_tone(year), tip))
+    st_ = street if isinstance(street, dict) else {}
+    if (call or {}).get("source") == "street":
+        if series.get("low") is not None:
+            out.append((f"{_ki_range_fmt(series['low'], close)} to "
+                        f"{_ki_range_fmt(series['high'], close)}", "52 weeks", "",
+                        "the year's lowest and highest close"))
+        else:
+            out.append((_KI_EMPTY, "52 weeks · no price on file", "none", "no price on file"))
+    elif st_.get("value") is not None:
+        ratings = st_.get("ratings") or {}
+        counts = ", ".join(f"{ratings[k]} {k}" for k in ("buy", "hold", "sell")
+                           if ratings.get(k))
+        tip = " · ".join(part for part in (
+            f"{_ki_money(st_.get('low'))} to {_ki_money(st_.get('high'))}"
+            if st_.get("low") is not None and st_.get("high") is not None else "",
+            counts, str(st_.get("as_of") or "")) if part)
+        out.append((_ki_money(st_["value"]), "street target", "", tip))
+    else:
+        out.append((_KI_EMPTY, "street · no consensus on file", "none", "no consensus on file"))
+    mult = multiple if isinstance(multiple, dict) else {}
+    if mult.get("text"):
+        key = mult.get("label") or "multiple"
+        if mult.get("median_text"):
+            key += f" · median {mult['median_text']}"
+        place = multiple_place if isinstance(multiple_place, dict) else {}
+        tip = f"{place['place']} of {place['n']}" if place.get("place") and place.get("n") else ""
+        out.append((mult["text"], key, "", tip))
+    else:
+        out.append((_KI_EMPTY, "multiple · none on file", "none", "no multiple on file"))
+    return out
+
+
+def _ki_call_html(call: dict, figures: list) -> str:
+    """The call: key, then the rating word, the value and the move on one baseline, the
+    range under them, and the four figure cells. Keeps the page's .pos class."""
+    word = (f'<span class="ki-word {call.get("word_tone") or "neutral"}" '
+            f'title="{_ki_attr(call.get("word_tip"))}">{html_escape(call["word"])}</span>'
+            if call.get("word") else "")
+    fig_cls = "ki-fig none" if call.get("value") == _KI_EMPTY else "ki-fig"
+    fig = (f'<span class="{fig_cls}" title="{_ki_attr(call.get("tip"))}">'
+           f'{html_escape(call["value"])}</span>' if call.get("value") else "")
+    move = (f'<span class="ki-move {call.get("move_tone") or ""}">'
+            f'{html_escape(call["move"])}</span>' if call.get("move") else "")
+    note = (f'<span class="ki-note-tag" title="{_ki_attr(call.get("note_tip"))}">'
+            f'{html_escape(call["note"])}</span>' if call.get("note") else "")
+    sub_cls = "ki-sub" if call.get("value") else "ki-sub ki-sub-lead"
+    sub = (f'<div class="{sub_cls}" title="{_ki_attr(call.get("tip"))}">'
+           f'{html_escape(call["sub"])}</div>' if call.get("sub") else "")
+    cells = "".join(
+        f'<div class="ki-f" title="{_ki_attr(tip)}"><span class="v {tone}">'
+        f'{html_escape(value)}</span><span class="k">{html_escape(key)}</span></div>'
+        for value, key, tone, tip in figures)
+    return (f'<div class="pos ki-call"><div class="ki-k">{html_escape(call["key"])}</div>'
+            f'<div class="ki-lead">{word}{fig}{move}{note}</div>{sub}'
+            f'<div class="ki-figs">{cells}</div></div>')
+
+
+def _ki_plural(n, one: str, many: str = None) -> str:
+    return f"{n} {one if n == 1 else (many or one + 's')}"
+
+
+def _ki_bridge(sotp: dict, forward_check=None) -> dict:
+    """The twelve-month value as a bridge, from what is sold to the twelve-month figure,
+    each step named by what it is and its sign: growth capital always takes off, net cash
+    adds and net debt takes off, other claims folded into the second. It is drawn only
+    where it adds up: today's end to the equity (or, with no debt on file, the enterprise
+    value), the end to the twelve-month value and that to the rating's, each to the cent.
+    {ok, steps, end, reason}."""
+    s = sotp if isinstance(sotp, dict) else {}
+    m = (s.get("marketed") or {}).get("per_share")
+    if m is None:
+        return {"ok": False, "steps": [], "end": None, "reason": "no sum of the parts"}
+    n_m = (s.get("marketed") or {}).get("n") or 0
+    steps = [{"label": "marketed", "value": m, "kind": "start",
+              "tip": f"{_ki_plural(n_m, 'product')} on the market"}]
+    run = m
+    p = s.get("pipeline") or {}
+    if p.get("n"):
+        v = p.get("per_share") or 0.0
+        steps.append({"label": "pipeline", "value": v, "kind": "step",
+                      "tip": f"{_ki_plural(p['n'], 'candidate')} after their chance of "
+                             "approval"})
+        run += v
+    ln = s.get("lines") or {}
+    if ln.get("n"):
+        v = ln.get("per_share") or 0.0
+        steps.append({"label": "lines", "value": v, "kind": "step",
+                      "tip": f"{_ki_plural(ln['n'], 'revenue line')} no product model holds"})
+        run += v
+    fut = (s.get("future") or {}).get("per_share")
+    steps.append({"label": "launches", "value": fut, "kind": "step",
+                  "tip": "launches past the modelled pipeline, from R&D"})
+    run += fut or 0.0
+    carry = s.get("carry_per_share")
+    if carry:
+        tip = "carried to the close"
+        if s.get("valuation_anchor") and s.get("years_to_price") is not None:
+            tip = (f"valued at {s['valuation_anchor']}, carried {s['years_to_price']:.2f}y "
+                   f"to the {s.get('price_date') or ''} close").replace("  ", " ")
+        steps.append({"label": "to today", "value": carry, "kind": "step", "tip": tip})
+        run += carry
+    growth = (s.get("growth_investment") or {}).get("per_share")
+    if growth:
+        steps.append({"label": "growth capital", "value": -abs(growth), "kind": "step",
+                      "tip": "plant and working capital the growth needs"})
+        run -= abs(growth)
+    claims = s.get("other_claims_per_share") or 0.0
+    net = s.get("net_cash_per_share")
+    if net is None:
+        if claims:
+            steps.append({"label": "other claims", "value": claims, "kind": "step",
+                          "tip": "other claims on the business"})
+            run += claims
+        steps.append({"label": "EV today", "kind": "end"})
+        ev = s.get("enterprise_today_per_share")
+        if ev is None or abs(run - ev) > 0.01:
+            return {"ok": False, "steps": [], "end": None,
+                    "reason": "the enterprise value does not reconcile"}
+        return {"ok": True, "steps": steps, "end": run, "reason": None}
+    balance = net + claims
+    label = "net cash" if balance >= 0 else "net debt"
+    tip = f"{'net cash' if net >= 0 else 'net debt'} {_ki_money(net)}"
+    if claims:
+        tip += f", other claims {_ki_money(claims)}"
+    steps.append({"label": label, "value": balance, "kind": "step", "tip": tip})
+    run += balance
+    steps.append({"label": "today", "kind": "end"})
+    eq = s.get("equity_per_share")
+    if eq is None or abs(run - eq) > 0.01:
+        return {"ok": False, "steps": [], "end": None, "reason": "today does not reconcile"}
+    fwd = s.get("forward_12m")
+    coe, dps = s.get("cost_of_equity"), s.get("dps") or 0.0
+    if fwd is None or coe is None:
+        return {"ok": True, "steps": steps, "end": eq, "reason": None}
+    year = eq * coe - dps
+    if abs(eq + year - fwd) > 0.01 or (forward_check is not None
+                                       and abs(fwd - forward_check) > 0.01):
+        return {"ok": False, "steps": [], "end": None,
+                "reason": "the twelve-month value does not reconcile"}
+    tip = f"{coe:.1%} cost of equity {_ki_money(eq * coe)}"
+    if dps:
+        tip += f", less the {_ki_money(dps)} dividend"
+    steps += [{"label": "a year on", "value": year, "kind": "step", "tip": tip},
+              {"label": "12 months", "kind": "end"}]
+    return {"ok": True, "steps": steps, "end": fwd, "reason": None}
+
+
+def _ki_rests_on(verdict: dict, shown: int = _KI_RESTS_SHOWN) -> dict:
+    """What the value rests on: the largest parts by value a share, across counted
+    assets, revenue lines and the launches past the pipeline, with the rest in one row."""
+    v = verdict if isinstance(verdict, dict) else {}
+    s = v.get("sotp") or {}
+    cands = []
+    fut = (s.get("future") or {}).get("per_share")
+    if fut:
+        f = s.get("future") or {}
+        tip = "launches past the modelled pipeline"
+        if f.get("rate_used") is not None:
+            tip += f", valued at {f['rate_used']:.3f} of revenue per R&D dollar"
+        if f.get("first_launch_year"):
+            tip += f", the first in {f['first_launch_year']}"
+        cands.append({"name": "Launches past the pipeline", "value": fut, "kind": "future",
+                      "meta": "from R&D", "tip": tip})
+    for a in v.get("modelled") or []:
+        if not isinstance(a, dict) or not a.get("counted", True) or not a.get("per_share"):
+            continue
+        if a.get("is_marketed"):
+            meta = ("lapsed" if a.get("loe_in_base") else
+                    f"LOE {a['loe_year']}" if a.get("loe_year") else "")
+            kind = "marketed"
+        else:
+            meta = f"PoS {a['pos']:.0%}" if a.get("pos") is not None else ""
+            kind = "pipeline"
+        cands.append({"name": _ki_product(a.get("name")), "value": a["per_share"],
+                      "kind": kind, "meta": meta, "tip": a.get("name") or ""})
+    for line in v.get("streams") or []:
+        if isinstance(line, dict) and line.get("per_share"):
+            cands.append({"name": line.get("line") or "line", "value": line["per_share"],
+                          "kind": "line", "meta": "line", "tip": "a revenue line no product "
+                          "model holds"})
+    cands.sort(key=lambda r: -r["value"])
+    rows = cands[:shown]
+    total = sum((s.get(k) or {}).get("per_share") or 0.0
+                for k in ("marketed", "pipeline", "lines", "future"))
+    rest = total - sum(r["value"] for r in rows)
+    more_n = len(cands) - len(rows)
+    return {"rows": rows, "more_n": more_n, "more_value": rest if more_n else None,
+            "top": max([r["value"] for r in rows] or [1.0])}
+
+
+def _ki_rests_html(rests: dict) -> str:
+    rows = rests.get("rows") or []
+    if not rows:
+        return f'<div class="ki-empty">{html_escape(_KI_NO_ASSET)}</div>'
+    top = rests.get("top") or 1.0
     out = []
     for r in rows:
-        tip = r.get("title") or ""
-        if r.get("model") and r.get("pct_of_price") is not None:
-            tip = (f"Model output: {r.get('asset')}'s value a share, "
-                   f"{r['pct_of_price'] * 100:.1f}% of the price. " + tip).strip()
-        title = f' title="{_ki_attr(tip)}"' if tip else ""
-        src = r.get("source")
-        if isinstance(src, str) and src.startswith(("https://", "http://")):
-            head = (f'<a class="ki-ev" href="{_ki_attr(src)}" target="_blank" '
-                    f'rel="noopener noreferrer"{title}>')
-            tail = "</a>"
+        w = max(r["value"] / top * 100, 1.5)
+        out.append(f'<div class="ki-bk" title="{_ki_attr(r.get("tip"))}">'
+                   f'<span class="n">{html_escape(r["name"])}</span>'
+                   f'<span class="b"><i class="{r["kind"]}" style="width:{w:.1f}%"></i></span>'
+                   f'<span class="v">{_ki_money(r["value"])}</span>'
+                   f'<span class="m {r["kind"]}">{html_escape(r.get("meta") or "")}</span></div>')
+    if rests.get("more_n"):
+        out.append(f'<div class="ki-bk more"><span class="n">{rests["more_n"]} more</span>'
+                   f'<span class="b"></span><span class="v">'
+                   f'{_ki_money(rests.get("more_value"))}</span><span class="m"></span></div>')
+    return '<div class="ki-rests">' + "".join(out) + "</div>"
+
+
+def _ki_lever_text(kind: str, value, key: str = "") -> str:
+    """A lever's setting as the breaks print it: a rate to two places of a percent, launch
+    productivity as a ratio, years with a y."""
+    if value is None:
+        return _KI_EMPTY
+    if value < 0:
+        return _KI_MINUS + _ki_lever_text(kind, abs(value), key)
+    if key == "launch_rate":
+        return f"{value:.3f}"
+    if kind == "year":
+        return f"{int(value)}"
+    if kind == "years":
+        return f"{int(value)}y" if float(value).is_integer() else f"{value:.1f}y"
+    if kind == "level":
+        return f"${value:,.0f}mm"
+    if kind == "scale":
+        return f"×{value:.2f}"
+    if kind == "price":
+        return f"${value * 1e6:,.0f}"
+    return f"{value:.2%}"
+
+
+def _ki_breaks(bp: dict, shown: int = _KI_BREAKS_SHOWN) -> dict:
+    """The nearest levers that alone take today's value to the price: {head, rows, tip}."""
+    bp = bp if isinstance(bp, dict) else {}
+    if not bp.get("ok"):
+        return {}
+    levers = [l for l in bp.get("levers") or [] if isinstance(l, dict)
+              and l.get("reachable") and l.get("break") is not None
+              and l.get("model") is not None]
+    levers.sort(key=lambda l: l.get("distance") if l.get("distance") is not None else 1e9)
+    if not levers:
+        return {}
+    eq, close = bp.get("equity_per_share"), bp.get("close")
+    head = (f"Today's {_ki_money(eq)} meets the {_ki_money(close)} price at"
+            if bp.get("direction") == "down" else f"The {_ki_money(close)} price needs")
+    rows = []
+    for l in levers[:shown]:
+        name = (l.get("lever") if l.get("scope") == "company"
+                else f"{_ki_product(l.get('name'))}'s {l.get('lever')}")
+        rows.append({"glyph": "▼" if l["break"] < l["model"] else "▲", "name": name,
+                     "model": _ki_lever_text(l.get("kind"), l["model"], l.get("key") or ""),
+                     "brk": _ki_lever_text(l.get("kind"), l["break"], l.get("key") or ""),
+                     "tip": " · ".join(str(x) for x in (l.get("evidence"),
+                                                       l.get("evidence_class")) if x)})
+    body = (bp.get("sentence") or {}).get("body") or []
+    return {"head": head, "rows": rows, "tip": " ".join(str(b) for b in body)}
+
+
+def _ki_breaks_html(breaks: dict) -> str:
+    if not breaks:
+        return ""
+    rows = "".join(f'<div class="ki-brk" title="{_ki_attr(r.get("tip"))}">'
+                   f'<span class="g">{r["glyph"]}</span><span class="n">'
+                   f'{html_escape(r["name"])}</span><span class="v">{html_escape(r["model"])}'
+                   f' → <b>{html_escape(r["brk"])}</b></span></div>' for r in breaks["rows"])
+    return (f'<div class="ki-brk-h" title="{_ki_attr(breaks.get("tip"))}">'
+            f'{html_escape(breaks["head"])}</div>{rows}')
+
+
+def _ki_street_expects(record: dict) -> list:
+    """The street's EPS for the next two years, when there is no model: (value, key)."""
+    eps = ((record or {}).get("street") or {}).get("eps_first") or {}
+    out = []
+    for key in ("FY1", "FY2"):
+        e = eps.get(key) if isinstance(eps.get(key), dict) else {}
+        if e.get("value") is not None:
+            label = ((record or {}).get("periods") or {}).get(key, {}).get("label") or key
+            out.append((_ki_money(e["value"]), f"{label} EPS, street"))
+    return out
+
+
+def _ki_track_items(events: list, risks: list, today, labelled: int = _KI_TRACK_LABELLED,
+                    months: int = _KI_TRACK_MONTHS) -> tuple:
+    """(items, undated) for the event track: the first ``labelled`` drivers above the
+    axis, every other event inside it as a dot, the dated risks below, the undated ones
+    returned to print as a line."""
+    today = today if isinstance(today, dt.date) else dt.date.fromisoformat(str(today)[:10])
+    end = today + dt.timedelta(days=round(months * 30.44))
+    items = []
+    events = [e for e in events or [] if isinstance(e, dict)]
+    values = [e.get("pct_of_price") or 0.0 for e in events if e.get("model")]
+    top = max(values) if values else 0.0
+    shown = 0
+    for e in events:
+        # A month or a year is a date too: "2026-11" is Retatrutide's readout, placed in the
+        # middle of its month by the chart and said to be a month on hover.
+        when = str(e.get("date") or "")[:10]
+        if re.match(r"^\d{4}-\d{2}$", when):
+            when += "-01"
+        elif re.match(r"^\d{4}$", when):
+            when += "-01-01"
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", when) or when < today.isoformat():
+            continue
+        if shown < labelled:
+            shown += 1
+            kind = ("value" if e.get("model") else
+                    "regulatory" if e.get("tier") == 1 else "readout")
+            # What the event is about says more than its kind, which the mark already
+            # shows: four "Phase 3 readout" subs in a row said nothing a ring did not.
+            event = re.sub(r"\s+readout$", "", str(e.get("event") or ""))
+            about = str(e.get("indication") or "")
+            if len(about) > 24:
+                about = about[:23].rstrip(" ,") + "…"
+            sub = " · ".join(x for x in ((e.get("lead") if e.get("model") else None),
+                                         event, about) if x)
+            weight = ((e.get("pct_of_price") or 0.0) / top) if top else 0.0
+            items.append({"date": when, "precision": e.get("precision") or "day",
+                          "side": "above", "kind": kind, "estimated": bool(e.get("estimated")),
+                          "label": e.get("asset") or "", "sub": sub,
+                          "tip": e.get("line") or "", "weight": weight})
+        elif dt.date.fromisoformat(when) <= end:
+            items.append({"date": when, "precision": e.get("precision") or "day",
+                          "side": "above", "kind": "minor", "tip": e.get("line") or ""})
+    undated, shown = [], 0
+    for r in risks or []:
+        if not isinstance(r, dict):
+            continue
+        when = str(r.get("date") or r.get("new") or "")[:10]
+        precision = "day"
+        if re.match(r"^\d{4}-\d{2}$", when):
+            when, precision = when + "-01", "month"
+        if r.get("kind") in ("exclusivity", "slip") and (
+                not re.match(r"^\d{4}-\d{2}-\d{2}$", when) or when < today.isoformat()):
+            continue                      # past or undatable: Catalysts has it
+        if r.get("kind") == "exclusivity" and r.get("date") and shown < _KI_RISKS_LABELLED:
+            items.append({"date": r["date"], "side": "below", "kind": "loss",
+                          "label": f"{r.get('asset') or ''} LOE",
+                          "sub": f"{r['share_text']} of revenue" if r.get("share_text") else "",
+                          "tip": r.get("line") or ""})
+            shown += 1
+        elif r.get("kind") == "slip" and r.get("new") and shown < _KI_RISKS_LABELLED:
+            items.append({"date": when, "precision": precision, "side": "below", "kind": "slip",
+                          "label": r.get("nct_id") or "readout",
+                          "sub": f"slips {r['days']} days" if r.get("days") else "",
+                          "tip": r.get("line") or ""})
+            shown += 1
+        elif r.get("kind") not in ("exclusivity", "slip"):
+            undated.append(r)
+    return items, undated
+
+
+def _ki_metric(company: dict, ids: tuple) -> dict:
+    """The first of ``ids`` with a value, searched across every pillar and then the
+    measures a cohort reports without scoring (a commercial biotech's exclusivity), else the
+    first of them present (with its reason), else None."""
+    found = {}
+    for p in ((company or {}).get("pillars") or {}).values():
+        for m in (p or {}).get("metrics") or []:
+            if isinstance(m, dict) and m.get("id") in ids:
+                found.setdefault(m["id"], m)
+    for m in (((company or {}).get("facts") or {}).get("other_metrics") or []):
+        if isinstance(m, dict) and m.get("id") in ids:
+            found.setdefault(m["id"], m)
+    for i in ids:
+        if found.get(i) and found[i].get("value") is not None:
+            return found[i]
+    return next((found[i] for i in ids if i in found), None)
+
+
+def _ki_reason(metric: dict, reasons: dict = None) -> str:
+    """Why a measure has no value, in words: the metric's own filled sentence, else the
+    method's where it is not a template, else its key."""
+    m = metric or {}
+    if m.get("reason_text"):
+        return str(m["reason_text"])
+    r = m.get("reason")
+    text = (reasons or {}).get(r) if r else None
+    if text and "{" not in str(text):
+        return str(text)
+    return str(r or "no value on file").replace("_", " ")
+
+
+def _ki_place(metric: dict) -> str:
+    m = metric or {}
+    return f"{m['place']} of {m['n']}" if m.get("place") and m.get("n") else ""
+
+
+def _ki_peer_row(board: dict, ticker: str, metric: dict) -> dict:
+    """One measure across the cohort: the company's value and place, every peer's value
+    for the dot strip, the median and the tone of the company's dot."""
+    board = board if isinstance(board, dict) else {}
+    method = (board.get("method") or {}).get("metrics") or {}
+    reasons = (board.get("method") or {}).get("reasons") or {}
+    companies = board.get("companies") or {}
+    me = companies.get(ticker) or {}
+    mid = (metric or {}).get("id")
+    meta = method.get(mid) or {}
+    peers = []
+    for t, c in companies.items():
+        if not isinstance(c, dict) or c.get("cohort") != me.get("cohort") or t == ticker:
+            continue
+        m = _ki_metric(c, (mid,))
+        if m and m.get("value") is not None:
+            peers.append({"ticker": t, "value": m["value"], "text": m.get("text") or ""})
+    cohort = (board.get("cohorts") or {}).get(me.get("cohort")) or {}
+    score = (metric or {}).get("score")
+    tone = "up" if score is not None and score >= 75 else (
+        "down" if score is not None and score <= 25 else "neutral")
+    reason = _ki_reason(metric, reasons) if (metric or {}).get("value") is None else None
+    return {"id": mid, "label": _KI_SHORT.get(mid) or meta.get("label") or mid,
+            "full_label": meta.get("label") or mid, "text": (metric or {}).get("text"),
+            "place_text": _ki_place(metric), "value": (metric or {}).get("value"),
+            "better": meta.get("better") or "higher",
+            "median": (cohort.get("metric_medians") or {}).get(mid), "tone": tone,
+            "peers": peers, "reason": reason}
+
+
+def _ki_rev_bars(reported: list, n: int = 5) -> list:
+    """The last ``n`` fiscal years of reported revenue, a gap a None: [{label, value, latest}]."""
+    rows = {int(r["fiscal_year"]): r.get("value") for r in reported or []
+            if isinstance(r, dict) and r.get("fiscal_year") is not None}
+    if not rows:
+        return []
+    last = max(rows)
+    years = list(range(last - n + 1, last + 1))
+    return [{"label": f"FY{y % 100:02d}", "value": rows.get(y), "latest": y == last}
+            for y in years if y >= min(rows)]
+
+
+def _ki_phase_segments(compounds: dict) -> list:
+    """Compounds by furthest phase, Phase 2/3 folded into Phase 3."""
+    c = compounds if isinstance(compounds, dict) else {}
+    out = []
+    for key, label, n in (("p1", "P1", c.get("Phase 1")), ("p12", "P1/2", c.get("Phase 1/2")),
+                          ("p2", "P2", c.get("Phase 2")),
+                          ("p3", "P3", (c.get("Phase 3") or 0) + (c.get("Phase 2/3") or 0)),
+                          ("p4", "P4", c.get("Phase 4"))):
+        if n:
+            out.append({"value": n, "key": key, "label": f"{label} {n}",
+                        "tip": f"{n} in {label.replace('P', 'Phase ')}"})
+    return out
+
+
+def _ki_mix_segments(products: dict, fy0: dict, shown: int = 5) -> list:
+    """The top products' shares of revenue and the rest, on the Portfolio donut's basis."""
+    p = products if isinstance(products, dict) else {}
+    seen: dict = {}
+    for r in p.get("rows") or []:
+        if isinstance(r, dict) and r.get("value_usd_m"):
+            name = _ki_product(r.get("name")).lower()
+            if name not in seen or r["value_usd_m"] > seen[name]["value_usd_m"]:
+                seen[name] = r          # LNTH filed Definity twice: one row a product
+    rows = sorted(seen.values(), key=lambda r: -r["value_usd_m"])
+    if not rows:
+        return []
+    product_total = sum(r["value_usd_m"] for r in rows) + (p.get("unattributed_usd_m") or 0.0)
+    total = (fy0 or {}).get("revenue_usd_m")
+    label = str((fy0 or {}).get("label") or "")
+    if (not total or str(p.get("fiscal_year")) not in label
+            or sum(r["value_usd_m"] for r in rows[:shown]) > total):
+        total = product_total
+    out = []
+    for i, r in enumerate(rows[:shown]):
+        share = r["value_usd_m"] / total
+        name = _ki_product(r.get("name"))
+        out.append({"value": r["value_usd_m"], "key": f"m{i}", "label": name,
+                    "sub": f"{share:.0%}", "tip": f"{name} {share:.1%} of revenue"})
+    rest = total - sum(r["value_usd_m"] for r in rows[:shown])
+    if rest > 0:
+        out.append({"value": rest, "key": "rest", "label": "rest",
+                    "sub": f"{rest / total:.0%}", "tip": f"the rest {rest / total:.1%}"})
+    return out
+
+
+def _ki_level(value_mm) -> tuple:
+    """(figure, unit) for revenue in millions: ("58.7", "bn") or ("940", "mm")."""
+    if value_mm is None:
+        return _KI_EMPTY, ""
+    if abs(value_mm) >= 1000:
+        return f"{value_mm / 1000:,.1f}", "bn"
+    return f"{value_mm:,.0f}", "mm"
+
+
+def _ki_columns(board: dict, ticker: str, record: dict, verdict: dict) -> list:
+    """Band 4's three columns, named the way a reader asks: the financials, the pipeline,
+    the marketed products, each a figure, a picture and the measures that place it."""
+    board = board if isinstance(board, dict) else {}
+    me = (board.get("companies") or {}).get(ticker) or {}
+    rec = record if isinstance(record, dict) else {}
+    ver = verdict if isinstance(verdict, dict) else {}
+    clinical = me.get("cohort") == "clinical"
+    detail = rec.get("detail") or {}
+    cols = []
+
+    def rows_for(ids_list):
+        out = []
+        for ids in ids_list:
+            m = _ki_metric(me, ids)
+            if m:
+                out.append(_ki_peer_row(board, ticker, m))
+        return out
+
+    if clinical:
+        runway = _ki_metric(me, ("runway",))
+        cols.append({"title": "Funding",
+                     "figure": (runway or {}).get("text") or _KI_EMPTY, "unit": "",
+                     "delta": "", "delta_tone": "", "place": _ki_place(runway),
+                     "picture": None, "rows": rows_for([("share_change",)]), "notes": []})
+    else:
+        reported = ver.get("reported_revenue") or []
+        last = reported[-1] if reported else None
+        prev = reported[-2] if len(reported) > 1 else None
+        fig, unit = _ki_level((last or {}).get("value"))
+        # The currency the rows are filed in: BioNTech reports in dollars and files in euro.
+        cur = rec.get("row_currency") or rec.get("reporting_currency") or ""
+        delta = ""
+        if last and prev and prev.get("value") and \
+                int(last["fiscal_year"]) - int(prev["fiscal_year"]) == 1:
+            delta = _ki_signed_pct(last["value"] / prev["value"] - 1)
+        growth = _ki_metric(me, ("rev_growth",))
+        bal = ("runway",) if me.get("cohort") == "commercial" and not _ki_metric(
+            me, ("nd_ocf", "net_cash_rev")) else ("nd_ocf", "net_cash_rev")
+        cols.append({"title": "Financials", "figure": fig,
+                     "unit": (f"{unit} {cur} revenue, FY{last['fiscal_year']}"
+                              if last else "revenue").replace("  ", " ").strip(),
+                     "delta": delta, "delta_tone": _ki_tone(
+                         last["value"] / prev["value"] - 1 if delta else None),
+                     "place": _ki_place(growth),
+                     "picture": {"kind": "bars", "data": _ki_rev_bars(reported)},
+                     "rows": rows_for([("op_margin", "pretax_margin", "fcf_margin"), bal]),
+                     "notes": [], "reason": ver.get("_error") if not last else None})
+    pipe = (detail.get("pipeline") or {}).get("compounds") or {}
+    count = sum(v for v in pipe.values() if isinstance(v, (int, float)))
+    late = _ki_metric(me, ("mid_late_compounds",) if clinical else ("late_compounds",))
+    late_text = ""
+    if late and late.get("text"):
+        late_text = (f"{late['text']} in Phase 2 or later" if clinical
+                     else f"{late['text']} late-stage")
+    notes = []
+    sp = (ver.get("sotp") or {}).get("pipeline") or {}
+    if sp.get("n") and sp.get("per_share") is not None:
+        note = f"{_ki_money(sp['per_share'])} a share after PoS"
+        if sp.get("per_share_unrisked") is not None:
+            note += f" ({_ki_money(sp['per_share_unrisked'])} before)"
+        notes.append(note)
+    cols.append({"title": "Pipeline", "figure": f"{count:,.0f}" if count else _KI_EMPTY,
+                 "unit": (("compound" if count == 1 else "compounds") + " in trials")
+                 if count else "no programmes on file",
+                 "delta": "", "delta_tone": "",
+                 "place": " · ".join(x for x in (late_text, _ki_place(late)) if x),
+                 "picture": {"kind": "phases", "data": _ki_phase_segments(pipe)},
+                 "rows": rows_for([("trial_conc",)] if clinical else [("late_per_rev",)]),
+                 "notes": notes})
+    if clinical:
+        facts = me.get("facts") or {}
+        lead = (facts.get("lead_phase") or {}).get("phase")
+        partner = (facts.get("partner_on") or {}).get("text")
+        cols.append({"title": "Lead asset", "figure": lead or _KI_EMPTY,
+                     "unit": "furthest asset" if lead else "",
+                     "delta": "", "delta_tone": "", "place": "", "picture": None,
+                     "rows": [], "notes": [partner] if partner else []})
+    else:
+        loe = _ki_metric(me, ("loe_years",))
+        mix = _ki_mix_segments(detail.get("products") or {},
+                               (rec.get("periods") or {}).get("FY0") or {})
+        reasons = (board.get("method") or {}).get("reasons") or {}
+        reason = None
+        if loe and loe.get("value") is not None:
+            fig = (loe.get("text") or _KI_EMPTY).replace(" years", "").replace(" year", "")
+            unit = "years of exclusivity left"
+            place = _ki_place(loe)
         else:
-            head, tail = f'<div class="ki-ev"{title}>', "</div>"
-        lead_cls = "ki-lead ki-val" if r.get("model") else "ki-lead"
-        out.append(f'{head}<span class="{lead_cls}">{html_escape(r.get("lead") or "")}</span>'
-                   f'<span class="ki-t">{html_escape(r.get("text") or "")}</span>{tail}')
-    return '<div class="ki-next">' + "".join(out) + "</div>"
+            fig, unit, place = _KI_EMPTY, "", ""
+            reason = _ki_reason(loe, reasons) if loe else "no product revenue on file"
+        rows = rows_for([("top_product",), ("fresh_share",)])
+        caption = ""
+        if mix and mix[0]["key"] != "rest" and mix[0]["value"] / sum(
+                x["value"] for x in mix) < 0.15:
+            # Too narrow to label: the leaders are named under the bar instead.
+            caption = ", ".join(f"{x['label']} {x['sub']}" for x in mix[:3] if x["key"] != "rest")
+        cols.append({"title": "Marketed products", "figure": fig, "unit": unit, "delta": "",
+                     "delta_tone": "", "place": place,
+                     "picture": {"kind": "mix", "data": mix}, "rows": rows, "notes": [],
+                     "reason": reason, "caption": caption})
+    return cols
 
 
-def _ki_changes(feed, ticker: str, today) -> list:
+def _ki_column_html(col: dict, picture_svg: str, strip_svgs: list) -> str:
+    """One column: caps title, the figure line, the picture, the measures with their
+    dot strips, and any note."""
+    unit = f'<span class="u">{html_escape(col["unit"])}</span>' if col.get("unit") else ""
+    delta = (f'<span class="d {col.get("delta_tone") or ""}">{html_escape(col["delta"])}</span>'
+             if col.get("delta") else "")
+    fig_cls = "f none" if col.get("figure") == _KI_EMPTY else "f"
+    place = (f'<div class="ki-col-p">{html_escape(col["place"])}</div>'
+             if col.get("place") else "")
+    if col.get("figure") == _KI_EMPTY and col.get("reason"):
+        place = f'<div class="ki-col-p">{html_escape(col["reason"])}</div>'
+    pic = f'<div class="ki-col-pic">{picture_svg}</div>' if picture_svg else ""
+    if col.get("caption"):
+        pic += f'<div class="ki-col-cap">{html_escape(col["caption"])}</div>'
+    rows = []
+    for r, svg in zip(col.get("rows") or [], strip_svgs):
+        if r.get("value") is None:
+            rows.append(f'<div class="ki-peer" title="{_ki_attr(r.get("reason"))}">'
+                        f'<span class="l" title="{_ki_attr(r["full_label"])}">'
+                        f'{html_escape(r["label"])}</span><span class="s"></span>'
+                        f'<span class="v none">{_KI_EMPTY}</span></div>')
+            continue
+        rows.append(f'<div class="ki-peer"><span class="l" title="{_ki_attr(r["full_label"])}">'
+                    f'{html_escape(r["label"])}</span><span class="s">{svg}</span>'
+                    f'<span class="v"><b>{html_escape(r.get("text") or "")}</b> '
+                    f'<i class="{r["tone"]}">{html_escape(r.get("place_text") or "")}</i>'
+                    "</span></div>")
+    notes = "".join(f'<div class="ki-col-n">{html_escape(n)}</div>' for n in col.get("notes") or [])
+    # A figure that is missing for a reason the page prints is not also drawn as a dot.
+    shown_fig = "" if (col.get("figure") == _KI_EMPTY and col.get("reason")) else (
+        f'<span class="{fig_cls}" title="{_ki_attr(col.get("reason"))}">'
+        f'{html_escape(col["figure"])}</span>')
+    return (f'<div class="ki-col"><div class="ki-col-h">{html_escape(col["title"])}</div>'
+            f'<div class="ki-col-fig">{shown_fig}'
+            f'{unit}{delta}</div>{place}{pic}{"".join(rows)}{notes}</div>')
+
+
+def _ki_forecast_state(verdict, error=None) -> str:
+    """"modelled", "not_modelled" or "failed": a read that failed is never said to be a
+    company with nothing modelled."""
+    if error:
+        return "failed"
+    v = verdict if isinstance(verdict, dict) else {}
+    if (v.get("ok") and (v.get("per_share") or v.get("streams") or v.get("placeholders"))
+            and ((v.get("sotp") or {}).get("marketed") or {}).get("per_share") is not None):
+        return "modelled"
+    return "not_modelled"
+
+
+_KI_KEY = (("readout", "estimated", "○", "", "readout, date estimated"),
+           ("readout", "dated", "●", "", "readout"),
+           ("value", None, "●", "up", "value at stake"),
+           ("regulatory", None, "◆", "flag", "regulatory"),
+           ("loss", None, "▼", "down", "exclusivity loss"),
+           ("slip", None, "▽", "down", "readout slips"),
+           ("minor", None, "·", "", "other events"))
+
+
+def _ki_key_html(items: list) -> str:
+    """One line naming the marks the track actually draws, so it reads without a hover."""
+    present = set()
+    for it in items or []:
+        kind = it.get("kind")
+        if kind == "readout":
+            present.add(("readout", "estimated" if it.get("estimated") else "dated"))
+        else:
+            present.add((kind, None))
+    parts = [f'<span><i class="{cls}">{glyph}</i>{html_escape(text)}</span>'
+             for kind, sub, glyph, cls, text in _KI_KEY if (kind, sub) in present]
+    return f'<div class="ki-key">{"".join(parts)}</div>' if parts else ""
+
+
+def _ki_section_html(label: str, basis: str = "") -> str:
+    """The same markup section() writes, for a section inside a band."""
+    chip = f'<span class="sec-basis">{html_escape(basis)}</span>' if basis else ""
+    return f'<div class="sec ki-sec"><span class="sec-label">{html_escape(label)}</span>{chip}</div>'
+
+
+def _ki_band_html(cells: list, layout: str = "c2") -> str:
+    """A band: one grid, each cell its own block of markup. No blank lines, so markdown
+    cannot break the HTML."""
+    inner = "".join(f'<div class="ki-cell">{c}</div>' for c in cells)
+    return re.sub(r"\n\s*", "", f'<div class="ki-band {layout}">{inner}</div>')
+
+
+def _ki_changes(feed, ticker: str, today, skip_ncts=()) -> list:
     """The company's changes rated high in the last 30 days, newest first. Restatements
-    and rate moves are left to News, and what is dated ahead (catalysts, exclusivity) is
-    Next's and the strip's."""
+    and rate moves are left to News, what is dated ahead (catalysts, exclusivity) is the
+    track's, and a slip whose trial the track already draws is not said twice."""
     since = (today - dt.timedelta(days=_KI_CHANGE_DAYS)).isoformat()
     until = today.isoformat()
     rows = [it for it in feed or [] if isinstance(it, dict)
@@ -4735,7 +5369,8 @@ def _ki_changes(feed, ticker: str, today) -> list:
             and it.get("kind") not in _KI_AHEAD_KINDS
             and it.get("change_type") not in _KI_LEFT_TO_NEWS
             and (it.get("ticker") or "") == ticker
-            and since <= str(it.get("date") or "")[:10] <= until]
+            and since <= str(it.get("date") or "")[:10] <= until
+            and not any(n and n in str(it.get("headline") or "") for n in skip_ncts)]
     rows.sort(key=lambda it: (str(it.get("date") or "")[:10],
                               str(it.get("detected_at") or it.get("date") or "")),
               reverse=True)
@@ -4773,9 +5408,8 @@ def _ki_change_row(item, ticker: str) -> str:
 
 
 def _ki_changes_basis(total: int) -> str:
-    """"5 of 10 high in 30 days, News has them all"."""
-    return (f"{min(_KI_CHANGES_SHOWN, total)} of {total} high in {_KI_CHANGE_DAYS} days, "
-            "News has them all")
+    """"3 of 10 in 30 days": the rest are on News."""
+    return f"{min(_KI_CHANGES_SHOWN, total)} of {total} in {_KI_CHANGE_DAYS} days"
 
 
 def _ki_note_label(written) -> str:
@@ -4789,13 +5423,14 @@ def _ki_note_label(written) -> str:
 
 
 def _key_insights_tab(api_base: str, ticker: str, feed: list, prices: dict) -> None:
-    """Key insights, the company on one page (company-scorecard.md 1.3): the strip, the
-    one sentence, the pillar bars beside the positives and negatives, Next beside What
-    changed, the morning note folded.
+    """Key insights, the highlights of every tab (docs/design/key-insights.md): the call
+    beside the price, where the twelve-month value comes from beside what it rests on, the
+    next two years on one track, the business against its cohort in three columns, then
+    what changed and the note.
 
-    It adds no read the page does not already make: the scorecard rides in the Comps
-    payload, cached for the minute the Comps tab reads it through, and the focal
-    company's comps-context is the one the Catalysts tab ranks."""
+    It adds no endpoint: each object is one the page or a neighbouring tab already reads
+    through the same cached call, read once here and passed down. Every read has its own
+    try, so a failure costs a module, never the tab."""
     import drivers as DRV
     if getattr(DRV, "REVISION", 0) < 3:
         DRV = importlib.reload(DRV)
@@ -4806,96 +5441,195 @@ def _key_insights_tab(api_base: str, ticker: str, feed: list, prices: dict) -> N
     except (urllib.error.URLError, OSError, ValueError) as exc:
         payload, problem = {}, str(exc).rstrip(".")
     record = next((c for c in payload.get("companies") or []
-                   if isinstance(c, dict) and c.get("ticker") == ticker), None)
-    board = payload.get("scorecard")
-    company, cohort = None, {}
-    if problem is None:
-        if not isinstance(board, dict):
-            problem = "no scorecard in the answer"
-        elif board.get("error"):
-            problem = str(board["error"]).rstrip(".")
-        else:
-            company = (board.get("companies") or {}).get(ticker)
-            if not isinstance(company, dict):
-                company, problem = None, f"no record for {ticker}"
-            else:
-                cohort = (board.get("cohorts") or {}).get(company.get("cohort")) or {}
-    method = (board or {}).get("method") or {} if isinstance(board, dict) else {}
+                   if isinstance(c, dict) and c.get("ticker") == ticker), None) or {}
+    board = payload.get("scorecard") if isinstance(payload.get("scorecard"), dict) else {}
+    company = (board.get("companies") or {}).get(ticker) if board else None
+    if problem is None and not isinstance(company, dict):
+        problem = (str(board.get("error")).rstrip(".") if board.get("error")
+                   else f"no record for {ticker}")
+    company = company if isinstance(company, dict) else None
+    cohort = ((board.get("cohorts") or {}).get((company or {}).get("cohort")) or {}) \
+        if board else {}
 
-    # 1. The strip, with Generate and Tearsheet at its right as before.
-    points = prices.get("points") or []
-    latest = prices.get("latest") or {}
-    close_text = (T.num(latest["close"], 2)
-                  if points and latest.get("close") is not None else None)
-    day_move = ((record or {}).get("market") or {}).get("change_1d")
+    # Band 1. The call beside the price. A read that fails is said to have failed: falling
+    # back to the street there would print a street target beside the model's own bridge.
+    fv, fv_failed = {}, None
+    for _attempt in range(2):
+        try:
+            fv = api_get(api_base, f"/companies/{ticker}/fair-value") or {}
+            fv_failed = None
+            break
+        except Exception as exc:  # noqa: BLE001
+            fv_failed = str(exc).rstrip(".")
+    rated = fv.get("rating") if isinstance(fv.get("rating"), dict) else {}
+    series = _ki_year_series(prices.get("points") or [])
+    street = ((record.get("street") or {}).get("price_target")
+              if isinstance(record.get("street"), dict) else None)
+    call = (_ki_call_failed(fv_failed) if fv_failed
+            else _ki_call(rated, fv.get("reason"), series, street))
+    momentum = _ki_metric(company, ("rel_1y",)) if company else None
+    multiple = ((company or {}).get("facts") or {}).get("multiple")
+    mplace = _ki_metric(company, ((multiple or {}).get("metric"),)) if company and multiple \
+        else None
+    figures = _ki_figures(series, call, momentum, street, multiple, mplace)
+    tone = call.get("word_tone") if call.get("source") == "model" else "neutral"
+    model_mark = ({"mid": rated.get("forward_12m"), "low": rated.get("forward_low"),
+                   "high": rated.get("forward_high"), "tone": tone,
+                   "tip": (f"Model in 12 months {_ki_money(rated.get('forward_12m'))}, "
+                           f"{_ki_money(rated.get('forward_low'))} to "
+                           f"{_ki_money(rated.get('forward_high'))}")}
+                  if call.get("source") == "model" else None)
+    street_mark = ({"value": street["value"],
+                    "tip": f"Street target {_ki_money(street['value'])}"}
+                   if isinstance(street, dict) and street.get("value") is not None else None)
+    money_fmt = (lambda v: f"{v:,.0f}") if (series.get("close") or 0) >= 100 else \
+        (lambda v: f"{v:,.2f}")
+    chart = CH.price_call(series["closes"], series["dates"], series.get("close"),
+                          model=model_mark, street=street_mark, width=800, height=176,
+                          value_fmt=money_fmt)
+    chart_cell = (f'<div class="chart-mount stretch ki-price">{chart}</div>' if chart else
+                  f'<div class="ki-empty" title="no price on file; Refresh on Prices">'
+                  f'{_KI_EMPTY}</div>')
+    st.markdown(_ki_band_html([_ki_call_html(call, figures), chart_cell], "c2"),
+                unsafe_allow_html=True)
+
+    # Band 2. Where the twelve-month value comes from, and what it rests on.
+    verdict, verdict_error = None, None
     try:
-        rated = (api_get(api_base, f"/companies/{ticker}/fair-value") or {}).get("rating") or {}
-    except Exception:
-        rated = {}
-    strip_col, btn_col = st.columns([6, 0.75])
-    with strip_col:
-        st.markdown(_ki_strip_html(_ki_strip_cells(close_text, day_move, rated, company,
-                                                   problem)),
-                    unsafe_allow_html=True)
-    with btn_col:
-        regenerate = st.button("Generate", key="gen_note", width="stretch")
-        write_sheet = st.button("Tearsheet", key="gen_sheet", width="stretch")
-    if write_sheet:
-        with st.spinner(f"Writing the {ticker} tearsheet"):
-            st.session_state["tearsheet"] = api_post(
-                api_base, f"/companies/{ticker}/tearsheet")
-    made = st.session_state.get("tearsheet")
-    if made and made.get("ticker") == ticker:
-        st.markdown(
-            f'<div class="byline">Tearsheet written to '
-            f'<span class="mono">exports/{html_escape(made["filename"])}</span>. '
-            'Open it and print to A4, or save as PDF.</div>',
-            unsafe_allow_html=True)
-
-    # 2 to 4. The sentence, the bars, the positives and negatives: one state when the
-    # scorecard is not there.
-    if company is None:
-        st.markdown(f'<div class="ki-sentence ki-muted">'
-                    f'{html_escape(_KI_FAILED.format(error=problem))}</div>',
-                    unsafe_allow_html=True)
+        verdict = api_get(api_base, f"/companies/{ticker}/forecast-verdict")
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        verdict_error = str(exc).rstrip(".")
+    fstate = _ki_forecast_state(verdict, verdict_error)
+    modelled = fstate == "modelled"
+    if modelled:
+        sotp = verdict.get("sotp") or {}
+        bridge = _ki_bridge(sotp, rated.get("forward_12m") if rated.get("ok") else None)
+        end = _ki_money(bridge["end"]) if bridge.get("end") is not None else None
+        if bridge["ok"] and end:
+            svg = CH.waterfall(bridge["steps"], 800, 200,
+                               value_fmt=lambda x: f"{x:,.2f}",
+                               reference=({"label": None, "value": sotp["close"]}
+                                          if sotp.get("close") else None))
+            right = (_ki_section_html(f"Where {end} comes from",
+                                      f"$ a share · the price dashed, "
+                                      f"{_ki_money(sotp.get('close'))}")
+                     + f'<div class="chart-mount stretch ki-bridge">{svg}</div>')
+        else:
+            right = (_ki_section_html("Where the value comes from")
+                     + f'<div class="ki-empty">{html_escape(_KI_NO_BRIDGE)}</div>')
+        try:
+            bp = _breakpoints(api_base, ticker)
+        except Exception:  # noqa: BLE001
+            bp = None
+        rests = _ki_rests_on(verdict)
+        left = (_ki_section_html("What it rests on", "$ a share") + _ki_rests_html(rests)
+                + _ki_breaks_html(_ki_breaks(bp)))
+        st.markdown(_ki_band_html([left, right], "c2"), unsafe_allow_html=True)
+    elif fstate == "failed":
+        st.markdown(_ki_band_html([_ki_section_html("Where the value comes from")
+                                   + f'<div class="ki-empty">The forecast did not load: '
+                                     f'{html_escape(verdict_error)}. Reload in a minute.</div>'],
+                                  "c1"), unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="ki-sentence">{html_escape(company.get("sentence") or "")}'
-                    '</div>', unsafe_allow_html=True)
-        score_col, lines_col = st.columns([1.15, 1], gap="medium")
-        with score_col:
-            # No "against {n} {noun}" chip: the sentence right above names the cohort
-            # ("7th of 18 big pharma"), and the chip said it again (8.7's budget at 1440).
-            section("Company score")
-            against = (f" against {cohort.get('n')} {cohort.get('noun')}"
-                       if cohort.get("n") and cohort.get("noun") else "")
-            # 720 fills the column at 1440 and nearly at 1600, at the chart's own type
-            # size; narrower, it scales down.
-            R.show(CH.pillar_bars(_ki_pillar_rows(company, cohort, method), width=720,
-                                  label=f"{ticker} pillar scores{against}, the cohort "
-                                        "median as a tick"),
-                   css_class="ki-bars")
-        with lines_col:
-            section("Positives and negatives")
-            st.markdown(_ki_lines_html(company), unsafe_allow_html=True)
+        # Not modelled: the call above says so. What the street expects, where it is on file.
+        expects = _ki_street_expects(record)
+        if expects:
+            cells = "".join(f'<div class="ki-f"><span class="v">{html_escape(v)}</span>'
+                            f'<span class="k">{html_escape(k)}</span></div>'
+                            for v, k in expects)
+            st.markdown(_ki_band_html([_ki_section_html("What the street expects")
+                                       + f'<div class="ki-figs ki-expects">{cells}</div>'],
+                                      "c1"), unsafe_allow_html=True)
 
-    # 5 and 6. Next, the head of the Catalysts list, beside What changed.
+    # Band 3. The next two years on one track.
     try:
         context = _comps_context(api_base, ticker)
     except (urllib.error.URLError, OSError, ValueError) as exc:
         context = {"ticker": ticker, "error": str(exc)}
+    today = dt.date.today()
+    try:
+        today = dt.date.fromisoformat(str(board.get("today"))[:10])
+    except (TypeError, ValueError):
+        pass
     events = DRV.rank_events(context)
-    changes = _ki_changes(feed, ticker, dt.date.today())
-    next_col, changed_col = st.columns([1.15, 1], gap="medium")
-    with next_col:
-        section("Next", basis=_ki_next_basis(len(events), DRV.drivers_basis(len(events)))
-                if events else "")
-        problem_ctx = DRV.context_error(context)
-        if not events and problem_ctx is not None:
-            st.markdown(f'<div class="ki-empty">'
-                        f'{html_escape(DRV.CONTEXT_FAILED.format(T=ticker, error=problem_ctx))}'
-                        '</div>', unsafe_allow_html=True)
+    try:
+        risk_rows = DRV.risk_parts(company or {"ticker": ticker}, context, feed, today)[0]
+    except Exception:  # noqa: BLE001
+        risk_rows = []
+    items, _undated = _ki_track_items(events, risk_rows, today)
+    track = CH.event_track(items, today, months=_KI_TRACK_MONTHS, width=1400, height=170)
+    head = _ki_section_html("Drivers, risks and catalysts", "next 24 months")
+    body = (f'<div class="chart-mount stretch ki-track">{track}</div>' if track else
+            f'<div class="ki-empty">{html_escape(DRV.EMPTY.format(T=ticker))}</div>')
+    if track:
+        body += _ki_key_html(items)
+    ctx_problem = DRV.context_error(context)
+    if ctx_problem is not None and not events:
+        body += (f'<div class="ki-empty">'
+                 f'{html_escape(DRV.CONTEXT_FAILED.format(T=ticker, error=ctx_problem))}</div>')
+    elif isinstance(context, dict) and context.get("complete") is False:
+        body += ('<div class="ki-empty">Model values are still being computed. '
+                 'Reload in a minute.</div>')
+    st.markdown(_ki_band_html([head + body], "c1"), unsafe_allow_html=True)
+
+    # Band 4. The business against its cohort.
+    if company is None:
+        st.markdown(_ki_band_html([_ki_section_html("Against its cohort")
+                                   + f'<div class="ki-empty">'
+                                     f'{html_escape(_KI_FAILED.format(error=problem))}</div>'],
+                                  "c1"), unsafe_allow_html=True)
+    else:
+        if company.get("rank") is not None:
+            chip = (f"{_ki_ord(company['rank'])} of {company.get('ranked_of')} · score "
+                    f"{company.get('score')} · range {company.get('range_text')} · "
+                    "right is better")
         else:
-            st.markdown(_ki_next_html(events[:_KI_NEXT_SHOWN]), unsafe_allow_html=True)
+            chip = company.get("reason_text") or ""
+        title = (f"Against {cohort.get('n')} {cohort.get('noun')}"
+                 if cohort.get("n") and cohort.get("noun") else "Against its cohort")
+        cols = _ki_columns(board, ticker, record,
+                           verdict if isinstance(verdict, dict) else
+                           {"_error": f"the forecast did not load: {verdict_error}"})
+        phase = {"p1": TK.PHASE_RAMP["Phase 1"],
+                 "p12": _mix_hex(TK.PHASE_RAMP["Phase 1"], TK.PHASE_RAMP["Phase 2"], 0.5),
+                 "p2": TK.PHASE_RAMP["Phase 2"], "p3": TK.PHASE_RAMP["Phase 3"],
+                 "p4": TK.MUTED}
+        mix = {f"m{i}": _mix_hex(TK.UP, TK.GROUND, t)
+               for i, t in enumerate((0.0, 0.25, 0.45, 0.6, 0.72))}
+        mix["rest"] = TK.RULE_STRONG
+        html_cols = []
+        for col in cols:
+            pic = col.get("picture") or {}
+            svg = ""
+            if pic.get("kind") == "bars" and pic.get("data"):
+                svg = CH.bar_chart([{"label": d["label"], "value": d["value"],
+                                     "colour": TK.UP if d["latest"]
+                                     else _mix_hex(TK.MUTED, TK.GROUND, 0.45)}
+                                    for d in pic["data"]], 440, 74,
+                                   value_fmt=lambda v: f"{v / 1000:,.1f}" if abs(v) >= 1000
+                                   else f"{v:,.0f}")
+            elif pic.get("kind") == "phases" and pic.get("data"):
+                svg = CH.share_bar([dict(d, colour=phase.get(d["key"], TK.MUTED))
+                                    for d in pic["data"]], 440, 34, label="compounds by phase")
+            elif pic.get("kind") == "mix" and pic.get("data"):
+                svg = CH.share_bar([dict(d, colour=mix.get(d["key"], TK.MUTED))
+                                    for d in pic["data"]], 440, 34,
+                                   label="revenue by product")
+            strips = [CH.peer_dots(r["peers"], {"ticker": ticker, "value": r["value"],
+                                                "text": r.get("text")},
+                                   better=r["better"], width=150, height=18,
+                                   median=r.get("median"), tone=r["tone"],
+                                   label=r["full_label"])
+                      for r in col.get("rows") or []]
+            html_cols.append(_ki_column_html(col, svg, strips))
+        st.markdown(f'<div class="ki-head">{_ki_section_html(title, chip)}</div>',
+                    unsafe_allow_html=True)
+        st.markdown(_ki_band_html(html_cols, "c3"), unsafe_allow_html=True)
+
+    # Foot. What changed beside the note, its buttons out of the way.
+    skip = [it.get("label") for it in items if it.get("kind") == "slip" and track]
+    changes = _ki_changes(feed, ticker, today, skip_ncts=tuple(x for x in skip if x))
+    changed_col, note_col = st.columns([5, 7], gap="medium")
     with changed_col:
         section("What changed", basis=_ki_changes_basis(len(changes)) if changes else "")
         if changes:
@@ -4906,41 +5640,56 @@ def _key_insights_tab(api_base: str, ticker: str, feed: list, prices: dict) -> N
         else:
             st.markdown(f'<div class="ki-empty">{html_escape(_KI_NO_CHANGES)}</div>',
                         unsafe_allow_html=True)
-
-    # 7. The morning note, folded. Generate opens it on the run that wrote it. A read that
-    # fails says so inside the fold rather than taking the tab down with it.
-    load_error = None
-    try:
-        if regenerate:
-            with st.spinner(f"Writing the {ticker} note"):
-                st.session_state["note"] = api_get(
-                    api_base, f"/companies/{ticker}/note?refresh=true")
-        elif (st.session_state.get("note") or {}).get("ticker") != ticker:
-            st.session_state["note"] = api_get(api_base, f"/companies/{ticker}/note")
-        written = st.session_state.get("note") or {}
-    except (urllib.error.URLError, OSError, ValueError) as exc:
-        written, load_error = {}, str(exc).rstrip(".")
-    label = "Morning note · did not load" if load_error else _ki_note_label(written)
-    with st.expander(label, expanded=bool(regenerate)):
-        if load_error:
-            state("The note did not load", f"{html_escape(load_error)}. Press Generate to "
-                  "try again.", error=True)
-        elif not written.get("body"):
-            state(f"No note for {ticker} yet",
-                  "Press Generate. Without an Anthropic key the note is the rules "
-                  "layer, which lists the flagged items grouped by kind.")
-        else:
-            st.markdown(note_html(written["body"]), unsafe_allow_html=True)
-            layer = ("rules layer, no Anthropic key set"
-                     if written.get("model") == "rules" else written.get("model") or "")
+    with note_col:
+        section("Note")
+        b1, b2, _pad = st.container(key="ki_note_buttons").columns([1, 1, 3], gap="small")
+        with b1:
+            regenerate = st.button("Generate", key="gen_note", width="stretch")
+        with b2:
+            write_sheet = st.button("Tearsheet", key="gen_sheet", width="stretch")
+        if write_sheet:
+            with st.spinner(f"Writing the {ticker} tearsheet"):
+                st.session_state["tearsheet"] = api_post(
+                    api_base, f"/companies/{ticker}/tearsheet")
+        made = st.session_state.get("tearsheet")
+        if made and made.get("ticker") == ticker:
             st.markdown(
-                f'<div class="byline">{html_escape(layer)} · '
-                f'{html_escape((written.get("generated_at") or "")[:16])} · '
-                'the feed as it stood then</div>', unsafe_allow_html=True)
-        if written.get("error"):
-            state("The note fell back to the rules layer", written["error"], error=True)
+                f'<div class="byline">Tearsheet written to '
+                f'<span class="mono">exports/{html_escape(made["filename"])}</span>. '
+                'Open it and print to A4, or save as PDF.</div>',
+                unsafe_allow_html=True)
+        load_error = None
+        try:
+            if regenerate:
+                with st.spinner(f"Writing the {ticker} note"):
+                    st.session_state["note"] = api_get(
+                        api_base, f"/companies/{ticker}/note?refresh=true")
+            elif (st.session_state.get("note") or {}).get("ticker") != ticker:
+                st.session_state["note"] = api_get(api_base, f"/companies/{ticker}/note")
+            written = st.session_state.get("note") or {}
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            written, load_error = {}, str(exc).rstrip(".")
+        label = "Morning note · did not load" if load_error else _ki_note_label(written)
+        with st.expander(label, expanded=bool(regenerate)):
+            if load_error:
+                state("The note did not load", f"{html_escape(load_error)}. Press Generate "
+                      "to try again.", error=True)
+            elif not written.get("body"):
+                state(f"No note for {ticker} yet",
+                      "Press Generate. Without an Anthropic key the note is the rules "
+                      "layer, which lists the flagged items grouped by kind.")
+            else:
+                st.markdown(f'<div class="ki-note">{note_html(written["body"])}</div>',
+                            unsafe_allow_html=True)
+                layer = ("rules layer, no Anthropic key set"
+                         if written.get("model") == "rules" else written.get("model") or "")
+                st.markdown(
+                    f'<div class="byline">{html_escape(layer)} · '
+                    f'{html_escape((written.get("generated_at") or "")[:16])} · '
+                    'the feed as it stood then</div>', unsafe_allow_html=True)
+            if written.get("error"):
+                state("The note fell back to the rules layer", written["error"], error=True)
 
-    # 8. Last, as before.
     _china_bd(api_base, ticker)
 
 
