@@ -26,6 +26,21 @@ def _entry(start, end, form="10-Q"):
 
 
 # --- period classification ----------------------------------------------
+def test_a_year_ending_in_the_first_week_of_january_is_the_year_before():
+    """A 52/53-week year drifts across 31 December. Exelixis's fiscal 2025 ended on 2
+    January 2026 and Johnson & Johnson's fiscal 2022 on 1 January 2023."""
+    assert statements.fiscal_year_of("2026-01-02") == 2025
+    assert statements.fiscal_year_of("2023-01-01") == 2022
+    assert statements.fiscal_year_of("2016-01-03") == 2015
+    assert statements.fiscal_year_of("20260102") == 2025       # the data sets' form
+    # Anything else is its own year: a December end, a June year, and a late January
+    # end, which is no drifting December year.
+    assert statements.fiscal_year_of("2023-12-31") == 2023
+    assert statements.fiscal_year_of("2025-12-28") == 2025
+    assert statements.fiscal_year_of("2025-06-30") == 2025
+    assert statements.fiscal_year_of("2026-01-31") == 2026
+
+
 def test_classify_full_year_allows_a_52_week_filer():
     # JNJ's fiscal 2025 is 364 days and ends on a Sunday, not on 31 December.
     assert statements.classify_period(

@@ -94,6 +94,7 @@ import approval_dates
 import db
 import fx
 import productivity
+import statements
 
 DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 DEFAULTS = DATA_DIR / "future_pipeline_defaults.csv"
@@ -182,7 +183,7 @@ def rd_history(conn, company_id: int, first: int, last: int, segment=None) -> di
         by_period[row["period_end"]] = row    # the net figure sorts after the filed one
     out: dict = {}
     for period_end in sorted(by_period):
-        year = _fiscal_year_of(period_end)
+        year = statements.fiscal_year_of(period_end)
         if first <= year <= last:
             out[year] = by_period[period_end]["value"] / 1e6
     for year, (value, _unit) in reported.items():
@@ -236,14 +237,6 @@ def acquired_launches(path=None) -> dict:
             if ticker and product and came_with:
                 out[(ticker, product.lower())] = came_with
     return out
-
-
-def _fiscal_year_of(period_end: str) -> int:
-    """The year a period mostly falls in: Johnson & Johnson's 52-week year ending on 3
-    January 2016 is its 2015, whatever label the filing gave it. Any other end is its own
-    year."""
-    year, month = int(period_end[:4]), int(period_end[5:7])
-    return year - 1 if month == 1 else year
 
 
 def _lag_years(default: int = 8) -> int:
@@ -377,7 +370,7 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
         if value:
             rd += value
             rd_years += 1
-            years_seen.append(_fiscal_year_of(row["period_end"]))
+            years_seen.append(statements.fiscal_year_of(row["period_end"]))
     # Where the filer reports R&D for its medicines segment in every year of the window,
     # that is the denominator: R&D on devices or consumer products buys no drug approvals.
     # Only for a whole window, since a decade part medicines and part company is a rate on

@@ -20,6 +20,8 @@ from __future__ import annotations
 import csv
 import pathlib
 
+import statements
+
 DATA = pathlib.Path(__file__).resolve().parent.parent / "data" / "balance_sheet_updates.csv"
 SOURCE = "filing"
 
@@ -66,7 +68,7 @@ def load(conn, path=None) -> dict:
                VALUES (?, ?, 'instant', ?, ?, ?, ?, NULL, ?, ?)
                ON CONFLICT(company_id, metric, period_end, period_type) DO NOTHING""",
             (company["id"], row["period_end"], row["metric"], row["value"], row["unit"],
-             int(row["period_end"][:4]), SOURCE, row["accession"]))
+             statements.fiscal_year_of(row["period_end"]), SOURCE, row["accession"]))
         written += cursor.rowcount
         skipped += 1 - cursor.rowcount
     conn.commit()

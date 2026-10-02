@@ -202,17 +202,17 @@ def backfill_rd_less_iprd(facts: dict, periods: dict) -> dict:
     """
     us = facts.get("us-gaap") or {}
     fy = statements.FY
-    winner = {int(end[:4]): e for (end, kind), e in periods.items()
+    winner = {statements.fiscal_year_of(end): e for (end, kind), e in periods.items()
               if kind == fy and e.get("concept") == "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"}
     if not winner or "ResearchAndDevelopmentExpense" not in us:
         return {}
-    plain = {int(end[:4]): e for (end, _), e in
+    plain = {statements.fiscal_year_of(end): e for (end, _), e in
              _entries_by_period(us["ResearchAndDevelopmentExpense"], fy).items()}
     iprd: dict[int, float] = {}
     for name in _IPRD_CONCEPTS:
         if name in us:
             for (end, _), e in _entries_by_period(us[name], fy).items():
-                iprd.setdefault(int(end[:4]), e["val"])
+                iprd.setdefault(statements.fiscal_year_of(end), e["val"])
     shared = set(winner) & set(plain) & set(iprd)
     if not shared:
         return {}
@@ -253,15 +253,15 @@ def rd_less_expensed_iprd(facts: dict, periods: dict) -> dict:
         if name in us:
             for (end, _), e in _entries_by_period(us[name], fy).items():
                 if e["val"]:
-                    iprd.setdefault(int(end[:4]), e["val"])
+                    iprd.setdefault(statements.fiscal_year_of(end), e["val"])
     annual = {key: e for key, e in periods.items() if key[1] == fy}
     if not annual:
         return {}
     excluding = "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"
     if iprd and excluding in us and "ResearchAndDevelopmentExpense" in us:
-        plain = {int(end[:4]): e["val"] for (end, _), e in
+        plain = {statements.fiscal_year_of(end): e["val"] for (end, _), e in
                  _entries_by_period(us["ResearchAndDevelopmentExpense"], fy).items()}
-        excl = {int(end[:4]): e["val"] for (end, _), e in
+        excl = {statements.fiscal_year_of(end): e["val"] for (end, _), e in
                 _entries_by_period(us[excluding], fy).items()}
         for year in set(plain) & set(excl) & set(iprd):
             if abs(plain[year] - excl[year]) <= abs(excl[year]) * _AGREEMENT_TOLERANCE:
@@ -269,7 +269,7 @@ def rd_less_expensed_iprd(facts: dict, periods: dict) -> dict:
                 break
     out = {}
     for key, e in annual.items():
-        year = int(e["end"][:4])
+        year = statements.fiscal_year_of(e["end"])
         amount = iprd.get(year)
         if e.get("concept") == "ResearchAndDevelopmentExpense" and amount and 0 < amount < e["val"]:
             out[key] = dict(e, val=e["val"] - amount,
@@ -282,7 +282,7 @@ def rd_less_expensed_iprd(facts: dict, periods: dict) -> dict:
 def pick_annual_series(facts: dict, candidates):
     """The fiscal-year series, keyed by year. Returns (unit, {year: {'val','end'}})."""
     unit, series = pick_kind_series(facts, candidates, statements.FY)
-    by_year = {int(end[:4]): {"val": e["val"], "end": e["end"]}
+    by_year = {statements.fiscal_year_of(end): {"val": e["val"], "end": e["end"]}
                for (end, _), e in series.items()}
     return unit, by_year
 
@@ -456,7 +456,7 @@ def parse_statements(payload: dict) -> dict:
 
 def _annual_from(parsed: dict, key: str) -> dict[int, dict]:
     periods = parsed["lines"].get(key, {}).get("periods", {})
-    return {int(end[:4]): {"val": e["val"], "end": e["end"]}
+    return {statements.fiscal_year_of(end): {"val": e["val"], "end": e["end"]}
             for (end, kind), e in periods.items() if kind == statements.FY}
 
 
@@ -519,7 +519,7 @@ def financial_rows(parsed: dict) -> list[dict]:
                     "unit": entry.get("unit") or line["unit"],
                     "period_end": end,
                     "period_type": period_type,
-                    "fiscal_year": int(end[:4]),
+                    "fiscal_year": statements.fiscal_year_of(end),
                     # The months covered is a fact about the filing. Which fiscal
                     # quarter that makes it depends on the filer's year end, so the
                     # API works that out where the whole series is in hand.
@@ -535,7 +535,7 @@ def financial_rows(parsed: dict) -> list[dict]:
                 "unit": "shares",
                 "period_end": shares["as_of"],
                 "period_type": "instant",
-                "fiscal_year": int(shares["as_of"][:4]),
+                "fiscal_year": statements.fiscal_year_of(shares["as_of"]),
                 "fiscal_period": None,
             }
         )

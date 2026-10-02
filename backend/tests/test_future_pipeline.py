@@ -166,9 +166,11 @@ def test_the_medicines_segments_rd_is_the_denominator_only_for_a_whole_window(tm
 
 
 def test_a_52_week_year_is_matched_to_the_year_it_falls_in():
-    assert FP._fiscal_year_of("2016-01-03") == 2015
-    assert FP._fiscal_year_of("2017-12-31") == 2017
-    assert FP._fiscal_year_of("2025-06-30") == 2025
+    # The rule is the parser's now, shared by everything that reads a year off a date.
+    import statements
+    assert statements.fiscal_year_of("2016-01-03") == 2015
+    assert statements.fiscal_year_of("2017-12-31") == 2017
+    assert statements.fiscal_year_of("2025-06-30") == 2025
 
 
 def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(tmp_path,
