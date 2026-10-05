@@ -1,0 +1,20 @@
+{
+ "rxcui.json?name=Eliquis&search=2": {
+  "idGroup": {
+   "rxnormId": [
+    "1364436"
+   ]
+  }
+ },
+ "rxcui/1364436/properties.json": {
+  "properties": {
+   "rxcui": "1364436",
+   "name": "Eliquis",
+   "synonym": "",
+   "tty": "BN",
+   "language": "ENG",
+   "suppress": "N",
+   "umlscui": ""
+  }
+ }
+}

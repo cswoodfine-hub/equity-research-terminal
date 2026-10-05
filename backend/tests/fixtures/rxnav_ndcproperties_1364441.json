@@ -1,0 +1,286 @@
+{
+ "ndcPropertyList": {
+  "ndcProperty": [
+   {
+    "ndcItem": "00003089321",
+    "ndc9": "0003-0893",
+    "ndc10": "0003-0893-21",
+    "rxcui": "1364441",
+    "splSetIdItem": "e9481622-7cc6-418a-acb6-c5450daae9b0",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "E.R. Squibb & Sons, L.L.C."
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      },
+      {
+       "propName": "NDA",
+       "propValue": "NDA202155"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "00003089331",
+    "ndc9": "0003-0893",
+    "ndc10": "0003-0893-31",
+    "rxcui": "1364441",
+    "splSetIdItem": "e9481622-7cc6-418a-acb6-c5450daae9b0",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "E.R. Squibb & Sons, L.L.C."
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      },
+      {
+       "propName": "NDA",
+       "propValue": "NDA202155"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "00003089391",
+    "ndc9": "0003-0893",
+    "ndc10": "0003-0893-91",
+    "rxcui": "1364441",
+    "splSetIdItem": "e9481622-7cc6-418a-acb6-c5450daae9b0",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "E.R. Squibb & Sons, L.L.C."
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      },
+      {
+       "propName": "NDA",
+       "propValue": "NDA202155"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "50090143600",
+    "ndc9": "50090-1436",
+    "ndc10": "50090-1436-0",
+    "rxcui": "1364441",
+    "splSetIdItem": "33a9046a-41cc-46c1-becc-2ff4d7d71538",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "A-S Medication Solutions"
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      },
+      {
+       "propName": "NDA",
+       "propValue": "NDA202155"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "50090645100",
+    "ndc9": "50090-6451",
+    "ndc10": "50090-6451-0",
+    "rxcui": "1364441",
+    "splSetIdItem": "fd383ae7-1e34-44ef-b8f1-ca6906dfbcef",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "A-S Medication Solutions"
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      },
+      {
+       "propName": "NDA",
+       "propValue": "NDA202155"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "55154061200",
+    "ndc9": "55154-0612",
+    "ndc10": "55154-0612-0",
+    "rxcui": "1364441",
+    "splSetIdItem": "a454cd24-0c6d-46e8-b1e4-197388606175",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "Cardinal Health 107, LLC"
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      },
+      {
+       "propName": "NDA",
+       "propValue": "NDA202155"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "55154061208",
+    "ndc9": "55154-0612",
+    "ndc10": "55154-0612-8",
+    "rxcui": "1364441",
+    "splSetIdItem": "a454cd24-0c6d-46e8-b1e4-197388606175",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "Cardinal Health 107, LLC"
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      },
+      {
+       "propName": "NDA",
+       "propValue": "NDA202155"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "71610081142",
+    "ndc9": "71610-811",
+    "ndc10": "71610-811-42",
+    "rxcui": "1364441",
+    "splSetIdItem": "1523ab32-2c2c-6501-e063-6394a90aa0b3",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "Aphena Pharma Solutions - Tennessee, LLC"
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      },
+      {
+       "propName": "NDA",
+       "propValue": "NDA202155"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "71610081180",
+    "ndc9": "71610-811",
+    "ndc10": "71610-811-80",
+    "rxcui": "1364441",
+    "splSetIdItem": "1523ab32-2c2c-6501-e063-6394a90aa0b3",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "Aphena Pharma Solutions - Tennessee, LLC"
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      },
+      {
+       "propName": "NDA",
+       "propValue": "NDA202155"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "71610081183",
+    "ndc9": "71610-811",
+    "ndc10": "71610-811-83",
+    "rxcui": "1364441",
+    "splSetIdItem": "1523ab32-2c2c-6501-e063-6394a90aa0b3",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "Aphena Pharma Solutions - Tennessee, LLC"
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      },
+      {
+       "propName": "NDA",
+       "propValue": "NDA202155"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   }
+  ]
+ }
+}
