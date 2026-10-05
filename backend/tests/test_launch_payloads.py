@@ -126,6 +126,58 @@ def test_each_rollup_line_carries_the_compact_floor(tmp_path, big):
     assert modelled[7]["launch"]["first_full_year"] == 2031
 
 
+def test_a_failing_flag_leaves_the_forecast_the_rollup_and_the_verdict_whole(
+        tmp_path, big, monkeypatch):
+    """The floor is a flag: if it raises, the forecast, the verdict, every rollup line
+    and the company's value are what they were, and the floor reads as none."""
+    path = _book(tmp_path)
+    whole = V.company_verdict(path, "ABBV")
+    lines = {l["asset_id"]: l for l in V.company_rollup(path, "ABBV")["lines"]}
+
+    def boom(*a, **k):
+        raise RuntimeError("a broken flag")
+    monkeypatch.setattr(L, "for_asset", boom)
+    state = V.asset_forecast(path, "ABBV", 7)
+    assert state["ok"] is True and state["launch"] is None
+    verdict = V.verdict(path, "ABBV", 7)
+    assert verdict["ok"] is True and verdict["launch"] is None and verdict["gate"]
+    after = {l["asset_id"]: l for l in V.company_rollup(path, "ABBV")["lines"]}
+    assert after[7]["launch"] is None and after[7]["gate"] == lines[7]["gate"]
+    assert after[7]["rnpv_share"] == lines[7]["rnpv_share"]
+    assert V.company_verdict(path, "ABBV")["sotp"] == whole["sotp"]
+
+
+def test_failing_legs_read_as_no_gate_and_move_no_value(tmp_path, big, monkeypatch):
+    path = _book(tmp_path)
+    whole = V.company_verdict(path, "ABBV")
+
+    def boom(*a, **k):
+        raise RuntimeError("broken legs")
+    monkeypatch.setattr(PG, "legs_for_inputs", boom)
+    lines = {l["asset_id"]: l for l in V.company_rollup(path, "ABBV")["lines"]}
+    assert lines[7]["gate"] is None and lines[7]["launch"]["status"] == "before_floor"
+    assert V.verdict(path, "ABBV", 7)["gate"] is None
+    assert V.company_verdict(path, "ABBV")["sotp"] == whole["sotp"]
+
+
+def test_the_rollup_works_each_lines_legs_out_once(tmp_path, big, monkeypatch):
+    """asset_forecast reads the floor with the legs and hands them on, so the line's gate
+    is priced from the same legs rather than a second pass over the registry."""
+    path = _book(tmp_path)
+    calls = []
+    real = PG.legs_for_inputs
+
+    def counted(conn, asset_id, inputs, *a, **k):
+        calls.append(asset_id)
+        return real(conn, asset_id, inputs, *a, **k)
+    before = {l["asset_id"]: l["gate"] for l in V.company_rollup(path, "ABBV")["lines"]}
+    monkeypatch.setattr(PG, "legs_for_inputs", counted)
+    lines = {l["asset_id"]: l for l in V.company_rollup(path, "ABBV")["lines"]}
+    assert calls == [7]
+    assert lines[7]["gate"] == before[7] and lines[7]["gate"]["label"] == "Phase 3 readout"
+    assert "legs" not in V.asset_forecast(path, "ABBV", 7)
+
+
 def test_the_route_lists_unmarketed_assets_red_first(tmp_path, big, monkeypatch):
     path = _book(tmp_path)
     monkeypatch.setattr(db, "DB_PATH", Path(path))

@@ -9,6 +9,7 @@ server error.
 from __future__ import annotations
 
 import copy
+import logging
 import math
 import re
 
@@ -22,6 +23,8 @@ import launch_timing
 import other_claims
 import loe_link
 import pos_granular
+
+_log = logging.getLogger(__name__)
 
 
 def _company(conn, ticker: str):
@@ -80,8 +83,13 @@ def assets_for(db_path, ticker: str):
         conn.close()
 
 
-def asset_forecast(db_path, ticker: str, asset_id: int, scenario: str = "base"):
-    """One asset's forecast, or the named gaps that stop it. None = not this company's."""
+def asset_forecast(db_path, ticker: str, asset_id: int, scenario: str = "base", *,
+                   with_legs: bool = False):
+    """One asset's forecast, or the named gaps that stop it. None = not this company's.
+
+    ``with_legs`` also returns the next gate's legs the launch floor was read with, under
+    ``legs``, so company_rollup can price the line's gate without working them out again.
+    The API never asks for them."""
     conn = db.get_connection(db_path)
     try:
         company = _company(conn, ticker)
@@ -114,8 +122,8 @@ def asset_forecast(db_path, ticker: str, asset_id: int, scenario: str = "base"):
                    if a.get("period") == "FY" and a.get("value") is not None]
         # The earliest approval the evidence allows, beside the seeded start: a flag,
         # read after the build and never fed into it.
-        launch = launch_timing.for_asset(conn, asset_id, scenario=scenario,
-                                         legs=_legs_or_none(conn, asset_id, inputs))
+        legs = _legs_or_none(conn, asset_id, inputs)
+        launch = _launch_or_none(conn, asset_id, scenario, legs)
         # The scalars the engine actually ran on, base and scenario merged, so a control
         # that moves one starts from the value in force rather than from a scenario's
         # partial restatement of it.
@@ -124,18 +132,35 @@ def asset_forecast(db_path, ticker: str, asset_id: int, scenario: str = "base"):
                 # What the gate views gather the placement's legs from.
                 "phase": inputs.get("phase"),
                 "therapeutic_area": inputs.get("therapeutic_area"),
-                "launch": launch}
+                "launch": launch, **({"legs": legs} if with_legs else {})}
     finally:
         conn.close()
 
 
 def _legs_or_none(conn, asset_id: int, inputs: dict):
     """The next gate's legs for a forecast assumptions.load has built, or None where
-    the asset has no placement: a marketed product, an early asset, a smaller company's."""
+    the asset has no placement: a marketed product, an early asset, a smaller company's.
+
+    The legs are a view beside the value, so a failure here is logged and reads as no
+    gate: it must never take a forecast, a rollup or a rating down with it."""
     if not inputs.get("pos_granular"):
         return None
-    legs, _ = pos_granular.legs_for_inputs(conn, asset_id, inputs)
+    try:
+        legs, _ = pos_granular.legs_for_inputs(conn, asset_id, inputs)
+    except Exception:  # noqa: BLE001  a view must not take the value down
+        _log.exception("next-gate legs failed for asset %s", asset_id)
+        return None
     return legs
+
+
+def _launch_or_none(conn, asset_id: int, scenario: str, legs):
+    """The launch floor, or None where it could not be read. A flag and nothing more,
+    so a failure is logged and leaves the forecast, the verdict and the rollup whole."""
+    try:
+        return launch_timing.for_asset(conn, asset_id, scenario=scenario, legs=legs)
+    except Exception:  # noqa: BLE001  a flag must not take the value down
+        _log.exception("launch floor failed for asset %s", asset_id)
+        return None
 
 
 # The two numbers the data cannot settle. Steepness falls out of a launch's early growth
@@ -1150,18 +1175,11 @@ def _is_marketed(db_path, asset_id: int) -> bool:
         conn.close()
 
 
-def _line_gate(db_path, asset_id: int, state: dict, shares, share):
-    """The verdict's gate for one rollup line, from the forecast asset_forecast built."""
-    result = state["result"]
-    inputs = {"pos_granular": result.get("pos_placement"), "phase": state.get("phase"),
-              "therapeutic_area": state.get("therapeutic_area"),
-              "scalars": state.get("scalars") or {}}
-    conn = db.get_connection(db_path)
-    try:
-        legs, _ = pos_granular.legs_for_inputs(conn, asset_id, inputs)
-    finally:
-        conn.close()
-    return _gate(legs, result, shares, share, inputs["scalars"])
+def _line_gate(legs, state: dict, shares, share):
+    """The verdict's gate for one rollup line, from the forecast asset_forecast built and
+    the legs it read the launch floor with: its own placement and scalars, so the same
+    legs the verdict would work out."""
+    return _gate(legs, state["result"], shares, share, state.get("scalars") or {})
 
 
 def company_rollup(db_path, ticker: str):
@@ -1203,7 +1221,8 @@ def company_rollup(db_path, ticker: str):
     combined: dict[int, float] = {}
     rnpv_total = 0.0
     for asset_id in dict.fromkeys(owned + partnered):
-        state = asset_forecast(db_path, ticker, asset_id)
+        state = asset_forecast(db_path, ticker, asset_id, with_legs=True)
+        legs = (state or {}).pop("legs", None)
         # A programme its company has stopped is worth nothing whatever its rows say, and
         # is named with the reason rather than valued (backend/discontinued.py).
         if asset_id in stopped:
@@ -1240,7 +1259,7 @@ def company_rollup(db_path, ticker: str):
         marketed = _is_marketed(db_path, asset_id)
         # The next gate of a counted pipeline line, at this company's share. Beside the
         # value, never in it: rnpv_share above is untouched.
-        gate = (_line_gate(db_path, asset_id, state, shares, share)
+        gate = (_line_gate(legs, state, shares, share)
                 if counted and not marketed and result.get("pos_placement") else None)
         lines.append({"asset_id": asset_id, "name": state["name"], "share": share,
                       "rnpv_share": result["rnpv"] * share,
@@ -1583,9 +1602,9 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         inputs = assumptions_module.load(conn, asset_id, scenario)
         rows = assumptions_module.rows(conn, asset_id, scenario)
         # The next gate's legs for this scenario's own placement and scalars.
-        legs, _ = pos_granular.legs_for_inputs(conn, asset_id, inputs)
+        legs = _legs_or_none(conn, asset_id, inputs)
         # The earliest approval from the same gate, beside the seeded start.
-        launch = launch_timing.for_asset(conn, asset_id, scenario=scenario, legs=legs)
+        launch = _launch_or_none(conn, asset_id, scenario, legs)
         # A scenario inherits base and restates only what it changes, so one with no
         # rows of its own is base wearing another name. Counting them is how the range
         # can decline to draw itself rather than showing a spread of nothing.
