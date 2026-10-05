@@ -819,7 +819,7 @@ AMPLITUDE interim for accelerated approval in early 2027, which cannot be record
 reads out. A seed that cites the filing or readout the database already holds, and still
 starts before it, stays red. Seed-cited PDUFA dates are not entered as catalysts
 in this build. The registry check also found RAINIER (NCT06564142, povetacicept's IgAN
-pivotal, under Alpine) and IDeate-Lung02 (NCT06203210, under Daiichi Sankyo) missing from the
+Phase 3, under Alpine) and IDeate-Lung02 (NCT06203210, under Daiichi Sankyo) missing from the
 book.
 
 **Retatrutide reads clear and is a year early.** The floor dates from TRIUMPH-3's actual

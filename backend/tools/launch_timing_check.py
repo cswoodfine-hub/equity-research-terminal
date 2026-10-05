@@ -2,7 +2,7 @@
 
 backend/launch_timing.py flags a seeded forecast_start_year the evidence on file cannot
 reach. A flag is only as good as the evidence, and the evidence has two known holes: a
-pivotal registered under a sponsor the trial fetch never asks for (abelacimab's
+Phase 3 registered under a sponsor the trial fetch never asks for (abelacimab's
 LILAC-TIMI 76 sits under Anthos), and a filing or readout the seed's own source cites but
 the database does not hold. So every red row gets read against its own source before
 anyone acts on it, and this prints what that reading needs: the seed and its source in

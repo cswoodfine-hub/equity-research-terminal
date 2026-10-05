@@ -7,6 +7,7 @@ value, which test_forecast_view's purity test and the book's invariance check ho
 
 import datetime as dt
 import json
+import pathlib
 
 import pytest
 
@@ -579,3 +580,21 @@ def test_the_summary_carries_what_a_rollup_line_needs():
                                "evidence_kind": "registry", "nct_id": "NCT1",
                                "evidence_date": "2028-03-31"}
     assert L.summary(None) is None
+
+
+def test_the_launch_docs_and_the_check_tool_keep_the_house_style():
+    """The section that reports the floor and the tool that prints it are read by people:
+    no banned word and no em dash in either."""
+    root = pathlib.Path(__file__).resolve().parent.parent.parent
+    doc = (root / "docs" / "pipeline_coverage.md").read_text(encoding="utf-8")
+    start = doc.index("## Launch years checked against the registry and the FDA clock")
+    rest = doc[start + 3:]
+    section = doc[start:start + 3 + (rest.index("\n## ") if "\n## " in rest else len(rest))]
+    tool = (root / "backend" / "tools" / "launch_timing_check.py").read_text(encoding="utf-8")
+    docstring = tool.split('"""')[1]
+    for text in (section, docstring, L.__doc__):
+        lowered = text.lower()
+        assert "—" not in text
+        for word in ("additionally", "highlight", "underscore", "pivotal", "showcase",
+                     "testament"):
+            assert word not in lowered, word
