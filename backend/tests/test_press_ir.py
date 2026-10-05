@@ -26,6 +26,15 @@ def _kind(title):
     return pr.classify(title)[0]
 
 
+def test_an_approval_the_company_only_hopes_for_is_not_an_approval():
+    # Stoke's 23 Sep 2026 release, which the feed rated a high approval.
+    assert _kind("Stoke Therapeutics Appoints Bo Cumbo to its Board of Directors to "
+                 "Support Path Toward Potential FDA Approval and Commercialization") is None
+    assert _kind("Company seeks potential FDA approval of X in 2027") is None
+    assert _kind("FDA approves Drugx for adults with asthma") == "approval"
+    assert _kind("Drugx approved in the EU for the maintenance treatment of asthma") == "approval"
+
+
 # --- parsing ---------------------------------------------------------------
 
 def test_both_feed_shapes_parse_with_a_link_and_a_date_on_every_item():

@@ -98,6 +98,10 @@ _MONTHS = {m: i for i, m in enumerate(
      "september", "october", "november", "december"), start=1)}
 
 
+_NOT_YET = re.compile(r"\bappoints?\b|board of directors|potential (?:fda )?approval"
+                     r"|toward (?:potential )?(?:fda )?approval", re.I)
+
+
 def classify(title: str) -> tuple[str | None, bool]:
     """(kind, is_forward_dated) for a headline, or (None, False) where it is not news.
 
@@ -109,6 +113,10 @@ def classify(title: str) -> tuple[str | None, bool]:
         return None, False
     for pattern, kind, ahead in KINDS:
         if re.search(pattern, text, re.I):
+            # "Appoints X to its Board ... Toward Potential FDA Approval" names an approval
+            # the company hopes for, not one it has: a board change is not news here.
+            if kind == "approval" and _NOT_YET.search(text):
+                return None, False
             if kind == "results" and _SCHEDULING.search(text):
                 return None, False
             return kind, ahead and not _PAST.search(text)
