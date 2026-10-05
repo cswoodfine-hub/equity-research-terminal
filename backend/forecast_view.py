@@ -20,6 +20,7 @@ import discontinued
 import forecast
 import other_claims
 import loe_link
+import pos_granular
 
 
 def _company(conn, ticker: str):
@@ -114,7 +115,10 @@ def asset_forecast(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         # that moves one starts from the value in force rather than from a scenario's
         # partial restatement of it.
         return {**base, "ok": True, "result": result, "actuals": actuals,
-                "scalars": inputs.get("scalars") or {}}
+                "scalars": inputs.get("scalars") or {},
+                # What the gate views gather the placement's legs from.
+                "phase": inputs.get("phase"),
+                "therapeutic_area": inputs.get("therapeutic_area")}
     finally:
         conn.close()
 
@@ -649,7 +653,6 @@ def _stake_rows(conn, company, ticker: str, *, asset_id=None, include_id=None) -
 def _legs_state(conn, asset_id: int) -> dict:
     """What every catalyst on one asset is priced from: the base forecast built once,
     and its stated legs or its derived ones."""
-    import pos_granular
     inputs = assumptions_module.load(conn, asset_id)
     scalars = inputs.get("scalars") or {}
     try:
@@ -712,7 +715,6 @@ def _gate_reason(conn, row: dict, state: dict) -> tuple:
     """(reason, why, nct, trial) for one catalyst on an asset with derived legs; the
     reason is None where the catalyst is the gate event."""
     import applications
-    import pos_granular
     legs, gathered = state["legs"], state["gathered"]
     gate, label = legs["gate"], legs["label"]
     kind = row.get("catalyst_type") or ""
@@ -794,7 +796,6 @@ def _gate_note(legs: dict, gate_trial, gate_has_catalyst: bool) -> str:
 
 def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tuple:
     """(priced, unpriced) for one asset's catalysts."""
-    import pos_granular
     built = state["built"]
     priced, unpriced = [], []
 
@@ -1050,6 +1051,20 @@ def _is_marketed(db_path, asset_id: int) -> bool:
         conn.close()
 
 
+def _line_gate(db_path, asset_id: int, state: dict, shares, share):
+    """The verdict's gate for one rollup line, from the forecast asset_forecast built."""
+    result = state["result"]
+    inputs = {"pos_granular": result.get("pos_placement"), "phase": state.get("phase"),
+              "therapeutic_area": state.get("therapeutic_area"),
+              "scalars": state.get("scalars") or {}}
+    conn = db.get_connection(db_path)
+    try:
+        legs, _ = pos_granular.legs_for_inputs(conn, asset_id, inputs)
+    finally:
+        conn.close()
+    return _gate(legs, result, shares, share, inputs["scalars"])
+
+
 def company_rollup(db_path, ticker: str):
     """Every forecast this company has economics in, summed against reported revenue.
 
@@ -1123,11 +1138,16 @@ def company_rollup(db_path, ticker: str):
                                  "rnpv_share": result["rnpv"] * share})
         revenue = result["revenue_after_loe"]
         peak = max(revenue) if revenue else None
+        marketed = _is_marketed(db_path, asset_id)
+        # The next gate of a counted pipeline line, at this company's share. Beside the
+        # value, never in it: rnpv_share above is untouched.
+        gate = (_line_gate(db_path, asset_id, state, shares, share)
+                if counted and not marketed and result.get("pos_placement") else None)
         lines.append({"asset_id": asset_id, "name": state["name"], "share": share,
                       "rnpv_share": result["rnpv"] * share,
                       "npv_share": result["npv"] * share, "counted": counted,
                       "mode": result.get("mode"), "pos": result.get("pos"),
-                      "is_marketed": _is_marketed(db_path, asset_id),
+                      "is_marketed": marketed, "gate": gate,
                       "loe_year": result.get("loe_year"),
                       "loe_in_base": result.get("loe_in_base"),
                       # Each region's own date and share, without its revenue series.
@@ -1363,6 +1383,78 @@ def _resolved_growth(scalars: dict, ceiling: float):
     return (lo + hi) / 2.0
 
 
+# A PoS band narrower than this is one number printed twice, so the verdict does not draw
+# it beside the gate's outcome range.
+GATE_BAND_MIN = 0.005
+
+
+def _gate(legs: dict | None, built: dict, shares, share, scalars: dict | None = None):
+    """The next gate as a view: what the asset is worth now, if the gate passes, if it
+    fails and, where other Phase 3s stay open, where the model would hold it after one
+    miss, each per share at ``share`` of the economics. Derived beside the valuation:
+    the legs are NPV times a probability, and nothing here feeds the value.
+
+    Stated legs on file outrank the derived ones, as they do in the stakes; the gate's
+    event stays the one next_gate names. ``band`` is the PoS band in money, drawn only
+    where the placement sets the probability, never for a mixed stage, and only where
+    it spans GATE_BAND_MIN or more: estimation spread, kept apart from outcome risk."""
+    if not legs:
+        return None
+    cut = share if share is not None else 1.0
+    npv = built["npv"]
+
+    def per_share(pos):
+        return (npv * pos * cut * 1e6 / shares) if (shares and pos is not None) else None
+
+    scalars = scalars or {}
+    stated = all(scalars.get(key) is not None for key in LEGS)
+    pos_success = scalars["pos_success"] if stated else legs["pos_success"]
+    pos_failure = scalars["pos_failure"] if stated else legs["pos_failure"]
+    held = legs.get("held")
+    if held and not stated:
+        held = {**held, "per_share": per_share(held["pos"])}
+    elif stated:
+        held = None
+    placement = built.get("pos_placement") or {}
+    band = None
+    if (not stated and placement and built.get("pos_basis") == placement.get("basis")
+            and placement.get("stage") != "mixed"
+            and placement.get("low") is not None and placement.get("high") is not None
+            and placement["high"] - placement["low"] >= GATE_BAND_MIN):
+        band = {"pos_low": placement["low"], "pos_high": placement["high"],
+                "per_share_low": per_share(placement["low"]),
+                "per_share_high": per_share(placement["high"])}
+    trial = legs.get("trial")
+    return {
+        "gate": legs["gate"], "label": legs["label"], "date": legs.get("date"),
+        "date_basis": legs.get("date_basis"), "due": legs.get("due"),
+        "why": legs.get("why"),
+        "trial": ({"nct_id": trial["nct_id"],
+                   "indication": (trial.get("indications") or [None])[0],
+                   "indications": trial.get("indications") or [],
+                   "phase": trial.get("phase"),
+                   "primary_completion": trial.get("primary_completion")}
+                  if trial else None),
+        "legs_basis": "stated" if stated else "derived",
+        "pos_now": built["pos"], "pos_success": pos_success, "pos_failure": pos_failure,
+        "p_gate": None if stated else legs["p_gate"],
+        "p_gate_published": None if stated else legs["p_gate_published"],
+        "placed": None if stated else legs.get("placed"),
+        "evidence": None if stated else legs.get("evidence"),
+        "stated_pos": legs.get("stated"),
+        "share": cut,
+        "rnpv_now": built["rnpv"] * cut, "rnpv_success": npv * pos_success * cut,
+        "rnpv_failure": npv * pos_failure * cut,
+        "per_share_now": per_share(built["pos"]),
+        "per_share_success": per_share(pos_success),
+        "per_share_failure": per_share(pos_failure),
+        "held": held,
+        "basis": ("stated success and failure legs on file" if stated
+                  else legs["basis"]),
+        "band": band,
+    }
+
+
 def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
     """One asset's forecast expressed as a view: per share, against the market, ranked.
 
@@ -1389,6 +1481,8 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         name = asset["brand_name"] or asset["generic_name"]
         inputs = assumptions_module.load(conn, asset_id, scenario)
         rows = assumptions_module.rows(conn, asset_id, scenario)
+        # The next gate's legs for this scenario's own placement and scalars.
+        legs, _ = pos_granular.legs_for_inputs(conn, asset_id, inputs)
         # A scenario inherits base and restates only what it changes, so one with no
         # rows of its own is base wearing another name. Counting them is how the range
         # can decline to draw itself rather than showing a spread of nothing.
@@ -1423,6 +1517,9 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
     # Only a real spread counts. Bear and bull that merely inherit base produce the same
     # number three times, and a range drawn across it would claim work nobody did.
     has_range = bool(defined.get("bear") or defined.get("bull"))
+    # The range the next gate sets, derived beside it: never a scenario, so neither
+    # spread nor has_range reads it.
+    gate = _gate(legs, built, shares, share, inputs.get("scalars"))
 
     return {
         "ok": True, "ticker": company["ticker"], "asset_id": asset_id, "name": name,
@@ -1449,6 +1546,8 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         "loe_year": built.get("loe_year"), "loe_basis": built.get("loe_basis"),
         "loe_in_base": built.get("loe_in_base"),
         "spread": spread, "has_range": has_range,
+        "gate": gate,
+        "gate_range": bool(gate and gate.get("per_share_success") is not None),
         "levers": _levers(inputs, built),
         "next_catalyst": catalyst,
         "unsourced": [r["key"] for r in rows if not (r["source"] or "").strip()],
@@ -2204,9 +2303,14 @@ def company_verdict(db_path, ticker: str):
     per_share = rollup.get("rnpv_per_share")
     lines = []
     for line in rollup["lines"]:
+        gate = line.get("gate") or {}
         lines.append({**line,
                       "per_share": (line["rnpv_share"] * 1e6 / shares)
-                      if shares else None})
+                      if shares else None,
+                      # What the next gate leaves the line worth if it passes and if it
+                      # fails, per share; None for a marketed or uncounted line.
+                      "per_share_success": gate.get("per_share_success"),
+                      "per_share_failure": gate.get("per_share_failure")})
     lines.sort(key=lambda r: -(r["rnpv_share"] or 0))
     streams = [{**s, "per_share": (s["rnpv"] * 1e6 / shares) if shares else None}
                for s in rollup.get("streams") or []]
