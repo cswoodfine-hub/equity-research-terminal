@@ -3304,8 +3304,10 @@ def test_the_live_cohort_table_names_its_rank_without_a_score(tab, view):
     company = tab["company"]
     assert "ki-cohort" in body
     if company.get("rank") is not None:
-        chip = f"{view['_ki_ord'](company['rank'])} of {company['ranked_of']} · right is better"
+        # The chip is the rank alone; "right is better" heads the first group instead.
+        chip = f"{view['_ki_ord'](company['rank'])} of {company['ranked_of']}"
         assert f'<span class="sec-basis">{chip}</span>' in body
+        assert '<b class="rb">right is better</b>' in body
     assert f"of {company.get('ranked_of')} · score" not in body
 
 
