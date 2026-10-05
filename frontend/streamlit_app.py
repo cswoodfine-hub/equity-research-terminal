@@ -572,7 +572,9 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         '<div class="byline">Every field here is sourced: approval and supplements '
         'from openFDA, revenue from the SEC data sets, exclusivity from the Orange and '
         'Purple Books, demand from CMS, the label from DailyMed. A field with no free '
-        'data is left out rather than filled.</div>', unsafe_allow_html=True)
+        'data is left out rather than filled. '
+        f'{html_escape(_payer_byline(prof.get("access")))}</div>',
+        unsafe_allow_html=True)
 
 
 def _profile_detail(api_base: str, ticker: str, prof: dict, aid) -> None:
@@ -639,6 +641,308 @@ def _profile_detail(api_base: str, ticker: str, prof: dict, aid) -> None:
         else:
             st.markdown('<div class="feed">' + "".join(
                 _post_approval_row(s) for s in studies[:8]) + "</div>",
+                unsafe_allow_html=True)
+    # Who prescribes it in Medicare, which Part D plans cover it, how often Medicaid
+    # fills it: a second row, under the three above.
+    _payer_row(prof)
+
+
+# --- payer access: Part D prescribing, Part D plan coverage, Medicaid -------------------
+# The fact profile's second row (backend/payer_access.py). Each panel leads with one
+# figure and one small picture and keeps the rest behind the folded detail under the row.
+# Every panel says whose population it counts: Part D prescribers or plans, or Medicaid
+# prescriptions before rebates. Nothing here is revenue, and none of it is valued.
+_PAYER_PANELS = (("prescribing", "Part D prescribing"),
+                 ("formulary", "Part D plan coverage"),
+                 ("medicaid", "Medicaid prescriptions"))
+_PAYER_SCOPE = {"prescribing": "Medicare Part D only",
+                "formulary": "Medicare Part D plans only",
+                "medicaid": "Medicaid only, before rebates"}
+# Tiers are ordinal, cheapest first, and keep one colour each across brands.
+_PAYER_TIERS = 6
+
+
+def _payer_n(value) -> str:
+    return f"{value:,.0f}" if value is not None else "no free data"
+
+
+def _payer_pct(share, digits: int = 0) -> str:
+    return f"{share * 100:.{digits}f}%" if share is not None else "no free data"
+
+
+def _payer_scope(access: dict, key: str) -> str:
+    """The panel's first line: whose population its figures count, and when."""
+    block = (access or {}).get(key) or {}
+    return (f'<div class="byline pa-scope">'
+            f'{html_escape(block.get("scope_label") or _PAYER_SCOPE[key])}</div>')
+
+
+def _payer_chip(access: dict, key: str) -> str:
+    """The section rule's chip: short, because the full scope is the line under it."""
+    block = (access or {}).get(key) or {}
+    if key == "prescribing" and block.get("year"):
+        return str(block["year"])
+    if key == "formulary" and block.get("release_date"):
+        return f'{block["release_date"][:7]} release'
+    return "before rebates" if key == "medicaid" else "Medicare"
+
+
+def _payer_state(why) -> str:
+    return (f'<div class="state"><div class="d">{html_escape(why or "")}</div></div>'
+            if why else "")
+
+
+def _payer_co_line(access: dict) -> str:
+    co = (access or {}).get("co_marketed")
+    if not co or not co.get("owners"):
+        return ""
+    owners = co["owners"]
+    where = (f"{owners[0]}'s page" if len(owners) == 1
+             else "the pages of " + ", ".join(owners))
+    return (f'<div class="byline pa-co">{html_escape(co["label"])}. The same brand shows '
+            f'on {html_escape(where)}.</div>')
+
+
+def _payer_days_text(p: dict) -> str:
+    dc = p.get("days_covered") or {}
+    value = dc.get("value")
+    if not dc.get("applies", True):
+        return (dc.get("note") or "").rstrip(".") + "." if dc.get("note") else ""
+    if value is None:
+        if (p.get("national") or {}).get("beneficiaries") is None:
+            return "CMS suppresses the beneficiary count, so days covered cannot be read."
+        return "Days covered: no free data."
+    if value <= 1:
+        return (f"Days supplied cover {value:.0%} of each beneficiary's year. A proxy, "
+                f"not a PDC: it also falls when patients start or stop mid-year.")
+    return (f"Days supplied come to {value:.2f} times each beneficiary's year. A proxy, "
+            f"not a PDC: above 1 for a drug given more often than monthly, since CMS "
+            f"counts every fill as at least one 30-day fill.")
+
+
+def _payer_prescribing_html(access: dict) -> str:
+    p = (access or {}).get("prescribing")
+    scope = _payer_scope(access, "prescribing")
+    if not p:
+        return scope + _payer_state(((access or {}).get("why_empty") or {})
+                                    .get("prescribing"))
+    nat, f = p.get("national") or {}, p.get("file") or {}
+    out = [scope, f'<div class="pa-lead"><b>{_payer_n(nat.get("prescribers"))}</b> '
+           f'prescribers, {_payer_n(nat.get("claims"))} claims</div>']
+    if f.get("top10pct") is not None:
+        out.append(f'<div class="pa-sub">Top 10% of the file population write '
+                   f'{_payer_pct(f["top10pct"])} of its claims</div>')
+    deciles = f.get("deciles")
+    if deciles:
+        out.append(CH.bar_chart(
+            [{"label": str(i + 1), "value": v * 100 if v is not None else None}
+             for i, v in enumerate(deciles)], width=300, height=104,
+            value_fmt=lambda v: f"{v:.0f}%"))
+        out.append('<div class="byline">Share of file claims by prescriber decile, '
+                   'heaviest first. The file population is prescribers with 11 or more '
+                   'claims for the drug.</div>')
+    elif f:
+        out.append('<div class="byline">Fewer than 10 prescribers in the file, so no '
+                   'deciles.</div>')
+    out.append(f'<div class="pa-text">{html_escape(_payer_days_text(p))}</div>')
+    if p.get("part_b_note"):
+        out.append(f'<div class="byline">{html_escape(p["part_b_note"])}</div>')
+    return "".join(out)
+
+
+def _payer_formulary_html(access: dict) -> str:
+    f = (access or {}).get("formulary")
+    scope = _payer_scope(access, "formulary")
+    if not f:
+        return scope + _payer_state(((access or {}).get("why_empty") or {})
+                                    .get("formulary"))
+    out = [scope,
+           f'<div class="pa-lead">Listed on <b>{_payer_n(f.get("formularies_listing"))}'
+           f'</b> of {_payer_n(f.get("formularies_total"))} formularies</div>']
+    # Restrictions only where something lists the brand: "prior authorisation on 0"
+    # beside "listed on 0" reads as an open door.
+    if f.get("formularies_listing"):
+        out.append(f'<div class="pa-sub">Prior authorisation on '
+                   f'{_payer_n(f.get("pa_formularies"))}, step therapy on '
+                   f'{_payer_n(f.get("st_formularies"))}</div>')
+    if f.get("zero_reason"):
+        out.append(_payer_state(f["zero_reason"]))
+    tiers = f.get("tiers") or []
+    if tiers:
+        ramp = T.ordinal_ramp(_PAYER_TIERS)
+        out.append(CH.share_strip(
+            [{"label": str(t["tier"]), "value": t["formularies"],
+              "colour": ramp[min(max(int(t["tier"]), 1), _PAYER_TIERS) - 1]}
+             for t in tiers], width=300, height=22, label="tier mix"))
+        out.append('<div class="byline">Its lowest tier on each formulary, tier 1 '
+                   'cheapest. Tiers are each plan\'s own.</div>')
+    return "".join(out)
+
+
+def _payer_medicaid_html(access: dict) -> str:
+    m = (access or {}).get("medicaid")
+    scope = _payer_scope(access, "medicaid")
+    if not m:
+        return scope + _payer_state(((access or {}).get("why_empty") or {})
+                                    .get("medicaid"))
+    latest = m.get("latest")
+    out = [scope]
+    if latest:
+        floor = "At least " if latest.get("lower_bound") else ""
+        growth = latest.get("growth")
+        move = ""
+        if growth is not None:
+            move = (f", {'up' if growth >= 0 else 'down'} {abs(growth):.1%} on a year")
+        out.append(f'<div class="pa-lead">{floor}<b>{_payer_n(latest["prescriptions"])}'
+                   f'</b> prescriptions in {latest["year"]} Q{latest["quarter"]}'
+                   f'{move}</div>')
+    values = [q.get("prescriptions") for q in m.get("quarters") or []]
+    if len([v for v in values if v is not None]) > 1:
+        out.append(CH.sparkline(values, width=300, height=36, label_last=False))
+        first, last = (m["quarters"][0], m["quarters"][-1])
+        out.append(f'<div class="byline">Quarterly, {first["year"]} Q{first["quarter"]} '
+                   f'to {last["year"]} Q{last["quarter"]}, fee-for-service and managed '
+                   f'care.</div>')
+    out.append('<div class="pa-text">Gross of Medicaid rebates, so this is volume, not '
+               'revenue.</div>')
+    return "".join(out)
+
+
+def _payer_rows(pairs) -> str:
+    return "".join(f'<div class="prof-row"><span class="prof-k">{html_escape(k)}</span>'
+                   f'<span class="prof-v">{html_escape(v)}</span></div>'
+                   for k, v in pairs if v is not None)
+
+
+def _payer_detail_html(access: dict) -> str:
+    """The folded detail under the row: the figures behind each panel's lead."""
+    if not access:
+        return ""
+    p, f, m, codes = (access.get("prescribing"), access.get("formulary"),
+                      access.get("medicaid"), access.get("codes") or {})
+    if not (p or f or m):
+        return ""
+    out = ['<details class="pa-more"><summary>Prescribers, plans and quarters</summary>']
+    if p:
+        nat, fl, dc = p.get("national") or {}, p.get("file") or {}, p["days_covered"]
+        out.append(f'<div class="prof-sub">Part D prescribing, {p["year"]}</div>')
+        out.append(_payer_rows([
+            ("beneficiaries", _payer_n(nat.get("beneficiaries"))),
+            ("30-day fills", _payer_n(nat.get("fills_30d"))),
+            ("days covered, a proxy", f'{dc["value"]:.3f}'
+             if dc.get("value") is not None else None),
+            ("file prescribers, 11 or more claims", _payer_n(fl.get("prescribers"))
+             if fl else None),
+            ("file share of national claims", _payer_pct(fl.get("claims_share"))
+             if fl.get("claims_share") is not None else None),
+            ("prescribers writing half the file claims",
+             _payer_n(fl.get("prescribers_for_50pct"))
+             if fl.get("prescribers_for_50pct") is not None else None),
+            ("median claims per file prescriber", f'{fl["median_claims"]:,.0f}'
+             if fl.get("median_claims") is not None else None),
+            ("days supplied per claim", f'{fl["days_per_claim"]:.1f}'
+             if fl.get("days_per_claim") is not None else None),
+            ("file-based days covered", f'{dc["file_value"]:.3f}'
+             if dc.get("file_value") is not None else None)]))
+        for line in (nat.get("note"), dc.get("file_note"),
+                     (p.get("volume_deciles") or {}).get("note")):
+            if line:
+                out.append(f'<div class="byline">{html_escape(line)}</div>')
+        if p.get("specialties"):
+            out.append('<div class="prof-sub">Prescriber specialty, share of file '
+                       'claims</div>')
+            out.append(_payer_rows([(s["specialty"], _payer_pct(s.get("claims_share")))
+                                    for s in p["specialties"][:8]]))
+        if len(p.get("series") or []) > 1:
+            out.append('<div class="prof-sub">National prescribers and beneficiaries'
+                       '</div>')
+            out.append(_payer_rows([
+                (str(s["year"]), f'{_payer_n(s.get("prescribers"))} / '
+                                 f'{_payer_n(s.get("beneficiaries"))}')
+                for s in p["series"]]))
+    if f:
+        out.append(f'<div class="prof-sub">Part D plan coverage, '
+                   f'{html_escape(f.get("release_date") or "")} release</div>')
+        split = f.get("by_plan_type") or {}
+        rows = [("plans listing", f'{_payer_n(f.get("plans_listing"))} of '
+                                  f'{_payer_n(f.get("plans_total"))}')]
+        for kind in ("MA-PD", "PDP"):
+            s = split.get(kind)
+            if s:
+                rows.append((f"{kind} plans: listing, PA, ST, QL",
+                             f'{s["listing"]:,} of {s["plans"]:,}; {s["pa"]:,}, '
+                             f'{s["st"]:,}, {s["ql"]:,}'))
+        if not split:
+            rows.append(("plans with PA, ST, QL", f'{_payer_n(f.get("pa_plans"))}, '
+                         f'{_payer_n(f.get("st_plans"))}, {_payer_n(f.get("ql_plans"))}'))
+        rows += [("quantity limit, formularies", _payer_n(f.get("ql_formularies"))),
+                 ("plans with it on a specialty tier",
+                  _payer_n(f.get("specialty_plans_listing"))),
+                 ("selected for Medicare negotiation", "yes" if f.get("selected_drug")
+                  else "no"),
+                 ("brand RxNorm codes listed", f'{_payer_n(f.get("rxcuis_listed"))} of '
+                                               f'{_payer_n(f.get("rxcuis_known"))}')]
+        out.append(_payer_rows(rows))
+    if m:
+        out.append('<div class="prof-sub">Medicaid prescriptions by year</div>')
+        out.append(_payer_rows([
+            (f'{y["year"]}{"" if y.get("full_year") else ", part year"}',
+             ("at least " if y.get("lower_bound") else "") + _payer_n(y["prescriptions"])
+             + (f', {y["growth"]:+.1%}' if y.get("growth") is not None else ""))
+            for y in m.get("years") or []]))
+        latest_q = next((q for q in reversed(m.get("quarters") or [])
+                         if q.get("prescriptions") is not None), None)
+        if latest_q:
+            out.append(_payer_rows([(
+                f'{latest_q["year"]} Q{latest_q["quarter"]}: fee-for-service, managed care',
+                f'{_payer_n(latest_q.get("ffsu"))}, {_payer_n(latest_q.get("mcou"))}')]))
+        for line in (m.get("unbranded_note"),
+                     (m.get("reused_codes") or {}).get("note")):
+            if line:
+                out.append(f'<div class="byline">{html_escape(line)}</div>')
+        if m.get("reused_codes"):
+            r = m["reused_codes"]
+            out.append(f'<div class="byline">{r["prescriptions"]:,} prescriptions on '
+                       f'{html_escape(", ".join(r["codes"]))}.</div>')
+    if codes:
+        out.append('<div class="prof-sub">Drug codes</div>')
+        out.append(_payer_rows([
+            ("brand RxNorm codes", _payer_n(codes.get("brand_rxcuis"))),
+            ("brand product codes", _payer_n(codes.get("brand_ndc9s"))),
+            ("RxNorm release", codes.get("rxnorm_version"))]))
+    caveats = []
+    for block in (p, f, m):
+        for line in (block or {}).get("caveats") or []:
+            if line not in caveats:
+                caveats.append(line)
+    out.extend(f'<div class="byline">{html_escape(c)}</div>' for c in caveats)
+    out.append("</details>")
+    return "".join(out)
+
+
+def _payer_byline(access) -> str:
+    """The sources of the payer row, with the statement NLM asks every user of RxNav to
+    carry."""
+    text = ("Part D prescribing from CMS's Medicare Part D Prescribers files, plan coverage "
+            "from its monthly Part D formulary file, Medicaid prescriptions from the State "
+            "Drug Utilization Data, drug codes from RxNav.")
+    attribution = (access or {}).get("attribution")
+    return text + (f" {attribution}" if attribution else "")
+
+
+def _payer_row(prof: dict) -> None:
+    """The fact profile's payer row: three panels and the folded detail under them."""
+    access = prof.get("access")
+    if not access:
+        return
+    cols = st.columns(3, gap="medium")
+    builders = {"prescribing": _payer_prescribing_html,
+                "formulary": _payer_formulary_html, "medicaid": _payer_medicaid_html}
+    for col, (key, title) in zip(cols, _PAYER_PANELS):
+        with col:
+            section(title, None, _payer_chip(access, key))
+            st.markdown(builders[key](access), unsafe_allow_html=True)
+    st.markdown(_payer_co_line(access) + _payer_detail_html(access),
                 unsafe_allow_html=True)
 
 

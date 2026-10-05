@@ -1,0 +1,375 @@
+{
+ "asset_id": 12,
+ "ticker": "LLY",
+ "brand": "Verzenio",
+ "generic": "Abemaciclib",
+ "prescribing": {
+  "year": 2024,
+  "scope_label": "Medicare Part D only, 2024",
+  "source": "CMS Medicare Part D Prescribers, by Geography and Drug (national) and by Provider and Drug",
+  "cms_brands": [
+   [
+    "Verzenio",
+    "Abemaciclib"
+   ]
+  ],
+  "national": {
+   "prescribers": 6693,
+   "claims": 71925,
+   "fills_30d": 72332.4,
+   "beneficiaries": 11237,
+   "beneficiaries_65_plus": 9511,
+   "drug_cost": 1056647275.4,
+   "note": null
+  },
+  "days_covered": {
+   "value": 0.5291,
+   "label": "a proxy, not a PDC",
+   "above_one": false,
+   "applies": true,
+   "note": null,
+   "file_value": null,
+   "file_note": "file-based days covered held back: the file carries 74.8% of national claims, under the 95% it needs"
+  },
+  "file": {
+   "status": "complete",
+   "population": "prescribers with 11 or more claims for the drug (the file population)",
+   "prescribers": 2384,
+   "claims": 53775,
+   "claims_share": 0.747654,
+   "deciles": [
+    0.249893,
+    0.149382,
+    0.118382,
+    0.098968,
+    0.084835,
+    0.073268,
+    0.063766,
+    0.058577,
+    0.053687,
+    0.049242
+   ],
+   "top1pct": 0.047122,
+   "top10pct": 0.249893,
+   "prescribers_for_50pct": 677,
+   "prescribers_for_80pct": 1521,
+   "hhi": 6.0,
+   "median_claims": 18.0,
+   "days_per_claim": 28.0,
+   "note": "file-based days covered held back: the file carries 74.8% of national claims, under the 95% it needs"
+  },
+  "volume_deciles": {
+   "value": null,
+   "note": "Not computed: CMS does not say whether its national prescriber count includes prescribers with fewer than 11 claims, so the prescribers missing from the file cannot be ranked"
+  },
+  "specialties": [
+   {
+    "specialty": "Hematology-Oncology",
+    "prescribers": 1271,
+    "claims": 29013,
+    "claims_share": 0.539526
+   },
+   {
+    "specialty": "Medical Oncology",
+    "prescribers": 484,
+    "claims": 11371,
+    "claims_share": 0.211455
+   },
+   {
+    "specialty": "Nurse Practitioner",
+    "prescribers": 328,
+    "claims": 6806,
+    "claims_share": 0.126564
+   },
+   {
+    "specialty": "Internal Medicine",
+    "prescribers": 144,
+    "claims": 3029,
+    "claims_share": 0.056327
+   },
+   {
+    "specialty": "Physician Assistant",
+    "prescribers": 85,
+    "claims": 1774,
+    "claims_share": 0.032989
+   },
+   {
+    "specialty": "Hematology",
+    "prescribers": 41,
+    "claims": 1028,
+    "claims_share": 0.019117
+   },
+   {
+    "specialty": "Other",
+    "prescribers": 31,
+    "claims": 754,
+    "claims_share": 0.014021
+   }
+  ],
+  "series": [
+   {
+    "year": 2020,
+    "prescribers": 3068,
+    "claims": 22840,
+    "beneficiaries": 4115,
+    "days_covered": 0.4587
+   },
+   {
+    "year": 2021,
+    "prescribers": 3325,
+    "claims": 24495,
+    "beneficiaries": 4404,
+    "days_covered": 0.4586
+   },
+   {
+    "year": 2022,
+    "prescribers": 4277,
+    "claims": 33783,
+    "beneficiaries": 6040,
+    "days_covered": 0.4612
+   },
+   {
+    "year": 2023,
+    "prescribers": 5503,
+    "claims": 50457,
+    "beneficiaries": 8213,
+    "days_covered": 0.5073
+   },
+   {
+    "year": 2024,
+    "prescribers": 6693,
+    "claims": 71925,
+    "beneficiaries": 11237,
+    "days_covered": 0.5291
+   }
+  ],
+  "caveats": [
+   "Days covered is 30-day fills times 30 over beneficiaries times 365: a proxy, not a PDC. It falls when patients start or stop during the year as well as when they miss doses, and it can pass 1 for a drug given more often than monthly, since CMS counts every fill as at least one 30-day fill.",
+   "The provider file leaves out any prescriber with fewer than 11 claims for the drug, so its figures, the deciles among them, describe that population and not every prescriber."
+  ],
+  "part_b_note": null
+ },
+ "formulary": {
+  "release_date": "2026-09-16",
+  "contract_year": 2026,
+  "scope_label": "Medicare Part D plans only, Sep 2026 release, contract year 2026",
+  "source": "CMS Monthly Prescription Drug Plan Formulary and Pharmacy Network Information",
+  "formularies_total": 328,
+  "formularies_listing": 328,
+  "pa_formularies": 326,
+  "st_formularies": 0,
+  "ql_formularies": 288,
+  "listed_share": 1.0,
+  "pa_share": 0.9939024390243902,
+  "st_share": 0.0,
+  "plans_total": 5496,
+  "plans_listing": 5496,
+  "mapd": {
+   "plans": 5129,
+   "listing": 5129
+  },
+  "pdp": {
+   "plans": 367,
+   "listing": 367
+  },
+  "pa_plans": 5396,
+  "st_plans": 0,
+  "ql_plans": 4474,
+  "by_plan_type": {
+   "MA-PD": {
+    "plans": 5129,
+    "listing": 5129,
+    "pa": 5029,
+    "st": 0,
+    "ql": 4143
+   },
+   "PDP": {
+    "plans": 367,
+    "listing": 367,
+    "pa": 367,
+    "st": 0,
+    "ql": 331
+   }
+  },
+  "tiers": [
+   {
+    "tier": 1,
+    "formularies": 59
+   },
+   {
+    "tier": 2,
+    "formularies": 2
+   },
+   {
+    "tier": 4,
+    "formularies": 7
+   },
+   {
+    "tier": 5,
+    "formularies": 260
+   }
+  ],
+  "specialty_plans_listing": 5188,
+  "selected_drug": false,
+  "rxcuis_known": 4,
+  "rxcuis_listed": 4,
+  "note": null,
+  "zero_reason": null,
+  "history": [
+   {
+    "release_date": "2026-09-16",
+    "contract_year": 2026,
+    "listed_share": 1.0,
+    "pa_share": 0.9939024390243902,
+    "st_share": 0.0
+   }
+  ],
+  "caveats": [
+   "Excludes employer, PACE and demonstration plans. Counts formularies and plans, not people: the file carries no enrolment. Tiers are each plan's own, so only the specialty tier count compares across plans."
+  ]
+ },
+ "medicaid": {
+  "scope_label": "Medicaid only, before rebates",
+  "source": "Medicaid State Drug Utilization Data",
+  "quarters": [
+   {
+    "year": 2024,
+    "quarter": 1,
+    "prescriptions": 6706,
+    "ffsu": 2913,
+    "mcou": 3793,
+    "reimbursed": 96465827.50000001,
+    "lower_bound": false,
+    "codes": 4
+   },
+   {
+    "year": 2024,
+    "quarter": 2,
+    "prescriptions": 6675,
+    "ffsu": 2828,
+    "mcou": 3847,
+    "reimbursed": 95916241.2,
+    "lower_bound": false,
+    "codes": 4
+   },
+   {
+    "year": 2024,
+    "quarter": 3,
+    "prescriptions": 7270,
+    "ffsu": 3212,
+    "mcou": 4058,
+    "reimbursed": 104254902.22,
+    "lower_bound": false,
+    "codes": 4
+   },
+   {
+    "year": 2024,
+    "quarter": 4,
+    "prescriptions": 7025,
+    "ffsu": 3151,
+    "mcou": 3874,
+    "reimbursed": 101613548.89999999,
+    "lower_bound": false,
+    "codes": 4
+   },
+   {
+    "year": 2025,
+    "quarter": 1,
+    "prescriptions": 7166,
+    "ffsu": 3279,
+    "mcou": 3887,
+    "reimbursed": 108973129.22,
+    "lower_bound": false,
+    "codes": 4
+   },
+   {
+    "year": 2025,
+    "quarter": 2,
+    "prescriptions": 7082,
+    "ffsu": 3238,
+    "mcou": 3844,
+    "reimbursed": 108479673.1,
+    "lower_bound": false,
+    "codes": 4
+   },
+   {
+    "year": 2025,
+    "quarter": 3,
+    "prescriptions": 7346,
+    "ffsu": 3518,
+    "mcou": 3828,
+    "reimbursed": 113144787.44,
+    "lower_bound": false,
+    "codes": 4
+   },
+   {
+    "year": 2025,
+    "quarter": 4,
+    "prescriptions": 7188,
+    "ffsu": 3411,
+    "mcou": 3777,
+    "reimbursed": 109343494.97,
+    "lower_bound": false,
+    "codes": 4
+   }
+  ],
+  "latest": {
+   "year": 2025,
+   "quarter": 4,
+   "prescriptions": 7188,
+   "growth": 0.023202846975088898,
+   "lower_bound": false
+  },
+  "years": [
+   {
+    "year": 2024,
+    "full_year": true,
+    "quarters": 4,
+    "prescriptions": 27676,
+    "reimbursed": 398250519.82,
+    "lower_bound": false,
+    "growth": null
+   },
+   {
+    "year": 2025,
+    "full_year": true,
+    "quarters": 4,
+    "prescriptions": 28782,
+    "reimbursed": 439941084.73,
+    "lower_bound": false,
+    "growth": 0.0399624223153634
+   }
+  ],
+  "unbranded": [],
+  "unbranded_note": null,
+  "reused_codes": {
+   "rows": 15,
+   "prescriptions": 665,
+   "codes": [
+    "00002-4415"
+   ],
+   "note": "Left out: product codes CMS lists under another drug's name in quarters RxNorm does not list them for this brand"
+  },
+  "caveats": [
+   "Fee-for-service and managed care prescriptions. Amounts are before Medicaid rebates, so this is volume, not revenue.",
+   "CMS suppresses small package rows, so a quarter that has any is a lower bound."
+  ]
+ },
+ "codes": {
+  "source": "RxNav, U.S. National Library of Medicine",
+  "brand_rxcuis": 4,
+  "brand_ndc9s": 5,
+  "unbranded_ndc9s": 0,
+  "basis": "rxnav_application",
+  "rxnorm_version": "05-Oct-2026",
+  "looked_up_at": "2026-10-05 15:28:40",
+  "attribution": "This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product."
+ },
+ "why_empty": {
+  "prescribing": null,
+  "formulary": null,
+  "medicaid": null
+ },
+ "co_marketed": null,
+ "attribution": "This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product."
+}
