@@ -1620,7 +1620,8 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
                       erosion["year1_pct"], erosion.get("decay_pct") or 0.0, ratios,
                       wacc, base_year, horizon, long_run_growth=long_run, room=space,
                       history_rd=record["history_rd"], named=named,
-                      growth_investment=invest)
+                      growth_investment=invest, book=book,
+                      book_charged=_charged_growth(book_parts))
     return {"value": got["value"], "reason": None, "rate": pool["rate"],
             "rate_used": rate_used,
             "own_rate": own["rate"] if own else None,
@@ -1643,6 +1644,18 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
             "named_overlap": got.get("named_overlap"),
             "capped_from": got.get("capped_from"), "capped_share": got.get("capped_share"),
             "flows": [f for f in got["flows"] if f["revenue"]][:40]}
+
+
+def _charged_growth(book_parts: list) -> dict:
+    """{year: the book's rise that year}, on the forecast years alone, as growth_charge
+    charges it: what the launches' charge must not charge again. A part's tail past its
+    forecast is not charged there, so it is not taken off here."""
+    revenue: dict = {}
+    for part in book_parts:
+        for year, value in (part.get("revenue") or {}).items():
+            revenue[year] = revenue.get(year, 0.0) + (value or 0.0)
+    years = sorted(revenue)
+    return {y: max(0.0, revenue[y] - revenue[p]) for p, y in zip(years, years[1:])}
 
 
 def growth_share(conn, ticker: str) -> dict:

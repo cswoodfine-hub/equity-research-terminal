@@ -438,3 +438,23 @@ def test_the_room_never_falls_when_the_book_rises():
     flip = {**book, 2031: 151.0}
     assert old(flip, 0.02)[2033] + 100.0 < old(book, 0.02)[2033] + 100.0
     assert FP.room(flip, 0.02)[0][2033] + 100.0 >= FP.room(book, 0.02)[0][2033] + 100.0
+
+
+def test_the_launches_and_the_book_are_charged_growth_capital_once_on_their_sum():
+    # A book that rises, peaks and falls, its forecast five years long, the room binding:
+    # the launches fill what the book leaves.
+    years = list(range(2026, 2046))
+    book = {y: v for y, v in zip(years, [100, 110, 130, 150, 140, 90, 60, 50, 45, 42]
+                                 + [40] * 10)}
+    charged = {y: max(0.0, book[y] - book[y - 1]) for y in years[1:5]}
+    room, _, _ = FP.room(book, 0.02)
+    got = _sim(book_rd={y: 50.0 for y in years}, room=room, growth_investment=0.5,
+               book=book, book_charged=charged, horizon=20, base_year=2025)
+    flows = {f["year"]: f for f in got["flows"]}
+    combined = {y: book[y] + flows[y]["revenue"] for y in years}
+    for y in years[1:]:
+        company = 0.5 * charged.get(y, 0.0) + flows[y]["growth_investment"]
+        assert company == pytest.approx(0.5 * max(0.0, combined[y] - combined[y - 1])), y
+    # The years the launches refill the fall are charged only the company's own growth.
+    assert flows[2031]["growth_investment"] == pytest.approx(
+        0.5 * max(0.0, combined[2031] - combined[2030]))

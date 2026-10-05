@@ -624,7 +624,8 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
              erosion_decay: float, ratios: dict, discount: float, base_year: int,
              horizon: int, long_run_growth: float | None = None,
              room: dict | None = None, history_rd: dict | None = None,
-             named: dict | None = None, growth_investment: float = 0.0) -> dict:
+             named: dict | None = None, growth_investment: float = 0.0,
+             book: dict | None = None, book_charged: dict | None = None) -> dict:
     """The launches bought by the book's R&D and by the launches' own R&D, valued.
 
     ``book_rd`` is {year: R&D the modelled book charges that year}. A cohort bought in
@@ -663,6 +664,16 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
     and working capital, charged the way the book's own products are charged it
     (``growth_investment``): a franchise that grows for sixty years builds the capacity
     to make what it sells.
+
+    With ``book`` ({year: the book's revenue}) and ``book_charged`` ({year: the growth the
+    book's own charge already takes that year}), the charge is the company's: the launches
+    pay for the growth of book and launches together, less what the book has paid. The
+    rate was measured on a company's net growth, and charging each line on its own rises
+    charged capacity twice: a product rising while the launches it displaces fell paid in
+    full and was credited nothing, and the launches refilling the room when it fell paid
+    again. Regeneron's Olatorepatide at a 100% chance of approval was worth 0.50 a share
+    less than at 80%. A year's charge can be a credit, which returns what the book was
+    charged for growth the company as a whole did not have.
     """
     years = list(range(base_year + 1, base_year + 1 + horizon))
     spend = {y: book_rd.get(y, 0.0) for y in years}
@@ -716,9 +727,18 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
     margin = 1.0 - ratios["cogs"] - ratios["sga"] - ratios["rd"] - ratios["other"]
     pv, flows = 0.0, []
     previous = 0.0
+    combined_before = None
     for y in years:
         ebit = revenue[y] * margin
-        invested = (growth_investment or 0.0) * max(0.0, revenue[y] - previous)
+        if book is None:
+            invested = (growth_investment or 0.0) * max(0.0, revenue[y] - previous)
+        else:
+            combined = book.get(y, 0.0) + revenue[y]
+            if combined_before is None:          # the first year: launches from nil
+                combined_before = book.get(y, 0.0)
+            invested = (growth_investment or 0.0) * (
+                max(0.0, combined - combined_before) - (book_charged or {}).get(y, 0.0))
+            combined_before = combined
         previous = revenue[y]
         fcff = ebit - max(0.0, ebit * ratios["tax"]) - invested
         pv += fcff / (1.0 + discount) ** ((y - base_year) - 0.5)
