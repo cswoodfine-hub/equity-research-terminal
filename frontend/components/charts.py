@@ -2080,3 +2080,158 @@ def peer_dots(peers: Sequence[dict], focal: dict, better: str = "higher",
                f'{_esc(focal.get("text") or "")}</title></circle>')
     out.append("</svg>")
     return "".join(out)
+
+
+# --- Medicare growth split ------------------------------------------------------------
+# The three factors of the split, in a fixed order that never cycles: patients, use per
+# patient, cost per claim, from the token palette (purple, the phase ramp's teal,
+# orange), which keeps every pair apart for a reader with any colour vision. A step CMS
+# gave no patient count for splits into claims and price, and claims take the muted
+# tone, since they stand in for patients and use together.
+SPLIT_COLOURS = {"patients": TK.PURPLE_BOOK, "intensity": TK.PHASE_RAMP["Phase 1"],
+                 "price": TK.ORANGE_BOOK, "claims": TK.MUTED}
+SPLIT_ORDER = ("patients", "intensity", "claims", "price")
+_SPLIT_NAMES = {"patients": "Patients", "intensity": "Use per patient",
+                "price": "Cost per claim", "claims": "Claims"}
+
+
+def growth_split(steps: Sequence[dict], width: int = 760, height: int = 240,
+                 baseline: Optional[Sequence[dict]] = None,
+                 value_fmt: Callable[[float], str] = None,
+                 factor_labels: Optional[dict] = None) -> str:
+    """Medicare spend growth per year, split into its factors as diverging columns.
+
+    Each step is {from, to, spend, <factor>: growth, points: {factor: fraction},
+    like_for_like, provisional}. A column stacks the factors' points of spend growth,
+    rises above zero and falls below it by sign, and a dot marks the spend growth the
+    points add up to. ``baseline`` is [{from, to, spend, n}], the tracked median for the
+    same years, drawn as a short tick. A step whose containers changed hatches its
+    patient segments, a provisional one is drawn hollow, and a step with no split draws
+    its dot over a hatched band: a gap, never a zero.
+    """
+    shown = [s for s in steps or [] if s.get("spend") is not None]
+    if not shown:
+        return ""
+    names = {**_SPLIT_NAMES, **(factor_labels or {})}
+    value_fmt = value_fmt or (lambda v: f"{v:+.1f}")
+    base_by = {(b.get("from"), b.get("to")): b for b in (baseline or [])
+               if b and b.get("spend") is not None}
+
+    def pts(s):
+        return {k: v * 100 for k, v in (s.get("points") or {}).items() if v is not None}
+
+    reach = [0.0]
+    for s in shown:
+        p = pts(s)
+        reach += [sum(v for v in p.values() if v > 0), sum(v for v in p.values() if v < 0),
+                  s["spend"] * 100]
+        b = base_by.get((s.get("from"), s.get("to")))
+        if b:
+            reach.append(b["spend"] * 100)
+    dom = _domain(reach, zero=True)
+    top, bottom, pad_l, pad_r = 40, 24, 44, 10
+    y = _scale(dom, (height - bottom, top))
+    n = len(shown)
+    slot = (width - pad_l - pad_r) / n
+    bar_w = min(slot * 0.5, 24)
+    hid, over = _uid("hatch"), _uid("hatch")
+    # The not-like-for-like hatch is drawn over a coloured segment, so its stripes are
+    # the ground's colour rather than the null band's grey, which vanishes on purple.
+    out = [_svg_open(width, height, "Medicare spend growth split"),
+           f"<defs>{_hatch(hid)}{_hatch(over, TK.GROUND)}</defs>"]
+
+    for tick in _nice_ticks(dom[0], dom[1], 4):
+        ty = y(tick)
+        out.append(f'<line x1="{pad_l}" y1="{ty:.1f}" x2="{width - pad_r}" y2="{ty:.1f}"'
+                   f' stroke="{TK.RULE_FAINT}" stroke-width="1"/>')
+        out.append(_text(pad_l - 6, ty + 3, f"{_fmt(tick, 0)}", 9, TK.MUTED, "end", MONO))
+    out.append(_text(4, top - 10, "points of spend growth", 9, TK.MUTED, "start", UI))
+    zero_y = y(0)
+    out.append(f'<line x1="{pad_l}" y1="{zero_y:.1f}" x2="{width - pad_r}"'
+               f' y2="{zero_y:.1f}" stroke="{TK.RULE_STRONG}" class="zero"/>')
+
+    used = set()
+    for i, s in enumerate(shown):
+        cx = pad_l + slot * i + slot / 2
+        p = pts(s)
+        hollow = bool(s.get("provisional"))
+        hatched = s.get("like_for_like") is False
+        out.append(f'<g class="split-step" data-to="{_esc(s.get("to"))}">')
+        if not p:
+            out.append(f'<rect x="{cx - bar_w / 2:.1f}" y="{zero_y - 8:.1f}"'
+                       f' width="{bar_w:.1f}" height="16" fill="url(#{hid})"'
+                       f' stroke="{TK.RULE_STRONG}" stroke-width="0.5" class="nullband">'
+                       f"<title>not split: CMS gives too little for this year</title></rect>")
+        up, down = 0.0, 0.0
+        for key in SPLIT_ORDER:
+            if key not in p:
+                continue
+            v = p[key]
+            used.add(key)
+            if v >= 0:
+                y0, y1 = y(up + v), y(up)
+                up += v
+            else:
+                y0, y1 = y(down), y(down + v)
+                down += v
+            h = max(y1 - y0, 0.8)
+            # A surface gap between touching segments, taken out of the segment itself.
+            if h > 3:
+                y0, h = y0 + 1, h - 2
+            colour = SPLIT_COLOURS[key]
+            growth = s.get(key)
+            tip = (f"{names.get(key, key)} "
+                   + (f"{growth * 100:+.1f}% " if growth is not None else "")
+                   + f"({_fmt(v, 1)} pts)")
+            fill = (f'fill="none" stroke="{colour}" stroke-width="1.2"' if hollow
+                    else f'fill="{colour}"')
+            out.append(f'<rect x="{cx - bar_w / 2:.1f}" y="{y0:.1f}" width="{bar_w:.1f}"'
+                       f' height="{h:.1f}" {fill} class="seg seg-{key}">'
+                       f"<title>{_esc(tip)}</title></rect>")
+            if hatched and key in ("patients", "intensity"):
+                out.append(f'<rect x="{cx - bar_w / 2:.1f}" y="{y0:.1f}"'
+                           f' width="{bar_w:.1f}" height="{h:.1f}" fill="url(#{over})"'
+                           f' class="nlfl"><title>containers changed: not like for like'
+                           f"</title></rect>")
+        b = base_by.get((s.get("from"), s.get("to")))
+        if b:
+            by = y(b["spend"] * 100)
+            n_txt = f", {b['n']} brands" if b.get("n") else ""
+            out.append(f'<line x1="{cx - bar_w * 0.95:.1f}" y1="{by:.1f}"'
+                       f' x2="{cx + bar_w * 0.95:.1f}" y2="{by:.1f}" stroke="{TK.MUTED}"'
+                       f' stroke-width="2" class="baseline"><title>'
+                       f"{_esc('Tracked median spend ' + format(b['spend'] * 100, '+.1f') + '%' + n_txt)}"
+                       f"</title></line>")
+        sy = y(s["spend"] * 100)
+        out.append(f'<circle cx="{cx:.1f}" cy="{sy:.1f}" r="4"'
+                   f' fill="{"none" if hollow else TK.TEXT}" stroke="'
+                   f'{TK.TEXT if hollow else TK.GROUND}" stroke-width="2" class="spend">'
+                   f"<title>{_esc('Spend ' + format(s['spend'] * 100, '+.1f') + '%')}"
+                   f"</title></circle>")
+        out.append(_text(cx + bar_w / 2 + 4, sy + 3, value_fmt(s["spend"] * 100), 9,
+                         TK.TEXT, "start", MONO))
+        span_years = (s.get("to") or 0) - (s.get("from") or 0)
+        label = (str(s.get("to")) if span_years == 1
+                 else f"{s.get('from')} to {s.get('to')}")
+        out.append(_text(cx, height - 8, label, 9, TK.MUTED, "middle", UI))
+        out.append("</g>")
+
+    # The legend: every factor drawn, then the dot and the tick, in text tokens.
+    lx = pad_l
+    for key in SPLIT_ORDER:
+        if key not in used:
+            continue
+        out.append(f'<rect x="{lx:.1f}" y="6" width="9" height="9"'
+                   f' fill="{SPLIT_COLOURS[key]}" class="key"/>')
+        word = names.get(key, key)
+        out.append(_text(lx + 13, 14, word, 9.5, TK.MUTED, "start", UI))
+        lx += 13 + len(word) * 4.9 + 14
+    out.append(f'<circle cx="{lx + 4:.1f}" cy="10.5" r="3.5" fill="{TK.TEXT}"/>')
+    out.append(_text(lx + 12, 14, "spend", 9.5, TK.MUTED, "start", UI))
+    lx += 12 + 5 * 5.4 + 14
+    if base_by:
+        out.append(f'<line x1="{lx:.1f}" y1="10.5" x2="{lx + 12:.1f}" y2="10.5"'
+                   f' stroke="{TK.MUTED}" stroke-width="2"/>')
+        out.append(_text(lx + 16, 14, "tracked median", 9.5, TK.MUTED, "start", UI))
+    out.append("</svg>")
+    return "".join(out)

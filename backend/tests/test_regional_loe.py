@@ -92,3 +92,24 @@ def test_a_curated_split_outranks_a_fetched_one(tmp_path):
     assert R.load_curated_revenue(conn, path) == 2
     got = R.split(conn, 2)
     assert {p["member"]: p["value"] for p in got["parts"]} == {"U.S.": 13000e6, "Outside U.S.": 542e6}
+
+
+# --- the US series the Medicare split sets beside CMS ----------------------------------
+def test_us_series_prefers_the_curated_row_and_refuses_two_fetched_ones(tmp_path):
+    conn = _db(tmp_path)
+    # FY2025 for Ozempic already holds a fetched 'US' row. A curated 'United States' row
+    # for the same year outranks it, as split() does.
+    conn.execute("INSERT INTO asset_revenue_regions (asset_id, fiscal_year, member, region,"
+                 " value, unit, source, is_curated) VALUES (1, 2025, 'United States', 'US',"
+                 " 88000e6, 'DKK', 'annual report table', 1)")
+    # FY2024 holds two fetched US rows that disagree: no year is better than a guess.
+    for member, value in (("US", 84201e6), ("UnitedStates", 84000e6)):
+        conn.execute("INSERT INTO asset_revenue_regions (asset_id, fiscal_year, member, region,"
+                     " value, unit, source) VALUES (1, 2024, ?, 'US', ?, 'DKK', 'sec_fsds')",
+                     (member, value))
+    conn.commit()
+    got = R.us_series(conn, 1)
+    assert got[2025] == (88000e6, "DKK", "annual report table")
+    assert got[2024] is None
+    assert R.us_series(conn, 2) == {2025: (13484e6, "USD", "sec_fsds")}
+    assert R.us_series(conn, 999) == {}

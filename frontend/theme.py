@@ -841,6 +841,20 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .land td.w {{ color: var(--flag); font-size: 10.5px; }}
 .land tr.grp td {{ border-top: 1px solid var(--rule-strong); }}
 .land a {{ color: var(--text); text-decoration: none; }}
+/* The Medicare growth split (docs/design/medicare-demand-split.md): the sentence first,
+   each figure with the tracked median under it, flags as numbered notes. */
+.mc-sentence {{ font-family: var(--font-prose); font-size: 14px; color: var(--text);
+               margin: 0.35rem 0 0.4rem; line-height: 1.45; }}
+.mc-sub {{ display: block; font-size: 9.5px; color: var(--muted); white-space: nowrap; }}
+.mc-flag {{ border-left: 2px solid var(--flag); padding: 0.2rem 0 0.2rem 0.6rem;
+           font-size: 11.5px; color: var(--text); margin: 0.2rem 0 0.4rem; }}
+.mc-table tr.nlfl td:first-child {{ color: var(--flag); }}
+.mc-table tr.mc-model td {{ color: var(--muted); font-size: 11px; }}
+.mc-table sup {{ color: var(--flag); font-size: 8.5px; margin-left: 1px; }}
+.mc-minor td {{ color: var(--muted); }}
+.mc-dis {{ font-size: 9.5px; color: var(--flag); margin-left: 4px; }}
+.mc-notes {{ font-size: 11px; color: var(--muted); padding-left: 1.2rem; margin: 0.3rem 0; }}
+.mc-more summary {{ cursor: pointer; font-size: 11px; color: var(--muted); }}
 /* The clinical scorecard: a score out of 100 as its figure and a bar, the open company's
    rows marked. */
 .land.sc-table {{ min-width: 0; }}

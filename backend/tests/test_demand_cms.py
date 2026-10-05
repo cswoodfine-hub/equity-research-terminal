@@ -94,6 +94,20 @@ def test_company_demand_rolls_up_latest_prior_and_series(tmp_path):
     assert [p["year"] for p in z["series"]] == [2023, 2024]
 
 
+def test_company_demand_carries_the_asset_id(tmp_path):
+    # So a product's own rows are picked by id, not by matching CMS's spelling.
+    db_file = tmp_path / "t.db"
+    _seed(db_file)
+    fetcher = DemandCmsFetcher(db_file)
+    fetcher.upsert(fetcher.normalise(_raw("D")))
+    conn = db.get_connection(db_file)
+    try:
+        zep = conn.execute("SELECT id FROM assets WHERE brand_name = 'Zepbound'").fetchone()[0]
+    finally:
+        conn.close()
+    assert [d["asset_id"] for d in demand_module.company_demand(db_file, "LLY")] == [zep]
+
+
 # --- a brand CMS only names by its container -------------------------------
 _PRESENTATIONS = json.loads((_FIX / "cms_demand_presentations.json").read_text())
 

@@ -400,7 +400,7 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         f'<div><span class="k">Medicare spend</span>'
         f'<span class="v{"" if dem else " none"}">'
         f'{"$" + T.num(dem["spend"] / 1e9, 2) + " bn" if dem else "no free data"}</span>'
-        f'<span class="sub">{("US " + str(dem["year"]) + ", " + T.pct(dem["spend_growth"] * 100) + " YoY") if dem and dem.get("spend_growth") is not None else ("US " + str(dem["year"]) if dem else "not in Part D/B")}</span></div>'
+        f'<span class="sub">{html_escape(_medicare_tile_sub(dem))}</span></div>'
         f'<div><span class="k">first approval</span>'
         f'<span class="v{"" if prof.get("first_approval") else " none"}">'
         f'{(prof.get("first_approval") or "—")[:10]}</span>'
@@ -582,15 +582,10 @@ def _profile_detail(api_base: str, ticker: str, prof: dict, aid) -> None:
     gap: free data carries CMS spending for the drugs Medicare buys, tagged revenue only
     where the filer tags a product axis, and a trial only where one is running.
     """
-    brand = (prof.get("brand") or "").lower()
-    generic = (prof.get("generic") or "").lower()
-
-    def _mine(text: str) -> bool:
-        low = (text or "").lower()
-        return bool(low) and ((brand and brand in low) or (generic and generic in low))
-
+    # By id: a brand or generic substring also caught a neighbour whose CMS name
+    # contained it.
     demand = [d for d in (api_get(api_base, f"/companies/{ticker}/demand").get("drugs")
-                          or []) if _mine(d.get("brand")) or _mine(d.get("generic"))]
+                          or []) if str(d.get("asset_id")) == str(aid)]
     # Revenue rows carry the asset id, so this one needs no name matching at all.
     revenue = [r for r in (api_get(api_base, f"/companies/{ticker}/revenue").get("rows")
                            or []) if r.get("asset_id") == aid]
@@ -3905,6 +3900,294 @@ def _share_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
         ], one_row=True), unsafe_allow_html=True)
 
 
+# --- Medicare: the growth split (docs/design/medicare-demand-split.md) -----------------
+# Pure builders over the /forecast/{id}/demand and /demand/split payloads, tested by
+# extraction like the Key insights builders. Medicare only, never the US market: each
+# view carries the label the API sends, and a figure the payload lacks is a dash.
+# A figure the payload lacks: a dot, as the forecast levers show one.
+_MC_NONE = "·"
+
+
+def _mc_pct(x, decimals: int = 1) -> str:
+    """A growth fraction as a signed percent with a true minus; missing is a dot,
+    never a zero."""
+    if x is None:
+        return _MC_NONE
+    v = x * 100
+    if round(v, decimals) == 0:
+        return f"{0:.{decimals}f}%"
+    return ("+" if v > 0 else "−") + f"{abs(v):.{decimals}f}%"
+
+
+def _mc_pts(x) -> str:
+    if x is None:
+        return _MC_NONE
+    v = x * 100
+    return ("+" if v > 0 else "−" if v < 0 else "") + f"{abs(v):.1f}"
+
+
+def _mc_cell(value, median=None, sub: str = "") -> str:
+    """One figure, with the tracked median for the same years under it."""
+    extra = []
+    if median is not None:
+        extra.append(f"median {_mc_pct(median)}")
+    if sub:
+        extra.append(sub)
+    under = (f'<span class="mc-sub">{html_escape(" · ".join(extra))}</span>'
+             if extra else "")
+    return f'<td class="n">{_mc_pct(value)}{under}</td>'
+
+
+def _mc_footnotes(steps) -> dict:
+    """{(code, words): n}, numbered in the order the table meets them."""
+    out: dict = {}
+    for st in steps:
+        for f in st.get("flags") or []:
+            key = (f.get("code"), f.get("words"))
+            if key not in out:
+                out[key] = len(out) + 1
+    return out
+
+
+def _mc_table(part, model, notes) -> str:
+    """One row per year pair for one Medicare part: the split, the tracked median of
+    each factor, then reported growth for the same fiscal year and the gap."""
+    labels = part.get("factor_labels") or {}
+    head = ["Years", "Spend", labels.get("patients", "Patients"),
+            labels.get("intensity", "Use per patient"), labels.get("price", "Cost per claim"),
+            labels.get("price_per_unit", "Cost per unit"), "US reported", "Worldwide",
+            "Gap, pts"]
+    rows = []
+    for st in part.get("steps") or []:
+        base = st.get("baseline") or {}
+        marks = "".join(
+            f'<sup>{notes[(f.get("code"), f.get("words"))]}</sup>'
+            for f in st.get("flags") or [] if (f.get("code"), f.get("words")) in notes)
+        years = (str(st["to"]) if (st.get("to") or 0) - (st.get("from") or 0) == 1
+                 else f'{st.get("from")} to {st.get("to")}')
+        cells = [f'<td>{html_escape(years)}{marks}</td>', _mc_cell(st.get("spend"),
+                                                                     base.get("spend"))]
+        if st.get("patients") is None and st.get("claims") is not None:
+            # CMS gave no patient count: claims and price are the split.
+            cells.append(_mc_cell(st.get("claims"), base.get("claims"),
+                                  f'{labels.get("claims", "claims").lower()}, '
+                                  "no patient count"))
+            cells.append('<td class="n m">·</td>')
+        else:
+            cells.append(_mc_cell(st.get("patients"), base.get("patients")))
+            cells.append(_mc_cell(st.get("intensity"), base.get("intensity")))
+        cells.append(_mc_cell(st.get("price"), base.get("price")))
+        cells.append(_mc_cell(st.get("price_per_unit"), base.get("price_per_unit")))
+        cells.append(_mc_cell(st.get("us_growth"), None, st.get("us_note") or ""))
+        cells.append(_mc_cell(st.get("global_growth"), None, st.get("global_note") or ""))
+        cells.append(f'<td class="n">{_mc_pts(st.get("gap_pts"))}</td>')
+        cls = ' class="nlfl"' if st.get("like_for_like") is False else ""
+        rows.append(f"<tr{cls}>" + "".join(cells) + "</tr>")
+    sp = part.get("span")
+    if sp:
+        rows.append(
+            '<tr class="grp"><td>'
+            f'{sp["from"]} to {sp["to"]}, a year</td>'
+            + _mc_cell(sp.get("spend")) + _mc_cell(sp.get("patients"))
+            + _mc_cell(sp.get("intensity")) + _mc_cell(sp.get("price"))
+            + _mc_cell(sp.get("price_per_unit"))
+            + '<td class="n m">·</td><td class="n m">·</td><td class="n m">·</td></tr>')
+    if model and model.get("value") is not None:
+        what = ("growth" if model.get("key") == "revenue_growth_pct"
+                else "franchise pool growth")
+        fade = ""
+        if model.get("fade_to") is not None and model.get("fade_years"):
+            n = model["fade_years"]
+            fade = (f" fading to {_mc_pct(model['fade_to'])} over "
+                    f"{int(n) if float(n).is_integer() else n} years")
+        rows.append(
+            f'<tr class="grp mc-model"><td colspan="{len(head)}">Model from '
+            f'FY{model.get("from_fy") or "?"}: {html_escape(what)} '
+            f'{_mc_pct(model["value"])} a year{html_escape(fade)}</td></tr>')
+    return ('<div class="land-wrap"><table class="land sc-table mc-table"><thead><tr>'
+            + "".join(f"<th>{html_escape(h)}</th>" for h in head)
+            + "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>")
+
+
+def _mc_chart(part: dict, width: int = 760, height: int = 240) -> str:
+    base = [{**s["baseline"], "from": s.get("from"), "to": s.get("to")}
+            for s in part.get("steps") or [] if s.get("baseline")]
+    return CH.growth_split(part.get("steps") or [], width, height, baseline=base,
+                           factor_labels=part.get("factor_labels"))
+
+
+def _medicare_layer_html(split: dict) -> str:
+    """The Forecast tab's Medicare layer for one asset: the label, the sentence, the
+    split drawn for the main part (a second, smaller chart only when two parts are
+    material), the table by year pair with the model's row last, the flags as
+    numbered notes, and which record holds the brand. Empty when there is no series."""
+    if not split or not split.get("ok"):
+        return ""
+    parts = [p for p in split.get("parts") or [] if p.get("steps")]
+    material = [p for p in parts if p.get("material")]
+    if not material:
+        return ""
+    model = (split.get("beside") or {}).get("model_growth")
+    out = ['<div class="mc">',
+           f'<div class="byline mc-label">{html_escape(split.get("label") or "")}</div>']
+    if split.get("sentence"):
+        out.append(f'<p class="mc-sentence">{html_escape(split["sentence"])}</p>')
+    # The flag reads the main part's latest step, as the sentence does: patients, or
+    # claims where CMS gives no patient count or changed the containers, named by part
+    # when there are two.
+    two_parts = len(split.get("parts") or []) > 1
+    if (split.get("beside") or {}).get("direction_disagrees"):
+        last = material[0]["steps"][-1]
+        what = ("patients" if last.get("patients") is not None
+                and last.get("like_for_like") is not False else
+                ((material[0].get("factor_labels") or {}).get("claims") or "claims").lower())
+        scope = f'Medicare Part {material[0].get("part")}' if two_parts else "Medicare"
+        out.append(f'<div class="mc-flag">The model and {html_escape(scope)} '
+                   f'{html_escape(what)} point opposite ways. A flag only: nothing in the '
+                   "model moves.</div>")
+    notes = _mc_footnotes([s for p in material for s in p["steps"]])
+    for i, part in enumerate(material):
+        title = f'{part.get("part_label") or part.get("part")}'
+        share = part.get("spend_share")
+        if share is not None and len(parts) > 1:
+            title += f", {share * 100:.0f}% of the brand's Medicare spend"
+        out.append(f'<div class="subhead">{html_escape(title)}'
+                   f'<span>{html_escape(part.get("source_file") or "")}</span></div>')
+        svg = _mc_chart(part, 760 if i == 0 else 520, 240 if i == 0 else 180)
+        if svg:
+            out.append(f'<div class="chart-mount">{svg}</div>')
+        out.append(_mc_table(part, model if i == 0 else None, notes))
+    for part in parts:
+        if not part.get("material"):
+            last = part["steps"][-1]
+            out.append(
+                f'<div class="byline">{html_escape(part.get("part_label") or "")}: '
+                f'{_mc_pct(part.get("spend_share"), 1).lstrip("+")} of the brand\'s '
+                f'Medicare spend, {_mc_pct(last.get("spend"))} in {last.get("to")}, '
+                "reported, not split.</div>")
+    if split.get("brand_total"):
+        bt = split["brand_total"][-1]
+        pts = bt.get("points") or {}
+        # One name for both parts: a Part D fill and a Part B claim are not the same
+        # thing, so the total takes neither part's word for use or price.
+        labels = {"patients": "patients", "intensity": "use per patient",
+                  "price": "price", "claims": "claims", "unsplit": "not split"}
+        bits = ", ".join(f'{html_escape(labels.get(k, k))} {_mc_pts(v)}'
+                         for k, v in pts.items())
+        out.append(f'<div class="byline">Both parts, {bt["to"]}: spend '
+                   f'{_mc_pct(bt.get("spend"))}, in points {bits}. Patients are not '
+                   "added across parts, since one patient can be in both.</div>")
+    out.append(f'<div class="byline">{html_escape(split.get("patients_note") or "")} '
+               "Gap: US reported growth less the brand's Medicare spend growth"
+               f'{", all parts" if two_parts else ""}, '
+               f'{html_escape(split.get("gap_label") or "")}; shown in dollars only.</div>')
+    if notes:
+        out.append('<ol class="mc-notes">' + "".join(
+            f"<li>{html_escape(words or code)}</li>"
+            for (code, words), _n in sorted(notes.items(), key=lambda kv: kv[1]))
+            + "</ol>")
+    held = split.get("held_on")
+    if held:
+        out.append('<div class="byline">Medicare reports the brand, held on '
+                   f'{html_escape(held.get("ticker") or "another")}\'s record.</div>')
+    if split.get("shared_with"):
+        out.append('<div class="byline">The brand is also modelled by '
+                   f'{html_escape(", ".join(split["shared_with"]))}; Medicare cannot say '
+                   "which company books the US sales.</div>")
+    out.append("</div>")
+    return "".join(out)
+
+
+def _medicare_book_html(split: dict, top: int = 15) -> str:
+    """The Portfolio's Medicare demand layer: one row per brand and part, by latest
+    spend, the first fifteen shown and the rest folded, with the tracked median last."""
+    if not split or not split.get("brands"):
+        return ""
+    labels_d = (split.get("factor_labels") or {}).get("D") or {}
+    year = split.get("latest_year")
+    # Dollar signs as an entity: Streamlit's markdown reads two of them as maths.
+    head = ["Brand", "Part", f"{year} Medicare spend, &#36;bn", "Spend", "Patients",
+            "Use per patient", "Price", "Model growth", f"US reported FY{year}"]
+
+    def row(r):
+        part = r.get("part") or ""
+        spend_bn = (f'{r["spending"] / 1e9:,.2f}' if r.get("spending") is not None
+                    else _MC_NONE)
+        brand = html_escape(r.get("brand") or "")
+        if r.get("held_on"):
+            brand += (f' <span class="mc-sub">held on '
+                      f'{html_escape(r["held_on"].get("ticker") or "")}</span>')
+        cells = [f"<td>{brand}</td>", f'<td class="m">{html_escape(part)}</td>',
+                 f'<td class="n">{spend_bn}</td>', _mc_cell(r.get("spend"))]
+        if not r.get("material"):
+            cells.append('<td class="m" colspan="5">under 5% of the brand\'s Medicare '
+                         "spend, not split</td>")
+            return '<tr class="mc-minor">' + "".join(cells) + "</tr>"
+        if r.get("patients") is None and r.get("claims") is not None:
+            cells.append(_mc_cell(r.get("claims"), None, "claims, no patient count"))
+            cells.append('<td class="n m">·</td>')
+        else:
+            # A container change makes the patient count not like for like, as the
+            # Forecast layer hatches it.
+            cells.append(_mc_cell(r.get("patients"), None,
+                                  "not like for like" if r.get("like_for_like") is False
+                                  else ""))
+            cells.append(_mc_cell(r.get("intensity")))
+        cells.append(_mc_cell(r.get("price")))
+        mark = (' <span class="mc-dis" title="the model and Medicare patients point '
+                'opposite ways">opposite</span>' if r.get("direction_disagrees") else "")
+        cells.append(f'<td class="n">{_mc_pct(r.get("model_growth"))}{mark}</td>')
+        cells.append(_mc_cell(r.get("us_growth"), None, r.get("us_note") or ""))
+        return "<tr>" + "".join(cells) + "</tr>"
+
+    brands = split["brands"]
+    def table(rows):
+        return ('<div class="land-wrap"><table class="land sc-table mc-table"><thead><tr>'
+                + "".join(f"<th>{h}</th>" for h in head)
+                + "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>")
+
+    out = ['<div class="mc">',
+           f'<div class="byline mc-label">{html_escape(split.get("label") or "")} '
+           f'Use per patient is fills per patient in Part D and claims per patient in '
+           "Part B; price is cost per fill or per claim.</div>",
+           table([row(r) for r in brands[:top]])]
+    if len(brands) > top:
+        out.append(f'<details class="mc-more"><summary>{len(brands) - top} more</summary>'
+                   + table([row(r) for r in brands[top:]]) + "</details>")
+    for part in ("D", "B"):
+        med = (split.get("baseline") or {}).get(part)
+        if not med:
+            continue
+        labels = (split.get("factor_labels") or {}).get(part) or labels_d
+        floor = med.get("min_spend") or 50e6
+        out.append(
+            f'<div class="byline">Tracked Part {part} median {med.get("to")}: patients '
+            f'{_mc_pct(med.get("patients"))}, {labels.get("intensity", "use").lower()} '
+            f'{_mc_pct(med.get("intensity"))}, {labels.get("price", "price").lower()} '
+            f'{_mc_pct(med.get("price"))}, {med.get("n")} brands over '
+            f'&#36;{floor / 1e6:,.0f}mm</div>')
+    out.append(f'<div class="byline">{html_escape(split.get("patients_note") or "")}</div>')
+    out.append("</div>")
+    return "".join(out)
+
+
+def _medicare_tile_sub(dem) -> str:
+    """The fact profile's Medicare spend subtitle: the year, spend growth and, where
+    the main part's patient count is like for like, its patient growth."""
+    if not dem:
+        return "not in Part D/B"
+    out = f'US {dem["year"]}'
+    if dem.get("spend_growth") is not None:
+        out += f', {_mc_pct(dem["spend_growth"])} YoY'
+    parts = dem.get("parts") or []
+    main = parts[0] if parts else None
+    if main and main.get("patient_growth") is not None and main.get("like_for_like"):
+        out += f', patients {_mc_pct(main["patient_growth"])}'
+        if len(parts) > 1:
+            out += f' in Part {main["part"]}'
+    return out
+
+
 # A fragment: picking a product, a scenario or a lever reruns this tab alone. The page
 # renders every tab on every rerun, so a click here used to redraw all of them and refetch
 # whatever their cache had let go, which is where a product click spent its time. A save
@@ -4007,6 +4290,13 @@ def _render_forecast_tab(api_base: str, ticker: str):
             verdict = {}
         if not verdict.get("ok"):
             verdict = {}
+        # The Medicare split is its own read, so a failure empties this layer alone.
+        try:
+            medicare = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/demand")
+            medicare_error = None
+        except (urllib.error.URLError, OSError) as exc:
+            medicare, medicare_error = None, str(exc)
+        medicare_html = _medicare_layer_html(medicare) if medicare else ""
         with id_col:
             st.markdown(_identity(data, result), unsafe_allow_html=True)
 
@@ -4134,8 +4424,11 @@ def _render_forecast_tab(api_base: str, ticker: str):
         has_uptake = (patients_span is not None or placeholder
                       or result.get("mode") == "franchise")
         n_rows = len(data.get("assumptions") or [])
-        layer_names = ["Drivers"] + (["Uptake"] if has_uptake else []) + [
-            "P&L", "Sensitivity", f"Assumptions · {n_rows}"]
+        # Medicare sits after Drivers, only where CMS has a series for the brand.
+        has_medicare = bool(medicare_html) or bool(medicare_error)
+        layer_names = (["Drivers"] + (["Medicare"] if has_medicare else [])
+                       + (["Uptake"] if has_uptake else [])
+                       + ["P&L", "Sensitivity", f"Assumptions · {n_rows}"])
         panels = dict(zip(layer_names, st.tabs(layer_names)))
 
         with panels["Drivers"]:
@@ -4148,6 +4441,14 @@ def _render_forecast_tab(api_base: str, ticker: str):
             # "No verdict" under every approved product's drivers.
             if result.get("pos_granular"):
                 _pos_layer(result["pos_granular"])
+
+        if has_medicare:
+            with panels["Medicare"]:
+                if medicare_error:
+                    state("Medicare split unavailable",
+                          f"the API did not answer: {medicare_error}", error=True)
+                else:
+                    st.markdown(medicare_html, unsafe_allow_html=True)
 
         if has_uptake:
             with panels["Uptake"]:
@@ -9033,7 +9334,15 @@ with main:
                         # product happens in the column beside this one.
                         _profile_slot = st.container()
                         st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
-                        _pf_names = ["Revenue mix", "By area", "Exclusivity"]
+                        # Medicare demand is a layer only where CMS has a brand of this
+                        # company's, and a failed read leaves it out rather than the tab.
+                        try:
+                            _mc_book = api_get(api_base, f"/companies/{ticker}/demand/split")
+                        except (urllib.error.URLError, OSError):
+                            _mc_book = None
+                        _mc_book_html = _medicare_book_html(_mc_book) if _mc_book else ""
+                        _pf_names = ["Revenue mix", "By area", "Exclusivity"] + (
+                            ["Medicare demand"] if _mc_book_html else [])
                         _pf = dict(zip(_pf_names, st.tabs(_pf_names)))
 
                         with _pf["Revenue mix"]:
@@ -9221,6 +9530,12 @@ with main:
                             # Opening above the cards pushed them down the page on every click;
                             # here it fills the column the charts leave, and the cards it is
                             # about stay where they were.
+
+                        if _mc_book_html:
+                            with _pf["Medicare demand"]:
+                                section("Medicare demand", len(_mc_book["brands"]),
+                                        f"CMS calendar {_mc_book.get('latest_year')}")
+                                st.markdown(_mc_book_html, unsafe_allow_html=True)
 
 
 
