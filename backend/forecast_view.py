@@ -839,11 +839,14 @@ def _gate_reason(conn, row: dict, state: dict) -> tuple:
                 f"{label.lower()}.", nct, trial)
     modelled, indications = pos_granular.in_modelled(conn, nct, gathered["modelled_mesh"])
     if not modelled:
-        where = (", ".join(indications[:3]) if indications
-                 else "no indication the registry names")
-        return ("other_indication", f"The study is in {where}, which the forecast does "
-                f"not value, so its result does not decide the modelled value.",
-                nct, trial)
+        blind = pos_granular.unread(indications, pos_granular.mesh_on_file(conn, nct))
+        if blind:
+            return ("other_indication", f"The study {blind}, so it cannot be matched to an "
+                    f"indication the forecast values and its result does not decide the "
+                    f"modelled value.", nct, trial)
+        return ("other_indication", f"The study is in {', '.join(indications[:3])}, which "
+                f"the forecast does not value, so its result does not decide the modelled "
+                f"value.", nct, trial)
     return None, None, nct, trial
 
 

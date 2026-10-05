@@ -739,15 +739,41 @@ def _trials(conn, asset_id: int, phases: tuple, mesh: set) -> list:
                  ORDER BY COALESCE(enrollment, 0) DESC""", (asset_id, *phases)):
         if r["nct_id"] in answered:
             continue
-        found = indication_mapping.indications_for(
-            r["conditions"], indication_mapping.parse_browse(r["mesh_terms"]))
+        browse = indication_mapping.parse_browse(r["mesh_terms"])
+        found = indication_mapping.indications_for(r["conditions"], browse)
         out.append({"nct_id": r["nct_id"], "phase": r["phase"],
                     "status": r["overall_status"],
                     "primary_completion": r["primary_completion_date"],
                     "enrollment": r["enrollment"], "title": r["title"],
                     "indications": [t["term"] for t in found],
+                    "mesh_on_file": bool(browse["meshes"]),
                     "modelled": bool({t["id"] for t in found} & mesh)})
     return out
+
+
+# Why a study whose MeSH terms name no indication cannot be placed: the registry has
+# none on file for it (Retatrutide's TRIUMPH-1), or those it has match none of the
+# conditions the sponsor lists. Neither says the study is in another disease.
+NO_MESH = "has no MeSH terms on file"
+MESH_UNMATCHED = "carries MeSH terms that match none of the conditions it lists"
+
+
+def unread(indications: list, mesh_on_file: bool) -> str | None:
+    """NO_MESH or MESH_UNMATCHED where a study's indication list is empty, else None:
+    the study is then in the indications it names."""
+    if indications:
+        return None
+    return MESH_UNMATCHED if mesh_on_file else NO_MESH
+
+
+def held_note(open_count: int, pos: float, stated_governs: bool = False) -> str:
+    """The one sentence for what a miss leaves, wherever it is shown."""
+    studies = f"{open_count} other Phase 3{'' if open_count == 1 else 's'}"
+    if stated_governs:
+        return (f"A miss leaves {studies} open; the model's own rule would hold it at "
+                f"{pos:.0%}, but the stated PoS governs until it is cleared.")
+    return (f"A miss leaves {studies} open, and the model holds it at {pos:.0%} until "
+            f"{'it reads' if open_count == 1 else 'they read'} out.")
 
 
 def _held(conn, asset_id: int, placement: dict, trial: dict, today: str) -> dict | None:
@@ -772,9 +798,7 @@ def _held(conn, asset_id: int, placement: dict, trial: dict, today: str) -> dict
     pos = round(min(area, entering), 4)
     return {"open": len(others), "ncts": [t["nct_id"] for t in others],
             "indications": sorted({i for t in others for i in t["indications"]}),
-            "pos": pos,
-            "note": (f"A miss leaves {len(others)} other Phase 3 open, and the model holds "
-                     f"it at {pos:.0%} until they read out.")}
+            "pos": pos, "note": held_note(len(others), pos)}
 
 
 def next_gate(conn, asset_id: int, placement: dict | None, modelled_mesh, today=None, *,
@@ -829,8 +853,12 @@ def next_gate(conn, asset_id: int, placement: dict | None, modelled_mesh, today=
                   if (t["primary_completion"] or "9999") <= iso]
         trial = next((t for t in passed if t["modelled"]), None)
         if trial is None and passed:
-            note = (f"{passed[0]['nct_id']} passed primary completion in an indication the "
-                    f"forecast does not value")
+            first = passed[0]
+            blind = unread(first["indications"], first["mesh_on_file"])
+            note = (f"{first['nct_id']} passed primary completion in an indication the "
+                    f"forecast does not value" if blind is None else
+                    f"{first['nct_id']} passed primary completion but {blind}, so it "
+                    f"cannot be matched to an indication the forecast values")
     rows = _trials(conn, asset_id, _GATE_PHASES[gate], mesh)
     open_rows = [t for t in rows if t["status"] in OPEN_STATUSES]
     if trial is None:
@@ -843,12 +871,27 @@ def next_gate(conn, asset_id: int, placement: dict | None, modelled_mesh, today=
         trial = upcoming[0] if upcoming else overdue[0] if overdue else None
     if trial is None:
         phase_word = "Phase 3" if gate == "p3_to_nda" else "Phase 2"
-        elsewhere = len([t for t in open_rows if not t["modelled"]])
-        out["why"] = "; ".join(filter(None, (
-            note, (f"{elsewhere} open {phase_word} "
-                   f"{'study' if elsewhere == 1 else 'studies'}, none in an indication the "
-                   f"forecast values" if elsewhere else
-                   f"no open {phase_word} study on the registry"))))
+        others = [t for t in open_rows if not t["modelled"]]
+        elsewhere = len(others)
+        blind = [unread(t["indications"], t["mesh_on_file"]) for t in others]
+        if not elsewhere:
+            count = f"no open {phase_word} study on the registry"
+        elif not any(blind):
+            count = (f"{elsewhere} open {phase_word} "
+                     f"{'study' if elsewhere == 1 else 'studies'}, none in an indication "
+                     f"the forecast values")
+        else:
+            # A study with no indication read is not in another disease; it is unread.
+            bare, unmatched = blind.count(NO_MESH), blind.count(MESH_UNMATCHED)
+            parts = [f"{bare} with no MeSH terms on file" if bare else None,
+                     (f"{unmatched} with MeSH terms that match none of "
+                      f"{'its' if unmatched == 1 else 'their'} listed conditions"
+                      if unmatched else None)]
+            parts = [p for p in parts if p]
+            count = (f"{elsewhere} open {phase_word} "
+                     f"{'study' if elsewhere == 1 else 'studies'}, none matched to an "
+                     f"indication the forecast values ({'; '.join(parts)})")
+        out["why"] = "; ".join(filter(None, (note, count)))
         return out
     due = (trial["primary_completion"] or "9999") < iso
     out.update(trial={k: trial[k] for k in ("nct_id", "phase", "status",
@@ -979,9 +1022,7 @@ def _stated_held(held: dict) -> dict:
     """The held note where a stated probability governs: the model's own rule would hold
     the asset, and the analyst's figure still decides what it is worth."""
     return {**held, "stated_governs": True,
-            "note": (f"A miss leaves {held['open']} other Phase 3 open; the model's own "
-                     f"rule would hold it at {held['pos']:.0%}, but the stated PoS "
-                     f"governs until it is cleared.")}
+            "note": held_note(held["open"], held["pos"], stated_governs=True)}
 
 
 def held_after(conn, asset_id: int, placement: dict | None, nct_id: str,
@@ -1023,6 +1064,13 @@ def in_modelled(conn, nct_id: str, modelled_mesh) -> tuple:
     found = indication_mapping.indications_for(
         row["conditions"], indication_mapping.parse_browse(row["mesh_terms"]))
     return bool({t["id"] for t in found} & set(modelled_mesh or ())), [t["term"] for t in found]
+
+
+def mesh_on_file(conn, nct_id: str) -> bool:
+    """Whether the registry has any MeSH term on file for the study."""
+    row = conn.execute("SELECT mesh_terms FROM trials WHERE nct_id = ?",
+                       (nct_id,)).fetchone()
+    return bool(row and indication_mapping.parse_browse(row["mesh_terms"])["meshes"])
 
 
 def _event(nxt: dict | None) -> dict:

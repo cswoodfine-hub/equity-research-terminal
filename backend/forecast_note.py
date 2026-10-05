@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import re
 
+import pos_granular
+
 # A share of NPV that comes from the terminal value rather than the forecast horizon.
 # Past this, the answer is mostly about what happens after the model stops looking.
 TERMINAL_HEAVY = 0.35
@@ -78,14 +80,8 @@ def _gate_range(v: dict) -> str | None:
             f"against {_per_share(now)} now.")
     held = gate.get("held") or {}
     if held.get("open") and held.get("pos") is not None:
-        n = held["open"]
-        studies = f"{n} other Phase 3{'' if n == 1 else 's'}"
-        if held.get("stated_governs"):
-            line += (f" A miss leaves {studies} open; the model's own rule would hold it at "
-                     f"{held['pos']:.0%}, but the stated PoS governs until it is cleared.")
-        else:
-            line += (f" A miss leaves {studies} open, and the model holds it at "
-                     f"{held['pos']:.0%} until {'it reads' if n == 1 else 'they read'} out.")
+        line += " " + pos_granular.held_note(held["open"], held["pos"],
+                                             bool(held.get("stated_governs")))
     return line
 
 

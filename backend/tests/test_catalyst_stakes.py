@@ -398,6 +398,19 @@ def test_every_other_catalyst_on_the_asset_says_why_it_is_not_priced(tmp_path, b
     assert "phase 3 readout" in got[25]["why"]
 
 
+def test_a_study_with_no_mesh_terms_is_not_said_to_be_in_another_disease(tmp_path, big):
+    path = _phase_3_book(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("UPDATE trials SET mesh_terms = NULL WHERE nct_id = 'NCT00000002'")
+    conn.commit(); conn.close()
+    got = _by_id(V.catalyst_stakes(path, "ABBV"))
+    assert got[22]["reason"] == "other_indication"
+    assert got[22]["why"] == ("The study has no MeSH terms on file, so it cannot be "
+                              "matched to an indication the forecast values and its "
+                              "result does not decide the modelled value.")
+    _house_style(got[22]["why"])
+
+
 def test_a_phase_2_gate_prices_its_readout_and_does_not_resolve_by_hand(tmp_path, big):
     path, conn = _pipeline(tmp_path, phase="Phase 2")
     _trial(conn, "NCT00000005", "Phase 2", _day(120), MYELOMA, enrollment=200)

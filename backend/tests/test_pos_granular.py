@@ -775,6 +775,61 @@ def test_only_a_study_in_a_modelled_indication_is_the_gate(tmp_path):
                             "values")
 
 
+def test_a_study_with_no_mesh_terms_is_said_to_have_none_not_to_be_elsewhere(tmp_path):
+    """Retatrutide's TRIUMPH-1 is an obesity study with no MeSH terms on file. Its
+    indication list is empty because nothing can be read, not because it is in a disease
+    the forecast does not value, and the why says which."""
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Active not recruiting", "2026-08-01", 900, MYELOMA),
+        ("NCT2", "Phase 3", "Recruiting", "2028-01-01", 400, FOLLICULAR)))
+    conn.execute("UPDATE trials SET mesh_terms = NULL WHERE nct_id = 'NCT1'")
+    conn.commit()
+    gathered, placement = _placed(conn)
+    got = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    assert placement["stage"] == "reading_out" and got["trial"] is None
+    assert got["why"] == (
+        "NCT1 passed primary completion but has no MeSH terms on file, so it cannot be "
+        "matched to an indication the forecast values; 2 open Phase 3 studies, none "
+        "matched to an indication the forecast values (1 with no MeSH terms on file)")
+    conn.execute("UPDATE trials SET mesh_terms = ? WHERE nct_id = 'NCT1'",
+                 (json.dumps({"meshes": [{"id": "D009765", "term": "Obesity"}],
+                              "ancestors": []}),))
+    conn.commit()
+    gathered, placement = _placed(conn)
+    got = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    conn.close()
+    assert got["why"].startswith(
+        "NCT1 passed primary completion but carries MeSH terms that match none of the "
+        "conditions it lists, so it cannot be matched")
+    assert got["why"].endswith("(1 with MeSH terms that match none of its listed "
+                               "conditions)")
+    _house_style(got["why"])
+
+
+def test_the_held_note_has_one_wording_wherever_it_is_shown(tmp_path):
+    """The same plural the morning note and the forecast note use."""
+    import forecast_note
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2026-12-01", 900, MYELOMA),
+        ("NCT2", "Phase 3", "Recruiting", "2029-01-01", 400, FOLLICULAR),
+        ("NCT3", "Phase 3", "Recruiting", "2029-06-01", 300, FOLLICULAR)))
+    gathered, placement = _placed(conn)
+    held = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)["held"]
+    stated = PG._stated_held(held)
+    conn.close()
+    assert held["note"] == (f"A miss leaves 2 other Phase 3s open, and the model holds it "
+                            f"at {held['pos']:.0%} until they read out.")
+    assert stated["note"].startswith("A miss leaves 2 other Phase 3s open; the model's own")
+    assert PG.held_note(1, 0.44) == ("A miss leaves 1 other Phase 3 open, and the model "
+                                     "holds it at 44% until it reads out.")
+    v = {"gate_range": True, "gate": {"gate": "p3_to_nda", "label": "Phase 3 readout",
+                                      "date": "2026-12-01", "per_share_success": 2.0,
+                                      "per_share_now": 1.0, "held": held}}
+    assert forecast_note._gate_range(v).endswith(" " + held["note"])
+    v["gate"]["held"] = stated
+    assert forecast_note._gate_range(v).endswith(" " + stated["note"])
+
+
 def test_an_asset_with_no_indication_rows_is_matched_on_its_lead(tmp_path):
     """The launch-mode seeds carry no indication row; the lead indication stands in."""
     conn = _gate_seed(tmp_path, modelled=False, trials=(
