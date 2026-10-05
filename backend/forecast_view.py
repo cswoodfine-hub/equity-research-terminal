@@ -1508,7 +1508,7 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
                            "loe_in_base": part.get("loe_in_base"),
                            "growth": part.get("long_run_growth"),
                            # Carried past its forecast as its own terminal value carries
-                           # it; a company line, with no such key, on the older rule.
+                           # it, products and company lines alike.
                            **({"tail": part["terminal_tail"]}
                               if "terminal_tail" in part else {})})
         # The R&D ratio its terminal value charges past the forecast: the final year's.

@@ -535,10 +535,11 @@ def book_revenue(parts: list, years: list, erosion_year1: float,
     more than twice the size its value counted: moving its LOE from 2040 to 2043 added
     3,811mm to Alyftrek and took 6,414mm off the launches, and equity fell 10.70 a share.
 
-    A part with no ``tail`` key (a company line) keeps the older rule: flat at its
-    long-run growth where no loss of exclusivity lies ahead or the cliff is already in the
-    base, decaying where its final year is already eroding, and flat to its LOE, then the
-    year-one drop and decay, on the curated default shape.
+    Every product and company line the roll-up builds carries a tail. A part with no
+    ``tail`` key, which only a caller outside the roll-up can pass, keeps the older rule:
+    flat at its long-run growth where no loss of exclusivity lies ahead or the cliff is
+    already in the base, decaying where its final year is already eroding, and flat to
+    its LOE, then the year-one drop and decay, on the curated default shape.
 
     ``parts`` are {"revenue": {year: value}, "loe_year", "loe_in_base", "growth",
     "tail"?}. Pure."""
@@ -588,10 +589,11 @@ def book_revenue(parts: list, years: list, erosion_year1: float,
 
 
 def room(book: dict, long_run_growth: float = 0.0) -> tuple[dict, float, int | None]:
-    """({year: revenue the launches may add}, the book's peak, its year). The book plus its
-    launches is held to the book's best year, grown from then at the long-run rate: in
-    each year, the highest level any year of the book justifies, that year's revenue grown
-    at the long-run rate from it (and held at it before it).
+    """({year: revenue the launches may add}, the book's best year in real terms and its
+    revenue then). The book plus its launches is held to the book's best year, grown from
+    then at the long-run rate: in each year, the highest level any year of the book
+    justifies, that year's revenue grown at the long-run rate from it (and held at it
+    before it).
 
     Taken year by year rather than from the single highest year, so the cap can only rise
     when the book does. Anchored on the one peak year it did not: raising Lilly's
@@ -602,10 +604,12 @@ def room(book: dict, long_run_growth: float = 0.0) -> tuple[dict, float, int | N
     "best" means best in real terms."""
     if not book or max(book.values()) <= 0:
         return {}, 0.0, None
-    peak_year = max(book, key=lambda y: (book[y], -y))
-    peak = book[peak_year]
     g = long_run_growth or 0.0
     years = sorted(book)
+    # The year the cap grows from once every year is behind it: the book's best in real
+    # terms, which is what the reader is told the launches are held to.
+    peak_year = max(years, key=lambda y: (book[y] / (1.0 + g) ** (y - years[0]), -y))
+    peak = book[peak_year]
     # The best level any earlier year justifies, grown to this one; and, before the
     # book's peak, the peak itself, which the book reaches later.
     ahead, best = {}, 0.0
