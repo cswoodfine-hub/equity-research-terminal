@@ -400,7 +400,7 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         f'<div><span class="k">Medicare spend</span>'
         f'<span class="v{"" if dem else " none"}">'
         f'{"$" + T.num(dem["spend"] / 1e9, 2) + " bn" if dem else "no free data"}</span>'
-        f'<span class="sub">{("US " + str(dem["year"]) + ", " + T.pct(dem["spend_growth"] * 100) + " YoY") if dem and dem.get("spend_growth") is not None else ("US " + str(dem["year"]) if dem else "not in Part D/B")}</span></div>'
+        f'<span class="sub">{html_escape(_medicare_tile_sub(dem))}</span></div>'
         f'<div><span class="k">first approval</span>'
         f'<span class="v{"" if prof.get("first_approval") else " none"}">'
         f'{(prof.get("first_approval") or "—")[:10]}</span>'
@@ -582,15 +582,10 @@ def _profile_detail(api_base: str, ticker: str, prof: dict, aid) -> None:
     gap: free data carries CMS spending for the drugs Medicare buys, tagged revenue only
     where the filer tags a product axis, and a trial only where one is running.
     """
-    brand = (prof.get("brand") or "").lower()
-    generic = (prof.get("generic") or "").lower()
-
-    def _mine(text: str) -> bool:
-        low = (text or "").lower()
-        return bool(low) and ((brand and brand in low) or (generic and generic in low))
-
+    # By id: a brand or generic substring also caught a neighbour whose CMS name
+    # contained it.
     demand = [d for d in (api_get(api_base, f"/companies/{ticker}/demand").get("drugs")
-                          or []) if _mine(d.get("brand")) or _mine(d.get("generic"))]
+                          or []) if str(d.get("asset_id")) == str(aid)]
     # Revenue rows carry the asset id, so this one needs no name matching at all.
     revenue = [r for r in (api_get(api_base, f"/companies/{ticker}/revenue").get("rows")
                            or []) if r.get("asset_id") == aid]
@@ -4080,6 +4075,92 @@ def _medicare_layer_html(split: dict) -> str:
                    "which company books the US sales.</div>")
     out.append("</div>")
     return "".join(out)
+
+
+def _medicare_book_html(split: dict, top: int = 15) -> str:
+    """The Portfolio's Medicare demand layer: one row per brand and part, by latest
+    spend, the first fifteen shown and the rest folded, with the tracked median last."""
+    if not split or not split.get("brands"):
+        return ""
+    labels_d = (split.get("factor_labels") or {}).get("D") or {}
+    year = split.get("latest_year")
+    # Dollar signs as an entity: Streamlit's markdown reads two of them as maths.
+    head = ["Brand", "Part", f"{year} Medicare spend, &#36;bn", "Spend", "Patients",
+            "Use per patient", "Price", "Model growth", f"US reported FY{year}"]
+
+    def row(r):
+        part = r.get("part") or ""
+        spend_bn = (f'{r["spending"] / 1e9:,.2f}' if r.get("spending") is not None
+                    else _MC_NONE)
+        brand = html_escape(r.get("brand") or "")
+        if r.get("held_on"):
+            brand += (f' <span class="mc-sub">held on '
+                      f'{html_escape(r["held_on"].get("ticker") or "")}</span>')
+        cells = [f"<td>{brand}</td>", f'<td class="m">{html_escape(part)}</td>',
+                 f'<td class="n">{spend_bn}</td>', _mc_cell(r.get("spend"))]
+        if not r.get("material"):
+            cells.append('<td class="m" colspan="5">under 5% of the brand\'s Medicare '
+                         "spend, not split</td>")
+            return '<tr class="mc-minor">' + "".join(cells) + "</tr>"
+        if r.get("patients") is None and r.get("claims") is not None:
+            cells.append(_mc_cell(r.get("claims"), None, "claims, no patient count"))
+            cells.append('<td class="n m">·</td>')
+        else:
+            cells.append(_mc_cell(r.get("patients")))
+            cells.append(_mc_cell(r.get("intensity")))
+        cells.append(_mc_cell(r.get("price")))
+        mark = (' <span class="mc-dis" title="the model and Medicare patients point '
+                'opposite ways">opposite</span>' if r.get("direction_disagrees") else "")
+        cells.append(f'<td class="n">{_mc_pct(r.get("model_growth"))}{mark}</td>')
+        cells.append(_mc_cell(r.get("us_growth"), None, r.get("us_note") or ""))
+        return "<tr>" + "".join(cells) + "</tr>"
+
+    brands = split["brands"]
+    def table(rows):
+        return ('<div class="land-wrap"><table class="land sc-table mc-table"><thead><tr>'
+                + "".join(f"<th>{h}</th>" for h in head)
+                + "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>")
+
+    out = ['<div class="mc">',
+           f'<div class="byline mc-label">{html_escape(split.get("label") or "")} '
+           f'Use per patient is fills per patient in Part D and claims per patient in '
+           "Part B; price is cost per fill or per claim.</div>",
+           table([row(r) for r in brands[:top]])]
+    if len(brands) > top:
+        out.append(f'<details class="mc-more"><summary>{len(brands) - top} more</summary>'
+                   + table([row(r) for r in brands[top:]]) + "</details>")
+    for part in ("D", "B"):
+        med = (split.get("baseline") or {}).get(part)
+        if not med:
+            continue
+        labels = (split.get("factor_labels") or {}).get(part) or labels_d
+        floor = med.get("min_spend") or 50e6
+        out.append(
+            f'<div class="byline">Tracked Part {part} median {med.get("to")}: patients '
+            f'{_mc_pct(med.get("patients"))}, {labels.get("intensity", "use").lower()} '
+            f'{_mc_pct(med.get("intensity"))}, {labels.get("price", "price").lower()} '
+            f'{_mc_pct(med.get("price"))}, {med.get("n")} brands over '
+            f'&#36;{floor / 1e6:,.0f}mm</div>')
+    out.append(f'<div class="byline">{html_escape(split.get("patients_note") or "")}</div>')
+    out.append("</div>")
+    return "".join(out)
+
+
+def _medicare_tile_sub(dem) -> str:
+    """The fact profile's Medicare spend subtitle: the year, spend growth and, where
+    the main part's patient count is like for like, its patient growth."""
+    if not dem:
+        return "not in Part D/B"
+    out = f'US {dem["year"]}'
+    if dem.get("spend_growth") is not None:
+        out += f', {_mc_pct(dem["spend_growth"])} YoY'
+    parts = dem.get("parts") or []
+    main = parts[0] if parts else None
+    if main and main.get("patient_growth") is not None and main.get("like_for_like"):
+        out += f', patients {_mc_pct(main["patient_growth"])}'
+        if len(parts) > 1:
+            out += f' in Part {main["part"]}'
+    return out
 
 
 # A fragment: picking a product, a scenario or a lever reruns this tab alone. The page
@@ -9222,7 +9303,15 @@ with main:
                         # product happens in the column beside this one.
                         _profile_slot = st.container()
                         st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
-                        _pf_names = ["Revenue mix", "By area", "Exclusivity"]
+                        # Medicare demand is a layer only where CMS has a brand of this
+                        # company's, and a failed read leaves it out rather than the tab.
+                        try:
+                            _mc_book = api_get(api_base, f"/companies/{ticker}/demand/split")
+                        except (urllib.error.URLError, OSError):
+                            _mc_book = None
+                        _mc_book_html = _medicare_book_html(_mc_book) if _mc_book else ""
+                        _pf_names = ["Revenue mix", "By area", "Exclusivity"] + (
+                            ["Medicare demand"] if _mc_book_html else [])
                         _pf = dict(zip(_pf_names, st.tabs(_pf_names)))
 
                         with _pf["Revenue mix"]:
@@ -9410,6 +9499,12 @@ with main:
                             # Opening above the cards pushed them down the page on every click;
                             # here it fills the column the charts leave, and the cards it is
                             # about stay where they were.
+
+                        if _mc_book_html:
+                            with _pf["Medicare demand"]:
+                                section("Medicare demand",
+                                        f"{len(_mc_book['brands'])} brand and part rows")
+                                st.markdown(_mc_book_html, unsafe_allow_html=True)
 
 
 
