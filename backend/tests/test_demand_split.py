@@ -569,3 +569,29 @@ def test_rows_without_spending_are_no_series(book):
     conn.close()
     out = ds.for_asset(path, "LLY", ids["nothing"])
     assert out["ok"] is False and out["reason"] == "not in the CMS files"
+
+
+def test_a_negotiated_price_reaches_part_b_only_with_an_hcpcs_code(book):
+    path, ids = book
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO negotiated_prices (drug, ipay, ndc9, mfp_30des,"
+                 " effective_from, source) VALUES ('PROLIA', 2027, '55513-0710', 1.0,"
+                 " '2027-01-01', 'test')")
+    conn.commit()
+    conn.close()
+    out = ds.for_asset(path, "AMGN", ids["prolia"])
+    b = _part(out, "B")
+    assert b["material"]
+    assert all("negotiated_price" not in _codes(s) for s in b["steps"])
+    assert out["negotiated_from"] == 2027
+
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO negotiated_prices (drug, ipay, ndc9, hcpcs, mfp_30des,"
+                 " effective_from, source) VALUES ('PROLIA', 2028, '55513-0730', 'J0897',"
+                 " 1.0, '2028-01-01', 'test')")
+    conn.commit()
+    conn.close()
+    b = _part(ds.for_asset(path, "AMGN", ids["prolia"]), "B")
+    flag = next(f for f in b["steps"][-1]["flags"] if f["code"] == "negotiated_price")
+    assert "from 2028" in flag["words"]
+

@@ -635,13 +635,22 @@ def sentence(brand: str, part: str, latest: dict | None, model: dict | None,
 
 # --- readers --------------------------------------------------------------------------
 def _negotiated_map(conn) -> dict:
-    """{normalised brand: first year a negotiated price applies}."""
+    """{normalised brand: {part: first year a negotiated price applies}}.
+
+    A negotiated price covers the drug's Part D presentations, and its Part B ones only
+    where CMS lists an HCPCS code for it: the 2026 and 2027 prices carry none.
+    """
     import ira
+    part_b = {(r["drug"], r["ipay"]) for r in conn.execute(
+        "SELECT DISTINCT drug, ipay FROM negotiated_prices WHERE hcpcs IS NOT NULL")}
     out: dict = {}
     for s in ira.selected(conn):
         name = re.sub(r"\s+", " ", (s["brand"] or "").strip().lower())
-        if name and s.get("ipay"):
-            out[name] = min(out.get(name, s["ipay"]), s["ipay"])
+        if not (name and s.get("ipay")):
+            continue
+        years = out.setdefault(name, {})
+        for part in ("D", "B") if (s["drug"], s["ipay"]) in part_b else ("D",):
+            years[part] = min(years.get(part, s["ipay"]), s["ipay"])
     return out
 
 
@@ -672,7 +681,7 @@ def _build(conn, asset_id: int, ticker: str, *, base=None, file_first=None,
     file_first = file_first if file_first is not None else _file_first_years(conn)
     negotiated = negotiated if negotiated is not None else _negotiated_map(conn)
     approval = _first_approval(conn, asset_id, who["source_id"])
-    ira_year = negotiated.get(re.sub(r"\s+", " ", (who["brand"] or "").strip().lower()))
+    ira_years = negotiated.get(re.sub(r"\s+", " ", (who["brand"] or "").strip().lower())) or {}
 
     latest_year = max(rows[-1]["year"] for rows in series.values())
     totals: dict = {}
@@ -719,6 +728,7 @@ def _build(conn, asset_id: int, ticker: str, *, base=None, file_first=None,
             entry["like_for_like"] = not any(f["code"] in NOT_LIKE_FOR_LIKE
                                              for f in entry["flags"])
             steps.append(entry)
+        ira_year = ira_years.get(part)
         if ira_year and steps and material:
             steps[-1]["flags"].append(_flag(
                 "negotiated_price",
@@ -764,7 +774,7 @@ def _build(conn, asset_id: int, ticker: str, *, base=None, file_first=None,
             "latest_year": latest_year,
             "lag_years": (latest_fy - latest_year) if latest_fy is not None else None,
             "latest_fy": latest_fy,
-            "approval": approval, "negotiated_from": ira_year,
+            "approval": approval, "negotiated_from": min(ira_years.values()) if ira_years else None,
             "parts": parts, "brand_total": brand_total,
             "beside": {"model_growth": model, "reported": reported,
                        "direction_disagrees": disagrees},
