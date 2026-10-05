@@ -6874,7 +6874,7 @@ def _key_insights_tab(api_base: str, ticker: str, feed: list, prices: dict) -> N
                                   verdict if isinstance(verdict, dict) else {})
         strips = {r["id"]: CH.peer_dots(r["peers"], {"ticker": ticker, "value": r["value"],
                                                      "text": r.get("text")},
-                                        better=r["better"], width=72, height=16,
+                                        better=r["better"], width=68, height=16,
                                         median=r.get("median"), tone=r["tone"],
                                         label=r["full_label"])
                   for g in groups for r in g["rows"] if r.get("value") is not None}
