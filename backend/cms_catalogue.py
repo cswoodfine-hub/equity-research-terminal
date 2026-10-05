@@ -102,3 +102,32 @@ def years(catalogue: dict, series_title: str) -> list[dict]:
                         "latest_uuid": latest, "modified": dataset.get("modified")})
     out.sort(key=lambda r: r["year"])
     return out
+
+
+def downloads(catalogue: dict, series_title: str, media_format: str = "ZIP") -> list[dict]:
+    """[{title_date, start, modified, url}] for every file release of one series, oldest
+    first.
+
+    Some series publish a file and no API: the monthly Part D formulary is one ZIP a
+    month ("Monthly Prescription Drug Plan Formulary and Pharmacy Network Information :
+    2026-09-23"), and years() reads API distributions only. title_date is the date in the
+    title, start the start of the temporal period, url the distribution's downloadURL.
+    """
+    out = []
+    for dataset in (catalogue or {}).get("dataset") or []:
+        title = dataset.get("title") or ""
+        head, sep, tail = title.rpartition(" : ")
+        if not sep or head.strip() != series_title:
+            continue
+        temporal = dataset.get("temporal") or []
+        start = (temporal[0] or {}).get("startDate") if temporal else None
+        for dist in dataset.get("distribution") or []:
+            if (dist.get("format") or "").upper() != media_format.upper():
+                continue
+            if not dist.get("downloadURL"):
+                continue
+            out.append({"title_date": tail.strip(), "start": start,
+                        "modified": dist.get("modified") or dataset.get("modified"),
+                        "url": dist["downloadURL"]})
+    out.sort(key=lambda r: (r["title_date"], r["url"]))
+    return out

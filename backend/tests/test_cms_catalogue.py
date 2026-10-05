@@ -62,3 +62,20 @@ def test_a_failed_download_falls_back_to_any_copy_and_raises_without_one(tmp_pat
         cms_catalogue.load(get_bytes=fail, cache_dir=tmp_path)
     (tmp_path / cms_catalogue.CACHE_FILE).write_text(json.dumps({"dataset": [], "k": 1}))
     assert cms_catalogue.load(refresh=True, get_bytes=fail, cache_dir=tmp_path)["k"] == 1
+
+
+_FORMULARY = json.loads((Path(__file__).resolve().parent / "fixtures"
+                         / "cms_catalogue_formulary.json").read_text())
+_MONTHLY = "Monthly Prescription Drug Plan Formulary and Pharmacy Network Information"
+
+
+def test_downloads_list_a_file_only_series_oldest_first():
+    releases = cms_catalogue.downloads(_FORMULARY, _MONTHLY)
+    assert [r["title_date"] for r in releases] == [
+        "2025-09-24", "2026-07-29", "2026-08-26", "2026-09-23"]
+    newest = releases[-1]
+    assert newest["url"].endswith("/2026_20260916.zip")
+    assert newest["start"] == "2026-09-01" and newest["modified"] == "2026-09-23"
+    # The quarterly file is another series, and the API-only reader sees none of them.
+    assert all("SPUF" not in r["url"] for r in releases)
+    assert cms_catalogue.years(_FORMULARY, _MONTHLY) == []
