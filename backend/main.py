@@ -33,6 +33,7 @@ import company_score as company_score_module
 import db
 import deals as deals_module
 import demand as demand_module
+import demand_split as demand_split_module
 import filing_diff as filing_diff_module
 import consensus as consensus_module
 import forecast_note
@@ -443,6 +444,18 @@ def company_demand(ticker: str) -> dict:
     return {"ticker": ticker.upper(), "drugs": rows}
 
 
+@app.get("/companies/{ticker}/demand/split")
+def company_demand_split(ticker: str) -> dict:
+    """Each brand's Medicare spend growth split into patients, use per patient and
+    price, one row per brand and part, sorted by latest spend, beside the model's growth
+    rate and the tracked-brand median. A read-only lens: Medicare only, Part D gross of
+    rebates (docs/design/medicare-demand-split.md)."""
+    out = demand_split_module.company_split(None, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return out
+
+
 @app.get("/companies/{ticker}/approvals")
 def company_approvals(ticker: str) -> dict:
     """Approved products, with the protection and revenue known for each.
@@ -621,6 +634,18 @@ class AssumptionRowIn(BaseModel):
 class AssumptionsIn(BaseModel):
     rows: list[AssumptionRowIn]
     scenario: str = "base"
+
+
+@app.get("/companies/{ticker}/forecast/{asset_id}/demand")
+def forecast_demand_split(ticker: str, asset_id: int) -> dict:
+    """One asset's Medicare growth split, every year pair, with the flags, the tracked
+    median and the model and reported growth beside it. ok False with a reason when CMS
+    has no series for the brand."""
+    out = demand_split_module.for_asset(None, ticker, asset_id)
+    if out is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no asset {asset_id} for {ticker.upper()}")
+    return out
 
 
 @app.post("/companies/{ticker}/forecast/{asset_id}/assumptions")

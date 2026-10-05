@@ -493,3 +493,31 @@ def test_company_split_rows_are_sorted_by_spend_with_the_median(book):
     pfe = ds.company_split(path, "PFE")
     assert pfe["brands"][0]["held_on"]["ticker"] == "BMY"
     assert ds.company_split(path, "ZZZZ") is None
+
+
+# --- the routes ------------------------------------------------------------------------
+def test_the_routes_return_the_split_and_scope_it(book, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    import main
+
+    path, ids = book
+    monkeypatch.setattr(db, "DB_PATH", path)
+    client = TestClient(main.app)
+    one = client.get(f"/companies/BMY/forecast/{ids['eliquis']}/demand")
+    assert one.status_code == 200
+    body = one.json()
+    assert {"asset_id", "ticker", "brand", "ok", "reason", "held_on", "shared_with",
+            "label", "latest_year", "lag_years", "parts", "brand_total", "beside",
+            "sentence"} <= set(body)
+    assert {"part", "part_label", "factor_labels", "spend_share", "material", "series",
+            "steps", "span"} <= set(body["parts"][0])
+    assert client.get(f"/companies/PFE/forecast/{ids['keytruda']}/demand").status_code == 404
+    assert client.get(f"/companies/BMY/forecast/{ids['prolia']}/demand").status_code == 200
+    assert client.get(f"/companies/ZZZZ/forecast/{ids['eliquis']}/demand").status_code == 404
+    many = client.get("/companies/LLY/demand/split")
+    assert many.status_code == 200 and many.json()["brands"]
+    assert client.get("/companies/ZZZZ/demand/split").status_code == 404
+    # The older route is untouched by the new one beside it.
+    drugs = client.get("/companies/LLY/demand").json()["drugs"]
+    assert drugs and all("asset_id" in d for d in drugs)
