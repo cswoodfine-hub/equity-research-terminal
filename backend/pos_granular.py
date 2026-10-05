@@ -185,8 +185,57 @@ def modality_of(name: str | None, stored: str | None = None) -> tuple:
     return None, "no recognised stem"
 
 
+# The registry page a derived readout catalyst points at, which is how a resolved one
+# is tied to its trial (catalysts.CTGOV_URL; not imported, so the rNPV path does not
+# take on the catalysts module).
+_CTGOV_URL = "https://clinicaltrials.gov/study/"
+
+
+def read_out(conn, asset_id: int) -> dict:
+    """{nct_id: outcome} for the asset's trials whose readout catalyst has been resolved
+    met or missed, any phase, any indication. Such a trial has answered: it is no longer
+    one of the studies still asking, whatever the registry lists it as."""
+    return {r["nct_id"]: r["status"] for r in conn.execute(
+        """SELECT t.nct_id, cat.status FROM catalysts cat
+             JOIN trials t ON cat.source_url = ? || t.nct_id
+            WHERE cat.asset_id = ? AND t.asset_id = ?
+              AND cat.catalyst_type = 'data readout'
+              AND cat.status IN ('met', 'missed')
+            ORDER BY cat.updated_at, cat.id""", (_CTGOV_URL, asset_id, asset_id))}
+
+
+def _resolved_readouts(conn, asset_id: int, modelled_mesh) -> list:
+    """Phase 3 readouts resolved by hand on the asset's own catalysts, as trial_readouts
+    rows: met is positive and missed negative, dated the day it was recorded.
+
+    Matched by asset and trial, never by drug name, and counted only where the trial is
+    in an indication the forecast values, the same MeSH test that prices the gate. A
+    positive Phase 3 in another disease must not lift the modelled one."""
+    mesh = set(modelled_mesh or ())
+    if not mesh:
+        return []
+    out = []
+    for r in conn.execute(
+            """SELECT cat.id, cat.status, date(cat.updated_at) AS on_day, t.nct_id,
+                      t.conditions, t.mesh_terms FROM catalysts cat
+                 JOIN trials t ON cat.source_url = ? || t.nct_id
+                WHERE cat.asset_id = ? AND t.asset_id = ? AND t.phase LIKE '%3%'
+                  AND cat.catalyst_type = 'data readout'
+                  AND cat.status IN ('met', 'missed')""", (_CTGOV_URL, asset_id, asset_id)):
+        found = indication_mapping.indications_for(
+            r["conditions"], indication_mapping.parse_browse(r["mesh_terms"]))
+        if not {t["id"] for t in found} & mesh:
+            continue
+        out.append({"drug": None, "phase": "3",
+                    "outcome": "positive" if r["status"] == "met" else "negative",
+                    "event_date": r["on_day"], "accession": None, "nct_id": r["nct_id"],
+                    "cite": (f"on {r['on_day']}, resolved {r['status']} by hand "
+                             f"(catalyst {r['id']}, {r['nct_id']})")})
+    return out
+
+
 def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
-             lead_indication_id=None) -> dict:
+             lead_indication_id=None, modelled_mesh=None) -> dict:
     """Where the asset stands, from the trials and readouts on file.
 
     A passed primary completion date with no readout is not evidence of success and
@@ -194,6 +243,10 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
     readout is due. Only a readout does: positive from a Phase 3 moves the asset to the
     NDA/BLA gate, and negative puts it at nil, which is the convention the analyst's
     own hand-typed rows already follow.
+
+    A readout is either a trial_readouts row, matched by drug name, or the asset's own
+    Phase 3 readout catalyst resolved met or missed, matched by trial and counted only
+    in an indication the forecast values (``modelled_mesh``; none without it).
     """
     today_date = today or dt.date.today()
     today = today_date.isoformat()
@@ -204,7 +257,10 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
               AND COALESCE(overall_status, '') NOT IN ('Withdrawn')
             ORDER BY COALESCE(enrollment, 0) DESC""", (asset_id,))]
     pivotal = p3[0] if p3 else None
-    passed = [t for t in p3 if (t["primary_completion_date"] or "9999") <= today]
+    # A study that has read out is not one still asking, whatever the registry lists.
+    answered = set(read_out(conn, asset_id))
+    passed = [t for t in p3 if (t["primary_completion_date"] or "9999") <= today
+              and t["nct_id"] not in answered]
 
     def norm(s):
         return re.sub(r"[^a-z0-9]", "", (s or "").lower())
@@ -217,8 +273,15 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
         if drug in mine or any(len(n) > 4 and n in drug for n in mine):
             readouts.append(dict(r))
     phase3_readouts = [r for r in readouts if str(r["phase"] or "") == "3"]
+    resolved = _resolved_readouts(conn, asset_id, modelled_mesh)
+    if resolved:
+        # Newest first, as the query orders the rest; a stable sort keeps their order.
+        phase3_readouts = sorted(phase3_readouts + resolved,
+                                 key=lambda r: r["event_date"] or "", reverse=True)
 
     def cite(r):
+        if r.get("cite"):
+            return r["cite"]
         return f"on {r['event_date']}" + (f" ({r['accession']})" if r.get("accession") else "")
 
     positive = next((r for r in phase3_readouts
@@ -243,6 +306,7 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
         # three other Phase 3 studies recruiting to 2030; the asset is not nil, the
         # remaining studies are at their gate and the downside is.
         remaining = [t for t in p3 if t["overall_status"] in OPEN_STATUSES
+                     and t["nct_id"] not in answered
                      and (t["primary_completion_date"] or "9999") > negative["event_date"]]
         if remaining:
             return {"stage": "mixed", "gate": None, "pivotal": remaining[0],
@@ -363,7 +427,8 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
             names: list, company_id: int, prevalence_us: float | None,
             biomarker_selected: bool, conditions_text: str = "",
             stored_modality: str | None = None, lead_indication_id=None,
-            today=None, table=None, at_gate: str | None = None) -> dict | None:
+            today=None, table=None, at_gate: str | None = None,
+            modelled_mesh=None) -> dict | None:
     """The probability, its band, and everything it rests on. None where not applicable.
 
     Applies only from Phase 2, Phase 2/3 or Phase 3, and only where the area chain can
@@ -378,6 +443,9 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
     ``at_gate`` places the asset at that gate whatever the registry says, as if the
     gate before it had passed (stage ``if_met``), by the same cut rule. legs() is its
     only caller: it is the value the asset would carry once its next readout passes.
+
+    ``modelled_mesh`` is handed to stage_of so a resolved readout catalyst counts only
+    in an indication the forecast values; without it none counts.
     """
     table = table if table is not None else transitions()
     first = FROM_PHASE.get(phase or "")
@@ -390,7 +458,8 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
         where = {"stage": "if_met", "gate": at_gate, "pivotal": None, "filing": None,
                  "evidence": f"if its {GATE_LABELS.get(before, before)} passes"}
     else:
-        where = stage_of(conn, asset_id, company_id, names, today, lead_indication_id)
+        where = stage_of(conn, asset_id, company_id, names, today, lead_indication_id,
+                         modelled_mesh=modelled_mesh)
     if where["stage"] == "negative":
         return {"pos": 0.0, "low": 0.0, "high": 0.0, "stage": where["stage"],
                 "evidence": where["evidence"], "chain": [], "cuts": [],
@@ -568,14 +637,15 @@ def modelled_mesh(conn, asset_id: int, lead_indication: int | None = None) -> li
 # The keys of a _gather result that resolve() takes; the rest are for the gate views.
 _RESOLVE_KEYS = ("area", "phase", "names", "company_id", "prevalence_us",
                  "biomarker_selected", "conditions_text", "stored_modality",
-                 "lead_indication_id")
+                 "lead_indication_id", "modelled_mesh")
 
 
 def _gather(conn, asset_id: int, *, area: str | None, phase: str | None,
             scalars: dict | None = None, big: bool | None = None) -> dict | None:
-    """Everything resolve() needs, gathered from the asset's own rows, plus
-    ``modelled_mesh``. None where the asset is outside the gate: marketed, not Phase 2
-    or 3, or not big pharma's. ``big`` lets a caller pass a big_pharma answer it has
+    """Everything resolve() needs, gathered from the asset's own rows, including
+    ``modelled_mesh``, which resolve hands to stage_of and the gate views use for the
+    same indication test. None where the asset is outside the gate: marketed, not Phase
+    2 or 3, or not big pharma's. ``big`` lets a caller pass a big_pharma answer it has
     already worked out for the owner."""
     if phase not in FROM_PHASE:
         return None
@@ -632,8 +702,11 @@ def for_asset(conn, asset_id: int, *, area: str | None, phase: str | None,
 
 def _trials(conn, asset_id: int, phases: tuple, mesh: set) -> list:
     """The asset's studies at these registry phases, largest first as stage_of reads
-    them, each with its own indications and whether one of them is modelled."""
+    them, each with its own indications and whether one of them is modelled. A study
+    whose readout has been resolved has answered and is left out, as stage_of leaves it
+    out of the studies still asking."""
     marks = ",".join("?" * len(phases))
+    answered = set(read_out(conn, asset_id))
     out = []
     for r in conn.execute(
             f"""SELECT nct_id, phase, overall_status, primary_completion_date, enrollment,
@@ -641,6 +714,8 @@ def _trials(conn, asset_id: int, phases: tuple, mesh: set) -> list:
                  WHERE asset_id = ? AND phase IN ({marks})
                    AND COALESCE(overall_status, '') NOT IN ('Withdrawn')
                  ORDER BY COALESCE(enrollment, 0) DESC""", (asset_id, *phases)):
+        if r["nct_id"] in answered:
+            continue
         found = indication_mapping.indications_for(
             r["conditions"], indication_mapping.parse_browse(r["mesh_terms"]))
         out.append({"nct_id": r["nct_id"], "phase": r["phase"],
