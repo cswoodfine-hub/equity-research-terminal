@@ -337,6 +337,33 @@ def test_a_seed_that_cites_a_filing_is_amber_and_a_negated_one_is_not(tmp_path):
     assert plain["status"] == "before_floor" and plain["seed_basis"]["cites"] is None
 
 
+def test_a_seed_that_cites_the_filing_on_file_stays_red(tmp_path):
+    """The seed cites an accepted BLA and the database holds it: nothing is missing, and
+    a first full year of 2026 still starts before the March 2027 decision it cites. Red,
+    with no instruction to record what is already recorded. The same for a readout."""
+    conn = _seed(tmp_path)
+    _asset(conn, 1, "Olpasiran", seed=2026,
+           source="BLA accepted with a PDUFA target action date of 10 March 2027")
+    _trial(conn, "NCT05581303", 1, "2026-06-30")
+    conn.execute("INSERT INTO catalysts (id, company_id, asset_id, catalyst_type,"
+                 " expected_date, title, description, status) VALUES (5, 1, 1, 'PDUFA',"
+                 " '2027-03-10', 'Olpasiran PDUFA, obesity', 'FDA accepted it.', 'pending')")
+    _asset(conn, 2, "Lepodisiran", seed=2026,
+           source="met its primary endpoint at the interim analysis")
+    _trial(conn, "NCT06292013", 2, "2026-06-30")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome,"
+                 " event_date) VALUES ('0000-26-1', 1, 'lepodisiran', 3, 'positive',"
+                 " '2026-08-19')")
+    conn.commit()
+    filed, read = _floor(conn, 1), _floor(conn, 2)
+    conn.close()
+    assert filed["evidence"]["kind"] == "accepted" and filed["seed_basis"]["cites"] == "filing"
+    assert filed["status"] == "before_floor" and filed["flag"] == "red"
+    assert "record it" not in filed["message"]
+    assert read["evidence"]["kind"] == "readout" and read["seed_basis"]["cites"] == "readout"
+    assert read["status"] == "before_floor" and "record it" not in read["message"]
+
+
 def test_a_readout_cited_in_the_seed_also_softens_the_flag():
     assert L.seed_basis("INTerpath-001 met its primary endpoint at an interim analysis"
                         )["cites"] == "readout"

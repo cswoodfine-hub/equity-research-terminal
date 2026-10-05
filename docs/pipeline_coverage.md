@@ -809,12 +809,15 @@ and each governing study was re-read live on ClinicalTrials.gov.
 | VK2735 (VKTX) | 2027 | NCT07104500, VANQUISH-1, 2027-07-01 | Feb 2028 | 2029 | Viking: about 4,500 enrolled by November 2025 on 78 weeks of treatment (8-K of 2026-07-29). Stands |
 | mRNA seasonal flu vaccine (GSK) | 2027 | NCT07851246, 2027-07-09, not yet recruiting | Mar 2028 | 2029 | Stands |
 
-**The five amber flags.** Each seed cites what the database lacks, so each turns clear once
-recorded: ifinatamab deruxtecan (a PDUFA date of 10 October 2026 in Merck's Q2 10-Q),
-povetacicept (an accepted BLA with a PDUFA date of 30 November 2026 in Vertex's Q2 10-Q),
-AOC 1044 (a BLA submitted 2026-06-25 under priority review), intismeran autogene
-(INTerpath-001's positive interim readout of 19 August 2026) and VX-147 (an AMPLITUDE interim
-for accelerated approval in early 2027). Seed-cited PDUFA dates are not entered as catalysts
+**The five amber flags.** Amber is drawn only where the floor rests on the registry alone, so
+the database lacks what the seed cites. Four can be recorded now and each would then be read
+against its own evidence: ifinatamab deruxtecan (a PDUFA date of 10 October 2026 in Merck's
+Q2 10-Q), povetacicept (an accepted BLA with a PDUFA date of 30 November 2026 in Vertex's Q2
+10-Q), AOC 1044 (a BLA submitted 2026-06-25 under priority review) and intismeran autogene
+(INTerpath-001's positive interim readout of 19 August 2026). VX-147's seed cites a planned
+AMPLITUDE interim for accelerated approval in early 2027, which cannot be recorded until it
+reads out. A seed that cites the filing or readout the database already holds, and still
+starts before it, stays red. Seed-cited PDUFA dates are not entered as catalysts
 in this build. The registry check also found RAINIER (NCT06564142, povetacicept's IgAN
 pivotal, under Alpine) and IDeate-Lung02 (NCT06203210, under Daiichi Sankyo) missing from the
 book.

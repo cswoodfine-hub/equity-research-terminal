@@ -32,9 +32,12 @@ evidence cannot reach rather than one it merely makes unlikely:
 The year a standard review gives is reported beside it for context and decides nothing.
 
 The seed is a first full year, so a seed before the year of the earliest decision starts
-selling before any approval could land: ``before_floor``, red. Where the seed's own source
-cites a filing or a readout the database does not hold, the reader is told to record it
-instead: ``before_floor_cited``, amber. A seed equal to the decision year starts in the
+selling before any approval could land: ``before_floor``, red. Where the floor rests on the
+registry alone and the seed's own source cites a filing or a readout, the database is
+missing what the seed rests on, and the reader is told to record it instead:
+``before_floor_cited``, amber. Where the floor already rests on an accepted application or
+a readout, the database holds the evidence and the seed still starts before it allows, so
+the flag stays red. A seed equal to the decision year starts in the
 approval year itself (``part_year``), which some seeds do on purpose and is information
 only. Everything else is ``clear``. A passed decision on an asset still unmarketed, an
 asset with nothing to date from, a pathway with no clock on file and a nil probability are
@@ -570,12 +573,15 @@ def for_asset(conn, asset_id: int, today=None, *, scenario: str = "base", legs=_
 
     first = decision.year
     if seed_year < first:
-        status = "before_floor_cited" if basis["cites"] else "before_floor"
+        # Only a floor read off the registry can be missing what the seed cites; one
+        # that rests on a filing or readout on file already holds it.
+        missing = bool(basis["cites"]) and out["evidence"]["kind"] == "registry"
+        status = "before_floor_cited" if missing else "before_floor"
         lead_in = (f"{seed_year} in the model, but the earliest approval is "
                    f"{_month(decision)}, so the first full year is {first + 1} at the "
                    f"soonest.")
         cited = (f" The seed's source cites a {basis['cites']} the database does not hold: "
-                 f"record it." if basis["cites"] else "")
+                 f"record it." if missing else "")
         return done(status, f"{lead_in} {sentence}{gate_sentence}{cited}")
     if seed_year == first:
         return done("part_year",
