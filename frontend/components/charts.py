@@ -1224,7 +1224,7 @@ def _tip(step: dict) -> str:
 
 def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
               value_fmt: Callable[[float], str] = None,
-              reference: Optional[dict] = None) -> str:
+              reference: Optional[dict] = None, pad_l: int = 52) -> str:
     """Running decomposition. Each step: {label, value, kind: start|step|end|null}.
 
     A null step hatches at the running level with no height, saying "something
@@ -1235,10 +1235,11 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
     figure sits on a patch of the ground, so the rule never strikes through a value:
     on Amgen it ran through the dividend's minus sign and -9.45 read as 9.45. With
     no label the rule is drawn alone and the caller names the price in the section
-    chip, because a label at the right end sits on the last bar.
+    chip, because a label at the right end sits on the last bar. ``pad_l`` is the left
+    margin, which a bridge drawn with no y axis does not need.
     """
     value_fmt = value_fmt or (lambda v: _fmt(v, 1))
-    pad_l, top, bottom = 52, 16, 34
+    top, bottom = 16, 34
     floor = height - bottom
     running = 0.0
     peaks = [0.0]
@@ -1987,8 +1988,12 @@ def price_call(closes: Sequence[Optional[float]], dates: Sequence[str],
             continue
         seen.add((day.year, day.month))
         if 0 < i < len(dates) - 1:
-            out.append(_text(x(i), height - 5, f"{_MONTHS[day.month - 1]} {day.year % 100:02d}",
-                             9, TK.MUTED, "middle", MONO))
+            # A label near the plot's right edge ends there rather than centring on its
+            # tick, or with no gutter beside it "Oct 26" is clipped to "Oct 2".
+            anchor = "end" if x(i) > plot_r - 16 else "middle"
+            out.append(_text(min(x(i), plot_r), height - 5,
+                             f"{_MONTHS[day.month - 1]} {day.year % 100:02d}",
+                             9, TK.MUTED, anchor, MONO))
     _polyline_runs(out, [v if v is not None and v == v else None for v in closes], x, y,
                    TK.TEXT, 1.4)
     last_i, last_v = pts[-1]
@@ -2026,234 +2031,6 @@ def price_call(closes: Sequence[Optional[float]], dates: Sequence[str],
                    "</circle>")
         out.append(_text(sx + 8, sy + 3, f"street {value_fmt(street['value'])}", 9, TK.MUTED,
                          "start", UI))
-    out.append("</svg>")
-    return "".join(out)
-
-
-def _place(date, precision: str):
-    """Where an event sits on a date axis: a day on its day, a month, quarter or half in
-    the middle of its span, so an estimate is never drawn as precise to its first day."""
-    import datetime as _dt
-    day = _iso(date)
-    if day is None:
-        return None
-    extra = {"month": 14, "quarter": 45, "half": 90, "year": 182}.get(precision or "day", 0)
-    return day + _dt.timedelta(days=extra)
-
-
-def event_track(items: Sequence[dict], today, months: int = 24, width: int = 1400,
-                height: int = 136, mark_months: int = 12) -> str:
-    """The next ``months`` on one axis: what could lift the value above it, what could cut
-    it below. Each item: {date, precision, side "above"|"below", kind "value"|"regulatory"|
-    "readout"|"minor"|"loss"|"slip", estimated, label, sub, tip, weight 0..1}.
-
-    Each side has two label rows. A label takes the nearer row that is free where its mark
-    is, then the farther one, and is moved right only where its own stem would cross
-    another label or another stem would cross it; a moved label runs its leader in the
-    clear lane beside the axis and rises at its own start, so no line ever passes through
-    words. Marks that share a date stack along their stems rather than covering each
-    other, and the value marks are drawn last so they stay on top. A minor item is a dot
-    on the axis with its line on hover, left out where it would sit under a labelled mark.
-    A date past the window is pinned to the right end and says where it falls; a date
-    before today is not drawn. The height is what the rows used need. ``height`` is the
-    most it may take.
-    """
-    import datetime as _dt
-    today = _iso(today) or _dt.date.today()
-    end = today + _dt.timedelta(days=round(months * 30.44))
-    span = max((end - today).days, 1)
-    pad_l, pad_r = 52, 16
-    plot_w = width - pad_l - pad_r
-    xs = lambda d: pad_l + plot_w * min(max((d - today).days, 0), span) / span
-    placed = []
-    for it in items:
-        d = _place(it.get("date"), it.get("precision"))
-        if d is None or d < today:
-            continue
-        placed.append((d, it))
-    if not placed:
-        return ""
-    placed.sort(key=lambda p: p[0])
-
-    # 1. Labels: x positions and rows, before any y is known.
-    rows = {"above": [[], []], "below": [[], []]}     # per side, per row: [(start, end)]
-    stems = {"above": [], "below": []}                # per side: (x, row) of every riser
-    labelled = []
-    for d, it in placed:
-        if (it.get("kind") or "minor") == "minor" or not it.get("label"):
-            continue
-        side = "below" if it.get("side") == "below" else "above"
-        pinned = d > end
-        label = it["label"] + (f" → {_MONTHS[d.month - 1]} {d.year % 100:02d}" if pinned else "")
-        sub = it.get("sub") or ""
-        cx = xs(d)
-        need = max(len(label) * 5.6, len(sub) * 5.0) + 10
-
-        def free(row, start):
-            if start + need > width - pad_r + 2:
-                return False
-            if any(not (start + need <= a or start >= b) for a, b in rows[side][row]):
-                return False
-            # A riser for the far row crosses the near row: no near label may sit on it.
-            if row == 1 and any(a - 2 <= start <= b + 2 for a, b in rows[side][0]):
-                return False
-            # A near label may not sit on an earlier riser to the far row.
-            if row == 0 and any(start - 2 <= x <= start + need + 2
-                                for x, r in stems[side] if r == 1):
-                return False
-            return True
-
-        # Where the label would sit unmoved: from its mark, or ending at the right edge
-        # when the mark is too near it to start there.
-        natural = cx if cx + need <= width - pad_r else max(pad_l, width - pad_r - need)
-        choice = None
-        for row in (0, 1):
-            if free(row, natural):
-                choice = (row, natural, natural != cx)
-                break
-        if choice is None:
-            for row in (0, 1):
-                start = max([b for a, b in rows[side][row]] + [cx]) + 8
-                while start + need <= width - pad_r + 2 and not free(row, start):
-                    start += 8
-                if free(row, start):
-                    choice = (row, start, True)
-                    break
-                start = natural - 8
-                while start >= pad_l and not free(row, start):
-                    start -= 8
-                if start >= pad_l and free(row, start):
-                    choice = (row, start, True)
-                    break
-        if choice is None:
-            # Nowhere clean: the label goes and the mark keeps its words on hover.
-            labelled.append((d, it, side, None, cx, label, "", False))
-            continue
-        row, start, shifted = choice
-        rows[side][row].append((start, start + need))
-        stems[side].append((start, row))
-        labelled.append((d, it, side, row, cx, label, sub, shifted, start))
-
-    # 2. Geometry: the rows used on each side set the axis and the height.
-    used_above = max([r for _, _, sd, r, *_ in labelled if sd == "above" and r is not None] + [-1])
-    used_below = max([r for _, _, sd, r, *_ in labelled if sd == "below" and r is not None] + [-1])
-    # Above: each row is a label and its sub, the near row 30 over the axis, a lane at 8
-    # over it for moved labels' leaders. Below: the quarter ticks, a lane, then the rows.
-    row_h = 24
-    axis = 22 + (used_above + 1) * row_h
-    lane_above = axis - 8
-    lane_below = axis + 24
-    label_y = {("above", 0): axis - 30, ("above", 1): axis - 30 - row_h,
-               ("below", 0): axis + 40, ("below", 1): axis + 40 + row_h}
-    total_h = min(height, axis + 22 + (used_below + 1) * row_h + (10 if used_below >= 0 else 0))
-    out = [_svg_open(width, total_h, "drivers, risks and catalysts")]
-    out.append(f'<line x1="{pad_l}" y1="{axis}" x2="{width - pad_r}" y2="{axis}"'
-               f' stroke="{TK.RULE_STRONG}" stroke-width="1"/>')
-    mark_x = xs(today + _dt.timedelta(days=round(mark_months * 30.44))) \
-        if mark_months and mark_months < months else None
-    below_x = [xs(d) for d, it, sd, *_ in labelled if sd == "below"]
-    q = _dt.date(today.year, ((today.month - 1) // 3) * 3 + 1, 1)
-    while q <= end:
-        if q > today:
-            qx = xs(q)
-            out.append(f'<line x1="{qx:.1f}" y1="{axis - 3}" x2="{qx:.1f}" y2="{axis + 3}"'
-                       f' stroke="{TK.RULE_STRONG}"/>')
-            clear = (mark_x is None or abs(qx - mark_x) > 24) and all(
-                abs(qx - bx) > 22 for bx in below_x)
-            if clear:
-                out.append(_text(qx, axis + 14, f"{_MONTHS[q.month - 1]} {q.year % 100:02d}", 9,
-                                 TK.MUTED, "middle", MONO))
-        q = _dt.date(q.year + (q.month + 2) // 12, (q.month + 2) % 12 + 1, 1)
-    out.append(f'<line x1="{pad_l}" y1="{axis - 16}" x2="{pad_l}" y2="{axis + 8}"'
-               f' stroke="{TK.TEXT}" stroke-dasharray="2,2"/>')
-    out.append(_text(pad_l - 6, axis + 3, "today", 9, TK.TEXT, "end", UI))
-    if mark_x is not None:
-        out.append(f'<line x1="{mark_x:.1f}" y1="{axis - 16}" x2="{mark_x:.1f}" y2="{axis}"'
-                   f' stroke="{TK.RULE_STRONG}" stroke-dasharray="3,3"/>')
-        out.append(_text(mark_x + 4, axis - 8, f"{mark_months} months", 9, TK.MUTED, "start",
-                         UI))
-
-    # 3. Marks, stacked where they share a place, in three layers.
-    stack: dict = {}
-    mark_at = {}
-    for d, it, side, row, cx, *_ in labelled:
-        key = (side, round(cx / 9))
-        k = stack.get(key, 0)
-        stack[key] = k + 1
-        step = 9 * k
-        my = (axis - step) if side == "above" else (axis + 6 + step)
-        mark_at[id(it)] = my
-    lines, minor, middle, top, words = [], [], [], [], []
-    taken_x = [cx for _, it, _, _, cx, *_ in labelled]
-    for d, it in placed:
-        kind = it.get("kind") or "minor"
-        if kind == "minor" or not it.get("label"):
-            cx = xs(d)
-            if any(abs(cx - x) < 7 for x in taken_x):
-                continue
-            minor.append(f'<circle cx="{cx:.1f}" cy="{axis}" r="2" fill="{TK.MUTED}">'
-                         f"<title>{_esc(it.get('tip') or '')}</title></circle>")
-    for entry in labelled:
-        d, it, side, row, cx = entry[:5]
-        kind = it.get("kind") or "minor"
-        tip = it.get("tip") or it.get("label") or ""
-        my = mark_at[id(it)]
-        if row is None:
-            minor.append(f'<circle cx="{cx:.1f}" cy="{axis}" r="2.5" fill="{TK.MUTED}">'
-                         f"<title>{_esc(tip)}</title></circle>")
-            continue
-        label, sub, shifted, start = entry[5], entry[6], entry[7], entry[8]
-        ly = label_y[(side, row)]
-        sy = ly + 11
-        if side == "above":
-            riser_top = ly + 14 if not shifted else ly + 14
-            if shifted:
-                lines.append(f'<line x1="{cx:.1f}" y1="{my:.1f}" x2="{cx:.1f}" y2="{lane_above}"'
-                             f' stroke="{TK.RULE_STRONG}" stroke-width="0.8"/>')
-                lines.append(f'<line x1="{cx:.1f}" y1="{lane_above}" x2="{start:.1f}"'
-                             f' y2="{lane_above}" stroke="{TK.RULE_STRONG}" stroke-width="0.8"/>')
-                lines.append(f'<line x1="{start:.1f}" y1="{lane_above}" x2="{start:.1f}"'
-                             f' y2="{riser_top}" stroke="{TK.RULE_STRONG}" stroke-width="0.8"/>')
-            else:
-                lines.append(f'<line x1="{cx:.1f}" y1="{my:.1f}" x2="{cx:.1f}" y2="{riser_top}"'
-                             f' stroke="{TK.RULE_STRONG}" stroke-width="0.8"/>')
-        else:
-            riser_top = ly - 11
-            if shifted:
-                lines.append(f'<line x1="{cx:.1f}" y1="{my + 8:.1f}" x2="{cx:.1f}" y2="{lane_below}"'
-                             f' stroke="{TK.RULE_STRONG}" stroke-width="0.8"/>')
-                lines.append(f'<line x1="{cx:.1f}" y1="{lane_below}" x2="{start:.1f}"'
-                             f' y2="{lane_below}" stroke="{TK.RULE_STRONG}" stroke-width="0.8"/>')
-                lines.append(f'<line x1="{start:.1f}" y1="{lane_below}" x2="{start:.1f}"'
-                             f' y2="{riser_top}" stroke="{TK.RULE_STRONG}" stroke-width="0.8"/>')
-            else:
-                lines.append(f'<line x1="{cx:.1f}" y1="{my + 8:.1f}" x2="{cx:.1f}" y2="{riser_top}"'
-                             f' stroke="{TK.RULE_STRONG}" stroke-width="0.8"/>')
-        if kind == "value":
-            r = 3 + 4 * math.sqrt(max(min(it.get("weight") or 0.0, 1.0), 0.0))
-            shape = (f'<circle cx="{cx:.1f}" cy="{my:.1f}" r="{r:.1f}" fill="{TK.UP}"'
-                     f' stroke="{TK.GROUND}" stroke-width="1"><title>{_esc(tip)}</title></circle>')
-            top.append(shape)
-        elif kind == "regulatory":
-            middle.append(f'<path d="M{cx:.1f},{my - 5:.1f} l5,5 l-5,5 l-5,-5 z" fill="{TK.FLAG}">'
-                          f"<title>{_esc(tip)}</title></path>")
-        elif kind in ("loss", "slip"):
-            fill = TK.DOWN if kind == "loss" else TK.GROUND
-            top.append(f'<path d="M{cx - 5:.1f},{my - 4:.1f} l10,0 l-5,8 z" fill="{fill}"'
-                       f' stroke="{TK.DOWN}" stroke-width="1.2"><title>{_esc(tip)}</title></path>')
-        elif it.get("estimated"):
-            middle.append(f'<circle cx="{cx:.1f}" cy="{my:.1f}" r="4" fill="{TK.GROUND}"'
-                          f' stroke="{TK.TEXT}" stroke-width="1.3"><title>{_esc(tip)}</title>'
-                          "</circle>")
-        else:
-            middle.append(f'<circle cx="{cx:.1f}" cy="{my:.1f}" r="4" fill="{TK.TEXT}">'
-                          f"<title>{_esc(tip)}</title></circle>")
-        colour = TK.DOWN if side == "below" else TK.TEXT
-        tx = start + 3
-        words.append(_text(tx, ly, label, 10, colour, "start", UI, "600"))
-        if sub:
-            words.append(_text(tx, sy, sub, 9, TK.MUTED, "start", UI))
-    out += lines + minor + middle + top + words
     out.append("</svg>")
     return "".join(out)
 
@@ -2301,33 +2078,5 @@ def peer_dots(peers: Sequence[dict], focal: dict, better: str = "higher",
     out.append(f'<circle cx="{x(fv):.1f}" cy="{mid}" r="4.5" fill="{colour}" stroke="{TK.GROUND}"'
                f' stroke-width="1.5"><title>{_esc(focal.get("ticker") or "")} '
                f'{_esc(focal.get("text") or "")}</title></circle>')
-    out.append("</svg>")
-    return "".join(out)
-
-
-def share_bar(segments: Sequence[dict], width: int = 440, height: int = 34,
-              bar_h: int = 10, min_label_px: float = 40, label: str = "") -> str:
-    """Parts of a whole on one bar, with a label under each part wide enough to hold one.
-    Each segment: {value >= 0, colour, label, sub, tip}."""
-    segs = [s for s in segments if (s.get("value") or 0) > 0]
-    total = sum(s["value"] for s in segs)
-    if total <= 0:
-        return ""
-    out = [_svg_open(width, height, label or "share")]
-    x0 = 0.0
-    for s in segs:
-        w = width * s["value"] / total
-        out.append(f'<rect x="{x0:.1f}" y="0" width="{max(w - 1, 0.5):.1f}" height="{bar_h}"'
-                   f' fill="{s.get("colour") or TK.MUTED}"><title>{_esc(s.get("tip") or "")}'
-                   "</title></rect>")
-        if w >= min_label_px:
-            for text, size, fill, dy in ((s.get("label") or "", 9.5, TK.TEXT, bar_h + 11),
-                                         (s.get("sub") or "", 9, TK.MUTED, bar_h + 22)):
-                room = int((w - 4) / (size * 0.56))
-                if text and room > 0:
-                    cut = text if len(text) <= room else text[:max(room - 1, 1)] + "…"
-                    out.append(_text(x0 + 1, dy, cut, size, fill, "start",
-                                     MONO if text[:1].isdigit() else UI))
-        x0 += w
     out.append("</svg>")
     return "".join(out)
