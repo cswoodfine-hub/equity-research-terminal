@@ -87,3 +87,23 @@ def test_save_notes_upserts_and_blank_clears(tmp_path):
 def test_save_notes_rejects_unknown_asset(tmp_path):
     db_file, _ = _seed_product(tmp_path)
     assert pp.save_notes(db_file, 999999, {"market_size": "x"}) is False
+
+
+def test_demand_reports_each_part_and_never_sums_patients(tmp_path):
+    db_file, aid = _seed_product(tmp_path)
+    conn = db.get_connection(db_file)
+    # The same drug in the clinic: a patient there may also fill it at a pharmacy.
+    for year, spend, benes in ((2023, 300.0, 4), (2024, 330.0, 5)):
+        conn.execute("INSERT INTO drug_demand (asset_id, part, brand_name, year,"
+                     " total_spending, total_claims, total_beneficiaries, source)"
+                     " VALUES (?, 'B', 'Testdrug', ?, ?, 8, ?, 'cms')", (aid, year, spend, benes))
+    conn.commit()
+    conn.close()
+    dem = pp.product_profile(db_file, "LLY", aid)["demand"]
+    assert dem["spend"] == 480.0 and round(dem["spend_growth"], 4) == round(480 / 400 - 1, 4)
+    assert "beneficiaries" not in dem
+    assert [p["part"] for p in dem["parts"]] == ["B", "D"]      # largest spend first
+    b, d = dem["parts"]
+    assert b["beneficiaries"] == 5 and d["beneficiaries"] == 5
+    assert b["patient_growth"] == 0.25 and d["patient_growth"] == 0.0
+    assert b["like_for_like"] and d["like_for_like"]
