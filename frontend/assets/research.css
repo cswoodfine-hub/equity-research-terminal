@@ -922,7 +922,7 @@ select.u-input { padding-right: 20px; cursor: pointer; }
 .ki-ct-g:first-child { margin-top: 0; }
 .ki-ct-g i { font-style: normal; text-transform: none; letter-spacing: 0; margin-left: 6px; }
 .ki-ct-g .rb { float: right; font-weight: 400; text-transform: none; letter-spacing: 0; }
-.ki-ct { display: grid; grid-template-columns: minmax(0, 1fr) 72px 50px 128px; gap: 0 8px;
+.ki-ct { display: grid; grid-template-columns: minmax(0, 1fr) 68px 50px 136px; gap: 0 8px;
   align-items: center; height: 22px; border-bottom: 1px solid var(--rule); font-size: 12.5px; }
 .ki-ct.none { display: block; height: auto; padding: 3px 0; color: var(--muted);
   font-size: 12px; }
