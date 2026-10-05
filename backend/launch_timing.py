@@ -18,8 +18,11 @@ evidence cannot reach rather than one it merely makes unlikely:
 - the submission goes in the day that evidence lands, with no lag, because no free source
   measures the lag;
 - the review is a priority one, the shortest statutory clock for the pathway, from
-  ``data/fda_review_clock.csv`` (the PDUFA VII letter: 8 months from receipt for a new
-  molecule or original biologic, 6 for a new indication of a marketed one).
+  ``data/fda_review_clock.csv`` (the PDUFA VII letter: for a new molecule or original
+  biologic, 6 months from a filing date 60 days after receipt; for a new indication of a
+  marketed one, 6 months from receipt). The 60 days are counted as days, never as two
+  calendar months: two months is 61 or 62 days, which moves a 30 December goal into
+  January and its first full year a year on.
 
 The year a standard review gives is reported beside it for context and decides nothing.
 
@@ -115,6 +118,23 @@ def add_months(day: dt.date, months: int) -> dt.date:
     return dt.date(year, month, min(day.day, calendar.monthrange(year, month)[1]))
 
 
+def review_ends(received: dt.date, row: dict) -> dt.date:
+    """The goal date of a review received on ``received``: the filing period in days (60
+    under the Program, so the filing date of 21 CFR 314.101(a)(2)), then the clock's
+    calendar months."""
+    filed = received + dt.timedelta(days=int(row.get("filing_period_days") or 0))
+    return add_months(filed, int(row["months"]))
+
+
+def _review_words(row: dict, pathway: str) -> str:
+    """How a priority review of the pathway is timed, as the clock file states it."""
+    what = PATHWAY_WORDS.get(pathway, "this pathway")
+    if row.get("filing_period_days"):
+        return (f"a priority review of {what} runs {row['months']} months from a filing "
+                f"date {row['filing_period_days']} days after receipt")
+    return f"a priority review of {what} takes {row['months']} months from receipt"
+
+
 def _month(day: dt.date | None) -> str | None:
     return day.strftime("%b %Y") if day else None
 
@@ -140,16 +160,19 @@ def _rows(path: pathlib.Path) -> list[dict]:
 
 
 def review_clock(path=None) -> dict:
-    """{(pathway, review): row} from data/fda_review_clock.csv, months as an int. A
-    missing file is an empty clock, and every asset then reads ``no_clock``."""
+    """{(pathway, review): row} from data/fda_review_clock.csv: ``months`` on the clock
+    and ``filing_period_days`` before it starts, as ints. A missing file is an empty clock, and
+    every asset then reads ``no_clock``."""
     out = {}
     for row in _rows(pathlib.Path(path) if path else CLOCK):
         try:
-            months = int(row["months_from_receipt"])
+            months = int(row["months_on_clock"])
+            filing_days = int(row.get("filing_period_days") or 0)
         except (KeyError, TypeError, ValueError):
             continue
         out[(row["pathway"].strip(), row["review"].strip())] = {
-            **{k: (v or "").strip() for k, v in row.items()}, "months": months}
+            **{k: (v or "").strip() for k, v in row.items()}, "months": months,
+            "filing_period_days": filing_days}
     return out
 
 
@@ -255,7 +278,7 @@ def _registry(conn, asset_id: int) -> list[dict]:
     return sorted(out, key=lambda t: (t["day"], -(t["enrollment"] or 0)))
 
 
-def _slip(conn, nct_id: str, months: int, decision_year: int) -> dict | None:
+def _slip(conn, nct_id: str, clock_row: dict, decision_year: int) -> dict | None:
     """The governing study's last move of primary completion, and the floor either side."""
     row = conn.execute(
         """SELECT old_value, new_value, change_type, detected_at FROM changes
@@ -267,13 +290,14 @@ def _slip(conn, nct_id: str, months: int, decision_year: int) -> dict | None:
     old = parse_date(row["old_value"])
     return {"detected_at": row["detected_at"], "change_type": row["change_type"],
             "old": row["old_value"], "new": row["new_value"],
-            "floor_before": add_months(old, months).year if old else None,
+            "floor_before": review_ends(old, clock_row).year if old else None,
             "floor_after": decision_year}
 
 
 # --- the floor -----------------------------------------------------------------------
 
-def _gate_floor(legs: dict | None, months: int | None, governing_nct: str | None) -> dict | None:
+def _gate_floor(legs: dict | None, clock_row: dict | None,
+                governing_nct: str | None) -> dict | None:
     """The earliest approval from the next gate pos_granular names, beside its odds."""
     if not legs or not legs.get("gate"):
         return None
@@ -293,17 +317,18 @@ def _gate_floor(legs: dict | None, months: int | None, governing_nct: str | None
         return out
     if legs["gate"] == "nda_to_approval":
         decision = day
-    elif months is None:
+    elif clock_row is None:
         out["why"] = "no review clock on file for this pathway"
         return out
     else:
-        decision = add_months(day, months)
+        decision = review_ends(day, clock_row)
     out.update(decision_date=decision.isoformat(), first_possible_year=decision.year,
                first_full_year=decision.year + 1)
     return out
 
 
-def _modelled_floor(conn, registry: list, governing: dict, months: int, mesh) -> dict | None:
+def _modelled_floor(conn, registry: list, governing: dict, clock_row: dict,
+                    mesh) -> dict | None:
     """Where the study that sets the floor is in a disease the forecast does not value,
     the earliest study that is, and its floor. Display only: the asset-wide floor decides
     the status, so a missing descriptor can never create a flag."""
@@ -315,7 +340,7 @@ def _modelled_floor(conn, registry: list, governing: dict, months: int, mesh) ->
     for trial in registry:
         ok, indications = pos_granular.in_modelled(conn, trial["nct_id"], mesh)
         if ok:
-            decision = add_months(trial["day"], months)
+            decision = review_ends(trial["day"], clock_row)
             return {"nct_id": trial["nct_id"],
                     "primary_completion": trial["primary_completion_date"],
                     "indications": indications, "decision_date": decision.isoformat(),
@@ -395,12 +420,12 @@ def for_asset(conn, asset_id: int, today=None, *, scenario: str = "base", legs=_
     if priority:
         out["clock"] = {"pathway": pathway, "pathway_how": how,
                         "review": priority["review"], "months": priority["months"],
+                        "filing_period_days": priority.get("filing_period_days") or 0,
                         "basis": priority["basis"], "source": priority["source"],
                         "carries_to": priority.get("carries_to"),
                         "cross_check": priority.get("cross_check"),
                         "extension_months": (clock.get(("major_amendment_extension", "any"))
                                              or {}).get("months")}
-    months = priority["months"] if priority else None
 
     filings = _filings(conn, asset_id, iso)
     registry = _registry(conn, asset_id)
@@ -425,7 +450,7 @@ def for_asset(conn, asset_id: int, today=None, *, scenario: str = "base", legs=_
                            "date": row["expected_date"], "title": row["title"],
                            "quote": row["description"], "source_url": row["source_url"],
                            "curated": bool(row["is_curated"])}
-        out["gate"] = _gate_floor(legs, months, None)
+        out["gate"] = _gate_floor(legs, priority, None)
         return done("decision_passed",
                     f"The FDA decision on the accepted application was due "
                     f"{_when(row['expected_date'])} and the asset is still unmarketed on "
@@ -453,13 +478,13 @@ def for_asset(conn, asset_id: int, today=None, *, scenario: str = "base", legs=_
         decision = None
         sentence = None
     else:
-        out["gate"] = _gate_floor(legs, months, None)
+        out["gate"] = _gate_floor(legs, priority, None)
         return done("no_registry_basis",
                     "No live Phase 3 on the registry, no positive Phase 3 readout and no "
                     "accepted application, so no floor is drawn.")
 
     if out["evidence"]["kind"] != "accepted":
-        if months is None:
+        if priority is None:
             out["gate"] = _gate_floor(legs, None, governing_nct)
             return done("no_clock",
                         f"No FDA review clock is on file for {PATHWAY_WORDS[pathway]}, so "
@@ -467,11 +492,10 @@ def for_asset(conn, asset_id: int, today=None, *, scenario: str = "base", legs=_
                         + (": the BsUFA goals have not been read." if
                            pathway == "biosimilar_351k" else "."))
         out["clock"]["applied"] = True
-        decision = add_months(governing_day, months)
+        decision = review_ends(governing_day, priority)
         if governing_day < today_date:
-            out["if_filed_today"] = add_months(today_date, months).isoformat()
-        review = (f"a priority review of {PATHWAY_WORDS[pathway]} takes {months} months "
-                  f"from receipt")
+            out["if_filed_today"] = review_ends(today_date, priority).isoformat()
+        review = _review_words(priority, pathway)
         if out["evidence"]["kind"] == "readout":
             sentence = (f"Its Phase 3 read out positive {_when(readout['event_date'])} and "
                         f"{review}.")
@@ -480,19 +504,20 @@ def for_asset(conn, asset_id: int, today=None, *, scenario: str = "base", legs=_
             kind = out["evidence"]["date_type"] or "date type not stated"
             sentence = (f"{governing_nct} {verb} {_when(out['evidence']['date'])} ({kind}) "
                         f"and {review}.")
-            out["slip"] = _slip(conn, governing_nct, months, decision.year)
-            out["modelled_floor"] = _modelled_floor(conn, registry, registry[0], months,
+            out["slip"] = _slip(conn, governing_nct, priority, decision.year)
+            out["modelled_floor"] = _modelled_floor(conn, registry, registry[0], priority,
                                                     mesh)
         if standard:
-            later = add_months(governing_day, standard["months"])
+            later = review_ends(governing_day, standard)
             out["standard"] = {"review": "standard", "months": standard["months"],
+                               "filing_period_days": standard.get("filing_period_days") or 0,
                                "decision_date": later.isoformat(),
                                "first_possible_year": later.year,
                                "first_full_year": later.year + 1}
 
     out.update(decision_date=decision.isoformat(), first_possible_year=decision.year,
                first_full_year=decision.year + 1)
-    out["gate"] = _gate_floor(legs, months, governing_nct)
+    out["gate"] = _gate_floor(legs, priority, governing_nct)
     gate_sentence = _gate_sentence(out["gate"])
 
     first = decision.year

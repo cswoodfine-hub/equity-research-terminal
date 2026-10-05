@@ -93,14 +93,15 @@ def _registry_gaps(conn, row: dict) -> list[dict]:
         marks = ",".join("?" * len(hits))
         held = {r["nct_id"]: r["asset_id"] for r in conn.execute(
             f"SELECT nct_id, asset_id FROM trials WHERE nct_id IN ({marks})", list(hits))}
-    months = (row.get("clock") or {}).get("months")
+    clock = row.get("clock") or {}
     out = []
     for nct, study in sorted(hits.items()):
         if held.get(nct) == row["asset_id"]:
             continue
         day = launch_timing.parse_date(study["primary_completion"])
-        floor = (launch_timing.add_months(day, months).year
-                 if (day and months and study["status"] not in NOT_LIVE) else None)
+        floor = (launch_timing.review_ends(day, clock).year
+                 if (day and clock.get("months") and study["status"] not in NOT_LIVE)
+                 else None)
         out.append({**study, "in_trials_table": nct in held,
                     "mapped_to_asset": held.get(nct),
                     "floor_year": floor,
@@ -121,7 +122,8 @@ def _print(row: dict, gaps: list | None) -> None:
           f" {evidence.get('date')} ({evidence.get('date_type') or ''})"
           f"{' STALE' if evidence.get('stale') else ''}")
     print(f"  clock: {clock.get('pathway')} {clock.get('review')} {clock.get('months')}"
-          f" months ({clock.get('pathway_how')})")
+          f" months after {clock.get('filing_period_days') or 0} filing days"
+          f" ({clock.get('pathway_how')})")
     print(f"  decision {row['decision_date']}, first full year {row['first_full_year']};"
           f" standard clock {(row.get('standard') or {}).get('decision_date')},"
           f" first full year {(row.get('standard') or {}).get('first_full_year')}")

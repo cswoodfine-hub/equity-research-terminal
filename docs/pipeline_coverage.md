@@ -771,8 +771,10 @@ spartalizumab, released from trials by earlier folds.
 application's decision date; else a positive Phase 3 readout as `pos_granular.stage_of`
 reads it; else the earliest primary completion among the asset's live Phase 3 and 2/3
 studies. The submission is taken on that day and the review at the pathway's priority clock
-from `data/fda_review_clock.csv` (PDUFA VII: 8 months from receipt for a new molecule or
-original biologic, 6 for a new indication of a marketed one). It is a flag: nothing reads it
+from `data/fda_review_clock.csv` (PDUFA VII: 6 months from a filing date 60 days after
+receipt for a new molecule or original biologic, 6 months from receipt for a new indication
+of a marketed one). The 60 days are days, as 21 CFR 314.101(a)(2) dates the filing, not two
+calendar months, so a 1 May completion gives 30 December of the same year. It is a flag: nothing reads it
 on the value path, and equity per share, every asset rNPV and the 21 ratings are
 byte-identical with it in place. `GET /companies/{ticker}/launch-timing` lists it and
 `backend/tools/launch_timing_check.py` prints every flag for checking.
@@ -794,11 +796,11 @@ and each governing study was re-read live on ClinicalTrials.gov.
 | Asset | Seed | Study that sets the floor | Earliest approval | First full year | Check |
 |---|---|---|---|---|---|
 | Olpasiran (AMGN) | 2027 | NCT05581303, OCEAN(a)-Outcomes, 2028-03-31 | Nov 2028 | 2029 | Amgen's Q2 2026 release (8-K 0000318154-26-000124) says only that the trial is ongoing. Stands |
-| Lepodisiran (LLY) | 2027 | NCT06292013, ACCLAIM-Lp(a), 2029-03 | Nov 2029 | 2030 | Stands |
+| Lepodisiran (LLY) | 2027 | NCT06292013, ACCLAIM-Lp(a), 2029-03 | Oct 2029 | 2030 | Stands |
 | Abelacimab (NVS) | 2027 | NCT07739888, 2030-12-30 | Aug 2031 | 2032 | The book misses LILAC-TIMI 76 (NCT05712200, Anthos, 2027-12-30), which gives Aug 2028 and 2029; Novartis lists the atrial fibrillation submission in 2028 (Q2 2026, 6-K 0001114448-26-000012). Stands, on the missing study |
 | Trontinemab (ROG) | 2027 | NCT07169578, 2028-02-16 | Oct 2028 | 2029 | The completion moved forward from 2028-06-07 on 2026-09-26, which pulled the floor from 2029 to 2028. Stands |
 | Frexalimab (SNY) | 2027 | NCT06141473, 2027-05-06 | Jan 2028 | 2029 | Sanofi's half-year report lists relapsing MS at Phase 3. Stands |
-| VK2735 (VKTX) | 2027 | NCT07104500, VANQUISH-1, 2027-07-01 | Mar 2028 | 2029 | Viking: about 4,500 enrolled by November 2025 on 78 weeks of treatment (8-K of 2026-07-29). Stands |
+| VK2735 (VKTX) | 2027 | NCT07104500, VANQUISH-1, 2027-07-01 | Feb 2028 | 2029 | Viking: about 4,500 enrolled by November 2025 on 78 weeks of treatment (8-K of 2026-07-29). Stands |
 | mRNA seasonal flu vaccine (GSK) | 2027 | NCT07851246, 2027-07-09, not yet recruiting | Mar 2028 | 2029 | Stands |
 
 **The five amber flags.** Each seed cites what the database lacks, so each turns clear once

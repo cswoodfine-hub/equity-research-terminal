@@ -63,19 +63,24 @@ def _floor(conn, asset_id, **kwargs):
 # --- the curated files ---------------------------------------------------------------
 
 def test_every_clock_row_is_sourced_and_the_program_arithmetic_is_pinned():
-    """The 60-day filing period is the whole reason a new molecule's priority clock is 8
-    months from receipt and not 6. Every row carries the letter's section and its
-    source, and the shipped file has no biosimilar or voucher row until those are read."""
+    """A new molecule's priority clock is 6 months from a filing date 60 days after
+    receipt, and every other clock starts at receipt. Every row carries the letter's
+    section and its source, and the shipped file has no biosimilar or voucher row until
+    those are read."""
     clock = L.review_clock()
     assert clock, "data/fda_review_clock.csv is missing"
     for key, row in clock.items():
         assert row["source"] and row["basis"] and row["as_of"], key
         assert "151712" in row["source"], key
         assert "193977" in row["carries_to"], key
-    assert clock[("nme_nda_or_original_bla", "priority")]["months"] == 8
-    assert clock[("nme_nda_or_original_bla", "standard")]["months"] == 12
+    assert clock[("nme_nda_or_original_bla", "priority")]["months"] == 6
+    assert clock[("nme_nda_or_original_bla", "standard")]["months"] == 10
+    assert clock[("nme_nda_or_original_bla", "priority")]["filing_period_days"] == 60
+    assert clock[("nme_nda_or_original_bla", "standard")]["filing_period_days"] == 60
     assert clock[("efficacy_supplement", "priority")]["months"] == 6
     assert clock[("efficacy_supplement", "standard")]["months"] == 10
+    assert all(row["filing_period_days"] == 0 for (pathway, _), row in clock.items()
+               if pathway != "nme_nda_or_original_bla")
     assert "8.0 months" in clock[("nme_nda_or_original_bla", "priority")]["cross_check"]
     assert "12.0 months" in clock[("nme_nda_or_original_bla", "standard")]["cross_check"]
     assert not any(p == "biosimilar_351k" or p == "cnpv" for p, _ in clock)
@@ -110,6 +115,28 @@ def test_a_month_only_date_is_the_first_and_months_are_calendar_months():
     assert L.add_months(dt.date(2027, 11, 15), 2) == dt.date(2028, 1, 15)
 
 
+def test_the_filing_period_is_sixty_days_and_not_two_calendar_months(tmp_path):
+    """21 CFR 314.101(a)(2): the filing date is 60 days after receipt, and the Program
+    clock runs from it. Two calendar months from 1 May is 1 July, 61 days, which put the
+    priority goal on 1 January 2029 and a seed of 2028 in the red; 60 days files on 30
+    June and the goal is 30 December 2028, the approval year itself."""
+    clock = L.review_clock()
+    nme = clock[("nme_nda_or_original_bla", "priority")]
+    assert L.review_ends(dt.date(2028, 5, 1), nme) == dt.date(2028, 12, 30)
+    assert L.review_ends(dt.date(2029, 5, 1), nme) == dt.date(2029, 12, 30)
+    assert L.review_ends(dt.date(2028, 5, 1),
+                         clock[("efficacy_supplement", "priority")]) == dt.date(2028, 11, 1)
+    conn = _seed(tmp_path)
+    _asset(conn, 1, "Olpasiran", seed=2028)
+    _trial(conn, "NCT05581303", 1, "2028-05")
+    got = _floor(conn, 1)
+    conn.close()
+    assert got["decision_date"] == "2028-12-30"
+    assert got["status"] == "part_year" and got["flag"] is None
+    assert got["standard"]["decision_date"] == "2029-04-30"
+    assert "6 months from a filing date 60 days after receipt" in got["message"]
+
+
 # --- the floor and its status --------------------------------------------------------
 
 def test_a_seed_before_the_registry_allows_is_red_with_both_years(tmp_path):
@@ -121,12 +148,13 @@ def test_a_seed_before_the_registry_allows_is_red_with_both_years(tmp_path):
     assert got["status"] == "before_floor" and got["flag"] == "red"
     assert got["decision_date"] == "2028-11-30"
     assert (got["first_possible_year"], got["first_full_year"]) == (2028, 2029)
-    assert got["standard"]["decision_date"] == "2029-03-31"
+    assert got["standard"]["decision_date"] == "2029-03-30"
     assert got["standard"]["first_full_year"] == 2030
     assert got["evidence"]["kind"] == "registry"
     assert got["evidence"]["nct_id"] == "NCT05581303"
     assert got["clock"]["pathway"] == "nme_nda_or_original_bla"
-    assert got["clock"]["months"] == 8 and got["clock"]["applied"] is True
+    assert got["clock"]["months"] == 6 and got["clock"]["filing_period_days"] == 60
+    assert got["clock"]["applied"] is True
     assert got["message"].startswith("2027 in the model")
     assert "NCT05581303" in got["message"] and "Nov 2028" in got["message"]
 
@@ -173,9 +201,9 @@ def test_a_positive_phase_3_readout_outranks_the_registry(tmp_path):
     conn.close()
     assert got["evidence"]["kind"] == "readout"
     assert got["evidence"]["date"] == "2026-08-19"
-    assert got["decision_date"] == "2027-04-19"
+    assert got["decision_date"] == "2027-04-18"
     assert got["status"] == "part_year"
-    assert got["if_filed_today"] == "2027-06-05"
+    assert got["if_filed_today"] == "2027-06-04"
     assert "read out positive 19 Aug 2026" in got["message"]
 
 
@@ -283,7 +311,7 @@ def test_a_voucher_holder_keeps_the_priority_clock_until_the_programme_has_a_row
         "source": "a test", "carries_to": "", "cross_check": "", "as_of": "2026-10-05"}}
     applied = _floor(conn, 1, voucher_rows=held, clock=clock)
     conn.close()
-    assert without["voucher"]["applied"] is False and without["clock"]["months"] == 8
+    assert without["voucher"]["applied"] is False and without["clock"]["months"] == 6
     assert applied["voucher"]["applied"] is True
     assert applied["decision_date"] == "2028-04-30"
 
@@ -395,7 +423,7 @@ def test_the_gate_study_is_named_where_it_is_not_the_one_that_sets_the_floor(tmp
     other = _floor(conn, 1, legs=_legs("p3_to_nda", "NCT07293260", "2028-06-15"))
     same = _floor(conn, 1, legs=_legs("p3_to_nda", "NCT05581303", "2028-03-31"))
     conn.close()
-    assert other["gate"]["decision_date"] == "2029-02-15"
+    assert other["gate"]["decision_date"] == "2029-02-14"
     assert other["gate"]["first_full_year"] == 2030
     assert "The gate study is NCT07293260, completing 15 Jun 2028" in other["message"]
     assert "Feb 2029" in other["message"]
