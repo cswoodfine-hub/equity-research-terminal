@@ -19,6 +19,13 @@ its brand name, and only through a brand-name concept (term type BN) spelled exa
 the brand. A generic name finds an ingredient, and an ingredient's products are every
 company's; that route returns nothing rather than another company's codes.
 
+An application also returns unbranded concepts: the clinical drug its authorised generic
+is sold as, or a kit component such as the alcohol pad in a biologic's carton. Their NDC
+history is every manufacturer's, so for them only the active NDCs RxNav lists under the
+asset's own application number are kept, and the RxCUI itself is marked not
+brand-specific. Where two assets claim one code, it stays with each asset its RxNorm name
+names: co-marketed Eliquis keeps it on both owners, and the alcohol pad goes from all.
+
 A labeler is the company's own (is_owner_labeler 1) when RxNav's labeler name for an
 active NDC shares a distinctive word with a name the company is known by: Eliquis is
 labelled "E.R. Squibb & Sons", which is Bristol-Myers Squibb. A labeler RxNav names as
@@ -130,18 +137,37 @@ def parse_history(payload: dict) -> list[dict]:
     return out
 
 
-def parse_ndc_labelers(payload: dict) -> dict:
-    """{ndc11: labeler name} for the active NDCs an ndcproperties answer lists."""
+_APPLICATION_PROPS = ("NDA", "ANDA", "BLA", "NDA_AUTHORIZED_GENERIC")
+
+
+def parse_ndc_properties(payload: dict) -> dict:
+    """{ndc11: {labeler, application, start}} for the active NDCs an ndcproperties answer
+    lists: the labeler's name, the application the package is marketed under (an NDA,
+    ANDA or BLA, or the NDA an authorised generic is sold under), and the month its
+    marketing began (YYYYMM)."""
     out = {}
     listing = ((payload or {}).get("ndcPropertyList") or {}).get("ndcProperty") or []
     for item in listing:
         ndc11 = ndc.to_ndc11(item.get("ndcItem"))
-        props = (item.get("propertyConceptList") or {}).get("propertyConcept") or []
-        labeler = next((p.get("propValue") for p in props
-                        if p.get("propName") == "LABELER"), None)
-        if ndc11 and labeler:
-            out[ndc11] = labeler.strip()
+        if not ndc11:
+            continue
+        props = {p.get("propName"): (p.get("propValue") or "").strip()
+                 for p in (item.get("propertyConceptList") or {}).get("propertyConcept")
+                 or []}
+        started = props.get("MARKETING_EFFECTIVE_TIME_LOW") or ""
+        out[ndc11] = {
+            "labeler": props.get("LABELER") or None,
+            "application": next((props[k].upper() for k in _APPLICATION_PROPS
+                                 if props.get(k)), None),
+            "start": started[:6] if len(started) == 8 and started.isdigit() else None,
+        }
     return out
+
+
+def parse_ndc_labelers(payload: dict) -> dict:
+    """{ndc11: labeler name} for the active NDCs an ndcproperties answer lists."""
+    return {code: info["labeler"] for code, info in parse_ndc_properties(payload).items()
+            if info["labeler"]}
 
 
 def distinctive_words(name: str) -> set:
@@ -156,15 +182,47 @@ def molecule_words(generic: str) -> set:
             if len(w) >= 4 and w not in _NOT_A_MOLECULE}
 
 
-def same_molecule(a: dict, b: dict) -> bool:
-    """Whether two assets are one molecule: a shared molecule word in the generic name,
-    or, with no generic name to read, the same brand."""
-    words_a, words_b = molecule_words(a.get("generic_name")), molecule_words(
-        b.get("generic_name"))
-    if words_a and words_b:
-        return bool(words_a & words_b)
-    brand_a = (a.get("brand_name") or "").strip().lower()
-    return bool(brand_a) and brand_a == (b.get("brand_name") or "").strip().lower()
+def name_fits(name: str, asset: dict) -> bool:
+    """Whether a code's RxNorm name names this asset.
+
+    A branded concept carries its brand in brackets, "apixaban 5 MG Oral Tablet
+    [Eliquis]", and fits an asset whose brand has a word in them. An unbranded one,
+    "isopropyl alcohol 0.7 ML/ML Medicated Pad", fits an asset whose molecule it names.
+    """
+    text = (name or "").lower()
+    brackets = re.findall(r"\[([^\]]+)\]", text)
+    brand_words = {w for w in re.split(r"[^a-z]+", (asset.get("brand_name") or "").lower())
+                   if len(w) >= 4}
+    if brackets and brand_words:
+        return bool(brand_words & set(re.split(r"[^a-z]+", " ".join(brackets))))
+    molecule = (molecule_words(asset.get("generic_name"))
+                or molecule_words(asset.get("brand_name")))
+    return bool(molecule & set(re.split(r"[^a-z]+", text)))
+
+
+def settle_claims(claims: dict, assets: dict) -> list[tuple]:
+    """The codes more than one asset claims, and which claims stand.
+
+    claims: {(code_type, code): {asset_id: RxNorm name}}. assets: {asset_id: {brand_name,
+    generic_name}}. A code two assets share stays with each asset its RxNorm name names,
+    so co-marketed Eliquis stays with both owners, and a code that came with something
+    else, the alcohol pad in a biologic's kit or an Ozempic pen claimed by a Rybelsus row
+    carrying the wrong number, is dropped from the asset it does not name. A code with no
+    name to read (a curated one) is left as it is. Returns [(code_type, code, kept ids,
+    dropped ids)] for the codes where a claim was dropped.
+    """
+    out = []
+    for (code_type, code), owners in sorted(claims.items()):
+        if len(owners) < 2:
+            continue
+        name = next((n for n in owners.values() if n), None)
+        if not name:
+            continue
+        kept = sorted(a for a in owners if name_fits(name, assets.get(a, {})))
+        dropped = sorted(a for a in owners if a not in kept)
+        if dropped:
+            out.append((code_type, code, kept, dropped))
+    return out
 
 
 def asset_rows(lookup: dict, owner_words: set, labeler_names: dict) -> list[dict]:
@@ -200,7 +258,8 @@ def asset_rows(lookup: dict, owner_words: set, labeler_names: dict) -> list[dict
                 else:
                     owner = None
                 held = by_ndc9[code9] = {
-                    "code_type": "ndc9", "code": code9, "tty": tty, "name": None,
+                    "code_type": "ndc9", "code": code9, "tty": tty,
+                    "name": concept.get("name"),
                     "rxcui": concept["rxcui"], "brand_specific": brand_specific,
                     "labeler_code": labeler_code,
                     "labeler_name": names[0] if names else None,
@@ -213,24 +272,6 @@ def asset_rows(lookup: dict, owner_words: set, labeler_names: dict) -> list[dict
             if item["end"] and (not held["last_ym"] or item["end"] > held["last_ym"]):
                 held["last_ym"] = item["end"]
     return rows + list(by_ndc9.values())
-
-
-def find_conflicts(claims: dict, assets: dict) -> list[tuple]:
-    """The codes two assets of different molecules both claim.
-
-    claims: {(code_type, code): {asset_id, ...}}. assets: {asset_id: {generic_name,
-    brand_name}}. Returns [(code_type, code, sorted asset ids)]. A co-marketed product,
-    or one molecule the book holds twice, is not a conflict.
-    """
-    out = []
-    for (code_type, code), owners in sorted(claims.items()):
-        if len(owners) < 2:
-            continue
-        ids = sorted(owners)
-        if any(not same_molecule(assets.get(a, {}), assets.get(b, {}))
-               for i, a in enumerate(ids) for b in ids[i + 1:]):
-            out.append((code_type, code, ids))
-    return out
 
 
 _MONTHS = {m: i + 1 for i, m in enumerate(
@@ -460,7 +501,8 @@ class DrugCodesRxNavFetcher(BaseFetcher):
         for rxcui, app in found.items():
             if rxcui not in cache:
                 cache[rxcui] = self._concept(rxcui, known.get(rxcui))
-            concepts.append({**cache[rxcui], "rxcui": rxcui, "application_number": app})
+            concepts.append({**self._concept_for(cache[rxcui], app), "rxcui": rxcui,
+                             "application_number": app})
         if not found:
             notes.append("RxNav returned no code for the application numbers"
                          if asset["apps"] else "no application number, and no RxNorm "
@@ -485,21 +527,52 @@ class DrugCodesRxNavFetcher(BaseFetcher):
     def _concept(self, rxcui: str, known: dict | None) -> dict:
         props = known or ((self._get(f"/REST/rxcui/{rxcui}/properties.json") or {})
                           .get("properties") or {})
+        tty = props.get("tty")
+        if tty not in BRAND_TTYS:
+            # A clinical drug or a generic pack is every manufacturer's: the NDC history
+            # of metoprolol succinate 25 MG lists 504 codes, nearly all of them other
+            # companies' generics. So only the active NDCs labelled under the asset's own
+            # application are taken (its authorised generics, or its ANDA products), and
+            # a kit component such as the alcohol pad in a biologic's carton takes none.
+            listed = parse_ndc_properties(self._get(f"/REST/ndcproperties.json?id={rxcui}"))
+            self._name_labelers(listed)
+            return {"tty": tty, "name": props.get("name"), "ndcs": None, "listed": listed}
         history = parse_history(self._get(f"/REST/rxcui/{rxcui}/allhistoricalndcs.json"))
         # Labeler names come only from active NDCs, so the call is made only when an
         # active NDC's labeler has not been named yet in this run or an earlier one.
         # Repackagers recur across hundreds of drugs; asking each time tripled the run.
-        current = _version_month(self._version) or max(
-            (n["end"] for n in history if n["end"]), default=None)
+        current = self._current_month(history)
         unnamed = {ndc.labeler(n["ndc11"]) for n in history
                    if current and n["end"] and n["end"] >= current} - set(self._named)
-        labelers = {}
+        listed = {}
         if unnamed:
-            labelers = parse_ndc_labelers(
-                self._get(f"/REST/ndcproperties.json?id={rxcui}"))
-            for ndc11, name in labelers.items():
-                self._named.setdefault(ndc.labeler(ndc11), set()).add(name)
-        return {"tty": props.get("tty"), "name": props.get("name"), "ndcs": history,
+            listed = parse_ndc_properties(self._get(f"/REST/ndcproperties.json?id={rxcui}"))
+            self._name_labelers(listed)
+        return {"tty": tty, "name": props.get("name"), "ndcs": history, "listed": listed}
+
+    def _current_month(self, history: list[dict]) -> str | None:
+        return _version_month(self._version) or max(
+            (n["end"] for n in history if n["end"]), default=None)
+
+    def _name_labelers(self, listed: dict) -> None:
+        for ndc11, info in listed.items():
+            if info["labeler"]:
+                self._named.setdefault(ndc.labeler(ndc11), set()).add(info["labeler"])
+
+    def _concept_for(self, concept: dict, app: str | None) -> dict:
+        """A cached concept as one asset sees it: a branded concept's whole NDC history,
+        or an unbranded one's active NDCs marketed under this asset's application."""
+        listed = concept["listed"]
+        labelers = {code: info["labeler"] for code, info in listed.items()
+                    if info["labeler"]}
+        if concept["ndcs"] is not None:
+            return {"tty": concept["tty"], "name": concept["name"],
+                    "ndcs": concept["ndcs"], "labelers": labelers}
+        current = _version_month(self._version)
+        own = [{"ndc11": code, "start": info["start"], "end": current}
+               for code, info in sorted(listed.items())
+               if app and info["application"] == app]
+        return {"tty": concept["tty"], "name": concept["name"], "ndcs": own,
                 "labelers": labelers}
 
     # --- normalise --------------------------------------------------------------------
@@ -541,7 +614,7 @@ class DrugCodesRxNavFetcher(BaseFetcher):
                            if r["code_type"] == "rxcui"}),
             "ndc9s": len({r["code"] for b in bundles for r in b["rows"]
                           if r["code_type"] == "ndc9"}),
-            "conflicts": len(find_conflicts(claims, assets)),
+            "conflicts": len(settle_claims(claims, assets)),
             "assets_pending": meta.get("pending", 0),
             "rxnorm_version": meta.get("version"),
             "fetch_kind": "live",
@@ -549,18 +622,20 @@ class DrugCodesRxNavFetcher(BaseFetcher):
         self._write_snapshot(payload)
 
     def _claims_after(self, conn, bundles: list[dict]):
-        """Every (code_type, code) -> asset ids the table will hold once the batch is
-        written, and the assets' names, for the conflict count."""
+        """Every (code_type, code) -> {asset id: RxNorm name} the table will hold once
+        the batch is written, and the assets' names, for the conflict count."""
         replaced = {b["asset_id"] for b in bundles}
         claims: dict = {}
-        for row in conn.execute("SELECT asset_id, code_type, code, basis FROM drug_codes"):
+        for row in conn.execute(
+                "SELECT asset_id, code_type, code, name, basis FROM drug_codes"):
             if row["asset_id"] in replaced and row["basis"] != "curated":
                 continue
-            claims.setdefault((row["code_type"], row["code"]), set()).add(row["asset_id"])
+            claims.setdefault((row["code_type"], row["code"]), {})[row["asset_id"]] = \
+                row["name"]
         for bundle in bundles:
             for row in bundle["rows"]:
-                claims.setdefault((row["code_type"], row["code"]), set()).add(
-                    bundle["asset_id"])
+                claims.setdefault((row["code_type"], row["code"]), {})[
+                    bundle["asset_id"]] = row["name"]
         assets = {r["id"]: dict(r) for r in conn.execute(
             "SELECT id, brand_name, generic_name FROM assets")}
         return claims, assets
@@ -688,23 +763,37 @@ class DrugCodesRxNavFetcher(BaseFetcher):
                  code[:5] if code_type == "ndc9" else None, source))
 
     def _drop_conflicts(self, conn) -> None:
+        """Settle the codes several assets claim (settle_claims), and say so once per
+        set of assets rather than once per code."""
         claims: dict = {}
-        for row in conn.execute("SELECT asset_id, code_type, code FROM drug_codes"):
-            claims.setdefault((row["code_type"], row["code"]), set()).add(row["asset_id"])
+        for row in conn.execute("SELECT asset_id, code_type, code, name FROM drug_codes"):
+            claims.setdefault((row["code_type"], row["code"]), {})[row["asset_id"]] = \
+                row["name"]
         assets = {r["id"]: dict(r) for r in conn.execute(
             "SELECT a.id, a.brand_name, a.generic_name, c.ticker FROM assets a"
             " JOIN companies c ON c.id = a.owner_company_id")}
-        for code_type, code, ids in find_conflicts(claims, assets):
-            curated = {r["asset_id"] for r in conn.execute(
-                "SELECT asset_id FROM drug_codes WHERE code_type = ? AND code = ?"
-                " AND basis = 'curated'", (code_type, code))}
-            conn.execute("DELETE FROM drug_codes WHERE code_type = ? AND code = ?"
-                         " AND basis <> 'curated'", (code_type, code))
-            named = ", ".join(f"{assets[a].get('ticker')} {assets[a].get('brand_name')}"
-                              f" ({assets[a].get('generic_name')})" for a in ids)
-            kept = " (the curated row stays)" if curated else ""
-            self._notes.append(f"rxnav_codes: {code_type} {code} is claimed by assets of "
-                               f"different molecules, {named}, and was dropped{kept}")
+        grouped: dict = {}
+        for code_type, code, kept, dropped in settle_claims(claims, assets):
+            conn.executemany(
+                "DELETE FROM drug_codes WHERE asset_id = ? AND code_type = ? AND code = ?"
+                " AND basis <> 'curated'", [(a, code_type, code) for a in dropped])
+            grouped.setdefault((tuple(kept), tuple(dropped)), []).append(
+                (code_type, code, claims[(code_type, code)]))
+
+        def label(asset_id):
+            a = assets.get(asset_id, {})
+            return f"{a.get('ticker')} {a.get('brand_name') or a.get('generic_name')}"
+
+        for (kept, dropped), codes in sorted(grouped.items(), key=lambda kv: -len(kv[1])):
+            example_type, example, names = codes[0]
+            example_name = next((n for n in names.values() if n), "")
+            stays = (f"stay with {', '.join(label(a) for a in kept)}" if kept
+                     else "name none of the claimants and were dropped")
+            self._notes.append(
+                f"rxnav_codes: {len(codes)} codes claimed by "
+                f"{', '.join(label(a) for a in kept + dropped)} {stays}; dropped from "
+                f"{', '.join(label(a) for a in dropped)} (for example {example_type} "
+                f"{example}, {example_name})")
 
 
 def main(argv=None) -> None:

@@ -7,10 +7,11 @@
 -- back: the RxCUIs filed under it, and the NDC product codes RxNorm has ever attached to
 -- them, repackagers included, with the first and last month each was listed.
 --
--- One row per asset and code. A co-marketed product keeps the code on both assets. A code
--- two assets of different molecules both claim is dropped, since one of them is wrong and
--- nothing says which. Rows marked curated come from data/drug_code_overrides.csv and are
--- never replaced by a fetch.
+-- One row per asset and code. A code two assets claim stays with each one its RxNorm name
+-- names: a co-marketed product keeps it on both, a kit component on neither. An unbranded
+-- concept (an authorised generic's clinical drug) carries only the NDCs marketed under the
+-- asset's own application, never every manufacturer's. Rows marked curated come from
+-- data/drug_code_overrides.csv and are never replaced by a fetch.
 
 CREATE TABLE drug_codes (
     id                 INTEGER PRIMARY KEY,
@@ -18,7 +19,7 @@ CREATE TABLE drug_codes (
     code_type          TEXT NOT NULL,      -- rxcui | ndc9
     code               TEXT NOT NULL,      -- an RxCUI, or a product code 'LLLLL-PPPP'
     tty                TEXT,               -- RxNorm term type: SBD, BPCK, SCD, GPCK; for ndc9, its RxCUI's
-    name               TEXT,               -- RxNorm name of the RxCUI
+    name               TEXT,               -- RxNorm name of the RxCUI, or of the one an ndc9 sits under
     rxcui              TEXT,               -- ndc9 rows: the RxCUI the product code sits under
     brand_specific     INTEGER,            -- 1 for SBD and BPCK and the product codes under them
     labeler_code       TEXT,               -- ndc9 rows: the five-digit labeler

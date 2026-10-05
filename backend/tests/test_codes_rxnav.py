@@ -10,7 +10,8 @@ from pathlib import Path
 import pytest
 
 import db
-from fetchers.codes_rxnav import DrugCodesRxNavFetcher, find_conflicts, parse_history
+from fetchers.codes_rxnav import (
+    DrugCodesRxNavFetcher, name_fits, parse_history, settle_claims)
 
 _FIX = Path(__file__).resolve().parent / "fixtures"
 
@@ -149,28 +150,69 @@ def test_a_generic_named_product_never_takes_the_brand_route(tmp_path):
     assert _codes(path, 5, "rxcui") == {}
 
 
-def test_co_marketed_assets_keep_a_code_and_different_molecules_lose_it(tmp_path):
+def test_a_shared_code_stays_with_the_assets_its_name_names(tmp_path):
     path = _db(tmp_path, [(198, 1, "Eliquis", "Apixaban", ["NDA202155"]),
                           (812, 2, "Eliquis", "Apixaban", ["NDA202155"]),
                           (900, 3, "Wrongly Filed", "Rivaroxaban", ["NDA202155"])])
     result = _run(path, _Fake())
-    # All three claim the codes, and one is a different molecule: nobody keeps them.
-    assert _codes(path, 198, "rxcui") == {} and _codes(path, 900, "rxcui") == {}
-    assert any("different molecules" in n and "1364447" in n for n in result.notes)
-
-    (tmp_path / "b").mkdir()
-    path2 = _db(tmp_path / "b", [(198, 1, "Eliquis", "Apixaban", ["NDA202155"]),
-                                 (812, 2, "Eliquis", "Apixaban", ["NDA202155"])])
-    _run(path2, _Fake())
-    assert set(_codes(path2, 198, "rxcui")) == set(_codes(path2, 812, "rxcui")) == {
+    # Co-marketed: both owners keep the codes. The asset carrying Eliquis's number by
+    # mistake is not named by "[Eliquis]" and loses them.
+    assert set(_codes(path, 198, "rxcui")) == set(_codes(path, 812, "rxcui")) == {
         "1364441", "1364447", "1992428"}
+    assert "00003-0893" in _codes(path, 812, "ndc9")
+    assert _codes(path, 900, "rxcui") == {} and _codes(path, 900, "ndc9") == {}
+    assert any("dropped from XYZ Wrongly Filed" in n for n in result.notes)
 
 
-def test_find_conflicts_reads_salts_as_one_molecule():
-    assets = {1: {"generic_name": "Ozanimod Hydrochloride"}, 2: {"generic_name": "Ozanimod"},
-              3: {"generic_name": "Insulin Lispro"}, 4: {"generic_name": "Insulin Glargine"}}
-    claims = {("rxcui", "a"): {1, 2}, ("rxcui", "b"): {3, 4}}
-    assert find_conflicts(claims, assets) == [("rxcui", "b", [3, 4])]
+def test_name_fits_reads_the_brand_in_brackets_or_the_molecule():
+    eliquis = {"brand_name": "Eliquis", "generic_name": "Apixaban"}
+    humira = {"brand_name": "Humira", "generic_name": "Adalimumab"}
+    toprol = {"brand_name": "Toprol-Xl", "generic_name": "Metoprolol Succinate"}
+    seloken = {"brand_name": "Seloken", "generic_name": None}
+    assert name_fits("apixaban 5 MG Oral Tablet [Eliquis]", eliquis)
+    assert not name_fits("apixaban 5 MG Oral Tablet [Eliquis]", humira)
+    assert not name_fits("isopropyl alcohol 0.7 ML/ML Medicated Pad", humira)
+    tablet = "24 HR metoprolol succinate 25 MG Extended Release Oral Tablet [Toprol]"
+    assert name_fits(tablet, toprol) and not name_fits(tablet, seloken)
+    assert name_fits("24 HR metoprolol succinate 25 MG Extended Release Oral Tablet",
+                     toprol)
+
+
+def test_settle_claims_drops_only_the_claims_the_name_does_not_make():
+    assets = {1: {"brand_name": "Humira", "generic_name": "Adalimumab"},
+              2: {"brand_name": "Avonex", "generic_name": "Interferon Beta-1A"},
+              3: {"brand_name": "Eliquis", "generic_name": "Apixaban"},
+              4: {"brand_name": "Eliquis", "generic_name": "Apixaban"}}
+    claims = {("rxcui", "797544"): {1: "isopropyl alcohol 0.7 ML/ML Medicated Pad",
+                                    2: "isopropyl alcohol 0.7 ML/ML Medicated Pad"},
+              ("rxcui", "1364447"): {3: "apixaban 5 MG Oral Tablet [Eliquis]",
+                                     4: "apixaban 5 MG Oral Tablet [Eliquis]"},
+              ("ndc9", "00003-0894"): {3: None, 1: None}}    # nothing to read: left
+    assert settle_claims(claims, assets) == [("rxcui", "797544", [], [1, 2])]
+
+
+def test_an_unbranded_concept_keeps_only_its_own_applications_ndcs(tmp_path):
+    """Zithromax's NDA returns its two suspensions and the clinical drugs they share with
+    every generic. Only the authorised-generic NDCs sold under the same NDA are taken
+    from those, and their history is never asked for."""
+    path = _db(tmp_path, [(649, 2, "Zithromax", "Azithromycin", ["NDA050710"])])
+    fake = _Fake()
+    fake.routes["/REST/rxcui.json?idtype=NDA&id=NDA050710"] = _load("rxnav_nda050710.json")
+    for rxcui, payload in _load("rxnav_properties_zithromax.json").items():
+        fake.routes[f"/REST/rxcui/{rxcui}/properties.json"] = payload
+    fake.routes["/REST/ndcproperties.json?id=308459"] = _load(
+        "rxnav_ndcproperties_308459.json")
+    _run(path, fake)
+    assert "/REST/rxcui/308459/allhistoricalndcs.json" not in fake.paths
+    rxcuis = _codes(path, 649, "rxcui")
+    assert rxcuis["308459"]["tty"] == "SCD" and rxcuis["308459"]["brand_specific"] == 0
+    assert rxcuis["105260"]["brand_specific"] == 1
+    ndc9s = _codes(path, 649, "ndc9")
+    assert set(ndc9s) == {"50090-2491", "59762-3110"}       # the two under NDA050710
+    assert ndc9s["59762-3110"]["first_ym"] == "199510"
+    assert ndc9s["59762-3110"]["last_ym"] == "202610"       # active in this release
+    assert ndc9s["59762-3110"]["brand_specific"] == 0
+    assert ndc9s["59762-3110"]["is_owner_labeler"] == 0     # Mylan, not Pfizer
 
 
 def test_overrides_add_and_remove_and_survive_the_next_fetch(tmp_path):

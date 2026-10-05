@@ -1,0 +1,166 @@
+{
+ "ndcPropertyList": {
+  "ndcProperty": [
+   {
+    "ndcItem": "50090249100",
+    "ndc9": "50090-2491",
+    "ndc10": "50090-2491-0",
+    "rxcui": "308459",
+    "splSetIdItem": "faf8e340-4094-446f-bfc5-cdcfec33a2cd",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "A-S Medication Solutions LLC"
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA AUTHORIZED GENERIC"
+      },
+      {
+       "propName": "MARKETING_EFFECTIVE_TIME_LOW",
+       "propValue": "19951019"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "COMPLETED"
+      },
+      {
+       "propName": "NDA_AUTHORIZED_GENERIC",
+       "propValue": "NDA050710"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "59762311001",
+    "ndc9": "59762-3110",
+    "ndc10": "59762-3110-1",
+    "rxcui": "308459",
+    "splSetIdItem": "f5b6daad-b5a9-462d-8e10-db22a7af1c72",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "LABELER",
+       "propValue": "Mylan Pharmaceuticals Inc."
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "NDA AUTHORIZED GENERIC"
+      },
+      {
+       "propName": "MARKETING_EFFECTIVE_TIME_LOW",
+       "propValue": "19951019"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "COMPLETED"
+      },
+      {
+       "propName": "NDA_AUTHORIZED_GENERIC",
+       "propValue": "NDA050710"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "00093202723",
+    "ndc9": "0093-2027",
+    "ndc10": "0093-2027-23",
+    "rxcui": "308459",
+    "splSetIdItem": "3209b147-11ce-4eeb-8427-5f8e6fb2c83d",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "ANDA",
+       "propValue": "ANDA065246"
+      },
+      {
+       "propName": "LABELER",
+       "propValue": "Teva Pharmaceuticals USA, Inc."
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "ANDA"
+      },
+      {
+       "propName": "MARKETING_EFFECTIVE_TIME_LOW",
+       "propValue": "20101228"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "00185720370",
+    "ndc9": "0185-7203",
+    "ndc10": "0185-7203-70",
+    "rxcui": "308459",
+    "splSetIdItem": "5aa85ecb-aff6-4dd7-a764-a9ba94f1e02d",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "ANDA",
+       "propValue": "ANDA065297"
+      },
+      {
+       "propName": "LABELER",
+       "propValue": "Sandoz Inc"
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "ANDA"
+      },
+      {
+       "propName": "MARKETING_EFFECTIVE_TIME_LOW",
+       "propValue": "20060918"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "COMPLETED"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   },
+   {
+    "ndcItem": "11788012813",
+    "ndc9": "11788-128",
+    "ndc10": "11788-128-13",
+    "rxcui": "308459",
+    "splSetIdItem": "d6fb42ed-7dac-4a7b-9964-d367dd47dd5c",
+    "propertyConceptList": {
+     "propertyConcept": [
+      {
+       "propName": "ANDA",
+       "propValue": "ANDA217036"
+      },
+      {
+       "propName": "LABELER",
+       "propValue": "AiPing Pharmaceutical, Inc."
+      },
+      {
+       "propName": "MARKETING_CATEGORY",
+       "propValue": "ANDA"
+      },
+      {
+       "propName": "MARKETING_EFFECTIVE_TIME_LOW",
+       "propValue": "20260116"
+      },
+      {
+       "propName": "MARKETING_STATUS",
+       "propValue": "ACTIVE"
+      }
+     ]
+    },
+    "source": "Hybrid"
+   }
+  ]
+ }
+}
