@@ -1485,3 +1485,31 @@ def test_a_horizon_ending_inside_erosion_no_longer_capitalises_the_tail_flat():
     assert eroding["terminal_pv"] < flat["terminal_pv"] * 0.5
     assert any("terminal value follows the loss of exclusivity" in n
                for n in eroding["notes"])
+
+
+@pytest.mark.parametrize("growth, rate, last, loe, in_base, year1, decay, late, late_from", [
+    (0.02, 0.08, 2035, None, True, 0.6, 0.3, None, None),       # no cliff: a perpetuity
+    (0.0, 0.08, 2035, 2040, False, 0.59, 0.34, None, None),     # LOE after the horizon
+    (0.0, 0.08, 2035, 2040, False, 0.59, 0.34, 0.1, 4),         # ... with a late rate
+    (0.01, 0.075, 2035, 2041, False, 0.8, 0.3, 0.12, 5),        # ... growing to it
+    (0.0, 0.08, 2043, 2040, False, 0.59, 0.34, None, None),     # already eroding
+    (0.0, 0.08, 2043, 2040, False, 0.59, 0.34, 0.1, 4),         # ... on the late rate now
+    (0.0, 0.08, 2043, 2040, False, 0.59, 0.34, 0.1, 6),         # ... still on the early
+    (0.0, 0.08, 2043, 2043, False, 0.59, 0.34, 0.1, 6),         # LOE on the last year
+])
+def test_the_terminal_path_is_the_stream_the_terminal_multiple_discounts(
+        growth, rate, last, loe, in_base, year1, decay, late, late_from):
+    multiple = F.terminal_multiple(growth, rate, last, loe, in_base, year1, decay, late,
+                                   late_from)
+    path = F.terminal_path(growth, last, loe, in_base, year1, decay, late, late_from,
+                           list(range(last + 1, last + 2000)))
+    assert sum(v / (1 + rate) ** (y - last) for y, v in path.items()) == \
+        pytest.approx(multiple, rel=1e-9)
+
+
+def test_a_build_exposes_the_revenue_its_terminal_value_carries():
+    got = F.build(_marketed(loe_year=2038, erosion_year1_pct=0.6, erosion_decay_pct=0.3))
+    tail = got["terminal_tail"]
+    assert tail and tail["end"] == got["dcf_years"][-1]
+    assert sum(share for share, _, _ in tail["parts"]) == pytest.approx(1.0)
+    assert F.build(_marketed(terminal_mode="none"))["terminal_tail"] is None

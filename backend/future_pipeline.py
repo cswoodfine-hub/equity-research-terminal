@@ -523,13 +523,26 @@ def renewal(rate: float, rd_ratio: float, life: int, erosion_year1: float,
 def book_revenue(parts: list, years: list, erosion_year1: float,
                  erosion_decay: float) -> dict:
     """{year: revenue} for the modelled book across ``years``, each part carried past its
-    own forecast the way its terminal value carries it (forecast.terminal_multiple): flat
-    at its long-run growth where no loss of exclusivity lies ahead or the cliff is already
-    in the base, decaying where its final year is already eroding, and flat to its LOE,
-    then the year-one drop and decay, where the LOE falls after the forecast ends. The
-    erosion shape past the forecast is the curated default, not each product's own.
+    own forecast the way its own terminal value carries it.
 
-    ``parts`` are {"revenue": {year: value}, "loe_year", "loe_in_base", "growth"}. Pure."""
+    A part with a ``tail`` (forecast.build's terminal_tail) follows forecast.terminal_path:
+    each region runs flat at its growth to its own exclusivity, takes its own year-one
+    drop and decays on its own early and late rates, and a part whose tail is None takes
+    no terminal value and so earns nothing past its forecast. The room the launches fill
+    is what the book leaves, so the book has to be the revenue the products are valued
+    on. Carried on the curated default shape instead (about a fifth a year), Vertex's
+    Alyftrek, which its own seed erodes by 59% and then 34% a year, left the room a tail
+    more than twice the size its value counted: moving its LOE from 2040 to 2043 added
+    3,811mm to Alyftrek and took 6,414mm off the launches, and equity fell 10.70 a share.
+
+    A part with no ``tail`` key (a company line) keeps the older rule: flat at its
+    long-run growth where no loss of exclusivity lies ahead or the cliff is already in the
+    base, decaying where its final year is already eroding, and flat to its LOE, then the
+    year-one drop and decay, on the curated default shape.
+
+    ``parts`` are {"revenue": {year: value}, "loe_year", "loe_in_base", "growth",
+    "tail"?}. Pure."""
+    import forecast
     out = {y: 0.0 for y in years}
     for part in parts:
         series = {y: v for y, v in (part.get("revenue") or {}).items() if v is not None}
@@ -537,14 +550,30 @@ def book_revenue(parts: list, years: list, erosion_year1: float,
             continue
         last = max(series)
         final = series[last]
-        loe, in_base = part.get("loe_year"), part.get("loe_in_base")
-        growth = part.get("growth") or 0.0
+        later = [y for y in years if y > last]
         for y in years:
             if y in series:
                 out[y] += series[y]
-                continue
-            if y < last:
-                continue
+        if not later:
+            continue
+        if "tail" in part:
+            tail = part["tail"]
+            if not tail:
+                continue                  # no terminal value, so nothing past the horizon
+            path = {y: 0.0 for y in later}
+            for share, loe, in_base in tail.get("parts") or []:
+                for y, f in forecast.terminal_path(
+                        tail.get("growth") or 0.0, last, loe, in_base,
+                        tail.get("year1_pct"), tail.get("decay_pct"),
+                        tail.get("late_decay_pct"), tail.get("late_from_year"),
+                        later).items():
+                    path[y] += share * f
+            for y in later:
+                out[y] += final * path[y]
+            continue
+        loe, in_base = part.get("loe_year"), part.get("loe_in_base")
+        growth = part.get("growth") or 0.0
+        for y in later:
             k = y - last
             if loe is None or in_base:
                 out[y] += final * (1.0 + growth) ** k
@@ -560,14 +589,35 @@ def book_revenue(parts: list, years: list, erosion_year1: float,
 
 def room(book: dict, long_run_growth: float = 0.0) -> tuple[dict, float, int | None]:
     """({year: revenue the launches may add}, the book's peak, its year). The book plus its
-    launches is held to the book's own best year, grown from then at the long-run rate."""
+    launches is held to the book's best year, grown from then at the long-run rate: in
+    each year, the highest level any year of the book justifies, that year's revenue grown
+    at the long-run rate from it (and held at it before it).
+
+    Taken year by year rather than from the single highest year, so the cap can only rise
+    when the book does. Anchored on the one peak year it did not: raising Lilly's
+    Eloralintide from a 54.5% to an 80% chance of approval lifted the book's 2035 just
+    past its 2033, the peak year moved two years later, and the cap grown from it fell by
+    about 8bn a year for every year after, so equity fell as the drug became likelier. A
+    year's level is compared grown at the long-run rate, which is expected inflation, so
+    "best" means best in real terms."""
     if not book or max(book.values()) <= 0:
         return {}, 0.0, None
     peak_year = max(book, key=lambda y: (book[y], -y))
     peak = book[peak_year]
     g = long_run_growth or 0.0
-    return ({y: max(0.0, peak * (1.0 + g) ** max(0, y - peak_year) - book[y]) for y in book},
-            peak, peak_year)
+    years = sorted(book)
+    # The best level any earlier year justifies, grown to this one; and, before the
+    # book's peak, the peak itself, which the book reaches later.
+    ahead, best = {}, 0.0
+    for y in reversed(years):
+        best = max(best, book[y])
+        ahead[y] = best
+    cap, carried = {}, 0.0
+    for i, y in enumerate(years):
+        carried = (carried * (1.0 + g) ** (y - years[i - 1]) if i else 0.0)
+        carried = max(carried, book[y])
+        cap[y] = max(carried, ahead[y])
+    return ({y: max(0.0, cap[y] - book[y]) for y in years}, peak, peak_year)
 
 
 def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: float,

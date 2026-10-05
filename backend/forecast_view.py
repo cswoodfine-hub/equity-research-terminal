@@ -821,6 +821,7 @@ def company_rollup(db_path, ticker: str):
                       "is_marketed": _is_marketed(db_path, asset_id),
                       "loe_year": result.get("loe_year"),
                       "loe_in_base": result.get("loe_in_base"),
+                      "terminal_tail": result.get("terminal_tail"),
                       # Each region's own date and share, without its revenue series.
                       "regions": [{key: region.get(key) for key in
                                    ("region", "label", "share", "loe_year", "in_base")}
@@ -861,6 +862,7 @@ def company_rollup(db_path, ticker: str):
                         "in_reported_revenue":
                             entry["scalars"].get("in_reported_revenue", 1) != 0,
                         "loe_year": entry["scalars"].get("loe_year"),
+                        "terminal_tail": result.get("terminal_tail"),
                         "years": result["years"], "revenue": result["revenue_after_loe"],
                         "dcf_years": result.get("dcf_years") or [],
                       "pnl_share": [{k: (v * 1.0 if isinstance(v, (int, float)) else v)
@@ -1482,7 +1484,7 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
     book_rd: dict = {}
     totals = {"revenue": 0.0, "cogs": 0.0, "sga": 0.0, "rd": 0.0, "other": 0.0,
               "ebit": 0.0, "tax": 0.0}
-    waccs, growths, book_parts, named_parts = [], [], [], []
+    waccs, growths, book_parts, named_parts, tails = [], [], [], [], []
     for part in parts:
         # A line whose R&D develops something other than medicines buys no launches, and
         # its margins are not the ones a future drug would earn.
@@ -1504,11 +1506,21 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
                                        in zip(part.get("dcf_years") or [], rows)},
                            "loe_year": part.get("loe_year"),
                            "loe_in_base": part.get("loe_in_base"),
-                           "growth": part.get("long_run_growth")})
+                           "growth": part.get("long_run_growth"),
+                           # Carried past its forecast as its own terminal value carries
+                           # it; a company line, with no such key, on the older rule.
+                           **({"tail": part["terminal_tail"]}
+                              if "terminal_tail" in part else {})})
+        # The R&D ratio its terminal value charges past the forecast: the final year's.
+        last_row = rows[-1] if rows else {}
+        rd_ratio = ((last_row.get("rd") or 0.0) / last_row["revenue"]
+                    if last_row.get("revenue") else None)
         if part.get("asset_id") is not None:
             named_parts.append((part["asset_id"], book_parts[-1]))
         for year, row in zip(part.get("dcf_years") or [], rows):
             book_rd[year] = book_rd.get(year, 0.0) + (row.get("rd") or 0.0)
+        if rd_ratio:
+            tails.append((book_parts[-1], rd_ratio))
         if rows:
             first = rows[0]
             for k in totals:
@@ -1562,8 +1574,23 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
         long_run_basis = ("the book's revenue-weighted long-run growth" if growths
                           else "no long-run growth on file, so replacement only")
     horizon = int(bounds["horizon_years"]["value"])
-    book = FP.book_revenue(book_parts, list(range(base_year + 1, base_year + 1 + horizon)),
-                           erosion["year1_pct"], erosion.get("decay_pct") or 0.0)
+    span = list(range(base_year + 1, base_year + 1 + horizon))
+    book = FP.book_revenue(book_parts, span, erosion["year1_pct"],
+                           erosion.get("decay_pct") or 0.0)
+    # The R&D a product's terminal value charges past its forecast buys launches, as the
+    # R&D inside the forecast does: its terminal value counts the cost, so the line that
+    # counts the return has to count it too. Without it a product whose exclusivity moved
+    # past its forecast took R&D the launches would have spent and bought nothing with
+    # it, and equity fell as the exclusivity lengthened (Vertex's Alyftrek, LOE 2043 to
+    # 2050: the launches ran short from 2056 for want of the cohorts it had displaced).
+    for entry, ratio in tails:
+        last = max((y for y, v in entry["revenue"].items() if v), default=None)
+        if last is None:
+            continue
+        later = [y for y in span if y > last]
+        for year, value in FP.book_revenue([entry], later, erosion["year1_pct"],
+                                           erosion.get("decay_pct") or 0.0).items():
+            book_rd[year] = book_rd.get(year, 0.0) + value * ratio
     space, peak, peak_year = FP.room(book, long_run)
     # Launches the R&D already spent will buy, less the ones the book names: a product
     # neither selling nor approved by the valuation date is one of those launches.

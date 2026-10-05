@@ -705,6 +705,49 @@ def terminal_multiple(growth: float, rate: float, last_year: int, loe_year=None,
     return before + step ** n * tail
 
 
+def terminal_path(growth: float, last_year: int, loe_year=None, in_base: bool = True,
+                  year1_pct=None, decay_pct=None, late_decay_pct=None,
+                  late_from_year=None, years=None) -> dict:
+    """{year: revenue as a share of the final year's} for each year after ``last_year``:
+    the stream ``terminal_multiple`` discounts, year by year. A product with no cliff
+    ahead runs on at its growth; one the horizon ends inside keeps decaying, on the early
+    rate and then the late one; one whose LOE falls later runs flat to it at its growth,
+    takes the year-one drop, then decays the same two stages. Discounted at the rate,
+    the path sums to the multiple, which is what lets the future pipeline's room carry a
+    product past its forecast exactly as the product's own value does."""
+    out = {}
+    years = [y for y in (years or []) if y > int(last_year)]
+    g = growth or 0.0
+    if loe_year is None or in_base or year1_pct is None:
+        return {y: (1.0 + g) ** (y - int(last_year)) for y in years}
+    decay = decay_pct or 0.0
+    late = late_rate(decay_pct, late_decay_pct)
+    switch = int(late_from_year) if late_from_year else None
+
+    def stages(first: float, early_years: int, j: int) -> float:
+        # The j-th year of a stream that starts at ``first``: the early rate for
+        # ``early_years`` years, then the late rate (decaying_pv's own steps).
+        if j <= early_years:
+            return first * (1.0 - decay) ** (j - 1)
+        return first * (1.0 - decay) ** early_years * (1.0 - late) ** (j - 1 - early_years)
+
+    if int(last_year) > int(loe_year):
+        since = int(last_year) - int(loe_year)
+        early_years = max(0, (switch - 1 - since)) if switch else 0
+        first = ((1.0 - decay) if early_years > 0 or not switch or since + 1 < switch
+                 else (1.0 - late))
+        for y in years:
+            out[y] = stages(first, early_years, y - int(last_year))
+        return out
+    n = int(loe_year) - int(last_year)
+    early_years = max(0, switch - 2) if switch else 0
+    for y in years:
+        k = y - int(last_year)
+        out[y] = ((1.0 + g) ** k if k <= n
+                  else (1.0 + g) ** n * stages(1.0 - year1_pct, early_years, k - n))
+    return out
+
+
 # --- the whole build --------------------------------------------------------
 
 _PERIOD_ORDER = {"Q1": 1, "H1": 2, "Q2": 2, "Q3": 3, "Q4": 4}
@@ -1112,6 +1155,10 @@ def build(inputs: dict) -> dict:
     growth = (scalars.get("terminal_growth_pct")
               if scalars.get("terminal_growth_pct") is not None
               else scalars.get("terminal_growth")) or 0.0
+    # The revenue the terminal value carries past the horizon, for the future pipeline's
+    # room: what each part earned in the final year, its exclusivity and the erosion
+    # shape. None where no terminal value is taken, so nothing is carried.
+    terminal_tail = None
     if (scalars.get("terminal_mode") or "perpetuity") == "perpetuity":
         last = spans[-1] if spans else len(flows) - 0.5
         tv, tv_pv = terminal_value(flows[-1], growth, rate, last)
@@ -1124,6 +1171,10 @@ def build(inputs: dict) -> dict:
         parts += [(r["revenue_after_loe"][window[-1]], r["loe_year"], r["in_base"])
                   for r in regional]
         if end is not None and final > 0 and rate - growth > 0:
+            terminal_tail = {"end": end, "growth": growth, "year1_pct": year1,
+                             "decay_pct": decay, "late_decay_pct": late_decay,
+                             "late_from_year": late_from,
+                             "parts": [[w / final, y, b] for w, y, b in parts if w]}
             multiple = sum(w / final * terminal_multiple(growth, rate, end, y, b, year1,
                                                          decay, late_decay, late_from)
                            for w, y, b in parts)
@@ -1194,6 +1245,7 @@ def build(inputs: dict) -> dict:
         # that moves them can start from where they are rather than from a guess.
         "erosion_year1_pct": year1, "erosion_decay_pct": decay, "net_price": price,
         "pv_fcff": sum(pvs), "terminal_value": tv, "terminal_pv": tv_pv,
+        "terminal_tail": terminal_tail,
         "npv": npv, "rnpv": rnpv,
         "owner_rnpv": rnpv * share if share is not None else None,
         "partner_rnpv": rnpv * (1.0 - share) if share is not None else None,

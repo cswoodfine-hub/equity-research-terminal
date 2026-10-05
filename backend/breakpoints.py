@@ -357,6 +357,7 @@ class Book:
         return {**part, "rnpv_share": result["rnpv"] * share, "pos": result.get("pos"),
                 "loe_year": result.get("loe_year"),
                 "loe_in_base": result.get("loe_in_base"),
+                "terminal_tail": result.get("terminal_tail"),
                 "pnl_share": [{k: (v * share if isinstance(v, (int, float)) else v)
                                for k, v in row.items()} for row in result.get("pnl") or []],
                 "dcf_years": result.get("dcf_years") or [], "wacc": result.get("wacc"),
@@ -390,7 +391,8 @@ class Book:
         return self.swapped_gap(index, {**part, "rnpv": result["rnpv"],
                                         "pnl_share": result.get("pnl") or [],
                                         "dcf_years": result.get("dcf_years") or [],
-                                        "wacc": result.get("wacc")})
+                                        "wacc": result.get("wacc"),
+                                        "terminal_tail": result.get("terminal_tail")})
 
     def equity_without(self, removed: list) -> float:
         """Equity per share with the parts in ``removed`` gone and nothing else moved:

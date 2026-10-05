@@ -193,7 +193,9 @@ def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(tmp_pat
     path = str(tmp_path / "fp.db")
     db.init(path)
     V._future_pipeline(path, [drug, medtech], "2025-12-31", "JNJ")
-    assert seen["book_rd"] == {2026: 15.0}
+    # The drug's R&D, in its forecast and on its tail past it; the medtech line's none.
+    assert seen["book_rd"][2026] == 15.0
+    assert set(seen["book_rd"].values()) == {15.0}
 
 
 def test_a_pipeline_products_whole_row_is_taken_at_its_probability_once(tmp_path,
@@ -215,7 +217,8 @@ def test_a_pipeline_products_whole_row_is_taken_at_its_probability_once(tmp_path
     real_book_revenue = FP.book_revenue
 
     def spy_book_revenue(parts, *args, **kwargs):
-        seen["book_parts"] = [dict(p["revenue"]) for p in parts]
+        # The first call is the book; later ones carry each part's tail for its R&D.
+        seen.setdefault("book_parts", [dict(p["revenue"]) for p in parts])
         return real_book_revenue(parts, *args, **kwargs)
     monkeypatch.setattr(FP, "simulate", fake_simulate)
     monkeypatch.setattr(FP, "book_revenue", spy_book_revenue)
@@ -230,7 +233,9 @@ def test_a_pipeline_products_whole_row_is_taken_at_its_probability_once(tmp_path
     path = str(tmp_path / "fp.db")
     db.init(path)
     got = V._future_pipeline(path, [marketed, pipeline], "2025-12-31", "JNJ")
-    assert seen["book_rd"] == pytest.approx({2026: 15.0 + 8.0})
+    assert seen["book_rd"][2026] == pytest.approx(15.0 + 8.0)
+    # Past the forecast each part's tail charges R&D at its own final-year ratio, risked.
+    assert seen["book_rd"][2030] == pytest.approx(100.0 * 0.15 + 40.0 * 0.20)
     assert seen["book_parts"][0] == pytest.approx({2026: 100.0})
     assert seen["book_parts"][1] == pytest.approx({2026: 40.0})
     assert got["ratios"]["rd"] == pytest.approx(23.0 / 140.0)
@@ -389,3 +394,47 @@ def test_a_launch_that_came_with_a_company_is_not_the_filers_research(tmp_path):
     assert own["acquired"] == [{"name": "Tepezza", "approved": "2020-01-21",
                                 "revenue": 1900.0e6,
                                 "acquired_from": "Horizon Therapeutics"}]
+
+
+def test_the_book_carries_a_product_past_its_forecast_on_its_own_terminal_path():
+    import forecast as F
+    tail = {"end": 2030, "growth": 0.0, "year1_pct": 0.59, "decay_pct": 0.34,
+            "late_decay_pct": None, "late_from_year": None,
+            "parts": [[0.7, 2032, False], [0.3, None, True]]}
+    part = {"revenue": {2029: 90.0, 2030: 100.0}, "loe_year": 2032, "loe_in_base": False,
+            "growth": 0.0, "tail": tail}
+    years = list(range(2029, 2040))
+    got = FP.book_revenue([part], years, 0.2, 0.2)
+    us = F.terminal_path(0.0, 2030, 2032, False, 0.59, 0.34, None, None, years)
+    for y in range(2031, 2040):
+        assert got[y] == pytest.approx(100.0 * (0.7 * us[y] + 0.3))
+    # Its own erosion, not the curated default: the year after the cliff is 41% of 70.
+    assert got[2033] == pytest.approx(70.0 * 0.41 + 30.0)
+    # No terminal value taken: nothing past the forecast.
+    assert FP.book_revenue([dict(part, tail=None)], years, 0.2, 0.2)[2031] == 0.0
+    # A company line with no tail key keeps the older rule.
+    legacy = {k: v for k, v in part.items() if k != "tail"}
+    assert FP.book_revenue([legacy], years, 0.2, 0.2)[2033] == pytest.approx(100.0 * 0.8)
+
+
+def test_the_room_never_falls_when_the_book_rises():
+    book = {2026: 100.0, 2027: 120.0, 2028: 140.0, 2029: 150.0, 2030: 145.0, 2031: 130.0,
+            2032: 110.0, 2033: 100.0}
+
+    def old(b, g):
+        py = max(b, key=lambda y: (b[y], -y))
+        return {y: max(0.0, b[py] * (1 + g) ** max(0, y - py) - b[y]) for y in b}
+
+    # One peak: exactly the rule it replaces.
+    assert FP.room(book, 0.02)[0] == pytest.approx(old(book, 0.02))
+    # A later year lifted just past the peak moved the old peak year and cut the cap for
+    # every year after it; the cap now only rises with the book.
+    for year in book:
+        for lift in (0.5, 5.0, 20.0):
+            higher = {**book, year: book[year] + lift}
+            before = {y: FP.room(book, 0.02)[0][y] + book[y] for y in book}
+            after = {y: FP.room(higher, 0.02)[0][y] + higher[y] for y in book}
+            assert all(after[y] >= before[y] - 1e-9 for y in book), (year, lift)
+    flip = {**book, 2031: 151.0}
+    assert old(flip, 0.02)[2033] + 100.0 < old(book, 0.02)[2033] + 100.0
+    assert FP.room(flip, 0.02)[0][2033] + 100.0 >= FP.room(book, 0.02)[0][2033] + 100.0
