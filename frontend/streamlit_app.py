@@ -3203,20 +3203,25 @@ def _lever_controls(ticker: str, sel: int, result: dict, scalars: dict) -> dict:
             moved["wacc"] = round(got / 100.0, 6)
 
     if mode in ("marketed", "franchise"):
-        growth = scalars.get("revenue_growth_pct")
+        # The what-if sends growth to the rate the mode grows from: a franchise's pool.
+        growth = scalars.get("franchise_growth_pct" if mode == "franchise"
+                             else "revenue_growth_pct")
         fade = scalars.get("terminal_growth_pct")
         # A loss already in the base cannot erode again, so neither slider could move it.
         loe = None if result.get("loe_in_base") else result.get("loe_year")
         year1 = result.get("erosion_year1_pct")
         cols = st.columns([1, 1, 1, 1, 1, 0.5])
         slot = 0
-        if mode == "marketed" and growth is not None:
+        if growth is not None:
             base = round(growth * 100, 1)
             with cols[slot]:
-                got = st.slider("growth", round(max(base - 10.0, -40.0), 1),
+                got = st.slider("pool growth" if mode == "franchise" else "growth",
+                                round(max(base - 10.0, -40.0), 1),
                                 round(base + 10.0, 1), base, 0.5, format="%.1f%%",
                                 key=key("growth"),
-                                help="near-term annual growth, before erosion")
+                                help=("annual growth of the franchise pool, before erosion"
+                                      if mode == "franchise"
+                                      else "near-term annual growth, before erosion"))
             keys.append(key("growth")); slot += 1
             if abs(got - base) > 1e-9:
                 moved["growth"] = round(got / 100.0, 4)
@@ -3252,8 +3257,10 @@ def _lever_controls(ticker: str, sel: int, result: dict, scalars: dict) -> dict:
         with cols[0]:
             got = st.slider("volume", 0.4, 1.6, 1.0, 0.05, format="%.2fx",
                             key=key("volume"),
-                            help="scales the patient curve; the acceptance lever the "
-                                 "uptake audit surfaced")
+                            help=("scales the published peak, since a launch has no "
+                                  "patient curve" if mode == "launch" else
+                                  "scales the patient curve; the acceptance lever the "
+                                  "uptake audit surfaced"))
         keys.append(key("volume"))
         if abs(got - 1.0) > 1e-9:
             moved["volume"] = got
@@ -4159,10 +4166,13 @@ def _render_forecast_tab(api_base: str, ticker: str):
             _pnl_section(result, varied)
 
         with panels["Sensitivity"]:
-            anchored = result.get("mode") in ("marketed", "franchise")
+            # The second axis is the input the mode builds revenue from (grid_axis).
+            price_grid = {"marketed": "WACC x growth", "franchise": "WACC x pool growth",
+                          "launch": "WACC x peak"}.get(result.get("mode"),
+                                                       "WACC x net price")
             preset = st.segmented_control(
                 "Grid", ["price", "loe"], default="price",
-                format_func=lambda p: ("WACC x growth" if anchored else "WACC x net price")
+                format_func=lambda p: price_grid
                 if p == "price" else "LOE year x year-one erosion",
                 key=f"fc_grid_{ticker}_{sel}") or "price"
             try:
@@ -4195,10 +4205,13 @@ def _sensitivity_grid(grid, base_rnpv=None) -> None:
         span = (high - low) or 1.0
         def axis(key, value):
             # Rates read as percents, years as years, a price as the figure it is.
-            if key in ("wacc", "revenue_growth_pct", "erosion_year1_pct"):
+            if key in ("wacc", "revenue_growth_pct", "franchise_growth_pct",
+                       "erosion_year1_pct"):
                 return f"{value * 100:.1f}%"
             if key == "loe_year":
                 return f"{int(value)}"
+            if key == "peak_revenue_musd":
+                return f"{value:,.0f}"
             return f"{value:g}"
         row_labels = [axis(grid["y_key"], y) for y in grid["y_values"]]
         col_labels = [axis(grid["x_key"], x) for x in grid["x_values"]]
