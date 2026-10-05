@@ -880,6 +880,46 @@ def test_a_missed_readout_catalyst_with_another_study_open_is_held_where_it_said
     assert regate["trial"] is None and "none in an indication" in regate["why"]
 
 
+def test_a_miss_lands_where_the_held_note_said_whenever_it_is_recorded(tmp_path):
+    """Milvexian's case. Another open Phase 3 (NCT3, in another disease) completes between
+    today and the gate study's date, so the held note does not count it. A miss on the
+    gate study recorded early, a futility stop say, must land where the note said, as a
+    miss recorded on the expected day does: nil with nothing after the gate, the held
+    point where a study runs past it."""
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2026-12-01", 900, MYELOMA),
+        ("NCT3", "Phase 3", "Recruiting", "2026-10-15", 300, FOLLICULAR)))
+    gathered, placement = _placed(conn)
+    gate = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    assert gate["trial"]["nct_id"] == "NCT1" and gate["held"] is None
+
+    def lands(on):
+        _readout(conn, "NCT1", "missed", on=on, cid=900)
+        _, after = _placed(conn)
+        conn.execute("DELETE FROM catalysts WHERE id = 900")
+        conn.commit()
+        return after
+
+    for on in ("2026-09-25 10:00:00", "2026-12-01 10:00:00"):
+        after = lands(on)
+        assert (after["stage"], after["pos"]) == ("negative", 0.0), on
+
+    conn.execute("INSERT INTO trials (nct_id, asset_id, sponsor_company_id, phase,"
+                 " overall_status, primary_completion_date, enrollment, title,"
+                 " conditions, mesh_terms) SELECT 'NCT2', 7, 1, phase, overall_status,"
+                 " '2029-01-01', 400, title, conditions, mesh_terms FROM trials"
+                 " WHERE nct_id = 'NCT3'")
+    conn.commit()
+    gathered, placement = _placed(conn)
+    gate = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    assert gate["held"]["ncts"] == ["NCT2"]
+    for on in ("2026-09-25 10:00:00", "2026-12-01 10:00:00"):
+        after = lands(on)
+        assert after["stage"] == "mixed" and after["pos"] == gate["held"]["pos"], on
+        assert "1 Phase 3 still listed open" in after["evidence"], on
+    conn.close()
+
+
 def test_a_missed_study_still_listed_open_is_not_counted_as_remaining(tmp_path):
     conn = _gate_seed(tmp_path, trials=(
         ("NCT1", "Phase 3", "Recruiting", "2027-06-01", 900, MYELOMA),))

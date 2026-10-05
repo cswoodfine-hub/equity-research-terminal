@@ -218,14 +218,16 @@ def _resolved_readouts(conn, asset_id: int, modelled_mesh) -> list:
     Matched by the study and the asset it is mapped to, never by drug name, and counted
     only where the study is in an indication the forecast values, the same MeSH test that
     prices the gate. A positive Phase 3 in another disease must not lift the modelled
-    one."""
+    one. Each row carries the study's own primary completion date (``completion``), the
+    day stage_of counts a miss from when it is recorded early."""
     mesh = set(modelled_mesh or ())
     if not mesh:
         return []
     out = []
     for r in conn.execute(
             f"""SELECT cat.id, cat.status, date(cat.updated_at) AS on_day, t.nct_id,
-                       t.conditions, t.mesh_terms FROM catalysts cat {_READOUT_JOIN}
+                       t.primary_completion_date AS completion, t.conditions,
+                       t.mesh_terms FROM catalysts cat {_READOUT_JOIN}
                  WHERE t.asset_id = ? AND t.phase LIKE '%3%'
                    AND cat.catalyst_type = 'data readout'
                    AND cat.status IN ('met', 'missed')""", (asset_id,)):
@@ -236,6 +238,7 @@ def _resolved_readouts(conn, asset_id: int, modelled_mesh) -> list:
         out.append({"drug": None, "phase": "3",
                     "outcome": "positive" if r["status"] == "met" else "negative",
                     "event_date": r["on_day"], "accession": None, "nct_id": r["nct_id"],
+                    "completion": r["completion"],
                     "cite": (f"on {r['on_day']}, resolved {r['status']} by hand "
                              f"(catalyst {r['id']}, {r['nct_id']})")})
     return out
@@ -318,9 +321,16 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
         # One trial's answer. Volrustomig's lung study was stopped for futility with
         # three other Phase 3 studies recruiting to 2030; the asset is not nil, the
         # remaining studies are at their gate and the downside is.
+        # Counted from the later of the day the miss was recorded and the study's own
+        # completion date, the day _held counts from, so a miss recorded early (a
+        # futility stop, say) lands where the held note said it would: a study due to
+        # complete before the gate study was is not counted as still asking, as the
+        # note did not count it.
+        since = max(filter(None, (negative["event_date"], negative.get("completion"))),
+                    default="")
         remaining = [t for t in p3 if t["overall_status"] in OPEN_STATUSES
                      and t["nct_id"] not in answered
-                     and (t["primary_completion_date"] or "9999") > negative["event_date"]]
+                     and (t["primary_completion_date"] or "9999") > since]
         if remaining:
             return {"stage": "mixed", "gate": None, "pivotal": remaining[0],
                     "evidence": f"one Phase 3 read out negative {cite(negative)} with "
@@ -743,7 +753,12 @@ def _trials(conn, asset_id: int, phases: tuple, mesh: set) -> list:
 def _held(conn, asset_id: int, placement: dict, trial: dict, today: str) -> dict | None:
     """What the model does after one miss at a Phase 3 gate while other Phase 3s stay
     open: stage_of's mixed rule, which counts every open Phase 3 completing after the
-    negative in any indication, and holds the asset at the capped mixed point."""
+    negative in any indication, and holds the asset at the capped mixed point.
+
+    Counted from the gate study's own completion date, or today once that has passed.
+    stage_of counts a recorded miss from the later of the day it was recorded and the
+    same completion date, so the note holds whether the miss comes early or on the
+    day."""
     after = max(trial.get("primary_completion") or today, today)
     others = [t for t in _trials(conn, asset_id, _GATE_PHASES["p3_to_nda"], set())
               if t["nct_id"] != trial["nct_id"] and t["status"] in OPEN_STATUSES
