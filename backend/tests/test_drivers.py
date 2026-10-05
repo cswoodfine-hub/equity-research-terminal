@@ -177,6 +177,35 @@ def test_tiers_stake_then_regulatory_then_valued_then_late_then_rest():
     assert rows[3]["lead"] == "1 Feb 2027"
 
 
+def test_a_derived_stake_ranks_in_tier_0_just_below_the_stated_ones():
+    """Both are priced stakes and lead with their size; the analyst's own legs come first,
+    then the legs a gate derives, each by share of price. The row says which it is."""
+    stated = {"per_share": 1.2, "pct_of_price": 0.012, "basis": "stated"}
+    derived_big = {"per_share": 9.0, "pct_of_price": 0.09, "basis": "derived",
+                   "gate": "Phase 3 readout"}
+    derived_small = {"per_share": 2.0, "pct_of_price": 0.02, "basis": "derived",
+                     "gate": "Phase 2 readout"}
+    legacy = {"per_share": 0.5, "pct_of_price": 0.005}     # before the basis was carried
+    items = [
+        _event(1, "2026-11-01", asset_id=1, name="Derived small", stake=derived_small),
+        _event(2, "2027-01-01", asset_id=2, name="Derived big", stake=derived_big),
+        _event(3, "2027-03-01", asset_id=3, name="Stated", stake=stated),
+        _event(4, "2027-04-01", asset_id=4, name="Legacy", stake=legacy),
+        _event(5, "2026-10-10", asset_id=5, name="Filed", kind="PDUFA", phase=None,
+               conf="confirmed"),
+    ]
+    rows = D.rank_events(_context(items))
+    assert [r["asset"] for r in rows] == ["Stated", "Legacy", "Derived big",
+                                          "Derived small", "Filed"]
+    assert [r["tier"] for r in rows] == [0, 0, 0, 0, 1]
+    assert [r["stake_basis"] for r in rows] == ["stated", "stated", "derived", "derived",
+                                                None]
+    assert rows[2]["lead"] == "$9.00" and rows[2]["value_kind"] == "stake"
+    assert rows[2]["lead_note"] == "modelled swing, derived from published transition rates"
+    assert rows[0]["lead_note"] == D.LEAD_NOTES["stated"] and rows[4]["lead_note"] is None
+    assert D.REVISION >= 4
+
+
 def test_ties_inside_a_tier_go_by_date_then_id():
     items = [_event(9, "2026-11", asset_id=1, name="B", marketed=True),
              _event(3, "2026-11", asset_id=2, name="A", marketed=True),

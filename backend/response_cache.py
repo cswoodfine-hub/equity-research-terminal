@@ -208,6 +208,9 @@ GLOBAL_READS = ("/screen", "/productivity/scorecard", "/pipeline", "/price-grid?
 # stays last: each company's verdict is warm before its context is built.
 COMPANY_READS = ("/companies/{t}/forecast-verdict", "/companies/{t}/fair-value",
                  "/companies/{t}/breakpoints", "/companies/{t}/forecast",
+                 # Before the context, which reads the stakes from here rather than
+                 # pricing every big pharma gate again.
+                 "/companies/{t}/catalysts/stakes",
                  "/companies/{t}/comps-context")
 # Global reads that embed the company reads above through ``cached_json``, so they are
 # warmed after every one of them. Warmed first, they would be built from missing entries.

@@ -3325,7 +3325,7 @@ the table's `catalysts_12m` column on the same day. At most 60 are sent (`sent`)
   "is_curated": false,
   "stake": null,
   "asset_value": {"per_share": 4.727080, "pct_of_price": 0.028451, "pos": 0.5537, "counted": true},
-  "na": {"stake": "no_outcome_legs"}
+  "na": {"stake": "same_gate_later"}
 }
 ```
 
@@ -3335,10 +3335,10 @@ the table's `catalysts_12m` column on the same day. At most 60 are sent (`sent`)
 | `date_precision` | `"quarter"` or `"half"` when the confidence says so; else `"month"` for a `YYYY-MM` date, `"day"` for a full date. |
 | `kind`, `regulatory` | `catalyst_type` as stored; `regulatory` is true for PDUFA, regulatory decision, AdCom and EMA decision. |
 | `nct_id` | The first `NCT` followed by eight digits in `source_url`, else null. |
-| `asset` | `catalysts.asset_id`, else the `asset_id` of the `trials` row for `nct_id`. Name is `COALESCE(brand_name, generic_name, internal_code)`. Null with `na.asset = "no_asset"`. |
+| `asset` | For a registry readout (a `source_url` on clinicaltrials.gov) the `asset_id` of the `trials` row for `nct_id`, which the refresh keeps current, as the stake engine reads it; else `catalysts.asset_id`, else the trial's. Name is `COALESCE(brand_name, generic_name, internal_code)`. Null with `na.asset = "no_asset"`. |
 | `phase` | The trial row's `phase`, else the leading "Phase n" of the title, else null. |
 | `indication` | The indication of `asset_indication_id` when set; else the first descriptor of `indication_mapping.indications_for(conditions, parse_browse(mesh_terms))` for the trial that has an `indications` row by `mesh_id`. Null with `na.indication = "no_indication_link"`. |
-| `stake` | Only from the `priced` list of `/companies/{t}/catalysts/stakes`, matched on catalyst id: `{per_share, pct_of_price, pos_now, pos_success, pos_failure, economics_share}`, `pct_of_price = abs(per_share) / price.close`. Nothing is derived for the rest: null with `na.stake` one of `no_asset`, `no_price`, `not_modelled` (the asset has no modelled line), `no_outcome_legs` (no `pos_success` and `pos_failure` rows), `not_in_stakes` (the asset has both legs, and the catalyst row carries no asset id, so the stake engine does not read it). |
+| `stake` | Only from the `priced` list of `/companies/{t}/catalysts/stakes`, matched on catalyst id: `{per_share, pct_of_price, pos_now, pos_success, pos_failure, economics_share, basis, gate}`, `pct_of_price = abs(per_share) / price.close`. `basis` is `"stated"` (the asset's own `pos_success` and `pos_failure` rows, which always win) or `"derived"` (the legs pos_granular derives for a big pharma Phase 2 or 3 asset's next gate: the probability if it passes, nil if it fails, graded convention), and `gate` the gate's label ("Phase 3 readout", "Phase 2 readout", "FDA decision"; null for stated legs). A derived leg is priced only on the one catalyst that is the gate: the earliest pending readout of a study at the gate's phase, of this asset, in an indication the forecast values, or at the FDA decision a first-approval PDUFA in a modelled indication. Null with `na.stake` one of `no_asset`, `no_price`, `model_not_computed`, `not_modelled` (the asset has no modelled line), the engine's own reason for the catalyst (below), `no_gate` (a marketed product with no stated legs, where the engine returned nothing), or `not_in_stakes` (the engine returned nothing for this catalyst). |
 | `asset_value` | The verdict's modelled line for the asset: `{per_share, pct_of_price, pos, counted}`. It is the risk-adjusted value of the whole asset, all indications, and is not a stake. Null with `na.asset_value` `no_asset`, `no_price` or `not_modelled` (`model_not_computed` while the verdict is missing). |
 
 The shape of `stake`, with the one priced catalyst the book holds (CRSP, Casgevy, Phase 3 readout
@@ -3354,7 +3354,9 @@ LLY's first item: `{"id": 7, "date": "2026-10", "date_precision": "month", "date
 "month", "kind": "data readout", "phase": "Phase 3", "asset": {"id": 1492, "name":
 "Retatrutide", "is_marketed": false}, "indication": {"id": 1, "name": "Diabetes Mellitus, Type
 2"}, "stake": null, "asset_value": {"per_share": 33.777736, "pct_of_price": 0.028510, "pos":
-0.875, "counted": true}, "na": {"stake": "no_outcome_legs"}}`. VKTX's VK2735 readout (estimated
+0.875, "counted": true}, "na": {"stake": "no_gate"}}` as first built; with derived legs the
+item's study (NCT06662383, TRIUMPH-1) is Retatrutide's gate and it carries a derived stake.
+VKTX's VK2735 readout (estimated
 2027-07-01) carries `asset_value` 24.090413 a share, 0.729349 of a 33.03 price, PoS 0.557. CRSP
 has no catalyst in the window (`total: 0`).
 
@@ -3466,9 +3468,28 @@ Taltz's is Arthritis, Juvenile. A company with no model (BAYN) is ranked by cont
 Failure first, every `value` null with `na.value = "not_modelled"`.
 
 Reason codes of this payload, worded by `core.CONTEXT_NA_TEXT` (12.3): `no_asset`, `no_price`,
-`not_modelled`, `model_not_computed`, `no_outcome_legs`, `not_in_stakes`, `no_indication_link`,
+`not_modelled`, `model_not_computed`, `not_in_stakes`, `no_indication_link`,
 `no_attributed_asset`, `no_pool`, `single_claimant`, `flow_pool`, `claims_exceed_pool`,
-`share_under_1pct`, `no_claimant`, `not_big_pharma`, `no_indications`.
+`share_under_1pct`, `no_claimant`, `not_big_pharma`, `no_indications`, and the stake engine's
+own (`forecast_view.STAKE_REASONS`), in the order it tests them:
+
+| Code | When |
+|---|---|
+| `no_gate` | No stated legs and the asset is outside the gate model: marketed, outside Phase 2 or 3, or not a big pharma asset. Replaces `no_outcome_legs`. |
+| `no_forecast` | The asset has a gate but its forecast cannot be built. |
+| `nil` | The model already holds the asset at nil. |
+| `regulatory_not_gate` | A regulatory date where the next gate is a readout, an AdCom or EMA opinion, or a supplemental application. |
+| `not_a_gate` | A catalyst kind the gate model does not price (conference, other). |
+| `no_trial_link` | A readout that names no registry study of this asset. |
+| `past_gate` | A readout on an asset already at the FDA decision, including a stated PoS that implies a filing. |
+| `not_gate_phase` | A readout at a phase that does not decide the gate (a Phase 2 study of a Phase 3 asset). |
+| `phase_ahead_of_book` | A Phase 3 readout on an asset the book holds at Phase 2. |
+| `other_indication` | A study, or a filing, in an indication the forecast does not value. |
+| `same_gate_later` | A later catalyst of the gate an earlier one already prices. |
+
+The stake engine runs (when no cached stakes read is present) only where an in-window catalyst
+belongs to an asset carrying both stated legs, or to a modelled pipeline line. The stakes read
+is warmed before this one (`response_cache.COMPANY_READS`).
 
 #### Performance and cache
 
@@ -3688,8 +3709,18 @@ leave out marketed products valued off reported revenue."
 | `no_price` | "No share price on file." |
 | `not_modelled` | "No modelled value for this asset." |
 | `model_not_computed` | "The model value has not been computed yet. Reload in a minute." |
-| `no_outcome_legs` | "The model holds no success and failure probabilities for this asset, so no value at stake is stated." |
-| `not_in_stakes` | "The catalyst record names no asset, so no value at stake is stated." |
+| `no_gate` | "No gate is modelled for this asset, so no value at stake is stated." |
+| `not_in_stakes` | "The stake engine has no figure for this event, so no value at stake is stated." |
+| `no_forecast` | "The asset's forecast cannot be built yet, so no value at stake is stated." |
+| `nil` | "The model holds this asset at nil, so nothing is left at stake." |
+| `regulatory_not_gate` | "This regulatory event is not the gate the model prices." |
+| `not_a_gate` | "This kind of event is not a gate the model prices." |
+| `no_trial_link` | "The event names no study of this asset, so it cannot be tied to its gate." |
+| `past_gate` | "The asset is already at the FDA decision, so this readout is past its gate." |
+| `not_gate_phase` | "A readout at this phase does not decide the asset's next gate." |
+| `phase_ahead_of_book` | "The model holds this asset at Phase 2, so a Phase 3 readout is ahead of its gate." |
+| `other_indication` | "The study is in an indication the model does not value." |
+| `same_gate_later` | "An earlier event decides the same gate, so this one is not priced twice." |
 | `no_indication_link` | "No indication on file for this event." |
 | `no_attributed_asset` | "No modelled asset is counted in this indication." |
 | `no_pool` | "No modelled drug draws on a sized patient pool here." |
@@ -4090,9 +4121,9 @@ Tests each owner adds. The existing suites stay green: `pytest tests/
 3. Each field rule of 12.2: `date_precision`, `regulatory`, `nct_id`, the asset and phase from
    the trial row when `catalysts.asset_id` is null, the indication by `asset_indication_id` and
    by trial MeSH, and an `na` entry for every null.
-4. Stake: an injected priced row gives `stake` with `pct_of_price = abs(per_share) / close`;
-   without it each of `no_asset`, `not_modelled`, `no_outcome_legs` and `not_in_stakes` is
-   produced by its own case.
+4. Stake: an injected priced row gives `stake` with `pct_of_price = abs(per_share) / close`
+   and its `basis` and `gate`; without it each of `no_asset`, `not_modelled`, `no_gate`,
+   `not_in_stakes` and an injected engine reason is produced by its own case.
 5. Never cold: with `verdict_for` returning None for a company with a book, `model.state` is
    `"not_computed"`, `complete` is false, and `forecast_view.company_verdict`,
    `landscape.landscape` and `landscape._model_lines` (patched to raise) are not called.
@@ -4183,7 +4214,7 @@ and returns focus; a company picked inside the frame shows the pending groups, t
 
 | Decision | What this section does instead, and why |
 |---|---|
-| R3.2, "the value at stake where the model has one" | The book prices one catalyst in all (Casgevy, 2027-11-14), outside every holder's 12-month window, because only one asset carries both outcome legs. Nothing is derived for the rest. So a row also shows the model's risk-adjusted value of an unapproved asset, labelled as that and never as a stake, and the side rule has two forms (`catalyst_stake`, `catalyst_value`) at one 5% threshold. On this book that fires for AMGN, NVO, UTHR and VKTX and not for AZN or LLY. |
+| R3.2, "the value at stake where the model has one" | The book prices one catalyst in all (Casgevy, 2027-11-14), outside every holder's 12-month window, because only one asset carries both outcome legs. Nothing was derived for the rest then; a big pharma pipeline asset's next gate now derives its legs (12.2, `stake.basis`), and Drivers ranks a derived stake in tier 0 just below the stated ones. So a row also shows the model's risk-adjusted value of an unapproved asset, labelled as that and never as a stake, and the side rule has two forms (`catalyst_stake`, `catalyst_value`) at one 5% threshold. On this book that fires for AMGN, NVO, UTHR and VKTX and not for AZN or LLY. |
 | R3.2, "most valuable indications" | The model values assets, not asset-indication pairs, so value is attributed by a stated rule: the indication the model sizes the asset in, else the book's lead indication. Counting an asset in every indication it touches ranked Lilly's fatty liver trial at $146 a share. |
 | R3.2, "share of the modelled pool" | Stated as the company's share of the modelled claims among pooled claimants, and only for a standing pool with between 1% and 100% claimed. Cancer lines are sized by yearly new patients and have no pool to share, so their rows say so rather than show 0%. |
 | R3.2, direction | Two pool rules and two catalyst rules take a side; rival counts by stage never do. A count of big pharma rivals cannot show that a field is empty, since biotech rivals are outside the landscape. |
@@ -4194,10 +4225,10 @@ and returns focus; a company picked inside the frame shows the pending groups, t
 | R3.7 | No relevance floor inside a whole cohort. Every cohort in the universe is under the limit today, so the 15-company cut is dormant. |
 | 7.5 | Python now hears three actions, not two: `indication` joins `focus` and `reload`. |
 
-Known limits, left as they are: a catalyst row with no asset id is not read by the stake engine
-even when its trial maps to an asset with both legs (`not_in_stakes`, two VRTX Casgevy events);
-the lead indication is the book's flag, right or wrong (Mounjaro, Taltz); 8 of AZN's 36
-catalysts and 3 of LLY's 33 have no indication on file.
+Known limits, left as they are: the lead indication is the book's flag, right or wrong
+(Mounjaro, Taltz); 8 of AZN's 36 catalysts and 3 of LLY's 33 have no indication on file. (A
+catalyst row with no asset id was once not read by the stake engine; the engine now reads a
+registry readout through its study's asset, as this payload does.)
 
 ---
 

@@ -9,9 +9,10 @@ the company's most valuable indications are. This module assembles both for one 
 - **Catalysts.** Every pending catalyst dated from today to today plus 365 days, the rule
   behind the screen's ``catalysts_12m`` count, each with its asset, phase and indication
   where the book links them. A value at stake is stated only where the stake engine
-  priced the event (``forecast_view.catalyst_stakes``). Nothing is derived for the rest:
-  they carry the model's risk-adjusted value of the whole asset, labelled as that, and
-  the reason no stake is stated.
+  priced the event (``forecast_view.catalyst_stakes``): from the analyst's stated legs,
+  or from the legs a big pharma pipeline asset's next gate derives, and the stake says
+  which (``basis``). The rest carry the model's risk-adjusted value of the whole asset,
+  labelled as that, and the engine's reason no stake is stated.
 - **Competition.** For a company read on the pharma engine, its indications grouped by
   population and ranked by the modelled value attributed to each, then for the first
   five: the landscape's own candidate counts by stage, the shared patient pool and the
@@ -58,6 +59,7 @@ MIN_CLAIMED_SHARE = 0.01
 MEMO_MAX = 256
 
 _NCT = re.compile(r"NCT\d{8}")
+_CTGOV_URL = "https://clinicaltrials.gov/study/"
 _LEADING_PHASE = re.compile(r"Phase \d(?:/\d)?")
 _MONTH = re.compile(r"\d{4}-\d{2}")
 _STAGES = ("marketed", "phase3", "phase2", "other")
@@ -213,7 +215,8 @@ def _precision(date: str, confidence) -> str:
     return "month" if _MONTH.fullmatch(date or "") else "day"
 
 
-def _stake_reason(asset, close, lines: dict, legs: set, state: str) -> str:
+def _stake_reason(asset, close, lines: dict, legs: set, state: str,
+                  engine: str | None = None) -> str:
     if asset is None:
         return "no_asset"
     if not close:
@@ -222,10 +225,14 @@ def _stake_reason(asset, close, lines: dict, legs: set, state: str) -> str:
         return "model_not_computed"
     if asset["id"] not in lines:
         return "not_modelled"
-    if asset["id"] not in legs:
-        return "no_outcome_legs"
-    # Both legs are on file and no stake came back. The stake engine reads a catalyst by
-    # the asset its own row names, so an event linked only through its trial is not read.
+    # The stake engine's own reason for this catalyst: forecast_view.STAKE_REASONS.
+    if engine:
+        return engine
+    # A marketed product with no stated legs has no gate to price, whatever ran.
+    if asset["is_marketed"] and asset["id"] not in legs:
+        return "no_gate"
+    # The engine returned nothing for this catalyst: it was not run, it failed, or it
+    # reads the event under no asset (a link it cannot follow).
     return "not_in_stakes"
 
 
@@ -253,15 +260,30 @@ def _trial_indication(conn, trial):
     return None
 
 
-def _catalyst(conn, row, lines: dict, priced: dict, legs: set, price, state: str) -> dict:
-    found = _NCT.search(row["source_url"] or "")
+def _link(conn, row) -> tuple:
+    """(nct_id, trials row, asset id) behind a catalyst. A registry readout belongs to
+    the asset its study is mapped to, as the stake engine reads it: the refresh keeps
+    that mapping current, while the catalyst's own asset_id is written once and is empty
+    on a third of the book's readouts. Any other row keeps its own asset, else its
+    trial's."""
+    url = row["source_url"] or ""
+    found = _NCT.search(url)
     nct = found.group(0) if found else None
     trial = conn.execute(
         "SELECT asset_id, phase, conditions, mesh_terms FROM trials WHERE nct_id = ?",
         (nct,)).fetchone() if nct else None
+    studied = trial["asset_id"] if trial else None
+    if studied and url.startswith(_CTGOV_URL):
+        return nct, trial, studied
+    return nct, trial, row["asset_id"] or studied
+
+
+def _catalyst(conn, row, link: tuple, lines: dict, stakes: tuple, legs: set, price,
+              state: str) -> dict:
+    nct, trial, asset_id = link
+    priced, reasons = stakes
 
     asset = None
-    asset_id = row["asset_id"] or (trial["asset_id"] if trial else None)
     if asset_id:
         a = conn.execute(
             """SELECT id, COALESCE(brand_name, generic_name, internal_code) AS name,
@@ -291,7 +313,8 @@ def _catalyst(conn, row, lines: dict, priced: dict, legs: set, price, state: str
     if indication is None:
         na["indication"] = "no_indication_link"
 
-    # A stake is only ever the stake engine's own figure for this catalyst.
+    # A stake is only ever the stake engine's own figure for this catalyst, from stated
+    # legs or from the legs the asset's next gate derives, and it says which.
     stake = None
     got = priced.get(row["id"])
     per_share = _num(got.get("per_share")) if got else None
@@ -300,9 +323,12 @@ def _catalyst(conn, row, lines: dict, priced: dict, legs: set, price, state: str
                  "pos_now": _num(got.get("pos_now")),
                  "pos_success": _num(got.get("pos_success")),
                  "pos_failure": _num(got.get("pos_failure")),
-                 "economics_share": _num(got.get("share"))}
+                 "economics_share": _num(got.get("share")),
+                 "basis": got.get("legs_basis") or "stated",
+                 "gate": got.get("gate_label")}
     else:
-        na["stake"] = _stake_reason(asset, close, lines, legs, state)
+        na["stake"] = _stake_reason(asset, close, lines, legs, state,
+                                    reasons.get(row["id"]))
 
     # The risk-adjusted value of the whole asset, every indication. Not a stake.
     value = None
@@ -324,24 +350,46 @@ def _catalyst(conn, row, lines: dict, priced: dict, legs: set, price, state: str
             "stake": stake, "asset_value": value, "na": na}
 
 
-def _stakes(conn, db_path, company, rows, legs: set, stakes_for):
-    """The stakes read already computed, else the stake engine, and that only where it
-    could price something: an in-window catalyst whose own row names an asset with both
-    outcome legs. For every other company the engine returns nothing but reasons."""
+def _unmarketed(conn, asset_ids) -> set:
+    ids = [a for a in set(asset_ids) if a]
+    if not ids:
+        return set()
+    marks = ",".join("?" * len(ids))
+    return {r["id"] for r in conn.execute(
+        f"SELECT id FROM assets WHERE id IN ({marks}) AND NOT COALESCE(is_marketed, 0)",
+        ids)}
+
+
+def _stakes(conn, db_path, company, assets: list, lines: dict, legs: set, stakes_for):
+    """({catalyst id: priced row}, {catalyst id: the engine's reason}): the stakes read
+    already computed, else the stake engine, and that only where it could price
+    something. An in-window catalyst must belong to an asset that carries both stated
+    legs, or to a modelled pipeline line, whose next gate derives them. For every other
+    company the engine returns nothing but reasons."""
     stakes = stakes_for(company["ticker"])
-    if stakes is None and any(r["asset_id"] in legs for r in rows if r["asset_id"]):
+    candidates = {a for a in assets if a}
+    could = (candidates & legs) or (_unmarketed(conn, candidates) & set(lines))
+    if stakes is None and could:
         try:
             stakes = forecast_view.catalyst_stakes(db_path, company["ticker"])
         except Exception:                 # no stake is stated, with its reason on the row
             stakes = None
-    priced = (stakes or {}).get("priced") if isinstance(stakes, dict) else None
-    return {r["id"]: r for r in priced or [] if isinstance(r, dict) and r.get("id") is not None}
+    if not isinstance(stakes, dict):
+        return {}, {}
+    priced = {r["id"]: r for r in stakes.get("priced") or []
+              if isinstance(r, dict) and r.get("id") is not None}
+    reasons = {r["id"]: r["reason"] for r in stakes.get("unpriced") or []
+               if isinstance(r, dict) and r.get("id") is not None and r.get("reason")}
+    return priced, reasons
 
 
 def _catalysts(conn, db_path, company, lines, legs, today, end, price, state, stakes_for) -> dict:
     rows = _catalyst_rows(conn, company["id"], today, end)
-    priced = _stakes(conn, db_path, company, rows, legs, stakes_for) if rows else {}
-    items = [_catalyst(conn, r, lines, priced, legs, price, state) for r in rows]
+    links = [_link(conn, r) for r in rows]
+    stakes = (_stakes(conn, db_path, company, [l[2] for l in links], lines, legs, stakes_for)
+              if rows else ({}, {}))
+    items = [_catalyst(conn, r, link, lines, stakes, legs, price, state)
+             for r, link in zip(rows, links)]
     return {
         "total": len(items), "sent": min(len(items), MAX_CATALYSTS),
         "counts": {"with_asset": sum(1 for x in items if x["asset"]),

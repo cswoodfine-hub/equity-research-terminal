@@ -378,10 +378,20 @@ def test_a_priced_catalyst_carries_the_stake_engines_figure(path):
     item = _items(got)[1]
     assert item["stake"] == {"per_share": -2.5, "pct_of_price": pytest.approx(2.5 / CLOSE),
                              "pos_now": 0.55, "pos_success": 0.9, "pos_failure": 0.2,
-                             "economics_share": 0.4}
+                             "economics_share": 0.4, "basis": "stated", "gate": None}
     assert "stake" not in item["na"]
     assert got["catalysts"]["counts"]["with_stake"] == 1
     assert item["asset_value"]["per_share"] == 4.0          # beside the stake, not instead
+
+
+def test_a_derived_stake_says_so_and_names_its_gate(path):
+    stakes = {"priced": [{"id": 1, "per_share": 3.0, "pos_now": 0.55, "pos_success": 0.9,
+                          "pos_failure": 0.0, "share": 1.0, "legs_basis": "derived",
+                          "gate_label": "Phase 3 readout"}], "unpriced": []}
+    got = cc.build("AZN", path, TODAY, _for(_verdict()), _for(stakes))
+    stake = _items(got)[1]["stake"]
+    assert stake["basis"] == "derived" and stake["gate"] == "Phase 3 readout"
+    assert stake["pos_failure"] == 0.0 and stake["pct_of_price"] == pytest.approx(0.03)
 
 
 def test_each_reason_no_stake_is_stated(out):
@@ -389,9 +399,27 @@ def test_each_reason_no_stake_is_stated(out):
     assert all(item["stake"] is None for item in items.values())
     assert items[4]["na"]["stake"] == "no_asset"            # the event names no asset
     assert items[8]["na"]["stake"] == "not_modelled"        # the asset has no line
-    assert items[1]["na"]["stake"] == "no_outcome_legs"     # a line, no outcome legs
-    # Both legs and a line, and the row itself names no asset, so the engine skips it.
+    # The engine ran, since Elecoglipron is a modelled pipeline line, and found no gate:
+    # the fixture's owner is not on the pharma engine's gate model.
+    assert items[1]["na"]["stake"] == "no_gate"
+    assert items[5]["na"]["stake"] == "no_gate"             # marketed, no stated legs
+    # Tagrisso's readout is dated to a month the engine's calendar, read from the real
+    # date, has already reached, so the engine returned nothing for it.
     assert items[2]["na"]["stake"] == "not_in_stakes"
+
+
+def test_the_engines_own_reason_is_the_reason_stated(path):
+    """na.stake carries the stake engine's reason for the catalyst; where the engine
+    returned nothing, a marketed product with no stated legs has no gate, and anything
+    else was not read."""
+    stakes = {"priced": [], "unpriced": [{"id": 1, "reason": "same_gate_later"},
+                                         {"id": 9, "reason": "not_gate_phase"}]}
+    items = _items(cc.build("AZN", path, TODAY, _for(_verdict()), _for(stakes)))
+    assert items[1]["na"]["stake"] == "same_gate_later"
+    assert items[9]["na"]["stake"] == "not_gate_phase"
+    assert items[5]["na"]["stake"] == "no_gate"             # Breztri: marketed, no legs
+    assert items[2]["na"]["stake"] == "not_in_stakes"       # Tagrisso carries both legs
+    assert items[3]["na"]["stake"] == "not_in_stakes"       # a pipeline line, no answer
 
 
 def test_no_price_is_its_own_reason(path):
@@ -417,22 +445,34 @@ def test_the_stake_engine_runs_only_where_it_could_price_something(path, monkeyp
                             "pos_failure": 0.1, "share": 1.0}], "unpriced": []}
 
     monkeypatch.setattr(forecast_view, "catalyst_stakes", engine)
-    # No in-window catalyst row names an asset with both legs (the one that has them is
-    # linked through its trial), so the engine is never asked.
-    cc.build("AZN", path, TODAY, _for(_verdict()), _none)
-    assert calls == []
-
+    # Only marketed lines are modelled and no asset with an in-window catalyst carries
+    # both stated legs (Tagrisso's are taken off), so the engine could price nothing and
+    # is never asked.
     conn = db.get_connection(path)
-    _assume(conn, 14, "pos_success", 0.9)
-    _assume(conn, 14, "pos_failure", 0.1)
+    conn.execute("DELETE FROM assumptions WHERE asset_id = 11"
+                 "   AND key IN ('pos_success', 'pos_failure')")
     conn.commit()
     conn.close()
+    marketed = _verdict({11: LINES[11], 12: LINES[12]})
+    cc.build("AZN", path, TODAY, _for(marketed), _none)
+    assert calls == []
+
+    # A modelled pipeline line with a catalyst in the window has a gate to price.
     got = cc.build("AZN", path, TODAY, _for(_verdict()), _none)
     assert calls == ["AZN"]
     assert _items(got)[3]["stake"]["per_share"] == 1.5
+
+    # So does an asset carrying both stated legs, modelled line or not.
+    conn = db.get_connection(path)
+    _assume(conn, 12, "pos_success", 0.9)
+    _assume(conn, 12, "pos_failure", 0.1)
+    conn.commit()
+    conn.close()
+    cc.build("AZN", path, TODAY, _for(marketed), _none)
+    assert calls == ["AZN", "AZN"]
     # A stakes read already computed is used as it stands.
     cc.build("AZN", path, TODAY, _for(_verdict()), _for({"priced": [], "unpriced": []}))
-    assert calls == ["AZN"]
+    assert calls == ["AZN", "AZN"]
 
     def broken(db_path, ticker):
         raise RuntimeError("no forecast")
@@ -749,10 +789,15 @@ def test_every_null_of_a_row_has_its_reason(path):
 
 
 def test_reason_codes_are_the_contracts(path):
-    codes = {"no_asset", "no_price", "not_modelled", "model_not_computed", "no_outcome_legs",
-             "not_in_stakes", "no_indication_link", "no_attributed_asset", "no_pool",
+    codes = {"no_asset", "no_price", "not_modelled", "model_not_computed", "not_in_stakes",
+             "no_indication_link", "no_attributed_asset", "no_pool",
              "single_claimant", "flow_pool", "claims_exceed_pool", "share_under_1pct",
-             "no_claimant", "not_big_pharma", "no_indications"}
+             "no_claimant", "not_big_pharma", "no_indications",
+             # The stake engine's own reasons, forecast_view.STAKE_REASONS.
+             "no_forecast", "nil", "no_gate", "regulatory_not_gate", "not_a_gate",
+             "no_trial_link", "past_gate", "not_gate_phase", "phase_ahead_of_book",
+             "other_indication", "same_gate_later"}
+    assert set(forecast_view.STAKE_REASONS) <= codes
     seen = set()
     for ticker in ("AZN", "NVO", "CRSP", "BAYN"):
         for verdict in (_for(_verdict()), _none):
@@ -881,6 +926,7 @@ def test_the_context_is_warmed_after_the_verdict_it_embeds():
     reads = response_cache.COMPANY_READS
     assert reads[-1] == "/companies/{t}/comps-context"
     assert reads.index(cc.VERDICT_PATH) < len(reads) - 1
+    assert reads.index(cc.STAKES_PATH) < len(reads) - 1
     assert response_cache.cacheable("/companies/AZN/comps-context", "")
 
 
@@ -928,10 +974,14 @@ def test_book_the_pharma_engine_is_covered_and_the_rest_is_not(book, real_engine
     assert _obesity(built["AZN"])["pool"] == _obesity(built["LLY"])["pool"]
     assert _obesity(built["AZN"])["crowding"] == _obesity(built["LLY"])["crowding"]
 
+    # Warm means the verdict and the stakes are both in the response cache, which warms
+    # the stakes read ahead of this one (response_cache.COMPANY_READS).
+    stakes = {"AZN": forecast_view.catalyst_stakes(None, "AZN")}
     started = time.perf_counter()
-    again = cc.build("AZN", verdict_for=verdicts.get, stakes_for=_none)
+    again = cc.build("AZN", verdict_for=verdicts.get, stakes_for=stakes.get)
     assert time.perf_counter() - started < 0.3
     assert again["competition"] == built["AZN"]["competition"]
+    assert again["catalysts"] == built["AZN"]["catalysts"]
 
     crsp = cc.build("CRSP", verdict_for=_none, stakes_for=_none)
     assert crsp["competition"]["covered"] is False
