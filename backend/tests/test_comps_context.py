@@ -794,7 +794,8 @@ def test_reason_codes_are_the_contracts(path):
              "single_claimant", "flow_pool", "claims_exceed_pool", "share_under_1pct",
              "no_claimant", "not_big_pharma", "no_indications",
              # The stake engine's own reasons, forecast_view.STAKE_REASONS.
-             "no_forecast", "nil", "no_gate", "regulatory_not_gate", "not_a_gate",
+             "no_forecast", "stated_elsewhere", "nil", "no_gate", "regulatory_not_gate",
+             "not_a_gate",
              "no_trial_link", "past_gate", "not_gate_phase", "phase_ahead_of_book",
              "other_indication", "same_gate_later"}
     assert set(forecast_view.STAKE_REASONS) <= codes

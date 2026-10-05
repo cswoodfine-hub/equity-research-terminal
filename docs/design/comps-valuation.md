@@ -3477,6 +3477,7 @@ own (`forecast_view.STAKE_REASONS`), in the order it tests them:
 |---|---|
 | `no_gate` | No stated legs and the asset is outside the gate model: marketed, outside Phase 2 or 3, or not a big pharma asset. Replaces `no_outcome_legs`. |
 | `no_forecast` | The asset has a gate but its forecast cannot be built. |
+| `stated_elsewhere` | Stated legs are priced once per asset, on the catalyst naming a study their sources cite, else the earliest whose own asset id is the asset. Any other catalyst of the asset, including a readout that reaches it only through its study (Casgevy's NCT05329649 in children with sickle cell disease and NCT05477563, beside the cited NCT05356195), carries this code, and a stated resolve on it is refused. |
 | `nil` | The model already holds the asset at nil. |
 | `regulatory_not_gate` | A regulatory date where the next gate is a readout, an AdCom or EMA opinion, or a supplemental application. |
 | `not_a_gate` | A catalyst kind the gate model does not price (conference, other). |
@@ -3712,6 +3713,7 @@ leave out marketed products valued off reported revenue."
 | `no_gate` | "No gate is modelled for this asset, so no value at stake is stated." |
 | `not_in_stakes` | "The stake engine has no figure for this event, so no value at stake is stated." |
 | `no_forecast` | "The asset's forecast cannot be built yet, so no value at stake is stated." |
+| `stated_elsewhere` | "The analyst's stated outcome is priced on another event of this asset." |
 | `nil` | "The model holds this asset at nil, so nothing is left at stake." |
 | `regulatory_not_gate` | "This regulatory event is not the gate the model prices." |
 | `not_a_gate` | "This kind of event is not a gate the model prices." |

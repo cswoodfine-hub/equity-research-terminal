@@ -34,12 +34,12 @@ def stakes():
 
 
 def test_each_gate_is_priced_on_one_catalyst_at_most(stakes):
+    """A derived gate once per asset and gate, stated legs once per asset."""
     for ticker, got in stakes.items():
         seen = {}
         for row in got["priced"]:
-            if row["legs_basis"] != "derived":
-                continue
-            key = (row["asset_id"], row["gate"])
+            key = (row["asset_id"], row["gate"] if row["legs_basis"] == "derived"
+                   else "stated")
             assert key not in seen, (ticker, key, seen.get(key), row["id"])
             seen[key] = row["id"]
 

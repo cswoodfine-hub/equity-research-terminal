@@ -170,6 +170,84 @@ def test_list_catalysts_now_carries_the_asset_handle(tmp_path):
 
 
 
+# --- stated legs stay on the event they are tied to ---------------------------
+
+def _casgevy(tmp_path):
+    """Casgevy's book: the stated legs cite the long-term follow-up NCT05356195, which
+    is catalyst 10. Two more readouts (the sickle cell studies NCT05329649 and
+    NCT05477563) reach the asset only through their studies: the catalysts carry no
+    asset id."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("UPDATE assumptions SET source = 'durability (NCT05356195)'"
+                 " WHERE key IN ('pos_success', 'pos_failure')")
+    for nct in ("NCT05356195", "NCT05329649", "NCT05477563"):
+        conn.execute("INSERT INTO trials (nct_id, asset_id, sponsor_company_id, phase,"
+                     " overall_status, primary_completion_date) VALUES (?, 1, 1,"
+                     " 'Phase 3', 'Recruiting', date('now', '+200 days'))", (nct,))
+    conn.execute("UPDATE catalysts SET source_url ="
+                 " 'https://clinicaltrials.gov/study/NCT05356195' WHERE id = 10")
+    for cid, nct, days in ((217, "NCT05329649", 60), (219, "NCT05477563", 70)):
+        conn.execute("INSERT INTO catalysts (id, company_id, asset_id, catalyst_type,"
+                     " expected_date, title, description, is_curated, source_url, status)"
+                     " VALUES (?, 1, NULL, 'data readout', date('now', ?), 'Phase 3,"
+                     " Casgevy', ?, 0, ?, 'pending')",
+                     (cid, f"+{days} days", nct, f"https://clinicaltrials.gov/study/{nct}"))
+    conn.commit(); conn.close()
+    return path
+
+
+def test_stated_legs_price_once_on_the_study_they_cite(tmp_path):
+    path = _casgevy(tmp_path)
+    for ticker, share in (("VRTX", 0.6), ("CRSP", 0.4)):
+        out = V.catalyst_stakes(path, ticker)
+        assert [r["id"] for r in out["priced"]] == [10], ticker
+        assert out["priced"][0]["share"] == pytest.approx(share)
+        got = _by_id(out)
+        for cid in (217, 219):
+            assert got[cid]["priced"] is False
+            assert got[cid]["reason"] == "stated_elsewhere", ticker
+            assert got[cid]["why"] == (
+                "The stated legs on file are tied to catalyst 10 (NCT05356195), and this "
+                "event reaches the asset only through its study, so it is not priced "
+                "against them.")
+            assert "own_asset_id" not in got[cid] and "owner_company_id" not in got[cid]
+            _house_style(got[cid]["why"])
+    assert set(V.STAKE_REASONS) >= {"stated_elsewhere"}
+
+
+def test_a_stated_resolve_is_refused_on_a_study_the_legs_do_not_cite(tmp_path):
+    path = _casgevy(tmp_path)
+    for cid in (217, 219):
+        with pytest.raises(ValueError, match="only through its study"):
+            V.resolve_catalyst(path, "VRTX", cid, "missed")
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT COUNT(*) FROM catalysts WHERE status != 'pending'"
+                        ).fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM assumptions WHERE key = 'pos'"
+                        " AND source LIKE 'catalyst %'").fetchone()[0] == 0
+    conn.close()
+    assert V.resolve_catalyst(path, "CRSP", 10, "missed")["pos_applied"] == 0.40
+
+
+def test_stated_legs_tied_to_two_events_are_priced_on_the_first_once(tmp_path):
+    """With no study cited, the analyst's own asset link ties the legs; two such events
+    are one risk, priced on the earlier."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO catalysts (id, company_id, asset_id, catalyst_type,"
+                 " expected_date, title, status) VALUES (13, 1, 1, 'PDUFA',"
+                 " date('now', '+200 days'), 'Casgevy decision', 'pending')")
+    conn.commit(); conn.close()
+    got = _by_id(V.catalyst_stakes(path, "VRTX"))
+    assert got[10]["priced"] and not got[13]["priced"]
+    assert got[13]["reason"] == "stated_elsewhere"
+    assert got[13]["why"].startswith("The stated legs on file are priced once, on "
+                                     "catalyst 10 (")
+    with pytest.raises(ValueError, match="priced once"):
+        V.resolve_catalyst(path, "VRTX", 13, "met")
+
+
 # --- derived legs ------------------------------------------------------------
 BANNED = ("additionally", "highlight", "underscore", "pivotal", "showcase", "testament")
 MYELOMA = ("D009101", "Multiple Myeloma")

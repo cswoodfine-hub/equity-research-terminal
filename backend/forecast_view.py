@@ -609,10 +609,11 @@ def _diluted_shares(conn, company_id: int):
 
 # --- what a catalyst is worth ---------------------------------------------------------
 # A catalyst is priced from one of two places. Stated legs are an analyst's pos_success and
-# pos_failure rows, and they always win. Derived legs are the gate pos_granular computes
-# for a big pharma Phase 2 or 3 asset: the probability if its next gate passes, and nil if
-# it fails, graded convention. A derived leg is priced only on the event that is that gate,
-# and every other catalyst on the asset says why it is not.
+# pos_failure rows, and they always win, priced once, on the event the analyst tied them
+# to. Derived legs are the gate pos_granular computes for a big pharma Phase 2 or 3 asset:
+# the probability if its next gate passes, and nil if it fails, graded convention. A
+# derived leg is priced only on the event that is that gate, and every other catalyst on
+# the asset says why it is not.
 
 _NCT = re.compile(r"NCT\d{8}")
 _CTGOV_URL = "https://clinicaltrials.gov/study/"
@@ -627,9 +628,12 @@ RESOLVE_NOTES = {
     "nda_to_approval": "An FDA decision resolves when openFDA lists the approval.",
 }
 # Every reason a catalyst carries no stake, in the order they are tested.
-STAKE_REASONS = ("no_forecast", "nil", "no_gate", "regulatory_not_gate", "not_a_gate",
-                 "no_trial_link", "past_gate", "not_gate_phase", "phase_ahead_of_book",
-                 "other_indication", "same_gate_later")
+STAKE_REASONS = ("no_forecast", "stated_elsewhere", "nil", "no_gate",
+                 "regulatory_not_gate", "not_a_gate", "no_trial_link", "past_gate",
+                 "not_gate_phase", "phase_ahead_of_book", "other_indication",
+                 "same_gate_later")
+# Columns a stake row is read with that are not part of the payload.
+_ROW_ONLY = ("owner_company_id", "own_asset_id")
 
 
 # A registry readout belongs to the asset its study is mapped to. The refresh keeps that
@@ -648,6 +652,7 @@ def _stake_rows(conn, company, ticker: str, *, asset_id=None, include_id=None) -
     query = f"""SELECT cat.id, cat.catalyst_type, cat.expected_date,
                        cat.date_confidence, cat.title, cat.description, cat.source_url,
                        cat.is_curated, {_ASSET_OF} AS asset_id, cat.asset_indication_id,
+                       cat.asset_id AS own_asset_id,
                        COALESCE(a.brand_name, a.generic_name) AS asset_name,
                        a.owner_company_id
                   FROM catalysts cat {_TRIAL_JOIN}
@@ -676,10 +681,11 @@ def _legs_state(conn, asset_id: int) -> dict:
         built, missing = None, list(err.missing or [])
     state = {"built": built, "missing": missing, "share": scalars.get("economics_share"),
              "placement": inputs.get("pos_granular"), "stated": None, "legs": None,
-             "gathered": None, "ignored": None}
+             "gathered": None, "ignored": None, "asset_id": asset_id, "cited": []}
     on_file = {key: scalars.get(key) for key in LEGS}
     if all(v is not None for v in on_file.values()):
         state["stated"] = on_file
+        state["cited"] = _cited_studies(conn, asset_id)
         return state
     lone = [key for key, v in on_file.items() if v is not None]
     if lone:
@@ -690,6 +696,67 @@ def _legs_state(conn, asset_id: int) -> dict:
         state["legs"], state["gathered"] = pos_granular.legs_for_inputs(
             conn, asset_id, inputs)
     return state
+
+
+def _cited_studies(conn, asset_id: int) -> list:
+    """The registry studies the stated legs cite in their own sources, in the order
+    first cited: the event the analyst priced them on."""
+    out = []
+    for r in conn.execute(
+            """SELECT source FROM assumptions WHERE asset_id = ? AND scenario = 'base'
+                  AND key IN ('pos_success', 'pos_failure') AND indication_id IS NULL
+                  AND year IS NULL AND value IS NOT NULL ORDER BY key DESC, id""",
+            (asset_id,)):
+        for nct in _NCT.findall(r["source"] or ""):
+            if nct not in out:
+                out.append(nct)
+    return out
+
+
+def _stated_choice(conn, rows: list, state: dict) -> tuple:
+    """(the id of the one catalyst the stated legs are priced on or None, {id: why} for
+    every other row of the asset).
+
+    Stated legs are one event's answer, the analyst's, so they price one catalyst: one
+    that names a study the legs' sources cite, else one the analyst tied to the asset
+    itself (the catalyst's own asset id), the earliest first. A readout that reaches the
+    asset only through its study is another trial's result: pricing the legs on it lists
+    one risk once per study and lets that study's result step the asset's probability."""
+    cited, asset_id = state["cited"], state["asset_id"]
+    ranked = []
+    for row in rows:
+        nct, _ = _catalyst_trial(conn, row)
+        if nct and nct in cited:
+            ranked.append(((0, row["expected_date"] or "", row["id"]), row))
+        elif row.get("own_asset_id") == asset_id:
+            ranked.append(((1, row["expected_date"] or "", row["id"]), row))
+    ranked.sort(key=lambda pair: pair[0])
+    lead = ranked[0][1] if ranked else None
+    tied = {row["id"] for _, row in ranked}
+    said = _and(cited) if cited else None
+    why = {}
+    for row in rows:
+        if lead is not None and row["id"] == lead["id"]:
+            continue
+        if row["id"] in tied:
+            why[row["id"]] = (f"The stated legs on file are priced once, on catalyst "
+                              f"{lead['id']} ({lead['expected_date']}), so this one is not "
+                              f"priced twice.")
+        elif lead is not None:
+            why[row["id"]] = (f"The stated legs on file are tied to catalyst {lead['id']}"
+                              + (f" ({said})" if said else "") + ", and this event reaches "
+                              f"the asset only through its study, so it is not priced "
+                              f"against them.")
+        else:
+            why[row["id"]] = ("The stated legs on file are tied to no event in the "
+                              "calendar" + (f" (they cite {said})" if said else "")
+                              + ", and this one reaches the asset only through its study, "
+                              "so it is not priced against them.")
+    return (lead["id"] if lead is not None else None), why
+
+
+def _and(words: list) -> str:
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
 
 
 def _catalyst_trial(conn, row: dict) -> tuple:
@@ -839,7 +906,7 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                 "per_share": (share_swing * 1e6 / shares) if shares else None}
 
     def out(row):
-        clean = {k: v for k, v in row.items() if k != "owner_company_id"}
+        clean = {k: v for k, v in row.items() if k not in _ROW_ONLY}
         if state["ignored"]:
             clean["ignored"] = state["ignored"]
         return clean
@@ -849,12 +916,16 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                          "missing": missing(reason)})
 
     if state["stated"] is not None:
-        # The analyst's own legs, on every catalyst of the asset as before: linear in
-        # the probability, so one build stands for the two runs whatif would make.
+        # The analyst's own legs, once, on the event they are tied to: linear in the
+        # probability, so one build stands for the two runs whatif would make.
+        lead, elsewhere = _stated_choice(conn, rows, state)
         for row in rows:
             if built is None:
                 refuse(row, "no_forecast", "No forecast can be built for this asset yet, "
                        "so nothing is at stake.")
+                continue
+            if row["id"] != lead:
+                refuse(row, "stated_elsewhere", elsewhere[row["id"]])
                 continue
             priced.append({**out(row), "priced": True, "legs_basis": "stated",
                            **money(row, state["stated"]["pos_success"],
@@ -918,7 +989,9 @@ def catalyst_stakes(db_path, ticker: str):
     file. rNPV is NPV times the probability, so one build per asset prices every leg.
 
     The legs are stated where the asset carries both ``pos_success`` and
-    ``pos_failure`` rows, priced on every catalyst of the asset. Otherwise they are
+    ``pos_failure`` rows, priced once per asset, on the catalyst naming a study their
+    sources cite, else the earliest the analyst tied to the asset itself; a readout
+    reaching the asset only through its study is not priced on them. Otherwise they are
     derived where pos_granular places a big pharma Phase 2 or 3 asset at its gate: the
     probability if the next gate passes, nil if it fails, priced only on the catalyst
     that is that gate (the earliest qualifying one). Every other catalyst names its
@@ -954,10 +1027,12 @@ OUTCOMES = {"met": "pos_success", "missed": "pos_failure"}
 def resolve_catalyst(db_path, ticker: str, catalyst_id: int, outcome: str):
     """One click after the readout: the model steps to the leg that happened.
 
-    Stated legs: the pre-event forecast is snapshotted first, then the stated pos is
-    written through save_assumptions, which snapshots the post-event state itself, and
-    only then does the catalyst leave the calendar with the outcome and the applied pos
-    noted on its row.
+    Stated legs: only the catalyst the stakes price them on; a readout that reaches
+    the asset only through its study is refused, so another trial's result never steps
+    the analyst's probability. The pre-event forecast is snapshotted first, then the
+    stated pos is written through save_assumptions, which snapshots the post-event state
+    itself, and only then does the catalyst leave the calendar with the outcome and the
+    applied pos noted on its row.
 
     Derived legs: only the catalyst the stakes price at a Phase 3 gate. No assumption row
     is written and no derived number is stored. The resolved catalyst is itself the
@@ -984,15 +1059,20 @@ def resolve_catalyst(db_path, ticker: str, catalyst_id: int, outcome: str):
             raise ValueError(f"catalyst {catalyst_id} is already {catalyst['status']}")
         asset_id = catalyst["asset_id"]
         state = _legs_state(conn, asset_id)
+        rows = _stake_rows(conn, company, ticker, asset_id=asset_id,
+                           include_id=catalyst_id)
         if state["stated"] is None:
-            rows = _stake_rows(conn, company, ticker, asset_id=asset_id,
-                               include_id=catalyst_id)
             priced, unpriced = _price_asset(conn, rows, state, company["id"], None)
             mine = next((r for r in priced + unpriced if r["id"] == catalyst_id), None)
+        else:
+            lead, elsewhere = _stated_choice(conn, rows, state)
     finally:
         conn.close()
 
     if state["stated"] is not None:
+        if catalyst_id != lead:
+            raise ValueError(elsewhere.get(catalyst_id) or
+                             "this catalyst is not the event the stated legs price")
         return _resolve_stated(db_path, ticker, catalyst_id, outcome, asset_id,
                                state["stated"][OUTCOMES[outcome]])
     if mine is None or not mine.get("priced"):
