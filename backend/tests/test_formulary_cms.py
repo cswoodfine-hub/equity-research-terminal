@@ -296,3 +296,24 @@ def test_the_best_placed_rxcui_sets_the_tier_and_any_rxcui_carries_a_flag():
     assert (row["pa_formularies"], row["st_formularies"], row["ql_formularies"]) == (1, 1, 1)
     assert (row["formularies_listing"], row["formularies_total"]) == (2, 3)
     assert row["specialty_plans_listing"] == 1 and row["ndc_mismatches"] == 0
+
+
+def test_a_book_with_no_brand_codes_yet_leaves_the_release_unread(tmp_path):
+    path = _db(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("DELETE FROM drug_codes WHERE brand_specific = 1")
+    conn.commit()
+    conn.close()
+    ranges = _Ranges()
+    result = _fetcher(path, ranges).run()
+    assert ranges.calls == []
+    assert result.errors == [] and "no brand RxCUI yet" in result.notes[0]
+    assert _query(path, "SELECT * FROM partd_formulary_releases") == []
+    # Once the codes are in, the same release is read: nothing marked it seen.
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO drug_codes (asset_id, code_type, code, brand_specific, basis)"
+                 " VALUES (198, 'rxcui', '1364441', 1, 'rxnav_application')")
+    conn.commit()
+    conn.close()
+    assert _fetcher(path, _Ranges()).run().errors == []
+    assert _access(path, 198)["formularies_listing"] > 0

@@ -248,6 +248,14 @@ class MedicaidSdudFetcher(BaseFetcher):
                 " AND labeler_code IS NOT NULL")}
         finally:
             conn.close()
+        if not code_assets and not owners:
+            # Nothing could be kept: a pull would read some 640,000 national rows to
+            # store none, and would mark both years read, so a book whose codes arrive a
+            # day later would wait for CMS's next revision to see its first row.
+            self._notes.append("medicaid_sdud: drug_codes holds no product code yet, so "
+                               "nothing was read; the codes fetcher runs first")
+            self._meta = {"skipped": True}
+            return {"pulled": {}}
 
         catalogue = parse_catalogue(self._get(METASTORE_URL))
         if not catalogue:

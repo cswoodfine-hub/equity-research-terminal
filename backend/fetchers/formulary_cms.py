@@ -390,6 +390,14 @@ class PartDFormularyFetcher(BaseFetcher):
                                f"read, so nothing was fetched")
             self._meta["skipped"] = True
             return {}
+        if not asset_rxcuis:
+            # A release read with no brand code to keep would be marked read with
+            # nothing kept, and the guard above would never let it be read again.
+            self._notes.append(f"partd_formulary: drug_codes holds no brand RxCUI yet, "
+                               f"so the {release_date} release was not read; the codes "
+                               f"fetcher runs first")
+            self._meta["skipped"] = True
+            return {}
 
         read = read_release(newest["url"], self._get_range)
         members = read["members"]

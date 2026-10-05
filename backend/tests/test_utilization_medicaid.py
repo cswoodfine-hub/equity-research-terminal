@@ -274,3 +274,17 @@ def test_the_reducer_skips_state_rows_and_other_years():
                  {**row, "ndc": "0003089421"}])
     assert reducer.national_rows == 1 and reducer.skipped == 3
     assert reducer.result()[0]["prescriptions"] == int(row["number_of_prescriptions"])
+
+
+def test_a_book_with_no_codes_yet_reads_nothing_and_marks_no_year_read(tmp_path):
+    path = _db(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("DELETE FROM drug_codes")
+    conn.commit()
+    conn.close()
+    fake = _FakeMedicaid()
+    result = _fetcher(path, fake).run()
+    assert fake.calls == []                      # not even the metastore
+    assert result.errors == [] and "no product code yet" in result.notes[0]
+    assert _query(path, "SELECT * FROM medicaid_sdud_releases") == []
+    assert _last_snapshot(path)["fetch_kind"] == "cache"
