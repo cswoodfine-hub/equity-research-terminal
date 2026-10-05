@@ -51,6 +51,7 @@ import engines as engines_module
 import headlines as headlines_module
 import marketmap as marketmap_module
 import labels as labels_module
+import launch_timing
 import landscape as landscape_module
 import landscape_overview
 import landscape_score
@@ -650,6 +651,23 @@ def company_forecast_verdict(ticker: str) -> dict:
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
     return {**out, "note": forecast_note.write_company(out)}
+
+
+@app.get("/companies/{ticker}/launch-timing")
+def company_launch_timing(ticker: str) -> dict:
+    """The earliest approval the evidence allows for every unmarketed asset with a seeded
+    start year, against that start, red flags first. A flag for checking: it moves no
+    value."""
+    conn = db.get_connection()
+    try:
+        company = conn.execute("SELECT id, ticker FROM companies WHERE ticker = ?",
+                               (ticker.upper(),)).fetchone()
+        if company is None:
+            raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+        assets = launch_timing.for_company(conn, company["id"])
+    finally:
+        conn.close()
+    return {"ticker": company["ticker"], "assets": assets}
 
 
 @app.get("/companies/{ticker}/breakpoints")
