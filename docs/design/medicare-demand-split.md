@@ -104,7 +104,7 @@ Measured on the copy:
 
 - **The model's growth** (`model_growth`): the base scenario's asset-level scalar, `revenue_growth_pct` for a marketed product and `franchise_growth_pct` (the pool's growth) for a franchise member, with `terminal_growth_pct` and `growth_fade_years`. It runs from the latest FY on file, else `forecast_start_year` less one. Any other mode, or no row, is None, never a number from elsewhere.
 - **Reported growth** (`reported_growth`): worldwide from `asset_revenue` FY rows; the US from `regional_loe.us_series`, which applies `split()`'s rule per year (a curated row outranks fetched ones, exactly one US row must remain). Growth is in the filer's own currency and only between two years in the same unit. CMS calendar year Y pairs with FY Y only, which assumes December year ends.
-- **Direction** (`direction_disagrees`): the model's growth and the latest Medicare patient growth (claims where there is no count) have opposite signs, each beyond one point (`DIRECTION_DEADBAND`).
+- **Direction** (`direction_disagrees`): the model's growth and the latest Medicare patient growth (claims where there is no count, or where the containers changed) have opposite signs, each beyond one point (`DIRECTION_DEADBAND`). The sentence leads the same way, so Tremfya's 2024 reads fills +19.3%, not the 21.4% patients its new Pen container double counts.
 
 ## 7. A brand on two records
 

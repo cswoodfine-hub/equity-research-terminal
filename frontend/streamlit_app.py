@@ -4026,11 +4026,13 @@ def _medicare_layer_html(split: dict) -> str:
     if split.get("sentence"):
         out.append(f'<p class="mc-sentence">{html_escape(split["sentence"])}</p>')
     # The flag reads the main part's latest step, as the sentence does: patients, or
-    # claims where CMS gives no patient count, named by part when there are two.
+    # claims where CMS gives no patient count or changed the containers, named by part
+    # when there are two.
     two_parts = len(split.get("parts") or []) > 1
     if (split.get("beside") or {}).get("direction_disagrees"):
         last = material[0]["steps"][-1]
-        what = ("patients" if last.get("patients") is not None else
+        what = ("patients" if last.get("patients") is not None
+                and last.get("like_for_like") is not False else
                 ((material[0].get("factor_labels") or {}).get("claims") or "claims").lower())
         scope = f'Medicare Part {material[0].get("part")}' if two_parts else "Medicare"
         out.append(f'<div class="mc-flag">The model and {html_escape(scope)} '

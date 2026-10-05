@@ -539,13 +539,22 @@ def reported_growth(conn, asset_id: int) -> list:
     return out
 
 
+def patients_read(step: dict | None) -> bool:
+    """Whether a step's patient growth can be read as such: CMS gave both counts and the
+    containers summed into them did not change. Where they changed, a patient who moved
+    to the new container is counted twice, so claims, which add exactly across
+    containers, are read instead, as where CMS gives no count."""
+    return bool(step) and step.get("patients") is not None \
+        and step.get("like_for_like") is not False
+
+
 def direction_disagrees(model_value, latest: dict | None) -> bool | None:
     """True when the model and Medicare's latest patient growth (claims growth where
-    CMS gives no patient count) point opposite ways, each beyond the deadband. None
-    when either side is missing."""
+    CMS gives no patient count, or the containers changed) point opposite ways, each
+    beyond the deadband. None when either side is missing."""
     if model_value is None or not latest:
         return None
-    medicare = (latest.get("patients") if latest.get("patients") is not None
+    medicare = (latest.get("patients") if patients_read(latest)
                 else latest.get("claims"))
     if medicare is None:
         return None
@@ -582,7 +591,7 @@ def sentence(brand: str, part: str, latest: dict | None, model: dict | None,
     scope = f"Medicare Part {part}" if part_named else "Medicare"
     g, year = latest["spend"], latest["to"]
     pts = latest.get("points")
-    if latest.get("patients") is not None:
+    if patients_read(latest):
         lead = f"{scope} patients on {brand} {_moved(latest['patients'], True)} in {year}"
     elif latest.get("claims") is not None:
         lead = (f"{scope} {labels['claims'].lower()} of {brand} "
@@ -618,7 +627,7 @@ def sentence(brand: str, part: str, latest: dict | None, model: dict | None,
     if model.get("from_fy"):
         second += f" from FY{model['from_fy']}"
     if disagrees:
-        who = (f"{scope} patients" if latest.get("patients") is not None
+        who = (f"{scope} patients" if patients_read(latest)
                else f"{scope} {labels['claims'].lower()}")
         second += f", the other way from {who}"
     return f"{first} {second}."

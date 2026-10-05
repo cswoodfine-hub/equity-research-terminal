@@ -472,6 +472,21 @@ def test_a_two_part_brand_names_the_part_its_sentence_reads(book):
     assert one.startswith("Medicare patients on Eliquis") and "Part D" not in one
 
 
+def test_a_container_change_leads_with_fills_not_patients(book):
+    # Tremfya's 2024 step adds the Pen to the summed containers, so a patient who moved
+    # to it is counted twice: the sentence and the direction read fills instead.
+    path, ids = book
+    out = ds.for_asset(path, "JNJ", ids["tremfya"])
+    last = _part(out, "D")["steps"][-1]
+    assert last["like_for_like"] is False and last["patients"] is not None
+    assert out["sentence"].startswith(
+        f"Medicare fills of Tremfya rose {last['claims'] * 100:.1f}% in 2024")
+    assert not ds.patients_read(last)
+    shrink = {**last, "patients": 0.20, "claims": -0.03}
+    assert ds.direction_disagrees(0.18, shrink) is True          # read on fills
+    assert ds.direction_disagrees(0.18, {**shrink, "like_for_like": True}) is False
+
+
 def test_a_flat_patient_count_reads_were_flat():
     st = {"to": 2024, "spend": 0.05, "patients": 0.0001, "intensity": 0.0, "price": 0.0499,
           "points": {"patients": 0.0001, "intensity": 0.0, "price": 0.0499}}
