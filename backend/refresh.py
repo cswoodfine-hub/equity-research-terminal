@@ -75,6 +75,10 @@ from fetchers.labels_dailymed import LabelsDailyMedFetcher
 from fetchers.ndc_marketing import NdcMarketingFetcher
 from fetchers.negotiated_prices_cms import NegotiatedPricesCmsFetcher
 from fetchers.benchmarks import BenchmarksFetcher
+from fetchers.codes_rxnav import DrugCodesRxNavFetcher
+from fetchers.formulary_cms import PartDFormularyFetcher
+from fetchers.prescribers_cms import PartDPrescribersFetcher
+from fetchers.utilization_medicaid import MedicaidSdudFetcher
 from fetchers.policy_fedreg import PolicyFedRegFetcher
 from fetchers.rates_fred import RatesFredFetcher
 from fetchers.news_fda import NewsFdaFetcher
@@ -189,6 +193,20 @@ def _universe_fetchers(db_path):
             RatesFredFetcher(db_path), BenchmarksFetcher(db_path),
             PolicyFedRegFetcher(db_path),
             NegotiatedPricesCmsFetcher(db_path)]
+
+
+def _payer_fetchers(db_path):
+    """Medicare and Medicaid prescribing and plan coverage, keyed on drug codes.
+
+    The codes come first: the Medicaid and formulary readers join what they store to
+    ``drug_codes`` and never import the codes fetcher. None of the four is a universe
+    download in the sense above, because they read the asset rows, so they run in a late
+    stage of the universe refresh, once the merges and the brand split have settled the
+    rows, and never in a single-company refresh. Each holds its own release guard against
+    a forced run, so a daily run costs a few metadata calls on most days.
+    """
+    return [DrugCodesRxNavFetcher(db_path), PartDPrescribersFetcher(db_path),
+            MedicaidSdudFetcher(db_path), PartDFormularyFetcher(db_path)]
 
 
 # How long a run may be in flight before a later one is allowed to assume it died. A
@@ -693,6 +711,12 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # Who runs the company. Item 5.02 filings are already on file; this reads the
     # ones that report a senior change rather than a board rotation.
     leaders = leadership.detect(db_path, run_id)
+    # Medicare and Medicaid prescribing and Part D plan coverage, read once the asset
+    # rows are final and before the diff, which reads the coverage snapshots they write.
+    for fetcher in _payer_fetchers(db_path):
+        fetcher.refresh_run_id = run_id
+        fetcher.force = force
+        record(fetcher.run(), fetcher.entity_key)
     # Headlines last, for the licensing deals the filings name only in aggregate.
     news_deals = DealsNewsFetcher(db_path)
     news_deals.refresh_run_id = run_id
