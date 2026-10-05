@@ -306,8 +306,14 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
                 "evidence": f"application accepted, FDA decision due "
                             f"{filing['date']}"}
     if positive:
+        # The readout itself rides along for the views that date from it (the launch
+        # floor); resolve() reads none of it.
         return {"stage": "positive", "gate": "nda_to_approval", "pivotal": pivotal,
-                "evidence": f"Phase 3 read out positive {cite(positive)}"}
+                "evidence": f"Phase 3 read out positive {cite(positive)}",
+                "readout": {"event_date": positive.get("event_date"),
+                            "nct_id": positive.get("nct_id"),
+                            "accession": positive.get("accession"),
+                            "drug": positive.get("drug"), "cite": cite(positive)}}
     if negative:
         # One trial's answer. Volrustomig's lung study was stopped for futility with
         # three other Phase 3 studies recruiting to 2030; the asset is not nil, the

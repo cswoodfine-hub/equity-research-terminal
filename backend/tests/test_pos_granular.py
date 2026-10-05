@@ -93,6 +93,20 @@ def test_a_positive_phase_3_readout_leaves_only_the_approval_step(tmp_path):
     assert got["stage"] == "positive" and "2026-06-01" in got["evidence"]
 
 
+def test_a_positive_readout_rides_along_with_its_stage_and_never_into_the_placement(tmp_path):
+    """The launch floor dates from the readout stage_of read, so the stage carries it;
+    resolve's output has no such key, so nothing on the rNPV path changes shape."""
+    conn = _seed(tmp_path, trials=(("NCT1", "Completed", "2026-03-01", 500, None),),
+                 readouts=(("XYZ-1234", 3, "positive", "2026-06-01"),))
+    where = PG.stage_of(conn, 7, 1, ["XYZ-1234"], TODAY)
+    placed = _resolve(conn)
+    conn.close()
+    assert where["readout"] == {"event_date": "2026-06-01", "nct_id": None,
+                                "accession": "000-0", "drug": "XYZ-1234",
+                                "cite": "on 2026-06-01 (000-0)"}
+    assert "readout" not in placed
+
+
 def test_a_negative_readout_with_no_open_study_is_nil(tmp_path):
     conn = _seed(tmp_path, trials=(("NCT1", "Completed", "2026-03-01", 500, None),),
                  readouts=(("XYZ-1234", 3, "negative", "2026-06-01"),))
