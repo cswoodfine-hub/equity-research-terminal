@@ -22,7 +22,11 @@ the productivity rate on that spend for the exclusivity term, and then erodes on
 curated default. The cohort is costed on the company's own ratios, R&D included, and
 that R&D buys the next cohort in turn, so replacement is simulated rather than assumed.
 Nothing is risk-adjusted a second time: the rate is measured on what reached market, so
-the failures are already in it.
+the failures are already in it. The book's own pipeline spend enters at its probability,
+with the pipeline product's revenue and costs (``forecast_view._future_pipeline``). The
+R&D a pipeline product's P&L carries is a share of its own revenue, so it is spent only
+if the product reaches market, and that is a different question from what a dollar spent
+buys.
 
 One bias is stated rather than corrected, and it cannot be corrected on free data. The
 R&D window sits alongside the launches rather than a full lag before them, and R&D has

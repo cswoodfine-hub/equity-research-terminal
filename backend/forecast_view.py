@@ -1407,11 +1407,18 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
         # its margins are not the ones a future drug would earn.
         if part.get("buys_launches") is False:
             continue
-        rows = part.get("pnl_share") or []
-        # Expected revenue: a pipeline product's P&L is unrisked, and a book that counted
-        # it in full would leave its launches too little room.
+        # Expected values: a pipeline product's P&L is unrisked, so its whole row is taken
+        # at its probability, once. A book that counted the revenue in full would leave
+        # its launches too little room, and R&D that is only spent if the asset reaches
+        # market buys launches only in that case. Nothing is counted twice: the launch
+        # rate prices attrition per dollar spent, and the probability prices whether the
+        # dollar is spent at all. Every row is risked together, revenue with it, so the
+        # cost ratios the launches are charged are a ratio of expected values: risking
+        # the R&D alone would lower the R&D ratio and raise the launches' margin.
         odds = part.get("pos") if part.get("pos") is not None else 1.0
-        book_parts.append({"revenue": {year: (row.get("revenue") or 0.0) * odds
+        rows = [{k: (v * odds if isinstance(v, (int, float)) else v)
+                 for k, v in row.items()} for row in part.get("pnl_share") or []]
+        book_parts.append({"revenue": {year: (row.get("revenue") or 0.0)
                                        for year, row
                                        in zip(part.get("dcf_years") or [], rows)},
                            "loe_year": part.get("loe_year"),
