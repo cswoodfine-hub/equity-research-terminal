@@ -1182,6 +1182,9 @@ def build(inputs: dict) -> dict:
         "pos_granular": (inputs.get("pos_granular")
                          if pos_basis == (inputs.get("pos_granular") or {}).get("basis")
                          else None),
+        # The placement whatever governs, so a view can read the gate of an asset whose
+        # stated probability outranks it. Nothing above reads it.
+        "pos_placement": inputs.get("pos_granular"),
         # "stated", or "placeholder curve, ..." where the uptake ceiling and midpoint came
         # from data/curve_defaults.csv rather than the asset. None where no curve is built.
         "curve_basis": curve_basis,

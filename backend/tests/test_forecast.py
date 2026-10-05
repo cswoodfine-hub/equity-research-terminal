@@ -1485,3 +1485,20 @@ def test_a_horizon_ending_inside_erosion_no_longer_capitalises_the_tail_flat():
     assert eroding["terminal_pv"] < flat["terminal_pv"] * 0.5
     assert any("terminal value follows the loss of exclusivity" in n
                for n in eroding["notes"])
+
+
+def test_the_placement_rides_along_whatever_governs_and_moves_nothing():
+    """pos_placement carries pos_granular's placement even where stated factors
+    outrank it, so a view can read the gate; no computed value changes."""
+    granular = {"pos": 0.5, "basis": "at the NDA/BLA gate: a test", "stage": "positive"}
+    bare = F.build(casgevy_inputs())
+    placed = F.build(casgevy_inputs(pos_granular=granular))
+    assert bare["pos_placement"] is None
+    assert placed["pos_placement"] == granular and placed["pos_granular"] is None
+    for key in ("rnpv", "npv", "pos", "pos_basis", "owner_rnpv", "revenue_after_loe"):
+        assert placed[key] == bare[key], key
+    factors = {k: None for k in ("pos_regulatory", "pos_launch", "pos_reimbursement",
+                                 "pos_durability")}
+    governs = F.build(casgevy_inputs(scalars=factors, pos_granular=granular))
+    assert governs["pos_granular"] == governs["pos_placement"] == granular
+    assert governs["rnpv"] == governs["npv"] * 0.5
