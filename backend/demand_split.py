@@ -558,34 +558,39 @@ def _pc(x: float) -> str:
     return f"{abs(x) * 100:.1f}%"
 
 
-def _moved(x: float) -> str:
+def _moved(x: float, plural: bool = False) -> str:
     if abs(x) < 0.0005:
-        return "was flat"
+        return "were flat" if plural else "was flat"
     return f"{'rose' if x > 0 else 'fell'} {_pc(x)}"
 
 
 def sentence(brand: str, part: str, latest: dict | None, model: dict | None,
-             disagrees: bool | None) -> str | None:
+             disagrees: bool | None, part_named: bool = False) -> str | None:
     """The split in words, leading with the number.
 
     "Medicare patients on Eliquis rose 12.7% in 2024 and cost per fill was flat, so
     volume carried the 13.7% rise in Medicare spend. The model grows it 18.9% a year
     from FY2025."
+
+    ``part_named`` is for a brand CMS reports in both parts: the figures are the main
+    part's alone, so the sentence says "Medicare Part B patients" and "Part B spend"
+    rather than passing one part's patients and spend off as the brand's.
     """
     if not latest or latest.get("spend") is None:
         return None
     labels = FACTOR_LABELS.get(part, FACTOR_LABELS["D"])
+    scope = f"Medicare Part {part}" if part_named else "Medicare"
     g, year = latest["spend"], latest["to"]
     pts = latest.get("points")
     if latest.get("patients") is not None:
-        lead = f"Medicare patients on {brand} {_moved(latest['patients'])} in {year}"
+        lead = f"{scope} patients on {brand} {_moved(latest['patients'], True)} in {year}"
     elif latest.get("claims") is not None:
-        lead = (f"Medicare {labels['claims'].lower()} of {brand} "
-                f"{_moved(latest['claims'])} in {year}")
+        lead = (f"{scope} {labels['claims'].lower()} of {brand} "
+                f"{_moved(latest['claims'], True)} in {year}")
     else:
         lead = None
     if lead is None or pts is None or latest.get("price") is None:
-        first = f"Medicare spend on {brand} {_moved(g)} in {year}."
+        first = f"{scope} spend on {brand} {_moved(g)} in {year}."
     else:
         price = latest["price"]
         price_word = labels["price"].lower()
@@ -593,9 +598,9 @@ def sentence(brand: str, part: str, latest: dict | None, model: dict | None,
                         else f"{price_word} {_moved(price)}")
         vol = sum(v for k, v in pts.items() if k != "price")
         pp = pts["price"]
-        whole = f"the {_pc(g)} {'rise' if g >= 0 else 'fall'} in Medicare spend"
+        whole = f"the {_pc(g)} {'rise' if g >= 0 else 'fall'} in {scope} spend"
         if abs(g) < 0.005:
-            tail = "so Medicare spend was flat"
+            tail = f"so {scope} spend was flat"
         elif abs(pp) <= 0.25 * abs(g) and vol * g > 0:
             tail = f"so volume carried {whole}"
         elif abs(vol) <= 0.25 * abs(g) and pp * g > 0:
@@ -613,8 +618,8 @@ def sentence(brand: str, part: str, latest: dict | None, model: dict | None,
     if model.get("from_fy"):
         second += f" from FY{model['from_fy']}"
     if disagrees:
-        who = ("Medicare patients" if latest.get("patients") is not None
-               else f"Medicare {labels['claims'].lower()}")
+        who = (f"{scope} patients" if latest.get("patients") is not None
+               else f"{scope} {labels['claims'].lower()}")
         second += f", the other way from {who}"
     return f"{first} {second}."
 
@@ -755,7 +760,8 @@ def _build(conn, asset_id: int, ticker: str, *, base=None, file_first=None,
             "beside": {"model_growth": model, "reported": reported,
                        "direction_disagrees": disagrees},
             "sentence": sentence(who["brand"] or who["generic"] or "this drug",
-                                 main["part"], latest, model, disagrees)}
+                                 main["part"], latest, model, disagrees,
+                                 part_named=len(parts) > 1)}
 
 
 def for_asset(db_path, ticker: str, asset_id: int) -> dict | None:

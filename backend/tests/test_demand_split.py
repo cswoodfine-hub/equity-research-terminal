@@ -457,6 +457,29 @@ def test_a_two_part_brand_is_split_per_part_and_totalled_in_points(book):
         (2430935308 + 771837558.17) / (2190209346 + 673286886.73) - 1)
 
 
+def test_a_two_part_brand_names_the_part_its_sentence_reads(book):
+    # Prolia's figures are Part B's alone: 3.0% more Part B patients, while Part D's
+    # rose 11.5% and the brand's spend 11.8%. The sentence must not pass them off as
+    # the brand's Medicare patients and spend.
+    path, ids = book
+    out = ds.for_asset(path, "AMGN", ids["prolia"])
+    b = _part(out, "B")["steps"][-1]
+    assert out["sentence"].startswith(
+        f"Medicare Part B patients on Prolia rose {b['patients'] * 100:.1f}% in 2024")
+    assert "in Medicare Part B spend" in out["sentence"]
+    assert "Medicare patients" not in out["sentence"]
+    one = ds.for_asset(path, "BMY", ids["eliquis"])["sentence"]
+    assert one.startswith("Medicare patients on Eliquis") and "Part D" not in one
+
+
+def test_a_flat_patient_count_reads_were_flat():
+    st = {"to": 2024, "spend": 0.05, "patients": 0.0001, "intensity": 0.0, "price": 0.0499,
+          "points": {"patients": 0.0001, "intensity": 0.0, "price": 0.0499}}
+    words = ds.sentence("Elelyso", "B", st, None, None)
+    assert words.startswith("Medicare patients on Elelyso were flat in 2024")
+    assert "was flat in 2024" not in words
+
+
 def test_a_minor_part_is_reported_not_split(book):
     path, ids = book
     conn = db.get_connection(path)
