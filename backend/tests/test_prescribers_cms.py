@@ -92,9 +92,10 @@ def _db(tmp_path):
     return path
 
 
-def _fetcher(path, fake, catalogue=None, budget_s=900):
+def _fetcher(path, fake, catalogue=None, budget_s=900, workers=1):
     fetcher = PartDPrescribersFetcher(path, budget_s=budget_s, get_json=fake,
-                                      load_catalogue=catalogue or _Catalogue())
+                                      load_catalogue=catalogue or _Catalogue(),
+                                      workers=workers)
     fetcher.force = True
     return fetcher
 
@@ -334,3 +335,17 @@ def test_pulls_that_keep_failing_stop_the_run_rather_than_retry_every_brand(tmp_
     conn.close()
     assert statuses.count("incomplete") == 4     # Eliquis twice, Repatha, Shingrix
     assert "pending" in statuses                 # the rest wait for the next run
+
+
+def test_concurrent_pulls_store_what_one_at_a_time_stores(tmp_path):
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    one, four = _db(tmp_path / "a"), _db(tmp_path / "b")
+    _fetcher(one, _FakeCms(), workers=1).run()
+    result = _fetcher(four, _FakeCms(), workers=4).run()
+    assert not result.errors
+    fields = ("file_status", "file_prescribers", "file_claims", "hhi",
+              "claims_share_by_npi_decile", "national_claims")
+    for asset_id in (10, 198, 812, 424, 909, 30, 40, 50):
+        assert [_row(one, asset_id)[f] for f in fields] == \
+            [_row(four, asset_id)[f] for f in fields]

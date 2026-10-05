@@ -41,6 +41,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
 import cms
 import cms_catalogue
@@ -51,6 +52,7 @@ SOURCE = "partd_prescribers"
 ENTITY_KEY = "partd_prescribers"
 TTL_SECONDS = 30 * 24 * 60 * 60
 RUN_BUDGET_S = 900
+WORKERS = 4                             # provider pulls in flight at once
 FIRST_YEAR = 2020
 GEOGRAPHY_TITLE = "Medicare Part D Prescribers - by Geography and Drug"
 PROVIDER_TITLE = "Medicare Part D Prescribers - by Provider and Drug"
@@ -361,9 +363,10 @@ class PartDPrescribersFetcher(BaseFetcher):
     ttl_seconds = TTL_SECONDS
 
     def __init__(self, db_path=None, budget_s: float = RUN_BUDGET_S, get_json=None,
-                 load_catalogue=None):
+                 load_catalogue=None, workers: int = WORKERS):
         super().__init__(db_path)
         self.budget_s = budget_s
+        self.workers = max(1, workers)
         self._get_json = get_json or _http_json
         self._load_catalogue = load_catalogue or cms_catalogue.load
         self._notes: list[str] = []
@@ -486,39 +489,62 @@ class PartDPrescribersFetcher(BaseFetcher):
 
     def _pull_providers(self, year, provider, matched, pending):
         """Pull and reduce each pending brand, largest first, until the budget runs out.
-        Co-marketed assets that share their CMS names share one pull."""
+
+        Co-marketed assets that share their CMS names share one pull. A brand with few
+        rows still costs the server a scan of the whole file (Tagrisso's 2,794 rows took
+        ten seconds where a page of Eliquis took two), so up to WORKERS pulls run at
+        once. At least one pull is made per run, so a budget smaller than the largest
+        pull still makes progress.
+        """
         order = sorted(pending, key=lambda a: -(matched[a].get("national_prescribers") or 0))
-        results: dict = {}
-        done_pairs: dict = {}
-        started, rows_read, failed_in_a_row = time.monotonic(), 0, 0
-        for index, asset_id in enumerate(order):
+        keys = []
+        for asset_id in order:
             pairs = tuple(tuple(p) for p in matched[asset_id].get("cms_brands") or ())
-            if pairs in done_pairs:
-                results[asset_id] = done_pairs[pairs]
-                continue
-            # At least one brand per run, so a budget smaller than the largest pull
-            # still makes progress.
-            if done_pairs and time.monotonic() - started > self.budget_s:
-                left = len(order) - index
-                self._notes.append(
-                    f"partd_prescribers: stopped at the {int(self.budget_s)}s run budget "
-                    f"with {left} of {len(order)} {year} brands left for the next run")
-                return results, rows_read, left
-            outcome, read = self._pull_one(provider["uuid"], pairs)
-            rows_read += read
-            done_pairs[pairs] = outcome
-            results[asset_id] = outcome
-            if outcome["status"] == "incomplete":
-                self._errors.append(f"partd_prescribers: {', '.join(p[0] for p in pairs)}"
-                                    f" {year}: {outcome['note']}")
-            failed_in_a_row = failed_in_a_row + 1 if outcome.get("failed") else 0
-            if failed_in_a_row >= _GIVE_UP_AFTER:
-                left = len(order) - index - 1
-                self._errors.append(
-                    f"partd_prescribers: {_GIVE_UP_AFTER} brand pulls failed in a row, so "
-                    f"the run stopped with {left} {year} brands left")
-                return results, rows_read, left
-        return results, rows_read, 0
+            if pairs not in keys:
+                keys.append(pairs)
+        outcomes: dict = {}
+        started, rows_read, failed_in_a_row, stopped = time.monotonic(), 0, 0, False
+        with ThreadPoolExecutor(max_workers=self.workers) as pool:
+            in_flight: dict = {}
+            queue = iter(keys)
+            while True:
+                while not stopped and len(in_flight) < self.workers:
+                    if (outcomes or in_flight) and time.monotonic() - started > self.budget_s:
+                        stopped = True
+                        break
+                    pairs = next(queue, None)
+                    if pairs is None:
+                        break
+                    in_flight[pool.submit(self._pull_one, provider["uuid"], pairs)] = pairs
+                if not in_flight:
+                    break
+                done, _ = wait(in_flight, return_when=FIRST_COMPLETED)
+                for future in done:
+                    pairs = in_flight.pop(future)
+                    outcome, read = future.result()
+                    rows_read += read
+                    outcomes[pairs] = outcome
+                    if outcome["status"] == "incomplete":
+                        self._errors.append(
+                            f"partd_prescribers: {', '.join(p[0] for p in pairs)} {year}: "
+                            f"{outcome['note']}")
+                    failed_in_a_row = failed_in_a_row + 1 if outcome.get("failed") else 0
+                    if failed_in_a_row >= _GIVE_UP_AFTER and not stopped:
+                        stopped = True
+                        self._errors.append(
+                            f"partd_prescribers: {_GIVE_UP_AFTER} brand pulls failed in a "
+                            f"row, so the run stopped")
+        left = len(keys) - len(outcomes)
+        if left and not any("failed in a row" in e for e in self._errors):
+            self._notes.append(
+                f"partd_prescribers: stopped at the {int(self.budget_s)}s run budget with "
+                f"{left} of {len(keys)} {year} brands left for the next run")
+        results = {}
+        for asset_id in order:
+            pairs = tuple(tuple(p) for p in matched[asset_id].get("cms_brands") or ())
+            if pairs in outcomes:
+                results[asset_id] = outcomes[pairs]
+        return results, rows_read, left
 
     def _pull_one(self, uuid: str, pairs) -> tuple:
         """One brand's provider rows, every presentation, reduced. Each brand name is
