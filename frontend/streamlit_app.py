@@ -4025,9 +4025,17 @@ def _medicare_layer_html(split: dict) -> str:
            f'<div class="byline mc-label">{html_escape(split.get("label") or "")}</div>']
     if split.get("sentence"):
         out.append(f'<p class="mc-sentence">{html_escape(split["sentence"])}</p>')
+    # The flag reads the main part's latest step, as the sentence does: patients, or
+    # claims where CMS gives no patient count, named by part when there are two.
+    two_parts = len(split.get("parts") or []) > 1
     if (split.get("beside") or {}).get("direction_disagrees"):
-        out.append('<div class="mc-flag">The model and Medicare patients point opposite '
-                   "ways. A flag only: nothing in the model moves.</div>")
+        last = material[0]["steps"][-1]
+        what = ("patients" if last.get("patients") is not None else
+                ((material[0].get("factor_labels") or {}).get("claims") or "claims").lower())
+        scope = f'Medicare Part {material[0].get("part")}' if two_parts else "Medicare"
+        out.append(f'<div class="mc-flag">The model and {html_escape(scope)} '
+                   f'{html_escape(what)} point opposite ways. A flag only: nothing in the '
+                   "model moves.</div>")
     notes = _mc_footnotes([s for p in material for s in p["steps"]])
     for i, part in enumerate(material):
         title = f'{part.get("part_label") or part.get("part")}'
@@ -4051,14 +4059,18 @@ def _medicare_layer_html(split: dict) -> str:
     if split.get("brand_total"):
         bt = split["brand_total"][-1]
         pts = bt.get("points") or {}
-        labels = material[0].get("factor_labels") or {}
-        bits = ", ".join(f'{html_escape(labels.get(k, k).lower())} {_mc_pts(v)}'
+        # One name for both parts: a Part D fill and a Part B claim are not the same
+        # thing, so the total takes neither part's word for use or price.
+        labels = {"patients": "patients", "intensity": "use per patient",
+                  "price": "price", "claims": "claims", "unsplit": "not split"}
+        bits = ", ".join(f'{html_escape(labels.get(k, k))} {_mc_pts(v)}'
                          for k, v in pts.items())
         out.append(f'<div class="byline">Both parts, {bt["to"]}: spend '
                    f'{_mc_pct(bt.get("spend"))}, in points {bits}. Patients are not '
                    "added across parts, since one patient can be in both.</div>")
     out.append(f'<div class="byline">{html_escape(split.get("patients_note") or "")} '
-               'Gap: US reported growth less Medicare spend growth, '
+               "Gap: US reported growth less the brand's Medicare spend growth"
+               f'{", all parts" if two_parts else ""}, '
                f'{html_escape(split.get("gap_label") or "")}; shown in dollars only.</div>')
     if notes:
         out.append('<ol class="mc-notes">' + "".join(
@@ -4106,7 +4118,11 @@ def _medicare_book_html(split: dict, top: int = 15) -> str:
             cells.append(_mc_cell(r.get("claims"), None, "claims, no patient count"))
             cells.append('<td class="n m">·</td>')
         else:
-            cells.append(_mc_cell(r.get("patients")))
+            # A container change makes the patient count not like for like, as the
+            # Forecast layer hatches it.
+            cells.append(_mc_cell(r.get("patients"), None,
+                                  "not like for like" if r.get("like_for_like") is False
+                                  else ""))
             cells.append(_mc_cell(r.get("intensity")))
         cells.append(_mc_cell(r.get("price")))
         mark = (' <span class="mc-dis" title="the model and Medicare patients point '

@@ -137,6 +137,20 @@ def test_two_material_parts_draw_two_charts_and_never_add_patients(view):
     assert "Patients are not added across parts" in text_of(out)
 
 
+def test_a_two_part_brand_names_its_parts_and_totals_in_neither_parts_words(view):
+    words = text_of(view["_medicare_layer_html"](load("asset_amgn_prolia")))
+    # The flag reads Part B's patients, as the sentence does, and says so.
+    assert "The model and Medicare Part B patients point opposite ways" in words
+    total = words.split("Both parts, 2024:", 1)[1].split("Patients are not added", 1)[0]
+    # A Part D fill and a Part B claim are not one thing, so the total names neither.
+    assert "use per patient" in total and "price" in total
+    assert "claims per patient" not in total and "fills per patient" not in total
+    assert "cost per claim" not in total and "cost per fill" not in total
+    assert "less the brand's Medicare spend growth, all parts" in words
+    one = text_of(view["_medicare_layer_html"](load("asset_bmy_eliquis")))
+    assert "less the brand's Medicare spend growth," in one and "all parts" not in one
+
+
 def test_a_container_change_is_hatched_and_footnoted(view):
     out = view["_medicare_layer_html"](load("asset_jnj_tremfya"))
     assert 'class="nlfl"' in out

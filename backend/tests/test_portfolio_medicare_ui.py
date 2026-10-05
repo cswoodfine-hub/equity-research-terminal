@@ -66,6 +66,15 @@ def test_the_label_sits_above_the_table_and_disagreement_is_marked(view):
     assert 'class="mc-dis"' in out                     # Revlimid's model against Medicare
 
 
+def test_a_patient_count_that_is_not_like_for_like_says_so(view):
+    split = copy.deepcopy(load("company_bmy"))
+    first = split["brands"][0]
+    assert "not like for like" not in text_of(view["_medicare_book_html"](split))
+    first["like_for_like"] = False                 # as Cosentyx's 2024 step on the copy
+    words = text_of(view["_medicare_book_html"](split))
+    assert "not like for like" in words
+
+
 def test_house_style_and_dollar_signs_that_markdown_cannot_pair(view):
     for name in ("company_amgn", "company_bmy"):
         out = view["_medicare_book_html"](load(name))
