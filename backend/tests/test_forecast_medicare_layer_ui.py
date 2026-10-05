@@ -155,7 +155,7 @@ def test_missing_figures_are_dots_never_zero(view):
 
 # --- the tab, through AppTest ----------------------------------------------------------
 # Opt in with ER_TOOL_APPTEST=1 against a running API: a plain test run never calls it.
-API = os.environ.get("ER_TOOL_API", "http://localhost:8000")
+API = os.environ.get("ER_API_BASE", "http://localhost:8000")
 
 
 def api_up() -> bool:

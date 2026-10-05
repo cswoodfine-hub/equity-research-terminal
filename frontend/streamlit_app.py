@@ -9502,8 +9502,8 @@ with main:
 
                         if _mc_book_html:
                             with _pf["Medicare demand"]:
-                                section("Medicare demand",
-                                        f"{len(_mc_book['brands'])} brand and part rows")
+                                section("Medicare demand", len(_mc_book["brands"]),
+                                        f"CMS calendar {_mc_book.get('latest_year')}")
                                 st.markdown(_mc_book_html, unsafe_allow_html=True)
 
 
