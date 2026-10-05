@@ -29,6 +29,17 @@ def test_a_year_is_the_first_whole_year_that_crosses():
     assert got == {"value": 2032, "reachable": True, "bound": None}
 
 
+def test_a_year_lever_that_turns_back_is_searched_both_ways_nearest_first():
+    # Crosses only inside the bounds, and both bounds sit on the same side as now.
+    bump = lambda y: 1.0 if y < 2033 or y > 2036 else -1.0
+    assert B.solve(bump, 2030, 2015, 2060, integer=True) == {
+        "value": 2033, "reachable": True, "bound": None}
+    # Two crossings, one each way: the nearer wins, the later on a tie.
+    twice = lambda y: -1.0 if y in (2026, 2032) else 1.0
+    assert B.solve(twice, 2029, 2015, 2060, integer=True)["value"] == 2032
+    assert B.solve(twice, 2028, 2015, 2060, integer=True)["value"] == 2026
+
+
 def test_a_lever_that_cannot_get_there_alone_says_so():
     got = B.solve(lambda x: 5.0 - x, 0.5, 0.0, 1.0)
     assert not got["reachable"] and got["value"] is None and got["bound"] == 1.0

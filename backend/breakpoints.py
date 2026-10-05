@@ -79,11 +79,15 @@ def _part_value(part: dict) -> float:
 
 
 def solve(f, current: float, lo: float, hi: float, integer: bool = False) -> dict:
-    """The value between the bounds where ``f`` crosses nil, searched from the current
-    value toward whichever bound changes its sign. Assumes the lever moves the value one
-    way, which every lever here does. A year is stepped one at a time, since the engine
-    reads it as a whole year. A trial the engine refuses counts as not crossing.
-    {"value", "reachable", "bound"}."""
+    """The value between the bounds where ``f`` crosses nil, nearest the current value.
+
+    A year is stepped one at a time outward from the current one, a year either side in
+    turn, since the engine reads it as a whole year and the value need not move one way
+    with it: before 2026-10-05 a loss of exclusivity moved the room the launches fill, so
+    Vertex met the price with Trikafta's LOE at 2034 while both bounds said it could not.
+    A rate is bisected from the current value toward whichever bound changes its sign,
+    which assumes it moves the value one way, as every rate lever here does. A trial the
+    engine refuses counts as not crossing. {"value", "reachable", "bound"}."""
     f0 = f(current)
     if math.isnan(f0):
         return {"value": None, "reachable": False, "bound": None}
@@ -94,20 +98,20 @@ def solve(f, current: float, lo: float, hi: float, integer: bool = False) -> dic
         fx = f(x)
         return (not math.isnan(fx)) and (fx == 0 or _sign(fx) != _sign(f0)), fx
 
-    for bound in (hi, lo):
+    if integer:
+        now = int(current)
+        top = int(hi) if hi is not None else now
+        bottom = int(lo) if lo is not None else now
+        for d in range(1, max(top - now, now - bottom) + 1):
+            for year in (now + d, now - d):
+                if bottom <= year <= top and crossed(year)[0]:
+                    return {"value": year, "reachable": True, "bound": None}
+    for bound in (hi, lo) if not integer else ():
         if bound is None or bound == current:
             continue
         hit, _ = crossed(bound)
         if not hit:
             continue
-        if integer:
-            step = 1 if bound > current else -1
-            year = int(current)
-            while year != int(bound):
-                year += step
-                if crossed(year)[0]:
-                    return {"value": year, "reachable": True, "bound": None}
-            return {"value": int(bound), "reachable": True, "bound": None}
         near, far = current, bound          # near has not crossed, far has
         for _ in range(ITERATIONS):
             mid = (near + far) / 2.0
