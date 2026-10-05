@@ -176,15 +176,16 @@ def _demand(conn, asset_id: int) -> dict | None:
     """Medicare Part D and Part B demand: spend for the latest year with the year before
     it for direction, summed across parts, and each part on its own beside it.
 
-    Beneficiaries are never summed across the parts. A patient who has a Part B infusion
-    and fills a Part D prescription is in both counts, so the sum counts them twice;
-    each part's count and its growth are reported in ``parts`` instead, with whether the
-    growth is like for like. None when CMS has nothing matched to this drug.
+    Beneficiaries and claims are never summed across the parts. A patient who has a
+    Part B infusion and fills a Part D prescription is in both counts, so the sum counts
+    them twice, and a Part D fill is not a Part B claim; each part's counts and its growth
+    are reported in ``parts`` instead, with whether the growth is like for like. None when
+    CMS has nothing matched to this drug.
     """
     import demand_split
 
     rows = conn.execute(
-        "SELECT year, SUM(total_spending) AS spend, SUM(total_claims) AS claims"
+        "SELECT year, SUM(total_spending) AS spend"
         "  FROM drug_demand WHERE asset_id = ? GROUP BY year ORDER BY year DESC LIMIT 2",
         (asset_id,)).fetchall()
     if not rows:
@@ -210,7 +211,6 @@ def _demand(conn, asset_id: int) -> dict | None:
                                      for f in flags)})
     parts.sort(key=lambda p: -(p["spend"] or 0.0))
     return {"year": latest["year"], "spend": latest["spend"],
-            "claims": latest["claims"],
             "prior_year": prior["year"] if prior else None,
             "spend_growth": growth, "parts": parts}
 

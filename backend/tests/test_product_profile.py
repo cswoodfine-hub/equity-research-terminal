@@ -102,6 +102,7 @@ def test_demand_reports_each_part_and_never_sums_patients(tmp_path):
     dem = pp.product_profile(db_file, "LLY", aid)["demand"]
     assert dem["spend"] == 480.0 and round(dem["spend_growth"], 4) == round(480 / 400 - 1, 4)
     assert "beneficiaries" not in dem
+    assert "claims" not in dem                  # a Part D fill is not a Part B claim
     assert [p["part"] for p in dem["parts"]] == ["B", "D"]      # largest spend first
     b, d = dem["parts"]
     assert b["beneficiaries"] == 5 and d["beneficiaries"] == 5
