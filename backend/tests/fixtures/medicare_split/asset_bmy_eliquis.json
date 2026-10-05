@@ -8,7 +8,7 @@
   "PFE"
  ],
  "patients_note": "Patients are distinct beneficiaries on the drug during the year, so their growth is net additions, not new starts.",
- "gap_label": "not explained by Medicare gross spend: net price, other payers, inventory",
+ "gap_label": "not explained by Medicare spend: net price, other payers, inventory",
  "ok": true,
  "reason": null,
  "label": "Medicare only. Part D is gross cost before manufacturer rebates; Part B is fee-for-service only, paid mostly at average sales price plus 6%. CMS calendar 2024, 1 year behind the FY2025 filing.",

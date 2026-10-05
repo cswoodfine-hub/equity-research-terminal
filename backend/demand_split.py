@@ -209,7 +209,7 @@ LABEL = ("Medicare only. Part D is gross cost before manufacturer rebates; Part 
          "fee-for-service only, paid mostly at average sales price plus 6%.")
 PATIENTS_NOTE = ("Patients are distinct beneficiaries on the drug during the year, so "
                  "their growth is net additions, not new starts.")
-GAP_LABEL = ("not explained by Medicare gross spend: net price, other payers, "
+GAP_LABEL = ("not explained by Medicare spend: net price, other payers, "
              "inventory")
 
 
