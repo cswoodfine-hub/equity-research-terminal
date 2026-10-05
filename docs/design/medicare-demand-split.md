@@ -61,6 +61,7 @@ The label line, on every view: "Medicare only. Part D is gross cost before manuf
 Beside it:
 - "Patients are distinct beneficiaries on the drug during the year, so their growth is net additions, not new starts."
 - The gap column: US reported growth less Medicare spend growth, "not explained by Medicare gross spend: net price, other payers, inventory". It is never called a net price. It is shown in dollars only: a growth rate in another currency carries the exchange rate, and the book has no FX history before 24 Jul 2026.
+- A brand CMS reports in both parts is read from its main part, and every line says so: the sentence and the flag say "Medicare Part B patients" and "Part B spend", the gap is taken against the brand's spend across all parts, and the both-parts total in points says "use per patient" and "price", since a Part D fill and a Part B claim are not one thing. Prolia: Part B patients +3.0% while Part D's rose 11.5% and the brand's spend 11.8%.
 
 ## 4. Flags
 
