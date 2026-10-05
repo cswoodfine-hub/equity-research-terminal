@@ -159,6 +159,47 @@ def test_derived_rows_are_withdrawn_when_the_trial_stops(tmp_path):
     assert {r["ticker"] for r in catalysts.list_catalysts(db_file, within_days=365)} == {"MRK"}
 
 
+def test_a_resolved_readout_is_history_the_derivation_never_touches(tmp_path):
+    """A readout resolved met or missed is evidence pos_granular reads. Neither a slip,
+    a retitle nor the trial leaving the window may edit or delete it, and its trial
+    gets no second pending row. A stale pending row is still withdrawn."""
+    db_file = tmp_path / "test.db"
+    _seed_trials(db_file)
+    catalysts.derive_readouts(db_file)
+    conn = db.get_connection(db_file)
+    resolved = conn.execute("SELECT id, expected_date, title FROM catalysts"
+                            " WHERE source_url LIKE '%NCT_P3'").fetchone()
+    conn.close()
+    catalysts.set_status(db_file, resolved["id"], "missed")
+
+    slipped = (dt.date.today() + dt.timedelta(days=200)).isoformat()
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE trials SET primary_completion_date = ?, title = 'Renamed'"
+                 " WHERE nct_id = 'NCT_P3'", (slipped,))
+    conn.commit()
+    conn.close()
+    again = catalysts.derive_readouts(db_file)
+    assert again["added"] == 0 and again["updated"] == 0
+
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE trials SET overall_status = 'Completed'"
+                 " WHERE nct_id IN ('NCT_P3', 'NCT_P3B')")
+    conn.commit()
+    conn.close()
+    gone = catalysts.derive_readouts(db_file)
+
+    conn = db.get_connection(db_file)
+    rows = [dict(r) for r in conn.execute(
+        "SELECT id, status, expected_date, title, source_url FROM catalysts")]
+    conn.close()
+    assert gone["withdrawn"] == 1                     # MRK's pending row, not the resolved
+    assert len(rows) == 1
+    kept = rows[0]
+    assert kept["id"] == resolved["id"] and kept["status"] == "missed"
+    assert (kept["expected_date"], kept["title"]) == (resolved["expected_date"],
+                                                      resolved["title"])
+
+
 def test_month_only_dates_are_marked_and_do_not_say_readout_twice(tmp_path):
     """CT.gov reports some completion dates to the month only, 15% of the real set."""
     db_file = tmp_path / "test.db"
