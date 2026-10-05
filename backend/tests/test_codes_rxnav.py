@@ -310,6 +310,13 @@ _NEGOTIATED_GAPS = {
     # brand the book holds no asset for.
     ("BOTOX; BOTOX COSMETIC", "00023-3919"),
     ("BOTOX; BOTOX COSMETIC", "00023-9232"),
+    # Discontinued presentations of retired RxNorm concepts, which no current concept's
+    # NDC history carries: Ozempic RxCUI 1991311 (0169-4132, marketing completed
+    # 2025-09-30) and 1991317 (0169-4136, completed 2023-10-31); Imbruvica RxCUI 2000031
+    # (57962-0560, dropped 2025-03-06).
+    ("OZEMPIC; RYBELSUS; WEGOVY", "00169-4132"),
+    ("OZEMPIC; RYBELSUS; WEGOVY", "00169-4136"),
+    ("IMBRUVICA", "57962-0560"),
 }
 
 
