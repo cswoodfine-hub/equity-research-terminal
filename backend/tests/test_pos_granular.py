@@ -388,6 +388,56 @@ def test_a_failed_phase_3_is_not_outweighed_by_the_rate_its_class_usually_achiev
     assert got["low"] == 0.0, "and the band still floors at nil"
 
 
+def test_a_failed_phase_3_never_lifts_the_asset_above_where_it_entered(tmp_path):
+    """The mixed stage keeps the area chain, which is right where the cuts sit above it.
+    A peptide in metabolic disease is the other case: the peptide rate sits below the
+    area's, so the bare chain would put the asset higher after a failed Phase 3 than it
+    stood before one. The cap holds it at the point it carried entering the phase."""
+    table = PG.transitions()
+    area = (table[("area", "Metabolic", "p3_to_nda")]["pos"]
+            * table[("area", "Metabolic", "nda_to_approval")]["pos"])
+    peptide = (table[("modality", "Peptide", "p3_to_nda")]["pos"]
+               * table[("modality", "Peptide", "nda_to_approval")]["pos"])
+    assert peptide < area, "the fixture needs a cut below the area chain"
+    trials = (("NCT1", "Recruiting", "2028-01-01", 500, None),)
+    conn = _seed(tmp_path, trials=trials, name="xyzglutide")
+    before = _resolve(conn, area="Metabolic", names=["xyzglutide"],
+                      conditions_text="obesity")
+    conn.execute("UPDATE trials SET overall_status = 'Active not recruiting',"
+                 " primary_completion_date = '2026-03-01' WHERE nct_id = 'NCT1'")
+    conn.execute("INSERT INTO trials (nct_id, asset_id, sponsor_company_id, phase,"
+                 " overall_status, primary_completion_date, enrollment, title,"
+                 " conditions) VALUES ('NCT2', 7, 1, 'Phase 3', 'Recruiting',"
+                 " '2029-01-01', 900, 'A study', '[\"Obesity\"]')")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome,"
+                 " event_date) VALUES ('000-9', 1, 'xyzglutide', 3, 'negative',"
+                 " '2026-06-01')")
+    conn.commit()
+    got = _resolve(conn, area="Metabolic", names=["xyzglutide"], conditions_text="obesity")
+    conn.close()
+    assert before["stage"] == "entering" and got["stage"] == "mixed"
+    entering = (area * peptide) ** 0.5
+    assert before["pos"] == pytest.approx(entering, abs=1e-4)
+    assert got["pos"] == pytest.approx(entering, abs=1e-4)
+    assert got["pos"] <= before["pos"] < round(area, 4)
+    assert got["low"] == 0.0
+    assert "capped at the" in got["basis"]
+
+
+def test_the_cap_leaves_a_mixed_asset_whose_cuts_sit_above_the_area_alone(tmp_path):
+    """Volrustomig and ziltivekimab: the antibody rate sits above the area chain, so the
+    cap does not bind, the point stays on the chain and the basis does not change."""
+    conn = _seed(tmp_path,
+                 trials=(("NCT1", "Active not recruiting", "2026-03-01", 500, None),
+                         ("NCT2", "Recruiting", "2029-01-01", 900, None)),
+                 name="etentamig",
+                 readouts=(("etentamig", 3, "negative", "2026-06-01"),))
+    got = _resolve(conn, names=["etentamig"], conditions_text="Multiple Myeloma")
+    conn.close()
+    assert got["pos"] == pytest.approx(0.477 * 0.920, abs=1e-4)
+    assert "capped" not in got["basis"]
+
+
 def test_the_bispecific_infix_is_read_in_full():
     """-mig is the WHO infix for a bispecific immunoglobulin. Taking only -tamig and
     -amig missed volrustomig, rilvegostomig and tobemstomig, all of them bispecifics."""

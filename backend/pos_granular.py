@@ -362,7 +362,18 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
     # the band still floors at nil.
     if cuts and where["stage"] != "mixed":
         point = math.exp(sum(math.log(v) for v in spread) / len(spread))
+    capped_at = None
     if where["stage"] == "mixed":
+        # A negative readout never raises the probability. Keeping the area chain is
+        # right where the cuts sit above it, which is volrustomig's case, but where a cut
+        # sits below the area rate (a peptide in metabolic disease, say) the bare chain
+        # would put the asset higher after a failed Phase 3 than it stood before one. So
+        # the mixed point is never above the point the asset carried entering the phase,
+        # the central tendency of the same chain and cuts with no readout at all.
+        entering = (math.exp(sum(math.log(v) for v in spread) / len(spread))
+                    if cuts else point)
+        if entering < point:
+            point = capped_at = entering
         spread.append(0.0)
     # .get rather than a subscript: a stage added later must not raise on an asset.
     stage_note = {"positive": "at the NDA/BLA gate: ",
@@ -379,6 +390,9 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
         basis += ("; taken as the central tendency of that and " +
                   ", ".join(f"{c['group']} {c['pos']:.0%}" for c in cuts) +
                   f", giving {point:.1%}")
+    if capped_at is not None:
+        basis += (f", capped at the {capped_at:.1%} it carried entering the phase because "
+                  f"a negative readout never raises the probability")
     return {"pos": round(point, 4), "low": round(min(spread), 4),
             "high": round(max(spread), 4), "stage": where["stage"],
             "evidence": where["evidence"], "area": label,
