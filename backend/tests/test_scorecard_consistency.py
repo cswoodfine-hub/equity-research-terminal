@@ -1,17 +1,19 @@
 """One scorecard, every surface (company-scorecard.md 0.2, 1.2 and 7.2, E5).
 
 The scorecard is computed once, in Python, and four surfaces print it: Key insights (the
-strip, the sentence, the bars, the lines), Comps > Companies (the ranked table and the
-chart), the company panel and Compare (both drawn by the compsval frame from core.js). The
-spec's promise is that they print the same characters, so these tests read each surface
+call's multiple and the table against the cohort), Comps > Companies (the ranked table and
+the chart), the company panel and Compare (both drawn by the compsval frame from core.js).
+The spec's promise is that they print the same characters, so these tests read each surface
 and hold it to ``scorecard.companies[T]``:
 
 - the frame's side runs core.js in node over a payload (``deriveView`` with the panel open,
   then with Compare open on three companies) and returns what it would draw;
 - the Key insights and Catalysts side runs the tab's own string builders, read out of the
   Streamlit script by name, or, in the live layer, the whole page through AppTest;
-- Next on Key insights is the head of the Drivers list on Catalysts, and the strip's next
-  exclusivity loss is the first exclusivity row of Risks;
+- Readouts and decisions on Key insights names only the assets the Drivers list on
+  Catalysts ranks, on dates their catalysts carry, soonest first, and leaves out none the
+  Drivers list calls decisive; the scorecard's next exclusivity loss, the first exclusivity
+  row of Risks, leads Loss of exclusivity with the same date and share;
 - the measures both core.js and ``company_score`` compute (P/E NTM, EV to sales on FY0,
   revenue growth) agree to 1e-9, and both leave free cash flow yield empty on negative free
   cash flow.
@@ -154,8 +156,8 @@ def _builders() -> dict:
         if name.startswith(("_ki_", "_KI_", "_dr_", "_DR_")) or name in SHARED:
             keep.append(node)
             names.add(name)
-    for needed in SHARED + ("_ki_columns", "_ki_figures", "_ki_track_items", "_ki_metric",
-                            "_dr_list"):
+    for needed in SHARED + ("_ki_cohort_table", "_ki_figures", "_ki_readouts", "_ki_expiries",
+                            "_ki_metric", "_dr_list"):
         assert needed in names, f"{needed} is not in streamlit_app.py"
     space = {"html": html, "re": re, "dt": dt}
     exec(compile(ast.Module(body=keep, type_ignores=[]), str(APP), "exec"), space)
@@ -315,33 +317,59 @@ def _check_frame(v: dict, sc: dict, focal: str, picks) -> None:
             assert (cell["lines"] or []) == [x["text"] for x in r[side][:3]], (side, r["ticker"])
 
 
+# The cohort table on Key insights shortens a measure's unit to fit its column: "4.6 years"
+# prints "4.6y" and "77 months" "77mo", where the panel and Compare print the scorecard's
+# text whole. This is the one change it may make; the figure is the scorecard's to the
+# character.
+KI_UNITS = ((" years", "y"), (" year", "y"), (" months", "mo"))
+
+
+def _ki_unit(text) -> str:
+    out = str(text or "")
+    for long, short in KI_UNITS:
+        out = out.replace(long, short)
+    return out
+
+
 def _ki_from_builders(view: dict, sc: dict, ticker: str) -> dict:
     """What Key insights prints for ``ticker`` from the scorecard block, through the tab's
-    own builders (the renderer only arranges their output): every measure in the cohort
-    band, and the multiple in the call's last cell."""
+    own builders (the renderer only arranges their output): every measure with a value in
+    the table against the cohort, and the multiple in the call's last cell."""
     rec = sc["companies"][ticker]
-    cols = view["_ki_columns"](sc, ticker, {}, {})
-    measures = {r["id"]: (r["text"], r["place_text"]) for c in cols for r in c["rows"]
+    groups = view["_ki_cohort_table"](sc, ticker, {}, {})
+    measures = {r["id"]: (r["text"], r["place_text"]) for g in groups for r in g["rows"]
                 if r.get("value") is not None}
     multiple = (rec.get("facts") or {}).get("multiple")
-    cell = view["_ki_figures"]({}, {"source": None}, None, None, multiple, None)[3]
+    # The market row is five cells (close, 24 hours, 1 year, street, multiple): the
+    # multiple is the last.
+    figures = view["_ki_figures"]({}, {"source": None}, None, None, multiple, None)
+    assert len(figures) == 5, [f[1] for f in figures]
+    cell = figures[4]
     return {"measures": measures, "multiple": cell[0], "multiple_key": cell[1]}
 
 
 def _check_key_insights(ki: dict, sc: dict, ticker: str) -> None:
-    """Every measure is the scorecard's own text and place; the multiple its own figure."""
+    """Every measure is the scorecard's own text (its unit shortened) and place; the
+    multiple its own figure. A measure the cohort reports without scoring (``other_metrics``)
+    has no place, and prints none."""
     rec = sc["companies"][ticker]
     by_id = {m["id"]: m for p in (rec.get("pillars") or {}).values()
              for m in (p.get("metrics") or [])}
+    for m in (rec.get("facts") or {}).get("other_metrics") or []:
+        by_id.setdefault(m["id"], m)
+    assert ki["measures"], f"{ticker}: no measure in the table against the cohort"
     for mid, (text, place) in ki["measures"].items():
-        assert text == by_id[mid]["text"], mid
-        assert place == f"{by_id[mid]['place']} of {by_id[mid]['n']}", mid
+        assert text == _ki_unit(by_id[mid]["text"]), (mid, text, by_id[mid]["text"])
+        want = (f"{by_id[mid]['place']} of {by_id[mid]['n']}"
+                if by_id[mid].get("place") and by_id[mid].get("n") else "")
+        assert place == want, mid
     multiple = (rec.get("facts") or {}).get("multiple")
     if multiple:
         assert ki["multiple"] == multiple["text"]
         assert ki["multiple_key"] == f"{multiple['label']} · median {multiple['median_text']}"
     else:
         assert ki["multiple"] == DOT
+        assert ki["multiple_key"] == "multiple · none on file"
 
 
 def _sentence_numbers(sc: dict, ticker: str) -> None:
@@ -367,16 +395,22 @@ def test_the_frame_table_panel_and_compare_print_the_scorecard(frame, board, tic
 @needs_node
 @pytest.mark.parametrize("ticker", TICKERS)
 def test_key_insights_and_the_frame_print_the_same_numbers(view, frame, board, ticker):
-    """Key insights' cohort band and the company panel print each measure as the same
-    text, and the call's multiple is the panel's value measure against the same median."""
+    """Key insights' table against the cohort and the company panel print each measure as
+    the same figure in the same place, and the call's multiple is the panel's value measure
+    against the same median."""
     rec = board["companies"][ticker]
     ki = _ki_from_builders(view, board, ticker)
     _check_key_insights(ki, board, ticker)
     v = frame[ticker]
     panel = {m["id"]: m for p in v["detail"]["pillars"] for m in (p.get("metrics") or [])}
-    for mid, (text, _place) in ki["measures"].items():
+    compared = 0
+    for mid, (text, place) in ki["measures"].items():
         if mid in panel:
-            assert panel[mid]["text"] == text, mid
+            assert _ki_unit(panel[mid]["text"]) == text, mid
+            if panel[mid].get("placeText"):
+                assert panel[mid]["placeText"] == place, mid
+            compared += 1
+    assert compared >= 3, (ticker, compared)
     multiple = (rec.get("facts") or {}).get("multiple")
     if multiple:
         value = next(p for p in v["detail"]["pillars"] if p["id"] == "value")
@@ -385,38 +419,184 @@ def test_key_insights_and_the_frame_print_the_same_numbers(view, frame, board, t
         assert m["medianText"] == f"median {multiple['median_text']}"
 
 
-def _dated(rows):
-    return [r for r in rows if re.match(r"^\d{4}(-\d{2}){0,2}$", str(r.get("date") or ""))]
+def _decides(it: dict) -> bool:
+    """A catalyst the Drivers list's own rules call decisive, so Readouts and decisions must
+    carry it: a regulatory date or a late-stage readout (tiers 1 to 3), or any event of an
+    unapproved asset worth DRIVER_MIN_PCT of the price or more. The list may carry more (a
+    Phase 2 readout of a compound the model does not value); this is its floor."""
+    asset = it.get("asset") if isinstance(it.get("asset"), dict) else {}
+    value = it.get("asset_value") if isinstance(it.get("asset_value"), dict) else {}
+    pct = value.get("pct_of_price")
+    return (D._is_regulatory(it) or D._is_late_readout(it)
+            or (bool(asset) and not asset.get("is_marketed") and pct is not None
+                and pct >= D.DRIVER_MIN_PCT))
+
+
+def _readouts(view: dict, items: list, today: dt.date, shown: int = None) -> dict:
+    """Readouts and decisions as the renderer calls it, without the registry's programmes:
+    every row is then a catalyst of the context."""
+    kw = {"shown": shown} if shown is not None else {}
+    return view["_ki_readouts"](items, today, prose=D.indication_prose,
+                                min_pct=D.DRIVER_MIN_PCT, **kw)
+
+
+def _ahead(iso: str, today: str) -> bool:
+    """A catalyst date is still ahead: a month-only date ("2026-11", as ClinicalTrials.gov
+    gives it) by its month, a day by its day."""
+    iso = str(iso or "")[:10]
+    return iso[:7] >= today[:7] if len(iso) < 10 else iso >= today
+
+
+def _sources(items: list, row: dict) -> list:
+    """The catalysts a readout row can come from: the same date, event and indication, of
+    the asset it names or, for an event with no asset, of a title that starts with it."""
+    out = []
+    for it in items:
+        asset = it.get("asset") if isinstance(it.get("asset"), dict) else {}
+        name = D.product_name(asset.get("name"))
+        title = re.sub(r"^Phase [0-9/]+,\s*", "", str(it.get("title") or ""))
+        if not (name == row["asset"] if name else
+                title.startswith(row["asset"]) or D.product_name(title).startswith(row["asset"])):
+            continue
+        ind = (it.get("indication") or {}).get("name")
+        # One row a compound a month joins its trials' indications, so a catalyst is a
+        # source of the row when its indication is one of them, in the same month.
+        said = [x.strip() for x in str(row["indication"] or "").split(", ") if x.strip()]
+        if (str(it.get("date") or "")[:7] == row["date"][:7]
+                and D.event_text(it) == row["event"]
+                and ((D.indication_prose(ind) in said) if ind else True)):
+            out.append(it)
+    return out
 
 
 @pytest.mark.parametrize("ticker", ["AZN", "LLY", "CRSP"])
-def test_the_track_leads_with_the_head_of_the_catalysts_list(view, board, ticker):
-    """Key insights' track and the Catalysts list, drawn from the same saved context: the
-    track labels the first four dated drivers, in the list's order."""
+def test_the_readouts_are_the_catalysts_lists_events_soonest_first(view, board, ticker):
+    """Readouts and decisions and the Catalysts list, drawn from the same saved context:
+    every readout names an asset the Drivers list ranks, on a date, event and indication
+    one of that asset's catalysts carries, still ahead, its date no more precise than the
+    catalyst's and marked estimated unless the company stated or confirmed it; no asset
+    the Drivers list's own rules call decisive (a regulatory date, a late-stage readout or
+    a valued unapproved event) is left out; soonest first, the first five shown."""
     ctx = json.loads((DRIVERS / f"ctx_{ticker}.json").read_text())
     feed = json.loads((DRIVERS / f"feed_{ticker}.json").read_text())
+    today = dt.date.fromisoformat(board["today"])
     part = D.section(ticker, ctx, board["companies"].get(ticker), feed, board["today"])
-    events = D.rank_events(ctx)
-    items, _ = view["_ki_track_items"](events, [], dt.date.fromisoformat(board["today"]))
-    labelled = [it["label"] for it in items if it["kind"] != "minor"]
-    assert labelled == [e["asset"] for e in _dated(events)][:4]
-    shown = [r["asset"] for r in _dated(part["drivers"]["shown"])]
-    assert labelled[:len(shown)] == shown[:len(labelled)]
+    ranked = {r["asset"] for r in part["drivers"]["rows"]}
+    items = [it for it in ctx["catalysts"]["items"] if isinstance(it, dict)]
+
+    full = _readouts(view, items, today, shown=10 ** 6)["rows"]
+    shown = _readouts(view, items, today)
+    if not items:
+        assert not full and not shown["rows"] and not shown["more"]
+        assert "No late-stage readout" in view["_ki_readouts_html"](shown)
+        return
+    assert len(full) >= 5, (ticker, len(full))
+    for r in full:
+        assert r["asset"] in ranked or any(x.startswith(r["asset"]) for x in ranked), \
+            (ticker, r["asset"])
+        src = _sources(items, r)
+        assert src, (ticker, r)
+        assert _ahead(r["date"], board["today"]), (ticker, r)
+        # The date: estimated unless stated or confirmed, and never finer than the
+        # Catalysts row prints it (a registry estimate to its month, a quarter as Q1).
+        est = {it.get("date_confidence") not in ("confirmed", "stated") for it in src}
+        assert r["estimated"] in est, (ticker, r)
+        assert r["date_text"] == (f"est. {r['when']}" if r["estimated"] else r["when"]), r
+        allowed = {D.month_text(r["date"])} | {D.date_parts(it)[0].removeprefix("est. ")
+                                               for it in src}
+        assert r["when"] in allowed, (ticker, r["when"], allowed)
+        if r["estimated"]:
+            assert not re.match(r"^\d", r["when"]), (ticker, r)    # never an estimated day
+    dates = [r["date"] for r in full]
+    assert dates == sorted(dates), (ticker, dates)
+    listed = {r["asset"] for r in full}
+    # A regimen, placebo or standard of care is an arm, not a compound: the list leaves it.
+    arm = view.get("_KI_NOT_A_COMPOUND")
+    decisive = {D.product_name(it["asset"]["name"]) for it in items
+                if it.get("asset") and _ahead(it.get("date"), board["today"])
+                and _decides(it) and not (arm and arm.search(str(it["asset"]["name"])))}
+    assert decisive <= listed, (ticker, sorted(decisive - listed))
+    assert shown["rows"] == full[:5]
+    assert shown["more"] == len(full) - 5
+    assert shown["total"] == len(full)
 
 
-def test_the_tracks_losses_are_the_risk_lists_exclusivity_rows(view, board):
-    """For every company: the losses under the track and the exclusivity rows of Risks
-    name the same products in the same order."""
+@pytest.mark.parametrize("ticker", [
+    "AZN",
+    "LLY"])
+def test_the_readouts_list_a_compound_once_a_month(view, board, ticker):
+    """key-insights.md R4.2: two trials of one compound in the same month are one row of
+    Readouts and decisions, whatever indication each names."""
+    ctx = json.loads((DRIVERS / f"ctx_{ticker}.json").read_text())
+    today = dt.date.fromisoformat(board["today"])
+    items = [it for it in ctx["catalysts"]["items"] if isinstance(it, dict)]
+    full = _readouts(view, items, today, shown=10 ** 6)["rows"]
+    keys = [(r["asset"].lower(), r["date"][:7]) for r in full]
+    twice = sorted({k for k in keys if keys.count(k) > 1})
+    assert not twice, (ticker, twice)
+
+
+def _loe_when(view: dict, iso: str, basis) -> str:
+    """A loss date as Loss of exclusivity prints it, at its source's precision by the tab's
+    own rule (``_ki_loe_text``, pinned in test_insights_tab_ui.py), after checking that the
+    rule prints that very date: the day as Risks prints it, its month, or its year (a
+    filer's year stands in a year's last day for the year)."""
+    when = view["_ki_loe_text"](iso, basis, day=True)
+    assert when in (D.day_text(iso), D.month_text(iso), iso[:4]), (iso, basis, when)
+    return when
+
+
+def _shift_year(iso: str, years: int) -> str:
+    d = dt.date.fromisoformat(iso[:10])
+    return d.replace(year=d.year + years, day=min(d.day, 28)).isoformat()
+
+
+def test_the_scorecards_next_exclusivity_loss_is_a_patent_expiry(view, board):
+    """For every company: the scorecard's next exclusivity loss, the first exclusivity row of
+    Risks, leads Loss of exclusivity with the same date (at its source's precision) and
+    share of revenue, and the rest follow in the Risks list's order. The scorecard's date
+    wins over the exclusivity file's for its products, and an orphan term is never taken
+    for a product's loss of exclusivity."""
     today = board["today"]
+    day = dt.date.fromisoformat(today)
     checked = 0
     for ticker, rec in board["companies"].items():
-        risks = D.risks(rec, None, [], today)
-        items, _ = view["_ki_track_items"]([], risks, dt.date.fromisoformat(today))
-        losses = [it["label"] for it in items if it["kind"] == "loss"]
-        want = [f"{r['asset']} LOE" for r in risks if r["kind"] == "exclusivity"][:4]
-        assert losses == want, ticker
-        checked += bool(losses)
+        losses = rec.get("exclusivity_losses") or []
+        risks = [r for r in D.exclusivity_rows(rec, today)
+                 if "orphan" not in str(r.get("basis") or "").lower()]
+        if not risks:
+            continue
+        # The exclusivity file a year off the scorecard for every product: the scorecard's
+        # date still wins.
+        held = [{"asset_id": x.get("asset_id"), "brand_name": x["asset"],
+                 "loe": _shift_year(x["date"], 1), "loe_basis": "drug substance patent"}
+                for x in losses]
+        rows = view["_ki_expiries"](held, {}, {}, losses, day, False)["rows"]
+        assert rows, ticker
+        first = risks[0]
+        assert rows[0]["asset"].lower() == first["asset"].lower(), (ticker, rows[0], first)
+        assert rows[0]["date"] == first["date"], (ticker, rows[0], first["date"])
+        assert rows[0]["when"] == _loe_when(view, first["date"], first.get("basis")), \
+            (ticker, rows[0], first.get("basis"))
+        assert rows[0]["share_text"] == first["share_text"], (ticker, rows[0])
+        assert ([r["asset"].lower() for r in rows]
+                == [r["asset"].lower() for r in risks][:len(rows)]), ticker
+        checked += 1
     assert checked >= 10, "too few companies with an exclusivity loss to mean anything"
+
+    # An orphan term guards one indication, not the molecule: the scorecard's row for it is
+    # not a loss of exclusivity here, and the next real loss leads.
+    loss = {"asset": "Orphanex", "asset_id": 1, "date": _shift_year(today, 1),
+            "share_of_revenue": 0.2, "share_text": "20.0%", "fy": "FY2025",
+            "basis": "orphan drug exclusivity"}
+    real = {"asset": "Patentex", "asset_id": 2, "date": _shift_year(today, 2),
+            "share_of_revenue": 0.1, "share_text": "10.0%", "fy": "FY2025",
+            "basis": "drug substance patent"}
+    held = [{"asset_id": x["asset_id"], "brand_name": x["asset"], "loe": x["date"],
+             "loe_basis": x["basis"]} for x in (loss, real)]
+    rows = view["_ki_expiries"](held, {}, {}, [loss, real], day, False)["rows"]
+    assert [r["asset"] for r in rows] == ["Patentex"], rows
+    assert rows[0]["kind"] == "patent" and rows[0]["share_text"] == "10.0%", rows[0]
 
 
 @needs_node
@@ -566,41 +746,174 @@ def test_live_every_surface_prints_the_payloads_scorecard(page):
                 f"{rec['score']}" + (f", value {rec['value']}" if rec.get("value") is not None
                                      else ""))
         assert f'aria-label="{aria}"' in page["args"]["chart_svg"], aria
-    # Key insights: every measure in its cohort band, as the scorecard prints it.
+    # Key insights: every measure of the table against the cohort, its figure the
+    # scorecard's and its place beside it, and the rank in the table's chip.
     body = "\n".join(page["ki"])
     view = _builders()
-    for col in view["_ki_columns"](sc, ticker, {}, {}):
-        for r in col["rows"]:
+    ki = _ki_from_builders(view, sc, ticker)
+    _check_key_insights(ki, sc, ticker)
+    for g in view["_ki_cohort_table"](sc, ticker, {}, {}):
+        for r in g["rows"]:
             if r.get("value") is not None:
-                assert f"<b>{html.escape(r['text'], quote=False)}</b>" in body, r["id"]
+                cell = (f'<span class="v">{html.escape(r["text"], quote=False)}</span>'
+                        f'<span class="p {r.get("tone") or ""}">'
+                        f'{html.escape(r["place_text"], quote=False)}</span>')
+                assert cell in body, (r["id"], cell)
     if rec.get("rank") is not None:
-        assert f"of {rec['ranked_of']} · score {rec['score']}" in body
+        assert (f"{CS.ordinal(rec['rank'])} of {rec['ranked_of']} · right is better"
+                in body)
+
+
+# Readouts and decisions and Loss of exclusivity, as the tab draws their rows. An expiry's
+# middle cell is "kind · 5.6% of revenue", the share left out where none is on file.
+KI_READOUT = re.compile(
+    r'<div class="ki-ro" title="([^"]*)"><span class="d"><i>([●○])</i>([^<]*)</span>'
+    r'<span class="n(?: pipeline)?">([^<]*)</span><span class="w">([^<]*)</span></div>')
+KI_EXPIRY = re.compile(
+    r'<div class="ki-ex" title="([^"]*)"><span class="d">([^<]*)</span>'
+    r'<span class="n">([^<]*)</span><span class="w">([^<]*)</span>'
+    r'<span class="v">([^<]*)</span></div>')
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _period(text: str) -> tuple:
+    """(first day, last day) of a date as the lists print it: "8 Sep 2027", "Sep 2027",
+    "Q1 2027", "H2 2027", or "2027" (the year a filer gave without a day)."""
+    text = text.strip()
+    m = re.fullmatch(r"(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})", text)
+    if m:
+        d = dt.date(int(m.group(3)), MONTHS.index(m.group(2)) + 1, int(m.group(1)))
+        return d, d
+    m = re.fullmatch(r"([A-Z][a-z]{2}) (\d{4})", text)
+    if m:
+        y, mo = int(m.group(2)), MONTHS.index(m.group(1)) + 1
+        return dt.date(y, mo, 1), dt.date(y + mo // 12, mo % 12 + 1, 1) - dt.timedelta(days=1)
+    m = re.fullmatch(r"([QH])([1-4]) (\d{4})", text)
+    if m:
+        y, n = int(m.group(3)), int(m.group(2))
+        months = 3 if m.group(1) == "Q" else 6
+        first = (n - 1) * months + 1
+        last = first + months - 1
+        return (dt.date(y, first, 1),
+                dt.date(y + last // 12, last % 12 + 1, 1) - dt.timedelta(days=1))
+    assert re.fullmatch(r"\d{4}", text), text
+    return dt.date(int(text), 1, 1), dt.date(int(text), 12, 31)
+
+
+def _when(text: str) -> dt.date:
+    """A day, a month (its first day) or a year (its last day: the year a filer gave
+    stands in for its last day) as one date."""
+    first, last = _period(text)
+    return last if re.fullmatch(r"\d{4}", text.strip()) else first
+
+
+def _soonest_first(texts: list) -> bool:
+    """No date lies wholly before the one listed above it: a month, quarter or half may
+    hold the day listed before it."""
+    spans = [_period(t) for t in texts]
+    return all(b[1] >= a[0] for a, b in zip(spans, spans[1:]))
+
+
+def _share_part(middle: str) -> str:
+    """The "5.6% of revenue" part of an expiry's middle cell, or ""."""
+    return next((p for p in middle.split(" · ") if p.endswith(" of revenue")), "")
+
+
+def _get(path: str) -> dict:
+    with urllib.request.urlopen(_api() + path, timeout=300) as resp:
+        return json.loads(resp.read().decode("utf-8"))
 
 
 @live
-def test_live_the_tracks_drivers_are_on_the_catalysts_list(page):
+def test_live_the_readouts_name_catalyst_assets_soonest_first(page):
+    """Every row of Readouts and decisions names an asset the Catalysts tab ranks or the
+    context carries a catalyst for, except a row marked as the registry's estimate, which
+    is a programme's next readout past the catalysts; at most five, soonest first."""
+    ticker = page["ticker"]
     body = "\n".join(page["ki"])
-    track = next((m for m in page["ki"] if "ki-track" in m), "")
-    drawn = [text.split(" · ")[0] for kind, lead, text in _dr_rows("".join(page["cat"]))
-             if kind == "driver"]
-    labels = re.findall(r'font-size="10"[^>]*font-weight="600"[^>]*>([^<]*)</text>', track)
-    drivers_drawn = [html.unescape(x) for x in labels if not x.endswith(" LOE")
-                     and not x.startswith("NCT")]
-    for name in drivers_drawn:
-        assert name.split(" → ")[0] in drawn, name
-    if not drawn:
-        assert "ki-track" not in body or not drivers_drawn
+    rows = [(html.unescape(tip), mark, html.unescape(when), html.unescape(name))
+            for tip, mark, when, name, _what in KI_READOUT.findall(body)]
+    drawn = {text.split(" · ")[0] for kind, _lead, text in _dr_rows("".join(page["cat"]))
+             if kind == "driver"}
+    items = [it for it in (_get(f"/companies/{ticker}/comps-context").get("catalysts")
+                           or {}).get("items") or [] if isinstance(it, dict)]
+    assets = {D.product_name((it.get("asset") or {}).get("name")) for it in items} - {""}
+    titles = [re.sub(r"^Phase [0-9/]+,\s*", "", str(it.get("title") or "")) for it in items
+              if not it.get("asset")]
+    programmes = {D.product_name(p.get("name")) for p in
+                  _get(f"/companies/{ticker}/programmes").get("programmes") or []}
+    for tip, mark, when, name in rows:
+        if tip.endswith("registry estimate"):
+            assert mark == "○" and name in programmes, (ticker, name, tip)
+        else:
+            assert (name in drawn or name in assets
+                    or any(t.startswith(name) for t in titles)), (ticker, name, sorted(drawn))
+    assert len(rows) <= 5, (ticker, [r[3] for r in rows])
+    assert _soonest_first([when for _tip, _mark, when, _name in rows]), \
+        (ticker, [r[2] for r in rows])
+    if not rows:
+        assert "No late-stage readout or regulatory date is on file" in body
+
+
+def _expiry_rows(page) -> list:
+    """(product, date, date text, share text) of every Loss of exclusivity row on the page;
+    the share text is "5.6% of revenue", or "" where none is on file."""
+    return [(html.unescape(name), _when(html.unescape(when)), html.unescape(when),
+             _share_part(html.unescape(middle)))
+            for _tip, when, name, middle, _value in KI_EXPIRY.findall("\n".join(page["ki"]))]
 
 
 @live
-def test_live_the_tracks_first_loss_is_the_first_exclusivity_risk(page):
-    risks = [(lead, text) for kind, lead, text in _dr_rows("".join(page["cat"]))
+def test_live_the_first_exclusivity_risk_is_a_patent_expiry(page):
+    """The scorecard's next exclusivity loss heads Risks on Catalysts and is a row of Loss
+    of exclusivity, with the same share of revenue and the same date at its source's
+    precision (the year, where the filer gave only a year), unless five sooner losses fill
+    the list. An orphan term is never listed as a product's loss."""
+    sc, ticker = page["sc"], page["ticker"]
+    rec = sc["companies"][ticker]
+    risks = [text for kind, _lead, text in _dr_rows("".join(page["cat"]))
              if kind == "exclusivity"]
-    track = next((m for m in page["ki"] if "ki-track" in m), "")
-    rec = page["sc"]["companies"][page["ticker"]]
-    if not risks:
-        assert " LOE<" not in track
-        assert not rec.get("exclusivity_losses")
+    want = D.exclusivity_rows(rec, sc["today"])
+    if not want:
+        assert not risks, (ticker, risks)
         return
-    first = rec["exclusivity_losses"][0]
-    assert f">{html.escape(first['asset'], quote=False)} LOE<" in track
+    first = want[0]
+    assert risks and risks[0] == first["text"], (ticker, risks[:1], first["text"])
+    rows = _expiry_rows(page)
+    if "orphan" in str(first.get("basis") or "").lower():
+        assert not any(r[0].lower() == first["asset"].lower() for r in rows), \
+            (ticker, first["asset"])
+        return
+    hit = [r for r in rows if r[0].lower() == first["asset"].lower()]
+    if not hit and len(rows) == 5 and rows[-1][1] <= dt.date.fromisoformat(first["date"]):
+        return                                  # five sooner losses fill the list
+    assert hit, (ticker, first["asset"], rows)
+    assert hit[0][3] == f"{first['share_text']} of revenue", (ticker, hit[0])
+    assert hit[0][2] == _loe_when(_builders(), first["date"], first.get("basis")), \
+        (ticker, hit[0], first["date"], first.get("basis"))
+
+
+@live
+def test_live_patent_expiries_leave_out_no_earlier_scorecard_loss(page):
+    """Loss of exclusivity runs soonest first, so every exclusivity loss the scorecard dates
+    before the last row shown is one of its rows: the same product, or the same share of
+    revenue in the same year where the exclusivity file names a sibling brand. An orphan
+    term is not a product's loss, and is not looked for."""
+    sc, ticker = page["sc"], page["ticker"]
+    rows = _expiry_rows(page)
+    dates = [r[1] for r in rows]
+    assert dates == sorted(dates), (ticker, [r[2] for r in rows])
+    if not rows:
+        return
+    missing = []
+    for loss in D.exclusivity_rows(sc["companies"][ticker], sc["today"]):
+        if dt.date.fromisoformat(loss["date"]) >= dates[-1]:
+            continue
+        if "orphan" in str(loss.get("basis") or "").lower():
+            continue
+        if not any(r[0].lower() == loss["asset"].lower()
+                   or (r[3] == f"{loss['share_text']} of revenue"
+                       and r[1].year == int(loss["date"][:4]))
+                   for r in rows):
+            missing.append(loss["line"])
+    assert not missing, (ticker, missing, [(r[0], r[2], r[3]) for r in rows])

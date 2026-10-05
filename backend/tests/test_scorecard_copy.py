@@ -46,6 +46,7 @@ CORE = FRONTEND / "components" / "compsval" / "core.js"
 SPEC = ROOT / "docs" / "design" / "company-scorecard.md"
 SAMPLE = pathlib.Path(__file__).resolve().parent / "fixtures" / "company_score" / \
     "sample_scorecard.json"
+FRAME_PAYLOAD = FRONTEND / "tests" / "compsval" / "fixture_payload.json"
 
 for _p in (str(FRONTEND), str(BACKEND)):
     if _p not in sys.path:
@@ -64,6 +65,9 @@ BUDGET_TICKERS = ("AZN", "LLY", "PFE", "VRTX", "CRSP")
 
 # 8.7, the measurable parts.
 SENTENCE_MAX_WORDS = 30
+# The table against the cohort on Key insights. On the sample scorecard with the frame
+# fixture's records it runs 71 words for AZN, 65 LLY, 66 PFE, 65 VRTX and 38 CRSP, so the
+# band's budget stands.
 KI_COHORT_MAX_WORDS = 90
 # 3.3 and 8.7 hold the how-to-read line to 36 words, the count of the line 8.1 prints
 # verbatim (revision 2 said 34, a miscount, corrected). A longer line fails.
@@ -367,10 +371,104 @@ def _fixed_strings(frame_copy, app_copy) -> list:
                                                            "label"),
             ("D.EMPTY", D.EMPTY, "sentence"), ("D.CONTEXT_FAILED", D.CONTEXT_FAILED, "sentence"),
             ("calendar_view.SOURCES", calendar_view.SOURCES, "sentence")]
-    for label in ("Company score", "Positives and negatives", "Next", "What changed",
-                  "Morning note", "last close", "model", "multiple", "next exclusivity loss"):
+    # Key insights' headings, chips and column heads as the renderer passes them.
+    for label in KI_LABELS:
         out.append((f"Key insights.{label}", label, "label"))
+    out += [(f"_KI_SHORT.{k}", v, "label") for k, v in (app_copy.get("_KI_SHORT") or {}).items()]
+    view = _ki_view()
+    # The keys and tips of the call's two figure rows, from the builders themselves, with
+    # every figure on file and with none.
+    for where, cells in _ki_figure_cells(view):
+        for i, (_value, key, _tone, tip) in enumerate(cells):
+            out.append((f"Key insights.{where}[{i}].key", key, "label"))
+            if tip:
+                out.append((f"Key insights.{where}[{i}].tip", tip, "sentence"))
+    # The lines the lists print when they have no row, from the builders themselves.
+    for name, arg in (("_ki_readouts_html", {}), ("_ki_expiries_html", {}),
+                      ("_ki_key_assets_html", {"marketed": {}, "pipeline": {}})):
+        out.append((f"Key insights.{name}(empty)", _plain(view[name](arg)), "sentence"))
     return out
+
+
+# Key insights' fixed headings, chips, column heads and list words, as the renderer and the
+# list builders pass them (key-insights.md R4). Each is in streamlit_app.py as written here,
+# so a heading renamed on the page fails ``test_the_key_insights_labels_are_the_pages``
+# rather than leaving this list to lint a string the page no longer prints.
+KI_LABELS = (
+    # the call's figure rows
+    "close", "24 hours", "1 year", "street target", "52 weeks", "multiple", "market cap",
+    "revenue", "products on sale", "approved products", "product on sale", "approved product",
+    "late-stage", "in trials",
+    # the three columns' sections and their chips
+    "Morning note", "from the figures on this page",
+    "Readouts and decisions", "soonest first · ○ estimated date",
+    "Key assets", "$ a share", "not modelled", "the forecast did not load",
+    "Loss of exclusivity", "next five · $ a share",
+    "Where the value comes from", "What the street expects", "Against its cohort",
+    "right is better",
+    # Key assets' heads and its rest row
+    "Marketed", "Pipeline, risked", "Pipeline", "value", "of revenue", "phase", "LOE",
+    "readout, est.", "rest of revenue",
+    # what an exclusivity date is
+    "patent", "12y biologic", "orphan", "settlement", "model year", "exclusivity",
+    # the cohort table's groups
+    "Financials", "Funding",
+    # the foot
+    "What changed", "Note", "Rewrite note", "Tearsheet",
+)
+
+
+# A multiple's label is the scorecard's own (``facts.multiple.label``), linted with the
+# generated strings; this one stands in for it in the figure rows.
+KI_MULTIPLE_LABEL = "P/E NTM"
+
+
+def _ki_figure_cells(view: dict) -> list:
+    """(where, cells) of the call's market and business rows, each with every figure on
+    file and with none, and the street's call in place of the model's."""
+    series = {"close": 157.7, "as_of": "2026-10-02", "day_move": -0.012, "year_move": 0.064,
+              "low": 130.1, "high": 170.2}
+    momentum = {"text": "−3.1 points", "place": "9th", "n": 18}
+    street = {"value": 180.0, "low": 150.0, "high": 210.0, "as_of": "2026-09-30",
+              "ratings": {"buy": 12, "hold": 6, "sell": 1}}
+    multiple = {"text": "15.2×", "label": KI_MULTIPLE_LABEL, "median_text": "14.1×",
+                "metric": "pe_ntm"}
+    place = {"place": "9th", "n": 18}
+    record = {"market": {"market_cap_usd_m": 245_500, "market_cap_basis_text": "as of today"},
+              "row_currency": "USD",
+              "detail": {"pipeline": {"compounds": {"Phase 1": 40, "Phase 2": 30,
+                                                    "Phase 3": 20, "Phase 2/3": 2}}}}
+    verdict = {"reported_revenue": [{"fiscal_year": 2024, "value": 54_073},
+                                    {"fiscal_year": 2025, "value": 58_739}],
+               "sotp": {"marketed": {"n": 32}}}
+    figures = view["_ki_figures"]
+    business = view["_ki_business_figures"]
+    return [
+        ("figures(full)", figures(series, {"source": "model"}, momentum, street, multiple,
+                                  place)),
+        ("figures(street call)", figures(series, {"source": "street"}, momentum, street,
+                                         multiple, place)),
+        ("figures(none)", figures({}, {"source": None})),
+        ("figures(street call, none)", figures({}, {"source": "street"})),
+        ("business(modelled)", business(record, verdict, None, True)),
+        ("business(not modelled)", business(record, {}, None, False,
+                                            [{"brand_name": "Tagrisso"}])),
+        ("business(none)", business({}, {}, None, False)),
+    ]
+
+
+def test_the_key_insights_labels_are_the_pages():
+    """Every fixed label held to the house style above is one the page prints: it is in
+    the script as written, and the figure rows' keys lead with one of them."""
+    source = APP.read_text()
+    missing = [label for label in KI_LABELS if label not in source]
+    assert not missing, missing
+    for where, cells in _ki_figure_cells(_ki_view()):
+        assert len(cells) == 5, (where, [c[1] for c in cells])
+        for _value, key, _tone, _tip in cells:
+            head = key.split(" · ")[0]
+            assert (head in KI_LABELS or head.split(" ", 1)[-1] in KI_LABELS
+                    or head in ("street", KI_MULTIPLE_LABEL)), (where, key)
 
 
 def test_the_fixed_copy_keeps_the_house_style(app_copy, tmp_path):
@@ -470,14 +568,24 @@ def _plain(markup: str) -> str:
     return re.sub(r"\s+", " ", _h.unescape(re.sub(r"<[^>]+>", " ", markup))).strip()
 
 
+def _frame_records() -> dict:
+    """The company records of the frame's fixture payload, by ticker: what gives the
+    cohort table's groups their revenue and compounds lines."""
+    payload = json.loads(FRAME_PAYLOAD.read_text())
+    return {c["ticker"]: c for c in payload.get("companies") or []
+            if isinstance(c, dict) and c.get("ticker")}
+
+
 @pytest.mark.parametrize("ticker", BUDGET_TICKERS)
-def test_key_insights_cohort_band_is_within_its_budget(board, ticker):
-    """key-insights.md 8: the cohort band's words, three columns of a figure line and the
-    measures behind them, about 85 for the whole band. The pictures carry no prose."""
+def test_key_insights_cohort_table_is_within_its_budget(board, ticker):
+    """key-insights.md 8: the words of the table against the cohort, each group's label and
+    its revenue or compounds line, then a row a measure (label, value, place), about 85 for
+    the whole of it. The dot strips carry no prose."""
     view = _ki_view()
-    cols = view["_ki_columns"](board, ticker, {}, {})
-    text = " ".join(_plain(view["_ki_column_html"](c, "", ["" for _ in c["rows"]]))
-                    for c in cols)
+    record = _frame_records().get(ticker) or {}
+    groups = view["_ki_cohort_table"](board, ticker, record, {})
+    assert groups, ticker
+    text = _plain(view["_ki_cohort_html"](groups, {}))
     assert words(text) <= KI_COHORT_MAX_WORDS, (ticker, words(text), text)
 
 

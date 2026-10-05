@@ -793,25 +793,27 @@ select.u-input { padding-right: 20px; cursor: pointer; }
 /* changes. Sections are hairlines and caps labels; whitespace does the separating.     */
 /* ------------------------------------------------------------------------------------ */
 
-/* Bands: one grid each, the seams exact. The first two share a 5/12 seam, so the call
-   stacks over what it rests on and the price chart over the bridge. */
+/* Bands: one grid each. The call beside the price on a 5/12 seam, then three columns. */
 .ki-band { display: grid; column-gap: 32px; row-gap: 0; align-items: start; }
 .ki-band.c2 { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
-.ki-band.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.ki-band.c1 { grid-template-columns: minmax(0, 1fr); }
+
+/* Band 2: three columns that end together. The note and the readouts, the key assets
+   and the expiries, the bridge and the cohort: one screen at 1440 x 900. */
+.ki-band.c3e { grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr) minmax(0, 1fr); }
+.ki-band.c3e .ki-cell > .ki-sec:not(:first-child) { margin-top: 16px; }
 .ki-cell { min-width: 0; }
 [data-testid="stElementContainer"]:has(> div .ki-band) { margin-top: 1.1rem; }
 /* Air between the bands, more than inside them, so each reads as one block. */
 [data-testid="stElementContainer"]:has(> div .ki-band)
-  ~ [data-testid="stElementContainer"]:has(> div .ki-band) { margin-top: 1.9rem; }
-[data-baseweb="tab-panel"] [data-testid="stElementContainer"]:has(> div .ki-head) {
-  margin-top: 1.9rem;
-}
-[data-testid="stElementContainer"]:has(> div .ki-head)
-  + [data-testid="stElementContainer"]:has(> div .ki-band.c3) { margin-top: 0.35rem; }
-.ki-sec { margin-bottom: 8px; }
-@media (max-width: 1180px) {
-  .ki-band.c2, .ki-band.c3 { grid-template-columns: minmax(0, 1fr); row-gap: 20px; }
+  ~ [data-testid="stElementContainer"]:has(> div .ki-band) { margin-top: 1.6rem; }
+.ki-sec { margin-bottom: 8px; min-width: 0; }
+/* A long head gives way to its chip rather than pushing the page sideways. */
+.ki-sec .sec-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.ki-band { overflow-x: clip; }
+@media (max-width: 1179.98px) {
+  .ki-band.c2, .ki-band.c3e {
+    grid-template-columns: minmax(0, 1fr); row-gap: 20px; }
 }
 
 /* The call: the key, then the word, the figure and the move on one baseline. Two
@@ -836,85 +838,29 @@ select.u-input { padding-right: 20px; cursor: pointer; }
   font-size: 11px; color: var(--muted); border: 1px solid var(--rule-strong);
   border-radius: 2px; padding: 1px 6px;
 }
-.ki-sub { font-size: 12px; color: var(--muted); margin: 0 0 18px; }
-.ki-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 18px;
-  border-top: 1px solid var(--rule); padding-top: 12px; }
+.ki-sub { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+/* On the lead's baseline, so the call stays level with the chart beside it. */
+.ki-lead .ki-sub { margin: 0 0 0 4px; font-size: 12px; }
+.ki-figs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0 14px;
+  border-top: 1px solid var(--rule); padding-top: 8px; }
+/* The business row under the market row, on the same five columns. */
+.ki-figs.ki-biz { margin-top: 6px; }
 .ki-f { min-width: 0; }
 .ki-f .v { display: block; font-family: var(--font-mono); font-size: 16px; font-weight: 600;
   color: var(--text); white-space: nowrap; }
 .ki-f .v.up { color: var(--up); }
 .ki-f .v.down { color: var(--down); }
 .ki-f .v.none { color: var(--muted); }
+.ki-f .v.small { font-size: 13px; padding-top: 2px; }
 .ki-f .k { display: block; font-size: 11px; line-height: 1.35; color: var(--muted);
-  margin-top: 3px; }
+  margin-top: 3px; text-wrap: balance; }
 .ki-expects { grid-template-columns: repeat(4, minmax(0, 160px)); border-top: 0; }
 
 /* Charts mount at their built width and stretch to the column. */
-.ki-price, .ki-bridge, .ki-track { margin: 0; }
-.ki-price svg, .ki-bridge svg, .ki-track svg { display: block; }
-
-/* What it rests on: name, a bar on one scale, the value, a short fact. */
-.ki-rests { margin: 0 0 14px; }
-.ki-bk { display: grid; grid-template-columns: minmax(0, 1fr) 110px 58px 66px; gap: 0 10px;
-  align-items: center; height: 25px; border-bottom: 1px solid var(--rule); font-size: 12.5px; }
-.ki-bk .n { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ki-bk .b { height: 8px; background: transparent; }
-.ki-bk .b i { display: block; height: 8px; background: var(--up); border-radius: 1px; }
-.ki-bk .b i.pipeline { background: var(--purple-book); }
-.ki-bk .b i.line { background: var(--muted); opacity: 0.6; }
-.ki-bk .b i.future { background: repeating-linear-gradient(135deg, var(--muted) 0 1.5px,
-  transparent 1.5px 4px); box-shadow: inset 0 0 0 1px var(--muted); }
-.ki-bk .v { font-family: var(--font-mono); text-align: right; color: var(--text); }
-.ki-bk .m { font-size: 11px; color: var(--muted); white-space: nowrap; }
-.ki-bk .m.pipeline { color: var(--purple-book); }
-.ki-bk.more { border-bottom: 0; }
-.ki-bk.more .n, .ki-bk.more .v { color: var(--muted); }
-
-/* What would break it: a caps sub-label, then the two nearest levers. */
-.ki-brk-h { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--muted); margin: 4px 0 4px; cursor: help; }
-.ki-brk { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 0 8px;
-  align-items: baseline; font-size: 12.5px; padding: 3px 0; color: var(--text); }
-.ki-brk .g { color: var(--flag); font-size: 10px; }
-.ki-brk .v { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
-.ki-brk .v b { color: var(--text); font-weight: 600; }
-
-/* The undated risk under the track, in the drivers' row shape. */
-.ki-ev { display: grid; grid-template-columns: calc(98px * var(--ts)) minmax(0, 1fr);
-  gap: 0 var(--sp-8); align-items: baseline; padding: 4px 0 0; font-size: 12.5px;
-  color: var(--text); }
-.ki-ev .ki-lead { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted);
-  white-space: nowrap; display: inline; margin: 0; }
-
-/* The cohort columns: caps title, the figure line, the picture, the measures. */
-.ki-col { min-width: 0; }
-.ki-col-h { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--muted); margin: 2px 0 6px; }
-.ki-col-fig { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.ki-col-fig .f { font-family: var(--font-mono); font-size: 22px; font-weight: 600;
-  color: var(--text); }
-.ki-col-fig .f.none { color: var(--muted); }
-.ki-col-fig .u { font-size: 11.5px; color: var(--muted); }
-.ki-col-fig .d { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
-.ki-col-fig .d.up { color: var(--up); }
-.ki-col-fig .d.down { color: var(--down); }
-.ki-col-p { font-size: 11.5px; color: var(--muted); margin: 1px 0 8px; }
-.ki-col-pic { margin: 0 0 8px; }
-.ki-col-pic svg { display: block; width: 100%; height: auto; }
-.ki-peer { display: grid; grid-template-columns: minmax(0, 126px) 150px minmax(0, 1fr);
-  gap: 0 10px; align-items: center; height: 24px; border-top: 1px solid var(--rule);
-  font-size: 12px; }
-.ki-peer .l { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ki-peer .s svg { display: block; }
-.ki-peer .v { font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis; }
-.ki-peer .v b { color: var(--text); font-weight: 600; }
-.ki-peer .v i { font-style: normal; color: var(--muted); }
-.ki-peer .v i.up { color: var(--up); }
-.ki-peer .v i.down { color: var(--down); }
-.ki-peer .v.none { color: var(--muted); }
-.ki-col-n { font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--rule);
-  padding-top: 5px; }
+.ki-price, .ki-bridge { margin: 0; }
+.ki-price svg, .ki-bridge svg { display: block; }
+/* Wider than 1440 the chart grows with its cell; held, it stays level with the call. */
+.ki-price svg { max-height: 204px; }
 
 /* A list with nothing in it: one muted line, no box. */
 .ki-empty { font-size: 12px; color: var(--muted); padding: 4px 0 var(--sp-12); }
@@ -924,19 +870,67 @@ select.u-input { padding-right: 20px; cursor: pointer; }
 .ki-changes .fitem { padding: 0.28rem 0; grid-template-columns: 84px minmax(0, 1fr); }
 .ki-changes .fitem .t { min-width: 0; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; }
-.ki-note .byline, .ki-note p { max-width: 68ch; }
 
-/* The track's key: the marks it draws, named once. */
-.ki-key { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 11px; color: var(--muted);
-  margin: 2px 0 0; }
-.ki-key span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.ki-key i { font-style: normal; color: var(--text); font-size: 11px; }
-.ki-key i.up { color: var(--up); }
-.ki-key i.down { color: var(--down); }
-.ki-key i.flag { color: var(--flag); }
 /* A call with no figure leads with its reason, in words. */
 .ki-sub.ki-sub-lead { font-size: 14px; color: var(--muted); margin: 8px 0 18px; }
-/* Products too narrow to label, named under their bar. */
-.ki-col-cap { font-size: 11px; color: var(--muted); margin: -2px 0 8px; }
 /* The note's buttons clear its rule. */
 .st-key-ki_note_buttons { margin-top: 0.6rem; }
+/* The morning note: three short paragraphs at a reading size, open on arrival. */
+.ki-brief p { font-size: 13px; line-height: 1.45; color: var(--text); margin: 0 0 7px; }
+.ki-brief p:last-child { margin-bottom: 0; }
+.ki-brief b { font-weight: 600; }
+/* Key assets: two short tables on one value scale, the name, a bar, the value, and when
+   each is decided. A pipeline compound is purple wherever the tab names one. */
+.ki-ka-h, .ki-ka { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) 54px 100px;
+  gap: 0 8px; align-items: center; }
+.ki-ka-h { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); height: 20px; }
+.ki-ka-h:not(:first-child) { margin-top: 8px; }
+.ki-ka-h .v { text-align: right; }
+.ki-ka { height: 21px; border-bottom: 1px solid var(--rule); font-size: 12.5px; }
+.ki-ka .n { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ki-ka .n.pipeline, .ki-ro .n.pipeline { color: var(--purple-book); }
+.ki-ka .b { height: 8px; }
+.ki-ka .b i { display: block; height: 8px; background: var(--up); border-radius: 1px; }
+.ki-ka .b i.pipeline { background: var(--purple-book); }
+.ki-ka .v { font-family: var(--font-mono); text-align: right; color: var(--text); }
+.ki-ka .m { font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.ki-ka.more { border-bottom: 0; }
+.ki-ka.more .n, .ki-ka.more .v { color: var(--muted); }
+.ki-ka.none { display: block; height: auto; padding: 3px 0; color: var(--muted); font-size: 12px; }
+/* Readouts and expiries: a dated list, the date first. */
+.ki-ro, .ki-ex { display: grid; gap: 0 10px; align-items: center; height: 22px;
+  border-bottom: 1px solid var(--rule); font-size: 12.5px; }
+.ki-ro { grid-template-columns: 90px minmax(0, 0.75fr) minmax(0, 1.25fr); }
+.ki-ex { grid-template-columns: 82px minmax(0, 1fr) auto 50px; }
+.ki-ro .d, .ki-ex .d { font-family: var(--font-mono); font-size: 11.5px; color: var(--text);
+  white-space: nowrap; }
+.ki-ex .d.near { color: var(--down); }
+.ki-ro .d i { font-style: normal; color: var(--muted); font-size: 9px; margin-right: 6px; }
+.ki-ro .n, .ki-ex .n { color: var(--text); font-weight: 600; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.ki-ro .w, .ki-ex .w { color: var(--muted); font-size: 11.5px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.ki-ex .v { font-family: var(--font-mono); text-align: right; color: var(--text); }
+.ki-ro.more, .ki-ex.more { display: block; height: auto; border-bottom: 0; padding-top: 4px;
+  font-size: 11.5px; color: var(--muted); }
+/* The cohort as one table: a caps group, then a row a measure, its value, its place and
+   every peer on a strip where right is better. */
+.ki-ct-g { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 8px 0 1px; }
+.ki-ct-g:first-child { margin-top: 0; }
+.ki-ct-g i { font-style: normal; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.ki-ct-g .rb { float: right; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.ki-ct { display: grid; grid-template-columns: minmax(0, 1fr) 72px 50px 128px; gap: 0 8px;
+  align-items: center; height: 22px; border-bottom: 1px solid var(--rule); font-size: 12.5px; }
+.ki-ct.none { display: block; height: auto; padding: 3px 0; color: var(--muted);
+  font-size: 12px; }
+.ki-ct .l { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ki-ct .s svg { display: block; }
+.ki-ct .v { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-align: right;
+  color: var(--text); white-space: nowrap; }
+.ki-ct .v.none { color: var(--muted); font-weight: 400; }
+.ki-ct .p { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.ki-ct .p.up { color: var(--up); }
+.ki-ct .p.down { color: var(--down); }

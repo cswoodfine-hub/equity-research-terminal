@@ -1,3 +1,98 @@
+# Key insights, revision 4: the note open, and one screen
+
+Revision 4 (2 to 5 Oct 2026) keeps revision 3's call and price chart and replaces everything below them. The user asked for four things:
+- The morning note open on arrival. It should cover the share price, recent trading and what may bear on it, then the 12-month value and the drivers and catalysts behind the rating.
+- Everything below the top row organised so the figures fit on one screen without scrolling. The 24-month event track goes: it did not make clear when each driver, risk or catalyst falls. Dated lists of readouts and patent expiries replace it, and "What it rests on" becomes "Key assets", the top five marketed and top five pipeline assets.
+- A second row of key figures in the top left, evenly spaced: the 24-hour move, annual revenue, products on sale, late-stage compounds and every compound in trials.
+- A note that uses judgement and reasoning, so that one read gives the big picture.
+
+Sections 1 to 11 below are revision 3. Where they describe bands 2 to 4, this section supersedes them. M1 (the call), M2 (price against the call), the bridge's arithmetic (M3), M8 and M9 stand.
+
+### R4.1 Layout at 1440 x 900
+
+```
+y 134  ┌ THE CALL (5/12) ───────────────┐ ┌ PRICE AGAINST THE CALL (7/12) ──────────────────────────┐   unchanged
+y 320  └────────────────────────────────┘ └──────────────────────────────────────────────────────────┘
+y 345  ┌ MORNING NOTE (1.12fr) ──────┐ ┌ KEY ASSETS  $ a share (1fr) ──┐ ┌ WHERE 185.11 COMES FROM (1fr) ┐
+       │ price and trading; the news │ │ MARKETED      value   LOE      │ │ waterfall 470 x 176            │
+       │ that may bear on it         │ │ Tagrisso ██   10.29  Aug 2032  │ │                                │
+       │ the 12-month value, the     │ │ … 5 rows, then "27 more 49.60" │ ├ AGAINST 18 BIG PHARMA  7th of 18 │
+       │ rule that rates it, what it │ │ PIPELINE, AFTER POS value next │ │ FINANCIALS 58.7bn USD revenue  │
+       │ rests on, what breaks it    │ │ Elecoglipron ▆ 4.66 Ph 3 · Apr │ │ Revenue growth ··●· 8.6% 4th…  │
+       │ next readouts, first LOE,   │ │ … 5 rows, then "15 more 1.25"  │ │ … 8 measures in three groups,  │
+       │ rank against the cohort     │ ├ PATENT EXPIRIES ───────────────┤ │ each value, place and strip    │
+       ├ UPCOMING READOUTS ──────────┤ │ 8 Sep 2027 Lynparza 5.6% 2.43  │ │                                │
+       │ ○ Oct 2026 Truqap Ph 3 · …  │ │ … 5 rows                       │ │                                │
+y 860  └ 5 rows, "20 more" ──────────┘ └────────────────────────────────┘ └────────────────────────────────┘
+       ├ WHAT CHANGED (7) ──────────────────────────────┤ ├ NOTE: [Rewrite note] [Tearsheet] (5) ─────────┤
+```
+
+- Band 2 is one `st.markdown` holding one grid, `.ki-band.c3e`, with columns `1.12fr 1fr 1fr` and a 32 px gap: about 470 | 420 | 420 px at 1440. The three columns end within about 60 px of each other for AZN, LLY and NVO.
+- Every table row is 23 px with a hairline. Caps sub-heads are 10 px. Dates and values are mono, and so are the cohort places.
+- A pipeline compound is purple wherever it is named, in Key assets and in the readouts.
+- Measured on 2 Oct 2026: the tab panel is 850 px for AZN at 1440 x 900, so the whole of band 2 is above the fold. At 1600 x 1000 the foot is too. Below 1180 px the columns stack.
+
+### R4.2 Modules
+
+**The call's two figure rows** (`_ki_figures`, `_ki_business_figures`). There are two rows of five cells on one grid, `.ki-figs` with `repeat(5, 1fr)`.
+- The market row: close, 24 hours, 1 year against XLV, street target, and the multiple against its median.
+- The business row: market cap, the year's revenue with its growth, products on sale, late-stage compounds and compounds in trials.
+- A figure carries its currency's sign ($ € £ ¥). Any other currency is named in the key.
+- Products on sale is the model's count where the company is modelled. Otherwise it is the approved products on the exclusivity file, and the key says so.
+- Late-stage counts Phase 3 and Phase 2/3. In trials counts every phase.
+- The price chart grows to 196 px so band 1's halves stay level.
+
+**Morning note** (`_ki_brief`, `_ki_brief_html`). Three short paragraphs, about 160 words, reasoned from the figures on the page and nothing else. The opening sentence is bold. The note model's rewrite (POST `/companies/{t}/brief`) is shown only while its facts hash matches today's figures. The click's answer is used as it comes back, because the GET is cached.
+1. **The call, and what the price pays for.** "Buy, with a 12-month value of 185.11, 17.4% above the 157.70 close." The judgement then splits today's central value into two parts: the products on sale with net cash (or net of debt), and the pipeline plus future launches. It shows what the price implies for the second part. AZN's price "pays for the products on sale and net cash (80.39) and 82% of the 94.58 the model puts on the pipeline and future launches: the rest is the upside". LLY's "asks 889.82 for the pipeline and future launches, 3.3 times the model's 266.42". The other states each get their own wording: a rating or forecast read that failed, a modelled company with no 12-month value, and a company that is not modelled.
+2. **The trading.** The month and the year against XLV. Then the month's news, set beside the move by its tone (`_ki_news_tone`): "despite" for good news in a falling month, "with" in a rising one, "alongside" for bad news in a fall. A move is never given a cause, and the timing is never placed within the month. With no news, the one-month relative says whether the move is the sector's. Late-stage slips are counted.
+3. **What drives it and what to watch.** First, the three largest legs of the value, drawn from the top assets, launches past the pipeline and net cash, each with its protection or chance of approval. Then the levers that would break the call. Next, whether the next readouts test the pipeline or extend products already sold. Then the nearest loss of exclusivity, which is the first row of the list beside it, so the two cannot disagree. Last, the rank, with what growth and margin say together: "growth bought at the cost of margin", "a cash generator short of growth", "strong on both" or "weak on both". A clinical company gets its cash runway instead.
+
+**Readouts and decisions** (`_ki_readouts`). This lists regulatory dates, Phase 3 and Phase 2/3 readouts, readouts of unapproved compounds worth at least 1% of the price (`DRIVER_MIN_PCT`), and Phase 2-or-later readouts of unapproved compounds the model does not value. They come from the comps-context catalysts, soonest first, five rows. Two trials of one compound in the same month count as one row. ○ marks every date the company has not stated or confirmed, which includes ClinicalTrials.gov dates given to the month. Quarter and half dates print as Q1 and H2. When the 12-month window holds fewer than five, the list is topped up with each compound's next registry readout past the window, so a clinical company still has a list.
+
+**Key assets** (`_ki_key_assets`).
+- Modelled: the top five counted marketed products and the top five counted pipeline compounds by value a share, on one bar scale.
+  - Marketed rows show the LOE. It comes from `/exclusivities` as a month, or as the year alone where a 31 Dec date stands in for a year the filer gave. A product past its LOE shows "lapsed".
+  - Pipeline rows show the next readout at the furthest phase the compound still has to read out, from `/programmes` (Elecoglipron: Phase 3, Apr 2028, not its Phase 1 in Nov 2026).
+  - The "more" rows are the sum-of-the-parts total less the rows shown.
+- Not modelled: products are ranked by share of the company's revenue and compounds by furthest phase, then the nearest readout. A modelled company with no modelled compound lists its programmes the same way.
+
+**Loss of exclusivity** (`_ki_expiries`). The next five losses of exclusivity, soonest first, of products that matter: those the model values or those with revenue on file. A company with neither lists every one.
+- The scorecard's own date wins for its products.
+- A product the model already carries past its LOE is never listed.
+- An orphan term is never taken for the product's loss: it guards one indication.
+- Each row shows the date at its source's precision (a year where a filer gave a year), the product, its kind (patent, 12y biologic, settlement, model year), its share of revenue where known, and its value a share where modelled.
+- A product the exclusivity file lacks (a CBER biologic) keeps the model's LOE year.
+
+**Shares of revenue** (`_ki_product_mix`) are measured against the year's reported revenue. Bayer files a pharma-only product table, so Nubeqa is 5% of Bayer, not 30%, and the rest of revenue is one row. Product rows of another year than the revenue, or adding to more than it, give no shares at all.
+
+**Bridge.** Unchanged in arithmetic, drawn at 470 x 176.
+
+**Against the cohort** (`_ki_cohort_table`, `_ki_cohort_html`). One table in caps groups: Financials (with the revenue level beside the group label), Pipeline (with compounds in trials beside it) and Marketed. A clinical company gets Funding and Pipeline. Each row shows the measure, a 72 px peer strip where right is better, the value, and the place in tone. A group with no measure on file is one line giving the reason.
+
+### R4.3 Reads
+
+Revision 3 added no endpoint. Revision 4 reads two existing ones that the Pipeline and Portfolio tabs already use: `/companies/{t}/programmes` (compound stages and study due dates) and `/companies/{t}/exclusivities` (LOE dates and their basis). Each read has its own try, so a failure empties one list and never the tab.
+
+### R4.4 What left the tab
+
+- The event track, its key and the 12-month marker. Charts `event_track` and `share_bar` were removed with it.
+- The rests table, and the breaks as rows (they are a sentence of the note now).
+- The three cohort columns, with their revenue bars, phase bar and product-mix bar.
+- The folded note expander.
+
+
+### R4.5 What the 70-company review changed (2026-10-05)
+
+A review of the note on all 70 companies found 27 faults, every one verified; a layout review at 1440, 1600 and 1180 found 21 more. The rules they set:
+
+- **The call.** The price-implied split is not drawn for a company whose products on sale the model values at nothing (Moderna); the note says what the value is instead. Where the forecast covers under 90% of revenue the note says how much it leaves out (Roche, 72%). "The rest is the upside" is gone: the unpriced share of the pipeline is not the 12-month upside, which also carries the year's roll.
+- **The trading.** "Despite the month's news" only where the shares also fell behind the sector. The year's relative is never set beside the month's move. A month with nothing rated high says its press releases and FDA news rated medium, and never says "no news on file" when lower-rated news exists. A deselection from Medicare negotiation is not good news; a release that hopes for an approval is not an approval (the press classifier refuses it too). Slips count one a trial, from its first date to its last, and a correction to a date already past is not a slip.
+- **What comes next.** The next test of the pipeline is the furthest phase in the soonest month, a regulatory date first; never a regimen, a follow-up or extension study, an invitation-only study or a date more than eight years out. When the events read fails the readouts list says so and is not filled from the registry.
+- **Loss of exclusivity.** The note names the first loss worth 5% of revenue, every product lost that day with it, and a larger one after it within five years (Merck: Keytruda, not Janumet). Dates print at their source's precision: a filing's or the statute's year is a year, never 31 December.
+- **The cohort.** Growth and margin are judged by the scorecard's score in thirds, and a loss is never a good margin.
+- **Length.** A note past 180 words says one piece of news, not two. Measured on the 70: 61 to 184 words, median 88.
+- **Layout.** The cohort chip is the rank alone; "right is better" is said once in the table. The call's range sits on the lead's baseline, so the call stays level with the chart. A short note lets the readouts list run to seven rows, so the columns end together. The bridge is drawn at the column's width with no axis margin, and a price far above every bar is named in the chip rather than drawn. Columns stack below 1180, not at it.
+
 # Key insights, revision 3: the highlights of every tab
 
 Design only. This replaces company-scorecard.md 1.3 and 5.3 for this tab. Every field named below was checked on 2 Oct 2026 against the running API (AZN, LLY, BAYN and CRSP) and against the code in this worktree.
