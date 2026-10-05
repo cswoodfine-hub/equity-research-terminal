@@ -1,0 +1,645 @@
+{
+ "asset_id": 404,
+ "ticker": "AMGN",
+ "brand": "Prolia",
+ "generic": "Denosumab",
+ "held_on": null,
+ "shared_with": [],
+ "patients_note": "Patients are distinct beneficiaries on the drug during the year, so their growth is net additions, not new starts.",
+ "gap_label": "not explained by Medicare gross spend: net price, other payers, inventory",
+ "ok": true,
+ "reason": null,
+ "label": "Medicare only. Part D is gross cost before manufacturer rebates; Part B is fee-for-service only, paid mostly at average sales price plus 6%. CMS calendar 2024, 1 year behind the FY2025 filing.",
+ "latest_year": 2024,
+ "lag_years": 1,
+ "latest_fy": 2025,
+ "approval": "2010-06-01",
+ "negotiated_from": null,
+ "parts": [
+  {
+   "part": "B",
+   "part_label": "Part B, clinic",
+   "source_file": "CMS Medicare Part B Spending by Drug",
+   "factor_labels": {
+    "spend": "Spend",
+    "patients": "Patients",
+    "intensity": "Claims per patient",
+    "price": "Cost per claim",
+    "claims": "Claims",
+    "units_per_claim": "Units per claim",
+    "price_per_unit": "Cost per unit"
+   },
+   "spend_share": 0.7590095862486205,
+   "material": true,
+   "latest_year": 2024,
+   "latest_spending": 2430935308.0,
+   "series": [
+    {
+     "year": 2020,
+     "spending": 1627019055.0,
+     "claims": 1161292,
+     "beneficiaries": 588274,
+     "units": 88874535.3,
+     "cms_name": "Prolia*",
+     "presentations": 1
+    },
+    {
+     "year": 2021,
+     "spending": 1780811015.0,
+     "claims": 1241745,
+     "beneficiaries": 629724,
+     "units": 92793533.6,
+     "cms_name": "Prolia*",
+     "presentations": 1
+    },
+    {
+     "year": 2022,
+     "spending": 2003916528.0,
+     "claims": 1280103,
+     "beneficiaries": 657400,
+     "units": 93824328.5,
+     "cms_name": "Prolia*",
+     "presentations": 1
+    },
+    {
+     "year": 2023,
+     "spending": 2190209346.0,
+     "claims": 1311530,
+     "beneficiaries": 680070,
+     "units": 94727783.6,
+     "cms_name": "Prolia*",
+     "presentations": 1
+    },
+    {
+     "year": 2024,
+     "spending": 2430935308.0,
+     "claims": 1339338,
+     "beneficiaries": 700724,
+     "units": 95427372.0,
+     "cms_name": "Prolia*",
+     "presentations": 1
+    }
+   ],
+   "steps": [
+    {
+     "from": 2020,
+     "to": 2021,
+     "years": 1,
+     "spend": 0.09452376081729419,
+     "flags": [
+      {
+       "code": "footnoted_name",
+       "words": "CMS reports this billing code, which can carry other brands"
+      }
+     ],
+     "claims": 0.0692788721527402,
+     "patients": 0.07046036370806807,
+     "intensity": -0.001103722842418109,
+     "price": 0.02360926538624053,
+     "units_per_claim": -0.023551405932732083,
+     "price_per_unit": 0.04829816091242556,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.07125837247223993,
+      "intensity": -0.0011557396550024286,
+      "price": 0.024421128000056788
+     },
+     "baseline": {
+      "spend": 0.014455046257933146,
+      "patients": 0.00800449976315698,
+      "intensity": 0.012075859847571424,
+      "price": 0.006949158005475575,
+      "price_per_unit": 0.006974328682370912,
+      "claims": 0.026827573359977652,
+      "n": 66
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.11234566549362612,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2021,
+     "to": 2022,
+     "years": 1,
+     "spend": 0.1252830935572351,
+     "flags": [
+      {
+       "code": "footnoted_name",
+       "words": "CMS reports this billing code, which can carry other brands"
+      }
+     ],
+     "claims": 0.030890400202940205,
+     "patients": 0.04394941275860531,
+     "intensity": -0.012509238853975813,
+     "price": 0.09156423741623065,
+     "units_per_claim": -0.019189161607319427,
+     "price_per_unit": 0.11292024383116428,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.04565232000164976,
+      "intensity": -0.013361169576801108,
+      "price": 0.09299194313238653
+     },
+     "baseline": {
+      "spend": 0.036891967691992766,
+      "patients": 0.010297029702970306,
+      "intensity": 0.0018634521392750791,
+      "price": 0.03523960238886281,
+      "price_per_unit": 0.03826839367152646,
+      "claims": 0.005644060081929858,
+      "n": 71
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.14868901953311986,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2022,
+     "to": 2023,
+     "years": 1,
+     "spend": 0.09296436024005894,
+     "flags": [
+      {
+       "code": "footnoted_name",
+       "words": "CMS reports this billing code, which can carry other brands"
+      }
+     ],
+     "claims": 0.02455036821255785,
+     "patients": 0.03448433221782787,
+     "intensity": -0.009602817264493968,
+     "price": 0.06677464978794245,
+     "units_per_claim": -0.014563606320001976,
+     "price_per_unit": 0.08254034114185282,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.035455616892600114,
+      "intensity": -0.010091094314517322,
+      "price": 0.06759983766197625
+     },
+     "baseline": {
+      "spend": -0.000650948623739156,
+      "patients": -0.010337823005484414,
+      "intensity": -0.0014891896147102845,
+      "price": 0.007176179815831629,
+      "price_per_unit": 0.011306609415238311,
+      "claims": -0.0034033054053060896,
+      "n": 74
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.1226974898370683,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2023,
+     "to": 2024,
+     "years": 1,
+     "spend": 0.10991002409867345,
+     "flags": [
+      {
+       "code": "footnoted_name",
+       "words": "CMS reports this billing code, which can carry other brands"
+      }
+     ],
+     "claims": 0.02120271743688673,
+     "patients": 0.030370403046745098,
+     "intensity": -0.00889746598189367,
+     "price": 0.08686552155328475,
+     "units_per_claim": -0.013530581949249165,
+     "price_per_unit": 0.10177315349614702,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.031533945514579866,
+      "intensity": -0.009419898862997295,
+      "price": 0.08779597744709088
+     },
+     "baseline": {
+      "spend": 0.04074897921374787,
+      "patients": 0.01763554914782972,
+      "intensity": 0.00575735784193343,
+      "price": 0.029272353883715185,
+      "price_per_unit": 0.026353007184608312,
+      "claims": 0.023966608320991067,
+      "n": 77
+     },
+     "us_growth": 0.05561653860226867,
+     "us_note": null,
+     "global_growth": 0.08053359683794459,
+     "global_note": null,
+     "brand_spend": 0.11848335247032638,
+     "gap_pts": -0.0628668138680577,
+     "like_for_like": true
+    }
+   ],
+   "span": {
+    "from": 2020,
+    "to": 2024,
+    "years": 4,
+    "spend": 0.10559277152128432,
+    "claims": 0.03630403504725277,
+    "patients": 0.0447005769493678,
+    "intensity": -0.008037271240563304,
+    "price": 0.06686139793991286,
+    "units_per_claim": -0.01771680069735526,
+    "price_per_unit": 0.08610368038190286,
+    "points": {
+     "patients": 0.046000497299817776,
+     "intensity": -0.008488670755358824,
+     "price": 0.06808094497682556
+    },
+    "flags": []
+   }
+  },
+  {
+   "part": "D",
+   "part_label": "Part D, retail pharmacy",
+   "source_file": "CMS Medicare Part D Spending by Drug",
+   "factor_labels": {
+    "spend": "Spend",
+    "patients": "Patients",
+    "intensity": "Fills per patient",
+    "price": "Cost per fill",
+    "claims": "Fills",
+    "units_per_claim": "Units per fill",
+    "price_per_unit": "Cost per unit"
+   },
+   "spend_share": 0.2409904137513795,
+   "material": true,
+   "latest_year": 2024,
+   "latest_spending": 771837558.17,
+   "series": [
+    {
+     "year": 2020,
+     "spending": 369123843.39,
+     "claims": 286629,
+     "beneficiaries": 185170,
+     "units": 286762.274,
+     "cms_name": "Prolia",
+     "presentations": 1
+    },
+    {
+     "year": 2021,
+     "spending": 439589885.73,
+     "claims": 316281,
+     "beneficiaries": 202494,
+     "units": 316354.556,
+     "cms_name": "Prolia",
+     "presentations": 1
+    },
+    {
+     "year": 2022,
+     "spending": 546633605.63,
+     "claims": 362308,
+     "beneficiaries": 229044,
+     "units": 362451.364,
+     "cms_name": "Prolia",
+     "presentations": 1
+    },
+    {
+     "year": 2023,
+     "spending": 673286886.73,
+     "claims": 403592,
+     "beneficiaries": 255565,
+     "units": 403776.814,
+     "cms_name": "Prolia",
+     "presentations": 1
+    },
+    {
+     "year": 2024,
+     "spending": 771837558.17,
+     "claims": 450858,
+     "beneficiaries": 284965,
+     "units": 451003.07,
+     "cms_name": "Prolia",
+     "presentations": 1
+    }
+   ],
+   "steps": [
+    {
+     "from": 2020,
+     "to": 2021,
+     "years": 1,
+     "spend": 0.19090081446065987,
+     "flags": [],
+     "claims": 0.10345080225657566,
+     "patients": 0.09355727169627914,
+     "intensity": 0.009047107834553536,
+     "price": 0.07925139211032106,
+     "units_per_claim": -0.00023229704065252932,
+     "price_per_unit": 0.07950215726683219,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.09772418277381813,
+      "intensity": 0.009841075788393812,
+      "price": 0.08333555589844785
+     },
+     "baseline": {
+      "spend": 0.03629401880586958,
+      "patients": 0.008315452605793028,
+      "intensity": -0.010484411228038393,
+      "price": 0.047586028087603593,
+      "price_per_unit": 0.05652491765082612,
+      "claims": -0.009897883462119894,
+      "n": 200
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.11234566549362612,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2021,
+     "to": 2022,
+     "years": 1,
+     "spend": 0.2435081501528158,
+     "flags": [],
+     "claims": 0.14552565598312883,
+     "patients": 0.1311149959998814,
+     "intensity": 0.012740225383104375,
+     "price": 0.08553496262429405,
+     "units_per_claim": 0.00016309320403817829,
+     "price_per_unit": 0.08535794811900699,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.13766001006381656,
+      "intensity": 0.014145185060975425,
+      "price": 0.09170295502802396
+     },
+     "baseline": {
+      "spend": 0.050946732620217094,
+      "patients": 0.016778734368126713,
+      "intensity": 0.000468865754758907,
+      "price": 0.053675518028104996,
+      "price_per_unit": 0.05452147702257215,
+      "claims": 0.010297009282498104,
+      "n": 211
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.14868901953311986,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2022,
+     "to": 2023,
+     "years": 1,
+     "spend": 0.2316968437277671,
+     "flags": [],
+     "claims": 0.11394724930169908,
+     "patients": 0.11578997921796685,
+     "intensity": -0.0016515024785931365,
+     "price": 0.10570482085204835,
+     "units_per_claim": 6.220176052584847e-05,
+     "price_per_unit": 0.1056360483433405,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.12181479196378553,
+      "intensity": -0.0018377040555004585,
+      "price": 0.11171975581948207
+     },
+     "baseline": {
+      "spend": 0.0880711575107398,
+      "patients": 0.050882899628252876,
+      "intensity": -0.0005894305404605671,
+      "price": 0.05691737638405581,
+      "price_per_unit": 0.05847705344431997,
+      "claims": 0.04618156548093855,
+      "n": 219
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.1226974898370683,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2023,
+     "to": 2024,
+     "years": 1,
+     "spend": 0.14637248011562787,
+     "flags": [],
+     "claims": 0.11711332236516081,
+     "patients": 0.11503922681118306,
+     "intensity": 0.0018601099442119295,
+     "price": 0.02619175437682486,
+     "units_per_claim": -0.00013609625064925357,
+     "price_per_unit": 0.026331434236947837,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.11667742501854846,
+      "intensity": 0.001991294534344107,
+      "price": 0.02770376056273541
+     },
+     "baseline": {
+      "spend": 0.06767094501022597,
+      "patients": 0.09695963437059252,
+      "intensity": 0.008195318557647102,
+      "price": -0.025770115231553814,
+      "price_per_unit": -0.03080613953260314,
+      "claims": 0.11711332236516081,
+      "n": 231
+     },
+     "us_growth": 0.05561653860226867,
+     "us_note": null,
+     "global_growth": 0.08053359683794459,
+     "global_note": null,
+     "brand_spend": 0.11848335247032638,
+     "gap_pts": -0.0628668138680577,
+     "like_for_like": true
+    }
+   ],
+   "span": {
+    "from": 2020,
+    "to": 2024,
+    "years": 4,
+    "spend": 0.20250932312040493,
+    "claims": 0.1199017232546753,
+    "patients": 0.11379489740604276,
+    "intensity": 0.005482899825502097,
+    "price": 0.07376325810594708,
+    "units_per_claim": -3.5786811264149065e-05,
+    "price_per_unit": 0.07380168604422077,
+    "points": {
+     "patients": 0.11835032344524204,
+     "intensity": 0.006004569262252852,
+     "price": 0.07815443041291013
+    },
+    "flags": []
+   }
+  }
+ ],
+ "brand_total": [
+  {
+   "from": 2020,
+   "to": 2021,
+   "spend": 0.11234566549362604,
+   "by_part": {
+    "B": 0.07704456435661083,
+    "D": 0.03530110113701521
+   },
+   "points": {
+    "patients": 0.07615239164533048,
+    "intensity": 0.0008777754729931104,
+    "price": 0.03531549837530251
+   },
+   "weights": {
+    "B": 0.8150814534932751,
+    "D": 0.18491854650672498
+   }
+  },
+  {
+   "from": 2021,
+   "to": 2022,
+   "spend": 0.1486890195331198,
+   "by_part": {
+    "B": 0.10047983358620037,
+    "D": 0.04820918594691944
+   },
+   "points": {
+    "patients": 0.06386779178758349,
+    "intensity": -0.007915524473660625,
+    "price": 0.09273675221919703
+   },
+   "weights": {
+    "B": 0.8020222899452634,
+    "D": 0.19797771005473663
+   }
+  },
+  {
+   "from": 2022,
+   "to": 2023,
+   "spend": 0.1226974898370683,
+   "by_part": {
+    "B": 0.07304024945193453,
+    "D": 0.04965724038513377
+   },
+   "points": {
+    "patients": 0.053964105169679644,
+    "intensity": -0.00832222868177756,
+    "price": 0.0770556133491663
+   },
+   "weights": {
+    "B": 0.7856801172333676,
+    "D": 0.2143198827666323
+   }
+  },
+  {
+   "from": 2023,
+   "to": 2024,
+   "spend": 0.11848335247032618,
+   "by_part": {
+    "B": 0.08406714814166055,
+    "D": 0.03441620432866562
+   },
+   "points": {
+    "patients": 0.05155352423284244,
+    "intensity": -0.0067368127850229225,
+    "price": 0.07366664102250667
+   },
+   "weights": {
+    "B": 0.7648724384428116,
+    "D": 0.23512756155718836
+   }
+  }
+ ],
+ "beside": {
+  "model_growth": {
+   "key": "revenue_growth_pct",
+   "mode": "marketed",
+   "value": -0.319438,
+   "unit": "annual, near term",
+   "source": "the 2026 the filed quarters imply against the FY2025 reported 4,414mm: the first half of 2026 as reported, 1,486mm, and the second half at the second quarter's pace, 759mm twice, 3,004mm. Amgen 10-Q for the quarter to 2026-06-30 (0000318154-26-000126), Note 3 revenues table, Prolia",
+   "fade_to": 0.0,
+   "fade_years": 5.0,
+   "from_fy": 2025
+  },
+  "reported": [
+   {
+    "fiscal_year": 2023,
+    "global_value": 4048000000.0,
+    "global_unit": "USD",
+    "global_growth": null,
+    "us_value": 2733000000.0,
+    "us_unit": "USD",
+    "us_growth": null,
+    "global_note": null,
+    "us_note": null
+   },
+   {
+    "fiscal_year": 2024,
+    "global_value": 4374000000.0,
+    "global_unit": "USD",
+    "global_growth": 0.08053359683794459,
+    "us_value": 2885000000.0,
+    "us_unit": "USD",
+    "us_growth": 0.05561653860226867,
+    "global_note": null,
+    "us_note": null
+   },
+   {
+    "fiscal_year": 2025,
+    "global_value": 4414000000.0,
+    "global_unit": "USD",
+    "global_growth": 0.009144947416552363,
+    "us_value": 2978000000.0,
+    "us_unit": "USD",
+    "us_growth": 0.03223570190641256,
+    "global_note": null,
+    "us_note": null
+   }
+  ],
+  "direction_disagrees": true
+ },
+ "sentence": "Medicare patients on Prolia rose 3.0% in 2024 and cost per claim rose 8.7%, so price carried the 11.0% rise in Medicare spend. The model shrinks it 31.9% a year from FY2025, the other way from Medicare patients."
+}

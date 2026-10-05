@@ -1,0 +1,471 @@
+{
+ "asset_id": 6642,
+ "ticker": "BMRN",
+ "brand": "Naglazyme",
+ "generic": "Galsulfase",
+ "held_on": null,
+ "shared_with": [],
+ "patients_note": "Patients are distinct beneficiaries on the drug during the year, so their growth is net additions, not new starts.",
+ "gap_label": "not explained by Medicare gross spend: net price, other payers, inventory",
+ "ok": true,
+ "reason": null,
+ "label": "Medicare only. Part D is gross cost before manufacturer rebates; Part B is fee-for-service only, paid mostly at average sales price plus 6%. CMS calendar 2024, 1 year behind the FY2025 filing.",
+ "latest_year": 2024,
+ "lag_years": 1,
+ "latest_fy": 2025,
+ "approval": "2005-05-31",
+ "negotiated_from": null,
+ "parts": [
+  {
+   "part": "D",
+   "part_label": "Part D, retail pharmacy",
+   "source_file": "CMS Medicare Part D Spending by Drug",
+   "factor_labels": {
+    "spend": "Spend",
+    "patients": "Patients",
+    "intensity": "Fills per patient",
+    "price": "Cost per fill",
+    "claims": "Fills",
+    "units_per_claim": "Units per fill",
+    "price_per_unit": "Cost per unit"
+   },
+   "spend_share": 0.9280711132515399,
+   "material": true,
+   "latest_year": 2024,
+   "latest_spending": 5075599.35,
+   "series": [
+    {
+     "year": 2020,
+     "spending": 8109418.97,
+     "claims": 119,
+     "beneficiaries": null,
+     "units": 19840.0,
+     "cms_name": "Naglazyme",
+     "presentations": 1
+    },
+    {
+     "year": 2021,
+     "spending": 6204188.25,
+     "claims": 70,
+     "beneficiaries": null,
+     "units": 14980.0,
+     "cms_name": "Naglazyme",
+     "presentations": 1
+    },
+    {
+     "year": 2022,
+     "spending": 5999848.28,
+     "claims": 65,
+     "beneficiaries": null,
+     "units": 13840.0,
+     "cms_name": "Naglazyme",
+     "presentations": 1
+    },
+    {
+     "year": 2023,
+     "spending": 6148670.38,
+     "claims": 52,
+     "beneficiaries": null,
+     "units": 13120.0,
+     "cms_name": "Naglazyme",
+     "presentations": 1
+    },
+    {
+     "year": 2024,
+     "spending": 5075599.35,
+     "claims": 42,
+     "beneficiaries": null,
+     "units": 11340.0,
+     "cms_name": "Naglazyme",
+     "presentations": 1
+    }
+   ],
+   "steps": [
+    {
+     "from": 2020,
+     "to": 2021,
+     "years": 1,
+     "spend": -0.23494047194357748,
+     "flags": [
+      {
+       "code": "beneficiaries_suppressed",
+       "words": "CMS gives no patient count for one of the two years, so only claims and price are split"
+      },
+      {
+       "code": "fill_size_moved",
+       "words": "units per fill moved +28.4%, so read cost per unit"
+      }
+     ],
+     "claims": -0.4117647058823529,
+     "patients": null,
+     "intensity": null,
+     "price": 0.3006011976959184,
+     "units_per_claim": 0.28356854838709666,
+     "price_per_unit": 0.01326976212546227,
+     "factors": [
+      "claims",
+      "price"
+     ],
+     "points": {
+      "claims": -0.46551639732251066,
+      "price": 0.2305759253789333
+     },
+     "baseline": {
+      "spend": 0.03629401880586958,
+      "patients": 0.008315452605793028,
+      "intensity": -0.010484411228038393,
+      "price": 0.047586028087603593,
+      "price_per_unit": 0.05652491765082612,
+      "claims": -0.009897883462119894,
+      "n": 200
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": -0.2490837585865654,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2021,
+     "to": 2022,
+     "years": 1,
+     "spend": -0.03293581074043006,
+     "flags": [
+      {
+       "code": "beneficiaries_suppressed",
+       "words": "CMS gives no patient count for one of the two years, so only claims and price are split"
+      }
+     ],
+     "claims": -0.0714285714285714,
+     "patients": null,
+     "intensity": null,
+     "price": 0.04145374227953691,
+     "units_per_claim": -0.005032350826743248,
+     "price_per_unit": 0.046721210629216525,
+     "factors": [
+      "claims",
+      "price"
+     ],
+     "points": {
+      "claims": -0.07288075724273312,
+      "price": 0.039944946502303125
+     },
+     "baseline": {
+      "spend": 0.050946732620217094,
+      "patients": 0.016778734368126713,
+      "intensity": 0.000468865754758907,
+      "price": 0.053675518028104996,
+      "price_per_unit": 0.05452147702257215,
+      "claims": 0.010297009282498104,
+      "n": 211
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": -0.09772913809982953,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2022,
+     "to": 2023,
+     "years": 1,
+     "spend": 0.024804310551665987,
+     "flags": [
+      {
+       "code": "beneficiaries_suppressed",
+       "words": "CMS gives no patient count for one of the two years, so only claims and price are split"
+      },
+      {
+       "code": "fill_size_moved",
+       "words": "units per fill moved +18.5%, so read cost per unit"
+      }
+     ],
+     "claims": -0.19999999999999996,
+     "patients": null,
+     "intensity": null,
+     "price": 0.28100538818958265,
+     "units_per_claim": 0.18497109826589586,
+     "price_per_unit": 0.08104357149657448,
+     "factors": [
+      "claims",
+      "price"
+     ],
+     "points": {
+      "claims": -0.22589971115995872,
+      "price": 0.25070402171162487
+     },
+     "baseline": {
+      "spend": 0.0880711575107398,
+      "patients": 0.050882899628252876,
+      "intensity": -0.0005894305404605671,
+      "price": 0.05691737638405581,
+      "price_per_unit": 0.05847705344431997,
+      "claims": 0.04618156548093855,
+      "n": 219
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.024804310551665987,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2023,
+     "to": 2024,
+     "years": 1,
+     "spend": -0.17452082542762692,
+     "flags": [
+      {
+       "code": "beneficiaries_suppressed",
+       "words": "CMS gives no patient count for one of the two years, so only claims and price are split"
+      },
+      {
+       "code": "fill_size_moved",
+       "words": "units per fill moved +7.0%, so read cost per unit"
+      }
+     ],
+     "claims": -0.1923076923076923,
+     "patients": null,
+     "intensity": null,
+     "price": 0.02202183518484291,
+     "units_per_claim": 0.07012195121951215,
+     "price_per_unit": -0.04494825657940604,
+     "factors": [
+      "claims",
+      "price"
+     ],
+     "points": {
+      "claims": -0.19434217942204474,
+      "price": 0.019821353994417902
+     },
+     "baseline": {
+      "spend": 0.06767094501022597,
+      "patients": 0.09695963437059252,
+      "intensity": 0.008195318557647102,
+      "price": -0.025770115231553814,
+      "price_per_unit": -0.03080613953260314,
+      "claims": 0.11711332236516081,
+      "n": 231
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": -0.11054318706217592,
+     "gap_pts": null,
+     "like_for_like": true
+    }
+   ],
+   "span": {
+    "from": 2020,
+    "to": 2024,
+    "years": 4,
+    "spend": -0.1105441443290337,
+    "claims": -0.2292286163939371,
+    "patients": null,
+    "intensity": null,
+    "price": 0.1539814198986431,
+    "units_per_claim": 0.1280861427179465,
+    "price_per_unit": 0.022955052987625457,
+    "points": {
+     "claims": -0.24569173462196728,
+     "price": 0.13514759029293344
+    },
+    "flags": [
+     "beneficiaries_suppressed"
+    ]
+   }
+  },
+  {
+   "part": "B",
+   "part_label": "Part B, clinic",
+   "source_file": "CMS Medicare Part B Spending by Drug",
+   "factor_labels": {
+    "spend": "Spend",
+    "patients": "Patients",
+    "intensity": "Claims per patient",
+    "price": "Cost per claim",
+    "claims": "Claims",
+    "units_per_claim": "Units per claim",
+    "price_per_unit": "Cost per unit"
+   },
+   "spend_share": 0.07192888674846006,
+   "material": true,
+   "latest_year": 2024,
+   "latest_spending": 393377.41,
+   "series": [
+    {
+     "year": 2020,
+     "spending": 746055.56,
+     "claims": 54,
+     "beneficiaries": null,
+     "units": 2553.0,
+     "cms_name": "Naglazyme",
+     "presentations": 1
+    },
+    {
+     "year": 2021,
+     "spending": 445531.4,
+     "claims": 32,
+     "beneficiaries": null,
+     "units": 1502.0,
+     "cms_name": "Naglazyme",
+     "presentations": 1
+    },
+    {
+     "year": 2024,
+     "spending": 393377.41,
+     "claims": 23,
+     "beneficiaries": null,
+     "units": 850.0,
+     "cms_name": "Naglazyme",
+     "presentations": 1
+    }
+   ],
+   "steps": [
+    {
+     "from": 2020,
+     "to": 2021,
+     "years": 1,
+     "spend": -0.40281739874708533,
+     "flags": [
+      {
+       "code": "beneficiaries_suppressed",
+       "words": "CMS gives no patient count for one of the two years, so only claims and price are split"
+      }
+     ],
+     "claims": -0.40740740740740744,
+     "patients": null,
+     "intensity": null,
+     "price": 0.00774563961429342,
+     "units_per_claim": -0.007197414806110469,
+     "price_per_unit": 0.015051385485147506,
+     "factors": [
+      "claims",
+      "price"
+     ],
+     "points": {
+      "claims": -0.4088462288487981,
+      "price": 0.006028830101712738
+     },
+     "baseline": {
+      "spend": 0.014455046257933146,
+      "patients": 0.00800449976315698,
+      "intensity": 0.012075859847571424,
+      "price": 0.006949158005475575,
+      "price_per_unit": 0.006974328682370912,
+      "claims": 0.026827573359977652,
+      "n": 66
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": -0.2490837585865654,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2021,
+     "to": 2024,
+     "years": 3,
+     "spend": -0.1170601892481653,
+     "flags": [
+      {
+       "code": "beneficiaries_suppressed",
+       "words": "CMS gives no patient count for one of the two years, so only claims and price are split"
+      },
+      {
+       "code": "fill_size_moved",
+       "words": "units per claim moved -21.3%, so read cost per unit"
+      }
+     ],
+     "claims": -0.28125,
+     "patients": null,
+     "intensity": null,
+     "price": 0.22843799756776995,
+     "units_per_claim": -0.21264401088403861,
+     "price_per_unit": 0.5602065832344183,
+     "factors": [
+      "claims",
+      "price"
+     ],
+     "points": {
+      "claims": -0.31051164056181374,
+      "price": 0.19345145131364838
+     },
+     "baseline": null,
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": -0.11054318706217592,
+     "gap_pts": null,
+     "like_for_like": true
+    }
+   ],
+   "span": {
+    "from": 2020,
+    "to": 2024,
+    "years": 4,
+    "spend": -0.1478627283764431,
+    "claims": -0.19214481067765576,
+    "patients": null,
+    "intensity": null,
+    "price": 0.054814381199132844,
+    "units_per_claim": -0.05971716368593438,
+    "price_per_unit": 0.12180541903118658,
+    "points": {
+     "claims": -0.19717703562546823,
+     "price": 0.04931430724902508
+    },
+    "flags": [
+     "beneficiaries_suppressed"
+    ]
+   }
+  }
+ ],
+ "brand_total": [
+  {
+   "from": 2020,
+   "to": 2021,
+   "spend": -0.24908375858656556,
+   "by_part": {
+    "D": -0.21514721921965713,
+    "B": -0.03393653936690844
+   },
+   "points": {
+    "claims": -0.46074205190118744,
+    "price": 0.21165829331462202
+   },
+   "weights": {
+    "D": 0.9157520517423927,
+    "B": 0.08424794825760738
+   }
+  }
+ ],
+ "beside": {
+  "model_growth": null,
+  "reported": [
+   {
+    "fiscal_year": 2025,
+    "global_value": 485400000.0,
+    "global_unit": "USD",
+    "global_growth": null,
+    "us_value": null,
+    "us_unit": null,
+    "us_growth": null,
+    "global_note": null,
+    "us_note": null
+   }
+  ],
+  "direction_disagrees": null
+ },
+ "sentence": "Medicare fills of Naglazyme fell 19.2% in 2024 and cost per fill rose 2.2%, so volume carried the 17.5% fall in Medicare spend."
+}
