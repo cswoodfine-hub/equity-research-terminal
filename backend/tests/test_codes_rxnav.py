@@ -98,11 +98,15 @@ def test_nda202155_gives_eliquis_two_tablets_and_its_starter_pack(tmp_path):
     result = _run(path, _Fake())
     assert not result.errors
     rxcuis = _codes(path, 198, "rxcui")
-    assert {c: r["tty"] for c, r in rxcuis.items()} == {
-        "1364441": "SBD", "1364447": "SBD", "1992428": "BPCK"}
+    by_application = {c: r["tty"] for c, r in rxcuis.items()
+                      if r["basis"] == "rxnav_application"}
+    assert by_application == {"1364441": "SBD", "1364447": "SBD", "1992428": "BPCK"}
+    assert {rxcuis[c]["application_number"] for c in by_application} == {"NDA202155"}
+    # The application route misses the paediatric forms; the Eliquis brand concept adds
+    # them, labelled as found by brand name.
+    by_brand = {c for c, r in rxcuis.items() if r["basis"] == "rxnav_brand_name"}
+    assert by_brand == {"2749583", "2749689", "2749695", "2749698", "2749700"}
     assert all(r["brand_specific"] == 1 for r in rxcuis.values())
-    assert {r["basis"] for r in rxcuis.values()} == {"rxnav_application"}
-    assert {r["application_number"] for r in rxcuis.values()} == {"NDA202155"}
 
 
 def test_historical_ndcs_become_product_codes_and_repackagers_are_not_the_owner(tmp_path):
@@ -157,8 +161,8 @@ def test_a_shared_code_stays_with_the_assets_its_name_names(tmp_path):
     result = _run(path, _Fake())
     # Co-marketed: both owners keep the codes. The asset carrying Eliquis's number by
     # mistake is not named by "[Eliquis]" and loses them.
-    assert set(_codes(path, 198, "rxcui")) == set(_codes(path, 812, "rxcui")) == {
-        "1364441", "1364447", "1992428"}
+    assert set(_codes(path, 198, "rxcui")) == set(_codes(path, 812, "rxcui"))
+    assert {"1364441", "1364447", "1992428"} <= set(_codes(path, 812, "rxcui"))
     assert "00003-0893" in _codes(path, 812, "ndc9")
     assert _codes(path, 900, "rxcui") == {} and _codes(path, 900, "ndc9") == {}
     assert any("dropped from XYZ Wrongly Filed" in n for n in result.notes)
@@ -248,7 +252,7 @@ def test_a_looked_up_asset_is_not_fetched_again_inside_30_days_even_forced(tmp_p
         "SELECT payload FROM snapshots WHERE source = 'rxnav_codes'"
         " ORDER BY id DESC LIMIT 1").fetchone()[0])
     conn.close()
-    assert payload["fetch_kind"] == "cache" and payload["rxcuis"] == 3
+    assert payload["fetch_kind"] == "cache" and payload["rxcuis"] == 8
 
     # A changed application number makes the asset due again.
     conn = db.get_connection(path)
@@ -269,33 +273,44 @@ def test_history_parser_reads_every_package_once():
 
 # --- book guard -------------------------------------------------------------------------
 def test_every_negotiated_ndc9_of_a_book_brand_is_in_its_codes(book):
-    """CMS names the product codes of each drug it negotiated. Where the drug is a brand
-    the book carries and the asset has codes at all, every one of them should be among
-    them, since both come from the same labels."""
+    """CMS lists the product codes each negotiated price covers, under every brand the
+    price covers ("OZEMPIC; RYBELSUS; WEGOVY"). Each of those codes should sit under one of
+    the book's assets for those brands, counting a brand's other presentations ("Entresto
+    Sprinkle" under "ENTRESTO"), since both lists come from the same labels."""
     import cms
     if not book.execute("SELECT name FROM sqlite_master WHERE name = 'drug_codes'"
                         ).fetchone():
         pytest.skip("migration 080 has not been applied to this book")
     if not book.execute("SELECT COUNT(*) FROM drug_codes").fetchone()[0]:
         pytest.skip("the codes fetcher has not run on this book")
-    brands = {}
-    for row in book.execute("SELECT id, brand_name FROM assets WHERE is_marketed = 1"
-                            " AND brand_name IS NOT NULL"):
-        brands.setdefault(cms.norm(row["brand_name"]), []).append(row["id"])
+    names = [(cms.norm(r["brand_name"]), r["id"]) for r in book.execute(
+        "SELECT id, brand_name FROM assets WHERE is_marketed = 1 AND brand_name IS NOT NULL")]
     coded = {r[0] for r in book.execute("SELECT DISTINCT asset_id FROM drug_codes")}
     missing = []
     for row in book.execute("SELECT DISTINCT drug, ndc9 FROM negotiated_prices"
                             " WHERE ndc9 IS NOT NULL"):
-        for name in row["drug"].split(";"):
-            for asset_id in brands.get(cms.norm(name), []):
-                if asset_id not in coded:
-                    continue
-                hit = book.execute("SELECT 1 FROM drug_codes WHERE asset_id = ?"
-                                   " AND code_type = 'ndc9' AND code = ?",
-                                   (asset_id, row["ndc9"])).fetchone()
-                if hit is None:
-                    missing.append((name.strip(), row["ndc9"], asset_id))
-    assert not missing, missing[:20]
+        brands = [cms.norm(n) for n in row["drug"].split(";")]
+        group = [a for name, a in names
+                 if a in coded and any(name == b or name.startswith(b + " ")
+                                       for b in brands)]
+        if not group:
+            continue
+        hit = book.execute(
+            f"SELECT 1 FROM drug_codes WHERE code_type = 'ndc9' AND code = ?"
+            f" AND asset_id IN ({','.join('?' * len(group))})",
+            (row["ndc9"], *group)).fetchone()
+        if hit is None and (row["drug"], row["ndc9"]) not in _NEGOTIATED_GAPS:
+            missing.append((row["drug"], row["ndc9"]))
+    assert not missing, sorted(set(missing))[:20]
+
+
+# Negotiated codes the book cannot carry, each read on RxNav on 2026-10-05.
+_NEGOTIATED_GAPS = {
+    # NDC 0023-3919 and 0023-9232 are "[Botox Cosmetic]" (RxCUI 1726296, 1726313), a
+    # brand the book holds no asset for.
+    ("BOTOX; BOTOX COSMETIC", "00023-3919"),
+    ("BOTOX; BOTOX COSMETIC", "00023-9232"),
+}
 
 
 def test_labelers_already_named_are_not_asked_about_again(tmp_path):

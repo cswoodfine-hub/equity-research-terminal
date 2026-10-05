@@ -14,10 +14,15 @@ and last month listed (/allhistoricalndcs, repackagers included), and the labele
 its active NDCs (/ndcproperties). The 11-digit NDCs are stored as product codes,
 'LLLLL-PPPP', the form negotiated_prices already uses.
 
-An asset with no application number, or whose numbers RxNav does not know, falls back to
-its brand name, and only through a brand-name concept (term type BN) spelled exactly as
-the brand. A generic name finds an ingredient, and an ingredient's products are every
-company's; that route returns nothing rather than another company's codes.
+The application route is exact but not complete: RxNorm links a concept to its NDA only
+where its sources say so, and newer forms go missing. NDA202155 returns Eliquis's two
+tablets and starter pack but not the paediatric dose packs RxNav itself lists under the
+same NDA, and an asset whose approval row carries the wrong number gets the wrong drug
+(the book files Ozempic under Rybelsus's NDA213051). So every asset is also looked up by
+its brand name, through a brand-name concept (term type BN) spelled exactly as the brand,
+and the branded products under it (SBD and BPCK) are added, marked rxnav_brand_name. A
+generic name finds an ingredient rather than a brand, and an ingredient's products are
+every company's, so that route returns nothing rather than another company's codes.
 
 An application also returns unbranded concepts: the clinical drug its authorised generic
 is sold as, or a kit component such as the alcohol pad in a biologic's carton. Their NDC
@@ -236,6 +241,8 @@ def asset_rows(lookup: dict, owner_words: set, labeler_names: dict) -> list[dict
     rows, by_ndc9 = [], {}
     for concept in lookup["concepts"]:
         tty = concept.get("tty")
+        basis = ("rxnav_application" if concept.get("application_number")
+                 else "rxnav_brand_name")
         brand_specific = int(tty in BRAND_TTYS) if tty else None
         months = concept["ndcs"]
         rows.append({
@@ -245,7 +252,7 @@ def asset_rows(lookup: dict, owner_words: set, labeler_names: dict) -> list[dict
             "labeler_name": None,
             "first_ym": min((n["start"] for n in months if n["start"]), default=None),
             "last_ym": max((n["end"] for n in months if n["end"]), default=None),
-            "is_owner_labeler": None, "basis": lookup["basis"],
+            "is_owner_labeler": None, "basis": basis,
             "application_number": concept.get("application_number")})
         for item in concept["ndcs"]:
             code9 = ndc.ndc9(item["ndc11"])
@@ -264,7 +271,7 @@ def asset_rows(lookup: dict, owner_words: set, labeler_names: dict) -> list[dict
                     "labeler_code": labeler_code,
                     "labeler_name": names[0] if names else None,
                     "first_ym": item["start"], "last_ym": item["end"],
-                    "is_owner_labeler": owner, "basis": lookup["basis"],
+                    "is_owner_labeler": owner, "basis": basis,
                     "application_number": concept.get("application_number")}
                 continue
             if item["start"] and (not held["first_ym"] or item["start"] < held["first_ym"]):
@@ -487,16 +494,16 @@ class DrugCodesRxNavFetcher(BaseFetcher):
             query = urllib.parse.urlencode({"idtype": match.group(1), "id": app})
             for rxcui in parse_rxcui_ids(self._get(f"/REST/rxcui.json?{query}")):
                 found.setdefault(rxcui, app)
-        basis = "rxnav_application" if found else None
         known: dict = {}
-        if not found:
-            concept = self._brand_concept(asset)
-            if concept:
-                known = parse_related(self._get(
-                    f"/REST/rxcui/{concept}/related.json?tty=SBD+BPCK"))
-                if known:
-                    basis = "rxnav_brand_name"
-                    found = {rxcui: None for rxcui in known}
+        concept = self._brand_concept(asset)
+        if concept:
+            known = parse_related(self._get(
+                f"/REST/rxcui/{concept}/related.json?tty=SBD+BPCK"))
+        by_application = bool(found)
+        for rxcui in known:
+            found.setdefault(rxcui, None)
+        basis = ("rxnav_application" if by_application
+                 else "rxnav_brand_name" if found else None)
         concepts = []
         for rxcui, app in found.items():
             if rxcui not in cache:
