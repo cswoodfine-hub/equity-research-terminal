@@ -19,6 +19,7 @@ import re
 import db
 import fx
 import loe as loe_module
+import payer_access
 
 NOTE_FIELDS = ("market_size", "peak_sales", "competitors", "thesis")
 
@@ -314,6 +315,10 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
             "loe": (found_loe := _loe(conn, asset_id)),
             "patents": _patents(conn, asset_id, found_loe.get("loe_identifier")),
             "demand": _demand(conn, asset_id),
+            # Who prescribes it in Medicare, which Part D plans cover it and how often
+            # Medicaid fills it. Gross counts from three files, each with its own scope
+            # label; nothing valued reads them.
+            "access": payer_access.for_asset(conn, asset_id),
             "label": dict(label) if label else None,
             "supplements": supplements,
             "supplement_count": len(supplements),
