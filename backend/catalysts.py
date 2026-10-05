@@ -124,11 +124,18 @@ def delete_catalyst(db_path, catalyst_id) -> bool:
 
 
 def set_status(db_path, catalyst_id, status) -> bool:
+    """Record a catalyst's outcome. updated_at is stamped only when the status changes:
+    on a resolved readout it is the day the outcome was recorded, which pos_granular
+    reads as the readout's date, so setting the same status again must not move it."""
     conn = db.get_connection(db_path)
     try:
+        # SQLite reads the old row on the right of every SET, so the CASE compares the
+        # status before this write.
         cur = conn.execute(
-            "UPDATE catalysts SET status = ?, updated_at = datetime('now') WHERE id = ?",
-            (status, catalyst_id),
+            "UPDATE catalysts SET status = ?, updated_at = CASE"
+            " WHEN COALESCE(status, 'pending') = ? THEN updated_at"
+            " ELSE datetime('now') END WHERE id = ?",
+            (status, status, catalyst_id),
         )
         conn.commit()
         return cur.rowcount > 0
@@ -137,12 +144,16 @@ def set_status(db_path, catalyst_id, status) -> bool:
 
 
 def accept_catalyst(db_path, catalyst_id) -> bool:
-    """Promote a derived row to curated, which takes it out of the review queue."""
+    """Promote a pending derived row to curated, which takes it out of the review queue.
+
+    Pending only. A row resolved met or missed is history, and its updated_at is the day
+    the outcome was recorded, the date pos_granular gives the readout; accepting it later
+    would move that day, and with it the evidence and the studies left open."""
     conn = db.get_connection(db_path)
     try:
         cur = conn.execute(
             "UPDATE catalysts SET is_curated = 1, updated_at = datetime('now')"
-            " WHERE id = ? AND is_curated = 0",
+            " WHERE id = ? AND is_curated = 0 AND COALESCE(status, 'pending') = 'pending'",
             (catalyst_id,),
         )
         conn.commit()

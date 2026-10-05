@@ -1449,11 +1449,13 @@ def remove_catalyst(catalyst_id: int) -> dict:
 
 @app.post("/catalysts/{catalyst_id}/accept")
 def accept_catalyst(catalyst_id: int) -> dict:
-    """Promote a derived catalyst to curated, so a later refresh cannot withdraw it."""
+    """Promote a pending derived catalyst to curated, so a later refresh cannot withdraw
+    it. A resolved one is history and is refused."""
     if not catalysts_module.accept_catalyst(None, catalyst_id):
         raise HTTPException(
             status_code=404,
-            detail=f"catalyst {catalyst_id} not found, or is already curated")
+            detail=f"catalyst {catalyst_id} not found, already curated, or already "
+                   f"resolved")
     return {"accepted": catalyst_id}
 
 

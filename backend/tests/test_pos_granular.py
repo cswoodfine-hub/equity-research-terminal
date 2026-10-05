@@ -975,6 +975,23 @@ def test_a_miss_lands_where_the_held_note_said_whenever_it_is_recorded(tmp_path)
     conn.close()
 
 
+def test_accepting_a_resolved_readout_later_does_not_move_its_date(tmp_path):
+    """The evidence is dated the day the outcome was recorded. The accept route rewrote
+    updated_at on any derived row, which moved a recorded miss forward, changed the cite
+    and could shrink the studies left open."""
+    import catalysts
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2026-10-01", 900, MYELOMA),))
+    _readout(conn, "NCT1", "missed", on="2026-09-20 10:00:00", cid=904)
+    _, before = _placed(conn)
+    accepted = catalysts.accept_catalyst(str(tmp_path / "pos.db"), 904)
+    _, after = _placed(conn)
+    conn.close()
+    assert "on 2026-09-20, resolved missed" in before["evidence"]
+    assert after["evidence"] == before["evidence"]
+    assert accepted is False
+
+
 def test_a_missed_study_still_listed_open_is_not_counted_as_remaining(tmp_path):
     conn = _gate_seed(tmp_path, trials=(
         ("NCT1", "Phase 3", "Recruiting", "2027-06-01", 900, MYELOMA),))

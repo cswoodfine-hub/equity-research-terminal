@@ -215,7 +215,9 @@ def read_out(conn, asset_id: int) -> dict:
 
 def _resolved_readouts(conn, asset_id: int, modelled_mesh) -> list:
     """Phase 3 readouts resolved by hand on the asset's own studies, as trial_readouts
-    rows: met is positive and missed negative, dated the day it was recorded.
+    rows: met is positive and missed negative, dated the day it was recorded. That is
+    the row's updated_at, which only a change of status stamps (catalysts.set_status;
+    accept_catalyst refuses a resolved row and derive_readouts never touches one).
 
     Matched by the study and the asset it is mapped to, never by drug name, and counted
     only where the study is in an indication the forecast values, the same MeSH test that
