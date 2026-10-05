@@ -1,10 +1,12 @@
 """Catalysts with stakes: the calendar ranked by dollars rather than by date.
 
-The stake is two runs of the same engine the sliders use, one per leg, so a stake can
-never say anything the model would not. A catalyst is priced only where the analyst has
-put both legs on file; nothing is derived for the rest.
+The stake is the rNPV under one leg less the rNPV under the other, and rNPV is NPV times
+the probability, so one build prices both and a stake can never say anything the model
+would not. Stated legs (both rows on file) win; otherwise a big pharma Phase 2 or 3
+asset is priced from the legs its gate derives, on the one catalyst that is that gate.
 """
 
+import datetime as dt
 import json
 
 import pytest
@@ -13,6 +15,7 @@ import assumptions as A
 import catalysts as C
 import db
 import forecast_view as V
+import pos_granular as PG
 
 
 def _seed(tmp_path):
@@ -164,3 +167,351 @@ def test_list_catalysts_now_carries_the_asset_handle(tmp_path):
     path = _seed(tmp_path)
     row = C.list_catalysts(path, 365, "VRTX")[0]
     assert "asset_id" in row and "status" in row
+
+
+
+# --- derived legs ------------------------------------------------------------
+BANNED = ("additionally", "highlight", "underscore", "pivotal", "showcase", "testament")
+MYELOMA = ("D009101", "Multiple Myeloma")
+FOLLICULAR = ("D008224", "Lymphoma, Follicular")
+
+
+def _day(days):
+    return (dt.date.today() + dt.timedelta(days=days)).isoformat()
+
+
+def _house_style(text):
+    assert "—" not in text and "–" not in text, text
+    assert not any(word in text.lower() for word in BANNED), text
+
+
+@pytest.fixture
+def big(monkeypatch):
+    """Every owner reads as big pharma, which is what puts an asset on the gate."""
+    monkeypatch.setattr(PG, "big_pharma", lambda *a, **k: True)
+
+
+def _pipeline(tmp_path, phase="Phase 3", extra=(), share=None, partner=None):
+    """An antibody in Phase 3 for multiple myeloma at a big pharma owner, with a forecast
+    the engine can build and no probability of its own, so its placement governs."""
+    path = str(tmp_path / "gate.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name, reporting_currency)"
+                 " VALUES (1, 'ABBV', 'AbbVie', 'USD')")
+    conn.execute("INSERT INTO companies (id, ticker, name, reporting_currency)"
+                 " VALUES (2, 'GMAB', 'Genmab', 'USD')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, is_marketed)"
+                 " VALUES (7, 1, 'etentamig', 0)")
+    conn.execute("INSERT INTO indications (id, name, mesh_id) VALUES (3, ?, ?)", MYELOMA[::-1])
+    conn.execute("INSERT INTO indications (id, name, mesh_id) VALUES (4, ?, ?)",
+                 FOLLICULAR[::-1])
+    conn.execute("INSERT INTO asset_indications (id, asset_id, indication_id, phase,"
+                 " is_lead, region) VALUES (30, 7, 3, ?, 1, 'US')", (phase,))
+    conn.execute("INSERT INTO asset_indications (id, asset_id, indication_id, phase,"
+                 " is_lead, region) VALUES (31, 7, 4, 'Phase 2', 0, 'US')")
+    rows = [{"key": k, "value": v, "source": "t"} for k, v in (
+        ("net_price_per_patient", 0.3), ("cogs_per_patient", 0.05),
+        ("sga_pct", 0.2), ("rd_pct", 0.1), ("tax_rate", 0.15), ("wacc", 0.09),
+        ("forecast_start_year", 2028), ("forecast_years", 6), *extra)]
+    rows.append({"key": "therapy_mode", "text_value": "one_time", "source": "t"})
+    if share is not None:
+        rows.append({"key": "economics_share", "value": share, "source": "t"})
+    if partner:
+        rows.append({"key": "partner_ticker", "text_value": partner, "source": "t"})
+    for year, patients in ((2028, 400), (2029, 900), (2030, 1500)):
+        rows.append({"key": "new_patients", "indication_id": 3, "year": year,
+                     "value": patients, "source": "t"})
+    A.save(conn, 7, rows)
+    conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year,"
+                 " value, period_end) VALUES (1, 'WeightedAverageDilutedShares', 'FY',"
+                 " 2025, 1770000000, '2025-12-31')")
+    conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year,"
+                 " value, period_end) VALUES (2, 'WeightedAverageDilutedShares', 'FY',"
+                 " 2025, 64000000, '2025-12-31')")
+    conn.commit()
+    return path, conn
+
+
+def _trial(conn, nct, phase, completion, term, status="Recruiting", enrollment=500,
+           asset_id=7):
+    conn.execute(
+        "INSERT INTO trials (nct_id, asset_id, sponsor_company_id, phase, overall_status,"
+        " primary_completion_date, enrollment, title, conditions, mesh_terms)"
+        " VALUES (?, ?, 1, ?, ?, ?, ?, 'A study', ?, ?)",
+        (nct, asset_id, phase, status, completion, enrollment, json.dumps([term[1]]),
+         json.dumps({"meshes": [{"id": term[0], "term": term[1]}], "ancestors": []})))
+
+
+def _cat(conn, cid, kind, days, nct=None, asset_id=7, indication=None, title="An event",
+         description=None):
+    url = f"https://clinicaltrials.gov/study/{nct}" if nct else "https://sec.gov/x"
+    conn.execute(
+        "INSERT INTO catalysts (id, company_id, asset_id, asset_indication_id,"
+        " catalyst_type, expected_date, title, description, is_curated, source_url,"
+        " status) VALUES (?, 1, ?, ?, ?, ?, ?, ?, 0, ?, 'pending')",
+        (cid, asset_id, indication, kind, _day(days), title, description or nct, url))
+
+
+def _phase_3_book(tmp_path, **kw):
+    path, conn = _pipeline(tmp_path, **kw)
+    _trial(conn, "NCT00000001", "Phase 3", _day(200), MYELOMA)
+    _trial(conn, "NCT00000002", "Phase 3", _day(100), FOLLICULAR)
+    _trial(conn, "NCT00000003", "Phase 2", _day(60), MYELOMA, enrollment=200)
+    _trial(conn, "NCT00000004", "Phase 3", _day(400), MYELOMA, enrollment=900)
+    _cat(conn, 21, "data readout", 200, "NCT00000001")          # the gate
+    _cat(conn, 22, "data readout", 100, "NCT00000002")          # another disease
+    _cat(conn, 23, "data readout", 60, "NCT00000003")           # a Phase 2
+    _cat(conn, 24, "data readout", 400, "NCT00000004")          # the same gate, later
+    # A filing for the second indication: filed_for leaves the asset at its Phase 3
+    # gate (a filing for the lead would put it at the FDA decision), and the date is not
+    # the gate the model prices.
+    _cat(conn, 25, "PDUFA", 300, indication=31)
+    _cat(conn, 26, "AdCom", 250)                                # informs, never the gate
+    _cat(conn, 27, "data readout", 150, description="no study named")
+    _cat(conn, 28, "conference", 90, "NCT00000001")
+    conn.commit()
+    conn.close()
+    return path
+
+
+def _by_id(out):
+    return {r["id"]: r for r in out["priced"] + out["unpriced"]}
+
+
+def test_a_derived_gate_prices_its_one_catalyst_from_npv_and_the_success_leg(tmp_path, big):
+    path = _phase_3_book(tmp_path)
+    out = V.catalyst_stakes(path, "ABBV")
+    built = V.asset_forecast(path, "ABBV", 7)["result"]
+    legs = PG.legs_for_asset(db.get_connection(path), 7, big=True)
+    assert [r["id"] for r in out["priced"]] == [21], "exactly one priced per asset and gate"
+    row = out["priced"][0]
+    assert row["legs_basis"] == "derived" and row["gate"] == "p3_to_nda"
+    assert row["gate_label"] == "Phase 3 readout" and row["trial"] == "NCT00000001"
+    assert row["gate_trial"] == "NCT00000001"
+    assert row["pos_failure"] == 0.0 and row["pos_success"] == legs["pos_success"]
+    assert row["pos_now"] == built["pos"]
+    assert row["p_gate"] * row["pos_success"] == pytest.approx(row["pos_now"], abs=1e-12)
+    assert row["swing"] == pytest.approx(built["npv"] * legs["pos_success"], rel=1e-12)
+    assert row["rnpv_failure"] == 0.0 and row["share"] == 1.0
+    assert row["share_swing"] == pytest.approx(row["swing"])
+    assert row["per_share"] == pytest.approx(row["swing"] * 1e6 / 1.77e9)
+    assert row["resolvable"] is True and row["resolve_note"] is None
+    assert row["evidence"] == {"p_gate": "published", "success": "published",
+                               "failure": "convention"}
+    # the other Phase 3 still open holds the asset after a miss
+    assert row["held"]["ncts"] == ["NCT00000004"]
+    _house_style(row["basis"])
+
+
+def test_every_other_catalyst_on_the_asset_says_why_it_is_not_priced(tmp_path, big):
+    path = _phase_3_book(tmp_path)
+    got = _by_id(V.catalyst_stakes(path, "ABBV"))
+    assert {i: got[i]["reason"] for i in (22, 23, 24, 25, 26, 27, 28)} == {
+        22: "other_indication", 23: "not_gate_phase", 24: "same_gate_later",
+        25: "regulatory_not_gate", 26: "regulatory_not_gate", 27: "no_trial_link",
+        28: "not_a_gate"}
+    for i in (22, 23, 24, 25, 26, 27, 28):
+        assert got[i]["priced"] is False
+        assert got[i]["missing"] == ["pos_success", "pos_failure"]
+        assert set(V.STAKE_REASONS) >= {got[i]["reason"]}
+        _house_style(got[i]["why"])
+    assert "Lymphoma, Follicular" in got[22]["why"]
+    assert "phase 3 readout" in got[25]["why"]
+
+
+def test_a_phase_2_gate_prices_its_readout_and_does_not_resolve_by_hand(tmp_path, big):
+    path, conn = _pipeline(tmp_path, phase="Phase 2")
+    _trial(conn, "NCT00000005", "Phase 2", _day(120), MYELOMA, enrollment=200)
+    _trial(conn, "NCT00000006", "Phase 3", _day(300), MYELOMA)
+    _cat(conn, 31, "data readout", 120, "NCT00000005")
+    _cat(conn, 32, "data readout", 300, "NCT00000006")
+    conn.commit(); conn.close()
+    got = _by_id(V.catalyst_stakes(path, "ABBV"))
+    assert got[31]["priced"] and got[31]["gate"] == "p2_to_p3"
+    assert got[31]["resolvable"] is False
+    assert got[31]["resolve_note"] == ("A Phase 2 result moves the model when its Phase 3 "
+                                       "starts or the programme is retired.")
+    assert got[31]["held"] is None
+    assert got[32]["reason"] == "phase_ahead_of_book"
+    with pytest.raises(ValueError, match="Phase 2 result"):
+        V.resolve_catalyst(path, "ABBV", 31, "met")
+
+
+def test_at_the_fda_gate_the_filing_is_priced_and_a_readout_is_past_it(tmp_path, big):
+    path, conn = _pipeline(tmp_path)
+    _trial(conn, "NCT00000001", "Phase 3", _day(-200), MYELOMA, status="Completed")
+    _trial(conn, "NCT00000007", "Phase 3", _day(90), MYELOMA)
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome,"
+                 " event_date) VALUES ('000-1', 1, 'etentamig', 3, 'positive', ?)",
+                 (_day(-30),))
+    _cat(conn, 41, "data readout", 90, "NCT00000007")
+    _cat(conn, 42, "PDUFA", 200, indication=30, title="etentamig PDUFA, Multiple myeloma")
+    _cat(conn, 43, "PDUFA", 250, indication=31, title="etentamig PDUFA, lymphoma")
+    _cat(conn, 44, "PDUFA", 260, title="etentamig PDUFA")
+    conn.commit(); conn.close()
+    got = _by_id(V.catalyst_stakes(path, "ABBV"))
+    assert got[42]["priced"] and got[42]["gate"] == "nda_to_approval"
+    assert got[42]["pos_success"] == 1.0 and got[42]["resolvable"] is False
+    assert got[42]["resolve_note"] == "An FDA decision resolves when openFDA lists the approval."
+    assert got[41]["reason"] == "past_gate"
+    assert got[43]["reason"] == "other_indication" and "Lymphoma" in got[43]["why"]
+    assert got[44]["reason"] == "other_indication"
+    with pytest.raises(ValueError, match="openFDA"):
+        V.resolve_catalyst(path, "ABBV", 42, "met")
+
+
+def test_a_stated_pos_at_its_success_leg_is_read_at_the_fda_decision(tmp_path, big):
+    path, conn = _pipeline(tmp_path, extra=(("pos", 0.95),))
+    _trial(conn, "NCT00000001", "Phase 3", _day(200), MYELOMA)
+    _cat(conn, 51, "data readout", 200, "NCT00000001")
+    conn.commit(); conn.close()
+    got = _by_id(V.catalyst_stakes(path, "ABBV"))
+    assert got[51]["reason"] == "past_gate" and "implies a filing" in got[51]["why"]
+
+
+def test_nil_and_outside_the_gate_are_named(tmp_path, big):
+    path, conn = _pipeline(tmp_path, extra=(("pos", 0.0),))
+    _trial(conn, "NCT00000001", "Phase 3", _day(200), MYELOMA)
+    _cat(conn, 61, "data readout", 200, "NCT00000001")
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, is_marketed)"
+                 " VALUES (8, 1, 'oldmab', 1)")
+    _cat(conn, 62, "data readout", 210, asset_id=8)
+    conn.commit(); conn.close()
+    got = _by_id(V.catalyst_stakes(path, "ABBV"))
+    assert got[61]["reason"] == "nil"
+    assert got[62]["reason"] == "no_gate"
+
+
+def test_a_lone_stated_leg_is_named_and_the_derived_legs_price(tmp_path, big):
+    path = _phase_3_book(tmp_path, extra=(("pos_success", 0.99),))
+    got = _by_id(V.catalyst_stakes(path, "ABBV"))
+    assert got[21]["legs_basis"] == "derived" and got[21]["pos_success"] != 0.99
+    assert got[21]["ignored"].startswith("pos_success is on file without pos_failure")
+    _house_style(got[21]["ignored"])
+
+
+def test_the_partner_prices_the_derived_gate_at_its_share(tmp_path, big):
+    path = _phase_3_book(tmp_path, share=0.7, partner="GMAB")
+    mine = V.catalyst_stakes(path, "ABBV")["priced"][0]
+    theirs = V.catalyst_stakes(path, "GMAB")["priced"][0]
+    assert mine["id"] == theirs["id"] == 21
+    assert mine["share"] == 0.7 and theirs["share"] == pytest.approx(0.3)
+    assert theirs["per_share"] == pytest.approx(mine["swing"] * 0.3 * 1e6 / 64e6)
+
+
+def test_the_stated_route_is_linear_and_matches_the_two_whatif_runs(tmp_path):
+    path = _seed(tmp_path)
+    row = V.catalyst_stakes(path, "VRTX")["priced"][0]
+    up = V.whatif(path, "VRTX", 1, pos=0.95)["varied"]["rnpv"]
+    down = V.whatif(path, "VRTX", 1, pos=0.40)["varied"]["rnpv"]
+    assert row["legs_basis"] == "stated" and row["resolvable"] is True
+    assert row["swing"] == pytest.approx(up - down, rel=1e-6)
+    assert row["rnpv_success"] == pytest.approx(up, rel=1e-6)
+
+
+# --- resolving a derived gate ------------------------------------------------
+
+def _rows(path, sql, *args):
+    conn = db.get_connection(path)
+    try:
+        return [dict(r) for r in conn.execute(sql, args)]
+    finally:
+        conn.close()
+
+
+def test_a_met_derived_gate_lands_on_its_success_leg_and_writes_no_assumption(tmp_path, big):
+    path = _phase_3_book(tmp_path)
+    priced = V.catalyst_stakes(path, "ABBV")["priced"][0]
+    rows_before = _rows(path, "SELECT * FROM assumptions ORDER BY id")
+    out = V.resolve_catalyst(path, "ABBV", 21, "met")
+    after = V.asset_forecast(path, "ABBV", 7)["result"]
+    assert out["route"] == "gate evidence" and out["stated_pos_governs"] is False
+    assert out["pos_applied"] == pytest.approx(priced["pos_success"], abs=1e-4)
+    assert after["pos"] == priced["pos_success"] and out["stage"] == "positive"
+    assert out["leg"] == priced["pos_success"] and out["held"] is None
+    assert _rows(path, "SELECT * FROM assumptions ORDER BY id") == rows_before
+    cat = _rows(path, "SELECT status, description FROM catalysts WHERE id = 21")[0]
+    assert cat["status"] == "met"
+    assert cat["description"].endswith(" | resolved met, recorded as gate evidence")
+    snaps = [json.loads(r["payload"]) for r in _rows(
+        path, "SELECT payload FROM snapshots WHERE source = 'forecast'"
+        " AND entity_key = '7' ORDER BY id")]
+    assert [s["pos"] for s in snaps[-2:]] == [priced["pos_now"], priced["pos_success"]]
+    assert 21 not in {r["id"] for r in C.list_catalysts(path, 730, "ABBV")}
+    # the gate has moved: a readout is now past it
+    got = _by_id(V.catalyst_stakes(path, "ABBV"))
+    assert got[24]["reason"] == "past_gate"
+
+
+def test_a_missed_derived_gate_is_held_while_another_phase_3_is_open(tmp_path, big):
+    path = _phase_3_book(tmp_path)
+    priced = V.catalyst_stakes(path, "ABBV")["priced"][0]
+    out = V.resolve_catalyst(path, "ABBV", 21, "missed")
+    assert out["stage"] == "mixed"
+    assert out["pos_applied"] == priced["held"]["pos"] == out["held"]["pos"]
+    assert out["leg"] == 0.0
+
+
+def test_a_missed_derived_gate_with_nothing_else_open_is_nil(tmp_path, big):
+    path, conn = _pipeline(tmp_path)
+    _trial(conn, "NCT00000001", "Phase 3", _day(200), MYELOMA)
+    _cat(conn, 21, "data readout", 200, "NCT00000001")
+    conn.commit(); conn.close()
+    out = V.resolve_catalyst(path, "ABBV", 21, "missed")
+    assert out["pos_applied"] == 0.0 and out["stage"] == "negative"
+
+
+def test_resolve_refuses_what_the_stakes_do_not_price(tmp_path, big):
+    path = _phase_3_book(tmp_path)
+    for cid in (22, 24, 25, 26):
+        with pytest.raises(ValueError):
+            V.resolve_catalyst(path, "ABBV", cid, "met")
+    assert _rows(path, "SELECT COUNT(*) AS n FROM catalysts WHERE status != 'pending'"
+                 )[0]["n"] == 0
+
+
+def test_a_stated_pos_still_governs_after_a_derived_resolve(tmp_path, big):
+    path, conn = _pipeline(tmp_path, extra=(("pos", 0.3),))
+    _trial(conn, "NCT00000001", "Phase 3", _day(200), MYELOMA)
+    _cat(conn, 21, "data readout", 200, "NCT00000001")
+    conn.commit(); conn.close()
+    out = V.resolve_catalyst(path, "ABBV", 21, "met")
+    assert out["stated_pos_governs"] is True
+    assert out["pos_applied"] == 0.3 == out["pos_before"]
+    assert out["stage"] == "positive"
+
+
+def test_a_readout_belongs_to_the_asset_its_study_is_mapped_to(tmp_path, big):
+    """A derived readout written before its study was mapped carries no asset id, and one
+    written before a remap carries the old one. The study's mapping is the authority, for
+    the price and for the evidence a resolve records."""
+    path, conn = _pipeline(tmp_path)
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, is_marketed)"
+                 " VALUES (8, 1, 'oldmab', 1)")
+    _trial(conn, "NCT00000001", "Phase 3", _day(200), MYELOMA)
+    _trial(conn, "NCT00000004", "Phase 3", _day(400), MYELOMA)
+    _cat(conn, 21, "data readout", 200, "NCT00000001", asset_id=None)
+    _cat(conn, 24, "data readout", 400, "NCT00000004", asset_id=8)
+    conn.commit(); conn.close()
+    got = _by_id(V.catalyst_stakes(path, "ABBV"))
+    assert got[21]["priced"] and got[21]["asset_id"] == 7
+    assert got[24]["asset_id"] == 7 and got[24]["reason"] == "same_gate_later"
+    out = V.resolve_catalyst(path, "ABBV", 21, "met")
+    assert out["stage"] == "positive"
+
+
+def test_a_priced_readout_other_than_the_gate_study_says_why(tmp_path, big):
+    """The gate study passed its completion date with no readout on file, so its catalyst
+    is gone from the calendar; the next readout at the gate is priced and says so."""
+    path, conn = _pipeline(tmp_path)
+    _trial(conn, "NCT00000001", "Phase 3", _day(-20), MYELOMA, enrollment=900,
+           status="Active not recruiting")
+    _trial(conn, "NCT00000004", "Phase 3", _day(400), MYELOMA)
+    _cat(conn, 24, "data readout", 400, "NCT00000004")
+    conn.commit(); conn.close()
+    row = V.catalyst_stakes(path, "ABBV")["priced"][0]
+    assert row["trial"] == "NCT00000004" and row["gate_trial"] == "NCT00000001"
+    assert row["gate_note"].startswith("The gate study NCT00000001 passed its completion")
+    assert row["held"] is None, "a miss on the last open study leaves nothing to hold"
+    _house_style(row["gate_note"])

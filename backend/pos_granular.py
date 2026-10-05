@@ -83,6 +83,7 @@ _PLACED_AT = {"p3_to_nda": "at Phase 3 entry", "nda_to_approval": "at the NDA/BL
 # The registry phases whose readout decides each gate. A seamless Phase 2/3 is read at
 # the Phase 2 gate, as the chain reads it, and as a Phase 3 by stage_of.
 _GATE_PHASES = {"p2_to_p3": ("Phase 2", "Phase 2/3"), "p3_to_nda": ("Phase 3", "Phase 2/3")}
+GATE_PHASES = _GATE_PHASES
 
 # A stated probability this close to the value the asset would carry once its gate
 # passed is read as already past it: the analyst has priced a filing the book's phase
@@ -191,37 +192,43 @@ def modality_of(name: str | None, stored: str | None = None) -> tuple:
 _CTGOV_URL = "https://clinicaltrials.gov/study/"
 
 
+# A readout catalyst joined to the study it points at, through the registry's unique
+# index. The study's asset is the one it belongs to: the refresh keeps that mapping
+# current, while the catalyst's own asset_id is set once when the row is derived (and is
+# empty on a third of the book's readouts).
+_READOUT_JOIN = (f"JOIN trials t ON cat.source_url LIKE '{_CTGOV_URL}%'"
+                 f" AND t.nct_id = substr(cat.source_url, {len(_CTGOV_URL) + 1})")
+
+
 def read_out(conn, asset_id: int) -> dict:
     """{nct_id: outcome} for the asset's trials whose readout catalyst has been resolved
     met or missed, any phase, any indication. Such a trial has answered: it is no longer
     one of the studies still asking, whatever the registry lists it as."""
     return {r["nct_id"]: r["status"] for r in conn.execute(
-        """SELECT t.nct_id, cat.status FROM catalysts cat
-             JOIN trials t ON cat.source_url = ? || t.nct_id
-            WHERE cat.asset_id = ? AND t.asset_id = ?
-              AND cat.catalyst_type = 'data readout'
-              AND cat.status IN ('met', 'missed')
-            ORDER BY cat.updated_at, cat.id""", (_CTGOV_URL, asset_id, asset_id))}
+        f"""SELECT t.nct_id, cat.status FROM catalysts cat {_READOUT_JOIN}
+             WHERE t.asset_id = ? AND cat.catalyst_type = 'data readout'
+               AND cat.status IN ('met', 'missed')
+             ORDER BY cat.updated_at, cat.id""", (asset_id,))}
 
 
 def _resolved_readouts(conn, asset_id: int, modelled_mesh) -> list:
-    """Phase 3 readouts resolved by hand on the asset's own catalysts, as trial_readouts
+    """Phase 3 readouts resolved by hand on the asset's own studies, as trial_readouts
     rows: met is positive and missed negative, dated the day it was recorded.
 
-    Matched by asset and trial, never by drug name, and counted only where the trial is
-    in an indication the forecast values, the same MeSH test that prices the gate. A
-    positive Phase 3 in another disease must not lift the modelled one."""
+    Matched by the study and the asset it is mapped to, never by drug name, and counted
+    only where the study is in an indication the forecast values, the same MeSH test that
+    prices the gate. A positive Phase 3 in another disease must not lift the modelled
+    one."""
     mesh = set(modelled_mesh or ())
     if not mesh:
         return []
     out = []
     for r in conn.execute(
-            """SELECT cat.id, cat.status, date(cat.updated_at) AS on_day, t.nct_id,
-                      t.conditions, t.mesh_terms FROM catalysts cat
-                 JOIN trials t ON cat.source_url = ? || t.nct_id
-                WHERE cat.asset_id = ? AND t.asset_id = ? AND t.phase LIKE '%3%'
-                  AND cat.catalyst_type = 'data readout'
-                  AND cat.status IN ('met', 'missed')""", (_CTGOV_URL, asset_id, asset_id)):
+            f"""SELECT cat.id, cat.status, date(cat.updated_at) AS on_day, t.nct_id,
+                       t.conditions, t.mesh_terms FROM catalysts cat {_READOUT_JOIN}
+                 WHERE t.asset_id = ? AND t.phase LIKE '%3%'
+                   AND cat.catalyst_type = 'data readout'
+                   AND cat.status IN ('met', 'missed')""", (asset_id,)):
         found = indication_mapping.indications_for(
             r["conditions"], indication_mapping.parse_browse(r["mesh_terms"]))
         if not {t["id"] for t in found} & mesh:
@@ -937,10 +944,7 @@ def legs(conn, asset_id: int, placement: dict | None, gathered: dict | None, tod
         basis = (f"{steps} for {_and(groups)}, BIO/Informa/QLS 2011-2020; {_FAILURE}")
     held = nxt.get("held") if nxt else None
     if held and stated:
-        held = {**held, "stated_governs": True,
-                "note": (f"A miss leaves {held['open']} other Phase 3 open; the model's "
-                         f"own rule would hold it at {held['pos']:.0%}, but the stated "
-                         f"PoS governs until it is cleared.")}
+        held = _stated_held(held)
     return {**common, **_event(nxt), "pos_success": pos_success, "p_gate": p_gate,
             "p_gate_published": published, "held": held, "placed": None,
             "gates": split,
@@ -948,6 +952,56 @@ def legs(conn, asset_id: int, placement: dict | None, gathered: dict | None, tod
                          "success": "published" if success_gates else "convention",
                          "failure": "convention"},
             "basis": basis}
+
+
+def _stated_held(held: dict) -> dict:
+    """The held note where a stated probability governs: the model's own rule would hold
+    the asset, and the analyst's figure still decides what it is worth."""
+    return {**held, "stated_governs": True,
+            "note": (f"A miss leaves {held['open']} other Phase 3 open; the model's own "
+                     f"rule would hold it at {held['pos']:.0%}, but the stated PoS "
+                     f"governs until it is cleared.")}
+
+
+def held_after(conn, asset_id: int, placement: dict | None, nct_id: str,
+               primary_completion: str | None, today=None, *, stated: bool = False):
+    """``held`` for a miss on this particular Phase 3, where a view prices a readout
+    other than the one next_gate named: the same mixed rule, counted from that study."""
+    if not placement or placement.get("stage") == "negative":
+        return None
+    iso = (today or dt.date.today()).isoformat()
+    held = _held(conn, asset_id, placement,
+                 {"nct_id": nct_id, "primary_completion": primary_completion}, iso)
+    return _stated_held(held) if (held and stated) else held
+
+
+def legs_for_inputs(conn, asset_id: int, inputs: dict | None, today=None,
+                    table=None) -> tuple:
+    """(legs, gathered) for a forecast assumptions.load has already put together: its
+    own placement and its own scalars, so the legs belong to the build a view shows,
+    scenario and all. (None, None) where the asset has no placement. The placement
+    exists only for a big pharma asset, so the owner is not asked again."""
+    placement = (inputs or {}).get("pos_granular")
+    if not placement:
+        return None, None
+    gathered = _gather(conn, asset_id, area=inputs.get("therapeutic_area"),
+                       phase=inputs.get("phase"), scalars=inputs.get("scalars"), big=True)
+    if gathered is None:
+        return None, None
+    return (legs(conn, asset_id, placement, gathered, today, table,
+                 stated_pos=stated_pos(inputs.get("scalars"))), gathered)
+
+
+def in_modelled(conn, nct_id: str, modelled_mesh) -> tuple:
+    """(whether the study is in an indication the forecast values, its indications):
+    the one MeSH test every gate view and stage_of's resolved readouts share."""
+    row = conn.execute("SELECT conditions, mesh_terms FROM trials WHERE nct_id = ?",
+                       (nct_id,)).fetchone()
+    if row is None:
+        return False, []
+    found = indication_mapping.indications_for(
+        row["conditions"], indication_mapping.parse_browse(row["mesh_terms"]))
+    return bool({t["id"] for t in found} & set(modelled_mesh or ())), [t["term"] for t in found]
 
 
 def _event(nxt: dict | None) -> dict:
