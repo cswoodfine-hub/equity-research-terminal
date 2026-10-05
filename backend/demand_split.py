@@ -417,14 +417,16 @@ def resolve(conn, asset_id: int) -> dict | None:
         (asset_id,)).fetchone()
     if asset is None:
         return None
-    own = conn.execute("SELECT COUNT(*) FROM drug_demand WHERE asset_id = ?",
-                       (asset_id,)).fetchone()[0]
+    # Counted as _series reads them: a row with no spending is no series.
+    own = conn.execute("SELECT COUNT(*) FROM drug_demand WHERE asset_id = ?"
+                       " AND total_spending IS NOT NULL", (asset_id,)).fetchone()[0]
     peers = []
     brand = (asset["brand_name"] or "").strip().lower()
     if brand:
         peers = [dict(r) for r in conn.execute(
             "SELECT a.id, c.ticker,"
-            "       (SELECT COUNT(*) FROM drug_demand d WHERE d.asset_id = a.id) AS n"
+            "       (SELECT COUNT(*) FROM drug_demand d WHERE d.asset_id = a.id"
+            "          AND d.total_spending IS NOT NULL) AS n"
             "  FROM assets a LEFT JOIN companies c ON c.id = a.owner_company_id"
             " WHERE LOWER(TRIM(a.brand_name)) = ? AND a.id != ?"
             " ORDER BY n DESC, a.id", (brand, asset_id))]

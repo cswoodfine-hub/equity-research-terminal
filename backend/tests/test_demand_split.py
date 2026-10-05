@@ -521,3 +521,13 @@ def test_the_routes_return_the_split_and_scope_it(book, monkeypatch):
     # The older route is untouched by the new one beside it.
     drugs = client.get("/companies/LLY/demand").json()["drugs"]
     assert drugs and all("asset_id" in d for d in drugs)
+
+
+def test_rows_without_spending_are_no_series(book):
+    path, ids = book
+    conn = db.get_connection(path)
+    _demand(conn, ids["nothing"], "D", 2024, None, 10, 5, "Nothing")
+    conn.commit()
+    conn.close()
+    out = ds.for_asset(path, "LLY", ids["nothing"])
+    assert out["ok"] is False and out["reason"] == "not in the CMS files"
