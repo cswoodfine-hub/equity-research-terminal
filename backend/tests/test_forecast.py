@@ -1513,3 +1513,21 @@ def test_a_build_exposes_the_revenue_its_terminal_value_carries():
     assert tail and tail["end"] == got["dcf_years"][-1]
     assert sum(share for share, _, _ in tail["parts"]) == pytest.approx(1.0)
     assert F.build(_marketed(terminal_mode="none"))["terminal_tail"] is None
+
+
+@pytest.mark.parametrize("last, loe, late, late_from", [
+    (2035, 2033, 0.10, 4),     # ends on the early rate, the switch two years ahead
+    (2034, 2033, 0.10, 4),     # ... three years ahead
+    (2035, 2032, 0.10, 4),     # ends the year before the switch
+    (2036, 2032, 0.10, 4),     # ends on the switch
+    (2040, 2032, 0.10, 4),     # long past it
+    (2035, 2038, 0.10, 4),     # the cliff still ahead
+    (2035, 2033, None, None),  # one rate for ever
+])
+def test_the_terminal_path_is_erode_run_on_past_the_horizon(last, loe, late, late_from):
+    years = list(range(2026, last + 40))
+    flat = F.erode([1.0] * len(years), years, loe, 0.6, 0.35, late, late_from)
+    at_end = flat[years.index(last)]
+    path = F.terminal_path(0.0, last, loe, False, 0.6, 0.35, late, late_from, years)
+    for y in range(last + 1, last + 30):
+        assert path[y] == pytest.approx(flat[years.index(y)] / at_end, rel=1e-12), y

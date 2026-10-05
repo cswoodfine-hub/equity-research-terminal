@@ -692,8 +692,12 @@ def terminal_multiple(growth: float, rate: float, last_year: int, loe_year=None,
         # Already eroding at the horizon. The years still on the steep rate are carried
         # one by one and the slower rate takes the stream from there.
         since = int(last_year) - int(loe_year)
-        early_years = max(0, (switch - 1 - since)) if switch else 0
-        first = (1.0 - decay) if early_years > 0 or not switch or since + 1 < switch \
+        # The first year past the horizon is itself on the early rate while the switch is
+        # still ahead, so one early year fewer remains after it: erode() steps the early
+        # rate while since < switch. Counting it twice took an extra early-rate year off
+        # every product whose forecast ends a year or two past its LOE.
+        early_years = max(0, switch - 2 - since) if switch and since + 1 < switch else 0
+        first = (1.0 - decay) if not switch or since + 1 < switch \
             else (1.0 - late_rate(decay_pct, late_decay_pct))
         return decaying_pv(first, rate, decay_pct, late_decay_pct, early_years)
     step = (1.0 + growth) / (1.0 + rate)
@@ -733,9 +737,8 @@ def terminal_path(growth: float, last_year: int, loe_year=None, in_base: bool = 
 
     if int(last_year) > int(loe_year):
         since = int(last_year) - int(loe_year)
-        early_years = max(0, (switch - 1 - since)) if switch else 0
-        first = ((1.0 - decay) if early_years > 0 or not switch or since + 1 < switch
-                 else (1.0 - late))
+        early_years = max(0, switch - 2 - since) if switch and since + 1 < switch else 0
+        first = (1.0 - decay) if not switch or since + 1 < switch else (1.0 - late)
         for y in years:
             out[y] = stages(first, early_years, y - int(last_year))
         return out
