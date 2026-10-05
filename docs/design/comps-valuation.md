@@ -3485,7 +3485,7 @@ own (`forecast_view.STAKE_REASONS`), in the order it tests them:
 | `past_gate` | A readout on an asset already at the FDA decision, including a stated PoS that implies a filing. |
 | `not_gate_phase` | A readout at a phase that does not decide the gate (a Phase 2 study of a Phase 3 asset). |
 | `phase_ahead_of_book` | A Phase 3 readout on an asset the book holds at Phase 2. |
-| `other_indication` | A study, or a filing, in an indication the forecast does not value. |
+| `other_indication` | A study, or a filing, in an indication the forecast does not value; or a study that cannot be matched to one because it has no MeSH terms on file, or carries terms matching none of its listed conditions. The why says which, and never calls an unmatched study one in another disease. |
 | `same_gate_later` | A later catalyst of the gate an earlier one already prices. |
 
 The stake engine runs (when no cached stakes read is present) only where an in-window catalyst
