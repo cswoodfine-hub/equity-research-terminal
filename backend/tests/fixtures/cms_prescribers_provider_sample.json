@@ -1,0 +1,326 @@
+{
+ "Repatha Pushtronex": [
+  {
+   "Prscrbr_NPI": "1003017963",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "12",
+   "Tot_30day_Fills": "14",
+   "Tot_Day_Suply": "412",
+   "Tot_Drug_Cst": "8208.58"
+  },
+  {
+   "Prscrbr_NPI": "1003802547",
+   "Prscrbr_Type": "Clinical Cardiac Electrophysiology",
+   "Tot_Clms": "27",
+   "Tot_30day_Fills": "29",
+   "Tot_Day_Suply": "868",
+   "Tot_Drug_Cst": "16490.74"
+  },
+  {
+   "Prscrbr_NPI": "1003914227",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "47",
+   "Tot_30day_Fills": "47",
+   "Tot_Day_Suply": "1390",
+   "Tot_Drug_Cst": "27510.43"
+  },
+  {
+   "Prscrbr_NPI": "1013176999",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "11",
+   "Tot_30day_Fills": "15",
+   "Tot_Day_Suply": "440",
+   "Tot_Drug_Cst": "9688.6"
+  },
+  {
+   "Prscrbr_NPI": "1023009909",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "24",
+   "Tot_30day_Fills": "41",
+   "Tot_Day_Suply": "1216",
+   "Tot_Drug_Cst": "21007.73"
+  },
+  {
+   "Prscrbr_NPI": "1023045523",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "12",
+   "Tot_30day_Fills": "12",
+   "Tot_Day_Suply": "358",
+   "Tot_Drug_Cst": "7097.56"
+  },
+  {
+   "Prscrbr_NPI": "1003049289",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "49",
+   "Tot_30day_Fills": "51",
+   "Tot_Day_Suply": "1512",
+   "Tot_Drug_Cst": "31368.85"
+  },
+  {
+   "Prscrbr_NPI": "1003081985",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "25",
+   "Tot_30day_Fills": "25",
+   "Tot_Day_Suply": "740",
+   "Tot_Drug_Cst": "14668.54"
+  },
+  {
+   "Prscrbr_NPI": "1003093600",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "26",
+   "Tot_30day_Fills": "40.8",
+   "Tot_Day_Suply": "1222",
+   "Tot_Drug_Cst": "21999.86"
+  },
+  {
+   "Prscrbr_NPI": "1003103516",
+   "Prscrbr_Type": "Endocrinology",
+   "Tot_Clms": "12",
+   "Tot_30day_Fills": "12",
+   "Tot_Day_Suply": "360",
+   "Tot_Drug_Cst": "6638.63"
+  },
+  {
+   "Prscrbr_NPI": "1003139932",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "21",
+   "Tot_30day_Fills": "21",
+   "Tot_Day_Suply": "612",
+   "Tot_Drug_Cst": "12444.24"
+  },
+  {
+   "Prscrbr_NPI": "1003189507",
+   "Prscrbr_Type": "Physician Assistant",
+   "Tot_Clms": "11",
+   "Tot_30day_Fills": "11",
+   "Tot_Day_Suply": "308",
+   "Tot_Drug_Cst": "6772.19"
+  },
+  {
+   "Prscrbr_NPI": "1003249913",
+   "Prscrbr_Type": "Nurse Practitioner",
+   "Tot_Clms": "18",
+   "Tot_30day_Fills": "36",
+   "Tot_Day_Suply": "1080",
+   "Tot_Drug_Cst": "20506.45"
+  },
+  {
+   "Prscrbr_NPI": "1003329236",
+   "Prscrbr_Type": "Nurse Practitioner",
+   "Tot_Clms": "21",
+   "Tot_30day_Fills": "36.2",
+   "Tot_Day_Suply": "1070",
+   "Tot_Drug_Cst": "21312.27"
+  },
+  {
+   "Prscrbr_NPI": "1003463803",
+   "Prscrbr_Type": "Nurse Practitioner",
+   "Tot_Clms": "13",
+   "Tot_30day_Fills": "17",
+   "Tot_Day_Suply": "488",
+   "Tot_Drug_Cst": "10168.41"
+  },
+  {
+   "Prscrbr_NPI": "1003463902",
+   "Prscrbr_Type": "Physician Assistant",
+   "Tot_Clms": "16",
+   "Tot_30day_Fills": "16",
+   "Tot_Day_Suply": "460",
+   "Tot_Drug_Cst": "9467.17"
+  },
+  {
+   "Prscrbr_NPI": "1003814039",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "24",
+   "Tot_30day_Fills": "28",
+   "Tot_Day_Suply": "818",
+   "Tot_Drug_Cst": "16136.16"
+  },
+  {
+   "Prscrbr_NPI": "1003880162",
+   "Prscrbr_Type": "Family Practice",
+   "Tot_Clms": "15",
+   "Tot_30day_Fills": "15",
+   "Tot_Day_Suply": "428",
+   "Tot_Drug_Cst": "9307.05"
+  },
+  {
+   "Prscrbr_NPI": "1003881343",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "40",
+   "Tot_30day_Fills": "51.9",
+   "Tot_Day_Suply": "1526",
+   "Tot_Drug_Cst": "31211.89"
+  },
+  {
+   "Prscrbr_NPI": "1003884388",
+   "Prscrbr_Type": "Family Practice",
+   "Tot_Clms": "78",
+   "Tot_30day_Fills": "173.5",
+   "Tot_Day_Suply": "5178",
+   "Tot_Drug_Cst": "99150.01"
+  }
+ ],
+ "Repatha Syringe": [
+  {
+   "Prscrbr_NPI": "1003017963",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "17",
+   "Tot_30day_Fills": "36.8",
+   "Tot_Day_Suply": "1092",
+   "Tot_Drug_Cst": "20858.73"
+  },
+  {
+   "Prscrbr_NPI": "1003802547",
+   "Prscrbr_Type": "Clinical Cardiac Electrophysiology",
+   "Tot_Clms": "62",
+   "Tot_30day_Fills": "65.6",
+   "Tot_Day_Suply": "1780",
+   "Tot_Drug_Cst": "33739.5"
+  },
+  {
+   "Prscrbr_NPI": "1003914227",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "23",
+   "Tot_30day_Fills": "34.2",
+   "Tot_Day_Suply": "992",
+   "Tot_Drug_Cst": "18803.98"
+  },
+  {
+   "Prscrbr_NPI": "1013176999",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "25",
+   "Tot_30day_Fills": "51",
+   "Tot_Day_Suply": "1522",
+   "Tot_Drug_Cst": "34585.97"
+  },
+  {
+   "Prscrbr_NPI": "1023009909",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "29",
+   "Tot_30day_Fills": "38.6",
+   "Tot_Day_Suply": "1114",
+   "Tot_Drug_Cst": "20785.75"
+  },
+  {
+   "Prscrbr_NPI": "1023045523",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "20",
+   "Tot_30day_Fills": "34.4",
+   "Tot_Day_Suply": "1008",
+   "Tot_Drug_Cst": "15710.82"
+  },
+  {
+   "Prscrbr_NPI": "1003000936",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "14",
+   "Tot_30day_Fills": "14",
+   "Tot_Day_Suply": "196",
+   "Tot_Drug_Cst": "3868.38"
+  },
+  {
+   "Prscrbr_NPI": "1003007048",
+   "Prscrbr_Type": "Family Practice",
+   "Tot_Clms": "12",
+   "Tot_30day_Fills": "13.8",
+   "Tot_Day_Suply": "392",
+   "Tot_Drug_Cst": "7628.76"
+  },
+  {
+   "Prscrbr_NPI": "1003007204",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "16",
+   "Tot_30day_Fills": "16",
+   "Tot_Day_Suply": "460",
+   "Tot_Drug_Cst": "8522.69"
+  },
+  {
+   "Prscrbr_NPI": "1003007980",
+   "Prscrbr_Type": "Interventional Cardiology",
+   "Tot_Clms": "13",
+   "Tot_30day_Fills": "13",
+   "Tot_Day_Suply": "350",
+   "Tot_Drug_Cst": "6543.03"
+  },
+  {
+   "Prscrbr_NPI": "1003010463",
+   "Prscrbr_Type": "Family Practice",
+   "Tot_Clms": "13",
+   "Tot_30day_Fills": "13",
+   "Tot_Day_Suply": "366",
+   "Tot_Drug_Cst": "7081.62"
+  },
+  {
+   "Prscrbr_NPI": "1003041641",
+   "Prscrbr_Type": "Internal Medicine",
+   "Tot_Clms": "14",
+   "Tot_30day_Fills": "14.8",
+   "Tot_Day_Suply": "418",
+   "Tot_Drug_Cst": "8387.14"
+  },
+  {
+   "Prscrbr_NPI": "1003044702",
+   "Prscrbr_Type": "Interventional Cardiology",
+   "Tot_Clms": "14",
+   "Tot_30day_Fills": "14",
+   "Tot_Day_Suply": "392",
+   "Tot_Drug_Cst": "7838.18"
+  },
+  {
+   "Prscrbr_NPI": "1003054305",
+   "Prscrbr_Type": "Nurse Practitioner",
+   "Tot_Clms": "38",
+   "Tot_30day_Fills": "42.5",
+   "Tot_Day_Suply": "1204",
+   "Tot_Drug_Cst": "24089.46"
+  },
+  {
+   "Prscrbr_NPI": "1003074212",
+   "Prscrbr_Type": "Interventional Cardiology",
+   "Tot_Clms": "28",
+   "Tot_30day_Fills": "52.8",
+   "Tot_Day_Suply": "1554",
+   "Tot_Drug_Cst": "31013.64"
+  },
+  {
+   "Prscrbr_NPI": "1003074907",
+   "Prscrbr_Type": "Internal Medicine",
+   "Tot_Clms": "15",
+   "Tot_30day_Fills": "19",
+   "Tot_Day_Suply": "544",
+   "Tot_Drug_Cst": "9247.96"
+  },
+  {
+   "Prscrbr_NPI": "1003077389",
+   "Prscrbr_Type": "Neurology",
+   "Tot_Clms": "17",
+   "Tot_30day_Fills": "17",
+   "Tot_Day_Suply": "336",
+   "Tot_Drug_Cst": "6405.45"
+  },
+  {
+   "Prscrbr_NPI": "1003090390",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "13",
+   "Tot_30day_Fills": "31.7",
+   "Tot_Day_Suply": "930",
+   "Tot_Drug_Cst": "18760.7"
+  },
+  {
+   "Prscrbr_NPI": "1003100280",
+   "Prscrbr_Type": "Interventional Cardiology",
+   "Tot_Clms": "12",
+   "Tot_30day_Fills": "12",
+   "Tot_Day_Suply": "336",
+   "Tot_Drug_Cst": "6550.92"
+  },
+  {
+   "Prscrbr_NPI": "1003120866",
+   "Prscrbr_Type": "Cardiology",
+   "Tot_Clms": "17",
+   "Tot_30day_Fills": "27.8",
+   "Tot_Day_Suply": "812",
+   "Tot_Drug_Cst": "15730.24"
+  }
+ ]
+}
