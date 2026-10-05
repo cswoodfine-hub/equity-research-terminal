@@ -202,8 +202,10 @@ _READOUT_JOIN = (f"JOIN trials t ON cat.source_url LIKE '{_CTGOV_URL}%'"
 
 def read_out(conn, asset_id: int) -> dict:
     """{nct_id: outcome} for the asset's trials whose readout catalyst has been resolved
-    met or missed, any phase, any indication. Such a trial has answered: it is no longer
-    one of the studies still asking, whatever the registry lists it as."""
+    met or missed, any phase, any indication: a study that has read out, so never the
+    next gate again. Whether it has answered for the model, and so is no longer one of
+    the studies still asking, is answered(): only a resolution that counted as
+    evidence."""
     return {r["nct_id"]: r["status"] for r in conn.execute(
         f"""SELECT t.nct_id, cat.status FROM catalysts cat {_READOUT_JOIN}
              WHERE t.asset_id = ? AND cat.catalyst_type = 'data readout'
@@ -244,6 +246,16 @@ def _resolved_readouts(conn, asset_id: int, modelled_mesh) -> list:
     return out
 
 
+def answered(conn, asset_id: int, modelled_mesh) -> set:
+    """The studies whose resolved readout counted as evidence: a Phase 3 in an
+    indication the forecast values, the guard _resolved_readouts applies. Only these
+    leave the studies still asking, in stage_of's mixed rule and in the held note. A
+    result in a disease the forecast does not value moves nothing, so it must not empty
+    the remaining set either: a met there on a mixed asset's last open Phase 3 would
+    otherwise drop the asset to nil."""
+    return {r["nct_id"] for r in _resolved_readouts(conn, asset_id, modelled_mesh)}
+
+
 def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
              lead_indication_id=None, modelled_mesh=None) -> dict:
     """Where the asset stands, from the trials and readouts on file.
@@ -267,10 +279,14 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
               AND COALESCE(overall_status, '') NOT IN ('Withdrawn')
             ORDER BY COALESCE(enrollment, 0) DESC""", (asset_id,))]
     pivotal = p3[0] if p3 else None
-    # A study that has read out is not one still asking, whatever the registry lists.
-    answered = set(read_out(conn, asset_id))
+    # A study with a readout on file is not reading out, whatever the registry lists.
+    # It has answered, and left the studies still asking, only where that readout
+    # counted as evidence.
+    resolved = _resolved_readouts(conn, asset_id, modelled_mesh)
+    done = {r["nct_id"] for r in resolved}
+    spoken = set(read_out(conn, asset_id))
     passed = [t for t in p3 if (t["primary_completion_date"] or "9999") <= today
-              and t["nct_id"] not in answered]
+              and t["nct_id"] not in spoken]
 
     def norm(s):
         return re.sub(r"[^a-z0-9]", "", (s or "").lower())
@@ -283,7 +299,6 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
         if drug in mine or any(len(n) > 4 and n in drug for n in mine):
             readouts.append(dict(r))
     phase3_readouts = [r for r in readouts if str(r["phase"] or "") == "3"]
-    resolved = _resolved_readouts(conn, asset_id, modelled_mesh)
     if resolved:
         # Newest first, as the query orders the rest; a stable sort keeps their order.
         phase3_readouts = sorted(phase3_readouts + resolved,
@@ -329,7 +344,7 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
         since = max(filter(None, (negative["event_date"], negative.get("completion"))),
                     default="")
         remaining = [t for t in p3 if t["overall_status"] in OPEN_STATUSES
-                     and t["nct_id"] not in answered
+                     and t["nct_id"] not in done
                      and (t["primary_completion_date"] or "9999") > since]
         if remaining:
             return {"stage": "mixed", "gate": None, "pivotal": remaining[0],
@@ -723,13 +738,13 @@ def for_asset(conn, asset_id: int, *, area: str | None, phase: str | None,
 
 # --- the next gate -------------------------------------------------------------------
 
-def _trials(conn, asset_id: int, phases: tuple, mesh: set) -> list:
+def _trials(conn, asset_id: int, phases: tuple, mesh: set, skip: set) -> list:
     """The asset's studies at these registry phases, largest first as stage_of reads
-    them, each with its own indications and whether one of them is modelled. A study
-    whose readout has been resolved has answered and is left out, as stage_of leaves it
-    out of the studies still asking."""
+    them, each with its own indications and whether one of them is modelled. Studies in
+    ``skip`` are left out: those that have read out where a caller looks for the next
+    gate, those that have answered (answered()) where it counts the studies still
+    asking."""
     marks = ",".join("?" * len(phases))
-    answered = set(read_out(conn, asset_id))
     out = []
     for r in conn.execute(
             f"""SELECT nct_id, phase, overall_status, primary_completion_date, enrollment,
@@ -737,7 +752,7 @@ def _trials(conn, asset_id: int, phases: tuple, mesh: set) -> list:
                  WHERE asset_id = ? AND phase IN ({marks})
                    AND COALESCE(overall_status, '') NOT IN ('Withdrawn')
                  ORDER BY COALESCE(enrollment, 0) DESC""", (asset_id, *phases)):
-        if r["nct_id"] in answered:
+        if r["nct_id"] in skip:
             continue
         browse = indication_mapping.parse_browse(r["mesh_terms"])
         found = indication_mapping.indications_for(r["conditions"], browse)
@@ -776,7 +791,8 @@ def held_note(open_count: int, pos: float, stated_governs: bool = False) -> str:
             f"{'it reads' if open_count == 1 else 'they read'} out.")
 
 
-def _held(conn, asset_id: int, placement: dict, trial: dict, today: str) -> dict | None:
+def _held(conn, asset_id: int, placement: dict, trial: dict, today: str,
+          modelled_mesh) -> dict | None:
     """What the model does after one miss at a Phase 3 gate while other Phase 3s stay
     open: stage_of's mixed rule, which counts every open Phase 3 completing after the
     negative in any indication, and holds the asset at the capped mixed point.
@@ -784,9 +800,12 @@ def _held(conn, asset_id: int, placement: dict, trial: dict, today: str) -> dict
     Counted from the gate study's own completion date, or today once that has passed.
     stage_of counts a recorded miss from the later of the day it was recorded and the
     same completion date, so the note holds whether the miss comes early or on the
-    day."""
+    day. A study leaves the count only where its own resolved readout counted as
+    evidence, as it leaves stage_of's."""
     after = max(trial.get("primary_completion") or today, today)
-    others = [t for t in _trials(conn, asset_id, _GATE_PHASES["p3_to_nda"], set())
+    mesh = set(modelled_mesh or ())
+    others = [t for t in _trials(conn, asset_id, _GATE_PHASES["p3_to_nda"], mesh,
+                                 answered(conn, asset_id, mesh))
               if t["nct_id"] != trial["nct_id"] and t["status"] in OPEN_STATUSES
               and (t["primary_completion"] or "9999") > after]
     if not others:
@@ -848,8 +867,11 @@ def next_gate(conn, asset_id: int, placement: dict | None, modelled_mesh, today=
                       "study can be matched to it")
         return out
     trial, note = None, None
+    # A study that has read out, in any indication, is never the next gate again.
+    spoken = set(read_out(conn, asset_id))
     if placement.get("stage") == "reading_out" and gate == first:
-        passed = [t for t in _trials(conn, asset_id, _GATE_PHASES["p3_to_nda"], mesh)
+        passed = [t for t in _trials(conn, asset_id, _GATE_PHASES["p3_to_nda"], mesh,
+                                     spoken)
                   if (t["primary_completion"] or "9999") <= iso]
         trial = next((t for t in passed if t["modelled"]), None)
         if trial is None and passed:
@@ -859,7 +881,7 @@ def next_gate(conn, asset_id: int, placement: dict | None, modelled_mesh, today=
                     f"forecast does not value" if blind is None else
                     f"{first['nct_id']} passed primary completion but {blind}, so it "
                     f"cannot be matched to an indication the forecast values")
-    rows = _trials(conn, asset_id, _GATE_PHASES[gate], mesh)
+    rows = _trials(conn, asset_id, _GATE_PHASES[gate], mesh, spoken)
     open_rows = [t for t in rows if t["status"] in OPEN_STATUSES]
     if trial is None:
         upcoming = sorted((t for t in open_rows if t["modelled"]
@@ -902,7 +924,7 @@ def next_gate(conn, asset_id: int, placement: dict | None, modelled_mesh, today=
                            "on file" if due else "primary completion on the registry"),
                why=note)
     if gate == "p3_to_nda":
-        out["held"] = _held(conn, asset_id, placement, trial, iso)
+        out["held"] = _held(conn, asset_id, placement, trial, iso, mesh)
     return out
 
 
@@ -1026,14 +1048,18 @@ def _stated_held(held: dict) -> dict:
 
 
 def held_after(conn, asset_id: int, placement: dict | None, nct_id: str,
-               primary_completion: str | None, today=None, *, stated: bool = False):
+               primary_completion: str | None, today=None, *, stated: bool = False,
+               modelled_mesh=None):
     """``held`` for a miss on this particular Phase 3, where a view prices a readout
-    other than the one next_gate named: the same mixed rule, counted from that study."""
+    other than the one next_gate named: the same mixed rule, counted from that study.
+    ``modelled_mesh`` is the asset's own (``_gather``), which decides which resolved
+    readouts have answered."""
     if not placement or placement.get("stage") == "negative":
         return None
     iso = (today or dt.date.today()).isoformat()
     held = _held(conn, asset_id, placement,
-                 {"nct_id": nct_id, "primary_completion": primary_completion}, iso)
+                 {"nct_id": nct_id, "primary_completion": primary_completion}, iso,
+                 modelled_mesh)
     return _stated_held(held) if (held and stated) else held
 
 

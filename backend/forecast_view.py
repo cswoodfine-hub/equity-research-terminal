@@ -969,7 +969,8 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                 # Priced on a study other than the one next_gate named: hold from this.
                 held = pos_granular.held_after(
                     conn, row["asset_id"], state["placement"], nct,
-                    (trial or {}).get("primary_completion_date"), stated=legs["stated"])
+                    (trial or {}).get("primary_completion_date"), stated=legs["stated"],
+                    modelled_mesh=state["gathered"]["modelled_mesh"])
         priced.append({**out(row), "priced": True, "legs_basis": "derived",
                        **money(row, legs["pos_success"], legs["pos_failure"]),
                        "gate": legs["gate"], "gate_label": legs["label"],

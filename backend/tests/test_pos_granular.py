@@ -1016,6 +1016,34 @@ def test_a_resolved_readout_outside_the_modelled_indications_moves_nothing(tmp_p
     assert blind["stage"] == "entering"
 
 
+def test_a_result_that_did_not_count_leaves_its_study_still_asking(tmp_path):
+    """A readout resolved in a disease the forecast does not value moves nothing, so it
+    must not take its study out of the ones still asking either. Otherwise a met there on
+    a mixed asset's last open Phase 3 drops the asset to nil, and the held note forgets
+    the study before a miss on the gate."""
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2026-12-01", 900, MYELOMA),
+        ("NCT2", "Phase 3", "Recruiting", "2029-01-01", 400, FOLLICULAR)))
+    _readout(conn, "NCT1", "missed", cid=901)
+    _, mixed = _placed(conn)
+    _readout(conn, "NCT2", "met", cid=902)
+    _, after = _placed(conn)
+    assert mixed["stage"] == "mixed"
+    assert (after["stage"], after["pos"], after["basis"]) == (
+        mixed["stage"], mixed["pos"], mixed["basis"]), "a result elsewhere moves nothing"
+
+    conn.execute("DELETE FROM catalysts WHERE id = 901")
+    conn.commit()
+    gathered, placement = _placed(conn)
+    gate = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    assert gate["trial"]["nct_id"] == "NCT1"
+    assert gate["held"]["ncts"] == ["NCT2"], "NCT2's result did not count"
+    _readout(conn, "NCT1", "missed", cid=903)
+    _, missed = _placed(conn)
+    conn.close()
+    assert missed["stage"] == "mixed" and missed["pos"] == gate["held"]["pos"]
+
+
 def test_for_asset_reads_the_resolved_readout_on_the_rnpv_path(tmp_path):
     """assumptions.load calls for_asset, which gathers the modelled indications and
     hands them through: the forecast sees a resolved readout, guard and all."""
