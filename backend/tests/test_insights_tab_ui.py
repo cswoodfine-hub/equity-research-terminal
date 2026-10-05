@@ -3291,8 +3291,11 @@ def test_the_live_key_assets_and_expiries_are_the_models_largest_parts(tab, view
                                     tab["company"].get("exclusivity_losses"), tab["today"],
                                     modelled)
     for r in expiries["rows"]:
-        assert (f'<span class="d">{view["html_escape"](r["when"])}</span>'
-                f'<span class="n">{view["html_escape"](r["asset"])}</span>') in body, r["asset"]
+        tail = (f'{view["html_escape"](r["when"])}</span>'
+                f'<span class="n">{view["html_escape"](r["asset"])}</span>')
+        # a loss inside the year carries the "near" class
+        assert (f'<span class="d">{tail}' in body
+                or f'<span class="d near">{tail}' in body), r["asset"]
 
 
 @live
