@@ -207,6 +207,72 @@ def test_a_positive_phase_3_readout_outranks_the_registry(tmp_path):
     assert "read out positive 19 Aug 2026" in got["message"]
 
 
+def test_good_news_never_makes_the_floor_later(tmp_path):
+    """A Phase 3 completed 15 Jan 2026 and the seed of 2027 reads clear. Resolving its
+    readout met on 10 May 2027 names the readout as the evidence, but the floor stays
+    where the completion put it: a readout recorded later must not push the earliest
+    approval into 2028 and turn a clear asset red."""
+    conn = _seed(tmp_path)
+    _asset(conn, 1, "Olpasiran", seed=2027)
+    _trial(conn, "NCT05581303", 1, "2026-01-15", status="Completed", kind="actual")
+    before = L.for_asset(conn, 1, dt.date(2027, 5, 10), legs=None)
+    conn.execute("INSERT INTO catalysts (id, company_id, asset_id, catalyst_type,"
+                 " expected_date, title, description, is_curated, source_url, status,"
+                 " updated_at) VALUES (9, 1, 1, 'data readout', '2026-03-01',"
+                 " 'Phase 3, a study', 'NCT05581303', 0,"
+                 " 'https://clinicaltrials.gov/study/NCT05581303', 'met',"
+                 " '2027-05-10 09:00:00')")
+    conn.commit()
+    after = L.for_asset(conn, 1, dt.date(2027, 5, 10), legs=None)
+    conn.close()
+    assert before["evidence"]["kind"] == "registry" and before["status"] == "clear"
+    assert before["decision_date"] == "2026-09-16"
+    assert after["evidence"]["kind"] == "readout"
+    assert after["evidence"]["date"] == "2027-05-10"
+    assert after["decision_date"] == "2026-09-16" and after["status"] == "clear"
+    assert after["evidence"]["floor_from"] == {"kind": "readout", "nct_id": "NCT05581303",
+                                               "date": "2026-01-15"}
+    assert "read out positive 10 May 2027" in after["message"]
+    assert "NCT05581303's primary completion, 15 Jan 2026" in after["message"]
+
+
+def test_the_earliest_positive_readout_dates_the_floor(tmp_path):
+    """Two positive readouts on file: the floor runs from January's, not June's."""
+    conn = _seed(tmp_path)
+    _asset(conn, 1, "Olpasiran", seed=2027)
+    _trial(conn, "NCT05581303", 1, "2028-03-31")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome,"
+                 " event_date) VALUES ('0000-26-1', 1, 'olpasiran', 3, 'positive',"
+                 " '2026-01-20'), ('0000-26-2', 1, 'olpasiran', 3, 'positive',"
+                 " '2026-06-01')")
+    conn.commit()
+    got = _floor(conn, 1)
+    conn.close()
+    assert got["evidence"]["kind"] == "readout" and got["evidence"]["date"] == "2026-06-01"
+    assert got["evidence"]["floor_from"]["date"] == "2026-01-20"
+    assert got["decision_date"] == "2026-09-21" and got["status"] == "clear"
+    assert "an earlier Phase 3 readout, 20 Jan 2026" in got["message"]
+
+
+def test_a_registry_completion_before_the_readout_dates_the_floor(tmp_path):
+    """The readout names the evidence; a live Phase 3 that completed before it was
+    announced still dates the floor, as it would with no readout at all."""
+    conn = _seed(tmp_path)
+    _asset(conn, 1, "Olpasiran", seed=2027)
+    _trial(conn, "NCT05581303", 1, "2026-01-10", status="Active, not recruiting",
+           kind="actual")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome,"
+                 " event_date) VALUES ('0000-26-1', 1, 'olpasiran', 3, 'positive',"
+                 " '2026-04-20')")
+    conn.commit()
+    got = _floor(conn, 1)
+    conn.close()
+    assert got["evidence"]["kind"] == "readout"
+    assert got["evidence"]["floor_from"] == {"kind": "registry", "nct_id": "NCT05581303",
+                                             "date": "2026-01-10"}
+    assert got["decision_date"] == "2026-09-11"
+
+
 def test_an_accepted_application_sets_the_decision_date_itself(tmp_path):
     conn = _seed(tmp_path)
     _asset(conn, 1, "Olpasiran")

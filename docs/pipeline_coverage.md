@@ -770,7 +770,13 @@ spartalizumab, released from trials by earlier folds.
 `forecast_start_year`, the earliest approval the evidence on file allows: an accepted
 application's decision date; else a positive Phase 3 readout as `pos_granular.stage_of`
 reads it; else the earliest primary completion among the asset's live Phase 3 and 2/3
-studies. The submission is taken on that day and the review at the pathway's priority clock
+studies. A positive readout names the evidence but never dates the floor later than the
+registry would: the floor runs from the earliest of every positive Phase 3 readout (a
+resolved catalyst from its study's primary completion where that comes first) and the
+earliest live completion, so recording good news can never turn an asset red. On the book
+this moves three of the six readout-governed floors to their registry completion
+(Sonesitatug vedotin, Ianalumab, Venglustat) and two to their earlier readout (Tozorakimab,
+Ris-Rez); no status changes. The submission is taken on that day and the review at the pathway's priority clock
 from `data/fda_review_clock.csv` (PDUFA VII: 6 months from a filing date 60 days after
 receipt for a new molecule or original biologic, 6 months from receipt for a new indication
 of a marketed one). The 60 days are days, as 21 CFR 314.101(a)(2) dates the filing, not two

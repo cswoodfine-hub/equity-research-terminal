@@ -15,6 +15,11 @@ evidence cannot reach rather than one it merely makes unlikely:
   resolved readout catalysts it counts in a modelled indication); else the registry's
   earliest primary completion among the asset's live Phase 3 and Phase 2/3 studies, in
   any indication, so a study missing its MeSH descriptor can never create a flag;
+- a positive readout names the evidence but never dates the floor later than the
+  registry would: the floor runs from the earliest of every positive Phase 3 readout (a
+  resolved catalyst counted from its study's primary completion where that is earlier
+  than the day it was recorded) and the registry's earliest live completion, so good news
+  can never make a flag worse;
 - the submission goes in the day that evidence lands, with no lag, because no free source
   measures the lag;
 - the review is a priority one, the shortest statutory clock for the pathway, from
@@ -256,6 +261,41 @@ def _filings(conn, asset_id: int, today: str) -> dict:
             "passed": passed[-1] if passed else None, "supplements": supplements}
 
 
+def _readout_floor(positives: list, registry: list, today: dt.date) -> dict | None:
+    """The earliest date a positive readout allows a filing: the earliest of every
+    positive Phase 3 readout and the registry's earliest live completion. A resolved
+    catalyst counts from its study's primary completion where that is earlier than the
+    day the outcome was recorded, since the data existed from then."""
+    found = []
+    for r in positives:
+        recorded = parse_date(r.get("event_date"))
+        if recorded is None:
+            continue
+        completed = parse_date(r.get("completion")) if r.get("resolved") else None
+        if completed is not None and completed < recorded:
+            found.append({"kind": "readout", "day": completed, "date": r["completion"],
+                          "nct_id": r.get("nct_id"),
+                          "words": (f"{r.get('nct_id')}'s primary completion, "
+                                    f"{_when(r['completion'])}, its readout recorded met "
+                                    f"{_when(r['event_date'])}")})
+        else:
+            found.append({"kind": "readout", "day": recorded, "date": r["event_date"],
+                          "nct_id": r.get("nct_id"),
+                          "words": (f"{r.get('nct_id')}'s readout, recorded met "
+                                    f"{_when(r['event_date'])}" if r.get("resolved")
+                                    else f"an earlier Phase 3 readout, "
+                                         f"{_when(r['event_date'])}")})
+    if registry:
+        trial = registry[0]
+        estimated = " (estimated)" if trial["day"] >= today else ""
+        found.append({"kind": "registry", "day": trial["day"],
+                      "date": trial["primary_completion_date"], "nct_id": trial["nct_id"],
+                      "words": f"{trial['nct_id']}'s primary completion, "
+                               f"{_when(trial['primary_completion_date'])}{estimated}"})
+    # Earliest wins; on a tie the readout, which is the stronger evidence.
+    return min(found, key=lambda f: (f["day"], f["kind"] != "readout"), default=None)
+
+
 def _registry(conn, asset_id: int) -> list[dict]:
     """The asset's live Phase 3 and 2/3 studies, any indication, earliest primary
     completion first. A study whose readout was resolved missed has answered and is out."""
@@ -456,11 +496,13 @@ def for_asset(conn, asset_id: int, today=None, *, scenario: str = "base", legs=_
                     f"{_when(row['expected_date'])} and the asset is still unmarketed on "
                     f"the book, so no floor is drawn.")
     elif readout and parse_date(readout.get("event_date")):
-        governing_day = parse_date(readout["event_date"])
-        governing_nct = readout.get("nct_id")
-        out["evidence"] = {"kind": "readout", "nct_id": governing_nct,
+        floor = _readout_floor(where.get("positives") or [readout], registry, today_date)
+        governing_day, governing_nct = floor["day"], floor["nct_id"]
+        out["evidence"] = {"kind": "readout", "nct_id": readout.get("nct_id"),
                            "date": readout["event_date"], "date_type": "actual",
-                           "accession": readout.get("accession"), "cite": readout.get("cite")}
+                           "accession": readout.get("accession"), "cite": readout.get("cite"),
+                           "floor_from": {"kind": floor["kind"], "nct_id": floor["nct_id"],
+                                          "date": floor["date"]}}
         decision = None
         sentence = None
     elif registry:
@@ -497,8 +539,14 @@ def for_asset(conn, asset_id: int, today=None, *, scenario: str = "base", legs=_
             out["if_filed_today"] = review_ends(today_date, priority).isoformat()
         review = _review_words(priority, pathway)
         if out["evidence"]["kind"] == "readout":
-            sentence = (f"Its Phase 3 read out positive {_when(readout['event_date'])} and "
-                        f"{review}.")
+            named = f"Its Phase 3 read out positive {_when(readout['event_date'])}"
+            if governing_day == parse_date(readout["event_date"]):
+                sentence = f"{named} and {review}."
+            else:
+                sentence = (f"{named}; the floor dates from {floor['words']}, the "
+                            f"earliest evidence on file, and {review}.")
+            if floor["kind"] == "registry":
+                out["slip"] = _slip(conn, governing_nct, priority, decision.year)
         else:
             verb = "completes" if governing_day >= today_date else "reached primary completion"
             kind = out["evidence"]["date_type"] or "date type not stated"

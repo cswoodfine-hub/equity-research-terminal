@@ -327,13 +327,23 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
                             f"{filing['date']}"}
     if positive:
         # The readout itself rides along for the views that date from it (the launch
-        # floor); resolve() reads none of it.
+        # floor); resolve() reads none of it. ``positives`` is every positive Phase 3
+        # readout, earliest first, each with its study's primary completion where it is
+        # a resolved catalyst: the floor dates from the earliest, while the basis names
+        # the newest.
+        positives = sorted(
+            ({"event_date": r.get("event_date"), "nct_id": r.get("nct_id"),
+              "completion": r.get("completion"), "accession": r.get("accession"),
+              "resolved": bool(r.get("cite")), "cite": cite(r)}
+             for r in phase3_readouts if (r["outcome"] or "").lower() == "positive"),
+            key=lambda r: r["event_date"] or "9999")
         return {"stage": "positive", "gate": "nda_to_approval", "pivotal": pivotal,
                 "evidence": f"Phase 3 read out positive {cite(positive)}",
                 "readout": {"event_date": positive.get("event_date"),
                             "nct_id": positive.get("nct_id"),
                             "accession": positive.get("accession"),
-                            "drug": positive.get("drug"), "cite": cite(positive)}}
+                            "drug": positive.get("drug"), "cite": cite(positive)},
+                "positives": positives}
     if negative:
         # One trial's answer. Volrustomig's lung study was stopped for futility with
         # three other Phase 3 studies recruiting to 2030; the asset is not nil, the
