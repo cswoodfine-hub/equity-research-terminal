@@ -2,6 +2,8 @@
 phase's entry with a point."""
 
 import datetime as dt
+import json
+import math
 
 import pytest
 
@@ -444,3 +446,362 @@ def test_the_bispecific_infix_is_read_in_full():
     for name in ("volrustomig", "rilvegostomig", "tobemstomig", "surovatamig",
                  "pumitamig", "etentamig"):
         assert PG.modality_of(name)[0] == "Monoclonal antibody", name
+
+
+# --- the gate split, the next gate and the legs ---------------------------------------
+
+BANNED = ("additionally", "highlight", "underscore", "pivotal", "showcase", "testament")
+MYELOMA = ("D009101", "Multiple Myeloma")
+FOLLICULAR = ("D008224", "Lymphoma, Follicular")
+
+
+def _rate(table, cut, group, gates):
+    product = 1.0
+    for gate in gates:
+        product *= table[(cut, group, gate)]["pos"]
+    return product
+
+
+def _geomean(values):
+    return math.exp(sum(math.log(v) for v in values) / len(values))
+
+
+def _gate_seed(tmp_path, trials, phase="Phase 3", name="etentamig", readouts=(),
+               modelled=True, stated=None):
+    """An antibody modelled in multiple myeloma, its studies carrying their MeSH, so the
+    next gate can tell a study in a modelled indication from one elsewhere."""
+    conn = _seed(tmp_path, name=name, phase=phase, readouts=readouts)
+    conn.execute("UPDATE indications SET mesh_id = ? WHERE id = 3", (MYELOMA[0],))
+    conn.execute("INSERT INTO indications (id, name, mesh_id) VALUES"
+                 " (4, 'Follicular lymphoma', ?)", (FOLLICULAR[0],))
+    for nct, ph, status, completion, enrollment, term in trials:
+        conn.execute(
+            "INSERT INTO trials (nct_id, asset_id, sponsor_company_id, phase,"
+            " overall_status, primary_completion_date, enrollment, title, conditions,"
+            " mesh_terms) VALUES (?, 7, 1, ?, ?, ?, ?, 'A study', ?, ?)",
+            (nct, ph, status, completion, enrollment, json.dumps([term[1]]),
+             json.dumps({"meshes": [{"id": term[0], "term": term[1]}],
+                         "ancestors": []})))
+    if modelled:
+        conn.execute("INSERT INTO assumptions (asset_id, indication_id, region, scenario,"
+                     " key, value, unit) VALUES (7, 3, 'US', 'base',"
+                     " 'penetration_peak_pct', 0.1, 'pct')")
+    if stated is not None:
+        conn.execute("INSERT INTO assumptions (asset_id, indication_id, region, scenario,"
+                     " key, value) VALUES (7, NULL, 'US', 'base', 'pos', ?)", (stated,))
+    conn.commit()
+    return conn
+
+
+def _placed(conn, phase="Phase 3", area="Oncology"):
+    gathered = PG._gather(conn, 7, area=area, phase=phase, big=True)
+    return gathered, PG.resolve(conn, 7, **PG._resolve_args(gathered), today=TODAY)
+
+
+def _house_style(text):
+    assert "—" not in text and "–" not in text, text
+    assert not any(word in text.lower() for word in BANNED), text
+
+
+def test_the_gates_multiply_back_to_the_unrounded_point(tmp_path):
+    """Each gate is the geometric mean of the area rate and every qualifying cut's rate
+    there. A geometric mean of products is the product of geometric means, so the
+    split multiplies back to the central tendency of the chains, unrounded."""
+    table = PG.transitions()
+    conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
+    cases = (
+        (dict(), [("area", "Oncology")]),
+        (dict(names=["etentamig"]), [("area", "Oncology"),
+                                     ("modality", "Monoclonal antibody")]),
+        (dict(names=["etentamig"], conditions_text="Multiple Myeloma"),
+         [("area", "Oncology"), ("modality", "Monoclonal antibody"),
+          ("oncology", "Hematologic")]),
+        (dict(names=["etentamig"], conditions_text="Multiple Myeloma", phase="Phase 2"),
+         [("area", "Oncology"), ("modality", "Monoclonal antibody"),
+          ("oncology", "Hematologic")]),
+    )
+    for kw, groups in cases:
+        got = _resolve(conn, **kw)
+        gates = tuple(g["gate"] for g in got["gates"])
+        assert gates == tuple(s["gate"] for s in got["chain"])
+        expected = _geomean([_rate(table, cut, group, gates) for cut, group in groups])
+        assert math.prod(g["pos"] for g in got["gates"]) == pytest.approx(expected,
+                                                                         abs=1e-12), kw
+        assert round(expected, 4) == got["pos"]
+        for g in got["gates"]:
+            assert g["pos"] == pytest.approx(
+                _geomean([table[(cut, group, g["gate"])]["pos"] for cut, group in groups]),
+                abs=1e-15)
+            assert g["label"] == PG.GATE_LABELS[g["gate"]] and g["implied"] is False
+    conn.close()
+
+
+def test_a_capped_mixed_stage_splits_back_to_its_point(tmp_path):
+    """The mixed point is the capped area chain, so its first gate has no published rate:
+    it is what the point leaves over the gates that follow, which are the ones a passed
+    readout would place the asset at."""
+    table = PG.transitions()
+    conn = _seed(tmp_path, name="xyzglutide",
+                 trials=(("NCT1", "Active not recruiting", "2026-03-01", 500, None),
+                         ("NCT2", "Recruiting", "2029-01-01", 900, None)),
+                 readouts=(("xyzglutide", 3, "negative", "2026-06-01"),))
+    args = dict(area="Metabolic", names=["xyzglutide"], conditions_text="obesity")
+    got = _resolve(conn, **args)
+    passed = _resolve(conn, **args, at_gate="nda_to_approval")
+    conn.close()
+    gates = ("p3_to_nda", "nda_to_approval")
+    entering = _geomean([_rate(table, "area", "Metabolic", gates),
+                         _rate(table, "modality", "Peptide", gates)])
+    assert got["stage"] == "mixed" and "capped" in got["basis"]
+    assert math.prod(g["pos"] for g in got["gates"]) == pytest.approx(entering, abs=1e-12)
+    assert got["gates"][0]["implied"] is True
+    assert got["gates"][1:] == passed["gates"]
+
+
+def test_an_uncapped_mixed_stage_splits_back_to_its_area_chain(tmp_path):
+    conn = _seed(tmp_path, name="etentamig",
+                 trials=(("NCT1", "Active not recruiting", "2026-03-01", 500, None),
+                         ("NCT2", "Recruiting", "2029-01-01", 900, None)),
+                 readouts=(("etentamig", 3, "negative", "2026-06-01"),))
+    got = _resolve(conn, names=["etentamig"], conditions_text="Multiple Myeloma")
+    conn.close()
+    assert got["stage"] == "mixed"
+    assert math.prod(g["pos"] for g in got["gates"]) == pytest.approx(0.477 * 0.920,
+                                                                     abs=1e-12)
+
+
+def test_a_negative_stage_has_no_gates(tmp_path):
+    conn = _seed(tmp_path, trials=(("NCT1", "Completed", "2026-03-01", 500, None),),
+                 readouts=(("XYZ-1234", 3, "negative", "2026-06-01"),))
+    got = _resolve(conn)
+    conn.close()
+    assert got["stage"] == "negative" and got["gates"] == []
+
+
+def test_at_gate_places_the_asset_past_its_gate_by_the_same_cut_rule(tmp_path):
+    conn = _seed(tmp_path, trials=(("NCT1", "Recruiting", "2028-01-01", 500, None),))
+    nda = _resolve(conn, names=["etentamig"], conditions_text="Multiple Myeloma",
+                   at_gate="nda_to_approval")
+    entry = _resolve(conn, names=["etentamig"], conditions_text="Multiple Myeloma",
+                     phase="Phase 2", at_gate="p3_to_nda")
+    with pytest.raises(ValueError):
+        _resolve(conn, at_gate="p1_to_p2")
+    conn.close()
+    assert nda["stage"] == "if_met"
+    assert nda["pos"] == round((0.920 * 0.954 * 0.900) ** (1 / 3), 4)
+    assert nda["basis"].startswith("at the NDA/BLA gate: ")
+    assert nda["evidence"] == "if its Phase 3 readout passes"
+    assert entry["basis"].startswith("at Phase 3 entry: ")
+    assert [g["gate"] for g in entry["gates"]] == ["p3_to_nda", "nda_to_approval"]
+
+
+def test_the_legs_at_phase_3_entry_average_back_to_today(tmp_path):
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2028-01-01", 500, MYELOMA),))
+    gathered, placement = _placed(conn)
+    got = PG.legs(conn, 7, placement, gathered, TODAY)
+    passed = PG.resolve(conn, 7, **PG._resolve_args(gathered), today=TODAY,
+                        at_gate="nda_to_approval")
+    conn.close()
+    assert gathered["modelled_mesh"] == [MYELOMA[0]]
+    assert got["gate"] == "p3_to_nda" and got["label"] == "Phase 3 readout"
+    assert got["pos_success"] == round((0.920 * 0.954 * 0.900) ** (1 / 3), 4)
+    assert got["pos_failure"] == 0.0
+    assert got["p_gate"] * got["pos_success"] == pytest.approx(placement["pos"], abs=1e-12)
+    assert placement["pos"] == pytest.approx(got["p_gate_published"] * got["pos_success"],
+                                             abs=1e-4)
+    assert got["p_gate_published"] == placement["gates"][0]["pos"]
+    assert got["evidence"] == {"p_gate": "published", "success": "published",
+                               "failure": "convention"}
+    assert got["trial"]["nct_id"] == "NCT1" and got["date"] == "2028-01-01"
+    assert got["held"] is None and got["stated"] is False
+    # The split's tail is the success placement's own gates, unrounded, so the split
+    # meets today's four-place probability to rounding while p_gate meets it exactly.
+    assert got["gates"][1:] == passed["gates"]
+    assert math.prod(g["pos"] for g in got["gates"]) == pytest.approx(placement["pos"],
+                                                                      abs=1e-4)
+    assert "BIO/Informa/QLS" in got["basis"] and "nil" in got["basis"]
+    _house_style(got["basis"])
+
+
+def test_a_met_phase_3_readout_lands_on_the_success_leg(tmp_path):
+    """The model's own reaction: record the readout and the asset is re-placed by its
+    own chain exactly where the leg said it would be."""
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2028-01-01", 500, MYELOMA),))
+    gathered, placement = _placed(conn)
+    leg = PG.legs(conn, 7, placement, gathered, TODAY)
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome,"
+                 " event_date) VALUES ('000-9', 1, 'etentamig', 3, 'positive',"
+                 " '2026-09-01')")
+    conn.commit()
+    _, after = _placed(conn)
+    conn.close()
+    assert after["stage"] == "positive"
+    assert after["pos"] == leg["pos_success"]
+
+
+def test_a_phase_2_readout_succeeds_to_phase_3_entry(tmp_path):
+    conn = _gate_seed(tmp_path, phase="Phase 2", trials=(
+        ("NCT1", "Phase 2", "Recruiting", "2027-06-01", 120, MYELOMA),))
+    gathered, placement = _placed(conn, phase="Phase 2")
+    got = PG.legs(conn, 7, placement, gathered, TODAY)
+    conn.execute("UPDATE asset_indications SET phase = 'Phase 3' WHERE asset_id = 7")
+    conn.commit()
+    _, entered = _placed(conn, phase="Phase 3")
+    conn.close()
+    assert got["gate"] == "p2_to_p3" and got["label"] == "Phase 2 readout"
+    assert got["trial"]["nct_id"] == "NCT1" and got["held"] is None
+    assert got["pos_success"] == entered["pos"], "the model's own reaction to a pass"
+    assert got["p_gate"] * got["pos_success"] == pytest.approx(placement["pos"], abs=1e-12)
+
+
+def test_a_seamless_phase_2_3_is_gated_at_its_phase_2_readout(tmp_path):
+    conn = _gate_seed(tmp_path, phase="Phase 2/3", trials=(
+        ("NCT1", "Phase 2/3", "Recruiting", "2027-06-01", 300, MYELOMA),))
+    gathered, placement = _placed(conn, phase="Phase 2/3")
+    got = PG.legs(conn, 7, placement, gathered, TODAY)
+    _, entered = _placed(conn, phase="Phase 3")
+    conn.close()
+    assert got["gate"] == "p2_to_p3" and got["trial"]["nct_id"] == "NCT1"
+    assert got["pos_success"] == entered["pos"]
+
+
+def test_after_a_positive_readout_the_gate_is_the_fda_decision(tmp_path):
+    import applications
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Completed", "2026-03-01", 500, MYELOMA),),
+        readouts=(("etentamig", 3, "positive", "2026-06-01"),))
+    gathered, placement = _placed(conn)
+    got = PG.legs(conn, 7, placement, gathered, TODAY)
+    _catalyst(conn, "etentamig PDUFA, Multiple myeloma", "2027-04-01")
+    applications.resolve(conn, today=TODAY)
+    gathered, filed = _placed(conn)
+    dated = PG.legs(conn, 7, filed, gathered, TODAY)
+    conn.close()
+    assert got["gate"] == "nda_to_approval" and got["label"] == "FDA decision"
+    assert got["pos_success"] == 1.0 and got["p_gate"] == placement["pos"]
+    assert got["trial"] is None and got["date"] is None
+    assert "no accepted application" in got["why"]
+    assert got["evidence"]["success"] == "convention"
+    assert filed["stage"] == "filed" and dated["date"] == "2027-04-01"
+
+
+def test_a_mixed_stage_succeeds_to_the_nda_step_with_implied_odds(tmp_path):
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Active not recruiting", "2026-03-01", 500, MYELOMA),
+        ("NCT2", "Phase 3", "Recruiting", "2029-01-01", 900, MYELOMA)),
+        readouts=(("etentamig", 3, "negative", "2026-06-01"),))
+    gathered, placement = _placed(conn)
+    got = PG.legs(conn, 7, placement, gathered, TODAY)
+    conn.close()
+    assert placement["stage"] == "mixed"
+    assert got["pos_success"] == round((0.920 * 0.954 * 0.900) ** (1 / 3), 4)
+    assert got["p_gate_published"] is None and got["evidence"]["p_gate"] == "implied"
+    assert abs(placement["gates"][0]["pos"] - got["p_gate"]) < 1e-4
+    assert got["trial"]["nct_id"] == "NCT2" and got["held"] is None
+    assert got["basis"].startswith("implied, not published")
+    _house_style(got["basis"])
+
+
+def test_a_negative_stage_or_a_nil_in_force_has_no_legs(tmp_path):
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Completed", "2026-03-01", 500, MYELOMA),),
+        readouts=(("etentamig", 3, "negative", "2026-06-01"),))
+    gathered, placement = _placed(conn)
+    assert placement["stage"] == "negative"
+    assert PG.legs(conn, 7, placement, gathered, TODAY) is None
+    assert PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY) is None
+    conn.execute("DELETE FROM trial_readouts")
+    conn.commit()
+    gathered, placement = _placed(conn)
+    assert PG.legs(conn, 7, placement, gathered, TODAY, stated_pos=0.0) is None
+    conn.close()
+
+
+def test_the_reading_out_gate_is_the_passed_trial_and_a_miss_is_held(tmp_path):
+    """The study stage_of named as due is the gate, and where another Phase 3 stays open
+    the model's mixed rule would hold the asset after a miss. The held point is exactly
+    what the model gives once that miss is recorded."""
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Active not recruiting", "2026-08-01", 900, MYELOMA),
+        ("NCT2", "Phase 3", "Recruiting", "2029-01-01", 400, FOLLICULAR)))
+    gathered, placement = _placed(conn)
+    gate = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome,"
+                 " event_date) VALUES ('000-9', 1, 'etentamig', 3, 'negative',"
+                 " '2026-09-30')")
+    conn.commit()
+    _, missed = _placed(conn)
+    conn.close()
+    assert placement["stage"] == "reading_out"
+    assert gate["trial"]["nct_id"] == "NCT1" and gate["due"] is True
+    assert gate["date"] == "2026-08-01"
+    held = gate["held"]
+    assert held["open"] == 1 and held["ncts"] == ["NCT2"]
+    assert held["indications"] == [FOLLICULAR[1]], "the mixed rule counts any indication"
+    assert missed["stage"] == "mixed" and missed["pos"] == held["pos"]
+    _house_style(held["note"])
+
+
+def test_only_a_study_in_a_modelled_indication_is_the_gate(tmp_path):
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2027-01-01", 500, FOLLICULAR),
+        ("NCT2", "Phase 3", "Recruiting", "2028-06-01", 500, MYELOMA)))
+    gathered, placement = _placed(conn)
+    got = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    assert got["trial"]["nct_id"] == "NCT2", "the sooner study is in another disease"
+    conn.execute("DELETE FROM trials WHERE nct_id = 'NCT2'")
+    conn.commit()
+    gathered, placement = _placed(conn)
+    alone = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    conn.close()
+    assert alone["trial"] is None and alone["date"] is None
+    assert alone["why"] == ("1 open Phase 3 study, none in an indication the forecast "
+                            "values")
+
+
+def test_an_asset_with_no_indication_rows_is_matched_on_its_lead(tmp_path):
+    """The launch-mode seeds carry no indication row; the lead indication stands in."""
+    conn = _gate_seed(tmp_path, modelled=False, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2028-01-01", 500, MYELOMA),))
+    gathered, placement = _placed(conn)
+    got = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    conn.close()
+    assert gathered["modelled_mesh"] == [MYELOMA[0]]
+    assert got["trial"]["nct_id"] == "NCT1"
+
+
+def test_a_stated_probability_below_the_success_leg_implies_the_gate_odds(tmp_path):
+    conn = _gate_seed(tmp_path, stated=0.6, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2028-01-01", 500, MYELOMA),))
+    _, placement = _placed(conn)
+    got = PG.legs_for_asset(conn, 7, area="Oncology", phase="Phase 3", today=TODAY,
+                            big=True)
+    conn.close()
+    assert got["stated"] is True and got["placed"] is None
+    assert got["pos_now"] == 0.6
+    assert got["p_gate"] == pytest.approx(0.6 / got["pos_success"], abs=1e-15)
+    assert got["p_gate_published"] == placement["gates"][0]["pos"]
+    assert got["evidence"]["p_gate"] == "implied"
+    assert got["basis"].startswith("implied, not published")
+    _house_style(got["basis"])
+
+
+def test_a_stated_probability_past_its_success_leg_reads_as_a_filing(tmp_path):
+    """Povetacicept's case: a stated 0.884 on an asset the book holds at Phase 2, above
+    the 58% it would carry entering Phase 3. The analyst has priced a filing, so the
+    asset is read at the FDA decision with the stated figure as its odds."""
+    conn = _gate_seed(tmp_path, stated=0.95, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2028-01-01", 500, MYELOMA),))
+    got = PG.legs_for_asset(conn, 7, area="Oncology", phase="Phase 3", today=TODAY,
+                            big=True)
+    conn.close()
+    assert got["placed"] == "stated PoS implies a filing"
+    assert got["gate"] == "nda_to_approval" and got["label"] == "FDA decision"
+    assert got["pos_success"] == 1.0 and got["p_gate"] == 0.95
+    assert got["p_gate_published"] is None
+    assert got["evidence"]["p_gate"] == "implied"
+    assert got["passed_gate"] == "p3_to_nda" and got["pos_success_at_gate"] < 0.95
+    assert got["basis"].startswith("stated PoS implies a filing")
+    _house_style(got["basis"])
