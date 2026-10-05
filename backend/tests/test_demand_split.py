@@ -595,3 +595,16 @@ def test_a_negotiated_price_reaches_part_b_only_with_an_hcpcs_code(book):
     flag = next(f for f in b["steps"][-1]["flags"] if f["code"] == "negotiated_price")
     assert "from 2028" in flag["words"]
 
+
+def test_a_generic_name_borrows_no_other_companys_series(book):
+    path, ids = book
+    conn = db.get_connection(path)
+    held = _asset(conn, "PFE", "Timolol Maleate", "Timolol Maleate")
+    bare = _asset(conn, "ABBV", "Timolol Maleate", "Timolol Maleate")
+    _demand(conn, held, "D", 2023, 50e6, 1000, 400, "Timolol Maleate", 30000.0)
+    _demand(conn, held, "D", 2024, 55e6, 1100, 420, "Timolol Maleate", 33000.0)
+    conn.commit()
+    who = ds.resolve(conn, bare)
+    conn.close()
+    assert who["source_id"] is None and who["held_on"] is None
+    assert who["shared_with"] == []

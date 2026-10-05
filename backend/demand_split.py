@@ -422,7 +422,8 @@ def resolve(conn, asset_id: int) -> dict | None:
                        " AND total_spending IS NOT NULL", (asset_id,)).fetchone()[0]
     peers = []
     brand = (asset["brand_name"] or "").strip().lower()
-    if brand:
+    # A generic name is no brand: another company's "Timolol Maleate" is another drug.
+    if brand and brand != (asset["generic_name"] or "").strip().lower():
         peers = [dict(r) for r in conn.execute(
             "SELECT a.id, c.ticker,"
             "       (SELECT COUNT(*) FROM drug_demand d WHERE d.asset_id = a.id"
