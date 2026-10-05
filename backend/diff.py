@@ -565,6 +565,83 @@ def _diff_ira(conn, run_id) -> int:
     return emitted
 
 
+# What each share of a brand's formularies is called in a feed line.
+_PAYER_METRICS = (("listed", "formularies_listing", "listed on"),
+                  ("pa", "pa_formularies", "prior authorisation on"),
+                  ("st", "st_formularies", "step therapy on"))
+
+
+def _latest_payer_access(conn) -> list[dict]:
+    """The newest per-asset coverage snapshot the formulary fetcher wrote, one per asset,
+    with the asset's brand and owner."""
+    out = []
+    for r in conn.execute(
+            """
+            SELECT s.entity_key, s.payload, a.brand_name, c.ticker
+              FROM snapshots s
+              JOIN (SELECT entity_key, MAX(id) AS id FROM snapshots
+                     WHERE source = 'partd_formulary' AND entity_type = 'payer_access'
+                     GROUP BY entity_key) last ON last.id = s.id
+              JOIN assets a ON a.id = CAST(s.entity_key AS INTEGER)
+              JOIN companies c ON c.id = a.owner_company_id
+            """):
+        payload = json.loads(r["payload"])
+        out.append({"asset_id": r["entity_key"], "brand": r["brand_name"],
+                    "ticker": r["ticker"], **payload})
+    return out
+
+
+def _diff_payer_access(conn, run_id) -> int:
+    """A brand's Part D coverage, measured against the share each was last flagged at.
+
+    Three shares of the release's formularies: listing the brand, requiring prior
+    authorisation, requiring step therapy. Each is anchored in market_signal_state under
+    ``PARTD_ACCESS:{asset}:{listed|pa|st}``, and a change is written only when the share
+    has moved PAYER_ACCESS_POINTS from its anchor, which then moves to the new level. A
+    share seen for the first time anchors and says nothing, so installing the lane, or a
+    brand's first release, is never news. Whether a share has an anchor is asked key by
+    key, never of the table, which the rate and IRA lanes share.
+
+    The fetcher writes one coverage snapshot per asset per new release and none
+    otherwise, so a day with no new release compares the same snapshot to the same
+    anchor and writes nothing. Shares are of the release's own formulary count, so a new
+    contract year with fewer formularies is compared like for like.
+    """
+    import market_signals
+
+    held = market_signals.anchors(conn)
+    emitted = 0
+    for row in _latest_payer_access(conn):
+        total = row.get("formularies_total")
+        if not total:
+            continue
+        release = row.get("release_date") or ""
+        for metric, column, words in _PAYER_METRICS:
+            count = row.get(column)
+            if count is None:
+                continue
+            share = 100.0 * count / total
+            key = f"PARTD_ACCESS:{row['asset_id']}:{metric}"
+            anchor = held.get(key)
+            if anchor is None:
+                market_signals.set_anchor(conn, key, share, release)
+                continue
+            if abs(share - anchor["anchor_value"]) < materiality.PAYER_ACCESS_POINTS:
+                continue
+            headline = (
+                f"{row['ticker']} {row['brand']}: {words} {count} of {total} Medicare "
+                f"Part D formularies ({share:.0f}%), from {anchor['anchor_value']:.0f}% "
+                f"at the {anchor['anchor_as_of']} release; contract year "
+                f"{row.get('contract_year')}")
+            _write_change(conn, "payer", f"{row['ticker']}|{row['asset_id']}|{metric}|"
+                          f"{release}", f"{metric}_share@{anchor['anchor_as_of']}",
+                          f"{anchor['anchor_value']:.1f}", headline, "payer_access",
+                          materiality.PAYER_ACCESS_SIGNIFICANCE, run_id)
+            market_signals.set_anchor(conn, key, share, release, flagged=True)
+            emitted += 1
+    return emitted
+
+
 def detect_changes(db_path=None, run_id=None) -> dict:
     conn = db.get_connection(db_path)
     try:
@@ -578,6 +655,7 @@ def detect_changes(db_path=None, run_id=None) -> dict:
             "filing_text_changes": _diff_filing_text(conn, run_id),
             "market_moves": _diff_market(conn, run_id),
             "ira_moves": _diff_ira(conn, run_id),
+            "payer_access_moves": _diff_payer_access(conn, run_id),
         }
         conn.commit()
     finally:
