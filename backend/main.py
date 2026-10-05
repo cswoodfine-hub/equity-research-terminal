@@ -1261,6 +1261,27 @@ def changes(days: int = Query(default=30),
     return whatchanged_module.build_feed(days=days, ticker=ticker)
 
 
+class BriefIn(BaseModel):
+    facts: str
+
+
+@app.get("/companies/{ticker}/brief")
+def company_brief(ticker: str, hash: str = Query(default="")) -> dict:
+    """The model's rewrite of the Key insights briefing, if one was written from exactly
+    the facts whose hash is given; otherwise no body, and the page shows its own."""
+    found = insights_module.latest_brief(ticker=ticker, facts_hash=hash)
+    return found or {"ticker": ticker.upper(), "body": None, "model": None,
+                     "generated_at": None}
+
+
+@app.post("/companies/{ticker}/brief")
+def write_company_brief(ticker: str, body: BriefIn) -> dict:
+    """Rewrite the Key insights briefing with the note model, from the page's own facts."""
+    out = insights_module.write_brief(ticker=ticker, facts=body.facts)
+    out["hash"] = insights_module.brief_hash(body.facts)
+    return out
+
+
 @app.get("/companies/{ticker}/note")
 def company_note(ticker: str, days: int = Query(default=30),
                  refresh: bool = Query(default=False)) -> dict:

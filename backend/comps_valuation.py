@@ -489,7 +489,9 @@ class _Universe:
         self.insights: dict = {}
         for r in self.conn.execute(
                 """SELECT company_id, generated_at, model, body FROM insights
-                    WHERE company_id IS NOT NULL ORDER BY generated_at, id"""):
+                    WHERE company_id IS NOT NULL
+                      AND COALESCE(horizon, '') NOT LIKE 'brief %'
+                    ORDER BY generated_at, id"""):
             self.insights[r["company_id"]] = {
                 "generated_at": _iso_ts(r["generated_at"]), "model": r["model"],
                 "excerpt": (r["body"] or "")[:400]}
