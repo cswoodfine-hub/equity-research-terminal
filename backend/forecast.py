@@ -70,11 +70,15 @@ def derive_new_patients(pool: float, incidence: float, penetration,
     optional per-year list of treatment slots.
 
     ``carryover`` is the share of the patients not started in a year who are still
-    eligible the next. At 1.0, the default, nobody leaves: a prevalent pool is drawn down
-    and the tail converges on the incidence run rate, the Zolgensma shape. At 0.0 each
-    year's eligible patients are that year's alone, as in a line of cancer therapy, where
-    a patient not started on this drug starts another and leaves the line, and the tail
-    converges on incidence x penetration.
+    eligible the next. At 1.0, the default here, nobody leaves: a prevalent pool is drawn
+    down and the tail converges on the incidence run rate, the Zolgensma shape. At 0.0
+    each year's eligible patients are that year's alone, as in a line of cancer therapy,
+    where a patient not started on this drug starts another and leaves the line, and the
+    tail converges on incidence x penetration.
+
+    This function is the bare arithmetic and keeps 1.0 as its default. Which carryover a
+    seeded pool runs at is decided by ``pool_rule``, and ``patients_for_indication`` and
+    ``pool_crowding`` pass its answer in.
 
     The pool never goes negative, by construction rather than by assertion.
     """
@@ -89,6 +93,52 @@ def derive_new_patients(pool: float, incidence: float, penetration,
         out.append(new)
         remaining = max(0.0, remaining + incidence - new) * carryover
     return out
+
+
+# What pool_rule calls each answer, so a caller can say which one it ran on.
+POOL_STATED = "stated"
+POOL_LINE = "line of therapy"
+POOL_CLOSED = "closed pool"
+POOL_INFERRED = "inferred from the stated prevalence and incidence"
+
+
+def pool_rule(prevalence, incidence, stated=None) -> tuple:
+    """Whether the patients not started in a year are still eligible the next, and
+    whether the opening pool counts on top of the first year's inflow.
+
+    Returns (carryover, opening_is_prevalence, basis), taking the first that applies:
+
+    - A stated ``untreated_carryover_pct`` wins, and keeps its opening stock: a sourced
+      exit such as Baxfendy's 1 minus a measured death rate, or a line of therapy whose
+      pool differs from its inflow (the metastatic breast pools at 0).
+    - A prevalence stated equal to its incidence is the year's own diagnoses, which is how
+      every cancer seed writes a line of therapy. Nothing carries over and there is no
+      opening stock on top of the first year's diagnoses.
+    - No inflow leaves a closed pool. There is no exit to infer from an incidence of nil,
+      so every untreated patient stays, as before.
+    - Otherwise patients leave the untreated pool as fast as they arrive, so it holds the
+      size the seed states: carryover P / (P + I).
+
+    Why P / (P + I). With nobody started the pool runs R' = (R + I) x c, which settles at
+    I x c / (1 - c). Setting that to P, the opening pool the first year uses, gives
+    c = P / (P + I). The more familiar 1 - I / P is the continuous-time version; under this
+    engine's timing it settles the pool at P - I, so the second year would step down from
+    the first. The ratio is free of scale, so the eligible share and the ex-US multiple,
+    which multiply both figures, leave it unchanged.
+
+    Until 2026-10-05 a missing carryover was read as 1.0 wherever the two figures
+    differed. 106 seeded pools then grew by their whole inflow every year and never lost
+    a patient, so a share measured in a launch's first years was applied, by the peak,
+    to a population many years of inflow larger than the one the seed states.
+    """
+    if stated is not None:
+        return float(stated), True, POOL_STATED
+    if prevalence and incidence is not None and abs(prevalence - incidence) < 0.5:
+        return 0.0, False, POOL_LINE
+    if not incidence:
+        return 1.0, True, POOL_CLOSED
+    prevalence = float(prevalence or 0.0)
+    return prevalence / (prevalence + float(incidence)), True, POOL_INFERRED
 
 
 def patients_for_indication(ind: dict, years: list[int], notes: list,
@@ -159,24 +209,40 @@ def patients_for_indication(ind: dict, years: list[int], notes: list,
         capacity = None
         if "capacity_patients" in series:
             capacity = [series["capacity_patients"].get(y) for y in years]
-        # Whether the patients not started in a year are still there the next. A seed can
-        # say so outright. Where it does not, a pool stated equal to its own inflow is the
+        # Whether the patients not started in a year are still there the next, by
+        # pool_rule, which pool_crowding shares so the two never disagree. A seed can say
+        # so outright. Where it does not, a pool stated equal to its own inflow is the
         # year's diagnoses, which is how every cancer seed writes a line of therapy ("lung
         # cancer incidence is the pool: diagnosed and treated each year rather than
         # accumulated"). Carrying its untreated patients forward treated every one of them
         # in the end, whatever the peak share, and put a PD-1/VEGF bispecific above
         # Keytruda. Such a pool is the inflow alone, so the opening pool is not counted on
-        # top of the first year's diagnoses either.
-        carryover = scalars.get("untreated_carryover_pct")
-        if carryover is None and prevalence and abs(prevalence - incidence) < 0.5:
-            carryover, pool = 0.0, 0.0
-            notes.append(f"{ind.get('name', 'indication')}: the pool is the year's own "
+        # top of the first year's diagnoses either. Any other pool with an inflow loses
+        # patients as fast as it gains them, so it holds the size the seed states.
+        carryover, opening, rule = pool_rule(prevalence, incidence,
+                                             scalars.get("untreated_carryover_pct"))
+        if not opening:
+            pool = 0.0
+        name = ind.get("name", "indication")
+        if rule == POOL_LINE:
+            notes.append(f"{name}: the pool is the year's own "
                          f"diagnoses (prevalence equals incidence), so a patient not "
                          f"started in a year does not carry into the next, and the peak "
                          f"penetration of {peak * funnel:.1%} is the share of each year's "
                          f"eligible patients the drug reaches")
+        elif rule == POOL_INFERRED and explicit is None:
+            # Said only where the derived series is the one the build uses: a hand series
+            # (Casgevy's sickle cell patients) is not drawn from this pool.
+            notes.append(f"{name}: no exit from the untreated pool is stated, so it is "
+                         f"inferred from the stated prevalence and incidence. Patients "
+                         f"leave as fast as they arrive ({incidence:,.0f} a year into "
+                         f"{prevalence:,.0f}), so {carryover:.2%} of those not started "
+                         f"in a year carry into the next and the pool holds its size")
+        elif rule == POOL_CLOSED and explicit is None:
+            notes.append(f"{name}: no inflow is stated, so there is no exit to infer "
+                         f"and every patient not started stays eligible")
         derived = derive_new_patients(pool, inc, curve, len(years), capacity,
-                                      carryover=1.0 if carryover is None else carryover)
+                                      carryover=carryover)
     else:
         missing = [k for k, v in (("prevalence", prevalence),
                                   ("eligible_pct", eligible_pct),

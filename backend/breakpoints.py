@@ -218,8 +218,19 @@ class Book:
         self.close, self.shares = sotp.get("close"), verdict.get("diluted_shares")
         self.equity, ev = sotp.get("equity_per_share"), sotp.get("enterprise")
         if None in (self.close, self.shares, self.equity, ev, sotp.get("net_cash")) or not ev:
-            self.reason = ("no value against a price: equity, shares or the close is not "
-                           "on file")
+            # Named, so the page that shows the close and a market value never reads as
+            # contradicting it: what is missing is usually the balance sheet.
+            missing = [what for what, v in (
+                ("the close", self.close), ("the share count", self.shares),
+                ("net cash", sotp.get("net_cash")),
+                ("equity", self.equity if sotp.get("net_cash") is not None else 0),
+                ("enterprise value", ev if self.equity is not None else 0)) if v is None]
+            if not missing and not ev:
+                missing = ["enterprise value"]
+            said = (missing[0] if len(missing) == 1 else
+                    ", ".join(missing[:-1]) + " and " + missing[-1])
+            self.reason = (f"no value against a price: {said} "
+                           f"{'is' if len(missing) == 1 else 'are'} not on file")
             return
         self.ok = True
         self.carry = sotp["enterprise_today"] / ev
@@ -251,7 +262,13 @@ class Book:
             conn.close()
         self.growth_opening = (sotp.get("growth_investment") or {}).get("opening")
         self.base_future = sotp["future"].get("value") or 0.0
-        self.book = ev - self.base_future
+        # What the parts are worth, the same sum gap_with rebuilds: price_gap adds the
+        # launches and takes the growth charge off itself, on the trial's own revenue.
+        # This was enterprise value less the launches, which still had the charge taken
+        # off, so every lever searched from here (a product's, a line's, launch
+        # productivity) and every "if it fails" figure paid the charge twice: 58.18 a
+        # share on Lilly, 24.28 on Vertex and 3.71 on AstraZeneca.
+        self.book = sum(_part_value(p) for p in self.parts)
         # The stub between the valuation year end and the close, and the rate it is
         # carried at. Held here so a trial that moves the book's discount rate can
         # move the carry with it rather than rolling forward at the base rate.
@@ -332,11 +349,55 @@ class Book:
 
     @staticmethod
     def rebuilt(part: dict, result: dict, share: float, scalars: dict) -> dict:
-        return {**part, "rnpv_share": result["rnpv"] * share,
+        """The part as the trial built it. The probability and the exclusivity are the
+        trial's too: the future pipeline and the growth charge risk a part's rows at its
+        own probability, and the future pipeline carries its revenue to its own LOE.
+        Copied from the base book, a probability trial was charged at the old odds and
+        an LOE trial's revenue was carried past the forecast to the old date."""
+        return {**part, "rnpv_share": result["rnpv"] * share, "pos": result.get("pos"),
+                "loe_year": result.get("loe_year"),
+                "loe_in_base": result.get("loe_in_base"),
                 "pnl_share": [{k: (v * share if isinstance(v, (int, float)) else v)
                                for k, v in row.items()} for row in result.get("pnl") or []],
                 "dcf_years": result.get("dcf_years") or [], "wacc": result.get("wacc"),
                 "long_run_growth": scalars.get("terminal_growth_pct")}
+
+    def swapped_gap(self, index: int, new: dict) -> float:
+        """The price gap with the part at ``index`` replaced by ``new`` and every other
+        part as it stands: what a product's or a line's own lever is searched over."""
+        new_parts = self.parts[:index] + [new] + self.parts[index + 1:]
+        return self.price_gap(self.book - _part_value(self.parts[index]) + _part_value(new),
+                              new_parts)
+
+    def asset_gap(self, index: int, trial: dict) -> float:
+        """The price gap with the product at ``index`` rebuilt from ``trial``."""
+        part = self.parts[index]
+        try:
+            result = forecast.build(trial)
+        except forecast.ForecastError:
+            return math.nan
+        share = part.get("share") if part.get("share") is not None else 1.0
+        return self.swapped_gap(index, self.rebuilt(part, result, share,
+                                                    trial.get("scalars") or {}))
+
+    def line_gap(self, index: int, scalars: dict) -> float:
+        """The price gap with the line at ``index`` rebuilt on ``scalars``."""
+        part = self.parts[index]
+        got = company_lines.build({**self.line_entries[part["line"]], "scalars": scalars})
+        if not got["ok"]:
+            return math.nan
+        result = got["result"]
+        return self.swapped_gap(index, {**part, "rnpv": result["rnpv"],
+                                        "pnl_share": result.get("pnl") or [],
+                                        "dcf_years": result.get("dcf_years") or [],
+                                        "wacc": result.get("wacc")})
+
+    def equity_without(self, removed: list) -> float:
+        """Equity per share with the parts in ``removed`` gone and nothing else moved:
+        what "if it fails outright" and "if the group fails together" read."""
+        kept = [p for p in self.parts if p not in removed]
+        lost = sum(_part_value(p) for p in removed)
+        return self.price_gap(self.book - lost, kept) + self.close
 
     def gap_with(self, asset_trial, line_trial) -> float:
         """The price gap with every product's inputs and every line's scalars passed
@@ -393,7 +454,7 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
     inputs_by_asset, rows_by_asset = b.inputs_by_asset, b.rows_by_asset
     line_entries, line_rows = b.line_entries, b.line_rows
     book = b.book
-    price_gap, rebuilt, book_gap = b.price_gap, b.rebuilt, b.gap_with
+    price_gap, book_gap = b.price_gap, b.gap_with
 
     out = []
 
@@ -415,17 +476,10 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
             built = forecast.build(inputs)
         except forecast.ForecastError:
             continue
-        share = part.get("share") if part.get("share") is not None else 1.0
         index = parts.index(part)
 
-        def gap_for(trial, part=part, share=share, index=index):
-            try:
-                result = forecast.build(trial)
-            except forecast.ForecastError:
-                return math.nan
-            new = rebuilt(part, result, share, trial.get("scalars") or {})
-            new_parts = parts[:index] + [new] + parts[index + 1:]
-            return price_gap(book - part["rnpv_share"] + new["rnpv_share"], new_parts)
+        def gap_for(trial, index=index):
+            return b.asset_gap(index, trial)
 
         for label, key, current, kind, _step in V.lever_specs(inputs, built):
             if kind == "year":
@@ -467,16 +521,8 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
         index = parts.index(part)
         rows = [r for r in line_rows if r["line"] == part["line"]]
 
-        def line_gap(scalars, part=part, index=index, entry=entry):
-            got = company_lines.build({**entry, "scalars": scalars})
-            if not got["ok"]:
-                return math.nan
-            result = got["result"]
-            new = {**part, "rnpv": result["rnpv"],
-                   "pnl_share": result.get("pnl") or [],
-                   "dcf_years": result.get("dcf_years") or [], "wacc": result.get("wacc")}
-            new_parts = parts[:index] + [new] + parts[index + 1:]
-            return price_gap(book - part["rnpv"] + new["rnpv"], new_parts)
+        def line_gap(scalars, index=index):
+            return b.line_gap(index, scalars)
 
         scalars = entry["scalars"]
         for label, key in (("near-term growth", "revenue_growth_pct"),
@@ -635,11 +681,7 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
         if math.isinf(row["distance"]):
             row["distance"] = None          # not reachable by this lever alone
 
-    def equity_without(removed: list) -> float:
-        kept = [p for p in parts if p not in removed]
-        lost = sum((p.get("rnpv_share") if "asset_id" in p else p.get("rnpv")) or 0.0
-                   for p in removed)
-        return price_gap(book - lost, kept) + close
+    equity_without = b.equity_without
 
     def per_share(mm: float) -> float:
         return mm * 1e6 / shares

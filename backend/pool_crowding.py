@@ -62,18 +62,18 @@ def _inputs(scalars: dict) -> dict | None:
 def _pool_rule(claim: dict) -> tuple[float, float]:
     """(carryover, opening pool) for a claimant, by the rule forecast.py applies.
 
-    A seed can state its carryover. Where it does not, a pool stated equal to its own
-    inflow is the year's diagnoses, how every cancer line and the COPD rows are written,
-    so nothing carries into the next year and there is no opening stock on top of the
-    first year's diagnoses. Reading a missing carryover as 1.0 here, where the engine
-    reads it as 0, crowded felcorekibart and lunsekimig by 5% and 7% on a pool the engine
-    never lets run short.
+    The answer is forecast.pool_rule's, not a copy of it. A seed can state its carryover.
+    Where it does not, a pool stated equal to its own inflow is the year's diagnoses, how
+    every cancer line and the COPD rows are written, so nothing carries into the next year
+    and there is no opening stock on top of the first year's diagnoses; a pool with an
+    inflow loses patients as fast as it gains them; a pool with none keeps them all. When
+    the two copies of this rule disagreed, reading a missing carryover as 1.0 here where
+    the engine read it as 0 crowded felcorekibart and lunsekimig by 5% and 7% on a pool
+    the engine never lets run short.
     """
-    carry = claim.get("carryover")
-    prevalence, incidence = claim["prevalence"], claim["incidence"]
-    if carry is None and prevalence and abs(prevalence - incidence) < 0.5:
-        return 0.0, 0.0
-    return (1.0 if carry is None else carry), prevalence
+    carry, opening, _basis = forecast.pool_rule(
+        claim["prevalence"], claim["incidence"], claim.get("carryover"))
+    return carry, (claim["prevalence"] if opening else 0.0)
 
 
 # Everything the pool identity needs, and where the engine reads each from. Pool factors

@@ -798,7 +798,8 @@ def forecast_whatif(ticker: str, asset_id: int,
 def forecast_sensitivity(ticker: str, asset_id: int,
                          scenario: str = Query(default="base"),
                          preset: str = Query(default="price")) -> dict:
-    """The two grids: WACC x net price, and LOE year x year-one erosion."""
+    """The two grids: WACC x the input the asset's mode builds revenue from (growth,
+    pool growth, published peak or net price), and LOE year x year-one erosion."""
     grid = forecast_view_module.sensitivity(None, ticker, asset_id, scenario, preset)
     if grid is None:
         raise HTTPException(status_code=404,

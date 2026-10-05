@@ -74,6 +74,35 @@ def test_a_pool_of_the_years_own_diagnoses_carries_nothing_over():
     assert min(a["ratio"] for a in stated["assets"]) < 1.0
 
 
+def test_the_pool_rule_is_the_engines_own():
+    """The crowded solve and the engine read one rule, forecast.pool_rule, so a pool can
+    never carry its untreated patients forward in one and drop them in the other. When the
+    two held copies of it, the copies drifted and crowded felcorekibart and lunsekimig on
+    a pool the engine never lets run short."""
+    import forecast
+    cases = [
+        dict(prevalence=160_000, incidence=65_000, carryover=0.0),       # stated
+        dict(prevalence=192_650, incidence=192_650, carryover=None),     # equal pool
+        dict(prevalence=21_414_000, incidence=0.0, carryover=None),      # no inflow
+        dict(prevalence=107_592_242, incidence=4_478_747, carryover=None),  # prevalent
+    ]
+    for case in cases:
+        carry, opening, _basis = forecast.pool_rule(
+            case["prevalence"], case["incidence"], case["carryover"])
+        claim = _claim("x", 0.01, prevalence=case["prevalence"],
+                       incidence=case["incidence"], carryover=case["carryover"])
+        assert PC._pool_rule(claim) == (carry, case["prevalence"] if opening else 0.0)
+    prevalent = _claim("x", 0.01)
+    assert PC._pool_rule(prevalent) == (pytest.approx(100e6 / 101e6), 100e6)
+
+
+def test_a_prevalent_pool_holds_its_size_in_the_shared_solve_too():
+    """With no exit stated the shared pool loses patients as fast as it gains them, as in
+    the engine, rather than growing by the whole inflow every year."""
+    got = PC.solve([_claim("a", 1e-9), _claim("b", 1e-9)], years=20, recycle=False)
+    assert [row["pool"] for row in got["shared"]] == pytest.approx([101e6] * 20, rel=1e-6)
+
+
 def test_a_later_entrant_finds_the_pool_already_drawn_down():
     early = _claim("early", 0.05, start=2027)
     late = _claim("late", 0.05, start=2035)

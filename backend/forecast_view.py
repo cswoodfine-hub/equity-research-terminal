@@ -242,12 +242,73 @@ def save_assumptions(db_path, ticker: str, asset_id: int, rows: list[dict],
     return {"written": written, "state": state}
 
 
+RATE_STEPS = (-0.06, -0.03, 0.0, 0.03, 0.06)
+LEVEL_FACTORS = (0.78, 0.89, 1.0, 1.11, 1.22)
+
+
+def _sig(value: float, digits: int = 4) -> float:
+    """A grid value rounded to significant figures, not decimal places, so a net price
+    of a few thousand dollars (0.004mm) keeps five distinct steps."""
+    return float(f"{value:.{digits}g}")
+
+
+def grid_axis(mode, scalars: dict, price) -> dict:
+    """The input a build's mode makes its revenue from, and five values around it.
+
+    The workbook's grid is WACC x net price, and a net price is what a patient build
+    multiplies. The other modes never read one: a marketed product grows reported
+    revenue at its own rate, a franchise member takes a share of a pool that grows at
+    the pool's rate, and a launch climbs to a published peak. A grid over a price those
+    builds ignore is the same figure twenty-five times, so the axis follows the mode.
+
+    Returns {"key", "values", "kind", "basis", "label", "reason"}: a rate moves by three
+    and six points either way, a level by 11% and 22%. The centre is the value the
+    build read, unrounded, so the middle cell is the model's own figure. Where that
+    value is not on file, ``values`` is None and ``reason`` says why: the axis is
+    refused rather than centred on nought. Pure.
+    """
+    scalars = scalars or {}
+    if mode == "marketed":
+        key, kind = "revenue_growth_pct", "rate"
+        basis, label = "near-term revenue growth, before erosion", "growth"
+        centre = scalars.get(key)
+    elif mode == "franchise":
+        key, kind = "franchise_growth_pct", "rate"
+        basis, label = "growth of the franchise pool, before erosion", "pool growth"
+        centre = scalars.get(key)
+    elif mode == "launch":
+        key, kind = "peak_revenue_musd", "level"
+        basis, label = "published peak sales", "peak, mm"
+        centre = scalars.get(key)
+    elif mode in ("chronic", "one_time"):
+        key, kind = "net_price_per_patient", "level"
+        basis, label = "net price per patient", "net price, mm"
+        centre = price
+    else:
+        return {"key": None, "values": None, "kind": None, "basis": None, "label": None,
+                "reason": f"no second axis for therapy mode '{mode}'"}
+    out = {"key": key, "values": None, "kind": kind, "basis": basis, "label": label,
+           "reason": None}
+    if centre is None:
+        return {**out, "reason": f"{key} is not on file, so the {label} axis has no "
+                                 "centre"}
+    if kind == "rate":
+        values = [centre if step == 0 else round(centre + step, 4) for step in RATE_STEPS]
+    else:
+        values = [centre if factor == 1.0 else _sig(centre * factor)
+                  for factor in LEVEL_FACTORS]
+    return {**out, "values": values}
+
+
 def sensitivity(db_path, ticker: str, asset_id: int, scenario: str = "base",
                 preset: str = "price"):
     """The two grids the roadmap names, over the asset's live assumptions.
 
-    "price" is the workbook's WACC x net price. "loe" is LOE year x year-one erosion,
-    the axis pair that cannot be pinned from owned data, which is why it is a grid.
+    "price" is the workbook's WACC x net price, with the second axis the input the
+    build's mode makes revenue from (``grid_axis``): net price for a patient build,
+    growth for a marketed product, pool growth for a franchise member and the published
+    peak for a launch. "loe" is LOE year x year-one erosion, the axis pair that cannot
+    be pinned from owned data, which is why it is a grid.
     """
     conn = db.get_connection(db_path)
     try:
@@ -271,30 +332,20 @@ def sensitivity(db_path, ticker: str, asset_id: int, scenario: str = "base",
                  "y": built["erosion_basis"] or "assumed"}
     else:
         rate = built["wacc"]
-        price = forecast.net_price(inputs["scalars"])
+        # The second axis is whatever the mode builds revenue from, chosen by the mode
+        # rather than by whether a price happens to be on file: Journavx carries a price
+        # and is grown from reported revenue, so a price axis left it flat.
+        axis = grid_axis(built.get("mode"), inputs["scalars"],
+                         forecast.net_price(inputs["scalars"]))
+        if axis["values"] is None:
+            return {"ok": False, "missing": [axis["reason"]]}
         # The centre of each axis is the live value itself, unrounded, so the middle
         # cell is the model's own figure and can be marked as such.
         xs = [rate if step == 0 else round(rate + step, 4)
               for step in (-0.02, -0.01, 0.0, 0.01, 0.02)]
-        if price is not None:
-            ys = [price if f == 1.0 else round(price * f, 3)
-                  for f in (0.78, 0.89, 1.0, 1.11, 1.22)]
-            grid = forecast.sensitivity(inputs, "wacc", xs,
-                                        "net_price_per_patient", ys)
-            bases = {"x": built["wacc_basis"], "y": "net price per patient"}
-            labels = {"x": "WACC", "y": "net price, mm"}
-        else:
-            # A product anchored on reported revenue has no price to cross with the
-            # rate. What it has is a growth rate, and the workbook's price axis is
-            # standing in for the same question: how much revenue there is to discount.
-            growth = inputs["scalars"].get("revenue_growth_pct") or 0.0
-            ys = [growth if step == 0 else round(growth + step, 4)
-                  for step in (-0.06, -0.03, 0.0, 0.03, 0.06)]
-            grid = forecast.sensitivity(inputs, "wacc", xs,
-                                        "revenue_growth_pct", ys)
-            bases = {"x": built["wacc_basis"],
-                     "y": "near-term revenue growth, before erosion"}
-            labels = {"x": "WACC", "y": "growth"}
+        grid = forecast.sensitivity(inputs, "wacc", xs, axis["key"], axis["values"])
+        bases = {"x": built["wacc_basis"], "y": axis["basis"]}
+        labels = {"x": "WACC", "y": axis["label"]}
     if preset == "loe":
         labels = {"x": "LOE year", "y": "year-one erosion"}
     return {"ok": True, "preset": preset, "bases": bases, "labels": labels, **grid}
@@ -318,6 +369,13 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
     built that way. Its levers are the ones its mode reads: the near-term growth rate,
     the long-run rate it fades to, the year exclusivity ends and how much goes in the
     year after. Those four are here for exactly that reason.
+
+    Growth and volume follow the mode the way the sensitivity grid does (``grid_axis``).
+    Growth sets the rate the build grows from: the product's own for a marketed product,
+    the pool's for a franchise member, whose own revenue growth the engine never reads.
+    A launch has neither a patient curve nor a rate; its size is the published peak, so
+    volume is the multiple on that peak. A lever the build does not read is named in
+    ``ignored`` with the reason, rather than returned as a variation that did nothing.
 
     Everything is recomputed by the same engine as the base, so a slider cannot say
     anything the model itself would not.
@@ -350,6 +408,10 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
 
     varied_inputs = copy.deepcopy(inputs)
     scalars = varied_inputs["scalars"]
+    mode = base.get("mode")
+    axis = grid_axis(mode, inputs.get("scalars") or {},
+                     forecast.net_price(inputs.get("scalars") or {}))
+    ignored: dict = {}
     if volume is not None:
         for ind in varied_inputs.get("indications") or []:
             series = (ind.get("series") or {}).get("new_patients")
@@ -358,8 +420,17 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
                     series[year] = series[year] * volume
             if (ind.get("scalars") or {}).get("penetration_peak_pct") is not None:
                 ind["scalars"]["penetration_peak_pct"] *= volume
+        if mode == "launch" and scalars.get("peak_revenue_musd") is not None:
+            # A launch builds no patient curve: its size is the published peak, the
+            # level its sensitivity grid also scales, so volume is the multiple on it.
+            scalars["peak_revenue_musd"] = scalars["peak_revenue_musd"] * volume
+        elif mode in ("marketed", "franchise"):
+            ignored["volume"] = (f"a {mode} build is anchored on reported revenue and "
+                                 "has no patient curve to scale")
     if price is not None:
         scalars["net_price_per_patient"] = price
+        if mode not in ("chronic", "one_time"):
+            ignored["price"] = f"a {mode} build reads no net price per patient"
     if wacc is not None:
         scalars["wacc"] = wacc
     if pos is not None:
@@ -368,7 +439,15 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
             scalars.pop(key, None)
         scalars["pos"] = pos
     if growth is not None:
-        scalars["revenue_growth_pct"] = growth
+        if axis["kind"] == "rate":
+            # The rate the mode grows from: the product's own, or its pool's.
+            scalars[axis["key"]] = growth
+        elif mode == "launch":
+            ignored["growth"] = ("a launch build climbs to a published peak and reads "
+                                 "no growth rate; volume scales the peak")
+        else:
+            ignored["growth"] = (f"a {mode} build is made from patients and a net "
+                                 "price and reads no growth rate")
     if terminal_growth is not None:
         scalars["terminal_growth_pct"] = terminal_growth
     if loe_year is not None:
@@ -392,7 +471,9 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
             "overrides": {"volume": volume, "price": price, "wacc": wacc,
                           "pos": pos, "growth": growth,
                           "terminal_growth": terminal_growth,
-                          "loe_year": loe_year, "erosion": erosion}}
+                          "loe_year": loe_year, "erosion": erosion},
+            "growth_key": axis["key"] if axis["kind"] == "rate" else None,
+            "ignored": ignored}
 
 
 def _to_price_units(conn, company_id: int, ordinary: float):
@@ -1407,11 +1488,18 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
         # its margins are not the ones a future drug would earn.
         if part.get("buys_launches") is False:
             continue
-        rows = part.get("pnl_share") or []
-        # Expected revenue: a pipeline product's P&L is unrisked, and a book that counted
-        # it in full would leave its launches too little room.
+        # Expected values: a pipeline product's P&L is unrisked, so its whole row is taken
+        # at its probability, once. A book that counted the revenue in full would leave
+        # its launches too little room, and R&D that is only spent if the asset reaches
+        # market buys launches only in that case. Nothing is counted twice: the launch
+        # rate prices attrition per dollar spent, and the probability prices whether the
+        # dollar is spent at all. Every row is risked together, revenue with it, so the
+        # cost ratios the launches are charged are a ratio of expected values: risking
+        # the R&D alone would lower the R&D ratio and raise the launches' margin.
         odds = part.get("pos") if part.get("pos") is not None else 1.0
-        book_parts.append({"revenue": {year: (row.get("revenue") or 0.0) * odds
+        rows = [{k: (v * odds if isinstance(v, (int, float)) else v)
+                 for k, v in row.items()} for row in part.get("pnl_share") or []]
+        book_parts.append({"revenue": {year: (row.get("revenue") or 0.0)
                                        for year, row
                                        in zip(part.get("dcf_years") or [], rows)},
                            "loe_year": part.get("loe_year"),

@@ -196,6 +196,50 @@ def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(tmp_pat
     assert seen["book_rd"] == {2026: 15.0}
 
 
+def test_a_pipeline_products_whole_row_is_taken_at_its_probability_once(tmp_path,
+                                                                         monkeypatch):
+    """Revenue, R&D and every cost on a pipeline line are expected values, risked once.
+
+    The marketed line counts in full. The pipeline line at 40% puts 40 of revenue into
+    the book, not 16 (risked twice), and 8 of R&D into what buys the launches, not 20
+    (unrisked), so the R&D ratio the launches are charged is 23 over 140.
+    """
+    import db
+    import forecast_view as V
+    seen = {}
+
+    def fake_simulate(book_rd, rate, *args, **kwargs):
+        seen["book_rd"] = dict(book_rd)
+        return {"value": 1.0, "flows": [], "first_launch_year": 2030, "cohorts": 0,
+                "replacement": None, "renewal": None, "credited_share": None}
+    real_book_revenue = FP.book_revenue
+
+    def spy_book_revenue(parts, *args, **kwargs):
+        seen["book_parts"] = [dict(p["revenue"]) for p in parts]
+        return real_book_revenue(parts, *args, **kwargs)
+    monkeypatch.setattr(FP, "simulate", fake_simulate)
+    monkeypatch.setattr(FP, "book_revenue", spy_book_revenue)
+    monkeypatch.setattr(FP, "pooled", lambda db_path=None: {"rate": 0.3, "filers": [], "n": 0, "credibility": {}})
+    monkeypatch.setattr(V, "_launch_record", lambda *a, **k: {"history_rd": {}, "launched": set()})
+    marketed = {"asset_id": 1, "pos": None, "dcf_years": [2026], "wacc": 0.08,
+                "pnl_share": [{"revenue": 100.0, "cogs": 20.0, "sga": 20.0, "rd": 15.0,
+                               "other": 0.0, "ebit": 45.0, "tax": 5.0}]}
+    pipeline = {"asset_id": 2, "pos": 0.4, "dcf_years": [2026], "wacc": 0.08,
+                "pnl_share": [{"revenue": 100.0, "cogs": 20.0, "sga": 20.0, "rd": 20.0,
+                               "other": 0.0, "ebit": 40.0, "tax": 4.0}]}
+    path = str(tmp_path / "fp.db")
+    db.init(path)
+    got = V._future_pipeline(path, [marketed, pipeline], "2025-12-31", "JNJ")
+    assert seen["book_rd"] == pytest.approx({2026: 15.0 + 8.0})
+    assert seen["book_parts"][0] == pytest.approx({2026: 100.0})
+    assert seen["book_parts"][1] == pytest.approx({2026: 40.0})
+    assert got["ratios"]["rd"] == pytest.approx(23.0 / 140.0)
+    assert got["ratios"]["cogs"] == pytest.approx(28.0 / 140.0)
+    assert got["ratios"]["tax"] == pytest.approx((5.0 + 1.6) / (45.0 + 16.0))
+    # The caller's rows are not touched: the break-points engine reuses them per trial.
+    assert pipeline["pnl_share"][0]["rd"] == 20.0
+
+
 def test_a_switch_form_is_dated_from_the_form_it_replaces(tmp_path):
     import db
     path = str(tmp_path / "sw.db")
