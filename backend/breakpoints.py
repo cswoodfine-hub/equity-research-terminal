@@ -83,8 +83,10 @@ def solve(f, current: float, lo: float, hi: float, integer: bool = False) -> dic
 
     A year is stepped one at a time outward from the current one, a year either side in
     turn, since the engine reads it as a whole year and the value need not move one way
-    with it: before 2026-10-05 a loss of exclusivity moved the room the launches fill, so
-    Vertex met the price with Trikafta's LOE at 2034 while both bounds said it could not.
+    with it: Vertex meets the price with Trikafta's LOE at 2032, but the lower bound sat in
+    the reported base, where an LOE takes no erosion and the value jumps back up, so both
+    bounds said it could not. The caller floors an LOE search at the first year that
+    still erodes, so the jump itself is never reported as a break.
     A rate is bisected from the current value toward whichever bound changes its sign,
     which assumes it moves the value one way, as every rate lever here does. A trial the
     engine refuses counts as not crossing. {"value", "reachable", "bound"}."""
@@ -436,7 +438,8 @@ class Book:
                 result = got["result"]
                 new = {**part, "rnpv": result["rnpv"], "wacc": result.get("wacc"),
                        "pnl_share": result.get("pnl") or part.get("pnl_share") or [],
-                       "dcf_years": result.get("dcf_years") or part.get("dcf_years") or []}
+                       "dcf_years": result.get("dcf_years") or part.get("dcf_years") or [],
+                       "terminal_tail": result.get("terminal_tail")}
                 new_book += new["rnpv"]
             new_parts.append(new)
         return self.price_gap(new_book, new_parts)
@@ -490,6 +493,13 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
         for label, key, current, kind, _step in V.lever_specs(inputs, built):
             if kind == "year":
                 lo, hi = current + YEARS[0], current + YEARS[1]
+                # An LOE before the year ahead of the forecast counts as already in the
+                # reported base (forecast.build), where no erosion is applied, so the value
+                # jumps there; a break-point found across that jump is the convention's,
+                # not the product's (Skyrizi read 2024 against a 2033 LOE). The search
+                # stops at the first year that still erodes.
+                if key == "loe_year" and built.get("years"):
+                    lo = max(lo, built["years"][0] - 1)
                 found = solve(lambda x: gap_for(V.apply_lever(inputs, key, int(x))),
                               current, lo, hi, integer=True)
             elif kind == "years":
