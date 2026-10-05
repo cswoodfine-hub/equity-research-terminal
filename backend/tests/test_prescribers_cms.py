@@ -31,9 +31,10 @@ class _FakeCms:
     """data.cms.gov as the fixtures saw it: the 2024 national rows (served for 2023 as
     well), the Repatha provider rows, and stats that count them."""
 
-    def __init__(self, total_rows=28023892, found=None):
+    def __init__(self, total_rows=28023892, found=None, extra=None):
         self.total_rows = total_rows
         self.found = found or {}
+        self.extra = extra or {}
         self.calls = []
 
     def __call__(self, url):
@@ -43,10 +44,11 @@ class _FakeCms:
         uuid = parsed.path.split("/dataset/")[1].split("/")[0]
         stats = parsed.path.endswith("/stats")
         if uuid in (_PROVIDER_2024, _PROVIDER_SERIES):
+            assert "filter[Gnrc_Name]" not in query       # the slow filter is never sent
             brand = query.get("filter[Brnd_Name]")
             if stats and brand is None:
                 return {"found_rows": self.total_rows, "total_rows": self.total_rows}
-            rows = _PROVIDER.get(brand, [])
+            rows = self.extra.get(brand, []) + _PROVIDER.get(brand, [])
             if stats:
                 return {"found_rows": self.found.get(brand, len(rows)),
                         "total_rows": self.total_rows}
@@ -289,6 +291,19 @@ def test_a_count_that_does_not_reconcile_is_left_incomplete(tmp_path):
     assert repatha["file_claims"] is None
     assert "9999" in repatha["file_note"]
     assert any("Repatha" in e for e in result.errors)
+
+
+def test_another_ingredient_under_the_brand_name_is_counted_but_not_folded_in(tmp_path):
+    """The brand name is pulled whole, so the count against CMS's stats still holds, and
+    a row of a different ingredient under the same name stays out of the aggregate."""
+    path = _db(tmp_path)
+    stray = {**_PROVIDER["Repatha Syringe"][0], "Prscrbr_NPI": "1999999999",
+             "Gnrc_Name": "Something Else", "Tot_Clms": "500"}
+    result = _fetcher(path, _FakeCms(extra={"Repatha Syringe": [stray]})).run()
+    assert not result.errors
+    repatha = _row(path, 10)
+    assert repatha["file_status"] == "complete"
+    assert repatha["file_prescribers"] == 34                  # the stray NPI is not in
 
 
 def test_a_source_outage_is_a_soft_error_with_an_error_snapshot(tmp_path):

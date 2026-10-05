@@ -65,8 +65,12 @@ _GIVE_UP_AFTER = 3                      # consecutive failed pulls: the source i
 _USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
 _GEOGRAPHY_COLUMNS = ("Brnd_Name,Gnrc_Name,Tot_Prscrbrs,Tot_Clms,Tot_30day_Fills,"
                       "Tot_Drug_Cst,Tot_Benes,GE65_Tot_Benes")
-_PROVIDER_COLUMNS = ("Prscrbr_NPI,Prscrbr_Type,Tot_Clms,Tot_30day_Fills,Tot_Day_Suply,"
-                     "Tot_Drug_Cst")
+# The ingredient is read and matched here rather than filtered on: the API answers a
+# brand-name filter in about two seconds a page, and the same filter with Gnrc_Name added
+# in thirteen to seventeen (measured 2026-10-05), which turned a forty-minute pull into
+# several hours.
+_PROVIDER_COLUMNS = ("Prscrbr_NPI,Prscrbr_Type,Gnrc_Name,Tot_Clms,Tot_30day_Fills,"
+                     "Tot_Day_Suply,Tot_Drug_Cst")
 VOLUME_DECILE_NOTE = (
     "Not computed: CMS does not say whether its national prescriber count includes "
     "prescribers with fewer than 11 claims, so the prescribers missing from the file "
@@ -517,21 +521,25 @@ class PartDPrescribersFetcher(BaseFetcher):
         return results, rows_read, 0
 
     def _pull_one(self, uuid: str, pairs) -> tuple:
+        """One brand's provider rows, every presentation, reduced. Each brand name is
+        pulled whole and its rows counted against /data/stats; only the rows of the
+        ingredient the asset was matched on are folded in."""
         acc = ProviderAccumulator()
         read = 0
         for brand, generic in pairs:
             filters = {"filter[Brnd_Name]": brand}
-            if generic:
-                filters["filter[Gnrc_Name]"] = generic
+            wanted = cms.norm(generic) if generic else None
             try:
                 expected = self._call(uuid, filters, stats=True)["found_rows"]
-                seen, offset = set(), 0
-                count = 0
+                keys, offset, count = set(), 0, 0
                 while True:
                     page = self._call(uuid, {**filters, "column": _PROVIDER_COLUMNS,
                                              "size": _PAGE, "offset": offset})
-                    seen |= acc.add(page)
                     count += len(page)
+                    keys.update(((r.get("Prscrbr_NPI") or "").strip(),
+                                 cms.norm(r.get("Gnrc_Name"))) for r in page)
+                    acc.add([r for r in page
+                             if wanted is None or cms.norm(r.get("Gnrc_Name")) == wanted])
                     if len(page) < _PAGE:
                         break
                     offset += _PAGE
@@ -539,10 +547,12 @@ class PartDPrescribersFetcher(BaseFetcher):
                 return {"status": "incomplete", "failed": True,
                         "note": f"the pull for {brand} failed: {exc}"}, read
             read += count
-            if count != expected or len(seen) != expected:
+            # One row per prescriber and ingredient: a short read or a repeated row means
+            # the paging moved under the pull, and a short aggregate is not stored.
+            if count != expected or len(keys) != expected:
                 return {"status": "incomplete",
-                        "note": f"{brand}: read {count} rows over {len(seen)} prescribers "
-                                f"where CMS counts {expected}, so the pull was not stored"
+                        "note": f"{brand}: read {count} rows, {len(keys)} distinct, where "
+                                f"CMS counts {expected}, so the pull was not stored"
                         }, read
         return {"status": "complete", **acc.reduce()}, read
 
