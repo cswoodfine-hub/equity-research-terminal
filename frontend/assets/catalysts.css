@@ -290,22 +290,22 @@
 .cx-facts .u-gate td { padding: 2.5px 8px 2.5px 0; }
 .cx-facts .u-gate .t { font-size: 10.5px; color: var(--muted); }
 .cx-line { font-size: 10.5px; color: var(--muted); line-height: 1.35; margin-top: 4px; }
-.fork .k, .dates .k, .loe .k, .pg .k { font-size: 9px; letter-spacing: 0.08em; fill: var(--muted);
+.cx .fork .k, .cx .dates .k, .cx .loe .k, .cx .pg .k { font-size: 9px; letter-spacing: 0.08em; fill: var(--muted);
   font-weight: 500; }
-.fork .fv { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
-.fork .fv2 { font-size: 15.5px; font-weight: 600; letter-spacing: -0.02em; }
-.fork .fs { font-size: 9.5px; fill: var(--muted); }
-.fork .up { fill: var(--up); }
-.fork .dn { fill: var(--down); }
-.fork .br-up { fill: none; stroke: var(--up); }
-.fork .br-dn { fill: none; stroke: var(--down); opacity: 0.8; }
-.fork .br-dash { stroke: var(--muted); stroke-dasharray: 3 3; }
+.cx .fork .fv { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.cx .fork .fv2 { font-size: 15.5px; font-weight: 600; letter-spacing: -0.02em; }
+.cx .fork .fs { font-size: 9.5px; fill: var(--muted); }
+.cx .fork .up { fill: var(--up); }
+.cx .fork .dn { fill: var(--down); }
+.cx .fork .br-up { fill: none; stroke: var(--up); }
+.cx .fork .br-dn { fill: none; stroke: var(--down); opacity: 0.8; }
+.cx .fork .br-dash { stroke: var(--muted); stroke-dasharray: 3 3; }
 .cx svg .today { stroke: var(--up); stroke-width: 1; }
 .cx svg .tdl { font-size: 9px; fill: var(--up); }
 .cx svg .tk { font-size: 9px; fill: var(--muted); }
 .cx svg .lab { font-size: 9.5px; fill: var(--text); }
 .cx svg .lab.mu { fill: var(--muted); }
-.dates .old { fill: none; stroke: var(--muted); stroke-dasharray: 2 2; }
+.cx .dates .old { fill: none; stroke: var(--muted); stroke-dasharray: 2 2; }
 /* A label stays legible where the today line or a grid line runs under it. */
 .cx-card .dates text { paint-order: stroke; stroke: var(--panel); stroke-width: 3px;
   stroke-linejoin: round; }
@@ -313,15 +313,15 @@
 .cx svg .pull-ln { stroke: var(--up); stroke-width: 1.2; }
 .cx svg .slip-ar { fill: var(--down); }
 .cx svg .pull-ar { fill: var(--up); }
-.dates .slip-t { font-size: 9.5px; fill: var(--down); }
-.dates .pull-t { font-size: 9.5px; fill: var(--up); }
-.dates .st-gate { stroke: var(--ground); stroke-width: 1.5; fill: var(--phase-3); }
-.dates .st-gate.p2 { fill: var(--phase-2); }
-.dates .st-held, .dates .st-open { fill: color-mix(in oklab, var(--panel) 60%, var(--muted));
+.cx .dates .slip-t { font-size: 9.5px; fill: var(--down); }
+.cx .dates .pull-t { font-size: 9.5px; fill: var(--up); }
+.cx .dates .st-gate { stroke: var(--ground); stroke-width: 1.5; fill: var(--phase-3); }
+.cx .dates .st-gate.p2 { fill: var(--phase-2); }
+.cx .dates .st-held, .cx .dates .st-open { fill: color-mix(in oklab, var(--panel) 60%, var(--muted));
   fill-opacity: 0.35; stroke: var(--muted); stroke-width: 1; }
-.dates .dia { fill: var(--phase-filed); }
-.dates .dia-o { fill: none; stroke: var(--phase-filed); stroke-width: 1.2; }
-.dates .mdl { fill: var(--up-wash); stroke: var(--up); stroke-width: 1; }
+.cx .dates .dia { fill: var(--phase-filed); }
+.cx .dates .dia-o { fill: none; stroke: var(--phase-filed); stroke-width: 1.2; }
+.cx .dates .mdl { fill: var(--up-wash); stroke: var(--up); stroke-width: 1; }
 .cx .u-chip.basis { height: 16px; font-size: 9.5px; color: var(--text); }
 .cx .u-chip.basis.flag { border-color: var(--flag); color: var(--flag); }
 
@@ -405,35 +405,35 @@
 /* The exclusivity wall's lines two to a row, the year in a narrow key. */
 .cx-rr2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 14px; }
 .cx-rr.yr { grid-template-columns: 30px minmax(0, 1fr) auto; }
-.rs-f .kk { display: inline-block; width: 8px; height: 8px; margin: 0 3px 0 0; }
-.rs-f .kk.sm { background: var(--orange-book); }
-.rs-f .kk.bio { background: var(--purple-book); margin-left: 2px; }
+.cx .rs-f .kk { display: inline-block; width: 8px; height: 8px; margin: 0 3px 0 0; }
+.cx .rs-f .kk.sm { background: var(--orange-book); }
+.cx .rs-f .kk.bio { background: var(--purple-book); margin-left: 2px; }
 .cx-rr .m { font-size: 10.5px; }
-.rs-f { font-size: 10px; color: var(--muted); margin-top: 5px; line-height: 1.38; }
+.cx .rs-f { font-size: 10px; color: var(--muted); margin-top: 5px; line-height: 1.38; }
 /* Bars stacked by modality in the timeline's exclusivity colours: the wall in full, the
    other years lighter, this year's lighter still. The wall's shade is neutral. */
-.loe .wall { fill: color-mix(in oklab, var(--panel) 80%, var(--text)); }
-.loe .sm { fill: var(--orange-book); }
-.loe .bio { fill: var(--purple-book); }
-.loe .unk { fill: var(--muted); }
-.loe .dim { fill-opacity: 0.55; }
-.loe .past { fill-opacity: 0.3; }
-.loe .lv { font-size: 9px; fill: var(--muted); }
-.sl .sl-n { font-size: 10px; fill: var(--muted); }
-.sl .sl-n.g { fill: var(--text); font-weight: 600; }
-.sl .old { fill: none; stroke: var(--muted); }
-.sl .new { fill: var(--muted); }
-.sl .new.g { fill: var(--down); }
-.sl .slip-ln { stroke: var(--muted); stroke-width: 1; }
-.sl .slip-ln.g { stroke: var(--down); stroke-width: 1.4; }
-.cr .cr-t { font-size: 10.5px; fill: var(--muted); }
-.cr .cr-t.me { fill: var(--up); font-weight: 600; }
-.cr .cr-lead { fill: var(--muted); opacity: 0.7; }
-.cr .cr-me { fill: var(--up); }
-.rc .rc-up { fill: var(--up); stroke: var(--panel); stroke-width: 1.5; }
-.rc .rc-dn { fill: var(--down); stroke: var(--panel); stroke-width: 1.5; }
-.rc .rc-u { stroke: var(--up); }
-.rc .rc-d { stroke: var(--down); }
+.cx .loe .wall { fill: color-mix(in oklab, var(--panel) 80%, var(--text)); }
+.cx .loe .sm { fill: var(--orange-book); }
+.cx .loe .bio { fill: var(--purple-book); }
+.cx .loe .unk { fill: var(--muted); }
+.cx .loe .dim { fill-opacity: 0.55; }
+.cx .loe .past { fill-opacity: 0.3; }
+.cx .loe .lv { font-size: 9px; fill: var(--muted); }
+.cx .sl .sl-n { font-size: 10px; fill: var(--muted); }
+.cx .sl .sl-n.g { fill: var(--text); font-weight: 600; }
+.cx .sl .old { fill: none; stroke: var(--muted); }
+.cx .sl .new { fill: var(--muted); }
+.cx .sl .new.g { fill: var(--down); }
+.cx .sl .slip-ln { stroke: var(--muted); stroke-width: 1; }
+.cx .sl .slip-ln.g { stroke: var(--down); stroke-width: 1.4; }
+.cx .cr .cr-t { font-size: 10.5px; fill: var(--muted); }
+.cx .cr .cr-t.me { fill: var(--up); font-weight: 600; }
+.cx .cr .cr-lead { fill: var(--muted); opacity: 0.7; }
+.cx .cr .cr-me { fill: var(--up); }
+.cx .rc .rc-up { fill: var(--up); stroke: var(--panel); stroke-width: 1.5; }
+.cx .rc .rc-dn { fill: var(--down); stroke: var(--panel); stroke-width: 1.5; }
+.cx .rc .rc-u { stroke: var(--up); }
+.cx .rc .rc-d { stroke: var(--down); }
 
 /* ---------------------------------------------------------------------------------- */
 /* Why the rest carry no price                                                        */
@@ -522,15 +522,15 @@ div[role="dialog"]:has(.cx-dlg) h2 { font-family: var(--font-ui); }
 .cx-rec-c .s { font-size: 11px; color: var(--muted); line-height: 1.35; }
 .cx-ev { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; }
 .cx-ev a { color: var(--up); text-decoration: none; }
-.pg .pg-n { font-size: 10px; fill: var(--muted); }
-.pg .pg-n.g { fill: var(--text); font-weight: 600; }
-.pg .pg-g { fill: var(--phase-3); }
-.pg .pg-g.p2 { fill: var(--phase-2); }
-.pg .pg-h { fill: var(--rule-strong); }
-.pg .pg-gd { fill: var(--phase-3); stroke: var(--ground); stroke-width: 1.5; }
-.pg .pg-gd.p2 { fill: var(--phase-2); }
-.pg .pg-hd { fill: var(--muted); stroke: var(--ground); stroke-width: 1.5; }
-.pg .pg-pt { fill: var(--muted); opacity: 0.5; }
+.cx .pg .pg-n { font-size: 10px; fill: var(--muted); }
+.cx .pg .pg-n.g { fill: var(--text); font-weight: 600; }
+.cx .pg .pg-g { fill: var(--phase-3); }
+.cx .pg .pg-g.p2 { fill: var(--phase-2); }
+.cx .pg .pg-h { fill: var(--rule-strong); }
+.cx .pg .pg-gd { fill: var(--phase-3); stroke: var(--ground); stroke-width: 1.5; }
+.cx .pg .pg-gd.p2 { fill: var(--phase-2); }
+.cx .pg .pg-hd { fill: var(--muted); stroke: var(--ground); stroke-width: 1.5; }
+.cx .pg .pg-pt { fill: var(--muted); opacity: 0.5; }
 
 /* ---------------------------------------------------------------------------------- */
 /* Narrower than the 1440 design                                                      */

@@ -429,6 +429,20 @@ def test_catalysts_css_is_tokens_only_and_reaches_the_page_and_the_frame():
     assert css in catalysts_page._frame_css()
 
 
+def test_every_catalysts_rule_sits_under_a_cx_class():
+    """The stylesheet is injected into every page of the app: a rule must start at the
+    tab's root class, one of its .cx- classes, its keyed containers or its dialog, so it
+    can never restyle another tab. .fork, .dates, .loe and five more did not."""
+    css = re.sub(r"/\*.*?\*/", "", CSS.read_text(), flags=re.S)
+    ok = (".cx", ".st-key-cx_", 'div[role="dialog"]:has(.cx-dlg)',
+          '[data-testid="stElementContainer"]:has(')
+    for block in re.findall(r"([^{}]+)\{[^{}]*\}", re.sub(r"@media[^{]+\{", "", css)):
+        for sel in block.split(","):
+            sel = sel.strip()
+            if sel:
+                assert sel.startswith(ok), sel
+
+
 def test_the_svgs_read_colour_from_the_stylesheet_only(payload):
     markup = "".join(_blocks(payload).values())
     for attr in ("fill=", "stroke=", "color:", "background:"):
