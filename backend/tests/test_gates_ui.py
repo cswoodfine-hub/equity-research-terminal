@@ -436,6 +436,22 @@ def test_a_stated_row_carries_no_tag_and_keeps_its_missed_leg(view):
     assert "The gate study NCT06832410 passed its completion date" in vx880
 
 
+def test_a_study_keeps_its_phase_where_the_event_does_not_name_it(view):
+    lly = {r["id"]: r for r in load("LLY_catalysts_stakes")["priced"]}
+    # A Phase 2/3 study priced at a Phase 2 gate: the title keeps "Phase 2/3".
+    cleminorexton = text_of(view["_stake_row_html"](lly[686]))
+    assert cleminorexton.startswith("cleminorexton 2027-09-30 · Phase 2 readout · Phase 2/3, "
+                                    "A Study to Investigate")
+    # The event names the phase, so it is said once.
+    assert "Phase 3 readout · A Study of Retatrutide" in text_of(
+        view["_stake_row_html"](lly[13]))
+    # A stated row's event is the catalyst type, so its phase stays in the title.
+    casgevy = next(r for r in load("VRTX_catalysts_stakes")["priced"]
+                   if r["legs_basis"] == "stated")
+    assert text_of(view["_stake_row_html"](casgevy)).startswith(
+        "Casgevy 2027-11-14 · data readout · Phase 3, Casgevy")
+
+
 def test_six_rows_are_open_and_the_rest_fold(view):
     shown, rest = view["_stake_split"](load("LLY_catalysts_stakes")["priced"])
     assert (len(shown), len(rest)) == (6, 4)

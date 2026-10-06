@@ -3618,9 +3618,14 @@ def _stake_resolvable(row) -> bool:
             and row.get("resolvable") is True)
 
 
-def _stake_title(title) -> str:
-    """The catalyst's title without the phase the row already names, cut to fit."""
-    title = re.sub(r"^Phase [0-9/]+,\s*", "", str(title or "").strip())
+def _stake_title(title, event: str = "") -> str:
+    """The catalyst's title, cut to fit, without its leading phase only where the row's
+    event already names that phase: a Phase 2/3 study priced as a Phase 2 gate, or a
+    stated row whose event is "data readout", keeps it."""
+    title = str(title or "").strip()
+    phase = re.match(r"^(Phase [0-9/]+),\s*", title)
+    if phase and str(event or "").startswith(f"{phase.group(1)} readout"):
+        title = title[phase.end():]
     limit = _STAKE_TITLE_CHARS
     return title if len(title) <= limit else title[: limit - 1].rstrip() + "…"
 
@@ -3638,7 +3643,7 @@ def _stake_row_html(row: dict) -> str:
     per_share = (f" · {r['per_share']:+,.2f}/sh" if r.get("per_share") is not None else "")
     lines = [f'<b>{html_escape(r.get("asset_name") or "")}</b> '
              f'{html_escape(r.get("expected_date") or "")} · {html_escape(event or "")} · '
-             f'{html_escape(_stake_title(r.get("title")))}{tag}',
+             f'{html_escape(_stake_title(r.get("title"), event))}{tag}',
              f'swing <b>{(r.get("swing") or 0):,.0f}mm</b> · this company '
              f'{(r.get("share") or 0):.0%}: <b>{(r.get("share_swing") or 0):,.0f}mm</b>'
              f'{per_share} · PoS {_stake_leg(r.get("pos_now"))} now, '
