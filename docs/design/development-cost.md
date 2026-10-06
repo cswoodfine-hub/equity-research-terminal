@@ -252,15 +252,31 @@ day, which matters because each study's share ahead moves daily.
 - A reader may take "today, after development cost" as a lower fair value. The UI must say
   it is already paid inside the R&D ratio; the `paid_note` carries that sentence.
 
-## 10. What the UI pass needs (not built here)
+## 10. What the page shows
 
-- Forecast tab, asset view: one "Next gate" block with the gate study and date, the chance,
-  if it passes / if it fails / held (build 2), the cost to reach and the net from
-  `/forecast/{id}/development` `gate` (`cost_per_share`, `net_per_share`, `breakeven_p`,
-  `high`), and the earliest approval from that gate (build 3). The ladder goes in an
-  expander labelled "after later trial costs", with `stages[].studies` and `outside` as the
-  detail and `paid_note` as the footnote.
-- Key insights pipeline rows: build 1's failing-gate fact (`funds` false) in the shared
-  tooltip, no extra mark.
-- Company view: `/companies/{t}/development`, `failing` first, and
-  `reconciliation.sentence` under the table.
+- **Forecast tab, asset view: the Next gate layer**, beside Drivers and the Medicare layer,
+  only where the verdict has a gate. One block for builds 1 to 3: the section chip names
+  the gate, its date ("est. Jan 2028", "due since Oct 2024", "no date on file") and its
+  study. A waterfall a share comes first: what passing is worth, less the chance it fails,
+  is today's risked value; less the cost to reach the gate is the net. An unread cost is a
+  hatched step with no net after it. Beside it a table: the chance (published or implied
+  by the stated PoS), if it passes, if it fails (nil, the convention), held (the model's
+  rule after a miss, a note), the cost to reach after tax at 2018 prices, the net and its
+  break-even chance, the DiMasi high bound, and the earliest approval from the gate
+  (build 3), underlined red or amber where the launch floor flags the model's year. Under
+  it: what the cost covers ("the Phase 3 programme in the modelled disease, not the gate
+  study alone"), `paid_note`, and a flag's message. The ladder sits in an expander, "After
+  later trial costs", and the studies, the separate whole-programme figure and the sources
+  in "Trials and sources". A refusal keeps the legs and says why; a failed read says the
+  trial costs did not load. Off the base case the block says "base case", since the cost
+  view is read on it.
+- **Drivers, the range**: with no hand bear or bull, the next gate sets it, nil to the
+  success leg centred on today, with the PoS band as its own row; under a hand range the
+  gate row follows it, labelled derived.
+- **Forecast tab, company view**: "Pipeline development, next gate", folded with the further
+  reads: every counted line, failing gates first and toned, then by net, then the gates
+  whose cost is not read ("no free data"), `reconciliation.sentence` and the refusals.
+- **Key insights**: a failing gate (`funds` false) is a fact in the pipeline row's one
+  tooltip, with no mark (key-insights.md R4.2).
+- Builders: `_gate_*` in `frontend/streamlit_app.py`, tested on saved payloads in
+  `backend/tests/test_gates_ui.py`.

@@ -783,7 +783,10 @@ of a marketed one). The 60 days are days, as 21 CFR 314.101(a)(2) dates the fili
 calendar months, so a 1 May completion gives 30 December of the same year. It is a flag: nothing reads it
 on the value path, and equity per share, every asset rNPV and the 21 ratings are
 byte-identical with it in place. `GET /companies/{ticker}/launch-timing` lists it and
-`backend/tools/launch_timing_check.py` prints every flag for checking.
+`backend/tools/launch_timing_check.py` prints every flag for checking. On the page the flag
+is one mark, a dotted underline, red or amber, with the floor's message in the tooltip: on
+the asset's value on the Pipeline tab and in Key insights, and on the earliest approval in
+the Forecast tab's Next gate layer. A part year carries none.
 
 | Status | Assets | Meaning |
 |---|---|---|
