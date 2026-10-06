@@ -520,7 +520,8 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
   z-index: 40; box-sizing: border-box; padding: 9px 12px 10px; background: var(--panel);
   border: 1px solid var(--rule-strong); box-shadow: var(--uv-shadow); overflow: auto;
   scrollbar-width: thin; transition: opacity 90ms linear, visibility 0s linear 90ms;
-  font-size: 12px; line-height: 1.4; color: var(--text); white-space: normal; cursor: default; }
+  font-family: var(--font-ui); font-size: 12px; line-height: 1.4; color: var(--text);
+  white-space: normal; text-align: left; letter-spacing: 0; text-transform: none; cursor: default; }
 .uw-card .ck, .uw-bcard .ck, .uw-rc .ck, .uw-gcard .ck { display: flex; align-items: baseline;
   gap: 8px; margin-bottom: 5px; }
 .uw-card .ck b, .uw-bcard .ck b, .uw-rc .ck b, .uw-gcard .ck b { font-weight: 600; }
@@ -552,9 +553,10 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
   font-size: 10.5px; color: var(--muted); white-space: nowrap; }
 .uw-moreh { color: var(--text); cursor: help; border-bottom: 1px dotted var(--rule-strong);
   outline: none; }
-.uw-moreh .uw-mc { top: 22px; right: 0; width: calc(50% - 14px); max-height: 236px; }
+.uw-moreh .uw-mc { top: 22px; right: 0; width: calc(50% - 14px); max-height: calc(100% - 24px); }
 .uw-mr { display: grid; grid-template-columns: 16px 70px minmax(0, 1fr) 44px; column-gap: 8px;
-  align-items: baseline; padding: 4px 0; border-top: 1px solid var(--rule); font-size: 12px; }
+  align-items: baseline; padding: 3px 0; border-top: 1px solid var(--rule); font-size: 11.5px;
+  line-height: 1.3; }
 .uw-mr .n { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
 .uw-mr .f { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; text-align: right; }
 .uw-rkc { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -684,13 +686,14 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uw-grid .gh .v { font-size: 9.5px; color: var(--muted); line-height: 11px; }
 .uw-grid .gh.me { background: var(--active-wash); box-shadow: inset 0 2px 0 var(--up); }
 .uw-grid .gh.lab { align-items: flex-start; font-family: var(--font-ui); }
-.uw-grid .gh.lab b { font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
-  text-transform: uppercase; line-height: 16px; }
-.uw-grid .gh.lab span { font-size: 10.5px; color: var(--muted); }
-.uw-grid .gl { display: flex; justify-content: space-between; align-items: center; height: 14px;
+.uw-grid .gh.lab span { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+/* The rows share what the panel leaves under the head: 14px at 1440 by 780, 24px from
+   840 tall, so the grid fills the panel rather than leaving it half empty. */
+.uw-grid .gl { display: flex; justify-content: space-between; align-items: center;
+  height: clamp(14px, calc((var(--uv-panel-h) - 36px) / 6), 24px);
   padding: 0 10px 0 7px; border-left: 3px solid var(--accent); font-size: 11px; white-space: nowrap; }
 .uw-grid .gl b { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; }
-.uw-grid .gc { height: 14px; display: flex; align-items: center; justify-content: center;
+.uw-grid .gc { height: clamp(14px, calc((var(--uv-panel-h) - 36px) / 6), 24px); display: flex; align-items: center; justify-content: center;
   font-family: var(--font-mono); font-size: 10.5px; outline: none;
   background: color-mix(in oklab, var(--accent) var(--uw-a), transparent); cursor: help; }
 .uw-grid .gc.z { background: var(--rule-faint); cursor: default; }

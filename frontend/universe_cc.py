@@ -1853,7 +1853,7 @@ def _tk_marks(p, tickers, limit=4):
     f = _focal(p)
     marks = [f'<b class="{"me" if t == f else ""}" data-ticker="{esc(t)}">{esc(t)}</b>'
              for t in tickers[:limit]]
-    more = f'<b class="all">+{len(tickers) - limit}</b>' if len(tickers) > limit else ""
+    more = f'<i>·</i><b class="all">+{len(tickers) - limit}</b>' if len(tickers) > limit else ""
     return f'<span class="uw-tks">{"<i>·</i>".join(marks)}{more}</span>'
 
 
@@ -2319,7 +2319,7 @@ def changes_grid_html(p):
     routine = w.get("routine_filings") or 0
     half = len(cols) // 2
     o = [f'<div class="uw-grid" style="--uw-n:{len(cols)}">'
-         f'<div class="gh lab"><b>Every change</b><span>{total} this week'
+         f'<div class="gh lab"><span>{total} this week'
          + (f', {routine} routine filings left out' if routine else "") + '</span></div>']
     for t in cols:
         o.append(f'<div class="gh{" me" if t == f else ""}" title="{esc(_name(p, t))}: '
