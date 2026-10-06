@@ -265,6 +265,26 @@ def test_every_row_and_bubble_is_a_click_target(payload):
 
 
 # ---------------------------------------------------------------------- the stylesheet
+def test_no_drawn_label_is_under_9px(payload):
+    """Every SVG label is set at 9px or more, in every window."""
+    for w in ("1m", "3m", "1y"):
+        for name, markup in _all_blocks(payload, w).items():
+            sizes = [float(x) for x in re.findall(r'<text [^>]*font-size="([\d.]+)"', markup)]
+            if sizes:
+                assert min(sizes) >= 9, (w, name, min(sizes))
+
+
+def test_the_week_minis_are_drawn_at_the_width_their_column_gives_them():
+    """The ranked list's small charts are drawn 1:1: an SVG wider than its grid column is
+    scaled down, and its 9px axis words with it (they printed at 7.4px)."""
+    css = UNIVERSE_CSS.read_text()
+    m = re.search(r"\.uv-wm > summary \{[^}]*grid-template-columns:\s*([^;]+);", css)
+    assert m, "the ranked list's grid is not where the test reads it"
+    cols = re.sub(r"\(([^)]*)\)", lambda x: "(" + x.group(1).replace(" ", "") + ")",
+                  m.group(1)).split()
+    assert cols[3] == f"{UC.IW}px", cols
+
+
 def test_universe_css_is_tokens_only_and_reaches_the_page_and_the_frame(monkeypatch):
     css = UNIVERSE_CSS.read_text()
     assert not HEX.findall(css), "a hex colour in universe.css"

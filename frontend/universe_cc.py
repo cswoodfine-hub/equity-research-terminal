@@ -1019,7 +1019,9 @@ def hero_html(p, w=None):
 
 
 # ---------------------------------------------------------- "This week, ranked" (graft)
-IW, IH = 96, 28
+# Drawn at the width its grid column gives it (universe.css, .uv-wm > summary), so the
+# axis words print at 9px rather than being scaled under it.
+IW, IH = 100, 28
 ACCENT = {"deal": "var(--up)", "market": "var(--muted)", "readout": "var(--phase-3)",
           "readout2": "var(--phase-2)", "approval": "var(--phase-approved)",
           "slip": "var(--down)", "regulatory": "var(--phase-filed)"}
@@ -1069,8 +1071,8 @@ def deal_mini(upfront, milestones):
     return (_mini_open() + f'<rect x="2" y="9" width="{w1:.1f}" height="10" fill="{T["up"]}"/>'
             f'<rect x="{2 + w1 + 2:.1f}" y="9" width="{IW - 6 - w1:.1f}" height="10" '
             f'fill="{T["up"]}" fill-opacity="0.3"/>'
-            + text(2, 27, "upfront", 8.5, T["muted"], mono=True)
-            + text(IW - 2, 27, "milestones", 8.5, T["muted"], "end", mono=True) + "</svg>")
+            + text(2, 27, "upfront", 9, T["muted"], mono=True)
+            + text(IW - 2, 27, "milestones", 9, T["muted"], "end", mono=True) + "</svg>")
 
 
 def slip_mini(old, new):
@@ -1087,7 +1089,7 @@ def slip_mini(old, new):
          f'<circle cx="{sx(a):.1f}" cy="14" r="3.5" fill="{T["ground"]}" stroke="{T["muted"]}" stroke-width="1.25"/>',
          f'<circle cx="{sx(b):.1f}" cy="14" r="3.5" fill="{T["down"]}"/>']
     for yr in range(a.year, b.year + 1):
-        o.append(text(sx(dt.date(yr, 1, 1)) + 1, 26, str(yr), 8.5, T["muted"], mono=True))
+        o.append(text(sx(dt.date(yr, 1, 1)) + 1, 26, str(yr), 9, T["muted"], mono=True))
     o.append("</svg>")
     return "".join(o)
 
@@ -1100,8 +1102,8 @@ def countdown_mini(days, of=30):
             f'<line x1="4" x2="{x:.1f}" y1="13" y2="13" stroke="{T["flag"]}" stroke-width="2"/>'
             f'<circle cx="4" cy="13" r="2.5" fill="{T["text"]}"/>'
             f'<path d="M{x:.1f},8 L{x+5:.1f},13 L{x:.1f},18 L{x-5:.1f},13 Z" fill="{T["flag"]}"/>'
-            + text(4, 26, "today", 8.5, T["muted"], mono=True)
-            + text(IW - 4, 26, f"+{of}d", 8.5, T["muted"], "end", mono=True) + "</svg>")
+            + text(4, 26, "today", 9, T["muted"], mono=True)
+            + text(IW - 4, 26, f"+{of}d", 9, T["muted"], "end", mono=True) + "</svg>")
 
 
 def dates_mini(dates, a, b):
@@ -1118,8 +1120,8 @@ def dates_mini(dates, a, b):
         k = seen.get(d, 0)
         seen[d] = k + 1
         o.append(f'<circle cx="{sx(d):.1f}" cy="{16 - k * 7:.1f}" r="3" fill="{T["approved"]}"/>')
-    o.append(text(4, 27, dday(a), 8.5, T["muted"], mono=True)
-             + text(IW - 4, 27, dday(b), 8.5, T["muted"], "end", mono=True) + "</svg>")
+    o.append(text(4, 27, dday(a), 9, T["muted"], mono=True)
+             + text(IW - 4, 27, dday(b), 9, T["muted"], "end", mono=True) + "</svg>")
     return "".join(o)
 
 
