@@ -623,6 +623,16 @@ def test_the_spotlight_has_no_line_comparison_and_says_it_ranks_all(payload):
         assert cell.split('<div class="uv-hc">')[0].count('<div class="s">') == 1
     n = len(payload["companies"])
     assert f"hover a cell for all {n}" in UC.spotlight_section(payload)
+    # The caret is drawn, not printed: the glyph read as a 4 by 3px speck. It is an 8 by
+    # 5px triangle brighter than muted, and a cell with a card takes the help cursor.
+    css = UNIVERSE_CSS.read_text()
+    caret = re.search(r"\.uv-sp \.k \.all \{([^}]*)\}", css).group(1)
+    assert "font-size: 0" in caret and "width: 0" in caret
+    assert "border-left: 4px solid transparent" in caret
+    assert "border-right: 4px solid transparent" in caret
+    assert re.search(r"border-top: 5px solid color-mix\(in oklab, var\(--text\) \d+%, "
+                     r"var\(--muted\)\)", caret)
+    assert re.search(r"\.uv-sp > div:has\(> \.uv-hc\) \{ cursor: help; \}", css)
 
 
 def test_the_board_drops_the_news_column_into_the_row_hover(payload):

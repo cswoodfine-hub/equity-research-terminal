@@ -128,10 +128,16 @@
   font-size: 10px; line-height: 14px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--muted); white-space: nowrap; }
 .uv-sp .k > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-/* The caret that says the cell opens a ranking of every company on hover. */
-.uv-sp .k .all { flex: 0 0 auto; font-size: 11px; line-height: 14px; letter-spacing: 0;
-  color: var(--muted); cursor: default; }
-.uv-sp > div:hover .k .all { color: var(--up); }
+/* The caret that says the cell opens a ranking of every company on hover. The glyph
+   printed about 4 by 3px in muted grey and read as a speck; it is drawn instead, 8 by
+   5px, halfway from muted to the text colour, and green while the card is open. A cell
+   with a card takes the help cursor, as the page's other hovers do. */
+.uv-sp .k .all { flex: 0 0 auto; align-self: center; width: 0; height: 0; overflow: hidden;
+  font-size: 0; line-height: 0; border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid color-mix(in oklab, var(--text) 50%, var(--muted)); }
+.uv-sp > div:hover .k .all { border-top-color: var(--up); }
+.uv-sp > div:has(> .uv-hc) { cursor: help; }
 .uv-sp .vr { display: flex; flex-wrap: wrap; justify-content: space-between;
   align-items: baseline; gap: 0 6px; min-width: 0; }
 .uv-sp .v { font-family: var(--font-mono); font-size: 19px; font-weight: 600;
