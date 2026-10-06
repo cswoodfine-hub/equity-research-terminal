@@ -1030,8 +1030,7 @@ def _loe_lane(p, seg, top, bottom) -> str:
     labelled = []
     for c in inside:
         x = X(_d(c["loe"]))
-        mod = ("sm" if c.get("modality") == "small molecule" else
-               "bio" if c.get("modality") == "biologic" else "unk")
+        mod = _modality_class(c.get("modality"))
         when = "ended" if c.get("passed") else "ends"
         share = (f", {pct(c['share_of_revenue'], 1)} of {c.get('fy') or 'last year'}'s revenue"
                  if c.get("share_of_revenue") is not None else "")
@@ -1060,7 +1059,7 @@ def _loe_lane(p, seg, top, bottom) -> str:
         for prod in v.get("products") or []:
             name, val = prod[0], _num(prod[1]) or 0
             modality = prod[2] if len(prod) > 2 else None
-            cls = "sm" if modality == "small molecule" else ("bio" if modality == "biologic" else "unk")
+            cls = _modality_class(modality)
             h = val * k
             parts.append(f'<rect class="{cls}" x="{x - 4.5:.1f}" y="{yy:.1f}" width="9" '
                          f'height="{max(h - 0.6, 0.6):.1f}"/>')
@@ -1656,8 +1655,16 @@ def next_html(p, n=12) -> str:
 
 
 # --------------------------------------------------------------------- risk register
+def _modality_class(modality) -> str:
+    """The exclusivity colour of a line: Orange Book for a small molecule, Purple Book for
+    a biologic, muted where the modality is not on file."""
+    return "sm" if modality == "small molecule" else "bio" if modality == "biologic" else "unk"
+
+
 def loe_svg(p, width=380) -> str:
-    """Model value a share by the year the line loses exclusivity, the wall shaded."""
+    """Model value a share by the year the line loses exclusivity, each bar stacked by
+    modality in the timeline's colours, the three-year wall shaded and in full colour,
+    the other years lighter and this year's lighter still."""
     by = {int(y): v for y, v in (p.get("loe_by_year") or {}).items() if str(y).isdigit()}
     today = _today(p)
     years = list(range(today.year, today.year + 15))
@@ -1666,9 +1673,7 @@ def loe_svg(p, width=380) -> str:
     vmax = max([by.get(y, {}).get("per_share") or 0 for y in years] + [0.01])
     w = wall(p, today.year + 1)
     o = [f'<svg class="cx-svg loe" viewBox="0 0 {width} {H}" width="100%" role="img" '
-         f'aria-label="Model value a share by the year the line loses exclusivity">',
-         '<defs><pattern id="lh" width="4" height="4" patternUnits="userSpaceOnUse" '
-         'patternTransform="rotate(45)"><rect width="1.3" height="4" class="lh-ln"/></pattern></defs>']
+         f'aria-label="Model value a share by the year the line loses exclusivity">']
     if w:
         wx0 = 4 + (w[0] - years[0]) * cw
         wx1 = 4 + (w[1] + 1 - years[0]) * cw
@@ -1679,12 +1684,21 @@ def loe_svg(p, width=380) -> str:
         e = by.get(yv)
         x = 4 + i * cw
         if e and e.get("per_share"):
-            h = (B - 30) * e["per_share"] / vmax
-            cls = ("lb-w" if w and w[0] <= yv <= w[1] else "lb-p" if yv <= today.year else "lb")
-            fill = ' fill="url(#lh)"' if cls == "lb-p" else ""
+            k = (B - 30) / vmax
+            h = k * e["per_share"]
+            tone = ("" if w and w[0] <= yv <= w[1] else " past" if yv <= today.year else " dim")
             names = ", ".join(f"{q[0]} {usd(q[1])}" for q in e.get("products") or [])
-            o.append(f'<g><title>{yv}: {esc(names)}</title><rect x="{x + 2:.1f}" y="{B - h:.1f}" '
-                     f'width="{cw - 4:.1f}" height="{h:.1f}" class="{cls}"{fill}/>'
+            segs, yy = [], B
+            for prod in e.get("products") or []:
+                v = _num(prod[1]) or 0
+                if v <= 0:
+                    continue
+                hh = v * k
+                yy -= hh
+                cls = _modality_class(prod[2] if len(prod) > 2 else None)
+                segs.append(f'<rect x="{x + 2:.1f}" y="{yy:.1f}" width="{cw - 4:.1f}" '
+                            f'height="{max(hh - 0.6, 0.6):.1f}" class="{cls}{tone}"/>')
+            o.append(f'<g><title>{yv}: {esc(names)}</title>{"".join(segs)}'
                      f'<text x="{x + cw / 2:.1f}" y="{B - h - 2:.1f}" class="lv m" '
                      f'text-anchor="middle">{e["per_share"]:.1f}</text></g>')
         if yv % 2 == 0:
@@ -1847,7 +1861,11 @@ def risk_cards(p) -> list:
         if no_loe:
             lines.append(_rr("none", f"{_plural(len(no_loe), 'line')} with no LOE on file",
                              usd(sum(v for _n, v in no_loe))))
-        vis = loe_svg(p) + (f'<div class="rs-n">{" ".join(note)}</div>' if note else "")
+        key = ('<div class="cx-leg"><span><svg width="10" height="8" viewBox="0 0 10 8" aria-hidden="true">'
+               '<rect class="sm" width="10" height="8"/></svg>small molecule</span><span><svg width="10" '
+               'height="8" viewBox="0 0 10 8" aria-hidden="true"><rect class="bio" width="10" height="8"/>'
+               '</svg>biologic</span><span>shaded: the three years that carry the most</span></div>')
+        vis = loe_svg(p) + key + (f'<div class="rs-n">{" ".join(note)}</div>' if note else "")
         body = ("".join(lines) + '<div class="rs-f">Value the model carries on the line, not '
                 'value lost at LOE. The year is the model\'s.</div>')
     else:

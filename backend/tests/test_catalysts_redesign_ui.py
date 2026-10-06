@@ -275,6 +275,27 @@ def test_the_standard_review_is_printed_with_its_own_study(payload):
             assert ap["standard"] > ap["earliest"], row["name"]
 
 
+def test_a_colour_means_one_thing_across_the_tab(payload):
+    """Orange and purple are small molecule and biologic on the timeline's exclusivity lane;
+    the risk register drew every LOE bar orange and the crowding leader purple, and the
+    unpriced reasons in the phase colours. Bars now stack by modality, the leader and the
+    reasons are neutral, and only the FDA reason keeps the FDA colour."""
+    loe = CV.loe_svg(payload)
+    by = payload["loe_by_year"]
+    for year, v in by.items():
+        if CV._today(payload).year <= int(year) < CV._today(payload).year + 15:
+            want = [CV._modality_class(q[2]) for q in v["products"] if q[1] > 0]
+            got = re.findall(r'class="(sm|bio|unk)(?: dim| past)?"',
+                             loe[loe.index(f"<title>{year}:"):].split("</g>")[0])
+            assert got == want, year
+    css = CSS.read_text()
+    reasons = dict(re.findall(r"\.cx \.(u\d) \{ background: ([^;]+);", css))
+    assert reasons["u3"] == "var(--phase-filed)"
+    assert not any("phase" in v for k, v in reasons.items() if k != "u3")
+    assert "purple-book" not in re.search(r"\.cr \.cr-lead \{[^}]*\}", css).group(0)
+    assert "purple-book" not in re.search(r"\.cx-risk\.k-pool \{[^}]*\}", css).group(0)
+
+
 def test_a_company_with_no_priced_stakes_still_draws(payload):
     for p in (_no_stakes(payload), _empty(payload)):
         blocks = _blocks(p)

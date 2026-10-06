@@ -366,7 +366,7 @@
   border-left: 2px solid var(--accent); transition: border-color 120ms linear; }
 .cx-risk.k-loe { --accent: var(--orange-book); }
 .cx-risk.k-slip { --accent: var(--down); }
-.cx-risk.k-pool { --accent: var(--purple-book); }
+.cx-risk.k-pool { --accent: var(--muted); }
 .cx-risk.k-rec { --accent: var(--phase-3); }
 .cx-risk.k-reg { --accent: var(--flag); }
 .cx-risk:hover { border-color: var(--rule-strong); border-left-color: var(--accent); }
@@ -400,12 +400,17 @@
 .cx-rr .r { text-align: right; }
 .cx-rr .m { font-size: 10.5px; }
 .rs-f { font-size: 10px; color: var(--muted); margin-top: 5px; line-height: 1.38; }
-.loe .wall { fill: color-mix(in oklab, var(--panel) 82%, var(--orange-book)); }
-.loe .lb { fill: color-mix(in oklab, var(--panel) 45%, var(--orange-book)); }
-.loe .lb-w { fill: var(--orange-book); }
-.loe .lb-p { stroke: var(--orange-book); stroke-width: 1; }
-.loe .lh-ln { fill: var(--orange-book); }
-.loe .lv { font-size: 8.5px; fill: var(--muted); }
+/* Bars stacked by modality in the timeline's exclusivity colours: the wall in full, the
+   other years lighter, this year's lighter still. The wall's shade is neutral. */
+.loe .wall { fill: color-mix(in oklab, var(--panel) 80%, var(--text)); }
+.loe .sm { fill: var(--orange-book); }
+.loe .bio { fill: var(--purple-book); }
+.loe .unk { fill: var(--muted); }
+.loe .dim { fill-opacity: 0.55; }
+.loe .past { fill-opacity: 0.3; }
+.loe .lv { font-size: 9px; fill: var(--muted); }
+.cx-risk .cx-leg .sm { fill: var(--orange-book); }
+.cx-risk .cx-leg .bio { fill: var(--purple-book); }
 .sl .sl-n { font-size: 10px; fill: var(--muted); }
 .sl .sl-n.g { fill: var(--text); font-weight: 600; }
 .sl .old { fill: none; stroke: var(--muted); }
@@ -415,7 +420,7 @@
 .sl .slip-ln.g { stroke: var(--down); stroke-width: 1.4; }
 .cr .cr-t { font-size: 10.5px; fill: var(--muted); }
 .cr .cr-t.me { fill: var(--up); font-weight: 600; }
-.cr .cr-lead { fill: var(--purple-book); opacity: 0.55; }
+.cr .cr-lead { fill: var(--muted); opacity: 0.7; }
 .cr .cr-me { fill: var(--up); }
 .rc .rc-up { fill: var(--up); stroke: var(--panel); stroke-width: 1.5; }
 .rc .rc-dn { fill: var(--down); stroke: var(--panel); stroke-width: 1.5; }
@@ -429,12 +434,14 @@
 .cx-ub i { display: flex; align-items: center; padding-left: 5px; font-style: normal;
   font-family: var(--font-mono); font-size: 9.5px; color: var(--ground); min-width: 14px; }
 .cx-ub i b { font-weight: 600; }
+/* Reasons are categories, not phases: a neutral ramp, and only the asset already at the FDA
+   decision keeps the FDA colour it has everywhere else on the tab. */
 .cx .u0 { background: var(--muted); }
-.cx .u1 { background: var(--phase-1); }
-.cx .u2 { background: var(--phase-2); }
+.cx .u1 { background: color-mix(in oklab, var(--muted) 72%, var(--panel)); }
+.cx .u2 { background: color-mix(in oklab, var(--muted) 50%, var(--panel)); }
 .cx .u3 { background: var(--phase-filed); }
 .cx .u4 { background: var(--rule-strong); }
-.cx-ub i.u1, .cx-ub i.u4 { color: var(--text); }
+.cx-ub i.u2, .cx-ub i.u4 { color: var(--text); }
 .cx-uk { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; font-size: 11px;
   color: var(--muted); }
 .cx-uk span { display: inline-flex; align-items: center; gap: 6px; }
