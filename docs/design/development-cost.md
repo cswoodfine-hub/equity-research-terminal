@@ -79,8 +79,11 @@ would not fund on these numbers is taken at nil.
 - Only studies in an indication the forecast values count, by the same MeSH test every
   gate view uses. A study in another disease (`other`), or one whose MeSH terms match no
   indication (`unmapped`), is listed under `outside` with its remaining cost as one separate
-  figure, never in the headline. At an FDA gate the still-open Phase 3s are listed there as
-  "not needed for this gate".
+  figure for the whole programme, never in the headline. At an FDA gate the still-open
+  Phase 3s are listed there as "not needed for this gate", and a Phase 2 run beside a
+  Phase 3 or FDA gate, in any indication, as "beside the gate, not on the path to it". So
+  every open Phase 2 and 3 study of the asset is either counted (headline or ladder) or in
+  that figure; a book guard holds it.
 - At the FDA gate the review is the only cost to reach it.
 
 ### Money as the valuation counts it

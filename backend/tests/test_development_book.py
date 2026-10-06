@@ -87,6 +87,25 @@ def test_the_arithmetic_reconciles_on_every_asset(views):
                     assert study["fit"] == "modelled", study
 
 
+def test_every_open_study_is_counted_or_in_the_separate_figure(views, book):
+    """The headline counts the gate's studies in a modelled indication, the ladder the
+    later stages', and the separate figure every other open Phase 2 and 3 study of the
+    asset, so the whole programme is accounted for and none silently drops out."""
+    import pos_granular as PG
+    states = ",".join("?" * len(PG.OPEN_STATUSES))
+    for view in views.values():
+        for row in _read(view):
+            listed = ({s["nct_id"] for st in row["stages"] for s in st["studies"]}
+                      | {s["nct_id"] for s in row["outside"]["studies"]})
+            answered = set(PG.read_out(book, row["asset_id"]))
+            live = {r[0] for r in book.execute(
+                f"""SELECT nct_id FROM trials WHERE asset_id = ?
+                      AND phase IN ('Phase 2', 'Phase 2/3', 'Phase 3')
+                      AND overall_status IN ({states})""",
+                (row["asset_id"], *PG.OPEN_STATUSES))}
+            assert live - answered <= listed, (row["name"], live - answered - listed)
+
+
 def test_failing_gates_come_first(views):
     for view in views.values():
         assert all(r["gate"]["funds"] is False for r in view["failing"])

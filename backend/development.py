@@ -32,9 +32,10 @@ no price index:
   All row. DiMasi's phase cost includes long-term animal testing and the cost of compounds
   that fail within the phase.
 
-Only studies in an indication the forecast values count. A study in another disease, or
-one whose MeSH terms match no indication, is listed and its remaining cost shown as one
-separate figure, never in the headline. Where no open study at the gate sits in an
+Only studies in an indication the forecast values count. A study in another disease, one
+whose MeSH terms match no indication, and a Phase 2 run beside a Phase 3 or FDA gate are
+listed and their remaining cost shown as one separate figure for the whole programme,
+never in the headline. Where no open study at the gate sits in an
 indication the forecast values, and none has been sunk into it, the cost to reach the gate
 is not read: it is None with the reason, never a nil that would read as a free gate, and
 the company view lists the line under ``uncosted``.
@@ -427,6 +428,26 @@ def _future_phase3(conn, asset_id, mesh, first_studies, rates, table, area_src, 
     return stage
 
 
+BESIDE_WHY = "beside the gate, not on the path to it"
+
+
+def _beside(conn, asset_id: int, mesh, stages_: list, rates: dict, today: dt.date) -> list:
+    """Every other open Phase 2 and 3 study of the asset that no stage counts or lists,
+    in any indication: a Phase 2 run beside a Phase 3 or FDA gate. With the studies the
+    stages leave outside, this makes the separate figure the whole programme beyond the
+    headline and the ladder, rather than the gate's own phase alone."""
+    listed = {s["nct_id"] for st in stages_ for s in st["studies"] + st["outside"]}
+    skip = set(pos_granular.read_out(conn, asset_id))
+    out = []
+    for study in _asset_studies(conn, asset_id, tuple(RATE_PHASE), mesh, skip):
+        if study["nct_id"] in listed:
+            continue
+        out.append({**study_cost(study, rates[RATE_PHASE[study["phase"]]], today),
+                    "fit": study["fit"], "indications": study["indications"],
+                    "why": BESIDE_WHY if study["fit"] == "modelled" else study["fit_why"]})
+    return out
+
+
 def _unread(stage: dict) -> dict:
     """The first stage when no open study at the gate's phases sits in an indication the
     forecast values. Nothing has been sunk into the gate and nothing is counted towards
@@ -687,7 +708,10 @@ def _for_asset(conn, company, asset, today, *, peers=None, table=None) -> dict:
         for key in ("cost", "value_if_passed", "net"):
             row_[f"{key}_per_share"] = per_share(row_[key])
 
-    outside = [s for st in stages_ for s in st["outside"]]
+    rates_pp = {phase: _figure(table, area_src, phase, "per_patient_usd")
+                for phase in ("2", "3")}
+    outside = ([s for st in stages_ for s in st["outside"]]
+               + _beside(conn, asset_id, mesh, stages_, rates_pp, today))
     outside_stage = {"spend": _spend(outside)}
     outside_cost = _money(outside_stage, rate=wacc, anchor=anchor, to_ccy=to_ccy, keep=keep)
     year_ahead = today + dt.timedelta(days=365)
@@ -737,9 +761,11 @@ def _for_asset(conn, company, asset, today, *, peers=None, table=None) -> dict:
         "outside": {"studies": outside,
                     "cost_usd_mm": sum(s["ahead_usd_mm"] for s in outside),
                     "cost": outside_cost, "cost_per_share": per_share(outside_cost),
-                    "note": ("Studies outside the indications the forecast values, and any "
-                             "open Phase 3 not needed for an FDA gate: their remaining "
-                             "cost, never in the headline.")},
+                    "note": ("Every other open Phase 2 and 3 study of the asset: outside "
+                             "the indications the forecast values, matched to none, not "
+                             "needed for an FDA gate, or run beside the gate rather than "
+                             "on the path to it. Their remaining cost, as one figure for "
+                             "the whole programme, never in the headline.")},
         "next_12m": {"named_usd_mm": next_12m_usd,
                      "named": next_12m_usd * to_ccy * portion,
                      "basis": ("registry studies' spend in the next 12 months, pre-tax, "

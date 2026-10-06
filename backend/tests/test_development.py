@@ -204,6 +204,32 @@ def test_a_phase_3_asset_counts_the_modelled_study_and_reports_the_other(tmp_pat
         gate["cost"] * D.dimasi_ratio(D.costs_table())["3"])
 
 
+def test_the_separate_figure_is_the_whole_programme_beyond_the_headline(tmp_path, big):
+    """A Phase 3 asset also running two Phase 2s, one in its modelled disease and one in
+    another. Neither is on the path to the Phase 3 readout, so neither is in the headline;
+    both are in the separate figure, each with its why, so it covers the whole programme
+    rather than the gate's own phase alone. A Phase 1 is never counted."""
+    path, conn = _book(tmp_path)
+    _trial(conn, "NCT00000001", 7, enrollment=500)
+    _trial(conn, "NCT00000003", 7, phase="Phase 2", enrollment=100, pcd="2028-06-30")
+    _trial(conn, "NCT00000004", 7, phase="Phase 2", enrollment=80, disease=AMYLOID,
+           pcd="2028-06-30")
+    _trial(conn, "NCT00000005", 7, phase="Phase 1", enrollment=40, pcd="2027-06-30")
+    conn.close()
+    got = D.for_asset(path, "ABBV", 7, TODAY)
+    assert [s["nct_id"] for s in got["stages"][0]["studies"]] == ["NCT00000001"]
+    outside = {s["nct_id"]: s for s in got["outside"]["studies"]}
+    assert set(outside) == {"NCT00000003", "NCT00000004"}
+    assert outside["NCT00000003"]["why"] == D.BESIDE_WHY
+    assert outside["NCT00000004"]["why"] == "in an indication the forecast does not value"
+    share = _share_ahead(dt.date(2025, 10, 6), dt.date(2028, 6, 30))
+    assert outside["NCT00000003"]["ahead_usd_mm"] == pytest.approx(100 * 78753 / 1e6 * share)
+    assert got["outside"]["cost_usd_mm"] == pytest.approx(180 * 78753 / 1e6 * share)
+    # The headline is untouched by them.
+    full = 500 * 93145 / 1e6
+    assert got["gate"]["full_usd_mm"] == pytest.approx(full)
+
+
 def test_the_success_leg_is_the_one_the_verdict_shows(tmp_path, big):
     path, conn = _book(tmp_path)
     _trial(conn, "NCT00000001", 7)
