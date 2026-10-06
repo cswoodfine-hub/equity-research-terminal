@@ -50,6 +50,8 @@ def test_data_phase_reads_the_data_not_the_study():
 
 def test_short_event_keeps_words_from_the_title_only():
     assert uc.short_event("Phase 3, Truqap") == "Truqap"
+    assert uc.short_event("bepirovirsen PDUFA, treatment of adults with chronic hepatitis B "
+                          "(CHB)") == "Bepirovirsen"
     assert uc.short_event("Phase 2, A Study of AZD0901 in Gastric Cancer Patients") == "AZD0901"
     named = uc.short_event("Phase 2, A Randomised Open Label Study in Adults With Disease X",
                            ["Hepatobiliary Neoplasm", "Other"])
@@ -73,6 +75,9 @@ def test_policy_labels_come_from_the_title():
     guidance = {"title": "Medicare Drug Price Negotiation Program: Draft Guidance",
                 "doc_type": "Notice"}
     assert uc.policy_short(guidance) == "Negotiation draft guidance"
+    rfi = {"title": "Request for Information; Medicare Part D Reasonable and Relevant "
+                    "Pharmacy Contracting Standards", "doc_type": "Notice"}
+    assert uc.policy_short(rfi) == "Pharmacy contracting RFI"
 
 
 def test_note_rate_move_reads_the_stored_sentence_or_nothing():

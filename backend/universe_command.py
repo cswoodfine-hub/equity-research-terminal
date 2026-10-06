@@ -151,6 +151,11 @@ def short_event(title: str | None, conditions=None) -> str:
     if " PDUFA" in rest:
         rest = rest.split(" PDUFA")[0]
         return rest[:1].upper() + rest[1:]
+    # "bepirovirsen PDUFA, treatment of adults with chronic hepatitis B": the asset is the
+    # word before PDUFA, not the indication after the comma.
+    if head.endswith(" PDUFA") and head[:-6].strip():
+        name = head[:-6].strip()
+        return name[:1].upper() + name[1:]
     if len(rest) <= 22:
         return rest
     code = _CODE_RE.search(rest)
@@ -209,7 +214,8 @@ def policy_short(item: dict) -> str:
         tail = title.split(";")[-1].strip().split()
         words = [w for w in tail if w.lower() not in ("standards", "and", "relevant",
                                                        "reasonable", "medicare", "part", "d")]
-        return (" ".join(words[-2:]).lower() + " RFI").strip().capitalize()
+        what = " ".join(words[-2:]).lower()
+        return (what[:1].upper() + what[1:] + " RFI").strip()
     if "onshoring" in low:
         return "Onshoring agreements"
     if "reduction of tariffs" in low:
