@@ -51,11 +51,15 @@ CODES_SOURCE = "RxNav, U.S. National Library of Medicine"
 CO_MARKETED_LABEL = "Brand totals, not this company's share"
 FILE_POPULATION = "prescribers with 11 or more claims for the drug (the file population)"
 PROXY_LABEL = "a proxy, not a PDC"
+# Above 1 is not one story. Lamictal XR (1.04 in 2024), Kuvan and Emflaza are taken
+# daily and still pass 1, through overlapping or short fills; Fabrazyme (1.53) is
+# infused every two weeks, and each of its fills counts as a full 30-day one.
 PROXY_CAVEAT = (
     "Days covered is 30-day fills times 30 over beneficiaries times 365: a proxy, not a "
     "PDC. It falls when patients start or stop during the year as well as when they miss "
-    "doses, and it can pass 1 for a drug given more often than monthly, since CMS counts "
-    "every fill as at least one 30-day fill.")
+    "doses. It can pass 1 where supplies overlap, as when two strengths are filled "
+    "together or a refill comes early, and where fills run under 30 days, since CMS "
+    "counts each as one 30-day fill, as for a drug given every week or two.")
 FILE_CAVEAT = (
     "The provider file leaves out any prescriber with fewer than 11 claims for the drug, "
     "so its figures, the deciles among them, describe that population and not every "

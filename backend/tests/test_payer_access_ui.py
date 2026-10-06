@@ -98,7 +98,18 @@ def test_a_proxy_above_one_is_printed_as_it_is_and_explained(view):
     access["prescribing"]["days_covered"]["value"] = 1.53      # Fabrazyme, every 2 weeks
     words = text_of(view["_payer_prescribing_html"](access))
     assert "1.53 times each beneficiary's year" in words
-    assert "given more often than monthly" in words
+    assert "where supplies overlap, as when two strengths are filled together" in words
+    assert "fills run under 30 days" in words
+
+
+def test_a_daily_drug_above_one_is_not_called_frequent_dosing(view):
+    # Lamictal XR, a once-daily tablet, read 1.04 in 2024: overlapping or short fills,
+    # not a drug given more often than monthly.
+    access = copy.deepcopy(load("eliquis"))
+    access["prescribing"]["days_covered"]["value"] = 1.0398
+    words = text_of(view["_payer_prescribing_html"](access))
+    assert "1.04 times each beneficiary's year" in words
+    assert "more often than monthly" not in words
 
 
 def test_a_vaccine_says_the_proxy_does_not_apply(view):

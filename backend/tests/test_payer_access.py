@@ -129,7 +129,11 @@ def test_the_days_covered_proxy_is_labelled_and_never_capped(conn):
                  " WHERE asset_id = ? AND data_year = 2024", (ELIQUIS_BMY,))
     dc = pa.for_asset(conn, ELIQUIS_BMY)["prescribing"]["days_covered"]
     assert dc["value"] == 1.53 and dc["above_one"]
-    assert "pass 1 for a drug given more often than monthly" in pa.PROXY_CAVEAT
+    # Above 1 has more than one cause, and the caveat names both: a daily tablet
+    # (Lamictal XR, 1.04) passes it through overlapping or short fills too.
+    assert "where supplies overlap" in pa.PROXY_CAVEAT
+    assert "fills run under 30 days" in pa.PROXY_CAVEAT
+    assert "given more often than monthly" not in pa.PROXY_CAVEAT
 
 
 def test_a_vaccine_holds_the_proxy_but_says_it_does_not_apply(conn):

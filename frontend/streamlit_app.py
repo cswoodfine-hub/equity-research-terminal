@@ -715,9 +715,12 @@ def _payer_days_text(p: dict) -> str:
     if value <= 1:
         return (f"Days supplied cover {value:.0%} of each beneficiary's year. A proxy, "
                 f"not a PDC: it also falls when patients start or stop mid-year.")
+    # Not only the frequent-dosing case: a daily tablet passes 1 when two strengths are
+    # filled together, refills come early or packs run under 30 days (Lamictal XR, 1.04).
     return (f"Days supplied come to {value:.2f} times each beneficiary's year. A proxy, "
-            f"not a PDC: above 1 for a drug given more often than monthly, since CMS "
-            f"counts every fill as at least one 30-day fill.")
+            f"not a PDC: it passes 1 where supplies overlap, as when two strengths are "
+            f"filled together, and where fills run under 30 days, which CMS counts as "
+            f"full 30-day fills, as for a drug given every week or two.")
 
 
 def _payer_prescribing_html(access: dict) -> str:
