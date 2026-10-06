@@ -53,3 +53,37 @@ line's fade years.
   & Johnson's tail without the COVID-19 vaccine's fall).
 - Where the filings show no decline, the line is left as it is and listed in
   `tests/test_company_lines.py`, so a new flat line has to be read before it is accepted.
+
+## How far spend buys launches
+
+`future_pipeline.simulate` runs sixty years from the valuation year
+(`data/future_pipeline_defaults.csv`, `horizon_years`). R&D spent in year s, the book's own
+and, past each product's forecast, the R&D its terminal value charges at its final-year
+ratio, buys a cohort that launches at s + 8 (`lag_years`) and earns the filer's blended
+launch rate on that spend for 12 years (the `unknown` row of `data/loe_defaults.csv`), then
+drops 25% and decays 20% a year (`data/erosion_defaults.csv`). The rate is the same for
+every vintage. So spend from the first forecast year to the 52nd buys launches, the last of
+them landing in the 60th year, and cash is counted to the 60th year with no terminal value.
+Two caps hold it: launch revenue fills only the room the book leaves below its best real
+year, grown at 10-year breakeven inflation, and the launches' own R&D is credited only as
+far as it holds the franchise at that real size.
+
+The horizon is not cut, for three measured reasons.
+
+- The cost runs further than the credit. Every product's terminal value charges its R&D for
+  ever, so spend after the 52nd year is charged and buys nothing. Cutting the credit at an
+  earlier year while keeping the charge would rebuild the asymmetry the future pipeline
+  exists to remove. At Amgen, cutting it at the 12-year cohort term the rate is measured on
+  takes the future pipeline from 145.93 to 87.94 a share, while the 34.7 a share of
+  after-tax R&D the book charges from 2038 to 2077 stays charged.
+- No sourced trend says the next dollar buys less. The module measures revenue per lagged
+  R&D dollar falling 5.5% to 6.6% a year across past vintages and uses that decay to set
+  today's rate, which nets it against the lag. Carrying it forward is a further claim the
+  data does not settle: the late cohort's rate against the early one bootstraps from 0.25
+  to 1.19.
+- Discounting and the caps already bound it. On 2026-10-06, across the 22 companies with a
+  future pipeline, a median 17.5% of its value is bought by spend after 2045 and 7.0% by
+  spend after 2055 (Amgen 22.4% and 9.2%).
+
+What made a line pay for fifty years of launches was its own flat perpetuity, which the
+terminal rule above corrects: a basket running off spends less R&D each year it falls.
