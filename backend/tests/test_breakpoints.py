@@ -102,10 +102,11 @@ def test_the_break_point_is_where_equity_meets_the_price(tmp_path):
     assert (moved * 1e6 + (1000e6 - 3000e6)) / 100e6 == pytest.approx(close, rel=1e-4)
 
 
-def test_an_loe_break_point_before_the_window_is_found(tmp_path):
-    """A stated LOE before the window sits further down the erosion curve rather than in
-    the reported base, so a price that needs the cliff four years ago is met there. The
-    search used to stop at the year before the window and call it out of reach."""
+def test_an_loe_break_point_stops_at_the_year_before_the_window(tmp_path):
+    """The LOE lever is offered only where the record puts the cliff ahead, so the
+    earliest it can fall is the year before the window. A price that needs the cliff
+    four years ago is out of the lever's reach, named at that year, even though the engine
+    would value 2022 further down the curve; a price met at 2027 is found there."""
     import assumptions
     import forecast_view as V
 
@@ -119,12 +120,15 @@ def test_an_loe_break_point_before_the_window_is_found(tmp_path):
         return path
 
     at = {year: V.company_verdict(priced(f"v{year}", 1.0, year), "AMGN")["sotp"]
-          ["equity_per_share"] for year in (2022, 2023)}
-    assert at[2022] < at[2023]
+          ["equity_per_share"] for year in (2022, 2023, 2026, 2027)}
+    assert at[2022] < at[2023] < at[2026] < at[2027]
     got = B.company(priced("bp", (at[2022] + at[2023]) / 2.0, 2029), "AMGN")
     assert got["ok"] and got["direction"] == "down"
     loe = next(l for l in got["levers"] if l["key"] == "loe_year")
-    assert loe["reachable"] and loe["break"] == 2022
+    assert not loe["reachable"] and loe["break"] is None and loe["bound"] == 2025
+    got = B.company(priced("near", (at[2026] + at[2027]) / 2.0, 2029), "AMGN")
+    loe = next(l for l in got["levers"] if l["key"] == "loe_year")
+    assert loe["reachable"] and loe["break"] == 2026
 
 
 def test_groups_read_the_file_and_match_what_the_company_carries(tmp_path):

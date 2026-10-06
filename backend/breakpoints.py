@@ -87,7 +87,8 @@ def solve(f, current: float, lo: float, hi: float, integer: bool = False) -> dic
     an LOE stated before the window was read as in the reported base, where the value
     jumped back up, so Vertex met the price with Trikafta's LOE at 2032 while both bounds
     said it could not. A stated LOE now only moves a cliff the record puts ahead, so the
-    search runs the whole bracket.
+    value moves one way with it; the caller still stops an LOE search at the year before
+    the window, the earliest a cliff still ahead can fall.
     A rate is bisected from the current value toward whichever bound changes its sign,
     which assumes it moves the value one way, as every rate lever here does. A trial the
     engine refuses counts as not crossing. {"value", "reachable", "bound"}."""
@@ -493,10 +494,15 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
 
         for label, key, current, kind, _step in V.lever_specs(inputs, built):
             if kind == "year":
-                # The whole bracket, before the window too: a stated LOE before it sits
-                # further down the erosion curve rather than in the base (forecast.build),
-                # so a crossing there is the product's, not a jump back up.
                 lo, hi = current + YEARS[0], current + YEARS[1]
+                # The lever is offered only where the record puts the cliff ahead, so the
+                # earliest it can fall is the year before the window, its first-year drop
+                # landing in the first forecast year. An earlier year is a cliff the
+                # reported revenue shows did not happen: the engine reads it monotonically
+                # now (forecast.build), but "the price needs Repatha's LOE in 2018" is not
+                # a date anyone can hold, so the search stops at the year before the window.
+                if key == "loe_year" and built.get("years"):
+                    lo = max(lo, built["years"][0] - 1)
                 found = solve(lambda x: gap_for(V.apply_lever(inputs, key, int(x))),
                               current, lo, hi, integer=True)
             elif kind == "years":
