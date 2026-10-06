@@ -1,0 +1,634 @@
+{
+ "ticker": "LLY",
+ "asset_id": 1492,
+ "name": "Retatrutide",
+ "price_year": 2018,
+ "ok": true,
+ "currency": "USD",
+ "fx": {
+  "currency": "USD",
+  "rate": null,
+  "as_of": null
+ },
+ "portion": 1.0,
+ "portion_basis": "the owner's own asset",
+ "tax_rate": 0.1637,
+ "after_tax": true,
+ "tax_basis": "after tax at the asset's 16.4%, the company bearing the cost being on the pharma engine",
+ "wacc": 0.07945607424,
+ "anchor": "2025-12-31",
+ "anchor_basis": "31 December of the valuation year",
+ "area": "Metabolic",
+ "cost_area": "Endocrine",
+ "area_basis": "Metabolic read as Sertkaya's Endocrine: Sertkaya has no metabolic class, so the endocrine rates stand in for it",
+ "gate": {
+  "gate": "p3_to_nda",
+  "label": "Phase 3 readout",
+  "date": "2026-11",
+  "date_basis": "primary completion on the registry",
+  "due": false,
+  "trial": {
+   "nct_id": "NCT06662383",
+   "phase": "Phase 3",
+   "status": "Active not recruiting",
+   "primary_completion": "2026-11",
+   "enrollment": 800,
+   "indications": [
+    "Obesity"
+   ]
+  },
+  "p": 0.9790757524896497,
+  "p_evidence": "implied",
+  "p_published": 0.6100635963435609,
+  "stated_pos": true,
+  "placed": null,
+  "pos_success": 0.8937,
+  "pos_now": 0.875,
+  "success_leg": 18573.773077508275,
+  "success_leg_per_share": 20.653589544655038,
+  "ev": 18185.130852433413,
+  "ev_per_share": 20.221428725045495,
+  "rnpv": 18185.13085243341,
+  "rnpv_per_share": 20.22142872504549,
+  "cost": 41.18894671155404,
+  "cost_per_share": 0.04580111943906821,
+  "net": 18143.94190572186,
+  "net_per_share": 20.175627605606426,
+  "breakeven_p": 0.0022175864074398207,
+  "funds": true,
+  "cost_usd_mm": 55.14960875336121,
+  "full_usd_mm": 140.35988700000001,
+  "unread": false,
+  "route": "registry",
+  "grade": "convention",
+  "basis": "5 open studies in an indication the forecast values, at enrolment x the area's per-patient rate x the share of each run still ahead",
+  "high": {
+   "cost": 117.80131007985332,
+   "cost_per_share": 0.13099222737668556,
+   "net": 18067.32954235356,
+   "net_per_share": 20.09043649766881,
+   "breakeven_p": 0.006342346791266856,
+   "funds": true,
+   "label": "at DiMasi 2016's per-phase level, which includes long-term animal testing and the cost of compounds that fail within the phase; 2013 against 2018 dollars, so the ratio is if anything low"
+  },
+  "held": {
+   "open": 5,
+   "ncts": [
+    "NCT06383390",
+    "NCT06859268",
+    "NCT07357415",
+    "NCT07035093",
+    "NCT07232719"
+   ],
+   "indications": [
+    "Cardiovascular Diseases",
+    "Kidney Failure, Chronic",
+    "Obesity",
+    "Overweight"
+   ],
+   "pos": 0.5452,
+   "note": "A miss leaves 5 other Phase 3s open; the model's own rule would hold it at 55%, but the stated PoS governs until it is cleared.",
+   "stated_governs": true
+  },
+  "legs_basis": "implied, not published: the stated PoS of 87.5% over the 89.4% the asset carries if its Phase 3 readout passes gives gate odds of 97.9%, against 61.0% published; a failure is taken at nil, the model's convention for a failed programme"
+ },
+ "ladder": {
+  "label": "after later trial costs",
+  "rows": [
+   {
+    "gate": "p3_to_nda",
+    "label": "Phase 3 readout",
+    "date": "2026-11",
+    "p": 0.9790757524896497,
+    "cost": 41.18894671155404,
+    "value_if_passed": 18571.73318250689,
+    "ev_at_gate": 18183.133640699933,
+    "net": 18141.94469398838,
+    "breakeven_p": 0.0022178299842445927,
+    "funds": true,
+    "value_if_passed_floored": 18571.73318250689,
+    "floored": false,
+    "cost_per_share": 0.04580111943906821,
+    "value_if_passed_per_share": 20.651321230409085,
+    "net_per_share": 20.173406754129186
+   },
+   {
+    "gate": "nda_to_approval",
+    "label": "FDA decision",
+    "date": null,
+    "p": 0.8937134955015414,
+    "cost": 2.0398950013841155,
+    "value_if_passed": 20782.692855146932,
+    "ev_at_gate": 18573.773077508275,
+    "net": 18571.73318250689,
+    "breakeven_p": 9.815354610694379e-05,
+    "funds": true,
+    "value_if_passed_floored": 20782.692855146932,
+    "floored": false,
+    "cost_per_share": 0.0022683142459514237,
+    "value_if_passed_per_share": 23.109855282049296,
+    "net_per_share": 20.651321230409085
+   }
+  ],
+  "value_on_approval": 20782.692855146932,
+  "risked_cost": 43.18615844503407,
+  "value_today": 18141.94469398838,
+  "rnpv": 18185.13085243341,
+  "npv": 20783.006688495327,
+  "value_today_per_share": 20.173406754129186,
+  "risked_cost_per_share": 0.04802197091630609,
+  "high": {
+   "rows": [
+    {
+     "gate": "p3_to_nda",
+     "label": "Phase 3 readout",
+     "date": "2026-11",
+     "p": 0.9790757524896497,
+     "cost": 117.80131007985332,
+     "value_if_passed": 18571.73318250689,
+     "ev_at_gate": 18183.133640699933,
+     "net": 18065.33233062008,
+     "breakeven_p": 0.006343043426383752,
+     "funds": true,
+     "value_if_passed_floored": 18571.73318250689,
+     "floored": false,
+     "cost_per_share": 0.13099222737668556,
+     "value_if_passed_per_share": 20.651321230409085,
+     "net_per_share": 20.08821564619157
+    },
+    {
+     "gate": "nda_to_approval",
+     "label": "FDA decision",
+     "date": null,
+     "p": 0.8937134955015414,
+     "cost": 2.0398950013841155,
+     "value_if_passed": 20782.692855146932,
+     "ev_at_gate": 18573.773077508275,
+     "net": 18571.73318250689,
+     "breakeven_p": 9.815354610694379e-05,
+     "funds": true,
+     "value_if_passed_floored": 20782.692855146932,
+     "floored": false,
+     "cost_per_share": 0.0022683142459514237,
+     "value_if_passed_per_share": 23.109855282049296,
+     "net_per_share": 20.651321230409085
+    }
+   ],
+   "risked_cost": 119.79852181333335,
+   "value_today": 18065.33233062008,
+   "label": "at DiMasi 2016's per-phase level, which includes long-term animal testing and the cost of compounds that fail within the phase; 2013 against 2018 dollars, so the ratio is if anything low"
+  }
+ },
+ "stages": [
+  {
+   "gate": "p3_to_nda",
+   "label": "Phase 3 readout",
+   "route": "registry",
+   "studies": [
+    {
+     "nct_id": "NCT06662383",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "A Study of Retatrutide (LY3437943) Compared to Tirzepatide (LY3298176) in Adults Who Have Obesity",
+     "enrollment": 800,
+     "start": "2024-11-01",
+     "primary_completion": "2026-11",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 39.0024,
+     "share_ahead": 0.03561643835616438,
+     "ahead_usd_mm": 1.3891265753424658,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2026-11-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "4% of its run from 2024-11-01 to 2026-11-01 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Obesity"
+     ]
+    },
+    {
+     "nct_id": "NCT06859268",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "A Study of Retatrutide (LY3437943) in the Maintenance of Weight Reduction in Individuals With Obesity",
+     "enrollment": 643,
+     "start": "2025-03-05",
+     "primary_completion": "2028-04",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 31.348179,
+     "share_ahead": 0.4835262689225289,
+     "ahead_usd_mm": 15.157668029385572,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-04-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "48% of its run from 2025-03-05 to 2028-04-01 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Obesity"
+     ]
+    },
+    {
+     "nct_id": "NCT07357415",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "A Study of Retatrutide (LY3437943) in Participants Without Type 2 Diabetes Who Have Obesity or Overweight",
+     "enrollment": 600,
+     "start": "2026-01-24",
+     "primary_completion": "2028-10",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 29.2518,
+     "share_ahead": 0.7400611620795107,
+     "ahead_usd_mm": 21.64812110091743,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-10-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "74% of its run from 2026-01-24 to 2028-10-01 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Obesity",
+      "Overweight"
+     ]
+    },
+    {
+     "nct_id": "NCT07035093",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "A Study of Retatrutide (LY3437943) in Participants Who Have Obesity or Overweight and Chronic Low Back Pain",
+     "enrollment": 586,
+     "start": "2025-05-29",
+     "primary_completion": "2027-09",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 28.569258,
+     "share_ahead": 0.4,
+     "ahead_usd_mm": 11.427703200000002,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2027-09-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "40% of its run from 2025-05-29 to 2027-09-01 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Obesity",
+      "Overweight"
+     ]
+    },
+    {
+     "nct_id": "NCT07232719",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "A Study of Retatrutide (LY3437943) in Participants With Obesity or Overweight",
+     "enrollment": 250,
+     "start": "2025-11-17",
+     "primary_completion": "2027-07",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 12.18825,
+     "share_ahead": 0.45346869712351945,
+     "ahead_usd_mm": 5.526989847715736,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2027-07-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "45% of its run from 2025-11-17 to 2027-07-01 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Obesity",
+      "Overweight"
+     ]
+    }
+   ],
+   "outside": [
+    {
+     "nct_id": "NCT06383390",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "The Effect of Retatrutide Once Weekly on Cardiovascular Outcomes and Kidney Outcomes in Adults Living With Obesity (TRIUMPH-Outcomes)",
+     "enrollment": 10000,
+     "start": "2024-04-30",
+     "primary_completion": "2029-02",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 487.53,
+     "share_ahead": 0.48849252013808975,
+     "ahead_usd_mm": 238.1547583429229,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2029-02-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "49% of its run from 2024-04-30 to 2029-02-01 is ahead, on a straight line",
+     "fit": "other",
+     "indications": [
+      "Cardiovascular Diseases",
+      "Kidney Failure, Chronic"
+     ],
+     "why": "in an indication the forecast does not value"
+    },
+    {
+     "nct_id": "NCT05882045",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "A Study of Retatrutide (LY3437943) in Participants With Obesity and Cardiovascular Disease",
+     "enrollment": 1946,
+     "start": "2023-05-30",
+     "primary_completion": "2026-04-16",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 94.873338,
+     "share_ahead": 0.0,
+     "ahead_usd_mm": 0.0,
+     "missing": null,
+     "spend_from": null,
+     "spend_to": null,
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "passed primary completion, so its cost is sunk",
+     "fit": "unmapped",
+     "indications": [],
+     "why": "it has no MeSH terms on file"
+    },
+    {
+     "nct_id": "NCT06260722",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "Effect of Retatrutide Compared With Semaglutide in Adult Participants With Type 2 Diabetes and Inadequate Glycemic Control With Metformin With or Without SGLT2 Inhibitor (TRANSCEND-T2D-2)",
+     "enrollment": 1250,
+     "start": "2024-02-21",
+     "primary_completion": "2026-08-27",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 60.94125,
+     "share_ahead": 0.0,
+     "ahead_usd_mm": 0.0,
+     "missing": null,
+     "spend_from": null,
+     "spend_to": null,
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "passed primary completion, so its cost is sunk",
+     "fit": "other",
+     "indications": [
+      "Diabetes Mellitus, Type 2"
+     ],
+     "why": "in an indication the forecast does not value"
+    },
+    {
+     "nct_id": "NCT05929079",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "A Study of Retatrutide (LY3437943) in Participants With Type 2 Diabetes Mellitus Who Have Obesity or Overweight",
+     "enrollment": 1000,
+     "start": "2023-07-11",
+     "primary_completion": "2026-05",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 48.753,
+     "share_ahead": 0.0,
+     "ahead_usd_mm": 0.0,
+     "missing": null,
+     "spend_from": null,
+     "spend_to": null,
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "passed primary completion, so its cost is sunk",
+     "fit": "unmapped",
+     "indications": [],
+     "why": "it has no MeSH terms on file"
+    },
+    {
+     "nct_id": "NCT06297603",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "Effect of Retatrutide Compared With Placebo in Participants With Type 2 Diabetes and Moderate or Severe Renal Impairment, With Inadequate Glycemic Control on Basal Insulin, With or Without Metformin and/or SGLT2 Inhibitor (TRANSCEND-T2D-3)",
+     "enrollment": 320,
+     "start": "2024-03-15",
+     "primary_completion": "2026-10",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 15.60096,
+     "share_ahead": 0.0,
+     "ahead_usd_mm": 0.0,
+     "missing": null,
+     "spend_from": null,
+     "spend_to": null,
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "passed primary completion, so its cost is sunk",
+     "fit": "other",
+     "indications": [
+      "Diabetes Mellitus, Type 2",
+      "Diabetes Mellitus"
+     ],
+     "why": "in an indication the forecast does not value"
+    }
+   ],
+   "date": "2026-11",
+   "date_basis": "primary completion on the registry",
+   "cost_usd_mm": 55.14960875336121,
+   "full_usd_mm": 140.35988700000001,
+   "grade": "convention",
+   "basis": "5 open studies in an indication the forecast values, at enrolment x the area's per-patient rate x the share of each run still ahead",
+   "p": 0.9790757524896497,
+   "p_implied": true
+  },
+  {
+   "gate": "nda_to_approval",
+   "label": "FDA decision",
+   "route": "review",
+   "studies": [],
+   "outside": [],
+   "cost_usd_mm": 2.6,
+   "full_usd_mm": 2.6,
+   "date": null,
+   "date_basis": "the FDA decision follows the review; no date is computed here",
+   "grade": "analogue",
+   "basis": "Sertkaya's FDA review out of pocket, $2.6mm, spent as the review starts",
+   "p": 0.8937134955015414,
+   "p_implied": false
+  }
+ ],
+ "outside": {
+  "studies": [
+   {
+    "nct_id": "NCT06383390",
+    "phase": "Phase 3",
+    "status": "Active not recruiting",
+    "title": "The Effect of Retatrutide Once Weekly on Cardiovascular Outcomes and Kidney Outcomes in Adults Living With Obesity (TRIUMPH-Outcomes)",
+    "enrollment": 10000,
+    "start": "2024-04-30",
+    "primary_completion": "2029-02",
+    "per_patient_usd": 48753.0,
+    "full_usd_mm": 487.53,
+    "share_ahead": 0.48849252013808975,
+    "ahead_usd_mm": 238.1547583429229,
+    "missing": null,
+    "spend_from": "2026-10-06",
+    "spend_to": "2029-02-01",
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "49% of its run from 2024-04-30 to 2029-02-01 is ahead, on a straight line",
+    "fit": "other",
+    "indications": [
+     "Cardiovascular Diseases",
+     "Kidney Failure, Chronic"
+    ],
+    "why": "in an indication the forecast does not value"
+   },
+   {
+    "nct_id": "NCT05882045",
+    "phase": "Phase 3",
+    "status": "Active not recruiting",
+    "title": "A Study of Retatrutide (LY3437943) in Participants With Obesity and Cardiovascular Disease",
+    "enrollment": 1946,
+    "start": "2023-05-30",
+    "primary_completion": "2026-04-16",
+    "per_patient_usd": 48753.0,
+    "full_usd_mm": 94.873338,
+    "share_ahead": 0.0,
+    "ahead_usd_mm": 0.0,
+    "missing": null,
+    "spend_from": null,
+    "spend_to": null,
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "passed primary completion, so its cost is sunk",
+    "fit": "unmapped",
+    "indications": [],
+    "why": "it has no MeSH terms on file"
+   },
+   {
+    "nct_id": "NCT06260722",
+    "phase": "Phase 3",
+    "status": "Active not recruiting",
+    "title": "Effect of Retatrutide Compared With Semaglutide in Adult Participants With Type 2 Diabetes and Inadequate Glycemic Control With Metformin With or Without SGLT2 Inhibitor (TRANSCEND-T2D-2)",
+    "enrollment": 1250,
+    "start": "2024-02-21",
+    "primary_completion": "2026-08-27",
+    "per_patient_usd": 48753.0,
+    "full_usd_mm": 60.94125,
+    "share_ahead": 0.0,
+    "ahead_usd_mm": 0.0,
+    "missing": null,
+    "spend_from": null,
+    "spend_to": null,
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "passed primary completion, so its cost is sunk",
+    "fit": "other",
+    "indications": [
+     "Diabetes Mellitus, Type 2"
+    ],
+    "why": "in an indication the forecast does not value"
+   },
+   {
+    "nct_id": "NCT05929079",
+    "phase": "Phase 3",
+    "status": "Active not recruiting",
+    "title": "A Study of Retatrutide (LY3437943) in Participants With Type 2 Diabetes Mellitus Who Have Obesity or Overweight",
+    "enrollment": 1000,
+    "start": "2023-07-11",
+    "primary_completion": "2026-05",
+    "per_patient_usd": 48753.0,
+    "full_usd_mm": 48.753,
+    "share_ahead": 0.0,
+    "ahead_usd_mm": 0.0,
+    "missing": null,
+    "spend_from": null,
+    "spend_to": null,
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "passed primary completion, so its cost is sunk",
+    "fit": "unmapped",
+    "indications": [],
+    "why": "it has no MeSH terms on file"
+   },
+   {
+    "nct_id": "NCT06297603",
+    "phase": "Phase 3",
+    "status": "Active not recruiting",
+    "title": "Effect of Retatrutide Compared With Placebo in Participants With Type 2 Diabetes and Moderate or Severe Renal Impairment, With Inadequate Glycemic Control on Basal Insulin, With or Without Metformin and/or SGLT2 Inhibitor (TRANSCEND-T2D-3)",
+    "enrollment": 320,
+    "start": "2024-03-15",
+    "primary_completion": "2026-10",
+    "per_patient_usd": 48753.0,
+    "full_usd_mm": 15.60096,
+    "share_ahead": 0.0,
+    "ahead_usd_mm": 0.0,
+    "missing": null,
+    "spend_from": null,
+    "spend_to": null,
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "passed primary completion, so its cost is sunk",
+    "fit": "other",
+    "indications": [
+     "Diabetes Mellitus, Type 2",
+     "Diabetes Mellitus"
+    ],
+    "why": "in an indication the forecast does not value"
+   }
+  ],
+  "cost_usd_mm": 238.1547583429229,
+  "cost": 172.12239343403658,
+  "cost_per_share": 0.191395967345754,
+  "uncosted": [],
+  "note": "Every other open Phase 2 and 3 study of the asset: outside the indications the forecast values, matched to none, not needed for an FDA gate, or run beside the gate rather than on the path to it. Their remaining cost, as one figure for the whole programme, never in the headline."
+ },
+ "next_12m": {
+  "named_usd_mm": 39.41637291261681,
+  "named": 39.41637291261681,
+  "basis": "registry studies' spend in the next 12 months, pre-tax, unrisked, undiscounted, at the company's share"
+ },
+ "sources": [
+  "Sertkaya A, Beleche T, Jessup A, Sommers BD. Costs of Drug Development and Research and Development Intensity in the US, 2000-2018. JAMA Netw Open 2024;7(6):e2415445, doi:10.1001/jamanetworkopen.2024.15445, Table 1, 2018 dollars",
+  "DiMasi JA, Grabowski HG, Hansen RW. Innovation in the pharmaceutical industry: new estimates of R&D costs. J Health Econ 2016;47:20-33, doi:10.1016/j.jhealeco.2016.01.012, Table 2, 2013 dollars"
+ ],
+ "paid_note": "Already paid inside the company's R&D ratio, so none of it is taken off the value."
+}

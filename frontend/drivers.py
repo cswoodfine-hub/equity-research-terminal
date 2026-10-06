@@ -31,7 +31,7 @@ from typing import Optional
 
 # Bumped on a change a page must see. A running server does not re-import a module that
 # sits under a dot-directory, as a worktree does, so the page reloads one behind this.
-REVISION = 3
+REVISION = 4
 
 DRIVER_MIN_PCT = 0.01      # a valued readout under this share of the price is ranked by date
 SLIP_MIN_DAYS = 90         # a readout slip this long or longer, detected in the last 90 days
@@ -63,6 +63,9 @@ DRIVERS_TITLE = "Drivers"
 RISKS_TITLE = "Risks"
 EMPTY = "No dated event or exclusivity loss on file for {T}."
 CONTEXT_FAILED = "The events for {T} did not load: {error}."
+# What a stake lead is, by where its legs come from (comps-context ``stake.basis``).
+LEAD_NOTES = {"derived": "modelled swing, derived from published transition rates",
+              "stated": "modelled swing, from the success and failure legs on file"}
 
 # Proper names MeSH descriptors carry; they keep their capital in prose (core.js).
 _EPONYMS = frozenset((
@@ -263,6 +266,15 @@ def _stake_pct(it: dict) -> Optional[float]:
     return _num(stake.get("pct_of_price")) if stake else None
 
 
+def stake_basis(it: dict) -> Optional[str]:
+    """"stated" or "derived" for a priced stake, else None. A stake from before the
+    basis was carried was always the analyst's stated legs."""
+    stake = it.get("stake") if isinstance(it.get("stake"), dict) else None
+    if not stake:
+        return None
+    return "derived" if stake.get("basis") == "derived" else "stated"
+
+
 def tier(it: dict) -> int:
     """0 a priced stake, 1 regulatory, 2 a late-stage readout deciding an unapproved asset
     worth DRIVER_MIN_PCT of the price or more, 3 other late-stage readouts, 4 the rest."""
@@ -277,8 +289,10 @@ def tier(it: dict) -> int:
 
 def _sort_key(it: dict):
     t = tier(it)
-    inner = 0.0
+    inner, derived = 0.0, 0
     if t == 0:
+        # A stake from the analyst's own legs ranks ahead of one a gate derives.
+        derived = 1 if stake_basis(it) == "derived" else 0
         inner = -_stake_pct(it)
     elif t == 2:
         inner = -_unapproved_value(it)
@@ -286,7 +300,7 @@ def _sort_key(it: dict):
         ident = int(it.get("id"))
     except (TypeError, ValueError):
         ident = 0
-    return (t, inner, str(it.get("date") or ""), ident)
+    return (t, derived, inner, str(it.get("date") or ""), ident)
 
 
 def event_text(it: dict) -> str:
@@ -353,16 +367,18 @@ def _asset_name(it: dict) -> str:
 
 def rank_events(context: dict) -> list:
     """comps-context catalysts, one row per asset, in the order of core.js compareCatalysts:
-    tier 0 a priced stake (largest share of price first), 1 regulatory, 2 a late-stage
-    readout of an unapproved asset valued at DRIVER_MIN_PCT of the price or more (largest
-    first), 3 other late-stage readouts, 4 the rest; inside tiers 1, 3 and 4 by date, then
-    id. An asset's row is its first event in that order; ``more`` counts the others.
+    tier 0 a priced stake (stated legs ahead of derived ones, each largest share of price
+    first), 1 regulatory, 2 a late-stage readout of an unapproved asset valued at
+    DRIVER_MIN_PCT of the price or more (largest first), 3 other late-stage readouts, 4 the
+    rest; inside tiers 1, 3 and 4 by date, then id. An asset's row is its first event in
+    that order; ``more`` counts the others.
 
     Each row: {lead, asset, event, indication, date_text, estimated, per_share, source}
     plus ``text`` (the row after its lead), ``line`` (lead and text), ``tier``, ``id``,
     ``asset_id``, ``date``, ``precision``, ``pct_of_price``, ``value_kind`` ("stake",
-    "asset_value" or None), ``model`` (the lead is model output), ``more``, ``title``,
-    ``nct_id``, ``curated``."""
+    "asset_value" or None), ``model`` (the lead is model output), ``stake_basis``
+    ("stated", "derived" or None) and ``lead_note`` (what a stake lead is), ``more``,
+    ``title``, ``nct_id``, ``curated``."""
     groups: dict = {}
     for it in sorted(_items(context), key=_sort_key):
         asset = it.get("asset") if isinstance(it.get("asset"), dict) else None
@@ -393,7 +409,11 @@ def rank_events(context: dict) -> list:
             "text": text, "line": f"{lead}{GAP}{text}", "tier": t, "id": it.get("id"),
             "asset_id": asset.get("id") if asset else None, "date": it.get("date"),
             "precision": precision, "pct_of_price": pct, "value_kind": value_kind,
-            "model": per_share is not None, "more": len(events) - 1,
+            "model": per_share is not None,
+            "stake_basis": stake_basis(it) if value_kind == "stake" else None,
+            "lead_note": (LEAD_NOTES.get(stake_basis(it))
+                          if value_kind == "stake" else None),
+            "more": len(events) - 1,
             "title": it.get("title") or None, "nct_id": it.get("nct_id") or None,
             "curated": bool(it.get("is_curated")),
         })

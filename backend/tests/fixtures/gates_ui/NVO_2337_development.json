@@ -1,0 +1,642 @@
+{
+ "ticker": "NVO",
+ "asset_id": 2337,
+ "name": "Cagrilintide",
+ "price_year": 2018,
+ "ok": true,
+ "currency": "DKK",
+ "fx": {
+  "currency": "DKK",
+  "rate": 0.15019535431385142,
+  "as_of": "2026-10-02"
+ },
+ "portion": 1.0,
+ "portion_basis": "the owner's own asset",
+ "tax_rate": 0.2044,
+ "after_tax": true,
+ "tax_basis": "after tax at the asset's 20.4%, the company bearing the cost being on the pharma engine",
+ "wacc": 0.08382536146248,
+ "anchor": "2025-12-31",
+ "anchor_basis": "31 December of the valuation year",
+ "area": "Metabolic",
+ "cost_area": "Endocrine",
+ "area_basis": "Metabolic read as Sertkaya's Endocrine: Sertkaya has no metabolic class, so the endocrine rates stand in for it",
+ "gate": {
+  "gate": "p3_to_nda",
+  "label": "Phase 3 readout",
+  "date": "2024-10-30",
+  "date_basis": "primary completion on the registry, passed with no readout on file",
+  "due": true,
+  "trial": {
+   "nct_id": "NCT05567796",
+   "phase": "Phase 3",
+   "status": "Active not recruiting",
+   "primary_completion": "2024-10-30",
+   "enrollment": 3400,
+   "indications": [
+    "Obesity"
+   ]
+  },
+  "p": 0.6100481145798367,
+  "p_evidence": "published",
+  "p_published": 0.6100635963435609,
+  "stated_pos": false,
+  "placed": null,
+  "pos_success": 0.8937,
+  "pos_now": 0.5452,
+  "success_leg": 196851.2777844079,
+  "success_leg_per_share": 6.64728874146846,
+  "ev": 120088.75086500972,
+  "ev_per_share": 4.055165963800609,
+  "rnpv": 120088.75086500972,
+  "rnpv_per_share": 4.055165963800609,
+  "cost": 724.5960769270381,
+  "cost_per_share": 0.02446821477859274,
+  "net": 119364.15478808268,
+  "net_per_share": 4.030697749022016,
+  "breakeven_p": 0.003680931539192841,
+  "funds": true,
+  "cost_usd_mm": 154.35653653212125,
+  "full_usd_mm": 403.869852,
+  "unread": false,
+  "route": "registry",
+  "grade": "convention",
+  "basis": "8 open studies in an indication the forecast values, at enrolment x the area's per-patient rate x the share of each run still ahead",
+  "high": {
+   "cost": 2072.361008366916,
+   "cost_per_share": 0.06997964226710625,
+   "net": 118016.3898566428,
+   "net_per_share": 3.985186321533502,
+   "breakeven_p": 0.010527546641767659,
+   "funds": true,
+   "label": "at DiMasi 2016's per-phase level, which includes long-term animal testing and the cost of compounds that fail within the phase; 2013 against 2018 dollars, so the ratio is if anything low"
+  },
+  "held": {
+   "open": 10,
+   "ncts": [
+    "NCT05669755",
+    "NCT07564414",
+    "NCT07011667",
+    "NCT07253285",
+    "NCT06780449",
+    "NCT07220759",
+    "NCT07220642",
+    "NCT07745504",
+    "NCT07817251",
+    "NCT07282613"
+   ],
+   "indications": [
+    "Cardiovascular Diseases",
+    "Diabetes Mellitus, Type 2",
+    "Obesity",
+    "Overweight"
+   ],
+   "pos": 0.5452,
+   "note": "A miss leaves 10 other Phase 3s open, and the model holds it at 55% until they read out."
+  },
+  "legs_basis": "Phase 3 to NDA/BLA 61.0% then NDA/BLA to approval 89.4% for Metabolic, Peptide and Chronic high prevalence, BIO/Informa/QLS 2011-2020; a failure is taken at nil, the model's convention for a failed programme"
+ },
+ "ladder": {
+  "label": "after later trial costs",
+  "rows": [
+   {
+    "gate": "p3_to_nda",
+    "label": "Phase 3 readout",
+    "date": "2024-10-30",
+    "p": 0.6100481145798367,
+    "cost": 724.5960769270381,
+    "value_if_passed": 196838.32665652328,
+    "ev_at_gate": 120080.85005386203,
+    "net": 119356.253976935,
+    "breakeven_p": 0.0036811737288919124,
+    "funds": true,
+    "value_if_passed_floored": 196838.32665652328,
+    "floored": false,
+    "cost_per_share": 0.02446821477859274,
+    "value_if_passed_per_share": 6.646851406808783,
+    "net_per_share": 4.03043095383744
+   },
+   {
+    "gate": "nda_to_approval",
+    "label": "FDA decision",
+    "date": null,
+    "p": 0.8937134955015414,
+    "cost": 12.951127884617378,
+    "value_if_passed": 220262.17437159465,
+    "ev_at_gate": 196851.2777844079,
+    "net": 196838.32665652328,
+    "breakeven_p": 5.8798692610598216e-05,
+    "funds": true,
+    "value_if_passed_floored": 220262.17437159465,
+    "floored": false,
+    "cost_per_share": 0.00043733465967653627,
+    "value_if_passed_per_share": 7.437829656738125,
+    "net_per_share": 6.646851406808783
+   }
+  ],
+  "value_on_approval": 220262.17437159465,
+  "risked_cost": 732.4968880747313,
+  "value_today": 119356.253976935,
+  "rnpv": 120088.75086500972,
+  "npv": 220265.50048607797,
+  "value_today_per_share": 4.03043095383744,
+  "risked_cost_per_share": 0.024735009963168825,
+  "high": {
+   "rows": [
+    {
+     "gate": "p3_to_nda",
+     "label": "Phase 3 readout",
+     "date": "2024-10-30",
+     "p": 0.6100481145798367,
+     "cost": 2072.361008366916,
+     "value_if_passed": 196838.32665652328,
+     "ev_at_gate": 120080.85005386203,
+     "net": 118008.48904549511,
+     "breakeven_p": 0.010528239309731183,
+     "funds": true,
+     "value_if_passed_floored": 196838.32665652328,
+     "floored": false,
+     "cost_per_share": 0.06997964226710625,
+     "value_if_passed_per_share": 6.646851406808783,
+     "net_per_share": 3.9849195263489263
+    },
+    {
+     "gate": "nda_to_approval",
+     "label": "FDA decision",
+     "date": null,
+     "p": 0.8937134955015414,
+     "cost": 12.951127884617378,
+     "value_if_passed": 220262.17437159465,
+     "ev_at_gate": 196851.2777844079,
+     "net": 196838.32665652328,
+     "breakeven_p": 5.8798692610598216e-05,
+     "funds": true,
+     "value_if_passed_floored": 220262.17437159465,
+     "floored": false,
+     "cost_per_share": 0.00043733465967653627,
+     "value_if_passed_per_share": 7.437829656738125,
+     "net_per_share": 6.646851406808783
+    }
+   ],
+   "risked_cost": 2080.261819514609,
+   "value_today": 118008.48904549511,
+   "label": "at DiMasi 2016's per-phase level, which includes long-term animal testing and the cost of compounds that fail within the phase; 2013 against 2018 dollars, so the ratio is if anything low"
+  }
+ },
+ "stages": [
+  {
+   "gate": "p3_to_nda",
+   "label": "Phase 3 readout",
+   "route": "registry",
+   "studies": [
+    {
+     "nct_id": "NCT05567796",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "A Research Study to See How Well CagriSema Helps People With Excess Body Weight Lose Weight",
+     "enrollment": 3400,
+     "start": "2022-11-01",
+     "primary_completion": "2024-10-30",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 165.7602,
+     "share_ahead": 0.0,
+     "ahead_usd_mm": 0.0,
+     "missing": null,
+     "spend_from": null,
+     "spend_to": null,
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "passed primary completion, so its cost is sunk",
+     "fit": "modelled",
+     "indications": [
+      "Obesity"
+     ]
+    },
+    {
+     "nct_id": "NCT07564414",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "A Research Study to Look at How Two Different Doses of CagriSema and One Dose of Semaglutide Help People Living With Obesity With or Without Type 2 Diabetes Lose Weight",
+     "enrollment": 2500,
+     "start": "2026-05-21",
+     "primary_completion": "2028-02-23",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 121.8825,
+     "share_ahead": 0.7853810264385692,
+     "ahead_usd_mm": 95.72420295489891,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-02-23",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "79% of its run from 2026-05-21 to 2028-02-23 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Obesity",
+      "Diabetes Mellitus, Type 2"
+     ]
+    },
+    {
+     "nct_id": "NCT07011667",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "A Research Study to Look at How Well CagriSema Helps People Living With Obesity Lose Weight and Maintain Weight Loss in the Long-term",
+     "enrollment": 609,
+     "start": "2025-06-03",
+     "primary_completion": "2027-03-01",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 29.690577,
+     "share_ahead": 0.22955974842767296,
+     "ahead_usd_mm": 6.815761386792453,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2027-03-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "23% of its run from 2025-06-03 to 2027-03-01 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Obesity"
+     ]
+    },
+    {
+     "nct_id": "NCT07253285",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "A Research Study on How Well Cagrilintide and CagriSema Work in Children and Adolescents With Excess Body Weight",
+     "enrollment": 460,
+     "start": "2026-01-08",
+     "primary_completion": "2030-03-20",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 22.42638,
+     "share_ahead": 0.8231070496083551,
+     "ahead_usd_mm": 18.459311475195825,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2030-03-20",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "82% of its run from 2026-01-08 to 2030-03-20 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Overweight",
+      "Obesity"
+     ]
+    },
+    {
+     "nct_id": "NCT06780449",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "A Research Study to Look Into the Long-term Effect on Weight Loss of CagriSema in People With Obesity",
+     "enrollment": 400,
+     "start": "2025-02-10",
+     "primary_completion": "2028-08-28",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 19.5012,
+     "share_ahead": 0.5343629343629344,
+     "ahead_usd_mm": 10.420718455598456,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-08-28",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "53% of its run from 2025-02-10 to 2028-08-28 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Obesity"
+     ]
+    },
+    {
+     "nct_id": "NCT07220759",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "Weight Loss in People Living With Overweight or Obesity and Type 2 Diabetes Following Treatment With Cagrilintide",
+     "enrollment": 330,
+     "start": "2025-11-05",
+     "primary_completion": "2027-05-12",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 16.08849,
+     "share_ahead": 0.39421338155515373,
+     "ahead_usd_mm": 6.342298047016275,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2027-05-12",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "39% of its run from 2025-11-05 to 2027-05-12 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Overweight",
+      "Obesity",
+      "Diabetes Mellitus, Type 2"
+     ]
+    },
+    {
+     "nct_id": "NCT07220642",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "Weight Loss in People Living With Overweight or Obesity Following Treatment With Cagrilintide",
+     "enrollment": 300,
+     "start": "2025-11-05",
+     "primary_completion": "2027-05-11",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 14.6259,
+     "share_ahead": 0.39311594202898553,
+     "ahead_usd_mm": 5.749674456521739,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2027-05-11",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "39% of its run from 2025-11-05 to 2027-05-11 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Obesity",
+      "Overweight"
+     ]
+    },
+    {
+     "nct_id": "NCT07745504",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "A Research Study to Compare Two Different Versions of Injectable Cagrilintide and Placebo in People With Excess Body Weight",
+     "enrollment": 285,
+     "start": "2026-08-04",
+     "primary_completion": "2027-05-18",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 13.894605,
+     "share_ahead": 0.7804878048780488,
+     "ahead_usd_mm": 10.844569756097561,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2027-05-18",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "78% of its run from 2026-08-04 to 2027-05-18 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Overweight",
+      "Obesity"
+     ]
+    }
+   ],
+   "outside": [
+    {
+     "nct_id": "NCT05669755",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "REDEFINE 3: A Research Study to See the Effects of CagriSema in People Living With Diseases in the Heart and Blood Vessels",
+     "enrollment": 7101,
+     "start": "2023-03-01",
+     "primary_completion": "2027-09-01",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 346.195053,
+     "share_ahead": 0.2006079027355623,
+     "ahead_usd_mm": 69.44946351975683,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2027-09-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "20% of its run from 2023-03-01 to 2027-09-01 is ahead, on a straight line",
+     "fit": "other",
+     "indications": [
+      "Cardiovascular Diseases"
+     ],
+     "why": "in an indication the forecast does not value"
+    },
+    {
+     "nct_id": "NCT07817251",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "Research Study on How People With Type 2 Diabetes Tolerate Switching From Semaglutide to Cagrisema",
+     "enrollment": 210,
+     "start": "2026-09-16",
+     "primary_completion": "2027-06-09",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 10.23813,
+     "share_ahead": 0.924812030075188,
+     "ahead_usd_mm": 9.468345789473684,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2027-06-09",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "92% of its run from 2026-09-16 to 2027-06-09 is ahead, on a straight line",
+     "fit": "other",
+     "indications": [
+      "Diabetes Mellitus, Type 2"
+     ],
+     "why": "in an indication the forecast does not value"
+    },
+    {
+     "nct_id": "NCT07282613",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "A Research Study to See How Much CagriSema Lowers Blood Sugar and Body Weight Compared to Placebo in Children and Adolescents With Type 2 Diabetes",
+     "enrollment": 80,
+     "start": "2026-08-04",
+     "primary_completion": "2029-09-07",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 3.90024,
+     "share_ahead": 0.9442477876106194,
+     "ahead_usd_mm": 3.6827929911504427,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2029-09-07",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "94% of its run from 2026-08-04 to 2029-09-07 is ahead, on a straight line",
+     "fit": "other",
+     "indications": [
+      "Diabetes Mellitus, Type 2"
+     ],
+     "why": "in an indication the forecast does not value"
+    }
+   ],
+   "date": "2024-10-30",
+   "date_basis": "primary completion on the registry, passed with no readout on file",
+   "cost_usd_mm": 154.35653653212125,
+   "full_usd_mm": 403.869852,
+   "grade": "convention",
+   "basis": "8 open studies in an indication the forecast values, at enrolment x the area's per-patient rate x the share of each run still ahead",
+   "p": 0.6100481145798367,
+   "p_implied": false
+  },
+  {
+   "gate": "nda_to_approval",
+   "label": "FDA decision",
+   "route": "review",
+   "studies": [],
+   "outside": [],
+   "cost_usd_mm": 2.6,
+   "full_usd_mm": 2.6,
+   "date": null,
+   "date_basis": "the FDA decision follows the review; no date is computed here",
+   "grade": "analogue",
+   "basis": "Sertkaya's FDA review out of pocket, $2.6mm, spent as the review starts",
+   "p": 0.8937134955015414,
+   "p_implied": false
+  }
+ ],
+ "outside": {
+  "studies": [
+   {
+    "nct_id": "NCT05669755",
+    "phase": "Phase 3",
+    "status": "Active not recruiting",
+    "title": "REDEFINE 3: A Research Study to See the Effects of CagriSema in People Living With Diseases in the Heart and Blood Vessels",
+    "enrollment": 7101,
+    "start": "2023-03-01",
+    "primary_completion": "2027-09-01",
+    "per_patient_usd": 48753.0,
+    "full_usd_mm": 346.195053,
+    "share_ahead": 0.2006079027355623,
+    "ahead_usd_mm": 69.44946351975683,
+    "missing": null,
+    "spend_from": "2026-10-06",
+    "spend_to": "2027-09-01",
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "20% of its run from 2023-03-01 to 2027-09-01 is ahead, on a straight line",
+    "fit": "other",
+    "indications": [
+     "Cardiovascular Diseases"
+    ],
+    "why": "in an indication the forecast does not value"
+   },
+   {
+    "nct_id": "NCT07817251",
+    "phase": "Phase 3",
+    "status": "Recruiting",
+    "title": "Research Study on How People With Type 2 Diabetes Tolerate Switching From Semaglutide to Cagrisema",
+    "enrollment": 210,
+    "start": "2026-09-16",
+    "primary_completion": "2027-06-09",
+    "per_patient_usd": 48753.0,
+    "full_usd_mm": 10.23813,
+    "share_ahead": 0.924812030075188,
+    "ahead_usd_mm": 9.468345789473684,
+    "missing": null,
+    "spend_from": "2026-10-06",
+    "spend_to": "2027-06-09",
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "92% of its run from 2026-09-16 to 2027-06-09 is ahead, on a straight line",
+    "fit": "other",
+    "indications": [
+     "Diabetes Mellitus, Type 2"
+    ],
+    "why": "in an indication the forecast does not value"
+   },
+   {
+    "nct_id": "NCT07282613",
+    "phase": "Phase 3",
+    "status": "Recruiting",
+    "title": "A Research Study to See How Much CagriSema Lowers Blood Sugar and Body Weight Compared to Placebo in Children and Adolescents With Type 2 Diabetes",
+    "enrollment": 80,
+    "start": "2026-08-04",
+    "primary_completion": "2029-09-07",
+    "per_patient_usd": 48753.0,
+    "full_usd_mm": 3.90024,
+    "share_ahead": 0.9442477876106194,
+    "ahead_usd_mm": 3.6827929911504427,
+    "missing": null,
+    "spend_from": "2026-10-06",
+    "spend_to": "2029-09-07",
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "94% of its run from 2026-08-04 to 2029-09-07 is ahead, on a straight line",
+    "fit": "other",
+    "indications": [
+     "Diabetes Mellitus, Type 2"
+    ],
+    "why": "in an indication the forecast does not value"
+   },
+   {
+    "nct_id": "NCT06797869",
+    "phase": "Phase 2",
+    "status": "Active not recruiting",
+    "title": "A Research Study to Investigate the Effects of CagriSema Compared to Placebo in People With Type 2 Diabetes and Painful Diabetic Peripheral Neuropathy",
+    "enrollment": 142,
+    "start": "2025-01-29",
+    "primary_completion": "2026-08-21",
+    "per_patient_usd": 51556.0,
+    "full_usd_mm": 7.320952,
+    "share_ahead": 0.0,
+    "ahead_usd_mm": 0.0,
+    "missing": null,
+    "spend_from": null,
+    "spend_to": null,
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "passed primary completion, so its cost is sunk",
+    "fit": "other",
+    "indications": [
+     "Diabetes Mellitus, Type 2"
+    ],
+    "why": "in an indication the forecast does not value"
+   }
+  ],
+  "cost_usd_mm": 82.60060230038096,
+  "cost": 395.91697784133294,
+  "cost_per_share": 0.01336935426064766,
+  "uncosted": [],
+  "note": "Every other open Phase 2 and 3 study of the asset: outside the indications the forecast values, matched to none, not needed for an FDA gate, or run beside the gate rather than on the path to it. Their remaining cost, as one figure for the whole programme, never in the headline."
+ },
+ "next_12m": {
+  "named_usd_mm": 109.77868069565548,
+  "named": 730.9059670797781,
+  "basis": "registry studies' spend in the next 12 months, pre-tax, unrisked, undiscounted, at the company's share"
+ },
+ "sources": [
+  "Sertkaya A, Beleche T, Jessup A, Sommers BD. Costs of Drug Development and Research and Development Intensity in the US, 2000-2018. JAMA Netw Open 2024;7(6):e2415445, doi:10.1001/jamanetworkopen.2024.15445, Table 1, 2018 dollars",
+  "DiMasi JA, Grabowski HG, Hansen RW. Innovation in the pharmaceutical industry: new estimates of R&D costs. J Health Econ 2016;47:20-33, doi:10.1016/j.jhealeco.2016.01.012, Table 2, 2013 dollars"
+ ],
+ "paid_note": "Already paid inside the company's R&D ratio, so none of it is taken off the value."
+}

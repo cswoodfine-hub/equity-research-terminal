@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import re
 
+import pos_granular
+
 # A share of NPV that comes from the terminal value rather than the forecast horizon.
 # Past this, the answer is mostly about what happens after the model stops looking.
 TERMINAL_HEAVY = 0.35
@@ -32,6 +34,55 @@ def _mm(value) -> str:
 
 def _per_share(value) -> str:
     return "an unknown amount" if value is None else f"${value:,.2f}"
+
+
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _month(iso: str) -> str:
+    """"Jan 2028" from 2028-01 or 2028-01-21; the text unchanged where it is neither."""
+    match = re.match(r"^(\d{4})-(\d{2})", iso or "")
+    if not match or not 1 <= int(match.group(2)) <= 12:
+        return iso or ""
+    return f"{_MONTHS[int(match.group(2)) - 1]} {match.group(1)}"
+
+
+def _day(iso: str) -> str:
+    """"26 Oct 2026" from a full date, else the month."""
+    match = re.match(r"^(\d{4})-(\d{2})-(\d{2})", iso or "")
+    if not match or not 1 <= int(match.group(2)) <= 12:
+        return _month(iso)
+    return f"{int(match.group(3))} {_MONTHS[int(match.group(2)) - 1]} {match.group(1)}"
+
+
+def _gate_range(v: dict) -> str | None:
+    """The range the next gate sets where no scenario sets one, or None. It leads with
+    the number, names the event and its date, and says what holds after a miss."""
+    gate = v.get("gate") or {}
+    success, now = gate.get("per_share_success"), gate.get("per_share_now")
+    if not v.get("gate_range") or success is None or now is None:
+        return None
+    failure = gate.get("per_share_failure")
+    lost = "nil" if not failure else f"{_per_share(failure)} a share"
+    date = gate.get("date")
+    if gate.get("gate") == "nda_to_approval":
+        when = f" (decision due {_day(date)})" if date else ""
+        event = (f"{_per_share(success)} a share if the FDA approves it{when}, {lost} if "
+                 f"it does not")
+    else:
+        when = ("" if not date else
+                f", due since {_month(date)} with no readout on file," if gate.get("due")
+                else f", est. {_month(date)},")
+        event = (f"{_per_share(success)} a share if its {gate.get('label') or 'next gate'}"
+                 f"{when} passes, {lost} if it fails")
+    line = (f"No bear or bull case is on file, so the next gate sets the range: {event}, "
+            f"against {_per_share(now)} now.")
+    held = gate.get("held") or {}
+    if held.get("open") and held.get("pos") is not None:
+        line += " " + pos_granular.held_note(held["open"], held["pos"],
+                                             bool(held.get("stated_governs")))
+    return line
 
 
 def headline(v: dict) -> str:
@@ -89,7 +140,9 @@ def body(v: dict) -> list[str]:
     spread = v.get("spread") or {}
     bear, bull = spread.get("bear"), spread.get("bull")
     if not v.get("has_range"):
-        out.append(
+        # A pipeline asset's next gate sets a range the scenarios do not: derived from
+        # its legs, never a scenario, and said as that.
+        out.append(_gate_range(v) or
             "There is no bear or bull case on file, so this is one set of assumptions "
             "rather than a range. A scenario inherits the base and restates only what it "
             "changes, and nothing has been restated.")

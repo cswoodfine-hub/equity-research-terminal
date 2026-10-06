@@ -41,6 +41,13 @@ its pivotal trial selected patients on a biomarker, as a ``biomarker_selected`` 
 
 Big pharma only, and Phase 2 or 3 only, by construction: everywhere else the book
 behaves as it did.
+
+Beside the probability, and never inside it, it says what the next gate decides. The
+point splits by transition into ``gates`` that multiply back to it exactly;
+``next_gate`` names the event, its trial and its date, and is the one gate source for
+every view that prices, costs or times a gate; ``legs`` gives the probability if that
+gate passes and if it fails. assumptions.load calls ``for_asset`` alone, so none of
+this reaches the value.
 """
 
 from __future__ import annotations
@@ -53,6 +60,7 @@ import re
 
 import engines
 import fx
+import indication_mapping
 import productivity
 import applications
 
@@ -63,6 +71,24 @@ TRANSITIONS = DATA_DIR / "pos_transitions.csv"
 # asset stands at now, which is the first transition it still has to make.
 CHAIN = ("p1_to_p2", "p2_to_p3", "p3_to_nda", "nda_to_approval")
 FROM_PHASE = {"Phase 2": "p2_to_p3", "Phase 2/3": "p2_to_p3", "Phase 3": "p3_to_nda"}
+
+# The event that decides each transition, as a reader names it. The one label map for
+# every view of the next gate: the legs, the development cost and the launch floor.
+GATE_LABELS = {"p2_to_p3": "Phase 2 readout", "p3_to_nda": "Phase 3 readout",
+               "nda_to_approval": "FDA decision"}
+_STEP_NAMES = {"p1_to_p2": "Phase 1 to Phase 2", "p2_to_p3": "Phase 2 to Phase 3",
+               "p3_to_nda": "Phase 3 to NDA/BLA", "nda_to_approval": "NDA/BLA to approval"}
+# Where an asset stands once the gate before this one has passed.
+_PLACED_AT = {"p3_to_nda": "at Phase 3 entry", "nda_to_approval": "at the NDA/BLA gate"}
+# The registry phases whose readout decides each gate. A seamless Phase 2/3 is read at
+# the Phase 2 gate, as the chain reads it, and as a Phase 3 by stage_of.
+_GATE_PHASES = {"p2_to_p3": ("Phase 2", "Phase 2/3"), "p3_to_nda": ("Phase 3", "Phase 2/3")}
+GATE_PHASES = _GATE_PHASES
+
+# A stated probability this close to the value the asset would carry once its gate
+# passed is read as already past it: the analyst has priced a filing the book's phase
+# does not carry yet (ABP 206, pozelimab with cemdisiran, giredestrant, povetacicept).
+STATED_PAST_GATE = 1e-3
 
 # A band cut is refused where the report's n for any transition it would use is below
 # this. Figure 10b puts CAR-T's Phase 3 transition at 66.7% on three programmes and
@@ -160,8 +186,80 @@ def modality_of(name: str | None, stored: str | None = None) -> tuple:
     return None, "no recognised stem"
 
 
+# The registry page a derived readout catalyst points at, which is how a resolved one
+# is tied to its trial (catalysts.CTGOV_URL; not imported, so the rNPV path does not
+# take on the catalysts module).
+_CTGOV_URL = "https://clinicaltrials.gov/study/"
+
+
+# A readout catalyst joined to the study it points at, through the registry's unique
+# index. The study's asset is the one it belongs to: the refresh keeps that mapping
+# current, while the catalyst's own asset_id is set once when the row is derived (and is
+# empty on a third of the book's readouts).
+_READOUT_JOIN = (f"JOIN trials t ON cat.source_url LIKE '{_CTGOV_URL}%'"
+                 f" AND t.nct_id = substr(cat.source_url, {len(_CTGOV_URL) + 1})")
+
+
+def read_out(conn, asset_id: int) -> dict:
+    """{nct_id: outcome} for the asset's trials whose readout catalyst has been resolved
+    met or missed, any phase, any indication: a study that has read out, so never the
+    next gate again. Whether it has answered for the model, and so is no longer one of
+    the studies still asking, is answered(): only a resolution that counted as
+    evidence."""
+    return {r["nct_id"]: r["status"] for r in conn.execute(
+        f"""SELECT t.nct_id, cat.status FROM catalysts cat {_READOUT_JOIN}
+             WHERE t.asset_id = ? AND cat.catalyst_type = 'data readout'
+               AND cat.status IN ('met', 'missed')
+             ORDER BY cat.updated_at, cat.id""", (asset_id,))}
+
+
+def _resolved_readouts(conn, asset_id: int, modelled_mesh) -> list:
+    """Phase 3 readouts resolved by hand on the asset's own studies, as trial_readouts
+    rows: met is positive and missed negative, dated the day it was recorded. That is
+    the row's updated_at, which only a change of status stamps (catalysts.set_status;
+    accept_catalyst refuses a resolved row and derive_readouts never touches one).
+
+    Matched by the study and the asset it is mapped to, never by drug name, and counted
+    only where the study is in an indication the forecast values, the same MeSH test that
+    prices the gate. A positive Phase 3 in another disease must not lift the modelled
+    one. Each row carries the study's own primary completion date (``completion``), the
+    day stage_of counts a miss from when it is recorded early."""
+    mesh = set(modelled_mesh or ())
+    if not mesh:
+        return []
+    out = []
+    for r in conn.execute(
+            f"""SELECT cat.id, cat.status, date(cat.updated_at) AS on_day, t.nct_id,
+                       t.primary_completion_date AS completion, t.conditions,
+                       t.mesh_terms FROM catalysts cat {_READOUT_JOIN}
+                 WHERE t.asset_id = ? AND t.phase LIKE '%3%'
+                   AND cat.catalyst_type = 'data readout'
+                   AND cat.status IN ('met', 'missed')""", (asset_id,)):
+        found = indication_mapping.indications_for(
+            r["conditions"], indication_mapping.parse_browse(r["mesh_terms"]))
+        if not {t["id"] for t in found} & mesh:
+            continue
+        out.append({"drug": None, "phase": "3",
+                    "outcome": "positive" if r["status"] == "met" else "negative",
+                    "event_date": r["on_day"], "accession": None, "nct_id": r["nct_id"],
+                    "completion": r["completion"],
+                    "cite": (f"on {r['on_day']}, resolved {r['status']} by hand "
+                             f"(catalyst {r['id']}, {r['nct_id']})")})
+    return out
+
+
+def answered(conn, asset_id: int, modelled_mesh) -> set:
+    """The studies whose resolved readout counted as evidence: a Phase 3 in an
+    indication the forecast values, the guard _resolved_readouts applies. Only these
+    leave the studies still asking, in stage_of's mixed rule and in the held note. A
+    result in a disease the forecast does not value moves nothing, so it must not empty
+    the remaining set either: a met there on a mixed asset's last open Phase 3 would
+    otherwise drop the asset to nil."""
+    return {r["nct_id"] for r in _resolved_readouts(conn, asset_id, modelled_mesh)}
+
+
 def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
-             lead_indication_id=None) -> dict:
+             lead_indication_id=None, modelled_mesh=None) -> dict:
     """Where the asset stands, from the trials and readouts on file.
 
     A passed primary completion date with no readout is not evidence of success and
@@ -169,6 +267,10 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
     readout is due. Only a readout does: positive from a Phase 3 moves the asset to the
     NDA/BLA gate, and negative puts it at nil, which is the convention the analyst's
     own hand-typed rows already follow.
+
+    A readout is either a trial_readouts row, matched by drug name, or the asset's own
+    Phase 3 readout catalyst resolved met or missed, matched by trial and counted only
+    in an indication the forecast values (``modelled_mesh``; none without it).
     """
     today_date = today or dt.date.today()
     today = today_date.isoformat()
@@ -179,7 +281,14 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
               AND COALESCE(overall_status, '') NOT IN ('Withdrawn')
             ORDER BY COALESCE(enrollment, 0) DESC""", (asset_id,))]
     pivotal = p3[0] if p3 else None
-    passed = [t for t in p3 if (t["primary_completion_date"] or "9999") <= today]
+    # A study with a readout on file is not reading out, whatever the registry lists.
+    # It has answered, and left the studies still asking, only where that readout
+    # counted as evidence.
+    resolved = _resolved_readouts(conn, asset_id, modelled_mesh)
+    done = {r["nct_id"] for r in resolved}
+    spoken = set(read_out(conn, asset_id))
+    passed = [t for t in p3 if (t["primary_completion_date"] or "9999") <= today
+              and t["nct_id"] not in spoken]
 
     def norm(s):
         return re.sub(r"[^a-z0-9]", "", (s or "").lower())
@@ -192,8 +301,14 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
         if drug in mine or any(len(n) > 4 and n in drug for n in mine):
             readouts.append(dict(r))
     phase3_readouts = [r for r in readouts if str(r["phase"] or "") == "3"]
+    if resolved:
+        # Newest first, as the query orders the rest; a stable sort keeps their order.
+        phase3_readouts = sorted(phase3_readouts + resolved,
+                                 key=lambda r: r["event_date"] or "", reverse=True)
 
     def cite(r):
+        if r.get("cite"):
+            return r["cite"]
         return f"on {r['event_date']}" + (f" ({r['accession']})" if r.get("accession") else "")
 
     positive = next((r for r in phase3_readouts
@@ -211,14 +326,38 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
                 "evidence": f"application accepted, FDA decision due "
                             f"{filing['date']}"}
     if positive:
+        # The readout itself rides along for the views that date from it (the launch
+        # floor); resolve() reads none of it. ``positives`` is every positive Phase 3
+        # readout, earliest first, each with its study's primary completion where it is
+        # a resolved catalyst: the floor dates from the earliest, while the basis names
+        # the newest.
+        positives = sorted(
+            ({"event_date": r.get("event_date"), "nct_id": r.get("nct_id"),
+              "completion": r.get("completion"), "accession": r.get("accession"),
+              "resolved": bool(r.get("cite")), "cite": cite(r)}
+             for r in phase3_readouts if (r["outcome"] or "").lower() == "positive"),
+            key=lambda r: r["event_date"] or "9999")
         return {"stage": "positive", "gate": "nda_to_approval", "pivotal": pivotal,
-                "evidence": f"Phase 3 read out positive {cite(positive)}"}
+                "evidence": f"Phase 3 read out positive {cite(positive)}",
+                "readout": {"event_date": positive.get("event_date"),
+                            "nct_id": positive.get("nct_id"),
+                            "accession": positive.get("accession"),
+                            "drug": positive.get("drug"), "cite": cite(positive)},
+                "positives": positives}
     if negative:
         # One trial's answer. Volrustomig's lung study was stopped for futility with
         # three other Phase 3 studies recruiting to 2030; the asset is not nil, the
         # remaining studies are at their gate and the downside is.
+        # Counted from the later of the day the miss was recorded and the study's own
+        # completion date, the day _held counts from, so a miss recorded early (a
+        # futility stop, say) lands where the held note said it would: a study due to
+        # complete before the gate study was is not counted as still asking, as the
+        # note did not count it.
+        since = max(filter(None, (negative["event_date"], negative.get("completion"))),
+                    default="")
         remaining = [t for t in p3 if t["overall_status"] in OPEN_STATUSES
-                     and (t["primary_completion_date"] or "9999") > negative["event_date"]]
+                     and t["nct_id"] not in done
+                     and (t["primary_completion_date"] or "9999") > since]
         if remaining:
             return {"stage": "mixed", "gate": None, "pivotal": remaining[0],
                     "evidence": f"one Phase 3 read out negative {cite(negative)} with "
@@ -252,43 +391,13 @@ def _chain(table: dict, cut: str, group: str, gates: tuple, min_n: int = MIN_N) 
     return product, used, None
 
 
-def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
-            names: list, company_id: int, prevalence_us: float | None,
-            biomarker_selected: bool, conditions_text: str = "",
-            stored_modality: str | None = None, lead_indication_id=None,
-            today=None, table=None) -> dict | None:
-    """The probability, its band, and everything it rests on. None where not applicable.
-
-    Applies only from Phase 2, Phase 2/3 or Phase 3, and only where the area chain can
-    be computed. The point is the area chain from the asset's gate; the band is the
-    same chain under every other cut the asset qualifies for and the report samples
-    well enough to trust.
-    """
-    table = table if table is not None else transitions()
-    first = FROM_PHASE.get(phase or "")
-    if not first or not table:
-        return None
-    where = stage_of(conn, asset_id, company_id, names, today, lead_indication_id)
-    if where["stage"] == "negative":
-        return {"pos": 0.0, "low": 0.0, "high": 0.0, "stage": where["stage"],
-                "evidence": where["evidence"], "chain": [], "cuts": [],
-                "design": _design(where["pivotal"]), "filing": where.get("filing"),
-                "basis": f"nil: {where['evidence']}"}
-    start = where["gate"] or first
-    gates = CHAIN[CHAIN.index(start):]
-
-    report_area = AREA_TO_REPORT.get(area or "", None)
-    point, used, why = _chain(table, "area", report_area or "All indications", gates, 0)
-    label = report_area or "all indications"
-    if point is None:
-        point, used, why = _chain(table, "area", "All indications", gates, 0)
-        label = "all indications"
-        if point is None:
-            return None
-
-    # The other cuts the asset qualifies for. Each is the whole chain under that cut,
-    # so the band is what the asset's attributes say and not an independence
-    # assumption multiplied across them.
+def _cuts(table: dict, gates: tuple, *, names: list, stored_modality: str | None,
+          report_area: str | None, conditions_text: str, prevalence_us: float | None,
+          biomarker_selected: bool) -> tuple:
+    """(cuts, refused): the chain from ``gates`` under every other cut the asset
+    qualifies for. Each is the whole chain under that cut, so the band is what the
+    asset's attributes say and not an independence assumption multiplied across them.
+    Each cut keeps its per-gate ``rows`` for the gate split; resolve strips them."""
     cuts, refused = [], []
     modality, how = modality_of(names[0] if names else None, stored_modality)
     if modality:
@@ -326,6 +435,98 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
         (cuts if v is not None else refused).append(
             {"cut": "biomarker", "group": "Preselection biomarkers", "pos": v,
              "why": reason, "rows": rows, "how": "recorded on the asset by hand"})
+    return cuts, refused
+
+
+def _split(used: list, cuts: list) -> list:
+    """Each gate's rate: the geometric mean of the area row and every cut's row at that
+    gate. A geometric mean of products is the product of geometric means, so these
+    multiply back to the central tendency of the chains, which is the point."""
+    out = []
+    for i, (gate, row) in enumerate(used):
+        cut_pos = {c["group"]: c["rows"][i][1]["pos"] for c in cuts}
+        rates = [row["pos"], *cut_pos.values()]
+        pos = (row["pos"] if len(rates) == 1 else
+               math.exp(sum(math.log(r) for r in rates) / len(rates)))
+        out.append({"gate": gate, "label": GATE_LABELS.get(gate), "pos": pos,
+                    "area_pos": row["pos"], "cut_pos": cut_pos, "n": row["n"],
+                    "implied": False})
+    return out
+
+
+def _area_chain(table: dict, report_area: str | None, gates: tuple) -> tuple:
+    """(product, used rows, label) for the area, falling back to all indications. The
+    area chain is never refused on n; (None, [], None) only where neither has rows."""
+    point, used, _ = _chain(table, "area", report_area or "All indications", gates, 0)
+    if point is not None:
+        return point, used, report_area or "all indications"
+    point, used, _ = _chain(table, "area", "All indications", gates, 0)
+    if point is not None:
+        return point, used, "all indications"
+    return None, [], None
+
+
+def _product(values) -> float:
+    total = 1.0
+    for v in values:
+        total *= v
+    return total
+
+
+def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
+            names: list, company_id: int, prevalence_us: float | None,
+            biomarker_selected: bool, conditions_text: str = "",
+            stored_modality: str | None = None, lead_indication_id=None,
+            today=None, table=None, at_gate: str | None = None,
+            modelled_mesh=None) -> dict | None:
+    """The probability, its band, and everything it rests on. None where not applicable.
+
+    Applies only from Phase 2, Phase 2/3 or Phase 3, and only where the area chain can
+    be computed. The point is the area chain from the asset's gate; the band is the
+    same chain under every other cut the asset qualifies for and the report samples
+    well enough to trust.
+
+    ``gates`` splits the point by transition, each the geometric mean of the area rate
+    and every qualifying cut's rate at that gate, and multiplies back to the unrounded
+    point exactly. It is computed after the mixed cap.
+
+    ``at_gate`` places the asset at that gate whatever the registry says, as if the
+    gate before it had passed (stage ``if_met``), by the same cut rule. legs() is its
+    only caller: it is the value the asset would carry once its next readout passes.
+
+    ``modelled_mesh`` is handed to stage_of so a resolved readout catalyst counts only
+    in an indication the forecast values; without it none counts.
+    """
+    table = table if table is not None else transitions()
+    first = FROM_PHASE.get(phase or "")
+    if not first or not table:
+        return None
+    if at_gate is not None:
+        if at_gate not in CHAIN[1:]:
+            raise ValueError(f"{at_gate} is not a gate an asset can be placed at")
+        before = CHAIN[CHAIN.index(at_gate) - 1]
+        where = {"stage": "if_met", "gate": at_gate, "pivotal": None, "filing": None,
+                 "evidence": f"if its {GATE_LABELS.get(before, before)} passes"}
+    else:
+        where = stage_of(conn, asset_id, company_id, names, today, lead_indication_id,
+                         modelled_mesh=modelled_mesh)
+    if where["stage"] == "negative":
+        return {"pos": 0.0, "low": 0.0, "high": 0.0, "stage": where["stage"],
+                "evidence": where["evidence"], "chain": [], "cuts": [],
+                "design": _design(where["pivotal"]), "filing": where.get("filing"),
+                "basis": f"nil: {where['evidence']}", "gates": []}
+    start = where["gate"] or first
+    gates = CHAIN[CHAIN.index(start):]
+
+    report_area = AREA_TO_REPORT.get(area or "", None)
+    point, used, label = _area_chain(table, report_area, gates)
+    if point is None:
+        return None
+
+    attributes = {"names": names, "stored_modality": stored_modality,
+                  "report_area": report_area, "conditions_text": conditions_text,
+                  "prevalence_us": prevalence_us, "biomarker_selected": biomarker_selected}
+    cuts, refused = _cuts(table, gates, **attributes)
 
     # The point is the central tendency of every published rate this asset belongs to,
     # not the area rate alone.
@@ -362,13 +563,25 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
     # the band still floors at nil.
     if cuts and where["stage"] != "mixed":
         point = math.exp(sum(math.log(v) for v in spread) / len(spread))
+    capped_at = None
     if where["stage"] == "mixed":
+        # A negative readout never raises the probability. Keeping the area chain is
+        # right where the cuts sit above it, which is volrustomig's case, but where a cut
+        # sits below the area rate (a peptide in metabolic disease, say) the bare chain
+        # would put the asset higher after a failed Phase 3 than it stood before one. So
+        # the mixed point is never above the point the asset carried entering the phase,
+        # the central tendency of the same chain and cuts with no readout at all.
+        entering = (math.exp(sum(math.log(v) for v in spread) / len(spread))
+                    if cuts else point)
+        if entering < point:
+            point = capped_at = entering
         spread.append(0.0)
     # .get rather than a subscript: a stage added later must not raise on an asset.
     stage_note = {"positive": "at the NDA/BLA gate: ",
                   "filed": "filed, at the NDA/BLA gate: ",
                   "reading_out": "readout due: ",
                   "mixed": "one Phase 3 negative, the rest at their gate: ",
+                  "if_met": f"{_PLACED_AT.get(start, 'past its gate')}: ",
                   "entering": ("seamless Phase 2/3 read at the Phase 2 gate: "
                                if phase == "Phase 2/3" else "")}.get(where["stage"], "")
     steps = " x ".join(f"{gate.replace('_', ' ')} {row['pos']:.1%} (n={row['n']})"
@@ -379,6 +592,11 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
         basis += ("; taken as the central tendency of that and " +
                   ", ".join(f"{c['group']} {c['pos']:.0%}" for c in cuts) +
                   f", giving {point:.1%}")
+    if capped_at is not None:
+        basis += (f", capped at the {capped_at:.1%} it carried entering the phase because "
+                  f"a negative readout never raises the probability")
+    split = (_mixed_split(table, used, point, attributes) if where["stage"] == "mixed"
+             else _split(used, cuts))
     return {"pos": round(point, 4), "low": round(min(spread), 4),
             "high": round(max(spread), 4), "stage": where["stage"],
             "evidence": where["evidence"], "area": label,
@@ -387,7 +605,28 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
             "cuts": [{k: v for k, v in c.items() if k != "rows"} for c in cuts],
             "refused": [{k: v for k, v in c.items() if k != "rows"} for c in refused],
             "design": _design(where["pivotal"]), "filing": where.get("filing"),
-            "basis": basis}
+            "basis": basis, "gates": split}
+
+
+def _mixed_split(table: dict, used: list, point: float, attributes: dict) -> list:
+    """The gates of a mixed point, which is the capped area chain rather than a central
+    tendency, so its first gate has no published rate of its own.
+
+    The gates after the first are what the asset faces once that gate passes, by the
+    rule a passed readout places it with (its cuts read on the shorter chain). The first
+    is whatever the point leaves over them: an implied rate, marked so, and the one the
+    success leg's gate odds equal."""
+    later = tuple(gate for gate, _ in used[1:])
+    tail = []
+    if later:
+        _, rows, _ = _area_chain(table, attributes["report_area"], later)
+        cuts, _ = _cuts(table, later, **attributes)
+        tail = _split(rows, cuts)
+    gate, row = used[0]
+    head = {"gate": gate, "label": GATE_LABELS.get(gate),
+            "pos": point / _product(t["pos"] for t in tail), "area_pos": row["pos"],
+            "cut_pos": {}, "n": row["n"], "implied": True}
+    return [head, *tail]
 
 
 def _design(pivotal: dict | None) -> dict | None:
@@ -414,10 +653,50 @@ def big_pharma(conn, company_id: int) -> bool:
     return engines.assign(conn, company_id, revenue) == engines.PHARMA
 
 
-def for_asset(conn, asset_id: int, *, area: str | None, phase: str | None,
-              scalars: dict | None = None, today=None) -> dict | None:
-    """Everything resolve() needs, gathered from the asset's own rows. None where the
-    asset is outside the gate: marketed, not Phase 2 or 3, or not big pharma's."""
+def _lead_indication(conn, asset_id: int):
+    """The asset_indications row the forecast is built on, by the same rule
+    assumptions.load uses for the phase. A filing for any other disease must not lift
+    this line."""
+    return conn.execute(
+        """SELECT id, indication_id FROM asset_indications WHERE asset_id = ?
+            ORDER BY is_lead DESC,
+                     CASE phase WHEN 'Phase 4' THEN 6 WHEN 'Phase 3' THEN 5
+                                WHEN 'Phase 2/3' THEN 4 WHEN 'Phase 2' THEN 3
+                                WHEN 'Phase 1/2' THEN 2 WHEN 'Phase 1' THEN 1
+                                ELSE 0 END DESC LIMIT 1""", (asset_id,)).fetchone()
+
+
+def modelled_mesh(conn, asset_id: int, lead_indication: int | None = None) -> list:
+    """The MeSH descriptors of the indications the forecast values: those carrying the
+    asset's base assumption rows, or the lead indication where no row names one (the
+    launch-mode seeds, Litifilimab, Pumitamig, Mezigdomide). A study is in a modelled
+    indication when its own descriptors meet these, the test every gate view shares."""
+    ids = [r[0] for r in conn.execute(
+        "SELECT DISTINCT indication_id FROM assumptions WHERE asset_id = ?"
+        "   AND scenario = 'base' AND indication_id IS NOT NULL", (asset_id,))]
+    if not ids and lead_indication is not None:
+        ids = [lead_indication]
+    if not ids:
+        return []
+    marks = ",".join("?" * len(ids))
+    return sorted(r[0] for r in conn.execute(
+        f"SELECT DISTINCT mesh_id FROM indications WHERE id IN ({marks})"
+        "   AND mesh_id IS NOT NULL", ids))
+
+
+# The keys of a _gather result that resolve() takes; the rest are for the gate views.
+_RESOLVE_KEYS = ("area", "phase", "names", "company_id", "prevalence_us",
+                 "biomarker_selected", "conditions_text", "stored_modality",
+                 "lead_indication_id", "modelled_mesh")
+
+
+def _gather(conn, asset_id: int, *, area: str | None, phase: str | None,
+            scalars: dict | None = None, big: bool | None = None) -> dict | None:
+    """Everything resolve() needs, gathered from the asset's own rows, including
+    ``modelled_mesh``, which resolve hands to stage_of and the gate views use for the
+    same indication test. None where the asset is outside the gate: marketed, not Phase
+    2 or 3, or not big pharma's. ``big`` lets a caller pass a big_pharma answer it has
+    already worked out for the owner."""
     if phase not in FROM_PHASE:
         return None
     asset = conn.execute(
@@ -425,7 +704,7 @@ def for_asset(conn, asset_id: int, *, area: str | None, phase: str | None,
         "       is_marketed FROM assets WHERE id = ?", (asset_id,)).fetchone()
     if asset is None or asset["is_marketed"]:
         return None
-    if not big_pharma(conn, asset["owner_company_id"]):
+    if not (big if big is not None else big_pharma(conn, asset["owner_company_id"])):
         return None
     names = [n for n in (asset["generic_name"], asset["brand_name"],
                          asset["internal_code"]) if n]
@@ -438,21 +717,452 @@ def for_asset(conn, asset_id: int, *, area: str | None, phase: str | None,
               AND a.scenario = 'base' AND a.year IS NULL AND a.value IS NOT NULL
               AND a.unit = 'patients' 
             ORDER BY ai.is_lead DESC, a.value DESC LIMIT 1""", (asset_id,)).fetchone()
-    # The indication the forecast is built on, by the same rule assumptions.load uses
-    # for the phase. A filing for any other disease must not lift this line.
-    lead = conn.execute(
-        """SELECT id FROM asset_indications WHERE asset_id = ?
-            ORDER BY is_lead DESC,
-                     CASE phase WHEN 'Phase 4' THEN 6 WHEN 'Phase 3' THEN 5
-                                WHEN 'Phase 2/3' THEN 4 WHEN 'Phase 2' THEN 3
-                                WHEN 'Phase 1/2' THEN 2 WHEN 'Phase 1' THEN 1
-                                ELSE 0 END DESC LIMIT 1""", (asset_id,)).fetchone()
+    # The indication the forecast is built on. A filing for any other disease must not
+    # lift this line.
+    lead = _lead_indication(conn, asset_id)
     blob = conn.execute(
         "SELECT GROUP_CONCAT(COALESCE(conditions, '') || ' ' || COALESCE(title, ''), ' ')"
         "  FROM trials WHERE asset_id = ?", (asset_id,)).fetchone()[0] or ""
-    return resolve(conn, asset_id, area=area, phase=phase, names=names,
-                   company_id=asset["owner_company_id"],
-                   prevalence_us=(prevalence["value"] if prevalence else None),
-                   biomarker_selected=bool((scalars or {}).get("biomarker_selected")),
-                   conditions_text=blob, stored_modality=asset["modality"],
-                   lead_indication_id=(lead["id"] if lead else None), today=today)
+    return {"area": area, "phase": phase, "names": names,
+            "company_id": asset["owner_company_id"],
+            "prevalence_us": (prevalence["value"] if prevalence else None),
+            "biomarker_selected": bool((scalars or {}).get("biomarker_selected")),
+            "conditions_text": blob, "stored_modality": asset["modality"],
+            "lead_indication_id": (lead["id"] if lead else None),
+            "modelled_mesh": modelled_mesh(conn, asset_id,
+                                           lead["indication_id"] if lead else None)}
+
+
+def _resolve_args(gathered: dict) -> dict:
+    return {key: gathered[key] for key in _RESOLVE_KEYS}
+
+
+def for_asset(conn, asset_id: int, *, area: str | None, phase: str | None,
+              scalars: dict | None = None, today=None) -> dict | None:
+    """The placement assumptions.load hands the forecast. None where the asset is
+    outside the gate: marketed, not Phase 2 or 3, or not big pharma's. It computes no
+    legs: they sit beside the valuation and never feed it."""
+    gathered = _gather(conn, asset_id, area=area, phase=phase, scalars=scalars)
+    if gathered is None:
+        return None
+    return resolve(conn, asset_id, **_resolve_args(gathered), today=today)
+
+
+# --- the next gate -------------------------------------------------------------------
+
+def _trials(conn, asset_id: int, phases: tuple, mesh: set, skip: set) -> list:
+    """The asset's studies at these registry phases, largest first as stage_of reads
+    them, each with its own indications and whether one of them is modelled. Studies in
+    ``skip`` are left out: those that have read out where a caller looks for the next
+    gate, those that have answered (answered()) where it counts the studies still
+    asking."""
+    marks = ",".join("?" * len(phases))
+    out = []
+    for r in conn.execute(
+            f"""SELECT nct_id, phase, overall_status, primary_completion_date, enrollment,
+                       conditions, mesh_terms, title FROM trials
+                 WHERE asset_id = ? AND phase IN ({marks})
+                   AND COALESCE(overall_status, '') NOT IN ('Withdrawn')
+                 ORDER BY COALESCE(enrollment, 0) DESC""", (asset_id, *phases)):
+        if r["nct_id"] in skip:
+            continue
+        browse = indication_mapping.parse_browse(r["mesh_terms"])
+        found = indication_mapping.indications_for(r["conditions"], browse)
+        out.append({"nct_id": r["nct_id"], "phase": r["phase"],
+                    "status": r["overall_status"],
+                    "primary_completion": r["primary_completion_date"],
+                    "enrollment": r["enrollment"], "title": r["title"],
+                    "indications": [t["term"] for t in found],
+                    "mesh_on_file": bool(browse["meshes"]),
+                    "modelled": bool({t["id"] for t in found} & mesh)})
+    return out
+
+
+# Why a study whose MeSH terms name no indication cannot be placed: the registry has
+# none on file for it (Retatrutide's TRIUMPH-1), or those it has match none of the
+# conditions the sponsor lists. Neither says the study is in another disease.
+NO_MESH = "has no MeSH terms on file"
+MESH_UNMATCHED = "carries MeSH terms that match none of the conditions it lists"
+
+
+def unread(indications: list, mesh_on_file: bool) -> str | None:
+    """NO_MESH or MESH_UNMATCHED where a study's indication list is empty, else None:
+    the study is then in the indications it names."""
+    if indications:
+        return None
+    return MESH_UNMATCHED if mesh_on_file else NO_MESH
+
+
+def held_note(open_count: int, pos: float, stated_governs: bool = False) -> str:
+    """The one sentence for what a miss leaves, wherever it is shown."""
+    studies = f"{open_count} other Phase 3{'' if open_count == 1 else 's'}"
+    if stated_governs:
+        return (f"A miss leaves {studies} open; the model's own rule would hold it at "
+                f"{pos:.0%}, but the stated PoS governs until it is cleared.")
+    return (f"A miss leaves {studies} open, and the model holds it at {pos:.0%} until "
+            f"{'it reads' if open_count == 1 else 'they read'} out.")
+
+
+def _held(conn, asset_id: int, placement: dict, trial: dict, today: str,
+          modelled_mesh) -> dict | None:
+    """What the model does after one miss at a Phase 3 gate while other Phase 3s stay
+    open: stage_of's mixed rule, which counts every open Phase 3 completing after the
+    negative in any indication, and holds the asset at the capped mixed point.
+
+    Counted from the gate study's own completion date, or today once that has passed.
+    stage_of counts a recorded miss from the later of the day it was recorded and the
+    same completion date, so the note holds whether the miss comes early or on the
+    day. A study leaves the count only where its own resolved readout counted as
+    evidence, as it leaves stage_of's."""
+    after = max(trial.get("primary_completion") or today, today)
+    mesh = set(modelled_mesh or ())
+    others = [t for t in _trials(conn, asset_id, _GATE_PHASES["p3_to_nda"], mesh,
+                                 answered(conn, asset_id, mesh))
+              if t["nct_id"] != trial["nct_id"] and t["status"] in OPEN_STATUSES
+              and (t["primary_completion"] or "9999") > after]
+    if not others:
+        return None
+    # The same arithmetic resolve's mixed branch runs on the same chain and cuts: the
+    # area chain, never above the point the asset carries today.
+    area = _product(c["pos"] for c in placement.get("chain") or [])
+    entering = _product(g["pos"] for g in placement.get("gates") or [])
+    pos = round(min(area, entering), 4)
+    return {"open": len(others), "ncts": [t["nct_id"] for t in others],
+            "indications": sorted({i for t in others for i in t["indications"]}),
+            "pos": pos, "note": held_note(len(others), pos)}
+
+
+def next_gate(conn, asset_id: int, placement: dict | None, modelled_mesh, today=None, *,
+              gate: str | None = None, lead_indication_id=None) -> dict | None:
+    """The event that decides the asset next: the one gate source, and GATE_LABELS the
+    one label map, for every view that prices or costs a gate.
+
+    The gate is the first transition left in the placement's chain, or ``gate`` where a
+    caller has placed the asset elsewhere. At a Phase 3 gate the trial is the passed
+    study stage_of named where the asset is reading out, else the soonest open Phase 3
+    completing on or after today; at a Phase 2 gate, the soonest open Phase 2 or 2/3.
+    Either way only a study in an indication the forecast values counts, the indication
+    guard every gate view carries. At the FDA gate there is no trial, and the date is
+    the decision date on an accepted application where one lifts. ``why`` says what is
+    missing when a trial or a date is not found; ``held`` is the mixed rule at a Phase 3
+    gate where other Phase 3s stay open.
+    """
+    if not placement or placement.get("stage") == "negative":
+        return None
+    chain = placement.get("chain") or []
+    first = chain[0]["gate"] if chain else None
+    gate = gate or first
+    if gate not in GATE_LABELS:
+        return None
+    today_date = today or dt.date.today()
+    iso = today_date.isoformat()
+    out = {"gate": gate, "label": GATE_LABELS[gate], "trial": None, "date": None,
+           "date_basis": None, "due": False, "held": None, "why": None}
+    if gate == "nda_to_approval":
+        filing = placement.get("filing")
+        if not (filing or {}).get("lifts"):
+            if lead_indication_id is None:
+                row = _lead_indication(conn, asset_id)
+                lead_indication_id = row["id"] if row else None
+            filing = applications.filed_for(conn, asset_id, lead_indication_id,
+                                            today=today_date)
+        if (filing or {}).get("lifts"):
+            out.update(date=filing["date"],
+                       date_basis="the FDA decision date on the accepted application")
+        else:
+            out["why"] = "no accepted application on file, so no decision date is known"
+        return out
+
+    mesh = set(modelled_mesh or ())
+    if not mesh:
+        out["why"] = ("no indication the forecast values carries a MeSH descriptor, so no "
+                      "study can be matched to it")
+        return out
+    trial, note = None, None
+    # A study that has read out, in any indication, is never the next gate again.
+    spoken = set(read_out(conn, asset_id))
+    if placement.get("stage") == "reading_out" and gate == first:
+        passed = [t for t in _trials(conn, asset_id, _GATE_PHASES["p3_to_nda"], mesh,
+                                     spoken)
+                  if (t["primary_completion"] or "9999") <= iso]
+        trial = next((t for t in passed if t["modelled"]), None)
+        if trial is None and passed:
+            first = passed[0]
+            blind = unread(first["indications"], first["mesh_on_file"])
+            note = (f"{first['nct_id']} passed primary completion in an indication the "
+                    f"forecast does not value" if blind is None else
+                    f"{first['nct_id']} passed primary completion but {blind}, so it "
+                    f"cannot be matched to an indication the forecast values")
+    rows = _trials(conn, asset_id, _GATE_PHASES[gate], mesh, spoken)
+    open_rows = [t for t in rows if t["status"] in OPEN_STATUSES]
+    if trial is None:
+        upcoming = sorted((t for t in open_rows if t["modelled"]
+                           and (t["primary_completion"] or "") >= iso),
+                          key=lambda t: (t["primary_completion"], -(t["enrollment"] or 0)))
+        overdue = sorted((t for t in open_rows if t["modelled"] and t["primary_completion"]
+                          and t["primary_completion"] < iso),
+                         key=lambda t: t["primary_completion"], reverse=True)
+        trial = upcoming[0] if upcoming else overdue[0] if overdue else None
+    if trial is None:
+        phase_word = "Phase 3" if gate == "p3_to_nda" else "Phase 2"
+        others = [t for t in open_rows if not t["modelled"]]
+        elsewhere = len(others)
+        blind = [unread(t["indications"], t["mesh_on_file"]) for t in others]
+        if not elsewhere:
+            count = f"no open {phase_word} study on the registry"
+        elif not any(blind):
+            count = (f"{elsewhere} open {phase_word} "
+                     f"{'study' if elsewhere == 1 else 'studies'}, none in an indication "
+                     f"the forecast values")
+        else:
+            # A study with no indication read is not in another disease; it is unread.
+            bare, unmatched = blind.count(NO_MESH), blind.count(MESH_UNMATCHED)
+            parts = [f"{bare} with no MeSH terms on file" if bare else None,
+                     (f"{unmatched} with MeSH terms that match none of "
+                      f"{'its' if unmatched == 1 else 'their'} listed conditions"
+                      if unmatched else None)]
+            parts = [p for p in parts if p]
+            count = (f"{elsewhere} open {phase_word} "
+                     f"{'study' if elsewhere == 1 else 'studies'}, none matched to an "
+                     f"indication the forecast values ({'; '.join(parts)})")
+        out["why"] = "; ".join(filter(None, (note, count)))
+        return out
+    due = (trial["primary_completion"] or "9999") < iso
+    out.update(trial={k: trial[k] for k in ("nct_id", "phase", "status",
+                                            "primary_completion", "enrollment",
+                                            "indications", "title")},
+               date=trial["primary_completion"], due=due,
+               date_basis=("primary completion on the registry, passed with no readout "
+                           "on file" if due else "primary completion on the registry"),
+               why=note)
+    if gate == "p3_to_nda":
+        out["held"] = _held(conn, asset_id, placement, trial, iso, mesh)
+    return out
+
+
+# --- success and failure legs --------------------------------------------------------
+
+def _and(words: list) -> str:
+    words = [w for w in words if w]
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
+
+
+_FAILURE = "a failure is taken at nil, the model's convention for a failed programme"
+
+
+def legs(conn, asset_id: int, placement: dict | None, gathered: dict | None, today=None,
+         table=None, *, stated_pos: float | None = None) -> dict | None:
+    """What the asset is worth, as a probability, if its next gate passes and if it
+    fails. Derived beside the valuation and never fed back into it.
+
+    The success leg is the probability resolve() gives the asset placed at the
+    following gate, by the same cut rule, so a passed readout recorded later lands on
+    it exactly: the NDA/BLA step after a Phase 3 readout, Phase 3 entry after a Phase 2
+    readout, and 1.0 after an FDA decision. The failure leg is nil at every gate, graded
+    convention: it is the model's own answer for a failed programme, and it is what
+    makes the two legs average back to today's value, p_gate x pos_success = pos_now,
+    with p_gate left unrounded for that reason. Where other Phase 3s stay open the
+    model would hold the asset after one miss rather than drop it, and ``held`` says so
+    beside the leg rather than in it.
+
+    ``p_gate`` is published where the asset carries the placement's own point: it is
+    then the first gate of the split, to rounding. It is implied where the point is a
+    mixed one, and where a stated probability governs (``stated_pos``), which is divided
+    by the same success leg. A stated probability at or above the success leg prices a
+    filing the book's phase does not carry, so the asset is read at the FDA decision
+    instead: success 1.0, failure nil, gate odds the stated probability, labelled
+    "stated PoS implies a filing".
+
+    None where there is no placement, the stage is negative, or the probability in
+    force is nil: nothing is left to win or lose at a gate.
+    """
+    if not placement or not gathered or placement.get("stage") == "negative":
+        return None
+    chain = placement.get("chain") or []
+    if not chain:
+        return None
+    pos_now = placement["pos"] if stated_pos is None else stated_pos
+    if not pos_now:
+        return None
+    table = table if table is not None else transitions()
+    first = chain[0]["gate"]
+    if first == "nda_to_approval":
+        pos_success, success_gates = 1.0, []
+    else:
+        placed = resolve(conn, asset_id, **_resolve_args(gathered), today=today,
+                         table=table, at_gate=CHAIN[CHAIN.index(first) + 1])
+        pos_success, success_gates = placed["pos"], placed["gates"]
+    stated = stated_pos is not None
+    mixed = placement.get("stage") == "mixed"
+    common = {"legs_basis": "derived", "pos_now": pos_now, "pos_failure": 0.0,
+              "stated": stated}
+    where = dict(modelled_mesh=gathered.get("modelled_mesh"),
+                 lead_indication_id=gathered.get("lead_indication_id"))
+
+    if stated and first != "nda_to_approval" and pos_now >= pos_success - STATED_PAST_GATE:
+        nxt = next_gate(conn, asset_id, placement, today=today, gate="nda_to_approval",
+                        **where)
+        label = GATE_LABELS[first]
+        return {**common, **_event(nxt), "pos_success": 1.0, "p_gate": pos_now,
+                "p_gate_published": None, "held": None,
+                "placed": "stated PoS implies a filing",
+                "passed_gate": first, "pos_success_at_gate": pos_success,
+                "gates": [{"gate": "nda_to_approval",
+                           "label": GATE_LABELS["nda_to_approval"], "pos": pos_now,
+                           "implied": True, "published_pos": None}],
+                "evidence": {"p_gate": "implied", "success": "convention",
+                             "failure": "convention"},
+                "basis": (f"stated PoS implies a filing: the stated {pos_now:.1%} is at or "
+                          f"above the {pos_success:.1%} the asset would carry if its "
+                          f"{label} passed, so it is read at the FDA decision with gate "
+                          f"odds of {pos_now:.1%}, implied, not published; {_FAILURE}")}
+
+    nxt = next_gate(conn, asset_id, placement, today=today, **where)
+    p_gate = pos_now / pos_success
+    published = None if mixed else (placement.get("gates") or [{}])[0].get("pos")
+    implied = stated or mixed
+    label = GATE_LABELS[first]
+    split = [{"gate": first, "label": label, "pos": p_gate, "implied": implied,
+              "published_pos": published}, *success_gates]
+    steps = " then ".join(f"{_STEP_NAMES[g['gate']]} {g['pos']:.1%}" for g in split)
+    after = " then ".join(f"{_STEP_NAMES[g['gate']]} {g['pos']:.1%}"
+                          for g in success_gates) or "approval"
+    if stated:
+        basis = (f"implied, not published: the stated PoS of {pos_now:.1%} over the "
+                 f"{pos_success:.1%} the asset carries if its {label} passes gives gate "
+                 f"odds of {p_gate:.1%}"
+                 + (f", against {published:.1%} published" if published is not None else "")
+                 + f"; {_FAILURE}")
+    elif mixed:
+        basis = (f"implied, not published: one Phase 3 has read out negative, so the gate "
+                 f"odds of {p_gate:.1%} are what the model's {pos_now:.1%} leaves over the "
+                 f"{pos_success:.1%} that follows ({after}); {_FAILURE}")
+    else:
+        groups = [placement.get("area")] + [c["group"] for c in placement.get("cuts") or []]
+        basis = (f"{steps} for {_and(groups)}, BIO/Informa/QLS 2011-2020; {_FAILURE}")
+    held = nxt.get("held") if nxt else None
+    if held and stated:
+        held = _stated_held(held)
+    return {**common, **_event(nxt), "pos_success": pos_success, "p_gate": p_gate,
+            "p_gate_published": published, "held": held, "placed": None,
+            "gates": split,
+            "evidence": {"p_gate": "implied" if implied else "published",
+                         "success": "published" if success_gates else "convention",
+                         "failure": "convention"},
+            "basis": basis}
+
+
+def _stated_held(held: dict) -> dict:
+    """The held note where a stated probability governs: the model's own rule would hold
+    the asset, and the analyst's figure still decides what it is worth."""
+    return {**held, "stated_governs": True,
+            "note": held_note(held["open"], held["pos"], stated_governs=True)}
+
+
+def held_after(conn, asset_id: int, placement: dict | None, nct_id: str,
+               primary_completion: str | None, today=None, *, stated: bool = False,
+               modelled_mesh=None):
+    """``held`` for a miss on this particular Phase 3, where a view prices a readout
+    other than the one next_gate named: the same mixed rule, counted from that study.
+    ``modelled_mesh`` is the asset's own (``_gather``), which decides which resolved
+    readouts have answered."""
+    if not placement or placement.get("stage") == "negative":
+        return None
+    iso = (today or dt.date.today()).isoformat()
+    held = _held(conn, asset_id, placement,
+                 {"nct_id": nct_id, "primary_completion": primary_completion}, iso,
+                 modelled_mesh)
+    return _stated_held(held) if (held and stated) else held
+
+
+def legs_for_inputs(conn, asset_id: int, inputs: dict | None, today=None,
+                    table=None) -> tuple:
+    """(legs, gathered) for a forecast assumptions.load has already put together: its
+    own placement and its own scalars, so the legs belong to the build a view shows,
+    scenario and all. (None, None) where the asset has no placement. The placement
+    exists only for a big pharma asset, so the owner is not asked again."""
+    placement = (inputs or {}).get("pos_granular")
+    if not placement:
+        return None, None
+    gathered = _gather(conn, asset_id, area=inputs.get("therapeutic_area"),
+                       phase=inputs.get("phase"), scalars=inputs.get("scalars"), big=True)
+    if gathered is None:
+        return None, None
+    return (legs(conn, asset_id, placement, gathered, today, table,
+                 stated_pos=stated_pos(inputs.get("scalars"))), gathered)
+
+
+def in_modelled(conn, nct_id: str, modelled_mesh) -> tuple:
+    """(whether the study is in an indication the forecast values, its indications):
+    the one MeSH test every gate view and stage_of's resolved readouts share."""
+    row = conn.execute("SELECT conditions, mesh_terms FROM trials WHERE nct_id = ?",
+                       (nct_id,)).fetchone()
+    if row is None:
+        return False, []
+    found = indication_mapping.indications_for(
+        row["conditions"], indication_mapping.parse_browse(row["mesh_terms"]))
+    return bool({t["id"] for t in found} & set(modelled_mesh or ())), [t["term"] for t in found]
+
+
+def mesh_on_file(conn, nct_id: str) -> bool:
+    """Whether the registry has any MeSH term on file for the study."""
+    row = conn.execute("SELECT mesh_terms FROM trials WHERE nct_id = ?",
+                       (nct_id,)).fetchone()
+    return bool(row and indication_mapping.parse_browse(row["mesh_terms"])["meshes"])
+
+
+def _event(nxt: dict | None) -> dict:
+    nxt = nxt or {}
+    return {key: nxt.get(key) for key in ("gate", "label", "trial", "date", "date_basis",
+                                          "due", "why")}
+
+
+def _phase(conn, asset_id: int) -> str | None:
+    """The asset's phase by assumptions.load's own rule: its furthest indication."""
+    row = conn.execute(
+        """SELECT phase FROM asset_indications WHERE asset_id = ?
+            ORDER BY CASE phase WHEN 'Phase 4' THEN 6 WHEN 'Phase 3' THEN 5
+                     WHEN 'Phase 2/3' THEN 4 WHEN 'Phase 2' THEN 3
+                     WHEN 'Phase 1/2' THEN 2 WHEN 'Phase 1' THEN 1 ELSE 0 END DESC
+            LIMIT 1""", (asset_id,)).fetchone()
+    return row["phase"] if row else None
+
+
+def _base_scalars(conn, asset_id: int) -> dict:
+    """The asset-level base rows, enough to tell a stated probability and a recorded
+    biomarker; assumptions.load's scalars where a caller already holds them."""
+    return {r["key"]: (r["value"] if r["value"] is not None else r["text_value"])
+            for r in conn.execute(
+                "SELECT key, value, text_value FROM assumptions WHERE asset_id = ?"
+                "   AND scenario = 'base' AND indication_id IS NULL AND year IS NULL",
+                (asset_id,))}
+
+
+def stated_pos(scalars: dict | None) -> float | None:
+    """The probability an analyst has stated, or built from composite factors, which
+    the forecast takes ahead of any placement; None where the placement governs."""
+    import forecast
+    value, basis = forecast.pos(scalars or {})
+    return value if basis in ("stated", "composite factors") else None
+
+
+def legs_for_asset(conn, asset_id: int, *, area: str | None = None,
+                   phase: str | None = None, scalars: dict | None = None, today=None,
+                   big: bool | None = None, table=None) -> dict | None:
+    """legs() for one asset from its own rows. ``area`` defaults to product_areas'
+    reading and ``phase`` to assumptions.load's; ``big`` lets a caller pass a big_pharma
+    answer it has memoised per company. The probability in force follows the forecast:
+    a stated or composite figure first, the placement otherwise."""
+    if area is None:
+        import product_areas
+        area = product_areas.area_for(conn, asset_id)
+    phase = phase if phase is not None else _phase(conn, asset_id)
+    scalars = scalars if scalars is not None else _base_scalars(conn, asset_id)
+    gathered = _gather(conn, asset_id, area=area, phase=phase, scalars=scalars, big=big)
+    if gathered is None:
+        return None
+    table = table if table is not None else transitions()
+    placement = resolve(conn, asset_id, **_resolve_args(gathered), today=today,
+                        table=table)
+    return legs(conn, asset_id, placement, gathered, today, table,
+                stated_pos=stated_pos(scalars))

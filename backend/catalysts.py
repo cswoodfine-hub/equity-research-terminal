@@ -124,11 +124,18 @@ def delete_catalyst(db_path, catalyst_id) -> bool:
 
 
 def set_status(db_path, catalyst_id, status) -> bool:
+    """Record a catalyst's outcome. updated_at is stamped only when the status changes:
+    on a resolved readout it is the day the outcome was recorded, which pos_granular
+    reads as the readout's date, so setting the same status again must not move it."""
     conn = db.get_connection(db_path)
     try:
+        # SQLite reads the old row on the right of every SET, so the CASE compares the
+        # status before this write.
         cur = conn.execute(
-            "UPDATE catalysts SET status = ?, updated_at = datetime('now') WHERE id = ?",
-            (status, catalyst_id),
+            "UPDATE catalysts SET status = ?, updated_at = CASE"
+            " WHEN COALESCE(status, 'pending') = ? THEN updated_at"
+            " ELSE datetime('now') END WHERE id = ?",
+            (status, status, catalyst_id),
         )
         conn.commit()
         return cur.rowcount > 0
@@ -137,12 +144,16 @@ def set_status(db_path, catalyst_id, status) -> bool:
 
 
 def accept_catalyst(db_path, catalyst_id) -> bool:
-    """Promote a derived row to curated, which takes it out of the review queue."""
+    """Promote a pending derived row to curated, which takes it out of the review queue.
+
+    Pending only. A row resolved met or missed is history, and its updated_at is the day
+    the outcome was recorded, the date pos_granular gives the readout; accepting it later
+    would move that day, and with it the evidence and the studies left open."""
     conn = db.get_connection(db_path)
     try:
         cur = conn.execute(
             "UPDATE catalysts SET is_curated = 1, updated_at = datetime('now')"
-            " WHERE id = ? AND is_curated = 0",
+            " WHERE id = ? AND is_curated = 0 AND COALESCE(status, 'pending') = 'pending'",
             (catalyst_id,),
         )
         conn.commit()
@@ -248,6 +259,11 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
     Idempotent. The trial's registry URL is the identity of the row, so a re-run updates
     the date in place rather than adding a second copy. A row the analyst has accepted
     (is_curated=1) is left alone; their judgement outranks the derivation.
+
+    A row resolved met or missed is history and is never touched again: no update, no
+    second pending row for its trial, and no withdrawal once the trial leaves the
+    window. pos_granular reads a resolved Phase 3 readout as evidence of where the
+    asset stands, so deleting one would quietly undo the readout.
     """
     conn = db.get_connection(db_path)
     try:
@@ -280,11 +296,13 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
         for row in rows:
             url = CTGOV_URL.format(nct_id=row["nct_id"])
             existing = conn.execute(
-                "SELECT id, expected_date, title, is_curated FROM catalysts"
-                " WHERE source_url = ?",
+                "SELECT id, expected_date, title, is_curated, status FROM catalysts"
+                " WHERE source_url = ? ORDER BY status = 'pending', id",
                 (url,),
             ).fetchone()
             title = _readout_title(row["phase"], row["brand_name"], row["title"])
+            if existing is not None and (existing["status"] or "pending") != "pending":
+                continue                 # resolved: the readout happened, keep it as is
             if existing is None:
                 conn.execute(
                     """
@@ -309,13 +327,14 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
                 updated += 1
 
         # A trial that left the window, stopped, or read out should not linger as a
-        # pending catalyst. Only derived rows are withdrawn; curated ones are the
-        # analyst's and are never removed here.
+        # pending catalyst. Only pending derived rows are withdrawn; curated ones are the
+        # analyst's, and resolved ones are the record of what happened.
         live = {CTGOV_URL.format(nct_id=r["nct_id"]) for r in rows}
         stale = [
             r["id"] for r in conn.execute(
                 "SELECT id, source_url FROM catalysts"
-                " WHERE is_curated = 0 AND catalyst_type = 'data readout'")
+                " WHERE is_curated = 0 AND catalyst_type = 'data readout'"
+                "   AND COALESCE(status, 'pending') = 'pending'")
             if r["source_url"] not in live
         ]
         for catalyst_id in stale:

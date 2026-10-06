@@ -9,7 +9,9 @@ server error.
 from __future__ import annotations
 
 import copy
+import logging
 import math
+import re
 
 import asset_revenue
 import assumptions as assumptions_module
@@ -17,8 +19,12 @@ import company_lines
 import db
 import discontinued
 import forecast
+import launch_timing
 import other_claims
 import loe_link
+import pos_granular
+
+_log = logging.getLogger(__name__)
 
 
 def _company(conn, ticker: str):
@@ -77,8 +83,13 @@ def assets_for(db_path, ticker: str):
         conn.close()
 
 
-def asset_forecast(db_path, ticker: str, asset_id: int, scenario: str = "base"):
-    """One asset's forecast, or the named gaps that stop it. None = not this company's."""
+def asset_forecast(db_path, ticker: str, asset_id: int, scenario: str = "base", *,
+                   with_legs: bool = False):
+    """One asset's forecast, or the named gaps that stop it. None = not this company's.
+
+    ``with_legs`` also returns the next gate's legs the launch floor was read with, under
+    ``legs``, so company_rollup can price the line's gate without working them out again.
+    The API never asks for them."""
     conn = db.get_connection(db_path)
     try:
         company = _company(conn, ticker)
@@ -109,13 +120,47 @@ def asset_forecast(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         actuals = [{"fiscal_year": a["fiscal_year"], "value": a["value"]}
                    for a in inputs.get("actuals") or []
                    if a.get("period") == "FY" and a.get("value") is not None]
+        # The earliest approval the evidence allows, beside the seeded start: a flag,
+        # read after the build and never fed into it.
+        legs = _legs_or_none(conn, asset_id, inputs)
+        launch = _launch_or_none(conn, asset_id, scenario, legs)
         # The scalars the engine actually ran on, base and scenario merged, so a control
         # that moves one starts from the value in force rather than from a scenario's
         # partial restatement of it.
         return {**base, "ok": True, "result": result, "actuals": actuals,
-                "scalars": inputs.get("scalars") or {}}
+                "scalars": inputs.get("scalars") or {},
+                # What the gate views gather the placement's legs from.
+                "phase": inputs.get("phase"),
+                "therapeutic_area": inputs.get("therapeutic_area"),
+                "launch": launch, **({"legs": legs} if with_legs else {})}
     finally:
         conn.close()
+
+
+def _legs_or_none(conn, asset_id: int, inputs: dict):
+    """The next gate's legs for a forecast assumptions.load has built, or None where
+    the asset has no placement: a marketed product, an early asset, a smaller company's.
+
+    The legs are a view beside the value, so a failure here is logged and reads as no
+    gate: it must never take a forecast, a rollup or a rating down with it."""
+    if not inputs.get("pos_granular"):
+        return None
+    try:
+        legs, _ = pos_granular.legs_for_inputs(conn, asset_id, inputs)
+    except Exception:  # noqa: BLE001  a view must not take the value down
+        _log.exception("next-gate legs failed for asset %s", asset_id)
+        return None
+    return legs
+
+
+def _launch_or_none(conn, asset_id: int, scenario: str, legs):
+    """The launch floor, or None where it could not be read. A flag and nothing more,
+    so a failure is logged and leaves the forecast, the verdict and the rollup whole."""
+    try:
+        return launch_timing.for_asset(conn, asset_id, scenario=scenario, legs=legs)
+    except Exception:  # noqa: BLE001  a flag must not take the value down
+        _log.exception("launch floor failed for asset %s", asset_id)
+        return None
 
 
 # The two numbers the data cannot settle. Steepness falls out of a launch's early growth
@@ -587,80 +632,429 @@ def _diluted_shares(conn, company_id: int):
     return _to_price_units(conn, company_id, ordinary) if ordinary > 0 else None
 
 
+# --- what a catalyst is worth ---------------------------------------------------------
+# A catalyst is priced from one of two places. Stated legs are an analyst's pos_success and
+# pos_failure rows, and they always win, priced once, on the event the analyst tied them
+# to. Derived legs are the gate pos_granular computes for a big pharma Phase 2 or 3 asset:
+# the probability if its next gate passes, and nil if it fails, graded convention. A
+# derived leg is priced only on the event that is that gate, and every other catalyst on
+# the asset says why it is not.
+
+_NCT = re.compile(r"NCT\d{8}")
+_CTGOV_URL = "https://clinicaltrials.gov/study/"
+LEGS = ("pos_success", "pos_failure")
+# The FDA decision itself, and the regulatory events that only inform it.
+DECISION_KINDS = ("PDUFA", "regulatory decision")
+ADVISORY_KINDS = ("AdCom", "EMA decision")
+# Why a priced derived row cannot be resolved by a click in this version.
+# Recording a derived outcome writes a resolved catalyst the daily refresh has to keep. The
+# 06:00 job runs the main branch, whose derive_readouts deletes a resolved derived row once
+# its trial leaves the window, so a recorded outcome would be lost the next morning. Off
+# until main carries d6dba2f and 8e09039; an analyst's stated legs are not affected.
+DERIVED_RESOLVE = False
+DERIVED_RESOLVE_NOTE = ("Recording this outcome is switched off until the daily refresh "
+                        "keeps resolved readouts.")
+RESOLVE_NOTES = {
+    "p2_to_p3": ("A Phase 2 result moves the model when its Phase 3 starts or the "
+                 "programme is retired."),
+    "nda_to_approval": "An FDA decision resolves when openFDA lists the approval.",
+}
+# Every reason a catalyst carries no stake, in the order they are tested.
+STAKE_REASONS = ("no_forecast", "stated_elsewhere", "nil", "no_gate",
+                 "regulatory_not_gate", "not_a_gate", "no_trial_link", "past_gate",
+                 "not_gate_phase", "phase_ahead_of_book", "other_indication",
+                 "same_gate_later")
+# Columns a stake row is read with that are not part of the payload.
+_ROW_ONLY = ("owner_company_id", "own_asset_id")
+
+
+# A registry readout belongs to the asset its study is mapped to. The refresh keeps that
+# mapping current; the catalyst's own asset_id is written once, when the row is derived,
+# and 273 readouts on the book carry none while their study is mapped (MariTide's
+# Phase 3, Retatrutide's TRIUMPH-1). Other catalysts keep their own.
+_TRIAL_JOIN = (f"LEFT JOIN trials t ON cat.source_url LIKE '{_CTGOV_URL}%'"
+               f" AND t.nct_id = substr(cat.source_url, {len(_CTGOV_URL) + 1})")
+_ASSET_OF = "COALESCE(t.asset_id, cat.asset_id)"
+
+
+def _stake_rows(conn, company, ticker: str, *, asset_id=None, include_id=None) -> list:
+    """Pending catalysts on the company's own or partnered assets dated from today, or
+    one asset's; ``include_id`` adds that catalyst whatever its date, so a readout
+    resolved after its estimated day is read by the same rule as the calendar."""
+    query = f"""SELECT cat.id, cat.catalyst_type, cat.expected_date,
+                       cat.date_confidence, cat.title, cat.description, cat.source_url,
+                       cat.is_curated, {_ASSET_OF} AS asset_id, cat.asset_indication_id,
+                       cat.asset_id AS own_asset_id,
+                       COALESCE(a.brand_name, a.generic_name) AS asset_name,
+                       a.owner_company_id
+                  FROM catalysts cat {_TRIAL_JOIN}
+                  JOIN assets a ON a.id = {_ASSET_OF}
+                 WHERE cat.status = 'pending'
+                   AND (cat.expected_date >= date('now') OR cat.id = ?)
+                   AND (a.owner_company_id = ? OR a.id IN
+                        (SELECT asset_id FROM assumptions WHERE key = 'partner_ticker'
+                           AND UPPER(COALESCE(text_value, '')) = ?))"""
+    params = [include_id, company["id"], ticker.upper()]
+    if asset_id is not None:
+        query += " AND a.id = ?"
+        params.append(asset_id)
+    return [dict(r) for r in conn.execute(query + " ORDER BY cat.expected_date, cat.id",
+                                          params)]
+
+
+def _legs_state(conn, asset_id: int) -> dict:
+    """What every catalyst on one asset is priced from: the base forecast built once,
+    and its stated legs or its derived ones."""
+    inputs = assumptions_module.load(conn, asset_id)
+    scalars = inputs.get("scalars") or {}
+    try:
+        built, missing = forecast.build(inputs), None
+    except forecast.ForecastError as err:
+        built, missing = None, list(err.missing or [])
+    state = {"built": built, "missing": missing, "share": scalars.get("economics_share"),
+             "placement": inputs.get("pos_granular"), "stated": None, "legs": None,
+             "gathered": None, "ignored": None, "asset_id": asset_id, "cited": []}
+    on_file = {key: scalars.get(key) for key in LEGS}
+    if all(v is not None for v in on_file.values()):
+        state["stated"] = on_file
+        state["cited"] = _cited_studies(conn, asset_id)
+        return state
+    lone = [key for key, v in on_file.items() if v is not None]
+    if lone:
+        other = next(key for key in LEGS if key not in lone)
+        state["ignored"] = (f"{lone[0]} is on file without {other}, so it is not used "
+                            f"and the derived legs price the gate")
+    if built is not None and state["placement"]:
+        state["legs"], state["gathered"] = pos_granular.legs_for_inputs(
+            conn, asset_id, inputs)
+    return state
+
+
+def _cited_studies(conn, asset_id: int) -> list:
+    """The registry studies the stated legs cite in their own sources, in the order
+    first cited: the event the analyst priced them on."""
+    out = []
+    for r in conn.execute(
+            """SELECT source FROM assumptions WHERE asset_id = ? AND scenario = 'base'
+                  AND key IN ('pos_success', 'pos_failure') AND indication_id IS NULL
+                  AND year IS NULL AND value IS NOT NULL ORDER BY key DESC, id""",
+            (asset_id,)):
+        for nct in _NCT.findall(r["source"] or ""):
+            if nct not in out:
+                out.append(nct)
+    return out
+
+
+def _stated_choice(conn, rows: list, state: dict) -> tuple:
+    """(the id of the one catalyst the stated legs are priced on or None, {id: why} for
+    every other row of the asset).
+
+    Stated legs are one event's answer, the analyst's, so they price one catalyst: one
+    that names a study the legs' sources cite, else one the analyst tied to the asset
+    itself (the catalyst's own asset id), the earliest first. A readout that reaches the
+    asset only through its study is another trial's result: pricing the legs on it lists
+    one risk once per study and lets that study's result step the asset's probability."""
+    cited, asset_id = state["cited"], state["asset_id"]
+    ranked = []
+    for row in rows:
+        nct, _ = _catalyst_trial(conn, row)
+        if nct and nct in cited:
+            ranked.append(((0, row["expected_date"] or "", row["id"]), row))
+        elif row.get("own_asset_id") == asset_id:
+            ranked.append(((1, row["expected_date"] or "", row["id"]), row))
+    ranked.sort(key=lambda pair: pair[0])
+    lead = ranked[0][1] if ranked else None
+    tied = {row["id"] for _, row in ranked}
+    said = _and(cited) if cited else None
+    why = {}
+    for row in rows:
+        if lead is not None and row["id"] == lead["id"]:
+            continue
+        if row["id"] in tied:
+            why[row["id"]] = (f"The stated legs on file are priced once, on catalyst "
+                              f"{lead['id']} ({lead['expected_date']}), so this one is not "
+                              f"priced twice.")
+        elif lead is not None:
+            why[row["id"]] = (f"The stated legs on file are tied to catalyst {lead['id']}"
+                              + (f" ({said})" if said else "") + ", and this event reaches "
+                              f"the asset only through its study, so it is not priced "
+                              f"against them.")
+        else:
+            why[row["id"]] = ("The stated legs on file are tied to no event in the "
+                              "calendar" + (f" (they cite {said})" if said else "")
+                              + ", and this one reaches the asset only through its study, "
+                              "so it is not priced against them.")
+    return (lead["id"] if lead is not None else None), why
+
+
+def _and(words: list) -> str:
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
+
+
+def _catalyst_trial(conn, row: dict) -> tuple:
+    """(nct_id, trials row) behind a catalyst: the registry page it points at, else an
+    NCT number in its link or its text."""
+    url = row.get("source_url") or ""
+    nct = url[len(_CTGOV_URL):] if url.startswith(_CTGOV_URL) else None
+    if not nct:
+        found = _NCT.search(url) or _NCT.search(row.get("description") or "")
+        nct = found.group(0) if found else None
+    if not nct:
+        return None, None
+    trial = conn.execute(
+        "SELECT nct_id, asset_id, phase, primary_completion_date FROM trials"
+        " WHERE nct_id = ?", (nct,)).fetchone()
+    return nct, (dict(trial) if trial else None)
+
+
+def _filing_in_model(conn, row: dict, gathered: dict) -> tuple:
+    """(True, None) where a regulatory catalyst is for an indication the forecast
+    values, else (False, why). The test applications.filed_for applies to a filing."""
+    link = row.get("asset_indication_id")
+    if link is None:
+        return False, "the filing names no indication this asset carries"
+    if link == gathered.get("lead_indication_id"):
+        return True, None
+    found = conn.execute(
+        "SELECT i.name, i.mesh_id FROM asset_indications ai"
+        "  JOIN indications i ON i.id = ai.indication_id WHERE ai.id = ?",
+        (link,)).fetchone()
+    if found and found["mesh_id"] in set(gathered.get("modelled_mesh") or ()):
+        return True, None
+    name = found["name"] if found else "an indication"
+    return False, f"the filing is for {name}, which the forecast does not value"
+
+
+def _gate_reason(conn, row: dict, state: dict) -> tuple:
+    """(reason, why, nct, trial) for one catalyst on an asset with derived legs; the
+    reason is None where the catalyst is the gate event."""
+    import applications
+    legs, gathered = state["legs"], state["gathered"]
+    gate, label = legs["gate"], legs["label"]
+    kind = row.get("catalyst_type") or ""
+    if kind in DECISION_KINDS or kind in ADVISORY_KINDS:
+        if kind in ADVISORY_KINDS:
+            return ("regulatory_not_gate", "An advisory committee or an EMA opinion "
+                    "informs the FDA decision but is not the gate the model prices.",
+                    None, None)
+        if gate != "nda_to_approval":
+            return ("regulatory_not_gate", f"The asset's next gate is its "
+                    f"{label.lower()}, so a regulatory date is not the event that "
+                    f"decides it.", None, None)
+        supplemental, why = applications.is_supplemental(
+            conn, row["asset_id"], row.get("title"), row.get("description"))
+        if supplemental:
+            return ("regulatory_not_gate", f"The application expands a label rather "
+                    f"than seeking a first approval: {why}.", None, None)
+        ok, why = _filing_in_model(conn, row, gathered)
+        if not ok:
+            return "other_indication", f"Not the modelled decision: {why}.", None, None
+        return None, None, None, None
+    if kind != "data readout":
+        return ("not_a_gate", f"A {kind or 'catalyst of no stated kind'} is not an event "
+                "the gate model prices.", None, None)
+    nct, trial = _catalyst_trial(conn, row)
+    if trial is None or trial["asset_id"] != row["asset_id"]:
+        return ("no_trial_link", "The catalyst names no registry study of this asset, so "
+                "it cannot be tied to the gate.", nct, None)
+    phase = trial["phase"] or "an unphased"
+    if gate == "nda_to_approval":
+        why = ("The stated PoS implies a filing, so the asset is read at the FDA decision "
+               "and a readout is past its gate." if legs.get("placed") else
+               "The asset is already at the FDA decision, so a readout is past its gate.")
+        return "past_gate", why, nct, trial
+    if trial["phase"] not in pos_granular.GATE_PHASES.get(gate, ()):
+        if gate == "p2_to_p3" and trial["phase"] == "Phase 3":
+            return ("phase_ahead_of_book", "The book holds this asset at Phase 2, so a "
+                    "Phase 3 readout is ahead of the gate the model prices.", nct, trial)
+        return ("not_gate_phase", f"A {phase} readout does not decide the asset's "
+                f"{label.lower()}.", nct, trial)
+    modelled, indications = pos_granular.in_modelled(conn, nct, gathered["modelled_mesh"])
+    if not modelled:
+        blind = pos_granular.unread(indications, pos_granular.mesh_on_file(conn, nct))
+        if blind:
+            return ("other_indication", f"The study {blind}, so it cannot be matched to an "
+                    f"indication the forecast values and its result does not decide the "
+                    f"modelled value.", nct, trial)
+        return ("other_indication", f"The study is in {', '.join(indications[:3])}, which "
+                f"the forecast does not value, so its result does not decide the modelled "
+                f"value.", nct, trial)
+    return None, None, nct, trial
+
+
+def _no_gate_reason(state: dict) -> tuple:
+    """(reason, why) for an asset with no legs to price."""
+    built, placement = state["built"], state["placement"]
+    if not placement:
+        return "no_gate", ("No success and failure legs are on file, and the asset is "
+                           "outside the gate model: marketed, outside Phase 2 or 3, or "
+                           "not a big pharma asset.")
+    if built is None:
+        return "no_forecast", ("No forecast can be built for this asset yet, so nothing "
+                               "is at stake.")
+    return "nil", ("The model already holds this asset at nil, so no gate is left to win "
+                   "or lose.")
+
+
+def _gate_note(legs: dict, gate_trial, gate_has_catalyst: bool) -> str:
+    """Why the priced readout is not the study next_gate named."""
+    if not gate_trial:
+        return ("No open study in a modelled indication is dated at this gate, so the "
+                "soonest dated readout at it is priced.")
+    if legs.get("due"):
+        return (f"The gate study {gate_trial} passed its completion date with no readout "
+                f"on file, so the next dated readout at the same gate is priced.")
+    if not gate_has_catalyst:
+        return (f"The gate study {gate_trial} has no pending catalyst on file, so the "
+                f"soonest dated readout at the same gate is priced.")
+    return (f"This readout is dated ahead of the gate study {gate_trial}, so it is priced "
+            f"as the gate.")
+
+
+def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tuple:
+    """(priced, unpriced) for one asset's catalysts."""
+    built = state["built"]
+    priced, unpriced = [], []
+
+    def portion(row):
+        share = state["share"]
+        if row["owner_company_id"] == company_id:
+            return share if share is not None else 1.0
+        return 1.0 - (share if share is not None else 1.0)
+
+    def missing(reason):
+        # What would price it: the forecast's own gaps where it cannot be built, else
+        # the stated legs, which outrank any gate.
+        if reason == "no_forecast" and state["missing"]:
+            return state["missing"]
+        return [key for key in LEGS if (state["stated"] or {}).get(key) is None]
+
+    def money(row, pos_success, pos_failure):
+        npv = built["npv"]
+        up, down = npv * pos_success, npv * pos_failure
+        cut = portion(row)
+        share_swing = (up - down) * cut
+        return {"pos_now": built["pos"], "pos_success": pos_success,
+                "pos_failure": pos_failure, "rnpv_now": built["rnpv"],
+                "rnpv_success": up, "rnpv_failure": down, "swing": up - down,
+                "share": cut, "share_swing": share_swing,
+                "per_share": (share_swing * 1e6 / shares) if shares else None}
+
+    def out(row):
+        clean = {k: v for k, v in row.items() if k not in _ROW_ONLY}
+        if state["ignored"]:
+            clean["ignored"] = state["ignored"]
+        return clean
+
+    def refuse(row, reason, why):
+        unpriced.append({**out(row), "priced": False, "reason": reason, "why": why,
+                         "missing": missing(reason)})
+
+    if state["stated"] is not None:
+        # The analyst's own legs, once, on the event they are tied to: linear in the
+        # probability, so one build stands for the two runs whatif would make.
+        lead, elsewhere = _stated_choice(conn, rows, state)
+        for row in rows:
+            if built is None:
+                refuse(row, "no_forecast", "No forecast can be built for this asset yet, "
+                       "so nothing is at stake.")
+                continue
+            if row["id"] != lead:
+                refuse(row, "stated_elsewhere", elsewhere[row["id"]])
+                continue
+            priced.append({**out(row), "priced": True, "legs_basis": "stated",
+                           **money(row, state["stated"]["pos_success"],
+                                   state["stated"]["pos_failure"]),
+                           "gate": None, "gate_label": None, "p_gate": None,
+                           "p_gate_published": None, "held": None,
+                           "basis": "stated success and failure legs on file",
+                           "resolvable": True, "resolve_note": None})
+        return priced, unpriced
+
+    legs = state["legs"]
+    if not legs:
+        reason, why = _no_gate_reason(state)
+        for row in rows:
+            refuse(row, reason, why)
+        return priced, unpriced
+
+    found = [(row, *_gate_reason(conn, row, state)) for row in rows]
+    gate_trial = (legs.get("trial") or {}).get("nct_id")
+    eligible = sorted((f for f in found if f[1] is None),
+                      key=lambda f: (f[0]["expected_date"] or "", f[3] != gate_trial,
+                                     f[0]["id"]))
+    lead = eligible[0][0]["id"] if eligible else None
+    for row, reason, why, nct, trial in found:
+        if reason is None and row["id"] != lead:
+            refuse(row, "same_gate_later",
+                   f"An earlier catalyst ({eligible[0][0]['expected_date']}) decides the "
+                   f"same {legs['label'].lower()}, so this one is not priced twice.")
+            continue
+        if reason is not None:
+            refuse(row, reason, why)
+            continue
+        held, gate_note = legs.get("held"), None
+        if nct and nct != gate_trial and legs["gate"] != "nda_to_approval":
+            gate_note = _gate_note(legs, gate_trial,
+                                   any(f[3] == gate_trial for f in found))
+            if legs["gate"] == "p3_to_nda":
+                # Priced on a study other than the one next_gate named: hold from this.
+                held = pos_granular.held_after(
+                    conn, row["asset_id"], state["placement"], nct,
+                    (trial or {}).get("primary_completion_date"), stated=legs["stated"],
+                    modelled_mesh=state["gathered"]["modelled_mesh"])
+        priced.append({**out(row), "priced": True, "legs_basis": "derived",
+                       **money(row, legs["pos_success"], legs["pos_failure"]),
+                       "gate": legs["gate"], "gate_label": legs["label"],
+                       "p_gate": legs["p_gate"],
+                       "p_gate_published": legs["p_gate_published"],
+                       "placed": legs.get("placed"), "evidence": legs["evidence"],
+                       "held": held, "basis": legs["basis"], "trial": nct,
+                       "gate_trial": gate_trial, "gate_note": gate_note,
+                       "stated_pos": legs["stated"],
+                       "resolvable": DERIVED_RESOLVE and legs["gate"] == "p3_to_nda",
+                       "resolve_note": (RESOLVE_NOTES.get(legs["gate"])
+                                        or (None if DERIVED_RESOLVE
+                                            else DERIVED_RESOLVE_NOTE))})
+    return priced, unpriced
+
+
 def catalyst_stakes(db_path, ticker: str):
     """The catalyst calendar ranked by dollars at stake rather than by date.
 
-    A catalyst is priced only where its asset carries ``pos_success`` and
-    ``pos_failure`` assumption rows: the stake is the rNPV under one minus the rNPV
-    under the other, taken at this company's share of the economics, and per share
-    where diluted shares are on file. Nothing is derived for the unpriced rest; they
-    rank below the priced, by date, each naming the two keys that would price it. The
-    engine behind both legs is the same whatif the sliders use, so a stake cannot say
-    anything the model itself would not.
+    The stake is the rNPV if the event goes one way less the rNPV if it goes the other,
+    at this company's share of the economics, and per share where diluted shares are on
+    file. rNPV is NPV times the probability, so one build per asset prices every leg.
+
+    The legs are stated where the asset carries both ``pos_success`` and
+    ``pos_failure`` rows, priced once per asset, on the catalyst naming a study their
+    sources cite, else the earliest the analyst tied to the asset itself; a readout
+    reaching the asset only through its study is not priced on them. Otherwise they are
+    derived where pos_granular places a big pharma Phase 2 or 3 asset at its gate: the
+    probability if the next gate passes, nil if it fails, priced only on the catalyst
+    that is that gate (the earliest qualifying one). Every other catalyst names its
+    reason (``STAKE_REASONS``), why in one sentence, and the keys that would price it.
     """
     conn = db.get_connection(db_path)
     try:
         company = _company(conn, ticker)
         if company is None:
             return None
-        rows = [dict(r) for r in conn.execute(
-            """SELECT cat.id, cat.catalyst_type, cat.expected_date,
-                      cat.date_confidence, cat.title, cat.description, cat.source_url,
-                      cat.is_curated, cat.asset_id,
-                      COALESCE(a.brand_name, a.generic_name) AS asset_name,
-                      a.owner_company_id
-                 FROM catalysts cat JOIN assets a ON a.id = cat.asset_id
-                WHERE cat.status = 'pending' AND cat.expected_date >= date('now')
-                  AND (a.owner_company_id = ? OR cat.asset_id IN
-                       (SELECT asset_id FROM assumptions WHERE key = 'partner_ticker'
-                          AND UPPER(COALESCE(text_value, '')) = ?))
-                ORDER BY cat.expected_date""",
-            (company["id"], ticker.upper()))]
+        rows = _stake_rows(conn, company, ticker)
         shares = _diluted_shares(conn, company["id"])
-        pairs = {}
+        by_asset: dict = {}
         for row in rows:
-            asset_id = row["asset_id"]
-            if asset_id not in pairs:
-                scalars = assumptions_module.load(conn, asset_id)["scalars"]
-                pairs[asset_id] = (scalars.get("pos_success"),
-                                  scalars.get("pos_failure"),
-                                  scalars.get("economics_share"),
-                                  scalars.get("pos"))
+            by_asset.setdefault(row["asset_id"], []).append(row)
+        priced, unpriced = [], []
+        for asset_id, asset_rows in by_asset.items():
+            got = _price_asset(conn, asset_rows, _legs_state(conn, asset_id),
+                               company["id"], shares)
+            priced += got[0]
+            unpriced += got[1]
     finally:
         conn.close()
-
-    priced, unpriced = [], []
-    for row in rows:
-        success, failure, share, _stated = pairs[row["asset_id"]]
-        owned = row.pop("owner_company_id") == company["id"]
-        if owned:
-            portion = share if share is not None else 1.0
-        else:
-            portion = 1.0 - (share if share is not None else 1.0)
-        if success is None or failure is None:
-            missing = [k for k, v in (("pos_success", success),
-                                      ("pos_failure", failure)) if v is None]
-            unpriced.append({**row, "priced": False, "missing": missing})
-            continue
-        up = whatif(db_path, ticker, row["asset_id"], pos=success)
-        down = whatif(db_path, ticker, row["asset_id"], pos=failure)
-        if not (up and up.get("ok") and down and down.get("ok")):
-            unpriced.append({**row, "priced": False,
-                             "missing": (up or {}).get("missing")
-                             or (down or {}).get("missing") or ["a forecast"]})
-            continue
-        swing = up["varied"]["rnpv"] - down["varied"]["rnpv"]
-        share_swing = swing * portion
-        priced.append({
-            **row, "priced": True,
-            "pos_now": up["base"]["pos"], "pos_success": success,
-            "pos_failure": failure,
-            "rnpv_success": up["varied"]["rnpv"],
-            "rnpv_failure": down["varied"]["rnpv"],
-            "swing": swing, "share": portion, "share_swing": share_swing,
-            "per_share": (share_swing * 1e6 / shares) if shares else None,
-        })
     priced.sort(key=lambda r: (-abs(r["share_swing"]), r["expected_date"]))
+    unpriced.sort(key=lambda r: (r["expected_date"] or "", r["id"]))
     return {"ticker": company["ticker"], "priced": priced, "unpriced": unpriced,
             "diluted_shares": shares}
 
@@ -669,13 +1063,21 @@ OUTCOMES = {"met": "pos_success", "missed": "pos_failure"}
 
 
 def resolve_catalyst(db_path, ticker: str, catalyst_id: int, outcome: str):
-    """One click after the readout: the PoS steps to the leg that happened.
+    """One click after the readout: the model steps to the leg that happened.
 
-    The order is the roadmap's discipline. The pre-event forecast is snapshotted
-    first, then the stated pos is written through save_assumptions, which snapshots
-    the post-event state itself, and only then does the catalyst leave the calendar
-    with the outcome and the applied pos noted on its row. History is never
-    overwritten: both sides of the event stay on file.
+    Stated legs: only the catalyst the stakes price them on; a readout that reaches
+    the asset only through its study is refused, so another trial's result never steps
+    the analyst's probability. The pre-event forecast is snapshotted first, then the
+    stated pos is written through save_assumptions, which snapshots the post-event state
+    itself, and only then does the catalyst leave the calendar with the outcome and the
+    applied pos noted on its row.
+
+    Derived legs: only the catalyst the stakes price at a Phase 3 gate. No assumption row
+    is written and no derived number is stored. The resolved catalyst is itself the
+    evidence pos_granular reads, so the asset is re-placed by its own chain: a met lands
+    on the success leg, a miss on nil, or where other Phase 3s stay open on the model's
+    held point. Pre-event snapshot, status, the note on the row, then the post-event
+    snapshot of the rebuilt forecast. History is never overwritten.
     """
     if outcome not in OUTCOMES:
         raise ValueError(f"outcome must be met or missed, got '{outcome}'")
@@ -685,8 +1087,8 @@ def resolve_catalyst(db_path, ticker: str, catalyst_id: int, outcome: str):
         if company is None:
             return None
         catalyst = conn.execute(
-            "SELECT id, asset_id, status FROM catalysts WHERE id = ?",
-            (catalyst_id,)).fetchone()
+            f"SELECT cat.id, {_ASSET_OF} AS asset_id, cat.status FROM catalysts cat"
+            f" {_TRIAL_JOIN} WHERE cat.id = ?", (catalyst_id,)).fetchone()
         if catalyst is None or catalyst["asset_id"] is None:
             return None
         if _accessible(conn, company["id"], catalyst["asset_id"], ticker) is None:
@@ -694,41 +1096,82 @@ def resolve_catalyst(db_path, ticker: str, catalyst_id: int, outcome: str):
         if catalyst["status"] != "pending":
             raise ValueError(f"catalyst {catalyst_id} is already {catalyst['status']}")
         asset_id = catalyst["asset_id"]
-        scalars = assumptions_module.load(conn, asset_id)["scalars"]
-        applied = scalars.get(OUTCOMES[outcome])
-        if applied is None:
-            raise ValueError(f"{OUTCOMES[outcome]} is not on file for this asset, "
-                             "so the outcome has no priced leg to step to")
+        state = _legs_state(conn, asset_id)
+        rows = _stake_rows(conn, company, ticker, asset_id=asset_id,
+                           include_id=catalyst_id)
+        if state["stated"] is None:
+            priced, unpriced = _price_asset(conn, rows, state, company["id"], None)
+            mine = next((r for r in priced + unpriced if r["id"] == catalyst_id), None)
+        else:
+            lead, elsewhere = _stated_choice(conn, rows, state)
     finally:
         conn.close()
 
-    # The pre-event record first, then the write (which snapshots post-event itself).
-    before = asset_forecast(db_path, ticker, asset_id)
-    if before and before.get("ok"):
-        conn = db.get_connection(db_path)
-        try:
-            assumptions_module.snapshot(conn, asset_id, "base", before["result"])
-            conn.commit()
-        finally:
-            conn.close()
-    saved = save_assumptions(db_path, ticker, asset_id, [{
-        "key": "pos", "value": applied,
-        "source": f"catalyst {catalyst_id} resolved {outcome}",
-        "note": f"stepped to {OUTCOMES[outcome]} on resolution",
-    }])
+    if state["stated"] is not None:
+        if catalyst_id != lead:
+            raise ValueError(elsewhere.get(catalyst_id) or
+                             "this catalyst is not the event the stated legs price")
+        return _resolve_stated(db_path, ticker, catalyst_id, outcome, asset_id,
+                               state["stated"][OUTCOMES[outcome]])
+    if mine is None or not mine.get("priced"):
+        raise ValueError((mine or {}).get("why") or
+                         "this catalyst is not the gate the model prices")
+    if not mine.get("resolvable"):
+        raise ValueError(mine.get("resolve_note") or "this gate does not resolve by hand")
+    return _resolve_derived(db_path, ticker, catalyst_id, outcome, asset_id, mine)
+
+
+def _snapshot(db_path, ticker: str, asset_id: int):
+    """The forecast as it stands, written to snapshots; the result, or None."""
+    state = asset_forecast(db_path, ticker, asset_id)
+    if not (state and state.get("ok")):
+        return None
+    conn = db.get_connection(db_path)
+    try:
+        assumptions_module.snapshot(conn, asset_id, "base", state["result"])
+        conn.commit()
+    finally:
+        conn.close()
+    return state["result"]
+
+
+def _note_outcome(db_path, catalyst_id: int, outcome: str, note: str) -> None:
     import catalysts as catalysts_module
     catalysts_module.set_status(db_path, catalyst_id, outcome)
     conn = db.get_connection(db_path)
     try:
         conn.execute(
-            "UPDATE catalysts SET description = COALESCE(description, '') ||"
-            " ' | resolved ' || ? || ', pos -> ' || ? WHERE id = ?",
-            (outcome, f"{applied:g}", catalyst_id))
+            "UPDATE catalysts SET description = COALESCE(description, '') || ? WHERE id = ?",
+            (f" | resolved {outcome}, {note}", catalyst_id))
         conn.commit()
     finally:
         conn.close()
-    return {"catalyst_id": catalyst_id, "outcome": outcome, "pos_applied": applied,
-            "state": saved["state"] if saved else None}
+
+
+def _resolve_stated(db_path, ticker, catalyst_id, outcome, asset_id, applied):
+    # The pre-event record first, then the write (which snapshots post-event itself).
+    _snapshot(db_path, ticker, asset_id)
+    saved = save_assumptions(db_path, ticker, asset_id, [{
+        "key": "pos", "value": applied,
+        "source": f"catalyst {catalyst_id} resolved {outcome}",
+        "note": f"stepped to {OUTCOMES[outcome]} on resolution",
+    }])
+    _note_outcome(db_path, catalyst_id, outcome, f"pos -> {applied:g}")
+    return {"catalyst_id": catalyst_id, "outcome": outcome, "route": "stated legs",
+            "pos_applied": applied, "state": saved["state"] if saved else None}
+
+
+def _resolve_derived(db_path, ticker, catalyst_id, outcome, asset_id, priced):
+    before = _snapshot(db_path, ticker, asset_id)
+    _note_outcome(db_path, catalyst_id, outcome, "recorded as gate evidence")
+    after = _snapshot(db_path, ticker, asset_id)
+    held = priced.get("held") if outcome == "missed" else None
+    return {"catalyst_id": catalyst_id, "outcome": outcome, "route": "gate evidence",
+            "pos_before": (before or {}).get("pos"),
+            "pos_applied": (after or {}).get("pos"),
+            "leg": priced[OUTCOMES[outcome]], "held": held,
+            "stage": ((after or {}).get("pos_placement") or {}).get("stage"),
+            "stated_pos_governs": bool(priced.get("stated_pos"))}
 
 
 def _is_marketed(db_path, asset_id: int) -> bool:
@@ -739,6 +1182,13 @@ def _is_marketed(db_path, asset_id: int) -> bool:
         return bool(row and row["is_marketed"])
     finally:
         conn.close()
+
+
+def _line_gate(legs, state: dict, shares, share):
+    """The verdict's gate for one rollup line, from the forecast asset_forecast built and
+    the legs it read the launch floor with: its own placement and scalars, so the same
+    legs the verdict would work out."""
+    return _gate(legs, state["result"], shares, share, state.get("scalars") or {})
 
 
 def company_rollup(db_path, ticker: str):
@@ -780,7 +1230,8 @@ def company_rollup(db_path, ticker: str):
     combined: dict[int, float] = {}
     rnpv_total = 0.0
     for asset_id in dict.fromkeys(owned + partnered):
-        state = asset_forecast(db_path, ticker, asset_id)
+        state = asset_forecast(db_path, ticker, asset_id, with_legs=True)
+        legs = (state or {}).pop("legs", None)
         # A programme its company has stopped is worth nothing whatever its rows say, and
         # is named with the reason rather than valued (backend/discontinued.py).
         if asset_id in stopped:
@@ -814,11 +1265,18 @@ def company_rollup(db_path, ticker: str):
                                  "rnpv_share": result["rnpv"] * share})
         revenue = result["revenue_after_loe"]
         peak = max(revenue) if revenue else None
+        marketed = _is_marketed(db_path, asset_id)
+        # The next gate of a counted pipeline line, at this company's share. Beside the
+        # value, never in it: rnpv_share above is untouched.
+        gate = (_line_gate(legs, state, shares, share)
+                if counted and not marketed and result.get("pos_placement") else None)
         lines.append({"asset_id": asset_id, "name": state["name"], "share": share,
                       "rnpv_share": result["rnpv"] * share,
                       "npv_share": result["npv"] * share, "counted": counted,
                       "mode": result.get("mode"), "pos": result.get("pos"),
-                      "is_marketed": _is_marketed(db_path, asset_id),
+                      "is_marketed": marketed, "gate": gate,
+                      # The launch floor's compact form; read by nothing on the value path.
+                      "launch": launch_timing.summary(state.get("launch")),
                       "loe_year": result.get("loe_year"),
                       "loe_in_base": result.get("loe_in_base"),
                       # Each region's own date and share, without its revenue series.
@@ -1054,6 +1512,78 @@ def _resolved_growth(scalars: dict, ceiling: float):
     return (lo + hi) / 2.0
 
 
+# A PoS band narrower than this is one number printed twice, so the verdict does not draw
+# it beside the gate's outcome range.
+GATE_BAND_MIN = 0.005
+
+
+def _gate(legs: dict | None, built: dict, shares, share, scalars: dict | None = None):
+    """The next gate as a view: what the asset is worth now, if the gate passes, if it
+    fails and, where other Phase 3s stay open, where the model would hold it after one
+    miss, each per share at ``share`` of the economics. Derived beside the valuation:
+    the legs are NPV times a probability, and nothing here feeds the value.
+
+    Stated legs on file outrank the derived ones, as they do in the stakes; the gate's
+    event stays the one next_gate names. ``band`` is the PoS band in money, drawn only
+    where the placement sets the probability, never for a mixed stage, and only where
+    it spans GATE_BAND_MIN or more: estimation spread, kept apart from outcome risk."""
+    if not legs:
+        return None
+    cut = share if share is not None else 1.0
+    npv = built["npv"]
+
+    def per_share(pos):
+        return (npv * pos * cut * 1e6 / shares) if (shares and pos is not None) else None
+
+    scalars = scalars or {}
+    stated = all(scalars.get(key) is not None for key in LEGS)
+    pos_success = scalars["pos_success"] if stated else legs["pos_success"]
+    pos_failure = scalars["pos_failure"] if stated else legs["pos_failure"]
+    held = legs.get("held")
+    if held and not stated:
+        held = {**held, "per_share": per_share(held["pos"])}
+    elif stated:
+        held = None
+    placement = built.get("pos_placement") or {}
+    band = None
+    if (not stated and placement and built.get("pos_basis") == placement.get("basis")
+            and placement.get("stage") != "mixed"
+            and placement.get("low") is not None and placement.get("high") is not None
+            and placement["high"] - placement["low"] >= GATE_BAND_MIN):
+        band = {"pos_low": placement["low"], "pos_high": placement["high"],
+                "per_share_low": per_share(placement["low"]),
+                "per_share_high": per_share(placement["high"])}
+    trial = legs.get("trial")
+    return {
+        "gate": legs["gate"], "label": legs["label"], "date": legs.get("date"),
+        "date_basis": legs.get("date_basis"), "due": legs.get("due"),
+        "why": legs.get("why"),
+        "trial": ({"nct_id": trial["nct_id"],
+                   "indication": (trial.get("indications") or [None])[0],
+                   "indications": trial.get("indications") or [],
+                   "phase": trial.get("phase"),
+                   "primary_completion": trial.get("primary_completion")}
+                  if trial else None),
+        "legs_basis": "stated" if stated else "derived",
+        "pos_now": built["pos"], "pos_success": pos_success, "pos_failure": pos_failure,
+        "p_gate": None if stated else legs["p_gate"],
+        "p_gate_published": None if stated else legs["p_gate_published"],
+        "placed": None if stated else legs.get("placed"),
+        "evidence": None if stated else legs.get("evidence"),
+        "stated_pos": legs.get("stated"),
+        "share": cut,
+        "rnpv_now": built["rnpv"] * cut, "rnpv_success": npv * pos_success * cut,
+        "rnpv_failure": npv * pos_failure * cut,
+        "per_share_now": per_share(built["pos"]),
+        "per_share_success": per_share(pos_success),
+        "per_share_failure": per_share(pos_failure),
+        "held": held,
+        "basis": ("stated success and failure legs on file" if stated
+                  else legs["basis"]),
+        "band": band,
+    }
+
+
 def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
     """One asset's forecast expressed as a view: per share, against the market, ranked.
 
@@ -1080,6 +1610,10 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         name = asset["brand_name"] or asset["generic_name"]
         inputs = assumptions_module.load(conn, asset_id, scenario)
         rows = assumptions_module.rows(conn, asset_id, scenario)
+        # The next gate's legs for this scenario's own placement and scalars.
+        legs = _legs_or_none(conn, asset_id, inputs)
+        # The earliest approval from the same gate, beside the seeded start.
+        launch = _launch_or_none(conn, asset_id, scenario, legs)
         # A scenario inherits base and restates only what it changes, so one with no
         # rows of its own is base wearing another name. Counting them is how the range
         # can decline to draw itself rather than showing a spread of nothing.
@@ -1114,6 +1648,9 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
     # Only a real spread counts. Bear and bull that merely inherit base produce the same
     # number three times, and a range drawn across it would claim work nobody did.
     has_range = bool(defined.get("bear") or defined.get("bull"))
+    # The range the next gate sets, derived beside it: never a scenario, so neither
+    # spread nor has_range reads it.
+    gate = _gate(legs, built, shares, share, inputs.get("scalars"))
 
     return {
         "ok": True, "ticker": company["ticker"], "asset_id": asset_id, "name": name,
@@ -1140,8 +1677,11 @@ def verdict(db_path, ticker: str, asset_id: int, scenario: str = "base"):
         "loe_year": built.get("loe_year"), "loe_basis": built.get("loe_basis"),
         "loe_in_base": built.get("loe_in_base"),
         "spread": spread, "has_range": has_range,
+        "gate": gate,
+        "gate_range": bool(gate and gate.get("per_share_success") is not None),
         "levers": _levers(inputs, built),
         "next_catalyst": catalyst,
+        "launch": launch,
         "unsourced": [r["key"] for r in rows if not (r["source"] or "").strip()],
         "notes": built.get("notes") or [],
     }
@@ -1895,9 +2435,14 @@ def company_verdict(db_path, ticker: str):
     per_share = rollup.get("rnpv_per_share")
     lines = []
     for line in rollup["lines"]:
+        gate = line.get("gate") or {}
         lines.append({**line,
                       "per_share": (line["rnpv_share"] * 1e6 / shares)
-                      if shares else None})
+                      if shares else None,
+                      # What the next gate leaves the line worth if it passes and if it
+                      # fails, per share; None for a marketed or uncounted line.
+                      "per_share_success": gate.get("per_share_success"),
+                      "per_share_failure": gate.get("per_share_failure")})
     lines.sort(key=lambda r: -(r["rnpv_share"] or 0))
     streams = [{**s, "per_share": (s["rnpv"] * 1e6 / shares) if shares else None}
                for s in rollup.get("streams") or []]

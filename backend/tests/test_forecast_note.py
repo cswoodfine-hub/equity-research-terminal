@@ -215,3 +215,67 @@ def test_coverage_that_rounds_to_the_whole_is_all_of_it_and_names_no_gap():
         "revenue.")
     v["coverage"]["share"] = 0.968
     assert "cover 96.8% of FY2025" in forecast_note._coverage_clause(v)
+
+
+# --- the next gate sets the range where no scenario does --------------------------------
+BANNED = ("additionally", "highlight", "underscore", "pivotal", "showcase", "testament")
+
+
+def _gated(**gate):
+    base = {"gate": "p3_to_nda", "label": "Phase 3 readout", "date": "2028-01",
+            "due": False, "per_share_now": 8.52, "per_share_success": 13.97,
+            "per_share_failure": 0.0, "held": None, "legs_basis": "derived"}
+    base.update(gate)
+    return _verdict(name="Eloralintide", has_range=False, gate_range=True, gate=base)
+
+
+def _body(v):
+    return " ".join(forecast_note.write(v)["body"])
+
+
+def _house_style(text):
+    assert "—" not in text and "–" not in text, text
+    assert not any(word in text.lower() for word in BANNED), text
+
+
+def test_with_no_scenarios_the_next_gate_sets_the_range():
+    body = _body(_gated())
+    assert ("No bear or bull case is on file, so the next gate sets the range: $13.97 a "
+            "share if its Phase 3 readout, est. Jan 2028, passes, nil if it fails, against "
+            "$8.52 now.") in body
+    assert "one set of assumptions" not in body
+    _house_style(body)
+
+
+def test_the_held_clause_says_where_a_miss_leaves_it():
+    body = _body(_gated(held={"open": 4, "pos": 0.5552, "ncts": []}))
+    assert ("A miss leaves 4 other Phase 3s open, and the model holds it at 56% until "
+            "they read out.") in body
+    one = _body(_gated(held={"open": 1, "pos": 0.4388, "ncts": []}))
+    assert "1 other Phase 3 open, and the model holds it at 44% until it reads out." in one
+    stated = _body(_gated(held={"open": 2, "pos": 0.5452, "stated_governs": True}))
+    assert "but the stated PoS governs until it is cleared." in stated
+    _house_style(body + one + stated)
+
+
+def test_an_fda_decision_and_an_overdue_readout_are_dated_as_they_are():
+    fda = _body(_gated(gate="nda_to_approval", label="FDA decision", date="2026-10-26"))
+    assert ("$13.97 a share if the FDA approves it (decision due 26 Oct 2026), nil if it "
+            "does not, against $8.52 now.") in fda
+    due = _body(_gated(date="2024-10-30", due=True))
+    assert "if its Phase 3 readout, due since Oct 2024 with no readout on file, passes" in due
+    undated = _body(_gated(date=None))
+    assert "if its Phase 3 readout passes, nil if it fails" in undated
+    _house_style(fda + due + undated)
+
+
+def test_a_scenario_range_still_outranks_the_gate():
+    v = _gated()
+    v["has_range"] = True
+    body = _body(v)
+    assert "$1.42 to $8.91" in body and "next gate sets the range" not in body
+
+
+def test_without_a_gate_the_old_sentence_stands():
+    body = _body(_verdict(has_range=False, gate=None, gate_range=False))
+    assert "There is no bear or bull case on file" in body

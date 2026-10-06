@@ -763,3 +763,72 @@ spartalizumab, released from trials by earlier folds.
 - The book's trial table still shows NCT06220669 (LY3541860) as active while the registry
   terminated it on 23 September 2026, and GM-2505's Phase 2a as recruiting when it completed
   in July. The next refresh corrects both.
+
+## Launch years checked against the registry and the FDA clock, 5 October 2026
+
+`backend/launch_timing.py` reads, for every unmarketed asset with a seeded
+`forecast_start_year`, the earliest approval the evidence on file allows: an accepted
+application's decision date; else a positive Phase 3 readout as `pos_granular.stage_of`
+reads it; else the earliest primary completion among the asset's live Phase 3 and 2/3
+studies. A positive readout names the evidence but never dates the floor later than the
+registry would: the floor runs from the earliest of every positive Phase 3 readout (a
+resolved catalyst from its study's primary completion where that comes first) and the
+earliest live completion, so recording good news can never turn an asset red. On the book
+this moves three of the six readout-governed floors to their registry completion
+(Sonesitatug vedotin, Ianalumab, Venglustat) and two to their earlier readout (Tozorakimab,
+Ris-Rez); no status changes. The submission is taken on that day and the review at the pathway's priority clock
+from `data/fda_review_clock.csv` (PDUFA VII: 6 months from a filing date 60 days after
+receipt for a new molecule or original biologic, 6 months from receipt for a new indication
+of a marketed one). The 60 days are days, as 21 CFR 314.101(a)(2) dates the filing, not two
+calendar months, so a 1 May completion gives 30 December of the same year. It is a flag: nothing reads it
+on the value path, and equity per share, every asset rNPV and the 21 ratings are
+byte-identical with it in place. `GET /companies/{ticker}/launch-timing` lists it and
+`backend/tools/launch_timing_check.py` prints every flag for checking. On the page the flag
+is one mark, a dotted underline, red or amber, with the floor's message in the tooltip: on
+the asset's value on the Pipeline tab and in Key insights, and on the earliest approval in
+the Forecast tab's Next gate layer. A part year carries none.
+
+| Status | Assets | Meaning |
+|---|---|---|
+| before_floor | 7 | The seed starts before any approval could land |
+| before_floor_cited | 5 | The same, but the seed's own source cites a filing or readout the database does not hold |
+| part_year | 13 | The seed starts in the approval year itself; information only |
+| clear | 102 | |
+| no_registry_basis | 81 | No live Phase 3, positive readout or accepted application to date from |
+| not_assessed | 3 | Nil probability in force (Ceralasertib, Monalizumab) or a failed Phase 3 (Camlipixant) |
+| no_clock | 2 | ABP 206 and ABP 692: no biosimilar clock until the BsUFA letter is read |
+
+**The seven red flags, each checked against its own source.** All seven seeds say only
+"convention: the first full year after the current one", so the registry is the evidence,
+and each governing study was re-read live on ClinicalTrials.gov.
+
+| Asset | Seed | Study that sets the floor | Earliest approval | First full year | Check |
+|---|---|---|---|---|---|
+| Olpasiran (AMGN) | 2027 | NCT05581303, OCEAN(a)-Outcomes, 2028-03-31 | Nov 2028 | 2029 | Amgen's Q2 2026 release (8-K 0000318154-26-000124) says only that the trial is ongoing. Stands |
+| Lepodisiran (LLY) | 2027 | NCT06292013, ACCLAIM-Lp(a), 2029-03 | Oct 2029 | 2030 | Stands |
+| Abelacimab (NVS) | 2027 | NCT07739888, 2030-12-30 | Aug 2031 | 2032 | The book misses LILAC-TIMI 76 (NCT05712200, Anthos, 2027-12-30), which gives Aug 2028 and 2029; Novartis lists the atrial fibrillation submission in 2028 (Q2 2026, 6-K 0001114448-26-000012). Stands, on the missing study |
+| Trontinemab (ROG) | 2027 | NCT07169578, 2028-02-16 | Oct 2028 | 2029 | The completion moved forward from 2028-06-07 on 2026-09-26, which pulled the floor from 2029 to 2028. Stands |
+| Frexalimab (SNY) | 2027 | NCT06141473, 2027-05-06 | Jan 2028 | 2029 | Sanofi's half-year report lists relapsing MS at Phase 3. Stands |
+| VK2735 (VKTX) | 2027 | NCT07104500, VANQUISH-1, 2027-07-01 | Feb 2028 | 2029 | Viking: about 4,500 enrolled by November 2025 on 78 weeks of treatment (8-K of 2026-07-29). Stands |
+| mRNA seasonal flu vaccine (GSK) | 2027 | NCT07851246, 2027-07-09, not yet recruiting | Mar 2028 | 2029 | Stands |
+
+**The five amber flags.** Amber is drawn only where the floor rests on the registry alone, so
+the database lacks what the seed cites. Four can be recorded now and each would then be read
+against its own evidence: ifinatamab deruxtecan (a PDUFA date of 10 October 2026 in Merck's
+Q2 10-Q), povetacicept (an accepted BLA with a PDUFA date of 30 November 2026 in Vertex's Q2
+10-Q), AOC 1044 (a BLA submitted 2026-06-25 under priority review) and intismeran autogene
+(INTerpath-001's positive interim readout of 19 August 2026). VX-147's seed cites a planned
+AMPLITUDE interim for accelerated approval in early 2027, which cannot be recorded until it
+reads out. A seed that cites the filing or readout the database already holds, and still
+starts before it, stays red. Seed-cited PDUFA dates are not entered as catalysts
+in this build. The registry check also found RAINIER (NCT06564142, povetacicept's IgAN
+Phase 3, under Alpine) and IDeate-Lung02 (NCT06203210, under Daiichi Sankyo) missing from the
+book.
+
+**Retatrutide reads clear and is a year early.** The floor dates from TRIUMPH-3's actual
+primary completion (NCT05882045, 2026-04-16) with no submission lag, so December 2026. Lilly
+states it plans to submit the BLA in the first quarter of 2027 (Q2 2026 release, 8-K
+0000059478-26-000077), which puts approval between September and November 2027 on a priority
+review and early 2028 on a standard one. The seed of 2027 is then the approval year at best,
+where the book's own convention wants 2028. The floor cannot see a stated filing window until
+one can be recorded.
