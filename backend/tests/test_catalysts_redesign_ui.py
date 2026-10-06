@@ -323,6 +323,18 @@ def test_next_up_names_the_year_where_it_turns(payload):
     assert [int(y) for y in shown] == years and years
 
 
+def test_the_dialog_prints_the_clock_once_and_its_link_under_evidence(payload):
+    """The dialog ran to 892 px for Elecoglipron, past a 900 px screen from its 44 px top;
+    the clock source printed the letter's address in full above the same link under
+    Evidence. The citation alone is printed; the link stays under Evidence."""
+    gid = CV.default_gate(payload)
+    d = CV.dialog_html(payload, gid)
+    text = _visible(d)
+    assert "PDUFA VII commitment letter FY2023-2027, pages 4 and 9" in text
+    assert "https://" not in text
+    assert 'href="https://www.fda.gov/media/151712/download"' in d
+
+
 def test_a_company_with_no_priced_stakes_still_draws(payload):
     for p in (_no_stakes(payload), _empty(payload)):
         blocks = _blocks(p)

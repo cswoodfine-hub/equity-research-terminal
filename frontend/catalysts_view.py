@@ -2033,19 +2033,19 @@ def programme_svg(r, today, width=500) -> str:
     if not items:
         return ""
     items.sort(key=lambda i: i[2])
-    rh, nx = 20, 168
+    rh, nx = 16, 168
     H = 22 + rh * len(items) + 16
     lo = min([i[1] for i in items if i[1]] + [today])
     hi = max(i[2] for i in items)
     y0, y1 = float(lo.year), float(hi.year + 1)
 
     def px(x):
-        return nx + (width - 66 - nx) * (_frac_year(x) - y0) / max(y1 - y0, 1)
+        return nx + (width - 86 - nx) * (_frac_year(x) - y0) / max(y1 - y0, 1)
 
     o = [f'<svg class="cx-svg pg" viewBox="0 0 {width} {H}" width="100%" role="img" '
          f'aria-label="Studies behind the gate, start to primary completion">']
     for yv in range(int(y0), int(y1) + 1):
-        x = nx + (width - 66 - nx) * (yv - y0) / max(y1 - y0, 1)
+        x = nx + (width - 86 - nx) * (yv - y0) / max(y1 - y0, 1)
         o.append(f'<line x1="{x:.1f}" x2="{x:.1f}" y1="12" y2="{H - 14}" class="grid"/>'
                  f'<text x="{x:.1f}" y="{H - 2}" class="tk m" text-anchor="middle">{yv}</text>')
     tx = px(today)
@@ -2054,7 +2054,7 @@ def programme_svg(r, today, width=500) -> str:
              f'<text x="{width}" y="8" class="k" text-anchor="end">PATIENTS</text>')
     big = max([i[3] or 0 for i in items] + [1])
     for k, (nct, s0, s1, n, role, cond, status) in enumerate(items):
-        y = 14 + k * rh
+        y = 12 + k * rh
         g = role == "gate"
         xa = px(s0) if s0 else px(today)
         o.append(f'<g><title>{esc(nct)} · {esc(cond)} · {esc(status)} · '
@@ -2064,7 +2064,7 @@ def programme_svg(r, today, width=500) -> str:
                  f'<rect x="{xa:.1f}" y="{y + 4}" width="{max(px(s1) - xa, 2):.1f}" height="8" '
                  f'class="{"pg-g " + r["ph"] if g else "pg-h"}"/>'
                  f'<circle cx="{px(s1):.1f}" cy="{y + 8}" r="3.5" class="{"pg-gd " + r["ph"] if g else "pg-hd"}"/>'
-                 f'<rect x="{width - 58}" y="{y + 5}" width="{36 * (n or 0) / big:.1f}" height="6" class="pg-pt"/>'
+                 f'<rect x="{width - 78}" y="{y + 5}" width="{36 * (n or 0) / big:.1f}" height="6" class="pg-pt"/>'
                  f'<text x="{width}" y="{y + 12}" class="lab m" text-anchor="end">{(f"{n:,}" if n else "n/a")}</text></g>')
     o.append("</svg>")
     return "".join(o)
@@ -2217,7 +2217,9 @@ def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="",
     if launch.get("message"):
         dates.append(f'<div class="cx-p mut">{esc(launch["message"])}</div>')
     if clock.get("source"):
-        dates.append(_kv("Clock source", f'<span class="wrap">{esc(clock["source"])}</span>'))
+        # the letter's address is linked under Evidence; here the citation alone
+        cite = re.sub(r"\s*\(https?://[^)]+\)", ",", str(clock["source"])).replace(",,", ",")
+        dates.append(_kv("Clock source", f'<span class="wrap">{esc(cite)}</span>'))
     market = []
     c = p.get("crowding") or {}
     if c and r["asset_id"] in (c.get("asset_ids") or []):
