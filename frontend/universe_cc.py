@@ -1692,10 +1692,16 @@ def prices_html(p, cols=6):
 
 
 def prices_basis(p):
-    endd = _d(p.get("price_date"))
+    """The date the panels are indexed on: the first close inside the year, which is the
+    first session on or after the day a year back (5 Oct 2025 was a Sunday; the panels
+    start on the 6th)."""
+    end = p.get("price_date")
+    endd = _d(end)
     if not endd:
         return "indexed to 100"
-    return f"indexed to 100 on {dlong((endd - dt.timedelta(days=365)).isoformat())}"
+    start = (endd - dt.timedelta(days=365)).isoformat()
+    first = next((d for d, v in p.get("benchmark") or [] if start <= d <= end and v), None)
+    return f"indexed to 100 on {dlong(first or start)}"
 
 
 def prices_count(p):

@@ -342,6 +342,14 @@ def test_the_policy_lanes_count_earlier_documents_by_their_own_years(payload):
     assert "in 2026<" not in svg.replace("2025 to 2026<", "")
 
 
+def test_the_prices_are_indexed_on_a_day_that_traded(payload):
+    """A year back from the 5 Oct 2026 close is a Sunday; the panels start on the first
+    close after it and say so."""
+    assert UC.prices_basis(payload) == "indexed to 100 on 6 Oct 2025"
+    first = UC._d(payload["benchmark"][0][0])
+    assert first.weekday() < 5
+
+
 def test_universe_css_is_tokens_only_and_reaches_the_page_and_the_frame(monkeypatch):
     css = UNIVERSE_CSS.read_text()
     assert not HEX.findall(css), "a hex colour in universe.css"
