@@ -18,6 +18,7 @@ import importlib
 import json
 import re
 import os
+import types
 from collections import Counter
 import urllib.error
 import urllib.parse
@@ -27,6 +28,7 @@ import pandas as pd
 import streamlit as st
 
 import calendar_view
+import catalysts_page
 import price_chart
 import revenue_mix
 import scorecard_chart
@@ -67,6 +69,12 @@ def _universe_redesigned(ticker: str, view: str) -> bool:
     """True when the Universe tab draws the redesigned overview for ``ticker``: the
     Overview view of a company in the set. Markets, Policy and the as-of branch stay."""
     return view == "Overview" and ticker in _REDESIGN_TICKERS
+
+
+def _catalysts_redesigned(ticker: str) -> bool:
+    """True when the Catalysts tab draws the redesigned body for ``ticker`` (catalysts_page,
+    catalysts_view). The calendar fold under it stays for every company."""
+    return ticker in _REDESIGN_TICKERS
 
 # The landing page renders inside a component iframe, which inherits none of the host
 # page's CSS variables, so the tokens it needs are handed across. One source of truth
@@ -4549,6 +4557,51 @@ def _next_gate_layer(verdict: dict, dev, dev_error, scenario: str) -> None:
     if studies:
         with st.expander("Trials and sources", expanded=False):
             st.markdown(studies, unsafe_allow_html=True)
+
+
+def _catalysts_today(api_base: str, ticker: str, feed) -> None:
+    """The Catalysts tab above the calendar fold, as every company outside the redesign set
+    draws it."""
+    # What could move the company next, as one list (company-scorecard.md 1.5): the
+    # events of the next twelve months, value-bearing first, beside what could cost
+    # it. The Comps view used to carry this; the comparison with peers stays there.
+    _drivers_and_risks(api_base, ticker, feed)
+
+    # What each event is worth before when it lands: the modelled swing between the
+    # success and failure legs, at this company's share of the economics, ranked by
+    # size rather than by date. Drawn only when a catalyst is priced. The unpriced
+    # lines named two database keys and no number, six to a screen for big pharma,
+    # and every one of those events is in Drivers or the calendar already.
+    try:
+        stakes = api_get(api_base, f"/companies/{ticker}/catalysts/stakes")
+    except (urllib.error.URLError, OSError):
+        stakes = None
+    if stakes and stakes.get("priced"):
+        section("At stake", basis="rNPV swing, ranked by size")
+        # Keyed for the spacing in _DR_CSS: clear of the rule, buttons centred.
+        stake_box = st.container(key="cat_stakes")
+        # Said once, on the rerun after the resolve that called for it.
+        said = _stake_resolved_note(st.session_state.pop(f"cat_resolved_{ticker}", None))
+        if said:
+            stake_box.info(said)
+        shown, rest = _stake_split(stakes["priced"])
+        for row in shown:
+            _stake_row(stake_box, api_base, ticker, row)
+        if rest:
+            with stake_box.expander(f"{len(rest)} more at stake", expanded=False):
+                for row in rest:
+                    _stake_row(st.container(), api_base, ticker, row)
+
+
+# The Next gate block's builders and the At stake row's record control, handed to the
+# redesigned Catalysts tab (catalysts_page) so its card and dialog print and act exactly as
+# the Forecast tab and today's At stake list do. Builders live in this script, which runs
+# the whole app on import, so they are passed rather than imported.
+_CATALYSTS_KIT = types.SimpleNamespace(
+    gate_summary=_gate_summary, gate_rows=_gate_rows, gate_table_html=_gate_table_html,
+    gate_lines=_gate_lines, gate_ladder_html=_gate_ladder_html,
+    gate_studies_html=_gate_studies_html, stake_resolvable=_stake_resolvable,
+    stake_row=_stake_row, stake_resolved_note=_stake_resolved_note)
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -10888,35 +10941,13 @@ with main:
 
         # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
-        # What could move the company next, as one list (company-scorecard.md 1.5): the
-        # events of the next twelve months, value-bearing first, beside what could cost
-        # it. The Comps view used to carry this; the comparison with peers stays there.
-        _drivers_and_risks(api_base, ticker, feed)
-
-        # What each event is worth before when it lands: the modelled swing between the
-        # success and failure legs, at this company's share of the economics, ranked by
-        # size rather than by date. Drawn only when a catalyst is priced. The unpriced
-        # lines named two database keys and no number, six to a screen for big pharma,
-        # and every one of those events is in Drivers or the calendar already.
-        try:
-            stakes = api_get(api_base, f"/companies/{ticker}/catalysts/stakes")
-        except (urllib.error.URLError, OSError):
-            stakes = None
-        if stakes and stakes.get("priced"):
-            section("At stake", basis="rNPV swing, ranked by size")
-            # Keyed for the spacing in _DR_CSS: clear of the rule, buttons centred.
-            stake_box = st.container(key="cat_stakes")
-            # Said once, on the rerun after the resolve that called for it.
-            said = _stake_resolved_note(st.session_state.pop(f"cat_resolved_{ticker}", None))
-            if said:
-                stake_box.info(said)
-            shown, rest = _stake_split(stakes["priced"])
-            for row in shown:
-                _stake_row(stake_box, api_base, ticker, row)
-            if rest:
-                with stake_box.expander(f"{len(rest)} more at stake", expanded=False):
-                    for row in rest:
-                        _stake_row(st.container(), api_base, ticker, row)
+        # A company in the redesign set opens on what can move the share, on one screen:
+        # the timeline and the range chart beside the selected gate, drawn with the Next
+        # gate block's own builders. Every other company keeps the tab below exactly, and
+        # so does this one when the view's read fails.
+        if not (_catalysts_redesigned(ticker)
+                and catalysts_page.render(api_base, ticker, _CATALYSTS_KIT)):
+            _catalysts_today(api_base, ticker, feed)
 
         # Derived only, and for the selected company alone, rebuilt on every refresh
         # rather than maintained. Folded: open, it shows the Drivers' events a second

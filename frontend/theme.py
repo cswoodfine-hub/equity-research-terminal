@@ -126,6 +126,9 @@ _RESEARCH_CSS = (_ASSETS / "research.css").read_text()
 # The redesigned Universe tab's own rules (.uv-), read the same way and injected after the
 # research primitives it builds on; its click component receives the same text.
 _UNIVERSE_CSS = (_ASSETS / "universe.css").read_text()
+# The redesigned Catalysts tab's own rules (.cx-), read and injected the same way; its click
+# component receives the same text.
+_CATALYSTS_CSS = (_ASSETS / "catalysts.css").read_text()
 
 
 def css() -> str:
@@ -140,6 +143,7 @@ def css() -> str:
 {tokens_root}
 {_RESEARCH_CSS}
 {_UNIVERSE_CSS}
+{_CATALYSTS_CSS}
 
 /* Legacy variable names, aliased onto the tokens so existing rules keep reading. */
 :root {{
