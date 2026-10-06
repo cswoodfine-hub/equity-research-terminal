@@ -84,6 +84,19 @@ def test_a_twelve_point_move_writes_once_and_three_more_points_nothing(tmp_path)
     assert len(_changes(conn)) == 1
 
 
+def test_a_move_of_exactly_ten_points_is_written(tmp_path):
+    """10 points or more reaches What changed, and 10 is not lost to float error: 4 and 7
+    of 30 formularies are 13.333... and 23.333... per cent, 9.999999999999998 apart."""
+    conn = _book(tmp_path)
+    _release(conn, "2026-08-19", 2026, {31: (30, 30, 4, 0)})
+    diff._diff_payer_access(conn, None)
+    _release(conn, "2026-09-16", 2026, {31: (30, 30, 7, 0)})
+    assert diff._diff_payer_access(conn, None) == 1
+    assert _changes(conn)[0]["entity_key"] == "LLY|31|pa|2026-09-16"
+    _release(conn, "2026-10-21", 2027, {31: (30, 30, 9, 0)})        # 6.7 points more
+    assert diff._diff_payer_access(conn, None) == 0
+
+
 def test_the_anchor_moves_only_when_a_change_is_written(tmp_path):
     """A share that walks 4 points a release is caught on the third, not lost."""
     conn = _book(tmp_path)

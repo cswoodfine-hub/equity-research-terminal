@@ -626,7 +626,11 @@ def _diff_payer_access(conn, run_id) -> int:
             if anchor is None:
                 market_signals.set_anchor(conn, key, share, release)
                 continue
-            if abs(share - anchor["anchor_value"]) < materiality.PAYER_ACCESS_POINTS:
+            # Rounded before the comparison, as the rate lane is: 7 of 30 formularies
+            # less 4 of 30 is 9.999999999999998 points unrounded, and a move of
+            # exactly 10 points has to clear a bar of 10.
+            move = round(share - anchor["anchor_value"], 6)
+            if abs(move) < materiality.PAYER_ACCESS_POINTS:
                 continue
             headline = (
                 f"{row['ticker']} {row['brand']}: {words} {count} of {total} Medicare "
