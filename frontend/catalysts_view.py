@@ -1668,7 +1668,7 @@ def loe_svg(p, width=380) -> str:
     by = {int(y): v for y, v in (p.get("loe_by_year") or {}).items() if str(y).isdigit()}
     today = _today(p)
     years = list(range(today.year, today.year + 15))
-    H, B = 96, 80
+    H, B = 86, 70
     cw = (width - 4) / len(years)
     vmax = max([by.get(y, {}).get("per_share") or 0 for y in years] + [0.01])
     w = wall(p, today.year + 1)
@@ -1684,7 +1684,7 @@ def loe_svg(p, width=380) -> str:
         e = by.get(yv)
         x = 4 + i * cw
         if e and e.get("per_share"):
-            k = (B - 30) / vmax
+            k = (B - 26) / vmax
             h = k * e["per_share"]
             tone = ("" if w and w[0] <= yv <= w[1] else " past" if yv <= today.year else " dim")
             names = ", ".join(f"{q[0]} {usd(q[1])}" for q in e.get("products") or [])
@@ -1750,8 +1750,10 @@ def slips_svg(slips, width=380) -> str:
         xo, xn = px(_d(s["old"])), px(_d(s["new"]))
         g = " g" if s.get("gate_asset") else ""
         name = str(s.get("asset") or s.get("nct"))
-        o.append(f'<g><title>{esc(name)} {esc(s.get("nct"))}: {dmy(s["old"])} to {dmy(s["new"])}, '
-                 f'{s["days"]} days, seen {dmy(s.get("seen"))}</title>'
+        what = (f"gate study, {usd(s.get('gate_swing'))} a share at stake" if s.get("gate_asset")
+                else (s.get("phase") or "study"))
+        o.append(f'<g><title>{esc(name)} {esc(s.get("nct"))}, {esc(what)}: {dmy(s["old"])} to '
+                 f'{dmy(s["new"])}, {s["days"]} days, seen {dmy(s.get("seen"))}</title>'
                  f'<text x="0" y="{c + 3.5}" class="sl-n{g}">{esc(clip(name, 17))}</text>'
                  f'<circle cx="{xo:.1f}" cy="{c}" r="2.5" class="old"/>'
                  + (f'<line x1="{xo + 3:.1f}" x2="{xn - 4:.1f}" y1="{c}" y2="{c}" class="slip-ln{g}" '
@@ -1824,6 +1826,10 @@ def _rr(a, b, c, cls="") -> str:
             f'<span>{b}</span><span class="m r">{c}</span></div>')
 
 
+# The slips the risk card's chart draws; any past them are listed under it.
+SLIPS_DRAWN = 8
+
+
 def risk_cards(p) -> list:
     """The five lanes of what could cost the company, each (key, kicker, figure, sub,
     visual, rows): exclusivity, slips, crowding, the readout record and the regulatory
@@ -1846,7 +1852,7 @@ def risk_cards(p) -> list:
         lines = []
         for y in range(w[0], w[1] + 1):
             for q in ((p.get("loe_by_year") or {}).get(str(y)) or {}).get("products") or []:
-                lines.append(_rr(y, esc(q[0]), usd(q[1])))
+                lines.append(_rr(y, esc(q[0]), usd(q[1]), "yr"))
         note = []
         if nxt:
             c = nxt[0]
@@ -1858,16 +1864,14 @@ def risk_cards(p) -> list:
             c = passed[-1]
             note.append(f"{esc(c['asset'])} ended {dmy(c['loe'])} ({esc(c.get('loe_basis') or 'basis not on file')}), "
                         f"a {usd(c['model_per_share'])} line.")
-        if no_loe:
-            lines.append(_rr("none", f"{_plural(len(no_loe), 'line')} with no LOE on file",
-                             usd(sum(v for _n, v in no_loe))))
-        key = ('<div class="cx-leg"><span><svg width="10" height="8" viewBox="0 0 10 8" aria-hidden="true">'
-               '<rect class="sm" width="10" height="8"/></svg>small molecule</span><span><svg width="10" '
-               'height="8" viewBox="0 0 10 8" aria-hidden="true"><rect class="bio" width="10" height="8"/>'
-               '</svg>biologic</span><span>shaded: the three years that carry the most</span></div>')
-        vis = loe_svg(p) + key + (f'<div class="rs-n">{" ".join(note)}</div>' if note else "")
-        body = ("".join(lines) + '<div class="rs-f">Value the model carries on the line, not '
-                'value lost at LOE. The year is the model\'s.</div>')
+        rest = (_rr("none", f"{_plural(len(no_loe), 'line')} with no LOE on file",
+                    usd(sum(v for _n, v in no_loe))) if no_loe else "")
+        vis = loe_svg(p) + (f'<div class="rs-n">{" ".join(note)}</div>' if note else "")
+        # the wall's lines two to a row, so the open card fits the rail without scrolling
+        body = (f'<div class="cx-rr2">{"".join(lines)}</div>{rest}'
+                '<div class="rs-f"><i class="kk sm"></i>small molecule <i class="kk bio"></i>biologic'
+                ' · value the model carries on the line, not value lost at LOE; the year is the '
+                'model\'s.</div>')
     else:
         fig, sub, vis, body = "none", "no model LOE year on file for a counted line", "", ""
     cards.append(("loe", "Loss of exclusivity", fig, sub, vis, body))
@@ -1880,10 +1884,12 @@ def risk_cards(p) -> list:
         swing = f"{usd(top['gate_swing'])} gate study" if g else "study"
         sub = f"{esc(top.get('asset') or top['nct'])}'s {swing} now reads {mon(top['new'])} · seen {dm(top.get('seen'))}"
         on_gate = sum(1 for s in slips if s.get("gate_asset"))
-        vis = slips_svg(slips[:8])
+        vis = slips_svg(slips[:SLIPS_DRAWN])
+        # the chart names each slip, its days and (on hover) its study; rows only for the
+        # slips past the ones it draws, so the open card fits the rail without scrolling
         body = ("".join(_rr(f"{s['days']}d", f"{esc(s.get('asset') or s['nct'])} <span class=\"mu\">{esc(s['nct'])}</span>",
                             ("gate " + usd(s["gate_swing"])) if s.get("gate_asset") else esc(s.get("phase") or ""))
-                        for s in slips)
+                        for s in slips[SLIPS_DRAWN:])
                 + f'<div class="rs-f">{_plural(len(slips), "primary-completion slip")} seen since '
                   f'{dm(min(s["seen"] for s in slips if s.get("seen")))}; '
                   f'{"none sits" if not on_gate else _plural(on_gate, "sits", "sit")} on a priced gate.</div>')

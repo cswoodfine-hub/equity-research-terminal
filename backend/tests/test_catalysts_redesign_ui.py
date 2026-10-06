@@ -296,6 +296,24 @@ def test_a_colour_means_one_thing_across_the_tab(payload):
     assert "purple-book" not in re.search(r"\.cx-risk\.k-pool \{[^}]*\}", css).group(0)
 
 
+def test_an_open_risk_card_says_each_row_once(payload):
+    """The slips card listed every slip twice, in its chart and again as rows, and the
+    loss of exclusivity card one product a row: both bodies ran past their 262 px and
+    scrolled inside the rail. The chart names the slips it draws (rows only for any past
+    them) and the wall's products sit two to a row."""
+    cards = {c[0]: c for c in CV.risk_cards(payload)}
+    slips = payload["slips"]
+    assert len(slips) <= CV.SLIPS_DRAWN
+    _k, _kick, _fig, _sub, vis, body = cards["slip"]
+    assert vis.count('class="sl-n') == len(slips)
+    assert 'class="cx-rr' not in body
+    many = dict(payload, slips=slips * 2)
+    body = {c[0]: c for c in CV.risk_cards(many)}["slip"][5]
+    assert body.count('class="cx-rr') == len(slips) * 2 - CV.SLIPS_DRAWN
+    _k, _kick, _fig, _sub, vis, body = cards["loe"]
+    assert '<div class="cx-rr2">' in body and body.count('class="cx-rr yr"') >= 4
+
+
 def test_a_company_with_no_priced_stakes_still_draws(payload):
     for p in (_no_stakes(payload), _empty(payload)):
         blocks = _blocks(p)

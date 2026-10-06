@@ -387,7 +387,9 @@
   letter-spacing: 0; font-family: var(--font-ui); }
 .cx-risk .rsub { font-size: 10.5px; color: var(--muted); line-height: 1.3; }
 .cx-risk.empty .rf { color: var(--muted); font-size: 14px; }
-.cx-risk .rb { padding: 4px 10px 8px; border-top: 1px solid var(--rule); max-height: 262px;
+/* An open card's body: a guard, not reached on the 6 Oct book, where the tallest body
+   (loss of exclusivity) is 266 px and the rail 596 of its 600. */
+.cx-risk .rb { padding: 4px 10px 8px; border-top: 1px solid var(--rule); max-height: 272px;
   overflow-y: auto; }
 .cx .rs-n { font-size: 11px; line-height: 1.38; color: var(--text); margin: 4px 0; }
 .cx .rs-n.warn { border-left: 2px solid var(--flag); padding-left: 7px; }
@@ -398,6 +400,12 @@
 .cx-rr > :first-child { white-space: nowrap; }
 .cx-rr .el { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cx-rr .r { text-align: right; }
+/* The exclusivity wall's lines two to a row, the year in a narrow key. */
+.cx-rr2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 14px; }
+.cx-rr.yr { grid-template-columns: 30px minmax(0, 1fr) auto; }
+.rs-f .kk { display: inline-block; width: 8px; height: 8px; margin: 0 3px 0 0; }
+.rs-f .kk.sm { background: var(--orange-book); }
+.rs-f .kk.bio { background: var(--purple-book); margin-left: 2px; }
 .cx-rr .m { font-size: 10.5px; }
 .rs-f { font-size: 10px; color: var(--muted); margin-top: 5px; line-height: 1.38; }
 /* Bars stacked by modality in the timeline's exclusivity colours: the wall in full, the
@@ -409,8 +417,6 @@
 .loe .dim { fill-opacity: 0.55; }
 .loe .past { fill-opacity: 0.3; }
 .loe .lv { font-size: 9px; fill: var(--muted); }
-.cx-risk .cx-leg .sm { fill: var(--orange-book); }
-.cx-risk .cx-leg .bio { fill: var(--purple-book); }
 .sl .sl-n { font-size: 10px; fill: var(--muted); }
 .sl .sl-n.g { fill: var(--text); font-weight: 600; }
 .sl .old { fill: none; stroke: var(--muted); }
