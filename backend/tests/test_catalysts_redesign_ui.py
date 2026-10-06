@@ -246,6 +246,42 @@ def test_every_gate_is_a_click_target_on_both_charts(payload):
     assert dated <= set(re.findall(r'data-gate="(\d+)"', tl))
 
 
+_LABEL_SIZE = {"lbl": (10, False, True), "lvm": (9, True, False), "sl": (9, True, True),
+               "lm": (9, False, False)}
+
+
+def _gate_marks_under_names(svg: str) -> list:
+    """Gate marks drawn before the names (so under them) whose circle reaches into a
+    name's box, the box worked out as place_label works it out."""
+    boxes = []
+    for m in re.finditer(r'<text class="(lbl|lvm|sl|lm)" x="([\d.]+)" y="([\d.]+)" '
+                         r'text-anchor="(\w+)">([^<]*)</text>', svg):
+        size, mono, bold = _LABEL_SIZE[m.group(1)]
+        w = CV._tw(html.unescape(m.group(5)), size, mono, bold)
+        x, y = float(m.group(2)), float(m.group(3))
+        x0 = {"start": x, "end": x - w, "middle": x - w / 2}[m.group(4)]
+        boxes.append((x0, y - 8.2, x0 + w, y + 2.3, m.start()))
+    out = []
+    for m in re.finditer(r'<a data-gate="(\d+)"><title>[^<]*</title><circle class="(pf|due)[^"]*" '
+                         r'cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"', svg):
+        x, y, r = float(m.group(3)), float(m.group(4)), float(m.group(5))
+        for x0, y0, x1, y1, at in boxes:
+            if at > m.start() and CV._circle_in_rect(x, y, r, (x0, y0, x1, y1), pad=-0.5):
+                out.append(m.group(1))
+    return out
+
+
+def test_no_gate_sits_hidden_under_a_name(payload):
+    """A small gate the lane has no clear room for was left under a name and could not be
+    clicked (AZD5335 and Surovatamig on the 6 Oct book): the name moves, or the gate is
+    drawn over it, or a name after the 24 months gives way."""
+    for gid in (None, *(g["asset_id"] for g in payload["gates"][:6])):
+        svg = CV.timeline_svg(payload, CV.selected_gate(payload, gid))
+        assert _gate_marks_under_names(svg) == []
+    css = CSS.read_text()
+    assert re.search(r"\.cx-tl text \{[^}]*pointer-events: none", css)
+
+
 def test_the_selected_gate_is_marked_on_both_charts(payload):
     gid = CV.default_gate(payload)
     frame = CV.frame_html(payload, gid)

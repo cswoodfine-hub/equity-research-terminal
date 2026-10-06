@@ -496,6 +496,13 @@ def place_label(lines, x, y, r, occ, box, prefer=("r", "l", "t", "b", "tr", "br"
     return ""
 
 
+def _circle_in_rect(x, y, r, rect, pad=0.5) -> bool:
+    """True where a circle at (x, y) reaches into ``rect`` (x0, y0, x1, y1)."""
+    x0, y0, x1, y1 = rect
+    nx, ny = min(max(x, x0), x1), min(max(y, y0), y1)
+    return (nx - x) ** 2 + (ny - y) ** 2 < (r + pad) ** 2
+
+
 def diamond(x, y, r) -> str:
     return f"M{x:.1f},{y - r:.1f}L{x + r:.1f},{y:.1f}L{x:.1f},{y + r:.1f}L{x - r:.1f},{y:.1f}Z"
 
@@ -503,6 +510,8 @@ def diamond(x, y, r) -> str:
 # -------------------------------------------------------------------------- timeline
 OTHER_LANE = "Other areas"
 MAX_LANES = 5
+# A readout due with no result: a dashed ring wide enough for its "?" at 9 px.
+DUE_R = 5.6
 
 
 def _event_tip(e) -> str:
@@ -567,6 +576,17 @@ def lanes(p) -> list:
     if rest or None in stake or None in count:
         out.append((OTHER_LANE, set(rest) | {None}))
     return out
+
+
+def _lane_name(name, lab) -> list:
+    """A lane's name as the lines it is drawn on: one where it fits the label column, else
+    split after "and" (or cut) onto two."""
+    if _tw(name, 11, bold=True) <= lab - 4:
+        return [name]
+    if " and " in name:
+        a, b = name.split(" and ", 1)
+        return [a + " and", b]
+    return [name[:16]]
 
 
 def _segments(p, width):
@@ -669,7 +689,7 @@ def timeline_svg(p, selected=None, width=956, height=254) -> str:
             marks[ln].append({"kind": "fda", "g": r, "x": X(r["fl"]),
                               "r": max(4.8, radius(r["swing"]))})
         elif r.get("due"):
-            marks[ln].append({"kind": "due", "g": r, "x": X(r["d"]), "r": 4.4})
+            marks[ln].append({"kind": "due", "g": r, "x": X(r["d"]), "r": DUE_R})
         else:
             marks[ln].append({"kind": "gate", "g": r, "x": X(r["d"]), "r": radius(r["swing"])})
     for e in p.get("events") or []:
@@ -697,6 +717,9 @@ def timeline_svg(p, selected=None, width=956, height=254) -> str:
         big = max([m["r"] for m in marks[name]] + [3.2])
         named = any(_labelled(m, smax) and m["r"] >= 9 for m in marks[name])
         need[name] = max(26.0, 2 * big + 8) + (14 if named else 0)
+        if len(_lane_name(name, seg["lab"])) > 1:
+            # two lines of name and the value line under them
+            need[name] = max(need[name], 38.0)
         weight[name] = 1.0 + 1.4 * big / rmax + 0.18 * math.sqrt(len(marks[name]))
     spare = lanes_h - sum(need.values())
     if spare < 0:
@@ -758,14 +781,10 @@ def timeline_svg(p, selected=None, width=956, height=254) -> str:
         st_ = sum((r["swing"] or 0) for r in rows
                   if lane_of.get(r.get("area"), OTHER_LANE) == name
                   and (r.get("due") or ((r["fl"] or r["d"]) and (r["fl"] or r["d"]) <= end24)))
-        label = name if _tw(name, 11, bold=True) <= seg["lab"] - 4 else (
-            name.split(" and ")[0] + " and" if " and " in name else name[:16])
-        yt = y0 + 12
-        body.append(f'<text class="ln" x="0" y="{yt:.1f}">{esc(label)}</text>')
-        if label != name and " and " in name:
+        yt = y0 + 1
+        for line in _lane_name(name, seg["lab"]):
             yt += 11
-            body.append(f'<text class="ln" x="0" y="{yt:.1f}">'
-                        f'{esc(name.split(" and ", 1)[1])}</text>')
+            body.append(f'<text class="ln" x="0" y="{yt:.1f}">{esc(line)}</text>')
         yt += 12
         if yt <= y1 - 2:
             body.append(f'<text class="lv" x="0" y="{yt:.1f}">{usd(st_)}<tspan class="lu"> · '
@@ -799,7 +818,9 @@ def timeline_svg(p, selected=None, width=956, height=254) -> str:
         # the names, largest first, before anything small can take their room; a side
         # clear of the small marks still to come is taken where there is one
         soft = Occ()
-        soft.c = [(it["x"], ymid, it["r"]) for it in items if "y" not in it]
+        soft.c = [(it["x"], ymid, it["r"] + 1) for it in items
+                  if "y" not in it and it["kind"] in ("gate", "due", "fda")]
+        names = []
         for it in sorted(named, key=lambda i: -i["r"]):
             two, one = _label_options(it)
             prefer = (("t", "b", "tr", "br", "l", "r") if it["r"] >= 9
@@ -812,6 +833,7 @@ def timeline_svg(p, selected=None, width=956, height=254) -> str:
                                       soft=None if hard else soft))
                 if lab:
                     break
+            names.append([it, len(labels), occ.r[-1] if lab else None])
             labels.append(lab)
         # the slip on a named gate, said over its arrow
         for it, s in slips:
@@ -853,6 +875,30 @@ def timeline_svg(p, selected=None, width=956, height=254) -> str:
         # everything else finds room around the named marks
         rest = [it for it in items if "y" not in it]
         swarm(rest, ymid, y0 + 3, y1 - 3, occ)
+        # a gate the lane had no clear room for must not sit hidden under a name: the
+        # name moves to a side clear of every mark now drawn. Where none is clear, a name
+        # in the 24 months stays and the small gate is drawn over it; a name after them
+        # is left to its tooltip and the range chart's later view.
+        for gm in rest:
+            if gm["kind"] not in ("gate", "due", "fda"):
+                continue
+            for nm in names:
+                rect, it = nm[2], nm[0]
+                if rect is None or not _circle_in_rect(gm["x"], gm["y"], gm["r"], rect):
+                    continue
+                occ.r.remove(rect)
+                two, one = _label_options(it)
+                lab = (place_label(two, it["x"], it["y"], it["r"], occ, lbox,
+                                   ("r", "l", "tr", "br"))
+                       or place_label(one, it["x"], it["y"], it["r"], occ, lbox,
+                                      ("r", "l", "tr", "br", "t", "b")))
+                if lab:
+                    nm[2], labels[nm[1]] = occ.r[-1], lab
+                elif (it["g"].get("due") or (it["g"]["fl"] or it["g"]["d"]) <= end24):
+                    occ.r.append(rect)
+                    gm["lift"] = True
+                else:
+                    nm[2], labels[nm[1]] = None, ""
         swarm_slips = [(it, s) for it, s in slips if it in rest]
         for it, s in slips:
             gx, yy = X(_d(s["old"])), it["y"]
@@ -874,20 +920,22 @@ def timeline_svg(p, selected=None, width=956, height=254) -> str:
         # the marks, largest first so a ring is never hidden under a disc
         for it in sorted(items, key=lambda i: -i["r"]):
             x, yy, r = it["x"], it["y"], it["r"]
+            # a small gate with no clear room is drawn over the name it would sit under
+            dest = over if it.get("lift") else body
             if it["kind"] == "gate":
                 g = it["g"]
-                body.append(f'<a data-gate="{g["asset_id"]}"><title>{esc(_gate_tip(g))}</title>'
+                dest.append(f'<a data-gate="{g["asset_id"]}"><title>{esc(_gate_tip(g))}</title>'
                             f'<circle class="pf {g["ph"]}" cx="{x:.1f}" cy="{yy:.1f}" '
                             f'r="{r:.1f}"/></a>')
             elif it["kind"] == "fda":
                 g = it["g"]
-                body.append(f'<a data-gate="{g["asset_id"]}"><title>{esc(_gate_tip(g))}</title>'
+                dest.append(f'<a data-gate="{g["asset_id"]}"><title>{esc(_gate_tip(g))}</title>'
                             f'<path class="rg" d="{diamond(x, yy, r + 1.5)}"/></a>')
             elif it["kind"] == "due":
                 g = it["g"]
-                body.append(f'<a data-gate="{g["asset_id"]}"><title>{esc(_gate_tip(g))}</title>'
+                dest.append(f'<a data-gate="{g["asset_id"]}"><title>{esc(_gate_tip(g))}</title>'
                             f'<circle class="due" cx="{x:.1f}" cy="{yy:.1f}" r="{r:.1f}"/>'
-                            f'<text class="dueq" x="{x:.1f}" y="{yy + 2.6:.1f}" '
+                            f'<text class="dueq" x="{x:.1f}" y="{yy + 3.1:.1f}" '
                             f'text-anchor="middle">?</text></a>')
             elif it["kind"] == "ev":
                 e = it["e"]
@@ -1028,7 +1076,7 @@ def timeline_legend() -> str:
         (sv('<circle class="pf p3" cx="7" cy="6" r="5"/>'), "gate, area = $ at stake"),
         (sv('<circle class="ring p3" cx="7" cy="6" r="3"/>'), "readout, not priced"),
         (sv(f'<path class="rg" d="{diamond(7, 6, 4.5)}"/>'), "FDA decision, earliest date"),
-        (sv('<circle class="due" cx="7" cy="6" r="4.5"/>'), "due, no result"),
+        (sv('<circle class="due" cx="7" cy="6" r="5"/>'), "due, no result"),
         (sv('<circle class="ok" cx="7" cy="6" r="4.5"/>'), "Phase 3 result"),
         (sv('<circle class="ghost" cx="3" cy="6" r="2.5"/><line class="slip" x1="6" y1="6" '
             'x2="14" y2="6"/>', 16), "slip of 90 days or more"),

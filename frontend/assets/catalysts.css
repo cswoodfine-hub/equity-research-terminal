@@ -171,7 +171,7 @@
 .cx-tl .glyph { fill: none; stroke: var(--ground); stroke-width: 1.5; stroke-linecap: round;
   stroke-linejoin: round; }
 .cx-tl .due { fill: var(--ground); stroke: var(--flag); stroke-width: 1.2; stroke-dasharray: 2 1.4; }
-.cx-tl .dueq { fill: var(--flag); font-family: var(--font-mono); font-size: 7.5px; font-weight: 600; }
+.cx-tl .dueq { fill: var(--flag); font-family: var(--font-mono); font-size: 9px; font-weight: 600; }
 .cx-tl .ghost { fill: none; stroke: var(--down); stroke-width: 1.2; stroke-dasharray: 2 1.6; }
 .cx-tl .slip { stroke: var(--down); stroke-width: 1.2; stroke-dasharray: 3 2; }
 .cx-tl .slipa { fill: none; stroke: var(--down); stroke-width: 1.2; }
@@ -185,6 +185,8 @@
 .cx-tl .wall { fill: none; stroke: var(--muted); stroke-width: 1; }
 .cx-tl .wallt { fill: var(--text); font-family: var(--font-mono); font-size: 9px; font-weight: 600; }
 .cx-tl .sel { fill: none; stroke: var(--text); stroke-width: 1.6; pointer-events: none; }
+/* Text never takes a click: a name or a figure over a mark passes the click to the mark. */
+.cx-tl text { pointer-events: none; }
 .cx-tl a { cursor: pointer; }
 .cx-tl a:hover circle, .cx-tl a:hover path { stroke: var(--text); stroke-width: 1.6; }
 .cx-leg .pf { stroke: var(--ground); stroke-width: 1; }
