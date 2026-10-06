@@ -73,7 +73,7 @@ def _universe_redesigned(ticker: str, view: str) -> bool:
 
 def _catalysts_redesigned(ticker: str) -> bool:
     """True when the Catalysts tab draws the redesigned body for ``ticker`` (catalysts_page,
-    catalysts_view). The calendar fold under it stays for every company."""
+    catalysts_area). The calendar fold under it stays for every company it does not draw."""
     return ticker in _REDESIGN_TICKERS
 
 # The landing page renders inside a component iframe, which inherits none of the host
@@ -10942,55 +10942,60 @@ with main:
         # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
         # A company in the redesign set opens on what can move the share, on one screen:
-        # the timeline and the range chart beside the selected gate, drawn with the Next
-        # gate block's own builders. Every other company keeps the tab below exactly, and
-        # so does this one when the view's read fails.
-        if not (_catalysts_redesigned(ticker)
-                and catalysts_page.render(api_base, ticker, _CATALYSTS_KIT)):
+        # one row per therapy area with its readouts and its value at risk and to gain,
+        # each gate's full detail a click away, drawn with the Next gate block's own
+        # builders. Every other company keeps the tab below exactly, and so does this one
+        # when the view's read fails.
+        drawn = (_catalysts_redesigned(ticker)
+                 and catalysts_page.render(api_base, ticker, _CATALYSTS_KIT))
+        if not drawn:
             _catalysts_today(api_base, ticker, feed)
 
-        # Derived only, and for the selected company alone, rebuilt on every refresh
-        # rather than maintained. Folded: open, it shows the Drivers' events a second
-        # time by month, and a grid of registry titles was most of the tab's words. The
-        # rows sit under the grid in the same fold, since a fold cannot hold another.
-        # One window, so no control. Two years is the span a readout calendar is read
-        # over, and a shorter one hid the far half of what is already known.
-        if getattr(calendar_view, "REVISION", 0) < 2:
-            importlib.reload(calendar_view)
-        window = CALENDAR_MONTHS
-        try:
-            calendar = api_get(
-                api_base,
-                f"/catalysts?within_days={window * 31}"
-                f"&ticker={urllib.parse.quote(ticker)}") or []
-            calendar_problem = None
-        except (urllib.error.URLError, OSError, ValueError) as exc:
-            calendar, calendar_problem = [], str(exc)
-        in_grid = calendar_view.within(calendar, window)
-        with st.expander(calendar_view.expander_label(calendar, window), expanded=False):
-            if calendar_problem:
-                state("The calendar did not load", html_escape(calendar_problem),
-                      error=True)
-            elif not in_grid:
-                state(f"Nothing dated for {ticker} in the next {window} months",
-                      calendar_view.SOURCES)
-            else:
-                st.markdown(calendar_view.render(calendar, months=window),
-                            unsafe_allow_html=True)
-                # Padded by the rem Streamlit's markdown pulls back, or the rows under
-                # the caption sit on its last line.
-                st.markdown(f'<div class="byline" style="padding-bottom: 1rem">'
-                            f'{calendar_view.caption(calendar, window)}</div>',
-                            unsafe_allow_html=True)
-                # The link shows the trial's id: the pattern needs a group, or the cell
-                # prints the pattern itself.
-                st.dataframe(pd.DataFrame([{
-                    "Date": c["expected_date"], "Type": c["catalyst_type"],
-                    "Precision": c["date_confidence"], "Title": c["title"],
-                    "Evidence": c["source_url"] or None} for c in in_grid]),
-                    width="stretch", hide_index=True,
-                    column_config={"Evidence": st.column_config.LinkColumn(
-                        "Evidence", display_text=r"(NCT\d{8})")})
+        # The area page carries its own calendar, a click on its index, so the fold is
+        # drawn for every company it does not draw.
+        if not drawn:
+            # Derived only, and for the selected company alone, rebuilt on every refresh
+            # rather than maintained. Folded: open, it shows the Drivers' events a second
+            # time by month, and a grid of registry titles was most of the tab's words. The
+            # rows sit under the grid in the same fold, since a fold cannot hold another.
+            # One window, so no control. Two years is the span a readout calendar is read
+            # over, and a shorter one hid the far half of what is already known.
+            if getattr(calendar_view, "REVISION", 0) < 2:
+                importlib.reload(calendar_view)
+            window = CALENDAR_MONTHS
+            try:
+                calendar = api_get(
+                    api_base,
+                    f"/catalysts?within_days={window * 31}"
+                    f"&ticker={urllib.parse.quote(ticker)}") or []
+                calendar_problem = None
+            except (urllib.error.URLError, OSError, ValueError) as exc:
+                calendar, calendar_problem = [], str(exc)
+            in_grid = calendar_view.within(calendar, window)
+            with st.expander(calendar_view.expander_label(calendar, window), expanded=False):
+                if calendar_problem:
+                    state("The calendar did not load", html_escape(calendar_problem),
+                          error=True)
+                elif not in_grid:
+                    state(f"Nothing dated for {ticker} in the next {window} months",
+                          calendar_view.SOURCES)
+                else:
+                    st.markdown(calendar_view.render(calendar, months=window),
+                                unsafe_allow_html=True)
+                    # Padded by the rem Streamlit's markdown pulls back, or the rows under
+                    # the caption sit on its last line.
+                    st.markdown(f'<div class="byline" style="padding-bottom: 1rem">'
+                                f'{calendar_view.caption(calendar, window)}</div>',
+                                unsafe_allow_html=True)
+                    # The link shows the trial's id: the pattern needs a group, or the cell
+                    # prints the pattern itself.
+                    st.dataframe(pd.DataFrame([{
+                        "Date": c["expected_date"], "Type": c["catalyst_type"],
+                        "Precision": c["date_confidence"], "Title": c["title"],
+                        "Evidence": c["source_url"] or None} for c in in_grid]),
+                        width="stretch", hide_index=True,
+                        column_config={"Evidence": st.column_config.LinkColumn(
+                            "Evidence", display_text=r"(NCT\d{8})")})
 
     # --- Labels ----------------------------------------------------------
     # --- News ------------------------------------------------------------
