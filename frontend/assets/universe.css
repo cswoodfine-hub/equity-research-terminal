@@ -60,6 +60,8 @@
   background: color-mix(in oklab, var(--down) 26%, transparent); }
 .uv-lead b.up { background: color-mix(in oklab, var(--up) 22%, transparent); }
 .uv-lead b.even { background: color-mix(in oklab, var(--muted) 22%, transparent); }
+/* A read taken while the API was still valuing the group says so under the lead. */
+.uv-partial { font-size: 12px; line-height: 1.4; color: var(--flag); margin: 0 0 6px; }
 
 /* ---------------------------------------------------------------------------------- */
 /* The company against the group: eight cells on one hairline, a cohort strip in each */

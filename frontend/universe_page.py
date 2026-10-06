@@ -39,13 +39,39 @@ FRAME_TOKENS = {"ground": TK.GROUND, "panel": TK.PANEL, "rule": TK.RULE,
                 "up": TK.UP, "down": TK.DOWN, "flag": TK.FLAG}
 
 
-@st.cache_data(ttl=300, show_spinner=False)
-def fetch(api_base: str, ticker: str, part: str = "all") -> dict:
-    """The command centre's payload for one company in focus, held five minutes."""
+def _read(api_base: str, ticker: str, part: str) -> dict:
     path = (f"/universe/command?ticker={urllib.parse.quote(ticker)}"
             f"&part={urllib.parse.quote(part)}")
     with urllib.request.urlopen(api_base.rstrip("/") + path, timeout=180) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+class _Incomplete(Exception):
+    """Carries a read the API marked incomplete out of the cached function: an exception
+    is never cached, so the read is used once and asked for again on the next run."""
+
+    def __init__(self, payload: dict):
+        super().__init__("incomplete read")
+        self.payload = payload
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _fetch_complete(api_base: str, ticker: str, part: str) -> dict:
+    payload = _read(api_base, ticker, part)
+    if not payload.get("complete", True):
+        raise _Incomplete(payload)
+    return payload
+
+
+def fetch(api_base: str, ticker: str, part: str = "all") -> dict:
+    """The command centre's payload for one company in focus, held five minutes once it
+    is complete. A read taken while the API is still valuing the group (``complete`` is
+    false: most model values missing) is drawn as it is but never held, so the page does
+    not show a partial map for five minutes after the API restarts."""
+    try:
+        return _fetch_complete(api_base, ticker, part)
+    except _Incomplete as exc:
+        return exc.payload
 
 
 def _md(markup: str) -> str:
@@ -140,7 +166,7 @@ def _command(api_base: str, p: dict) -> None:
     w = WINDOW_KEYS[_window_label()]
     with right:
         _show(UC.status_line(p))
-    _show(f'<div class="uv">{UC.lead_line(p, w)}</div>')
+    _show(f'<div class="uv">{UC.lead_line(p, w)}{UC.incomplete_note(p)}</div>')
     _show(f'<div class="uv">{UC.spotlight_section(p, w)}{UC.spotlight_html(p, w)}</div>')
 
     band = UC.hero_html(p, w)

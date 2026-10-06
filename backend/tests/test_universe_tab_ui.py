@@ -474,6 +474,45 @@ def test_a_pick_opens_the_company_dialog_once():
     assert 'class="uv uv-dg"' not in _md(test)
 
 
+def test_an_incomplete_read_is_drawn_once_and_never_held(monkeypatch):
+    """A read the API marks incomplete (taken while it was still valuing the group) is
+    used for the run that asked, then asked for again; a complete read is held. The
+    module is loaded on its own, since the page tests above replace its fetch."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("universe_page_fetch_test",
+                                                  FRONTEND / "universe_page.py")
+    UP = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(UP)
+    reads = []
+
+    def read(api_base, ticker, part):
+        reads.append(part)
+        return {"complete": len(reads) > 1, "n": len(reads)}
+
+    monkeypatch.setattr(UP, "_read", read)
+    UP._fetch_complete.clear()
+    try:
+        assert UP.fetch("http://api.invalid", "AZN")["n"] == 1
+        assert UP.fetch("http://api.invalid", "AZN")["n"] == 2
+        assert UP.fetch("http://api.invalid", "AZN")["n"] == 2
+        assert len(reads) == 2
+    finally:
+        UP._fetch_complete.clear()
+
+
+def test_an_incomplete_read_says_so_and_a_complete_one_does_not(payload):
+    assert UC.incomplete_note(payload) == ""
+    q = copy.deepcopy(payload)
+    q["complete"] = False
+    for t in ("LLY", "MRK"):
+        q["companies"][t]["model"]["upside"] = None
+    note = UC.incomplete_note(q)
+    n = sum(1 for c in q["companies"].values() if c["model"]["upside"] is not None)
+    assert f"{n} of {len(q['companies'])} big pharma have a model value" in note
+    _house_style(_visible(note))
+    assert note in UC.dialog_html(q)
+
+
 def test_apply_goto_sets_the_picker_before_it_is_drawn():
     """A dialog button reruns the dialog as a fragment, which AppTest cannot drive; this
     checks what the click hands the next run (the click itself is checked in a browser)."""

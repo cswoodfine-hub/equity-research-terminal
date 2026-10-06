@@ -236,6 +236,19 @@ def lead_line(p, w=None):
             f'{esc(who)} {verb(own[f])}, <b class="{tone}">{ordinal(rank)} of {len(own)}</b>.</div>')
 
 
+def incomplete_note(p):
+    """A line under the lead when the API was still valuing the group as it built this
+    read (``complete`` false): how many of the cohort have a model value so far, and that
+    the page reads again rather than holding the gap. Empty on a complete read."""
+    if p.get("complete", True):
+        return ""
+    cos = _cos(p)
+    n = sum(1 for c in cos.values() if (c.get("model") or {}).get("upside") is not None)
+    return (f'<div class="uv-partial">The API was still valuing the group when this page '
+            f'read it: {n} of {len(cos)} {esc(_cohort_noun(p))} have a model value so far. '
+            f'The page reads again on its next run.</div>')
+
+
 # --------------------------------------------------------------- spotlight band (row 1)
 def strip(vals, focal, better="higher", w=150, h=22, med=None):
     """The cohort strip: right is always better, the median a tick, the focal company a
@@ -2185,6 +2198,7 @@ def dialog_html(p, opened_from="the map"):
         f'<div class="uv uv-dg">'
         f'<div class="uv-dg-sub">{esc(f)} against {n_peers} {esc(_cohort_noun(p))} peers · prices to the '
         f'{esc(dlong(p.get("price_date")))} close · opened from {esc(opened_from)}</div>'
+        f'{incomplete_note(p)}'
         f'<div class="ki-figs uv-dg-figs">{dialog_figs(p)}</div>'
         f'<div class="uv-dg-grid">'
         f'<div>{section_html("Value against the price", "USD a share", price_count)}'
