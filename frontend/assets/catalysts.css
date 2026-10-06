@@ -340,6 +340,8 @@
 .st-key-cx_side .cx a.cx-nr:hover { background: var(--panel); }
 .st-key-cx_side .cx a.cx-nr:hover b { color: var(--up); }
 .cx-nr .d { font-size: 11px; color: var(--text); }
+.cx-ny { font-size: 10px; color: var(--muted); padding: 4px 0 1px;
+  border-bottom: 1px solid var(--rule-strong); }
 .cx-nr .n { min-width: 0; line-height: 1.25; }
 .cx-nr .n b { font-weight: 600; font-size: 12px; }
 .cx-nr .n .mk-ph { margin-left: 6px; }

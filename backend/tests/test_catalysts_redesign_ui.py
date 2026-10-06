@@ -314,6 +314,15 @@ def test_an_open_risk_card_says_each_row_once(payload):
     assert '<div class="cx-rr2">' in body and body.count('class="cx-rr yr"') >= 4
 
 
+def test_next_up_names_the_year_where_it_turns(payload):
+    """Next up prints day and month; 31 Dec followed by 4 Jan read as one year. A rule names
+    the year where the list crosses into the next."""
+    rows = CV.next_rows(payload)
+    years = sorted({CV._d(e["date"]).year for e in rows} - {CV._today(payload).year})
+    shown = re.findall(r'<div class="cx-ny m">(\d{4})</div>', CV.next_html(payload))
+    assert [int(y) for y in shown] == years and years
+
+
 def test_a_company_with_no_priced_stakes_still_draws(payload):
     for p in (_no_stakes(payload), _empty(payload)):
         blocks = _blocks(p)

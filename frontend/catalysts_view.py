@@ -1629,7 +1629,12 @@ def next_html(p, n=12) -> str:
         return head + f'<div class="cx-empty">Nothing dated ahead for {esc(_ticker(p))}.</div>'
     big = max([(e.get("trial") or {}).get("enrollment") or 0 for e in rows] + [1])
     out = []
+    year = today.year
     for e in rows:
+        # the dates print day and month: a rule names the year where it turns
+        if _d(e["date"]).year != year:
+            year = _d(e["date"]).year
+            out.append(f'<div class="cx-ny m">{year}</div>')
         t = e.get("trial") or {}
         n_ = t.get("enrollment")
         cond = (t.get("conditions") or [""])[0] if t.get("conditions") else ""
