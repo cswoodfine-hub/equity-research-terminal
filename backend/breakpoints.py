@@ -83,10 +83,11 @@ def solve(f, current: float, lo: float, hi: float, integer: bool = False) -> dic
 
     A year is stepped one at a time outward from the current one, a year either side in
     turn, since the engine reads it as a whole year and the value need not move one way
-    with it: Vertex meets the price with Trikafta's LOE at 2032, but the lower bound sat in
-    the reported base, where an LOE takes no erosion and the value jumps back up, so both
-    bounds said it could not. The caller floors an LOE search at the first year that
-    still erodes, so the jump itself is never reported as a break.
+    with it: before 2026-10-05 a loss of exclusivity moved the room the launches fill, and
+    an LOE stated before the window was read as in the reported base, where the value
+    jumped back up, so Vertex met the price with Trikafta's LOE at 2032 while both bounds
+    said it could not. A stated LOE now only moves a cliff the record puts ahead, so the
+    search runs the whole bracket.
     A rate is bisected from the current value toward whichever bound changes its sign,
     which assumes it moves the value one way, as every rate lever here does. A trial the
     engine refuses counts as not crossing. {"value", "reachable", "bound"}."""
@@ -492,14 +493,10 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
 
         for label, key, current, kind, _step in V.lever_specs(inputs, built):
             if kind == "year":
+                # The whole bracket, before the window too: a stated LOE before it sits
+                # further down the erosion curve rather than in the base (forecast.build),
+                # so a crossing there is the product's, not a jump back up.
                 lo, hi = current + YEARS[0], current + YEARS[1]
-                # An LOE before the year ahead of the forecast counts as already in the
-                # reported base (forecast.build), where no erosion is applied, so the value
-                # jumps there; a break-point found across that jump is the convention's,
-                # not the product's (Skyrizi read 2024 against a 2033 LOE). The search
-                # stops at the first year that still erodes.
-                if key == "loe_year" and built.get("years"):
-                    lo = max(lo, built["years"][0] - 1)
                 found = solve(lambda x: gap_for(V.apply_lever(inputs, key, int(x))),
                               current, lo, hi, integer=True)
             elif kind == "years":

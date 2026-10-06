@@ -102,6 +102,31 @@ def test_the_break_point_is_where_equity_meets_the_price(tmp_path):
     assert (moved * 1e6 + (1000e6 - 3000e6)) / 100e6 == pytest.approx(close, rel=1e-4)
 
 
+def test_an_loe_break_point_before_the_window_is_found(tmp_path):
+    """A stated LOE before the window sits further down the erosion curve rather than in
+    the reported base, so a price that needs the cliff four years ago is met there. The
+    search used to stop at the year before the window and call it out of reach."""
+    import assumptions
+    import forecast_view as V
+
+    def priced(name, close, loe):
+        path = _company(tmp_path / name, close=close)
+        conn = db.get_connection(path)
+        assumptions.save(conn, 1, [{"key": "loe_year", "value": loe, "unit": "year",
+                                    "source": "judgement"}])
+        conn.commit()
+        conn.close()
+        return path
+
+    at = {year: V.company_verdict(priced(f"v{year}", 1.0, year), "AMGN")["sotp"]
+          ["equity_per_share"] for year in (2022, 2023)}
+    assert at[2022] < at[2023]
+    got = B.company(priced("bp", (at[2022] + at[2023]) / 2.0, 2029), "AMGN")
+    assert got["ok"] and got["direction"] == "down"
+    loe = next(l for l in got["levers"] if l["key"] == "loe_year")
+    assert loe["reachable"] and loe["break"] == 2022
+
+
 def test_groups_read_the_file_and_match_what_the_company_carries(tmp_path):
     import risk_groups
     path = tmp_path / "groups.csv"
