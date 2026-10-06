@@ -18,8 +18,9 @@ the same spend twice. So the view never reaches rNPV, the sum of the parts, the 
 value, a rating, a break-point or fair value. `tests/test_development.py` holds the fence:
 an AST scan proves none of forecast, forecast_view, assumptions, pos_granular,
 company_score, breakpoints, fair_value, comps_valuation, future_pipeline, launch_timing,
-company_lines or insights imports the module, and `tests/test_development_api.py` proves the
-sum of the parts is identical read, unread, or with the module unimportable.
+company_lines or insights imports the module, a fresh interpreter that loads those, valuation
+and the refresh proves nothing they import brings it in, and `tests/test_development_api.py`
+proves the sum of the parts is identical read, unread, or with the module unimportable.
 
 How `book_rd` itself is risked is the future pipeline's business and is not touched here.
 
