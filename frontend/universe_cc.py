@@ -575,7 +575,10 @@ def hero_map(p, w=None):
     while yv <= y1 - 5:
         o.append(f'<line x1="{ML}" y1="{Y(yv):.1f}" x2="{ML+pw}" y2="{Y(yv):.1f}" '
                  f'stroke="{T["rule_faint"]}"/>')
-        o.append(text(ML - 6, Y(yv) + 3.5, sgn(yv, 0), 9.5, T["muted"], "end", mono=True))
+        # A tick on the plot's foot would print into the corner the x axis's first label
+        # holds; its gridline stays and the label goes.
+        if MT + ph - Y(yv) >= 8:
+            o.append(text(ML - 6, Y(yv) + 3.5, sgn(yv, 0), 9.5, T["muted"], "end", mono=True))
         yv += 20
     o.append(f'<line x1="{X(0):.1f}" y1="{MT}" x2="{X(0):.1f}" y2="{MT+ph}" '
              f'stroke="{T["rule_strong"]}" stroke-width="1.2"/>')

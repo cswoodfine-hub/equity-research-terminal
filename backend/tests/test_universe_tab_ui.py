@@ -335,6 +335,32 @@ def test_the_focal_price_tile_keeps_its_row_lines():
     assert mt + m_rule + m_top + m_bot + mb == b_rule + b_top    # and the row's height
 
 
+def _ink(markup):
+    """Each SVG label's box as the browser measures it: an advance of 0.6em, and the
+    font's ascent and descent (Plex Mono's run about 1em above the baseline and 0.3em
+    under it)."""
+    out = []
+    for m in re.finditer(r'<text x="([\d.-]+)" y="([\d.-]+)"[^>]*font-size="([\d.]+)"([^>]*)>'
+                         r'([^<]*)</text>', markup):
+        x, y, fs, rest, s = float(m[1]), float(m[2]), float(m[3]), m[4], m[5]
+        wd = len(html.unescape(s)) * fs * 0.6
+        x0 = x - wd if 'text-anchor="end"' in rest else (
+            x - wd / 2 if 'text-anchor="middle"' in rest else x)
+        out.append((html.unescape(s), (x0, y - fs, x0 + wd, y + fs * 0.3)))
+    return out
+
+
+def test_the_map_axes_keep_their_corner_apart(payload):
+    """The y axis's foot label and the x axis's first label do not share the corner: on a
+    scale whose foot is a tick, that tick keeps its gridline and drops its label."""
+    for w in ("1m", "3m", "1y"):
+        svg = UC.hero_map(payload, w)
+        ticks = [(s, b) for s, b in _ink(svg) if re.fullmatch(r"[−+]?\d+%?", s)]
+        for i, (sa, a) in enumerate(ticks):
+            for sb, b in ticks[i + 1:]:
+                assert not UC.rects_hit(a, b, 0), (w, sa, sb)
+
+
 def test_the_week_tag_column_holds_the_longest_tag():
     """Each ranked row's tag fits its grid column: "approval" ran 7px into the headline
     beside it. A tag is 9.5px mono capitals at 0.08em, after a 3px rule and 6px of air."""
