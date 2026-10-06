@@ -285,6 +285,46 @@ def test_the_week_minis_are_drawn_at_the_width_their_column_gives_them():
     assert cols[3] == f"{UC.IW}px", cols
 
 
+def _lane_rules_hold(placed, reserved=()):
+    """No two labels overlap, none sits on a reserved box, and no leader runs through a
+    nearer label: the rules place_lane_labels promises."""
+    boxes = []
+    for xx, lab, anc, tier, yy in placed:
+        wd = UC.lab_w(lab, 9)
+        x0 = xx + 2 if anc == "start" else xx + 3 - wd
+        boxes.append(((x0, yy - 9, x0 + wd, yy + 2), xx, tier))
+    for i, (a, xa, ta) in enumerate(boxes):
+        assert not any(UC.labels_hit(a, r) for r in reserved), placed[i]
+        for j, (b, xb, tb) in enumerate(boxes):
+            if i == j:
+                continue
+            assert not UC.labels_hit(a, b), (placed[i], placed[j])
+            if ta * tb > 0 and abs(tb) > abs(ta):
+                assert not (a[0] - 4 <= xb <= a[2] + 4), (placed[j], "runs through", placed[i])
+
+
+def test_policy_labels_never_sit_under_another_documents_leader():
+    """The fixture's Medicare lane: a greedy pass put the June proposed rule's leader
+    through the July draft guidance's label, pairing each square with the wrong title."""
+    marks = [(228.3, "CY2027 final rule"), (315.3, "Negotiation proposed rule"),
+             (357.0, "Negotiation draft guidance"), (437.8, "Pharmacy contracting RFI")]
+    reserved = [(354.1, 76.0, 514.3, 88.0)]           # "comments close 23 Nov, 48 days"
+    placed = UC.place_lane_labels(marks, 64, reserved, 108, 571)
+    assert sorted(p_[1] for p_ in placed) == sorted(m[1] for m in marks)
+    _lane_rules_hold(placed, reserved)
+
+
+def test_policy_label_rules_hold_on_crowded_lanes():
+    import random
+    rng = random.Random(7)
+    words = ["Rule", "Notice", "Draft guidance", "Final guidance", "Comment request",
+             "Tariff notice on patented products", "Proposed rule"]
+    for _ in range(200):
+        marks = [(rng.uniform(112, 560), rng.choice(words)) for _ in range(rng.randint(1, 7))]
+        placed = UC.place_lane_labels(marks, 64, [], 108, 571)
+        _lane_rules_hold(placed)
+
+
 def test_universe_css_is_tokens_only_and_reaches_the_page_and_the_frame(monkeypatch):
     css = UNIVERSE_CSS.read_text()
     assert not HEX.findall(css), "a hex colour in universe.css"

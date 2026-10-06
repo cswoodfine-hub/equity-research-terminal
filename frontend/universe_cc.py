@@ -1712,6 +1712,79 @@ def prices_count(p):
 
 
 # --------------------------------------------------------- band 7: policy calendar
+LANE_TIERS = (-1, -2, 1)
+LANE_TIER_COST = {-1: 0.0, -2: 1.0, 1: 1.5}
+
+
+def place_lane_labels(marks, y, reserved=(), x_min=0.0, x_max=1e9, size=9, budget=40000):
+    """Labels for the marks on one policy lane: each on a tier above the lane (-1, then
+    -2) or below it (1), starting at its mark or ending at it.
+
+    A label is drawn with a leader from its mark, so two rules hold beside "no two labels
+    overlap": a label never sits over another mark whose leader runs up (or down) through
+    its tier, and a leader never runs through a nearer label. A greedy pass broke the
+    second and paired the June proposed rule's square with the July draft guidance's
+    label. The marks are few, so the placement is searched: the lowest total cost (near
+    tier, then far, then below; a label after its mark before one ending at it), a mark
+    left unlabelled only when nothing fits. ``marks`` is [(x, label)]; returns
+    [(x, label, anchor, tier, baseline y)] for the marks placed. Pure."""
+    tiers = {-1: y - 13, -2: y - 26, 1: y + 24}
+    marks = sorted(marks, key=lambda m: m[0])
+    opts = []
+    for xx, lab in marks:
+        wd = lab_w(lab, size)
+        mine = []
+        for tier in LANE_TIERS:
+            yy = tiers[tier]
+            for anc in ("start", "end"):
+                x0 = xx + 2 if anc == "start" else xx + 3 - wd
+                rect = (x0, yy - size, x0 + wd, yy + 2)
+                if rect[0] < x_min or rect[2] > x_max:
+                    continue
+                if any(labels_hit(rect, r) for r in reserved):
+                    continue
+                mine.append((LANE_TIER_COST[tier] + (0.2 if anc == "end" else 0.0),
+                             tier, anc, yy, rect))
+        mine.sort(key=lambda o_: o_[0])
+        opts.append(mine)
+    unplaced = 100.0
+
+    def clash(i, a, j, b):
+        if labels_hit(a[4], b[4]):
+            return True
+        for (k, ka), (m, mb) in (((i, a), (j, b)), ((j, b), (i, a))):
+            # m's leader runs through k's tier when m is on the same side and further out.
+            if ka[1] * mb[1] > 0 and abs(mb[1]) > abs(ka[1]):
+                if ka[4][0] - 4 <= marks[m][0] <= ka[4][2] + 4:
+                    return True
+        return False
+
+    best = {"cost": float("inf"), "pick": [None] * len(marks)}
+    floor = [min([o_[0] for o_ in mine] + [unplaced]) for mine in opts]
+    rest = [sum(floor[i:]) for i in range(len(marks) + 1)]
+    nodes = [0]
+
+    def search(i, pick, cost):
+        nodes[0] += 1
+        if cost + rest[i] >= best["cost"] or nodes[0] > budget:
+            return
+        if i == len(marks):
+            best["cost"], best["pick"] = cost, list(pick)
+            return
+        for o_ in opts[i]:
+            if all(pick[j] is None or not clash(i, o_, j, pick[j]) for j in range(i)):
+                pick.append(o_)
+                search(i + 1, pick, cost + o_[0])
+                pick.pop()
+        pick.append(None)
+        search(i + 1, pick, cost + unplaced)
+        pick.pop()
+
+    search(0, [], 0.0)
+    return [(marks[i][0], marks[i][1], o_[2], o_[1], o_[3])
+            for i, o_ in enumerate(best["pick"]) if o_ is not None]
+
+
 def policy_svg(p):
     """Both policy lanes on this year's axis: a rule filled, a proposed rule open, a
     notice a dot, comment windows as bars with the open one bright and counted down."""
@@ -1784,33 +1857,18 @@ def policy_svg(p):
                      f'stroke-width="1"><title>{esc(tip)}</title></circle>')
         if it.get("short"):
             labels[it["lane"]].append((x, it["short"]))
-    # Labels by the same greedy placer as the board, tiers above and below each lane.
+    # Labels: tiers above and below each lane, placed so that no leader runs through
+    # another document's label. Leaders first, then the labels with a halo.
     for lane, marks in labels.items():
         y = lanes[lane]
-        taken = list(reserved[lane])
-        tiers = {-1: y - 13, -2: y - 26, 1: y + 24}
-        for xx, lab in sorted(marks, key=lambda m: -m[0]):
-            wd = lab_w(lab, 9)
-            done = False
-            for tier in (-1, -2, 1):
-                for anc in ("start", "end"):
-                    yy = tiers[tier]
-                    x0 = xx + 2 if anc == "start" else xx + 3 - wd
-                    rect = (x0, yy - 9, x0 + wd, yy + 2)
-                    if rect[0] < L - 4 or rect[2] > W - 2:
-                        continue
-                    if any(labels_hit(rect, r) for r in taken):
-                        continue
-                    taken.append(rect)
-                    y_end = yy + 3 if tier < 0 else yy - 9
-                    o.append(f'<line x1="{xx:.1f}" y1="{y + (-5 if tier < 0 else 10)}" x2="{xx:.1f}" '
-                             f'y2="{y_end}" stroke="{T["rule_strong"]}"/>')
-                    o.append(text(xx + 2 if anc == "start" else xx + 3, yy, lab, 9, T["text"],
-                                  anc, opacity=0.88))
-                    done = True
-                    break
-                if done:
-                    break
+        placed = place_lane_labels(marks, y, reserved[lane], L - 4, W - 2)
+        for xx, lab, anc, tier, yy in placed:
+            y_end = yy + 3 if tier < 0 else yy - 9
+            o.append(f'<line x1="{xx:.1f}" y1="{y + (-5 if tier < 0 else 10)}" x2="{xx:.1f}" '
+                     f'y2="{y_end}" stroke="{T["rule_strong"]}"/>')
+        for xx, lab, anc, tier, yy in placed:
+            o.append(text(xx + 2 if anc == "start" else xx + 3, yy, lab, 9, T["text"], anc,
+                          opacity=0.88, cls="halo"))
     o.append("</svg>")
     return "".join(o)
 
