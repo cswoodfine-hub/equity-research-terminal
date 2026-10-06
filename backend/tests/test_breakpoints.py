@@ -29,6 +29,17 @@ def test_a_year_is_the_first_whole_year_that_crosses():
     assert got == {"value": 2032, "reachable": True, "bound": None}
 
 
+def test_a_year_lever_that_turns_back_is_searched_both_ways_nearest_first():
+    # Crosses only inside the bounds, and both bounds sit on the same side as now.
+    bump = lambda y: 1.0 if y < 2033 or y > 2036 else -1.0
+    assert B.solve(bump, 2030, 2015, 2060, integer=True) == {
+        "value": 2033, "reachable": True, "bound": None}
+    # Two crossings, one each way: the nearer wins, the later on a tie.
+    twice = lambda y: -1.0 if y in (2026, 2032) else 1.0
+    assert B.solve(twice, 2029, 2015, 2060, integer=True)["value"] == 2032
+    assert B.solve(twice, 2028, 2015, 2060, integer=True)["value"] == 2026
+
+
 def test_a_lever_that_cannot_get_there_alone_says_so():
     got = B.solve(lambda x: 5.0 - x, 0.5, 0.0, 1.0)
     assert not got["reachable"] and got["value"] is None and got["bound"] == 1.0
@@ -89,6 +100,35 @@ def test_the_break_point_is_where_equity_meets_the_price(tmp_path):
     trial = V.apply_lever(inputs, "revenue_growth_pct", growth["break"])
     moved = forecast.build(trial)["rnpv"]
     assert (moved * 1e6 + (1000e6 - 3000e6)) / 100e6 == pytest.approx(close, rel=1e-4)
+
+
+def test_an_loe_break_point_stops_at_the_year_before_the_window(tmp_path):
+    """The LOE lever is offered only where the record puts the cliff ahead, so the
+    earliest it can fall is the year before the window. A price that needs the cliff
+    four years ago is out of the lever's reach, named at that year, even though the engine
+    would value 2022 further down the curve; a price met at 2027 is found there."""
+    import assumptions
+    import forecast_view as V
+
+    def priced(name, close, loe):
+        path = _company(tmp_path / name, close=close)
+        conn = db.get_connection(path)
+        assumptions.save(conn, 1, [{"key": "loe_year", "value": loe, "unit": "year",
+                                    "source": "judgement"}])
+        conn.commit()
+        conn.close()
+        return path
+
+    at = {year: V.company_verdict(priced(f"v{year}", 1.0, year), "AMGN")["sotp"]
+          ["equity_per_share"] for year in (2022, 2023, 2026, 2027)}
+    assert at[2022] < at[2023] < at[2026] < at[2027]
+    got = B.company(priced("bp", (at[2022] + at[2023]) / 2.0, 2029), "AMGN")
+    assert got["ok"] and got["direction"] == "down"
+    loe = next(l for l in got["levers"] if l["key"] == "loe_year")
+    assert not loe["reachable"] and loe["break"] is None and loe["bound"] == 2025
+    got = B.company(priced("near", (at[2026] + at[2027]) / 2.0, 2029), "AMGN")
+    loe = next(l for l in got["levers"] if l["key"] == "loe_year")
+    assert loe["reachable"] and loe["break"] == 2026
 
 
 def test_groups_read_the_file_and_match_what_the_company_carries(tmp_path):

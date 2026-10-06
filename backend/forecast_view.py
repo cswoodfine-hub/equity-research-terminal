@@ -368,6 +368,14 @@ def sensitivity(db_path, ticker: str, asset_id: int, scenario: str = "base",
         built = forecast.build(inputs)
     except forecast.ForecastError as err:
         return {"ok": False, "missing": err.missing}
+    if preset == "loe" and built.get("loe_in_base"):
+        # The record puts the loss in the reported revenue already, where neither its year
+        # nor its first-year fall can move the value, so a grid would be one figure
+        # repeated.
+        reason = (f"the loss of exclusivity on file ({built.get('loe_year') or 'already past'}) "
+                  "is already in the reported revenue, so neither its year nor the year-one "
+                  "erosion moves the value")
+        return {"ok": False, "missing": [reason], "reason": reason}
     if preset == "loe":
         loe_year = built["loe_year"] or (built["dcf_years"][-1])
         xs = [loe_year - offset for offset in (6, 4, 2, 0)]
@@ -496,9 +504,15 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
     if terminal_growth is not None:
         scalars["terminal_growth_pct"] = terminal_growth
     if loe_year is not None:
-        # A scalar loe_year outranks the LOE map in the engine, which is the point: the
-        # slider asks what the product is worth if the cliff comes earlier or later.
+        # A scalar loe_year moves the cliff the record puts ahead, which is the point: the
+        # slider asks what the product is worth if the cliff comes earlier or later. A loss
+        # the record already puts in the reported revenue cannot be moved, and the engine
+        # keeps the record's year there, so the lever is named as one that did nothing.
         scalars["loe_year"] = int(loe_year)
+        if base.get("loe_in_base"):
+            ignored["loe_year"] = (f"the loss of exclusivity on file "
+                                   f"({base.get('loe_year') or 'already past'}) is already in "
+                                   "the reported revenue, so moving its year changes nothing")
     if erosion is not None:
         scalars["erosion_year1_pct"] = erosion
         if scalars.get("erosion_decay_pct") is None:
@@ -1279,6 +1293,7 @@ def company_rollup(db_path, ticker: str):
                       "launch": launch_timing.summary(state.get("launch")),
                       "loe_year": result.get("loe_year"),
                       "loe_in_base": result.get("loe_in_base"),
+                      "terminal_tail": result.get("terminal_tail"),
                       # Each region's own date and share, without its revenue series.
                       "regions": [{key: region.get(key) for key in
                                    ("region", "label", "share", "loe_year", "in_base")}
@@ -1319,6 +1334,7 @@ def company_rollup(db_path, ticker: str):
                         "in_reported_revenue":
                             entry["scalars"].get("in_reported_revenue", 1) != 0,
                         "loe_year": entry["scalars"].get("loe_year"),
+                        "terminal_tail": result.get("terminal_tail"),
                         "years": result["years"], "revenue": result["revenue_after_loe"],
                         "dcf_years": result.get("dcf_years") or [],
                       "pnl_share": [{k: (v * 1.0 if isinstance(v, (int, float)) else v)
@@ -1420,8 +1436,15 @@ def lever_specs(inputs, built) -> list:
     fifth = "a fifth either way"
     levers = [("discount rate", "wacc", built["wacc"], "rate", fifth)]
     if mode in ("marketed", "franchise"):
-        # A loss already in the base does not erode again, so neither lever can move it.
+        # A loss the record puts in the base does not erode again, and the engine keeps the
+        # record's year whatever year is stated, so neither lever can move it.
         loe_year = None if built.get("loe_in_base") else built.get("loe_year")
+        # A cliff that takes nothing, no year-one drop and no decay, is worth the same in
+        # any year: Pfizer's Prevnar, whose seed says a vaccine's patent date is not a
+        # cliff, read the same at an LOE of 2027 or 2043, and the break-points named 2025
+        # as the nearest it came to the price, a bound the value never moved toward.
+        if not (built.get("erosion_year1_pct") or built.get("erosion_decay_pct")):
+            loe_year = None
         default = forecast.erosion_default(inputs)[0]
         year1 = scalars.get("erosion_year1_pct")
         if year1 is None and default:
@@ -2022,12 +2045,9 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
     book_rd: dict = {}
     totals = {"revenue": 0.0, "cogs": 0.0, "sga": 0.0, "rd": 0.0, "other": 0.0,
               "ebit": 0.0, "tax": 0.0}
-    waccs, growths, book_parts, named_parts = [], [], [], []
+    waccs, growths, book_parts, named_parts, tails = [], [], [], [], []
+    not_medicines = []
     for part in parts:
-        # A line whose R&D develops something other than medicines buys no launches, and
-        # its margins are not the ones a future drug would earn.
-        if part.get("buys_launches") is False:
-            continue
         # Expected values: a pipeline product's P&L is unrisked, so its whole row is taken
         # at its probability, once. A book that counted the revenue in full would leave
         # its launches too little room, and R&D that is only spent if the asset reaches
@@ -2039,16 +2059,32 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
         odds = part.get("pos") if part.get("pos") is not None else 1.0
         rows = [{k: (v * odds if isinstance(v, (int, float)) else v)
                  for k, v in row.items()} for row in part.get("pnl_share") or []]
-        book_parts.append({"revenue": {year: (row.get("revenue") or 0.0)
-                                       for year, row
-                                       in zip(part.get("dcf_years") or [], rows)},
-                           "loe_year": part.get("loe_year"),
-                           "loe_in_base": part.get("loe_in_base"),
-                           "growth": part.get("long_run_growth")})
+        entry = {"revenue": {year: (row.get("revenue") or 0.0)
+                             for year, row in zip(part.get("dcf_years") or [], rows)},
+                 "loe_year": part.get("loe_year"),
+                 "loe_in_base": part.get("loe_in_base"),
+                 "growth": part.get("long_run_growth"),
+                 # Carried past its forecast as its own terminal value carries it,
+                 # products and company lines alike.
+                 **({"tail": part["terminal_tail"]} if "terminal_tail" in part else {})}
+        # The R&D ratio its terminal value charges past the forecast: the final year's.
+        last_row = rows[-1] if rows else {}
+        rd_ratio = ((last_row.get("rd") or 0.0) / last_row["revenue"]
+                    if last_row.get("revenue") else None)
+        # Revenue that is not a medicine the filer sells (company_lines.KEYS): it is not
+        # part of the book the launches refill, and its margins are not the ones a future
+        # drug would earn. The R&D it is charged is settled below, by what the launch rate
+        # divides by.
+        if part.get("buys_launches") is False:
+            not_medicines.append((part, rows, entry, rd_ratio))
+            continue
+        book_parts.append(entry)
         if part.get("asset_id") is not None:
             named_parts.append((part["asset_id"], book_parts[-1]))
         for year, row in zip(part.get("dcf_years") or [], rows):
             book_rd[year] = book_rd.get(year, 0.0) + (row.get("rd") or 0.0)
+        if rd_ratio:
+            tails.append((book_parts[-1], rd_ratio))
         if rows:
             first = rows[0]
             for k in totals:
@@ -2076,6 +2112,20 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
         return {"value": None, "reason": "no discount rate in the modelled book"}
     lag = int(bounds["lag_years"]["value"])
     own = next((f for f in pool.get("filers") or [] if f["ticker"] == ticker.upper()), None)
+    # A line that sells no medicine is still charged the company's R&D ratio, and the
+    # launch rate divides launch revenue by the company's whole R&D, that line's share
+    # included. So its R&D buys launches as every other dollar the rate counts does:
+    # charging it and crediting nothing took Biogen's Ocrevus royalty, charged 18% of
+    # its revenue in R&D like every Biogen line, out of the launches the rate says that
+    # R&D buys, the asymmetry the future pipeline exists to remove. Only where the rate
+    # divides by a medicines segment's R&D (Johnson & Johnson, whose MedTech R&D is
+    # outside it) does such a line's R&D buy nothing.
+    if not (own and own.get("rd_segment")):
+        for part, rows, entry, rd_ratio in not_medicines:
+            for year, row in zip(part.get("dcf_years") or [], rows):
+                book_rd[year] = book_rd.get(year, 0.0) + (row.get("rd") or 0.0)
+            if rd_ratio:
+                tails.append((entry, rd_ratio))
     # The filer's own record at its credibility, the pool for the rest. A filer with no
     # launch record on file takes the pool outright.
     rate_used = own["blended"] if own and own.get("blended") is not None else pool["rate"]
@@ -2102,18 +2152,41 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
         long_run_basis = ("the book's revenue-weighted long-run growth" if growths
                           else "no long-run growth on file, so replacement only")
     horizon = int(bounds["horizon_years"]["value"])
-    book = FP.book_revenue(book_parts, list(range(base_year + 1, base_year + 1 + horizon)),
-                           erosion["year1_pct"], erosion.get("decay_pct") or 0.0)
+    span = list(range(base_year + 1, base_year + 1 + horizon))
+    book = FP.book_revenue(book_parts, span, erosion["year1_pct"],
+                           erosion.get("decay_pct") or 0.0)
+    # The R&D a product's terminal value charges past its forecast buys launches, as the
+    # R&D inside the forecast does: its terminal value counts the cost, so the line that
+    # counts the return has to count it too. Without it a product whose exclusivity moved
+    # past its forecast took R&D the launches would have spent and bought nothing with
+    # it, and equity fell as the exclusivity lengthened (Vertex's Alyftrek, LOE 2043 to
+    # 2050: the launches ran short from 2056 for want of the cohorts it had displaced).
+    for entry, ratio in tails:
+        last = max((y for y, v in entry["revenue"].items() if v), default=None)
+        if last is None:
+            continue
+        later = [y for y in span if y > last]
+        for year, value in FP.book_revenue([entry], later, erosion["year1_pct"],
+                                           erosion.get("decay_pct") or 0.0).items():
+            book_rd[year] = book_rd.get(year, 0.0) + value * ratio
     space, peak, peak_year = FP.room(book, long_run)
     # Launches the R&D already spent will buy, less the ones the book names: a product
     # neither selling nor approved by the valuation date is one of those launches.
     record = (_launch_record(db_path, ticker, anchor, lag) if ticker
               else {"history_rd": {}, "launched": set()})
+    # Its whole revenue as the book carries it, the tail past its forecast included: the
+    # launch is one of those cohorts' products for as long as it sells. Counted over its
+    # forecast years alone, the tail sat in the book and in the cohorts both, and a later
+    # LOE, which stretches an unlaunched product's forecast, moved revenue from the tail
+    # into the years that come off, so the launches lost more than the product gained:
+    # Amgen's Maridebart Cafraglutide from 2031 to 2034 added 6.50 a share and took 7.38
+    # off the launches.
     named: dict = {}
     for asset_id, entry in named_parts:
         if asset_id in record["launched"]:
             continue
-        for year, value in entry["revenue"].items():
+        for year, value in FP.book_revenue([entry], span, erosion["year1_pct"],
+                                           erosion.get("decay_pct") or 0.0).items():
             named[year] = named.get(year, 0.0) + value
     # The launches are charged the capital their growth takes, as the book's own
     # products are: a franchise that grows builds the plant to make what it sells.
@@ -2133,7 +2206,8 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
                       erosion["year1_pct"], erosion.get("decay_pct") or 0.0, ratios,
                       wacc, base_year, horizon, long_run_growth=long_run, room=space,
                       history_rd=record["history_rd"], named=named,
-                      growth_investment=invest)
+                      growth_investment=invest, book=book,
+                      book_charged=_charged_growth(book_parts))
     return {"value": got["value"], "reason": None, "rate": pool["rate"],
             "rate_used": rate_used,
             "own_rate": own["rate"] if own else None,
@@ -2156,6 +2230,18 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
             "named_overlap": got.get("named_overlap"),
             "capped_from": got.get("capped_from"), "capped_share": got.get("capped_share"),
             "flows": [f for f in got["flows"] if f["revenue"]][:40]}
+
+
+def _charged_growth(book_parts: list) -> dict:
+    """{year: the book's rise that year}, on the forecast years alone, as growth_charge
+    charges it: what the launches' charge must not charge again. A part's tail past its
+    forecast is not charged there, so it is not taken off here."""
+    revenue: dict = {}
+    for part in book_parts:
+        for year, value in (part.get("revenue") or {}).items():
+            revenue[year] = revenue.get(year, 0.0) + (value or 0.0)
+    years = sorted(revenue)
+    return {y: max(0.0, revenue[y] - revenue[p]) for p, y in zip(years, years[1:])}
 
 
 def growth_share(conn, ticker: str) -> dict:

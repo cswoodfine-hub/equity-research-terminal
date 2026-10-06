@@ -165,6 +165,17 @@ def test_the_medicines_segments_rd_is_the_denominator_only_for_a_whole_window(tm
     assert FP.filer_productivity(conn, 1, {}, {}, segment={})["rd_basis"] is None
 
 
+def test_the_medicines_segment_file_covers_the_window_its_newest_year_opens():
+    """A year missing from the window sends Johnson & Johnson's rate back to company R&D,
+    MedTech's included, silently. When the window grew from ten years to twelve, 2013 and
+    2014 were missing and the rate read 0.191 on company R&D where its medicines R&D gives
+    0.244."""
+    for ticker, years in FP.medicines_rd().items():
+        newest = max(years)
+        wanted = set(range(newest - FP.COHORT_YEARS, newest))
+        assert wanted <= set(years), (ticker, sorted(wanted - set(years)))
+
+
 def test_a_52_week_year_is_matched_to_the_year_it_falls_in():
     # The rule is the parser's now, shared by everything that reads a year off a date.
     import statements
@@ -173,27 +184,100 @@ def test_a_52_week_year_is_matched_to_the_year_it_falls_in():
     assert statements.fiscal_year_of("2025-06-30") == 2025
 
 
-def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(tmp_path,
-                                                                      monkeypatch):
+def _not_a_medicine_trial(tmp_path, monkeypatch, ticker, rd_segment):
+    """The future pipeline's spend and book for a drug beside a line that sells no
+    medicine, with the filer's launch rate measured on segment or company R&D."""
     import db
     import forecast_view as V
     seen = {}
 
     def fake_simulate(book_rd, rate, *args, **kwargs):
         seen["book_rd"] = dict(book_rd)
+        seen["ratios"] = args[4]
+        seen["book"] = dict(kwargs.get("book") or {})
+        return {"value": 1.0, "flows": [], "first_launch_year": 2030, "cohorts": 0,
+                "replacement": None, "renewal": None, "credited_share": None}
+    filer = {"ticker": ticker, "rate": 0.3, "blended": 0.3, "launch_count": 5,
+             "credibility": 0.5, "counted": True, "rd_segment": rd_segment}
+    monkeypatch.setattr(FP, "simulate", fake_simulate)
+    monkeypatch.setattr(FP, "pooled", lambda db_path=None: {"rate": 0.3, "filers": [filer], "n": 1, "credibility": {}})
+    monkeypatch.setattr(V, "_launch_record", lambda *a, **k: {"history_rd": {}, "launched": set()})
+    row = {"revenue": 100.0, "cogs": 20.0, "sga": 20.0, "rd": 15.0, "other": 0.0, "ebit": 45.0, "tax": 5.0}
+    drug = {"asset_id": 1, "pnl_share": [row], "dcf_years": [2026], "wacc": 0.08}
+    other = {"line": "Other", "buys_launches": False,
+             "pnl_share": [dict(row, revenue=50.0, cogs=40.0, rd=10.0)],
+             "dcf_years": [2026], "wacc": 0.08}
+    path = str(tmp_path / f"fp_{ticker}.db")
+    db.init(path)
+    V._future_pipeline(path, [drug, other], "2025-12-31", ticker)
+    return seen
+
+
+def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(tmp_path,
+                                                                      monkeypatch):
+    # Johnson & Johnson's rate divides by its medicines segment's R&D, so MedTech's R&D
+    # is outside it and buys nothing: the drug's R&D alone, in its forecast and on its
+    # tail past it.
+    seen = _not_a_medicine_trial(tmp_path, monkeypatch, "JNJ", True)
+    assert seen["book_rd"][2026] == 15.0
+    assert set(seen["book_rd"].values()) == {15.0}
+
+
+def test_a_line_that_sells_no_medicine_still_spends_the_rd_the_rate_divides_by(
+        tmp_path, monkeypatch):
+    """Biogen's rate divides by the company's whole R&D, the share its Ocrevus royalty is
+    charged included, so that R&D buys launches. The royalty's revenue stays out of the
+    book the launches refill, and its margins out of what they are charged."""
+    seen = _not_a_medicine_trial(tmp_path, monkeypatch, "BIIB", False)
+    assert seen["book_rd"][2026] == pytest.approx(15.0 + 10.0)
+    assert seen["book_rd"][2030] == pytest.approx(15.0 + 10.0)     # both tails, flat
+    assert seen["book"][2026] == pytest.approx(100.0)
+    assert seen["ratios"]["cogs"] == pytest.approx(0.20)
+    assert seen["ratios"]["rd"] == pytest.approx(0.15)
+
+
+def test_a_named_launch_comes_off_the_cohorts_for_as_long_as_the_book_carries_it(
+        tmp_path, monkeypatch):
+    """An unlaunched product is one of the launches the R&D already spent bought, tail
+    and all. Counted over its forecast years alone, its tail sat in the book and in the
+    cohorts both, and a later LOE, which stretches an unlaunched product's forecast,
+    moved revenue from the tail into the years that come off: the launches lost more
+    than the product gained. What comes off is now the book's own revenue for the part,
+    so a later LOE takes off the launches exactly what it adds to the book."""
+    import db
+    import forecast_view as V
+    seen = {}
+
+    def fake_simulate(book_rd, rate, *args, **kwargs):
+        seen.setdefault("named", []).append(dict(kwargs.get("named") or {}))
+        seen.setdefault("book", []).append(dict(kwargs.get("book") or {}))
         return {"value": 1.0, "flows": [], "first_launch_year": 2030, "cohorts": 0,
                 "replacement": None, "renewal": None, "credited_share": None}
     monkeypatch.setattr(FP, "simulate", fake_simulate)
     monkeypatch.setattr(FP, "pooled", lambda db_path=None: {"rate": 0.3, "filers": [], "n": 0, "credibility": {}})
-    monkeypatch.setattr(V, "_launch_record", lambda *a, **k: {"history_rd": {}, "launched": set()})
+    monkeypatch.setattr(V, "_launch_record", lambda *a, **k: {"history_rd": {}, "launched": {1}})
     row = {"revenue": 100.0, "cogs": 20.0, "sga": 20.0, "rd": 15.0, "other": 0.0, "ebit": 45.0, "tax": 5.0}
-    drug = {"asset_id": 1, "pnl_share": [row], "dcf_years": [2026], "wacc": 0.08}
-    medtech = {"line": "MedTech", "buys_launches": False, "pnl_share": [dict(row, rd=40.0)],
-               "dcf_years": [2026], "wacc": 0.08}
-    path = str(tmp_path / "fp.db")
+    flat = {"growth": 0.0, "year1_pct": 0.25, "decay_pct": 0.2, "late_decay_pct": None,
+            "late_from_year": None}
+    marketed = {"asset_id": 1, "pnl_share": [row] * 3, "dcf_years": [2026, 2027, 2028],
+                "wacc": 0.08, "terminal_tail": {**flat, "end": 2028, "parts": [[1.0, None, False]]}}
+
+    def pipeline(last, loe):
+        years = list(range(2026, last + 1))
+        return {"asset_id": 2, "pnl_share": [row] * len(years), "dcf_years": years, "pos": 0.5,
+                "wacc": 0.08, "terminal_tail": {**flat, "end": last, "parts": [[1.0, loe, False]]}}
+    path = str(tmp_path / "named.db")
     db.init(path)
-    V._future_pipeline(path, [drug, medtech], "2025-12-31", "JNJ")
-    assert seen["book_rd"] == {2026: 15.0}
+    V._future_pipeline(path, [marketed, pipeline(2031, 2031)], "2025-12-31", "XYZ")
+    V._future_pipeline(path, [marketed, pipeline(2034, 2034)], "2025-12-31", "XYZ")
+    early, late = seen["named"]
+    # The tail past the forecast comes off too, at the product's own risked revenue.
+    assert early[2032] == pytest.approx(50.0 * 0.75) and early[2033] == pytest.approx(50.0 * 0.75 * 0.8)
+    # The launched product is never named, so named is the pipeline product's book.
+    book_early, book_late = seen["book"]
+    for year in range(2026, 2060):
+        assert (late.get(year, 0.0) - early.get(year, 0.0)) == pytest.approx(
+            book_late.get(year, 0.0) - book_early.get(year, 0.0))
 
 
 def test_a_pipeline_products_whole_row_is_taken_at_its_probability_once(tmp_path,
@@ -215,7 +299,8 @@ def test_a_pipeline_products_whole_row_is_taken_at_its_probability_once(tmp_path
     real_book_revenue = FP.book_revenue
 
     def spy_book_revenue(parts, *args, **kwargs):
-        seen["book_parts"] = [dict(p["revenue"]) for p in parts]
+        # The first call is the book; later ones carry each part's tail for its R&D.
+        seen.setdefault("book_parts", [dict(p["revenue"]) for p in parts])
         return real_book_revenue(parts, *args, **kwargs)
     monkeypatch.setattr(FP, "simulate", fake_simulate)
     monkeypatch.setattr(FP, "book_revenue", spy_book_revenue)
@@ -230,7 +315,9 @@ def test_a_pipeline_products_whole_row_is_taken_at_its_probability_once(tmp_path
     path = str(tmp_path / "fp.db")
     db.init(path)
     got = V._future_pipeline(path, [marketed, pipeline], "2025-12-31", "JNJ")
-    assert seen["book_rd"] == pytest.approx({2026: 15.0 + 8.0})
+    assert seen["book_rd"][2026] == pytest.approx(15.0 + 8.0)
+    # Past the forecast each part's tail charges R&D at its own final-year ratio, risked.
+    assert seen["book_rd"][2030] == pytest.approx(100.0 * 0.15 + 40.0 * 0.20)
     assert seen["book_parts"][0] == pytest.approx({2026: 100.0})
     assert seen["book_parts"][1] == pytest.approx({2026: 40.0})
     assert got["ratios"]["rd"] == pytest.approx(23.0 / 140.0)
@@ -389,3 +476,67 @@ def test_a_launch_that_came_with_a_company_is_not_the_filers_research(tmp_path):
     assert own["acquired"] == [{"name": "Tepezza", "approved": "2020-01-21",
                                 "revenue": 1900.0e6,
                                 "acquired_from": "Horizon Therapeutics"}]
+
+
+def test_the_book_carries_a_product_past_its_forecast_on_its_own_terminal_path():
+    import forecast as F
+    tail = {"end": 2030, "growth": 0.0, "year1_pct": 0.59, "decay_pct": 0.34,
+            "late_decay_pct": None, "late_from_year": None,
+            "parts": [[0.7, 2032, False], [0.3, None, True]]}
+    part = {"revenue": {2029: 90.0, 2030: 100.0}, "loe_year": 2032, "loe_in_base": False,
+            "growth": 0.0, "tail": tail}
+    years = list(range(2029, 2040))
+    got = FP.book_revenue([part], years, 0.2, 0.2)
+    us = F.terminal_path(0.0, 2030, 2032, False, 0.59, 0.34, None, None, years)
+    for y in range(2031, 2040):
+        assert got[y] == pytest.approx(100.0 * (0.7 * us[y] + 0.3))
+    # Its own erosion, not the curated default: the year after the cliff is 41% of 70.
+    assert got[2033] == pytest.approx(70.0 * 0.41 + 30.0)
+    # No terminal value taken: nothing past the forecast.
+    assert FP.book_revenue([dict(part, tail=None)], years, 0.2, 0.2)[2031] == 0.0
+    # A company line with no tail key keeps the older rule.
+    legacy = {k: v for k, v in part.items() if k != "tail"}
+    assert FP.book_revenue([legacy], years, 0.2, 0.2)[2033] == pytest.approx(100.0 * 0.8)
+
+
+def test_the_room_never_falls_when_the_book_rises():
+    book = {2026: 100.0, 2027: 120.0, 2028: 140.0, 2029: 150.0, 2030: 145.0, 2031: 130.0,
+            2032: 110.0, 2033: 100.0}
+
+    def old(b, g):
+        py = max(b, key=lambda y: (b[y], -y))
+        return {y: max(0.0, b[py] * (1 + g) ** max(0, y - py) - b[y]) for y in b}
+
+    # One peak: exactly the rule it replaces.
+    assert FP.room(book, 0.02)[0] == pytest.approx(old(book, 0.02))
+    # A later year lifted just past the peak moved the old peak year and cut the cap for
+    # every year after it; the cap now only rises with the book.
+    for year in book:
+        for lift in (0.5, 5.0, 20.0):
+            higher = {**book, year: book[year] + lift}
+            before = {y: FP.room(book, 0.02)[0][y] + book[y] for y in book}
+            after = {y: FP.room(higher, 0.02)[0][y] + higher[y] for y in book}
+            assert all(after[y] >= before[y] - 1e-9 for y in book), (year, lift)
+    flip = {**book, 2031: 151.0}
+    assert old(flip, 0.02)[2033] + 100.0 < old(book, 0.02)[2033] + 100.0
+    assert FP.room(flip, 0.02)[0][2033] + 100.0 >= FP.room(book, 0.02)[0][2033] + 100.0
+
+
+def test_the_launches_and_the_book_are_charged_growth_capital_once_on_their_sum():
+    # A book that rises, peaks and falls, its forecast five years long, the room binding:
+    # the launches fill what the book leaves.
+    years = list(range(2026, 2046))
+    book = {y: v for y, v in zip(years, [100, 110, 130, 150, 140, 90, 60, 50, 45, 42]
+                                 + [40] * 10)}
+    charged = {y: max(0.0, book[y] - book[y - 1]) for y in years[1:5]}
+    room, _, _ = FP.room(book, 0.02)
+    got = _sim(book_rd={y: 50.0 for y in years}, room=room, growth_investment=0.5,
+               book=book, book_charged=charged, horizon=20, base_year=2025)
+    flows = {f["year"]: f for f in got["flows"]}
+    combined = {y: book[y] + flows[y]["revenue"] for y in years}
+    for y in years[1:]:
+        company = 0.5 * charged.get(y, 0.0) + flows[y]["growth_investment"]
+        assert company == pytest.approx(0.5 * max(0.0, combined[y] - combined[y - 1])), y
+    # The years the launches refill the fall are charged only the company's own growth.
+    assert flows[2031]["growth_investment"] == pytest.approx(
+        0.5 * max(0.0, combined[2031] - combined[2030]))

@@ -79,11 +79,19 @@ def _part_value(part: dict) -> float:
 
 
 def solve(f, current: float, lo: float, hi: float, integer: bool = False) -> dict:
-    """The value between the bounds where ``f`` crosses nil, searched from the current
-    value toward whichever bound changes its sign. Assumes the lever moves the value one
-    way, which every lever here does. A year is stepped one at a time, since the engine
-    reads it as a whole year. A trial the engine refuses counts as not crossing.
-    {"value", "reachable", "bound"}."""
+    """The value between the bounds where ``f`` crosses nil, nearest the current value.
+
+    A year is stepped one at a time outward from the current one, a year either side in
+    turn, since the engine reads it as a whole year and the value need not move one way
+    with it: before 2026-10-05 a loss of exclusivity moved the room the launches fill, and
+    an LOE stated before the window was read as in the reported base, where the value
+    jumped back up, so Vertex met the price with Trikafta's LOE at 2032 while both bounds
+    said it could not. A stated LOE now only moves a cliff the record puts ahead, so the
+    value moves one way with it; the caller still stops an LOE search at the year before
+    the window, the earliest a cliff still ahead can fall.
+    A rate is bisected from the current value toward whichever bound changes its sign,
+    which assumes it moves the value one way, as every rate lever here does. A trial the
+    engine refuses counts as not crossing. {"value", "reachable", "bound"}."""
     f0 = f(current)
     if math.isnan(f0):
         return {"value": None, "reachable": False, "bound": None}
@@ -94,20 +102,20 @@ def solve(f, current: float, lo: float, hi: float, integer: bool = False) -> dic
         fx = f(x)
         return (not math.isnan(fx)) and (fx == 0 or _sign(fx) != _sign(f0)), fx
 
-    for bound in (hi, lo):
+    if integer:
+        now = int(current)
+        top = int(hi) if hi is not None else now
+        bottom = int(lo) if lo is not None else now
+        for d in range(1, max(top - now, now - bottom) + 1):
+            for year in (now + d, now - d):
+                if bottom <= year <= top and crossed(year)[0]:
+                    return {"value": year, "reachable": True, "bound": None}
+    for bound in (hi, lo) if not integer else ():
         if bound is None or bound == current:
             continue
         hit, _ = crossed(bound)
         if not hit:
             continue
-        if integer:
-            step = 1 if bound > current else -1
-            year = int(current)
-            while year != int(bound):
-                year += step
-                if crossed(year)[0]:
-                    return {"value": year, "reachable": True, "bound": None}
-            return {"value": int(bound), "reachable": True, "bound": None}
         near, far = current, bound          # near has not crossed, far has
         for _ in range(ITERATIONS):
             mid = (near + far) / 2.0
@@ -357,6 +365,7 @@ class Book:
         return {**part, "rnpv_share": result["rnpv"] * share, "pos": result.get("pos"),
                 "loe_year": result.get("loe_year"),
                 "loe_in_base": result.get("loe_in_base"),
+                "terminal_tail": result.get("terminal_tail"),
                 "pnl_share": [{k: (v * share if isinstance(v, (int, float)) else v)
                                for k, v in row.items()} for row in result.get("pnl") or []],
                 "dcf_years": result.get("dcf_years") or [], "wacc": result.get("wacc"),
@@ -390,7 +399,8 @@ class Book:
         return self.swapped_gap(index, {**part, "rnpv": result["rnpv"],
                                         "pnl_share": result.get("pnl") or [],
                                         "dcf_years": result.get("dcf_years") or [],
-                                        "wacc": result.get("wacc")})
+                                        "wacc": result.get("wacc"),
+                                        "terminal_tail": result.get("terminal_tail")})
 
     def equity_without(self, removed: list) -> float:
         """Equity per share with the parts in ``removed`` gone and nothing else moved:
@@ -430,7 +440,8 @@ class Book:
                 result = got["result"]
                 new = {**part, "rnpv": result["rnpv"], "wacc": result.get("wacc"),
                        "pnl_share": result.get("pnl") or part.get("pnl_share") or [],
-                       "dcf_years": result.get("dcf_years") or part.get("dcf_years") or []}
+                       "dcf_years": result.get("dcf_years") or part.get("dcf_years") or [],
+                       "terminal_tail": result.get("terminal_tail")}
                 new_book += new["rnpv"]
             new_parts.append(new)
         return self.price_gap(new_book, new_parts)
@@ -484,6 +495,14 @@ def company(db_path, ticker: str, top: int = TOP_ASSETS) -> dict | None:
         for label, key, current, kind, _step in V.lever_specs(inputs, built):
             if kind == "year":
                 lo, hi = current + YEARS[0], current + YEARS[1]
+                # The lever is offered only where the record puts the cliff ahead, so the
+                # earliest it can fall is the year before the window, its first-year drop
+                # landing in the first forecast year. An earlier year is a cliff the
+                # reported revenue shows did not happen: the engine reads it monotonically
+                # now (forecast.build), but "the price needs Repatha's LOE in 2018" is not
+                # a date anyone can hold, so the search stops at the year before the window.
+                if key == "loe_year" and built.get("years"):
+                    lo = max(lo, built["years"][0] - 1)
                 found = solve(lambda x: gap_for(V.apply_lever(inputs, key, int(x))),
                               current, lo, hi, integer=True)
             elif kind == "years":

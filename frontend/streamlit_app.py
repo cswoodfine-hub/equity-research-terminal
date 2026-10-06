@@ -2971,9 +2971,10 @@ def _sotp_bridge(s: dict) -> None:
         # A cap that binds in some year but trims less than half a percent overall read
         # as "which cuts 0% of what they would sell": a fact about nothing.
         if future.get("capped_from") and (future.get("capped_share") or 0) >= 0.005:
-            bits.append(f"launches held to the book's {future.get('book_peak_year')} "
-                        f"revenue of {future.get('book_peak', 0):,.0f}mm from "
-                        f"{future['capped_from']}, which cuts "
+            bits.append(f"launches held to the book's best year in real terms, "
+                        f"{future.get('book_peak_year')}'s "
+                        f"{future.get('book_peak', 0):,.0f}mm grown at the long-run rate, "
+                        f"from {future['capped_from']}, which cuts "
                         f"{future.get('capped_share', 0):.0%} of what they would sell")
     # Computed since the franchise was built and rendered nowhere, so the one input
     # on this page that already moves with the market looked like a fixed assumption.
