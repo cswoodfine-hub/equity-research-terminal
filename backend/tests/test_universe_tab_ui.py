@@ -578,8 +578,12 @@ def test_the_panel_scrolls_inside_never_the_page():
     assert "overflow-y: auto" in rule.group(1) and "overflow-x: hidden" in rule.group(1)
     narrow = css[css.index("@media (max-width: 1179.98px)"):]
     assert re.search(r'\[data-baseweb="tab-panel"\] \{ height: auto; overflow: visible; \}', narrow)
-    # The two pulls that let a block run under the next are taken back.
-    assert '[data-testid="stMarkdownContainer"]:has(> .uv) { margin-bottom: 0; }' in css
+    # The two pulls that let a block run under the next are taken back, on the tab only:
+    # the dialog's body is a .uv block too and keeps the spacing it was drawn with.
+    pull = re.search(r'([^{}]*)\[data-testid="stMarkdownContainer"\]:has\(> \.uv\) \{\s*'
+                     r'margin-bottom: 0; \}', css)
+    assert pull and '[data-baseweb="tab-panel"]:has(.st-key-uv_window)' in pull.group(1)
+    assert not re.search(r'(^|\}\s*)\[data-testid="stMarkdownContainer"\]:has\(> \.uv\)', css)
     assert ".st-key-uv_board iframe { display: block; }" in css
 
 

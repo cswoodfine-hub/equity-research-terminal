@@ -51,8 +51,10 @@
 [data-baseweb="tab-panel"]:has(.st-key-uv_window) [data-testid="stElementContainer"]:has(.uv-sp)
   + [data-testid="stElementContainer"] { margin-top: 0; }
 /* Streamlit pulls a markdown block up by a line under its last paragraph; these blocks
-   end on a div, so the pull let the rankings run under the hero. */
-[data-testid="stMarkdownContainer"]:has(> .uv) { margin-bottom: 0; }
+   end on a div, so the pull let the rankings run under the hero. Scoped to the tab: the
+   company dialog's body is a .uv block too, and it keeps the spacing it was drawn with. */
+[data-baseweb="tab-panel"]:has(.st-key-uv_window) [data-testid="stMarkdownContainer"]:has(> .uv) {
+  margin-bottom: 0; }
 /* The hero's frame is an inline element: as a block it loses the descender gap under it. */
 .st-key-uv_board iframe { display: block; }
 
