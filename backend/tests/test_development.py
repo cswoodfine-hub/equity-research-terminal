@@ -376,6 +376,29 @@ def test_a_partner_cost_follows_its_share_of_the_economics(tmp_path, big):
     assert got["gate"]["cost"] == pytest.approx(full * 0.6)
 
 
+def test_a_partner_bears_the_rest_and_nets_tax_on_its_own_engine(tmp_path, monkeypatch):
+    """The owner keeps 60% and is on the pharma engine; the partner named in the rows
+    bears the other 40% and is not, so its share of the cost stays pre-tax. Whether a
+    deduction can be used now belongs to the company bearing the cost."""
+    monkeypatch.setattr(PG, "big_pharma", lambda *a, **k: True)
+    monkeypatch.setattr(engines, "assign", lambda conn, company_id, revenue: (
+        engines.PHARMA if company_id == 1 else engines.BIOTECH))
+    path, conn = _book(tmp_path, share=0.6)
+    _trial(conn, "NCT00000001", 7)
+    conn.execute("INSERT INTO assumptions (asset_id, key, text_value, source)"
+                 " VALUES (7, 'partner_ticker', 'OTHR', 't')")
+    conn.commit()
+    conn.close()
+    owner, partner = D.for_asset(path, "ABBV", 7, TODAY), D.for_asset(path, "OTHR", 7, TODAY)
+    pv = D.pv_even(owner["gate"]["cost_usd_mm"], TODAY, dt.date(2030, 3, 31), 0.09,
+                   dt.date(TODAY.year - 1, 12, 31))
+    assert owner["portion"] == 0.6 and owner["after_tax"] is True
+    assert owner["gate"]["cost"] == pytest.approx(pv * 0.85 * 0.6)
+    assert partner["portion"] == pytest.approx(0.4) and partner["after_tax"] is False
+    assert partner["gate"]["cost"] == pytest.approx(pv * 0.4)
+    assert "company bearing the cost" in partner["tax_basis"]
+
+
 def test_refusals_are_data(tmp_path, big, monkeypatch):
     path, conn = _book(tmp_path, name="Investigational zoster vaccine")
     _trial(conn, "NCT00000001", 7)

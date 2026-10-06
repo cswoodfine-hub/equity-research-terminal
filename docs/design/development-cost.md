@@ -90,9 +90,10 @@ would not fund on these numbers is taken at nil.
 
 - Converted from US dollars into the owner's reporting currency at the latest ECB rate
   (`forecast_view.price_unit_rate`).
-- After tax at the asset's `tax_rate` where the owner is on the pharma engine
-  (`engines.assign(conn, company_id, revenue)`), where the deduction can be used now; pre-tax
-  elsewhere.
+- After tax at the asset's `tax_rate` where the company bearing the cost is on the pharma
+  engine (`engines.assign(conn, company_id, revenue)`), where the deduction can be used now;
+  pre-tax elsewhere. That is the owner on its own view and a partner on the partner's: only
+  Casgevy, a marketed product, has a partner row today, so no pipeline line differs yet.
 - At the company's economics share; a partner's cost is assumed to follow its share of the
   economics. A deal in which the partner funds development differently will be wrong until a
   curated cost-share row exists.

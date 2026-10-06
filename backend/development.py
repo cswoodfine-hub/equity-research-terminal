@@ -42,7 +42,8 @@ the company view lists the line under ``uncosted``.
 
 Costs are converted from US dollars into the
 asset's reporting currency at the latest ECB rate, taken after tax at the asset's tax rate
-where the owner is on the pharma engine, at the company's economics share (a partner's
+where the company bearing the cost is on the pharma engine (the owner on its own view, a
+partner on its own), at the company's economics share (a partner's
 cost is assumed to follow its share of the economics), and discounted at the asset's
 WACC to 31 December of the valuation year, the anchor rNPV is discounted to.
 
@@ -658,9 +659,10 @@ def _for_asset(conn, company, asset, today, *, peers=None, table=None) -> dict:
     else:
         portion = 1.0 - (share if share is not None else 1.0)
     rates = fx.latest_usd_rates(forecast_view._db_of(conn))
-    engine = engines.assign(conn, row["owner_company_id"],
-                            productivity.latest_revenue(conn, row["owner_company_id"],
-                                                        rates))
+    # Whether the deduction can be used now is a question about the company bearing this
+    # portion of the cost: the owner on its own view, the partner on the partner's.
+    engine = engines.assign(conn, company["id"],
+                            productivity.latest_revenue(conn, company["id"], rates))
     tax = scalars.get("tax_rate")
     after_tax = engine == engines.PHARMA and tax is not None
     keep = portion * ((1.0 - tax) if after_tax else 1.0)
@@ -724,11 +726,11 @@ def _for_asset(conn, company, asset, today, *, peers=None, table=None) -> dict:
         "fx": unit, "portion": portion,
         "portion_basis": (PORTION_NOTE if share is not None else "the owner's own asset"),
         "tax_rate": tax if after_tax else None, "after_tax": after_tax,
-        "tax_basis": (f"after tax at the asset's {tax:.1%}, the owner being on the "
-                      f"pharma engine" if after_tax else
+        "tax_basis": (f"after tax at the asset's {tax:.1%}, the company bearing the "
+                      f"cost being on the pharma engine" if after_tax else
                       "pre-tax: no tax rate on file" if engine == engines.PHARMA else
-                      "pre-tax: the deduction is taken only where the owner is on the "
-                      "pharma engine, where it can be used now"),
+                      "pre-tax: the deduction is taken only where the company bearing the "
+                      "cost is on the pharma engine, where it can be used now"),
         "wacc": wacc, "anchor": anchor.isoformat(), "anchor_basis": anchor_basis,
         "area": inputs.get("therapeutic_area"), "cost_area": area_src,
         "area_basis": area_basis,
