@@ -1,19 +1,19 @@
-"""The redesigned Catalysts tab, drawn: one read, the builders, a fragment and a dialog.
+"""The Catalysts tab by therapy area, drawn: one read, the builders, the frame and the dialogs.
 
-``catalysts_view`` builds every block as a string from the payload of
+``catalysts_area`` builds the page as one string from the payload of
 ``GET /companies/{t}/catalysts/view``; this module is the Streamlit glue around it, kept
-out of streamlit_app.py so the change there stays the switch and the calls. The tab fits
-one 1440 x 900 screen: the header row, then the ``catnav`` frame (the timeline and the
-range chart) beside a tabbed rail (the selected gate, next up, the risk register and why
-events carry no price); the calendar fold stays under it, drawn by streamlit_app as for
-every company.
+out of streamlit_app.py so the change there stays the switch and the calls. The page is
+one ``catnav`` frame: the header, the area table and the rail, filling the screen under
+the app's chrome. An area row opens in place inside the frame, with no rerun. A gate (a
+bar segment, an open area's line, a priced Next up row) or an index row comes back as a
+click, which sets the open dialog in the session; the dialog is drawn on every run while
+it is set, so the record control's arming rerun keeps it open, and closing it clears it.
 
-The frame and the rail sit in one ``@st.fragment``, so a click on a disc or a bar reruns
-only them. The selected gate's card prints the Next gate block's facts with the Forecast
-tab's own builders, passed in as ``kit`` (streamlit_app's ``_gate_*`` and ``_stake_*``),
-so the cost to reach, the net, the launch floor and the two-click record control read
-and act the same on both tabs. Every figure on the page comes from the payload or from
-those builders; nothing here computes one.
+The gate dialog prints the Next gate block's facts and tables with the Forecast tab's own
+builders, passed in as ``kit`` (streamlit_app's ``_gate_*`` and ``_stake_*``), so the cost
+to reach, the net, the launch floor and the two-click record control read and act the
+same on both tabs. Every figure on the page comes from the payload or from those
+builders; nothing here computes one.
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ import urllib.request
 
 import streamlit as st
 
+import catalysts_area as CA
 import catalysts_view as CV
 from components import tokens as TK
 
@@ -39,9 +40,6 @@ except Exception:                       # pragma: no cover - a broken install on
 FRAME_TOKENS = {"ground": TK.GROUND, "panel": TK.PANEL, "rule": TK.RULE,
                 "rule-strong": TK.RULE_STRONG, "text": TK.TEXT, "muted": TK.MUTED,
                 "up": TK.UP, "down": TK.DOWN, "flag": TK.FLAG}
-RAIL_TABS = ("Selected gate", "Next up", "Risk register", "Unpriced")
-# The frame's drawing width at 1440: the left column of the body.
-FRAME_W = 956
 
 
 def _read(api_base: str, ticker: str) -> dict:
@@ -105,15 +103,11 @@ def _summary(kit, r: dict, error=None) -> dict:
     return kit.gate_summary(verdict, r.get("development"), error)
 
 
-def card_facts(kit, r: dict, error=None) -> tuple:
-    """(facts table, lines) for the card: the Next gate rows the fork does not draw."""
+def fact_rows(kit, r: dict, error=None) -> list:
+    """The Next gate rows the dialog's band prints as figures: chance, cost to reach, net,
+    DiMasi's level and the earliest approval."""
     s = _summary(kit, r, error)
-    if not s:
-        return "", []
-    rows = [x for x in kit.gate_rows(s) if x.get("k") in CV.CARD_FACTS]
-    lines = [x for x in kit.gate_lines(s)
-             if not str(x).startswith("The cost to reach is") and "Trial costs are at" not in x]
-    return kit.gate_table_html(rows), lines
+    return [x for x in kit.gate_rows(s) if x.get("k") in CV.CARD_FACTS] if s else []
 
 
 def dialog_parts(kit, r: dict, error=None) -> tuple:
@@ -129,18 +123,6 @@ def dialog_parts(kit, r: dict, error=None) -> tuple:
             kit.gate_studies_html(dev))
 
 
-# --------------------------------------------------------------------------- dialog
-def _open_dialog(api_base: str, ticker: str, p: dict, gid, kit) -> None:
-    r = next((x for x in p.get("gates") or [] if x.get("asset_id") == gid), None)
-
-    @st.dialog(CV.dialog_title(p, gid), width="large")
-    def _body():
-        cost, ladder, studies = dialog_parts(kit, r, p.get("development_error"))
-        _show(CV.dialog_html(p, gid, cost, ladder, studies, can_record=_resolvable(r, kit)))
-
-    _body()
-
-
 def _resolvable(r, kit) -> bool:
     """Whether the gate's stake row takes a recorded outcome, by the At stake list's own
     rule: priced and marked resolvable by the back end."""
@@ -149,106 +131,120 @@ def _resolvable(r, kit) -> bool:
 
 
 def _record(api_base: str, ticker: str, r, kit) -> None:
-    """The record control on the card: met and missed, two clicks each, in a popover,
-    drawn only where the stake row takes a recorded outcome; otherwise the row's own note.
-
-    The control is the At stake row's own (``kit.stake_row``). Its first click arms and
-    reruns the app, which a popover survives and a dialog does not, so the dialog shows
-    what each outcome would do and sends the reader here."""
+    """The record control under the dialog's tabs: met and missed, two clicks each, in a
+    popover, drawn only where the stake row takes a recorded outcome. The control is the
+    At stake row's own (``kit.stake_row``); its first click arms and reruns the app, and
+    the dialog, kept open in the session, is drawn again around it."""
     if _resolvable(r, kit):
-        with st.popover("Record the outcome"), st.container(key="cx_rec"):
+        with st.container(key="cx_dlg_rec"), st.popover("Record the outcome"):
             kit.stake_row(st.container(), api_base, ticker, r["stake"])
-    else:
-        st.caption(CV.resolve_text(r))
+
+
+# --------------------------------------------------------------------------- dialogs
+def open_key(ticker: str) -> str:
+    """The session key holding the open dialog: {"gate": asset id} or {"more": key,
+    "area": name or None}."""
+    return f"cx_open_{ticker}"
+
+
+def _close(ticker: str) -> None:
+    st.session_state.pop(open_key(ticker), None)
+
+
+def _take(ticker: str, clicked) -> None:
+    """A click on the frame, once: a new nonce sets the dialog to open."""
+    nkey = f"_cx_nonce_{ticker}"
+    if not isinstance(clicked, dict) or clicked.get("nonce") == st.session_state.get(nkey):
+        return
+    st.session_state[nkey] = clicked.get("nonce")
+    if clicked.get("gate") is not None:
+        try:
+            st.session_state[open_key(ticker)] = {"gate": int(clicked["gate"])}
+        except (TypeError, ValueError):
+            pass
+    elif clicked.get("more"):
+        st.session_state[open_key(ticker)] = {"more": str(clicked["more"]),
+                                              "area": clicked.get("area") or None}
+
+
+def _gate_dialog(api_base: str, ticker: str, p: dict, gid, kit) -> None:
+    r = next((x for x in p.get("gates") or [] if x.get("asset_id") == gid), None)
+
+    @st.dialog(CV.dialog_title(p, gid), width="large", on_dismiss=lambda: _close(ticker))
+    def _body():
+        err = p.get("development_error")
+        facts = fact_rows(kit, r, err) if kit is not None else []
+        cost, ladder, studies = dialog_parts(kit, r, err)
+        top, panes = CA.gate_dialog(p, gid, facts, cost, ladder, studies,
+                                    can_record=_resolvable(r, kit))
+        _show(top)
+        if panes:
+            for tab, (_label, markup) in zip(st.tabs([x[0] for x in panes]), panes):
+                with tab:
+                    _show(markup)
+            _record(api_base, ticker, r, kit)
+
+    _body()
+
+
+def _more_dialog(ticker: str, p: dict, key: str, area=None) -> None:
+    @st.dialog(CA.more_title(key, area), width="large" if key == "cal" else "medium",
+               on_dismiss=lambda: _close(ticker))
+    def _body():
+        _show(CA.more_dialog_html(p, key, area))
+
+    _body()
+
+
+def _picker(p: dict, ticker: str) -> None:
+    """Without the click component: one list of what the frame would open."""
+    opts = {f"g{r['asset_id']}": f"{r.get('name')} · {r['glabel']}" for r in CV.gate_rows(p)}
+    opts.update({f"m{k}": label for k, label, *_ in CA.index_items(p, CA.area_rows(p))})
+
+    def pick():
+        v = st.session_state.get(f"cx_pick_{ticker}")
+        if v and v.startswith("g"):
+            st.session_state[open_key(ticker)] = {"gate": int(v[1:])}
+        elif v:
+            st.session_state[open_key(ticker)] = {"more": v[1:], "area": None}
+
+    st.selectbox("Open the full detail of", list(opts), index=None, format_func=opts.get,
+                 key=f"cx_pick_{ticker}", on_change=pick, placeholder="Open the full detail of")
 
 
 # ------------------------------------------------------------------- the fragment
-def _selected(p: dict, ticker: str, clicked=None):
-    """The gate the card shows: the last click on the frame, else the last pick in this
-    session, else the largest swing."""
-    nkey, skey = f"_cx_nonce_{ticker}", f"cx_gate_{ticker}"
-    for v in (st.session_state.get(f"cx_nav_{ticker}"), clicked):
-        if (isinstance(v, dict) and v.get("gate")
-                and v.get("nonce") != st.session_state.get(nkey)):
-            st.session_state[nkey] = v.get("nonce")
-            st.session_state[skey] = v.get("gate")
-    return CV.selected_gate(p, st.session_state.get(skey))
-
-
-def _pick_changed(ticker: str) -> None:
-    pick = st.session_state.get(f"cx_pick_{ticker}")
-    if pick is not None:
-        st.session_state[f"cx_gate_{ticker}"] = pick
-
-
 @st.fragment
 def _body(api_base: str, ticker: str, p: dict, kit) -> None:
-    gid = _selected(p, ticker)
+    markup = CA.page_html(p)
     with st.container(key="cx_body"):
-        left, right = st.columns([0.685, 0.315], gap="small")
-        with left:
-            markup = CV.frame_html(p, gid, FRAME_W)
-            if _catnav is not None:
-                clicked = _catnav.cat_nav(markup, css=_frame_css(), tokens=FRAME_TOKENS,
-                                          key=f"cx_nav_{ticker}")
-                new = _selected(p, ticker, clicked)
-                if new != gid:
-                    st.rerun(scope="fragment")
-            else:
-                _show(markup)
-        with right, st.container(key="cx_side"):
-            tabs = st.tabs(list(RAIL_TABS))
-            r = next((x for x in CV.gate_rows(p) if x["asset_id"] == gid), None)
-            with tabs[0]:
-                if _catnav is None and CV.gate_rows(p):
-                    names = {x["asset_id"]: f'{x.get("name")} · {x["glabel"]}'
-                             for x in CV.gate_rows(p)}
-                    st.selectbox("Gate", list(names), index=list(names).index(gid),
-                                 format_func=names.get, key=f"cx_pick_{ticker}",
-                                 on_change=_pick_changed, args=(ticker,),
-                                 label_visibility="collapsed")
-                facts, lines = card_facts(kit, r, p.get("development_error"))
-                _show(CV.card_html(p, gid, facts, lines))
-                said = (kit.stake_resolved_note(st.session_state.pop(f"cat_resolved_{ticker}", None))
-                        if kit is not None else "")
-                if said:
-                    st.info(said)
-                if r is not None:
-                    with st.container(key="cx_acts"):
-                        a, b, c = st.columns([0.3, 0.5, 0.2], vertical_alignment="center")
-                        with a:
-                            if st.button("Full detail", key=f"cx_detail_{ticker}", type="primary"):
-                                _open_dialog(api_base, ticker, p, gid, kit)
-                        with b:
-                            _record(api_base, ticker, r, kit)
-                        with c:
-                            nct = (r.get("trial") or {}).get("nct_id")
-                            if nct:
-                                _show(f'<a class="cx-src" href="https://clinicaltrials.gov/study/'
-                                      f'{html.escape(nct)}" target="_blank" rel="noopener">'
-                                      f'ClinicalTrials.gov</a>')
-            with tabs[1]:
-                _show(f'<div class="cx">{CV.next_html(p)}</div>')
-            with tabs[2]:
-                _show(f'<div class="cx">{CV.risks_html(p)}</div>')
-            with tabs[3]:
-                _show(f'<div class="cx">{CV.unpriced_html(p)}'
-                      f'<details class="cx-more"><summary>Sources</summary>'
-                      f'<div class="cx-line" style="padding: 0 8px 6px">'
-                      f'{html.escape(CV.notes_text(p))}</div></details></div>')
+        if _catnav is not None:
+            _take(ticker, _catnav.cat_nav(markup, css=_frame_css(), tokens=FRAME_TOKENS,
+                                          key=f"cx_nav_{ticker}"))
+        else:
+            _show(markup)
+            _picker(p, ticker)
+    want = st.session_state.get(open_key(ticker))
+    if isinstance(want, dict) and want.get("gate") is not None:
+        _gate_dialog(api_base, ticker, p, want["gate"], kit)
+    elif isinstance(want, dict) and want.get("more"):
+        _more_dialog(ticker, p, want["more"], want.get("area"))
 
 
 def render(api_base: str, ticker: str, kit=None) -> bool:
     """Draw the tab body for ``ticker``. False when the payload cannot be read or the
     model was not, so the caller can draw today's tab instead of an empty one."""
-    if st.session_state.get(f"cat_resolved_{ticker}") is not None:
+    resolved = st.session_state.pop(f"cat_resolved_{ticker}", None)
+    if resolved is not None:
         _fetch_complete.clear()          # a resolve moved the book: read it again
+        _close(ticker)
     try:
         p = fetch(api_base, ticker)
     except (urllib.error.URLError, OSError, ValueError):
         return False
     if not p or not p.get("model_ok"):
         return False
-    _show(CV.header_html(p))
+    said = kit.stake_resolved_note(resolved) if (kit is not None and resolved is not None) else ""
+    if said:
+        st.toast(said)
     _body(api_base, ticker, p, kit)
     return True

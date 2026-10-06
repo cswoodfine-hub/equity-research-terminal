@@ -1,5 +1,6 @@
-"""The redesigned Catalysts tab (frontend/catalysts_view.py, catalysts_page.py, the catnav
-component and the switch in streamlit_app.py).
+"""The redesigned Catalysts tab (frontend/catalysts_area.py, the page by therapy area;
+catalysts_view.py, the shared builders and the gate's full detail; catalysts_page.py, the
+catnav component and the switch in streamlit_app.py).
 
 Four layers.
 
@@ -15,15 +16,17 @@ hovers only, so <title> elements and title= attributes are left out of the check
 The switch: read out of the Streamlit script by name (it runs the whole app on import), so
 a company outside ``_REDESIGN_TICKERS`` provably takes today's tab, called as before.
 
-Then the page itself in AppTest on the saved payload with the read replaced, the card's
-facts drawn by the Forecast tab's own builders (taken out of the script by name), and the
-app against an API, skipped when none is up, like the other tab tests.
+Then the page itself in AppTest on the saved payload with the read replaced and the click
+component stood in for by a reader's click, the gate dialog's facts drawn by the Forecast
+tab's own builders (taken out of the script by name), and the app against an API, skipped
+when none is up, like the other tab tests.
 """
 
 from __future__ import annotations
 
 import ast
 import copy
+import datetime as dt
 import html
 import json
 import math
@@ -463,6 +466,168 @@ def test_the_svgs_read_colour_from_the_stylesheet_only(payload):
         r'url\(#[\w-]+\)|id="[\w-]+"|href="[^"]*"', "", markup)))
 
 
+# ---------------------------------------------------------- the page by therapy area
+AREA = FRONTEND / "catalysts_area.py"
+import catalysts_area as CA  # noqa: E402
+
+
+def _area_blocks(p):
+    """Every string the area page and its dialogs draw."""
+    rows = CA.area_rows(p)
+    out = {"page": CA.page_html(p)}
+    for g in p.get("gates") or []:
+        top, panes = CA.gate_dialog(p, g["asset_id"])
+        out[f"gate {g['asset_id']}"] = top + "".join(m for _l, m in panes)
+    for key, *_ in CA.index_items(p, rows):
+        out[f"more {key}"] = CA.more_dialog_html(p, key)
+    for a in rows:
+        out[f"cal {a['area']}"] = CA.calendar_html(p, a["area"])
+    return out
+
+
+def test_the_area_builders_touch_no_streamlit_network_or_clock():
+    tree = ast.parse(AREA.read_text(), feature_version=(3, 9))
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names |= {a.name.split(".")[0] for a in node.names}
+        elif isinstance(node, ast.ImportFrom):
+            names.add((node.module or "").split(".")[0])
+    assert names <= {"__future__", "datetime", "re", "collections", "catalysts_view"}, names
+    for call in ("date.today(", "datetime.now(", "time.time(", "open("):
+        assert call not in AREA.read_text(), call
+
+
+def test_an_areas_figures_are_the_sums_of_its_gates_within_24_months(payload):
+    rows = CA.area_rows(payload)
+    today = dt.date.fromisoformat(payload["today"])
+    h24 = today + dt.timedelta(days=731)
+    seen = []
+    for a in rows:
+        inside = [g for g in payload["gates"] if (g.get("area") or "No area on file") == a["area"]
+                  and (g.get("due") or (CV._d(g.get("floor")) or CV._d(g.get("date")) or dt.date.max) <= h24)]
+        assert sorted(g["asset_id"] for g in a["gates"]) == sorted(g["asset_id"] for g in inside)
+        assert a["gain"] == pytest.approx(sum(g["success"] - g["now"] for g in inside))
+        assert a["risk"] == pytest.approx(sum(g["now"] - g["failure"] for g in inside))
+        seen += [g["asset_id"] for g in a["gates"] + a["later"]]
+    # every priced gate is in one area, once: summed or listed later
+    assert sorted(seen) == sorted(g["asset_id"] for g in payload["gates"])
+    t = CA.totals(rows, payload)
+    assert t["gain"] == pytest.approx(sum(a["gain"] for a in rows))
+    assert t["n_gates"] + t["n_later"] == len(payload["gates"])
+    stakes = [a["stake"] for a in rows]
+    assert stakes == sorted(stakes, reverse=True)
+
+
+def test_the_24_month_rule(payload):
+    """A gate landing within 24 months counts, a due readout as landing now; one later or
+    undated is listed in its area and never summed."""
+    q = copy.deepcopy(payload)
+    today = dt.date.fromisoformat(q["today"])
+    g0, g1, g2, g3 = q["gates"][:4]
+    for g in (g0, g1, g2, g3):
+        g["area"], g["floor"], g["due"] = "Test area", None, False
+    g0["date"] = (today + dt.timedelta(days=700)).isoformat()            # inside
+    g1["date"] = (today + dt.timedelta(days=800)).isoformat()            # later
+    g2["date"] = None                                                    # undated
+    g3["date"], g3["due"] = (today - dt.timedelta(days=60)).isoformat(), True   # due: now
+    a = next(x for x in CA.area_rows(q) if x["area"] == "Test area")
+    assert {g["asset_id"] for g in a["gates"]} == {g0["asset_id"], g3["asset_id"]}
+    assert {g["asset_id"] for g in a["later"]} == {g1["asset_id"], g2["asset_id"]}
+    assert a["gain"] == pytest.approx(sum(g["success"] - g["now"] for g in (g0, g3)))
+    assert [g["name"] for g in a["overdue"]] == [g3["name"]]
+    markup = CA.gates_html(q, a, CA.scale(CA.area_rows(q)))
+    later = markup[markup.index("Later or undated"):]
+    for g in (g1, g2):
+        assert f'data-gate="{g["asset_id"]}"' in later
+    for g in (g0, g3):
+        assert f'data-gate="{g["asset_id"]}"' not in later
+
+
+def test_the_footnote_says_what_the_bars_count(payload):
+    rows = CA.area_rows(payload)
+    t = CA.totals(rows, payload)
+    note = CA.footnote(t)
+    assert f"{t['n_gates']} priced gates landing within 24 months" in note
+    assert "a due readout counts as landing now" in note
+    assert f"{t['n_later']} later or undated gates are listed in their area, not in the figures" in note
+    assert "adds to the count, not the value" in note
+    assert html.escape(note) in CA.page_html(payload)
+
+
+def test_the_header_prints_the_area_sums(payload):
+    rows = CA.area_rows(payload)
+    t = CA.totals(rows, payload)
+    text = _visible(CA.header_html(payload, rows, t))
+    assert CA._sgn_usd(t["gain"]) in text and CA._sgn_usd(-t["risk"]) in text
+    assert f"if all {t['n_gates']} priced gates pass" in text
+    assert f"a lone study miss takes {CV.usd(t['risk'] - t['held'])}" in text
+    assert f"{t['n24']} readouts in 24 months · {t['n12']} in 12 · {t['priced24']} priced" in text
+    assert f"{rows[0]['area']} holds" in text
+
+
+def test_every_area_opens_in_place_and_every_gate_is_a_click_target(payload):
+    markup = CA.page_html(payload)
+    rows = CA.area_rows(payload)
+    assert markup.count('class="ca-row"') == len(rows)
+    assert markup.count('class="ca-ar"') == len(rows)
+    blocks = re.split(r'<div class="ca-row" data-area="', markup)[1:]
+    for a, block in zip(rows, blocks):
+        assert block.startswith(html.escape(a["area"]))
+        gates = block[block.index('class="ca-gates"'):]
+        for g in a["gates"] + a["later"]:
+            assert f'class="ca-gl{" lt" if g in a["later"] else ""}" data-gate="{g["asset_id"]}"' in gates
+        if a["n24"]:
+            assert f'data-more="cal" data-area="{html.escape(a["area"])}"' in gates
+    for key, *_ in CA.index_items(payload, rows):
+        assert f'data-more="{key}"' in markup
+
+
+def test_the_area_page_never_draws_a_null_as_zero(payload):
+    q = _stripped(payload)
+    rows = CA.area_rows(q)
+    assert all(a["gain"] == 0 and a["missing"] for a in rows if a["gates"])
+    text = _visible(CA.page_html(q))
+    assert "no free data" in text
+    assert "None" not in re.findall(r"\bNone\b", text) and "nan" not in text.split()
+
+
+@pytest.mark.parametrize("variant", ["fixture", "stripped", "no_stakes", "empty"])
+def test_the_area_page_house_style_and_markdown_safe(payload, variant):
+    p = {"fixture": payload, "stripped": _stripped(payload),
+         "no_stakes": _no_stakes(payload), "empty": _empty(payload)}[variant]
+    for name, markup in _area_blocks(p).items():
+        assert "\n\n" not in markup, name
+        text = _visible(markup)
+        _house_style(text)
+        assert "None" not in re.findall(r"\bNone\b", text), (variant, name)
+        for attr in ("fill=", "stroke=", "color:", "background:"):
+            assert not re.search(rf'{attr}\s*"?\s*(#|rgb|hsl)', markup), attr
+
+
+def test_a_company_with_no_priced_gate_is_counted_not_valued(payload):
+    q = _no_stakes(payload)
+    rows = CA.area_rows(q)
+    text = _visible(CA.page_html(q))
+    assert "carries a priced gate landing within 24 months" in text
+    assert sum(a["n24"] for a in rows) == sum(a["n24"] for a in CA.area_rows(payload))
+    assert "no priced gate · count only" in text
+
+
+def test_the_gate_dialog_keeps_the_full_detail(payload):
+    gid = CV.default_gate(payload)
+    top, panes = CA.gate_dialog(payload, gid)
+    assert [lab for lab, _m in panes] == list(CA.PANES)
+    assert 'class="cx-svg fork"' in top
+    whole = top + "".join(m for _l, m in panes)
+    for part in ("Legs at the gate", "Chance of passing", "Cost to reach the gate",
+                 "Record the outcome", "Dates", "Market and model", "Evidence", "Sources"):
+        assert part in whole, part
+    parts = CV.dialog_parts(payload, gid)
+    assert parts["legs"] in panes[0][1] and parts["dates"] in panes[2][1]
+    assert CA.gate_dialog(payload, -1) == (CV.DIALOG_NONE, [])
+
+
 # ------------------------------------------------------------------------- the switch
 @pytest.fixture(scope="module")
 def switch():
@@ -485,12 +650,13 @@ def test_only_azn_takes_the_redesign(switch):
 
 
 def _tab_block():
-    """The statement under ``with catalysts_tab:`` that picks the tab body."""
+    """The statements under ``with catalysts_tab:``: the pick of the tab body, then the
+    calendar fold."""
     tree = ast.parse(APP.read_text(), feature_version=(3, 9))
     for node in ast.walk(tree):
         if (isinstance(node, ast.With) and len(node.items) == 1
                 and getattr(node.items[0].context_expr, "id", "") == "catalysts_tab"):
-            return node.body[0]
+            return node.body
     raise AssertionError("no catalysts_tab block")
 
 
@@ -505,9 +671,19 @@ def test_every_other_company_keeps_todays_tab(switch, ticker, drawn, want):
              "_catalysts_redesigned": switch["_catalysts_redesigned"],
              "catalysts_page": page, "_CATALYSTS_KIT": object(),
              "_catalysts_today": lambda a, t, f: calls.append("today")}
-    block = _tab_block()
-    exec(compile(ast.Module(body=[block], type_ignores=[]), str(APP), "exec"), space)
+    pick = _tab_block()[:2]
+    exec(compile(ast.Module(body=pick, type_ignores=[]), str(APP), "exec"), space)
     assert calls == want
+
+
+def test_the_calendar_fold_is_drawn_only_where_the_area_page_is_not():
+    """The area page's calendar is a click on its index, so the fold under the tab is
+    drawn for every company the page does not draw, and only for those."""
+    body = _tab_block()
+    fold = body[2]
+    assert isinstance(fold, ast.If) and ast.unparse(fold.test) == "not drawn"
+    assert "st.expander(calendar_view.expander_label" in ast.unparse(fold)
+    assert len(body) == 3
 
 
 def test_todays_tab_is_drawn_as_before():
@@ -568,25 +744,37 @@ def kit():
 
 
 _PAGE = '''
-import json, sys
+import json, sys, types
 sys.path.insert(0, {frontend!r})
 sys.path.insert(0, {tests!r})
 import streamlit as st
 import catalysts_page
 import test_catalysts_redesign_ui as T
+from components import catnav
+catalysts_page._catnav = catnav      # the module outlives a test: undo the last one's stand-in
 payload = json.loads(open({fixture!r}).read())
 {tweak}
 catalysts_page.fetch = lambda api_base, ticker: payload
 ok = catalysts_page.render("http://api.invalid", "AZN", T.kit())
 st.caption(f"rendered {{ok}}")
 '''
+RESOLVABLE = ("gid = catalysts_page.CV.default_gate(payload)\n"
+              "for g in payload['gates']:\n"
+              "    if g['asset_id'] == gid:\n"
+              "        g['stake']['resolvable'] = True\n")
+# The click component stands in for a reader: it hands back one click, the same nonce on
+# every run, as the real frame does until the next click.
+CLICK = ("catalysts_page._catnav = types.SimpleNamespace(cat_nav=lambda markup, **kw: "
+         "dict({click}, nonce=1))\n")
 
 
-def _page(tweak=""):
+def _page(tweak="", state=None):
     from streamlit.testing.v1 import AppTest
     test = AppTest.from_string(_PAGE.format(frontend=str(FRONTEND), fixture=str(FIXTURE),
                                             tests=str(pathlib.Path(__file__).parent),
                                             tweak=tweak), default_timeout=60)
+    for k, v in (state or {}).items():
+        test.session_state[k] = v
     test.run()
     assert not test.exception, test.exception
     return test
@@ -603,101 +791,105 @@ def _walk(block):
 
 
 def _popovers(test):
-    return [b for b in _walk(test.main) if getattr(b, "type", "") == "popover"]
+    return [b for b in _walk(test._tree) if getattr(b, "type", "") == "popover"]
 
 
-def test_page_draws_the_header_the_rail_and_the_card():
-    test = _page()
-    md = _md(test)
-    assert 'class="cx cx-hd"' in md and 'class="cx cx-card' in md
-    assert "Next up" in md and "Risk register" in md and "Why " in md
-    assert [t.label for t in test.tabs] == ["Selected gate", "Next up", "Risk register",
-                                            "Unpriced"]
+def _gid():
+    return CV.default_gate(json.loads(FIXTURE.read_text()))
+
+
+def test_page_draws_the_area_table_and_the_rail_in_one_frame():
+    seen = []
+    tweak = ("catalysts_page._catnav = types.SimpleNamespace(cat_nav=lambda markup, **kw: "
+             "st.session_state.__setitem__('_frame', markup))\n")
+    test = _page(tweak)
     assert "rendered True" in [c.value for c in test.caption]
-    assert any(b.label == "Full detail" for b in test.button)
+    markup = test.session_state["_frame"]
+    seen.append(markup)
+    payload = json.loads(FIXTURE.read_text())
+    assert markup == CA.page_html(payload)
+    assert 'class="cx ca-page"' in markup and "Next up" in markup and "More detail" in markup
+    assert not test.tabs and not _md(test)          # nothing drawn outside the frame
+
+
+def test_a_gate_click_opens_its_dialog_with_four_panes():
+    gid = _gid()
+    test = _page(CLICK.format(click=f"{{'gate': {gid}}}"))
+    assert test.session_state["cx_open_AZN"] == {"gate": gid}
+    md = _md(test)
+    assert 'class="cx cx-dlg gd"' in md and "Legs at the gate" in md
+    assert "Cost to reach the gate" in md and "Market and model" in md
+    assert [t.label for t in test.tabs] == list(CA.PANES)
+
+
+def test_a_closed_dialog_stays_closed_until_the_next_click():
+    gid = _gid()
+    test = _page(CLICK.format(click=f"{{'gate': {gid}}}"))
+    assert 'class="cx cx-dlg gd"' in _md(test)
+    del test.session_state["cx_open_AZN"]           # what closing the dialog does
+    test.run()
+    assert 'class="cx cx-dlg' not in _md(test)
+
+
+def test_an_index_click_opens_its_own_dialog():
+    test = _page(CLICK.format(click="{'more': 'cal', 'area': 'Oncology'}"))
+    md = _md(test)
+    assert 'class="cx cx-dlg md ca-cal"' in md and "Oncology: 30 readouts" in md
+    test = _page(state={"cx_open_AZN": {"more": "slip", "area": None}})
+    assert 'class="cx cx-dlg md"' in _md(test) and "days" in _md(test)
 
 
 def test_the_record_control_is_drawn_only_where_the_row_is_resolvable():
-    test = _page()
-    # Recording a derived outcome is switched off: the selected gate's row says why, and
-    # no control is drawn.
+    gid = _gid()
     payload = json.loads(FIXTURE.read_text())
-    gid = CV.default_gate(payload)
     note = next(g for g in payload["gates"] if g["asset_id"] == gid)["stake"]["resolve_note"]
-    assert note in [c.value for c in test.caption]
+    # Recording a derived outcome is switched off: the Cost pane says why, no control.
+    test = _page(state={"cx_open_AZN": {"gate": gid}})
+    assert html.escape(note) in _md(test) or note in _md(test)
     assert not _popovers(test)
-    tweak = ("gid = catalysts_page.CV.default_gate(payload)\n"
-             "for g in payload['gates']:\n"
-             "    if g['asset_id'] == gid:\n"
-             "        g['stake']['resolvable'] = True\n")
-    test = _page(tweak)
+    test = _page(RESOLVABLE, state={"cx_open_AZN": {"gate": gid}})
     (pop,) = _popovers(test)
     assert pop.proto.popover.label == "Record the outcome"
-    labels = [b.label for b in _walk(pop) if getattr(b, "type", "") == "button"]
-    assert labels == ["met", "missed"]
-    assert note not in [c.value for c in test.caption]
+    assert [b.label for b in _walk(pop) if getattr(b, "type", "") == "button"] == ["met", "missed"]
+    md = _md(test)
+    assert "If you record met" in md and "Record it with Record the outcome under the tabs" in md
 
 
-def test_full_detail_opens_the_dialog():
-    test = _page()
-    next(b for b in test.button if b.label == "Full detail").click().run()
+def test_arming_the_record_keeps_the_dialog_open():
+    """The first click arms and reruns the whole app, which closes a dialog; the open
+    dialog is held in the session, so it is drawn again with the control armed."""
+    gid = _gid()
+    test = _page(RESOLVABLE, state={"cx_open_AZN": {"gate": gid}})
+    next(b for b in test.button if b.label == "met").click().run()
     assert not test.exception, test.exception
-    md = _md(test)
-    assert 'class="cx cx-dlg"' in md and "Legs at the gate" in md
-    assert "Cost to reach the gate" in md
+    assert 'class="cx cx-dlg gd"' in _md(test)
+    assert "sure?" in [b.label for b in test.button]
 
 
-def test_the_dialog_sends_the_record_to_the_cards_control():
-    """The At stake row's first click arms and reruns the app, which closed the dialog, so
-    an outcome could never be confirmed there. The dialog says what each outcome would do
-    and points to the card's popover, which survives the rerun; met and missed are drawn
-    once, in the popover."""
-    tweak = ("gid = catalysts_page.CV.default_gate(payload)\n"
-             "for g in payload['gates']:\n"
-             "    if g['asset_id'] == gid:\n"
-             "        g['stake']['resolvable'] = True\n")
-    test = _page(tweak)
-    next(b for b in test.button if b.label == "Full detail").click().run()
-    assert not test.exception, test.exception
-    md = _md(test)
-    assert "If you record met" in md and "Record the outcome on the card" in md
-    labels = [b.label for b in test.button]
-    assert labels.count("met") == 1 and labels.count("missed") == 1
-    # a row the back end does not mark resolvable shows its note in the dialog too
-    test = _page()
-    next(b for b in test.button if b.label == "Full detail").click().run()
-    md = _md(test)
-    assert "If you record met" not in md and "met" not in [b.label for b in test.button]
-
-
-def test_page_without_the_component_draws_inline_and_picks_by_list():
+def test_page_without_the_component_draws_inline_and_opens_by_list():
     test = _page("catalysts_page._catnav = None")
     md = _md(test)
-    assert 'class="cx-tl"' in md and 'class="cx-rg-svg"' in md
-    payload = json.loads(FIXTURE.read_text())
-    gid = CV.default_gate(payload)
-    pick = test.selectbox(key="cx_pick_AZN")
-    assert pick.value == gid
-    other = next(g for g in payload["gates"] if g["asset_id"] != gid)
-    pick.set_value(other["asset_id"]).run()
+    assert 'class="cx ca-page"' in md
+    gid = _gid()
+    test.selectbox(key="cx_pick_AZN").set_value(f"g{gid}").run()
     assert not test.exception, test.exception
-    card = re.search(r'class="cx-nm">([^<]+)<', _md(test)).group(1)
-    assert card == other["name"]
+    assert test.session_state["cx_open_AZN"] == {"gate": gid}
+    assert 'class="cx cx-dlg gd"' in _md(test)
 
 
 def test_a_model_not_read_hands_back_to_todays_tab():
-    test = _page("payload['model_ok'] = False")
+    test = _page("payload['model_ok'] = False\ncatalysts_page._catnav = None")
     assert "rendered False" in [c.value for c in test.caption]
     assert 'class="cx' not in _md(test)
 
 
 def test_a_company_with_no_priced_stakes_renders_the_page():
-    tweak = "payload['gates'] = []\nfor e in payload['events']: e['priced'] = False"
+    tweak = ("payload['gates'] = []\nfor e in payload['events']: e['priced'] = False\n"
+             "catalysts_page._catnav = None")
     test = _page(tweak)
     md = _md(test)
     assert "rendered True" in [c.value for c in test.caption]
-    assert "No pipeline line of" in md and "no gate to select" in md
-    assert not any(b.label == "Full detail" for b in test.button)
+    assert "No pipeline line of" in md and "no priced gate · count only" in md
 
 
 def test_an_incomplete_read_is_drawn_once_and_never_held(monkeypatch):
@@ -748,7 +940,7 @@ def _catalysts_markdown(ticker):
 @needs_api
 def test_live_app_azn_draws_the_redesign():
     md = _catalysts_markdown("AZN")
-    assert 'class="cx cx-hd"' in md and "Drivers and risks" not in md
+    assert "Drivers and risks" not in md and "Calendar, 24 months" not in md
 
 
 @needs_api

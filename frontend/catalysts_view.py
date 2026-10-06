@@ -2108,16 +2108,21 @@ def _odds_chain(r) -> str:
             f'<span><b>{pct(product, 1)}</b> published</span></div>' + tail)
 
 
-def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="",
-                can_record=None) -> str:
-    """The full detail of one gate: its legs as a table, the odds, what is held behind it,
-    the cost to reach it (the Next gate block's tables, passed in), every study behind it
-    on one timeline, its dates and clock, where it sits in its market, and the evidence.
-    ``can_record`` is whether the stake row takes a recorded outcome, by the At stake
-    list's rule; where it is not given, the row's own flag."""
+DIALOG_NONE = '<div class="cx cx-dlg"><div class="cx-empty">This gate is not on the book.</div></div>'
+
+
+def dialog_parts(p, gid, cost_html="", ladder_html="", studies_html="", can_record=None,
+                 record_where="Record the outcome on the card") -> dict | None:
+    """The full detail of one gate, as named blocks: ``head``, ``legs``, ``odds``,
+    ``cost`` (the Next gate block's tables, passed in, with the ladder and the studies
+    folded under it), ``record``, ``gantt`` (every study behind the gate on one
+    timeline), ``dates`` (its dates and clock), ``market`` and ``evidence``. None where
+    the gate is not on the book. ``can_record`` is whether the stake row takes a recorded
+    outcome, by the At stake list's rule; where it is not given, the row's own flag.
+    ``record_where`` names the control the reader records with."""
     r = _gate(p, gid)
     if r is None:
-        return '<div class="cx cx-dlg"><div class="cx-empty">This gate is not on the book.</div></div>'
+        return None
     close = _close(p)
     today = _today(p)
     t = r.get("trial") or {}
@@ -2162,28 +2167,27 @@ def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="",
                   f'<div class="cx-rec-c"><div class="k">If you record missed</div><div class="v m">'
                   f'{usd(r["held_ps"] if r.get("held_ps") is not None else r["failure"])}</div>'
                   f'<div class="s">{esc(miss_txt)}</div></div></div>'
-                  f'<div class="rs-f">Record it with Record the outcome on the card: two clicks, arm '
+                  f'<div class="rs-f">Record it with {esc(record_where)}: two clicks, arm '
                   f'then confirm. It writes to the book.</div>')
     else:
         record = (f'<div class="cx-dh2">Record the outcome</div>'
                   f'<div class="rs-f">{esc(resolve_text(r))}</div>')
     cost = cost_html or f'<div class="cx-none">{NO_DATA}: no development cost is read for this gate.</div>'
-    left = (f'<div class="cx-dh2">Legs at the gate <span class="w">$ a share against the '
+    legs = (f'<div class="cx-dh2">Legs at the gate <span class="w">$ a share against the '
             f'{usd(close)} close</span></div>'
             f'<table class="rs"><thead><tr><th>Outcome</th><th>PoS</th><th>rNPV $mm</th><th>$ a share</th>'
             f'<th>Move</th></tr></thead><tbody>{leg_rows}</tbody></table>'
-            + (f'<div class="cx-cap">{esc(held.get("note"))}</div>' if held.get("note") else "")
-            + f'<div class="cx-dh2">Chance of passing <span class="w">{pct(p_gate, 1)} · published '
-              f'{pct(r.get("p_gate_published"), 1)}</span></div>{_odds_chain(r)}'
+            + (f'<div class="cx-cap">{esc(held.get("note"))}</div>' if held.get("note") else ""))
+    odds = (f'<div class="cx-dh2">Chance of passing <span class="w">{pct(p_gate, 1)} · published '
+            f'{pct(r.get("p_gate_published"), 1)}</span></div>{_odds_chain(r)}'
             + _kv("Basis", f'<span class="wrap">{esc(r.get("basis"))}</span>')
-            + _kv("Evidence", f'<span class="cx-chips">{chips}</span>')
-            + f'<div class="cx-dh2">Cost to reach the gate <span class="w">build 1 · after tax</span></div>'
+            + _kv("Evidence", f'<span class="cx-chips">{chips}</span>'))
+    cost = (f'<div class="cx-dh2">Cost to reach the gate <span class="w">build 1 · after tax</span></div>'
             + cost
             + (f'<details class="cx-more"><summary>After later trial costs</summary>{ladder_html}</details>'
                if ladder_html else "")
             + (f'<details class="cx-more"><summary>Trials and sources behind the cost</summary>'
-               f'{studies_html}</details>' if studies_html else "")
-            + record)
+               f'{studies_html}</details>' if studies_html else ""))
     dates = []
     if move.get("old") and move.get("new") and move.get("days"):
         later = "later" if move["days"] > 0 else "earlier"
@@ -2254,11 +2258,11 @@ def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="",
         ev.append((src.group(1), "PDUFA commitment letter, review clock"))
     ev_html = "".join(f'<a href="{esc(u)}" target="_blank" rel="noopener">{esc(x)}</a>' for u, x in ev)
     gantt = programme_svg(r, today)
-    right = ((f'<div class="cx-dh2">Studies behind the gate <span class="w">start to primary completion'
-              f'</span></div>{gantt}' if gantt else "")
-             + '<div class="cx-dh2">Dates</div>' + "".join(dates)
-             + '<div class="cx-dh2">Market and model</div>' + "".join(market)
-             + (f'<div class="cx-dh2">Evidence</div><div class="cx-ev">{ev_html}</div>' if ev_html else ""))
+    gantt = (f'<div class="cx-dh2">Studies behind the gate <span class="w">start to primary completion'
+             f'</span></div>{gantt}' if gantt else "")
+    dates = '<div class="cx-dh2">Dates</div>' + "".join(dates)
+    market = '<div class="cx-dh2">Market and model</div>' + "".join(market)
+    evidence = f'<div class="cx-dh2">Evidence</div><div class="cx-ev">{ev_html}</div>' if ev_html else ""
     when, _due = date_text(r)
     sub = []
     if t.get("nct_id"):
@@ -2274,7 +2278,21 @@ def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="",
             f'<div class="cx-sub dlg">{" · ".join(sub)}</div></div>'
             f'<div class="hero"><span class="fig m">{usd(r["swing"])}</span><span class="u">a share at stake</span>'
             f'<span class="sub">{esc(share)} · {ordinal(r["rank"])} of {len(gate_rows(p))} by swing</span></div></div>')
-    return (f'<div class="cx cx-dlg">{head}<div class="cx-dgrid"><div>{left}</div><div>{right}</div></div></div>')
+    return {"head": head, "legs": legs, "odds": odds, "cost": cost, "record": record,
+            "gantt": gantt, "dates": dates, "market": market, "evidence": evidence}
+
+
+def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="",
+                can_record=None) -> str:
+    """The full detail of one gate on one sheet: the legs, the odds, the cost to reach it
+    and the record on the left; the studies, dates, market and evidence on the right."""
+    d = dialog_parts(p, gid, cost_html, ladder_html, studies_html, can_record)
+    if d is None:
+        return DIALOG_NONE
+    left = d["legs"] + d["odds"] + d["cost"] + d["record"]
+    right = d["gantt"] + d["dates"] + d["market"] + d["evidence"]
+    return (f'<div class="cx cx-dlg">{d["head"]}<div class="cx-dgrid"><div>{left}</div>'
+            f'<div>{right}</div></div></div>')
 
 
 def dialog_title(p, gid) -> str:
