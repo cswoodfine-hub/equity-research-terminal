@@ -402,6 +402,18 @@ def test_the_board_frame_stacks_at_the_pages_breakpoint_not_its_own():
     assert css.index(m.group(0)) > page.start()
 
 
+def test_a_legend_hint_ends_in_an_ellipsis_not_a_cut_word():
+    """A one-line legend narrower than 1440 clipped its closing hint mid-word ("click a
+    b", "hover a row for its news, click fo"). The hint is the item that shrinks, and it
+    ends in an ellipsis."""
+    css = UNIVERSE_CSS.read_text()
+    sp = re.search(r"\.uv-leg \.sp \{([^}]*)\}", css).group(1)
+    for decl in ("display: block", "flex: 0 1 auto", "min-width: 0", "overflow: hidden",
+                 "text-overflow: ellipsis", "margin-left: auto"):
+        assert decl in sp, decl
+    assert re.search(r"\.uv-leg span \{[^}]*white-space: nowrap", css)
+
+
 def test_the_week_tag_column_holds_the_longest_tag():
     """Each ranked row's tag fits its grid column: "approval" ran 7px into the headline
     beside it. A tag is 9.5px mono capitals at 0.08em, after a 3px rule and 6px of air."""
