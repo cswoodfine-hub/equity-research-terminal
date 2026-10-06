@@ -155,6 +155,8 @@ def _src(**over):
         "relative": {"1y": {"benchmark_pct": 0.18, "first_as_of": "2025-10-06",
                             "last_as_of": "2026-10-05"}},
         "fair_value": None, "rar_focal": {}, "readouts": [], "note": None,
+        "stakes": {"priced": [], "unpriced": [{"id": 1, "missing": ["pos_success",
+                                                                  "pos_failure"]}]},
         "catalysts": [
             {"id": 1, "ticker": "AZN", "catalyst_type": "data readout",
              "expected_date": "2026-10-31", "date_confidence": "estimated",
@@ -239,6 +241,13 @@ def test_the_focal_block_and_exposure():
     assert [a["application_type"] for a in focal["approvals"]] == ["NDA"]
     assert focal["pillars"]["growth"] == {"score": 77, "median": 48}
     assert focal["fair_value"]["ok"] is False and focal["fair_value"]["lenses"] == []
+    stake = focal["events"][0]["stake"]
+    assert stake["priced"] is False and stake["per_share"] is None
+    assert stake["missing"] == ["pos_success", "pos_failure"]
+    priced = uc.assemble(_src(stakes={"priced": [{"id": 1, "per_share": 1.25,
+                                                  "share_swing": 2000.0}],
+                                      "unpriced": []}), "AZN")["focal"]["events"][0]["stake"]
+    assert priced == {"priced": True, "per_share": 1.25, "share_swing_usd_m": 2000.0}
     ira = out["companies"]["AZN"]["ira"]
     assert len(ira["selected"]) == 1                         # a duplicate row folds
     assert ira["share"] == pytest.approx(0.119)

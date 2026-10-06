@@ -392,6 +392,10 @@ def read_sources(ticker: str, today: dt.date | None = None, db_path=None,
         src["rar_focal"] = asset_revenue.build_revenue_at_risk(db_path, ticker)
         src["readouts"] = trial_readouts.recent(db_path, ticker, today=today, limit=40)
         src["note"] = insights.latest_note(db_path, ticker=ticker)
+        import forecast_view
+        # Which of the company's dated events the model prices, and the swing a share;
+        # the dialog's "at stake" column reads it, so an unpriced event says so.
+        src["stakes"] = forecast_view.catalyst_stakes(db_path, ticker)
         import catalysts
         import slippage
         import whatchanged
@@ -800,6 +804,15 @@ def assemble(src: dict, ticker: str, window: str = DEFAULT_WINDOW,
                  "date": _iso(r.get("event_date")), "quote": r.get("quote")}
                 for r in src.get("readouts") or [] if (_iso(r.get("event_date")) or "") >= year0]
     deals = (focal_rec.get("facts") or {}).get("deals") or {}
+    stakes = {}
+    for r in (src.get("stakes") or {}).get("priced") or []:
+        stakes[r.get("id")] = {"priced": True, "per_share": _finite(r.get("per_share")),
+                               "share_swing_usd_m": _finite(r.get("share_swing"))}
+    for r in (src.get("stakes") or {}).get("unpriced") or []:
+        stakes[r.get("id")] = {"priced": False, "per_share": None,
+                               "missing": r.get("missing") or []}
+    focal_events = [{**e, "stake": stakes.get(e["id"])} for e in events
+                    if e["ticker"] == ticker]
     focal = {
         "ticker": ticker,
         "name": (companies.get(ticker) or {}).get("name") or ticker,
@@ -823,7 +836,7 @@ def assemble(src: dict, ticker: str, window: str = DEFAULT_WINDOW,
         "deals": {"n": deals.get("n"), "count_text": deals.get("count_text"),
                   "chip": deals.get("chip")},
         "note_rate": note_rate_move(src.get("note")),
-        "events": [e for e in events if e["ticker"] == ticker],
+        "events": focal_events,
         "approvals": [{**a, "application_type": application_type(a.get("application_number"))}
                       for a in src.get("approvals") or [] if a.get("ticker") == ticker],
     }
