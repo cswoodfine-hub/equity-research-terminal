@@ -230,3 +230,97 @@ def test_the_slider_never_falls_as_the_year_moves_later(tmp_path):
     assert all(b >= a for a, b in zip(values, values[1:]))
     assert values[0] < values[-1]
     assert values[2028 - 2020] == pytest.approx(base["base"]["rnpv"])
+
+
+# --- a recent date on file needs the revenue to agree --------------------------------
+
+def _on_file(record, full_years, stated=None, modality="biologic"):
+    """A product on the curated erosion shape for its modality, with its reported full
+    years as actuals (in millions, as assumptions.load hands them over)."""
+    import assumptions as A
+    inputs = _product(record=record, stated=stated)
+    for key in ("erosion_year1_pct", "erosion_decay_pct"):
+        inputs["scalars"].pop(key)
+    inputs["modality"] = modality
+    inputs["erosion_defaults"] = A.erosion_defaults()
+    inputs["actuals"] = [{"fiscal_year": y, "period": "FY", "value": v}
+                         for y, v in full_years.items()]
+    return inputs
+
+
+YERVOY = {2023: 2238.0, 2024: 2530.0, 2025: 2900.0}
+
+
+def test_a_recent_cliff_with_no_fall_since_lands_in_the_first_forecast_year():
+    """Yervoy's record is the 2023 statutory floor and it has grown every year since.
+    No cliff has happened, so it lands in 2026 rather than never."""
+    import evidence
+    got = F.build(_on_file(2023, YERVOY))
+    assert not got["loe_in_base"] and got["loe_year"] == 2025
+    assert got["loe_basis"] == ("compound patent of 2023, but no fall in the reported "
+                                "revenue since, so by convention the cliff lands in 2026")
+    assert evidence.grade(got["loe_basis"]) == "convention"
+    assert got["revenue_after_loe"][0] == pytest.approx(got["revenue"][0] * 0.75)
+    assert got["rnpv"] < F.build(_on_file(2017, YERVOY))["rnpv"]
+
+
+def test_a_recent_cliff_the_revenue_shows_stays_in_the_base():
+    """Victoza's 2024 date shows: 8,664mm, 5,482mm, 3,020mm."""
+    got = F.build(_on_file(2024, {2023: 8664.0, 2024: 5482.0, 2025: 3020.0},
+                           modality="small molecule"))
+    assert got["loe_in_base"] and got["loe_year"] == 2024
+    assert got["revenue_after_loe"] == got["revenue"]
+
+
+def test_an_old_date_stays_in_the_base_whatever_the_revenue_did():
+    """Orencia's 2017 date is past every erosion shape's steep years: the rule the base
+    has always had stands, with or without a fall since."""
+    got = F.build(_on_file(2017, {2023: 3600.0, 2024: 3700.0, 2025: 3800.0}))
+    assert got["loe_in_base"] and got["loe_year"] == 2017
+
+
+def test_the_window_is_four_years_on_the_biologic_shape():
+    rising = {2021: 900.0, 2022: 950.0, 2023: 1000.0, 2024: 1050.0, 2025: 1100.0}
+    assert F.build(_on_file(2022, rising))["loe_in_base"]
+    inside = F.build(_on_file(2023, rising))
+    assert not inside["loe_in_base"] and inside["loe_year"] == 2025
+
+
+def test_a_single_reported_year_is_no_evidence_either_way():
+    """Perjeta's 2024 date with only FY2025 on file keeps the old rule."""
+    got = F.build(_on_file(2024, {2025: 2968.0}))
+    assert got["loe_in_base"] and got["loe_year"] == 2024
+
+
+def test_fell_since_reads_full_years_from_the_loe_year_on():
+    fy = lambda **years: [{"fiscal_year": int(y[1:]), "period": "FY", "value": v}
+                          for y, v in years.items()]
+    assert F.fell_since([], 2023) is None
+    assert F.fell_since(fy(y2020=5.0, y2021=4.0), 2023) is None     # nothing since
+    assert F.fell_since(fy(y2025=5.0), 2023) is None                # no pair to compare
+    assert F.fell_since(fy(y2022=5.0, y2023=4.0), 2023) is True     # the LOE year counts
+    assert F.fell_since(fy(y2020=5.0, y2021=4.0, y2023=6.0, y2024=6.0), 2023) is False
+    assert F.fell_since(fy(y2023=6.0, y2024=7.0, y2025=6.5), 2023) is True
+    # A quarter is not a year, and a gap leaves no pair.
+    quarters = [{"fiscal_year": 2025, "period": "Q1", "value": 1.0}]
+    assert F.fell_since(fy(y2023=6.0, y2024=7.0) + quarters, 2023) is False
+    assert F.fell_since(fy(y2022=6.0, y2024=1.0), 2023) is None
+
+
+def test_the_window_falls_back_to_the_earliest_curated_late_year():
+    import assumptions as A
+    defaults = A.erosion_defaults()
+    assert F.cliff_window({"erosion_defaults": defaults}) == \
+        int(defaults["small molecule"]["late_from_year"]) == 4
+    assert F.cliff_window({"erosion_defaults": defaults}, 6) == 6
+    assert F.cliff_window({}) is None
+
+
+def test_a_lever_on_a_cliff_not_yet_landed_moves_one_way_and_starts_from_the_base():
+    base = F.build(_on_file(2023, YERVOY))
+    shown = F.build(_on_file(2023, YERVOY, stated=base["loe_year"]))
+    assert shown["rnpv"] == pytest.approx(base["rnpv"])
+    assert shown["revenue_after_loe"] == pytest.approx(base["revenue_after_loe"])
+    values = [F.build(_on_file(2023, YERVOY, stated=s))["rnpv"] for s in range(2010, 2041)]
+    assert all(b >= a - 1e-9 for a, b in zip(values, values[1:]))
+    assert values[0] < base["rnpv"] < values[-1]

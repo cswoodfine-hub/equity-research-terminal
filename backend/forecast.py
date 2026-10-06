@@ -787,6 +787,38 @@ def latest_run_rate(actuals) -> tuple:
             f"annualised")
 
 
+def fell_since(actuals, loe_year) -> bool | None:
+    """Whether the reported revenue shows a cliff: True where any full year from the LOE
+    year on is below the year before it, False where every such year held or rose, None
+    where no full year from the LOE year on has the year before it on file to compare.
+
+    The LOE year itself counts, since a date early in a year shows in that year's
+    revenue. Quarters are left out: a quarter against a full year is not a fall."""
+    full = {int(a["fiscal_year"]): a["value"] for a in actuals or []
+            if a.get("period") == "FY" and a.get("value") is not None
+            and a.get("fiscal_year") is not None}
+    pairs = [(full[year - 1], full[year]) for year in sorted(full)
+             if year >= int(loe_year) and year - 1 in full]
+    if not pairs:
+        return None
+    return any(now < before for before, now in pairs)
+
+
+def cliff_window(inputs: dict, late_from_year=None) -> int | None:
+    """How many years past an LOE on file a cliff must have shown in the reported revenue
+    before it is read as in the base without that evidence: the erosion shape's own
+    ``late_from_year``, the year its steep fall is over. A shape with none (the biologic
+    and unknown rows) takes the earliest the curated shapes carry, the small-molecule
+    row's four years, measured on CMS Part D brands four to eight years past their US
+    LOE. None where no curated shape carries one."""
+    if late_from_year:
+        return int(late_from_year)
+    found = [int(row["late_from_year"])
+             for row in (inputs.get("erosion_defaults") or {}).values()
+             if row.get("late_from_year") not in (None, "")]
+    return min(found) if found else None
+
+
 def erosion_default(inputs: dict):
     """(default row, what it was chosen for) from the curated erosion file: the
     modality's row, or the "unknown" row where no modality is on file. A product with
@@ -1086,6 +1118,25 @@ def build(inputs: dict) -> dict:
     # the decay from year one on Cerezyme, off patent since 2006, and halved it in four
     # years. The year-one drop still lands where the cliff falls inside the window.
     record_in_base = known_past or (record_year is not None and record_year + 1 < years[0])
+    # A recent date needs the revenue to agree. Yervoy's record is the 2023 statutory
+    # floor, and it reported 2,238mm, 2,530mm and 2,900mm in the three years since: no
+    # cliff has happened, and reading the date as in the base ran it on its growth for
+    # ever with no cliff at all. Inside the erosion shape's steep years, a date with no
+    # fall in any full reported year since has not landed, and by convention the cliff
+    # lands in the first forecast year. Older dates, and recent ones with no full year
+    # to compare, keep the rule above.
+    if record_in_base and record_year is not None:
+        window_length = cliff_window(inputs, late_from)
+        if (window_length is not None and years[0] - record_year < window_length
+                and fell_since(inputs.get("actuals"), record_year) is False):
+            record_basis = (f"{record_basis or 'the date on file'} of {record_year}, but no "
+                            "fall in the reported revenue since, so by convention the "
+                            f"cliff lands in {years[0]}")
+            notes.append(f"the LOE on file, {record_year}, is less than {window_length} "
+                         "years before the forecast and no full reported year since has "
+                         "fallen, so the cliff has not happened yet: it is taken as "
+                         f"landing in {years[0]}, the first forecast year")
+            record_year, record_in_base = years[0] - 1, False
     # A blank stated cell is no statement, as it always read here.
     stated = scalars.get("loe_year") or None
     if stated is not None and record_in_base:
