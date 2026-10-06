@@ -211,9 +211,9 @@ COMPANY_READS = ("/companies/{t}/forecast-verdict", "/companies/{t}/fair-value",
                  # Before the context, which reads the stakes from here rather than
                  # pricing every big pharma gate again.
                  "/companies/{t}/catalysts/stakes",
-                 "/companies/{t}/comps-context",
                  # Key insights reads the cost to each next gate; about 2 s cold.
-                 "/companies/{t}/development")
+                 "/companies/{t}/development",
+                 "/companies/{t}/comps-context")
 # Global reads that embed the company reads above through ``cached_json``, so they are
 # warmed after every one of them. Warmed first, they would be built from missing entries.
 LATE_GLOBAL_READS = ("/comps/valuation",)
