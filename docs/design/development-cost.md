@@ -256,8 +256,8 @@ day, which matters because each study's share ahead moves daily.
 
 - **Forecast tab, asset view: the Next gate layer**, beside Drivers and the Medicare layer,
   only where the verdict has a gate. One block for builds 1 to 3: the section chip names
-  the gate, its date ("est. Jan 2028", "due since Oct 2024", "no date on file") and its
-  study. A waterfall a share comes first: what passing is worth, less the chance it fails,
+  the gate, its date ("est. Jan 2028", "due since Oct 2024", "no date on file"), its
+  study and where the legs come from ("derived", or "stated legs"). A waterfall a share comes first: what passing is worth, less the chance it fails,
   is today's risked value; less the cost to reach the gate is the net. An unread cost is a
   hatched step with no net after it. Beside it a table: the chance (published or implied
   by the stated PoS), if it passes, if it fails (nil, the convention; where success and
@@ -277,7 +277,8 @@ day, which matters because each study's share ahead moves daily.
   gate row follows it, labelled derived.
 - **Forecast tab, company view**: "Pipeline development, next gate", folded with the further
   reads: every counted line, failing gates first and toned, then by net, then the gates
-  whose cost is not read ("no free data"), `reconciliation.sentence` and the refusals.
+  whose cost is not read ("no free data"), `reconciliation.sentence` and the refusals, and
+  a line saying what passing is worth is derived from published transition rates.
 - **Key insights**: a failing gate (`funds` false) is a fact in the pipeline row's one
   tooltip, with no mark (key-insights.md R4.2).
 - Builders: `_gate_*` in `frontend/streamlit_app.py`, tested on saved payloads in

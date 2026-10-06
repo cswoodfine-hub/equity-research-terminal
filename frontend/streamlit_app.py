@@ -3958,8 +3958,10 @@ def _gate_steps(s: dict) -> list:
 
 
 def _gate_head(s: dict) -> str:
-    """The section's chip: the gate, when it falls, and its study."""
-    return " · ".join(x for x in (s.get("label"), s.get("when"), s.get("nct")) if x)
+    """The section's chip: the gate, when it falls, its study, and where its legs come
+    from, "derived" or "stated legs", as the range's chip says it."""
+    legs = "stated legs" if s.get("stated") else "derived"
+    return " · ".join(x for x in (s.get("label"), s.get("when"), s.get("nct"), legs) if x)
 
 
 def _gate_lines(s: dict) -> list:
@@ -4134,7 +4136,9 @@ def _gate_book_html(payload: dict) -> str:
             f"{r.get('name')} ({w[:1].lower() + w[1:]})" for r, w in zip(refused, why))
             + ".")
     lines.append(f"A share, after tax at the company's share of each programme, at "
-                 f"{_GATE_PRICES}; a view beside the value, never in it.")
+                 f"{_GATE_PRICES}. What passing is worth is derived from published "
+                 f"transition rates and a failure is nil; a view beside the value, never "
+                 f"in it.")
     out += [f'<div class="byline">{html_escape(x)}</div>' for x in lines]
     return "".join(out)
 
@@ -8911,7 +8915,11 @@ def _dr_list(rows: list, kind: str) -> str:
         dated = kind == "driver" and not r.get("model")
         marker = ""
         if kind == "driver" and r.get("model"):
-            marker = '<span class="dr-m" title="Model output">M</span>'
+            # A stake's marker says what kind of stake it is, derived or stated, as the
+            # row's tooltip does, since the marker's own title is what shows over it.
+            said = (f"Model output, {r['lead_note']}" if r.get("lead_note")
+                    else "Model output")
+            marker = f'<span class="dr-m" title="{_dr_attr(said)}">M</span>'
         tip = _dr_tip(kind, r)
         href = _dr_href(r)
         attrs = f' title="{_dr_attr(tip)}"' if tip else ""

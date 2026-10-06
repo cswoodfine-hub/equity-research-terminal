@@ -155,7 +155,7 @@ def test_the_pipeline_value_cell_carries_the_flag_and_nothing_for_a_part_year(vi
 # --- the Forecast tab: the Next gate block --------------------------------------------------
 def test_the_next_gate_block_reads_the_gate_its_legs_its_cost_and_the_earliest_approval(view):
     s = summary(view, "LLY_1514")
-    assert view["_gate_head"](s) == "Phase 3 readout · est. Jan 2028 · NCT07282600"
+    assert view["_gate_head"](s) == "Phase 3 readout · est. Jan 2028 · NCT07282600 · derived"
     rows = view["_gate_rows"](s)
     assert [r["k"] for r in rows] == ["chance", "if it passes", "if it fails", "held",
                                       "cost to reach", "net", "at DiMasi's level",
@@ -209,7 +209,8 @@ def test_a_stated_pos_reads_implied_odds_and_says_the_stated_figure_governs(view
 
 def test_a_gate_study_past_its_date_reads_due_and_a_danish_cost_says_its_currency(view):
     s = summary(view, "NVO_2337")
-    assert view["_gate_head"](s) == "Phase 3 readout · due since Oct 2024 · NCT05567796"
+    assert view["_gate_head"](s) == ("Phase 3 readout · due since Oct 2024 · NCT05567796 · "
+                                      "derived")
     by = rows_by_key(view, s)
     assert by["cost to reach"]["note"] == "725mm DKK after tax, 2018 prices, not restated"
     assert by["cost to reach"]["v"] == "0.02"                  # a share, as the verdict reads it
@@ -217,7 +218,7 @@ def test_a_gate_study_past_its_date_reads_due_and_a_danish_cost_says_its_currenc
 
 def test_an_fda_gate_a_stated_pos_implies_reads_the_floor_from_the_registry_flagged(view):
     s = summary(view, "VRTX_2915")
-    assert view["_gate_head"](s) == "FDA decision · no date on file"
+    assert view["_gate_head"](s) == "FDA decision · no date on file · derived"
     by = rows_by_key(view, s)
     assert by["chance"]["note"] == "stated PoS implies a filing"
     assert "held" not in by
@@ -304,6 +305,8 @@ def test_stated_legs_show_the_stated_failure_leg_never_the_conventions_nil(view)
     assert by["if it passes"]["v"] == "8.23"
     # No gate odds, so no picture of a chance it fails; the table says what the legs are.
     assert view["_gate_steps"](s) == []
+    assert view["_gate_head"](s) == ("Phase 3 readout · est. Jan 2028 · NCT07282600 · "
+                                      "stated legs")
     assert view["_gate_lines"](s)[0].startswith("Stated success and failure legs are on file")
     for words in [text_of(view["_gate_table_html"](view["_gate_rows"](s)))] + \
             view["_gate_lines"](s):
@@ -479,6 +482,23 @@ def test_a_resolve_under_a_stated_pos_says_the_stated_figure_still_governs(view)
     assert view["_stake_resolved_note"]({"route": "stated legs",
                                          "stated_pos_governs": True}) == ""
     assert view["_stake_resolved_note"](None) == ""
+
+
+def test_the_company_table_says_its_success_legs_are_derived(view):
+    words = text_of(view["_gate_book_html"](load("AZN_development")))
+    assert ("What passing is worth is derived from published transition rates and a failure "
+            "is nil") in words
+
+
+def test_a_derived_stakes_marker_says_derived_where_its_title_shows(view):
+    row = {"lead": "+0.45", "text": "LY3537982 · Phase 3 readout", "model": True,
+           "asset": "LY3537982", "value_kind": "stake", "pct_of_price": 0.0005, "title": "",
+           "lead_note": "modelled swing, derived from published transition rates"}
+    markup = view["_dr_list"]([row], "driver")
+    assert ('<span class="dr-m" title="Model output, modelled swing, derived from published '
+            'transition rates">M</span>') in markup
+    plain = view["_dr_list"]([dict(row, value_kind="asset_value", lead_note=None)], "driver")
+    assert '<span class="dr-m" title="Model output">M</span>' in plain
 
 
 def test_a_derived_stake_in_drivers_says_where_its_legs_come_from(view):
