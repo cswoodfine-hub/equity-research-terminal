@@ -52,7 +52,8 @@ def test_a_derived_stake_is_npv_times_the_success_leg(stakes):
             assert row["swing"] == pytest.approx(npv * row["pos_success"], rel=1e-9)
             assert row["p_gate"] * row["pos_success"] == pytest.approx(row["pos_now"],
                                                                       rel=1e-12)
-            assert row["resolvable"] == (row["gate"] == "p3_to_nda"), (ticker, row["id"])
+            assert row["resolvable"] == (V.DERIVED_RESOLVE and row["gate"] == "p3_to_nda"), \
+                (ticker, row["id"])
 
 
 def test_every_unpriced_catalyst_names_a_published_reason(stakes):

@@ -18,6 +18,13 @@ import forecast_view as V
 import pos_granular as PG
 
 
+@pytest.fixture(autouse=True)
+def _derived_resolve_on(monkeypatch):
+    # These tests cover the resolve path itself; the switch that keeps it off on the
+    # live book until main carries the derivation fix is tested on its own below.
+    monkeypatch.setattr(V, "DERIVED_RESOLVE", True)
+
+
 def _seed(tmp_path):
     path = str(tmp_path / "stakes.db")
     db.init(path)
@@ -606,3 +613,13 @@ def test_a_priced_readout_other_than_the_gate_study_says_why(tmp_path, big):
     assert row["gate_note"].startswith("The gate study NCT00000001 passed its completion")
     assert row["held"] is None, "a miss on the last open study leaves nothing to hold"
     _house_style(row["gate_note"])
+
+
+def test_derived_outcomes_are_not_recorded_while_the_switch_is_off(tmp_path, big, monkeypatch):
+    monkeypatch.setattr(V, "DERIVED_RESOLVE", False)
+    path = _phase_3_book(tmp_path)
+    row = V.catalyst_stakes(path, "ABBV")["priced"][0]
+    assert row["legs_basis"] == "derived" and row["gate"] == "p3_to_nda"
+    assert row["resolvable"] is False and row["resolve_note"] == V.DERIVED_RESOLVE_NOTE
+    with pytest.raises(ValueError, match="switched off"):
+        V.resolve_catalyst(path, "ABBV", row["id"], "met")

@@ -647,6 +647,13 @@ LEGS = ("pos_success", "pos_failure")
 DECISION_KINDS = ("PDUFA", "regulatory decision")
 ADVISORY_KINDS = ("AdCom", "EMA decision")
 # Why a priced derived row cannot be resolved by a click in this version.
+# Recording a derived outcome writes a resolved catalyst the daily refresh has to keep. The
+# 06:00 job runs the main branch, whose derive_readouts deletes a resolved derived row once
+# its trial leaves the window, so a recorded outcome would be lost the next morning. Off
+# until main carries d6dba2f and 8e09039; an analyst's stated legs are not affected.
+DERIVED_RESOLVE = False
+DERIVED_RESOLVE_NOTE = ("Recording this outcome is switched off until the daily refresh "
+                        "keeps resolved readouts.")
 RESOLVE_NOTES = {
     "p2_to_p3": ("A Phase 2 result moves the model when its Phase 3 starts or the "
                  "programme is retired."),
@@ -1005,8 +1012,10 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                        "held": held, "basis": legs["basis"], "trial": nct,
                        "gate_trial": gate_trial, "gate_note": gate_note,
                        "stated_pos": legs["stated"],
-                       "resolvable": legs["gate"] == "p3_to_nda",
-                       "resolve_note": RESOLVE_NOTES.get(legs["gate"])})
+                       "resolvable": DERIVED_RESOLVE and legs["gate"] == "p3_to_nda",
+                       "resolve_note": (RESOLVE_NOTES.get(legs["gate"])
+                                        or (None if DERIVED_RESOLVE
+                                            else DERIVED_RESOLVE_NOTE))})
     return priced, unpriced
 
 
