@@ -364,6 +364,24 @@ def test_the_dialog_never_lists_a_condition_as_an_asset(payload):
     assert any(c.startswith("○ 31 Oct Truqap") for c in cells)
 
 
+def test_a_quadrant_name_is_never_set_on_the_median_line(payload):
+    """With three model values (a read taken while the API was still valuing the group)
+    the median sits just under zero, and "Beat XLV, above model" was set across it."""
+    thin = copy.deepcopy(payload)
+    for t, c in thin["companies"].items():
+        if t not in ("AZN", "ABBV", "AMGN"):
+            c["model"]["upside"] = None
+    for q in (payload, thin):
+        for w in ("1m", "3m", "1y"):
+            svg = UC.hero_map(q, w)
+            med_y = float(re.search(r'<line x1="[\d.]+" y1="([\d.]+)" x2="[\d.]+" y2="[\d.]+" '
+                                    r'stroke="[^"]+" stroke-dasharray="2 4"', svg).group(1))
+            for m in re.finditer(r'<text x="[\d.]+" y="([\d.]+)"[^>]*class="cap halo"[^>]*>'
+                                 r'([^<]*)</text>', svg):
+                y = float(m.group(1))
+                assert not (y - 9 <= med_y <= y + 2), (w, m.group(2))
+
+
 def test_universe_css_is_tokens_only_and_reaches_the_page_and_the_frame(monkeypatch):
     css = UNIVERSE_CSS.read_text()
     assert not HEX.findall(css), "a hex colour in universe.css"

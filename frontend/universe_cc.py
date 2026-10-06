@@ -582,6 +582,7 @@ def hero_map(p, w=None):
             placed.append(rect)
             break
 
+    med_band = (ML, Y(med) - 0.5, ML + pw, Y(med) + 0.5)
     # Quadrant names: the first clear corner of each quadrant.
     quads = (("LAGGED XLV, MODEL UPSIDE", (ML, X(0)), (MT, Y(0))),
              ("BEAT XLV, MODEL UPSIDE", (X(0), ML + pw), (MT, Y(0))),
@@ -600,7 +601,8 @@ def hero_map(p, w=None):
                         (xx + wd) if anc == "start" else xx, yy + 2)
                 if rect[0] < qx0 or rect[2] > qx1:
                     continue
-                if clear(rect):
+                # The dashed group median runs the plot's width; a name is not set on it.
+                if clear(rect) and not rects_hit(rect, med_band, 1):
                     best = (xx, yy, anc, rect)
                     break
             if best:
