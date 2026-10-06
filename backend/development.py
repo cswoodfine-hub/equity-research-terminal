@@ -34,7 +34,12 @@ no price index:
 
 Only studies in an indication the forecast values count. A study in another disease, or
 one whose MeSH terms match no indication, is listed and its remaining cost shown as one
-separate figure, never in the headline. Costs are converted from US dollars into the
+separate figure, never in the headline. Where no open study at the gate sits in an
+indication the forecast values, and none has been sunk into it, the cost to reach the gate
+is not read: it is None with the reason, never a nil that would read as a free gate, and
+the company view lists the line under ``uncosted``.
+
+Costs are converted from US dollars into the
 asset's reporting currency at the latest ECB rate, taken after tax at the asset's tax rate
 where the owner is on the pharma engine, at the company's economics share (a partner's
 cost is assumed to follow its share of the economics), and discounted at the asset's
@@ -422,6 +427,20 @@ def _future_phase3(conn, asset_id, mesh, first_studies, rates, table, area_src, 
     return stage
 
 
+def _unread(stage: dict) -> dict:
+    """The first stage when no open study at the gate's phases sits in an indication the
+    forecast values. Nothing has been sunk into the gate and nothing is counted towards
+    it, so its cost is not nil but unknown: no free data, never a zero that would read as
+    a gate costing nothing to reach."""
+    n = len(stage["outside"])
+    where = (f": {n} open {'study sits' if n == 1 else 'studies sit'} outside them, in the "
+             f"separate figure" if n else "")
+    return {"unread": True, "cost_usd_mm": None, "full_usd_mm": None, "spend": [],
+            "grade": None,
+            "basis": ("no open study at this gate is in an indication the forecast values, "
+                      "so what reaching it costs cannot be read from the registry" + where)}
+
+
 def _mesh_ids(study, mesh) -> set:
     found = indication_mapping.indications_for(
         study["conditions"], indication_mapping.parse_browse(study["mesh_terms"]))
@@ -464,7 +483,9 @@ def stages(conn, asset_id: int, legs: dict, table: dict, area_src: str, today: d
             first_studies = studies
             stage = _registry_stage(g, studies, rates, today, date=legs.get("date"),
                                     date_basis=legs.get("date_basis"))
-            if legs.get("due") and not stage["cost_usd_mm"]:
+            if not stage["studies"]:
+                stage.update(_unread(stage))
+            elif legs.get("due") and not stage["cost_usd_mm"]:
                 stage["basis"] = ("the gate study has passed primary completion, so what "
                                   "it cost is sunk and nothing is left to spend on it")
         elif g == "p3_to_nda":
@@ -506,7 +527,11 @@ def ladder(stages_: list, success_leg: float, costs: list) -> dict:
     passes'; it equals npv x share to the success leg's four-place rounding, and taking
     it this way keeps the reconciliation exact: today, after every stage's cost, is
     rNPV x share less the risked cost of all stages ahead. ``value_if_passed_floored`` is
-    the same induction with any stage a sponsor would not fund taken at nil."""
+    the same induction with any stage a sponsor would not fund taken at nil.
+
+    Only the first stage's cost can be None (``_unread``): the values if each gate passes
+    rest on later costs alone and still read, while that stage's net, break-even and the
+    totals that need its cost are None rather than computed on a nil."""
     n = len(stages_)
     odds_after = math.prod(s["p"] for s in stages_[1:])
     top = success_leg / odds_after if odds_after > 0 else 0.0
@@ -521,17 +546,21 @@ def ladder(stages_: list, success_leg: float, costs: list) -> dict:
     rows = []
     for k, stage in enumerate(stages_):
         value, p, cost = values[k], stage["p"], costs[k]
+        net = (p * value - cost) if cost is not None else None
         rows.append({"gate": stage["gate"], "label": stage["label"], "date": stage["date"],
                      "p": p, "cost": cost, "value_if_passed": value,
-                     "ev_at_gate": p * value, "net": p * value - cost,
-                     "breakeven_p": (cost / value) if value > 0 else None,
-                     "funds": p * value - cost >= 0,
+                     "ev_at_gate": p * value, "net": net,
+                     "breakeven_p": (cost / value) if cost is not None and value > 0
+                     else None,
+                     "funds": (net >= 0) if net is not None else None,
                      "value_if_passed_floored": floored[k],
                      "floored": abs(floored[k] - value) > 1e-9 * max(1.0, abs(value))})
-    risked = costs[0] + stages_[0]["p"] * later[0]
+    first = costs[0]
     return {"label": "after later trial costs", "rows": rows, "value_on_approval": top,
-            "risked_cost": risked,
-            "value_today": stages_[0]["p"] * values[0] - costs[0]}
+            "risked_cost": (first + stages_[0]["p"] * later[0]) if first is not None
+            else None,
+            "value_today": (stages_[0]["p"] * values[0] - first) if first is not None
+            else None}
 
 
 def _refuse(base: dict, reason: str, why: str) -> dict:
@@ -624,9 +653,12 @@ def _for_asset(conn, company, asset, today, *, peers=None, table=None) -> dict:
                        "study can be counted against it.")
 
     stages_ = stages(conn, asset_id, legs, table, area_src, today, mesh, peers)
-    costs = [_money(s, rate=wacc, anchor=anchor, to_ccy=to_ccy, keep=keep) for s in stages_]
+    # A stage whose cost cannot be read stays None all the way to the headline.
+    costs = [None if s.get("unread") else
+             _money(s, rate=wacc, anchor=anchor, to_ccy=to_ccy, keep=keep) for s in stages_]
     ratio = dimasi_ratio(table)
-    high_costs = [_money(s, rate=wacc, anchor=anchor, to_ccy=to_ccy, keep=keep,
+    high_costs = [None if s.get("unread") else
+                  _money(s, rate=wacc, anchor=anchor, to_ccy=to_ccy, keep=keep,
                          scale=ratio.get(STAGE_PHASE[s["gate"]], 1.0)) for s in stages_]
     shares = forecast_view._diluted_shares(conn, company["id"])
 
@@ -639,6 +671,9 @@ def _for_asset(conn, company, asset, today, *, peers=None, table=None) -> dict:
     first = stages_[0]
 
     def headline(cost):
+        if cost is None:
+            return {"cost": None, "cost_per_share": None, "net": None,
+                    "net_per_share": None, "breakeven_p": None, "funds": None}
         net = p_gate * success_leg - cost
         return {"cost": cost, "cost_per_share": per_share(cost), "net": net,
                 "net_per_share": per_share(net),
@@ -688,6 +723,7 @@ def _for_asset(conn, company, asset, today, *, peers=None, table=None) -> dict:
             "rnpv": built["rnpv"] * portion, "rnpv_per_share": per_share(built["rnpv"] * portion),
             **point,
             "cost_usd_mm": first["cost_usd_mm"], "full_usd_mm": first["full_usd_mm"],
+            "unread": bool(first.get("unread")),
             "route": first["route"], "grade": first["grade"], "basis": first["basis"],
             "high": {**high, "label": HIGH_LABEL},
             "held": legs.get("held"), "legs_basis": legs.get("basis"),
@@ -745,11 +781,14 @@ def for_company(db_path, ticker: str, today=None) -> dict | None:
     book_rd = sum(r.get("rd") or 0.0 for y, r in pnl_rows if y == first_year)
     spend = sum(r["next_12m"]["named_usd_mm"] * r["portion"] * to_ccy for r in rows)
     ratio = (spend / book_rd) if book_rd else None
-    failing = sorted((r for r in rows if not r["gate"]["funds"]),
+    failing = sorted((r for r in rows if r["gate"]["funds"] is False),
                      key=lambda r: r["gate"]["net"])
-    passing = sorted((r for r in rows if r["gate"]["funds"]),
+    passing = sorted((r for r in rows if r["gate"]["funds"] is True),
                      key=lambda r: -(r["gate"]["net_per_share"] if r["gate"]["net_per_share"]
                                      is not None else r["gate"]["net"]))
+    # No open study at the gate sits in a modelled indication: the cost is not read.
+    uncosted = sorted((r for r in rows if r["gate"]["funds"] is None),
+                      key=lambda r: r["name"] or "")
     sentence = None
     if rows and book_rd:
         sentence = (f"The modelled pipeline's registered trials spend about "
@@ -758,7 +797,7 @@ def for_company(db_path, ticker: str, today=None) -> dict | None:
                     f"{first_year}. The R&D ratio already pays for it, so none of it is "
                     f"taken off the value.")
     return {"ticker": rollup["ticker"], "currency": currency, "price_year": SOURCE_PRICE_YEAR,
-            "failing": failing, "rows": passing, "refused": refused,
+            "failing": failing, "rows": passing, "uncosted": uncosted, "refused": refused,
             "reconciliation": {"named_spend_12m": spend, "book_rd": book_rd,
                                "book_rd_year": first_year, "ratio": ratio,
                                "basis": ("registered studies' spend in the next 12 months at "

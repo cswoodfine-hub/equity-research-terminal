@@ -39,6 +39,14 @@ Because p_gate x pos_success is the probability in force, `p_gate x success leg`
 rNPV at the company's share, so the net is that rNPV less the cost to the gate. It breaks
 even at `cost / success leg`. A gate "funds" when the net is not negative.
 
+Where no open study at the gate's phases sits in an indication the forecast values, and
+nothing has been sunk into the gate, the cost to reach it is not read. `unread` is true,
+`cost`, `net`, `breakeven_p` and `funds` are None, and the basis says how many studies sit
+outside. A nil there would read as a gate that costs nothing to reach and breaks even at
+0%, which no source says. The values if each gate passes still read, since they rest on
+later costs only; the ladder's first net, its risked cost and today's value after cost are
+None with it.
+
 ## 3. The ladder, after later trial costs
 
 Behind the headline sits the backward induction to approval over every gate in the split:
@@ -150,7 +158,8 @@ Returned as `{ok: false, reason, why}`, never as a guess (`development.REFUSALS`
   404 for an unknown ticker or an asset the company cannot see (the verdict's
   `_accessible` rule).
 - `GET /companies/{ticker}/development`: every counted pipeline line, `failing` first then
-  `rows` by net per share, `refused`, and `reconciliation`: the registered studies' spend in
+  `rows` by net per share, `uncosted` (the cost to the gate is not read), `refused`, and
+  `reconciliation`: the registered studies' spend in
   the next 12 months at the company's share, pre-tax and unrisked, against the R&D the book
   charges its marketed lines and streams in the first forecast year. Off the `/forecast/`
   prefix so it cannot collide with `/forecast/{asset_id}`.

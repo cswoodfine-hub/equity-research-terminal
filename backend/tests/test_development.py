@@ -286,6 +286,35 @@ def test_a_study_past_primary_completion_has_nothing_left_to_spend(tmp_path, big
     assert "sunk" in got["gate"]["basis"]
 
 
+def test_a_gate_with_no_study_in_a_modelled_indication_is_unread_not_free(tmp_path, big):
+    """Its only open Phase 3 is in amyloidosis, which the forecast does not value, and
+    nothing has been sunk into the gate. The cost to reach it is unknown: None with the
+    reason, never a nil that reads as a gate costing nothing and breaking even at 0%."""
+    path, conn = _book(tmp_path)
+    _trial(conn, "NCT00000002", 7, enrollment=300, disease=AMYLOID, pcd="2029-06-30")
+    conn.close()
+    got = D.for_asset(path, "ABBV", 7, TODAY)
+    gate = got["gate"]
+    assert got["ok"] is True and gate["gate"] == "p3_to_nda" and gate["trial"] is None
+    assert gate["unread"] is True and gate["due"] is False
+    for key in ("cost", "cost_per_share", "net", "net_per_share", "breakeven_p", "funds",
+                "cost_usd_mm", "full_usd_mm", "grade"):
+        assert gate[key] is None, key
+    assert gate["high"]["cost"] is None and gate["high"]["funds"] is None
+    assert "cannot be read" in gate["basis"] and "1 open study sits outside" in gate["basis"]
+    # What passing is worth still reads; only what needs the unread cost does not.
+    assert gate["success_leg"] > 0 and gate["ev"] == pytest.approx(gate["rnpv"])
+    ladder = got["ladder"]
+    assert ladder["value_today"] is None and ladder["risked_cost"] is None
+    first, review = ladder["rows"]
+    assert first["cost"] is None and first["net"] is None and first["funds"] is None
+    assert first["value_if_passed"] > 0 and review["cost"] > 0 and review["funds"] is True
+    assert [s["nct_id"] for s in got["outside"]["studies"]] == ["NCT00000002"]
+    company = D.for_company(path, "ABBV", TODAY)
+    assert [r["asset_id"] for r in company["uncosted"]] == [7]
+    assert company["failing"] == [] and company["rows"] == []
+
+
 def test_a_kroner_asset_is_converted_at_the_stored_rate(tmp_path, big):
     path, conn = _book(tmp_path, currency="DKK")
     _trial(conn, "NCT00000001", 7)
