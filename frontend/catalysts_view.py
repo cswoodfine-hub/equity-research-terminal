@@ -2019,10 +2019,13 @@ def _odds_chain(r) -> str:
             f'<span><b>{pct(product, 1)}</b> published</span></div>' + tail)
 
 
-def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="") -> str:
+def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="",
+                can_record=None) -> str:
     """The full detail of one gate: its legs as a table, the odds, what is held behind it,
     the cost to reach it (the Next gate block's tables, passed in), every study behind it
-    on one timeline, its dates and clock, where it sits in its market, and the evidence."""
+    on one timeline, its dates and clock, where it sits in its market, and the evidence.
+    ``can_record`` is whether the stake row takes a recorded outcome, by the At stake
+    list's rule; where it is not given, the row's own flag."""
     r = _gate(p, gid)
     if r is None:
         return '<div class="cx cx-dlg"><div class="cx-empty">This gate is not on the book.</div></div>'
@@ -2057,7 +2060,9 @@ def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="") -> str:
                                  ("pass leg", (r.get("evidence") or {}).get("success")),
                                  ("miss leg", (r.get("evidence") or {}).get("failure"))) if v)
     stake = r.get("stake") or {}
-    if stake.get("resolvable"):
+    if can_record is None:
+        can_record = stake.get("resolvable") is True and stake.get("priced", True) is not False
+    if can_record:
         miss_txt = (f"PoS stays {pct(held.get('pos'))} while {_plural(held.get('open') or 0, 'Phase 3')} "
                     f"stay open; nil only if they miss too" if r.get("held_ps") is not None
                     else f"PoS to {pct(r.get('pos_failure'))}, {usd(r['failure'])} a share")
@@ -2068,8 +2073,8 @@ def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="") -> str:
                   f'<div class="cx-rec-c"><div class="k">If you record missed</div><div class="v m">'
                   f'{usd(r["held_ps"] if r.get("held_ps") is not None else r["failure"])}</div>'
                   f'<div class="s">{esc(miss_txt)}</div></div></div>'
-                  f'<div class="rs-f">Two clicks each, under the buttons below: arm, then confirm. It writes '
-                  f'to the book.</div>')
+                  f'<div class="rs-f">Record it with Record the outcome on the card: two clicks, arm '
+                  f'then confirm. It writes to the book.</div>')
     else:
         record = (f'<div class="cx-dh2">Record the outcome</div>'
                   f'<div class="rs-f">{esc(resolve_text(r))}</div>')

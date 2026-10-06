@@ -136,23 +136,29 @@ def _open_dialog(api_base: str, ticker: str, p: dict, gid, kit) -> None:
     @st.dialog(CV.dialog_title(p, gid), width="large")
     def _body():
         cost, ladder, studies = dialog_parts(kit, r, p.get("development_error"))
-        _show(CV.dialog_html(p, gid, cost, ladder, studies))
-        _record(api_base, ticker, r, kit, where="dialog")
+        _show(CV.dialog_html(p, gid, cost, ladder, studies, can_record=_resolvable(r, kit)))
 
     _body()
 
 
-def _record(api_base: str, ticker: str, r, kit, where: str = "card") -> None:
-    """The record control: met and missed, two clicks each, drawn only where the stake row
-    is priced and the back end marks it resolvable; otherwise the row's own note."""
+def _resolvable(r, kit) -> bool:
+    """Whether the gate's stake row takes a recorded outcome, by the At stake list's own
+    rule: priced and marked resolvable by the back end."""
     stake = (r or {}).get("stake")
-    if kit is not None and stake and kit.stake_resolvable(stake):
-        if where == "card":
-            with st.popover("Record the outcome"):
-                kit.stake_row(st.container(), api_base, ticker, stake)
-        else:
-            kit.stake_row(st.container(), api_base, ticker, stake)
-    elif where == "card":
+    return bool(kit is not None and stake and kit.stake_resolvable(stake))
+
+
+def _record(api_base: str, ticker: str, r, kit) -> None:
+    """The record control on the card: met and missed, two clicks each, in a popover,
+    drawn only where the stake row takes a recorded outcome; otherwise the row's own note.
+
+    The control is the At stake row's own (``kit.stake_row``). Its first click arms and
+    reruns the app, which a popover survives and a dialog does not, so the dialog shows
+    what each outcome would do and sends the reader here."""
+    if _resolvable(r, kit):
+        with st.popover("Record the outcome"), st.container(key="cx_rec"):
+            kit.stake_row(st.container(), api_base, ticker, r["stake"])
+    else:
         st.caption(CV.resolve_text(r))
 
 

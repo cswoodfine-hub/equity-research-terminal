@@ -545,6 +545,29 @@ def test_full_detail_opens_the_dialog():
     assert "Cost to reach the gate" in md
 
 
+def test_the_dialog_sends_the_record_to_the_cards_control():
+    """The At stake row's first click arms and reruns the app, which closed the dialog, so
+    an outcome could never be confirmed there. The dialog says what each outcome would do
+    and points to the card's popover, which survives the rerun; met and missed are drawn
+    once, in the popover."""
+    tweak = ("gid = catalysts_page.CV.default_gate(payload)\n"
+             "for g in payload['gates']:\n"
+             "    if g['asset_id'] == gid:\n"
+             "        g['stake']['resolvable'] = True\n")
+    test = _page(tweak)
+    next(b for b in test.button if b.label == "Full detail").click().run()
+    assert not test.exception, test.exception
+    md = _md(test)
+    assert "If you record met" in md and "Record the outcome on the card" in md
+    labels = [b.label for b in test.button]
+    assert labels.count("met") == 1 and labels.count("missed") == 1
+    # a row the back end does not mark resolvable shows its note in the dialog too
+    test = _page()
+    next(b for b in test.button if b.label == "Full detail").click().run()
+    md = _md(test)
+    assert "If you record met" not in md and "met" not in [b.label for b in test.button]
+
+
 def test_page_without_the_component_draws_inline_and_picks_by_list():
     test = _page("catalysts_page._catnav = None")
     md = _md(test)

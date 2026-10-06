@@ -67,6 +67,12 @@
 .st-key-cx_acts button { min-height: 28px; height: 28px; padding: 0 12px; font-size: 12px; }
 .st-key-cx_acts [data-testid="stCaptionContainer"] { font-size: 10.5px; line-height: 1.35;
   margin: 0; }
+/* The record control in the card's popover is the At stake row's own, whose columns are
+   6 to 1: the buttons' column keeps room for "missed" and "sure?" on one line each. */
+.st-key-cx_rec [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:has([data-testid="stHorizontalBlock"]) {
+  flex: 0 0 176px !important; width: 176px !important; min-width: 176px !important; }
+.st-key-cx_rec [data-testid="stColumn"] [data-testid="stColumn"] { min-width: 0 !important; }
+.st-key-cx_rec button { white-space: nowrap; min-height: 30px; padding: 0 10px; }
 .cx-src { font-size: 11px; color: var(--muted); text-decoration: none;
   border-bottom: 1px solid var(--rule-strong); white-space: nowrap; }
 .cx-src:hover { color: var(--up); }
