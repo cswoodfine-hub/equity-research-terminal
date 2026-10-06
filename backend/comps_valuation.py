@@ -778,17 +778,27 @@ def _record(u: _Universe, co: dict, stage: dict) -> tuple:
     price = px[-1][1] if px else None
     price_as_of = px[-1][0] if px else None
     prev_close = px[-2][1] if len(px) > 1 else None
+    # The week: the close five sessions back, the move the Universe board draws. Sessions
+    # rather than calendar days, so a holiday does not shorten the week.
+    close_5d = px[-6][1] if len(px) > 5 else None
     market: dict = {"price": price, "price_currency": u.price_currency.get(t),
                     "price_as_of": price_as_of, "prev_close": prev_close,
                     "change_1d": (price / prev_close - 1.0) if price and prev_close else None,
+                    "close_5d": close_5d,
+                    "close_5d_as_of": px[-6][0] if len(px) > 5 else None,
+                    "change_5d": (price / close_5d - 1.0) if price and close_5d else None,
                     "quote_fetched_at": (u.lineage.get(t, {}).get("prices") or {}).get("live"),
                     "ttm_change": (u.screen.get(t) or {}).get("ttm_price_change")}
     if price is None:
-        for key in ("price", "price_as_of", "prev_close", "change_1d", "range_52w"):
+        for key in ("price", "price_as_of", "prev_close", "change_1d", "range_52w",
+                    "close_5d", "close_5d_as_of", "change_5d"):
             rec.reason(f"market.{key}", "no_prices")
     elif prev_close is None:
         rec.reason("market.prev_close", "insufficient_history")
         rec.reason("market.change_1d", "insufficient_history")
+    if price is not None and close_5d is None:
+        for key in ("close_5d", "close_5d_as_of", "change_5d"):
+            rec.reason(f"market.{key}", "insufficient_history")
     if market["price_currency"] is None:
         rec.reason("market.price_currency", "no_prices" if price is None else "no_free_data")
     if market["quote_fetched_at"] is None:

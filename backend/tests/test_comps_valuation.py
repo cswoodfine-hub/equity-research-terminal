@@ -417,6 +417,19 @@ def test_stale_price_and_the_spark(out, valuation_db, monkeypatch):
     assert again["market"]["spark_90d"] == spark
 
 
+def test_the_week_reads_five_sessions_back(out):
+    """change_5d is the close against the close five sessions earlier, the move the
+    Universe board draws. Sessions, not calendar days, so a holiday does not shorten it."""
+    pfe, lly = _by(out)["PFE"], _by(out)["LLY"]
+    m = pfe["market"]
+    assert m["price_as_of"] == "2026-09-22"
+    assert m["close_5d_as_of"] == "2026-09-15" and m["close_5d"] == pytest.approx(28.74)
+    assert m["change_5d"] == pytest.approx(28.79 / 28.74 - 1)
+    # Two closes on file: no week, and the reason says why rather than a zero.
+    assert lly["market"]["change_5d"] is None
+    assert lly["na"]["market.change_5d"] == "insufficient_history"
+
+
 def test_spark_keeps_first_and_last(valuation_db):
     conn = db.get_connection(valuation_db)
     try:
