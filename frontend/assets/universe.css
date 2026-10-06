@@ -455,6 +455,14 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
   .uv-exp, .uv-polg { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
   .uv-sms { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
+/* The board's frame is the page less its gutters (17px and 16px), so inside the frame
+   the page's 1180px breakpoint falls at 1147px. Between the two the page is one screen,
+   and the frame keeps the hero's two columns and one-line legends rather than stacking
+   them under a page that does not. */
+@media (min-width: 1147px) and (max-width: 1179.98px) {
+  .uv-frame .uv-hero { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); row-gap: 0; }
+  .uv-frame .uv-leg { flex-wrap: nowrap; overflow: hidden; }
+}
 @media (max-width: 899.98px) {
   .uv-sp { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .uv-wk2, .uv-rates { grid-template-columns: minmax(0, 1fr); }

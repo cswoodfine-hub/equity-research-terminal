@@ -382,6 +382,26 @@ def test_a_narrow_ranking_cell_drops_its_unit_before_its_place_meets_its_value()
         assert 0 < widths[sel.strip()] - float(px) < 2, (sel, px, widths[sel.strip()])
 
 
+def test_the_board_frame_stacks_at_the_pages_breakpoint_not_its_own():
+    """The uvboard frame is the page's width less its 33px of gutters, so a media query
+    read inside it fires 33px of viewport later than the page's: from 1180 to 1212 wide
+    the frame stacked the hero under a one-screen page, which then scrolled. Inside the
+    frame the hero keeps two columns down to 1147px."""
+    css = UNIVERSE_CSS.read_text()
+    page = re.search(r"@media \(max-width: ([\d.]+)px\) \{\s*/\* The lead drops", css)
+    assert page and float(page.group(1)) == 1179.98
+    m = re.search(r"@media \(min-width: ([\d.]+)px\) and \(max-width: ([\d.]+)px\) \{([^@]*)\}",
+                  css)
+    assert m, "no frame breakpoint"
+    lo, hi, body = float(m.group(1)), float(m.group(2)), m.group(3)
+    assert (lo, hi) == (1180 - 33, 1179.98)
+    assert re.search(r"\.uv-frame \.uv-hero \{[^}]*grid-template-columns: minmax\(0, 7fr\) "
+                     r"minmax\(0, 5fr\)", body)
+    assert re.search(r"\.uv-frame \.uv-leg \{[^}]*flex-wrap: nowrap", body)
+    # It comes after the page's block, so it wins inside the frame.
+    assert css.index(m.group(0)) > page.start()
+
+
 def test_the_week_tag_column_holds_the_longest_tag():
     """Each ranked row's tag fits its grid column: "approval" ran 7px into the headline
     beside it. A tag is 9.5px mono capitals at 0.08em, after a 3px rule and 6px of air."""
