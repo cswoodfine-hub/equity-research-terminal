@@ -3780,7 +3780,11 @@ def _gate_summary(verdict: dict, dev: dict = None, dev_error: str = None) -> dic
     The legs come from the development payload where it read, else from the verdict: its
     success leg and risked value are the rollup gate's (base case), so the cost and the
     net sit on the same figures as the legs. A refusal or a failed read keeps the legs
-    and says why there is no cost; an unread cost is "no free data", never nil."""
+    and says why there is no cost; an unread cost is "no free data", never nil.
+
+    The failure leg is nil, the model's convention, for derived legs; where success and
+    failure legs are stated on file it is the stated one, which the cost view refuses, so
+    it comes from the verdict."""
     v = verdict if isinstance(verdict, dict) else {}
     vg = v.get("gate") if isinstance(v.get("gate"), dict) else {}
     d = dev if isinstance(dev, dict) else {}
@@ -3802,6 +3806,8 @@ def _gate_summary(verdict: dict, dev: dict = None, dev_error: str = None) -> dic
         "pos_success": g.get("pos_success"),
         "held": held, "legs": vg.get("basis") or g.get("legs_basis") or "",
         "stated": vg.get("legs_basis") == "stated",
+        "failure": (vg.get("per_share_failure") if vg.get("legs_basis") == "stated"
+                    else 0.0),
         "currency": d.get("currency") or "USD", "base_case": bool(dg),
         "launch": v.get("launch") if isinstance(v.get("launch"), dict) else {},
         "cost": None, "problem": None}
@@ -3844,15 +3850,22 @@ def _gate_rows(s: dict) -> list:
     rows = []
     evidence = _GATE_EVIDENCE.get(s.get("evidence"), s.get("evidence") or "")
     rows.append({"k": "chance", "v": _gate_pct(s.get("p")),
-                 "note": s.get("placed") or evidence, "tip": s.get("legs")})
+                 "note": (s.get("placed") or evidence
+                          or ("stated legs carry no gate odds" if s.get("stated") else "")),
+                 "tip": s.get("legs")})
     now = s.get("now")
     rows.append({"k": "if it passes", "v": _gate_ps(s.get("success")),
                  "note": f"a share, against {_gate_ps(now)} now" if now is not None else "a share",
                  "tip": (f"{s['pos_success']:.1%} chance of approval once it passes"
                          if s.get("pos_success") is not None and s["pos_success"] < 0.9995
                          else "")})
-    rows.append({"k": "if it fails", "v": "nil",
-                 "note": "the model's convention for a failed programme", "tip": ""})
+    if s.get("stated"):
+        # The analyst's own failure leg, never the convention's nil.
+        rows.append({"k": "if it fails", "v": _gate_ps(s.get("failure"), nil=True),
+                     "note": "a share, the stated leg on file", "tip": s.get("legs") or ""})
+    else:
+        rows.append({"k": "if it fails", "v": "nil",
+                     "note": "the model's convention for a failed programme", "tip": ""})
     held = s.get("held") or {}
     if held.get("open") and held.get("pos") is not None:
         n = held["open"]
@@ -3918,7 +3931,8 @@ def _gate_table_html(rows: list) -> str:
 def _gate_steps(s: dict) -> list:
     """The headline as a waterfall, a share: what passing is worth, less the chance it
     fails, is today's risked value; less the cost to reach the gate is the net. An unread
-    cost is a hatched step with no net after it, never a nil one."""
+    cost is a hatched step with no net after it, never a nil one. Stated legs carry no
+    gate odds, so they draw no picture and the table says what they are."""
     success, p = (s or {}).get("success"), (s or {}).get("p")
     if success is None or p is None:
         return []
@@ -4144,10 +4158,14 @@ def _next_gate_layer(verdict: dict, dev, dev_error, scenario: str) -> None:
         return
     base = " · base case" if scenario != "base" and s.get("base_case") else ""
     section("Next gate", basis=_gate_head(s) + base)
-    picture, facts = st.columns([1.1, 1], gap="medium")
-    with picture:
-        R.show(CH.waterfall(_gate_steps(s), 470, 220, value_fmt=lambda x: f"{x:,.2f}"),
-               css_class="chart-mount stretch")
+    steps = _gate_steps(s)
+    if steps:
+        picture, facts = st.columns([1.1, 1], gap="medium")
+        with picture:
+            R.show(CH.waterfall(steps, 470, 220, value_fmt=lambda x: f"{x:,.2f}"),
+                   css_class="chart-mount stretch")
+    else:
+        facts = st.container()
     with facts:
         st.markdown(_gate_table_html(_gate_rows(s)), unsafe_allow_html=True)
     for line in _gate_lines(s):
@@ -6741,7 +6759,8 @@ def _ki_brief(ticker: str, series: dict, rated: dict, call: dict, rel_3m: dict,
             worth = ""
             if value and not in_legs:
                 # Where this event is the compound's next gate, what passing it is worth.
-                worth = (f", worth {_ki_money(row['success'])} a share if it passes and nil "
+                lost = _ki_money(row["failure"]) if row.get("failure") else "nil"
+                worth = (f", worth {_ki_money(row['success'])} a share if it passes and {lost} "
                          f"if it fails, against {_ki_money(value)} now"
                          if row.get("success") is not None and _ki_gate_is(row, e)
                          else f", {_ki_money(value)} a share in the model")
@@ -7089,7 +7108,8 @@ def _ki_key_assets(verdict: dict, record: dict, programmes: list, exclusivities:
                 pipeline.append({"name": name, "value": a["per_share"],
                                  "meta": nxt.get("text") or "", "text": _ki_money(a["per_share"]),
                                  "tip": tip, "kind": "pipeline", "success": gate.get("success"),
-                                 "gate": gate.get("event"), "flag": flag})
+                                 "failure": gate.get("failure"), "gate": gate.get("event"),
+                                 "flag": flag})
         marketed.sort(key=lambda r: -r["value"])
         pipeline.sort(key=lambda r: -r["value"])
         if not pipeline:
@@ -7152,23 +7172,30 @@ def _ki_gate(line: dict, failing: dict = None) -> dict:
     if the gate passes; ``event``, the gate's label and month, so the note names the same
     event; and ``tip``, the gate in words, then the cost fact where reaching it costs more
     than it is worth risked (``failing``, the line's row in the company's next-gate
-    costs). {} where the line has no gate."""
+    costs). ``failure`` is nil unless stated legs on file say otherwise. {} where the
+    line has no gate."""
     g = (line or {}).get("gate") if isinstance((line or {}).get("gate"), dict) else {}
     success = (line or {}).get("per_share_success")
     if success is None:
         success = g.get("per_share_success")
     if not g or success is None:
         return {}
+    failure = 0.0
+    if g.get("legs_basis") == "stated":
+        failure = (line or {}).get("per_share_failure")
+        failure = g.get("per_share_failure") if failure is None else failure
+        failure = failure if failure is not None and failure >= 0.005 else 0.0
+    lost = _ki_money(failure) if failure else "nil"
     label = g.get("label") or "next gate"
     date = str(g.get("date") or "")
     if g.get("gate") == "nda_to_approval":
         when = f" (decision due {_ki_day(date)})" if date else ""
         words = (f"{label}{when}: {_ki_money(success)} a share if the FDA approves it, "
-                 "nil if it does not")
+                 f"{lost} if it does not")
     else:
         when = ("" if not date else f" due since {_ki_month(date)}" if g.get("due")
                 else f" est. {_ki_month(date)}")
-        words = f"{label}{when}: {_ki_money(success)} a share if it passes, nil if it fails"
+        words = f"{label}{when}: {_ki_money(success)} a share if it passes, {lost} if it fails"
     words += (", from the success and failure legs on file" if g.get("legs_basis") == "stated"
               else ", on gate odds implied by the stated PoS"
               if (g.get("evidence") or {}).get("p_gate") == "implied"
@@ -7183,7 +7210,8 @@ def _ki_gate(line: dict, failing: dict = None) -> dict:
         words += ", at published trial costs in 2018 prices"
     # The month the note's event has to fall in to be this gate; none for an FDA decision
     # with no date on file, which any decision on the compound is.
-    return {"success": success, "tip": words, "event": {"label": label, "month": date[:7]}}
+    return {"success": success, "failure": failure, "tip": words,
+            "event": {"label": label, "month": date[:7]}}
 
 
 def _ki_gate_is(row: dict, event: dict) -> bool:

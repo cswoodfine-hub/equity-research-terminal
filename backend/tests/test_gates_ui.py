@@ -23,6 +23,7 @@ runs only with ER_TOOL_APPTEST=1 against a running API.
 from __future__ import annotations
 
 import ast
+import copy
 import html
 import json
 import os
@@ -276,6 +277,48 @@ def test_a_failed_read_of_the_costs_says_it_did_not_load(view):
                                          "a minute.")
     by = rows_by_key(view, s)
     assert by["if it passes"]["v"] == "8.23" and "cost to reach" not in by
+
+
+def _stated(failure=3.1):
+    """Eloralintide as forecast_view._gate returns it where success and failure legs are
+    stated on file: no gate odds, the stated failure leg, no held note and no band; the
+    cost view refuses stated legs."""
+    verdict = copy.deepcopy(load("LLY_1514_verdict"))
+    verdict["gate"].update(legs_basis="stated", p_gate=None, p_gate_published=None,
+                           placed=None, evidence=None, held=None, band=None,
+                           per_share_failure=failure,
+                           basis="stated success and failure legs on file")
+    dev = {"ok": False, "reason": "stated_legs",
+           "why": "Stated success and failure legs are on file; the cost view reads the "
+                  "derived gates only."}
+    return verdict, dev
+
+
+def test_stated_legs_show_the_stated_failure_leg_never_the_conventions_nil(view):
+    s = view["_gate_summary"](*_stated())
+    by = rows_by_key(view, s)
+    assert (by["if it fails"]["v"], by["if it fails"]["note"]) == (
+        "3.10", "a share, the stated leg on file")
+    assert by["if it fails"]["tip"] == "stated success and failure legs on file"
+    assert (by["chance"]["v"], by["chance"]["note"]) == ("·", "stated legs carry no gate odds")
+    assert by["if it passes"]["v"] == "8.23"
+    # No gate odds, so no picture of a chance it fails; the table says what the legs are.
+    assert view["_gate_steps"](s) == []
+    assert view["_gate_lines"](s)[0].startswith("Stated success and failure legs are on file")
+    for words in [text_of(view["_gate_table_html"](view["_gate_rows"](s)))] + \
+            view["_gate_lines"](s):
+        house_style(words)
+    # A stated failure leg of nothing still reads nil, and derived legs keep the convention.
+    nil = rows_by_key(view, view["_gate_summary"](*_stated(failure=0.0)))["if it fails"]
+    assert (nil["v"], nil["note"]) == ("nil", "a share, the stated leg on file")
+    assert rows_by_key(view, summary(view, "LLY_1514"))["if it fails"]["v"] == "nil"
+
+
+def test_the_block_draws_no_empty_picture_where_there_are_no_steps():
+    source = ast.get_source_segment(APP.read_text(), next(
+        n for n in ast.parse(APP.read_text()).body
+        if isinstance(n, ast.FunctionDef) and n.name == "_next_gate_layer"))
+    assert source.index("if steps:") < source.index("CH.waterfall(steps")
 
 
 def test_a_marketed_product_has_no_gate_block_and_no_gate_range(view):

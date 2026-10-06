@@ -2384,6 +2384,32 @@ def test_the_morning_note_reads_the_gate_off_the_key_assets_it_is_given(view):
                     "against 20.22 now.")
 
 
+def test_stated_legs_say_their_failure_leg_in_the_tooltip_and_the_note(view):
+    line = copy.deepcopy(next(m for m in _gates("LLY_forecast-verdict")["modelled"]
+                              if m["name"] == "Eloralintide"))
+    line["gate"].update(legs_basis="stated", p_gate=None, evidence=None,
+                        per_share_failure=3.1)
+    line["per_share_failure"] = 3.1
+    gate = view["_ki_gate"](line)
+    assert gate["failure"] == 3.1
+    assert gate["tip"] == ("Phase 3 readout est. Jan 2028: 8.23 a share if it passes, 3.10 if "
+                           "it fails, from the success and failure legs on file")
+    # Derived legs, and stated ones whose failure leg is nothing, keep nil.
+    assert view["_ki_gate"](next(m for m in _gates("LLY_forecast-verdict")["modelled"]
+                                 if m["name"] == "Eloralintide"))["failure"] == 0.0
+    line["gate"]["per_share_failure"] = line["per_share_failure"] = 0.0
+    assert "nil if it fails" in view["_ki_gate"](line)["tip"]
+    row = {"name": "Eloralintide", "value": 5.0234, "kind": "pipeline", "success": 8.2344,
+           "failure": 3.1, "gate": {"label": "Phase 3 readout", "month": "2028-01"}}
+    events = [{"date": "2028-01-20", "asset": "Eloralintide", "pipeline": True,
+               "event": "Phase 3 readout", "short": "Ph 3", "date_text": "est. Jan 2028"}]
+    said = _brief(view, "LLY", modelled=False, events=events,
+                  assets={"pipeline": {"rows": [row]}})["paragraphs"][2]
+    assert said == ("The Phase 3 readout for Eloralintide (est. Jan 2028) is the next test of "
+                    "the pipeline, worth 8.23 a share if it passes and 3.10 if it fails, "
+                    "against 5.02 now.")
+
+
 # --- readouts and decisions ------------------------------------------------------------------
 def _event(date, kind="data readout", phase="Phase 3", name="A", marketed=True, pct=None,
            ind=None, conf="confirmed", prec="day", reg=False, nct="NCT1"):

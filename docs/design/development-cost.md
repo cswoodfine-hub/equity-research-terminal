@@ -260,8 +260,10 @@ day, which matters because each study's share ahead moves daily.
   study. A waterfall a share comes first: what passing is worth, less the chance it fails,
   is today's risked value; less the cost to reach the gate is the net. An unread cost is a
   hatched step with no net after it. Beside it a table: the chance (published or implied
-  by the stated PoS), if it passes, if it fails (nil, the convention), held (the model's
-  rule after a miss, a note), the cost to reach after tax at 2018 prices, the net and its
+  by the stated PoS), if it passes, if it fails (nil, the convention; where success and
+  failure legs are stated on file, the stated failure leg, and since stated legs carry no
+  gate odds they draw no waterfall), held (the model's rule after a miss, a note), the
+  cost to reach after tax at 2018 prices, the net and its
   break-even chance, the DiMasi high bound, and the earliest approval from the gate
   (build 3), underlined red or amber where the launch floor flags the model's year. Under
   it: what the cost covers ("the Phase 3 programme in the modelled disease, not the gate
