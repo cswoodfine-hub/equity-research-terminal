@@ -55,6 +55,9 @@ def test_every_pipeline_line_reads_or_says_why_not(views):
     assert ok >= 0.9 * (ok + len(refused)), (ok, len(refused))
     for row in refused:
         assert row["ok"] is False and row["reason"] in D.REFUSALS and row["why"], row
+        # A line that failed is named rather than taking the list down, but on the book
+        # none should: an error here is a defect, not a reading.
+        assert row["reason"] != "error", row
 
 
 def test_the_arithmetic_reconciles_on_every_asset(views):

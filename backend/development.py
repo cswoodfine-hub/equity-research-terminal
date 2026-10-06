@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import logging
 import math
 import pathlib
 import re
@@ -74,6 +75,8 @@ import fx
 import indication_mapping
 import pos_granular
 import productivity
+
+_log = logging.getLogger(__name__)
 
 DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 COSTS = DATA_DIR / "development_costs.csv"
@@ -105,7 +108,7 @@ STAGE_PHASE = {"p2_to_p3": "2", "p3_to_nda": "3", "nda_to_approval": "review"}
 MIN_PEERS = 3
 DAYS_A_YEAR = 365.25
 REFUSALS = ("marketed", "no_forecast", "no_gate_split", "no_gate", "no_indication",
-            "stated_legs", "vaccine", "no_fx_rate", "cost_table")
+            "stated_legs", "vaccine", "no_fx_rate", "cost_table", "error")
 SERTKAYA = ("Sertkaya A, Beleche T, Jessup A, Sommers BD. Costs of Drug Development and "
             "Research and Development Intensity in the US, 2000-2018. JAMA Netw Open "
             "2024;7(6):e2415445, doi:10.1001/jamanetworkopen.2024.15445, Table 1, 2018 "
@@ -848,7 +851,16 @@ def for_company(db_path, ticker: str, today=None) -> dict | None:
             if line["is_marketed"] or not line["counted"]:
                 continue
             asset = forecast_view._accessible(conn, company["id"], line["asset_id"], ticker)
-            got = _for_asset(conn, company, asset, today, peers=peers, table=table)
+            try:
+                got = _for_asset(conn, company, asset, today, peers=peers, table=table)
+            except Exception as err:  # noqa: BLE001  one line must not take the list down
+                # A view beside the value: a line that fails is logged and named, and the
+                # company's other lines still read.
+                _log.exception("development view failed for asset %s", line["asset_id"])
+                got = _refuse({"ticker": company["ticker"], "asset_id": line["asset_id"],
+                               "name": line["name"], "price_year": SOURCE_PRICE_YEAR},
+                              "error", f"The cost view could not be read for this line "
+                                       f"({type(err).__name__}); the failure is logged.")
             (rows if got["ok"] else refused).append(got)
         unit = forecast_view.price_unit_rate(conn, company["id"])
     finally:

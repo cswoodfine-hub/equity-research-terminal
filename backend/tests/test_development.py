@@ -524,6 +524,42 @@ def test_the_company_view_puts_failing_gates_first_and_reconciles(tmp_path, big)
     assert D.for_company(path, "ZZZZ", TODAY) is None
 
 
+def test_a_line_that_fails_is_refused_and_the_company_view_still_reads(tmp_path, big,
+                                                                      monkeypatch):
+    """One line's failure is logged and named as a refusal, never a whole company view
+    gone: the other lines, and the reconciliation, still read."""
+    path, conn = _book(tmp_path)
+    _trial(conn, "NCT00000001", 7)
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name, is_marketed)"
+                 " VALUES (8, 1, 'secondmab', 0)")
+    conn.execute("INSERT INTO asset_indications (id, asset_id, indication_id, phase,"
+                 " is_lead, region) VALUES (31, 8, 3, 'Phase 3', 1, 'US')")
+    rows = [{"key": k, "value": v, "source": "t"} for k, v in (
+        ("net_price_per_patient", 0.3), ("cogs_per_patient", 0.05), ("sga_pct", 0.2),
+        ("rd_pct", 0.1), ("tax_rate", 0.15), ("wacc", 0.09), ("forecast_years", 6),
+        ("forecast_start_year", 2030))]
+    rows.append({"key": "therapy_mode", "text_value": "one_time", "source": "t"})
+    rows += [{"key": "new_patients", "indication_id": 3, "year": y, "value": n, "source": "t"}
+             for y, n in ((2030, 100), (2031, 200))]
+    A.save(conn, 8, rows)
+    conn.commit()
+    _trial(conn, "NCT00000008", 8)
+    conn.close()
+    real = PG.legs_for_inputs
+
+    def flaky(conn, asset_id, inputs, **kw):
+        if asset_id == 8:
+            raise RuntimeError("boom")
+        return real(conn, asset_id, inputs, **kw)
+    monkeypatch.setattr(D.pos_granular, "legs_for_inputs", flaky)
+    got = D.for_company(path, "ABBV", TODAY)
+    assert [r["asset_id"] for r in got["failing"] + got["rows"]] == [7]
+    (bad,) = got["refused"]
+    assert bad["asset_id"] == 8 and bad["reason"] == "error" and bad["ok"] is False
+    assert bad["reason"] in D.REFUSALS and "RuntimeError" in bad["why"]
+    assert got["reconciliation"]["named_spend_12m"] > 0
+
+
 def test_the_copy_keeps_the_house_style(tmp_path, big):
     path, conn = _phase2_book(tmp_path, 2)
     conn.close()

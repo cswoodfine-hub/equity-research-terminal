@@ -164,6 +164,7 @@ Returned as `{ok: false, reason, why}`, never as a guess (`development.REFUSALS`
 | vaccine | /vaccin/ in the asset's names or the gate study's title: neither source has a vaccine class |
 | no_fx_rate | No exchange rate for the owner's currency |
 | cost_table | The cost file cannot be read |
+| error | The company view only: reading this line raised, so it is logged and named and the company's other lines still read. A book guard holds that no line on the book reads this way |
 
 ## 7. Routes
 
