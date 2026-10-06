@@ -153,7 +153,7 @@
  "formulary": {
   "release_date": "2026-09-16",
   "contract_year": 2026,
-  "scope_label": "Medicare Part D plans only, Sep 2026 release, contract year 2026",
+  "scope_label": "Medicare Part D plans only, Sep 2026 release, contract year 2026; excludes employer, PACE and demonstration plans",
   "source": "CMS Monthly Prescription Drug Plan Formulary and Pharmacy Network Information",
   "formularies_total": 328,
   "formularies_listing": 0,

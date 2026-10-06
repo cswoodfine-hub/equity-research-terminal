@@ -167,7 +167,8 @@ def test_a_listed_nowhere_brand_counts_its_codes_in_words(conn):
 def test_formulary_scope_counts_and_tiers_for_eliquis(conn):
     f = pa.for_asset(conn, ELIQUIS_BMY)["formulary"]
     assert f["scope_label"] == ("Medicare Part D plans only, Sep 2026 release, contract "
-                                "year 2026")
+                                "year 2026; excludes employer, PACE and demonstration "
+                                "plans")
     assert (f["formularies_listing"], f["formularies_total"]) == (328, 328)
     assert (f["pa_formularies"], f["st_formularies"]) == (0, 0)
     assert f["tiers"] == [{"tier": 1, "formularies": 61}, {"tier": 2, "formularies": 10},
@@ -279,6 +280,8 @@ def test_the_company_list_names_brands_and_never_totals_them(conn):
     assert row["prescribers"] == 556431 and row["formularies_listing"] == 328
     assert row["co_marketed"]["owners"] == ["PFE"]
     assert not [k for k in out if "total" in k]
+    assert out["labels"]["formulary"] == ("Medicare Part D plans only; excludes employer, "
+                                          "PACE and demonstration plans")
     assert pa.for_company(conn, "ZZZZ") is None
 
 

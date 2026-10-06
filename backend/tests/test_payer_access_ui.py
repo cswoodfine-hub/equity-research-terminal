@@ -143,7 +143,8 @@ def test_an_unfinished_pull_says_why_and_never_blames_too_few_prescribers(
 def test_formulary_reads_listing_restrictions_and_the_tier_mix(view):
     out = view["_payer_formulary_html"](load("eliquis"))
     words = text_of(out)
-    assert words.startswith("Medicare Part D plans only, Sep 2026 release, contract year 2026 "
+    assert words.startswith("Medicare Part D plans only, Sep 2026 release, contract year 2026; "
+                            "excludes employer, PACE and demonstration plans "
                             "Listed on 328 of 328 formularies")
     assert "Prior authorisation on 0, step therapy on 0" in words
     assert out.count("<svg") == 1 and 'aria-label="tier mix"' in out

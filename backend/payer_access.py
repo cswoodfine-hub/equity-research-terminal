@@ -60,6 +60,9 @@ FILE_CAVEAT = (
     "The provider file leaves out any prescriber with fewer than 11 claims for the drug, "
     "so its figures, the deciles among them, describe that population and not every "
     "prescriber.")
+# CMS's methodology leaves these plans out of the file, so the label says so where the
+# figures are, not only in the folded caveats.
+FORMULARY_EXCLUDES = "excludes employer, PACE and demonstration plans"
 FORMULARY_CAVEAT = (
     "Excludes employer, PACE and demonstration plans. Counts formularies and plans, not "
     "people: the file carries no enrolment. Tiers are each plan's own, so only the "
@@ -335,7 +338,7 @@ def _formulary(conn, asset_id: int, demand: dict) -> dict | None:
         "release_date": a["release_date"],
         "contract_year": a["contract_year"],
         "scope_label": (f"Medicare Part D plans only, {month} release, contract year "
-                        f"{a['contract_year']}"),
+                        f"{a['contract_year']}; {FORMULARY_EXCLUDES}"),
         "source": FORMULARY_SOURCE,
         "formularies_total": total,
         "formularies_listing": a["formularies_listing"],
@@ -609,7 +612,7 @@ def for_company(conn, ticker: str) -> dict | None:
     brands.sort(key=lambda b: (-(b["claims"] or 0), b["brand"] or ""))
     return {"ticker": company["ticker"], "brands": brands,
             "labels": {"prescribing": "Medicare Part D only",
-                       "formulary": "Medicare Part D plans only",
+                       "formulary": f"Medicare Part D plans only; {FORMULARY_EXCLUDES}",
                        "medicaid": "Medicaid only, before rebates",
                        "co_marketed": CO_MARKETED_LABEL},
             "caveats": [PROXY_CAVEAT, FORMULARY_CAVEAT, MEDICAID_CAVEAT],
