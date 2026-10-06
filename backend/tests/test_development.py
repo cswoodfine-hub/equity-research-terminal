@@ -341,6 +341,89 @@ def test_a_gate_with_no_study_in_a_modelled_indication_is_unread_not_free(tmp_pa
     assert company["failing"] == [] and company["rows"] == []
 
 
+def test_a_study_with_no_enrolment_or_no_completion_is_unknown_not_free():
+    """The registry gives the study no enrolment, or no primary completion to time it
+    by: what it costs is unknown, never a nil. A study already past its completion has
+    nothing ahead of it whatever its enrolment."""
+    rate = {"value": 93145.0}
+    no_count = D.study_cost({"nct_id": "N1", "enrollment": None, "start_date": "2026-01-01",
+                             "primary_completion_date": "2028-01-01"}, rate, TODAY)
+    assert no_count["ahead_usd_mm"] is None and no_count["full_usd_mm"] is None
+    assert no_count["missing"] == "has no enrolment on file"
+    assert no_count["spend_from"] is None and no_count["spend_to"] is None
+    zero = D.study_cost({"nct_id": "N2", "enrollment": 0, "start_date": "2026-01-01",
+                         "primary_completion_date": "2028-01-01"}, rate, TODAY)
+    assert zero["ahead_usd_mm"] is None and zero["missing"] == "has no enrolment on file"
+    undated = D.study_cost({"nct_id": "N3", "enrollment": 300, "start_date": "2026-01-01",
+                            "primary_completion_date": None}, rate, TODAY)
+    assert undated["ahead_usd_mm"] is None
+    assert undated["missing"] == "has no primary completion date on file"
+    sunk = D.study_cost({"nct_id": "N4", "enrollment": None, "start_date": "2022-01-01",
+                         "primary_completion_date": "2026-01-01"}, rate, TODAY)
+    assert sunk["ahead_usd_mm"] == 0.0 and sunk["missing"] is None
+    assert sunk["full_usd_mm"] is None
+
+
+def test_a_gate_study_with_no_enrolment_leaves_the_gate_unread_not_free(tmp_path, big):
+    """The only study counted towards the gate has no enrolment on file. Priced at nil, the
+    gate would read as costing nothing and breaking even at 0%; it is unread, with the
+    study named, and the company view lists the line under uncosted."""
+    path, conn = _book(tmp_path)
+    _trial(conn, "NCT00000001", 7, enrollment=None)
+    _trial(conn, "NCT00000002", 7, enrollment=200, pcd="2029-06-30")
+    conn.close()
+    got = D.for_asset(path, "ABBV", 7, TODAY)
+    gate = got["gate"]
+    assert got["ok"] is True and gate["unread"] is True
+    for key in ("cost", "net", "breakeven_p", "funds", "cost_usd_mm", "full_usd_mm"):
+        assert gate[key] is None, key
+    assert gate["basis"] == ("what reaching this gate costs cannot be read from the registry:"
+                             " NCT00000001 has no enrolment on file")
+    assert gate["ev"] == pytest.approx(gate["rnpv"]) and gate["success_leg"] > 0
+    assert got["ladder"]["value_today"] is None and got["ladder"]["risked_cost"] is None
+    assert {s["nct_id"] for s in got["stages"][0]["studies"]} == {"NCT00000001",
+                                                                 "NCT00000002"}
+    company = D.for_company(path, "ABBV", TODAY)
+    assert [r["asset_id"] for r in company["uncosted"]] == [7]
+    assert company["failing"] == [] and company["rows"] == []
+
+
+def test_a_later_stage_that_cannot_be_costed_leaves_what_rests_on_it_unread(tmp_path, big):
+    """The Phase 2 gate reads; the registered Phase 3 in the same disease has no
+    enrolment on file. The headline still reads, since it needs only the cost to the
+    Phase 2 readout, but the value if the Phase 2 passes after later trial costs, and
+    today's value after every cost, are None rather than computed on a nil Phase 3."""
+    path, conn = _phase2_book(tmp_path, 3)
+    _trial(conn, "NCT00000099", 7, enrollment=None, start="2027-07-01", pcd="2031-06-30",
+           status="Not yet recruiting")
+    conn.close()
+    got = D.for_asset(path, "ABBV", 7, TODAY)
+    gate, (first, phase3, review) = got["gate"], got["stages"]
+    assert gate["label"] == "Phase 2 readout" and gate["unread"] is False
+    assert gate["cost"] > 0 and gate["net"] == pytest.approx(gate["ev"] - gate["cost"])
+    assert phase3["unread"] is True and phase3["cost_usd_mm"] is None
+    assert "NCT00000099 has no enrolment on file" in phase3["basis"]
+    rows = got["ladder"]["rows"]
+    assert rows[0]["value_if_passed"] is None and rows[0]["net"] is None
+    assert rows[1]["value_if_passed"] > 0 and rows[1]["cost"] is None
+    assert rows[1]["net"] is None and rows[1]["funds"] is None
+    assert rows[2]["value_if_passed"] > 0 and rows[2]["funds"] is True
+    assert got["ladder"]["value_today"] is None and got["ladder"]["risked_cost"] is None
+
+
+def test_a_ladder_with_an_unread_later_stage_by_hand():
+    stages = [{"gate": g, "label": g, "date": None, "p": p}
+              for g, p in (("p2_to_p3", 0.5), ("p3_to_nda", 0.6), ("nda_to_approval", 0.9))]
+    got = D.ladder(stages, 540.0, [10.0, None, 2.0])
+    rows = got["rows"]
+    assert rows[0]["value_if_passed"] is None and rows[0]["ev_at_gate"] is None
+    assert rows[0]["net"] is None and rows[0]["funds"] is None
+    assert rows[0]["value_if_passed_floored"] is None and rows[0]["floored"] is False
+    assert rows[1]["value_if_passed"] == pytest.approx(898.0) and rows[1]["net"] is None
+    assert rows[2]["value_if_passed"] == pytest.approx(1000.0) and rows[2]["funds"] is True
+    assert got["risked_cost"] is None and got["value_today"] is None
+
+
 def test_a_kroner_asset_is_converted_at_the_stored_rate(tmp_path, big):
     path, conn = _book(tmp_path, currency="DKK")
     _trial(conn, "NCT00000001", 7)

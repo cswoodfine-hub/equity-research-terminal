@@ -38,7 +38,9 @@ listed and their remaining cost shown as one separate figure for the whole progr
 never in the headline. Where no open study at the gate sits in an
 indication the forecast values, and none has been sunk into it, the cost to reach the gate
 is not read: it is None with the reason, never a nil that would read as a free gate, and
-the company view lists the line under ``uncosted``.
+the company view lists the line under ``uncosted``. So is a stage with a counted study the
+registry gives no enrolment or no primary completion date for: that study's cost is
+unknown, not nil, and so is the stage's.
 
 Costs are converted from US dollars into the
 asset's reporting currency at the latest ECB rate, taken after tax at the asset's tax rate
@@ -244,13 +246,19 @@ def study_cost(trial: dict, per_patient: dict, today: dt.date) -> dict:
     """One registry study: its full cost at the per-patient rate, and the share of its run
     still ahead on a straight line from its start to its primary completion. What has
     been spent is sunk. A study that has not started, or has no start date, has all of
-    its run ahead."""
+    its run ahead.
+
+    A study still to run with no enrolment or no primary completion date on file cannot
+    be costed: its cost ahead is None and ``missing`` says why, never a nil that would
+    read as a study costing nothing. One past its primary completion is sunk either way."""
     rate = per_patient["value"]
-    enrolled = trial.get("enrollment") or 0
-    full = enrolled * rate / 1e6
+    enrolled = trial.get("enrollment") or None
+    full = enrolled * rate / 1e6 if enrolled else None
     start, end = _day(trial.get("start_date")), _day(trial.get("primary_completion_date"))
+    missing = None
     if end is None:
         share, basis = None, "no primary completion date on file, so it cannot be timed"
+        missing = "has no primary completion date on file"
     elif end <= today:
         share, basis = 0.0, "passed primary completion, so its cost is sunk"
     elif start is None or start >= today:
@@ -261,16 +269,25 @@ def study_cost(trial: dict, per_patient: dict, today: dt.date) -> dict:
         share = (end - today).days / (end - start).days
         basis = (f"{share:.0%} of its run from {start.isoformat()} to {end.isoformat()} "
                  f"is ahead, on a straight line")
-    ahead = full * (share or 0.0)
+    if share == 0.0:
+        ahead = 0.0
+    elif full is None or share is None:
+        ahead = None
+        if full is None and share is not None:
+            missing = "has no enrolment on file"
+            basis = "no enrolment on file, so its cost cannot be read"
+    else:
+        ahead = full * share
+    timed = bool(ahead)
     return {"nct_id": trial["nct_id"], "phase": trial.get("phase"),
             "status": trial.get("overall_status"), "title": trial.get("title"),
-            "enrollment": enrolled, "start": trial.get("start_date"),
+            "enrollment": trial.get("enrollment"), "start": trial.get("start_date"),
             "primary_completion": trial.get("primary_completion_date"),
             "per_patient_usd": rate, "full_usd_mm": full, "share_ahead": share,
-            "ahead_usd_mm": ahead,
-            "spend_from": max(start, today).isoformat() if (start and end and share)
-            else (today.isoformat() if share else None),
-            "spend_to": end.isoformat() if (end and share) else None,
+            "ahead_usd_mm": ahead, "missing": missing,
+            "spend_from": (max(start, today).isoformat() if start else today.isoformat())
+            if timed else None,
+            "spend_to": end.isoformat() if timed else None,
             "grades": {"per_patient": "analogue", "enrollment": "measured",
                        "remaining": "convention"},
             "basis": basis}
@@ -341,11 +358,16 @@ def _registry_stage(gate, studies, rates, today, *, date=None, date_basis=None):
     if date is None and costed:
         date = costed[0]["primary_completion"]
         date_basis = "primary completion of the stage's largest counted study"
-    return {"gate": gate, "label": pos_granular.GATE_LABELS[gate], "route": "registry",
-            "studies": costed, "outside": outside, "spend": _spend(costed),
+    stage = {"gate": gate, "label": pos_granular.GATE_LABELS[gate], "route": "registry",
+             "studies": costed, "outside": outside, "date": date, "date_basis": date_basis}
+    if any(s["ahead_usd_mm"] is None for s in costed):
+        return {**stage, **_uncostable(costed)}
+    return {**stage, "spend": _spend(costed),
             "cost_usd_mm": sum(s["ahead_usd_mm"] for s in costed),
-            "full_usd_mm": sum(s["full_usd_mm"] for s in costed),
-            "date": date, "date_basis": date_basis,
+            # A sunk study with no enrolment on file has nothing ahead, but its full cost
+            # is unknown, so the stage's full cost is too.
+            "full_usd_mm": (None if any(s["full_usd_mm"] is None for s in costed)
+                            else sum(s["full_usd_mm"] for s in costed)),
             "grade": evidence.weakest(g for s in costed for g in s["grades"].values())
             or "convention",
             "basis": (f"{len(costed)} open {'study' if len(costed) == 1 else 'studies'} in "
@@ -353,6 +375,22 @@ def _registry_stage(gate, studies, rates, today, *, date=None, date_basis=None):
                       f"per-patient rate x the share of each run still ahead"
                       if costed else "no open study in an indication the forecast values "
                                      "has cost ahead of it")}
+
+
+def _uncostable(costed: list) -> dict:
+    """A stage with a counted study the registry gives no enrolment or no primary
+    completion for. Its cost is not a smaller number but an unknown one: None with the
+    reason, the same as a gate with no study to count, so no gate reads as cheaper than
+    the registry can say."""
+    blind = [f"{s['nct_id']} {s['missing']}" for s in costed if s["ahead_usd_mm"] is None]
+    return {"unread": True, "cost_usd_mm": None, "full_usd_mm": None, "spend": [],
+            "grade": None,
+            "basis": (f"what reaching this gate costs cannot be read from the registry: "
+                      f"{_listed(blind)}")}
+
+
+def _listed(words: list) -> str:
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
 
 
 def _future_phase3(conn, asset_id, mesh, first_studies, rates, table, area_src, start,
@@ -404,16 +442,21 @@ def _future_phase3(conn, asset_id, mesh, first_studies, rates, table, area_src, 
                                     f"programme cost for the area, "
                                     f"${programme['value']:.1f}mm")})
     priced = [p for p in parts if p["cost_usd_mm"]]
-    for part in priced:
-        stage["spend"].append((part["cost_usd_mm"], start, end))
     stage["parts"] = parts
-    stage["cost_usd_mm"] += sum(p["cost_usd_mm"] for p in parts)
-    stage["full_usd_mm"] += sum(p["cost_usd_mm"] for p in parts)
+    # A registered study that cannot be costed leaves the whole stage unread: the parts
+    # are still listed, but no total is drawn on a study priced at nil.
+    if not stage.get("unread"):
+        for part in priced:
+            stage["spend"].append((part["cost_usd_mm"], start, end))
+        stage["cost_usd_mm"] += sum(p["cost_usd_mm"] for p in parts)
+        if stage["full_usd_mm"] is not None:
+            stage["full_usd_mm"] += sum(p["cost_usd_mm"] for p in parts)
     if priced:
         stage["route"] = "+".join(filter(None, (stage["route"], *sorted(
             {p["route"] for p in priced}))))
-        stage["grade"] = evidence.weakest(
-            ([stage["grade"]] if stage["studies"] else []) + ["analogue"])
+        if not stage.get("unread"):
+            stage["grade"] = evidence.weakest(
+                ([stage["grade"]] if stage["studies"] else []) + ["analogue"])
         later = max([end] + [_day(s["primary_completion"]) for s in stage["studies"]
                              if _day(s["primary_completion"])])
         stage["date"], stage["date_basis"] = later.isoformat(), (
@@ -507,7 +550,7 @@ def stages(conn, asset_id: int, legs: dict, table: dict, area_src: str, today: d
                                     date_basis=legs.get("date_basis"))
             if not stage["studies"]:
                 stage.update(_unread(stage))
-            elif legs.get("due") and not stage["cost_usd_mm"]:
+            elif not stage.get("unread") and legs.get("due") and not stage["cost_usd_mm"]:
                 stage["basis"] = ("the gate study has passed primary completion, so what "
                                   "it cost is sunk and nothing is left to spend on it")
         elif g == "p3_to_nda":
@@ -551,9 +594,11 @@ def ladder(stages_: list, success_leg: float, costs: list) -> dict:
     rNPV x share less the risked cost of all stages ahead. ``value_if_passed_floored`` is
     the same induction with any stage a sponsor would not fund taken at nil.
 
-    Only the first stage's cost can be None (``_unread``): the values if each gate passes
-    rest on later costs alone and still read, while that stage's net, break-even and the
-    totals that need its cost are None rather than computed on a nil."""
+    A stage's cost is None where it cannot be read (``_unread``, ``_uncostable``). The
+    values if each gate passes rest on later costs alone, so a gate's value still reads
+    while every stage after it does; whatever needs an unread cost (that stage's net and
+    break-even, the values before a later unread stage, the risked cost and today's value)
+    is None rather than computed on a nil."""
     n = len(stages_)
     odds_after = math.prod(s["p"] for s in stages_[1:])
     top = success_leg / odds_after if odds_after > 0 else 0.0
@@ -562,27 +607,29 @@ def ladder(stages_: list, success_leg: float, costs: list) -> dict:
     for k in range(n - 2, -1, -1):
         p, cost = stages_[k + 1]["p"], costs[k + 1]
         gross[k] = p * gross[k + 1]
-        later[k] = p * later[k + 1] + cost
-        floored[k] = max(0.0, p * floored[k + 1] - cost)
-    values = [g - c for g, c in zip(gross, later)]
+        read = cost is not None and later[k + 1] is not None
+        later[k] = (p * later[k + 1] + cost) if read else None
+        floored[k] = (max(0.0, p * floored[k + 1] - cost)
+                      if cost is not None and floored[k + 1] is not None else None)
+    values = [(g - c) if c is not None else None for g, c in zip(gross, later)]
     rows = []
     for k, stage in enumerate(stages_):
         value, p, cost = values[k], stage["p"], costs[k]
-        net = (p * value - cost) if cost is not None else None
+        net = (p * value - cost) if (cost is not None and value is not None) else None
         rows.append({"gate": stage["gate"], "label": stage["label"], "date": stage["date"],
                      "p": p, "cost": cost, "value_if_passed": value,
-                     "ev_at_gate": p * value, "net": net,
-                     "breakeven_p": (cost / value) if cost is not None and value > 0
-                     else None,
+                     "ev_at_gate": (p * value) if value is not None else None, "net": net,
+                     "breakeven_p": (cost / value) if (cost is not None and value is not None
+                                                       and value > 0) else None,
                      "funds": (net >= 0) if net is not None else None,
                      "value_if_passed_floored": floored[k],
-                     "floored": abs(floored[k] - value) > 1e-9 * max(1.0, abs(value))})
+                     "floored": (value is not None and floored[k] is not None
+                                 and abs(floored[k] - value) > 1e-9 * max(1.0, abs(value)))})
     first = costs[0]
+    read = first is not None and later[0] is not None
     return {"label": "after later trial costs", "rows": rows, "value_on_approval": top,
-            "risked_cost": (first + stages_[0]["p"] * later[0]) if first is not None
-            else None,
-            "value_today": (stages_[0]["p"] * values[0] - first) if first is not None
-            else None}
+            "risked_cost": (first + stages_[0]["p"] * later[0]) if read else None,
+            "value_today": (stages_[0]["p"] * values[0] - first) if read else None}
 
 
 def _refuse(base: dict, reason: str, why: str) -> dict:
@@ -715,6 +762,7 @@ def _for_asset(conn, company, asset, today, *, peers=None, table=None) -> dict:
     outside = ([s for st in stages_ for s in st["outside"]]
                + _beside(conn, asset_id, mesh, stages_, rates_pp, today))
     outside_stage = {"spend": _spend(outside)}
+    uncosted_outside = [s["nct_id"] for s in outside if s["ahead_usd_mm"] is None]
     outside_cost = _money(outside_stage, rate=wacc, anchor=anchor, to_ccy=to_ccy, keep=keep)
     year_ahead = today + dt.timedelta(days=365)
     named = [s for st in stages_ for s in st["studies"]]
@@ -761,13 +809,19 @@ def _for_asset(conn, company, asset, today, *, peers=None, table=None) -> dict:
                             "value_today": lad_high["value_today"], "label": HIGH_LABEL}},
         "stages": [{k: v for k, v in s.items() if k != "spend"} for s in stages_],
         "outside": {"studies": outside,
-                    "cost_usd_mm": sum(s["ahead_usd_mm"] for s in outside),
+                    "cost_usd_mm": sum(s["ahead_usd_mm"] for s in outside
+                                       if s["ahead_usd_mm"] is not None),
                     "cost": outside_cost, "cost_per_share": per_share(outside_cost),
+                    # Named rather than priced at nil: the figure is what can be read.
+                    "uncosted": uncosted_outside,
                     "note": ("Every other open Phase 2 and 3 study of the asset: outside "
                              "the indications the forecast values, matched to none, not "
                              "needed for an FDA gate, or run beside the gate rather than "
                              "on the path to it. Their remaining cost, as one figure for "
-                             "the whole programme, never in the headline.")},
+                             "the whole programme, never in the headline."
+                             + (f" {_listed(uncosted_outside)} cannot be costed from the "
+                                f"registry and {'is' if len(uncosted_outside) == 1 else 'are'}"
+                                f" not in it." if uncosted_outside else ""))},
         "next_12m": {"named_usd_mm": next_12m_usd,
                      "named": next_12m_usd * to_ccy * portion,
                      "basis": ("registry studies' spend in the next 12 months, pre-tax, "

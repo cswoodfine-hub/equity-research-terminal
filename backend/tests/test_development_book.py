@@ -65,8 +65,11 @@ def test_the_arithmetic_reconciles_on_every_asset(views):
             # p_gate x the success leg is the rNPV in force at the company's share.
             assert abs(gate["ev"] - ladder["rnpv"]) <= 1e-9 * scale, row["name"]
             if gate["unread"]:
-                # Nothing counted and nothing sunk: unknown, never a free gate.
-                assert not row["stages"][0]["studies"], row["name"]
+                # Nothing counted and nothing sunk, or a counted study the registry gives
+                # no enrolment or completion for: unknown, never a free gate.
+                counted = row["stages"][0]["studies"]
+                assert (not counted or any(s["ahead_usd_mm"] is None for s in counted)), \
+                    row["name"]
                 assert gate["cost"] is None and gate["net"] is None, row["name"]
                 assert gate["funds"] is None and ladder["value_today"] is None
                 assert "cannot be read" in gate["basis"], row["name"]
@@ -76,8 +79,12 @@ def test_the_arithmetic_reconciles_on_every_asset(views):
                 assert gate["due"] or all(s["share_ahead"] == 0
                                           for s in row["stages"][0]["studies"]), row["name"]
             assert abs(gate["net"] - (gate["ev"] - gate["cost"])) <= 1e-9 * scale
-            assert abs(ladder["value_today"] - (ladder["rnpv"] - ladder["risked_cost"])) \
-                <= 1e-9 * scale, row["name"]
+            # Today's value after every cost reads unless a later stage cannot be costed.
+            if ladder["value_today"] is None:
+                assert any(s.get("unread") for s in row["stages"][1:]), row["name"]
+            else:
+                assert abs(ladder["value_today"] - (ladder["rnpv"] - ladder["risked_cost"])) \
+                    <= 1e-9 * scale, row["name"]
             assert gate["cost"] >= 0 and gate["high"]["cost"] >= gate["cost"] - 1e-12
             assert gate["funds"] == (gate["net"] >= 0)
             assert row["stages"][0]["gate"] == gate["gate"]

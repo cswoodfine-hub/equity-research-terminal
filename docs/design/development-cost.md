@@ -47,6 +47,16 @@ outside. A nil there would read as a gate that costs nothing to reach and breaks
 later costs only; the ladder's first net, its risked cost and today's value after cost are
 None with it.
 
+The same holds for any stage with a counted study the registry gives no enrolment, or no
+primary completion date, for: that study's cost is unknown rather than nil, so the stage
+is unread and its basis names the study ("NCT... has no enrolment on file"). At the first
+gate that is the headline; at a later stage the headline still reads, while the values
+that rest on that stage (the earlier gates' values after later trial costs, the risked
+cost and today's value) are None. A study past its primary completion is sunk either way.
+In the separate figure such a study is named under `outside.uncosted` and left out of the
+sum. Every open Phase 2 and 3 study on the book copy carries both, so nothing reads this
+way today.
+
 ## 3. The ladder, after later trial costs
 
 Behind the headline sits the backward induction to approval over every gate in the split:
