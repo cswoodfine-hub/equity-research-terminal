@@ -278,3 +278,24 @@ def test_the_row_is_drawn_for_a_marketed_product_only(view):
     assert not shows({"is_marketed": False, "access": load("eliquis")})
     assert not shows({"is_marketed": True, "access": None})
     assert not shows({})
+
+
+@pytest.mark.parametrize("growth, bound, words", [
+    (0.05, None, "up 5.0%"),
+    (0.05, "at_least", "up at least 5.0%"),
+    (-0.10, "at_least", "down at most 10.0%"),
+    (0.05, "at_most", "up at most 5.0%"),
+    (-0.10, "at_most", "down at least 10.0%"),
+    (0.068, "both", "up 6.8% between two lower bounds"),
+])
+def test_a_medicaid_change_says_which_way_a_suppressed_quarter_moves_it(view, growth, bound,
+                                                                        words):
+    assert view["_payer_change"](growth, bound) == words
+
+
+def test_the_medicaid_lead_and_years_carry_the_bound(view):
+    access = copy.deepcopy(load("eliquis"))
+    access["medicaid"]["latest"].update(growth=0.05, growth_bound="at_most")
+    access["medicaid"]["years"][1].update(growth_bound="both")
+    assert "up at most 5.0% on a year" in text_of(view["_payer_medicaid_html"](access))
+    assert "between lower bounds" in text_of(view["_payer_detail_html"](access))

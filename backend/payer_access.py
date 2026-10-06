@@ -77,6 +77,20 @@ MEDICAID_CAVEAT = (
 SUPPRESSION_CAVEAT = (
     "CMS suppresses small package rows, so a quarter that has any is a lower bound.")
 
+
+def growth_bound(later_low: bool, earlier_low: bool):
+    """How a change between two counts reads when either may be a lower bound. Only the
+    later one: the true change is at least the figure. Only the earlier one: at most.
+    Both: the figure is a change between two lower bounds and no bound holds, since the
+    SDUD dictionary gives no suppression threshold. None where neither is."""
+    if later_low and earlier_low:
+        return "both"
+    if later_low:
+        return "at_least"
+    if earlier_low:
+        return "at_most"
+    return None
+
 PART_B_ONLY = ("Given in the clinic under Part B, so the Part D files do not carry it")
 PART_B_FORMULARY = ("Medicare pays for it mainly under Part B, as a drug given in the "
                     "clinic, so Part D plans do not list it")
@@ -478,11 +492,12 @@ def _medicaid(conn, asset: dict) -> tuple:
         # Every brand quarter suppressed, or only unbranded products on file: no figure
         # to lead on, and the panel says which.
         return None, (MEDICAID_ALL_SUPPRESSED if brand else MEDICAID_UNBRANDED_ONLY)
-    growth = None
+    growth = bound = None
     if latest:
         prior = by_key.get((latest["year"] - 1, latest["quarter"]))
         if prior and prior["prescriptions"]:
             growth = latest["prescriptions"] / prior["prescriptions"] - 1
+            bound = growth_bound(latest["lower_bound"], prior["lower_bound"])
     full_years = {r["year"] for r in conn.execute(
         "SELECT year FROM medicaid_sdud_releases WHERE fetched_at IS NOT NULL"
         " AND full_year = 1")}
@@ -500,14 +515,18 @@ def _medicaid(conn, asset: dict) -> tuple:
         b["growth"] = (b["prescriptions"] / a["prescriptions"] - 1
                        if a["prescriptions"] and b["prescriptions"] is not None
                        and a["quarters"] == b["quarters"] == 4 else None)
+        b["growth_bound"] = (growth_bound(b["lower_bound"], a["lower_bound"])
+                             if b["growth"] is not None else None)
     if years:
         years[0].setdefault("growth", None)
+        years[0].setdefault("growth_bound", None)
     return {
         "scope_label": "Medicaid only, before rebates",
         "source": MEDICAID_SOURCE,
         "quarters": brand,
         "latest": ({"year": latest["year"], "quarter": latest["quarter"],
                     "prescriptions": latest["prescriptions"], "growth": growth,
+                    "growth_bound": bound,
                     "lower_bound": latest["lower_bound"]} if latest else None),
         "years": years,
         "unbranded": unbranded,

@@ -789,6 +789,25 @@ def _payer_formulary_html(access: dict) -> str:
     return "".join(out)
 
 
+def _payer_change(growth: float, bound) -> str:
+    """A Medicaid change in words, saying which way a suppressed quarter can move it."""
+    word = "up" if growth >= 0 else "down"
+    size = f"{abs(growth):.1%}"
+    if bound == "at_least":         # only the later count is a floor: true change no lower
+        return f"{word} {'at least' if growth >= 0 else 'at most'} {size}"
+    if bound == "at_most":          # only the earlier count is a floor: no higher
+        return f"{word} {'at most' if growth >= 0 else 'at least'} {size}"
+    if bound == "both":
+        return f"{word} {size} between two lower bounds"
+    return f"{word} {size}"
+
+
+def _payer_signed_change(growth: float, bound) -> str:
+    sign = f"{growth:+.1%}"
+    return {"at_least": f"at least {sign}", "at_most": f"at most {sign}",
+            "both": f"{sign} between lower bounds"}.get(bound, sign)
+
+
 def _payer_medicaid_html(access: dict) -> str:
     m = (access or {}).get("medicaid")
     scope = _payer_scope(access, "medicaid")
@@ -802,7 +821,7 @@ def _payer_medicaid_html(access: dict) -> str:
         growth = latest.get("growth")
         move = ""
         if growth is not None:
-            move = (f", {'up' if growth >= 0 else 'down'} {abs(growth):.1%} on a year")
+            move = f", {_payer_change(growth, latest.get('growth_bound'))} on a year"
         out.append(f'<div class="pa-lead">{floor}<b>{_payer_n(latest["prescriptions"])}'
                    f'</b> prescriptions in {latest["year"]} Q{latest["quarter"]}'
                    f'{move}</div>')
@@ -904,7 +923,8 @@ def _payer_detail_html(access: dict) -> str:
              # A year whose every package CMS suppressed has no count, not "no free data".
              "suppressed by CMS" if y["prescriptions"] is None else
              ("at least " if y.get("lower_bound") else "") + _payer_n(y["prescriptions"])
-             + (f', {y["growth"]:+.1%}' if y.get("growth") is not None else ""))
+             + (f', {_payer_signed_change(y["growth"], y.get("growth_bound"))}'
+                if y.get("growth") is not None else ""))
             for y in m.get("years") or []]))
         latest_q = next((q for q in reversed(m.get("quarters") or [])
                          if q.get("prescriptions") is not None), None)

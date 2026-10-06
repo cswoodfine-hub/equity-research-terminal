@@ -395,3 +395,10 @@ def test_no_valuation_module_reaches_the_payer_data():
             named = [t for t in PAYER_TABLES if re.search(rf"\b{t}\b", text)]
             assert not named, f"{start} reaches {name}, which names {named}"
             todo.extend(m for m in _imports(path) if _module_file(m))
+
+
+def test_a_change_between_lower_bounds_says_which_way_it_can_move():
+    assert pa.growth_bound(False, False) is None
+    assert pa.growth_bound(True, False) == "at_least"      # only the later count is a floor
+    assert pa.growth_bound(False, True) == "at_most"       # only the earlier count is
+    assert pa.growth_bound(True, True) == "both"
