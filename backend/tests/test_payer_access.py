@@ -126,6 +126,17 @@ def test_a_part_b_drug_says_so_rather_than_no_free_data(conn):
         assert not [s for s in _strings(view) if "no free data" in s]
 
 
+def test_a_listed_nowhere_brand_counts_its_codes_in_words(conn):
+    conn.execute("DELETE FROM drug_demand WHERE asset_id = ?", (KEYTRUDA,))
+    f = pa.for_asset(conn, KEYTRUDA)["formulary"]
+    assert f["zero_reason"] == ("Its one brand RxNorm code is on no Part D formulary in "
+                                "this release")
+    conn.execute("UPDATE partd_formulary_access SET rxcuis_known = 3 WHERE asset_id = ?",
+                 (KEYTRUDA,))
+    assert pa.for_asset(conn, KEYTRUDA)["formulary"]["zero_reason"] == (
+        "None of its 3 brand RxNorm codes is on a Part D formulary in this release")
+
+
 # --- formulary ------------------------------------------------------------------------
 def test_formulary_scope_counts_and_tiers_for_eliquis(conn):
     f = pa.for_asset(conn, ELIQUIS_BMY)["formulary"]

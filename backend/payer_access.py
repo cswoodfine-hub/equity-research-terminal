@@ -348,10 +348,13 @@ def _formulary(conn, asset_id: int, demand: dict) -> dict | None:
         "caveats": [FORMULARY_CAVEAT],
     }
     if not a["formularies_listing"]:
+        n = a["rxcuis_known"]
         out["zero_reason"] = (
             PART_B_FORMULARY if (_part_b_led(demand) or _part_b_only(demand)) else
-            f"None of its {a['rxcuis_known']} brand RxNorm codes is on a Part D "
-            f"formulary in this release")
+            "Its one brand RxNorm code is on no Part D formulary in this release"
+            if n == 1 else
+            f"None of its {n} brand RxNorm codes is on a Part D formulary in this "
+            f"release")
     return out
 
 
