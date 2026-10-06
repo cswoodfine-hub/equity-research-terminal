@@ -101,6 +101,16 @@ def pct(v, dp=0) -> str:
     return NO_DATA if v is None else f"{v * 100:.{dp}f}%"
 
 
+def odds_pair(p) -> tuple:
+    """(pass, miss) odds as printed: the miss is 100 less the printed pass, so the two
+    always sum to 100 (96% and 4%, never 96% and 5%)."""
+    p = _num(p)
+    if p is None:
+        return NO_DATA, NO_DATA
+    a = int(f"{p * 100:.0f}")
+    return f"{a}%", f"{100 - a}%"
+
+
 def _d(iso):
     try:
         return dt.date.fromisoformat(str(iso)[:10])
@@ -1325,12 +1335,12 @@ def fork_svg(r, close=None) -> str:
 
     up = usd(r["success"])
     o.append(f'<text x="144" y="11" class="k">{"IF APPROVED" if approval else "IF THE GATE PASSES"}'
-             f' · {pct(p)}</text>'
+             f' · {odds_pair(p)[0]}</text>'
              f'<text x="144" y="30" class="fv2 up m">{up}</text>'
              f'<text x="{after(up):.0f}" y="30" class="fs up m">{sgn(r["up"])} · PoS '
              f'{pct(r.get("pos_success"))}</text>')
     o.append(f'<text x="144" y="55" class="k">{"IF REJECTED" if approval else "IF IT MISSES"}'
-             f' · {pct(None if p is None else 1 - p)}</text>')
+             f' · {odds_pair(p)[1]}</text>')
     held = r.get("held") or {}
     if r.get("held_ps") is not None:
         n = held.get("open") or 0
@@ -1466,26 +1476,24 @@ def dates_svg(r, today) -> str:
                  f'class="lab m" text-anchor="{anchor}">Phase 3 positive {dm(readout)}</text>')
     if not st and not readout:
         o.append(f'<text x="{L + 4}" y="{rs - 5}" class="lab mu m">no study dated for this gate</text>')
+    # The earliest and the standard decision on one label above the FDA line, the
+    # standard muted: beside its diamond the standard ran into the model row's label.
+    fda = []
     if early:
         x = px(early)
-        o.append(f'<path d="M{x:.1f} {ra - 5} l5 5 l-5 5 l-5 -5z" class="dia"/>'
-                 f'<text x="{x:.1f}" y="{ra - 8}" class="lab m" text-anchor="middle">earliest {mon(early)}</text>')
+        o.append(f'<path d="M{x:.1f} {ra - 5} l5 5 l-5 5 l-5 -5z" class="dia"/>')
+        fda.append((f"earliest {mon(early)}", ""))
     if std:
-        # Beside its diamond, right where it fits, left where the earliest is not in the
-        # way, else under the line.
         x = px(std)
-        text = f"standard {mon(std)}"
+        o.append(f'<path d="M{x:.1f} {ra - 4} l4 4 l-4 4 l-4 -4z" class="dia-o"/>')
+        fda.append((f"standard {mon(std)}", "mu"))
+    if fda:
+        text = " · ".join(t for t, _c in fda)
         w = _tw(text, 9.5, mono=True)
-        xe = px(early) if early else None
-        if x + 7 + w <= R:
-            tx_, ty_, anchor = x + 7, ra + 3.5, "start"
-        elif xe is None or not (x - 7 - w - 6 <= xe <= x):
-            tx_, ty_, anchor = x - 7, ra + 3.5, "end"
-        else:
-            tx_, ty_, anchor = min(x + 4, R), ra + 13, "end"
-        o.append(f'<path d="M{x:.1f} {ra - 4} l4 4 l-4 4 l-4 -4z" class="dia-o"/>'
-                 f'<text x="{tx_:.1f}" y="{ty_}" class="lab mu m" '
-                 f'text-anchor="{anchor}">{text}</text>')
+        x0 = min(max(px(early or std) - w / 2, L), R - w)
+        spans = '<tspan class="mu"> · </tspan>'.join(
+            f'<tspan class="{c}">{t}</tspan>' if c else f"<tspan>{t}</tspan>" for t, c in fda)
+        o.append(f'<text x="{x0:.1f}" y="{ra - 8}" class="lab m">{spans}</text>')
     if not early:
         o.append(f'<text x="{L + 4}" y="{ra - 5}" class="lab mu m">no floor: no live Phase 3 or '
                  f'accepted application on file</text>')
@@ -1534,7 +1542,6 @@ def card_html(p, gid, facts_html="", lines=()) -> str:
         chips += '<span class="u-chip basis">stated legs</span>'
     swing_share = (f" · {pct(r['swing'] / close, 1)} of price" if close and r["swing"] is not None
                    else "")
-    note = (r.get("held") or {}).get("note")
     why = f'<div class="cx-why">{esc(r["why"])}</div>' if r.get("why") else ""
     lines_html = "".join(f'<div class="cx-line">{esc(x)}</div>' for x in lines if x)
     facts = facts_html or ""
@@ -1546,7 +1553,6 @@ def card_html(p, gid, facts_html="", lines=()) -> str:
             f'<div class="cx-sub">{" · ".join(sub)}</div>{why}'
             f'<div class="cx-mh"><span>Legs · $ a share</span><span class="m">swing {usd(r["swing"])}'
             f'{swing_share}</span></div>{fork_svg(r, close)}'
-            + (f'<div class="cx-cap">{esc(note)}</div>' if note else "")
             + f'<div class="cx-mh"><span>Dates</span><span class="m">studies sized by patients</span></div>'
             f'{dates_svg(r, _today(p))}'
             + (f'<div class="cx-facts">{facts}</div>' if facts else "")
@@ -1641,7 +1647,7 @@ def loe_svg(p, width=380) -> str:
         e = by.get(yv)
         x = 4 + i * cw
         if e and e.get("per_share"):
-            h = (B - 22) * e["per_share"] / vmax
+            h = (B - 30) * e["per_share"] / vmax
             cls = ("lb-w" if w and w[0] <= yv <= w[1] else "lb-p" if yv <= today.year else "lb")
             fill = ' fill="url(#lh)"' if cls == "lb-p" else ""
             names = ", ".join(f"{q[0]} {usd(q[1])}" for q in e.get("products") or [])
@@ -1654,6 +1660,22 @@ def loe_svg(p, width=380) -> str:
                      f'{yv if yv == years[0] else str(yv)[2:]}</text>')
     o.append(f'<line x1="2" x2="{width}" y1="{B}" y2="{B}" class="hair-s"/></svg>')
     return "".join(o)
+
+
+def clip(s, n) -> str:
+    """``s`` cut to ``n`` characters at most, an ellipsis where it is cut."""
+    s = str(s or "")
+    return s if len(s) <= n else s[: n - 1].rstrip() + "…"
+
+
+def _slip_figure(text, xo, xn, c, left, width) -> str:
+    """The days of a slip right of its new date, or left of its old date where the right
+    edge is too close: never over a dot."""
+    w = _tw(text, 9.5, mono=True)
+    if xn + 6 + w <= width:
+        return f'<text x="{xn + 6:.1f}" y="{c + 3.5}" class="lab m">{esc(text)}</text>'
+    x = max(xo - 5, left + w)
+    return f'<text x="{x:.1f}" y="{c + 3.5}" class="lab m" text-anchor="end">{esc(text)}</text>'
 
 
 def slips_svg(slips, width=380) -> str:
@@ -1684,13 +1706,12 @@ def slips_svg(slips, width=380) -> str:
         name = str(s.get("asset") or s.get("nct"))
         o.append(f'<g><title>{esc(name)} {esc(s.get("nct"))}: {dmy(s["old"])} to {dmy(s["new"])}, '
                  f'{s["days"]} days, seen {dmy(s.get("seen"))}</title>'
-                 f'<text x="0" y="{c + 3.5}" class="sl-n{g}">{esc(name[:17])}</text>'
+                 f'<text x="0" y="{c + 3.5}" class="sl-n{g}">{esc(clip(name, 17))}</text>'
                  f'<circle cx="{xo:.1f}" cy="{c}" r="2.5" class="old"/>'
                  + (f'<line x1="{xo + 3:.1f}" x2="{xn - 4:.1f}" y1="{c}" y2="{c}" class="slip-ln{g}" '
                     f'marker-end="url(#ar-s2)"/>' if xn - xo > 8 else "")
                  + f'<circle cx="{xn:.1f}" cy="{c}" r="2.8" class="new{g}"/>'
-                 f'<text x="{min(xn + 6, width - 2):.1f}" y="{c + 3.5}" class="lab m"'
-                 f'{" text-anchor=" + chr(34) + "end" + chr(34) if xn > width - 40 else ""}>{s["days"]}d</text></g>')
+                 + _slip_figure(f'{s["days"]}d', xo, xn, c, L, width) + '</g>')
     o.append("</svg>")
     return "".join(o)
 
@@ -1748,6 +1769,11 @@ def record_svg(readouts, width=380) -> str:
 
 
 def _rr(a, b, c, cls="") -> str:
+    """One row of a risk card: a short key (a date, a year, days), the line, a figure.
+    With no key the line takes its column."""
+    if a in ("", None):
+        return (f'<div class="cx-rr w{(" " + cls) if cls else ""}"><span>{b}</span>'
+                f'<span class="m r">{c}</span></div>')
     return (f'<div class="cx-rr{(" " + cls) if cls else ""}"><span class="m">{a}</span>'
             f'<span>{b}</span><span class="m r">{c}</span></div>')
 
@@ -1865,8 +1891,10 @@ def risk_cards(p) -> list:
         sub = "regulatory events with no date on file, so none reaches the calendar"
         lines = [_rr(f"≥ {mon(r['fl'])}", f"{esc(r['name'])} FDA decision", usd(r["swing"])) for r in floors]
         for x in reg:
-            name = x.get("asset") or str(x.get("headline") or "")[:40]
-            lines.append(_rr(dm(x.get("date")), esc(name), f'<span class="mu">{esc(x.get("kind"))}</span>'))
+            name = x.get("asset") or str(x.get("headline") or "")
+            lines.append(_rr(dm(x.get("date")),
+                             f'<span class="el" title="{esc(x.get("headline"))}">{esc(name)}</span>',
+                             f'<span class="mu">{esc(x.get("kind"))}</span>'))
         vis = (f'<div class="rs-n">{_plural(len(floors), "FDA decision")} after a positive Phase 3 drawn at the '
                f'earliest approval, and {_plural(len(reg), "regulatory item")} from the change feed.</div>')
         body = ("".join(lines) + '<div class="rs-f">Priority Reviews and CHMP opinions come from the change '
@@ -2041,11 +2069,11 @@ def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="",
     m = r.get("model") or {}
     p_gate = r.get("p_gate")
     legs = [("Today", pct(r.get("pos_now")), r.get("rnpv_now"), usd(r["now"]), "", "")]
-    legs.append((f"Gate passes · {pct(p_gate)}", pct(r.get("pos_success")), r.get("rnpv_success"),
+    legs.append((f"Gate passes · {odds_pair(p_gate)[0]}", pct(r.get("pos_success")), r.get("rnpv_success"),
                  usd(r["success"]), sgn(r["up"]), "up"))
     if r.get("held_ps") is not None:
         legs.append((f"Gate misses, {_plural(held.get('open') or 0, 'Phase 3')} open · "
-                     f"{pct(None if p_gate is None else 1 - p_gate)}", pct(held.get("pos")), None,
+                     f"{odds_pair(p_gate)[1]}", pct(held.get("pos")), None,
                      usd(r["held_ps"]), "held", ""))
     legs.append(("Programme fails", pct(r.get("pos_failure")), r.get("rnpv_failure"), leg(r["failure"]),
                  sgn(None if None in (r["failure"], r["now"]) else r["failure"] - r["now"]), "down"))

@@ -306,6 +306,9 @@
 .cx svg .lab { font-size: 9.5px; fill: var(--text); }
 .cx svg .lab.mu { fill: var(--muted); }
 .dates .old { fill: none; stroke: var(--muted); stroke-dasharray: 2 2; }
+/* A label stays legible where the today line or a grid line runs under it. */
+.cx-card .dates text { paint-order: stroke; stroke: var(--panel); stroke-width: 3px;
+  stroke-linejoin: round; }
 .cx svg .slip-ln { stroke: var(--down); stroke-width: 1.2; }
 .cx svg .pull-ln { stroke: var(--up); stroke-width: 1.2; }
 .cx svg .slip-ar { fill: var(--down); }
@@ -388,8 +391,12 @@
   overflow-y: auto; }
 .cx .rs-n { font-size: 11px; line-height: 1.38; color: var(--text); margin: 4px 0; }
 .cx .rs-n.warn { border-left: 2px solid var(--flag); padding-left: 7px; }
-.cx-rr { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; column-gap: 8px;
+.cx-rr { display: grid; grid-template-columns: 66px minmax(0, 1fr) auto; column-gap: 8px;
   align-items: baseline; font-size: 11px; padding: 2px 0; border-bottom: 1px solid var(--rule); }
+.cx-rr.w { grid-template-columns: minmax(0, 1fr) auto; }
+.cx-rr > span { min-width: 0; }
+.cx-rr > :first-child { white-space: nowrap; }
+.cx-rr .el { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cx-rr .r { text-align: right; }
 .cx-rr .m { font-size: 10.5px; }
 .rs-f { font-size: 10px; color: var(--muted); margin-top: 5px; line-height: 1.38; }
