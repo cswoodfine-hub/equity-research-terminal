@@ -307,6 +307,21 @@ def test_the_week_minis_are_drawn_at_the_width_their_column_gives_them():
     assert cols[3] == f"{UC.IW}px", cols
 
 
+def test_the_week_tag_column_holds_the_longest_tag():
+    """Each ranked row's tag fits its grid column: "approval" ran 7px into the headline
+    beside it. A tag is 9.5px mono capitals at 0.08em, after a 3px rule and 6px of air."""
+    css = UNIVERSE_CSS.read_text()
+    m = re.search(r"\.uv-wm > summary \{[^}]*grid-template-columns:\s*([^;]+);", css)
+    col = float(re.sub(r"\(([^)]*)\)", "", m.group(1)).split()[1].rstrip("px"))
+    src = (ROOT / "backend" / "universe_command.py").read_text()
+    tags = set(re.findall(r'"tag": "([a-z ]+)"', src)) | {"phase 3", "result"}
+    longest = max(tags, key=len)
+    assert longest == "approval", tags
+    need = len(longest) * 9.5 * (0.6 + 0.08) + 3 + 6
+    assert col >= need, (col, need)
+    assert re.search(r"\.uv-wm \.tag \{[^}]*font-size: 9\.5px[^}]*letter-spacing: 0\.08em", css)
+
+
 def _lane_rules_hold(placed, reserved=()):
     """No two labels overlap, none sits on a reserved box, and no leader runs through a
     nearer label: the rules place_lane_labels promises."""

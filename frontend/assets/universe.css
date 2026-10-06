@@ -218,8 +218,10 @@
   column-gap: 32px; align-items: start; }
 .uv-wk2 > div { border-top: 1px solid var(--rule-strong); }
 .uv-wm { border-bottom: 1px solid var(--rule); --accent: var(--rule-strong); }
+/* The tag column holds the longest tag the API sends ("approval"), so none runs into the
+   headline beside it. */
 .uv-wm > summary { display: grid;
-  grid-template-columns: 12px 54px minmax(0, 1fr) 100px 54px; gap: 0 8px;
+  grid-template-columns: 12px 62px minmax(0, 1fr) 100px 54px; gap: 0 8px;
   align-items: center; padding: 4px 4px 4px 6px; min-height: 44px; cursor: pointer;
   list-style: none; transition: background-color 120ms linear; }
 .uv-wm > summary::-webkit-details-marker { display: none; }
