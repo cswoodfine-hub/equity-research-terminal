@@ -307,6 +307,15 @@ def test_the_week_minis_are_drawn_at_the_width_their_column_gives_them():
     assert cols[3] == f"{UC.IW}px", cols
 
 
+def test_the_board_draws_no_unlabelled_rule(payload):
+    """Every vertical rule on the board's radar is a month start or today, each named in
+    the header: the dashed 30-day mark had lost its label and read as a stray gridline."""
+    for w in ("1m", "3m", "1y"):
+        svg = UC.board_svg(payload, w)
+        assert "stroke-dasharray" not in svg
+        assert "30 days" not in svg
+
+
 def test_the_week_tag_column_holds_the_longest_tag():
     """Each ranked row's tag fits its grid column: "approval" ran 7px into the headline
     beside it. A tag is 9.5px mono capitals at 0.08em, after a 3px rule and 6px of air."""

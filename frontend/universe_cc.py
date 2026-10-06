@@ -859,7 +859,8 @@ def board_svg(p, w=None):
     """One row per company, the focal company pinned first and taller: the week's move
     and the window's move against XLV as heat cells, and the next 90 days as a radar of
     dated events. The week's news is in each row's hover. Asset labels are drawn on the
-    focal row only; another row's only label is a firm FDA date."""
+    focal row only; another row's only label is a firm FDA date. The radar's only rules
+    are today and the month starts, each named in the header."""
     w = _window(p, w)
     cos = _cos(p)
     f = _focal(p)
@@ -897,11 +898,6 @@ def board_svg(p, w=None):
         xx = rx((m - r0).days)
         o.append(f'<line x1="{xx:.1f}" y1="{top-4}" x2="{xx:.1f}" y2="{bottom:.1f}" '
                  f'stroke="{T["rule_faint"]}"/>')
-    x30 = rx(30)
-    d30 = dday((r0 + dt.timedelta(days=30)).isoformat())
-    o.append(f'<line x1="{x30:.1f}" y1="{top}" x2="{x30:.1f}" y2="{bottom:.1f}" '
-             f'stroke="{T["muted"]}" stroke-dasharray="2 3" opacity="0.45">'
-             f'<title>30 days, to {esc(d30)}</title></line>')
     o.append(f'<line x1="{rx(0):.1f}" y1="{top-4}" x2="{rx(0):.1f}" y2="{bottom:.1f}" '
              f'stroke="{T["rule_strong"]}" stroke-width="1.2"/>')
 
