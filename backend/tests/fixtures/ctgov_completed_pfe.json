@@ -1,0 +1,218 @@
+{
+ "_note": "A registry answer to query.lead=Pfizer, trimmed to the fields the fetcher asks for. The five Orexigen studies are rows that were filed under Pfizer, with their NCT id, lead sponsor and intervention name as stored; their titles are placeholders and the rest is left out, since the registry was unreachable when this was written. NCT99000xx are synthetic Pfizer-led controls.",
+ "studies": [
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT00567255",
+     "briefTitle": "Orexigen naltrexone SR/bupropion SR study NCT00567255"
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "Naltrexone SR 32 mg/bupropion SR 360 mg/day"
+      },
+      {
+       "type": "DRUG",
+       "name": "Placebo"
+      }
+     ]
+    },
+    "sponsorCollaboratorsModule": {
+     "leadSponsor": {
+      "name": "Orexigen Therapeutics, Inc"
+     }
+    }
+   }
+  },
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT00711477",
+     "briefTitle": "Orexigen naltrexone SR/bupropion SR study NCT00711477"
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "Naltrexone SR 32 mg/bupropion SR 360 mg/day"
+      },
+      {
+       "type": "DRUG",
+       "name": "Placebo"
+      }
+     ]
+    },
+    "sponsorCollaboratorsModule": {
+     "leadSponsor": {
+      "name": "Orexigen Therapeutics, Inc"
+     }
+    }
+   }
+  },
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT00474630",
+     "briefTitle": "Orexigen naltrexone SR/bupropion SR study NCT00474630"
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "Naltrexone SR 32 mg/bupropion SR 360 mg/day"
+      },
+      {
+       "type": "DRUG",
+       "name": "Placebo"
+      }
+     ]
+    },
+    "sponsorCollaboratorsModule": {
+     "leadSponsor": {
+      "name": "Orexigen Therapeutics, Inc"
+     }
+    }
+   }
+  },
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT00532779",
+     "briefTitle": "Orexigen naltrexone SR/bupropion SR study NCT00532779"
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "Naltrexone SR 32 mg/bupropion SR 360 mg/day"
+      },
+      {
+       "type": "DRUG",
+       "name": "Placebo"
+      }
+     ]
+    },
+    "sponsorCollaboratorsModule": {
+     "leadSponsor": {
+      "name": "Orexigen Therapeutics, Inc"
+     }
+    }
+   }
+  },
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT00456521",
+     "briefTitle": "Orexigen naltrexone SR/bupropion SR study NCT00456521"
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "Naltrexone SR 32 mg/bupropion SR 360 mg/day"
+      },
+      {
+       "type": "DRUG",
+       "name": "Placebo"
+      }
+     ]
+    },
+    "sponsorCollaboratorsModule": {
+     "leadSponsor": {
+      "name": "Orexigen Therapeutics, Inc"
+     }
+    }
+   }
+  },
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT9900001",
+     "briefTitle": "A Pfizer-led study of oxycodone/naltrexone"
+    },
+    "statusModule": {
+     "completionDateStruct": {
+      "date": "2014-12-01",
+      "type": "ACTUAL"
+     }
+    },
+    "conditionsModule": {
+     "conditions": [
+      "Chronic Low Back Pain"
+     ]
+    },
+    "designModule": {
+     "phases": [
+      "PHASE3"
+     ]
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "Oxycodone/naltrexone (ALO-02)"
+      }
+     ]
+    },
+    "outcomesModule": {
+     "primaryOutcomes": [
+      {
+       "measure": "Percent change in body weight"
+      }
+     ]
+    },
+    "sponsorCollaboratorsModule": {
+     "leadSponsor": {
+      "name": "Pfizer"
+     }
+    }
+   }
+  },
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT9900002",
+     "briefTitle": "A Wyeth-led study"
+    },
+    "statusModule": {
+     "completionDateStruct": {
+      "date": "2009-06-01",
+      "type": "ACTUAL"
+     }
+    },
+    "conditionsModule": {
+     "conditions": [
+      "Healthy"
+     ]
+    },
+    "designModule": {
+     "phases": [
+      "PHASE3"
+     ]
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "Placebo"
+      }
+     ]
+    },
+    "outcomesModule": {
+     "primaryOutcomes": [
+      {
+       "measure": "Percent change in body weight"
+      }
+     ]
+    },
+    "sponsorCollaboratorsModule": {
+     "leadSponsor": {
+      "name": "Wyeth is now a wholly owned subsidiary of Pfizer"
+     }
+    }
+   }
+  }
+ ]
+}
