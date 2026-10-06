@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import math
+import pathlib
 import statistics
 
 import pytest
@@ -298,8 +299,221 @@ def test_the_xlv_week_is_read_on_the_same_five_sessions():
 
 def test_part_focal_skips_the_cohort_blocks():
     out = uc.assemble(_src(), "AZN", part="focal")
-    assert "week_items" not in out and "lanes" not in out
+    assert "week_items" not in out and "week" not in out and "lanes" not in out
     assert out["focal"]["events"] and out["closes"]["AZN"]
+
+
+# ------------------------------------------------------------- the week across the group
+# The 2026-10-06 book's week, saved as fixtures/universe/week_sources.json: the change
+# feed, the headlines, the deals table's rows, the rates, closes for the day moves, the
+# slipped trials, and the companies and dated events as assemble builds them.
+WEEK_FIXTURE = (pathlib.Path(__file__).resolve().parent / "fixtures" / "universe"
+                / "week_sources.json")
+SINCE = (TODAY - dt.timedelta(days=uc.NEWS_DAYS)).isoformat()
+
+
+@pytest.fixture(scope="module")
+def wk():
+    fx = json.loads(WEEK_FIXTURE.read_text())
+    rows = uc._week_rows(fx["changes"], fx["companies"], SINCE, TODAY.isoformat())
+    items = uc._week_items(fx, fx["companies"], fx["events"], TODAY, rows)
+    block = uc._week_block(fx, fx["companies"], fx["events"], TODAY, rows, items,
+                           fx["cohort"])
+    return {"fx": fx, "rows": rows, "items": items, "block": block}
+
+
+def test_the_week_is_ranked_by_kind_in_the_stated_order(wk):
+    """Deals with a value, the rate move, Phase 3 results, deals with none, Phase 2
+    results, label expansions, the group's slips, the next firm FDA date, then notices,
+    results dates, filings, labels, Phase 3 completions due and exclusivity ending."""
+    items = wk["items"]
+    assert [i["kind"] for i in items] == [
+        "deal", "market", "readout", "deal", "readout2", "approval", "slips", "regulatory",
+        "notice", "earnings", "filing", "labels", "due", "loe"]
+    assert [i["rank"] for i in items] == list(range(1, len(items) + 1))
+    assert len(items) <= uc.WEEK_ITEMS
+    assert items[0]["tickers"] == ["SNY", "REGN"] and items[3]["tickers"] == ["AZN"]
+    cohort = set(wk["fx"]["cohort"]) | {"ALL"}
+    assert all(set(i["tickers"]) <= cohort for i in items)
+    assert all(isinstance(i["verbatim"], bool) for i in items)
+
+
+def test_the_week_never_reads_the_company_in_focus(wk):
+    """The feed and the block take no ticker, and assemble gives the same week whichever
+    company is picked."""
+    import inspect
+    for fn in (uc._week_rows, uc._week_items, uc._week_block):
+        assert "ticker" not in inspect.signature(fn).parameters
+    fx = wk["fx"]
+    src = _src(changes=fx["changes"], headlines=fx["headlines"], deal_rows=fx["deal_rows"])
+    a, b = uc.assemble(src, "AZN"), uc.assemble(src, "LLY")
+    assert a["week_items"] == b["week_items"] and a["week"] == b["week"]
+    assert a["week_items"]                                   # the week reaches the payload
+
+
+def test_a_priced_deal_quotes_its_source_and_names_its_terms(wk):
+    deal = wk["items"][0]
+    assert deal["value_usd"] == 8e9 and deal["fig"] == "$8bn"
+    assert deal["terms"] == {"upfront": "$1bn", "milestones": "$7bn",
+                             "counterparty": "Regeneron"}
+    assert deal["quote"] == ("Sanofi and Regeneron expand global Alliance with multiple "
+                             "next-generation, long-acting immunology antibodies")
+    assert deal["quote_src"] == "the press release, filed as exhibit 99.1"
+    assert deal["verbatim"] is False                         # the head is our words
+    moves = dict(next(v for k, v in deal["rows"] if str(k).startswith("Day move")))
+    assert set(moves) == {"SNY", "REGN"} and moves["REGN"] < 0
+    # No exhibit title and no news headline on file: no quote, never an invented one.
+    assert uc._deal_quote({"ticker": "X", "date": "2026-10-01", "evidence": "terms only"},
+                          []) == (None, None)
+
+
+def test_a_deals_own_filings_fold_into_it_and_leave_the_filings_item(wk):
+    azn = wk["items"][3]
+    filed = [k for k, _v in azn["rows"] if str(k).startswith("Filed ")]
+    assert len(filed) == 3 and all("SUMMIT" in f["text"] for f in azn["folded"])
+    filings = next(i for i in wk["items"] if i["kind"] == "filing")
+    assert "SUMMIT" not in filings["head"]
+    assert filings["head"] == "8-K: Results of operations; 8-K: Director or officer change"
+    assert filings["note"].startswith("6 routine filings left out")
+
+
+def test_routine_filings_are_left_out_and_counted(wk):
+    routine = [r for r in wk["rows"] if uc._routine_filing(r)]
+    assert len(routine) == wk["block"]["routine_filings"] == 6
+    for r in ({"change_type": "new_filing", "ticker": "AZN", "headline": "AZN 6-K: 6-K"},
+              {"change_type": "new_filing", "ticker": "AZN",
+               "headline": "AZN 6-K: TOTAL VOTING RIGHTS"},
+              {"change_type": "new_filing", "ticker": "GSK", "headline": "GSK 6-K: FORM 6-K"}):
+        assert uc._routine_filing(r)
+    assert not uc._routine_filing({"change_type": "new_filing", "ticker": "ABBV",
+                                   "headline": "ABBV 8-K: Results of operations"})
+    grid = wk["block"]["grid"]
+    assert not any("VOTING RIGHTS" in x["text"] for t in grid for k in grid[t]
+                   for x in grid[t][k])
+
+
+def test_the_slips_are_the_groups_and_a_study_moved_twice_is_one(wk):
+    s = next(i for i in wk["items"] if i["kind"] == "slips")
+    assert s["fig"] == "33" and s["n_high"] == 7
+    assert s["head"].startswith("33 trial completion dates slipped, 7 of them Phase 3 by "
+                                "more than 30 days; the longest, NVS NCT06133972, by 48 months")
+    assert s["rows"][0][0] == "NVS NCT06133972"
+    twice = next(v for k, v in s["rows"] if k == "ROG NCT05296798")
+    assert twice.endswith("moved 2 times") and twice.startswith("8 months")
+    assert s["mini"]["rows"][0] == ["NVS", 1456]
+    # A month-only date counts from its month's first day and the span is in months.
+    one = uc._slip({"ticker": "X", "headline": "X trial NCT00000009: primary completion "
+                                                "2027-03 -> 2027-11", "date": "2026-10-01"})
+    assert one["month"] and uc._span(one) == "8 months"
+    short = uc._slip({"ticker": "X", "headline": "X trial NCT00000009: primary completion "
+                                                 "2026-11-01 -> 2026-12-20"})
+    assert uc._span(short) == "49 days"
+
+
+def test_a_row_is_this_weeks_when_first_seen_in_it_and_not_stale():
+    rows = [
+        # Dated before the week, first seen in it: in (LLY's approval read on Saturday).
+        {"kind": "change", "ticker": "LLY", "change_type": "press_approval",
+         "date": "2026-09-25", "detected_at": "2026-10-04T07:32:27", "headline": "LLY a"},
+        # First seen in the week but dated months before it: out.
+        {"kind": "filing", "ticker": "VRTX", "change_type": "new_filing",
+         "date": "2026-07-07", "detected_at": "2026-10-02", "headline": "VRTX 8-K: x"},
+        # Outside the cohort: out. Seen before the week: out.
+        {"kind": "change", "ticker": "INCY", "change_type": "press_deal",
+         "date": "2026-10-01", "headline": "INCY b"},
+        {"kind": "change", "ticker": "LLY", "change_type": "label_change",
+         "date": "2026-09-20", "detected_at": "2026-09-21", "headline": "LLY c"},
+        # The same filing twice, as a new filing and a material event: once.
+        {"kind": "filing", "ticker": "LLY", "change_type": "new_filing",
+         "date": "2026-10-02", "headline": "LLY 8-K: Other events"},
+        {"kind": "filing", "ticker": "LLY", "change_type": "material event",
+         "date": "2026-10-02", "headline": "LLY 8-K: Other events"}]
+    got = uc._week_rows(rows, {"LLY": {}, "VRTX": {}}, SINCE, TODAY.isoformat())
+    assert [(r["ticker"], r["change_type"]) for r in got] == [
+        ("LLY", "press_approval"), ("LLY", "new_filing")]
+
+
+def test_the_look_ahead_items_keep_their_windows(wk):
+    due = next(i for i in wk["items"] if i["kind"] == "due")
+    end = (TODAY + dt.timedelta(days=uc.DUE_DAYS)).isoformat()
+    picked = [e for e in wk["fx"]["events"] if not e["month"] and e.get("phase") == "p3"
+              and TODAY.isoformat() <= e["date"] <= end]
+    assert due["fig"] == str(len(picked)) == "10"
+    assert due["note"] == "Estimated primary completion dates from the registry, not result dates."
+    loe = next(i for i in wk["items"] if i["kind"] == "loe")
+    assert loe["fig"] == "6" and loe["head"].startswith("6 patents and exclusivities end by 5 Dec")
+    assert all(TODAY.isoformat() <= d <= "2026-12-05" for d in loe["mini"]["dates"])
+
+
+def test_a_results_call_reads_its_day_and_a_notice_is_never_a_result(wk):
+    e = next(i for i in wk["items"] if i["kind"] == "earnings")
+    assert e["tickers"] == ["MRK"] and e["call"] == "2026-10-29" and e["fig"] == "29 Oct"
+    assert e["verbatim"] is True
+    notice = next(i for i in wk["items"] if i["kind"] == "notice")
+    assert notice["tickers"] == ["AZN"] and notice["tag"] == "notice"
+    readouts = [i for i in wk["items"] if i["kind"] in ("readout", "readout2")]
+    assert all("showcase" not in i["head"] for i in readouts)
+
+
+def test_the_grid_holds_every_change_once_and_the_news_counts_events(wk):
+    block = wk["block"]
+    grid = block["grid"]
+    for k, n in block["kinds"].items():
+        assert n == sum(len(grid[t][k]) for t in grid)
+    assert block["kinds"] == {"deal": 6, "result": 3, "fda": 3, "slip": 34, "company": 3,
+                              "routine": 100}
+    assert set(block["kind_labels"]) == set(block["kinds"])
+    # One approval is one change: Lilly's efficacy supplement for Olumiant gives way to
+    # its own press release of the same approval.
+    assert len(grid["LLY"]["fda"]) == 1 and grid["LLY"]["fda"][0]["verbatim"]
+    # The priced deal counts once under each party.
+    assert [x["type"] for x in grid["SNY"]["deal"]] == ["deal"]
+    assert [x["type"] for x in grid["REGN"]["deal"]] == ["deal"]
+    # AstraZeneca's Summit deal and the three filings it folds in are four changes and
+    # one piece of news; its notice and its high slip are the other two.
+    assert len(grid["AZN"]["deal"]) == 4
+    assert [n["kind"] for n in block["news"]["AZN"]] == ["result", "slip", "deal"]
+    assert block["news"]["JNJ"] == [] and block["news"]["BAYN"] == []
+
+
+def test_the_board_next_event_rule():
+    ev = [{"date": "2026-10-08", "month": False, "regulatory": False, "firm": False,
+           "phase": "p2", "short": "a", "short_basis": "drug"},
+          {"date": "2026-10-10", "month": False, "regulatory": False, "firm": False,
+           "phase": "p3", "short": "b", "short_basis": "drug"},
+          {"date": "2026-10", "month": True, "regulatory": True, "firm": False,
+           "phase": None, "short": "c", "short_basis": "drug"},
+          {"date": "2026-11-20", "month": False, "regulatory": True, "firm": True,
+           "phase": None, "short": "d", "short_basis": "drug", "type": "PDUFA"}]
+    assert uc._next_event(ev)["short"] == "d"                # a firm FDA date first
+    assert uc._next_event(ev[:3])["short"] == "c"            # then any FDA date
+    assert uc._next_event(ev[:2])["short"] == "b"            # then a Phase 3
+    assert uc._next_event(ev[:1])["short"] == "a"            # then anything dated
+    assert uc._next_event([]) is None
+    named = uc._next_event([{**ev[0], "short_basis": "condition",
+                             "conditions": ["Sjögren's Syndrome"]}])
+    assert named["name"] == "Sjögren's Syndrome study"
+
+
+def test_the_board_and_ribbon_fields(wk):
+    block = wk["block"]
+    assert block["next"]["GSK"]["date"] == "2026-10-26" and block["next"]["GSK"]["firm"]
+    assert block["next"]["BAYN"] is None
+    order = block["value_order"]
+    ups = {t: wk["fx"]["companies"][t]["model"]["upside"] for t in order}
+    have = [t for t in order if ups[t] is not None]
+    assert have == sorted(have, key=lambda t: -ups[t]) and order[-1] == "BAYN"
+    assert sorted(order) == sorted(wk["fx"]["cohort"])
+
+
+def test_an_empty_week_is_empty_not_invented():
+    """No change, headline or deal on file: the feed holds only what the calendar holds
+    ahead (here LLY's firm PDUFA date), and the grid and the news are empty."""
+    out = uc.assemble(_src(), "AZN")
+    assert [(i["kind"], i["tickers"]) for i in out["week_items"]] == [("regulatory", ["LLY"])]
+    assert all(v == 0 for v in out["week"]["kinds"].values())
+    assert out["week"]["routine_filings"] == 0
+    assert all(n == [] for n in out["week"]["news"].values())
 
 
 # --------------------------------------------------------------------------- the route

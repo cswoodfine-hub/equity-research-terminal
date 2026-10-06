@@ -1,13 +1,16 @@
-"""The Universe tab's command centre: one company in focus against its cohort, in one read.
+"""The Universe tab's command centre: the week across the group, in one read.
 
-The redesigned Universe tab (AstraZeneca first) draws eight rankings, a price against
-value map, a company board with the next 90 days, the week's material items ranked, rates
-against the company's value, Medicare and exclusivity exposure, approvals and readouts on
-one axis, a year of prices and the policy calendar. Each of those already has a module;
-this assembles them so the page makes one read rather than about thirty, and does the few
-things no route serves yet: daily closes for the whole cohort ending on the latest close,
-the week's move, the rate and currency paths, short names for dated events and the week's
-items ranked by a stated rule.
+The redesigned Universe tab (AstraZeneca first) leads with the week's news across the
+cohort: the week's items ranked by a stated rule (the lead story is rank 1), a company
+board with each company's week move, news count and next dated event, the group from cheap
+to expensive on the model's upside and a grid of every change. Under them sit the
+approvals and readouts, a year of prices, rates and currencies, Medicare and exclusivity,
+the policy calendar and the company picked against the group, and the company dialog
+reads ``part="focal"``. Each of those already has a module; this assembles them so the
+page makes one read rather than about thirty, and does the few things no route serves yet:
+daily closes for the whole cohort ending on the latest close, the week's move, the rate
+and currency paths, short names for dated events and the week itself. No rule of the week
+reads the company picked, so the page reads the same whichever it is.
 
 Two layers, so the rules can be tested without a book:
 
@@ -51,8 +54,49 @@ RATE_LABEL = {"DGS10": "10-year Treasury", "DFII10": "10-year real",
               "T10YIE": "Breakeven", "BAMLC0A3CAEY": "Single-A yield"}
 FX_BASES = ("CHF", "DKK", "EUR", "GBP")
 BENCHMARK = "XLV"
-# The ranked list keeps this many items.
-WEEK_ITEMS = 8
+# The ranked feed keeps this many items; the page shows as many as fit its column.
+WEEK_ITEMS = 16
+# The ranked feed's look-ahead items: Phase 3 primary completions due inside 14 days and
+# listed patents and exclusivities ending inside 60.
+DUE_DAYS = 14
+LOE_DAYS = 60
+# The slips item lists this many of the week's longest high slips in its rows.
+SLIP_ROWS = 6
+# A filing no reader opens: the voting-rights and share-admission notices and a bare cover
+# form ("6-K: FORM 6-K", "6-K: 6-K"). Left out of the ranked feed and the grid, and
+# counted, so the page can say how many it dropped.
+_ROUTINE_FILING_RE = re.compile(
+    r"TOTAL VOTING RIGHTS|ADMISSION OF FURTHER SECURITIES|BLOCK LISTING|"
+    r"TRANSACTION IN OWN SHARES|DIRECTOR/PDMR|^\s*(?:FORM\s+)?\d{1,2}-K\s*$", re.I)
+# A trial completion move: the study and the two dates, either a day or a month.
+_SLIP_RE = re.compile(r"(NCT\d{8}).*?(\d{4}-\d{2}(?:-\d{2})?)\s*->\s*(\d{4}-\d{2}(?:-\d{2})?)")
+# The day a results announcement names for its call: "Conference Call Oct. 29".
+_MONTH_DAY_RE = re.compile(
+    r"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2})\b")
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+# A filed press release's own title, where the deal's terms were read off its exhibit:
+# "Exhibit 99.1 Press Release <title> •".
+_EXHIBIT_TITLE_RE = re.compile(r"Press Release\s+(.+?)\s+•")
+_EXHIBIT_NO_RE = re.compile(r"\bEX-(99\.\d+)\b")
+# Words too common in deal announcements to tie a filing to a deal by.
+_DEAL_COMMON = {"announces", "announce", "completes", "complete", "strategic", "investment",
+                "clinical", "collaboration", "advance", "equity", "leading", "strategy",
+                "cancer", "agreement", "global", "therapeutics", "pharmaceuticals", "plc",
+                "combination", "with", "license", "licensing", "acquire", "acquisition"}
+# The grid of every change: one row per kind, every change type of the week in exactly one
+# row, or left out (catalysts, LOE and market rows are not changes of the week).
+GRID_KINDS = (("deal", "Deals"), ("result", "Results and data notices"),
+              ("fda", "FDA approvals"), ("slip", "Trial dates slipped"),
+              ("company", "Filings and company news"),
+              ("routine", "Labels and registry updates"))
+_GRID_OF = {"press_deal": "deal", "press_data_readout": "result",
+            "press_approval": "fda", "efficacy_supplement": "fda", "new_approval": "fda",
+            "press_regulatory": "fda", "date_slip": "slip",
+            "new_filing": "company", "material event": "company", "press_results": "company",
+            "leadership_change": "company",
+            "label_change": "routine", "status_change": "routine", "date_change": "routine",
+            "enrollment_change": "routine", "design_change": "routine",
+            "endpoint_change": "routine"}
 # Change types that count as company news on the board, and the glyph each draws as.
 MATERIAL = {"efficacy_supplement": "approval", "new_approval": "approval",
             "press_approval": "approval", "press_data_readout": "readout",
@@ -356,6 +400,19 @@ def _approvals(conn, since: str) -> list:
                     ORDER BY ap.approval_date""", (since,))]
 
 
+def _deal_rows(conn, tickers, since: str) -> list:
+    """The deals table's rows for the cohort since ``since``: the stored announcing
+    headline (``quote``, verbatim) and where it came from, so a deal on the ranked feed
+    can carry its source's own words."""
+    marks = ",".join("?" * len(tickers))
+    return [dict(r) for r in conn.execute(
+        f"""SELECT c.ticker, d.counterparty, d.event_date, d.quote, d.source_url,
+                   d.article_url, d.terms_source, d.event_date_source
+              FROM deals d JOIN companies c ON c.id = d.company_id
+             WHERE c.ticker IN ({marks}) AND d.event_date >= ?
+             ORDER BY d.event_date""", (*tickers, since))]
+
+
 def _valuation():
     """The Comps valuation payload with its scorecard: the last one the API computed, or
     a fresh build where none is held."""
@@ -442,6 +499,8 @@ def read_sources(ticker: str, today: dt.date | None = None, db_path=None,
         src["markets"] = markets.build(db_path, days=30)
         src["paths"] = _paths(conn, (today - dt.timedelta(days=PATH_DAYS)).isoformat())
         src["policy"] = policy_fedreg.recent(db_path, days=730)
+        src["deal_rows"] = _deal_rows(conn, cohort,
+                                      (today - dt.timedelta(days=2 * NEWS_DAYS)).isoformat())
     finally:
         conn.close()
     return src
@@ -568,25 +627,254 @@ def _day_move(closes: list, day: str):
     return None
 
 
-def _week_items(src: dict, companies: dict, events: list, ticker: str,
-                today: dt.date) -> list:
-    """The week ranked by a stated rule: deals with a stated value by value, the rate
-    move the book is priced on, Phase 3 results, deals with no value, Phase 2 results,
-    label expansions grouped, the focal company's largest slip (else the largest), then the
-    next firm FDA date inside 30 days. Each item carries its own figure and date."""
+def _seen(r: dict) -> str:
+    """When the book first saw a row: detected_at, else the row's own date."""
+    return _iso(r.get("detected_at")) or _iso(r.get("date")) or ""
+
+
+def _strip_ticker(text: str | None, ticker: str | None) -> str:
+    text = re.sub(r"\s+", " ", text or "").strip()
+    return text[len(ticker) + 1:] if ticker and text.startswith(ticker + " ") else text
+
+
+def _first_day(iso: str) -> dt.date | None:
+    """A day, or the first day of a month-only date."""
+    return _date(iso if len(iso or "") == 10 else f"{iso}-01")
+
+
+def _dshort(iso) -> str:
+    """'5 Oct', or the month alone for a month-only date."""
+    d = _date(iso)
+    if d:
+        return f"{d.day} {_MONTHS[d.month - 1]}"
+    m = _first_day(str(iso or "")[:7])
+    return _MONTHS[m.month - 1] if m else str(iso or "")
+
+
+def _dlong(iso) -> str:
+    """'25 May 2028', or 'May 2028' for a month-only date."""
+    d = _date(iso)
+    if d and len(str(iso)) >= 10:
+        return f"{d.day} {_MONTHS[d.month - 1]} {d.year}"
+    m = _first_day(str(iso or "")[:7])
+    return f"{_MONTHS[m.month - 1]} {m.year}" if m else str(iso or "")
+
+
+def _slip(r: dict) -> dict | None:
+    """A date_slip row's study and its two dates, either a day or a month: the days
+    between (a month-only date counts from its first day), whether either date is a month
+    only, and the feed's own significance (high is a Phase 3 moved more than 30 days,
+    materiality.slip_significance). None where the row states no later date."""
+    m = _SLIP_RE.search(r.get("headline") or "")
+    if not m:
+        return None
+    was, now = m.group(2), m.group(3)
+    a, b = _first_day(was), _first_day(now)
+    if not (a and b) or b <= a:
+        return None
+    return {"ticker": r.get("ticker"), "nct": m.group(1), "was": was, "now": now,
+            "days": (b - a).days, "month": len(was) == 7 or len(now) == 7,
+            "seen": _seen(r), "high": r.get("significance") == "high", "moves": 1}
+
+
+def _span(s: dict) -> str:
+    """A slip's size as the page words it: in days under 120, in months from 120 days,
+    and in months whenever either date is a month only."""
+    if s["month"] or s["days"] >= 120:
+        a, b = _first_day(s["was"]), _first_day(s["now"])
+        months = (b.year - a.year) * 12 + b.month - a.month
+        if months >= 1:
+            return f"{months} month{'' if months == 1 else 's'}"
+    return f"{s['days']} day{'' if s['days'] == 1 else 's'}"
+
+
+_FIELD_WORDS = {"enrollment_change": "enrolment", "design_change": "design",
+                "endpoint_change": "endpoints"}
+
+
+def _row_text(r: dict) -> tuple[str, bool]:
+    """A week row as the page words it, and whether the words are the source's own.
+
+    A press headline or a filing title stays as the source wrote it, the leading ticker
+    the feed adds dropped. The rows the diff engine writes are re-worded: a slip as its
+    study, size and new date; an efficacy supplement as the brand approved; a label as
+    its brand and version; a registry change as its study and what changed."""
+    t = r.get("ticker")
+    text = _strip_ticker(r.get("headline"), t)
+    ct = r.get("change_type")
+    if ct == "date_slip":
+        s = _slip(r)
+        if s:
+            return f"{s['nct']} completion slips {_span(s)}, to {_dlong(s['now'])}", False
+    elif ct == "efficacy_supplement":
+        m = re.search(r"efficacy supplement: (.+?) approved (\d{4}-\d{2}-\d{2})", text)
+        if m:
+            return f"{m.group(1)} efficacy supplement approved {_dlong(m.group(2))}", False
+    elif ct == "label_change":
+        m = re.search(r"label: (.+?) revised to version (\d+)", text)
+        if m:
+            return f"{m.group(1)} label revised, version {m.group(2)}", False
+    elif ct == "status_change":
+        m = re.search(r"trial (NCT\d{8}): status .+? -> (.+)$", text)
+        if m:
+            return f"{m.group(1)} now {m.group(2).lower()}", False
+    elif ct == "date_change":
+        m = re.search(r"trial (NCT\d{8}): primary completion \S+ -> (\S+)", text)
+        if m:
+            return f"{m.group(1)} completion moves to {_dlong(m.group(2))}", False
+    elif ct in _FIELD_WORDS:
+        m = re.search(r"trial (NCT\d{8})", text)
+        if m:
+            return f"{m.group(1)} {_FIELD_WORDS[ct]} changed", False
+    verbatim = ct in ("press_data_readout", "press_approval", "press_deal", "press_results",
+                      "press_regulatory", "new_filing", "material event")
+    return text, verbatim
+
+
+def _routine_filing(r: dict) -> bool:
+    """A filing no reader opens (see _ROUTINE_FILING_RE), read off its title."""
+    if r.get("change_type") not in ("new_filing", "material event"):
+        return False
+    body = _strip_ticker(r.get("headline"), r.get("ticker"))
+    return bool(_ROUTINE_FILING_RE.search(body.split(": ", 1)[-1]))
+
+
+def _week_rows(feed: list, cohort, since: str, today: str) -> list:
+    """The week's change rows for the cohort: the one set the grid, the board's news and
+    the ranked feed's counts read.
+
+    A row is in when its kind is change or filing, its ticker is in the cohort, it was
+    first seen (detected_at, else its own date) between ``since`` and ``today``, and its
+    own date is no more than seven days before ``since``: an approval dated the Thursday
+    before and first read on Saturday is this week's news, a July 8-K first read this
+    week is not. A filing the feed carries twice (as a new filing and as a material event)
+    is taken once. Catalyst, LOE, market and policy rows are not changes of the week."""
+    floor = (_date(since) - dt.timedelta(days=NEWS_DAYS)).isoformat()
+    out, held = [], set()
+    for r in feed:
+        if r.get("kind") not in ("change", "filing") or r.get("ticker") not in cohort:
+            continue
+        seen = _seen(r)
+        if not (since <= seen <= today):
+            continue
+        if (_iso(r.get("date")) or seen) < floor:
+            continue
+        key = (r.get("ticker"), _iso(r.get("date")),
+               _strip_ticker(r.get("headline"), r.get("ticker")))
+        if r.get("change_type") in ("new_filing", "material event"):
+            if key in held:
+                continue
+            held.add(key)
+        out.append(r)
+    return out
+
+
+def _distinct_words(text: str | None, own: str | None = "") -> set:
+    """The words of five letters or more that can tie a filing to a deal: not the common
+    words of a deal announcement and not the company's own name."""
+    words = set(re.findall(r"[a-z]{5,}", (text or "").lower()))
+    return words - _DEAL_COMMON - set(re.findall(r"[a-z]{5,}", (own or "").lower()))
+
+
+def _fold_filings(deal: dict, rows: list, companies: dict, folded: set) -> None:
+    """Add to a deal the week's filings by its parties that name it: a filing that is not
+    routine and shares a distinctive word with the deal's head (AstraZeneca's three
+    Summit 6-Ks fold into its Summit deal). Each folded row is marked in ``folded`` so it
+    is not listed again as a filing."""
+    for t in deal["tickers"]:
+        mark = _distinct_words(deal.get("head"), (companies.get(t) or {}).get("name"))
+        if not mark:
+            continue
+        for r in rows:
+            if r.get("ticker") != t or id(r) in folded or _routine_filing(r):
+                continue
+            if r.get("change_type") not in ("new_filing", "material event"):
+                continue
+            body = _strip_ticker(r.get("headline"), t)
+            if mark & _distinct_words(body, (companies.get(t) or {}).get("name")):
+                folded.add(id(r))
+                deal.setdefault("folded", []).append(
+                    {"ticker": t, "date": _iso(r.get("date")), "text": body})
+                deal["rows"].append([f"Filed {_dshort(r.get('date'))}", body])
+
+
+def _deal_quote(h: dict, deal_rows: list) -> tuple:
+    """A priced deal's source title, quoted verbatim, and where it is from: the filed
+    press release's own title where the terms were read off its exhibit ("Exhibit 99.1
+    Press Release <title> •"); else the stored announcing headline of a deal the book read
+    from the news. (None, None) where neither is on file: no deck is drawn."""
+    ev = h.get("evidence") or ""
+    m = _EXHIBIT_TITLE_RE.search(ev)
+    if m:
+        ex = _EXHIBIT_NO_RE.search(ev)
+        return (m.group(1).strip(), "the press release, filed as exhibit " + ex.group(1)
+                if ex else "the filed press release")
+    day = _iso(h.get("date"))
+    for d in deal_rows:
+        if d.get("ticker") == h.get("ticker") and _iso(d.get("event_date")) == day \
+                and d.get("quote") and d.get("event_date_source") == "news" \
+                and not d.get("terms_source"):
+            return d["quote"].strip(), "the headline as published"
+    return None, None
+
+
+def _ev_name(e: dict) -> str:
+    """A dated event's drug, or its condition's study where the registry title names no
+    drug."""
+    if e.get("short_basis") in ("condition", "title"):
+        cond = re.split(r"[;(]", ((e.get("conditions") or [""])[0] or e.get("short") or ""))[0]
+        return f"{cond.strip()} study" if cond.strip() else "a study"
+    return e.get("short") or e.get("title") or ""
+
+
+def _week_items(src: dict, companies: dict, events: list, today: dt.date,
+                rows: list | None = None) -> list:
+    """The week across the group, ranked by a stated rule that never reads the company in
+    focus, so the feed is the same whichever company is picked:
+
+    1. Deals with a stated value, largest first (the headlines' deals). Each carries its
+       terms, both parties' day moves, the filings it folds in (_fold_filings) and its
+       source's own title where one is on file (_deal_quote).
+    2. The rate move the book is priced on, when the 10-year was flagged this week: the
+       10-year's level and 30-day move and the single-A yield beside it, from /markets;
+       the week's flags in the rows.
+    3. Phase 3 results, from the companies' own announcements. A notice that data will
+       be presented is not a result (item 9).
+    4. Deals with no stated value: the feed's press deals and headline deals with no
+       figure, each folding in its filings.
+    5. Phase 2 results.
+    6. The week's label expansions (efficacy supplements), one item.
+    7. The week's trial completion slips across the group, one item: the count of studies
+       whose date slipped, the longest high slips (a Phase 3 moved more than 30 days)
+       named, the rest counted. A study moved twice in the week is one slip, first date
+       to last.
+    8. The next firm FDA date inside 30 days.
+    9. Notices that data will be presented.
+    10. Results dates the companies announced, the call's day read from the text.
+    11. Filings a reader would open: not routine and not folded into a deal, one item.
+    12. US labels revised, one item.
+    13. Phase 3 primary completions estimated inside DUE_DAYS, one item.
+    14. Listed patents and exclusivities ending inside LOE_DAYS, one item.
+
+    Every item carries ``verbatim`` (its head is the source's own words), its own figure
+    and date; at most WEEK_ITEMS are kept, ranked from 1."""
     since = (today - dt.timedelta(days=NEWS_DAYS)).isoformat()
     closes = src.get("closes") or {}
     heads = src.get("headlines") or []
     feed = src.get("changes") or []
+    if rows is None:
+        rows = _week_rows(feed, companies, since, today.isoformat())
+    deal_rows = src.get("deal_rows") or []
+    folded: set = set()
     items = []
 
     def move(t, day):
         return _day_move(closes.get(t) or [], day) if day else None
 
-    # Deals with a stated value, largest first.
+    # 1. Deals with a stated value, largest first.
     priced = []
     for h in heads:
-        if h.get("kind") != "deal":
+        if h.get("kind") != "deal" or h.get("ticker") not in companies:
             continue
         t = h["ticker"]
         body = (h.get("headline") or "")[len(t) + 1:]
@@ -598,46 +886,70 @@ def _week_items(src: dict, companies: dict, events: list, ticker: str,
                         and c["short"].split()[0].lower() == party.split()[0].lower()), None)
         day = _iso(h.get("date"))
         moves = [(t, move(t, day))] + ([(party_t, move(party_t, day))] if party_t else [])
+        quote, quote_src = _deal_quote(h, deal_rows)
         priced.append({"kind": "deal", "tag": "deal", "tickers": [t] + ([party_t] if party_t else []),
                        "head": (body[:1].upper() + body[1:] + (f": {h['detail']}" if h.get("detail") else "")),
+                       "verbatim": False,
                        "fig": h.get("figure"), "value_usd": value, "date": day,
+                       "terms": {"upfront": terms.get("Upfront"),
+                                 "milestones": terms.get("Milestones"),
+                                 "counterparty": party},
+                       "parties": [{"ticker": u, "short": companies[u]["short"]}
+                                   for u in [t] + ([party_t] if party_t else [])],
+                       "quote": quote, "quote_src": quote_src,
                        "mini": {"type": "deal", "upfront": up, "milestones": ms},
                        "rows": [[p.get("label"), p.get("value")] for p in h.get("summary") or []]
                                + [[f"Day move, {day}", [[u, mv] for u, mv in moves]]],
                        "url": h.get("url"), "src": "/headlines (deal)"})
     priced.sort(key=lambda i: -(i["value_usd"] or 0))
+    for d in priced:
+        if d["value_usd"]:
+            _fold_filings(d, rows, companies, folded)
     items += [i for i in priced if i["value_usd"]]
     unpriced_heads = [i for i in priced if not i["value_usd"]]
 
-    # The rate move the book is priced on: the latest 10-year flag of the week.
+    # 2. The rate move the book is priced on: the latest 10-year flag of the week.
     rate_flags = sorted([r for r in feed if r.get("kind") == "market"
                          and r.get("change_type") == "rate_move"
-                         and (_iso(r.get("detected_at") or r.get("date")) or "") >= since],
+                         and since <= (_iso(r.get("detected_at") or r.get("date")) or "")],
                         key=lambda r: r.get("date") or "")
-    rates = {r["series"]: r for r in (src.get("markets") or {}).get("rates") or []}
+    markets = src.get("markets") or {}
+    rates = {r["series"]: r for r in markets.get("rates") or []}
     if rate_flags and rates.get("DGS10"):
         r10 = rates["DGS10"]
         path = [[d, v] for d, v in ((src.get("paths") or {}).get("rates") or {}).get("DGS10", [])]
         last = rate_flags[-1]
-        rows = [["Level", {"value": r10.get("value"), "as_of": r10.get("as_of"),
-                           "change_bp": r10.get("change_bp"), "from": r10.get("change_from")}],
-                ["Flags this week", [[_iso(f.get("date")), f.get("headline")] for f in rate_flags]]]
-        for s in ("DFII10", "T10YIE"):
+        rows_ = [["Level", {"value": r10.get("value"), "as_of": r10.get("as_of"),
+                            "change_bp": r10.get("change_bp"), "from": r10.get("change_from")}],
+                 ["Flags this week", [[_iso(f.get("date")), f.get("headline")] for f in rate_flags]]]
+        for s in ("DFII10", "T10YIE", "BAMLC0A3CAEY"):
             if rates.get(s) and rates[s].get("change_bp") is not None:
-                rows.append([RATE_LABEL[s], {"change_bp": rates[s]["change_bp"],
-                                             "from": rates[s].get("change_from"),
-                                             "as_of": rates[s].get("as_of")}])
-        items.append({"kind": "market", "tag": "rates", "tickers": ["ALL"],
-                      "head": last.get("headline"), "fig_bp": r10.get("change_bp"),
-                      "fig_sub": "30 days", "date": _iso(last.get("date")),
+                rows_.append([RATE_LABEL[s], {"change_bp": rates[s]["change_bp"],
+                                              "from": rates[s].get("change_from"),
+                                              "as_of": rates[s].get("as_of")}])
+        head = last.get("headline")
+        days = markets.get("days") or 30
+        if r10.get("value") is not None and r10.get("change_bp") is not None:
+            bp = r10["change_bp"]
+            head = (f"10-year Treasury {r10['value'] * 100:.2f}%, "
+                    f"{'up' if bp > 0 else 'down' if bp < 0 else 'flat'}"
+                    + (f" {abs(bp):.0f}bp" if bp else "") + f" in {days} days")
+            ca = rates.get("BAMLC0A3CAEY") or {}
+            if ca.get("value") is not None and ca.get("change_bp") is not None:
+                cb = ca["change_bp"]
+                head += (f"; single-A yield {ca['value'] * 100:.2f}%, "
+                         f"{'up' if cb > 0 else 'down' if cb < 0 else 'flat'}"
+                         + (f" {abs(cb):.0f}bp" if cb else ""))
+        items.append({"kind": "market", "tag": "rates", "tickers": ["ALL"], "verbatim": False,
+                      "head": head, "fig_bp": r10.get("change_bp"),
+                      "fig_sub": f"{days} days", "date": _iso(last.get("date")),
                       "mini": {"type": "spark", "values": [v for _d, v in path]},
-                      "rows": rows, "url": None, "src": "/markets, /changes (rate_move)"})
+                      "rows": rows_, "url": None, "src": "/markets, /changes (rate_move)"})
 
-    # Readouts from the headlines, by the phase the announcement reports. A notice that
-    # data will be presented is not a result and is left to the board's news glyphs.
+    # 3 and 5. Readouts from the headlines, by the phase the announcement reports.
     readouts = []
     for h in heads:
-        if h.get("kind") != "readout":
+        if h.get("kind") != "readout" or h.get("ticker") not in companies:
             continue
         t = h["ticker"]
         body = (h.get("headline") or "")[len(t) + 1:]
@@ -647,16 +959,16 @@ def _week_items(src: dict, companies: dict, events: list, ticker: str,
         day = _iso(h.get("date"))
         readouts.append({"kind": "readout" if ph != "2" else "readout2",
                          "tag": f"phase {ph}" if ph else "result", "tickers": [t],
-                         "head": body, "fig_move": move(t, day), "date": day, "phase": ph,
+                         "head": body, "verbatim": True, "fig_move": move(t, day),
+                         "date": day, "phase": ph,
                          "mini": {"type": "stock", "ticker": t, "marks": [day]},
                          "rows": [["Read out of", "the company's own announcement"],
                                   ["Day move", [[t, move(t, day)]]]],
                          "url": h.get("url"), "src": "/headlines (readout)"})
     items += [r for r in readouts if r["phase"] != "2"]
 
-    # Deals with no stated value: the feed's press deals of the week, and any headline deal
-    # that came without a figure. A filing on the same company in the week folds in.
-    filings = {h["ticker"]: h for h in heads if h.get("kind") == "filing"}
+    # 4. Deals with no stated value: the feed's press deals of the week, and any headline
+    # deal that came without a figure. The company's filings that name the deal fold in.
     for r in feed:
         if r.get("change_type") != "press_deal" or r.get("ticker") not in companies:
             continue
@@ -665,93 +977,327 @@ def _week_items(src: dict, companies: dict, events: list, ticker: str,
         t = r["ticker"]
         if any(t in i["tickers"] for i in items if i["kind"] == "deal"):
             continue
-        text = (r.get("headline") or "")[len(t) + 1:]
-        text = re.sub(r"\s+", " ", text).strip()
+        text = _strip_ticker(r.get("headline"), t)
         day = _iso(r.get("date"))
-        rows = [["Announced value", None], ["Announced", day]]
-        marks = [day]
-        if t in filings:
-            f = filings[t]
-            rows.append([f"{f.get('figure') or 'Filing'}", _iso(f.get("date"))])
-            marks.append(_iso(f.get("date")))
-        rows.append(["Day move", [[t, move(t, day)]]])
-        items.append({"kind": "deal", "tag": "deal", "tickers": [t], "head": text,
-                      "fig": None, "value_usd": None, "date": day,
-                      "mini": {"type": "stock", "ticker": t, "marks": marks},
-                      "rows": rows, "url": (filings.get(t) or {}).get("url"),
-                      "src": "/changes (press_deal), /headlines (filing)"})
+        deal = {"kind": "deal", "tag": "deal", "tickers": [t], "head": text,
+                "verbatim": True, "fig": None, "value_usd": None, "date": day,
+                "parties": [{"ticker": t, "short": companies[t]["short"]}],
+                "rows": [["Announced value", None], ["Announced", day]],
+                "url": None, "src": "/changes (press_deal)"}
+        _fold_filings(deal, rows, companies, folded)
+        deal["rows"].append(["Day move", [[t, move(t, day)]]])
+        deal["mini"] = {"type": "stock", "ticker": t,
+                        "marks": [day] + [f["date"] for f in deal.get("folded") or []]}
+        items.append(deal)
+    for d in unpriced_heads:
+        _fold_filings(d, rows, companies, folded)
     items += unpriced_heads
     items += [r for r in readouts if r["phase"] == "2"]
 
-    # Label expansions of the week, one row.
+    # 6. Label expansions of the week, one item.
     supps = [r for r in feed if r.get("change_type") == "efficacy_supplement"
              and r.get("ticker") in companies
              and (_iso(r.get("detected_at") or r.get("date")) or "") >= since]
     if supps:
-        brands, dates, rows, tickers = [], [], [], []
+        brands, dates, rows_, tickers = [], [], [], []
         for r in supps:
-            text = r.get("headline") or ""
-            m = re.search(r"efficacy supplement: (.+?) approved (\d{4}-\d{2}-\d{2})", text)
+            m = re.search(r"efficacy supplement: (.+?) approved (\d{4}-\d{2}-\d{2})",
+                          r.get("headline") or "")
             if not m:
                 continue
             brands.append(m.group(1))
             dates.append(m.group(2))
-            rows.append([r["ticker"], f"{m.group(1)} approved {m.group(2)}"])
+            rows_.append([r["ticker"], f"{m.group(1)} approved {m.group(2)}"])
             if r["ticker"] not in tickers:
                 tickers.append(r["ticker"])
         if brands:
             items.append({"kind": "approval", "tag": "approval", "tickers": tickers,
+                          "verbatim": False,
                           "brands": brands, "fig_n": len(brands), "date": max(dates),
                           "mini": {"type": "dates", "dates": sorted(dates)},
-                          "rows": rows + [["Seen", _iso(max(_iso(r.get("date")) for r in supps))]],
+                          "rows": rows_ + [["Seen", _iso(max(_iso(r.get("date")) for r in supps))]],
                           "url": None, "src": "/changes (efficacy_supplement)"})
 
-    # A slip: the focal company's largest of the week, else the largest.
-    slips = []
-    for r in feed:
-        if r.get("change_type") != "date_slip" or r.get("significance") != "high":
+    # 7. The week's slips across the group, a study moved twice taken first date to last.
+    studies: dict = {}
+    for r in rows:
+        if r.get("change_type") != "date_slip":
             continue
-        if r.get("ticker") not in companies:
+        s = _slip(r)
+        if not s:
             continue
-        if (_iso(r.get("detected_at") or r.get("date")) or "") < since:
+        k = (s["ticker"], s["nct"])
+        if k not in studies:
+            studies[k] = s
             continue
-        m = re.search(r"(NCT\d{8}).*?(\d{4}-\d{2}-\d{2})\s*->\s*(\d{4}-\d{2}-\d{2})",
-                      r.get("headline") or "")
-        if not m:
-            continue
-        a, b = _date(m.group(2)), _date(m.group(3))
-        if not (a and b) or b <= a:
-            continue
-        slips.append({"ticker": r["ticker"], "nct": m.group(1), "was": m.group(2),
-                      "now": m.group(3), "days": (b - a).days, "seen": _iso(r.get("date"))})
-    if slips:
-        own = [s for s in slips if s["ticker"] == ticker]
-        s = max(own or slips, key=lambda s: s["days"])
-        trial = (src.get("trials") or {}).get(s["nct"]) or {}
-        items.append({"kind": "slip", "tag": "slip", "tickers": [s["ticker"]],
-                      "slip": s, "head_title": trial.get("title"),
-                      "phase": trial.get("phase"), "date": s["seen"],
-                      "mini": {"type": "slip", "was": s["was"], "now": s["now"]},
-                      "rows": [["Study", s["nct"]], ["Was", s["was"]], ["Now", s["now"]]],
-                      "url": f"https://clinicaltrials.gov/study/{s['nct']}",
-                      "src": "/changes (date_slip)"})
+        o = studies[k]
+        was = min((o["was"], s["was"]), key=lambda v: _first_day(v))
+        now = max((o["now"], s["now"]), key=lambda v: _first_day(v))
+        studies[k] = {**o, "was": was, "now": now,
+                      "days": (_first_day(now) - _first_day(was)).days,
+                      "month": len(was) == 7 or len(now) == 7, "high": o["high"] or s["high"],
+                      "seen": max(o["seen"], s["seen"]), "moves": o["moves"] + 1}
+    if studies:
+        trials = src.get("trials") or {}
+        all_ = sorted(studies.values(), key=lambda s: (not s["high"], -s["days"]))
+        high = [s for s in all_ if s["high"]]
+        lead = high or all_
+        top = lead[0]
+        n, k = len(all_), len(high)
+        head = (f"{n} trial completion date{'' if n == 1 else 's'} slipped, "
+                + (f"{k} of them Phase 3 by more than 30 days; the longest, "
+                   f"{top['ticker']} {top['nct']}, by {_span(top)}" if k else
+                   "none a Phase 3 by more than 30 days"))
+        shown = lead[:SLIP_ROWS]
+        rows_ = []
+        for s in shown:
+            ph = (trials.get(s["nct"]) or {}).get("phase")
+            rows_.append([f"{s['ticker']} {s['nct']}",
+                          f"{_span(s)}, {_dlong(s['was'])} to {_dlong(s['now'])}"
+                          + (f", {ph}" if ph else "")
+                          + (f", moved {s['moves']} times" if s["moves"] > 1 else "")])
+        if n > len(shown):
+            rows_.append(["The rest", f"{n - len(shown)} more, earlier phases or a Phase 3 "
+                                      f"by 30 days or less" if high else
+                                      f"{n - len(shown)} more"])
+        items.append({"kind": "slips", "tag": "slips", "verbatim": False,
+                      "tickers": list(dict.fromkeys(s["ticker"] for s in lead[:3])),
+                      "head": head, "fig": str(n), "fig_sub": "slipped",
+                      "n_high": k, "date": max(s["seen"] for s in all_),
+                      "mini": {"type": "slipbars",
+                               "rows": [[s["ticker"], s["days"]] for s in lead[:3]]},
+                      "rows": rows_, "url": None, "src": "/changes (date_slip)"})
 
-    # The next firm FDA date inside 30 days.
+    # 8. The next firm FDA date inside 30 days.
     end30 = today + dt.timedelta(days=30)
     firm = [e for e in events if e["firm"] and e["regulatory"] and not e["month"]
             and _date(e["date"]) and today <= _date(e["date"]) <= end30]
     if firm:
         e = min(firm, key=lambda e: e["date"])
-        items.append({"kind": "regulatory", "tag": "ahead", "tickers": [e["ticker"]],
-                      "event": e, "n_firm": len(firm),
+        items.append({"kind": "regulatory",
+                      "tag": "PDUFA" if (e.get("type") or "").upper() == "PDUFA" else "FDA date",
+                      "tickers": [e["ticker"]],
+                      "verbatim": False, "event": e, "n_firm": len(firm),
                       "days": (_date(e["date"]) - today).days, "date": e["date"],
                       "mini": {"type": "countdown", "days": (_date(e["date"]) - today).days,
                                "of": 30},
                       "rows": [["Date", f"{e['date']}, {e['confidence']}"]],
                       "url": e.get("url"), "src": "/catalysts"})
+
+    # 9. Notices that data will be presented.
+    for r in rows:
+        if r.get("change_type") == "press_data_readout" \
+                and _PRESENTS_RE.search(r.get("headline") or ""):
+            t = r["ticker"]
+            items.append({"kind": "notice", "tag": "notice", "tickers": [t],
+                          "verbatim": True, "head": _strip_ticker(r.get("headline"), t),
+                          "fig": _dshort(r.get("date")), "fig_sub": "announced",
+                          "date": _iso(r.get("date")),
+                          "rows": [["Announced", _iso(r.get("date"))],
+                                   ["What it is", "a notice that data will be presented, "
+                                                  "not a result"]],
+                          "url": None, "src": "/changes (press_data_readout)"})
+
+    # 10. Results dates, the call's day read from the announcement.
+    for r in rows:
+        if r.get("change_type") != "press_results":
+            continue
+        t = r["ticker"]
+        body = _strip_ticker(r.get("headline"), t)
+        said = _date(r.get("date"))
+        call = None
+        m = _MONTH_DAY_RE.search(body)
+        if m and said:
+            try:
+                call = dt.date(said.year, _MONTHS.index(m.group(1)[:3]) + 1, int(m.group(2)))
+            except ValueError:
+                call = None
+            if call and call < said - dt.timedelta(days=30):
+                call = call.replace(year=said.year + 1)
+        items.append({"kind": "earnings", "tag": "earnings", "tickers": [t],
+                      "verbatim": True, "head": body,
+                      "fig": _dshort(call.isoformat()) if call else _dshort(r.get("date")),
+                      "fig_sub": "call" if call else "announced",
+                      "call": call.isoformat() if call else None, "date": _iso(r.get("date")),
+                      "rows": [["Announced", _iso(r.get("date"))]]
+                              + ([["Call", f"{call.isoformat()}, as the announcement states"]]
+                                 if call else []),
+                      "url": None, "src": "/changes (press_results)"})
+
+    # 11. Filings a reader would open, one item.
+    routine = [r for r in rows if _routine_filing(r)]
+    forms = sorted([r for r in rows if r.get("change_type") in ("new_filing", "material event")
+                    and not _routine_filing(r) and id(r) not in folded],
+                   key=lambda r: r.get("date") or "", reverse=True)
+    if forms:
+        texts = [_strip_ticker(r.get("headline"), r["ticker"]) for r in forms]
+        items.append({"kind": "filing", "tag": "filings", "verbatim": False,
+                      "tickers": list(dict.fromkeys(r["ticker"] for r in forms)),
+                      "head": "; ".join(texts), "fig": str(len(forms)), "fig_sub": "filed",
+                      "date": _iso(forms[0].get("date")),
+                      "rows": [[f"{r['ticker']} {_dshort(r.get('date'))}", x]
+                               for r, x in zip(forms, texts)],
+                      "note": (f"{len(routine)} routine filing{'' if len(routine) == 1 else 's'}"
+                               " left out: voting rights, share admissions, cover forms."
+                               if routine else None),
+                      "url": None, "src": "/changes (new_filing)"})
+
+    # 12. Labels revised, one item.
+    labs = sorted([r for r in rows if r.get("change_type") == "label_change"],
+                  key=lambda r: r.get("date") or "", reverse=True)
+    if labs:
+        last = _iso(labs[0].get("date"))
+        by: dict = {}
+        for r in labs:
+            by.setdefault(r["ticker"], []).append(_row_text(r)[0])
+        latest = [re.sub(r" label revised.*$", "", _row_text(r)[0]) for r in labs
+                  if _iso(r.get("date")) == last]
+        n = len(labs)
+        items.append({"kind": "labels", "tag": "labels", "verbatim": False,
+                      "tickers": sorted(by, key=lambda t: -len(by[t]))[:3],
+                      "head": (f"{n} US label{'' if n == 1 else 's'} revised; "
+                               f"{len(latest)} on {_dshort(last)}: {', '.join(latest)}"),
+                      "fig": str(n), "fig_sub": "revised", "date": last,
+                      "rows": [[t, "; ".join(v)] for t, v in
+                               sorted(by.items(), key=lambda kv: -len(kv[1]))],
+                      "url": None, "src": "/changes (label_change, openFDA)"})
+
+    # 13. Phase 3 primary completions estimated inside DUE_DAYS.
+    end_due = today + dt.timedelta(days=DUE_DAYS)
+    due = sorted([e for e in events if not e["month"] and e.get("phase") == "p3"
+                  and _date(e["date"]) and today <= _date(e["date"]) <= end_due],
+                 key=lambda e: (e["date"], e["ticker"]))
+    if due:
+        n = len(due)
+        items.append({"kind": "due", "tag": "due", "verbatim": False,
+                      "tickers": list(dict.fromkeys(e["ticker"] for e in due)),
+                      "head": (f"{n} Phase 3 trial{'' if n == 1 else 's'} reach{'es' if n == 1 else ''} "
+                               f"estimated primary completion by {_dshort(end_due.isoformat())}, "
+                               f"{_ev_name(due[0])} first"),
+                      "fig": str(n), "fig_sub": f"in {DUE_DAYS} days", "date": due[0]["date"],
+                      "mini": {"type": "dates", "dates": [e["date"] for e in due],
+                               "a": today.isoformat(), "b": end_due.isoformat()},
+                      "rows": [[f"{_dshort(e['date'])} {e['ticker']}", _ev_name(e)
+                                + (f", {e['conditions'][0]}" if e.get("conditions")
+                                   and e.get("short_basis") not in ("condition", "title") else "")
+                                + (f", {e['enrollment']:,} enrolled" if e.get("enrollment") else "")]
+                               for e in due],
+                      "note": "Estimated primary completion dates from the registry, not "
+                              "result dates.",
+                      "url": None, "src": "/catalysts (ClinicalTrials.gov)"})
+
+    # 14. Listed patents and exclusivities ending inside LOE_DAYS.
+    end_loe = today + dt.timedelta(days=LOE_DAYS)
+    loe = sorted([r for r in feed if r.get("change_type") == "loe"
+                  and r.get("ticker") in companies and _date(r.get("date"))
+                  and today <= _date(r.get("date")) <= end_loe],
+                 key=lambda r: (r.get("date") or "", r.get("ticker") or ""))
+    if loe:
+        def what(r):
+            return re.sub(r"^LOE: ", "", _strip_ticker(r.get("headline"), r["ticker"]))
+        first = re.sub(r" \((?:NDA|BLA|ANDA)\d+\).*$", "", what(loe[0]))
+        n = len(loe)
+        items.append({"kind": "loe", "tag": "LOE", "verbatim": False,
+                      "tickers": list(dict.fromkeys(r["ticker"] for r in loe)),
+                      "head": (f"{n} patent{'' if n == 1 else 's'} and exclusivities end by "
+                               f"{_dshort(end_loe.isoformat())}, {first} first on "
+                               f"{_dshort(loe[0].get('date'))}"),
+                      "fig": str(n), "fig_sub": f"in {LOE_DAYS} days",
+                      "date": _iso(loe[0].get("date")),
+                      "mini": {"type": "dates", "dates": [_iso(r.get("date")) for r in loe],
+                               "a": today.isoformat(), "b": end_loe.isoformat()},
+                      "rows": [[f"{_dshort(r.get('date'))} {r['ticker']}", what(r)] for r in loe],
+                      "url": None, "src": "/changes (loe, Orange and Purple Books)"})
+
     for i, it in enumerate(items[:WEEK_ITEMS], 1):
         it["rank"] = i
     return items[:WEEK_ITEMS]
+
+
+def _next_event(mine: list) -> dict | None:
+    """A company's next dated event on the board: the first firm FDA date in the 90 days,
+    else the first FDA date, else the first Phase 3, else the first dated event. A
+    month-only date sorts at its month's end. None where nothing is dated."""
+    ordered = sorted(mine, key=lambda e: e["date"] + ("-99" if e["month"] else ""))
+    for keep in (lambda e: e["regulatory"] and e["firm"], lambda e: e["regulatory"],
+                 lambda e: e.get("phase") == "p3", lambda e: True):
+        hit = [e for e in ordered if keep(e)]
+        if hit:
+            e = hit[0]
+            return {k: e.get(k) for k in ("date", "month", "firm", "confidence", "regulatory",
+                                          "type", "phase", "short", "short_basis", "title")} \
+                | {"name": _ev_name(e)}
+    return None
+
+
+def _week_block(src: dict, companies: dict, events: list, today: dt.date, rows: list,
+                items: list, tickers: list) -> dict:
+    """What the page reads beside the ranked feed. Every rule here is independent of the
+    company in focus.
+
+    - ``grid``: every change of the week (_week_rows) by company and kind (GRID_KINDS),
+      each a list of {date, text, verbatim, type}, newest first. A routine filing is left
+      out and counted in ``routine_filings``. A headline deal counts once under each
+      party it names; a filing folded into a deal counts under deals. An efficacy
+      supplement is left out where the company's own press release of the week announces
+      the same brand's approval, so one approval is one change.
+    - ``kinds``: the count of each kind across the group.
+    - ``news``: per company, the board's news: its deals, results and data notices, FDA
+      approvals, filings and company news, and its high slips (a Phase 3 moved more than
+      30 days). A filing folded into a deal is that deal, so it is not counted again.
+      Labels, registry updates and the other slips are counted in the grid and are not
+      news.
+    - ``next``: per company, the board's next dated event (_next_event).
+    - ``value_order``: the cohort from the most model upside to the least, the companies
+      with no model value last, in market-cap order (the ribbon)."""
+    since = (today - dt.timedelta(days=NEWS_DAYS)).isoformat()
+    grid = {t: {k: [] for k, _l in GRID_KINDS} for t in tickers}
+    folded = {(f["ticker"], f["date"], f["text"]) for it in items if it.get("kind") == "deal"
+              for f in it.get("folded") or []}
+    press_approved = {}
+    for r in rows:
+        if r.get("change_type") == "press_approval":
+            press_approved.setdefault(r["ticker"], []).append((r.get("headline") or "").lower())
+    routine = 0
+    for r in rows:
+        t, ct = r["ticker"], r.get("change_type")
+        if _routine_filing(r):
+            routine += 1
+            continue
+        kind = _GRID_OF.get(ct)
+        if not kind or t not in grid:
+            continue
+        text, verbatim = _row_text(r)
+        if ct == "efficacy_supplement":
+            m = re.search(r"efficacy supplement: (.+?) approved", r.get("headline") or "")
+            if m and any(m.group(1).lower() in h for h in press_approved.get(t, [])):
+                continue
+        fold = (t, _iso(r.get("date")), text) in folded
+        grid[t]["deal" if fold else kind].append(
+            {"date": _iso(r.get("date")), "text": text, "verbatim": verbatim, "type": ct,
+             "high": r.get("significance") == "high", "folded": fold})
+    for it in items:
+        if it.get("kind") == "deal" and it.get("value_usd"):
+            for t in it.get("tickers") or []:
+                if t in grid:
+                    grid[t]["deal"].append({"date": it.get("date"), "text": it.get("head"),
+                                            "verbatim": False, "type": "deal", "high": True,
+                                            "folded": False})
+    for t in grid:
+        for k in grid[t]:
+            grid[t][k].sort(key=lambda x: x["date"] or "", reverse=True)
+    news = {t: sorted([{"kind": k, **x} for k in ("deal", "result", "fda", "company", "slip")
+                       for x in grid[t][k]
+                       if (k != "slip" or x["high"]) and not x["folded"]],
+                      key=lambda x: x["date"] or "", reverse=True) for t in grid}
+    nxt = {t: _next_event([e for e in events if e["ticker"] == t]) for t in tickers}
+    up = {t: (companies[t].get("model") or {}).get("upside") for t in tickers}
+    order = sorted([t for t in tickers if up[t] is not None], key=lambda t: -up[t]) \
+        + [t for t in tickers if up[t] is None]
+    return {"since": since, "to": today.isoformat(), "grid": grid,
+            "kinds": {k: sum(len(grid[t][k]) for t in grid) for k, _l in GRID_KINDS},
+            "kind_labels": dict(GRID_KINDS), "routine_filings": routine,
+            "news": news, "next": nxt, "value_order": order}
 
 
 def _lead(companies: dict, window: str) -> dict:
@@ -938,12 +1484,19 @@ def assemble(src: dict, ticker: str, window: str = DEFAULT_WINDOW,
                                   "drug": m.group(1).split(";")[0].strip() if m else None,
                                   "year": None})
     policy_items = [{**p, "short": policy_short(p)} for p in src.get("policy") or []]
+    # The week across the group: one set of rows, the ranked feed over it, then the grid,
+    # the board's news and next dates and the ribbon's order. None of it reads the company
+    # in focus.
+    week_rows = _week_rows(src.get("changes") or [], companies, since, today.isoformat())
+    week_items = _week_items(src, companies, events, today, week_rows)
 
     out.update({
         "lead": {k: _lead(companies, k) for k, _l in WINDOWS},
         "events": events, "events_left_off": len(left),
         "events_window": {"start": start.isoformat(), "end": end.isoformat()},
-        "week_items": _week_items(src, companies, events, ticker, today),
+        "week_items": week_items,
+        "week": _week_block(src, companies, events, today, week_rows, week_items,
+                            out["tickers"]),
         "week_since": since,
         "lanes": {"start": f"{today.year}-01-01", "end": lane_end.isoformat(),
                   "events": lane_events, "approvals": approvals},
