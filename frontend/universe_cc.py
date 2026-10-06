@@ -485,8 +485,12 @@ def map_counts(p, w=None):
     gone = [t for t in _tickers(p) if t not in plotted]
     if not gone:
         return f"{len(plotted)} plotted"
-    return (f'{len(plotted)} plotted, {", ".join(gone)} '
-            f'{"has" if len(gone) == 1 else "have"} no model value')
+    if not plotted:
+        return "none plotted, no model value on file"
+    # Named while they fit the section rule; counted past that.
+    who = ", ".join(gone) if len(gone) <= 3 else str(len(gone))
+    return f'{len(plotted)} plotted, {who} {"has" if len(gone) == 1 else "have"} no model value'
+
 
 
 def hero_map(p, w=None):
@@ -1012,9 +1016,13 @@ def hero_html(p, w=None):
     """The hero band as one block: the map with its legend beside the board with its
     legend, at the Key insights 7fr/5fr seam. This is what the uvboard frame renders."""
     w = _window(p, w)
+    svg = hero_map(p, w)
+    body = (f'<div class="chart-mount stretch">{svg}</div>{map_legend(p)}' if svg else
+            f'<div class="uv-empty">{NO_DATA}: no company in the group has a model value '
+            f'and a move against XLV on this read, so the map has nothing to place.</div>')
     return (f'<div class="uv uv-frame"><div class="uv-hero">'
             f'<div>{section_html("Price against value", f"{WIN_LABEL[w]} · model upside · market cap", map_counts(p, w))}'
-            f'<div class="chart-mount stretch">{hero_map(p, w)}</div>{map_legend(p)}</div>'
+            f'{body}</div>'
             f'<div>{section_html("Company board", "week · window · next 90 days", board_counts(p))}'
             f'<div class="chart-mount stretch">{board_svg(p, w)}</div>{board_legend()}</div>'
             f'</div></div>')

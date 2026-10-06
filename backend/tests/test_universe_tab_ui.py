@@ -382,6 +382,23 @@ def test_a_quadrant_name_is_never_set_on_the_median_line(payload):
                 assert not (y - 9 <= med_y <= y + 2), (w, m.group(2))
 
 
+def test_a_map_with_nothing_to_place_says_so(payload):
+    """On the first read after the API starts no company has a model value yet: the map
+    printed an empty column under its rule. It now says why, and the count stays short."""
+    none = copy.deepcopy(payload)
+    for c in none["companies"].values():
+        c["model"]["upside"] = None
+    band = UC.hero_html(none)
+    assert UC.NO_DATA + ": no company in the group has a model value" in band
+    assert 'class="uv-map"' not in band and "tint: the model" not in band
+    assert UC.map_counts(none) == "none plotted, no model value on file"
+    some = copy.deepcopy(payload)
+    for t in ("LLY", "JNJ", "MRK", "PFE"):
+        some["companies"][t]["model"]["upside"] = None
+    assert UC.map_counts(some) == "13 plotted, 5 have no model value"
+    _house_style(_visible(band))
+
+
 def test_universe_css_is_tokens_only_and_reaches_the_page_and_the_frame(monkeypatch):
     css = UNIVERSE_CSS.read_text()
     assert not HEX.findall(css), "a hex colour in universe.css"
