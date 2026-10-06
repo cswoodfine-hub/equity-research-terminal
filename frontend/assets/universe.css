@@ -1,5 +1,6 @@
 /* The redesigned Universe tab (frontend/universe_cc.py, the builders; universe_page.py,
-   the page). One root class, .uv, and every rule under a .uv- class.
+   the page). One root class, .uv, and every rule under a .uv- class or, for the week
+   across the group, a .uw- class.
 
    Read by theme.py, which injects it into the Streamlit page after research.css, and by
    components/uvboard, which receives it as its css arg, since an iframe inherits none of
@@ -8,13 +9,13 @@
    Rules for this file, the same as research.css:
    - It reads only the custom properties of tokens.css and the :root of research.css. No
      colour literal of any kind: every colour is a token or a color-mix() of tokens.
-   - No bare element selectors: a rule opts in through a .uv- class, the page's own keyed
+   - No bare element selectors: a rule opts in through a .uv- or .uw- class, the page's own keyed
      containers (.st-key-uv_*), or the one Streamlit dialog that holds a .uv-dg body.
    - Sizes are the house scale (system/app.css, measured on the live page).
 
-   The page fits one 1440 by 900 screen: the control row, the company against the group,
-   the hero band and one tabbed panel of fixed height. Under 1180px wide it stacks and
-   scrolls, as it did before. */
+   The page fits one 1440 by 780 screen: the control row, the band (the news and the
+   board), the ribbon and one tabbed panel of fixed height. Under 1180px wide it stacks
+   and scrolls, as it did before. */
 
 :root {
   /* The company in focus: a wash and a rail, as on Key insights. */
@@ -24,10 +25,11 @@
   /* Columns of the small multiples; the builder sets its own on the grid. */
   --sm-cols: 9;
   /* The tabbed panel's body takes the rest of the screen: what is left of the viewport
-     under the app's header, the control row, the rankings and the hero (about 664px at
-     1440 wide), so the page never scrolls; 236px at 900 tall, which holds the tallest tab
-     (the approvals lanes). A shorter screen scrolls inside the panel, down to 196px. */
-  --uv-panel-h: clamp(96px, calc(100vh - 659px), 440px);
+     under the app's header, the control row, the band and the ribbon (the body's top is
+     at 651px at 1440 wide, and Streamlit keeps 9px under it), so the page never scrolls:
+     120px at 780 tall, which holds every change, and 240px at 900, which holds the
+     tallest tab (the approvals lanes). A shorter screen scrolls inside the panel. */
+  --uv-panel-h: clamp(96px, calc(100vh - 660px), 440px);
 }
 
 /* ---------------------------------------------------------------------------------- */
@@ -35,6 +37,8 @@
 /* to Streamlit's own sans, so the family is set here on the view's own root.          */
 /* ---------------------------------------------------------------------------------- */
 .uv { font-family: var(--font-ui); color: var(--text); }
+/* A kind's colour, set on each item, row and cell that has one; the rule colour otherwise. */
+.uv { --accent: var(--rule-strong); }
 .uv svg text { font-family: var(--font-ui); }
 .uv svg text.m { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .uv svg text.cap { letter-spacing: 0.08em; }
@@ -44,26 +48,21 @@
 .uv-empty { font-size: 12px; color: var(--muted); padding: 6px 0; }
 
 /* ---------------------------------------------------------------------------------- */
-/* The page's blocks sit at the house 8px gap and no more: the section rule's own air  */
-/* (theme.py gives every .sec block most of a line above it) is taken back here.       */
+/* The page's blocks sit at the house 8px gap and no more.                             */
 /* ---------------------------------------------------------------------------------- */
-[data-baseweb="tab-panel"]:has(.st-key-uv_window) [data-testid="stElementContainer"]:has(.uv-sp),
-[data-baseweb="tab-panel"]:has(.st-key-uv_window) [data-testid="stElementContainer"]:has(.uv-sp)
-  + [data-testid="stElementContainer"] { margin-top: 0; }
 /* Streamlit pulls a markdown block up by a line under its last paragraph; these blocks
-   end on a div, so the pull let the rankings run under the hero. Scoped to the tab: the
+   end on a div, so the pull let one block run under the next. Scoped to the tab: the
    company dialog's body is a .uv block too, and it keeps the spacing it was drawn with. */
 [data-baseweb="tab-panel"]:has(.st-key-uv_window) [data-testid="stMarkdownContainer"]:has(> .uv) {
   margin-bottom: 0; }
-/* The hero's frame is an inline element: as a block it loses the descender gap under it. */
+/* The band's frame is an inline element: as a block it loses the descender gap under it. */
 .st-key-uv_board iframe { display: block; }
 
 /* ---------------------------------------------------------------------------------- */
 /* Control row: the window, a one-line lead, the close and the notes                  */
 /* ---------------------------------------------------------------------------------- */
-/* The window control's row: the theme clears every segmented control by most of a line
-   above and below, which here would push the rankings away from the control that sets
-   them. */
+/* The control row: the theme clears every segmented control by most of a line above
+   and below, which here would push the band away from the row. */
 .stApp [data-testid="stLayoutWrapper"]:has(.st-key-uv_window) { margin-top: 0;
   margin-bottom: 0; }
 /* With the command centre drawn, the Universe view switch (Overview, Markets, Policy) moves
@@ -73,17 +72,17 @@
 [data-baseweb="tab-panel"]:has(.st-key-uv_window) { position: relative; }
 [data-baseweb="tab-panel"]:has(.st-key-uv_window) .st-key-universe_view {
   position: absolute; top: 6px; right: 0; width: auto; z-index: 3; }
-/* Each control is as wide as it needs and the lead takes the rest, so the window's three
-   options never wrap; the last column stands under the view switch, which is drawn over
-   it. The column ratios universe_page.py passes are only the fallback. */
+/* The week, the lead and the window are each as wide as they need, so the lead never
+   cuts and the window's three options never wrap; the window's column takes the rest,
+   which puts the close at the right, and the last column stands under the view switch,
+   which is drawn over it. The column ratios universe_page.py passes are only the
+   fallback. */
 [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
   > [data-testid="stColumn"] { flex: 0 0 auto !important; width: auto !important; }
 [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
   > [data-testid="stColumn"]:nth-child(3) { flex: 1 1 0 !important; min-width: 0; }
 [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
   > [data-testid="stColumn"]:last-child { flex: 0 0 212px !important; }
-.uv-moves { font-family: var(--font-ui); font-size: 12px; color: var(--muted);
-  white-space: nowrap; }
 .uv-lead { font-family: var(--font-ui); font-size: 13px; line-height: 20px; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .uv-lead b { font-family: var(--font-mono); font-weight: 600; letter-spacing: -0.01em; }
@@ -179,16 +178,8 @@
   white-space: normal; }
 
 /* ---------------------------------------------------------------------------------- */
-/* The hero band: the map and the board on the Key insights 7 to 5 seam                */
+/* Legends                                                                             */
 /* ---------------------------------------------------------------------------------- */
-.uv-hero { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  column-gap: 32px; }
-.uv-hero .chart-mount { margin: 4px 0 0; }
-.uv-map g.b { cursor: pointer; }
-.uv-map g.b:hover circle { stroke: var(--text); stroke-width: 1.5; }
-.uv-board g.row { cursor: pointer; }
-.uv-board g.row:not(.me):hover rect.bg { fill: var(--panel); fill-opacity: 1; }
-.uv-board g.me text.halo { stroke: var(--active-wash); }
 /* A legend is one line under its chart; what does not fit is clipped, never wrapped
    onto a second line the screen cannot spare. */
 .uv-leg { display: flex; align-items: center; gap: 4px 14px; flex-wrap: nowrap;
@@ -207,9 +198,6 @@
 /* The closing hint gives way first, and ends in an ellipsis rather than a cut word. */
 .uv-leg .sp { display: block; flex: 0 1 auto; min-width: 0; margin-left: auto;
   overflow: hidden; text-overflow: ellipsis; }
-
-/* The fallback when the click component is missing: a row of company pills. */
-.uv-fallback { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
 /* ---------------------------------------------------------------------------------- */
 /* The tabbed panel: one fixed height, whatever the tab. A tab taller or wider than it */
@@ -231,43 +219,6 @@
 .uv-tab .chart-mount { margin: 0; }
 .uv-tab .chart-mount svg { display: block; max-width: 100%; height: auto; }
 .uv-tab .chart-mount.wide svg { width: 100%; }
-
-/* This week, ranked: two columns of <details>, the summary one grid. */
-.uv-wk2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  column-gap: 32px; align-items: start; }
-.uv-wk2 > div { border-top: 1px solid var(--rule-strong); }
-.uv-wm { border-bottom: 1px solid var(--rule); --accent: var(--rule-strong); }
-/* The tag column holds the longest tag the API sends ("approval"), so none runs into the
-   headline beside it. */
-.uv-wm > summary { display: grid;
-  grid-template-columns: 12px 62px minmax(0, 1fr) 100px 54px; gap: 0 8px;
-  align-items: center; padding: 4px 4px 4px 6px; min-height: 44px; cursor: pointer;
-  list-style: none; transition: background-color 120ms linear; }
-.uv-wm > summary::-webkit-details-marker { display: none; }
-.uv-wm > summary:hover { background: var(--panel); }
-.uv-wm .n { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
-.uv-wm .tag { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
-  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text);
-  border-left: 3px solid var(--accent); padding: 1px 0 1px 6px; white-space: nowrap; }
-.uv-wm .h { font-size: 12.5px; line-height: 1.32; color: var(--text); min-width: 0;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.uv-wm .h .tk { font-family: var(--font-mono); font-weight: 600; font-size: 11.5px;
-  margin-right: 2px; }
-/* The column is the mini chart's own width (IW in universe_cc.py): drawn 1:1. */
-.uv-wm .ch svg { display: block; max-width: 100%; height: auto; }
-.uv-wm .f { font-family: var(--font-mono); font-size: 14px; font-weight: 600; text-align: right;
-  color: var(--text); white-space: nowrap; line-height: 1.15; }
-.uv-wm .f.none { font-size: 11px; font-weight: 500; color: var(--muted); }
-.uv-wm .f small { display: block; font-size: 9.5px; font-weight: 400; color: var(--muted);
-  margin-top: 2px; }
-.uv-wm.me { background: var(--active-wash); box-shadow: var(--uv-rail); }
-.uv-wm.me .tk { color: var(--up); }
-.uv-wm[open] { background: var(--panel); }
-.uv-wm[open] .h { -webkit-line-clamp: unset; }
-.uv-wm-body { padding: 2px 10px 10px 82px; }
-.uv-wm-src { font-family: var(--font-mono); font-size: 9.5px; color: var(--muted);
-  margin-top: 6px; display: flex; gap: 12px; }
-.uv-wm-src a { color: var(--up); }
 
 /* Key and value rows: an opened item, the dialog's exposure rows. */
 .uv-kv { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 0.6rem;
@@ -450,10 +401,9 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window) {
     flex-wrap: wrap; row-gap: 2px; }
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
-    > [data-testid="stColumn"]:nth-child(3) { order: 9; flex: 1 1 100% !important; }
+    > [data-testid="stColumn"]:nth-child(2) { order: 9; flex: 1 1 100% !important; }
   .uv-lead { white-space: normal; }
   .uv-sp { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 12px; }
-  .uv-hero { grid-template-columns: minmax(0, 1fr); row-gap: 20px; }
   .uv-leg { flex-wrap: wrap; overflow: visible; }
   .st-key-uv_panel .stTabs [data-baseweb="tab-list"] { overflow-x: auto; }
   .st-key-uv_panel .stTabs [data-baseweb="tab-panel"] { height: auto; overflow: visible; }
@@ -465,18 +415,18 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
   .uv-exp, .uv-polg { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
   .uv-sms { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
-/* The board's frame is the page less its gutters (17px and 16px), so inside the frame
+/* The band's frame is the page less its gutters (17px and 16px), so inside the frame
    the page's 1180px breakpoint falls at 1147px. Between the two the page is one screen,
-   and the frame keeps the hero's two columns and one-line legends rather than stacking
-   them under a page that does not. */
+   and the frame keeps the news and the board side by side rather than stacking them
+   under a page that does not. */
 @media (min-width: 1147px) and (max-width: 1179.98px) {
-  .uv-frame .uv-hero { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); row-gap: 0; }
-  .uv-frame .uv-leg { flex-wrap: nowrap; overflow: hidden; }
+  .uv-frame .uw-band { grid-template-columns: minmax(0, 1fr) 470px; row-gap: 0; }
+  .uv-frame .uw-bcard { left: auto; right: calc(100% + 14px); top: 0; }
+  .uv-frame .uw-hd { white-space: nowrap; }
 }
 @media (max-width: 899.98px) {
   .uv-sp { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .uv-wk2, .uv-rates { grid-template-columns: minmax(0, 1fr); }
-  .uv-wk2 > div + div { border-top: 0; }
+  .uv-rates { grid-template-columns: minmax(0, 1fr); }
   .uv-sms { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .uv-dg-figs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .uv-dg-grid { grid-template-columns: minmax(0, 1fr); }
@@ -728,7 +678,7 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uw-grid { position: relative; display: grid;
   grid-template-columns: 208px repeat(var(--uw-n), minmax(0, 1fr)); column-gap: 2px; row-gap: 1px; }
 .uw-grid .gh { display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-  height: 24px; padding-bottom: 1px; box-sizing: border-box; font-family: var(--font-mono);
+  height: 22px; padding-bottom: 1px; box-sizing: border-box; font-family: var(--font-mono);
   font-size: 10.5px; }
 .uw-grid .gh .t { font-weight: 600; line-height: 13px; }
 .uw-grid .gh .v { font-size: 9.5px; color: var(--muted); line-height: 11px; }
@@ -768,9 +718,6 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
   .uw-bcard { right: auto; left: 0; top: 100%; }
   .uw-hd { white-space: normal; }
   .uw-grid { overflow-x: auto; }
-}
-@media (min-width: 1147px) and (max-width: 1179.98px) {
-  .uv-frame .uw-band { grid-template-columns: minmax(0, 1fr) 470px; }
 }
 @media (max-width: 899.98px) {
   .uw-rkc { grid-template-columns: minmax(0, 1fr); }
