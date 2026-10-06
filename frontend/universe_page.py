@@ -6,15 +6,14 @@ there stays the switch and the calls.
 
 The tab is the week across the group on one 1440 by 780 screen: a control row (the week,
 the regions against the company picked over a window, the close and the view switch), the
-band (the lead story and the ranked feed beside the company board, the cheap to expensive
-ribbon under them) and a slim tabbed panel holding everything else. The page reads the same
-whichever company is picked: that company is washed where it falls, and only the control
-row's own figure and the panel's last tab are about it.
+band (the ranked feed beside the company board, the cheap to expensive ribbon under them)
+and the group's equal-weighted index over three months. The page reads the same whichever
+company is picked: that company is washed where it falls, and only the control row's own
+figure is about it.
 
 The whole tab sits in one ``@st.fragment``, so the window switch reruns only the tab. A
 click on a story's ticker, a board row or a ribbon tile comes back through the ``uvboard``
-component and opens the company dialog inside the same fragment. The panel's tabs switch in
-the browser without a rerun.
+component and opens the company dialog inside the same fragment.
 
 Every figure on the page comes from the payload; nothing here computes one.
 """
@@ -193,7 +192,8 @@ def _command(api_base: str, p: dict) -> None:
             and clicked.get("nonce") != st.session_state.get("_uv_board_nonce")):
         st.session_state["_uv_board_nonce"] = clicked.get("nonce")
         _open_dialog(api_base, clicked["ticker"], clicked.get("from") or "the board")
-    _panel(p, w)
+    # Outside the frame, so its height can follow the screen's (universe.css, .uw-idx).
+    _show(UC.index_html(p))
 
 
 def _pill_picked() -> None:
@@ -203,19 +203,6 @@ def _pill_picked() -> None:
         st.session_state["_uv_pill_n"] = n
         st.session_state["_uv_pill_click"] = {"ticker": t, "from": "the board",
                                               "nonce": f"pill-{n}"}
-
-
-# ------------------------------------------------------------------ the tabbed panel
-def _panel(p: dict, w: str) -> None:
-    """Everything below the ribbon, one tab at a time. st.tabs switches in the browser,
-    so a tab click reruns nothing; each tab's body is one markdown block drawn to the
-    panel's height, and anything taller scrolls inside the panel. Drawn inside the
-    fragment, so the last tab's ranking follows the window."""
-    tabs = UC.week_panel_tabs(p, w)
-    with st.container(key="uv_panel"):
-        for tab, (_label, body) in zip(st.tabs([label for label, _b in tabs]), tabs):
-            with tab:
-                _show(body)
 
 
 def render(api_base: str, ticker: str) -> bool:
