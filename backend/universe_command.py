@@ -1230,6 +1230,35 @@ def _next_event(mine: list) -> dict | None:
     return None
 
 
+def _slip_news(slips: list) -> list:
+    """A company's high slips of the week as news, one per study: a study the feed moved
+    more than once is one item from its first date to its last, its text saying so, and
+    it is news when any of its moves was high."""
+    by: dict = {}
+    for x in slips:
+        s = x.get("slip")
+        key = s["nct"] if s else id(x)
+        by.setdefault(key, []).append(x)
+    out = []
+    for group in by.values():
+        if not any(x["high"] for x in group):
+            continue
+        last = max(group, key=lambda x: x["date"] or "")
+        moves = [x["slip"] for x in group if x.get("slip")]
+        if len(moves) > 1:
+            was = min((m["was"] for m in moves), key=_first_day)
+            now = max((m["now"] for m in moves), key=_first_day)
+            span = _span({"was": was, "now": now, "days": (_first_day(now) - _first_day(was)).days,
+                          "month": len(was) == 7 or len(now) == 7})
+            text = (f"{moves[0]['nct']} completion slips {span}, to {_dlong(now)}, "
+                    f"moved {len(moves)} times")
+        else:
+            text = last["text"]
+        out.append({"kind": "slip", **{k: v for k, v in last.items() if k != "slip"},
+                    "text": text, "high": True})
+    return out
+
+
 def _week_block(src: dict, companies: dict, events: list, today: dt.date, rows: list,
                 items: list, tickers: list) -> dict:
     """What the page reads beside the ranked feed. Every rule here is independent of the
@@ -1244,9 +1273,10 @@ def _week_block(src: dict, companies: dict, events: list, today: dt.date, rows: 
     - ``kinds``: the count of each kind across the group.
     - ``news``: per company, the board's news: its deals, results and data notices, FDA
       approvals, filings and company news, and its high slips (a Phase 3 moved more than
-      30 days). A filing folded into a deal is that deal, so it is not counted again.
-      Labels, registry updates and the other slips are counted in the grid and are not
-      news.
+      30 days). A filing folded into a deal is that deal, and a study that slipped twice
+      in the week is one slip, first date to last (_slip_news), so neither is counted
+      again. Labels, registry updates and the other slips are counted in the grid and are
+      not news.
     - ``next``: per company, the board's next dated event (_next_event).
     - ``value_order``: the cohort from the most model upside to the least, the companies
       with no model value last, in market-cap order (the ribbon)."""
@@ -1273,9 +1303,11 @@ def _week_block(src: dict, companies: dict, events: list, today: dt.date, rows: 
             if m and any(m.group(1).lower() in h for h in press_approved.get(t, [])):
                 continue
         fold = (t, _iso(r.get("date")), text) in folded
-        grid[t]["deal" if fold else kind].append(
-            {"date": _iso(r.get("date")), "text": text, "verbatim": verbatim, "type": ct,
-             "high": r.get("significance") == "high", "folded": fold})
+        entry = {"date": _iso(r.get("date")), "text": text, "verbatim": verbatim, "type": ct,
+                 "high": r.get("significance") == "high", "folded": fold}
+        if ct == "date_slip":
+            entry["slip"] = _slip(r)
+        grid[t]["deal" if fold else kind].append(entry)
     for it in items:
         if it.get("kind") == "deal" and it.get("value_usd"):
             for t in it.get("tickers") or []:
@@ -1286,10 +1318,12 @@ def _week_block(src: dict, companies: dict, events: list, today: dt.date, rows: 
     for t in grid:
         for k in grid[t]:
             grid[t][k].sort(key=lambda x: x["date"] or "", reverse=True)
-    news = {t: sorted([{"kind": k, **x} for k in ("deal", "result", "fda", "company", "slip")
-                       for x in grid[t][k]
-                       if (k != "slip" or x["high"]) and not x["folded"]],
+    news = {t: sorted([{"kind": k, **x} for k in ("deal", "result", "fda", "company")
+                       for x in grid[t][k] if not x["folded"]] + _slip_news(grid[t]["slip"]),
                       key=lambda x: x["date"] or "", reverse=True) for t in grid}
+    for t in grid:
+        for x in grid[t]["slip"]:
+            x.pop("slip", None)
     nxt = {t: _next_event([e for e in events if e["ticker"] == t]) for t in tickers}
     up = {t: (companies[t].get("model") or {}).get("upside") for t in tickers}
     order = sorted([t for t in tickers if up[t] is not None], key=lambda t: -up[t]) \

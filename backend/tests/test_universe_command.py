@@ -474,6 +474,14 @@ def test_the_grid_holds_every_change_once_and_the_news_counts_events(wk):
     assert len(grid["AZN"]["deal"]) == 4
     assert [n["kind"] for n in block["news"]["AZN"]] == ["result", "slip", "deal"]
     assert block["news"]["JNJ"] == [] and block["news"]["BAYN"] == []
+    # A study the feed moved twice this week is two changes in the grid and one slip in
+    # the news, first date to last: Roche's NCT05296798 moved on 30 Sep and 3 Oct.
+    rog = [x["text"] for x in grid["ROG"]["slip"] if x["text"].startswith("NCT05296798")]
+    assert len(rog) == 2
+    news = [n["text"] for n in block["news"]["ROG"] if n["kind"] == "slip"]
+    assert [n for n in news if n.startswith("NCT05296798")] == [
+        "NCT05296798 completion slips 8 months, to 15 Jun 2028, moved 2 times"]
+    assert all("slip" not in x for t in grid for x in grid[t]["slip"])
 
 
 def test_the_board_next_event_rule():
