@@ -26,6 +26,7 @@ import ast
 import copy
 import html
 import json
+import math
 import os
 import pathlib
 import re
@@ -220,6 +221,30 @@ def test_a_nil_leg_reads_nil(payload):
     fork = _visible(CV.fork_svg(r))
     assert "nil" in fork and "$0.00" not in fork
     assert "$0.00" not in _visible(CV.dialog_html(payload, gid))
+
+
+def test_the_odds_chain_multiplies_every_step_from_the_gate(payload):
+    """The dialog's chance chain read only "Phase 3 to NDA/BLA" out of a Phase 2 gate's
+    basis and multiplied it by the PoS after a pass, printing 39.8% for AZD6793 against a
+    PoS of 13.5%. Every step is printed now and the product is of the rates printed."""
+    rows = {r["name"]: r for r in CV.gate_rows(payload)}
+    p2 = rows["AZD6793"]
+    assert [w for w, _r in CV.odds_steps(p2["basis"])] == [
+        "pass Phase 2", "pass Phase 3", "filing to approval"]
+    chain = _visible(CV._odds_chain(p2))
+    assert chain.startswith("21.9% pass Phase 2 × 64.5% pass Phase 3 × 95.6% filing to "
+                            "approval = 13.5% published"), chain
+    for r in rows.values():
+        steps = CV.odds_steps(r["basis"])
+        text = _visible(CV._odds_chain(r))
+        if len(steps) < 2:
+            assert "=" not in text
+            continue
+        printed = [float(x) / 100 for x in re.findall(r"([\d.]+)% (?:pass|filing)", text)]
+        product = float(re.search(r"= ([\d.]+)% published", text).group(1)) / 100
+        assert abs(math.prod(round(x, 3) for x in printed) - product) < 0.0006, r["name"]
+        if (r.get("evidence") or {}).get("p_gate") == "published":
+            assert abs(product - r["pos_now"]) < 0.002, r["name"]
 
 
 def test_a_company_with_no_priced_stakes_still_draws(payload):

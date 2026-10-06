@@ -1985,19 +1985,38 @@ def _kv(k, v, cls="") -> str:
     return f'<div class="mk-kv{(" " + cls) if cls else ""}"><span>{esc(k)}</span><span>{v}</span></div>'
 
 
+# One step of a published chance chain in the gate's basis: "Phase 2 to Phase 3 28.9%",
+# "Phase 3 to NDA/BLA 57.8%", "NDA/BLA to approval 90.6%".
+_STEP = re.compile(r"(Phase \d(?:/\d)?|NDA/BLA) to (Phase \d|NDA/BLA|approval) ([\d.]+)%")
+
+
+def odds_steps(basis) -> list:
+    """[(what passing the step means, the published rate)] of the basis, in order: every
+    step from the gate to approval, so a Phase 2 gate's chain starts at Phase 2."""
+    out = []
+    for frm, to, rate in _STEP.findall(str(basis or "")):
+        what = "filing to approval" if frm == "NDA/BLA" else f"pass {frm}"
+        out.append((what, float(rate) / 100))
+    return out
+
+
 def _odds_chain(r) -> str:
-    m = re.search(r"Phase (\d)(?:/\d)? to NDA/BLA ([\d.]+)% then NDA/BLA to approval ([\d.]+)%",
-                  r.get("basis") or "")
+    """The published steps from the gate to approval multiplied out, then the PoS the model
+    holds today with its band. The product is of the rates printed, so the sum reads; the
+    model's PoS can differ where the asset's own gate sets the odds."""
     band = r.get("band") or {}
     band_txt = (f", band {pct(band.get('pos_low'), 1)} to {pct(band.get('pos_high'), 1)} "
                 f"({usd(band.get('per_share_low'))} to {usd(band.get('per_share_high'))} a share)"
                 if band.get("pos_low") is not None else "")
-    if m:
-        return (f'<div class="cx-chain"><span><b>{m.group(2)}%</b> pass Phase {m.group(1)}</span>'
-                f'<span class="x">×</span><span><b>{m.group(3)}%</b> filing to approval</span>'
-                f'<span class="x">=</span><span><b>{pct(r.get("pos_success") and (float(m.group(2)) / 100) * r["pos_success"], 1)}</b>'
-                f'</span></div><div class="cx-p mut">PoS today {pct(r.get("pos_now"), 1)}{esc(band_txt)}.</div>')
-    return f'<div class="cx-p mut">PoS today {pct(r.get("pos_now"), 1)}{esc(band_txt)}.</div>'
+    tail = f'<div class="cx-p mut">PoS today {pct(r.get("pos_now"), 1)}{esc(band_txt)}.</div>'
+    steps = odds_steps(r.get("basis"))
+    if len(steps) < 2:
+        return tail
+    product = math.prod(rate for _w, rate in steps)
+    parts = '<span class="x">×</span>'.join(
+        f'<span><b>{pct(rate, 1)}</b> {esc(what)}</span>' for what, rate in steps)
+    return (f'<div class="cx-chain">{parts}<span class="x">=</span>'
+            f'<span><b>{pct(product, 1)}</b> published</span></div>' + tail)
 
 
 def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="") -> str:
