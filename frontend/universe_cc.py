@@ -1772,10 +1772,10 @@ def spotlight_section(p, w=None):
 
 
 # =========================================================================================
-# The week across the group: the news-first page. The control row's kicker, the lead story,
-# the ranked feed, the company board, the cheap to expensive ribbon and the grid of every
-# change. Every rule reads the group; the company in focus is washed where it falls and
-# nowhere else, so the page reads the same whichever company is picked.
+# The week across the group: the news-first page. The control row's kicker, the group's
+# index, the ranked feed, the company board and the cheap to expensive ribbon. Every rule
+# reads the group and no company is marked out, so the page reads the same whichever
+# company is picked.
 # =========================================================================================
 # The colour of each kind of news. Green and red mean up and down, and cheap and expensive,
 # and nothing else on the page, so the kinds take the other colours: deals purple, results
@@ -1839,9 +1839,7 @@ def _tk_marks(p, tickers, limit=4):
     """The tickers an item names, each opening the company; ``ALL`` is the whole group."""
     if tickers == ["ALL"]:
         return f'<span class="uw-tks"><b class="all">All {len(_cos(p))}</b></span>'
-    f = _focal(p)
-    marks = [f'<b class="{"me" if t == f else ""}" data-ticker="{esc(t)}">{esc(t)}</b>'
-             for t in tickers[:limit]]
+    marks = [f'<b data-ticker="{esc(t)}">{esc(t)}</b>' for t in tickers[:limit]]
     more = f'<i>·</i><b class="all">+{len(tickers) - limit}</b>' if len(tickers) > limit else ""
     return f'<span class="uw-tks">{"<i>·</i>".join(marks)}{more}</span>'
 
@@ -1967,7 +1965,7 @@ def _item_card(p, it, x, cls=""):
 # --------------------------------------------------------------------- this week, ranked
 def _rank_row(p, it, n):
     x = feed_item(p, it)
-    me = " me" if x["focus"] else ""
+    me = ""
     return (f'<div class="uw-it{me}" tabindex="0" style="--accent:{x["accent"]}">'
             f'<span class="n">{n}</span>'
             f'<div class="bd"><div class="k"><span class="uw-tag">{esc(x["tag"])}</span>'
@@ -2049,8 +2047,7 @@ def _news_line(x):
 
 
 def board_html(p):
-    """The company board: one row per company, washed for the company in focus but not
-    pinned. The week's move as a tinted figure, the week's news count, the next dated event
+    """The company board: one row per company, none marked out. The week's move as a tinted figure, the week's news count, the next dated event
     in words (FDA dates in amber, a firm date marked, an estimate muted) and the count of
     dated events in 90 days. Three sorts, switched in the browser; the week sort draws
     XLV's week where it falls. A row's hover lists the company's news of the week; a click
@@ -2074,7 +2071,7 @@ def board_html(p):
     rows = []
     for t in tks:
         c = cos.get(t) or {}
-        me = " me" if t == f else ""
+        me = ""
         if t in wk:
             v = wk[t]
             tone = "up" if v > 0 else "down" if v < 0 else ""
@@ -2144,7 +2141,7 @@ def board_html(p):
 def ribbon_html(p):
     """The group from cheapest to most expensive on the model's 12-month upside, green for
     cheap fading through to red for expensive, a rule where value meets the price, and any
-    company with no model value last as "no free data". The company in focus is outlined.
+    company with no model value last as "no free data".
     A tile's hover gives the close, the model's 12-month value and rating and the street
     target; a click opens the company."""
     cos = _cos(p)
@@ -2172,7 +2169,7 @@ def ribbon_html(p):
             col = "var(--up)" if u > 0 else "var(--down)" if u < 0 else "var(--muted)"
             style = f' style="--uw-bg:color-mix(in oklab, {col} {a}%, var(--ground))"'
             cls, v = "", pc(u)
-        me = " me" if t == f else ""
+        me = ""
         side = " rt" if i >= len(seq) - 6 else ""
         cur = c.get("currency") or ""
         close = (f'Close {num(c.get("price"))} {esc(cur)}, {esc(dday(c.get("price_as_of")))}'
@@ -2211,8 +2208,9 @@ def ew_index(p, days=INDEX_DAYS):
     on the window's first trading day set to 100 there, the index the average of the
     rebased closes each day, so each starts the window at an equal weight and is held
     (a quarterly rebalance, made at the window's start). A company with no close on that
-    day is left out and named. A day a company did not trade carries its last close.
-    Returns None when there is nothing to draw."""
+    day is left out and named. A day a company did not trade carries its last close. Each
+    day also carries the middle half of the group (its quartiles), and the window's best
+    and worst company. Returns None when there is nothing to draw."""
     today = _d(p.get("today"))
     closes = p.get("closes") or {}
     if not today:
@@ -2228,30 +2226,44 @@ def ew_index(p, days=INDEX_DAYS):
     if not members:
         return None
     last = {t: series[t][d0] for t in members}
-    values = []
+    values, q1, q3 = [], [], []
     for d in dates:
         for t in members:
             if d in series[t]:
                 last[t] = series[t][d]
-        values.append(100.0 * sum(last[t] / series[t][d0] for t in members) / len(members))
+        day = sorted(100.0 * last[t] / series[t][d0] for t in members)
+        values.append(sum(day) / len(day))
+        if len(day) >= 4:
+            qs = statistics.quantiles(day, n=4)
+            q1.append(qs[0])
+            q3.append(qs[2])
+    moves = {t: last[t] / series[t][d0] - 1 for t in members}
     bench = [(d, c) for d, c in p.get("benchmark") or [] if d >= d0 and c]
     b = [(d, 100.0 * c / bench[0][1]) for d, c in bench] if bench else []
     return {"dates": dates, "values": values, "members": members,
-            "left_out": [t for t in _tickers(p) if t not in members], "bench": b}
+            "left_out": [t for t in _tickers(p) if t not in members], "bench": b,
+            "q1": q1 if len(q1) == len(dates) else [], "q3": q3 if len(q3) == len(dates) else [],
+            "best": max(moves, key=moves.get), "worst": min(moves, key=moves.get),
+            "moves": moves}
 
 
 def index_html(p, days=INDEX_DAYS):
-    """The equal-weighted index of the group over the last three months, with XLV on the
-    same base, dashed. The lines are drawn in a stretched SVG with strokes that do not
-    scale, and every label is HTML placed in percent, so no text is ever scaled."""
+    """The equal-weighted index of the group over the last three months, the top of the
+    tab: the level and its move in large type with XLV and the best and worst company
+    beside them; under them the index line over its gain or loss from 100 (green
+    above, red below, fading to the base), the middle half of the group as a faint band
+    and XLV on the same base, dashed. The lines stretch with the box and their strokes do
+    not scale; every label is HTML placed in percent, so no text is scaled. A hover on
+    any day shows that day's index and XLV."""
     ix = ew_index(p, days)
     sym = p.get("benchmark_symbol") or "XLV"
-    head = ('<div class="uw-ih"><span class="lbl">Equal-weighted index</span>')
     if not ix:
-        return (f'<section class="uv uw-idx">{head}</div><div class="uv-empty">{NO_DATA}: '
-                f'no closes on file for the window.</div></section>')
+        return (f'<section class="uv uw-idx"><div class="uw-ih"><span class="lbl">Equal-weighted '
+                f'index</span></div><div class="uv-empty">{NO_DATA}: no closes on file for '
+                f'the window.</div></section>')
     dates, vals, bench = ix["dates"], ix["values"], ix["bench"]
-    allv = vals + [v for _d0, v in bench]
+    bmap = dict(bench)
+    allv = vals + [v for _d0, v in bench] + ix["q1"] + ix["q3"] + [100.0]
     lo, hi = min(allv), max(allv)
     step = next(s_ for s_ in (1, 2, 2.5, 5, 10, 20, 25, 50) if (hi - lo) / s_ <= 4)
     y0, y1 = math.floor(lo / step) * step, math.ceil(hi / step) * step
@@ -2266,51 +2278,87 @@ def index_html(p, days=INDEX_DAYS):
     def Y(v):
         return (y1 - v) / (y1 - y0) * 100
 
-    def line(rows, cls):
-        pts = " ".join(f"{X(d):.1f},{Y(v):.2f}" for d, v in rows)
-        return (f'<polyline class="{cls}" points="{pts}" fill="none" '
-                f'vector-effect="non-scaling-stroke"/>')
-    grid, ylab = [], []
+    def pts(rows):
+        return " ".join(f"{X(d):.1f},{Y(v):.2f}" for d, v in rows)
+    base = Y(100.0)
+    idx_rows = list(zip(dates, vals))
+    area = f"0,{base:.2f} {pts(idx_rows)} 1000,{base:.2f}"
+    svg = [f'<svg viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><defs>'
+           f'<linearGradient id="uwUp" gradientUnits="userSpaceOnUse" x1="0" y1="{Y(hi):.2f}" '
+           f'x2="0" y2="{base:.2f}"><stop offset="0" style="stop-color:var(--up);stop-opacity:.42"/>'
+           f'<stop offset="1" style="stop-color:var(--up);stop-opacity:.02"/></linearGradient>'
+           f'<linearGradient id="uwDn" gradientUnits="userSpaceOnUse" x1="0" y1="{base:.2f}" '
+           f'x2="0" y2="{Y(lo):.2f}"><stop offset="0" style="stop-color:var(--down);stop-opacity:.02"/>'
+           f'<stop offset="1" style="stop-color:var(--down);stop-opacity:.42"/></linearGradient>'
+           f'<clipPath id="uwAbove"><rect x="0" y="0" width="1000" height="{base:.2f}"/></clipPath>'
+           f'<clipPath id="uwBelow"><rect x="0" y="{base:.2f}" width="1000" '
+           f'height="{100 - base:.2f}"/></clipPath></defs><g class="gr">']
     v = y0
+    ylab = []
     while v <= y1 + 1e-9:
-        grid.append(f'<line x1="0" x2="1000" y1="{Y(v):.2f}" y2="{Y(v):.2f}" '
-                    f'vector-effect="non-scaling-stroke"/>')
-        ylab.append(f'<span class="yl" style="top:{Y(v):.2f}%">{v:g}</span>')
+        if abs(v - 100.0) > 1e-9:
+            svg.append(f'<line x1="0" x2="1000" y1="{Y(v):.2f}" y2="{Y(v):.2f}" '
+                       f'vector-effect="non-scaling-stroke"/>')
+        ylab.append(f'<span class="yl{" b" if abs(v - 100) < 1e-9 else ""}" '
+                    f'style="top:{Y(v):.2f}%">{v:g}</span>')
         v += step
-    xlab = []
+    xlab = [f'<span class="xl first" style="left:0%">{esc(dday(dates[0]))}</span>']
     m = (d_first.replace(day=28) + dt.timedelta(days=4)).replace(day=1)
     while m <= d_last:
         x = (m - d_first).days / span * 100
-        grid.append(f'<line class="m" x1="{x * 10:.1f}" x2="{x * 10:.1f}" y1="0" y2="100" '
-                    f'vector-effect="non-scaling-stroke"/>')
-        xlab.append(f'<span class="xl" style="left:{x:.2f}%">{m:%b}</span>')
+        svg.append(f'<line class="m" x1="{x * 10:.1f}" x2="{x * 10:.1f}" y1="0" y2="100" '
+                   f'vector-effect="non-scaling-stroke"/>')
+        if x < 94:
+            xlab.append(f'<span class="xl" style="left:{x:.2f}%">{m:%b}</span>')
         m = (m.replace(day=28) + dt.timedelta(days=4)).replace(day=1)
-    xlab.insert(0, f'<span class="xl first" style="left:0%">{esc(dday(dates[0]))}</span>')
+    svg.append("</g>")
+    if ix["q1"]:
+        band = (pts(list(zip(dates, ix["q3"]))) + " " +
+                pts(list(zip(reversed(dates), reversed(ix["q1"])))))
+        svg.append(f'<polygon class="band" points="{band}"/>')
+    svg.append(f'<polygon class="up" points="{area}" clip-path="url(#uwAbove)"/>'
+               f'<polygon class="dn" points="{area}" clip-path="url(#uwBelow)"/>'
+               f'<line class="base" x1="0" x2="1000" y1="{base:.2f}" y2="{base:.2f}" '
+               f'vector-effect="non-scaling-stroke"/>')
+    if bench:
+        svg.append(f'<polyline class="bm" points="{pts(bench)}" fill="none" '
+                   f'vector-effect="non-scaling-stroke"/>')
+    svg.append(f'<polyline class="ix" points="{pts(idx_rows)}" fill="none" '
+               f'vector-effect="non-scaling-stroke"/></svg>')
+    # The hover: one column a trading day, each with its day's figures.
+    hv = []
+    for i, d in enumerate(dates):
+        xa = (X(dates[i - 1]) + X(d)) / 20 if i else 0.0
+        xb = (X(d) + X(dates[i + 1])) / 20 if i + 1 < len(dates) else 100.0
+        side = " r" if X(d) > 700 else ""
+        bm = f" · {esc(sym)} {bmap[d]:.1f}" if d in bmap else ""
+        hv.append(f'<span class="hv{side}" style="left:{xa:.2f}%;width:{xb - xa:.2f}%;'
+                  f'--x:{X(d) / 10 - xa:.2f}%;--y:{Y(vals[i]):.2f}%"><i></i>'
+                  f'<em>{esc(dday(d))} · index {vals[i]:.1f}{bm}</em></span>')
     chg = vals[-1] / 100 - 1
     bchg = bench[-1][1] / 100 - 1 if bench else None
+    tone = "up" if chg >= 0 else "down"
     n = len(ix["members"])
-    ya = Y(vals[-1])
-    yb = Y(bench[-1][1]) if bench else None
-    # Two end labels closer than 14% of the plot's height are pushed apart about their
-    # midpoint, the line's own end staying where it is.
-    if yb is not None and abs(ya - yb) < 14:
-        mid, half = (ya + yb) / 2, 7 if ya <= yb else -7
-        ya, yb = mid - half, mid + half
-    ends = [f'<span class="end ix {"up" if chg >= 0 else "down"}" style="top:{ya:.2f}%">'
-            f'Index {esc(pc(chg))}</span>']
-    if bench:
-        ends.append(f'<span class="end bm" style="top:{yb:.2f}%">'
-                    f'{esc(sym)} {esc(pc(bchg))}</span>')
-    out_ = (f'; {", ".join(ix["left_out"])} left out, no close on {dday(dates[0])}'
+    mv = ix["moves"]
+    kv = [f'<span class="kv big"><b>{vals[-1]:.1f}</b><span class="chg {tone}">{esc(pc(chg))}</span></span>']
+    if bchg is not None:
+        kv.append(f'<span class="kv"><span class="k">{esc(sym)}</span>'
+                  f'<b class="{"up" if bchg >= 0 else "down"}">{esc(pc(bchg))}</b></span>')
+    kv.append(f'<span class="kv"><span class="k">Best</span><b>{esc(ix["best"])} '
+              f'<span class="{"up" if mv[ix["best"]] >= 0 else "down"}">{esc(pc(mv[ix["best"]]))}</span></b></span>')
+    kv.append(f'<span class="kv"><span class="k">Worst</span><b>{esc(ix["worst"])} '
+              f'<span class="{"up" if mv[ix["worst"]] >= 0 else "down"}">{esc(pc(mv[ix["worst"]]))}</span></b></span>')
+    out_ = (f"; {', '.join(ix['left_out'])} left out, no close on {dday(dates[0])}"
             if ix["left_out"] else "")
-    basis = (f"the {n} on this page on their closes, each set to 100 on {dday(dates[0])} and held; "
-             f"{sym} on total return, dashed{out_}")
-    tip = (f"Equal-weighted index of {n} companies: {pc(chg)} from {dlong(dates[0])} to "
-           f"{dlong(dates[-1])}" + (f"; {sym} {pc(bchg)}" if bench else ""))
-    return (f'<section class="uv uw-idx">{head}<span class="sub">{esc(basis)}</span>'
-            f'<span class="c">last 3 months</span></div>'
-            f'<div class="uw-ic" title="{esc(tip)}"><div class="plot">'
-            f'<svg viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">'
-            f'<g class="gr">{"".join(grid)}</g>'
-            + (line(bench, "bm") if bench else "") + line(list(zip(dates, vals)), "ix")
-            + f'</svg>{"".join(ylab)}{"".join(xlab)}{"".join(ends)}</div></div></section>')
+    basis = (f"the {n} on this page on their closes, each set to 100 on {dday(dates[0])} "
+             f"and held; {sym} on total return, dashed; the band is the middle half of the "
+             f"group{out_}")
+    ya = Y(vals[-1])
+    ends = [f'<span class="dot {tone}" style="top:{ya:.2f}%"></span>']
+    if bench:
+        ends.append(f'<span class="end bm" style="top:{Y(bench[-1][1]):.2f}%">{esc(sym)}</span>')
+    return (f'<section class="uv uw-idx"><div class="uw-ih"><span class="lbl">Equal-weighted '
+            f'index</span><span class="sub" title="{esc(basis)}">{n} big pharma · 3 months · '
+            f'{esc(dday(dates[0]))} = 100</span><span class="kvs">{"".join(kv)}</span></div>'
+            f'<div class="uw-ic"><div class="plot">{"".join(svg)}{"".join(ylab)}'
+            f'{"".join(xlab)}{"".join(ends)}{"".join(hv)}</div></div></section>')

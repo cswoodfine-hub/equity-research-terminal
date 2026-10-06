@@ -729,32 +729,65 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
   .uw-tile { flex: 1 0 60px; }
 }
 
-/* The group's equal-weighted index under the frame, as tall as the screen leaves. The
-   lines stretch with the box; every label is HTML, so no text is scaled. */
-.uw-idx { display: flex; flex-direction: column; height: clamp(130px, calc(100vh - 640px), 380px);
-  margin-top: 2px; }
-.uw-ih { display: flex; align-items: baseline; gap: 12px; min-width: 0;
-  border-bottom: 1px solid var(--rule-strong); padding: 0 0 3px; }
+/* The group's equal-weighted index, the head of the tab: as tall as the screen leaves
+   above the frame. The lines stretch with the box; every label is HTML, never scaled. */
+.uw-idx { display: flex; flex-direction: column; height: clamp(140px, calc(100vh - 646px), 330px);
+  margin: 2px 0 6px; padding: 8px 12px 0; box-sizing: border-box;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--panel) 85%, transparent),
+    transparent 80%);
+  border: 1px solid var(--rule); border-radius: 6px; }
+.uw-ih { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .uw-ih .lbl { font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
   text-transform: uppercase; color: var(--text); white-space: nowrap; }
-.uw-ih .sub { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; min-width: 0; }
-.uw-ih .c { margin-left: auto; font-family: var(--font-mono); font-size: 10.5px;
-  color: var(--muted); white-space: nowrap; }
-.uw-ic { position: relative; flex: 1 1 auto; min-height: 0; padding: 10px 112px 20px 40px; }
+.uw-ih .sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
+  white-space: nowrap; cursor: help; border-bottom: 1px dotted var(--rule-strong); }
+.uw-ih .kvs { margin-left: auto; display: flex; align-items: baseline; gap: 22px; min-width: 0; }
+.uw-ih .kv { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.uw-ih .kv .k { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted); }
+.uw-ih .kv b { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--text); }
+.uw-ih .kv.big b { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+.uw-ih .kv .chg { font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+  padding: 1px 7px; border-radius: 10px; }
+.uw-ih .kv .chg.up { color: var(--up); background: color-mix(in oklab, var(--up) 18%, transparent); }
+.uw-ih .kv .chg.down { color: var(--down); background: color-mix(in oklab, var(--down) 18%, transparent); }
+.uw-ih .up { color: var(--up); }
+.uw-ih .down { color: var(--down); }
+.uw-ic { position: relative; flex: 1 1 auto; min-height: 0; padding: 10px 40px 20px 34px; }
 .uw-ic .plot { position: relative; width: 100%; height: 100%; }
 .uw-ic svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.uw-ic .gr line { stroke: var(--rule); stroke-width: 1; }
-.uw-ic .gr line.m { stroke: var(--rule-faint); }
-.uw-ic polyline.ix { stroke: var(--text); stroke-width: 2; }
-.uw-ic polyline.bm { stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 4 3; }
+.uw-ic .gr line { stroke: var(--rule); stroke-width: 1; stroke-opacity: 0.6; }
+.uw-ic .gr line.m { stroke: var(--rule-faint); stroke-dasharray: 2 4; }
+.uw-ic polygon.band { fill: var(--text); fill-opacity: 0.06; }
+.uw-ic polygon.up { fill: url(#uwUp); }
+.uw-ic polygon.dn { fill: url(#uwDn); }
+.uw-ic line.base { stroke: var(--rule-strong); stroke-width: 1; }
+.uw-ic polyline.ix { stroke: var(--text); stroke-width: 2.2; stroke-linejoin: round;
+  filter: drop-shadow(0 0 3px color-mix(in oklab, var(--text) 45%, transparent)); }
+.uw-ic polyline.bm { stroke: var(--muted); stroke-width: 1.3; stroke-dasharray: 5 4; }
 .uw-ic .yl { position: absolute; right: calc(100% + 8px); transform: translateY(-50%);
   font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.uw-ic .yl.b { color: var(--text); }
 .uw-ic .xl { position: absolute; top: calc(100% + 5px); transform: translateX(-50%);
   font-family: var(--font-mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
 .uw-ic .xl.first { transform: none; }
 .uw-ic .end { position: absolute; left: calc(100% + 8px); transform: translateY(-50%);
-  font-family: var(--font-mono); font-size: 11px; font-weight: 600; white-space: nowrap; }
-.uw-ic .end.ix.up { color: var(--up); }
-.uw-ic .end.ix.down { color: var(--down); }
-.uw-ic .end.bm { color: var(--muted); font-weight: 500; }
+  font-family: var(--font-mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
+.uw-ic .dot { position: absolute; left: 100%; width: 9px; height: 9px; border-radius: 50%;
+  transform: translate(-50%, -50%); background: var(--text); }
+.uw-ic .dot.up { box-shadow: 0 0 0 4px color-mix(in oklab, var(--up) 30%, transparent),
+  0 0 14px 2px color-mix(in oklab, var(--up) 55%, transparent); }
+.uw-ic .dot.down { box-shadow: 0 0 0 4px color-mix(in oklab, var(--down) 30%, transparent),
+  0 0 14px 2px color-mix(in oklab, var(--down) 55%, transparent); }
+.uw-ic .hv { position: absolute; top: 0; bottom: 0; --x: 0%; --y: 0%; }
+.uw-ic .hv i, .uw-ic .hv em { display: none; }
+.uw-ic .hv:hover::before { content: ""; position: absolute; top: 0; bottom: 0; left: var(--x);
+  border-left: 1px dashed var(--muted); }
+.uw-ic .hv:hover i { display: block; position: absolute; left: var(--x); top: var(--y);
+  width: 7px; height: 7px; border-radius: 50%; background: var(--text);
+  transform: translate(-50%, -50%); }
+.uw-ic .hv:hover em { display: block; position: absolute; top: -4px; left: calc(var(--x) + 8px);
+  font-style: normal; font-family: var(--font-mono); font-size: 10.5px; color: var(--text);
+  white-space: nowrap; background: var(--panel); border: 1px solid var(--rule-strong);
+  padding: 2px 6px; z-index: 2; }
+.uw-ic .hv.r:hover em { left: auto; right: calc(100% - var(--x) + 8px); }

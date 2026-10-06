@@ -552,18 +552,18 @@ def test_the_spotlight_has_no_line_comparison_and_says_it_ranks_all(payload):
 
 
 def test_the_page_has_no_panel_and_draws_the_index_under_the_frame():
-    """The tabbed panel is gone: the fragment draws the frame, then the index outside it,
-    so the index's height can follow the screen's."""
+    """The tabbed panel is gone: the index heads the tab, drawn before the frame and
+    outside it, so its height can follow the screen's."""
     tree = ast.parse((FRONTEND / "universe_page.py").read_text(), feature_version=(3, 9))
     fns = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
     assert "_panel" not in fns
     assert any(getattr(d, "attr", "") == "fragment" for d in fns["_command"].decorator_list)
     cmd = ast.unparse(fns["_command"]) if hasattr(ast, "unparse") else ""
-    assert cmd.index("UC.front_html(p)") < cmd.index("UC.index_html(p)")
+    assert cmd.index("UC.index_html(p)") < cmd.index("UC.front_html(p)")
     assert not [n for n in ast.walk(tree) if isinstance(n, ast.Call)
                 and getattr(n.func, "attr", "") == "tabs"]
     css = UNIVERSE_CSS.read_text()
-    assert re.search(r"\.uw-idx \{[^}]*height: clamp\(130px, calc\(100vh - 640px\), 380px\);", css)
+    assert re.search(r"\.uw-idx \{[^}]*height: clamp\(140px, calc\(100vh - 646px\), 330px\);", css)
 
 
 def test_the_index_is_the_average_of_closes_set_to_100_on_the_first_day(payload):
@@ -579,8 +579,14 @@ def test_the_index_is_the_average_of_closes_set_to_100_on_the_first_day(payload)
     b = [c for d, c in payload["benchmark"] if d >= d0]
     assert ix["bench"][-1][1] == pytest.approx(100 * b[-1] / b[0])
     out = UC.index_html(payload)
-    assert f"Index {UC.pc(want / 100 - 1)}" in out
-    assert f"XLV {UC.pc(b[-1] / b[0] - 1)}" in out
+    assert f'<b>{want:.1f}</b><span class="chg ' in out and UC.pc(want / 100 - 1) in out
+    assert re.search(r'<span class="k">XLV</span><b class="(up|down)">'
+                     + re.escape(UC.pc(b[-1] / b[0] - 1)) + "</b>", out)
+    assert "vs XLV" not in out                              # no gap to XLV, by request
+    moves = {t: last[t] / first[t] - 1 for t in payload["tickers"]}
+    best, worst = max(moves, key=moves.get), min(moves, key=moves.get)
+    assert f"<b>{best} " in out and f"<b>{worst} " in out
+    assert out.count('class="hv') == len(ix["dates"])       # a hover a trading day
     assert "the 18 on this page on their closes" in out and "XLV on total return" in out
     assert 'vector-effect="non-scaling-stroke"' in out
     assert not re.search(r"<text", out)                     # every label is HTML, never scaled
@@ -616,20 +622,13 @@ def _unwashed(markup):
 
 
 def test_the_week_reads_the_same_whichever_company_is_picked(payload):
-    """Pick LLY instead of AZN and the band, the ribbon and the index read the same: only
-    the wash moves."""
+    """Pick LLY instead of AZN and the band, the ribbon and the index read exactly the
+    same: the Universe tab is the group, so no company is marked out on it."""
     lly = _as(payload, "LLY")
-    assert _unwashed(UC.front_html(payload)) == _unwashed(UC.front_html(lly))
-    assert UC.front_html(payload) != UC.front_html(lly)
+    assert UC.front_html(payload) == UC.front_html(lly)
     assert UC.index_html(payload) == UC.index_html(lly)
-    # Washed exactly where the company falls: its board row, its ribbon tile, its grid
-    # column, and the ranked items and ticker marks that name it.
-    for p_, t in ((payload, "AZN"), (lly, "LLY")):
-        front = UC.front_html(p_)
-        assert re.findall(r'class="uw-br me" data-ticker="([A-Z]+)"', front) == [t]
-        assert re.findall(r'class="uw-tile[^"]* me[^"]*" data-ticker="([A-Z]+)"', front) == [t]
-        named = [i for i in p_["week_items"][:2 * UC.RANK_ROWS] if t in i["tickers"]]
-        assert front.count('<div class="uw-it me"') == len(named)
+    for markup in (UC.front_html(payload), UC.index_html(payload)):
+        assert not re.search(r'class="[^"]*\bme\b', markup)
 
 
 def test_the_ranked_feed_runs_from_one_at_one_size_and_names_what_it_leaves(payload):
@@ -722,8 +721,7 @@ def test_the_ribbon_runs_cheap_to_expensive_with_no_value_last(payload):
     seq = re.findall(r'<div class="uw-zero">|data-ticker="([A-Z]+)"', rib)
     zero = seq.index("")
     assert up[seq[zero - 1]] >= 0 > up[seq[zero + 1]]
-    assert [c for c, t in tiles if "me" in c.split()] == [" me"] or \
-        sum(1 for c, _t in tiles if "me" in c.split()) == 1
+    assert not [c for c, _t in tiles if "me" in c.split()]   # no company marked out
     # A tile's hover: the close, the model's 12-month value and rating, the street target.
     card = _visible(rib.split('data-ticker="SNY"')[1].split('</div></div>')[0])
     assert "Close 39.51 EUR" in card and "Strong buy" in card and "Street target" in card
