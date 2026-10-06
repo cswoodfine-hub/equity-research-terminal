@@ -2368,6 +2368,12 @@ def test_the_note_says_what_the_next_gate_is_worth_where_the_event_is_that_gate(
     assert "worth 8.23 a share if it passes" in _brief(
         view, "LLY", modelled=False, events=event(what="PDUFA date"), assets=fda
     )["paragraphs"][2]
+    # A readout gate with no date has no study dated at it: a dated readout is another one.
+    undated = {"pipeline": {"rows": [{"name": "Eloralintide", "value": 5.0234,
+                                      "kind": "pipeline", "success": 8.2344,
+                                      "gate": {"label": "Phase 3 readout", "month": ""}}]}}
+    assert _brief(view, "LLY", modelled=False, events=event(), assets=undated
+                  )["paragraphs"][2] == old
     # No new sentence: the clause grows, the paragraph keeps its one sentence.
     assert said["paragraphs"][2].replace("est. ", "est ").count(". ") == 0
 

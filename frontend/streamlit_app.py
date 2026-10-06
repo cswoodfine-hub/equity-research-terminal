@@ -7223,8 +7223,10 @@ def _ki_gate(line: dict, failing: dict = None) -> dict:
 
 def _ki_gate_is(row: dict, event: dict) -> bool:
     """Whether a readout or decision in the note is the compound's next gate: the same kind
-    of event, in the gate's month where it has one. A gate already due is never an event
-    ahead, so its legs are never said of a later study."""
+    of event, in the gate's month. An FDA decision with no date on file is any decision on
+    the compound; a readout gate with no date has no study dated at it, so a dated readout
+    is another study and never the gate. A gate already due is never an event ahead, so
+    its legs are never said of a later study."""
     gate = (row or {}).get("gate") or {}
     label, what = gate.get("label"), str((event or {}).get("event") or "")
     kinds = {"Phase 3 readout": ("Phase 3 readout", "Phase 2/3 readout"),
@@ -7233,7 +7235,9 @@ def _ki_gate_is(row: dict, event: dict) -> bool:
     if what not in kinds:
         return False
     month = gate.get("month") or ""
-    return not month or str((event or {}).get("date") or "")[:7] == month
+    if not month:
+        return label == "FDA decision"
+    return str((event or {}).get("date") or "")[:7] == month
 
 
 def _ki_programme_rows(programmes: list, today) -> list:
