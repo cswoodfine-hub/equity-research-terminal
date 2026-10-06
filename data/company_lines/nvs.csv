@@ -51,6 +51,7 @@ NVS,Contract manufacturing,base,erp,0.0414,,,"Damodaran implied US equity risk p
 NVS,Contract manufacturing,base,beta,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.42 raw)",
 NVS,Contract manufacturing,base,cost_of_debt,0.056,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-09-16: 5.60%. Refreshed with the data (fetchers/rates_fred.py), so the rate a valuation uses is the one the market last quoted rather than the one it was written on",
 NVS,Contract manufacturing,base,debt_weight,0.085397,,,"filed TotalDebt of $28,729mm over debt plus market capitalisation: 1,908.2mm shares at 2025-12-31 at the $161.25 close of 2026-09-01",
+NVS,Contract manufacturing,base,buys_launches,0,,flag,"Novartis FY2025 20-F (0001114448-26-000004), Note 4: contract manufacturing, manufacturing services for other companies. Contract manufacturing earns no drug approval, so this revenue buys no launches and the future pipeline leaves the line out, as it does Novartis's other revenues",
 #
 # Novartis's other revenues, USD 2,142mm in FY2025, which the income statement reports above
 # cost of goods sold and beside net sales (FY2025 20-F 0001114448-26-000004, Note 4). Every

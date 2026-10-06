@@ -286,3 +286,31 @@ def test_revenue_earned_outside_the_reported_total_is_not_coverage_of_it(tmp_pat
     assert got["outside_reported_revenue"] == pytest.approx(2_000 * MM)
     assert [s["name"] for s in got["outside_lines"]] == ["Other revenues"]
     conn.close()
+
+
+def _seed_rows(folder):
+    import csv
+    import pathlib
+    rows = []
+    for path in sorted((pathlib.Path(company_lines.DATA_DIR) / folder).glob("*.csv")):
+        with path.open(newline="", encoding="utf-8") as handle:
+            rows += [dict(r, file=path.name) for r in csv.DictReader(
+                l for l in handle if not l.lstrip().startswith("#"))]
+    return rows
+
+
+def test_revenue_that_is_not_a_medicine_sold_buys_no_launches():
+    """The rule in company_lines.KEYS, held on the seeds: a line named for royalties,
+    profit shares, contract manufacturing, licensing or services carries
+    buys_launches 0, and every flag, on a line or an asset, says why."""
+    import re
+    rows = _seed_rows("company_lines")
+    flagged = {(r["ticker"], r["line"]) for r in rows
+               if r["key"] == "buys_launches" and float(r["value"]) == 0}
+    passive = re.compile(r"royalt|profit shar|contract manufactur|licensing|services"
+                         r"|^other revenues$", re.I)
+    named = {(r["ticker"], r["line"]) for r in rows if passive.search(r["line"])}
+    assert named and named <= flagged, sorted(named - flagged)
+    for r in rows + _seed_rows("assumptions"):
+        if r["key"] == "buys_launches":
+            assert (r.get("source") or "").strip(), r

@@ -33,9 +33,18 @@ KEYS = ("therapy_mode", "base_revenue", "revenue_growth_pct", "terminal_growth_p
         "tax_rate", "wacc", "risk_free", "erp", "beta", "cost_of_debt", "debt_weight",
         "forecast_start_year", "forecast_years", "pos",
         "loe_year", "erosion_year1_pct", "erosion_decay_pct",
-        # 0 for a line whose R&D develops something other than medicines (Johnson &
-        # Johnson's MedTech): that R&D buys no drug launches, so the future pipeline
-        # leaves the line out. Absent means 1.
+        # 0 for revenue that is not a medicine the filer sells or co-sells: royalties,
+        # and profit or revenue shares on a medicine another company sells; contract
+        # manufacturing; distribution and other services; devices (Johnson & Johnson's
+        # MedTech); medicines for animals. None earns the filer a human drug approval,
+        # which is what the launch rate is measured on, so the future pipeline leaves
+        # the line out: its R&D buys no launches, its revenue is not part of the book
+        # the launches refill, and its margins do not cost them. It is still valued.
+        # A medicine the filer co-sells and books as alliance or collaboration revenue
+        # (Merck's Lynparza, Biogen's Leqembi) is not on the list: the launch rate
+        # counts a co-development's revenue as what R&D buys
+        # (data/partner_funded_launches.csv). The same rule and the same key apply to
+        # an asset seed (Pfizer CentreOne). Absent means 1.
         "buys_launches",
         # 0 for a line the filer earns outside the revenue total it reports as its top
         # line: Sanofi's and Novartis's other revenues sit beside net sales, not in
