@@ -114,7 +114,8 @@ def test_a_retired_programme_with_a_model_is_refused_with_the_reason(tmp_path, m
                  " VALUES (1, 1, 'prevalence', 1.0)")
     conn.commit()
     conn.close()
-    monkeypatch.setattr(V, "asset_forecast", lambda db_path, ticker, asset_id: {
+    # The rollup also asks for the legs it reads each line's gate with (with_legs).
+    monkeypatch.setattr(V, "asset_forecast", lambda db_path, ticker, asset_id, **_: {
         "ok": False, "name": "REGN7999", "missing": ["some input"]})
     D.apply(path, _file(tmp_path, REGN))
     got = V.company_rollup(path, "REGN")
