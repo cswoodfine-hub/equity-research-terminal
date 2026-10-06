@@ -2976,6 +2976,26 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
          "probability; a payer group or franchise is exposure only")
 
 
+def _pipeline_development(api_base: str, ticker: str) -> None:
+    """Every counted pipeline line's next gate against what reaching it costs, folded
+    with the further reads: a view beside the value, never in it
+    (docs/design/development-cost.md). A failed read says it did not load."""
+    try:
+        payload, problem = api_get(api_base, f"/companies/{ticker}/development"), None
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        payload, problem = None, str(exc).rstrip(".")
+    failing = len((payload or {}).get("failing") or [])
+    label = "Pipeline development, next gate" + (
+        f" · {failing} {'gate costs' if failing == 1 else 'gates cost'} more to reach "
+        f"than {'it is' if failing == 1 else 'they are'} worth risked" if failing else "")
+    with st.expander(label, expanded=False):
+        if problem:
+            st.markdown(f'<div class="byline">{html_escape(_GATE_FAILED.format(error=problem))}'
+                        '</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(_gate_book_html(payload), unsafe_allow_html=True)
+
+
 def _book(api_base: str, ticker: str, selected):
     """The company above the compound, because that is the unit of coverage.
 
@@ -3109,6 +3129,7 @@ def _book(api_base: str, ticker: str, selected):
     # The further reads, at the foot: what the price needs, the risks that move together,
     # the value a peer multiple implies, and the Medicare selections.
     _what_breaks_it(api_base, ticker)
+    _pipeline_development(api_base, ticker)
     _peer_value_section(api_base, ticker)
     _ira_strip(api_base, ticker)
     return v, clicked, {"bench": bench, "below": below}
@@ -3393,11 +3414,25 @@ def _drivers_layer(verdict: dict, scenario: str) -> None:
         base_ps = (spread.get("base") or {}).get("per_share")
         low = (spread.get("bear") or {}).get("per_share")
         high = (spread.get("bull") or {}).get("per_share")
+        gate_rows = _gate_range_rows(verdict)
         if (verdict.get("has_range") and low is not None and high is not None
                 and base_ps is not None):
+            # The hand bear and bull first, the next gate's legs under them, derived.
             section("The range", basis="bear · base · bull")
-            R.show(CH.tornado([{"label": "per share", "low": low, "high": high}],
-                              440, 86, centre=base_ps,
+            rows = [{"label": "bear · bull, stated" if gate_rows else "per share",
+                     "low": low, "high": high}] + gate_rows
+            R.show(CH.tornado(rows, 440, 86 if len(rows) == 1 else 40 + 34 * len(rows),
+                              centre=base_ps,
+                              value_fmt=lambda x: f"${x:,.2f}"), css_class="chart-mount")
+        elif gate_rows:
+            # No hand range, so the next gate sets it: nil if it fails to the success
+            # value, centred on today, with the PoS band as its own narrower row.
+            gate = verdict.get("gate") or {}
+            section("The range", basis="next gate · "
+                    + ("stated legs" if gate.get("legs_basis") == "stated" else "derived"))
+            R.show(CH.tornado(gate_rows, 440, 86 if len(gate_rows) == 1
+                              else 40 + 34 * len(gate_rows),
+                              centre=gate.get("per_share_now") or 0.0,
                               value_fmt=lambda x: f"${x:,.2f}"), css_class="chart-mount")
         else:
             section("The range", basis="one case")
@@ -3504,6 +3539,628 @@ def _pos_layer(granular: dict) -> None:
                 f'Biomarker preselection is the report\'s strongest cut and is applied '
                 f'only where a biomarker_selected row is recorded on the asset by hand, '
                 f'never read off a title.</div>', unsafe_allow_html=True)
+
+
+# --- The launch floor's flag (build 3: docs/pipeline_coverage.md, launch years) ---------
+# Red where the model launches before the earliest approval the registry and the FDA
+# review clock allow, amber where the seed cites a filing or a readout that is not on file.
+# A part year is information, not a flag, and a clear floor carries nothing. The same
+# mark on the Pipeline tab's value, a Key insights pipeline row and the Next gate block.
+_LAUNCH_TONES = {"before_floor": "red", "before_floor_cited": "amber"}
+
+
+def _launch_flag(launch) -> str:
+    """The flag's tone, "red" or "amber", or "" where the line carries none."""
+    if not isinstance(launch, dict):
+        return ""
+    tone = launch.get("flag") or _LAUNCH_TONES.get(launch.get("status"), "")
+    return tone if tone in ("red", "amber") else ""
+
+
+def _launch_flagged(markup: str, launch, tip: bool = True) -> str:
+    """``markup`` underlined in the flag's tone, the floor's message as its tooltip where
+    ``tip`` (a row that carries one tooltip for everything passes False), or unchanged
+    where nothing is flagged."""
+    tone = _launch_flag(launch)
+    if not tone:
+        return markup
+    message = str(launch.get("message") or "") if tip else ""
+    quoted = html_escape(message).replace('"', "&quot;")
+    title = f' title="{quoted}"' if message else ""
+    return f'<span class="u-flagged {tone}"{title}>{markup}</span>'
+
+
+def _prog_value_cell(asset_id, valued: dict, held: dict, blocked: dict,
+                     launch: dict = None) -> str:
+    """The Pipeline tab's rightmost column: what the compound is worth a share, or why not.
+
+    Four states, and the difference between the last two is the point. "no forecast"
+    means nobody has written the assumptions. The refused row means they were written,
+    the engine read them and stopped on a named gap, which is a piece of work with a next
+    step attached rather than an absence. A valued figure whose launch year falls before
+    the earliest approval the evidence allows is underlined, red or amber, with the
+    floor's message as its tooltip; a part year is information and carries nothing.
+    """
+    if asset_id in valued:
+        figure = _launch_flagged(T.num(valued[asset_id] or 0, 2), launch)
+        return (f'<span class="prog-v" title="rNPV a share, counted in the '
+                f'company total">{figure}</span>')
+    if asset_id in held:
+        figure = T.num(held[asset_id] or 0, 2) if held[asset_id] else "held"
+        return (f'<span class="prog-v off" title="built on a placeholder curve, '
+                f'so it is shown and not counted">{figure} *</span>')
+    if asset_id in blocked:
+        want = ", ".join(str(x) for x in blocked[asset_id][:6]) or "inputs"
+        return (f'<span class="prog-v off" title="the engine stopped on: '
+                f'{html_escape(want)}">needs</span>')
+    return '<span class="prog-v off" title="no assumptions on file">&mdash;</span>'
+
+
+# --- Catalysts: At stake (comps-valuation.md section 12) -------------------------------
+# One builder per piece, so the tab's redesign can reuse them: the row, whether it takes
+# the met and missed buttons, the fold, and what a resolve said. A derived row says so on
+# every line it is drawn on, and only a row the back end marks resolvable gets buttons:
+# a derived Phase 2 or FDA gate resolves through the registry or openFDA, never by hand.
+_STAKE_SHOWN = 6
+_STAKE_TITLE_CHARS = 64
+
+
+def _stake_leg(pos) -> str:
+    """A leg's probability as the row prints it: "nil" for none, never "0.00"."""
+    if pos is None or pos != pos:
+        return "·"
+    return "nil" if pos < 0.005 else f"{pos:.2f}"
+
+
+def _stake_resolvable(row) -> bool:
+    """Met and missed are drawn only on a priced row the back end marks resolvable."""
+    return (isinstance(row, dict) and row.get("priced", True) is not False
+            and row.get("resolvable") is True)
+
+
+def _stake_title(title) -> str:
+    """The catalyst's title without the phase the row already names, cut to fit."""
+    title = re.sub(r"^Phase [0-9/]+,\s*", "", str(title or "").strip())
+    limit = _STAKE_TITLE_CHARS
+    return title if len(title) <= limit else title[: limit - 1].rstrip() + "…"
+
+
+def _stake_row_html(row: dict) -> str:
+    """One priced catalyst: what it is and when, its swing at this company's share, and
+    the legs, with a derived row tagged (the basis in the tag's tooltip). Under it in
+    muted text: what the model holds after a miss, why a different study is priced, and
+    why there is no button where a resolve is not taken by hand."""
+    r = row if isinstance(row, dict) else {}
+    derived = r.get("legs_basis") == "derived"
+    tag = (f' <span class="u-tag" title="{_gate_attr(r.get("basis"))}">derived</span>'
+           if derived else "")
+    event = r.get("gate_label") if derived and r.get("gate_label") else r.get("catalyst_type")
+    per_share = (f" · {r['per_share']:+,.2f}/sh" if r.get("per_share") is not None else "")
+    lines = [f'<b>{html_escape(r.get("asset_name") or "")}</b> '
+             f'{html_escape(r.get("expected_date") or "")} · {html_escape(event or "")} · '
+             f'{html_escape(_stake_title(r.get("title")))}{tag}',
+             f'swing <b>{(r.get("swing") or 0):,.0f}mm</b> · this company '
+             f'{(r.get("share") or 0):.0%}: <b>{(r.get("share_swing") or 0):,.0f}mm</b>'
+             f'{per_share} · PoS {_stake_leg(r.get("pos_now"))} now, '
+             f'{_stake_leg(r.get("pos_success"))} met, {_stake_leg(r.get("pos_failure"))} missed']
+    held = r.get("held") if isinstance(r.get("held"), dict) else {}
+    notes = [held.get("note"), r.get("gate_note")]
+    if not _stake_resolvable(r):
+        notes.append(r.get("resolve_note") or "Not resolved by hand.")
+    muted = " ".join(str(x).strip() for x in notes if x)
+    if muted:
+        lines.append(f'<span class="u-muted">{html_escape(muted)}</span>')
+    return '<div class="byline">' + "<br>".join(lines) + "</div>"
+
+
+def _stake_split(rows: list, shown: int = _STAKE_SHOWN) -> tuple:
+    """The rows drawn open and the rest, folded: the largest swings first, as ranked."""
+    rows = [r for r in rows or [] if isinstance(r, dict)]
+    return rows[:shown], rows[shown:]
+
+
+def _stake_resolved_note(result) -> str:
+    """What a resolve said, where the page has to say it: a stated PoS still governs."""
+    r = result if isinstance(result, dict) else {}
+    if r.get("route") != "gate evidence" or not r.get("stated_pos_governs"):
+        return ""
+    pos = r.get("pos_applied")
+    held = f" of {pos:.0%}" if isinstance(pos, (int, float)) else ""
+    return (f"Recorded as gate evidence. The stated PoS{held} still governs; clear it "
+            "under Assumptions to let the gate move it.")
+
+
+def _stake_row(box, api_base: str, ticker: str, row: dict) -> None:
+    """One At stake row in ``box``: the text, and met and missed only where the back end
+    takes a resolve. Two clicks, not one: resolving steps the live PoS and writes
+    history, and a stray click should never do that. The first click arms; the second,
+    on the same outcome, commits."""
+    info_col, act_col = box.columns([6, 1], vertical_alignment="center")
+    with info_col:
+        st.markdown(_stake_row_html(row), unsafe_allow_html=True)
+    if not _stake_resolvable(row):
+        return
+    with act_col:
+        armed_key = f"cat_arm_{ticker}_{row['id']}"
+        armed = st.session_state.get(armed_key)
+        met_col, miss_col = st.columns(2, gap="small")
+        clicked = None
+        with met_col:
+            label = "sure?" if armed == "met" else "met"
+            if st.button(label, key=f"cat_met_{ticker}_{row['id']}", width="stretch"):
+                clicked = "met"
+        with miss_col:
+            label = "sure?" if armed == "missed" else "missed"
+            if st.button(label, key=f"cat_miss_{ticker}_{row['id']}", width="stretch"):
+                clicked = "missed"
+        if clicked:
+            if armed == clicked:
+                try:
+                    result = api_post_json(
+                        api_base, f"/companies/{ticker}/catalysts/{row['id']}/resolve",
+                        {"outcome": clicked})
+                    st.session_state.pop(armed_key, None)
+                    st.session_state[f"cat_resolved_{ticker}"] = result
+                    api_get.clear()
+                    st.rerun()
+                except (urllib.error.URLError, OSError) as exc:
+                    st.error(f"resolve failed: {exc}")
+            else:
+                st.session_state[armed_key] = clicked
+                st.rerun()
+
+
+# --- The next gate: builds 1 to 3 in one block -------------------------------------------
+# docs/design/development-cost.md, comps-valuation.md section 12, and the launch section
+# of docs/pipeline_coverage.md. One layer on an unmarketed asset: the gate and its date,
+# its chance, what passing and failing are worth and what the model holds after a miss,
+# what reaching it costs from published trial costs and what that nets, and the earliest
+# approval from it. None of it is in the value: the legs average back to the rNPV, the
+# trial cost is already paid inside the R&D ratio, and the launch floor is a flag.
+_GATE_EVIDENCE = {"published": "published", "implied": "implied by the stated PoS"}
+_GATE_PRICES = "2018 prices, not restated"
+_GATE_FAILED = "The trial costs did not load: {error}. Reload in a minute."
+_GATE_LADDER = "After later trial costs"
+
+
+def _gate_attr(text) -> str:
+    """A value for a double-quoted attribute."""
+    return html_escape(str(text or "")).replace('"', "&quot;")
+
+
+def _gate_ps(value, nil: bool = False) -> str:
+    """A figure a share: "8.23", "−0.05", "nil" for a leg of nothing where ``nil``, and
+    "·" where there is no figure."""
+    if value is None or value != value:
+        return "·"
+    if nil and abs(value) < 0.005:
+        return "nil"
+    text = f"{abs(value):,.2f}"
+    return ("−" + text) if value < 0 and round(abs(value), 2) else text
+
+
+def _gate_mm(value, currency: str = "USD") -> str:
+    """Millions in the payload's currency: "138mm", "2.1mm", "725mm DKK"."""
+    if value is None or value != value:
+        return "·"
+    text = f"{value:,.1f}" if abs(value) < 10 else f"{value:,.0f}"
+    return f"{text}mm" + ("" if (currency or "USD") == "USD" else f" {currency}")
+
+
+def _gate_pct(p) -> str:
+    """A chance as it reads: "61%", "1.9%" under ten, "0.22%" under one."""
+    if p is None or p != p:
+        return "·"
+    pct = p * 100
+    return f"{pct:.0f}%" if pct >= 9.5 else f"{pct:.1f}%" if pct >= 0.95 else f"{pct:.2f}%"
+
+
+def _gate_when(gate: dict) -> str:
+    """When the gate falls: "est. Jan 2028", "due since Oct 2024", "decision due 10 Oct
+    2026", "no date on file"."""
+    date = str((gate or {}).get("date") or "")
+    if not date:
+        return "no date on file"
+    if (gate or {}).get("gate") == "nda_to_approval":
+        return f"decision due {_ki_day(date)}"
+    return (f"due since {_ki_month(date)}" if (gate or {}).get("due")
+            else f"est. {_ki_month(date)}")
+
+
+def _gate_programme(label: str) -> str:
+    """The stage a cost to reach covers, by the gate it reaches: the Phase 3 programme for
+    a Phase 3 readout, never the gate study alone."""
+    phase = re.match(r"^(Phase [0-9/]+) readout", str(label or ""))
+    return f"the {phase.group(1)} programme in the modelled disease" if phase else ""
+
+
+def _gate_summary(verdict: dict, dev: dict = None, dev_error: str = None) -> dict:
+    """What the Next gate block draws, or {} where the asset has no gate.
+
+    The legs come from the development payload where it read, else from the verdict: its
+    success leg and risked value are the rollup gate's (base case), so the cost and the
+    net sit on the same figures as the legs. A refusal or a failed read keeps the legs
+    and says why there is no cost; an unread cost is "no free data", never nil."""
+    v = verdict if isinstance(verdict, dict) else {}
+    vg = v.get("gate") if isinstance(v.get("gate"), dict) else {}
+    d = dev if isinstance(dev, dict) else {}
+    dg = d.get("gate") if d.get("ok") and isinstance(d.get("gate"), dict) else {}
+    if not vg and not dg:
+        return {}
+    g = dg or vg
+    trial = g.get("trial") if isinstance(g.get("trial"), dict) else {}
+    held = g.get("held") if isinstance(g.get("held"), dict) else {}
+    out = {
+        "gate": g.get("gate"), "label": g.get("label") or "next gate",
+        "nct": trial.get("nct_id"), "when": _gate_when(g), "due": bool(g.get("due")),
+        "p": g.get("p") if dg else g.get("p_gate"),
+        "evidence": (g.get("p_evidence") if dg
+                     else (g.get("evidence") or {}).get("p_gate")),
+        "placed": g.get("placed"),
+        "now": g.get("rnpv_per_share") if dg else g.get("per_share_now"),
+        "success": g.get("success_leg_per_share") if dg else g.get("per_share_success"),
+        "pos_success": g.get("pos_success"),
+        "held": held, "legs": vg.get("basis") or g.get("legs_basis") or "",
+        "stated": vg.get("legs_basis") == "stated",
+        "currency": d.get("currency") or "USD", "base_case": bool(dg),
+        "launch": v.get("launch") if isinstance(v.get("launch"), dict) else {},
+        "cost": None, "problem": None}
+    if dev_error:
+        out["problem"] = _GATE_FAILED.format(error=str(dev_error).rstrip("."))
+    elif d and not d.get("ok"):
+        out["problem"] = d.get("why") or "No cost is read for this asset."
+    if dg:
+        high = dg.get("high") if isinstance(dg.get("high"), dict) else {}
+        out["cost"] = {
+            "unread": bool(dg.get("unread")) or dg.get("cost_per_share") is None,
+            "per_share": dg.get("cost_per_share"), "mm": dg.get("cost"),
+            "net": dg.get("net_per_share"), "breakeven": dg.get("breakeven_p"),
+            "funds": dg.get("funds"), "basis": dg.get("basis") or "",
+            "grade": dg.get("grade"), "high": high.get("cost_per_share"),
+            "high_net": high.get("net_per_share"), "high_label": high.get("label") or "",
+            "paid": d.get("paid_note") or "", "tax": d.get("tax_basis") or ""}
+    return out
+
+
+def _gate_breakeven(s: dict) -> str:
+    """The net row's note: the chance at which reaching the gate pays for itself."""
+    c = s.get("cost") or {}
+    be = c.get("breakeven")
+    if be is None:
+        return ""
+    if be > 1:
+        return "would not pay for itself at a certain pass"
+    if c.get("funds") is False:
+        return f"needs a {_gate_pct(be)} chance against the {_gate_pct(s.get('p'))} on file"
+    return f"breaks even at a {_gate_pct(be)} chance"
+
+
+def _gate_rows(s: dict) -> list:
+    """The facts beside the picture, one row each: {k, v, note, tone, tip}. A cost that
+    could not be read is "no free data"; a refused or failed one has no row, and the
+    lines under the table say why."""
+    if not s:
+        return []
+    rows = []
+    evidence = _GATE_EVIDENCE.get(s.get("evidence"), s.get("evidence") or "")
+    rows.append({"k": "chance", "v": _gate_pct(s.get("p")),
+                 "note": s.get("placed") or evidence, "tip": s.get("legs")})
+    now = s.get("now")
+    rows.append({"k": "if it passes", "v": _gate_ps(s.get("success")),
+                 "note": f"a share, against {_gate_ps(now)} now" if now is not None else "a share",
+                 "tip": (f"{s['pos_success']:.1%} chance of approval once it passes"
+                         if s.get("pos_success") is not None and s["pos_success"] < 0.9995
+                         else "")})
+    rows.append({"k": "if it fails", "v": "nil",
+                 "note": "the model's convention for a failed programme", "tip": ""})
+    held = s.get("held") or {}
+    if held.get("open") and held.get("pos") is not None:
+        n = held["open"]
+        rows.append({"k": "held", "v": _gate_pct(held["pos"]),
+                     "note": (f"{n} other Phase 3{'' if n == 1 else 's'} open"
+                              + ("; the stated PoS governs" if held.get("stated_governs")
+                                 else "")),
+                     "tip": held.get("note") or ""})
+    c = s.get("cost")
+    if c:
+        if c.get("unread"):
+            rows.append({"k": "cost to reach", "v": "no free data", "tone": "none",
+                         "note": "", "tip": c.get("basis")})
+        else:
+            rows.append({"k": "cost to reach", "v": _gate_ps(c.get("per_share")),
+                         "note": f"{_gate_mm(c.get('mm'), s.get('currency'))} after tax, "
+                                 f"{_GATE_PRICES}",
+                         "tip": " ".join(x for x in (c.get("basis"), c.get("tax")) if x)})
+            rows.append({"k": "net", "v": _gate_ps(c.get("net")),
+                         "tone": "down" if c.get("funds") is False else "",
+                         "note": _gate_breakeven(s),
+                         "tip": "the chance times what passing is worth, less the cost "
+                                "to reach it"})
+            if c.get("high") is not None:
+                rows.append({"k": "at DiMasi's level", "v": _gate_ps(c["high"]),
+                             "tone": "muted",
+                             "note": f"net {_gate_ps(c.get('high_net'))}, a high bound",
+                             "tip": c.get("high_label")})
+    launch = s.get("launch") or {}
+    lg = launch.get("gate") if isinstance(launch.get("gate"), dict) else {}
+    seed = launch.get("seed_year")
+    if lg.get("decision_date"):
+        rows.append({"k": "earliest approval",
+                     "v": _launch_flagged(html_escape(_ki_month(lg["decision_date"])),
+                                          launch),
+                     "html": True,
+                     "note": "from this gate" + (f"; model {seed}" if seed else ""),
+                     "tip": launch.get("message") or ""})
+    elif launch.get("decision_date") and _launch_flag(launch):
+        rows.append({"k": "earliest approval",
+                     "v": _launch_flagged(html_escape(_ki_month(launch["decision_date"])),
+                                          launch),
+                     "html": True,
+                     "note": "from the registry" + (f"; model {seed}" if seed else ""),
+                     "tip": launch.get("message") or ""})
+    return rows
+
+
+def _gate_table_html(rows: list) -> str:
+    """The facts as a table: what, the figure, and a few words; the rest in the tooltip."""
+    out = []
+    for r in rows:
+        value = r["v"] if r.get("html") else html_escape(r["v"])
+        tone = f' {r["tone"]}' if r.get("tone") else ""
+        tip = r.get("tip") or ""
+        attrs = f' title="{_gate_attr(tip)}"' if tip else ""
+        out.append(f'<tr{attrs}><td class="k">{html_escape(r["k"])}</td>'
+                   f'<td class="v{tone}">{value}</td>'
+                   f'<td class="t">{html_escape(r.get("note") or "")}</td></tr>')
+    return f'<table class="u-gate"><tbody>{"".join(out)}</tbody></table>' if out else ""
+
+
+def _gate_steps(s: dict) -> list:
+    """The headline as a waterfall, a share: what passing is worth, less the chance it
+    fails, is today's risked value; less the cost to reach the gate is the net. An unread
+    cost is a hatched step with no net after it, never a nil one."""
+    success, p = (s or {}).get("success"), (s or {}).get("p")
+    if success is None or p is None:
+        return []
+    steps = [{"label": "if it passes", "value": success, "kind": "start",
+              "tip": f"{s.get('label')} passes"},
+             {"label": f"{1 - p:.0%} it fails", "value": -(1 - p) * success,
+              "kind": "step", "tip": "failure is taken at nil"},
+             {"label": "risked now", "kind": "end"}]
+    c = s.get("cost")
+    if c and c.get("unread"):
+        steps.append({"label": "cost to reach", "value": None, "kind": "step",
+                      "tip": c.get("basis")})
+    elif c and c.get("per_share") is not None:
+        steps += [{"label": "cost to reach", "value": -c["per_share"], "kind": "step",
+                   "tip": f"{_GATE_PRICES}, after tax"},
+                  {"label": "net", "kind": "end"}]
+    return steps
+
+
+def _gate_head(s: dict) -> str:
+    """The section's chip: the gate, when it falls, and its study."""
+    return " · ".join(x for x in (s.get("label"), s.get("when"), s.get("nct")) if x)
+
+
+def _gate_lines(s: dict) -> list:
+    """The sentences under the table, few and in the order a reader asks: what the cost
+    covers, what is not read and why, where the money already sits, and a flag."""
+    if not s:
+        return []
+    out = []
+    c = s.get("cost") or {}
+    if s.get("problem"):
+        out.append(s["problem"])
+    elif c.get("unread"):
+        out.append(f"No free data for the cost to reach: {c.get('basis')}.")
+    elif c:
+        programme = _gate_programme(s.get("label"))
+        out.append(f"The cost to reach is {programme}, not the gate study alone: "
+                   f"{c.get('basis')}." if programme else
+                   f"The cost to reach is {c.get('basis')}.")
+    if c.get("paid"):
+        out.append(f"{c['paid']} Trial costs are at {_GATE_PRICES}.")
+    if _launch_flag(s.get("launch")):
+        out.append(str((s.get("launch") or {}).get("message") or ""))
+    return [x for x in out if x]
+
+
+def _gate_ladder_html(dev: dict) -> str:
+    """The ladder to approval after later trial costs, a share, one row a gate, and what
+    today is worth once every later cost is paid. Unread values are "no free data"."""
+    d = dev if isinstance(dev, dict) else {}
+    lad = d.get("ladder") if isinstance(d.get("ladder"), dict) else {}
+    rows = lad.get("rows") or []
+    if not d.get("ok") or not rows:
+        return ""
+
+    def cell(value, nil=False):
+        return ('<td class="v none">no free data</td>' if value is None
+                else f'<td class="v">{_gate_ps(value, nil)}</td>')
+    out = ['<table class="u-gate ladder"><thead><tr><td class="k">gate</td>'
+           '<td class="k">date</td><td class="k v">chance</td>'
+           '<td class="k v">cost to reach</td><td class="k v">if it passes</td>'
+           '<td class="k v">net</td><td class="k v">breaks even</td></tr></thead><tbody>']
+    for r in rows:
+        be = r.get("breakeven_p")
+        floored = " floored at nil" if r.get("floored") else ""
+        out.append(f'<tr><td class="t">{html_escape(r.get("label") or "")}</td>'
+                   f'<td class="t">{html_escape(_ki_month(r.get("date")) or "no date")}</td>'
+                   f'<td class="v">{_gate_pct(r.get("p"))}</td>'
+                   + cell(r.get("cost_per_share")) + cell(r.get("value_if_passed_per_share"))
+                   + cell(r.get("net_per_share"))
+                   + f'<td class="v{" none" if be is None else ""}">'
+                     f'{"no free data" if be is None else _gate_pct(be)}{floored}</td></tr>')
+    out.append("</tbody></table>")
+    today, cost = lad.get("value_today_per_share"), lad.get("risked_cost_per_share")
+    rnpv = ((d.get("gate") or {}).get("rnpv_per_share"))
+    if today is not None and rnpv is not None:
+        out.append(f'<div class="byline">Today, with every later trial cost paid: '
+                   f'{_gate_ps(today)} a share against {_gate_ps(rnpv)} risked before cost, '
+                   f'so the risked cost to approval is {_gate_ps(cost)}. Each "if it '
+                   f'passes" here is net of the costs after it, so it sits below the '
+                   f'success leg above.</div>')
+    else:
+        out.append('<div class="byline">A later stage has no free data for its cost, so '
+                   'what rests on it is not read.</div>')
+    return "".join(out)
+
+
+def _gate_studies_html(dev: dict) -> str:
+    """The studies behind each cost, the programme outside the headline as one figure,
+    and the sources. Costs here are before tax, at full enrolment, in 2018 dollars."""
+    d = dev if isinstance(dev, dict) else {}
+    if not d.get("ok"):
+        return ""
+    out = ['<table class="u-gate studies"><thead><tr><td class="k">study</td>'
+           '<td class="k">phase</td><td class="k v">enrolled</td>'
+           '<td class="k v">a patient</td><td class="k v">still ahead</td>'
+           '<td class="k v">cost ahead</td></tr></thead><tbody>']
+    for stage in d.get("stages") or []:
+        out.append(f'<tr><td class="t" colspan="6">{html_escape(stage.get("label") or "")}'
+                   f'{": no free data" if stage.get("unread") else ""}</td></tr>')
+        for st_ in stage.get("studies") or []:
+            nct = html_escape(st_.get("nct_id") or "")
+            enrolled, pp = st_.get("enrollment"), st_.get("per_patient_usd")
+            share, ahead = st_.get("share_ahead"), st_.get("ahead_usd_mm")
+            out.append(
+                f'<tr title="{_gate_attr(st_.get("title"))}">'
+                f'<td class="t"><a href="https://clinicaltrials.gov/study/{nct}" '
+                f'target="_blank" rel="noopener">{nct}</a></td>'
+                f'<td class="t">{html_escape(st_.get("phase") or "")}</td>'
+                + ('<td class="v">·</td>' if enrolled is None
+                   else f'<td class="v">{enrolled:,}</td>')
+                + ('<td class="v">·</td>' if pp is None
+                   else f'<td class="v">${pp / 1e3:,.0f}k</td>')
+                + ('<td class="v">·</td>' if share is None
+                   else f'<td class="v">{share:.0%}</td>')
+                + ('<td class="v none">no free data</td>' if ahead is None
+                   else f'<td class="v">{_gate_mm(ahead)}</td>') + '</tr>')
+    out.append("</tbody></table>")
+    o = d.get("outside") if isinstance(d.get("outside"), dict) else {}
+    n = len(o.get("studies") or [])
+    if n:
+        left = o.get("cost_usd_mm")
+        ahead = (f"{_gate_mm(left)} ahead before tax" if left else
+                 "its cost already spent" if n == 1 else "their cost already spent")
+        out.append(f'<div class="byline">Outside the headline: {n} other open '
+                   f'{"study" if n == 1 else "studies"}, {ahead}. '
+                   f'{html_escape(o.get("note") or "")}</div>')
+    if d.get("sources"):
+        out.append('<div class="byline">' + html_escape("; ".join(d["sources"])) + ".</div>")
+    return "".join(out)
+
+
+def _gate_book_rows(payload: dict) -> list:
+    """The company's next gates as table rows: failing first, then by net a share, then
+    the gates whose cost is not read. Each {name, asset_id, label, when, p, cost, success,
+    net, breakeven, grade, tone}."""
+    pay = payload if isinstance(payload, dict) else {}
+    out = []
+    for part, tone in (("failing", "down"), ("rows", ""), ("uncosted", "none")):
+        for r in pay.get(part) or []:
+            g = r.get("gate") if isinstance(r.get("gate"), dict) else {}
+            out.append({"name": r.get("name") or "", "asset_id": r.get("asset_id"),
+                        "label": g.get("label") or "", "when": _gate_when(g),
+                        "p": g.get("p"), "cost": g.get("cost_per_share"),
+                        "success": g.get("success_leg_per_share"),
+                        "net": g.get("net_per_share"), "breakeven": g.get("breakeven_p"),
+                        "grade": g.get("grade") or "", "tone": tone,
+                        "tip": g.get("basis") or ""})
+    return out
+
+
+def _gate_book_html(payload: dict) -> str:
+    """The Forecast tab's company view: every counted pipeline line's next gate, what
+    reaching it costs and nets a share, and the reconciliation with the book's R&D."""
+    rows = _gate_book_rows(payload)
+    if not rows:
+        return ('<div class="byline">No counted pipeline line has a gate to cost, so there '
+                'is nothing to set against the R&amp;D the book charges.</div>')
+    out = ['<table class="u-gate book"><thead><tr><td class="k">compound</td>'
+           '<td class="k">next gate</td><td class="k">when</td><td class="k v">chance</td>'
+           '<td class="k v">cost to reach</td><td class="k v">if it passes</td>'
+           '<td class="k v">net</td><td class="k v">breaks even</td>'
+           '<td class="k">grade</td></tr></thead><tbody>']
+    for r in rows:
+        tip = _gate_attr(r.get("tip"))
+        unread = r["cost"] is None
+        be = r.get("breakeven")
+        out.append(
+            f'<tr title="{tip}"><td class="t n pipeline">{html_escape(r["name"])}</td>'
+            f'<td class="t">{html_escape(r["label"])}</td>'
+            f'<td class="t">{html_escape(r["when"])}</td>'
+            f'<td class="v">{_gate_pct(r["p"])}</td>'
+            + ('<td class="v none">no free data</td>' if unread
+               else f'<td class="v">{_gate_ps(r["cost"])}</td>')
+            + f'<td class="v">{_gate_ps(r["success"])}</td>'
+            + ('<td class="v none">·</td>' if unread
+               else f'<td class="v{" down" if r["tone"] == "down" else ""}">'
+                    f'{_gate_ps(r["net"])}</td>')
+            + f'<td class="v">{"·" if be is None else "never" if be > 1 else _gate_pct(be)}'
+              f'</td><td class="t">{html_escape(r["grade"])}</td></tr>')
+    out.append("</tbody></table>")
+    pay = payload if isinstance(payload, dict) else {}
+    refused = [r for r in pay.get("refused") or [] if isinstance(r, dict)]
+    lines = []
+    sentence = (pay.get("reconciliation") or {}).get("sentence")
+    if sentence:
+        lines.append(sentence)
+    if refused:
+        why = [str(r.get("why") or r.get("reason") or "").rstrip(".") for r in refused]
+        lines.append("Not read: " + "; ".join(
+            f"{r.get('name')} ({w[:1].lower() + w[1:]})" for r, w in zip(refused, why))
+            + ".")
+    lines.append(f"A share, after tax at the company's share of each programme, at "
+                 f"{_GATE_PRICES}; a view beside the value, never in it.")
+    out += [f'<div class="byline">{html_escape(x)}</div>' for x in lines]
+    return "".join(out)
+
+
+def _gate_range_rows(verdict: dict) -> list:
+    """The Drivers range's gate rows: nil if the gate fails to its success value, and the
+    PoS band beneath where one is on file, so outcome and estimate are never one bar.
+    Below a hand bear and bull, labelled as derived."""
+    v = verdict if isinstance(verdict, dict) else {}
+    g = v.get("gate") if isinstance(v.get("gate"), dict) else {}
+    if not v.get("gate_range") or g.get("per_share_success") is None:
+        return []
+    tag = "stated legs" if g.get("legs_basis") == "stated" else "derived"
+    rows = [{"label": f"{g.get('label') or 'next gate'}, {tag}",
+             "low": g.get("per_share_failure") or 0.0, "high": g["per_share_success"]}]
+    band = g.get("band") if isinstance(g.get("band"), dict) else {}
+    if band.get("per_share_low") is not None and band.get("per_share_high") is not None:
+        rows.append({"label": "PoS band", "low": band["per_share_low"],
+                     "high": band["per_share_high"]})
+    return rows
+
+
+def _next_gate_layer(verdict: dict, dev, dev_error, scenario: str) -> None:
+    """The Next gate block: the headline as a picture first, the facts beside it, then
+    the ladder after later trial costs and the studies behind the cost on demand."""
+    s = _gate_summary(verdict, dev, dev_error)
+    if not s:
+        return
+    base = " · base case" if scenario != "base" and s.get("base_case") else ""
+    section("Next gate", basis=_gate_head(s) + base)
+    picture, facts = st.columns([1.1, 1], gap="medium")
+    with picture:
+        R.show(CH.waterfall(_gate_steps(s), 470, 220, value_fmt=lambda x: f"{x:,.2f}"),
+               css_class="chart-mount stretch")
+    with facts:
+        st.markdown(_gate_table_html(_gate_rows(s)), unsafe_allow_html=True)
+    for line in _gate_lines(s):
+        st.markdown(f'<div class="byline">{html_escape(line)}</div>',
+                    unsafe_allow_html=True)
+    ladder = _gate_ladder_html(dev)
+    if ladder:
+        with st.expander(_GATE_LADDER, expanded=False):
+            st.markdown(ladder, unsafe_allow_html=True)
+    studies = _gate_studies_html(dev)
+    if studies:
+        with st.expander("Trials and sources", expanded=False):
+            st.markdown(studies, unsafe_allow_html=True)
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -4297,6 +4954,13 @@ def _render_forecast_tab(api_base: str, ticker: str):
         except (urllib.error.URLError, OSError) as exc:
             medicare, medicare_error = None, str(exc)
         medicare_html = _medicare_layer_html(medicare) if medicare else ""
+        # The next gate's cost is its own read too, and only an asset with a gate asks.
+        dev, dev_error = None, None
+        if verdict.get("gate"):
+            try:
+                dev = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/development")
+            except (urllib.error.URLError, OSError, ValueError) as exc:
+                dev_error = str(exc)
         with id_col:
             st.markdown(_identity(data, result), unsafe_allow_html=True)
 
@@ -4424,9 +5088,13 @@ def _render_forecast_tab(api_base: str, ticker: str):
         has_uptake = (patients_span is not None or placeholder
                       or result.get("mode") == "franchise")
         n_rows = len(data.get("assumptions") or [])
-        # Medicare sits after Drivers, only where CMS has a series for the brand.
+        # Medicare sits after Drivers, only where CMS has a series for the brand. The next
+        # gate sits beside it, only where the asset has one: a pipeline asset reads the
+        # one and a marketed brand the other.
         has_medicare = bool(medicare_html) or bool(medicare_error)
-        layer_names = (["Drivers"] + (["Medicare"] if has_medicare else [])
+        has_gate = bool(verdict.get("gate"))
+        layer_names = (["Drivers"] + (["Next gate"] if has_gate else [])
+                       + (["Medicare"] if has_medicare else [])
                        + (["Uptake"] if has_uptake else [])
                        + ["P&L", "Sensitivity", f"Assumptions · {n_rows}"])
         panels = dict(zip(layer_names, st.tabs(layer_names)))
@@ -4441,6 +5109,10 @@ def _render_forecast_tab(api_base: str, ticker: str):
             # "No verdict" under every approved product's drivers.
             if result.get("pos_granular"):
                 _pos_layer(result["pos_granular"])
+
+        if has_gate:
+            with panels["Next gate"]:
+                _next_gate_layer(verdict, dev, dev_error, scenario)
 
         if has_medicare:
             with panels["Medicare"]:
@@ -6062,10 +6734,17 @@ def _ki_brief(ticker: str, series: dict, rated: dict, call: dict, rel_3m: dict,
             e = min((x for x in pipe_next if str(x.get("date"))[:7] == first),
                     key=lambda x: -1 if x.get("short") in _KI_REG_EVENTS.values() else
                     _KI_STAGE_RANK.get(re.sub(r" readout$", "", str(x.get("event") or "")), 5))
-            value = next((r.get("value") for r in ((assets or {}).get("pipeline") or {})
-                          .get("rows") or [] if r.get("name") == e["asset"]), None)
+            row = next((r for r in ((assets or {}).get("pipeline") or {}).get("rows") or []
+                        if r.get("name") == e["asset"]), {})
+            value = row.get("value")
             in_legs = any(r.get("name") == e["asset"] for r in legs[:3])
-            worth = f", {_ki_money(value)} a share in the model" if value and not in_legs else ""
+            worth = ""
+            if value and not in_legs:
+                # Where this event is the compound's next gate, what passing it is worth.
+                worth = (f", worth {_ki_money(row['success'])} a share if it passes and nil "
+                         f"if it fails, against {_ki_money(value)} now"
+                         if row.get("success") is not None and _ki_gate_is(row, e)
+                         else f", {_ki_money(value)} a share in the model")
             nxt = (f"the {e.get('event') or 'readout'} for {e['asset']} ({e.get('date_text')}) "
                    f"is the next test of the pipeline{worth}")
         facts += [f"readout: {e['asset']} {e.get('event')}"
@@ -6345,14 +7024,20 @@ def _ki_product_shares(record: dict) -> dict:
 
 
 def _ki_key_assets(verdict: dict, record: dict, programmes: list, exclusivities: list,
-                   today, modelled: bool, shown: int = _KI_ASSETS_SHOWN) -> dict:
+                   today, modelled: bool, shown: int = _KI_ASSETS_SHOWN,
+                   development: dict = None) -> dict:
     """The five marketed products and the five pipeline compounds the value rests on most,
     with when each is decided: a product's loss of exclusivity, a compound's next readout.
 
     Modelled, both are ranked by value a share (a compound's after its chance of approval)
     on one scale, and the rest of each is one row whose count includes the ones valued at
     nothing. Not modelled, products are ranked by share of revenue, the rest of revenue one
-    row, and compounds by furthest phase, then the readout nearest."""
+    row, and compounds by furthest phase, then the readout nearest.
+
+    A modelled compound with a next gate carries ``success``, what passing it is worth a
+    share (the whisker), and its launch floor's ``flag`` (the underline). The gate, a gate
+    that costs more to reach than it is worth (``development``, the company's next-gate
+    costs) and the floor's message go in the row's one tooltip, and nowhere else."""
     v = verdict if isinstance(verdict, dict) else {}
     excl_id, excl_name = {}, {}
     for a in exclusivities or []:
@@ -6360,6 +7045,8 @@ def _ki_key_assets(verdict: dict, record: dict, programmes: list, exclusivities:
             excl_id.setdefault(a.get("asset_id"), a)
             excl_name.setdefault(_ki_product(a.get("brand_name")).lower(), a)
     progs = {p.get("asset_id"): p for p in programmes or [] if isinstance(p, dict)}
+    failing = {r.get("asset_id"): r for r in (development or {}).get("failing") or []
+               if isinstance(r, dict)} if isinstance(development, dict) else {}
     shares = _ki_product_shares(record)
     since = today.isoformat()
 
@@ -6392,13 +7079,17 @@ def _ki_key_assets(verdict: dict, record: dict, programmes: list, exclusivities:
                                  "kind": "marketed"})
             else:
                 nxt = _ki_next_readout(progs.get(a.get("asset_id")), today)
+                gate = _ki_gate(a, failing.get(a.get("asset_id")))
+                flag = _launch_flag(a.get("launch"))
                 tip = " · ".join(x for x in (
                     name, f"chance of approval {a['pos']:.0%}" if a.get("pos") is not None
                     else "", f"next readout {nxt['nct_id']}, registry estimate"
-                    if nxt.get("nct_id") else "") if x)
+                    if nxt.get("nct_id") else "", gate.get("tip"),
+                    (a.get("launch") or {}).get("message") if flag else "") if x)
                 pipeline.append({"name": name, "value": a["per_share"],
                                  "meta": nxt.get("text") or "", "text": _ki_money(a["per_share"]),
-                                 "tip": tip, "kind": "pipeline"})
+                                 "tip": tip, "kind": "pipeline", "success": gate.get("success"),
+                                 "gate": gate.get("event"), "flag": flag})
         marketed.sort(key=lambda r: -r["value"])
         pipeline.sort(key=lambda r: -r["value"])
         if not pipeline:
@@ -6449,9 +7140,65 @@ def _ki_key_assets(verdict: dict, record: dict, programmes: list, exclusivities:
         return out
 
     shown_rows = marketed[:shown] + pipeline[:shown]
+    # The scale takes the whiskers too, so a success value is never clipped at the edge.
     return {"modelled": modelled, "marketed": part(marketed, "marketed"),
             "pipeline": part(pipeline, "pipeline"),
-            "top": max([r["value"] for r in shown_rows if r.get("value")] or [1.0])}
+            "top": max([r["value"] for r in shown_rows if r.get("value")]
+                       + [r["success"] for r in shown_rows if r.get("success")] or [1.0])}
+
+
+def _ki_gate(line: dict, failing: dict = None) -> dict:
+    """A pipeline line's next gate as Key assets reads it: ``success``, its value a share
+    if the gate passes; ``event``, the gate's label and month, so the note names the same
+    event; and ``tip``, the gate in words, then the cost fact where reaching it costs more
+    than it is worth risked (``failing``, the line's row in the company's next-gate
+    costs). {} where the line has no gate."""
+    g = (line or {}).get("gate") if isinstance((line or {}).get("gate"), dict) else {}
+    success = (line or {}).get("per_share_success")
+    if success is None:
+        success = g.get("per_share_success")
+    if not g or success is None:
+        return {}
+    label = g.get("label") or "next gate"
+    date = str(g.get("date") or "")
+    if g.get("gate") == "nda_to_approval":
+        when = f" (decision due {_ki_day(date)})" if date else ""
+        words = (f"{label}{when}: {_ki_money(success)} a share if the FDA approves it, "
+                 "nil if it does not")
+    else:
+        when = ("" if not date else f" due since {_ki_month(date)}" if g.get("due")
+                else f" est. {_ki_month(date)}")
+        words = f"{label}{when}: {_ki_money(success)} a share if it passes, nil if it fails"
+    words += (", from the success and failure legs on file" if g.get("legs_basis") == "stated"
+              else ", on gate odds implied by the stated PoS"
+              if (g.get("evidence") or {}).get("p_gate") == "implied"
+              else ", derived from published transition rates")
+    fg = (failing or {}).get("gate") if isinstance((failing or {}).get("gate"), dict) else {}
+    if fg.get("funds") is False and fg.get("breakeven_p") is not None:
+        be, p = fg["breakeven_p"], fg.get("p")
+        reach = f"reaching the {fg.get('label') or label}"
+        words += (f" · {reach} costs more than passing it is worth" if be > 1 or p is None
+                  else f" · {reach} costs more than it is worth risked: it needs a "
+                       f"{be:.0%} chance against the {p:.0%} on file")
+        words += ", at published trial costs in 2018 prices"
+    # The month the note's event has to fall in to be this gate; none for an FDA decision
+    # with no date on file, which any decision on the compound is.
+    return {"success": success, "tip": words, "event": {"label": label, "month": date[:7]}}
+
+
+def _ki_gate_is(row: dict, event: dict) -> bool:
+    """Whether a readout or decision in the note is the compound's next gate: the same kind
+    of event, in the gate's month where it has one. A gate already due is never an event
+    ahead, so its legs are never said of a later study."""
+    gate = (row or {}).get("gate") or {}
+    label, what = gate.get("label"), str((event or {}).get("event") or "")
+    kinds = {"Phase 3 readout": ("Phase 3 readout", "Phase 2/3 readout"),
+             "Phase 2 readout": ("Phase 2 readout", "Phase 2/3 readout"),
+             "FDA decision": ("PDUFA date", "regulatory decision")}.get(label, ())
+    if what not in kinds:
+        return False
+    month = gate.get("month") or ""
+    return not month or str((event or {}).get("date") or "")[:7] == month
 
 
 def _ki_programme_rows(programmes: list, today) -> list:
@@ -6509,10 +7256,19 @@ def _ki_key_assets_html(assets: dict, failed: str = "") -> str:
             if r.get("value") is not None:
                 w = max(r["value"] / top * 100, 1.5)
                 bar = f'<i class="{kind}" style="width:{w:.1f}%"></i>'
+                # A hairline from the bar's end to what the compound is worth if its next
+                # gate passes, in the row's own height.
+                if r.get("success") is not None and r["success"] > r["value"]:
+                    end = min(r["success"] / top * 100, 100.0)
+                    bar += (f'<i class="whisker" style="left:{w:.1f}%;'
+                            f'width:{max(end - w, 0.5):.1f}%"></i>')
+            # The launch floor's flag underlines the figure; its words are in the tooltip.
+            text = _launch_flagged(html_escape(r.get("text") or ""),
+                                   {"flag": r.get("flag")}, tip=False)
             out.append(f'<div class="ki-ka" title="{_ki_attr(r.get("tip"))}">'
                        f'<span class="n {kind}">{html_escape(r["name"])}</span>'
                        f'<span class="b">{bar}</span>'
-                       f'<span class="v">{html_escape(r.get("text") or "")}</span>'
+                       f'<span class="v">{text}</span>'
                        f'<span class="m">{html_escape(r.get("meta") or _KI_EMPTY)}</span></div>')
         if part.get("rest") is not None:
             out.append(f'<div class="ki-ka more"><span class="n">rest of revenue</span>'
@@ -6952,7 +7708,7 @@ def _key_insights_tab(api_base: str, ticker: str, feed: list, prices: dict) -> N
     cached call, read once here and passed down. Every read has its own try, so a failure
     costs a module, never the tab, and says it did not load."""
     import drivers as DRV
-    if getattr(DRV, "REVISION", 0) < 3:
+    if getattr(DRV, "REVISION", 0) < 4:
         DRV = importlib.reload(DRV)
 
     problem = None
@@ -7049,7 +7805,16 @@ def _key_insights_tab(api_base: str, ticker: str, feed: list, prices: dict) -> N
             "assets") or []
     except (urllib.error.URLError, OSError, ValueError) as exc:
         read_errors["exclusivities"] = str(exc).rstrip(".")
-    assets = _ki_key_assets(verdict, record, programmes, exclusivities, today, modelled)
+    # The next gates' costs, for the one fact Key assets puts in a row's tooltip: a gate
+    # that costs more to reach than it is worth. Its own try, like the two reads above.
+    development = None
+    if modelled:
+        try:
+            development = api_get(api_base, f"/companies/{ticker}/development")
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            read_errors["trial costs"] = str(exc).rstrip(".")
+    assets = _ki_key_assets(verdict, record, programmes, exclusivities, today, modelled,
+                            development=development)
     expiries = _ki_expiries(exclusivities, verdict, record,
                             (company or {}).get("exclusivity_losses"), today, modelled)
     # When the events read fails the list says so and is not filled from the registry,
@@ -7131,6 +7896,7 @@ def _key_insights_tab(api_base: str, ticker: str, feed: list, prices: dict) -> N
             "the forecast did not load" if fstate == "failed" else "not modelled")
     col_b = (_ki_section_html("Key assets", chip)
              + (did_not_load("programmes") if "programmes" in read_errors else "")
+             + (did_not_load("trial costs") if "trial costs" in read_errors else "")
              + _ki_key_assets_html(assets, problem or "")
              + _ki_section_html("Loss of exclusivity", "next five · $ a share")
              + (did_not_load("exclusivities") if "exclusivities" in read_errors
@@ -8061,7 +8827,11 @@ def _dr_tip(kind: str, row: dict) -> str:
     reader can ask for, so they cost nothing on the screen."""
     if kind == "driver":
         if row.get("model") and row.get("value_kind") == "stake":
-            return (f"Model output: the swing between the met and missed cases, a share, "
+            # A derived stake says so: its legs are published transition rates, not a
+            # success and failure case anyone wrote down.
+            lead = (f"Model output, {row['lead_note']}" if row.get("lead_note")
+                    else "Model output")
+            return (f"{lead}: the swing between the met and missed cases, a share, "
                     f"{(row.get('pct_of_price') or 0):.1%} of the price. "
                     + (row.get("title") or ""))
         if row.get("model"):
@@ -8131,7 +8901,7 @@ def _drivers_and_risks(api_base: str, ticker: str, feed_rows=None) -> None:
     and words every row, the same function Key insights takes its Next from, so the two
     tabs cannot disagree about what comes first."""
     import drivers as DRV
-    if getattr(DRV, "REVISION", 0) < 3:
+    if getattr(DRV, "REVISION", 0) < 4:
         DRV = importlib.reload(DRV)
 
     company, today, board_problem = None, None, None
@@ -9038,26 +9808,14 @@ with main:
             blocked = {m["asset_id"]: (m.get("missing") or [])
                        for m in (_v.get("refused") or []) if m.get("asset_id")}
 
-            def _value_cell(asset_id) -> str:
-                """The rightmost column: what the compound is worth a share, or why not.
+            # The launch floor of each valued line, so a launch year the registry and the
+            # FDA clock rule out is flagged on the figure it feeds.
+            launches = {m["asset_id"]: m.get("launch")
+                        for m in (_v.get("modelled") or []) if m.get("asset_id")}
 
-                Four states, and the difference between the last two is the point. "no
-                forecast" means nobody has written the assumptions. The refused row means
-                they were written, the engine read them and stopped on a named gap, which is
-                a piece of work with a next step attached rather than an absence.
-                """
-                if asset_id in valued:
-                    return (f'<span class="prog-v" title="rNPV a share, counted in the '
-                            f'company total">{T.num(valued[asset_id] or 0, 2)}</span>')
-                if asset_id in held:
-                    figure = T.num(held[asset_id] or 0, 2) if held[asset_id] else "held"
-                    return (f'<span class="prog-v off" title="built on a placeholder curve, '
-                            f'so it is shown and not counted">{figure} *</span>')
-                if asset_id in blocked:
-                    want = ", ".join(str(x) for x in blocked[asset_id][:6]) or "inputs"
-                    return (f'<span class="prog-v off" title="the engine stopped on: '
-                            f'{html_escape(want)}">needs</span>')
-                return '<span class="prog-v off" title="no assumptions on file">&mdash;</span>'
+            def _value_cell(asset_id) -> str:
+                return _prog_value_cell(asset_id, valued, held, blocked,
+                                        launches.get(asset_id))
 
             total_programmes = len(programmes)
             if area_pick:
@@ -9202,7 +9960,10 @@ with main:
                     'forecast tab: a figure where the engine builds it, "needs" where it '
                     'read the assumptions and stopped on a gap the tooltip names, a starred '
                     'figure where it ran on a placeholder curve and is shown without being '
-                    'counted, and a dash where no assumptions are on file at all.</div>',
+                    'counted, and a dash where no assumptions are on file at all. A figure '
+                    'underlined red launches in the model before the earliest approval the '
+                    'registry and the FDA review clock allow, amber where its seed cites a '
+                    'filing or readout not on file; its tooltip says which.</div>',
                     unsafe_allow_html=True)
 
 
@@ -9731,53 +10492,17 @@ with main:
             section("At stake", basis="rNPV swing, ranked by size")
             # Keyed for the spacing in _DR_CSS: clear of the rule, buttons centred.
             stake_box = st.container(key="cat_stakes")
-            for row in stakes["priced"]:
-                info_col, act_col = stake_box.columns([6, 1], vertical_alignment="center")
-                with info_col:
-                    per_share = (f" · {row['per_share']:+,.2f}/sh"
-                                 if row.get("per_share") is not None else "")
-                    st.markdown(
-                        f'<div class="byline"><b>{html_escape(row["asset_name"])}</b> '
-                        f'{row["expected_date"]} · {html_escape(row["catalyst_type"])} · '
-                        f'{html_escape(calendar_view._shorten(row["title"], 64))}<br>'
-                        f'swing <b>{row["swing"]:,.0f}mm</b> · this company '
-                        f'{row["share"]:.0%}: <b>{row["share_swing"]:,.0f}mm</b>'
-                        f'{per_share} · PoS {row["pos_now"]:.2f} now, '
-                        f'{row["pos_success"]:.2f} met, {row["pos_failure"]:.2f} missed'
-                        "</div>", unsafe_allow_html=True)
-                with act_col:
-                    # Two clicks, not one: resolving steps the live PoS and writes
-                    # history, and a stray click should never do that. The first click
-                    # arms; the second, on the same outcome, commits.
-                    armed_key = f"cat_arm_{ticker}_{row['id']}"
-                    armed = st.session_state.get(armed_key)
-                    met_col, miss_col = st.columns(2, gap="small")
-                    clicked = None
-                    with met_col:
-                        label = "sure?" if armed == "met" else "met"
-                        if st.button(label, key=f"cat_met_{ticker}_{row['id']}",
-                                     width="stretch"):
-                            clicked = "met"
-                    with miss_col:
-                        label = "sure?" if armed == "missed" else "missed"
-                        if st.button(label, key=f"cat_miss_{ticker}_{row['id']}",
-                                     width="stretch"):
-                            clicked = "missed"
-                    if clicked:
-                        if armed == clicked:
-                            try:
-                                api_post_json(
-                                    api_base,
-                                    f"/companies/{ticker}/catalysts/{row['id']}"
-                                    "/resolve", {"outcome": clicked})
-                                st.session_state.pop(armed_key, None)
-                                api_get.clear()
-                                st.rerun()
-                            except (urllib.error.URLError, OSError) as exc:
-                                st.error(f"resolve failed: {exc}")
-                        else:
-                            st.session_state[armed_key] = clicked
-                            st.rerun()
+            # Said once, on the rerun after the resolve that called for it.
+            said = _stake_resolved_note(st.session_state.pop(f"cat_resolved_{ticker}", None))
+            if said:
+                stake_box.info(said)
+            shown, rest = _stake_split(stakes["priced"])
+            for row in shown:
+                _stake_row(stake_box, api_base, ticker, row)
+            if rest:
+                with stake_box.expander(f"{len(rest)} more at stake", expanded=False):
+                    for row in rest:
+                        _stake_row(st.container(), api_base, ticker, row)
 
         # Derived only, and for the selected company alone, rebuilt on every refresh
         # rather than maintained. Folded: open, it shows the Drivers' events a second

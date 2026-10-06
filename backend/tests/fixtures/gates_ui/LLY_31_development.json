@@ -1,0 +1,9 @@
+{
+ "ticker": "LLY",
+ "asset_id": 31,
+ "name": "Mounjaro",
+ "price_year": 2018,
+ "ok": false,
+ "reason": "marketed",
+ "why": "A marketed product has no gate ahead of it."
+}

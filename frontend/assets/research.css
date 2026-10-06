@@ -248,7 +248,9 @@
   color: var(--muted);
   text-align: left;
 }
-/* A flagged value: dotted amber underline under the number, the reason in its tooltip. */
+/* A flagged value: dotted amber underline under the number, the reason in its tooltip.
+   Red where the launch floor rules the model's year out (build 3), amber where its seed
+   cites what is not on file. */
 .u-flagged {
   text-decoration-line: underline;
   text-decoration-style: dotted;
@@ -256,6 +258,23 @@
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
+.u-flagged.red { text-decoration-color: var(--down); }
+.u-flagged.amber { text-decoration-color: var(--flag); }
+/* A word that says where a figure comes from ("derived"), its basis in the tooltip. */
+.u-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 4px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--ts));
+  line-height: calc(14px * var(--ts));
+  font-weight: 400;
+  color: var(--muted);
+  cursor: help;
+}
+.u-muted { color: var(--muted); }
 /* No value (U+2014), not meaningful, no burn. Never a zero. */
 .u-null, .u-nm { color: var(--muted); font-family: var(--font-mono); }
 .u-noburn {
@@ -890,9 +909,16 @@ select.u-input { padding-right: 20px; cursor: pointer; }
 .ki-ka { height: 21px; border-bottom: 1px solid var(--rule); font-size: 12.5px; }
 .ki-ka .n { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ki-ka .n.pipeline, .ki-ro .n.pipeline { color: var(--purple-book); }
-.ki-ka .b { height: 8px; }
+.ki-ka .b { height: 8px; position: relative; }
 .ki-ka .b i { display: block; height: 8px; background: var(--up); border-radius: 1px; }
 .ki-ka .b i.pipeline { background: var(--purple-book); }
+/* The success whisker: a hairline from a pipeline bar's end to what the compound is worth
+   if its next gate passes, with a 5 px tick at the end. Drawn inside the bar's 8 px, so
+   the row keeps its height. */
+.ki-ka .b i.whisker { position: absolute; top: 3.5px; height: 1px; border-radius: 0;
+  background: var(--purple-book); }
+.ki-ka .b i.whisker::after { content: ""; position: absolute; right: 0; top: -2px;
+  width: 1px; height: 5px; background: var(--purple-book); }
 .ki-ka .v { font-family: var(--font-mono); text-align: right; color: var(--text); }
 .ki-ka .m { font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
@@ -934,3 +960,29 @@ select.u-input { padding-right: 20px; cursor: pointer; }
 .ki-ct .p { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
 .ki-ct .p.up { color: var(--up); }
 .ki-ct .p.down { color: var(--down); }
+
+/* ------------------------------------------------------------------------------------ */
+/* The next gate (Forecast tab, builds 1 to 3)                                           */
+/* ------------------------------------------------------------------------------------ */
+
+/* The facts beside the gate's picture, the ladder after later trial costs, the studies
+   behind the cost, and the company's next gates: one table style, the label in caps, the
+   figure in mono, a few words after it and the rest in the row's tooltip. */
+.u-gate { width: 100%; border-collapse: collapse; font-size: calc(11.5px * var(--ts));
+  margin-bottom: 0.5rem; }
+.u-gate td { padding: 4px 10px 4px 0; border-bottom: 1px solid var(--rule);
+  vertical-align: baseline; }
+.u-gate .k { color: var(--muted); white-space: nowrap; text-transform: uppercase;
+  font-size: calc(10px * var(--ts)); letter-spacing: 0.07em; }
+.u-gate .v { font-family: var(--font-mono); color: var(--text); text-align: right;
+  white-space: nowrap; font-weight: 600; }
+.u-gate .k.v { font-family: inherit; font-weight: 400; color: var(--muted); }
+.u-gate .v.down { color: var(--down); }
+.u-gate .v.muted { color: var(--muted); font-weight: 400; }
+.u-gate .v.none { color: var(--muted); font-weight: 400; }
+.u-gate .t { color: var(--muted); }
+.u-gate .t a { color: var(--text); text-decoration: none; }
+.u-gate .t a:hover { text-decoration: underline; }
+.u-gate .t.n { color: var(--text); white-space: nowrap; }
+.u-gate .t.n.pipeline { color: var(--purple-book); }
+.u-gate thead td { border-bottom-color: var(--rule-strong); }

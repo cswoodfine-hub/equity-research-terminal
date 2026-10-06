@@ -59,8 +59,9 @@ EM_DASH = "—"
 # A move is never given a cause: the month's news is set beside it, not behind it.
 CAUSAL = ("because", "due to", "drove", "driven by", "caused", "thanks to", "on the back of",
           "as a result of")
-# The extra names the builders call, read out of the script with them.
-SHARED = ("html_escape", "change_row")
+# The extra names the builders call, read out of the script with them: the launch floor's
+# flag is one mark shared with the Pipeline tab and the Forecast tab's Next gate block.
+SHARED = ("html_escape", "change_row", "_launch_flag", "_launch_flagged", "_LAUNCH_TONES")
 
 
 @pytest.fixture(scope="module")
@@ -2226,6 +2227,161 @@ def test_key_assets_draw_two_tables_on_one_scale(view):
         "Marketed", "Pipeline"]
     assert re.findall(r'<div class="ki-ka none">([^<]*)</div>', empty) == [
         "No product revenue on file.", "No compound in trials on file."]
+
+
+# --- key assets: the next gate's whisker, the launch floor's underline ------------------------
+# The company verdicts the API served on a copy of the book on 6 Oct 2026 (fixtures/gates_ui),
+# cut to what a line reads, and LLY's next-gate costs.
+GATES = FIXTURES / "gates_ui"
+
+
+def _gates(name):
+    return json.loads((GATES / f"{name}.json").read_text())
+
+
+def _gate_assets(view, ticker, development=None, shown=5):
+    return view["_ki_key_assets"](_gates(f"{ticker}_forecast-verdict"), {}, [], [],
+                                  dt.date(2026, 10, 6), True, shown=shown,
+                                  development=development)
+
+
+def test_a_pipeline_row_carries_what_passing_its_next_gate_is_worth(view):
+    assets = _gate_assets(view, "LLY", _gates("LLY_development"))
+    rows = {r["name"]: r for r in assets["pipeline"]["rows"]}
+    elo = rows["Eloralintide"]
+    assert elo["success"] == pytest.approx(8.2344, abs=1e-4)
+    assert elo["gate"] == {"label": "Phase 3 readout", "month": "2028-01"}
+    assert elo["tip"] == ("Eloralintide · chance of approval 55% · Phase 3 readout est. "
+                          "Jan 2028: 8.23 a share if it passes, nil if it fails, derived from "
+                          "published transition rates")
+    # A stated PoS splits into odds the stated figure implies, and says so.
+    assert rows["Retatrutide"]["tip"].endswith("on gate odds implied by the stated PoS")
+    # Marketed rows carry none of it.
+    assert all(r.get("success") is None and not r.get("flag")
+               for r in assets["marketed"]["rows"])
+
+
+def test_an_fda_gate_says_approves_and_a_due_gate_says_since_when(view):
+    rows = {r["name"]: r for r in _gate_assets(view, "AMGN")["pipeline"]["rows"]}
+    assert ("FDA decision: 3.25 a share if the FDA approves it, nil if it does not"
+            in rows["ABP 206"]["tip"])
+    assert "Phase 3 readout due since Aug 2026: 0.30 a share" in rows["Dazodalibep"]["tip"]
+
+
+def test_the_scale_takes_the_whiskers_so_none_is_clipped(view):
+    assets = _gate_assets(view, "AMGN")
+    maritide = assets["pipeline"]["rows"][0]
+    assert maritide["name"] == "Maridebart Cafraglutide"
+    assert assets["top"] == pytest.approx(maritide["success"])   # 45.97 over every value
+    markup = view["_ki_key_assets_html"](assets)
+    w = maritide["value"] / assets["top"] * 100
+    assert (f'<i class="pipeline" style="width:{w:.1f}%"></i><i class="whisker" '
+            f'style="left:{w:.1f}%;width:{100 - w:.1f}%"></i>') in markup
+
+
+def test_the_whisker_sits_inside_the_bar_cell_and_adds_no_height(view):
+    markup = view["_ki_key_assets_html"](_gate_assets(view, "LLY"))
+    rows = re.findall(r'<div class="ki-ka" title="[^"]*">(.*?)</div>', markup)
+    whiskered = [r for r in rows if "whisker" in r]
+    assert len(whiskered) == 5                                    # every pipeline row shown
+    for row in rows:                                              # four cells, as before
+        assert len(re.findall(r'<span class="(?:n|b|v|m)[ "]', row)) == 4, row
+        assert re.fullmatch(r'<span class="n [a-z]+">.*?</span><span class="b">.*?</span>'
+                            r'<span class="v">.*?</span><span class="m">.*?</span>', row), row
+    css = (FRONTEND / "assets" / "research.css").read_text()
+    assert ".ki-ka { height: 21px;" in css                       # the row keeps its height
+    assert ".ki-ka .b { height: 8px; position: relative; }" in css
+    rule = re.search(r"\.ki-ka \.b i\.whisker \{([^}]*)\}", css).group(1)
+    assert "position: absolute" in rule and "height: 1px" in rule
+    assert "var(--purple-book)" in rule and "#" not in rule       # a token, no colour literal
+
+
+def test_a_launch_before_the_floor_is_underlined_and_said_in_the_one_tooltip(view):
+    assets = _gate_assets(view, "LLY")
+    lep = next(r for r in assets["pipeline"]["rows"] if r["name"] == "Lepodisiran")
+    assert lep["flag"] == "red"
+    assert lep["tip"].endswith("which puts the earliest approval from it at Jul 2030.")
+    assert "2027 in the model, but the earliest approval is Oct 2029" in lep["tip"]
+    markup = view["_ki_key_assets_html"](assets)
+    # The mark carries no title of its own: the row's tooltip says everything once.
+    assert '<span class="v"><span class="u-flagged red">2.03</span></span>' in markup
+    assert markup.count("u-flagged") == 1
+    vrtx = _gate_assets(view, "VRTX")
+    flags = {r["name"]: r["flag"] for r in vrtx["pipeline"]["rows"]}
+    assert flags["Povetacicept"] == "amber" and flags["VX-147"] == "amber"
+    assert flags["Atumelnant"] == ""                             # clear
+    vx147 = next(r for r in vrtx["pipeline"]["rows"] if r["name"] == "VX-147")
+    assert vx147["success"] is None                              # flagged with no gate legs
+    assert "whisker" not in view["_ki_key_assets_html"]({"modelled": True, "top": 10.0,
+                                                          "pipeline": {"rows": [vx147]}})
+
+
+def test_a_gate_that_costs_more_than_it_is_worth_is_a_fact_in_the_tooltip_and_no_mark(view):
+    dev = _gates("LLY_development")
+    with_costs = _gate_assets(view, "LLY", dev, shown=50)
+    morf = next(r for r in with_costs["pipeline"]["rows"] if r["name"] == "MORF-057")
+    assert morf["tip"].endswith(
+        "· reaching the Phase 2 readout costs more than it is worth risked: it needs a 52% "
+        "chance against the 27% on file, at published trial costs in 2018 prices")
+    # Only failing gates say it, and the cost read changes nothing else on any row.
+    without = _gate_assets(view, "LLY", None, shown=50)
+    for a, b in zip(with_costs["pipeline"]["rows"], without["pipeline"]["rows"]):
+        if a["name"] == "MORF-057":
+            assert a["tip"].startswith(b["tip"]) and a["tip"] != b["tip"]
+        else:
+            assert a == b
+    assert (view["_ki_key_assets_html"](with_costs).count("ki-ka")
+            == view["_ki_key_assets_html"](without).count("ki-ka"))
+    for r in with_costs["pipeline"]["rows"]:
+        _house_style(r["tip"])
+
+
+def test_the_note_says_what_the_next_gate_is_worth_where_the_event_is_that_gate(view):
+    def assets(month="2028-01", success=8.2344):
+        row = {"name": "Eloralintide", "value": 5.0234, "meta": "Ph 3 · Jan 2028",
+               "kind": "pipeline", "success": success,
+               "gate": {"label": "Phase 3 readout", "month": month}}
+        return {"pipeline": {"rows": [row]}}
+
+    def event(date="2028-01-20", what="Phase 3 readout"):
+        return [{"date": date, "asset": "Eloralintide", "pipeline": True, "event": what,
+                 "short": "Ph 3", "date_text": "est. Jan 2028"}]
+
+    said = _brief(view, "LLY", modelled=False, events=event(), assets=assets())
+    assert said["paragraphs"][2] == (
+        "The Phase 3 readout for Eloralintide (est. Jan 2028) is the next test of the "
+        "pipeline, worth 8.23 a share if it passes and nil if it fails, against 5.02 now.")
+    # Another month, another kind of event, or no legs: the clause as it was.
+    old = ("The Phase 3 readout for Eloralintide (est. Jan 2028) is the next test of the "
+           "pipeline, 5.02 a share in the model.")
+    assert _brief(view, "LLY", modelled=False, events=event(), assets=assets(month="2028-04")
+                  )["paragraphs"][2] == old
+    assert _brief(view, "LLY", modelled=False, events=event(), assets=assets(success=None)
+                  )["paragraphs"][2] == old
+    ph2 = _brief(view, "LLY", modelled=False, events=event(what="Phase 2 readout"),
+                 assets=assets())["paragraphs"][2]
+    assert ph2.endswith("5.02 a share in the model.")
+    # An FDA gate with no date is any decision on the compound.
+    fda = {"pipeline": {"rows": [{"name": "Eloralintide", "value": 5.0234, "kind": "pipeline",
+                                  "success": 8.2344,
+                                  "gate": {"label": "FDA decision", "month": ""}}]}}
+    assert "worth 8.23 a share if it passes" in _brief(
+        view, "LLY", modelled=False, events=event(what="PDUFA date"), assets=fda
+    )["paragraphs"][2]
+    # No new sentence: the clause grows, the paragraph keeps its one sentence.
+    assert said["paragraphs"][2].replace("est. ", "est ").count(". ") == 0
+
+
+def test_the_morning_note_reads_the_gate_off_the_key_assets_it_is_given(view):
+    assets = _gate_assets(view, "LLY")
+    gate = {r["name"]: r["gate"] for r in assets["pipeline"]["rows"]}
+    events = [{"date": "2026-11-30", "asset": "Retatrutide", "pipeline": True,
+               "event": "Phase 3 readout", "short": "Ph 3", "date_text": "est. Nov 2026"}]
+    para = _brief(view, "LLY", modelled=False, events=events, assets=assets)["paragraphs"][2]
+    assert gate["Retatrutide"] == {"label": "Phase 3 readout", "month": "2026-11"}
+    assert para == ("The Phase 3 readout for Retatrutide (est. Nov 2026) is the next test of "
+                    "the pipeline, worth 20.65 a share if it passes and nil if it fails, "
+                    "against 20.22 now.")
 
 
 # --- readouts and decisions ------------------------------------------------------------------

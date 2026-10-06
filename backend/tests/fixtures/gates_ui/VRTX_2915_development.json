@@ -1,0 +1,285 @@
+{
+ "ticker": "VRTX",
+ "asset_id": 2915,
+ "name": "Povetacicept",
+ "price_year": 2018,
+ "ok": true,
+ "currency": "USD",
+ "fx": {
+  "currency": "USD",
+  "rate": null,
+  "as_of": null
+ },
+ "portion": 1.0,
+ "portion_basis": "cost split assumed to follow economics_share",
+ "tax_rate": 0.1486,
+ "after_tax": true,
+ "tax_basis": "after tax at the asset's 14.9%, the company bearing the cost being on the pharma engine",
+ "wacc": 0.07940378799999999,
+ "anchor": "2025-12-31",
+ "anchor_basis": "31 December of the valuation year",
+ "area": "Immunology and inflammation",
+ "cost_area": "Immunomodulation",
+ "area_basis": "Immunology and inflammation read as Sertkaya's Immunomodulation",
+ "gate": {
+  "gate": "nda_to_approval",
+  "label": "FDA decision",
+  "date": null,
+  "date_basis": null,
+  "due": false,
+  "trial": null,
+  "p": 0.884,
+  "p_evidence": "implied",
+  "p_published": null,
+  "stated_pos": true,
+  "placed": "stated PoS implies a filing",
+  "pos_success": 1.0,
+  "pos_now": 0.884,
+  "success_leg": 6396.113532967231,
+  "success_leg_per_share": 24.79113772467919,
+  "ev": 5654.164363143032,
+  "ev_per_share": 21.9153657486164,
+  "rnpv": 5654.164363143032,
+  "rnpv_per_share": 21.9153657486164,
+  "cost": 2.0881375290464415,
+  "cost_per_share": 0.008093556314133494,
+  "net": 5652.076225613985,
+  "net_per_share": 21.90727219230227,
+  "breakeven_p": 0.00032646974108318095,
+  "funds": true,
+  "cost_usd_mm": 2.6,
+  "full_usd_mm": 2.6,
+  "unread": false,
+  "route": "review",
+  "grade": "analogue",
+  "basis": "Sertkaya's FDA review out of pocket, $2.6mm, spent as the review starts",
+  "high": {
+   "cost": 2.0881375290464415,
+   "cost_per_share": 0.008093556314133494,
+   "net": 5652.076225613985,
+   "net_per_share": 21.90727219230227,
+   "breakeven_p": 0.00032646974108318095,
+   "funds": true,
+   "label": "at DiMasi 2016's per-phase level, which includes long-term animal testing and the cost of compounds that fail within the phase; 2013 against 2018 dollars, so the ratio is if anything low"
+  },
+  "held": null,
+  "legs_basis": "stated PoS implies a filing: the stated 88.4% is at or above the 58.3% the asset would carry if its Phase 2 readout passed, so it is read at the FDA decision with gate odds of 88.4%, implied, not published; a failure is taken at nil, the model's convention for a failed programme"
+ },
+ "ladder": {
+  "label": "after later trial costs",
+  "rows": [
+   {
+    "gate": "nda_to_approval",
+    "label": "FDA decision",
+    "date": null,
+    "p": 0.884,
+    "cost": 2.0881375290464415,
+    "value_if_passed": 6396.113532967231,
+    "ev_at_gate": 5654.164363143032,
+    "net": 5652.076225613985,
+    "breakeven_p": 0.00032646974108318095,
+    "funds": true,
+    "value_if_passed_floored": 6396.113532967231,
+    "floored": false,
+    "cost_per_share": 0.008093556314133494,
+    "value_if_passed_per_share": 24.79113772467919,
+    "net_per_share": 21.90727219230227
+   }
+  ],
+  "value_on_approval": 6396.113532967231,
+  "risked_cost": 2.0881375290464415,
+  "value_today": 5652.076225613985,
+  "rnpv": 5654.164363143032,
+  "npv": 6396.113532967231,
+  "value_today_per_share": 21.90727219230227,
+  "risked_cost_per_share": 0.008093556314133494,
+  "high": {
+   "rows": [
+    {
+     "gate": "nda_to_approval",
+     "label": "FDA decision",
+     "date": null,
+     "p": 0.884,
+     "cost": 2.0881375290464415,
+     "value_if_passed": 6396.113532967231,
+     "ev_at_gate": 5654.164363143032,
+     "net": 5652.076225613985,
+     "breakeven_p": 0.00032646974108318095,
+     "funds": true,
+     "value_if_passed_floored": 6396.113532967231,
+     "floored": false,
+     "cost_per_share": 0.008093556314133494,
+     "value_if_passed_per_share": 24.79113772467919,
+     "net_per_share": 21.90727219230227
+    }
+   ],
+   "risked_cost": 2.0881375290464415,
+   "value_today": 5652.076225613985,
+   "label": "at DiMasi 2016's per-phase level, which includes long-term animal testing and the cost of compounds that fail within the phase; 2013 against 2018 dollars, so the ratio is if anything low"
+  }
+ },
+ "stages": [
+  {
+   "gate": "nda_to_approval",
+   "label": "FDA decision",
+   "route": "review",
+   "studies": [],
+   "outside": [
+    {
+     "nct_id": "NCT07807995",
+     "phase": "Phase 3",
+     "status": "Not yet recruiting",
+     "title": "A Phase 3 Open-Label Study of Long-term Treatment With Povetacicept in Adults With Immunoglobulin A Nephropathy",
+     "enrollment": 605,
+     "start": "2026-09-18",
+     "primary_completion": "2029-12-28",
+     "per_patient_usd": 54909.0,
+     "full_usd_mm": 33.219945,
+     "share_ahead": 0.9849624060150376,
+     "ahead_usd_mm": 32.72039695488722,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2029-12-28",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "98% of its run from 2026-09-18 to 2029-12-28 is ahead, on a straight line",
+     "fit": "unmapped",
+     "indications": [],
+     "why": "not needed for this gate"
+    },
+    {
+     "nct_id": "NCT07204275",
+     "phase": "Phase 2/3",
+     "status": "Recruiting",
+     "title": "Evaluation of Efficacy, Safety, and Tolerability of Povetacicept in Participants With Primary Membranous Nephropathy (pMN)",
+     "enrollment": 176,
+     "start": "2025-09-30",
+     "primary_completion": "2028-12-29",
+     "per_patient_usd": 54909.0,
+     "full_usd_mm": 9.663984,
+     "share_ahead": 0.6871838111298483,
+     "ahead_usd_mm": 6.640933355817875,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-12-29",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "69% of its run from 2025-09-30 to 2028-12-29 is ahead, on a straight line",
+     "fit": "unmapped",
+     "indications": [],
+     "why": "not needed for this gate"
+    }
+   ],
+   "cost_usd_mm": 2.6,
+   "full_usd_mm": 2.6,
+   "date": null,
+   "date_basis": null,
+   "grade": "analogue",
+   "basis": "Sertkaya's FDA review out of pocket, $2.6mm, spent as the review starts",
+   "p": 0.884,
+   "p_implied": true
+  }
+ ],
+ "outside": {
+  "studies": [
+   {
+    "nct_id": "NCT07807995",
+    "phase": "Phase 3",
+    "status": "Not yet recruiting",
+    "title": "A Phase 3 Open-Label Study of Long-term Treatment With Povetacicept in Adults With Immunoglobulin A Nephropathy",
+    "enrollment": 605,
+    "start": "2026-09-18",
+    "primary_completion": "2029-12-28",
+    "per_patient_usd": 54909.0,
+    "full_usd_mm": 33.219945,
+    "share_ahead": 0.9849624060150376,
+    "ahead_usd_mm": 32.72039695488722,
+    "missing": null,
+    "spend_from": "2026-10-06",
+    "spend_to": "2029-12-28",
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "98% of its run from 2026-09-18 to 2029-12-28 is ahead, on a straight line",
+    "fit": "unmapped",
+    "indications": [],
+    "why": "not needed for this gate"
+   },
+   {
+    "nct_id": "NCT07204275",
+    "phase": "Phase 2/3",
+    "status": "Recruiting",
+    "title": "Evaluation of Efficacy, Safety, and Tolerability of Povetacicept in Participants With Primary Membranous Nephropathy (pMN)",
+    "enrollment": 176,
+    "start": "2025-09-30",
+    "primary_completion": "2028-12-29",
+    "per_patient_usd": 54909.0,
+    "full_usd_mm": 9.663984,
+    "share_ahead": 0.6871838111298483,
+    "ahead_usd_mm": 6.640933355817875,
+    "missing": null,
+    "spend_from": "2026-10-06",
+    "spend_to": "2028-12-29",
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "69% of its run from 2025-09-30 to 2028-12-29 is ahead, on a straight line",
+    "fit": "unmapped",
+    "indications": [],
+    "why": "not needed for this gate"
+   },
+   {
+    "nct_id": "NCT07501702",
+    "phase": "Phase 2",
+    "status": "Recruiting",
+    "title": "A Phase 2 Study to Evaluate Povetacicept in Adults With Generalized Myasthenia Gravis",
+    "enrollment": 30,
+    "start": "2026-05-13",
+    "primary_completion": "2029-03-02",
+    "per_patient_usd": 47897.0,
+    "full_usd_mm": 1.43691,
+    "share_ahead": 0.857421875,
+    "ahead_usd_mm": 1.23203806640625,
+    "missing": null,
+    "spend_from": "2026-10-06",
+    "spend_to": "2029-03-02",
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "86% of its run from 2026-05-13 to 2029-03-02 is ahead, on a straight line",
+    "fit": "other",
+    "indications": [
+     "Myasthenia Gravis"
+    ],
+    "why": "in an indication the forecast does not value"
+   }
+  ],
+  "cost_usd_mm": 40.59336837711135,
+  "cost": 29.096357949980675,
+  "cost_per_share": 0.11277658120147549,
+  "uncosted": [],
+  "note": "Every other open Phase 2 and 3 study of the asset: outside the indications the forecast values, matched to none, not needed for an FDA gate, or run beside the gate rather than on the path to it. Their remaining cost, as one figure for the whole programme, never in the headline."
+ },
+ "next_12m": {
+  "named_usd_mm": 0,
+  "named": 0.0,
+  "basis": "registry studies' spend in the next 12 months, pre-tax, unrisked, undiscounted, at the company's share"
+ },
+ "sources": [
+  "Sertkaya A, Beleche T, Jessup A, Sommers BD. Costs of Drug Development and Research and Development Intensity in the US, 2000-2018. JAMA Netw Open 2024;7(6):e2415445, doi:10.1001/jamanetworkopen.2024.15445, Table 1, 2018 dollars",
+  "DiMasi JA, Grabowski HG, Hansen RW. Innovation in the pharmaceutical industry: new estimates of R&D costs. J Health Econ 2016;47:20-33, doi:10.1016/j.jhealeco.2016.01.012, Table 2, 2013 dollars"
+ ],
+ "paid_note": "Already paid inside the company's R&D ratio, so none of it is taken off the value."
+}
