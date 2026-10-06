@@ -155,6 +155,36 @@ def test_containers_are_summed_and_said_to_be_an_upper_bound(tmp_path):
     assert "counted twice" in repatha["national_note"]
 
 
+def test_a_suppressed_container_leaves_the_proxy_on_the_containers_it_can_pair(tmp_path):
+    # Repatha's three containers, with CMS's beneficiary count for the Syringe blanked:
+    # its 1.9 million claims of fills would otherwise sit over the other two containers'
+    # people and take the proxy far past what any patient was supplied.
+    path = _db(tmp_path)
+    conn = db.get_connection(path)
+    try:
+        names, own = cms.brand_assets(conn), cms.own_names(conn)
+    finally:
+        conn.close()
+    rows = parse_national(_GEO)
+    for row in rows:
+        if row["brand"] == "Repatha Syringe":
+            row["beneficiaries"] = None
+    repatha = match_national(rows, names, own)[10]
+    others = [r for r in rows if r["brand"] in ("Repatha Pushtronex", "Repatha Sureclick")]
+    assert repatha["national_beneficiaries"] == sum(r["beneficiaries"] for r in others)
+    assert repatha["national_fills_30d"] == pytest.approx(
+        sum(r["fills_30d"] for r in rows if r["brand"].startswith("Repatha")), abs=0.1)
+    assert repatha["days_covered_share"] == days_covered(
+        sum(r["fills_30d"] for r in others), sum(r["beneficiaries"] for r in others))
+    assert "1 of 3 beneficiary counts were suppressed" in repatha["national_note"]
+    assert "presentations whose beneficiary count CMS published" in repatha["national_note"]
+    # Every container suppressed: no proxy at all, never a ratio over nobody.
+    for row in rows:
+        if row["brand"].startswith("Repatha"):
+            row["beneficiaries"] = None
+    assert match_national(rows, names, own)[10]["days_covered_share"] is None
+
+
 def test_a_co_marketed_brand_is_stored_for_both_owners(tmp_path):
     matched = _matched(tmp_path)
     assert matched[198]["national_prescribers"] == matched[812]["national_prescribers"] \

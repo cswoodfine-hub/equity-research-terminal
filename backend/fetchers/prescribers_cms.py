@@ -166,6 +166,14 @@ def combine(candidates: list[dict], own_brand: str, own_generic: str) -> dict:
 
     benes = total("beneficiaries")
     fills = total("fills_30d")
+    # The proxy's fills and beneficiaries come from the same presentations. Where CMS
+    # suppressed one container's beneficiaries, its fills stay in the fills total but
+    # its people are in no count, and the ratio would run high by that container's
+    # fills; so only presentations with both figures enter the proxy.
+    paired = [r for r in chosen
+              if r["beneficiaries"] is not None and r["fills_30d"] is not None]
+    proxy_fills = sum(r["fills_30d"] for r in paired) if paired else None
+    proxy_benes = sum(r["beneficiaries"] for r in paired) if paired else None
     notes = []
     if len(chosen) > 1:
         notes.append(
@@ -177,6 +185,9 @@ def combine(candidates: list[dict], own_brand: str, own_generic: str) -> dict:
     if suppressed:
         notes.append(f"{suppressed} of {len(chosen)} beneficiary counts were suppressed "
                      f"by CMS and are not in the total")
+        if paired:
+            notes.append("days covered is read over the presentations whose beneficiary "
+                         "count CMS published")
     if dropped:
         notes.append("CMS lists other products against this asset too ("
                      + ", ".join(sorted(f"{r['brand']} / {r['generic']}" for r in dropped))
@@ -191,7 +202,7 @@ def combine(candidates: list[dict], own_brand: str, own_generic: str) -> dict:
         "national_beneficiaries": benes,
         "national_benes_ge65": total("benes_ge65", all_needed=True),
         "national_note": "; ".join(notes) or None,
-        "days_covered_share": days_covered(fills, benes),
+        "days_covered_share": days_covered(proxy_fills, proxy_benes),
     }
 
 
