@@ -1085,3 +1085,20 @@ def test_apply_goto_sets_the_picker_before_it_is_drawn():
     assert not test.exception, test.exception
     assert test.selectbox(key="company_pick").value == "LLY"
     assert test.session_state["_uv_tab_click"] == "Key insights"
+
+
+def test_a_ranked_row_says_its_item_in_a_few_words_and_its_card_keeps_the_headline(payload):
+    want = {"deal": None, "readout": "Phase 3 result", "slips": "trial dates slipped",
+            "notice": " data at ", "earnings": "results call"}
+    rk = UC.ranked_html(payload)
+    for it in payload["week_items"]:
+        b = UC.brief(it)
+        assert b and len(b.split()) <= 5, (it["kind"], b)
+        _house_style(b)
+        if want.get(it["kind"]):
+            assert want[it["kind"]] in b, (it["kind"], b)
+    deal = next(i for i in payload["week_items"] if i["kind"] == "deal" and "Summit" in (i.get("head") or ""))
+    assert UC.brief(deal) == "Summit stake and collaboration"
+    row = rk.split(f'<span class="n">{deal["rank"]}</span>')[1].split('<div class="uw-it')[0]
+    assert '<div class="h">Summit stake and collaboration</div>' in row
+    assert html.escape(deal["head"])[:60] in row  # the full headline is in its card

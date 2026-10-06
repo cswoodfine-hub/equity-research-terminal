@@ -1904,6 +1904,61 @@ def feed_item(p, it):
     return x
 
 
+# A deal's kind, read from its own headline, in the order a brief names them.
+_DEAL_KINDS = (("acqui", "acquisition"), ("merger", "merger"), ("equity investment", "stake"),
+               ("licens", "licence"), ("option", "option"), ("collaborat", "collaboration"),
+               ("partnership", "partnership"), ("alliance", "alliance"))
+_QUARTER = {"first": "Q1", "second": "Q2", "third": "Q3", "fourth": "Q4"}
+
+
+def brief(it):
+    """A ranked item in a few words, built only from its own fields by a rule for its
+    kind: "Summit stake and collaboration", "Giredestrant Phase 3 result", "33 trial dates
+    slipped". The full headline stays in the item's card. Our words, never the source's."""
+    kind = it.get("kind")
+    head = it.get("head") or ""
+    fig = it.get("fig")
+    if kind == "deal":
+        party = (it.get("terms") or {}).get("counterparty")
+        if not party:
+            m = re.search(r"\bwith ([A-Z][\w&.-]*)", head)
+            party = m.group(1) if m else None
+        low = head.lower()
+        kinds = []
+        for key, word in _DEAL_KINDS:
+            if key in low and word not in kinds:
+                kinds.append(word)
+        what = " and ".join(kinds[:2]) or "deal"
+        return f"{party} {what}" if party else what.capitalize()
+    if kind in ("readout", "readout2"):
+        m = re.search(r"[\u2019']s ([A-Za-z][\w-]+)", head)
+        phase = f"Phase {it['phase']} result" if it.get("phase") else "Trial result"
+        return f"{m.group(1)[0].upper()}{m.group(1)[1:]} {phase}" if m else phase
+    if kind == "market":
+        m = re.match(r"(10-year Treasury) [\d.]+%, (up|down) (\d+bp)", head)
+        return " ".join(m.groups()) if m else head.split(",")[0]
+    if kind == "approval":
+        brands = it.get("brands") or []
+        return (f"{brands[0]} label expansion" if len(brands) == 1
+                else f"{len(brands)} label expansions" if brands else "FDA approvals")
+    if kind == "regulatory":
+        e = it.get("event") or {}
+        return " ".join(v for v in (e.get("short"), e.get("type") or "FDA date") if v)
+    if kind == "notice":
+        m = re.search(r"\bat ([A-Z][A-Z0-9]{2,})\b", head)
+        who = head.split()[0] if head else ""
+        return f"{who} data at {m.group(1)}" if m else f"{who} notice".strip()
+    if kind == "earnings":
+        m = re.search(r"\b(First|Second|Third|Fourth)-Quarter", head)
+        return f"{_QUARTER[m.group(1).lower()]} results call" if m else "Results call"
+    counted = {"slips": "trial dates slipped", "filing": "filings", "labels": "US labels revised",
+               "due": "Phase 3 readouts due", "loe": "exclusivities ending"}
+    if kind in counted and fig not in (None, ""):
+        return f"{fig} {counted[kind]}"
+    words = head.split()
+    return " ".join(words[:5]) + (" …" if len(words) > 5 else "")
+
+
 def _item_card(p, it, x, cls=""):
     """An item's detail: the full headline, its rows, its note and its source, and whether
     the headline is the source's own words. Opens on hover and holds on a click."""
@@ -2070,7 +2125,7 @@ def _rank_row(p, it, n):
             f'<div class="bd"><div class="k"><span class="uw-tag">{esc(x["tag"])}</span>'
             f'{_tk_marks(p, it.get("tickers") or [], 3)}'
             f'<span class="uw-dt">{esc(dday(it.get("date")))}</span></div>'
-            f'<div class="h">{vb(x["head"], x["verbatim"])}</div></div>'
+            f'<div class="h">{esc(brief(it))}</div></div>'
             f'<span class="ch">{x["mini"]}</span>'
             f'<span class="f"><b class="{x["fcls"]}">{esc(x["fig"])}</b>'
             f'<small>{esc(x["sub"])}</small></span>{_item_card(p, it, x)}</div>')
@@ -2102,7 +2157,7 @@ def ranked_html(p, start=2, rows=RANK_ROWS):
             f'<span class="uw-tag" style="--accent:{KIND_COLOUR.get(it.get("kind"), "var(--rule-strong)")}">'
             f'{esc(feed_item(p, it)["tag"])}</span>'
             f'<span class="h">{_tk_marks(p, it.get("tickers") or [], 3)} '
-            f'{vb(feed_item(p, it)["head"], bool(it.get("verbatim")))}</span>'
+            f'{esc(brief(it))}</span>'
             f'<span class="f">{esc(feed_item(p, it)["fig"])}</span></div>'
             for i, it in enumerate(rest))
         more = (f'<span class="uw-moreh" tabindex="0">{len(rest)} more ▾'
