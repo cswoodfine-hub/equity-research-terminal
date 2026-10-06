@@ -421,19 +421,16 @@ def spotlight_html(p, w=None):
     smed = ((p.get("cohort") or {}).get("medians") or {}).get("score")
     cells.append(_cell(
         "sc", "Scorecard", score, f,
-        f'{score[f]}<span class="u">of 100</span>' if f in score else NO_DATA,
-        (f'rank range {rr[0]} to {rr[1]}, ' if rr else "") + f'median {smed if smed is not None else NO_DATA}',
+        f'{score[f]}<span class="u">of 100</span>' if f in score else NO_DATA, "",
         fmt=lambda v: f"{v:.0f}", med=smed,
-        note="Five business pillars; value and momentum are kept out."))
+        note="Five business pillars; value and momentum are kept out."
+             + (f" {f} ranks {rr[0]} to {rr[1]} under random weightings of the pillars." if rr else "")))
 
     # 6. Dated catalysts in 12 months.
     cat = {t: c["catalysts_12m"] for t, c in cos.items() if c.get("catalysts_12m") is not None}
-    ties = [t for t in _tickers(p) if t in cat and t != f and f in cat and cat[t] == cat[f]]
-    cmed = statistics.median(cat.values()) if cat else None
     cells.append(_cell(
         "ca", "Catalysts, 12 months", cat, f,
-        f'{cat[f]}<span class="u">dated</span>' if f in cat else NO_DATA,
-        (f'tied with {esc(", ".join(ties))}, ' if ties else "") + f'median {cmed:.0f}' if cmed is not None else "",
+        f'{cat[f]}<span class="u">dated</span>' if f in cat else NO_DATA, "",
         fmt=lambda v: f"{v:.0f}", note="Dated readouts and decisions in the next 12 months."))
 
     # 7. Trial dates slipped (fewer is better).
@@ -441,15 +438,13 @@ def spotlight_html(p, w=None):
                if (c.get("slip") or {}).get("slipped") is not None}
     absent = [t for t in _tickers(p) if not ((cos.get(t) or {}).get("slip") or {}).get("on_file")]
     sl = me.get("slip") or {}
-    slm = statistics.median(slipped.values()) if slipped else None
-    most = f in slipped and slipped[f] == max(slipped.values()) and slipped[f] > 0
     cells.append(_cell(
         "sl", "Trial dates slipped", slipped, f,
-        str(slipped[f]) if f in slipped else NO_DATA,
-        (f'of {sl.get("moved")} moved; ' if f in slipped and sl.get("moved") is not None else "")
-        + ("the most, " if most else "") + (f"median {slm:.0f}" if slm is not None else ""),
+        str(slipped[f]) if f in slipped else NO_DATA, "",
         better="lower", fmt=lambda v: f"{v:.0f}",
         note=("Primary completion dates moved later in snapshot history."
+              + (f' {slipped[f]} of {f}\'s {sl["moved"]} moved dates slipped.'
+                 if f in slipped and sl.get("moved") is not None else "")
               + (f' {", ".join(absent)} {"has" if len(absent) == 1 else "have"} no moved trial on file.'
                  if absent else ""))))
 
