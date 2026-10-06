@@ -247,6 +247,34 @@ def test_the_odds_chain_multiplies_every_step_from_the_gate(payload):
             assert abs(product - r["pos_now"]) < 0.002, r["name"]
 
 
+def test_the_standard_review_is_printed_with_its_own_study(payload):
+    """The launch floor's standard review belongs to the study the floor governs from.
+    Rilvegostomig's gate reads out Jan 2030 but its floor dates from an earlier Phase 3, so
+    the card printed "earliest Sep 2030 · standard Jan 2030", a standard decision before
+    the earliest one. It is now printed with the floor's own study, in the dialog."""
+    rows = {r["name"]: r for r in CV.gate_rows(payload)}
+    r = rows["Rilvegostomig"]
+    assert r["launch"]["gate"]["same_as_governing"] is False
+    ap = CV.approval_dates(r)
+    assert ap["earliest"] == r["launch"]["gate"]["decision_date"] and ap["standard"] is None
+    assert ap["floor"] == r["launch"]["decision_date"]
+    assert ap["floor_standard"] == r["launch"]["standard"]["decision_date"]
+    strip = _visible(CV.dates_svg(r, CV._today(payload)))
+    assert "earliest Sep 2030" in strip and "standard" not in strip
+    dialog = _visible(CV.dialog_html(payload, r["asset_id"]))
+    assert "Standard review" not in dialog
+    assert ("Asset's floor 3 Sep 2029 from NCT06109779, the earliest basis on file · "
+            "standard review 3 Jan 2030") in dialog
+    # where the gate is the floor's own study, the standard sits beside the earliest
+    e = rows["Elecoglipron"]
+    assert e["launch"]["gate"]["same_as_governing"] is True
+    assert "earliest Dec 2028 · standard Apr 2029" in _visible(CV.dates_svg(e, CV._today(payload)))
+    for row in rows.values():
+        ap = CV.approval_dates(row)
+        if ap["earliest"] and ap["standard"]:
+            assert ap["standard"] > ap["earliest"], row["name"]
+
+
 def test_a_company_with_no_priced_stakes_still_draws(payload):
     for p in (_no_stakes(payload), _empty(payload)):
         blocks = _blocks(p)

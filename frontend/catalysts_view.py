@@ -1363,6 +1363,38 @@ def fork_svg(r, close=None) -> str:
     return "".join(o)
 
 
+def approval_dates(r) -> dict:
+    """The earliest approval the card and the dialog print for a gate, and the standard
+    review date only where it belongs to the same study.
+
+    The launch floor dates the asset from its earliest evidence on file and carries the
+    standard review for that study; its ``gate`` block dates this gate. Where the gate is
+    not the study the floor governs from (Rilvegostomig on the 6 Oct book: the gate reads
+    out Jan 2030, an earlier Phase 3 Jan 2029), the floor's standard date is another
+    study's and is printed with that study, never beside the gate's earliest."""
+    launch = r.get("launch") or {}
+    lg = launch.get("gate") if isinstance(launch.get("gate"), dict) else {}
+    std = (launch.get("standard") or {}).get("decision_date")
+    floor = launch.get("decision_date")
+    own = lg.get("decision_date")
+    same = lg.get("same_as_governing") is not False if own else True
+    return {"earliest": own or floor, "from_gate": bool(own),
+            "standard": std if same else None,
+            "standard_months": (launch.get("standard") or {}).get("months"),
+            "floor": None if same else floor,
+            "floor_standard": None if same else std,
+            "floor_basis": None if same else _floor_basis(launch.get("evidence") or {})}
+
+
+def _floor_basis(ev) -> str:
+    """What the asset's floor dates from, as the launch floor's evidence names it."""
+    if ev.get("kind") == "accepted":
+        return "the accepted application"
+    if ev.get("kind") == "readout":
+        return f"the Phase 3 readout of {dmy(ev.get('date'))}"
+    return ev.get("nct_id") or "the registry"
+
+
 def card_studies(r) -> list:
     """(nct, date, enrolment, role) for the dates strip: the gate study, the studies held
     behind it, or the asset's other open studies in the gate's phase."""
@@ -1400,8 +1432,8 @@ def dates_svg(r, today) -> str:
     readout = _d(ev.get("date")) if ev.get("kind") == "readout" else None
     if readout:
         marks.append(readout)
-    early = _d(lg.get("decision_date") or launch.get("decision_date"))
-    std = _d((launch.get("standard") or {}).get("decision_date"))
+    ap = approval_dates(r)
+    early, std = _d(ap["earliest"]), _d(ap["standard"])
     marks += [m for m in (early, std) if m]
     seed = launch.get("seed_year")
     if isinstance(seed, int):
@@ -2135,14 +2167,21 @@ def dialog_html(p, gid, cost_html="", ladder_html="", studies_html="",
                                       + (" · due, no result on file" if r.get("due") else "")))
     else:
         dates.append(_kv("Gate date", esc(r.get("why") or "no date on file")))
-    early = lg.get("decision_date") or launch.get("decision_date")
+    ap = approval_dates(r)
+    early = ap["earliest"]
     if early:
         dates.append(_kv("Earliest approval", f'{dmy(early)} · {esc(clock.get("review") or "review")} review, '
-                                              f'{clock.get("months") or NO_DATA} months from the filing date'))
+                                              f'{clock.get("months") or NO_DATA} months from the filing date'
+                                              + (" · from this gate" if ap["from_gate"] else "")))
     else:
         dates.append(_kv("Earliest approval", f"{NO_DATA}: no live Phase 3 or accepted application on file"))
-    if std.get("decision_date"):
-        dates.append(_kv("Standard review", f'{dmy(std["decision_date"])} · {std.get("months")} months'))
+    if ap["standard"]:
+        dates.append(_kv("Standard review", f'{dmy(ap["standard"])} · {ap["standard_months"]} months'))
+    if ap["floor"]:
+        dates.append(_kv("Asset's floor", f'{dmy(ap["floor"])} from {esc(ap["floor_basis"])}, the '
+                                          f'earliest basis on file'
+                                          + (f' · standard review {dmy(ap["floor_standard"])}'
+                                             if ap["floor_standard"] else "")))
     if launch.get("seed_year"):
         dates.append(_kv("Model launch", f'{launch["seed_year"]} · '
                                          f'{esc(str(launch.get("status") or "not assessed").replace("_", " "))}'))
