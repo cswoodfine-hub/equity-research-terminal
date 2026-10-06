@@ -314,3 +314,52 @@ def test_revenue_that_is_not_a_medicine_sold_buys_no_launches():
     for r in rows + _seed_rows("assumptions"):
         if r["key"] == "buys_launches":
             assert (r.get("source") or "").strip(), r
+
+
+def test_a_line_seeded_to_run_off_keeps_running_off_past_its_horizon():
+    """A basket that shows a decline carries it as its terminal rate, so the future
+    pipeline's book sees it fall after the forecast instead of holding flat for ever."""
+    import future_pipeline as FP
+    scalars = {"therapy_mode": "marketed", "base_revenue": 1000.0,
+               "revenue_growth_pct": -0.10, "terminal_growth_pct": -0.05,
+               "growth_fade_years": 5, "forecast_start_year": 2026, "forecast_years": 10,
+               "pos": 1.0, "cogs_pct": 0.2, "sga_pct": 0.2, "rd_pct": 0.1,
+               "tax_rate": 0.2, "wacc": 0.08}
+    runs = company_lines.build({"line": "Established brands", "scalars": scalars})
+    flat = company_lines.build({"line": "Established brands",
+                                "scalars": {**scalars, "terminal_growth_pct": 0.0}})
+    assert runs["ok"] and flat["ok"]
+    tail = runs["result"]["terminal_tail"]
+    assert tail["growth"] == pytest.approx(-0.05)
+    revenue = dict(zip(runs["result"]["dcf_years"],
+                       [r["revenue"] for r in runs["result"]["pnl"]]))
+    later = list(range(2036, 2046))
+    book = FP.book_revenue([{"revenue": revenue, "tail": tail}], later, 0.25, 0.2)
+    assert book[2036] == pytest.approx(revenue[2035] * 0.95)
+    assert book[2045] == pytest.approx(revenue[2035] * 0.95 ** 10)
+    assert runs["result"]["rnpv"] < flat["result"]["rnpv"]
+
+
+# Lines the future pipeline's book carries flat or growing for ever, each because its
+# own reported history shows no decline to fit (docs/company_lines.md). A line joins
+# this list only once its filings have been read and show none.
+_HELD_WITHOUT_A_DECLINE = {
+    ("ABBV", "Elahere"), ("ABBV", "Epkinly"), ("ABBV", "Other Aesthetics"),
+    ("ABBV", "Other Oncology"), ("BIIB", "Leqembi collaboration"),
+    ("GILD", "Established products"), ("GSK", "Specialty other"),
+    ("LLY", "Other immunology"), ("LLY", "Other oncology"),
+    ("MRK", "Other Pharmaceutical"), ("NVO", "Rare blood disorders not broken out"),
+    ("NVO", "Rare endocrine disorders"), ("PFE", "All other Specialty Care"),
+    ("PFE", "Oncology biosimilars"), ("SNY", "Launches")}
+
+
+def test_a_line_held_flat_for_ever_is_one_whose_filings_show_no_decline():
+    lines: dict = {}
+    for r in _seed_rows("company_lines"):
+        if (r.get("scenario") or "base") == "base":
+            lines.setdefault((r["ticker"], r["line"]), {})[r["key"]] = r["value"]
+    held = {k for k, v in lines.items()
+            if float(v.get("buys_launches") or 1) != 0 and not v.get("loe_year")
+            and float(v.get("terminal_growth_pct") or 0) >= 0}
+    assert held == _HELD_WITHOUT_A_DECLINE, (sorted(held - _HELD_WITHOUT_A_DECLINE),
+                                             sorted(_HELD_WITHOUT_A_DECLINE - held))

@@ -35,3 +35,21 @@ Abiomed and surgery business.
 
 Every flag carries a source saying what the revenue is, and
 `tests/test_company_lines.py` holds the rule on the seeds.
+
+## A line that is running off keeps running off
+
+A line's terminal growth is the decline its own filings show, not a flat perpetuity. A
+basket of older products does not renew itself, the launch line does that, so a basket
+held flat for ever both overstated its own value and kept paying R&D into the launches for
+sixty years. The rate is the log-linear fit to the years the latest annual report prints
+on the line's own like-for-like definition, which on three years is the compound rate from
+the first to the last. The near-term rate, sourced as before, fades into it over the
+line's fade years.
+
+- Where products joined a basket during the window, the fit is on the products it held
+  throughout (Amgen's Other products: the line grew only as Ravicti, Procysbi, Pavblu and
+  Wezlana joined it, while the products it held all three years fell 0.94% a year).
+- Where one product ended inside the window, the fit leaves it out and says so (Johnson
+  & Johnson's tail without the COVID-19 vaccine's fall).
+- Where the filings show no decline, the line is left as it is and listed in
+  `tests/test_company_lines.py`, so a new flat line has to be read before it is accepted.
