@@ -324,8 +324,10 @@
 .uv-sm-h .v.down { color: var(--down); }
 .uv-sm-f { display: flex; justify-content: space-between; font-family: var(--font-mono);
   font-size: 9.5px; color: var(--muted); white-space: nowrap; }
+/* The focal tile's wash bleeds 3px above, 4px either side and 2px below its cell; its
+   2px rule and padding put its text on the same lines as the tiles beside it. */
 .uv-sm.me { border-top: 2px solid var(--up); background: var(--active-wash);
-  padding: 3px 4px 2px; margin: -3px -4px 0; }
+  padding: 6px 4px 2px; margin: -3px -4px -2px; }
 .uv-sm.me .tk { color: var(--up); }
 
 /* Policy calendar: the two lanes, and the company events and open dockets beside them. */

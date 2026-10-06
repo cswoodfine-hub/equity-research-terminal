@@ -316,6 +316,25 @@ def test_the_board_draws_no_unlabelled_rule(payload):
         assert "30 days" not in svg
 
 
+def test_the_focal_price_tile_keeps_its_row_lines():
+    """The washed AZN tile sits on the same text lines as its row: its bleed above is
+    given back in padding, after its rule's extra pixel, and its height is the others'."""
+    css = UNIVERSE_CSS.read_text()
+    base = re.search(r"\.uv-sm \{([^}]*)\}", css).group(1)
+    me = re.search(r"\.uv-sm\.me \{([^}]*)\}", css).group(1)
+
+    def num(decl, pattern):
+        return [float(v) for v in re.search(pattern, decl).group(1).split("px")[:-1]]
+
+    b_rule = num(base, r"border-top:\s*([\d.]+px)")[0]
+    b_top = num(base, r"padding-top:\s*([\d.]+px)")[0]
+    m_rule = num(me, r"border-top:\s*([\d.]+px)")[0]
+    m_top, _side, m_bot = num(me, r"padding:\s*([\d.]+px [\d.]+px [\d.]+px);")
+    mt, _ms, mb = num(me, r"margin:\s*(-?[\d.]+px -?[\d.]+px -?[\d.]+px);")
+    assert mt + m_rule + m_top == b_rule + b_top                 # its first line on the row's
+    assert mt + m_rule + m_top + m_bot + mb == b_rule + b_top    # and the row's height
+
+
 def test_the_week_tag_column_holds_the_longest_tag():
     """Each ranked row's tag fits its grid column: "approval" ran 7px into the headline
     beside it. A tag is 9.5px mono capitals at 0.08em, after a 3px rule and 6px of air."""
