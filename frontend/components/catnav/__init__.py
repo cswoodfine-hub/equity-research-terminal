@@ -1,14 +1,15 @@
-"""A bidirectional Streamlit component: the Catalysts tab's timeline and range chart, made
-to select a gate.
+"""A bidirectional Streamlit component: the Catalysts tab's page by therapy area, made to
+open what a reader clicks.
 
-The redesigned Catalysts tab (frontend/catalysts_view.py) draws every pipeline line's next
-gate twice: as a disc on the timeline by therapy area and as a bar on the range chart. A
-click on either selects that gate for the card beside them. Markdown cannot run a click
-handler and a link reloads the page onto a new session, so this renders the frame's markup
-itself and returns the clicked gate to Python. Cloned from ``uvboard``: markup in, one key
-out, a nonce so a repeat click on the same gate still registers as a change. The range
-chart's two views (the next 24 months, later or undated) switch inside the frame, with no
-rerun.
+The page (frontend/catalysts_area.py) is drawn here whole: the header, the area table and
+the rail. An area row opens in place to its gates inside the frame, with no rerun, and
+stays open across reruns. A click on a gate (a bar segment, an open area's line, a priced
+Next up row) returns ``{"gate", "from", "nonce"}``; a click on an index row or an open
+area's calendar link returns ``{"more", "area", "nonce"}``. Markdown cannot run a click
+handler and a link reloads the page onto a new session, so this renders the markup itself
+and returns the click to Python. Cloned from ``uvboard``: markup in, one key out, a nonce
+so a repeat click on the same thing still registers as a change. The page fills the room
+the app's scroller leaves around the frame, read from the parent page.
 
 An iframe inherits none of the page's CSS, so the frame's stylesheet arrives as ``css``
 (tokens, research.css and catalysts.css), the token values as ``tokens`` and the bundled
@@ -26,9 +27,9 @@ _component = components.declare_component("catnav", path=str(_DIR))
 
 
 def cat_nav(markup: str, *, css: str, tokens: dict, key=None):
-    """Render ``markup`` (elements carrying ``data-gate`` are the hit areas).
+    """Render ``markup``: elements carrying ``data-gate`` or ``data-more`` are the hit areas,
+    a ``.ca-ar`` row opens its area in place.
 
-    Returns ``{"gate", "from", "nonce"}`` for the last click, or None: ``gate`` is the
-    asset id of the selected line's gate and ``from`` names the part clicked ("the
-    timeline" or "the range chart")."""
+    Returns ``{"gate", "from", "nonce"}`` or ``{"more", "area", "nonce"}`` for the last
+    click, or None: ``gate`` is the asset id of the clicked gate, ``more`` the index key."""
     return _component(markup=markup, css=css, tokens=tokens, key=key, default=None)

@@ -10,8 +10,9 @@
     color: var(--text); font-family: var(--font-ui); font-size: 14px;
     -webkit-font-smoothing: antialiased;
   }
-  [data-gate] { cursor: pointer; }
-  [data-gate]:focus-visible { outline: 1px solid var(--muted); outline-offset: 1px; }
+  [data-gate], [data-more], .ca-ar { cursor: pointer; }
+  [data-gate]:focus-visible, [data-more]:focus-visible { outline: 1px solid var(--muted);
+    outline-offset: 1px; }
 </style>
 <style id="frame"></style>
 </head>
@@ -31,6 +32,8 @@ const Streamlit = {
 let wired = false;
 let fontsCopied = false;
 let lastHeight = 0;
+let lastMarkup = null;
+let openArea = null;      // the area row open in the table; kept across reruns
 
 function copyFontFaces() {
   // The host bundles its fonts as @font-face rules with base64 sources. The iframe is
@@ -63,6 +66,48 @@ function fit() {
   if (h !== lastHeight) { lastHeight = h; Streamlit.height(h); }
 }
 
+function fill() {
+  // The area page fills the screen: its height is the room the app's scroller leaves
+  // above and below the frame, read from the parent page (same origin). Narrower than
+  // 1180 px, or when the parent cannot be read, the page takes its own height.
+  const page = document.querySelector(".ca-page");
+  if (page) {
+    let h = null;
+    try {
+      const fe = window.frameElement;
+      const pd = window.parent.document;
+      const main = pd.querySelector('[data-testid="stMain"]');
+      const bc = pd.querySelector('[data-testid="stMainBlockContainer"]');
+      if (fe && main && bc && window.innerWidth >= 1180) {
+        const fr = fe.getBoundingClientRect(), mr = main.getBoundingClientRect();
+        const above = fr.top - mr.top + main.scrollTop;
+        const below = bc.getBoundingClientRect().bottom - fr.bottom;
+        h = Math.max(520, Math.floor(main.clientHeight - above - below) - 4);
+      }
+    } catch (e) { h = null; }
+    if (h) page.style.setProperty("--ca-h", h + "px");
+    else page.style.removeProperty("--ca-h");
+  }
+  fit();
+}
+
+function setOpen(name) {
+  // One area open at a time; the others fold to one line. Client side: no rerun.
+  openArea = name;
+  const rows = document.querySelector(".ca-rows");
+  if (!rows) return;
+  let any = false;
+  rows.querySelectorAll(".ca-row").forEach(function (r) {
+    const on = name !== null && r.getAttribute("data-area") === name;
+    r.classList.toggle("open", on);
+    const ar = r.querySelector(".ca-ar");
+    if (ar) ar.setAttribute("aria-expanded", on ? "true" : "false");
+    any = any || on;
+  });
+  rows.classList.toggle("has-open", any);
+  if (!any) openArea = null;
+}
+
 function showView(btn) {
   // The range chart's two views share one grid cell: the switch flips which is visible
   // and never changes the frame's height.
@@ -77,6 +122,32 @@ function showView(btn) {
   });
 }
 
+function fire(target, ev) {
+  const view = target.closest(".cx-vb");
+  if (view) { showView(view); return; }
+  const gate = target.closest("[data-gate]");
+  if (gate) {
+    if (ev) ev.preventDefault();
+    const where = gate.closest(".cx-tl") ? "the timeline"
+      : gate.closest(".ca-nx") ? "next up"
+      : gate.closest(".ca-gl") ? "the open area" : "the bars";
+    Streamlit.value({ gate: gate.getAttribute("data-gate"), from: where, nonce: Date.now() });
+    return;
+  }
+  const more = target.closest("[data-more]");
+  if (more) {
+    if (ev) ev.preventDefault();
+    Streamlit.value({ more: more.getAttribute("data-more"),
+                      area: more.getAttribute("data-area"), nonce: Date.now() });
+    return;
+  }
+  const ar = target.closest(".ca-ar");
+  if (ar) {
+    const name = ar.closest(".ca-row").getAttribute("data-area");
+    setOpen(openArea === name ? null : name);
+  }
+}
+
 window.addEventListener("message", function (e) {
   const d = e.data;
   if (!d || d.type !== "streamlit:render") return;
@@ -87,31 +158,28 @@ window.addEventListener("message", function (e) {
   // passed in and set here, so tokens.py stays the one source.
   Object.keys(tk).forEach(function (k) { root.style.setProperty("--" + k, tk[k]); });
   copyFontFaces();
-  document.getElementById("frame").textContent = a.css || "";
   const b = document.getElementById("b");
-  b.innerHTML = a.markup || "";
-  b.querySelectorAll("[data-gate]").forEach(function (el) {
-    el.setAttribute("tabindex", "0");
-    el.setAttribute("role", "button");
-  });
-  requestAnimationFrame(fit);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+  if (a.markup !== lastMarkup) {
+    // A rerun that hands the same markup leaves the frame as it is: the open area stays.
+    lastMarkup = a.markup;
+    document.getElementById("frame").textContent = a.css || "";
+    b.innerHTML = a.markup || "";
+    b.querySelectorAll("[data-gate], [data-more], .ca-ar").forEach(function (el) {
+      el.setAttribute("tabindex", "0");
+      el.setAttribute("role", "button");
+    });
+    if (openArea !== null) setOpen(openArea);
+  }
+  requestAnimationFrame(fill);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fill);
 
   if (!wired) {
     wired = true;
     if (window.ResizeObserver) new ResizeObserver(fit).observe(b);
-    function fire(target) {
-      const view = target.closest(".cx-vb");
-      if (view) { showView(view); return; }
-      const hit = target.closest("[data-gate]");
-      if (!hit) return;
-      const where = hit.closest(".cx-tl") ? "the timeline" : "the range chart";
-      Streamlit.value({ gate: hit.getAttribute("data-gate"), from: where,
-                        nonce: Date.now() });
-    }
-    b.addEventListener("click", function (ev) { fire(ev.target); });
+    try { window.parent.addEventListener("resize", fill); } catch (err) { /* no access */ }
+    b.addEventListener("click", function (ev) { fire(ev.target, ev); });
     b.addEventListener("keydown", function (ev) {
-      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); fire(ev.target); }
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); fire(ev.target, ev); }
     });
   }
 });
