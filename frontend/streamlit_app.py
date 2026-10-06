@@ -33,6 +33,7 @@ import scorecard_chart
 import treemap
 import theme as T
 import trend as trend_module
+import universe_page
 from components import charts as CH
 from components import approvnav
 from components import covnav
@@ -55,6 +56,17 @@ if getattr(compsval, "REVISION", 0) < 4:
 # Overridable so run.sh can point a frontend at whichever API port it started.
 DEFAULT_API = os.getenv("ER_API_BASE", "http://localhost:8000")
 DEFAULT_TICKER = "LLY"
+
+# The companies whose Universe overview is the redesigned command centre (universe_page,
+# universe_cc). Every other company keeps today's overview exactly; rolling out is one
+# edit to this set.
+_REDESIGN_TICKERS = {"AZN"}
+
+
+def _universe_redesigned(ticker: str, view: str) -> bool:
+    """True when the Universe tab draws the redesigned overview for ``ticker``: the
+    Overview view of a company in the set. Markets, Policy and the as-of branch stay."""
+    return view == "Overview" and ticker in _REDESIGN_TICKERS
 
 # The landing page renders inside a component iframe, which inherits none of the host
 # page's CSS variables, so the tokens it needs are handed across. One source of truth
@@ -7859,6 +7871,10 @@ def _jump_to_search():
         st.session_state["global_search"] = ""
 
 
+# A button in the Universe tab's company dialog opens that company on another tab; the
+# company is applied here, before the selector reads its key.
+universe_page.apply_goto(tickers)
+
 bar = st.columns([0.085, 0.40, 0.20, 0.20, 0.115], gap="small")
 with bar[0]:
     st.markdown('<span class="topbar-anchor"></span><div class="pick">',
@@ -8367,6 +8383,7 @@ with main:
     news_tab = _panels["news"]
     portfolio_tab = _panels.get("portfolio")
     runway_tab = _panels.get("runway")
+    universe_page.click_pending_tab()
 
     # --- Universe: what moved across coverage since you last looked -------
     with universe_tab:
@@ -8441,6 +8458,9 @@ with main:
             _markets_view(api_base, universe_feed)
         elif _view == "Policy":
             _policy_view(api_base)
+        elif (_universe_redesigned(ticker, _view)
+              and universe_page.render(api_base, ticker)):
+            pass
         else:
             _universe_overview(api_base, engine, _engine_name, _covered,
                                _all_changes, universe_feed)
