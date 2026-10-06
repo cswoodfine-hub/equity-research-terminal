@@ -115,10 +115,15 @@
 /* ---------------------------------------------------------------------------------- */
 .uv-sp { display: grid; grid-template-columns: minmax(0, 1.32fr) repeat(7, minmax(0, 1fr));
   border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule); }
+/* Each cell is a size container. One narrower than the 1440 design (a narrower window,
+   or the sidebar open) drops its value's unit before the value and its place can touch:
+   the label names the measure. If they would still meet, the place wraps under the value
+   rather than printing over it. A container is its own stacking context, so the hovered
+   cell is lifted for its card to sit over the cells beside it. */
 .uv-sp > div { position: relative; padding: 5px 8px;
-  border-left: 1px solid var(--rule); min-width: 0; }
+  border-left: 1px solid var(--rule); min-width: 0; container-type: inline-size; }
 .uv-sp > div:first-child { border-left: 0; padding-left: 2px; }
-.uv-sp > div:hover { background: var(--panel); }
+.uv-sp > div:hover { background: var(--panel); z-index: 2; }
 .uv-sp .k { display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
   font-size: 10px; line-height: 14px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--muted); white-space: nowrap; }
@@ -127,8 +132,8 @@
 .uv-sp .k .all { flex: 0 0 auto; font-size: 11px; line-height: 14px; letter-spacing: 0;
   color: var(--muted); cursor: default; }
 .uv-sp > div:hover .k .all { color: var(--up); }
-.uv-sp .vr { display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
-  min-width: 0; }
+.uv-sp .vr { display: flex; flex-wrap: wrap; justify-content: space-between;
+  align-items: baseline; gap: 0 6px; min-width: 0; }
 .uv-sp .v { font-family: var(--font-mono); font-size: 19px; font-weight: 600;
   letter-spacing: -0.02em; line-height: 26px; white-space: nowrap; min-width: 0; }
 .uv-sp .c0 .v { font-size: 22px; }
@@ -137,14 +142,18 @@
 .uv-sp .v.none { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
 .uv-sp .v .u { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 4px;
   letter-spacing: 0; }
-.uv-sp .r { flex: 0 0 auto; font-family: var(--font-mono); font-size: 10.5px;
-  color: var(--muted); white-space: nowrap; }
+.uv-sp .r { flex: 0 0 auto; margin-left: auto; font-family: var(--font-mono);
+  font-size: 10.5px; color: var(--muted); white-space: nowrap; }
 .uv-sp .r b { color: var(--text); font-weight: 600; }
 .uv-sp .r.up { color: var(--up); }
 .uv-sp .r.down { color: var(--down); }
 .uv-sp .s { font-size: 10.5px; line-height: 14px; color: var(--muted); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .uv-sp .uv-rng { display: block; width: 100%; max-width: 196px; height: 13px; margin-top: 1px; }
+/* The thresholds are the cells' content widths at 1440 (152px, and 213px for the price):
+   any narrower and the unit goes. */
+@container (max-width: 151.98px) { .uv-sp .v .u { display: none; } }
+@container (max-width: 211.98px) { .uv-sp .c0 .v .u { display: none; } }
 
 /* A cell's hover card: the whole cohort, ranked, the median where it falls. */
 .uv-hc { display: none; position: absolute; left: 0; top: calc(100% + 2px); z-index: 60;

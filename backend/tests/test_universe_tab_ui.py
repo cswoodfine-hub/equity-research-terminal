@@ -361,6 +361,27 @@ def test_the_map_axes_keep_their_corner_apart(payload):
                 assert not UC.rects_hit(a, b, 0), (w, sa, sb)
 
 
+def test_a_narrow_ranking_cell_drops_its_unit_before_its_place_meets_its_value():
+    """Under 1440 wide the value and its place collided ("−26.5 pts16th of 18" at 1366):
+    each cell is a size container that drops the value's unit below its 1440 width, and
+    wraps the place under the value rather than over it if they still meet. The hovered
+    cell is lifted so its card stays over the containers beside it."""
+    css = UNIVERSE_CSS.read_text()
+    assert re.search(r"\.uv-sp > div \{[^}]*container-type: inline-size", css)
+    assert re.search(r"\.uv-sp > div:hover \{[^}]*z-index: \d", css)
+    assert re.search(r"\.uv-sp \.vr \{[^}]*flex-wrap: wrap", css)
+    assert re.search(r"\.uv-sp \.r \{[^}]*margin-left: auto", css)
+    q = dict(re.findall(r"@container \(max-width: ([\d.]+)px\) \{ ([^{]+) \{ display: none; \} \}",
+                        css))
+    assert {v.strip() for v in q.values()} == {".uv-sp .v .u", ".uv-sp .c0 .v .u"}, q
+    # The thresholds sit just under the cells' content widths at 1440: 1408px over
+    # 1.32 + 7 shares, less each cell's padding (16px; the price cell 10px).
+    share = 1408 / 8.32
+    widths = {".uv-sp .v .u": share - 16 - 1, ".uv-sp .c0 .v .u": share * 1.32 - 10}
+    for px, sel in q.items():
+        assert 0 < widths[sel.strip()] - float(px) < 2, (sel, px, widths[sel.strip()])
+
+
 def test_the_week_tag_column_holds_the_longest_tag():
     """Each ranked row's tag fits its grid column: "approval" ran 7px into the headline
     beside it. A tag is 9.5px mono capitals at 0.08em, after a 3px rule and 6px of air."""
