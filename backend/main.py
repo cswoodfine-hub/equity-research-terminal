@@ -39,6 +39,7 @@ import consensus as consensus_module
 import forecast_note
 import forecast_view as forecast_view_module
 import trial_readouts as trial_readouts_module
+import universe_command as universe_command_module
 import valuation as valuation_module
 import financials_view as financials_view_module
 import insights as insights_module
@@ -330,6 +331,24 @@ def comps_valuation_view():
     payload["scorecard"] = company_score_module.build(payload)
     ok = payload["complete"] and not payload["scorecard"].get("error")
     headers = {} if ok else {response_cache.SKIP: "1"}
+    return JSONResponse(payload, headers=headers)
+
+
+@app.get("/universe/command")
+def universe_command(ticker: str = Query(default="AZN"),
+                     window: str = Query(default=universe_command_module.DEFAULT_WINDOW),
+                     part: str = Query(default="all")):
+    """The Universe tab's command centre for one company in focus (backend/
+    universe_command.py): the cohort's rankings, the price against value map, the board
+    of the next 90 days, the week ranked, rates, exposure, approvals and readouts, a year
+    of prices and the policy calendar, in one read. ``part=focal`` returns only what the
+    company dialog draws. A body built before the valuation it embeds was warm is marked
+    incomplete and is never cached."""
+    payload = universe_command_module.build(
+        ticker, window, part="focal" if part == "focal" else "all")
+    if payload is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    headers = {} if payload["complete"] else {response_cache.SKIP: "1"}
     return JSONResponse(payload, headers=headers)
 
 
