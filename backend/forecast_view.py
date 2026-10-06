@@ -1628,11 +1628,19 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
     # neither selling nor approved by the valuation date is one of those launches.
     record = (_launch_record(db_path, ticker, anchor, lag) if ticker
               else {"history_rd": {}, "launched": set()})
+    # Its whole revenue as the book carries it, the tail past its forecast included: the
+    # launch is one of those cohorts' products for as long as it sells. Counted over its
+    # forecast years alone, the tail sat in the book and in the cohorts both, and a later
+    # LOE, which stretches an unlaunched product's forecast, moved revenue from the tail
+    # into the years that come off, so the launches lost more than the product gained:
+    # Amgen's Maridebart Cafraglutide from 2031 to 2034 added 6.50 a share and took 7.38
+    # off the launches.
     named: dict = {}
     for asset_id, entry in named_parts:
         if asset_id in record["launched"]:
             continue
-        for year, value in entry["revenue"].items():
+        for year, value in FP.book_revenue([entry], span, erosion["year1_pct"],
+                                           erosion.get("decay_pct") or 0.0).items():
             named[year] = named.get(year, 0.0) + value
     # The launches are charged the capital their growth takes, as the book's own
     # products are: a franchise that grows builds the plant to make what it sells.

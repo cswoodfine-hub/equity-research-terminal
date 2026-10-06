@@ -236,6 +236,50 @@ def test_a_line_that_sells_no_medicine_still_spends_the_rd_the_rate_divides_by(
     assert seen["ratios"]["rd"] == pytest.approx(0.15)
 
 
+def test_a_named_launch_comes_off_the_cohorts_for_as_long_as_the_book_carries_it(
+        tmp_path, monkeypatch):
+    """An unlaunched product is one of the launches the R&D already spent bought, tail
+    and all. Counted over its forecast years alone, its tail sat in the book and in the
+    cohorts both, and a later LOE, which stretches an unlaunched product's forecast,
+    moved revenue from the tail into the years that come off: the launches lost more
+    than the product gained. What comes off is now the book's own revenue for the part,
+    so a later LOE takes off the launches exactly what it adds to the book."""
+    import db
+    import forecast_view as V
+    seen = {}
+
+    def fake_simulate(book_rd, rate, *args, **kwargs):
+        seen.setdefault("named", []).append(dict(kwargs.get("named") or {}))
+        seen.setdefault("book", []).append(dict(kwargs.get("book") or {}))
+        return {"value": 1.0, "flows": [], "first_launch_year": 2030, "cohorts": 0,
+                "replacement": None, "renewal": None, "credited_share": None}
+    monkeypatch.setattr(FP, "simulate", fake_simulate)
+    monkeypatch.setattr(FP, "pooled", lambda db_path=None: {"rate": 0.3, "filers": [], "n": 0, "credibility": {}})
+    monkeypatch.setattr(V, "_launch_record", lambda *a, **k: {"history_rd": {}, "launched": {1}})
+    row = {"revenue": 100.0, "cogs": 20.0, "sga": 20.0, "rd": 15.0, "other": 0.0, "ebit": 45.0, "tax": 5.0}
+    flat = {"growth": 0.0, "year1_pct": 0.25, "decay_pct": 0.2, "late_decay_pct": None,
+            "late_from_year": None}
+    marketed = {"asset_id": 1, "pnl_share": [row] * 3, "dcf_years": [2026, 2027, 2028],
+                "wacc": 0.08, "terminal_tail": {**flat, "end": 2028, "parts": [[1.0, None, False]]}}
+
+    def pipeline(last, loe):
+        years = list(range(2026, last + 1))
+        return {"asset_id": 2, "pnl_share": [row] * len(years), "dcf_years": years, "pos": 0.5,
+                "wacc": 0.08, "terminal_tail": {**flat, "end": last, "parts": [[1.0, loe, False]]}}
+    path = str(tmp_path / "named.db")
+    db.init(path)
+    V._future_pipeline(path, [marketed, pipeline(2031, 2031)], "2025-12-31", "XYZ")
+    V._future_pipeline(path, [marketed, pipeline(2034, 2034)], "2025-12-31", "XYZ")
+    early, late = seen["named"]
+    # The tail past the forecast comes off too, at the product's own risked revenue.
+    assert early[2032] == pytest.approx(50.0 * 0.75) and early[2033] == pytest.approx(50.0 * 0.75 * 0.8)
+    # The launched product is never named, so named is the pipeline product's book.
+    book_early, book_late = seen["book"]
+    for year in range(2026, 2060):
+        assert (late.get(year, 0.0) - early.get(year, 0.0)) == pytest.approx(
+            book_late.get(year, 0.0) - book_early.get(year, 0.0))
+
+
 def test_a_pipeline_products_whole_row_is_taken_at_its_probability_once(tmp_path,
                                                                          monkeypatch):
     """Revenue, R&D and every cost on a pipeline line are expected values, risked once.
