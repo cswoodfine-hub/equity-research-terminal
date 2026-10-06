@@ -246,7 +246,7 @@ def incomplete_note(p):
     n = sum(1 for c in cos.values() if (c.get("model") or {}).get("upside") is not None)
     return (f'<div class="uv-partial">The API was still valuing the group when this page '
             f'read it: {n} of {len(cos)} {esc(_cohort_noun(p))} have a model value so far. '
-            f'The page reads again on its next run.</div>')
+            f'It is not held: reload in a minute for the full read.</div>')
 
 
 # --------------------------------------------------------------- spotlight band (row 1)
