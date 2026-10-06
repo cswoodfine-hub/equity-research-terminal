@@ -36,9 +36,11 @@ def test_every_reading_is_well_formed_and_says_what_it_rests_on(book):
                 assert row["clock"]["applied"] and row["clock"]["source"], row
             assert (row["seed_year"] < row["first_possible_year"]) == (
                 row["status"] in ("before_floor", "before_floor_cited")), row
+            # Amber only where the floor rests on the registry alone and the seed cites
+            # what the database lacks; on a filing or readout on file it stays red.
             assert (row["status"] == "before_floor_cited") == bool(
                 row["status"] in ("before_floor", "before_floor_cited")
-                and row["seed_basis"]["cites"]), row
+                and row["seed_basis"]["cites"] and evidence["kind"] == "registry"), row
 
 
 def test_a_flag_is_never_raised_without_a_dated_study_or_application(book):
