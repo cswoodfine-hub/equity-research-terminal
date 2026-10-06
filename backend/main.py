@@ -52,6 +52,7 @@ import headlines as headlines_module
 import marketmap as marketmap_module
 import labels as labels_module
 import launch_timing
+import development
 import landscape as landscape_module
 import landscape_overview
 import landscape_score
@@ -670,6 +671,20 @@ def company_launch_timing(ticker: str) -> dict:
     return {"ticker": company["ticker"], "assets": assets}
 
 
+# Not /forecast/development, for the same reason as /forecast-verdict: /forecast/{asset_id}
+# would match first and fail to cast "development" to an int.
+@app.get("/companies/{ticker}/development")
+def company_development(ticker: str) -> dict:
+    """Every counted pipeline line's next gate: what reaching it costs from published trial
+    costs, what passing it is worth, failing gates first, and the named trials' spend
+    against the R&D the book charges. A view: the R&D ratio already pays for these trials,
+    so it moves no value."""
+    out = development.for_company(None, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    return out
+
+
 @app.get("/companies/{ticker}/breakpoints")
 def company_breakpoints(ticker: str) -> dict:
     """For every assumption the company's value rests on, the value at which it meets
@@ -731,6 +746,17 @@ def forecast_verdict(ticker: str, asset_id: int, scenario: str = "base") -> dict
         raise HTTPException(status_code=404,
                             detail=f"no asset {asset_id} for {ticker}")
     return {**out, "note": forecast_note.write(out)}
+
+
+@app.get("/companies/{ticker}/forecast/{asset_id}/development")
+def forecast_development(ticker: str, asset_id: int) -> dict:
+    """What reaching the asset's next gate costs, beside what passing it is worth, and the
+    ladder to approval after later trial costs. A refusal comes back as {ok: false,
+    reason, why}. A view beside the value: it moves no rNPV, sum of the parts or rating."""
+    out = development.for_asset(None, ticker, asset_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"no asset {asset_id} for {ticker}")
+    return out
 
 
 @app.get("/companies/{ticker}/forecast/{asset_id}/shape")
