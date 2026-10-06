@@ -173,11 +173,19 @@ def _loe(conn, asset_id: int) -> dict:
     }
 
 def _demand(conn, asset_id: int) -> dict | None:
-    """Medicare Part D and Part B demand, the latest year with the year before it for
-    direction, summed across parts. None when CMS has nothing matched to this drug."""
+    """Medicare Part D and Part B demand: spend for the latest year with the year before
+    it for direction, summed across parts, and each part on its own beside it.
+
+    Beneficiaries and claims are never summed across the parts. A patient who has a
+    Part B infusion and fills a Part D prescription is in both counts, so the sum counts
+    them twice, and a Part D fill is not a Part B claim; each part's counts and its growth
+    are reported in ``parts`` instead, with whether the growth is like for like. None when
+    CMS has nothing matched to this drug.
+    """
+    import demand_split
+
     rows = conn.execute(
-        "SELECT year, SUM(total_spending) AS spend, SUM(total_claims) AS claims,"
-        "       SUM(total_beneficiaries) AS benes"
+        "SELECT year, SUM(total_spending) AS spend"
         "  FROM drug_demand WHERE asset_id = ? GROUP BY year ORDER BY year DESC LIMIT 2",
         (asset_id,)).fetchall()
     if not rows:
@@ -187,10 +195,24 @@ def _demand(conn, asset_id: int) -> dict | None:
     growth = None
     if prior and prior["spend"]:
         growth = (latest["spend"] - prior["spend"]) / prior["spend"]
+    parts = []
+    for part, series in demand_split._series(conn, asset_id).items():
+        cur = series[-1]
+        prev = series[-2] if len(series) > 1 else None
+        st = demand_split.step(prev, cur) if prev else None
+        flags = demand_split.flags_for(part, prev, cur, st) if prev else []
+        parts.append({
+            "part": part, "year": cur["year"], "spend": cur["spending"],
+            "claims": cur["claims"], "beneficiaries": cur["beneficiaries"],
+            "prior_year": prev["year"] if prev else None,
+            "spend_growth": st["spend"] if st else None,
+            "patient_growth": st["patients"] if st else None,
+            "like_for_like": not any(f["code"] in demand_split.NOT_LIKE_FOR_LIKE
+                                     for f in flags)})
+    parts.sort(key=lambda p: -(p["spend"] or 0.0))
     return {"year": latest["year"], "spend": latest["spend"],
-            "claims": latest["claims"], "beneficiaries": latest["benes"],
             "prior_year": prior["year"] if prior else None,
-            "spend_growth": growth}
+            "spend_growth": growth, "parts": parts}
 
 
 def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:

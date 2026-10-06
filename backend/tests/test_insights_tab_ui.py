@@ -3291,8 +3291,11 @@ def test_the_live_key_assets_and_expiries_are_the_models_largest_parts(tab, view
                                     tab["company"].get("exclusivity_losses"), tab["today"],
                                     modelled)
     for r in expiries["rows"]:
-        assert (f'<span class="d">{view["html_escape"](r["when"])}</span>'
-                f'<span class="n">{view["html_escape"](r["asset"])}</span>') in body, r["asset"]
+        tail = (f'{view["html_escape"](r["when"])}</span>'
+                f'<span class="n">{view["html_escape"](r["asset"])}</span>')
+        # a loss inside the year carries the "near" class
+        assert (f'<span class="d">{tail}' in body
+                or f'<span class="d near">{tail}' in body), r["asset"]
 
 
 @live
@@ -3301,8 +3304,10 @@ def test_the_live_cohort_table_names_its_rank_without_a_score(tab, view):
     company = tab["company"]
     assert "ki-cohort" in body
     if company.get("rank") is not None:
-        chip = f"{view['_ki_ord'](company['rank'])} of {company['ranked_of']} · right is better"
+        # The chip is the rank alone; "right is better" heads the first group instead.
+        chip = f"{view['_ki_ord'](company['rank'])} of {company['ranked_of']}"
         assert f'<span class="sec-basis">{chip}</span>' in body
+        assert '<b class="rb">right is better</b>' in body
     assert f"of {company.get('ranked_of')} · score" not in body
 
 

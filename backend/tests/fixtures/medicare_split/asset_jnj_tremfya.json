@@ -1,0 +1,345 @@
+{
+ "asset_id": 572,
+ "ticker": "JNJ",
+ "brand": "Tremfya",
+ "generic": "Guselkumab",
+ "held_on": null,
+ "shared_with": [],
+ "patients_note": "Patients are distinct beneficiaries on the drug during the year, so their growth is net additions, not new starts.",
+ "gap_label": "not explained by Medicare spend: net price, other payers, inventory",
+ "ok": true,
+ "reason": null,
+ "label": "Medicare only. Part D is gross cost before manufacturer rebates; Part B is fee-for-service only, paid mostly at average sales price plus 6%. CMS calendar 2024, 1 year behind the FY2025 filing.",
+ "latest_year": 2024,
+ "lag_years": 1,
+ "latest_fy": 2025,
+ "approval": "2017-07-13",
+ "negotiated_from": null,
+ "parts": [
+  {
+   "part": "D",
+   "part_label": "Part D, retail pharmacy",
+   "source_file": "CMS Medicare Part D Spending by Drug",
+   "factor_labels": {
+    "spend": "Spend",
+    "patients": "Patients",
+    "intensity": "Fills per patient",
+    "price": "Cost per fill",
+    "claims": "Fills",
+    "units_per_claim": "Units per fill",
+    "price_per_unit": "Cost per unit"
+   },
+   "spend_share": 1.0,
+   "material": true,
+   "latest_year": 2024,
+   "latest_spending": 619021085.8,
+   "series": [
+    {
+     "year": 2020,
+     "spending": 167392577.77,
+     "claims": 14355,
+     "beneficiaries": 3469,
+     "units": 14596.0,
+     "cms_name": "Tremfya*",
+     "presentations": 1
+    },
+    {
+     "year": 2021,
+     "spending": 285251576.87,
+     "claims": 23040,
+     "beneficiaries": 5687,
+     "units": 23516.0,
+     "cms_name": "Tremfya*",
+     "presentations": 1
+    },
+    {
+     "year": 2022,
+     "spending": 439124671.06,
+     "claims": 33444,
+     "beneficiaries": 7918,
+     "units": 33983.0,
+     "cms_name": "Tremfya*",
+     "presentations": 1
+    },
+    {
+     "year": 2023,
+     "spending": 531497097.62,
+     "claims": 38622,
+     "beneficiaries": 8945,
+     "units": 39127.0,
+     "cms_name": "Tremfya*",
+     "presentations": 1
+    },
+    {
+     "year": 2024,
+     "spending": 619021085.8,
+     "claims": 46093,
+     "beneficiaries": 10860,
+     "units": 48255.0,
+     "cms_name": "Tremfya (2 presentations)",
+     "presentations": 2
+    }
+   ],
+   "steps": [
+    {
+     "from": 2020,
+     "to": 2021,
+     "years": 1,
+     "spend": 0.7040873655816453,
+     "flags": [
+      {
+       "code": "footnoted_name",
+       "words": "CMS marks this drug: its cost per unit blends routes of administration priced differently"
+      }
+     ],
+     "claims": 0.6050156739811912,
+     "patients": 0.6393773421735371,
+     "intensity": -0.02096019464730925,
+     "price": 0.06172630785262667,
+     "units_per_claim": 0.003807228864072254,
+     "price_per_unit": 0.05769940415162833,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.6529504900171371,
+      "intensity": -0.027980931062357293,
+      "price": 0.07911780662686554
+     },
+     "baseline": {
+      "spend": 0.03629401880586958,
+      "patients": 0.008315452605793028,
+      "intensity": -0.010484411228038393,
+      "price": 0.047586028087603593,
+      "price_per_unit": 0.05652491765082612,
+      "claims": -0.009897883462119894,
+      "n": 200
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.7040873655816453,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2021,
+     "to": 2022,
+     "years": 1,
+     "spend": 0.5394294253459142,
+     "flags": [
+      {
+       "code": "footnoted_name",
+       "words": "CMS marks this drug: its cost per unit blends routes of administration priced differently"
+      }
+     ],
+     "claims": 0.4515625000000001,
+     "patients": 0.39229822401969394,
+     "intensity": 0.04256579155089679,
+     "price": 0.06053265039976874,
+     "units_per_claim": -0.004451267039219831,
+     "price_per_unit": 0.06527447154266897,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.41382101253498227,
+      "intensity": 0.052121883828545185,
+      "price": 0.07348652898238683
+     },
+     "baseline": {
+      "spend": 0.050946732620217094,
+      "patients": 0.016778734368126713,
+      "intensity": 0.000468865754758907,
+      "price": 0.053675518028104996,
+      "price_per_unit": 0.05452147702257215,
+      "claims": 0.010297009282498104,
+      "n": 211
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.5394294253459142,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2022,
+     "to": 2023,
+     "years": 1,
+     "spend": 0.2103558115671862,
+     "flags": [
+      {
+       "code": "footnoted_name",
+       "words": "CMS marks this drug: its cost per unit blends routes of administration priced differently"
+      }
+     ],
+     "claims": 0.1548259777538572,
+     "patients": 0.12970447082596626,
+     "intensity": 0.022237237770267315,
+     "price": 0.04808502309701668,
+     "units_per_claim": -0.002992810407890678,
+     "price_per_unit": 0.0512311586497225,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.1343752540735862,
+      "intensity": 0.0242332756090392,
+      "price": 0.051747281884560965
+     },
+     "baseline": {
+      "spend": 0.0880711575107398,
+      "patients": 0.050882899628252876,
+      "intensity": -0.0005894305404605671,
+      "price": 0.05691737638405581,
+      "price_per_unit": 0.05847705344431997,
+      "claims": 0.04618156548093855,
+      "n": 219
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.2103558115671862,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2023,
+     "to": 2024,
+     "years": 1,
+     "spend": 0.16467444238533968,
+     "flags": [
+      {
+       "code": "containers_changed",
+       "words": "CMS changed the containers it lists (1 to 2), so patient counts are not like for like"
+      },
+      {
+       "code": "containers_summed",
+       "words": "patients summed across containers, an upper bound"
+      },
+      {
+       "code": "footnoted_name",
+       "words": "CMS marks this drug: its cost per unit blends routes of administration priced differently"
+      },
+      {
+       "code": "units_blend",
+       "words": "cost per unit blends the containers' units"
+      }
+     ],
+     "claims": 0.19343897260628662,
+     "patients": 0.214086081609838,
+     "intensity": -0.017006297425116612,
+     "price": -0.024102221295932424,
+     "units_per_claim": 0.0333930910895619,
+     "price_per_unit": -0.055637407373097414,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.20955866564998374,
+      "intensity": -0.01852899155846876,
+      "price": -0.026355231706175267
+     },
+     "baseline": {
+      "spend": 0.06767094501022597,
+      "patients": 0.09695963437059252,
+      "intensity": 0.008195318557647102,
+      "price": -0.025770115231553814,
+      "price_per_unit": -0.03080613953260314,
+      "claims": 0.11711332236516081,
+      "n": 231
+     },
+     "us_growth": 0.13786679087098275,
+     "us_note": null,
+     "global_growth": 0.1661900222434065,
+     "global_note": null,
+     "brand_spend": 0.16467444238533968,
+     "gap_pts": -0.026807651514356934,
+     "like_for_like": false
+    }
+   ],
+   "span": {
+    "from": 2020,
+    "to": 2024,
+    "years": 4,
+    "spend": 0.3867312782414247,
+    "claims": 0.3386219580205583,
+    "patients": 0.3301676496119479,
+    "intensity": 0.0063558216974204385,
+    "price": 0.035939437518271555,
+    "units_per_claim": 0.007323977509763324,
+    "price_per_unit": 0.02840740481453574,
+    "points": {
+     "patients": 0.33747230953190904,
+     "intensity": 0.007494177556700977,
+     "price": 0.041764791152814514
+    },
+    "flags": [
+     "containers_changed"
+    ]
+   }
+  }
+ ],
+ "brand_total": [],
+ "beside": {
+  "model_growth": {
+   "key": "revenue_growth_pct",
+   "mode": "marketed",
+   "value": 0.404632,
+   "unit": "annual, near term",
+   "source": "the same product axis a year earlier: $5,155mm in FY2025 against $3,670mm in FY2024, both from the SEC financial statement data sets. The comparative year is tagged in the same filing as the anchor",
+   "fade_to": 0.0,
+   "fade_years": 5.0,
+   "from_fy": 2025
+  },
+  "reported": [
+   {
+    "fiscal_year": 2023,
+    "global_value": 3147000000.0,
+    "global_unit": "USD",
+    "global_growth": null,
+    "us_value": 2147000000.0,
+    "us_unit": "USD",
+    "us_growth": null,
+    "global_note": null,
+    "us_note": null
+   },
+   {
+    "fiscal_year": 2024,
+    "global_value": 3670000000.0,
+    "global_unit": "USD",
+    "global_growth": 0.1661900222434065,
+    "us_value": 2443000000.0,
+    "us_unit": "USD",
+    "us_growth": 0.13786679087098275,
+    "global_note": null,
+    "us_note": null
+   },
+   {
+    "fiscal_year": 2025,
+    "global_value": 5155000000.0,
+    "global_unit": "USD",
+    "global_growth": 0.4046321525885559,
+    "us_value": 3529000000.0,
+    "us_unit": "USD",
+    "us_growth": 0.4445354072861236,
+    "global_note": null,
+    "us_note": null
+   }
+  ],
+  "direction_disagrees": false
+ },
+ "sentence": "Medicare fills of Tremfya rose 19.3% in 2024 and cost per fill fell 2.4%, so volume carried the 16.5% rise in Medicare spend. The model grows it 40.5% a year from FY2025."
+}

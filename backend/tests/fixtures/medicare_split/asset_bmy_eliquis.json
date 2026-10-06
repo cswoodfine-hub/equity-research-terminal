@@ -1,0 +1,318 @@
+{
+ "asset_id": 198,
+ "ticker": "BMY",
+ "brand": "Eliquis",
+ "generic": "Apixaban",
+ "held_on": null,
+ "shared_with": [
+  "PFE"
+ ],
+ "patients_note": "Patients are distinct beneficiaries on the drug during the year, so their growth is net additions, not new starts.",
+ "gap_label": "not explained by Medicare spend: net price, other payers, inventory",
+ "ok": true,
+ "reason": null,
+ "label": "Medicare only. Part D is gross cost before manufacturer rebates; Part B is fee-for-service only, paid mostly at average sales price plus 6%. CMS calendar 2024, 1 year behind the FY2025 filing.",
+ "latest_year": 2024,
+ "lag_years": 1,
+ "latest_fy": 2025,
+ "approval": "2012-12-28",
+ "negotiated_from": 2026,
+ "parts": [
+  {
+   "part": "D",
+   "part_label": "Part D, retail pharmacy",
+   "source_file": "CMS Medicare Part D Spending by Drug",
+   "factor_labels": {
+    "spend": "Spend",
+    "patients": "Patients",
+    "intensity": "Fills per patient",
+    "price": "Cost per fill",
+    "claims": "Fills",
+    "units_per_claim": "Units per fill",
+    "price_per_unit": "Cost per unit"
+   },
+   "spend_share": 1.0,
+   "material": true,
+   "latest_year": 2024,
+   "latest_spending": 20774929225.0,
+   "series": [
+    {
+     "year": 2020,
+     "spending": 9936069813.8,
+     "claims": 14847081,
+     "beneficiaries": 2641941,
+     "units": 1258380589.3,
+     "cms_name": "Eliquis",
+     "presentations": 1
+    },
+    {
+     "year": 2021,
+     "spending": 12575145852.0,
+     "claims": 17015798,
+     "beneficiaries": 3125087,
+     "units": 1478137928.5,
+     "cms_name": "Eliquis",
+     "presentations": 1
+    },
+    {
+     "year": 2022,
+     "spending": 15219812294.0,
+     "claims": 18973041,
+     "beneficiaries": 3505142,
+     "units": 1669476768.2,
+     "cms_name": "Eliquis",
+     "presentations": 1
+    },
+    {
+     "year": 2023,
+     "spending": 18273451967.0,
+     "claims": 21195452,
+     "beneficiaries": 3927848,
+     "units": 1875283428.8,
+     "cms_name": "Eliquis",
+     "presentations": 1
+    },
+    {
+     "year": 2024,
+     "spending": 20774929225.0,
+     "claims": 24061332,
+     "beneficiaries": 4424796,
+     "units": 2156238528.8,
+     "cms_name": "Eliquis",
+     "presentations": 1
+    }
+   ],
+   "steps": [
+    {
+     "from": 2020,
+     "to": 2021,
+     "years": 1,
+     "spend": 0.26560562552958755,
+     "flags": [],
+     "claims": 0.14607026121834998,
+     "patients": 0.18287539350803073,
+     "intensity": -0.03111496992132745,
+     "price": 0.10430020597878831,
+     "units_per_claim": 0.02492410413099111,
+     "price_per_unit": 0.07744583382112813,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.18937743627373438,
+      "intensity": -0.03564248178902114,
+      "price": 0.11187067104487435
+     },
+     "baseline": {
+      "spend": 0.03629401880586958,
+      "patients": 0.008315452605793028,
+      "intensity": -0.010484411228038393,
+      "price": 0.047586028087603593,
+      "price_per_unit": 0.05652491765082612,
+      "claims": -0.009897883462119894,
+      "n": 200
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.26560562552958755,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2021,
+     "to": 2022,
+     "years": 1,
+     "spend": 0.2103090073964735,
+     "flags": [],
+     "claims": 0.11502504907498312,
+     "patients": 0.12161421426027497,
+     "intensity": -0.005874716191643148,
+     "price": 0.08545454507998462,
+     "units_per_claim": 0.012933174799650393,
+     "price_per_unit": 0.07159541427269223,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.12645368161138126,
+      "intensity": -0.006491916453890321,
+      "price": 0.0903472422389823
+     },
+     "baseline": {
+      "spend": 0.050946732620217094,
+      "patients": 0.016778734368126713,
+      "intensity": 0.000468865754758907,
+      "price": 0.053675518028104996,
+      "price_per_unit": 0.05452147702257215,
+      "claims": 0.010297009282498104,
+      "n": 211
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.2103090073964735,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2022,
+     "to": 2023,
+     "years": 1,
+     "spend": 0.20063583006235985,
+     "flags": [],
+     "claims": 0.11713520252235798,
+     "patients": 0.12059597014899825,
+     "intensity": -0.003088327745976227,
+     "price": 0.07474531941296592,
+     "units_per_claim": 0.005497045239349685,
+     "price_per_unit": 0.06886969434816415,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.12493502189889441,
+      "intensity": -0.0033939494535939274,
+      "price": 0.07909475761705947
+     },
+     "baseline": {
+      "spend": 0.0880711575107398,
+      "patients": 0.050882899628252876,
+      "intensity": -0.0005894305404605671,
+      "price": 0.05691737638405581,
+      "price_per_unit": 0.05847705344431997,
+      "claims": 0.04618156548093855,
+      "n": 219
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": null,
+     "global_note": null,
+     "brand_spend": 0.20063583006235985,
+     "gap_pts": null,
+     "like_for_like": true
+    },
+    {
+     "from": 2023,
+     "to": 2024,
+     "years": 1,
+     "spend": 0.13689133626845185,
+     "flags": [
+      {
+       "code": "negotiated_price",
+       "words": "Medicare's negotiated price applies from 2026, so the price factor breaks then"
+      }
+     ],
+     "claims": 0.1352120256741871,
+     "patients": 0.12651915247229528,
+     "intensity": 0.007716578260399842,
+     "price": 0.0014792924636852778,
+     "units_per_claim": 0.012868122332727605,
+     "price_per_unit": -0.011244138913971247,
+     "factors": [
+      "patients",
+      "intensity",
+      "price"
+     ],
+     "points": {
+      "patients": 0.1271122739908503,
+      "intensity": 0.008201849398802877,
+      "price": 0.0015772128787986037
+     },
+     "baseline": {
+      "spend": 0.06767094501022597,
+      "patients": 0.09695963437059252,
+      "intensity": 0.008195318557647102,
+      "price": -0.025770115231553814,
+      "price_per_unit": -0.03080613953260314,
+      "claims": 0.11711332236516081,
+      "n": 231
+     },
+     "us_growth": null,
+     "us_note": null,
+     "global_growth": 0.09233164017696205,
+     "global_note": null,
+     "brand_spend": 0.13689133626845185,
+     "gap_pts": null,
+     "like_for_like": true
+    }
+   ],
+   "span": {
+    "from": 2020,
+    "to": 2024,
+    "years": 4,
+    "spend": 0.20248932500113592,
+    "claims": 0.1282871627524793,
+    "patients": 0.1376077303456431,
+    "intensity": -0.008193129621518858,
+    "price": 0.06576531640016081,
+    "units_per_claim": 0.014031744540754287,
+    "price_per_unit": 0.051017704463321545,
+    "points": {
+     "patients": 0.14157987550911855,
+     "intensity": -0.009034221944088518,
+     "price": 0.06994367143610587
+    },
+    "flags": []
+   }
+  }
+ ],
+ "brand_total": [],
+ "beside": {
+  "model_growth": {
+   "key": "revenue_growth_pct",
+   "mode": "marketed",
+   "value": 0.189372,
+   "unit": "annual, near term",
+   "source": "the halves already on file from the 8-K earnings exhibits: $8,617mm in the first half of 2026 against $7,245mm in the first half of 2025",
+   "fade_to": 0.0,
+   "fade_years": 5.0,
+   "from_fy": 2025
+  },
+  "reported": [
+   {
+    "fiscal_year": 2023,
+    "global_value": 12206000000.0,
+    "global_unit": "USD",
+    "global_growth": null,
+    "us_value": null,
+    "us_unit": null,
+    "us_growth": null,
+    "global_note": null,
+    "us_note": null
+   },
+   {
+    "fiscal_year": 2024,
+    "global_value": 13333000000.0,
+    "global_unit": "USD",
+    "global_growth": 0.09233164017696205,
+    "us_value": null,
+    "us_unit": null,
+    "us_growth": null,
+    "global_note": null,
+    "us_note": null
+   },
+   {
+    "fiscal_year": 2025,
+    "global_value": 14443000000.0,
+    "global_unit": "USD",
+    "global_growth": 0.08325208130203254,
+    "us_value": 10239000000.0,
+    "us_unit": "USD",
+    "us_growth": null,
+    "global_note": null,
+    "us_note": null
+   }
+  ],
+  "direction_disagrees": false
+ },
+ "sentence": "Medicare patients on Eliquis rose 12.7% in 2024 and cost per fill was flat, so volume carried the 13.7% rise in Medicare spend. The model grows it 18.9% a year from FY2025."
+}
