@@ -9,7 +9,15 @@
 # Medicine since. Each year is the latest filing that prints it, so restatements win:
 # 2016 and 2017 were restated in the FY2018 10-K for an accounting change, 2021 in the
 # FY2023 10-K, and 2022 after the Kenvue separation.
+#
+# The window is twelve years ending the year before the newest product revenue, so a
+# FY2025 anchor reads 2013 to 2024. A missing year sends the whole window back to the
+# company's R&D, MedTech's included, with no error: when the window grew from ten years
+# to twelve, 2013 and 2014 were not here and J&J's rate quietly read company R&D. A test
+# now holds the file to the window its newest year opens.
 ticker,fiscal_year,segment,rd_musd,unit,accession,quote
+JNJ,2013,Pharmaceutical,5810,USD,0000200406-16-000071,"Research and development expense by segment of business was as follows: 2015 2014 2013 | Pharmaceutical 6,821 21.7 6,213 19.2 5,810 20.7"
+JNJ,2014,Pharmaceutical,6213,USD,0000200406-17-000006,"Research and development expense by segment of business was as follows: 2016 2015 2014 | Pharmaceutical 6,967 20.8 6,821 21.7 6,213 19.2"
 JNJ,2015,Pharmaceutical,6821,USD,0000200406-16-000071,"Research and development expense by segment of business was as follows: 2015 2014 2013 | Pharmaceutical 6,821 21.7 6,213 19.2 5,810 20.7"
 JNJ,2016,Pharmaceutical,7001,USD,0000200406-19-000009,"Research and development expense by segment of business was as follows: 2018 2017 2016 | Pharmaceutical 8,446 20.7 8,392 23.1 7,001 20.9"
 JNJ,2017,Pharmaceutical,8392,USD,0000200406-19-000009,"Research and development expense by segment of business was as follows: 2018 2017 2016 | Pharmaceutical 8,446 20.7 8,392 23.1 7,001 20.9"

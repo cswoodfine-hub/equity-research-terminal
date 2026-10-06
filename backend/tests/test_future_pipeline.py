@@ -165,6 +165,17 @@ def test_the_medicines_segments_rd_is_the_denominator_only_for_a_whole_window(tm
     assert FP.filer_productivity(conn, 1, {}, {}, segment={})["rd_basis"] is None
 
 
+def test_the_medicines_segment_file_covers_the_window_its_newest_year_opens():
+    """A year missing from the window sends Johnson & Johnson's rate back to company R&D,
+    MedTech's included, silently. When the window grew from ten years to twelve, 2013 and
+    2014 were missing and the rate read 0.191 on company R&D where its medicines R&D gives
+    0.244."""
+    for ticker, years in FP.medicines_rd().items():
+        newest = max(years)
+        wanted = set(range(newest - FP.COHORT_YEARS, newest))
+        assert wanted <= set(years), (ticker, sorted(wanted - set(years)))
+
+
 def test_a_52_week_year_is_matched_to_the_year_it_falls_in():
     # The rule is the parser's now, shared by everything that reads a year off a date.
     import statements
