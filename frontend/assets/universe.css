@@ -8,9 +8,13 @@
    Rules for this file, the same as research.css:
    - It reads only the custom properties of tokens.css and the :root of research.css. No
      colour literal of any kind: every colour is a token or a color-mix() of tokens.
-   - No bare element selectors: a rule opts in through a .uv- class, or through the one
-     Streamlit dialog that holds a .uv-dg body.
-   - Sizes are the house scale (system/app.css, measured on the live page). */
+   - No bare element selectors: a rule opts in through a .uv- class, the page's own keyed
+     containers (.st-key-uv_*), or the one Streamlit dialog that holds a .uv-dg body.
+   - Sizes are the house scale (system/app.css, measured on the live page).
+
+   The page fits one 1440 by 900 screen: the control row, the company against the group,
+   the hero band and one tabbed panel of fixed height. Under 1180px wide it stacks and
+   scrolls, as it did before. */
 
 :root {
   /* The company in focus: a wash and a rail, as on Key insights. */
@@ -18,7 +22,12 @@
   /* A floating card's shadow, mixed from the ground rather than a literal black. */
   --uv-shadow: 0 10px 28px color-mix(in oklab, var(--ground) 70%, transparent);
   /* Columns of the small multiples; the builder sets its own on the grid. */
-  --sm-cols: 6;
+  --sm-cols: 9;
+  /* The tabbed panel's body takes the rest of the screen: what is left of the viewport
+     under the app's header, the control row, the rankings and the hero (about 664px at
+     1440 wide), so the page never scrolls; 236px at 900 tall, which holds the tallest tab
+     (the approvals lanes). A shorter screen scrolls inside the panel, down to 196px. */
+  --uv-panel-h: clamp(196px, calc(100vh - 664px), 440px);
 }
 
 /* ---------------------------------------------------------------------------------- */
@@ -35,62 +44,102 @@
 .uv-empty { font-size: 12px; color: var(--muted); padding: 6px 0; }
 
 /* ---------------------------------------------------------------------------------- */
-/* Control row and lead line                                                          */
+/* The page's blocks sit at the house 8px gap and no more: the section rule's own air  */
+/* (theme.py gives every .sec block most of a line above it) is taken back here.       */
+/* ---------------------------------------------------------------------------------- */
+[data-baseweb="tab-panel"]:has(.st-key-uv_window) [data-testid="stElementContainer"]:has(.uv-sp),
+[data-baseweb="tab-panel"]:has(.st-key-uv_window) [data-testid="stElementContainer"]:has(.uv-sp)
+  + [data-testid="stElementContainer"] { margin-top: 0; }
+/* Streamlit pulls a markdown block up by a line under its last paragraph; these blocks
+   end on a div, so the pull let the rankings run under the hero. */
+[data-testid="stMarkdownContainer"]:has(> .uv) { margin-bottom: 0; }
+/* The hero's frame is an inline element: as a block it loses the descender gap under it. */
+.st-key-uv_board iframe { display: block; }
+
+/* ---------------------------------------------------------------------------------- */
+/* Control row: the window, a one-line lead, the close and the notes                  */
 /* ---------------------------------------------------------------------------------- */
 /* The window control's row: the theme clears every segmented control by most of a line
-   above and below, which here would push the lead away from the control that sets it. */
+   above and below, which here would push the rankings away from the control that sets
+   them. */
 .stApp [data-testid="stLayoutWrapper"]:has(.st-key-uv_window) { margin-top: 0;
   margin-bottom: 0; }
 /* With the command centre drawn, the Universe view switch (Overview, Markets, Policy) moves
-   to the right end of the window control's row, so the page opens on one control line as
-   the mockup does. The row keeps an empty last column where it sits. Any other view, and
-   any other company, keeps the switch where it was. */
+   to the right end of the window control's row, so the page opens on one control line.
+   The row keeps an empty last column where it sits. Any other view, and any other
+   company, keeps the switch where it was. */
 [data-baseweb="tab-panel"]:has(.st-key-uv_window) { position: relative; }
 [data-baseweb="tab-panel"]:has(.st-key-uv_window) .st-key-universe_view {
   position: absolute; top: 6px; right: 0; width: auto; z-index: 3; }
+/* Each control is as wide as it needs and the lead takes the rest, so the window's three
+   options never wrap; the last column stands under the view switch, which is drawn over
+   it. The column ratios universe_page.py passes are only the fallback. */
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
+  > [data-testid="stColumn"] { flex: 0 0 auto !important; width: auto !important; }
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
+  > [data-testid="stColumn"]:nth-child(3) { flex: 1 1 0 !important; min-width: 0; }
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
+  > [data-testid="stColumn"]:last-child { flex: 0 0 212px !important; }
 .uv-moves { font-family: var(--font-ui); font-size: 12px; color: var(--muted);
   white-space: nowrap; }
-.uv-status { font-family: var(--font-mono); font-size: 11px; color: var(--muted);
-  text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.uv-status b { color: var(--up); font-weight: 600; }
-.uv-lead { font-family: var(--font-prose); font-weight: 500; font-size: 22px;
-  line-height: 1.25; letter-spacing: -0.008em; color: var(--text); margin: 2px 0 4px;
-  max-width: 62em; }
-.uv-lead b { font-weight: 500; padding: 0 3px;
-  background: color-mix(in oklab, var(--down) 26%, transparent); }
-.uv-lead b.up { background: color-mix(in oklab, var(--up) 22%, transparent); }
-.uv-lead b.even { background: color-mix(in oklab, var(--muted) 22%, transparent); }
-/* A read taken while the API was still valuing the group says so under the lead. */
-.uv-partial { font-size: 12px; line-height: 1.4; color: var(--flag); margin: 0 0 6px; }
+.uv-lead { font-family: var(--font-ui); font-size: 13px; line-height: 20px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-lead b { font-family: var(--font-mono); font-weight: 600; letter-spacing: -0.01em; }
+.uv-lead b.up { color: var(--up); }
+.uv-lead b.down { color: var(--down); }
+.uv-lead .rk { font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  padding: 1px 5px; margin: 0 2px; background: color-mix(in oklab, var(--down) 26%, transparent); }
+.uv-lead .rk.up { background: color-mix(in oklab, var(--up) 22%, transparent); }
+.uv-lead .rk.even { background: color-mix(in oklab, var(--muted) 22%, transparent); }
+.uv-status { display: flex; justify-content: flex-end; align-items: baseline; gap: 10px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+/* The page's notes behind a hover, where the folded byline used to take a line. */
+.uv-nt { position: relative; cursor: help; color: var(--muted);
+  border-bottom: 1px dotted var(--rule-strong); outline: none; }
+.uv-nt:hover, .uv-nt:focus { color: var(--text); }
+.uv-nt-c { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 70;
+  width: 440px; white-space: normal; text-align: left; font-family: var(--font-ui);
+  font-size: 11.5px; line-height: 1.45; color: var(--text); padding: 8px 10px;
+  background: var(--panel); border: 1px solid var(--rule-strong); box-shadow: var(--uv-shadow); }
+.uv-nt:hover .uv-nt-c, .uv-nt:focus .uv-nt-c { display: block; }
+/* A read taken while the API was still valuing the group says so under the control row. */
+.uv-partial { font-size: 12px; line-height: 1.4; color: var(--flag); margin: 0; }
 
 /* ---------------------------------------------------------------------------------- */
-/* The company against the group: eight cells on one hairline, a cohort strip in each */
+/* The company against the group: eight cells on one hairline, three lines each        */
 /* ---------------------------------------------------------------------------------- */
 .uv-sp { display: grid; grid-template-columns: minmax(0, 1.32fr) repeat(7, minmax(0, 1fr));
   border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule); }
-.uv-sp > div { position: relative; padding: 7px 12px 7px; border-left: 1px solid var(--rule);
-  min-width: 0; }
+.uv-sp > div { position: relative; padding: 5px 8px;
+  border-left: 1px solid var(--rule); min-width: 0; }
 .uv-sp > div:first-child { border-left: 0; padding-left: 2px; }
 .uv-sp > div:hover { background: var(--panel); }
-.uv-sp .k { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.uv-sp .v { font-family: var(--font-mono); font-size: 20px; font-weight: 600;
-  letter-spacing: -0.02em; line-height: 1.3; white-space: nowrap; }
-.uv-sp .c0 .v { font-size: 26px; }
+.uv-sp .k { display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
+  font-size: 10px; line-height: 14px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); white-space: nowrap; }
+.uv-sp .k > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* The caret that says the cell opens a ranking of every company on hover. */
+.uv-sp .k .all { flex: 0 0 auto; font-size: 11px; line-height: 14px; letter-spacing: 0;
+  color: var(--muted); cursor: default; }
+.uv-sp > div:hover .k .all { color: var(--up); }
+.uv-sp .vr { display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
+  min-width: 0; }
+.uv-sp .v { font-family: var(--font-mono); font-size: 19px; font-weight: 600;
+  letter-spacing: -0.02em; line-height: 26px; white-space: nowrap; min-width: 0; }
+.uv-sp .c0 .v { font-size: 22px; }
 .uv-sp .v.up { color: var(--up); }
 .uv-sp .v.down { color: var(--down); }
-.uv-sp .v.none { font-size: 13px; font-weight: 500; color: var(--muted); line-height: 2;
-  letter-spacing: 0; }
+.uv-sp .v.none { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
 .uv-sp .v .u { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 4px;
   letter-spacing: 0; }
-.uv-sp svg { display: block; margin: 2px 0 1px; width: 100%; max-width: 190px; height: auto; }
-.uv-sp .p { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.uv-sp .p b { color: var(--text); font-weight: 600; }
+.uv-sp .r { flex: 0 0 auto; font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--muted); white-space: nowrap; }
+.uv-sp .r b { color: var(--text); font-weight: 600; }
+.uv-sp .r.up { color: var(--up); }
+.uv-sp .r.down { color: var(--down); }
 .uv-sp .s { font-size: 10.5px; line-height: 14px; color: var(--muted); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
-.uv-sp .s .down { color: var(--down); font-family: var(--font-mono); }
-.uv-sp .s .up { color: var(--up); font-family: var(--font-mono); }
+.uv-sp .uv-rng { display: block; width: 100%; max-width: 196px; height: 13px; margin-top: 1px; }
 
 /* A cell's hover card: the whole cohort, ranked, the median where it falls. */
 .uv-hc { display: none; position: absolute; left: 0; top: calc(100% + 2px); z-index: 60;
@@ -120,8 +169,10 @@
 .uv-board g.row { cursor: pointer; }
 .uv-board g.row:not(.me):hover rect.bg { fill: var(--panel); fill-opacity: 1; }
 .uv-board g.me text.halo { stroke: var(--active-wash); }
-.uv-leg { display: flex; align-items: center; gap: 4px 14px; flex-wrap: wrap;
-  font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+/* A legend is one line under its chart; what does not fit is clipped, never wrapped
+   onto a second line the screen cannot spare. */
+.uv-leg { display: flex; align-items: center; gap: 4px 14px; flex-wrap: nowrap;
+  overflow: hidden; font-size: 10.5px; line-height: 16px; color: var(--muted); margin-top: 2px; }
 .uv-leg span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .uv-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
 .uv-leg i.sq { border-radius: 1px; width: 8px; height: 8px; }
@@ -139,22 +190,32 @@
 .uv-fallback { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
 /* ---------------------------------------------------------------------------------- */
-/* Bands: three columns, then the lanes, then two columns                              */
+/* The tabbed panel: one fixed height, whatever the tab. A tab taller or wider than it */
+/* scrolls inside the panel, never the page.                                          */
 /* ---------------------------------------------------------------------------------- */
-.uv-band { display: grid; column-gap: 32px; align-items: start; margin-top: 0.3rem; }
-.uv-band.c3 { grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr) minmax(0, 1fr); }
-.uv-band.c75 { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
-.uv-band.c1 { grid-template-columns: minmax(0, 1fr); }
-.uv-band .chart-mount { margin: 4px 0 0; }
-.uv-band .chart-mount svg { display: block; max-width: 100%; height: auto; }
-.uv-band .chart-mount.stretch svg { width: 100%; }
-.uv-band .sec { margin-bottom: 4px; }
+.st-key-uv_panel { margin-top: 0; }
+.st-key-uv_panel .stTabs [data-baseweb="tab-list"] { gap: 1.6rem; }
+.st-key-uv_panel .stTabs [data-baseweb="tab-panel"] { height: var(--uv-panel-h);
+  box-sizing: border-box; padding-top: 6px; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin; }
+.uv-th { display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+  font-size: 11px; line-height: 16px; color: var(--muted); margin: 0 0 3px;
+  white-space: nowrap; }
+.uv-th .b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.uv-th .c { flex: 0 0 auto; font-family: var(--font-mono); }
+.uv-th .uv-leg { margin: 0; }
+.uv-tab .chart-mount { margin: 0; }
+.uv-tab .chart-mount svg { display: block; max-width: 100%; height: auto; }
+.uv-tab .chart-mount.wide svg { width: 100%; }
 
-/* This week, ranked: a <details> per row, the summary one grid. */
+/* This week, ranked: two columns of <details>, the summary one grid. */
+.uv-wk2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 32px; align-items: start; }
+.uv-wk2 > div { border-top: 1px solid var(--rule-strong); }
 .uv-wm { border-bottom: 1px solid var(--rule); --accent: var(--rule-strong); }
 .uv-wm > summary { display: grid;
   grid-template-columns: 12px 54px minmax(0, 1fr) 100px 54px; gap: 0 8px;
-  align-items: center; padding: 6px 4px 6px 6px; min-height: 46px; cursor: pointer;
+  align-items: center; padding: 4px 4px 4px 6px; min-height: 44px; cursor: pointer;
   list-style: none; transition: background-color 120ms linear; }
 .uv-wm > summary::-webkit-details-marker { display: none; }
 .uv-wm > summary:hover { background: var(--panel); }
@@ -163,7 +224,7 @@
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--text);
   border-left: 3px solid var(--accent); padding: 1px 0 1px 6px; white-space: nowrap; }
 .uv-wm .h { font-size: 12.5px; line-height: 1.32; color: var(--text); min-width: 0;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .uv-wm .h .tk { font-family: var(--font-mono); font-weight: 600; font-size: 11.5px;
   margin-right: 2px; }
 /* The column is the mini chart's own width (IW in universe_cc.py): drawn 1:1. */
@@ -181,7 +242,6 @@
 .uv-wm-src { font-family: var(--font-mono); font-size: 9.5px; color: var(--muted);
   margin-top: 6px; display: flex; gap: 12px; }
 .uv-wm-src a { color: var(--up); }
-.uv-wm-foot { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
 
 /* Key and value rows: an opened item, the dialog's exposure rows. */
 .uv-kv { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 0.6rem;
@@ -190,7 +250,12 @@
   text-transform: uppercase; }
 .uv-kv > :last-child { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.45; }
 
-/* Rates and the company's value. */
+/* Rates and the company's value: rates, currencies and the value, three columns. */
+.uv-rates { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 1.25fr);
+  column-gap: 32px; align-items: start; }
+.uv-rates .uv-sub { margin-top: 0; }
+.uv-rates .uv-fxg { grid-template-columns: minmax(0, 1fr); }
+.uv-rates .uv-azn { margin-top: 0; }
 .uv-rt { display: grid; grid-template-columns: 104px minmax(0, 1fr) 54px 46px 40px;
   column-gap: 8px; align-items: center; height: 30px; border-bottom: 1px solid var(--rule); }
 .uv-rt .n { font-size: 12px; white-space: nowrap; }
@@ -229,18 +294,18 @@
 .uv-azn svg { display: block; margin: 4px 0 2px; max-width: 100%; height: auto; }
 .uv-azn .nt { font-size: 11px; line-height: 1.45; color: var(--muted); }
 
-/* Medicare and exclusivity. */
-.uv-led { display: block; max-width: 100%; height: auto; }
-.uv-cap { font-size: 11.5px; line-height: 1.45; color: var(--muted); margin-top: 6px; }
+/* Medicare and exclusivity: two column charts, each ranked on its own measure. */
+.uv-exp { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 32px; }
+.uv-cap { font-size: 11.5px; line-height: 1.45; color: var(--muted); margin-top: 4px; }
 .uv-cap b { color: var(--up); font-family: var(--font-mono); }
 
-/* Approvals and readouts. */
+/* Approvals and readouts: the legend is the tab's first line. */
 .uv-lanes { display: block; }
-.uv-leg-lanes { margin: 0 0 4px; }
+.uv-leg-lanes { margin: 0; }
 
 /* Prices, 12 months: small multiples. */
-.uv-sms { display: grid; grid-template-columns: repeat(var(--sm-cols, 6), minmax(0, 1fr));
-  gap: 10px 12px; margin-top: 6px; }
+.uv-sms { display: grid; grid-template-columns: repeat(var(--sm-cols, 9), minmax(0, 1fr));
+  gap: 8px 12px; margin-top: 4px; }
 .uv-sm { display: block; color: var(--text); border-top: 1px solid var(--rule-strong);
   padding-top: 4px; transition: transform 120ms ease-out; min-width: 0; }
 .uv-sm:hover { transform: translateY(-1px); border-top-color: var(--muted); }
@@ -256,7 +321,10 @@
   padding: 3px 4px 2px; margin: -3px -4px 0; }
 .uv-sm.me .tk { color: var(--up); }
 
-/* Policy calendar. */
+/* Policy calendar: the two lanes, and the company events and open dockets beside them. */
+.uv-polg { display: grid; grid-template-columns: minmax(0, 840px) minmax(0, 1fr);
+  column-gap: 32px; align-items: start; }
+.uv-polg .uv-sub { margin-top: 0; }
 .uv-pol { display: block; max-width: 100%; height: auto; }
 .uv-am { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; font-size: 12px;
   line-height: 21px; border-left: 2px solid var(--accent, var(--rule-strong)); padding-left: 8px;
@@ -266,10 +334,6 @@
 .uv-am .tk { font-family: var(--font-mono); font-weight: 600; margin-right: 4px; }
 .uv-pol-foot { font-size: 11.5px; line-height: 1.45; color: var(--muted); margin-top: 8px; }
 .uv-pol-foot b { color: var(--flag); font-weight: 600; }
-
-/* The notes fold at the foot. */
-.uv-notes { font-size: 11px; line-height: 1.5; color: var(--muted); margin-top: 18px;
-  max-width: 120ch; }
 
 /* ---------------------------------------------------------------------------------- */
 /* The company dialog (st.dialog, width large), squared                                */
@@ -347,22 +411,36 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 /* ---------------------------------------------------------------------------------- */
 /* Narrower than the 1440 design. A section's count keeps one line and drops below its */
 /* label when the row is full, rather than shrinking to a letter a line. The bands      */
-/* stack as the page narrows, and the full-width lanes scroll sideways rather than      */
-/* scaling their 9px labels below legibility.                                           */
+/* stack as the page narrows and the page scrolls; the panel grows to its content, and  */
+/* the full-width lanes scroll sideways rather than scaling their 9px labels below      */
+/* legibility.                                                                          */
 /* ---------------------------------------------------------------------------------- */
 .uv .sec, .uv-frame .sec { flex-wrap: wrap; row-gap: 2px; }
 .uv .sec-count { white-space: nowrap; flex: 0 0 auto; padding-left: 8px; }
 @media (max-width: 1179.98px) {
+  /* The lead drops to its own line under the controls. */
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window) {
+    flex-wrap: wrap; row-gap: 2px; }
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
+    > [data-testid="stColumn"]:nth-child(3) { order: 9; flex: 1 1 100% !important; }
+  .uv-lead { white-space: normal; }
   .uv-sp { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 12px; }
-  .uv-hero, .uv-band.c75 { grid-template-columns: minmax(0, 1fr); row-gap: 20px; }
-  .uv-band.c3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 20px; }
-  .uv-band.c3 > :last-child { grid-column: 1 / -1; }
-  .uv-band.c1 .chart-mount { overflow-x: auto; }
-  .uv-band.c1 .chart-mount.stretch svg { width: 1100px; max-width: none; }
+  .uv-hero { grid-template-columns: minmax(0, 1fr); row-gap: 20px; }
+  .uv-leg { flex-wrap: wrap; overflow: visible; }
+  .st-key-uv_panel .stTabs [data-baseweb="tab-list"] { overflow-x: auto; }
+  .st-key-uv_panel .stTabs [data-baseweb="tab-panel"] { height: auto; overflow: visible; }
+  .uv-th { flex-wrap: wrap; white-space: normal; }
+  .uv-tab .chart-mount.wide { overflow-x: auto; }
+  .uv-tab .chart-mount.wide svg { width: 1408px; max-width: none; }
+  .uv-rates { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 16px; }
+  .uv-rates > :last-child { grid-column: 1 / -1; }
+  .uv-exp, .uv-polg { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
+  .uv-sms { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 @media (max-width: 899.98px) {
   .uv-sp { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .uv-band.c3 { grid-template-columns: minmax(0, 1fr); }
+  .uv-wk2, .uv-rates { grid-template-columns: minmax(0, 1fr); }
+  .uv-wk2 > div + div { border-top: 0; }
   .uv-sms { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .uv-dg-figs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .uv-dg-grid { grid-template-columns: minmax(0, 1fr); }

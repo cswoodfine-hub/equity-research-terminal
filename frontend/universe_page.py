@@ -2,18 +2,21 @@
 
 ``universe_cc`` builds every block as a string from the payload of ``GET /universe/command``;
 this module is the Streamlit glue around it, kept out of streamlit_app.py so the change
-there stays the switch and the calls. The window control and the two bands it moves (the
-rankings and the hero band) sit in one ``@st.fragment``, so a switch reruns only them. A
-click on a bubble or a board row comes back through the ``uvboard`` component and opens the
-company dialog inside the same fragment. The bands below do not depend on the window and
-are drawn once.
+there stays the switch and the calls.
+
+The tab fits one 1440 by 900 screen: a control row (the window, a one-line lead, the close
+and the view switch), the company against the group, the hero band (the map and the
+board) and one tabbed panel holding everything else. The control row and the two bands
+the window moves sit in one ``@st.fragment``, so a switch reruns only them. A click on a
+bubble or a board row comes back through the ``uvboard`` component and opens the company
+dialog inside the same fragment. The panel does not depend on the window; it is drawn
+once, and its tabs switch in the browser without a rerun.
 
 Every figure on the page comes from the payload; nothing here computes one.
 """
 
 from __future__ import annotations
 
-import html
 import json
 import urllib.error
 import urllib.parse
@@ -155,18 +158,24 @@ def _window_label() -> str:
 
 @st.fragment
 def _command(api_base: str, p: dict) -> None:
-    # The last column is left empty: the view switch is drawn over it (universe.css).
-    left, mid, right, _switch = st.columns([0.075, 0.26, 0.5, 0.165],
-                                           vertical_alignment="center")
+    # One control line. The last column is left empty: the view switch is drawn over it
+    # (universe.css).
+    left, mid, lead, right, _switch = st.columns([0.054, 0.174, 0.52, 0.09, 0.162],
+                                                 vertical_alignment="center",
+                                                 gap="small")
     with left:
-        st.markdown('<div class="uv-moves">Moves over</div>', unsafe_allow_html=True)
+        _show('<div class="uv"><div class="uv-moves">Moves over</div></div>')
     with mid:
         st.segmented_control("Moves over", list(WINDOW_KEYS), default=DEFAULT_WINDOW_LABEL,
                              key="uv_window", label_visibility="collapsed")
     w = WINDOW_KEYS[_window_label()]
+    with lead:
+        _show(f'<div class="uv">{UC.lead_line(p, w)}</div>')
     with right:
-        _show(UC.status_line(p))
-    _show(f'<div class="uv">{UC.lead_line(p, w)}{UC.incomplete_note(p)}</div>')
+        _show(f'<div class="uv">{UC.status_line(p)}</div>')
+    note = UC.incomplete_note(p)
+    if note:
+        _show(f'<div class="uv">{note}</div>')
     _show(f'<div class="uv">{UC.spotlight_section(p, w)}{UC.spotlight_html(p, w)}</div>')
 
     band = UC.hero_html(p, w)
@@ -195,13 +204,16 @@ def _pill_picked() -> None:
                                               "nonce": f"pill-{n}"}
 
 
-# ------------------------------------------------------------------- bands 5 to 7
-def _bands(p: dict) -> None:
-    _show(UC.band_week_rates_exposure(p))
-    _show(UC.band_lanes(p))
-    _show(UC.band_prices_policy(p))
-    _show(f'<div class="uv"><details class="note-d"><summary>notes</summary>'
-          f'<div class="byline">{html.escape(UC.notes_text(p))}</div></details></div>')
+# ------------------------------------------------------------------ the tabbed panel
+def _panel(p: dict) -> None:
+    """Everything below the hero, one tab at a time. st.tabs switches in the browser, so
+    a tab click reruns nothing; each tab's body is one markdown block drawn to the
+    panel's fixed height, and anything taller or wider scrolls inside the panel."""
+    tabs = UC.panel_tabs(p)
+    with st.container(key="uv_panel"):
+        for tab, (_label, body) in zip(st.tabs([label for label, _b in tabs]), tabs):
+            with tab:
+                _show(body)
 
 
 def render(api_base: str, ticker: str) -> bool:
@@ -214,5 +226,5 @@ def render(api_base: str, ticker: str) -> bool:
     if not p or not p.get("companies"):
         return False
     _command(api_base, p)
-    _bands(p)
+    _panel(p)
     return True
