@@ -539,6 +539,26 @@ def decaying_pv(first: float, rate: float, decay_pct, late_decay_pct,
     return total + level * disc * (1.0 + rate) / (rate + late)
 
 
+def erosion_factor(since: int, year1_pct, decay_pct, late_decay_pct=None,
+                   late_from_year=None) -> float:
+    """The share of revenue left ``since`` years after the LOE year: nothing lost at or
+    before it, the year-one drop in the year after, then each later year's decay, on the
+    early rate until ``late_from_year`` years past the cliff and the late rate from there.
+
+    Counted from the cliff, not from wherever a forecast window happens to open, so a
+    cliff three years before the window is three years down its curve in the first year.
+    """
+    if year1_pct is None or since < 1:
+        return 1.0
+    switch = int(late_from_year) if late_from_year else None
+    early = decay_pct or 0.0
+    late = late_rate(decay_pct, late_decay_pct)
+    factor = 1.0 - year1_pct
+    for k in range(2, int(since) + 1):
+        factor *= 1.0 - (late if switch is not None and k >= switch else early)
+    return factor
+
+
 def erode(revenue: list[float], years: list[int], loe_year,
           year1_pct, decay_pct, late_decay_pct=None, late_from_year=None) -> list[float]:
     """Revenue after loss of exclusivity: a year-one drop, then decay of the remainder.
@@ -551,22 +571,17 @@ def erode(revenue: list[float], years: list[int], loe_year,
     eight years past their US loss of exclusivity falls about a tenth a year, against the
     third the first years take. Without a late rate the second stage never starts and the
     single rate runs on, which is what every seeded shape still does.
+
+    Each year takes the curve's own value for how far past the cliff it is
+    (``erosion_factor``). Stepping from the first year in the window instead gave a cliff
+    two or more years before the window no year-one drop at all, so an earlier date was
+    worth more than a later one.
     """
     if loe_year is None or year1_pct is None:
         return list(revenue)
-    switch = int(late_from_year) if late_from_year else None
-    out = []
-    factor = 1.0
-    for year, value in zip(years, revenue):
-        since = year - loe_year
-        if since == 1:
-            factor = 1.0 - year1_pct
-        elif since > 1:
-            slowed = switch is not None and since >= switch
-            factor *= (1.0 - (late_rate(decay_pct, late_decay_pct) if slowed
-                              else (decay_pct or 0.0)))
-        out.append(value * factor if year > loe_year else value)
-    return out
+    return [value * erosion_factor(year - int(loe_year), year1_pct, decay_pct,
+                                   late_decay_pct, late_from_year)
+            for year, value in zip(years, revenue)]
 
 
 def regional_split(regions) -> tuple[list[dict], float]:
