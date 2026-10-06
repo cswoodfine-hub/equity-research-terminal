@@ -20,7 +20,6 @@ import db
 import epidemiology
 import evidence
 import forecast
-import product_profile
 import pool_crowding
 import pos_granular
 import product_areas

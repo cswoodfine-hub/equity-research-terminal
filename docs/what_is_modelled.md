@@ -28,6 +28,19 @@ The weakness is not depth, it is that the four assumptions setting the revenue c
 analogue or convention rather than measured, and that 65% of pipeline value still rests
 on one shared obesity anchor.
 
+## What is shown and not modelled: payer access
+
+Medicare Part D prescribing, Part D plan coverage and Medicaid prescriptions sit in the
+product fact profile (`backend/payer_access.py`, build 5 of the commercial-analytics
+round). They are display only. No forecast, rNPV, fair value, probability of success or
+rating reads them, and `tests/test_payer_access.py` fails if any of those modules reaches
+the payer modules or tables, by name or through an import. The reasons are in the data:
+Part D cost and Medicaid reimbursement are gross of rebates, formulary coverage counts
+plans rather than people, and the prescriber file leaves out anyone under 11 claims.
+Two uses would need a decision first: formulary restrictions as evidence for the
+payer-approved share of a launch funnel, and Part D 30-day fills per beneficiary as the
+refills-per-patient term of the Medicare growth split.
+
 ## What is not modelled
 
 Start from 1,392 unmarketed assets. Most of that number is noise: 420 big pharma rows

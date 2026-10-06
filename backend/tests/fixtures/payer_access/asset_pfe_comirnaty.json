@@ -1,0 +1,26 @@
+{
+ "asset_id": 822,
+ "ticker": "PFE",
+ "brand": "Comirnaty",
+ "generic": "COVID-19 Vaccine, mRNA",
+ "prescribing": null,
+ "formulary": null,
+ "medicaid": null,
+ "codes": {
+  "source": "RxNav, U.S. National Library of Medicine",
+  "brand_rxcuis": 0,
+  "brand_ndc9s": 0,
+  "unbranded_ndc9s": 0,
+  "basis": null,
+  "rxnorm_version": "05-Oct-2026",
+  "looked_up_at": "2026-10-05 15:28:41",
+  "attribution": "This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product."
+ },
+ "why_empty": {
+  "prescribing": "Given in the clinic under Part B, so the Part D files do not carry it",
+  "formulary": "Given in the clinic under Part B, so the Part D files do not carry it",
+  "medicaid": "No product codes yet, so Medicaid claims cannot be matched"
+ },
+ "co_marketed": null,
+ "attribution": "This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product."
+}

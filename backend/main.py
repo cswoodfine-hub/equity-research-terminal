@@ -62,6 +62,7 @@ import fx as fx_module
 import loe as loe_module
 import product_areas
 import therapeutic_areas
+import payer_access as payer_access_module
 import pipeline as pipeline_module
 import product_profile as product_profile_module
 import refresh as refresh_module
@@ -472,6 +473,18 @@ def company_demand_split(ticker: str) -> dict:
     rate and the tracked-brand median. A read-only lens: Medicare only, Part D gross of
     rebates (docs/design/medicare-demand-split.md)."""
     out = demand_split_module.company_split(None, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return out
+
+
+@app.get("/companies/{ticker}/payer-access")
+def company_payer_access(ticker: str) -> dict:
+    """Each marketed brand's Medicare Part D prescribing, Part D plan coverage and
+    Medicaid prescriptions, one row per brand and never totalled: a co-marketed brand
+    shows whole on both owners' pages. Display only; nothing valued reads it
+    (backend/payer_access.py)."""
+    out = payer_access_module.company_view(None, ticker)
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     return out

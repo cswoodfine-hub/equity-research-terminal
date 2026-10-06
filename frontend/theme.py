@@ -859,6 +859,15 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .mc-dis {{ font-size: 9.5px; color: var(--flag); margin-left: 4px; }}
 .mc-notes {{ font-size: 11px; color: var(--muted); padding-left: 1.2rem; margin: 0.3rem 0; }}
 .mc-more summary {{ cursor: pointer; font-size: 11px; color: var(--muted); }}
+/* The fact profile's payer row: one figure, one small picture, the rest folded. */
+.pa-scope {{ margin: -0.1rem 0 0.25rem; }}
+.pa-lead {{ font-size: 13px; color: var(--text); margin: 0.2rem 0 0.1rem; }}
+.pa-lead b {{ font-family: var(--font-mono); font-weight: 600; }}
+.pa-sub {{ font-size: 11px; color: var(--muted); margin-bottom: 0.3rem; }}
+.pa-text {{ font-size: 11.5px; color: var(--text); margin-top: 0.3rem; max-width: 60ch; }}
+.pa-co {{ color: var(--flag); }}
+.pa-more {{ margin: 0.3rem 0 0.4rem; max-width: 96ch; }}
+.pa-more > summary {{ cursor: pointer; font-size: 11px; color: var(--muted); }}
 /* The clinical scorecard: a score out of 100 as its figure and a bar, the open company's
    rows marked. */
 .land.sc-table {{ min-width: 0; }}

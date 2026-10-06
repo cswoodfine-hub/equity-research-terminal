@@ -14,7 +14,6 @@ few thousand rows.
 from __future__ import annotations
 
 import json
-import re
 import urllib.parse
 import urllib.request
 
@@ -30,70 +29,14 @@ _TIMEOUT_S = 90
 _PAGE = 5000
 
 
-# CMS decorates a brand with a footnote marker, and sometimes with the billing code it
-# reports the line under. Neither is part of the name, and an exact match against the
-# decorated string silently dropped 110 of the 799 Part B lines, $6,890mm of 2024
-# spending, including Prolia, Orencia, Comirnaty, Botox and the whole infliximab series.
-_CODE_SUFFIX = re.compile(r"\s*\((?:[A-Z]?\d{4,5})\)\s*$")
-
-
-def _norm(name: str) -> str:
-    """A CMS drug name reduced to the name itself: footnote marker and trailing billing
-    code removed, whitespace collapsed, lowercased."""
-    # The marker can sit either side of the code ("Afluria Trivalent (90657)*"), so both
-    # are stripped until neither is left.
-    text = (name or "").strip()
-    for _ in range(3):
-        stripped = _CODE_SUFFIX.sub("", text.rstrip("*").strip()).strip()
-        if stripped == text:
-            break
-        text = stripped
-    return re.sub(r"\s+", " ", text).lower()
-
-
-# CMS names a Part D brand by the container it ships in, and often by nothing else. There
-# is no "Repatha" row: there is Repatha Sureclick, Repatha Syringe and Repatha Pushtronex.
-# An exact match therefore lost the whole molecule for Repatha, Dupixent and Praluent, and
-# half of it for Fasenra and Adbry, which is how a drug with 382,461 Medicare
-# beneficiaries came to have no demand series at all.
-#
-# These words name a container a patient could have had instead of another one, so the
-# counts are alternatives and add up. Three kinds of name are left unmatched on purpose.
-# A different product: a route ("IV", "Intrathecal"), a salt ("Sodium", "Decanoate"), a
-# release profile ("ER", "XL"), a strength ("Arthrotec 50"), a separate long-acting depot
-# ("Invega Trinza"). A different ingredient under the same brand, which CMS keys
-# separately and which is handled below rather than here. And a phase of one course
-# rather than an alternative to it: a starter pack, a titration kit or a refill is what
-# the same patient takes before or after the maintenance pack, so adding its beneficiary
-# count to the maintenance count counts nearly every patient twice and makes the drug look
-# cheaper per patient than it is. Venclexta reads $43,064 a beneficiary on its own row and
-# $36,408 with its starting pack added, and the second number is an artefact. The list
-# grows by evidence, one CMS name at a time.
-_PRESENTATION_WORDS = (
-    r"pens?|syringes?|auto-?injector|sureclick|pushtronex|flexpen|flextouch|kwikpen|"
-    r"solostar|sensoready|unoready|actpen|clickject|onpro|on-body|mini|pumpcart|tempo|"
-    r"nuspin|system|packs?|pak|u-\d{2,3}|\d+-pak")
-_PRESENTATION_TAIL = re.compile(
-    r"(?:\s*\(?\s*(?:\d+\s+)?(?:" + _PRESENTATION_WORDS + r")\s*\)?)+$")
-_HAS_LETTER = re.compile(r"[a-z]")
-
-
-def base_brand(name: str) -> str | None:
-    """The brand a CMS presentation row belongs to, or None if the name is not one.
-
-    "repatha sureclick" is Repatha in a different autoinjector; "lyrica cr" is not Lyrica
-    in a different box. Only a trailing run of container words is removed, the run has to
-    carry at least one word rather than only digits, and what is left has to still look
-    like a name.
-    """
-    match = _PRESENTATION_TAIL.search(name or "")
-    if not match or match.start() == 0:
-        return None
-    if not _HAS_LETTER.search(match.group(0)):
-        return None                        # "arthrotec 50" is a strength, not a pack
-    head = name[:match.start()].strip()
-    # "kisqali femara co-pack" strips to "kisqali femara co-", which is not a name.
-    return head if head and not head.endswith("-") else None
+# The name rules (footnote markers, billing codes, containers) and the brand map are
+# shared with the Part D Prescribers reader, so they live in cms.py. These names stay so
+# that nothing reading them from here has to change.
+_CODE_SUFFIX = cms.CODE_SUFFIX
+_norm = cms.norm
+_PRESENTATION_WORDS = cms.PRESENTATION_WORDS
+_PRESENTATION_TAIL = cms.PRESENTATION_TAIL
+base_brand = cms.base_brand
 
 
 def _combine_presentations(rows: list[dict], own_name: dict) -> list[dict]:
@@ -233,48 +176,20 @@ class DemandCmsFetcher(BaseFetcher):
                 + [{**r, "_part": "B"} for r in part_b])
 
     def _brand_map(self, conn) -> dict:
-        """{normalised name: asset_id}, by brand and then by generic name.
-
-        CMS names a clinician-administered line by its ingredient where the code covers
-        several brands: J1745 is "Infliximab*", not Remicade. A generic is only used
-        where exactly one asset carries it, so an ingredient two companies both sell
-        (Dupixent under Regeneron and Sanofi) resolves to neither rather than the wrong
-        one. Brands always win over generics.
-        """
-        brands, generics, seen = {}, {}, {}
-        for row in conn.execute(
-            "SELECT id AS asset_id, brand_name, generic_name FROM assets"):
-            if row["brand_name"]:
-                brands.setdefault(_norm(row["brand_name"]), row["asset_id"])
-            if row["generic_name"]:
-                key = _norm(row["generic_name"])
-                seen[key] = seen.get(key, 0) + 1
-                generics.setdefault(key, row["asset_id"])
-        for key, count in seen.items():
-            if count == 1 and key not in brands:
-                brands[key] = generics[key]
-        return brands
+        """{normalised name: asset_id}, by brand and then by generic name
+        (``cms.brand_map``)."""
+        return cms.brand_map(conn)
 
     def normalise(self, raw) -> list[dict]:
         conn = db.get_connection(self.db_path)
         try:
             brand_map = self._brand_map(conn)
-            own_name = {
-                row["id"]: (_norm(row["brand_name"] or row["generic_name"] or ""),
-                            _norm(row["generic_name"] or ""))
-                for row in conn.execute(
-                    "SELECT id, brand_name, generic_name FROM assets")}
+            own_name = cms.own_names(conn)
         finally:
             conn.close()
         rows = []
         for item in raw:
-            name = _norm(item.get("Brnd_Name"))
-            base = name
-            asset_id = brand_map.get(name)
-            if asset_id is None:
-                head = base_brand(name)
-                if head:
-                    asset_id, base = brand_map.get(head), head
+            asset_id, base = cms.match_brand(item.get("Brnd_Name"), brand_map)
             if asset_id is None:
                 continue                       # a drug outside the universe
             generic = _norm(item.get("Gnrc_Name"))

@@ -2235,3 +2235,34 @@ def growth_split(steps: Sequence[dict], width: int = 760, height: int = 240,
         out.append(_text(lx + 16, 14, "tracked median", 9.5, TK.MUTED, "start", UI))
     out.append("</svg>")
     return "".join(out)
+
+
+# --- share strip ----------------------------------------------------------------------
+def share_strip(segments: Sequence[dict], width: int = 300, height: int = 26,
+                label: str = "share strip") -> str:
+    """One bar the full width, split in proportion to each segment's count.
+
+    Each segment is {label, value, colour}. Built for a mix that has an order and a
+    whole, such as the tiers a brand sits on across a release's formularies, where a
+    label column would take a third of a narrow panel. A segment's label is printed in
+    it where it fits and always in its tooltip. A segment with no value is left out, not
+    drawn as a sliver, and nothing to draw returns an empty string.
+    """
+    shown = [s for s in segments or [] if s.get("value")]
+    total = sum(s["value"] for s in shown)
+    if not total:
+        return ""
+    out = [_svg_open(width, height, label)]
+    x = 0.0
+    for s in shown:
+        w = width * s["value"] / total
+        out.append(f'<rect x="{x:.1f}" y="0" width="{max(w, 0.8):.1f}" height="{height}"'
+                   f' fill="{s["colour"]}" class="seg"><title>{_esc(s["label"])}: '
+                   f'{_esc(_fmt(s["value"], 0))}</title></rect>')
+        text = str(s["label"])
+        if w >= 9 + 6 * len(text):
+            out.append(_text(x + w / 2, height / 2 + 3.5, text, 9.5, TK.GROUND, "middle",
+                             MONO, extra=' class="seg-label"'))
+        x += w
+    out.append("</svg>")
+    return "".join(out)

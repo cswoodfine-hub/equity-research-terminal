@@ -122,6 +122,9 @@ def test_refresh_all_runs_companies_in_parallel_without_losing_results(tmp_path,
     monkeypatch.setattr(OrangeBookFetcher, "fetch",
                         lambda self: {"products": "", "patents": "", "exclusivity": ""})
     monkeypatch.setattr(PurpleBookFetcher, "fetch", lambda self: {"csvs": []})
+    # The payer stage reads CMS and Medicaid at volume; tests/test_refresh_payer.py
+    # covers its wiring without the network.
+    monkeypatch.setattr(refresh, "_payer_fetchers", lambda db_path: [])
 
     db_file = tmp_path / "test.db"
     db.init(db_file)

@@ -127,7 +127,9 @@ def test_baseline_then_detect_then_idempotent(tmp_path):
                                             # The IRA lane baselines on the first pass
                                             # too: a fresh install must not announce
                                             # three years of past selections as news.
-                                            "ira_moves": 0}
+                                            "ira_moves": 0,
+                                            # Part D coverage anchors on first sight.
+                                            "payer_access_moves": 0}
     assert _changes(db_file) == []
 
     # Change the trial and add a new filing.

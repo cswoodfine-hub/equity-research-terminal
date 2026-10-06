@@ -12,6 +12,8 @@ The rules, as one list:
 - exclusivity expiring inside ``LOE_WINDOW_MONTHS`` months is material
 - an approval is always material
 - a product revenue restatement over ``REVENUE_RESTATEMENT_PCT`` is material
+- a Part D formulary share (listed, prior authorisation, step therapy) that moves
+  ``PAYER_ACCESS_POINTS`` points from where it was last flagged is medium
 """
 
 from __future__ import annotations
@@ -23,6 +25,8 @@ P3_SLIP_DAYS = 30                 # Phase 3 completion slip beyond this is high
 CATALYST_SOON_DAYS = 14           # a catalyst inside this window ranks high
 LOE_WINDOW_MONTHS = 24            # exclusivity expiring inside this is in the feed
 REVENUE_RESTATEMENT_PCT = 0.05    # a restated product figure beyond this is high
+PAYER_ACCESS_POINTS = 10.0        # a formulary share moving this far is medium
+PAYER_ACCESS_SIGNIFICANCE = "medium"
 
 
 def _days_between(old_date: Optional[str], new_date: Optional[str]) -> Optional[int]:
@@ -95,6 +99,8 @@ def change_reason(change_type: str, old_value=None, new_value=None) -> Optional[
         return "CMS price negotiation"
     if change_type == "ira_deselected":
         return "CMS deselection, for review"
+    if change_type == "payer_access":
+        return f"Part D coverage moved {PAYER_ACCESS_POINTS:.0f} points or more"
     # A press release carries its kind in its type, e.g. press_data_readout. The rule
     # that flagged it is the company saying so, and the kind is what it said.
     if change_type.startswith("press_"):
