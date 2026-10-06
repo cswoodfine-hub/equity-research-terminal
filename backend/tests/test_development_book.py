@@ -17,9 +17,12 @@ BANNED = ("additionally", "highlight", "underscore", "pivotal", "showcase", "tes
 def views(request):
     book = request.getfixturevalue("book")
     tickers = [r[0] for r in book.execute("SELECT ticker FROM companies ORDER BY ticker")]
-    before = book.total_changes
+    # Every read opens its own connection, so this connection's total_changes would never
+    # see a write; data_version moves whenever any other connection commits to the file.
+    version = book.execute("PRAGMA data_version").fetchone()[0]
     out = {t: D.for_company(None, t, dt.date.today()) for t in tickers}
-    assert book.total_changes == before
+    assert book.execute("PRAGMA data_version").fetchone()[0] == version, \
+        "reading the cost view wrote to the book"
     return out
 
 
