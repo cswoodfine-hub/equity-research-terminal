@@ -65,7 +65,19 @@ _PHASE_RE = re.compile(r"\bphase\s*(2\s*/\s*3|II\s*/\s*III|1\s*/\s*2|I\s*/\s*II|
 _DATA_PHASE_RE = re.compile(r"\bphase\s*(3|III|2|II)\s+(?:data|results?)\b", re.I)
 _PRESENTS_RE = re.compile(r"\b(?:to|will)\s+(?:present|showcase|highlight|share|unveil)\b",
                           re.I)
-_CODE_RE = re.compile(r"\b[A-Z]{2,5}-?\d{3,7}[A-Z]?\b")
+# A compound code: AZD0901, BMS-986278, and the eight-digit Pfizer and J&J codes
+# (PF-07275315, JNJ-95597528) the seven-digit limit used to miss. A three-digit code may
+# take a space ("ABP 234", Amgen's biosimilar); a year after an acronym ("ESMO 2026") has
+# four digits and does not.
+_CODE_RE = re.compile(r"\b[A-Z]{2,5}(?:-?\d{3,8}| \d{3})[A-Z]?\b")
+# A nonproprietary drug name, by the WHO stem it ends in (-mab, -tinib, -glutide, -siran,
+# -vec ...): "A Study of Milvexian..." names no stem, but "Study of Ianalumab Versus
+# Placebo" does. Four letters at least before the stem, so "beta" or "cel" alone never
+# match. Measured on every catalyst title in the book: each word it took is a drug.
+_INN_RE = re.compile(
+    r"\b[A-Za-z][a-z]{3,}(?:mab|nib|ciclib|parib|lisib|degib|zomib|tide|stat|vir|gene|"
+    r"vec|cel|dotin|tecan|xaban|gatran|gliflozin|gliptin|sartan|platin|taxel|rubicin|"
+    r"rsen|siran|cept|kinra|tug|lutamide|rexant|bart)\b")
 _MONEY_RE = re.compile(r"\$\s*([\d.,]+)\s*(bn|billion|m|million)\b", re.I)
 _NAME_TAIL = re.compile(
     r"(?:,?\s+(?:PLC|plc|Inc\.?|Incorporated|AG|A/S|S\.A\.|SA|N\.V\.|NV|Ltd\.?|Limited|"
@@ -134,14 +146,15 @@ def data_phase(text: str | None) -> str | None:
     return "3" if p in ("3", "III", "2/3", "II/III") else "2"
 
 
-def short_event(title: str | None, conditions=None) -> str:
-    """A short name for a dated event, read off its registry title.
+def short_event_basis(title: str | None, conditions=None) -> tuple[str, str]:
+    """A short name for a dated event, read off its registry title, and what it names.
 
     The catalysts table carries "Phase 3, Truqap" where the trial maps to an asset and the
-    whole registry title where it does not. A short remainder is the asset and is kept; a
-    long one gives its compound code if it names one, else the first condition the
-    registry lists, else its first words. Never invented: every word comes from the title
-    or the trial row.
+    whole registry title where it does not. A short remainder is the asset and is kept
+    ("asset"). A long one gives the first drug it names, a compound code or a
+    nonproprietary name ("drug"); else the first condition the registry lists
+    ("condition"); else its first words ("title"). Never invented: every word comes from
+    the title or the trial row.
     """
     title = (title or "").strip()
     head, _, rest = title.partition(", ")
@@ -150,30 +163,37 @@ def short_event(title: str | None, conditions=None) -> str:
     rest = rest.strip()
     if " PDUFA" in rest:
         rest = rest.split(" PDUFA")[0]
-        return rest[:1].upper() + rest[1:]
+        return rest[:1].upper() + rest[1:], "drug"
     # "bepirovirsen PDUFA, treatment of adults with chronic hepatitis B": the asset is the
     # word before PDUFA, not the indication after the comma.
     if head.endswith(" PDUFA") and head[:-6].strip():
         name = head[:-6].strip()
-        return name[:1].upper() + name[1:]
+        return name[:1].upper() + name[1:], "drug"
     if len(rest) <= 22:
-        return rest
-    code = _CODE_RE.search(rest)
-    if code:
-        return code.group(0)
+        return rest, "asset"
+    named = [m for m in (_CODE_RE.search(rest), _INN_RE.search(rest)) if m]
+    if named:
+        word = min(named, key=lambda m: m.start()).group(0)
+        return word[:1].upper() + word[1:], "drug"
     for cond in conditions or []:
         cond = str(cond).strip()
         if cond:
-            word = cond.split(",")[0]
-            words = word.split()
-            return " ".join(words[:2]) if len(" ".join(words[:2])) <= 22 else words[0]
+            # The registry joins some conditions with ";" as well as ",".
+            words = re.split(r"[,;]", cond)[0].split()
+            two = " ".join(words[:2])
+            return (two if len(two) <= 22 else words[0]), "condition"
     words = [w for w in re.split(r"\s+", rest) if w]
     out = ""
     for w in words:
         if len(out) + len(w) + 1 > 22:
             break
         out = (out + " " + w).strip()
-    return out or rest[:22]
+    return out or rest[:22], "title"
+
+
+def short_event(title: str | None, conditions=None) -> str:
+    """The short name alone (see short_event_basis)."""
+    return short_event_basis(title, conditions)[0]
 
 
 def _money_usd(text: str | None) -> float | None:
@@ -494,6 +514,7 @@ def _in_ahead(c: dict, start: dt.date, end: dt.date) -> str:
 def _event(c: dict, trials: dict) -> dict:
     nct = c.get("description") if (c.get("description") or "").startswith("NCT") else None
     trial = trials.get(nct) or {}
+    short, basis = short_event_basis(c.get("title"), trial.get("conditions"))
     d = c.get("expected_date") or ""
     month = c.get("date_confidence") == "month" or len(d) == 7
     return {"id": c.get("id"), "ticker": c.get("ticker"), "date": d[:7] if month else d[:10],
@@ -502,7 +523,7 @@ def _event(c: dict, trials: dict) -> dict:
             "type": c.get("catalyst_type"),
             "regulatory": (c.get("catalyst_type") or "") != "data readout",
             "phase": phase_of(c.get("title")), "title": c.get("title"), "nct": nct,
-            "short": short_event(c.get("title"), trial.get("conditions")),
+            "short": short, "short_basis": basis,
             "conditions": trial.get("conditions") or [], "enrollment": trial.get("enrollment"),
             "trial_title": trial.get("title"), "url": c.get("source_url")}
 

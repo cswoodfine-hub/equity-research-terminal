@@ -60,6 +60,39 @@ def test_short_event_keeps_words_from_the_title_only():
     assert len(long) <= 22 and "Comparing" in long
 
 
+def test_short_event_reads_the_drug_a_title_names_before_any_condition():
+    """A long registry title gives the first drug it names, by compound code or by the
+    stem of its nonproprietary name, before the registry's first condition: the dialog's
+    asset column read "Metastatic", "Early-stage" and "Primary Immune" for named drugs."""
+    b = uc.short_event_basis
+    assert b("Phase 3, Study of Ianalumab Versus Placebo in Addition to First-line "
+             "Corticosteroids in Primary Immune Thrombocytopenia",
+             ["Primary Immune Thrombocytopenia"]) == ("Ianalumab", "drug")
+    # Eight-digit codes, which the seven-digit limit missed.
+    assert b("Phase 2, A Study of JNJ-95597528 in Participants With Moderate to Severe "
+             "Atopic Dermatitis", ["Dermatitis, Atopic"]) == ("JNJ-95597528", "drug")
+    assert b("Phase 3, A Study to Learn How PF-06821497 (Mevrometostat) Works in Men With "
+             "Metastatic Castration-Resistant Prostate Cancer", ["Metastatic"]) == (
+        "PF-06821497", "drug")
+    # A biosimilar's spaced code comes before the reference product it is compared with.
+    assert b("Phase 3, Pharmacokinetic Similarity Between ABP 234 and Keytruda® "
+             "(Pembrolizumab)", ["Early-stage NSCLC"]) == ("ABP 234", "drug")
+    # A year after an acronym is not a code.
+    assert b("Phase 3, Results presented at ESMO 2026 for a long running study",
+             ["Breast Cancer"]) == ("Breast Cancer", "condition")
+    # A condition the registry joins with a semicolon is cut there.
+    assert b("Phase 3, A Study of Milvexian in Participants After an Acute Ischemic Stroke",
+             ["Ischemic Stroke; Transient Ischemic Attack"]) == ("Ischemic Stroke",
+                                                                 "condition")
+    # AZN's 27 Oct study names no drug: the condition stands in, and says so.
+    assert b("Phase 2, Study of Novel Immunomodulators as Monotherapy and in Combination "
+             "With Anticancer Agents in Participants With Advanced Hepatobiliary Cancer",
+             ["Hepatocellular Carcinoma", "Biliary Tract Cancer"]) == (
+        "Hepatocellular", "condition")
+    assert b("Phase 3, Truqap") == ("Truqap", "asset")
+    assert b("Phase 3, Comparing two widely used regimens in elderly people")[1] == "title"
+
+
 def test_application_type_is_read_off_the_number_and_never_guessed():
     assert uc.application_type("NDA220359") == "NDA"
     assert uc.application_type("BLA761123") == "BLA"

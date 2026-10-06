@@ -350,6 +350,20 @@ def test_the_prices_are_indexed_on_a_day_that_traded(payload):
     assert first.weekday() < 5
 
 
+def test_the_dialog_never_lists_a_condition_as_an_asset(payload):
+    """AZN's 27 Oct study names no drug, so its short name is a condition; the dialog's
+    asset column says no drug is named rather than printing "Hepatocellular" as one."""
+    ev = {e["date"]: e for e in payload["focal"]["events"]}
+    assert ev["2026-10-27"]["short_basis"] == "condition"
+    assert ev["2026-10-31"]["short_basis"] == "asset"
+    rows = re.findall(r'<div class="uv-ev"[^>]*>(.*?)</div>', UC.dialog_html(payload), flags=re.S)
+    cells = [_visible(r) for r in rows]
+    oct27 = next(c for c in cells if c.startswith("○ 27 Oct"))
+    assert "no drug named" in oct27 and not oct27.split("no drug named")[0].strip().endswith(
+        "Hepatocellular")
+    assert any(c.startswith("○ 31 Oct Truqap") for c in cells)
+
+
 def test_universe_css_is_tokens_only_and_reaches_the_page_and_the_frame(monkeypatch):
     css = UNIVERSE_CSS.read_text()
     assert not HEX.findall(css), "a hex colour in universe.css"

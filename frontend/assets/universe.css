@@ -308,6 +308,7 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uv-ev .d { font-family: var(--font-mono); font-size: 11px; white-space: nowrap; }
 .uv-ev .d i { font-style: normal; color: var(--muted); font-size: 9px; margin-right: 5px; }
 .uv-ev .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-ev .n.none { font-weight: 400; color: var(--muted); }
 .uv-ev .w { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; }
 .uv-ev .e { font-family: var(--font-mono); font-size: 11px; }

@@ -2117,12 +2117,22 @@ def next90_html(p):
         out.append(
             f'<div class="uv-ev" title="{esc(e.get("trial_title") or e.get("title"))}">'
             f'<span class="d"><i>{glyph}</i>{esc(dday(e["date"]))}</span>'
-            f'<span class="n">{esc(e.get("short"))}</span>'
+            f'{asset_cell(e)}'
             f'<span class="uv-ph {ph or "filed"}">{esc(stage)}</span>'
             f'<span class="w">{esc(cond)}</span>'
             f'<span class="e">{enr if enr else "·"}</span>'
             f'{stake_cell(e.get("stake"))}</div>')
     return "".join(out), len(rows)
+
+
+def asset_cell(e):
+    """The dialog's asset column: the drug the event names, or, where its registry title
+    names none and the short name is a condition or the title's first words, "no drug
+    named" (the condition has its own column; repeating it here read as an asset)."""
+    if e.get("short_basis") in ("condition", "title"):
+        return ('<span class="n none" title="The registry title names no drug">'
+                'no drug named</span>')
+    return f'<span class="n">{esc(e.get("short"))}</span>'
 
 
 def stake_cell(stake):
