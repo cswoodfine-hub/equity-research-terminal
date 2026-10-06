@@ -563,7 +563,7 @@ def test_the_page_has_no_panel_and_draws_the_index_under_the_frame():
     assert not [n for n in ast.walk(tree) if isinstance(n, ast.Call)
                 and getattr(n.func, "attr", "") == "tabs"]
     css = UNIVERSE_CSS.read_text()
-    assert re.search(r"\.uw-idx \{[^}]*height: clamp\(140px, calc\(100vh - 646px\), 330px\);", css)
+    assert re.search(r"\.uw-idx \{[^}]*height: clamp\(130px, calc\(100vh - 646px\), 330px\);", css)
 
 
 def test_the_index_is_the_average_of_closes_set_to_100_on_the_first_day(payload):

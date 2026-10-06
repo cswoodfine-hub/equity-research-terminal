@@ -731,7 +731,7 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 
 /* The group's equal-weighted index, the head of the tab: as tall as the screen leaves
    above the frame. The lines stretch with the box; every label is HTML, never scaled. */
-.uw-idx { display: flex; flex-direction: column; height: clamp(140px, calc(100vh - 646px), 330px);
+.uw-idx { display: flex; flex-direction: column; height: clamp(130px, calc(100vh - 646px), 330px);
   margin: 2px 0 6px; padding: 8px 12px 0; box-sizing: border-box;
   background: linear-gradient(180deg, color-mix(in oklab, var(--panel) 85%, transparent),
     transparent 80%);
