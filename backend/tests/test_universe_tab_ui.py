@@ -806,6 +806,23 @@ def test_every_change_counts_each_kind_and_lists_its_rows(payload):
     assert counts == sorted(counts, reverse=True) and len(heads) == len(payload["companies"])
 
 
+def test_the_52_week_range_keeps_its_labels_inside_its_cell():
+    """The range bar under the price ends where its labels need it to: LLY's 1,292.66 high
+    ran past the cell's right edge, and a four-figure low would have met "52 wk"."""
+    for lo, hi, price in ((153.41, 212.71, 156.53), (783.85, 1292.66, 1143.12),
+                          (1001.0, 1999.99, 1500.0)):
+        svg = UC.range_bar(price, lo, hi)
+        boxes = []
+        for x, anchor, s in re.findall(r'<text x="([\d.]+)"[^>]*?( text-anchor="end")?'
+                                       r' [^>]*>([^<]*)</text>', svg):
+            wd = UC.lab_w(s, 9.5, True) if s[0].isdigit() else UC.lab_w(s, 9)
+            x0 = float(x) - wd if anchor else float(x)
+            boxes.append((x0, x0 + wd))
+        assert all(0 <= a and b <= 196 for a, b in boxes), boxes
+        boxes.sort()
+        assert all(b <= c for (_a, b), (c, _d) in zip(boxes, boxes[1:])), boxes
+
+
 def test_the_kinds_keep_off_the_colours_of_up_and_down():
     """Green and red mean up and down, and cheap and expensive; no kind of news is drawn
     in either."""

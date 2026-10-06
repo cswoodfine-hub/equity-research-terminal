@@ -330,7 +330,10 @@ def range_bar(price, lo, hi, w=196):
     """The share price on its own 52-week range: the low and the high either side of a
     bar filled to the price. One text line tall."""
     fr = min(max((price - lo) / (hi - lo), 0.0), 1.0)
-    x0, x1 = 64, w - 40
+    # The bar starts after "52 wk" and the low and ends before the high, each label at its
+    # own width: a four-figure price (LLY's 1,292.66) ran off the cell's right edge.
+    x0 = 28 + lab_w(f"{lo:.2f}", 9.5, True) + 4
+    x1 = w - lab_w(f"{hi:.2f}", 9.5, True) - 4
     tip = (f"{pc(price / lo - 1)} above the 52-week low; 52-week range {lo:.2f} to {hi:.2f}")
     return (f'<svg class="uv-rng" width="{w}" height="13" viewBox="0 0 {w} 13" role="img" '
             f'aria-label="52-week range"><title>{esc(tip)}</title>'
