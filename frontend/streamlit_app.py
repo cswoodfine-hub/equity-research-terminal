@@ -930,11 +930,17 @@ def _payer_byline(access) -> str:
     return text + (f" {attribution}" if attribution else "")
 
 
+def _payer_shows(prof: dict) -> bool:
+    """Whether the row is drawn: a marketed product with the payer view on its profile.
+    A pipeline compound would only print "not marketed" three times."""
+    return bool((prof or {}).get("access") and (prof or {}).get("is_marketed"))
+
+
 def _payer_row(prof: dict) -> None:
     """The fact profile's payer row: three panels and the folded detail under them."""
-    access = prof.get("access")
-    if not access:
+    if not _payer_shows(prof):
         return
+    access = prof["access"]
     cols = st.columns(3, gap="medium")
     builders = {"prescribing": _payer_prescribing_html,
                 "formulary": _payer_formulary_html, "medicaid": _payer_medicaid_html}

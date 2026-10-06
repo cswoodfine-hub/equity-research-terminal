@@ -205,3 +205,11 @@ def test_the_panel_titles_and_scopes_are_sentence_case(view):
     for scope in (*view["_PAYER_SCOPE"].values(), load("eliquis")["formulary"]["scope_label"]):
         house_style(scope)
     assert load("eliquis")["prescribing"]["scope_label"] == "Medicare Part D only, 2024"
+
+
+def test_the_row_is_drawn_for_a_marketed_product_only(view):
+    shows = view["_payer_shows"]
+    assert shows({"is_marketed": True, "access": load("eliquis")})
+    assert not shows({"is_marketed": False, "access": load("eliquis")})
+    assert not shows({"is_marketed": True, "access": None})
+    assert not shows({})
