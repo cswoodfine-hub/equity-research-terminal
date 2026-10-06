@@ -216,6 +216,10 @@ def _prescribing(conn, asset_id: int, demand: dict) -> dict | None:
         "source": PRESCRIBING_SOURCE,
         "cms_brands": json.loads(latest["cms_brands"] or "[]"),
         "national": {
+            # CMS lists some brands by container (Tresiba's vial and two pens) and the
+            # fetcher sums them: exact for claims, fills and cost, but a prescriber or
+            # patient under two containers is counted twice, so these two are ceilings.
+            "upper_bound": bool((latest["presentations"] or 1) > 1),
             "prescribers": latest["national_prescribers"],
             "claims": latest["national_claims"],
             "fills_30d": latest["national_fills_30d"],
@@ -619,6 +623,7 @@ def for_company(conn, ticker: str) -> dict | None:
             "asset_id": view["asset_id"], "brand": view["brand"],
             "prescribing_year": p["year"] if p else None,
             "prescribers": p["national"]["prescribers"] if p else None,
+            "prescribers_upper_bound": p["national"]["upper_bound"] if p else None,
             "claims": p["national"]["claims"] if p else None,
             "days_covered": p["days_covered"]["value"] if p else None,
             "release_date": f["release_date"] if f else None,

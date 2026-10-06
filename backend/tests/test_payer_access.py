@@ -85,6 +85,19 @@ def test_eliquis_reads_the_same_on_both_owners_with_the_label(conn):
     assert pfe["co_marketed"]["owners"] == ["BMY"]
 
 
+def test_a_brand_summed_over_containers_marks_its_people_counts_as_ceilings(conn):
+    # One CMS row per brand: an exact count.
+    p = pa.for_asset(conn, ELIQUIS_BMY)["prescribing"]
+    assert p["national"]["upper_bound"] is False
+    # Tresiba's vial and two pens are three CMS rows, summed: a prescriber who writes
+    # for two of them is counted twice, so the count is a ceiling, never an exact figure.
+    conn.execute("UPDATE partd_prescribing SET presentations = 3 WHERE asset_id = ?"
+                 " AND data_year = 2024", (ELIQUIS_BMY,))
+    p = pa.for_asset(conn, ELIQUIS_BMY)["prescribing"]
+    assert p["national"]["upper_bound"] is True
+    assert pa.for_company(conn, "BMY")["brands"][0]["prescribers_upper_bound"] is True
+
+
 def test_file_figures_name_their_population_and_volume_deciles_stay_null(conn):
     p = pa.for_asset(conn, ELIQUIS_BMY)["prescribing"]
     assert p["file"]["population"].startswith("prescribers with 11 or more claims")

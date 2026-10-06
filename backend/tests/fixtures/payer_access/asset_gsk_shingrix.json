@@ -14,6 +14,7 @@
    ]
   ],
   "national": {
+   "upper_bound": false,
    "prescribers": 118452,
    "claims": 3944670,
    "fills_30d": 3976455.1,
@@ -169,7 +170,7 @@
    }
   ],
   "caveats": [
-   "Days covered is 30-day fills times 30 over beneficiaries times 365: a proxy, not a PDC. It falls when patients start or stop during the year as well as when they miss doses, and it can pass 1 for a drug given more often than monthly, since CMS counts every fill as at least one 30-day fill.",
+   "Days covered is 30-day fills times 30 over beneficiaries times 365: a proxy, not a PDC. It falls when patients start or stop during the year as well as when they miss doses. It can pass 1 where supplies overlap, as when two strengths are filled together or a refill comes early, and where fills run under 30 days, since CMS counts each as one 30-day fill, as for a drug given every week or two.",
    "The provider file leaves out any prescriber with fewer than 11 claims for the drug, so its figures, the deciles among them, describe that population and not every prescriber."
   ],
   "part_b_note": null

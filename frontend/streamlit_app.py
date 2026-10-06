@@ -730,8 +730,11 @@ def _payer_prescribing_html(access: dict) -> str:
         return scope + _payer_state(((access or {}).get("why_empty") or {})
                                     .get("prescribing"))
     nat, f = p.get("national") or {}, p.get("file") or {}
-    out = [scope, f'<div class="pa-lead"><b>{_payer_n(nat.get("prescribers"))}</b> '
-           f'prescribers, {_payer_n(nat.get("claims"))} claims</div>']
+    # A brand CMS lists by container is summed, so a prescriber who writes for the vial
+    # and the pen is counted twice: the count is a ceiling and the lead says so.
+    ceiling = "At most " if nat.get("upper_bound") else ""
+    out = [scope, f'<div class="pa-lead">{ceiling}<b>{_payer_n(nat.get("prescribers"))}'
+           f'</b> prescribers, {_payer_n(nat.get("claims"))} claims</div>']
     if f.get("top10pct") is not None:
         out.append(f'<div class="pa-sub">Top 10% of the file population write '
                    f'{_payer_pct(f["top10pct"])} of its claims</div>')
@@ -837,7 +840,8 @@ def _payer_detail_html(access: dict) -> str:
             fl = {}                 # no file figure to show; held_back says why
         out.append(f'<div class="prof-sub">Part D prescribing, {p["year"]}</div>')
         out.append(_payer_rows([
-            ("beneficiaries", _payer_n(nat.get("beneficiaries"))),
+            ("beneficiaries, at most" if nat.get("upper_bound") else "beneficiaries",
+             _payer_n(nat.get("beneficiaries"))),
             ("30-day fills", _payer_n(nat.get("fills_30d"))),
             ("days covered, a proxy", f'{dc["value"]:.3f}'
              if dc.get("value") is not None else None),

@@ -93,6 +93,16 @@ def test_eliquis_prescribing_leads_with_prescribers_and_the_decile_strip(view):
             in words)
 
 
+def test_a_count_summed_over_containers_leads_as_a_ceiling(view):
+    access = copy.deepcopy(load("eliquis"))
+    access["prescribing"]["national"]["upper_bound"] = True      # as Tresiba's three rows
+    words = text_of(view["_payer_prescribing_html"](access))
+    assert words.startswith("Medicare Part D only, 2024 At most 556,431 prescribers, "
+                            "24,054,695 claims")
+    assert "beneficiaries, at most" in text_of(view["_payer_detail_html"](access))
+    assert "At most" not in text_of(view["_payer_prescribing_html"](load("eliquis")))
+
+
 def test_a_proxy_above_one_is_printed_as_it_is_and_explained(view):
     access = copy.deepcopy(load("eliquis"))
     access["prescribing"]["days_covered"]["value"] = 1.53      # Fabrazyme, every 2 weeks
