@@ -380,11 +380,11 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
     # Only for a whole window, since a decade part medicines and part company is a rate on
     # no consistent basis.
     reported = (medicines_rd() if segment is None else segment).get(ticker, {})
-    rd_basis = None
+    rd_basis, rd_segment = None, False
     if reported:
         missing = sorted({y for y in years_seen if y not in reported})
         if years_seen and not missing and len(set(years_seen)) == len(years_seen):
-            company_rd = rd
+            company_rd, rd_segment = rd, True
             rd = sum(productivity._usd(reported[y][0], reported[y][1], rates) or 0.0
                      for y in years_seen)
             rd_basis = (f"the medicines segment's R&D for all {len(years_seen)} years of the "
@@ -411,7 +411,7 @@ def filer_productivity(conn, company_id: int, rates, name_index, segment=None,
     return {"rate": rate, "year": year, "revenue": total, "dated_share": coverage,
             "fresh_revenue": fresh, "rd": scaled_rd, "rd_filed": rd,
             "rd_scaled": rd_scaled, "rd_years": rd_years,
-            "rd_basis": rd_basis, "switch_forms": switched,
+            "rd_basis": rd_basis, "rd_segment": rd_segment, "switch_forms": switched,
             "partner_funded": partnered, "acquired": purchased,
             "launches": launches[:8], "launch_count": len(launches),
             "launch_revenues": [r["revenue"] for r in launches],
@@ -491,7 +491,10 @@ def pooled(db_path=None, refresh: bool = False) -> dict:
                            "counted": counted, "rd_years": got["rd_years"],
                            "revenue": got["revenue"], "rd": got["rd"],
                            "launch_count": got["launch_count"],
-                           "launch_revenues": got["launch_revenues"]})
+                           "launch_revenues": got["launch_revenues"],
+                           # The rate divides by a medicines segment's R&D, not the
+                           # company's (forecast_view._future_pipeline reads it).
+                           "rd_segment": got.get("rd_segment", False)})
             if counted:
                 fresh += got["fresh_revenue"]
                 rd += got["rd"]

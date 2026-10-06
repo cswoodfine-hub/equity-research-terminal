@@ -184,29 +184,56 @@ def test_a_52_week_year_is_matched_to_the_year_it_falls_in():
     assert statements.fiscal_year_of("2025-06-30") == 2025
 
 
-def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(tmp_path,
-                                                                      monkeypatch):
+def _not_a_medicine_trial(tmp_path, monkeypatch, ticker, rd_segment):
+    """The future pipeline's spend and book for a drug beside a line that sells no
+    medicine, with the filer's launch rate measured on segment or company R&D."""
     import db
     import forecast_view as V
     seen = {}
 
     def fake_simulate(book_rd, rate, *args, **kwargs):
         seen["book_rd"] = dict(book_rd)
+        seen["ratios"] = args[4]
+        seen["book"] = dict(kwargs.get("book") or {})
         return {"value": 1.0, "flows": [], "first_launch_year": 2030, "cohorts": 0,
                 "replacement": None, "renewal": None, "credited_share": None}
+    filer = {"ticker": ticker, "rate": 0.3, "blended": 0.3, "launch_count": 5,
+             "credibility": 0.5, "counted": True, "rd_segment": rd_segment}
     monkeypatch.setattr(FP, "simulate", fake_simulate)
-    monkeypatch.setattr(FP, "pooled", lambda db_path=None: {"rate": 0.3, "filers": [], "n": 0, "credibility": {}})
+    monkeypatch.setattr(FP, "pooled", lambda db_path=None: {"rate": 0.3, "filers": [filer], "n": 1, "credibility": {}})
     monkeypatch.setattr(V, "_launch_record", lambda *a, **k: {"history_rd": {}, "launched": set()})
     row = {"revenue": 100.0, "cogs": 20.0, "sga": 20.0, "rd": 15.0, "other": 0.0, "ebit": 45.0, "tax": 5.0}
     drug = {"asset_id": 1, "pnl_share": [row], "dcf_years": [2026], "wacc": 0.08}
-    medtech = {"line": "MedTech", "buys_launches": False, "pnl_share": [dict(row, rd=40.0)],
-               "dcf_years": [2026], "wacc": 0.08}
-    path = str(tmp_path / "fp.db")
+    other = {"line": "Other", "buys_launches": False,
+             "pnl_share": [dict(row, revenue=50.0, cogs=40.0, rd=10.0)],
+             "dcf_years": [2026], "wacc": 0.08}
+    path = str(tmp_path / f"fp_{ticker}.db")
     db.init(path)
-    V._future_pipeline(path, [drug, medtech], "2025-12-31", "JNJ")
-    # The drug's R&D, in its forecast and on its tail past it; the medtech line's none.
+    V._future_pipeline(path, [drug, other], "2025-12-31", ticker)
+    return seen
+
+
+def test_a_line_that_buys_no_launches_is_left_out_of_the_future_pipeline(tmp_path,
+                                                                      monkeypatch):
+    # Johnson & Johnson's rate divides by its medicines segment's R&D, so MedTech's R&D
+    # is outside it and buys nothing: the drug's R&D alone, in its forecast and on its
+    # tail past it.
+    seen = _not_a_medicine_trial(tmp_path, monkeypatch, "JNJ", True)
     assert seen["book_rd"][2026] == 15.0
     assert set(seen["book_rd"].values()) == {15.0}
+
+
+def test_a_line_that_sells_no_medicine_still_spends_the_rd_the_rate_divides_by(
+        tmp_path, monkeypatch):
+    """Biogen's rate divides by the company's whole R&D, the share its Ocrevus royalty is
+    charged included, so that R&D buys launches. The royalty's revenue stays out of the
+    book the launches refill, and its margins out of what they are charged."""
+    seen = _not_a_medicine_trial(tmp_path, monkeypatch, "BIIB", False)
+    assert seen["book_rd"][2026] == pytest.approx(15.0 + 10.0)
+    assert seen["book_rd"][2030] == pytest.approx(15.0 + 10.0)     # both tails, flat
+    assert seen["book"][2026] == pytest.approx(100.0)
+    assert seen["ratios"]["cogs"] == pytest.approx(0.20)
+    assert seen["ratios"]["rd"] == pytest.approx(0.15)
 
 
 def test_a_pipeline_products_whole_row_is_taken_at_its_probability_once(tmp_path,

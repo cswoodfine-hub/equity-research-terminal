@@ -37,9 +37,12 @@ KEYS = ("therapy_mode", "base_revenue", "revenue_growth_pct", "terminal_growth_p
         # and profit or revenue shares on a medicine another company sells; contract
         # manufacturing; distribution and other services; devices (Johnson & Johnson's
         # MedTech); medicines for animals. None earns the filer a human drug approval,
-        # which is what the launch rate is measured on, so the future pipeline leaves
-        # the line out: its R&D buys no launches, its revenue is not part of the book
-        # the launches refill, and its margins do not cost them. It is still valued.
+        # which is what the launch rate is measured on, so its revenue is not part of
+        # the book the launches refill and its margins do not cost them. It is still
+        # valued. The R&D the line is charged still buys launches wherever the launch
+        # rate divides by the company's whole R&D, since that R&D is inside the rate;
+        # only where it divides by a medicines segment's R&D (Johnson & Johnson's) does
+        # it buy none.
         # A medicine the filer co-sells and books as alliance or collaboration revenue
         # (Merck's Lynparza, Biogen's Leqembi) is not on the list: the launch rate
         # counts a co-development's revenue as what R&D buys

@@ -1500,11 +1500,8 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
     totals = {"revenue": 0.0, "cogs": 0.0, "sga": 0.0, "rd": 0.0, "other": 0.0,
               "ebit": 0.0, "tax": 0.0}
     waccs, growths, book_parts, named_parts, tails = [], [], [], [], []
+    not_medicines = []
     for part in parts:
-        # A line whose R&D develops something other than medicines buys no launches, and
-        # its margins are not the ones a future drug would earn.
-        if part.get("buys_launches") is False:
-            continue
         # Expected values: a pipeline product's P&L is unrisked, so its whole row is taken
         # at its probability, once. A book that counted the revenue in full would leave
         # its launches too little room, and R&D that is only spent if the asset reaches
@@ -1516,20 +1513,26 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
         odds = part.get("pos") if part.get("pos") is not None else 1.0
         rows = [{k: (v * odds if isinstance(v, (int, float)) else v)
                  for k, v in row.items()} for row in part.get("pnl_share") or []]
-        book_parts.append({"revenue": {year: (row.get("revenue") or 0.0)
-                                       for year, row
-                                       in zip(part.get("dcf_years") or [], rows)},
-                           "loe_year": part.get("loe_year"),
-                           "loe_in_base": part.get("loe_in_base"),
-                           "growth": part.get("long_run_growth"),
-                           # Carried past its forecast as its own terminal value carries
-                           # it, products and company lines alike.
-                           **({"tail": part["terminal_tail"]}
-                              if "terminal_tail" in part else {})})
+        entry = {"revenue": {year: (row.get("revenue") or 0.0)
+                             for year, row in zip(part.get("dcf_years") or [], rows)},
+                 "loe_year": part.get("loe_year"),
+                 "loe_in_base": part.get("loe_in_base"),
+                 "growth": part.get("long_run_growth"),
+                 # Carried past its forecast as its own terminal value carries it,
+                 # products and company lines alike.
+                 **({"tail": part["terminal_tail"]} if "terminal_tail" in part else {})}
         # The R&D ratio its terminal value charges past the forecast: the final year's.
         last_row = rows[-1] if rows else {}
         rd_ratio = ((last_row.get("rd") or 0.0) / last_row["revenue"]
                     if last_row.get("revenue") else None)
+        # Revenue that is not a medicine the filer sells (company_lines.KEYS): it is not
+        # part of the book the launches refill, and its margins are not the ones a future
+        # drug would earn. The R&D it is charged is settled below, by what the launch rate
+        # divides by.
+        if part.get("buys_launches") is False:
+            not_medicines.append((part, rows, entry, rd_ratio))
+            continue
+        book_parts.append(entry)
         if part.get("asset_id") is not None:
             named_parts.append((part["asset_id"], book_parts[-1]))
         for year, row in zip(part.get("dcf_years") or [], rows):
@@ -1563,6 +1566,20 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
         return {"value": None, "reason": "no discount rate in the modelled book"}
     lag = int(bounds["lag_years"]["value"])
     own = next((f for f in pool.get("filers") or [] if f["ticker"] == ticker.upper()), None)
+    # A line that sells no medicine is still charged the company's R&D ratio, and the
+    # launch rate divides launch revenue by the company's whole R&D, that line's share
+    # included. So its R&D buys launches as every other dollar the rate counts does:
+    # charging it and crediting nothing took Biogen's Ocrevus royalty, charged 18% of
+    # its revenue in R&D like every Biogen line, out of the launches the rate says that
+    # R&D buys, the asymmetry the future pipeline exists to remove. Only where the rate
+    # divides by a medicines segment's R&D (Johnson & Johnson, whose MedTech R&D is
+    # outside it) does such a line's R&D buy nothing.
+    if not (own and own.get("rd_segment")):
+        for part, rows, entry, rd_ratio in not_medicines:
+            for year, row in zip(part.get("dcf_years") or [], rows):
+                book_rd[year] = book_rd.get(year, 0.0) + (row.get("rd") or 0.0)
+            if rd_ratio:
+                tails.append((entry, rd_ratio))
     # The filer's own record at its credibility, the pool for the rest. A filer with no
     # launch record on file takes the pool outright.
     rate_used = own["blended"] if own and own.get("blended") is not None else pool["rate"]

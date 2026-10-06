@@ -18,9 +18,17 @@ revenue is not a medicine the filer sells or co-sells:
 - devices
 - medicines for animals
 
-None of these earns the filer a human drug approval, so the future pipeline leaves the line
-out. Its R&D buys no launches, its revenue is not part of the book the launches refill, and
-its margins do not cost them. The line is still valued, costed and counted in coverage.
+None of these earns the filer a human drug approval, so the line's revenue is not part of
+the book the launches refill, and its margins do not cost them. The line is still valued,
+costed and counted in coverage.
+
+Its R&D is another matter. Every line is charged the company's R&D ratio, and the launch
+rate divides launch revenue by the company's whole R&D, that line's share included. So the
+R&D a royalty or contract manufacturing line is charged buys launches like every other
+dollar the rate counts: charging it and crediting nothing would rebuild the asymmetry the
+horizon section below refuses. Only where the rate divides by a medicines segment's R&D
+(Johnson & Johnson's, `data/rd_medicines_segment.csv`) is the line's R&D outside it, and
+there it buys nothing.
 
 A medicine the filer co-sells and books as alliance or collaboration revenue keeps buying
 launches: Merck's Lynparza, Biogen's Leqembi, Regeneron's Dupixent, which Regeneron
