@@ -343,3 +343,27 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
   margin-left: 0.6rem; flex: 0 0 auto; position: relative; top: -1px; }
 .uv-frame .chart-mount svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
 .uv-frame .chart-mount.stretch svg { width: 100%; }
+
+/* ---------------------------------------------------------------------------------- */
+/* Narrower than the 1440 design. A section's count keeps one line and drops below its */
+/* label when the row is full, rather than shrinking to a letter a line. The bands      */
+/* stack as the page narrows, and the full-width lanes scroll sideways rather than      */
+/* scaling their 9px labels below legibility.                                           */
+/* ---------------------------------------------------------------------------------- */
+.uv .sec, .uv-frame .sec { flex-wrap: wrap; row-gap: 2px; }
+.uv .sec-count { white-space: nowrap; flex: 0 0 auto; padding-left: 8px; }
+@media (max-width: 1179.98px) {
+  .uv-sp { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 12px; }
+  .uv-hero, .uv-band.c75 { grid-template-columns: minmax(0, 1fr); row-gap: 20px; }
+  .uv-band.c3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 20px; }
+  .uv-band.c3 > :last-child { grid-column: 1 / -1; }
+  .uv-band.c1 .chart-mount { overflow-x: auto; }
+  .uv-band.c1 .chart-mount.stretch svg { width: 1100px; max-width: none; }
+}
+@media (max-width: 899.98px) {
+  .uv-sp { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .uv-band.c3 { grid-template-columns: minmax(0, 1fr); }
+  .uv-sms { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .uv-dg-figs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .uv-dg-grid { grid-template-columns: minmax(0, 1fr); }
+}
